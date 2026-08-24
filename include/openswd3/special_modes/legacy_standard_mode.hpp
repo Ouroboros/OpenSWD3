@@ -362,6 +362,17 @@ struct LegacyCharacterAttributesScale {
     compat::u16 value{};
 };
 
+struct LegacySystemMenuWorkspaceRequest {
+    compat::u32 page_kind{};
+    compat::u32 primary_enabled{};
+    compat::u32 secondary_enabled{};
+    compat::u32 preview_count{};
+
+    [[nodiscard]] bool operator==(
+        const LegacySystemMenuWorkspaceRequest& other
+    ) const noexcept = default;
+};
+
 struct LegacySystemMenuState {
     compat::u32 mode_word{};
     std::array<compat::u32, 6U> primary_owners{};
@@ -395,18 +406,32 @@ struct LegacySystemMenuState {
     compat::u32 system_menu_visible_count{};
     compat::u32 system_menu_scroll_index{};
     compat::u32 system_menu_cursor_flags{};
+    compat::i32 item_group_target{};
+    compat::u8 menu_flags{};
+    compat::u32 detail_kind{};
+    std::array<compat::u32, 3U> item_page_state{};
+    LegacySystemMenuWorkspaceRequest workspace_request;
+    std::array<compat::u32, 6U> detail_runtime_values{};
+    std::array<compat::u32, 32U> saved_key_bindings{};
+    std::array<compat::u32, 32U> edited_key_bindings{};
 };
 
 enum class LegacySystemMenuInputCommand : compat::u8 {
     open_mode_fourteen,
     exit,
-    commit,
     play_sample,
+    play_named_sample,
     apply_music,
     disable_map_effect,
     enable_map_effect,
     rebuild_page,
     count_visible,
+    prepare_item_page,
+    reset_menu_workspace,
+    begin_detail_selection,
+    finish_detail_selection,
+    save_key_bindings,
+    restore_default_key_bindings,
 };
 
 struct LegacySystemMenuMessage {
@@ -430,6 +455,9 @@ public:
     release_system_menu_buffer(LegacySystemMenuState& state) noexcept = 0;
     [[nodiscard]] virtual compat::i32 query_system_menu_map_effect(
         compat::u32 map_effect_service_id, LegacySystemMenuState& state
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 query_system_menu_value_group(
+        compat::i32 target, LegacySystemMenuState& state
     ) noexcept = 0;
     [[nodiscard]] virtual compat::i32 format_system_menu_message(
         const LegacySystemMenuMessage& message
@@ -470,6 +498,10 @@ struct LegacySystemMenuInputResult {
     compat::u32 helper_call_count{};
     std::optional<LegacySystemMenuInputCommand> command;
 };
+
+[[nodiscard]] LegacySystemMenuInputResult confirm_legacy_system_menu_selection(
+    LegacySystemMenuState& state, LegacySystemMenuPorts& ports
+) noexcept;
 
 [[nodiscard]] LegacySystemMenuInputResult move_down_legacy_system_menu(
     LegacySystemMenuState& state, LegacySystemMenuPorts& ports

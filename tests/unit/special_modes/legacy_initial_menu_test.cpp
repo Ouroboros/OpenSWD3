@@ -531,6 +531,15 @@ public:
         state.replacement_spacing = 0x90A0B0C0U;
         return map_effect_return;
     }
+    i32 query_system_menu_value_group(
+        const i32 target, openswd3::special_modes::LegacySystemMenuState& state
+    ) noexcept override {
+        queried_value_group_targets.push_back(target);
+        if (mutate_target_after_value_group_query) {
+            state.item_group_target = target_after_value_group_query;
+        }
+        return value_group_return;
+    }
     i32 format_system_menu_message(
         const openswd3::special_modes::LegacySystemMenuMessage& message
     ) noexcept override {
@@ -558,9 +567,16 @@ public:
     ) noexcept override {
         input_commands.emplace_back(command, argument);
         if (command ==
-                openswd3::special_modes::LegacySystemMenuInputCommand::commit &&
-            mutate_sample_after_commit) {
-            state.sound_effect_index = sample_after_commit;
+                openswd3::special_modes::LegacySystemMenuInputCommand::
+                    prepare_item_page &&
+            mutate_sound_after_prepare_item_page) {
+            state.sound_effect_index = sound_after_prepare_item_page;
+        }
+        if (command ==
+                openswd3::special_modes::LegacySystemMenuInputCommand::
+                    restore_default_key_bindings &&
+            populate_default_key_bindings) {
+            state.saved_key_bindings = default_key_bindings;
         }
         if (command ==
                 openswd3::special_modes::LegacySystemMenuInputCommand::
@@ -583,6 +599,10 @@ public:
     std::vector<u32> queried_map_effect_ids;
     bool query_saw_cleared_owner{};
     i32 map_effect_return{0x12345678};
+    std::vector<i32> queried_value_group_targets;
+    i32 value_group_return{};
+    bool mutate_target_after_value_group_query{};
+    i32 target_after_value_group_query{};
     std::vector<openswd3::special_modes::LegacySystemMenuMessage> messages;
     i32 format_return{-77};
     std::vector<u32> queried_input_masks;
@@ -596,8 +616,10 @@ public:
     std::vector<
         std::pair<openswd3::special_modes::LegacySystemMenuInputCommand, u32>>
         input_commands;
-    bool mutate_sample_after_commit{};
-    u32 sample_after_commit{};
+    bool mutate_sound_after_prepare_item_page{};
+    u32 sound_after_prepare_item_page{};
+    bool populate_default_key_bindings{};
+    std::array<u32, 32U> default_key_bindings{};
     bool mutate_visible_after_count{};
     u32 visible_after_count{};
     i32 command_return_base{1000};
@@ -15683,6 +15705,330 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44BA20 wraps the first fixed item to eighteen before playing the sample"
     );
 
+    openswd3::special_modes::LegacySystemMenuState confirm_page_zero_state;
+    confirm_page_zero_state.interaction_mode = 0U;
+    confirm_page_zero_state.interaction_page = 0U;
+    confirm_page_zero_state.item_group_target = 5;
+    FakeSystemMenuPorts confirm_page_zero_ports;
+    const auto confirm_page_zero =
+        openswd3::special_modes::confirm_legacy_system_menu_selection(
+            confirm_page_zero_state, confirm_page_zero_ports
+        );
+    test.expect_true(
+        confirm_page_zero_state.interaction_mode == 0U &&
+            confirm_page_zero_state.selected_row == 0U &&
+            confirm_page_zero_state.workspace_request ==
+                openswd3::special_modes::LegacySystemMenuWorkspaceRequest{
+                    1U, 0U, 1U, 3U
+                } &&
+            confirm_page_zero_ports.queried_item_ids ==
+                std::vector<u32>{0x12U} &&
+            confirm_page_zero_ports.queried_value_group_targets ==
+                std::vector<i32>{5} &&
+            confirm_page_zero_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::reset_menu_workspace, 0U}
+                } &&
+            confirm_page_zero.helper_call_count == 3U,
+        "0x44BDA0 opens the first top-level page only after item and value-group availability checks"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState confirm_unavailable_state;
+    confirm_unavailable_state.interaction_mode = 0U;
+    confirm_unavailable_state.interaction_page = 0U;
+    confirm_unavailable_state.item_group_target = 5;
+    confirm_unavailable_state.sound_effect_index = 7U;
+    FakeSystemMenuPorts confirm_unavailable_ports;
+    confirm_unavailable_ports.exact_present_ids.push_back(0x12U);
+    static_cast<void>(
+        openswd3::special_modes::confirm_legacy_system_menu_selection(
+            confirm_unavailable_state, confirm_unavailable_ports
+        )
+    );
+    test.expect_true(
+        confirm_unavailable_state.interaction_mode == 10U &&
+            confirm_unavailable_ports.queried_value_group_targets.empty() &&
+            confirm_unavailable_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::play_named_sample, 0x8BU}
+                },
+        "0x44BDA0 enters the unavailable-page notice without querying the value group when item eighteen is present"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState confirm_target_reread_state;
+    confirm_target_reread_state.interaction_mode = 0U;
+    confirm_target_reread_state.interaction_page = 0U;
+    confirm_target_reread_state.item_group_target = 5;
+    FakeSystemMenuPorts confirm_target_reread_ports;
+    confirm_target_reread_ports.mutate_target_after_value_group_query = true;
+    confirm_target_reread_ports.target_after_value_group_query = 0x16;
+    static_cast<void>(
+        openswd3::special_modes::confirm_legacy_system_menu_selection(
+            confirm_target_reread_state, confirm_target_reread_ports
+        )
+    );
+    test.expect_true(
+        confirm_target_reread_state.interaction_mode == 10U &&
+            confirm_target_reread_ports.queried_item_ids ==
+                std::vector<u32>{0x12U} &&
+            confirm_target_reread_ports.queried_value_group_targets ==
+                std::vector<i32>{5} &&
+            confirm_target_reread_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::play_named_sample, 0x8BU}
+                },
+        "0x44BDA0 rereads the full item-group target after the value-group query before comparing twenty-two"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState confirm_page_one_state;
+    confirm_page_one_state.interaction_mode = 0U;
+    confirm_page_one_state.interaction_page = 1U;
+    FakeSystemMenuPorts confirm_page_one_ports;
+    static_cast<void>(
+        openswd3::special_modes::confirm_legacy_system_menu_selection(
+            confirm_page_one_state, confirm_page_one_ports
+        )
+    );
+    test.expect_true(
+        confirm_page_one_state.interaction_mode == 0U &&
+            confirm_page_one_state.workspace_request ==
+                openswd3::special_modes::LegacySystemMenuWorkspaceRequest{
+                    2U, 1U, 1U, 3U
+                } &&
+            confirm_page_one_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::reset_menu_workspace, 0U}
+                },
+        "0x44BDA0 opens the second top-level page with its distinct workspace request"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState confirm_item_page_state;
+    confirm_item_page_state.interaction_mode = 0U;
+    confirm_item_page_state.interaction_page = 2U;
+    confirm_item_page_state.item_page_state = {1U, 2U, 3U};
+    FakeSystemMenuPorts confirm_item_page_ports;
+    static_cast<void>(
+        openswd3::special_modes::confirm_legacy_system_menu_selection(
+            confirm_item_page_state, confirm_item_page_ports
+        )
+    );
+    test.expect_true(
+        confirm_item_page_state.interaction_mode == 1U &&
+            confirm_item_page_state.item_page_state == std::array<u32, 3U>{} &&
+            confirm_item_page_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::prepare_item_page, 0U}
+                },
+        "0x44BDA0 clears three item-page values before opening the selected page"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState confirm_detail_kind_state;
+    confirm_detail_kind_state.interaction_mode = 1U;
+    confirm_detail_kind_state.interaction_page = 4U;
+    confirm_detail_kind_state.selected_row = 1U;
+    confirm_detail_kind_state.menu_flags = 2U;
+    FakeSystemMenuPorts confirm_detail_kind_ports;
+    const auto confirm_detail_kind =
+        openswd3::special_modes::confirm_legacy_system_menu_selection(
+            confirm_detail_kind_state, confirm_detail_kind_ports
+        );
+    test.expect_true(
+        confirm_detail_kind_state.interaction_mode == 2U &&
+            confirm_detail_kind_state.detail_kind == 2U &&
+            confirm_detail_kind_state.input_locked == 1U &&
+            confirm_detail_kind_state.detail_selection == 0x1EU &&
+            confirm_detail_kind.legacy_return_value == 1,
+        "0x44BDA0 starts the second detail kind at countdown thirty when menu flag one is set"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState
+        confirm_detail_without_flag_state;
+    confirm_detail_without_flag_state.interaction_mode = 1U;
+    confirm_detail_without_flag_state.interaction_page = 4U;
+    confirm_detail_without_flag_state.selected_row = 0U;
+    confirm_detail_without_flag_state.menu_flags = 0U;
+    confirm_detail_without_flag_state.detail_selection = 9U;
+    FakeSystemMenuPorts confirm_detail_without_flag_ports;
+    const auto confirm_detail_without_flag =
+        openswd3::special_modes::confirm_legacy_system_menu_selection(
+            confirm_detail_without_flag_state, confirm_detail_without_flag_ports
+        );
+    test.expect_true(
+        confirm_detail_without_flag_state.interaction_mode == 2U &&
+            confirm_detail_without_flag_state.detail_kind == 1U &&
+            confirm_detail_without_flag_state.input_locked == 0U &&
+            confirm_detail_without_flag_state.detail_selection == 0U &&
+            confirm_detail_without_flag.legacy_return_value == 1,
+        "0x44BDA0 selects detail kind one without starting its countdown when menu flag one is clear"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState confirm_detail_start_state;
+    confirm_detail_start_state.interaction_mode = 2U;
+    confirm_detail_start_state.interaction_page = 4U;
+    confirm_detail_start_state.detail_selection = 0U;
+    confirm_detail_start_state.detail_runtime_values.fill(9U);
+    FakeSystemMenuPorts confirm_detail_start_ports;
+    const auto confirm_detail_start =
+        openswd3::special_modes::confirm_legacy_system_menu_selection(
+            confirm_detail_start_state, confirm_detail_start_ports
+        );
+    test.expect_true(
+        confirm_detail_start_state.input_locked == 1U &&
+            confirm_detail_start_state.detail_selection == 0x1EU &&
+            confirm_detail_start_state.detail_runtime_values ==
+                std::array<u32, 6U>{} &&
+            confirm_detail_start_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::begin_detail_selection, 2U},
+                    {SystemMenuCommand::finish_detail_selection, 0U}
+                } &&
+            confirm_detail_start.helper_call_count == 2U,
+        "0x44BDA0 starts the selected detail and clears six runtime values after both callbacks"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState confirm_bindings_open_state;
+    confirm_bindings_open_state.interaction_mode = 1U;
+    confirm_bindings_open_state.interaction_page = 3U;
+    confirm_bindings_open_state.selected_row = 6U;
+    confirm_bindings_open_state.saved_key_bindings[0U] = 0x1234U;
+    confirm_bindings_open_state.sound_effect_index = 7U;
+    FakeSystemMenuPorts confirm_bindings_open_ports;
+    static_cast<void>(
+        openswd3::special_modes::confirm_legacy_system_menu_selection(
+            confirm_bindings_open_state, confirm_bindings_open_ports
+        )
+    );
+    test.expect_true(
+        confirm_bindings_open_state.interaction_mode == 5U &&
+            confirm_bindings_open_state.selected_entry == 0U &&
+            confirm_bindings_open_state.edited_key_bindings[0U] == 0x1234U &&
+            confirm_bindings_open_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::play_sample, 7U}
+                },
+        "0x44BDA0 copies all key bindings into the editor before opening its action list"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState confirm_save_bindings_state;
+    confirm_save_bindings_state.interaction_mode = 5U;
+    confirm_save_bindings_state.selected_entry = 0x10U;
+    confirm_save_bindings_state.edited_key_bindings[31U] = 0x5678U;
+    confirm_save_bindings_state.sound_effect_index = 8U;
+    FakeSystemMenuPorts confirm_save_bindings_ports;
+    static_cast<void>(
+        openswd3::special_modes::confirm_legacy_system_menu_selection(
+            confirm_save_bindings_state, confirm_save_bindings_ports
+        )
+    );
+    test.expect_true(
+        confirm_save_bindings_state.interaction_mode == 1U &&
+            confirm_save_bindings_state.saved_key_bindings[31U] == 0x5678U &&
+            confirm_save_bindings_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::save_key_bindings, 0U},
+                    {SystemMenuCommand::play_sample, 8U}
+                },
+        "0x44BDA0 copies all edited bindings before saving and returning to settings"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState confirm_defaults_state;
+    confirm_defaults_state.interaction_mode = 5U;
+    confirm_defaults_state.selected_entry = 0x12U;
+    confirm_defaults_state.saved_key_bindings.fill(9U);
+    FakeSystemMenuPorts confirm_defaults_ports;
+    confirm_defaults_ports.populate_default_key_bindings = true;
+    confirm_defaults_ports.default_key_bindings[0U] = 0xABCDU;
+    static_cast<void>(
+        openswd3::special_modes::confirm_legacy_system_menu_selection(
+            confirm_defaults_state, confirm_defaults_ports
+        )
+    );
+    test.expect_true(
+        confirm_defaults_state.saved_key_bindings[0U] == 0xABCDU &&
+            confirm_defaults_state.edited_key_bindings[0U] == 0xABCDU &&
+            confirm_defaults_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::restore_default_key_bindings, 0U},
+                    {SystemMenuCommand::play_sample, 0U}
+                },
+        "0x44BDA0 clears old bindings, restores defaults, then copies the restored block back into the editor"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState confirm_cancel_state;
+    confirm_cancel_state.interaction_mode = 5U;
+    confirm_cancel_state.selected_entry = 0x11U;
+    confirm_cancel_state.sound_effect_index = 4U;
+    FakeSystemMenuPorts confirm_cancel_ports;
+    static_cast<void>(
+        openswd3::special_modes::confirm_legacy_system_menu_selection(
+            confirm_cancel_state, confirm_cancel_ports
+        )
+    );
+    test.expect_true(
+        confirm_cancel_state.interaction_mode == 1U &&
+            confirm_cancel_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::play_sample, 4U}
+                },
+        "0x44BDA0 cancels key-binding edits and returns to the settings page"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState confirm_fixed_action_state;
+    confirm_fixed_action_state.interaction_mode = 5U;
+    confirm_fixed_action_state.selected_entry = 2U;
+    FakeSystemMenuPorts confirm_fixed_action_ports;
+    static_cast<void>(
+        openswd3::special_modes::confirm_legacy_system_menu_selection(
+            confirm_fixed_action_state, confirm_fixed_action_ports
+        )
+    );
+    test.expect_true(
+        confirm_fixed_action_state.interaction_mode == 6U &&
+            confirm_fixed_action_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::play_named_sample, 0x107U}
+                },
+        "0x44BDA0 plays sample one-oh-seven before continuing a fixed action to page six"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState confirm_page_six_state;
+    confirm_page_six_state.interaction_mode = 6U;
+    confirm_page_six_state.sound_effect_index = 5U;
+    FakeSystemMenuPorts confirm_page_six_ports;
+    static_cast<void>(
+        openswd3::special_modes::confirm_legacy_system_menu_selection(
+            confirm_page_six_state, confirm_page_six_ports
+        )
+    );
+    openswd3::special_modes::LegacySystemMenuState confirm_page_seven_state;
+    confirm_page_seven_state.interaction_mode = 7U;
+    FakeSystemMenuPorts confirm_page_seven_ports;
+    const auto confirm_page_seven =
+        openswd3::special_modes::confirm_legacy_system_menu_selection(
+            confirm_page_seven_state, confirm_page_seven_ports
+        );
+    openswd3::special_modes::LegacySystemMenuState confirm_page_ten_state;
+    confirm_page_ten_state.interaction_mode = 10U;
+    FakeSystemMenuPorts confirm_page_ten_ports;
+    const auto confirm_page_ten =
+        openswd3::special_modes::confirm_legacy_system_menu_selection(
+            confirm_page_ten_state, confirm_page_ten_ports
+        );
+    test.expect_true(
+        confirm_page_six_state.interaction_mode == 7U &&
+            confirm_page_six_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::play_sample, 5U}
+                } &&
+            confirm_page_seven_state.interaction_mode == 7U &&
+            confirm_page_seven.legacy_return_value == 7 &&
+            confirm_page_seven_ports.input_commands.empty() &&
+            confirm_page_ten_state.interaction_mode == 0U &&
+            confirm_page_ten.legacy_return_value == 10 &&
+            confirm_page_ten_ports.input_commands.empty(),
+        "0x44BDA0 advances page six to seven, leaves page seven unchanged, and returns page ten to the top level"
+    );
+
     openswd3::special_modes::LegacySystemMenuState move_down_locked_state;
     move_down_locked_state.input_locked = 0x76543210U;
     move_down_locked_state.interaction_page = 2U;
@@ -16218,9 +16564,10 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         );
     test.expect_true(
         system_menu_mode_five_state.selected_entry == 2U &&
+            system_menu_mode_five_state.interaction_mode == 6U &&
             system_menu_mode_five_ports.input_commands ==
                 std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::commit, 0U}
+                    {SystemMenuCommand::play_named_sample, 0x107U}
                 } &&
             system_menu_mode_five.helper_call_count == 2U,
         "0x44B070 maps the mode-five horizontal strip with the unsigned divide-by-twenty sequence"
@@ -16252,22 +16599,22 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     system_menu_navigation_state.input_flags = 3U;
     system_menu_navigation_state.sound_effect_index = 2U;
     FakeSystemMenuPorts system_menu_navigation_ports;
-    system_menu_navigation_ports.mutate_sample_after_commit = true;
-    system_menu_navigation_ports.sample_after_commit = 9U;
+    system_menu_navigation_ports.mutate_sound_after_prepare_item_page = true;
+    system_menu_navigation_ports.sound_after_prepare_item_page = 9U;
     const auto system_menu_navigation =
         openswd3::special_modes::update_legacy_system_menu_input(
             system_menu_navigation_state, system_menu_navigation_ports
         );
     test.expect_true(
-        system_menu_navigation_state.interaction_mode == 0U &&
+        system_menu_navigation_state.interaction_mode == 1U &&
             system_menu_navigation_state.interaction_page == 2U &&
             system_menu_navigation_ports.input_commands ==
                 std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::commit, 0U},
+                    {SystemMenuCommand::prepare_item_page, 0U},
                     {SystemMenuCommand::play_sample, 9U}
                 } &&
             system_menu_navigation.helper_call_count == 3U,
-        "0x44B070 publishes the navigation page before commit and rereads the sample owner afterward"
+        "0x44B070 opens the selected item page and rereads the sound-effect index afterward"
     );
 
     openswd3::special_modes::LegacySystemMenuState system_menu_page_four_state;
@@ -16401,9 +16748,11 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         );
     test.expect_true(
         system_menu_fallback_state.selected_row == 6U &&
+            system_menu_fallback_state.interaction_mode == 5U &&
+            system_menu_fallback_state.selected_entry == 0U &&
             system_menu_fallback_ports.input_commands ==
                 std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::commit, 0U}
+                    {SystemMenuCommand::play_sample, 0U}
                 } &&
             system_menu_fallback.helper_call_count == 2U,
         "0x44B070 routes the low settings fallback directly to row six without an input-bit gate"
