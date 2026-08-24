@@ -2718,6 +2718,177 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         "0x440630 propagates B9E0 typed-stop before final viewport constants"
     );
 
+    class EquipmentInitializationPorts final
+        : public sm::LegacyStandardModeEquipmentInitializationPorts {
+    public:
+        bool initialize_equipment_record_list(
+            sm::LegacyStandardModeEquipmentInitializationState& state
+        ) noexcept override {
+            events.push_back(1U);
+            state.record_head = record_head;
+            state.list_offset = list_offset;
+            state.local_selection = local_selection;
+            return record_list_available;
+        }
+
+        bool initialize_equipment_action_count(
+            sm::LegacyStandardModeEquipmentInitializationState& state
+        ) noexcept override {
+            events.push_back(2U);
+            state.action_count = 4U;
+            state.party_markers = {1U, 0xFFFFU, 2U, 0xFFFFU};
+            return action_count_available;
+        }
+
+        u32
+        allocate_equipment_workspace(const std::size_t size) noexcept override {
+            events.push_back(3U);
+            allocation_size = size;
+            return workspace_token;
+        }
+
+        std::optional<i32> finalize_equipment_action_count(
+            const u32 selected_party_action
+        ) noexcept override {
+            events.push_back(4U);
+            finalization_argument = selected_party_action;
+            return finalization_available ? std::optional<i32>{3}
+                                          : std::nullopt;
+        }
+
+        const sm::LegacyStandardModeForwardNode* record_head{};
+        u32 list_offset{};
+        u32 local_selection{};
+        bool record_list_available{true};
+        bool action_count_available{true};
+        bool finalization_available{true};
+        u32 workspace_token{0x12345678U};
+        std::size_t allocation_size{};
+        u32 finalization_argument{};
+        std::vector<u32> events;
+    };
+    {
+        sm::LegacyStandardModeForwardNode second_equipment_record;
+        second_equipment_record.text_index = 0xFFDCU;
+        sm::LegacyStandardModeForwardNode first_equipment_record;
+        first_equipment_record.next = &second_equipment_record;
+        first_equipment_record.text_index = 0xFFDCU;
+        sm::LegacyStandardModeEquipmentInitializationState equipment;
+        equipment.party_selector = 0xABCD0005U;
+        equipment.shared_text.fill(0x5AU);
+        equipment.first_render_zero = 7U;
+        equipment.second_render_zero = 8U;
+        equipment.final_zero = 9U;
+        equipment.global_mode = 10U;
+        EquipmentInitializationPorts equipment_ports;
+        equipment_ports.record_head = &first_equipment_record;
+        equipment_ports.local_selection = 1U;
+        const auto initialized = sm::initialize_legacy_standard_mode_equipment(
+            equipment, {}, equipment_ports
+        );
+        test.expect_true(
+            initialized.status ==
+                    sm::LegacyStandardModeEquipmentInitializationStatus::
+                        completed &&
+                initialized.legacy_return_value == 3 &&
+                initialized.helper_call_count == 6U,
+            "0x442E40 completes and returns the 444FB0 residual"
+        );
+        test.expect_true(
+            equipment.party_selector == 0xABCD0000U &&
+                equipment.text_resource_word == 0x2AU &&
+                equipment.selected_party_action == 0U &&
+                equipment.mode_enabled == 1U && equipment.list_kind == 0U &&
+                equipment.action_count == 4U &&
+                equipment.active_party_count == 2U &&
+                equipment.shared_text[0] == 0xB5U &&
+                equipment.shared_text[1] == 0x4CU &&
+                equipment.shared_text[2] == 0U,
+            "0x442E40 initializes equipment party, list, action and text state"
+        );
+        test.expect_true(
+            equipment.first_render_zero == 0U &&
+                equipment.second_render_zero == 0U &&
+                equipment.viewport_extent == 0x1E0U &&
+                equipment.workspace_token == 0x12345678U &&
+                equipment.final_zero == 0U &&
+                equipment.published_action_count == 3 &&
+                equipment.global_mode == 0x45U &&
+                equipment_ports.allocation_size == 0x28U &&
+                equipment_ports.finalization_argument == 0U &&
+                equipment_ports.events == std::vector<u32>{1U, 2U, 3U, 4U},
+            "0x442E40 publishes equipment workspace, action count and global mode"
+        );
+
+        sm::LegacyStandardModeEquipmentInitializationState record_stop_state;
+        record_stop_state.active_party_count = 9U;
+        EquipmentInitializationPorts record_stop_ports;
+        record_stop_ports.record_list_available = false;
+        const auto record_stopped =
+            sm::initialize_legacy_standard_mode_equipment(
+                record_stop_state, {}, record_stop_ports
+            );
+        sm::LegacyStandardModeEquipmentInitializationState action_stop_state;
+        EquipmentInitializationPorts action_stop_ports;
+        action_stop_ports.record_head = &first_equipment_record;
+        action_stop_ports.action_count_available = false;
+        const auto action_stopped =
+            sm::initialize_legacy_standard_mode_equipment(
+                action_stop_state, {}, action_stop_ports
+            );
+        sm::LegacyStandardModeEquipmentInitializationState missing_state;
+        EquipmentInitializationPorts missing_ports;
+        const auto selected_missing =
+            sm::initialize_legacy_standard_mode_equipment(
+                missing_state, {}, missing_ports
+            );
+        sm::LegacyStandardModeForwardNode invalid_text_record;
+        invalid_text_record.text_index = 0U;
+        sm::LegacyStandardModeEquipmentInitializationState text_stop_state;
+        text_stop_state.first_render_zero = 7U;
+        EquipmentInitializationPorts text_stop_ports;
+        text_stop_ports.record_head = &invalid_text_record;
+        const auto equipment_text_stopped =
+            sm::initialize_legacy_standard_mode_equipment(
+                text_stop_state, {}, text_stop_ports
+            );
+        sm::LegacyStandardModeEquipmentInitializationState finalize_stop_state;
+        finalize_stop_state.final_zero = 9U;
+        finalize_stop_state.global_mode = 10U;
+        EquipmentInitializationPorts finalize_stop_ports;
+        finalize_stop_ports.record_head = &first_equipment_record;
+        finalize_stop_ports.finalization_available = false;
+        const auto finalization_stopped =
+            sm::initialize_legacy_standard_mode_equipment(
+                finalize_stop_state, {}, finalize_stop_ports
+            );
+        test.expect_true(
+            record_stopped.status ==
+                    sm::LegacyStandardModeEquipmentInitializationStatus::
+                        record_list_stopped &&
+                record_stop_state.active_party_count == 9U &&
+                action_stopped.status ==
+                    sm::LegacyStandardModeEquipmentInitializationStatus::
+                        action_count_stopped &&
+                action_stop_state.action_count == 4U &&
+                selected_missing.status ==
+                    sm::LegacyStandardModeEquipmentInitializationStatus::
+                        selected_record_missing &&
+                missing_state.active_party_count == 2U &&
+                equipment_text_stopped.status ==
+                    sm::LegacyStandardModeEquipmentInitializationStatus::
+                        shared_text_stopped &&
+                text_stop_state.first_render_zero == 7U &&
+                finalization_stopped.status ==
+                    sm::LegacyStandardModeEquipmentInitializationStatus::
+                        finalization_stopped &&
+                finalize_stop_state.workspace_token == 0x12345678U &&
+                finalize_stop_state.final_zero == 9U &&
+                finalize_stop_state.global_mode == 10U,
+            "0x442E40 typed-stops after exact callee, count, text and allocation prefixes"
+        );
+    }
+
     class SelectionPorts final
         : public sm::LegacyStandardModeGuardianCommitPorts {
     public:

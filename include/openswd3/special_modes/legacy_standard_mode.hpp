@@ -540,6 +540,69 @@ struct LegacyStandardModeForwardNode {
     std::string animated_text{};
 };
 
+struct LegacyStandardModeEquipmentInitializationState {
+    compat::u32 party_selector{};
+    compat::u16 text_resource_word{};
+    compat::u32 selected_party_action{};
+    compat::u32 mode_enabled{};
+    compat::u32 list_kind{};
+    compat::u32 action_count{};
+    compat::u32 active_party_count{};
+    compat::u32 list_offset{};
+    compat::u32 local_selection{};
+    const LegacyStandardModeForwardNode* record_head{};
+    std::array<compat::u16, 4U> party_markers{};
+    std::array<compat::u8, 128U> shared_text{};
+    compat::u32 first_render_zero{};
+    compat::u32 second_render_zero{};
+    compat::u32 viewport_extent{};
+    compat::u32 workspace_token{};
+    compat::u32 final_zero{};
+    compat::i32 published_action_count{};
+    compat::u32 global_mode{};
+};
+
+class LegacyStandardModeEquipmentInitializationPorts {
+public:
+    virtual ~LegacyStandardModeEquipmentInitializationPorts() = default;
+    [[nodiscard]] virtual bool initialize_equipment_record_list(
+        LegacyStandardModeEquipmentInitializationState& state
+    ) noexcept = 0;
+    [[nodiscard]] virtual bool initialize_equipment_action_count(
+        LegacyStandardModeEquipmentInitializationState& state
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::u32
+    allocate_equipment_workspace(std::size_t size) noexcept = 0;
+    [[nodiscard]] virtual std::optional<compat::i32>
+    finalize_equipment_action_count(
+        compat::u32 selected_party_action
+    ) noexcept = 0;
+};
+
+enum class LegacyStandardModeEquipmentInitializationStatus : compat::u8 {
+    completed,
+    record_list_stopped,
+    action_count_stopped,
+    selected_record_missing,
+    shared_text_stopped,
+    finalization_stopped,
+};
+
+struct LegacyStandardModeEquipmentInitializationResult {
+    LegacyStandardModeEquipmentInitializationStatus status{
+        LegacyStandardModeEquipmentInitializationStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacyStandardModeEquipmentInitializationResult
+initialize_legacy_standard_mode_equipment(
+    LegacyStandardModeEquipmentInitializationState& state,
+    std::span<const compat::u8> maps_payload,
+    LegacyStandardModeEquipmentInitializationPorts& ports
+) noexcept;
+
 struct LegacyStandardModeGuardianFilterDestination {
     LegacyStandardModeForwardNode* head{};
     compat::u16 sort_key{};
