@@ -336,8 +336,28 @@ public:
         settings_calls.push_back({0x201U, service_id});
         return settings_return + 1;
     }
-    i32 exit_transition_settings() noexcept override {
-        settings_calls.push_back({0x300U, 0U});
+    i32 query_settings_service(const u32 service_id) noexcept override {
+        settings_calls.push_back({0x300U, service_id});
+        return settings_service_return;
+    }
+    i32 format_transition_settings(
+        const u32 sample_index,
+        const u32 surface_index,
+        const u32 spacing,
+        const u32 capacity,
+        const i32 service_enabled,
+        const u32 source_surface,
+        const u32 auxiliary
+    ) noexcept override {
+        settings_commit_calls.push_back(
+            {sample_index,
+             surface_index,
+             spacing,
+             capacity,
+             static_cast<u32>(service_enabled),
+             source_surface,
+             auxiliary}
+        );
         return settings_return;
     }
 
@@ -346,12 +366,14 @@ public:
     i32 probe_return{};
     i32 activate_return{77};
     i32 settings_return{88};
+    i32 settings_service_return{0x101};
     i32 mode_one_return{0x5678};
     u32 surface_token{0x1234U};
     u32 capture_count{};
     u32 probe_count{};
     std::vector<u32> events;
     std::vector<std::array<u32, 2U>> settings_calls;
+    std::vector<std::array<u32, 7U>> settings_commit_calls;
     std::vector<std::array<u32, 3U>> mode_one_calls;
 };
 
@@ -15003,6 +15025,11 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         settings_exit_state;
     settings_exit_state.progress = 5U;
     settings_exit_state.secondary_gate = 1U;
+    settings_exit_state.sample_index = 1U;
+    settings_exit_state.settings_surface_index = 2U;
+    settings_exit_state.settings_spacing = 3U;
+    settings_exit_state.settings_source_surface = 4U;
+    settings_exit_state.settings_auxiliary = 5U;
     FakeTransitionVisualPorts settings_exit_ports;
     const auto settings_exit = openswd3::special_modes::
         update_legacy_standard_mode_transition_interaction(
@@ -15015,9 +15042,40 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
                 openswd3::special_modes::
                     LegacyStandardModeTransitionInteractionPath::
                         settings_exit_requested &&
+            settings_exit_state.progress == 1U &&
+            settings_exit.legacy_return_value == 88U &&
             settings_exit_ports.settings_calls ==
-                std::vector<std::array<u32, 2U>>{{0x300U, 0U}},
-        "0x448840 applies all six settings rows and routes outside activation to exit"
+                std::vector<std::array<u32, 2U>>{{0x300U, 0x48U}} &&
+            settings_exit_ports.settings_commit_calls ==
+                std::vector<std::array<u32, 7U>>{
+                    {1U, 2U, 3U, 0x64U, 1U, 4U, 5U}
+                },
+        "0x448840 applies all six settings rows and directly commits outside activation through 0x449050"
+    );
+
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        settings_commit_one_state;
+    settings_commit_one_state.progress = 1U;
+    FakeTransitionVisualPorts settings_commit_one_ports;
+    const auto settings_commit_one = openswd3::special_modes::
+        commit_legacy_standard_mode_transition_settings(
+            settings_commit_one_state, settings_commit_one_ports
+        );
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        settings_commit_other_state;
+    settings_commit_other_state.progress = 2U;
+    FakeTransitionVisualPorts settings_commit_other_ports;
+    const auto settings_commit_other = openswd3::special_modes::
+        commit_legacy_standard_mode_transition_settings(
+            settings_commit_other_state, settings_commit_other_ports
+        );
+    test.expect_true(
+        settings_commit_one_state.enabled == 3U &&
+            settings_commit_one.legacy_return_value == 0 &&
+            settings_commit_one.helper_call_count == 0U &&
+            settings_commit_other.legacy_return_value == -3 &&
+            settings_commit_other.helper_call_count == 0U,
+        "0x449050 selects the last mode-one entry and preserves unrelated progress residuals"
     );
 
     openswd3::special_modes::LegacyStandardModeTransitionVisualState

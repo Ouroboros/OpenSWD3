@@ -178,7 +178,17 @@ public:
     disable_settings_service(compat::u32 service_id) noexcept = 0;
     [[nodiscard]] virtual compat::i32
     enable_settings_service(compat::u32 service_id) noexcept = 0;
-    [[nodiscard]] virtual compat::i32 exit_transition_settings() noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    query_settings_service(compat::u32 service_id) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 format_transition_settings(
+        compat::u32 sample_index,
+        compat::u32 surface_index,
+        compat::u32 spacing,
+        compat::u32 capacity,
+        compat::i32 service_enabled,
+        compat::u32 source_surface,
+        compat::u32 auxiliary
+    ) noexcept = 0;
 };
 
 enum class LegacyStandardModeTransitionConfirmationStatus : compat::u8 {
@@ -292,6 +302,17 @@ advance_legacy_standard_mode_transition_setting(
 [[nodiscard]] compat::i32
 advance_legacy_standard_mode_transition_mode_one_selection(
     LegacyStandardModeTransitionVisualState& state
+) noexcept;
+
+struct LegacyStandardModeTransitionSettingsCommitResult {
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacyStandardModeTransitionSettingsCommitResult
+commit_legacy_standard_mode_transition_settings(
+    LegacyStandardModeTransitionVisualState& state,
+    LegacyStandardModeTransitionVisualPorts& ports
 ) noexcept;
 
 class LegacyStandardModeCallbackBindingPorts

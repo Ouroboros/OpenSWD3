@@ -620,9 +620,11 @@ update_legacy_standard_mode_transition_interaction(
     }
     result.legacy_return_value = static_cast<compat::u8>(state.secondary_gate);
     if (state.secondary_gate != 0U) {
+        const LegacyStandardModeTransitionSettingsCommitResult commit =
+            commit_legacy_standard_mode_transition_settings(state, ports);
         result.legacy_return_value =
-            static_cast<compat::u8>(ports.exit_transition_settings());
-        ++result.helper_call_count;
+            static_cast<compat::u8>(commit.legacy_return_value);
+        result.helper_call_count += commit.helper_call_count + 1U;
         result.path = LegacyStandardModeTransitionInteractionPath::
             settings_exit_requested;
     }
@@ -930,6 +932,39 @@ compat::i32 advance_legacy_standard_mode_transition_mode_one_selection(
         state.enabled = 3U;
     }
     return residual;
+}
+
+LegacyStandardModeTransitionSettingsCommitResult
+commit_legacy_standard_mode_transition_settings(
+    LegacyStandardModeTransitionVisualState& state,
+    LegacyStandardModeTransitionVisualPorts& ports
+) noexcept {
+    LegacyStandardModeTransitionSettingsCommitResult result;
+    result.legacy_return_value = static_cast<compat::i32>(state.progress) - 1;
+    if (state.progress == 1U) {
+        state.enabled = 3U;
+        return result;
+    }
+    result.legacy_return_value = static_cast<compat::i32>(state.progress) - 5;
+    if (state.progress != 5U) {
+        return result;
+    }
+
+    state.progress = 1U;
+    const compat::i32 service_enabled =
+        static_cast<compat::u8>(ports.query_settings_service(0x48U));
+    ++result.helper_call_count;
+    result.legacy_return_value = ports.format_transition_settings(
+        state.sample_index,
+        state.settings_surface_index,
+        state.settings_spacing,
+        0x64U,
+        service_enabled,
+        state.settings_source_surface,
+        state.settings_auxiliary
+    );
+    ++result.helper_call_count;
+    return result;
 }
 
 LegacyStandardModeCallbackBindingResult bind_legacy_standard_mode_callbacks(

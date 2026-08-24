@@ -4918,8 +4918,20 @@ public:
                         ) noexcept override {
                             return 0;
                         }
-                        openswd3::compat::i32
-                        exit_transition_settings() noexcept override {
+                        openswd3::compat::i32 query_settings_service(
+                            openswd3::compat::u32
+                        ) noexcept override {
+                            return 0;
+                        }
+                        openswd3::compat::i32 format_transition_settings(
+                            openswd3::compat::u32,
+                            openswd3::compat::u32,
+                            openswd3::compat::u32,
+                            openswd3::compat::u32,
+                            openswd3::compat::i32,
+                            openswd3::compat::u32,
+                            openswd3::compat::u32
+                        ) noexcept override {
                             return 0;
                         }
 
