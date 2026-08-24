@@ -5220,6 +5220,40 @@ LegacyStandardModeDatabaseCleanupResult release_legacy_standard_mode_database(
     return result;
 }
 
+LegacyStandardModeGuardianAttributeSeedResult
+select_legacy_standard_mode_guardian_attribute_seed(
+    LegacyStandardModeGuardianInitializationState& state,
+    LegacyStandardModeGuardianAttributeCachePorts& ports
+) noexcept {
+    LegacyStandardModeGuardianAttributeSeedResult result;
+    if (state.interaction_mode == 0U) {
+        const std::optional<const LegacyStandardModeForwardNode*> record =
+            ports.resolve_guardian_party_attribute_record(
+                state,
+                static_cast<compat::u16>(state.party_selector),
+                state.guardian_slot
+            );
+        if (!record.has_value()) {
+            result.status = LegacyStandardModeGuardianAttributeSeedStatus::
+                party_record_out_of_range;
+            return result;
+        }
+        result.seed = *record;
+        return result;
+    }
+    if (state.interaction_mode == 1U) {
+        const compat::i32 selected_index = std::bit_cast<compat::i32>(
+            state.list_offset + state.local_selection
+        );
+        const LegacyStandardModeForwardNode* const record_head =
+            state.record_head;
+        result.seed = index_legacy_standard_mode_forward_node(
+            selected_index, &record_head
+        );
+    }
+    return result;
+}
+
 LegacyStandardModeGuardianAttributeCacheResult
 refresh_legacy_standard_mode_guardian_attribute_cache(
     LegacyStandardModeGuardianInitializationState& state,
@@ -5239,20 +5273,20 @@ refresh_legacy_standard_mode_guardian_attribute_cache(
         }
     }
     ++result.helper_call_count;
-    const std::optional<compat::i32> seed =
-        ports.prepare_guardian_attribute_seed(state);
-    if (!seed.has_value()) {
+    const LegacyStandardModeGuardianAttributeSeedResult seed =
+        select_legacy_standard_mode_guardian_attribute_seed(state, ports);
+    if (seed.status !=
+        LegacyStandardModeGuardianAttributeSeedStatus::completed) {
         result.status = LegacyStandardModeGuardianAttributeCacheStatus::
             seed_preparation_stopped;
         return result;
     }
-    result.legacy_return_value = *seed;
     ++result.helper_call_count;
     if (!ports.combine_guardian_selected_attributes(
             state,
             static_cast<compat::u16>(state.party_selector),
             state.guardian_slot,
-            *seed,
+            seed.seed,
             0x140U
         )) {
         result.status = LegacyStandardModeGuardianAttributeCacheStatus::
@@ -5261,7 +5295,7 @@ refresh_legacy_standard_mode_guardian_attribute_cache(
     }
     ++result.helper_call_count;
     const std::optional<compat::i32> finalized =
-        ports.finalize_guardian_attribute_summary(state, *seed, 0x140U);
+        ports.finalize_guardian_attribute_summary(state, seed.seed, 0x140U);
     if (!finalized.has_value()) {
         result.status = LegacyStandardModeGuardianAttributeCacheStatus::
             summary_finalization_stopped;

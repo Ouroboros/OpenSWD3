@@ -16,7 +16,7 @@ callers共十一项：40630、407F0、40B20、40C20、40D20、40E10、40F00、40
 6. `442B10(u16 party_selector, guardian_slot, cache+0x140, seed)`。
 7. `return 442CA0(seed, cache+0x140)`。
 
-modern state固定持有`0x190`字节cache；四party destination以offset表达，不暴露分配pointer。四个尚待独立关闭的callee由强类型端口表达：party population、seed preparation、selected combination和summary finalization。seed、party low16、guardian slot与`0x140`destination均按原顺序传递。
+modern state固定持有`0x190`字节cache；四party destination以offset表达，不暴露分配pointer。442A40 seed选择后续已独立闭环，mode0返回party表typed record、mode1直接索引链、其他mode返回null。其余三个待独立关闭的callee继续由强类型端口表达：party population、selected combination和summary finalization。typed seed pointer、party low16、guardian slot与`0x140`destination均按原顺序传递。
 
 每个callee边界可独立返回typed-stop。429B0只在对应调用返回时停止，保留此前party/seed/combine副作用；最终EAX来自442CA0。parent owner把整次429B0计为自身一个helper/callback，内部结果保留七步计数。
 

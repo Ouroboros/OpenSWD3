@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v514
+版本：v515
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 闭环`0x00442A40`
+当前步骤：模块9 · 闭环`0x00442AA0`
 
 ## 0. 执行约定
 
@@ -3671,10 +3671,11 @@ B7 P0 有限收口完成。
 - 模块9护驾十一槽与类别面板`0x004425C0`闭环。恢复十一slot前缀/name、选中X偏移、mode0动作、signed正mode全行调暗、选框及八个442960类别调用；结束保留category action `0/0x44`残值。41680 caller直接回收；44A280继续独立审计。定向UT通过。workpack稳定为`87/227`，SHA256为`f8ed58ea817517b9326355b3ca896131ec3c1178f293fd1b74435b360a80662c`。
 - 模块9护驾类别图标`0x00442960`闭环。恢复`(frame,category)`资源解析、source/宽高读取及坐标draw；`4FCD60`仅写无reader不保留裸pointer。资源缺失在原`[eax]`处typed-stop，425C0八处caller全部回收并传播副作用顺序。定向UT通过。workpack稳定为`88/227`，SHA256为`eb82ef1ba6acb130424d45a5c12c35f3486ebd9be8e72bad8f8c4b05ba4f3a57`。
 - 模块9护驾属性cache刷新编排`0x004429B0`闭环。恢复四个0x50 party destination、442A40 seed、party low16/slot/0x140 combine及442CA0最终返回。四callee保持typed窄端口并逐阶段停止。40630、407F0及九个selection owner全部回收旧prepare/invoke callback。定向UT通过。workpack稳定为`89/227`，SHA256为`04f0f157ad2cefc3577b4b353e558a526662418829a4420d81a642b8034381d5`。
+- 模块9护驾属性seed选择`0x00442A40`闭环。mode0按party low16/slot解析typed record；mode1以回绕的list offset+selection直接索引链；其他mode返回null。429B0整数seed端口已回收，后续B10/CA0全程传typed pointer。定向UT通过。workpack稳定为`90/227`，SHA256为`1e73bce2145a20fc5a5f32f7f0f91aba24c85725828de578bd118ba174454b8a`。
 
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`89/227`，下一单元为`0x00442A40`。
+进行中，正式进度为`90/227`，下一单元为`0x00442AA0`。
 
-下一工作包：按LST唯一真值闭环模块9 `0x00442A40`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值闭环模块9 `0x00442AA0`，继续更新workpack、证据和完整验证门。

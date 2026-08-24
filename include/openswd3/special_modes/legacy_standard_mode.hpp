@@ -601,21 +601,23 @@ public:
         compat::u16 party_index,
         std::size_t destination_offset
     ) noexcept = 0;
-    [[nodiscard]] virtual std::optional<compat::i32>
-    prepare_guardian_attribute_seed(
-        LegacyStandardModeGuardianInitializationState& state
+    [[nodiscard]] virtual std::optional<const LegacyStandardModeForwardNode*>
+    resolve_guardian_party_attribute_record(
+        LegacyStandardModeGuardianInitializationState& state,
+        compat::u16 party_index,
+        compat::u32 guardian_slot
     ) noexcept = 0;
     [[nodiscard]] virtual bool combine_guardian_selected_attributes(
         LegacyStandardModeGuardianInitializationState& state,
         compat::u16 party_index,
         compat::u32 guardian_slot,
-        compat::i32 seed,
+        const LegacyStandardModeForwardNode* seed,
         std::size_t destination_offset
     ) noexcept = 0;
     [[nodiscard]] virtual std::optional<compat::i32>
     finalize_guardian_attribute_summary(
         LegacyStandardModeGuardianInitializationState& state,
-        compat::i32 seed,
+        const LegacyStandardModeForwardNode* seed,
         std::size_t destination_offset
     ) noexcept = 0;
 };
@@ -2933,6 +2935,24 @@ commit_legacy_standard_mode_guardian_interaction(
     std::span<const compat::u32> guardian_text_indices,
     std::span<const compat::u8> maps_payload,
     LegacyStandardModeGuardianCommitPorts& ports
+) noexcept;
+
+enum class LegacyStandardModeGuardianAttributeSeedStatus : compat::u8 {
+    completed,
+    party_record_out_of_range,
+};
+
+struct LegacyStandardModeGuardianAttributeSeedResult {
+    LegacyStandardModeGuardianAttributeSeedStatus status{
+        LegacyStandardModeGuardianAttributeSeedStatus::completed
+    };
+    const LegacyStandardModeForwardNode* seed{};
+};
+
+[[nodiscard]] LegacyStandardModeGuardianAttributeSeedResult
+select_legacy_standard_mode_guardian_attribute_seed(
+    LegacyStandardModeGuardianInitializationState& state,
+    LegacyStandardModeGuardianAttributeCachePorts& ports
 ) noexcept;
 
 enum class LegacyStandardModeGuardianAttributeCacheStatus : compat::u8 {
