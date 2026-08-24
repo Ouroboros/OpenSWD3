@@ -5283,6 +5283,68 @@ retreat_legacy_standard_mode_guardian_page(
     );
 }
 
+LegacyStandardModeGuardianSelectionResult
+retreat_legacy_standard_mode_guardian_and_repeat_refresh(
+    LegacyStandardModeGuardianInitializationState& state,
+    const std::span<const compat::u32> guardian_text_indices,
+    const std::span<const compat::u8> maps_payload,
+    LegacyStandardModeGuardianSelectionPorts& ports
+) noexcept {
+    LegacyStandardModeGuardianSelectionResult result =
+        retreat_legacy_standard_mode_guardian_selection(
+            state, guardian_text_indices, maps_payload, ports
+        );
+    if (result.status != LegacyStandardModeGuardianSelectionStatus::completed ||
+        state.interaction_mode != 1U) {
+        return result;
+    }
+
+    compat::i32 selected_index =
+        std::bit_cast<compat::i32>(state.list_offset + state.local_selection);
+    const LegacyStandardModeForwardNode* node = state.record_head;
+    compat::i32 remaining = selected_index;
+    while (remaining > 0) {
+        if (node == nullptr) {
+            result.status = LegacyStandardModeGuardianSelectionStatus::
+                selected_node_missing;
+            return result;
+        }
+        node = node->next;
+        --remaining;
+    }
+    const LegacyStandardModeForwardNode* const record_head = state.record_head;
+    node =
+        index_legacy_standard_mode_forward_node(selected_index, &record_head);
+    ++result.helper_call_count;
+    if (node == nullptr) {
+        result.status =
+            LegacyStandardModeGuardianSelectionStatus::selected_node_missing;
+        return result;
+    }
+    const LegacyStandardModeTextResolutionResult text =
+        resolve_legacy_standard_mode_shared_text(
+            node->text_index, maps_payload, state.shared_text
+        );
+    ++result.helper_call_count;
+    result.legacy_return_value = text.formatter_return;
+    if (text.status != LegacyStandardModeTextResolutionStatus::completed) {
+        result.status =
+            LegacyStandardModeGuardianSelectionStatus::shared_text_stopped;
+        return result;
+    }
+    result.legacy_return_value = ports.invoke_guardian_selection(
+        LegacyStandardModeGuardianSelectionTarget::refresh_attribute_cache,
+        state
+    );
+    ++result.helper_call_count;
+    result.last_target =
+        LegacyStandardModeGuardianSelectionTarget::refresh_attribute_cache;
+    result.legacy_return_value =
+        ports.execute_guardian_sample_command(0x2EU, state.sample_owner);
+    ++result.helper_call_count;
+    return result;
+}
+
 LegacyStandardModeGuardianInputResult
 handle_legacy_standard_mode_guardian_input(
     LegacyStandardModeGuardianInitializationState& state,

@@ -2701,6 +2701,22 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             "0x440D20 mode0 writes slot10 directly without changing flags"
         );
 
+        guardian.guardian_slot = 0U;
+        guardian.party_selector = 0U;
+        SelectionPorts repeat_mode0_ports;
+        const auto repeat_mode0 =
+            sm::retreat_legacy_standard_mode_guardian_and_repeat_refresh(
+                guardian, records, {}, repeat_mode0_ports
+            );
+        test.expect_true(
+            repeat_mode0.status ==
+                    sm::LegacyStandardModeGuardianSelectionStatus::completed &&
+                repeat_mode0.helper_call_count == 5U &&
+                guardian.guardian_slot == 10U &&
+                repeat_mode0_ports.commands.size() == 1U,
+            "0x440F00 mode0 preserves the C20 single-refresh path"
+        );
+
         guardian.guardian_slot = 7U;
         guardian.party_selector = 0U;
         SelectionPorts retreat_page_slot_ports;
@@ -2817,6 +2833,33 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 guardian.visible_record_count == 10U &&
                 guardian.mode_flags == 0x230U,
             "0x440D20 mode1 rebuilds the final page and ORs flags30"
+        );
+
+        guardian.interaction_mode = 1U;
+        guardian.total_record_count = 12U;
+        guardian.visible_record_count = 10U;
+        guardian.list_offset = 0U;
+        guardian.local_selection = 1U;
+        guardian.record_head = &nodes[0U];
+        guardian.mode_flags = 0U;
+        SelectionPorts repeat_ports;
+        const auto repeated =
+            sm::retreat_legacy_standard_mode_guardian_and_repeat_refresh(
+                guardian, {}, {}, repeat_ports
+            );
+        test.expect_true(
+            repeated.status ==
+                    sm::LegacyStandardModeGuardianSelectionStatus::completed &&
+                repeated.legacy_return_value == 77 &&
+                repeated.helper_call_count == 11U &&
+                guardian.local_selection == 0U && guardian.mode_flags == 3U &&
+                repeat_ports.targets ==
+                    std::vector<SelectionTarget>{
+                        SelectionTarget::refresh_attribute_cache,
+                        SelectionTarget::refresh_attribute_cache,
+                    } &&
+                repeat_ports.commands.size() == 2U,
+            "0x440F00 mode1 runs C20 then repeats text, refresh and sample"
         );
 
         guardian.interaction_mode = 1U;
