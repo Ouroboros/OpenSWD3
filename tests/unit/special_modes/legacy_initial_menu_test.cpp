@@ -2487,13 +2487,11 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return 0U;
         }
 
-        void prepare_guardian_record_list(
-            sm::LegacyStandardModeGuardianInitializationState& state
-        ) noexcept override {
+        sm::LegacyStandardModeForwardNode*
+        create_missing_guardian_record() noexcept override {
             events.push_back(1U);
-            ++list_prepare_count;
-            state.guardian_slot = selected_index;
-            state.record_head = &node;
+            ++missing_create_count;
+            return &missing_node;
         }
 
         void prepare_guardian_attribute_cache(
@@ -2507,18 +2505,17 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
 
         std::array<u32, 3U> allocation_results{0x11U, 0x22U, 0x33U};
         std::size_t allocation_index{};
-        u32 selected_index{3U};
-        u32 list_prepare_count{};
+        u32 missing_create_count{};
         u32 attribute_prepare_count{};
-        sm::LegacyStandardModeForwardNode node{};
+        sm::LegacyStandardModeForwardNode missing_node{nullptr, 0xFFDCU};
         std::vector<u32> events;
     };
 
     std::
         array<std::array<u8, 0xB0U>, sm::kLegacyStandardModeGuardianRecordCount>
             records{};
-    records[3U][4U] = 0xDCU;
-    records[3U][5U] = 0xFFU;
+    records[0U][4U] = 0xDCU;
+    records[0U][5U] = 0xFFU;
     sm::LegacyStandardModeGuardianInitializationState state;
     state.scratch_record.fill(0xA5U);
     state.attribute_cache.fill(0xCCU);
@@ -2546,8 +2543,10 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 state.scratch_record, [](const u8 value) { return value == 0U; }
             ) &&
             state.attribute_cache[0U] == 0x5AU &&
-            state.attribute_cache[1U] == 0U && state.guardian_slot == 3U &&
-            state.record_head == &ports.node && state.list_offset == 77U &&
+            state.attribute_cache[1U] == 0U && state.guardian_slot == 0U &&
+            state.record_head == &ports.missing_node &&
+            state.total_record_count == 1U &&
+            state.visible_record_count == 1U && state.list_offset == 77U &&
             state.action_scratch_id == 0U && state.panel_offset == 0U &&
             state.render_zero == 0U && state.first_scroll_value == 0U &&
             state.second_scroll_value == 0U &&
@@ -2582,23 +2581,25 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
     sm::LegacyStandardModeGuardianInitializationState range_state;
     range_state.viewport_extent = 8U;
     GuardianPorts range_ports;
-    range_ports.selected_index = 200U;
     const auto range_stopped =
         sm::initialize_legacy_standard_mode_guardian_system(
-            range_state, records, {}, range_ports
+            range_state,
+            std::span<const std::array<u8, 0xB0U>>{},
+            {},
+            range_ports
         );
     test.expect_true(
         range_stopped.status ==
                 sm::LegacyStandardModeGuardianInitializationStatus::
                     record_index_out_of_range &&
-            range_stopped.helper_call_count == 5U &&
-            range_ports.attribute_prepare_count == 1U &&
+            range_stopped.helper_call_count == 3U &&
+            range_ports.attribute_prepare_count == 0U &&
             range_state.viewport_extent == 8U,
         "0x440630 typed-stops at the 7x16 guardian record pointer read"
     );
 
-    records[3U][4U] = 0U;
-    records[3U][5U] = 0U;
+    records[0U][4U] = 0U;
+    records[0U][5U] = 0U;
     sm::LegacyStandardModeGuardianInitializationState text_state;
     GuardianPorts text_ports;
     const auto text_stopped =
@@ -2629,6 +2630,11 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         ) noexcept override {
             commands.push_back({command_id, sample_owner});
             return sample_return;
+        }
+
+        sm::LegacyStandardModeForwardNode*
+        create_missing_guardian_record() noexcept override {
+            return missing_available ? &missing_node : nullptr;
         }
 
         bool prepare_guardian_record_exchange(
@@ -2665,9 +2671,11 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         bool exchange_result{true};
         bool complete_exchange_result{true};
         bool filter_requested{};
+        bool missing_available{true};
         u16 filter_sort_key{};
         sm::LegacyStandardModeForwardNode* filter_source_head{};
         sm::LegacyStandardModeForwardNode* completed_filter_head{};
+        sm::LegacyStandardModeForwardNode missing_node{nullptr, 0xFFDCU};
         i32 sample_return{77};
         std::vector<u16> bound_phases;
         std::vector<u32> released_tokens;
@@ -2755,6 +2763,124 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                         party_index_out_of_range &&
                 source == &bit15,
             "0x441F70 reaches the party-table typed-stop only after flag match"
+        );
+    }
+
+    {
+        const std::array<u32, 1U> masks{0U};
+        const std::array<u16, 1U> party_masks{1U};
+        std::array<u32, 16U> texts{};
+        texts[0U] = 0xFFDCU;
+        sm::LegacyStandardModeForwardNode high{nullptr, 5U};
+        high.filter_category = 1U;
+        sm::LegacyStandardModeForwardNode low{&high, 2U};
+        low.filter_category = 1U;
+        sm::LegacyStandardModeGuardianInitializationState refresh_state;
+        refresh_state.guardian_filter_source_head = &low;
+        refresh_state.guardian_filter_masks.assign(masks.begin(), masks.end());
+        refresh_state.guardian_party_filter_masks.assign(
+            party_masks.begin(), party_masks.end()
+        );
+        refresh_state.list_offset = 8U;
+        refresh_state.local_selection = 9U;
+        SelectionPorts refresh_ports;
+        const auto refreshed =
+            sm::refresh_legacy_standard_mode_guardian_record_list(
+                refresh_state, texts, refresh_ports
+            );
+        test.expect_true(
+            refreshed.status ==
+                    sm::LegacyStandardModeGuardianListRefreshStatus::
+                        completed &&
+                !refreshed.missing_node_appended &&
+                refresh_state.record_head == &low && low.next == &high &&
+                refresh_state.guardian_filter_source_head == nullptr &&
+                refresh_state.total_record_count == 2U &&
+                refresh_state.list_offset == 0U &&
+                refresh_state.local_selection == 0U &&
+                refresh_state.visible_record_head == &low &&
+                refresh_state.visible_record_count == 2U &&
+                refreshed.legacy_return_node == nullptr,
+            "0x442050 filters the source then resets the two-item visible window"
+        );
+
+        sm::LegacyStandardModeForwardNode single{nullptr, 3U};
+        single.filter_category = 1U;
+        refresh_state = {};
+        refresh_state.guardian_filter_source_head = &single;
+        refresh_state.guardian_filter_masks.assign(masks.begin(), masks.end());
+        refresh_state.guardian_party_filter_masks.assign(
+            party_masks.begin(), party_masks.end()
+        );
+        texts[0U] = 7U;
+        SelectionPorts append_ports;
+        const auto appended =
+            sm::refresh_legacy_standard_mode_guardian_record_list(
+                refresh_state, texts, append_ports
+            );
+        test.expect_true(
+            appended.missing_node_appended &&
+                refresh_state.record_head == &single &&
+                single.next == &append_ports.missing_node &&
+                append_ports.missing_node.next == nullptr &&
+                refresh_state.total_record_count == 2U,
+            "0x442050 appends one allocated missing node when the party slot is populated"
+        );
+
+        std::array<sm::LegacyStandardModeForwardNode, 11U> many{};
+        for (std::size_t index = 0U; index < many.size(); ++index) {
+            many[index].text_index = static_cast<u16>(index + 1U);
+            many[index].filter_category = 1U;
+            many[index].next =
+                index + 1U < many.size() ? &many[index + 1U] : nullptr;
+        }
+        refresh_state = {};
+        refresh_state.guardian_filter_source_head = &many[0U];
+        refresh_state.guardian_filter_masks.assign(masks.begin(), masks.end());
+        refresh_state.guardian_party_filter_masks.assign(
+            party_masks.begin(), party_masks.end()
+        );
+        texts[0U] = 0xFFDCU;
+        SelectionPorts many_ports;
+        const auto bounded =
+            sm::refresh_legacy_standard_mode_guardian_record_list(
+                refresh_state, texts, many_ports
+            );
+        test.expect_true(
+            bounded.total_count == 11U && bounded.visible_count == 10U &&
+                bounded.legacy_return_node == &many[10U] &&
+                refresh_state.visible_record_count == 10U,
+            "0x442050 chunk returns the eleventh node after the ten-row bound"
+        );
+
+        refresh_state = {};
+        refresh_state.guardian_filter_masks.assign(masks.begin(), masks.end());
+        refresh_state.guardian_party_filter_masks.assign(
+            party_masks.begin(), party_masks.end()
+        );
+        SelectionPorts stopped_ports;
+        const auto record_stopped =
+            sm::refresh_legacy_standard_mode_guardian_record_list(
+                refresh_state, {}, stopped_ports
+            );
+        test.expect_true(
+            record_stopped.status ==
+                sm::LegacyStandardModeGuardianListRefreshStatus::
+                    guardian_record_out_of_range,
+            "0x442050 typed-stops at the party-record read after filtering"
+        );
+
+        texts[0U] = 1U;
+        stopped_ports.missing_available = false;
+        const auto allocation_stopped =
+            sm::refresh_legacy_standard_mode_guardian_record_list(
+                refresh_state, texts, stopped_ports
+            );
+        test.expect_true(
+            allocation_stopped.status ==
+                sm::LegacyStandardModeGuardianListRefreshStatus::
+                    missing_node_allocation_failed,
+            "0x442050 isolates a null 44D5D0 result at the original next write"
         );
     }
 
@@ -3154,7 +3280,6 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 selection_ports.targets ==
                     std::vector<SelectionTarget>{
                         SelectionTarget::begin_slot_cycle,
-                        SelectionTarget::refresh_guardian_record,
                         SelectionTarget::refresh_attribute_cache,
                     } &&
                 selection_ports.commands ==
@@ -3742,6 +3867,11 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return 250;
         }
 
+        sm::LegacyStandardModeForwardNode*
+        create_missing_guardian_record() noexcept override {
+            return &missing_node;
+        }
+
         bool prepare_guardian_record_exchange(
             sm::LegacyStandardModeGuardianInitializationState&,
             const sm::LegacyStandardModeForwardNode&,
@@ -3777,6 +3907,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         bool exchange_result{true};
         bool complete_exchange_result{true};
         bool item_present{true};
+        sm::LegacyStandardModeForwardNode missing_node{nullptr, 0xFFDCU};
         std::vector<u32> exchange_slots;
         std::vector<u16> bound_phases;
         std::vector<u32> released_tokens;
@@ -3861,7 +3992,6 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                     std::vector<SelectionTarget>{
                         SelectionTarget::refresh_attribute_cache,
                         SelectionTarget::begin_slot_cycle,
-                        SelectionTarget::refresh_guardian_record,
                         SelectionTarget::refresh_attribute_cache,
                     },
             "0x4407F0 guardian-slot rectangle commits then directly reuses 0x440B20"

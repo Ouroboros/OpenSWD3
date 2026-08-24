@@ -568,6 +568,30 @@ struct LegacyStandardModeGuardianFilterResult {
     compat::u32 moved_count{};
 };
 
+enum class LegacyStandardModeGuardianListRefreshStatus : compat::u8 {
+    completed,
+    filter_stopped,
+    guardian_record_out_of_range,
+    missing_node_allocation_failed,
+};
+
+struct LegacyStandardModeGuardianListRefreshResult {
+    LegacyStandardModeGuardianListRefreshStatus status{
+        LegacyStandardModeGuardianListRefreshStatus::completed
+    };
+    const LegacyStandardModeForwardNode* legacy_return_node{};
+    compat::u32 total_count{};
+    compat::u32 visible_count{};
+    bool missing_node_appended{};
+};
+
+class LegacyStandardModeGuardianListRefreshPorts {
+public:
+    virtual ~LegacyStandardModeGuardianListRefreshPorts() = default;
+    [[nodiscard]] virtual LegacyStandardModeForwardNode*
+    create_missing_guardian_record() noexcept = 0;
+};
+
 class LegacyStandardModeMissingNodePorts {
 public:
     virtual ~LegacyStandardModeMissingNodePorts() = default;
@@ -889,6 +913,10 @@ struct LegacyStandardModeGuardianInitializationState {
     compat::u32 selected_action_frame{};
     compat::u32 selected_action_resource{};
     compat::u32 selected_action_zero{};
+    LegacyStandardModeForwardNode* guardian_filter_source_head{};
+    compat::u16 guardian_filter_destination_sort_key{};
+    compat::u16 guardian_filter_destination_reserved{};
+    compat::u16 guardian_filter_destination_reset_word{};
     std::vector<compat::u32> guardian_filter_masks;
     std::vector<compat::u16> guardian_party_filter_masks;
     const LegacyStandardModeForwardNode* selected_record{};
@@ -976,9 +1004,10 @@ struct LegacyStandardModeGuardianSelectionResult {
     std::optional<LegacyStandardModeGuardianSelectionTarget> last_target{};
 };
 
-class LegacyStandardModeGuardianSelectionPorts {
+class LegacyStandardModeGuardianSelectionPorts
+    : public LegacyStandardModeGuardianListRefreshPorts {
 public:
-    virtual ~LegacyStandardModeGuardianSelectionPorts() = default;
+    ~LegacyStandardModeGuardianSelectionPorts() override = default;
     [[nodiscard]] virtual compat::i32 invoke_guardian_selection(
         LegacyStandardModeGuardianSelectionTarget target,
         LegacyStandardModeGuardianInitializationState& state
@@ -1108,14 +1137,12 @@ public:
     query_guardian_item_presence(compat::u16 item_id) noexcept = 0;
 };
 
-class LegacyStandardModeGuardianInitializationPorts {
+class LegacyStandardModeGuardianInitializationPorts
+    : public LegacyStandardModeGuardianListRefreshPorts {
 public:
-    virtual ~LegacyStandardModeGuardianInitializationPorts() = default;
+    ~LegacyStandardModeGuardianInitializationPorts() override = default;
     [[nodiscard]] virtual compat::u32
     allocate_guardian_storage(std::size_t size) noexcept = 0;
-    virtual void prepare_guardian_record_list(
-        LegacyStandardModeGuardianInitializationState& state
-    ) noexcept = 0;
     virtual void prepare_guardian_attribute_cache(
         LegacyStandardModeGuardianInitializationState& state
     ) noexcept = 0;
@@ -2366,6 +2393,14 @@ struct LegacyStandardModeAnimatedPanelResult {
     bool rendered{};
     bool position_clamped{};
 };
+
+// sub_442050 (+ chunk 442020): rebuild the filtered guardian window.
+[[nodiscard]] LegacyStandardModeGuardianListRefreshResult
+refresh_legacy_standard_mode_guardian_record_list(
+    LegacyStandardModeGuardianInitializationState& state,
+    std::span<const compat::u32> guardian_text_indices,
+    LegacyStandardModeGuardianListRefreshPorts& ports
+) noexcept;
 
 // sub_441F70: move matching nodes into a destination chain sorted by offset4.
 [[nodiscard]] LegacyStandardModeGuardianFilterResult

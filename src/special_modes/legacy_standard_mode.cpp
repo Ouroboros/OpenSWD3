@@ -442,6 +442,94 @@ filter_legacy_standard_mode_guardian_records(
     return result;
 }
 
+LegacyStandardModeGuardianListRefreshResult
+refresh_legacy_standard_mode_guardian_record_list(
+    LegacyStandardModeGuardianInitializationState& state,
+    const std::span<const compat::u32> guardian_text_indices,
+    LegacyStandardModeGuardianListRefreshPorts& ports
+) noexcept {
+    LegacyStandardModeGuardianListRefreshResult result;
+    LegacyStandardModeGuardianFilterDestination destination{
+        .head = state.record_head,
+        .sort_key = state.guardian_filter_destination_sort_key,
+        .reserved = state.guardian_filter_destination_reserved,
+        .reset_word = state.guardian_filter_destination_reset_word,
+    };
+    const LegacyStandardModeGuardianFilterResult filtered =
+        filter_legacy_standard_mode_guardian_records(
+            state.guardian_filter_source_head,
+            destination,
+            state.guardian_slot,
+            static_cast<compat::u16>(state.party_selector),
+            state.guardian_filter_masks,
+            state.guardian_party_filter_masks
+        );
+    state.record_head = destination.head;
+    state.guardian_filter_destination_sort_key = destination.sort_key;
+    state.guardian_filter_destination_reserved = destination.reserved;
+    state.guardian_filter_destination_reset_word = destination.reset_word;
+    if (filtered.status != LegacyStandardModeGuardianFilterStatus::completed) {
+        result.status =
+            LegacyStandardModeGuardianListRefreshStatus::filter_stopped;
+        return result;
+    }
+
+    const std::uint64_t slot_index =
+        static_cast<std::uint64_t>(
+            static_cast<compat::u16>(state.party_selector)
+        ) * 16U +
+        state.guardian_slot;
+    if (slot_index >= guardian_text_indices.size()) {
+        result.status = LegacyStandardModeGuardianListRefreshStatus::
+            guardian_record_out_of_range;
+        return result;
+    }
+    if (static_cast<compat::u16>(
+            guardian_text_indices[static_cast<std::size_t>(slot_index)]
+        ) != 0xFFDCU ||
+        state.record_head == nullptr) {
+        LegacyStandardModeForwardNode* tail = state.record_head;
+        while (tail != nullptr && tail->next != nullptr) {
+            tail = const_cast<LegacyStandardModeForwardNode*>(tail->next);
+        }
+        LegacyStandardModeForwardNode* const missing =
+            ports.create_missing_guardian_record();
+        if (missing == nullptr) {
+            result.status = LegacyStandardModeGuardianListRefreshStatus::
+                missing_node_allocation_failed;
+            return result;
+        }
+        if (tail == nullptr) {
+            state.record_head = missing;
+        } else {
+            tail->next = missing;
+        }
+        missing->next = nullptr;
+        result.missing_node_appended = true;
+    }
+
+    state.total_record_count =
+        count_legacy_standard_mode_forward_nodes(state.record_head);
+    result.total_count = state.total_record_count;
+    state.list_offset = 0U;
+    state.local_selection = 0U;
+    state.visible_record_head = state.record_head;
+    state.visible_record_count = 0U;
+    const LegacyStandardModeForwardNode* cursor = state.visible_record_head;
+    compat::i32 visible_count = 0;
+    while (cursor != nullptr) {
+        if (visible_count >= 0x0A) {
+            break;
+        }
+        ++visible_count;
+        state.visible_record_count = static_cast<compat::u32>(visible_count);
+        cursor = cursor->next;
+    }
+    result.visible_count = state.visible_record_count;
+    result.legacy_return_node = cursor;
+    return result;
+}
+
 compat::u32 count_legacy_standard_mode_forward_nodes(
     const LegacyStandardModeForwardNode* head
 ) noexcept {
@@ -5165,9 +5253,24 @@ move_legacy_standard_mode_guardian_selection(
         } else {
             state.guardian_slot = 0U;
         }
-        invoke(
-            LegacyStandardModeGuardianSelectionTarget::refresh_guardian_record
-        );
+        const LegacyStandardModeGuardianListRefreshResult refreshed =
+            refresh_legacy_standard_mode_guardian_record_list(
+                state, guardian_text_indices, ports
+            );
+        ++result.helper_call_count;
+        result.last_target =
+            LegacyStandardModeGuardianSelectionTarget::refresh_guardian_record;
+        if (refreshed.status !=
+            LegacyStandardModeGuardianListRefreshStatus::completed) {
+            result.status = refreshed.status ==
+                    LegacyStandardModeGuardianListRefreshStatus::
+                        guardian_record_out_of_range
+                ? LegacyStandardModeGuardianSelectionStatus::
+                      guardian_record_out_of_range
+                : LegacyStandardModeGuardianSelectionStatus::
+                      guardian_exchange_stopped;
+            return result;
+        }
 
         const std::uint64_t record_index =
             static_cast<std::uint64_t>(
@@ -5495,13 +5598,24 @@ cycle_legacy_standard_mode_guardian_party(
     ++result.helper_call_count;
     result.last_target =
         LegacyStandardModeGuardianSelectionTarget::begin_slot_cycle;
-    result.legacy_return_value = ports.invoke_guardian_selection(
-        LegacyStandardModeGuardianSelectionTarget::refresh_guardian_record,
-        state
-    );
+    const LegacyStandardModeGuardianListRefreshResult refreshed =
+        refresh_legacy_standard_mode_guardian_record_list(
+            state, guardian_text_indices, ports
+        );
     ++result.helper_call_count;
     result.last_target =
         LegacyStandardModeGuardianSelectionTarget::refresh_guardian_record;
+    if (refreshed.status !=
+        LegacyStandardModeGuardianListRefreshStatus::completed) {
+        result.status = refreshed.status ==
+                LegacyStandardModeGuardianListRefreshStatus::
+                    guardian_record_out_of_range
+            ? LegacyStandardModeGuardianSelectionStatus::
+                  guardian_record_out_of_range
+            : LegacyStandardModeGuardianSelectionStatus::
+                  guardian_exchange_stopped;
+        return result;
+    }
 
     compat::i32 total_count =
         std::bit_cast<compat::i32>(state.total_record_count);
@@ -6819,8 +6933,22 @@ initialize_legacy_standard_mode_guardian_system(
     state.interaction_mode = 0U;
     state.visible_record_head = nullptr;
     state.record_head = nullptr;
-    ports.prepare_guardian_record_list(state);
+    std::vector<compat::u32> guardian_text_indices;
+    guardian_text_indices.reserve(guardian_records.size());
+    for (const std::array<compat::u8, 0xB0U>& record : guardian_records) {
+        guardian_text_indices.push_back(read_u16_le(record, 4U));
+    }
+    const LegacyStandardModeGuardianListRefreshResult list_refresh =
+        refresh_legacy_standard_mode_guardian_record_list(
+            state, guardian_text_indices, ports
+        );
     ++result.helper_call_count;
+    if (list_refresh.status !=
+        LegacyStandardModeGuardianListRefreshStatus::completed) {
+        result.status = LegacyStandardModeGuardianInitializationStatus::
+            record_index_out_of_range;
+        return result;
+    }
 
     state.action_scratch_id = 0U;
     state.panel_offset = 0U;
