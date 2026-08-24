@@ -2669,6 +2669,23 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             "0x440B20 mode0 wraps slot11, publishes its record and plays command46"
         );
 
+        records[10U] = 0xFFDCU;
+        guardian.guardian_slot = 0U;
+        guardian.party_selector = 0U;
+        SelectionPorts retreat_ports;
+        const auto retreated =
+            sm::retreat_legacy_standard_mode_guardian_selection(
+                guardian, records, {}, retreat_ports
+            );
+        test.expect_true(
+            retreated.status ==
+                    sm::LegacyStandardModeGuardianSelectionStatus::completed &&
+                retreated.legacy_return_value == 77 &&
+                retreated.helper_call_count == 5U &&
+                guardian.guardian_slot == 10U && guardian.mode_flags == 0x80U,
+            "0x440C20 mode0 wraps negative slot to10 without changing flags"
+        );
+
         guardian.guardian_slot = 10U;
         guardian.party_selector = 2U;
         SelectionPorts stopped_ports;
@@ -2692,6 +2709,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             nodes[index].text_index = 0x1111U;
         }
         nodes.back().text_index = 0x2222U;
+        nodes[0U].text_index = 0xFFDCU;
         nodes[10U].text_index = 0xFFDCU;
         sm::LegacyStandardModeGuardianInitializationState guardian;
         guardian.interaction_mode = 1U;
@@ -2722,6 +2740,29 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 selection_ports.commands ==
                     std::vector<std::array<u32, 2U>>{{0x2EU, 0xCAFEBABEU}},
             "0x440B20 mode1 advances the window, text, refresh, sample and low-byte flags"
+        );
+
+        guardian.interaction_mode = 1U;
+        guardian.total_record_count = 12U;
+        guardian.list_offset = 1U;
+        guardian.local_selection = 0U;
+        guardian.record_head = &nodes[0U];
+        guardian.mode_flags = 0x100U;
+        SelectionPorts retreat_ports;
+        const auto retreated =
+            sm::retreat_legacy_standard_mode_guardian_selection(
+                guardian, {}, {}, retreat_ports
+            );
+        test.expect_true(
+            retreated.status ==
+                    sm::LegacyStandardModeGuardianSelectionStatus::completed &&
+                retreated.legacy_return_value == 0x103 &&
+                retreated.helper_call_count == 7U &&
+                guardian.list_offset == 0U && guardian.local_selection == 0U &&
+                guardian.visible_record_head == &nodes[0U] &&
+                guardian.visible_record_count == 10U &&
+                guardian.mode_flags == 0x103U,
+            "0x440C20 mode1 retreats the window and ORs only low-byte flags3"
         );
 
         guardian.total_record_count = 20U;
@@ -2926,9 +2967,12 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         );
     }
     {
+        sm::LegacyStandardModeForwardNode shortcut_node{nullptr, 0xFFDCU};
         sm::LegacyStandardModeGuardianInitializationState guardian;
         guardian.interaction_mode = 1U;
         guardian.total_record_count = 11U;
+        guardian.local_selection = 1U;
+        guardian.record_head = &shortcut_node;
         guardian.panel_x = 0x1E8U;
         guardian.panel_y = 0x78U;
         sm::LegacyStandardModeGuardianInputSnapshot snapshot{
@@ -2937,8 +2981,16 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         InputPorts input_ports;
         const auto shortcut = input(guardian, snapshot, input_ports);
         test.expect_true(
-            shortcut.last_target == Target::cycle_left,
-            "0x4407F0 availability shortcut dispatches the strict 103..115 band"
+            shortcut.status ==
+                    sm::LegacyStandardModeGuardianInputStatus::completed &&
+                shortcut.last_target == Target::cycle_left &&
+                shortcut.legacy_return_value == 3 &&
+                input_ports.targets.empty() &&
+                input_ports.selection_targets ==
+                    std::vector<SelectionTarget>{
+                        SelectionTarget::refresh_attribute_cache
+                    },
+            "0x4407F0 availability shortcut directly reuses 0x440C20"
         );
 
         guardian.interaction_mode = 2U;
