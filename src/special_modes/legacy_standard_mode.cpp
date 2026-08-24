@@ -3001,6 +3001,209 @@ render_legacy_standard_mode_altar_record_panel(
     return result;
 }
 
+LegacyStandardModeAltarAnimationResult
+update_legacy_standard_mode_altar_animation(
+    LegacyStandardModeDatabaseInitializationState& state,
+    LegacyStandardModeDatabaseRenderPorts& ports
+) noexcept {
+    LegacyStandardModeAltarAnimationResult result;
+    const compat::i32 countdown =
+        std::bit_cast<compat::i32>(state.phase_3_countdown);
+    const compat::i32 pitch_bytes = ports.framebuffer_pitch_bytes();
+    result.legacy_return_value = pitch_bytes / 2;
+
+    const auto read_signed = [](const std::span<const compat::u8> bytes,
+                                const std::size_t index) {
+        return std::bit_cast<compat::i16>(read_u16_le(bytes, index * 2U));
+    };
+    const auto write_word = [](const std::span<compat::u8> bytes,
+                               const std::size_t index,
+                               const compat::u16 value) {
+        write_u16_le(bytes, index * 2U, value);
+    };
+    const auto random = [&ports, &result](const compat::u32 bound) {
+        ++result.helper_call_count;
+        ++result.random_call_count;
+        return ports.random_bounded(bound);
+    };
+    const auto sample = [&ports, &result](const compat::u16 sample_id) {
+        result.legacy_return_value = ports.initialize_sample(sample_id);
+        ++result.helper_call_count;
+        ++result.sample_count;
+    };
+
+    if (countdown >= 0 && countdown <= 0x8C) {
+        if (countdown >= 0x78) {
+            for (const std::size_t buffer_index : {2U, 3U}) {
+                auto& buffer = state.small_buffers[buffer_index];
+                for (std::size_t index = 0U; index < 0x78U; ++index) {
+                    const compat::i32 value = read_signed(buffer, index);
+                    write_word(
+                        buffer,
+                        index,
+                        static_cast<compat::u16>((value * 9) / 10)
+                    );
+                }
+            }
+            for (const std::size_t buffer_index : {2U, 3U}) {
+                auto& buffer = state.large_buffers[buffer_index];
+                for (std::size_t index = 0U; index < 0xDCU; ++index) {
+                    const compat::i32 value = read_signed(buffer, index);
+                    write_word(
+                        buffer,
+                        index,
+                        static_cast<compat::u16>((value * 9) / 10)
+                    );
+                }
+            }
+        } else {
+            if (countdown >= 0x32 && countdown < 0x6E) {
+                const compat::i32 copy_count = countdown * 8 - 0x190;
+                for (compat::i32 copy_index = 0; copy_index < copy_count;
+                     ++copy_index) {
+                    const compat::i32 random_index = random(0x3354U);
+                    result.legacy_return_value = std::bit_cast<compat::i32>(
+                        std::bit_cast<compat::u32>(random_index) * 2U
+                    );
+                    if (random_index < 0 ||
+                        static_cast<std::size_t>(random_index) * 2U + 1U >=
+                            kLegacyStandardModeAltarSurfacePixelCount) {
+                        result.status = LegacyStandardModeAltarAnimationStatus::
+                            random_index_out_of_range;
+                        return result;
+                    }
+                    const std::size_t pixel_index =
+                        static_cast<std::size_t>(random_index) * 2U;
+                    for (const std::size_t destination : {2U, 3U}) {
+                        state
+                            .original_surface_pixels[destination][pixel_index] =
+                            state.original_surface_pixels[1U][pixel_index];
+                        state.original_surface_pixels[destination]
+                                                     [pixel_index + 1U] =
+                            state.original_surface_pixels[1U][pixel_index + 1U];
+                        result.copied_pixel_count += 2U;
+                    }
+                }
+            }
+            if (countdown < 0x50 && (countdown & 7) != 7) {
+                sample(0x00B7U);
+            }
+            if (countdown == 0x6E) {
+                sample(0x0208U);
+                state.original_surface_pixels[2U] =
+                    state.original_surface_pixels[1U];
+                state.original_surface_pixels[3U] =
+                    state.original_surface_pixels[1U];
+                result.copied_pixel_count += static_cast<compat::u32>(
+                    kLegacyStandardModeAltarSurfacePixelCount * 2U
+                );
+            }
+
+            constexpr std::array<compat::i32, 3U> intensities{3, 5, 7};
+            const compat::i32 intensity =
+                intensities[static_cast<std::size_t>(countdown / 0x28)];
+            const compat::i32 half_intensity = intensity / 2;
+            for (std::size_t index = 0U; index < 0x78U; ++index) {
+                const compat::i32 delta =
+                    random(static_cast<compat::u32>(intensity)) -
+                    half_intensity;
+                const compat::u16 delta_word = static_cast<compat::u16>(delta);
+                const compat::u16 first =
+                    read_u16_le(state.small_buffers[2U], index * 2U);
+                const compat::u16 second =
+                    read_u16_le(state.small_buffers[3U], index * 2U);
+                write_word(state.small_buffers[2U], index, first + delta_word);
+                write_word(state.small_buffers[3U], index, second - delta_word);
+            }
+            for (std::size_t index = 0U; index < 0xDCU; ++index) {
+                const compat::i32 delta =
+                    random(static_cast<compat::u32>(intensity)) -
+                    half_intensity;
+                const compat::u16 delta_word = static_cast<compat::u16>(delta);
+                const compat::u16 first =
+                    read_u16_le(state.large_buffers[2U], index * 2U);
+                const compat::u16 second =
+                    read_u16_le(state.large_buffers[3U], index * 2U);
+                write_word(state.large_buffers[2U], index, first + delta_word);
+                write_word(state.large_buffers[3U], index, second - delta_word);
+            }
+            result.legacy_return_value = 0;
+        }
+    }
+
+    const compat::i32 remaining = std::bit_cast<compat::i32>(
+        0xB4U - std::bit_cast<compat::u32>(countdown)
+    );
+    if (remaining < 0x28) {
+        return result;
+    }
+
+    const compat::i32 clamped_countdown = std::clamp(countdown, 0, 0x78);
+    const compat::i32 half_pitch = pitch_bytes / 2;
+    const compat::i32 half_height = ports.framebuffer_height() / 2;
+    std::span<compat::u16> framebuffer = ports.framebuffer();
+    const auto project =
+        [&state, &result, framebuffer, half_pitch, &read_signed](
+            const std::size_t surface_index,
+            const std::size_t displacement_buffer_index,
+            const compat::i32 base_offset
+        ) {
+            for (std::size_t row = 0U; row < 0xDCU; ++row) {
+                const compat::i32 row_displacement = read_signed(
+                    state.large_buffers[displacement_buffer_index], row
+                );
+                for (std::size_t column = 0U; column < 0x78U; ++column) {
+                    const compat::i32 mirror_key =
+                        read_signed(state.small_buffers[2U], column);
+                    result.legacy_return_value = mirror_key;
+                    const compat::i32 mirror_index = mirror_key + 0x80;
+                    if (mirror_index < 0 || mirror_index >= 0x100) {
+                        result.status = LegacyStandardModeAltarAnimationStatus::
+                            mirror_index_out_of_range;
+                        return false;
+                    }
+                    const std::int64_t destination =
+                        static_cast<std::int64_t>(base_offset) +
+                        static_cast<std::int64_t>(row) * half_pitch +
+                        static_cast<std::int64_t>(column) + row_displacement -
+                        state.mirrored_values[static_cast<std::size_t>(
+                            mirror_index
+                        )];
+                    if (destination < 0) {
+                        continue;
+                    }
+                    if (static_cast<std::uint64_t>(destination) >=
+                        framebuffer.size()) {
+                        result.legacy_return_value =
+                            static_cast<compat::i32>(destination);
+                        result.status = LegacyStandardModeAltarAnimationStatus::
+                            framebuffer_index_out_of_range;
+                        return false;
+                    }
+                    framebuffer[static_cast<std::size_t>(destination)] =
+                        state.original_surface_pixels[surface_index]
+                                                     [row * 0x78U + column];
+                    ++result.framebuffer_write_count;
+                }
+            }
+            return true;
+        };
+
+    const compat::i32 first_base = 0x8C + half_height + clamped_countdown;
+    if (!project(2U, 2U, first_base)) {
+        return result;
+    }
+    const compat::i32 second_base = 0x17C + half_height - clamped_countdown;
+    if (!project(3U, 2U, second_base)) {
+        return result;
+    }
+
+    const compat::u32 incremented = state.animation_ring_offset + 1U;
+    state.animation_ring_offset = incremented >= 0x78U ? 0U : incremented;
+    result.legacy_return_value = std::bit_cast<compat::i32>(incremented);
+    return result;
+}
+
 LegacyStandardModeDatabaseRenderResult render_legacy_standard_mode_database(
     LegacyStandardModeDatabaseInitializationState& state,
     LegacyStandardModeDatabaseRenderPorts& ports
@@ -3442,10 +3645,16 @@ LegacyStandardModeDatabaseRenderResult render_legacy_standard_mode_database(
         if (countdown <= -30) {
             state.animation_offset = (countdown * 3 + 90) * 2;
         }
-        emit(
-            LegacyStandardModeDatabaseRenderOperationKind::draw_countdown,
-            {countdown, 0x78, 0x18, 0, 0, 0, 0, 0}
-        );
+        const LegacyStandardModeAltarAnimationResult animation =
+            update_legacy_standard_mode_altar_animation(state, ports);
+        result.legacy_return_value = animation.legacy_return_value;
+        result.helper_call_count += animation.helper_call_count;
+        if (animation.status !=
+            LegacyStandardModeAltarAnimationStatus::completed) {
+            result.status =
+                LegacyStandardModeDatabaseRenderStatus::altar_animation_stopped;
+            return result;
+        }
         state.phase_3_countdown += 1U;
         countdown = std::bit_cast<compat::i32>(state.phase_3_countdown);
         result.legacy_return_value = countdown;
@@ -3513,7 +3722,9 @@ prepare_legacy_standard_mode_database_original_surfaces(
             const compat::i32 failure_return
         ) {
             const std::optional<compat::u32> surface =
-                ports.prepare_database_original_surface(request);
+                ports.prepare_database_original_surface(
+                    request, state.original_surface_pixels[index]
+                );
             ++result.helper_call_count;
             if (!surface.has_value()) {
                 result.status = failure_status;

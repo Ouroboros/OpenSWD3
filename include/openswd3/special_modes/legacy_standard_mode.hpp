@@ -711,6 +711,11 @@ struct LegacyStandardModeAvailabilityResult {
 
 inline constexpr std::size_t kLegacyStandardModeDatabaseRecordCount = 0x4B0U;
 inline constexpr std::size_t kLegacyStandardModeMirrorSourceCount = 0x7FU;
+inline constexpr std::size_t kLegacyStandardModeAltarSurfaceWidth = 0x78U;
+inline constexpr std::size_t kLegacyStandardModeAltarSurfaceHeight = 0xDCU;
+inline constexpr std::size_t kLegacyStandardModeAltarSurfacePixelCount =
+    kLegacyStandardModeAltarSurfaceWidth *
+    kLegacyStandardModeAltarSurfaceHeight;
 
 struct LegacyStandardModeDatabaseInitializationState {
     std::array<compat::i32, kLegacyStandardModeDatabaseRecordCount>
@@ -780,6 +785,11 @@ struct LegacyStandardModeDatabaseInitializationState {
     std::array<compat::i16, 2U> altar_spirit_values{};
     std::array<compat::i16, 2U> altar_body_values{};
     std::array<compat::u32, 4U> original_surface_tokens{};
+    std::array<
+        std::array<compat::u16, kLegacyStandardModeAltarSurfacePixelCount>,
+        4U>
+        original_surface_pixels{};
+    compat::u32 animation_ring_offset{};
     compat::i32 first_dynamic_min_x{};
     compat::i32 second_dynamic_min_x{};
     compat::i32 first_dynamic_max_x{};
@@ -1154,7 +1164,9 @@ public:
     ) noexcept = 0;
     [[nodiscard]] virtual std::optional<compat::u32>
     prepare_database_original_surface(
-        const LegacyStandardModeOriginalSurfaceRequest& request
+        const LegacyStandardModeOriginalSurfaceRequest& request,
+        std::span<compat::u16, kLegacyStandardModeAltarSurfacePixelCount>
+            surface
     ) noexcept = 0;
     virtual void update_database_phase_3(
         LegacyStandardModeDatabaseInitializationState& state
@@ -1240,7 +1252,6 @@ enum class LegacyStandardModeDatabaseRenderOperationKind : compat::u8 {
     draw_list_marker,
     draw_rectangle,
     draw_resource,
-    draw_countdown,
     complete_phase,
 };
 
@@ -1278,6 +1289,32 @@ public:
     [[nodiscard]] virtual compat::i32 execute(
         const LegacyStandardModeDatabaseRenderOperation& operation
     ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    random_bounded(compat::u32 bound) noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    initialize_sample(compat::u16 sample_id) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 framebuffer_pitch_bytes() noexcept = 0;
+    [[nodiscard]] virtual compat::i32 framebuffer_height() noexcept = 0;
+    [[nodiscard]] virtual std::span<compat::u16> framebuffer() noexcept = 0;
+};
+
+enum class LegacyStandardModeAltarAnimationStatus : compat::u8 {
+    completed,
+    random_index_out_of_range,
+    mirror_index_out_of_range,
+    framebuffer_index_out_of_range,
+};
+
+struct LegacyStandardModeAltarAnimationResult {
+    LegacyStandardModeAltarAnimationStatus status{
+        LegacyStandardModeAltarAnimationStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+    compat::u32 random_call_count{};
+    compat::u32 copied_pixel_count{};
+    compat::u32 framebuffer_write_count{};
+    compat::u32 sample_count{};
 };
 
 enum class LegacyStandardModeDatabaseRenderStatus : compat::u8 {
@@ -1285,6 +1322,7 @@ enum class LegacyStandardModeDatabaseRenderStatus : compat::u8 {
     forward_node_missing,
     resource_missing,
     altar_record_panel_stopped,
+    altar_animation_stopped,
 };
 
 enum class LegacyStandardModeAltarRecordPanelStatus : compat::u8 {
@@ -2245,6 +2283,12 @@ render_legacy_standard_mode_altar_record_panel(
 ) noexcept;
 
 // sub_43E800: draw the standard-mode database callback frame.
+[[nodiscard]] LegacyStandardModeAltarAnimationResult
+update_legacy_standard_mode_altar_animation(
+    LegacyStandardModeDatabaseInitializationState& state,
+    LegacyStandardModeDatabaseRenderPorts& ports
+) noexcept;
+
 [[nodiscard]] LegacyStandardModeDatabaseRenderResult
 render_legacy_standard_mode_database(
     LegacyStandardModeDatabaseInitializationState& state,

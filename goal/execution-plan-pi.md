@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v492
+版本：v493
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 闭环`0x004400A0`
+当前步骤：模块9 · 闭环`0x004404D0`
 
 ## 0. 执行约定
 
@@ -3631,9 +3631,11 @@ B7 P0 有限收口完成。
 
 - 模块9炼妖祭坛四槽原图surface准备`0x0043FDE0`闭环。完整LST范围`0x0043FDE0..0x00440092`，311行、E3D0 phase2唯一caller。恢复四块0xF0和四块0x1B8 buffer清零、固定232C动作、toggle所选runtime动作、两份inline动作的四槽解析，以及FCD1C/FCB90/FCA9C/FCA98 surface owner；保留四种失败路径的0/0x44/action-ID EAX和先前副作用。E3D0先写phase3/countdown再直接聚合typed helper。定向UT及ASan通过。workpack稳定为`67/227`，SHA256为`7fc5aea4c4435bb90aafea4135c0b4f7b7ae4db2f93c0d0a035d845e25361c41`。
 
+- 模块9炼妖祭坛波面动画`0x004400A0`闭环。完整LST范围`0x004400A0..0x004404C1`，453行、E800 phase3唯一caller。恢复50..109帧稀疏dword复制、B7/208 sample、3/5/7随机扰动、120..140帧signed 9/10衰减、两次220×120 framebuffer投影，以及FCAC8回绕写0但EAX保留120的语义；第二投影继续错误复用buffer2。FDE0四槽边界同步持有120×220像素。E800删除opaque draw-countdown事件并直接聚合。定向UT及ASan通过。workpack稳定为`68/227`，SHA256为`4513c6aaa7e58e15263a25b63bf082803abe11c5183f58929362251fc3baf986`。
+
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`67/227`，下一单元为`0x004400A0`。
+进行中，正式进度为`68/227`，下一单元为`0x004404D0`。
 
-下一工作包：按LST唯一真值闭环模块9 `0x004400A0`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值闭环模块9 `0x004404D0`，继续更新workpack、证据和完整验证门。

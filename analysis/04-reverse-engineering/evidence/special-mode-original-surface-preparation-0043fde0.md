@@ -14,6 +14,6 @@
 6. 任一4321E0失败立即调用无副作用日志stub并返回。保留原EAX：第一槽0、第二槽0x44、第三/第四槽对应action ID。typed状态分别为fixed/selected/first-inline/second-inline missing，且不回滚已清buffer和已写surface。
 7. 全成功时返回第四surface token。E3D0 phase2已删除原整块`prepare_database_phase_2`边界，先写phase3/countdown `-40`，再直接调用并聚合四次helper；失败时保留phase/countdown和FDE0既有副作用，并在sample前传播typed-stop。E3D0 phase1的4404D0仍保持独立边界，不混入本工作包。
 
-新增`prepare_legacy_standard_mode_database_original_surfaces`、四槽请求/结果及state-owned surface token数组。UT覆盖第二runtime record选择、四个ID/variant、八块清零、四surface写入、四种失败EAX和E3D0直接集成；独立ASan执行通过。
+新增`prepare_legacy_standard_mode_database_original_surfaces`、四槽请求/结果及state-owned surface token与120×220像素数组；平台边界成功时直接填充对应像素owner，供已关闭4400A0使用。UT覆盖第二runtime record选择、四个ID/variant、八块清零、四surface token/像素写入、四种失败EAX和E3D0直接集成；独立ASan执行通过。
 
 定向测试通过。workpack双生成稳定为`67/227`，SHA256均为`7fc5aea4c4435bb90aafea4135c0b4f7b7ae4db2f93c0d0a035d845e25361c41`；下一单元`0x004400A0`。Linux core完整门`188/188`、Linux app完整门`194/194`通过；按阶段门禁未运行Windows BUILD。

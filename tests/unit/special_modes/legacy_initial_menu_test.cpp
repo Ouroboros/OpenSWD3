@@ -4171,13 +4171,19 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
         }
         [[nodiscard]] std::optional<u32> prepare_database_original_surface(
             const openswd3::special_modes::
-                LegacyStandardModeOriginalSurfaceRequest& request
+                LegacyStandardModeOriginalSurfaceRequest& request,
+            std::span<
+                u16,
+                openswd3::special_modes::
+                    kLegacyStandardModeAltarSurfacePixelCount> surface
         ) noexcept override {
             const std::size_t index = original_surface_requests.size();
             original_surface_requests.push_back(request);
             if (missing_original_surface_index == index) {
                 return std::nullopt;
             }
+            surface.front() = static_cast<u16>(0xA000U + index);
+            surface.back() = static_cast<u16>(0xB000U + index);
             return static_cast<u32>(0x1000U + index);
         }
         void prepare_database_phase_1(
@@ -4432,6 +4438,8 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
                     0x3333U &&
                 surface_state.original_surface_tokens ==
                     std::array<u32, 4U>{0x1000U, 0x1001U, 0x1002U, 0x1003U} &&
+                surface_state.original_surface_pixels[2U].front() == 0xA002U &&
+                surface_state.original_surface_pixels[3U].back() == 0xB003U &&
                 surface_state.small_buffers[2U][0U] == 0U &&
                 surface_state.large_buffers[1U].back() == 0U,
             "0x43FDE0 clears eight buffers and resolves four original surfaces in order"
@@ -5051,6 +5059,31 @@ void test_standard_mode_database_render(openswd3::test::Context& test) {
             return 100 + static_cast<i32>(operations.size());
         }
 
+        i32 random_bounded(u32 bound) noexcept override {
+            random_bounds.push_back(bound);
+            if (random_index < random_values.size()) {
+                return random_values[random_index++];
+            }
+            return 0;
+        }
+
+        i32 initialize_sample(u16 sample_id) noexcept override {
+            sample_ids.push_back(sample_id);
+            return 700 + static_cast<i32>(sample_ids.size());
+        }
+
+        i32 framebuffer_pitch_bytes() noexcept override {
+            return pitch_bytes;
+        }
+
+        i32 framebuffer_height() noexcept override {
+            return height;
+        }
+
+        std::span<u16> framebuffer() noexcept override {
+            return framebuffer_pixels;
+        }
+
         bool exit_item{};
         bool detail_item{true};
         bool resources_available{true};
@@ -5059,6 +5092,13 @@ void test_standard_mode_database_render(openswd3::test::Context& test) {
         };
         std::vector<std::array<u8, 3U>> colors;
         std::vector<u16> item_queries;
+        i32 pitch_bytes{1280};
+        i32 height{480};
+        std::size_t random_index{};
+        std::vector<i32> random_values;
+        std::vector<u32> random_bounds;
+        std::vector<u16> sample_ids;
+        std::vector<u16> framebuffer_pixels = std::vector<u16>(640U * 480U, 0U);
         std::vector<u16> resource_ids;
         std::vector<Operation> operations;
     };
@@ -5081,6 +5121,182 @@ void test_standard_mode_database_render(openswd3::test::Context& test) {
             }
         ));
     };
+
+    {
+        sm::LegacyStandardModeDatabaseInitializationState state;
+        state.phase_3_countdown = 0U;
+        state.original_surface_pixels[2U][0U] = 0x1111U;
+        state.original_surface_pixels[3U][0U] = 0x2222U;
+        RenderPorts ports;
+        const auto animation =
+            sm::update_legacy_standard_mode_altar_animation(state, ports);
+        test.expect_true(
+            animation.status ==
+                    sm::LegacyStandardModeAltarAnimationStatus::completed &&
+                animation.legacy_return_value == 1 &&
+                animation.helper_call_count == 341U &&
+                animation.random_call_count == 340U &&
+                animation.framebuffer_write_count == 52800U &&
+                animation.sample_count == 1U &&
+                ports.sample_ids == std::vector<u16>{0xB7U} &&
+                ports.random_bounds.size() == 340U &&
+                ports.random_bounds.front() == 3U &&
+                state.animation_ring_offset == 1U &&
+                static_cast<i16>(
+                    static_cast<u16>(state.small_buffers[2U][0U]) |
+                    static_cast<u16>(state.small_buffers[2U][1U] << 8U)
+                ) == -1 &&
+                ports.framebuffer_pixels[379U] == 0x1111U &&
+                ports.framebuffer_pixels[619U] == 0x2222U,
+            "0x4400A0 applies 3-point jitter, B7 sample and both 120x220 projections"
+        );
+    }
+    {
+        sm::LegacyStandardModeDatabaseInitializationState state;
+        state.phase_3_countdown = 51U;
+        state.original_surface_pixels[1U][0U] = 0x1234U;
+        state.original_surface_pixels[1U][1U] = 0x5678U;
+        RenderPorts ports;
+        const auto animation =
+            sm::update_legacy_standard_mode_altar_animation(state, ports);
+        test.expect_true(
+            animation.status ==
+                    sm::LegacyStandardModeAltarAnimationStatus::completed &&
+                animation.random_call_count == 348U &&
+                animation.copied_pixel_count == 32U &&
+                state.original_surface_pixels[2U][0U] == 0x1234U &&
+                state.original_surface_pixels[2U][1U] == 0x5678U &&
+                state.original_surface_pixels[3U][0U] == 0x1234U &&
+                ports.sample_ids == std::vector<u16>{0xB7U},
+            "0x4400A0 performs 8*countdown-400 sparse dword copies before jitter"
+        );
+    }
+    {
+        sm::LegacyStandardModeDatabaseInitializationState state;
+        state.phase_3_countdown = 110U;
+        state.original_surface_pixels[1U].front() = 0x1357U;
+        state.original_surface_pixels[1U].back() = 0x2468U;
+        RenderPorts ports;
+        const auto animation =
+            sm::update_legacy_standard_mode_altar_animation(state, ports);
+        test.expect_true(
+            animation.status ==
+                    sm::LegacyStandardModeAltarAnimationStatus::completed &&
+                animation.copied_pixel_count == 52800U &&
+                ports.sample_ids == std::vector<u16>{0x208U} &&
+                state.original_surface_pixels[2U].front() == 0x1357U &&
+                state.original_surface_pixels[2U].back() == 0x2468U &&
+                state.original_surface_pixels[3U].back() == 0x2468U,
+            "0x4400A0 countdown110 samples 208 and clones the complete source twice"
+        );
+    }
+    {
+        sm::LegacyStandardModeDatabaseInitializationState state;
+        state.phase_3_countdown = 120U;
+        put_u16(state.small_buffers[2U], 0U, static_cast<u16>(-9));
+        put_u16(state.small_buffers[3U], 0U, 9U);
+        put_u16(state.large_buffers[2U], 0U, static_cast<u16>(-19));
+        put_u16(state.large_buffers[3U], 0U, 19U);
+        RenderPorts ports;
+        const auto animation =
+            sm::update_legacy_standard_mode_altar_animation(state, ports);
+        const auto read_i16 = [](const std::span<const u8> bytes) {
+            return static_cast<i16>(
+                static_cast<u16>(bytes[0U]) |
+                static_cast<u16>(static_cast<u16>(bytes[1U]) << 8U)
+            );
+        };
+        test.expect_true(
+            animation.status ==
+                    sm::LegacyStandardModeAltarAnimationStatus::completed &&
+                animation.random_call_count == 0U &&
+                read_i16(state.small_buffers[2U]) == -8 &&
+                read_i16(state.small_buffers[3U]) == 8 &&
+                read_i16(state.large_buffers[2U]) == -17 &&
+                read_i16(state.large_buffers[3U]) == 17,
+            "0x4400A0 countdown120 damps all signed displacements by 9/10 toward zero"
+        );
+
+        state.phase_3_countdown = 141U;
+        state.animation_ring_offset = 119U;
+        RenderPorts late_ports;
+        const auto late =
+            sm::update_legacy_standard_mode_altar_animation(state, late_ports);
+        test.expect_true(
+            late.legacy_return_value == 640 &&
+                state.animation_ring_offset == 119U &&
+                late.framebuffer_write_count == 0U,
+            "0x4400A0 countdown141 skips projection and preserves width-half EAX"
+        );
+
+        state.phase_3_countdown = 140U;
+        RenderPorts wrap_ports;
+        const auto wrapped =
+            sm::update_legacy_standard_mode_altar_animation(state, wrap_ports);
+        test.expect_true(
+            wrapped.legacy_return_value == 120 &&
+                state.animation_ring_offset == 0U,
+            "0x4400A0 ring wrap stores zero but preserves pre-reset EAX120"
+        );
+    }
+    {
+        sm::LegacyStandardModeDatabaseInitializationState random_state;
+        random_state.phase_3_countdown = 51U;
+        RenderPorts random_ports;
+        random_ports.random_values.push_back(0x3390);
+        const auto random_stopped =
+            sm::update_legacy_standard_mode_altar_animation(
+                random_state, random_ports
+            );
+
+        sm::LegacyStandardModeDatabaseInitializationState state;
+        state.phase_3_countdown = std::bit_cast<u32>(-1);
+        put_u16(state.small_buffers[2U], 0U, 128U);
+        RenderPorts mirror_ports;
+        const auto mirror_stopped =
+            sm::update_legacy_standard_mode_altar_animation(
+                state, mirror_ports
+            );
+        state.small_buffers[2U].fill(0U);
+        RenderPorts framebuffer_ports;
+        framebuffer_ports.framebuffer_pixels.resize(1U);
+        const auto framebuffer_stopped =
+            sm::update_legacy_standard_mode_altar_animation(
+                state, framebuffer_ports
+            );
+        test.expect_true(
+            random_stopped.status ==
+                    sm::LegacyStandardModeAltarAnimationStatus::
+                        random_index_out_of_range &&
+                random_stopped.legacy_return_value == 0x6720,
+            "0x4400A0 typed-stops at the sparse-copy source read"
+        );
+        test.expect_true(
+            mirror_stopped.status ==
+                    sm::LegacyStandardModeAltarAnimationStatus::
+                        mirror_index_out_of_range &&
+                mirror_stopped.legacy_return_value == 128,
+            "0x4400A0 typed-stops at the mirror table read"
+        );
+        test.expect_true(
+            framebuffer_stopped.status ==
+                sm::LegacyStandardModeAltarAnimationStatus::
+                    framebuffer_index_out_of_range,
+            "0x4400A0 typed-stops at the framebuffer write"
+        );
+
+        state.interaction_phase = 3U;
+        put_u16(state.small_buffers[2U], 0U, 128U);
+        RenderPorts render_ports;
+        const auto render_stopped = render(state, render_ports);
+        test.expect_true(
+            render_stopped.status ==
+                    sm::LegacyStandardModeDatabaseRenderStatus::
+                        altar_animation_stopped &&
+                state.phase_3_countdown == std::bit_cast<u32>(-1),
+            "0x43E800 propagates 4400A0 typed-stop before countdown increment"
+        );
+    }
 
     {
         std::array<u8, 0xB0U> record{};
@@ -5289,16 +5505,18 @@ void test_standard_mode_database_render(openswd3::test::Context& test) {
         test.expect_true(
             moving.legacy_return_value == -33 &&
                 state.animation_offset == -24 &&
-                count_kind(moving_ports, Kind::draw_countdown) == 1U,
-            "0x43E800 phase3 -34 frame computes signed animation offset"
+                state.animation_ring_offset == 1U &&
+                moving_ports.operations.empty(),
+            "0x43E800 phase3 -34 frame directly executes 4400A0 before increment"
         );
 
         state.phase_3_countdown = 140U;
         RenderPorts completing_ports;
         const auto completing = render(state, completing_ports);
         test.expect_true(
-            completing.legacy_return_value == 102 &&
+            completing.legacy_return_value == 101 &&
                 state.phase_3_countdown == 200U &&
+                state.animation_ring_offset == 2U &&
                 count_kind(completing_ports, Kind::complete_phase) == 1U,
             "0x43E800 phase3 frame141 snaps countdown200 and calls 4405C0"
         );
