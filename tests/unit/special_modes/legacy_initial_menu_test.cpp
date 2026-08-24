@@ -15281,11 +15281,9 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     last_page_state.interaction_page = 2U;
     last_page_state.message_sample_owner = 0x12345678U;
     FakeSystemMenuPorts last_page_ports;
-    static_cast<void>(
-        openswd3::special_modes::page_down_legacy_standard_mode_system_menu(
-            last_page_state, last_page_ports
-        )
-    );
+    static_cast<void>(openswd3::special_modes::page_down_legacy_system_menu(
+        last_page_state, last_page_ports
+    ));
     test.expect_true(
         last_page_state.interaction_page == 4U &&
             last_page_ports.input_commands ==
@@ -15302,7 +15300,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     last_window_state.system_menu_visible_count = 2U;
     FakeSystemMenuPorts last_window_ports;
     const auto last_window =
-        openswd3::special_modes::page_down_legacy_standard_mode_system_menu(
+        openswd3::special_modes::page_down_legacy_system_menu(
             last_window_state, last_window_ports
         );
     test.expect_true(
@@ -15321,11 +15319,9 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     last_rows_state.interaction_page = 4U;
     last_rows_state.message_sample_owner = 7U;
     FakeSystemMenuPorts last_rows_ports;
-    static_cast<void>(
-        openswd3::special_modes::page_down_legacy_standard_mode_system_menu(
-            last_rows_state, last_rows_ports
-        )
-    );
+    static_cast<void>(openswd3::special_modes::page_down_legacy_system_menu(
+        last_rows_state, last_rows_ports
+    ));
     test.expect_true(
         last_rows_state.selected_row == 2U &&
             last_rows_ports.input_commands ==
@@ -15340,7 +15336,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     last_detail_state.interaction_page = 4U;
     FakeSystemMenuPorts last_detail_ports;
     const auto last_detail =
-        openswd3::special_modes::page_down_legacy_standard_mode_system_menu(
+        openswd3::special_modes::page_down_legacy_system_menu(
             last_detail_state, last_detail_ports
         );
     test.expect_true(
@@ -15353,11 +15349,9 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     last_entry_state.interaction_mode = 5U;
     last_entry_state.message_sample_owner = 9U;
     FakeSystemMenuPorts last_entry_ports;
-    static_cast<void>(
-        openswd3::special_modes::page_down_legacy_standard_mode_system_menu(
-            last_entry_state, last_entry_ports
-        )
-    );
+    static_cast<void>(openswd3::special_modes::page_down_legacy_system_menu(
+        last_entry_state, last_entry_ports
+    ));
     test.expect_true(
         last_entry_state.selected_entry == 0x0FU &&
             last_entry_ports.input_commands ==

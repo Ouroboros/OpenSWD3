@@ -415,7 +415,7 @@ LegacySystemMenuResult release_legacy_system_menu(
     return result;
 }
 
-LegacySystemMenuInputResult page_down_legacy_standard_mode_system_menu(
+LegacySystemMenuInputResult page_down_legacy_system_menu(
     LegacySystemMenuState& state, LegacySystemMenuPorts& ports
 ) noexcept {
     LegacySystemMenuInputResult result;
@@ -765,7 +765,7 @@ LegacySystemMenuInputResult update_legacy_system_menu_input(
         if (signed_x < state.lower_dynamic_right &&
             signed_x > state.lower_dynamic_left) {
             const LegacySystemMenuInputResult page_down =
-                page_down_legacy_standard_mode_system_menu(state, ports);
+                page_down_legacy_system_menu(state, ports);
             result.helper_call_count += page_down.helper_call_count;
             result.legacy_return_value = page_down.legacy_return_value;
             result.command = page_down.command;

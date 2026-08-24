@@ -472,8 +472,7 @@ struct LegacySystemMenuInputResult {
     std::optional<LegacySystemMenuInputCommand> command;
 };
 
-[[nodiscard]] LegacySystemMenuInputResult
-page_down_legacy_standard_mode_system_menu(
+[[nodiscard]] LegacySystemMenuInputResult page_down_legacy_system_menu(
     LegacySystemMenuState& state, LegacySystemMenuPorts& ports
 ) noexcept;
 
