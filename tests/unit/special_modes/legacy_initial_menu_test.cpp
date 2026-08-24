@@ -2721,14 +2721,17 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
     class EquipmentInitializationPorts final
         : public sm::LegacyStandardModeEquipmentInitializationPorts {
     public:
-        bool initialize_equipment_record_list(
-            sm::LegacyStandardModeEquipmentInitializationState& state
-        ) noexcept override {
+        sm::LegacyStandardModeForwardNode*
+        equipment_record_source_root(const u16) noexcept override {
             events.push_back(1U);
-            state.record_head = record_head;
-            state.list_offset = list_offset;
-            state.local_selection = local_selection;
-            return record_list_available;
+            source_root.next = record_head;
+            return record_list_available ? &source_root : nullptr;
+        }
+
+        sm::LegacyStandardModeForwardNode*
+        create_missing_equipment_record() noexcept override {
+            ++missing_record_allocations;
+            return missing_record_available ? &missing_record : nullptr;
         }
 
         bool initialize_equipment_action_count(
@@ -2757,16 +2760,140 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         }
 
         const sm::LegacyStandardModeForwardNode* record_head{};
-        u32 list_offset{};
-        u32 local_selection{};
+        sm::LegacyStandardModeForwardNode source_root;
+        sm::LegacyStandardModeForwardNode missing_record;
         bool record_list_available{true};
+        bool missing_record_available{true};
         bool action_count_available{true};
         bool finalization_available{true};
         u32 workspace_token{0x12345678U};
         std::size_t allocation_size{};
         u32 finalization_argument{};
+        u32 missing_record_allocations{};
         std::vector<u32> events;
     };
+    {
+        sm::LegacyStandardModeForwardNode skipped;
+        skipped.text_index = 30U;
+        skipped.filter_category = 0x1BU;
+        sm::LegacyStandardModeForwardNode matched;
+        matched.text_index = 20U;
+        matched.filter_category = 0x1CU;
+        sm::LegacyStandardModeForwardNode zero_category;
+        zero_category.text_index = 10U;
+        zero_category.filter_category = 0U;
+        skipped.next = &matched;
+        matched.next = &zero_category;
+        sm::LegacyStandardModeEquipmentInitializationState rebuilt_state;
+        rebuilt_state.party_selector = 0xABCD0000U;
+        rebuilt_state.list_kind = 0U;
+        rebuilt_state.list_offset = 7U;
+        rebuilt_state.local_selection = 9U;
+        rebuilt_state.record_sort_cleared_word = 0xFFFFU;
+        EquipmentInitializationPorts rebuilt_ports;
+        rebuilt_ports.record_head = &skipped;
+        const auto rebuilt =
+            sm::rebuild_legacy_standard_mode_equipment_record_list(
+                rebuilt_state, rebuilt_ports
+            );
+        test.expect_true(
+            rebuilt.status ==
+                    sm::LegacyStandardModeEquipmentRecordListStatus::
+                        completed &&
+                rebuilt.helper_call_count == 3U &&
+                !rebuilt.created_missing_record &&
+                rebuilt_state.record_head == &zero_category &&
+                zero_category.next == &matched && matched.next == nullptr &&
+                rebuilt_ports.source_root.next == &skipped &&
+                skipped.next == nullptr &&
+                rebuilt_state.total_record_count == 2U &&
+                rebuilt_state.visible_record_count == 2U &&
+                rebuilt_state.visible_record_head == &zero_category &&
+                rebuilt_state.list_offset == 0U &&
+                rebuilt_state.local_selection == 0U &&
+                rebuilt_state.record_sort_cleared_word == 0U &&
+                rebuilt.legacy_return_node == nullptr,
+            "0x444E80 filters/sorts one party pool then resets the visible window"
+        );
+
+        sm::LegacyStandardModeForwardNode nonmatching;
+        nonmatching.filter_category = 0x1BU;
+        rebuilt_state = {};
+        rebuilt_state.list_kind = 0U;
+        EquipmentInitializationPorts missing_ports;
+        missing_ports.record_head = &nonmatching;
+        const auto created =
+            sm::rebuild_legacy_standard_mode_equipment_record_list(
+                rebuilt_state, missing_ports
+            );
+        test.expect_true(
+            created.status ==
+                    sm::LegacyStandardModeEquipmentRecordListStatus::
+                        completed &&
+                created.created_missing_record &&
+                created.helper_call_count == 4U &&
+                missing_ports.missing_record_allocations == 1U &&
+                rebuilt_state.record_head == &missing_ports.missing_record &&
+                rebuilt_state.total_record_count == 1U &&
+                rebuilt_state.visible_record_count == 1U,
+            "0x444E80 allocates and terminates one missing record for an empty filter"
+        );
+
+        rebuilt_state = {};
+        rebuilt_state.party_selector = 4U;
+        rebuilt_state.record_head = &matched;
+        EquipmentInitializationPorts selector_stop_ports;
+        const auto selector_stopped =
+            sm::rebuild_legacy_standard_mode_equipment_record_list(
+                rebuilt_state, selector_stop_ports
+            );
+        rebuilt_state = {};
+        EquipmentInitializationPorts source_stop_ports;
+        source_stop_ports.record_list_available = false;
+        const auto source_stopped =
+            sm::rebuild_legacy_standard_mode_equipment_record_list(
+                rebuilt_state, source_stop_ports
+            );
+        rebuilt_state = {};
+        rebuilt_state.list_kind = 5U;
+        rebuilt_state.record_head = &matched;
+        rebuilt_state.record_sort_cleared_word = 7U;
+        EquipmentInitializationPorts filter_stop_ports;
+        filter_stop_ports.record_head = &matched;
+        const auto filter_stopped =
+            sm::rebuild_legacy_standard_mode_equipment_record_list(
+                rebuilt_state, filter_stop_ports
+            );
+        rebuilt_state = {};
+        rebuilt_state.list_kind = 0U;
+        EquipmentInitializationPorts allocation_stop_ports;
+        allocation_stop_ports.record_head = &nonmatching;
+        allocation_stop_ports.missing_record_available = false;
+        const auto allocation_stopped =
+            sm::rebuild_legacy_standard_mode_equipment_record_list(
+                rebuilt_state, allocation_stop_ports
+            );
+        test.expect_true(
+            selector_stopped.status ==
+                    sm::LegacyStandardModeEquipmentRecordListStatus::
+                        party_selector_out_of_range &&
+                selector_stopped.helper_call_count == 0U &&
+                source_stopped.status ==
+                    sm::LegacyStandardModeEquipmentRecordListStatus::
+                        source_root_missing &&
+                source_stopped.helper_call_count == 0U &&
+                filter_stopped.status ==
+                    sm::LegacyStandardModeEquipmentRecordListStatus::
+                        filter_index_out_of_range &&
+                filter_stopped.helper_call_count == 1U &&
+                rebuilt_state.record_head == nullptr &&
+                allocation_stopped.status ==
+                    sm::LegacyStandardModeEquipmentRecordListStatus::
+                        missing_record_allocation_stopped &&
+                allocation_stopped.helper_call_count == 2U,
+            "0x444E80 typed-stops at party pool, filter table and missing allocation reads"
+        );
+    }
     {
         sm::LegacyStandardModeForwardNode second_equipment_record;
         second_equipment_record.text_index = 0xFFDCU;
@@ -2782,7 +2909,6 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         equipment.global_mode = 10U;
         EquipmentInitializationPorts equipment_ports;
         equipment_ports.record_head = &first_equipment_record;
-        equipment_ports.local_selection = 1U;
         const auto initialized = sm::initialize_legacy_standard_mode_equipment(
             equipment, {}, equipment_ports
         );
@@ -2838,7 +2964,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             );
         sm::LegacyStandardModeEquipmentInitializationState missing_state;
         EquipmentInitializationPorts missing_ports;
-        const auto selected_missing =
+        missing_ports.missing_record_available = false;
+        const auto missing_allocation_stopped =
             sm::initialize_legacy_standard_mode_equipment(
                 missing_state, {}, missing_ports
             );
@@ -2871,10 +2998,10 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                     sm::LegacyStandardModeEquipmentInitializationStatus::
                         action_count_stopped &&
                 action_stop_state.action_count == 4U &&
-                selected_missing.status ==
+                missing_allocation_stopped.status ==
                     sm::LegacyStandardModeEquipmentInitializationStatus::
-                        selected_record_missing &&
-                missing_state.active_party_count == 2U &&
+                        record_list_stopped &&
+                missing_state.active_party_count == 0U &&
                 equipment_text_stopped.status ==
                     sm::LegacyStandardModeEquipmentInitializationStatus::
                         shared_text_stopped &&
@@ -3401,11 +3528,44 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return sample_return;
         }
 
+        sm::LegacyStandardModeForwardNode*
+        equipment_record_source_root(const u16) noexcept override {
+            if (record_list_context == 1U) {
+                cycle_events.push_back(3U);
+                if (!cycle_party_changes_state &&
+                    record_list_state != nullptr) {
+                    record_list_state->party_selector =
+                        party_selector_before_cycle;
+                }
+                if (!party_cycle_record_list_available) {
+                    return nullptr;
+                }
+            } else if (record_list_context == 2U) {
+                list_kind_events.push_back(2U);
+                if (!list_kind_record_list_available) {
+                    return nullptr;
+                }
+            }
+            record_list_source_root.next = record_list_source_head;
+            return &record_list_source_root;
+        }
+
+        sm::LegacyStandardModeForwardNode*
+        create_missing_equipment_record() noexcept override {
+            missing_equipment_record.text_index = 0xFFDCU;
+            return missing_equipment_record_available
+                ? &missing_equipment_record
+                : nullptr;
+        }
+
         bool cleanup_equipment_party_cycle(
             sm::LegacyStandardModeEquipmentInitializationState& state
         ) noexcept override {
             cycle_events.push_back(1U);
             party_selector_before_cycle = state.party_selector;
+            record_list_context = 1U;
+            record_list_state = &state;
+            record_list_source_head = state.record_head;
             return party_cycle_cleanup_available;
         }
 
@@ -3414,16 +3574,6 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         ) noexcept override {
             cycle_events.push_back(2U);
             return party_cycle_action_count_available;
-        }
-
-        bool initialize_equipment_party_cycle_record_list(
-            sm::LegacyStandardModeEquipmentInitializationState& state
-        ) noexcept override {
-            cycle_events.push_back(3U);
-            if (!cycle_party_changes_state) {
-                state.party_selector = party_selector_before_cycle;
-            }
-            return party_cycle_record_list_available;
         }
 
         std::optional<i32> finalize_equipment_party_cycle_action_count(
@@ -3513,17 +3663,13 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         }
 
         bool cleanup_equipment_list_kind_cycle(
-            sm::LegacyStandardModeEquipmentInitializationState&
+            sm::LegacyStandardModeEquipmentInitializationState& state
         ) noexcept override {
             list_kind_events.push_back(1U);
+            record_list_context = 2U;
+            record_list_state = &state;
+            record_list_source_head = state.record_head;
             return list_kind_cleanup_available;
-        }
-
-        bool initialize_equipment_list_kind_cycle_record_list(
-            sm::LegacyStandardModeEquipmentInitializationState&
-        ) noexcept override {
-            list_kind_events.push_back(2U);
-            return list_kind_record_list_available;
         }
 
         std::array<i32, 64U> item_presence{};
@@ -3536,8 +3682,14 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         bool party_cycle_record_list_available{true};
         bool list_kind_cleanup_available{true};
         bool list_kind_record_list_available{true};
+        bool missing_equipment_record_available{true};
         i32 sample_return{77};
         u32 party_selector_before_cycle{};
+        u32 record_list_context{};
+        sm::LegacyStandardModeEquipmentInitializationState* record_list_state{};
+        const sm::LegacyStandardModeForwardNode* record_list_source_head{};
+        sm::LegacyStandardModeForwardNode record_list_source_root;
+        sm::LegacyStandardModeForwardNode missing_equipment_record;
         std::optional<i32> party_cycle_finalized_action_count{17};
         std::optional<sm::LegacyStandardModeEquipmentActionLoadResult>
             equipment_action_load{
@@ -4306,16 +4458,16 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 list_kind_record_stopped.status ==
                     sm::LegacyStandardModeEquipmentListKindCycleStatus::
                         record_list_stopped &&
-                list_kind_record_stopped.helper_call_count == 1U &&
+                list_kind_record_stopped.helper_call_count == 2U &&
                 list_kind_missing.status ==
                     sm::LegacyStandardModeEquipmentListKindCycleStatus::
-                        selected_record_missing &&
-                list_kind_missing.helper_call_count == 3U &&
+                        completed &&
+                list_kind_missing.helper_call_count == 5U &&
                 list_kind_text_stopped.status ==
                     sm::LegacyStandardModeEquipmentListKindCycleStatus::
                         shared_text_stopped &&
                 list_kind_text_stopped.helper_call_count == 4U,
-            "0x443B70 preserves cleanup, record-list, B9C0 and B9E0 stop prefixes"
+            "0x443B70 preserves cleanup, record-list and B9E0 stop prefixes"
         );
 
         sm::LegacyStandardModeForwardNode commit_record;
@@ -4916,7 +5068,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                         completed &&
                 party_cycled.helper_call_count == 10U &&
                 party_cycle_state.party_selector == 0xABCD0002U &&
-                party_cycle_state.visible_record_head == &advance_first &&
+                party_cycle_state.visible_record_head == &advance_third &&
                 party_cycle_state.visible_record_count == 3U &&
                 party_cycle_state.shared_text[0] == 0xB5U &&
                 party_cycle_state.published_action_count == 17 &&
@@ -4996,16 +5148,16 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             party_cycle_record_stopped.status ==
                     sm::LegacyStandardModeEquipmentPartyCycleStatus::
                         record_list_stopped &&
-                party_cycle_record_stopped.helper_call_count == 2U &&
+                party_cycle_record_stopped.helper_call_count == 3U &&
                 party_cycle_missing.status ==
                     sm::LegacyStandardModeEquipmentPartyCycleStatus::
-                        selected_record_missing &&
-                party_cycle_missing.helper_call_count == 7U &&
+                        completed &&
+                party_cycle_missing.helper_call_count == 10U &&
                 party_cycle_text_stopped.status ==
                     sm::LegacyStandardModeEquipmentPartyCycleStatus::
                         shared_text_stopped &&
                 party_cycle_text_stopped.helper_call_count == 8U,
-            "0x443A60 preserves record-list, B9C0 and B9E0 stop prefixes"
+            "0x443A60 preserves record-list and B9E0 stop prefixes"
         );
 
         party_cycle_state = {};

@@ -451,6 +451,70 @@ refresh_legacy_standard_mode_equipment_visible_count(
     return current;
 }
 
+LegacyStandardModeEquipmentRecordListResult
+rebuild_legacy_standard_mode_equipment_record_list(
+    LegacyStandardModeEquipmentInitializationState& state,
+    LegacyStandardModeEquipmentRecordListPorts& ports
+) noexcept {
+    LegacyStandardModeEquipmentRecordListResult result;
+    const compat::u16 party_index =
+        static_cast<compat::u16>(state.party_selector);
+    if (party_index >= 4U) {
+        result.status = LegacyStandardModeEquipmentRecordListStatus::
+            party_selector_out_of_range;
+        return result;
+    }
+    LegacyStandardModeForwardNode* source_root =
+        ports.equipment_record_source_root(party_index);
+    if (source_root == nullptr) {
+        result.status =
+            LegacyStandardModeEquipmentRecordListStatus::source_root_missing;
+        return result;
+    }
+
+    LegacyStandardModeEquipmentSortedRecordState destination;
+    destination.head = state.record_head;
+    destination.sentinel_text_index = state.record_sort_sentinel;
+    destination.cleared_word = state.record_sort_cleared_word;
+    const LegacyStandardModeEquipmentRecordSortResult sorted =
+        sort_legacy_standard_mode_equipment_records(
+            *source_root, destination, state.list_kind
+        );
+    ++result.helper_call_count;
+    state.record_head = destination.head;
+    state.record_sort_cleared_word = destination.cleared_word;
+    if (sorted.status !=
+        LegacyStandardModeEquipmentRecordSortStatus::completed) {
+        result.status = LegacyStandardModeEquipmentRecordListStatus::
+            filter_index_out_of_range;
+        return result;
+    }
+
+    if (state.record_head == nullptr) {
+        LegacyStandardModeForwardNode* missing =
+            ports.create_missing_equipment_record();
+        ++result.helper_call_count;
+        if (missing == nullptr) {
+            result.status = LegacyStandardModeEquipmentRecordListStatus::
+                missing_record_allocation_stopped;
+            return result;
+        }
+        missing->next = nullptr;
+        state.record_head = missing;
+        result.created_missing_record = true;
+    }
+    state.total_record_count =
+        count_legacy_standard_mode_forward_nodes(state.record_head);
+    ++result.helper_call_count;
+    state.list_offset = 0U;
+    state.local_selection = 0U;
+    state.visible_record_head = state.record_head;
+    result.legacy_return_node =
+        refresh_legacy_standard_mode_equipment_visible_count(state);
+    ++result.helper_call_count;
+    return result;
+}
+
 LegacyStandardModeEquipmentInitializationResult
 initialize_legacy_standard_mode_equipment(
     LegacyStandardModeEquipmentInitializationState& state,
@@ -465,12 +529,15 @@ initialize_legacy_standard_mode_equipment(
     state.selected_party_action = 0U;
     state.mode_enabled = 1U;
     state.list_kind = 0U;
-    if (!ports.initialize_equipment_record_list(state)) {
+    const LegacyStandardModeEquipmentRecordListResult record_list =
+        rebuild_legacy_standard_mode_equipment_record_list(state, ports);
+    ++result.helper_call_count;
+    if (record_list.status !=
+        LegacyStandardModeEquipmentRecordListStatus::completed) {
         result.status = LegacyStandardModeEquipmentInitializationStatus::
             record_list_stopped;
         return result;
     }
-    ++result.helper_call_count;
     if (!ports.initialize_equipment_action_count(state)) {
         result.status = LegacyStandardModeEquipmentInitializationStatus::
             action_count_stopped;
@@ -1669,12 +1736,15 @@ cycle_legacy_standard_mode_equipment_list_kind(
     if (state.list_kind == 3U) {
         state.list_kind = 0U;
     }
-    if (!ports.initialize_equipment_list_kind_cycle_record_list(state)) {
+    const LegacyStandardModeEquipmentRecordListResult record_list =
+        rebuild_legacy_standard_mode_equipment_record_list(state, ports);
+    ++result.helper_call_count;
+    if (record_list.status !=
+        LegacyStandardModeEquipmentRecordListStatus::completed) {
         result.status =
             LegacyStandardModeEquipmentListKindCycleStatus::record_list_stopped;
         return result;
     }
-    ++result.helper_call_count;
 
     const LegacyStandardModeForwardNode* const record_head = state.record_head;
     const LegacyStandardModeForwardNode* const selected_record =
@@ -1750,12 +1820,15 @@ cycle_legacy_standard_mode_equipment_party(
         return result;
     }
     ++result.helper_call_count;
-    if (!ports.initialize_equipment_party_cycle_record_list(state)) {
+    const LegacyStandardModeEquipmentRecordListResult record_list =
+        rebuild_legacy_standard_mode_equipment_record_list(state, ports);
+    ++result.helper_call_count;
+    if (record_list.status !=
+        LegacyStandardModeEquipmentRecordListStatus::completed) {
         result.status =
             LegacyStandardModeEquipmentPartyCycleStatus::record_list_stopped;
         return result;
     }
-    ++result.helper_call_count;
 
     compat::i32 list_offset = std::bit_cast<compat::i32>(state.list_offset);
     compat::i32 local_selection =

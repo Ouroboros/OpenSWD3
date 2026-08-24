@@ -696,6 +696,8 @@ struct LegacyStandardModeEquipmentInitializationState {
     compat::u32 list_offset{};
     compat::u32 local_selection{};
     const LegacyStandardModeForwardNode* record_head{};
+    compat::u16 record_sort_sentinel{};
+    compat::u16 record_sort_cleared_word{};
     std::array<compat::u16, 4U> party_markers{};
     std::array<compat::i16, 4U> party_equipment_gates{};
     std::array<compat::u16, 4U> party_primary_resources{};
@@ -735,12 +737,42 @@ struct LegacyStandardModeEquipmentInitializationState {
     compat::i32 special_second_dynamic_max_y{};
 };
 
-class LegacyStandardModeEquipmentInitializationPorts {
+class LegacyStandardModeEquipmentRecordListPorts {
 public:
-    virtual ~LegacyStandardModeEquipmentInitializationPorts() = default;
-    [[nodiscard]] virtual bool initialize_equipment_record_list(
-        LegacyStandardModeEquipmentInitializationState& state
-    ) noexcept = 0;
+    virtual ~LegacyStandardModeEquipmentRecordListPorts() = default;
+    [[nodiscard]] virtual LegacyStandardModeForwardNode*
+    equipment_record_source_root(compat::u16 party_index) noexcept = 0;
+    [[nodiscard]] virtual LegacyStandardModeForwardNode*
+    create_missing_equipment_record() noexcept = 0;
+};
+
+enum class LegacyStandardModeEquipmentRecordListStatus : compat::u8 {
+    completed,
+    party_selector_out_of_range,
+    source_root_missing,
+    filter_index_out_of_range,
+    missing_record_allocation_stopped,
+};
+
+struct LegacyStandardModeEquipmentRecordListResult {
+    LegacyStandardModeEquipmentRecordListStatus status{
+        LegacyStandardModeEquipmentRecordListStatus::completed
+    };
+    const LegacyStandardModeForwardNode* legacy_return_node{};
+    compat::u32 helper_call_count{};
+    bool created_missing_record{};
+};
+
+[[nodiscard]] LegacyStandardModeEquipmentRecordListResult
+rebuild_legacy_standard_mode_equipment_record_list(
+    LegacyStandardModeEquipmentInitializationState& state,
+    LegacyStandardModeEquipmentRecordListPorts& ports
+) noexcept;
+
+class LegacyStandardModeEquipmentInitializationPorts
+    : public virtual LegacyStandardModeEquipmentRecordListPorts {
+public:
+    ~LegacyStandardModeEquipmentInitializationPorts() override = default;
     [[nodiscard]] virtual bool initialize_equipment_action_count(
         LegacyStandardModeEquipmentInitializationState& state
     ) noexcept = 0;
@@ -847,9 +879,10 @@ struct LegacyStandardModeEquipmentInputResult {
     std::optional<LegacyStandardModeEquipmentInputTarget> last_target{};
 };
 
-class LegacyStandardModeEquipmentAdvancePorts {
+class LegacyStandardModeEquipmentAdvancePorts
+    : public virtual LegacyStandardModeEquipmentRecordListPorts {
 public:
-    virtual ~LegacyStandardModeEquipmentAdvancePorts() = default;
+    ~LegacyStandardModeEquipmentAdvancePorts() override = default;
     [[nodiscard]] virtual compat::i32 execute_equipment_sample_command(
         compat::u16 command_id, compat::u32 sample_owner
     ) noexcept = 0;
@@ -982,9 +1015,6 @@ public:
     [[nodiscard]] virtual bool initialize_equipment_party_cycle_action_count(
         LegacyStandardModeEquipmentInitializationState& state
     ) noexcept = 0;
-    [[nodiscard]] virtual bool initialize_equipment_party_cycle_record_list(
-        LegacyStandardModeEquipmentInitializationState& state
-    ) noexcept = 0;
     [[nodiscard]] virtual std::optional<compat::i32>
     finalize_equipment_party_cycle_action_count(
         compat::u32 selected_party_action
@@ -1021,9 +1051,6 @@ class LegacyStandardModeEquipmentListKindCyclePorts
 public:
     ~LegacyStandardModeEquipmentListKindCyclePorts() override = default;
     [[nodiscard]] virtual bool cleanup_equipment_list_kind_cycle(
-        LegacyStandardModeEquipmentInitializationState& state
-    ) noexcept = 0;
-    [[nodiscard]] virtual bool initialize_equipment_list_kind_cycle_record_list(
         LegacyStandardModeEquipmentInitializationState& state
     ) noexcept = 0;
 };

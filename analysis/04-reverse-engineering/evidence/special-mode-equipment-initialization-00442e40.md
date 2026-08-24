@@ -2,13 +2,13 @@
 
 状态：`platform_adapted`、`unit_tested`
 
-唯一行为真值为`swd3.exe.lst`。物理范围`0x00442E40..0x00442F08`，90行，无FUNCTION CHUNK。无direct call caller；444FC0把该地址绑定到模式初始化callback表，待其独立关闭时回收。直接callee B9C0/B9E0已关闭并由typed helper直接复用；444E80、444F60、444FB0仍分别保留记录列表、动作数和最终动作数窄端口；487C10仅以固定`0x28` workspace allocation端口表达。
+唯一行为真值为`swd3.exe.lst`。物理范围`0x00442E40..0x00442F08`，90行，无FUNCTION CHUNK。无direct call caller；444FC0把该地址绑定到模式初始化callback表，待其独立关闭时回收。直接callee B9C0、B9E0与444E80已关闭并由typed helper直接复用；444F60、444FB0仍分别保留动作数和最终动作数窄端口；487C10仅以固定`0x28` workspace allocation端口表达。
 
 ## 严格顺序
 
 1. 若party selector low16为5，只清low16为0，保留high16。
 2. 写文本资源word `0x2A`、selected party action 0、mode enabled 1、list kind 0。
-3. 调444E80等价记录列表初始化；callee可改record head、list offset及local selection，后续必须重读。
+3. 直接调用444E80记录列表初始化；callee重建record head并把list offset/local selection清0，后续必须重读。
 4. 调444F60等价动作数初始化。
 5. active party count先清0，再按四个party record首word是否不等于`FFFF`计数。
 6. 以调用后的`list_offset + local_selection`执行已关闭B9C0索引；null记录在B9E0原`[record+4]`读取前typed-stop。
@@ -19,10 +19,10 @@
 
 ## typed边界
 
-444E80、444F60或444FB0端口不可用时，在各原call site停止并保留此前字段；selected record缺失在原B9E0 record解引用点停止；B9E0失败保留party count和已提交共享文本，不写后续render/workspace字段。444FB0停止时workspace token已发布，final zero、动作数和global mode保持调用前值。
+444E80按party池、filter表与缺省节点分配的typed边界停止；444F60或444FB0端口不可用时，在各原call site停止并保留此前字段。B9E0失败保留party count和已提交共享文本，不写后续render/workspace字段。444FB0停止时workspace token已发布，final zero、动作数和global mode保持调用前值。
 
 modern state只表达E40实际读写的模式字段、四个party marker、typed forward head、128字节共享文本和workspace token，不映射裸全局地址。
 
-UT令444E80发布二节点列表和selection1、444F60发布四槽marker及action count，验证party `ABCD:0005 -> ABCD:0000`、active count2、FFDC“無”、0x28 allocation、最终3与global mode45。另覆盖三个pending callee停止、selected record缺失、B9E0停止及workspace之后的finalization停止。定向测试通过。
+UT令444E80从party池抽取二节点列表并清selection0、444F60发布四槽marker及action count，验证party `ABCD:0005 -> ABCD:0000`、active count2、FFDC“無”、0x28 allocation、最终3与global mode45。另覆盖记录池/缺省分配、两个pending callee、B9E0及workspace之后的finalization停止。定向测试通过。
 
 workpack双生成稳定为`96/227`，SHA256均为`0a0021e19a076bd684ef5063f2f9207fa8f84db8850c1fe18b9d0047fc25828c`；下一单元`0x00442F10`。Linux完整门结果见最终验证；按阶段门禁不运行Windows BUILD。
