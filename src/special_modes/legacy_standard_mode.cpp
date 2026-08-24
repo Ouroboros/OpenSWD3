@@ -5220,6 +5220,60 @@ LegacyStandardModeDatabaseCleanupResult release_legacy_standard_mode_database(
     return result;
 }
 
+LegacyStandardModeGuardianPartyAttributeResult
+populate_legacy_standard_mode_guardian_party_attributes(
+    LegacyStandardModeGuardianInitializationState& state,
+    const compat::u16 party_index,
+    const std::size_t destination_offset,
+    LegacyStandardModeGuardianAttributeCachePorts& ports
+) noexcept {
+    LegacyStandardModeGuardianPartyAttributeResult result;
+    const std::optional<std::array<compat::u8, 0x38U>> attribute_template =
+        ports.resolve_guardian_attribute_template(
+            static_cast<compat::u16>(state.party_selector)
+        );
+    if (!attribute_template.has_value()) {
+        result.status = LegacyStandardModeGuardianPartyAttributeStatus::
+            template_out_of_range;
+        return result;
+    }
+    std::copy(
+        attribute_template->begin(),
+        attribute_template->end(),
+        state.scratch_record.begin()
+    );
+    for (compat::u16 record_index = 0U; record_index < 0x10U; ++record_index) {
+        const std::optional<std::string> record_name =
+            ports.resolve_guardian_attribute_record_name(
+                party_index, record_index
+            );
+        if (!record_name.has_value()) {
+            result.status = LegacyStandardModeGuardianPartyAttributeStatus::
+                guardian_record_out_of_range;
+            return result;
+        }
+        ++result.helper_call_count;
+        if (!ports.merge_guardian_attribute_record_name(state, *record_name)) {
+            result.status = LegacyStandardModeGuardianPartyAttributeStatus::
+                name_merge_stopped;
+            return result;
+        }
+        ++result.merged_record_count;
+    }
+    ++result.helper_call_count;
+    const std::optional<compat::i32> finalized =
+        ports.finalize_guardian_party_attribute_record(
+            state, destination_offset
+        );
+    if (!finalized.has_value()) {
+        result.status = LegacyStandardModeGuardianPartyAttributeStatus::
+            party_finalization_stopped;
+        return result;
+    }
+    result.legacy_return_value = *finalized;
+    return result;
+}
+
 LegacyStandardModeGuardianAttributeSeedResult
 select_legacy_standard_mode_guardian_attribute_seed(
     LegacyStandardModeGuardianInitializationState& state,
@@ -5264,9 +5318,13 @@ refresh_legacy_standard_mode_guardian_attribute_cache(
         const std::size_t destination_offset =
             static_cast<std::size_t>(party_index) * 0x50U;
         ++result.helper_call_count;
-        if (!ports.populate_guardian_party_attributes(
-                state, party_index, destination_offset
-            )) {
+        const LegacyStandardModeGuardianPartyAttributeResult party =
+            populate_legacy_standard_mode_guardian_party_attributes(
+                state, party_index, destination_offset, ports
+            );
+        result.legacy_return_value = party.legacy_return_value;
+        if (party.status !=
+            LegacyStandardModeGuardianPartyAttributeStatus::completed) {
             result.status = LegacyStandardModeGuardianAttributeCacheStatus::
                 party_population_stopped;
             return result;
