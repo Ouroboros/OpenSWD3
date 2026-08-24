@@ -6,7 +6,7 @@
 
 唯一行为真值为`swd3.exe.lst`。函数范围`0x0043E3D0..0x0043E741`，425行；DA30有四个direct call点，B480另以callback地址绑定。
 
-已关闭callee B980/B9A0/BC90/BCC0/E770直接复用typed实现。F1E0、F7C0、FDE0、4404D0、4405C0、44D2D0、sample、物品查询和release继续保留最小可观察port边界，不提前计数。DA30命中E3D0时直接调用本helper并传播phase4 typed-stop。
+已关闭callee B980/B9A0/BC90/BCC0/E770/F1E0/F7C0/FDE0直接复用typed实现。4404D0、4405C0、44D2D0、sample、物品查询和release继续保留最小可观察port边界，不提前计数。DA30命中E3D0时直接调用本helper并传播phase2/phase4 typed-stop。
 
 新增/确认typed owner：
 
@@ -34,7 +34,7 @@ UT覆盖正常prepare、first/second差值分流、F1E0失败转phase5及物品1
 
 ## 3. phase 2/3
 
-phase2仅两类组合拒绝并sample `0x8C`：toggle0且flags bit0置位，或toggle1且flags bit1置位。其他组合写phase3、countdown为`-40`，依次FDE0和sample `0x2E`。
+phase2仅两类组合拒绝并sample `0x8C`：toggle0且flags bit0置位，或toggle1且flags bit1置位。其他组合先写phase3和countdown `-40`，再直接执行FDE0四槽原图surface准备，最后sample `0x2E`；FDE0失败保留已写phase/countdown及八块buffer清零并传播typed-stop。
 
 phase3先调用4405C0。若更新后countdown小于`-35`，写countdown35及primary action `0x232A/0x46`；随后总是sample `0x2E`。UT锁定拒绝、未知toggle转移和`-36`阈值。
 

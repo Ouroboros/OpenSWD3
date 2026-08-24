@@ -779,6 +779,7 @@ struct LegacyStandardModeDatabaseInitializationState {
     compat::u32 comparison_value{};
     std::array<compat::i16, 2U> altar_spirit_values{};
     std::array<compat::i16, 2U> altar_body_values{};
+    std::array<compat::u32, 4U> original_surface_tokens{};
     compat::i32 first_dynamic_min_x{};
     compat::i32 second_dynamic_min_x{};
     compat::i32 first_dynamic_max_x{};
@@ -1078,9 +1079,33 @@ public:
     ~LegacyStandardModeDatabaseCyclePorts() override = default;
 };
 
+enum class LegacyStandardModeOriginalSurfaceStatus : compat::u8 {
+    completed,
+    fixed_action_missing,
+    selected_record_action_missing,
+    first_inline_action_missing,
+    second_inline_action_missing,
+};
+
+struct LegacyStandardModeOriginalSurfaceRequest {
+    compat::u16 action_id{};
+    compat::u16 variant{};
+    compat::u16 reserved{};
+};
+
+struct LegacyStandardModeOriginalSurfaceResult {
+    LegacyStandardModeOriginalSurfaceStatus status{
+        LegacyStandardModeOriginalSurfaceStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+    compat::u32 prepared_surface_count{};
+};
+
 enum class LegacyStandardModeDatabaseCommitStatus : compat::u8 {
     completed,
     window_selection_stopped,
+    original_surface_stopped,
 };
 
 enum class LegacyStandardModeDatabaseCommitPath : compat::u8 {
@@ -1127,8 +1152,9 @@ public:
     virtual void prepare_database_phase_1(
         LegacyStandardModeDatabaseInitializationState& state
     ) noexcept = 0;
-    virtual void prepare_database_phase_2(
-        LegacyStandardModeDatabaseInitializationState& state
+    [[nodiscard]] virtual std::optional<compat::u32>
+    prepare_database_original_surface(
+        const LegacyStandardModeOriginalSurfaceRequest& request
     ) noexcept = 0;
     virtual void update_database_phase_3(
         LegacyStandardModeDatabaseInitializationState& state
@@ -2226,6 +2252,12 @@ render_legacy_standard_mode_database(
 ) noexcept;
 
 // sub_43E3D0: commit or transition the database interaction phase.
+[[nodiscard]] LegacyStandardModeOriginalSurfaceResult
+prepare_legacy_standard_mode_database_original_surfaces(
+    LegacyStandardModeDatabaseInitializationState& state,
+    LegacyStandardModeDatabaseCommitPorts& ports
+) noexcept;
+
 [[nodiscard]] LegacyStandardModeDatabaseCommitResult
 commit_legacy_standard_mode_database_interaction(
     LegacyStandardModeDatabaseInitializationState& state,

@@ -3492,6 +3492,89 @@ LegacyStandardModeDatabaseRenderResult render_legacy_standard_mode_database(
     return result;
 }
 
+LegacyStandardModeOriginalSurfaceResult
+prepare_legacy_standard_mode_database_original_surfaces(
+    LegacyStandardModeDatabaseInitializationState& state,
+    LegacyStandardModeDatabaseCommitPorts& ports
+) noexcept {
+    LegacyStandardModeOriginalSurfaceResult result;
+    for (auto& buffer : state.small_buffers) {
+        buffer.fill(0U);
+    }
+    for (auto& buffer : state.large_buffers) {
+        buffer.fill(0U);
+    }
+
+    const auto prepare =
+        [&state, &ports, &result](
+            const std::size_t index,
+            const LegacyStandardModeOriginalSurfaceRequest& request,
+            const LegacyStandardModeOriginalSurfaceStatus failure_status,
+            const compat::i32 failure_return
+        ) {
+            const std::optional<compat::u32> surface =
+                ports.prepare_database_original_surface(request);
+            ++result.helper_call_count;
+            if (!surface.has_value()) {
+                result.status = failure_status;
+                result.legacy_return_value = failure_return;
+                return false;
+            }
+            state.original_surface_tokens[index] = surface.value();
+            result.legacy_return_value =
+                std::bit_cast<compat::i32>(surface.value());
+            ++result.prepared_surface_count;
+            return true;
+        };
+
+    if (!prepare(
+            0U,
+            LegacyStandardModeOriginalSurfaceRequest{0x232CU, 0x4EU, 0U},
+            LegacyStandardModeOriginalSurfaceStatus::fixed_action_missing,
+            0
+        )) {
+        return result;
+    }
+    const auto& selected_record = state.interaction_toggle == 0U
+        ? state.first_runtime_record
+        : state.second_runtime_record;
+    if (!prepare(
+            1U,
+            LegacyStandardModeOriginalSurfaceRequest{
+                read_u16_le(selected_record, 0x5CU), 0x44U, 0U
+            },
+            LegacyStandardModeOriginalSurfaceStatus::
+                selected_record_action_missing,
+            0x44
+        )) {
+        return result;
+    }
+    const compat::u16 first_inline_action =
+        read_u16_le(state.first_inline_record, 0U);
+    if (!prepare(
+            2U,
+            LegacyStandardModeOriginalSurfaceRequest{
+                first_inline_action, 0x44U, 0U
+            },
+            LegacyStandardModeOriginalSurfaceStatus::
+                first_inline_action_missing,
+            static_cast<compat::i32>(first_inline_action)
+        )) {
+        return result;
+    }
+    const compat::u16 second_inline_action =
+        read_u16_le(state.second_inline_record, 0U);
+    static_cast<void>(prepare(
+        3U,
+        LegacyStandardModeOriginalSurfaceRequest{
+            second_inline_action, 0x44U, 0U
+        },
+        LegacyStandardModeOriginalSurfaceStatus::second_inline_action_missing,
+        static_cast<compat::i32>(second_inline_action)
+    ));
+    return result;
+}
+
 LegacyStandardModeDatabaseCommitResult
 commit_legacy_standard_mode_database_interaction(
     LegacyStandardModeDatabaseInitializationState& state,
@@ -3591,8 +3674,18 @@ commit_legacy_standard_mode_database_interaction(
         result.path = LegacyStandardModeDatabaseCommitPath::phase_2_transition;
         state.interaction_phase = 3U;
         state.phase_3_countdown = std::bit_cast<compat::u32>(-40);
-        ports.prepare_database_phase_2(state);
-        ++result.helper_call_count;
+        const LegacyStandardModeOriginalSurfaceResult surfaces =
+            prepare_legacy_standard_mode_database_original_surfaces(
+                state, ports
+            );
+        result.legacy_return_value = surfaces.legacy_return_value;
+        result.helper_call_count += surfaces.helper_call_count;
+        if (surfaces.status !=
+            LegacyStandardModeOriginalSurfaceStatus::completed) {
+            result.status = LegacyStandardModeDatabaseCommitStatus::
+                original_surface_stopped;
+            return result;
+        }
         result.legacy_return_value = ports.initialize_database_sample(
             0x002EU, state.interface_source_value
         );

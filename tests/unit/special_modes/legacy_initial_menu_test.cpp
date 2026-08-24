@@ -4169,17 +4169,22 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
             ++commit_rebuild_count;
             return rebuild_result;
         }
+        [[nodiscard]] std::optional<u32> prepare_database_original_surface(
+            const openswd3::special_modes::
+                LegacyStandardModeOriginalSurfaceRequest& request
+        ) noexcept override {
+            const std::size_t index = original_surface_requests.size();
+            original_surface_requests.push_back(request);
+            if (missing_original_surface_index == index) {
+                return std::nullopt;
+            }
+            return static_cast<u32>(0x1000U + index);
+        }
         void prepare_database_phase_1(
             openswd3::special_modes::
                 LegacyStandardModeDatabaseInitializationState&
         ) noexcept override {
             ++phase_1_prepare_count;
-        }
-        void prepare_database_phase_2(
-            openswd3::special_modes::
-                LegacyStandardModeDatabaseInitializationState&
-        ) noexcept override {
-            ++phase_2_prepare_count;
         }
         void update_database_phase_3(
             openswd3::special_modes::
@@ -4244,8 +4249,10 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
         u32 high_mode_runtime_count{};
         u32 cleanup_forward_node_count{};
         u32 commit_rebuild_count{};
+        std::size_t missing_original_surface_index{
+            std::numeric_limits<std::size_t>::max()
+        };
         u32 phase_1_prepare_count{};
-        u32 phase_2_prepare_count{};
         u32 phase_3_update_count{};
         std::size_t resolution_index{};
         LegacyStandardModeForwardNode cycle_node{nullptr, 0xFFDCU};
@@ -4257,6 +4264,9 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
         std::vector<
             openswd3::special_modes::LegacyStandardModeDatabaseStorageKind>
             cleanup_storage_kinds;
+        std::vector<
+            openswd3::special_modes::LegacyStandardModeOriginalSurfaceRequest>
+            original_surface_requests;
         std::vector<std::pair<i32, u16>> resolutions;
         std::vector<MaterializedText> materialized_texts;
         std::vector<u32> released_values;
@@ -4389,6 +4399,81 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
     }
     {
         openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
+            surface_state;
+        surface_state.interaction_toggle = 1U;
+        surface_state.second_runtime_record[0x5CU] = 0x11U;
+        surface_state.second_runtime_record[0x5DU] = 0x11U;
+        surface_state.first_inline_record[0U] = 0x22U;
+        surface_state.first_inline_record[1U] = 0x22U;
+        surface_state.second_inline_record[0U] = 0x33U;
+        surface_state.second_inline_record[1U] = 0x33U;
+        surface_state.small_buffers[2U].fill(0xA5U);
+        surface_state.large_buffers[1U].fill(0x5AU);
+        InputPorts surface_ports;
+        const auto surfaces = openswd3::special_modes::
+            prepare_legacy_standard_mode_database_original_surfaces(
+                surface_state, surface_ports
+            );
+        test.expect_true(
+            surfaces.status ==
+                    openswd3::special_modes::
+                        LegacyStandardModeOriginalSurfaceStatus::completed &&
+                surfaces.legacy_return_value == 0x1003 &&
+                surfaces.helper_call_count == 4U &&
+                surfaces.prepared_surface_count == 4U &&
+                surface_ports.original_surface_requests[0U].action_id ==
+                    0x232CU &&
+                surface_ports.original_surface_requests[0U].variant == 0x4EU &&
+                surface_ports.original_surface_requests[1U].action_id ==
+                    0x1111U &&
+                surface_ports.original_surface_requests[2U].action_id ==
+                    0x2222U &&
+                surface_ports.original_surface_requests[3U].action_id ==
+                    0x3333U &&
+                surface_state.original_surface_tokens ==
+                    std::array<u32, 4U>{0x1000U, 0x1001U, 0x1002U, 0x1003U} &&
+                surface_state.small_buffers[2U][0U] == 0U &&
+                surface_state.large_buffers[1U].back() == 0U,
+            "0x43FDE0 clears eight buffers and resolves four original surfaces in order"
+        );
+
+        const std::array expected_statuses{
+            openswd3::special_modes::LegacyStandardModeOriginalSurfaceStatus::
+                fixed_action_missing,
+            openswd3::special_modes::LegacyStandardModeOriginalSurfaceStatus::
+                selected_record_action_missing,
+            openswd3::special_modes::LegacyStandardModeOriginalSurfaceStatus::
+                first_inline_action_missing,
+            openswd3::special_modes::LegacyStandardModeOriginalSurfaceStatus::
+                second_inline_action_missing,
+        };
+        const std::array<i32, 4U> expected_returns{0, 0x44, 0x2222, 0x3333};
+        bool all_stops_match = true;
+        for (std::size_t index = 0U; index < expected_statuses.size();
+             ++index) {
+            auto stopped_surface_state = surface_state;
+            stopped_surface_state.small_buffers[0U].fill(0xCCU);
+            InputPorts stopped_surface_ports;
+            stopped_surface_ports.missing_original_surface_index = index;
+            const auto stopped_surfaces = openswd3::special_modes::
+                prepare_legacy_standard_mode_database_original_surfaces(
+                    stopped_surface_state, stopped_surface_ports
+                );
+            all_stops_match = all_stops_match &&
+                stopped_surfaces.status == expected_statuses[index] &&
+                stopped_surfaces.legacy_return_value ==
+                    expected_returns[index] &&
+                stopped_surfaces.helper_call_count == index + 1U &&
+                stopped_surfaces.prepared_surface_count == index &&
+                stopped_surface_state.small_buffers[0U][0U] == 0U;
+        }
+        test.expect_true(
+            all_stops_match,
+            "0x43FDE0 preserves all four resolver failure EAX values after prior side effects"
+        );
+    }
+    {
+        openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
             state;
         state.interaction_phase = 1U;
         state.first_missing_text_index = 1U;
@@ -4396,8 +4481,16 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
         state.first_inline_record[2U] = 1U;
         state.second_inline_record[2U] = 1U;
         state.comparison_value = 10U;
+        state.first_runtime_record[0x5CU] = 0x11U;
+        state.first_runtime_record[0x5DU] = 0x11U;
         state.first_runtime_record[0x60U] = 25U;
         state.second_runtime_record[0x60U] = 15U;
+        state.first_inline_record[0U] = 0x22U;
+        state.first_inline_record[1U] = 0x22U;
+        state.second_inline_record[0U] = 0x33U;
+        state.second_inline_record[1U] = 0x33U;
+        state.small_buffers[0U].fill(0xA5U);
+        state.large_buffers[3U].fill(0x5AU);
         InputPorts ports;
         const auto prepared = commit(state, ports);
         test.expect_true(
@@ -4406,16 +4499,47 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
                         LegacyStandardModeDatabaseCommitPath::phase_1_prepare &&
                 prepared.helper_call_count == 5U &&
                 prepared.legacy_return_value == 100 &&
-                prepared.sample_initialized && state.interaction_phase == 2U &&
-                state.interaction_toggle == 0U &&
+                prepared.sample_initialized,
+            "0x43E3D0 phase1 aggregates 4404D0 and sample helper results"
+        );
+        test.expect_true(
+            state.interaction_phase == 2U && state.interaction_toggle == 0U &&
                 state.runtime_input_flags == 0U &&
                 state.primary_action.action_id == 0x232AU &&
-                state.primary_action.base_variant == 0x39U &&
-                ports.queried_item_ids == std::vector<u16>{0x1BB0U, 0x1BA9U} &&
+                state.primary_action.base_variant == 0x39U,
+            "0x43E3D0 phase1 prepares phase2 and compares both runtime records"
+        );
+        test.expect_true(
+            ports.queried_item_ids == std::vector<u16>{0x1BB0U, 0x1BA9U} &&
                 ports.commit_rebuild_count == 1U &&
                 ports.phase_1_prepare_count == 1U &&
+                ports.original_surface_requests.empty() &&
                 ports.database_sample_ids == std::vector<u16>{0x2EU},
-            "0x43E3D0 phase1 prepares phase2 and compares both runtime records"
+            "0x43E3D0 phase1 keeps 4404D0 as its independent boundary"
+        );
+
+        openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
+            surface_failed_state;
+        surface_failed_state.interaction_phase = 2U;
+        surface_failed_state.interaction_toggle = 2U;
+        surface_failed_state.small_buffers[0U].fill(0xA5U);
+        InputPorts surface_failed_ports;
+        surface_failed_ports.missing_original_surface_index = 0U;
+        const auto surface_failed =
+            commit(surface_failed_state, surface_failed_ports);
+        test.expect_true(
+            surface_failed.status ==
+                    openswd3::special_modes::
+                        LegacyStandardModeDatabaseCommitStatus::
+                            original_surface_stopped &&
+                surface_failed.legacy_return_value == 0 &&
+                surface_failed.helper_call_count == 1U &&
+                surface_failed_state.interaction_phase == 3U &&
+                surface_failed_state.phase_3_countdown ==
+                    std::bit_cast<u32>(-40) &&
+                surface_failed_state.small_buffers[0U][0U] == 0U &&
+                surface_failed_ports.database_sample_ids.empty(),
+            "0x43E3D0 phase2 propagates FDE0 typed-stop after phase/countdown writes"
         );
 
         openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
@@ -4477,12 +4601,14 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
                     openswd3::special_modes::
                         LegacyStandardModeDatabaseCommitPath::
                             phase_2_transition &&
-                transitioned.helper_call_count == 2U &&
+                transitioned.helper_call_count == 5U &&
                 state.interaction_phase == 3U &&
                 state.phase_3_countdown == std::bit_cast<u32>(-40) &&
-                ports.phase_2_prepare_count == 1U &&
+                ports.original_surface_requests.size() == 4U &&
+                state.original_surface_tokens ==
+                    std::array<u32, 4U>{0x1000U, 0x1001U, 0x1002U, 0x1003U} &&
                 ports.database_sample_ids == std::vector<u16>{0x2EU},
-            "0x43E3D0 phase2 transitions unknown toggle through FDE0 boundary"
+            "0x43E3D0 phase2 directly executes all four FDE0 surface slots"
         );
 
         ports.override_phase_3_countdown = true;
