@@ -369,12 +369,12 @@ struct LegacySystemMenuState {
     std::array<compat::u16, 128U> entries{};
     compat::u32 entry_count{};
     std::array<compat::u32, 8U> secondary_owners{};
-    compat::u32 shared_value{};
-    compat::u32 published_shared_value{};
-    compat::u32 message_tail{};
-    compat::u32 message_sample_owner{};
-    compat::u32 message_font{};
-    compat::u32 message_value{};
+    compat::u32 text_speed_index{};
+    compat::u32 published_text_speed_index{};
+    compat::u32 battle_speed_index{};
+    compat::u32 sound_effect_index{};
+    compat::u32 music_index{};
+    compat::u32 replacement_spacing{};
     compat::u32 input_locked{};
     compat::u32 pointer_x{};
     compat::u32 pointer_y{};
@@ -383,7 +383,7 @@ struct LegacySystemMenuState {
     compat::u32 input_flags{};
     compat::u32 selected_entry{};
     compat::u32 selected_row{};
-    compat::u32 published_row_value{};
+    compat::u32 applied_text_speed_index{};
     compat::u32 detail_selection{};
     compat::i32 upper_dynamic_left{};
     compat::i32 upper_dynamic_right{};
@@ -402,21 +402,21 @@ enum class LegacySystemMenuInputCommand : compat::u8 {
     exit,
     commit,
     play_sample,
-    apply_font,
-    remove_service,
-    add_service,
+    apply_music,
+    disable_map_effect,
+    enable_map_effect,
     rebuild_page,
     count_visible,
 };
 
 struct LegacySystemMenuMessage {
-    compat::u32 sample_owner{};
-    compat::u32 font{};
-    compat::u32 value{};
+    compat::u32 sound_effect_index{};
+    compat::u32 music_index{};
+    compat::u32 replacement_spacing{};
     compat::u32 capacity{};
-    compat::i32 service_result{};
-    compat::u32 shared_value{};
-    compat::u32 tail{};
+    compat::i32 map_effect_result{};
+    compat::u32 text_speed_index{};
+    compat::u32 battle_speed_index{};
 };
 
 class LegacySystemMenuPorts {
@@ -428,8 +428,8 @@ public:
     query_system_menu_item_presence(compat::u32 item_id) noexcept = 0;
     [[nodiscard]] virtual compat::i32
     release_system_menu_buffer(LegacySystemMenuState& state) noexcept = 0;
-    [[nodiscard]] virtual compat::i32 query_system_menu_service(
-        compat::u32 service_id, LegacySystemMenuState& state
+    [[nodiscard]] virtual compat::i32 query_system_menu_map_effect(
+        compat::u32 map_effect_service_id, LegacySystemMenuState& state
     ) noexcept = 0;
     [[nodiscard]] virtual compat::i32 format_system_menu_message(
         const LegacySystemMenuMessage& message
@@ -470,6 +470,10 @@ struct LegacySystemMenuInputResult {
     compat::u32 helper_call_count{};
     std::optional<LegacySystemMenuInputCommand> command;
 };
+
+[[nodiscard]] LegacySystemMenuInputResult move_up_legacy_system_menu(
+    LegacySystemMenuState& state, LegacySystemMenuPorts& ports
+) noexcept;
 
 [[nodiscard]] LegacySystemMenuInputResult page_up_legacy_system_menu(
     LegacySystemMenuState& state, LegacySystemMenuPorts& ports

@@ -338,7 +338,7 @@ public:
     }
     i32 query_settings_service(const u32 service_id) noexcept override {
         settings_calls.push_back({0x300U, service_id});
-        return settings_service_return;
+        return settings_map_effect_return;
     }
     i32 format_game_settings(
         const u32 sample_index,
@@ -460,7 +460,7 @@ public:
     i32 probe_return{};
     i32 activate_return{77};
     i32 settings_return{88};
-    i32 settings_service_return{0x101};
+    i32 settings_map_effect_return{0x101};
     i32 mode_one_return{0x5678};
     i32 overlay_choice{};
     i32 overlay_poll_result{};
@@ -513,23 +513,23 @@ public:
     ) noexcept override {
         events.push_back(1U);
         released_owners.push_back(state.list_owner);
-        state.message_tail = 0x11223344U;
-        state.shared_value = 0xAABBCCDDU;
+        state.battle_speed_index = 0x11223344U;
+        state.text_speed_index = 0xAABBCCDDU;
         return release_return;
     }
-    i32 query_system_menu_service(
-        const u32 service_id,
+    i32 query_system_menu_map_effect(
+        const u32 map_effect_service_id,
         openswd3::special_modes::LegacySystemMenuState& state
     ) noexcept override {
         events.push_back(2U);
-        queried_service_ids.push_back(service_id);
+        queried_map_effect_ids.push_back(map_effect_service_id);
         query_saw_cleared_owner = state.list_owner == 0U;
-        state.message_tail = 0x55667788U;
-        state.shared_value = 0x99AABBCCU;
-        state.message_sample_owner = 0x10203040U;
-        state.message_font = 0x50607080U;
-        state.message_value = 0x90A0B0C0U;
-        return service_return;
+        state.battle_speed_index = 0x55667788U;
+        state.text_speed_index = 0x99AABBCCU;
+        state.sound_effect_index = 0x10203040U;
+        state.music_index = 0x50607080U;
+        state.replacement_spacing = 0x90A0B0C0U;
+        return map_effect_return;
     }
     i32 format_system_menu_message(
         const openswd3::special_modes::LegacySystemMenuMessage& message
@@ -560,7 +560,7 @@ public:
         if (command ==
                 openswd3::special_modes::LegacySystemMenuInputCommand::commit &&
             mutate_sample_after_commit) {
-            state.message_sample_owner = sample_after_commit;
+            state.sound_effect_index = sample_after_commit;
         }
         if (command ==
                 openswd3::special_modes::LegacySystemMenuInputCommand::
@@ -580,9 +580,9 @@ public:
     std::vector<u32> events;
     std::vector<u32> released_owners;
     i32 release_return{-11};
-    std::vector<u32> queried_service_ids;
+    std::vector<u32> queried_map_effect_ids;
     bool query_saw_cleared_owner{};
-    i32 service_return{0x12345678};
+    i32 map_effect_return{0x12345678};
     std::vector<openswd3::special_modes::LegacySystemMenuMessage> messages;
     i32 format_return{-77};
     std::vector<u32> queried_input_masks;
@@ -15130,8 +15130,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     system_menu_state.secondary_owners.fill(0x22222222U);
     system_menu_state.entries.fill(0xFFFFU);
     system_menu_state.entry_count = 99U;
-    system_menu_state.shared_value = 0x89ABCDEFU;
-    system_menu_state.published_shared_value = 0x33333333U;
+    system_menu_state.text_speed_index = 0x89ABCDEFU;
+    system_menu_state.published_text_speed_index = 0x33333333U;
     FakeSystemMenuPorts system_menu_ports;
     system_menu_ports.exact_present_ids = {0xE75U, 0xE77U, 0xF9FU};
     system_menu_ports.non_exact_present_id = 0xE76U;
@@ -15161,7 +15161,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
                 system_menu_state.secondary_owners.end(),
                 [](const u32 value) { return value == 0U; }
             ) &&
-            system_menu_state.published_shared_value == 0x89ABCDEFU &&
+            system_menu_state.published_text_speed_index == 0x89ABCDEFU &&
             static_cast<u32>(system_menu_result.legacy_return_value) ==
                 0x89ABCDEFU &&
             system_menu_result.helper_call_count == 300U &&
@@ -15223,11 +15223,11 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     system_menu_release_state.list_owner = 0x4321U;
     system_menu_release_state.entries[0U] = 0x123U;
     system_menu_release_state.entry_count = 1U;
-    system_menu_release_state.message_tail = 0x10U;
-    system_menu_release_state.shared_value = 0xAABBCC20U;
-    system_menu_release_state.message_sample_owner = 1U;
-    system_menu_release_state.message_font = 2U;
-    system_menu_release_state.message_value = 3U;
+    system_menu_release_state.battle_speed_index = 0x10U;
+    system_menu_release_state.text_speed_index = 0xAABBCC20U;
+    system_menu_release_state.sound_effect_index = 1U;
+    system_menu_release_state.music_index = 2U;
+    system_menu_release_state.replacement_spacing = 3U;
     FakeSystemMenuPorts system_menu_release_ports;
     const auto system_menu_release =
         openswd3::special_modes::release_legacy_system_menu(
@@ -15240,17 +15240,17 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
                 std::vector<u32>{0x4321U} &&
             system_menu_release_state.list_owner == 0U &&
             system_menu_release_ports.query_saw_cleared_owner &&
-            system_menu_release_ports.queried_service_ids ==
+            system_menu_release_ports.queried_map_effect_ids ==
                 std::vector<u32>{0x48U} &&
-            system_menu_message.sample_owner == 0x10203040U &&
-            system_menu_message.font == 0x50607080U &&
-            system_menu_message.value == 0x90A0B0C0U &&
+            system_menu_message.sound_effect_index == 0x10203040U &&
+            system_menu_message.music_index == 0x50607080U &&
+            system_menu_message.replacement_spacing == 0x90A0B0C0U &&
             system_menu_message.capacity == 0x64U &&
-            system_menu_message.service_result == 0x12345678 &&
-            system_menu_message.shared_value == 0xAABBCCDDU &&
-            system_menu_message.tail == 0x11223344U &&
-            system_menu_release_state.message_tail == 0x55667788U &&
-            system_menu_release_state.shared_value == 0x99AABBCCU &&
+            system_menu_message.map_effect_result == 0x12345678 &&
+            system_menu_message.text_speed_index == 0xAABBCCDDU &&
+            system_menu_message.battle_speed_index == 0x11223344U &&
+            system_menu_release_state.battle_speed_index == 0x55667788U &&
+            system_menu_release_state.text_speed_index == 0x99AABBCCU &&
             system_menu_release_state.entries[0U] == 0x123U &&
             system_menu_release_state.entry_count == 1U &&
             system_menu_release.legacy_return_value == -77 &&
@@ -15279,7 +15279,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     openswd3::special_modes::LegacySystemMenuState last_page_state;
     last_page_state.interaction_mode = 0U;
     last_page_state.interaction_page = 2U;
-    last_page_state.message_sample_owner = 0x12345678U;
+    last_page_state.sound_effect_index = 0x12345678U;
     FakeSystemMenuPorts last_page_ports;
     static_cast<void>(openswd3::special_modes::page_down_legacy_system_menu(
         last_page_state, last_page_ports
@@ -15317,7 +15317,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     openswd3::special_modes::LegacySystemMenuState last_rows_state;
     last_rows_state.interaction_mode = 1U;
     last_rows_state.interaction_page = 4U;
-    last_rows_state.message_sample_owner = 7U;
+    last_rows_state.sound_effect_index = 7U;
     FakeSystemMenuPorts last_rows_ports;
     static_cast<void>(openswd3::special_modes::page_down_legacy_system_menu(
         last_rows_state, last_rows_ports
@@ -15347,7 +15347,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
 
     openswd3::special_modes::LegacySystemMenuState last_entry_state;
     last_entry_state.interaction_mode = 5U;
-    last_entry_state.message_sample_owner = 9U;
+    last_entry_state.sound_effect_index = 9U;
     FakeSystemMenuPorts last_entry_ports;
     static_cast<void>(openswd3::special_modes::page_down_legacy_system_menu(
         last_entry_state, last_entry_ports
@@ -15379,7 +15379,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     openswd3::special_modes::LegacySystemMenuState first_page_state;
     first_page_state.interaction_mode = 0U;
     first_page_state.interaction_page = 2U;
-    first_page_state.message_sample_owner = 0x10203040U;
+    first_page_state.sound_effect_index = 0x10203040U;
     FakeSystemMenuPorts first_page_ports;
     static_cast<void>(openswd3::special_modes::page_up_legacy_system_menu(
         first_page_state, first_page_ports
@@ -15421,7 +15421,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     first_rows_state.interaction_mode = 1U;
     first_rows_state.interaction_page = 3U;
     first_rows_state.selected_row = 5U;
-    first_rows_state.message_sample_owner = 7U;
+    first_rows_state.sound_effect_index = 7U;
     FakeSystemMenuPorts first_rows_ports;
     static_cast<void>(openswd3::special_modes::page_up_legacy_system_menu(
         first_rows_state, first_rows_ports
@@ -15430,7 +15430,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     first_page_four_row_state.interaction_mode = 1U;
     first_page_four_row_state.interaction_page = 4U;
     first_page_four_row_state.selected_row = 2U;
-    first_page_four_row_state.message_sample_owner = 8U;
+    first_page_four_row_state.sound_effect_index = 8U;
     FakeSystemMenuPorts first_page_four_row_ports;
     static_cast<void>(openswd3::special_modes::page_up_legacy_system_menu(
         first_page_four_row_state, first_page_four_row_ports
@@ -15467,7 +15467,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     openswd3::special_modes::LegacySystemMenuState first_entry_state;
     first_entry_state.interaction_mode = 5U;
     first_entry_state.selected_entry = 18U;
-    first_entry_state.message_sample_owner = 9U;
+    first_entry_state.sound_effect_index = 9U;
     FakeSystemMenuPorts first_entry_ports;
     static_cast<void>(openswd3::special_modes::page_up_legacy_system_menu(
         first_entry_state, first_entry_ports
@@ -15479,6 +15479,208 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
                     {SystemMenuCommand::play_sample, 9U}
                 },
         "0x44B930 selects fixed mode-five entry zero before its sample"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState move_up_locked_state;
+    move_up_locked_state.input_locked = 0x89ABCDEFU;
+    move_up_locked_state.interaction_page = 3U;
+    FakeSystemMenuPorts move_up_locked_ports;
+    const auto move_up_locked =
+        openswd3::special_modes::move_up_legacy_system_menu(
+            move_up_locked_state, move_up_locked_ports
+        );
+    test.expect_true(
+        move_up_locked.legacy_return_value == std::bit_cast<i32>(0x89ABCDEFU) &&
+            move_up_locked_state.interaction_page == 3U &&
+            move_up_locked_ports.input_commands.empty(),
+        "0x44BA20 returns the full input lock without changing system-menu state"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState move_up_page_state;
+    move_up_page_state.interaction_mode = 0U;
+    move_up_page_state.interaction_page = 0U;
+    FakeSystemMenuPorts move_up_page_ports;
+    const auto move_up_page =
+        openswd3::special_modes::move_up_legacy_system_menu(
+            move_up_page_state, move_up_page_ports
+        );
+    test.expect_true(
+        move_up_page_state.interaction_page == 0U &&
+            move_up_page.legacy_return_value == -1 &&
+            move_up_page_ports.input_commands.empty(),
+        "0x44BA20 preserves the negative page result when clamping the first page to zero"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState move_up_window_state;
+    move_up_window_state.interaction_mode = 1U;
+    move_up_window_state.interaction_page = 2U;
+    move_up_window_state.system_menu_page_start = 3U;
+    move_up_window_state.system_menu_scroll_index = 9U;
+    move_up_window_state.system_menu_cursor_flags = 0xAABBCC10U;
+    FakeSystemMenuPorts move_up_window_ports;
+    const auto move_up_window =
+        openswd3::special_modes::move_up_legacy_system_menu(
+            move_up_window_state, move_up_window_ports
+        );
+    test.expect_true(
+        move_up_window_state.system_menu_page_start == 0U &&
+            move_up_window_state.system_menu_scroll_index == 0U &&
+            move_up_window_state.system_menu_cursor_flags == 0xAABBCC13U &&
+            move_up_window_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::rebuild_page, 0U},
+                    {SystemMenuCommand::count_visible, 0U}
+                } &&
+            move_up_window.helper_call_count == 2U,
+        "0x44BA20 reuses the closed previous-page helper for mode-one page two"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState move_up_sample_state;
+    move_up_sample_state.interaction_mode = 1U;
+    move_up_sample_state.interaction_page = 3U;
+    move_up_sample_state.selected_row = 0U;
+    move_up_sample_state.sound_effect_index = 2U;
+    FakeSystemMenuPorts move_up_sample_ports;
+    static_cast<void>(openswd3::special_modes::move_up_legacy_system_menu(
+        move_up_sample_state, move_up_sample_ports
+    ));
+    test.expect_true(
+        move_up_sample_state.sound_effect_index == 1U &&
+            move_up_sample_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::play_sample, 1U}
+                },
+        "0x44BA20 lowers the sound-effect index and previews the clamped value"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState move_up_font_state;
+    move_up_font_state.interaction_mode = 1U;
+    move_up_font_state.interaction_page = 3U;
+    move_up_font_state.selected_row = 1U;
+    move_up_font_state.music_index = 0U;
+    FakeSystemMenuPorts move_up_font_ports;
+    static_cast<void>(openswd3::special_modes::move_up_legacy_system_menu(
+        move_up_font_state, move_up_font_ports
+    ));
+    test.expect_true(
+        move_up_font_state.music_index == 0U &&
+            move_up_font_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::apply_music, 0U}
+                },
+        "0x44BA20 clamps the second setting to zero before applying it"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState move_up_spacing_state;
+    move_up_spacing_state.interaction_mode = 1U;
+    move_up_spacing_state.interaction_page = 3U;
+    move_up_spacing_state.selected_row = 2U;
+    move_up_spacing_state.replacement_spacing = 0x50U;
+    FakeSystemMenuPorts move_up_spacing_ports;
+    const auto move_up_spacing =
+        openswd3::special_modes::move_up_legacy_system_menu(
+            move_up_spacing_state, move_up_spacing_ports
+        );
+    test.expect_true(
+        move_up_spacing_state.replacement_spacing == 0x3CU &&
+            move_up_spacing.legacy_return_value == 0x28,
+        "0x44BA20 preserves the pre-clamp spacing result before writing the minimum sixty"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState move_up_service_state;
+    move_up_service_state.interaction_mode = 1U;
+    move_up_service_state.interaction_page = 3U;
+    move_up_service_state.selected_row = 3U;
+    FakeSystemMenuPorts move_up_service_ports;
+    static_cast<void>(openswd3::special_modes::move_up_legacy_system_menu(
+        move_up_service_state, move_up_service_ports
+    ));
+    test.expect_true(
+        move_up_service_ports.input_commands ==
+            std::vector<std::pair<SystemMenuCommand, u32>>{
+                {SystemMenuCommand::disable_map_effect, 0x48U}
+            },
+        "0x44BA20 disables service forty-eight for the fourth setting row"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState move_up_shared_state;
+    move_up_shared_state.interaction_mode = 1U;
+    move_up_shared_state.interaction_page = 3U;
+    move_up_shared_state.selected_row = 4U;
+    move_up_shared_state.text_speed_index = 4U;
+    FakeSystemMenuPorts move_up_shared_ports;
+    const auto move_up_shared =
+        openswd3::special_modes::move_up_legacy_system_menu(
+            move_up_shared_state, move_up_shared_ports
+        );
+    test.expect_true(
+        move_up_shared_state.text_speed_index == 4U &&
+            move_up_shared_state.applied_text_speed_index == 4U &&
+            move_up_shared.legacy_return_value == 4,
+        "0x44BA20 increments the inverted fifth setting then clamps and publishes four"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState move_up_tail_state;
+    move_up_tail_state.interaction_mode = 1U;
+    move_up_tail_state.interaction_page = 3U;
+    move_up_tail_state.selected_row = 5U;
+    move_up_tail_state.battle_speed_index = 0U;
+    FakeSystemMenuPorts move_up_tail_ports;
+    const auto move_up_tail =
+        openswd3::special_modes::move_up_legacy_system_menu(
+            move_up_tail_state, move_up_tail_ports
+        );
+    test.expect_true(
+        move_up_tail_state.battle_speed_index == 0U &&
+            move_up_tail.legacy_return_value == -1,
+        "0x44BA20 preserves the negative sixth-setting result before clamping to zero"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState move_up_row_state;
+    move_up_row_state.interaction_mode = 1U;
+    move_up_row_state.interaction_page = 4U;
+    move_up_row_state.selected_row = 0U;
+    FakeSystemMenuPorts move_up_row_ports;
+    const auto move_up_row =
+        openswd3::special_modes::move_up_legacy_system_menu(
+            move_up_row_state, move_up_row_ports
+        );
+    test.expect_true(
+        move_up_row_state.selected_row == 0U &&
+            move_up_row.legacy_return_value == -1,
+        "0x44BA20 preserves the negative page-four row result before clamping to zero"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState move_up_detail_state;
+    move_up_detail_state.interaction_mode = 2U;
+    move_up_detail_state.interaction_page = 4U;
+    move_up_detail_state.detail_selection = 0U;
+    FakeSystemMenuPorts move_up_detail_ports;
+    const auto move_up_detail =
+        openswd3::special_modes::move_up_legacy_system_menu(
+            move_up_detail_state, move_up_detail_ports
+        );
+    test.expect_true(
+        move_up_detail_state.detail_selection == 0U &&
+            move_up_detail.legacy_return_value == -1,
+        "0x44BA20 preserves the negative detail result before clamping to zero"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState move_up_entry_state;
+    move_up_entry_state.interaction_mode = 5U;
+    move_up_entry_state.selected_entry = 0U;
+    move_up_entry_state.sound_effect_index = 7U;
+    FakeSystemMenuPorts move_up_entry_ports;
+    static_cast<void>(openswd3::special_modes::move_up_legacy_system_menu(
+        move_up_entry_state, move_up_entry_ports
+    ));
+    test.expect_true(
+        move_up_entry_state.selected_entry == 0x12U &&
+            move_up_entry_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::play_sample, 7U}
+                },
+        "0x44BA20 wraps the first fixed item to eighteen before playing the sample"
     );
 
     openswd3::special_modes::LegacySystemMenuState retreat_page_state;
@@ -15524,7 +15726,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     retreat_row_state.interaction_mode = 1U;
     retreat_row_state.interaction_page = 4U;
     retreat_row_state.selected_row = 0U;
-    retreat_row_state.message_sample_owner = 0x12345678U;
+    retreat_row_state.sound_effect_index = 0x12345678U;
     FakeSystemMenuPorts retreat_row_ports;
     static_cast<void>(
         openswd3::special_modes::retreat_legacy_system_menu_selection(
@@ -15556,7 +15758,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
 
     openswd3::special_modes::LegacySystemMenuState retreat_entry_state;
     retreat_entry_state.interaction_mode = 5U;
-    retreat_entry_state.message_sample_owner = 7U;
+    retreat_entry_state.sound_effect_index = 7U;
     FakeSystemMenuPorts retreat_entry_ports;
     static_cast<void>(
         openswd3::special_modes::retreat_legacy_system_menu_selection(
@@ -15622,7 +15824,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     advance_row_state.interaction_mode = 1U;
     advance_row_state.interaction_page = 3U;
     advance_row_state.selected_row = 6U;
-    advance_row_state.message_sample_owner = 0x12345678U;
+    advance_row_state.sound_effect_index = 0x12345678U;
     FakeSystemMenuPorts advance_row_ports;
     const auto advance_row =
         openswd3::special_modes::advance_legacy_system_menu_selection(
@@ -15656,7 +15858,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     openswd3::special_modes::LegacySystemMenuState advance_entry_state;
     advance_entry_state.interaction_mode = 5U;
     advance_entry_state.selected_entry = 0x12U;
-    advance_entry_state.message_sample_owner = 7U;
+    advance_entry_state.sound_effect_index = 7U;
     FakeSystemMenuPorts advance_entry_ports;
     static_cast<void>(
         openswd3::special_modes::advance_legacy_system_menu_selection(
@@ -15764,7 +15966,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     system_menu_lower_dynamic_state.interaction_page = 2U;
     system_menu_lower_dynamic_state.lower_dynamic_left = 200;
     system_menu_lower_dynamic_state.lower_dynamic_right = 210;
-    system_menu_lower_dynamic_state.message_sample_owner = 0xAA55U;
+    system_menu_lower_dynamic_state.sound_effect_index = 0xAA55U;
     FakeSystemMenuPorts system_menu_lower_dynamic_ports;
     system_menu_lower_dynamic_ports.input_status_return = 1;
     const auto system_menu_lower_dynamic =
@@ -15848,7 +16050,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     system_menu_navigation_state.pointer_y = 0x14CU;
     system_menu_navigation_state.interaction_page = 7U;
     system_menu_navigation_state.input_flags = 3U;
-    system_menu_navigation_state.message_sample_owner = 2U;
+    system_menu_navigation_state.sound_effect_index = 2U;
     FakeSystemMenuPorts system_menu_navigation_ports;
     system_menu_navigation_ports.mutate_sample_after_commit = true;
     system_menu_navigation_ports.sample_after_commit = 9U;
@@ -15912,7 +16114,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     system_menu_negative_row_state.interaction_mode = 1U;
     system_menu_negative_row_state.interaction_page = 3U;
     system_menu_negative_row_state.system_menu_available = 1U;
-    system_menu_negative_row_state.message_sample_owner = 7U;
+    system_menu_negative_row_state.sound_effect_index = 7U;
     FakeSystemMenuPorts system_menu_negative_row_ports;
     const auto system_menu_negative_row =
         openswd3::special_modes::update_legacy_system_menu_input(
@@ -15920,7 +16122,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         );
     test.expect_true(
         system_menu_negative_row_state.selected_row == 0U &&
-            system_menu_negative_row_state.message_sample_owner == 7U &&
+            system_menu_negative_row_state.sound_effect_index == 7U &&
             system_menu_negative_row.helper_call_count == 1U &&
             system_menu_negative_row.legacy_return_value == -87,
         "0x44B070 writes the selected settings row before stopping on a negative truncating quotient"
@@ -15939,7 +16141,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         );
     test.expect_true(
         system_menu_value_row_state.selected_row == 2U &&
-            system_menu_value_row_state.message_value == 0x8CU &&
+            system_menu_value_row_state.replacement_spacing == 0x8CU &&
             system_menu_value_row.helper_call_count == 1U,
         "0x44B070 clamps settings row two to two before applying the forty-step value"
     );
@@ -15960,8 +16162,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         system_menu_service_row_state.selected_row == 3U &&
             system_menu_service_row_ports.input_commands ==
                 std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::remove_service, 0x48U},
-                    {SystemMenuCommand::add_service, 0x48U}
+                    {SystemMenuCommand::disable_map_effect, 0x48U},
+                    {SystemMenuCommand::enable_map_effect, 0x48U}
                 } &&
             system_menu_service_row.helper_call_count == 3U,
         "0x44B070 removes service forty-eight and only re-adds it for a nonzero row"
@@ -15980,8 +16182,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         );
     test.expect_true(
         system_menu_shared_row_state.selected_row == 4U &&
-            system_menu_shared_row_state.shared_value == 1U &&
-            system_menu_shared_row_state.published_row_value == 1U &&
+            system_menu_shared_row_state.text_speed_index == 1U &&
+            system_menu_shared_row_state.applied_text_speed_index == 1U &&
             system_menu_shared_row.legacy_return_value == 1,
         "0x44B070 reverses and publishes the clamped zero-through-four settings row"
     );

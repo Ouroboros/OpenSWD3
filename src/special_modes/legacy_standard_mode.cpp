@@ -373,7 +373,7 @@ LegacySystemMenuResult initialize_legacy_system_menu(
         ++state.entry_count;
     }
 
-    const compat::u32 shared_snapshot = state.shared_value;
+    const compat::u32 shared_snapshot = state.text_speed_index;
     state.secondary_owners[0U] = 0U;
     state.secondary_owners[1U] = 0U;
     state.secondary_owners[2U] = 0U;
@@ -383,7 +383,7 @@ LegacySystemMenuResult initialize_legacy_system_menu(
     state.primary_owners[3U] = 0U;
     state.primary_owners[4U] = 0U;
     state.primary_owners[5U] = 0U;
-    state.published_shared_value = shared_snapshot;
+    state.published_text_speed_index = shared_snapshot;
     state.secondary_owners[6U] = 0U;
     state.secondary_owners[7U] = 0U;
     result.legacy_return_value = std::bit_cast<compat::i32>(shared_snapshot);
@@ -396,23 +396,162 @@ LegacySystemMenuResult release_legacy_system_menu(
     LegacySystemMenuResult result;
     static_cast<void>(ports.release_system_menu_buffer(state));
     ++result.helper_call_count;
-    const compat::u32 tail_snapshot = state.message_tail;
-    const compat::u32 shared_snapshot = state.shared_value;
+    const compat::u32 battle_speed_snapshot = state.battle_speed_index;
+    const compat::u32 text_speed_snapshot = state.text_speed_index;
     state.list_owner = 0U;
-    const compat::i32 service_result =
-        ports.query_system_menu_service(0x48U, state);
+    const compat::i32 map_effect_result =
+        ports.query_system_menu_map_effect(0x48U, state);
     ++result.helper_call_count;
     LegacySystemMenuMessage message;
-    message.sample_owner = state.message_sample_owner;
-    message.font = state.message_font;
-    message.value = state.message_value;
+    message.sound_effect_index = state.sound_effect_index;
+    message.music_index = state.music_index;
+    message.replacement_spacing = state.replacement_spacing;
     message.capacity = 0x64U;
-    message.service_result = service_result;
-    message.shared_value = shared_snapshot;
-    message.tail = tail_snapshot;
+    message.map_effect_result = map_effect_result;
+    message.text_speed_index = text_speed_snapshot;
+    message.battle_speed_index = battle_speed_snapshot;
     result.legacy_return_value = ports.format_system_menu_message(message);
     ++result.helper_call_count;
     return result;
+}
+
+LegacySystemMenuInputResult move_up_legacy_system_menu(
+    LegacySystemMenuState& state, LegacySystemMenuPorts& ports
+) noexcept {
+    LegacySystemMenuInputResult result;
+    const auto set_legacy = [&result](const compat::u32 value) {
+        result.legacy_return_value = std::bit_cast<compat::i32>(value);
+    };
+    const auto call = [&result, &ports, &state](
+                          const LegacySystemMenuInputCommand command,
+                          const compat::u32 argument
+                      ) {
+        result.command = command;
+        ++result.helper_call_count;
+        result.legacy_return_value =
+            ports.execute_system_menu_input_command(command, argument, state);
+    };
+    if (state.input_locked != 0U) {
+        set_legacy(state.input_locked);
+        return result;
+    }
+    const compat::u32 mode = state.interaction_mode;
+    set_legacy(mode);
+    switch (mode) {
+    case 0U: {
+        const compat::u32 next = state.interaction_page - 1U;
+        state.interaction_page = next;
+        set_legacy(next);
+        if (std::bit_cast<compat::i32>(next) < 0) {
+            state.interaction_page = 0U;
+            return result;
+        }
+        call(
+            LegacySystemMenuInputCommand::play_sample, state.sound_effect_index
+        );
+        return result;
+    }
+    case 1U:
+        if (state.interaction_page == 2U) {
+            return retreat_legacy_system_menu_selection(state, ports);
+        }
+        if (state.interaction_page == 3U) {
+            set_legacy(state.selected_row);
+            switch (state.selected_row) {
+            case 0U: {
+                const compat::u32 next = state.sound_effect_index - 1U;
+                state.sound_effect_index = next;
+                if (std::bit_cast<compat::i32>(next) <= 0) {
+                    state.sound_effect_index = 0U;
+                }
+                call(
+                    LegacySystemMenuInputCommand::play_sample,
+                    state.sound_effect_index
+                );
+                return result;
+            }
+            case 1U: {
+                const compat::u32 next = state.music_index - 1U;
+                state.music_index = next;
+                if (std::bit_cast<compat::i32>(next) <= 0) {
+                    state.music_index = 0U;
+                }
+                call(
+                    LegacySystemMenuInputCommand::apply_music, state.music_index
+                );
+                return result;
+            }
+            case 2U: {
+                const compat::u32 next = state.replacement_spacing - 0x28U;
+                state.replacement_spacing = next;
+                set_legacy(next);
+                if (std::bit_cast<compat::i32>(next) <= 0x3C) {
+                    state.replacement_spacing = 0x3CU;
+                }
+                return result;
+            }
+            case 3U:
+                call(LegacySystemMenuInputCommand::disable_map_effect, 0x48U);
+                return result;
+            case 4U: {
+                const compat::u32 next = state.text_speed_index + 1U;
+                state.text_speed_index = next;
+                set_legacy(next);
+                if (std::bit_cast<compat::i32>(next) > 4) {
+                    state.text_speed_index = 4U;
+                    set_legacy(4U);
+                }
+                state.applied_text_speed_index = state.text_speed_index;
+                return result;
+            }
+            case 5U: {
+                const compat::u32 next = state.battle_speed_index - 1U;
+                state.battle_speed_index = next;
+                set_legacy(next);
+                if (std::bit_cast<compat::i32>(next) < 0) {
+                    state.battle_speed_index = 0U;
+                }
+                return result;
+            }
+            default:
+                return result;
+            }
+        }
+        set_legacy(state.interaction_page - 4U);
+        if (state.interaction_page == 4U) {
+            const compat::u32 next = state.selected_row - 1U;
+            state.selected_row = next;
+            set_legacy(next);
+            if (std::bit_cast<compat::i32>(next) <= 0) {
+                state.selected_row = 0U;
+            }
+        }
+        return result;
+    case 2U:
+        if (state.interaction_page == 4U) {
+            const compat::u32 next = state.detail_selection - 1U;
+            state.detail_selection = next;
+            set_legacy(next);
+            if (std::bit_cast<compat::i32>(next) < 0) {
+                state.detail_selection = 0U;
+            }
+        }
+        return result;
+    case 5U: {
+        const compat::u32 next = state.selected_entry - 1U;
+        state.selected_entry = next;
+        set_legacy(next);
+        if (std::bit_cast<compat::i32>(next) < 0) {
+            state.selected_entry = 0x12U;
+        }
+        call(
+            LegacySystemMenuInputCommand::play_sample, state.sound_effect_index
+        );
+        return result;
+    }
+    default:
+        return result;
+    }
 }
 
 LegacySystemMenuInputResult page_up_legacy_system_menu(
@@ -427,7 +566,7 @@ LegacySystemMenuInputResult page_up_legacy_system_menu(
         ++result.helper_call_count;
         result.legacy_return_value = ports.execute_system_menu_input_command(
             LegacySystemMenuInputCommand::play_sample,
-            state.message_sample_owner,
+            state.sound_effect_index,
             state
         );
     };
@@ -485,7 +624,7 @@ LegacySystemMenuInputResult page_down_legacy_system_menu(
         ++result.helper_call_count;
         result.legacy_return_value = ports.execute_system_menu_input_command(
             LegacySystemMenuInputCommand::play_sample,
-            state.message_sample_owner,
+            state.sound_effect_index,
             state
         );
     };
@@ -566,7 +705,7 @@ LegacySystemMenuInputResult retreat_legacy_system_menu_selection(
         if (std::bit_cast<compat::i32>(next) >= 0) {
             call(
                 LegacySystemMenuInputCommand::play_sample,
-                state.message_sample_owner
+                state.sound_effect_index
             );
         } else {
             state.interaction_page = 0U;
@@ -600,7 +739,7 @@ LegacySystemMenuInputResult retreat_legacy_system_menu_selection(
             }
             call(
                 LegacySystemMenuInputCommand::play_sample,
-                state.message_sample_owner
+                state.sound_effect_index
             );
             return result;
         }
@@ -613,7 +752,7 @@ LegacySystemMenuInputResult retreat_legacy_system_menu_selection(
             }
             call(
                 LegacySystemMenuInputCommand::play_sample,
-                state.message_sample_owner
+                state.sound_effect_index
             );
         }
         return result;
@@ -634,8 +773,7 @@ LegacySystemMenuInputResult retreat_legacy_system_menu_selection(
             state.selected_entry = 0x12U;
         }
         call(
-            LegacySystemMenuInputCommand::play_sample,
-            state.message_sample_owner
+            LegacySystemMenuInputCommand::play_sample, state.sound_effect_index
         );
         return result;
     }
@@ -674,7 +812,7 @@ LegacySystemMenuInputResult advance_legacy_system_menu_selection(
         if (std::bit_cast<compat::i32>(next) <= 4) {
             call(
                 LegacySystemMenuInputCommand::play_sample,
-                state.message_sample_owner
+                state.sound_effect_index
             );
         } else {
             state.interaction_page = 4U;
@@ -719,7 +857,7 @@ LegacySystemMenuInputResult advance_legacy_system_menu_selection(
             }
             call(
                 LegacySystemMenuInputCommand::play_sample,
-                state.message_sample_owner
+                state.sound_effect_index
             );
             return result;
         }
@@ -732,7 +870,7 @@ LegacySystemMenuInputResult advance_legacy_system_menu_selection(
             }
             call(
                 LegacySystemMenuInputCommand::play_sample,
-                state.message_sample_owner
+                state.sound_effect_index
             );
         }
         return result;
@@ -753,8 +891,7 @@ LegacySystemMenuInputResult advance_legacy_system_menu_selection(
             state.selected_entry = 0U;
         }
         call(
-            LegacySystemMenuInputCommand::play_sample,
-            state.message_sample_owner
+            LegacySystemMenuInputCommand::play_sample, state.sound_effect_index
         );
         return result;
     }
@@ -892,8 +1029,7 @@ LegacySystemMenuInputResult update_legacy_system_menu_input(
         state.interaction_page = static_cast<compat::u32>(product >> 37U);
         call(LegacySystemMenuInputCommand::commit);
         call(
-            LegacySystemMenuInputCommand::play_sample,
-            state.message_sample_owner
+            LegacySystemMenuInputCommand::play_sample, state.sound_effect_index
         );
         return result;
     }
@@ -945,7 +1081,7 @@ LegacySystemMenuInputResult update_legacy_system_menu_input(
                 state.selected_row = 0U;
                 if (row >= 0) {
                     clamp_row(0x0B);
-                    state.message_sample_owner = static_cast<compat::u32>(row);
+                    state.sound_effect_index = static_cast<compat::u32>(row);
                     call(
                         LegacySystemMenuInputCommand::play_sample,
                         static_cast<compat::u32>(row)
@@ -957,9 +1093,9 @@ LegacySystemMenuInputResult update_legacy_system_menu_input(
                 state.selected_row = 1U;
                 if (row >= 0) {
                     clamp_row(0x0B);
-                    state.message_font = static_cast<compat::u32>(row);
+                    state.music_index = static_cast<compat::u32>(row);
                     call(
-                        LegacySystemMenuInputCommand::apply_font,
+                        LegacySystemMenuInputCommand::apply_music,
                         static_cast<compat::u32>(row)
                     );
                 }
@@ -969,7 +1105,7 @@ LegacySystemMenuInputResult update_legacy_system_menu_input(
                 state.selected_row = 2U;
                 if (row >= 0) {
                     clamp_row(2);
-                    state.message_value =
+                    state.replacement_spacing =
                         static_cast<compat::u32>(0x28 * row + 0x3C);
                 }
                 return result;
@@ -977,9 +1113,14 @@ LegacySystemMenuInputResult update_legacy_system_menu_input(
             if (pointer_x < 0x101U && pointer_x > 0xE2U) {
                 state.selected_row = 3U;
                 if (row >= 0) {
-                    call(LegacySystemMenuInputCommand::remove_service, 0x48U);
+                    call(
+                        LegacySystemMenuInputCommand::disable_map_effect, 0x48U
+                    );
                     if (row != 0) {
-                        call(LegacySystemMenuInputCommand::add_service, 0x48U);
+                        call(
+                            LegacySystemMenuInputCommand::enable_map_effect,
+                            0x48U
+                        );
                     }
                 }
                 return result;
@@ -991,8 +1132,8 @@ LegacySystemMenuInputResult update_legacy_system_menu_input(
                     clamp_row(4);
                     const compat::u32 value =
                         4U - static_cast<compat::u32>(row);
-                    state.shared_value = value;
-                    state.published_row_value = value;
+                    state.text_speed_index = value;
+                    state.applied_text_speed_index = value;
                     set_legacy(value);
                 }
                 return result;
@@ -1001,7 +1142,7 @@ LegacySystemMenuInputResult update_legacy_system_menu_input(
                 state.selected_row = 5U;
                 if (row >= 0) {
                     clamp_row(0x0B);
-                    state.message_tail = static_cast<compat::u32>(row);
+                    state.battle_speed_index = static_cast<compat::u32>(row);
                 }
                 return result;
             }
