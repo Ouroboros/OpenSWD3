@@ -793,13 +793,29 @@ cleanup_legacy_standard_mode_equipment_record_list(
     LegacyStandardModeEquipmentRecordListPorts& ports
 ) noexcept;
 
+class LegacyStandardModeEquipmentActionCountPorts {
+public:
+    virtual ~LegacyStandardModeEquipmentActionCountPorts() = default;
+    [[nodiscard]] virtual compat::i32
+    query_equipment_item_presence(compat::u16 item_id) noexcept = 0;
+};
+
+struct LegacyStandardModeEquipmentActionCountResult {
+    compat::i32 legacy_return_value{};
+    compat::u32 query_count{};
+};
+
+[[nodiscard]] LegacyStandardModeEquipmentActionCountResult
+initialize_legacy_standard_mode_equipment_action_count(
+    LegacyStandardModeEquipmentInitializationState& state,
+    LegacyStandardModeEquipmentActionCountPorts& ports
+) noexcept;
+
 class LegacyStandardModeEquipmentInitializationPorts
-    : public virtual LegacyStandardModeEquipmentRecordListPorts {
+    : public virtual LegacyStandardModeEquipmentRecordListPorts,
+      public virtual LegacyStandardModeEquipmentActionCountPorts {
 public:
     ~LegacyStandardModeEquipmentInitializationPorts() override = default;
-    [[nodiscard]] virtual bool initialize_equipment_action_count(
-        LegacyStandardModeEquipmentInitializationState& state
-    ) noexcept = 0;
     [[nodiscard]] virtual compat::u32
     allocate_equipment_workspace(std::size_t size) noexcept = 0;
     [[nodiscard]] virtual std::optional<compat::i32>
@@ -811,7 +827,6 @@ public:
 enum class LegacyStandardModeEquipmentInitializationStatus : compat::u8 {
     completed,
     record_list_stopped,
-    action_count_stopped,
     selected_record_missing,
     shared_text_stopped,
     finalization_stopped,
@@ -1028,12 +1043,10 @@ advance_legacy_standard_mode_equipment_column(
 ) noexcept;
 
 class LegacyStandardModeEquipmentPartyCyclePorts
-    : public LegacyStandardModeEquipmentPageAdvancePorts {
+    : public LegacyStandardModeEquipmentPageAdvancePorts,
+      public virtual LegacyStandardModeEquipmentActionCountPorts {
 public:
     ~LegacyStandardModeEquipmentPartyCyclePorts() override = default;
-    [[nodiscard]] virtual bool initialize_equipment_party_cycle_action_count(
-        LegacyStandardModeEquipmentInitializationState& state
-    ) noexcept = 0;
     [[nodiscard]] virtual std::optional<compat::i32>
     finalize_equipment_party_cycle_action_count(
         compat::u32 selected_party_action
@@ -1044,7 +1057,6 @@ enum class LegacyStandardModeEquipmentPartyCycleStatus : compat::u8 {
     completed,
     cleanup_stopped,
     party_search_stopped,
-    action_count_stopped,
     record_list_stopped,
     selected_record_missing,
     shared_text_stopped,
@@ -1260,8 +1272,6 @@ public:
         LegacyStandardModeEquipmentInitializationState& state,
         LegacyStandardModeEquipmentInputSnapshot& input
     ) noexcept = 0;
-    [[nodiscard]] virtual compat::i32
-    query_equipment_item_presence(compat::u16 item_id) noexcept = 0;
 };
 
 struct LegacyStandardModeGuardianFilterDestination {

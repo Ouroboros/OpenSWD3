@@ -553,6 +553,33 @@ cleanup_legacy_standard_mode_equipment_record_list(
     return result;
 }
 
+LegacyStandardModeEquipmentActionCountResult
+initialize_legacy_standard_mode_equipment_action_count(
+    LegacyStandardModeEquipmentInitializationState& state,
+    LegacyStandardModeEquipmentActionCountPorts& ports
+) noexcept {
+    LegacyStandardModeEquipmentActionCountResult result;
+    state.published_action_count = 3;
+    const compat::u32 selector = state.party_selector;
+    const compat::u16 first_item =
+        static_cast<compat::u16>(selector * 2U + 0x15U);
+    const compat::i32 first_presence =
+        ports.query_equipment_item_presence(first_item);
+    ++result.query_count;
+    if (first_presence != 0) {
+        ++state.published_action_count;
+    }
+    const compat::u16 second_item =
+        static_cast<compat::u16>(selector * 2U + 0x16U);
+    result.legacy_return_value =
+        ports.query_equipment_item_presence(second_item);
+    ++result.query_count;
+    if (result.legacy_return_value != 0) {
+        ++state.published_action_count;
+    }
+    return result;
+}
+
 LegacyStandardModeEquipmentInitializationResult
 initialize_legacy_standard_mode_equipment(
     LegacyStandardModeEquipmentInitializationState& state,
@@ -576,11 +603,9 @@ initialize_legacy_standard_mode_equipment(
             record_list_stopped;
         return result;
     }
-    if (!ports.initialize_equipment_action_count(state)) {
-        result.status = LegacyStandardModeEquipmentInitializationStatus::
-            action_count_stopped;
-        return result;
-    }
+    static_cast<void>(
+        initialize_legacy_standard_mode_equipment_action_count(state, ports)
+    );
     ++result.helper_call_count;
 
     state.active_party_count = 0U;
@@ -1858,11 +1883,9 @@ cycle_legacy_standard_mode_equipment_party(
         party = static_cast<compat::u16>((party + 1U) & 3U);
     }
 
-    if (!ports.initialize_equipment_party_cycle_action_count(state)) {
-        result.status =
-            LegacyStandardModeEquipmentPartyCycleStatus::action_count_stopped;
-        return result;
-    }
+    static_cast<void>(
+        initialize_legacy_standard_mode_equipment_action_count(state, ports)
+    );
     ++result.helper_call_count;
     const LegacyStandardModeEquipmentRecordListResult record_list =
         rebuild_legacy_standard_mode_equipment_record_list(state, ports);
@@ -2585,7 +2608,6 @@ handle_legacy_standard_mode_equipment_input(
             break;
         case LegacyStandardModeEquipmentPartyCycleStatus::cleanup_stopped:
         case LegacyStandardModeEquipmentPartyCycleStatus::party_search_stopped:
-        case LegacyStandardModeEquipmentPartyCycleStatus::action_count_stopped:
         case LegacyStandardModeEquipmentPartyCycleStatus::record_list_stopped:
         case LegacyStandardModeEquipmentPartyCycleStatus::finalization_stopped:
             result.status =
