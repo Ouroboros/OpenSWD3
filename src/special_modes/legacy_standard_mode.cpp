@@ -3701,6 +3701,55 @@ LegacyStandardModeDatabaseRenderResult render_legacy_standard_mode_database(
     return result;
 }
 
+LegacyStandardModeAltarAttributeResult
+calculate_legacy_standard_mode_altar_attributes(
+    LegacyStandardModeDatabaseInitializationState& state
+) noexcept {
+    LegacyStandardModeAltarAttributeResult result;
+    state.altar_spirit_values.fill(0);
+    state.altar_body_values.fill(0);
+    const std::array<const std::array<compat::u8, 0xB0U>*, 2U> records{
+        &state.first_runtime_record,
+        &state.second_runtime_record,
+    };
+    constexpr std::array<std::pair<std::size_t, compat::u16>, 5U> spirit_terms{{
+        {0x72U, 2U},
+        {0x76U, 3U},
+        {0x7AU, 5U},
+        {0x86U, 2U},
+        {0x8AU, 4U},
+    }};
+    constexpr std::array<std::pair<std::size_t, compat::u16>, 2U> body_terms{{
+        {0x7EU, 3U},
+        {0x82U, 5U},
+    }};
+    for (std::size_t index = 0U; index < records.size(); ++index) {
+        const auto& record = *records[index];
+        const compat::u16 level = read_u16_le(record, 0x60U);
+        compat::u16 spirit = 0U;
+        for (const auto [offset, multiplier] : spirit_terms) {
+            if (read_u16_le(record, offset) != 0U) {
+                spirit = static_cast<compat::u16>(
+                    spirit + static_cast<compat::u16>(level * multiplier)
+                );
+            }
+        }
+        compat::u16 body = 0U;
+        for (const auto [offset, multiplier] : body_terms) {
+            if (read_u16_le(record, offset) != 0U) {
+                body = static_cast<compat::u16>(
+                    body + static_cast<compat::u16>(level * multiplier)
+                );
+            }
+        }
+        state.altar_spirit_values[index] = std::bit_cast<compat::i16>(spirit);
+        state.altar_body_values[index] = std::bit_cast<compat::i16>(body);
+        ++result.processed_record_count;
+    }
+    result.legacy_return_value = state.second_runtime_record.data();
+    return result;
+}
+
 LegacyStandardModeOriginalSurfaceResult
 prepare_legacy_standard_mode_database_original_surfaces(
     LegacyStandardModeDatabaseInitializationState& state,
@@ -3821,7 +3870,9 @@ commit_legacy_standard_mode_database_interaction(
             return result;
         }
 
-        ports.prepare_database_phase_1(state);
+        static_cast<void>(
+            calculate_legacy_standard_mode_altar_attributes(state)
+        );
         ++result.helper_call_count;
         state.interaction_phase += 1U;
         state.primary_action.action_id = 0x232AU;

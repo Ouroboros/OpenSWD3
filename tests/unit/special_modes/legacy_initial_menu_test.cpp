@@ -4186,12 +4186,6 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
             surface.back() = static_cast<u16>(0xB000U + index);
             return static_cast<u32>(0x1000U + index);
         }
-        void prepare_database_phase_1(
-            openswd3::special_modes::
-                LegacyStandardModeDatabaseInitializationState&
-        ) noexcept override {
-            ++phase_1_prepare_count;
-        }
         void update_database_phase_3(
             openswd3::special_modes::
                 LegacyStandardModeDatabaseInitializationState& state
@@ -4258,7 +4252,6 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
         std::size_t missing_original_surface_index{
             std::numeric_limits<std::size_t>::max()
         };
-        u32 phase_1_prepare_count{};
         u32 phase_3_update_count{};
         std::size_t resolution_index{};
         LegacyStandardModeForwardNode cycle_node{nullptr, 0xFFDCU};
@@ -4405,6 +4398,34 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
     }
     {
         openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
+            attribute_state;
+        attribute_state.altar_spirit_values.fill(123);
+        attribute_state.altar_body_values.fill(456);
+        attribute_state.first_runtime_record[0x60U] = 10U;
+        for (const std::size_t offset : {0x72U, 0x7AU, 0x8AU, 0x7EU}) {
+            attribute_state.first_runtime_record[offset] = 1U;
+        }
+        attribute_state.second_runtime_record[0x60U] = 0xFFU;
+        attribute_state.second_runtime_record[0x61U] = 0xFFU;
+        for (const std::size_t offset :
+             {0x72U, 0x76U, 0x7AU, 0x7EU, 0x82U, 0x86U, 0x8AU}) {
+            attribute_state.second_runtime_record[offset] = 1U;
+        }
+        const auto attributes = openswd3::special_modes::
+            calculate_legacy_standard_mode_altar_attributes(attribute_state);
+        test.expect_true(
+            attributes.legacy_return_value ==
+                    attribute_state.second_runtime_record.data() &&
+                attributes.processed_record_count == 2U &&
+                attribute_state.altar_spirit_values ==
+                    std::array<i16, 2U>{110, -16} &&
+                attribute_state.altar_body_values ==
+                    std::array<i16, 2U>{30, -8},
+            "0x4404D0 computes both altar spirit/body totals with low16 wrap"
+        );
+    }
+    {
+        openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
             surface_state;
         surface_state.interaction_toggle = 1U;
         surface_state.second_runtime_record[0x5CU] = 0x11U;
@@ -4520,10 +4541,9 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
         test.expect_true(
             ports.queried_item_ids == std::vector<u16>{0x1BB0U, 0x1BA9U} &&
                 ports.commit_rebuild_count == 1U &&
-                ports.phase_1_prepare_count == 1U &&
                 ports.original_surface_requests.empty() &&
                 ports.database_sample_ids == std::vector<u16>{0x2EU},
-            "0x43E3D0 phase1 keeps 4404D0 as its independent boundary"
+            "0x43E3D0 phase1 directly computes 4404D0 altar attributes"
         );
 
         openswd3::special_modes::LegacyStandardModeDatabaseInitializationState

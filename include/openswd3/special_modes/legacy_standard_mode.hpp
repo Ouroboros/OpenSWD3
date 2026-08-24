@@ -1097,6 +1097,11 @@ enum class LegacyStandardModeOriginalSurfaceStatus : compat::u8 {
     second_inline_action_missing,
 };
 
+struct LegacyStandardModeAltarAttributeResult {
+    const compat::u8* legacy_return_value{};
+    compat::u32 processed_record_count{};
+};
+
 struct LegacyStandardModeOriginalSurfaceRequest {
     compat::u16 action_id{};
     compat::u16 variant{};
@@ -1157,9 +1162,6 @@ public:
     [[nodiscard]] virtual compat::i32 rebuild_database_inline_records(
         std::span<compat::u8> first_record,
         std::span<compat::u8> second_record,
-        LegacyStandardModeDatabaseInitializationState& state
-    ) noexcept = 0;
-    virtual void prepare_database_phase_1(
         LegacyStandardModeDatabaseInitializationState& state
     ) noexcept = 0;
     [[nodiscard]] virtual std::optional<compat::u32>
@@ -2296,6 +2298,11 @@ render_legacy_standard_mode_database(
 ) noexcept;
 
 // sub_43E3D0: commit or transition the database interaction phase.
+[[nodiscard]] LegacyStandardModeAltarAttributeResult
+calculate_legacy_standard_mode_altar_attributes(
+    LegacyStandardModeDatabaseInitializationState& state
+) noexcept;
+
 [[nodiscard]] LegacyStandardModeOriginalSurfaceResult
 prepare_legacy_standard_mode_database_original_surfaces(
     LegacyStandardModeDatabaseInitializationState& state,

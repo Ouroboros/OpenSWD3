@@ -6,7 +6,7 @@
 
 唯一行为真值为`swd3.exe.lst`。函数范围`0x0043E3D0..0x0043E741`，425行；DA30有四个direct call点，B480另以callback地址绑定。
 
-已关闭callee B980/B9A0/BC90/BCC0/E770/F1E0/F7C0/FDE0直接复用typed实现。4404D0、4405C0、44D2D0、sample、物品查询和release继续保留最小可观察port边界，不提前计数。DA30命中E3D0时直接调用本helper并传播phase2/phase4 typed-stop。
+已关闭callee B980/B9A0/BC90/BCC0/E770/F1E0/F7C0/FDE0/4404D0直接复用typed实现。4405C0、44D2D0、sample、物品查询和release继续保留最小可观察port边界，不提前计数。DA30命中E3D0时直接调用本helper并传播phase2/phase4 typed-stop。
 
 新增/确认typed owner：
 
@@ -23,7 +23,7 @@
 
 1. 查询物品`0x1BB0`；存在时立即直接调用已关闭E770并返回。
 2. F1E0重建两个inline record；EAX为0时写phase5并返回0。
-3. 调用4404D0后重新读取phase并加1。
+3. 直接执行4404D0，清零并按两份runtime record等级/七个标志汇总左右祭坛灵力与体力；随后重新读取phase并加1。
 4. primary action写`0x232A/0x39`，toggle和runtime flags清0。
 5. 查询物品`0x1BA9`；缺失写toggle1。
 6. 若物品存在，first runtime `u16(+0x60) - comparison.low8 > 9`时OR flags bit0并写toggle1。
