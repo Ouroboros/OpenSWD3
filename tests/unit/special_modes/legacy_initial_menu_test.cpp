@@ -14971,6 +14971,26 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         : public openswd3::special_modes::
               LegacyStandardModeGroupEightMainInputPorts {
     public:
+        bool initialize_selection_records(
+            openswd3::special_modes::LegacyStandardModeGroupEightState& state
+        ) override {
+            if (initial_record_head != nullptr) {
+                state.record_head = initial_record_head;
+            }
+            return record_initialization_available;
+        }
+        u32 allocate_workspace(const std::size_t) override {
+            return 0U;
+        }
+        bool cleanup_selection_records(
+            openswd3::special_modes::LegacyStandardModeGroupEightState&
+        ) override {
+            return record_cleanup_available;
+        }
+        i32 release_workspace(const u32) override {
+            return 0;
+        }
+
         enum class Event : u8 {
             overlay,
             commit,
@@ -15005,13 +15025,6 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         ) override {
             return record(Event::exit, input, state);
         }
-        i32 refresh_hover(
-            openswd3::special_modes::
-                LegacyStandardModeGroupEightMainInputSnapshot& input,
-            openswd3::special_modes::LegacyStandardModeGroupEightState& state
-        ) override {
-            return record(Event::hover, input, state);
-        }
         i32 query_item_presence(const u16 item_id) override {
             events.push_back(Event::presence);
             queried_item_ids.push_back(item_id);
@@ -15036,6 +15049,9 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             return callback_return_base + static_cast<i32>(event);
         }
 
+        LegacyStandardModeForwardNode* initial_record_head{};
+        bool record_initialization_available{true};
+        bool record_cleanup_available{true};
         std::array<i32, 64U> item_presence{};
         i32 callback_return_base{100};
         i32 sample_return{222};
@@ -15473,11 +15489,15 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             {},
             special_choice_ports
         );
+    LegacyStandardModeForwardNode hover_record;
+    hover_record.text_index = 0xFFDCU;
     GroupEightState hover_state;
     hover_state.interaction_mode = 2U;
+    hover_state.record_head = &hover_record;
     openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
         hover_input{.pointer_x = 250U, .pointer_y = 100U, .input_flags = 1U};
     GroupEightMainInputPorts hover_ports;
+    hover_ports.initial_record_head = &hover_record;
     const auto hover_changed = openswd3::special_modes::
         handle_legacy_standard_mode_group_eight_main_input(
             hover_state,
@@ -15505,9 +15525,10 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             hover_changed.path ==
                 openswd3::special_modes::
                     LegacyStandardModeGroupEightMainInputPath::hover_changed &&
-            hover_state.pre_initialization_zeroes[0U] == 2U &&
+            hover_state.pre_initialization_zeroes[0U] == 1U &&
+            hover_state.shared_text[0U] == 0xB5U &&
             hover_ports.events ==
-                std::vector{GroupEightMainInputPorts::Event::hover},
+                std::vector{GroupEightMainInputPorts::Event::sample},
         "0x4455E0 preserves the special primary choice and mismatched hover formulas"
     );
 
@@ -16472,6 +16493,117 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
                         runtime_page_retreated &&
             runtime_page_retreated.helper_call_count == 1U,
         "0x446260 directly delegates modes at least 500 to 0x43C670"
+    );
+
+    LegacyStandardModeForwardNode mode_retreat_record;
+    mode_retreat_record.text_index = 0xFFDCU;
+    GroupEightState mode_retreat_state;
+    mode_retreat_state.interaction_mode = 2U;
+    mode_retreat_state.selection_x = 30U;
+    mode_retreat_state.record_head = &mode_retreat_record;
+    mode_retreat_state.pre_initialization_zeroes[0U] = 0U;
+    mode_retreat_state.pre_initialization_zeroes[2U] = 9U;
+    GroupEightMainInputPorts mode_retreat_ports;
+    mode_retreat_ports.initial_record_head = &mode_retreat_record;
+    const auto mode_retreated =
+        openswd3::special_modes::retreat_legacy_standard_mode_group_eight_mode(
+            mode_retreat_state,
+            0x31415926U,
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            mode_retreat_ports
+        );
+    GroupEightState mode_cleanup_stop_state;
+    mode_cleanup_stop_state.interaction_mode = 2U;
+    mode_cleanup_stop_state.pre_initialization_zeroes[0U] = 4U;
+    GroupEightMainInputPorts mode_cleanup_stop_ports;
+    mode_cleanup_stop_ports.record_cleanup_available = false;
+    const auto mode_cleanup_stopped =
+        openswd3::special_modes::retreat_legacy_standard_mode_group_eight_mode(
+            mode_cleanup_stop_state,
+            0U,
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            mode_cleanup_stop_ports
+        );
+    test.expect_true(
+        mode_retreated.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightModeRetreatStatus::completed &&
+            mode_retreated.helper_call_count == 5U &&
+            mode_retreat_state.viewport_extent == 480U &&
+            mode_retreat_state.pre_initialization_zeroes[0U] == 6U &&
+            mode_retreat_state.pre_initialization_zeroes[2U] == 0U &&
+            mode_retreat_state.shared_text[0U] == 0xB5U &&
+            mode_retreat_state.published_selection_x == 30U &&
+            mode_retreat_ports.played_samples ==
+                std::vector<std::pair<u16, u32>>{{0x2EU, 0x31415926U}} &&
+            mode_cleanup_stopped.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightModeRetreatStatus::
+                        record_cleanup_stopped &&
+            mode_cleanup_stop_state.pre_initialization_zeroes[0U] == 4U,
+        "0x446420 wraps category zero to six and preserves the cleanup stop prefix"
+    );
+
+    GroupEightState fixed_mode_retreat_state;
+    fixed_mode_retreat_state.interaction_mode = 10U;
+    fixed_mode_retreat_state.selected_outer_row = 0U;
+    fixed_mode_retreat_state.selection_x = 77U;
+    GroupEightMainInputPorts fixed_mode_retreat_ports;
+    const auto fixed_mode_retreated =
+        openswd3::special_modes::retreat_legacy_standard_mode_group_eight_mode(
+            fixed_mode_retreat_state,
+            0U,
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            fixed_mode_retreat_ports
+        );
+    fixed_mode_retreat_state.interaction_mode = 15U;
+    fixed_mode_retreat_state.secondary_window_offset = 1;
+    fixed_mode_retreat_state.secondary_row_selection = 0;
+    const auto secondary_mode_retreated =
+        openswd3::special_modes::retreat_legacy_standard_mode_group_eight_mode(
+            fixed_mode_retreat_state,
+            0U,
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            fixed_mode_retreat_ports
+        );
+    test.expect_true(
+        fixed_mode_retreated.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightModeRetreatStatus::completed &&
+            fixed_mode_retreat_state.selected_outer_row == 0U &&
+            secondary_mode_retreated.helper_call_count == 1U &&
+            fixed_mode_retreat_state.secondary_window_offset == 0 &&
+            fixed_mode_retreat_state.secondary_row_selection == 0 &&
+            fixed_mode_retreat_state.published_selection_x == 77U,
+        "0x446420 clamps mode10 and uses cursor retreat for mode15"
+    );
+
+    GroupEightState runtime_mode_retreat_state;
+    runtime_mode_retreat_state.interaction_mode = 500U;
+    LegacyStandardModeRuntimeInitializationState runtime_mode_retreat_runtime;
+    runtime_mode_retreat_runtime.mode_index = 0;
+    GroupEightMainInputPorts runtime_mode_retreat_ports;
+    const auto runtime_mode_retreated =
+        openswd3::special_modes::retreat_legacy_standard_mode_group_eight_mode(
+            runtime_mode_retreat_state,
+            0U,
+            {},
+            runtime_mode_retreat_runtime,
+            group_main_runtime_ports,
+            runtime_mode_retreat_ports
+        );
+    test.expect_true(
+        runtime_mode_retreat_runtime.mode_index == 0 &&
+            runtime_mode_retreated.helper_call_count >= 1U,
+        "0x446420 predecrements, clamps and rebuilds high runtime modes"
     );
 
     GroupEightState group_state{.selection = 4U, .lifecycle = 2U};

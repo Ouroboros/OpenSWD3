@@ -655,7 +655,9 @@ enum class LegacyStandardModeGroupEightMainControl : compat::u8 {
     second_dynamic,
 };
 
-class LegacyStandardModeGroupEightMainInputPorts {
+class LegacyStandardModeGroupEightMainInputPorts
+    : public LegacyStandardModeGroupEightInitializationPorts,
+      public LegacyStandardModeGroupEightCleanupPorts {
 public:
     virtual ~LegacyStandardModeGroupEightMainInputPorts() = default;
     [[nodiscard]] virtual compat::i32 dispatch_overlay_action(
@@ -667,10 +669,6 @@ public:
         LegacyStandardModeGroupEightState& state
     ) = 0;
     [[nodiscard]] virtual compat::i32 exit_interaction(
-        LegacyStandardModeGroupEightMainInputSnapshot& input,
-        LegacyStandardModeGroupEightState& state
-    ) = 0;
-    [[nodiscard]] virtual compat::i32 refresh_hover(
         LegacyStandardModeGroupEightMainInputSnapshot& input,
         LegacyStandardModeGroupEightState& state
     ) = 0;
@@ -691,6 +689,7 @@ enum class LegacyStandardModeGroupEightMainInputStatus : compat::u8 {
     retreat_control_stopped,
     page_advance_control_stopped,
     page_retreat_control_stopped,
+    mode_retreat_stopped,
 };
 
 enum class LegacyStandardModeGroupEightMainInputPath : compat::u8 {
@@ -904,6 +903,36 @@ retreat_legacy_standard_mode_group_eight_page(
     LegacyStandardModeGroupEightState& state,
     compat::u32 sample_handle,
     std::span<const compat::u16> party_markers,
+    std::span<const compat::u8> maps_payload,
+    LegacyStandardModeRuntimeInitializationState& runtime_state,
+    LegacyStandardModeInputDispatchPorts& runtime_ports,
+    LegacyStandardModeGroupEightMainInputPorts& ports
+) noexcept;
+
+enum class LegacyStandardModeGroupEightModeRetreatStatus : compat::u8 {
+    completed,
+    record_cleanup_stopped,
+    record_initialization_stopped,
+    selected_record_missing,
+    shared_text_stopped,
+    entry_initialization_stopped,
+    page_refresh_stopped,
+    runtime_entry_out_of_range,
+    entry_consumption_stopped,
+};
+
+struct LegacyStandardModeGroupEightModeRetreatResult {
+    LegacyStandardModeGroupEightModeRetreatStatus status{
+        LegacyStandardModeGroupEightModeRetreatStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacyStandardModeGroupEightModeRetreatResult
+retreat_legacy_standard_mode_group_eight_mode(
+    LegacyStandardModeGroupEightState& state,
+    compat::u32 sample_handle,
     std::span<const compat::u8> maps_payload,
     LegacyStandardModeRuntimeInitializationState& runtime_state,
     LegacyStandardModeInputDispatchPorts& runtime_ports,
