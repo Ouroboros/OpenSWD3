@@ -1101,7 +1101,7 @@ enum class LegacyStandardModeGuardianRenderOperation : compat::u8 {
     draw_guardian_category_icon,
 };
 
-struct LegacyStandardModeGuardianAttributeIconResource {
+struct LegacyStandardModeGuardianIconResource {
     compat::u32 source_word{};
     compat::u16 width{};
     compat::u16 height{};
@@ -1123,6 +1123,7 @@ enum class LegacyStandardModeGuardianRenderStatus : compat::u8 {
     guardian_record_out_of_range,
     attribute_cache_out_of_range,
     attribute_icon_unavailable,
+    category_icon_unavailable,
     selected_node_missing,
     visible_chain_stopped,
     animated_panel_stopped,
@@ -1157,9 +1158,12 @@ public:
     guardian_text(LegacyStandardModeGuardianRenderText text) noexcept = 0;
     [[nodiscard]] virtual std::string
     guardian_attribute_text(compat::i8 value) noexcept = 0;
-    [[nodiscard]] virtual std::optional<
-        LegacyStandardModeGuardianAttributeIconResource>
+    [[nodiscard]] virtual std::optional<LegacyStandardModeGuardianIconResource>
     resolve_guardian_attribute_icon(compat::u16 resource_id) noexcept = 0;
+    [[nodiscard]] virtual std::optional<LegacyStandardModeGuardianIconResource>
+    resolve_guardian_category_icon(
+        compat::u16 action_frame_word, compat::i32 category
+    ) noexcept = 0;
     [[nodiscard]] virtual compat::i32 execute_guardian_render(
         const LegacyStandardModeGuardianRenderRequest& request
     ) noexcept = 0;
@@ -2900,6 +2904,15 @@ commit_legacy_standard_mode_guardian_interaction(
     std::span<const compat::u32> guardian_text_indices,
     std::span<const compat::u8> maps_payload,
     LegacyStandardModeGuardianCommitPorts& ports
+) noexcept;
+
+[[nodiscard]] LegacyStandardModeGuardianRenderResult
+render_legacy_standard_mode_guardian_category_icon(
+    compat::u16 action_frame_word,
+    compat::i32 category,
+    compat::i32 x,
+    compat::i32 y,
+    LegacyStandardModeGuardianRenderPorts& ports
 ) noexcept;
 
 [[nodiscard]] LegacyStandardModeGuardianRenderResult

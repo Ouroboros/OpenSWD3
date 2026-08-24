@@ -5922,6 +5922,41 @@ switch_legacy_standard_mode_guardian_interaction(
 }
 
 LegacyStandardModeGuardianRenderResult
+render_legacy_standard_mode_guardian_category_icon(
+    const compat::u16 action_frame_word,
+    const compat::i32 category,
+    const compat::i32 x,
+    const compat::i32 y,
+    LegacyStandardModeGuardianRenderPorts& ports
+) noexcept {
+    LegacyStandardModeGuardianRenderResult result;
+    const std::optional<LegacyStandardModeGuardianIconResource> resource =
+        ports.resolve_guardian_category_icon(action_frame_word, category);
+    if (!resource.has_value()) {
+        result.status =
+            LegacyStandardModeGuardianRenderStatus::category_icon_unavailable;
+        return result;
+    }
+    result.operation_count = 1U;
+    result.legacy_return_value = ports.execute_guardian_render(
+        LegacyStandardModeGuardianRenderRequest{
+            .operation = LegacyStandardModeGuardianRenderOperation::
+                draw_guardian_category_icon,
+            .values = {
+                std::bit_cast<compat::i32>(resource->source_word),
+                x,
+                y,
+                resource->width,
+                resource->height,
+                0,
+                0,
+            },
+        }
+    );
+    return result;
+}
+
+LegacyStandardModeGuardianRenderResult
 render_legacy_standard_mode_guardian_slot_panel(
     LegacyStandardModeGuardianInitializationState& state,
     const std::span<const LegacyStandardModeForwardNode> guardian_records,
@@ -6070,20 +6105,20 @@ render_legacy_standard_mode_guardian_slot_panel(
     const compat::i32 category_x =
         std::bit_cast<compat::i32>(panel_x - panel_shift + 0x38U);
     for (std::size_t index = 0U; index < kCategories.size(); ++index) {
-        static_cast<void>(execute(
-            LegacyStandardModeGuardianRenderRequest{
-                .operation = LegacyStandardModeGuardianRenderOperation::
-                    draw_guardian_category_icon,
-                .values = {
-                    state.guardian_category_action_frame_word,
-                    kCategories[index],
-                    category_x,
-                    std::bit_cast<compat::i32>(
-                        panel_y + kCategoryYOffsets[index]
-                    ),
-                },
-            }
-        ));
+        const LegacyStandardModeGuardianRenderResult icon =
+            render_legacy_standard_mode_guardian_category_icon(
+                state.guardian_category_action_frame_word,
+                kCategories[index],
+                category_x,
+                std::bit_cast<compat::i32>(panel_y + kCategoryYOffsets[index]),
+                ports
+            );
+        result.legacy_return_value = icon.legacy_return_value;
+        result.operation_count += icon.operation_count;
+        if (icon.status != LegacyStandardModeGuardianRenderStatus::completed) {
+            result.status = icon.status;
+            return result;
+        }
     }
     state.guardian_category_action_id = 0U;
     state.guardian_category_action_variant = 0x44U;
@@ -6213,8 +6248,8 @@ render_legacy_standard_mode_guardian_attributes(
             continue;
         }
         const compat::u16 resource_id = difference > 0 ? 0x2465U : 0x2463U;
-        const std::optional<LegacyStandardModeGuardianAttributeIconResource>
-            resource = ports.resolve_guardian_attribute_icon(resource_id);
+        const std::optional<LegacyStandardModeGuardianIconResource> resource =
+            ports.resolve_guardian_attribute_icon(resource_id);
         if (!resource.has_value()) {
             result.status = LegacyStandardModeGuardianRenderStatus::
                 attribute_icon_unavailable;

@@ -22,7 +22,7 @@
 
 `3,0,1,6,4,7,5,2`
 
-X固定为`panel_x-panel_shift+0x38`；Y偏移依次为`6,0x22,0x3E,0x5A,0x76,0x92,0xCA,0x102`。442960仍是下一独立callee，以`draw_guardian_category_icon`窄操作保留边界，未提前计数。结束时只把category action残值改为`id=0,variant=0x44`，不额外发布prepare。
+X固定为`panel_x-panel_shift+0x38`；Y偏移依次为`6,0x22,0x3E,0x5A,0x76,0x92,0xCA,0x102`。442960后续已独立闭环，八处均直接解析`(frame,category)`资源并发布source/坐标/u16宽高；首个资源typed-stop会保留此前副作用。全部成功后只把category action残值改为`id=0,variant=0x44`，不额外发布prepare。
 
 41680原`draw_guardian_slot_panel`整块opaque请求已替换为直接helper，并聚合状态、color、operation和十一行row count。
 

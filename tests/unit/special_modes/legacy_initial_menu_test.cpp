@@ -3027,7 +3027,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return "A" + std::to_string(value);
         }
 
-        std::optional<sm::LegacyStandardModeGuardianAttributeIconResource>
+        std::optional<sm::LegacyStandardModeGuardianIconResource>
         resolve_guardian_attribute_icon(
             const u16 resource_id
         ) noexcept override {
@@ -3035,10 +3035,26 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             if (!attribute_icons_available) {
                 return std::nullopt;
             }
-            return sm::LegacyStandardModeGuardianAttributeIconResource{
+            return sm::LegacyStandardModeGuardianIconResource{
                 .source_word = 0xAB000000U | resource_id,
                 .width = 7U,
                 .height = 9U,
+            };
+        }
+
+        std::optional<sm::LegacyStandardModeGuardianIconResource>
+        resolve_guardian_category_icon(
+            const u16 action_frame_word, const i32 category
+        ) noexcept override {
+            category_icon_keys.push_back({action_frame_word, category});
+            if (!category_icons_available) {
+                return std::nullopt;
+            }
+            return sm::LegacyStandardModeGuardianIconResource{
+                .source_word =
+                    0xCD000000U | (static_cast<u32>(category) & 0xFFFFU),
+                .width = 11U,
+                .height = 13U,
             };
         }
 
@@ -3119,12 +3135,14 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
 
         bool transition_ready{};
         bool attribute_icons_available{true};
+        bool category_icons_available{true};
         i32 animated_text_return{888};
         u32 bar_updates{};
         u32 bar_frame_draws{};
         u32 bar_action_draws{};
         std::vector<std::array<u8, 3U>> colors;
         std::vector<u16> attribute_icon_ids;
+        std::vector<std::pair<u16, i32>> category_icon_keys;
         std::vector<std::array<i32, 5U>> adjustments;
         std::vector<i8> attribute_values;
         std::vector<sm::LegacyStandardModeGuardianRenderRequest> requests;
@@ -3173,14 +3191,18 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                     GuardianRenderOperation::prepare_guardian_category_action;
             }
         );
-        std::vector<i32> category_ids;
         std::vector<i32> category_y;
         for (const auto& request : slot_ports.requests) {
             if (request.operation ==
                 GuardianRenderOperation::draw_guardian_category_icon) {
-                category_ids.push_back(request.values[1U]);
-                category_y.push_back(request.values[3U]);
+                category_y.push_back(request.values[2U]);
             }
+        }
+        std::vector<i32> category_ids;
+        for (const auto& [frame_word, category] :
+             slot_ports.category_icon_keys) {
+            static_cast<void>(frame_word);
+            category_ids.push_back(category);
         }
         test.expect_true(
             panel.status ==
@@ -3208,6 +3230,11 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 prepare != slot_ports.requests.end() &&
                 prepare->values[0U] == 0x232A && prepare->values[1U] == 0x0D &&
                 category_ids == std::vector<i32>{3, 0, 1, 6, 4, 7, 5, 2} &&
+                std::all_of(
+                    slot_ports.category_icon_keys.begin(),
+                    slot_ports.category_icon_keys.end(),
+                    [](const auto& key) { return key.first == 1014U; }
+                ) &&
                 category_y ==
                     std::vector<i32>{
                         0x6E, 0x8A, 0xA6, 0xC2, 0xDE, 0xFA, 0x132, 0x16A
@@ -3216,7 +3243,18 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 slot_state.guardian_slot_action_variant == 0x20U &&
                 slot_state.guardian_category_action_id == 0U &&
                 slot_state.guardian_category_action_variant == 0x44U &&
-                slot_state.guardian_category_action_frame_word == 1014U,
+                slot_state.guardian_category_action_frame_word == 1014U &&
+                slot_ports.requests[14U].values ==
+                    std::array<i32, 8U>{
+                        static_cast<i32>(0xCD000003U),
+                        0x100,
+                        0x6E,
+                        11,
+                        13,
+                        0,
+                        0,
+                        0
+                    },
             "0x4425C0 renders eleven names, selected action/frame and eight ordered categories"
         );
 
@@ -3243,6 +3281,50 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             "0x4425C0 positive mode dims every row and suppresses the mode0 selected action"
         );
 
+        GuardianRenderPorts unavailable_icon_ports;
+        unavailable_icon_ports.category_icons_available = false;
+        const auto unavailable_icon =
+            sm::render_legacy_standard_mode_guardian_category_icon(
+                0x1234U, 6, 20, 30, unavailable_icon_ports
+            );
+        test.expect_true(
+            unavailable_icon.status ==
+                    sm::LegacyStandardModeGuardianRenderStatus::
+                        category_icon_unavailable &&
+                unavailable_icon.operation_count == 0U &&
+                unavailable_icon_ports.category_icon_keys ==
+                    std::vector<std::pair<u16, i32>>{{0x1234U, 6}} &&
+                unavailable_icon_ports.requests.empty(),
+            "0x442960 typed-stops at the unavailable resource pointer before source and size reads"
+        );
+
+        GuardianRenderPorts stopped_panel_ports;
+        stopped_panel_ports.category_icons_available = false;
+        slot_records[2U].text_index = 3U;
+        slot_state = {};
+        const auto stopped_panel =
+            sm::render_legacy_standard_mode_guardian_slot_panel(
+                slot_state,
+                slot_records,
+                0xD0U,
+                0x68U,
+                8U,
+                0xFCU,
+                2U,
+                stopped_panel_ports
+            );
+        test.expect_true(
+            stopped_panel.status ==
+                    sm::LegacyStandardModeGuardianRenderStatus::
+                        category_icon_unavailable &&
+                stopped_panel.operation_count == 14U &&
+                stopped_panel_ports.category_icon_keys ==
+                    std::vector<std::pair<u16, i32>>{{1014U, 3}} &&
+                slot_state.guardian_category_action_id == 0x232AU &&
+                slot_state.guardian_category_action_variant == 0x0DU,
+            "0x4425C0 propagates the first 0x442960 typed-stop after row and prepare effects"
+        );
+
         GuardianRenderPorts range_ports;
         const auto range = sm::render_legacy_standard_mode_guardian_slot_panel(
             slot_state,
@@ -3260,7 +3342,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             range.status ==
                     sm::LegacyStandardModeGuardianRenderStatus::
                         guardian_record_out_of_range &&
-                range.color_count == 1U && range.operation_count == 11U &&
+                range.color_count == 1U && range.operation_count == 12U &&
                 range.row_count == 10U,
             "0x4425C0 typed-stops on the eleventh party-record pointer after prior row effects"
         );
