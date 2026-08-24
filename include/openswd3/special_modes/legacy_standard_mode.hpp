@@ -328,6 +328,10 @@ struct LegacyStandardModeTransitionPairState {
     compat::u32 mode_word{};
     compat::u32 first_owner{};
     compat::u32 second_owner{};
+    compat::u8 input_flags{};
+    compat::u16 interaction_mode{};
+    compat::u32 pointer_x{};
+    compat::u32 pointer_y{};
 };
 
 class LegacyStandardModeTransitionPairPorts {
@@ -338,11 +342,28 @@ public:
     [[nodiscard]] virtual compat::i32 dispatch_transition_pair() noexcept = 0;
     [[nodiscard]] virtual compat::i32
     release_transition_pair_buffer(compat::u32 owner) noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    query_transition_pair_item_presence(compat::u32 item_id) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 cycle_transition_pair_mode(
+        LegacyStandardModeTransitionPairState& state
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 commit_transition_pair(
+        LegacyStandardModeTransitionPairState& state
+    ) noexcept = 0;
+};
+
+enum class LegacyStandardModeTransitionPairStatus : compat::u8 {
+    completed,
+    cycle_domain_stopped,
 };
 
 struct LegacyStandardModeTransitionPairResult {
+    LegacyStandardModeTransitionPairStatus status{
+        LegacyStandardModeTransitionPairStatus::completed
+    };
     compat::i32 legacy_return_value{};
     compat::u32 helper_call_count{};
+    compat::u32 target_mode{};
 };
 
 [[nodiscard]] LegacyStandardModeTransitionPairResult
@@ -353,6 +374,12 @@ initialize_legacy_standard_mode_transition_pair(
 
 [[nodiscard]] LegacyStandardModeTransitionPairResult
 release_legacy_standard_mode_transition_pair(
+    LegacyStandardModeTransitionPairState& state,
+    LegacyStandardModeTransitionPairPorts& ports
+) noexcept;
+
+[[nodiscard]] LegacyStandardModeTransitionPairResult
+update_legacy_standard_mode_transition_pair(
     LegacyStandardModeTransitionPairState& state,
     LegacyStandardModeTransitionPairPorts& ports
 ) noexcept;

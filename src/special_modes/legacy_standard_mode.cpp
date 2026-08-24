@@ -372,6 +372,56 @@ release_legacy_standard_mode_transition_pair(
     return result;
 }
 
+LegacyStandardModeTransitionPairResult
+update_legacy_standard_mode_transition_pair(
+    LegacyStandardModeTransitionPairState& state,
+    LegacyStandardModeTransitionPairPorts& ports
+) noexcept {
+    LegacyStandardModeTransitionPairResult result;
+    const compat::u8 input_snapshot = state.input_flags;
+    result.legacy_return_value = input_snapshot;
+    if ((input_snapshot & 0x03U) != 0U && state.interaction_mode == 2U) {
+        result.legacy_return_value = static_cast<compat::u8>(state.pointer_x);
+        if (state.pointer_x < 0x1D4U && state.pointer_x > 0x0AU &&
+            state.pointer_y < 0xBCU && state.pointer_y > 4U) {
+            result.target_mode = (state.pointer_x - 0x0AU) / 0x6EU;
+            result.legacy_return_value =
+                ports.query_transition_pair_item_presence(
+                    result.target_mode + 0x1EU
+                );
+            ++result.helper_call_count;
+            if (result.legacy_return_value == 0) {
+                return result;
+            }
+
+            constexpr compat::u32 kModeDomainSize = 4U;
+            for (compat::u32 checked = 0U; checked < kModeDomainSize;
+                 ++checked) {
+                result.legacy_return_value =
+                    ports.cycle_transition_pair_mode(state);
+                ++result.helper_call_count;
+                if (static_cast<compat::u16>(state.mode_word) ==
+                    result.target_mode) {
+                    break;
+                }
+                if (checked + 1U == kModeDomainSize) {
+                    result.status = LegacyStandardModeTransitionPairStatus::
+                        cycle_domain_stopped;
+                    return result;
+                }
+            }
+        }
+    }
+
+    if ((state.input_flags & 0x04U) != 0U) {
+        result.legacy_return_value = ports.commit_transition_pair(state);
+        ++result.helper_call_count;
+    }
+    result.legacy_return_value =
+        static_cast<compat::u8>(result.legacy_return_value);
+    return result;
+}
+
 LegacyStandardModeTransitionConfirmationResult
 confirm_legacy_standard_mode_transition(
     LegacyStandardModeTransitionVisualState& state,
