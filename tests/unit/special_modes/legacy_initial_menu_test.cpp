@@ -15003,6 +15003,36 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x448C00 clamps both selectors at zero while preserving negative and unrelated EAX residuals"
     );
 
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        last_transition_one;
+    last_transition_one.progress = 1U;
+    const i32 last_transition_one_residual =
+        openswd3::special_modes::select_legacy_standard_mode_transition_last(
+            last_transition_one
+        );
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        last_transition_five;
+    last_transition_five.progress = 5U;
+    const i32 last_transition_five_residual =
+        openswd3::special_modes::select_legacy_standard_mode_transition_last(
+            last_transition_five
+        );
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        last_transition_other;
+    last_transition_other.progress = 4U;
+    const i32 last_transition_other_residual =
+        openswd3::special_modes::select_legacy_standard_mode_transition_last(
+            last_transition_other
+        );
+    test.expect_true(
+        last_transition_one.enabled == 3U &&
+            last_transition_one_residual == 0 &&
+            last_transition_five.velocity == 5 &&
+            last_transition_five_residual == 0 &&
+            last_transition_other_residual == -1,
+        "0x448C40 selects each final entry and preserves the unrelated progress residual"
+    );
+
     for (const auto& item : cases) {
         LegacyStandardModeCallbackState state;
         state.targets.fill(0xDEADBEEFU);
