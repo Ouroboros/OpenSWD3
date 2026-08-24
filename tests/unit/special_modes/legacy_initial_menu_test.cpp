@@ -15044,6 +15044,51 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     );
 
     openswd3::special_modes::LegacyStandardModeTransitionPairState
+        transition_pair_retreat_state;
+    transition_pair_retreat_state.mode_word = 0xABCD0000U;
+    transition_pair_retreat_state.mode_records = {
+        0xFFFFU, 0xFFFFU, 7U, 0xFFFFU
+    };
+    transition_pair_retreat_state.sample_owner = 0x8888U;
+    FakeTransitionPairPorts transition_pair_retreat_ports;
+    const auto transition_pair_retreat =
+        openswd3::special_modes::retreat_legacy_standard_mode_transition_pair(
+            transition_pair_retreat_state, transition_pair_retreat_ports
+        );
+    auto transition_pair_retreat_exhausted_state =
+        transition_pair_retreat_state;
+    transition_pair_retreat_exhausted_state.mode_word = 0xABCD0000U;
+    transition_pair_retreat_exhausted_state.mode_records.fill(0xFFFFU);
+    FakeTransitionPairPorts transition_pair_retreat_exhausted_ports;
+    const auto transition_pair_retreat_exhausted =
+        openswd3::special_modes::retreat_legacy_standard_mode_transition_pair(
+            transition_pair_retreat_exhausted_state,
+            transition_pair_retreat_exhausted_ports
+        );
+    test.expect_true(
+        transition_pair_retreat.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeTransitionPairStatus::completed &&
+            transition_pair_retreat_state.mode_word == 0xABCD0002U &&
+            transition_pair_retreat.target_mode == 2U &&
+            transition_pair_retreat_ports.events == std::vector<u32>{1U, 2U} &&
+            transition_pair_retreat_ports.played_sample_ids ==
+                std::vector<u32>{0x107U} &&
+            transition_pair_retreat_ports.played_sample_owners ==
+                std::vector<u32>{0x8888U} &&
+            transition_pair_retreat.legacy_return_value == 0x5678 &&
+            transition_pair_retreat.helper_call_count == 2U &&
+            transition_pair_retreat_exhausted.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeTransitionPairStatus::
+                        unavailable_mode_domain_stopped &&
+            transition_pair_retreat_exhausted_state.mode_word == 0xABCD0000U &&
+            transition_pair_retreat_exhausted_ports.events.empty() &&
+            transition_pair_retreat_exhausted.helper_call_count == 0U,
+        "0x44A160 retreats through four slots, preserves the impossible wrap comparison behavior, and leaves mode unchanged when all slots are unavailable"
+    );
+
+    openswd3::special_modes::LegacyStandardModeTransitionPairState
         transition_pair_update_state;
     transition_pair_update_state.mode_word = 0xABCD0000U;
     transition_pair_update_state.input_flags = 0x03U;

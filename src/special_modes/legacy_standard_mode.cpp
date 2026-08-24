@@ -407,6 +407,35 @@ advance_legacy_standard_mode_transition_pair(
 }
 
 LegacyStandardModeTransitionPairResult
+retreat_legacy_standard_mode_transition_pair(
+    LegacyStandardModeTransitionPairState& state,
+    LegacyStandardModeTransitionPairPorts& ports
+) noexcept {
+    LegacyStandardModeTransitionPairResult result;
+    constexpr compat::u32 kModeDomainSize = 4U;
+    compat::u16 candidate = static_cast<compat::u16>(state.mode_word);
+    for (compat::u32 checked = 0U; checked < kModeDomainSize; ++checked) {
+        candidate = static_cast<compat::u16>(
+            (static_cast<compat::u16>(candidate - 1U)) & 0x03U
+        );
+        if (state.mode_records[candidate] != 0xFFFFU) {
+            state.mode_word = (state.mode_word & 0xFFFF0000U) | candidate;
+            result.target_mode = candidate;
+            static_cast<void>(ports.dispatch_transition_pair(state));
+            ++result.helper_call_count;
+            result.legacy_return_value =
+                ports.play_transition_pair_sample(0x107U, state.sample_owner);
+            ++result.helper_call_count;
+            return result;
+        }
+    }
+    result.status =
+        LegacyStandardModeTransitionPairStatus::unavailable_mode_domain_stopped;
+    result.target_mode = candidate;
+    return result;
+}
+
+LegacyStandardModeTransitionPairResult
 update_legacy_standard_mode_transition_pair(
     LegacyStandardModeTransitionPairState& state,
     LegacyStandardModeTransitionPairPorts& ports
