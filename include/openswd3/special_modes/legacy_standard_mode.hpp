@@ -372,20 +372,49 @@ struct LegacyStandardModeCatalogState {
     std::array<compat::u32, 8U> secondary_owners{};
     compat::u32 shared_value{};
     compat::u32 published_shared_value{};
-    compat::u8 message_tail{};
-    compat::u8 message_sample_owner{};
-    compat::u8 message_font{};
-    compat::u8 message_value{};
+    compat::u32 message_tail{};
+    compat::u32 message_sample_owner{};
+    compat::u32 message_font{};
+    compat::u32 message_value{};
+    compat::u32 input_locked{};
+    compat::u32 pointer_x{};
+    compat::u32 pointer_y{};
+    compat::u32 interaction_mode{};
+    compat::u32 interaction_page{};
+    compat::u32 input_flags{};
+    compat::u32 selected_entry{};
+    compat::u32 selected_row{};
+    compat::u32 published_row_value{};
+    compat::u32 detail_selection{};
+    compat::i32 upper_dynamic_left{};
+    compat::i32 upper_dynamic_right{};
+    compat::i32 lower_dynamic_left{};
+    compat::i32 lower_dynamic_right{};
+    compat::u32 catalog_available{};
+};
+
+enum class LegacyStandardModeCatalogInputCommand : compat::u8 {
+    upper_hover,
+    lower_hover,
+    upper_dynamic_hover,
+    lower_dynamic_hover,
+    open_mode_fourteen,
+    exit,
+    commit,
+    play_sample,
+    apply_font,
+    remove_service,
+    add_service,
 };
 
 struct LegacyStandardModeCatalogMessage {
-    compat::u8 sample_owner{};
-    compat::u8 font{};
-    compat::u8 value{};
+    compat::u32 sample_owner{};
+    compat::u32 font{};
+    compat::u32 value{};
     compat::u32 capacity{};
     compat::i32 service_result{};
-    compat::u8 shared_value{};
-    compat::u8 tail{};
+    compat::u32 shared_value{};
+    compat::u32 tail{};
 };
 
 class LegacyStandardModeCatalogPorts {
@@ -402,6 +431,14 @@ public:
     ) noexcept = 0;
     [[nodiscard]] virtual compat::i32 format_catalog_message(
         const LegacyStandardModeCatalogMessage& message
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 query_catalog_input_status(
+        compat::u32 mask, LegacyStandardModeCatalogState& state
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 execute_catalog_input_command(
+        LegacyStandardModeCatalogInputCommand command,
+        compat::u32 argument,
+        LegacyStandardModeCatalogState& state
     ) noexcept = 0;
 };
 
@@ -427,6 +464,17 @@ initialize_legacy_standard_mode_catalog(
 
 [[nodiscard]] LegacyStandardModeCatalogResult
 release_legacy_standard_mode_catalog(
+    LegacyStandardModeCatalogState& state, LegacyStandardModeCatalogPorts& ports
+) noexcept;
+
+struct LegacyStandardModeCatalogInputResult {
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+    std::optional<LegacyStandardModeCatalogInputCommand> command;
+};
+
+[[nodiscard]] LegacyStandardModeCatalogInputResult
+update_legacy_standard_mode_catalog_input(
     LegacyStandardModeCatalogState& state, LegacyStandardModeCatalogPorts& ports
 ) noexcept;
 

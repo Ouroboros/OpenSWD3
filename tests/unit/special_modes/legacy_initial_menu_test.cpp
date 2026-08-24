@@ -515,8 +515,8 @@ public:
     ) noexcept override {
         events.push_back(1U);
         released_owners.push_back(state.list_owner);
-        state.message_tail = 0xAAU;
-        state.shared_value = (state.shared_value & 0xFFFFFF00U) | 0xBBU;
+        state.message_tail = 0x11223344U;
+        state.shared_value = 0xAABBCCDDU;
         return release_return;
     }
     i32 query_catalog_service(
@@ -526,11 +526,11 @@ public:
         events.push_back(2U);
         queried_service_ids.push_back(service_id);
         query_saw_cleared_owner = state.list_owner == 0U;
-        state.message_tail = 0xCCU;
-        state.shared_value = (state.shared_value & 0xFFFFFF00U) | 0xDDU;
-        state.message_sample_owner = 0x55U;
-        state.message_font = 0x66U;
-        state.message_value = 0x77U;
+        state.message_tail = 0x55667788U;
+        state.shared_value = 0x99AABBCCU;
+        state.message_sample_owner = 0x10203040U;
+        state.message_font = 0x50607080U;
+        state.message_value = 0x90A0B0C0U;
         return service_return;
     }
     i32 format_catalog_message(
@@ -539,6 +539,35 @@ public:
         events.push_back(3U);
         messages.push_back(message);
         return format_return;
+    }
+    i32 query_catalog_input_status(
+        const u32 mask,
+        openswd3::special_modes::LegacyStandardModeCatalogState& state
+    ) noexcept override {
+        queried_input_masks.push_back(mask);
+        if (mutate_input_snapshot) {
+            state.pointer_x = mutated_pointer_x;
+            state.pointer_y = mutated_pointer_y;
+            state.interaction_mode = mutated_interaction_mode;
+            state.interaction_page = mutated_interaction_page;
+            state.input_flags = mutated_input_flags;
+        }
+        return input_status_return;
+    }
+    i32 execute_catalog_input_command(
+        const openswd3::special_modes::LegacyStandardModeCatalogInputCommand
+            command,
+        const u32 argument,
+        openswd3::special_modes::LegacyStandardModeCatalogState& state
+    ) noexcept override {
+        input_commands.emplace_back(command, argument);
+        if (command ==
+                openswd3::special_modes::LegacyStandardModeCatalogInputCommand::
+                    commit &&
+            mutate_sample_after_commit) {
+            state.message_sample_owner = sample_after_commit;
+        }
+        return command_return_base + static_cast<i32>(command);
     }
 
     u32 allocation_return{0x1234U};
@@ -556,6 +585,21 @@ public:
     std::vector<openswd3::special_modes::LegacyStandardModeCatalogMessage>
         messages;
     i32 format_return{-77};
+    std::vector<u32> queried_input_masks;
+    bool mutate_input_snapshot{};
+    u32 mutated_pointer_x{};
+    u32 mutated_pointer_y{};
+    u32 mutated_interaction_mode{};
+    u32 mutated_interaction_page{};
+    u32 mutated_input_flags{};
+    i32 input_status_return{};
+    std::vector<std::pair<
+        openswd3::special_modes::LegacyStandardModeCatalogInputCommand,
+        u32>>
+        input_commands;
+    bool mutate_sample_after_commit{};
+    u32 sample_after_commit{};
+    i32 command_return_base{1000};
 };
 
 class FakeTransitionPairPorts final
@@ -15204,19 +15248,334 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             catalog_release_ports.query_saw_cleared_owner &&
             catalog_release_ports.queried_service_ids ==
                 std::vector<u32>{0x48U} &&
-            catalog_message.sample_owner == 0x55U &&
-            catalog_message.font == 0x66U && catalog_message.value == 0x77U &&
+            catalog_message.sample_owner == 0x10203040U &&
+            catalog_message.font == 0x50607080U &&
+            catalog_message.value == 0x90A0B0C0U &&
             catalog_message.capacity == 0x64U &&
             catalog_message.service_result == 0x12345678 &&
-            catalog_message.shared_value == 0xBBU &&
-            catalog_message.tail == 0xAAU &&
-            catalog_release_state.message_tail == 0xCCU &&
-            static_cast<u8>(catalog_release_state.shared_value) == 0xDDU &&
+            catalog_message.shared_value == 0xAABBCCDDU &&
+            catalog_message.tail == 0x11223344U &&
+            catalog_release_state.message_tail == 0x55667788U &&
+            catalog_release_state.shared_value == 0x99AABBCCU &&
             catalog_release_state.entries[0U] == 0x123U &&
             catalog_release_state.entry_count == 1U &&
             catalog_release.legacy_return_value == -77 &&
             catalog_release.helper_call_count == 3U,
-        "0x44B010 snapshots tail and shared bytes after release, clears the owner before service query, then rereads three message bytes"
+        "0x44B010 snapshots full tail and shared dwords after release, clears the owner before service query, then rereads three message dwords"
+    );
+
+    using CatalogCommand =
+        openswd3::special_modes::LegacyStandardModeCatalogInputCommand;
+    openswd3::special_modes::LegacyStandardModeCatalogState
+        catalog_input_locked_state;
+    catalog_input_locked_state.input_locked = 0x89ABCDEFU;
+    FakeStandardModeCatalogPorts catalog_input_locked_ports;
+    const auto catalog_input_locked =
+        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
+            catalog_input_locked_state, catalog_input_locked_ports
+        );
+    test.expect_true(
+        catalog_input_locked.legacy_return_value ==
+                std::bit_cast<i32>(0x89ABCDEFU) &&
+            catalog_input_locked.helper_call_count == 0U &&
+            catalog_input_locked_ports.queried_input_masks.empty(),
+        "0x44B070 returns the full lock owner residual before querying input"
+    );
+
+    openswd3::special_modes::LegacyStandardModeCatalogState catalog_hover_state;
+    catalog_hover_state.entry_count = 6U;
+    FakeStandardModeCatalogPorts catalog_hover_ports;
+    catalog_hover_ports.input_status_return = 1;
+    catalog_hover_ports.mutate_input_snapshot = true;
+    catalog_hover_ports.mutated_pointer_x = 0x75U;
+    catalog_hover_ports.mutated_pointer_y = 0x265U;
+    catalog_hover_ports.mutated_interaction_mode = 1U;
+    catalog_hover_ports.mutated_interaction_page = 2U;
+    const auto catalog_hover =
+        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
+            catalog_hover_state, catalog_hover_ports
+        );
+    test.expect_true(
+        catalog_hover_ports.queried_input_masks == std::vector<u32>{0x0FU} &&
+            catalog_hover_ports.input_commands ==
+                std::vector<std::pair<CatalogCommand, u32>>{
+                    {CatalogCommand::upper_hover, 0U}
+                } &&
+            catalog_hover.helper_call_count == 2U,
+        "0x44B070 rereads pointer, mode, and page after the input-status callback before routing hover"
+    );
+
+    openswd3::special_modes::LegacyStandardModeCatalogState
+        catalog_dynamic_hover_state;
+    catalog_dynamic_hover_state.entry_count = 6U;
+    catalog_dynamic_hover_state.pointer_x = std::bit_cast<u32>(-5);
+    catalog_dynamic_hover_state.pointer_y = 0x265U;
+    catalog_dynamic_hover_state.interaction_mode = 2U;
+    catalog_dynamic_hover_state.interaction_page = 2U;
+    catalog_dynamic_hover_state.upper_dynamic_left = -10;
+    catalog_dynamic_hover_state.upper_dynamic_right = 0;
+    FakeStandardModeCatalogPorts catalog_dynamic_hover_ports;
+    catalog_dynamic_hover_ports.input_status_return = 1;
+    const auto catalog_dynamic_hover =
+        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
+            catalog_dynamic_hover_state, catalog_dynamic_hover_ports
+        );
+    test.expect_true(
+        catalog_dynamic_hover_ports.input_commands ==
+                std::vector<std::pair<CatalogCommand, u32>>{
+                    {CatalogCommand::upper_dynamic_hover, 0U}
+                } &&
+            catalog_dynamic_hover.helper_call_count == 2U,
+        "0x44B070 keeps the two dynamic hover bounds as signed comparisons"
+    );
+
+    openswd3::special_modes::LegacyStandardModeCatalogState catalog_exit_state;
+    catalog_exit_state.interaction_mode = 7U;
+    catalog_exit_state.interaction_page = 9U;
+    catalog_exit_state.input_flags = 0x0CU;
+    FakeStandardModeCatalogPorts catalog_exit_ports;
+    const auto catalog_exit =
+        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
+            catalog_exit_state, catalog_exit_ports
+        );
+    test.expect_true(
+        catalog_exit_ports.input_commands ==
+                std::vector<std::pair<CatalogCommand, u32>>{
+                    {CatalogCommand::open_mode_fourteen, 0x0EU},
+                    {CatalogCommand::exit, 0U}
+                } &&
+            catalog_exit.helper_call_count == 3U &&
+            catalog_exit.legacy_return_value ==
+                1000 + static_cast<i32>(CatalogCommand::exit),
+        "0x44B070 opens mode fourteen before the shared exit when mode seven receives bits two or three"
+    );
+
+    openswd3::special_modes::LegacyStandardModeCatalogState
+        catalog_mode_five_state;
+    catalog_mode_five_state.pointer_x = 0x90U;
+    catalog_mode_five_state.pointer_y = 0x143U;
+    catalog_mode_five_state.interaction_mode = 5U;
+    catalog_mode_five_state.interaction_page = 8U;
+    catalog_mode_five_state.input_flags = 3U;
+    FakeStandardModeCatalogPorts catalog_mode_five_ports;
+    const auto catalog_mode_five =
+        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
+            catalog_mode_five_state, catalog_mode_five_ports
+        );
+    test.expect_true(
+        catalog_mode_five_state.selected_entry == 2U &&
+            catalog_mode_five_ports.input_commands ==
+                std::vector<std::pair<CatalogCommand, u32>>{
+                    {CatalogCommand::commit, 0U}
+                } &&
+            catalog_mode_five.helper_call_count == 2U,
+        "0x44B070 maps the mode-five horizontal strip with the unsigned divide-by-twenty sequence"
+    );
+
+    openswd3::special_modes::LegacyStandardModeCatalogState
+        catalog_fixed_selection_state;
+    catalog_fixed_selection_state.pointer_x = 0x1BDU;
+    catalog_fixed_selection_state.pointer_y = 0x18AU;
+    catalog_fixed_selection_state.interaction_mode = 5U;
+    catalog_fixed_selection_state.interaction_page = 6U;
+    FakeStandardModeCatalogPorts catalog_fixed_selection_ports;
+    const auto catalog_fixed_selection =
+        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
+            catalog_fixed_selection_state, catalog_fixed_selection_ports
+        );
+    test.expect_true(
+        catalog_fixed_selection_state.selected_entry == 0x10U &&
+            catalog_fixed_selection.helper_call_count == 1U &&
+            catalog_fixed_selection.legacy_return_value == 6 &&
+            catalog_fixed_selection_ports.input_commands.empty(),
+        "0x44B070 writes fixed mode-five entries before checking the low two input bits"
+    );
+
+    openswd3::special_modes::LegacyStandardModeCatalogState
+        catalog_navigation_state;
+    catalog_navigation_state.pointer_x = 0x3BU;
+    catalog_navigation_state.pointer_y = 0x14CU;
+    catalog_navigation_state.interaction_page = 7U;
+    catalog_navigation_state.input_flags = 3U;
+    catalog_navigation_state.message_sample_owner = 2U;
+    FakeStandardModeCatalogPorts catalog_navigation_ports;
+    catalog_navigation_ports.mutate_sample_after_commit = true;
+    catalog_navigation_ports.sample_after_commit = 9U;
+    const auto catalog_navigation =
+        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
+            catalog_navigation_state, catalog_navigation_ports
+        );
+    test.expect_true(
+        catalog_navigation_state.interaction_mode == 0U &&
+            catalog_navigation_state.interaction_page == 2U &&
+            catalog_navigation_ports.input_commands ==
+                std::vector<std::pair<CatalogCommand, u32>>{
+                    {CatalogCommand::commit, 0U},
+                    {CatalogCommand::play_sample, 9U}
+                } &&
+            catalog_navigation.helper_call_count == 3U,
+        "0x44B070 publishes the navigation page before commit and rereads the sample owner afterward"
+    );
+
+    openswd3::special_modes::LegacyStandardModeCatalogState
+        catalog_page_four_state;
+    catalog_page_four_state.pointer_x = 0x9CU - 1U;
+    catalog_page_four_state.pointer_y = 0x1DDU;
+    catalog_page_four_state.interaction_mode = 1U;
+    catalog_page_four_state.interaction_page = 4U;
+    FakeStandardModeCatalogPorts catalog_page_four_ports;
+    const auto catalog_page_four =
+        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
+            catalog_page_four_state, catalog_page_four_ports
+        );
+    test.expect_true(
+        catalog_page_four_state.selected_row == 1U &&
+            catalog_page_four.helper_call_count == 1U &&
+            catalog_page_four_ports.input_commands.empty(),
+        "0x44B070 updates the mode-one page-four row even when the confirm bit is clear"
+    );
+
+    openswd3::special_modes::LegacyStandardModeCatalogState
+        catalog_page_residual_state;
+    catalog_page_residual_state.interaction_mode = 1U;
+    catalog_page_residual_state.interaction_page = 4U;
+    FakeStandardModeCatalogPorts catalog_page_residual_ports;
+    const auto catalog_page_four_miss =
+        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
+            catalog_page_residual_state, catalog_page_residual_ports
+        );
+    catalog_page_residual_state.interaction_page = 5U;
+    const auto catalog_page_five =
+        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
+            catalog_page_residual_state, catalog_page_residual_ports
+        );
+    test.expect_true(
+        catalog_page_four_miss.legacy_return_value == 0 &&
+            catalog_page_five.legacy_return_value == 1,
+        "0x44B070 preserves the two-step page-minus-three then decrement EAX residual"
+    );
+
+    openswd3::special_modes::LegacyStandardModeCatalogState
+        catalog_negative_row_state;
+    catalog_negative_row_state.pointer_x = 0x83U;
+    catalog_negative_row_state.pointer_y = 0xD7U;
+    catalog_negative_row_state.interaction_mode = 1U;
+    catalog_negative_row_state.interaction_page = 3U;
+    catalog_negative_row_state.catalog_available = 1U;
+    catalog_negative_row_state.message_sample_owner = 7U;
+    FakeStandardModeCatalogPorts catalog_negative_row_ports;
+    const auto catalog_negative_row =
+        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
+            catalog_negative_row_state, catalog_negative_row_ports
+        );
+    test.expect_true(
+        catalog_negative_row_state.selected_row == 0U &&
+            catalog_negative_row_state.message_sample_owner == 7U &&
+            catalog_negative_row.helper_call_count == 1U &&
+            catalog_negative_row.legacy_return_value == -87,
+        "0x44B070 writes the selected settings row before stopping on a negative truncating quotient"
+    );
+
+    openswd3::special_modes::LegacyStandardModeCatalogState
+        catalog_value_row_state;
+    catalog_value_row_state.pointer_x = 0xC3U;
+    catalog_value_row_state.pointer_y = 0x1DDU;
+    catalog_value_row_state.interaction_mode = 1U;
+    catalog_value_row_state.interaction_page = 3U;
+    catalog_value_row_state.catalog_available = 1U;
+    FakeStandardModeCatalogPorts catalog_value_row_ports;
+    const auto catalog_value_row =
+        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
+            catalog_value_row_state, catalog_value_row_ports
+        );
+    test.expect_true(
+        catalog_value_row_state.selected_row == 2U &&
+            catalog_value_row_state.message_value == 0x8CU &&
+            catalog_value_row.helper_call_count == 1U,
+        "0x44B070 clamps settings row two to two before applying the forty-step value"
+    );
+
+    openswd3::special_modes::LegacyStandardModeCatalogState
+        catalog_service_row_state;
+    catalog_service_row_state.pointer_x = 0xE3U;
+    catalog_service_row_state.pointer_y = 0x14DU;
+    catalog_service_row_state.interaction_mode = 1U;
+    catalog_service_row_state.interaction_page = 3U;
+    catalog_service_row_state.catalog_available = 1U;
+    FakeStandardModeCatalogPorts catalog_service_row_ports;
+    const auto catalog_service_row =
+        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
+            catalog_service_row_state, catalog_service_row_ports
+        );
+    test.expect_true(
+        catalog_service_row_state.selected_row == 3U &&
+            catalog_service_row_ports.input_commands ==
+                std::vector<std::pair<CatalogCommand, u32>>{
+                    {CatalogCommand::remove_service, 0x48U},
+                    {CatalogCommand::add_service, 0x48U}
+                } &&
+            catalog_service_row.helper_call_count == 3U,
+        "0x44B070 removes service forty-eight and only re-adds it for a nonzero row"
+    );
+
+    openswd3::special_modes::LegacyStandardModeCatalogState
+        catalog_shared_row_state;
+    catalog_shared_row_state.pointer_x = 0x103U;
+    catalog_shared_row_state.pointer_y = 0x16DU;
+    catalog_shared_row_state.interaction_mode = 1U;
+    catalog_shared_row_state.interaction_page = 3U;
+    catalog_shared_row_state.catalog_available = 1U;
+    FakeStandardModeCatalogPorts catalog_shared_row_ports;
+    const auto catalog_shared_row =
+        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
+            catalog_shared_row_state, catalog_shared_row_ports
+        );
+    test.expect_true(
+        catalog_shared_row_state.selected_row == 4U &&
+            catalog_shared_row_state.shared_value == 1U &&
+            catalog_shared_row_state.published_row_value == 1U &&
+            catalog_shared_row.legacy_return_value == 1,
+        "0x44B070 reverses and publishes the clamped zero-through-four settings row"
+    );
+
+    openswd3::special_modes::LegacyStandardModeCatalogState
+        catalog_fallback_state;
+    catalog_fallback_state.pointer_x = 0x143U;
+    catalog_fallback_state.pointer_y = 0x5FU;
+    catalog_fallback_state.interaction_mode = 1U;
+    catalog_fallback_state.interaction_page = 3U;
+    catalog_fallback_state.catalog_available = 1U;
+    FakeStandardModeCatalogPorts catalog_fallback_ports;
+    const auto catalog_fallback =
+        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
+            catalog_fallback_state, catalog_fallback_ports
+        );
+    test.expect_true(
+        catalog_fallback_state.selected_row == 6U &&
+            catalog_fallback_ports.input_commands ==
+                std::vector<std::pair<CatalogCommand, u32>>{
+                    {CatalogCommand::commit, 0U}
+                } &&
+            catalog_fallback.helper_call_count == 2U,
+        "0x44B070 routes the low settings fallback directly to row six without an input-bit gate"
+    );
+
+    openswd3::special_modes::LegacyStandardModeCatalogState
+        catalog_detail_state;
+    catalog_detail_state.pointer_x = 0xE1U;
+    catalog_detail_state.pointer_y = 0x267U - 1U;
+    catalog_detail_state.interaction_mode = 2U;
+    catalog_detail_state.interaction_page = 3U;
+    FakeStandardModeCatalogPorts catalog_detail_ports;
+    const auto catalog_detail =
+        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
+            catalog_detail_state, catalog_detail_ports
+        );
+    test.expect_true(
+        catalog_detail_state.detail_selection == 1U &&
+            catalog_detail.helper_call_count == 1U &&
+            catalog_detail_ports.input_commands.empty(),
+        "0x44B070 updates the mode-two detail selection before checking the confirm bit"
     );
 
     openswd3::special_modes::LegacyStandardModeTransitionPairState

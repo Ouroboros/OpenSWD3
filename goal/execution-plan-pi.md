@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v594
+版本：v595
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 审计`0x0044B070`
+当前步骤：模块9 · 审计`0x0044B560`
 
 ## 0. 执行约定
 
@@ -3775,11 +3775,12 @@ B7 P0 有限收口完成。
 - 模块9转场配对记录重建`0x0044AB00`恢复完成。完整复制56字节base，固定执行16次贡献聚合，回加16个u16，叠加前7组byte，并对后2组type33保持两级整数缩放与8位NEG语义。49FF0、44A0D0、44A160和44A1D0 caller已直连并传播停止。定向UT与独立ASan通过。workpack稳定为`165/227`，SHA256为`c7826ea95008f54d3c5bf2a78d42be518aeb700a4df7d257029ec651aae59fdf`。
 - 模块9转场配对属性覆盖值`0x0044AE70`恢复完成。value零时零调用，正值计算白色，负值再覆盖红色；保留四档X间距、正负sign和INT_MIN abs32。44A280四处caller已直连，完整分支当前为84条expanded命令及88 helper计数。定向UT与独立ASan通过。workpack稳定为`166/227`，SHA256为`cbf3a2485c9b5f9cfdecfa6e04f6d77b0acdac79290f0a284b94f81560a34fd4`。
 - 模块9特殊项目目录初始化`0x0044AF30`恢复完成。扫描E75..F9F共299项，仅presence精确为1时向128槽u16目录写入一基编号；分配失败在memset点停止，第129命中在原写点停止并保留既有查询和列表。完整路径清理14个owner并发布共享值。定向UT与独立ASan通过。workpack稳定为`167/227`，SHA256为`025cf8d67e5731d01e832a55dcc677d0fc82ec31be700c019b6abfb3aa65a6a1`。
-- 模块9特殊项目目录释放与消息`0x0044B010`恢复完成。按释放后读取tail/shared、清owner、服务查询、查询后读取三字段的顺序构造九参消息，保留完整service EAX并透传格式化返回；entries/count不清。定向UT与独立ASan通过。workpack稳定为`168/227`，SHA256为`fbe027c0e5a0b1b0d7db9fe5f13745722401fadef54409c4e3f78786792a2d3b`。
+- 模块9特殊项目目录释放与消息`0x0044B010`恢复完成。按释放后读取完整tail/shared dword、清owner、服务查询、查询后读取三个完整dword的顺序构造九参消息，保留完整service EAX并透传格式化返回；entries/count不清。定向UT与独立ASan通过。workpack稳定为`168/227`，SHA256为`fbe027c0e5a0b1b0d7db9fe5f13745722401fadef54409c4e3f78786792a2d3b`。
+- 模块9特殊项目目录输入分派`0x0044B070`恢复完成。保留查询后坐标snapshot、signed动态边界、unsigned网格、一次性flags、mode5固定选择、page4与六行设置、mode2详情选择及x86乘法残值；提交后重读sample owner。同步按LST纠正44B010完整dword消息参数。定向UT与独立ASan通过。workpack稳定为`169/227`，SHA256为`86898f80f1e1d8212afa3c6ead89c826f58b06e9e1e3b09bf35b335b8ebe92d4`。
 
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`168/227`，下一单元为`0x0044B070`。
+进行中，正式进度为`169/227`，下一单元为`0x0044B560`。
 
-下一工作包：按LST唯一真值审计并恢复模块9 `0x0044B070`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值审计并恢复模块9 `0x0044B560`，继续更新workpack、证据和完整验证门。
