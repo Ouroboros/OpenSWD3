@@ -544,13 +544,14 @@ struct LegacyStandardModeGroupEightState {
     LegacyStandardModeForwardNode* record_head{};
     compat::u32 list_offset{};
     compat::u32 local_selection{};
+    compat::u32 record_zero{};
     compat::u32 available_action_count{};
     std::array<compat::u8, 128U> shared_text{};
     compat::u32 layout_width{};
     compat::u32 layout_mode{};
     compat::u32 published_selection_x{};
     compat::u32 workspace_token{};
-    std::array<compat::u32, 6U> pre_initialization_zeroes{};
+    std::array<compat::u32, 5U> pre_initialization_zeroes{};
     std::array<compat::u32, 2U> post_initialization_zeroes{};
     std::array<compat::u32, 6U> layout_zeroes{};
 };
@@ -585,6 +586,33 @@ initialize_legacy_standard_mode_group_eight_first_selection(
     LegacyStandardModeGroupEightState& state,
     std::span<const compat::u8> maps_payload,
     LegacyStandardModeGroupEightInitializationPorts& ports
+) noexcept;
+
+class LegacyStandardModeGroupEightCleanupPorts {
+public:
+    virtual ~LegacyStandardModeGroupEightCleanupPorts() = default;
+    [[nodiscard]] virtual bool
+    cleanup_selection_records(LegacyStandardModeGroupEightState& state) = 0;
+    [[nodiscard]] virtual compat::i32 release_workspace(compat::u32 token) = 0;
+};
+
+enum class LegacyStandardModeGroupEightCleanupStatus : compat::u8 {
+    completed,
+    record_cleanup_stopped,
+};
+
+struct LegacyStandardModeGroupEightCleanupResult {
+    LegacyStandardModeGroupEightCleanupStatus status{
+        LegacyStandardModeGroupEightCleanupStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacyStandardModeGroupEightCleanupResult
+cleanup_legacy_standard_mode_group_eight(
+    LegacyStandardModeGroupEightState& state,
+    LegacyStandardModeGroupEightCleanupPorts& ports
 ) noexcept;
 
 class LegacyStandardModeGroupEightSelectionPorts

@@ -12131,6 +12131,7 @@ initialize_legacy_standard_mode_group_eight_first_selection(
     }
     ++result.helper_call_count;
 
+    state.record_zero = 0U;
     state.available_action_count = 0U;
     for (compat::u16 item_id = 0x1EU; item_id <= 0x21U; ++item_id) {
         if (ports.query_item_presence(item_id) != 0) {
@@ -12172,6 +12173,29 @@ initialize_legacy_standard_mode_group_eight_first_selection(
     state.post_initialization_zeroes.fill(0U);
     state.workspace_token = workspace;
     result.legacy_return_value = workspace;
+    return result;
+}
+
+LegacyStandardModeGroupEightCleanupResult
+cleanup_legacy_standard_mode_group_eight(
+    LegacyStandardModeGroupEightState& state,
+    LegacyStandardModeGroupEightCleanupPorts& ports
+) noexcept {
+    LegacyStandardModeGroupEightCleanupResult result;
+    if (!ports.cleanup_selection_records(state)) {
+        result.status =
+            LegacyStandardModeGroupEightCleanupStatus::record_cleanup_stopped;
+        return result;
+    }
+    ++result.helper_call_count;
+    state.pre_initialization_zeroes[0U] = 0U;
+    state.pre_initialization_zeroes[1U] = 0U;
+    state.pre_initialization_zeroes[3U] = 0U;
+    state.pre_initialization_zeroes[4U] = 0U;
+    state.list_offset = 0U;
+    state.local_selection = 0U;
+    result.legacy_return_value = ports.release_workspace(state.workspace_token);
+    ++result.helper_call_count;
     return result;
 }
 

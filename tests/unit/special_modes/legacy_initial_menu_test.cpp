@@ -14939,6 +14939,33 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         std::vector<u32> events;
     };
 
+    class GroupEightCleanupPorts final
+        : public openswd3::special_modes::
+              LegacyStandardModeGroupEightCleanupPorts {
+    public:
+        bool cleanup_selection_records(
+            openswd3::special_modes::LegacyStandardModeGroupEightState& state
+        ) override {
+            events.push_back(1U);
+            if (record_zero_after_call.has_value()) {
+                state.record_zero = *record_zero_after_call;
+            }
+            return cleanup_available;
+        }
+
+        i32 release_workspace(const u32 token) override {
+            events.push_back(2U);
+            released_tokens.push_back(token);
+            return release_return;
+        }
+
+        bool cleanup_available{true};
+        std::optional<u32> record_zero_after_call;
+        i32 release_return{-5};
+        std::vector<u32> released_tokens;
+        std::vector<u32> events;
+    };
+
     class GroupEightDrawPorts final
         : public openswd3::special_modes::
               LegacyStandardModeGroupEightDrawPorts {
@@ -15064,6 +15091,64 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
                         shared_text_stopped &&
             first_text_stopped.helper_call_count == 8U,
         "0x445430 preserves exact record initialization, selection and text stop prefixes"
+    );
+
+    GroupEightState cleanup_state;
+    cleanup_state.pre_initialization_zeroes.fill(9U);
+    cleanup_state.pre_initialization_zeroes[2U] = 7U;
+    cleanup_state.list_offset = 8U;
+    cleanup_state.local_selection = 6U;
+    cleanup_state.workspace_token = 0xABCDEF01U;
+    GroupEightCleanupPorts cleanup_ports;
+    cleanup_ports.record_zero_after_call = 77U;
+    const auto cleaned =
+        openswd3::special_modes::cleanup_legacy_standard_mode_group_eight(
+            cleanup_state, cleanup_ports
+        );
+    test.expect_true(
+        cleaned.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightCleanupStatus::completed &&
+            cleaned.legacy_return_value == -5 &&
+            cleaned.helper_call_count == 2U &&
+            cleanup_state.pre_initialization_zeroes[0U] == 0U &&
+            cleanup_state.pre_initialization_zeroes[1U] == 0U &&
+            cleanup_state.pre_initialization_zeroes[2U] == 7U &&
+            cleanup_state.pre_initialization_zeroes[3U] == 0U &&
+            cleanup_state.pre_initialization_zeroes[4U] == 0U &&
+            cleanup_state.list_offset == 0U &&
+            cleanup_state.local_selection == 0U &&
+            cleanup_state.record_zero == 77U &&
+            cleanup_state.workspace_token == 0xABCDEF01U &&
+            cleanup_ports.released_tokens == std::vector<u32>{0xABCDEF01U} &&
+            cleanup_ports.events == std::vector<u32>{1U, 2U},
+        "0x4455A0 cleans records, clears the exact six owners and releases workspace"
+    );
+
+    GroupEightState cleanup_stop_state;
+    cleanup_stop_state.pre_initialization_zeroes.fill(9U);
+    cleanup_stop_state.list_offset = 8U;
+    cleanup_stop_state.local_selection = 6U;
+    cleanup_stop_state.workspace_token = 0x1234U;
+    GroupEightCleanupPorts cleanup_stop_ports;
+    cleanup_stop_ports.cleanup_available = false;
+    cleanup_stop_ports.record_zero_after_call = 88U;
+    const auto cleanup_stopped =
+        openswd3::special_modes::cleanup_legacy_standard_mode_group_eight(
+            cleanup_stop_state, cleanup_stop_ports
+        );
+    test.expect_true(
+        cleanup_stopped.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightCleanupStatus::
+                        record_cleanup_stopped &&
+            cleanup_stopped.helper_call_count == 0U &&
+            cleanup_stop_state.pre_initialization_zeroes[0U] == 9U &&
+            cleanup_stop_state.list_offset == 8U &&
+            cleanup_stop_state.local_selection == 6U &&
+            cleanup_stop_state.record_zero == 88U &&
+            cleanup_stop_ports.released_tokens.empty(),
+        "0x4455A0 record cleanup stop preserves callee mutation and skips later clears"
     );
 
     GroupEightState group_state{.selection = 4U, .lifecycle = 2U};
