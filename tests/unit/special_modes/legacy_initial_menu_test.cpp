@@ -4894,6 +4894,8 @@ void test_standard_mode_database_render(openswd3::test::Context& test) {
                 return "COMMON";
             case Text::phase_5_prompt:
                 return "RETURN";
+            case Text::contract_level_warning:
+                return "LEVEL";
             }
             return {};
         }
@@ -4954,6 +4956,57 @@ void test_standard_mode_database_render(openswd3::test::Context& test) {
         ));
     };
 
+    {
+        std::array<u8, 0xB0U> record{};
+        put_u16(record, 0x5CU, 0x3456U);
+        put_u16(record, 0x5EU, 2U);
+        put_u16(record, 0x60U, 12U);
+        put_u16(record, 0x62U, 34U);
+        put_u16(record, 0x64U, 56U);
+        put_u16(record, 0x66U, 78U);
+        put_u16(record, 0x70U, static_cast<u16>(-9));
+        std::ranges::copy(
+            std::array<u8, 4U>{'A', 'L', 'T', 0U}, record.begin() + 0x0C
+        );
+        RenderPorts ports;
+        const auto panel = sm::render_legacy_standard_mode_altar_record_panel(
+            record, "EAST", 0x14, 0x28, 1, 90U, 80U, ports
+        );
+        test.expect_true(
+            panel.status ==
+                    sm::LegacyStandardModeAltarRecordPanelStatus::completed &&
+                panel.legacy_return_value == 1 &&
+                panel.helper_call_count == 14U &&
+                panel.operation_count == 13U && !panel.disabled_overlay_drawn &&
+                !panel.warning_drawn &&
+                ports.colors ==
+                    std::vector<std::array<u8, 3U>>{{0x15U, 0x0FU, 0x08U}} &&
+                ports.operations[0U].kind == Kind::draw_panel &&
+                ports.operations[0U].arguments[4U] == 2 &&
+                ports.operations[1U].kind == Kind::initialize_action &&
+                ports.operations[1U].arguments[0U] == 0x232C &&
+                ports.operations[2U].text == "EAST" &&
+                ports.operations[3U].arguments[0U] == 0x3456 &&
+                ports.operations[4U].text == "BETA" &&
+                ports.operations[5U].text == "ALT" &&
+                ports.operations[6U].text.find("12") != std::string::npos &&
+                ports.operations[7U].text.find("-9") != std::string::npos,
+            "0x43FA70 renders the active altar record and all nine detail lines"
+        );
+
+        record[0x5EU] = 21U;
+        RenderPorts category_ports;
+        const auto category_stopped =
+            sm::render_legacy_standard_mode_altar_record_panel(
+                record, "EAST", 0x14, 0x28, 1, 0U, 0U, category_ports
+            );
+        test.expect_true(
+            category_stopped.status ==
+                sm::LegacyStandardModeAltarRecordPanelStatus::
+                    category_out_of_range,
+            "0x43FA70 typed-stops at the original category table read"
+        );
+    }
     {
         sm::LegacyStandardModeDatabaseInitializationState state;
         RenderPorts ports;
@@ -5075,11 +5128,14 @@ void test_standard_mode_database_render(openswd3::test::Context& test) {
         const auto phase2 = render(state, ports);
         test.expect_true(
             phase2.legacy_return_value == 2 &&
-                count_kind(ports, Kind::draw_record_panel) == 2U &&
-                count_kind(ports, Kind::draw_panel) == 1U &&
-                count_kind(ports, Kind::draw_text) == 1U &&
-                ports.operations[0].arguments[3] == 0x1001,
-            "0x43E800 phase2 draws two flag/toggle panels and common label"
+                count_kind(ports, Kind::initialize_action) == 4U &&
+                count_kind(ports, Kind::draw_rectangle) == 2U &&
+                count_kind(ports, Kind::draw_panel) == 3U &&
+                count_kind(ports, Kind::draw_text) == 23U &&
+                ports.operations[0U].arguments[4U] == 4 &&
+                ports.operations[2U].text == "FIRST" &&
+                ports.operations[14U].text == "LEVEL",
+            "0x43E800 phase2 directly expands both FA70 altar panels and common label"
         );
     }
     {
@@ -5095,8 +5151,10 @@ void test_standard_mode_database_render(openswd3::test::Context& test) {
                 state.animation_offset == -30 &&
                 state.primary_action.action_id == 0x232AU &&
                 state.primary_action.base_variant == 0x46U &&
-                count_kind(ports, Kind::draw_record_panel) == 2U,
-            "0x43E800 phase3 -35 frame draws panels, seeds action and increments"
+                count_kind(ports, Kind::draw_rectangle) == 2U &&
+                count_kind(ports, Kind::draw_panel) == 3U &&
+                count_kind(ports, Kind::draw_text) == 23U,
+            "0x43E800 phase3 -35 frame expands FA70 panels, seeds action and increments"
         );
 
         state.phase_3_countdown = std::bit_cast<u32>(-34);

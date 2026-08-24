@@ -2844,6 +2844,163 @@ refresh_legacy_standard_mode_database_forward_list(
     return result;
 }
 
+LegacyStandardModeAltarRecordPanelResult
+render_legacy_standard_mode_altar_record_panel(
+    const std::span<const compat::u8, 0xB0U> record,
+    const std::string_view title,
+    const compat::i32 x,
+    const compat::i32 y,
+    const compat::i32 flags,
+    const compat::i16 spirit_value,
+    const compat::i16 body_value,
+    LegacyStandardModeDatabaseRenderPorts& ports
+) noexcept {
+    LegacyStandardModeAltarRecordPanelResult result;
+    const auto emit =
+        [&result, &ports](
+            const LegacyStandardModeDatabaseRenderOperationKind kind,
+            const std::array<compat::i32, 8U>& arguments = {},
+            const std::string_view text = {}
+        ) {
+            result.legacy_return_value = ports.execute(
+                LegacyStandardModeDatabaseRenderOperation{
+                    .kind = kind,
+                    .arguments = arguments,
+                    .text = std::string(text),
+                }
+            );
+            ++result.helper_call_count;
+            ++result.operation_count;
+        };
+    const auto format_value = [](const char* format, const compat::i32 value) {
+        std::array<char, 64U> buffer{};
+        const int count = std::snprintf(
+            buffer.data(), buffer.size(), format, static_cast<int>(value)
+        );
+        return std::string(
+            buffer.data(),
+            count > 0 ? static_cast<std::size_t>(count) : std::size_t{0U}
+        );
+    };
+
+    const compat::i32 title_color = ports.make_color(0x15U, 0x0FU, 0x08U);
+    ++result.helper_call_count;
+    compat::i32 detail_color = title_color;
+    compat::i32 panel_style = 2;
+    const bool disabled = (flags & 1) == 0 || (flags & 0x1000) != 0;
+    if (disabled) {
+        detail_color = ports.make_color(0x0AU, 0x07U, 0x04U);
+        ++result.helper_call_count;
+        panel_style = 4;
+    }
+
+    emit(
+        LegacyStandardModeDatabaseRenderOperationKind::draw_panel,
+        {x, y, 0x118, 0x177, panel_style, 0, 0, 0}
+    );
+    emit(
+        LegacyStandardModeDatabaseRenderOperationKind::initialize_action,
+        {0x232C, 0x17, x + 8, y - 0x1E, 0, 0, 0, 0}
+    );
+    emit(
+        LegacyStandardModeDatabaseRenderOperationKind::draw_text,
+        {x + 0x36, y - 0x0A, title_color, 4, 0, 0, 0, 0},
+        title
+    );
+    emit(
+        LegacyStandardModeDatabaseRenderOperationKind::initialize_action,
+        {read_u16_le(record, 0x5CU), 0x44, x + 0x10, y + 0x18, 0, 0, 0, 0}
+    );
+
+    const compat::u16 category = read_u16_le(record, 0x5EU);
+    if (category >= 21U) {
+        result.status =
+            LegacyStandardModeAltarRecordPanelStatus::category_out_of_range;
+        return result;
+    }
+    emit(
+        LegacyStandardModeDatabaseRenderOperationKind::draw_text,
+        {x + 0x92, y + 0x18, detail_color, 4, 0, 0, 0, 0},
+        ports.indexed_text(category)
+    );
+    std::size_t name_length = 0U;
+    while (0x0CU + name_length < record.size() &&
+           record[0x0CU + name_length] != 0U) {
+        ++name_length;
+    }
+    if (0x0CU + name_length >= record.size()) {
+        result.status =
+            LegacyStandardModeAltarRecordPanelStatus::name_not_terminated;
+        return result;
+    }
+    emit(
+        LegacyStandardModeDatabaseRenderOperationKind::draw_text,
+        {x + 0x92, y + 0x31, detail_color, 4, 0, 0, 0, 0},
+        std::string_view(
+            reinterpret_cast<const char*>(record.data() + 0x0CU), name_length
+        )
+    );
+    emit(
+        LegacyStandardModeDatabaseRenderOperationKind::draw_text,
+        {x + 0x92, y + 0x4A, detail_color, 4, 0, 0, 0, 0},
+        format_value("%d 級", read_u16_le(record, 0x60U))
+    );
+    emit(
+        LegacyStandardModeDatabaseRenderOperationKind::draw_text,
+        {x + 0x92, y + 0x63, detail_color, 4, 0, 0, 0, 0},
+        format_value(
+            " 生命  %4d", std::bit_cast<compat::i16>(read_u16_le(record, 0x70U))
+        )
+    );
+    emit(
+        LegacyStandardModeDatabaseRenderOperationKind::draw_text,
+        {x + 0x92, y + 0x7C, detail_color, 4, 0, 0, 0, 0},
+        format_value(" 靈力  %4d", spirit_value)
+    );
+    emit(
+        LegacyStandardModeDatabaseRenderOperationKind::draw_text,
+        {x + 0x92, y + 0x95, detail_color, 4, 0, 0, 0, 0},
+        format_value(" 體力  %4d", body_value)
+    );
+    emit(
+        LegacyStandardModeDatabaseRenderOperationKind::draw_text,
+        {x + 0x92, y + 0xAE, detail_color, 4, 0, 0, 0, 0},
+        format_value(" 攻擊  %4d", read_u16_le(record, 0x62U))
+    );
+    emit(
+        LegacyStandardModeDatabaseRenderOperationKind::draw_text,
+        {x + 0x92, y + 0xC7, detail_color, 4, 0, 0, 0, 0},
+        format_value(" 防禦  %4d", read_u16_le(record, 0x64U))
+    );
+    emit(
+        LegacyStandardModeDatabaseRenderOperationKind::draw_text,
+        {x + 0x92, y + 0xE0, detail_color, 4, 0, 0, 0, 0},
+        format_value(" 敏捷  %4d", read_u16_le(record, 0x66U))
+    );
+
+    if (disabled) {
+        emit(
+            LegacyStandardModeDatabaseRenderOperationKind::draw_rectangle,
+            {x + 0x10, y + 0x18, 0x78, 0xDC, 0, 0, 0, 2}
+        );
+        result.disabled_overlay_drawn = true;
+    }
+    result.legacy_return_value = flags;
+    if ((flags & 0x1000) != 0) {
+        const compat::i32 warning_color = ports.make_color(0x18U, 0x0AU, 0x0BU);
+        ++result.helper_call_count;
+        emit(
+            LegacyStandardModeDatabaseRenderOperationKind::draw_text,
+            {x + 0x40, y + 0x120, warning_color, 4, 0, 0, 0, 0},
+            ports.static_text(
+                LegacyStandardModeDatabaseRenderText::contract_level_warning
+            )
+        );
+        result.warning_drawn = true;
+    }
+    return result;
+}
+
 LegacyStandardModeDatabaseRenderResult render_legacy_standard_mode_database(
     LegacyStandardModeDatabaseInitializationState& state,
     LegacyStandardModeDatabaseRenderPorts& ports
@@ -2906,6 +3063,38 @@ LegacyStandardModeDatabaseRenderResult render_legacy_standard_mode_database(
                 static_cast<std::size_t>(std::max(count, 0)), buffer.size() - 1U
             )
         );
+    };
+
+    const auto draw_altar_panel = [&state, &ports, &result](
+                                      const std::size_t index,
+                                      const compat::i32 x,
+                                      const compat::i32 y,
+                                      const compat::i32 flags,
+                                      const std::string_view title
+                                  ) {
+        const auto& record = index == 0U ? state.first_runtime_record
+                                         : state.second_runtime_record;
+        const LegacyStandardModeAltarRecordPanelResult panel =
+            render_legacy_standard_mode_altar_record_panel(
+                std::span<const compat::u8, 0xB0U>{record},
+                title,
+                x,
+                y,
+                flags,
+                state.altar_spirit_values[index],
+                state.altar_body_values[index],
+                ports
+            );
+        result.legacy_return_value = panel.legacy_return_value;
+        result.helper_call_count += panel.helper_call_count;
+        result.operation_count += panel.operation_count;
+        if (panel.status !=
+            LegacyStandardModeAltarRecordPanelStatus::completed) {
+            result.status = LegacyStandardModeDatabaseRenderStatus::
+                altar_record_panel_stopped;
+            return false;
+        }
+        return true;
     };
 
     const compat::i32 primary_color = ports.make_color(0x19U, 0x17U, 0x11U);
@@ -3144,43 +3333,37 @@ LegacyStandardModeDatabaseRenderResult render_legacy_standard_mode_database(
 
     if (phase == 2U || phase == 10U) {
         if (ports.query_item_presence(0x1BA9U)) {
-            emit(
-                LegacyStandardModeDatabaseRenderOperationKind::
-                    draw_record_panel,
-                {0,
-                 0x14,
-                 0x28,
-                 std::bit_cast<compat::i32>(
-                     ((state.runtime_input_flags & 1U) << 12U) |
-                     (state.interaction_toggle == 0U ? 1U : 0U)
-                 ),
-                 0,
-                 0,
-                 0,
-                 0},
-                ports.static_text(
-                    LegacyStandardModeDatabaseRenderText::first_record_detail
-                )
-            );
+            if (!draw_altar_panel(
+                    0U,
+                    0x14,
+                    0x28,
+                    std::bit_cast<compat::i32>(
+                        ((state.runtime_input_flags & 1U) << 12U) |
+                        (state.interaction_toggle == 0U ? 1U : 0U)
+                    ),
+                    ports.static_text(
+                        LegacyStandardModeDatabaseRenderText::
+                            first_record_detail
+                    )
+                )) {
+                return result;
+            }
         }
         ++result.helper_call_count;
-        emit(
-            LegacyStandardModeDatabaseRenderOperationKind::draw_record_panel,
-            {1,
-             0x154,
-             0x28,
-             std::bit_cast<compat::i32>(
-                 ((state.runtime_input_flags & 2U) << 11U) |
-                 (state.interaction_toggle == 1U ? 1U : 0U)
-             ),
-             0,
-             0,
-             0,
-             0},
-            ports.static_text(
-                LegacyStandardModeDatabaseRenderText::second_record_detail
-            )
-        );
+        if (!draw_altar_panel(
+                1U,
+                0x154,
+                0x28,
+                std::bit_cast<compat::i32>(
+                    ((state.runtime_input_flags & 2U) << 11U) |
+                    (state.interaction_toggle == 1U ? 1U : 0U)
+                ),
+                ports.static_text(
+                    LegacyStandardModeDatabaseRenderText::second_record_detail
+                )
+            )) {
+            return result;
+        }
         emit(
             LegacyStandardModeDatabaseRenderOperationKind::draw_panel,
             {0x101, 0x1B8, 0x7E, 0x12, 4, 0, 0, 0}
@@ -3199,38 +3382,38 @@ LegacyStandardModeDatabaseRenderResult render_legacy_standard_mode_database(
             std::bit_cast<compat::i32>(state.phase_3_countdown);
         if (countdown <= -35) {
             if (ports.query_item_presence(0x1BA9U)) {
-                emit(
-                    LegacyStandardModeDatabaseRenderOperationKind::
-                        draw_record_panel,
-                    {0,
-                     0x14,
-                     0x28,
-                     std::bit_cast<compat::i32>(
-                         ((state.runtime_input_flags & 1U) << 12U) |
-                         (state.interaction_toggle == 0U ? 1U : 0U)
-                     ),
-                     0,
-                     0,
-                     0,
-                     0}
-                );
+                if (!draw_altar_panel(
+                        0U,
+                        0x14,
+                        0x28,
+                        std::bit_cast<compat::i32>(
+                            ((state.runtime_input_flags & 1U) << 12U) |
+                            (state.interaction_toggle == 0U ? 1U : 0U)
+                        ),
+                        ports.static_text(
+                            LegacyStandardModeDatabaseRenderText::
+                                first_record_detail
+                        )
+                    )) {
+                    return result;
+                }
             }
             ++result.helper_call_count;
-            emit(
-                LegacyStandardModeDatabaseRenderOperationKind::
-                    draw_record_panel,
-                {1,
-                 0x154,
-                 0x28,
-                 std::bit_cast<compat::i32>(
-                     ((state.runtime_input_flags & 2U) << 11U) |
-                     (state.interaction_toggle == 1U ? 1U : 0U)
-                 ),
-                 0,
-                 0,
-                 0,
-                 0}
-            );
+            if (!draw_altar_panel(
+                    1U,
+                    0x154,
+                    0x28,
+                    std::bit_cast<compat::i32>(
+                        ((state.runtime_input_flags & 2U) << 11U) |
+                        (state.interaction_toggle == 1U ? 1U : 0U)
+                    ),
+                    ports.static_text(
+                        LegacyStandardModeDatabaseRenderText::
+                            second_record_detail
+                    )
+                )) {
+                return result;
+            }
             emit(
                 LegacyStandardModeDatabaseRenderOperationKind::draw_panel,
                 {0x101, 0x1B8, 0x7E, 0x12, 4, 0, 0, 0}

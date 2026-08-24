@@ -777,6 +777,8 @@ struct LegacyStandardModeDatabaseInitializationState {
     compat::u32 phase_3_countdown{};
     compat::i32 animation_offset{};
     compat::u32 comparison_value{};
+    std::array<compat::i16, 2U> altar_spirit_values{};
+    std::array<compat::i16, 2U> altar_body_values{};
     compat::i32 first_dynamic_min_x{};
     compat::i32 second_dynamic_min_x{};
     compat::i32 first_dynamic_max_x{};
@@ -1201,6 +1203,7 @@ enum class LegacyStandardModeDatabaseRenderText : compat::u8 {
     second_record_detail,
     common_panel_label,
     phase_5_prompt,
+    contract_level_warning,
 };
 
 enum class LegacyStandardModeDatabaseRenderOperationKind : compat::u8 {
@@ -1209,7 +1212,7 @@ enum class LegacyStandardModeDatabaseRenderOperationKind : compat::u8 {
     draw_text,
     draw_split_bar,
     draw_list_marker,
-    draw_record_panel,
+    draw_rectangle,
     draw_resource,
     draw_countdown,
     complete_phase,
@@ -1255,6 +1258,24 @@ enum class LegacyStandardModeDatabaseRenderStatus : compat::u8 {
     completed,
     forward_node_missing,
     resource_missing,
+    altar_record_panel_stopped,
+};
+
+enum class LegacyStandardModeAltarRecordPanelStatus : compat::u8 {
+    completed,
+    category_out_of_range,
+    name_not_terminated,
+};
+
+struct LegacyStandardModeAltarRecordPanelResult {
+    LegacyStandardModeAltarRecordPanelStatus status{
+        LegacyStandardModeAltarRecordPanelStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+    compat::u32 operation_count{};
+    bool disabled_overlay_drawn{};
+    bool warning_drawn{};
 };
 
 struct LegacyStandardModeDatabaseRenderResult {
@@ -2182,6 +2203,19 @@ build_legacy_standard_mode_database_forward_list(
 refresh_legacy_standard_mode_database_forward_list(
     LegacyStandardModeDatabaseInitializationState& state,
     LegacyStandardModeDatabaseForwardRefreshPorts& ports
+) noexcept;
+
+// sub_43FA70: draw one east/west altar record detail panel.
+[[nodiscard]] LegacyStandardModeAltarRecordPanelResult
+render_legacy_standard_mode_altar_record_panel(
+    std::span<const compat::u8, 0xB0U> record,
+    std::string_view title,
+    compat::i32 x,
+    compat::i32 y,
+    compat::i32 flags,
+    compat::i16 spirit_value,
+    compat::i16 body_value,
+    LegacyStandardModeDatabaseRenderPorts& ports
 ) noexcept;
 
 // sub_43E800: draw the standard-mode database callback frame.
