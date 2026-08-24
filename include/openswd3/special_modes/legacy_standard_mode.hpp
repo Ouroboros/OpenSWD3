@@ -566,6 +566,8 @@ struct LegacyStandardModeEquipmentInitializationState {
     compat::u32 hover_selection{};
     compat::u32 hover_record_count{};
     compat::u32 special_record_count{};
+    compat::u32 special_window_offset{};
+    const LegacyStandardModeForwardNode* visible_record_head{};
     compat::i32 first_dynamic_min_y{};
     compat::i32 first_dynamic_max_y{};
     compat::i32 second_dynamic_min_y{};
@@ -685,9 +687,40 @@ struct LegacyStandardModeEquipmentInputResult {
     std::optional<LegacyStandardModeEquipmentInputTarget> last_target{};
 };
 
-class LegacyStandardModeEquipmentInputPorts {
+class LegacyStandardModeEquipmentAdvancePorts {
 public:
-    virtual ~LegacyStandardModeEquipmentInputPorts() = default;
+    virtual ~LegacyStandardModeEquipmentAdvancePorts() = default;
+    [[nodiscard]] virtual compat::i32 execute_equipment_sample_command(
+        compat::u16 command_id, compat::u32 sample_owner
+    ) noexcept = 0;
+};
+
+enum class LegacyStandardModeEquipmentAdvanceStatus : compat::u8 {
+    completed,
+    selected_record_missing,
+    shared_text_stopped,
+    party_cycle_stopped,
+};
+
+struct LegacyStandardModeEquipmentAdvanceResult {
+    LegacyStandardModeEquipmentAdvanceStatus status{
+        LegacyStandardModeEquipmentAdvanceStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacyStandardModeEquipmentAdvanceResult
+advance_legacy_standard_mode_equipment(
+    LegacyStandardModeEquipmentInitializationState& state,
+    std::span<const compat::u8> maps_payload,
+    LegacyStandardModeEquipmentAdvancePorts& ports
+) noexcept;
+
+class LegacyStandardModeEquipmentInputPorts
+    : public LegacyStandardModeEquipmentAdvancePorts {
+public:
+    ~LegacyStandardModeEquipmentInputPorts() override = default;
     [[nodiscard]] virtual compat::i32 invoke_equipment_input(
         LegacyStandardModeEquipmentInputTarget target,
         LegacyStandardModeEquipmentInitializationState& state,
@@ -695,9 +728,6 @@ public:
     ) noexcept = 0;
     [[nodiscard]] virtual compat::i32
     query_equipment_item_presence(compat::u16 item_id) noexcept = 0;
-    [[nodiscard]] virtual compat::i32 execute_equipment_sample_command(
-        compat::u16 command_id, compat::u32 sample_owner
-    ) noexcept = 0;
 };
 
 struct LegacyStandardModeGuardianFilterDestination {

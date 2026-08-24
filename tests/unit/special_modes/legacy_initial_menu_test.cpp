@@ -2948,6 +2948,111 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         auto available_records = unavailable_records;
         available_records[15U] = {1, 1};
 
+        sm::LegacyStandardModeForwardNode advance_third;
+        advance_third.text_index = 0xFFDCU;
+        sm::LegacyStandardModeForwardNode advance_second;
+        advance_second.next = &advance_third;
+        advance_second.text_index = 0xFFDCU;
+        sm::LegacyStandardModeForwardNode advance_first;
+        advance_first.next = &advance_second;
+        advance_first.text_index = 0xFFDCU;
+        sm::LegacyStandardModeEquipmentInitializationState advance_state;
+        advance_state.mode_enabled = 1U;
+        advance_state.visible_record_count = 2U;
+        advance_state.total_record_count = 3U;
+        advance_state.record_head = &advance_first;
+        advance_state.sample_owner = 0xCAFEU;
+        EquipmentInputPorts advance_ports;
+        const auto advanced = sm::advance_legacy_standard_mode_equipment(
+            advance_state, {}, advance_ports
+        );
+        test.expect_true(
+            advanced.status ==
+                    sm::LegacyStandardModeEquipmentAdvanceStatus::completed &&
+                advanced.legacy_return_value == 77 &&
+                advanced.helper_call_count == 5U &&
+                advance_state.list_offset == 2U &&
+                advance_state.local_selection == 0U &&
+                advance_state.visible_record_count == 1U &&
+                advance_state.visible_record_head == &advance_third &&
+                advance_state.shared_text[0] == 0xB5U &&
+                advance_state.final_zero == 0x30U &&
+                advance_ports.samples ==
+                    std::vector<std::array<u32, 2U>>{{0x2EU, 0xCAFEU}},
+            "0x443450 mode1 advances two columns, scrolls, recounts and publishes text"
+        );
+
+        advance_state = {};
+        advance_state.mode_enabled = 1U;
+        advance_state.visible_record_count = 3U;
+        advance_state.total_record_count = 3U;
+        const auto advance_missing = sm::advance_legacy_standard_mode_equipment(
+            advance_state, {}, advance_ports
+        );
+        sm::LegacyStandardModeForwardNode advance_invalid_text;
+        advance_invalid_text.text_index = 0U;
+        advance_state = {};
+        advance_state.mode_enabled = 1U;
+        advance_state.visible_record_count = 1U;
+        advance_state.total_record_count = 1U;
+        advance_state.record_head = &advance_invalid_text;
+        advance_state.final_zero = 9U;
+        const auto advance_text_stopped =
+            sm::advance_legacy_standard_mode_equipment(
+                advance_state, {}, advance_ports
+            );
+        test.expect_true(
+            advance_missing.status ==
+                    sm::LegacyStandardModeEquipmentAdvanceStatus::
+                        selected_record_missing &&
+                advance_missing.helper_call_count == 3U &&
+                advance_text_stopped.status ==
+                    sm::LegacyStandardModeEquipmentAdvanceStatus::
+                        shared_text_stopped &&
+                advance_text_stopped.helper_call_count == 4U &&
+                advance_state.final_zero == 9U,
+            "0x443450 typed-stops at B9C0/B9E0 after list and count side effects"
+        );
+
+        advance_state = {};
+        advance_state.mode_enabled = 2U;
+        advance_state.selected_party_action = 0U;
+        advance_state.party_markers = {0xFFFFU, 0xFFFFU, 2U, 0xFFFFU};
+        const auto advanced_party = sm::advance_legacy_standard_mode_equipment(
+            advance_state, {}, advance_ports
+        );
+        const u32 advanced_party_selection =
+            advance_state.selected_party_action;
+        advance_state.party_markers.fill(0xFFFFU);
+        const auto stopped_party = sm::advance_legacy_standard_mode_equipment(
+            advance_state, {}, advance_ports
+        );
+        advance_state = {};
+        advance_state.mode_enabled = 0x0FU;
+        advance_state.special_record_count = 10U;
+        advance_state.hover_record_count = 8U;
+        advance_state.hover_selection = 7U;
+        advance_state.final_zero = 0xABCD0001U;
+        const auto advanced_special =
+            sm::advance_legacy_standard_mode_equipment(
+                advance_state, {}, advance_ports
+            );
+        test.expect_true(
+            advanced_party.status ==
+                    sm::LegacyStandardModeEquipmentAdvanceStatus::completed &&
+                advanced_party_selection == 2U &&
+                advanced_party.legacy_return_value == 2 &&
+                stopped_party.status ==
+                    sm::LegacyStandardModeEquipmentAdvanceStatus::
+                        party_cycle_stopped &&
+                advanced_special.legacy_return_value ==
+                    std::bit_cast<i32>(0xABCD3001U) &&
+                advance_state.special_window_offset == 1U &&
+                advance_state.hover_selection == 7U &&
+                advance_state.final_zero == 0xABCD3001U,
+            "0x443450 mode2 skips FFFF parties and mode15 advances the eight-row window"
+        );
+
         sm::LegacyStandardModeEquipmentInitializationState equipment;
         equipment.mode_enabled = 0x11U;
         equipment.first_render_zero = 7U;
@@ -3141,6 +3246,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             equipment = {};
             equipment.mode_enabled = 1U;
             equipment.total_record_count = 25U;
+            equipment.visible_record_count = 3U;
+            equipment.record_head = &advance_first;
             equipment.first_dynamic_min_y = 0x100;
             equipment.first_dynamic_max_y = 0x110;
             equipment.second_dynamic_min_y = 0x120;
@@ -3154,8 +3261,9 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                     equipment, input, available_records, {}, scroll_ports
                 );
             scroll_match = scroll_match && scrolled.callback_count == 2U &&
-                scrolled.last_target == target &&
-                scroll_ports.targets == std::vector<EquipmentTarget>{target};
+                scrolled.status ==
+                    sm::LegacyStandardModeEquipmentInputStatus::completed &&
+                scrolled.last_target == target;
         }
         test.expect_true(
             scroll_match,
