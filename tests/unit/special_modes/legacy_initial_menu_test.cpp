@@ -15012,34 +15012,6 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         ) override {
             return record(Event::hover, input, state);
         }
-        i32 dispatch_control(
-            const openswd3::special_modes::
-                LegacyStandardModeGroupEightMainControl control,
-            openswd3::special_modes::
-                LegacyStandardModeGroupEightMainInputSnapshot& input,
-            openswd3::special_modes::LegacyStandardModeGroupEightState& state
-        ) override {
-            Event event = Event::upper;
-            switch (control) {
-            case openswd3::special_modes::
-                LegacyStandardModeGroupEightMainControl::upper:
-                event = Event::upper;
-                break;
-            case openswd3::special_modes::
-                LegacyStandardModeGroupEightMainControl::lower:
-                event = Event::lower;
-                break;
-            case openswd3::special_modes::
-                LegacyStandardModeGroupEightMainControl::first_dynamic:
-                event = Event::first_dynamic;
-                break;
-            case openswd3::special_modes::
-                LegacyStandardModeGroupEightMainControl::second_dynamic:
-                event = Event::second_dynamic;
-                break;
-            }
-            return record(event, input, state);
-        }
         i32 query_item_presence(const u16 item_id) override {
             events.push_back(Event::presence);
             queried_item_ids.push_back(item_id);
@@ -15739,15 +15711,13 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
                 openswd3::special_modes::
                     LegacyStandardModeGroupEightMainInputPath::
                         control_dispatched &&
-            primary_controls_ports.events ==
-                std::vector{GroupEightMainInputPorts::Event::first_dynamic} &&
+            primary_controls_ports.events.empty() &&
             secondary_controls.path ==
                 openswd3::special_modes::
                     LegacyStandardModeGroupEightMainInputPath::
                         control_dispatched &&
-            secondary_controls_ports.events ==
-                std::vector{GroupEightMainInputPorts::Event::first_dynamic},
-        "0x4455E0 rereads pointer Y after every primary and secondary control callback"
+            secondary_controls_ports.events.empty(),
+        "0x4455E0 routes all four directional controls through closed typed helpers"
     );
 
     GroupEightState secondary_row_state;
@@ -16371,6 +16341,137 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             page_fixed_state.transition_flags == 0x660033AAU &&
             page_fixed_state.published_selection_x == 55U,
         "0x446090 selects the last party slot, preserves count-minus-one and pages by eight"
+    );
+
+    std::array<LegacyStandardModeForwardNode, 15U> retreat_page_nodes{};
+    for (std::size_t index = 0U; index + 1U < retreat_page_nodes.size();
+         ++index) {
+        retreat_page_nodes[index].next = &retreat_page_nodes[index + 1U];
+    }
+    retreat_page_nodes[0U].text_index = 0xFFDCU;
+    GroupEightState page_retreat_state;
+    page_retreat_state.interaction_mode = 2U;
+    page_retreat_state.selection_x = 30U;
+    page_retreat_state.record_head = retreat_page_nodes.data();
+    page_retreat_state.list_offset = 13U;
+    page_retreat_state.local_selection = 0U;
+    page_retreat_state.transition_flags = 0x77000030U;
+    GroupEightMainInputPorts page_retreat_ports;
+    const auto page_retreated =
+        openswd3::special_modes::retreat_legacy_standard_mode_group_eight_page(
+            page_retreat_state,
+            0x89ABCDEFU,
+            {},
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            page_retreat_ports
+        );
+    test.expect_true(
+        page_retreated.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightPageRetreatStatus::completed &&
+            page_retreated.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightPageRetreatPath::
+                        record_page_retreated &&
+            page_retreated.helper_call_count == 6U &&
+            page_retreat_state.list_offset == 0U &&
+            page_retreat_state.local_selection == 0U &&
+            page_retreat_state.visible_record_head ==
+                retreat_page_nodes.data() &&
+            page_retreat_state.local_record_count == 13 &&
+            page_retreat_state.transition_flags == 0x77000033U &&
+            page_retreat_state.shared_text[0U] == 0xB5U &&
+            page_retreat_ports.played_samples ==
+                std::vector<std::pair<u16, u32>>{{0x2EU, 0x89ABCDEFU}},
+        "0x446260 retreats the mode2 page by thirteen and rebuilds its first text"
+    );
+
+    GroupEightState first_page_state;
+    first_page_state.interaction_mode = 3U;
+    first_page_state.selection_x = 66U;
+    GroupEightMainInputPorts first_page_ports;
+    const auto first_item =
+        openswd3::special_modes::retreat_legacy_standard_mode_group_eight_page(
+            first_page_state,
+            0x76543210U,
+            std::array<u16, 4U>{0xFFFFU, 9U, 10U, 11U},
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            first_page_ports
+        );
+    first_page_state.interaction_mode = 10U;
+    first_page_state.selected_outer_row = 9U;
+    const auto first_outer =
+        openswd3::special_modes::retreat_legacy_standard_mode_group_eight_page(
+            first_page_state,
+            0U,
+            {},
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            first_page_ports
+        );
+    first_page_state.interaction_mode = 15U;
+    first_page_state.secondary_window_offset = 8;
+    first_page_state.secondary_row_selection = 0;
+    first_page_state.transition_flags = 0x880030AAU;
+    const auto first_secondary =
+        openswd3::special_modes::retreat_legacy_standard_mode_group_eight_page(
+            first_page_state,
+            0U,
+            {},
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            first_page_ports
+        );
+    test.expect_true(
+        first_item.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightPageRetreatPath::
+                        available_item_first &&
+            first_page_state.record_zero == 1U &&
+            first_page_ports.played_samples ==
+                std::vector<std::pair<u16, u32>>{{0x2EU, 0x76543210U}} &&
+            first_outer.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightPageRetreatPath::
+                        outer_row_first &&
+            first_page_state.selected_outer_row == 0U &&
+            first_secondary.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightPageRetreatPath::
+                        secondary_page_retreated &&
+            first_page_state.secondary_window_offset == 0 &&
+            first_page_state.transition_flags == 0x880033AAU &&
+            first_page_state.published_selection_x == 66U,
+        "0x446260 selects first values and retreats the secondary page by eight"
+    );
+
+    GroupEightState runtime_page_retreat_state;
+    runtime_page_retreat_state.interaction_mode = 500U;
+    LegacyStandardModeRuntimeInitializationState runtime_page_retreat_runtime;
+    GroupEightMainInputPorts runtime_page_retreat_ports;
+    const auto runtime_page_retreated =
+        openswd3::special_modes::retreat_legacy_standard_mode_group_eight_page(
+            runtime_page_retreat_state,
+            0U,
+            {},
+            {},
+            runtime_page_retreat_runtime,
+            group_main_runtime_ports,
+            runtime_page_retreat_ports
+        );
+    test.expect_true(
+        runtime_page_retreated.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightPageRetreatPath::
+                        runtime_page_retreated &&
+            runtime_page_retreated.helper_call_count == 1U,
+        "0x446260 directly delegates modes at least 500 to 0x43C670"
     );
 
     GroupEightState group_state{.selection = 4U, .lifecycle = 2U};

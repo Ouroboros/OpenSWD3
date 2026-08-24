@@ -674,11 +674,6 @@ public:
         LegacyStandardModeGroupEightMainInputSnapshot& input,
         LegacyStandardModeGroupEightState& state
     ) = 0;
-    [[nodiscard]] virtual compat::i32 dispatch_control(
-        LegacyStandardModeGroupEightMainControl control,
-        LegacyStandardModeGroupEightMainInputSnapshot& input,
-        LegacyStandardModeGroupEightState& state
-    ) = 0;
     [[nodiscard]] virtual compat::i32
     query_item_presence(compat::u16 item_id) = 0;
     [[nodiscard]] virtual compat::i32
@@ -695,6 +690,7 @@ enum class LegacyStandardModeGroupEightMainInputStatus : compat::u8 {
     advance_control_stopped,
     retreat_control_stopped,
     page_advance_control_stopped,
+    page_retreat_control_stopped,
 };
 
 enum class LegacyStandardModeGroupEightMainInputPath : compat::u8 {
@@ -862,6 +858,49 @@ struct LegacyStandardModeGroupEightPageAdvanceResult {
 
 [[nodiscard]] LegacyStandardModeGroupEightPageAdvanceResult
 advance_legacy_standard_mode_group_eight_page(
+    LegacyStandardModeGroupEightState& state,
+    compat::u32 sample_handle,
+    std::span<const compat::u16> party_markers,
+    std::span<const compat::u8> maps_payload,
+    LegacyStandardModeRuntimeInitializationState& runtime_state,
+    LegacyStandardModeInputDispatchPorts& runtime_ports,
+    LegacyStandardModeGroupEightMainInputPorts& ports
+) noexcept;
+
+enum class LegacyStandardModeGroupEightPageRetreatStatus : compat::u8 {
+    completed,
+    runtime_page_stopped,
+    visible_chain_stopped,
+    selected_record_missing,
+    shared_text_stopped,
+    party_cycle_stopped,
+};
+
+enum class LegacyStandardModeGroupEightPageRetreatPath : compat::u8 {
+    no_action,
+    runtime_page_retreated,
+    record_page_retreated,
+    available_item_first,
+    action_first,
+    outer_row_first,
+    column_first,
+    secondary_page_retreated,
+};
+
+struct LegacyStandardModeGroupEightPageRetreatResult {
+    LegacyStandardModeGroupEightPageRetreatStatus status{
+        LegacyStandardModeGroupEightPageRetreatStatus::completed
+    };
+    LegacyStandardModeGroupEightPageRetreatPath path{
+        LegacyStandardModeGroupEightPageRetreatPath::no_action
+    };
+    compat::u8 runtime_page_status{};
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacyStandardModeGroupEightPageRetreatResult
+retreat_legacy_standard_mode_group_eight_page(
     LegacyStandardModeGroupEightState& state,
     compat::u32 sample_handle,
     std::span<const compat::u16> party_markers,
