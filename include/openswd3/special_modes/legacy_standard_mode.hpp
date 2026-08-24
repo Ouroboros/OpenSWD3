@@ -908,6 +908,8 @@ struct LegacyStandardModeGuardianInitializationState {
     compat::u32 attribute_cache_token{};
     compat::u16 attribute_text_color_word{};
     std::array<compat::u8, 0x190U> attribute_cache{};
+    std::array<std::array<compat::u16, 3U>, 4U>
+        guardian_party_attribute_totals{};
     compat::u32 visible_record_count{};
     compat::u32 local_selection{};
     compat::u32 list_offset{};
@@ -1033,6 +1035,30 @@ enum class LegacyStandardModeGuardianSelectionTarget : compat::u8 {
     refresh_attribute_cache,
 };
 
+enum class LegacyStandardModeGuardianRecordExchangeAttributeStatus : compat::
+    u8 {
+        completed,
+        old_record_missing,
+        old_merge_stopped,
+        party_index_out_of_range,
+        new_merge_stopped,
+    };
+
+struct LegacyStandardModeGuardianRecordExchangeAttributeResult {
+    LegacyStandardModeGuardianRecordExchangeAttributeStatus status{
+        LegacyStandardModeGuardianRecordExchangeAttributeStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+};
+
+[[nodiscard]] LegacyStandardModeGuardianRecordExchangeAttributeResult
+adjust_legacy_standard_mode_guardian_record_exchange_attributes(
+    LegacyStandardModeGuardianInitializationState& state,
+    const LegacyStandardModeForwardNode& new_record,
+    const LegacyStandardModeForwardNode* old_record,
+    LegacyStandardModeGuardianAttributeCachePorts& ports
+) noexcept;
+
 enum class LegacyStandardModeGuardianSelectionStatus : compat::u8 {
     completed,
     visible_head_missing,
@@ -1071,7 +1097,7 @@ class LegacyStandardModeGuardianInteractionPorts
     : public LegacyStandardModeGuardianSelectionPorts {
 public:
     ~LegacyStandardModeGuardianInteractionPorts() override = default;
-    [[nodiscard]] virtual bool prepare_guardian_record_exchange(
+    [[nodiscard]] virtual bool prepare_guardian_record_storage_exchange(
         LegacyStandardModeGuardianInitializationState& state,
         const LegacyStandardModeForwardNode& selected_node,
         compat::u32 guardian_slot,

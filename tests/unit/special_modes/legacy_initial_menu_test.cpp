@@ -2761,13 +2761,34 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         }
 
         bool merge_guardian_attribute_record_name(
-            sm::LegacyStandardModeGuardianInitializationState&,
+            sm::LegacyStandardModeGuardianInitializationState& state,
             const std::string_view record_name
         ) noexcept override {
             merged_attribute_names.emplace_back(record_name);
-            return cache_failure_stage != 5 ||
-                merged_attribute_names.size() !=
-                static_cast<std::size_t>(party_attribute_failure_record + 1U);
+            if (cache_failure_stage == 5 &&
+                merged_attribute_names.size() ==
+                    static_cast<std::size_t>(
+                        party_attribute_failure_record + 1U
+                    )) {
+                return false;
+            }
+            const auto write_word =
+                [&state](const std::size_t offset, const u16 value) {
+                    state.scratch_record[offset] =
+                        static_cast<u8>(value & 0xFFU);
+                    state.scratch_record[offset + 1U] =
+                        static_cast<u8>((value >> 8U) & 0xFFU);
+                };
+            if (record_name == "old") {
+                write_word(0x0AU, 5U);
+                write_word(0x0CU, 7U);
+                write_word(0x0EU, 9U);
+            } else if (record_name == "new") {
+                write_word(0x0AU, 2U);
+                write_word(0x0CU, 3U);
+                write_word(0x0EU, 4U);
+            }
+            return true;
         }
 
         std::optional<const sm::LegacyStandardModeForwardNode*>
@@ -2831,7 +2852,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             released_missing_nodes.push_back(&node);
         }
 
-        bool prepare_guardian_record_exchange(
+        bool prepare_guardian_record_storage_exchange(
             sm::LegacyStandardModeGuardianInitializationState&,
             const sm::LegacyStandardModeForwardNode&,
             const u32 guardian_slot,
@@ -3292,6 +3313,122 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                     sm::LegacyStandardModeGuardianAttributeSummaryStatus::
                         destination_out_of_range,
             "0x442CA0 null seed and query stops preserve each exact sentinel prefix"
+        );
+
+        sm::LegacyStandardModeForwardNode old_exchange_record;
+        old_exchange_record.text_index = 7U;
+        old_exchange_record.display_name = "old";
+        sm::LegacyStandardModeForwardNode new_exchange_record;
+        new_exchange_record.text_index = 8U;
+        new_exchange_record.display_name = "new";
+        party_state.party_selector = 1U;
+        party_state.guardian_party_attribute_totals[1] = {100U, 200U, 300U};
+        SelectionPorts exchange_attribute_ports;
+        const auto exchange_attributes =
+            sm::adjust_legacy_standard_mode_guardian_record_exchange_attributes(
+                party_state,
+                new_exchange_record,
+                &old_exchange_record,
+                exchange_attribute_ports
+            );
+        test.expect_true(
+            exchange_attributes.status ==
+                    sm::LegacyStandardModeGuardianRecordExchangeAttributeStatus::
+                        completed &&
+                exchange_attributes.legacy_return_value == 0x70 &&
+                party_state.guardian_party_attribute_totals[1] ==
+                    std::array<u16, 3U>{97U, 196U, 295U} &&
+                exchange_attribute_ports.merged_attribute_names ==
+                    std::vector<std::string>{"old", "new"},
+            "0x442D70 subtracts old and adds new three-word attributes with u16 wrapping"
+        );
+
+        std::fill(
+            party_state.scratch_record.begin(),
+            party_state.scratch_record.end(),
+            0x5AU
+        );
+        const auto missing_old =
+            sm::adjust_legacy_standard_mode_guardian_record_exchange_attributes(
+                party_state,
+                new_exchange_record,
+                nullptr,
+                exchange_attribute_ports
+            );
+        const bool missing_old_cleared = std::all_of(
+            party_state.scratch_record.begin(),
+            party_state.scratch_record.begin() + 0x38,
+            [](const u8 value) { return value == 0U; }
+        );
+        party_state.party_selector = 4U;
+        SelectionPorts range_ports;
+        const auto exchange_range =
+            sm::adjust_legacy_standard_mode_guardian_record_exchange_attributes(
+                party_state,
+                new_exchange_record,
+                &old_exchange_record,
+                range_ports
+            );
+        party_state.party_selector = 1U;
+        party_state.guardian_party_attribute_totals[1] = {100U, 200U, 300U};
+        SelectionPorts old_stop_ports;
+        old_stop_ports.cache_failure_stage = 5;
+        old_stop_ports.party_attribute_failure_record = 0U;
+        const auto old_stopped =
+            sm::adjust_legacy_standard_mode_guardian_record_exchange_attributes(
+                party_state,
+                new_exchange_record,
+                &old_exchange_record,
+                old_stop_ports
+            );
+        SelectionPorts new_stop_ports;
+        new_stop_ports.cache_failure_stage = 5;
+        new_stop_ports.party_attribute_failure_record = 1U;
+        const auto new_stopped =
+            sm::adjust_legacy_standard_mode_guardian_record_exchange_attributes(
+                party_state,
+                new_exchange_record,
+                &old_exchange_record,
+                new_stop_ports
+            );
+        const bool new_stop_subtracted =
+            party_state.guardian_party_attribute_totals[1] ==
+            std::array<u16, 3U>{95U, 193U, 291U};
+        sm::LegacyStandardModeForwardNode sentinel_exchange_record;
+        sentinel_exchange_record.text_index = 0xFFDCU;
+        party_state.guardian_party_attribute_totals[1] = {9U, 8U, 7U};
+        SelectionPorts sentinel_exchange_ports;
+        const auto sentinel_exchange =
+            sm::adjust_legacy_standard_mode_guardian_record_exchange_attributes(
+                party_state,
+                sentinel_exchange_record,
+                &sentinel_exchange_record,
+                sentinel_exchange_ports
+            );
+        test.expect_true(
+            missing_old.status ==
+                    sm::LegacyStandardModeGuardianRecordExchangeAttributeStatus::
+                        old_record_missing &&
+                missing_old_cleared &&
+                exchange_range.status ==
+                    sm::LegacyStandardModeGuardianRecordExchangeAttributeStatus::
+                        party_index_out_of_range &&
+                range_ports.merged_attribute_names ==
+                    std::vector<std::string>{"old"} &&
+                old_stopped.status ==
+                    sm::LegacyStandardModeGuardianRecordExchangeAttributeStatus::
+                        old_merge_stopped &&
+                new_stopped.status ==
+                    sm::LegacyStandardModeGuardianRecordExchangeAttributeStatus::
+                        new_merge_stopped &&
+                new_stop_subtracted &&
+                sentinel_exchange.status ==
+                    sm::LegacyStandardModeGuardianRecordExchangeAttributeStatus::
+                        completed &&
+                party_state.guardian_party_attribute_totals[1] ==
+                    std::array<u16, 3U>{9U, 8U, 7U} &&
+                sentinel_exchange_ports.merged_attribute_names.empty(),
+            "0x442D70 typed-stops after exact clear, merge and subtraction prefixes"
         );
 
         cache_state.guardian_slot = 9U;
@@ -4844,6 +4981,9 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
 
         guardian.interaction_mode = 1U;
         guardian.guardian_slot = 1U;
+        guardian.guardian_party_attribute_totals[0] = {100U, 200U, 300U};
+        node.text_index = 8U;
+        node.display_name = "new";
         sm::LegacyStandardModeForwardNode filter_second{nullptr, 2U};
         filter_second.filter_flags = 3U;
         filter_second.filter_category = 2U;
@@ -4853,6 +4993,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         guardian.guardian_filter_masks = {0U, 3U};
         guardian.guardian_party_filter_masks = {2U};
         SelectionPorts exchange_ports;
+        exchange_ports.cache_seed_record.display_name = "old";
         exchange_ports.filter_requested = true;
         exchange_ports.filter_source_head = &filter_first;
         const auto exchanged =
@@ -4863,8 +5004,10 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             exchanged.status ==
                     sm::LegacyStandardModeGuardianSelectionStatus::completed &&
                 exchanged.legacy_return_value == 77 &&
-                exchanged.helper_call_count == 11U &&
+                exchanged.helper_call_count == 13U &&
                 guardian.interaction_mode == 0U &&
+                guardian.guardian_party_attribute_totals[0] ==
+                    std::array<u16, 3U>{97U, 196U, 295U} &&
                 guardian.record_head == &filter_second &&
                 filter_second.next == &filter_first &&
                 exchange_ports.completed_filter_head == &filter_second &&
@@ -5066,7 +5209,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             released_missing_nodes.push_back(&node);
         }
 
-        bool prepare_guardian_record_exchange(
+        bool prepare_guardian_record_storage_exchange(
             sm::LegacyStandardModeGuardianInitializationState&,
             const sm::LegacyStandardModeForwardNode&,
             const u32 guardian_slot,

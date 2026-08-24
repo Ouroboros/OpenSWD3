@@ -5537,6 +5537,73 @@ finalize_legacy_standard_mode_guardian_attribute_summary(
     return result;
 }
 
+LegacyStandardModeGuardianRecordExchangeAttributeResult
+adjust_legacy_standard_mode_guardian_record_exchange_attributes(
+    LegacyStandardModeGuardianInitializationState& state,
+    const LegacyStandardModeForwardNode& new_record,
+    const LegacyStandardModeForwardNode* const old_record,
+    LegacyStandardModeGuardianAttributeCachePorts& ports
+) noexcept {
+    LegacyStandardModeGuardianRecordExchangeAttributeResult result;
+    const auto clear_scratch = [&state]() {
+        std::fill_n(state.scratch_record.begin(), 0x38U, compat::u8{0});
+    };
+    const auto scratch_word = [&state](const std::size_t offset) {
+        return static_cast<compat::u16>(
+            static_cast<compat::u16>(state.scratch_record[offset]) |
+            (static_cast<compat::u16>(state.scratch_record[offset + 1U]) << 8U)
+        );
+    };
+
+    clear_scratch();
+    if (old_record == nullptr) {
+        result.status =
+            LegacyStandardModeGuardianRecordExchangeAttributeStatus::
+                old_record_missing;
+        return result;
+    }
+    if (old_record->text_index != 0xFFDCU &&
+        !ports.merge_guardian_attribute_record_name(
+            state, old_record->display_name
+        )) {
+        result.status =
+            LegacyStandardModeGuardianRecordExchangeAttributeStatus::
+                old_merge_stopped;
+        return result;
+    }
+
+    const compat::u16 party_index =
+        static_cast<compat::u16>(state.party_selector);
+    if (party_index >= state.guardian_party_attribute_totals.size()) {
+        result.status =
+            LegacyStandardModeGuardianRecordExchangeAttributeStatus::
+                party_index_out_of_range;
+        return result;
+    }
+    auto& totals = state.guardian_party_attribute_totals[party_index];
+    totals[0] = static_cast<compat::u16>(totals[0] - scratch_word(0x0AU));
+    totals[1] = static_cast<compat::u16>(totals[1] - scratch_word(0x0CU));
+    totals[2] = static_cast<compat::u16>(totals[2] - scratch_word(0x0EU));
+
+    clear_scratch();
+    if (new_record.text_index != 0xFFDCU &&
+        !ports.merge_guardian_attribute_record_name(
+            state, new_record.display_name
+        )) {
+        result.status =
+            LegacyStandardModeGuardianRecordExchangeAttributeStatus::
+                new_merge_stopped;
+        return result;
+    }
+    totals[0] = static_cast<compat::u16>(totals[0] + scratch_word(0x0AU));
+    totals[1] = static_cast<compat::u16>(totals[1] + scratch_word(0x0CU));
+    totals[2] = static_cast<compat::u16>(totals[2] + scratch_word(0x0EU));
+    result.legacy_return_value = std::bit_cast<compat::i32>(
+        static_cast<compat::u32>(party_index) * 0x70U
+    );
+    return result;
+}
+
 LegacyStandardModeGuardianAttributeCacheResult
 refresh_legacy_standard_mode_guardian_attribute_cache(
     LegacyStandardModeGuardianInitializationState& state,
@@ -6190,8 +6257,32 @@ switch_legacy_standard_mode_guardian_interaction(
         ++result.helper_call_count;
         return result;
     }
+    const std::optional<const LegacyStandardModeForwardNode*> old_record =
+        ports.resolve_guardian_party_attribute_record(
+            state,
+            static_cast<compat::u16>(state.party_selector),
+            state.guardian_slot
+        );
+    ++result.helper_call_count;
+    if (!old_record.has_value()) {
+        result.status = LegacyStandardModeGuardianSelectionStatus::
+            guardian_exchange_stopped;
+        return result;
+    }
+    const LegacyStandardModeGuardianRecordExchangeAttributeResult adjusted =
+        adjust_legacy_standard_mode_guardian_record_exchange_attributes(
+            state, *selected_node, *old_record, ports
+        );
+    ++result.helper_call_count;
+    if (adjusted.status !=
+        LegacyStandardModeGuardianRecordExchangeAttributeStatus::completed) {
+        result.status = LegacyStandardModeGuardianSelectionStatus::
+            guardian_exchange_stopped;
+        return result;
+    }
+
     LegacyStandardModeGuardianFilterContext filter_context;
-    if (!ports.prepare_guardian_record_exchange(
+    if (!ports.prepare_guardian_record_storage_exchange(
             state, *selected_node, state.guardian_slot, filter_context
         )) {
         result.status = LegacyStandardModeGuardianSelectionStatus::

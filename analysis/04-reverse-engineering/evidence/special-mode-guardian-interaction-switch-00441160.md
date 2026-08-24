@@ -12,7 +12,7 @@
 - mode15写mode1但返回入口EAX=15。
 - 其他mode原样返回。
 
-mode1内联0xB0复制、token释放/克隆、44D2D0链插删、441F70重建及secondary list分支被收敛到单一`exchange_guardian_record` typed port；该边界必须按LST完成整段原子交换并可变更record head。边界外的判定、先前副作用、总数/可见链/窗口重建、文本、mode、sample和返回值全部由typed helper控制。exchange失败在原交换起点停止，不伪造后续副作用。
+mode1的442D70属性差值调整与441F70筛选重建后续均已独立闭环并由caller直接调用。41160先以party-record resolver读取当前slot旧记录，执行旧贡献扣除/新贡献加回，再进入剩余0xB0复制、token释放/克隆、44D2D0链插删及secondary list分支的`prepare_guardian_record_storage_exchange` typed边界；筛选后以complete边界结束存储交换。边界外的判定、精确先前副作用、总数/可见链/窗口重建、文本、mode、sample和返回值全部由typed helper控制。各失败点不伪造后续副作用。
 
 407F0四处interact caller均已删除opaque invoke并直接复用本helper，传播typed-stop。UT覆盖mode0先写、mode1 sentinel与正常交换、exchange参数、mode5/15、默认mode及407F0 mode15直接caller。
 
