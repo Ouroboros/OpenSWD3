@@ -375,6 +375,101 @@ LegacyStandardModeCallbackBindingResult bind_legacy_standard_mode_callbacks(
     return result;
 }
 
+LegacyStandardModeRecordCloneResult
+rebuild_legacy_standard_mode_selection_records(
+    LegacyStandardModeForwardNode* source_head,
+    LegacyStandardModeForwardNode*& destination_head,
+    const compat::i32 mode,
+    const std::span<const compat::u32> mode_masks,
+    const compat::u32 mode_three_mask,
+    const compat::u32 mode_six_mask,
+    LegacyStandardModeRecordClonePorts& ports
+) noexcept {
+    LegacyStandardModeRecordCloneResult result;
+    destination_head = nullptr;
+    if (mode != 0 && mode != 3 && mode != 6 &&
+        (mode < 0 || static_cast<std::size_t>(mode) >= mode_masks.size())) {
+        result.status =
+            LegacyStandardModeRecordCloneStatus::mode_mask_out_of_range;
+        return result;
+    }
+
+    LegacyStandardModeForwardNode* source = source_head;
+    while (source != nullptr) {
+        LegacyStandardModeForwardNode* const next_source =
+            const_cast<LegacyStandardModeForwardNode*>(source->next);
+        LegacyStandardModeForwardNode* clone = ports.clone_record(*source);
+        if (clone == nullptr) {
+            result.status =
+                LegacyStandardModeRecordCloneStatus::allocation_stopped;
+            return result;
+        }
+        clone->next = nullptr;
+
+        bool accepted = false;
+        if (mode == 0) {
+            accepted = clone->second_value != 0U;
+        } else if (mode == 3) {
+            accepted = clone->first_value != 0U &&
+                (clone->filter_flags & mode_three_mask) != 0U;
+        } else if (mode == 6) {
+            accepted = clone->first_value != 0U &&
+                (clone->filter_flags & mode_six_mask) != 0U;
+        } else if (clone->first_value != 0U) {
+            const compat::u32 flags = clone->filter_flags;
+            accepted =
+                (mode_masks[static_cast<std::size_t>(mode)] & flags) != 0U &&
+                ((mode_six_mask + mode_three_mask) & flags) == 0U;
+        }
+
+        if (source->filter_flags == 0U) {
+            result.legacy_return_value = ports.debug_query(2U);
+            ++result.debug_query_count;
+            if (result.legacy_return_value != 0) {
+                ports.report_zero_filter_record(
+                    source->text_index, source->filter_flags
+                );
+            }
+            accepted = true;
+        }
+        if (!accepted) {
+            ports.release_record(*clone);
+            ++result.release_count;
+            ++result.rejected_count;
+            source = next_source;
+            continue;
+        }
+
+        if (mode != 0) {
+            clone->second_value = 0U;
+            source->first_value = 0U;
+        } else {
+            clone->first_value = 0U;
+            source->second_value = 0U;
+        }
+
+        LegacyStandardModeForwardNode* previous = nullptr;
+        LegacyStandardModeForwardNode* current = destination_head;
+        compat::u16 previous_text_index = 0U;
+        while (current != nullptr &&
+               (current->text_index < clone->text_index ||
+                previous_text_index >= clone->text_index)) {
+            previous_text_index = current->text_index;
+            previous = current;
+            current = const_cast<LegacyStandardModeForwardNode*>(current->next);
+        }
+        clone->next = current;
+        if (previous == nullptr) {
+            destination_head = clone;
+        } else {
+            previous->next = clone;
+        }
+        ++result.accepted_count;
+        source = next_source;
+    }
+    return result;
+}
+
 LegacyStandardModeEquipmentRecordSortResult
 sort_legacy_standard_mode_equipment_records(
     LegacyStandardModeForwardNode& source_root,

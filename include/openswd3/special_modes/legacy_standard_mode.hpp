@@ -1303,6 +1303,48 @@ struct LegacyStandardModeForwardNode {
     std::string animated_text{};
 };
 
+class LegacyStandardModeRecordClonePorts {
+public:
+    virtual ~LegacyStandardModeRecordClonePorts() = default;
+    [[nodiscard]] virtual LegacyStandardModeForwardNode*
+    clone_record(const LegacyStandardModeForwardNode& source) noexcept = 0;
+    virtual void
+    release_record(LegacyStandardModeForwardNode& record) noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    debug_query(compat::u32 service_id) noexcept = 0;
+    virtual void report_zero_filter_record(
+        compat::u16 text_index, compat::u32 filter_flags
+    ) noexcept = 0;
+};
+
+enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
+    completed,
+    mode_mask_out_of_range,
+    allocation_stopped,
+};
+
+struct LegacyStandardModeRecordCloneResult {
+    LegacyStandardModeRecordCloneStatus status{
+        LegacyStandardModeRecordCloneStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 accepted_count{};
+    compat::u32 rejected_count{};
+    compat::u32 debug_query_count{};
+    compat::u32 release_count{};
+};
+
+[[nodiscard]] LegacyStandardModeRecordCloneResult
+rebuild_legacy_standard_mode_selection_records(
+    LegacyStandardModeForwardNode* source_head,
+    LegacyStandardModeForwardNode*& destination_head,
+    compat::i32 mode,
+    std::span<const compat::u32> mode_masks,
+    compat::u32 mode_three_mask,
+    compat::u32 mode_six_mask,
+    LegacyStandardModeRecordClonePorts& ports
+) noexcept;
+
 struct LegacyStandardModeEquipmentSortedRecordState {
     const LegacyStandardModeForwardNode* head{};
     compat::u16 sentinel_text_index{};

@@ -12,6 +12,7 @@
 #include <functional>
 #include <iterator>
 #include <limits>
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -14967,6 +14968,43 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         std::vector<u32> events;
     };
 
+    class RecordClonePorts final
+        : public openswd3::special_modes::LegacyStandardModeRecordClonePorts {
+    public:
+        LegacyStandardModeForwardNode* clone_record(
+            const LegacyStandardModeForwardNode& source
+        ) noexcept override {
+            if (!allocation_available) {
+                return nullptr;
+            }
+            records.push_back(
+                std::make_unique<LegacyStandardModeForwardNode>(source)
+            );
+            return records.back().get();
+        }
+        void release_record(
+            LegacyStandardModeForwardNode& record
+        ) noexcept override {
+            released.push_back(&record);
+        }
+        i32 debug_query(const u32 service_id) noexcept override {
+            debug_queries.push_back(service_id);
+            return debug_return;
+        }
+        void report_zero_filter_record(
+            const u16 text_index, const u32 filter_flags
+        ) noexcept override {
+            reports.push_back({text_index, filter_flags});
+        }
+
+        bool allocation_available{true};
+        i32 debug_return{1};
+        std::vector<std::unique_ptr<LegacyStandardModeForwardNode>> records;
+        std::vector<LegacyStandardModeForwardNode*> released;
+        std::vector<u32> debug_queries;
+        std::vector<std::pair<u16, u32>> reports;
+    };
+
     class GroupEightCommitPorts final
         : public openswd3::special_modes::
               LegacyStandardModeGroupEightInteractionCommitPorts {
@@ -15384,6 +15422,87 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         openswd3::special_modes::LegacyStandardModeGroupEightState;
     using GroupEightInput =
         openswd3::special_modes::LegacyStandardModeGroupEightInputSnapshot;
+    LegacyStandardModeForwardNode clone_source_two;
+    LegacyStandardModeForwardNode clone_source_one;
+    LegacyStandardModeForwardNode clone_source_zero;
+    clone_source_zero.next = &clone_source_one;
+    clone_source_one.next = &clone_source_two;
+    clone_source_zero.text_index = 30U;
+    clone_source_zero.first_value = 1U;
+    clone_source_zero.second_value = 2U;
+    clone_source_zero.filter_flags = 1U;
+    clone_source_zero.display_name = "thirty";
+    clone_source_one.text_index = 10U;
+    clone_source_one.first_value = 1U;
+    clone_source_one.filter_flags = 0U;
+    clone_source_one.display_name = "ten";
+    clone_source_two.text_index = 20U;
+    clone_source_two.first_value = 0U;
+    clone_source_two.filter_flags = 2U;
+    LegacyStandardModeForwardNode* cloned_head = nullptr;
+    RecordClonePorts clone_ports;
+    constexpr std::array<u32, 7U> clone_masks{0U, 1U, 2U, 4U, 8U, 16U, 32U};
+    const auto cloned =
+        openswd3::special_modes::rebuild_legacy_standard_mode_selection_records(
+            &clone_source_zero, cloned_head, 3, clone_masks, 1U, 2U, clone_ports
+        );
+    clone_source_zero.display_name = "changed";
+    LegacyStandardModeForwardNode mode_zero_source;
+    mode_zero_source.text_index = 5U;
+    mode_zero_source.first_value = 9U;
+    mode_zero_source.second_value = 1U;
+    mode_zero_source.filter_flags = 1U;
+    LegacyStandardModeForwardNode* mode_zero_head = nullptr;
+    RecordClonePorts mode_zero_ports;
+    const auto mode_zero_cloned =
+        openswd3::special_modes::rebuild_legacy_standard_mode_selection_records(
+            &mode_zero_source,
+            mode_zero_head,
+            0,
+            clone_masks,
+            1U,
+            2U,
+            mode_zero_ports
+        );
+    LegacyStandardModeForwardNode* allocation_stop_head = nullptr;
+    RecordClonePorts allocation_stop_ports;
+    allocation_stop_ports.allocation_available = false;
+    const auto allocation_stopped =
+        openswd3::special_modes::rebuild_legacy_standard_mode_selection_records(
+            &clone_source_zero,
+            allocation_stop_head,
+            3,
+            clone_masks,
+            1U,
+            2U,
+            allocation_stop_ports
+        );
+    test.expect_true(
+        cloned.status ==
+                openswd3::special_modes::LegacyStandardModeRecordCloneStatus::
+                    completed &&
+            cloned.accepted_count == 2U && cloned.rejected_count == 1U &&
+            cloned.release_count == 1U && cloned.debug_query_count == 1U &&
+            clone_ports.debug_queries == std::vector<u32>{2U} &&
+            clone_ports.reports ==
+                std::vector<std::pair<u16, u32>>{{10U, 0U}} &&
+            cloned_head != nullptr && cloned_head->text_index == 10U &&
+            cloned_head->next != nullptr &&
+            cloned_head->next->text_index == 30U &&
+            cloned_head->next->display_name == "thirty" &&
+            cloned_head->second_value == 0U &&
+            clone_source_zero.first_value == 0U &&
+            clone_source_one.first_value == 0U &&
+            clone_source_two.first_value == 0U &&
+            mode_zero_cloned.accepted_count == 1U &&
+            mode_zero_head->first_value == 0U &&
+            mode_zero_source.second_value == 0U &&
+            allocation_stopped.status ==
+                openswd3::special_modes::LegacyStandardModeRecordCloneStatus::
+                    allocation_stopped,
+        "0x448020 clones, filters, clears source fields and preserves its insertion order"
+    );
+
     LegacyStandardModeForwardNode first_selection_record;
     first_selection_record.text_index = 0xFFDCU;
     GroupEightState first_selection_state;
