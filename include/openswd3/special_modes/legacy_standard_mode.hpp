@@ -798,6 +798,11 @@ struct LegacyStandardModeDatabaseInitializationState {
 
 inline constexpr std::size_t kLegacyStandardModeGuardianRecordCount = 7U * 16U;
 
+struct LegacyStandardModeGuardianRecordFlags {
+    compat::u16 active{};
+    compat::u16 secondary{};
+};
+
 struct LegacyStandardModeGuardianInitializationState {
     std::array<compat::u8, 0xB0U> scratch_record{};
     std::array<compat::u8, kLegacyStandardModeSharedTextCapacity> shared_text{};
@@ -838,6 +843,10 @@ struct LegacyStandardModeGuardianInitializationState {
     compat::u32 transition_reset_second{};
     compat::u32 deferred_interaction_mode{};
     compat::u32 published_transition_value{};
+    compat::u32 list_storage_token{};
+    compat::u32 global_mode_value{};
+    compat::u16 lifecycle_phase{};
+    compat::u16 global_control_flags{};
     bool uses_alternate_record_list{};
 };
 
@@ -943,8 +952,18 @@ public:
     ) noexcept = 0;
 };
 
-class LegacyStandardModeGuardianInputPorts
+class LegacyStandardModeGuardianCommitPorts
     : public LegacyStandardModeGuardianInteractionPorts {
+public:
+    ~LegacyStandardModeGuardianCommitPorts() override = default;
+    virtual void
+    bind_guardian_callbacks(compat::u16 lifecycle_phase) noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    release_guardian_storage(compat::u32 token) noexcept = 0;
+};
+
+class LegacyStandardModeGuardianInputPorts
+    : public LegacyStandardModeGuardianCommitPorts {
 public:
     virtual ~LegacyStandardModeGuardianInputPorts() = default;
     [[nodiscard]] virtual compat::i32 invoke_guardian_input(
@@ -2640,6 +2659,15 @@ switch_legacy_standard_mode_guardian_interaction(
     LegacyStandardModeGuardianInteractionPorts& ports
 ) noexcept;
 
+[[nodiscard]] LegacyStandardModeGuardianSelectionResult
+commit_legacy_standard_mode_guardian_interaction(
+    LegacyStandardModeGuardianInitializationState& state,
+    std::span<LegacyStandardModeGuardianRecordFlags> guardian_record_flags,
+    std::span<const compat::u32> guardian_text_indices,
+    std::span<const compat::u8> maps_payload,
+    LegacyStandardModeGuardianCommitPorts& ports
+) noexcept;
+
 [[nodiscard]] LegacyStandardModeGuardianInputResult
 handle_legacy_standard_mode_guardian_input(
     LegacyStandardModeGuardianInitializationState& state,
@@ -2647,6 +2675,7 @@ handle_legacy_standard_mode_guardian_input(
     std::span<const LegacyStandardModeAvailabilityRecord> availability_records,
     std::span<const compat::u16> guardian_party_markers,
     std::span<const compat::u32> guardian_text_indices,
+    std::span<LegacyStandardModeGuardianRecordFlags> guardian_record_flags,
     std::span<const compat::u8> maps_payload,
     LegacyStandardModeGuardianInputPorts& ports
 ) noexcept;
