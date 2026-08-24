@@ -217,6 +217,10 @@ update_legacy_standard_mode_transition_interaction(
     LegacyStandardModeTransitionVisualState& state
 ) noexcept;
 
+[[nodiscard]] compat::i32 retreat_legacy_standard_mode_transition_selection(
+    LegacyStandardModeTransitionVisualState& state
+) noexcept;
+
 class LegacyStandardModeCallbackBindingPorts
     : public virtual LegacyStandardModeStoryFlagPorts {
 public:

@@ -14973,6 +14973,36 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x448BB0 clamps both selectors while preserving the pre-clamp and unrelated EAX residuals"
     );
 
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        retreat_transition_one;
+    retreat_transition_one.progress = 1U;
+    const i32 retreat_transition_one_residual = openswd3::special_modes::
+        retreat_legacy_standard_mode_transition_selection(
+            retreat_transition_one
+        );
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        retreat_transition_five;
+    retreat_transition_five.progress = 5U;
+    const i32 retreat_transition_five_residual = openswd3::special_modes::
+        retreat_legacy_standard_mode_transition_selection(
+            retreat_transition_five
+        );
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        retreat_transition_other;
+    retreat_transition_other.progress = 2U;
+    const i32 retreat_transition_other_residual = openswd3::special_modes::
+        retreat_legacy_standard_mode_transition_selection(
+            retreat_transition_other
+        );
+    test.expect_true(
+        retreat_transition_one.enabled == 0U &&
+            retreat_transition_one_residual == -1 &&
+            retreat_transition_five.velocity == 0 &&
+            retreat_transition_five_residual == -1 &&
+            retreat_transition_other_residual == -3,
+        "0x448C00 clamps both selectors at zero while preserving negative and unrelated EAX residuals"
+    );
+
     for (const auto& item : cases) {
         LegacyStandardModeCallbackState state;
         state.targets.fill(0xDEADBEEFU);

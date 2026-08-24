@@ -569,6 +569,30 @@ compat::i32 advance_legacy_standard_mode_transition_selection(
     return advanced_residual;
 }
 
+compat::i32 retreat_legacy_standard_mode_transition_selection(
+    LegacyStandardModeTransitionVisualState& state
+) noexcept {
+    if (state.progress == 1U) {
+        const compat::i32 residual =
+            std::bit_cast<compat::i32>(state.enabled) - 1;
+        state.enabled = std::bit_cast<compat::u32>(residual);
+        if (residual < 0) {
+            state.enabled = 0U;
+        }
+        return residual;
+    }
+    const compat::i32 residual = static_cast<compat::i32>(state.progress) - 5;
+    if (state.progress != 5U) {
+        return residual;
+    }
+    const compat::i32 retreated_residual = state.velocity - 1;
+    state.velocity = retreated_residual;
+    if (retreated_residual < 0) {
+        state.velocity = 0;
+    }
+    return retreated_residual;
+}
+
 LegacyStandardModeCallbackBindingResult bind_legacy_standard_mode_callbacks(
     LegacyStandardModeCallbackState& state,
     const compat::u16 secondary_word,
