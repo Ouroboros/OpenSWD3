@@ -619,6 +619,320 @@ advance_legacy_standard_mode_equipment_column(
     return result;
 }
 
+LegacyStandardModeEquipmentCommitResult commit_legacy_standard_mode_equipment(
+    LegacyStandardModeEquipmentInitializationState& state,
+    const std::span<const compat::u8> maps_payload,
+    LegacyStandardModeEquipmentCommitPorts& ports
+) noexcept {
+    LegacyStandardModeEquipmentCommitResult result;
+    const compat::u32 mode = state.mode_enabled;
+    result.legacy_return_value = std::bit_cast<compat::i32>(mode - 1U);
+    if (mode == 5U) {
+        state.mode_enabled = 1U;
+        state.panel_motion = -0x80;
+        return result;
+    }
+    if (mode == 0x11U || mode == 0x12U) {
+        state.mode_enabled = 1U;
+        return result;
+    }
+    if (mode != 1U && mode != 2U && mode != 0x0FU) {
+        return result;
+    }
+
+    const LegacyStandardModeForwardNode* const record_head = state.record_head;
+    const LegacyStandardModeForwardNode* const selected_record =
+        index_legacy_standard_mode_forward_node(
+            std::bit_cast<compat::i32>(
+                state.list_offset + state.local_selection
+            ),
+            &record_head
+        );
+    ++result.helper_call_count;
+    if (selected_record == nullptr) {
+        result.status =
+            LegacyStandardModeEquipmentCommitStatus::selected_record_missing;
+        return result;
+    }
+    if (mode == 1U && selected_record->text_index == 0xFFDCU) {
+        return result;
+    }
+    const compat::u32 party = static_cast<compat::u16>(state.party_selector);
+    if (party >= state.party_primary_resources.size()) {
+        result.status = LegacyStandardModeEquipmentCommitStatus::
+            party_selector_out_of_range;
+        return result;
+    }
+    const compat::u16 cost = selected_record->equipment_cost_flags;
+    const auto play_sample = [&](const compat::u16 sample) {
+        result.legacy_return_value =
+            ports.execute_equipment_sample_command(sample, state.sample_owner);
+        ++result.helper_call_count;
+    };
+    const auto copy_to_party = [&](const compat::u32 target) {
+        if (target >= state.party_primary_resources.size()) {
+            result.status = LegacyStandardModeEquipmentCommitStatus::
+                party_target_out_of_range;
+            return false;
+        }
+        if (!ports.copy_equipment_record_to_party(target, *selected_record)) {
+            result.status =
+                LegacyStandardModeEquipmentCommitStatus::record_copy_stopped;
+            return false;
+        }
+        ++result.helper_call_count;
+        return true;
+    };
+
+    if (mode == 2U) {
+        compat::u32 required = 0U;
+        compat::u32 satisfied = 0U;
+        if ((cost & 0x8000U) != 0U) {
+            ++required;
+            const compat::u16 amount = cost & 0x7FFFU;
+            if (state.party_primary_resources[party] >= amount) {
+                ++satisfied;
+                state.party_primary_resources[party] = static_cast<compat::u16>(
+                    state.party_primary_resources[party] - amount
+                );
+            }
+        }
+        if ((cost & 0x4000U) != 0U) {
+            ++required;
+            const compat::u16 amount = cost & 0x3FFFU;
+            if (state.party_secondary_resources[party] >= amount) {
+                ++satisfied;
+                state.party_secondary_resources[party] =
+                    static_cast<compat::u16>(
+                        state.party_secondary_resources[party] - amount
+                    );
+            }
+        }
+        if (satisfied != required || required == 0U) {
+            play_sample(0x008CU);
+            return result;
+        }
+        const compat::u32 target = state.selected_party_action;
+        result.legacy_return_value = ports.query(target + 0x1EU);
+        ++result.helper_call_count;
+        if (result.legacy_return_value != 0) {
+            if (!copy_to_party(target)) {
+                return result;
+            }
+            play_sample(0x008BU);
+        }
+        return result;
+    }
+
+    if (mode == 0x0FU) {
+        state.party_primary_resources[party] = static_cast<compat::u16>(
+            state.party_primary_resources[party] - (cost & 0x7FFFU)
+        );
+        const compat::u32 filtered_index =
+            state.special_window_offset + state.hover_selection;
+        if (filtered_index >= state.filtered_records.records.size()) {
+            result.status = LegacyStandardModeEquipmentCommitStatus::
+                filtered_record_missing;
+            return result;
+        }
+        const LegacyStandardModeFilteredRecord& filtered =
+            state.filtered_records.records[filtered_index];
+        const LegacyStandardModeDialogSetupResult dialog =
+            initialize_legacy_standard_mode_dialog_setup(
+                static_cast<compat::i32>(filtered.first_value & 0xFFFFU),
+                static_cast<compat::i32>(filtered.first_value >> 16U),
+                static_cast<compat::i32>(filtered.second_value),
+                0x0052U,
+                state.dialog_record_index,
+                state.dialog_setup_records,
+                state.dialog_interface_source,
+                state.dialog_setup,
+                ports
+            );
+        ++result.helper_call_count;
+        result.legacy_return_value = dialog.legacy_return_value;
+        if (dialog.status != LegacyStandardModeDialogSetupStatus::completed) {
+            result.status =
+                LegacyStandardModeEquipmentCommitStatus::dialog_setup_stopped;
+            return result;
+        }
+        const compat::u32 released_count =
+            static_cast<compat::u32>(state.filtered_records.records.size());
+        state.special_window_offset = released_count;
+        state.filtered_records.records.clear();
+        state.special_record_count = 0U;
+        const LegacyStandardModeEquipmentCleanupResult cleanup =
+            cleanup_legacy_standard_mode_equipment(state, ports);
+        ++result.helper_call_count;
+        result.legacy_return_value = cleanup.legacy_return_value;
+        if (cleanup.status !=
+            LegacyStandardModeEquipmentCleanupStatus::completed) {
+            result.status =
+                LegacyStandardModeEquipmentCommitStatus::cleanup_stopped;
+            return result;
+        }
+        state.interaction_block = 0;
+        return result;
+    }
+
+    if (state.party_equipment_gates[party] < 0 ||
+        (selected_record->equipment_type_flags & 0x0FU) < 2U) {
+        play_sample(0x008CU);
+        return result;
+    }
+    compat::u32 required = 0U;
+    compat::u32 satisfied = 0U;
+    if ((cost & 0x8000U) != 0U) {
+        ++required;
+        if (state.party_primary_resources[party] >= (cost & 0x7FFFU)) {
+            ++satisfied;
+        }
+    }
+    if ((cost & 0x4000U) != 0U) {
+        ++required;
+        if (state.party_secondary_resources[party] >= (cost & 0x3FFFU)) {
+            ++satisfied;
+        }
+    }
+    if (satisfied != required || required == 0U) {
+        play_sample(0x008CU);
+        return result;
+    }
+
+    if (selected_record->text_index == 0x0619U) {
+        const compat::i32 present = ports.query(0x004EU);
+        ++result.helper_call_count;
+        if (present == 0) {
+            const LegacyStandardModeValueGroupResult group =
+                find_legacy_standard_mode_value_group(
+                    state.value_group_target, maps_payload
+                );
+            ++result.helper_call_count;
+            if (group.status == LegacyStandardModeValueGroupStatus::found) {
+                state.party_primary_resources[party] = static_cast<compat::u16>(
+                    state.party_primary_resources[party] - (cost & 0x7FFFU)
+                );
+                const std::size_t offset = group.group_offset;
+                const LegacyStandardModeDialogSetupResult dialog =
+                    initialize_legacy_standard_mode_dialog_setup(
+                        read_u16_le(maps_payload, offset),
+                        read_u16_le(maps_payload, offset + 2U),
+                        read_u16_le(maps_payload, offset + 4U),
+                        0x0052U,
+                        state.dialog_record_index,
+                        state.dialog_setup_records,
+                        state.dialog_interface_source,
+                        state.dialog_setup,
+                        ports
+                    );
+                ++result.helper_call_count;
+                result.legacy_return_value = dialog.legacy_return_value;
+                if (dialog.status !=
+                    LegacyStandardModeDialogSetupStatus::completed) {
+                    result.status = LegacyStandardModeEquipmentCommitStatus::
+                        dialog_setup_stopped;
+                    return result;
+                }
+                const LegacyStandardModeEquipmentCleanupResult cleanup =
+                    cleanup_legacy_standard_mode_equipment(state, ports);
+                ++result.helper_call_count;
+                result.legacy_return_value = cleanup.legacy_return_value;
+                if (cleanup.status !=
+                    LegacyStandardModeEquipmentCleanupStatus::completed) {
+                    result.status = LegacyStandardModeEquipmentCommitStatus::
+                        cleanup_stopped;
+                    return result;
+                }
+                state.interaction_block = 0;
+                return result;
+            }
+            if (group.status ==
+                LegacyStandardModeValueGroupStatus::maps_payload_out_of_range) {
+                result.status = LegacyStandardModeEquipmentCommitStatus::
+                    value_group_stopped;
+                return result;
+            }
+        }
+        state.mode_enabled = 0x12U;
+        play_sample(0x008CU);
+        return result;
+    }
+
+    if (selected_record->text_index == 0x061EU) {
+        const compat::i32 present = ports.query(0x004DU);
+        ++result.helper_call_count;
+        if (present != 0 || state.filtered_source_enabled != 1) {
+            state.mode_enabled = 0x11U;
+            play_sample(0x008CU);
+            return result;
+        }
+        state.mode_enabled = 0x0FU;
+        const LegacyStandardModeFilteredRecordResult filtered =
+            build_legacy_standard_mode_filtered_records(
+                state.filtered_records, maps_payload, ports
+            );
+        ++result.helper_call_count;
+        if (filtered.status !=
+            LegacyStandardModeFilteredRecordStatus::completed) {
+            result.status = LegacyStandardModeEquipmentCommitStatus::
+                filtered_records_stopped;
+            return result;
+        }
+        state.special_record_count =
+            static_cast<compat::u32>(state.filtered_records.records.size());
+        state.special_window_offset = 0U;
+        state.hover_selection = 0U;
+        state.hover_record_count =
+            std::min<compat::u32>(state.special_record_count, 8U);
+        result.legacy_return_value =
+            std::bit_cast<compat::i32>(state.special_record_count);
+        return result;
+    }
+
+    const std::optional<LegacyStandardModeEquipmentActionLoadResult> loaded =
+        ports.load_equipment_action(selected_record->equipment_action_id);
+    ++result.helper_call_count;
+    if (!loaded.has_value()) {
+        result.status =
+            LegacyStandardModeEquipmentCommitStatus::action_load_stopped;
+        return result;
+    }
+    result.legacy_return_value = loaded->legacy_return_value;
+    if (loaded->legacy_return_value != 1) {
+        return result;
+    }
+    if ((loaded->flags & 1U) == 0U) {
+        ++state.mode_enabled;
+        state.transition_word =
+            static_cast<compat::u16>(state.mode_enabled + 1U);
+        result.legacy_return_value =
+            std::bit_cast<compat::i32>(state.mode_enabled + 1U);
+        return result;
+    }
+    if ((cost & 0x8000U) != 0U &&
+        state.party_primary_resources[party] >= (cost & 0x7FFFU)) {
+        state.party_primary_resources[party] = static_cast<compat::u16>(
+            state.party_primary_resources[party] - (cost & 0x7FFFU)
+        );
+    }
+    if ((cost & 0x4000U) != 0U &&
+        state.party_secondary_resources[party] >= (cost & 0x3FFFU)) {
+        state.party_secondary_resources[party] = static_cast<compat::u16>(
+            state.party_secondary_resources[party] - (cost & 0x3FFFU)
+        );
+    }
+    play_sample(0x008BU);
+    for (compat::u32 target = 0U; target < state.party_primary_resources.size();
+         ++target) {
+        result.legacy_return_value = ports.query(target + 0x1EU);
+        ++result.helper_call_count;
+        if (result.legacy_return_value != 0 && !copy_to_party(target)) {
+            return result;
+        }
+    }
+    return result;
+}
+
 LegacyStandardModeEquipmentListKindCycleResult
 cycle_legacy_standard_mode_equipment_list_kind(
     LegacyStandardModeEquipmentInitializationState& state,
@@ -1251,13 +1565,31 @@ handle_legacy_standard_mode_equipment_input(
     LegacyStandardModeEquipmentInputResult result;
     result.legacy_return_value = std::bit_cast<compat::i32>(input.register_eax);
     state.first_render_zero = 0U;
-    const auto invoke =
-        [&](const LegacyStandardModeEquipmentInputTarget target) {
-            result.last_target = target;
-            ++result.callback_count;
+    const auto invoke = [&](
+                            const LegacyStandardModeEquipmentInputTarget target
+                        ) {
+        result.last_target = target;
+        ++result.callback_count;
+        if (target != LegacyStandardModeEquipmentInputTarget::commit_action) {
             result.legacy_return_value =
                 ports.invoke_equipment_input(target, state, input);
-        };
+            return;
+        }
+        const LegacyStandardModeEquipmentCommitResult committed =
+            commit_legacy_standard_mode_equipment(state, maps_payload, ports);
+        result.legacy_return_value = committed.legacy_return_value;
+        if (committed.status ==
+            LegacyStandardModeEquipmentCommitStatus::selected_record_missing) {
+            result.status =
+                LegacyStandardModeEquipmentInputStatus::selected_record_missing;
+        } else if (
+            committed.status !=
+            LegacyStandardModeEquipmentCommitStatus::completed
+        ) {
+            result.status =
+                LegacyStandardModeEquipmentInputStatus::commit_stopped;
+        }
+    };
     const auto retreat_selection = [&]() {
         result.last_target =
             LegacyStandardModeEquipmentInputTarget::retreat_selection;

@@ -523,6 +523,110 @@ bind_legacy_standard_mode_callbacks(
     LegacyStandardModeCallbackBindingPorts& ports
 ) noexcept;
 
+enum class LegacyStandardModeValueGroupStatus : compat::u8 {
+    found,
+    not_found,
+    maps_payload_out_of_range,
+};
+
+struct LegacyStandardModeValueGroupResult {
+    LegacyStandardModeValueGroupStatus status{
+        LegacyStandardModeValueGroupStatus::maps_payload_out_of_range
+    };
+    compat::u32 group_offset{};
+};
+
+inline constexpr std::size_t kLegacyStandardModeFilteredRecordCapacity = 512U;
+inline constexpr std::size_t kLegacyStandardModeFilteredTextCapacity = 64U;
+
+struct LegacyStandardModeFilteredRecord {
+    compat::u32 first_value{};
+    compat::u16 second_value{};
+    std::array<compat::u8, kLegacyStandardModeFilteredTextCapacity> text{};
+    compat::u32 text_length{};
+};
+
+struct LegacyStandardModeFilteredRecordState {
+    std::vector<LegacyStandardModeFilteredRecord> records;
+};
+
+class LegacyStandardModeFilterQueryPorts {
+public:
+    virtual ~LegacyStandardModeFilterQueryPorts() = default;
+    [[nodiscard]] virtual compat::i32
+    query(compat::u32 service_id) noexcept = 0;
+};
+
+enum class LegacyStandardModeFilteredRecordStatus : compat::u8 {
+    completed,
+    maps_payload_out_of_range,
+    name_marker_not_found,
+    name_buffer_overflow,
+    condition_terminator_not_found,
+    record_capacity_overflow,
+    allocation_failed,
+};
+
+struct LegacyStandardModeFilteredRecordResult {
+    LegacyStandardModeFilteredRecordStatus status{
+        LegacyStandardModeFilteredRecordStatus::maps_payload_out_of_range
+    };
+    compat::u32 accepted_record_count{};
+    compat::u32 query_count{};
+    compat::u32 source_cursor_offset{};
+};
+
+struct LegacyStandardModeDialogSetupRecord {
+    compat::u32 draw_value{};
+    compat::u32 first_state_value{};
+    compat::u32 return_state_value{};
+    compat::u32 third_state_value{};
+};
+
+struct LegacyStandardModeDialogSetupState {
+    std::array<compat::u8, 128U> marker_bytes{};
+    compat::u16 input_word{};
+    compat::u32 zero_dword{};
+    compat::u16 zero_word{};
+    compat::u32 packed_low_word{};
+    compat::u32 first_state_value{};
+    compat::u32 return_state_value{};
+    compat::u32 third_state_value{};
+};
+
+struct LegacyStandardModeDialogDrawRequest {
+    compat::i32 first{};
+    compat::i32 second{};
+    compat::i32 third{};
+    compat::u32 record_value{};
+    compat::i32 zero{};
+    compat::i32 first_flag{};
+    compat::i32 second_flag{};
+};
+
+class LegacyStandardModeDialogSetupPorts {
+public:
+    virtual ~LegacyStandardModeDialogSetupPorts() = default;
+    virtual void clear_surface(compat::u32 byte_count) noexcept = 0;
+    virtual void configure_interface(
+        compat::u32 service_id, compat::u32 source_value
+    ) noexcept = 0;
+    virtual void
+    draw(const LegacyStandardModeDialogDrawRequest& request) noexcept = 0;
+};
+
+enum class LegacyStandardModeDialogSetupStatus : compat::u8 {
+    completed,
+    record_index_out_of_range,
+};
+
+struct LegacyStandardModeDialogSetupResult {
+    LegacyStandardModeDialogSetupStatus status{
+        LegacyStandardModeDialogSetupStatus::record_index_out_of_range
+    };
+    compat::i32 legacy_return_value{};
+};
+
 struct LegacyStandardModeForwardNode {
     const LegacyStandardModeForwardNode* next{};
     compat::u16 text_index{};
@@ -536,6 +640,9 @@ struct LegacyStandardModeForwardNode {
     compat::u16 filter_value{};
     compat::i8 filter_type{};
     compat::u16 record_enabled{};
+    compat::u8 equipment_type_flags{};
+    compat::u16 equipment_action_id{};
+    compat::u16 equipment_cost_flags{};
     std::array<compat::u8, 0xB0U> record_bytes{};
     std::string animated_text{};
 };
@@ -554,6 +661,9 @@ struct LegacyStandardModeEquipmentInitializationState {
     compat::u32 local_selection{};
     const LegacyStandardModeForwardNode* record_head{};
     std::array<compat::u16, 4U> party_markers{};
+    std::array<compat::i16, 4U> party_equipment_gates{};
+    std::array<compat::u16, 4U> party_primary_resources{};
+    std::array<compat::u16, 4U> party_secondary_resources{};
     std::array<compat::u8, 128U> shared_text{};
     compat::u32 first_render_zero{};
     compat::u32 second_render_zero{};
@@ -567,6 +677,16 @@ struct LegacyStandardModeEquipmentInitializationState {
     compat::u32 hover_record_count{};
     compat::u32 special_record_count{};
     compat::u32 special_window_offset{};
+    LegacyStandardModeFilteredRecordState filtered_records{};
+    LegacyStandardModeDialogSetupState dialog_setup{};
+    std::vector<LegacyStandardModeDialogSetupRecord> dialog_setup_records;
+    compat::u32 dialog_record_index{};
+    compat::u32 dialog_interface_source{};
+    compat::i32 value_group_target{};
+    compat::i32 filtered_source_enabled{};
+    compat::u16 transition_word{};
+    compat::i32 interaction_block{};
+    compat::i32 panel_motion{};
     const LegacyStandardModeForwardNode* visible_record_head{};
     compat::i32 first_dynamic_min_y{};
     compat::i32 first_dynamic_max_y{};
@@ -674,6 +794,7 @@ enum class LegacyStandardModeEquipmentInputStatus : compat::u8 {
     availability_index_out_of_range,
     selected_record_missing,
     shared_text_stopped,
+    commit_stopped,
     list_kind_cycle_stopped,
     party_mapping_stopped,
     party_cycle_stopped,
@@ -899,8 +1020,58 @@ cycle_legacy_standard_mode_equipment_list_kind(
     LegacyStandardModeEquipmentListKindCyclePorts& ports
 ) noexcept;
 
+struct LegacyStandardModeEquipmentActionLoadResult {
+    compat::i32 legacy_return_value{};
+    compat::u32 flags{};
+};
+
+class LegacyStandardModeEquipmentCommitPorts
+    : public LegacyStandardModeEquipmentListKindCyclePorts,
+      public LegacyStandardModeFilterQueryPorts,
+      public LegacyStandardModeDialogSetupPorts,
+      public LegacyStandardModeEquipmentCleanupPorts {
+public:
+    ~LegacyStandardModeEquipmentCommitPorts() override = default;
+    [[nodiscard]] virtual std::optional<
+        LegacyStandardModeEquipmentActionLoadResult>
+    load_equipment_action(compat::u16 action_id) noexcept = 0;
+    [[nodiscard]] virtual bool copy_equipment_record_to_party(
+        compat::u32 party_index,
+        const LegacyStandardModeForwardNode& selected_record
+    ) noexcept = 0;
+};
+
+enum class LegacyStandardModeEquipmentCommitStatus : compat::u8 {
+    completed,
+    selected_record_missing,
+    party_selector_out_of_range,
+    value_group_stopped,
+    filtered_records_stopped,
+    filtered_record_missing,
+    dialog_setup_stopped,
+    action_load_stopped,
+    party_target_out_of_range,
+    record_copy_stopped,
+    cleanup_stopped,
+};
+
+struct LegacyStandardModeEquipmentCommitResult {
+    LegacyStandardModeEquipmentCommitStatus status{
+        LegacyStandardModeEquipmentCommitStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacyStandardModeEquipmentCommitResult
+commit_legacy_standard_mode_equipment(
+    LegacyStandardModeEquipmentInitializationState& state,
+    std::span<const compat::u8> maps_payload,
+    LegacyStandardModeEquipmentCommitPorts& ports
+) noexcept;
+
 class LegacyStandardModeEquipmentInputPorts
-    : public LegacyStandardModeEquipmentListKindCyclePorts {
+    : public LegacyStandardModeEquipmentCommitPorts {
 public:
     ~LegacyStandardModeEquipmentInputPorts() override = default;
     [[nodiscard]] virtual compat::i32 invoke_equipment_input(
@@ -1051,110 +1222,6 @@ struct LegacyStandardModeWindowSelectionResult {
     const LegacyStandardModeForwardNode* selected_node{};
     compat::i32 selection_index{};
     bool missing_node_requested{};
-};
-
-enum class LegacyStandardModeValueGroupStatus : compat::u8 {
-    found,
-    not_found,
-    maps_payload_out_of_range,
-};
-
-struct LegacyStandardModeValueGroupResult {
-    LegacyStandardModeValueGroupStatus status{
-        LegacyStandardModeValueGroupStatus::maps_payload_out_of_range
-    };
-    compat::u32 group_offset{};
-};
-
-inline constexpr std::size_t kLegacyStandardModeFilteredRecordCapacity = 512U;
-inline constexpr std::size_t kLegacyStandardModeFilteredTextCapacity = 64U;
-
-struct LegacyStandardModeFilteredRecord {
-    compat::u32 first_value{};
-    compat::u16 second_value{};
-    std::array<compat::u8, kLegacyStandardModeFilteredTextCapacity> text{};
-    compat::u32 text_length{};
-};
-
-struct LegacyStandardModeFilteredRecordState {
-    std::vector<LegacyStandardModeFilteredRecord> records;
-};
-
-class LegacyStandardModeFilterQueryPorts {
-public:
-    virtual ~LegacyStandardModeFilterQueryPorts() = default;
-    [[nodiscard]] virtual compat::i32
-    query(compat::u32 service_id) noexcept = 0;
-};
-
-enum class LegacyStandardModeFilteredRecordStatus : compat::u8 {
-    completed,
-    maps_payload_out_of_range,
-    name_marker_not_found,
-    name_buffer_overflow,
-    condition_terminator_not_found,
-    record_capacity_overflow,
-    allocation_failed,
-};
-
-struct LegacyStandardModeFilteredRecordResult {
-    LegacyStandardModeFilteredRecordStatus status{
-        LegacyStandardModeFilteredRecordStatus::maps_payload_out_of_range
-    };
-    compat::u32 accepted_record_count{};
-    compat::u32 query_count{};
-    compat::u32 source_cursor_offset{};
-};
-
-struct LegacyStandardModeDialogSetupRecord {
-    compat::u32 draw_value{};
-    compat::u32 first_state_value{};
-    compat::u32 return_state_value{};
-    compat::u32 third_state_value{};
-};
-
-struct LegacyStandardModeDialogSetupState {
-    std::array<compat::u8, 128U> marker_bytes{};
-    compat::u16 input_word{};
-    compat::u32 zero_dword{};
-    compat::u16 zero_word{};
-    compat::u32 packed_low_word{};
-    compat::u32 first_state_value{};
-    compat::u32 return_state_value{};
-    compat::u32 third_state_value{};
-};
-
-struct LegacyStandardModeDialogDrawRequest {
-    compat::i32 first{};
-    compat::i32 second{};
-    compat::i32 third{};
-    compat::u32 record_value{};
-    compat::i32 zero{};
-    compat::i32 first_flag{};
-    compat::i32 second_flag{};
-};
-
-class LegacyStandardModeDialogSetupPorts {
-public:
-    virtual ~LegacyStandardModeDialogSetupPorts() = default;
-    virtual void clear_surface(compat::u32 byte_count) noexcept = 0;
-    virtual void configure_interface(
-        compat::u32 service_id, compat::u32 source_value
-    ) noexcept = 0;
-    virtual void
-    draw(const LegacyStandardModeDialogDrawRequest& request) noexcept = 0;
-};
-
-enum class LegacyStandardModeDialogSetupStatus : compat::u8 {
-    completed,
-    record_index_out_of_range,
-};
-
-struct LegacyStandardModeDialogSetupResult {
-    LegacyStandardModeDialogSetupStatus status{
-        LegacyStandardModeDialogSetupStatus::record_index_out_of_range
-    };
-    compat::i32 legacy_return_value{};
 };
 
 struct LegacyStandardModeAvailabilityRecord {

@@ -2986,6 +2986,64 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return party_cycle_finalized_action_count;
         }
 
+        i32 query(const u32 service_id) noexcept override {
+            commit_query_ids.push_back(service_id);
+            for (const auto& [id, value] : commit_query_values) {
+                if (id == service_id) {
+                    return value;
+                }
+            }
+            return service_id < item_presence.size() ? item_presence[service_id]
+                                                     : 0;
+        }
+
+        void clear_surface(const u32 byte_count) noexcept override {
+            dialog_events.push_back(1U);
+            cleared_surface_bytes = byte_count;
+        }
+
+        void configure_interface(
+            const u32 service_id, const u32 source_value
+        ) noexcept override {
+            dialog_events.push_back(2U);
+            dialog_interface = {service_id, source_value};
+        }
+
+        void draw(
+            const sm::LegacyStandardModeDialogDrawRequest& request
+        ) noexcept override {
+            dialog_events.push_back(3U);
+            dialog_draw = request;
+        }
+
+        bool cleanup_equipment_record_list(
+            sm::LegacyStandardModeEquipmentInitializationState&
+        ) noexcept override {
+            ++commit_cleanup_calls;
+            return commit_cleanup_available;
+        }
+
+        i32 release_equipment_workspace(const u32 token) noexcept override {
+            released_workspace_tokens.push_back(token);
+            return released_workspace_return;
+        }
+
+        std::optional<sm::LegacyStandardModeEquipmentActionLoadResult>
+        load_equipment_action(const u16 action_id) noexcept override {
+            loaded_action_ids.push_back(action_id);
+            return equipment_action_load;
+        }
+
+        bool copy_equipment_record_to_party(
+            const u32 party_index,
+            const sm::LegacyStandardModeForwardNode& selected_record
+        ) noexcept override {
+            copied_party_records.push_back(
+                {party_index, selected_record.text_index}
+            );
+            return equipment_record_copy_available;
+        }
+
         bool cleanup_equipment_list_kind_cycle(
             sm::LegacyStandardModeEquipmentInitializationState&
         ) noexcept override {
@@ -3014,6 +3072,18 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         i32 sample_return{77};
         u32 party_selector_before_cycle{};
         std::optional<i32> party_cycle_finalized_action_count{17};
+        std::optional<sm::LegacyStandardModeEquipmentActionLoadResult>
+            equipment_action_load{
+                sm::LegacyStandardModeEquipmentActionLoadResult{1, 1U}
+            };
+        std::vector<std::pair<u32, i32>> commit_query_values;
+        bool commit_cleanup_available{true};
+        bool equipment_record_copy_available{true};
+        i32 released_workspace_return{-7};
+        u32 commit_cleanup_calls{};
+        u32 cleared_surface_bytes{};
+        std::array<u32, 2U> dialog_interface{};
+        sm::LegacyStandardModeDialogDrawRequest dialog_draw{};
         sm::LegacyStandardModeEquipmentInitializationState* sample_state{};
         std::optional<u32> sample_final_zero{};
         std::vector<sm::LegacyStandardModeEquipmentInputTarget> targets;
@@ -3022,6 +3092,11 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         std::vector<u32> cycle_events;
         std::vector<u32> list_kind_events;
         std::vector<u32> finalized_party_actions;
+        std::vector<u32> commit_query_ids;
+        std::vector<u32> dialog_events;
+        std::vector<u16> loaded_action_ids;
+        std::vector<std::array<u32, 2U>> copied_party_records;
+        std::vector<u32> released_workspace_tokens;
     };
     {
         using EquipmentTarget = sm::LegacyStandardModeEquipmentInputTarget;
@@ -3803,6 +3878,478 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             "0x443B70 preserves cleanup, record-list, B9C0 and B9E0 stop prefixes"
         );
 
+        sm::LegacyStandardModeForwardNode commit_record;
+        commit_record.text_index = 0x0100U;
+        commit_record.equipment_type_flags = 2U;
+        commit_record.equipment_action_id = 77U;
+        commit_record.equipment_cost_flags = 0x8001U;
+        sm::LegacyStandardModeEquipmentInitializationState commit_state;
+        commit_state.mode_enabled = 5U;
+        commit_state.panel_motion = 9;
+        EquipmentInputPorts commit_mode_ports;
+        const auto commit_mode5 = sm::commit_legacy_standard_mode_equipment(
+            commit_state, {}, commit_mode_ports
+        );
+        commit_state.mode_enabled = 0x11U;
+        const auto commit_mode17 = sm::commit_legacy_standard_mode_equipment(
+            commit_state, {}, commit_mode_ports
+        );
+        commit_state.mode_enabled = 3U;
+        const auto commit_default = sm::commit_legacy_standard_mode_equipment(
+            commit_state, {}, commit_mode_ports
+        );
+        test.expect_true(
+            commit_mode5.status ==
+                    sm::LegacyStandardModeEquipmentCommitStatus::completed &&
+                commit_mode5.legacy_return_value == 4 &&
+                commit_state.panel_motion == -0x80 &&
+                commit_mode17.legacy_return_value == 16 &&
+                commit_default.legacy_return_value == 2 &&
+                commit_state.mode_enabled == 3U &&
+                commit_mode_ports.samples.empty(),
+            "0x443BD0 handles mode5, mode17/18 and default residual paths"
+        );
+
+        commit_state = {};
+        commit_state.mode_enabled = 1U;
+        commit_state.record_head = &commit_record;
+        commit_state.party_equipment_gates[0U] = -1;
+        commit_state.party_primary_resources[0U] = 10U;
+        commit_state.sample_owner = 0xC011U;
+        EquipmentInputPorts commit_gate_ports;
+        const auto commit_gate = sm::commit_legacy_standard_mode_equipment(
+            commit_state, {}, commit_gate_ports
+        );
+        commit_state.party_equipment_gates[0U] = 0;
+        commit_record.equipment_cost_flags = 0U;
+        const auto commit_no_cost = sm::commit_legacy_standard_mode_equipment(
+            commit_state, {}, commit_gate_ports
+        );
+        test.expect_true(
+            commit_gate.status ==
+                    sm::LegacyStandardModeEquipmentCommitStatus::completed &&
+                commit_no_cost.status ==
+                    sm::LegacyStandardModeEquipmentCommitStatus::completed &&
+                commit_state.party_primary_resources[0U] == 10U &&
+                commit_gate_ports.samples ==
+                    std::vector<std::array<u32, 2U>>{
+                        {0x8CU, 0xC011U}, {0x8CU, 0xC011U}
+                    },
+            "0x443BD0 mode1 rejects party gate and zero-requirement records with sample8C"
+        );
+
+        commit_record.equipment_cost_flags = 0x8001U;
+        commit_state = {};
+        commit_state.mode_enabled = 1U;
+        commit_state.record_head = &commit_record;
+        commit_state.party_primary_resources[0U] = 5U;
+        EquipmentInputPorts commit_transition_ports;
+        commit_transition_ports.equipment_action_load =
+            sm::LegacyStandardModeEquipmentActionLoadResult{1, 0U};
+        const auto commit_transition =
+            sm::commit_legacy_standard_mode_equipment(
+                commit_state, {}, commit_transition_ports
+            );
+        test.expect_true(
+            commit_transition.status ==
+                    sm::LegacyStandardModeEquipmentCommitStatus::completed &&
+                commit_state.mode_enabled == 2U &&
+                commit_state.transition_word == 3U &&
+                commit_state.party_primary_resources[0U] == 5U &&
+                commit_transition_ports.loaded_action_ids ==
+                    std::vector<u16>{77U} &&
+                commit_transition_ports.samples.empty(),
+            "0x443BD0 mode1 action flag0 enters mode2 without deducting resources"
+        );
+
+        commit_record.equipment_cost_flags = 0xC005U;
+        commit_state = {};
+        commit_state.mode_enabled = 2U;
+        commit_state.record_head = &commit_record;
+        commit_state.party_primary_resources[0U] = 0x4005U;
+        commit_state.party_secondary_resources[0U] = 4U;
+        commit_state.sample_owner = 0xC022U;
+        EquipmentInputPorts commit_partial_ports;
+        const auto commit_partial = sm::commit_legacy_standard_mode_equipment(
+            commit_state, {}, commit_partial_ports
+        );
+        const u16 primary_after_partial =
+            commit_state.party_primary_resources[0U];
+        commit_record.equipment_cost_flags = 0x8005U;
+        commit_state.party_primary_resources[0U] = 10U;
+        commit_state.party_secondary_resources[0U] = 4U;
+        commit_state.selected_party_action = 2U;
+        commit_partial_ports.item_presence[0x20U] = 1;
+        const auto commit_mode2_success =
+            sm::commit_legacy_standard_mode_equipment(
+                commit_state, {}, commit_partial_ports
+            );
+        test.expect_true(
+            commit_partial.status ==
+                    sm::LegacyStandardModeEquipmentCommitStatus::completed &&
+                primary_after_partial == 0U &&
+                commit_partial_ports.samples.front() ==
+                    std::array<u32, 2U>{0x8CU, 0xC022U} &&
+                commit_mode2_success.status ==
+                    sm::LegacyStandardModeEquipmentCommitStatus::completed &&
+                commit_state.party_primary_resources[0U] == 5U &&
+                commit_partial_ports.copied_party_records ==
+                    std::vector<std::array<u32, 2U>>{{2U, 0x0100U}} &&
+                commit_partial_ports.samples.back() ==
+                    std::array<u32, 2U>{0x8BU, 0xC022U},
+            "0x443BD0 mode2 preserves partial deduction then equips a valid target"
+        );
+
+        commit_record.equipment_cost_flags = 0x8002U;
+        commit_state = {};
+        commit_state.mode_enabled = 1U;
+        commit_state.record_head = &commit_record;
+        commit_state.party_primary_resources[0U] = 10U;
+        commit_state.sample_owner = 0xC033U;
+        EquipmentInputPorts commit_copy_ports;
+        commit_copy_ports.item_presence[0x1EU] = 1;
+        commit_copy_ports.item_presence[0x20U] = 1;
+        const auto commit_copies = sm::commit_legacy_standard_mode_equipment(
+            commit_state, {}, commit_copy_ports
+        );
+        test.expect_true(
+            commit_copies.status ==
+                    sm::LegacyStandardModeEquipmentCommitStatus::completed &&
+                commit_state.party_primary_resources[0U] == 8U &&
+                commit_copy_ports.samples ==
+                    std::vector<std::array<u32, 2U>>{{0x8BU, 0xC033U}} &&
+                commit_copy_ports.commit_query_ids ==
+                    std::vector<u32>{0x1EU, 0x1FU, 0x20U, 0x21U} &&
+                commit_copy_ports.copied_party_records ==
+                    std::vector<std::array<u32, 2U>>{
+                        {0U, 0x0100U}, {2U, 0x0100U}
+                    },
+            "0x443BD0 mode1 action flag1 deducts, samples, then equips present parties"
+        );
+
+        const auto commit_write_u16 =
+            [](auto& bytes, const std::size_t offset, const u16 value) {
+                bytes[offset] = static_cast<u8>(value);
+                bytes[offset + 1U] = static_cast<u8>(value >> 8U);
+            };
+        const auto commit_write_u32 =
+            [](auto& bytes, const std::size_t offset, const u32 value) {
+                bytes[offset] = static_cast<u8>(value);
+                bytes[offset + 1U] = static_cast<u8>(value >> 8U);
+                bytes[offset + 2U] = static_cast<u8>(value >> 16U);
+                bytes[offset + 3U] = static_cast<u8>(value >> 24U);
+            };
+        std::array<u8, 0x80U> commit_group_payload{};
+        commit_write_u32(commit_group_payload, 0x58U, 0x61U);
+        commit_write_u16(commit_group_payload, 0x61U, 0x1111U);
+        commit_write_u16(commit_group_payload, 0x63U, 0x2222U);
+        commit_write_u16(commit_group_payload, 0x65U, 0x3333U);
+        commit_write_u16(commit_group_payload, 0x67U, 3U);
+        commit_write_u16(commit_group_payload, 0x69U, 0xFFFFU);
+        commit_write_u16(commit_group_payload, 0x6BU, 0xFFFFU);
+        commit_record.text_index = 0x0619U;
+        commit_record.equipment_cost_flags = 0x8001U;
+        commit_state = {};
+        commit_state.mode_enabled = 1U;
+        commit_state.record_head = &commit_record;
+        commit_state.party_primary_resources[0U] = 5U;
+        commit_state.value_group_target = 3;
+        commit_state.workspace_token = 0x1234U;
+        commit_state.interaction_block = 9;
+        commit_state.dialog_setup_records.push_back(
+            sm::LegacyStandardModeDialogSetupRecord{
+                .draw_value = 0xA0U,
+                .first_state_value = 1U,
+                .return_state_value = 2U,
+                .third_state_value = 3U,
+            }
+        );
+        EquipmentInputPorts commit_group_ports;
+        const auto commit_group = sm::commit_legacy_standard_mode_equipment(
+            commit_state, commit_group_payload, commit_group_ports
+        );
+        test.expect_true(
+            commit_group.status ==
+                    sm::LegacyStandardModeEquipmentCommitStatus::completed &&
+                commit_state.party_primary_resources[0U] == 4U &&
+                commit_state.mode_enabled == 0U &&
+                commit_state.global_mode == 0x36U &&
+                commit_state.interaction_block == 0 &&
+                commit_group_ports.dialog_draw.first == 0x1111 &&
+                commit_group_ports.dialog_draw.second == 0x2222 &&
+                commit_group_ports.dialog_draw.third == 0x3333 &&
+                commit_group_ports.released_workspace_tokens ==
+                    std::vector<u32>{0x1234U},
+            "0x443BD0 item0619 resolves MAPS group, prepares dialog and cleans equipment mode"
+        );
+
+        commit_state = {};
+        commit_state.mode_enabled = 1U;
+        commit_state.record_head = &commit_record;
+        commit_state.party_primary_resources[0U] = 5U;
+        EquipmentInputPorts commit_group_present_ports;
+        commit_group_present_ports.commit_query_values = {{0x4EU, 1}};
+        const std::array<u8, 1U> short_commit_payload{};
+        const auto commit_group_present =
+            sm::commit_legacy_standard_mode_equipment(
+                commit_state, short_commit_payload, commit_group_present_ports
+            );
+        test.expect_true(
+            commit_group_present.status ==
+                    sm::LegacyStandardModeEquipmentCommitStatus::completed &&
+                commit_state.mode_enabled == 0x12U &&
+                commit_group_present_ports.samples ==
+                    std::vector<std::array<u32, 2U>>{{0x8CU, 0U}},
+            "0x443BD0 item0619 presence short-circuits MAPS lookup before mode18"
+        );
+
+        std::vector<u8> commit_filter_payload(0x90U, 0U);
+        commit_write_u32(commit_filter_payload, 0x5CU, 0x70U);
+        commit_filter_payload[0x70U] = 'A';
+        commit_write_u16(commit_filter_payload, 0x71U, 0x5125U);
+        commit_write_u32(commit_filter_payload, 0x73U, 0x11223344U);
+        commit_write_u16(commit_filter_payload, 0x77U, 0x5566U);
+        commit_write_u16(commit_filter_payload, 0x79U, 1U);
+        commit_write_u16(commit_filter_payload, 0x7BU, 0xFFFFU);
+        commit_write_u16(commit_filter_payload, 0x7DU, 0xFFFFU);
+        commit_record.text_index = 0x061EU;
+        commit_record.equipment_cost_flags = 0x8001U;
+        commit_state = {};
+        commit_state.mode_enabled = 1U;
+        commit_state.record_head = &commit_record;
+        commit_state.party_primary_resources[0U] = 5U;
+        commit_state.filtered_source_enabled = 1;
+        commit_state.sample_owner = 0xC044U;
+        commit_state.workspace_token = 0x5678U;
+        commit_state.interaction_block = 9;
+        commit_state.dialog_setup_records.push_back(
+            sm::LegacyStandardModeDialogSetupRecord{
+                .draw_value = 0xB0U,
+                .first_state_value = 4U,
+                .return_state_value = 5U,
+                .third_state_value = 6U,
+            }
+        );
+        EquipmentInputPorts commit_filter_ports;
+        commit_filter_ports.commit_query_values = {{0x1389U, 1}};
+        const auto commit_filter = sm::commit_legacy_standard_mode_equipment(
+            commit_state, commit_filter_payload, commit_filter_ports
+        );
+        const bool commit_filter_values = commit_state.mode_enabled == 0x0FU &&
+            commit_state.special_record_count == 1U &&
+            commit_state.hover_record_count == 1U &&
+            commit_state.filtered_records.records.size() == 1U;
+        const auto commit_filtered_record =
+            sm::commit_legacy_standard_mode_equipment(
+                commit_state, commit_filter_payload, commit_filter_ports
+            );
+        test.expect_true(
+            commit_filter.status ==
+                    sm::LegacyStandardModeEquipmentCommitStatus::completed &&
+                commit_filter_values &&
+                commit_filtered_record.status ==
+                    sm::LegacyStandardModeEquipmentCommitStatus::completed &&
+                commit_state.party_primary_resources[0U] == 4U &&
+                commit_state.filtered_records.records.empty() &&
+                commit_state.special_record_count == 0U &&
+                commit_state.special_window_offset == 1U &&
+                commit_state.mode_enabled == 0U &&
+                commit_state.global_mode == 0x36U &&
+                commit_state.interaction_block == 0 &&
+                commit_filter_ports.dialog_draw.first == 0x3344 &&
+                commit_filter_ports.dialog_draw.second == 0x1122 &&
+                commit_filter_ports.dialog_draw.third == 0x5566 &&
+                commit_filter_ports.released_workspace_tokens ==
+                    std::vector<u32>{0x5678U},
+            "0x443BD0 item061E builds mode15 records then commits dialog and cleanup"
+        );
+
+        commit_state = {};
+        commit_state.mode_enabled = 1U;
+        commit_state.record_head = &commit_record;
+        commit_state.party_primary_resources[0U] = 5U;
+        commit_state.filtered_source_enabled = 1;
+        EquipmentInputPorts commit_filter_blocked_ports;
+        commit_filter_blocked_ports.commit_query_values = {{0x4DU, 1}};
+        const auto commit_filter_blocked =
+            sm::commit_legacy_standard_mode_equipment(
+                commit_state, commit_filter_payload, commit_filter_blocked_ports
+            );
+        test.expect_true(
+            commit_filter_blocked.status ==
+                    sm::LegacyStandardModeEquipmentCommitStatus::completed &&
+                commit_state.mode_enabled == 0x11U &&
+                commit_filter_blocked_ports.samples ==
+                    std::vector<std::array<u32, 2U>>{{0x8CU, 0U}},
+            "0x443BD0 item061E blocked source enters mode17 with sample8C"
+        );
+
+        commit_record.text_index = 0xFFDCU;
+        commit_state = {};
+        commit_state.mode_enabled = 1U;
+        commit_state.record_head = &commit_record;
+        commit_state.party_selector = 0xFFFFU;
+        EquipmentInputPorts commit_stop_ports;
+        const auto commit_missing_text_early =
+            sm::commit_legacy_standard_mode_equipment(
+                commit_state, {}, commit_stop_ports
+            );
+        commit_record.text_index = 0x0100U;
+        commit_record.equipment_cost_flags = 0x8001U;
+        commit_state = {};
+        commit_state.mode_enabled = 1U;
+        const auto commit_missing = sm::commit_legacy_standard_mode_equipment(
+            commit_state, {}, commit_stop_ports
+        );
+        commit_state.record_head = &commit_record;
+        commit_state.party_selector = 4U;
+        const auto commit_party_oob = sm::commit_legacy_standard_mode_equipment(
+            commit_state, {}, commit_stop_ports
+        );
+        commit_state.party_selector = 0U;
+        commit_state.party_primary_resources[0U] = 5U;
+        commit_stop_ports.equipment_action_load = std::nullopt;
+        const auto commit_load_stopped =
+            sm::commit_legacy_standard_mode_equipment(
+                commit_state, {}, commit_stop_ports
+            );
+        test.expect_true(
+            commit_missing_text_early.status ==
+                    sm::LegacyStandardModeEquipmentCommitStatus::completed &&
+                commit_missing.status ==
+                    sm::LegacyStandardModeEquipmentCommitStatus::
+                        selected_record_missing &&
+                commit_party_oob.status ==
+                    sm::LegacyStandardModeEquipmentCommitStatus::
+                        party_selector_out_of_range &&
+                commit_load_stopped.status ==
+                    sm::LegacyStandardModeEquipmentCommitStatus::
+                        action_load_stopped &&
+                commit_state.party_primary_resources[0U] == 5U,
+            "0x443BD0 isolates selected record, party selector and action load boundaries"
+        );
+
+        commit_record.text_index = 0x0619U;
+        commit_state = {};
+        commit_state.mode_enabled = 1U;
+        commit_state.record_head = &commit_record;
+        commit_state.party_primary_resources[0U] = 5U;
+        EquipmentInputPorts commit_group_stop_ports;
+        const auto commit_group_stopped =
+            sm::commit_legacy_standard_mode_equipment(
+                commit_state, short_commit_payload, commit_group_stop_ports
+            );
+        commit_record.text_index = 0x061EU;
+        commit_state.filtered_source_enabled = 1;
+        const auto commit_filter_stopped =
+            sm::commit_legacy_standard_mode_equipment(
+                commit_state, short_commit_payload, commit_group_stop_ports
+            );
+        test.expect_true(
+            commit_group_stopped.status ==
+                    sm::LegacyStandardModeEquipmentCommitStatus::
+                        value_group_stopped &&
+                commit_state.party_primary_resources[0U] == 5U &&
+                commit_filter_stopped.status ==
+                    sm::LegacyStandardModeEquipmentCommitStatus::
+                        filtered_records_stopped &&
+                commit_state.mode_enabled == 0x0FU,
+            "0x443BD0 preserves value-group and filtered-record parser stop prefixes"
+        );
+
+        commit_record.text_index = 0x0100U;
+        commit_state = {};
+        commit_state.mode_enabled = 0x0FU;
+        commit_state.record_head = &commit_record;
+        commit_state.party_primary_resources[0U] = 5U;
+        const auto commit_filtered_missing =
+            sm::commit_legacy_standard_mode_equipment(
+                commit_state, {}, commit_stop_ports
+            );
+        const u16 resource_after_filtered_missing =
+            commit_state.party_primary_resources[0U];
+        commit_state.filtered_records.records.push_back(
+            sm::LegacyStandardModeFilteredRecord{
+                .first_value = 0x11223344U,
+                .second_value = 0x5566U,
+            }
+        );
+        const auto commit_dialog_stopped =
+            sm::commit_legacy_standard_mode_equipment(
+                commit_state, {}, commit_stop_ports
+            );
+        test.expect_true(
+            commit_filtered_missing.status ==
+                    sm::LegacyStandardModeEquipmentCommitStatus::
+                        filtered_record_missing &&
+                resource_after_filtered_missing == 4U &&
+                commit_dialog_stopped.status ==
+                    sm::LegacyStandardModeEquipmentCommitStatus::
+                        dialog_setup_stopped &&
+                commit_state.party_primary_resources[0U] == 3U &&
+                commit_state.filtered_records.records.size() == 1U &&
+                commit_stop_ports.dialog_events == std::vector<u32>{1U, 2U},
+            "0x443BD0 mode15 deducts before filtered-index and dialog typed stops"
+        );
+
+        commit_state = {};
+        commit_state.mode_enabled = 2U;
+        commit_state.record_head = &commit_record;
+        commit_state.party_primary_resources[0U] = 5U;
+        commit_state.selected_party_action = 4U;
+        EquipmentInputPorts commit_target_stop_ports;
+        commit_target_stop_ports.commit_query_values = {{0x22U, 1}};
+        const auto commit_target_stopped =
+            sm::commit_legacy_standard_mode_equipment(
+                commit_state, {}, commit_target_stop_ports
+            );
+        commit_state.party_primary_resources[0U] = 5U;
+        commit_state.selected_party_action = 0U;
+        EquipmentInputPorts commit_copy_stop_ports;
+        commit_copy_stop_ports.item_presence[0x1EU] = 1;
+        commit_copy_stop_ports.equipment_record_copy_available = false;
+        const auto commit_copy_stopped =
+            sm::commit_legacy_standard_mode_equipment(
+                commit_state, {}, commit_copy_stop_ports
+            );
+        test.expect_true(
+            commit_target_stopped.status ==
+                    sm::LegacyStandardModeEquipmentCommitStatus::
+                        party_target_out_of_range &&
+                commit_copy_stopped.status ==
+                    sm::LegacyStandardModeEquipmentCommitStatus::
+                        record_copy_stopped &&
+                commit_state.party_primary_resources[0U] == 4U &&
+                commit_copy_stop_ports.samples.empty(),
+            "0x443BD0 mode2 preserves deduction before target and record-copy stops"
+        );
+
+        commit_record.text_index = 0x0619U;
+        commit_state = {};
+        commit_state.mode_enabled = 1U;
+        commit_state.record_head = &commit_record;
+        commit_state.party_primary_resources[0U] = 5U;
+        commit_state.value_group_target = 3;
+        commit_state.interaction_block = 9;
+        commit_state.dialog_setup_records.push_back(
+            sm::LegacyStandardModeDialogSetupRecord{}
+        );
+        EquipmentInputPorts commit_cleanup_stop_ports;
+        commit_cleanup_stop_ports.commit_cleanup_available = false;
+        const auto commit_cleanup_stopped =
+            sm::commit_legacy_standard_mode_equipment(
+                commit_state, commit_group_payload, commit_cleanup_stop_ports
+            );
+        test.expect_true(
+            commit_cleanup_stopped.status ==
+                    sm::LegacyStandardModeEquipmentCommitStatus::
+                        cleanup_stopped &&
+                commit_state.party_primary_resources[0U] == 4U &&
+                commit_state.interaction_block == 9 &&
+                commit_cleanup_stop_ports.released_workspace_tokens.empty(),
+            "0x443BD0 cleanup stop preserves dialog and resource prefix without release"
+        );
+
         sm::LegacyStandardModeEquipmentInitializationState party_cycle_state;
         party_cycle_state.mode_enabled = 1U;
         party_cycle_state.party_selector = 0xABCD0000U;
@@ -3958,12 +4505,9 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             early.status ==
                     sm::LegacyStandardModeEquipmentInputStatus::completed &&
                 equipment.first_render_zero == 0U &&
-                early.callback_count == 1U &&
+                equipment.mode_enabled == 1U && early.callback_count == 1U &&
                 early.last_target == EquipmentTarget::commit_action &&
-                early_ports.targets ==
-                    std::vector<EquipmentTarget>{
-                        EquipmentTarget::commit_action
-                    },
+                early_ports.targets.empty(),
             "0x442F40 mode17/18 buttons1/4 commit immediately after entry reset"
         );
 
@@ -3986,10 +4530,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         test.expect_true(
             equipment.hover_selection == 1U && hover.callback_count == 0U &&
                 hover_commit.last_target == EquipmentTarget::commit_action &&
-                hover_ports.targets ==
-                    std::vector<EquipmentTarget>{
-                        EquipmentTarget::commit_action
-                    },
+                hover_ports.targets.empty(),
             "0x442F40 cursor-mode15 changes a row then commits the repeated row"
         );
 
@@ -4076,9 +4617,31 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 selected.last_target == EquipmentTarget::play_confirm &&
                 selection_ports.samples ==
                     std::vector<std::array<u32, 2U>>{{0x2EU, 0xCAFEBABEU}} &&
-                selected_commit.last_target == EquipmentTarget::commit_action,
+                selected_commit.last_target == EquipmentTarget::commit_action &&
+                selection_ports.targets.empty(),
             "0x442F40 grid selection directly reuses B9C0/B9E0 then commits repetition"
         );
+        equipment_record.text_index = 0x0100U;
+        equipment_record.equipment_type_flags = 2U;
+        equipment_record.equipment_cost_flags = 0x8001U;
+        equipment.party_primary_resources[0U] = 5U;
+        input.buttons = 2U;
+        EquipmentInputPorts commit_caller_stop_ports;
+        commit_caller_stop_ports.equipment_action_load = std::nullopt;
+        const auto commit_caller_stopped =
+            sm::handle_legacy_standard_mode_equipment_input(
+                equipment, input, {}, {}, commit_caller_stop_ports
+            );
+        test.expect_true(
+            commit_caller_stopped.status ==
+                    sm::LegacyStandardModeEquipmentInputStatus::
+                        commit_stopped &&
+                commit_caller_stopped.last_target ==
+                    EquipmentTarget::commit_action &&
+                commit_caller_stop_ports.targets.empty(),
+            "0x442F40 directly propagates the closed commit typed-stop"
+        );
+
         equipment = {};
         equipment.mode_enabled = 1U;
         equipment.visible_record_count = 1U;
