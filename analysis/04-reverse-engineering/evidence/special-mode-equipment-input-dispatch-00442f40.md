@@ -4,7 +4,7 @@
 
 唯一行为真值为`swd3.exe.lst`。物理范围`0x00442F40..0x00443446`，621行，无FUNCTION CHUNK。无direct code caller；3B480将其绑定为模式input callback。直接call site为：443BD0五处、40DC50五处、443570/443450/4437C0/443670各两处，437300、443B70、B9C0、B9E0、485610、C090、443A60、4441A0各一处。
 
-已关闭C090、B9C0、B9E0由typed helper直接复用；后续关闭的43450推进、43570后退、43670分页推进、437C0分页后退、43A60 party循环、43B70列表类别循环与43BD0提交状态机也已从caller直接回收。其余未审业务callee按overlay和exit target隔离；40DC50以返回i32的item-presence端口表达，保留原逻辑对非零与精确等于1的不同判断；485610保留sample command边界。
+已关闭C090、B9C0、B9E0由typed helper直接复用；后续关闭的43450推进、43570后退、43670分页推进、437C0分页后退、43A60 party循环、43B70列表类别循环、43BD0提交与441A0退出状态机也已从caller直接回收。其余未审业务callee仅保留overlay target；40DC50以返回i32的item-presence端口表达，保留原逻辑对非零与精确等于1的不同判断；485610保留sample command边界。
 
 ## 入口与早退
 

@@ -2986,6 +2986,26 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return party_cycle_finalized_action_count;
         }
 
+        i32 story_flag(const u32 flag_index) override {
+            callback_story_flags.push_back(flag_index);
+            return callback_story_flag_value;
+        }
+
+        void initialize_secondary_dispatch() override {
+            ++secondary_dispatch_initializations;
+        }
+
+        void initialize_high_mode_runtime() override {
+            ++high_mode_initializations;
+        }
+
+        i32 release_equipment_filtered_records(
+            const u32 record_count
+        ) noexcept override {
+            released_filtered_record_counts.push_back(record_count);
+            return released_filtered_records_return;
+        }
+
         i32 query(const u32 service_id) noexcept override {
             commit_query_ids.push_back(service_id);
             for (const auto& [id, value] : commit_query_values) {
@@ -3080,7 +3100,11 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         bool commit_cleanup_available{true};
         bool equipment_record_copy_available{true};
         i32 released_workspace_return{-7};
+        i32 released_filtered_records_return{-8};
+        i32 callback_story_flag_value{};
         u32 commit_cleanup_calls{};
+        u32 secondary_dispatch_initializations{};
+        u32 high_mode_initializations{};
         u32 cleared_surface_bytes{};
         std::array<u32, 2U> dialog_interface{};
         sm::LegacyStandardModeDialogDrawRequest dialog_draw{};
@@ -3097,6 +3121,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         std::vector<u16> loaded_action_ids;
         std::vector<std::array<u32, 2U>> copied_party_records;
         std::vector<u32> released_workspace_tokens;
+        std::vector<u32> released_filtered_record_counts;
+        std::vector<u32> callback_story_flags;
     };
     {
         using EquipmentTarget = sm::LegacyStandardModeEquipmentInputTarget;
@@ -4350,6 +4376,106 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             "0x443BD0 cleanup stop preserves dialog and resource prefix without release"
         );
 
+        sm::LegacyStandardModeEquipmentInitializationState exit_state;
+        exit_state.mode_enabled = 1U;
+        exit_state.transition_word = 2U;
+        exit_state.text_resource_word = 0x2AU;
+        exit_state.workspace_token = 0x9988U;
+        exit_state.interaction_block = 9;
+        EquipmentInputPorts exit_mode1_ports;
+        const auto exit_mode1 = sm::exit_legacy_standard_mode_equipment(
+            exit_state, exit_mode1_ports
+        );
+        test.expect_true(
+            exit_mode1.status ==
+                    sm::LegacyStandardModeEquipmentExitStatus::completed &&
+                exit_mode1.legacy_return_value == -7 &&
+                exit_mode1.helper_call_count == 2U &&
+                exit_state.transition_word == 1U &&
+                exit_state.interaction_block == 9 &&
+                exit_state.mode_enabled == 0U &&
+                exit_state.global_mode == 0x36U &&
+                exit_mode1_ports.secondary_dispatch_initializations == 1U &&
+                exit_mode1_ports.released_workspace_tokens ==
+                    std::vector<u32>{0x9988U},
+            "0x4441A0 mode1 decrements transition, rebinds callbacks and cleans mode"
+        );
+
+        exit_state = {};
+        exit_state.mode_enabled = 1U;
+        exit_state.transition_word = 1U;
+        exit_state.interaction_block = 9;
+        EquipmentInputPorts exit_cleanup_stop_ports;
+        exit_cleanup_stop_ports.commit_cleanup_available = false;
+        const auto exit_cleanup_stopped =
+            sm::exit_legacy_standard_mode_equipment(
+                exit_state, exit_cleanup_stop_ports
+            );
+        test.expect_true(
+            exit_cleanup_stopped.status ==
+                    sm::LegacyStandardModeEquipmentExitStatus::
+                        cleanup_stopped &&
+                exit_state.transition_word == 0U &&
+                exit_state.interaction_block == 0 &&
+                exit_state.mode_enabled == 1U &&
+                exit_cleanup_stop_ports.released_workspace_tokens.empty(),
+            "0x4441A0 cleanup stop preserves decrement, interaction clear and callback prefix"
+        );
+
+        exit_state = {};
+        exit_state.mode_enabled = 2U;
+        exit_state.transition_word = 0U;
+        exit_state.selected_party_action = 3U;
+        EquipmentInputPorts exit_other_ports;
+        const auto exit_mode2 = sm::exit_legacy_standard_mode_equipment(
+            exit_state, exit_other_ports
+        );
+        exit_state.mode_enabled = 5U;
+        exit_state.panel_motion = 9;
+        const auto exit_mode5 = sm::exit_legacy_standard_mode_equipment(
+            exit_state, exit_other_ports
+        );
+        exit_state.mode_enabled = 0x11U;
+        const auto exit_mode17 = sm::exit_legacy_standard_mode_equipment(
+            exit_state, exit_other_ports
+        );
+        exit_state.mode_enabled = 3U;
+        const auto exit_default = sm::exit_legacy_standard_mode_equipment(
+            exit_state, exit_other_ports
+        );
+        test.expect_true(
+            exit_mode2.legacy_return_value == 1 &&
+                exit_state.transition_word == 0xFFFFU &&
+                exit_state.selected_party_action == 0U &&
+                exit_mode5.legacy_return_value == 4 &&
+                exit_state.panel_motion == -0x80 &&
+                exit_mode17.legacy_return_value == 16 &&
+                exit_default.legacy_return_value == 2 &&
+                exit_state.mode_enabled == 3U,
+            "0x4441A0 preserves mode2 wrap, mode5 motion, mode17/18 and default paths"
+        );
+
+        exit_state = {};
+        exit_state.mode_enabled = 0x0FU;
+        exit_state.special_record_count = 2U;
+        exit_state.filtered_records.records.resize(2U);
+        EquipmentInputPorts exit_filter_ports;
+        const auto exit_mode15 = sm::exit_legacy_standard_mode_equipment(
+            exit_state, exit_filter_ports
+        );
+        test.expect_true(
+            exit_mode15.status ==
+                    sm::LegacyStandardModeEquipmentExitStatus::completed &&
+                exit_mode15.legacy_return_value == -8 &&
+                exit_state.mode_enabled == 1U &&
+                exit_state.special_window_offset == 2U &&
+                exit_state.special_record_count == 0U &&
+                exit_state.filtered_records.records.empty() &&
+                exit_filter_ports.released_filtered_record_counts ==
+                    std::vector<u32>{2U},
+            "0x4441A0 mode15 releases filtered records then returns to mode1"
+        );
+
         sm::LegacyStandardModeEquipmentInitializationState party_cycle_state;
         party_cycle_state.mode_enabled = 1U;
         party_cycle_state.party_selector = 0xABCD0000U;
@@ -4897,7 +5023,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         );
         test.expect_true(
             exited.callback_count == 2U &&
-                exited.last_target == EquipmentTarget::exit_mode,
+                exited.last_target == EquipmentTarget::exit_mode &&
+                exit_ports.targets.empty(),
             "0x442F40 buttons4 exits after availability fallback"
         );
     }

@@ -619,6 +619,65 @@ advance_legacy_standard_mode_equipment_column(
     return result;
 }
 
+LegacyStandardModeEquipmentExitResult exit_legacy_standard_mode_equipment(
+    LegacyStandardModeEquipmentInitializationState& state,
+    LegacyStandardModeEquipmentExitPorts& ports
+) noexcept {
+    LegacyStandardModeEquipmentExitResult result;
+    const compat::u32 mode = state.mode_enabled;
+    result.legacy_return_value = std::bit_cast<compat::i32>(mode - 1U);
+    if (mode == 1U) {
+        --state.transition_word;
+        if (state.transition_word == 0U) {
+            state.interaction_block = 0;
+        }
+        static_cast<void>(bind_legacy_standard_mode_callbacks(
+            state.callback_state,
+            state.transition_word,
+            state.text_resource_word,
+            ports
+        ));
+        ++result.helper_call_count;
+        const LegacyStandardModeEquipmentCleanupResult cleanup =
+            cleanup_legacy_standard_mode_equipment(state, ports);
+        ++result.helper_call_count;
+        result.legacy_return_value = cleanup.legacy_return_value;
+        if (cleanup.status !=
+            LegacyStandardModeEquipmentCleanupStatus::completed) {
+            result.status =
+                LegacyStandardModeEquipmentExitStatus::cleanup_stopped;
+        }
+        return result;
+    }
+    if (mode == 2U) {
+        --state.transition_word;
+        state.mode_enabled = 1U;
+        state.selected_party_action = 0U;
+        return result;
+    }
+    if (mode == 5U) {
+        state.mode_enabled = 1U;
+        state.panel_motion = -0x80;
+        return result;
+    }
+    if (mode == 0x0FU) {
+        const compat::u32 record_count =
+            static_cast<compat::u32>(state.filtered_records.records.size());
+        state.special_window_offset = record_count;
+        state.filtered_records.records.clear();
+        state.special_record_count = 0U;
+        result.legacy_return_value =
+            ports.release_equipment_filtered_records(record_count);
+        ++result.helper_call_count;
+        state.mode_enabled = 1U;
+        return result;
+    }
+    if (mode == 0x11U || mode == 0x12U) {
+        state.mode_enabled = 1U;
+    }
+    return result;
+}
+
 LegacyStandardModeEquipmentCommitResult commit_legacy_standard_mode_equipment(
     LegacyStandardModeEquipmentInitializationState& state,
     const std::span<const compat::u8> maps_payload,
@@ -1570,25 +1629,39 @@ handle_legacy_standard_mode_equipment_input(
                         ) {
         result.last_target = target;
         ++result.callback_count;
-        if (target != LegacyStandardModeEquipmentInputTarget::commit_action) {
-            result.legacy_return_value =
-                ports.invoke_equipment_input(target, state, input);
+        if (target == LegacyStandardModeEquipmentInputTarget::commit_action) {
+            const LegacyStandardModeEquipmentCommitResult committed =
+                commit_legacy_standard_mode_equipment(
+                    state, maps_payload, ports
+                );
+            result.legacy_return_value = committed.legacy_return_value;
+            if (committed.status ==
+                LegacyStandardModeEquipmentCommitStatus::
+                    selected_record_missing) {
+                result.status = LegacyStandardModeEquipmentInputStatus::
+                    selected_record_missing;
+            } else if (
+                committed.status !=
+                LegacyStandardModeEquipmentCommitStatus::completed
+            ) {
+                result.status =
+                    LegacyStandardModeEquipmentInputStatus::commit_stopped;
+            }
             return;
         }
-        const LegacyStandardModeEquipmentCommitResult committed =
-            commit_legacy_standard_mode_equipment(state, maps_payload, ports);
-        result.legacy_return_value = committed.legacy_return_value;
-        if (committed.status ==
-            LegacyStandardModeEquipmentCommitStatus::selected_record_missing) {
-            result.status =
-                LegacyStandardModeEquipmentInputStatus::selected_record_missing;
-        } else if (
-            committed.status !=
-            LegacyStandardModeEquipmentCommitStatus::completed
-        ) {
-            result.status =
-                LegacyStandardModeEquipmentInputStatus::commit_stopped;
+        if (target == LegacyStandardModeEquipmentInputTarget::exit_mode) {
+            const LegacyStandardModeEquipmentExitResult exited =
+                exit_legacy_standard_mode_equipment(state, ports);
+            result.legacy_return_value = exited.legacy_return_value;
+            if (exited.status !=
+                LegacyStandardModeEquipmentExitStatus::completed) {
+                result.status =
+                    LegacyStandardModeEquipmentInputStatus::exit_stopped;
+            }
+            return;
         }
+        result.legacy_return_value =
+            ports.invoke_equipment_input(target, state, input);
     };
     const auto retreat_selection = [&]() {
         result.last_target =

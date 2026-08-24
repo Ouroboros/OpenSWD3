@@ -687,6 +687,7 @@ struct LegacyStandardModeEquipmentInitializationState {
     compat::u16 transition_word{};
     compat::i32 interaction_block{};
     compat::i32 panel_motion{};
+    LegacyStandardModeCallbackState callback_state{};
     const LegacyStandardModeForwardNode* visible_record_head{};
     compat::i32 first_dynamic_min_y{};
     compat::i32 first_dynamic_max_y{};
@@ -795,6 +796,7 @@ enum class LegacyStandardModeEquipmentInputStatus : compat::u8 {
     selected_record_missing,
     shared_text_stopped,
     commit_stopped,
+    exit_stopped,
     list_kind_cycle_stopped,
     party_mapping_stopped,
     party_cycle_stopped,
@@ -1070,8 +1072,36 @@ commit_legacy_standard_mode_equipment(
     LegacyStandardModeEquipmentCommitPorts& ports
 ) noexcept;
 
+class LegacyStandardModeEquipmentExitPorts
+    : public LegacyStandardModeEquipmentCommitPorts,
+      public LegacyStandardModeCallbackBindingPorts {
+public:
+    ~LegacyStandardModeEquipmentExitPorts() override = default;
+    [[nodiscard]] virtual compat::i32
+    release_equipment_filtered_records(compat::u32 record_count) noexcept = 0;
+};
+
+enum class LegacyStandardModeEquipmentExitStatus : compat::u8 {
+    completed,
+    cleanup_stopped,
+};
+
+struct LegacyStandardModeEquipmentExitResult {
+    LegacyStandardModeEquipmentExitStatus status{
+        LegacyStandardModeEquipmentExitStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacyStandardModeEquipmentExitResult
+exit_legacy_standard_mode_equipment(
+    LegacyStandardModeEquipmentInitializationState& state,
+    LegacyStandardModeEquipmentExitPorts& ports
+) noexcept;
+
 class LegacyStandardModeEquipmentInputPorts
-    : public LegacyStandardModeEquipmentCommitPorts {
+    : public LegacyStandardModeEquipmentExitPorts {
 public:
     ~LegacyStandardModeEquipmentInputPorts() override = default;
     [[nodiscard]] virtual compat::i32 invoke_equipment_input(
