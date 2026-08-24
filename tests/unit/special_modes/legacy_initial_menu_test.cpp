@@ -567,6 +567,12 @@ public:
             mutate_sample_after_commit) {
             state.message_sample_owner = sample_after_commit;
         }
+        if (command ==
+                openswd3::special_modes::LegacyStandardModeCatalogInputCommand::
+                    count_visible &&
+            mutate_visible_after_count) {
+            state.catalog_visible_count = visible_after_count;
+        }
         return command_return_base + static_cast<i32>(command);
     }
 
@@ -599,6 +605,8 @@ public:
         input_commands;
     bool mutate_sample_after_commit{};
     u32 sample_after_commit{};
+    bool mutate_visible_after_count{};
+    u32 visible_after_count{};
     i32 command_return_base{1000};
 };
 
@@ -15282,6 +15290,108 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44B070 returns the full lock owner residual before querying input"
     );
 
+    openswd3::special_modes::LegacyStandardModeCatalogState
+        advance_window_state;
+    advance_window_state.interaction_mode = 1U;
+    advance_window_state.interaction_page = 2U;
+    advance_window_state.entry_count = 10U;
+    advance_window_state.catalog_scroll_index = 9U;
+    advance_window_state.catalog_cursor_flags = 0xAABBCC01U;
+    FakeStandardModeCatalogPorts advance_window_ports;
+    advance_window_ports.mutate_visible_after_count = true;
+    advance_window_ports.visible_after_count = 3U;
+    const auto advance_window =
+        openswd3::special_modes::advance_legacy_standard_mode_catalog_selection(
+            advance_window_state, advance_window_ports
+        );
+    test.expect_true(
+        advance_window_state.catalog_page_start == 5U &&
+            advance_window_state.catalog_scroll_index == 2U &&
+            advance_window_state.catalog_cursor_flags == 0xAABBCC31U &&
+            advance_window_ports.input_commands ==
+                std::vector<std::pair<CatalogCommand, u32>>{
+                    {CatalogCommand::rebuild_page, 0U},
+                    {CatalogCommand::count_visible, 0U}
+                } &&
+            advance_window.legacy_return_value ==
+                std::bit_cast<i32>(0xAABBCC31U),
+        "0x44B560 rebuilds the next window, rereads visible count, clamps scroll, and ORs only AL"
+    );
+
+    openswd3::special_modes::LegacyStandardModeCatalogState advance_end_state;
+    advance_end_state.interaction_mode = 1U;
+    advance_end_state.interaction_page = 2U;
+    advance_end_state.entry_count = 5U;
+    advance_end_state.catalog_visible_count = 0U;
+    advance_end_state.catalog_cursor_flags = 0x1200U;
+    FakeStandardModeCatalogPorts advance_end_ports;
+    const auto advance_end =
+        openswd3::special_modes::advance_legacy_standard_mode_catalog_selection(
+            advance_end_state, advance_end_ports
+        );
+    test.expect_true(
+        advance_end_state.catalog_page_start == 0U &&
+            advance_end_state.catalog_scroll_index == 0xFFFFFFFFU &&
+            advance_end_state.catalog_cursor_flags == 0x1230U &&
+            advance_end.helper_call_count == 0U,
+        "0x44B560 rolls back an exhausted page and preserves visible-count underflow"
+    );
+
+    openswd3::special_modes::LegacyStandardModeCatalogState advance_row_state;
+    advance_row_state.interaction_mode = 1U;
+    advance_row_state.interaction_page = 3U;
+    advance_row_state.selected_row = 6U;
+    advance_row_state.message_sample_owner = 0x12345678U;
+    FakeStandardModeCatalogPorts advance_row_ports;
+    const auto advance_row =
+        openswd3::special_modes::advance_legacy_standard_mode_catalog_selection(
+            advance_row_state, advance_row_ports
+        );
+    test.expect_true(
+        advance_row_state.selected_row == 6U &&
+            advance_row_ports.input_commands ==
+                std::vector<std::pair<CatalogCommand, u32>>{
+                    {CatalogCommand::play_sample, 0x12345678U}
+                } &&
+            advance_row.helper_call_count == 1U,
+        "0x44B560 clamps page-three rows and passes the full sample owner"
+    );
+
+    openswd3::special_modes::LegacyStandardModeCatalogState
+        advance_detail_state;
+    advance_detail_state.interaction_mode = 2U;
+    advance_detail_state.interaction_page = 4U;
+    advance_detail_state.detail_selection = 1U;
+    FakeStandardModeCatalogPorts advance_detail_ports;
+    const auto advance_detail =
+        openswd3::special_modes::advance_legacy_standard_mode_catalog_selection(
+            advance_detail_state, advance_detail_ports
+        );
+    test.expect_true(
+        advance_detail_state.detail_selection == 1U &&
+            advance_detail.legacy_return_value == 2,
+        "0x44B560 preserves the pre-clamp detail increment EAX"
+    );
+
+    openswd3::special_modes::LegacyStandardModeCatalogState advance_entry_state;
+    advance_entry_state.interaction_mode = 5U;
+    advance_entry_state.selected_entry = 0x12U;
+    advance_entry_state.message_sample_owner = 7U;
+    FakeStandardModeCatalogPorts advance_entry_ports;
+    static_cast<void>(
+        openswd3::special_modes::advance_legacy_standard_mode_catalog_selection(
+            advance_entry_state, advance_entry_ports
+        )
+    );
+    test.expect_true(
+        advance_entry_state.selected_entry == 0U &&
+            advance_entry_ports.input_commands ==
+                std::vector<std::pair<CatalogCommand, u32>>{
+                    {CatalogCommand::play_sample, 7U}
+                },
+        "0x44B560 wraps the nineteen-entry selector before its sample"
+    );
+
     openswd3::special_modes::LegacyStandardModeCatalogState catalog_hover_state;
     catalog_hover_state.entry_count = 6U;
     FakeStandardModeCatalogPorts catalog_hover_ports;
@@ -15303,6 +15413,30 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
                 } &&
             catalog_hover.helper_call_count == 2U,
         "0x44B070 rereads pointer, mode, and page after the input-status callback before routing hover"
+    );
+
+    openswd3::special_modes::LegacyStandardModeCatalogState lower_hover_state;
+    lower_hover_state.entry_count = 6U;
+    lower_hover_state.pointer_x = 0x1C1U;
+    lower_hover_state.pointer_y = 0x265U;
+    lower_hover_state.interaction_mode = 1U;
+    lower_hover_state.interaction_page = 2U;
+    lower_hover_state.catalog_visible_count = 2U;
+    FakeStandardModeCatalogPorts lower_hover_ports;
+    lower_hover_ports.input_status_return = 1;
+    const auto lower_hover =
+        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
+            lower_hover_state, lower_hover_ports
+        );
+    test.expect_true(
+        lower_hover_state.catalog_page_start == 5U &&
+            lower_hover_ports.input_commands ==
+                std::vector<std::pair<CatalogCommand, u32>>{
+                    {CatalogCommand::rebuild_page, 0U},
+                    {CatalogCommand::count_visible, 0U}
+                } &&
+            lower_hover.helper_call_count == 3U,
+        "0x44B070 directly reuses 0x44B560 for the lower hover window"
     );
 
     openswd3::special_modes::LegacyStandardModeCatalogState

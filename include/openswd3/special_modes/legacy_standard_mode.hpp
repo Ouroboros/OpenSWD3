@@ -391,11 +391,15 @@ struct LegacyStandardModeCatalogState {
     compat::i32 lower_dynamic_left{};
     compat::i32 lower_dynamic_right{};
     compat::u32 catalog_available{};
+    compat::u32 catalog_page_start{};
+    compat::u32 catalog_window_context{};
+    compat::u32 catalog_visible_count{};
+    compat::u32 catalog_scroll_index{};
+    compat::u32 catalog_cursor_flags{};
 };
 
 enum class LegacyStandardModeCatalogInputCommand : compat::u8 {
     upper_hover,
-    lower_hover,
     upper_dynamic_hover,
     lower_dynamic_hover,
     open_mode_fourteen,
@@ -405,6 +409,8 @@ enum class LegacyStandardModeCatalogInputCommand : compat::u8 {
     apply_font,
     remove_service,
     add_service,
+    rebuild_page,
+    count_visible,
 };
 
 struct LegacyStandardModeCatalogMessage {
@@ -472,6 +478,11 @@ struct LegacyStandardModeCatalogInputResult {
     compat::u32 helper_call_count{};
     std::optional<LegacyStandardModeCatalogInputCommand> command;
 };
+
+[[nodiscard]] LegacyStandardModeCatalogInputResult
+advance_legacy_standard_mode_catalog_selection(
+    LegacyStandardModeCatalogState& state, LegacyStandardModeCatalogPorts& ports
+) noexcept;
 
 [[nodiscard]] LegacyStandardModeCatalogInputResult
 update_legacy_standard_mode_catalog_input(
