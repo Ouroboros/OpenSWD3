@@ -603,6 +603,36 @@ commit_legacy_standard_mode_group_eight_selection(
     LegacyStandardModeGroupEightCommitPorts& ports
 ) noexcept;
 
+class LegacyStandardModeGroupEightDrawPorts {
+public:
+    virtual ~LegacyStandardModeGroupEightDrawPorts() = default;
+    [[nodiscard]] virtual std::optional<compat::i32> invoke_draw_callback(
+        compat::u16 selection,
+        compat::u32 target,
+        LegacyStandardModeGroupEightState& state
+    ) = 0;
+};
+
+enum class LegacyStandardModeGroupEightDrawStatus : compat::u8 {
+    completed,
+    selection_out_of_range,
+    draw_callback_missing,
+};
+
+struct LegacyStandardModeGroupEightDrawResult {
+    LegacyStandardModeGroupEightDrawStatus status{
+        LegacyStandardModeGroupEightDrawStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacyStandardModeGroupEightDrawResult
+draw_legacy_standard_mode_group_eight_selection(
+    LegacyStandardModeGroupEightState& state,
+    LegacyStandardModeGroupEightDrawPorts& ports
+) noexcept;
+
 struct LegacyStandardModeGroupEightExitResult {
     compat::i16 legacy_return_value{};
     compat::u32 story_flag_query_count{};

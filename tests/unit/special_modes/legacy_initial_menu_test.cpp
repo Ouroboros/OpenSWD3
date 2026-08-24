@@ -14903,6 +14903,24 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         std::vector<std::array<u32, 2U>> initialization_callbacks;
     };
 
+    class GroupEightDrawPorts final
+        : public openswd3::special_modes::
+              LegacyStandardModeGroupEightDrawPorts {
+    public:
+        std::optional<i32> invoke_draw_callback(
+            const u16 selection,
+            const u32 target,
+            openswd3::special_modes::LegacyStandardModeGroupEightState&
+        ) override {
+            calls.push_back({selection, target});
+            return available ? std::optional<i32>{return_value} : std::nullopt;
+        }
+
+        bool available{true};
+        i32 return_value{0x12345678};
+        std::vector<std::array<u32, 2U>> calls;
+    };
+
     using GroupEightState =
         openswd3::special_modes::LegacyStandardModeGroupEightState;
     using GroupEightInput =
@@ -15208,6 +15226,57 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             commit_callback_stopped.helper_call_count == 2U &&
             commit_callback_stop_ports.sample_commands.empty(),
         "0x445360 typed-stops at the indexed initialization table after rebind"
+    );
+
+    GroupEightState draw_state{.selection = 11U};
+    draw_state.callback_state.draw_callbacks[0U] = 0x00447100U;
+    GroupEightDrawPorts draw_ports;
+    const auto drawn = openswd3::special_modes::
+        draw_legacy_standard_mode_group_eight_selection(draw_state, draw_ports);
+    GroupEightState draw_range_state{.selection = 10U};
+    GroupEightDrawPorts draw_range_ports;
+    const auto draw_range_stopped = openswd3::special_modes::
+        draw_legacy_standard_mode_group_eight_selection(
+            draw_range_state, draw_range_ports
+        );
+    GroupEightState draw_missing_state{.selection = 17U};
+    GroupEightDrawPorts draw_missing_ports;
+    const auto draw_missing = openswd3::special_modes::
+        draw_legacy_standard_mode_group_eight_selection(
+            draw_missing_state, draw_missing_ports
+        );
+    draw_missing_state.callback_state.draw_callbacks[6U] = 0x0043C820U;
+    GroupEightDrawPorts draw_callback_stop_ports;
+    draw_callback_stop_ports.available = false;
+    const auto draw_callback_stopped = openswd3::special_modes::
+        draw_legacy_standard_mode_group_eight_selection(
+            draw_missing_state, draw_callback_stop_ports
+        );
+    test.expect_true(
+        drawn.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightDrawStatus::completed &&
+            drawn.legacy_return_value == 0x12345678 &&
+            drawn.helper_call_count == 1U &&
+            draw_ports.calls ==
+                std::vector<std::array<u32, 2U>>{{11U, 0x00447100U}} &&
+            draw_range_stopped.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightDrawStatus::
+                        selection_out_of_range &&
+            draw_range_stopped.legacy_return_value == 10 &&
+            draw_range_ports.calls.empty() &&
+            draw_missing.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightDrawStatus::
+                        draw_callback_missing &&
+            draw_missing.helper_call_count == 0U &&
+            draw_callback_stopped.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightDrawStatus::
+                        draw_callback_missing &&
+            draw_callback_stopped.helper_call_count == 1U,
+        "0x445420 tail-dispatches selections11..17 and stops at the exact table read"
     );
 
     GroupEightState exit_zero_state{

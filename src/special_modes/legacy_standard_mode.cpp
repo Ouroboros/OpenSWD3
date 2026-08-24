@@ -12239,6 +12239,38 @@ commit_legacy_standard_mode_group_eight_selection(
     return result;
 }
 
+LegacyStandardModeGroupEightDrawResult
+draw_legacy_standard_mode_group_eight_selection(
+    LegacyStandardModeGroupEightState& state,
+    LegacyStandardModeGroupEightDrawPorts& ports
+) noexcept {
+    LegacyStandardModeGroupEightDrawResult result;
+    const compat::u16 selection = state.selection;
+    result.legacy_return_value = static_cast<compat::i32>(selection);
+    if (selection < 0x0BU || selection > 0x11U) {
+        result.status =
+            LegacyStandardModeGroupEightDrawStatus::selection_out_of_range;
+        return result;
+    }
+    const compat::u32 target =
+        state.callback_state.draw_callbacks[selection - 0x0BU];
+    if (target == 0U) {
+        result.status =
+            LegacyStandardModeGroupEightDrawStatus::draw_callback_missing;
+        return result;
+    }
+    const std::optional<compat::i32> drawn =
+        ports.invoke_draw_callback(selection, target, state);
+    ++result.helper_call_count;
+    if (!drawn.has_value()) {
+        result.status =
+            LegacyStandardModeGroupEightDrawStatus::draw_callback_missing;
+        return result;
+    }
+    result.legacy_return_value = *drawn;
+    return result;
+}
+
 LegacyStandardModeGroupEightExitResult exit_legacy_standard_mode_group_eight(
     LegacyStandardModeGroupEightState& state,
     LegacyStandardModeCallbackBindingPorts& ports
