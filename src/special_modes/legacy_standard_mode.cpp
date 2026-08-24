@@ -14065,6 +14065,432 @@ cycle_legacy_standard_mode_selection_or_advance_runtime(
     return result;
 }
 
+LegacyStandardModeGroupOneRenderResult render_legacy_standard_mode_group_one(
+    LegacyStandardModeGroupEightState& state,
+    LegacyStandardModeRuntimeInitializationState& runtime_state,
+    LegacyStandardModeGroupEightInteractionCommitRuntime& commit_runtime,
+    LegacyStandardModeGroupOneRenderPorts& ports
+) noexcept {
+    LegacyStandardModeGroupOneRenderResult result;
+    if (state.render_blocked != 0) {
+        result.legacy_return_value = state.render_blocked;
+        return result;
+    }
+    const compat::u32 primary_color = ports.compose_color(0x19U, 0x17U, 0x11U);
+    const compat::u32 muted_color = ports.compose_color(0x0DU, 0x0DU, 9U);
+    const compat::u32 alternate_color =
+        ports.compose_color(0x18U, 0x0AU, 0x0BU);
+    result.color_compose_count = 3U;
+
+    if (state.interaction_mode >= 0x01F4U) {
+        const LegacyStandardModeRuntimeRenderResult runtime =
+            render_legacy_standard_mode_runtime(
+                runtime_state, ports.runtime_render_ports()
+            );
+        ++result.helper_call_count;
+        result.legacy_return_value = runtime.legacy_return_value;
+        if (runtime.status !=
+            LegacyStandardModeRuntimeRenderStatus::completed) {
+            result.status =
+                LegacyStandardModeGroupOneRenderStatus::runtime_render_stopped;
+        }
+        return result;
+    }
+
+    const auto execute = [&](const LegacyStandardModeGroupOneRenderOperation op,
+                             const std::array<compat::i32, 8U>& values,
+                             const compat::u32 color,
+                             std::string text = {}) noexcept {
+        const std::optional<compat::i32> rendered = ports.execute(
+            LegacyStandardModeGroupOneRenderRequest{
+                .operation = op,
+                .values = values,
+                .color = color,
+                .text = std::move(text),
+            }
+        );
+        ++result.render_operation_count;
+        if (!rendered.has_value()) {
+            result.status = LegacyStandardModeGroupOneRenderStatus::
+                render_operation_stopped;
+            return false;
+        }
+        result.legacy_return_value = *rendered;
+        return true;
+    };
+    const auto values = [](const compat::i32 a = 0,
+                           const compat::i32 b = 0,
+                           const compat::i32 c = 0,
+                           const compat::i32 d = 0,
+                           const compat::i32 e = 0,
+                           const compat::i32 f = 0,
+                           const compat::i32 g = 0,
+                           const compat::i32 h = 0) noexcept {
+        return std::array<compat::i32, 8U>{a, b, c, d, e, f, g, h};
+    };
+
+    if (state.interaction_mode == 2U && ports.transition_gate()) {
+        ++result.helper_call_count;
+        const compat::i32 offset =
+            std::bit_cast<compat::i32>(state.list_offset);
+        const LegacyStandardModeForwardNode* probe = state.record_head;
+        for (compat::i32 index = 0; index < offset; ++index) {
+            if (probe == nullptr) {
+                result.status = LegacyStandardModeGroupOneRenderStatus::
+                    selected_record_missing;
+                return result;
+            }
+            probe = probe->next;
+        }
+        const LegacyStandardModeForwardNode* const source_head =
+            state.record_head;
+        const LegacyStandardModeForwardNode* transition_record = nullptr;
+        static_cast<void>(advance_legacy_standard_mode_forward_head(
+            offset, &source_head, &transition_record
+        ));
+        ++result.helper_call_count;
+        if (transition_record != nullptr &&
+            transition_record->text_index != 0xFFDCU) {
+            state.pre_initialization_zeroes[2U] = 0x100U;
+            state.interaction_mode = 4U;
+        }
+    } else if (state.interaction_mode == 2U) {
+        ++result.helper_call_count;
+    }
+
+    if (!execute(
+            LegacyStandardModeGroupOneRenderOperation::prepare_surface,
+            values(),
+            primary_color
+        )) {
+        return result;
+    }
+    const compat::i32 raw_progress =
+        state.render_progress_value - state.render_progress_origin;
+    const compat::i32 progress = std::min(raw_progress, 5);
+    if (raw_progress < 5) {
+        if (!execute(
+                LegacyStandardModeGroupOneRenderOperation::draw_progress,
+                values(raw_progress, progress, 0xD0, 0x74, 0x110, 0x136),
+                primary_color
+            )) {
+            return result;
+        }
+    }
+    if (!execute(
+            LegacyStandardModeGroupOneRenderOperation::draw_progress,
+            values(progress, 0xB0, 0xD8, 0x1E0),
+            alternate_color
+        )) {
+        return result;
+    }
+
+    for (compat::i32 choice = 0; choice < 3; ++choice) {
+        compat::u32 color = primary_color;
+        compat::i32 selected = 0;
+        if ((state.published_selection_x ==
+                 static_cast<compat::u32>(choice) + 0x1EU &&
+             state.layout_mode == 0x0BU) ||
+            (state.published_selection_x >= 0x23U && choice == 1)) {
+            color = primary_color;
+            selected = -1;
+        }
+        if (!execute(
+                LegacyStandardModeGroupOneRenderOperation::draw_choice,
+                values(choice, selected, choice * 0x3C + 0xE0, 0x3E),
+                color
+            )) {
+            return result;
+        }
+    }
+    if (state.published_selection_x == 0x1FU) {
+        state.published_selection_x = 0x23U;
+    } else if (state.published_selection_x >= 0x23U) {
+        ++state.published_selection_x;
+        if (state.published_selection_x > 0x26U) {
+            state.published_selection_x = state.selection_x;
+        }
+    }
+
+    if (!execute(
+            LegacyStandardModeGroupOneRenderOperation::draw_action,
+            values(0x232A, 7, 0xD4, 0x64),
+            primary_color
+        ) ||
+        !execute(
+            LegacyStandardModeGroupOneRenderOperation::draw_action,
+            values(
+                0x232A,
+                static_cast<compat::i32>(state.pre_initialization_zeroes[0U]) +
+                    0x3C,
+                static_cast<compat::i32>(
+                    state.pre_initialization_zeroes[0U] * 0x20U + 0xD4U
+                ),
+                0x61
+            ),
+            primary_color
+        )) {
+        return result;
+    }
+
+    const LegacyStandardModeForwardNode* row = state.visible_record_head;
+    for (compat::u32 index = 0U; index < state.visible_record_count; ++index) {
+        if (row == nullptr) {
+            result.status =
+                LegacyStandardModeGroupOneRenderStatus::selected_record_missing;
+            return result;
+        }
+        const bool selected =
+            index == state.local_selection && row->text_index != 0xFFDCU;
+        const compat::u32 color = (row->equipment_type_flags & 0x0FU) == 0U
+            ? muted_color
+            : (row->equipment_type_flags & 0x0FU) == 1U ? alternate_color
+                                                        : primary_color;
+        const compat::i32 amount = state.pre_initialization_zeroes[0U] == 0U
+            ? static_cast<compat::i32>(row->second_value)
+            : static_cast<compat::i32>(row->first_value);
+        if (!execute(
+                LegacyStandardModeGroupOneRenderOperation::draw_list_row,
+                values(
+                    static_cast<compat::i32>(index),
+                    selected ? -1 : 0,
+                    amount,
+                    row->text_index
+                ),
+                color,
+                row->display_name
+            )) {
+            return result;
+        }
+        if (selected &&
+            !execute(
+                LegacyStandardModeGroupOneRenderOperation::draw_selected_marker,
+                values(static_cast<compat::i32>(index), state.interaction_mode),
+                primary_color
+            )) {
+            return result;
+        }
+        row = row->next;
+    }
+
+    compat::u32 transition = state.transition_flags;
+    if (raw_progress >= 4) {
+        compat::u32 effect = 0U;
+        if ((transition & 0x0FU) != 0U) {
+            transition = (transition & ~0x0FU) | ((transition & 0x0FU) - 1U);
+            effect |= 1U;
+        }
+        if ((transition & 0xF0U) != 0U) {
+            transition = (transition & ~0xF0U) |
+                (((transition & 0xF0U) - 0x10U) & 0xF0U);
+            effect |= 2U;
+        }
+        state.transition_flags = transition;
+        if (state.local_record_count > 0x0D &&
+            !execute(
+                LegacyStandardModeGroupOneRenderOperation::draw_scrollbar,
+                values(
+                    std::bit_cast<compat::i32>(state.list_offset),
+                    std::bit_cast<compat::i32>(state.visible_record_count),
+                    state.local_record_count,
+                    static_cast<compat::i32>(effect)
+                ),
+                primary_color
+            )) {
+            return result;
+        }
+    }
+
+    if (state.interaction_mode == 3U && state.selection_x == 0x1EU) {
+        const compat::i32 panel_y = std::min(
+            std::bit_cast<compat::i32>(state.local_selection) * 0x16 + 0x88,
+            0x168
+        );
+        state.selected_column = std::bit_cast<compat::u32>(panel_y + 2);
+        for (compat::u32 slot = 0U; slot < state.party_markers.size(); ++slot) {
+            if (state.party_markers[slot] == 0xFFFFU) {
+                continue;
+            }
+            if (!execute(
+                    LegacyStandardModeGroupOneRenderOperation::
+                        draw_mode_three_slot,
+                    values(
+                        static_cast<compat::i32>(slot),
+                        slot == state.record_zero ? -1 : 0,
+                        panel_y,
+                        state.party_markers[slot]
+                    ),
+                    slot == state.record_zero ? primary_color : muted_color
+                )) {
+                return result;
+            }
+        }
+    }
+    if (state.interaction_mode == 5U &&
+        !execute(
+            LegacyStandardModeGroupOneRenderOperation::draw_mode_five_panel,
+            values(
+                static_cast<compat::i32>(state.local_selection),
+                static_cast<compat::i32>(state.selected_action)
+            ),
+            primary_color
+        )) {
+        return result;
+    }
+
+    const compat::i32 selected_index =
+        std::bit_cast<compat::i32>(state.list_offset + state.local_selection);
+    const LegacyStandardModeForwardNode* selected_probe = state.record_head;
+    for (compat::i32 index = 0; index < selected_index; ++index) {
+        if (selected_probe == nullptr) {
+            result.status =
+                LegacyStandardModeGroupOneRenderStatus::selected_record_missing;
+            return result;
+        }
+        selected_probe = selected_probe->next;
+    }
+    const LegacyStandardModeForwardNode* const selected_head =
+        state.record_head;
+    const LegacyStandardModeForwardNode* const selected_record =
+        index_legacy_standard_mode_forward_node(selected_index, &selected_head);
+    ++result.helper_call_count;
+    if (selected_record == nullptr) {
+        result.status =
+            LegacyStandardModeGroupOneRenderStatus::selected_record_missing;
+        return result;
+    }
+    if (selected_record->text_index != 0xFFDCU &&
+        !execute(
+            LegacyStandardModeGroupOneRenderOperation::draw_animated_record,
+            values(selected_record->text_index),
+            primary_color,
+            selected_record->animated_text
+        )) {
+        return result;
+    }
+
+    if (state.interaction_mode == 0x0AU || state.interaction_mode == 0x0BU) {
+        for (compat::i32 row_index = 0; row_index < state.outer_row_count;
+             ++row_index) {
+            const std::optional<std::pair<std::string, bool>> loaded =
+                ports.load_mode_row(static_cast<compat::u32>(row_index + 0x47));
+            ++result.helper_call_count;
+            if (!loaded.has_value()) {
+                continue;
+            }
+            if (!execute(
+                    LegacyStandardModeGroupOneRenderOperation::
+                        draw_mode_ten_row,
+                    values(
+                        row_index,
+                        row_index ==
+                                std::bit_cast<compat::i32>(
+                                    state.selected_outer_row
+                                )
+                            ? -1
+                            : 0,
+                        loaded->second ? 1 : 0
+                    ),
+                    primary_color,
+                    loaded->first
+                )) {
+                return result;
+            }
+        }
+        if (state.interaction_mode == 0x0BU &&
+            !execute(
+                LegacyStandardModeGroupOneRenderOperation::
+                    draw_mode_eleven_panel,
+                values(
+                    std::bit_cast<compat::i32>(state.selected_outer_row),
+                    state.mode_ten_available,
+                    std::bit_cast<compat::i32>(state.selected_column)
+                ),
+                primary_color
+            )) {
+            return result;
+        }
+    }
+
+    if (state.interaction_mode == 0x0FU) {
+        for (compat::i32 row_index = 0; row_index < state.secondary_row_count;
+             ++row_index) {
+            const compat::i32 absolute =
+                state.secondary_window_offset + row_index;
+            if (absolute < 0 ||
+                static_cast<std::size_t>(absolute) >=
+                    commit_runtime.filtered_records.records.size()) {
+                break;
+            }
+            const LegacyStandardModeFilteredRecord& filtered =
+                commit_runtime.filtered_records
+                    .records[static_cast<std::size_t>(absolute)];
+            if (!execute(
+                    LegacyStandardModeGroupOneRenderOperation::
+                        draw_mode_fifteen_row,
+                    values(
+                        row_index,
+                        row_index == state.secondary_row_selection ? -1 : 0
+                    ),
+                    primary_color,
+                    std::string{
+                        reinterpret_cast<const char*>(filtered.text.data()),
+                        filtered.text_length
+                    }
+                )) {
+                return result;
+            }
+        }
+        if (state.special_control_count > state.secondary_row_count) {
+            compat::u32 effect = 0U;
+            if ((state.transition_flags & 0x0F00U) != 0U) {
+                state.transition_flags = (state.transition_flags & ~0x0F00U) |
+                    (((state.transition_flags & 0x0F00U) - 0x0100U) & 0x0F00U);
+                effect |= 1U;
+            }
+            if ((state.transition_flags & 0xF000U) != 0U) {
+                state.transition_flags = (state.transition_flags & ~0xF000U) |
+                    (((state.transition_flags & 0xF000U) - 0x1000U) & 0xF000U);
+                effect |= 2U;
+            }
+            if (!execute(
+                    LegacyStandardModeGroupOneRenderOperation::draw_scrollbar,
+                    values(
+                        state.secondary_window_offset,
+                        state.secondary_row_count,
+                        state.special_control_count,
+                        static_cast<compat::i32>(effect)
+                    ),
+                    primary_color
+                )) {
+                return result;
+            }
+        }
+    }
+
+    if (state.interaction_mode == 0x11U || state.interaction_mode == 0x12U) {
+        const std::span<const std::string> rows =
+            ports.terminal_rows(state.interaction_mode);
+        for (std::size_t row_index = 0U; row_index < rows.size(); ++row_index) {
+            if (!execute(
+                    LegacyStandardModeGroupOneRenderOperation::
+                        draw_terminal_row,
+                    values(static_cast<compat::i32>(row_index)),
+                    primary_color,
+                    rows[row_index]
+                )) {
+                return result;
+            }
+        }
+    }
+
+    result.legacy_return_value = raw_progress;
+    if (raw_progress == 4) {
+        state.exit_layout_owner = 0x43U;
+    }
+    return result;
+}
+
 LegacyStandardModeGroupEightInteractionExitResult
 exit_legacy_standard_mode_group_eight_interaction(
     LegacyStandardModeGroupEightState& state,
@@ -14883,6 +15309,23 @@ draw_legacy_standard_mode_group_eight_selection(
     if (target == 0U) {
         result.status =
             LegacyStandardModeGroupEightDrawStatus::draw_callback_missing;
+        return result;
+    }
+    if (target == 0x00447100U) {
+        const LegacyStandardModeGroupOneRenderResult rendered =
+            render_legacy_standard_mode_group_one(
+                state,
+                ports.group_one_runtime_state(),
+                ports.group_one_commit_runtime(),
+                ports.group_one_render_ports()
+            );
+        ++result.helper_call_count;
+        result.legacy_return_value = rendered.legacy_return_value;
+        if (rendered.status !=
+            LegacyStandardModeGroupOneRenderStatus::completed) {
+            result.status = LegacyStandardModeGroupEightDrawStatus::
+                group_one_render_stopped;
+        }
         return result;
     }
     const std::optional<compat::i32> drawn =

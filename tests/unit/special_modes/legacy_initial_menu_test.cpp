@@ -15245,10 +15245,123 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         std::vector<std::pair<u16, u32>> played_samples;
     };
 
+    class GroupOneRenderPorts final
+        : public openswd3::special_modes::LegacyStandardModeGroupOneRenderPorts,
+          public LegacyStandardModeRuntimeRenderPorts {
+    public:
+        u32 compose_color(
+            const u8 red, const u8 green, const u8 blue
+        ) noexcept override {
+            colors.push_back({red, green, blue});
+            return (static_cast<u32>(red) << 16U) |
+                (static_cast<u32>(green) << 8U) | blue;
+        }
+        bool transition_gate() noexcept override {
+            ++transition_query_count;
+            return transition_available;
+        }
+        std::optional<i32> execute(
+            const openswd3::special_modes::
+                LegacyStandardModeGroupOneRenderRequest& request
+        ) noexcept override {
+            requests.push_back(request);
+            return render_available ? std::optional<i32>{render_return}
+                                    : std::nullopt;
+        }
+        std::optional<std::pair<std::string, bool>>
+        load_mode_row(const u32 resource_id) noexcept override {
+            loaded_rows.push_back(resource_id);
+            return std::pair{std::to_string(resource_id), row_enabled};
+        }
+        std::span<const std::string>
+        terminal_rows(const u16 mode) noexcept override {
+            requested_terminal_modes.push_back(mode);
+            return terminal_texts;
+        }
+        LegacyStandardModeRuntimeRenderPorts&
+        runtime_render_ports() noexcept override {
+            return *this;
+        }
+        bool draw_split_bar(
+            const LegacyStandardModeBarRequest&,
+            openswd3::special_modes::LegacyStandardModeBarOutputs&,
+            std::array<
+                LegacyActionRecord,
+                openswd3::special_modes::
+                    kLegacyStandardSpecialModeInitializationRecordCount>&
+        ) noexcept override {
+            return true;
+        }
+        i32 set_mode_viewport(
+            const openswd3::special_modes::
+                LegacyStandardModeModeViewportRequest&
+        ) noexcept override {
+            return 0;
+        }
+        bool load_mode_resource(
+            const u32,
+            const i32,
+            openswd3::special_modes::LegacyStandardModeModeResource&
+        ) noexcept override {
+            return true;
+        }
+        void draw_mode_resource(
+            const openswd3::special_modes::
+                LegacyStandardModeModeResourceDrawRequest&
+        ) noexcept override {}
+        void draw_selected_preview(
+            LegacyActionRecord&, const u32, const u32
+        ) noexcept override {}
+        void draw_entry_text(
+            const LegacyStandardModeEntryTextRequest&
+        ) noexcept override {}
+        i32 draw_entry_formatted_text(
+            const LegacyStandardModeEntryFormattedTextRequest&
+        ) noexcept override {
+            return 0;
+        }
+        void draw_selection_frame(
+            const i32,
+            const i32,
+            const i32,
+            const i32,
+            const i32,
+            const i32,
+            const i32,
+            const i32
+        ) noexcept override {}
+
+        bool transition_available{};
+        bool render_available{true};
+        bool row_enabled{true};
+        i32 render_return{777};
+        u32 transition_query_count{};
+        std::array<std::string, 3U> terminal_texts{"A", "B", "C"};
+        std::vector<std::array<u8, 3U>> colors;
+        std::vector<
+            openswd3::special_modes::LegacyStandardModeGroupOneRenderRequest>
+            requests;
+        std::vector<u32> loaded_rows;
+        std::vector<u16> requested_terminal_modes;
+    };
+
     class GroupEightDrawPorts final
         : public openswd3::special_modes::
               LegacyStandardModeGroupEightDrawPorts {
     public:
+        LegacyStandardModeRuntimeInitializationState&
+        group_one_runtime_state() noexcept override {
+            return runtime_state;
+        }
+        openswd3::special_modes::
+            LegacyStandardModeGroupEightInteractionCommitRuntime&
+            group_one_commit_runtime() noexcept override {
+            return commit_runtime;
+        }
+        openswd3::special_modes::LegacyStandardModeGroupOneRenderPorts&
+        group_one_render_ports() noexcept override {
+            return render_ports;
+        }
         std::optional<i32> invoke_draw_callback(
             const u16 selection,
             const u32 target,
@@ -15258,6 +15371,10 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             return available ? std::optional<i32>{return_value} : std::nullopt;
         }
 
+        LegacyStandardModeRuntimeInitializationState runtime_state;
+        openswd3::special_modes::
+            LegacyStandardModeGroupEightInteractionCommitRuntime commit_runtime;
+        GroupOneRenderPorts render_ports;
         bool available{true};
         i32 return_value{0x12345678};
         std::vector<std::array<u32, 2U>> calls;
@@ -17485,6 +17602,185 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         "0x446FE0 preserves mode10/11/15/17 and default predecrement behavior"
     );
 
+    LegacyStandardModeForwardNode render_row_two;
+    LegacyStandardModeForwardNode render_row_one;
+    LegacyStandardModeForwardNode render_row_zero;
+    render_row_zero.next = &render_row_one;
+    render_row_one.next = &render_row_two;
+    render_row_zero.text_index = 0x0100U;
+    render_row_zero.display_name = "row0";
+    render_row_zero.equipment_type_flags = 2U;
+    render_row_one.text_index = 0xFFDCU;
+    render_row_one.display_name = "row1";
+    render_row_two.text_index = 0xFFDCU;
+    GroupEightState group_one_render_state;
+    group_one_render_state.interaction_mode = 2U;
+    group_one_render_state.selection_x = 30U;
+    group_one_render_state.published_selection_x = 31U;
+    group_one_render_state.layout_mode = 0x0BU;
+    group_one_render_state.record_head = &render_row_zero;
+    group_one_render_state.visible_record_head = &render_row_zero;
+    group_one_render_state.visible_record_count = 2U;
+    group_one_render_state.local_selection = 1U;
+    group_one_render_state.local_record_count = 14;
+    group_one_render_state.render_progress_value = 9;
+    group_one_render_state.render_progress_origin = 5;
+    group_one_render_state.transition_flags = 0x1122U;
+    LegacyStandardModeRuntimeInitializationState group_one_render_runtime;
+    openswd3::special_modes::
+        LegacyStandardModeGroupEightInteractionCommitRuntime
+            group_one_render_commit_runtime;
+    GroupOneRenderPorts group_one_render_ports;
+    const auto group_one_rendered =
+        openswd3::special_modes::render_legacy_standard_mode_group_one(
+            group_one_render_state,
+            group_one_render_runtime,
+            group_one_render_commit_runtime,
+            group_one_render_ports
+        );
+    const auto count_group_one_operation = [&](const auto operation) {
+        return static_cast<u32>(std::count_if(
+            group_one_render_ports.requests.begin(),
+            group_one_render_ports.requests.end(),
+            [&](const auto& request) { return request.operation == operation; }
+        ));
+    };
+    test.expect_true(
+        group_one_rendered.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupOneRenderStatus::completed &&
+            group_one_rendered.legacy_return_value == 4 &&
+            group_one_rendered.color_compose_count == 3U &&
+            group_one_render_state.published_selection_x == 35U &&
+            group_one_render_state.transition_flags == 0x1111U &&
+            group_one_render_state.exit_layout_owner == 0x43U &&
+            count_group_one_operation(
+                openswd3::special_modes::
+                    LegacyStandardModeGroupOneRenderOperation::draw_list_row
+            ) == 2U &&
+            count_group_one_operation(
+                openswd3::special_modes::
+                    LegacyStandardModeGroupOneRenderOperation::draw_scrollbar
+            ) == 1U,
+        "0x447100 preserves progress, choice cycling, rows and low-nibble scrolling"
+    );
+
+    GroupEightState mode_three_render_state;
+    mode_three_render_state.interaction_mode = 3U;
+    mode_three_render_state.selection_x = 30U;
+    mode_three_render_state.record_head = &render_row_zero;
+    mode_three_render_state.party_markers = {1U, 0xFFFFU, 2U, 3U};
+    mode_three_render_state.record_zero = 2U;
+    mode_three_render_state.local_selection = 2U;
+    GroupOneRenderPorts mode_three_render_ports;
+    const auto mode_three_rendered =
+        openswd3::special_modes::render_legacy_standard_mode_group_one(
+            mode_three_render_state,
+            group_one_render_runtime,
+            group_one_render_commit_runtime,
+            mode_three_render_ports
+        );
+    GroupEightState mode_ten_render_state;
+    mode_ten_render_state.interaction_mode = 11U;
+    mode_ten_render_state.record_head = &render_row_one;
+    mode_ten_render_state.outer_row_count = 3;
+    mode_ten_render_state.selected_outer_row = 1U;
+    mode_ten_render_state.selected_column = 1U;
+    GroupOneRenderPorts mode_ten_render_ports;
+    const auto mode_ten_rendered =
+        openswd3::special_modes::render_legacy_standard_mode_group_one(
+            mode_ten_render_state,
+            group_one_render_runtime,
+            group_one_render_commit_runtime,
+            mode_ten_render_ports
+        );
+    test.expect_true(
+        mode_three_rendered.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupOneRenderStatus::completed &&
+            mode_three_render_state.selected_column == 182U &&
+            std::count_if(
+                mode_three_render_ports.requests.begin(),
+                mode_three_render_ports.requests.end(),
+                [](const auto& request) {
+                    return request.operation ==
+                        openswd3::special_modes::
+                            LegacyStandardModeGroupOneRenderOperation::
+                                draw_mode_three_slot;
+                }
+            ) == 3 &&
+            mode_ten_rendered.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupOneRenderStatus::completed &&
+            mode_ten_render_ports.loaded_rows ==
+                std::vector<u32>{0x47U, 0x48U, 0x49U},
+        "0x447100 renders mode3 slots and mode10/11 resource rows"
+    );
+
+    GroupEightState mode_fifteen_render_state;
+    mode_fifteen_render_state.interaction_mode = 15U;
+    mode_fifteen_render_state.record_head = &render_row_one;
+    mode_fifteen_render_state.secondary_row_count = 2;
+    mode_fifteen_render_state.special_control_count = 3;
+    mode_fifteen_render_state.transition_flags = 0x2200U;
+    openswd3::special_modes::
+        LegacyStandardModeGroupEightInteractionCommitRuntime
+            mode_fifteen_render_runtime;
+    mode_fifteen_render_runtime.filtered_records.records.resize(2U);
+    mode_fifteen_render_runtime.filtered_records.records[0U].text[0U] = 'A';
+    mode_fifteen_render_runtime.filtered_records.records[0U].text_length = 1U;
+    mode_fifteen_render_runtime.filtered_records.records[1U].text[0U] = 'B';
+    mode_fifteen_render_runtime.filtered_records.records[1U].text_length = 1U;
+    GroupOneRenderPorts mode_fifteen_render_ports;
+    const auto mode_fifteen_rendered =
+        openswd3::special_modes::render_legacy_standard_mode_group_one(
+            mode_fifteen_render_state,
+            group_one_render_runtime,
+            mode_fifteen_render_runtime,
+            mode_fifteen_render_ports
+        );
+    GroupEightState terminal_render_state;
+    terminal_render_state.interaction_mode = 17U;
+    terminal_render_state.record_head = &render_row_one;
+    GroupOneRenderPorts terminal_render_ports;
+    const auto terminal_rendered =
+        openswd3::special_modes::render_legacy_standard_mode_group_one(
+            terminal_render_state,
+            group_one_render_runtime,
+            group_one_render_commit_runtime,
+            terminal_render_ports
+        );
+    test.expect_true(
+        mode_fifteen_rendered.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupOneRenderStatus::completed &&
+            mode_fifteen_render_state.transition_flags == 0x1100U &&
+            terminal_rendered.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupOneRenderStatus::completed &&
+            terminal_render_ports.requested_terminal_modes ==
+                std::vector<u16>{17U},
+        "0x447100 renders filtered rows, high-nibble scrolling and terminal text"
+    );
+
+    GroupEightState high_group_one_render_state;
+    high_group_one_render_state.interaction_mode = 500U;
+    LegacyStandardModeRuntimeInitializationState high_group_one_render_runtime;
+    GroupOneRenderPorts high_group_one_render_ports;
+    const auto high_group_one_rendered =
+        openswd3::special_modes::render_legacy_standard_mode_group_one(
+            high_group_one_render_state,
+            high_group_one_render_runtime,
+            group_one_render_commit_runtime,
+            high_group_one_render_ports
+        );
+    test.expect_true(
+        high_group_one_rendered.helper_call_count == 1U &&
+            high_group_one_render_ports.colors.size() >= 4U &&
+            high_group_one_render_ports.requests.empty(),
+        "0x447100 delegates high modes directly to the closed C820 renderer"
+    );
+
     GroupEightState group_state{.selection = 4U, .lifecycle = 2U};
     group_state.callback_state.initialization_callbacks.fill(0x00445430U);
     GroupEightInputPorts group_ports;
@@ -17788,8 +18084,11 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         "0x445360 typed-stops at the indexed initialization table after rebind"
     );
 
+    LegacyStandardModeForwardNode draw_record;
+    draw_record.text_index = 0xFFDCU;
     GroupEightState draw_state{.selection = 11U};
     draw_state.callback_state.draw_callbacks[0U] = 0x00447100U;
+    draw_state.record_head = &draw_record;
     GroupEightDrawPorts draw_ports;
     const auto drawn = openswd3::special_modes::
         draw_legacy_standard_mode_group_eight_selection(draw_state, draw_ports);
@@ -17816,10 +18115,9 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         drawn.status ==
                 openswd3::special_modes::
                     LegacyStandardModeGroupEightDrawStatus::completed &&
-            drawn.legacy_return_value == 0x12345678 &&
-            drawn.helper_call_count == 1U &&
-            draw_ports.calls ==
-                std::vector<std::array<u32, 2U>>{{11U, 0x00447100U}} &&
+            drawn.legacy_return_value == 0 && drawn.helper_call_count == 1U &&
+            draw_ports.calls.empty() &&
+            !draw_ports.render_ports.requests.empty() &&
             draw_range_stopped.status ==
                 openswd3::special_modes::
                     LegacyStandardModeGroupEightDrawStatus::

@@ -529,7 +529,9 @@ struct LegacyStandardModeAvailabilityRecord;
 struct LegacyStandardModeRuntimeInitializationState;
 struct LegacyStandardModeGroupEightInteractionCommitRuntime;
 class LegacyStandardModeGroupEightInteractionCommitPorts;
+class LegacyStandardModeGroupOneRenderPorts;
 class LegacyStandardModeInputDispatchPorts;
+class LegacyStandardModeRuntimeRenderPorts;
 
 struct LegacyStandardModeGroupEightState {
     compat::u16 selection{};
@@ -586,6 +588,9 @@ struct LegacyStandardModeGroupEightState {
     compat::u32 visible_record_count{};
     compat::u32 global_mode_owner{};
     compat::u32 exit_layout_owner{};
+    compat::i32 render_blocked{};
+    compat::i32 render_progress_value{};
+    compat::i32 render_progress_origin{};
 };
 
 class LegacyStandardModeGroupEightInitializationPorts {
@@ -1071,6 +1076,12 @@ commit_legacy_standard_mode_group_eight_selection(
 class LegacyStandardModeGroupEightDrawPorts {
 public:
     virtual ~LegacyStandardModeGroupEightDrawPorts() = default;
+    [[nodiscard]] virtual LegacyStandardModeRuntimeInitializationState&
+    group_one_runtime_state() noexcept = 0;
+    [[nodiscard]] virtual LegacyStandardModeGroupEightInteractionCommitRuntime&
+    group_one_commit_runtime() noexcept = 0;
+    [[nodiscard]] virtual LegacyStandardModeGroupOneRenderPorts&
+    group_one_render_ports() noexcept = 0;
     [[nodiscard]] virtual std::optional<compat::i32> invoke_draw_callback(
         compat::u16 selection,
         compat::u32 target,
@@ -1082,6 +1093,7 @@ enum class LegacyStandardModeGroupEightDrawStatus : compat::u8 {
     completed,
     selection_out_of_range,
     draw_callback_missing,
+    group_one_render_stopped,
 };
 
 struct LegacyStandardModeGroupEightDrawResult {
@@ -2062,6 +2074,75 @@ struct LegacyStandardModeGroupEightInteractionCommitRuntime {
     compat::i32 special_unlock_owner{};
     compat::u32 temporary_resource_token{};
 };
+
+enum class LegacyStandardModeGroupOneRenderOperation : compat::u8 {
+    prepare_surface,
+    draw_progress,
+    draw_choice,
+    draw_action,
+    draw_list_row,
+    draw_selected_marker,
+    draw_scrollbar,
+    draw_mode_three_slot,
+    draw_mode_five_panel,
+    draw_animated_record,
+    draw_mode_ten_row,
+    draw_mode_eleven_panel,
+    draw_mode_fifteen_row,
+    draw_terminal_row,
+};
+
+struct LegacyStandardModeGroupOneRenderRequest {
+    LegacyStandardModeGroupOneRenderOperation operation{
+        LegacyStandardModeGroupOneRenderOperation::prepare_surface
+    };
+    std::array<compat::i32, 8U> values{};
+    compat::u32 color{};
+    std::string text;
+};
+
+class LegacyStandardModeGroupOneRenderPorts {
+public:
+    virtual ~LegacyStandardModeGroupOneRenderPorts() = default;
+    [[nodiscard]] virtual compat::u32 compose_color(
+        compat::u8 red, compat::u8 green, compat::u8 blue
+    ) noexcept = 0;
+    [[nodiscard]] virtual bool transition_gate() noexcept = 0;
+    [[nodiscard]] virtual std::optional<compat::i32> execute(
+        const LegacyStandardModeGroupOneRenderRequest& request
+    ) noexcept = 0;
+    [[nodiscard]] virtual std::optional<std::pair<std::string, bool>>
+    load_mode_row(compat::u32 resource_id) noexcept = 0;
+    [[nodiscard]] virtual std::span<const std::string>
+    terminal_rows(compat::u16 mode) noexcept = 0;
+    [[nodiscard]] virtual LegacyStandardModeRuntimeRenderPorts&
+    runtime_render_ports() noexcept = 0;
+};
+
+enum class LegacyStandardModeGroupOneRenderStatus : compat::u8 {
+    completed,
+    runtime_render_stopped,
+    selected_record_missing,
+    render_operation_stopped,
+};
+
+struct LegacyStandardModeGroupOneRenderResult {
+    LegacyStandardModeGroupOneRenderStatus status{
+        LegacyStandardModeGroupOneRenderStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 color_compose_count{};
+    compat::u32 render_operation_count{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacyStandardModeGroupOneRenderResult
+render_legacy_standard_mode_group_one(
+    LegacyStandardModeGroupEightState& state,
+    LegacyStandardModeRuntimeInitializationState& runtime_state,
+    LegacyStandardModeGroupEightInteractionCommitRuntime& commit_runtime,
+    LegacyStandardModeGroupOneRenderPorts& ports
+) noexcept;
 
 class LegacyStandardModeGroupEightInteractionCommitPorts
     : public LegacyStandardModeMissingNodePorts,
