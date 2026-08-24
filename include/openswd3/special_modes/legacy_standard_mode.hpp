@@ -567,6 +567,11 @@ struct LegacyStandardModeGroupEightState {
     compat::i32 special_control_count{};
     compat::i32 secondary_row_count{};
     compat::i32 secondary_row_selection{};
+    compat::i32 secondary_window_offset{};
+    const LegacyStandardModeForwardNode* visible_record_head{};
+    compat::u32 transition_flags{};
+    compat::u16 published_local_selection{};
+    std::array<compat::u16, 4U> party_markers{};
     compat::i32 primary_control_one_y_min{};
     compat::i32 primary_control_one_y_max{};
     compat::i32 primary_control_two_y_min{};
@@ -687,6 +692,7 @@ enum class LegacyStandardModeGroupEightMainInputStatus : compat::u8 {
     selected_record_missing,
     shared_text_stopped,
     presence_scan_stopped,
+    advance_control_stopped,
 };
 
 enum class LegacyStandardModeGroupEightMainInputPath : compat::u8 {
@@ -730,6 +736,49 @@ handle_legacy_standard_mode_group_eight_main_input(
     LegacyStandardModeRuntimeInitializationState& runtime_state,
     LegacyStandardModeInputDispatchPorts& runtime_ports,
     std::span<const compat::u8> maps_payload,
+    LegacyStandardModeGroupEightMainInputPorts& ports
+) noexcept;
+
+enum class LegacyStandardModeGroupEightAdvanceStatus : compat::u8 {
+    completed,
+    runtime_cursor_stopped,
+    visible_chain_stopped,
+    selected_record_missing,
+    shared_text_stopped,
+    party_cycle_stopped,
+};
+
+enum class LegacyStandardModeGroupEightAdvancePath : compat::u8 {
+    no_action,
+    runtime_cursor_advanced,
+    record_window_advanced,
+    available_item_advanced,
+    action_advanced,
+    outer_row_advanced,
+    column_advanced,
+    secondary_window_advanced,
+};
+
+struct LegacyStandardModeGroupEightAdvanceResult {
+    LegacyStandardModeGroupEightAdvanceStatus status{
+        LegacyStandardModeGroupEightAdvanceStatus::completed
+    };
+    LegacyStandardModeGroupEightAdvancePath path{
+        LegacyStandardModeGroupEightAdvancePath::no_action
+    };
+    compat::u8 runtime_cursor_status{};
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacyStandardModeGroupEightAdvanceResult
+advance_legacy_standard_mode_group_eight_control(
+    LegacyStandardModeGroupEightState& state,
+    compat::u32 sample_handle,
+    std::span<const compat::u16> party_markers,
+    std::span<const compat::u8> maps_payload,
+    LegacyStandardModeRuntimeInitializationState& runtime_state,
+    LegacyStandardModeInputDispatchPorts& runtime_ports,
     LegacyStandardModeGroupEightMainInputPorts& ports
 ) noexcept;
 

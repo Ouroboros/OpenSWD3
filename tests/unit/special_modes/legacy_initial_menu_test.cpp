@@ -15680,6 +15680,7 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     GroupEightState primary_controls_state;
     primary_controls_state.interaction_mode = 2U;
     primary_controls_state.pre_initialization_zeroes[4U] = 14U;
+    primary_controls_state.selection_x = 31U;
     openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
         primary_controls_input{
             .pointer_x = 490U, .pointer_y = 125U, .input_flags = 0U
@@ -15731,19 +15732,13 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
                     LegacyStandardModeGroupEightMainInputPath::
                         control_dispatched &&
             primary_controls_ports.events ==
-                std::vector{
-                    GroupEightMainInputPorts::Event::upper,
-                    GroupEightMainInputPorts::Event::lower,
-                } &&
+                std::vector{GroupEightMainInputPorts::Event::upper} &&
             secondary_controls.path ==
                 openswd3::special_modes::
                     LegacyStandardModeGroupEightMainInputPath::
                         control_dispatched &&
             secondary_controls_ports.events ==
-                std::vector{
-                    GroupEightMainInputPorts::Event::upper,
-                    GroupEightMainInputPorts::Event::lower,
-                },
+                std::vector{GroupEightMainInputPorts::Event::upper},
         "0x4455E0 rereads pointer Y after every primary and secondary control callback"
     );
 
@@ -15822,6 +15817,252 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
                     LegacyStandardModeGroupEightMainInputStatus::
                         availability_index_out_of_range,
         "0x4455E0 clamps mode15 rows and preserves availability-before-exit ordering"
+    );
+
+    LegacyStandardModeForwardNode advance_row_zero;
+    LegacyStandardModeForwardNode advance_row_one;
+    LegacyStandardModeForwardNode advance_row_two;
+    advance_row_zero.next = &advance_row_one;
+    advance_row_one.next = &advance_row_two;
+    advance_row_one.text_index = 0xFFDCU;
+    GroupEightState record_advance_state;
+    record_advance_state.interaction_mode = 2U;
+    record_advance_state.selection_x = 30U;
+    record_advance_state.record_head = &advance_row_zero;
+    record_advance_state.pre_initialization_zeroes[2U] = 9U;
+    record_advance_state.pre_initialization_zeroes[4U] = 3U;
+    record_advance_state.local_record_count = 2;
+    record_advance_state.transition_flags = 0xABCD0000U;
+    GroupEightMainInputPorts record_advance_ports;
+    const auto record_advanced = openswd3::special_modes::
+        advance_legacy_standard_mode_group_eight_control(
+            record_advance_state,
+            0x10203040U,
+            {},
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            record_advance_ports
+        );
+    test.expect_true(
+        record_advanced.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightAdvanceStatus::completed &&
+            record_advanced.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightAdvancePath::
+                        record_window_advanced &&
+            record_advanced.helper_call_count == 6U &&
+            record_advance_state.viewport_extent == 480U &&
+            record_advance_state.pre_initialization_zeroes[2U] == 0U &&
+            record_advance_state.list_offset == 0U &&
+            record_advance_state.local_selection == 1U &&
+            record_advance_state.visible_record_head == &advance_row_zero &&
+            record_advance_state.local_record_count == 3 &&
+            record_advance_state.transition_flags == 0xABCD0030U &&
+            record_advance_state.published_local_selection == 1U &&
+            record_advance_state.shared_text[0U] == 0xB5U &&
+            record_advance_state.shared_text[1U] == 0x4CU &&
+            record_advance_state.published_selection_x == 30U &&
+            record_advance_ports.played_samples ==
+                std::vector<std::pair<u16, u32>>{{0x2EU, 0x10203040U}},
+        "0x445C90 advances the mode2 window, visible chain, text and low transition byte"
+    );
+
+    GroupEightState skip_record_advance_state;
+    skip_record_advance_state.interaction_mode = 2U;
+    skip_record_advance_state.selection_x = 31U;
+    skip_record_advance_state.viewport_extent = 7U;
+    GroupEightMainInputPorts skip_record_advance_ports;
+    const auto record_advance_skipped = openswd3::special_modes::
+        advance_legacy_standard_mode_group_eight_control(
+            skip_record_advance_state,
+            0U,
+            {},
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            skip_record_advance_ports
+        );
+    GroupEightState missing_advance_state;
+    missing_advance_state.interaction_mode = 2U;
+    missing_advance_state.selection_x = 30U;
+    missing_advance_state.pre_initialization_zeroes[4U] = 3U;
+    missing_advance_state.local_record_count = 1;
+    missing_advance_state.list_offset = 1U;
+    GroupEightMainInputPorts missing_advance_ports;
+    const auto missing_advance = openswd3::special_modes::
+        advance_legacy_standard_mode_group_eight_control(
+            missing_advance_state,
+            0U,
+            {},
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            missing_advance_ports
+        );
+    test.expect_true(
+        record_advance_skipped.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightAdvancePath::no_action &&
+            record_advance_skipped.helper_call_count == 0U &&
+            skip_record_advance_state.viewport_extent == 7U &&
+            skip_record_advance_state.published_selection_x == 31U &&
+            missing_advance.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightAdvanceStatus::
+                        visible_chain_stopped &&
+            missing_advance.helper_call_count == 1U &&
+            missing_advance_state.viewport_extent == 480U,
+        "0x445C90 skips selection31 and stops after window mutation at a short visible chain"
+    );
+
+    GroupEightState item_advance_state;
+    item_advance_state.interaction_mode = 3U;
+    item_advance_state.selection_x = 30U;
+    item_advance_state.record_zero = 0U;
+    GroupEightMainInputPorts item_advance_ports;
+    const std::array<u16, 4U> party_markers{0xFFFFU, 0xFFFFU, 7U, 0xFFFFU};
+    const auto item_advanced = openswd3::special_modes::
+        advance_legacy_standard_mode_group_eight_control(
+            item_advance_state,
+            0x55667788U,
+            party_markers,
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            item_advance_ports
+        );
+    GroupEightState item_stop_state;
+    item_stop_state.interaction_mode = 3U;
+    item_stop_state.record_zero = 2U;
+    GroupEightMainInputPorts item_stop_ports;
+    const auto item_advance_stopped = openswd3::special_modes::
+        advance_legacy_standard_mode_group_eight_control(
+            item_stop_state,
+            0U,
+            std::array<u16, 4U>{0xFFFFU, 0xFFFFU, 0xFFFFU, 0xFFFFU},
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            item_stop_ports
+        );
+    test.expect_true(
+        item_advanced.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightAdvancePath::
+                        available_item_advanced &&
+            item_advance_state.record_zero == 2U &&
+            item_advance_state.published_selection_x == 30U &&
+            item_advance_ports.played_samples ==
+                std::vector<std::pair<u16, u32>>{{0x2EU, 0x55667788U}} &&
+            item_advance_stopped.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightAdvanceStatus::
+                        party_cycle_stopped &&
+            item_stop_state.record_zero == 2U &&
+            item_stop_ports.played_samples.empty(),
+        "0x445C90 cycles four party slots and typed-stops after the complete FFFF domain"
+    );
+
+    GroupEightState fixed_advance_state;
+    fixed_advance_state.interaction_mode = 5U;
+    fixed_advance_state.selection_x = 44U;
+    GroupEightMainInputPorts fixed_advance_ports;
+    const auto action_advanced = openswd3::special_modes::
+        advance_legacy_standard_mode_group_eight_control(
+            fixed_advance_state,
+            0U,
+            {},
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            fixed_advance_ports
+        );
+    fixed_advance_state.interaction_mode = 10U;
+    fixed_advance_state.outer_row_count = 2;
+    fixed_advance_state.selected_outer_row = 1U;
+    const auto outer_advanced = openswd3::special_modes::
+        advance_legacy_standard_mode_group_eight_control(
+            fixed_advance_state,
+            0U,
+            {},
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            fixed_advance_ports
+        );
+    fixed_advance_state.interaction_mode = 11U;
+    const auto column_advanced = openswd3::special_modes::
+        advance_legacy_standard_mode_group_eight_control(
+            fixed_advance_state,
+            0U,
+            {},
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            fixed_advance_ports
+        );
+    fixed_advance_state.interaction_mode = 15U;
+    fixed_advance_state.special_control_count = 5;
+    fixed_advance_state.secondary_row_count = 2;
+    fixed_advance_state.secondary_row_selection = 1;
+    fixed_advance_state.transition_flags = 0x550000AAU;
+    const auto secondary_advanced = openswd3::special_modes::
+        advance_legacy_standard_mode_group_eight_control(
+            fixed_advance_state,
+            0U,
+            {},
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            fixed_advance_ports
+        );
+    test.expect_true(
+        action_advanced.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightAdvancePath::action_advanced &&
+            fixed_advance_state.selected_action == 1U &&
+            outer_advanced.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightAdvancePath::
+                        outer_row_advanced &&
+            fixed_advance_state.selected_outer_row == 1U &&
+            column_advanced.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightAdvancePath::column_advanced &&
+            fixed_advance_state.selected_column == 1U &&
+            secondary_advanced.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightAdvancePath::
+                        secondary_window_advanced &&
+            secondary_advanced.helper_call_count == 1U &&
+            fixed_advance_state.transition_flags == 0x550030AAU &&
+            fixed_advance_state.published_selection_x == 44U,
+        "0x445C90 applies mode5/10/11 constants and mode15 high transition byte"
+    );
+
+    GroupEightState runtime_advance_state;
+    runtime_advance_state.interaction_mode = 500U;
+    LegacyStandardModeRuntimeInitializationState runtime_advance_runtime;
+    GroupEightMainInputPorts runtime_advance_ports;
+    const auto runtime_advanced = openswd3::special_modes::
+        advance_legacy_standard_mode_group_eight_control(
+            runtime_advance_state,
+            0U,
+            {},
+            {},
+            runtime_advance_runtime,
+            group_main_runtime_ports,
+            runtime_advance_ports
+        );
+    test.expect_true(
+        runtime_advanced.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightAdvancePath::
+                        runtime_cursor_advanced &&
+            runtime_advanced.helper_call_count == 1U,
+        "0x445C90 directly delegates modes at least 500 to 0x43C520"
     );
 
     GroupEightState group_state{.selection = 4U, .lifecycle = 2U};
