@@ -4186,14 +4186,10 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
             surface.back() = static_cast<u16>(0xB000U + index);
             return static_cast<u32>(0x1000U + index);
         }
-        void update_database_phase_3(
-            openswd3::special_modes::
-                LegacyStandardModeDatabaseInitializationState& state
-        ) noexcept override {
-            ++phase_3_update_count;
-            if (override_phase_3_countdown) {
-                state.phase_3_countdown = phase_3_countdown_value;
-            }
+        [[nodiscard]] i32
+        release_altar_surface(const u32 token) noexcept override {
+            released_surfaces.push_back(token);
+            return 900 + static_cast<i32>(released_surfaces.size());
         }
         [[nodiscard]] i32 resolve_database_record_text(
             std::span<u8>, const i32, u16& text_index
@@ -4242,8 +4238,6 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
         i32 cleanup_storage_return_base{200};
         bool publish_missing_node{true};
         i32 rebuild_result{1};
-        bool override_phase_3_countdown{};
-        u32 phase_3_countdown_value{};
         u32 missing_insert_count{};
         u32 secondary_dispatch_count{};
         u32 high_mode_runtime_count{};
@@ -4252,7 +4246,6 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
         std::size_t missing_original_surface_index{
             std::numeric_limits<std::size_t>::max()
         };
-        u32 phase_3_update_count{};
         std::size_t resolution_index{};
         LegacyStandardModeForwardNode cycle_node{nullptr, 0xFFDCU};
         LegacyStandardModeForwardNode* cycle_forward_head{&cycle_node};
@@ -4269,6 +4262,7 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
         std::vector<std::pair<i32, u16>> resolutions;
         std::vector<MaterializedText> materialized_texts;
         std::vector<u32> released_values;
+        std::vector<u32> released_surfaces;
         std::vector<Target> targets;
     };
     std::vector<openswd3::special_modes::LegacyStandardModeAvailabilityRecord>
@@ -4639,8 +4633,9 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
             "0x43E3D0 phase2 directly executes all four FDE0 surface slots"
         );
 
-        ports.override_phase_3_countdown = true;
-        ports.phase_3_countdown_value = std::bit_cast<u32>(-36);
+        state.fourth_reset = 99U;
+        state.animation_ring_offset = 77U;
+        state.original_surface_pixels[2U][0U] = 0xABCDU;
         ports.database_sample_ids.clear();
         const auto countdown = commit(state, ports);
         test.expect_true(
@@ -4648,13 +4643,19 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
                     openswd3::special_modes::
                         LegacyStandardModeDatabaseCommitPath::
                             phase_3_countdown &&
-                countdown.helper_call_count == 2U &&
-                state.phase_3_countdown == 35U &&
+                countdown.helper_call_count == 5U &&
+                countdown.legacy_return_value == 100 &&
+                state.interaction_phase == 4U &&
+                state.phase_3_countdown == 35U && state.fourth_reset == 0U &&
                 state.primary_action.action_id == 0x232AU &&
                 state.primary_action.base_variant == 0x46U &&
-                ports.phase_3_update_count == 1U &&
+                state.original_surface_tokens == std::array<u32, 4U>{} &&
+                state.animation_ring_offset == 0U &&
+                state.original_surface_pixels[2U][0U] == 0xABCDU &&
+                ports.released_surfaces ==
+                    std::vector<u32>{0x1001U, 0x1000U, 0x1002U, 0x1003U} &&
                 ports.database_sample_ids == std::vector<u16>{0x2EU},
-            "0x43E3D0 phase3 promotes values below minus35 to action variant70"
+            "0x43E3D0 phase3 directly releases 4405C0 surfaces before threshold update"
         );
     }
     {
@@ -5079,6 +5080,11 @@ void test_standard_mode_database_render(openswd3::test::Context& test) {
             return 100 + static_cast<i32>(operations.size());
         }
 
+        i32 release_altar_surface(const u32 token) noexcept override {
+            released_surfaces.push_back(token);
+            return 800 + static_cast<i32>(released_surfaces.size());
+        }
+
         i32 random_bounded(u32 bound) noexcept override {
             random_bounds.push_back(bound);
             if (random_index < random_values.size()) {
@@ -5118,6 +5124,7 @@ void test_standard_mode_database_render(openswd3::test::Context& test) {
         std::vector<i32> random_values;
         std::vector<u32> random_bounds;
         std::vector<u16> sample_ids;
+        std::vector<u32> released_surfaces;
         std::vector<u16> framebuffer_pixels = std::vector<u16>(640U * 480U, 0U);
         std::vector<u16> resource_ids;
         std::vector<Operation> operations;
@@ -5531,14 +5538,22 @@ void test_standard_mode_database_render(openswd3::test::Context& test) {
         );
 
         state.phase_3_countdown = 140U;
+        state.original_surface_tokens =
+            std::array<u32, 4U>{0x10U, 0x20U, 0x30U, 0x40U};
+        state.original_surface_pixels[3U][0U] = 0xCAFEU;
         RenderPorts completing_ports;
         const auto completing = render(state, completing_ports);
         test.expect_true(
-            completing.legacy_return_value == 101 &&
+            completing.legacy_return_value == 804 &&
+                state.interaction_phase == 4U &&
                 state.phase_3_countdown == 200U &&
-                state.animation_ring_offset == 2U &&
-                count_kind(completing_ports, Kind::complete_phase) == 1U,
-            "0x43E800 phase3 frame141 snaps countdown200 and calls 4405C0"
+                state.original_surface_tokens == std::array<u32, 4U>{} &&
+                state.animation_ring_offset == 0U &&
+                state.original_surface_pixels[3U][0U] == 0xCAFEU &&
+                completing_ports.released_surfaces ==
+                    std::vector<u32>{0x20U, 0x10U, 0x30U, 0x40U} &&
+                completing_ports.operations.empty(),
+            "0x43E800 phase3 frame141 directly releases all 4405C0 surfaces"
         );
     }
     {

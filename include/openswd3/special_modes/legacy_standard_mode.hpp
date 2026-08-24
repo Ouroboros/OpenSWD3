@@ -1117,6 +1117,19 @@ struct LegacyStandardModeOriginalSurfaceResult {
     compat::u32 prepared_surface_count{};
 };
 
+struct LegacyStandardModeAltarSurfaceReleaseResult {
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+    compat::u32 released_surface_count{};
+};
+
+class LegacyStandardModeAltarSurfaceReleasePorts {
+public:
+    virtual ~LegacyStandardModeAltarSurfaceReleasePorts() = default;
+    [[nodiscard]] virtual compat::i32
+    release_altar_surface(compat::u32 token) noexcept = 0;
+};
+
 enum class LegacyStandardModeDatabaseCommitStatus : compat::u8 {
     completed,
     window_selection_stopped,
@@ -1156,7 +1169,8 @@ struct LegacyStandardModeDatabaseCommitResult {
 class LegacyStandardModeDatabaseCleanupPorts;
 
 class LegacyStandardModeDatabaseCommitPorts
-    : public LegacyStandardModeDatabaseCyclePorts {
+    : public LegacyStandardModeDatabaseCyclePorts,
+      public LegacyStandardModeAltarSurfaceReleasePorts {
 public:
     ~LegacyStandardModeDatabaseCommitPorts() override = default;
     [[nodiscard]] virtual compat::i32 rebuild_database_inline_records(
@@ -1169,9 +1183,6 @@ public:
         const LegacyStandardModeOriginalSurfaceRequest& request,
         std::span<compat::u16, kLegacyStandardModeAltarSurfacePixelCount>
             surface
-    ) noexcept = 0;
-    virtual void update_database_phase_3(
-        LegacyStandardModeDatabaseInitializationState& state
     ) noexcept = 0;
     [[nodiscard]] virtual compat::i32 resolve_database_record_text(
         std::span<compat::u8> record,
@@ -1254,7 +1265,6 @@ enum class LegacyStandardModeDatabaseRenderOperationKind : compat::u8 {
     draw_list_marker,
     draw_rectangle,
     draw_resource,
-    complete_phase,
 };
 
 struct LegacyStandardModeDatabaseRenderOperation {
@@ -1274,7 +1284,8 @@ struct LegacyStandardModeDatabaseRenderResource {
     compat::u16 height{};
 };
 
-class LegacyStandardModeDatabaseRenderPorts {
+class LegacyStandardModeDatabaseRenderPorts
+    : public LegacyStandardModeAltarSurfaceReleasePorts {
 public:
     virtual ~LegacyStandardModeDatabaseRenderPorts() = default;
     [[nodiscard]] virtual compat::i32
@@ -2285,6 +2296,12 @@ render_legacy_standard_mode_altar_record_panel(
 ) noexcept;
 
 // sub_43E800: draw the standard-mode database callback frame.
+[[nodiscard]] LegacyStandardModeAltarSurfaceReleaseResult
+release_legacy_standard_mode_altar_surfaces(
+    LegacyStandardModeDatabaseInitializationState& state,
+    LegacyStandardModeAltarSurfaceReleasePorts& ports
+) noexcept;
+
 [[nodiscard]] LegacyStandardModeAltarAnimationResult
 update_legacy_standard_mode_altar_animation(
     LegacyStandardModeDatabaseInitializationState& state,

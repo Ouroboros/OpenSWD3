@@ -3660,11 +3660,17 @@ LegacyStandardModeDatabaseRenderResult render_legacy_standard_mode_database(
         result.legacy_return_value = countdown;
         if (countdown > 0x8C) {
             state.phase_3_countdown = 0xC8U;
-            emit(LegacyStandardModeDatabaseRenderOperationKind::complete_phase);
+            const LegacyStandardModeAltarSurfaceReleaseResult release =
+                release_legacy_standard_mode_altar_surfaces(state, ports);
+            result.legacy_return_value = release.legacy_return_value;
+            result.helper_call_count += release.helper_call_count;
             return result;
         }
         if (countdown >= 0xC8) {
-            emit(LegacyStandardModeDatabaseRenderOperationKind::complete_phase);
+            const LegacyStandardModeAltarSurfaceReleaseResult release =
+                release_legacy_standard_mode_altar_surfaces(state, ports);
+            result.legacy_return_value = release.legacy_return_value;
+            result.helper_call_count += release.helper_call_count;
         }
         return result;
     }
@@ -3698,6 +3704,26 @@ LegacyStandardModeDatabaseRenderResult render_legacy_standard_mode_database(
     }
 
     result.legacy_return_value = std::bit_cast<compat::i32>(phase);
+    return result;
+}
+
+LegacyStandardModeAltarSurfaceReleaseResult
+release_legacy_standard_mode_altar_surfaces(
+    LegacyStandardModeDatabaseInitializationState& state,
+    LegacyStandardModeAltarSurfaceReleasePorts& ports
+) noexcept {
+    LegacyStandardModeAltarSurfaceReleaseResult result;
+    state.fourth_reset = 0U;
+    state.interaction_phase = 4U;
+    constexpr std::array<std::size_t, 4U> release_order{1U, 0U, 2U, 3U};
+    for (const std::size_t index : release_order) {
+        result.legacy_return_value =
+            ports.release_altar_surface(state.original_surface_tokens[index]);
+        ++result.helper_call_count;
+        ++result.released_surface_count;
+    }
+    state.original_surface_tokens.fill(0U);
+    state.animation_ring_offset = 0U;
     return result;
 }
 
@@ -3958,8 +3984,10 @@ commit_legacy_standard_mode_database_interaction(
 
     if (phase_index == 2U) {
         result.path = LegacyStandardModeDatabaseCommitPath::phase_3_countdown;
-        ports.update_database_phase_3(state);
-        ++result.helper_call_count;
+        const LegacyStandardModeAltarSurfaceReleaseResult release =
+            release_legacy_standard_mode_altar_surfaces(state, ports);
+        result.legacy_return_value = release.legacy_return_value;
+        result.helper_call_count += release.helper_call_count;
         if (std::bit_cast<compat::i32>(state.phase_3_countdown) < -35) {
             state.phase_3_countdown = 35U;
             state.primary_action.action_id = 0x232AU;
