@@ -332,6 +332,8 @@ struct LegacyStandardModeTransitionPairState {
     compat::u16 interaction_mode{};
     compat::u32 pointer_x{};
     compat::u32 pointer_y{};
+    std::array<compat::u16, 4U> mode_records{};
+    compat::u32 sample_owner{};
 };
 
 class LegacyStandardModeTransitionPairPorts {
@@ -339,13 +341,15 @@ public:
     virtual ~LegacyStandardModeTransitionPairPorts() = default;
     [[nodiscard]] virtual compat::u32
     allocate_transition_pair_buffer(compat::u32 size) noexcept = 0;
-    [[nodiscard]] virtual compat::i32 dispatch_transition_pair() noexcept = 0;
+    [[nodiscard]] virtual compat::i32 dispatch_transition_pair(
+        LegacyStandardModeTransitionPairState& state
+    ) noexcept = 0;
     [[nodiscard]] virtual compat::i32
     release_transition_pair_buffer(compat::u32 owner) noexcept = 0;
     [[nodiscard]] virtual compat::i32
     query_transition_pair_item_presence(compat::u32 item_id) noexcept = 0;
-    [[nodiscard]] virtual compat::i32 cycle_transition_pair_mode(
-        LegacyStandardModeTransitionPairState& state
+    [[nodiscard]] virtual compat::i32 play_transition_pair_sample(
+        compat::u32 sample_id, compat::u32 sample_owner
     ) noexcept = 0;
     [[nodiscard]] virtual compat::i32 commit_transition_pair(
         LegacyStandardModeTransitionPairState& state
@@ -355,6 +359,7 @@ public:
 enum class LegacyStandardModeTransitionPairStatus : compat::u8 {
     completed,
     cycle_domain_stopped,
+    unavailable_mode_domain_stopped,
 };
 
 struct LegacyStandardModeTransitionPairResult {
@@ -380,6 +385,12 @@ release_legacy_standard_mode_transition_pair(
 
 [[nodiscard]] LegacyStandardModeTransitionPairResult
 update_legacy_standard_mode_transition_pair(
+    LegacyStandardModeTransitionPairState& state,
+    LegacyStandardModeTransitionPairPorts& ports
+) noexcept;
+
+[[nodiscard]] LegacyStandardModeTransitionPairResult
+advance_legacy_standard_mode_transition_pair(
     LegacyStandardModeTransitionPairState& state,
     LegacyStandardModeTransitionPairPorts& ports
 ) noexcept;

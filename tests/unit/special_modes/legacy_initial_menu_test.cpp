@@ -499,8 +499,14 @@ public:
         ++allocation_count;
         return value;
     }
-    i32 dispatch_transition_pair() noexcept override {
+    i32 dispatch_transition_pair(
+        openswd3::special_modes::LegacyStandardModeTransitionPairState& state
+    ) noexcept override {
         ++dispatch_count;
+        if (dispatch_input_flags.has_value()) {
+            state.input_flags = *dispatch_input_flags;
+        }
+        events.push_back(1U);
         return dispatch_return;
     }
     i32 release_transition_pair_buffer(const u32 owner) noexcept override {
@@ -512,16 +518,13 @@ public:
         queried_item_ids.push_back(item_id);
         return presence_return;
     }
-    i32 cycle_transition_pair_mode(
-        openswd3::special_modes::LegacyStandardModeTransitionPairState& state
+    i32 play_transition_pair_sample(
+        const u32 sample_id, const u32 sample_owner
     ) noexcept override {
-        const u16 mode = cycle_modes[cycle_count % cycle_modes.size()];
-        ++cycle_count;
-        state.mode_word = (state.mode_word & 0xFFFF0000U) | mode;
-        if (cycle_input_flags.has_value()) {
-            state.input_flags = *cycle_input_flags;
-        }
-        return cycle_return_base + static_cast<i32>(cycle_count);
+        played_sample_ids.push_back(sample_id);
+        played_sample_owners.push_back(sample_owner);
+        events.push_back(2U);
+        return sample_return;
     }
     i32 commit_transition_pair(
         openswd3::special_modes::LegacyStandardModeTransitionPairState&
@@ -539,10 +542,11 @@ public:
     std::vector<u32> released_owners;
     i32 presence_return{1};
     std::vector<u32> queried_item_ids;
-    std::vector<u16> cycle_modes{1U};
-    std::size_t cycle_count{};
-    std::optional<u8> cycle_input_flags;
-    i32 cycle_return_base{40};
+    std::optional<u8> dispatch_input_flags;
+    std::vector<u32> played_sample_ids;
+    std::vector<u32> played_sample_owners;
+    std::vector<u32> events;
+    i32 sample_return{0x5678};
     u32 commit_count{};
     i32 commit_return{0x1234};
 };
@@ -14997,6 +15001,49 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     );
 
     openswd3::special_modes::LegacyStandardModeTransitionPairState
+        transition_pair_advance_state;
+    transition_pair_advance_state.mode_word = 0xABCD0003U;
+    transition_pair_advance_state.mode_records = {
+        0xFFFFU, 0xFFFFU, 7U, 0xFFFFU
+    };
+    transition_pair_advance_state.sample_owner = 0x7777U;
+    FakeTransitionPairPorts transition_pair_advance_ports;
+    const auto transition_pair_advance =
+        openswd3::special_modes::advance_legacy_standard_mode_transition_pair(
+            transition_pair_advance_state, transition_pair_advance_ports
+        );
+    auto transition_pair_exhausted_state = transition_pair_advance_state;
+    transition_pair_exhausted_state.mode_word = 0xABCD0003U;
+    transition_pair_exhausted_state.mode_records.fill(0xFFFFU);
+    FakeTransitionPairPorts transition_pair_exhausted_ports;
+    const auto transition_pair_exhausted =
+        openswd3::special_modes::advance_legacy_standard_mode_transition_pair(
+            transition_pair_exhausted_state, transition_pair_exhausted_ports
+        );
+    test.expect_true(
+        transition_pair_advance.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeTransitionPairStatus::completed &&
+            transition_pair_advance_state.mode_word == 0xABCD0002U &&
+            transition_pair_advance.target_mode == 2U &&
+            transition_pair_advance_ports.events == std::vector<u32>{1U, 2U} &&
+            transition_pair_advance_ports.played_sample_ids ==
+                std::vector<u32>{0x107U} &&
+            transition_pair_advance_ports.played_sample_owners ==
+                std::vector<u32>{0x7777U} &&
+            transition_pair_advance.legacy_return_value == 0x5678 &&
+            transition_pair_advance.helper_call_count == 2U &&
+            transition_pair_exhausted.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeTransitionPairStatus::
+                        unavailable_mode_domain_stopped &&
+            transition_pair_exhausted_state.mode_word == 0xABCD0000U &&
+            transition_pair_exhausted_ports.events.empty() &&
+            transition_pair_exhausted.helper_call_count == 0U,
+        "0x44A0D0 advances through four slots, skips FFFF, rebuilds before sample, and stops after a fully unavailable domain"
+    );
+
+    openswd3::special_modes::LegacyStandardModeTransitionPairState
         transition_pair_update_state;
     transition_pair_update_state.mode_word = 0xABCD0000U;
     transition_pair_update_state.input_flags = 0x03U;
@@ -15004,8 +15051,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     transition_pair_update_state.pointer_x = 0x79U;
     transition_pair_update_state.pointer_y = 5U;
     FakeTransitionPairPorts transition_pair_update_ports;
-    transition_pair_update_ports.cycle_modes = {1U};
-    transition_pair_update_ports.cycle_input_flags = 0x04U;
+    transition_pair_update_ports.dispatch_input_flags = 0x04U;
     const auto transition_pair_update =
         openswd3::special_modes::update_legacy_standard_mode_transition_pair(
             transition_pair_update_state, transition_pair_update_ports
@@ -15056,7 +15102,6 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     transition_pair_unreachable_state.pointer_x = 0x1C3U;
     transition_pair_unreachable_state.pointer_y = 5U;
     FakeTransitionPairPorts transition_pair_unreachable_ports;
-    transition_pair_unreachable_ports.cycle_modes = {1U, 2U, 3U, 0U};
     const auto transition_pair_unreachable =
         openswd3::special_modes::update_legacy_standard_mode_transition_pair(
             transition_pair_unreachable_state, transition_pair_unreachable_ports
@@ -15070,7 +15115,6 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     transition_pair_do_while_state.pointer_x = 0x79U;
     transition_pair_do_while_state.pointer_y = 5U;
     FakeTransitionPairPorts transition_pair_do_while_ports;
-    transition_pair_do_while_ports.cycle_modes = {2U, 3U, 0U, 1U};
     const auto transition_pair_do_while =
         openswd3::special_modes::update_legacy_standard_mode_transition_pair(
             transition_pair_do_while_state, transition_pair_do_while_ports
@@ -15079,7 +15123,9 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     test.expect_true(
         transition_pair_update_ports.queried_item_ids ==
                 std::vector<u32>{31U} &&
-            transition_pair_update_ports.cycle_count == 1U &&
+            transition_pair_update_ports.dispatch_count == 1U &&
+            transition_pair_update_ports.played_sample_ids ==
+                std::vector<u32>{0x107U} &&
             transition_pair_update_ports.commit_count == 1U &&
             transition_pair_update_state.mode_word == 0xABCD0001U &&
             transition_pair_update.legacy_return_value == 0x34 &&
@@ -15099,12 +15145,12 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
                     LegacyStandardModeTransitionPairStatus::
                         cycle_domain_stopped &&
             transition_pair_unreachable.target_mode == 4U &&
-            transition_pair_unreachable_ports.cycle_count == 4U &&
+            transition_pair_unreachable_ports.dispatch_count == 4U &&
             transition_pair_unreachable_ports.commit_count == 0U &&
             transition_pair_do_while.status ==
                 openswd3::special_modes::
                     LegacyStandardModeTransitionPairStatus::completed &&
-            transition_pair_do_while_ports.cycle_count == 4U &&
+            transition_pair_do_while_ports.dispatch_count == 4U &&
             transition_pair_do_while.helper_call_count == 5U,
         "0x44A050 dispatches the unsigned grid, rereads flags after cycling, and stops only after the full four-mode domain"
     );

@@ -353,7 +353,7 @@ initialize_legacy_standard_mode_transition_pair(
     state.first_owner = ports.allocate_transition_pair_buffer(0x38U);
     state.second_owner = ports.allocate_transition_pair_buffer(0x38U);
     result.helper_call_count = 2U;
-    result.legacy_return_value = ports.dispatch_transition_pair();
+    result.legacy_return_value = ports.dispatch_transition_pair(state);
     ++result.helper_call_count;
     return result;
 }
@@ -369,6 +369,40 @@ release_legacy_standard_mode_transition_pair(
     result.legacy_return_value =
         ports.release_transition_pair_buffer(state.second_owner);
     result.helper_call_count = 2U;
+    return result;
+}
+
+LegacyStandardModeTransitionPairResult
+advance_legacy_standard_mode_transition_pair(
+    LegacyStandardModeTransitionPairState& state,
+    LegacyStandardModeTransitionPairPorts& ports
+) noexcept {
+    LegacyStandardModeTransitionPairResult result;
+    constexpr compat::u32 kModeDomainSize = 4U;
+    const compat::u16 first_mode = static_cast<compat::u16>(
+        (static_cast<compat::u16>(state.mode_word) + 1U) % kModeDomainSize
+    );
+    state.mode_word = (state.mode_word & 0xFFFF0000U) | first_mode;
+
+    compat::u16 candidate = first_mode;
+    for (compat::u32 checked = 0U; checked < kModeDomainSize; ++checked) {
+        if (state.mode_records[candidate] != 0xFFFFU) {
+            state.mode_word = (state.mode_word & 0xFFFF0000U) | candidate;
+            result.target_mode = candidate;
+            static_cast<void>(ports.dispatch_transition_pair(state));
+            ++result.helper_call_count;
+            result.legacy_return_value =
+                ports.play_transition_pair_sample(0x107U, state.sample_owner);
+            ++result.helper_call_count;
+            return result;
+        }
+        candidate =
+            static_cast<compat::u16>((candidate + 1U) % kModeDomainSize);
+    }
+
+    result.status =
+        LegacyStandardModeTransitionPairStatus::unavailable_mode_domain_stopped;
+    result.target_mode = candidate;
     return result;
 }
 
@@ -397,9 +431,15 @@ update_legacy_standard_mode_transition_pair(
             constexpr compat::u32 kModeDomainSize = 4U;
             for (compat::u32 checked = 0U; checked < kModeDomainSize;
                  ++checked) {
-                result.legacy_return_value =
-                    ports.cycle_transition_pair_mode(state);
+                const auto advance =
+                    advance_legacy_standard_mode_transition_pair(state, ports);
+                result.legacy_return_value = advance.legacy_return_value;
                 ++result.helper_call_count;
+                if (advance.status !=
+                    LegacyStandardModeTransitionPairStatus::completed) {
+                    result.status = advance.status;
+                    return result;
+                }
                 if (static_cast<compat::u16>(state.mode_word) ==
                     result.target_mode) {
                     break;
