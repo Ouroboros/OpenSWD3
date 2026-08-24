@@ -532,6 +532,7 @@ struct LegacyStandardModeGroupEightState {
     compat::u32 sample_owner{};
     compat::u32 tagged_mode_value{};
     compat::u32 fallback_constant{};
+    LegacyStandardModeCallbackState callback_state{};
 };
 
 class LegacyStandardModeGroupEightSelectionPorts
@@ -566,15 +567,48 @@ advance_legacy_standard_mode_group_eight_selection(
     LegacyStandardModeGroupEightSelectionPorts& ports
 ) noexcept;
 
+class LegacyStandardModeGroupEightCommitPorts
+    : public virtual LegacyStandardModeGroupEightSelectionPorts,
+      public virtual LegacyStandardModeCallbackBindingPorts {
+public:
+    ~LegacyStandardModeGroupEightCommitPorts() override = default;
+    [[nodiscard]] virtual std::optional<compat::i32>
+    invoke_initialization_callback(
+        compat::u16 selection,
+        compat::u32 target,
+        LegacyStandardModeGroupEightState& state
+    ) = 0;
+};
+
+enum class LegacyStandardModeGroupEightCommitStatus : compat::u8 {
+    completed,
+    selection_out_of_range,
+    initialization_callback_missing,
+};
+
+struct LegacyStandardModeGroupEightCommitResult {
+    LegacyStandardModeGroupEightCommitStatus status{
+        LegacyStandardModeGroupEightCommitStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 story_flag_query_count{};
+    compat::u32 helper_call_count{};
+    bool visual_index_swapped{};
+};
+
+[[nodiscard]] LegacyStandardModeGroupEightCommitResult
+commit_legacy_standard_mode_group_eight_selection(
+    LegacyStandardModeGroupEightState& state,
+    LegacyStandardModeGroupEightCommitPorts& ports
+) noexcept;
+
 class LegacyStandardModeGroupEightInputPorts
-    : public virtual LegacyStandardModeGroupEightSelectionPorts {
+    : public virtual LegacyStandardModeGroupEightCommitPorts {
 public:
     ~LegacyStandardModeGroupEightInputPorts() override = default;
     [[nodiscard]] virtual std::optional<compat::i32> invoke_selection_callback(
         compat::u16 selection, LegacyStandardModeGroupEightState& state
     ) = 0;
-    [[nodiscard]] virtual compat::i32
-    commit_selection(LegacyStandardModeGroupEightState& state) = 0;
     [[nodiscard]] virtual compat::i32
     exit_mode(LegacyStandardModeGroupEightState& state) = 0;
 };
@@ -582,6 +616,7 @@ public:
 enum class LegacyStandardModeGroupEightInputStatus : compat::u8 {
     completed,
     selection_callback_missing,
+    commit_stopped,
 };
 
 struct LegacyStandardModeGroupEightInputResult {

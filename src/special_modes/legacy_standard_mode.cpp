@@ -12178,6 +12178,62 @@ advance_legacy_standard_mode_group_eight_selection(
     return result;
 }
 
+LegacyStandardModeGroupEightCommitResult
+commit_legacy_standard_mode_group_eight_selection(
+    LegacyStandardModeGroupEightState& state,
+    LegacyStandardModeGroupEightCommitPorts& ports
+) noexcept {
+    LegacyStandardModeGroupEightCommitResult result;
+    const compat::u16 selection = state.selection;
+    state.lifecycle = 2U;
+    if (selection != 0x11U) {
+        state.visual_index = static_cast<compat::u32>(selection) + 0x29U;
+        const compat::i32 flag = ports.story_flag(0x49U);
+        ++result.story_flag_query_count;
+        if (flag == 1) {
+            if (state.visual_index == 0x38U) {
+                state.visual_index = 0x39U;
+                result.visual_index_swapped = true;
+            } else if (state.visual_index == 0x39U) {
+                state.visual_index = 0x38U;
+                result.visual_index_swapped = true;
+            }
+        }
+    }
+
+    const LegacyStandardModeCallbackBindingResult binding =
+        bind_legacy_standard_mode_callbacks(
+            state.callback_state, state.lifecycle, state.selection_x, ports
+        );
+    ++result.helper_call_count;
+    result.story_flag_query_count += binding.story_flag_query_count;
+    result.legacy_return_value = static_cast<compat::i32>(selection);
+    if (selection < 0x0BU || selection > 0x11U) {
+        result.status =
+            LegacyStandardModeGroupEightCommitStatus::selection_out_of_range;
+        return result;
+    }
+    const compat::u32 target =
+        state.callback_state.initialization_callbacks[selection - 0x0BU];
+    if (target == 0U) {
+        result.status = LegacyStandardModeGroupEightCommitStatus::
+            initialization_callback_missing;
+        return result;
+    }
+    const std::optional<compat::i32> initialized =
+        ports.invoke_initialization_callback(selection, target, state);
+    ++result.helper_call_count;
+    if (!initialized.has_value()) {
+        result.status = LegacyStandardModeGroupEightCommitStatus::
+            initialization_callback_missing;
+        return result;
+    }
+    result.legacy_return_value =
+        ports.execute_sample_command(0x00BBU, state.sample_owner);
+    ++result.helper_call_count;
+    return result;
+}
+
 LegacyStandardModeGroupEightInputResult
 handle_legacy_standard_mode_group_eight_input(
     LegacyStandardModeGroupEightState& state,
@@ -12235,9 +12291,17 @@ handle_legacy_standard_mode_group_eight_input(
             retreat_legacy_standard_mode_group_eight_selection(state, ports);
         ++result.helper_call_count;
         result.story_flag_query_count += retreated.story_flag_query_count;
-        result.legacy_return_value =
-            static_cast<compat::i16>(ports.commit_selection(state));
+        const LegacyStandardModeGroupEightCommitResult committed =
+            commit_legacy_standard_mode_group_eight_selection(state, ports);
         ++result.helper_call_count;
+        result.story_flag_query_count += committed.story_flag_query_count;
+        result.legacy_return_value =
+            static_cast<compat::i16>(committed.legacy_return_value);
+        if (committed.status !=
+            LegacyStandardModeGroupEightCommitStatus::completed) {
+            result.status =
+                LegacyStandardModeGroupEightInputStatus::commit_stopped;
+        }
         return result;
     }
 

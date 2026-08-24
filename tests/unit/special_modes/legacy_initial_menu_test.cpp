@@ -14876,11 +14876,20 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             return 88;
         }
 
-        i32 commit_selection(
+        std::optional<i32> invoke_initialization_callback(
+            const u16 selection,
+            const u32 target,
             openswd3::special_modes::LegacyStandardModeGroupEightState&
         ) override {
             events.push_back(4U);
-            return commit_return;
+            initialization_callbacks.push_back({selection, target});
+            return initialization_callback_available
+                ? std::optional<i32>{commit_return}
+                : std::nullopt;
+        }
+
+        void initialize_high_mode_runtime() override {
+            events.push_back(6U);
         }
 
         i32 exit_mode(
@@ -14893,12 +14902,14 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
 
         std::vector<i32> flag_results;
         bool callback_available{true};
+        bool initialization_callback_available{true};
         i32 commit_return{0x3456};
         i32 exit_return{-9};
         std::vector<u32> events;
         std::vector<u32> queried_flags;
         std::vector<u16> callback_selections;
         std::vector<std::array<u32, 2U>> sample_commands;
+        std::vector<std::array<u32, 2U>> initialization_callbacks;
     };
 
     using GroupEightState =
@@ -14906,6 +14917,7 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     using GroupEightInput =
         openswd3::special_modes::LegacyStandardModeGroupEightInputSnapshot;
     GroupEightState group_state{.selection = 4U, .lifecycle = 2U};
+    group_state.callback_state.initialization_callbacks.fill(0x00445430U);
     GroupEightInputPorts group_ports;
     group_ports.flag_results = {0, 2};
     const auto group_selected =
@@ -14916,18 +14928,21 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         group_selected.status ==
                 openswd3::special_modes::
                     LegacyStandardModeGroupEightInputStatus::completed &&
-            group_selected.legacy_return_value == 0x3456 &&
-            group_selected.story_flag_query_count == 3U &&
+            group_selected.legacy_return_value == 88 &&
+            group_selected.story_flag_query_count == 4U &&
             group_selected.helper_call_count == 3U &&
             group_selected.selection_rewritten &&
             group_state.selection == 14U && group_state.selection_x == 48U &&
             group_state.visual_index == 55U &&
             group_ports.queried_flags ==
-                std::vector<u32>{0x49U, 0x49U, 0x49U} &&
+                std::vector<u32>{0x49U, 0x49U, 0x49U, 0x49U} &&
             group_ports.callback_selections == std::vector<u16>{4U} &&
             group_ports.sample_commands ==
-                std::vector<std::array<u32, 2U>>{{0x8BU, 0U}} &&
-            group_ports.events == std::vector<u32>{1U, 1U, 2U, 1U, 3U, 4U},
+                std::vector<std::array<u32, 2U>>{{0x8BU, 0U}, {0xBBU, 0U}} &&
+            group_ports.initialization_callbacks ==
+                std::vector<std::array<u32, 2U>>{{14U, 0x00445430U}} &&
+            group_ports.events ==
+                std::vector<u32>{1U, 1U, 2U, 1U, 3U, 1U, 4U, 3U},
         "0x4450E0 dispatches the prior selection then rewrites and commits the grid cell"
     );
 
@@ -14939,6 +14954,7 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             group_state, GroupEightInput{409U, 20U, 1U}, special_block_ports
         );
     group_state = {.selection = 15U, .lifecycle = 1U};
+    group_state.callback_state.initialization_callbacks.fill(0x00445430U);
     GroupEightInputPorts special_commit_ports;
     special_commit_ports.flag_results = {1, 1};
     const auto special_committed =
@@ -14951,10 +14967,11 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             !special_blocked.selection_rewritten &&
             special_block_ports.events == std::vector<u32>{1U, 1U} &&
             special_committed.helper_call_count == 2U &&
-            special_committed.story_flag_query_count == 3U &&
+            special_committed.story_flag_query_count == 4U &&
             special_committed.selection_rewritten &&
             group_state.selection == 13U &&
-            special_commit_ports.events == std::vector<u32>{1U, 1U, 1U, 3U, 4U},
+            special_commit_ports.events ==
+                std::vector<u32>{1U, 1U, 1U, 3U, 1U, 4U, 3U},
         "0x4450E0 applies the flag1 selection15 lifecycle exception exactly"
     );
 
@@ -15109,6 +15126,98 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             advance_wrap_state.selection_x == 0xFFDCU &&
             advance_wrap_state.visual_index == 41U,
         "0x4452B0 keeps exact flag comparisons and u16 increment wrap behavior"
+    );
+
+    GroupEightState commit_state{
+        .selection = 15U, .selection_x = 54U, .sample_owner = 0xE0U
+    };
+    commit_state.callback_state.initialization_callbacks[4U] = 0x0044AF30U;
+    GroupEightInputPorts commit_ports;
+    commit_ports.flag_results = {1, 0};
+    const auto committed = openswd3::special_modes::
+        commit_legacy_standard_mode_group_eight_selection(
+            commit_state, commit_ports
+        );
+    test.expect_true(
+        committed.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightCommitStatus::completed &&
+            committed.legacy_return_value == 88 &&
+            committed.story_flag_query_count == 2U &&
+            committed.helper_call_count == 3U &&
+            committed.visual_index_swapped && commit_state.lifecycle == 2U &&
+            commit_state.visual_index == 57U &&
+            commit_state.callback_state.targets[1U] == 0x0044B070U &&
+            commit_ports.initialization_callbacks ==
+                std::vector<std::array<u32, 2U>>{{15U, 0x0044AF30U}} &&
+            commit_ports.sample_commands ==
+                std::vector<std::array<u32, 2U>>{{0xBBU, 0xE0U}} &&
+            commit_ports.events == std::vector<u32>{1U, 1U, 4U, 3U},
+        "0x445360 sets lifecycle2, rebinds from coordinate54, initializes and confirms"
+    );
+
+    GroupEightState terminal_commit_state{
+        .selection = 17U,
+        .selection_x = 66U,
+        .visual_index = 9U,
+    };
+    terminal_commit_state.callback_state.initialization_callbacks[6U] =
+        0x0043C0D0U;
+    GroupEightInputPorts terminal_commit_ports;
+    const auto terminal_committed = openswd3::special_modes::
+        commit_legacy_standard_mode_group_eight_selection(
+            terminal_commit_state, terminal_commit_ports
+        );
+    test.expect_true(
+        terminal_committed.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightCommitStatus::completed &&
+            terminal_committed.story_flag_query_count == 0U &&
+            terminal_commit_state.visual_index == 9U &&
+            terminal_commit_state.callback_state.targets[1U] == 0x0043C3C0U &&
+            terminal_commit_ports.events == std::vector<u32>{4U, 3U},
+        "0x445360 selection17 preserves visual state while using group7 callbacks"
+    );
+
+    GroupEightState commit_range_state{.selection = 10U};
+    GroupEightInputPorts commit_range_ports;
+    const auto commit_range_stopped = openswd3::special_modes::
+        commit_legacy_standard_mode_group_eight_selection(
+            commit_range_state, commit_range_ports
+        );
+    GroupEightState commit_missing_state{.selection = 11U, .selection_x = 30U};
+    GroupEightInputPorts commit_missing_ports;
+    const auto commit_missing = openswd3::special_modes::
+        commit_legacy_standard_mode_group_eight_selection(
+            commit_missing_state, commit_missing_ports
+        );
+    commit_missing_state.callback_state.initialization_callbacks[0U] =
+        0x00445430U;
+    GroupEightInputPorts commit_callback_stop_ports;
+    commit_callback_stop_ports.initialization_callback_available = false;
+    const auto commit_callback_stopped = openswd3::special_modes::
+        commit_legacy_standard_mode_group_eight_selection(
+            commit_missing_state, commit_callback_stop_ports
+        );
+    test.expect_true(
+        commit_range_stopped.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightCommitStatus::
+                        selection_out_of_range &&
+            commit_range_stopped.helper_call_count == 1U &&
+            commit_range_state.lifecycle == 2U &&
+            commit_missing.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightCommitStatus::
+                        initialization_callback_missing &&
+            commit_missing.helper_call_count == 1U &&
+            commit_callback_stopped.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightCommitStatus::
+                        initialization_callback_missing &&
+            commit_callback_stopped.helper_call_count == 2U &&
+            commit_callback_stop_ports.sample_commands.empty(),
+        "0x445360 typed-stops at the indexed initialization table after rebind"
     );
 }
 
