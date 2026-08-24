@@ -2971,6 +2971,20 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 return "GUARDIAN";
             case sm::LegacyStandardModeGuardianRenderText::mode_15_prompt:
                 return "RETURN";
+            case sm::LegacyStandardModeGuardianRenderText::attribute_first:
+                return "ATK";
+            case sm::LegacyStandardModeGuardianRenderText::attribute_second:
+                return "DEF";
+            case sm::LegacyStandardModeGuardianRenderText::attribute_third:
+                return "SPD";
+            case sm::LegacyStandardModeGuardianRenderText::attribute_slot_zero:
+                return "RATE";
+            case sm::LegacyStandardModeGuardianRenderText::
+                attribute_slot_seven_eight:
+                return "PAIR";
+            case sm::LegacyStandardModeGuardianRenderText::
+                attribute_slot_nine_ten:
+                return "BONUS";
             }
             return {};
         }
@@ -2978,6 +2992,21 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         std::string guardian_attribute_text(const i8 value) noexcept override {
             attribute_values.push_back(value);
             return "A" + std::to_string(value);
+        }
+
+        std::optional<sm::LegacyStandardModeGuardianAttributeIconResource>
+        resolve_guardian_attribute_icon(
+            const u16 resource_id
+        ) noexcept override {
+            attribute_icon_ids.push_back(resource_id);
+            if (!attribute_icons_available) {
+                return std::nullopt;
+            }
+            return sm::LegacyStandardModeGuardianAttributeIconResource{
+                .source_word = 0xAB000000U | resource_id,
+                .width = 7U,
+                .height = 9U,
+            };
         }
 
         i32 execute_guardian_render(
@@ -3056,11 +3085,13 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         }
 
         bool transition_ready{};
+        bool attribute_icons_available{true};
         i32 animated_text_return{888};
         u32 bar_updates{};
         u32 bar_frame_draws{};
         u32 bar_action_draws{};
         std::vector<std::array<u8, 3U>> colors;
+        std::vector<u16> attribute_icon_ids;
         std::vector<std::array<i32, 5U>> adjustments;
         std::vector<i8> attribute_values;
         std::vector<sm::LegacyStandardModeGuardianRenderRequest> requests;
@@ -3073,6 +3104,135 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
     using SelectionTarget = sm::LegacyStandardModeGuardianSelectionTarget;
     using GuardianRenderOperation =
         sm::LegacyStandardModeGuardianRenderOperation;
+    {
+        sm::LegacyStandardModeGuardianInitializationState attribute_state;
+        attribute_state.panel_offset = 100U;
+        attribute_state.attribute_cache_token = 0x1234U;
+        attribute_state.attribute_text_color_word = 0x55U;
+        const auto put =
+            [&attribute_state](const std::size_t offset, const u32 value) {
+                attribute_state.attribute_cache[offset] =
+                    static_cast<u8>(value & 0xFFU);
+                attribute_state.attribute_cache[offset + 1U] =
+                    static_cast<u8>((value >> 8U) & 0xFFU);
+                attribute_state.attribute_cache[offset + 2U] =
+                    static_cast<u8>((value >> 16U) & 0xFFU);
+                attribute_state.attribute_cache[offset + 3U] =
+                    static_cast<u8>((value >> 24U) & 0xFFU);
+            };
+        constexpr std::size_t current = 0x50U;
+        constexpr std::size_t reference = 0x140U;
+        put(current + 0x18U, 10U);
+        put(current + 0x3CU, 2U);
+        put(reference + 0x18U, 8U);
+        put(reference + 0x3CU, 1U);
+        put(current + 0x1CU, 5U);
+        put(current + 0x40U, 6U);
+        put(reference + 0x1CU, 11U);
+        put(reference + 0x40U, 0U);
+        put(current + 0x24U, 0xFFFFFFFFU);
+        put(reference + 0x24U, 1U);
+        put(reference + 0x44U, 25U);
+        put(reference + 0x48U, 0x00040003U);
+        put(reference + 0x4CU, 7U);
+        GuardianRenderPorts attribute_ports;
+        const auto attributes =
+            sm::render_legacy_standard_mode_guardian_attributes(
+                attribute_state, 0U, 1U, attribute_ports
+            );
+        const auto first_icon = std::find_if(
+            attribute_ports.requests.begin(),
+            attribute_ports.requests.end(),
+            [](const auto& request) {
+                return request.operation ==
+                    GuardianRenderOperation::draw_attribute_icon;
+            }
+        );
+        test.expect_true(
+            attributes.status ==
+                    sm::LegacyStandardModeGuardianRenderStatus::completed &&
+                attributes.color_count == 1U &&
+                attributes.operation_count == 11U &&
+                attribute_ports.attribute_icon_ids ==
+                    std::vector<u16>{0x2465U, 0x2463U} &&
+                first_icon != attribute_ports.requests.end() &&
+                first_icon->values[1U] == 0x292 &&
+                first_icon->values[2U] == 0x152 &&
+                first_icon->values[3U] == 7 && first_icon->values[4U] == 9 &&
+                attribute_ports.requests[0U].text.find("ATK") == 0U &&
+                attribute_ports.requests[0U].text.ends_with("12") &&
+                attribute_ports.requests[4U].text.find("DEF") == 0U &&
+                attribute_ports.requests[6U].text.find("SPD") == 0U &&
+                attribute_ports.requests.back().text.find("RATE") == 0U &&
+                attribute_ports.requests.back().text.ends_with("25%"),
+            "0x442130 renders three wrapped attributes, two signed deltas and slot0 percent"
+        );
+
+        GuardianRenderPorts pair_ports;
+        const auto pair = sm::render_legacy_standard_mode_guardian_attributes(
+            attribute_state, 7U, 1U, pair_ports
+        );
+        test.expect_true(
+            pair.status ==
+                    sm::LegacyStandardModeGuardianRenderStatus::completed &&
+                pair_ports.requests.back().text.find("PAIR") == 0U &&
+                pair_ports.requests.back().text.find("3/4") !=
+                    std::string::npos,
+            "0x442130 slot7 uses packed low/high u16 pair text"
+        );
+
+        GuardianRenderPorts bonus_ports;
+        const auto bonus = sm::render_legacy_standard_mode_guardian_attributes(
+            attribute_state, 9U, 1U, bonus_ports
+        );
+        test.expect_true(
+            bonus.status ==
+                    sm::LegacyStandardModeGuardianRenderStatus::completed &&
+                bonus_ports.requests.back().text.find("BONUS") == 0U &&
+                bonus_ports.requests.back().text.ends_with("35%"),
+            "0x442130 slot9 multiplies the reference value by five with u32 wrap"
+        );
+
+        put(reference + 0x48U, 0xFFFFFFFFU);
+        GuardianRenderPorts sentinel_ports;
+        const auto sentinel =
+            sm::render_legacy_standard_mode_guardian_attributes(
+                attribute_state, 8U, 1U, sentinel_ports
+            );
+        test.expect_true(
+            sentinel.legacy_return_value == -1 &&
+                sentinel_ports.requests.size() == 10U,
+            "0x442130 slot8 sentinel returns FFFFFFFF without a tail draw"
+        );
+
+        GuardianRenderPorts unavailable_ports;
+        unavailable_ports.attribute_icons_available = false;
+        const auto unavailable =
+            sm::render_legacy_standard_mode_guardian_attributes(
+                attribute_state, 1U, 1U, unavailable_ports
+            );
+        test.expect_true(
+            unavailable.status ==
+                    sm::LegacyStandardModeGuardianRenderStatus::
+                        attribute_icon_unavailable &&
+                unavailable.operation_count == 2U &&
+                unavailable_ports.attribute_icon_ids ==
+                    std::vector<u16>{0x2465U},
+            "0x442130 typed-stops at the first unavailable icon pointer read"
+        );
+
+        GuardianRenderPorts range_ports;
+        const auto range = sm::render_legacy_standard_mode_guardian_attributes(
+            attribute_state, 0U, 5U, range_ports
+        );
+        test.expect_true(
+            range.status ==
+                    sm::LegacyStandardModeGuardianRenderStatus::
+                        attribute_cache_out_of_range &&
+                range.operation_count == 0U && range_ports.colors.empty(),
+            "0x442130 typed-stops before color creation on party cache overflow"
+        );
+    }
     {
         std::array<sm::LegacyStandardModeForwardNode, 1U> render_records{};
         std::array<
@@ -3129,7 +3289,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         test.expect_true(
             rendered.status ==
                     sm::LegacyStandardModeGuardianRenderStatus::completed &&
-                rendered.color_count == 4U && rendered.operation_count == 15U &&
+                rendered.color_count == 5U && rendered.operation_count == 21U &&
                 !rendered.transition_triggered &&
                 render_state.selected_record == &render_records[0U] &&
                 render_state.panel_offset == 0xC8U &&
@@ -3144,7 +3304,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                     GuardianRenderOperation::draw_text &&
                 render_ports.requests[13U].text == "NO LIST" &&
                 render_ports.requests.back().operation ==
-                    GuardianRenderOperation::refresh_attribute_cache,
+                    GuardianRenderOperation::draw_text &&
+                render_ports.requests.back().text.find("RATE") == 0U,
             "0x441680 resets matching-frame geometry and emits the exact basic panel sequence"
         );
 

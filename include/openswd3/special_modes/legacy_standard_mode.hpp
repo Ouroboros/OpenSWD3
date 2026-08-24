@@ -874,6 +874,7 @@ struct LegacyStandardModeGuardianInitializationState {
     compat::u32 first_work_storage_token{};
     compat::u32 second_work_storage_token{};
     compat::u32 attribute_cache_token{};
+    compat::u16 attribute_text_color_word{};
     std::array<compat::u8, 0x190U> attribute_cache{};
     compat::u32 visible_record_count{};
     compat::u32 local_selection{};
@@ -1058,6 +1059,12 @@ enum class LegacyStandardModeGuardianRenderText : compat::u8 {
     party_label,
     guardian_label,
     mode_15_prompt,
+    attribute_first,
+    attribute_second,
+    attribute_third,
+    attribute_slot_zero,
+    attribute_slot_seven_eight,
+    attribute_slot_nine_ten,
 };
 
 enum class LegacyStandardModeGuardianRenderOperation : compat::u8 {
@@ -1071,6 +1078,13 @@ enum class LegacyStandardModeGuardianRenderOperation : compat::u8 {
     set_text_color,
     draw_selected_record_action,
     refresh_attribute_cache,
+    draw_attribute_icon,
+};
+
+struct LegacyStandardModeGuardianAttributeIconResource {
+    compat::u32 source_word{};
+    compat::u16 width{};
+    compat::u16 height{};
 };
 
 struct LegacyStandardModeGuardianRenderRequest {
@@ -1087,6 +1101,8 @@ struct LegacyStandardModeGuardianRenderRequest {
 enum class LegacyStandardModeGuardianRenderStatus : compat::u8 {
     completed,
     guardian_record_out_of_range,
+    attribute_cache_out_of_range,
+    attribute_icon_unavailable,
     selected_node_missing,
     visible_chain_stopped,
     animated_panel_stopped,
@@ -1121,6 +1137,9 @@ public:
     guardian_text(LegacyStandardModeGuardianRenderText text) noexcept = 0;
     [[nodiscard]] virtual std::string
     guardian_attribute_text(compat::i8 value) noexcept = 0;
+    [[nodiscard]] virtual std::optional<
+        LegacyStandardModeGuardianAttributeIconResource>
+    resolve_guardian_attribute_icon(compat::u16 resource_id) noexcept = 0;
     [[nodiscard]] virtual compat::i32 execute_guardian_render(
         const LegacyStandardModeGuardianRenderRequest& request
     ) noexcept = 0;
@@ -2861,6 +2880,14 @@ commit_legacy_standard_mode_guardian_interaction(
     std::span<const compat::u32> guardian_text_indices,
     std::span<const compat::u8> maps_payload,
     LegacyStandardModeGuardianCommitPorts& ports
+) noexcept;
+
+[[nodiscard]] LegacyStandardModeGuardianRenderResult
+render_legacy_standard_mode_guardian_attributes(
+    LegacyStandardModeGuardianInitializationState& state,
+    compat::u32 guardian_slot,
+    compat::u16 party_index,
+    LegacyStandardModeGuardianRenderPorts& ports
 ) noexcept;
 
 [[nodiscard]] LegacyStandardModeGuardianRenderResult
