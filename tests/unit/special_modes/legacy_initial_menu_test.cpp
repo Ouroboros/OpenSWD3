@@ -14967,6 +14967,135 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         std::vector<u32> events;
     };
 
+    class GroupEightCommitPorts final
+        : public openswd3::special_modes::
+              LegacyStandardModeGroupEightInteractionCommitPorts {
+    public:
+        void insert_missing_node(
+            const LegacyStandardModeForwardNode** source_head,
+            const u16,
+            const i32,
+            const i32
+        ) noexcept override {
+            if (*source_head == nullptr && missing_node != nullptr) {
+                *source_head = missing_node;
+            }
+        }
+        i32 query(const u32 service_id) noexcept override {
+            filter_queries.push_back(service_id);
+            return filter_query_return;
+        }
+        void clear_surface(const u32 byte_count) noexcept override {
+            cleared_bytes = byte_count;
+        }
+        void configure_interface(
+            const u32 service_id, const u32 source_value
+        ) noexcept override {
+            configured_interface = {service_id, source_value};
+        }
+        void draw(
+            const LegacyStandardModeDialogDrawRequest& request
+        ) noexcept override {
+            dialog_draws.push_back(request);
+        }
+        i32 mutate_inventory(
+            const u16 item_id, const i32 delta, const i32 mode
+        ) noexcept override {
+            inventory_mutations.push_back({item_id, delta, mode});
+            return inventory_mutation_return;
+        }
+        std::optional<i32>
+        inventory_record_span(const u16 item_id) noexcept override {
+            inventory_span_queries.push_back(item_id);
+            return inventory_span;
+        }
+        i32 load_equipment_payload(
+            const u16 action_id, const std::span<u8> destination
+        ) noexcept override {
+            loaded_action_ids.push_back(action_id);
+            destination[4U] = equipment_payload_flags;
+            return equipment_load_return;
+        }
+        void copy_equipment_payload(
+            const u32 slot, const std::span<const u8>
+        ) noexcept override {
+            copied_slots.push_back(slot);
+        }
+        void remove_owned_action(const u16 action_id) noexcept override {
+            removed_actions.push_back(action_id);
+        }
+        void release_inventory_root() noexcept override {
+            ++inventory_root_release_count;
+        }
+        void request_special_world_transition() noexcept override {
+            ++world_transition_count;
+        }
+        void initialize_high_mode_runtime() noexcept override {
+            ++high_runtime_initialization_count;
+        }
+        void request_special_battle(
+            const LegacyStandardModeForwardNode& record
+        ) noexcept override {
+            battle_records.push_back(&record);
+        }
+        u32 allocate_mode_resource(const std::size_t size) noexcept override {
+            allocated_resource_sizes.push_back(size);
+            return resource_token;
+        }
+        i32 load_mode_resource(
+            const u32 token, const u32 resource_id
+        ) noexcept override {
+            loaded_resources.push_back({token, resource_id});
+            return resource_load_return;
+        }
+        u32 mode_resource_flag(const u32) noexcept override {
+            return resource_flag;
+        }
+        void release_mode_resource(const u32 token) noexcept override {
+            released_resources.push_back(token);
+        }
+        bool finalize_mode_resource() noexcept override {
+            ++resource_finalize_count;
+            return resource_finalize_result;
+        }
+        i32 exit_current_interaction(
+            openswd3::special_modes::LegacyStandardModeGroupEightState&
+        ) noexcept override {
+            ++exit_count;
+            return exit_return;
+        }
+
+        const LegacyStandardModeForwardNode* missing_node{};
+        i32 filter_query_return{};
+        i32 inventory_mutation_return{1};
+        std::optional<i32> inventory_span;
+        i32 equipment_load_return{1};
+        u8 equipment_payload_flags{1U};
+        u32 resource_token{0xCAFEU};
+        i32 resource_load_return{};
+        u32 resource_flag{1U};
+        bool resource_finalize_result{true};
+        i32 exit_return{444};
+        u32 cleared_bytes{};
+        std::pair<u32, u32> configured_interface{};
+        u32 inventory_root_release_count{};
+        u32 world_transition_count{};
+        u32 high_runtime_initialization_count{};
+        u32 resource_finalize_count{};
+        u32 exit_count{};
+        std::vector<u32> filter_queries;
+        std::vector<LegacyStandardModeDialogDrawRequest> dialog_draws;
+        std::vector<std::array<i32, 3U>> inventory_mutations;
+        std::vector<u16> inventory_span_queries;
+        std::vector<u16> loaded_action_ids;
+        std::vector<u32> copied_slots;
+        std::vector<u16> removed_actions;
+        std::vector<const LegacyStandardModeForwardNode*> battle_records;
+        std::vector<std::size_t> allocated_resource_sizes;
+        std::vector<std::pair<u32, u32>> loaded_resources;
+        std::vector<u32> released_resources;
+    };
+
     class GroupEightMainInputPorts final
         : public openswd3::special_modes::
               LegacyStandardModeGroupEightMainInputPorts {
@@ -15011,12 +15140,16 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         ) override {
             return record(Event::overlay, input, state);
         }
-        i32 commit_selection(
-            openswd3::special_modes::
-                LegacyStandardModeGroupEightMainInputSnapshot& input,
-            openswd3::special_modes::LegacyStandardModeGroupEightState& state
-        ) override {
-            return record(Event::commit, input, state);
+        openswd3::special_modes::
+            LegacyStandardModeGroupEightInteractionCommitRuntime&
+            commit_runtime() noexcept override {
+            return commit_runtime_state;
+        }
+        openswd3::special_modes::
+            LegacyStandardModeGroupEightInteractionCommitPorts&
+            commit_ports() noexcept override {
+            events.push_back(Event::commit);
+            return commit_port_state;
         }
         i32 exit_interaction(
             openswd3::special_modes::
@@ -15049,10 +15182,14 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             return callback_return_base + static_cast<i32>(event);
         }
 
+        openswd3::special_modes::
+            LegacyStandardModeGroupEightInteractionCommitRuntime
+                commit_runtime_state;
+        GroupEightCommitPorts commit_port_state;
         LegacyStandardModeForwardNode* initial_record_head{};
         bool record_initialization_available{true};
         bool record_cleanup_available{true};
-        std::array<i32, 64U> item_presence{};
+        std::array<i32, 512U> item_presence{};
         i32 callback_return_base{100};
         i32 sample_return{222};
         std::function<void(
@@ -15388,8 +15525,15 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             {},
             column_commit_ports
         );
+    LegacyStandardModeForwardNode action_commit_record_two;
+    LegacyStandardModeForwardNode action_commit_record_one;
+    LegacyStandardModeForwardNode action_commit_record_zero;
+    action_commit_record_zero.next = &action_commit_record_one;
+    action_commit_record_one.next = &action_commit_record_two;
+    action_commit_record_two.text_index = 0xFFDCU;
     GroupEightState action_commit_state;
     action_commit_state.interaction_mode = 5U;
+    action_commit_state.record_head = &action_commit_record_zero;
     action_commit_state.local_selection = 2U;
     openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
         action_commit_input{
@@ -15413,18 +15557,24 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
                         outer_row_committed &&
             outer_commit_state.selected_outer_row == 1U &&
             outer_commit_ports.events ==
-                std::vector{GroupEightMainInputPorts::Event::commit} &&
-            column_committed.path ==
+                std::vector{GroupEightMainInputPorts::Event::commit},
+        "0x4455E0 maps the mode10 row before immediate commit"
+    );
+    test.expect_true(
+        column_committed.path ==
                 openswd3::special_modes::
                     LegacyStandardModeGroupEightMainInputPath::
                         column_committed &&
-            column_commit_state.selected_column == 0U &&
-            action_committed.path ==
+            column_commit_state.selected_column == 0U,
+        "0x4455E0 maps the mode11 column before immediate commit"
+    );
+    test.expect_true(
+        action_committed.path ==
                 openswd3::special_modes::
                     LegacyStandardModeGroupEightMainInputPath::
                         action_committed &&
             action_commit_state.selected_action == 0U,
-        "0x4455E0 maps modes10, 11 and 5 rectangles before immediate commit"
+        "0x4455E0 maps the mode5 action before immediate commit"
     );
 
     GroupEightState overlay_state;
@@ -15475,8 +15625,12 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         "0x4455E0 reloads pointer, flags and mode after the overlay callback"
     );
 
+    LegacyStandardModeForwardNode special_choice_record;
+    special_choice_record.text_index = 0xFFDCU;
     GroupEightState special_choice_state;
     special_choice_state.interaction_mode = 2U;
+    special_choice_state.record_head = &special_choice_record;
+    special_choice_state.local_record_count = 1;
     openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
         special_choice_input{
             .pointer_x = 280U,
@@ -15485,6 +15639,7 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             .sample_handle = 0x5678U,
         };
     GroupEightMainInputPorts special_choice_ports;
+    special_choice_ports.initial_record_head = &special_choice_record;
     const auto special_choice = openswd3::special_modes::
         handle_legacy_standard_mode_group_eight_main_input(
             special_choice_state,
@@ -15525,9 +15680,13 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
                 std::vector{
                     GroupEightMainInputPorts::Event::commit,
                     GroupEightMainInputPorts::Event::sample,
+                    GroupEightMainInputPorts::Event::sample,
                 } &&
             special_choice_ports.played_samples ==
-                std::vector<std::pair<u16, u32>>{{0x2DU, 0x5678U}} &&
+                std::vector<std::pair<u16, u32>>{
+                    {0x2DU, 0x5678U},
+                    {0x2DU, 0x5678U},
+                } &&
             hover_changed.path ==
                 openswd3::special_modes::
                     LegacyStandardModeGroupEightMainInputPath::hover_changed &&
@@ -15756,6 +15915,10 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             .pointer_x = 500U, .pointer_y = 250U, .input_flags = 1U
         };
     GroupEightMainInputPorts secondary_row_ports;
+    secondary_row_ports.commit_runtime_state.filtered_records.records.resize(
+        3U
+    );
+    secondary_row_ports.commit_runtime_state.dialog_records.resize(1U);
     const auto secondary_row_changed = openswd3::special_modes::
         handle_legacy_standard_mode_group_eight_main_input(
             secondary_row_state,
@@ -16795,6 +16958,296 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
                     {0x2EU, 0xDEADBEEFU},
                 },
         "0x4466A0 cycles 30..32 only in mode2 and reuses the high-mode double sample"
+    );
+
+    LegacyStandardModeForwardNode commit_world_record;
+    commit_world_record.text_index = 0x02D9U;
+    commit_world_record.equipment_type_flags = 6U;
+    GroupEightState commit_world_state;
+    commit_world_state.interaction_mode = 2U;
+    commit_world_state.selection_x = 30U;
+    commit_world_state.record_head = &commit_world_record;
+    commit_world_state.local_record_count = 1;
+    GroupEightMainInputPorts commit_world_ports;
+    const auto commit_world = openswd3::special_modes::
+        commit_legacy_standard_mode_group_eight_interaction(
+            commit_world_state,
+            0x11112222U,
+            {},
+            commit_world_ports,
+            commit_world_ports.commit_runtime_state,
+            commit_world_ports.commit_port_state
+        );
+    LegacyStandardModeForwardNode commit_high_record;
+    commit_high_record.text_index = 0x0318U;
+    commit_high_record.equipment_type_flags = 6U;
+    GroupEightState commit_high_state;
+    commit_high_state.interaction_mode = 2U;
+    commit_high_state.selection_x = 30U;
+    commit_high_state.record_head = &commit_high_record;
+    commit_high_state.local_record_count = 1;
+    GroupEightMainInputPorts commit_high_ports;
+    const auto commit_high = openswd3::special_modes::
+        commit_legacy_standard_mode_group_eight_interaction(
+            commit_high_state,
+            0U,
+            {},
+            commit_high_ports,
+            commit_high_ports.commit_runtime_state,
+            commit_high_ports.commit_port_state
+        );
+    test.expect_true(
+        commit_world.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightInteractionCommitStatus::
+                        completed &&
+            commit_world.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightInteractionCommitPath::
+                        world_transition_requested &&
+            commit_world_ports.commit_port_state.removed_actions ==
+                std::vector<u16>{0x02D9U} &&
+            commit_world_ports.commit_port_state.world_transition_count == 1U &&
+            commit_high.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightInteractionCommitPath::
+                        runtime_noop &&
+            commit_high_state.interaction_mode == 500U &&
+            commit_high_ports.commit_port_state
+                    .high_runtime_initialization_count == 1U,
+        "0x446700 routes the 2D9 world transition and 318 high runtime entry"
+    );
+
+    LegacyStandardModeForwardNode commit_locked_record;
+    commit_locked_record.text_index = 0x02B9U;
+    commit_locked_record.equipment_type_flags = 6U;
+    GroupEightState commit_locked_state;
+    commit_locked_state.interaction_mode = 2U;
+    commit_locked_state.selection_x = 30U;
+    commit_locked_state.record_head = &commit_locked_record;
+    commit_locked_state.local_record_count = 1;
+    GroupEightMainInputPorts commit_locked_ports;
+    commit_locked_ports.item_presence[0x4DU] = 1;
+    const auto commit_locked = openswd3::special_modes::
+        commit_legacy_standard_mode_group_eight_interaction(
+            commit_locked_state,
+            0x33334444U,
+            {},
+            commit_locked_ports,
+            commit_locked_ports.commit_runtime_state,
+            commit_locked_ports.commit_port_state
+        );
+    LegacyStandardModeForwardNode commit_count_record;
+    commit_count_record.text_index = 0x0301U;
+    commit_count_record.equipment_type_flags = 6U;
+    commit_count_record.first_value = 2U;
+    commit_count_record.second_value = 3U;
+    GroupEightState commit_count_state;
+    commit_count_state.interaction_mode = 2U;
+    commit_count_state.selection_x = 30U;
+    commit_count_state.record_head = &commit_count_record;
+    commit_count_state.local_record_count = 1;
+    GroupEightMainInputPorts commit_count_ports;
+    commit_count_ports.commit_port_state.inventory_span = 4;
+    const auto commit_count = openswd3::special_modes::
+        commit_legacy_standard_mode_group_eight_interaction(
+            commit_count_state,
+            0U,
+            {},
+            commit_count_ports,
+            commit_count_ports.commit_runtime_state,
+            commit_count_ports.commit_port_state
+        );
+    test.expect_true(
+        commit_locked.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightInteractionCommitPath::
+                        phase_reset &&
+            commit_locked_state.interaction_mode == 17U &&
+            commit_locked_ports.played_samples ==
+                std::vector<std::pair<u16, u32>>{{0x8CU, 0x33334444U}} &&
+            commit_count.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightInteractionCommitStatus::
+                        completed &&
+            commit_count_state.interaction_mode == 10U &&
+            commit_count_state.selected_outer_row == 0U &&
+            commit_count_state.outer_row_count == 9,
+        "0x446700 preserves the 2B9 lock phase and 301 outer-count accumulation"
+    );
+
+    LegacyStandardModeForwardNode commit_equipment_record;
+    commit_equipment_record.text_index = 0x0100U;
+    commit_equipment_record.equipment_type_flags = 6U;
+    commit_equipment_record.equipment_action_id = 0x77U;
+    GroupEightState commit_equipment_state;
+    commit_equipment_state.interaction_mode = 2U;
+    commit_equipment_state.selection_x = 30U;
+    commit_equipment_state.record_head = &commit_equipment_record;
+    commit_equipment_state.local_record_count = 1;
+    GroupEightMainInputPorts commit_equipment_ports;
+    commit_equipment_ports.item_presence[0x1EU] = 1;
+    commit_equipment_ports.item_presence[0x20U] = 1;
+    const auto commit_equipment = openswd3::special_modes::
+        commit_legacy_standard_mode_group_eight_interaction(
+            commit_equipment_state,
+            0U,
+            {},
+            commit_equipment_ports,
+            commit_equipment_ports.commit_runtime_state,
+            commit_equipment_ports.commit_port_state
+        );
+    GroupEightState commit_mode_three_state;
+    commit_mode_three_state.interaction_mode = 3U;
+    commit_mode_three_state.selection_x = 30U;
+    commit_mode_three_state.record_head = &commit_equipment_record;
+    commit_mode_three_state.record_zero = 3U;
+    commit_mode_three_state.local_record_count = 1;
+    commit_equipment_record.filter_flags = 0U;
+    commit_equipment_ports.commit_port_state.inventory_mutation_return = 0;
+    const auto commit_mode_three = openswd3::special_modes::
+        commit_legacy_standard_mode_group_eight_interaction(
+            commit_mode_three_state,
+            0x55556666U,
+            {},
+            commit_equipment_ports,
+            commit_equipment_ports.commit_runtime_state,
+            commit_equipment_ports.commit_port_state
+        );
+    test.expect_true(
+        commit_equipment.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightInteractionCommitStatus::
+                        window_refresh_stopped &&
+            commit_equipment_ports.commit_port_state.loaded_action_ids ==
+                std::vector<u16>{0x77U} &&
+            commit_equipment_ports.commit_port_state.copied_slots ==
+                std::vector<u32>{0U, 2U, 3U} &&
+            commit_equipment_ports.commit_port_state.inventory_mutations[0] ==
+                std::array<i32, 3U>{0x100, -1, 0} &&
+            commit_mode_three.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightInteractionCommitStatus::
+                        window_refresh_stopped &&
+            commit_mode_three_state.interaction_mode == 2U &&
+            commit_equipment_ports.commit_port_state.copied_slots.back() ==
+                3U &&
+            commit_equipment_ports.played_samples.back() ==
+                std::pair<u16, u32>{0x8BU, 0x55556666U},
+        "0x446700 preserves equipment side effects before the window typed stop"
+    );
+
+    GroupEightState commit_exit_state;
+    commit_exit_state.interaction_mode = 4U;
+    GroupEightMainInputPorts commit_exit_ports;
+    const auto commit_exited = openswd3::special_modes::
+        commit_legacy_standard_mode_group_eight_interaction(
+            commit_exit_state,
+            0U,
+            {},
+            commit_exit_ports,
+            commit_exit_ports.commit_runtime_state,
+            commit_exit_ports.commit_port_state
+        );
+    GroupEightState commit_resource_state;
+    commit_resource_state.interaction_mode = 10U;
+    commit_resource_state.selected_outer_row = 2U;
+    GroupEightMainInputPorts commit_resource_ports;
+    commit_resource_ports.commit_port_state.resource_flag = 0U;
+    const auto commit_resource_loaded = openswd3::special_modes::
+        commit_legacy_standard_mode_group_eight_interaction(
+            commit_resource_state,
+            0U,
+            {},
+            commit_resource_ports,
+            commit_resource_ports.commit_runtime_state,
+            commit_resource_ports.commit_port_state
+        );
+    const auto commit_resource_finished = openswd3::special_modes::
+        commit_legacy_standard_mode_group_eight_interaction(
+            commit_resource_state,
+            0U,
+            {},
+            commit_resource_ports,
+            commit_resource_ports.commit_runtime_state,
+            commit_resource_ports.commit_port_state
+        );
+    test.expect_true(
+        commit_exited.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightInteractionCommitPath::
+                        interaction_exited &&
+            commit_exited.legacy_return_value == 444 &&
+            commit_resource_loaded.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightInteractionCommitPath::
+                        mode_ten_loaded &&
+            commit_resource_ports.commit_port_state.loaded_resources ==
+                std::vector<std::pair<u32, u32>>{{0xCAFEU, 0x49U}} &&
+            commit_resource_finished.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightInteractionCommitPath::
+                        mode_eleven_finished &&
+            commit_resource_state.interaction_mode == 2U &&
+            commit_resource_ports.commit_port_state.exit_count == 1U,
+        "0x446700 delegates mode4 and preserves mode10-to-11 resource phases"
+    );
+
+    GroupEightState commit_dialog_state;
+    commit_dialog_state.interaction_mode = 15U;
+    commit_dialog_state.secondary_window_offset = 0;
+    commit_dialog_state.secondary_row_selection = 1;
+    commit_dialog_state.global_mode_owner = 9U;
+    GroupEightMainInputPorts commit_dialog_ports;
+    commit_dialog_ports.commit_runtime_state.filtered_records.records.resize(
+        2U
+    );
+    commit_dialog_ports.commit_runtime_state.filtered_records.records[1U]
+        .first_value = 0x00020001U;
+    commit_dialog_ports.commit_runtime_state.filtered_records.records[1U]
+        .second_value = 3U;
+    commit_dialog_ports.commit_runtime_state.dialog_records.resize(1U);
+    const auto commit_dialog = openswd3::special_modes::
+        commit_legacy_standard_mode_group_eight_interaction(
+            commit_dialog_state,
+            0U,
+            {},
+            commit_dialog_ports,
+            commit_dialog_ports.commit_runtime_state,
+            commit_dialog_ports.commit_port_state
+        );
+    GroupEightState commit_phase_state;
+    commit_phase_state.interaction_mode = 17U;
+    const auto commit_phase = openswd3::special_modes::
+        commit_legacy_standard_mode_group_eight_interaction(
+            commit_phase_state,
+            0U,
+            {},
+            commit_dialog_ports,
+            commit_dialog_ports.commit_runtime_state,
+            commit_dialog_ports.commit_port_state
+        );
+    test.expect_true(
+        commit_dialog.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightInteractionCommitStatus::
+                        completed &&
+            commit_dialog.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightInteractionCommitPath::
+                        dialog_committed &&
+            commit_dialog_state.secondary_window_offset == 2 &&
+            commit_dialog_state.special_control_count == 0 &&
+            commit_dialog_state.global_mode_owner == 0U &&
+            commit_dialog_ports.commit_runtime_state.filtered_records.records
+                .empty() &&
+            commit_dialog_ports.commit_port_state.cleared_bytes == 0x96000U &&
+            commit_phase_state.interaction_mode == 2U &&
+            commit_phase.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightInteractionCommitPath::
+                        phase_reset,
+        "0x446700 commits filtered dialog records and resets terminal phases"
     );
 
     GroupEightState group_state{.selection = 4U, .lifecycle = 2U};

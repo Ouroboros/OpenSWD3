@@ -12221,6 +12221,30 @@ handle_legacy_standard_mode_group_eight_main_input(
     };
     LegacyStandardModeGroupEightMainInputResult result;
     result.legacy_return_value = as_i32(input.pointer_y);
+    const auto commit_current = [&]() noexcept {
+        LegacyStandardModeGroupEightInteractionCommitRuntime& commit_runtime =
+            ports.commit_runtime();
+        LegacyStandardModeGroupEightInteractionCommitPorts& commit_ports =
+            ports.commit_ports();
+        const LegacyStandardModeGroupEightInteractionCommitResult commit =
+            commit_legacy_standard_mode_group_eight_interaction(
+                state,
+                input.sample_handle,
+                maps_payload,
+                ports,
+                commit_runtime,
+                commit_ports
+            );
+        result.legacy_return_value = commit.legacy_return_value;
+        result.helper_call_count += commit.helper_call_count + 1U;
+        if (commit.status !=
+            LegacyStandardModeGroupEightInteractionCommitStatus::completed) {
+            result.status =
+                LegacyStandardModeGroupEightMainInputStatus::commit_stopped;
+            return false;
+        }
+        return true;
+    };
 
     compat::u16 mode = state.interaction_mode;
     if (mode >= 0x01F4U) {
@@ -12270,9 +12294,9 @@ handle_legacy_standard_mode_group_eight_main_input(
             if (as_i32(row) <= state.outer_row_count) {
                 state.selected_outer_row = row;
                 if ((flags & 3U) != 0U) {
-                    result.legacy_return_value =
-                        ports.commit_selection(input, state);
-                    ++result.helper_call_count;
+                    if (!commit_current()) {
+                        return result;
+                    }
                     result.path = LegacyStandardModeGroupEightMainInputPath::
                         outer_row_committed;
                     return result;
@@ -12296,9 +12320,9 @@ handle_legacy_standard_mode_group_eight_main_input(
             y > as_i32(row_base + 0xBDU)) {
             state.selected_column = (input.pointer_x - 0x1B7U) / 66U;
             if ((flags & 3U) != 0U) {
-                result.legacy_return_value =
-                    ports.commit_selection(input, state);
-                ++result.helper_call_count;
+                if (!commit_current()) {
+                    return result;
+                }
                 result.path =
                     LegacyStandardModeGroupEightMainInputPath::column_committed;
                 return result;
@@ -12323,9 +12347,9 @@ handle_legacy_standard_mode_group_eight_main_input(
             input.pointer_x < 0x204U && input.pointer_x > 0x1ACU) {
             state.selected_action = (input.pointer_x - 0x1ACU) / 44U;
             if ((flags & 3U) != 0U) {
-                result.legacy_return_value =
-                    ports.commit_selection(input, state);
-                ++result.helper_call_count;
+                if (!commit_current()) {
+                    return result;
+                }
                 result.path =
                     LegacyStandardModeGroupEightMainInputPath::action_committed;
                 return result;
@@ -12361,8 +12385,9 @@ handle_legacy_standard_mode_group_eight_main_input(
             if (candidate == 0x1FU) {
                 if ((flags & 1U) != 0U) {
                     state.selection_x = 0x1FU;
-                    static_cast<void>(ports.commit_selection(input, state));
-                    ++result.helper_call_count;
+                    if (!commit_current()) {
+                        return result;
+                    }
                     state.selection_x = 0x1EU;
                     result.legacy_return_value =
                         ports.play_sample(0x2DU, input.sample_handle);
@@ -12469,8 +12494,9 @@ common_input:
                     static_cast<compat::i32>(available_index);
                 return result;
             }
-            result.legacy_return_value = ports.commit_selection(input, state);
-            ++result.helper_call_count;
+            if (!commit_current()) {
+                return result;
+            }
             result.path = LegacyStandardModeGroupEightMainInputPath::
                 available_item_committed;
             return result;
@@ -12542,8 +12568,9 @@ common_input:
             }
         }
         if ((flags & 2U) != 0U) {
-            result.legacy_return_value = ports.commit_selection(input, state);
-            ++result.helper_call_count;
+            if (!commit_current()) {
+                return result;
+            }
             result.path =
                 LegacyStandardModeGroupEightMainInputPath::record_committed;
             return result;
@@ -12844,9 +12871,9 @@ common_input:
             }
             if (row == state.secondary_row_selection) {
                 if ((input.input_flags & 2U) != 0U) {
-                    result.legacy_return_value =
-                        ports.commit_selection(input, state);
-                    ++result.helper_call_count;
+                    if (!commit_current()) {
+                        return result;
+                    }
                     result.path = LegacyStandardModeGroupEightMainInputPath::
                         secondary_row_committed;
                     return result;
@@ -13990,6 +14017,541 @@ cycle_legacy_standard_mode_selection_or_advance_runtime(
     result.legacy_return_value = published.legacy_return_value;
     result.helper_call_count += published.helper_call_count + 1U;
     return result;
+}
+
+LegacyStandardModeGroupEightInteractionCommitResult
+commit_legacy_standard_mode_group_eight_interaction(
+    LegacyStandardModeGroupEightState& state,
+    const compat::u32 sample_handle,
+    const std::span<const compat::u8> maps_payload,
+    LegacyStandardModeGroupEightMainInputPorts& ports,
+    LegacyStandardModeGroupEightInteractionCommitRuntime& runtime,
+    LegacyStandardModeGroupEightInteractionCommitPorts& commit_ports
+) noexcept {
+    LegacyStandardModeGroupEightInteractionCommitResult result;
+    if (state.interaction_mode >= 0x01F4U) {
+        result.path =
+            LegacyStandardModeGroupEightInteractionCommitPath::runtime_noop;
+        return result;
+    }
+
+    const auto selected_record =
+        [&]() noexcept -> const LegacyStandardModeForwardNode* {
+        const compat::i32 selected_index = std::bit_cast<compat::i32>(
+            state.list_offset + state.local_selection
+        );
+        const LegacyStandardModeForwardNode* probe = state.record_head;
+        for (compat::i32 index = 0; index < selected_index; ++index) {
+            if (probe == nullptr) {
+                return nullptr;
+            }
+            probe = probe->next;
+        }
+        const LegacyStandardModeForwardNode* const head = state.record_head;
+        return index_legacy_standard_mode_forward_node(selected_index, &head);
+    };
+    const auto refresh_window = [&]() noexcept -> bool {
+        compat::i32 total_count = state.local_record_count;
+        compat::i32 window_offset =
+            std::bit_cast<compat::i32>(state.list_offset);
+        compat::i32 local_cursor =
+            std::bit_cast<compat::i32>(state.local_selection);
+        compat::i32 visible_count =
+            std::bit_cast<compat::i32>(state.visible_record_count);
+        const LegacyStandardModeForwardNode* source_head = state.record_head;
+        const LegacyStandardModeForwardNode* output_head =
+            state.visible_record_head;
+        const LegacyStandardModeWindowSelectionResult refresh =
+            resolve_legacy_standard_mode_window_selection(
+                total_count,
+                window_offset,
+                local_cursor,
+                visible_count,
+                0x0D,
+                &source_head,
+                &output_head,
+                maps_payload,
+                state.shared_text,
+                commit_ports
+            );
+        ++result.helper_call_count;
+        state.local_record_count = total_count;
+        state.list_offset = std::bit_cast<compat::u32>(window_offset);
+        state.local_selection = std::bit_cast<compat::u32>(local_cursor);
+        state.visible_record_count = std::bit_cast<compat::u32>(visible_count);
+        state.record_head =
+            const_cast<LegacyStandardModeForwardNode*>(source_head);
+        state.visible_record_head = output_head;
+        if (refresh.status !=
+            LegacyStandardModeWindowSelectionStatus::completed) {
+            result.status =
+                LegacyStandardModeGroupEightInteractionCommitStatus::
+                    window_refresh_stopped;
+            return false;
+        }
+        return true;
+    };
+    const auto play = [&](const compat::u16 sample_id) noexcept {
+        result.legacy_return_value =
+            ports.play_sample(sample_id, sample_handle);
+        ++result.helper_call_count;
+    };
+    const auto remove_inventory = [&](const compat::u16 item_id) noexcept {
+        result.legacy_return_value =
+            commit_ports.mutate_inventory(item_id, -1, 0);
+        ++result.helper_call_count;
+    };
+    const auto finish_mode_two_refresh = [&]() noexcept {
+        if (refresh_window()) {
+            result.path = LegacyStandardModeGroupEightInteractionCommitPath::
+                mode_two_refreshed;
+        }
+    };
+
+    switch (state.interaction_mode) {
+    case 2U: {
+        const LegacyStandardModeForwardNode* record = nullptr;
+        if (state.selection_x != 0x1FU) {
+            if (state.local_record_count <= 0) {
+                return result;
+            }
+            record = selected_record();
+            ++result.helper_call_count;
+            if (record == nullptr) {
+                result.status =
+                    LegacyStandardModeGroupEightInteractionCommitStatus::
+                        selected_record_missing;
+                return result;
+            }
+            if (record->text_index >= 0xFFDCU) {
+                return result;
+            }
+        }
+        if (state.selection_x == 0x1FU) {
+            if (!ports.cleanup_selection_records(state)) {
+                result.status =
+                    LegacyStandardModeGroupEightInteractionCommitStatus::
+                        record_cleanup_stopped;
+                return result;
+            }
+            ++result.helper_call_count;
+            commit_ports.release_inventory_root();
+            ++result.helper_call_count;
+            state.selection_x = 0x1EU;
+            play(0x2DU);
+            if (!ports.initialize_selection_records(state)) {
+                result.status =
+                    LegacyStandardModeGroupEightInteractionCommitStatus::
+                        record_initialization_stopped;
+                return result;
+            }
+            ++result.helper_call_count;
+            finish_mode_two_refresh();
+            return result;
+        }
+        if (state.selection_x == 0x20U) {
+            state.selected_action = 1U;
+            if ((record->filter_flags & 0x20U) == 0U) {
+                state.interaction_mode = 5U;
+            } else {
+                play(0x8CU);
+            }
+            finish_mode_two_refresh();
+            return result;
+        }
+        if (state.selection_x != 0x1EU) {
+            finish_mode_two_refresh();
+            return result;
+        }
+        if ((record->equipment_type_flags & 6U) == 0U) {
+            play(0x8CU);
+            finish_mode_two_refresh();
+            return result;
+        }
+        const compat::u16 item_id = record->text_index;
+        if (item_id == 0x02D9U) {
+            commit_ports.remove_owned_action(item_id);
+            ++result.helper_call_count;
+            commit_ports.request_special_world_transition();
+            ++result.helper_call_count;
+            result.path = LegacyStandardModeGroupEightInteractionCommitPath::
+                world_transition_requested;
+            return result;
+        }
+        if (item_id == 0x0318U) {
+            state.interaction_mode = 0x01F4U;
+            commit_ports.initialize_high_mode_runtime();
+            ++result.helper_call_count;
+            result.path =
+                LegacyStandardModeGroupEightInteractionCommitPath::runtime_noop;
+            return result;
+        }
+        if (item_id == 0x02B9U) {
+            const compat::i32 present = ports.query_item_presence(0x4DU);
+            ++result.helper_call_count;
+            if (present != 0 || runtime.special_unlock_owner != 1) {
+                state.interaction_mode = 0x11U;
+                play(0x8CU);
+                result.path =
+                    LegacyStandardModeGroupEightInteractionCommitPath::
+                        phase_reset;
+                return result;
+            }
+            state.interaction_mode = 0x0FU;
+            const LegacyStandardModeFilteredRecordResult filtered =
+                build_legacy_standard_mode_filtered_records(
+                    runtime.filtered_records, maps_payload, commit_ports
+                );
+            ++result.helper_call_count;
+            if (filtered.status !=
+                LegacyStandardModeFilteredRecordStatus::completed) {
+                result.status =
+                    LegacyStandardModeGroupEightInteractionCommitStatus::
+                        filtered_records_stopped;
+                return result;
+            }
+            state.secondary_window_offset = 0;
+            state.secondary_row_selection = 0;
+            state.special_control_count = static_cast<compat::i32>(
+                runtime.filtered_records.records.size()
+            );
+            state.secondary_row_count =
+                std::min(state.special_control_count, 8);
+            result.path =
+                LegacyStandardModeGroupEightInteractionCommitPath::phase_reset;
+            return result;
+        }
+        if (item_id == 0x02B8U || item_id == 0x02BAU) {
+            const compat::i32 present = ports.query_item_presence(0x4EU);
+            ++result.helper_call_count;
+            if (present != 0) {
+                state.interaction_mode = 0x12U;
+                play(0x8CU);
+                result.path =
+                    LegacyStandardModeGroupEightInteractionCommitPath::
+                        phase_reset;
+                return result;
+            }
+            const LegacyStandardModeValueGroupResult group =
+                find_legacy_standard_mode_value_group(
+                    runtime.value_group_target, maps_payload
+                );
+            ++result.helper_call_count;
+            if (group.status ==
+                LegacyStandardModeValueGroupStatus::maps_payload_out_of_range) {
+                result.status =
+                    LegacyStandardModeGroupEightInteractionCommitStatus::
+                        value_group_stopped;
+                return result;
+            }
+            if (group.status == LegacyStandardModeValueGroupStatus::not_found) {
+                state.interaction_mode = 0x12U;
+                play(0x8CU);
+                result.path =
+                    LegacyStandardModeGroupEightInteractionCommitPath::
+                        phase_reset;
+                return result;
+            }
+            if (group.group_offset > maps_payload.size() ||
+                maps_payload.size() - group.group_offset < 6U) {
+                result.status =
+                    LegacyStandardModeGroupEightInteractionCommitStatus::
+                        value_group_record_out_of_range;
+                return result;
+            }
+            remove_inventory(item_id);
+            const std::span<const compat::u8> group_record =
+                maps_payload.subspan(group.group_offset, 6U);
+            const LegacyStandardModeDialogSetupResult dialog =
+                initialize_legacy_standard_mode_dialog_setup(
+                    read_u16_le(group_record, 0U),
+                    read_u16_le(group_record, 2U),
+                    read_u16_le(group_record, 4U),
+                    0x52U,
+                    runtime.dialog_record_index,
+                    runtime.dialog_records,
+                    runtime.dialog_interface_source,
+                    runtime.dialog_setup,
+                    commit_ports
+                );
+            ++result.helper_call_count;
+            result.legacy_return_value = dialog.legacy_return_value;
+            if (dialog.status !=
+                LegacyStandardModeDialogSetupStatus::completed) {
+                result.status =
+                    LegacyStandardModeGroupEightInteractionCommitStatus::
+                        dialog_setup_stopped;
+                return result;
+            }
+            const LegacyStandardModeGroupEightCleanupResult cleanup =
+                cleanup_legacy_standard_mode_group_eight(state, ports);
+            ++result.helper_call_count;
+            result.legacy_return_value = cleanup.legacy_return_value;
+            if (cleanup.status !=
+                LegacyStandardModeGroupEightCleanupStatus::completed) {
+                result.status =
+                    LegacyStandardModeGroupEightInteractionCommitStatus::
+                        record_cleanup_stopped;
+                return result;
+            }
+            state.global_mode_owner = 0U;
+            result.path = LegacyStandardModeGroupEightInteractionCommitPath::
+                dialog_committed;
+            return result;
+        }
+        if (item_id == 0x0301U) {
+            state.selected_outer_row = 0U;
+            state.outer_row_count =
+                static_cast<compat::i32>(record->first_value) +
+                static_cast<compat::i32>(record->second_value);
+            const std::optional<compat::i32> inventory_span =
+                commit_ports.inventory_record_span(item_id);
+            ++result.helper_call_count;
+            if (inventory_span.has_value()) {
+                state.outer_row_count += *inventory_span;
+            }
+            state.interaction_mode = 0x0AU;
+            result.path =
+                LegacyStandardModeGroupEightInteractionCommitPath::phase_reset;
+            return result;
+        }
+        if (item_id == 0x02DBU) {
+            const compat::i32 present = ports.query_item_presence(0x17U);
+            ++result.helper_call_count;
+            if (runtime.value_group_target == 0x16 || present != 0) {
+                play(0x8CU);
+                return result;
+            }
+            commit_ports.request_special_battle(*record);
+            ++result.helper_call_count;
+            const LegacyStandardModeGroupEightCleanupResult cleanup =
+                cleanup_legacy_standard_mode_group_eight(state, ports);
+            ++result.helper_call_count;
+            result.legacy_return_value = cleanup.legacy_return_value;
+            if (cleanup.status !=
+                LegacyStandardModeGroupEightCleanupStatus::completed) {
+                result.status =
+                    LegacyStandardModeGroupEightInteractionCommitStatus::
+                        record_cleanup_stopped;
+                return result;
+            }
+            state.global_mode_owner = 0U;
+            result.path = LegacyStandardModeGroupEightInteractionCommitPath::
+                battle_requested;
+            return result;
+        }
+
+        std::array<compat::u8, 0x28U> equipment_payload{};
+        const compat::i32 loaded = commit_ports.load_equipment_payload(
+            record->equipment_action_id, equipment_payload
+        );
+        ++result.helper_call_count;
+        if (loaded != 1 || (equipment_payload[4U] & 1U) == 0U) {
+            state.interaction_mode = 3U;
+            play(0x8BU);
+            finish_mode_two_refresh();
+            return result;
+        }
+        for (compat::u16 presence_id = 0x1EU; presence_id <= 0x21U;
+             ++presence_id) {
+            const compat::i32 present = ports.query_item_presence(presence_id);
+            ++result.helper_call_count;
+            if (present != 0) {
+                commit_ports.copy_equipment_payload(
+                    presence_id - 0x1EU, record->record_bytes
+                );
+                ++result.helper_call_count;
+            }
+        }
+        remove_inventory(item_id);
+        finish_mode_two_refresh();
+        return result;
+    }
+    case 3U: {
+        const LegacyStandardModeForwardNode* const record = selected_record();
+        ++result.helper_call_count;
+        if (record == nullptr) {
+            result.status =
+                LegacyStandardModeGroupEightInteractionCommitStatus::
+                    selected_record_missing;
+            return result;
+        }
+        if (state.selection_x == 0x1EU) {
+            if ((record->equipment_type_flags & 0x0FU) >= 2U) {
+                commit_ports.copy_equipment_payload(
+                    state.record_zero, record->record_bytes
+                );
+                ++result.helper_call_count;
+                if ((record->filter_flags & 0x80U) == 0U) {
+                    remove_inventory(record->text_index);
+                    if (result.legacy_return_value == 0) {
+                        state.interaction_mode = 2U;
+                    }
+                }
+                play(0x8BU);
+            }
+        } else if (
+            state.selection_x == 0x20U && record->text_index != 0xFFDCU
+        ) {
+            if ((record->filter_flags & 0x20U) == 0U) {
+                remove_inventory(record->text_index);
+                play(0x8BU);
+            } else {
+                play(0xB8U);
+            }
+        }
+        if (refresh_window()) {
+            result.path = LegacyStandardModeGroupEightInteractionCommitPath::
+                mode_three_refreshed;
+        }
+        return result;
+    }
+    case 4U:
+        result.legacy_return_value =
+            commit_ports.exit_current_interaction(state);
+        ++result.helper_call_count;
+        result.path = LegacyStandardModeGroupEightInteractionCommitPath::
+            interaction_exited;
+        return result;
+    case 5U:
+        if (state.selected_action == 0U) {
+            const LegacyStandardModeForwardNode* const record =
+                selected_record();
+            ++result.helper_call_count;
+            if (record == nullptr) {
+                result.status =
+                    LegacyStandardModeGroupEightInteractionCommitStatus::
+                        selected_record_missing;
+                return result;
+            }
+            if (record->text_index != 0xFFDCU) {
+                remove_inventory(record->text_index);
+                play(0xB8U);
+                if (!refresh_window()) {
+                    return result;
+                }
+            }
+        }
+        state.interaction_mode = 2U;
+        result.path = LegacyStandardModeGroupEightInteractionCommitPath::
+            mode_five_finished;
+        return result;
+    case 0x0AU: {
+        runtime.temporary_resource_token =
+            commit_ports.allocate_mode_resource(0xD8U);
+        ++result.helper_call_count;
+        result.legacy_return_value = commit_ports.load_mode_resource(
+            runtime.temporary_resource_token, state.selected_outer_row + 0x47U
+        );
+        ++result.helper_call_count;
+        if (result.legacy_return_value == -1) {
+            state.interaction_mode = 2U;
+            commit_ports.release_mode_resource(
+                runtime.temporary_resource_token
+            );
+            ++result.helper_call_count;
+            result.path = LegacyStandardModeGroupEightInteractionCommitPath::
+                mode_ten_failed;
+            return result;
+        }
+        state.mode_ten_available =
+            commit_ports.mode_resource_flag(runtime.temporary_resource_token) !=
+                0U
+            ? 1
+            : 0;
+        ++result.helper_call_count;
+        ++state.interaction_mode;
+        state.selected_column = 0U;
+        commit_ports.release_mode_resource(runtime.temporary_resource_token);
+        ++result.helper_call_count;
+        result.path =
+            LegacyStandardModeGroupEightInteractionCommitPath::mode_ten_loaded;
+        return result;
+    }
+    case 0x0BU:
+        state.interaction_mode = 0x0AU;
+        if (state.selected_column != 0U) {
+            return result;
+        }
+        if (!commit_ports.finalize_mode_resource()) {
+            ++result.helper_call_count;
+            return result;
+        }
+        ++result.helper_call_count;
+        state.interaction_mode = 2U;
+        if (state.mode_ten_available == 0) {
+            result.legacy_return_value =
+                commit_ports.exit_current_interaction(state);
+            ++result.helper_call_count;
+            state.global_mode_owner = 0U;
+        }
+        result.path = LegacyStandardModeGroupEightInteractionCommitPath::
+            mode_eleven_finished;
+        return result;
+    case 0x0FU: {
+        remove_inventory(0x02B9U);
+        const compat::i32 selected =
+            state.secondary_window_offset + state.secondary_row_selection;
+        if (selected < 0 ||
+            static_cast<std::size_t>(selected) >=
+                runtime.filtered_records.records.size()) {
+            result.status =
+                LegacyStandardModeGroupEightInteractionCommitStatus::
+                    filtered_record_out_of_range;
+            return result;
+        }
+        const LegacyStandardModeFilteredRecord& record =
+            runtime.filtered_records
+                .records[static_cast<std::size_t>(selected)];
+        const LegacyStandardModeDialogSetupResult dialog =
+            initialize_legacy_standard_mode_dialog_setup(
+                static_cast<compat::i32>(record.first_value & 0xFFFFU),
+                static_cast<compat::i32>(record.first_value >> 16U),
+                static_cast<compat::i32>(record.second_value),
+                0x52U,
+                runtime.dialog_record_index,
+                runtime.dialog_records,
+                runtime.dialog_interface_source,
+                runtime.dialog_setup,
+                commit_ports
+            );
+        ++result.helper_call_count;
+        result.legacy_return_value = dialog.legacy_return_value;
+        if (dialog.status != LegacyStandardModeDialogSetupStatus::completed) {
+            result.status =
+                LegacyStandardModeGroupEightInteractionCommitStatus::
+                    dialog_setup_stopped;
+            return result;
+        }
+        state.secondary_window_offset =
+            static_cast<compat::i32>(runtime.filtered_records.records.size());
+        runtime.filtered_records.records.clear();
+        state.special_control_count = 0;
+        const LegacyStandardModeGroupEightCleanupResult cleanup =
+            cleanup_legacy_standard_mode_group_eight(state, ports);
+        ++result.helper_call_count;
+        result.legacy_return_value = cleanup.legacy_return_value;
+        if (cleanup.status !=
+            LegacyStandardModeGroupEightCleanupStatus::completed) {
+            result.status =
+                LegacyStandardModeGroupEightInteractionCommitStatus::
+                    record_cleanup_stopped;
+            return result;
+        }
+        state.global_mode_owner = 0U;
+        result.path =
+            LegacyStandardModeGroupEightInteractionCommitPath::dialog_committed;
+        return result;
+    }
+    case 0x11U:
+    case 0x12U:
+        state.interaction_mode = 2U;
+        result.path =
+            LegacyStandardModeGroupEightInteractionCommitPath::phase_reset;
+        return result;
+    default:
+        return result;
+    }
 }
 
 LegacyStandardModeGroupEightSelectionRetreatResult

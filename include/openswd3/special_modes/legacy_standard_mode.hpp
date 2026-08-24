@@ -527,6 +527,8 @@ struct LegacyStandardModeGroupEightInputSnapshot {
 struct LegacyStandardModeForwardNode;
 struct LegacyStandardModeAvailabilityRecord;
 struct LegacyStandardModeRuntimeInitializationState;
+struct LegacyStandardModeGroupEightInteractionCommitRuntime;
+class LegacyStandardModeGroupEightInteractionCommitPorts;
 class LegacyStandardModeInputDispatchPorts;
 
 struct LegacyStandardModeGroupEightState {
@@ -580,6 +582,9 @@ struct LegacyStandardModeGroupEightState {
     compat::i32 secondary_control_one_y_max{};
     compat::i32 secondary_control_two_y_min{};
     compat::i32 secondary_control_two_y_max{};
+    compat::i32 mode_ten_available{};
+    compat::u32 visible_record_count{};
+    compat::u32 global_mode_owner{};
 };
 
 class LegacyStandardModeGroupEightInitializationPorts {
@@ -664,10 +669,10 @@ public:
         LegacyStandardModeGroupEightMainInputSnapshot& input,
         LegacyStandardModeGroupEightState& state
     ) = 0;
-    [[nodiscard]] virtual compat::i32 commit_selection(
-        LegacyStandardModeGroupEightMainInputSnapshot& input,
-        LegacyStandardModeGroupEightState& state
-    ) = 0;
+    [[nodiscard]] virtual LegacyStandardModeGroupEightInteractionCommitRuntime&
+    commit_runtime() noexcept = 0;
+    [[nodiscard]] virtual LegacyStandardModeGroupEightInteractionCommitPorts&
+    commit_ports() noexcept = 0;
     [[nodiscard]] virtual compat::i32 exit_interaction(
         LegacyStandardModeGroupEightMainInputSnapshot& input,
         LegacyStandardModeGroupEightState& state
@@ -690,6 +695,7 @@ enum class LegacyStandardModeGroupEightMainInputStatus : compat::u8 {
     page_advance_control_stopped,
     page_retreat_control_stopped,
     mode_retreat_stopped,
+    commit_stopped,
 };
 
 enum class LegacyStandardModeGroupEightMainInputPath : compat::u8 {
@@ -2047,6 +2053,106 @@ struct LegacyStandardModeWindowSelectionResult {
     compat::i32 selection_index{};
     bool missing_node_requested{};
 };
+
+struct LegacyStandardModeGroupEightInteractionCommitRuntime {
+    LegacyStandardModeFilteredRecordState filtered_records;
+    LegacyStandardModeDialogSetupState dialog_setup;
+    std::vector<LegacyStandardModeDialogSetupRecord> dialog_records;
+    compat::u32 dialog_record_index{};
+    compat::u32 dialog_interface_source{};
+    compat::i32 value_group_target{};
+    compat::i32 special_unlock_owner{};
+    compat::u32 temporary_resource_token{};
+};
+
+class LegacyStandardModeGroupEightInteractionCommitPorts
+    : public LegacyStandardModeMissingNodePorts,
+      public LegacyStandardModeFilterQueryPorts,
+      public LegacyStandardModeDialogSetupPorts {
+public:
+    ~LegacyStandardModeGroupEightInteractionCommitPorts() override = default;
+
+    [[nodiscard]] virtual compat::i32 mutate_inventory(
+        compat::u16 item_id, compat::i32 delta, compat::i32 mode
+    ) noexcept = 0;
+    [[nodiscard]] virtual std::optional<compat::i32>
+    inventory_record_span(compat::u16 item_id) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 load_equipment_payload(
+        compat::u16 action_id, std::span<compat::u8> destination
+    ) noexcept = 0;
+    virtual void copy_equipment_payload(
+        compat::u32 slot, std::span<const compat::u8> source
+    ) noexcept = 0;
+    virtual void remove_owned_action(compat::u16 action_id) noexcept = 0;
+    virtual void release_inventory_root() noexcept = 0;
+    virtual void request_special_world_transition() noexcept = 0;
+    virtual void initialize_high_mode_runtime() noexcept = 0;
+    virtual void request_special_battle(
+        const LegacyStandardModeForwardNode& record
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::u32
+    allocate_mode_resource(std::size_t size) noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    load_mode_resource(compat::u32 token, compat::u32 resource_id) noexcept = 0;
+    [[nodiscard]] virtual compat::u32
+    mode_resource_flag(compat::u32 token) noexcept = 0;
+    virtual void release_mode_resource(compat::u32 token) noexcept = 0;
+    [[nodiscard]] virtual bool finalize_mode_resource() noexcept = 0;
+    [[nodiscard]] virtual compat::i32 exit_current_interaction(
+        LegacyStandardModeGroupEightState& state
+    ) noexcept = 0;
+};
+
+enum class LegacyStandardModeGroupEightInteractionCommitStatus : compat::u8 {
+    completed,
+    selected_record_missing,
+    record_cleanup_stopped,
+    record_initialization_stopped,
+    window_refresh_stopped,
+    filtered_records_stopped,
+    value_group_stopped,
+    value_group_record_out_of_range,
+    dialog_setup_stopped,
+    filtered_record_out_of_range,
+    equipment_payload_stopped,
+};
+
+enum class LegacyStandardModeGroupEightInteractionCommitPath : compat::u8 {
+    no_action,
+    runtime_noop,
+    mode_two_refreshed,
+    mode_three_refreshed,
+    interaction_exited,
+    mode_five_finished,
+    mode_ten_loaded,
+    mode_ten_failed,
+    mode_eleven_finished,
+    dialog_committed,
+    phase_reset,
+    world_transition_requested,
+    battle_requested,
+};
+
+struct LegacyStandardModeGroupEightInteractionCommitResult {
+    LegacyStandardModeGroupEightInteractionCommitStatus status{
+        LegacyStandardModeGroupEightInteractionCommitStatus::completed
+    };
+    LegacyStandardModeGroupEightInteractionCommitPath path{
+        LegacyStandardModeGroupEightInteractionCommitPath::no_action
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacyStandardModeGroupEightInteractionCommitResult
+commit_legacy_standard_mode_group_eight_interaction(
+    LegacyStandardModeGroupEightState& state,
+    compat::u32 sample_handle,
+    std::span<const compat::u8> maps_payload,
+    LegacyStandardModeGroupEightMainInputPorts& ports,
+    LegacyStandardModeGroupEightInteractionCommitRuntime& runtime,
+    LegacyStandardModeGroupEightInteractionCommitPorts& commit_ports
+) noexcept;
 
 struct LegacyStandardModeAvailabilityRecord {
     compat::i32 enabled{};
