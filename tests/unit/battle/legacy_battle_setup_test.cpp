@@ -1,5 +1,6 @@
 #include "test.hpp"
 
+#include "openswd3/battle/legacy_battle_action_frame_draw.hpp"
 #include "openswd3/battle/legacy_battle_border_panel.hpp"
 #include "openswd3/battle/legacy_battle_color_fade.hpp"
 #include "openswd3/battle/legacy_battle_directional_scan.hpp"
@@ -244,6 +245,58 @@ public:
             geometry->surface_row_offsets != nullptr;
     }
 };
+
+class BattleActionStreamProvider final
+    : public openswd3::asset_runtime::LegacyActionStreamProvider {
+public:
+    [[nodiscard]] openswd3::asset_runtime::LegacyActionStreamLoadResult
+    load_action_stream(
+        const u32 action_id, const u32 variant_index, const bool cached
+    ) override {
+        ++calls;
+        last_action_id = action_id;
+        last_variant_index = variant_index;
+        last_cached = cached;
+        if (fail) {
+            return {};
+        }
+        return {
+            openswd3::asset_runtime::LegacyActionStreamStatus::ready,
+            bytes,
+            false,
+        };
+    }
+
+    void set_words(const std::span<const u16> words) {
+        bytes.clear();
+        bytes.reserve(words.size() * 2U);
+        for (const u16 word : words) {
+            bytes.push_back(static_cast<u8>(word));
+            bytes.push_back(static_cast<u8>(word >> 8U));
+        }
+    }
+
+    std::vector<u8> bytes;
+    u32 calls{};
+    u32 last_action_id{};
+    u32 last_variant_index{};
+    bool last_cached{};
+    bool fail{};
+};
+
+[[nodiscard]] std::vector<u8> make_battle_rle_pixel(const u16 color) {
+    constexpr std::array<u16, 9> kWords{
+        0xFFFFU, 1U, 1U, 0x10U, 8U, 1U, 0U, 0U, 0U
+    };
+    std::vector<u8> bytes;
+    bytes.reserve(kWords.size() * 2U);
+    for (std::size_t index = 0U; index < kWords.size(); ++index) {
+        const u16 word = index == 6U ? color : kWords[index];
+        bytes.push_back(static_cast<u8>(word));
+        bytes.push_back(static_cast<u8>(word >> 8U));
+    }
+    return bytes;
+}
 
 class BattleBorderFrameProvider final
     : public openswd3::rendering::LegacyFramePieceProvider {
@@ -2662,6 +2715,248 @@ void test_directional_scan_division_and_typed_stops(
     );
 }
 
+void test_battle_action_frame_draw(openswd3::test::Context& test) {
+    const openswd3::rendering::LegacySurfaceGeometry surface{
+        .pitch_bytes = 160,
+        .width = 80,
+        .height = 60,
+    };
+    const openswd3::rendering::LegacyBlitClipRectangle clip{
+        .left = 0,
+        .top = 0,
+        .width = 80,
+        .height = 60,
+    };
+    constexpr std::array<u16, 8> kActionWords{
+        0x5246U, 0x0066U, 0x5041U, 0U, 0x5859U, 2U, 3U, 0x4544U
+    };
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleActionStreamProvider action_provider;
+        action_provider.set_words(kActionWords);
+        openswd3::asset_runtime::LegacyActionUpdater action_updater{
+            action_provider
+        };
+        BattleBorderFrameProvider frame_provider;
+        frame_provider.widths[0] = 1U;
+        frame_provider.heights[0] = 1U;
+        frame_provider.source_storage[0] = make_battle_rle_pixel(0x1234U);
+        std::vector<u8> outline_state(0x10000U, 0U);
+        outline_state[0x2345U] = 1U;
+        openswd3::battle::LegacyBattleActionFrameDrawState state;
+        openswd3::rendering::LegacyBlitRequest shared_request{
+            .target_height = 1,
+            .vertical_resample_enlarge_state = 1U,
+            .vertical_resample_phase_10_10 = 0x77U,
+            .opacity_step = 6,
+        };
+        openswd3::rendering::LegacyBlitEffectState shared_effects{
+            .red_offset = 3,
+            .green_offset = 4,
+            .blue_offset = 5,
+        };
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result = openswd3::battle::draw_legacy_battle_action_frame(
+            state,
+            framebuffer,
+            clip,
+            shared_request,
+            shared_effects,
+            jitter,
+            action_updater,
+            frame_provider,
+            outline_state,
+            0xABCD2345U,
+            30,
+            40,
+            1U
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleActionFrameDrawStatus::
+                        completed &&
+                result.frame_load_calls == 1U &&
+                result.outline_draw_calls == 4U &&
+                result.frame_draw_calls == 2U && result.draw_x == 28 &&
+                result.draw_y == 37 && result.outline.pass_count == 4U &&
+                action_provider.calls == 1U &&
+                action_provider.last_action_id == 0x2390U &&
+                action_provider.last_variant_index == 0x2345U &&
+                frame_provider.resource_ids == std::vector<u32>{0x0066U} &&
+                frame_provider.load_indices == std::vector<u32>{0U} &&
+                state.action_update_attempted &&
+                state.action_update.return_value == 1U &&
+                state.action_record.action_id == 0x2390U &&
+                state.action_record.base_variant == 0x2345U &&
+                state.action_record.field_4a == 0x0066U &&
+                state.action_record.field_4c == 0U &&
+                state.action_record.draw_offset_x == 2U &&
+                state.action_record.draw_offset_y == 3U &&
+                state.frame_record_available && state.source_published &&
+                state.outline_color_slot ==
+                    std::array<u16, 2>{0x07E0U, 0x07E0U} &&
+                shared_request.target_height == 0 &&
+                shared_request.vertical_resample_phase_10_10 == 0U &&
+                shared_request.opacity_step == 0 &&
+                shared_request.vertical_resample_enlarge_state == 1U &&
+                shared_effects.red_offset == 0 &&
+                shared_effects.green_offset == 0 &&
+                shared_effects.blue_offset == 0,
+            "action frame draw composes refresh, outline, primary and overlay passes"
+        );
+        test.expect_true(
+            framebuffer.row_pixels(36U)[27U] == 0x07E0U &&
+                framebuffer.row_pixels(36U)[29U] == 0x07E0U &&
+                framebuffer.row_pixels(38U)[27U] == 0x07E0U &&
+                framebuffer.row_pixels(38U)[29U] == 0x07E0U,
+            "action frame outline preserves the four diagonal green pixels"
+        );
+    }
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleActionStreamProvider action_provider;
+        action_provider.fail = true;
+        openswd3::asset_runtime::LegacyActionUpdater action_updater{
+            action_provider
+        };
+        BattleBorderFrameProvider frame_provider;
+        openswd3::battle::LegacyBattleActionFrameDrawState state;
+        openswd3::rendering::LegacyBlitRequest shared_request{
+            .target_height = 4,
+            .opacity_step = 5,
+        };
+        openswd3::rendering::LegacyBlitEffectState shared_effects{
+            .red_offset = 6,
+        };
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result = openswd3::battle::draw_legacy_battle_action_frame(
+            state,
+            framebuffer,
+            clip,
+            shared_request,
+            shared_effects,
+            jitter,
+            action_updater,
+            frame_provider,
+            {},
+            9U,
+            30,
+            40,
+            1U
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleActionFrameDrawStatus::
+                        action_update_failed &&
+                result.frame_load_calls == 0U &&
+                frame_provider.load_indices.empty() &&
+                state.action_update_attempted &&
+                state.action_update.return_value == 0U &&
+                state.action_record.action_id == 0x2390U &&
+                state.action_record.base_variant == 9U &&
+                shared_request.target_height == 4 &&
+                shared_request.opacity_step == 5 &&
+                shared_effects.red_offset == 6,
+            "action update failure stops before frame lookup and shared drawing state"
+        );
+    }
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleActionStreamProvider action_provider;
+        action_provider.set_words(kActionWords);
+        openswd3::asset_runtime::LegacyActionUpdater action_updater{
+            action_provider
+        };
+        BattleBorderFrameProvider frame_provider;
+        frame_provider.widths[0] = 1U;
+        frame_provider.heights[0] = 1U;
+        frame_provider.source_storage[0] = make_battle_rle_pixel(0x1234U);
+        openswd3::battle::LegacyBattleActionFrameDrawState state;
+        openswd3::rendering::LegacyBlitRequest shared_request;
+        openswd3::rendering::LegacyBlitEffectState shared_effects;
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result = openswd3::battle::draw_legacy_battle_action_frame(
+            state,
+            framebuffer,
+            clip,
+            shared_request,
+            shared_effects,
+            jitter,
+            action_updater,
+            frame_provider,
+            {},
+            0x2345U,
+            30,
+            40,
+            0U
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleActionFrameDrawStatus::
+                        outline_state_out_of_range &&
+                result.frame_load_calls == 1U &&
+                result.frame_draw_calls == 0U && state.frame_record_available &&
+                state.source_published,
+            "short outline table stops only at the original variant-index read"
+        );
+    }
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleActionStreamProvider action_provider;
+        action_provider.set_words(kActionWords);
+        openswd3::asset_runtime::LegacyActionUpdater action_updater{
+            action_provider
+        };
+        BattleBorderFrameProvider frame_provider;
+        frame_provider.widths[0] = 1U;
+        frame_provider.heights[0] = 1U;
+        frame_provider.empty_source_index = 0;
+        std::vector<u8> outline_state(0x10000U, 0U);
+        openswd3::battle::LegacyBattleActionFrameDrawState state;
+        openswd3::rendering::LegacyBlitRequest shared_request{
+            .target_height = 2,
+            .opacity_step = 8,
+        };
+        openswd3::rendering::LegacyBlitEffectState shared_effects{
+            .blue_offset = 7,
+        };
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result = openswd3::battle::draw_legacy_battle_action_frame(
+            state,
+            framebuffer,
+            clip,
+            shared_request,
+            shared_effects,
+            jitter,
+            action_updater,
+            frame_provider,
+            outline_state,
+            0x2345U,
+            30,
+            40,
+            0U
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleActionFrameDrawStatus::
+                        primary_blit_typed_stop &&
+                result.frame_draw_calls == 1U &&
+                result.last_blit_status ==
+                    openswd3::rendering::LegacyBlitExecutionStatus::
+                        malformed_source &&
+                state.frame_record_available && state.source_published &&
+                shared_request.target_height == 2 &&
+                shared_request.opacity_step == 8 &&
+                shared_effects.blue_offset == 7,
+            "primary blit stop preserves frame publication and entry shared state"
+        );
+    }
+}
+
 void test_battle_frame_zero_draw(openswd3::test::Context& test) {
     const openswd3::rendering::LegacySurfaceGeometry surface{
         .pitch_bytes = 160,
@@ -4289,6 +4584,7 @@ int main() {
     test_directional_scan_direct_mirror_transparent_and_combine(test);
     test_directional_scan_fixed_point_loops_and_bounds(test);
     test_directional_scan_division_and_typed_stops(test);
+    test_battle_action_frame_draw(test);
     test_battle_frame_zero_draw(test);
     test_battle_border_panel(test);
     test_battle_color_fade(test);

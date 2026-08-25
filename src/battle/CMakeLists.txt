@@ -1,6 +1,7 @@
 add_library(
     openswd3_battle
     STATIC
+        legacy_battle_action_frame_draw.cpp
         legacy_battle_assets.cpp
         legacy_battle_border_panel.cpp
         legacy_battle_color_fade.cpp
@@ -22,6 +23,7 @@ target_include_directories(
 target_link_libraries(
     openswd3_battle
     PUBLIC
+        openswd3_asset_runtime
         openswd3_compat
         openswd3_input_time_rng
         openswd3_project_options

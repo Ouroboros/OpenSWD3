@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v683
+版本：v684
 
 最后更新：2026-08-25
 
@@ -3887,5 +3887,6 @@ B7 P0 有限收口完成。
 - 模块10战斗九块边框与渐变底板协调`0x0044FFE0`完成。完整303行先查询并发布但不绘制4号帧，以两项重复次数加2后左移4的32位回绕尺寸绘制渐变底板，再按0/1/2顶边、每轮重取3/5左右边和6/7/8底边执行。1号与7号在零重复时仍查询；右边X只按3号宽计算，行Y只按5号高推进。typed实现直接组合已关闭帧查询、软件blitter和渐变包装，保留帧记录/source发布、正常公共后缀、帧缺失及draw typed-stop前缀。定向测试锁定11次动态查询、12次帧绘制、实际像素坐标、零重复及两类失败；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`18/422`，即`14 platform_adapted + 4 assembly_exact + 404 pending_audit`，SHA256为`eeaa4f63ef5c977c0ca9332be22d1cc37c426a4083d4471e9a2fa9ee32198a00`。原版边框帧缓存、共享blitter状态和framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 - 模块10战斗资源0号帧定点绘制包装`0x00450270`完成。完整34行固定查询资源0号帧，依次发布帧记录和源，再按入口X/Y、u16宽高及`flags=0, tail=0`调用已关闭软件blitter。typed实现保留查询发布的layout，按固定尾参数0清空实际palette与辅助；indexed帧在首次palette读取点停止，帧缺失则只发布空记录并保留入口旧源。定向测试锁定资源与索引、2×3实际像素、正常公共后缀、查询失败和indexed空尾读取；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`19/422`，即`15 platform_adapted + 4 assembly_exact + 403 pending_audit`，SHA256为`746117da49bedf031bca588e54157049d37fe827dcc4d53e23473a60d3052955`。原版帧记录、共享源、blitter状态和framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 - 为回收`0x004502B0`caller，补齐已关闭四向描边包装`0x00417050`的公共后缀传播。四遍正常调用中，第一遍完成后目标高度、水平位移、纵向phase、opacity、RGB偏移与跳行状态即清零，后三遍读取清理后的共享snapshot；放大位保留。modern API改为可变共享请求与效果状态，`pass_count`记录真实尝试前缀；首个typed-stop保留入口状态并阻断剩余遍次。定向、独立ASan`1/1`、Linux core`188/188`及Linux app`194/194`通过；该callee修正不改变battle工作包计数。
+- 模块10战斗动态动作帧组合绘制包装`0x004502B0`完成。完整148行先清零整个0x98动作记录，写固定动作号与低16位variant并直接调用已关闭动作更新器；成功后用动作产出的资源/帧号、YX偏移和模式flags绘制。变体状态字节为1时先以固定绿色槽画四向描边，再主绘制；入口selector完整dword等于1时再以flags加0x10、红0与绿蓝-10复绘。typed实现保留动作失败、帧/source发布、短状态表原读点、描边逐遍状态、主绘制与复绘故障前缀。定向测试使用真实动作命令流锁定低16位、资源帧号、偏移、四个绿色像素、两次主体绘制及三类失败；独立ASan`1/1`、Linux core`188/188`和Linux app`194/194`通过。工作包稳定为`20/422`，即`16 platform_adapted + 4 assembly_exact + 402 pending_audit`，SHA256为`7fbbeb05353a0434b9e79c673ab1d4113c6abd80d33b1c749a6988a76acbc354`。原版动作记录、变体状态表、帧记录、共享blitter状态和framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=19`的`0x004502B0`战斗帧块组合绘制包装，继续完整审计其帧查询、软件blitter与辅助callee后直接组合typed接口。
+下一项回收`audit_order=20`的`0x00450400`战斗帧块绘制包装，继续完整审计其动作、帧查询和软件绘制顺序。

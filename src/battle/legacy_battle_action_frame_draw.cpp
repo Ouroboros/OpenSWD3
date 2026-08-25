@@ -1,0 +1,232 @@
+#include "openswd3/battle/legacy_battle_action_frame_draw.hpp"
+
+#include <bit>
+#include <span>
+
+namespace openswd3::battle {
+namespace {
+
+[[nodiscard]] compat::u32 to_bits(const compat::i32 value) noexcept {
+    return std::bit_cast<compat::u32>(value);
+}
+
+[[nodiscard]] compat::i32 from_bits(const compat::u32 value) noexcept {
+    return std::bit_cast<compat::i32>(value);
+}
+
+[[nodiscard]] compat::i32 wrapping_subtract(
+    const compat::i32 value, const compat::u32 displacement
+) noexcept {
+    return from_bits(to_bits(value) - displacement);
+}
+
+[[nodiscard]] bool accepted_blit_status(
+    const rendering::LegacyBlitExecutionStatus status
+) noexcept {
+    return status == rendering::LegacyBlitExecutionStatus::completed ||
+        status == rendering::LegacyBlitExecutionStatus::clipped_out ||
+        status == rendering::LegacyBlitExecutionStatus::opacity_disabled;
+}
+
+void publish_blitter_normal_epilogue(
+    rendering::LegacyBlitRequest& shared_request,
+    rendering::LegacyBlitEffectState& shared_effects
+) noexcept {
+    shared_request.target_height = 0;
+    shared_request.horizontal_resample_displacement = 0;
+    shared_request.vertical_resample_phase_10_10 = 0U;
+    shared_request.opacity_step = 0;
+    shared_effects.red_offset = 0;
+    shared_effects.green_offset = 0;
+    shared_effects.blue_offset = 0;
+    shared_effects.skip_every_third_row = false;
+}
+
+[[nodiscard]] std::span<const compat::u8>
+palette_bytes(const std::span<const compat::u16> palette) noexcept {
+    if (palette.empty()) {
+        return {};
+    }
+    return {
+        reinterpret_cast<const compat::u8*>(palette.data()),
+        palette.size_bytes(),
+    };
+}
+
+[[nodiscard]] rendering::LegacyBlitRequest make_frame_request(
+    const rendering::LegacyBlitRequest& shared_request,
+    const rendering::LegacyFramePiece& frame,
+    const compat::i32 x,
+    const compat::i32 y,
+    const compat::u32 flags
+) noexcept {
+    rendering::LegacyBlitRequest request = shared_request;
+    request.destination_x = x;
+    request.destination_y = y;
+    request.source_width = static_cast<compat::i32>(frame.width);
+    request.source_height = static_cast<compat::i32>(frame.height);
+    request.flags = flags;
+    request.auxiliary = palette_bytes(frame.source.palette);
+    return request;
+}
+
+}  // namespace
+
+LegacyBattleActionFrameDrawResult draw_legacy_battle_action_frame(
+    LegacyBattleActionFrameDrawState& state,
+    rendering::LegacyFramebuffer& framebuffer,
+    const rendering::LegacyBlitClipRectangle& clip,
+    rendering::LegacyBlitRequest& shared_request,
+    rendering::LegacyBlitEffectState& shared_effects,
+    rendering::LegacyRleRowJitterState& jitter,
+    asset_runtime::LegacyActionUpdater& action_updater,
+    rendering::LegacyFramePieceProvider& frame_provider,
+    const std::span<const compat::u8> outline_state_by_variant,
+    const compat::u32 variant,
+    const compat::i32 x,
+    const compat::i32 y,
+    const compat::u32 overlay_selector
+) {
+    LegacyBattleActionFrameDrawResult result;
+    const compat::u16 selected_variant =
+        static_cast<compat::u16>(variant & 0xFFFFU);
+
+    state.action_record = {};
+    state.action_record.action_id = 0x2390U;
+    state.action_record.base_variant = selected_variant;
+    state.action_update_attempted = true;
+    state.action_update = action_updater.update(state.action_record);
+    if (state.action_update.return_value == 0U) {
+        result.status = LegacyBattleActionFrameDrawStatus::action_update_failed;
+        return result;
+    }
+
+    const compat::u32 frame_resource = state.action_record.field_4a;
+    const compat::u32 frame_index = state.action_record.field_4c;
+    rendering::LegacyFramePiece piece{};
+    const bool available =
+        frame_provider.load_frame_piece(frame_resource, frame_index, piece);
+    result.frame_load_calls = 1U;
+    state.frame_record_published = true;
+    state.frame_record_available = available;
+    state.current_frame_index = frame_index;
+    if (!available) {
+        state.current_frame = {};
+        result.status = LegacyBattleActionFrameDrawStatus::frame_unavailable;
+        return result;
+    }
+
+    state.current_frame = piece;
+    state.current_source = piece.source;
+    state.source_published = true;
+
+    if (static_cast<std::size_t>(selected_variant) >=
+        outline_state_by_variant.size()) {
+        result.status =
+            LegacyBattleActionFrameDrawStatus::outline_state_out_of_range;
+        return result;
+    }
+
+    const compat::i32 draw_x =
+        wrapping_subtract(x, state.action_record.draw_offset_x);
+    const compat::i32 draw_y =
+        wrapping_subtract(y, state.action_record.draw_offset_y);
+    result.draw_x = draw_x;
+    result.draw_y = draw_y;
+
+    if (outline_state_by_variant[selected_variant] == 1U) {
+        state.outline_color_slot = {0x07E0U, 0x07E0U};
+        rendering::LegacyBlitSource outline_source = state.current_source;
+        outline_source.palette = state.outline_color_slot;
+        rendering::LegacyBlitRequest outline_request =
+            make_frame_request(shared_request, piece, draw_x, draw_y, 0U);
+        outline_request.auxiliary = palette_bytes(state.outline_color_slot);
+        result.outline = rendering::blit_legacy_outline_copy_paths(
+            framebuffer,
+            clip,
+            outline_source,
+            outline_request,
+            shared_effects,
+            jitter
+        );
+        result.outline_draw_calls = result.outline.pass_count;
+        shared_request.target_height = outline_request.target_height;
+        shared_request.horizontal_resample_displacement =
+            outline_request.horizontal_resample_displacement;
+        shared_request.vertical_resample_phase_10_10 =
+            outline_request.vertical_resample_phase_10_10;
+        shared_request.opacity_step = outline_request.opacity_step;
+
+        if (result.outline.pass_count != 4U ||
+            !accepted_blit_status(result.outline
+                                      .passes
+                                          [result.outline.pass_count == 0U
+                                               ? 0U
+                                               : result.outline.pass_count - 1U]
+                                      .status)) {
+            result.status =
+                LegacyBattleActionFrameDrawStatus::outline_typed_stop;
+            if (result.outline.pass_count != 0U) {
+                result.last_blit_status =
+                    result.outline.passes[result.outline.pass_count - 1U]
+                        .status;
+            }
+            return result;
+        }
+    }
+
+    rendering::LegacyBlitRequest primary_request =
+        make_frame_request(shared_request, piece, draw_x, draw_y, 0U);
+    const rendering::LegacyBlitResult primary =
+        rendering::blit_legacy_copy_paths(
+            framebuffer,
+            clip,
+            state.current_source,
+            primary_request,
+            shared_effects,
+            jitter
+        );
+    ++result.frame_draw_calls;
+    result.last_blit_status = primary.status;
+    if (!accepted_blit_status(primary.status)) {
+        result.status =
+            LegacyBattleActionFrameDrawStatus::primary_blit_typed_stop;
+        return result;
+    }
+    publish_blitter_normal_epilogue(shared_request, shared_effects);
+
+    if (overlay_selector != 1U) {
+        return result;
+    }
+
+    shared_effects.red_offset = 0;
+    shared_effects.green_offset = -10;
+    shared_effects.blue_offset = -10;
+    rendering::LegacyBlitRequest overlay_request = make_frame_request(
+        shared_request,
+        piece,
+        draw_x,
+        draw_y,
+        state.action_record.mode_flags | 0x10U
+    );
+    const rendering::LegacyBlitResult overlay =
+        rendering::blit_legacy_copy_paths(
+            framebuffer,
+            clip,
+            state.current_source,
+            overlay_request,
+            shared_effects,
+            jitter
+        );
+    ++result.frame_draw_calls;
+    result.last_blit_status = overlay.status;
+    if (!accepted_blit_status(overlay.status)) {
+        result.status =
+            LegacyBattleActionFrameDrawStatus::overlay_blit_typed_stop;
+        return result;
+    }
+    publish_blitter_normal_epilogue(shared_request, shared_effects);
+    return result;
+}
+
+}  // namespace openswd3::battle
