@@ -317,6 +317,96 @@ draw_legacy_battle_prepared_action_frame(
     return result;
 }
 
+LegacyBattleOffsetActionFrameDrawResult draw_legacy_battle_offset_action_frame(
+    LegacyBattleOffsetActionFrameDrawState& state,
+    rendering::LegacyFramebuffer& framebuffer,
+    const rendering::LegacyBlitClipRectangle& clip,
+    rendering::LegacyBlitRequest& shared_request,
+    rendering::LegacyBlitEffectState& shared_effects,
+    rendering::LegacyRleRowJitterState& jitter,
+    asset_runtime::LegacyActionUpdater& action_updater,
+    rendering::LegacyFramePieceProvider& frame_provider,
+    const compat::u32 action_id,
+    const compat::u32 base_variant,
+    const compat::i32 x,
+    const compat::i32 y,
+    const compat::u32 offset_mode,
+    const compat::u32 action_update_edx_snapshot
+) {
+    LegacyBattleOffsetActionFrameDrawResult result;
+    state.action_record.action_id = action_id;
+    state.action_record.base_variant = base_variant;
+    state.action_update_attempted = true;
+    state.action_update = action_updater.update(state.action_record);
+    if (state.action_update.return_value == 0U) {
+        result.status =
+            LegacyBattleOffsetActionFrameDrawStatus::action_update_failed;
+        return result;
+    }
+
+    state.frame_resource_id =
+        static_cast<compat::u32>(state.action_record.field_4a);
+    state.frame_index = (action_update_edx_snapshot & 0xFFFF0000U) |
+        static_cast<compat::u32>(state.action_record.field_4c);
+    rendering::LegacyFramePiece piece{};
+    const bool available = frame_provider.load_frame_piece(
+        state.frame_resource_id, state.frame_index, piece
+    );
+    result.frame_load_calls = 1U;
+
+    const compat::u32 x_offset = state.action_record.draw_offset_x;
+    state.effective_flags = state.action_record.mode_flags;
+    if (offset_mode == 1U) {
+        state.effective_flags ^= 1U;
+    }
+    if (!available) {
+        state.current_frame = {};
+        result.status =
+            LegacyBattleOffsetActionFrameDrawStatus::frame_unavailable;
+        return result;
+    }
+
+    compat::u16 x_correction_word = static_cast<compat::u16>(x_offset);
+    if (offset_mode == 1U) {
+        x_correction_word = static_cast<compat::u16>(
+            piece.width - static_cast<compat::u16>(x_offset)
+        );
+    }
+    const compat::i32 x_correction =
+        static_cast<compat::i32>(std::bit_cast<compat::i16>(x_correction_word));
+    result.draw_x = from_bits(to_bits(x) - to_bits(x_correction));
+    result.draw_y = wrapping_subtract(y, state.action_record.draw_offset_y);
+
+    state.current_frame = piece;
+    state.current_source = piece.source;
+    state.source_published = true;
+    rendering::LegacyBlitSource call_source = state.current_source;
+    call_source.palette = {};
+    rendering::LegacyBlitRequest request = make_frame_request(
+        shared_request,
+        piece,
+        result.draw_x,
+        result.draw_y,
+        state.effective_flags
+    );
+    request.auxiliary = {};
+    const rendering::LegacyBlitResult blit = rendering::blit_legacy_copy_paths(
+        framebuffer, clip, call_source, request, shared_effects, jitter
+    );
+    result.frame_draw_calls = 1U;
+    result.blit_status = blit.status;
+    if (!accepted_blit_status(blit.status)) {
+        result.status =
+            LegacyBattleOffsetActionFrameDrawStatus::blit_typed_stop;
+        return result;
+    }
+
+    publish_blitter_normal_epilogue(shared_request, shared_effects);
+    state.result_latch_read = true;
+    result.return_value = state.result_latch == 1U ? 1U : 0U;
+    return result;
+}
+
 LegacyBattleIndexedActionFrameDrawResult
 draw_legacy_battle_indexed_action_frame(
     LegacyBattleIndexedActionFrameDrawState& state,

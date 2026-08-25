@@ -93,6 +93,41 @@ struct LegacyBattlePreparedActionFrameDrawResult {
     };
 };
 
+enum class LegacyBattleOffsetActionFrameDrawStatus : compat::u8 {
+    completed,
+    action_update_failed,
+    frame_unavailable,
+    blit_typed_stop,
+};
+
+struct LegacyBattleOffsetActionFrameDrawState {
+    asset_runtime::LegacyActionRecord action_record{};
+    bool action_update_attempted{};
+    asset_runtime::LegacyActionUpdateResult action_update{};
+    compat::u32 frame_resource_id{};
+    compat::u32 frame_index{};
+    compat::u32 effective_flags{};
+    bool source_published{};
+    rendering::LegacyFramePiece current_frame{};
+    rendering::LegacyBlitSource current_source{};
+    compat::u32 result_latch{};
+    bool result_latch_read{};
+};
+
+struct LegacyBattleOffsetActionFrameDrawResult {
+    LegacyBattleOffsetActionFrameDrawStatus status{
+        LegacyBattleOffsetActionFrameDrawStatus::completed
+    };
+    compat::u32 frame_load_calls{};
+    compat::u32 frame_draw_calls{};
+    compat::i32 draw_x{};
+    compat::i32 draw_y{};
+    compat::u32 return_value{};
+    rendering::LegacyBlitExecutionStatus blit_status{
+        rendering::LegacyBlitExecutionStatus::completed
+    };
+};
+
 enum class LegacyBattleIndexedActionFrameDrawStatus : compat::u8 {
     completed,
     action_record_out_of_range,
@@ -148,6 +183,25 @@ draw_legacy_battle_prepared_action_frame(
     compat::u32 action_update_ecx_snapshot,
     compat::i32 x,
     compat::i32 y
+);
+
+// sub_450A80.
+[[nodiscard]] LegacyBattleOffsetActionFrameDrawResult
+draw_legacy_battle_offset_action_frame(
+    LegacyBattleOffsetActionFrameDrawState& state,
+    rendering::LegacyFramebuffer& framebuffer,
+    const rendering::LegacyBlitClipRectangle& clip,
+    rendering::LegacyBlitRequest& shared_request,
+    rendering::LegacyBlitEffectState& shared_effects,
+    rendering::LegacyRleRowJitterState& jitter,
+    asset_runtime::LegacyActionUpdater& action_updater,
+    rendering::LegacyFramePieceProvider& frame_provider,
+    compat::u32 action_id,
+    compat::u32 base_variant,
+    compat::i32 x,
+    compat::i32 y,
+    compat::u32 offset_mode,
+    compat::u32 action_update_edx_snapshot
 );
 
 // sub_450400.
