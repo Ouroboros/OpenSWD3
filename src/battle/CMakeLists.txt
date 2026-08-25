@@ -2,6 +2,7 @@ add_library(
     openswd3_battle
     STATIC
         legacy_battle_assets.cpp
+        legacy_battle_directional_scan.cpp
         legacy_battle_render_geometry.cpp
         legacy_battle_setup.cpp
 )
@@ -17,5 +18,6 @@ target_link_libraries(
         openswd3_compat
         openswd3_project_options
         openswd3_project_warnings
+        openswd3_rendering
         openswd3_resource_io
 )

@@ -64,6 +64,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-direction-vector-raster-step-00434420.md",
     ),
+    "0x004344E0": (
+        "platform_adapted",
+        "evidence/battle-directional-surface-scan-004344e0.md",
+    ),
 }
 
 

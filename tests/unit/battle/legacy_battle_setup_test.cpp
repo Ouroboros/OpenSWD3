@@ -1,5 +1,6 @@
 #include "test.hpp"
 
+#include "openswd3/battle/legacy_battle_directional_scan.hpp"
 #include "openswd3/battle/legacy_battle_render_geometry.hpp"
 #include "openswd3/battle/legacy_battle_setup.hpp"
 
@@ -12,6 +13,10 @@
 namespace {
 
 using openswd3::battle::LegacyBattleAssets;
+using openswd3::battle::LegacyBattleDirectionalScanSharedState;
+using openswd3::battle::LegacyBattleDirectionalScanSource;
+using openswd3::battle::LegacyBattleDirectionalScanStatus;
+using openswd3::battle::LegacyBattleDirectionalSurface;
 using openswd3::battle::LegacyBattleDirectionRaster;
 using openswd3::battle::LegacyBattleDirectionStepStatus;
 using openswd3::battle::LegacyBattleDirectionVectors;
@@ -25,6 +30,15 @@ using openswd3::battle::LegacyBattleSetupStatus;
 using openswd3::compat::i32;
 using openswd3::compat::u8;
 using openswd3::compat::u16;
+using openswd3::compat::u32;
+using openswd3::rendering::LegacyPixelConversionState;
+
+void write_source_u16(
+    std::vector<u8>& bytes, const std::size_t offset, const u16 value
+) {
+    bytes[offset] = static_cast<u8>(value);
+    bytes[offset + 1U] = static_cast<u8>(value >> 8U);
+}
 
 void write_u16(
     std::array<u8, openswd3::battle::kLegacyBattleFfdRecordSize>& bytes,
@@ -551,6 +565,432 @@ void test_direction_raster_zero_minimum_and_index_stop(
     }
 }
 
+void test_directional_scan_direct_mirror_transparent_and_combine(
+    openswd3::test::Context& test
+) {
+    LegacyBattleDirectionVectors vectors;
+    const std::array<u32, 2> rows{0U, 2U};
+
+    std::vector<u8> direct_source(10U, 0U);
+    write_source_u16(direct_source, 4U, 0x1234U);
+    std::vector<u16> direct_destination(4U, 0U);
+    LegacyBattleDirectionalScanSharedState direct_shared;
+    LegacyPixelConversionState direct_format;
+    const LegacyBattleDirectionalScanSource direct_input{
+        .pixels = direct_source,
+        .width = 2,
+        .height = 2,
+        .start_x = 1,
+        .start_y = 0,
+        .horizontal_divisor = 2048,
+        .vertical_divisor = 2048,
+        .published_value_2c = 11,
+        .published_value_30 = 12,
+        .published_value_34 = 13,
+    };
+    const auto direct =
+        openswd3::battle::scan_legacy_battle_directional_surface(
+            vectors,
+            direct_input,
+            LegacyBattleDirectionalSurface{
+                .width = 2,
+                .height = 2,
+                .row_offsets = rows,
+                .pixels = direct_destination,
+            },
+            direct_shared,
+            direct_format
+        );
+    test.expect_true(
+        direct.status == LegacyBattleDirectionalScanStatus::completed &&
+            direct.legacy_return_value == 0 && direct.outer_iterations == 1U &&
+            direct.inner_iterations == 1U && direct.direct_writes == 1U &&
+            direct_destination[3U] == 0x1234U &&
+            direct_shared.published_value_2c == 11 &&
+            direct_shared.published_value_30 == 12 &&
+            direct_shared.published_value_34 == 13,
+        "directional scan directly writes the sampled source pixel"
+    );
+
+    std::vector<u8> mirror_source(10U, 0U);
+    write_source_u16(mirror_source, 8U, 0x4567U);
+    std::vector<u16> mirror_destination(4U, 0U);
+    LegacyBattleDirectionalScanSharedState mirror_shared;
+    LegacyPixelConversionState mirror_format;
+    auto mirror_input = direct_input;
+    mirror_input.pixels = mirror_source;
+    mirror_input.flags = 0x0001U;
+    const auto mirror =
+        openswd3::battle::scan_legacy_battle_directional_surface(
+            vectors,
+            mirror_input,
+            LegacyBattleDirectionalSurface{
+                .width = 2,
+                .height = 2,
+                .row_offsets = rows,
+                .pixels = mirror_destination,
+            },
+            mirror_shared,
+            mirror_format
+        );
+    test.expect_true(
+        mirror.status == LegacyBattleDirectionalScanStatus::completed &&
+            mirror.direct_writes == 1U && mirror_destination[3U] == 0x4567U,
+        "directional scan flag bit zero mirrors the source index"
+    );
+
+    std::vector<u8> transparent_source(6U, 0U);
+    write_source_u16(transparent_source, 4U, 0x319FU);
+    std::vector<u16> transparent_destination(4U, 0x7777U);
+    LegacyBattleDirectionalScanSharedState transparent_shared;
+    LegacyPixelConversionState transparent_format;
+    auto transparent_input = direct_input;
+    transparent_input.pixels = transparent_source;
+    const auto transparent =
+        openswd3::battle::scan_legacy_battle_directional_surface(
+            vectors,
+            transparent_input,
+            LegacyBattleDirectionalSurface{
+                .width = 2,
+                .height = 2,
+                .row_offsets = {},
+                .pixels = transparent_destination,
+            },
+            transparent_shared,
+            transparent_format
+        );
+    test.expect_true(
+        transparent.status == LegacyBattleDirectionalScanStatus::completed &&
+            transparent.transparent_skips == 1U &&
+            transparent.direct_writes == 0U &&
+            transparent_destination[3U] == 0x7777U,
+        "first transparent source skips before the row table read"
+    );
+
+    write_source_u16(transparent_source, 4U, 0x026BU);
+    LegacyBattleDirectionalScanSharedState second_transparent_shared;
+    LegacyPixelConversionState second_transparent_format;
+    const auto second_transparent =
+        openswd3::battle::scan_legacy_battle_directional_surface(
+            vectors,
+            transparent_input,
+            LegacyBattleDirectionalSurface{
+                .width = 2,
+                .height = 2,
+                .row_offsets = {},
+                .pixels = transparent_destination,
+            },
+            second_transparent_shared,
+            second_transparent_format
+        );
+    test.expect_true(
+        second_transparent.status ==
+                LegacyBattleDirectionalScanStatus::completed &&
+            second_transparent.transparent_skips == 1U &&
+            transparent_destination[3U] == 0x7777U,
+        "second transparent source skips before the row table read"
+    );
+
+    std::vector<u8> combine_source(6U, 0U);
+    write_source_u16(combine_source, 4U, 0x14EBU);
+    std::vector<u16> combine_destination(4U, 0U);
+    combine_destination[3U] = 0x0DB1U;
+    LegacyBattleDirectionalScanSharedState combine_shared;
+    LegacyPixelConversionState combine_format;
+    auto combine_input = direct_input;
+    combine_input.pixels = combine_source;
+    combine_input.flags = 0x0002U;
+    const auto combined =
+        openswd3::battle::scan_legacy_battle_directional_surface(
+            vectors,
+            combine_input,
+            LegacyBattleDirectionalSurface{
+                .width = 2,
+                .height = 2,
+                .row_offsets = rows,
+                .pixels = combine_destination,
+            },
+            combine_shared,
+            combine_format
+        );
+    test.expect_true(
+        combined.status == LegacyBattleDirectionalScanStatus::completed &&
+            combined.combined_writes == 1U &&
+            combine_destination[3U] == 0x229CU,
+        "directional scan reuses overflow-to-zero single-pixel combine"
+    );
+}
+
+void test_directional_scan_fixed_point_loops_and_bounds(
+    openswd3::test::Context& test
+) {
+    LegacyBattleDirectionVectors vectors;
+    std::vector<u8> source_bytes(6U, 0U);
+    write_source_u16(source_bytes, 0U, 0x1111U);
+    write_source_u16(source_bytes, 2U, 0x2222U);
+    const std::array<u32, 2> rows{0U, 2U};
+    std::vector<u16> destination_pixels(4U, 0U);
+    LegacyBattleDirectionalScanSharedState shared;
+    LegacyPixelConversionState format;
+    const LegacyBattleDirectionalScanSource source{
+        .pixels = source_bytes,
+        .width = 2,
+        .height = 2,
+        .start_x = 0,
+        .start_y = 0,
+        .horizontal_divisor = 1024,
+        .vertical_divisor = 1024,
+    };
+    const auto result =
+        openswd3::battle::scan_legacy_battle_directional_surface(
+            vectors,
+            source,
+            LegacyBattleDirectionalSurface{
+                .width = 2,
+                .height = 2,
+                .row_offsets = rows,
+                .pixels = destination_pixels,
+            },
+            shared,
+            format
+        );
+    test.expect_true(
+        result.status == LegacyBattleDirectionalScanStatus::completed &&
+            result.outer_iterations == 2U && result.inner_iterations == 4U &&
+            result.bounds_skips == 2U && result.direct_writes == 2U &&
+            destination_pixels[2U] == 0x1111U &&
+            destination_pixels[3U] == 0x2222U,
+        "directional scan preserves reverse y and fixed-point source sampling"
+    );
+
+    LegacyBattleDirectionalScanSharedState bounds_shared;
+    LegacyPixelConversionState bounds_format;
+    std::vector<u16> bounds_destination(4U, 0xAAAAU);
+    auto bounds_source = source;
+    bounds_source.pixels = {};
+    bounds_source.start_x = -1;
+    bounds_source.horizontal_divisor = 2048;
+    bounds_source.vertical_divisor = 2048;
+    const auto bounds =
+        openswd3::battle::scan_legacy_battle_directional_surface(
+            vectors,
+            bounds_source,
+            LegacyBattleDirectionalSurface{
+                .width = 2,
+                .height = 2,
+                .row_offsets = {},
+                .pixels = bounds_destination,
+            },
+            bounds_shared,
+            bounds_format
+        );
+    test.expect_true(
+        bounds.status == LegacyBattleDirectionalScanStatus::completed &&
+            bounds.bounds_skips == 1U && bounds.inner_iterations == 1U &&
+            bounds_destination[0U] == 0xAAAAU,
+        "destination bounds skip before source and row table reads"
+    );
+}
+
+void test_directional_scan_division_and_typed_stops(
+    openswd3::test::Context& test
+) {
+    LegacyBattleDirectionVectors vectors;
+    const std::array<u32, 2> rows{0U, 2U};
+    std::vector<u8> source_bytes(6U, 0U);
+    write_source_u16(source_bytes, 4U, 0x1234U);
+    std::vector<u16> destination_pixels(4U, 0xAAAAU);
+    const LegacyBattleDirectionalScanSource base_source{
+        .pixels = source_bytes,
+        .width = 2,
+        .height = 2,
+        .start_x = 1,
+        .start_y = 0,
+        .horizontal_divisor = 2048,
+        .vertical_divisor = 2048,
+        .published_value_2c = 21,
+        .published_value_30 = 22,
+        .published_value_34 = 23,
+    };
+    const LegacyBattleDirectionalSurface surface{
+        .width = 2,
+        .height = 2,
+        .row_offsets = rows,
+        .pixels = destination_pixels,
+    };
+
+    auto horizontal_zero_source = base_source;
+    horizontal_zero_source.horizontal_divisor = 0;
+    LegacyBattleDirectionalScanSharedState horizontal_shared;
+    LegacyPixelConversionState horizontal_format;
+    const auto horizontal_zero =
+        openswd3::battle::scan_legacy_battle_directional_surface(
+            vectors,
+            horizontal_zero_source,
+            surface,
+            horizontal_shared,
+            horizontal_format
+        );
+    test.expect_true(
+        horizontal_zero.status ==
+                LegacyBattleDirectionalScanStatus::horizontal_divisor_zero &&
+            horizontal_zero.legacy_return_value == 2048 &&
+            horizontal_shared.published_value_2c == 21 &&
+            horizontal_shared.published_value_30 == 22 &&
+            horizontal_shared.published_value_34 == 23 &&
+            destination_pixels[3U] == 0xAAAAU,
+        "horizontal divide stop keeps the three shared publications"
+    );
+
+    auto vertical_zero_source = base_source;
+    vertical_zero_source.vertical_divisor = 0;
+    LegacyBattleDirectionalScanSharedState vertical_shared;
+    LegacyPixelConversionState vertical_format;
+    const auto vertical_zero =
+        openswd3::battle::scan_legacy_battle_directional_surface(
+            vectors,
+            vertical_zero_source,
+            surface,
+            vertical_shared,
+            vertical_format
+        );
+    test.expect_true(
+        vertical_zero.status ==
+                LegacyBattleDirectionalScanStatus::vertical_divisor_zero &&
+            vertical_zero.legacy_return_value == 2048,
+        "vertical divide stop occurs after the horizontal quotient"
+    );
+
+    auto negative_vertical_source = base_source;
+    negative_vertical_source.start_y = 5;
+    negative_vertical_source.vertical_divisor = -2048;
+    LegacyBattleDirectionalScanSharedState negative_shared;
+    LegacyPixelConversionState negative_format;
+    const auto negative_vertical =
+        openswd3::battle::scan_legacy_battle_directional_surface(
+            vectors,
+            negative_vertical_source,
+            surface,
+            negative_shared,
+            negative_format
+        );
+    test.expect_true(
+        negative_vertical.status ==
+                LegacyBattleDirectionalScanStatus::completed &&
+            negative_vertical.outer_iterations == 0U &&
+            negative_vertical.legacy_return_value == 5,
+        "nonpositive vertical quotient returns the original start y"
+    );
+
+    auto negative_horizontal_source = base_source;
+    negative_horizontal_source.horizontal_divisor = -2048;
+    LegacyBattleDirectionalScanSharedState negative_horizontal_shared;
+    LegacyPixelConversionState negative_horizontal_format;
+    const auto negative_horizontal =
+        openswd3::battle::scan_legacy_battle_directional_surface(
+            vectors,
+            negative_horizontal_source,
+            surface,
+            negative_horizontal_shared,
+            negative_horizontal_format
+        );
+    test.expect_true(
+        negative_horizontal.status ==
+                LegacyBattleDirectionalScanStatus::completed &&
+            negative_horizontal.outer_iterations == 1U &&
+            negative_horizontal.inner_iterations == 0U &&
+            negative_horizontal.direct_writes == 0U,
+        "nonpositive horizontal quotient skips only the inner loop"
+    );
+
+    auto invalid_direction_source = base_source;
+    invalid_direction_source.direction_index = 360;
+    LegacyBattleDirectionalScanSharedState invalid_direction_shared;
+    LegacyPixelConversionState invalid_direction_format;
+    const auto invalid_direction =
+        openswd3::battle::scan_legacy_battle_directional_surface(
+            vectors,
+            invalid_direction_source,
+            surface,
+            invalid_direction_shared,
+            invalid_direction_format
+        );
+    test.expect_true(
+        invalid_direction.status ==
+                LegacyBattleDirectionalScanStatus::
+                    direction_index_out_of_range &&
+            invalid_direction.outer_iterations == 0U &&
+            destination_pixels[3U] == 0xAAAAU,
+        "outer direction typed stop prevents source and destination accesses"
+    );
+
+    auto source_short = base_source;
+    source_short.pixels = std::span<const u8>{source_bytes}.first(4U);
+    LegacyBattleDirectionalScanSharedState source_short_shared;
+    LegacyPixelConversionState source_short_format;
+    const auto source_stop =
+        openswd3::battle::scan_legacy_battle_directional_surface(
+            vectors,
+            source_short,
+            surface,
+            source_short_shared,
+            source_short_format
+        );
+    test.expect_true(
+        source_stop.status ==
+                LegacyBattleDirectionalScanStatus::source_out_of_range &&
+            source_stop.direct_writes == 0U &&
+            destination_pixels[3U] == 0xAAAAU,
+        "source typed stop occurs at the original word read"
+    );
+
+    LegacyBattleDirectionalScanSharedState row_shared;
+    LegacyPixelConversionState row_format;
+    const auto row_stop =
+        openswd3::battle::scan_legacy_battle_directional_surface(
+            vectors,
+            base_source,
+            LegacyBattleDirectionalSurface{
+                .width = 2,
+                .height = 2,
+                .row_offsets = {},
+                .pixels = destination_pixels,
+            },
+            row_shared,
+            row_format
+        );
+    test.expect_true(
+        row_stop.status ==
+                LegacyBattleDirectionalScanStatus::row_table_out_of_range &&
+            row_stop.direct_writes == 0U,
+        "row table typed stop follows source and transparent checks"
+    );
+
+    const std::array<u32, 2> bad_rows{0U, 100U};
+    LegacyBattleDirectionalScanSharedState destination_shared;
+    LegacyPixelConversionState destination_format;
+    const auto destination_stop =
+        openswd3::battle::scan_legacy_battle_directional_surface(
+            vectors,
+            base_source,
+            LegacyBattleDirectionalSurface{
+                .width = 2,
+                .height = 2,
+                .row_offsets = bad_rows,
+                .pixels = destination_pixels,
+            },
+            destination_shared,
+            destination_format
+        );
+    test.expect_true(
+        destination_stop.status ==
+                LegacyBattleDirectionalScanStatus::destination_out_of_range &&
+            destination_stop.direct_writes == 0U &&
+            destination_pixels[3U] == 0xAAAAU,
+        "destination typed stop occurs after the row offset read"
+    );
+}
+
 void test_primary_row_offsets_normal_and_fixed_caller(
     openswd3::test::Context& test
 ) {
@@ -970,6 +1410,9 @@ int main() {
     test_direction_raster_axis_and_diagonal_steps(test);
     test_direction_raster_major_axes_and_wrapping(test);
     test_direction_raster_zero_minimum_and_index_stop(test);
+    test_directional_scan_direct_mirror_transparent_and_combine(test);
+    test_directional_scan_fixed_point_loops_and_bounds(test);
+    test_directional_scan_division_and_typed_stops(test);
     test_primary_row_offsets_normal_and_fixed_caller(test);
     test_primary_row_offsets_allocation_boundaries(test);
     test_primary_row_offsets_wrapped_allocation_prefix(test);
