@@ -3718,6 +3718,50 @@ struct LegacyPartyDialogReplaceRowResult {
     LegacyPartyDialogReplaceRowPorts& ports
 ) noexcept;
 
+struct LegacyPartyDialogPageState {
+    compat::i32 page{};
+    std::array<LegacyStandardModeForwardNode*, 5U> item_heads{};
+    std::array<world_map::LegacyWorldStoryPartyMemberResources, 4U>
+        party_members{};
+    std::array<compat::i32, 64U> global_values{};
+    compat::u8 global_value_label{};
+    std::array<compat::u32, 3U> item_category_masks{};
+};
+
+class LegacyPartyDialogPagePorts
+    : public virtual LegacyPartyDialogReplaceRowPorts {
+public:
+    ~LegacyPartyDialogPagePorts() override = default;
+    [[nodiscard]] virtual std::optional<compat::i32> clear_rows() noexcept = 0;
+    [[nodiscard]] virtual std::optional<compat::u16>
+    query_first_added_value(compat::u16 item_id) noexcept = 0;
+    [[nodiscard]] virtual std::optional<std::pair<compat::u16, compat::u16>>
+    query_pair_added_value(compat::u16 item_id) noexcept = 0;
+    [[nodiscard]] virtual std::optional<compat::u16>
+    query_third_added_value(compat::u16 item_id) noexcept = 0;
+};
+
+enum class LegacyPartyDialogPageStatus : compat::u8 {
+    completed,
+    clear_rows_stopped,
+    page_source_stopped,
+    item_chain_cycle_stopped,
+    added_value_query_stopped,
+    row_replacement_stopped,
+};
+
+struct LegacyPartyDialogPageResult {
+    LegacyPartyDialogPageStatus status{LegacyPartyDialogPageStatus::completed};
+    compat::i32 legacy_return_value{1};
+    compat::u32 rendered_row_count{};
+    compat::u32 added_value_query_count{};
+    bool rows_cleared{};
+};
+
+[[nodiscard]] LegacyPartyDialogPageResult populate_legacy_party_dialog_page(
+    const LegacyPartyDialogPageState& state, LegacyPartyDialogPagePorts& ports
+) noexcept;
+
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
     completed,
     mode_mask_out_of_range,

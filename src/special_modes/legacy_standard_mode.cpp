@@ -8875,6 +8875,210 @@ LegacyPartyDialogReplaceRowResult replace_legacy_party_dialog_row(
     return result;
 }
 
+LegacyPartyDialogPageResult populate_legacy_party_dialog_page(
+    const LegacyPartyDialogPageState& state, LegacyPartyDialogPagePorts& ports
+) noexcept {
+    LegacyPartyDialogPageResult result;
+    const std::optional<compat::i32> cleared = ports.clear_rows();
+    if (!cleared.has_value()) {
+        result.status = LegacyPartyDialogPageStatus::clear_rows_stopped;
+        return result;
+    }
+    result.rows_cleared = true;
+    const auto replace_row = [&](LegacyPartyDialogRowInput input) noexcept {
+        const LegacyPartyDialogReplaceRowResult replaced =
+            replace_legacy_party_dialog_row(input, ports);
+        if (replaced.status != LegacyPartyDialogReplaceRowStatus::completed) {
+            result.status =
+                LegacyPartyDialogPageStatus::row_replacement_stopped;
+            return false;
+        }
+        ++result.rendered_row_count;
+        return true;
+    };
+
+    if (state.page == 9) {
+        for (std::size_t index = 0U; index < state.global_values.size();
+             ++index) {
+            std::string name;
+            if (index == 0U) {
+                name = std::string("\xBF\xFA", 2U);
+            } else if (index == 11U) {
+                name = "Cmpy1";
+            } else if (index == 12U) {
+                name = "Cmpy2";
+            } else if (state.global_value_label != 0U) {
+                name.assign(1U, static_cast<char>(state.global_value_label));
+            }
+            if (!replace_row(
+                    LegacyPartyDialogRowInput{
+                        .row = static_cast<compat::u32>(index),
+                        .name = std::move(name),
+                        .quantity = state.global_values[index],
+                        .number = static_cast<compat::i32>(index),
+                        .added_value = -1,
+                        .added_value_denominator = 0,
+                    }
+                )) {
+                return result;
+            }
+        }
+        return result;
+    }
+
+    if (state.page >= 5) {
+        const compat::i32 member_index = state.page - 5;
+        if (member_index < 0 ||
+            static_cast<std::size_t>(member_index) >=
+                state.party_members.size()) {
+            result.status = LegacyPartyDialogPageStatus::page_source_stopped;
+            return result;
+        }
+        constexpr std::array<std::string_view, 17U> kFieldNames{
+            std::string_view{"\xA5\xCD\xA9\x52", 4U},
+            std::string_view{"\xC5\x5D\xAA\x6B", 4U},
+            std::string_view{"\xC5\xE9\xA4\x4F", 4U},
+            std::string_view{"\xA4\x6A\xA5\xCD\xA9\x52", 6U},
+            std::string_view{"\xA4\x6A\xC5\x5D\xAA\x6B", 6U},
+            std::string_view{"\xA4\x6A\xC5\xE9\xA4\x4F", 6U},
+            std::string_view{"\xA4\x4F\xB6\x71", 4U},
+            std::string_view{"\xAD\x40\xA4\x4F", 4U},
+            std::string_view{"\xB4\xBC\xBC\x7A", 4U},
+            std::string_view{"\xB3\x74\xAB\xD7", 4U},
+            std::string_view{"\xC0\x71\xAB\xB4", 4U},
+            std::string_view{"\xA4\xCF\xC0\xB3\xA4\x4F", 6U},
+            std::string_view{"\xB9\x42\xAE\xF0", 4U},
+            std::string_view{"\xB0\x7B\xB8\xFA", 4U},
+            std::string_view{"\xB8\x67\xC5\xE7", 4U},
+            std::string_view{"\xC1\x60\xB8\x67\xC5\xE7", 6U},
+            std::string_view{"\xB5\xA5\xAF\xC5", 4U},
+        };
+        const auto& member =
+            state.party_members[static_cast<std::size_t>(member_index)];
+        for (std::size_t index = 0U; index < kFieldNames.size(); ++index) {
+            if (!replace_row(
+                    LegacyPartyDialogRowInput{
+                        .row = static_cast<compat::u32>(index),
+                        .name = std::string(kFieldNames[index]),
+                        .quantity = world_map::read_legacy_party_member_field(
+                            member, static_cast<compat::i32>(index)
+                        ),
+                        .number = static_cast<compat::i32>(index),
+                        .added_value = 0,
+                        .added_value_denominator = 0,
+                    }
+                )) {
+                return result;
+            }
+        }
+        return result;
+    }
+
+    if (state.page < 0 ||
+        static_cast<std::size_t>(state.page) >= state.item_heads.size()) {
+        result.status = LegacyPartyDialogPageStatus::page_source_stopped;
+        return result;
+    }
+    const LegacyStandardModeForwardNode* record =
+        state.item_heads[static_cast<std::size_t>(state.page)];
+    std::vector<const LegacyStandardModeForwardNode*> visited;
+    compat::u32 row = 0U;
+    while (record != nullptr) {
+        if (std::find(visited.begin(), visited.end(), record) !=
+            visited.end()) {
+            result.status =
+                LegacyPartyDialogPageStatus::item_chain_cycle_stopped;
+            return result;
+        }
+        visited.push_back(record);
+        compat::i32 added_value = -1;
+        compat::i32 denominator = -1;
+        if (state.page == 0) {
+            const compat::u32 flags = static_cast<compat::u32>(
+                record->record_bytes[0x20U] |
+                (static_cast<compat::u32>(record->record_bytes[0x21U]) << 8U) |
+                (static_cast<compat::u32>(record->record_bytes[0x22U]) << 16U) |
+                (static_cast<compat::u32>(record->record_bytes[0x23U]) << 24U)
+            );
+            const auto matches = [flags](const compat::u32 mask) noexcept {
+                compat::u32 value = flags & mask;
+                value &= 0xFFFF7FFFU;
+                return value == mask;
+            };
+            if (matches(state.item_category_masks[0U])) {
+                const std::optional<compat::u16> queried =
+                    ports.query_first_added_value(record->text_index);
+                ++result.added_value_query_count;
+                if (!queried.has_value()) {
+                    result.status =
+                        LegacyPartyDialogPageStatus::added_value_query_stopped;
+                    return result;
+                }
+                added_value = *queried;
+                denominator = 0;
+            }
+            if (matches(state.item_category_masks[1U])) {
+                const std::optional<std::pair<compat::u16, compat::u16>>
+                    queried = ports.query_pair_added_value(record->text_index);
+                ++result.added_value_query_count;
+                if (!queried.has_value()) {
+                    result.status =
+                        LegacyPartyDialogPageStatus::added_value_query_stopped;
+                    return result;
+                }
+                denominator = queried->first;
+                added_value = queried->second;
+            }
+            if (matches(state.item_category_masks[2U])) {
+                const std::optional<compat::u16> queried =
+                    ports.query_third_added_value(record->text_index);
+                ++result.added_value_query_count;
+                if (!queried.has_value()) {
+                    result.status =
+                        LegacyPartyDialogPageStatus::added_value_query_stopped;
+                    return result;
+                }
+                added_value = *queried;
+                denominator = -1;
+            }
+            if (record->text_index != 0U && record->text_index <= 0x1F4U) {
+                const std::optional<compat::u16> queried =
+                    ports.query_third_added_value(record->text_index);
+                ++result.added_value_query_count;
+                if (!queried.has_value()) {
+                    result.status =
+                        LegacyPartyDialogPageStatus::added_value_query_stopped;
+                    return result;
+                }
+                added_value = *queried;
+                denominator = -1;
+            }
+        }
+        const compat::i32 quantity =
+            static_cast<compat::i32>(
+                std::bit_cast<compat::i16>(record->first_value)
+            ) +
+            static_cast<compat::i32>(
+                std::bit_cast<compat::i16>(record->second_value)
+            );
+        if (!replace_row(
+                LegacyPartyDialogRowInput{
+                    .row = row,
+                    .name = record->display_name,
+                    .quantity = quantity,
+                    .number = record->text_index,
+                    .added_value = added_value,
+                    .added_value_denominator = denominator,
+                }
+            )) {
+            return result;
+        }
+        record = record->next;
+        ++row;
+    }
+    return result;
+}
+
 static LegacyGuardianAttributeTarget load_guardian_attribute_target(
     const std::span<const compat::u8> bytes
 ) noexcept {

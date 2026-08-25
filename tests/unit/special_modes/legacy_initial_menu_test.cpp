@@ -1163,9 +1163,9 @@ public:
     std::vector<u32> events;
 };
 
-class FakePartyDialogReplaceRowPorts final
+class FakePartyDialogReplaceRowPorts
     : public FakePartyDialogRowPorts,
-      public openswd3::special_modes::LegacyPartyDialogReplaceRowPorts {
+      public virtual openswd3::special_modes::LegacyPartyDialogReplaceRowPorts {
 public:
     std::optional<i32> delete_row(const u32 row) noexcept override {
         events.push_back(2U);
@@ -1175,6 +1175,43 @@ public:
 
     bool delete_available{true};
     std::vector<u32> deleted_rows;
+};
+
+class FakePartyDialogPagePorts final
+    : public FakePartyDialogReplaceRowPorts,
+      public openswd3::special_modes::LegacyPartyDialogPagePorts {
+public:
+    std::optional<i32> clear_rows() noexcept override {
+        events.push_back(0U);
+        return clear_available ? std::optional<i32>{1} : std::nullopt;
+    }
+    std::optional<u16>
+    query_first_added_value(const u16 item_id) noexcept override {
+        queried_first_ids.push_back(item_id);
+        return first_available ? std::optional<u16>{first_value} : std::nullopt;
+    }
+    std::optional<std::pair<u16, u16>>
+    query_pair_added_value(const u16 item_id) noexcept override {
+        queried_pair_ids.push_back(item_id);
+        return pair_available ? std::optional<std::pair<u16, u16>>{pair_value}
+                              : std::nullopt;
+    }
+    std::optional<u16>
+    query_third_added_value(const u16 item_id) noexcept override {
+        queried_third_ids.push_back(item_id);
+        return third_available ? std::optional<u16>{third_value} : std::nullopt;
+    }
+
+    bool clear_available{true};
+    bool first_available{true};
+    bool pair_available{true};
+    bool third_available{true};
+    u16 first_value{20U};
+    std::pair<u16, u16> pair_value{3U, 30U};
+    u16 third_value{40U};
+    std::vector<u16> queried_first_ids;
+    std::vector<u16> queried_pair_ids;
+    std::vector<u16> queried_third_ids;
 };
 
 class FakeChainClonePorts final
@@ -22057,6 +22094,179 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             stopped_replace_party_dialog_row_ports.events ==
                 std::vector<u32>{1U, 2U, 3U, 3U},
         "0x410490 allocates scratch before deleting the old row, directly reuses the four-cell formatter, and typed-stops without later release at allocation, deletion, or cell update"
+    );
+
+    openswd3::special_modes::LegacyPartyDialogPageState
+        member_party_dialog_page;
+    member_party_dialog_page.page = 5;
+    member_party_dialog_page.party_members[0U] = party_member_field_record;
+    FakePartyDialogPagePorts member_party_dialog_page_ports;
+    const auto populated_member_party_dialog_page =
+        openswd3::special_modes::populate_legacy_party_dialog_page(
+            member_party_dialog_page, member_party_dialog_page_ports
+        );
+    test.expect_true(
+        populated_member_party_dialog_page.status ==
+                openswd3::special_modes::LegacyPartyDialogPageStatus::
+                    completed &&
+            populated_member_party_dialog_page.legacy_return_value == 1 &&
+            populated_member_party_dialog_page.rows_cleared &&
+            populated_member_party_dialog_page.rendered_row_count == 17U &&
+            populated_member_party_dialog_page.added_value_query_count == 0U &&
+            member_party_dialog_page_ports.deleted_rows.size() == 17U &&
+            member_party_dialog_page_ports.requests.size() == 68U &&
+            member_party_dialog_page_ports.requests[0U].text ==
+                std::string("\xA5\xCD\xA9\x52", 4U) &&
+            member_party_dialog_page_ports.requests[1U].text == "-1" &&
+            member_party_dialog_page_ports.requests[24U].text ==
+                std::string("\xA4\x4F\xB6\x71", 4U) &&
+            member_party_dialog_page_ports.requests[25U].text == "32768" &&
+            member_party_dialog_page_ports.requests[64U].text ==
+                std::string("\xB5\xA5\xAF\xC5", 4U) &&
+            member_party_dialog_page_ports.requests[65U].text == "254",
+        "0x410730 clears rows and fills a selected party member page with seventeen original labels and direct getter values"
+    );
+
+    openswd3::special_modes::LegacyPartyDialogPageState
+        globals_party_dialog_page;
+    globals_party_dialog_page.page = 9;
+    globals_party_dialog_page.global_value_label = 'V';
+    for (std::size_t index = 0U;
+         index < globals_party_dialog_page.global_values.size();
+         ++index) {
+        globals_party_dialog_page.global_values[index] =
+            static_cast<i32>(1000U + index);
+    }
+    FakePartyDialogPagePorts globals_party_dialog_page_ports;
+    const auto populated_globals_party_dialog_page =
+        openswd3::special_modes::populate_legacy_party_dialog_page(
+            globals_party_dialog_page, globals_party_dialog_page_ports
+        );
+    test.expect_true(
+        populated_globals_party_dialog_page.rendered_row_count == 64U &&
+            globals_party_dialog_page_ports.requests.size() == 256U &&
+            globals_party_dialog_page_ports.requests[0U].text ==
+                std::string("\xBF\xFA", 2U) &&
+            globals_party_dialog_page_ports.requests[1U].text == "1000" &&
+            globals_party_dialog_page_ports.requests[4U].text == "V" &&
+            globals_party_dialog_page_ports.requests[44U].text == "Cmpy1" &&
+            globals_party_dialog_page_ports.requests[48U].text == "Cmpy2" &&
+            globals_party_dialog_page_ports.requests[252U].text == "V" &&
+            globals_party_dialog_page_ports.requests[253U].text == "1063",
+        "0x410730 fills the global-integer page with sixty-four rows, the fixed money and company labels, and the runtime one-byte label elsewhere"
+    );
+
+    LegacyStandardModeForwardNode dialog_page_second_item;
+    dialog_page_second_item.text_index = 600U;
+    dialog_page_second_item.first_value = 0xFFFFU;
+    dialog_page_second_item.second_value = 2U;
+    dialog_page_second_item.display_name = "second";
+    dialog_page_second_item.record_bytes[0x20U] = 2U;
+    LegacyStandardModeForwardNode dialog_page_first_item;
+    dialog_page_first_item.next = &dialog_page_second_item;
+    dialog_page_first_item.text_index = 100U;
+    dialog_page_first_item.first_value = 0xFFFEU;
+    dialog_page_first_item.second_value = 1U;
+    dialog_page_first_item.display_name = "first";
+    dialog_page_first_item.record_bytes[0x20U] = 7U;
+    openswd3::special_modes::LegacyPartyDialogPageState item_party_dialog_page;
+    item_party_dialog_page.page = 0;
+    item_party_dialog_page.item_heads[0U] = &dialog_page_first_item;
+    item_party_dialog_page.item_heads[1U] = &dialog_page_first_item;
+    item_party_dialog_page.item_category_masks = {1U, 2U, 4U};
+    FakePartyDialogPagePorts item_party_dialog_page_ports;
+    const auto populated_item_party_dialog_page =
+        openswd3::special_modes::populate_legacy_party_dialog_page(
+            item_party_dialog_page, item_party_dialog_page_ports
+        );
+    openswd3::special_modes::LegacyPartyDialogPageState
+        stored_item_party_dialog_page = item_party_dialog_page;
+    stored_item_party_dialog_page.page = 1;
+    FakePartyDialogPagePorts stored_item_party_dialog_page_ports;
+    const auto populated_stored_item_party_dialog_page =
+        openswd3::special_modes::populate_legacy_party_dialog_page(
+            stored_item_party_dialog_page, stored_item_party_dialog_page_ports
+        );
+    test.expect_true(
+        populated_item_party_dialog_page.rendered_row_count == 2U &&
+            populated_item_party_dialog_page.added_value_query_count == 5U &&
+            item_party_dialog_page_ports.queried_first_ids ==
+                std::vector<u16>{100U} &&
+            item_party_dialog_page_ports.queried_pair_ids ==
+                std::vector<u16>{100U, 600U} &&
+            item_party_dialog_page_ports.queried_third_ids ==
+                std::vector<u16>{100U, 100U} &&
+            item_party_dialog_page_ports.requests[1U].text == "-1" &&
+            item_party_dialog_page_ports.requests[2U].text == "100" &&
+            item_party_dialog_page_ports.requests[3U].text == "40" &&
+            item_party_dialog_page_ports.requests[5U].text == "1" &&
+            item_party_dialog_page_ports.requests[6U].text == "600" &&
+            item_party_dialog_page_ports.requests[7U].text == "30/3" &&
+            populated_stored_item_party_dialog_page.rendered_row_count == 2U &&
+            populated_stored_item_party_dialog_page.added_value_query_count ==
+                0U &&
+            stored_item_party_dialog_page_ports.queried_first_ids.empty() &&
+            stored_item_party_dialog_page_ports.requests[3U].text.empty() &&
+            stored_item_party_dialog_page_ports.requests[7U].text.empty(),
+        "0x410730 walks the selected item chain, sums two signed quantities, applies page-zero category queries in overwrite order with the low-id final override, and leaves added values blank on pages one through four"
+    );
+
+    openswd3::special_modes::LegacyPartyDialogPageState
+        invalid_party_dialog_page;
+    invalid_party_dialog_page.page = 10;
+    FakePartyDialogPagePorts invalid_party_dialog_page_ports;
+    const auto invalid_party_dialog_page_result =
+        openswd3::special_modes::populate_legacy_party_dialog_page(
+            invalid_party_dialog_page, invalid_party_dialog_page_ports
+        );
+    LegacyStandardModeForwardNode cycle_party_dialog_item;
+    cycle_party_dialog_item.next = &cycle_party_dialog_item;
+    cycle_party_dialog_item.display_name = "cycle";
+    openswd3::special_modes::LegacyPartyDialogPageState cycle_party_dialog_page;
+    cycle_party_dialog_page.page = 1;
+    cycle_party_dialog_page.item_heads[1U] = &cycle_party_dialog_item;
+    cycle_party_dialog_page.item_category_masks = {1U, 2U, 4U};
+    FakePartyDialogPagePorts cycle_party_dialog_page_ports;
+    const auto cycle_party_dialog_page_result =
+        openswd3::special_modes::populate_legacy_party_dialog_page(
+            cycle_party_dialog_page, cycle_party_dialog_page_ports
+        );
+    openswd3::special_modes::LegacyPartyDialogPageState
+        stopped_query_party_dialog_page = item_party_dialog_page;
+    FakePartyDialogPagePorts stopped_query_party_dialog_page_ports;
+    stopped_query_party_dialog_page_ports.first_available = false;
+    const auto stopped_query_party_dialog_page_result =
+        openswd3::special_modes::populate_legacy_party_dialog_page(
+            stopped_query_party_dialog_page,
+            stopped_query_party_dialog_page_ports
+        );
+    FakePartyDialogPagePorts uncleared_party_dialog_page_ports;
+    uncleared_party_dialog_page_ports.clear_available = false;
+    const auto uncleared_party_dialog_page =
+        openswd3::special_modes::populate_legacy_party_dialog_page(
+            item_party_dialog_page, uncleared_party_dialog_page_ports
+        );
+    test.expect_true(
+        invalid_party_dialog_page_result.status ==
+                openswd3::special_modes::LegacyPartyDialogPageStatus::
+                    page_source_stopped &&
+            invalid_party_dialog_page_result.rows_cleared &&
+            invalid_party_dialog_page_result.rendered_row_count == 0U &&
+            cycle_party_dialog_page_result.status ==
+                openswd3::special_modes::LegacyPartyDialogPageStatus::
+                    item_chain_cycle_stopped &&
+            cycle_party_dialog_page_result.rendered_row_count == 1U &&
+            stopped_query_party_dialog_page_result.status ==
+                openswd3::special_modes::LegacyPartyDialogPageStatus::
+                    added_value_query_stopped &&
+            stopped_query_party_dialog_page_result.rows_cleared &&
+            stopped_query_party_dialog_page_result.rendered_row_count == 0U &&
+            uncleared_party_dialog_page.status ==
+                openswd3::special_modes::LegacyPartyDialogPageStatus::
+                    clear_rows_stopped &&
+            !uncleared_party_dialog_page.rows_cleared &&
+            uncleared_party_dialog_page_ports.deleted_rows.empty(),
+        "0x410730 typed-stops after clearing at an invalid member page, after one repeated chain row, at the first unavailable added-value query, or before all page work when row clearing is unavailable"
     );
 
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;
