@@ -3645,6 +3645,50 @@ struct LegacyPartyDialogColumnResult {
     compat::i32 dialog_page, LegacyPartyDialogColumnPorts& ports
 ) noexcept;
 
+struct LegacyPartyDialogRowInput {
+    compat::u32 row{};
+    std::string name;
+    compat::i32 quantity{};
+    compat::i32 number{};
+    compat::i32 added_value{};
+    compat::i32 added_value_denominator{};
+};
+
+struct LegacyPartyDialogCellRequest {
+    compat::u32 row{};
+    compat::u32 column{};
+    std::string text;
+};
+
+class LegacyPartyDialogRowPorts {
+public:
+    virtual ~LegacyPartyDialogRowPorts() = default;
+    [[nodiscard]] virtual bool
+    allocate_text_scratch(std::size_t byte_count) noexcept = 0;
+    [[nodiscard]] virtual std::optional<compat::i32>
+    set_cell(const LegacyPartyDialogCellRequest& request) noexcept = 0;
+    virtual void release_text_scratch() noexcept = 0;
+};
+
+enum class LegacyPartyDialogRowStatus : compat::u8 {
+    completed,
+    scratch_allocation_stopped,
+    name_copy_stopped,
+    cell_update_stopped,
+};
+
+struct LegacyPartyDialogRowResult {
+    LegacyPartyDialogRowStatus status{LegacyPartyDialogRowStatus::completed};
+    compat::i32 legacy_return_value{1};
+    compat::u32 updated_cell_count{};
+    bool percent_format_overwritten{};
+    bool scratch_released{};
+};
+
+[[nodiscard]] LegacyPartyDialogRowResult populate_legacy_party_dialog_row(
+    const LegacyPartyDialogRowInput& input, LegacyPartyDialogRowPorts& ports
+) noexcept;
+
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
     completed,
     mode_mask_out_of_range,

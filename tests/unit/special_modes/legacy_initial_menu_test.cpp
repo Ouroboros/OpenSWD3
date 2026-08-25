@@ -1132,6 +1132,33 @@ public:
         requests;
 };
 
+class FakePartyDialogRowPorts final
+    : public openswd3::special_modes::LegacyPartyDialogRowPorts {
+public:
+    bool allocate_text_scratch(const std::size_t byte_count) noexcept override {
+        allocations.push_back(byte_count);
+        return allocation_available;
+    }
+    std::optional<i32> set_cell(
+        const openswd3::special_modes::LegacyPartyDialogCellRequest& request
+    ) noexcept override {
+        if (requests.size() == fail_cell_at) {
+            return std::nullopt;
+        }
+        requests.push_back(request);
+        return static_cast<i32>(requests.size());
+    }
+    void release_text_scratch() noexcept override {
+        ++release_count;
+    }
+
+    bool allocation_available{true};
+    std::size_t fail_cell_at{std::numeric_limits<std::size_t>::max()};
+    u32 release_count{};
+    std::vector<std::size_t> allocations;
+    std::vector<openswd3::special_modes::LegacyPartyDialogCellRequest> requests;
+};
+
 class FakeChainClonePorts final
     : public openswd3::special_modes::LegacyStandardModeRecordClonePorts {
 public:
@@ -21842,6 +21869,101 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             stopped_party_dialog_columns.inserted_count == 2U &&
             stopped_party_dialog_column_ports.requests.size() == 2U,
         "0x4103C0 inserts item, quantity, number, and added-value list columns for signed pages below five, only three columns otherwise, and typed-stops at the unavailable insertion"
+    );
+
+    const auto populate_party_dialog_row = [](const i32 added,
+                                              const i32 denominator) {
+        FakePartyDialogRowPorts ports;
+        const auto result =
+            openswd3::special_modes::populate_legacy_party_dialog_row(
+                openswd3::special_modes::LegacyPartyDialogRowInput{
+                    .row = 7U,
+                    .name = "item",
+                    .quantity = -3,
+                    .number = 11,
+                    .added_value = added,
+                    .added_value_denominator = denominator,
+                },
+                ports
+            );
+        return std::pair{result, ports};
+    };
+    const auto [zero_denominator_row, zero_denominator_row_ports] =
+        populate_party_dialog_row(25, 0);
+    const auto [one_denominator_row, one_denominator_row_ports] =
+        populate_party_dialog_row(25, 1);
+    const auto [ratio_row, ratio_row_ports] = populate_party_dialog_row(25, 2);
+    const auto [negative_denominator_row, negative_denominator_row_ports] =
+        populate_party_dialog_row(25, -2);
+    const auto [missing_added_row, missing_added_row_ports] =
+        populate_party_dialog_row(-1, 99);
+    test.expect_true(
+        zero_denominator_row.status ==
+                openswd3::special_modes::LegacyPartyDialogRowStatus::
+                    completed &&
+            zero_denominator_row.legacy_return_value == 1 &&
+            zero_denominator_row.updated_cell_count == 4U &&
+            zero_denominator_row.percent_format_overwritten &&
+            zero_denominator_row.scratch_released &&
+            zero_denominator_row_ports.allocations ==
+                std::vector<std::size_t>{0x40U} &&
+            zero_denominator_row_ports.release_count == 1U &&
+            zero_denominator_row_ports.requests[0U].row == 7U &&
+            zero_denominator_row_ports.requests[0U].column == 0U &&
+            zero_denominator_row_ports.requests[0U].text == "item" &&
+            zero_denominator_row_ports.requests[1U].text == "-3" &&
+            zero_denominator_row_ports.requests[2U].text == "11" &&
+            zero_denominator_row_ports.requests[3U].text == "25" &&
+            !one_denominator_row.percent_format_overwritten &&
+            one_denominator_row_ports.requests[3U].text == "11" &&
+            ratio_row_ports.requests[3U].text == "25/2" &&
+            negative_denominator_row_ports.requests[3U].text == "25" &&
+            missing_added_row_ports.requests[3U].text.empty() &&
+            one_denominator_row.scratch_released &&
+            ratio_row.scratch_released &&
+            negative_denominator_row.scratch_released &&
+            missing_added_row.scratch_released,
+        "0x410600 writes name, quantity, and number before added value, overwrites the zero-denominator percent format with decimal, reuses number text for denominator one, formats ratios above one, and clears sentinel minus one"
+    );
+
+    FakePartyDialogRowPorts unavailable_party_dialog_row_ports;
+    unavailable_party_dialog_row_ports.allocation_available = false;
+    const auto unavailable_party_dialog_row =
+        openswd3::special_modes::populate_legacy_party_dialog_row(
+            {.name = "item"}, unavailable_party_dialog_row_ports
+        );
+    FakePartyDialogRowPorts long_name_party_dialog_row_ports;
+    const auto long_name_party_dialog_row =
+        openswd3::special_modes::populate_legacy_party_dialog_row(
+            {.name = std::string(64U, 'x')}, long_name_party_dialog_row_ports
+        );
+    FakePartyDialogRowPorts stopped_party_dialog_row_ports;
+    stopped_party_dialog_row_ports.fail_cell_at = 2U;
+    const auto stopped_party_dialog_row =
+        openswd3::special_modes::populate_legacy_party_dialog_row(
+            {.name = "item", .quantity = 2, .number = 3},
+            stopped_party_dialog_row_ports
+        );
+    test.expect_true(
+        unavailable_party_dialog_row.status ==
+                openswd3::special_modes::LegacyPartyDialogRowStatus::
+                    scratch_allocation_stopped &&
+            unavailable_party_dialog_row_ports.requests.empty() &&
+            unavailable_party_dialog_row_ports.release_count == 0U &&
+            long_name_party_dialog_row.status ==
+                openswd3::special_modes::LegacyPartyDialogRowStatus::
+                    name_copy_stopped &&
+            long_name_party_dialog_row_ports.allocations ==
+                std::vector<std::size_t>{0x40U} &&
+            long_name_party_dialog_row_ports.requests.empty() &&
+            long_name_party_dialog_row_ports.release_count == 0U &&
+            stopped_party_dialog_row.status ==
+                openswd3::special_modes::LegacyPartyDialogRowStatus::
+                    cell_update_stopped &&
+            stopped_party_dialog_row.updated_cell_count == 2U &&
+            stopped_party_dialog_row_ports.requests.size() == 2U &&
+            stopped_party_dialog_row_ports.release_count == 0U,
+        "0x410600 typed-stops at scratch allocation, the original unbounded name copy destination, or the current cell update while preserving prior allocation and cells"
     );
 
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;

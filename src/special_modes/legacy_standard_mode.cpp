@@ -8783,6 +8783,65 @@ LegacyPartyDialogColumnResult setup_legacy_party_dialog_columns(
     return result;
 }
 
+LegacyPartyDialogRowResult populate_legacy_party_dialog_row(
+    const LegacyPartyDialogRowInput& input, LegacyPartyDialogRowPorts& ports
+) noexcept {
+    LegacyPartyDialogRowResult result;
+    if (!ports.allocate_text_scratch(0x40U)) {
+        result.status = LegacyPartyDialogRowStatus::scratch_allocation_stopped;
+        return result;
+    }
+    if (input.name.size() >= 0x40U) {
+        result.status = LegacyPartyDialogRowStatus::name_copy_stopped;
+        return result;
+    }
+    const auto set_cell = [&](const compat::u32 column,
+                              std::string text) noexcept {
+        const std::optional<compat::i32> updated = ports.set_cell(
+            LegacyPartyDialogCellRequest{
+                .row = input.row,
+                .column = column,
+                .text = std::move(text),
+            }
+        );
+        if (!updated.has_value()) {
+            result.status = LegacyPartyDialogRowStatus::cell_update_stopped;
+            return false;
+        }
+        ++result.updated_cell_count;
+        return true;
+    };
+
+    if (!set_cell(0U, input.name) ||
+        !set_cell(1U, std::to_string(input.quantity))) {
+        return result;
+    }
+    const std::string number_text = std::to_string(input.number);
+    if (!set_cell(2U, number_text)) {
+        return result;
+    }
+
+    std::string added_text = number_text;
+    if (input.added_value == -1) {
+        added_text.clear();
+    } else if (input.added_value_denominator == 0) {
+        added_text = std::to_string(input.added_value) + "%";
+        result.percent_format_overwritten = true;
+        added_text = std::to_string(input.added_value);
+    } else if (input.added_value_denominator > 1) {
+        added_text = std::to_string(input.added_value) + "/" +
+            std::to_string(input.added_value_denominator);
+    } else if (input.added_value_denominator < 1) {
+        added_text = std::to_string(input.added_value);
+    }
+    if (!set_cell(3U, std::move(added_text))) {
+        return result;
+    }
+    ports.release_text_scratch();
+    result.scratch_released = true;
+    return result;
+}
+
 static LegacyGuardianAttributeTarget load_guardian_attribute_target(
     const std::span<const compat::u8> bytes
 ) noexcept {
