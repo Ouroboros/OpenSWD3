@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v662
+版本：v663
 
 最后更新：2026-08-25
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 按surface边界夹取战斗动作绘制矩形
+当前步骤：模块10 · 重建战斗绘制对象主行偏移表
 
 ## 0. 执行约定
 
@@ -3853,4 +3853,6 @@ B7 P0 有限收口完成。
 
 - 模块10战斗TSW命令流像素命中查询`0x00433AA0`完成。按surface元数据先处理回绕坐标与原始非对称边界，再遍历命令流行目录；透明tag与literal都保留包含上界，组合高标记顺序保留两个不可达子分支，负行坐标继续越过目录。短源只在原magic、行长或command读取点typed-stop，命中literal时不额外读取payload。唯一caller尚未现代实现，没有opaque callback可回收。合成边界、三份真实16位TSW首帧、独立ASan、Linux core`188/188`及Linux app`194/194`通过。工作包连续两次生成逐字节一致，当前`1/422`，SHA256为`9955ec383d35d67e35ff030139ceda59b9ec40d240ab02afedf214203c43dbbd`。
 
-下一项按callee优先关闭`0x004342E0`的战斗动作绘制矩形surface边界夹取与四字段发布，再回收三个战斗caller。
+- 模块10战斗动作绘制矩形surface边界放置`0x004342E0`完成。四个参数按left/top/width/height解释；负起点先以32位回绕缩短尺寸，右/下达到边界时反向移动起点而不裁短，尺寸大于surface或为负时保留原异常结果。top、left、right、bottom按原顺序发布，EAX显式保留最终bottom。该叶子无外部chunk；三个caller尚未现代实现，没有opaque callback可回收。固定caller状态、独立ASan、Linux core`188/188`及Linux app`194/194`通过。工作包连续两次生成逐字节一致，当前`2/422`，SHA256为`c3c8fa24ef49d90e41607b3459ba64f6fd21f863fa975878d47f5039b72f13aa`。
+
+下一项按callee优先关闭`0x00433E20`的战斗绘制对象主行偏移表释放、重建与逐行填充，再继续surface行表。
