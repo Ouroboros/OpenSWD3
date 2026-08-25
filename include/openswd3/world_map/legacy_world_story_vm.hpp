@@ -263,6 +263,10 @@ struct LegacyWorldStoryPartyMemberResources {
     compat::u8 field_2c{};
 };
 
+[[nodiscard]] compat::i32 read_legacy_party_member_field(
+    const LegacyWorldStoryPartyMemberResources& resources, compat::i32 selector
+) noexcept;
+
 struct LegacyWorldStoryModeText {
     std::array<compat::u8, kLegacyWorldStoryModeTextSize> bytes{};
     bool allocated{};

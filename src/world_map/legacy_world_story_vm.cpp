@@ -2006,6 +2006,13 @@ struct LegacyStoryRoleRootItemLookup {
 
 }  // namespace
 
+compat::i32 read_legacy_party_member_field(
+    const LegacyWorldStoryPartyMemberResources& resources,
+    const compat::i32 selector
+) noexcept {
+    return read_party_member_field(resources, selector);
+}
+
 void initialize_legacy_world_story_vm(LegacyWorldStoryVmState& state) noexcept {
     state.flags.fill(0U);
     state.script_variables[0] = 100U;
@@ -7595,7 +7602,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 continue;
             }
 
-            const i32 value = read_party_member_field(
+            const i32 value = read_legacy_party_member_field(
                 state.party_member_resources[1U], selector
             );
             if (!has_bytes(state.window, ip + 4U, sizeof(u16))) {
@@ -7667,7 +7674,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             i32 value = operand;
             if (result.opcode != OP_188_SET_PARTY_MEMBER_FIELD) {
                 const u32 current_bits = std::bit_cast<u32>(
-                    read_party_member_field(resources, selector)
+                    read_legacy_party_member_field(resources, selector)
                 );
                 const u32 operand_bits = std::bit_cast<u32>(operand);
                 const u32 result_bits =

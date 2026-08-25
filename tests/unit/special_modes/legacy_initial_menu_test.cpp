@@ -21607,6 +21607,57 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x406E30 typed-stops at common input, selected submode, or active render after preserving each earlier timer and state mutation"
     );
 
+    openswd3::world_map::LegacyWorldStoryPartyMemberResources
+        party_member_field_record;
+    party_member_field_record.field_00 = 0x89ABCDEFU;
+    party_member_field_record.current_first = 0xFFFFU;
+    party_member_field_record.current_second = 2U;
+    party_member_field_record.current_third = 0x8000U;
+    party_member_field_record.limit_first = 4U;
+    party_member_field_record.limit_second = 0xFFFEU;
+    party_member_field_record.limit_third = 6U;
+    party_member_field_record.fields_10_to_1e = {
+        0x8000U, 8U, 9U, 10U, 11U, 12U, 13U, 0xFFFFU
+    };
+    party_member_field_record.field_20 = 0x76543210U;
+    party_member_field_record.field_2c = 0xFEU;
+    constexpr std::array<i32, 17U> kExpectedPartyMemberFields{
+        -1,
+        2,
+        -32768,
+        4,
+        -2,
+        6,
+        32768,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        65535,
+        0x76543210,
+        std::bit_cast<i32>(0x89ABCDEFU),
+        254,
+    };
+    bool party_member_fields_match = true;
+    for (i32 selector = 0; selector <= 16; ++selector) {
+        party_member_fields_match = party_member_fields_match &&
+            openswd3::world_map::read_legacy_party_member_field(
+                party_member_field_record, selector
+            ) == kExpectedPartyMemberFields[static_cast<std::size_t>(selector)];
+    }
+    test.expect_true(
+        party_member_fields_match &&
+            openswd3::world_map::read_legacy_party_member_field(
+                party_member_field_record, -1
+            ) == 0 &&
+            openswd3::world_map::read_legacy_party_member_field(
+                party_member_field_record, 17
+            ) == 0,
+        "0x4112B0 returns selectors zero through five with signed word extension, six through thirteen with unsigned extension, full dword fields, the final byte, and zero for defaults"
+    );
+
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;
     for (std::size_t index = 0U; index < special_action_set.records.size();
          ++index) {
