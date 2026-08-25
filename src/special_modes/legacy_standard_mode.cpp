@@ -7350,6 +7350,299 @@ dispatch_legacy_special_mode_mode_one_alternate_input(
     return result;
 }
 
+LegacySpecialModeModeOnePointerInputResult
+dispatch_legacy_special_mode_mode_one_pointer_input(
+    const LegacySpecialModeModeOnePointerInputState& input,
+    LegacySpecialModeModeOneAdvanceState& state,
+    const std::span<const compat::u8> maps_payload,
+    LegacySpecialModeRuntimeInitializationState& runtime,
+    LegacyStandardModeForwardNode*& player_record_head,
+    const std::span<const compat::u16> empty_mode_record_ids,
+    const std::span<LegacyStandardModeForwardNode* const> fixed_slots,
+    const std::span<const compat::u32> replacement_masks,
+    const std::array<LegacyGuardianAttributeTarget, 4U>& base_attributes,
+    compat::u32& maximum_weight,
+    const compat::u32 sample_owner,
+    LegacySpecialModeModeOneConfirmPorts& ports
+) noexcept {
+    LegacySpecialModeModeOnePointerInputResult result;
+    const auto stopped = [&]() noexcept {
+        result.status =
+            LegacySpecialModeModeOnePointerInputStatus::callee_stopped;
+        return false;
+    };
+    const auto call_exit = [&]() {
+        result.action_mask |= kLegacySpecialModeModeOnePointerActionExit;
+        LegacySpecialModeLevelExitState exit_state{
+            state.level, state.runtime_flags
+        };
+        const LegacySpecialModeLevelExitResult exited =
+            exit_legacy_special_mode_level(exit_state, runtime, ports);
+        ++result.helper_call_count;
+        state.level = exit_state.level;
+        state.runtime_flags = exit_state.transition_flags;
+        result.legacy_return_value = exited.legacy_return_value;
+        return exited.status == LegacySpecialModeLevelExitStatus::completed ||
+            stopped();
+    };
+    const auto call_advance = [&]() {
+        result.action_mask |= kLegacySpecialModeModeOnePointerActionAdvance;
+        const LegacySpecialModeModeOneAdvanceResult advanced =
+            advance_legacy_special_mode_mode_one(
+                state,
+                maps_payload,
+                base_attributes,
+                fixed_slots,
+                replacement_masks,
+                sample_owner,
+                ports
+            );
+        ++result.helper_call_count;
+        result.legacy_return_value = advanced.legacy_return_value;
+        return advanced.status ==
+            LegacySpecialModeModeOneAdvanceStatus::completed ||
+            stopped();
+    };
+    const auto call_retreat = [&]() {
+        result.action_mask |= kLegacySpecialModeModeOnePointerActionRetreat;
+        const LegacySpecialModeModeOneRetreatResult retreated =
+            retreat_legacy_special_mode_mode_one(
+                state,
+                maps_payload,
+                base_attributes,
+                fixed_slots,
+                replacement_masks,
+                sample_owner,
+                ports
+            );
+        ++result.helper_call_count;
+        result.legacy_return_value = retreated.legacy_return_value;
+        return retreated.status ==
+            LegacySpecialModeModeOneRetreatStatus::completed ||
+            stopped();
+    };
+    const auto call_page_advance = [&]() {
+        result.action_mask |= kLegacySpecialModeModeOnePointerActionPageAdvance;
+        const LegacySpecialModeModeOnePageAdvanceResult advanced =
+            advance_legacy_special_mode_mode_one_page(
+                state,
+                maps_payload,
+                base_attributes,
+                fixed_slots,
+                replacement_masks,
+                sample_owner,
+                ports
+            );
+        ++result.helper_call_count;
+        result.legacy_return_value = advanced.legacy_return_value;
+        return advanced.status ==
+            LegacySpecialModeModeOnePageAdvanceStatus::completed ||
+            stopped();
+    };
+    const auto call_page_retreat = [&]() {
+        result.action_mask |= kLegacySpecialModeModeOnePointerActionPageRetreat;
+        const LegacySpecialModeModeOnePageRetreatResult retreated =
+            retreat_legacy_special_mode_mode_one_page(
+                state,
+                maps_payload,
+                base_attributes,
+                fixed_slots,
+                replacement_masks,
+                ports
+            );
+        ++result.helper_call_count;
+        result.legacy_return_value = retreated.legacy_return_value;
+        return retreated.status ==
+            LegacySpecialModeModeOnePageRetreatStatus::completed ||
+            stopped();
+    };
+    const auto call_decrease = [&]() {
+        result.action_mask |= kLegacySpecialModeModeOnePointerActionDecrease;
+        const LegacySpecialModeModeOneDecreaseResult decreased =
+            decrease_legacy_special_mode_mode_one_value(
+                state, sample_owner, ports
+            );
+        ++result.helper_call_count;
+        result.legacy_return_value = decreased.legacy_return_value;
+        return decreased.status ==
+            LegacySpecialModeModeOneDecreaseStatus::completed ||
+            stopped();
+    };
+    const auto call_increase = [&]() {
+        result.action_mask |= kLegacySpecialModeModeOnePointerActionIncrease;
+        const LegacySpecialModeModeOneIncreaseResult increased =
+            increase_legacy_special_mode_mode_one_value(
+                state,
+                player_record_head,
+                fixed_slots,
+                maximum_weight,
+                sample_owner,
+                ports
+            );
+        ++result.helper_call_count;
+        result.legacy_return_value = increased.legacy_return_value;
+        return increased.status ==
+            LegacySpecialModeModeOneIncreaseStatus::completed ||
+            stopped();
+    };
+    const auto call_confirm = [&]() {
+        result.action_mask |= kLegacySpecialModeModeOnePointerActionConfirm;
+        const LegacySpecialModeModeOneConfirmResult confirmed =
+            confirm_legacy_special_mode_mode_one(
+                state,
+                maps_payload,
+                runtime,
+                player_record_head,
+                empty_mode_record_ids,
+                fixed_slots,
+                replacement_masks,
+                base_attributes,
+                maximum_weight,
+                sample_owner,
+                ports
+            );
+        ++result.helper_call_count;
+        result.legacy_return_value = confirmed.legacy_return_value;
+        return confirmed.status ==
+            LegacySpecialModeModeOneConfirmStatus::completed ||
+            stopped();
+    };
+    const auto inside_unsigned = [](const compat::u32 value,
+                                    const compat::u32 minimum,
+                                    const compat::u32 maximum) noexcept {
+        return value > minimum && value < maximum;
+    };
+    const auto inside_signed = [](const compat::u32 value,
+                                  const compat::i32 minimum,
+                                  const compat::i32 maximum) noexcept {
+        const compat::i32 signed_value = std::bit_cast<compat::i32>(value);
+        return signed_value > minimum && signed_value < maximum;
+    };
+
+    if (state.level == 1U) {
+        if (inside_unsigned(input.pointer_x, 0x118U, 0x1B2U) &&
+            inside_unsigned(input.pointer_y, 0x144U, 0x15CU)) {
+            const compat::u32 column = (input.pointer_x - 0x118U) / 55U;
+            state.packed_mode = (state.packed_mode & 0xFFFFFFFCU) | column;
+            result.action_mask |=
+                kLegacySpecialModeModeOnePointerActionSelectMode;
+            if ((input.input_flags & 1U) != 0U && !call_confirm()) {
+                return result;
+            }
+        }
+        if ((input.input_flags & 4U) != 0U) {
+            static_cast<void>(call_exit());
+        }
+        return result;
+    }
+
+    if (state.level == 2U) {
+        if ((input.input_flags & 3U) != 0U) {
+            if (inside_unsigned(input.pointer_x, 0x9EU, 0x1F4U) &&
+                inside_unsigned(input.pointer_y, 0x3CU, 0x181U)) {
+                const compat::u32 row = (input.pointer_y - 0x3CU) / 25U;
+                if (row == std::bit_cast<compat::u32>(state.local_cursor)) {
+                    const compat::u32 row_y = row * 25U;
+                    if (inside_unsigned(input.pointer_x, 0x178U, 0x191U) &&
+                        inside_unsigned(
+                            input.pointer_y, row_y + 0x3DU, row_y + 0x50U
+                        ) &&
+                        !call_decrease()) {
+                        return result;
+                    }
+                    if (inside_unsigned(input.pointer_x, 0x193U, 0x1ACU) &&
+                        inside_unsigned(
+                            input.pointer_y, row_y + 0x3DU, row_y + 0x50U
+                        ) &&
+                        !call_increase()) {
+                        return result;
+                    }
+                } else {
+                    result.legacy_return_value =
+                        ports.play_sample(0x00BFU, sample_owner);
+                    ++result.helper_call_count;
+                    state.local_cursor = std::bit_cast<compat::i32>(row);
+                    result.action_mask |=
+                        kLegacySpecialModeModeOnePointerActionSelectRow;
+                    if (!call_advance()) {
+                        return result;
+                    }
+                }
+            }
+            if (inside_unsigned(input.pointer_x, 0x1B8U, 0x1E0U) &&
+                inside_unsigned(input.pointer_y, 0x193U, 0x1AFU) &&
+                !call_confirm()) {
+                return result;
+            }
+        }
+        if ((input.input_flags & 4U) != 0U) {
+            static_cast<void>(call_exit());
+            return result;
+        }
+        if (input.scroll_regions_enabled == 0U || state.total_count <= 13) {
+            return result;
+        }
+        if (!inside_unsigned(input.pointer_x, 0x1EDU, 0x1FFU)) {
+            return result;
+        }
+        if (inside_unsigned(input.pointer_y, 0x31U, 0x43U) && !call_retreat()) {
+            return result;
+        }
+        if (inside_unsigned(input.pointer_y, 0x177U, 0x187U) &&
+            !call_advance()) {
+            return result;
+        }
+        if (inside_signed(
+                input.pointer_y,
+                input.page_retreat_min_y,
+                input.page_retreat_max_y
+            ) &&
+            !call_page_retreat()) {
+            return result;
+        }
+        if (inside_signed(
+                input.pointer_y,
+                input.page_advance_min_y,
+                input.page_advance_max_y
+            )) {
+            static_cast<void>(call_page_advance());
+        }
+        return result;
+    }
+
+    if (state.level == 3U || state.level == 4U) {
+        const bool level_three = state.level == 3U;
+        const compat::u32 min_x = level_three ? 0x153U : 0xFAU;
+        const compat::u32 max_x = level_three ? 0x1E2U : 0x17EU;
+        if (!inside_unsigned(input.pointer_x, min_x, max_x) ||
+            !inside_unsigned(input.pointer_y, 0x1A8U, 0x1C0U)) {
+            if ((input.input_flags & 4U) != 0U) {
+                static_cast<void>(call_exit());
+            }
+            return result;
+        }
+        const compat::u32 column = (input.pointer_x - min_x) / 66U;
+        if (column == 0U) {
+            if (!call_decrease()) {
+                return result;
+            }
+        } else if (!call_increase()) {
+            return result;
+        }
+        if ((input.input_flags & 3U) != 0U) {
+            static_cast<void>(call_confirm());
+        }
+        return result;
+    }
+
+    if (state.level == 10U && (input.input_flags & 0x0FU) != 0U) {
+        state.level = 2U;
+        result.action_mask |=
+            kLegacySpecialModeModeOnePointerActionReturnFromWeightLimit;
+    }
+    return result;
+}
+
 static LegacyGuardianAttributeTarget load_guardian_attribute_target(
     const std::span<const compat::u8> bytes
 ) noexcept {

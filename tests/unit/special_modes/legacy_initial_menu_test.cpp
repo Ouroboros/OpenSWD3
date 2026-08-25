@@ -20111,6 +20111,296 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44F920 applies the same stale page-retreat phase low bit to increase repeats and tail-dispatches E330"
     );
 
+    const auto dispatch_mode_one_pointer =
+        [](const openswd3::special_modes::
+               LegacySpecialModeModeOnePointerInputState& input,
+           openswd3::special_modes::LegacySpecialModeModeOneAdvanceState& state,
+           openswd3::special_modes::LegacySpecialModeRuntimeInitializationState&
+               runtime,
+           LegacyStandardModeForwardNode*& player_head,
+           u32& maximum_weight,
+           FakeModeOneConfirmPorts& ports) {
+            return openswd3::special_modes::
+                dispatch_legacy_special_mode_mode_one_pointer_input(
+                    input,
+                    state,
+                    {},
+                    runtime,
+                    player_head,
+                    {},
+                    {},
+                    {},
+                    std::array<
+                        openswd3::special_modes::LegacyGuardianAttributeTarget,
+                        4U>{},
+                    maximum_weight,
+                    0x12345678U,
+                    ports
+                );
+        };
+
+    openswd3::special_modes::LegacySpecialModeModeOnePointerInputState
+        mode_one_pointer_mode_input;
+    mode_one_pointer_mode_input.pointer_x = 0x14FU;
+    mode_one_pointer_mode_input.pointer_y = 0x145U;
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_pointer_mode_state;
+    mode_one_pointer_mode_state.level = 1U;
+    mode_one_pointer_mode_state.packed_mode = 0xAABBCC00U;
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        mode_one_pointer_mode_runtime;
+    LegacyStandardModeForwardNode* mode_one_pointer_mode_player = nullptr;
+    u32 mode_one_pointer_mode_weight = 0U;
+    FakeModeOneConfirmPorts mode_one_pointer_mode_ports;
+    const auto mode_one_pointer_mode_selected = dispatch_mode_one_pointer(
+        mode_one_pointer_mode_input,
+        mode_one_pointer_mode_state,
+        mode_one_pointer_mode_runtime,
+        mode_one_pointer_mode_player,
+        mode_one_pointer_mode_weight,
+        mode_one_pointer_mode_ports
+    );
+    test.expect_true(
+        mode_one_pointer_mode_selected.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOnePointerInputStatus::completed &&
+            mode_one_pointer_mode_selected.action_mask ==
+                openswd3::special_modes::
+                    kLegacySpecialModeModeOnePointerActionSelectMode &&
+            mode_one_pointer_mode_state.packed_mode == 0xAABBCC01U &&
+            mode_one_pointer_mode_selected.helper_call_count == 0U,
+        "0x44DBC0 level one maps the strict three-column rectangle by fifty-five pixels and writes only packed low bits"
+    );
+
+    std::array<LegacyStandardModeForwardNode, 14U> mode_one_pointer_records{};
+    for (std::size_t index = 0U; index < mode_one_pointer_records.size();
+         ++index) {
+        mode_one_pointer_records[index].text_index = 0xFFDCU;
+        if (index + 1U < mode_one_pointer_records.size()) {
+            mode_one_pointer_records[index].next =
+                &mode_one_pointer_records[index + 1U];
+        }
+    }
+    openswd3::special_modes::LegacySpecialModeModeOnePointerInputState
+        mode_one_pointer_row_input;
+    mode_one_pointer_row_input.pointer_x = 200U;
+    mode_one_pointer_row_input.pointer_y = 111U;
+    mode_one_pointer_row_input.input_flags = 1U;
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_pointer_row_state;
+    mode_one_pointer_row_state.level = 2U;
+    mode_one_pointer_row_state.total_count = 14;
+    mode_one_pointer_row_state.local_cursor = 0;
+    mode_one_pointer_row_state.visible_count = 13;
+    mode_one_pointer_row_state.workspace_head = &mode_one_pointer_records[0U];
+    mode_one_pointer_row_state.visible_head = &mode_one_pointer_records[0U];
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        mode_one_pointer_row_runtime;
+    LegacyStandardModeForwardNode* mode_one_pointer_row_player = nullptr;
+    u32 mode_one_pointer_row_weight = 100U;
+    FakeModeOneConfirmPorts mode_one_pointer_row_ports;
+    const auto mode_one_pointer_row_selected = dispatch_mode_one_pointer(
+        mode_one_pointer_row_input,
+        mode_one_pointer_row_state,
+        mode_one_pointer_row_runtime,
+        mode_one_pointer_row_player,
+        mode_one_pointer_row_weight,
+        mode_one_pointer_row_ports
+    );
+    test.expect_true(
+        mode_one_pointer_row_selected.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOnePointerInputStatus::completed &&
+            mode_one_pointer_row_selected.action_mask ==
+                (openswd3::special_modes::
+                     kLegacySpecialModeModeOnePointerActionSelectRow |
+                 openswd3::special_modes::
+                     kLegacySpecialModeModeOnePointerActionAdvance) &&
+            mode_one_pointer_row_state.local_cursor == 3 &&
+            mode_one_pointer_row_state.visible_count == 13 &&
+            mode_one_pointer_row_state.frame_flags == 0x30U &&
+            mode_one_pointer_row_ports.samples ==
+                std::vector<std::pair<u16, u32>>{
+                    {0x00BFU, 0x12345678U}, {0x00BFU, 0x12345678U}
+                },
+        "0x44DBC0 level two maps rows by twenty-five pixels, plays BF, publishes the row, then calls DF00 which advances once and plays BF again"
+    );
+
+    mode_one_pointer_records[1U].combined_value = 2U;
+    openswd3::special_modes::LegacySpecialModeModeOnePointerInputState
+        mode_one_pointer_decrease_input;
+    mode_one_pointer_decrease_input.pointer_x = 0x179U;
+    mode_one_pointer_decrease_input.pointer_y = 87U;
+    mode_one_pointer_decrease_input.input_flags = 1U;
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_pointer_decrease_state;
+    mode_one_pointer_decrease_state.level = 2U;
+    mode_one_pointer_decrease_state.local_cursor = 1;
+    mode_one_pointer_decrease_state.workspace_head =
+        &mode_one_pointer_records[0U];
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        mode_one_pointer_decrease_runtime;
+    LegacyStandardModeForwardNode* mode_one_pointer_decrease_player = nullptr;
+    u32 mode_one_pointer_decrease_weight = 100U;
+    FakeModeOneConfirmPorts mode_one_pointer_decrease_ports;
+    const auto mode_one_pointer_decreased = dispatch_mode_one_pointer(
+        mode_one_pointer_decrease_input,
+        mode_one_pointer_decrease_state,
+        mode_one_pointer_decrease_runtime,
+        mode_one_pointer_decrease_player,
+        mode_one_pointer_decrease_weight,
+        mode_one_pointer_decrease_ports
+    );
+    test.expect_true(
+        mode_one_pointer_decreased.action_mask ==
+                openswd3::special_modes::
+                    kLegacySpecialModeModeOnePointerActionDecrease &&
+            mode_one_pointer_records[1U].combined_value == 1U &&
+            mode_one_pointer_decrease_state.decrease_action_status == 2U &&
+            mode_one_pointer_decrease_ports.samples ==
+                std::vector<std::pair<u16, u32>>{{0x00B9U, 0x12345678U}},
+        "0x44DBC0 level two dispatches E260 only inside the selected row's strict left quantity rectangle"
+    );
+
+    openswd3::special_modes::LegacySpecialModeModeOnePointerInputState
+        mode_one_pointer_scroll_input;
+    mode_one_pointer_scroll_input.pointer_x = 0x1EEU;
+    mode_one_pointer_scroll_input.pointer_y = 100U;
+    mode_one_pointer_scroll_input.scroll_regions_enabled = 1U;
+    mode_one_pointer_scroll_input.page_retreat_min_y = 90;
+    mode_one_pointer_scroll_input.page_retreat_max_y = 110;
+    mode_one_pointer_scroll_input.page_advance_min_y = 95;
+    mode_one_pointer_scroll_input.page_advance_max_y = 105;
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_pointer_scroll_state;
+    mode_one_pointer_scroll_state.level = 2U;
+    mode_one_pointer_scroll_state.total_count = 14;
+    mode_one_pointer_scroll_state.window_offset = 13;
+    mode_one_pointer_scroll_state.local_cursor = 0;
+    mode_one_pointer_scroll_state.visible_count = 1;
+    mode_one_pointer_scroll_state.workspace_head =
+        &mode_one_pointer_records[0U];
+    mode_one_pointer_scroll_state.visible_head = &mode_one_pointer_records[13U];
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        mode_one_pointer_scroll_runtime;
+    LegacyStandardModeForwardNode* mode_one_pointer_scroll_player = nullptr;
+    u32 mode_one_pointer_scroll_weight = 100U;
+    FakeModeOneConfirmPorts mode_one_pointer_scroll_ports;
+    const auto mode_one_pointer_scrolled = dispatch_mode_one_pointer(
+        mode_one_pointer_scroll_input,
+        mode_one_pointer_scroll_state,
+        mode_one_pointer_scroll_runtime,
+        mode_one_pointer_scroll_player,
+        mode_one_pointer_scroll_weight,
+        mode_one_pointer_scroll_ports
+    );
+    test.expect_true(
+        mode_one_pointer_scrolled.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOnePointerInputStatus::completed &&
+            mode_one_pointer_scrolled.action_mask ==
+                (openswd3::special_modes::
+                     kLegacySpecialModeModeOnePointerActionPageRetreat |
+                 openswd3::special_modes::
+                     kLegacySpecialModeModeOnePointerActionPageAdvance) &&
+            mode_one_pointer_scroll_state.window_offset == 0 &&
+            mode_one_pointer_scroll_state.local_cursor == 12 &&
+            mode_one_pointer_scrolled.helper_call_count == 2U,
+        "0x44DBC0 level two evaluates dynamic retreat then advance rectangles in order and preserves both calls when configured regions overlap"
+    );
+
+    openswd3::special_modes::LegacySpecialModeModeOnePointerInputState
+        mode_one_pointer_level_three_input;
+    mode_one_pointer_level_three_input.pointer_x = 0x154U;
+    mode_one_pointer_level_three_input.pointer_y = 0x1A9U;
+    mode_one_pointer_level_three_input.input_flags = 1U;
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_pointer_level_three_state;
+    mode_one_pointer_level_three_state.level = 3U;
+    mode_one_pointer_level_three_state.packed_mode = 4U;
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        mode_one_pointer_level_three_runtime;
+    LegacyStandardModeForwardNode* mode_one_pointer_level_three_player =
+        nullptr;
+    u32 mode_one_pointer_level_three_weight = 0U;
+    FakeModeOneConfirmPorts mode_one_pointer_level_three_ports;
+    const auto mode_one_pointer_level_three = dispatch_mode_one_pointer(
+        mode_one_pointer_level_three_input,
+        mode_one_pointer_level_three_state,
+        mode_one_pointer_level_three_runtime,
+        mode_one_pointer_level_three_player,
+        mode_one_pointer_level_three_weight,
+        mode_one_pointer_level_three_ports
+    );
+    test.expect_true(
+        mode_one_pointer_level_three.action_mask ==
+                (openswd3::special_modes::
+                     kLegacySpecialModeModeOnePointerActionDecrease |
+                 openswd3::special_modes::
+                     kLegacySpecialModeModeOnePointerActionConfirm) &&
+            mode_one_pointer_level_three_state.level == 1U &&
+            mode_one_pointer_level_three_state.packed_mode == 0U &&
+            mode_one_pointer_level_three_ports.samples ==
+                std::vector<std::pair<u16, u32>>{{0x00BBU, 0x12345678U}},
+        "0x44DBC0 level three maps the bottom left column by sixty-six pixels, calls E260, then calls E4A0 when a low input bit is set"
+    );
+
+    openswd3::special_modes::LegacySpecialModeModeOnePointerInputState
+        mode_one_pointer_level_four_input;
+    mode_one_pointer_level_four_input.pointer_x = 0x13DU;
+    mode_one_pointer_level_four_input.pointer_y = 0x1A9U;
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_pointer_level_four_state;
+    mode_one_pointer_level_four_state.level = 4U;
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        mode_one_pointer_level_four_runtime;
+    LegacyStandardModeForwardNode* mode_one_pointer_level_four_player = nullptr;
+    u32 mode_one_pointer_level_four_weight = 0U;
+    FakeModeOneConfirmPorts mode_one_pointer_level_four_ports;
+    const auto mode_one_pointer_level_four = dispatch_mode_one_pointer(
+        mode_one_pointer_level_four_input,
+        mode_one_pointer_level_four_state,
+        mode_one_pointer_level_four_runtime,
+        mode_one_pointer_level_four_player,
+        mode_one_pointer_level_four_weight,
+        mode_one_pointer_level_four_ports
+    );
+    test.expect_true(
+        mode_one_pointer_level_four.action_mask ==
+                openswd3::special_modes::
+                    kLegacySpecialModeModeOnePointerActionIncrease &&
+            mode_one_pointer_level_four_state.packed_mode == 8U,
+        "0x44DBC0 level four maps the second sixty-six-pixel bottom column to E330 even without an input flag"
+    );
+
+    openswd3::special_modes::LegacySpecialModeModeOnePointerInputState
+        mode_one_pointer_weight_input;
+    mode_one_pointer_weight_input.input_flags = 8U;
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_pointer_weight_state;
+    mode_one_pointer_weight_state.level = 10U;
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        mode_one_pointer_weight_runtime;
+    LegacyStandardModeForwardNode* mode_one_pointer_weight_player = nullptr;
+    u32 mode_one_pointer_weight_capacity = 0U;
+    FakeModeOneConfirmPorts mode_one_pointer_weight_ports;
+    const auto mode_one_pointer_weight_returned = dispatch_mode_one_pointer(
+        mode_one_pointer_weight_input,
+        mode_one_pointer_weight_state,
+        mode_one_pointer_weight_runtime,
+        mode_one_pointer_weight_player,
+        mode_one_pointer_weight_capacity,
+        mode_one_pointer_weight_ports
+    );
+    test.expect_true(
+        mode_one_pointer_weight_returned.action_mask ==
+                openswd3::special_modes::
+                    kLegacySpecialModeModeOnePointerActionReturnFromWeightLimit &&
+            mode_one_pointer_weight_state.level == 2U &&
+            mode_one_pointer_weight_returned.helper_call_count == 0U,
+        "0x44DBC0 level ten returns to level two when any of the low four normalized input bits is set"
+    );
+
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;
     for (std::size_t index = 0U; index < special_action_set.records.size();
          ++index) {

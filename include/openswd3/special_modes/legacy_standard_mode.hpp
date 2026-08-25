@@ -3247,6 +3247,62 @@ dispatch_legacy_special_mode_mode_one_alternate_input(
     LegacySpecialModeModeOneConfirmPorts& ports
 ) noexcept;
 
+struct LegacySpecialModeModeOnePointerInputState {
+    compat::u32 pointer_x{};
+    compat::u32 pointer_y{};
+    compat::u8 input_flags{};
+    compat::u32 scroll_regions_enabled{};
+    compat::i32 page_retreat_min_y{};
+    compat::i32 page_retreat_max_y{};
+    compat::i32 page_advance_min_y{};
+    compat::i32 page_advance_max_y{};
+};
+
+enum class LegacySpecialModeModeOnePointerInputStatus : compat::u8 {
+    completed,
+    callee_stopped,
+};
+
+enum LegacySpecialModeModeOnePointerInputAction : compat::u32 {
+    kLegacySpecialModeModeOnePointerActionNone = 0U,
+    kLegacySpecialModeModeOnePointerActionExit = 1U << 0U,
+    kLegacySpecialModeModeOnePointerActionSelectMode = 1U << 1U,
+    kLegacySpecialModeModeOnePointerActionSelectRow = 1U << 2U,
+    kLegacySpecialModeModeOnePointerActionAdvance = 1U << 3U,
+    kLegacySpecialModeModeOnePointerActionRetreat = 1U << 4U,
+    kLegacySpecialModeModeOnePointerActionPageAdvance = 1U << 5U,
+    kLegacySpecialModeModeOnePointerActionPageRetreat = 1U << 6U,
+    kLegacySpecialModeModeOnePointerActionDecrease = 1U << 7U,
+    kLegacySpecialModeModeOnePointerActionIncrease = 1U << 8U,
+    kLegacySpecialModeModeOnePointerActionConfirm = 1U << 9U,
+    kLegacySpecialModeModeOnePointerActionReturnFromWeightLimit = 1U << 10U,
+};
+
+struct LegacySpecialModeModeOnePointerInputResult {
+    LegacySpecialModeModeOnePointerInputStatus status{
+        LegacySpecialModeModeOnePointerInputStatus::completed
+    };
+    compat::u32 action_mask{};
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacySpecialModeModeOnePointerInputResult
+dispatch_legacy_special_mode_mode_one_pointer_input(
+    const LegacySpecialModeModeOnePointerInputState& input,
+    LegacySpecialModeModeOneAdvanceState& state,
+    std::span<const compat::u8> maps_payload,
+    LegacySpecialModeRuntimeInitializationState& runtime,
+    LegacyStandardModeForwardNode*& player_record_head,
+    std::span<const compat::u16> empty_mode_record_ids,
+    std::span<LegacyStandardModeForwardNode* const> fixed_slots,
+    std::span<const compat::u32> replacement_masks,
+    const std::array<LegacyGuardianAttributeTarget, 4U>& base_attributes,
+    compat::u32& maximum_weight,
+    compat::u32 sample_owner,
+    LegacySpecialModeModeOneConfirmPorts& ports
+) noexcept;
+
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
     completed,
     mode_mask_out_of_range,
