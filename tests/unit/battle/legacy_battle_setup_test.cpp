@@ -387,6 +387,89 @@ void test_surface_row_offsets_failure_and_wrapped_prefix(
     );
 }
 
+void test_host_surface_fixed_caller_and_failure(openswd3::test::Context& test) {
+    LegacyBattleRenderGeometry geometry;
+    const auto fixed =
+        openswd3::battle::set_legacy_battle_host_surface(geometry, 1920, 1080);
+    test.expect_true(
+        fixed.row_offsets.status == LegacyBattleRowOffsetStatus::completed &&
+            fixed.row_offsets.requested_bytes == 4320U &&
+            fixed.row_offsets.legacy_return_value == 1080U &&
+            fixed.rectangle_published && fixed.legacy_return_value == 1080 &&
+            geometry.surface_width == 1920 && geometry.surface_height == 1080 &&
+            geometry.left == 0 && geometry.top == 0 && geometry.right == 1920 &&
+            geometry.bottom == 1080 &&
+            geometry.surface_row_offsets[1079U] == 0x1F9C80U,
+        "host surface publishes system-metric rows and full rectangle"
+    );
+
+    TestRowOffsetAllocator failed_allocator;
+    failed_allocator.row_offsets = &geometry.surface_row_offsets;
+    failed_allocator.fail = true;
+    const auto failed = openswd3::battle::set_legacy_battle_host_surface(
+        geometry, 800, 600, failed_allocator
+    );
+    test.expect_true(
+        failed.row_offsets.status ==
+                LegacyBattleRowOffsetStatus::allocation_failed &&
+            failed.row_offsets.requested_bytes == 2400U &&
+            failed.row_offsets.legacy_return_value == 0U &&
+            failed_allocator.pointer_was_clear &&
+            geometry.surface_row_offsets == nullptr &&
+            geometry.surface_width == 800 && geometry.surface_height == 600 &&
+            failed.rectangle_published && failed.legacy_return_value == 600 &&
+            geometry.left == 0 && geometry.top == 0 && geometry.right == 800 &&
+            geometry.bottom == 600,
+        "host surface keeps prepublished dimensions and rectangle on failure"
+    );
+}
+
+void test_host_surface_typed_stop_and_nonpositive_dimensions(
+    openswd3::test::Context& test
+) {
+    LegacyBattleRenderGeometry geometry;
+    geometry.left = 11;
+    geometry.top = 22;
+    geometry.right = 33;
+    geometry.bottom = 44;
+
+    TestRowOffsetAllocator wrapped_allocator;
+    wrapped_allocator.row_offsets = &geometry.surface_row_offsets;
+    const i32 wrapped_height = 0x40000001;
+    const auto wrapped = openswd3::battle::set_legacy_battle_host_surface(
+        geometry, 640, wrapped_height, wrapped_allocator
+    );
+    test.expect_true(
+        wrapped.row_offsets.status ==
+                LegacyBattleRowOffsetStatus::write_out_of_range &&
+            wrapped.row_offsets.requested_bytes == 4U &&
+            wrapped.row_offsets.legacy_return_value == 2U &&
+            !wrapped.rectangle_published && wrapped.legacy_return_value == 2 &&
+            geometry.surface_width == 640 &&
+            geometry.surface_height == wrapped_height &&
+            geometry.surface_row_offsets[0U] == 0U && geometry.left == 11 &&
+            geometry.top == 22 && geometry.right == 33 && geometry.bottom == 44,
+        "host surface stops before rectangle at the row write boundary"
+    );
+
+    TestRowOffsetAllocator negative_allocator;
+    negative_allocator.row_offsets = &geometry.surface_row_offsets;
+    const auto negative = openswd3::battle::set_legacy_battle_host_surface(
+        geometry, -5, -7, negative_allocator
+    );
+    test.expect_true(
+        negative.row_offsets.status == LegacyBattleRowOffsetStatus::completed &&
+            negative.row_offsets.requested_bytes == 0xFFFFFFE4U &&
+            negative.row_offsets.legacy_return_value == 0U &&
+            negative.rectangle_published &&
+            negative.legacy_return_value == -7 &&
+            geometry.surface_width == -5 && geometry.surface_height == -7 &&
+            geometry.left == 0 && geometry.top == 0 && geometry.right == -5 &&
+            geometry.bottom == -7,
+        "host surface preserves nonpositive dimensions through both callees"
+    );
+}
+
 void test_render_rectangle_surface_placement(openswd3::test::Context& test) {
     LegacyBattleRenderGeometry geometry{
         .surface_width = 640,
@@ -525,6 +608,8 @@ int main() {
     test_primary_row_offsets_wrapped_allocation_prefix(test);
     test_surface_row_offsets_and_rectangle_consumption(test);
     test_surface_row_offsets_failure_and_wrapped_prefix(test);
+    test_host_surface_fixed_caller_and_failure(test);
+    test_host_surface_typed_stop_and_nonpositive_dimensions(test);
     test_render_rectangle_surface_placement(test);
     test_render_rectangle_wrapping_and_real_callers(test);
 #ifdef OPENSWD3_GAME_DATA_ROOT

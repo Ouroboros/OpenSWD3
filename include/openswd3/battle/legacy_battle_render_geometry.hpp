@@ -43,6 +43,12 @@ struct LegacyBattleRowOffsetResult {
     compat::u32 legacy_return_value{};
 };
 
+struct LegacyBattleHostSurfaceResult {
+    LegacyBattleRowOffsetResult row_offsets{};
+    bool rectangle_published{};
+    compat::i32 legacy_return_value{};
+};
+
 // sub_433E20.
 [[nodiscard]] LegacyBattleRowOffsetResult
 rebuild_legacy_battle_primary_row_offsets(
@@ -73,6 +79,20 @@ rebuild_legacy_battle_surface_row_offsets(
     LegacyBattleRenderGeometry& geometry,
     compat::i32 row_stride,
     compat::i32 row_count
+) noexcept;
+
+// sub_433F30.
+[[nodiscard]] LegacyBattleHostSurfaceResult set_legacy_battle_host_surface(
+    LegacyBattleRenderGeometry& geometry,
+    compat::i32 surface_width,
+    compat::i32 surface_height,
+    LegacyBattleRowOffsetAllocator& allocator
+) noexcept;
+
+[[nodiscard]] LegacyBattleHostSurfaceResult set_legacy_battle_host_surface(
+    LegacyBattleRenderGeometry& geometry,
+    compat::i32 surface_width,
+    compat::i32 surface_height
 ) noexcept;
 
 // sub_4342E0. The final two parameters are dimensions, not absolute edges.

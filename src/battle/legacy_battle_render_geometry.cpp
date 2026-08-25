@@ -152,6 +152,49 @@ LegacyBattleRowOffsetResult rebuild_legacy_battle_surface_row_offsets(
     );
 }
 
+LegacyBattleHostSurfaceResult set_legacy_battle_host_surface(
+    LegacyBattleRenderGeometry& geometry,
+    const compat::i32 surface_width,
+    const compat::i32 surface_height,
+    LegacyBattleRowOffsetAllocator& allocator
+) noexcept {
+    geometry.surface_width = surface_width;
+    geometry.surface_height = surface_height;
+
+    LegacyBattleRowOffsetResult row_offsets =
+        rebuild_legacy_battle_surface_row_offsets(
+            geometry, surface_width, surface_height, allocator
+        );
+    if (row_offsets.status == LegacyBattleRowOffsetStatus::write_out_of_range) {
+        return {
+            .row_offsets = row_offsets,
+            .rectangle_published = false,
+            .legacy_return_value =
+                std::bit_cast<compat::i32>(row_offsets.legacy_return_value),
+        };
+    }
+
+    const compat::i32 bottom = set_legacy_battle_render_rectangle(
+        geometry, 0, 0, surface_width, surface_height
+    );
+    return {
+        .row_offsets = row_offsets,
+        .rectangle_published = true,
+        .legacy_return_value = bottom,
+    };
+}
+
+LegacyBattleHostSurfaceResult set_legacy_battle_host_surface(
+    LegacyBattleRenderGeometry& geometry,
+    const compat::i32 surface_width,
+    const compat::i32 surface_height
+) noexcept {
+    DefaultRowOffsetAllocator allocator;
+    return set_legacy_battle_host_surface(
+        geometry, surface_width, surface_height, allocator
+    );
+}
+
 compat::i32 set_legacy_battle_render_rectangle(
     LegacyBattleRenderGeometry& geometry,
     compat::i32 left,
