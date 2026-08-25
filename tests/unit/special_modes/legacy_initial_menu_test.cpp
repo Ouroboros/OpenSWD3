@@ -18049,6 +18049,182 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44FAF0 preserves the eligibility publication and first slot read when the reused attribute application stops"
     );
 
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        level_one_runtime;
+    level_one_runtime.external_owner = 0x9999U;
+    level_one_runtime.darkened_frame_pixels.assign(2U, 1U);
+    level_one_runtime.working_frame_pixels.assign(2U, 2U);
+    level_one_runtime.workspace_words.fill(0xFFFFFFFFU);
+    level_one_runtime.enabled = 1U;
+    LegacyStandardModeForwardNode level_one_record;
+    level_one_record.release_token = 0x1111U;
+    level_one_runtime.workspace_record_head = &level_one_record;
+    openswd3::special_modes::LegacySpecialModeLevelExitState level_one_state;
+    level_one_state.level = 1U;
+    level_one_state.transition_flags = 3U;
+    FakeSpecialModeRuntimeCleanupPorts level_one_ports;
+    const auto level_one_exit =
+        openswd3::special_modes::exit_legacy_special_mode_level(
+            level_one_state, level_one_runtime, level_one_ports
+        );
+    test.expect_true(
+        level_one_exit.status ==
+                openswd3::special_modes::LegacySpecialModeLevelExitStatus::
+                    completed &&
+            level_one_exit.path ==
+                openswd3::special_modes::LegacySpecialModeLevelExitPath::
+                    close_runtime &&
+            level_one_state.level == 0U && level_one_runtime.enabled == 0U &&
+            level_one_runtime.darkened_frame_pixels.empty() &&
+            level_one_runtime.working_frame_pixels.empty() &&
+            level_one_runtime.workspace_record_head == nullptr &&
+            level_one_exit.release_call_count == 5U &&
+            level_one_exit.released_record_count == 1U,
+        "0x44E9D0 level one decrements to zero, cleans the full runtime, then disables special mode"
+    );
+
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        level_two_runtime;
+    level_two_runtime.darkened_frame_pixels.assign(
+        openswd3::special_modes::kLegacySpecialModeFramePixelCount + 1U, 1U
+    );
+    level_two_runtime.working_frame_pixels.assign(
+        openswd3::special_modes::kLegacySpecialModeFramePixelCount + 1U, 9U
+    );
+    LegacyStandardModeForwardNode level_two_record;
+    level_two_record.release_token = 0x2222U;
+    level_two_runtime.workspace_record_head = &level_two_record;
+    openswd3::special_modes::LegacySpecialModeLevelExitState level_two_state;
+    level_two_state.level = 2U;
+    level_two_state.transition_flags = 3U;
+    FakeSpecialModeRuntimeCleanupPorts level_two_ports;
+    const auto level_two_exit =
+        openswd3::special_modes::exit_legacy_special_mode_level(
+            level_two_state, level_two_runtime, level_two_ports
+        );
+    test.expect_true(
+        level_two_exit.status ==
+                openswd3::special_modes::LegacySpecialModeLevelExitStatus::
+                    completed &&
+            level_two_exit.path ==
+                openswd3::special_modes::LegacySpecialModeLevelExitPath::
+                    restore_parent_frame &&
+            level_two_state.level == 1U &&
+            level_two_state.transition_flags == 1U &&
+            level_two_exit.frame_restored &&
+            level_two_runtime.darkened_frame_pixels.front() == 9U &&
+            level_two_runtime.darkened_frame_pixels
+                    [openswd3::special_modes::
+                         kLegacySpecialModeFramePixelCount -
+                     1U] == 9U &&
+            level_two_runtime.darkened_frame_pixels.back() == 1U &&
+            level_two_runtime.workspace_record_head == nullptr &&
+            level_two_exit.release_call_count == 2U &&
+            level_two_exit.released_record_count == 1U &&
+            level_two_ports.released_values == std::vector<u32>{0x2222U},
+        "0x44E9D0 level two clears workspace records, restores exactly one frame, clears transition bit one, and repeats the empty-chain cleanup"
+    );
+
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        level_change_runtime;
+    FakeSpecialModeRuntimeCleanupPorts level_change_ports;
+    openswd3::special_modes::LegacySpecialModeLevelExitState level_three_state;
+    level_three_state.level = 3U;
+    const auto level_three_exit =
+        openswd3::special_modes::exit_legacy_special_mode_level(
+            level_three_state, level_change_runtime, level_change_ports
+        );
+    openswd3::special_modes::LegacySpecialModeLevelExitState level_four_state;
+    level_four_state.level = 4U;
+    const auto level_four_exit =
+        openswd3::special_modes::exit_legacy_special_mode_level(
+            level_four_state, level_change_runtime, level_change_ports
+        );
+    openswd3::special_modes::LegacySpecialModeLevelExitState level_other_state;
+    level_other_state.level = 7U;
+    const auto level_other_exit =
+        openswd3::special_modes::exit_legacy_special_mode_level(
+            level_other_state, level_change_runtime, level_change_ports
+        );
+    test.expect_true(
+        level_three_state.level == 2U &&
+            level_three_exit.legacy_return_value == 2 &&
+            level_three_exit.path ==
+                openswd3::special_modes::LegacySpecialModeLevelExitPath::
+                    retreat_one_level &&
+            level_four_state.level == 2U &&
+            level_four_exit.legacy_return_value == 3 &&
+            level_four_exit.path ==
+                openswd3::special_modes::LegacySpecialModeLevelExitPath::
+                    fold_level_four_to_two &&
+            level_other_state.level == 7U &&
+            level_other_exit.legacy_return_value == 6 &&
+            level_other_exit.path ==
+                openswd3::special_modes::LegacySpecialModeLevelExitPath::
+                    unchanged,
+        "0x44E9D0 decrements level three, folds level four to two, and returns level minus one without changing other levels"
+    );
+
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        level_two_cycle_runtime;
+    level_two_cycle_runtime.darkened_frame_pixels.assign(1U, 1U);
+    level_two_cycle_runtime.working_frame_pixels.assign(1U, 9U);
+    LegacyStandardModeForwardNode level_two_cycle_record;
+    level_two_cycle_record.next = &level_two_cycle_record;
+    level_two_cycle_record.release_token = 0x3333U;
+    level_two_cycle_runtime.workspace_record_head = &level_two_cycle_record;
+    openswd3::special_modes::LegacySpecialModeLevelExitState
+        level_two_cycle_state;
+    level_two_cycle_state.level = 2U;
+    level_two_cycle_state.transition_flags = 3U;
+    FakeSpecialModeRuntimeCleanupPorts level_two_cycle_ports;
+    const auto level_two_cycle_exit =
+        openswd3::special_modes::exit_legacy_special_mode_level(
+            level_two_cycle_state,
+            level_two_cycle_runtime,
+            level_two_cycle_ports
+        );
+    test.expect_true(
+        level_two_cycle_exit.status ==
+                openswd3::special_modes::LegacySpecialModeLevelExitStatus::
+                    workspace_release_stopped &&
+            level_two_cycle_state.level == 1U &&
+            level_two_cycle_state.transition_flags == 3U &&
+            !level_two_cycle_exit.frame_restored &&
+            level_two_cycle_runtime.darkened_frame_pixels.front() == 1U &&
+            level_two_cycle_exit.release_call_count == 2U &&
+            level_two_cycle_exit.released_record_count == 1U,
+        "0x44E9D0 level two preserves the first cyclic release but stops before frame restoration and flag clearing"
+    );
+
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        level_two_short_runtime;
+    level_two_short_runtime.darkened_frame_pixels.assign(
+        openswd3::special_modes::kLegacySpecialModeFramePixelCount, 1U
+    );
+    level_two_short_runtime.working_frame_pixels.assign(1U, 9U);
+    openswd3::special_modes::LegacySpecialModeLevelExitState
+        level_two_short_state;
+    level_two_short_state.level = 2U;
+    level_two_short_state.transition_flags = 3U;
+    FakeSpecialModeRuntimeCleanupPorts level_two_short_ports;
+    const auto level_two_short_exit =
+        openswd3::special_modes::exit_legacy_special_mode_level(
+            level_two_short_state,
+            level_two_short_runtime,
+            level_two_short_ports
+        );
+    test.expect_true(
+        level_two_short_exit.status ==
+                openswd3::special_modes::LegacySpecialModeLevelExitStatus::
+                    source_frame_out_of_range_stopped &&
+            level_two_short_state.level == 1U &&
+            level_two_short_state.transition_flags == 3U &&
+            !level_two_short_exit.frame_restored &&
+            level_two_short_runtime.darkened_frame_pixels.front() == 1U,
+        "0x44E9D0 level two stops at the frame source read after completing the first empty workspace cleanup"
+    );
+
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;
     for (std::size_t index = 0U; index < special_action_set.records.size();
          ++index) {

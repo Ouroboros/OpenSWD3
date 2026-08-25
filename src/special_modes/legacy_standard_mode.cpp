@@ -5683,6 +5683,89 @@ build_legacy_special_mode_workspace_records(
     return result;
 }
 
+LegacySpecialModeLevelExitResult exit_legacy_special_mode_level(
+    LegacySpecialModeLevelExitState& state,
+    LegacySpecialModeRuntimeInitializationState& runtime,
+    LegacySpecialModeRuntimeCleanupPorts& ports
+) noexcept {
+    LegacySpecialModeLevelExitResult result;
+    result.legacy_return_value = static_cast<compat::i32>(state.level - 1U);
+    if (state.level == 1U) {
+        --state.level;
+        result.path = LegacySpecialModeLevelExitPath::close_runtime;
+        const LegacySpecialModeRuntimeCleanupResult cleanup =
+            cleanup_legacy_special_mode_runtime(runtime, ports);
+        result.legacy_return_value = cleanup.legacy_return_value;
+        result.release_call_count = cleanup.release_call_count;
+        result.released_record_count = cleanup.released_record_count;
+        if (cleanup.status !=
+            LegacySpecialModeRuntimeCleanupStatus::completed) {
+            result.status =
+                LegacySpecialModeLevelExitStatus::runtime_cleanup_stopped;
+            return result;
+        }
+        runtime.enabled = 0U;
+        return result;
+    }
+    if (state.level == 2U) {
+        --state.level;
+        result.path = LegacySpecialModeLevelExitPath::restore_parent_frame;
+        const LegacyPlayerItemChainReleaseResult first_release =
+            release_legacy_special_mode_workspace_records(
+                runtime.workspace_record_head, ports
+            );
+        result.release_call_count += first_release.release_call_count;
+        result.released_record_count += first_release.released_node_count;
+        if (first_release.status !=
+            LegacyPlayerItemChainReleaseStatus::completed) {
+            result.status =
+                LegacySpecialModeLevelExitStatus::workspace_release_stopped;
+            return result;
+        }
+        if (runtime.working_frame_pixels.size() <
+            kLegacySpecialModeFramePixelCount) {
+            result.status = LegacySpecialModeLevelExitStatus::
+                source_frame_out_of_range_stopped;
+            return result;
+        }
+        if (runtime.darkened_frame_pixels.size() <
+            kLegacySpecialModeFramePixelCount) {
+            result.status = LegacySpecialModeLevelExitStatus::
+                destination_frame_out_of_range_stopped;
+            return result;
+        }
+        std::copy_n(
+            runtime.working_frame_pixels.begin(),
+            kLegacySpecialModeFramePixelCount,
+            runtime.darkened_frame_pixels.begin()
+        );
+        result.frame_restored = true;
+        state.transition_flags &= 0xFFFFFFFDU;
+        const LegacyPlayerItemChainReleaseResult second_release =
+            release_legacy_player_item_chain(
+                runtime.workspace_record_head, ports
+            );
+        result.release_call_count += second_release.release_call_count;
+        result.released_record_count += second_release.released_node_count;
+        if (second_release.status !=
+            LegacyPlayerItemChainReleaseStatus::completed) {
+            result.status =
+                LegacySpecialModeLevelExitStatus::workspace_release_stopped;
+        }
+        return result;
+    }
+    if (state.level == 3U) {
+        --state.level;
+        result.path = LegacySpecialModeLevelExitPath::retreat_one_level;
+        return result;
+    }
+    if (state.level == 4U) {
+        state.level = 2U;
+        result.path = LegacySpecialModeLevelExitPath::fold_level_four_to_two;
+    }
+    return result;
+}
+
 static LegacyGuardianAttributeTarget load_guardian_attribute_target(
     const std::span<const compat::u8> bytes
 ) noexcept {

@@ -2768,6 +2768,46 @@ compare_legacy_special_mode_candidate_attributes(
     LegacySpecialModeAttributeComparisonPorts& ports
 ) noexcept;
 
+struct LegacySpecialModeLevelExitState {
+    compat::u32 level{};
+    compat::u32 transition_flags{};
+};
+
+enum class LegacySpecialModeLevelExitStatus : compat::u8 {
+    completed,
+    runtime_cleanup_stopped,
+    workspace_release_stopped,
+    source_frame_out_of_range_stopped,
+    destination_frame_out_of_range_stopped,
+};
+
+enum class LegacySpecialModeLevelExitPath : compat::u8 {
+    unchanged,
+    close_runtime,
+    restore_parent_frame,
+    retreat_one_level,
+    fold_level_four_to_two,
+};
+
+struct LegacySpecialModeLevelExitResult {
+    LegacySpecialModeLevelExitStatus status{
+        LegacySpecialModeLevelExitStatus::completed
+    };
+    LegacySpecialModeLevelExitPath path{
+        LegacySpecialModeLevelExitPath::unchanged
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 release_call_count{};
+    compat::u32 released_record_count{};
+    bool frame_restored{};
+};
+
+[[nodiscard]] LegacySpecialModeLevelExitResult exit_legacy_special_mode_level(
+    LegacySpecialModeLevelExitState& state,
+    LegacySpecialModeRuntimeInitializationState& runtime,
+    LegacySpecialModeRuntimeCleanupPorts& ports
+) noexcept;
+
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
     completed,
     mode_mask_out_of_range,
