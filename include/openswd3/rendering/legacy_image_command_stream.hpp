@@ -39,6 +39,32 @@ struct LegacyImageCommandStreamResult {
     std::vector<compat::u8> bytes{};
 };
 
+enum class LegacyImagePointQueryStatus : compat::u8 {
+    transparent,
+    visible,
+    source_exhausted,
+};
+
+struct LegacyImagePointQueryResult {
+    LegacyImagePointQueryStatus status{
+        LegacyImagePointQueryStatus::source_exhausted
+    };
+    compat::u32 return_value{};
+};
+
+// sub_433AA0. Width and height come from the owning legacy surface record,
+// while command_stream starts at that record's separately owned data pointer.
+[[nodiscard]] LegacyImagePointQueryResult
+query_legacy_image_command_stream_point(
+    std::span<const compat::u8> command_stream,
+    compat::u16 width,
+    compat::u16 height,
+    compat::i32 point_x,
+    compat::i32 point_y,
+    compat::i32 origin_x,
+    compat::i32 origin_y
+) noexcept;
+
 // sub_4014F0. A format value of 16 selects the word path; every other value
 // follows the original byte path and is copied unchanged into the header.
 [[nodiscard]] LegacyImageCommandStreamResult encode_legacy_image_command_stream(

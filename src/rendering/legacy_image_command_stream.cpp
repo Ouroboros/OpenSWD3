@@ -1,14 +1,17 @@
 #include "openswd3/rendering/legacy_image_command_stream.hpp"
 
 #include <array>
+#include <bit>
 #include <cstddef>
 #include <limits>
 
 namespace openswd3::rendering {
 namespace {
 
+using compat::i32;
 using compat::u8;
 using compat::u16;
+using compat::u32;
 
 constexpr u16 kCommandTagMask = 0xC000U;
 constexpr u16 kCommandCountMask = 0x3FFFU;
@@ -36,6 +39,44 @@ constexpr std::size_t kEmbeddedPaletteBytes = 512U;
 ) noexcept {
     std::size_t cursor = offset;
     return read_u16(bytes, cursor, value);
+}
+
+struct LegacyPointQueryCursor {
+    u32 offset{};
+    bool representable{true};
+
+    void advance(const u32 byte_count) noexcept {
+        if (!representable) {
+            return;
+        }
+        const u32 next = offset + byte_count;
+        if (next < offset) {
+            representable = false;
+        }
+        offset = next;
+    }
+
+    [[nodiscard]] bool
+    read(const std::span<const u8> bytes, u16& value) const noexcept {
+        return representable && read_u16_at(bytes, offset, value);
+    }
+};
+
+[[nodiscard]] i32 signed_bits(const u32 value) noexcept {
+    return std::bit_cast<i32>(value);
+}
+
+[[nodiscard]] i32 wrapping_subtract(const i32 left, const i32 right) noexcept {
+    return signed_bits(std::bit_cast<u32>(left) - std::bit_cast<u32>(right));
+}
+
+[[nodiscard]] bool inclusive_run_contains(
+    const i32 point, const u32 run_start, const u16 run_length
+) noexcept {
+    if (point < signed_bits(run_start)) {
+        return false;
+    }
+    return point <= signed_bits(run_start + run_length);
 }
 
 void write_u16_at(
@@ -454,6 +495,122 @@ decode_legacy_image_command_stream(const std::span<const u8> command_stream) {
         ? LegacyImageCommandStreamStatus::completed
         : LegacyImageCommandStreamStatus::pixel_count_mismatch;
     return result;
+}
+
+LegacyImagePointQueryResult query_legacy_image_command_stream_point(
+    const std::span<const u8> command_stream,
+    const u16 width,
+    const u16 height,
+    const i32 point_x,
+    const i32 point_y,
+    const i32 origin_x,
+    const i32 origin_y
+) noexcept {
+    constexpr LegacyImagePointQueryResult kTransparent{
+        LegacyImagePointQueryStatus::transparent, 0U
+    };
+    constexpr LegacyImagePointQueryResult kVisible{
+        LegacyImagePointQueryStatus::visible, 1U
+    };
+    constexpr LegacyImagePointQueryResult kSourceExhausted{
+        LegacyImagePointQueryStatus::source_exhausted, 0U
+    };
+
+    const i32 local_x = wrapping_subtract(point_x, origin_x);
+    const i32 local_y = wrapping_subtract(point_y, origin_y);
+    if (local_x < 0) {
+        return kTransparent;
+    }
+    if (local_y < 0 && local_x >= static_cast<i32>(width)) {
+        return kTransparent;
+    }
+    if (local_y >= static_cast<i32>(height)) {
+        return kTransparent;
+    }
+
+    LegacyPointQueryCursor cursor;
+    u16 magic{};
+    if (!cursor.read(command_stream, magic)) {
+        return kSourceExhausted;
+    }
+    if (magic != kLegacyImageCommandStreamMagic) {
+        return kTransparent;
+    }
+    cursor.advance(static_cast<u32>(kHeaderBytes));
+
+    u32 row_index{};
+    if (height > 0U) {
+        while (row_index < height) {
+            if (row_index == std::bit_cast<u32>(local_y)) {
+                cursor.advance(2U);
+                break;
+            }
+
+            u16 row_header{};
+            if (!cursor.read(command_stream, row_header)) {
+                return kSourceExhausted;
+            }
+            const u32 row_words = (row_header >> 1U) & 0x3FFFU;
+            ++row_index;
+            cursor.advance(row_words * 2U);
+        }
+    }
+
+    u16 command{};
+    if (!cursor.read(command_stream, command)) {
+        return kSourceExhausted;
+    }
+    if (command == 0U) {
+        return kTransparent;
+    }
+    if (width == 0U) {
+        return kTransparent;
+    }
+
+    u32 scan_x{};
+    while (true) {
+        if (!cursor.read(command_stream, command)) {
+            return kSourceExhausted;
+        }
+
+        const u8 high_byte = static_cast<u8>(command >> 8U);
+        if ((high_byte & 0xC0U) != 0U) {
+            const u32 adjusted = static_cast<u32>(command) + 0x4000U;
+            const u16 run_length = static_cast<u16>(adjusted & 0xFFFFU);
+            if (inclusive_run_contains(local_x, scan_x, run_length)) {
+                return kTransparent;
+            }
+            scan_x += run_length;
+            cursor.advance(2U);
+        } else if ((high_byte & 0x80U) != 0U) {
+            const u32 adjusted = static_cast<u32>(command) + 0x8000U;
+            const u16 run_length = static_cast<u16>(adjusted & 0xFFFFU);
+            if (inclusive_run_contains(local_x, scan_x, run_length)) {
+                return kTransparent;
+            }
+            scan_x += run_length;
+            cursor.advance(2U);
+        } else if ((high_byte & 0x40U) != 0U) {
+            const u32 adjusted = static_cast<u32>(command) - 0x4000U;
+            const u16 run_length = static_cast<u16>(adjusted & 0xFFFFU);
+            if (inclusive_run_contains(local_x, scan_x, run_length)) {
+                return kTransparent;
+            }
+            scan_x += run_length;
+            cursor.advance(2U);
+        } else {
+            const u16 run_length = command;
+            if (inclusive_run_contains(local_x, scan_x, run_length)) {
+                return kVisible;
+            }
+            scan_x += run_length;
+            cursor.advance(static_cast<u32>(run_length) * 2U + 2U);
+        }
+
+        if (signed_bits(scan_x) >= static_cast<i32>(width)) {
+            return kTransparent;
+        }
+    }
 }
 
 LegacyImageCommandStreamStatus

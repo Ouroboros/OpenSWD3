@@ -1,6 +1,7 @@
 #include "test.hpp"
 
 #include "openswd3/asset_runtime/legacy_tsw_archive.hpp"
+#include "openswd3/rendering/legacy_image_command_stream.hpp"
 #include "openswd3/resource_io/legacy_lzo1x.hpp"
 
 #include <algorithm>
@@ -10,6 +11,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <span>
 #include <string>
 #include <system_error>
@@ -24,9 +26,11 @@ namespace {
 using openswd3::asset_runtime::LegacyTswArchive;
 using openswd3::asset_runtime::LegacyTswFrameStatus;
 using openswd3::asset_runtime::LegacyTswOpenStatus;
+using openswd3::compat::i32;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
 using openswd3::compat::u8;
+using openswd3::rendering::LegacyImagePointQueryStatus;
 using openswd3::resource_io::LegacyLzo1xStatus;
 
 constexpr std::size_t kIndexOffset = 0x1CU;
@@ -363,6 +367,101 @@ void test_safety_boundaries(openswd3::test::Context& test) {
     );
 }
 
+struct RealQuerySample {
+    i32 x{};
+    i32 y{};
+    LegacyImagePointQueryStatus expected{
+        LegacyImagePointQueryStatus::transparent
+    };
+};
+
+struct RealQuerySamples {
+    std::optional<RealQuerySample> transparent;
+    std::optional<RealQuerySample> visible;
+};
+
+[[nodiscard]] bool read_stream_u16(
+    const std::span<const u8> stream, const std::size_t offset, u16& value
+) noexcept {
+    if (offset > stream.size() || stream.size() - offset < 2U) {
+        return false;
+    }
+    value = static_cast<u16>(
+        static_cast<u16>(stream[offset]) |
+        static_cast<u16>(static_cast<u16>(stream[offset + 1U]) << 8U)
+    );
+    return true;
+}
+
+[[nodiscard]] RealQuerySamples find_real_query_samples(
+    const std::span<const u8> stream, const u16 width, const u16 height
+) noexcept {
+    RealQuerySamples samples;
+    std::size_t row_offset = 8U;
+    for (u16 y = 0U; y < height; ++y) {
+        u16 row_header{};
+        if (!read_stream_u16(stream, row_offset, row_header)) {
+            return samples;
+        }
+        const std::size_t row_bytes = row_header & 0x3FFFU;
+        if (row_bytes < 2U || row_bytes > stream.size() - row_offset) {
+            return samples;
+        }
+        const std::size_t row_end = row_offset + row_bytes;
+        std::size_t command_offset = row_offset + 2U;
+        u32 x{};
+        bool literal_is_query_compatible = true;
+        while (command_offset < row_end) {
+            u16 command{};
+            if (!read_stream_u16(stream, command_offset, command)) {
+                return samples;
+            }
+            command_offset += 2U;
+            if (command == 0U) {
+                break;
+            }
+
+            const u16 run = command & 0x3FFFU;
+            const u16 tag = command & 0xC000U;
+            if (tag == 0U) {
+                if (!samples.visible.has_value() &&
+                    literal_is_query_compatible && run >= 2U &&
+                    x + 1U < width) {
+                    samples.visible = RealQuerySample{
+                        static_cast<i32>(x + 1U),
+                        static_cast<i32>(y),
+                        LegacyImagePointQueryStatus::visible,
+                    };
+                }
+                const std::size_t payload_bytes =
+                    static_cast<std::size_t>(run) * 2U;
+                if (payload_bytes > row_end - command_offset) {
+                    return samples;
+                }
+                command_offset += payload_bytes;
+            } else {
+                if (!samples.transparent.has_value() && run >= 2U &&
+                    x + 1U < width) {
+                    samples.transparent = RealQuerySample{
+                        static_cast<i32>(x + 1U),
+                        static_cast<i32>(y),
+                        LegacyImagePointQueryStatus::transparent,
+                    };
+                }
+                if (tag != 0xC000U) {
+                    literal_is_query_compatible = false;
+                }
+            }
+            x += run;
+        }
+        row_offset = row_end;
+        if (samples.transparent.has_value() && samples.visible.has_value()) {
+            return samples;
+        }
+    }
+    return samples;
+}
+
 struct RealFrameExpectation {
     const char* archive_name;
     u16 storage_bpp;
@@ -384,6 +483,8 @@ constexpr std::array<RealFrameExpectation, 6> kRealFrames{{
 void test_real_archives(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
+    bool saw_transparent_sample = false;
+    bool saw_visible_sample = false;
     for (const RealFrameExpectation& expected : kRealFrames) {
         LegacyTswArchive archive;
         test.expect_equal(
@@ -445,7 +546,41 @@ void test_real_archives(
             expected.fnv1a,
             "real decompressed bytes match evidence"
         );
+
+        if (expected.storage_bpp == 16U) {
+            const RealQuerySamples samples = find_real_query_samples(
+                loaded.frame.command_stream, expected.width, expected.height
+            );
+            saw_transparent_sample =
+                saw_transparent_sample || samples.transparent.has_value();
+            saw_visible_sample =
+                saw_visible_sample || samples.visible.has_value();
+            for (const auto& sample : {samples.transparent, samples.visible}) {
+                if (!sample.has_value()) {
+                    continue;
+                }
+                test.expect_equal(
+                    openswd3::rendering::
+                        query_legacy_image_command_stream_point(
+                            loaded.frame.command_stream,
+                            expected.width,
+                            expected.height,
+                            sample->x,
+                            sample->y,
+                            0,
+                            0
+                        )
+                            .status,
+                    sample->expected,
+                    "real word TSW query matches independent run sample"
+                );
+            }
+        }
     }
+    test.expect_true(
+        saw_transparent_sample && saw_visible_sample,
+        "real word TSW frames cover independent tagged and literal samples"
+    );
 }
 
 }  // namespace

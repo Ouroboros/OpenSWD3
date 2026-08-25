@@ -6,7 +6,8 @@ from collections import Counter
 from pathlib import Path
 
 RESEARCH_ROOT = Path(__file__).resolve().parents[1]
-INVENTORY_ROOT = RESEARCH_ROOT / "04-reverse-engineering" / "inventory"
+REVERSE_ENGINEERING_ROOT = RESEARCH_ROOT / "04-reverse-engineering"
+INVENTORY_ROOT = REVERSE_ENGINEERING_ROOT / "inventory"
 OWNERSHIP_INPUT = INVENTORY_ROOT / "module-function-ownership.tsv"
 OUTPUT = INVENTORY_ROOT / "battle-function-workpack.tsv"
 EXPECTED_CANDIDATE_COUNT = 422
@@ -34,7 +35,12 @@ ALLOWED_CLOSURE_STATUSES = {
 
 # Add an entry only after the complete authoritative LST body and every external
 # FUNCTION CHUNK have been audited, implemented, tested, evidenced and committed.
-CLOSURES: dict[str, tuple[str, str]] = {}
+CLOSURES: dict[str, tuple[str, str]] = {
+    "0x00433AA0": (
+        "platform_adapted",
+        "evidence/battle-image-point-query-00433aa0.md",
+    ),
+}
 
 
 def address_value(value: str) -> int:
@@ -101,6 +107,18 @@ def main() -> None:
             )
         if closure_status != "pending_audit" and not closure_evidence:
             raise SystemExit(f"closed entry lacks evidence: {row['address']}")
+        if closure_evidence:
+            evidence_path = (REVERSE_ENGINEERING_ROOT / closure_evidence).resolve()
+            if REVERSE_ENGINEERING_ROOT.resolve() not in evidence_path.parents:
+                raise SystemExit(
+                    f"closure evidence escapes reverse-engineering root: "
+                    f"{row['address']}"
+                )
+            if not evidence_path.is_file():
+                raise SystemExit(
+                    f"closure evidence does not exist for {row['address']}: "
+                    f"{closure_evidence}"
+                )
         output_rows.append(
             (
                 audit_order,

@@ -15,6 +15,7 @@ namespace {
 using openswd3::compat::u8;
 using openswd3::compat::u16;
 using openswd3::rendering::LegacyImageCommandStreamStatus;
+using openswd3::rendering::LegacyImagePointQueryStatus;
 using openswd3::rendering::LegacyPixelConversionState;
 using openswd3::rendering::LegacyPixelMasks;
 
@@ -291,6 +292,184 @@ void test_indexed_palette_conversion(openswd3::test::Context& test) {
     );
 }
 
+void test_point_visibility_query(openswd3::test::Context& test) {
+    const std::vector<u8> stream{
+        0xFFU, 0xFFU, 0x06U, 0x00U, 0x01U, 0x00U, 0x10U, 0x00U,
+        0x0EU, 0x00U, 0x02U, 0xC0U, 0x02U, 0x00U, 0x11U, 0x11U,
+        0x22U, 0x22U, 0x02U, 0xC0U, 0x00U, 0x00U, 0x00U, 0x00U,
+    };
+    const auto query = [&](const int x, const int y) {
+        return openswd3::rendering::query_legacy_image_command_stream_point(
+            stream, 6U, 1U, x + 10, y + 20, 10, 20
+        );
+    };
+
+    test.expect_equal(
+        query(0, 0).status,
+        LegacyImagePointQueryStatus::transparent,
+        "tagged run is transparent at its first coordinate"
+    );
+    test.expect_equal(
+        query(2, 0).status,
+        LegacyImagePointQueryStatus::transparent,
+        "tagged run preserves the original inclusive upper coordinate"
+    );
+    test.expect_equal(
+        query(3, 0).return_value,
+        1U,
+        "literal run reports a visible interior coordinate"
+    );
+    test.expect_equal(
+        query(4, 0).status,
+        LegacyImagePointQueryStatus::visible,
+        "literal run preserves the original inclusive upper coordinate"
+    );
+    test.expect_equal(
+        query(5, 0).return_value, 0U, "trailing tagged run is transparent"
+    );
+
+    const std::array<u8, 0> empty{};
+    test.expect_equal(
+        openswd3::rendering::query_legacy_image_command_stream_point(
+            empty, 6U, 1U, -1, 0, 0, 0
+        )
+            .status,
+        LegacyImagePointQueryStatus::transparent,
+        "negative local X returns before reading the command stream"
+    );
+    test.expect_equal(
+        openswd3::rendering::query_legacy_image_command_stream_point(
+            empty, 6U, 1U, 6, -1, 0, 0
+        )
+            .status,
+        LegacyImagePointQueryStatus::transparent,
+        "negative local Y and X at width return before reading the stream"
+    );
+    test.expect_equal(
+        openswd3::rendering::query_legacy_image_command_stream_point(
+            empty, 6U, 1U, 0, 1, 0, 0
+        )
+            .status,
+        LegacyImagePointQueryStatus::transparent,
+        "local Y at height returns before reading the command stream"
+    );
+    test.expect_equal(
+        openswd3::rendering::query_legacy_image_command_stream_point(
+            empty, 6U, 1U, 0, 0, 0, 0
+        )
+            .status,
+        LegacyImagePointQueryStatus::source_exhausted,
+        "valid coordinates stop at the original magic read"
+    );
+
+    const std::vector<u8> negative_row_stream{
+        0xFFU,
+        0xFFU,
+        0x01U,
+        0x00U,
+        0x01U,
+        0x00U,
+        0x10U,
+        0x00U,
+        0x04U,
+        0x00U,
+        0x00U,
+        0x00U,
+        0x01U,
+        0x00U,
+        0x34U,
+        0x12U,
+        0x00U,
+        0x00U,
+    };
+    const auto negative_row =
+        openswd3::rendering::query_legacy_image_command_stream_point(
+            negative_row_stream, 1U, 1U, 0, -1, 0, 0
+        );
+    test.expect_true(
+        negative_row.status == LegacyImagePointQueryStatus::visible &&
+            negative_row.return_value == 1U,
+        "negative local Y preserves interpretation after the row directory"
+    );
+
+    const std::vector<u8> two_rows{
+        0xFFU, 0xFFU, 0x01U, 0x00U, 0x02U, 0x00U, 0x10U, 0x00U,
+        0x04U, 0x00U, 0x01U, 0xC0U, 0x08U, 0x00U, 0x01U, 0x00U,
+        0x78U, 0x56U, 0x00U, 0x00U, 0x00U, 0x00U,
+    };
+    test.expect_equal(
+        openswd3::rendering::query_legacy_image_command_stream_point(
+            two_rows, 1U, 2U, 0, 0, 0, 0
+        )
+            .status,
+        LegacyImagePointQueryStatus::transparent,
+        "first row selects its tagged run"
+    );
+    test.expect_equal(
+        openswd3::rendering::query_legacy_image_command_stream_point(
+            two_rows, 1U, 2U, 0, 1, 0, 0
+        )
+            .status,
+        LegacyImagePointQueryStatus::visible,
+        "row-directory word lengths select the requested second row"
+    );
+
+    for (const u16 tagged_command : {u16{0x8002U}, u16{0x4002U}}) {
+        std::vector<u8> tagged_bug = stream;
+        tagged_bug[10U] = static_cast<u8>(tagged_command & 0x00FFU);
+        tagged_bug[11U] = static_cast<u8>(tagged_command >> 8U);
+        test.expect_equal(
+            openswd3::rendering::query_legacy_image_command_stream_point(
+                tagged_bug, 6U, 1U, 3, 0, 0, 0
+            )
+                .status,
+            LegacyImagePointQueryStatus::transparent,
+            "combined high-tag test preserves the original oversized run"
+        );
+    }
+
+    const std::vector<u8> payload_not_read{
+        0xFFU,
+        0xFFU,
+        0x02U,
+        0x00U,
+        0x01U,
+        0x00U,
+        0x10U,
+        0x00U,
+        0x06U,
+        0x00U,
+        0x01U,
+        0x00U,
+    };
+    test.expect_equal(
+        openswd3::rendering::query_legacy_image_command_stream_point(
+            payload_not_read, 2U, 1U, 0, 0, 0, 0
+        )
+            .status,
+        LegacyImagePointQueryStatus::visible,
+        "visible literal coordinate does not read the literal payload"
+    );
+    test.expect_equal(
+        openswd3::rendering::query_legacy_image_command_stream_point(
+            payload_not_read, 2U, 1U, 2, 0, 0, 0
+        )
+            .status,
+        LegacyImagePointQueryStatus::source_exhausted,
+        "short source stops only when the next command word is read"
+    );
+
+    const std::array<u8, 2> magic_only{0xFFU, 0xFFU};
+    test.expect_equal(
+        openswd3::rendering::query_legacy_image_command_stream_point(
+            magic_only, 0U, 1U, 0, 0, 0, 0
+        )
+            .status,
+        LegacyImagePointQueryStatus::source_exhausted,
+        "zero width is checked only after the first row command read"
+    );
+}
+
 void test_boundaries(openswd3::test::Context& test) {
     const std::array<u8, 8> invalid_magic{
         0U,
@@ -481,6 +660,7 @@ int main(const int argument_count, char** arguments) {
     test_row_flag_quirk(test);
     test_literal_pixel_conversion(test);
     test_indexed_palette_conversion(test);
+    test_point_visibility_query(test);
     test_boundaries(test);
     test.expect_true(
         argument_count == 1 || argument_count == 2,
