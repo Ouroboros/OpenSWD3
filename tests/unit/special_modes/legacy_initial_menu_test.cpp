@@ -797,6 +797,34 @@ public:
     std::vector<u32> queried_member_ids;
 };
 
+class FakeAttributeComparisonPorts final
+    : public openswd3::special_modes::
+          LegacySpecialModeAttributeComparisonPorts {
+public:
+    bool is_party_member_present(const u32 member_id) noexcept override {
+        queried_member_ids.push_back(member_id);
+        return present[static_cast<std::size_t>(member_id - 0x1EU)];
+    }
+    std::optional<i16>
+    load_temporary_attribute_sign(const u16 template_key) noexcept override {
+        loaded_template_keys.push_back(template_key);
+        if (loaded_template_keys.size() == unavailable_at_call) {
+            return std::nullopt;
+        }
+        return 0;
+    }
+    i32 release_temporary_attributes() noexcept override {
+        ++release_count;
+        return 0;
+    }
+
+    std::array<bool, 4U> present{};
+    std::size_t unavailable_at_call{std::numeric_limits<std::size_t>::max()};
+    u32 release_count{};
+    std::vector<u32> queried_member_ids;
+    std::vector<u16> loaded_template_keys;
+};
+
 class FakeChainClonePorts final
     : public openswd3::special_modes::LegacyStandardModeRecordClonePorts {
 public:
@@ -17852,6 +17880,173 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             workspace_cycle.skipped_record_count == 1U &&
             workspace_cycle_sentinel.next == &workspace_source_cycle,
         "0x44F800 preserves the first skipped source visit before stopping when the source node repeats"
+    );
+
+    const auto write_raw_u16 = [](LegacyStandardModeForwardNode& record,
+                                  const std::size_t offset,
+                                  const u16 value) {
+        record.record_bytes[offset] = static_cast<u8>(value);
+        record.record_bytes[offset + 1U] = static_cast<u8>(value >> 8U);
+    };
+    const auto configure_attribute_source =
+        [&write_raw_u16](
+            LegacyStandardModeForwardNode& record,
+            const u16 template_key,
+            const std::array<u16, 5U> values
+        ) {
+            write_raw_u16(record, 0x4AU, template_key);
+            write_raw_u16(record, 0x5EU, 0U);
+            write_raw_u16(record, 0x48U, 0U);
+            write_raw_u16(record, 0x34U, values[0U]);
+            write_raw_u16(record, 0x36U, values[1U]);
+            write_raw_u16(record, 0x38U, values[2U]);
+            write_raw_u16(record, 0x30U, values[3U]);
+            write_raw_u16(record, 0x32U, values[4U]);
+        };
+    LegacyStandardModeForwardNode comparison_zero_record;
+    configure_attribute_source(
+        comparison_zero_record, 0U, {0U, 0U, 0U, 0U, 0U}
+    );
+    LegacyStandardModeForwardNode comparison_current_record;
+    configure_attribute_source(
+        comparison_current_record, 0x100U, {10U, 20U, 30U, 40U, 50U}
+    );
+    LegacyStandardModeForwardNode comparison_candidate;
+    comparison_candidate.filter_flags = 1U;
+    comparison_candidate.record_bytes[0x46U] = 0U;
+    comparison_candidate.record_bytes[0x47U] = 0x80U;
+    configure_attribute_source(
+        comparison_candidate, 0x200U, {15U, 25U, 35U, 45U, 55U}
+    );
+    std::array<LegacyStandardModeForwardNode*, 64U> comparison_slots{};
+    comparison_slots.fill(&comparison_zero_record);
+    comparison_slots[0U] = &comparison_current_record;
+    const std::array<u32, 11U> comparison_masks{
+        1U, 2U, 4U, 8U, 0x10U, 0x20U, 0x40U, 0x80U, 0x100U, 0x200U, 0x400U
+    };
+    std::array<openswd3::special_modes::LegacyGuardianAttributeTarget, 4U>
+        comparison_bases{};
+    FakeAttributeComparisonPorts comparison_ports;
+    comparison_ports.present[0U] = true;
+    const auto attribute_comparison = openswd3::special_modes::
+        compare_legacy_special_mode_candidate_attributes(
+            comparison_bases,
+            comparison_slots,
+            comparison_masks,
+            comparison_candidate,
+            comparison_ports
+        );
+    test.expect_true(
+        attribute_comparison.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeAttributeComparisonStatus::completed &&
+            attribute_comparison.members[0U].candidate_category_matches == 1U &&
+            attribute_comparison.members[0U].values ==
+                std::array<i32, 3U>{10, 10, 5} &&
+            attribute_comparison.members[1U].candidate_category_matches == 0U &&
+            attribute_comparison.members[1U].values ==
+                std::array<i32, 3U>{0, 0, 0} &&
+            attribute_comparison.party_presence_query_count == 4U &&
+            attribute_comparison.fixed_slot_read_count == 26U &&
+            attribute_comparison.attribute_application_count == 27U &&
+            attribute_comparison.completed_member_count == 1U &&
+            comparison_ports.release_count == 27U &&
+            comparison_ports.queried_member_ids ==
+                std::vector<u32>{0x1EU, 0x1FU, 0x20U, 0x21U} &&
+            comparison_ports.loaded_template_keys.front() == 0x100U &&
+            comparison_ports.loaded_template_keys[16U] == 0x200U,
+        "0x44FAF0 compares sixteen current slots with eleven candidate-or-current replacements and publishes the three signed attribute deltas"
+    );
+
+    LegacyStandardModeForwardNode comparison_bit_fifteen_candidate =
+        comparison_candidate;
+    comparison_bit_fifteen_candidate.filter_flags = 0x8000U;
+    std::array<u32, 11U> comparison_bit_fifteen_masks = comparison_masks;
+    comparison_bit_fifteen_masks[0U] = 0x8000U;
+    FakeAttributeComparisonPorts comparison_bit_fifteen_ports;
+    comparison_bit_fifteen_ports.present[0U] = true;
+    const auto comparison_bit_fifteen = openswd3::special_modes::
+        compare_legacy_special_mode_candidate_attributes(
+            comparison_bases,
+            comparison_slots,
+            comparison_bit_fifteen_masks,
+            comparison_bit_fifteen_candidate,
+            comparison_bit_fifteen_ports
+        );
+    test.expect_true(
+        comparison_bit_fifteen.members[0U].values ==
+                std::array<i32, 3U>{0, 0, 0} &&
+            comparison_bit_fifteen_ports.loaded_template_keys[16U] == 0x100U,
+        "0x44FAF0 clears candidate bit fifteen after masking, so a replacement mask containing bit fifteen cannot match"
+    );
+
+    FakeAttributeComparisonPorts short_mask_comparison_ports;
+    short_mask_comparison_ports.present[0U] = true;
+    const auto short_mask_comparison = openswd3::special_modes::
+        compare_legacy_special_mode_candidate_attributes(
+            comparison_bases,
+            comparison_slots,
+            std::span<const u32>(comparison_masks).first(10U),
+            comparison_candidate,
+            short_mask_comparison_ports
+        );
+    test.expect_true(
+        short_mask_comparison.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeAttributeComparisonStatus::
+                        replacement_mask_table_out_of_range_stopped &&
+            short_mask_comparison.members[0U].candidate_category_matches ==
+                1U &&
+            short_mask_comparison.fixed_slot_read_count == 25U &&
+            short_mask_comparison.attribute_application_count == 26U &&
+            short_mask_comparison.completed_member_count == 0U,
+        "0x44FAF0 preserves the current-slot and first ten replacement applications before stopping at a short replacement-mask table"
+    );
+
+    FakeAttributeComparisonPorts short_slot_comparison_ports;
+    short_slot_comparison_ports.present[0U] = true;
+    const auto short_slot_comparison = openswd3::special_modes::
+        compare_legacy_special_mode_candidate_attributes(
+            comparison_bases,
+            std::span<LegacyStandardModeForwardNode* const>{},
+            comparison_masks,
+            comparison_candidate,
+            short_slot_comparison_ports
+        );
+    test.expect_true(
+        short_slot_comparison.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeAttributeComparisonStatus::
+                        fixed_slot_table_out_of_range_stopped &&
+            short_slot_comparison.members[0U].candidate_category_matches ==
+                1U &&
+            short_slot_comparison.fixed_slot_read_count == 0U &&
+            short_slot_comparison.attribute_application_count == 0U,
+        "0x44FAF0 stops at the first current fixed-slot pointer read when the slot table is short"
+    );
+
+    FakeAttributeComparisonPorts unavailable_comparison_ports;
+    unavailable_comparison_ports.present[0U] = true;
+    unavailable_comparison_ports.unavailable_at_call = 1U;
+    const auto unavailable_comparison = openswd3::special_modes::
+        compare_legacy_special_mode_candidate_attributes(
+            comparison_bases,
+            comparison_slots,
+            comparison_masks,
+            comparison_candidate,
+            unavailable_comparison_ports
+        );
+    test.expect_true(
+        unavailable_comparison.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeAttributeComparisonStatus::
+                        attribute_application_stopped &&
+            unavailable_comparison.members[0U].candidate_category_matches ==
+                1U &&
+            unavailable_comparison.fixed_slot_read_count == 1U &&
+            unavailable_comparison.attribute_application_count == 1U &&
+            unavailable_comparison_ports.release_count == 0U,
+        "0x44FAF0 preserves the eligibility publication and first slot read when the reused attribute application stops"
     );
 
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;

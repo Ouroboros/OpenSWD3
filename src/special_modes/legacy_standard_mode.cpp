@@ -5735,8 +5735,138 @@ static LegacyGuardianAttributeSource load_guardian_attribute_source(
     const LegacyStandardModeForwardNode& record
 ) noexcept {
     return load_guardian_attribute_source(
-        std::span<const compat::u8>(record.record_bytes)
+        std::span<const compat::u8>(record.record_bytes).subspan(0x0CU)
     );
+}
+
+LegacySpecialModeAttributeComparisonResult
+compare_legacy_special_mode_candidate_attributes(
+    const std::array<LegacyGuardianAttributeTarget, 4U>& base_attributes,
+    const std::span<LegacyStandardModeForwardNode* const> fixed_slots,
+    const std::span<const compat::u32> replacement_masks,
+    const LegacyStandardModeForwardNode& candidate,
+    LegacySpecialModeAttributeComparisonPorts& ports
+) noexcept {
+    LegacySpecialModeAttributeComparisonResult result;
+    constexpr std::array<compat::u16, 4U> kMemberCategoryMasks{
+        0x8000U, 0x4000U, 0x2000U, 0x1000U
+    };
+    const compat::u16 candidate_category = static_cast<compat::u16>(
+        candidate.record_bytes[0x46U] |
+        (static_cast<compat::u16>(candidate.record_bytes[0x47U]) << 8U)
+    );
+    const LegacyGuardianAttributeSource candidate_source =
+        load_guardian_attribute_source(candidate);
+
+    const auto apply_source = [&result, &ports](
+                                  LegacyGuardianAttributeTarget& target,
+                                  const LegacyGuardianAttributeSource& source
+                              ) noexcept {
+        ++result.attribute_application_count;
+        return apply_legacy_guardian_attributes(target, source, ports).status ==
+            LegacyGuardianAttributeApplicationStatus::completed;
+    };
+
+    for (std::size_t member_index = 0U; member_index < 4U; ++member_index) {
+        ++result.party_presence_query_count;
+        if (!ports.is_party_member_present(
+                static_cast<compat::u32>(member_index + 0x1EU)
+            )) {
+            continue;
+        }
+
+        LegacySpecialModeAttributeDelta& output = result.members[member_index];
+        output.candidate_category_matches =
+            (candidate_category & kMemberCategoryMasks[member_index]) != 0U
+            ? 1U
+            : 0U;
+        LegacyGuardianAttributeTarget current = base_attributes[member_index];
+        LegacyGuardianAttributeTarget replacement =
+            base_attributes[member_index];
+
+        for (std::size_t slot_index = 0U; slot_index < 16U; ++slot_index) {
+            const std::size_t flat_index = member_index * 16U + slot_index;
+            if (flat_index >= fixed_slots.size()) {
+                result.status = LegacySpecialModeAttributeComparisonStatus::
+                    fixed_slot_table_out_of_range_stopped;
+                return result;
+            }
+            LegacyStandardModeForwardNode* const fixed_record =
+                fixed_slots[flat_index];
+            ++result.fixed_slot_read_count;
+            if (fixed_record == nullptr) {
+                result.status = LegacySpecialModeAttributeComparisonStatus::
+                    null_fixed_slot_stopped;
+                return result;
+            }
+            if (!apply_source(
+                    current, load_guardian_attribute_source(*fixed_record)
+                )) {
+                result.status = LegacySpecialModeAttributeComparisonStatus::
+                    attribute_application_stopped;
+                return result;
+            }
+        }
+
+        for (std::size_t slot_index = 0U; slot_index < 11U; ++slot_index) {
+            if (slot_index >= replacement_masks.size()) {
+                result.status = LegacySpecialModeAttributeComparisonStatus::
+                    replacement_mask_table_out_of_range_stopped;
+                return result;
+            }
+            const compat::u32 mask = replacement_masks[slot_index];
+            const compat::u32 masked_candidate =
+                (candidate.filter_flags & mask) & 0xFFFF7FFFU;
+            if (masked_candidate == mask) {
+                if (!apply_source(replacement, candidate_source)) {
+                    result.status = LegacySpecialModeAttributeComparisonStatus::
+                        attribute_application_stopped;
+                    return result;
+                }
+                continue;
+            }
+
+            const std::size_t flat_index = member_index * 16U + slot_index;
+            if (flat_index >= fixed_slots.size()) {
+                result.status = LegacySpecialModeAttributeComparisonStatus::
+                    fixed_slot_table_out_of_range_stopped;
+                return result;
+            }
+            LegacyStandardModeForwardNode* const fixed_record =
+                fixed_slots[flat_index];
+            ++result.fixed_slot_read_count;
+            if (fixed_record == nullptr) {
+                result.status = LegacySpecialModeAttributeComparisonStatus::
+                    null_fixed_slot_stopped;
+                return result;
+            }
+            if (!apply_source(
+                    replacement, load_guardian_attribute_source(*fixed_record)
+                )) {
+                result.status = LegacySpecialModeAttributeComparisonStatus::
+                    attribute_application_stopped;
+                return result;
+            }
+        }
+
+        const auto signed_word_difference =
+            [](const compat::u16 replacement_value,
+               const compat::u16 current_value) noexcept {
+                return static_cast<compat::i32>(std::bit_cast<compat::i16>(
+                    static_cast<compat::u16>(replacement_value - current_value)
+                ));
+            };
+        output.values[0] =
+            signed_word_difference(replacement.words[19], current.words[19]) +
+            signed_word_difference(replacement.words[8], current.words[8]);
+        output.values[1] =
+            signed_word_difference(replacement.words[20], current.words[20]) +
+            signed_word_difference(replacement.words[9], current.words[9]);
+        output.values[2] =
+            signed_word_difference(replacement.words[11], current.words[11]);
+        ++result.completed_member_count;
+    }
+    return result;
 }
 
 static bool apply_guardian_attribute_name_to_scratch(

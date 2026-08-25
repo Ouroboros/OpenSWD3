@@ -2727,6 +2727,47 @@ build_legacy_special_mode_workspace_records(
     LegacyStandardModeForwardNode& source_sentinel, compat::u32 packed_mode
 ) noexcept;
 
+class LegacySpecialModeAttributeComparisonPorts
+    : public virtual LegacyGuardianAttributeApplicationPorts {
+public:
+    ~LegacySpecialModeAttributeComparisonPorts() override = default;
+    [[nodiscard]] virtual bool
+    is_party_member_present(compat::u32 member_id) noexcept = 0;
+};
+
+enum class LegacySpecialModeAttributeComparisonStatus : compat::u8 {
+    completed,
+    replacement_mask_table_out_of_range_stopped,
+    fixed_slot_table_out_of_range_stopped,
+    null_fixed_slot_stopped,
+    attribute_application_stopped,
+};
+
+struct LegacySpecialModeAttributeDelta {
+    std::array<compat::i32, 3U> values{};
+    compat::u32 candidate_category_matches{};
+};
+
+struct LegacySpecialModeAttributeComparisonResult {
+    LegacySpecialModeAttributeComparisonStatus status{
+        LegacySpecialModeAttributeComparisonStatus::completed
+    };
+    std::array<LegacySpecialModeAttributeDelta, 4U> members{};
+    compat::u32 party_presence_query_count{};
+    compat::u32 fixed_slot_read_count{};
+    compat::u32 attribute_application_count{};
+    compat::u32 completed_member_count{};
+};
+
+[[nodiscard]] LegacySpecialModeAttributeComparisonResult
+compare_legacy_special_mode_candidate_attributes(
+    const std::array<LegacyGuardianAttributeTarget, 4U>& base_attributes,
+    std::span<LegacyStandardModeForwardNode* const> fixed_slots,
+    std::span<const compat::u32> replacement_masks,
+    const LegacyStandardModeForwardNode& candidate,
+    LegacySpecialModeAttributeComparisonPorts& ports
+) noexcept;
+
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
     completed,
     mode_mask_out_of_range,
