@@ -97,6 +97,12 @@ enum class LegacyBattleRenderInitializationStatus : compat::u8 {
     surface_row_offsets_write_out_of_range,
 };
 
+struct LegacyBattleRenderCleanupResult {
+    bool auxiliary_buffer_released{};
+    bool surface_row_offsets_released{};
+    bool primary_row_offsets_released{};
+};
+
 struct LegacyBattleRenderInitializationResult {
     LegacyBattleRenderInitializationStatus status{
         LegacyBattleRenderInitializationStatus::completed
@@ -121,6 +127,13 @@ advance_legacy_battle_direction_raster(
 
 // sub_433F00.
 [[nodiscard]] bool release_legacy_battle_render_auxiliary_buffer(
+    LegacyBattleRenderGeometry& geometry,
+    LegacyBattleRenderAuxiliaryBufferReleaser& releaser
+) noexcept;
+
+// sub_433D70.
+[[nodiscard]] LegacyBattleRenderCleanupResult
+release_legacy_battle_render_resources(
     LegacyBattleRenderGeometry& geometry,
     LegacyBattleRenderAuxiliaryBufferReleaser& releaser
 ) noexcept;

@@ -220,11 +220,17 @@ public:
     u32 release_count{};
     u32 released_token{};
     u32 owner_token_during_release{};
+    bool primary_rows_present_during_release{};
+    bool surface_rows_present_during_release{};
 
     void release(const u32 token) noexcept override {
         ++release_count;
         released_token = token;
         owner_token_during_release = geometry->auxiliary_buffer_token;
+        primary_rows_present_during_release =
+            geometry->primary_row_offsets != nullptr;
+        surface_rows_present_during_release =
+            geometry->surface_row_offsets != nullptr;
     }
 };
 
@@ -2578,6 +2584,53 @@ void test_render_auxiliary_buffer_release(openswd3::test::Context& test) {
     );
 }
 
+void test_render_resource_cleanup(openswd3::test::Context& test) {
+    LegacyBattleRenderGeometry empty_geometry;
+    TrackingAuxiliaryBufferReleaser empty_releaser;
+    empty_releaser.geometry = &empty_geometry;
+    const auto empty = openswd3::battle::release_legacy_battle_render_resources(
+        empty_geometry, empty_releaser
+    );
+    test.expect_true(
+        !empty.auxiliary_buffer_released &&
+            !empty.surface_row_offsets_released &&
+            !empty.primary_row_offsets_released &&
+            empty_releaser.release_count == 0U,
+        "empty render resource cleanup skips all three release branches"
+    );
+
+    LegacyBattleRenderGeometry geometry;
+    geometry.primary_row_offsets = std::make_unique<u32[]>(2U);
+    geometry.surface_row_offsets = std::make_unique<u32[]>(2U);
+    geometry.primary_row_offsets[0] = 11U;
+    geometry.surface_row_offsets[0] = 22U;
+    geometry.auxiliary_buffer_token = 0x89ABCDEFU;
+    geometry.surface_width = 640;
+    geometry.direction_vectors.horizontal[17U] = -1000;
+
+    TrackingAuxiliaryBufferReleaser releaser;
+    releaser.geometry = &geometry;
+    const auto released =
+        openswd3::battle::release_legacy_battle_render_resources(
+            geometry, releaser
+        );
+    test.expect_true(
+        released.auxiliary_buffer_released &&
+            released.surface_row_offsets_released &&
+            released.primary_row_offsets_released &&
+            releaser.release_count == 1U &&
+            releaser.released_token == 0x89ABCDEFU &&
+            releaser.primary_rows_present_during_release &&
+            releaser.surface_rows_present_during_release &&
+            geometry.auxiliary_buffer_token == 0U &&
+            geometry.surface_row_offsets == nullptr &&
+            geometry.primary_row_offsets == nullptr &&
+            geometry.surface_width == 640 &&
+            geometry.direction_vectors.horizontal[17U] == -1000,
+        "render cleanup releases auxiliary, surface rows, then primary rows"
+    );
+}
+
 std::uint64_t
 direction_vector_hash(const LegacyBattleDirectionVectors& vectors) {
     std::uint64_t hash = UINT64_C(14695981039346656037);
@@ -3195,6 +3248,7 @@ int main() {
     test_directional_scan_fixed_point_loops_and_bounds(test);
     test_directional_scan_division_and_typed_stops(test);
     test_render_auxiliary_buffer_release(test);
+    test_render_resource_cleanup(test);
     test_render_geometry_initialization_and_direction_table(test);
     test_render_geometry_initialization_failures(test);
     test_primary_row_offsets_normal_and_fixed_caller(test);

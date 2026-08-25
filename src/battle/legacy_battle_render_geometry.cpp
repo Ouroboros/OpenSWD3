@@ -174,6 +174,25 @@ bool release_legacy_battle_render_auxiliary_buffer(
     return true;
 }
 
+LegacyBattleRenderCleanupResult release_legacy_battle_render_resources(
+    LegacyBattleRenderGeometry& geometry,
+    LegacyBattleRenderAuxiliaryBufferReleaser& releaser
+) noexcept {
+    LegacyBattleRenderCleanupResult result;
+    result.auxiliary_buffer_released =
+        release_legacy_battle_render_auxiliary_buffer(geometry, releaser);
+
+    if (geometry.surface_row_offsets != nullptr) {
+        result.surface_row_offsets_released = true;
+        geometry.surface_row_offsets.reset();
+    }
+    if (geometry.primary_row_offsets != nullptr) {
+        result.primary_row_offsets_released = true;
+        geometry.primary_row_offsets.reset();
+    }
+    return result;
+}
+
 bool advance_legacy_battle_line_raster(
     LegacyBattleLineRaster& raster
 ) noexcept {
