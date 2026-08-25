@@ -3612,6 +3612,39 @@ handle_legacy_high_priority_story_flags(
     world_map::LegacyWorldStoryVmState& story_state
 ) noexcept;
 
+struct LegacyPartyDialogColumnRequest {
+    compat::u32 index{};
+    compat::u32 mask{};
+    compat::i32 format{};
+    compat::i32 width{};
+    compat::u32 text_capacity{};
+    std::string text;
+};
+
+class LegacyPartyDialogColumnPorts {
+public:
+    virtual ~LegacyPartyDialogColumnPorts() = default;
+    [[nodiscard]] virtual std::optional<compat::i32>
+    insert_column(const LegacyPartyDialogColumnRequest& request) noexcept = 0;
+};
+
+enum class LegacyPartyDialogColumnStatus : compat::u8 {
+    completed,
+    insertion_stopped,
+};
+
+struct LegacyPartyDialogColumnResult {
+    LegacyPartyDialogColumnStatus status{
+        LegacyPartyDialogColumnStatus::completed
+    };
+    compat::i32 legacy_return_value{1};
+    compat::u32 inserted_count{};
+};
+
+[[nodiscard]] LegacyPartyDialogColumnResult setup_legacy_party_dialog_columns(
+    compat::i32 dialog_page, LegacyPartyDialogColumnPorts& ports
+) noexcept;
+
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
     completed,
     mode_mask_out_of_range,

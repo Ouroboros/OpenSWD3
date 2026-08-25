@@ -1114,6 +1114,24 @@ public:
     std::vector<std::array<u32, 2U>> requests;
 };
 
+class FakePartyDialogColumnPorts final
+    : public openswd3::special_modes::LegacyPartyDialogColumnPorts {
+public:
+    std::optional<i32> insert_column(
+        const openswd3::special_modes::LegacyPartyDialogColumnRequest& request
+    ) noexcept override {
+        if (requests.size() == fail_at) {
+            return std::nullopt;
+        }
+        requests.push_back(request);
+        return static_cast<i32>(requests.size());
+    }
+
+    std::size_t fail_at{std::numeric_limits<std::size_t>::max()};
+    std::vector<openswd3::special_modes::LegacyPartyDialogColumnRequest>
+        requests;
+};
+
 class FakeChainClonePorts final
     : public openswd3::special_modes::LegacyStandardModeRecordClonePorts {
 public:
@@ -21767,6 +21785,63 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             !invalid_high_field_write.field_written &&
             party_member_field_write_ports.requests.size() == 2U,
         "0x411030 writes selectors zero through thirteen at word width, fourteen and fifteen at full dword width, writes selector sixteen byte before optional LEVEL refresh, and ignores defaults"
+    );
+
+    FakePartyDialogColumnPorts four_party_dialog_column_ports;
+    const auto four_party_dialog_columns =
+        openswd3::special_modes::setup_legacy_party_dialog_columns(
+            4, four_party_dialog_column_ports
+        );
+    FakePartyDialogColumnPorts three_party_dialog_column_ports;
+    const auto three_party_dialog_columns =
+        openswd3::special_modes::setup_legacy_party_dialog_columns(
+            5, three_party_dialog_column_ports
+        );
+    FakePartyDialogColumnPorts negative_party_dialog_column_ports;
+    const auto negative_party_dialog_columns =
+        openswd3::special_modes::setup_legacy_party_dialog_columns(
+            -1, negative_party_dialog_column_ports
+        );
+    FakePartyDialogColumnPorts stopped_party_dialog_column_ports;
+    stopped_party_dialog_column_ports.fail_at = 2U;
+    const auto stopped_party_dialog_columns =
+        openswd3::special_modes::setup_legacy_party_dialog_columns(
+            0, stopped_party_dialog_column_ports
+        );
+    test.expect_true(
+        four_party_dialog_columns.status ==
+                openswd3::special_modes::LegacyPartyDialogColumnStatus::
+                    completed &&
+            four_party_dialog_columns.legacy_return_value == 1 &&
+            four_party_dialog_columns.inserted_count == 4U &&
+            four_party_dialog_column_ports.requests.size() == 4U &&
+            four_party_dialog_column_ports.requests[0U].index == 0U &&
+            four_party_dialog_column_ports.requests[0U].mask == 0x0FU &&
+            four_party_dialog_column_ports.requests[0U].format == 0 &&
+            four_party_dialog_column_ports.requests[0U].width == 0x78 &&
+            four_party_dialog_column_ports.requests[0U].text_capacity == 4U &&
+            four_party_dialog_column_ports.requests[0U].text ==
+                std::string("\xAA\xAB\xAB\x7E", 4U) &&
+            four_party_dialog_column_ports.requests[1U].width == 0x40 &&
+            four_party_dialog_column_ports.requests[1U].text ==
+                std::string("\xBC\xC6\xB6\x71", 4U) &&
+            four_party_dialog_column_ports.requests[2U].width == 0x40 &&
+            four_party_dialog_column_ports.requests[2U].text ==
+                std::string("\xB8\xB9\xBD\x58", 4U) &&
+            four_party_dialog_column_ports.requests[3U].width == 0x60 &&
+            four_party_dialog_column_ports.requests[3U].text ==
+                std::string("\xAA\xFE\xA5\x5B\xAD\xC8", 6U) &&
+            three_party_dialog_columns.inserted_count == 3U &&
+            three_party_dialog_column_ports.requests.size() == 3U &&
+            negative_party_dialog_columns.inserted_count == 4U &&
+            negative_party_dialog_column_ports.requests.size() == 4U &&
+            stopped_party_dialog_columns.status ==
+                openswd3::special_modes::LegacyPartyDialogColumnStatus::
+                    insertion_stopped &&
+            stopped_party_dialog_columns.legacy_return_value == 1 &&
+            stopped_party_dialog_columns.inserted_count == 2U &&
+            stopped_party_dialog_column_ports.requests.size() == 2U,
+        "0x4103C0 inserts item, quantity, number, and added-value list columns for signed pages below five, only three columns otherwise, and typed-stops at the unavailable insertion"
     );
 
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;

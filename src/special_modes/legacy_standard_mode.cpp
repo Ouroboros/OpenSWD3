@@ -8751,6 +8751,38 @@ LegacyHighPriorityStoryFlagResult handle_legacy_high_priority_story_flags(
     return result;
 }
 
+LegacyPartyDialogColumnResult setup_legacy_party_dialog_columns(
+    const compat::i32 dialog_page, LegacyPartyDialogColumnPorts& ports
+) noexcept {
+    LegacyPartyDialogColumnResult result;
+    constexpr std::array<std::string_view, 4U> kTexts{
+        std::string_view{"\xAA\xAB\xAB\x7E", 4U},
+        std::string_view{"\xBC\xC6\xB6\x71", 4U},
+        std::string_view{"\xB8\xB9\xBD\x58", 4U},
+        std::string_view{"\xAA\xFE\xA5\x5B\xAD\xC8", 6U},
+    };
+    constexpr std::array<compat::i32, 4U> kWidths{0x78, 0x40, 0x40, 0x60};
+    const compat::u32 count = dialog_page < 5 ? 4U : 3U;
+    for (compat::u32 index = 0U; index < count; ++index) {
+        const std::optional<compat::i32> inserted = ports.insert_column(
+            LegacyPartyDialogColumnRequest{
+                .index = index,
+                .mask = 0x0FU,
+                .format = 0,
+                .width = kWidths[index],
+                .text_capacity = 4U,
+                .text = std::string(kTexts[index]),
+            }
+        );
+        if (!inserted.has_value()) {
+            result.status = LegacyPartyDialogColumnStatus::insertion_stopped;
+            return result;
+        }
+        ++result.inserted_count;
+    }
+    return result;
+}
+
 static LegacyGuardianAttributeTarget load_guardian_attribute_target(
     const std::span<const compat::u8> bytes
 ) noexcept {
