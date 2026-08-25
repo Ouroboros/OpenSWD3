@@ -3762,6 +3762,131 @@ struct LegacyPartyDialogPageResult {
     const LegacyPartyDialogPageState& state, LegacyPartyDialogPagePorts& ports
 ) noexcept;
 
+enum class LegacyPartyDialogMessage : compat::u32 {
+    notify = 0x004EU,
+    initialize = 0x0110U,
+    command = 0x0111U,
+};
+
+enum class LegacyPartyDialogCommand : compat::u16 {
+    close = 0x03E8U,
+    fill_selected_quantity = 0x03EBU,
+    add_item = 0x03ECU,
+    remove_selected_item = 0x03EEU,
+    update_value = 0x03F6U,
+};
+
+enum class LegacyPartyDialogEdit : compat::u8 {
+    identifier,
+    quantity,
+    added_value,
+};
+
+enum class LegacyPartyDialogControl : compat::u8 {
+    added_value,
+    fill_selected_quantity,
+    remove_selected_item,
+    add_item,
+};
+
+struct LegacyPartyDialogEvent {
+    LegacyPartyDialogMessage message{};
+    compat::u32 command_parameter{};
+    compat::i32 command_lparam_snapshot{};
+    compat::i32 notify_code{};
+    compat::i32 selected_tab{};
+    compat::i32 selected_row{-1};
+    std::optional<std::string_view> identifier_text{};
+    std::optional<std::string_view> quantity_text{};
+    std::optional<std::string_view> added_value_text{};
+    compat::i32 stale_local_value{};
+    compat::u16 output_pointer_high_word{};
+};
+
+struct LegacyPartyDialogState {
+    LegacyPartyDialogPageState page_state{};
+    compat::i32 close_requested{};
+};
+
+class LegacyPartyDialogPorts
+    : public virtual LegacyPartyDialogPagePorts,
+      public virtual LegacyPartyDialogColumnPorts,
+      public virtual LegacyStandardModeQuantityPorts,
+      public virtual world_map::LegacyPartyMemberFieldWritePorts {
+public:
+    ~LegacyPartyDialogPorts() override = default;
+    virtual void
+    insert_tab(compat::u32 index, std::string_view text) noexcept = 0;
+    virtual void delete_list_column(compat::u32 index) noexcept = 0;
+    virtual void set_list_extended_style(compat::u32 style) noexcept = 0;
+    virtual void
+    set_edit_limit(LegacyPartyDialogEdit edit, compat::u32 limit) noexcept = 0;
+    virtual void
+    enable_control(LegacyPartyDialogControl control, bool enabled) noexcept = 0;
+    [[nodiscard]] virtual bool
+    allocate_command_scratch(std::size_t size) noexcept = 0;
+    virtual void release_command_scratch() noexcept = 0;
+    virtual void clear_edit(LegacyPartyDialogEdit edit) noexcept = 0;
+    virtual void end_dialog(compat::i32 result) noexcept = 0;
+    virtual void show_cursor(bool visible) noexcept = 0;
+    virtual void report_item_insertion_error() noexcept = 0;
+    virtual void report_item_deletion_error() noexcept = 0;
+    virtual void update_first_item_category(
+        compat::u16 item_id, compat::u16 category_value, compat::i32 added_value
+    ) noexcept = 0;
+    virtual void update_second_item_category(
+        compat::u16 item_id, compat::i32 added_value
+    ) noexcept = 0;
+    virtual void update_third_item_category(
+        compat::u16 item_id, compat::i32 added_value
+    ) noexcept = 0;
+};
+
+enum class LegacyPartyDialogStatus : compat::u8 {
+    completed,
+    scratch_allocation_stopped,
+    item_page_source_stopped,
+    selected_record_stopped,
+    masked_lookup_stopped,
+    item_record_stopped,
+    member_source_stopped,
+    global_index_stopped,
+};
+
+enum class LegacyPartyDialogAction : compat::u8 {
+    none,
+    initialized,
+    page_changed,
+    closed,
+    selected_quantity_filled,
+    item_added,
+    selected_item_removed,
+    item_updated,
+    member_field_updated,
+    global_value_updated,
+};
+
+struct LegacyPartyDialogResult {
+    LegacyPartyDialogStatus status{LegacyPartyDialogStatus::completed};
+    LegacyPartyDialogAction action{LegacyPartyDialogAction::none};
+    compat::i32 legacy_return_value{};
+    LegacyPartyDialogColumnResult columns{};
+    LegacyPartyDialogPageResult page{};
+    LegacyPartyDialogRowResult row{};
+    LegacyPlayerItemQuantityResult quantity{};
+    world_map::LegacyPartyMemberFieldWriteResult member_write{};
+    bool message_handled{};
+    bool scratch_allocated{};
+    bool scratch_released{};
+    bool edits_cleared{};
+};
+
+[[nodiscard]] LegacyPartyDialogResult run_legacy_party_dialog(
+    LegacyPartyDialogState& state,
+    const LegacyPartyDialogEvent& event,
+    LegacyPartyDialogPorts& ports
+) noexcept;
+
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
     completed,
     mode_mask_out_of_range,

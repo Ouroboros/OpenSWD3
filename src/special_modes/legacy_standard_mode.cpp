@@ -9079,6 +9079,543 @@ LegacyPartyDialogPageResult populate_legacy_party_dialog_page(
     return result;
 }
 
+static bool parse_legacy_party_dialog_decimal(
+    const std::string_view text, compat::i32& output
+) noexcept {
+    if (text.empty()) {
+        return false;
+    }
+    std::size_t index = 0U;
+    compat::i32 sign = 1;
+    if (text[index] == '+' || text[index] == '-') {
+        sign = text[index] == '-' ? -1 : 1;
+        ++index;
+    }
+    const std::size_t digit_count = text.size() - index;
+    if (digit_count == 0U || digit_count > 9U) {
+        return false;
+    }
+    compat::u32 value = 0U;
+    for (; index < text.size(); ++index) {
+        const unsigned char byte = static_cast<unsigned char>(text[index]);
+        if (byte < static_cast<unsigned char>('0') ||
+            byte > static_cast<unsigned char>('9')) {
+            return false;
+        }
+        value = value * 10U + static_cast<compat::u32>(byte - '0');
+    }
+    if (sign < 0) {
+        value = 0U - value;
+    }
+    output = std::bit_cast<compat::i32>(value);
+    return true;
+}
+
+static LegacyStandardModeForwardNode**
+resolve_party_dialog_item_head(LegacyPartyDialogState& state) noexcept {
+    if (state.page_state.page < 0 ||
+        static_cast<std::size_t>(state.page_state.page) >=
+            state.page_state.item_heads.size()) {
+        return nullptr;
+    }
+    return &state.page_state
+                .item_heads[static_cast<std::size_t>(state.page_state.page)];
+}
+
+static LegacyStandardModeForwardNode* select_party_dialog_record(
+    LegacyStandardModeForwardNode* record, const compat::i32 selected_row
+) noexcept {
+    if (selected_row < 0) {
+        return nullptr;
+    }
+    for (compat::i32 index = 0; index < selected_row; ++index) {
+        if (record == nullptr) {
+            return nullptr;
+        }
+        record = const_cast<LegacyStandardModeForwardNode*>(record->next);
+    }
+    return record;
+}
+
+static compat::u32 load_party_dialog_item_flags(
+    const LegacyStandardModeForwardNode& record
+) noexcept {
+    return static_cast<compat::u32>(
+        record.record_bytes[0x20U] |
+        (static_cast<compat::u32>(record.record_bytes[0x21U]) << 8U) |
+        (static_cast<compat::u32>(record.record_bytes[0x22U]) << 16U) |
+        (static_cast<compat::u32>(record.record_bytes[0x23U]) << 24U)
+    );
+}
+
+static bool party_dialog_item_matches(
+    const compat::u32 flags, const compat::u32 mask
+) noexcept {
+    compat::u32 value = flags & mask;
+    value &= 0xFFFF7FFFU;
+    return value == mask;
+}
+
+static void update_party_dialog_item_categories(
+    const LegacyPartyDialogPageState& state,
+    const LegacyStandardModeForwardNode& record,
+    const compat::i32 added_value,
+    LegacyPartyDialogPorts& ports
+) noexcept {
+    const compat::u32 flags = load_party_dialog_item_flags(record);
+    if (party_dialog_item_matches(flags, state.item_category_masks[0U])) {
+        const compat::u16 category_value = static_cast<compat::u16>(
+            record.record_bytes[0x44U] |
+            (static_cast<compat::u16>(record.record_bytes[0x45U]) << 8U)
+        );
+        ports.update_first_item_category(
+            record.text_index, category_value, added_value
+        );
+    }
+    if (party_dialog_item_matches(flags, state.item_category_masks[1U])) {
+        ports.update_second_item_category(record.text_index, added_value);
+    }
+    if (party_dialog_item_matches(flags, state.item_category_masks[2U])) {
+        ports.update_third_item_category(record.text_index, added_value);
+    }
+    if (record.text_index != 0U && record.text_index <= 0x01F4U) {
+        ports.update_third_item_category(record.text_index, added_value);
+    }
+}
+
+static void clear_party_dialog_edits(
+    LegacyPartyDialogResult& result, LegacyPartyDialogPorts& ports
+) noexcept {
+    ports.clear_edit(LegacyPartyDialogEdit::identifier);
+    ports.clear_edit(LegacyPartyDialogEdit::quantity);
+    ports.clear_edit(LegacyPartyDialogEdit::added_value);
+    result.edits_cleared = true;
+}
+
+static void set_party_dialog_edit_controls_enabled(
+    LegacyPartyDialogPorts& ports, const bool enabled
+) noexcept {
+    ports.enable_control(LegacyPartyDialogControl::added_value, enabled);
+    ports.enable_control(
+        LegacyPartyDialogControl::fill_selected_quantity, enabled
+    );
+    ports.enable_control(
+        LegacyPartyDialogControl::remove_selected_item, enabled
+    );
+    ports.enable_control(LegacyPartyDialogControl::add_item, enabled);
+}
+
+LegacyPartyDialogResult run_legacy_party_dialog(
+    LegacyPartyDialogState& state,
+    const LegacyPartyDialogEvent& event,
+    LegacyPartyDialogPorts& ports
+) noexcept {
+    LegacyPartyDialogResult result;
+    const auto populate_page = [&]() noexcept {
+        result.page =
+            populate_legacy_party_dialog_page(state.page_state, ports);
+    };
+    const auto refresh_clear_release = [&]() noexcept {
+        populate_page();
+        clear_party_dialog_edits(result, ports);
+        ports.release_command_scratch();
+        result.scratch_released = true;
+    };
+    const auto release_refresh_clear = [&]() noexcept {
+        ports.release_command_scratch();
+        result.scratch_released = true;
+        populate_page();
+        clear_party_dialog_edits(result, ports);
+    };
+
+    switch (event.message) {
+    case LegacyPartyDialogMessage::notify:
+        if (event.notify_code != -0x227) {
+            return result;
+        }
+        result.message_handled = true;
+        state.page_state.page = event.selected_tab;
+        for (compat::u32 column = 4U; column > 0U; --column) {
+            ports.delete_list_column(column - 1U);
+        }
+        result.columns =
+            setup_legacy_party_dialog_columns(state.page_state.page, ports);
+        populate_page();
+        set_party_dialog_edit_controls_enabled(ports, true);
+        if (state.page_state.page >= 5) {
+            set_party_dialog_edit_controls_enabled(ports, false);
+        }
+        result.action = LegacyPartyDialogAction::page_changed;
+        return result;
+
+    case LegacyPartyDialogMessage::initialize: {
+        result.message_handled = true;
+        const std::array<std::string, 10U> tab_names{
+            std::string("\xAA\xAB\xB3\x7E", 4U),
+            std::string("\xC1\xC9\xAF\x53", 4U) +
+                std::string("\xC5\x5D\xAA\x6B", 4U),
+            std::string("\xA9\x67\xA5\x69", 4U) +
+                std::string("\xC5\x5D\xAA\x6B", 4U),
+            std::string("\xA5\x64\xBA\xBF", 4U) +
+                std::string("\xC5\x5D\xAA\x6B", 4U),
+            std::string("\xA7\xF5\xB9\x74", 4U) +
+                std::string("\xC5\x5D\xAA\x6B", 4U),
+            std::string("\xC1\xC9\xAF\x53", 4U) +
+                std::string("\xC4\xDD\xA9\xCA", 4U),
+            std::string("\xA9\x67\xA5\x69", 4U) +
+                std::string("\xC4\xDD\xA9\xCA", 4U),
+            std::string("\xA5\x64\xBA\xBF", 4U) +
+                std::string("\xC4\xDD\xA9\xCA", 4U),
+            std::string("\xA7\xF5\xB9\x74", 4U) +
+                std::string("\xC4\xDD\xA9\xCA", 4U),
+            std::string("\xC5\xDC\xBC\xC6", 4U),
+        };
+        for (std::size_t index = 0U; index < tab_names.size(); ++index) {
+            ports.insert_tab(static_cast<compat::u32>(index), tab_names[index]);
+        }
+        state.page_state.page = 0;
+        result.columns =
+            setup_legacy_party_dialog_columns(state.page_state.page, ports);
+        ports.set_list_extended_style(0x20U);
+        populate_page();
+        ports.set_edit_limit(LegacyPartyDialogEdit::identifier, 4U);
+        ports.set_edit_limit(LegacyPartyDialogEdit::quantity, 8U);
+        ports.set_edit_limit(LegacyPartyDialogEdit::added_value, 4U);
+        result.action = LegacyPartyDialogAction::initialized;
+        result.legacy_return_value = 1;
+        return result;
+    }
+
+    case LegacyPartyDialogMessage::command:
+        break;
+    default:
+        return result;
+    }
+
+    result.message_handled = true;
+    const auto command = static_cast<LegacyPartyDialogCommand>(
+        static_cast<compat::u16>(event.command_parameter)
+    );
+    switch (command) {
+    case LegacyPartyDialogCommand::close:
+        state.close_requested = 1;
+        ports.end_dialog(1);
+        ports.show_cursor(false);
+        result.action = LegacyPartyDialogAction::closed;
+        return result;
+
+    case LegacyPartyDialogCommand::fill_selected_quantity: {
+        if (state.page_state.page >= 5 || event.selected_row < 0) {
+            return result;
+        }
+        if (state.page_state.page >= 1 && state.page_state.page <= 4) {
+            return result;
+        }
+        if (state.page_state.page != 0) {
+            result.status = LegacyPartyDialogStatus::item_page_source_stopped;
+            return result;
+        }
+        LegacyStandardModeForwardNode* record = select_party_dialog_record(
+            state.page_state.item_heads[0U], event.selected_row
+        );
+        if (record == nullptr) {
+            result.status = LegacyPartyDialogStatus::selected_record_stopped;
+            return result;
+        }
+        const compat::i32 original_sum =
+            static_cast<compat::i32>(
+                std::bit_cast<compat::i16>(record->first_value)
+            ) +
+            static_cast<compat::i32>(
+                std::bit_cast<compat::i16>(record->second_value)
+            );
+        if (original_sum < 0x5A) {
+            record->second_value = 0x005AU;
+            const compat::i16 second =
+                std::bit_cast<compat::i16>(record->second_value);
+            if (static_cast<compat::i32>(second) +
+                    static_cast<compat::i32>(
+                        std::bit_cast<compat::i16>(record->first_value)
+                    ) >
+                0x5A) {
+                record->first_value = static_cast<compat::u16>(0x5A - second);
+            }
+        }
+        result.row = populate_legacy_party_dialog_row(
+            LegacyPartyDialogRowInput{
+                .row = static_cast<compat::u32>(event.selected_row),
+                .name = record->display_name,
+                .quantity = static_cast<compat::i32>(
+                                std::bit_cast<compat::i16>(record->first_value)
+                            ) +
+                    static_cast<compat::i32>(
+                                std::bit_cast<compat::i16>(record->second_value)
+                    ),
+                .number = record->text_index,
+                .added_value = 0,
+                .added_value_denominator = 0,
+            },
+            ports
+        );
+        result.action = LegacyPartyDialogAction::selected_quantity_filled;
+        return result;
+    }
+
+    case LegacyPartyDialogCommand::add_item: {
+        if (state.page_state.page >= 5) {
+            return result;
+        }
+        if (!ports.allocate_command_scratch(0x20U)) {
+            result.status = LegacyPartyDialogStatus::scratch_allocation_stopped;
+            return result;
+        }
+        result.scratch_allocated = true;
+        if (!event.identifier_text.has_value() ||
+            event.identifier_text->empty()) {
+            ports.release_command_scratch();
+            result.scratch_released = true;
+            return result;
+        }
+        compat::i32 item_id =
+            static_cast<compat::i32>(LegacyPartyDialogMessage::command);
+        static_cast<void>(
+            parse_legacy_party_dialog_decimal(*event.identifier_text, item_id)
+        );
+        LegacyStandardModeForwardNode** head =
+            resolve_party_dialog_item_head(state);
+        if (head == nullptr) {
+            result.status = LegacyPartyDialogStatus::item_page_source_stopped;
+            return result;
+        }
+        const bool restricted_page = state.page_state.page != 0;
+        if (restricted_page && (item_id < 0x05DD || item_id >= 0x07D0)) {
+            ports.release_command_scratch();
+            result.scratch_released = true;
+            return result;
+        }
+        compat::i32 quantity_value = event.stale_local_value;
+        if (!restricted_page && event.quantity_text.has_value() &&
+            !event.quantity_text->empty()) {
+            static_cast<void>(parse_legacy_party_dialog_decimal(
+                *event.quantity_text, quantity_value
+            ));
+        } else {
+            quantity_value = 1;
+        }
+        compat::i32 added_value = event.command_lparam_snapshot;
+        if (!restricted_page && event.added_value_text.has_value() &&
+            !event.added_value_text->empty()) {
+            static_cast<void>(parse_legacy_party_dialog_decimal(
+                *event.added_value_text, added_value
+            ));
+        } else {
+            added_value = 0;
+        }
+        result.quantity = update_legacy_player_item_quantities(
+            *head,
+            static_cast<compat::u32>(item_id),
+            std::bit_cast<compat::i16>(
+                static_cast<compat::u16>(quantity_value)
+            ),
+            0U,
+            ports
+        );
+        if (result.quantity.status ==
+            LegacyPlayerItemQuantityStatus::chain_cycle_stopped) {
+            result.status = LegacyPartyDialogStatus::item_record_stopped;
+            return result;
+        }
+        LegacyStandardModeForwardNode* record =
+            result.quantity.legacy_return_node;
+        if (record == nullptr) {
+            ports.report_item_insertion_error();
+        }
+        if (state.page_state.page == 0) {
+            if (record == nullptr) {
+                result.status = LegacyPartyDialogStatus::item_record_stopped;
+                return result;
+            }
+            update_party_dialog_item_categories(
+                state.page_state, *record, added_value, ports
+            );
+        }
+        refresh_clear_release();
+        if (record != nullptr) {
+            result.action = LegacyPartyDialogAction::item_added;
+        }
+        return result;
+    }
+
+    case LegacyPartyDialogCommand::remove_selected_item: {
+        if (state.page_state.page >= 5 || event.selected_row < 0) {
+            return result;
+        }
+        LegacyStandardModeForwardNode** head =
+            resolve_party_dialog_item_head(state);
+        if (head == nullptr) {
+            result.status = LegacyPartyDialogStatus::item_page_source_stopped;
+            return result;
+        }
+        LegacyStandardModeForwardNode* record =
+            select_party_dialog_record(*head, event.selected_row);
+        if (record == nullptr) {
+            result.status = LegacyPartyDialogStatus::selected_record_stopped;
+            return result;
+        }
+        const compat::u32 packed_id =
+            (static_cast<compat::u32>(event.output_pointer_high_word) << 16U) |
+            record->text_index;
+        result.quantity = update_legacy_player_item_quantities(
+            *head, packed_id, static_cast<compat::i16>(-0x400), 0U, ports
+        );
+        if (result.quantity.status ==
+            LegacyPlayerItemQuantityStatus::chain_cycle_stopped) {
+            result.status = LegacyPartyDialogStatus::item_record_stopped;
+            return result;
+        }
+        if (result.quantity.legacy_return_node != nullptr) {
+            ports.report_item_deletion_error();
+        }
+        populate_page();
+        result.action = LegacyPartyDialogAction::selected_item_removed;
+        return result;
+    }
+
+    case LegacyPartyDialogCommand::update_value: {
+        if (!ports.allocate_command_scratch(0x20U)) {
+            result.status = LegacyPartyDialogStatus::scratch_allocation_stopped;
+            return result;
+        }
+        result.scratch_allocated = true;
+        if (state.page_state.page == 9) {
+            if (!event.identifier_text.has_value() ||
+                event.identifier_text->empty()) {
+                ports.release_command_scratch();
+                result.scratch_released = true;
+                return result;
+            }
+            compat::i32 index =
+                static_cast<compat::i32>(LegacyPartyDialogMessage::command);
+            static_cast<void>(
+                parse_legacy_party_dialog_decimal(*event.identifier_text, index)
+            );
+            if (index < 0 || index > 0x3F) {
+                result.status = LegacyPartyDialogStatus::global_index_stopped;
+                return result;
+            }
+            compat::i32 value = event.stale_local_value;
+            if (event.quantity_text.has_value() &&
+                !event.quantity_text->empty()) {
+                static_cast<void>(parse_legacy_party_dialog_decimal(
+                    *event.quantity_text, value
+                ));
+            }
+            state.page_state.global_values[static_cast<std::size_t>(index)] =
+                value;
+            release_refresh_clear();
+            result.action = LegacyPartyDialogAction::global_value_updated;
+            return result;
+        }
+
+        if (state.page_state.page < 5) {
+            if (!event.identifier_text.has_value() ||
+                event.identifier_text->empty()) {
+                ports.release_command_scratch();
+                result.scratch_released = true;
+                return result;
+            }
+            compat::i32 item_id =
+                static_cast<compat::i32>(LegacyPartyDialogMessage::command);
+            static_cast<void>(parse_legacy_party_dialog_decimal(
+                *event.identifier_text, item_id
+            ));
+            const LegacyMaskedItemLookupResult lookup =
+                find_legacy_player_item_masked(
+                    state.page_state.item_heads[0U],
+                    static_cast<compat::u16>(item_id)
+                );
+            if (lookup.status ==
+                LegacyMaskedItemLookupStatus::chain_cycle_stopped) {
+                result.status = LegacyPartyDialogStatus::masked_lookup_stopped;
+                return result;
+            }
+            auto* record = const_cast<LegacyStandardModeForwardNode*>(
+                lookup.legacy_return_node
+            );
+            if (record == nullptr) {
+                ports.release_command_scratch();
+                result.scratch_released = true;
+                return result;
+            }
+            if (event.quantity_text.has_value() &&
+                !event.quantity_text->empty()) {
+                compat::i32 value = event.stale_local_value;
+                static_cast<void>(parse_legacy_party_dialog_decimal(
+                    *event.quantity_text, value
+                ));
+                record->first_value = 0U;
+                const compat::i32 clamped = value >= 0x5A ? 0x5A : value;
+                record->second_value = static_cast<compat::u16>(clamped);
+            }
+            compat::i32 added_value = event.command_lparam_snapshot;
+            if (event.added_value_text.has_value() &&
+                !event.added_value_text->empty()) {
+                static_cast<void>(parse_legacy_party_dialog_decimal(
+                    *event.added_value_text, added_value
+                ));
+            }
+            if (state.page_state.page == 0) {
+                update_party_dialog_item_categories(
+                    state.page_state, *record, added_value, ports
+                );
+            }
+            release_refresh_clear();
+            result.action = LegacyPartyDialogAction::item_updated;
+            return result;
+        }
+
+        if (!event.identifier_text.has_value() ||
+            event.identifier_text->empty()) {
+            ports.release_command_scratch();
+            result.scratch_released = true;
+            return result;
+        }
+        compat::i32 selector =
+            static_cast<compat::i32>(LegacyPartyDialogMessage::command);
+        static_cast<void>(
+            parse_legacy_party_dialog_decimal(*event.identifier_text, selector)
+        );
+        if (selector > 0x10) {
+            return result;
+        }
+        compat::i32 value = event.stale_local_value;
+        if (event.quantity_text.has_value() && !event.quantity_text->empty()) {
+            static_cast<void>(
+                parse_legacy_party_dialog_decimal(*event.quantity_text, value)
+            );
+        }
+        const compat::i32 member_index = state.page_state.page - 5;
+        if (member_index < 0 ||
+            static_cast<std::size_t>(member_index) >=
+                state.page_state.party_members.size()) {
+            result.status = LegacyPartyDialogStatus::member_source_stopped;
+            return result;
+        }
+        result.member_write = world_map::write_legacy_party_member_field(
+            state.page_state
+                .party_members[static_cast<std::size_t>(member_index)],
+            selector,
+            value,
+            ports
+        );
+        release_refresh_clear();
+        result.action = LegacyPartyDialogAction::member_field_updated;
+        return result;
+    }
+    }
+    return result;
+}
+
 static LegacyGuardianAttributeTarget load_guardian_attribute_target(
     const std::span<const compat::u8> bytes
 ) noexcept {

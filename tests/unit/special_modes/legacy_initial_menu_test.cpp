@@ -741,8 +741,8 @@ public:
     i32 command_return_base{1000};
 };
 
-class FakeQuantityPorts final
-    : public openswd3::special_modes::LegacyStandardModeQuantityPorts {
+class FakeQuantityPorts
+    : public virtual openswd3::special_modes::LegacyStandardModeQuantityPorts {
 public:
     LegacyStandardModeForwardNode*
     allocate_quantity_record() noexcept override {
@@ -1114,8 +1114,8 @@ public:
     std::vector<std::array<u32, 2U>> requests;
 };
 
-class FakePartyDialogColumnPorts final
-    : public openswd3::special_modes::LegacyPartyDialogColumnPorts {
+class FakePartyDialogColumnPorts
+    : public virtual openswd3::special_modes::LegacyPartyDialogColumnPorts {
 public:
     std::optional<i32> insert_column(
         const openswd3::special_modes::LegacyPartyDialogColumnRequest& request
@@ -1177,9 +1177,9 @@ public:
     std::vector<u32> deleted_rows;
 };
 
-class FakePartyDialogPagePorts final
+class FakePartyDialogPagePorts
     : public FakePartyDialogReplaceRowPorts,
-      public openswd3::special_modes::LegacyPartyDialogPagePorts {
+      public virtual openswd3::special_modes::LegacyPartyDialogPagePorts {
 public:
     std::optional<i32> clear_rows() noexcept override {
         events.push_back(0U);
@@ -1212,6 +1212,139 @@ public:
     std::vector<u16> queried_first_ids;
     std::vector<u16> queried_pair_ids;
     std::vector<u16> queried_third_ids;
+};
+
+struct PartyDialogCategoryUpdate {
+    u32 category{};
+    u16 item_id{};
+    u16 category_value{};
+    i32 added_value{};
+
+    bool operator==(const PartyDialogCategoryUpdate&) const = default;
+};
+
+class FakePartyDialogPorts final
+    : public FakePartyDialogColumnPorts,
+      public FakePartyDialogPagePorts,
+      public FakeQuantityPorts,
+      public virtual openswd3::special_modes::LegacyPartyDialogPorts {
+public:
+    std::optional<i32> insert_column(
+        const openswd3::special_modes::LegacyPartyDialogColumnRequest& request
+    ) noexcept override {
+        main_events.push_back("insert-column");
+        return FakePartyDialogColumnPorts::insert_column(request);
+    }
+    std::optional<i32> clear_rows() noexcept override {
+        main_events.push_back("clear-rows");
+        return FakePartyDialogPagePorts::clear_rows();
+    }
+    void
+    insert_tab(const u32 index, const std::string_view text) noexcept override {
+        main_events.push_back("tab");
+        tabs.emplace_back(index, std::string(text));
+    }
+    void delete_list_column(const u32 index) noexcept override {
+        main_events.push_back("delete-column");
+        deleted_columns.push_back(index);
+    }
+    void set_list_extended_style(const u32 style) noexcept override {
+        main_events.push_back("style");
+        list_styles.push_back(style);
+    }
+    void set_edit_limit(
+        const openswd3::special_modes::LegacyPartyDialogEdit edit,
+        const u32 limit
+    ) noexcept override {
+        main_events.push_back("limit");
+        edit_limits.emplace_back(edit, limit);
+    }
+    void enable_control(
+        const openswd3::special_modes::LegacyPartyDialogControl control,
+        const bool enabled
+    ) noexcept override {
+        main_events.push_back("enable");
+        enabled_controls.emplace_back(control, enabled);
+    }
+    bool allocate_command_scratch(const std::size_t size) noexcept override {
+        main_events.push_back("allocate-command");
+        command_allocations.push_back(size);
+        return command_allocation_available;
+    }
+    void release_command_scratch() noexcept override {
+        main_events.push_back("release-command");
+        ++command_release_count;
+    }
+    void clear_edit(
+        const openswd3::special_modes::LegacyPartyDialogEdit edit
+    ) noexcept override {
+        main_events.push_back("clear-edit");
+        cleared_edits.push_back(edit);
+    }
+    void end_dialog(const i32 result) noexcept override {
+        main_events.push_back("end");
+        ended_results.push_back(result);
+    }
+    void show_cursor(const bool visible) noexcept override {
+        main_events.push_back("cursor");
+        cursor_values.push_back(visible);
+    }
+    void report_item_insertion_error() noexcept override {
+        main_events.push_back("insert-error");
+        ++insertion_error_count;
+    }
+    void report_item_deletion_error() noexcept override {
+        main_events.push_back("delete-error");
+        ++deletion_error_count;
+    }
+    void update_first_item_category(
+        const u16 item_id, const u16 category_value, const i32 added_value
+    ) noexcept override {
+        main_events.push_back("category-1");
+        category_updates.push_back({1U, item_id, category_value, added_value});
+    }
+    void update_second_item_category(
+        const u16 item_id, const i32 added_value
+    ) noexcept override {
+        main_events.push_back("category-2");
+        category_updates.push_back({2U, item_id, 0U, added_value});
+    }
+    void update_third_item_category(
+        const u16 item_id, const i32 added_value
+    ) noexcept override {
+        main_events.push_back("category-3");
+        category_updates.push_back({3U, item_id, 0U, added_value});
+    }
+    bool load_party_member_level_field(
+        const u32 group, const u32 level, u32& output
+    ) override {
+        main_events.push_back("member-level");
+        member_level_queries.emplace_back(group, level);
+        output = member_level_value;
+        return member_level_available;
+    }
+
+    bool command_allocation_available{true};
+    bool member_level_available{true};
+    u32 member_level_value{0x12345678U};
+    u32 command_release_count{};
+    u32 insertion_error_count{};
+    u32 deletion_error_count{};
+    std::vector<std::string> main_events;
+    std::vector<std::pair<u32, std::string>> tabs;
+    std::vector<u32> deleted_columns;
+    std::vector<u32> list_styles;
+    std::vector<std::pair<openswd3::special_modes::LegacyPartyDialogEdit, u32>>
+        edit_limits;
+    std::vector<
+        std::pair<openswd3::special_modes::LegacyPartyDialogControl, bool>>
+        enabled_controls;
+    std::vector<std::size_t> command_allocations;
+    std::vector<openswd3::special_modes::LegacyPartyDialogEdit> cleared_edits;
+    std::vector<i32> ended_results;
+    std::vector<bool> cursor_values;
+    std::vector<PartyDialogCategoryUpdate> category_updates;
+    std::vector<std::pair<u32, u32>> member_level_queries;
 };
 
 class FakeChainClonePorts final
@@ -22267,6 +22400,477 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             !uncleared_party_dialog_page.rows_cleared &&
             uncleared_party_dialog_page_ports.deleted_rows.empty(),
         "0x410730 typed-stops after clearing at an invalid member page, after one repeated chain row, at the first unavailable added-value query, or before all page work when row clearing is unavailable"
+    );
+
+    using PartyDialogAction = openswd3::special_modes::LegacyPartyDialogAction;
+    using PartyDialogCommand =
+        openswd3::special_modes::LegacyPartyDialogCommand;
+    using PartyDialogControl =
+        openswd3::special_modes::LegacyPartyDialogControl;
+    using PartyDialogEdit = openswd3::special_modes::LegacyPartyDialogEdit;
+    using PartyDialogMessage =
+        openswd3::special_modes::LegacyPartyDialogMessage;
+    using PartyDialogStatus = openswd3::special_modes::LegacyPartyDialogStatus;
+
+    openswd3::special_modes::LegacyPartyDialogState party_dialog_init_state;
+    FakePartyDialogPorts party_dialog_init_ports;
+    const auto party_dialog_initialized =
+        openswd3::special_modes::run_legacy_party_dialog(
+            party_dialog_init_state,
+            openswd3::special_modes::LegacyPartyDialogEvent{
+                .message = PartyDialogMessage::initialize,
+            },
+            party_dialog_init_ports
+        );
+    test.expect_true(
+        party_dialog_initialized.status == PartyDialogStatus::completed &&
+            party_dialog_initialized.action == PartyDialogAction::initialized &&
+            party_dialog_initialized.message_handled &&
+            party_dialog_initialized.legacy_return_value == 1 &&
+            party_dialog_init_state.page_state.page == 0 &&
+            party_dialog_init_ports.tabs.size() == 10U &&
+            party_dialog_init_ports.tabs[0U].second ==
+                std::string("\xAA\xAB\xB3\x7E", 4U) &&
+            party_dialog_init_ports.tabs[1U].second ==
+                std::string("\xC1\xC9\xAF\x53\xC5\x5D\xAA\x6B", 8U) &&
+            party_dialog_init_ports.tabs[5U].second ==
+                std::string("\xC1\xC9\xAF\x53\xC4\xDD\xA9\xCA", 8U) &&
+            party_dialog_init_ports.tabs[9U].second ==
+                std::string("\xC5\xDC\xBC\xC6", 4U) &&
+            party_dialog_init_ports.FakePartyDialogColumnPorts::requests
+                    .size() == 4U &&
+            party_dialog_init_ports.list_styles == std::vector<u32>{0x20U} &&
+            party_dialog_init_ports.edit_limits ==
+                std::vector<std::pair<PartyDialogEdit, u32>>{
+                    {PartyDialogEdit::identifier, 4U},
+                    {PartyDialogEdit::quantity, 8U},
+                    {PartyDialogEdit::added_value, 4U}
+                },
+        "0x40F890 initializes ten original item, spell, attribute, and variable tabs before filling page zero and limiting three edit fields"
+    );
+
+    openswd3::special_modes::LegacyPartyDialogState party_dialog_tab_state;
+    FakePartyDialogPorts party_dialog_tab_ports;
+    const auto party_dialog_tab_changed =
+        openswd3::special_modes::run_legacy_party_dialog(
+            party_dialog_tab_state,
+            openswd3::special_modes::LegacyPartyDialogEvent{
+                .message = PartyDialogMessage::notify,
+                .notify_code = -0x227,
+                .selected_tab = 5,
+            },
+            party_dialog_tab_ports
+        );
+    FakePartyDialogPorts party_dialog_other_notify_ports;
+    const auto party_dialog_other_notify =
+        openswd3::special_modes::run_legacy_party_dialog(
+            party_dialog_tab_state,
+            openswd3::special_modes::LegacyPartyDialogEvent{
+                .message = PartyDialogMessage::notify,
+                .notify_code = -1,
+                .selected_tab = 9,
+            },
+            party_dialog_other_notify_ports
+        );
+    test.expect_true(
+        party_dialog_tab_changed.action == PartyDialogAction::page_changed &&
+            party_dialog_tab_state.page_state.page == 5 &&
+            party_dialog_tab_ports.deleted_columns ==
+                std::vector<u32>{3U, 2U, 1U, 0U} &&
+            party_dialog_tab_ports.enabled_controls ==
+                std::vector<std::pair<PartyDialogControl, bool>>{
+                    {PartyDialogControl::added_value, true},
+                    {PartyDialogControl::fill_selected_quantity, true},
+                    {PartyDialogControl::remove_selected_item, true},
+                    {PartyDialogControl::add_item, true},
+                    {PartyDialogControl::added_value, false},
+                    {PartyDialogControl::fill_selected_quantity, false},
+                    {PartyDialogControl::remove_selected_item, false},
+                    {PartyDialogControl::add_item, false}
+                } &&
+            party_dialog_tab_ports.FakePartyDialogRowPorts::requests.size() ==
+                68U &&
+            party_dialog_other_notify.action == PartyDialogAction::none &&
+            !party_dialog_other_notify.message_handled &&
+            party_dialog_other_notify_ports.deleted_columns.empty(),
+        "0x40F890 handles only the original tab-selection notification, deletes four old columns in reverse order, refills the page, and disables all item edits on member pages"
+    );
+
+    openswd3::special_modes::LegacyPartyDialogState party_dialog_close_state;
+    FakePartyDialogPorts party_dialog_close_ports;
+    const auto party_dialog_closed =
+        openswd3::special_modes::run_legacy_party_dialog(
+            party_dialog_close_state,
+            openswd3::special_modes::LegacyPartyDialogEvent{
+                .message = PartyDialogMessage::command,
+                .command_parameter =
+                    static_cast<u32>(PartyDialogCommand::close),
+            },
+            party_dialog_close_ports
+        );
+    test.expect_true(
+        party_dialog_closed.action == PartyDialogAction::closed &&
+            party_dialog_close_state.close_requested == 1 &&
+            party_dialog_close_ports.ended_results == std::vector<i32>{1} &&
+            party_dialog_close_ports.cursor_values == std::vector<bool>{false},
+        "0x40F890 publishes the close latch before ending the dialog and hiding the software cursor"
+    );
+
+    LegacyStandardModeForwardNode party_dialog_fill_record;
+    party_dialog_fill_record.text_index = 88U;
+    party_dialog_fill_record.first_value = 0xFFF6U;
+    party_dialog_fill_record.second_value = 0U;
+    party_dialog_fill_record.display_name = "fill";
+    openswd3::special_modes::LegacyPartyDialogState party_dialog_fill_state;
+    party_dialog_fill_state.page_state.item_heads[0U] =
+        &party_dialog_fill_record;
+    FakePartyDialogPorts party_dialog_fill_ports;
+    const auto party_dialog_filled =
+        openswd3::special_modes::run_legacy_party_dialog(
+            party_dialog_fill_state,
+            openswd3::special_modes::LegacyPartyDialogEvent{
+                .message = PartyDialogMessage::command,
+                .command_parameter = static_cast<u32>(
+                    PartyDialogCommand::fill_selected_quantity
+                ),
+                .selected_row = 0,
+            },
+            party_dialog_fill_ports
+        );
+    test.expect_true(
+        party_dialog_filled.action ==
+                PartyDialogAction::selected_quantity_filled &&
+            party_dialog_fill_record.first_value == 0xFFF6U &&
+            party_dialog_fill_record.second_value == 0x005AU &&
+            party_dialog_fill_ports.FakePartyDialogRowPorts::requests.size() ==
+                4U &&
+            party_dialog_fill_ports.FakePartyDialogRowPorts::requests[1U]
+                    .text == "80",
+        "0x40F890 fills a selected page-zero quantity by writing ninety to the second signed field while preserving a negative first field and the resulting total below ninety"
+    );
+
+    LegacyStandardModeForwardNode party_dialog_add_record;
+    party_dialog_add_record.text_index = 100U;
+    party_dialog_add_record.first_value = 1U;
+    party_dialog_add_record.second_value = 2U;
+    party_dialog_add_record.display_name = "add";
+    party_dialog_add_record.record_bytes[0x20U] = 7U;
+    party_dialog_add_record.record_bytes[0x44U] = 0x34U;
+    party_dialog_add_record.record_bytes[0x45U] = 0x12U;
+    openswd3::special_modes::LegacyPartyDialogState party_dialog_add_state;
+    party_dialog_add_state.page_state.item_heads[0U] = &party_dialog_add_record;
+    party_dialog_add_state.page_state.item_category_masks = {1U, 2U, 4U};
+    FakePartyDialogPorts party_dialog_add_ports;
+    const auto party_dialog_added =
+        openswd3::special_modes::run_legacy_party_dialog(
+            party_dialog_add_state,
+            openswd3::special_modes::LegacyPartyDialogEvent{
+                .message = PartyDialogMessage::command,
+                .command_parameter =
+                    static_cast<u32>(PartyDialogCommand::add_item),
+                .identifier_text = "100",
+                .quantity_text = "3",
+                .added_value_text = "7",
+            },
+            party_dialog_add_ports
+        );
+    const auto add_refresh = std::find(
+        party_dialog_add_ports.main_events.begin(),
+        party_dialog_add_ports.main_events.end(),
+        "clear-rows"
+    );
+    const auto add_release = std::find(
+        party_dialog_add_ports.main_events.begin(),
+        party_dialog_add_ports.main_events.end(),
+        "release-command"
+    );
+    test.expect_true(
+        party_dialog_added.action == PartyDialogAction::item_added &&
+            party_dialog_added.scratch_allocated &&
+            party_dialog_added.scratch_released &&
+            party_dialog_added.edits_cleared &&
+            party_dialog_add_record.first_value == 1U &&
+            party_dialog_add_record.second_value == 5U &&
+            party_dialog_add_ports.category_updates ==
+                std::vector<PartyDialogCategoryUpdate>{
+                    {1U, 100U, 0x1234U, 7},
+                    {2U, 100U, 0U, 7},
+                    {3U, 100U, 0U, 7},
+                    {3U, 100U, 0U, 7}
+                } &&
+            add_refresh < add_release &&
+            party_dialog_add_ports.cleared_edits ==
+                std::vector<PartyDialogEdit>{
+                    PartyDialogEdit::identifier,
+                    PartyDialogEdit::quantity,
+                    PartyDialogEdit::added_value
+                },
+        "0x40F890 adds a page-zero item through the closed quantity helper, applies all matching category updates including the low-ID duplicate, then refreshes, clears, and releases"
+    );
+
+    openswd3::special_modes::LegacyPartyDialogState
+        party_dialog_restricted_add_state;
+    party_dialog_restricted_add_state.page_state.page = 1;
+    FakePartyDialogPorts party_dialog_restricted_add_ports;
+    const auto party_dialog_restricted_added =
+        openswd3::special_modes::run_legacy_party_dialog(
+            party_dialog_restricted_add_state,
+            openswd3::special_modes::LegacyPartyDialogEvent{
+                .message = PartyDialogMessage::command,
+                .command_parameter =
+                    static_cast<u32>(PartyDialogCommand::add_item),
+                .identifier_text = "1600",
+                .quantity_text = "19",
+                .added_value_text = "23",
+            },
+            party_dialog_restricted_add_ports
+        );
+    test.expect_true(
+        party_dialog_restricted_added.action == PartyDialogAction::item_added &&
+            party_dialog_restricted_add_ports.allocated_record.text_index ==
+                1600U &&
+            party_dialog_restricted_add_ports.allocated_record.first_value ==
+                0U &&
+            party_dialog_restricted_add_ports.allocated_record.second_value ==
+                1U &&
+            party_dialog_restricted_add_ports.category_updates.empty(),
+        "0x40F890 restricts pages one through four to IDs 1501..1999 and forces their quantity and added value to one and zero"
+    );
+
+    LegacyStandardModeForwardNode party_dialog_remove_record;
+    party_dialog_remove_record.text_index = 77U;
+    party_dialog_remove_record.first_value = 1U;
+    party_dialog_remove_record.second_value = 1U;
+    party_dialog_remove_record.release_token = 0x7788U;
+    openswd3::special_modes::LegacyPartyDialogState party_dialog_remove_state;
+    party_dialog_remove_state.page_state.item_heads[0U] =
+        &party_dialog_remove_record;
+    FakePartyDialogPorts party_dialog_remove_ports;
+    const auto party_dialog_removed =
+        openswd3::special_modes::run_legacy_party_dialog(
+            party_dialog_remove_state,
+            openswd3::special_modes::LegacyPartyDialogEvent{
+                .message = PartyDialogMessage::command,
+                .command_parameter =
+                    static_cast<u32>(PartyDialogCommand::remove_selected_item),
+                .selected_row = 0,
+                .output_pointer_high_word = 0xABCDU,
+            },
+            party_dialog_remove_ports
+        );
+    test.expect_true(
+        party_dialog_removed.action ==
+                PartyDialogAction::selected_item_removed &&
+            party_dialog_remove_state.page_state.item_heads[0U] == nullptr &&
+            party_dialog_remove_ports.released_values ==
+                std::vector<u32>{0x7788U} &&
+            party_dialog_remove_ports.released_records ==
+                std::vector<LegacyStandardModeForwardNode*>{
+                    &party_dialog_remove_record
+                } &&
+            party_dialog_remove_ports.deletion_error_count == 0U,
+        "0x40F890 packs the stale output-pointer high word with the selected ID, removes 1024 through the closed quantity helper, and reports an error only when a record remains"
+    );
+
+    LegacyStandardModeForwardNode party_dialog_update_record;
+    party_dialog_update_record.text_index = 100U;
+    party_dialog_update_record.first_value = 3U;
+    party_dialog_update_record.second_value = 4U;
+    party_dialog_update_record.display_name = "update";
+    party_dialog_update_record.record_bytes[0x20U] = 1U;
+    openswd3::special_modes::LegacyPartyDialogState party_dialog_update_state;
+    party_dialog_update_state.page_state.item_heads[0U] =
+        &party_dialog_update_record;
+    party_dialog_update_state.page_state.item_category_masks = {1U, 2U, 4U};
+    FakePartyDialogPorts party_dialog_update_ports;
+    const auto party_dialog_updated =
+        openswd3::special_modes::run_legacy_party_dialog(
+            party_dialog_update_state,
+            openswd3::special_modes::LegacyPartyDialogEvent{
+                .message = PartyDialogMessage::command,
+                .command_parameter =
+                    static_cast<u32>(PartyDialogCommand::update_value),
+                .command_lparam_snapshot = 77,
+                .identifier_text = "100",
+                .quantity_text = "-5",
+            },
+            party_dialog_update_ports
+        );
+    const auto update_release = std::find(
+        party_dialog_update_ports.main_events.begin(),
+        party_dialog_update_ports.main_events.end(),
+        "release-command"
+    );
+    const auto update_refresh = std::find(
+        party_dialog_update_ports.main_events.begin(),
+        party_dialog_update_ports.main_events.end(),
+        "clear-rows"
+    );
+    test.expect_true(
+        party_dialog_updated.action == PartyDialogAction::item_updated &&
+            party_dialog_update_record.first_value == 0U &&
+            party_dialog_update_record.second_value == 0xFFFBU &&
+            party_dialog_update_ports.category_updates ==
+                std::vector<PartyDialogCategoryUpdate>{
+                    {1U, 100U, 0U, 77}, {3U, 100U, 0U, 77}
+                } &&
+            update_release < update_refresh,
+        "0x40F890 directly updates a found player item, preserves a negative signed quantity as raw u16 and the command-lParam added-value residue, then releases before refresh"
+    );
+
+    openswd3::special_modes::LegacyPartyDialogState party_dialog_member_state;
+    party_dialog_member_state.page_state.page = 5;
+    FakePartyDialogPorts party_dialog_member_ports;
+    const auto party_dialog_member_updated =
+        openswd3::special_modes::run_legacy_party_dialog(
+            party_dialog_member_state,
+            openswd3::special_modes::LegacyPartyDialogEvent{
+                .message = PartyDialogMessage::command,
+                .command_parameter =
+                    static_cast<u32>(PartyDialogCommand::update_value),
+                .identifier_text = "0",
+                .quantity_text = "-2",
+            },
+            party_dialog_member_ports
+        );
+    test.expect_true(
+        party_dialog_member_updated.action ==
+                PartyDialogAction::member_field_updated &&
+            party_dialog_member_state.page_state.party_members[0U]
+                    .current_first == 0xFFFEU &&
+            party_dialog_member_updated.scratch_released &&
+            party_dialog_member_updated.page.rendered_row_count == 17U,
+        "0x40F890 writes selectors zero through sixteen into the selected party member through the closed setter before releasing, refilling, and clearing"
+    );
+
+    openswd3::special_modes::LegacyPartyDialogState party_dialog_global_state;
+    party_dialog_global_state.page_state.page = 9;
+    FakePartyDialogPorts party_dialog_global_ports;
+    const auto party_dialog_global_updated =
+        openswd3::special_modes::run_legacy_party_dialog(
+            party_dialog_global_state,
+            openswd3::special_modes::LegacyPartyDialogEvent{
+                .message = PartyDialogMessage::command,
+                .command_parameter =
+                    static_cast<u32>(PartyDialogCommand::update_value),
+                .identifier_text = "12",
+                .stale_local_value = 42,
+            },
+            party_dialog_global_ports
+        );
+    openswd3::special_modes::LegacyPartyDialogState
+        party_dialog_invalid_global_state;
+    party_dialog_invalid_global_state.page_state.page = 9;
+    FakePartyDialogPorts party_dialog_invalid_global_ports;
+    const auto party_dialog_invalid_global =
+        openswd3::special_modes::run_legacy_party_dialog(
+            party_dialog_invalid_global_state,
+            openswd3::special_modes::LegacyPartyDialogEvent{
+                .message = PartyDialogMessage::command,
+                .command_parameter =
+                    static_cast<u32>(PartyDialogCommand::update_value),
+                .identifier_text = "64",
+                .quantity_text = "9",
+            },
+            party_dialog_invalid_global_ports
+        );
+    test.expect_true(
+        party_dialog_global_updated.action ==
+                PartyDialogAction::global_value_updated &&
+            party_dialog_global_state.page_state.global_values[12U] == 42 &&
+            party_dialog_global_ports.command_release_count == 1U &&
+            party_dialog_invalid_global.status ==
+                PartyDialogStatus::global_index_stopped &&
+            party_dialog_invalid_global.scratch_allocated &&
+            !party_dialog_invalid_global.scratch_released &&
+            party_dialog_invalid_global_ports.command_release_count == 0U,
+        "0x40F890 writes one of sixty-four global integers with the stale local value when quantity text is absent and preserves the original scratch leak at an out-of-range index"
+    );
+
+    openswd3::special_modes::LegacyPartyDialogState
+        party_dialog_missing_insert_state;
+    FakePartyDialogPorts party_dialog_missing_insert_ports;
+    party_dialog_missing_insert_ports.FakeQuantityPorts::allocation_available =
+        false;
+    const auto party_dialog_missing_insert =
+        openswd3::special_modes::run_legacy_party_dialog(
+            party_dialog_missing_insert_state,
+            openswd3::special_modes::LegacyPartyDialogEvent{
+                .message = PartyDialogMessage::command,
+                .command_parameter =
+                    static_cast<u32>(PartyDialogCommand::add_item),
+                .identifier_text = "200",
+                .quantity_text = "1",
+                .added_value_text = "0",
+            },
+            party_dialog_missing_insert_ports
+        );
+    openswd3::special_modes::LegacyPartyDialogState
+        party_dialog_invalid_member_state;
+    party_dialog_invalid_member_state.page_state.page = 10;
+    FakePartyDialogPorts party_dialog_invalid_member_ports;
+    const auto party_dialog_invalid_member =
+        openswd3::special_modes::run_legacy_party_dialog(
+            party_dialog_invalid_member_state,
+            openswd3::special_modes::LegacyPartyDialogEvent{
+                .message = PartyDialogMessage::command,
+                .command_parameter =
+                    static_cast<u32>(PartyDialogCommand::update_value),
+                .identifier_text = "0",
+                .quantity_text = "1",
+            },
+            party_dialog_invalid_member_ports
+        );
+    openswd3::special_modes::LegacyPartyDialogState
+        party_dialog_selector_overflow_state;
+    party_dialog_selector_overflow_state.page_state.page = 5;
+    FakePartyDialogPorts party_dialog_selector_overflow_ports;
+    const auto party_dialog_selector_overflow =
+        openswd3::special_modes::run_legacy_party_dialog(
+            party_dialog_selector_overflow_state,
+            openswd3::special_modes::LegacyPartyDialogEvent{
+                .message = PartyDialogMessage::command,
+                .command_parameter =
+                    static_cast<u32>(PartyDialogCommand::update_value),
+                .identifier_text = "17",
+                .quantity_text = "1",
+            },
+            party_dialog_selector_overflow_ports
+        );
+    openswd3::special_modes::LegacyPartyDialogState
+        party_dialog_no_scratch_state;
+    FakePartyDialogPorts party_dialog_no_scratch_ports;
+    party_dialog_no_scratch_ports.command_allocation_available = false;
+    const auto party_dialog_no_scratch =
+        openswd3::special_modes::run_legacy_party_dialog(
+            party_dialog_no_scratch_state,
+            openswd3::special_modes::LegacyPartyDialogEvent{
+                .message = PartyDialogMessage::command,
+                .command_parameter =
+                    static_cast<u32>(PartyDialogCommand::add_item),
+                .identifier_text = "100",
+            },
+            party_dialog_no_scratch_ports
+        );
+    test.expect_true(
+        party_dialog_missing_insert.status ==
+                PartyDialogStatus::item_record_stopped &&
+            party_dialog_missing_insert_ports.insertion_error_count == 1U &&
+            party_dialog_missing_insert.scratch_allocated &&
+            !party_dialog_missing_insert.scratch_released &&
+            party_dialog_invalid_member.status ==
+                PartyDialogStatus::member_source_stopped &&
+            party_dialog_invalid_member.scratch_allocated &&
+            !party_dialog_invalid_member.scratch_released &&
+            party_dialog_selector_overflow.status ==
+                PartyDialogStatus::completed &&
+            party_dialog_selector_overflow.action == PartyDialogAction::none &&
+            party_dialog_selector_overflow.scratch_allocated &&
+            !party_dialog_selector_overflow.scratch_released &&
+            party_dialog_no_scratch.status ==
+                PartyDialogStatus::scratch_allocation_stopped &&
+            !party_dialog_no_scratch.scratch_allocated,
+        "0x40F890 preserves allocation and diagnostics before raw typed-stops, leaks scratch for selector seventeen, and stops immediately when command scratch is unavailable"
     );
 
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;
