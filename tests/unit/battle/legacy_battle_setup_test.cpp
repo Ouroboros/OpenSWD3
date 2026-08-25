@@ -1,11 +1,13 @@
 #include "test.hpp"
 
 #include "openswd3/battle/legacy_battle_directional_scan.hpp"
+#include "openswd3/battle/legacy_battle_image_rotation.hpp"
 #include "openswd3/battle/legacy_battle_particle_frame.hpp"
 #include "openswd3/battle/legacy_battle_particle_spawn.hpp"
 #include "openswd3/battle/legacy_battle_render_geometry.hpp"
 #include "openswd3/battle/legacy_battle_setup.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <filesystem>
@@ -22,6 +24,10 @@ using openswd3::battle::LegacyBattleDirectionalScanStatus;
 using openswd3::battle::LegacyBattleDirectionalSurface;
 using openswd3::battle::LegacyBattleDirectionRaster;
 using openswd3::battle::LegacyBattleImageParticleDiagnostics;
+using openswd3::battle::LegacyBattleImageRotationAllocation;
+using openswd3::battle::LegacyBattleImageRotationAllocator;
+using openswd3::battle::LegacyBattleImageRotationMode;
+using openswd3::battle::LegacyBattleImageRotationStatus;
 using openswd3::battle::LegacyBattleImageParticleFrameStatus;
 using openswd3::battle::LegacyBattleImageParticleEmitter;
 using openswd3::battle::LegacyBattleImageParticleNodePool;
@@ -232,6 +238,44 @@ public:
             geometry->primary_row_offsets != nullptr;
         surface_rows_present_during_release =
             geometry->surface_row_offsets != nullptr;
+    }
+};
+
+class TrackingImageRotationAllocator final
+    : public LegacyBattleImageRotationAllocator {
+public:
+    // -2 uses the requested capacity; -1 returns allocation failure.
+    std::vector<i32> capacities;
+    std::vector<u32> requests;
+    std::size_t call_index{};
+    u32 release_count{};
+    u32 released_capacity{};
+
+    [[nodiscard]] LegacyBattleImageRotationAllocation
+    allocate(const u32 requested_bytes) noexcept override {
+        requests.push_back(requested_bytes);
+        const i32 selected = capacities.at(call_index++);
+        if (selected == -1) {
+            return {};
+        }
+        const u32 capacity =
+            selected == -2 ? requested_bytes : static_cast<u32>(selected);
+        const std::size_t physical_bytes =
+            capacity == 0U ? 1U : static_cast<std::size_t>(capacity);
+        auto bytes = std::make_unique<u8[]>(physical_bytes);
+        std::fill_n(bytes.get(), physical_bytes, static_cast<u8>(0xCCU));
+        return {
+            .bytes = std::move(bytes),
+            .byte_capacity = capacity,
+        };
+    }
+
+    void
+    release(LegacyBattleImageRotationAllocation& allocation) noexcept override {
+        ++release_count;
+        released_capacity = allocation.byte_capacity;
+        allocation.bytes.reset();
+        allocation.byte_capacity = 0U;
     }
 };
 
@@ -2553,6 +2597,267 @@ void test_directional_scan_division_and_typed_stops(
     );
 }
 
+void append_rotation_word(std::vector<u8>& bytes, const u16 value) {
+    bytes.push_back(static_cast<u8>(value & 0xFFU));
+    bytes.push_back(static_cast<u8>(value >> 8U));
+}
+
+std::vector<u8> make_literal_rotation_image(const u16 width, const u16 height) {
+    std::vector<u8> bytes;
+    append_rotation_word(bytes, 0xFFFFU);
+    append_rotation_word(bytes, width);
+    append_rotation_word(bytes, height);
+    append_rotation_word(bytes, 16U);
+    const u16 row_bytes = static_cast<u16>((static_cast<u32>(width) + 3U) * 2U);
+    u16 pixel = 1U;
+    for (u16 row = 0U; row < height; ++row) {
+        append_rotation_word(
+            bytes, static_cast<u16>(row_bytes | (row == 0U ? 0x8000U : 0U))
+        );
+        append_rotation_word(bytes, width);
+        for (u16 column = 0U; column < width; ++column) {
+            append_rotation_word(bytes, pixel++);
+        }
+        append_rotation_word(bytes, 0U);
+    }
+    return bytes;
+}
+
+u16 read_rotation_word(const std::vector<u8>& bytes, const std::size_t offset) {
+    return static_cast<u16>(
+        bytes[offset] |
+        static_cast<u16>(static_cast<u16>(bytes[offset + 1U]) << 8U)
+    );
+}
+
+std::vector<u16> rotation_pixels(
+    const std::vector<u8>& bytes, const u16 width, const u16 height
+) {
+    const std::size_t row_bytes = (static_cast<std::size_t>(width) + 3U) * 2U;
+    std::vector<u16> pixels;
+    for (u16 row = 0U; row < height; ++row) {
+        const std::size_t row_offset =
+            8U + static_cast<std::size_t>(row) * row_bytes;
+        for (u16 column = 0U; column < width; ++column) {
+            pixels.push_back(read_rotation_word(
+                bytes, row_offset + 4U + static_cast<std::size_t>(column) * 2U
+            ));
+        }
+    }
+    return pixels;
+}
+
+void test_literal_image_rotation(openswd3::test::Context& test) {
+    const auto run_normal = [&](const LegacyBattleImageRotationMode mode,
+                                const std::vector<u16>& expected_pixels,
+                                const u32 expected_request) {
+        std::vector<u8> image = make_literal_rotation_image(3U, 3U);
+        TrackingImageRotationAllocator allocator;
+        allocator.capacities = {-2};
+        const auto result =
+            openswd3::battle::rotate_legacy_battle_literal_image(
+                image, mode, 1, allocator
+            );
+        test.expect_true(
+            result.status == LegacyBattleImageRotationStatus::completed &&
+                result.width == 3U && result.height == 3U &&
+                result.row_bytes == 12U &&
+                result.requested_temporary_bytes == expected_request &&
+                result.first_row_header_written && !result.allocation_failed &&
+                result.temporary_released && allocator.release_count == 1U &&
+                read_rotation_word(image, 8U) == 12U &&
+                rotation_pixels(image, 3U, 3U) == expected_pixels,
+            "literal image rotation preserves the selected cyclic direction"
+        );
+    };
+
+    run_normal(
+        LegacyBattleImageRotationMode::rows_up,
+        {4U, 5U, 6U, 7U, 8U, 9U, 1U, 2U, 3U},
+        12U
+    );
+    run_normal(
+        LegacyBattleImageRotationMode::rows_down,
+        {7U, 8U, 9U, 1U, 2U, 3U, 4U, 5U, 6U},
+        12U
+    );
+    run_normal(
+        LegacyBattleImageRotationMode::pixels_left,
+        {2U, 3U, 1U, 5U, 6U, 4U, 8U, 9U, 7U},
+        6U
+    );
+    run_normal(
+        LegacyBattleImageRotationMode::pixels_right,
+        {3U, 1U, 2U, 6U, 4U, 5U, 9U, 7U, 8U},
+        6U
+    );
+
+    {
+        std::vector<u8> image = make_literal_rotation_image(3U, 1U);
+        const std::vector<u8> original = image;
+        TrackingImageRotationAllocator allocator;
+        const auto result =
+            openswd3::battle::rotate_legacy_battle_literal_image(
+                image, LegacyBattleImageRotationMode::rows_up, 0, allocator
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleImageRotationStatus::shift_not_positive &&
+                image == original && allocator.requests.empty(),
+            "nonpositive shift returns before reading or changing the image"
+        );
+    }
+    {
+        std::vector<u8> image = make_literal_rotation_image(3U, 1U);
+        image[0U] = 0U;
+        const std::vector<u8> original = image;
+        TrackingImageRotationAllocator allocator;
+        const auto result =
+            openswd3::battle::rotate_legacy_battle_literal_image(
+                image, LegacyBattleImageRotationMode::rows_up, 1, allocator
+            );
+        test.expect_true(
+            result.status == LegacyBattleImageRotationStatus::magic_mismatch &&
+                image == original && allocator.requests.empty(),
+            "magic mismatch returns before the first row flag write"
+        );
+    }
+    {
+        std::vector<u8> image = make_literal_rotation_image(3U, 1U);
+        image[8U] = 0x0CU;
+        image[9U] = 0xC0U;
+        TrackingImageRotationAllocator allocator;
+        const auto result =
+            openswd3::battle::rotate_legacy_battle_literal_image(
+                image, LegacyBattleImageRotationMode::rows_up, 1, allocator
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleImageRotationStatus::
+                        first_row_flags_unsupported &&
+                result.first_row_header_written &&
+                read_rotation_word(image, 8U) == 0x400CU &&
+                allocator.requests.empty(),
+            "unsupported first row preserves the prior bit15 clear"
+        );
+    }
+    {
+        std::vector<u8> image = make_literal_rotation_image(3U, 1U);
+        TrackingImageRotationAllocator allocator;
+        const auto result =
+            openswd3::battle::rotate_legacy_battle_literal_image(
+                image,
+                static_cast<LegacyBattleImageRotationMode>(4U),
+                1,
+                allocator
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleImageRotationStatus::mode_out_of_range &&
+                read_rotation_word(image, 8U) == 12U &&
+                allocator.requests.empty(),
+            "invalid mode returns only after clearing the first row high bit"
+        );
+    }
+
+    {
+        std::vector<u8> image = make_literal_rotation_image(3U, 1U);
+        const std::vector<u8> original_pixels = image;
+        TrackingImageRotationAllocator allocator;
+        allocator.capacities = {-1};
+        const auto result =
+            openswd3::battle::rotate_legacy_battle_literal_image(
+                image, LegacyBattleImageRotationMode::pixels_left, 1, allocator
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleImageRotationStatus::
+                        temporary_write_out_of_range &&
+                result.allocation_failed && !result.temporary_released &&
+                result.temporary_bytes_written == 0U &&
+                rotation_pixels(image, 3U, 1U) ==
+                    rotation_pixels(original_pixels, 3U, 1U) &&
+                read_rotation_word(image, 8U) == 12U &&
+                allocator.release_count == 0U,
+            "allocation failure stops at the first temporary write after the flag clear"
+        );
+    }
+    {
+        std::vector<u8> image = make_literal_rotation_image(3U, 1U);
+        TrackingImageRotationAllocator allocator;
+        allocator.capacities = {5};
+        const auto result =
+            openswd3::battle::rotate_legacy_battle_literal_image(
+                image, LegacyBattleImageRotationMode::pixels_left, 1, allocator
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleImageRotationStatus::
+                        temporary_write_out_of_range &&
+                result.temporary_bytes_written == 5U &&
+                result.stopped_temporary.byte_capacity == 5U &&
+                result.stopped_temporary.bytes[0U] == 1U &&
+                result.stopped_temporary.bytes[2U] == 2U &&
+                allocator.release_count == 0U,
+            "undersized temporary storage preserves the completed dword prefix"
+        );
+    }
+    {
+        std::vector<u8> image = make_literal_rotation_image(3U, 3U);
+        image.resize(20U);
+        TrackingImageRotationAllocator allocator;
+        allocator.capacities = {-2};
+        const auto result =
+            openswd3::battle::rotate_legacy_battle_literal_image(
+                image, LegacyBattleImageRotationMode::rows_up, 1, allocator
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleImageRotationStatus::image_read_out_of_range &&
+                result.temporary_bytes_written == 12U &&
+                result.image_bytes_written == 0U &&
+                result.stopped_temporary.byte_capacity == 12U &&
+                allocator.release_count == 0U,
+            "short vertical source stops on the first missing shifted-row read"
+        );
+    }
+    {
+        std::vector<u8> image = make_literal_rotation_image(3U, 0U);
+        append_rotation_word(image, 0x8000U);
+        TrackingImageRotationAllocator allocator;
+        allocator.capacities = {-1};
+        const auto result =
+            openswd3::battle::rotate_legacy_battle_literal_image(
+                image, LegacyBattleImageRotationMode::pixels_right, 1, allocator
+            );
+        test.expect_true(
+            result.status == LegacyBattleImageRotationStatus::completed &&
+                result.allocation_failed && result.temporary_released &&
+                allocator.release_count == 1U &&
+                read_rotation_word(image, 8U) == 0U,
+            "zero-height horizontal mode still allocates, clears the flag, and releases without copying"
+        );
+    }
+    {
+        std::vector<u8> image = make_literal_rotation_image(3U, 1U);
+        TrackingImageRotationAllocator allocator;
+        allocator.capacities = {-2};
+        const auto result =
+            openswd3::battle::rotate_legacy_battle_literal_image(
+                image, LegacyBattleImageRotationMode::pixels_left, 4, allocator
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleImageRotationStatus::
+                        temporary_read_out_of_range &&
+                result.temporary_bytes_written == 6U &&
+                result.image_bytes_written == 4U &&
+                allocator.release_count == 0U,
+            "shift beyond width preserves the original partial write before the first temporary overread"
+        );
+    }
+}
+
 void test_render_auxiliary_buffer_release(openswd3::test::Context& test) {
     LegacyBattleRenderGeometry geometry;
     geometry.primary_row_stride = 123;
@@ -3417,6 +3722,7 @@ int main() {
     test_directional_scan_direct_mirror_transparent_and_combine(test);
     test_directional_scan_fixed_point_loops_and_bounds(test);
     test_directional_scan_division_and_typed_stops(test);
+    test_literal_image_rotation(test);
     test_render_auxiliary_buffer_release(test);
     test_render_resource_cleanup(test);
     test_render_surface_rebuild_coordination(test);

@@ -68,6 +68,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "assembly_exact",
         "evidence/battle-host-surface-setup-00433f30.md",
     ),
+    "0x00433F70": (
+        "platform_adapted",
+        "evidence/battle-literal-image-cyclic-rotation-00433f70.md",
+    ),
     "0x004342E0": (
         "assembly_exact",
         "evidence/battle-render-rectangle-004342e0.md",
