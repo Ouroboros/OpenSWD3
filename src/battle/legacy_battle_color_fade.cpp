@@ -8,7 +8,7 @@ rendering::LegacyBlitResult fade_legacy_battle_rectangle(
     LegacyBattleColorFadeState& state,
     rendering::LegacyFramebuffer& framebuffer,
     const rendering::LegacyBlitClipRectangle& clip,
-    const rendering::LegacyBlitRequest& shared_request,
+    rendering::LegacyBlitRequest& shared_request,
     const rendering::LegacyBlitEffectState& effects,
     rendering::LegacyRleRowJitterState& jitter,
     const compat::i32 destination_x,
@@ -32,17 +32,28 @@ rendering::LegacyBlitResult fade_legacy_battle_rectangle(
     request.flags = 8U;
     request.opacity_step = 0;
 
-    return rendering::blit_legacy_copy_paths(
-        framebuffer,
-        clip,
-        rendering::LegacyBlitSource{
-            .bytes = std::span<const compat::u8>{state.source_argument_slot},
-            .layout = rendering::LegacyBlitSourceLayout::direct_16,
-        },
-        request,
-        effects,
-        jitter
-    );
+    const rendering::LegacyBlitResult result =
+        rendering::blit_legacy_copy_paths(
+            framebuffer,
+            clip,
+            rendering::LegacyBlitSource{
+                .bytes =
+                    std::span<const compat::u8>{state.source_argument_slot},
+                .layout = rendering::LegacyBlitSourceLayout::direct_16,
+            },
+            request,
+            effects,
+            jitter
+        );
+    if (result.status == rendering::LegacyBlitExecutionStatus::completed ||
+        result.status == rendering::LegacyBlitExecutionStatus::clipped_out ||
+        result.status ==
+            rendering::LegacyBlitExecutionStatus::opacity_disabled) {
+        shared_request.target_height = 0;
+        shared_request.horizontal_resample_displacement = 0;
+        shared_request.vertical_resample_phase_10_10 = 0U;
+    }
+    return result;
 }
 
 }  // namespace openswd3::battle

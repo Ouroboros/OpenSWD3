@@ -2615,8 +2615,11 @@ void test_battle_color_fade(openswd3::test::Context& test) {
         .width = 4,
         .height = 4,
     };
-    const openswd3::rendering::LegacyBlitRequest shared_request{
+    openswd3::rendering::LegacyBlitRequest shared_request{
         .target_height = 3,
+        .horizontal_resample_displacement = 9,
+        .vertical_resample_enlarge_state = 1U,
+        .vertical_resample_phase_10_10 = 0x155U,
         .flags = 0x1234U,
         .opacity_step = 11,
     };
@@ -2646,6 +2649,10 @@ void test_battle_color_fade(openswd3::test::Context& test) {
                     raw_constant_vertical_fade &&
             state.source_argument_slot ==
                 std::array<u8, 4>{0x34U, 0x12U, 0xA5U, 0xA5U} &&
+            shared_request.target_height == 0 &&
+            shared_request.horizontal_resample_displacement == 0 &&
+            shared_request.vertical_resample_phase_10_10 == 0U &&
+            shared_request.vertical_resample_enlarge_state == 1U &&
             row0[0U] == 0U && row0[1U] == 0x1234U && row0[2U] == 0x1234U &&
             row0[3U] == 0U && row1[0U] == 0U && row1[1U] != 0U &&
             row1[1U] != row0[1U] && row1[2U] == row1[1U] && row1[3U] == 0U &&
@@ -2659,8 +2666,12 @@ void test_battle_color_fade(openswd3::test::Context& test) {
         openswd3::rendering::LegacySurfaceGeometry{
             .pitch_bytes = 4,
             .width = 2,
-            .height = 1,
+            .height = 4,
         }
+    };
+    openswd3::rendering::LegacyBlitRequest marker_request{
+        .target_height = 2,
+        .vertical_resample_phase_10_10 = 33U,
     };
     const auto marker_result = openswd3::battle::fade_legacy_battle_rectangle(
         state,
@@ -2669,9 +2680,9 @@ void test_battle_color_fade(openswd3::test::Context& test) {
             .left = 0,
             .top = 0,
             .width = 2,
-            .height = 1,
+            .height = 4,
         },
-        {},
+        marker_request,
         {},
         jitter,
         0,
@@ -2690,7 +2701,9 @@ void test_battle_color_fade(openswd3::test::Context& test) {
                 openswd3::rendering::LegacyBlitExecutionStatus::
                     unsupported_routine &&
             state.source_argument_slot ==
-                std::array<u8, 4>{0xFFU, 0xFFU, 0x34U, 0x12U},
+                std::array<u8, 4>{0xFFU, 0xFFU, 0x34U, 0x12U} &&
+            marker_request.target_height == 2 &&
+            marker_request.vertical_resample_phase_10_10 == 33U,
         "FFFF low word keeps the RLE-family misclassification and existing callee stop"
     );
 }

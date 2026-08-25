@@ -18,7 +18,7 @@ struct LegacyBattleColorFadeState {
     LegacyBattleColorFadeState& state,
     rendering::LegacyFramebuffer& framebuffer,
     const rendering::LegacyBlitClipRectangle& clip,
-    const rendering::LegacyBlitRequest& shared_request,
+    rendering::LegacyBlitRequest& shared_request,
     const rendering::LegacyBlitEffectState& effects,
     rendering::LegacyRleRowJitterState& jitter,
     compat::i32 destination_x,

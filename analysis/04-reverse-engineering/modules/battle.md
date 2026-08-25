@@ -241,7 +241,7 @@ I5最终必须锁定：
 
 `audit_order=16`的`0x0044FFC0`已关闭为`assembly_exact`。它把32位战斗速度设置按`20-setting`、两次乘5和左移2的原指令链换算为行动计时阈值，同时发布typed状态并返回相同bit pattern。运算全程按低32位回绕，不夹值或拒绝极值；原数据默认900及五处下游读取合同已锁定。唯一caller位于战斗初始化入口，尚待现代实现。
 
-`audit_order=30`的`0x00450A50`按callee优先关闭为`platform_adapted`。它把第五个入口dword的栈槽地址发布为共享源，再以`x,y,width,height,8,0`直接调用已关闭软件blitter；现代实现以完整四字节小端snapshot替代悬空栈指针，并保留其余共享blitter入口状态。模式8实际选择raw常量色垂直渐变而非普通实色copy；低word为`0xFFFF`时仍进入RLE误分类和既有callee typed-stop。12个callsite尚待各caller现代实现。
+`audit_order=30`的`0x00450A50`按callee优先关闭为`platform_adapted`。它把第五个入口dword的栈槽地址发布为共享源，再以`x,y,width,height,8,0`直接调用已关闭软件blitter；现代实现以完整四字节小端snapshot替代悬空栈指针，并在调用期间保留其余入口共享状态。模式8实际选择raw常量色垂直渐变而非普通实色copy；正常返回后按blitter公共后缀清零目标高度、水平位移和纵向phase而保留放大位，typed-stop不清。低word为`0xFFFF`时仍进入RLE误分类和既有callee typed-stop。12个callsite尚待各caller现代实现。
 
 `audit_order=14`的`0x00434790`已关闭为`platform_adapted`。它只在首次调用以显式time seed CRT、发布三项共享值并扫描源图，随后直接组合已关闭粒子生成、线段推进与单像素颜色合成；剩余批次回放保留镜像检查X、源索引和实际写入X错位，粒子2×2绘制保留只跳第一透明色、只检查右像素及合成模式右上先合成后被原值覆盖。生命刷新、距离与目标矩形摘除、唯一/首/尾/中间四类双向链释放及其计数不对称均已闭环。三个上层caller都显式消费返回1作为阶段完成信号，尚待各自进入现代实现。
 
