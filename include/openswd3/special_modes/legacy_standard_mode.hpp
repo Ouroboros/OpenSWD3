@@ -2403,6 +2403,23 @@ struct LegacyMissingItemRecordResult {
     LegacyStandardModeQuantityPorts& ports
 ) noexcept;
 
+enum class LegacyPlayerItemDetachStatus : compat::u8 {
+    completed,
+    chain_cycle_stopped,
+};
+
+struct LegacyPlayerItemDetachResult {
+    LegacyPlayerItemDetachStatus status{
+        LegacyPlayerItemDetachStatus::completed
+    };
+    LegacyStandardModeForwardNode* legacy_return_node{};
+    compat::u32 visited_count{};
+};
+
+[[nodiscard]] LegacyPlayerItemDetachResult detach_legacy_player_item_by_id(
+    LegacyStandardModeForwardNode*& head, compat::u16 record_id
+) noexcept;
+
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
     completed,
     mode_mask_out_of_range,

@@ -16616,6 +16616,82 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44D5D0 stops at the original memset point when 176-byte allocation returns null"
     );
 
+    LegacyStandardModeForwardNode detach_second;
+    detach_second.text_index = 2U;
+    LegacyStandardModeForwardNode detach_first;
+    detach_first.next = &detach_second;
+    detach_first.text_index = 1U;
+    LegacyStandardModeForwardNode* detach_head = &detach_first;
+    const auto detached_head =
+        openswd3::special_modes::detach_legacy_player_item_by_id(
+            detach_head, 1U
+        );
+    test.expect_true(
+        detached_head.status ==
+                openswd3::special_modes::LegacyPlayerItemDetachStatus::
+                    completed &&
+            detached_head.legacy_return_node == &detach_first &&
+            detached_head.visited_count == 1U &&
+            detach_head == &detach_second &&
+            detach_first.next == &detach_second,
+        "0x44D620 detaches a matching head while preserving the returned record next field"
+    );
+
+    LegacyStandardModeForwardNode detach_last;
+    detach_last.text_index = 3U;
+    LegacyStandardModeForwardNode detach_middle;
+    detach_middle.next = &detach_last;
+    detach_middle.text_index = 2U;
+    detach_first.next = &detach_middle;
+    detach_first.text_index = 1U;
+    detach_head = &detach_first;
+    const auto detached_middle =
+        openswd3::special_modes::detach_legacy_player_item_by_id(
+            detach_head, 2U
+        );
+    test.expect_true(
+        detached_middle.legacy_return_node == &detach_middle &&
+            detached_middle.visited_count == 2U &&
+            detach_head == &detach_first && detach_first.next == &detach_last &&
+            detach_middle.next == &detach_last,
+        "0x44D620 rewrites the predecessor link for the first matching middle record without clearing its next"
+    );
+
+    const auto detached_missing =
+        openswd3::special_modes::detach_legacy_player_item_by_id(
+            detach_head, 9U
+        );
+    test.expect_true(
+        detached_missing.status ==
+                openswd3::special_modes::LegacyPlayerItemDetachStatus::
+                    completed &&
+            detached_missing.legacy_return_node == nullptr &&
+            detached_missing.visited_count == 2U &&
+            detach_head == &detach_first && detach_first.next == &detach_last,
+        "0x44D620 returns null and preserves the chain when no record id matches"
+    );
+
+    LegacyStandardModeForwardNode detach_cycle_two;
+    detach_cycle_two.text_index = 2U;
+    LegacyStandardModeForwardNode detach_cycle_one;
+    detach_cycle_one.next = &detach_cycle_two;
+    detach_cycle_one.text_index = 1U;
+    detach_cycle_two.next = &detach_cycle_one;
+    detach_head = &detach_cycle_one;
+    const auto detached_cycle =
+        openswd3::special_modes::detach_legacy_player_item_by_id(
+            detach_head, 9U
+        );
+    test.expect_true(
+        detached_cycle.status ==
+                openswd3::special_modes::LegacyPlayerItemDetachStatus::
+                    chain_cycle_stopped &&
+            detached_cycle.legacy_return_node == nullptr &&
+            detached_cycle.visited_count == 2U &&
+            detach_head == &detach_cycle_one,
+        "0x44D620 stops when an unmatched cycle would reread its first node"
+    );
+
     using SystemMenuRecordCountStatus =
         openswd3::special_modes::LegacySystemMenuRecordCountStatus;
     openswd3::special_modes::LegacySystemMenuState record_count_null_state;

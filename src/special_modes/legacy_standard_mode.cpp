@@ -4976,6 +4976,36 @@ LegacyMissingItemRecordResult create_legacy_missing_item_record(
     return result;
 }
 
+LegacyPlayerItemDetachResult detach_legacy_player_item_by_id(
+    LegacyStandardModeForwardNode*& head, const compat::u16 record_id
+) noexcept {
+    LegacyPlayerItemDetachResult result;
+    LegacyStandardModeForwardNode* previous = nullptr;
+    LegacyStandardModeForwardNode* record = head;
+    std::vector<const LegacyStandardModeForwardNode*> visited;
+    while (record != nullptr) {
+        if (std::find(visited.begin(), visited.end(), record) !=
+            visited.end()) {
+            result.status = LegacyPlayerItemDetachStatus::chain_cycle_stopped;
+            return result;
+        }
+        visited.push_back(record);
+        ++result.visited_count;
+        if (record->text_index == record_id) {
+            if (previous == nullptr) {
+                head = const_cast<LegacyStandardModeForwardNode*>(record->next);
+            } else {
+                previous->next = record->next;
+            }
+            result.legacy_return_node = record;
+            return result;
+        }
+        previous = record;
+        record = const_cast<LegacyStandardModeForwardNode*>(record->next);
+    }
+    return result;
+}
+
 LegacyStandardModeRecordCloneResult
 rebuild_legacy_standard_mode_selection_records(
     LegacyStandardModeForwardNode* source_head,
