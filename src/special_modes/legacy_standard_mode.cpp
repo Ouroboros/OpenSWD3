@@ -5313,6 +5313,121 @@ void initialize_legacy_special_mode_actions(
     }
 }
 
+LegacySpecialModeRuntimeInitializationResult
+initialize_legacy_special_mode_runtime(
+    LegacySpecialModeRuntimeInitializationState& state,
+    world_map::LegacyWorldStoryVmState& story_state,
+    rendering::LegacyFramebuffer& framebuffer,
+    rendering::LegacyRasterGeometryState& raster,
+    const world_map::LegacyWorldBackgroundSource& background_source,
+    const world_map::LegacyWorldFrameState& world_frame_state,
+    world_map::LegacyWorldFramePorts& world_frame_ports,
+    const rendering::LegacyPixelConversionState& pixel_format,
+    LegacySpecialModeRuntimeInitializationPorts& ports
+) noexcept {
+    LegacySpecialModeRuntimeInitializationResult result;
+
+    world_map::set_legacy_world_story_flag(story_state, 10U);
+    result.world_frame = world_map::compose_legacy_world_frame(
+        framebuffer,
+        raster,
+        background_source,
+        world_frame_state,
+        world_frame_ports
+    );
+    if (result.world_frame.status !=
+        world_map::LegacyWorldFrameCompositionStatus::completed) {
+        result.status =
+            LegacySpecialModeRuntimeInitializationStatus::world_frame_stopped;
+        return result;
+    }
+    world_map::clear_legacy_world_story_flag(story_state, 10U);
+
+    const std::optional<std::span<const compat::u16>> locked_pixels =
+        ports.lock_primary_surface();
+    ports.unlock_primary_surface(locked_pixels);
+    result.surface_unlocked = true;
+
+    const auto allocate_pixels = [&](std::vector<compat::u16>& pixels) {
+        ++result.allocation_count;
+        if (!ports.allocate_frame_buffer(kLegacySpecialModeFrameByteCount)) {
+            pixels.clear();
+            return;
+        }
+        try {
+            pixels.assign(kLegacySpecialModeFramePixelCount + 1U, 0U);
+        } catch (...) {
+            pixels.clear();
+        }
+    };
+    allocate_pixels(state.darkened_frame_pixels);
+    allocate_pixels(state.working_frame_pixels);
+
+    if (!locked_pixels.has_value() ||
+        locked_pixels->size() < kLegacySpecialModeFramePixelCount) {
+        result.status = LegacySpecialModeRuntimeInitializationStatus::
+            source_frame_out_of_range;
+        return result;
+    }
+    if (state.darkened_frame_pixels.size() <=
+        kLegacySpecialModeFramePixelCount) {
+        result.status = LegacySpecialModeRuntimeInitializationStatus::
+            darkened_buffer_unavailable;
+        return result;
+    }
+    std::copy_n(
+        locked_pixels->begin(),
+        kLegacySpecialModeFramePixelCount,
+        state.darkened_frame_pixels.begin()
+    );
+
+    result.color_status = rendering::adjust_legacy_rgb_channels(
+        state.darkened_frame_pixels,
+        static_cast<compat::i32>(kLegacySpecialModeFramePixelCount),
+        -4,
+        -4,
+        -8,
+        pixel_format
+    );
+    if (result.color_status != rendering::LegacyFrameColorStatus::completed) {
+        result.status = LegacySpecialModeRuntimeInitializationStatus::
+            color_adjustment_stopped;
+        return result;
+    }
+    result.color_status = rendering::convert_legacy_quarter_sum_grayscale(
+        std::span<compat::u16>(state.darkened_frame_pixels)
+            .first(kLegacySpecialModeFramePixelCount),
+        static_cast<compat::i32>(kLegacySpecialModeFramePixelCount),
+        pixel_format
+    );
+    if (result.color_status != rendering::LegacyFrameColorStatus::completed) {
+        result.status =
+            LegacySpecialModeRuntimeInitializationStatus::grayscale_stopped;
+        return result;
+    }
+
+    if (state.working_frame_pixels.size() <=
+        kLegacySpecialModeFramePixelCount) {
+        result.status = LegacySpecialModeRuntimeInitializationStatus::
+            working_buffer_unavailable;
+        return result;
+    }
+    std::copy_n(
+        state.darkened_frame_pixels.begin(),
+        kLegacySpecialModeFramePixelCount,
+        state.working_frame_pixels.begin()
+    );
+
+    state.workspace_words.fill(0U);
+    state.workspace_head_bound = true;
+    state.runtime_dwords.fill(0U);
+    state.runtime_words.fill(0U);
+    state.enabled = 1U;
+    initialize_legacy_special_mode_actions(state.actions);
+    result.action_set_initialized = true;
+    return result;
+}
+
 static LegacyGuardianAttributeTarget load_guardian_attribute_target(
     const std::span<const compat::u8> bytes
 ) noexcept {

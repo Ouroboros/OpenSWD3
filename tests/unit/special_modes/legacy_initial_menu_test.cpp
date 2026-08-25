@@ -17076,6 +17076,235 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44D6E0 leaves all contributions blocked by a negative target flag but still releases temporary attributes"
     );
 
+    struct FakeSpecialModeWorldFramePorts final
+        : openswd3::world_map::LegacyWorldFramePorts {
+        bool query_service(const u32) noexcept override {
+            return false;
+        }
+        bool query_control(const u32) noexcept override {
+            return false;
+        }
+        bool execute_stage(
+            const openswd3::world_map::LegacyWorldFrameStage
+        ) noexcept override {
+            return true;
+        }
+        void draw_decorated_number(
+            const i32, const i32, const u32, const u32
+        ) noexcept override {}
+    };
+    struct FakeSpecialModeRuntimeInitializationPorts final
+        : openswd3::special_modes::LegacySpecialModeRuntimeInitializationPorts {
+        std::vector<u16> surface_pixels = std::vector<u16>(
+            openswd3::special_modes::kLegacySpecialModeFramePixelCount, 0x7FFFU
+        );
+        std::array<bool, 2U> allocation_results{true, true};
+        bool surface_available{true};
+        u32 lock_count{};
+        u32 unlock_count{};
+        std::vector<std::size_t> allocation_sizes;
+
+        std::optional<std::span<const u16>>
+        lock_primary_surface() noexcept override {
+            ++lock_count;
+            return surface_available
+                ? std::optional<std::span<const u16>>{surface_pixels}
+                : std::nullopt;
+        }
+        void unlock_primary_surface(
+            const std::optional<std::span<const u16>>
+        ) noexcept override {
+            ++unlock_count;
+        }
+        bool
+        allocate_frame_buffer(const std::size_t byte_count) noexcept override {
+            allocation_sizes.push_back(byte_count);
+            return allocation_results[allocation_sizes.size() - 1U];
+        }
+    };
+
+    openswd3::world_map::LegacyWorldStoryVmState special_runtime_story;
+    openswd3::rendering::LegacyFramebuffer special_runtime_framebuffer;
+    auto special_runtime_raster = special_runtime_framebuffer.geometry();
+    openswd3::world_map::LegacyWorldBackgroundSource special_runtime_background;
+    openswd3::world_map::LegacyWorldFrameState special_runtime_world_frame;
+    special_runtime_world_frame.runtime_flags =
+        openswd3::world_map::kLegacyWorldFrameClearOnly;
+    FakeSpecialModeWorldFramePorts special_runtime_world_ports;
+    openswd3::rendering::LegacyPixelConversionState special_runtime_format;
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        special_runtime_state;
+    special_runtime_state.workspace_words.fill(0xFFFFFFFFU);
+    special_runtime_state.runtime_dwords.fill(0xFFFFFFFFU);
+    special_runtime_state.runtime_words.fill(0xFFFFU);
+    FakeSpecialModeRuntimeInitializationPorts special_runtime_ports;
+    const auto special_runtime =
+        openswd3::special_modes::initialize_legacy_special_mode_runtime(
+            special_runtime_state,
+            special_runtime_story,
+            special_runtime_framebuffer,
+            special_runtime_raster,
+            special_runtime_background,
+            special_runtime_world_frame,
+            special_runtime_world_ports,
+            special_runtime_format,
+            special_runtime_ports
+        );
+    test.expect_true(
+        special_runtime.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeRuntimeInitializationStatus::completed &&
+            !openswd3::world_map::query_legacy_world_story_flag(
+                special_runtime_story, 10U
+            ) &&
+            special_runtime_ports.lock_count == 1U &&
+            special_runtime_ports.unlock_count == 1U &&
+            special_runtime_ports.allocation_sizes ==
+                std::vector<std::size_t>{0x96000U, 0x96000U} &&
+            special_runtime_state.darkened_frame_pixels.size() ==
+                openswd3::special_modes::kLegacySpecialModeFramePixelCount +
+                    1U &&
+            special_runtime_state.darkened_frame_pixels[0U] == 0x4E73U &&
+            special_runtime_state.working_frame_pixels[0U] == 0x4E73U &&
+            special_runtime_state.workspace_words[0U] == 0U &&
+            special_runtime_state.runtime_dwords[5U] == 0U &&
+            special_runtime_state.runtime_words[5U] == 0U &&
+            special_runtime_state.enabled == 1U &&
+            special_runtime.action_set_initialized &&
+            special_runtime_state.actions.records[8U].action_id == 0x232AU,
+        "0x44D920 brackets a direct world frame with story bit ten, snapshots and darkens two frame buffers, clears runtime state, and initializes actions"
+    );
+
+    openswd3::world_map::LegacyWorldStoryVmState failed_world_story;
+    openswd3::rendering::LegacyFramebuffer failed_world_framebuffer;
+    auto failed_world_raster = failed_world_framebuffer.geometry();
+    openswd3::world_map::LegacyWorldFrameState failed_world_frame;
+    FakeSpecialModeWorldFramePorts failed_world_ports;
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        failed_world_state;
+    FakeSpecialModeRuntimeInitializationPorts failed_world_runtime_ports;
+    const auto failed_world_runtime =
+        openswd3::special_modes::initialize_legacy_special_mode_runtime(
+            failed_world_state,
+            failed_world_story,
+            failed_world_framebuffer,
+            failed_world_raster,
+            special_runtime_background,
+            failed_world_frame,
+            failed_world_ports,
+            special_runtime_format,
+            failed_world_runtime_ports
+        );
+    test.expect_true(
+        failed_world_runtime.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeRuntimeInitializationStatus::
+                        world_frame_stopped &&
+            openswd3::world_map::query_legacy_world_story_flag(
+                failed_world_story, 10U
+            ) &&
+            failed_world_runtime_ports.lock_count == 0U &&
+            failed_world_runtime_ports.allocation_sizes.empty(),
+        "0x44D920 preserves story bit ten and stops before clear, lock, and allocation when the direct world frame stops"
+    );
+
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        missing_surface_state;
+    FakeSpecialModeRuntimeInitializationPorts missing_surface_ports;
+    missing_surface_ports.surface_available = false;
+    openswd3::world_map::LegacyWorldStoryVmState missing_surface_story;
+    openswd3::rendering::LegacyFramebuffer missing_surface_framebuffer;
+    auto missing_surface_raster = missing_surface_framebuffer.geometry();
+    const auto missing_surface =
+        openswd3::special_modes::initialize_legacy_special_mode_runtime(
+            missing_surface_state,
+            missing_surface_story,
+            missing_surface_framebuffer,
+            missing_surface_raster,
+            special_runtime_background,
+            special_runtime_world_frame,
+            special_runtime_world_ports,
+            special_runtime_format,
+            missing_surface_ports
+        );
+    test.expect_true(
+        missing_surface.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeRuntimeInitializationStatus::
+                        source_frame_out_of_range &&
+            missing_surface_ports.unlock_count == 1U &&
+            missing_surface_ports.allocation_sizes.size() == 2U &&
+            missing_surface_state.darkened_frame_pixels.size() ==
+                openswd3::special_modes::kLegacySpecialModeFramePixelCount +
+                    1U &&
+            !missing_surface.action_set_initialized,
+        "0x44D920 still unlocks and allocates both frame buffers before stopping at a missing source snapshot"
+    );
+
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        missing_first_state;
+    missing_first_state.workspace_words[0U] = 9U;
+    FakeSpecialModeRuntimeInitializationPorts missing_first_ports;
+    missing_first_ports.allocation_results = {false, true};
+    openswd3::world_map::LegacyWorldStoryVmState missing_first_story;
+    openswd3::rendering::LegacyFramebuffer missing_first_framebuffer;
+    auto missing_first_raster = missing_first_framebuffer.geometry();
+    const auto missing_first =
+        openswd3::special_modes::initialize_legacy_special_mode_runtime(
+            missing_first_state,
+            missing_first_story,
+            missing_first_framebuffer,
+            missing_first_raster,
+            special_runtime_background,
+            special_runtime_world_frame,
+            special_runtime_world_ports,
+            special_runtime_format,
+            missing_first_ports
+        );
+    test.expect_true(
+        missing_first.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeRuntimeInitializationStatus::
+                        darkened_buffer_unavailable &&
+            missing_first_ports.allocation_sizes.size() == 2U &&
+            missing_first_state.working_frame_pixels.size() ==
+                openswd3::special_modes::kLegacySpecialModeFramePixelCount +
+                    1U &&
+            missing_first_state.workspace_words[0U] == 9U,
+        "0x44D920 publishes both allocation results before stopping at the first destination write"
+    );
+
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        missing_second_state;
+    missing_second_state.workspace_words[0U] = 11U;
+    FakeSpecialModeRuntimeInitializationPorts missing_second_ports;
+    missing_second_ports.allocation_results = {true, false};
+    openswd3::world_map::LegacyWorldStoryVmState missing_second_story;
+    openswd3::rendering::LegacyFramebuffer missing_second_framebuffer;
+    auto missing_second_raster = missing_second_framebuffer.geometry();
+    const auto missing_second =
+        openswd3::special_modes::initialize_legacy_special_mode_runtime(
+            missing_second_state,
+            missing_second_story,
+            missing_second_framebuffer,
+            missing_second_raster,
+            special_runtime_background,
+            special_runtime_world_frame,
+            special_runtime_world_ports,
+            special_runtime_format,
+            missing_second_ports
+        );
+    test.expect_true(
+        missing_second.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeRuntimeInitializationStatus::
+                        working_buffer_unavailable &&
+            missing_second_state.darkened_frame_pixels[0U] == 0x4E73U &&
+            missing_second_state.workspace_words[0U] == 11U &&
+            !missing_second.action_set_initialized,
+        "0x44D920 completes darkening and grayscale before stopping at the second frame-buffer write"
+    );
+
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;
     for (std::size_t index = 0U; index < special_action_set.records.size();
          ++index) {

@@ -4,6 +4,9 @@
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
 #include "openswd3/compat/types.hpp"
 #include "openswd3/input_time_rng/legacy_input.hpp"
+#include "openswd3/rendering/legacy_frame_color.hpp"
+#include "openswd3/world_map/legacy_world_frame_composition.hpp"
+#include "openswd3/world_map/legacy_world_story_vm.hpp"
 
 #include <array>
 #include <cstddef>
@@ -2535,6 +2538,69 @@ struct LegacySpecialModeActionSet {
 
 void initialize_legacy_special_mode_actions(
     LegacySpecialModeActionSet& state
+) noexcept;
+
+inline constexpr std::size_t kLegacySpecialModeFramePixelCount = 0x4B000U;
+inline constexpr std::size_t kLegacySpecialModeFrameByteCount = 0x96000U;
+
+struct LegacySpecialModeRuntimeInitializationState {
+    std::vector<compat::u16> darkened_frame_pixels;
+    std::vector<compat::u16> working_frame_pixels;
+    std::array<compat::u32, 44U> workspace_words{};
+    bool workspace_head_bound{};
+    std::array<compat::u32, 6U> runtime_dwords{};
+    std::array<compat::u16, 6U> runtime_words{};
+    compat::u32 enabled{};
+    LegacySpecialModeActionSet actions;
+};
+
+class LegacySpecialModeRuntimeInitializationPorts {
+public:
+    virtual ~LegacySpecialModeRuntimeInitializationPorts() = default;
+
+    [[nodiscard]] virtual std::optional<std::span<const compat::u16>>
+    lock_primary_surface() noexcept = 0;
+    virtual void unlock_primary_surface(
+        std::optional<std::span<const compat::u16>> locked_pixels
+    ) noexcept = 0;
+    [[nodiscard]] virtual bool
+    allocate_frame_buffer(std::size_t byte_count) noexcept = 0;
+};
+
+enum class LegacySpecialModeRuntimeInitializationStatus : compat::u8 {
+    completed,
+    world_frame_stopped,
+    source_frame_out_of_range,
+    darkened_buffer_unavailable,
+    color_adjustment_stopped,
+    grayscale_stopped,
+    working_buffer_unavailable,
+};
+
+struct LegacySpecialModeRuntimeInitializationResult {
+    LegacySpecialModeRuntimeInitializationStatus status{
+        LegacySpecialModeRuntimeInitializationStatus::completed
+    };
+    world_map::LegacyWorldFrameCompositionResult world_frame{};
+    rendering::LegacyFrameColorStatus color_status{
+        rendering::LegacyFrameColorStatus::completed
+    };
+    compat::u32 allocation_count{};
+    bool surface_unlocked{};
+    bool action_set_initialized{};
+};
+
+[[nodiscard]] LegacySpecialModeRuntimeInitializationResult
+initialize_legacy_special_mode_runtime(
+    LegacySpecialModeRuntimeInitializationState& state,
+    world_map::LegacyWorldStoryVmState& story_state,
+    rendering::LegacyFramebuffer& framebuffer,
+    rendering::LegacyRasterGeometryState& raster,
+    const world_map::LegacyWorldBackgroundSource& background_source,
+    const world_map::LegacyWorldFrameState& world_frame_state,
+    world_map::LegacyWorldFramePorts& world_frame_ports,
+    const rendering::LegacyPixelConversionState& pixel_format,
+    LegacySpecialModeRuntimeInitializationPorts& ports
 ) noexcept;
 
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
