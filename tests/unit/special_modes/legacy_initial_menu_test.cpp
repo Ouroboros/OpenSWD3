@@ -783,6 +783,40 @@ public:
     std::vector<LegacyStandardModeForwardNode*> released_records;
 };
 
+class FakeChainClonePorts final
+    : public openswd3::special_modes::LegacyStandardModeRecordClonePorts {
+public:
+    LegacyStandardModeForwardNode* clone_record(
+        const LegacyStandardModeForwardNode& source
+    ) noexcept override {
+        if (clone_count == fail_at) {
+            return nullptr;
+        }
+        try {
+            records.push_back(
+                std::make_unique<LegacyStandardModeForwardNode>(source)
+            );
+        } catch (...) {
+            return nullptr;
+        }
+        ++clone_count;
+        return records.back().get();
+    }
+    void
+    release_record(LegacyStandardModeForwardNode& record) noexcept override {
+        released.push_back(&record);
+    }
+    i32 debug_query(const u32) noexcept override {
+        return 0;
+    }
+    void report_zero_filter_record(const u16, const u32) noexcept override {}
+
+    std::size_t fail_at{std::numeric_limits<std::size_t>::max()};
+    std::size_t clone_count{};
+    std::vector<std::unique_ptr<LegacyStandardModeForwardNode>> records;
+    std::vector<LegacyStandardModeForwardNode*> released;
+};
+
 class FakeCharacterAttributesPorts final
     : public openswd3::special_modes::LegacyCharacterAttributesPorts {
 public:
@@ -16388,6 +16422,94 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             player_merge_cycle.second_value == 0U &&
             player_merge_cycle.filter_flags == 0U,
         "0x44D4E0 preserves the first merge before stopping when a cycle would reread the node"
+    );
+
+    FakeChainClonePorts chain_clone_empty_ports;
+    const auto chain_clone_empty = openswd3::special_modes::
+        clone_legacy_standard_mode_record_chain_reversed(
+            nullptr, chain_clone_empty_ports
+        );
+    test.expect_true(
+        chain_clone_empty.status ==
+                openswd3::special_modes::LegacyStandardModeChainCloneStatus::
+                    completed &&
+            chain_clone_empty.legacy_return_head == nullptr &&
+            chain_clone_empty.cloned_count == 0U,
+        "0x44D520 returns null for an empty source chain"
+    );
+
+    LegacyStandardModeForwardNode chain_source_three;
+    chain_source_three.text_index = 3U;
+    chain_source_three.display_name = "three-long-name";
+    LegacyStandardModeForwardNode chain_source_two;
+    chain_source_two.next = &chain_source_three;
+    chain_source_two.text_index = 2U;
+    chain_source_two.display_name = "two-long-name";
+    LegacyStandardModeForwardNode chain_source_one;
+    chain_source_one.next = &chain_source_two;
+    chain_source_one.text_index = 1U;
+    chain_source_one.display_name = "one-long-name";
+    FakeChainClonePorts chain_clone_ports;
+    const auto chain_clone = openswd3::special_modes::
+        clone_legacy_standard_mode_record_chain_reversed(
+            &chain_source_one, chain_clone_ports
+        );
+    const auto* chain_clone_three = chain_clone.legacy_return_head;
+    const auto* chain_clone_two =
+        chain_clone_three != nullptr ? chain_clone_three->next : nullptr;
+    const auto* chain_clone_one =
+        chain_clone_two != nullptr ? chain_clone_two->next : nullptr;
+    test.expect_true(
+        chain_clone.status ==
+                openswd3::special_modes::LegacyStandardModeChainCloneStatus::
+                    completed &&
+            chain_clone.cloned_count == 3U && chain_clone_three != nullptr &&
+            chain_clone_three->text_index == 3U && chain_clone_two != nullptr &&
+            chain_clone_two->text_index == 2U && chain_clone_one != nullptr &&
+            chain_clone_one->text_index == 1U &&
+            chain_clone_one->next == nullptr &&
+            chain_clone_one != &chain_source_one &&
+            chain_clone_one->display_name == chain_source_one.display_name &&
+            chain_clone_one->display_name.data() !=
+                chain_source_one.display_name.data(),
+        "0x44D520 deep-copies each record and name, then prepends clones into reverse source order"
+    );
+
+    FakeChainClonePorts chain_clone_stop_ports;
+    chain_clone_stop_ports.fail_at = 2U;
+    const auto chain_clone_stopped = openswd3::special_modes::
+        clone_legacy_standard_mode_record_chain_reversed(
+            &chain_source_one, chain_clone_stop_ports
+        );
+    test.expect_true(
+        chain_clone_stopped.status ==
+                openswd3::special_modes::LegacyStandardModeChainCloneStatus::
+                    allocation_stopped &&
+            chain_clone_stopped.cloned_count == 2U &&
+            chain_clone_stopped.legacy_return_head ==
+                chain_clone_stop_ports.records[1U].get() &&
+            chain_clone_stopped.legacy_return_head->next ==
+                chain_clone_stop_ports.records[0U].get(),
+        "0x44D520 preserves the two-node reversed clone prefix when the third allocation stops"
+    );
+
+    LegacyStandardModeForwardNode chain_cycle_two;
+    LegacyStandardModeForwardNode chain_cycle_one;
+    chain_cycle_one.next = &chain_cycle_two;
+    chain_cycle_two.next = &chain_cycle_one;
+    FakeChainClonePorts chain_cycle_ports;
+    const auto chain_cycle = openswd3::special_modes::
+        clone_legacy_standard_mode_record_chain_reversed(
+            &chain_cycle_one, chain_cycle_ports
+        );
+    test.expect_true(
+        chain_cycle.status ==
+                openswd3::special_modes::LegacyStandardModeChainCloneStatus::
+                    source_cycle_stopped &&
+            chain_cycle.cloned_count == 2U &&
+            chain_cycle.legacy_return_head ==
+                chain_cycle_ports.records[1U].get(),
+        "0x44D520 preserves two completed clones before stopping when the source cycle would repeat"
     );
 
     using SystemMenuRecordCountStatus =

@@ -2349,6 +2349,26 @@ public:
     ) noexcept = 0;
 };
 
+enum class LegacyStandardModeChainCloneStatus : compat::u8 {
+    completed,
+    allocation_stopped,
+    source_cycle_stopped,
+};
+
+struct LegacyStandardModeChainCloneResult {
+    LegacyStandardModeChainCloneStatus status{
+        LegacyStandardModeChainCloneStatus::completed
+    };
+    LegacyStandardModeForwardNode* legacy_return_head{};
+    compat::u32 cloned_count{};
+};
+
+[[nodiscard]] LegacyStandardModeChainCloneResult
+clone_legacy_standard_mode_record_chain_reversed(
+    const LegacyStandardModeForwardNode* source_head,
+    LegacyStandardModeRecordClonePorts& ports
+) noexcept;
+
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
     completed,
     mode_mask_out_of_range,

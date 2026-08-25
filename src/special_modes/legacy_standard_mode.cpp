@@ -4903,6 +4903,36 @@ LegacyPlayerItemMergeResult merge_legacy_player_item_quantities(
     return result;
 }
 
+LegacyStandardModeChainCloneResult
+clone_legacy_standard_mode_record_chain_reversed(
+    const LegacyStandardModeForwardNode* source_head,
+    LegacyStandardModeRecordClonePorts& ports
+) noexcept {
+    LegacyStandardModeChainCloneResult result;
+    const LegacyStandardModeForwardNode* source = source_head;
+    std::vector<const LegacyStandardModeForwardNode*> visited;
+    while (source != nullptr) {
+        if (std::find(visited.begin(), visited.end(), source) !=
+            visited.end()) {
+            result.status =
+                LegacyStandardModeChainCloneStatus::source_cycle_stopped;
+            return result;
+        }
+        visited.push_back(source);
+        LegacyStandardModeForwardNode* clone = ports.clone_record(*source);
+        if (clone == nullptr) {
+            result.status =
+                LegacyStandardModeChainCloneStatus::allocation_stopped;
+            return result;
+        }
+        clone->next = result.legacy_return_head;
+        result.legacy_return_head = clone;
+        ++result.cloned_count;
+        source = source->next;
+    }
+    return result;
+}
+
 LegacyStandardModeRecordCloneResult
 rebuild_legacy_standard_mode_selection_records(
     LegacyStandardModeForwardNode* source_head,
