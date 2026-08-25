@@ -104,6 +104,13 @@ target_link_libraries(
     openswd3_special_modes_legacy_initial_menu_tests
     PRIVATE openswd3_special_modes
 )
+if(WIN32)
+    # 该聚合测试包含多组大型原始状态快照；仅提高测试进程的栈保留量。
+    target_link_options(
+        openswd3_special_modes_legacy_initial_menu_tests
+        PRIVATE "LINKER:/stack:16777216"
+    )
+endif()
 if(EXISTS "${PROJECT_SOURCE_DIR}/../MAPS.DAT")
     target_compile_definitions(
         openswd3_special_modes_legacy_initial_menu_tests

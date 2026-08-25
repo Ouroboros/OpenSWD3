@@ -93,6 +93,8 @@ SDL主运行时不再实例化不可用的stream backend或立即完成型video 
 - 帧运行时测试证明：剧情VM写入的视频活动位会保留在发布给idle分派的已接受帧状态中。
 - 自建依赖接入后，Linux core无SDL/无FFmpeg配置保持独立并通过`188/188`。
 - 自建依赖及`Map_Eu08`循环补证接入后，Linux app完整门通过`194/194`。
+- 删除旧`build/app`后直接执行`cmd.exe /c build.bat app`，新CMake缓存明确指向`self-built/windows-x64`；Windows LLVM app完整门通过`194/194`。
+- Windows应用`Debug`输出目录中的五个FFmpeg DLL与自建包逐文件SHA256一致，总计`3177472`字节；目录中不存在旧完整包残留或额外MinGW运行时DLL。首轮干净门暴露聚合测试默认1 MiB栈溢出，WER dump确认`0xC00000FD`与测试局部夹具，测试专用PE栈保留调整为16 MiB后单测和完整门均通过，生产应用与库未调整栈设置。
 - 场景音乐循环掩码及SDL音频输入flush修复后，Windows LLVM app完整门分别通过`192/192`。
 - Windows真实设备日志中，`Map_Eu08.mp3`分别于`21:58:29.021`、`21:59:11.621`和`21:59:54.226`报告启动，相邻重开间隔为42.600秒与42.605秒；与该MP3约42.53秒的解码时长一致，证明EOF后连续循环已实际生效。
 - Linux ELF依赖从应用输出目录复制的文件中解析全部五个FFmpeg库，不存在缺失的FFmpeg依赖。
