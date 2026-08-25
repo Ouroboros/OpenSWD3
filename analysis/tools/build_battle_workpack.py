@@ -1,0 +1,170 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import csv
+from collections import Counter
+from pathlib import Path
+
+RESEARCH_ROOT = Path(__file__).resolve().parents[1]
+INVENTORY_ROOT = RESEARCH_ROOT / "04-reverse-engineering" / "inventory"
+OWNERSHIP_INPUT = INVENTORY_ROOT / "module-function-ownership.tsv"
+OUTPUT = INVENTORY_ROOT / "battle-function-workpack.tsv"
+EXPECTED_CANDIDATE_COUNT = 422
+EXPECTED_FIRST_ADDRESS = "0x00433AA0"
+EXPECTED_LAST_ADDRESS = "0x00484500"
+EXPECTED_FAMILY_COUNTS = {
+    "transferred_action_and_asset_helpers": 15,
+    "battle_record_leaves": 2,
+    "setup_frame_input_and_resolution": 93,
+    "script_dispatch_ai_and_targeting": 77,
+    "actor_actions_effects_and_rendering": 194,
+    "shared_battle_object_services": 41,
+}
+EXPECTED_CONFIDENCE_COUNTS = {
+    "confirmed_boundary": 61,
+    "medium": 361,
+}
+ALLOWED_CLOSURE_STATUSES = {
+    "pending_audit",
+    "assembly_exact",
+    "platform_adapted",
+    "unreachable_current_assets",
+    "blocked_runtime_oracle",
+}
+
+# Add an entry only after the complete authoritative LST body and every external
+# FUNCTION CHUNK have been audited, implemented, tested, evidenced and committed.
+CLOSURES: dict[str, tuple[str, str]] = {}
+
+
+def address_value(value: str) -> int:
+    return int(value, 16)
+
+
+def family(address: int) -> str:
+    if 0x00433AA0 <= address <= 0x00434DD0:
+        return "transferred_action_and_asset_helpers"
+    if 0x0044FFC0 <= address <= 0x0044FFE0:
+        return "battle_record_leaves"
+    if 0x00450270 <= address <= 0x0045FC60:
+        return "setup_frame_input_and_resolution"
+    if 0x00460C40 <= address <= 0x0046FFF0:
+        return "script_dispatch_ai_and_targeting"
+    if 0x00470180 <= address <= 0x0047FC40:
+        return "actor_actions_effects_and_rendering"
+    if 0x004800F0 <= address <= 0x00484500:
+        return "shared_battle_object_services"
+    return "ownership_review_required"
+
+
+def main() -> None:
+    with OWNERSHIP_INPUT.open(encoding="utf-8", newline="") as source:
+        rows = [
+            row
+            for row in csv.DictReader(source, delimiter="\t")
+            if row["module_candidate"] == "battle"
+            and row["code_origin"] == "game"
+        ]
+    if len(rows) != EXPECTED_CANDIDATE_COUNT:
+        raise SystemExit(
+            f"expected {EXPECTED_CANDIDATE_COUNT} battle candidates, "
+            f"got {len(rows)}"
+        )
+
+    rows.sort(key=lambda row: address_value(row["address"]))
+    addresses = {row["address"] for row in rows}
+    if len(addresses) != len(rows):
+        raise SystemExit("duplicate battle candidate address")
+    if rows[0]["address"] != EXPECTED_FIRST_ADDRESS:
+        raise SystemExit(f"unexpected first battle address: {rows[0]['address']}")
+    if rows[-1]["address"] != EXPECTED_LAST_ADDRESS:
+        raise SystemExit(f"unexpected last battle address: {rows[-1]['address']}")
+
+    unknown_closures = sorted(set(CLOSURES) - addresses)
+    if unknown_closures:
+        raise SystemExit(f"closure address is outside battle scope: {unknown_closures}")
+
+    output_rows = []
+    for audit_order, row in enumerate(rows, start=1):
+        address = address_value(row["address"])
+        closure_status, closure_evidence = CLOSURES.get(
+            row["address"], ("pending_audit", "")
+        )
+        if closure_status not in ALLOWED_CLOSURE_STATUSES:
+            raise SystemExit(
+                f"unsupported closure status for {row['address']}: "
+                f"{closure_status}"
+            )
+        if closure_status == "pending_audit" and closure_evidence:
+            raise SystemExit(
+                f"pending closure unexpectedly has evidence: {row['address']}"
+            )
+        if closure_status != "pending_audit" and not closure_evidence:
+            raise SystemExit(f"closed entry lacks evidence: {row['address']}")
+        output_rows.append(
+            (
+                audit_order,
+                row["address"],
+                row["ida_name_navigation_only"],
+                family(address),
+                row["candidate_confidence"],
+                row["assembly_direct_callers_address_count"],
+                row["assembly_direct_callees_address_count"],
+                row["review_status"],
+                closure_status,
+                closure_evidence,
+                "ownership and call-graph fields are navigation only; close from full LST body and external chunks",
+            )
+        )
+
+    invalid_families = [
+        row[1] for row in output_rows if row[3] == "ownership_review_required"
+    ]
+    if invalid_families:
+        raise SystemExit(f"battle family is unresolved: {invalid_families}")
+
+    family_counts = Counter(row[3] for row in output_rows)
+    if family_counts != EXPECTED_FAMILY_COUNTS:
+        raise SystemExit(f"unexpected battle family counts: {dict(family_counts)}")
+    confidence_counts = Counter(row[4] for row in output_rows)
+    if confidence_counts != EXPECTED_CONFIDENCE_COUNTS:
+        raise SystemExit(
+            f"unexpected battle confidence counts: {dict(confidence_counts)}"
+        )
+
+    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+    with OUTPUT.open("w", encoding="utf-8", newline="") as destination:
+        writer = csv.writer(destination, delimiter="\t", lineterminator="\n")
+        writer.writerow(
+            (
+                "audit_order",
+                "address",
+                "navigation_name",
+                "entry_family",
+                "candidate_confidence_navigation",
+                "direct_callers_navigation",
+                "direct_callees_navigation",
+                "prior_review_navigation",
+                "closure_status",
+                "closure_evidence",
+                "closure_rule",
+            )
+        )
+        writer.writerows(output_rows)
+
+    closed_count = sum(row[8] != "pending_audit" for row in output_rows)
+    print(f"wrote {OUTPUT.relative_to(RESEARCH_ROOT)} ({len(output_rows)} rows)")
+    if closed_count == EXPECTED_CANDIDATE_COUNT:
+        print(
+            f"closure {closed_count}/{EXPECTED_CANDIDATE_COUNT}; "
+            "all candidates independently closed from full LST bodies"
+        )
+    else:
+        print(
+            f"closure {closed_count}/{EXPECTED_CANDIDATE_COUNT}; "
+            "remaining candidates require independent LST audit"
+        )
+
+
+if __name__ == "__main__":
+    main()
