@@ -19,11 +19,11 @@ typed目录固定为128个u16。null owner和索引越界只在原始u16读取�
 ## 2. caller回收
 
 - `0x0044BDA0`打开“记载”页时直接清光标标志、可见数量和起点，再调用typed计数；删除`prepare_record_page`命令。
-- `0x0044B560`和`0x0044B6E0`保留未关闭的`0x0044D050`重建命令，重建返回后直接调用typed计数并重读owner、目录和起点；删除`count_visible`命令。
+- `0x0044B560`和`0x0044B6E0`先直接调用已关闭的`0x0044D050`，按signed起点计算当前窗口指针，再调用typed计数；`rebuild_page`和`count_visible`命令均已删除。
 - 计数typed-stop时两个翻页caller立即返回，不继续夹scroll或OR光标低字节，保留原始停止前缀。
 
 ## 3. 验证
 
-UT覆盖null owner、初始索引越界、首项0、连续3项、连续6个非零词仍只发布5项、索引123尾部额外读取停止；另覆盖三个caller直连、重建回调后目录重读，以及typed-stop后不执行scroll夹取和光标OR。
+UT覆盖null owner、初始索引越界、首项0、连续3项、连续6个非零词仍只发布5项、索引123尾部额外读取停止；另覆盖三个caller直连、窗口指针定位后目录计数，以及typed-stop后不执行scroll夹取和光标OR。
 
 workpack双生成稳定为`179/227`，SHA256为`5fb8078badf7c567f65cad818b97e2e34331b3d29ba71d67a6468745a4079d4a`；下一项为`0x0044D050`。

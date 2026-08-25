@@ -664,23 +664,6 @@ public:
             populate_default_key_bindings) {
             state.saved_key_bindings = default_key_bindings;
         }
-        if (command ==
-                openswd3::special_modes::LegacySystemMenuInputCommand::
-                    rebuild_page &&
-            populate_records_after_rebuild) {
-            state.list_owner = record_owner_after_rebuild;
-            for (u32 index = 0U; index < record_count_after_rebuild; ++index) {
-                const u32 target = state.system_menu_page_start + index;
-                if (target < state.entries.size()) {
-                    state.entries[target] = static_cast<u16>(index + 1U);
-                }
-            }
-            const u32 sentinel =
-                state.system_menu_page_start + record_count_after_rebuild;
-            if (sentinel < state.entries.size()) {
-                state.entries[sentinel] = 0U;
-            }
-        }
         return command_return_base + static_cast<i32>(command);
     }
 
@@ -739,9 +722,6 @@ public:
     u32 interaction_mode_after_open_mode_fourteen{};
     bool populate_default_key_bindings{};
     std::array<u32, 32U> default_key_bindings{};
-    bool populate_records_after_rebuild{};
-    u32 record_owner_after_rebuild{1U};
-    u32 record_count_after_rebuild{};
     i32 command_return_base{1000};
 };
 
@@ -15449,11 +15429,9 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         );
     test.expect_true(
         last_window_state.system_menu_page_start == 5U &&
-            last_window_ports.input_commands ==
-                std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::rebuild_page, 0U}
-                } &&
-            last_window.helper_call_count == 1U,
+            last_window_state.system_menu_window_context == 11U &&
+            last_window_ports.input_commands.empty() &&
+            last_window.helper_call_count == 0U,
         "0x44B840 tail-dispatches mode-one page two through the closed forward helper"
     );
 
@@ -15553,11 +15531,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         first_window_state.system_menu_page_start == 0U &&
             first_window_state.system_menu_scroll_index == 0U &&
             first_window_state.system_menu_cursor_flags == 0xAABBCC13U &&
-            first_window_ports.input_commands ==
-                std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::rebuild_page, 0U}
-                } &&
-            first_window.helper_call_count == 1U,
+            first_window_ports.input_commands.empty() &&
+            first_window.helper_call_count == 0U,
         "0x44B930 tail-dispatches mode-one page two through the closed backward helper"
     );
 
@@ -15673,11 +15648,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         move_up_window_state.system_menu_page_start == 0U &&
             move_up_window_state.system_menu_scroll_index == 0U &&
             move_up_window_state.system_menu_cursor_flags == 0xAABBCC13U &&
-            move_up_window_ports.input_commands ==
-                std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::rebuild_page, 0U}
-                } &&
-            move_up_window.helper_call_count == 1U,
+            move_up_window_ports.input_commands.empty() &&
+            move_up_window.helper_call_count == 0U,
         "0x44BA20 reuses the closed previous-page helper for mode-one page two"
     );
 
@@ -15933,6 +15905,42 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44D010 preserves five visible entries before stopping at the extra tail word read"
     );
 
+    u32 record_pointer_destination = 0xDEADBEEFU;
+    const auto record_pointer_negative =
+        openswd3::special_modes::advance_legacy_system_menu_record_pointer(
+            -1, 0x11223344U, 0x004FD2FCU, record_pointer_destination
+        );
+    test.expect_true(
+        record_pointer_destination == 0x11223344U &&
+            record_pointer_negative.iteration_count == 0U &&
+            record_pointer_negative.legacy_return_value == 0x004FD2FC,
+        "0x44D050 writes the base and returns the output address without advancing a negative count"
+    );
+
+    record_pointer_destination = 0U;
+    const auto record_pointer_zero =
+        openswd3::special_modes::advance_legacy_system_menu_record_pointer(
+            0, 0x55667788U, 0x004FD2FCU, record_pointer_destination
+        );
+    test.expect_true(
+        record_pointer_destination == 0x55667788U &&
+            record_pointer_zero.iteration_count == 0U &&
+            record_pointer_zero.legacy_return_value == 0x004FD2FC,
+        "0x44D050 treats a zero count like the original signed nonpositive branch"
+    );
+
+    record_pointer_destination = 0U;
+    const auto record_pointer_three =
+        openswd3::special_modes::advance_legacy_system_menu_record_pointer(
+            3, 0xFFFFFFFCU, 0x004FD2FCU, record_pointer_destination
+        );
+    test.expect_true(
+        record_pointer_destination == 2U &&
+            record_pointer_three.iteration_count == 3U &&
+            record_pointer_three.legacy_return_value == 0x004FD2FC,
+        "0x44D050 advances two bytes per positive count with exact 32-bit wrapping"
+    );
+
     openswd3::special_modes::LegacySystemMenuState record_confirm_stop_state;
     record_confirm_stop_state.interaction_mode = 0U;
     record_confirm_stop_state.interaction_page = 2U;
@@ -15963,15 +15971,13 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         );
     test.expect_true(
         record_retreat_stop_state.system_menu_page_start == 0U &&
+            record_retreat_stop_state.system_menu_window_context == 0U &&
             record_retreat_stop_state.system_menu_scroll_index == 0U &&
             record_retreat_stop_state.system_menu_cursor_flags == 0xAA10U &&
             record_retreat_stop.record_count_status ==
                 SystemMenuRecordCountStatus::list_owner_unavailable_stopped &&
-            record_retreat_stop.helper_call_count == 1U &&
-            record_retreat_stop_ports.input_commands ==
-                std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::rebuild_page, 0U}
-                },
+            record_retreat_stop.helper_call_count == 0U &&
+            record_retreat_stop_ports.input_commands.empty(),
         "0x44B6E0 stops after rebuilding and counting, before ORing the Record cursor flags"
     );
 
@@ -15992,7 +15998,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             record_advance_stop_state.system_menu_cursor_flags == 0xAA01U &&
             record_advance_stop.record_count_status ==
                 SystemMenuRecordCountStatus::list_owner_unavailable_stopped &&
-            record_advance_stop.helper_call_count == 1U,
+            record_advance_stop.helper_call_count == 0U,
         "0x44B560 stops after rebuilding and counting, before clamping scroll or ORing cursor flags"
     );
 
@@ -17123,11 +17129,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         );
     test.expect_true(
         move_down_window_state.system_menu_page_start == 5U &&
-            move_down_window_ports.input_commands ==
-                std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::rebuild_page, 0U}
-                } &&
-            move_down_window.helper_call_count == 1U,
+            move_down_window_ports.input_commands.empty() &&
+            move_down_window.helper_call_count == 0U,
         "0x44BBD0 reuses the closed next-page helper for mode-one page two"
     );
 
@@ -17310,13 +17313,11 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         );
     test.expect_true(
         retreat_window_state.system_menu_page_start == 0U &&
+            retreat_window_state.system_menu_window_context == 1U &&
             retreat_window_state.system_menu_scroll_index == 0U &&
             retreat_window_state.system_menu_cursor_flags == 0xAABBCC13U &&
-            retreat_window_ports.input_commands ==
-                std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::rebuild_page, 0U}
-                } &&
-            retreat_window.helper_call_count == 1U,
+            retreat_window_ports.input_commands.empty() &&
+            retreat_window.helper_call_count == 0U,
         "0x44B6E0 resets negative page start and scroll before rebuilding and ORs only AL"
     );
 
@@ -17378,22 +17379,21 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     advance_window_state.entry_count = 10U;
     advance_window_state.system_menu_scroll_index = 9U;
     advance_window_state.system_menu_cursor_flags = 0xAABBCC01U;
+    advance_window_state.list_owner = 1U;
+    advance_window_state.entries[5U] = 1U;
+    advance_window_state.entries[6U] = 2U;
+    advance_window_state.entries[7U] = 3U;
     FakeSystemMenuPorts advance_window_ports;
-    advance_window_ports.populate_records_after_rebuild = true;
-    advance_window_ports.record_owner_after_rebuild = 1U;
-    advance_window_ports.record_count_after_rebuild = 3U;
     const auto advance_window =
         openswd3::special_modes::advance_legacy_system_menu_selection(
             advance_window_state, advance_window_ports
         );
     test.expect_true(
         advance_window_state.system_menu_page_start == 5U &&
+            advance_window_state.system_menu_window_context == 11U &&
             advance_window_state.system_menu_scroll_index == 2U &&
             advance_window_state.system_menu_cursor_flags == 0xAABBCC31U &&
-            advance_window_ports.input_commands ==
-                std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::rebuild_page, 0U}
-                } &&
+            advance_window_ports.input_commands.empty() &&
             advance_window.legacy_return_value ==
                 std::bit_cast<i32>(0xAABBCC31U),
         "0x44B560 rebuilds the next window, rereads visible count, clamps scroll, and ORs only AL"
@@ -17493,11 +17493,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
                 std::vector<u32>{0x0FU} &&
             system_menu_hover_state.system_menu_page_start == 0U &&
             system_menu_hover_state.system_menu_scroll_index == 0U &&
-            system_menu_hover_ports.input_commands ==
-                std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::rebuild_page, 0U}
-                } &&
-            system_menu_hover.helper_call_count == 2U,
+            system_menu_hover_ports.input_commands.empty() &&
+            system_menu_hover.helper_call_count == 1U,
         "0x44B070 rereads pointer, mode, and page after the input-status callback before directly routing upper hover to 0x44B6E0"
     );
 
@@ -17518,11 +17515,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         );
     test.expect_true(
         lower_hover_state.system_menu_page_start == 5U &&
-            lower_hover_ports.input_commands ==
-                std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::rebuild_page, 0U}
-                } &&
-            lower_hover.helper_call_count == 2U,
+            lower_hover_ports.input_commands.empty() &&
+            lower_hover.helper_call_count == 1U,
         "0x44B070 directly reuses 0x44B560 for the lower hover window"
     );
 
@@ -17551,11 +17545,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             system_menu_dynamic_hover_state.system_menu_scroll_index == 0U &&
             system_menu_dynamic_hover_state.system_menu_cursor_flags ==
                 0xAABBCC13U &&
-            system_menu_dynamic_hover_ports.input_commands ==
-                std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::rebuild_page, 0U}
-                } &&
-            system_menu_dynamic_hover.helper_call_count == 2U,
+            system_menu_dynamic_hover_ports.input_commands.empty() &&
+            system_menu_dynamic_hover.helper_call_count == 1U,
         "0x44B070 keeps the upper dynamic bounds signed and directly reuses the page-up helper"
     );
 
@@ -17579,11 +17570,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         );
     test.expect_true(
         system_menu_lower_dynamic_state.system_menu_page_start == 5U &&
-            system_menu_lower_dynamic_ports.input_commands ==
-                std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::rebuild_page, 0U}
-                } &&
-            system_menu_lower_dynamic.helper_call_count == 2U,
+            system_menu_lower_dynamic_ports.input_commands.empty() &&
+            system_menu_lower_dynamic.helper_call_count == 1U,
         "0x44B070 directly reuses 0x44B840 for the lower dynamic hover window"
     );
 

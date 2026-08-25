@@ -462,6 +462,27 @@ LegacySystemMenuRecordCountResult count_visible_legacy_system_menu_records(
     return result;
 }
 
+LegacySystemMenuRecordPointerResult advance_legacy_system_menu_record_pointer(
+    const compat::i32 count,
+    const compat::u32 base_address,
+    const compat::u32 output_address,
+    compat::u32& destination
+) noexcept {
+    LegacySystemMenuRecordPointerResult result;
+    result.legacy_return_value = std::bit_cast<compat::i32>(output_address);
+    destination = base_address;
+    if (count <= 0) {
+        return result;
+    }
+    compat::i32 remaining = count;
+    do {
+        destination += static_cast<compat::u32>(sizeof(compat::u16));
+        --remaining;
+        ++result.iteration_count;
+    } while (remaining != 0);
+    return result;
+}
+
 LegacySystemMenuInputResult return_from_legacy_system_menu_page(
     LegacySystemMenuState& state, LegacySystemMenuPorts& ports
 ) noexcept {
@@ -1113,7 +1134,14 @@ LegacySystemMenuInputResult retreat_legacy_system_menu_selection(
                 state.system_menu_scroll_index = 0U;
                 state.system_menu_page_start = 0U;
             }
-            call(LegacySystemMenuInputCommand::rebuild_page);
+            const LegacySystemMenuRecordPointerResult pointer =
+                advance_legacy_system_menu_record_pointer(
+                    std::bit_cast<compat::i32>(state.system_menu_page_start),
+                    state.list_owner,
+                    0x004FD2FCU,
+                    state.system_menu_window_context
+                );
+            result.legacy_return_value = pointer.legacy_return_value;
             const LegacySystemMenuRecordCountResult count =
                 count_visible_legacy_system_menu_records(state);
             result.record_count_status = count.status;
@@ -1223,7 +1251,16 @@ LegacySystemMenuInputResult advance_legacy_system_menu_selection(
             set_legacy(next_start);
             if (std::bit_cast<compat::i32>(next_start) <
                 std::bit_cast<compat::i32>(state.entry_count)) {
-                call(LegacySystemMenuInputCommand::rebuild_page);
+                const LegacySystemMenuRecordPointerResult pointer =
+                    advance_legacy_system_menu_record_pointer(
+                        std::bit_cast<compat::i32>(
+                            state.system_menu_page_start
+                        ),
+                        state.list_owner,
+                        0x004FD2FCU,
+                        state.system_menu_window_context
+                    );
+                result.legacy_return_value = pointer.legacy_return_value;
                 const LegacySystemMenuRecordCountResult count =
                     count_visible_legacy_system_menu_records(state);
                 result.record_count_status = count.status;

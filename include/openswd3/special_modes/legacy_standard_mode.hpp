@@ -441,7 +441,6 @@ enum class LegacySystemMenuInputCommand : compat::u8 {
     apply_music,
     disable_map_effect,
     enable_map_effect,
-    rebuild_page,
     reset_menu_workspace,
     begin_exit_transition,
     finish_exit_transition,
@@ -603,6 +602,19 @@ struct LegacySystemMenuRecordCountResult {
 
 [[nodiscard]] LegacySystemMenuRecordCountResult
 count_visible_legacy_system_menu_records(LegacySystemMenuState& state) noexcept;
+
+struct LegacySystemMenuRecordPointerResult {
+    compat::i32 legacy_return_value{};
+    compat::u32 iteration_count{};
+};
+
+[[nodiscard]] LegacySystemMenuRecordPointerResult
+advance_legacy_system_menu_record_pointer(
+    compat::i32 count,
+    compat::u32 base_address,
+    compat::u32 output_address,
+    compat::u32& destination
+) noexcept;
 
 struct LegacySystemMenuInputResult {
     compat::i32 legacy_return_value{};
