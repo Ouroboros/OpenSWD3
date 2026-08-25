@@ -3689,6 +3689,35 @@ struct LegacyPartyDialogRowResult {
     const LegacyPartyDialogRowInput& input, LegacyPartyDialogRowPorts& ports
 ) noexcept;
 
+class LegacyPartyDialogReplaceRowPorts
+    : public virtual LegacyPartyDialogRowPorts {
+public:
+    ~LegacyPartyDialogReplaceRowPorts() override = default;
+    [[nodiscard]] virtual std::optional<compat::i32>
+    delete_row(compat::u32 row) noexcept = 0;
+};
+
+enum class LegacyPartyDialogReplaceRowStatus : compat::u8 {
+    completed,
+    scratch_allocation_stopped,
+    row_delete_stopped,
+    row_population_stopped,
+};
+
+struct LegacyPartyDialogReplaceRowResult {
+    LegacyPartyDialogReplaceRowStatus status{
+        LegacyPartyDialogReplaceRowStatus::completed
+    };
+    LegacyPartyDialogRowResult population{};
+    compat::i32 legacy_return_value{1};
+    bool row_deleted{};
+};
+
+[[nodiscard]] LegacyPartyDialogReplaceRowResult replace_legacy_party_dialog_row(
+    const LegacyPartyDialogRowInput& input,
+    LegacyPartyDialogReplaceRowPorts& ports
+) noexcept;
+
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
     completed,
     mode_mask_out_of_range,

@@ -1132,16 +1132,18 @@ public:
         requests;
 };
 
-class FakePartyDialogRowPorts final
-    : public openswd3::special_modes::LegacyPartyDialogRowPorts {
+class FakePartyDialogRowPorts
+    : public virtual openswd3::special_modes::LegacyPartyDialogRowPorts {
 public:
     bool allocate_text_scratch(const std::size_t byte_count) noexcept override {
+        events.push_back(1U);
         allocations.push_back(byte_count);
         return allocation_available;
     }
     std::optional<i32> set_cell(
         const openswd3::special_modes::LegacyPartyDialogCellRequest& request
     ) noexcept override {
+        events.push_back(3U);
         if (requests.size() == fail_cell_at) {
             return std::nullopt;
         }
@@ -1149,6 +1151,7 @@ public:
         return static_cast<i32>(requests.size());
     }
     void release_text_scratch() noexcept override {
+        events.push_back(4U);
         ++release_count;
     }
 
@@ -1157,6 +1160,21 @@ public:
     u32 release_count{};
     std::vector<std::size_t> allocations;
     std::vector<openswd3::special_modes::LegacyPartyDialogCellRequest> requests;
+    std::vector<u32> events;
+};
+
+class FakePartyDialogReplaceRowPorts final
+    : public FakePartyDialogRowPorts,
+      public openswd3::special_modes::LegacyPartyDialogReplaceRowPorts {
+public:
+    std::optional<i32> delete_row(const u32 row) noexcept override {
+        events.push_back(2U);
+        deleted_rows.push_back(row);
+        return delete_available ? std::optional<i32>{1} : std::nullopt;
+    }
+
+    bool delete_available{true};
+    std::vector<u32> deleted_rows;
 };
 
 class FakeChainClonePorts final
@@ -21964,6 +21982,81 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             stopped_party_dialog_row_ports.requests.size() == 2U &&
             stopped_party_dialog_row_ports.release_count == 0U,
         "0x410600 typed-stops at scratch allocation, the original unbounded name copy destination, or the current cell update while preserving prior allocation and cells"
+    );
+
+    const openswd3::special_modes::LegacyPartyDialogRowInput
+        replace_party_dialog_row_input{
+            .row = 12U,
+            .name = "replace",
+            .quantity = 4,
+            .number = 9,
+            .added_value = 30,
+            .added_value_denominator = 1,
+        };
+    FakePartyDialogReplaceRowPorts replace_party_dialog_row_ports;
+    const auto replaced_party_dialog_row =
+        openswd3::special_modes::replace_legacy_party_dialog_row(
+            replace_party_dialog_row_input, replace_party_dialog_row_ports
+        );
+    FakePartyDialogReplaceRowPorts unavailable_replace_party_dialog_row_ports;
+    unavailable_replace_party_dialog_row_ports.allocation_available = false;
+    const auto unavailable_replace_party_dialog_row =
+        openswd3::special_modes::replace_legacy_party_dialog_row(
+            replace_party_dialog_row_input,
+            unavailable_replace_party_dialog_row_ports
+        );
+    FakePartyDialogReplaceRowPorts undeletable_party_dialog_row_ports;
+    undeletable_party_dialog_row_ports.delete_available = false;
+    const auto undeletable_party_dialog_row =
+        openswd3::special_modes::replace_legacy_party_dialog_row(
+            replace_party_dialog_row_input, undeletable_party_dialog_row_ports
+        );
+    FakePartyDialogReplaceRowPorts stopped_replace_party_dialog_row_ports;
+    stopped_replace_party_dialog_row_ports.fail_cell_at = 1U;
+    const auto stopped_replace_party_dialog_row =
+        openswd3::special_modes::replace_legacy_party_dialog_row(
+            replace_party_dialog_row_input,
+            stopped_replace_party_dialog_row_ports
+        );
+    test.expect_true(
+        replaced_party_dialog_row.status ==
+                openswd3::special_modes::LegacyPartyDialogReplaceRowStatus::
+                    completed &&
+            replaced_party_dialog_row.legacy_return_value == 1 &&
+            replaced_party_dialog_row.row_deleted &&
+            replaced_party_dialog_row.population.updated_cell_count == 4U &&
+            replaced_party_dialog_row.population.scratch_released &&
+            replace_party_dialog_row_ports.allocations ==
+                std::vector<std::size_t>{0x40U} &&
+            replace_party_dialog_row_ports.deleted_rows ==
+                std::vector<u32>{12U} &&
+            replace_party_dialog_row_ports.requests[0U].text == "replace" &&
+            replace_party_dialog_row_ports.requests[1U].text == "4" &&
+            replace_party_dialog_row_ports.requests[2U].text == "9" &&
+            replace_party_dialog_row_ports.requests[3U].text == "9" &&
+            replace_party_dialog_row_ports.events ==
+                std::vector<u32>{1U, 2U, 3U, 3U, 3U, 3U, 4U} &&
+            unavailable_replace_party_dialog_row.status ==
+                openswd3::special_modes::LegacyPartyDialogReplaceRowStatus::
+                    scratch_allocation_stopped &&
+            unavailable_replace_party_dialog_row_ports.events ==
+                std::vector<u32>{1U} &&
+            undeletable_party_dialog_row.status ==
+                openswd3::special_modes::LegacyPartyDialogReplaceRowStatus::
+                    row_delete_stopped &&
+            !undeletable_party_dialog_row.row_deleted &&
+            undeletable_party_dialog_row_ports.events ==
+                std::vector<u32>{1U, 2U} &&
+            stopped_replace_party_dialog_row.status ==
+                openswd3::special_modes::LegacyPartyDialogReplaceRowStatus::
+                    row_population_stopped &&
+            stopped_replace_party_dialog_row.row_deleted &&
+            stopped_replace_party_dialog_row.population.updated_cell_count ==
+                1U &&
+            !stopped_replace_party_dialog_row.population.scratch_released &&
+            stopped_replace_party_dialog_row_ports.events ==
+                std::vector<u32>{1U, 2U, 3U, 3U},
+        "0x410490 allocates scratch before deleting the old row, directly reuses the four-cell formatter, and typed-stops without later release at allocation, deletion, or cell update"
     );
 
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;

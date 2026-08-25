@@ -6,7 +6,7 @@
 
 权威范围为`swd3.exe.lst`的`0x00410600..0x0041072D`，共151行，无外部`FUNCTION CHUNK`。唯一caller为共享Windows对话过程。
 
-原函数接收列表句柄、row、名称、数量、编号、附加值和附加值分母。先申请64字节scratch并用`lstrcpyA`复制名称，再依次发送四次`0x102E`列表项消息。现代以窄scratch/cell端口隔离CRT与HWND边界。
+原函数接收列表句柄、row、名称、数量、编号、附加值和附加值分母。先申请64字节scratch并用`lstrcpyA`复制名称，再依次发送四次`0x102E`列表项消息。现代以窄scratch/cell端口隔离CRT与HWND边界；`0x00410490`已关闭并直接复用本入口的已分配四列核心。
 
 ## 2. 固定前三列
 

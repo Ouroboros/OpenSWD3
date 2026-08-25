@@ -8783,14 +8783,10 @@ LegacyPartyDialogColumnResult setup_legacy_party_dialog_columns(
     return result;
 }
 
-LegacyPartyDialogRowResult populate_legacy_party_dialog_row(
+static LegacyPartyDialogRowResult populate_allocated_party_dialog_row(
     const LegacyPartyDialogRowInput& input, LegacyPartyDialogRowPorts& ports
 ) noexcept {
     LegacyPartyDialogRowResult result;
-    if (!ports.allocate_text_scratch(0x40U)) {
-        result.status = LegacyPartyDialogRowStatus::scratch_allocation_stopped;
-        return result;
-    }
     if (input.name.size() >= 0x40U) {
         result.status = LegacyPartyDialogRowStatus::name_copy_stopped;
         return result;
@@ -8839,6 +8835,43 @@ LegacyPartyDialogRowResult populate_legacy_party_dialog_row(
     }
     ports.release_text_scratch();
     result.scratch_released = true;
+    return result;
+}
+
+LegacyPartyDialogRowResult populate_legacy_party_dialog_row(
+    const LegacyPartyDialogRowInput& input, LegacyPartyDialogRowPorts& ports
+) noexcept {
+    if (!ports.allocate_text_scratch(0x40U)) {
+        LegacyPartyDialogRowResult result;
+        result.status = LegacyPartyDialogRowStatus::scratch_allocation_stopped;
+        return result;
+    }
+    return populate_allocated_party_dialog_row(input, ports);
+}
+
+LegacyPartyDialogReplaceRowResult replace_legacy_party_dialog_row(
+    const LegacyPartyDialogRowInput& input,
+    LegacyPartyDialogReplaceRowPorts& ports
+) noexcept {
+    LegacyPartyDialogReplaceRowResult result;
+    if (!ports.allocate_text_scratch(0x40U)) {
+        result.status =
+            LegacyPartyDialogReplaceRowStatus::scratch_allocation_stopped;
+        result.population.status =
+            LegacyPartyDialogRowStatus::scratch_allocation_stopped;
+        return result;
+    }
+    const std::optional<compat::i32> deleted = ports.delete_row(input.row);
+    if (!deleted.has_value()) {
+        result.status = LegacyPartyDialogReplaceRowStatus::row_delete_stopped;
+        return result;
+    }
+    result.row_deleted = true;
+    result.population = populate_allocated_party_dialog_row(input, ports);
+    if (result.population.status != LegacyPartyDialogRowStatus::completed) {
+        result.status =
+            LegacyPartyDialogReplaceRowStatus::row_population_stopped;
+    }
     return result;
 }
 
