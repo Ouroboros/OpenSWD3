@@ -619,6 +619,18 @@ public:
         raw_key_codes.push_back(key_code);
         return raw_key_return;
     }
+    std::optional<openswd3::special_modes::LegacySystemMenuRecordText>
+    resolve_system_menu_record_text(
+        const u16 record_id, openswd3::special_modes::LegacySystemMenuState&
+    ) noexcept override {
+        resolved_record_ids.push_back(record_id);
+        if (!record_text_available) {
+            return std::nullopt;
+        }
+        return openswd3::special_modes::LegacySystemMenuRecordText{
+            record_text_token_base + record_id, record_text_leading_marker
+        };
+    }
     bool copy_system_menu_text_prefix(
         const u32 owner,
         const u32 byte_offset,
@@ -704,6 +716,10 @@ public:
     u32 pending_key_after_query{};
     std::vector<u32> raw_key_codes;
     i32 raw_key_return{};
+    std::vector<u16> resolved_record_ids;
+    bool record_text_available{true};
+    bool record_text_leading_marker{};
+    u32 record_text_token_base{0x5000U};
     std::vector<std::array<u32, 4U>> text_prefix_copies;
     bool text_prefix_available{true};
     std::vector<openswd3::special_modes::LegacySystemMenuFrameCommand>
@@ -15941,6 +15957,113 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44D050 advances two bytes per positive count with exact 32-bit wrapping"
     );
 
+    using SystemMenuRecordDrawStatus =
+        openswd3::special_modes::LegacySystemMenuRecordDrawStatus;
+    openswd3::special_modes::LegacySystemMenuState record_draw_owner_state;
+    FakeSystemMenuPorts record_draw_owner_ports;
+    const auto record_draw_owner =
+        openswd3::special_modes::render_legacy_system_menu_record(
+            record_draw_owner_state, 0, 0xF0, 0x84, record_draw_owner_ports
+        );
+    test.expect_true(
+        record_draw_owner.status ==
+                SystemMenuRecordDrawStatus::list_owner_unavailable_stopped &&
+            record_draw_owner_ports.resolved_record_ids.empty() &&
+            record_draw_owner_ports.frame_commands.empty(),
+        "0x44D070 stops at the original Record-directory read when the owner is null"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState record_draw_index_state;
+    record_draw_index_state.list_owner = 1U;
+    FakeSystemMenuPorts record_draw_index_ports;
+    const auto record_draw_index =
+        openswd3::special_modes::render_legacy_system_menu_record(
+            record_draw_index_state, -1, 0xF0, 0x84, record_draw_index_ports
+        );
+    test.expect_true(
+        record_draw_index.status ==
+                SystemMenuRecordDrawStatus::record_index_out_of_range_stopped &&
+            record_draw_index_ports.resolved_record_ids.empty(),
+        "0x44D070 preserves the signed negative index and stops only at the directory word read"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState record_draw_text_stop_state;
+    record_draw_text_stop_state.list_owner = 1U;
+    record_draw_text_stop_state.entries[2U] = 7U;
+    FakeSystemMenuPorts record_draw_text_stop_ports;
+    record_draw_text_stop_ports.record_text_available = false;
+    const auto record_draw_text_stop =
+        openswd3::special_modes::render_legacy_system_menu_record(
+            record_draw_text_stop_state,
+            2,
+            0xF0,
+            0x84,
+            record_draw_text_stop_ports
+        );
+    test.expect_true(
+        record_draw_text_stop.status ==
+                SystemMenuRecordDrawStatus::record_text_unavailable_stopped &&
+            record_draw_text_stop.record_id == 7U &&
+            record_draw_text_stop_ports.resolved_record_ids ==
+                std::vector<u16>{7U} &&
+            record_draw_text_stop_ports.frame_commands.empty(),
+        "0x44D070 stops at the original first text-byte read after resolving the Record id"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState record_draw_plain_state;
+    record_draw_plain_state.list_owner = 1U;
+    record_draw_plain_state.entries[2U] = 7U;
+    FakeSystemMenuPorts record_draw_plain_ports;
+    record_draw_plain_ports.record_text_token_base = 0x6000U;
+    const auto record_draw_plain =
+        openswd3::special_modes::render_legacy_system_menu_record(
+            record_draw_plain_state, 2, 0xF0, 0x84, record_draw_plain_ports
+        );
+    test.expect_true(
+        record_draw_plain.status == SystemMenuRecordDrawStatus::completed &&
+            !record_draw_plain.drew_marker &&
+            record_draw_plain.command_count == 1U &&
+            record_draw_plain.helper_call_count == 1U &&
+            record_draw_plain_ports.frame_commands[0U].type ==
+                openswd3::special_modes::LegacySystemMenuFrameCommandType::
+                    draw_record_text &&
+            record_draw_plain_ports.frame_commands[0U].arguments ==
+                std::array<i32, 10U>{
+                    0x6007, 0, 0xF0, 0x84, 2, 0x154, 4, 0, 0, 0
+                },
+        "0x44D070 draws plain Record text with the original x, y, mode, width and style"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState record_draw_marker_state;
+    record_draw_marker_state.list_owner = 1U;
+    record_draw_marker_state.entries[0U] = 9U;
+    FakeSystemMenuPorts record_draw_marker_ports;
+    record_draw_marker_ports.record_text_token_base = 0x7000U;
+    record_draw_marker_ports.record_text_leading_marker = true;
+    const auto record_draw_marker =
+        openswd3::special_modes::render_legacy_system_menu_record(
+            record_draw_marker_state, 0, 0, 0x99, record_draw_marker_ports
+        );
+    test.expect_true(
+        record_draw_marker.status == SystemMenuRecordDrawStatus::completed &&
+            record_draw_marker.drew_marker &&
+            record_draw_marker.command_count == 2U &&
+            record_draw_marker.helper_call_count == 2U &&
+            record_draw_marker_ports.frame_commands[0U].type ==
+                openswd3::special_modes::LegacySystemMenuFrameCommandType::
+                    draw_record_marker &&
+            std::bit_cast<u32>(
+                record_draw_marker_ports.frame_commands[0U].arguments[0U]
+            ) == 0xFFFFFFE4U &&
+            record_draw_marker_ports.frame_commands[0U].arguments[2U] ==
+                0x232A &&
+            record_draw_marker_ports.frame_commands[0U].arguments[3U] == 0x17 &&
+            record_draw_marker_ports.frame_commands[1U].arguments[0U] ==
+                0x7009 &&
+            record_draw_marker_ports.frame_commands[1U].arguments[1U] == 1,
+        "0x44D070 draws action 232A variant 17 at x minus twenty-eight before skipping the percent marker"
+    );
+
     openswd3::special_modes::LegacySystemMenuState record_confirm_stop_state;
     record_confirm_stop_state.interaction_mode = 0U;
     record_confirm_stop_state.interaction_page = 2U;
@@ -16086,6 +16209,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     system_menu_frame_record_state.system_menu_page_start = 2U;
     system_menu_frame_record_state.system_menu_visible_count = 2U;
     system_menu_frame_record_state.system_menu_cursor_flags = 0x21U;
+    system_menu_frame_record_state.entries[2U] = 10U;
+    system_menu_frame_record_state.entries[3U] = 11U;
     FakeSystemMenuPorts system_menu_frame_record_ports;
     const auto system_menu_frame_record =
         openswd3::special_modes::update_legacy_system_menu_frame(
@@ -16103,8 +16228,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         system_menu_frame_record_ports.frame_commands.begin(),
         system_menu_frame_record_ports.frame_commands.end(),
         [](const auto& command) {
-            return command.type ==
-                SystemMenuFrameCommandType::draw_record_entry;
+            return command.type == SystemMenuFrameCommandType::draw_record_text;
         }
     );
     test.expect_true(
@@ -16119,14 +16243,37 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
                 static_cast<double>(static_cast<float>(4.0 / 6.0)) &&
             count_frame_commands(
                 system_menu_frame_record_ports,
-                SystemMenuFrameCommandType::draw_record_entry,
+                SystemMenuFrameCommandType::draw_record_text,
                 SystemMenuText::record
             ) == 2U &&
-            first_record->arguments[0U] == 2 &&
-            first_record->arguments[1U] == 0xF0 &&
-            first_record->arguments[2U] == 0x84 &&
+            first_record->arguments[0U] == 0x500A &&
+            first_record->arguments[1U] == 0 &&
+            first_record->arguments[2U] == 0xF0 &&
+            first_record->arguments[3U] == 0x84 &&
             system_menu_frame_record.legacy_return_value == 1,
         "0x44C160 draws the Record scrollbar after consuming both cursor nibbles and then draws visible entries"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState
+        system_menu_frame_record_text_stop_state;
+    system_menu_frame_record_text_stop_state.interaction_mode = 1U;
+    system_menu_frame_record_text_stop_state.interaction_page = 2U;
+    system_menu_frame_record_text_stop_state.list_owner = 1U;
+    system_menu_frame_record_text_stop_state.system_menu_visible_count = 1U;
+    system_menu_frame_record_text_stop_state.entries[0U] = 5U;
+    FakeSystemMenuPorts system_menu_frame_record_text_stop_ports;
+    system_menu_frame_record_text_stop_ports.record_text_available = false;
+    const auto system_menu_frame_record_text_stop =
+        openswd3::special_modes::update_legacy_system_menu_frame(
+            system_menu_frame_record_text_stop_state,
+            system_menu_frame_record_text_stop_ports
+        );
+    test.expect_true(
+        system_menu_frame_record_text_stop.status ==
+                SystemMenuFrameStatus::record_text_unavailable_stopped &&
+            system_menu_frame_record_text_stop_ports.resolved_record_ids ==
+                std::vector<u16>{5U},
+        "0x44C160 propagates a Record-text stop before overwriting the legacy return with visible count"
     );
 
     openswd3::special_modes::LegacySystemMenuState

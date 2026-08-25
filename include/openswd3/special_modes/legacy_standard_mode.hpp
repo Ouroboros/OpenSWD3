@@ -492,7 +492,8 @@ enum class LegacySystemMenuFrameCommandType : compat::u8 {
     draw_text,
     draw_panel,
     draw_record_scrollbar,
-    draw_record_entry,
+    draw_record_marker,
+    draw_record_text,
     draw_setting_action,
     draw_selection_frame,
 };
@@ -502,6 +503,11 @@ struct LegacySystemMenuFrameCommand {
     LegacySystemMenuText text{};
     std::array<compat::i32, 10U> arguments{};
     std::array<double, 2U> fractions{};
+};
+
+struct LegacySystemMenuRecordText {
+    compat::u32 token{};
+    bool leading_marker{};
 };
 
 struct LegacySystemMenuMessage {
@@ -546,6 +552,10 @@ public:
     find_system_menu_pressed_key(LegacySystemMenuState& state) noexcept = 0;
     [[nodiscard]] virtual compat::i32 read_system_menu_raw_key(
         compat::u32 key_code, LegacySystemMenuState& state
+    ) noexcept = 0;
+    [[nodiscard]] virtual std::optional<LegacySystemMenuRecordText>
+    resolve_system_menu_record_text(
+        compat::u16 record_id, LegacySystemMenuState& state
     ) noexcept = 0;
     [[nodiscard]] virtual bool copy_system_menu_text_prefix(
         compat::u32 owner,
@@ -616,6 +626,32 @@ advance_legacy_system_menu_record_pointer(
     compat::u32& destination
 ) noexcept;
 
+enum class LegacySystemMenuRecordDrawStatus : compat::u8 {
+    completed,
+    list_owner_unavailable_stopped,
+    record_index_out_of_range_stopped,
+    record_text_unavailable_stopped,
+};
+
+struct LegacySystemMenuRecordDrawResult {
+    LegacySystemMenuRecordDrawStatus status{
+        LegacySystemMenuRecordDrawStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u16 record_id{};
+    bool drew_marker{};
+    compat::u32 command_count{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacySystemMenuRecordDrawResult render_legacy_system_menu_record(
+    LegacySystemMenuState& state,
+    compat::i32 record_index,
+    compat::i32 x,
+    compat::i32 y,
+    LegacySystemMenuPorts& ports
+) noexcept;
+
 struct LegacySystemMenuInputResult {
     compat::i32 legacy_return_value{};
     compat::u32 helper_call_count{};
@@ -667,6 +703,9 @@ enum class LegacySystemMenuFrameStatus : compat::u8 {
     completed,
     description_owner_unavailable_stopped,
     description_source_out_of_range_stopped,
+    record_owner_unavailable_stopped,
+    record_index_out_of_range_stopped,
+    record_text_unavailable_stopped,
     key_selection_out_of_range_stopped,
     key_code_out_of_range_stopped,
 };

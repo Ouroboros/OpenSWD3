@@ -483,6 +483,69 @@ LegacySystemMenuRecordPointerResult advance_legacy_system_menu_record_pointer(
     return result;
 }
 
+LegacySystemMenuRecordDrawResult render_legacy_system_menu_record(
+    LegacySystemMenuState& state,
+    const compat::i32 record_index,
+    const compat::i32 x,
+    const compat::i32 y,
+    LegacySystemMenuPorts& ports
+) noexcept {
+    LegacySystemMenuRecordDrawResult result;
+    if (state.list_owner == 0U) {
+        result.status =
+            LegacySystemMenuRecordDrawStatus::list_owner_unavailable_stopped;
+        return result;
+    }
+    if (record_index < 0 ||
+        record_index >= static_cast<compat::i32>(state.entries.size())) {
+        result.status =
+            LegacySystemMenuRecordDrawStatus::record_index_out_of_range_stopped;
+        return result;
+    }
+    result.record_id = state.entries[static_cast<std::size_t>(record_index)];
+    const std::optional<LegacySystemMenuRecordText> text =
+        ports.resolve_system_menu_record_text(result.record_id, state);
+    if (!text.has_value()) {
+        result.status =
+            LegacySystemMenuRecordDrawStatus::record_text_unavailable_stopped;
+        return result;
+    }
+    const auto emit =
+        [&result, &ports, &state](const LegacySystemMenuFrameCommand& command) {
+            ++result.command_count;
+            ++result.helper_call_count;
+            result.legacy_return_value =
+                ports.execute_system_menu_frame_command(command, state);
+        };
+    compat::u32 text_offset = 0U;
+    if (text->leading_marker) {
+        result.drew_marker = true;
+        text_offset = 1U;
+        emit({
+            LegacySystemMenuFrameCommandType::draw_record_marker,
+            LegacySystemMenuText::record,
+            {std::bit_cast<compat::i32>(std::bit_cast<compat::u32>(x) - 0x1CU),
+             y,
+             0x232A,
+             0x17},
+            {},
+        });
+    }
+    emit({
+        LegacySystemMenuFrameCommandType::draw_record_text,
+        LegacySystemMenuText::record,
+        {std::bit_cast<compat::i32>(text->token),
+         std::bit_cast<compat::i32>(text_offset),
+         x,
+         y,
+         2,
+         0x154,
+         4},
+        {},
+    });
+    return result;
+}
+
 LegacySystemMenuInputResult return_from_legacy_system_menu_page(
     LegacySystemMenuState& state, LegacySystemMenuPorts& ports
 ) noexcept {
@@ -1880,15 +1943,39 @@ LegacySystemMenuFrameResult update_legacy_system_menu_frame(
                                                  state.system_menu_visible_count
                      );
                      ++index) {
-                    emit(
-                        LegacySystemMenuFrameCommandType::draw_record_entry,
-                        LegacySystemMenuText::record,
-                        {std::bit_cast<compat::i32>(
-                             state.system_menu_page_start + index
-                         ),
-                         0xF0,
-                         std::bit_cast<compat::i32>(index * 0x41U + 0x84U)}
-                    );
+                    const LegacySystemMenuRecordDrawResult record =
+                        render_legacy_system_menu_record(
+                            state,
+                            std::bit_cast<compat::i32>(
+                                state.system_menu_page_start + index
+                            ),
+                            0xF0,
+                            std::bit_cast<compat::i32>(index * 0x41U + 0x84U),
+                            ports
+                        );
+                    result.command_count += record.command_count;
+                    result.helper_call_count += record.helper_call_count;
+                    result.legacy_return_value = record.legacy_return_value;
+                    if (record.status !=
+                        LegacySystemMenuRecordDrawStatus::completed) {
+                        if (record.status ==
+                            LegacySystemMenuRecordDrawStatus::
+                                list_owner_unavailable_stopped) {
+                            result.status = LegacySystemMenuFrameStatus::
+                                record_owner_unavailable_stopped;
+                        } else if (
+                            record.status ==
+                            LegacySystemMenuRecordDrawStatus::
+                                record_index_out_of_range_stopped
+                        ) {
+                            result.status = LegacySystemMenuFrameStatus::
+                                record_index_out_of_range_stopped;
+                        } else {
+                            result.status = LegacySystemMenuFrameStatus::
+                                record_text_unavailable_stopped;
+                        }
+                        return result;
+                    }
                     result.legacy_return_value = std::bit_cast<compat::i32>(
                         state.system_menu_visible_count
                     );
