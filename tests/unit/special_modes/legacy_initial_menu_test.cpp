@@ -1095,6 +1095,25 @@ public:
     std::vector<u32> events;
 };
 
+class FakePartyMemberFieldWritePorts final
+    : public openswd3::world_map::LegacyPartyMemberFieldWritePorts {
+public:
+    bool load_party_member_level_field(
+        const u32 group, const u32 level, u32& output
+    ) override {
+        requests.push_back({group, level});
+        if (!available) {
+            return false;
+        }
+        output = loaded_output;
+        return true;
+    }
+
+    bool available{true};
+    u32 loaded_output{0xCAFEBABEU};
+    std::vector<std::array<u32, 2U>> requests;
+};
+
 class FakeChainClonePorts final
     : public openswd3::special_modes::LegacyStandardModeRecordClonePorts {
 public:
@@ -21656,6 +21675,98 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
                 party_member_field_record, 17
             ) == 0,
         "0x4112B0 returns selectors zero through five with signed word extension, six through thirteen with unsigned extension, full dword fields, the final byte, and zero for defaults"
+    );
+
+    openswd3::world_map::LegacyWorldStoryPartyMemberResources
+        party_member_field_write_record;
+    FakePartyMemberFieldWritePorts party_member_field_write_ports;
+    bool party_member_field_writes_completed = true;
+    for (i32 selector = 0; selector <= 13; ++selector) {
+        const auto written =
+            openswd3::world_map::write_legacy_party_member_field(
+                party_member_field_write_record,
+                selector,
+                0x10000 + selector,
+                party_member_field_write_ports
+            );
+        party_member_field_writes_completed =
+            party_member_field_writes_completed && written.field_written &&
+            !written.level_requested && written.legacy_return_value == 0;
+    }
+    const auto full_field_20_written =
+        openswd3::world_map::write_legacy_party_member_field(
+            party_member_field_write_record,
+            14,
+            std::bit_cast<i32>(0x89ABCDEFU),
+            party_member_field_write_ports
+        );
+    const auto full_field_00_written =
+        openswd3::world_map::write_legacy_party_member_field(
+            party_member_field_write_record,
+            15,
+            std::bit_cast<i32>(0x76543210U),
+            party_member_field_write_ports
+        );
+    party_member_field_write_ports.available = false;
+    const auto failed_level_field_written =
+        openswd3::world_map::write_legacy_party_member_field(
+            party_member_field_write_record,
+            16,
+            -2,
+            party_member_field_write_ports
+        );
+    const u32 failed_level_preserved_field_20 =
+        party_member_field_write_record.field_20;
+    party_member_field_write_ports.available = true;
+    const auto loaded_level_field_written =
+        openswd3::world_map::write_legacy_party_member_field(
+            party_member_field_write_record,
+            16,
+            5,
+            party_member_field_write_ports
+        );
+    const auto invalid_low_field_write =
+        openswd3::world_map::write_legacy_party_member_field(
+            party_member_field_write_record,
+            -1,
+            0x1111,
+            party_member_field_write_ports
+        );
+    const auto invalid_high_field_write =
+        openswd3::world_map::write_legacy_party_member_field(
+            party_member_field_write_record,
+            17,
+            0x2222,
+            party_member_field_write_ports
+        );
+    test.expect_true(
+        party_member_field_writes_completed &&
+            party_member_field_write_record.current_first == 0U &&
+            party_member_field_write_record.current_second == 1U &&
+            party_member_field_write_record.current_third == 2U &&
+            party_member_field_write_record.limit_first == 3U &&
+            party_member_field_write_record.limit_second == 4U &&
+            party_member_field_write_record.limit_third == 5U &&
+            party_member_field_write_record.fields_10_to_1e ==
+                std::array<u16, 8U>{6U, 7U, 8U, 9U, 10U, 11U, 12U, 13U} &&
+            full_field_20_written.field_written &&
+            full_field_00_written.field_written &&
+            failed_level_preserved_field_20 == 0x89ABCDEFU &&
+            party_member_field_write_record.field_00 == 0x76543210U &&
+            failed_level_field_written.field_written &&
+            failed_level_field_written.level_requested &&
+            !failed_level_field_written.level_loaded &&
+            loaded_level_field_written.field_written &&
+            loaded_level_field_written.level_requested &&
+            loaded_level_field_written.level_loaded &&
+            party_member_field_write_record.field_2c == 5U &&
+            party_member_field_write_record.field_20 == 0xCAFEBABEU &&
+            party_member_field_write_ports.requests ==
+                std::vector<std::array<u32, 2U>>{{2U, 0xFFFFFFFFU}, {2U, 6U}} &&
+            !invalid_low_field_write.field_written &&
+            !invalid_high_field_write.field_written &&
+            party_member_field_write_ports.requests.size() == 2U,
+        "0x411030 writes selectors zero through thirteen at word width, fourteen and fifteen at full dword width, writes selector sixteen byte before optional LEVEL refresh, and ignores defaults"
     );
 
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;

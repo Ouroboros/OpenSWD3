@@ -248,6 +248,14 @@ enum class LegacyWorldStoryFileDirectory : compat::u8 {
     music,
 };
 
+class LegacyPartyMemberFieldWritePorts {
+public:
+    virtual ~LegacyPartyMemberFieldWritePorts() = default;
+    [[nodiscard]] virtual bool load_party_member_level_field(
+        compat::u32 group, compat::u32 level, compat::u32& output
+    ) = 0;
+};
+
 struct LegacyWorldStoryPartyMemberResources {
     compat::u32 field_00{};
     compat::u16 current_first{};
@@ -266,6 +274,20 @@ struct LegacyWorldStoryPartyMemberResources {
 [[nodiscard]] compat::i32 read_legacy_party_member_field(
     const LegacyWorldStoryPartyMemberResources& resources, compat::i32 selector
 ) noexcept;
+
+struct LegacyPartyMemberFieldWriteResult {
+    compat::i32 legacy_return_value{};
+    bool field_written{};
+    bool level_requested{};
+    bool level_loaded{};
+};
+
+[[nodiscard]] LegacyPartyMemberFieldWriteResult write_legacy_party_member_field(
+    LegacyWorldStoryPartyMemberResources& resources,
+    compat::i32 selector,
+    compat::i32 value,
+    LegacyPartyMemberFieldWritePorts& ports
+);
 
 struct LegacyWorldStoryModeText {
     std::array<compat::u8, kLegacyWorldStoryModeTextSize> bytes{};
@@ -411,7 +433,7 @@ void clear_legacy_world_story_flag(
     LegacyWorldStoryVmState& state, compat::u16 bit_index
 ) noexcept;
 
-class LegacyWorldStoryVmPorts {
+class LegacyWorldStoryVmPorts : public LegacyPartyMemberFieldWritePorts {
 public:
     virtual ~LegacyWorldStoryVmPorts() = default;
 
@@ -478,9 +500,6 @@ public:
     [[nodiscard]] virtual bool reset_input_menu_and_save_previews() = 0;
     // sub_477290 reads a LEVEL.DAT group/level entry and may update field 20.
     // False preserves its nonfatal file/record failure return.
-    [[nodiscard]] virtual bool load_party_member_level_field(
-        compat::u32 group, compat::u32 level, compat::u32& output
-    ) = 0;
     virtual void beep() noexcept = 0;
     virtual void service_audio() = 0;
     // Models sub_40B7F0's optional %T/mon.dat expansion. Returning false

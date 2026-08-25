@@ -195,12 +195,17 @@ void write_u32(
     }
 }
 
-void write_party_member_field(
+LegacyPartyMemberFieldWriteResult write_party_member_field(
     LegacyWorldStoryPartyMemberResources& resources,
     const i32 selector,
     const i32 value,
-    LegacyWorldStoryVmPorts& ports
+    LegacyPartyMemberFieldWritePorts& ports
 ) {
+    LegacyPartyMemberFieldWriteResult result;
+    if (selector < 0 || selector > 16) {
+        return result;
+    }
+    result.field_written = true;
     switch (selector) {
     case 0:
         resources.current_first = static_cast<u16>(value);
@@ -249,9 +254,11 @@ void write_party_member_field(
     case 16: {
         resources.field_2c = static_cast<u8>(value);
         u32 level_output = 1U;
-        if (ports.load_party_member_level_field(
-                2U, std::bit_cast<u32>(value) + 1U, level_output
-            )) {
+        result.level_requested = true;
+        result.level_loaded = ports.load_party_member_level_field(
+            2U, std::bit_cast<u32>(value) + 1U, level_output
+        );
+        if (result.level_loaded) {
             resources.field_20 = level_output;
         }
 
@@ -261,6 +268,7 @@ void write_party_member_field(
     default:
         break;
     }
+    return result;
 }
 
 class StoryCountdownFlagPorts final
@@ -2011,6 +2019,15 @@ compat::i32 read_legacy_party_member_field(
     const compat::i32 selector
 ) noexcept {
     return read_party_member_field(resources, selector);
+}
+
+LegacyPartyMemberFieldWriteResult write_legacy_party_member_field(
+    LegacyWorldStoryPartyMemberResources& resources,
+    const compat::i32 selector,
+    const compat::i32 value,
+    LegacyPartyMemberFieldWritePorts& ports
+) {
+    return write_party_member_field(resources, selector, value, ports);
 }
 
 void initialize_legacy_world_story_vm(LegacyWorldStoryVmState& state) noexcept {
@@ -7684,7 +7701,9 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 value = std::bit_cast<i32>(result_bits);
             }
 
-            write_party_member_field(resources, selector, value, ports);
+            static_cast<void>(write_legacy_party_member_field(
+                resources, selector, value, ports
+            ));
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 6U);
             state.previous_opcode = result.opcode;
