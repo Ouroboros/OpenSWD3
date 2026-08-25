@@ -8502,6 +8502,52 @@ LegacySpecialModeModeOneFrameResult render_legacy_special_mode_mode_one_frame(
     return result;
 }
 
+LegacyInputMenuSavePreviewResetResult reset_legacy_input_menu_and_save_previews(
+    LegacyInputMenuSavePreviewResetState& state,
+    LegacyInputMenuSavePreviewResetPorts& ports
+) noexcept {
+    LegacyInputMenuSavePreviewResetResult result;
+    state.input_menu_workspace.fill(0U);
+    state.menu_state = 0U;
+    state.menu_enabled = 1U;
+    state.preview_runtime_value = 0U;
+    state.high_priority_delay = 0U;
+
+    asset_runtime::initialize_legacy_action_record(state.common_action);
+    result.common_action_reset = true;
+
+    for (LegacySavePreviewRecord& preview : state.previews) {
+        if (!ports.reset_save_preview(preview)) {
+            result.status =
+                LegacyInputMenuSavePreviewResetStatus::preview_reset_stopped;
+            return result;
+        }
+        ++result.preview_reset_count;
+    }
+
+    result.save_group = state.selected_save_slot / 3;
+    for (std::size_t index = 0U; index < state.previews.size(); ++index) {
+        const compat::i32 save_slot =
+            result.save_group * 3 + static_cast<compat::i32>(index);
+        result.loaded_slots[index] = save_slot;
+        if (!ports.load_save_preview(state.previews[index], save_slot)) {
+            result.status =
+                LegacyInputMenuSavePreviewResetStatus::preview_load_stopped;
+            return result;
+        }
+        ++result.preview_load_count;
+    }
+
+    if (!ports.finalize_save_previews(state.previews)) {
+        result.status =
+            LegacyInputMenuSavePreviewResetStatus::preview_finalize_stopped;
+        return result;
+    }
+    result.previews_finalized = true;
+    result.legacy_return_value = 1;
+    return result;
+}
+
 static LegacyGuardianAttributeTarget load_guardian_attribute_target(
     const std::span<const compat::u8> bytes
 ) noexcept {

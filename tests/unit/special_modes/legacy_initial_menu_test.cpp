@@ -994,6 +994,55 @@ public:
     std::vector<std::size_t> allocation_sizes;
 };
 
+class FakeInputMenuSavePreviewResetPorts final
+    : public openswd3::special_modes::LegacyInputMenuSavePreviewResetPorts {
+public:
+    bool reset_save_preview(
+        openswd3::special_modes::LegacySavePreviewRecord& preview
+    ) noexcept override {
+        events.push_back(1U);
+        if (reset_calls == fail_reset_at) {
+            return false;
+        }
+        preview.bytes.fill(static_cast<u8>(0x10U + reset_calls));
+        ++reset_calls;
+        return true;
+    }
+    bool load_save_preview(
+        openswd3::special_modes::LegacySavePreviewRecord& preview,
+        const i32 save_slot
+    ) noexcept override {
+        events.push_back(2U);
+        loaded_slots.push_back(save_slot);
+        if (load_calls == fail_load_at) {
+            return false;
+        }
+        preview.bytes[0U] = static_cast<u8>(save_slot);
+        ++load_calls;
+        return true;
+    }
+    bool finalize_save_previews(
+        std::array<openswd3::special_modes::LegacySavePreviewRecord, 3U>&
+            previews
+    ) noexcept override {
+        events.push_back(3U);
+        finalize_saw_loaded =
+            previews[0U].bytes[0U] == static_cast<u8>(loaded_slots[0U]) &&
+            previews[1U].bytes[0U] == static_cast<u8>(loaded_slots[1U]) &&
+            previews[2U].bytes[0U] == static_cast<u8>(loaded_slots[2U]);
+        return finalize_available;
+    }
+
+    std::size_t fail_reset_at{std::numeric_limits<std::size_t>::max()};
+    std::size_t fail_load_at{std::numeric_limits<std::size_t>::max()};
+    bool finalize_available{true};
+    bool finalize_saw_loaded{};
+    std::size_t reset_calls{};
+    std::size_t load_calls{};
+    std::vector<i32> loaded_slots;
+    std::vector<u32> events;
+};
+
 class FakeChainClonePorts final
     : public openswd3::special_modes::LegacyStandardModeRecordClonePorts {
 public:
@@ -20922,6 +20971,150 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
                 std::vector<bool>{false} &&
             mode_one_frame_surface_stop_ports.requests.empty(),
         "0x44EA60 prepares the captured surface result before stopping at the original full-frame destination write"
+    );
+
+    openswd3::special_modes::LegacyInputMenuSavePreviewResetState
+        input_menu_preview_reset_state;
+    input_menu_preview_reset_state.input_menu_workspace.fill(0xFFFFFFFFU);
+    input_menu_preview_reset_state.menu_state = 9U;
+    input_menu_preview_reset_state.menu_enabled = 0U;
+    input_menu_preview_reset_state.preview_runtime_value = 0x12345678U;
+    input_menu_preview_reset_state.high_priority_delay = 1001U;
+    input_menu_preview_reset_state.selected_save_slot = 8;
+    input_menu_preview_reset_state.common_action.field_1c = 7U;
+    input_menu_preview_reset_state.common_action.one_shot_base_variant = 8U;
+    input_menu_preview_reset_state.common_action.one_shot_variant_delta = 9U;
+    input_menu_preview_reset_state.common_action.command_cursor = 10U;
+    input_menu_preview_reset_state.common_action.wait_remaining = 11U;
+    input_menu_preview_reset_state.common_action.wait_default = 12U;
+    input_menu_preview_reset_state.common_action.wait_override = 13U;
+    input_menu_preview_reset_state.common_action.external_mode = 14U;
+    FakeInputMenuSavePreviewResetPorts input_menu_preview_reset_ports;
+    const auto input_menu_preview_reset =
+        openswd3::special_modes::reset_legacy_input_menu_and_save_previews(
+            input_menu_preview_reset_state, input_menu_preview_reset_ports
+        );
+    test.expect_true(
+        input_menu_preview_reset.status ==
+                openswd3::special_modes::LegacyInputMenuSavePreviewResetStatus::
+                    completed &&
+            input_menu_preview_reset.legacy_return_value == 1 &&
+            input_menu_preview_reset.save_group == 2 &&
+            input_menu_preview_reset.loaded_slots ==
+                std::array<i32, 3U>{6, 7, 8} &&
+            input_menu_preview_reset.preview_reset_count == 3U &&
+            input_menu_preview_reset.preview_load_count == 3U &&
+            input_menu_preview_reset.common_action_reset &&
+            input_menu_preview_reset.previews_finalized &&
+            input_menu_preview_reset_state.input_menu_workspace.front() == 0U &&
+            input_menu_preview_reset_state.input_menu_workspace.back() == 0U &&
+            input_menu_preview_reset_state.menu_state == 0U &&
+            input_menu_preview_reset_state.menu_enabled == 1U &&
+            input_menu_preview_reset_state.preview_runtime_value == 0U &&
+            input_menu_preview_reset_state.high_priority_delay == 0U &&
+            input_menu_preview_reset_state.common_action.field_1c ==
+                0xFFFFFFFFU &&
+            input_menu_preview_reset_state.common_action
+                    .one_shot_base_variant == 0xFFFFFFFFU &&
+            input_menu_preview_reset_state.common_action
+                    .one_shot_variant_delta == 0xFFFFFFFFU &&
+            input_menu_preview_reset_state.common_action.command_cursor == 0U &&
+            input_menu_preview_reset_state.common_action.wait_remaining == 0U &&
+            input_menu_preview_reset_state.common_action.wait_default == 0U &&
+            input_menu_preview_reset_state.common_action.wait_override == 0U &&
+            input_menu_preview_reset_state.common_action.external_mode == 0U &&
+            input_menu_preview_reset_ports.loaded_slots ==
+                std::vector<i32>{6, 7, 8} &&
+            input_menu_preview_reset_ports.events ==
+                std::vector<u32>{1U, 1U, 1U, 2U, 2U, 2U, 3U} &&
+            input_menu_preview_reset_ports.finalize_saw_loaded,
+        "0x406D30 clears the full input-menu workspace and scalar state, resets the shared action, rebuilds the selected three-slot save group, finalizes previews, and returns one"
+    );
+
+    openswd3::special_modes::LegacyInputMenuSavePreviewResetState
+        negative_input_menu_preview_state;
+    negative_input_menu_preview_state.selected_save_slot = -1;
+    FakeInputMenuSavePreviewResetPorts negative_input_menu_preview_ports;
+    const auto negative_input_menu_preview =
+        openswd3::special_modes::reset_legacy_input_menu_and_save_previews(
+            negative_input_menu_preview_state, negative_input_menu_preview_ports
+        );
+    test.expect_true(
+        negative_input_menu_preview.save_group == 0 &&
+            negative_input_menu_preview.loaded_slots ==
+                std::array<i32, 3U>{0, 1, 2} &&
+            negative_input_menu_preview_ports.loaded_slots ==
+                std::vector<i32>{0, 1, 2},
+        "0x406D30 divides a negative selected slot by three with signed truncation toward zero before rebuilding the group"
+    );
+
+    openswd3::special_modes::LegacyInputMenuSavePreviewResetState
+        stopped_preview_reset_state;
+    stopped_preview_reset_state.input_menu_workspace.fill(7U);
+    stopped_preview_reset_state.menu_state = 3U;
+    stopped_preview_reset_state.menu_enabled = 4U;
+    stopped_preview_reset_state.preview_runtime_value = 5U;
+    stopped_preview_reset_state.high_priority_delay = 6U;
+    FakeInputMenuSavePreviewResetPorts stopped_preview_reset_ports;
+    stopped_preview_reset_ports.fail_reset_at = 1U;
+    const auto stopped_preview_reset =
+        openswd3::special_modes::reset_legacy_input_menu_and_save_previews(
+            stopped_preview_reset_state, stopped_preview_reset_ports
+        );
+
+    openswd3::special_modes::LegacyInputMenuSavePreviewResetState
+        stopped_preview_load_state;
+    stopped_preview_load_state.selected_save_slot = -4;
+    FakeInputMenuSavePreviewResetPorts stopped_preview_load_ports;
+    stopped_preview_load_ports.fail_load_at = 1U;
+    const auto stopped_preview_load =
+        openswd3::special_modes::reset_legacy_input_menu_and_save_previews(
+            stopped_preview_load_state, stopped_preview_load_ports
+        );
+
+    openswd3::special_modes::LegacyInputMenuSavePreviewResetState
+        stopped_preview_finalize_state;
+    stopped_preview_finalize_state.selected_save_slot = 3;
+    FakeInputMenuSavePreviewResetPorts stopped_preview_finalize_ports;
+    stopped_preview_finalize_ports.finalize_available = false;
+    const auto stopped_preview_finalize =
+        openswd3::special_modes::reset_legacy_input_menu_and_save_previews(
+            stopped_preview_finalize_state, stopped_preview_finalize_ports
+        );
+    test.expect_true(
+        stopped_preview_reset.status ==
+                openswd3::special_modes::LegacyInputMenuSavePreviewResetStatus::
+                    preview_reset_stopped &&
+            stopped_preview_reset.preview_reset_count == 1U &&
+            stopped_preview_reset.preview_load_count == 0U &&
+            stopped_preview_reset_state.input_menu_workspace.back() == 0U &&
+            stopped_preview_reset_state.menu_state == 0U &&
+            stopped_preview_reset_state.menu_enabled == 1U &&
+            stopped_preview_reset_state.preview_runtime_value == 0U &&
+            stopped_preview_reset_state.high_priority_delay == 0U &&
+            stopped_preview_reset.common_action_reset &&
+            stopped_preview_reset_ports.events == std::vector<u32>{1U, 1U} &&
+            stopped_preview_load.status ==
+                openswd3::special_modes::LegacyInputMenuSavePreviewResetStatus::
+                    preview_load_stopped &&
+            stopped_preview_load.save_group == -1 &&
+            stopped_preview_load.loaded_slots ==
+                std::array<i32, 3U>{-3, -2, 0} &&
+            stopped_preview_load.preview_reset_count == 3U &&
+            stopped_preview_load.preview_load_count == 1U &&
+            stopped_preview_load_ports.loaded_slots ==
+                std::vector<i32>{-3, -2} &&
+            stopped_preview_load_ports.events ==
+                std::vector<u32>{1U, 1U, 1U, 2U, 2U} &&
+            stopped_preview_finalize.status ==
+                openswd3::special_modes::LegacyInputMenuSavePreviewResetStatus::
+                    preview_finalize_stopped &&
+            stopped_preview_finalize.loaded_slots ==
+                std::array<i32, 3U>{3, 4, 5} &&
+            stopped_preview_finalize.preview_load_count == 3U &&
+            !stopped_preview_finalize.previews_finalized &&
+            stopped_preview_finalize.legacy_return_value == 0,
+        "0x406D30 typed-stops exactly at unavailable preview reset, load, or finalization while preserving every earlier reset and rebuilt preview"
     );
 
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;

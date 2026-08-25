@@ -3415,6 +3415,62 @@ render_legacy_special_mode_mode_one_frame(
     LegacySpecialModeModeOneFramePorts& ports
 ) noexcept;
 
+inline constexpr std::size_t kLegacySavePreviewRecordSize = 0x2A8U;
+
+struct LegacySavePreviewRecord {
+    std::array<compat::u8, kLegacySavePreviewRecordSize> bytes{};
+};
+
+struct LegacyInputMenuSavePreviewResetState {
+    std::array<compat::u32, 0x80U> input_menu_workspace{};
+    compat::u8 menu_state{};
+    compat::u8 menu_enabled{};
+    compat::u32 preview_runtime_value{};
+    compat::u32 high_priority_delay{};
+    compat::i32 selected_save_slot{};
+    asset_runtime::LegacyActionRecord common_action{};
+    std::array<LegacySavePreviewRecord, 3U> previews{};
+};
+
+class LegacyInputMenuSavePreviewResetPorts {
+public:
+    virtual ~LegacyInputMenuSavePreviewResetPorts() = default;
+    [[nodiscard]] virtual bool
+    reset_save_preview(LegacySavePreviewRecord& preview) noexcept = 0;
+    [[nodiscard]] virtual bool load_save_preview(
+        LegacySavePreviewRecord& preview, compat::i32 save_slot
+    ) noexcept = 0;
+    [[nodiscard]] virtual bool finalize_save_previews(
+        std::array<LegacySavePreviewRecord, 3U>& previews
+    ) noexcept = 0;
+};
+
+enum class LegacyInputMenuSavePreviewResetStatus : compat::u8 {
+    completed,
+    preview_reset_stopped,
+    preview_load_stopped,
+    preview_finalize_stopped,
+};
+
+struct LegacyInputMenuSavePreviewResetResult {
+    LegacyInputMenuSavePreviewResetStatus status{
+        LegacyInputMenuSavePreviewResetStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::i32 save_group{};
+    std::array<compat::i32, 3U> loaded_slots{};
+    compat::u32 preview_reset_count{};
+    compat::u32 preview_load_count{};
+    bool common_action_reset{};
+    bool previews_finalized{};
+};
+
+[[nodiscard]] LegacyInputMenuSavePreviewResetResult
+reset_legacy_input_menu_and_save_previews(
+    LegacyInputMenuSavePreviewResetState& state,
+    LegacyInputMenuSavePreviewResetPorts& ports
+) noexcept;
+
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
     completed,
     mode_mask_out_of_range,
