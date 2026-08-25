@@ -75,6 +75,10 @@ struct LegacyBattleImageParticleEmitter {
     compat::u16 remaining_batches{};
     compat::u16 spawn_divisor{};
     compat::u16 flags{};
+    compat::i32 published_value_2c{};
+    compat::i32 published_value_30{};
+    compat::i32 published_value_34{};
+    compat::i32 initialized{};
     compat::i32 source_pixel_count{};
     compat::i32 spawned_count{};
     compat::i32 target_particle_count{};
@@ -85,6 +89,9 @@ struct LegacyBattleImageParticleEmitter {
 };
 
 struct LegacyBattleImageParticleSharedState {
+    compat::i32 published_value_2c{};
+    compat::i32 published_value_30{};
+    compat::i32 published_value_34{};
     compat::i32 random_modulus{};
     compat::u16 first_transparent_color{0x319FU};
     compat::u16 second_transparent_color{0x026BU};

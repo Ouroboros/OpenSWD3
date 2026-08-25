@@ -68,6 +68,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-directional-surface-scan-004344e0.md",
     ),
+    "0x00434790": (
+        "platform_adapted",
+        "evidence/battle-image-particle-frame-00434790.md",
+    ),
     "0x00434DD0": (
         "platform_adapted",
         "evidence/battle-image-particle-spawn-00434dd0.md",

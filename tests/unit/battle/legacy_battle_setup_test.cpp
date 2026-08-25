@@ -1,6 +1,7 @@
 #include "test.hpp"
 
 #include "openswd3/battle/legacy_battle_directional_scan.hpp"
+#include "openswd3/battle/legacy_battle_particle_frame.hpp"
 #include "openswd3/battle/legacy_battle_particle_spawn.hpp"
 #include "openswd3/battle/legacy_battle_render_geometry.hpp"
 #include "openswd3/battle/legacy_battle_setup.hpp"
@@ -20,11 +21,13 @@ using openswd3::battle::LegacyBattleDirectionalScanStatus;
 using openswd3::battle::LegacyBattleDirectionalSurface;
 using openswd3::battle::LegacyBattleDirectionRaster;
 using openswd3::battle::LegacyBattleImageParticleDiagnostics;
+using openswd3::battle::LegacyBattleImageParticleFrameStatus;
 using openswd3::battle::LegacyBattleImageParticleEmitter;
 using openswd3::battle::LegacyBattleImageParticleNodePool;
 using openswd3::battle::LegacyBattleImageParticleSharedState;
 using openswd3::battle::LegacyBattleImageParticleSpawnStatus;
 using openswd3::battle::LegacyBattleImageParticleStackSnapshot;
+using openswd3::battle::LegacyBattleImageParticleSurface;
 using openswd3::battle::LegacyBattleDirectionStepStatus;
 using openswd3::battle::LegacyBattleDirectionVectors;
 using openswd3::battle::LegacyBattleLineRaster;
@@ -590,6 +593,951 @@ void test_direction_raster_zero_minimum_and_index_stop(
                 invalid.current_x == 4 && invalid.current_y == 5 &&
                 invalid.x_error == 6 && invalid.y_error == 7,
             "invalid direction stops at the first table read without mutations"
+        );
+    }
+}
+
+void test_image_particle_frame_initialization_restore_and_spawn(
+    openswd3::test::Context& test
+) {
+    std::vector<u16> source{0x1111U, 0x2222U, 0x3333U, 0x4444U};
+    auto emitter = make_particle_emitter(source);
+    emitter.source_width = 2U;
+    emitter.source_height = 2U;
+    emitter.source_origin_x = 0;
+    emitter.source_origin_y = 0;
+    emitter.remaining_batches = 2U;
+    emitter.spawn_divisor = 100U;
+    emitter.published_value_2c = 31;
+    emitter.published_value_30 = 32;
+    emitter.published_value_34 = 33;
+    const std::array<u32, 3> rows{0U, 3U, 6U};
+    std::vector<u16> destination(9U, 0U);
+    LegacyBattleImageParticleNodePool nodes;
+    LegacyCrtRng rng;
+    LegacyBattleImageParticleSharedState shared;
+    LegacyBattleImageParticleDiagnostics diagnostics;
+    LegacyPixelConversionState format;
+    const auto initialized =
+        openswd3::battle::update_legacy_battle_image_particles(
+            emitter,
+            LegacyBattleImageParticleSurface{
+                .width = 3,
+                .height = 3,
+                .row_offsets = rows,
+                .pixels = destination,
+            },
+            123U,
+            LegacyBattleImageParticleStackSnapshot{},
+            nodes,
+            rng,
+            shared,
+            diagnostics,
+            format
+        );
+    test.expect_true(
+        initialized.status == LegacyBattleImageParticleFrameStatus::completed &&
+            initialized.legacy_return_value == 0 &&
+            initialized.restored_pixels == 2U && emitter.initialized == 1 &&
+            emitter.source_pixel_count == 4 &&
+            emitter.nontransparent_pixel_count == 4 &&
+            emitter.target_particle_count == 0 &&
+            emitter.shared_modulus_increment == 2 &&
+            emitter.spawned_count == 0 && rng.state() == 123U &&
+            shared.published_value_2c == 31 &&
+            shared.published_value_30 == 32 &&
+            shared.published_value_34 == 33 && destination[0U] == 0x1111U &&
+            destination[1U] == 0x2222U,
+        "particle frame initializes counts, seeds CRT and restores all but last row"
+    );
+
+    std::vector<u16> mirror_source{0x5000U, 0x5001U, 0x5002U, 0x5003U};
+    auto mirror_emitter = make_particle_emitter(mirror_source);
+    mirror_emitter.initialized = 1;
+    mirror_emitter.source_width = 2U;
+    mirror_emitter.source_height = 2U;
+    mirror_emitter.source_origin_x = 0;
+    mirror_emitter.source_origin_y = 0;
+    mirror_emitter.source_pixel_count = 4;
+    mirror_emitter.remaining_batches = 1U;
+    mirror_emitter.nontransparent_pixel_count = 0;
+    mirror_emitter.spawn_divisor = 1U;
+    mirror_emitter.flags = 0x0001U;
+    std::vector<u16> mirror_destination(9U, 0U);
+    LegacyBattleImageParticleNodePool mirror_nodes;
+    LegacyCrtRng mirror_rng;
+    LegacyBattleImageParticleSharedState mirror_shared;
+    LegacyBattleImageParticleDiagnostics mirror_diagnostics;
+    LegacyPixelConversionState mirror_format;
+    const auto mirror = openswd3::battle::update_legacy_battle_image_particles(
+        mirror_emitter,
+        LegacyBattleImageParticleSurface{
+            .width = 3,
+            .height = 3,
+            .row_offsets = rows,
+            .pixels = mirror_destination,
+        },
+        0U,
+        LegacyBattleImageParticleStackSnapshot{},
+        mirror_nodes,
+        mirror_rng,
+        mirror_shared,
+        mirror_diagnostics,
+        mirror_format
+    );
+    test.expect_true(
+        mirror.status == LegacyBattleImageParticleFrameStatus::completed &&
+            mirror.restored_pixels == 2U && mirror_destination[0U] == 0x5002U &&
+            mirror_destination[1U] == 0x5001U,
+        "mirror restore checks width-minus-column but writes at normal columns"
+    );
+
+    std::vector<u16> spawn_source{0x6111U, 0x6222U, 0x6333U};
+    auto spawn_emitter = make_particle_emitter(spawn_source);
+    spawn_emitter.initialized = 1;
+    spawn_emitter.source_pixel_count = 1;
+    spawn_emitter.nontransparent_pixel_count = 1;
+    spawn_emitter.target_particle_count = 0;
+    spawn_emitter.spawned_count = 0;
+    spawn_emitter.remaining_batches = 1U;
+    spawn_emitter.spawn_divisor = 1U;
+    spawn_emitter.target_width = 1;
+    spawn_emitter.target_height = 1;
+    std::array<u32, 40> large_rows{};
+    for (u32 row = 0; row < large_rows.size(); ++row) {
+        large_rows[row] = row * 40U;
+    }
+    std::vector<u16> large_destination(1600U, 0U);
+    LegacyBattleImageParticleNodePool spawn_nodes;
+    LegacyCrtRng spawn_rng;
+    spawn_rng.seed(1U);
+    LegacyBattleImageParticleSharedState spawn_shared;
+    LegacyBattleImageParticleDiagnostics spawn_diagnostics;
+    LegacyPixelConversionState spawn_format;
+    const auto spawned = openswd3::battle::update_legacy_battle_image_particles(
+        spawn_emitter,
+        LegacyBattleImageParticleSurface{
+            .width = 40,
+            .height = 40,
+            .row_offsets = large_rows,
+            .pixels = large_destination,
+        },
+        0U,
+        LegacyBattleImageParticleStackSnapshot{},
+        spawn_nodes,
+        spawn_rng,
+        spawn_shared,
+        spawn_diagnostics,
+        spawn_format
+    );
+    test.expect_true(
+        spawned.status == LegacyBattleImageParticleFrameStatus::completed &&
+            spawned.spawn_status ==
+                LegacyBattleImageParticleSpawnStatus::completed &&
+            spawn_emitter.remaining_batches == 0U &&
+            spawn_emitter.spawned_count == 0 &&
+            spawn_emitter.head_token != 0U &&
+            spawn_emitter.tail_token == spawn_emitter.head_token &&
+            spawn_nodes.active_count() == 1U,
+        "particle frame directly composes spawn and removes its blank successor"
+    );
+}
+
+void test_image_particle_frame_draw_modes_and_line_step(
+    openswd3::test::Context& test
+) {
+    const std::array<u32, 4> rows{0U, 4U, 8U, 12U};
+
+    std::vector<u16> source;
+    auto direct_emitter = make_particle_emitter(source);
+    direct_emitter.initialized = 1;
+    direct_emitter.remaining_batches = 0U;
+    direct_emitter.spawned_count = 2;
+    direct_emitter.target_particle_count = 0;
+    direct_emitter.target_origin_x = 100;
+    direct_emitter.target_origin_y = 100;
+    LegacyBattleImageParticleNodePool direct_nodes;
+    direct_emitter.head_token = direct_nodes.allocate_zeroed();
+    direct_emitter.tail_token = direct_emitter.head_token;
+    auto* direct_node = direct_nodes.node(direct_emitter.head_token);
+    direct_node->saved_pixels = {0x1111U, 0x319FU, 0x026BU, 0x3333U};
+    direct_node->distance_offset = 10;
+    direct_node->current_x = 1;
+    direct_node->current_y = 1;
+    std::vector<u16> direct_destination(16U, 0U);
+    LegacyCrtRng direct_rng;
+    LegacyBattleImageParticleSharedState direct_shared;
+    LegacyBattleImageParticleDiagnostics direct_diagnostics;
+    LegacyPixelConversionState direct_format;
+    const auto direct = openswd3::battle::update_legacy_battle_image_particles(
+        direct_emitter,
+        LegacyBattleImageParticleSurface{
+            .width = 4,
+            .height = 4,
+            .row_offsets = rows,
+            .pixels = direct_destination,
+        },
+        0U,
+        LegacyBattleImageParticleStackSnapshot{},
+        direct_nodes,
+        direct_rng,
+        direct_shared,
+        direct_diagnostics,
+        direct_format
+    );
+    test.expect_true(
+        direct.status == LegacyBattleImageParticleFrameStatus::completed &&
+            direct.particle_pixels_written == 3U &&
+            direct_destination[5U] == 0x1111U && direct_destination[6U] == 0U &&
+            direct_destination[9U] == 0x026BU &&
+            direct_destination[10U] == 0x3333U,
+        "particle direct draw skips only the first transparent color"
+    );
+
+    auto blend_emitter = direct_emitter;
+    blend_emitter.flags = 0x0002U;
+    LegacyBattleImageParticleNodePool blend_nodes;
+    blend_emitter.head_token = blend_nodes.allocate_zeroed();
+    blend_emitter.tail_token = blend_emitter.head_token;
+    auto* blend_node = blend_nodes.node(blend_emitter.head_token);
+    blend_node->saved_pixels = {0x14EBU, 0x1234U, 0x319FU, 0x319FU};
+    blend_node->distance_offset = 10;
+    blend_node->current_x = 1;
+    blend_node->current_y = 1;
+    std::vector<u16> blend_destination(16U, 0U);
+    blend_destination[5U] = 0x0DB1U;
+    blend_destination[6U] = 0x0001U;
+    LegacyCrtRng blend_rng;
+    LegacyBattleImageParticleSharedState blend_shared;
+    LegacyBattleImageParticleDiagnostics blend_diagnostics;
+    LegacyPixelConversionState blend_format;
+    const auto blend = openswd3::battle::update_legacy_battle_image_particles(
+        blend_emitter,
+        LegacyBattleImageParticleSurface{
+            .width = 4,
+            .height = 4,
+            .row_offsets = rows,
+            .pixels = blend_destination,
+        },
+        0U,
+        LegacyBattleImageParticleStackSnapshot{},
+        blend_nodes,
+        blend_rng,
+        blend_shared,
+        blend_diagnostics,
+        blend_format
+    );
+    test.expect_true(
+        blend.status == LegacyBattleImageParticleFrameStatus::completed &&
+            blend.particle_pixels_written == 3U &&
+            blend_destination[5U] == 0x229CU &&
+            blend_destination[6U] == 0x1234U,
+        "particle blend top-right is overwritten by the original source pixel"
+    );
+
+    auto step_emitter = direct_emitter;
+    step_emitter.spawned_count = 1;
+    step_emitter.target_particle_count = 1;
+    step_emitter.lifetime_divisor = 1U;
+    LegacyBattleImageParticleNodePool step_nodes;
+    step_emitter.head_token = step_nodes.allocate_zeroed();
+    step_emitter.tail_token = step_emitter.head_token;
+    auto* step_node = step_nodes.node(step_emitter.head_token);
+    step_node->saved_pixels.fill(0x319FU);
+    step_node->source_x = 0;
+    step_node->source_y = 0;
+    step_node->target_x = 1;
+    step_node->target_y = 0;
+    step_node->current_x = 0;
+    step_node->current_y = 0;
+    step_node->distance_offset = 10;
+    LegacyCrtRng step_rng;
+    LegacyBattleImageParticleSharedState step_shared;
+    LegacyBattleImageParticleDiagnostics step_diagnostics;
+    LegacyPixelConversionState step_format;
+    std::vector<u16> step_destination(16U, 0U);
+    const auto stepped = openswd3::battle::update_legacy_battle_image_particles(
+        step_emitter,
+        LegacyBattleImageParticleSurface{
+            .width = 4,
+            .height = 4,
+            .row_offsets = rows,
+            .pixels = step_destination,
+        },
+        0U,
+        LegacyBattleImageParticleStackSnapshot{},
+        step_nodes,
+        step_rng,
+        step_shared,
+        step_diagnostics,
+        step_format
+    );
+    step_node = step_nodes.node(step_emitter.head_token);
+    LegacyCrtRng expected_rng;
+    static_cast<void>(expected_rng.next());
+    test.expect_true(
+        stepped.status == LegacyBattleImageParticleFrameStatus::completed &&
+            step_node != nullptr && step_node->random_lifetime == 1 &&
+            step_node->current_x == 1 && step_node->current_y == 0 &&
+            step_node->distance_offset == 9 &&
+            step_rng.state() == expected_rng.state(),
+        "particle frame refreshes lifetime then calls line raster once"
+    );
+}
+
+void test_image_particle_frame_removal_and_early_return(
+    openswd3::test::Context& test
+) {
+    std::vector<u16> source;
+    auto sole_emitter = make_particle_emitter(source);
+    sole_emitter.initialized = 1;
+    sole_emitter.remaining_batches = 0U;
+    sole_emitter.spawned_count = 1;
+    sole_emitter.target_particle_count = 0;
+    sole_emitter.nontransparent_pixel_count = 7;
+    LegacyBattleImageParticleNodePool sole_nodes;
+    sole_emitter.head_token = sole_nodes.allocate_zeroed();
+    sole_emitter.tail_token = sole_emitter.head_token;
+    auto* sole_node = sole_nodes.node(sole_emitter.head_token);
+    sole_node->distance_offset = 0;
+    LegacyCrtRng sole_rng;
+    LegacyBattleImageParticleSharedState sole_shared;
+    LegacyBattleImageParticleDiagnostics sole_diagnostics;
+    LegacyPixelConversionState sole_format;
+    const auto sole = openswd3::battle::update_legacy_battle_image_particles(
+        sole_emitter,
+        LegacyBattleImageParticleSurface{},
+        0U,
+        LegacyBattleImageParticleStackSnapshot{},
+        sole_nodes,
+        sole_rng,
+        sole_shared,
+        sole_diagnostics,
+        sole_format
+    );
+    test.expect_true(
+        sole.status == LegacyBattleImageParticleFrameStatus::completed &&
+            sole.particles_removed == 1U && sole_emitter.head_token == 0U &&
+            sole_emitter.tail_token == 0U && sole_emitter.spawned_count == 0 &&
+            sole_emitter.nontransparent_pixel_count == 7 &&
+            sole_nodes.active_count() == 0U,
+        "sole particle removal clears count but preserves nontransparent total"
+    );
+
+    auto head_emitter = make_particle_emitter(source);
+    head_emitter.initialized = 1;
+    head_emitter.remaining_batches = 0U;
+    head_emitter.spawned_count = 3;
+    head_emitter.target_particle_count = 0;
+    head_emitter.nontransparent_pixel_count = 5;
+    LegacyBattleImageParticleNodePool head_nodes;
+    const u32 removed_head_token = head_nodes.allocate_zeroed();
+    const u32 surviving_head_token = head_nodes.allocate_zeroed();
+    auto* removed_head = head_nodes.node(removed_head_token);
+    auto* surviving_head = head_nodes.node(surviving_head_token);
+    removed_head->next_token = surviving_head_token;
+    removed_head->distance_offset = 0;
+    surviving_head->previous_token = removed_head_token;
+    surviving_head->distance_offset = 10;
+    surviving_head->current_x = -100;
+    surviving_head->current_y = -100;
+    head_emitter.head_token = removed_head_token;
+    head_emitter.tail_token = surviving_head_token;
+    LegacyCrtRng head_rng;
+    LegacyBattleImageParticleSharedState head_shared;
+    LegacyBattleImageParticleDiagnostics head_diagnostics;
+    LegacyPixelConversionState head_format;
+    const auto removed_head_result =
+        openswd3::battle::update_legacy_battle_image_particles(
+            head_emitter,
+            LegacyBattleImageParticleSurface{},
+            0U,
+            LegacyBattleImageParticleStackSnapshot{},
+            head_nodes,
+            head_rng,
+            head_shared,
+            head_diagnostics,
+            head_format
+        );
+    surviving_head = head_nodes.node(surviving_head_token);
+    test.expect_true(
+        removed_head_result.status ==
+                LegacyBattleImageParticleFrameStatus::completed &&
+            removed_head_result.particles_removed == 1U &&
+            surviving_head != nullptr && surviving_head->previous_token == 0U &&
+            head_emitter.head_token == surviving_head_token &&
+            head_emitter.tail_token == surviving_head_token &&
+            head_emitter.spawned_count == 2 &&
+            head_emitter.nontransparent_pixel_count == 4,
+        "head particle removal clears the successor previous link"
+    );
+
+    auto middle_emitter = make_particle_emitter(source);
+    middle_emitter.initialized = 1;
+    middle_emitter.remaining_batches = 0U;
+    middle_emitter.spawned_count = 4;
+    middle_emitter.target_particle_count = 0;
+    middle_emitter.nontransparent_pixel_count = 6;
+    LegacyBattleImageParticleNodePool middle_nodes;
+    const u32 middle_first_token = middle_nodes.allocate_zeroed();
+    const u32 removed_middle_token = middle_nodes.allocate_zeroed();
+    const u32 middle_last_token = middle_nodes.allocate_zeroed();
+    auto* middle_first = middle_nodes.node(middle_first_token);
+    auto* removed_middle = middle_nodes.node(removed_middle_token);
+    auto* middle_last = middle_nodes.node(middle_last_token);
+    middle_first->next_token = removed_middle_token;
+    middle_first->distance_offset = 10;
+    middle_first->current_x = -100;
+    middle_first->current_y = -100;
+    removed_middle->previous_token = middle_first_token;
+    removed_middle->next_token = middle_last_token;
+    removed_middle->distance_offset = 0;
+    middle_last->previous_token = removed_middle_token;
+    middle_last->distance_offset = 10;
+    middle_last->current_x = -100;
+    middle_last->current_y = -100;
+    middle_emitter.head_token = middle_first_token;
+    middle_emitter.tail_token = middle_last_token;
+    LegacyCrtRng middle_rng;
+    LegacyBattleImageParticleSharedState middle_shared;
+    LegacyBattleImageParticleDiagnostics middle_diagnostics;
+    LegacyPixelConversionState middle_format;
+    const auto removed_middle_result =
+        openswd3::battle::update_legacy_battle_image_particles(
+            middle_emitter,
+            LegacyBattleImageParticleSurface{},
+            0U,
+            LegacyBattleImageParticleStackSnapshot{},
+            middle_nodes,
+            middle_rng,
+            middle_shared,
+            middle_diagnostics,
+            middle_format
+        );
+    middle_first = middle_nodes.node(middle_first_token);
+    middle_last = middle_nodes.node(middle_last_token);
+    test.expect_true(
+        removed_middle_result.status ==
+                LegacyBattleImageParticleFrameStatus::completed &&
+            removed_middle_result.particles_removed == 1U &&
+            middle_first != nullptr && middle_last != nullptr &&
+            middle_first->next_token == middle_last_token &&
+            middle_last->previous_token == middle_first_token &&
+            middle_emitter.spawned_count == 3 &&
+            middle_emitter.nontransparent_pixel_count == 5,
+        "middle particle removal reconnects both neighboring nodes"
+    );
+
+    auto tail_emitter = make_particle_emitter(source);
+    tail_emitter.initialized = 1;
+    tail_emitter.remaining_batches = 0U;
+    tail_emitter.spawned_count = 3;
+    tail_emitter.target_particle_count = 0;
+    tail_emitter.nontransparent_pixel_count = 5;
+    LegacyBattleImageParticleNodePool tail_nodes;
+    const u32 first_token = tail_nodes.allocate_zeroed();
+    const u32 tail_token = tail_nodes.allocate_zeroed();
+    auto* first = tail_nodes.node(first_token);
+    auto* tail = tail_nodes.node(tail_token);
+    first->next_token = tail_token;
+    first->distance_offset = 10;
+    first->current_x = -100;
+    first->current_y = -100;
+    tail->previous_token = first_token;
+    tail->distance_offset = 0;
+    tail_emitter.head_token = first_token;
+    tail_emitter.tail_token = tail_token;
+    LegacyCrtRng tail_rng;
+    LegacyBattleImageParticleSharedState tail_shared;
+    LegacyBattleImageParticleDiagnostics tail_diagnostics;
+    LegacyPixelConversionState tail_format;
+    const auto removed_tail =
+        openswd3::battle::update_legacy_battle_image_particles(
+            tail_emitter,
+            LegacyBattleImageParticleSurface{},
+            0U,
+            LegacyBattleImageParticleStackSnapshot{},
+            tail_nodes,
+            tail_rng,
+            tail_shared,
+            tail_diagnostics,
+            tail_format
+        );
+    first = tail_nodes.node(first_token);
+    test.expect_true(
+        removed_tail.status ==
+                LegacyBattleImageParticleFrameStatus::completed &&
+            removed_tail.particles_removed == 1U && first != nullptr &&
+            first->next_token == 0U && tail_emitter.head_token == first_token &&
+            tail_emitter.tail_token == first_token &&
+            tail_emitter.spawned_count == 2 &&
+            tail_emitter.nontransparent_pixel_count == 4 &&
+            tail_nodes.active_count() == 1U,
+        "tail particle removal republishes previous node and decrements both counts"
+    );
+
+    auto finished_emitter = make_particle_emitter(source);
+    finished_emitter.initialized = 1;
+    finished_emitter.remaining_batches = 0U;
+    finished_emitter.spawned_count = 0;
+    LegacyBattleImageParticleNodePool finished_nodes;
+    finished_emitter.head_token = finished_nodes.allocate_zeroed();
+    finished_emitter.tail_token = finished_emitter.head_token;
+    LegacyCrtRng finished_rng;
+    LegacyBattleImageParticleSharedState finished_shared;
+    LegacyBattleImageParticleDiagnostics finished_diagnostics;
+    LegacyPixelConversionState finished_format;
+    const auto finished =
+        openswd3::battle::update_legacy_battle_image_particles(
+            finished_emitter,
+            LegacyBattleImageParticleSurface{},
+            0U,
+            LegacyBattleImageParticleStackSnapshot{},
+            finished_nodes,
+            finished_rng,
+            finished_shared,
+            finished_diagnostics,
+            finished_format
+        );
+    test.expect_true(
+        finished.status == LegacyBattleImageParticleFrameStatus::completed &&
+            finished.legacy_return_value == 1 &&
+            finished_nodes.active_count() == 1U,
+        "finished count returns one before touching a stale particle head"
+    );
+}
+
+void test_image_particle_frame_typed_stops(openswd3::test::Context& test) {
+    {
+        std::vector<u16> source{0x1111U};
+        auto emitter = make_particle_emitter(source);
+        emitter.source_width = 2U;
+        emitter.source_height = 2U;
+        emitter.remaining_batches = 1U;
+        LegacyBattleImageParticleNodePool nodes;
+        LegacyCrtRng rng;
+        LegacyBattleImageParticleSharedState shared;
+        LegacyBattleImageParticleDiagnostics diagnostics;
+        LegacyPixelConversionState format;
+        const auto result =
+            openswd3::battle::update_legacy_battle_image_particles(
+                emitter,
+                LegacyBattleImageParticleSurface{},
+                9U,
+                LegacyBattleImageParticleStackSnapshot{},
+                nodes,
+                rng,
+                shared,
+                diagnostics,
+                format
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleImageParticleFrameStatus::
+                        initialization_source_out_of_range &&
+                emitter.initialized == 1 &&
+                emitter.nontransparent_pixel_count == 1,
+            "initialization source stop preserves seeded and counted prefix"
+        );
+    }
+    {
+        std::vector<u16> source{0x1111U};
+        auto emitter = make_particle_emitter(source);
+        emitter.source_width = 1U;
+        emitter.source_height = 1U;
+        emitter.remaining_batches = 0U;
+        LegacyBattleImageParticleNodePool nodes;
+        LegacyCrtRng rng;
+        LegacyBattleImageParticleSharedState shared;
+        LegacyBattleImageParticleDiagnostics diagnostics;
+        LegacyPixelConversionState format;
+        const auto result =
+            openswd3::battle::update_legacy_battle_image_particles(
+                emitter,
+                LegacyBattleImageParticleSurface{},
+                9U,
+                LegacyBattleImageParticleStackSnapshot{},
+                nodes,
+                rng,
+                shared,
+                diagnostics,
+                format
+            );
+        test.expect_equal(
+            result.status,
+            LegacyBattleImageParticleFrameStatus::
+                initialization_batch_divisor_zero,
+            "initialization stops at zero remaining-batch divisor"
+        );
+    }
+    {
+        std::vector<u16> source;
+        auto emitter = make_particle_emitter(source);
+        emitter.initialized = 1;
+        emitter.remaining_batches = 1U;
+        emitter.spawn_divisor = 0U;
+        LegacyBattleImageParticleNodePool nodes;
+        LegacyCrtRng rng;
+        LegacyBattleImageParticleSharedState shared;
+        LegacyBattleImageParticleDiagnostics diagnostics;
+        LegacyPixelConversionState format;
+        const auto result =
+            openswd3::battle::update_legacy_battle_image_particles(
+                emitter,
+                LegacyBattleImageParticleSurface{},
+                0U,
+                LegacyBattleImageParticleStackSnapshot{},
+                nodes,
+                rng,
+                shared,
+                diagnostics,
+                format
+            );
+        test.expect_equal(
+            result.status,
+            LegacyBattleImageParticleFrameStatus::spawn_divisor_zero,
+            "frame stops at zero spawn threshold divisor"
+        );
+    }
+    {
+        std::vector<u16> source;
+        auto emitter = make_particle_emitter(source);
+        emitter.initialized = 1;
+        emitter.source_pixel_count = 1;
+        emitter.nontransparent_pixel_count = 1;
+        emitter.remaining_batches = 1U;
+        emitter.spawn_divisor = 1U;
+        LegacyBattleImageParticleNodePool nodes;
+        LegacyCrtRng rng;
+        LegacyBattleImageParticleSharedState shared;
+        LegacyBattleImageParticleDiagnostics diagnostics;
+        LegacyPixelConversionState format;
+        const auto result =
+            openswd3::battle::update_legacy_battle_image_particles(
+                emitter,
+                LegacyBattleImageParticleSurface{},
+                0U,
+                LegacyBattleImageParticleStackSnapshot{},
+                nodes,
+                rng,
+                shared,
+                diagnostics,
+                format
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleImageParticleFrameStatus::spawn_failed &&
+                result.spawn_status ==
+                    LegacyBattleImageParticleSpawnStatus::
+                        source_pixel_out_of_range,
+            "frame propagates the particle spawn source stop"
+        );
+    }
+    {
+        std::vector<u16> source{0x1111U};
+        auto emitter = make_particle_emitter(source);
+        emitter.initialized = 1;
+        emitter.source_width = 2U;
+        emitter.source_height = 2U;
+        emitter.source_origin_x = 0;
+        emitter.source_origin_y = 0;
+        emitter.source_pixel_count = 4;
+        emitter.remaining_batches = 1U;
+        emitter.nontransparent_pixel_count = 0;
+        emitter.spawn_divisor = 1U;
+        const std::array<u32, 2> rows{0U, 2U};
+        std::vector<u16> destination(4U, 0U);
+        LegacyBattleImageParticleNodePool nodes;
+        LegacyCrtRng rng;
+        LegacyBattleImageParticleSharedState shared;
+        LegacyBattleImageParticleDiagnostics diagnostics;
+        LegacyPixelConversionState format;
+        const auto result =
+            openswd3::battle::update_legacy_battle_image_particles(
+                emitter,
+                LegacyBattleImageParticleSurface{
+                    .width = 2,
+                    .height = 2,
+                    .row_offsets = rows,
+                    .pixels = destination,
+                },
+                0U,
+                LegacyBattleImageParticleStackSnapshot{},
+                nodes,
+                rng,
+                shared,
+                diagnostics,
+                format
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleImageParticleFrameStatus::
+                        restore_source_out_of_range &&
+                destination[0U] == 0x1111U,
+            "restore source stop preserves the first framebuffer write"
+        );
+    }
+    {
+        std::vector<u16> source;
+        auto emitter = make_particle_emitter(source);
+        emitter.initialized = 1;
+        emitter.remaining_batches = 0U;
+        emitter.spawned_count = 1;
+        emitter.target_particle_count = 1;
+        emitter.lifetime_divisor = 0U;
+        LegacyBattleImageParticleNodePool nodes;
+        emitter.head_token = nodes.allocate_zeroed();
+        emitter.tail_token = emitter.head_token;
+        LegacyCrtRng rng;
+        LegacyBattleImageParticleSharedState shared;
+        LegacyBattleImageParticleDiagnostics diagnostics;
+        LegacyPixelConversionState format;
+        const auto result =
+            openswd3::battle::update_legacy_battle_image_particles(
+                emitter,
+                LegacyBattleImageParticleSurface{},
+                0U,
+                LegacyBattleImageParticleStackSnapshot{},
+                nodes,
+                rng,
+                shared,
+                diagnostics,
+                format
+            );
+        LegacyCrtRng expected_rng;
+        static_cast<void>(expected_rng.next());
+        test.expect_true(
+            result.status ==
+                    LegacyBattleImageParticleFrameStatus::
+                        lifetime_divisor_zero &&
+                rng.state() == expected_rng.state(),
+            "node lifetime stop consumes its random value first"
+        );
+    }
+    {
+        std::vector<u16> source;
+        auto emitter = make_particle_emitter(source);
+        emitter.initialized = 1;
+        emitter.remaining_batches = 0U;
+        emitter.spawned_count = 2;
+        emitter.target_particle_count = 0;
+        emitter.head_token = 999U;
+        LegacyBattleImageParticleNodePool nodes;
+        LegacyCrtRng rng;
+        LegacyBattleImageParticleSharedState shared;
+        LegacyBattleImageParticleDiagnostics diagnostics;
+        LegacyPixelConversionState format;
+        const auto result =
+            openswd3::battle::update_legacy_battle_image_particles(
+                emitter,
+                LegacyBattleImageParticleSurface{},
+                0U,
+                LegacyBattleImageParticleStackSnapshot{},
+                nodes,
+                rng,
+                shared,
+                diagnostics,
+                format
+            );
+        test.expect_equal(
+            result.status,
+            LegacyBattleImageParticleFrameStatus::current_node_out_of_range,
+            "invalid head stops at the first node read"
+        );
+    }
+    {
+        std::vector<u16> source;
+        auto emitter = make_particle_emitter(source);
+        emitter.initialized = 1;
+        emitter.remaining_batches = 0U;
+        emitter.spawned_count = 1;
+        emitter.target_particle_count = 1;
+        emitter.lifetime_divisor = 1U;
+        emitter.head_token = 999U;
+        LegacyBattleImageParticleNodePool nodes;
+        LegacyCrtRng rng;
+        LegacyBattleImageParticleSharedState shared;
+        LegacyBattleImageParticleDiagnostics diagnostics;
+        LegacyPixelConversionState format;
+        const auto result =
+            openswd3::battle::update_legacy_battle_image_particles(
+                emitter,
+                LegacyBattleImageParticleSurface{},
+                0U,
+                LegacyBattleImageParticleStackSnapshot{},
+                nodes,
+                rng,
+                shared,
+                diagnostics,
+                format
+            );
+        LegacyCrtRng expected_rng;
+        static_cast<void>(expected_rng.next());
+        test.expect_true(
+            result.status ==
+                    LegacyBattleImageParticleFrameStatus::
+                        current_node_out_of_range &&
+                rng.state() == expected_rng.state(),
+            "lifetime refresh consumes random before an invalid node write"
+        );
+    }
+    {
+        std::vector<u16> source{0x14EBU, 0x7777U};
+        auto emitter = make_particle_emitter(source);
+        emitter.initialized = 1;
+        emitter.source_width = 1U;
+        emitter.source_height = 2U;
+        emitter.source_origin_x = 0;
+        emitter.source_origin_y = 0;
+        emitter.source_pixel_count = 2;
+        emitter.remaining_batches = 1U;
+        emitter.nontransparent_pixel_count = 0;
+        emitter.spawn_divisor = 1U;
+        emitter.flags = 0x0002U;
+        const std::array<u32, 1> rows{0U};
+        std::vector<u16> destination{0x0DB1U};
+        LegacyBattleImageParticleNodePool nodes;
+        LegacyCrtRng rng;
+        LegacyBattleImageParticleSharedState shared;
+        LegacyBattleImageParticleDiagnostics diagnostics;
+        LegacyPixelConversionState format;
+        const auto result =
+            openswd3::battle::update_legacy_battle_image_particles(
+                emitter,
+                LegacyBattleImageParticleSurface{
+                    .width = 1,
+                    .height = 1,
+                    .row_offsets = rows,
+                    .pixels = destination,
+                },
+                0U,
+                LegacyBattleImageParticleStackSnapshot{},
+                nodes,
+                rng,
+                shared,
+                diagnostics,
+                format
+            );
+        test.expect_true(
+            result.status == LegacyBattleImageParticleFrameStatus::completed &&
+                result.restored_pixels == 1U && destination[0U] == 0x229CU,
+            "source restore reuses overflow-to-zero color combine"
+        );
+    }
+    {
+        std::vector<u16> source{0x1111U, 0x7777U};
+        auto emitter = make_particle_emitter(source);
+        emitter.initialized = 1;
+        emitter.source_width = 1U;
+        emitter.source_height = 2U;
+        emitter.source_origin_x = 0;
+        emitter.source_origin_y = 0;
+        emitter.source_pixel_count = 2;
+        emitter.remaining_batches = 1U;
+        emitter.nontransparent_pixel_count = 0;
+        emitter.spawn_divisor = 1U;
+        std::vector<u16> destination(1U, 0U);
+        LegacyBattleImageParticleNodePool nodes;
+        LegacyCrtRng rng;
+        LegacyBattleImageParticleSharedState shared;
+        LegacyBattleImageParticleDiagnostics diagnostics;
+        LegacyPixelConversionState format;
+        const auto row_stop =
+            openswd3::battle::update_legacy_battle_image_particles(
+                emitter,
+                LegacyBattleImageParticleSurface{
+                    .width = 1,
+                    .height = 1,
+                    .row_offsets = {},
+                    .pixels = destination,
+                },
+                0U,
+                LegacyBattleImageParticleStackSnapshot{},
+                nodes,
+                rng,
+                shared,
+                diagnostics,
+                format
+            );
+        test.expect_equal(
+            row_stop.status,
+            LegacyBattleImageParticleFrameStatus::row_table_out_of_range,
+            "source restore stops at the original row table read"
+        );
+
+        const std::array<u32, 1> bad_rows{100U};
+        LegacyBattleImageParticleNodePool destination_nodes;
+        LegacyCrtRng destination_rng;
+        LegacyBattleImageParticleSharedState destination_shared;
+        LegacyBattleImageParticleDiagnostics destination_diagnostics;
+        LegacyPixelConversionState destination_format;
+        const auto destination_stop =
+            openswd3::battle::update_legacy_battle_image_particles(
+                emitter,
+                LegacyBattleImageParticleSurface{
+                    .width = 1,
+                    .height = 1,
+                    .row_offsets = bad_rows,
+                    .pixels = destination,
+                },
+                0U,
+                LegacyBattleImageParticleStackSnapshot{},
+                destination_nodes,
+                destination_rng,
+                destination_shared,
+                destination_diagnostics,
+                destination_format
+            );
+        test.expect_equal(
+            destination_stop.status,
+            LegacyBattleImageParticleFrameStatus::destination_out_of_range,
+            "source restore stops after reading a corrupt row offset"
+        );
+    }
+    {
+        std::vector<u16> source;
+        auto emitter = make_particle_emitter(source);
+        emitter.initialized = 1;
+        emitter.remaining_batches = 0U;
+        emitter.spawned_count = 2;
+        emitter.target_particle_count = 0;
+        emitter.target_origin_x = 100;
+        emitter.target_origin_y = 100;
+        LegacyBattleImageParticleNodePool nodes;
+        emitter.head_token = nodes.allocate_zeroed();
+        emitter.tail_token = emitter.head_token;
+        auto* node = nodes.node(emitter.head_token);
+        node->saved_pixels = {0x1111U, 0x319FU, 0x319FU, 0x319FU};
+        node->distance_offset = 10;
+        node->current_x = -1;
+        node->current_y = 0;
+        const std::array<u32, 2> rows{0U, 2U};
+        std::vector<u16> destination(4U, 0U);
+        LegacyCrtRng rng;
+        LegacyBattleImageParticleSharedState shared;
+        LegacyBattleImageParticleDiagnostics diagnostics;
+        LegacyPixelConversionState format;
+        const auto result =
+            openswd3::battle::update_legacy_battle_image_particles(
+                emitter,
+                LegacyBattleImageParticleSurface{
+                    .width = 2,
+                    .height = 2,
+                    .row_offsets = rows,
+                    .pixels = destination,
+                },
+                0U,
+                LegacyBattleImageParticleStackSnapshot{},
+                nodes,
+                rng,
+                shared,
+                diagnostics,
+                format
+            );
+        test.expect_equal(
+            result.status,
+            LegacyBattleImageParticleFrameStatus::destination_out_of_range,
+            "right-pixel bounds permit the original negative left write stop"
         );
     }
 }
@@ -1973,6 +2921,10 @@ int main() {
     test_direction_raster_axis_and_diagonal_steps(test);
     test_direction_raster_major_axes_and_wrapping(test);
     test_direction_raster_zero_minimum_and_index_stop(test);
+    test_image_particle_frame_initialization_restore_and_spawn(test);
+    test_image_particle_frame_draw_modes_and_line_step(test);
+    test_image_particle_frame_removal_and_early_return(test);
+    test_image_particle_frame_typed_stops(test);
     test_image_particle_spawn_normal_mirror_and_source_clear(test);
     test_image_particle_spawn_random_modes_and_stale_snapshot(test);
     test_image_particle_spawn_allocation_failure_prefixes(test);
