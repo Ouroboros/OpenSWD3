@@ -6437,6 +6437,163 @@ decrease_legacy_special_mode_mode_one_value(
     }
 }
 
+LegacySpecialModeModeOneIncreaseResult
+increase_legacy_special_mode_mode_one_value(
+    LegacySpecialModeModeOneAdvanceState& state,
+    const LegacyStandardModeForwardNode* const player_record_head,
+    const std::span<LegacyStandardModeForwardNode* const> fixed_slots,
+    const compat::u32 maximum_weight,
+    const compat::u32 sample_owner,
+    LegacySpecialModeModeOneIncreasePorts& ports
+) noexcept {
+    LegacySpecialModeModeOneIncreaseResult result;
+    result.legacy_return_value = std::bit_cast<compat::i32>(state.level - 1U);
+    switch (state.level) {
+    case 1U: {
+        compat::u32 increased_mode = (state.packed_mode & 3U) + 1U;
+        if (increased_mode >= 2U) {
+            increased_mode = 2U;
+        }
+        state.packed_mode = (state.packed_mode & 0xFFFFFFFCU) | increased_mode;
+        result.path =
+            LegacySpecialModeModeOneIncreasePath::packed_mode_increased;
+        result.legacy_return_value =
+            std::bit_cast<compat::i32>(state.packed_mode);
+        return result;
+    }
+    case 2U: {
+        const compat::i32 selected_index = std::bit_cast<compat::i32>(
+            std::bit_cast<compat::u32>(state.window_offset) +
+            std::bit_cast<compat::u32>(state.local_cursor)
+        );
+        const LegacyStandardModeForwardNode* selected = state.workspace_head;
+        if (selected_index > 0) {
+            for (compat::i32 step = 0; step < selected_index; ++step) {
+                if (selected == nullptr) {
+                    result.status = LegacySpecialModeModeOneIncreaseStatus::
+                        selected_record_missing;
+                    return result;
+                }
+                selected = selected->next;
+            }
+        }
+        ++result.helper_call_count;
+        if (selected == nullptr) {
+            result.status =
+                LegacySpecialModeModeOneIncreaseStatus::selected_record_missing;
+            return result;
+        }
+        auto* selected_mutable =
+            const_cast<LegacyStandardModeForwardNode*>(selected);
+        result.selected_record = selected_mutable;
+        selected_mutable->combined_value =
+            static_cast<compat::u16>(selected_mutable->combined_value + 1U);
+
+        if ((state.packed_mode & 1U) == 0U) {
+            const LegacySpecialModeWeightResult weight =
+                calculate_legacy_special_mode_record_weight(
+                    state.workspace_head, state.packed_mode
+                );
+            ++result.helper_call_count;
+            result.weight_total = weight.total;
+            if (weight.status != LegacySpecialModeWeightStatus::completed) {
+                result.status = LegacySpecialModeModeOneIncreaseStatus::
+                    weight_chain_cycle_stopped;
+                return result;
+            }
+            if (std::bit_cast<compat::u32>(weight.total) > maximum_weight) {
+                selected_mutable->combined_value = static_cast<compat::u16>(
+                    selected_mutable->combined_value - 1U
+                );
+                state.level = 10U;
+                result.path =
+                    LegacySpecialModeModeOneIncreasePath::weight_limit_rejected;
+                result.legacy_return_value =
+                    ports.play_sample(0x008CU, sample_owner);
+                ++result.helper_call_count;
+                result.played_sample_id = 0x008CU;
+                return result;
+            }
+
+            const LegacySpecialModeEquipmentContributionResult contribution =
+                calculate_legacy_special_mode_equipment_contribution(
+                    player_record_head,
+                    fixed_slots,
+                    state.packed_mode,
+                    selected->text_index,
+                    ports
+                );
+            ++result.helper_call_count;
+            result.equipment_contribution = contribution.total;
+            if (contribution.status !=
+                LegacySpecialModeEquipmentContributionStatus::completed) {
+                result.status = LegacySpecialModeModeOneIncreaseStatus::
+                    equipment_contribution_stopped;
+                return result;
+            }
+            const compat::u32 remaining_bits =
+                99U - std::bit_cast<compat::u32>(contribution.total);
+            const compat::i32 remaining =
+                std::bit_cast<compat::i32>(remaining_bits);
+            const compat::i32 current =
+                static_cast<compat::i32>(selected_mutable->combined_value);
+            if (current >= remaining) {
+                selected_mutable->combined_value =
+                    static_cast<compat::u16>(remaining_bits);
+                state.increase_action_status = 2U;
+                result.path = LegacySpecialModeModeOneIncreasePath::
+                    quantity_clamped_to_inventory_limit;
+                result.legacy_return_value = contribution.total;
+                return result;
+            }
+        } else {
+            const compat::i32 record_limit = std::bit_cast<compat::i32>(
+                static_cast<compat::u32>(
+                    std::bit_cast<compat::i16>(selected->first_value)
+                ) +
+                static_cast<compat::u32>(
+                    std::bit_cast<compat::i16>(selected->second_value)
+                )
+            );
+            const compat::i32 current =
+                static_cast<compat::i32>(selected_mutable->combined_value);
+            if (current > record_limit) {
+                selected_mutable->combined_value = static_cast<compat::u16>(
+                    selected->first_value + selected->second_value
+                );
+                state.increase_action_status = 2U;
+                result.path = LegacySpecialModeModeOneIncreasePath::
+                    quantity_clamped_to_record_limit;
+                result.returns_selected_record = true;
+                return result;
+            }
+        }
+
+        result.path = LegacySpecialModeModeOneIncreasePath::quantity_increased;
+        result.legacy_return_value = ports.play_sample(0x00B9U, sample_owner);
+        ++result.helper_call_count;
+        result.played_sample_id = 0x00B9U;
+        state.increase_action_status = 2U;
+        return result;
+    }
+    case 3U:
+        state.packed_mode |= 4U;
+        result.path = LegacySpecialModeModeOneIncreasePath::option_bit_two_set;
+        result.legacy_return_value =
+            std::bit_cast<compat::i32>(state.packed_mode);
+        return result;
+    case 4U:
+        state.packed_mode |= 8U;
+        result.path =
+            LegacySpecialModeModeOneIncreasePath::option_bit_three_set;
+        result.legacy_return_value =
+            std::bit_cast<compat::i32>(state.packed_mode);
+        return result;
+    default:
+        return result;
+    }
+}
+
 static LegacyGuardianAttributeTarget load_guardian_attribute_target(
     const std::span<const compat::u8> bytes
 ) noexcept {

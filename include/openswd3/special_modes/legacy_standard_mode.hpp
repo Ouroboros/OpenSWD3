@@ -2855,6 +2855,7 @@ struct LegacySpecialModeModeOneAdvanceState {
     std::array<compat::u8, 128U> shared_text{};
     compat::u32 frame_flags{};
     compat::u16 decrease_action_status{};
+    compat::u16 increase_action_status{};
     std::array<LegacySpecialModeAttributeDelta, 4U> member_deltas{};
 };
 
@@ -2864,6 +2865,13 @@ public:
     ~LegacySpecialModeModeOneAdvancePorts() override = default;
     [[nodiscard]] virtual compat::i32
     play_sample(compat::u16 sample_id, compat::u32 sample_owner) noexcept = 0;
+};
+
+class LegacySpecialModeModeOneIncreasePorts
+    : public virtual LegacySpecialModeModeOneAdvancePorts,
+      public virtual LegacySpecialModeEquipmentContributionPorts {
+public:
+    ~LegacySpecialModeModeOneIncreasePorts() override = default;
 };
 
 enum class LegacySpecialModeModeOneAdvanceStatus : compat::u8 {
@@ -3057,6 +3065,50 @@ decrease_legacy_special_mode_mode_one_value(
     LegacySpecialModeModeOneAdvanceState& state,
     compat::u32 sample_owner,
     LegacySpecialModeModeOneAdvancePorts& ports
+) noexcept;
+
+enum class LegacySpecialModeModeOneIncreaseStatus : compat::u8 {
+    completed,
+    selected_record_missing,
+    weight_chain_cycle_stopped,
+    equipment_contribution_stopped,
+};
+
+enum class LegacySpecialModeModeOneIncreasePath : compat::u8 {
+    unchanged,
+    packed_mode_increased,
+    quantity_increased,
+    quantity_clamped_to_inventory_limit,
+    quantity_clamped_to_record_limit,
+    weight_limit_rejected,
+    option_bit_two_set,
+    option_bit_three_set,
+};
+
+struct LegacySpecialModeModeOneIncreaseResult {
+    LegacySpecialModeModeOneIncreaseStatus status{
+        LegacySpecialModeModeOneIncreaseStatus::completed
+    };
+    LegacySpecialModeModeOneIncreasePath path{
+        LegacySpecialModeModeOneIncreasePath::unchanged
+    };
+    compat::i32 legacy_return_value{};
+    LegacyStandardModeForwardNode* selected_record{};
+    compat::i32 weight_total{};
+    compat::i32 equipment_contribution{};
+    compat::u32 helper_call_count{};
+    compat::u16 played_sample_id{};
+    bool returns_selected_record{};
+};
+
+[[nodiscard]] LegacySpecialModeModeOneIncreaseResult
+increase_legacy_special_mode_mode_one_value(
+    LegacySpecialModeModeOneAdvanceState& state,
+    const LegacyStandardModeForwardNode* player_record_head,
+    std::span<LegacyStandardModeForwardNode* const> fixed_slots,
+    compat::u32 maximum_weight,
+    compat::u32 sample_owner,
+    LegacySpecialModeModeOneIncreasePorts& ports
 ) noexcept;
 
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {

@@ -857,7 +857,7 @@ public:
 };
 
 class FakeModeOneAdvancePorts final
-    : public openswd3::special_modes::LegacySpecialModeModeOneAdvancePorts {
+    : public openswd3::special_modes::LegacySpecialModeModeOneIncreasePorts {
 public:
     bool is_party_member_present(const u32 member_id) noexcept override {
         queried_member_ids.push_back(member_id);
@@ -19142,6 +19142,265 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             mode_one_retreat_lone.combined_value == 0U &&
             mode_one_decrease_missing_ports.samples.empty(),
         "0x44E260 stops at the original selected-record read boundary before quantity, sample, and action-state side effects"
+    );
+
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_increase_level_one;
+    mode_one_increase_level_one.level = 1U;
+    mode_one_increase_level_one.packed_mode = 0xAABBCC01U;
+    FakeModeOneAdvancePorts mode_one_increase_level_one_ports;
+    const auto mode_one_increased_mode =
+        openswd3::special_modes::increase_legacy_special_mode_mode_one_value(
+            mode_one_increase_level_one,
+            nullptr,
+            {},
+            0U,
+            0x11U,
+            mode_one_increase_level_one_ports
+        );
+    test.expect_true(
+        mode_one_increased_mode.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOneIncreaseStatus::completed &&
+            mode_one_increased_mode.path ==
+                openswd3::special_modes::LegacySpecialModeModeOneIncreasePath::
+                    packed_mode_increased &&
+            mode_one_increase_level_one.packed_mode == 0xAABBCC02U &&
+            std::bit_cast<u32>(mode_one_increased_mode.legacy_return_value) ==
+                0xAABBCC02U,
+        "0x44E330 level one increases the packed low-two-bit mode, clamps it to two, and preserves every high bit"
+    );
+
+    LegacyStandardModeForwardNode mode_one_increase_record;
+    mode_one_increase_record.text_index = 0x1234U;
+    mode_one_increase_record.combined_value = 1U;
+    mode_one_increase_record.record_bytes[0x52U] = 10U;
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_increase_quantity;
+    mode_one_increase_quantity.level = 2U;
+    mode_one_increase_quantity.packed_mode = 2U;
+    mode_one_increase_quantity.workspace_head = &mode_one_increase_record;
+    FakeModeOneAdvancePorts mode_one_increase_quantity_ports;
+    const auto mode_one_quantity_increased =
+        openswd3::special_modes::increase_legacy_special_mode_mode_one_value(
+            mode_one_increase_quantity,
+            nullptr,
+            {},
+            100U,
+            0x10203040U,
+            mode_one_increase_quantity_ports
+        );
+    test.expect_true(
+        mode_one_quantity_increased.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOneIncreaseStatus::completed &&
+            mode_one_quantity_increased.path ==
+                openswd3::special_modes::LegacySpecialModeModeOneIncreasePath::
+                    quantity_increased &&
+            mode_one_increase_record.combined_value == 2U &&
+            mode_one_increase_quantity.increase_action_status == 2U &&
+            mode_one_quantity_increased.weight_total == 20 &&
+            mode_one_quantity_increased.equipment_contribution == 0 &&
+            mode_one_quantity_increased.played_sample_id == 0x00B9U &&
+            mode_one_increase_quantity_ports.samples ==
+                std::vector<std::pair<u16, u32>>{{0x00B9U, 0x10203040U}} &&
+            mode_one_quantity_increased.helper_call_count == 4U &&
+            mode_one_quantity_increased.legacy_return_value == 777,
+        "0x44E330 level two increments combined quantity, checks corrected total weight and equipment contribution, then plays sample B9 and publishes action state two"
+    );
+
+    mode_one_increase_record.combined_value = 1U;
+    mode_one_increase_record.record_bytes[0x52U] = 100U;
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_increase_weight_reject = mode_one_increase_quantity;
+    mode_one_increase_weight_reject.increase_action_status = 0U;
+    FakeModeOneAdvancePorts mode_one_increase_weight_reject_ports;
+    const auto mode_one_weight_rejected =
+        openswd3::special_modes::increase_legacy_special_mode_mode_one_value(
+            mode_one_increase_weight_reject,
+            nullptr,
+            {},
+            100U,
+            0x55667788U,
+            mode_one_increase_weight_reject_ports
+        );
+    test.expect_true(
+        mode_one_weight_rejected.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOneIncreaseStatus::completed &&
+            mode_one_weight_rejected.path ==
+                openswd3::special_modes::LegacySpecialModeModeOneIncreasePath::
+                    weight_limit_rejected &&
+            mode_one_increase_record.combined_value == 1U &&
+            mode_one_increase_weight_reject.level == 10U &&
+            mode_one_increase_weight_reject.increase_action_status == 0U &&
+            mode_one_weight_rejected.weight_total == 200 &&
+            mode_one_weight_rejected.played_sample_id == 0x008CU &&
+            mode_one_increase_weight_reject_ports.samples ==
+                std::vector<std::pair<u16, u32>>{{0x008CU, 0x55667788U}} &&
+            mode_one_weight_rejected.helper_call_count == 3U,
+        "0x44E330 rolls back a quantity that makes unsigned total weight exceed capacity, switches to level ten, and plays sample 8C without publishing action state"
+    );
+
+    LegacyStandardModeForwardNode mode_one_inventory_record;
+    mode_one_inventory_record.text_index = 0x1234U;
+    mode_one_inventory_record.first_value = 1U;
+    mode_one_increase_record.combined_value = 98U;
+    mode_one_increase_record.record_bytes[0x52U] = 1U;
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_increase_inventory_clamp = mode_one_increase_quantity;
+    mode_one_increase_inventory_clamp.increase_action_status = 0U;
+    FakeModeOneAdvancePorts mode_one_increase_inventory_clamp_ports;
+    const auto mode_one_inventory_clamped =
+        openswd3::special_modes::increase_legacy_special_mode_mode_one_value(
+            mode_one_increase_inventory_clamp,
+            &mode_one_inventory_record,
+            {},
+            100U,
+            0x99U,
+            mode_one_increase_inventory_clamp_ports
+        );
+    test.expect_true(
+        mode_one_inventory_clamped.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOneIncreaseStatus::completed &&
+            mode_one_inventory_clamped.path ==
+                openswd3::special_modes::LegacySpecialModeModeOneIncreasePath::
+                    quantity_clamped_to_inventory_limit &&
+            mode_one_increase_record.combined_value == 98U &&
+            mode_one_increase_inventory_clamp.increase_action_status == 2U &&
+            mode_one_inventory_clamped.weight_total == 99 &&
+            mode_one_inventory_clamped.equipment_contribution == 1 &&
+            mode_one_inventory_clamped.played_sample_id == 0U &&
+            mode_one_increase_inventory_clamp_ports.samples.empty() &&
+            mode_one_inventory_clamped.helper_call_count == 3U,
+        "0x44E330 clamps ordinary-mode quantity to ninety-nine minus signed player and equipment contribution without playing sample B9"
+    );
+
+    mode_one_increase_record.combined_value = 5U;
+    mode_one_increase_record.first_value = 2U;
+    mode_one_increase_record.second_value = 3U;
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_increase_record_clamp = mode_one_increase_quantity;
+    mode_one_increase_record_clamp.packed_mode = 1U;
+    mode_one_increase_record_clamp.increase_action_status = 0U;
+    FakeModeOneAdvancePorts mode_one_increase_record_clamp_ports;
+    const auto mode_one_record_clamped =
+        openswd3::special_modes::increase_legacy_special_mode_mode_one_value(
+            mode_one_increase_record_clamp,
+            nullptr,
+            {},
+            0U,
+            0xAAU,
+            mode_one_increase_record_clamp_ports
+        );
+    test.expect_true(
+        mode_one_record_clamped.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOneIncreaseStatus::completed &&
+            mode_one_record_clamped.path ==
+                openswd3::special_modes::LegacySpecialModeModeOneIncreasePath::
+                    quantity_clamped_to_record_limit &&
+            mode_one_increase_record.combined_value == 5U &&
+            mode_one_increase_record_clamp.increase_action_status == 2U &&
+            mode_one_record_clamped.returns_selected_record &&
+            mode_one_increase_record_clamp_ports.samples.empty() &&
+            mode_one_record_clamped.helper_call_count == 1U,
+        "0x44E330 clamps bit-zero-mode quantity to the signed sum of the selected record's two value words and returns the record through the typed channel"
+    );
+
+    mode_one_increase_record.combined_value = 3U;
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_increase_record_ok = mode_one_increase_record_clamp;
+    mode_one_increase_record_ok.increase_action_status = 0U;
+    FakeModeOneAdvancePorts mode_one_increase_record_ok_ports;
+    const auto mode_one_record_increased =
+        openswd3::special_modes::increase_legacy_special_mode_mode_one_value(
+            mode_one_increase_record_ok,
+            nullptr,
+            {},
+            0U,
+            0xBBU,
+            mode_one_increase_record_ok_ports
+        );
+    test.expect_true(
+        mode_one_record_increased.path ==
+                openswd3::special_modes::LegacySpecialModeModeOneIncreasePath::
+                    quantity_increased &&
+            mode_one_increase_record.combined_value == 4U &&
+            mode_one_increase_record_ok.increase_action_status == 2U &&
+            mode_one_record_increased.played_sample_id == 0x00B9U &&
+            mode_one_increase_record_ok_ports.samples ==
+                std::vector<std::pair<u16, u32>>{{0x00B9U, 0xBBU}} &&
+            mode_one_record_increased.helper_call_count == 2U,
+        "0x44E330 bit-zero mode keeps an increment not above the signed record limit and plays sample B9"
+    );
+
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_increase_option;
+    mode_one_increase_option.level = 3U;
+    mode_one_increase_option.packed_mode = 0U;
+    FakeModeOneAdvancePorts mode_one_increase_option_ports;
+    const auto mode_one_option_two_set =
+        openswd3::special_modes::increase_legacy_special_mode_mode_one_value(
+            mode_one_increase_option,
+            nullptr,
+            {},
+            0U,
+            0U,
+            mode_one_increase_option_ports
+        );
+    mode_one_increase_option.level = 4U;
+    const auto mode_one_option_three_set =
+        openswd3::special_modes::increase_legacy_special_mode_mode_one_value(
+            mode_one_increase_option,
+            nullptr,
+            {},
+            0U,
+            0U,
+            mode_one_increase_option_ports
+        );
+    test.expect_true(
+        mode_one_option_two_set.path ==
+                openswd3::special_modes::LegacySpecialModeModeOneIncreasePath::
+                    option_bit_two_set &&
+            std::bit_cast<u32>(mode_one_option_two_set.legacy_return_value) ==
+                4U &&
+            mode_one_option_three_set.path ==
+                openswd3::special_modes::LegacySpecialModeModeOneIncreasePath::
+                    option_bit_three_set &&
+            mode_one_increase_option.packed_mode == 12U,
+        "0x44E330 levels three and four set packed option bits two and three independently"
+    );
+
+    LegacyStandardModeForwardNode mode_one_increase_cycle;
+    mode_one_increase_cycle.next = &mode_one_increase_cycle;
+    mode_one_increase_cycle.combined_value = 1U;
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_increase_cycle_state;
+    mode_one_increase_cycle_state.level = 2U;
+    mode_one_increase_cycle_state.packed_mode = 2U;
+    mode_one_increase_cycle_state.workspace_head = &mode_one_increase_cycle;
+    FakeModeOneAdvancePorts mode_one_increase_cycle_ports;
+    const auto mode_one_increase_cycle_stopped =
+        openswd3::special_modes::increase_legacy_special_mode_mode_one_value(
+            mode_one_increase_cycle_state,
+            nullptr,
+            {},
+            100U,
+            0xCCU,
+            mode_one_increase_cycle_ports
+        );
+    test.expect_true(
+        mode_one_increase_cycle_stopped.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOneIncreaseStatus::
+                        weight_chain_cycle_stopped &&
+            mode_one_increase_cycle.combined_value == 2U &&
+            mode_one_increase_cycle_state.increase_action_status == 0U &&
+            mode_one_increase_cycle_ports.samples.empty() &&
+            mode_one_increase_cycle_stopped.helper_call_count == 2U,
+        "0x44E330 preserves the incremented quantity before the corrected total-weight helper stops at a repeated record"
     );
 
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;
