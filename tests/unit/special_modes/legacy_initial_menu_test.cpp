@@ -17521,6 +17521,70 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44F7D0 counts a repeated self-link thirteen times instead of adding a non-original cycle stop"
     );
 
+    LegacyStandardModeForwardNode* empty_workspace_release_head = nullptr;
+    FakeQuantityPorts empty_workspace_release_ports;
+    const auto empty_workspace_release =
+        openswd3::special_modes::release_legacy_special_mode_workspace_records(
+            empty_workspace_release_head, empty_workspace_release_ports
+        );
+    test.expect_true(
+        empty_workspace_release.status ==
+                openswd3::special_modes::LegacyPlayerItemChainReleaseStatus::
+                    completed &&
+            empty_workspace_release.released_node_count == 0U &&
+            empty_workspace_release.release_call_count == 0U,
+        "0x44F8E0 leaves an empty special-mode workspace record chain unchanged"
+    );
+
+    LegacyStandardModeForwardNode workspace_release_second;
+    workspace_release_second.release_token = 0xBBBBU;
+    LegacyStandardModeForwardNode workspace_release_first;
+    workspace_release_first.next = &workspace_release_second;
+    workspace_release_first.release_token = 0xAAAAU;
+    LegacyStandardModeForwardNode* workspace_release_head =
+        &workspace_release_first;
+    FakeQuantityPorts workspace_release_ports;
+    const auto workspace_release =
+        openswd3::special_modes::release_legacy_special_mode_workspace_records(
+            workspace_release_head, workspace_release_ports
+        );
+    test.expect_true(
+        workspace_release.status ==
+                openswd3::special_modes::LegacyPlayerItemChainReleaseStatus::
+                    completed &&
+            workspace_release_head == nullptr &&
+            workspace_release.released_node_count == 2U &&
+            workspace_release.release_call_count == 4U &&
+            workspace_release_ports.released_values ==
+                std::vector<u32>{0xAAAAU, 0xBBBBU} &&
+            workspace_release_ports.released_records ==
+                std::vector<LegacyStandardModeForwardNode*>{
+                    &workspace_release_first, &workspace_release_second
+                },
+        "0x44F8E0 publishes each next workspace record before releasing its text owner and record"
+    );
+
+    LegacyStandardModeForwardNode workspace_release_cycle;
+    workspace_release_cycle.next = &workspace_release_cycle;
+    workspace_release_cycle.release_token = 0xCCCCU;
+    workspace_release_head = &workspace_release_cycle;
+    FakeQuantityPorts workspace_release_cycle_ports;
+    const auto workspace_cycle_release =
+        openswd3::special_modes::release_legacy_special_mode_workspace_records(
+            workspace_release_head, workspace_release_cycle_ports
+        );
+    test.expect_true(
+        workspace_cycle_release.status ==
+                openswd3::special_modes::LegacyPlayerItemChainReleaseStatus::
+                    released_node_cycle_stopped &&
+            workspace_release_head == &workspace_release_cycle &&
+            workspace_cycle_release.released_node_count == 1U &&
+            workspace_cycle_release.release_call_count == 2U &&
+            workspace_release_cycle_ports.released_values ==
+                std::vector<u32>{0xCCCCU},
+        "0x44F8E0 preserves the first workspace release before stopping at the repeated freed node"
+    );
+
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;
     for (std::size_t index = 0U; index < special_action_set.records.size();
          ++index) {

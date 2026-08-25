@@ -5524,6 +5524,14 @@ LegacySpecialModeVisibleCountResult count_legacy_special_mode_visible_records(
     return result;
 }
 
+LegacyPlayerItemChainReleaseResult
+release_legacy_special_mode_workspace_records(
+    LegacyStandardModeForwardNode*& workspace_head,
+    LegacyStandardModeQuantityPorts& ports
+) noexcept {
+    return release_legacy_player_item_chain(workspace_head, ports);
+}
+
 static LegacyGuardianAttributeTarget load_guardian_attribute_target(
     const std::span<const compat::u8> bytes
 ) noexcept {

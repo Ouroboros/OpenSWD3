@@ -2666,6 +2666,12 @@ count_legacy_special_mode_visible_records(
     const LegacyStandardModeForwardNode* head
 ) noexcept;
 
+[[nodiscard]] LegacyPlayerItemChainReleaseResult
+release_legacy_special_mode_workspace_records(
+    LegacyStandardModeForwardNode*& workspace_head,
+    LegacyStandardModeQuantityPorts& ports
+) noexcept;
+
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
     completed,
     mode_mask_out_of_range,
