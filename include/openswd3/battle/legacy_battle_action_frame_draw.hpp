@@ -185,6 +185,11 @@ draw_legacy_battle_prepared_action_frame(
     compat::i32 y
 );
 
+// sub_450B40.
+[[nodiscard]] compat::u32 clear_legacy_battle_action_record(
+    asset_runtime::LegacyActionRecord& action_record
+) noexcept;
+
 // sub_450A80.
 [[nodiscard]] LegacyBattleOffsetActionFrameDrawResult
 draw_legacy_battle_offset_action_frame(

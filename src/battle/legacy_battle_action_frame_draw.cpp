@@ -1,6 +1,7 @@
 #include "openswd3/battle/legacy_battle_action_frame_draw.hpp"
 
 #include <bit>
+#include <cstring>
 #include <span>
 
 namespace openswd3::battle {
@@ -315,6 +316,13 @@ draw_legacy_battle_prepared_action_frame(
 
     publish_blitter_normal_epilogue(shared_request, shared_effects);
     return result;
+}
+
+compat::u32 clear_legacy_battle_action_record(
+    asset_runtime::LegacyActionRecord& action_record
+) noexcept {
+    std::memset(&action_record, 0, asset_runtime::kLegacyActionRecordSize);
+    return 0U;
 }
 
 LegacyBattleOffsetActionFrameDrawResult draw_legacy_battle_offset_action_frame(

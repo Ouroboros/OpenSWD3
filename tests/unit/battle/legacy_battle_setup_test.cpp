@@ -2957,6 +2957,45 @@ void test_battle_action_frame_draw(openswd3::test::Context& test) {
     }
 }
 
+void test_battle_action_record_clear(openswd3::test::Context& test) {
+    struct GuardedRecord {
+        std::array<u8, 7> prefix{};
+        openswd3::asset_runtime::LegacyActionRecord record{};
+        std::array<u8, 9> suffix{};
+    } guarded;
+    guarded.prefix.fill(0xA5U);
+    guarded.suffix.fill(0x5AU);
+    std::span<u8> record_bytes{
+        reinterpret_cast<u8*>(&guarded.record),
+        sizeof(guarded.record),
+    };
+    for (std::size_t index = 0U; index < record_bytes.size(); ++index) {
+        record_bytes[index] = static_cast<u8>((index * 37U + 11U) & 0xFFU);
+    }
+
+    const u32 return_value =
+        openswd3::battle::clear_legacy_battle_action_record(guarded.record);
+    test.expect_true(
+        return_value == 0U &&
+            std::all_of(
+                record_bytes.begin(),
+                record_bytes.end(),
+                [](const u8 value) { return value == 0U; }
+            ) &&
+            std::all_of(
+                guarded.prefix.begin(),
+                guarded.prefix.end(),
+                [](const u8 value) { return value == 0xA5U; }
+            ) &&
+            std::all_of(
+                guarded.suffix.begin(),
+                guarded.suffix.end(),
+                [](const u8 value) { return value == 0x5AU; }
+            ),
+        "battle action record clear zeros exactly all ninety-eight hex bytes"
+    );
+}
+
 void test_battle_offset_action_frame_draw(openswd3::test::Context& test) {
     const openswd3::rendering::LegacySurfaceGeometry surface{
         .pitch_bytes = 160,
@@ -6395,6 +6434,7 @@ int main() {
     test_directional_scan_fixed_point_loops_and_bounds(test);
     test_directional_scan_division_and_typed_stops(test);
     test_battle_action_frame_draw(test);
+    test_battle_action_record_clear(test);
     test_battle_offset_action_frame_draw(test);
     test_battle_prepared_action_frame_draw(test);
     test_battle_indexed_action_frame_draw(test);
