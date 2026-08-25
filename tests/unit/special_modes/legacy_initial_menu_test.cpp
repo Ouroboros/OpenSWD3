@@ -17432,6 +17432,60 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44FF90 starts with the low word shifted left, then applies bit-eight, bit-nine, and highest-priority bit-ten overrides"
     );
 
+    const auto set_special_weight = [](LegacyStandardModeForwardNode& record,
+                                       const u16 weight) {
+        record.record_bytes[0x52U] = static_cast<u8>(weight);
+        record.record_bytes[0x53U] = static_cast<u8>(weight >> 8U);
+    };
+    LegacyStandardModeForwardNode weight_second;
+    weight_second.first_value = 4U;
+    set_special_weight(weight_second, 5U);
+    LegacyStandardModeForwardNode weight_first;
+    weight_first.next = &weight_second;
+    weight_first.first_value = 3U;
+    set_special_weight(weight_first, 10U);
+    const auto full_weight =
+        openswd3::special_modes::calculate_legacy_special_mode_record_weight(
+            &weight_first, 0U
+        );
+    const auto reduced_weight =
+        openswd3::special_modes::calculate_legacy_special_mode_record_weight(
+            &weight_first, 1U
+        );
+    test.expect_true(
+        full_weight.status ==
+                openswd3::special_modes::LegacySpecialModeWeightStatus::
+                    completed &&
+            full_weight.total == 50 && full_weight.visited_count == 2U &&
+            reduced_weight.total == 30 && reduced_weight.visited_count == 2U,
+        "0x44F770 sums each record weight times quantity at one hundred or sixty percent"
+    );
+
+    LegacyStandardModeForwardNode overflow_weight;
+    overflow_weight.first_value = 0xFFFFU;
+    set_special_weight(overflow_weight, 0xFFFFU);
+    const auto wrapped_weight =
+        openswd3::special_modes::calculate_legacy_special_mode_record_weight(
+            &overflow_weight, 0U
+        );
+    test.expect_true(
+        wrapped_weight.total == -131071 && wrapped_weight.visited_count == 1U,
+        "0x44F770 keeps the wrapped signed 32-bit product before division by one hundred"
+    );
+
+    weight_second.next = &weight_first;
+    const auto cycle_weight =
+        openswd3::special_modes::calculate_legacy_special_mode_record_weight(
+            &weight_first, 0U
+        );
+    test.expect_true(
+        cycle_weight.status ==
+                openswd3::special_modes::LegacySpecialModeWeightStatus::
+                    chain_cycle_stopped &&
+            cycle_weight.total == 50 && cycle_weight.visited_count == 2U,
+        "0x44F770 preserves the completed prefix when the record chain would repeat"
+    );
+
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;
     for (std::size_t index = 0U; index < special_action_set.records.size();
          ++index) {

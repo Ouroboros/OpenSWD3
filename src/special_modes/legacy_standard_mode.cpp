@@ -5478,6 +5478,39 @@ compat::u32 resolve_legacy_special_mode_packed_value(
     return result;
 }
 
+LegacySpecialModeWeightResult calculate_legacy_special_mode_record_weight(
+    const LegacyStandardModeForwardNode* head, const compat::u32 packed_mode
+) noexcept {
+    LegacySpecialModeWeightResult result;
+    const compat::i32 percentage = (packed_mode & 1U) == 1U ? 60 : 100;
+    const LegacyStandardModeForwardNode* record = head;
+    std::vector<const LegacyStandardModeForwardNode*> visited;
+    compat::u32 total_bits = 0U;
+    while (record != nullptr) {
+        if (std::find(visited.begin(), visited.end(), record) !=
+            visited.end()) {
+            result.status = LegacySpecialModeWeightStatus::chain_cycle_stopped;
+            result.total = std::bit_cast<compat::i32>(total_bits);
+            return result;
+        }
+        visited.push_back(record);
+        ++result.visited_count;
+        const compat::u16 weight = static_cast<compat::u16>(
+            record->record_bytes[0x52U] |
+            (static_cast<compat::u16>(record->record_bytes[0x53U]) << 8U)
+        );
+        compat::u32 product =
+            static_cast<compat::u32>(weight) * record->first_value;
+        product *= static_cast<compat::u32>(percentage);
+        const compat::i32 contribution =
+            std::bit_cast<compat::i32>(product) / 100;
+        total_bits += static_cast<compat::u32>(contribution);
+        record = record->next;
+    }
+    result.total = std::bit_cast<compat::i32>(total_bits);
+    return result;
+}
+
 static LegacyGuardianAttributeTarget load_guardian_attribute_target(
     const std::span<const compat::u8> bytes
 ) noexcept {

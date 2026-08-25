@@ -2638,6 +2638,24 @@ cleanup_legacy_special_mode_runtime(
 [[nodiscard]] compat::u32
 resolve_legacy_special_mode_packed_value(compat::u32 packed_value) noexcept;
 
+enum class LegacySpecialModeWeightStatus : compat::u8 {
+    completed,
+    chain_cycle_stopped,
+};
+
+struct LegacySpecialModeWeightResult {
+    LegacySpecialModeWeightStatus status{
+        LegacySpecialModeWeightStatus::completed
+    };
+    compat::i32 total{};
+    compat::u32 visited_count{};
+};
+
+[[nodiscard]] LegacySpecialModeWeightResult
+calculate_legacy_special_mode_record_weight(
+    const LegacyStandardModeForwardNode* head, compat::u32 packed_mode
+) noexcept;
+
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
     completed,
     mode_mask_out_of_range,
