@@ -15,11 +15,11 @@
 
 ## 依赖锁与许可
 
-后端使用`dependencies/ffmpeg/9.0/SOURCE.md`记录的BtbN n9.0 Windows x64和Linux x64 `lgpl-shared`包。
+后端使用`dependencies/ffmpeg/9.0/SOURCE.md`记录的官方签名`ffmpeg-9.0.tar.xz`，由项目脚本构建Windows x64和Linux x64最小LGPL shared包。源码字节数、SHA256、release签名密钥完整指纹、configure白名单、`SOURCE_DATE_EPOCH`和双平台工具链版本均已锁定。
 
 CMake行为：
 
-- 不联网，按平台选择`windows-x64`或`linux-x64`。
+- 不联网，按平台选择`self-built/windows-x64`或`self-built/linux-x64`。
 - 接受显式`OPENSWD3_FFMPEG_ROOT`覆盖。
 - 校验本地头文件、导入库和运行库。
 - 导入`avformat`、`avcodec`、`avutil`、`swresample`和`swscale`。
@@ -27,7 +27,7 @@ CMake行为：
 - 构建单一共享SDL3 fallback，使应用和媒体库使用同一SDL设备与运行时状态。
 - 将项目媒体库、SDL3、五个FFmpeg运行库及上游`LICENSE.txt`复制到应用和真实媒体测试可执行文件旁。
 
-Linux共享库RUNPATH优先使用`$ORIGIN`。Windows测试证明复制后的DLL集合无需依赖系统FFmpeg安装即可加载。
+Linux共享库RUNPATH优先使用`$ORIGIN`。Windows五个DLL使用Win32线程并静态收进GCC/MinGW运行时，只依赖系统DLL和包内FFmpeg DLL；同时提供LLVM可读取的COFF `.lib`、GNU `.dll.a`和`.def`，无需系统FFmpeg或其他MinGW运行时。
 
 ## 音频流后端
 
@@ -84,12 +84,15 @@ SDL主运行时不再实例化不可用的stream backend或立即完成型video 
 
 ## 验证
 
-- 链接的运行时版本以`n9.0`开头。
-- Linux真实SDL媒体测试通过：真实MAPS map214经世界音乐状态机启动`Music\\Map_Ca12.mp3`的stream100；普通组`0x00080000`和场景组`0x00020000`均在真实MP3 EOF后重开stream100；`firegod.bik`完整176帧和`opening.bik`完整7,369帧均解码到EOF。
+- 链接的运行时版本为`9.0`系列。
+- 机械验收直接读取Linux与Windows二进制内嵌configure字符串，确认仅启用Bink/MP3解复用、Bink视频、两种Bink音频、MP3 float解码、mpegaudio parser、file协议、swresample和swscale；GPL、version3、nonfree、网络、程序、设备和滤镜均未启用。
+- Linux五库为`1838408`字节（`1.75 MiB`）；Windows五DLL为`3177472`字节（`3.03 MiB`），相对原`94.76 MiB`基线减少`96.80%`。
+- 连续两次clean双平台构建的20个共享库和导入库SHA256逐文件一致。
+- 自建最小包的Linux真实SDL媒体测试通过：真实MAPS map214经世界音乐状态机启动`Music\\Map_Ca12.mp3`的stream100；普通组`0x00080000`和场景组`0x00020000`均在真实MP3 EOF后重开stream100；真实`Map_Eu08.mp3`播放到EOF后同样重开；`firegod.bik`完整176帧和`opening.bik`完整7,369帧均解码到EOF。
 - Player fake backend测试证明：解码EOF不会复制或呈现黑帧；解码失败会关闭句柄。
 - 帧运行时测试证明：剧情VM写入的视频活动位会保留在发布给idle分派的已接受帧状态中。
-- 运行时修复后，Linux core无SDL/无FFmpeg配置保持独立并通过`186/186`。
-- 运行时修复后，Linux app完整门通过`192/192`。
+- 自建依赖接入后，Linux core无SDL/无FFmpeg配置保持独立并通过`188/188`。
+- 自建依赖及`Map_Eu08`循环补证接入后，Linux app完整门通过`194/194`。
 - 场景音乐循环掩码及SDL音频输入flush修复后，Windows LLVM app完整门分别通过`192/192`。
 - Windows真实设备日志中，`Map_Eu08.mp3`分别于`21:58:29.021`、`21:59:11.621`和`21:59:54.226`报告启动，相邻重开间隔为42.600秒与42.605秒；与该MP3约42.53秒的解码时长一致，证明EOF后连续循环已实际生效。
 - Linux ELF依赖从应用输出目录复制的文件中解析全部五个FFmpeg库，不存在缺失的FFmpeg依赖。

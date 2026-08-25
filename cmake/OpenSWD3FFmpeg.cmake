@@ -13,9 +13,9 @@ function(openswd3_configure_ffmpeg)
 
     set(
         OPENSWD3_FFMPEG_ROOT
-        "${PROJECT_SOURCE_DIR}/build/dependencies/ffmpeg/9.0/${_platform_directory}"
+        "${PROJECT_SOURCE_DIR}/build/dependencies/ffmpeg/9.0/self-built/${_platform_directory}"
         CACHE PATH
-        "Extracted BtbN FFmpeg 9.0 lgpl-shared package root"
+        "Self-built FFmpeg 9.0 minimal LGPL shared package root"
     )
 
     set(_include_directory "${OPENSWD3_FFMPEG_ROOT}/include")
@@ -51,7 +51,18 @@ function(openswd3_configure_ffmpeg)
                 set(_runtime_name "swscale-10.dll")
             endif()
             set(_runtime "${OPENSWD3_FFMPEG_ROOT}/bin/${_runtime_name}")
-            set(_import "${OPENSWD3_FFMPEG_ROOT}/lib/${_component}.lib")
+            set(_msvc_import "${OPENSWD3_FFMPEG_ROOT}/bin/${_component}.lib")
+            set(
+                _mingw_import
+                "${OPENSWD3_FFMPEG_ROOT}/lib/lib${_component}.dll.a"
+            )
+            if(EXISTS "${_msvc_import}")
+                set(_import "${_msvc_import}")
+            elseif(EXISTS "${_mingw_import}")
+                set(_import "${_mingw_import}")
+            else()
+                set(_import "")
+            endif()
             if(NOT EXISTS "${_runtime}" OR NOT EXISTS "${_import}")
                 message(FATAL_ERROR "Incomplete FFmpeg component: ${_component}")
             endif()

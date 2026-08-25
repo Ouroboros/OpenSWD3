@@ -295,7 +295,7 @@ void test_real_ffmpeg_media(
     openswd3::test::Context& test, const std::filesystem::path& data_root
 ) {
     test.expect_true(
-        openswd3::media_ffmpeg::linked_ffmpeg_version().starts_with("n9.0"),
+        openswd3::media_ffmpeg::linked_ffmpeg_version().starts_with("9.0"),
         "the media shim reports its linked FFmpeg 9.0 version"
     );
 
@@ -410,6 +410,40 @@ void test_real_ffmpeg_media(
         scene_music_ports.request_count == 2U &&
             world_music_manager.active_stream_count() == 1U,
         "the scene 0x20000 restart flag loops a real FFmpeg MP3"
+    );
+    static_cast<void>(world_music_manager.shutdown());
+
+    test.expect_equal(
+        world_music_manager.initialize_pool(1U),
+        openswd3::audio_video::LegacyStreamManagerInitializeStatus::ready,
+        "the Map_Eu08 stream pool initializes"
+    );
+    openswd3::audio_video::LegacyWorldMusicState european_scene_music{
+        .request_flags = 0x00820002U,
+        .music_slots = {0U, 0U, 0U, 0U, 0U, 24U, 0U},
+        .mix_level = 6,
+    };
+    RealWorldMusicPorts european_scene_ports{
+        world_music_manager, maps_payload
+    };
+    static_cast<void>(openswd3::audio_video::service_legacy_world_music(
+        european_scene_music, "", european_scene_ports
+    ));
+    test.expect_true(
+        european_scene_ports.requested_filename == "Music\\Map_Eu08.mp3" &&
+            european_scene_ports.request_count == 1U &&
+            world_music_manager.active_stream_count() == 1U,
+        "the real scene slot opens Map_Eu08 through the minimal FFmpeg package"
+    );
+    SDL_Delay(43'500U);
+    static_cast<void>(world_music_manager.service());
+    static_cast<void>(openswd3::audio_video::service_legacy_world_music(
+        european_scene_music, "", european_scene_ports
+    ));
+    test.expect_true(
+        european_scene_ports.request_count == 2U &&
+            world_music_manager.active_stream_count() == 1U,
+        "the real Map_Eu08 stream reopens after EOF"
     );
     static_cast<void>(world_music_manager.shutdown());
 

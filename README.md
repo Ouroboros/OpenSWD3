@@ -85,6 +85,17 @@ build.bat app
 
 该脚本顶部保存了本机工具路径；其他环境应修改这些变量，或直接使用上面的标准 CMake 命令。
 
+### FFmpeg 9.0媒体依赖
+
+构建应用前，在Linux或WSL中从官方签名源码生成最小LGPL shared双平台包：
+
+```console
+./dependencies/ffmpeg/9.0/build-minimal.sh all
+./dependencies/ffmpeg/9.0/verify-minimal.py
+```
+
+脚本需要GCC、GNU Make、GnuPG及`x86_64-w64-mingw32-gcc-posix`交叉工具链。源码锁、精确组件、工具版本、产物布局和离线CMake边界见[`dependencies/ffmpeg/9.0/SOURCE.md`](dependencies/ffmpeg/9.0/SOURCE.md)。
+
 ### Linux + LLVM
 
 确保 `cmake`、`ctest`、`make`、`clang` 和 `clang++` 位于 `PATH`，然后使用仓库配套脚本：

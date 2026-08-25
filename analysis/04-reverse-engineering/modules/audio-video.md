@@ -188,8 +188,4 @@ FFmpeg、Miles、Bink 或 SDL 类型。
     2 资产验证实现、3 平台替代、1 外部 service 端口、23 核心已实现/后端延期、1 剧情
     边界拆分，没有未映射地址。Linux `core` 76/76、Linux/Windows `app` 80/80 CTest
     通过，核心层先行让出执行位。
-13. `[x]` B5.media：BtbN FFmpeg n9.0 `lgpl-shared`包已通过项目自有`openswd3_ffmpeg`
-    共享库接入。BGM/MP3经既有stream ABI解码为48 kHz stereo float并交SDL3播放；BIK/OP
-    经既有video ABI逐帧解码、定时、RGB555/565拷贝，并同步处理内嵌Bink音频。Linux/Windows
-    真实`Map_Ca12.mp3`与`firegod.bik`测试、Linux core 186/186及Linux/Windows app 192/192
-    完整门通过；主程序与媒体库共用单一动态SDL3，运行目录复制项目库、SDL3、五个FFmpeg共享库与LGPL许可。FFmpeg API未扩散到兼容核心。
+13. `[x]` B5.media：官方签名FFmpeg n9.0源码已由项目脚本构建为最小LGPL shared双平台包，并通过项目自有`openswd3_ffmpeg`共享库接入。BGM/MP3经既有stream ABI解码为48 kHz stereo float并交SDL3播放；BIK/OP经既有video ABI逐帧解码、定时、RGB555/565拷贝，并同步处理内嵌Bink音频。组件白名单只保留真实资产所需的Bink/MP3解复用与解码、file协议、重采样和缩放；Windows五DLL从94.76 MiB降至3.03 MiB且没有额外MinGW运行时依赖，双clean build哈希一致。自建包下的真实`Map_Ca12`与`Map_Eu08`循环、短Bink和完整opening解码通过，Linux core为188/188、app为194/194。主程序与媒体库共用单一动态SDL3，运行目录复制项目库、SDL3、五个FFmpeg共享库与LGPL许可；FFmpeg API未扩散到兼容核心。

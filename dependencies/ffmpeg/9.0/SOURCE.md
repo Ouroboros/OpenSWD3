@@ -1,60 +1,177 @@
-# FFmpeg 9.0 预编译依赖来源
+# FFmpeg 9.0 最小LGPL共享依赖
 
-状态：已下载、已校验，并已接入CMake与`openswd3_ffmpeg`共享运行时后端。
+状态：官方源码、签名、构建参数和工具链已锁定；Linux x64与Windows x64最小共享包由项目脚本独立构建，CMake配置阶段不联网也不现场编译FFmpeg。
 
-## 上游
+## 1. 官方源码锁
 
-- 仓库：<https://github.com/BtbN/FFmpeg-Builds>
-- release页面：<https://github.com/BtbN/FFmpeg-Builds/releases/tag/latest>
-- release tag：`latest`
-- release发布时间：`2026-08-22T13:24:06Z`
-- 本次获取时间：`2026-08-22T15:49:51Z`
-- 版本系列：`n9.0`
-- 包类型：`lgpl-shared`
-- 架构：Windows x64与Linux x64
+- 上游：<https://ffmpeg.org/>
+- release/tag：`9.0` / `n9.0`
+- 源码URL：<https://ffmpeg.org/releases/ffmpeg-9.0.tar.xz>
+- detached signature：<https://ffmpeg.org/releases/ffmpeg-9.0.tar.xz.asc>
+- 字节数：`12032020`
+- SHA256：`7f607a00dd0d28a729d5a4811205812eef01cf6ef6155025febb6f36a9062d52`
+- release签名密钥：`FFmpeg release signing key <ffmpeg-devel@ffmpeg.org>`
+- 完整指纹：`FCF986EA15E6E293A5644F10B4322F04D67658D8`
+- `SOURCE_DATE_EPOCH`：`1785795290`
 
-BtbN只在滚动的`latest` release提供这两个n9.0包；tag本身不是不可变版本。为避免后续`latest`漂移，本项目同时锁定GitHub asset ID、asset更新时间、原始文件名、字节数与SHA256。任何重新获取都必须全部匹配，不得只依赖`latest` URL。
+仓库保存官方ASCII armored公钥`ffmpeg-devel.asc`。构建脚本先核对源码字节数与SHA256，再在临时GnuPG home中核对完整指纹并验证detached signature；任一项不匹配即停止。
 
-## Linux x64
-
-- GitHub asset ID：`525064837`
-- asset更新时间：`2026-08-22T13:23:53Z`
-- 原始文件名：`ffmpeg-n9.0-latest-linux64-lgpl-shared-9.0.tar.xz`
-- 本地文件名：`ffmpeg-n9.0-linux64-lgpl-shared-9.0.tar.xz`
-- 字节数：`54325956`
-- SHA256：`1857bfb5781d82e6f402be251a5019b24f20ed340084951fbc2cdaa69c197bb4`
-- asset API：<https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/assets/525064837>
-
-## Windows x64
-
-- GitHub asset ID：`525064920`
-- asset更新时间：`2026-08-22T13:23:59Z`
-- 原始文件名：`ffmpeg-n9.0-latest-win64-lgpl-shared-9.0.zip`
-- 本地文件名：`ffmpeg-n9.0-win64-lgpl-shared-9.0.zip`
-- 字节数：`67196309`
-- SHA256：`80fa3acdcf73b8810a0aa2567674b12523ce6311651f80aca9797e88ccefd3f9`
-- asset API：<https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/assets/525064920>
-
-## 本地目录
-
-二进制包与解压结果位于Git已忽略的构建依赖目录，不纳入源码提交：
+源码归档和签名缓存位于Git忽略目录：
 
 ```text
-build/dependencies/ffmpeg/9.0/
-  SOURCE.json
-  archives/
-    ffmpeg-n9.0-linux64-lgpl-shared-9.0.tar.xz
-    ffmpeg-n9.0-win64-lgpl-shared-9.0.zip
+build/dependencies/ffmpeg/9.0/source/
+  ffmpeg-9.0.tar.xz
+  ffmpeg-9.0.tar.xz.asc
+```
+
+## 2. 构建入口与网络边界
+
+统一入口：
+
+```bash
+./dependencies/ffmpeg/9.0/build-minimal.sh all
+```
+
+也可只构建一个平台：
+
+```bash
+./dependencies/ffmpeg/9.0/build-minimal.sh linux-x64
+./dependencies/ffmpeg/9.0/build-minimal.sh windows-x64
+```
+
+只有该显式依赖构建脚本可在源码归档或签名缺失时访问上面的两个官方URL。CMake只读取下列已安装目录，不下载、不解包、不编译FFmpeg：
+
+```text
+build/dependencies/ffmpeg/9.0/self-built/
   linux-x64/
   windows-x64/
 ```
 
-两个解压目录均包含上游`LICENSE.txt`、`include/libavcodec/avcodec.h`和对应平台的共享库。Linux二进制报告`ffmpeg version n9.0.1-6-g9d4ca21220-20260822`；验证时使用同包`lib/`作为`LD_LIBRARY_PATH`。
+可用CMake cache变量`OPENSWD3_FFMPEG_ROOT`覆盖平台包根目录。
 
-## 构建接入
+## 3. 工具链锁
 
-SDL应用配置默认按宿主平台选择上述解压目录；可用`OPENSWD3_FFMPEG_ROOT`覆盖路径。CMake只验证本地头文件、导入库和共享库，不联网下载，也不源码编译FFmpeg。缺少依赖时配置会指向本清单并明确失败。
+本次锁定并验证的工具链为：
 
-`openswd3_media_ffmpeg`目标输出项目自有`openswd3_ffmpeg`共享库。FFmpeg C API只存在于该目标的实现文件中；主程序、剧情VM及audio/video兼容核心继续只依赖`LegacyStreamBackend`与`LegacyVideoBackend`。应用与媒体库共用同一个动态SDL3运行时，避免静态嵌入两套SDL全局状态。应用和真实媒体测试的输出目录会复制项目共享库、SDL3、五个FFmpeg运行库及上游`LICENSE.txt`。
+- Linux C compiler：`gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0`
+- Windows x64 cross compiler：`x86_64-w64-mingw32-gcc-posix (GCC) 13-posix`
+- MinGW linker/strip：`GNU Binutils 2.41.90.20240122`
+- GNU Make：`4.3`
+- GnuPG：`2.4.4`
+- GNU tar：`1.35`
+- XZ Utils：`5.4.5`
 
-本清单记录已验证的预编译依赖与集成边界。不得在CMake configure阶段联网下载或源码编译FFmpeg；后续维护必须继续隔离FFmpeg API，不得扩散到兼容核心。
+脚本固定`LC_ALL=C`、`TZ=UTC`和`SOURCE_DATE_EPOCH`，每次清理源码树、平台build tree与install prefix后重新构建。FFmpeg安装prefix固定为`/`并通过`DESTDIR`落入本地包，避免把仓库绝对路径写入configure字符串。Windows链接禁用PE时间戳。
+
+## 4. 最小组件白名单
+
+两个平台共同使用：
+
+```text
+--disable-everything
+--disable-autodetect
+--disable-network
+--disable-programs
+--disable-doc
+--disable-avdevice
+--disable-avfilter
+--disable-debug
+--disable-x86asm
+--disable-iconv
+--enable-small
+--enable-shared
+--disable-static
+--enable-pic
+--enable-avcodec
+--enable-avformat
+--enable-avutil
+--enable-swresample
+--enable-swscale
+--enable-demuxer=bink,mp3
+--enable-decoder=bink,binkaudio_dct,binkaudio_rdft,mp3float
+--enable-parser=mpegaudio
+--enable-protocol=file
+--pkg-config=false
+--extra-cflags=-Os -ffunction-sections -fdata-sections -fno-ident
+--prefix=/
+```
+
+Linux额外使用：
+
+```text
+--cc=gcc
+--extra-ldflags=-Wl,--gc-sections
+```
+
+Windows x64额外使用：
+
+```text
+--target-os=mingw32
+--arch=x86_64
+--enable-cross-compile
+--cross-prefix=x86_64-w64-mingw32-
+--cc=x86_64-w64-mingw32-gcc-posix
+--disable-pthreads
+--enable-w32threads
+--extra-ldflags=-Wl,--gc-sections,--no-insert-timestamp -static-libgcc -static
+```
+
+未启用`GPL`、`version3`或`nonfree`。FFmpeg本体保持LGPL 2.1-or-later共享库；Windows只把GCC/MinGW运行时静态收进共享库，避免额外分发`libgcc_s_seh-1.dll`、`libatomic-1.dll`或`libwinpthread-1.dll`。
+
+`--disable-x86asm`移除NASM/YASM工具依赖，但保留C编译器支持的内联实现。当前真实640×480 Bink与MP3资产仍由端到端测试验证，不以组件名称推断可用性。
+
+## 5. 产物布局
+
+两个平台都安装完整公共头文件、`LICENSE.txt`和`BUILDINFO.txt`。运行时组件固定为：
+
+- `avformat`
+- `avcodec`
+- `avutil`
+- `swresample`
+- `swscale`
+
+Linux输出五个带major SONAME的共享库及链接。Windows输出五个DLL，并同时输出：
+
+- `bin/<component>.lib`：LLVM/MSVC可读取的COFF import library；
+- `lib/lib<component>.dll.a`：GNU import library；
+- `lib/<component>-<major>.def`：导出定义。
+
+Windows DLL只依赖系统`KERNEL32.dll`、`bcrypt.dll`、`msvcrt.dll`以及包内FFmpeg DLL，不依赖其他第三方运行库。
+
+## 6. 体积
+
+原BtbN Windows n9.0 `lgpl-shared`五个运行库基线为`99364864`字节，即`94.76 MiB`。
+
+自建结果：
+
+- Linux五个运行库：`1838408`字节，`1.75 MiB`；
+- Windows五个运行库：`3177472`字节，`3.03 MiB`；
+- Windows相对基线减少`96.80%`。
+
+头文件、许可证、导入库、`.def`和构建说明不计入运行库体积。
+
+## 7. 机械验收与复现
+
+运行：
+
+```bash
+./dependencies/ffmpeg/9.0/verify-minimal.py
+```
+
+验收器直接检查：
+
+- 源码尺寸与SHA256；
+- 两个平台五个共享运行库和完整头文件；
+- Windows三类导入资料；
+- Linux与Windows二进制内嵌的实际configure字符串；
+- 版本为`9.0`，白名单组件存在，GPL/version3/nonfree均未启用；
+- ELF/PE动态依赖没有未打包第三方库；
+- Windows体积及相对基线降幅。
+
+最终包必须由连续两次clean build产生相同的20个共享库及导入库SHA256。验证报告写入Git忽略目录`build/dependencies/ffmpeg/9.0/self-built/verification.json`。
+
+## 8. 项目接入
+
+`cmake/OpenSWD3FFmpeg.cmake`默认选择`self-built/<platform>`，验证本地头文件、共享库及Windows import library。项目仍只构建一个自有`openswd3_ffmpeg`共享媒体后端；FFmpeg C API不进入音视频兼容核心、剧情VM或应用编排层。
+
+应用和真实媒体测试输出目录只复制项目媒体库、共享SDL3、上述五个FFmpeg运行库及`LICENSE.txt`。真实资产门必须覆盖MP3、`Map_Ca12`/`Map_Eu08`循环、`firegod.bik`和`opening.bik`完整解码。
