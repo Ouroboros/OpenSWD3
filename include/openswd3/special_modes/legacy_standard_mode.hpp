@@ -412,7 +412,6 @@ struct LegacySystemMenuState {
     compat::i32 item_group_target{};
     compat::u8 menu_flags{};
     compat::u32 exit_action{};
-    std::array<compat::u32, 3U> record_page_state{};
     LegacySystemMenuWorkspaceRequest workspace_request;
     std::array<compat::u32, 6U> exit_transition_values{};
     std::array<compat::u32, 32U> saved_key_bindings{};
@@ -443,8 +442,6 @@ enum class LegacySystemMenuInputCommand : compat::u8 {
     disable_map_effect,
     enable_map_effect,
     rebuild_page,
-    count_visible,
-    prepare_record_page,
     reset_menu_workspace,
     begin_exit_transition,
     finish_exit_transition,
@@ -590,9 +587,29 @@ struct LegacySystemMenuResult {
     LegacySystemMenuState& state, LegacySystemMenuPorts& ports
 ) noexcept;
 
+enum class LegacySystemMenuRecordCountStatus : compat::u8 {
+    completed,
+    list_owner_unavailable_stopped,
+    record_index_out_of_range_stopped,
+};
+
+struct LegacySystemMenuRecordCountResult {
+    LegacySystemMenuRecordCountStatus status{
+        LegacySystemMenuRecordCountStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 next_record_index{};
+};
+
+[[nodiscard]] LegacySystemMenuRecordCountResult
+count_visible_legacy_system_menu_records(LegacySystemMenuState& state) noexcept;
+
 struct LegacySystemMenuInputResult {
     compat::i32 legacy_return_value{};
     compat::u32 helper_call_count{};
+    LegacySystemMenuRecordCountStatus record_count_status{
+        LegacySystemMenuRecordCountStatus::completed
+    };
     compat::u32 story_flag_query_count{};
     compat::u32 callback_slot_write_count{};
     std::optional<LegacySystemMenuInputCommand> command;

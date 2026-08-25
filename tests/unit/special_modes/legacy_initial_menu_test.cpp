@@ -660,21 +660,26 @@ public:
         }
         if (command ==
                 openswd3::special_modes::LegacySystemMenuInputCommand::
-                    prepare_record_page &&
-            mutate_sound_after_prepare_record_page) {
-            state.sound_effect_index = sound_after_prepare_record_page;
-        }
-        if (command ==
-                openswd3::special_modes::LegacySystemMenuInputCommand::
                     restore_default_key_bindings &&
             populate_default_key_bindings) {
             state.saved_key_bindings = default_key_bindings;
         }
         if (command ==
                 openswd3::special_modes::LegacySystemMenuInputCommand::
-                    count_visible &&
-            mutate_visible_after_count) {
-            state.system_menu_visible_count = visible_after_count;
+                    rebuild_page &&
+            populate_records_after_rebuild) {
+            state.list_owner = record_owner_after_rebuild;
+            for (u32 index = 0U; index < record_count_after_rebuild; ++index) {
+                const u32 target = state.system_menu_page_start + index;
+                if (target < state.entries.size()) {
+                    state.entries[target] = static_cast<u16>(index + 1U);
+                }
+            }
+            const u32 sentinel =
+                state.system_menu_page_start + record_count_after_rebuild;
+            if (sentinel < state.entries.size()) {
+                state.entries[sentinel] = 0U;
+            }
         }
         return command_return_base + static_cast<i32>(command);
     }
@@ -732,12 +737,11 @@ public:
     bool mutate_after_open_mode_fourteen{};
     u32 input_lock_after_open_mode_fourteen{};
     u32 interaction_mode_after_open_mode_fourteen{};
-    bool mutate_sound_after_prepare_record_page{};
-    u32 sound_after_prepare_record_page{};
     bool populate_default_key_bindings{};
     std::array<u32, 32U> default_key_bindings{};
-    bool mutate_visible_after_count{};
-    u32 visible_after_count{};
+    bool populate_records_after_rebuild{};
+    u32 record_owner_after_rebuild{1U};
+    u32 record_count_after_rebuild{};
     i32 command_return_base{1000};
 };
 
@@ -15436,6 +15440,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     last_window_state.interaction_page = 2U;
     last_window_state.entry_count = 6U;
     last_window_state.system_menu_visible_count = 2U;
+    last_window_state.list_owner = 1U;
+    last_window_state.entries[5U] = 1U;
     FakeSystemMenuPorts last_window_ports;
     const auto last_window =
         openswd3::special_modes::page_down_legacy_system_menu(
@@ -15445,10 +15451,9 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         last_window_state.system_menu_page_start == 5U &&
             last_window_ports.input_commands ==
                 std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::rebuild_page, 0U},
-                    {SystemMenuCommand::count_visible, 0U}
+                    {SystemMenuCommand::rebuild_page, 0U}
                 } &&
-            last_window.helper_call_count == 2U,
+            last_window.helper_call_count == 1U,
         "0x44B840 tail-dispatches mode-one page two through the closed forward helper"
     );
 
@@ -15537,6 +15542,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     first_window_state.system_menu_page_start = 3U;
     first_window_state.system_menu_scroll_index = 9U;
     first_window_state.system_menu_cursor_flags = 0xAABBCC10U;
+    first_window_state.list_owner = 1U;
+    first_window_state.entries[0U] = 1U;
     FakeSystemMenuPorts first_window_ports;
     const auto first_window =
         openswd3::special_modes::page_up_legacy_system_menu(
@@ -15548,10 +15555,9 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             first_window_state.system_menu_cursor_flags == 0xAABBCC13U &&
             first_window_ports.input_commands ==
                 std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::rebuild_page, 0U},
-                    {SystemMenuCommand::count_visible, 0U}
+                    {SystemMenuCommand::rebuild_page, 0U}
                 } &&
-            first_window.helper_call_count == 2U,
+            first_window.helper_call_count == 1U,
         "0x44B930 tail-dispatches mode-one page two through the closed backward helper"
     );
 
@@ -15656,6 +15662,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     move_up_window_state.system_menu_page_start = 3U;
     move_up_window_state.system_menu_scroll_index = 9U;
     move_up_window_state.system_menu_cursor_flags = 0xAABBCC10U;
+    move_up_window_state.list_owner = 1U;
+    move_up_window_state.entries[0U] = 1U;
     FakeSystemMenuPorts move_up_window_ports;
     const auto move_up_window =
         openswd3::special_modes::move_up_legacy_system_menu(
@@ -15667,10 +15675,9 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             move_up_window_state.system_menu_cursor_flags == 0xAABBCC13U &&
             move_up_window_ports.input_commands ==
                 std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::rebuild_page, 0U},
-                    {SystemMenuCommand::count_visible, 0U}
+                    {SystemMenuCommand::rebuild_page, 0U}
                 } &&
-            move_up_window.helper_call_count == 2U,
+            move_up_window.helper_call_count == 1U,
         "0x44BA20 reuses the closed previous-page helper for mode-one page two"
     );
 
@@ -15820,6 +15827,173 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
                     {SystemMenuCommand::play_sample, 7U}
                 },
         "0x44BA20 wraps the first fixed item to eighteen before playing the sample"
+    );
+
+    using SystemMenuRecordCountStatus =
+        openswd3::special_modes::LegacySystemMenuRecordCountStatus;
+    openswd3::special_modes::LegacySystemMenuState record_count_null_state;
+    record_count_null_state.system_menu_page_start = 2U;
+    record_count_null_state.system_menu_visible_count = 9U;
+    const auto record_count_null =
+        openswd3::special_modes::count_visible_legacy_system_menu_records(
+            record_count_null_state
+        );
+    test.expect_true(
+        record_count_null.status ==
+                SystemMenuRecordCountStatus::list_owner_unavailable_stopped &&
+            record_count_null_state.system_menu_visible_count == 0U &&
+            record_count_null.next_record_index == 2U &&
+            record_count_null.legacy_return_value == 4,
+        "0x44D010 clears the visible count before stopping at the first null-owner record read"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState record_count_range_state;
+    record_count_range_state.list_owner = 0x100U;
+    record_count_range_state.system_menu_page_start = 0x80U;
+    const auto record_count_range =
+        openswd3::special_modes::count_visible_legacy_system_menu_records(
+            record_count_range_state
+        );
+    test.expect_true(
+        record_count_range.status ==
+                SystemMenuRecordCountStatus::
+                    record_index_out_of_range_stopped &&
+            record_count_range_state.system_menu_visible_count == 0U &&
+            record_count_range.next_record_index == 0x80U &&
+            record_count_range.legacy_return_value == 0x200,
+        "0x44D010 preserves the wrapped owner-plus-start pointer before an initial index stop"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState record_count_zero_state;
+    record_count_zero_state.list_owner = 0x1000U;
+    record_count_zero_state.system_menu_page_start = 2U;
+    const auto record_count_zero =
+        openswd3::special_modes::count_visible_legacy_system_menu_records(
+            record_count_zero_state
+        );
+    test.expect_true(
+        record_count_zero.status == SystemMenuRecordCountStatus::completed &&
+            record_count_zero_state.system_menu_visible_count == 0U &&
+            record_count_zero.next_record_index == 2U &&
+            record_count_zero.legacy_return_value == 0x1004,
+        "0x44D010 returns the first zero Record entry without advancing"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState record_count_three_state;
+    record_count_three_state.list_owner = 0x2000U;
+    record_count_three_state.entries[0U] = 1U;
+    record_count_three_state.entries[1U] = 2U;
+    record_count_three_state.entries[2U] = 3U;
+    const auto record_count_three =
+        openswd3::special_modes::count_visible_legacy_system_menu_records(
+            record_count_three_state
+        );
+    test.expect_true(
+        record_count_three.status == SystemMenuRecordCountStatus::completed &&
+            record_count_three_state.system_menu_visible_count == 3U &&
+            record_count_three.next_record_index == 3U &&
+            record_count_three.legacy_return_value == 0x2006,
+        "0x44D010 counts three Record entries and returns the following zero word"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState record_count_five_state;
+    record_count_five_state.list_owner = 0x3000U;
+    for (std::size_t index = 0U; index < 6U; ++index) {
+        record_count_five_state.entries[index] = static_cast<u16>(index + 1U);
+    }
+    const auto record_count_five =
+        openswd3::special_modes::count_visible_legacy_system_menu_records(
+            record_count_five_state
+        );
+    test.expect_true(
+        record_count_five.status == SystemMenuRecordCountStatus::completed &&
+            record_count_five_state.system_menu_visible_count == 5U &&
+            record_count_five.next_record_index == 5U &&
+            record_count_five.legacy_return_value == 0x300A,
+        "0x44D010 reads the sixth nonzero word after publishing the five-entry display limit"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState record_count_tail_state;
+    record_count_tail_state.list_owner = 0x4000U;
+    record_count_tail_state.system_menu_page_start = 123U;
+    for (std::size_t index = 123U; index < 128U; ++index) {
+        record_count_tail_state.entries[index] = 1U;
+    }
+    const auto record_count_tail =
+        openswd3::special_modes::count_visible_legacy_system_menu_records(
+            record_count_tail_state
+        );
+    test.expect_true(
+        record_count_tail.status ==
+                SystemMenuRecordCountStatus::
+                    record_index_out_of_range_stopped &&
+            record_count_tail_state.system_menu_visible_count == 5U &&
+            record_count_tail.next_record_index == 128U &&
+            record_count_tail.legacy_return_value == 0x4100,
+        "0x44D010 preserves five visible entries before stopping at the extra tail word read"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState record_confirm_stop_state;
+    record_confirm_stop_state.interaction_mode = 0U;
+    record_confirm_stop_state.interaction_page = 2U;
+    record_confirm_stop_state.system_menu_visible_count = 9U;
+    FakeSystemMenuPorts record_confirm_stop_ports;
+    const auto record_confirm_stop =
+        openswd3::special_modes::confirm_legacy_system_menu_selection(
+            record_confirm_stop_state, record_confirm_stop_ports
+        );
+    test.expect_true(
+        record_confirm_stop_state.interaction_mode == 1U &&
+            record_confirm_stop_state.system_menu_visible_count == 0U &&
+            record_confirm_stop.record_count_status ==
+                SystemMenuRecordCountStatus::list_owner_unavailable_stopped &&
+            record_confirm_stop_ports.input_commands.empty(),
+        "0x44BDA0 preserves the Record-page reset prefix when its first count read stops"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState record_retreat_stop_state;
+    record_retreat_stop_state.interaction_mode = 1U;
+    record_retreat_stop_state.interaction_page = 2U;
+    record_retreat_stop_state.system_menu_cursor_flags = 0xAA10U;
+    record_retreat_stop_state.system_menu_scroll_index = 9U;
+    FakeSystemMenuPorts record_retreat_stop_ports;
+    const auto record_retreat_stop =
+        openswd3::special_modes::retreat_legacy_system_menu_selection(
+            record_retreat_stop_state, record_retreat_stop_ports
+        );
+    test.expect_true(
+        record_retreat_stop_state.system_menu_page_start == 0U &&
+            record_retreat_stop_state.system_menu_scroll_index == 0U &&
+            record_retreat_stop_state.system_menu_cursor_flags == 0xAA10U &&
+            record_retreat_stop.record_count_status ==
+                SystemMenuRecordCountStatus::list_owner_unavailable_stopped &&
+            record_retreat_stop.helper_call_count == 1U &&
+            record_retreat_stop_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::rebuild_page, 0U}
+                },
+        "0x44B6E0 stops after rebuilding and counting, before ORing the Record cursor flags"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState record_advance_stop_state;
+    record_advance_stop_state.interaction_mode = 1U;
+    record_advance_stop_state.interaction_page = 2U;
+    record_advance_stop_state.entry_count = 10U;
+    record_advance_stop_state.system_menu_scroll_index = 9U;
+    record_advance_stop_state.system_menu_cursor_flags = 0xAA01U;
+    FakeSystemMenuPorts record_advance_stop_ports;
+    const auto record_advance_stop =
+        openswd3::special_modes::advance_legacy_system_menu_selection(
+            record_advance_stop_state, record_advance_stop_ports
+        );
+    test.expect_true(
+        record_advance_stop_state.system_menu_page_start == 5U &&
+            record_advance_stop_state.system_menu_scroll_index == 9U &&
+            record_advance_stop_state.system_menu_cursor_flags == 0xAA01U &&
+            record_advance_stop.record_count_status ==
+                SystemMenuRecordCountStatus::list_owner_unavailable_stopped &&
+            record_advance_stop.helper_call_count == 1U,
+        "0x44B560 stops after rebuilding and counting, before clamping scroll or ORing cursor flags"
     );
 
     using SystemMenuFrameCommandType =
@@ -16672,7 +16846,13 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     openswd3::special_modes::LegacySystemMenuState confirm_record_page_state;
     confirm_record_page_state.interaction_mode = 0U;
     confirm_record_page_state.interaction_page = 2U;
-    confirm_record_page_state.record_page_state = {1U, 2U, 3U};
+    confirm_record_page_state.system_menu_cursor_flags = 1U;
+    confirm_record_page_state.system_menu_visible_count = 2U;
+    confirm_record_page_state.system_menu_page_start = 3U;
+    confirm_record_page_state.list_owner = 0x1000U;
+    confirm_record_page_state.entries[0U] = 1U;
+    confirm_record_page_state.entries[1U] = 2U;
+    confirm_record_page_state.entries[2U] = 3U;
     FakeSystemMenuPorts confirm_record_page_ports;
     static_cast<void>(
         openswd3::special_modes::confirm_legacy_system_menu_selection(
@@ -16681,13 +16861,11 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     );
     test.expect_true(
         confirm_record_page_state.interaction_mode == 1U &&
-            confirm_record_page_state.record_page_state ==
-                std::array<u32, 3U>{} &&
-            confirm_record_page_ports.input_commands ==
-                std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::prepare_record_page, 0U}
-                },
-        "0x44BDA0 clears three record-page values before opening the original Record page"
+            confirm_record_page_state.system_menu_cursor_flags == 0U &&
+            confirm_record_page_state.system_menu_page_start == 0U &&
+            confirm_record_page_state.system_menu_visible_count == 3U &&
+            confirm_record_page_ports.input_commands.empty(),
+        "0x44BDA0 clears the Record-page cursor and start before counting its first three entries"
     );
 
     openswd3::special_modes::LegacySystemMenuState confirm_exit_action_state;
@@ -16936,6 +17114,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     move_down_window_state.interaction_page = 2U;
     move_down_window_state.entry_count = 6U;
     move_down_window_state.system_menu_visible_count = 2U;
+    move_down_window_state.list_owner = 1U;
+    move_down_window_state.entries[5U] = 1U;
     FakeSystemMenuPorts move_down_window_ports;
     const auto move_down_window =
         openswd3::special_modes::move_down_legacy_system_menu(
@@ -16945,10 +17125,9 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         move_down_window_state.system_menu_page_start == 5U &&
             move_down_window_ports.input_commands ==
                 std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::rebuild_page, 0U},
-                    {SystemMenuCommand::count_visible, 0U}
+                    {SystemMenuCommand::rebuild_page, 0U}
                 } &&
-            move_down_window.helper_call_count == 2U,
+            move_down_window.helper_call_count == 1U,
         "0x44BBD0 reuses the closed next-page helper for mode-one page two"
     );
 
@@ -17122,6 +17301,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     retreat_window_state.system_menu_page_start = 3U;
     retreat_window_state.system_menu_scroll_index = 9U;
     retreat_window_state.system_menu_cursor_flags = 0xAABBCC10U;
+    retreat_window_state.list_owner = 1U;
+    retreat_window_state.entries[0U] = 1U;
     FakeSystemMenuPorts retreat_window_ports;
     const auto retreat_window =
         openswd3::special_modes::retreat_legacy_system_menu_selection(
@@ -17133,10 +17314,9 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             retreat_window_state.system_menu_cursor_flags == 0xAABBCC13U &&
             retreat_window_ports.input_commands ==
                 std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::rebuild_page, 0U},
-                    {SystemMenuCommand::count_visible, 0U}
+                    {SystemMenuCommand::rebuild_page, 0U}
                 } &&
-            retreat_window.helper_call_count == 2U,
+            retreat_window.helper_call_count == 1U,
         "0x44B6E0 resets negative page start and scroll before rebuilding and ORs only AL"
     );
 
@@ -17199,8 +17379,9 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     advance_window_state.system_menu_scroll_index = 9U;
     advance_window_state.system_menu_cursor_flags = 0xAABBCC01U;
     FakeSystemMenuPorts advance_window_ports;
-    advance_window_ports.mutate_visible_after_count = true;
-    advance_window_ports.visible_after_count = 3U;
+    advance_window_ports.populate_records_after_rebuild = true;
+    advance_window_ports.record_owner_after_rebuild = 1U;
+    advance_window_ports.record_count_after_rebuild = 3U;
     const auto advance_window =
         openswd3::special_modes::advance_legacy_system_menu_selection(
             advance_window_state, advance_window_ports
@@ -17211,8 +17392,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             advance_window_state.system_menu_cursor_flags == 0xAABBCC31U &&
             advance_window_ports.input_commands ==
                 std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::rebuild_page, 0U},
-                    {SystemMenuCommand::count_visible, 0U}
+                    {SystemMenuCommand::rebuild_page, 0U}
                 } &&
             advance_window.legacy_return_value ==
                 std::bit_cast<i32>(0xAABBCC31U),
@@ -17302,6 +17482,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     system_menu_hover_ports.mutated_pointer_y = 0x265U;
     system_menu_hover_ports.mutated_interaction_mode = 1U;
     system_menu_hover_ports.mutated_interaction_page = 2U;
+    system_menu_hover_state.list_owner = 1U;
+    system_menu_hover_state.entries[0U] = 1U;
     const auto system_menu_hover =
         openswd3::special_modes::update_legacy_system_menu_input(
             system_menu_hover_state, system_menu_hover_ports
@@ -17313,10 +17495,9 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             system_menu_hover_state.system_menu_scroll_index == 0U &&
             system_menu_hover_ports.input_commands ==
                 std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::rebuild_page, 0U},
-                    {SystemMenuCommand::count_visible, 0U}
+                    {SystemMenuCommand::rebuild_page, 0U}
                 } &&
-            system_menu_hover.helper_call_count == 3U,
+            system_menu_hover.helper_call_count == 2U,
         "0x44B070 rereads pointer, mode, and page after the input-status callback before directly routing upper hover to 0x44B6E0"
     );
 
@@ -17327,6 +17508,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     lower_hover_state.interaction_mode = 1U;
     lower_hover_state.interaction_page = 2U;
     lower_hover_state.system_menu_visible_count = 2U;
+    lower_hover_state.list_owner = 1U;
+    lower_hover_state.entries[5U] = 1U;
     FakeSystemMenuPorts lower_hover_ports;
     lower_hover_ports.input_status_return = 1;
     const auto lower_hover =
@@ -17337,10 +17520,9 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         lower_hover_state.system_menu_page_start == 5U &&
             lower_hover_ports.input_commands ==
                 std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::rebuild_page, 0U},
-                    {SystemMenuCommand::count_visible, 0U}
+                    {SystemMenuCommand::rebuild_page, 0U}
                 } &&
-            lower_hover.helper_call_count == 3U,
+            lower_hover.helper_call_count == 2U,
         "0x44B070 directly reuses 0x44B560 for the lower hover window"
     );
 
@@ -17354,6 +17536,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     system_menu_dynamic_hover_state.system_menu_page_start = 3U;
     system_menu_dynamic_hover_state.system_menu_scroll_index = 9U;
     system_menu_dynamic_hover_state.system_menu_cursor_flags = 0xAABBCC10U;
+    system_menu_dynamic_hover_state.list_owner = 1U;
+    system_menu_dynamic_hover_state.entries[0U] = 1U;
     system_menu_dynamic_hover_state.upper_dynamic_left = -10;
     system_menu_dynamic_hover_state.upper_dynamic_right = 0;
     FakeSystemMenuPorts system_menu_dynamic_hover_ports;
@@ -17369,10 +17553,9 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
                 0xAABBCC13U &&
             system_menu_dynamic_hover_ports.input_commands ==
                 std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::rebuild_page, 0U},
-                    {SystemMenuCommand::count_visible, 0U}
+                    {SystemMenuCommand::rebuild_page, 0U}
                 } &&
-            system_menu_dynamic_hover.helper_call_count == 3U,
+            system_menu_dynamic_hover.helper_call_count == 2U,
         "0x44B070 keeps the upper dynamic bounds signed and directly reuses the page-up helper"
     );
 
@@ -17386,6 +17569,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     system_menu_lower_dynamic_state.lower_dynamic_left = 200;
     system_menu_lower_dynamic_state.lower_dynamic_right = 210;
     system_menu_lower_dynamic_state.sound_effect_index = 0xAA55U;
+    system_menu_lower_dynamic_state.list_owner = 1U;
+    system_menu_lower_dynamic_state.entries[5U] = 1U;
     FakeSystemMenuPorts system_menu_lower_dynamic_ports;
     system_menu_lower_dynamic_ports.input_status_return = 1;
     const auto system_menu_lower_dynamic =
@@ -17396,10 +17581,9 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         system_menu_lower_dynamic_state.system_menu_page_start == 5U &&
             system_menu_lower_dynamic_ports.input_commands ==
                 std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::rebuild_page, 0U},
-                    {SystemMenuCommand::count_visible, 0U}
+                    {SystemMenuCommand::rebuild_page, 0U}
                 } &&
-            system_menu_lower_dynamic.helper_call_count == 3U,
+            system_menu_lower_dynamic.helper_call_count == 2U,
         "0x44B070 directly reuses 0x44B840 for the lower dynamic hover window"
     );
 
@@ -17473,9 +17657,9 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     system_menu_navigation_state.interaction_page = 7U;
     system_menu_navigation_state.input_flags = 3U;
     system_menu_navigation_state.sound_effect_index = 2U;
+    system_menu_navigation_state.list_owner = 1U;
+    system_menu_navigation_state.entries[0U] = 1U;
     FakeSystemMenuPorts system_menu_navigation_ports;
-    system_menu_navigation_ports.mutate_sound_after_prepare_record_page = true;
-    system_menu_navigation_ports.sound_after_prepare_record_page = 9U;
     const auto system_menu_navigation =
         openswd3::special_modes::update_legacy_system_menu_input(
             system_menu_navigation_state, system_menu_navigation_ports
@@ -17483,13 +17667,13 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     test.expect_true(
         system_menu_navigation_state.interaction_mode == 1U &&
             system_menu_navigation_state.interaction_page == 2U &&
+            system_menu_navigation_state.system_menu_visible_count == 1U &&
             system_menu_navigation_ports.input_commands ==
                 std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::prepare_record_page, 0U},
-                    {SystemMenuCommand::play_sample, 9U}
+                    {SystemMenuCommand::play_sample, 2U}
                 } &&
-            system_menu_navigation.helper_call_count == 3U,
-        "0x44B070 opens the original Record page and rereads the sound-effect index afterward"
+            system_menu_navigation.helper_call_count == 2U,
+        "0x44B070 opens the original Record page, counts its visible entries, then plays the current sound effect"
     );
 
     openswd3::special_modes::LegacySystemMenuState system_menu_page_four_state;

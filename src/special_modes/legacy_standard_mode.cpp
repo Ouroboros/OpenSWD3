@@ -415,6 +415,53 @@ LegacySystemMenuResult release_legacy_system_menu(
     return result;
 }
 
+LegacySystemMenuRecordCountResult count_visible_legacy_system_menu_records(
+    LegacySystemMenuState& state
+) noexcept {
+    LegacySystemMenuRecordCountResult result;
+    compat::u32 record_index = state.system_menu_page_start;
+    compat::u32 record_address = state.list_owner +
+        record_index * static_cast<compat::u32>(sizeof(compat::u16));
+    state.system_menu_visible_count = 0U;
+    result.next_record_index = record_index;
+    result.legacy_return_value = std::bit_cast<compat::i32>(record_address);
+
+    const auto record_available = [&]() {
+        if (state.list_owner == 0U) {
+            result.status = LegacySystemMenuRecordCountStatus::
+                list_owner_unavailable_stopped;
+            return false;
+        }
+        if (record_index >= state.entries.size()) {
+            result.status = LegacySystemMenuRecordCountStatus::
+                record_index_out_of_range_stopped;
+            return false;
+        }
+        return true;
+    };
+    if (!record_available()) {
+        return result;
+    }
+    if (state.entries[record_index] == 0U) {
+        return result;
+    }
+
+    while (state.system_menu_visible_count < 5U) {
+        ++state.system_menu_visible_count;
+        ++record_index;
+        record_address += static_cast<compat::u32>(sizeof(compat::u16));
+        result.next_record_index = record_index;
+        result.legacy_return_value = std::bit_cast<compat::i32>(record_address);
+        if (!record_available()) {
+            return result;
+        }
+        if (state.entries[record_index] == 0U) {
+            return result;
+        }
+    }
+    return result;
+}
+
 LegacySystemMenuInputResult return_from_legacy_system_menu_page(
     LegacySystemMenuState& state, LegacySystemMenuPorts& ports
 ) noexcept {
@@ -492,8 +539,13 @@ LegacySystemMenuInputResult confirm_legacy_system_menu_selection(
         state.interaction_mode = 1U;
         state.selected_row = 0U;
         if (state.interaction_page == 2U) {
-            state.record_page_state = {};
-            call(LegacySystemMenuInputCommand::prepare_record_page);
+            state.system_menu_cursor_flags = 0U;
+            state.system_menu_visible_count = 0U;
+            state.system_menu_page_start = 0U;
+            const LegacySystemMenuRecordCountResult count =
+                count_visible_legacy_system_menu_records(state);
+            result.record_count_status = count.status;
+            result.legacy_return_value = count.legacy_return_value;
             return result;
         }
         if (state.interaction_page == 1U) {
@@ -1062,7 +1114,13 @@ LegacySystemMenuInputResult retreat_legacy_system_menu_selection(
                 state.system_menu_page_start = 0U;
             }
             call(LegacySystemMenuInputCommand::rebuild_page);
-            call(LegacySystemMenuInputCommand::count_visible);
+            const LegacySystemMenuRecordCountResult count =
+                count_visible_legacy_system_menu_records(state);
+            result.record_count_status = count.status;
+            result.legacy_return_value = count.legacy_return_value;
+            if (count.status != LegacySystemMenuRecordCountStatus::completed) {
+                return result;
+            }
             state.system_menu_cursor_flags =
                 (state.system_menu_cursor_flags & 0xFFFFFF00U) |
                 (static_cast<compat::u8>(state.system_menu_cursor_flags) |
@@ -1166,7 +1224,14 @@ LegacySystemMenuInputResult advance_legacy_system_menu_selection(
             if (std::bit_cast<compat::i32>(next_start) <
                 std::bit_cast<compat::i32>(state.entry_count)) {
                 call(LegacySystemMenuInputCommand::rebuild_page);
-                call(LegacySystemMenuInputCommand::count_visible);
+                const LegacySystemMenuRecordCountResult count =
+                    count_visible_legacy_system_menu_records(state);
+                result.record_count_status = count.status;
+                result.legacy_return_value = count.legacy_return_value;
+                if (count.status !=
+                    LegacySystemMenuRecordCountStatus::completed) {
+                    return result;
+                }
                 const compat::u32 last_visible =
                     state.system_menu_visible_count - 1U;
                 set_legacy(last_visible);
