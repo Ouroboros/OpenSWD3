@@ -6098,6 +6098,145 @@ LegacySpecialModeModeOneRetreatResult retreat_legacy_special_mode_mode_one(
     return result;
 }
 
+LegacySpecialModeModeOnePageAdvanceResult
+advance_legacy_special_mode_mode_one_page(
+    LegacySpecialModeModeOneAdvanceState& state,
+    const std::span<const compat::u8> maps_payload,
+    const std::array<LegacyGuardianAttributeTarget, 4U>& base_attributes,
+    const std::span<LegacyStandardModeForwardNode* const> fixed_slots,
+    const std::span<const compat::u32> replacement_masks,
+    const compat::u32 sample_owner,
+    LegacySpecialModeModeOneAdvancePorts& ports
+) noexcept {
+    LegacySpecialModeModeOnePageAdvanceResult result;
+    result.legacy_return_value = std::bit_cast<compat::i32>(state.level - 2U);
+    if (state.level != 2U) {
+        return result;
+    }
+
+    const compat::i32 visible_last = std::bit_cast<compat::i32>(
+        std::bit_cast<compat::u32>(state.visible_count) - 1U
+    );
+    result.legacy_return_value = visible_last;
+    if (state.local_cursor != visible_last) {
+        result.path =
+            LegacySpecialModeModeOnePageAdvancePath::selection_moved_to_last;
+        state.local_cursor = 0;
+        if (state.visible_count >= 1) {
+            state.local_cursor = visible_last;
+        }
+        return result;
+    }
+
+    state.window_offset = std::bit_cast<compat::i32>(
+        std::bit_cast<compat::u32>(state.window_offset) + 13U
+    );
+    compat::i32 refreshed_cursor = visible_last;
+    if (state.window_offset < state.total_count) {
+        result.path = LegacySpecialModeModeOnePageAdvancePath::page_advanced;
+        state.visible_head = state.workspace_head;
+        if (state.window_offset > 0) {
+            for (compat::i32 step = 0; step < state.window_offset; ++step) {
+                if (state.visible_head == nullptr) {
+                    result.status = LegacySpecialModeModeOnePageAdvanceStatus::
+                        visible_head_advance_stopped;
+                    return result;
+                }
+                state.visible_head = state.visible_head->next;
+            }
+        }
+        ++result.helper_call_count;
+        const LegacySpecialModeVisibleCountResult visible =
+            count_legacy_special_mode_visible_records(state.visible_head);
+        ++result.helper_call_count;
+        state.visible_count = static_cast<compat::i32>(visible.count);
+        const compat::i32 new_visible_last = std::bit_cast<compat::i32>(
+            std::bit_cast<compat::u32>(state.visible_count) - 1U
+        );
+        refreshed_cursor = state.local_cursor;
+        if (refreshed_cursor > new_visible_last) {
+            refreshed_cursor = new_visible_last;
+        }
+    } else {
+        result.path =
+            LegacySpecialModeModeOnePageAdvancePath::page_limit_refreshed;
+        state.window_offset = std::bit_cast<compat::i32>(
+            std::bit_cast<compat::u32>(state.window_offset) - 13U
+        );
+    }
+    state.local_cursor = refreshed_cursor;
+
+    const compat::i32 selected_index = std::bit_cast<compat::i32>(
+        std::bit_cast<compat::u32>(state.window_offset) +
+        std::bit_cast<compat::u32>(state.local_cursor)
+    );
+    const LegacyStandardModeForwardNode* selected = state.workspace_head;
+    if (selected_index > 0) {
+        for (compat::i32 step = 0; step < selected_index; ++step) {
+            if (selected == nullptr) {
+                result.status = LegacySpecialModeModeOnePageAdvanceStatus::
+                    selected_record_missing;
+                return result;
+            }
+            selected = selected->next;
+        }
+    }
+    ++result.helper_call_count;
+    if (selected == nullptr) {
+        result.status =
+            LegacySpecialModeModeOnePageAdvanceStatus::selected_record_missing;
+        return result;
+    }
+    const LegacyStandardModeTextResolutionResult text =
+        resolve_legacy_standard_mode_shared_text(
+            selected->text_index, maps_payload, state.shared_text
+        );
+    ++result.helper_call_count;
+    if (text.status != LegacyStandardModeTextResolutionStatus::completed) {
+        result.status =
+            LegacySpecialModeModeOnePageAdvanceStatus::shared_text_stopped;
+        return result;
+    }
+
+    result.legacy_return_value = ports.play_sample(0x00BFU, sample_owner);
+    ++result.helper_call_count;
+    result.sample_played = true;
+    state.frame_flags |= 0x30U;
+
+    const LegacyPlayerItemIndexResult indexed = index_legacy_player_item_record(
+        state.workspace_head, std::bit_cast<compat::u32>(selected_index)
+    );
+    ++result.helper_call_count;
+    if (indexed.status != LegacyPlayerItemIndexStatus::completed) {
+        result.status = LegacySpecialModeModeOnePageAdvanceStatus::
+            indexed_record_cycle_stopped;
+        return result;
+    }
+    if (indexed.legacy_return_node == nullptr) {
+        result.status =
+            LegacySpecialModeModeOnePageAdvanceStatus::indexed_record_missing;
+        return result;
+    }
+
+    const LegacySpecialModeAttributeComparisonResult comparison =
+        compare_legacy_special_mode_candidate_attributes(
+            base_attributes,
+            fixed_slots,
+            replacement_masks,
+            *indexed.legacy_return_node,
+            ports
+        );
+    ++result.helper_call_count;
+    state.member_deltas = comparison.members;
+    result.legacy_return_value = 4;
+    if (comparison.status !=
+        LegacySpecialModeAttributeComparisonStatus::completed) {
+        result.status = LegacySpecialModeModeOnePageAdvanceStatus::
+            attribute_comparison_stopped;
+    }
+    return result;
+}
+
 static LegacyGuardianAttributeTarget load_guardian_attribute_target(
     const std::span<const compat::u8> bytes
 ) noexcept {

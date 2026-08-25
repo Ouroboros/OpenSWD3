@@ -18667,6 +18667,196 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44DFF0 preserves the decremented window and null visible head before stopping at the original forward-list read boundary"
     );
 
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_page_move_last;
+    mode_one_page_move_last.level = 2U;
+    mode_one_page_move_last.local_cursor = 0;
+    mode_one_page_move_last.visible_count = 3;
+    mode_one_page_move_last.frame_flags = 0x80U;
+    FakeModeOneAdvancePorts mode_one_page_move_last_ports;
+    const auto mode_one_moved_to_last =
+        openswd3::special_modes::advance_legacy_special_mode_mode_one_page(
+            mode_one_page_move_last,
+            {},
+            comparison_bases,
+            {},
+            {},
+            0x11U,
+            mode_one_page_move_last_ports
+        );
+    test.expect_true(
+        mode_one_moved_to_last.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOnePageAdvanceStatus::completed &&
+            mode_one_moved_to_last.path ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOnePageAdvancePath::
+                        selection_moved_to_last &&
+            mode_one_page_move_last.local_cursor == 2 &&
+            mode_one_page_move_last.window_offset == 0 &&
+            mode_one_page_move_last.frame_flags == 0x80U &&
+            mode_one_page_move_last_ports.samples.empty() &&
+            mode_one_moved_to_last.helper_call_count == 0U &&
+            mode_one_moved_to_last.legacy_return_value == 2,
+        "0x44E0C0 moves a nonfinal cursor directly to the visible last row and returns before page, text, audio, and attribute work"
+    );
+
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_page_empty;
+    mode_one_page_empty.level = 2U;
+    mode_one_page_empty.local_cursor = 0;
+    mode_one_page_empty.visible_count = 0;
+    FakeModeOneAdvancePorts mode_one_page_empty_ports;
+    const auto mode_one_empty_last =
+        openswd3::special_modes::advance_legacy_special_mode_mode_one_page(
+            mode_one_page_empty,
+            {},
+            comparison_bases,
+            {},
+            {},
+            0x22U,
+            mode_one_page_empty_ports
+        );
+    test.expect_true(
+        mode_one_empty_last.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOnePageAdvanceStatus::completed &&
+            mode_one_empty_last.path ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOnePageAdvancePath::
+                        selection_moved_to_last &&
+            mode_one_page_empty.local_cursor == 0 &&
+            mode_one_empty_last.legacy_return_value == -1 &&
+            mode_one_page_empty_ports.samples.empty(),
+        "0x44E0C0 publishes cursor zero but returns visible-minus-one when a nonfinal empty page takes the early path"
+    );
+
+    std::array<LegacyStandardModeForwardNode, 15U> mode_one_page_nodes{};
+    for (std::size_t index = 0U; index < mode_one_page_nodes.size(); ++index) {
+        mode_one_page_nodes[index].text_index = 0xFFDCU;
+        if (index + 1U < mode_one_page_nodes.size()) {
+            mode_one_page_nodes[index].next = &mode_one_page_nodes[index + 1U];
+        }
+    }
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_page_advance;
+    mode_one_page_advance.level = 2U;
+    mode_one_page_advance.total_count = 15;
+    mode_one_page_advance.window_offset = 0;
+    mode_one_page_advance.local_cursor = 12;
+    mode_one_page_advance.visible_count = 13;
+    mode_one_page_advance.workspace_head = &mode_one_page_nodes[0U];
+    mode_one_page_advance.visible_head = &mode_one_page_nodes[0U];
+    FakeModeOneAdvancePorts mode_one_page_advance_ports;
+    const auto mode_one_page_advanced =
+        openswd3::special_modes::advance_legacy_special_mode_mode_one_page(
+            mode_one_page_advance,
+            {},
+            comparison_bases,
+            {},
+            {},
+            0x13579BDFU,
+            mode_one_page_advance_ports
+        );
+    test.expect_true(
+        mode_one_page_advanced.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOnePageAdvanceStatus::completed &&
+            mode_one_page_advanced.path ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOnePageAdvancePath::page_advanced &&
+            mode_one_page_advance.window_offset == 13 &&
+            mode_one_page_advance.local_cursor == 1 &&
+            mode_one_page_advance.visible_head == &mode_one_page_nodes[13U] &&
+            mode_one_page_advance.visible_count == 2 &&
+            mode_one_page_advance.shared_text[0U] == 0xB5U &&
+            mode_one_page_advance.shared_text[1U] == 0x4CU &&
+            mode_one_page_advance.shared_text[2U] == 0U &&
+            mode_one_page_advance.frame_flags == 0x30U &&
+            mode_one_page_advanced.sample_played &&
+            mode_one_page_advance_ports.samples ==
+                std::vector<std::pair<u16, u32>>{{0x00BFU, 0x13579BDFU}} &&
+            mode_one_page_advance_ports.queried_member_ids ==
+                std::vector<u32>{0x1EU, 0x1FU, 0x20U, 0x21U} &&
+            mode_one_page_advanced.helper_call_count == 7U &&
+            mode_one_page_advanced.legacy_return_value == 4,
+        "0x44E0C0 advances a final-row selection by thirteen, recounts and clamps the cursor, then refreshes text, sample, frame bits, and candidate attributes"
+    );
+
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_page_limit;
+    mode_one_page_limit.level = 2U;
+    mode_one_page_limit.total_count = 13;
+    mode_one_page_limit.window_offset = 0;
+    mode_one_page_limit.local_cursor = 12;
+    mode_one_page_limit.visible_count = 13;
+    mode_one_page_limit.workspace_head = &mode_one_page_nodes[0U];
+    mode_one_page_limit.visible_head = &mode_one_page_nodes[0U];
+    FakeModeOneAdvancePorts mode_one_page_limit_ports;
+    const auto mode_one_page_limit_refreshed =
+        openswd3::special_modes::advance_legacy_special_mode_mode_one_page(
+            mode_one_page_limit,
+            {},
+            comparison_bases,
+            {},
+            {},
+            0x2468ACE0U,
+            mode_one_page_limit_ports
+        );
+    test.expect_true(
+        mode_one_page_limit_refreshed.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOnePageAdvanceStatus::completed &&
+            mode_one_page_limit_refreshed.path ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOnePageAdvancePath::
+                        page_limit_refreshed &&
+            mode_one_page_limit.window_offset == 0 &&
+            mode_one_page_limit.local_cursor == 12 &&
+            mode_one_page_limit.visible_count == 13 &&
+            mode_one_page_limit.visible_head == &mode_one_page_nodes[0U] &&
+            mode_one_page_limit.frame_flags == 0x30U &&
+            mode_one_page_limit_refreshed.sample_played &&
+            mode_one_page_limit_refreshed.helper_call_count == 5U,
+        "0x44E0C0 restores an out-of-range thirteen-row window but still refreshes the current final-row text, sample, frame bits, and attributes"
+    );
+
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_page_head_stop;
+    mode_one_page_head_stop.level = 2U;
+    mode_one_page_head_stop.total_count = 14;
+    mode_one_page_head_stop.window_offset = 0;
+    mode_one_page_head_stop.local_cursor = 0;
+    mode_one_page_head_stop.visible_count = 1;
+    mode_one_page_head_stop.workspace_head = &mode_one_retreat_lone;
+    mode_one_page_head_stop.visible_head = &mode_one_retreat_lone;
+    FakeModeOneAdvancePorts mode_one_page_head_stop_ports;
+    const auto mode_one_page_head_stopped =
+        openswd3::special_modes::advance_legacy_special_mode_mode_one_page(
+            mode_one_page_head_stop,
+            {},
+            comparison_bases,
+            {},
+            {},
+            0x33U,
+            mode_one_page_head_stop_ports
+        );
+    test.expect_true(
+        mode_one_page_head_stopped.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOnePageAdvanceStatus::
+                        visible_head_advance_stopped &&
+            mode_one_page_head_stopped.path ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOnePageAdvancePath::page_advanced &&
+            mode_one_page_head_stop.window_offset == 13 &&
+            mode_one_page_head_stop.local_cursor == 0 &&
+            mode_one_page_head_stop.visible_head == nullptr &&
+            mode_one_page_head_stop_ports.samples.empty() &&
+            mode_one_page_head_stop.frame_flags == 0U,
+        "0x44E0C0 preserves the published thirteen-row window and null visible head before stopping at the original forward-list read boundary"
+    );
+
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;
     for (std::size_t index = 0U; index < special_action_set.records.size();
          ++index) {
