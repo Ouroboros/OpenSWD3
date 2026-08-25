@@ -2957,6 +2957,185 @@ void test_battle_action_frame_draw(openswd3::test::Context& test) {
     }
 }
 
+void test_battle_indexed_action_frame_draw(openswd3::test::Context& test) {
+    const openswd3::rendering::LegacySurfaceGeometry surface{
+        .pitch_bytes = 160,
+        .width = 80,
+        .height = 60,
+    };
+    const openswd3::rendering::LegacyBlitClipRectangle clip{
+        .left = 0,
+        .top = 0,
+        .width = 80,
+        .height = 60,
+    };
+    constexpr std::array<u16, 8> kActionWords{
+        0x5246U, 0x0066U, 0x5041U, 0U, 0x5859U, 2U, 3U, 0x4544U
+    };
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleActionStreamProvider action_provider;
+        action_provider.set_words(kActionWords);
+        openswd3::asset_runtime::LegacyActionUpdater action_updater{
+            action_provider
+        };
+        BattleBorderFrameProvider frame_provider;
+        frame_provider.widths[0] = 1U;
+        frame_provider.heights[0] = 1U;
+        frame_provider.source_storage[0] = make_battle_rle_pixel(0x3456U);
+        std::vector<openswd3::asset_runtime::LegacyActionRecord> records(2U);
+        records[0].action_id = 0xAAAAU;
+        records[1].action_id = 0xBBBBU;
+        records[1].base_variant = 0xCCCCU;
+        openswd3::battle::LegacyBattleIndexedActionFrameDrawState state;
+        openswd3::rendering::LegacyBlitRequest shared_request{
+            .target_height = 1,
+            .vertical_resample_enlarge_state = 1U,
+            .vertical_resample_phase_10_10 = 0x66U,
+            .opacity_step = 4,
+        };
+        openswd3::rendering::LegacyBlitEffectState shared_effects{
+            .red_offset = 2,
+            .green_offset = 3,
+            .blue_offset = 4,
+        };
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_indexed_action_frame(
+                state,
+                records,
+                framebuffer,
+                clip,
+                shared_request,
+                shared_effects,
+                jitter,
+                action_updater,
+                frame_provider,
+                30,
+                40,
+                1
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleIndexedActionFrameDrawStatus::
+                        completed &&
+                result.frame_load_calls == 1U &&
+                result.frame_draw_calls == 1U && result.draw_x == 28 &&
+                result.draw_y == 37 &&
+                result.blit_status ==
+                    openswd3::rendering::LegacyBlitExecutionStatus::completed &&
+                records[0].action_id == 0xAAAAU &&
+                records[1].action_id == 0x2392U &&
+                records[1].base_variant == 0U &&
+                records[1].field_4a == 0x0066U && records[1].field_4c == 0U &&
+                records[1].draw_offset_x == 2U &&
+                records[1].draw_offset_y == 3U &&
+                action_provider.last_action_id == 0x2392U &&
+                action_provider.last_variant_index == 0U &&
+                frame_provider.resource_ids == std::vector<u32>{0x0066U} &&
+                frame_provider.load_indices == std::vector<u32>{0U} &&
+                state.action_update_attempted &&
+                state.action_record_index == 1U &&
+                state.frame_record_available && state.source_published &&
+                shared_request.target_height == 0 &&
+                shared_request.vertical_resample_phase_10_10 == 0U &&
+                shared_request.opacity_step == 0 &&
+                shared_request.vertical_resample_enlarge_state == 1U &&
+                shared_effects.red_offset == 0 &&
+                shared_effects.green_offset == 0 &&
+                shared_effects.blue_offset == 0 &&
+                framebuffer.row_pixels(37U)[28U] != 0U,
+            "indexed action slot refreshes and draws its produced frame at offset coordinates"
+        );
+    }
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleActionStreamProvider action_provider;
+        action_provider.set_words(kActionWords);
+        openswd3::asset_runtime::LegacyActionUpdater action_updater{
+            action_provider
+        };
+        BattleBorderFrameProvider frame_provider;
+        std::vector<openswd3::asset_runtime::LegacyActionRecord> records(1U);
+        records[0].action_id = 0x7777U;
+        openswd3::battle::LegacyBattleIndexedActionFrameDrawState state;
+        openswd3::rendering::LegacyBlitRequest shared_request{
+            .target_height = 3,
+        };
+        openswd3::rendering::LegacyBlitEffectState shared_effects;
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_indexed_action_frame(
+                state,
+                records,
+                framebuffer,
+                clip,
+                shared_request,
+                shared_effects,
+                jitter,
+                action_updater,
+                frame_provider,
+                30,
+                40,
+                -1
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleIndexedActionFrameDrawStatus::
+                        action_record_out_of_range &&
+                !state.action_update_attempted && action_provider.calls == 0U &&
+                records[0].action_id == 0x7777U &&
+                frame_provider.load_indices.empty() &&
+                shared_request.target_height == 3,
+            "negative action slot stops at the first original record write"
+        );
+    }
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleActionStreamProvider action_provider;
+        action_provider.fail = true;
+        openswd3::asset_runtime::LegacyActionUpdater action_updater{
+            action_provider
+        };
+        BattleBorderFrameProvider frame_provider;
+        std::vector<openswd3::asset_runtime::LegacyActionRecord> records(1U);
+        records[0].base_variant = 0x9999U;
+        openswd3::battle::LegacyBattleIndexedActionFrameDrawState state;
+        openswd3::rendering::LegacyBlitRequest shared_request;
+        openswd3::rendering::LegacyBlitEffectState shared_effects;
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_indexed_action_frame(
+                state,
+                records,
+                framebuffer,
+                clip,
+                shared_request,
+                shared_effects,
+                jitter,
+                action_updater,
+                frame_provider,
+                30,
+                40,
+                0
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleIndexedActionFrameDrawStatus::
+                        action_update_failed &&
+                records[0].action_id == 0x2392U &&
+                records[0].base_variant == 0U &&
+                state.action_update_attempted &&
+                state.action_update.return_value == 0U &&
+                frame_provider.load_indices.empty(),
+            "indexed action update failure preserves the two ordered field writes"
+        );
+    }
+}
+
 void test_battle_frame_zero_draw(openswd3::test::Context& test) {
     const openswd3::rendering::LegacySurfaceGeometry surface{
         .pitch_bytes = 160,
@@ -4585,6 +4764,7 @@ int main() {
     test_directional_scan_fixed_point_loops_and_bounds(test);
     test_directional_scan_division_and_typed_stops(test);
     test_battle_action_frame_draw(test);
+    test_battle_indexed_action_frame_draw(test);
     test_battle_frame_zero_draw(test);
     test_battle_border_panel(test);
     test_battle_color_fade(test);

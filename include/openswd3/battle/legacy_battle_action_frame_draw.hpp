@@ -47,6 +47,39 @@ struct LegacyBattleActionFrameDrawResult {
     };
 };
 
+struct LegacyBattleIndexedActionFrameDrawState {
+    bool action_update_attempted{};
+    asset_runtime::LegacyActionUpdateResult action_update{};
+    compat::u32 action_record_index{};
+    bool frame_record_published{};
+    bool frame_record_available{};
+    bool source_published{};
+    compat::u32 current_frame_index{};
+    rendering::LegacyFramePiece current_frame{};
+    rendering::LegacyBlitSource current_source{};
+};
+
+enum class LegacyBattleIndexedActionFrameDrawStatus : compat::u8 {
+    completed,
+    action_record_out_of_range,
+    action_update_failed,
+    frame_unavailable,
+    blit_typed_stop,
+};
+
+struct LegacyBattleIndexedActionFrameDrawResult {
+    LegacyBattleIndexedActionFrameDrawStatus status{
+        LegacyBattleIndexedActionFrameDrawStatus::completed
+    };
+    compat::u32 frame_load_calls{};
+    compat::u32 frame_draw_calls{};
+    compat::i32 draw_x{};
+    compat::i32 draw_y{};
+    rendering::LegacyBlitExecutionStatus blit_status{
+        rendering::LegacyBlitExecutionStatus::completed
+    };
+};
+
 // sub_4502B0.
 [[nodiscard]] LegacyBattleActionFrameDrawResult draw_legacy_battle_action_frame(
     LegacyBattleActionFrameDrawState& state,
@@ -62,6 +95,23 @@ struct LegacyBattleActionFrameDrawResult {
     compat::i32 x,
     compat::i32 y,
     compat::u32 overlay_selector
+);
+
+// sub_450400.
+[[nodiscard]] LegacyBattleIndexedActionFrameDrawResult
+draw_legacy_battle_indexed_action_frame(
+    LegacyBattleIndexedActionFrameDrawState& state,
+    std::span<asset_runtime::LegacyActionRecord> action_records,
+    rendering::LegacyFramebuffer& framebuffer,
+    const rendering::LegacyBlitClipRectangle& clip,
+    rendering::LegacyBlitRequest& shared_request,
+    rendering::LegacyBlitEffectState& shared_effects,
+    rendering::LegacyRleRowJitterState& jitter,
+    asset_runtime::LegacyActionUpdater& action_updater,
+    rendering::LegacyFramePieceProvider& frame_provider,
+    compat::i32 x,
+    compat::i32 y,
+    compat::i32 action_record_index
 );
 
 }  // namespace openswd3::battle

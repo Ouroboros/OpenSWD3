@@ -229,4 +229,81 @@ LegacyBattleActionFrameDrawResult draw_legacy_battle_action_frame(
     return result;
 }
 
+LegacyBattleIndexedActionFrameDrawResult
+draw_legacy_battle_indexed_action_frame(
+    LegacyBattleIndexedActionFrameDrawState& state,
+    const std::span<asset_runtime::LegacyActionRecord> action_records,
+    rendering::LegacyFramebuffer& framebuffer,
+    const rendering::LegacyBlitClipRectangle& clip,
+    rendering::LegacyBlitRequest& shared_request,
+    rendering::LegacyBlitEffectState& shared_effects,
+    rendering::LegacyRleRowJitterState& jitter,
+    asset_runtime::LegacyActionUpdater& action_updater,
+    rendering::LegacyFramePieceProvider& frame_provider,
+    const compat::i32 x,
+    const compat::i32 y,
+    const compat::i32 action_record_index
+) {
+    LegacyBattleIndexedActionFrameDrawResult result;
+    state.action_record_index = to_bits(action_record_index);
+    if (action_record_index < 0 ||
+        static_cast<std::size_t>(action_record_index) >=
+            action_records.size()) {
+        result.status = LegacyBattleIndexedActionFrameDrawStatus::
+            action_record_out_of_range;
+        return result;
+    }
+
+    asset_runtime::LegacyActionRecord& action =
+        action_records[static_cast<std::size_t>(action_record_index)];
+    action.action_id = 0x2392U;
+    action.base_variant = 0U;
+    state.action_update_attempted = true;
+    state.action_update = action_updater.update(action);
+    if (state.action_update.return_value == 0U) {
+        result.status =
+            LegacyBattleIndexedActionFrameDrawStatus::action_update_failed;
+        return result;
+    }
+
+    rendering::LegacyFramePiece piece{};
+    const compat::u32 frame_resource = action.field_4a;
+    const compat::u32 frame_index = action.field_4c;
+    const bool available =
+        frame_provider.load_frame_piece(frame_resource, frame_index, piece);
+    result.frame_load_calls = 1U;
+    state.frame_record_published = true;
+    state.frame_record_available = available;
+    state.current_frame_index = frame_index;
+    if (!available) {
+        state.current_frame = {};
+        result.status =
+            LegacyBattleIndexedActionFrameDrawStatus::frame_unavailable;
+        return result;
+    }
+
+    state.current_frame = piece;
+    state.current_source = piece.source;
+    state.source_published = true;
+    result.draw_x = wrapping_subtract(x, action.draw_offset_x);
+    result.draw_y = wrapping_subtract(y, action.draw_offset_y);
+
+    rendering::LegacyBlitRequest request = make_frame_request(
+        shared_request, piece, result.draw_x, result.draw_y, action.mode_flags
+    );
+    const rendering::LegacyBlitResult blit = rendering::blit_legacy_copy_paths(
+        framebuffer, clip, state.current_source, request, shared_effects, jitter
+    );
+    result.frame_draw_calls = 1U;
+    result.blit_status = blit.status;
+    if (!accepted_blit_status(blit.status)) {
+        result.status =
+            LegacyBattleIndexedActionFrameDrawStatus::blit_typed_stop;
+        return result;
+    }
+
+    publish_blitter_normal_epilogue(shared_request, shared_effects);
+    return result;
+}
+
 }  // namespace openswd3::battle
