@@ -8564,6 +8564,70 @@ LegacySavePreviewCleanupResult cleanup_legacy_save_previews(
     return result;
 }
 
+LegacyHighPriorityMenuFrameResult coordinate_legacy_high_priority_menu_frame(
+    LegacyHighPriorityMenuFrameState& state,
+    LegacyHighPriorityMenuFramePorts& ports
+) noexcept {
+    LegacyHighPriorityMenuFrameResult result;
+    state.delay -= 1U;
+    const compat::i32 signed_delay = std::bit_cast<compat::i32>(state.delay);
+    if (signed_delay < 0 || signed_delay > 1000) {
+        state.delay = 0U;
+        result.delay_clamped = true;
+    }
+    ++state.frame_count;
+    if (state.activity_state == 3U) {
+        state.activity_state = 1U;
+        result.activity_three_folded = true;
+    }
+    state.mouse_frame_index = 0x0DU;
+
+    const std::optional<compat::i32> input = ports.dispatch_common_input(state);
+    ++result.helper_call_count;
+    if (!input.has_value()) {
+        result.status = LegacyHighPriorityMenuFrameStatus::common_input_stopped;
+        return result;
+    }
+    result.legacy_return_value = *input;
+
+    if (state.submode == 0U) {
+        const std::optional<compat::i32> submode =
+            ports.dispatch_submode_zero(state);
+        ++result.helper_call_count;
+        result.submode_dispatched = true;
+        if (!submode.has_value()) {
+            result.status = LegacyHighPriorityMenuFrameStatus::submode_stopped;
+            return result;
+        }
+        result.legacy_return_value = *submode;
+    } else if (state.submode == 1U) {
+        const std::optional<compat::i32> submode =
+            ports.dispatch_submode_one(state);
+        ++result.helper_call_count;
+        result.submode_dispatched = true;
+        if (!submode.has_value()) {
+            result.status = LegacyHighPriorityMenuFrameStatus::submode_stopped;
+            return result;
+        }
+        result.legacy_return_value = *submode;
+    }
+
+    result.legacy_return_value =
+        std::bit_cast<compat::i32>(state.activity_state);
+    if (state.activity_state == 0U) {
+        return result;
+    }
+    const std::optional<compat::i32> rendered = ports.render_active_menu(state);
+    ++result.helper_call_count;
+    if (!rendered.has_value()) {
+        result.status = LegacyHighPriorityMenuFrameStatus::render_stopped;
+        return result;
+    }
+    result.path = LegacyHighPriorityMenuFramePath::active_rendered;
+    result.legacy_return_value = *rendered;
+    return result;
+}
+
 static LegacyGuardianAttributeTarget load_guardian_attribute_target(
     const std::span<const compat::u8> bytes
 ) noexcept {

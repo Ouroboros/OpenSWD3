@@ -1043,6 +1043,57 @@ public:
     std::vector<u32> events;
 };
 
+class FakeHighPriorityMenuFramePorts final
+    : public openswd3::special_modes::LegacyHighPriorityMenuFramePorts {
+public:
+    std::optional<i32> dispatch_common_input(
+        openswd3::special_modes::LegacyHighPriorityMenuFrameState& state
+    ) noexcept override {
+        events.push_back(1U);
+        if (input_submode.has_value()) {
+            state.submode = *input_submode;
+        }
+        if (input_activity.has_value()) {
+            state.activity_state = *input_activity;
+        }
+        return input_result;
+    }
+    std::optional<i32> dispatch_submode_zero(
+        openswd3::special_modes::LegacyHighPriorityMenuFrameState& state
+    ) noexcept override {
+        events.push_back(2U);
+        if (submode_zero_activity.has_value()) {
+            state.activity_state = *submode_zero_activity;
+        }
+        return submode_zero_result;
+    }
+    std::optional<i32> dispatch_submode_one(
+        openswd3::special_modes::LegacyHighPriorityMenuFrameState& state
+    ) noexcept override {
+        events.push_back(3U);
+        if (submode_one_activity.has_value()) {
+            state.activity_state = *submode_one_activity;
+        }
+        return submode_one_result;
+    }
+    std::optional<i32> render_active_menu(
+        openswd3::special_modes::LegacyHighPriorityMenuFrameState&
+    ) noexcept override {
+        events.push_back(4U);
+        return render_result;
+    }
+
+    std::optional<i32> input_result{10};
+    std::optional<i32> submode_zero_result{20};
+    std::optional<i32> submode_one_result{30};
+    std::optional<i32> render_result{40};
+    std::optional<u32> input_submode;
+    std::optional<u32> input_activity;
+    std::optional<u32> submode_zero_activity;
+    std::optional<u32> submode_one_activity;
+    std::vector<u32> events;
+};
+
 class FakeChainClonePorts final
     : public openswd3::special_modes::LegacyStandardModeRecordClonePorts {
 public:
@@ -21158,6 +21209,144 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             stopped_save_preview_cleanup_records[1U].bytes[0U] == 0xEEU &&
             stopped_save_preview_cleanup_records[2U].bytes[0U] == 0xEEU,
         "0x406E00 resets exactly three save preview records in address order and typed-stops before the unavailable record"
+    );
+
+    openswd3::special_modes::LegacyHighPriorityMenuFrameState
+        high_priority_inactive_state;
+    high_priority_inactive_state.delay = 0U;
+    high_priority_inactive_state.frame_count = 0xFFFFFFFFU;
+    high_priority_inactive_state.activity_state = 3U;
+    high_priority_inactive_state.submode = 9U;
+    FakeHighPriorityMenuFramePorts high_priority_inactive_ports;
+    high_priority_inactive_ports.input_submode = 0U;
+    high_priority_inactive_ports.submode_zero_activity = 0U;
+    const auto high_priority_inactive =
+        openswd3::special_modes::coordinate_legacy_high_priority_menu_frame(
+            high_priority_inactive_state, high_priority_inactive_ports
+        );
+    test.expect_true(
+        high_priority_inactive.status ==
+                openswd3::special_modes::LegacyHighPriorityMenuFrameStatus::
+                    completed &&
+            high_priority_inactive.path ==
+                openswd3::special_modes::LegacyHighPriorityMenuFramePath::
+                    inactive &&
+            high_priority_inactive.legacy_return_value == 0 &&
+            high_priority_inactive.delay_clamped &&
+            high_priority_inactive.activity_three_folded &&
+            high_priority_inactive.submode_dispatched &&
+            high_priority_inactive.helper_call_count == 2U &&
+            high_priority_inactive_state.delay == 0U &&
+            high_priority_inactive_state.frame_count == 0U &&
+            high_priority_inactive_state.activity_state == 0U &&
+            high_priority_inactive_state.mouse_frame_index == 0x0DU &&
+            high_priority_inactive_ports.events == std::vector<u32>{1U, 2U},
+        "0x406E30 clamps an underflowed delay, wraps the frame count, folds activity three to one, rereads the input-selected zero submode, and skips rendering after that submode closes activity"
+    );
+
+    openswd3::special_modes::LegacyHighPriorityMenuFrameState
+        high_priority_active_state;
+    high_priority_active_state.delay = 1001U;
+    high_priority_active_state.frame_count = 8U;
+    high_priority_active_state.activity_state = 1U;
+    high_priority_active_state.submode = 0U;
+    FakeHighPriorityMenuFramePorts high_priority_active_ports;
+    high_priority_active_ports.input_submode = 1U;
+    high_priority_active_ports.submode_one_result = 31;
+    high_priority_active_ports.render_result = 41;
+    const auto high_priority_active =
+        openswd3::special_modes::coordinate_legacy_high_priority_menu_frame(
+            high_priority_active_state, high_priority_active_ports
+        );
+    test.expect_true(
+        high_priority_active.path ==
+                openswd3::special_modes::LegacyHighPriorityMenuFramePath::
+                    active_rendered &&
+            high_priority_active.legacy_return_value == 41 &&
+            !high_priority_active.delay_clamped &&
+            !high_priority_active.activity_three_folded &&
+            high_priority_active.submode_dispatched &&
+            high_priority_active.helper_call_count == 3U &&
+            high_priority_active_state.delay == 1000U &&
+            high_priority_active_state.frame_count == 9U &&
+            high_priority_active_state.submode == 1U &&
+            high_priority_active_ports.events == std::vector<u32>{1U, 3U, 4U},
+        "0x406E30 preserves delay one thousand, dispatches the submode selected by common input, rereads active state, and tail-renders the menu"
+    );
+
+    openswd3::special_modes::LegacyHighPriorityMenuFrameState
+        high_priority_other_state;
+    high_priority_other_state.delay = 1002U;
+    high_priority_other_state.activity_state = 2U;
+    high_priority_other_state.submode = 2U;
+    FakeHighPriorityMenuFramePorts high_priority_other_ports;
+    const auto high_priority_other =
+        openswd3::special_modes::coordinate_legacy_high_priority_menu_frame(
+            high_priority_other_state, high_priority_other_ports
+        );
+    test.expect_true(
+        high_priority_other.delay_clamped &&
+            high_priority_other_state.delay == 0U &&
+            !high_priority_other.submode_dispatched &&
+            high_priority_other.helper_call_count == 2U &&
+            high_priority_other_ports.events == std::vector<u32>{1U, 4U},
+        "0x406E30 clamps a post-decrement delay above one thousand and skips submode dispatch for values outside zero and one while still rendering active state"
+    );
+
+    openswd3::special_modes::LegacyHighPriorityMenuFrameState
+        stopped_high_priority_input_state;
+    stopped_high_priority_input_state.delay = 5U;
+    stopped_high_priority_input_state.activity_state = 3U;
+    FakeHighPriorityMenuFramePorts stopped_high_priority_input_ports;
+    stopped_high_priority_input_ports.input_result = std::nullopt;
+    const auto stopped_high_priority_input =
+        openswd3::special_modes::coordinate_legacy_high_priority_menu_frame(
+            stopped_high_priority_input_state, stopped_high_priority_input_ports
+        );
+    openswd3::special_modes::LegacyHighPriorityMenuFrameState
+        stopped_high_priority_submode_state;
+    stopped_high_priority_submode_state.activity_state = 1U;
+    stopped_high_priority_submode_state.submode = 1U;
+    FakeHighPriorityMenuFramePorts stopped_high_priority_submode_ports;
+    stopped_high_priority_submode_ports.submode_one_result = std::nullopt;
+    const auto stopped_high_priority_submode =
+        openswd3::special_modes::coordinate_legacy_high_priority_menu_frame(
+            stopped_high_priority_submode_state,
+            stopped_high_priority_submode_ports
+        );
+    openswd3::special_modes::LegacyHighPriorityMenuFrameState
+        stopped_high_priority_render_state;
+    stopped_high_priority_render_state.activity_state = 1U;
+    stopped_high_priority_render_state.submode = 2U;
+    FakeHighPriorityMenuFramePorts stopped_high_priority_render_ports;
+    stopped_high_priority_render_ports.render_result = std::nullopt;
+    const auto stopped_high_priority_render =
+        openswd3::special_modes::coordinate_legacy_high_priority_menu_frame(
+            stopped_high_priority_render_state,
+            stopped_high_priority_render_ports
+        );
+    test.expect_true(
+        stopped_high_priority_input.status ==
+                openswd3::special_modes::LegacyHighPriorityMenuFrameStatus::
+                    common_input_stopped &&
+            stopped_high_priority_input.helper_call_count == 1U &&
+            stopped_high_priority_input_state.delay == 4U &&
+            stopped_high_priority_input_state.activity_state == 1U &&
+            stopped_high_priority_input_state.mouse_frame_index == 0x0DU &&
+            stopped_high_priority_input_ports.events == std::vector<u32>{1U} &&
+            stopped_high_priority_submode.status ==
+                openswd3::special_modes::LegacyHighPriorityMenuFrameStatus::
+                    submode_stopped &&
+            stopped_high_priority_submode.helper_call_count == 2U &&
+            stopped_high_priority_submode_ports.events ==
+                std::vector<u32>{1U, 3U} &&
+            stopped_high_priority_render.status ==
+                openswd3::special_modes::LegacyHighPriorityMenuFrameStatus::
+                    render_stopped &&
+            stopped_high_priority_render.helper_call_count == 2U &&
+            stopped_high_priority_render_ports.events ==
+                std::vector<u32>{1U, 4U},
+        "0x406E30 typed-stops at common input, selected submode, or active render after preserving each earlier timer and state mutation"
     );
 
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;

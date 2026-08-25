@@ -3488,6 +3488,59 @@ struct LegacySavePreviewCleanupResult {
     LegacyInputMenuSavePreviewResetPorts& ports
 ) noexcept;
 
+struct LegacyHighPriorityMenuFrameState {
+    compat::u32 delay{};
+    compat::u32 frame_count{};
+    compat::u32 activity_state{};
+    compat::u32 submode{};
+    compat::u32 mouse_frame_index{};
+};
+
+class LegacyHighPriorityMenuFramePorts {
+public:
+    virtual ~LegacyHighPriorityMenuFramePorts() = default;
+    [[nodiscard]] virtual std::optional<compat::i32>
+    dispatch_common_input(LegacyHighPriorityMenuFrameState& state) noexcept = 0;
+    [[nodiscard]] virtual std::optional<compat::i32>
+    dispatch_submode_zero(LegacyHighPriorityMenuFrameState& state) noexcept = 0;
+    [[nodiscard]] virtual std::optional<compat::i32>
+    dispatch_submode_one(LegacyHighPriorityMenuFrameState& state) noexcept = 0;
+    [[nodiscard]] virtual std::optional<compat::i32>
+    render_active_menu(LegacyHighPriorityMenuFrameState& state) noexcept = 0;
+};
+
+enum class LegacyHighPriorityMenuFrameStatus : compat::u8 {
+    completed,
+    common_input_stopped,
+    submode_stopped,
+    render_stopped,
+};
+
+enum class LegacyHighPriorityMenuFramePath : compat::u8 {
+    inactive,
+    active_rendered,
+};
+
+struct LegacyHighPriorityMenuFrameResult {
+    LegacyHighPriorityMenuFrameStatus status{
+        LegacyHighPriorityMenuFrameStatus::completed
+    };
+    LegacyHighPriorityMenuFramePath path{
+        LegacyHighPriorityMenuFramePath::inactive
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+    bool activity_three_folded{};
+    bool delay_clamped{};
+    bool submode_dispatched{};
+};
+
+[[nodiscard]] LegacyHighPriorityMenuFrameResult
+coordinate_legacy_high_priority_menu_frame(
+    LegacyHighPriorityMenuFrameState& state,
+    LegacyHighPriorityMenuFramePorts& ports
+) noexcept;
+
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
     completed,
     mode_mask_out_of_range,
