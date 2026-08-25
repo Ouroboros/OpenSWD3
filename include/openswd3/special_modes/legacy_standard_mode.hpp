@@ -2808,6 +2808,41 @@ struct LegacySpecialModeLevelExitResult {
     LegacySpecialModeRuntimeCleanupPorts& ports
 ) noexcept;
 
+struct LegacySpecialModeAttributeDeltaTextRequest {
+    compat::i32 x{};
+    compat::i32 y{};
+    std::string text;
+    compat::u32 color{};
+    compat::i32 style{};
+};
+
+class LegacySpecialModeAttributeDeltaRenderPorts {
+public:
+    virtual ~LegacySpecialModeAttributeDeltaRenderPorts() = default;
+    [[nodiscard]] virtual compat::u32 compose_color(
+        compat::u8 red, compat::u8 green, compat::u8 blue
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    query_party_member(compat::u32 member_id) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 draw_text(
+        const LegacySpecialModeAttributeDeltaTextRequest& request
+    ) noexcept = 0;
+};
+
+struct LegacySpecialModeAttributeDeltaRenderResult {
+    compat::i32 legacy_return_value{};
+    compat::u32 color_compose_count{};
+    compat::u32 party_query_count{};
+    compat::u32 label_draw_count{};
+    compat::u32 value_draw_count{};
+};
+
+[[nodiscard]] LegacySpecialModeAttributeDeltaRenderResult
+render_legacy_special_mode_attribute_deltas(
+    const std::array<LegacySpecialModeAttributeDelta, 4U>& member_deltas,
+    LegacySpecialModeAttributeDeltaRenderPorts& ports
+) noexcept;
+
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
     completed,
     mode_mask_out_of_range,

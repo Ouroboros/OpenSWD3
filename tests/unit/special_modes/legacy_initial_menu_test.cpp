@@ -825,6 +825,37 @@ public:
     std::vector<u16> loaded_template_keys;
 };
 
+class FakeAttributeDeltaRenderPorts final
+    : public openswd3::special_modes::
+          LegacySpecialModeAttributeDeltaRenderPorts {
+public:
+    u32 compose_color(
+        const u8 red, const u8 green, const u8 blue
+    ) noexcept override {
+        color_inputs.push_back({red, green, blue});
+        return color_returns[color_inputs.size() - 1U];
+    }
+    i32 query_party_member(const u32 member_id) noexcept override {
+        queried_member_ids.push_back(member_id);
+        return query_returns[static_cast<std::size_t>(member_id - 0x1EU)];
+    }
+    i32 draw_text(
+        const openswd3::special_modes::
+            LegacySpecialModeAttributeDeltaTextRequest& request
+    ) noexcept override {
+        requests.push_back(request);
+        return static_cast<i32>(1000U + requests.size());
+    }
+
+    std::array<u32, 3U> color_returns{0x11111111U, 0x22222222U, 0x33333333U};
+    std::array<i32, 4U> query_returns{};
+    std::vector<std::array<u8, 3U>> color_inputs;
+    std::vector<u32> queried_member_ids;
+    std::vector<
+        openswd3::special_modes::LegacySpecialModeAttributeDeltaTextRequest>
+        requests;
+};
+
 class FakeChainClonePorts final
     : public openswd3::special_modes::LegacyStandardModeRecordClonePorts {
 public:
@@ -18223,6 +18254,73 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             !level_two_short_exit.frame_restored &&
             level_two_short_runtime.darkened_frame_pixels.front() == 1U,
         "0x44E9D0 level two stops at the frame source read after completing the first empty workspace cleanup"
+    );
+
+    std::array<openswd3::special_modes::LegacySpecialModeAttributeDelta, 4U>
+        attribute_delta_rows{};
+    attribute_delta_rows[0U].candidate_category_matches = 1U;
+    attribute_delta_rows[0U].values = {5, -7, 0};
+    attribute_delta_rows[1U].candidate_category_matches = 0U;
+    attribute_delta_rows[1U].values = {9, -9, 1};
+    attribute_delta_rows[3U].candidate_category_matches = 1U;
+    attribute_delta_rows[3U].values = {std::numeric_limits<i32>::min(), 1, -1};
+    FakeAttributeDeltaRenderPorts attribute_delta_ports;
+    attribute_delta_ports.query_returns = {1, 2, 0, 4};
+    const auto attribute_delta_render =
+        openswd3::special_modes::render_legacy_special_mode_attribute_deltas(
+            attribute_delta_rows, attribute_delta_ports
+        );
+    test.expect_true(
+        attribute_delta_render.legacy_return_value == 1018 &&
+            attribute_delta_render.color_compose_count == 3U &&
+            attribute_delta_render.party_query_count == 4U &&
+            attribute_delta_render.label_draw_count == 9U &&
+            attribute_delta_render.value_draw_count == 9U &&
+            attribute_delta_ports.color_inputs ==
+                std::vector<std::array<u8, 3U>>{
+                    {0x19U, 0x17U, 0x11U},
+                    {0x1FU, 0x1FU, 0x1FU},
+                    {0x1AU, 0U, 0U}
+                } &&
+            attribute_delta_ports.queried_member_ids ==
+                std::vector<u32>{0x1EU, 0x1FU, 0x20U, 0x21U} &&
+            attribute_delta_ports.requests.size() == 18U &&
+            attribute_delta_ports.requests[0U].x == 0x21 &&
+            attribute_delta_ports.requests[0U].y == 0x44 &&
+            attribute_delta_ports.requests[0U].text ==
+                std::string("\xA7\xF0", 2U) &&
+            attribute_delta_ports.requests[0U].color == 0x11111111U &&
+            attribute_delta_ports.requests[1U].x == 0x21 &&
+            attribute_delta_ports.requests[1U].y == 0x58 &&
+            attribute_delta_ports.requests[1U].text == "+5" &&
+            attribute_delta_ports.requests[1U].color == 0x22222222U &&
+            attribute_delta_ports.requests[3U].text == "-7" &&
+            attribute_delta_ports.requests[3U].color == 0x33333333U &&
+            attribute_delta_ports.requests[5U].text == "----" &&
+            attribute_delta_ports.requests[5U].color == 0x11111111U &&
+            attribute_delta_ports.requests[7U].text == "----" &&
+            attribute_delta_ports.requests[13U].text == "--2147483648" &&
+            attribute_delta_ports.requests[13U].color == 0x33333333U &&
+            attribute_delta_ports.requests[15U].text == "+1" &&
+            attribute_delta_ports.requests[17U].text == "-1" &&
+            attribute_delta_ports.requests[17U].x == 0x1B1 &&
+            attribute_delta_ports.requests[17U].style == 4,
+        "0x44FD30 draws attack, defense, and agility labels with placeholders or signed colored deltas for each present party member"
+    );
+
+    FakeAttributeDeltaRenderPorts absent_delta_ports;
+    const auto absent_delta_render =
+        openswd3::special_modes::render_legacy_special_mode_attribute_deltas(
+            attribute_delta_rows, absent_delta_ports
+        );
+    test.expect_true(
+        absent_delta_render.legacy_return_value == 0 &&
+            absent_delta_render.color_compose_count == 3U &&
+            absent_delta_render.party_query_count == 4U &&
+            absent_delta_render.label_draw_count == 0U &&
+            absent_delta_render.value_draw_count == 0U &&
+            absent_delta_ports.requests.empty(),
+        "0x44FD30 still composes three colors and queries four member ids when every party member is absent"
     );
 
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;

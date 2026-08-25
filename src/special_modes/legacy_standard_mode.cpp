@@ -5766,6 +5766,78 @@ LegacySpecialModeLevelExitResult exit_legacy_special_mode_level(
     return result;
 }
 
+LegacySpecialModeAttributeDeltaRenderResult
+render_legacy_special_mode_attribute_deltas(
+    const std::array<LegacySpecialModeAttributeDelta, 4U>& member_deltas,
+    LegacySpecialModeAttributeDeltaRenderPorts& ports
+) noexcept {
+    LegacySpecialModeAttributeDeltaRenderResult result;
+    const compat::u32 primary_color = ports.compose_color(0x19U, 0x17U, 0x11U);
+    const compat::u32 positive_color = ports.compose_color(0x1FU, 0x1FU, 0x1FU);
+    const compat::u32 negative_color = ports.compose_color(0x1AU, 0U, 0U);
+    result.color_compose_count = 3U;
+    constexpr std::array<std::string_view, 3U> kLabels{
+        std::string_view{"\xA7\xF0", 2U},
+        std::string_view{"\xA8\xBE", 2U},
+        std::string_view{"\xB1\xD3", 2U},
+    };
+    constexpr std::array<compat::i32, 3U> kXOffsets{-0x14, 0, 0x14};
+
+    for (std::size_t member_index = 0U; member_index < 4U; ++member_index) {
+        result.legacy_return_value = ports.query_party_member(
+            static_cast<compat::u32>(member_index + 0x1EU)
+        );
+        ++result.party_query_count;
+        if (result.legacy_return_value == 0) {
+            continue;
+        }
+        const compat::i32 member_x = static_cast<compat::i32>(
+            0x35U + static_cast<compat::u32>(member_index) * 0x78U
+        );
+        for (std::size_t value_index = 0U; value_index < 3U; ++value_index) {
+            const compat::i32 x = member_x + kXOffsets[value_index];
+            result.legacy_return_value = ports.draw_text(
+                LegacySpecialModeAttributeDeltaTextRequest{
+                    .x = x,
+                    .y = 0x44,
+                    .text = std::string(kLabels[value_index]),
+                    .color = primary_color,
+                    .style = 4,
+                }
+            );
+            ++result.label_draw_count;
+
+            std::string text = "----";
+            compat::u32 color = primary_color;
+            const compat::i32 value =
+                member_deltas[member_index].values[value_index];
+            if (member_deltas[member_index].candidate_category_matches != 0U &&
+                value != 0) {
+                color = value < 0 ? negative_color : positive_color;
+                const compat::u32 value_bits =
+                    std::bit_cast<compat::u32>(value);
+                const compat::u32 magnitude_bits =
+                    value < 0 ? 0U - value_bits : value_bits;
+                const compat::i32 formatted_magnitude =
+                    std::bit_cast<compat::i32>(magnitude_bits);
+                text = value < 0 ? "-" : "+";
+                text += std::to_string(formatted_magnitude);
+            }
+            result.legacy_return_value = ports.draw_text(
+                LegacySpecialModeAttributeDeltaTextRequest{
+                    .x = x,
+                    .y = 0x58,
+                    .text = std::move(text),
+                    .color = color,
+                    .style = 4,
+                }
+            );
+            ++result.value_draw_count;
+        }
+    }
+    return result;
+}
+
 static LegacyGuardianAttributeTarget load_guardian_attribute_target(
     const std::span<const compat::u8> bytes
 ) noexcept {
