@@ -18505,6 +18505,168 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44DF00 preserves visible recount, audio, and frame flags before the D6B0 low-sixteen index stops on a repeated node"
     );
 
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_retreat_level_one;
+    mode_one_retreat_level_one.level = 1U;
+    mode_one_retreat_level_one.packed_mode = 0xAABBCC02U;
+    FakeModeOneAdvancePorts mode_one_retreat_level_one_ports;
+    const auto mode_one_packed_retreat =
+        openswd3::special_modes::retreat_legacy_special_mode_mode_one(
+            mode_one_retreat_level_one,
+            {},
+            comparison_bases,
+            {},
+            {},
+            0x55U,
+            mode_one_retreat_level_one_ports
+        );
+    test.expect_true(
+        mode_one_packed_retreat.status ==
+                openswd3::special_modes::LegacySpecialModeModeOneRetreatStatus::
+                    completed &&
+            mode_one_packed_retreat.path ==
+                openswd3::special_modes::LegacySpecialModeModeOneRetreatPath::
+                    packed_mode_retreated &&
+            mode_one_retreat_level_one.packed_mode == 0xAABBCC01U &&
+            std::bit_cast<u32>(mode_one_packed_retreat.legacy_return_value) ==
+                0xAABBCC01U &&
+            mode_one_packed_retreat.helper_call_count == 0U,
+        "0x44DFF0 level one retreats only the packed low-two-bit mode and preserves all high bits"
+    );
+    mode_one_retreat_level_one.packed_mode = 0x11223300U;
+    const auto mode_one_packed_zero =
+        openswd3::special_modes::retreat_legacy_special_mode_mode_one(
+            mode_one_retreat_level_one,
+            {},
+            comparison_bases,
+            {},
+            {},
+            0x66U,
+            mode_one_retreat_level_one_ports
+        );
+    test.expect_true(
+        mode_one_packed_zero.status ==
+                openswd3::special_modes::LegacySpecialModeModeOneRetreatStatus::
+                    completed &&
+            mode_one_retreat_level_one.packed_mode == 0x11223300U &&
+            std::bit_cast<u32>(mode_one_packed_zero.legacy_return_value) ==
+                0x11223300U,
+        "0x44DFF0 level one saturates the packed low-two-bit mode at zero"
+    );
+
+    mode_one_node_one.text_index = 0xFFDCU;
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_retreat_level_two;
+    mode_one_retreat_level_two.level = 2U;
+    mode_one_retreat_level_two.window_offset = 1;
+    mode_one_retreat_level_two.local_cursor = 0;
+    mode_one_retreat_level_two.visible_count = 3;
+    mode_one_retreat_level_two.workspace_head = &mode_one_node_one;
+    mode_one_retreat_level_two.visible_head = &mode_one_node_two;
+    mode_one_retreat_level_two.frame_flags = 0x10U;
+    FakeModeOneAdvancePorts mode_one_retreat_level_two_ports;
+    const auto mode_one_selection_retreat =
+        openswd3::special_modes::retreat_legacy_special_mode_mode_one(
+            mode_one_retreat_level_two,
+            {},
+            comparison_bases,
+            {},
+            {},
+            0x87654321U,
+            mode_one_retreat_level_two_ports
+        );
+    test.expect_true(
+        mode_one_selection_retreat.status ==
+                openswd3::special_modes::LegacySpecialModeModeOneRetreatStatus::
+                    completed &&
+            mode_one_selection_retreat.path ==
+                openswd3::special_modes::LegacySpecialModeModeOneRetreatPath::
+                    selection_retreated &&
+            mode_one_selection_retreat.window_retreated &&
+            mode_one_retreat_level_two.window_offset == 0 &&
+            mode_one_retreat_level_two.local_cursor == 0 &&
+            mode_one_retreat_level_two.visible_head == &mode_one_node_one &&
+            mode_one_retreat_level_two.visible_count == 4 &&
+            mode_one_retreat_level_two.shared_text[0U] == 0xB5U &&
+            mode_one_retreat_level_two.shared_text[1U] == 0x4CU &&
+            mode_one_retreat_level_two.shared_text[2U] == 0U &&
+            mode_one_retreat_level_two.frame_flags == 0x13U &&
+            mode_one_selection_retreat.sample_played &&
+            mode_one_retreat_level_two_ports.samples ==
+                std::vector<std::pair<u16, u32>>{{0x00BFU, 0x87654321U}} &&
+            mode_one_retreat_level_two_ports.queried_member_ids ==
+                std::vector<u32>{0x1EU, 0x1FU, 0x20U, 0x21U} &&
+            mode_one_selection_retreat.helper_call_count == 7U &&
+            mode_one_selection_retreat.legacy_return_value == 4,
+        "0x44DFF0 level two retreats the window after cursor underflow, recounts from the restored head, resolves text, plays sample BF, sets frame bits zero and one, and compares the low-sixteen-bit indexed record"
+    );
+
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_retreat_zero_window;
+    mode_one_retreat_zero_window.level = 2U;
+    mode_one_retreat_zero_window.window_offset = 0;
+    mode_one_retreat_zero_window.local_cursor = 0;
+    mode_one_retreat_zero_window.visible_count = 4;
+    mode_one_retreat_zero_window.workspace_head = &mode_one_node_one;
+    mode_one_retreat_zero_window.visible_head = &mode_one_node_one;
+    FakeModeOneAdvancePorts mode_one_retreat_zero_window_ports;
+    const auto mode_one_zero_window_retreat =
+        openswd3::special_modes::retreat_legacy_special_mode_mode_one(
+            mode_one_retreat_zero_window,
+            {},
+            comparison_bases,
+            {},
+            {},
+            0x44U,
+            mode_one_retreat_zero_window_ports
+        );
+    test.expect_true(
+        mode_one_zero_window_retreat.status ==
+                openswd3::special_modes::LegacySpecialModeModeOneRetreatStatus::
+                    completed &&
+            !mode_one_zero_window_retreat.window_retreated &&
+            mode_one_retreat_zero_window.window_offset == 0 &&
+            mode_one_retreat_zero_window.local_cursor == 0 &&
+            mode_one_retreat_zero_window.visible_count == 4 &&
+            mode_one_retreat_zero_window.frame_flags == 3U &&
+            mode_one_zero_window_retreat.helper_call_count == 6U,
+        "0x44DFF0 clamps a cursor underflow to zero without retreating a nonpositive window"
+    );
+
+    LegacyStandardModeForwardNode mode_one_retreat_lone;
+    mode_one_retreat_lone.text_index = 0xFFDCU;
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_retreat_head_stop;
+    mode_one_retreat_head_stop.level = 2U;
+    mode_one_retreat_head_stop.window_offset = 3;
+    mode_one_retreat_head_stop.local_cursor = 0;
+    mode_one_retreat_head_stop.visible_count = 1;
+    mode_one_retreat_head_stop.workspace_head = &mode_one_retreat_lone;
+    mode_one_retreat_head_stop.visible_head = &mode_one_retreat_lone;
+    FakeModeOneAdvancePorts mode_one_retreat_head_stop_ports;
+    const auto mode_one_retreat_head_stopped =
+        openswd3::special_modes::retreat_legacy_special_mode_mode_one(
+            mode_one_retreat_head_stop,
+            {},
+            comparison_bases,
+            {},
+            {},
+            0x88U,
+            mode_one_retreat_head_stop_ports
+        );
+    test.expect_true(
+        mode_one_retreat_head_stopped.status ==
+                openswd3::special_modes::LegacySpecialModeModeOneRetreatStatus::
+                    visible_head_advance_stopped &&
+            mode_one_retreat_head_stopped.window_retreated &&
+            mode_one_retreat_head_stop.window_offset == 2 &&
+            mode_one_retreat_head_stop.local_cursor == 0 &&
+            mode_one_retreat_head_stop.visible_head == nullptr &&
+            mode_one_retreat_head_stop_ports.samples.empty() &&
+            mode_one_retreat_head_stop.frame_flags == 0U,
+        "0x44DFF0 preserves the decremented window and null visible head before stopping at the original forward-list read boundary"
+    );
+
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;
     for (std::size_t index = 0U; index < special_action_set.records.size();
          ++index) {
