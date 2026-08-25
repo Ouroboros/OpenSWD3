@@ -2,13 +2,35 @@ include(${PROJECT_SOURCE_DIR}/cmake/OpenSWD3FFmpeg.cmake)
 openswd3_configure_ffmpeg()
 
 add_library(
-    openswd3_media_ffmpeg
-    SHARED
+    openswd3_media_ffmpeg_objects
+    OBJECT
         legacy_ffmpeg_backends.cpp
 )
 target_compile_definitions(
-    openswd3_media_ffmpeg
+    openswd3_media_ffmpeg_objects
     PRIVATE OPENSWD3_MEDIA_FFMPEG_BUILD
+)
+target_include_directories(
+    openswd3_media_ffmpeg_objects
+    PRIVATE ${PROJECT_SOURCE_DIR}/include
+)
+target_link_libraries(
+    openswd3_media_ffmpeg_objects
+    PRIVATE
+        OpenSWD3::FFmpeg
+        SDL3::SDL3
+        openswd3_project_options
+        openswd3_project_warnings
+)
+set_target_properties(
+    openswd3_media_ffmpeg_objects
+    PROPERTIES POSITION_INDEPENDENT_CODE ON
+)
+
+add_library(
+    openswd3_media_ffmpeg
+    SHARED
+        $<TARGET_OBJECTS:openswd3_media_ffmpeg_objects>
 )
 target_include_directories(
     openswd3_media_ffmpeg
@@ -19,21 +41,87 @@ target_include_directories(
 target_link_libraries(
     openswd3_media_ffmpeg
     PRIVATE
-        OpenSWD3::avformat
-        OpenSWD3::avcodec
-        OpenSWD3::avutil
-        OpenSWD3::swresample
-        OpenSWD3::swscale
+        OpenSWD3::FFmpeg
         SDL3::SDL3
-        openswd3_project_options
-        openswd3_project_warnings
 )
 set_target_properties(
     openswd3_media_ffmpeg
     PROPERTIES
         OUTPUT_NAME openswd3_ffmpeg
-        BUILD_RPATH "$ORIGIN;${OPENSWD3_FFMPEG_ROOT}/lib"
+        BUILD_RPATH "$ORIGIN"
         INSTALL_RPATH "$ORIGIN"
+        BUILD_WITH_INSTALL_RPATH TRUE
+)
+if(WIN32)
+    target_link_options(
+        openswd3_media_ffmpeg
+        PRIVATE "LINKER:/OPT:REF" "LINKER:/OPT:ICF" "LINKER:/Brepro"
+    )
+else()
+    target_link_options(
+        openswd3_media_ffmpeg
+        PRIVATE "LINKER:--gc-sections" "LINKER:--exclude-libs,ALL"
+    )
+endif()
+
+get_property(
+    OPENSWD3_FFMPEG_STATIC_ARCHIVES
+    GLOBAL PROPERTY OPENSWD3_FFMPEG_STATIC_ARCHIVES
+)
+if(WIN32)
+    set(_openswd3_ffmpeg_relink_platform windows)
+else()
+    set(_openswd3_ffmpeg_relink_platform linux)
+endif()
+set(
+    _openswd3_ffmpeg_relink_root
+    "${PROJECT_BINARY_DIR}/compliance/$<CONFIG>/openswd3_ffmpeg-${_openswd3_ffmpeg_relink_platform}"
+)
+add_custom_command(
+    TARGET openswd3_media_ffmpeg
+    POST_BUILD
+    COMMAND
+        ${CMAKE_COMMAND} -E rm -rf
+        "${_openswd3_ffmpeg_relink_root}"
+    COMMAND
+        ${CMAKE_COMMAND} -E make_directory
+        "${_openswd3_ffmpeg_relink_root}/source"
+        "${_openswd3_ffmpeg_relink_root}/ffmpeg/lib"
+        "${_openswd3_ffmpeg_relink_root}/objects"
+        "${_openswd3_ffmpeg_relink_root}/third-party"
+    COMMAND
+        ${CMAKE_COMMAND} -E copy_if_different
+        "${PROJECT_SOURCE_DIR}/build/dependencies/ffmpeg/9.0/source/ffmpeg-9.0.tar.xz"
+        "${PROJECT_SOURCE_DIR}/build/dependencies/ffmpeg/9.0/source/ffmpeg-9.0.tar.xz.asc"
+        "${_openswd3_ffmpeg_relink_root}/source"
+    COMMAND
+        ${CMAKE_COMMAND} -E copy_if_different
+        ${OPENSWD3_FFMPEG_STATIC_ARCHIVES}
+        "${_openswd3_ffmpeg_relink_root}/ffmpeg/lib"
+    COMMAND
+        ${CMAKE_COMMAND} -E copy_if_different
+        "${OPENSWD3_FFMPEG_ROOT}/BUILDINFO.txt"
+        "${OPENSWD3_FFMPEG_ROOT}/LICENSE.txt"
+        "${_openswd3_ffmpeg_relink_root}/ffmpeg"
+    COMMAND
+        ${CMAKE_COMMAND} -E copy_if_different
+        $<TARGET_OBJECTS:openswd3_media_ffmpeg_objects>
+        "${_openswd3_ffmpeg_relink_root}/objects"
+    COMMAND
+        ${CMAKE_COMMAND} -E copy_if_different
+        "$<TARGET_LINKER_FILE:SDL3::SDL3>"
+        "${_openswd3_ffmpeg_relink_root}/third-party"
+    COMMAND
+        ${CMAKE_COMMAND} -E copy_if_different
+        "${PROJECT_SOURCE_DIR}/dependencies/ffmpeg/9.0/ffmpeg-devel.asc"
+        "${PROJECT_SOURCE_DIR}/dependencies/ffmpeg/9.0/build-minimal.sh"
+        "${PROJECT_SOURCE_DIR}/dependencies/ffmpeg/9.0/verify-minimal.py"
+        "${PROJECT_SOURCE_DIR}/dependencies/ffmpeg/9.0/relink.py"
+        "${PROJECT_SOURCE_DIR}/dependencies/ffmpeg/9.0/SOURCE.md"
+        "${PROJECT_SOURCE_DIR}/dependencies/ffmpeg/9.0/RELINKING.md"
+        "${_openswd3_ffmpeg_relink_root}"
+    COMMAND_EXPAND_LISTS
+    VERBATIM
 )
 
 add_library(
@@ -147,3 +235,4 @@ add_custom_command(
         "${PROJECT_SOURCE_DIR}/config/openswd3.example.toml"
         "$<TARGET_FILE_DIR:openswd3>/openswd3.example.toml"
 )
+openswd3_remove_split_ffmpeg_runtime_files(openswd3)

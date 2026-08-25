@@ -10,6 +10,7 @@ SIGNATURE="${SOURCE_CACHE}/ffmpeg-9.0.tar.xz.asc"
 KEY_FILE="${SCRIPT_DIR}/ffmpeg-devel.asc"
 WORK_ROOT="${OPENSWD3_FFMPEG_WORK_ROOT:-${TMPDIR:-/tmp}/openswd3-ffmpeg-9.0}"
 SOURCE_DIR="${WORK_ROOT}/source"
+WINDOWS_LLVM_BIN="${OPENSWD3_WINDOWS_LLVM_BIN:-/mnt/d/Dev/Compiler/LLVM/x64/bin}"
 JOBS="${OPENSWD3_FFMPEG_JOBS:-$(nproc)}"
 PLATFORM="${1:-all}"
 
@@ -104,8 +105,8 @@ COMMON_CONFIGURE=(
     --disable-x86asm
     --disable-iconv
     --enable-small
-    --enable-shared
-    --disable-static
+    --disable-shared
+    --enable-static
     --enable-pic
     --enable-avcodec
     --enable-avformat
@@ -117,7 +118,6 @@ COMMON_CONFIGURE=(
     --enable-parser=mpegaudio
     --enable-protocol=file
     --pkg-config=false
-    --extra-cflags=-Os\ -ffunction-sections\ -fdata-sections\ -fno-ident
 )
 
 write_build_info() {
@@ -136,7 +136,7 @@ SOURCE_DATE_EPOCH: ${SOURCE_DATE_EPOCH}
 Platform: ${platform}
 Compiler: ${compiler}
 Linker: ${linker}
-License configuration: LGPL shared; GPL and nonfree components disabled
+License configuration: LGPL static archives for openswd3_ffmpeg; GPL and nonfree components disabled
 Enabled demuxers: bink, mp3
 Enabled decoders: bink, binkaudio_dct, binkaudio_rdft, mp3float
 Enabled parser: mpegaudio
@@ -149,7 +149,6 @@ EOF
 
 build_linux() {
     require_command gcc
-    require_command strip
     local build_dir="${WORK_ROOT}/build-linux-x64"
     local prefix="${CACHE_ROOT}/self-built/linux-x64"
     rm -rf "${build_dir}" "${prefix}"
@@ -158,7 +157,7 @@ build_linux() {
         "${COMMON_CONFIGURE[@]}"
         --prefix=/
         --cc=gcc
-        --extra-ldflags=-Wl,--gc-sections
+        --extra-cflags=-Os\ -ffunction-sections\ -fdata-sections\ -fno-ident
     )
     (
         cd "${build_dir}"
@@ -166,7 +165,6 @@ build_linux() {
         make -j"${JOBS}"
         make DESTDIR="${prefix}" install
     )
-    find "${prefix}/lib" -type f -name '*.so.*' -exec strip --strip-unneeded {} +
     write_build_info \
         "${prefix}" \
         linux-x64 \
@@ -176,37 +174,56 @@ build_linux() {
 }
 
 build_windows() {
-    require_command x86_64-w64-mingw32-gcc-posix
-    require_command x86_64-w64-mingw32-strip
-    local build_dir="${WORK_ROOT}/build-windows-x64"
+    if [[ ! -d "${WINDOWS_LLVM_BIN}" ]]; then
+        printf 'Windows LLVM tool directory is unavailable: %s\n' \
+            "${WINDOWS_LLVM_BIN}" >&2
+        exit 1
+    fi
+
+    local PATH="${WINDOWS_LLVM_BIN}:${PATH}"
+    export PATH
+    require_command clang-cl.exe
+    require_command lld-link.exe
+    require_command llvm-ar.exe
+    require_command llvm-nm.exe
+    require_command llvm-strip.exe
+
+    local work_dir="${CACHE_ROOT}/work-windows-x64"
+    local source_dir="${work_dir}/source"
     local prefix="${CACHE_ROOT}/self-built/windows-x64"
-    rm -rf "${build_dir}" "${prefix}"
-    mkdir -p "${build_dir}" "${prefix}"
+    rm -rf "${work_dir}" "${prefix}"
+    mkdir -p "${source_dir}" "${prefix}"
+    tar --extract --file "${ARCHIVE}" --strip-components=1 \
+        --directory "${source_dir}"
+
     local configure_args=(
         "${COMMON_CONFIGURE[@]}"
         --prefix=/
-        --target-os=mingw32
+        --target-os=win32
         --arch=x86_64
         --enable-cross-compile
-        --cross-prefix=x86_64-w64-mingw32-
-        --cc=x86_64-w64-mingw32-gcc-posix
+        --toolchain=msvc
+        --cc=clang-cl.exe
+        --cxx=clang-cl.exe
+        --ld=lld-link.exe
+        --ar=llvm-ar.exe
+        --nm=llvm-nm.exe
+        --strip=llvm-strip.exe
         --disable-pthreads
         --enable-w32threads
-        --extra-ldflags=-Wl,--gc-sections,--no-insert-timestamp\ -static-libgcc\ -static
+        --extra-cflags=/Brepro\ /Gy\ /Gw
     )
     (
-        cd "${build_dir}"
-        "${SOURCE_DIR}/configure" "${configure_args[@]}"
+        cd "${source_dir}"
+        ./configure "${configure_args[@]}"
         make -j"${JOBS}"
         make DESTDIR="${prefix}" install
     )
-    find "${prefix}/bin" -type f -name '*.dll' \
-        -exec x86_64-w64-mingw32-strip --strip-unneeded {} +
     write_build_info \
         "${prefix}" \
         windows-x64 \
-        "$(x86_64-w64-mingw32-gcc-posix --version | head -n 1)" \
-        "$(x86_64-w64-mingw32-ld --version | head -n 1)" \
+        "$(clang-cl.exe --version | head -n 1)" \
+        "$(lld-link.exe --version | head -n 1)" \
         "${configure_args[*]}"
 }
 
@@ -217,4 +234,4 @@ if [[ "${PLATFORM}" == all || "${PLATFORM}" == windows-x64 ]]; then
     build_windows
 fi
 
-printf 'FFmpeg 9.0 minimal shared build completed: %s\n' "${PLATFORM}"
+printf 'FFmpeg 9.0 minimal static archive build completed: %s\n' "${PLATFORM}"

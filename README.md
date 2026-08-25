@@ -87,14 +87,14 @@ build.bat app
 
 ### FFmpeg 9.0媒体依赖
 
-构建应用前，在Linux或WSL中从官方签名源码生成最小LGPL shared双平台包：
+构建应用前，在Linux或WSL中从官方签名源码生成最小LGPL双平台静态包；五个FFmpeg归档会链接进单一`openswd3_ffmpeg`共享媒体库：
 
 ```console
 ./dependencies/ffmpeg/9.0/build-minimal.sh all
 ./dependencies/ffmpeg/9.0/verify-minimal.py
 ```
 
-脚本需要GCC、GNU Make、GnuPG及`x86_64-w64-mingw32-gcc-posix`交叉工具链。源码锁、精确组件、工具版本、产物布局和离线CMake边界见[`dependencies/ffmpeg/9.0/SOURCE.md`](dependencies/ffmpeg/9.0/SOURCE.md)。
+脚本需要GCC、GNU Make、GnuPG，以及Windows应用同ABI的clang-cl、lld-link和LLVM归档工具。Windows LLVM目录可通过`OPENSWD3_WINDOWS_LLVM_BIN`覆盖。应用构建不会清理输出目录中的`openswd3.toml`；只会移除旧版拆分FFmpeg运行库。源码锁、精确组件、工具版本、静态产物布局、离线CMake边界和LGPL可重链接包见[`dependencies/ffmpeg/9.0/SOURCE.md`](dependencies/ffmpeg/9.0/SOURCE.md)与[`dependencies/ffmpeg/9.0/RELINKING.md`](dependencies/ffmpeg/9.0/RELINKING.md)。
 
 ### Linux + LLVM
 

@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v658
+版本：v660
 
 最后更新：2026-08-25
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：依赖收敛 · 等待用户验收Windows最小FFmpeg应用输出
+当前步骤：模块10 · 提交战斗422项初始workpack并开始逐函数审计
 
 ## 0. 执行约定
 
@@ -82,7 +82,7 @@ python3 /mnt/d/Dev/Source/Project/stockkit/scripts/tg_notify.py "阶段：模块
 - 构建：CMake 命令行，默认 Ninja Multi-Config；不依赖 Visual Studio IDE。
 - 编译器：MSVC 或 LLVM，工程文件不硬编码本机编译器路径。
 - 平台边界：SDL3；业务核心不直接依赖 DirectDraw、DirectInput 或其他旧 Windows 图形输入接口。
-- 音视频解码：最终统一放入项目自有 `libffmpeg` 动态库；主程序只依赖 OpenSWD3 的 stream/video ABI，不直接散布 FFmpeg API。当前阶段保留接口与 TODO，不阻塞其他模块恢复。
+- 音视频解码：统一放入项目自有`openswd3_ffmpeg`动态库；五个FFmpeg n9.0最小LGPL静态归档只在该平台库边界内链接，主程序只依赖OpenSWD3的stream/video ABI，不直接散布FFmpeg API。运行目录不再分发拆分FFmpeg DLL/SO；二进制发行版必须同时提供精确源码、非FFmpeg目标文件和重链接脚本组成的LGPL合规包。
 - 诊断基础设施：在继续扩大业务模块前建立线程安全日志系统；每条日志至少含毫秒时间、级别、源文件与行号、消息，正常落盘，并在日志初始化失败时回退到控制台/调试输出。日志只观测行为，不改变原逻辑时序和返回合同。
 - 文本内核：剧情脚本仍按汇编以原始字节和字节偏移解析，文本载荷在边界按 EXE 同目录 `openswd3.toml` 的 `[scripts].encoding` 解码；`big5` 对应 CP950、`gbk` 对应 CP936，缺省为 `big5`，不自动猜测。解码后的内核公共接口统一使用 `char16_t`/UTF-16，不使用平台宽度不同的 `wchar_t`。
 - 显示尺寸：游戏内分辨率固定为 `640×480`；`[window].width/height` 只记录 SDL3 宿主的普通窗口尺寸，`maximized` 记录最大化状态，内容保持等比缩放，正常退出时保存窗口布局并在下次启动恢复。
@@ -313,7 +313,7 @@ python3 /mnt/d/Dev/Source/Project/stockkit/scripts/tg_notify.py "阶段：模块
 8. `[x]` 日志基础设施：独立实现 UTC 毫秒时间、级别、线程 ID、`file:line`、单行消息、线程安全文件写入、逐条刷新、级别过滤，以及 `stderr`/Windows 调试器失败回退；Windows LLVM `core`/`app` 均通过 31/31 CTest，命令行早退和真实 SDL3 窗口正常关闭 smoke 均产生完整日志。
 9. `[x]` B3：26 项函数全部具有实现映射；两套 RNG、帧时钟、默认绑定、DIK 快照、鼠标合同、整帧 20 条输入记录和 DBCS/IME 编辑驱动均已按完整汇编复核。Windows LLVM `core` 为 39/39、`app` 为 41/41，WSL Linux Clang 22.1.8 为 39/39 CTest；唯一缺口是已登记的原程序动态 oracle，状态为 `module_closed_pending_oracle`。
 10. `[x]` B4：B6 归属复核转入 `0x004350E0` 后，152 项有限收口矩阵现为 95 项实现、16 项内部物理分支、36 项平台替代、2 项当前资产不可达、2 项等待 B10 owner 的战斗 surface 接线和 1 项归属修正；没有 B4 自有缺口。20/16/12 字体 renderer 已接入启动、显示停用/恢复和总退出，Linux `core` 64/64、Windows LLVM `app` 66/66 CTest 通过。原程序 framebuffer/RECT 动态差分仍为已登记的 `blocked_runtime_oracle`，状态为 `module_closed_pending_oracle`。
-11. `[x]` B5：73个自有地址及全部核心状态机已关闭；官方签名FFmpeg n9.0源码由项目脚本构建为最小LGPL shared双平台包，并通过项目自有共享库接入BGM/MP3与BIK/OP。Linux五库1.75 MiB，Windows五DLL 3.03 MiB且无额外MinGW运行时依赖，双clean build哈希一致；真实`Map_Ca12`与`Map_Eu08`循环、短Bink和完整opening解码通过。Linux core188/188、Linux app194/194及删除旧缓存后的Windows LLVM app194/194均通过，Windows应用输出五DLL与自建包逐文件SHA256一致；原版Miles/Bink动态差分保留`blocked_runtime_oracle`，状态为`module_closed_pending_oracle`。
+11. `[x]` B5：73个自有地址及全部核心状态机已关闭；官方签名FFmpeg n9.0源码由项目脚本构建为最小LGPL双平台静态包，五个归档通过项目自有共享媒体库接入BGM/MP3与BIK/OP。Linux五归档3.57 MiB，Windows五个clang-cl/MSVC ABI归档4.36 MiB，双clean构建的十个归档哈希一致；运行目录不再复制拆分FFmpeg库，Windows媒体DLL为1.22 MiB且无FFmpeg或MinGW运行时依赖。真实`Map_Ca12`与`Map_Eu08`循环、短Bink和完整opening解码通过；Linux core188/188、Linux app194/194及Windows LLVM app194/194均通过。两平台LGPL合规包均实际重新链接成功；Windows构建未删除输出目录，实机退出只重排TOML段落且配置语义不变；原版Miles/Bink动态差分保留`blocked_runtime_oracle`，状态为`module_closed_pending_oracle`。
 12. `[x]` B6：78 个候选函数、TSW/ACT/ANI 运行时、公共动作记录、缓存状态、SND
     借用边界、生命周期和验证入口已形成唯一工作包，单模块开始条件满足；首个缓存容量
     策略单元已按 `0x00424330/0x004315C0/0x00432010` 实现；TSW 物理读取、六包
@@ -3845,6 +3845,6 @@ B7 P0 有限收口完成。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9的227个逐函数LST工作包已全部关闭；Linux core/app与定向ASan通过。模块9关闭当时按阶段约束未运行Windows BUILD；后续自建FFmpeg阶段从空`build/app`执行的Windows LLVM app完整门覆盖当前HEAD并通过`194/194`。
 
-- 自建FFmpeg n9.0最小LGPL shared双平台依赖完成。官方源码URL、`12032020`字节、SHA256、release签名指纹、`SOURCE_DATE_EPOCH`、configure白名单和GCC/MinGW工具链版本均已锁定；Linux与Windows x64五个共享运行库、完整头文件、COFF/GNU import library及`.def`均由项目脚本生成。Windows五DLL从`94.76 MiB`降至`3.03 MiB`，只依赖系统DLL和包内FFmpeg DLL；连续两次clean build的20个共享库及导入库哈希一致。自建包下真实`Map_Ca12`与`Map_Eu08`均在EOF后重开，`firegod.bik`176帧和`opening.bik`7,369帧解码到明确EOF；Linux core`188/188`与app`194/194`通过。删除旧Windows应用缓存后直接执行`cmd.exe /c build.bat app`，CMake缓存指向`self-built/windows-x64`，`Debug`目录五DLL与自建包逐文件SHA256一致且无旧完整包残留，Windows LLVM app`194/194`通过。首轮干净门暴露的测试聚合进程默认栈溢出由WER dump确认，仅对该测试PE保留16 MiB栈后通过；生产应用和库未改变栈设置。
+- 自建FFmpeg n9.0最小LGPL双平台静态依赖完成。官方源码URL、`12032020`字节、SHA256、release签名指纹、`SOURCE_DATE_EPOCH`、configure白名单及GCC与clang-cl/MSVC ABI工具链版本均已锁定；Linux与Windows x64各五个静态归档、完整头文件、构建说明和LGPL文本均由项目脚本生成。连续两次clean构建的十个归档哈希一致。五个归档只链接进单一`openswd3_ffmpeg`媒体库：Windows Debug媒体DLL为`1.22 MiB`，相对原`94.76 MiB`五DLL基线减少`98.71%`，运行目录不再含拆分FFmpeg DLL或MinGW运行时；Linux媒体SO为`2.37 MiB`且不依赖拆分FFmpeg SO。自建包下真实`Map_Ca12`与`Map_Eu08`均在EOF后重开，`firegod.bik`176帧和`opening.bik`7,369帧解码到明确EOF；Linux core`188/188`、Linux app`194/194`及Windows LLVM app`194/194`通过。两个平台均在运行目录外生成包含精确源码、静态归档、媒体对象、SDL3链接库和重链接脚本的LGPL合规包，且实际重链接出替代媒体库成功。Windows应用构建直接复用现有`build/app`，只精确清理旧五DLL文件名；首次构建前后用户`openswd3.toml`哈希一致，用户实机正常退出后仅调整段落顺序，所有配置值语义相等，后续构建未再修改文件时间。测试聚合进程继续单独保留16 MiB栈，生产应用与库未调整栈设置。用户已实机确认单一静态归并媒体库输出“正常了”。
 
-暂停边界：等待用户验收Windows最小FFmpeg应用输出。仅在用户确认后进入模块10战斗状态机、AI与数值系统工作包。
+依赖收敛暂停边界已解除。恢复模块10战斗状态机、AI与数值系统工作包。

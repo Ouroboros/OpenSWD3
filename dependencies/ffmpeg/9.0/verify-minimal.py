@@ -2,10 +2,8 @@
 from __future__ import annotations
 
 import argparse
-import ctypes
 import hashlib
 import json
-import os
 from pathlib import Path
 import re
 import subprocess
@@ -14,13 +12,7 @@ import sys
 SOURCE_BYTES = 12_032_020
 SOURCE_SHA256 = "7f607a00dd0d28a729d5a4811205812eef01cf6ef6155025febb6f36a9062d52"
 WINDOWS_BASELINE_BYTES = 99_364_864
-COMPONENTS = {
-    "avformat": ("63", "63.1.100"),
-    "avcodec": ("63", "63.1.100"),
-    "avutil": ("61", "61.1.100"),
-    "swresample": ("7", "7.1.100"),
-    "swscale": ("10", "10.1.100"),
-}
+COMPONENTS = ("avformat", "avcodec", "avutil", "swresample", "swscale")
 EXPECTED_CONFIGURE = {
     "--disable-everything",
     "--disable-autodetect",
@@ -29,14 +21,26 @@ EXPECTED_CONFIGURE = {
     "--disable-avdevice",
     "--disable-avfilter",
     "--enable-small",
-    "--enable-shared",
-    "--disable-static",
+    "--disable-shared",
+    "--enable-static",
     "--enable-demuxer='bink,mp3'",
     "--enable-decoder='bink,binkaudio_dct,binkaudio_rdft,mp3float'",
     "--enable-parser=mpegaudio",
     "--enable-protocol=file",
 }
-FORBIDDEN_CONFIGURE = {"--enable-gpl", "--enable-version3", "--enable-nonfree"}
+FORBIDDEN_CONFIGURE = {
+    "--enable-shared",
+    "--disable-static",
+    "--enable-gpl",
+    "--enable-version3",
+    "--enable-nonfree",
+}
+SPLIT_RUNTIME_PATTERNS = (
+    "*.dll",
+    "*.dll.a",
+    "*.so",
+    "*.so.*",
+)
 
 
 def sha256(path: Path) -> str:
@@ -52,46 +56,94 @@ def require_file(path: Path) -> None:
         raise RuntimeError(f"required file is unavailable: {path}")
 
 
-def needed_libraries(command: list[str], pattern: str) -> list[str]:
-    output = subprocess.check_output(command, text=True)
-    return sorted(set(re.findall(pattern, output)))
+def command_output(command: list[str]) -> str:
+    return subprocess.check_output(command, text=True, errors="replace")
 
 
-def windows_configuration(root: Path) -> str:
-    output = subprocess.check_output(
-        ["x86_64-w64-mingw32-strings", str(root / "bin/avcodec-63.dll")],
-        text=True,
-    ).splitlines()
+def archive_members(path: Path) -> list[str]:
+    members = [line for line in command_output(["ar", "t", str(path)]).splitlines() if line]
+    if not members:
+        raise RuntimeError(f"static archive is empty: {path}")
+    return members
+
+
+def archive_strings(path: Path) -> list[str]:
+    return command_output(["strings", str(path)]).splitlines()
+
+
+def archive_configuration(path: Path) -> str:
     configuration = next(
-        (line for line in output if line.startswith("--disable-everything ")),
+        (line for line in archive_strings(path) if line.startswith("--disable-everything ")),
         "",
     )
     if not configuration:
-        raise RuntimeError("Windows FFmpeg configuration string is unavailable")
+        raise RuntimeError(f"FFmpeg configuration string is unavailable: {path}")
     return configuration
 
 
-def linux_configuration(root: Path) -> tuple[str, str]:
-    code = """
-import ctypes
-codec = ctypes.CDLL('libavcodec.so.63')
-codec.avcodec_configuration.restype = ctypes.c_char_p
-util = ctypes.CDLL('libavutil.so.61')
-util.av_version_info.restype = ctypes.c_char_p
-print(util.av_version_info().decode())
-print(codec.avcodec_configuration().decode())
-"""
-    environment = dict(os.environ)
-    environment["LD_LIBRARY_PATH"] = str(root / "lib")
-    output = subprocess.check_output(
-        [sys.executable, "-c", code], text=True, env=environment
-    ).splitlines()
-    if len(output) != 2:
-        raise RuntimeError("unexpected FFmpeg version/configuration output")
-    return output[0], output[1]
+def archive_version(path: Path) -> str:
+    version_line = next(
+        (line for line in archive_strings(path) if line.startswith("FFmpeg version ")),
+        "",
+    )
+    if not version_line:
+        raise RuntimeError(f"FFmpeg version string is unavailable: {path}")
+    return version_line.removeprefix("FFmpeg version ")
 
 
-def verify(project_root: Path) -> dict[str, object]:
+def verify_configuration(configuration: str, platform: str) -> None:
+    missing = sorted(option for option in EXPECTED_CONFIGURE if option not in configuration)
+    if missing:
+        raise RuntimeError(f"missing {platform} configure options: {missing}")
+    forbidden = sorted(option for option in FORBIDDEN_CONFIGURE if option in configuration)
+    if forbidden:
+        raise RuntimeError(f"forbidden {platform} configure options: {forbidden}")
+
+
+def needed_libraries(command: list[str], pattern: str) -> list[str]:
+    return sorted(set(re.findall(pattern, command_output(command))))
+
+
+def verify_wrapper(path: Path, platform: str) -> dict[str, object]:
+    require_file(path)
+    if platform == "linux":
+        needed = needed_libraries(
+            ["readelf", "-d", str(path)], r"Shared library: \[([^]]+)\]"
+        )
+    else:
+        needed = needed_libraries(
+            ["x86_64-w64-mingw32-objdump", "-p", str(path)],
+            r"DLL Name: ([^\r\n]+)",
+        )
+    split_dependencies = [
+        library
+        for library in needed
+        if re.match(r"(?:lib)?(?:avformat|avcodec|avutil|swresample|swscale)", library)
+    ]
+    if split_dependencies:
+        raise RuntimeError(
+            f"{platform} wrapper still depends on split FFmpeg runtimes: "
+            f"{split_dependencies}"
+        )
+    if platform == "windows":
+        forbidden_runtime = [
+            library
+            for library in needed
+            if library.lower().startswith(("libgcc", "libatomic", "libwinpthread"))
+        ]
+        if forbidden_runtime:
+            raise RuntimeError(
+                f"Windows wrapper depends on extra compiler runtimes: {forbidden_runtime}"
+            )
+    return {
+        "path": str(path),
+        "bytes": path.stat().st_size,
+        "sha256": sha256(path),
+        "needed": needed,
+    }
+
+
+def verify(project_root: Path, linux_wrapper: Path | None, windows_wrapper: Path | None) -> dict[str, object]:
     cache_root = project_root / "build/dependencies/ffmpeg/9.0"
     archive = cache_root / "source/ffmpeg-9.0.tar.xz"
     require_file(archive)
@@ -110,140 +162,103 @@ def verify(project_root: Path) -> dict[str, object]:
         require_file(root / "include/libavutil/avutil.h")
         require_file(root / "include/libswresample/swresample.h")
         require_file(root / "include/libswscale/swscale.h")
-
-    linux_runtime: list[Path] = []
-    windows_runtime: list[Path] = []
-    windows_imports: list[Path] = []
-    linux_needed: dict[str, list[str]] = {}
-    windows_needed: dict[str, list[str]] = {}
-    for component, (major, full_version) in COMPONENTS.items():
-        linux_library = linux_root / f"lib/lib{component}.so.{full_version}"
-        linux_link = linux_root / f"lib/lib{component}.so.{major}"
-        windows_library = windows_root / f"bin/{component}-{major}.dll"
-        msvc_import = windows_root / f"bin/{component}.lib"
-        mingw_import = windows_root / f"lib/lib{component}.dll.a"
-        definition = windows_root / f"lib/{component}-{major}.def"
-        for path in (
-            linux_library,
-            linux_link,
-            windows_library,
-            msvc_import,
-            mingw_import,
-            definition,
-        ):
-            require_file(path)
-        linux_runtime.append(linux_library)
-        windows_runtime.append(windows_library)
-        windows_imports.extend((msvc_import, mingw_import, definition))
-        linux_needed[component] = needed_libraries(
-            ["readelf", "-d", str(linux_library)], r"Shared library: \[([^]]+)\]"
+        split_runtimes = sorted(
+            str(path.relative_to(root))
+            for pattern in SPLIT_RUNTIME_PATTERNS
+            for path in root.rglob(pattern)
         )
-        windows_needed[component] = needed_libraries(
-            ["x86_64-w64-mingw32-objdump", "-p", str(windows_library)],
-            r"DLL Name: ([^\r\n]+)",
-        )
+        if split_runtimes:
+            raise RuntimeError(f"split FFmpeg runtime remains in {root}: {split_runtimes}")
 
-    linux_allowed = {
-        "libavcodec.so.63",
-        "libavutil.so.61",
-        "libc.so.6",
-        "libm.so.6",
-    }
-    windows_allowed = {
-        "KERNEL32.dll",
-        "bcrypt.dll",
-        "msvcrt.dll",
-        "avcodec-63.dll",
-        "avutil-61.dll",
-    }
-    unexpected_linux: dict[str, list[str]] = {}
-    for component, libraries in linux_needed.items():
-        unexpected = sorted(set(libraries) - linux_allowed)
-        if unexpected:
-            unexpected_linux[component] = unexpected
-    unexpected_windows: dict[str, list[str]] = {}
-    for component, libraries in windows_needed.items():
-        unexpected = sorted(set(libraries) - windows_allowed)
-        if unexpected:
-            unexpected_windows[component] = unexpected
-    if unexpected_linux:
-        raise RuntimeError(f"unexpected Linux runtime dependencies: {unexpected_linux}")
-    if unexpected_windows:
-        raise RuntimeError(f"unexpected Windows runtime dependencies: {unexpected_windows}")
+    linux_archives = [linux_root / f"lib/lib{component}.a" for component in COMPONENTS]
+    windows_archives = [windows_root / f"lib/{component}.lib" for component in COMPONENTS]
+    archive_member_counts: dict[str, dict[str, int]] = {"linux": {}, "windows": {}}
+    for path in linux_archives:
+        require_file(path)
+        archive_member_counts["linux"][path.name] = len(archive_members(path))
+    for path in windows_archives:
+        require_file(path)
+        archive_member_counts["windows"][path.name] = len(archive_members(path))
+
+    linux_configuration = archive_configuration(linux_root / "lib/libavcodec.a")
+    windows_configuration = archive_configuration(windows_root / "lib/avcodec.lib")
+    verify_configuration(linux_configuration, "Linux")
+    verify_configuration(windows_configuration, "Windows")
+
+    linux_version = archive_version(linux_root / "lib/libavutil.a")
+    windows_version = archive_version(windows_root / "lib/avutil.lib")
+    if not linux_version.startswith("9.0") or not windows_version.startswith("9.0"):
+        raise RuntimeError(
+            f"unexpected FFmpeg versions: Linux={linux_version}, Windows={windows_version}"
+        )
 
     windows_build_info = (windows_root / "BUILDINFO.txt").read_text(encoding="utf-8")
-    windows_configure = windows_configuration(windows_root)
-    for option in ("--disable-pthreads", "--enable-w32threads", "-static-libgcc"):
-        if option not in windows_build_info or option not in windows_configure:
+    for option in (
+        "--enable-cross-compile",
+        "--toolchain=msvc",
+        "--cc=clang-cl.exe",
+        "--ar=llvm-ar.exe",
+        "--disable-pthreads",
+        "--enable-w32threads",
+        "/Brepro",
+    ):
+        if option not in windows_build_info or option not in windows_configuration:
             raise RuntimeError(f"missing Windows build option: {option}")
-    windows_missing_options = sorted(
-        option for option in EXPECTED_CONFIGURE if option not in windows_configure
-    )
-    if windows_missing_options:
-        raise RuntimeError(
-            f"missing Windows configure options: {windows_missing_options}"
-        )
-    windows_forbidden_options = sorted(
-        option for option in FORBIDDEN_CONFIGURE if option in windows_configure
-    )
-    if windows_forbidden_options:
-        raise RuntimeError(
-            f"forbidden Windows configure options: {windows_forbidden_options}"
-        )
 
-    version, configuration = linux_configuration(linux_root)
-    if not version.startswith("9.0"):
-        raise RuntimeError(f"unexpected linked FFmpeg version: {version}")
-    missing_options = sorted(
-        option for option in EXPECTED_CONFIGURE if option not in configuration
-    )
-    if missing_options:
-        raise RuntimeError(f"missing configure options: {missing_options}")
-    forbidden_options = sorted(
-        option for option in FORBIDDEN_CONFIGURE if option in configuration
-    )
-    if forbidden_options:
-        raise RuntimeError(f"forbidden configure options: {forbidden_options}")
-
-    linux_bytes = sum(path.stat().st_size for path in linux_runtime)
-    windows_bytes = sum(path.stat().st_size for path in windows_runtime)
-    reduction = (WINDOWS_BASELINE_BYTES - windows_bytes) * 100.0 / WINDOWS_BASELINE_BYTES
-    return {
-        "source": {
-            "bytes": SOURCE_BYTES,
-            "sha256": SOURCE_SHA256,
-        },
-        "version": version,
-        "configuration": configuration,
+    linux_bytes = sum(path.stat().st_size for path in linux_archives)
+    windows_bytes = sum(path.stat().st_size for path in windows_archives)
+    report: dict[str, object] = {
+        "source": {"bytes": SOURCE_BYTES, "sha256": SOURCE_SHA256},
+        "version": linux_version,
+        "configuration": linux_configuration,
         "linux": {
-            "runtime_bytes": linux_bytes,
-            "runtime_mib": round(linux_bytes / (1024 * 1024), 2),
-            "sha256": {path.name: sha256(path) for path in linux_runtime},
-            "needed": linux_needed,
+            "archive_bytes": linux_bytes,
+            "archive_mib": round(linux_bytes / (1024 * 1024), 2),
+            "sha256": {path.name: sha256(path) for path in linux_archives},
+            "member_counts": archive_member_counts["linux"],
         },
         "windows": {
-            "runtime_bytes": windows_bytes,
-            "runtime_mib": round(windows_bytes / (1024 * 1024), 2),
+            "archive_bytes": windows_bytes,
+            "archive_mib": round(windows_bytes / (1024 * 1024), 2),
             "baseline_bytes": WINDOWS_BASELINE_BYTES,
-            "reduction_percent": round(reduction, 2),
-            "configuration": windows_configure,
-            "sha256": {path.name: sha256(path) for path in windows_runtime},
-            "import_files": [str(path.relative_to(windows_root)) for path in windows_imports],
-            "needed": windows_needed,
+            "configuration": windows_configuration,
+            "sha256": {path.name: sha256(path) for path in windows_archives},
+            "member_counts": archive_member_counts["windows"],
         },
     }
+    if linux_wrapper is not None:
+        report["linux"]["wrapper"] = verify_wrapper(linux_wrapper, "linux")  # type: ignore[index]
+    if windows_wrapper is not None:
+        wrapper_report = verify_wrapper(windows_wrapper, "windows")
+        wrapper_report["reduction_percent"] = round(
+            (WINDOWS_BASELINE_BYTES - int(wrapper_report["bytes"]))
+            * 100.0
+            / WINDOWS_BASELINE_BYTES,
+            2,
+        )
+        report["windows"]["wrapper"] = wrapper_report  # type: ignore[index]
+    return report
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--project-root",
-        type=Path,
-        default=Path(__file__).resolve().parents[3],
+        "--project-root", type=Path, default=Path(__file__).resolve().parents[3]
     )
+    parser.add_argument("--linux-wrapper", type=Path)
+    parser.add_argument("--windows-wrapper", type=Path)
     parser.add_argument("--output", type=Path)
     arguments = parser.parse_args()
-    report = verify(arguments.project_root.resolve())
+    project_root = arguments.project_root.resolve()
+    linux_wrapper = (
+        arguments.linux_wrapper.resolve() if arguments.linux_wrapper is not None else None
+    )
+    windows_wrapper = (
+        arguments.windows_wrapper.resolve()
+        if arguments.windows_wrapper is not None
+        else None
+    )
+    report = verify(project_root, linux_wrapper, windows_wrapper)
     text = json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     if arguments.output is not None:
         arguments.output.parent.mkdir(parents=True, exist_ok=True)

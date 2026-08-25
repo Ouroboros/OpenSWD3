@@ -3343,6 +3343,9 @@ if(TARGET SDL3::SDL3)
             "${OPENSWD3_FFMPEG_LICENSE_FILE}"
             "$<TARGET_FILE_DIR:openswd3_platform_legacy_sample_backend_sdl3_tests>"
     )
+    openswd3_remove_split_ffmpeg_runtime_files(
+        openswd3_platform_legacy_sample_backend_sdl3_tests
+    )
 
     add_test(
         NAME platform.legacy_sample_backend_sdl3

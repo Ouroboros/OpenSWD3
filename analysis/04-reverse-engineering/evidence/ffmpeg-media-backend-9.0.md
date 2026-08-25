@@ -15,19 +15,19 @@
 
 ## 依赖锁与许可
 
-后端使用`dependencies/ffmpeg/9.0/SOURCE.md`记录的官方签名`ffmpeg-9.0.tar.xz`，由项目脚本构建Windows x64和Linux x64最小LGPL shared包。源码字节数、SHA256、release签名密钥完整指纹、configure白名单、`SOURCE_DATE_EPOCH`和双平台工具链版本均已锁定。
+后端使用`dependencies/ffmpeg/9.0/SOURCE.md`记录的官方签名`ffmpeg-9.0.tar.xz`，由项目脚本构建Windows x64和Linux x64最小LGPL静态包。源码字节数、SHA256、release签名密钥完整指纹、configure白名单、`SOURCE_DATE_EPOCH`和双平台工具链版本均已锁定。Windows归档使用与应用一致的clang-cl/MSVC ABI，不再跨ABI链接MinGW归档。
 
 CMake行为：
 
 - 不联网，按平台选择`self-built/windows-x64`或`self-built/linux-x64`。
 - 接受显式`OPENSWD3_FFMPEG_ROOT`覆盖。
-- 校验本地头文件、导入库和运行库。
-- 导入`avformat`、`avcodec`、`avutil`、`swresample`和`swscale`。
-- 构建项目自有`openswd3_ffmpeg`共享库。
+- 校验本地头文件和五个静态归档，拒绝拆分FFmpeg运行库布局。
+- 把`avformat`、`avcodec`、`avutil`、`swresample`和`swscale`静态链接进项目自有`openswd3_ffmpeg`共享库。
 - 构建单一共享SDL3 fallback，使应用和媒体库使用同一SDL设备与运行时状态。
-- 将项目媒体库、SDL3、五个FFmpeg运行库及上游`LICENSE.txt`复制到应用和真实媒体测试可执行文件旁。
+- 应用和真实媒体测试目录只复制项目媒体库、SDL3及上游`LICENSE.txt`；构建后精确清理旧五个FFmpeg运行库文件名，不删除输出目录或用户TOML。
+- 在独立`compliance`目录生成精确源码、静态归档、媒体对象、SDL3链接库和重链接脚本，不增加游戏运行目录文件。
 
-Linux共享库RUNPATH优先使用`$ORIGIN`。Windows五个DLL使用Win32线程并静态收进GCC/MinGW运行时，只依赖系统DLL和包内FFmpeg DLL；同时提供LLVM可读取的COFF `.lib`、GNU `.dll.a`和`.def`，无需系统FFmpeg或其他MinGW运行时。
+Linux媒体库RUNPATH固定为`$ORIGIN`。Windows媒体DLL使用Win32线程和clang-cl/MSVC ABI，只依赖SDL3、系统库和当前配置对应的MSVC运行库；Linux与Windows媒体库均不再依赖拆分FFmpeg运行库或额外MinGW运行时。
 
 ## 音频流后端
 
@@ -85,18 +85,19 @@ SDL主运行时不再实例化不可用的stream backend或立即完成型video 
 ## 验证
 
 - 链接的运行时版本为`9.0`系列。
-- 机械验收直接读取Linux与Windows二进制内嵌configure字符串，确认仅启用Bink/MP3解复用、Bink视频、两种Bink音频、MP3 float解码、mpegaudio parser、file协议、swresample和swscale；GPL、version3、nonfree、网络、程序、设备和滤镜均未启用。
-- Linux五库为`1838408`字节（`1.75 MiB`）；Windows五DLL为`3177472`字节（`3.03 MiB`），相对原`94.76 MiB`基线减少`96.80%`。
-- 连续两次clean双平台构建的20个共享库和导入库SHA256逐文件一致。
+- 机械验收直接读取Linux与Windows静态归档内嵌configure字符串，确认只启用Bink/MP3解复用、Bink视频、两种Bink音频、MP3 float解码、mpegaudio parser、file协议、swresample和swscale；GPL、version3、nonfree、网络、程序、设备和滤镜均未启用。
+- Linux五个静态归档为`3743892`字节（`3.57 MiB`），Windows五个MSVC ABI静态归档为`4570902`字节（`4.36 MiB`）；归档只作为链接输入，不进入运行目录。
+- Windows Debug媒体DLL为`1278464`字节（`1.22 MiB`），相对原`94.76 MiB`五DLL基线减少`98.71%`；Linux Debug媒体SO为`2485968`字节（`2.37 MiB`）。
+- 连续两次clean双平台静态构建的十个归档SHA256逐文件一致。
 - 自建最小包的Linux真实SDL媒体测试通过：真实MAPS map214经世界音乐状态机启动`Music\\Map_Ca12.mp3`的stream100；普通组`0x00080000`和场景组`0x00020000`均在真实MP3 EOF后重开stream100；真实`Map_Eu08.mp3`播放到EOF后同样重开；`firegod.bik`完整176帧和`opening.bik`完整7,369帧均解码到EOF。
 - Player fake backend测试证明：解码EOF不会复制或呈现黑帧；解码失败会关闭句柄。
 - 帧运行时测试证明：剧情VM写入的视频活动位会保留在发布给idle分派的已接受帧状态中。
 - 自建依赖接入后，Linux core无SDL/无FFmpeg配置保持独立并通过`188/188`。
 - 自建依赖及`Map_Eu08`循环补证接入后，Linux app完整门通过`194/194`。
-- 删除旧`build/app`后直接执行`cmd.exe /c build.bat app`，新CMake缓存明确指向`self-built/windows-x64`；Windows LLVM app完整门通过`194/194`。
-- Windows应用`Debug`输出目录中的五个FFmpeg DLL与自建包逐文件SHA256一致，总计`3177472`字节；目录中不存在旧完整包残留或额外MinGW运行时DLL。首轮干净门暴露聚合测试默认1 MiB栈溢出，WER dump确认`0xC00000FD`与测试局部夹具，测试专用PE栈保留调整为16 MiB后单测和完整门均通过，生产应用与库未调整栈设置。
+- 不删除`build/app`，直接执行`cmd.exe /c build.bat app`后，Windows LLVM app完整门通过`194/194`；首次构建前后用户`openswd3.toml`的SHA256完全一致。用户实机正常退出后只调整TOML段落顺序，全部配置值语义相等；后续Windows构建未再修改该文件时间。
+- Windows应用`Debug`输出目录不再包含五个FFmpeg DLL，只保留单一`openswd3_ffmpeg.dll`和SDL3媒体运行依赖；媒体DLL不依赖拆分FFmpeg DLL或额外MinGW运行时。测试聚合进程继续单独保留16 MiB栈，生产应用与库未调整栈设置。
 - 场景音乐循环掩码及SDL音频输入flush修复后，Windows LLVM app完整门分别通过`192/192`。
 - Windows真实设备日志中，`Map_Eu08.mp3`分别于`21:58:29.021`、`21:59:11.621`和`21:59:54.226`报告启动，相邻重开间隔为42.600秒与42.605秒；与该MP3约42.53秒的解码时长一致，证明EOF后连续循环已实际生效。
-- Linux ELF依赖从应用输出目录复制的文件中解析全部五个FFmpeg库，不存在缺失的FFmpeg依赖。
-- Linux和Windows应用/测试输出目录均包含`openswd3_ffmpeg`、共享SDL3运行库、五个FFmpeg运行库及`LICENSE.txt`。
-- ELF和PE依赖检查证明应用与`openswd3_ffmpeg`解析到同一个共享SDL3运行时实例。
+- ELF和PE依赖检查证明两个平台的`openswd3_ffmpeg`都不再引用拆分FFmpeg运行库，并与应用解析到同一个共享SDL3运行时实例。
+- Linux和Windows应用/测试输出目录均包含`openswd3_ffmpeg`、共享SDL3运行库及`LICENSE.txt`，不再复制五个FFmpeg运行库。
+- 两个平台都生成运行目录之外的LGPL合规包；使用包内媒体对象、SDL3链接库和五个静态归档实际重新链接出替代`openswd3_ffmpeg`成功，证明最终用户可用修改后的FFmpeg重链接。
