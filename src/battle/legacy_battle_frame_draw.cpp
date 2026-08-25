@@ -84,6 +84,80 @@ LegacyBattleFrameDrawResult draw_legacy_battle_frame_zero(
     return result;
 }
 
+LegacyBattleCachedFrameDrawResult draw_legacy_battle_selected_or_cached_frame(
+    LegacyBattleCachedFrameDrawState& state,
+    rendering::LegacyFramebuffer& framebuffer,
+    const rendering::LegacyBlitClipRectangle& clip,
+    rendering::LegacyBlitRequest& shared_request,
+    rendering::LegacyBlitEffectState& shared_effects,
+    rendering::LegacyRleRowJitterState& jitter,
+    rendering::LegacyFramePieceProvider& frame_provider,
+    const compat::u32 selector,
+    const compat::u32 frame_index,
+    const compat::i32 x,
+    const compat::i32 y,
+    const compat::u32 post_blit_eax_snapshot
+) noexcept {
+    LegacyBattleCachedFrameDrawResult result;
+    if (selector == 0U || selector == 1U) {
+        const compat::u32 resource_id = selector == 0U ? 0x2359U : 0x2358U;
+        rendering::LegacyFramePiece piece{};
+        const bool available =
+            frame_provider.load_frame_piece(resource_id, frame_index, piece);
+        result.frame_load_calls = 1U;
+        result.selected_resource_id = resource_id;
+        result.selected_frame_index = frame_index;
+        state.frame_record_published = true;
+        state.frame_record_available = available;
+        state.cached_resource_id = resource_id;
+        state.cached_frame_index = frame_index;
+        if (!available) {
+            state.current_frame = {};
+            result.status =
+                LegacyBattleCachedFrameDrawStatus::frame_unavailable;
+            return result;
+        }
+        state.current_frame = piece;
+        state.current_source = piece.source;
+        state.source_published = true;
+    } else {
+        result.selected_resource_id = state.cached_resource_id;
+        result.selected_frame_index = state.cached_frame_index;
+        result.request_flags = state.shared_mode_word == 0x4000U ? 0x20U : 0U;
+        if (!state.frame_record_available) {
+            result.status =
+                LegacyBattleCachedFrameDrawStatus::frame_unavailable;
+            return result;
+        }
+    }
+
+    result.request_flags = state.shared_mode_word == 0x4000U ? 0x20U : 0U;
+    rendering::LegacyBlitSource call_source = state.current_source;
+    call_source.palette = {};
+    rendering::LegacyBlitRequest request = shared_request;
+    request.destination_x = x;
+    request.destination_y = y;
+    request.source_width = static_cast<compat::i32>(state.current_frame.width);
+    request.source_height =
+        static_cast<compat::i32>(state.current_frame.height);
+    request.flags = result.request_flags;
+    request.auxiliary = {};
+    const rendering::LegacyBlitResult blit = rendering::blit_legacy_copy_paths(
+        framebuffer, clip, call_source, request, shared_effects, jitter
+    );
+    result.frame_draw_calls = 1U;
+    result.blit_status = blit.status;
+    if (!accepted_blit_status(blit.status)) {
+        result.status = LegacyBattleCachedFrameDrawStatus::blit_typed_stop;
+        return result;
+    }
+
+    publish_blitter_normal_epilogue(shared_request, shared_effects);
+    result.return_value = (post_blit_eax_snapshot & 0xFFFF0000U) |
+        static_cast<compat::u32>(state.current_frame.width);
+    return result;
+}
+
 LegacyBattleDecimalPlaceResult draw_legacy_battle_decimal_place(
     LegacyBattleTenPlaceDecimalState& state,
     rendering::LegacyFramebuffer& framebuffer,

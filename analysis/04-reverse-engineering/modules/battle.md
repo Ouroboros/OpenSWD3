@@ -51,10 +51,10 @@ code_origin == game
 - 尾地址：`0x00484500`；
 - `confirmed_boundary`：`61`；
 - `medium`导航候选：`361`；
-- `pending_audit`：`389`；
+- `pending_audit`：`388`；
 - `assembly_exact`：`5`；
-- `platform_adapted`：`28`；
-- 已关闭：`33`。
+- `platform_adapted`：`29`；
+- 已关闭：`34`。
 
 六个稳定导航分组为：
 
@@ -275,8 +275,10 @@ I5最终必须锁定：
 
 `audit_order=33`的`0x00450B60`已关闭为`platform_adapted`。它只覆盖独立持久动作记录的动作号与base variant 0，更新失败保留前缀。成功后帧号继承更新后ECX高字、资源号继承EDX高字；帧可用时只发布source，以记录flags、记录宽高、入口坐标和固定空tail绘制。正常公共后缀照常执行，indexed帧在palette读取点typed-stop。
 
+`audit_order=34`的`0x00450BD0`已关闭为`platform_adapted`。selector完整值0和1分别查询固定资源2359和2358，其他值忽略帧参数并复用缓存frame与旧共享source；查询失败先发布空frame record，旧source不变。独立共享word精确等于4000时选择flags 20，所有路径固定空tail。正常blitter公共后缀后只覆写EAX低16位为帧宽，高16位保留显式post-blit snapshot；indexed帧在palette读取点typed-stop并阻断宽度后缀。
+
 `audit_order=14`的`0x00434790`已关闭为`platform_adapted`。它只在首次调用以显式time seed CRT、发布三项共享值并扫描源图，随后直接组合已关闭粒子生成、线段推进与单像素颜色合成；剩余批次回放保留镜像检查X、源索引和实际写入X错位，粒子2×2绘制保留只跳第一透明色、只检查右像素及合成模式右上先合成后被原值覆盖。生命刷新、距离与目标矩形摘除、唯一/首/尾/中间四类双向链释放及其计数不对称均已闭环。三个上层caller都显式消费返回1作为阶段完成信号，尚待各自进入现代实现。
 
-下一项回收`audit_order=34`的`0x00450BD0`战斗资源选择与缓存帧复用绘制，继续完整审计selector资源分支、缓存帧record、共享模式、固定空tail及宽度返回。
+下一项回收`audit_order=35`的`0x00450C50`战斗复合面板绘制，继续完整审计六个入口参数、资源准备、四组帧查询、共享比例算术、多轮软件绘制及返回值。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

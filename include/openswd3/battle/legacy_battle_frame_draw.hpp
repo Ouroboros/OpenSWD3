@@ -32,6 +32,38 @@ struct LegacyBattleFrameDrawResult {
     };
 };
 
+enum class LegacyBattleCachedFrameDrawStatus : compat::u8 {
+    completed,
+    frame_unavailable,
+    blit_typed_stop,
+};
+
+struct LegacyBattleCachedFrameDrawState {
+    bool frame_record_published{};
+    bool frame_record_available{};
+    compat::u32 cached_resource_id{};
+    compat::u32 cached_frame_index{};
+    rendering::LegacyFramePiece current_frame{};
+    bool source_published{};
+    rendering::LegacyBlitSource current_source{};
+    compat::u16 shared_mode_word{};
+};
+
+struct LegacyBattleCachedFrameDrawResult {
+    LegacyBattleCachedFrameDrawStatus status{
+        LegacyBattleCachedFrameDrawStatus::completed
+    };
+    compat::u32 selected_resource_id{};
+    compat::u32 selected_frame_index{};
+    compat::u32 request_flags{};
+    compat::u32 frame_load_calls{};
+    compat::u32 frame_draw_calls{};
+    compat::u32 return_value{};
+    rendering::LegacyBlitExecutionStatus blit_status{
+        rendering::LegacyBlitExecutionStatus::completed
+    };
+};
+
 enum class LegacyBattleLayeredFrameDrawStatus : compat::u8 {
     completed,
     first_frame_typed_stop,
@@ -145,6 +177,23 @@ struct LegacyBattleLayeredFrameDrawResult {
     compat::u32 resource_id,
     compat::i32 x,
     compat::i32 y
+) noexcept;
+
+// sub_450BD0: select one of two resources or reuse the cached frame and draw.
+[[nodiscard]] LegacyBattleCachedFrameDrawResult
+draw_legacy_battle_selected_or_cached_frame(
+    LegacyBattleCachedFrameDrawState& state,
+    rendering::LegacyFramebuffer& framebuffer,
+    const rendering::LegacyBlitClipRectangle& clip,
+    rendering::LegacyBlitRequest& shared_request,
+    rendering::LegacyBlitEffectState& shared_effects,
+    rendering::LegacyRleRowJitterState& jitter,
+    rendering::LegacyFramePieceProvider& frame_provider,
+    compat::u32 selector,
+    compat::u32 frame_index,
+    compat::i32 x,
+    compat::i32 y,
+    compat::u32 post_blit_eax_snapshot
 ) noexcept;
 
 // sub_450900: draw one unsigned decimal place from shared battle state.

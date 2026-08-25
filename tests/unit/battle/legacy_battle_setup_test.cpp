@@ -3953,6 +3953,272 @@ void test_battle_indexed_action_frame_draw(openswd3::test::Context& test) {
     }
 }
 
+void test_battle_selected_or_cached_frame_draw(openswd3::test::Context& test) {
+    const openswd3::rendering::LegacySurfaceGeometry surface{
+        .pitch_bytes = 160,
+        .width = 80,
+        .height = 60,
+    };
+    const openswd3::rendering::LegacyBlitClipRectangle clip{
+        .left = 0,
+        .top = 0,
+        .width = 80,
+        .height = 60,
+    };
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleBorderFrameProvider frame_provider;
+        frame_provider.widths[0] = 1U;
+        frame_provider.heights[0] = 1U;
+        frame_provider.source_storage[0] = make_battle_rle_pixel(0x6BCDU);
+        openswd3::battle::LegacyBattleCachedFrameDrawState state;
+        openswd3::rendering::LegacyBlitRequest shared_request;
+        openswd3::rendering::LegacyBlitEffectState shared_effects;
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto queried =
+            openswd3::battle::draw_legacy_battle_selected_or_cached_frame(
+                state,
+                framebuffer,
+                clip,
+                shared_request,
+                shared_effects,
+                jitter,
+                frame_provider,
+                0U,
+                0U,
+                10,
+                11,
+                0xABCD5678U
+            );
+        const auto reused =
+            openswd3::battle::draw_legacy_battle_selected_or_cached_frame(
+                state,
+                framebuffer,
+                clip,
+                shared_request,
+                shared_effects,
+                jitter,
+                frame_provider,
+                2U,
+                0xFFFFFFFFU,
+                20,
+                21,
+                0x1234EEEEU
+            );
+        test.expect_true(
+            queried.status ==
+                    openswd3::battle::LegacyBattleCachedFrameDrawStatus::
+                        completed &&
+                queried.selected_resource_id == 0x2359U &&
+                queried.selected_frame_index == 0U &&
+                queried.frame_load_calls == 1U &&
+                queried.frame_draw_calls == 1U &&
+                queried.return_value == 0xABCD0001U &&
+                reused.status ==
+                    openswd3::battle::LegacyBattleCachedFrameDrawStatus::
+                        completed &&
+                reused.selected_resource_id == 0x2359U &&
+                reused.selected_frame_index == 0U &&
+                reused.frame_load_calls == 0U &&
+                reused.frame_draw_calls == 1U &&
+                reused.return_value == 0x12340001U &&
+                state.frame_record_published && state.frame_record_available &&
+                state.source_published &&
+                frame_provider.resource_ids == std::vector<u32>{0x2359U} &&
+                frame_provider.load_indices == std::vector<u32>{0U} &&
+                framebuffer.row_pixels(11U)[10U] != 0U &&
+                framebuffer.row_pixels(21U)[20U] != 0U,
+            "selector zero queries resource and other selectors reuse cached frame and source"
+        );
+    }
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleBorderFrameProvider frame_provider;
+        frame_provider.widths[1] = 1U;
+        frame_provider.heights[1] = 1U;
+        frame_provider.source_storage[1] = make_battle_rle_pixel(0x6CDEU);
+        openswd3::battle::LegacyBattleCachedFrameDrawState state;
+        openswd3::rendering::LegacyBlitRequest shared_request;
+        openswd3::rendering::LegacyBlitEffectState shared_effects;
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selected_or_cached_frame(
+                state,
+                framebuffer,
+                clip,
+                shared_request,
+                shared_effects,
+                jitter,
+                frame_provider,
+                1U,
+                1U,
+                12,
+                13,
+                0U
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleCachedFrameDrawStatus::
+                        completed &&
+                result.selected_resource_id == 0x2358U &&
+                result.selected_frame_index == 1U &&
+                result.return_value == 1U &&
+                frame_provider.resource_ids == std::vector<u32>{0x2358U} &&
+                frame_provider.load_indices == std::vector<u32>{1U} &&
+                framebuffer.row_pixels(13U)[12U] != 0U,
+            "selector one queries the alternate fixed resource"
+        );
+    }
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleBorderFrameProvider frame_provider;
+        frame_provider.widths[0] = 1U;
+        frame_provider.heights[0] = 1U;
+        frame_provider.source_storage[0] = make_battle_rle_pixel(0x6DEFU);
+        openswd3::battle::LegacyBattleCachedFrameDrawState state{
+            .shared_mode_word = 0x4000U,
+        };
+        openswd3::rendering::LegacyBlitRequest shared_request{
+            .target_height = 1,
+        };
+        openswd3::rendering::LegacyBlitEffectState shared_effects{
+            .blue_offset = 7,
+        };
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selected_or_cached_frame(
+                state,
+                framebuffer,
+                clip,
+                shared_request,
+                shared_effects,
+                jitter,
+                frame_provider,
+                0U,
+                0U,
+                12,
+                13,
+                0xFFFF0000U
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleCachedFrameDrawStatus::
+                        completed &&
+                result.request_flags == 0x20U &&
+                result.blit_status ==
+                    openswd3::rendering::LegacyBlitExecutionStatus::completed &&
+                result.return_value == 0xFFFF0001U &&
+                shared_request.target_height == 0 &&
+                shared_effects.blue_offset == 0,
+            "shared mode four-thousand selects mode twenty before normal width return"
+        );
+    }
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleBorderFrameProvider frame_provider;
+        frame_provider.failed_index = 0;
+        openswd3::battle::LegacyBattleCachedFrameDrawState state;
+        state.source_published = true;
+        state.current_source.bytes =
+            std::span<const u8>{frame_provider.source_storage[1]};
+        openswd3::rendering::LegacyBlitRequest shared_request;
+        openswd3::rendering::LegacyBlitEffectState shared_effects;
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto failed_query =
+            openswd3::battle::draw_legacy_battle_selected_or_cached_frame(
+                state,
+                framebuffer,
+                clip,
+                shared_request,
+                shared_effects,
+                jitter,
+                frame_provider,
+                0U,
+                0U,
+                12,
+                13,
+                0U
+            );
+        openswd3::battle::LegacyBattleCachedFrameDrawState empty_state{
+            .shared_mode_word = 0x4000U,
+        };
+        const auto missing_reuse =
+            openswd3::battle::draw_legacy_battle_selected_or_cached_frame(
+                empty_state,
+                framebuffer,
+                clip,
+                shared_request,
+                shared_effects,
+                jitter,
+                frame_provider,
+                3U,
+                7U,
+                12,
+                13,
+                0U
+            );
+        test.expect_true(
+            failed_query.status ==
+                    openswd3::battle::LegacyBattleCachedFrameDrawStatus::
+                        frame_unavailable &&
+                state.frame_record_published && !state.frame_record_available &&
+                state.source_published && !state.current_source.bytes.empty() &&
+                missing_reuse.status ==
+                    openswd3::battle::LegacyBattleCachedFrameDrawStatus::
+                        frame_unavailable &&
+                missing_reuse.request_flags == 0x20U &&
+                missing_reuse.frame_load_calls == 0U &&
+                frame_provider.resource_ids == std::vector<u32>{0x2359U},
+            "failed query publishes empty frame record while missing reuse reads mode before frame"
+        );
+    }
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleBorderFrameProvider frame_provider;
+        frame_provider.indexed_source_index = 0;
+        frame_provider.widths[0] = 1U;
+        frame_provider.heights[0] = 1U;
+        frame_provider.source_storage[0].assign(2U, 2U);
+        openswd3::battle::LegacyBattleCachedFrameDrawState state;
+        openswd3::rendering::LegacyBlitRequest shared_request{
+            .target_height = 1,
+        };
+        openswd3::rendering::LegacyBlitEffectState shared_effects;
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selected_or_cached_frame(
+                state,
+                framebuffer,
+                clip,
+                shared_request,
+                shared_effects,
+                jitter,
+                frame_provider,
+                0U,
+                0U,
+                12,
+                13,
+                0U
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleCachedFrameDrawStatus::
+                        blit_typed_stop &&
+                result.blit_status ==
+                    openswd3::rendering::LegacyBlitExecutionStatus::
+                        palette_out_of_bounds &&
+                state.source_published && result.return_value == 0U &&
+                shared_request.target_height == 1,
+            "selected indexed frame keeps fixed empty tail and skips width return"
+        );
+    }
+}
+
 void test_battle_ten_place_decimal_coordinator(openswd3::test::Context& test) {
     const openswd3::rendering::LegacySurfaceGeometry surface{
         .pitch_bytes = 240,
@@ -6662,6 +6928,7 @@ int main() {
     test_battle_offset_action_frame_draw(test);
     test_battle_prepared_action_frame_draw(test);
     test_battle_indexed_action_frame_draw(test);
+    test_battle_selected_or_cached_frame_draw(test);
     test_battle_ten_place_decimal_coordinator(test);
     test_battle_decimal_frames(test);
     test_battle_layered_resource_frames(test);
