@@ -16573,6 +16573,49 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44D5A0 preserves the first completed release before stopping when a cycle exposes the freed node again"
     );
 
+    FakeQuantityPorts missing_record_ports;
+    missing_record_ports.allocated_record.text_index = 7U;
+    missing_record_ports.allocated_record.first_value = 8U;
+    missing_record_ports.allocated_record.second_value = 9U;
+    missing_record_ports.allocated_record.combined_value = 10U;
+    missing_record_ports.allocated_record.filter_flags = 0xFFFFFFFFU;
+    missing_record_ports.allocated_record.display_name = "old";
+    const auto missing_record =
+        openswd3::special_modes::create_legacy_missing_item_record(
+            missing_record_ports
+        );
+    test.expect_true(
+        missing_record.status ==
+                openswd3::special_modes::LegacyMissingItemRecordStatus::
+                    completed &&
+            missing_record.legacy_return_node ==
+                &missing_record_ports.allocated_record &&
+            missing_record_ports.allocated_record.next == nullptr &&
+            missing_record_ports.allocated_record.text_index == 0xFFDCU &&
+            missing_record_ports.allocated_record.combined_value == 0U &&
+            missing_record_ports.allocated_record.first_value == 1U &&
+            missing_record_ports.allocated_record.second_value == 0U &&
+            missing_record_ports.allocated_record.filter_flags == 0U &&
+            missing_record_ports.allocated_record.display_name == "missing" &&
+            missing_record_ports.missing_name_count == 1U,
+        "0x44D5D0 clears the 176-byte record before writing FFDC, quantity one, null next, and the fixed name"
+    );
+
+    FakeQuantityPorts missing_record_stop_ports;
+    missing_record_stop_ports.allocation_available = false;
+    const auto missing_record_stop =
+        openswd3::special_modes::create_legacy_missing_item_record(
+            missing_record_stop_ports
+        );
+    test.expect_true(
+        missing_record_stop.status ==
+                openswd3::special_modes::LegacyMissingItemRecordStatus::
+                    allocation_stopped &&
+            missing_record_stop.legacy_return_node == nullptr &&
+            missing_record_stop_ports.missing_name_count == 0U,
+        "0x44D5D0 stops at the original memset point when 176-byte allocation returns null"
+    );
+
     using SystemMenuRecordCountStatus =
         openswd3::special_modes::LegacySystemMenuRecordCountStatus;
     openswd3::special_modes::LegacySystemMenuState record_count_null_state;

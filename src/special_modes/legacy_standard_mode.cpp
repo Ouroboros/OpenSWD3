@@ -4957,6 +4957,25 @@ LegacyPlayerItemChainReleaseResult release_legacy_player_item_chain(
     return result;
 }
 
+LegacyMissingItemRecordResult create_legacy_missing_item_record(
+    LegacyStandardModeQuantityPorts& ports
+) noexcept {
+    LegacyMissingItemRecordResult result;
+    LegacyStandardModeForwardNode* record = ports.allocate_quantity_record();
+    if (record == nullptr) {
+        result.status = LegacyMissingItemRecordStatus::allocation_stopped;
+        return result;
+    }
+    *record = {};
+    record->combined_value = 0U;
+    record->next = nullptr;
+    record->text_index = 0xFFDCU;
+    record->first_value = 1U;
+    ports.initialize_missing_quantity_name(*record);
+    result.legacy_return_node = record;
+    return result;
+}
+
 LegacyStandardModeRecordCloneResult
 rebuild_legacy_standard_mode_selection_records(
     LegacyStandardModeForwardNode* source_head,

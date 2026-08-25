@@ -2387,6 +2387,22 @@ release_legacy_player_item_chain(
     LegacyStandardModeForwardNode*& head, LegacyStandardModeQuantityPorts& ports
 ) noexcept;
 
+enum class LegacyMissingItemRecordStatus : compat::u8 {
+    completed,
+    allocation_stopped,
+};
+
+struct LegacyMissingItemRecordResult {
+    LegacyMissingItemRecordStatus status{
+        LegacyMissingItemRecordStatus::completed
+    };
+    LegacyStandardModeForwardNode* legacy_return_node{};
+};
+
+[[nodiscard]] LegacyMissingItemRecordResult create_legacy_missing_item_record(
+    LegacyStandardModeQuantityPorts& ports
+) noexcept;
+
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
     completed,
     mode_mask_out_of_range,
