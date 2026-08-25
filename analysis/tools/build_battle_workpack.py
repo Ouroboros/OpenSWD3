@@ -164,6 +164,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "assembly_exact",
         "evidence/battle-action-record-clear-00450b40.md",
     ),
+    "0x00450B60": (
+        "platform_adapted",
+        "evidence/battle-standalone-action-frame-draw-00450b60.md",
+    ),
 }
 
 

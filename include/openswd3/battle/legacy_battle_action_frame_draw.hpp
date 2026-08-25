@@ -128,6 +128,37 @@ struct LegacyBattleOffsetActionFrameDrawResult {
     };
 };
 
+enum class LegacyBattleStandaloneActionFrameDrawStatus : compat::u8 {
+    completed,
+    action_update_failed,
+    frame_unavailable,
+    blit_typed_stop,
+};
+
+struct LegacyBattleStandaloneActionFrameDrawState {
+    asset_runtime::LegacyActionRecord action_record{};
+    bool action_update_attempted{};
+    asset_runtime::LegacyActionUpdateResult action_update{};
+    compat::u32 frame_resource_id{};
+    compat::u32 frame_index{};
+    bool source_published{};
+    rendering::LegacyFramePiece current_frame{};
+    rendering::LegacyBlitSource current_source{};
+};
+
+struct LegacyBattleStandaloneActionFrameDrawResult {
+    LegacyBattleStandaloneActionFrameDrawStatus status{
+        LegacyBattleStandaloneActionFrameDrawStatus::completed
+    };
+    compat::u32 frame_load_calls{};
+    compat::u32 frame_draw_calls{};
+    compat::i32 draw_x{};
+    compat::i32 draw_y{};
+    rendering::LegacyBlitExecutionStatus blit_status{
+        rendering::LegacyBlitExecutionStatus::completed
+    };
+};
+
 enum class LegacyBattleIndexedActionFrameDrawStatus : compat::u8 {
     completed,
     action_record_out_of_range,
@@ -206,6 +237,24 @@ draw_legacy_battle_offset_action_frame(
     compat::i32 x,
     compat::i32 y,
     compat::u32 offset_mode,
+    compat::u32 action_update_edx_snapshot
+);
+
+// sub_450B60.
+[[nodiscard]] LegacyBattleStandaloneActionFrameDrawResult
+draw_legacy_battle_standalone_action_frame(
+    LegacyBattleStandaloneActionFrameDrawState& state,
+    rendering::LegacyFramebuffer& framebuffer,
+    const rendering::LegacyBlitClipRectangle& clip,
+    rendering::LegacyBlitRequest& shared_request,
+    rendering::LegacyBlitEffectState& shared_effects,
+    rendering::LegacyRleRowJitterState& jitter,
+    asset_runtime::LegacyActionUpdater& action_updater,
+    rendering::LegacyFramePieceProvider& frame_provider,
+    compat::u32 action_id,
+    compat::i32 x,
+    compat::i32 y,
+    compat::u32 action_update_ecx_snapshot,
     compat::u32 action_update_edx_snapshot
 );
 

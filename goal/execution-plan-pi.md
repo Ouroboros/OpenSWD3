@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v696
+版本：v697
 
 最后更新：2026-08-25
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 恢复独立动作记录帧定点绘制
+当前步骤：模块10 · 恢复资源选择与缓存帧复用绘制
 
 ## 0. 执行约定
 
@@ -3900,5 +3900,6 @@ B7 P0 有限收口完成。
 - 模块10战斗持久动作槽准备后帧绘制`0x004509D0`完成。完整59行按入口索引乘0x98的低32位回绕地址选择持久动作槽，先写入口动作号和base variant 0，再调用已关闭动作更新器；更新失败保留两项写并立即返回。成功路径保留更新后ECX陈旧高16位，与记录资源低字拼接查询资源，帧号由固定返回EAX=1后只覆写AX而自然零扩展；只发布source，不发布帧record，再按记录flags、记录u16宽高、入口坐标和固定空tail绘制。定向测试锁定槽1更新、ECX高字继承、`0x20000000`索引回绕别名槽0、非owner地址首写停止、失败前缀、原坐标、正常公共后缀及indexed空tail故障；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`30/422`，即`26 platform_adapted + 4 assembly_exact + 392 pending_audit`，SHA256为`1480086d9f2e81a7699f5348bbdfbd85898bfe6542fb8a8457c45acd6ce728b7`。原版更新后寄存器、持久动作槽、帧record、共享blitter状态和framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 - 模块10战斗动作帧偏移与模式位切换绘制`0x00450A80`完成。完整91行只覆盖单个持久动作记录的入口动作号和base variant，更新失败保留两项写并返回0。成功路径将更新器固定EAX=1后覆写AX得到零扩展资源号，同时保留更新后EDX高16位并只覆写DX形成帧号。selector只有完整值1才翻转本次flags bit0，并以u16帧宽减X偏移的结果做signed坐标修正；其他值直接用X偏移低字的signed解释，Y始终减完整32位偏移。绘制固定空tail，正常公共后缀后读取独立陈旧latch并精确返回0或1，不以blitter成功状态伪造结果。定向测试锁定普通与selector 1坐标、X偏移高字丢弃与Y偏移高字保留、持久flags不改、EDX高字帧号、更新失败、indexed空tail、公共后缀及latch 1/非1返回；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`31/422`，即`27 platform_adapted + 4 assembly_exact + 391 pending_audit`，SHA256为`3a21144f8ef13a412a5115c4dddfa4c9eff3f34eeb2c63f72394d5a96d732059`。原版更新后EDX、持久动作记录、帧record、共享blitter状态、结果latch和framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 - 模块10战斗动作记录完整清零`0x00450B40`完成。完整12行无参数、无callee，以EAX=0、ECX=38和固定全局目标执行`rep stosd`，精确清零单个0x98字节持久动作记录；EDI恢复，EAX和ECX保持0，两个caller均不消费返回。typed helper固定写零152字节并返回0，测试以全部字节非零变化模式及前7、后9字节canary锁定完整覆盖与不越界。定向测试、独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`32/422`，即`27 platform_adapted + 5 assembly_exact + 390 pending_audit`，SHA256为`e38670b9764139f254ce527e0607ec0a2c485962170860eeb806134aeab344ca`。该确定性无输入叶函数已由完整LST和逐字节固定状态验证闭环，不依赖原版动态oracle。
+- 模块10战斗独立动作记录帧定点绘制`0x00450B60`完成。完整51行只覆盖另一独立持久动作记录的动作号和base variant 0，更新失败保留两项写并返回0。成功路径以更新后EDX高16位拼接资源低字、ECX高16位拼接帧号低字查询帧；帧可用后只发布source，不发布帧record，再按记录flags、记录u16宽高、入口X/Y和固定空tail绘制。定向测试锁定正常更新与原坐标、资源和帧号双陈旧高字、更新失败、查询失败不发布source、正常公共后缀及indexed空tail故障；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`33/422`，即`28 platform_adapted + 5 assembly_exact + 389 pending_audit`，SHA256为`a4384039786ae6cd66da3232343829be6860edd1277f7a7d1dcca2aa9564df42`。原版更新后ECX/EDX、独立持久动作记录、帧record、共享blitter状态和framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=33`的`0x00450B60`战斗独立动作记录帧定点绘制，继续完整审计动作更新、双寄存器陈旧高字、固定空tail及软件绘制顺序。
+下一项回收`audit_order=34`的`0x00450BD0`战斗资源选择与缓存帧复用绘制，继续完整审计selector资源分支、缓存帧record、共享模式、固定空tail及宽度返回。
