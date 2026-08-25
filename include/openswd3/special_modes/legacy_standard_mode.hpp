@@ -2850,12 +2850,14 @@ struct LegacySpecialModeModeOneAdvanceState {
     compat::i32 window_offset{};
     compat::i32 local_cursor{};
     compat::i32 visible_count{};
-    const LegacyStandardModeForwardNode* workspace_head{};
-    const LegacyStandardModeForwardNode* visible_head{};
+    LegacyStandardModeForwardNode* workspace_head{};
+    LegacyStandardModeForwardNode* visible_head{};
     std::array<compat::u8, 128U> shared_text{};
     compat::u32 frame_flags{};
     compat::u16 decrease_action_status{};
     compat::u16 increase_action_status{};
+    compat::u32 runtime_flags{};
+    compat::u32 transition_request{};
     std::array<LegacySpecialModeAttributeDelta, 4U> member_deltas{};
 };
 
@@ -3109,6 +3111,78 @@ increase_legacy_special_mode_mode_one_value(
     compat::u32 maximum_weight,
     compat::u32 sample_owner,
     LegacySpecialModeModeOneIncreasePorts& ports
+) noexcept;
+
+class LegacySpecialModeModeOneConfirmPorts
+    : public virtual LegacySpecialModeModeOneIncreasePorts,
+      public virtual LegacySpecialModeRuntimeCleanupPorts,
+      public virtual LegacyStandardModeRecordClonePorts {
+public:
+    ~LegacySpecialModeModeOneConfirmPorts() override = default;
+};
+
+enum class LegacySpecialModeModeOneConfirmStatus : compat::u8 {
+    completed,
+    workspace_release_stopped,
+    runtime_exit_stopped,
+    clone_stopped,
+    temporary_release_stopped,
+    workspace_build_stopped,
+    population_stopped,
+    workspace_cycle_stopped,
+    selected_record_missing,
+    shared_text_stopped,
+    indexed_record_cycle_stopped,
+    indexed_record_missing,
+    attribute_comparison_stopped,
+    weight_chain_cycle_stopped,
+    quantity_update_stopped,
+    masked_lookup_cycle_stopped,
+    mask_table_out_of_range_stopped,
+};
+
+enum class LegacySpecialModeModeOneConfirmPath : compat::u8 {
+    unchanged,
+    initialize_empty_mode,
+    initialize_player_mode,
+    close_mode,
+    enter_quantity_commit,
+    cancel_quantity_commit,
+    commit_player_mode,
+    commit_empty_mode,
+    request_external_transition,
+    transition_suppressed,
+    return_from_weight_limit,
+};
+
+struct LegacySpecialModeModeOneConfirmResult {
+    LegacySpecialModeModeOneConfirmStatus status{
+        LegacySpecialModeModeOneConfirmStatus::completed
+    };
+    LegacySpecialModeModeOneConfirmPath path{
+        LegacySpecialModeModeOneConfirmPath::unchanged
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+    compat::u32 processed_record_count{};
+    compat::u32 released_record_count{};
+    compat::u16 first_sample_id{};
+    compat::u16 second_sample_id{};
+};
+
+[[nodiscard]] LegacySpecialModeModeOneConfirmResult
+confirm_legacy_special_mode_mode_one(
+    LegacySpecialModeModeOneAdvanceState& state,
+    std::span<const compat::u8> maps_payload,
+    LegacySpecialModeRuntimeInitializationState& runtime,
+    LegacyStandardModeForwardNode*& player_record_head,
+    std::span<const compat::u16> empty_mode_record_ids,
+    std::span<LegacyStandardModeForwardNode* const> fixed_slots,
+    std::span<const compat::u32> replacement_masks,
+    const std::array<LegacyGuardianAttributeTarget, 4U>& base_attributes,
+    compat::u32& maximum_weight,
+    compat::u32 sample_owner,
+    LegacySpecialModeModeOneConfirmPorts& ports
 ) noexcept;
 
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {

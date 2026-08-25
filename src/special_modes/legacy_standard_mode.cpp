@@ -5890,7 +5890,10 @@ LegacySpecialModeModeOneAdvanceResult advance_legacy_special_mode_mode_one(
                             visible_head_advance_stopped;
                         return result;
                     }
-                    state.visible_head = state.visible_head->next;
+                    state.visible_head =
+                        const_cast<LegacyStandardModeForwardNode*>(
+                            state.visible_head->next
+                        );
                 }
             }
             ++result.helper_call_count;
@@ -6016,7 +6019,10 @@ LegacySpecialModeModeOneRetreatResult retreat_legacy_special_mode_mode_one(
                             visible_head_advance_stopped;
                         return result;
                     }
-                    state.visible_head = state.visible_head->next;
+                    state.visible_head =
+                        const_cast<LegacyStandardModeForwardNode*>(
+                            state.visible_head->next
+                        );
                 }
             }
             ++result.helper_call_count;
@@ -6142,7 +6148,9 @@ advance_legacy_special_mode_mode_one_page(
                         visible_head_advance_stopped;
                     return result;
                 }
-                state.visible_head = state.visible_head->next;
+                state.visible_head = const_cast<LegacyStandardModeForwardNode*>(
+                    state.visible_head->next
+                );
             }
         }
         ++result.helper_call_count;
@@ -6280,7 +6288,9 @@ retreat_legacy_special_mode_mode_one_page(
                     visible_head_advance_stopped;
                 return result;
             }
-            state.visible_head = state.visible_head->next;
+            state.visible_head = const_cast<LegacyStandardModeForwardNode*>(
+                state.visible_head->next
+            );
         }
     }
     ++result.helper_call_count;
@@ -6588,6 +6598,544 @@ increase_legacy_special_mode_mode_one_value(
             LegacySpecialModeModeOneIncreasePath::option_bit_three_set;
         result.legacy_return_value =
             std::bit_cast<compat::i32>(state.packed_mode);
+        return result;
+    default:
+        return result;
+    }
+}
+
+LegacySpecialModeModeOneConfirmResult confirm_legacy_special_mode_mode_one(
+    LegacySpecialModeModeOneAdvanceState& state,
+    const std::span<const compat::u8> maps_payload,
+    LegacySpecialModeRuntimeInitializationState& runtime,
+    LegacyStandardModeForwardNode*& player_record_head,
+    const std::span<const compat::u16> empty_mode_record_ids,
+    const std::span<LegacyStandardModeForwardNode* const> fixed_slots,
+    const std::span<const compat::u32> replacement_masks,
+    const std::array<LegacyGuardianAttributeTarget, 4U>& base_attributes,
+    compat::u32& maximum_weight,
+    const compat::u32 sample_owner,
+    LegacySpecialModeModeOneConfirmPorts& ports
+) noexcept {
+    LegacySpecialModeModeOneConfirmResult result;
+    result.legacy_return_value = std::bit_cast<compat::i32>(state.level - 1U);
+
+    const auto play_sample = [&](const compat::u16 sample_id) noexcept {
+        const compat::i32 value = ports.play_sample(sample_id, sample_owner);
+        ++result.helper_call_count;
+        if (result.first_sample_id == 0U) {
+            result.first_sample_id = sample_id;
+        } else {
+            result.second_sample_id = sample_id;
+        }
+        result.legacy_return_value = value;
+    };
+    const auto select_signed =
+        [&](const compat::i32 index) -> LegacyStandardModeForwardNode* {
+        LegacyStandardModeForwardNode* selected = state.workspace_head;
+        if (index > 0) {
+            for (compat::i32 step = 0; step < index; ++step) {
+                if (selected == nullptr) {
+                    return nullptr;
+                }
+                selected =
+                    const_cast<LegacyStandardModeForwardNode*>(selected->next);
+            }
+        }
+        ++result.helper_call_count;
+        return selected;
+    };
+    const auto count_workspace = [&]() -> std::optional<compat::u32> {
+        compat::u32 count = 0U;
+        const LegacyStandardModeForwardNode* record = state.workspace_head;
+        std::vector<const LegacyStandardModeForwardNode*> visited;
+        while (record != nullptr) {
+            if (std::find(visited.begin(), visited.end(), record) !=
+                visited.end()) {
+                return std::nullopt;
+            }
+            visited.push_back(record);
+            ++count;
+            record = record->next;
+        }
+        ++result.helper_call_count;
+        return count;
+    };
+    const auto compare_current = [&]() -> bool {
+        const compat::i32 selected_index = std::bit_cast<compat::i32>(
+            std::bit_cast<compat::u32>(state.window_offset) +
+            std::bit_cast<compat::u32>(state.local_cursor)
+        );
+        const LegacyPlayerItemIndexResult indexed =
+            index_legacy_player_item_record(
+                state.workspace_head, std::bit_cast<compat::u32>(selected_index)
+            );
+        ++result.helper_call_count;
+        if (indexed.status != LegacyPlayerItemIndexStatus::completed) {
+            result.status = LegacySpecialModeModeOneConfirmStatus::
+                indexed_record_cycle_stopped;
+            return false;
+        }
+        if (indexed.legacy_return_node == nullptr) {
+            result.status =
+                LegacySpecialModeModeOneConfirmStatus::indexed_record_missing;
+            return false;
+        }
+        const LegacySpecialModeAttributeComparisonResult comparison =
+            compare_legacy_special_mode_candidate_attributes(
+                base_attributes,
+                fixed_slots,
+                replacement_masks,
+                *indexed.legacy_return_node,
+                ports
+            );
+        ++result.helper_call_count;
+        state.member_deltas = comparison.members;
+        if (comparison.status !=
+            LegacySpecialModeAttributeComparisonStatus::completed) {
+            result.status = LegacySpecialModeModeOneConfirmStatus::
+                attribute_comparison_stopped;
+            return false;
+        }
+        result.legacy_return_value = 4;
+        return true;
+    };
+    const auto reset_workspace_window = [&]() -> bool {
+        state.window_offset = 0;
+        state.local_cursor = 0;
+        const std::optional<compat::u32> count = count_workspace();
+        if (!count.has_value()) {
+            result.status =
+                LegacySpecialModeModeOneConfirmStatus::workspace_cycle_stopped;
+            return false;
+        }
+        state.total_count = std::bit_cast<compat::i32>(*count);
+        state.visible_head = state.workspace_head;
+        const LegacySpecialModeVisibleCountResult visible =
+            count_legacy_special_mode_visible_records(state.visible_head);
+        ++result.helper_call_count;
+        state.visible_count = static_cast<compat::i32>(visible.count);
+        if ((state.runtime_flags & 2U) == 0U) {
+            play_sample(0x00BBU);
+            state.runtime_flags |= 2U;
+        }
+        return compare_current();
+    };
+    const auto release_chain =
+        [&](
+            LegacyStandardModeForwardNode*& head,
+            const LegacySpecialModeModeOneConfirmStatus stopped_status
+        ) -> bool {
+        const LegacyPlayerItemChainReleaseResult released =
+            release_legacy_player_item_chain(head, ports);
+        ++result.helper_call_count;
+        result.released_record_count += released.released_node_count;
+        if (released.status != LegacyPlayerItemChainReleaseStatus::completed) {
+            result.status = stopped_status;
+            return false;
+        }
+        return true;
+    };
+    const auto final_level_three_commit = [&]() {
+        state.packed_mode &= 0xFFFFFFF3U;
+        play_sample(0x00BBU);
+    };
+
+    switch (state.level) {
+    case 1U: {
+        state.level += 1U;
+        if (!release_chain(
+                state.workspace_head,
+                LegacySpecialModeModeOneConfirmStatus::workspace_release_stopped
+            )) {
+            return result;
+        }
+        runtime.workspace_record_head = state.workspace_head;
+        const compat::u32 low_mode = state.packed_mode & 3U;
+        if (low_mode == 2U) {
+            result.path = LegacySpecialModeModeOneConfirmPath::close_mode;
+            state.level = 1U;
+            LegacySpecialModeLevelExitState exit_state{
+                state.level, state.runtime_flags
+            };
+            const LegacySpecialModeLevelExitResult exited =
+                exit_legacy_special_mode_level(exit_state, runtime, ports);
+            ++result.helper_call_count;
+            state.level = exit_state.level;
+            state.runtime_flags = exit_state.transition_flags;
+            if (exited.status != LegacySpecialModeLevelExitStatus::completed) {
+                result.status =
+                    LegacySpecialModeModeOneConfirmStatus::runtime_exit_stopped;
+            }
+            result.legacy_return_value = exited.legacy_return_value;
+            return result;
+        }
+
+        LegacyStandardModeForwardNode source_sentinel;
+        if (low_mode == 1U) {
+            result.path =
+                LegacySpecialModeModeOneConfirmPath::initialize_player_mode;
+            const LegacyStandardModeChainCloneResult cloned =
+                clone_legacy_standard_mode_record_chain_reversed(
+                    player_record_head, ports
+                );
+            ++result.helper_call_count;
+            if (cloned.status !=
+                LegacyStandardModeChainCloneStatus::completed) {
+                result.status =
+                    LegacySpecialModeModeOneConfirmStatus::clone_stopped;
+                return result;
+            }
+            source_sentinel.next = cloned.legacy_return_head;
+        } else if (low_mode == 0U) {
+            result.path =
+                LegacySpecialModeModeOneConfirmPath::initialize_empty_mode;
+            LegacyStandardModeForwardNode* source_head = nullptr;
+            for (const compat::u16 record_id : empty_mode_record_ids) {
+                if (record_id == 0U) {
+                    break;
+                }
+                const LegacyPlayerItemQuantityResult populated =
+                    update_legacy_player_item_quantities(
+                        source_head, record_id, 99, 1U, ports
+                    );
+                ++result.helper_call_count;
+                if (populated.status ==
+                    LegacyPlayerItemQuantityStatus::chain_cycle_stopped) {
+                    result.status = LegacySpecialModeModeOneConfirmStatus::
+                        population_stopped;
+                    return result;
+                }
+            }
+            source_sentinel.next = source_head;
+        } else {
+            return result;
+        }
+
+        const LegacySpecialModeWorkspaceBuildResult built =
+            build_legacy_special_mode_workspace_records(
+                source_sentinel, state.packed_mode
+            );
+        ++result.helper_call_count;
+        state.workspace_head = built.workspace_head;
+        runtime.workspace_record_head = state.workspace_head;
+        if (built.status != LegacySpecialModeWorkspaceBuildStatus::completed) {
+            result.status =
+                LegacySpecialModeModeOneConfirmStatus::workspace_build_stopped;
+            return result;
+        }
+        auto* remaining =
+            const_cast<LegacyStandardModeForwardNode*>(source_sentinel.next);
+        if (!release_chain(
+                remaining,
+                LegacySpecialModeModeOneConfirmStatus::temporary_release_stopped
+            )) {
+            return result;
+        }
+
+        if (low_mode == 1U) {
+            LegacyStandardModeForwardNode* record = state.workspace_head;
+            std::vector<LegacyStandardModeForwardNode*> visited;
+            while (record != nullptr) {
+                if (std::find(visited.begin(), visited.end(), record) !=
+                    visited.end()) {
+                    result.status = LegacySpecialModeModeOneConfirmStatus::
+                        workspace_cycle_stopped;
+                    return result;
+                }
+                visited.push_back(record);
+                record->combined_value = 0U;
+                ++result.processed_record_count;
+                record =
+                    const_cast<LegacyStandardModeForwardNode*>(record->next);
+            }
+            state.runtime_flags &= 0xFFFFFFFEU;
+            if (state.workspace_head == nullptr) {
+                state.level -= 1U;
+                return result;
+            }
+        } else {
+            const compat::i32 old_index = std::bit_cast<compat::i32>(
+                std::bit_cast<compat::u32>(state.window_offset) +
+                std::bit_cast<compat::u32>(state.local_cursor)
+            );
+            LegacyStandardModeForwardNode* selected = select_signed(old_index);
+            if (selected == nullptr) {
+                result.status = LegacySpecialModeModeOneConfirmStatus::
+                    selected_record_missing;
+                return result;
+            }
+            const LegacyStandardModeTextResolutionResult text =
+                resolve_legacy_standard_mode_shared_text(
+                    selected->text_index, maps_payload, state.shared_text
+                );
+            ++result.helper_call_count;
+            if (text.status !=
+                LegacyStandardModeTextResolutionStatus::completed) {
+                result.status =
+                    LegacySpecialModeModeOneConfirmStatus::shared_text_stopped;
+                return result;
+            }
+        }
+        static_cast<void>(reset_workspace_window());
+        return result;
+    }
+    case 2U: {
+        const LegacySpecialModeWeightResult weight =
+            calculate_legacy_special_mode_record_weight(
+                state.workspace_head, state.packed_mode
+            );
+        ++result.helper_call_count;
+        if (weight.status != LegacySpecialModeWeightStatus::completed) {
+            result.status = LegacySpecialModeModeOneConfirmStatus::
+                weight_chain_cycle_stopped;
+            return result;
+        }
+        result.legacy_return_value = weight.total;
+        if (weight.total > 0) {
+            result.path =
+                LegacySpecialModeModeOneConfirmPath::enter_quantity_commit;
+            state.level += 1U;
+            state.packed_mode &= 0xFFFFFFFBU;
+            play_sample(0x00BBU);
+        }
+        return result;
+    }
+    case 3U: {
+        state.level += 1U;
+        if ((state.packed_mode & 4U) != 0U) {
+            result.path =
+                LegacySpecialModeModeOneConfirmPath::cancel_quantity_commit;
+            state.level = 2U;
+            LegacyStandardModeForwardNode* record = state.workspace_head;
+            std::vector<LegacyStandardModeForwardNode*> visited;
+            while (record != nullptr) {
+                if (std::find(visited.begin(), visited.end(), record) !=
+                    visited.end()) {
+                    result.status = LegacySpecialModeModeOneConfirmStatus::
+                        workspace_cycle_stopped;
+                    return result;
+                }
+                visited.push_back(record);
+                record->combined_value = 0U;
+                ++result.processed_record_count;
+                record =
+                    const_cast<LegacyStandardModeForwardNode*>(record->next);
+            }
+            final_level_three_commit();
+            return result;
+        }
+
+        const LegacySpecialModeWeightResult weight =
+            calculate_legacy_special_mode_record_weight(
+                state.workspace_head, state.packed_mode
+            );
+        ++result.helper_call_count;
+        if (weight.status != LegacySpecialModeWeightStatus::completed) {
+            result.status = LegacySpecialModeModeOneConfirmStatus::
+                weight_chain_cycle_stopped;
+            return result;
+        }
+        if ((state.packed_mode & 3U) == 1U) {
+            result.path =
+                LegacySpecialModeModeOneConfirmPath::commit_player_mode;
+            state.level = 2U;
+            maximum_weight += std::bit_cast<compat::u32>(weight.total);
+            LegacyStandardModeForwardNode* previous = nullptr;
+            LegacyStandardModeForwardNode* record = state.workspace_head;
+            std::vector<LegacyStandardModeForwardNode*> visited;
+            while (record != nullptr) {
+                if (std::find(visited.begin(), visited.end(), record) !=
+                    visited.end()) {
+                    result.status = LegacySpecialModeModeOneConfirmStatus::
+                        workspace_cycle_stopped;
+                    return result;
+                }
+                visited.push_back(record);
+                LegacyStandardModeForwardNode* const next =
+                    const_cast<LegacyStandardModeForwardNode*>(record->next);
+                const compat::i32 signed_sum = std::bit_cast<compat::i32>(
+                    static_cast<compat::u32>(
+                        std::bit_cast<compat::i16>(record->first_value)
+                    ) +
+                    static_cast<compat::u32>(
+                        std::bit_cast<compat::i16>(record->second_value)
+                    )
+                );
+                bool removed = false;
+                if (signed_sum > 0 && record->combined_value != 0U) {
+                    const compat::i16 delta = std::bit_cast<compat::i16>(
+                        static_cast<compat::u16>(0U - record->combined_value)
+                    );
+                    const LegacyPlayerItemQuantityResult updated =
+                        update_legacy_player_item_quantities(
+                            player_record_head,
+                            record->text_index,
+                            delta,
+                            0U,
+                            ports
+                        );
+                    ++result.helper_call_count;
+                    if (updated.status !=
+                        LegacyPlayerItemQuantityStatus::completed) {
+                        result.status = LegacySpecialModeModeOneConfirmStatus::
+                            quantity_update_stopped;
+                        return result;
+                    }
+                    const LegacyMaskedItemLookupResult lookup =
+                        find_legacy_player_item_masked(
+                            player_record_head, record->text_index
+                        );
+                    ++result.helper_call_count;
+                    if (lookup.status !=
+                        LegacyMaskedItemLookupStatus::completed) {
+                        result.status = LegacySpecialModeModeOneConfirmStatus::
+                            masked_lookup_cycle_stopped;
+                        return result;
+                    }
+                    if (lookup.legacy_return_node == nullptr) {
+                        if (previous == nullptr) {
+                            state.workspace_head = next;
+                        } else {
+                            previous->next = next;
+                        }
+                        ports.release_quantity_value(record->release_token);
+                        ports.release_quantity_record(*record);
+                        result.helper_call_count += 2U;
+                        ++result.released_record_count;
+                        removed = true;
+                    } else {
+                        record->combined_value = 0U;
+                    }
+                }
+                ++result.processed_record_count;
+                if (!removed) {
+                    previous = record;
+                }
+                record = next;
+            }
+            runtime.workspace_record_head = state.workspace_head;
+            if (state.workspace_head == nullptr) {
+                return result;
+            }
+            play_sample(0x00B9U);
+            const compat::i32 old_visible_count = state.visible_count;
+            state.window_offset = 0;
+            state.local_cursor = 0;
+            const std::optional<compat::u32> count = count_workspace();
+            if (!count.has_value()) {
+                result.status = LegacySpecialModeModeOneConfirmStatus::
+                    workspace_cycle_stopped;
+                return result;
+            }
+            state.total_count = std::bit_cast<compat::i32>(*count);
+            state.visible_head = state.workspace_head;
+            if (old_visible_count <= 0 &&
+                old_visible_count < state.total_count) {
+                state.window_offset = 1;
+                state.visible_head = const_cast<LegacyStandardModeForwardNode*>(
+                    state.workspace_head->next
+                );
+                ++result.helper_call_count;
+            }
+            const LegacySpecialModeVisibleCountResult visible =
+                count_legacy_special_mode_visible_records(state.visible_head);
+            ++result.helper_call_count;
+            state.visible_count = static_cast<compat::i32>(visible.count);
+            LegacyStandardModeForwardNode* selected = select_signed(
+                std::bit_cast<compat::i32>(
+                    std::bit_cast<compat::u32>(state.window_offset) +
+                    std::bit_cast<compat::u32>(state.local_cursor)
+                )
+            );
+            if (selected == nullptr) {
+                result.status = LegacySpecialModeModeOneConfirmStatus::
+                    selected_record_missing;
+                return result;
+            }
+            const LegacyStandardModeTextResolutionResult text =
+                resolve_legacy_standard_mode_shared_text(
+                    selected->text_index, maps_payload, state.shared_text
+                );
+            ++result.helper_call_count;
+            if (text.status !=
+                LegacyStandardModeTextResolutionStatus::completed) {
+                result.status =
+                    LegacySpecialModeModeOneConfirmStatus::shared_text_stopped;
+                return result;
+            }
+            state.level = 1U;
+            final_level_three_commit();
+            return result;
+        }
+
+        result.path = LegacySpecialModeModeOneConfirmPath::commit_empty_mode;
+        maximum_weight -= std::bit_cast<compat::u32>(weight.total);
+        state.runtime_flags &= 0xFFFFFFFBU;
+        LegacyStandardModeForwardNode* record = state.workspace_head;
+        std::vector<LegacyStandardModeForwardNode*> visited;
+        while (record != nullptr) {
+            if (std::find(visited.begin(), visited.end(), record) !=
+                visited.end()) {
+                result.status = LegacySpecialModeModeOneConfirmStatus::
+                    workspace_cycle_stopped;
+                return result;
+            }
+            visited.push_back(record);
+            if (record->combined_value != 0U) {
+                for (std::size_t index = 0U; index < 11U; ++index) {
+                    if (index >= replacement_masks.size()) {
+                        result.status = LegacySpecialModeModeOneConfirmStatus::
+                            mask_table_out_of_range_stopped;
+                        return result;
+                    }
+                    const compat::u32 mask = replacement_masks[index];
+                    if ((mask & record->filter_flags) == mask) {
+                        state.runtime_flags |= 4U;
+                    }
+                }
+                const LegacyPlayerItemQuantityResult updated =
+                    update_legacy_player_item_quantities(
+                        player_record_head,
+                        record->text_index,
+                        std::bit_cast<compat::i16>(record->combined_value),
+                        0U,
+                        ports
+                    );
+                ++result.helper_call_count;
+                if (updated.status !=
+                    LegacyPlayerItemQuantityStatus::completed) {
+                    result.status = LegacySpecialModeModeOneConfirmStatus::
+                        quantity_update_stopped;
+                    return result;
+                }
+            }
+            record->combined_value = 0U;
+            ++result.processed_record_count;
+            record = const_cast<LegacyStandardModeForwardNode*>(record->next);
+        }
+        if ((state.runtime_flags & 4U) == 0U) {
+            state.level = 1U;
+        }
+        final_level_three_commit();
+        return result;
+    }
+    case 4U:
+        state.level = 1U;
+        if ((state.packed_mode & 5U) != 0U || (state.packed_mode & 8U) != 0U) {
+            result.path =
+                LegacySpecialModeModeOneConfirmPath::transition_suppressed;
+            return result;
+        }
+        result.path =
+            LegacySpecialModeModeOneConfirmPath::request_external_transition;
+        state.transition_request = 0xC0000001U;
+        play_sample(0x00B9U);
+        return result;
+    case 10U:
+        result.path =
+            LegacySpecialModeModeOneConfirmPath::return_from_weight_limit;
+        state.level = 2U;
         return result;
     default:
         return result;

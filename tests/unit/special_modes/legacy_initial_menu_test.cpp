@@ -856,8 +856,8 @@ public:
         requests;
 };
 
-class FakeModeOneAdvancePorts final
-    : public openswd3::special_modes::LegacySpecialModeModeOneIncreasePorts {
+class FakeModeOneAdvancePorts : public virtual openswd3::special_modes::
+                                    LegacySpecialModeModeOneIncreasePorts {
 public:
     bool is_party_member_present(const u32 member_id) noexcept override {
         queried_member_ids.push_back(member_id);
@@ -885,6 +885,83 @@ public:
     std::vector<u32> queried_member_ids;
     std::vector<u16> loaded_template_keys;
     std::vector<std::pair<u16, u32>> samples;
+};
+
+class FakeModeOneConfirmPorts final
+    : public FakeModeOneAdvancePorts,
+      public openswd3::special_modes::LegacySpecialModeModeOneConfirmPorts {
+public:
+    openswd3::special_modes::LegacyStandardModeForwardNode*
+    allocate_quantity_record() noexcept override {
+        allocated_records.push_back(
+            std::make_unique<
+                openswd3::special_modes::LegacyStandardModeForwardNode>()
+        );
+        return allocated_records.back().get();
+    }
+    void initialize_missing_quantity_name(
+        openswd3::special_modes::LegacyStandardModeForwardNode& record
+    ) noexcept override {
+        record.display_name = "missing";
+    }
+    bool load_quantity_record_name(
+        openswd3::special_modes::LegacyStandardModeForwardNode& record,
+        const u32 record_id
+    ) noexcept override {
+        record.display_name = std::to_string(record_id);
+        return true;
+    }
+    void release_quantity_value(const u32 value) noexcept override {
+        released_values.push_back(value);
+    }
+    void release_quantity_record(
+        openswd3::special_modes::LegacyStandardModeForwardNode& record
+    ) noexcept override {
+        released_records.push_back(&record);
+    }
+    openswd3::special_modes::LegacyStandardModeForwardNode* clone_record(
+        const openswd3::special_modes::LegacyStandardModeForwardNode& source
+    ) noexcept override {
+        allocated_records.push_back(
+            std::make_unique<
+                openswd3::special_modes::LegacyStandardModeForwardNode>(source)
+        );
+        allocated_records.back()->next = nullptr;
+        return allocated_records.back().get();
+    }
+    void release_record(
+        openswd3::special_modes::LegacyStandardModeForwardNode& record
+    ) noexcept override {
+        released_records.push_back(&record);
+    }
+    i32 debug_query(const u32 service_id) noexcept override {
+        debug_queries.push_back(service_id);
+        return 0;
+    }
+    void report_zero_filter_record(
+        const u16 text_index, const u32 filter_flags
+    ) noexcept override {
+        zero_filter_records.emplace_back(text_index, filter_flags);
+    }
+    i32 release_external_owner(const u32 owner) noexcept override {
+        released_external_owners.push_back(owner);
+        return 0;
+    }
+    i32 release_frame_buffer(const u32 buffer_index) noexcept override {
+        released_frame_buffers.push_back(buffer_index);
+        return 0;
+    }
+
+    std::vector<
+        std::unique_ptr<openswd3::special_modes::LegacyStandardModeForwardNode>>
+        allocated_records;
+    std::vector<u32> released_values;
+    std::vector<openswd3::special_modes::LegacyStandardModeForwardNode*>
+        released_records;
+    std::vector<u32> debug_queries;
+    std::vector<std::pair<u16, u32>> zero_filter_records;
+    std::vector<u32> released_external_owners;
+    std::vector<u32> released_frame_buffers;
 };
 
 class FakeChainClonePorts final
@@ -19401,6 +19478,427 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             mode_one_increase_cycle_ports.samples.empty() &&
             mode_one_increase_cycle_stopped.helper_call_count == 2U,
         "0x44E330 preserves the incremented quantity before the corrected total-weight helper stops at a repeated record"
+    );
+
+    LegacyStandardModeForwardNode mode_one_confirm_player_source;
+    mode_one_confirm_player_source.text_index = 0xFFDCU;
+    mode_one_confirm_player_source.combined_value = 7U;
+    mode_one_confirm_player_source.record_bytes[0x52U] = 1U;
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_confirm_initialize;
+    mode_one_confirm_initialize.level = 1U;
+    mode_one_confirm_initialize.packed_mode = 1U;
+    mode_one_confirm_initialize.runtime_flags = 1U;
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        mode_one_confirm_initialize_runtime;
+    LegacyStandardModeForwardNode* mode_one_confirm_initialize_player =
+        &mode_one_confirm_player_source;
+    u32 mode_one_confirm_initialize_weight = 100U;
+    FakeModeOneConfirmPorts mode_one_confirm_initialize_ports;
+    const auto mode_one_confirm_initialized =
+        openswd3::special_modes::confirm_legacy_special_mode_mode_one(
+            mode_one_confirm_initialize,
+            {},
+            mode_one_confirm_initialize_runtime,
+            mode_one_confirm_initialize_player,
+            {},
+            {},
+            {},
+            comparison_bases,
+            mode_one_confirm_initialize_weight,
+            0x101U,
+            mode_one_confirm_initialize_ports
+        );
+    test.expect_true(
+        mode_one_confirm_initialized.status ==
+                openswd3::special_modes::LegacySpecialModeModeOneConfirmStatus::
+                    completed &&
+            mode_one_confirm_initialized.path ==
+                openswd3::special_modes::LegacySpecialModeModeOneConfirmPath::
+                    initialize_player_mode &&
+            mode_one_confirm_initialize.level == 2U &&
+            mode_one_confirm_initialize.workspace_head != nullptr &&
+            mode_one_confirm_initialize.workspace_head->text_index == 0xFFDCU &&
+            mode_one_confirm_initialize.workspace_head->combined_value == 0U &&
+            mode_one_confirm_initialize.total_count == 1 &&
+            mode_one_confirm_initialize.visible_count == 1 &&
+            mode_one_confirm_initialize.runtime_flags == 2U &&
+            mode_one_confirm_initialize_runtime.workspace_record_head ==
+                mode_one_confirm_initialize.workspace_head &&
+            mode_one_confirm_initialize_ports.samples ==
+                std::vector<std::pair<u16, u32>>{{0x00BBU, 0x101U}} &&
+            mode_one_confirm_initialize_ports.queried_member_ids ==
+                std::vector<u32>{0x1EU, 0x1FU, 0x20U, 0x21U},
+        "0x44E4A0 level one clones player records for low mode one, builds and zeroes the workspace, resets the window, plays sample BB once, and compares the first candidate"
+    );
+
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_confirm_close;
+    mode_one_confirm_close.level = 1U;
+    mode_one_confirm_close.packed_mode = 2U;
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        mode_one_confirm_close_runtime;
+    mode_one_confirm_close_runtime.enabled = 1U;
+    mode_one_confirm_close_runtime.external_owner = 0x1234U;
+    mode_one_confirm_close_runtime.darkened_frame_pixels.push_back(1U);
+    mode_one_confirm_close_runtime.working_frame_pixels.push_back(2U);
+    LegacyStandardModeForwardNode* mode_one_confirm_close_player = nullptr;
+    u32 mode_one_confirm_close_weight = 0U;
+    FakeModeOneConfirmPorts mode_one_confirm_close_ports;
+    const auto mode_one_confirm_closed =
+        openswd3::special_modes::confirm_legacy_special_mode_mode_one(
+            mode_one_confirm_close,
+            {},
+            mode_one_confirm_close_runtime,
+            mode_one_confirm_close_player,
+            {},
+            {},
+            {},
+            comparison_bases,
+            mode_one_confirm_close_weight,
+            0U,
+            mode_one_confirm_close_ports
+        );
+    test.expect_true(
+        mode_one_confirm_closed.status ==
+                openswd3::special_modes::LegacySpecialModeModeOneConfirmStatus::
+                    completed &&
+            mode_one_confirm_closed.path ==
+                openswd3::special_modes::LegacySpecialModeModeOneConfirmPath::
+                    close_mode &&
+            mode_one_confirm_close.level == 0U &&
+            mode_one_confirm_close_runtime.enabled == 0U &&
+            mode_one_confirm_close_runtime.darkened_frame_pixels.empty() &&
+            mode_one_confirm_close_runtime.working_frame_pixels.empty() &&
+            mode_one_confirm_close_ports.released_external_owners ==
+                std::vector<u32>{0x1234U},
+        "0x44E4A0 level one low mode two releases the workspace, folds to level one, and reuses E9D0 to close the full special-mode runtime"
+    );
+
+    LegacyStandardModeForwardNode mode_one_confirm_weight_record;
+    mode_one_confirm_weight_record.combined_value = 2U;
+    mode_one_confirm_weight_record.record_bytes[0x52U] = 1U;
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_confirm_enter;
+    mode_one_confirm_enter.level = 2U;
+    mode_one_confirm_enter.packed_mode = 4U;
+    mode_one_confirm_enter.workspace_head = &mode_one_confirm_weight_record;
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        mode_one_confirm_enter_runtime;
+    LegacyStandardModeForwardNode* mode_one_confirm_enter_player = nullptr;
+    u32 mode_one_confirm_enter_weight = 100U;
+    FakeModeOneConfirmPorts mode_one_confirm_enter_ports;
+    const auto mode_one_confirm_entered =
+        openswd3::special_modes::confirm_legacy_special_mode_mode_one(
+            mode_one_confirm_enter,
+            {},
+            mode_one_confirm_enter_runtime,
+            mode_one_confirm_enter_player,
+            {},
+            {},
+            {},
+            comparison_bases,
+            mode_one_confirm_enter_weight,
+            0x202U,
+            mode_one_confirm_enter_ports
+        );
+    test.expect_true(
+        mode_one_confirm_entered.status ==
+                openswd3::special_modes::LegacySpecialModeModeOneConfirmStatus::
+                    completed &&
+            mode_one_confirm_entered.path ==
+                openswd3::special_modes::LegacySpecialModeModeOneConfirmPath::
+                    enter_quantity_commit &&
+            mode_one_confirm_enter.level == 3U &&
+            mode_one_confirm_enter.packed_mode == 0U &&
+            mode_one_confirm_entered.legacy_return_value == 777 &&
+            mode_one_confirm_enter_ports.samples ==
+                std::vector<std::pair<u16, u32>>{{0x00BBU, 0x202U}},
+        "0x44E4A0 level two enters quantity commit only for positive corrected total weight, clears option bit two, and plays sample BB"
+    );
+
+    LegacyStandardModeForwardNode mode_one_confirm_cancel_second;
+    mode_one_confirm_cancel_second.combined_value = 4U;
+    LegacyStandardModeForwardNode mode_one_confirm_cancel_first;
+    mode_one_confirm_cancel_first.next = &mode_one_confirm_cancel_second;
+    mode_one_confirm_cancel_first.combined_value = 3U;
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_confirm_cancel;
+    mode_one_confirm_cancel.level = 3U;
+    mode_one_confirm_cancel.packed_mode = 0xCU;
+    mode_one_confirm_cancel.workspace_head = &mode_one_confirm_cancel_first;
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        mode_one_confirm_cancel_runtime;
+    LegacyStandardModeForwardNode* mode_one_confirm_cancel_player = nullptr;
+    u32 mode_one_confirm_cancel_weight = 100U;
+    FakeModeOneConfirmPorts mode_one_confirm_cancel_ports;
+    const auto mode_one_confirm_cancelled =
+        openswd3::special_modes::confirm_legacy_special_mode_mode_one(
+            mode_one_confirm_cancel,
+            {},
+            mode_one_confirm_cancel_runtime,
+            mode_one_confirm_cancel_player,
+            {},
+            {},
+            {},
+            comparison_bases,
+            mode_one_confirm_cancel_weight,
+            0x303U,
+            mode_one_confirm_cancel_ports
+        );
+    test.expect_true(
+        mode_one_confirm_cancelled.status ==
+                openswd3::special_modes::LegacySpecialModeModeOneConfirmStatus::
+                    completed &&
+            mode_one_confirm_cancelled.path ==
+                openswd3::special_modes::LegacySpecialModeModeOneConfirmPath::
+                    cancel_quantity_commit &&
+            mode_one_confirm_cancel.level == 2U &&
+            mode_one_confirm_cancel.packed_mode == 0U &&
+            mode_one_confirm_cancel_first.combined_value == 0U &&
+            mode_one_confirm_cancel_second.combined_value == 0U &&
+            mode_one_confirm_cancelled.processed_record_count == 2U &&
+            mode_one_confirm_cancel_ports.samples ==
+                std::vector<std::pair<u16, u32>>{{0x00BBU, 0x303U}},
+        "0x44E4A0 level three option bit two cancels all workspace quantities, folds back to level two, clears both option bits, and plays sample BB"
+    );
+
+    LegacyStandardModeForwardNode mode_one_confirm_empty_record;
+    mode_one_confirm_empty_record.text_index = 0x2222U;
+    mode_one_confirm_empty_record.combined_value = 2U;
+    mode_one_confirm_empty_record.record_bytes[0x52U] = 1U;
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_confirm_empty;
+    mode_one_confirm_empty.level = 3U;
+    mode_one_confirm_empty.workspace_head = &mode_one_confirm_empty_record;
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        mode_one_confirm_empty_runtime;
+    LegacyStandardModeForwardNode* mode_one_confirm_empty_player = nullptr;
+    u32 mode_one_confirm_empty_weight = 100U;
+    const std::array<u32, 11U> mode_one_confirm_no_masks{
+        1U, 2U, 4U, 8U, 0x10U, 0x20U, 0x40U, 0x80U, 0x100U, 0x200U, 0x400U
+    };
+    FakeModeOneConfirmPorts mode_one_confirm_empty_ports;
+    const auto mode_one_confirm_empty_committed =
+        openswd3::special_modes::confirm_legacy_special_mode_mode_one(
+            mode_one_confirm_empty,
+            {},
+            mode_one_confirm_empty_runtime,
+            mode_one_confirm_empty_player,
+            {},
+            {},
+            mode_one_confirm_no_masks,
+            comparison_bases,
+            mode_one_confirm_empty_weight,
+            0x404U,
+            mode_one_confirm_empty_ports
+        );
+    test.expect_true(
+        mode_one_confirm_empty_committed.status ==
+                openswd3::special_modes::LegacySpecialModeModeOneConfirmStatus::
+                    completed &&
+            mode_one_confirm_empty_committed.path ==
+                openswd3::special_modes::LegacySpecialModeModeOneConfirmPath::
+                    commit_empty_mode &&
+            mode_one_confirm_empty.level == 1U &&
+            mode_one_confirm_empty_weight == 98U &&
+            mode_one_confirm_empty_record.combined_value == 0U &&
+            mode_one_confirm_empty_player != nullptr &&
+            mode_one_confirm_empty_player->text_index == 0x2222U &&
+            mode_one_confirm_empty_player->first_value == 0U &&
+            mode_one_confirm_empty_player->second_value == 2U &&
+            (mode_one_confirm_empty_player->filter_flags & 0x8000U) != 0U &&
+            (mode_one_confirm_empty.runtime_flags & 4U) == 0U &&
+            mode_one_confirm_empty_ports.samples ==
+                std::vector<std::pair<u16, u32>>{{0x00BBU, 0x404U}},
+        "0x44E4A0 level three empty mode subtracts corrected weight capacity, transfers nonzero quantities to player items, clears each workspace quantity, folds to level one when no mask matches, and plays sample BB"
+    );
+
+    LegacyStandardModeForwardNode mode_one_confirm_mask_stop_record;
+    mode_one_confirm_mask_stop_record.text_index = 0x2A2AU;
+    mode_one_confirm_mask_stop_record.combined_value = 1U;
+    mode_one_confirm_mask_stop_record.record_bytes[0x52U] = 1U;
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_confirm_mask_stop;
+    mode_one_confirm_mask_stop.level = 3U;
+    mode_one_confirm_mask_stop.runtime_flags = 4U;
+    mode_one_confirm_mask_stop.workspace_head =
+        &mode_one_confirm_mask_stop_record;
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        mode_one_confirm_mask_stop_runtime;
+    LegacyStandardModeForwardNode* mode_one_confirm_mask_stop_player = nullptr;
+    u32 mode_one_confirm_mask_stop_weight = 100U;
+    const std::array<u32, 3U> mode_one_confirm_short_masks{1U, 2U, 4U};
+    FakeModeOneConfirmPorts mode_one_confirm_mask_stop_ports;
+    const auto mode_one_confirm_mask_stopped =
+        openswd3::special_modes::confirm_legacy_special_mode_mode_one(
+            mode_one_confirm_mask_stop,
+            {},
+            mode_one_confirm_mask_stop_runtime,
+            mode_one_confirm_mask_stop_player,
+            {},
+            {},
+            mode_one_confirm_short_masks,
+            comparison_bases,
+            mode_one_confirm_mask_stop_weight,
+            0x4A4U,
+            mode_one_confirm_mask_stop_ports
+        );
+    test.expect_true(
+        mode_one_confirm_mask_stopped.status ==
+                openswd3::special_modes::LegacySpecialModeModeOneConfirmStatus::
+                    mask_table_out_of_range_stopped &&
+            mode_one_confirm_mask_stopped.path ==
+                openswd3::special_modes::LegacySpecialModeModeOneConfirmPath::
+                    commit_empty_mode &&
+            mode_one_confirm_mask_stop.level == 4U &&
+            mode_one_confirm_mask_stop_weight == 99U &&
+            (mode_one_confirm_mask_stop.runtime_flags & 4U) == 0U &&
+            mode_one_confirm_mask_stop_record.combined_value == 1U &&
+            mode_one_confirm_mask_stop_player == nullptr &&
+            mode_one_confirm_mask_stop_ports.samples.empty(),
+        "0x44E4A0 preserves level increment, capacity subtraction, cleared runtime bit, and quantity before stopping at a missing commit-mask read"
+    );
+
+    LegacyStandardModeForwardNode mode_one_confirm_commit_player_item;
+    mode_one_confirm_commit_player_item.text_index = 0x3333U;
+    mode_one_confirm_commit_player_item.first_value = 1U;
+    LegacyStandardModeForwardNode mode_one_confirm_commit_workspace;
+    mode_one_confirm_commit_workspace.text_index = 0x3333U;
+    mode_one_confirm_commit_workspace.combined_value = 1U;
+    mode_one_confirm_commit_workspace.first_value = 1U;
+    mode_one_confirm_commit_workspace.record_bytes[0x52U] = 10U;
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_confirm_player;
+    mode_one_confirm_player.level = 3U;
+    mode_one_confirm_player.packed_mode = 1U;
+    mode_one_confirm_player.workspace_head = &mode_one_confirm_commit_workspace;
+    mode_one_confirm_player.visible_count = 1;
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        mode_one_confirm_player_runtime;
+    LegacyStandardModeForwardNode* mode_one_confirm_player_items =
+        &mode_one_confirm_commit_player_item;
+    u32 mode_one_confirm_player_weight = 100U;
+    FakeModeOneConfirmPorts mode_one_confirm_player_ports;
+    const auto mode_one_confirm_player_committed =
+        openswd3::special_modes::confirm_legacy_special_mode_mode_one(
+            mode_one_confirm_player,
+            {},
+            mode_one_confirm_player_runtime,
+            mode_one_confirm_player_items,
+            {},
+            {},
+            {},
+            comparison_bases,
+            mode_one_confirm_player_weight,
+            0x505U,
+            mode_one_confirm_player_ports
+        );
+    test.expect_true(
+        mode_one_confirm_player_committed.status ==
+                openswd3::special_modes::LegacySpecialModeModeOneConfirmStatus::
+                    completed &&
+            mode_one_confirm_player_committed.path ==
+                openswd3::special_modes::LegacySpecialModeModeOneConfirmPath::
+                    commit_player_mode &&
+            mode_one_confirm_player.level == 2U &&
+            mode_one_confirm_player_weight == 106U &&
+            mode_one_confirm_player.workspace_head == nullptr &&
+            mode_one_confirm_player_committed.released_record_count == 1U &&
+            mode_one_confirm_player_ports.samples.empty(),
+        "0x44E4A0 level three player mode adds corrected weight capacity, removes the selected quantity from player items, releases a workspace record no longer present, and returns early when the workspace becomes empty"
+    );
+
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_confirm_transition;
+    mode_one_confirm_transition.level = 4U;
+    FakeModeOneConfirmPorts mode_one_confirm_transition_ports;
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        mode_one_confirm_transition_runtime;
+    LegacyStandardModeForwardNode* mode_one_confirm_transition_player = nullptr;
+    u32 mode_one_confirm_transition_weight = 0U;
+    const auto mode_one_confirm_transition_requested =
+        openswd3::special_modes::confirm_legacy_special_mode_mode_one(
+            mode_one_confirm_transition,
+            {},
+            mode_one_confirm_transition_runtime,
+            mode_one_confirm_transition_player,
+            {},
+            {},
+            {},
+            comparison_bases,
+            mode_one_confirm_transition_weight,
+            0x606U,
+            mode_one_confirm_transition_ports
+        );
+    test.expect_true(
+        mode_one_confirm_transition_requested.path ==
+                openswd3::special_modes::LegacySpecialModeModeOneConfirmPath::
+                    request_external_transition &&
+            mode_one_confirm_transition.level == 1U &&
+            mode_one_confirm_transition.transition_request == 0xC0000001U &&
+            mode_one_confirm_transition_ports.samples ==
+                std::vector<std::pair<u16, u32>>{{0x00B9U, 0x606U}},
+        "0x44E4A0 level four requests the external transition and plays sample B9 only when packed bits zero, two, and three are all clear"
+    );
+    mode_one_confirm_transition.level = 4U;
+    mode_one_confirm_transition.packed_mode = 8U;
+    mode_one_confirm_transition.transition_request = 0U;
+    mode_one_confirm_transition_ports.samples.clear();
+    const auto mode_one_confirm_transition_suppressed =
+        openswd3::special_modes::confirm_legacy_special_mode_mode_one(
+            mode_one_confirm_transition,
+            {},
+            mode_one_confirm_transition_runtime,
+            mode_one_confirm_transition_player,
+            {},
+            {},
+            {},
+            comparison_bases,
+            mode_one_confirm_transition_weight,
+            0x707U,
+            mode_one_confirm_transition_ports
+        );
+    test.expect_true(
+        mode_one_confirm_transition_suppressed.path ==
+                openswd3::special_modes::LegacySpecialModeModeOneConfirmPath::
+                    transition_suppressed &&
+            mode_one_confirm_transition.level == 1U &&
+            mode_one_confirm_transition.transition_request == 0U &&
+            mode_one_confirm_transition_ports.samples.empty(),
+        "0x44E4A0 level four still folds to level one but suppresses transition and sample when packed bit three is set"
+    );
+
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_confirm_weight_return;
+    mode_one_confirm_weight_return.level = 10U;
+    FakeModeOneConfirmPorts mode_one_confirm_weight_return_ports;
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        mode_one_confirm_weight_return_runtime;
+    LegacyStandardModeForwardNode* mode_one_confirm_weight_return_player =
+        nullptr;
+    u32 mode_one_confirm_weight_return_capacity = 0U;
+    const auto mode_one_confirm_returned =
+        openswd3::special_modes::confirm_legacy_special_mode_mode_one(
+            mode_one_confirm_weight_return,
+            {},
+            mode_one_confirm_weight_return_runtime,
+            mode_one_confirm_weight_return_player,
+            {},
+            {},
+            {},
+            comparison_bases,
+            mode_one_confirm_weight_return_capacity,
+            0U,
+            mode_one_confirm_weight_return_ports
+        );
+    test.expect_true(
+        mode_one_confirm_returned.path ==
+                openswd3::special_modes::LegacySpecialModeModeOneConfirmPath::
+                    return_from_weight_limit &&
+            mode_one_confirm_weight_return.level == 2U &&
+            mode_one_confirm_weight_return_ports.samples.empty(),
+        "0x44E4A0 level ten returns to level two without any other side effect"
     );
 
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;
