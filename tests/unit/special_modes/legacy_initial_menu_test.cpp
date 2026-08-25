@@ -17076,6 +17076,66 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44D6E0 leaves all contributions blocked by a negative target flag but still releases temporary attributes"
     );
 
+    openswd3::special_modes::LegacySpecialModeActionSet special_action_set;
+    for (std::size_t index = 0U; index < special_action_set.records.size();
+         ++index) {
+        auto& record = special_action_set.records[index];
+        record.action_id = static_cast<u32>(0xA000U + index);
+        record.base_variant = static_cast<u32>(0xB000U + index);
+        record.variant_delta = static_cast<u32>(0xC000U + index);
+        record.field_1c = 1U;
+        record.one_shot_base_variant = 2U;
+        record.one_shot_variant_delta = 3U;
+        record.command_cursor = 4U;
+        record.wait_remaining = 5U;
+        record.wait_default = 6U;
+        record.wait_override = 7U;
+        record.external_mode = 8U;
+        record.field_24 = static_cast<u32>(0xD000U + index);
+    }
+    openswd3::special_modes::initialize_legacy_special_mode_actions(
+        special_action_set
+    );
+    bool special_actions_initialized = true;
+    for (std::size_t index = 0U; index < special_action_set.records.size();
+         ++index) {
+        const auto& record = special_action_set.records[index];
+        special_actions_initialized = special_actions_initialized &&
+            record.field_1c == 0xFFFFFFFFU &&
+            record.one_shot_base_variant == 0xFFFFFFFFU &&
+            record.one_shot_variant_delta == 0xFFFFFFFFU &&
+            record.command_cursor == 0U && record.wait_remaining == 0U &&
+            record.wait_default == 0U && record.wait_override == 0U &&
+            record.external_mode == 0U &&
+            record.field_24 == static_cast<u32>(0xD000U + index);
+    }
+    test.expect_true(
+        special_actions_initialized,
+        "0x44DAA0 runs the shared action initializer on all nine records without clearing unrelated fields"
+    );
+    test.expect_true(
+        special_action_set.records[0].action_id == 1U &&
+            special_action_set.records[1].action_id == 2U &&
+            special_action_set.records[2].action_id == 8U &&
+            special_action_set.records[3].action_id == 0x11U &&
+            special_action_set.records[4].action_id == 0xA004U &&
+            special_action_set.records[5].action_id == 0x232AU &&
+            special_action_set.records[6].action_id == 0x232AU &&
+            special_action_set.records[7].action_id == 0x232AU &&
+            special_action_set.records[8].action_id == 0x232AU &&
+            special_action_set.records[0].base_variant == 5U &&
+            special_action_set.records[3].base_variant == 5U &&
+            special_action_set.records[4].base_variant == 0xB004U &&
+            special_action_set.records[5].base_variant == 0x1CU &&
+            special_action_set.records[6].base_variant == 0x1DU &&
+            special_action_set.records[7].base_variant == 0x32U &&
+            special_action_set.records[8].base_variant == 0x16U &&
+            special_action_set.records[0].variant_delta == 0U &&
+            special_action_set.records[4].variant_delta == 0xC004U &&
+            special_action_set.records[8].variant_delta == 0U,
+        "0x44DAA0 assigns four state actions and four 0x232A variants while leaving the fifth action key untouched"
+    );
+
     using SystemMenuRecordCountStatus =
         openswd3::special_modes::LegacySystemMenuRecordCountStatus;
     openswd3::special_modes::LegacySystemMenuState record_count_null_state;

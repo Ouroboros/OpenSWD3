@@ -2529,6 +2529,14 @@ apply_legacy_guardian_attributes(
     LegacyGuardianAttributeApplicationPorts& ports
 ) noexcept;
 
+struct LegacySpecialModeActionSet {
+    std::array<asset_runtime::LegacyActionRecord, 9U> records{};
+};
+
+void initialize_legacy_special_mode_actions(
+    LegacySpecialModeActionSet& state
+) noexcept;
+
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
     completed,
     mode_mask_out_of_range,

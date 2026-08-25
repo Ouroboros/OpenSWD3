@@ -9,6 +9,7 @@
 #include <iterator>
 #include <new>
 #include <string>
+#include <utility>
 
 namespace openswd3::special_modes {
 namespace {
@@ -5283,6 +5284,33 @@ LegacyGuardianAttributeApplicationResult apply_legacy_guardian_attributes(
     result.temporary_attributes_released = true;
     result.legacy_return_value = ports.release_temporary_attributes();
     return result;
+}
+
+void initialize_legacy_special_mode_actions(
+    LegacySpecialModeActionSet& state
+) noexcept {
+    for (asset_runtime::LegacyActionRecord& record : state.records) {
+        asset_runtime::initialize_legacy_action_record(record);
+    }
+
+    for (std::size_t index = 0U; index < 4U; ++index) {
+        state.records[index].base_variant = 5U;
+        state.records[index].variant_delta = 0U;
+    }
+    state.records[0].action_id = 1U;
+    state.records[1].action_id = 2U;
+    state.records[2].action_id = 8U;
+    state.records[3].action_id = 0x11U;
+
+    constexpr std::array<std::pair<std::size_t, compat::u32>, 4U>
+        kSharedActionVariants{
+            {{8U, 0x16U}, {7U, 0x32U}, {5U, 0x1CU}, {6U, 0x1DU}}
+        };
+    for (const auto& [index, variant] : kSharedActionVariants) {
+        state.records[index].action_id = 0x232AU;
+        state.records[index].base_variant = variant;
+        state.records[index].variant_delta = 0U;
+    }
 }
 
 static LegacyGuardianAttributeTarget load_guardian_attribute_target(
