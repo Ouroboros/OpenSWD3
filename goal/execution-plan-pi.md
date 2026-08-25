@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v685
+版本：v686
 
 最后更新：2026-08-25
 
@@ -3889,5 +3889,6 @@ B7 P0 有限收口完成。
 - 为回收`0x004502B0`caller，补齐已关闭四向描边包装`0x00417050`的公共后缀传播。四遍正常调用中，第一遍完成后目标高度、水平位移、纵向phase、opacity、RGB偏移与跳行状态即清零，后三遍读取清理后的共享snapshot；放大位保留。modern API改为可变共享请求与效果状态，`pass_count`记录真实尝试前缀；首个typed-stop保留入口状态并阻断剩余遍次。定向、独立ASan`1/1`、Linux core`188/188`及Linux app`194/194`通过；该callee修正不改变battle工作包计数。
 - 模块10战斗动态动作帧组合绘制包装`0x004502B0`完成。完整148行先清零整个0x98动作记录，写固定动作号与低16位variant并直接调用已关闭动作更新器；成功后用动作产出的资源/帧号、YX偏移和模式flags绘制。变体状态字节为1时先以固定绿色槽画四向描边，再主绘制；入口selector完整dword等于1时再以flags加0x10、红0与绿蓝-10复绘。typed实现保留动作失败、帧/source发布、短状态表原读点、描边逐遍状态、主绘制与复绘故障前缀。定向测试使用真实动作命令流锁定低16位、资源帧号、偏移、四个绿色像素、两次主体绘制及三类失败；独立ASan`1/1`、Linux core`188/188`和Linux app`194/194`通过。工作包稳定为`20/422`，即`16 platform_adapted + 4 assembly_exact + 402 pending_audit`，SHA256为`7fbbeb05353a0434b9e79c673ab1d4113c6abd80d33b1c749a6988a76acbc354`。原版动作记录、变体状态表、帧记录、共享blitter状态和framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 - 模块10战斗持久动作槽偏移帧绘制`0x00450400`完成。完整66行按0x98字节步长选择持久槽，只依次写动作号2392与base variant 0，再调用已关闭动作更新器；成功后用槽内资源/帧号、YX偏移和mode flags绘制一次。typed span越界只在首个槽写点停止；更新失败保留两项有序覆盖，帧缺失和blit typed-stop保留此前发布。定向测试锁定第二槽独占更新、邻槽不变、真实动作命令流产出、坐标像素、正常公共后缀、负索引和更新失败；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`21/422`，即`17 platform_adapted + 4 assembly_exact + 401 pending_audit`，SHA256为`ba12eba2baab29304e4b994906e493d67aa8bd819e62bec0707550aa6ff1c556`。原版持久动作槽、帧记录、共享blitter状态和framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
+- 模块10战斗资源帧显式宽度绘制`0x00450490`完成。完整41行先查询并发布入口资源/帧，之后才对显式宽度做signed非正门；宽度非正仍保留record/source发布且不读取帧高、不绘制。正宽度路径完全不读帧宽，以入口宽度和帧u16高度调用软件blitter。定向测试锁定记录宽5但显式宽2时的2×6像素区域、零宽发布前缀、帧缺失及公共后缀RGB/请求清理；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`22/422`，即`18 platform_adapted + 4 assembly_exact + 400 pending_audit`，SHA256为`69d929caa70bc0538b3118a59405b8536a778186fd5f46c4a2d6f5518e792df2`。原版显式宽度输入、帧记录、共享blitter状态和framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=21`的`0x00450490`战斗帧块绘制包装，继续完整审计其帧选择、坐标与软件绘制顺序。
+下一项回收`audit_order=22`的`0x004504E0`战斗帧块绘制包装，继续完整审计其帧选择、尺寸与软件绘制顺序。

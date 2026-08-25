@@ -3136,6 +3136,150 @@ void test_battle_indexed_action_frame_draw(openswd3::test::Context& test) {
     }
 }
 
+void test_battle_resource_frame_width(openswd3::test::Context& test) {
+    const openswd3::rendering::LegacySurfaceGeometry surface{
+        .pitch_bytes = 160,
+        .width = 80,
+        .height = 60,
+    };
+    const openswd3::rendering::LegacyBlitClipRectangle clip{
+        .left = 0,
+        .top = 0,
+        .width = 80,
+        .height = 60,
+    };
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleBorderFrameProvider provider;
+        openswd3::battle::LegacyBattleFrameDrawState state;
+        openswd3::rendering::LegacyBlitRequest shared_request{
+            .target_height = 6,
+            .vertical_resample_enlarge_state = 1U,
+            .vertical_resample_phase_10_10 = 0x33U,
+            .opacity_step = 5,
+        };
+        openswd3::rendering::LegacyBlitEffectState shared_effects{
+            .red_offset = 1,
+            .green_offset = 2,
+            .blue_offset = 3,
+        };
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_resource_frame_width(
+                state,
+                framebuffer,
+                clip,
+                shared_request,
+                shared_effects,
+                jitter,
+                provider,
+                0x88U,
+                2U,
+                20,
+                10,
+                2
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameDrawStatus::completed &&
+                result.frame_load_calls == 1U &&
+                result.frame_draw_calls == 1U &&
+                provider.resource_ids == std::vector<u32>{0x88U} &&
+                provider.load_indices == std::vector<u32>{2U} &&
+                state.frame_record_available && state.source_published &&
+                state.current_frame_index == 2U &&
+                state.current_frame.width == 5U &&
+                state.current_frame.height == 6U &&
+                shared_request.target_height == 0 &&
+                shared_request.vertical_resample_phase_10_10 == 0U &&
+                shared_request.opacity_step == 0 &&
+                shared_request.vertical_resample_enlarge_state == 1U &&
+                shared_effects.red_offset == 0 &&
+                shared_effects.green_offset == 0 &&
+                shared_effects.blue_offset == 0 &&
+                framebuffer.row_pixels(10U)[20U] != 0U &&
+                framebuffer.row_pixels(15U)[21U] != 0U &&
+                framebuffer.row_pixels(10U)[22U] == 0U,
+            "explicit frame width replaces record width while preserving record height"
+        );
+    }
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleBorderFrameProvider provider;
+        openswd3::battle::LegacyBattleFrameDrawState state;
+        openswd3::rendering::LegacyBlitRequest shared_request{
+            .target_height = 7,
+            .opacity_step = 4,
+        };
+        openswd3::rendering::LegacyBlitEffectState shared_effects{
+            .red_offset = 6,
+        };
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_resource_frame_width(
+                state,
+                framebuffer,
+                clip,
+                shared_request,
+                shared_effects,
+                jitter,
+                provider,
+                0x99U,
+                3U,
+                20,
+                10,
+                0
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameDrawStatus::
+                        width_nonpositive &&
+                result.frame_load_calls == 1U &&
+                result.frame_draw_calls == 0U && state.frame_record_available &&
+                state.source_published && state.current_frame_index == 3U &&
+                shared_request.target_height == 7 &&
+                shared_request.opacity_step == 4 &&
+                shared_effects.red_offset == 6,
+            "zero explicit width retains frame and source publication without blit"
+        );
+    }
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleBorderFrameProvider provider;
+        provider.failed_index = 4;
+        openswd3::battle::LegacyBattleFrameDrawState state;
+        openswd3::rendering::LegacyBlitRequest shared_request;
+        openswd3::rendering::LegacyBlitEffectState shared_effects;
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_resource_frame_width(
+                state,
+                framebuffer,
+                clip,
+                shared_request,
+                shared_effects,
+                jitter,
+                provider,
+                1U,
+                4U,
+                20,
+                10,
+                2
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameDrawStatus::
+                        frame_unavailable &&
+                state.frame_record_published && !state.frame_record_available &&
+                !state.source_published && result.frame_draw_calls == 0U,
+            "missing selected frame stops after null record publication"
+        );
+    }
+}
+
 void test_battle_frame_zero_draw(openswd3::test::Context& test) {
     const openswd3::rendering::LegacySurfaceGeometry surface{
         .pitch_bytes = 160,
@@ -4765,6 +4909,7 @@ int main() {
     test_directional_scan_division_and_typed_stops(test);
     test_battle_action_frame_draw(test);
     test_battle_indexed_action_frame_draw(test);
+    test_battle_resource_frame_width(test);
     test_battle_frame_zero_draw(test);
     test_battle_border_panel(test);
     test_battle_color_fade(test);
