@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v677
+版本：v678
 
 最后更新：2026-08-25
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 以调用参数颜色填充战斗界面矩形
+当前步骤：模块10 · 协调战斗边框帧块与渐变底板绘制
 
 ## 0. 执行约定
 
@@ -3883,4 +3883,6 @@ B7 P0 有限收口完成。
 
 - 模块10战斗行动计时阈值发布`0x0044FFC0`完成。15行叶子按`20-setting`、两次乘5和左移2的原指令链，把32位战斗速度设置换算为typed行动阈值并返回同一bit pattern；全程保留低32位回绕，不新增夹值、溢出检查或设置门。原数据默认900、常规正负结果和两个有符号极值已锁定，唯一初始化caller与五处下游读取完成追溯。定向零warning目标、独立ASan`1/1`、Linux core`188/188`及Linux app`194/194`通过。工作包连续两次生成逐字节一致，当前`16/422`，即`12 platform_adapted + 4 assembly_exact + 406 pending_audit`，SHA256为`57a0fac7799b9d4c7e22a3b65691576c0ef21c3b2a9aa1a5bc99b95a0d6635a1`。原版速度设置、阈值与对象计时联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 
-按callee优先，下一项关闭`0x00450A50`战斗纯色矩形填充包装：它把入口颜色字节的栈槽地址发布为临时源，并以固定模式8直接调用已关闭软件blitter。完成后回收`audit_order=17`的`0x0044FFE0`战斗边框记录协调函数。
+- 模块10战斗矩形常量色垂直渐变`0x00450A50`按callee优先完成。27行包装先把第五个入口dword的完整栈槽地址发布为共享源，再以`x,y,width,height,8,0`调用已关闭软件blitter；现代实现以四字节小端snapshot替代悬空栈指针，直接组合typed blitter并保留其余入口共享请求状态。固定模式8实际选择raw常量色垂直渐变而非普通实色copy；颜色低word为`0xFFFF`时仍保留RLE误分类与既有callee typed-stop。定向测试锁定完整参数槽、三行渐变、矩形外不变及误分类边界；零warning目标、独立ASan`1/1`、Linux core`188/188`及Linux app`194/194`通过。工作包连续两次生成逐字节一致，当前`17/422`，即`13 platform_adapted + 4 assembly_exact + 405 pending_audit`，SHA256为`4281418b222752187197c02299b6e6702467d0ae07bde12b74ab691d1ba35406`。原版颜色栈槽、共享blitter状态与framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=17`的`0x0044FFE0`战斗边框与渐变底板协调函数；其九处帧记录查询、八处软件blit和一处常量色垂直渐变callee均已关闭，必须直接组合typed接口并保留逐次帧重取、坐标推进和循环边界。

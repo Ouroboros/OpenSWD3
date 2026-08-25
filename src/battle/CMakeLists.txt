@@ -2,6 +2,7 @@ add_library(
     openswd3_battle
     STATIC
         legacy_battle_assets.cpp
+        legacy_battle_color_fade.cpp
         legacy_battle_directional_scan.cpp
         legacy_battle_image_rotation.cpp
         legacy_battle_particle_frame.cpp

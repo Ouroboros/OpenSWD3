@@ -1,5 +1,6 @@
 #include "test.hpp"
 
+#include "openswd3/battle/legacy_battle_color_fade.hpp"
 #include "openswd3/battle/legacy_battle_directional_scan.hpp"
 #include "openswd3/battle/legacy_battle_image_rotation.hpp"
 #include "openswd3/battle/legacy_battle_particle_frame.hpp"
@@ -2598,6 +2599,102 @@ void test_directional_scan_division_and_typed_stops(
     );
 }
 
+void test_battle_color_fade(openswd3::test::Context& test) {
+    openswd3::rendering::LegacyFramebuffer framebuffer{
+        openswd3::rendering::LegacySurfaceGeometry{
+            .pitch_bytes = 8,
+            .width = 4,
+            .height = 4,
+        }
+    };
+    openswd3::battle::LegacyBattleColorFadeState state;
+    openswd3::rendering::LegacyRleRowJitterState jitter;
+    const openswd3::rendering::LegacyBlitClipRectangle clip{
+        .left = 0,
+        .top = 0,
+        .width = 4,
+        .height = 4,
+    };
+    const openswd3::rendering::LegacyBlitRequest shared_request{
+        .target_height = 3,
+        .flags = 0x1234U,
+        .opacity_step = 11,
+    };
+    const auto result = openswd3::battle::fade_legacy_battle_rectangle(
+        state,
+        framebuffer,
+        clip,
+        shared_request,
+        openswd3::rendering::LegacyBlitEffectState{},
+        jitter,
+        1,
+        0,
+        2,
+        2,
+        0xA5A51234U
+    );
+    const auto row0 = framebuffer.row_pixels(0U);
+    const auto row1 = framebuffer.row_pixels(1U);
+    const auto row2 = framebuffer.row_pixels(2U);
+    const auto row3 = framebuffer.row_pixels(3U);
+    test.expect_true(
+        result.status ==
+                openswd3::rendering::LegacyBlitExecutionStatus::completed &&
+            result.selection.table_slot == 0x88U &&
+            result.selection.routine ==
+                openswd3::rendering::LegacyBlitterRoutine::
+                    raw_constant_vertical_fade &&
+            state.source_argument_slot ==
+                std::array<u8, 4>{0x34U, 0x12U, 0xA5U, 0xA5U} &&
+            row0[0U] == 0U && row0[1U] == 0x1234U && row0[2U] == 0x1234U &&
+            row0[3U] == 0U && row1[0U] == 0U && row1[1U] != 0U &&
+            row1[1U] != row0[1U] && row1[2U] == row1[1U] && row1[3U] == 0U &&
+            row2[0U] == 0U && row2[1U] != 0U && row2[1U] != row1[1U] &&
+            row2[2U] == row2[1U] && row2[3U] == 0U && row3[0U] == 0U &&
+            row3[1U] == 0U && row3[2U] == 0U && row3[3U] == 0U,
+        "battle color wrapper publishes the full slot and selects mode8 vertical fade"
+    );
+
+    openswd3::rendering::LegacyFramebuffer marker_framebuffer{
+        openswd3::rendering::LegacySurfaceGeometry{
+            .pitch_bytes = 4,
+            .width = 2,
+            .height = 1,
+        }
+    };
+    const auto marker_result = openswd3::battle::fade_legacy_battle_rectangle(
+        state,
+        marker_framebuffer,
+        openswd3::rendering::LegacyBlitClipRectangle{
+            .left = 0,
+            .top = 0,
+            .width = 2,
+            .height = 1,
+        },
+        {},
+        {},
+        jitter,
+        0,
+        0,
+        1,
+        1,
+        0x1234FFFFU
+    );
+    test.expect_true(
+        marker_result.selection.rle_family &&
+            marker_result.selection.table_slot == 8U &&
+            marker_result.selection.routine ==
+                openswd3::rendering::LegacyBlitterRoutine::
+                    rle_coverage_forward &&
+            marker_result.status ==
+                openswd3::rendering::LegacyBlitExecutionStatus::
+                    unsupported_routine &&
+            state.source_argument_slot ==
+                std::array<u8, 4>{0xFFU, 0xFFU, 0x34U, 0x12U},
+        "FFFF low word keeps the RLE-family misclassification and existing callee stop"
+    );
+}
+
 void test_action_timing_threshold(openswd3::test::Context& test) {
     openswd3::battle::LegacyBattleTimingState state;
     test.expect_equal(
@@ -3757,6 +3854,7 @@ int main() {
     test_directional_scan_direct_mirror_transparent_and_combine(test);
     test_directional_scan_fixed_point_loops_and_bounds(test);
     test_directional_scan_division_and_typed_stops(test);
+    test_battle_color_fade(test);
     test_action_timing_threshold(test);
     test_literal_image_rotation(test);
     test_render_auxiliary_buffer_release(test);
