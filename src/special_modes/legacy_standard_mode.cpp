@@ -5006,6 +5006,32 @@ LegacyPlayerItemDetachResult detach_legacy_player_item_by_id(
     return result;
 }
 
+LegacyFixedItemLookupResult find_legacy_fixed_item_record(
+    const std::span<LegacyStandardModeForwardNode* const> slots,
+    const compat::u16 record_id
+) noexcept {
+    LegacyFixedItemLookupResult result;
+    constexpr std::size_t kFixedSlotCount = 64U;
+    for (std::size_t index = 0U; index < kFixedSlotCount; ++index) {
+        if (index >= slots.size()) {
+            result.status =
+                LegacyFixedItemLookupStatus::slot_table_out_of_range_stopped;
+            return result;
+        }
+        const LegacyStandardModeForwardNode* const record = slots[index];
+        if (record == nullptr) {
+            result.status = LegacyFixedItemLookupStatus::null_slot_stopped;
+            return result;
+        }
+        ++result.checked_slot_count;
+        if (record->text_index == record_id) {
+            result.legacy_return_node = record;
+            return result;
+        }
+    }
+    return result;
+}
+
 LegacyStandardModeRecordCloneResult
 rebuild_legacy_standard_mode_selection_records(
     LegacyStandardModeForwardNode* source_head,

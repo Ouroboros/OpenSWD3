@@ -2420,6 +2420,22 @@ struct LegacyPlayerItemDetachResult {
     LegacyStandardModeForwardNode*& head, compat::u16 record_id
 ) noexcept;
 
+enum class LegacyFixedItemLookupStatus : compat::u8 {
+    completed,
+    slot_table_out_of_range_stopped,
+    null_slot_stopped,
+};
+
+struct LegacyFixedItemLookupResult {
+    LegacyFixedItemLookupStatus status{LegacyFixedItemLookupStatus::completed};
+    const LegacyStandardModeForwardNode* legacy_return_node{};
+    compat::u32 checked_slot_count{};
+};
+
+[[nodiscard]] LegacyFixedItemLookupResult find_legacy_fixed_item_record(
+    std::span<LegacyStandardModeForwardNode* const> slots, compat::u16 record_id
+) noexcept;
+
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
     completed,
     mode_mask_out_of_range,

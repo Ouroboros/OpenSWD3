@@ -16692,6 +16692,70 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44D620 stops when an unmatched cycle would reread its first node"
     );
 
+    LegacyStandardModeForwardNode fixed_default;
+    fixed_default.text_index = 1U;
+    LegacyStandardModeForwardNode fixed_first;
+    fixed_first.text_index = 7U;
+    LegacyStandardModeForwardNode fixed_middle;
+    fixed_middle.text_index = 8U;
+    std::array<LegacyStandardModeForwardNode*, 64U> fixed_slots{};
+    fixed_slots.fill(&fixed_default);
+    fixed_slots[0U] = &fixed_first;
+    fixed_slots[37U] = &fixed_middle;
+    const auto fixed_first_lookup =
+        openswd3::special_modes::find_legacy_fixed_item_record(fixed_slots, 7U);
+    const auto fixed_middle_lookup =
+        openswd3::special_modes::find_legacy_fixed_item_record(fixed_slots, 8U);
+    test.expect_true(
+        fixed_first_lookup.status ==
+                openswd3::special_modes::LegacyFixedItemLookupStatus::
+                    completed &&
+            fixed_first_lookup.legacy_return_node == &fixed_first &&
+            fixed_first_lookup.checked_slot_count == 1U &&
+            fixed_middle_lookup.legacy_return_node == &fixed_middle &&
+            fixed_middle_lookup.checked_slot_count == 38U,
+        "0x44D650 returns the first matching fixed item slot in strict zero-through-sixty-three order"
+    );
+
+    const auto fixed_missing_lookup =
+        openswd3::special_modes::find_legacy_fixed_item_record(fixed_slots, 9U);
+    test.expect_true(
+        fixed_missing_lookup.status ==
+                openswd3::special_modes::LegacyFixedItemLookupStatus::
+                    completed &&
+            fixed_missing_lookup.legacy_return_node == nullptr &&
+            fixed_missing_lookup.checked_slot_count == 64U,
+        "0x44D650 returns null only after checking all sixty-four fixed slots"
+    );
+
+    const auto fixed_short_lookup =
+        openswd3::special_modes::find_legacy_fixed_item_record(
+            std::span<LegacyStandardModeForwardNode* const>(
+                fixed_slots.data(), 63U
+            ),
+            9U
+        );
+    test.expect_true(
+        fixed_short_lookup.status ==
+                openswd3::special_modes::LegacyFixedItemLookupStatus::
+                    slot_table_out_of_range_stopped &&
+            fixed_short_lookup.checked_slot_count == 63U &&
+            fixed_short_lookup.legacy_return_node == nullptr,
+        "0x44D650 stops at the original sixty-fourth slot pointer read when the table is short"
+    );
+
+    fixed_slots[10U] = nullptr;
+    const auto fixed_null_lookup =
+        openswd3::special_modes::find_legacy_fixed_item_record(fixed_slots, 9U);
+    test.expect_true(
+        fixed_null_lookup.status ==
+                openswd3::special_modes::LegacyFixedItemLookupStatus::
+                    null_slot_stopped &&
+            fixed_null_lookup.checked_slot_count == 10U &&
+            fixed_null_lookup.legacy_return_node == nullptr,
+        "0x44D650 stops at the original record-id read when a fixed slot is null"
+    );
+
     using SystemMenuRecordCountStatus =
         openswd3::special_modes::LegacySystemMenuRecordCountStatus;
     openswd3::special_modes::LegacySystemMenuState record_count_null_state;
