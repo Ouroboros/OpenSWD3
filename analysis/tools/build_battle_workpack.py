@@ -40,6 +40,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-image-point-query-00433aa0.md",
     ),
+    "0x00433E20": (
+        "platform_adapted",
+        "evidence/battle-primary-row-offsets-00433e20.md",
+    ),
     "0x004342E0": (
         "assembly_exact",
         "evidence/battle-render-rectangle-004342e0.md",
