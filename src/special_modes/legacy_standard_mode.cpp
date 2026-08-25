@@ -4328,6 +4328,28 @@ LegacyTitleMenuFrameResult render_legacy_title_menu_frame(
                 }
             }
 
+            LegacyObjectLabelPanelState object_label_state{
+                .source_owner = state.source_surface_token,
+                .destination_owner = state.destination_surface_owner,
+                .pixel_conversion = state.pixel_conversion,
+            };
+            const LegacyObjectLabelPanelResult object_label =
+                render_legacy_object_label_panel(
+                    object_label_state,
+                    state.runtime_input_owner,
+                    ports.object_label_panel_ports()
+                );
+            ++result.helper_call_count;
+            state.source_surface_token = object_label_state.source_owner;
+            result.object_label_status =
+                static_cast<compat::u8>(object_label.status);
+            if (object_label.status !=
+                LegacyObjectLabelPanelStatus::completed) {
+                result.status =
+                    LegacyTitleMenuFrameStatus::object_label_stopped;
+                return result;
+            }
+
             ports.update_mode_one_overlay(state.mode_one_overlay_owner);
             ++result.helper_call_count;
             emit(
@@ -9613,6 +9635,117 @@ LegacyPartyDialogResult run_legacy_party_dialog(
         return result;
     }
     }
+    return result;
+}
+
+LegacyObjectLabelPanelResult render_legacy_object_label_panel(
+    LegacyObjectLabelPanelState& state,
+    const compat::u32 object_id,
+    LegacyObjectLabelPanelPorts& ports
+) noexcept {
+    LegacyObjectLabelPanelResult result;
+    const auto wrapping_add = [](const compat::i32 left,
+                                 const compat::i32 right) noexcept {
+        return std::bit_cast<compat::i32>(
+            std::bit_cast<compat::u32>(left) + std::bit_cast<compat::u32>(right)
+        );
+    };
+    const auto wrapping_subtract = [](const compat::i32 left,
+                                      const compat::i32 right) noexcept {
+        return std::bit_cast<compat::i32>(
+            std::bit_cast<compat::u32>(left) - std::bit_cast<compat::u32>(right)
+        );
+    };
+
+    ports.prepare_object(object_id);
+    result.object_prepared = true;
+    result.object_x = ports.object_x(object_id);
+    result.object_y = ports.object_y(object_id);
+    const std::optional<LegacyObjectLabelBackground> background =
+        ports.resolve_background(0x2449U, 0U);
+    if (!background.has_value()) {
+        result.status =
+            LegacyObjectLabelPanelStatus::background_resource_stopped;
+        return result;
+    }
+    result.background = *background;
+    state.source_owner = background->source_owner;
+    result.blit = LegacyObjectLabelBlitRequest{
+        .source_owner = state.source_owner,
+        .x = wrapping_subtract(result.object_x, 0x6C),
+        .y = wrapping_subtract(result.object_y, 0x2E),
+        .width = background->width,
+        .height = background->height,
+        .flags = 0U,
+        .auxiliary = 0U,
+    };
+    ports.blit_background(result.blit);
+    result.background_blitted = true;
+
+    std::size_t label_length = 0U;
+    if (!ports.load_object_label(object_id, result.label, label_length) ||
+        label_length >= result.label.size()) {
+        result.status = LegacyObjectLabelPanelStatus::label_text_stopped;
+        return result;
+    }
+    const auto first_zero = std::find(
+        result.label.begin(),
+        result.label.begin() + static_cast<std::ptrdiff_t>(label_length),
+        0U
+    );
+    result.label_length = static_cast<std::size_t>(
+        std::distance(result.label.begin(), first_zero)
+    );
+    std::size_t offset = 0U;
+    while (offset < result.label_length) {
+        const compat::u8 byte = result.label[offset];
+        std::size_t character_length = 1U;
+        if (byte >= 0x81U && byte <= 0xFEU &&
+            offset + 1U < result.label_length) {
+            character_length = 2U;
+        }
+        if (character_length == 1U && std::bit_cast<compat::i8>(byte) < 0) {
+            result.label[offset] = 0x40U;
+            ++result.replaced_single_byte_count;
+        }
+        offset += character_length;
+    }
+
+    result.packed_color = rendering::legacy_pack_color_pair(
+        state.pixel_conversion, 0x15, 0x0F, 8
+    );
+    ports.draw_label(
+        LegacyObjectLabelTextRequest{
+            .destination_owner = state.destination_owner,
+            .x = result.object_x,
+            .y = result.object_y,
+            .text = std::span<const compat::u8>(result.label)
+                        .first(result.label_length),
+            .color = result.packed_color,
+            .style = 4U,
+        }
+    );
+    result.label_drawn = true;
+
+    result.label_metric = ports.object_label_metric(object_id);
+    const compat::i32 eleven_metrics = std::bit_cast<compat::i32>(
+        std::bit_cast<compat::u32>(result.label_metric) * 0x0BU
+    );
+    result.rectangle = LegacyObjectLabelRectangleRequest{
+        .x = wrapping_add(result.object_x, eleven_metrics),
+        .y = result.object_y,
+        .width = 0x0B,
+        .height = 0x16,
+        .red = 0x14,
+        .green = 0x0D,
+        .blue = 0,
+        .mode = 5,
+    };
+    result.rectangle_return_value =
+        ports.apply_rectangle_effect(result.rectangle);
+    result.rectangle_applied = true;
+    result.legacy_return_value =
+        std::bit_cast<compat::i32>(result.rectangle_return_value);
     return result;
 }
 

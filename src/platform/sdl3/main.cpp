@@ -4840,6 +4840,58 @@ public:
                     class TransitionPorts final
                         : public openswd3::special_modes::LegacyTitleMenuPorts {
                     public:
+                        class ObjectLabelPorts final
+                            : public openswd3::special_modes::
+                                  LegacyObjectLabelPanelPorts {
+                        public:
+                            void prepare_object(
+                                openswd3::compat::u32
+                            ) noexcept override {}
+                            openswd3::compat::i32
+                            object_x(openswd3::compat::u32) noexcept override {
+                                return 0;
+                            }
+                            openswd3::compat::i32
+                            object_y(openswd3::compat::u32) noexcept override {
+                                return 0;
+                            }
+                            std::optional<openswd3::special_modes::
+                                              LegacyObjectLabelBackground>
+                            resolve_background(
+                                openswd3::compat::u32, openswd3::compat::u32
+                            ) noexcept override {
+                                return openswd3::special_modes::
+                                    LegacyObjectLabelBackground{};
+                            }
+                            void blit_background(
+                                const openswd3::special_modes::
+                                    LegacyObjectLabelBlitRequest&
+                            ) noexcept override {}
+                            bool load_object_label(
+                                openswd3::compat::u32,
+                                std::span<openswd3::compat::u8, 64U>,
+                                std::size_t& output_length
+                            ) noexcept override {
+                                output_length = 0U;
+                                return true;
+                            }
+                            void draw_label(
+                                const openswd3::special_modes::
+                                    LegacyObjectLabelTextRequest&
+                            ) noexcept override {}
+                            openswd3::compat::i32 object_label_metric(
+                                openswd3::compat::u32
+                            ) noexcept override {
+                                return 0;
+                            }
+                            openswd3::compat::u32 apply_rectangle_effect(
+                                const openswd3::special_modes::
+                                    LegacyObjectLabelRectangleRequest&
+                            ) noexcept override {
+                                return 0U;
+                            }
+                        };
+
                         explicit TransitionPorts(
                             SdlSmokeIdlePorts& owner
                         ) noexcept
@@ -5032,9 +5084,14 @@ public:
                         ) noexcept override {
                             return 1U;
                         }
+                        openswd3::special_modes::LegacyObjectLabelPanelPorts&
+                        object_label_panel_ports() noexcept override {
+                            return object_label_ports_;
+                        }
 
                     private:
                         SdlSmokeIdlePorts& owner_;
+                        ObjectLabelPorts object_label_ports_;
                     } transition_ports_{owner_};
                 };
 

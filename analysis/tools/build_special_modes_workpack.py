@@ -13,6 +13,10 @@ OWNERSHIP_INPUT = INVENTORY_ROOT / "module-function-ownership.tsv"
 OUTPUT = INVENTORY_ROOT / "special-modes-function-workpack.tsv"
 EXPECTED_CANDIDATE_COUNT = 227
 CLOSURES = {
+    "0x00411700": (
+        "platform_adapted",
+        "evidence/object-label-panel-00411700.md",
+    ),
     "0x0040F890": (
         "platform_adapted",
         "evidence/party-dialog-main-0040f890.md",
@@ -993,10 +997,16 @@ def main() -> None:
         writer.writerows(output_rows)
     print(f"wrote {OUTPUT.relative_to(RESEARCH_ROOT)} ({len(output_rows)} rows)")
     closed_count = sum(row[8] != "pending_audit" for row in output_rows)
-    print(
-        f"closure {closed_count}/{EXPECTED_CANDIDATE_COUNT}; "
-        "remaining candidates require independent LST audit"
-    )
+    if closed_count == EXPECTED_CANDIDATE_COUNT:
+        print(
+            f"closure {closed_count}/{EXPECTED_CANDIDATE_COUNT}; "
+            "all candidates independently closed from full LST bodies"
+        )
+    else:
+        print(
+            f"closure {closed_count}/{EXPECTED_CANDIDATE_COUNT}; "
+            "remaining candidates require independent LST audit"
+        )
 
 
 if __name__ == "__main__":

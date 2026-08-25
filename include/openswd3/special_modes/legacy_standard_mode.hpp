@@ -5,6 +5,7 @@
 #include "openswd3/compat/types.hpp"
 #include "openswd3/input_time_rng/legacy_input.hpp"
 #include "openswd3/rendering/legacy_frame_color.hpp"
+#include "openswd3/rendering/legacy_pixel_conversion.hpp"
 #include "openswd3/world_map/legacy_world_frame_composition.hpp"
 #include "openswd3/world_map/legacy_world_story_vm.hpp"
 
@@ -17,6 +18,8 @@
 #include <vector>
 
 namespace openswd3::special_modes {
+
+class LegacyObjectLabelPanelPorts;
 
 inline constexpr compat::u32 kLegacySpecialModeValueMask = 0x0FFFFFFFU;
 inline constexpr compat::u32 kLegacySpecialModeInitializeFlag = 0x80000000U;
@@ -193,6 +196,8 @@ struct LegacyTitleMenuState {
     compat::u32 runtime_tertiary{};
     compat::u32 runtime_quaternary{};
     compat::u32 runtime_input_owner{};
+    compat::u32 destination_surface_owner{};
+    rendering::LegacyPixelConversionState pixel_conversion{};
     compat::u32 runtime_command_flags{};
     compat::u32 transition_timestamp{};
     std::array<compat::u8, 0x40U> mode_one_text{};
@@ -296,6 +301,8 @@ public:
     virtual void release_mode_one_overlay(compat::u32 owner) noexcept = 0;
     [[nodiscard]] virtual compat::u32
     settings_source_text_length(compat::u32 source_surface) noexcept = 0;
+    [[nodiscard]] virtual LegacyObjectLabelPanelPorts&
+    object_label_panel_ports() noexcept = 0;
 };
 
 enum class LegacyTitleMenuConfirmationStatus : compat::u8 {
@@ -1055,11 +1062,13 @@ enum class LegacyTitleMenuFrameStatus : compat::u8 {
     selector_out_of_range_stopped,
     overlay_storage_unavailable_stopped,
     snapshot_unavailable_stopped,
+    object_label_stopped,
 };
 
 struct LegacyTitleMenuFrameResult {
     LegacyTitleMenuFrameStatus status{LegacyTitleMenuFrameStatus::completed};
     compat::u8 legacy_return_value{};
+    compat::u8 object_label_status{};
     compat::u32 helper_call_count{};
     compat::u32 command_count{};
 };
@@ -3885,6 +3894,110 @@ struct LegacyPartyDialogResult {
     LegacyPartyDialogState& state,
     const LegacyPartyDialogEvent& event,
     LegacyPartyDialogPorts& ports
+) noexcept;
+
+struct LegacyObjectLabelBackground {
+    compat::u32 source_owner{};
+    compat::u16 width{};
+    compat::u16 height{};
+};
+
+struct LegacyObjectLabelBlitRequest {
+    compat::u32 source_owner{};
+    compat::i32 x{};
+    compat::i32 y{};
+    compat::u16 width{};
+    compat::u16 height{};
+    compat::u32 flags{};
+    compat::u32 auxiliary{};
+};
+
+struct LegacyObjectLabelTextRequest {
+    compat::u32 destination_owner{};
+    compat::i32 x{};
+    compat::i32 y{};
+    std::span<const compat::u8> text{};
+    compat::u32 color{};
+    compat::u32 style{};
+};
+
+struct LegacyObjectLabelRectangleRequest {
+    compat::i32 x{};
+    compat::i32 y{};
+    compat::i32 width{};
+    compat::i32 height{};
+    compat::i32 red{};
+    compat::i32 green{};
+    compat::i32 blue{};
+    compat::i32 mode{};
+};
+
+struct LegacyObjectLabelPanelState {
+    compat::u32 source_owner{};
+    compat::u32 destination_owner{};
+    rendering::LegacyPixelConversionState pixel_conversion{};
+};
+
+class LegacyObjectLabelPanelPorts {
+public:
+    virtual ~LegacyObjectLabelPanelPorts() = default;
+    virtual void prepare_object(compat::u32 object_id) noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    object_x(compat::u32 object_id) noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    object_y(compat::u32 object_id) noexcept = 0;
+    [[nodiscard]] virtual std::optional<LegacyObjectLabelBackground>
+    resolve_background(
+        compat::u32 resource_id, compat::u32 frame_index
+    ) noexcept = 0;
+    virtual void
+    blit_background(const LegacyObjectLabelBlitRequest& request) noexcept = 0;
+    [[nodiscard]] virtual bool load_object_label(
+        compat::u32 object_id,
+        std::span<compat::u8, 64U> output,
+        std::size_t& output_length
+    ) noexcept = 0;
+    virtual void
+    draw_label(const LegacyObjectLabelTextRequest& request) noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    object_label_metric(compat::u32 object_id) noexcept = 0;
+    [[nodiscard]] virtual compat::u32 apply_rectangle_effect(
+        const LegacyObjectLabelRectangleRequest& request
+    ) noexcept = 0;
+};
+
+enum class LegacyObjectLabelPanelStatus : compat::u8 {
+    completed,
+    background_resource_stopped,
+    label_text_stopped,
+};
+
+struct LegacyObjectLabelPanelResult {
+    LegacyObjectLabelPanelStatus status{
+        LegacyObjectLabelPanelStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    LegacyObjectLabelBackground background{};
+    LegacyObjectLabelBlitRequest blit{};
+    LegacyObjectLabelRectangleRequest rectangle{};
+    std::array<compat::u8, 64U> label{};
+    std::size_t label_length{};
+    compat::u32 packed_color{};
+    compat::u32 rectangle_return_value{};
+    compat::u32 replaced_single_byte_count{};
+    compat::i32 object_x{};
+    compat::i32 object_y{};
+    compat::i32 label_metric{};
+    bool object_prepared{};
+    bool background_blitted{};
+    bool label_drawn{};
+    bool rectangle_applied{};
+};
+
+[[nodiscard]] LegacyObjectLabelPanelResult render_legacy_object_label_panel(
+    LegacyObjectLabelPanelState& state,
+    compat::u32 object_id,
+    LegacyObjectLabelPanelPorts& ports
 ) noexcept;
 
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {

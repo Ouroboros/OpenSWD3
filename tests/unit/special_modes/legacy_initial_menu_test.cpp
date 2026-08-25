@@ -270,6 +270,42 @@ public:
     std::vector<bool> prefix_snapshots;
 };
 
+class NullObjectLabelPanelPorts final
+    : public openswd3::special_modes::LegacyObjectLabelPanelPorts {
+public:
+    void prepare_object(u32) noexcept override {}
+    i32 object_x(u32) noexcept override {
+        return 0;
+    }
+    i32 object_y(u32) noexcept override {
+        return 0;
+    }
+    std::optional<openswd3::special_modes::LegacyObjectLabelBackground>
+    resolve_background(u32, u32) noexcept override {
+        return openswd3::special_modes::LegacyObjectLabelBackground{};
+    }
+    void blit_background(
+        const openswd3::special_modes::LegacyObjectLabelBlitRequest&
+    ) noexcept override {}
+    bool load_object_label(
+        u32, const std::span<u8, 64U>, std::size_t& output_length
+    ) noexcept override {
+        output_length = 0U;
+        return true;
+    }
+    void draw_label(
+        const openswd3::special_modes::LegacyObjectLabelTextRequest&
+    ) noexcept override {}
+    i32 object_label_metric(u32) noexcept override {
+        return 0;
+    }
+    u32 apply_rectangle_effect(
+        const openswd3::special_modes::LegacyObjectLabelRectangleRequest&
+    ) noexcept override {
+        return 0U;
+    }
+};
+
 class FakeTitleMenuPorts final
     : public openswd3::special_modes::LegacyTitleMenuPorts {
 public:
@@ -454,7 +490,16 @@ public:
         transition_lifecycle.push_back(0x600U + source);
         return source_text_length;
     }
+    openswd3::special_modes::LegacyObjectLabelPanelPorts&
+    object_label_panel_ports() noexcept override {
+        return object_label_ports_override != nullptr
+            ? *object_label_ports_override
+            : null_object_label_ports;
+    }
 
+    NullObjectLabelPanelPorts null_object_label_ports;
+    openswd3::special_modes::LegacyObjectLabelPanelPorts*
+        object_label_ports_override{};
     bool capture_available{true};
     u8 snapshot_value{0x5AU};
     i32 probe_return{};
@@ -1345,6 +1390,116 @@ public:
     std::vector<bool> cursor_values;
     std::vector<PartyDialogCategoryUpdate> category_updates;
     std::vector<std::pair<u32, u32>> member_level_queries;
+};
+
+struct ObjectLabelDraw {
+    u32 destination_owner{};
+    i32 x{};
+    i32 y{};
+    std::vector<u8> text;
+    u32 color{};
+    u32 style{};
+};
+
+class FakeObjectLabelPanelPorts final
+    : public openswd3::special_modes::LegacyObjectLabelPanelPorts {
+public:
+    void prepare_object(const u32 object_id) noexcept override {
+        events.push_back(1U);
+        prepared_ids.push_back(object_id);
+    }
+    i32 object_x(const u32 object_id) noexcept override {
+        events.push_back(2U);
+        x_ids.push_back(object_id);
+        return x_value;
+    }
+    i32 object_y(const u32 object_id) noexcept override {
+        events.push_back(3U);
+        y_ids.push_back(object_id);
+        return y_value;
+    }
+    std::optional<openswd3::special_modes::LegacyObjectLabelBackground>
+    resolve_background(
+        const u32 resource_id, const u32 frame_index
+    ) noexcept override {
+        events.push_back(4U);
+        background_queries.emplace_back(resource_id, frame_index);
+        return background;
+    }
+    void blit_background(
+        const openswd3::special_modes::LegacyObjectLabelBlitRequest& request
+    ) noexcept override {
+        events.push_back(5U);
+        blits.push_back(request);
+    }
+    bool load_object_label(
+        const u32 object_id,
+        const std::span<u8, 64U> output,
+        std::size_t& output_length
+    ) noexcept override {
+        events.push_back(6U);
+        label_ids.push_back(object_id);
+        output_length = label_bytes.size();
+        std::copy_n(
+            label_bytes.begin(),
+            std::min(label_bytes.size(), output.size()),
+            output.begin()
+        );
+        return label_available;
+    }
+    void draw_label(
+        const openswd3::special_modes::LegacyObjectLabelTextRequest& request
+    ) noexcept override {
+        events.push_back(7U);
+        draws.push_back(
+            ObjectLabelDraw{
+                .destination_owner = request.destination_owner,
+                .x = request.x,
+                .y = request.y,
+                .text =
+                    std::vector<u8>(request.text.begin(), request.text.end()),
+                .color = request.color,
+                .style = request.style,
+            }
+        );
+    }
+    i32 object_label_metric(const u32 object_id) noexcept override {
+        events.push_back(8U);
+        metric_ids.push_back(object_id);
+        return metric_value;
+    }
+    u32 apply_rectangle_effect(
+        const openswd3::special_modes::LegacyObjectLabelRectangleRequest&
+            request
+    ) noexcept override {
+        events.push_back(9U);
+        rectangles.push_back(request);
+        return rectangle_return;
+    }
+
+    i32 x_value{200};
+    i32 y_value{100};
+    i32 metric_value{3};
+    u32 rectangle_return{0x89ABCDEFU};
+    bool label_available{true};
+    std::optional<openswd3::special_modes::LegacyObjectLabelBackground>
+        background{openswd3::special_modes::LegacyObjectLabelBackground{
+            .source_owner = 0x1111U,
+            .width = 20U,
+            .height = 10U,
+        }};
+    std::vector<u8> label_bytes;
+    std::vector<u32> events;
+    std::vector<u32> prepared_ids;
+    std::vector<u32> x_ids;
+    std::vector<u32> y_ids;
+    std::vector<std::pair<u32, u32>> background_queries;
+    std::vector<openswd3::special_modes::LegacyObjectLabelBlitRequest> blits;
+    std::vector<u32> label_ids;
+    std::vector<ObjectLabelDraw> draws;
+    std::vector<u32> metric_ids;
+    std::vector<openswd3::special_modes::LegacyObjectLabelRectangleRequest>
+        rectangles;
 };
 
 class FakeChainClonePorts final
@@ -22873,6 +23028,119 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x40F890 preserves allocation and diagnostics before raw typed-stops, leaks scratch for selector seventeen, and stops immediately when command scratch is unavailable"
     );
 
+    openswd3::special_modes::LegacyObjectLabelPanelState object_label_state;
+    object_label_state.source_owner = 0xEEEEU;
+    object_label_state.destination_owner = 0x2222U;
+    FakeObjectLabelPanelPorts object_label_ports;
+    object_label_ports.label_bytes = {0x41U, 0xA4U, 0x40U, 0x80U, 0xA4U};
+    const auto object_label =
+        openswd3::special_modes::render_legacy_object_label_panel(
+            object_label_state, 0x12345678U, object_label_ports
+        );
+    test.expect_true(
+        object_label.status ==
+                openswd3::special_modes::LegacyObjectLabelPanelStatus::
+                    completed &&
+            object_label.legacy_return_value ==
+                std::bit_cast<i32>(0x89ABCDEFU) &&
+            object_label.object_prepared && object_label.background_blitted &&
+            object_label.label_drawn && object_label.rectangle_applied &&
+            object_label_state.source_owner == 0x1111U &&
+            object_label_ports.events ==
+                std::vector<u32>{1U, 2U, 3U, 4U, 5U, 6U, 7U, 8U, 9U} &&
+            object_label_ports.background_queries ==
+                std::vector<std::pair<u32, u32>>{{0x2449U, 0U}} &&
+            object_label.blit.source_owner == 0x1111U &&
+            object_label.blit.x == 92 && object_label.blit.y == 54 &&
+            object_label.blit.width == 20U && object_label.blit.height == 10U &&
+            object_label.blit.flags == 0U &&
+            object_label.blit.auxiliary == 0U &&
+            object_label.replaced_single_byte_count == 2U &&
+            std::vector<u8>(
+                object_label.label.begin(),
+                object_label.label.begin() +
+                    static_cast<std::ptrdiff_t>(object_label.label_length)
+            ) == std::vector<u8>{0x41U, 0xA4U, 0x40U, 0x40U, 0x40U} &&
+            object_label.packed_color == 0x55E855E8U &&
+            object_label_ports.draws.size() == 1U &&
+            object_label_ports.draws[0U].destination_owner == 0x2222U &&
+            object_label_ports.draws[0U].x == 200 &&
+            object_label_ports.draws[0U].y == 100 &&
+            object_label_ports.draws[0U].style == 4U &&
+            object_label.rectangle.x == 233 &&
+            object_label.rectangle.y == 100 &&
+            object_label.rectangle.width == 11 &&
+            object_label.rectangle.height == 22 &&
+            object_label.rectangle.red == 20 &&
+            object_label.rectangle.green == 13 &&
+            object_label.rectangle.blue == 0 &&
+            object_label.rectangle.mode == 5,
+        "0x411700 prepares one object, blits resource 2449 at the fixed offset, preserves a Big5 pair, replaces isolated high bytes, draws the label, and places the final rectangle at eleven metric units"
+    );
+
+    openswd3::special_modes::LegacyObjectLabelPanelState
+        missing_object_label_background_state;
+    missing_object_label_background_state.source_owner = 0xABCDU;
+    FakeObjectLabelPanelPorts missing_object_label_background_ports;
+    missing_object_label_background_ports.background = std::nullopt;
+    const auto missing_object_label_background =
+        openswd3::special_modes::render_legacy_object_label_panel(
+            missing_object_label_background_state,
+            7U,
+            missing_object_label_background_ports
+        );
+    FakeObjectLabelPanelPorts stopped_object_label_text_ports;
+    stopped_object_label_text_ports.label_bytes.assign(64U, 0x41U);
+    openswd3::special_modes::LegacyObjectLabelPanelState
+        stopped_object_label_text_state;
+    const auto stopped_object_label_text =
+        openswd3::special_modes::render_legacy_object_label_panel(
+            stopped_object_label_text_state, 8U, stopped_object_label_text_ports
+        );
+    test.expect_true(
+        missing_object_label_background.status ==
+                openswd3::special_modes::LegacyObjectLabelPanelStatus::
+                    background_resource_stopped &&
+            missing_object_label_background.object_prepared &&
+            !missing_object_label_background.background_blitted &&
+            missing_object_label_background_state.source_owner == 0xABCDU &&
+            missing_object_label_background_ports.events ==
+                std::vector<u32>{1U, 2U, 3U, 4U} &&
+            stopped_object_label_text.status ==
+                openswd3::special_modes::LegacyObjectLabelPanelStatus::
+                    label_text_stopped &&
+            stopped_object_label_text.background_blitted &&
+            !stopped_object_label_text.label_drawn &&
+            stopped_object_label_text_state.source_owner == 0x1111U &&
+            stopped_object_label_text_ports.events ==
+                std::vector<u32>{1U, 2U, 3U, 4U, 5U, 6U},
+        "0x411700 typed-stops at the resource pointer before owner publication or at the 64-byte label terminator after preserving the completed background blit"
+    );
+
+    openswd3::special_modes::LegacyObjectLabelPanelState
+        wrapped_object_label_state;
+    FakeObjectLabelPanelPorts wrapped_object_label_ports;
+    wrapped_object_label_ports.x_value = std::numeric_limits<i32>::min();
+    wrapped_object_label_ports.y_value = std::numeric_limits<i32>::min();
+    wrapped_object_label_ports.metric_value = std::numeric_limits<i32>::max();
+    wrapped_object_label_ports.label_bytes.clear();
+    const auto wrapped_object_label =
+        openswd3::special_modes::render_legacy_object_label_panel(
+            wrapped_object_label_state, 9U, wrapped_object_label_ports
+        );
+    test.expect_true(
+        wrapped_object_label.status ==
+                openswd3::special_modes::LegacyObjectLabelPanelStatus::
+                    completed &&
+            wrapped_object_label.label_length == 0U &&
+            wrapped_object_label_ports.draws.size() == 1U &&
+            wrapped_object_label_ports.draws[0U].text.empty() &&
+            wrapped_object_label.blit.x == std::bit_cast<i32>(0x7FFFFF94U) &&
+            wrapped_object_label.blit.y == std::bit_cast<i32>(0x7FFFFFD2U) &&
+            wrapped_object_label.rectangle.x == std::bit_cast<i32>(0xFFFFFFF5U),
+        "0x411700 still draws an empty label and preserves 32-bit wrapping for background offsets and the eleven-times metric rectangle coordinate"
+    );
+
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;
     for (std::size_t index = 0U; index < special_action_set.records.size();
          ++index) {
@@ -26350,6 +26618,63 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     );
     static_cast<void>(frame_choice_zero);
     static_cast<void>(frame_choice_one);
+
+    openswd3::special_modes::LegacyTitleMenuState frame_object_label_state;
+    frame_object_label_state.progress = 2U;
+    frame_object_label_state.velocity = 10;
+    frame_object_label_state.bounds.fill(-12);
+    frame_object_label_state.runtime_input_owner = 0x3344U;
+    frame_object_label_state.destination_surface_owner = 0x5566U;
+    frame_object_label_state.source_surface_token = 0x7788U;
+    frame_object_label_state.mode_one_overlay_owner = 7U;
+    FakeObjectLabelPanelPorts frame_object_label_panel_ports;
+    frame_object_label_panel_ports.label_bytes = {'O', 'K'};
+    FakeTitleMenuPorts frame_object_label_ports;
+    frame_object_label_ports.object_label_ports_override =
+        &frame_object_label_panel_ports;
+    const auto frame_object_label =
+        openswd3::special_modes::render_legacy_title_menu_frame(
+            frame_object_label_state, frame_object_label_ports
+        );
+    openswd3::special_modes::LegacyTitleMenuState
+        frame_object_label_stop_state = frame_object_label_state;
+    frame_object_label_stop_state.source_surface_token = 0x9999U;
+    FakeObjectLabelPanelPorts frame_object_label_stop_panel_ports;
+    frame_object_label_stop_panel_ports.background = std::nullopt;
+    FakeTitleMenuPorts frame_object_label_stop_ports;
+    frame_object_label_stop_ports.object_label_ports_override =
+        &frame_object_label_stop_panel_ports;
+    const auto frame_object_label_stop =
+        openswd3::special_modes::render_legacy_title_menu_frame(
+            frame_object_label_stop_state, frame_object_label_stop_ports
+        );
+    test.expect_true(
+        frame_object_label.status ==
+                openswd3::special_modes::LegacyTitleMenuFrameStatus::
+                    completed &&
+            frame_object_label.object_label_status ==
+                static_cast<u8>(openswd3::special_modes::
+                                    LegacyObjectLabelPanelStatus::completed) &&
+            frame_object_label_state.source_surface_token == 0x1111U &&
+            frame_object_label_panel_ports.prepared_ids ==
+                std::vector<u32>{0x3344U} &&
+            frame_object_label_panel_ports.draws[0U].destination_owner ==
+                0x5566U &&
+            frame_object_label_ports.transition_lifecycle ==
+                std::vector<u32>{6U, 0x207U, 0x307U} &&
+            frame_object_label_stop.status ==
+                openswd3::special_modes::LegacyTitleMenuFrameStatus::
+                    object_label_stopped &&
+            frame_object_label_stop.object_label_status ==
+                static_cast<u8>(
+                    openswd3::special_modes::LegacyObjectLabelPanelStatus::
+                        background_resource_stopped
+                ) &&
+            frame_object_label_stop_state.source_surface_token == 0x9999U &&
+            frame_object_label_stop_ports.transition_lifecycle ==
+                std::vector<u32>{6U},
+        "0x4490C0 directly reuses the closed object-label panel before updating or polling the overlay and stops there when its background resource is unavailable"
+    );
 
     openswd3::special_modes::LegacyTitleMenuState frame_overlay_state;
     frame_overlay_state.progress = 2U;

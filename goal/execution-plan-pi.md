@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v655
+版本：v656
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 审计`0x00411700`
+当前步骤：依赖收敛 · 自建FFmpeg n9.0最小LGPL shared双平台包
 
 ## 0. 执行约定
 
@@ -3839,10 +3839,10 @@ B7 P0 有限收口完成。
 - 模块9角色/道具对话旧行替换`0x00410490`完成。严格按申请64字节scratch、删除旧row、复制名称、写四cell、释放的顺序；删除发生在申请后。现代直接复用410600已分配四列核心，保留全部附加值残值异常与名称/cell停止前缀。定向UT通过。workpack稳定为`224/227`，SHA256为`5982158fa22fd07bee3fa05cfe57cab83890fb6cc5236b14e452c929a4504128`。
 - 模块9角色/道具对话整页填充`0x00410730`完成。入口先清列表；page0..4遍历所选道具链并仅在page0按三类mask及低ID最终覆盖查询附加值；page5..8用原17个Big5字段名和已关闭getter；page9固定64个全局i32，名称为“錢”、Cmpy1、Cmpy2或runtime单字节。直接复用旧行替换；invalid页、链环、查询和行失败均在原点停止。定向UT通过。workpack稳定为`225/227`，SHA256为`f8339c091ee8db561034892f1f7715f1d281cfa0b0bc002dda5bbb6911239c94`。
 - 模块9共享角色/道具调试对话主过程`0x0040F890`完成。初始化10个原Big5页签、四列与三编辑长度；通知切页反向删列、重建并在队员页禁用四项库存操作；五条命令处理关闭、补足、新增、删除及库存/队员/全局值修改。直接复用全部已关闭callee，并以显式snapshot保留删除ID旧指针高字、解析失败旧局部值和命令lParam；新增与修改维持不同释放顺序及原scratch泄漏。定向UT通过。workpack稳定为`226/227`，SHA256为`385b2ddc15315f24cff882cfe7bcc36f775636b0667fd2d842826d44aed7d8eb`。
+- 模块9可选文本输入对象标签面板`0x00411700`完成。先准备对象、读取坐标、发布资源2449 source owner并偏移blit；按CP950 CharNext步长保留Big5 pair、把孤立高位byte替换为`@`；直接复用RGB packed owner并绘制原始字节文字，最后按`x+11*metric`回绕位置调用矩形效果。4490C0已在overlay update/poll前直接调用typed入口并传播资源/text停止。定向UT通过。workpack双生成稳定为`227/227`且无pending，SHA256为`9c615f83dfc7698511da6bd7e60f3bf53d1549ba62aa27f3c28d04c00b860633`。
 
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
-世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`226/227`。共享角色/道具对话主过程与全部callee已闭环；只剩对象标签面板1项。
+世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9的227个逐函数LST工作包已全部关闭；Linux core/app与定向ASan通过。按当前阶段约束不运行Windows BUILD，Windows LLVM app门留最终统一验收。
 
-下一工作包：按LST唯一真值审计并实现模块9对象标签面板 `0x00411700`。
+下一工作包：自建FFmpeg n9.0最小LGPL shared双平台依赖。锁定源码URL、尺寸、SHA256、configure参数和工具链版本；构建Linux与Windows x64最小运行库、头文件和Windows import library；测量体积并验证真实MP3、Map_Ca12/Map_Eu08循环、firegod.bik与opening.bik。
