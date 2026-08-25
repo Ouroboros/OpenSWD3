@@ -19003,6 +19003,144 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44E1B0 preserves the published window and null visible head before stopping at the original forward-list read boundary"
     );
 
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_decrease_level_one;
+    mode_one_decrease_level_one.level = 1U;
+    mode_one_decrease_level_one.packed_mode = 0xAABBCC02U;
+    FakeModeOneAdvancePorts mode_one_decrease_level_one_ports;
+    const auto mode_one_decreased_mode =
+        openswd3::special_modes::decrease_legacy_special_mode_mode_one_value(
+            mode_one_decrease_level_one,
+            0x11U,
+            mode_one_decrease_level_one_ports
+        );
+    test.expect_true(
+        mode_one_decreased_mode.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOneDecreaseStatus::completed &&
+            mode_one_decreased_mode.path ==
+                openswd3::special_modes::LegacySpecialModeModeOneDecreasePath::
+                    packed_mode_decreased &&
+            mode_one_decrease_level_one.packed_mode == 0xAABBCC01U &&
+            std::bit_cast<u32>(mode_one_decreased_mode.legacy_return_value) ==
+                0xAABBCC01U &&
+            mode_one_decrease_level_one_ports.samples.empty(),
+        "0x44E260 level one decreases the packed low-two-bit mode with zero saturation and preserves every high bit"
+    );
+
+    mode_one_page_nodes[1U].combined_value = 2U;
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_decrease_quantity;
+    mode_one_decrease_quantity.level = 2U;
+    mode_one_decrease_quantity.window_offset = 0;
+    mode_one_decrease_quantity.local_cursor = 1;
+    mode_one_decrease_quantity.workspace_head = &mode_one_page_nodes[0U];
+    FakeModeOneAdvancePorts mode_one_decrease_quantity_ports;
+    const auto mode_one_quantity_decreased =
+        openswd3::special_modes::decrease_legacy_special_mode_mode_one_value(
+            mode_one_decrease_quantity,
+            0x10203040U,
+            mode_one_decrease_quantity_ports
+        );
+    test.expect_true(
+        mode_one_quantity_decreased.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOneDecreaseStatus::completed &&
+            mode_one_quantity_decreased.path ==
+                openswd3::special_modes::LegacySpecialModeModeOneDecreasePath::
+                    quantity_decreased &&
+            mode_one_quantity_decreased.selected_record ==
+                &mode_one_page_nodes[1U] &&
+            mode_one_page_nodes[1U].combined_value == 1U &&
+            mode_one_decrease_quantity.decrease_action_status == 2U &&
+            mode_one_quantity_decreased.sample_played &&
+            !mode_one_quantity_decreased.returns_selected_record &&
+            mode_one_decrease_quantity_ports.samples ==
+                std::vector<std::pair<u16, u32>>{{0x00B9U, 0x10203040U}} &&
+            mode_one_quantity_decreased.helper_call_count == 2U &&
+            mode_one_quantity_decreased.legacy_return_value == 777,
+        "0x44E260 level two decrements the selected combined quantity, plays sample B9 only while the signed result remains positive, and publishes action state two"
+    );
+
+    mode_one_page_nodes[1U].combined_value = 0x8001U;
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_decrease_clamp = mode_one_decrease_quantity;
+    mode_one_decrease_clamp.decrease_action_status = 0U;
+    FakeModeOneAdvancePorts mode_one_decrease_clamp_ports;
+    const auto mode_one_quantity_clamped =
+        openswd3::special_modes::decrease_legacy_special_mode_mode_one_value(
+            mode_one_decrease_clamp, 0x55667788U, mode_one_decrease_clamp_ports
+        );
+    test.expect_true(
+        mode_one_quantity_clamped.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOneDecreaseStatus::completed &&
+            mode_one_quantity_clamped.path ==
+                openswd3::special_modes::LegacySpecialModeModeOneDecreasePath::
+                    quantity_clamped_to_zero &&
+            mode_one_page_nodes[1U].combined_value == 0U &&
+            mode_one_decrease_clamp.decrease_action_status == 2U &&
+            mode_one_quantity_clamped.returns_selected_record &&
+            !mode_one_quantity_clamped.sample_played &&
+            mode_one_decrease_clamp_ports.samples.empty() &&
+            mode_one_quantity_clamped.helper_call_count == 1U,
+        "0x44E260 level two clamps a decremented nonpositive signed word to zero, returns the selected record through the typed channel, and skips sample B9"
+    );
+
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_decrease_option;
+    mode_one_decrease_option.level = 3U;
+    mode_one_decrease_option.packed_mode = 0xFFFFFFFFU;
+    FakeModeOneAdvancePorts mode_one_decrease_option_ports;
+    const auto mode_one_option_two_cleared =
+        openswd3::special_modes::decrease_legacy_special_mode_mode_one_value(
+            mode_one_decrease_option, 0x22U, mode_one_decrease_option_ports
+        );
+    mode_one_decrease_option.level = 4U;
+    mode_one_decrease_option.packed_mode = 0xFFFFFFFFU;
+    const auto mode_one_option_three_cleared =
+        openswd3::special_modes::decrease_legacy_special_mode_mode_one_value(
+            mode_one_decrease_option, 0x33U, mode_one_decrease_option_ports
+        );
+    test.expect_true(
+        mode_one_option_two_cleared.path ==
+                openswd3::special_modes::LegacySpecialModeModeOneDecreasePath::
+                    option_bit_two_cleared &&
+            std::bit_cast<u32>(
+                mode_one_option_two_cleared.legacy_return_value
+            ) == 0xFFFFFFFBU &&
+            mode_one_option_three_cleared.path ==
+                openswd3::special_modes::LegacySpecialModeModeOneDecreasePath::
+                    option_bit_three_cleared &&
+            mode_one_decrease_option.packed_mode == 0xFFFFFFF7U &&
+            std::bit_cast<u32>(
+                mode_one_option_three_cleared.legacy_return_value
+            ) == 0xFFFFFFF7U &&
+            mode_one_decrease_option_ports.samples.empty(),
+        "0x44E260 levels three and four clear packed option bits two and three independently"
+    );
+
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_decrease_missing;
+    mode_one_decrease_missing.level = 2U;
+    mode_one_decrease_missing.window_offset = 2;
+    mode_one_decrease_missing.workspace_head = &mode_one_retreat_lone;
+    FakeModeOneAdvancePorts mode_one_decrease_missing_ports;
+    const auto mode_one_decrease_stopped =
+        openswd3::special_modes::decrease_legacy_special_mode_mode_one_value(
+            mode_one_decrease_missing, 0x44U, mode_one_decrease_missing_ports
+        );
+    test.expect_true(
+        mode_one_decrease_stopped.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOneDecreaseStatus::
+                        selected_record_missing &&
+            mode_one_decrease_missing.decrease_action_status == 0U &&
+            mode_one_retreat_lone.combined_value == 0U &&
+            mode_one_decrease_missing_ports.samples.empty(),
+        "0x44E260 stops at the original selected-record read boundary before quantity, sample, and action-state side effects"
+    );
+
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;
     for (std::size_t index = 0U; index < special_action_set.records.size();
          ++index) {

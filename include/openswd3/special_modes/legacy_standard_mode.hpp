@@ -2854,6 +2854,7 @@ struct LegacySpecialModeModeOneAdvanceState {
     const LegacyStandardModeForwardNode* visible_head{};
     std::array<compat::u8, 128U> shared_text{};
     compat::u32 frame_flags{};
+    compat::u16 decrease_action_status{};
     std::array<LegacySpecialModeAttributeDelta, 4U> member_deltas{};
 };
 
@@ -3020,6 +3021,41 @@ retreat_legacy_special_mode_mode_one_page(
     const std::array<LegacyGuardianAttributeTarget, 4U>& base_attributes,
     std::span<LegacyStandardModeForwardNode* const> fixed_slots,
     std::span<const compat::u32> replacement_masks,
+    LegacySpecialModeModeOneAdvancePorts& ports
+) noexcept;
+
+enum class LegacySpecialModeModeOneDecreaseStatus : compat::u8 {
+    completed,
+    selected_record_missing,
+};
+
+enum class LegacySpecialModeModeOneDecreasePath : compat::u8 {
+    unchanged,
+    packed_mode_decreased,
+    quantity_decreased,
+    quantity_clamped_to_zero,
+    option_bit_two_cleared,
+    option_bit_three_cleared,
+};
+
+struct LegacySpecialModeModeOneDecreaseResult {
+    LegacySpecialModeModeOneDecreaseStatus status{
+        LegacySpecialModeModeOneDecreaseStatus::completed
+    };
+    LegacySpecialModeModeOneDecreasePath path{
+        LegacySpecialModeModeOneDecreasePath::unchanged
+    };
+    compat::i32 legacy_return_value{};
+    LegacyStandardModeForwardNode* selected_record{};
+    compat::u32 helper_call_count{};
+    bool returns_selected_record{};
+    bool sample_played{};
+};
+
+[[nodiscard]] LegacySpecialModeModeOneDecreaseResult
+decrease_legacy_special_mode_mode_one_value(
+    LegacySpecialModeModeOneAdvanceState& state,
+    compat::u32 sample_owner,
     LegacySpecialModeModeOneAdvancePorts& ports
 ) noexcept;
 
