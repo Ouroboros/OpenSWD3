@@ -2,9 +2,32 @@
 
 #include "openswd3/compat/types.hpp"
 
+#include <array>
 #include <memory>
 
 namespace openswd3::battle {
+
+inline constexpr std::size_t kLegacyBattleDirectionCount = 360U;
+
+struct LegacyBattleDirectionVectors {
+    std::array<compat::i32, kLegacyBattleDirectionCount> horizontal{};
+    std::array<compat::i32, kLegacyBattleDirectionCount> vertical{};
+};
+
+struct LegacyBattleDirectionRaster {
+    compat::i32 direction_index{};
+    compat::i32 value_04{};
+    compat::i32 value_08{};
+    compat::i32 current_x{};
+    compat::i32 current_y{};
+    compat::i32 x_error{};
+    compat::i32 y_error{};
+};
+
+enum class LegacyBattleDirectionStepStatus : compat::u8 {
+    completed,
+    direction_index_out_of_range,
+};
 
 struct LegacyBattleLineRaster {
     compat::i32 start_x{};
@@ -63,6 +86,13 @@ struct LegacyBattleHostSurfaceResult {
 // sub_434350.
 [[nodiscard]] bool
 advance_legacy_battle_line_raster(LegacyBattleLineRaster& raster) noexcept;
+
+// sub_434420.
+[[nodiscard]] LegacyBattleDirectionStepStatus
+advance_legacy_battle_direction_raster(
+    const LegacyBattleDirectionVectors& vectors,
+    LegacyBattleDirectionRaster& raster
+) noexcept;
 
 // sub_433E20.
 [[nodiscard]] LegacyBattleRowOffsetResult

@@ -12,6 +12,9 @@
 namespace {
 
 using openswd3::battle::LegacyBattleAssets;
+using openswd3::battle::LegacyBattleDirectionRaster;
+using openswd3::battle::LegacyBattleDirectionStepStatus;
+using openswd3::battle::LegacyBattleDirectionVectors;
 using openswd3::battle::LegacyBattleLineRaster;
 using openswd3::battle::LegacyBattleRenderGeometry;
 using openswd3::battle::LegacyBattleRowOffsetAllocation;
@@ -353,6 +356,199 @@ void test_line_raster_legacy_bug_and_wrapping(openswd3::test::Context& test) {
             error_wrap.y_error == std::numeric_limits<i32>::min() + 1,
         "error accumulation wraps before the signed threshold comparison"
     );
+}
+
+void test_direction_raster_axis_and_diagonal_steps(
+    openswd3::test::Context& test
+) {
+    LegacyBattleDirectionVectors vectors;
+    vectors.horizontal[7U] = 0;
+    vectors.vertical[7U] = -3;
+    LegacyBattleDirectionRaster vertical{
+        .direction_index = 7,
+        .value_04 = 41,
+        .value_08 = 42,
+        .current_x = 4,
+        .current_y = 4,
+        .x_error = 17,
+        .y_error = 19,
+    };
+    test.expect_true(
+        openswd3::battle::advance_legacy_battle_direction_raster(
+            vectors, vertical
+        ) == LegacyBattleDirectionStepStatus::completed &&
+            vertical.current_x == 4 && vertical.current_y == 3 &&
+            vertical.x_error == 17 && vertical.y_error == 19 &&
+            vertical.value_04 == 41 && vertical.value_08 == 42,
+        "direction raster applies a negative vertical unit step"
+    );
+
+    vectors.horizontal[8U] = -4;
+    vectors.vertical[8U] = 0;
+    LegacyBattleDirectionRaster horizontal{
+        .direction_index = 8,
+        .current_x = 4,
+        .current_y = 3,
+    };
+    static_cast<void>(openswd3::battle::advance_legacy_battle_direction_raster(
+        vectors, horizontal
+    ));
+    test.expect_true(
+        horizontal.current_x == 3 && horizontal.current_y == 3,
+        "direction raster applies a negative horizontal unit step"
+    );
+
+    vectors.horizontal[9U] = -3;
+    vectors.vertical[9U] = 3;
+    LegacyBattleDirectionRaster diagonal{
+        .direction_index = 9,
+        .current_x = 3,
+        .current_y = -2,
+        .x_error = 21,
+        .y_error = 22,
+    };
+    static_cast<void>(openswd3::battle::advance_legacy_battle_direction_raster(
+        vectors, diagonal
+    ));
+    test.expect_true(
+        diagonal.current_x == 2 && diagonal.current_y == -1 &&
+            diagonal.x_error == 21 && diagonal.y_error == 22,
+        "equal direction magnitudes advance both axes without errors"
+    );
+}
+
+void test_direction_raster_major_axes_and_wrapping(
+    openswd3::test::Context& test
+) {
+    LegacyBattleDirectionVectors vectors;
+    vectors.horizontal[10U] = 2;
+    vectors.vertical[10U] = 5;
+    LegacyBattleDirectionRaster y_major{.direction_index = 10};
+    static_cast<void>(openswd3::battle::advance_legacy_battle_direction_raster(
+        vectors, y_major
+    ));
+    test.expect_true(
+        y_major.current_x == 0 && y_major.current_y == 1 &&
+            y_major.x_error == 2,
+        "direction y-major threshold equality does not advance x"
+    );
+    static_cast<void>(openswd3::battle::advance_legacy_battle_direction_raster(
+        vectors, y_major
+    ));
+    test.expect_true(
+        y_major.current_x == 1 && y_major.current_y == 2 &&
+            y_major.x_error == -1,
+        "direction y-major overflow advances x and subtracts y distance"
+    );
+
+    vectors.horizontal[11U] = 5;
+    vectors.vertical[11U] = 2;
+    LegacyBattleDirectionRaster x_major{.direction_index = 11};
+    static_cast<void>(openswd3::battle::advance_legacy_battle_direction_raster(
+        vectors, x_major
+    ));
+    test.expect_true(
+        x_major.current_x == 1 && x_major.current_y == 0 &&
+            x_major.y_error == 2,
+        "direction x-major threshold equality does not advance y"
+    );
+    static_cast<void>(openswd3::battle::advance_legacy_battle_direction_raster(
+        vectors, x_major
+    ));
+    test.expect_true(
+        x_major.current_x == 2 && x_major.current_y == 1 &&
+            x_major.y_error == -1,
+        "direction x-major overflow advances y and subtracts x distance"
+    );
+
+    vectors.horizontal[12U] = 1;
+    vectors.vertical[12U] = 0;
+    LegacyBattleDirectionRaster coordinate_wrap{
+        .direction_index = 12,
+        .current_x = std::numeric_limits<i32>::max(),
+    };
+    static_cast<void>(openswd3::battle::advance_legacy_battle_direction_raster(
+        vectors, coordinate_wrap
+    ));
+    test.expect_true(
+        coordinate_wrap.current_x == std::numeric_limits<i32>::min(),
+        "direction coordinate addition wraps to minimum"
+    );
+
+    vectors.horizontal[13U] = 5;
+    vectors.vertical[13U] = 2;
+    LegacyBattleDirectionRaster error_wrap{
+        .direction_index = 13,
+        .y_error = std::numeric_limits<i32>::max(),
+    };
+    static_cast<void>(openswd3::battle::advance_legacy_battle_direction_raster(
+        vectors, error_wrap
+    ));
+    test.expect_true(
+        error_wrap.current_x == 1 && error_wrap.current_y == 0 &&
+            error_wrap.y_error == std::numeric_limits<i32>::min() + 1,
+        "direction error addition wraps before signed comparison"
+    );
+}
+
+void test_direction_raster_zero_minimum_and_index_stop(
+    openswd3::test::Context& test
+) {
+    LegacyBattleDirectionVectors vectors;
+    LegacyBattleDirectionRaster zero{
+        .direction_index = 0,
+        .current_x = 7,
+        .current_y = 9,
+    };
+    static_cast<void>(
+        openswd3::battle::advance_legacy_battle_direction_raster(vectors, zero)
+    );
+    test.expect_true(
+        zero.current_x == 7 && zero.current_y == 10,
+        "zero direction preserves the positive y step bug"
+    );
+
+    vectors.horizontal[1U] = std::numeric_limits<i32>::min();
+    vectors.vertical[1U] = 1;
+    LegacyBattleDirectionRaster minimum{
+        .direction_index = 1,
+        .current_x = 5,
+        .current_y = 6,
+    };
+    static_cast<void>(openswd3::battle::advance_legacy_battle_direction_raster(
+        vectors, minimum
+    ));
+    test.expect_true(
+        minimum.current_x == 5 && minimum.current_y == 7 &&
+            minimum.x_error == std::numeric_limits<i32>::min(),
+        "minimum direction remains negative after wrapping negate"
+    );
+
+    for (const i32 invalid_index : std::array<i32, 2>{-1, 360}) {
+        LegacyBattleDirectionRaster invalid{
+            .direction_index = invalid_index,
+            .value_04 = 2,
+            .value_08 = 3,
+            .current_x = 4,
+            .current_y = 5,
+            .x_error = 6,
+            .y_error = 7,
+        };
+        const auto status =
+            openswd3::battle::advance_legacy_battle_direction_raster(
+                vectors, invalid
+            );
+        test.expect_true(
+            status ==
+                    LegacyBattleDirectionStepStatus::
+                        direction_index_out_of_range &&
+                invalid.direction_index == invalid_index &&
+                invalid.value_04 == 2 && invalid.value_08 == 3 &&
+                invalid.current_x == 4 && invalid.current_y == 5 &&
+                invalid.x_error == 6 && invalid.y_error == 7,
+            "invalid direction stops at the first table read without mutations"
+        );
+    }
 }
 
 void test_primary_row_offsets_normal_and_fixed_caller(
@@ -771,6 +967,9 @@ int main() {
     test_line_raster_axis_and_diagonal_steps(test);
     test_line_raster_major_axes_and_thresholds(test);
     test_line_raster_legacy_bug_and_wrapping(test);
+    test_direction_raster_axis_and_diagonal_steps(test);
+    test_direction_raster_major_axes_and_wrapping(test);
+    test_direction_raster_zero_minimum_and_index_stop(test);
     test_primary_row_offsets_normal_and_fixed_caller(test);
     test_primary_row_offsets_allocation_boundaries(test);
     test_primary_row_offsets_wrapped_allocation_prefix(test);
