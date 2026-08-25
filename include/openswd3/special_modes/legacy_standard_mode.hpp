@@ -3488,6 +3488,9 @@ struct LegacySavePreviewCleanupResult {
     LegacyInputMenuSavePreviewResetPorts& ports
 ) noexcept;
 
+struct LegacyHighPriorityCommonInputState;
+class LegacyHighPriorityCommonInputPorts;
+
 struct LegacyHighPriorityMenuFrameState {
     compat::u32 delay{};
     compat::u32 frame_count{};
@@ -3499,8 +3502,6 @@ struct LegacyHighPriorityMenuFrameState {
 class LegacyHighPriorityMenuFramePorts {
 public:
     virtual ~LegacyHighPriorityMenuFramePorts() = default;
-    [[nodiscard]] virtual std::optional<compat::i32>
-    dispatch_common_input(LegacyHighPriorityMenuFrameState& state) noexcept = 0;
     [[nodiscard]] virtual std::optional<compat::i32>
     dispatch_submode_zero(LegacyHighPriorityMenuFrameState& state) noexcept = 0;
     [[nodiscard]] virtual std::optional<compat::i32>
@@ -3538,7 +3539,47 @@ struct LegacyHighPriorityMenuFrameResult {
 [[nodiscard]] LegacyHighPriorityMenuFrameResult
 coordinate_legacy_high_priority_menu_frame(
     LegacyHighPriorityMenuFrameState& state,
-    LegacyHighPriorityMenuFramePorts& ports
+    LegacyHighPriorityCommonInputState& common_input,
+    LegacyHighPriorityMenuFramePorts& ports,
+    LegacyHighPriorityCommonInputPorts& common_input_ports
+) noexcept;
+
+struct LegacyHighPriorityCommonInputState {
+    input_time_rng::LegacyKeyboardSnapshot keyboard{};
+    input_time_rng::LegacyInputRecord right_mouse{};
+    compat::u32 input_mode{};
+    compat::u32 submode{};
+    compat::u32 activity_state{};
+};
+
+class LegacyHighPriorityCommonInputPorts {
+public:
+    virtual ~LegacyHighPriorityCommonInputPorts() = default;
+    virtual void wait_milliseconds(compat::u32 milliseconds) noexcept = 0;
+    [[nodiscard]] virtual std::optional<compat::i32>
+    dispatch_input_mode(LegacyHighPriorityCommonInputState& state) noexcept = 0;
+};
+
+enum class LegacyHighPriorityCommonInputStatus : compat::u8 {
+    completed,
+    input_mode_dispatch_stopped,
+};
+
+struct LegacyHighPriorityCommonInputResult {
+    LegacyHighPriorityCommonInputStatus status{
+        LegacyHighPriorityCommonInputStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 raw_query_count{};
+    compat::u32 wait_count{};
+    bool escape_synthesized{};
+    bool input_mode_dispatched{};
+};
+
+[[nodiscard]] LegacyHighPriorityCommonInputResult
+handle_legacy_high_priority_common_input(
+    LegacyHighPriorityCommonInputState& state,
+    LegacyHighPriorityCommonInputPorts& ports
 ) noexcept;
 
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {

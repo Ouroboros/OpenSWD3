@@ -1043,21 +1043,36 @@ public:
     std::vector<u32> events;
 };
 
+class FakeHighPriorityCommonInputPorts final
+    : public openswd3::special_modes::LegacyHighPriorityCommonInputPorts {
+public:
+    void wait_milliseconds(const u32 milliseconds) noexcept override {
+        events.push_back(1U);
+        waits.push_back(milliseconds);
+    }
+    std::optional<i32> dispatch_input_mode(
+        openswd3::special_modes::LegacyHighPriorityCommonInputState& state
+    ) noexcept override {
+        events.push_back(2U);
+        if (dispatch_submode.has_value()) {
+            state.submode = *dispatch_submode;
+        }
+        if (dispatch_activity.has_value()) {
+            state.activity_state = *dispatch_activity;
+        }
+        return dispatch_result;
+    }
+
+    std::optional<i32> dispatch_result{10};
+    std::optional<u32> dispatch_submode;
+    std::optional<u32> dispatch_activity;
+    std::vector<u32> waits;
+    std::vector<u32> events;
+};
+
 class FakeHighPriorityMenuFramePorts final
     : public openswd3::special_modes::LegacyHighPriorityMenuFramePorts {
 public:
-    std::optional<i32> dispatch_common_input(
-        openswd3::special_modes::LegacyHighPriorityMenuFrameState& state
-    ) noexcept override {
-        events.push_back(1U);
-        if (input_submode.has_value()) {
-            state.submode = *input_submode;
-        }
-        if (input_activity.has_value()) {
-            state.activity_state = *input_activity;
-        }
-        return input_result;
-    }
     std::optional<i32> dispatch_submode_zero(
         openswd3::special_modes::LegacyHighPriorityMenuFrameState& state
     ) noexcept override {
@@ -1083,12 +1098,9 @@ public:
         return render_result;
     }
 
-    std::optional<i32> input_result{10};
     std::optional<i32> submode_zero_result{20};
     std::optional<i32> submode_one_result{30};
     std::optional<i32> render_result{40};
-    std::optional<u32> input_submode;
-    std::optional<u32> input_activity;
     std::optional<u32> submode_zero_activity;
     std::optional<u32> submode_one_activity;
     std::vector<u32> events;
@@ -21211,18 +21223,113 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x406E00 resets exactly three save preview records in address order and typed-stops before the unavailable record"
     );
 
+    openswd3::special_modes::LegacyHighPriorityCommonInputState
+        high_priority_common_input_state;
+    high_priority_common_input_state.right_mouse.rapid_press_multiplicity = 2U;
+    high_priority_common_input_state.right_mouse.held_sample_count = 1U;
+    high_priority_common_input_state.keyboard[0x3BU] = 0x80U;
+    high_priority_common_input_state.keyboard[0x3CU] = 0x80U;
+    high_priority_common_input_state.submode = 9U;
+    FakeHighPriorityCommonInputPorts high_priority_common_input_ports;
+    high_priority_common_input_ports.dispatch_result = 77;
+    const auto high_priority_common_input =
+        openswd3::special_modes::handle_legacy_high_priority_common_input(
+            high_priority_common_input_state, high_priority_common_input_ports
+        );
+    test.expect_true(
+        high_priority_common_input.status ==
+                openswd3::special_modes::LegacyHighPriorityCommonInputStatus::
+                    completed &&
+            high_priority_common_input.legacy_return_value == 77 &&
+            high_priority_common_input.escape_synthesized &&
+            high_priority_common_input.input_mode_dispatched &&
+            high_priority_common_input.raw_query_count == 3U &&
+            high_priority_common_input.wait_count == 2U &&
+            high_priority_common_input_state.keyboard[1U] == 0x80U &&
+            high_priority_common_input_state.submode == 1U &&
+            high_priority_common_input_ports.waits ==
+                std::vector<u32>{500U, 500U} &&
+            high_priority_common_input_ports.events ==
+                std::vector<u32>{1U, 1U, 2U},
+        "0x406EB0 synthesizes escape from the first right-button sample, handles simultaneous F1 and F2 independently with two waits and final submode one, then dispatches escape"
+    );
+
+    openswd3::special_modes::LegacyHighPriorityCommonInputState
+        blocked_high_priority_common_input_state;
+    blocked_high_priority_common_input_state.input_mode = 4U;
+    blocked_high_priority_common_input_state.submode = 9U;
+    blocked_high_priority_common_input_state.keyboard[0x3BU] = 0x80U;
+    blocked_high_priority_common_input_state.keyboard[0x3CU] = 0x80U;
+    blocked_high_priority_common_input_state.keyboard[0x9DU] = 0x80U;
+    FakeHighPriorityCommonInputPorts blocked_high_priority_common_input_ports;
+    const auto blocked_high_priority_common_input =
+        openswd3::special_modes::handle_legacy_high_priority_common_input(
+            blocked_high_priority_common_input_state,
+            blocked_high_priority_common_input_ports
+        );
+    test.expect_true(
+        blocked_high_priority_common_input.input_mode_dispatched &&
+            blocked_high_priority_common_input.raw_query_count == 5U &&
+            blocked_high_priority_common_input.wait_count == 0U &&
+            blocked_high_priority_common_input_state.submode == 9U &&
+            blocked_high_priority_common_input_ports.waits.empty() &&
+            blocked_high_priority_common_input_ports.events ==
+                std::vector<u32>{2U},
+        "0x406EB0 suppresses both F-key waits and submode writes while input mode is nonzero but still queries escape and both control keys in order"
+    );
+
+    openswd3::special_modes::LegacyHighPriorityCommonInputState
+        empty_high_priority_common_input_state;
+    FakeHighPriorityCommonInputPorts empty_high_priority_common_input_ports;
+    const auto empty_high_priority_common_input =
+        openswd3::special_modes::handle_legacy_high_priority_common_input(
+            empty_high_priority_common_input_state,
+            empty_high_priority_common_input_ports
+        );
+    openswd3::special_modes::LegacyHighPriorityCommonInputState
+        stopped_high_priority_common_input_state;
+    stopped_high_priority_common_input_state.keyboard[0x1DU] = 0x80U;
+    FakeHighPriorityCommonInputPorts stopped_high_priority_common_input_ports;
+    stopped_high_priority_common_input_ports.dispatch_result = std::nullopt;
+    const auto stopped_high_priority_common_input =
+        openswd3::special_modes::handle_legacy_high_priority_common_input(
+            stopped_high_priority_common_input_state,
+            stopped_high_priority_common_input_ports
+        );
+    test.expect_true(
+        empty_high_priority_common_input.legacy_return_value == 0 &&
+            empty_high_priority_common_input.raw_query_count == 5U &&
+            !empty_high_priority_common_input.input_mode_dispatched &&
+            empty_high_priority_common_input_ports.events.empty() &&
+            stopped_high_priority_common_input.status ==
+                openswd3::special_modes::LegacyHighPriorityCommonInputStatus::
+                    input_mode_dispatch_stopped &&
+            stopped_high_priority_common_input.legacy_return_value == 0x80 &&
+            stopped_high_priority_common_input.raw_query_count == 4U &&
+            stopped_high_priority_common_input.input_mode_dispatched &&
+            stopped_high_priority_common_input_ports.events ==
+                std::vector<u32>{2U},
+        "0x406EB0 returns the final zero raw query without input and typed-stops at input-mode dispatch after the first pressed key in escape-left-control-right-control priority"
+    );
+
     openswd3::special_modes::LegacyHighPriorityMenuFrameState
         high_priority_inactive_state;
     high_priority_inactive_state.delay = 0U;
     high_priority_inactive_state.frame_count = 0xFFFFFFFFU;
     high_priority_inactive_state.activity_state = 3U;
     high_priority_inactive_state.submode = 9U;
+    openswd3::special_modes::LegacyHighPriorityCommonInputState
+        high_priority_inactive_common;
+    high_priority_inactive_common.keyboard[0x3BU] = 0x80U;
+    FakeHighPriorityCommonInputPorts high_priority_inactive_common_ports;
     FakeHighPriorityMenuFramePorts high_priority_inactive_ports;
-    high_priority_inactive_ports.input_submode = 0U;
     high_priority_inactive_ports.submode_zero_activity = 0U;
     const auto high_priority_inactive =
         openswd3::special_modes::coordinate_legacy_high_priority_menu_frame(
-            high_priority_inactive_state, high_priority_inactive_ports
+            high_priority_inactive_state,
+            high_priority_inactive_common,
+            high_priority_inactive_ports,
+            high_priority_inactive_common_ports
         );
     test.expect_true(
         high_priority_inactive.status ==
@@ -21240,7 +21347,9 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             high_priority_inactive_state.frame_count == 0U &&
             high_priority_inactive_state.activity_state == 0U &&
             high_priority_inactive_state.mouse_frame_index == 0x0DU &&
-            high_priority_inactive_ports.events == std::vector<u32>{1U, 2U},
+            high_priority_inactive_common_ports.waits ==
+                std::vector<u32>{500U} &&
+            high_priority_inactive_ports.events == std::vector<u32>{2U},
         "0x406E30 clamps an underflowed delay, wraps the frame count, folds activity three to one, rereads the input-selected zero submode, and skips rendering after that submode closes activity"
     );
 
@@ -21250,13 +21359,19 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     high_priority_active_state.frame_count = 8U;
     high_priority_active_state.activity_state = 1U;
     high_priority_active_state.submode = 0U;
+    openswd3::special_modes::LegacyHighPriorityCommonInputState
+        high_priority_active_common;
+    high_priority_active_common.keyboard[0x3CU] = 0x80U;
+    FakeHighPriorityCommonInputPorts high_priority_active_common_ports;
     FakeHighPriorityMenuFramePorts high_priority_active_ports;
-    high_priority_active_ports.input_submode = 1U;
     high_priority_active_ports.submode_one_result = 31;
     high_priority_active_ports.render_result = 41;
     const auto high_priority_active =
         openswd3::special_modes::coordinate_legacy_high_priority_menu_frame(
-            high_priority_active_state, high_priority_active_ports
+            high_priority_active_state,
+            high_priority_active_common,
+            high_priority_active_ports,
+            high_priority_active_common_ports
         );
     test.expect_true(
         high_priority_active.path ==
@@ -21270,7 +21385,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             high_priority_active_state.delay == 1000U &&
             high_priority_active_state.frame_count == 9U &&
             high_priority_active_state.submode == 1U &&
-            high_priority_active_ports.events == std::vector<u32>{1U, 3U, 4U},
+            high_priority_active_common_ports.waits == std::vector<u32>{500U} &&
+            high_priority_active_ports.events == std::vector<u32>{3U, 4U},
         "0x406E30 preserves delay one thousand, dispatches the submode selected by common input, rereads active state, and tail-renders the menu"
     );
 
@@ -21279,17 +21395,24 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     high_priority_other_state.delay = 1002U;
     high_priority_other_state.activity_state = 2U;
     high_priority_other_state.submode = 2U;
+    openswd3::special_modes::LegacyHighPriorityCommonInputState
+        high_priority_other_common;
+    FakeHighPriorityCommonInputPorts high_priority_other_common_ports;
     FakeHighPriorityMenuFramePorts high_priority_other_ports;
     const auto high_priority_other =
         openswd3::special_modes::coordinate_legacy_high_priority_menu_frame(
-            high_priority_other_state, high_priority_other_ports
+            high_priority_other_state,
+            high_priority_other_common,
+            high_priority_other_ports,
+            high_priority_other_common_ports
         );
     test.expect_true(
         high_priority_other.delay_clamped &&
             high_priority_other_state.delay == 0U &&
             !high_priority_other.submode_dispatched &&
             high_priority_other.helper_call_count == 2U &&
-            high_priority_other_ports.events == std::vector<u32>{1U, 4U},
+            high_priority_other_common_ports.events.empty() &&
+            high_priority_other_ports.events == std::vector<u32>{4U},
         "0x406E30 clamps a post-decrement delay above one thousand and skips submode dispatch for values outside zero and one while still rendering active state"
     );
 
@@ -21297,33 +21420,50 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         stopped_high_priority_input_state;
     stopped_high_priority_input_state.delay = 5U;
     stopped_high_priority_input_state.activity_state = 3U;
+    openswd3::special_modes::LegacyHighPriorityCommonInputState
+        stopped_high_priority_input_common;
+    stopped_high_priority_input_common.keyboard[1U] = 0x80U;
+    FakeHighPriorityCommonInputPorts stopped_high_priority_input_common_ports;
+    stopped_high_priority_input_common_ports.dispatch_result = std::nullopt;
     FakeHighPriorityMenuFramePorts stopped_high_priority_input_ports;
-    stopped_high_priority_input_ports.input_result = std::nullopt;
     const auto stopped_high_priority_input =
         openswd3::special_modes::coordinate_legacy_high_priority_menu_frame(
-            stopped_high_priority_input_state, stopped_high_priority_input_ports
+            stopped_high_priority_input_state,
+            stopped_high_priority_input_common,
+            stopped_high_priority_input_ports,
+            stopped_high_priority_input_common_ports
         );
     openswd3::special_modes::LegacyHighPriorityMenuFrameState
         stopped_high_priority_submode_state;
     stopped_high_priority_submode_state.activity_state = 1U;
     stopped_high_priority_submode_state.submode = 1U;
+    openswd3::special_modes::LegacyHighPriorityCommonInputState
+        stopped_high_priority_submode_common;
+    FakeHighPriorityCommonInputPorts stopped_high_priority_submode_common_ports;
     FakeHighPriorityMenuFramePorts stopped_high_priority_submode_ports;
     stopped_high_priority_submode_ports.submode_one_result = std::nullopt;
     const auto stopped_high_priority_submode =
         openswd3::special_modes::coordinate_legacy_high_priority_menu_frame(
             stopped_high_priority_submode_state,
-            stopped_high_priority_submode_ports
+            stopped_high_priority_submode_common,
+            stopped_high_priority_submode_ports,
+            stopped_high_priority_submode_common_ports
         );
     openswd3::special_modes::LegacyHighPriorityMenuFrameState
         stopped_high_priority_render_state;
     stopped_high_priority_render_state.activity_state = 1U;
     stopped_high_priority_render_state.submode = 2U;
+    openswd3::special_modes::LegacyHighPriorityCommonInputState
+        stopped_high_priority_render_common;
+    FakeHighPriorityCommonInputPorts stopped_high_priority_render_common_ports;
     FakeHighPriorityMenuFramePorts stopped_high_priority_render_ports;
     stopped_high_priority_render_ports.render_result = std::nullopt;
     const auto stopped_high_priority_render =
         openswd3::special_modes::coordinate_legacy_high_priority_menu_frame(
             stopped_high_priority_render_state,
-            stopped_high_priority_render_ports
+            stopped_high_priority_render_common,
+            stopped_high_priority_render_ports,
+            stopped_high_priority_render_common_ports
         );
     test.expect_true(
         stopped_high_priority_input.status ==
@@ -21333,19 +21473,22 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             stopped_high_priority_input_state.delay == 4U &&
             stopped_high_priority_input_state.activity_state == 1U &&
             stopped_high_priority_input_state.mouse_frame_index == 0x0DU &&
-            stopped_high_priority_input_ports.events == std::vector<u32>{1U} &&
+            stopped_high_priority_input_common_ports.events ==
+                std::vector<u32>{2U} &&
+            stopped_high_priority_input_ports.events.empty() &&
             stopped_high_priority_submode.status ==
                 openswd3::special_modes::LegacyHighPriorityMenuFrameStatus::
                     submode_stopped &&
             stopped_high_priority_submode.helper_call_count == 2U &&
+            stopped_high_priority_submode_common_ports.events.empty() &&
             stopped_high_priority_submode_ports.events ==
-                std::vector<u32>{1U, 3U} &&
+                std::vector<u32>{3U} &&
             stopped_high_priority_render.status ==
                 openswd3::special_modes::LegacyHighPriorityMenuFrameStatus::
                     render_stopped &&
             stopped_high_priority_render.helper_call_count == 2U &&
-            stopped_high_priority_render_ports.events ==
-                std::vector<u32>{1U, 4U},
+            stopped_high_priority_render_common_ports.events.empty() &&
+            stopped_high_priority_render_ports.events == std::vector<u32>{4U},
         "0x406E30 typed-stops at common input, selected submode, or active render after preserving each earlier timer and state mutation"
     );
 

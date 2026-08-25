@@ -8566,7 +8566,9 @@ LegacySavePreviewCleanupResult cleanup_legacy_save_previews(
 
 LegacyHighPriorityMenuFrameResult coordinate_legacy_high_priority_menu_frame(
     LegacyHighPriorityMenuFrameState& state,
-    LegacyHighPriorityMenuFramePorts& ports
+    LegacyHighPriorityCommonInputState& common_input,
+    LegacyHighPriorityMenuFramePorts& ports,
+    LegacyHighPriorityCommonInputPorts& common_input_ports
 ) noexcept {
     LegacyHighPriorityMenuFrameResult result;
     state.delay -= 1U;
@@ -8582,13 +8584,20 @@ LegacyHighPriorityMenuFrameResult coordinate_legacy_high_priority_menu_frame(
     }
     state.mouse_frame_index = 0x0DU;
 
-    const std::optional<compat::i32> input = ports.dispatch_common_input(state);
+    common_input.submode = state.submode;
+    common_input.activity_state = state.activity_state;
+    const LegacyHighPriorityCommonInputResult input =
+        handle_legacy_high_priority_common_input(
+            common_input, common_input_ports
+        );
     ++result.helper_call_count;
-    if (!input.has_value()) {
+    state.submode = common_input.submode;
+    state.activity_state = common_input.activity_state;
+    result.legacy_return_value = input.legacy_return_value;
+    if (input.status != LegacyHighPriorityCommonInputStatus::completed) {
         result.status = LegacyHighPriorityMenuFrameStatus::common_input_stopped;
         return result;
     }
-    result.legacy_return_value = *input;
 
     if (state.submode == 0U) {
         const std::optional<compat::i32> submode =
@@ -8625,6 +8634,60 @@ LegacyHighPriorityMenuFrameResult coordinate_legacy_high_priority_menu_frame(
     }
     result.path = LegacyHighPriorityMenuFramePath::active_rendered;
     result.legacy_return_value = *rendered;
+    return result;
+}
+
+LegacyHighPriorityCommonInputResult handle_legacy_high_priority_common_input(
+    LegacyHighPriorityCommonInputState& state,
+    LegacyHighPriorityCommonInputPorts& ports
+) noexcept {
+    LegacyHighPriorityCommonInputResult result;
+    if (state.right_mouse.rapid_press_multiplicity != 0U &&
+        state.right_mouse.held_sample_count == 1U) {
+        input_time_rng::synthesize_raw_key(state.keyboard, 1U);
+        result.escape_synthesized = true;
+    }
+
+    result.legacy_return_value = std::bit_cast<compat::i32>(
+        input_time_rng::read_raw_key(state.keyboard, 0x3BU)
+    );
+    ++result.raw_query_count;
+    if (result.legacy_return_value != 0 && state.input_mode == 0U) {
+        ports.wait_milliseconds(500U);
+        ++result.wait_count;
+        state.submode = 0U;
+    }
+
+    result.legacy_return_value = std::bit_cast<compat::i32>(
+        input_time_rng::read_raw_key(state.keyboard, 0x3CU)
+    );
+    ++result.raw_query_count;
+    if (result.legacy_return_value != 0 && state.input_mode == 0U) {
+        ports.wait_milliseconds(500U);
+        ++result.wait_count;
+        state.submode = 1U;
+    }
+
+    constexpr std::array<compat::u32, 3U> kDispatchKeys{1U, 0x1DU, 0x9DU};
+    for (const compat::u32 key : kDispatchKeys) {
+        result.legacy_return_value = std::bit_cast<compat::i32>(
+            input_time_rng::read_raw_key(state.keyboard, key)
+        );
+        ++result.raw_query_count;
+        if (result.legacy_return_value == 0) {
+            continue;
+        }
+        result.input_mode_dispatched = true;
+        const std::optional<compat::i32> dispatched =
+            ports.dispatch_input_mode(state);
+        if (!dispatched.has_value()) {
+            result.status = LegacyHighPriorityCommonInputStatus::
+                input_mode_dispatch_stopped;
+            return result;
+        }
+        result.legacy_return_value = *dispatched;
+        return result;
+    }
     return result;
 }
 

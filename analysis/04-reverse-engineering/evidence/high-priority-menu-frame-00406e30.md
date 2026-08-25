@@ -6,7 +6,7 @@
 
 权威范围为`swd3.exe.lst`的`0x00406E30..0x00406EA5`，共64行，无外部`FUNCTION CHUNK`。唯一caller为主帧`0x0040A570`。
 
-入口直接读取和写入高优先级菜单共享状态；公共输入`0x00406EB0`、子模式0 `0x00406F70`、子模式1 `0x004070A0`及活动画面`0x00408CF0`分别由后续工作包或跨B11 owner关闭，当前以逐调用窄端口保留原重读和停止位置。
+入口直接读取和写入高优先级菜单共享状态；公共输入`0x00406EB0`已关闭并由本入口直接调用。子模式0 `0x00406F70`、子模式1 `0x004070A0`及活动画面`0x00408CF0`分别由后续工作包或跨B11 owner关闭，当前以逐调用窄端口保留原重读和停止位置。
 
 ## 2. 计时和固定前缀
 
@@ -35,6 +35,6 @@
 
 ## 4. typed-stop与验证
 
-公共输入、选中的子模式或活动画面不可用时，只在对应原调用点停止；timer、frame count、activity 3→1、鼠标frame以及此前callee修改均不回滚。
+公共输入的尾部状态处理、选中的子模式或活动画面不可用时，只在对应原调用点停止；timer、frame count、activity 3→1、鼠标frame以及此前callee修改均不回滚。
 
 `special_modes.legacy_initial_menu`覆盖delay边界0/1001/1002、frame count回绕、activity折返、输入改submode、子模式清activity、submode 2跳过handler、活动尾调用，以及三个callee停止前缀。
