@@ -44,6 +44,21 @@ struct LegacyBattleFrameDrawResult {
     compat::i32 y
 ) noexcept;
 
+// sub_4504E0: query and draw the selected frame at the supplied coordinates.
+[[nodiscard]] LegacyBattleFrameDrawResult draw_legacy_battle_resource_frame(
+    LegacyBattleFrameDrawState& state,
+    rendering::LegacyFramebuffer& framebuffer,
+    const rendering::LegacyBlitClipRectangle& clip,
+    rendering::LegacyBlitRequest& shared_request,
+    rendering::LegacyBlitEffectState& shared_effects,
+    rendering::LegacyRleRowJitterState& jitter,
+    rendering::LegacyFramePieceProvider& frame_provider,
+    compat::u32 resource_id,
+    compat::u32 frame_index,
+    compat::i32 x,
+    compat::i32 y
+) noexcept;
+
 // sub_450490: query the selected frame and draw an explicit width by its height.
 [[nodiscard]] LegacyBattleFrameDrawResult
 draw_legacy_battle_resource_frame_width(

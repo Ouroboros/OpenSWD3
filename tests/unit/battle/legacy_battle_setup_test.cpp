@@ -3136,6 +3136,102 @@ void test_battle_indexed_action_frame_draw(openswd3::test::Context& test) {
     }
 }
 
+void test_battle_resource_frame(openswd3::test::Context& test) {
+    const openswd3::rendering::LegacySurfaceGeometry surface{
+        .pitch_bytes = 80,
+        .width = 40,
+        .height = 30,
+    };
+    const openswd3::rendering::LegacyBlitClipRectangle clip{
+        .left = 0,
+        .top = 0,
+        .width = 40,
+        .height = 30,
+    };
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleBorderFrameProvider provider;
+        provider.indexed_source_index = 1;
+        provider.source_storage[1].assign(12U, 2U);
+        openswd3::battle::LegacyBattleFrameDrawState state;
+        openswd3::rendering::LegacyBlitRequest shared_request{
+            .target_height = 3,
+            .vertical_resample_enlarge_state = 1U,
+            .vertical_resample_phase_10_10 = 0x23U,
+            .opacity_step = 5,
+        };
+        openswd3::rendering::LegacyBlitEffectState shared_effects;
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result = openswd3::battle::draw_legacy_battle_resource_frame(
+            state,
+            framebuffer,
+            clip,
+            shared_request,
+            shared_effects,
+            jitter,
+            provider,
+            0x55U,
+            1U,
+            10,
+            5
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameDrawStatus::completed &&
+                result.frame_load_calls == 1U &&
+                result.frame_draw_calls == 1U &&
+                provider.resource_ids == std::vector<u32>{0x55U} &&
+                provider.load_indices == std::vector<u32>{1U} &&
+                state.frame_record_available && state.source_published &&
+                state.current_frame.width == 4U &&
+                state.current_frame.height == 3U &&
+                state.current_source.layout ==
+                    openswd3::rendering::LegacyBlitSourceLayout::indexed_8 &&
+                framebuffer.row_pixels(5U)[10U] == 0x2222U &&
+                framebuffer.row_pixels(7U)[13U] == 0x2222U &&
+                shared_request.target_height == 0 &&
+                shared_request.vertical_resample_phase_10_10 == 0U &&
+                shared_request.opacity_step == 0 &&
+                shared_request.vertical_resample_enlarge_state == 1U,
+            "selected resource frame uses its record width height and palette"
+        );
+    }
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleBorderFrameProvider provider;
+        provider.failed_index = 6;
+        openswd3::battle::LegacyBattleFrameDrawState state;
+        openswd3::rendering::LegacyBlitRequest shared_request{
+            .target_height = 9,
+        };
+        openswd3::rendering::LegacyBlitEffectState shared_effects;
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result = openswd3::battle::draw_legacy_battle_resource_frame(
+            state,
+            framebuffer,
+            clip,
+            shared_request,
+            shared_effects,
+            jitter,
+            provider,
+            1U,
+            6U,
+            10,
+            5
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameDrawStatus::
+                        frame_unavailable &&
+                state.frame_record_published && !state.frame_record_available &&
+                !state.source_published && shared_request.target_height == 9,
+            "missing selected resource frame stops after null record publication"
+        );
+    }
+}
+
 void test_battle_resource_frame_width(openswd3::test::Context& test) {
     const openswd3::rendering::LegacySurfaceGeometry surface{
         .pitch_bytes = 160,
@@ -4909,6 +5005,7 @@ int main() {
     test_directional_scan_division_and_typed_stops(test);
     test_battle_action_frame_draw(test);
     test_battle_indexed_action_frame_draw(test);
+    test_battle_resource_frame(test);
     test_battle_resource_frame_width(test);
     test_battle_frame_zero_draw(test);
     test_battle_border_panel(test);

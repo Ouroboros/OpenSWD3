@@ -82,6 +82,66 @@ LegacyBattleFrameDrawResult draw_legacy_battle_frame_zero(
     return result;
 }
 
+LegacyBattleFrameDrawResult draw_legacy_battle_resource_frame(
+    LegacyBattleFrameDrawState& state,
+    rendering::LegacyFramebuffer& framebuffer,
+    const rendering::LegacyBlitClipRectangle& clip,
+    rendering::LegacyBlitRequest& shared_request,
+    rendering::LegacyBlitEffectState& shared_effects,
+    rendering::LegacyRleRowJitterState& jitter,
+    rendering::LegacyFramePieceProvider& frame_provider,
+    const compat::u32 resource_id,
+    const compat::u32 frame_index,
+    const compat::i32 x,
+    const compat::i32 y
+) noexcept {
+    LegacyBattleFrameDrawResult result{
+        .frame_load_calls = 1U,
+    };
+    rendering::LegacyFramePiece piece{};
+    const bool available =
+        frame_provider.load_frame_piece(resource_id, frame_index, piece);
+    state.frame_record_published = true;
+    state.frame_record_available = available;
+    state.current_frame_index = frame_index;
+    if (!available) {
+        state.current_frame = {};
+        result.status = LegacyBattleFrameDrawStatus::frame_unavailable;
+        return result;
+    }
+
+    state.current_frame = piece;
+    state.current_source = piece.source;
+    state.source_published = true;
+    rendering::LegacyBlitRequest request = shared_request;
+    request.destination_x = x;
+    request.destination_y = y;
+    request.source_width = static_cast<compat::i32>(piece.width);
+    request.source_height = static_cast<compat::i32>(piece.height);
+    request.flags = 0U;
+    if (piece.source.palette.empty()) {
+        request.auxiliary = {};
+    } else {
+        request.auxiliary = {
+            reinterpret_cast<const compat::u8*>(piece.source.palette.data()),
+            piece.source.palette.size_bytes(),
+        };
+    }
+
+    const rendering::LegacyBlitResult blit = rendering::blit_legacy_copy_paths(
+        framebuffer, clip, state.current_source, request, shared_effects, jitter
+    );
+    result.frame_draw_calls = 1U;
+    result.blit_status = blit.status;
+    if (!accepted_blit_status(blit.status)) {
+        result.status = LegacyBattleFrameDrawStatus::blit_typed_stop;
+        return result;
+    }
+
+    publish_blitter_normal_epilogue(shared_request, shared_effects);
+    return result;
+}
+
 LegacyBattleFrameDrawResult draw_legacy_battle_resource_frame_width(
     LegacyBattleFrameDrawState& state,
     rendering::LegacyFramebuffer& framebuffer,
