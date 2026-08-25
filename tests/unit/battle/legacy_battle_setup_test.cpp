@@ -3136,6 +3136,215 @@ void test_battle_indexed_action_frame_draw(openswd3::test::Context& test) {
     }
 }
 
+void test_battle_layered_resource_frames(openswd3::test::Context& test) {
+    const openswd3::rendering::LegacySurfaceGeometry surface{
+        .pitch_bytes = 80,
+        .width = 40,
+        .height = 30,
+    };
+    const openswd3::rendering::LegacyBlitClipRectangle clip{
+        .left = 0,
+        .top = 0,
+        .width = 40,
+        .height = 30,
+    };
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleBorderFrameProvider provider;
+        openswd3::battle::LegacyBattleFrameDrawState state;
+        openswd3::rendering::LegacyBlitRequest shared_request{
+            .target_height = 2,
+            .vertical_resample_enlarge_state = 1U,
+            .vertical_resample_phase_10_10 = 0x31U,
+            .opacity_step = 5,
+        };
+        openswd3::rendering::LegacyBlitEffectState shared_effects{
+            .red_offset = 1,
+        };
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_layered_resource_frames(
+                state,
+                framebuffer,
+                clip,
+                shared_request,
+                shared_effects,
+                jitter,
+                provider,
+                0x77U,
+                10,
+                5,
+                1
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleLayeredFrameDrawStatus::
+                        completed &&
+                result.frame_load_calls == 2U &&
+                result.frame_draw_calls == 2U &&
+                provider.resource_ids == std::vector<u32>{0x77U, 0x77U} &&
+                provider.load_indices == std::vector<u32>{0U, 1U} &&
+                result.first.status ==
+                    openswd3::battle::LegacyBattleFrameDrawStatus::completed &&
+                result.second.status ==
+                    openswd3::battle::LegacyBattleFrameDrawStatus::completed &&
+                state.current_frame_index == 1U &&
+                framebuffer.row_pixels(5U)[10U] == 0x1001U &&
+                framebuffer.row_pixels(7U)[10U] == 0x1001U &&
+                framebuffer.row_pixels(5U)[11U] != 0U &&
+                framebuffer.row_pixels(5U)[11U] != 0x1001U &&
+                framebuffer.row_pixels(5U)[12U] == 0U &&
+                shared_request.target_height == 0 &&
+                shared_request.vertical_resample_phase_10_10 == 0U &&
+                shared_request.opacity_step == 0 &&
+                shared_request.vertical_resample_enlarge_state == 1U &&
+                shared_effects.red_offset == 0,
+            "layered frame draw applies first epilogue before explicit-width overlay"
+        );
+    }
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleBorderFrameProvider provider;
+        openswd3::battle::LegacyBattleFrameDrawState state;
+        openswd3::rendering::LegacyBlitRequest shared_request;
+        openswd3::rendering::LegacyBlitEffectState shared_effects;
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_layered_resource_frames(
+                state,
+                framebuffer,
+                clip,
+                shared_request,
+                shared_effects,
+                jitter,
+                provider,
+                1U,
+                10,
+                5,
+                0
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleLayeredFrameDrawStatus::
+                        completed &&
+                result.frame_load_calls == 2U &&
+                result.frame_draw_calls == 1U &&
+                result.second.status ==
+                    openswd3::battle::LegacyBattleFrameDrawStatus::
+                        width_nonpositive &&
+                provider.load_indices == std::vector<u32>{0U, 1U} &&
+                state.current_frame_index == 1U && state.source_published &&
+                framebuffer.row_pixels(5U)[10U] == 0x1000U,
+            "zero overlay width still queries and publishes frame one"
+        );
+    }
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleBorderFrameProvider provider;
+        openswd3::battle::LegacyBattleFrameDrawState state;
+        openswd3::rendering::LegacyBlitRequest shared_request;
+        openswd3::rendering::LegacyBlitEffectState shared_effects;
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_layered_resource_frames(
+                state,
+                framebuffer,
+                clip,
+                shared_request,
+                shared_effects,
+                jitter,
+                provider,
+                1U,
+                10,
+                5,
+                -1
+            );
+        test.expect_true(
+            provider.load_indices == std::vector<u32>{0U, 1U} &&
+                result.frame_load_calls == 2U &&
+                result.frame_draw_calls == 2U &&
+                result.second.frame_draw_calls == 1U &&
+                result.second.status !=
+                    openswd3::battle::LegacyBattleFrameDrawStatus::
+                        width_nonpositive &&
+                framebuffer.row_pixels(5U)[10U] == 0x1000U,
+            "negative overlay width reaches the second blitter call"
+        );
+    }
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleBorderFrameProvider provider;
+        provider.failed_index = 0;
+        openswd3::battle::LegacyBattleFrameDrawState state;
+        openswd3::rendering::LegacyBlitRequest shared_request;
+        openswd3::rendering::LegacyBlitEffectState shared_effects;
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_layered_resource_frames(
+                state,
+                framebuffer,
+                clip,
+                shared_request,
+                shared_effects,
+                jitter,
+                provider,
+                1U,
+                10,
+                5,
+                2
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleLayeredFrameDrawStatus::
+                        first_frame_typed_stop &&
+                provider.load_indices == std::vector<u32>{0U} &&
+                result.frame_load_calls == 1U && result.frame_draw_calls == 0U,
+            "first frame typed stop prevents frame one query"
+        );
+    }
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleBorderFrameProvider provider;
+        provider.failed_index = 1;
+        openswd3::battle::LegacyBattleFrameDrawState state;
+        openswd3::rendering::LegacyBlitRequest shared_request;
+        openswd3::rendering::LegacyBlitEffectState shared_effects;
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_layered_resource_frames(
+                state,
+                framebuffer,
+                clip,
+                shared_request,
+                shared_effects,
+                jitter,
+                provider,
+                1U,
+                10,
+                5,
+                2
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleLayeredFrameDrawStatus::
+                        second_frame_typed_stop &&
+                provider.load_indices == std::vector<u32>{0U, 1U} &&
+                result.frame_load_calls == 2U &&
+                result.frame_draw_calls == 1U &&
+                state.current_frame_index == 1U &&
+                state.current_source.bytes.data() ==
+                    provider.source_storage[0].data() &&
+                framebuffer.row_pixels(5U)[10U] == 0x1000U,
+            "second frame typed stop retains first draw and source snapshot"
+        );
+    }
+}
+
 void test_battle_resource_frame(openswd3::test::Context& test) {
     const openswd3::rendering::LegacySurfaceGeometry surface{
         .pitch_bytes = 80,
@@ -5005,6 +5214,7 @@ int main() {
     test_directional_scan_division_and_typed_stops(test);
     test_battle_action_frame_draw(test);
     test_battle_indexed_action_frame_draw(test);
+    test_battle_layered_resource_frames(test);
     test_battle_resource_frame(test);
     test_battle_resource_frame_width(test);
     test_battle_frame_zero_draw(test);

@@ -82,6 +82,67 @@ LegacyBattleFrameDrawResult draw_legacy_battle_frame_zero(
     return result;
 }
 
+LegacyBattleLayeredFrameDrawResult draw_legacy_battle_layered_resource_frames(
+    LegacyBattleFrameDrawState& state,
+    rendering::LegacyFramebuffer& framebuffer,
+    const rendering::LegacyBlitClipRectangle& clip,
+    rendering::LegacyBlitRequest& shared_request,
+    rendering::LegacyBlitEffectState& shared_effects,
+    rendering::LegacyRleRowJitterState& jitter,
+    rendering::LegacyFramePieceProvider& frame_provider,
+    const compat::u32 resource_id,
+    const compat::i32 x,
+    const compat::i32 y,
+    const compat::i32 second_width
+) noexcept {
+    LegacyBattleLayeredFrameDrawResult result{};
+    result.first = draw_legacy_battle_resource_frame(
+        state,
+        framebuffer,
+        clip,
+        shared_request,
+        shared_effects,
+        jitter,
+        frame_provider,
+        resource_id,
+        0U,
+        x,
+        y
+    );
+    result.frame_load_calls = result.first.frame_load_calls;
+    result.frame_draw_calls = result.first.frame_draw_calls;
+    if (result.first.status != LegacyBattleFrameDrawStatus::completed) {
+        result.status =
+            LegacyBattleLayeredFrameDrawStatus::first_frame_typed_stop;
+        return result;
+    }
+
+    result.second = draw_legacy_battle_resource_frame_width(
+        state,
+        framebuffer,
+        clip,
+        shared_request,
+        shared_effects,
+        jitter,
+        frame_provider,
+        resource_id,
+        1U,
+        x,
+        y,
+        second_width,
+        false
+    );
+    result.frame_load_calls += result.second.frame_load_calls;
+    result.frame_draw_calls += result.second.frame_draw_calls;
+    if (result.second.status != LegacyBattleFrameDrawStatus::completed &&
+        result.second.status !=
+            LegacyBattleFrameDrawStatus::width_nonpositive) {
+        result.status =
+            LegacyBattleLayeredFrameDrawStatus::second_frame_typed_stop;
+    }
+    return result;
+}
+
 LegacyBattleFrameDrawResult draw_legacy_battle_resource_frame(
     LegacyBattleFrameDrawState& state,
     rendering::LegacyFramebuffer& framebuffer,
@@ -154,7 +215,8 @@ LegacyBattleFrameDrawResult draw_legacy_battle_resource_frame_width(
     const compat::u32 frame_index,
     const compat::i32 x,
     const compat::i32 y,
-    const compat::i32 explicit_width
+    const compat::i32 explicit_width,
+    const bool skip_nonpositive_width
 ) noexcept {
     LegacyBattleFrameDrawResult result{
         .frame_load_calls = 1U,
@@ -174,7 +236,8 @@ LegacyBattleFrameDrawResult draw_legacy_battle_resource_frame_width(
     state.current_frame = piece;
     state.current_source = piece.source;
     state.source_published = true;
-    if (explicit_width <= 0) {
+    if ((skip_nonpositive_width && explicit_width <= 0) ||
+        (!skip_nonpositive_width && explicit_width == 0)) {
         result.status = LegacyBattleFrameDrawStatus::width_nonpositive;
         return result;
     }

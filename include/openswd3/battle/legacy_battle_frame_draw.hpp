@@ -30,6 +30,22 @@ struct LegacyBattleFrameDrawResult {
     };
 };
 
+enum class LegacyBattleLayeredFrameDrawStatus : compat::u8 {
+    completed,
+    first_frame_typed_stop,
+    second_frame_typed_stop,
+};
+
+struct LegacyBattleLayeredFrameDrawResult {
+    LegacyBattleLayeredFrameDrawStatus status{
+        LegacyBattleLayeredFrameDrawStatus::completed
+    };
+    LegacyBattleFrameDrawResult first{};
+    LegacyBattleFrameDrawResult second{};
+    compat::u32 frame_load_calls{};
+    compat::u32 frame_draw_calls{};
+};
+
 // sub_450270: query frame zero and draw it once at the supplied coordinates.
 [[nodiscard]] LegacyBattleFrameDrawResult draw_legacy_battle_frame_zero(
     LegacyBattleFrameDrawState& state,
@@ -42,6 +58,22 @@ struct LegacyBattleFrameDrawResult {
     compat::u32 resource_id,
     compat::i32 x,
     compat::i32 y
+) noexcept;
+
+// sub_450530: draw frame zero, then optionally draw frame one by an explicit width.
+[[nodiscard]] LegacyBattleLayeredFrameDrawResult
+draw_legacy_battle_layered_resource_frames(
+    LegacyBattleFrameDrawState& state,
+    rendering::LegacyFramebuffer& framebuffer,
+    const rendering::LegacyBlitClipRectangle& clip,
+    rendering::LegacyBlitRequest& shared_request,
+    rendering::LegacyBlitEffectState& shared_effects,
+    rendering::LegacyRleRowJitterState& jitter,
+    rendering::LegacyFramePieceProvider& frame_provider,
+    compat::u32 resource_id,
+    compat::i32 x,
+    compat::i32 y,
+    compat::i32 second_width
 ) noexcept;
 
 // sub_4504E0: query and draw the selected frame at the supplied coordinates.
@@ -73,7 +105,8 @@ draw_legacy_battle_resource_frame_width(
     compat::u32 frame_index,
     compat::i32 x,
     compat::i32 y,
-    compat::i32 explicit_width
+    compat::i32 explicit_width,
+    bool skip_nonpositive_width = true
 ) noexcept;
 
 }  // namespace openswd3::battle
