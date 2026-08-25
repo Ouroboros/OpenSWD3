@@ -51,11 +51,11 @@ CLOSURES = {
     ),
     "0x0044B010": (
         "platform_adapted",
-        "evidence/system-menu-add-item-list-close-0044b010.md",
+        "evidence/system-menu-record-list-close-0044b010.md",
     ),
     "0x0044AF30": (
         "platform_adapted",
-        "evidence/system-menu-add-item-list-open-0044af30.md",
+        "evidence/system-menu-record-list-open-0044af30.md",
     ),
     "0x0044AE70": (
         "platform_adapted",

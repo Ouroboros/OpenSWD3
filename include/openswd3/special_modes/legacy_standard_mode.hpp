@@ -398,7 +398,7 @@ struct LegacySystemMenuState {
     compat::u32 selected_entry{};
     compat::u32 selected_row{};
     compat::u32 applied_text_speed_index{};
-    compat::u32 detail_selection{};
+    compat::u32 exit_confirmation_value{};
     compat::i32 upper_dynamic_left{};
     compat::i32 upper_dynamic_right{};
     compat::i32 lower_dynamic_left{};
@@ -411,10 +411,10 @@ struct LegacySystemMenuState {
     compat::u32 system_menu_cursor_flags{};
     compat::i32 item_group_target{};
     compat::u8 menu_flags{};
-    compat::u32 detail_kind{};
-    std::array<compat::u32, 3U> item_page_state{};
+    compat::u32 exit_action{};
+    std::array<compat::u32, 3U> record_page_state{};
     LegacySystemMenuWorkspaceRequest workspace_request;
-    std::array<compat::u32, 6U> detail_runtime_values{};
+    std::array<compat::u32, 6U> exit_transition_values{};
     std::array<compat::u32, 32U> saved_key_bindings{};
     std::array<compat::u32, 32U> edited_key_bindings{};
 };
@@ -428,10 +428,10 @@ enum class LegacySystemMenuInputCommand : compat::u8 {
     enable_map_effect,
     rebuild_page,
     count_visible,
-    prepare_item_page,
+    prepare_record_page,
     reset_menu_workspace,
-    begin_detail_selection,
-    finish_detail_selection,
+    begin_exit_transition,
+    finish_exit_transition,
     save_key_bindings,
     restore_default_key_bindings,
 };

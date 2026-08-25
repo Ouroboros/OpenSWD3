@@ -492,8 +492,8 @@ LegacySystemMenuInputResult confirm_legacy_system_menu_selection(
         state.interaction_mode = 1U;
         state.selected_row = 0U;
         if (state.interaction_page == 2U) {
-            state.item_page_state = {};
-            call(LegacySystemMenuInputCommand::prepare_item_page);
+            state.record_page_state = {};
+            call(LegacySystemMenuInputCommand::prepare_record_page);
             return result;
         }
         if (state.interaction_page == 1U) {
@@ -534,14 +534,14 @@ LegacySystemMenuInputResult confirm_legacy_system_menu_selection(
     case 1U:
         if (state.interaction_page == 4U && state.selected_row <= 1U) {
             state.interaction_mode = 2U;
-            state.detail_kind = state.selected_row + 1U;
-            set_legacy(state.detail_kind);
+            state.exit_action = state.selected_row + 1U;
+            set_legacy(state.exit_action);
             if ((state.menu_flags & 0x02U) == 0U) {
-                state.detail_selection = 0U;
+                state.exit_confirmation_value = 0U;
                 return result;
             }
             state.input_locked = 1U;
-            state.detail_selection = 0x1EU;
+            state.exit_confirmation_value = 0x1EU;
             set_legacy(1U);
             return result;
         }
@@ -559,16 +559,16 @@ LegacySystemMenuInputResult confirm_legacy_system_menu_selection(
         if (state.interaction_page != 4U) {
             return result;
         }
-        set_legacy(state.detail_selection);
-        if (state.detail_selection != 0U) {
+        set_legacy(state.exit_confirmation_value);
+        if (state.exit_confirmation_value != 0U) {
             state.interaction_mode = 1U;
             return result;
         }
         state.input_locked = 1U;
-        state.detail_selection = 0x1EU;
-        call(LegacySystemMenuInputCommand::begin_detail_selection, 2U);
-        call(LegacySystemMenuInputCommand::finish_detail_selection);
-        state.detail_runtime_values = {};
+        state.exit_confirmation_value = 0x1EU;
+        call(LegacySystemMenuInputCommand::begin_exit_transition, 2U);
+        call(LegacySystemMenuInputCommand::finish_exit_transition);
+        state.exit_transition_values = {};
         return result;
     case 5U:
         if (state.selected_entry == 0x10U) {
@@ -729,11 +729,11 @@ LegacySystemMenuInputResult move_down_legacy_system_menu(
         return result;
     case 2U:
         if (state.interaction_page == 4U) {
-            const compat::u32 next = state.detail_selection + 1U;
-            state.detail_selection = next;
+            const compat::u32 next = state.exit_confirmation_value + 1U;
+            state.exit_confirmation_value = next;
             set_legacy(next);
             if (std::bit_cast<compat::i32>(next) >= 2) {
-                state.detail_selection = 1U;
+                state.exit_confirmation_value = 1U;
             }
         }
         return result;
@@ -868,11 +868,11 @@ LegacySystemMenuInputResult move_up_legacy_system_menu(
         return result;
     case 2U:
         if (state.interaction_page == 4U) {
-            const compat::u32 next = state.detail_selection - 1U;
-            state.detail_selection = next;
+            const compat::u32 next = state.exit_confirmation_value - 1U;
+            state.exit_confirmation_value = next;
             set_legacy(next);
             if (std::bit_cast<compat::i32>(next) < 0) {
-                state.detail_selection = 0U;
+                state.exit_confirmation_value = 0U;
             }
         }
         return result;
@@ -934,11 +934,11 @@ LegacySystemMenuInputResult page_up_legacy_system_menu(
         return result;
     case 2U:
         if (state.interaction_page == 4U) {
-            const compat::u32 next = state.detail_selection + 1U;
-            state.detail_selection = next;
+            const compat::u32 next = state.exit_confirmation_value + 1U;
+            state.exit_confirmation_value = next;
             set_legacy(next);
             if (std::bit_cast<compat::i32>(next) >= 2) {
-                state.detail_selection = 1U;
+                state.exit_confirmation_value = 1U;
             }
         }
         return result;
@@ -997,11 +997,11 @@ LegacySystemMenuInputResult page_down_legacy_system_menu(
         return result;
     case 2U:
         if (state.interaction_page == 4U) {
-            const compat::u32 next = state.detail_selection - 1U;
-            state.detail_selection = next;
+            const compat::u32 next = state.exit_confirmation_value - 1U;
+            state.exit_confirmation_value = next;
             set_legacy(next);
             if (std::bit_cast<compat::i32>(next) < 0) {
-                state.detail_selection = 0U;
+                state.exit_confirmation_value = 0U;
             }
         }
         return result;
@@ -1097,11 +1097,11 @@ LegacySystemMenuInputResult retreat_legacy_system_menu_selection(
         return result;
     case 2U:
         if (state.interaction_page == 4U) {
-            const compat::u32 next = state.detail_selection - 1U;
-            state.detail_selection = next;
+            const compat::u32 next = state.exit_confirmation_value - 1U;
+            state.exit_confirmation_value = next;
             set_legacy(next);
             if (std::bit_cast<compat::i32>(next) < 0) {
-                state.detail_selection = 0U;
+                state.exit_confirmation_value = 0U;
             }
         }
         return result;
@@ -1215,11 +1215,11 @@ LegacySystemMenuInputResult advance_legacy_system_menu_selection(
         return result;
     case 2U:
         if (state.interaction_page == 4U) {
-            const compat::u32 next = state.detail_selection + 1U;
-            state.detail_selection = next;
+            const compat::u32 next = state.exit_confirmation_value + 1U;
+            state.exit_confirmation_value = next;
             set_legacy(next);
             if (std::bit_cast<compat::i32>(next) >= 2) {
-                state.detail_selection = 1U;
+                state.exit_confirmation_value = 1U;
             }
         }
         return result;
@@ -1525,7 +1525,8 @@ LegacySystemMenuInputResult update_legacy_system_menu_input(
         const std::uint64_t product =
             static_cast<std::uint64_t>(0x3E0F83E1U) * operand;
         set_legacy(static_cast<compat::u32>(product));
-        state.detail_selection = static_cast<compat::u32>(product >> 36U);
+        state.exit_confirmation_value =
+            static_cast<compat::u32>(product >> 36U);
         if ((input_flags & 0x01U) != 0U) {
             confirm();
         }

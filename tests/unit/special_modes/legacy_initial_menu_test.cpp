@@ -609,9 +609,9 @@ public:
         }
         if (command ==
                 openswd3::special_modes::LegacySystemMenuInputCommand::
-                    prepare_item_page &&
-            mutate_sound_after_prepare_item_page) {
-            state.sound_effect_index = sound_after_prepare_item_page;
+                    prepare_record_page &&
+            mutate_sound_after_prepare_record_page) {
+            state.sound_effect_index = sound_after_prepare_record_page;
         }
         if (command ==
                 openswd3::special_modes::LegacySystemMenuInputCommand::
@@ -661,8 +661,8 @@ public:
     bool mutate_after_open_mode_fourteen{};
     u32 input_lock_after_open_mode_fourteen{};
     u32 interaction_mode_after_open_mode_fourteen{};
-    bool mutate_sound_after_prepare_item_page{};
-    u32 sound_after_prepare_item_page{};
+    bool mutate_sound_after_prepare_record_page{};
+    u32 sound_after_prepare_record_page{};
     bool populate_default_key_bindings{};
     std::array<u32, 32U> default_key_bindings{};
     bool mutate_visible_after_count{};
@@ -15407,7 +15407,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             last_detail_state, last_detail_ports
         );
     test.expect_true(
-        last_detail_state.detail_selection == 0U &&
+        last_detail_state.exit_confirmation_value == 0U &&
             last_detail.legacy_return_value == -1,
         "0x44B840 preserves the negative detail decrement EAX before clamping to zero"
     );
@@ -15516,19 +15516,20 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44B930 selects the first row on mode-one pages three and four"
     );
 
-    openswd3::special_modes::LegacySystemMenuState first_detail_state;
-    first_detail_state.interaction_mode = 2U;
-    first_detail_state.interaction_page = 4U;
-    first_detail_state.detail_selection = 1U;
-    FakeSystemMenuPorts first_detail_ports;
-    const auto first_detail =
+    openswd3::special_modes::LegacySystemMenuState
+        first_exit_confirmation_state;
+    first_exit_confirmation_state.interaction_mode = 2U;
+    first_exit_confirmation_state.interaction_page = 4U;
+    first_exit_confirmation_state.exit_confirmation_value = 1U;
+    FakeSystemMenuPorts first_exit_confirmation_ports;
+    const auto first_exit_confirmation =
         openswd3::special_modes::page_up_legacy_system_menu(
-            first_detail_state, first_detail_ports
+            first_exit_confirmation_state, first_exit_confirmation_ports
         );
     test.expect_true(
-        first_detail_state.detail_selection == 1U &&
-            first_detail.legacy_return_value == 2,
-        "0x44B930 preserves the detail increment EAX before clamping values two and above to one"
+        first_exit_confirmation_state.exit_confirmation_value == 1U &&
+            first_exit_confirmation.legacy_return_value == 2,
+        "0x44B930 preserves the exit-confirmation increment EAX before clamping values two and above to one"
     );
 
     openswd3::special_modes::LegacySystemMenuState first_entry_state;
@@ -15721,14 +15722,14 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     openswd3::special_modes::LegacySystemMenuState move_up_detail_state;
     move_up_detail_state.interaction_mode = 2U;
     move_up_detail_state.interaction_page = 4U;
-    move_up_detail_state.detail_selection = 0U;
+    move_up_detail_state.exit_confirmation_value = 0U;
     FakeSystemMenuPorts move_up_detail_ports;
     const auto move_up_detail =
         openswd3::special_modes::move_up_legacy_system_menu(
             move_up_detail_state, move_up_detail_ports
         );
     test.expect_true(
-        move_up_detail_state.detail_selection == 0U &&
+        move_up_detail_state.exit_confirmation_value == 0U &&
             move_up_detail.legacy_return_value == -1,
         "0x44BA20 preserves the negative detail result before clamping to zero"
     );
@@ -15795,7 +15796,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             return_top_level.story_flag_query_count == 1U &&
             return_top_level.helper_call_count == 3U &&
             return_top_level.legacy_return_value == 0,
-        "0x44C0E0 decrements the lifecycle, closes the item page, then restores the game-menu callback group"
+        "0x44C0E0 decrements the lifecycle, releases the record list, then restores the game-menu callback group"
     );
 
     openswd3::special_modes::LegacySystemMenuState return_page_one_state;
@@ -15961,88 +15962,91 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44BDA0 opens the second top-level page with its distinct workspace request"
     );
 
-    openswd3::special_modes::LegacySystemMenuState confirm_item_page_state;
-    confirm_item_page_state.interaction_mode = 0U;
-    confirm_item_page_state.interaction_page = 2U;
-    confirm_item_page_state.item_page_state = {1U, 2U, 3U};
-    FakeSystemMenuPorts confirm_item_page_ports;
+    openswd3::special_modes::LegacySystemMenuState confirm_record_page_state;
+    confirm_record_page_state.interaction_mode = 0U;
+    confirm_record_page_state.interaction_page = 2U;
+    confirm_record_page_state.record_page_state = {1U, 2U, 3U};
+    FakeSystemMenuPorts confirm_record_page_ports;
     static_cast<void>(
         openswd3::special_modes::confirm_legacy_system_menu_selection(
-            confirm_item_page_state, confirm_item_page_ports
+            confirm_record_page_state, confirm_record_page_ports
         )
     );
     test.expect_true(
-        confirm_item_page_state.interaction_mode == 1U &&
-            confirm_item_page_state.item_page_state == std::array<u32, 3U>{} &&
-            confirm_item_page_ports.input_commands ==
+        confirm_record_page_state.interaction_mode == 1U &&
+            confirm_record_page_state.record_page_state ==
+                std::array<u32, 3U>{} &&
+            confirm_record_page_ports.input_commands ==
                 std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::prepare_item_page, 0U}
+                    {SystemMenuCommand::prepare_record_page, 0U}
                 },
-        "0x44BDA0 clears three item-page values before opening the selected page"
+        "0x44BDA0 clears three record-page values before opening the original Record page"
     );
 
-    openswd3::special_modes::LegacySystemMenuState confirm_detail_kind_state;
-    confirm_detail_kind_state.interaction_mode = 1U;
-    confirm_detail_kind_state.interaction_page = 4U;
-    confirm_detail_kind_state.selected_row = 1U;
-    confirm_detail_kind_state.menu_flags = 2U;
-    FakeSystemMenuPorts confirm_detail_kind_ports;
-    const auto confirm_detail_kind =
+    openswd3::special_modes::LegacySystemMenuState confirm_exit_action_state;
+    confirm_exit_action_state.interaction_mode = 1U;
+    confirm_exit_action_state.interaction_page = 4U;
+    confirm_exit_action_state.selected_row = 1U;
+    confirm_exit_action_state.menu_flags = 2U;
+    FakeSystemMenuPorts confirm_exit_action_ports;
+    const auto confirm_exit_action =
         openswd3::special_modes::confirm_legacy_system_menu_selection(
-            confirm_detail_kind_state, confirm_detail_kind_ports
+            confirm_exit_action_state, confirm_exit_action_ports
         );
     test.expect_true(
-        confirm_detail_kind_state.interaction_mode == 2U &&
-            confirm_detail_kind_state.detail_kind == 2U &&
-            confirm_detail_kind_state.input_locked == 1U &&
-            confirm_detail_kind_state.detail_selection == 0x1EU &&
-            confirm_detail_kind.legacy_return_value == 1,
-        "0x44BDA0 starts the second detail kind at countdown thirty when menu flag one is set"
+        confirm_exit_action_state.interaction_mode == 2U &&
+            confirm_exit_action_state.exit_action == 2U &&
+            confirm_exit_action_state.input_locked == 1U &&
+            confirm_exit_action_state.exit_confirmation_value == 0x1EU &&
+            confirm_exit_action.legacy_return_value == 1,
+        "0x44BDA0 selects Exit Game and starts its confirmation countdown at thirty when menu flag one is set"
     );
 
     openswd3::special_modes::LegacySystemMenuState
-        confirm_detail_without_flag_state;
-    confirm_detail_without_flag_state.interaction_mode = 1U;
-    confirm_detail_without_flag_state.interaction_page = 4U;
-    confirm_detail_without_flag_state.selected_row = 0U;
-    confirm_detail_without_flag_state.menu_flags = 0U;
-    confirm_detail_without_flag_state.detail_selection = 9U;
-    FakeSystemMenuPorts confirm_detail_without_flag_ports;
-    const auto confirm_detail_without_flag =
+        confirm_restart_without_flag_state;
+    confirm_restart_without_flag_state.interaction_mode = 1U;
+    confirm_restart_without_flag_state.interaction_page = 4U;
+    confirm_restart_without_flag_state.selected_row = 0U;
+    confirm_restart_without_flag_state.menu_flags = 0U;
+    confirm_restart_without_flag_state.exit_confirmation_value = 9U;
+    FakeSystemMenuPorts confirm_restart_without_flag_ports;
+    const auto confirm_restart_without_flag =
         openswd3::special_modes::confirm_legacy_system_menu_selection(
-            confirm_detail_without_flag_state, confirm_detail_without_flag_ports
+            confirm_restart_without_flag_state,
+            confirm_restart_without_flag_ports
         );
     test.expect_true(
-        confirm_detail_without_flag_state.interaction_mode == 2U &&
-            confirm_detail_without_flag_state.detail_kind == 1U &&
-            confirm_detail_without_flag_state.input_locked == 0U &&
-            confirm_detail_without_flag_state.detail_selection == 0U &&
-            confirm_detail_without_flag.legacy_return_value == 1,
-        "0x44BDA0 selects detail kind one without starting its countdown when menu flag one is clear"
+        confirm_restart_without_flag_state.interaction_mode == 2U &&
+            confirm_restart_without_flag_state.exit_action == 1U &&
+            confirm_restart_without_flag_state.input_locked == 0U &&
+            confirm_restart_without_flag_state.exit_confirmation_value == 0U &&
+            confirm_restart_without_flag.legacy_return_value == 1,
+        "0x44BDA0 selects Restart without starting its confirmation countdown when menu flag one is clear"
     );
 
-    openswd3::special_modes::LegacySystemMenuState confirm_detail_start_state;
-    confirm_detail_start_state.interaction_mode = 2U;
-    confirm_detail_start_state.interaction_page = 4U;
-    confirm_detail_start_state.detail_selection = 0U;
-    confirm_detail_start_state.detail_runtime_values.fill(9U);
-    FakeSystemMenuPorts confirm_detail_start_ports;
-    const auto confirm_detail_start =
+    openswd3::special_modes::LegacySystemMenuState
+        confirm_exit_transition_state;
+    confirm_exit_transition_state.interaction_mode = 2U;
+    confirm_exit_transition_state.interaction_page = 4U;
+    confirm_exit_transition_state.exit_confirmation_value = 0U;
+    confirm_exit_transition_state.exit_transition_values.fill(9U);
+    FakeSystemMenuPorts confirm_exit_transition_ports;
+    const auto confirm_exit_transition =
         openswd3::special_modes::confirm_legacy_system_menu_selection(
-            confirm_detail_start_state, confirm_detail_start_ports
+            confirm_exit_transition_state, confirm_exit_transition_ports
         );
     test.expect_true(
-        confirm_detail_start_state.input_locked == 1U &&
-            confirm_detail_start_state.detail_selection == 0x1EU &&
-            confirm_detail_start_state.detail_runtime_values ==
+        confirm_exit_transition_state.input_locked == 1U &&
+            confirm_exit_transition_state.exit_confirmation_value == 0x1EU &&
+            confirm_exit_transition_state.exit_transition_values ==
                 std::array<u32, 6U>{} &&
-            confirm_detail_start_ports.input_commands ==
+            confirm_exit_transition_ports.input_commands ==
                 std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::begin_detail_selection, 2U},
-                    {SystemMenuCommand::finish_detail_selection, 0U}
+                    {SystemMenuCommand::begin_exit_transition, 2U},
+                    {SystemMenuCommand::finish_exit_transition, 0U}
                 } &&
-            confirm_detail_start.helper_call_count == 2U,
-        "0x44BDA0 starts the selected detail and clears six runtime values after both callbacks"
+            confirm_exit_transition.helper_call_count == 2U,
+        "0x44BDA0 starts the selected exit transition and clears six transition values after both callbacks"
     );
 
     openswd3::special_modes::LegacySystemMenuState confirm_bindings_open_state;
@@ -16356,19 +16360,20 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44BBD0 preserves the value two before clamping page-four rows to one"
     );
 
-    openswd3::special_modes::LegacySystemMenuState move_down_detail_state;
-    move_down_detail_state.interaction_mode = 2U;
-    move_down_detail_state.interaction_page = 4U;
-    move_down_detail_state.detail_selection = 1U;
-    FakeSystemMenuPorts move_down_detail_ports;
-    const auto move_down_detail =
+    openswd3::special_modes::LegacySystemMenuState
+        move_down_exit_confirmation_state;
+    move_down_exit_confirmation_state.interaction_mode = 2U;
+    move_down_exit_confirmation_state.interaction_page = 4U;
+    move_down_exit_confirmation_state.exit_confirmation_value = 1U;
+    FakeSystemMenuPorts move_down_exit_confirmation_ports;
+    const auto move_down_exit_confirmation =
         openswd3::special_modes::move_down_legacy_system_menu(
-            move_down_detail_state, move_down_detail_ports
+            move_down_exit_confirmation_state, move_down_exit_confirmation_ports
         );
     test.expect_true(
-        move_down_detail_state.detail_selection == 1U &&
-            move_down_detail.legacy_return_value == 2,
-        "0x44BBD0 preserves the value two before clamping detail selection to one"
+        move_down_exit_confirmation_state.exit_confirmation_value == 1U &&
+            move_down_exit_confirmation.legacy_return_value == 2,
+        "0x44BBD0 preserves the value two before clamping the exit-confirmation cursor to Cancel"
     );
 
     openswd3::special_modes::LegacySystemMenuState move_down_entry_state;
@@ -16456,7 +16461,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             retreat_detail_state, retreat_detail_ports
         );
     test.expect_true(
-        retreat_detail_state.detail_selection == 0U &&
+        retreat_detail_state.exit_confirmation_value == 0U &&
             retreat_detail.legacy_return_value == -1,
         "0x44B6E0 preserves negative detail EAX before clamping to zero"
     );
@@ -16545,19 +16550,20 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44B560 clamps page-three rows and passes the full sample owner"
     );
 
-    openswd3::special_modes::LegacySystemMenuState advance_detail_state;
-    advance_detail_state.interaction_mode = 2U;
-    advance_detail_state.interaction_page = 4U;
-    advance_detail_state.detail_selection = 1U;
-    FakeSystemMenuPorts advance_detail_ports;
-    const auto advance_detail =
+    openswd3::special_modes::LegacySystemMenuState
+        advance_exit_confirmation_state;
+    advance_exit_confirmation_state.interaction_mode = 2U;
+    advance_exit_confirmation_state.interaction_page = 4U;
+    advance_exit_confirmation_state.exit_confirmation_value = 1U;
+    FakeSystemMenuPorts advance_exit_confirmation_ports;
+    const auto advance_exit_confirmation =
         openswd3::special_modes::advance_legacy_system_menu_selection(
-            advance_detail_state, advance_detail_ports
+            advance_exit_confirmation_state, advance_exit_confirmation_ports
         );
     test.expect_true(
-        advance_detail_state.detail_selection == 1U &&
-            advance_detail.legacy_return_value == 2,
-        "0x44B560 preserves the pre-clamp detail increment EAX"
+        advance_exit_confirmation_state.exit_confirmation_value == 1U &&
+            advance_exit_confirmation.legacy_return_value == 2,
+        "0x44B560 preserves the pre-clamp exit-confirmation cursor increment EAX"
     );
 
     openswd3::special_modes::LegacySystemMenuState advance_entry_state;
@@ -16760,8 +16766,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     system_menu_navigation_state.input_flags = 3U;
     system_menu_navigation_state.sound_effect_index = 2U;
     FakeSystemMenuPorts system_menu_navigation_ports;
-    system_menu_navigation_ports.mutate_sound_after_prepare_item_page = true;
-    system_menu_navigation_ports.sound_after_prepare_item_page = 9U;
+    system_menu_navigation_ports.mutate_sound_after_prepare_record_page = true;
+    system_menu_navigation_ports.sound_after_prepare_record_page = 9U;
     const auto system_menu_navigation =
         openswd3::special_modes::update_legacy_system_menu_input(
             system_menu_navigation_state, system_menu_navigation_ports
@@ -16771,11 +16777,11 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             system_menu_navigation_state.interaction_page == 2U &&
             system_menu_navigation_ports.input_commands ==
                 std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::prepare_item_page, 0U},
+                    {SystemMenuCommand::prepare_record_page, 0U},
                     {SystemMenuCommand::play_sample, 9U}
                 } &&
             system_menu_navigation.helper_call_count == 3U,
-        "0x44B070 opens the selected item page and rereads the sound-effect index afterward"
+        "0x44B070 opens the original Record page and rereads the sound-effect index afterward"
     );
 
     openswd3::special_modes::LegacySystemMenuState system_menu_page_four_state;
@@ -16930,10 +16936,10 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             system_menu_detail_state, system_menu_detail_ports
         );
     test.expect_true(
-        system_menu_detail_state.detail_selection == 1U &&
+        system_menu_detail_state.exit_confirmation_value == 1U &&
             system_menu_detail.helper_call_count == 1U &&
             system_menu_detail_ports.input_commands.empty(),
-        "0x44B070 updates the mode-two detail selection before checking the confirm bit"
+        "0x44B070 updates the restart-or-exit confirmation cursor before checking the confirm bit"
     );
 
     openswd3::special_modes::LegacyCharacterAttributesState
