@@ -488,9 +488,43 @@ public:
         transition_commands;
 };
 
+class FakeSystemMenuCallbackPorts final
+    : public LegacyStandardModeCallbackBindingPorts {
+public:
+    i32 story_flag(const u32 flag_index) override {
+        queried_flag_indices.push_back(flag_index);
+        if (shared_events != nullptr) {
+            shared_events->push_back(4U);
+        }
+        return story_flag_value;
+    }
+    openswd3::special_modes::LegacyTitleMenuState&
+    title_menu_state() noexcept override {
+        return title_menu_state_value;
+    }
+    openswd3::special_modes::LegacyTitleMenuPorts&
+    title_menu_ports() noexcept override {
+        return title_menu_ports_value;
+    }
+
+    FakeTitleMenuPorts title_menu_ports_value;
+    openswd3::special_modes::LegacyTitleMenuState title_menu_state_value;
+    std::vector<u32> queried_flag_indices;
+    std::vector<u32>* shared_events{};
+    i32 story_flag_value{};
+};
+
 class FakeSystemMenuPorts final
     : public openswd3::special_modes::LegacySystemMenuPorts {
 public:
+    FakeSystemMenuPorts() noexcept {
+        callback_ports.shared_events = &events;
+    }
+
+    LegacyStandardModeCallbackBindingPorts&
+    callback_binding_ports() noexcept override {
+        return callback_ports;
+    }
     u32 allocate_system_menu_buffer(const u32 size) noexcept override {
         allocation_sizes.push_back(size);
         return allocation_return;
@@ -568,6 +602,13 @@ public:
         input_commands.emplace_back(command, argument);
         if (command ==
                 openswd3::special_modes::LegacySystemMenuInputCommand::
+                    open_mode_fourteen &&
+            mutate_after_open_mode_fourteen) {
+            state.input_locked = input_lock_after_open_mode_fourteen;
+            state.interaction_mode = interaction_mode_after_open_mode_fourteen;
+        }
+        if (command ==
+                openswd3::special_modes::LegacySystemMenuInputCommand::
                     prepare_item_page &&
             mutate_sound_after_prepare_item_page) {
             state.sound_effect_index = sound_after_prepare_item_page;
@@ -587,6 +628,7 @@ public:
         return command_return_base + static_cast<i32>(command);
     }
 
+    FakeSystemMenuCallbackPorts callback_ports;
     u32 allocation_return{0x1234U};
     std::vector<u32> allocation_sizes;
     bool all_present{};
@@ -616,6 +658,9 @@ public:
     std::vector<
         std::pair<openswd3::special_modes::LegacySystemMenuInputCommand, u32>>
         input_commands;
+    bool mutate_after_open_mode_fourteen{};
+    u32 input_lock_after_open_mode_fourteen{};
+    u32 interaction_mode_after_open_mode_fourteen{};
     bool mutate_sound_after_prepare_item_page{};
     u32 sound_after_prepare_item_page{};
     bool populate_default_key_bindings{};
@@ -15705,6 +15750,120 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44BA20 wraps the first fixed item to eighteen before playing the sample"
     );
 
+    openswd3::special_modes::LegacySystemMenuState return_locked_state;
+    return_locked_state.input_locked = 0x80000000U;
+    return_locked_state.lifecycle = 3U;
+    return_locked_state.interaction_mode = 0U;
+    FakeSystemMenuPorts return_locked_ports;
+    const auto return_locked =
+        openswd3::special_modes::return_from_legacy_system_menu_page(
+            return_locked_state, return_locked_ports
+        );
+    test.expect_true(
+        return_locked_state.lifecycle == 3U &&
+            return_locked.legacy_return_value ==
+                std::bit_cast<i32>(0x80000000U) &&
+            return_locked.helper_call_count == 0U &&
+            return_locked_ports.events.empty(),
+        "0x44C0E0 returns the full input lock before reading or changing the current page"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState return_top_level_state;
+    return_top_level_state.lifecycle = 3U;
+    return_top_level_state.callback_primary_word = 0x36U;
+    return_top_level_state.interaction_mode = 0U;
+    return_top_level_state.list_owner = 0x9988U;
+    return_top_level_state.callback_state.targets.fill(0xDEADBEEFU);
+    FakeSystemMenuPorts return_top_level_ports;
+    return_top_level_ports.callback_ports.story_flag_value = 0;
+    const auto return_top_level =
+        openswd3::special_modes::return_from_legacy_system_menu_page(
+            return_top_level_state, return_top_level_ports
+        );
+    test.expect_true(
+        return_top_level_state.lifecycle == 2U &&
+            return_top_level_state.list_owner == 0U &&
+            return_top_level_ports.released_owners ==
+                std::vector<u32>{0x9988U} &&
+            return_top_level_ports.events == std::vector<u32>{1U, 2U, 3U, 4U} &&
+            return_top_level_ports.callback_ports.queried_flag_indices ==
+                std::vector<u32>{0x49U} &&
+            return_top_level_state.callback_state.targets[1U] == 0x0044B070U &&
+            return_top_level_state.callback_state.targets[2U] == 0x0044C0E0U &&
+            return_top_level_state.callback_state.targets[12U] == 0x0044C160U &&
+            return_top_level.callback_slot_write_count == 11U &&
+            return_top_level.story_flag_query_count == 1U &&
+            return_top_level.helper_call_count == 3U &&
+            return_top_level.legacy_return_value == 0,
+        "0x44C0E0 decrements the lifecycle, closes the item page, then restores the game-menu callback group"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState return_page_one_state;
+    return_page_one_state.interaction_mode = 1U;
+    FakeSystemMenuPorts return_page_one_ports;
+    const auto return_page_one =
+        openswd3::special_modes::return_from_legacy_system_menu_page(
+            return_page_one_state, return_page_one_ports
+        );
+    openswd3::special_modes::LegacySystemMenuState return_page_two_state;
+    return_page_two_state.interaction_mode = 2U;
+    FakeSystemMenuPorts return_page_two_ports;
+    const auto return_page_two =
+        openswd3::special_modes::return_from_legacy_system_menu_page(
+            return_page_two_state, return_page_two_ports
+        );
+    test.expect_true(
+        return_page_one_state.interaction_mode == 0U &&
+            return_page_one.legacy_return_value == 0 &&
+            return_page_two_state.interaction_mode == 1U &&
+            return_page_two.legacy_return_value == 1 &&
+            return_page_one_ports.events.empty() &&
+            return_page_two_ports.events.empty(),
+        "0x44C0E0 returns pages one and two to their immediately preceding page without cleanup"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState return_key_editor_state;
+    return_key_editor_state.interaction_mode = 5U;
+    return_key_editor_state.selected_entry = 3U;
+    FakeSystemMenuPorts return_key_editor_ports;
+    const auto return_key_editor =
+        openswd3::special_modes::return_from_legacy_system_menu_page(
+            return_key_editor_state, return_key_editor_ports
+        );
+    openswd3::special_modes::LegacySystemMenuState return_notice_state;
+    return_notice_state.interaction_mode = 10U;
+    FakeSystemMenuPorts return_notice_ports;
+    const auto return_notice =
+        openswd3::special_modes::return_from_legacy_system_menu_page(
+            return_notice_state, return_notice_ports
+        );
+    test.expect_true(
+        return_key_editor_state.interaction_mode == 5U &&
+            return_key_editor_state.selected_entry == 0x11U &&
+            return_key_editor.legacy_return_value == 5 &&
+            return_notice_state.interaction_mode == 0U &&
+            return_notice.legacy_return_value == 10,
+        "0x44C0E0 selects cancel in the key editor and dismisses the unavailable-page notice"
+    );
+
+    for (const u32 unchanged_mode :
+         std::array<u32, 6U>{3U, 4U, 6U, 7U, 8U, 9U}) {
+        openswd3::special_modes::LegacySystemMenuState unchanged_state;
+        unchanged_state.interaction_mode = unchanged_mode;
+        FakeSystemMenuPorts unchanged_ports;
+        const auto unchanged =
+            openswd3::special_modes::return_from_legacy_system_menu_page(
+                unchanged_state, unchanged_ports
+            );
+        test.expect_true(
+            unchanged_state.interaction_mode == unchanged_mode &&
+                unchanged.legacy_return_value ==
+                    static_cast<i32>(unchanged_mode) &&
+                unchanged.helper_call_count == 0U,
+            "0x44C0E0 leaves pages three, four, and six through nine unchanged"
+        );
+    }
+
     openswd3::special_modes::LegacySystemMenuState confirm_page_zero_state;
     confirm_page_zero_state.interaction_mode = 0U;
     confirm_page_zero_state.interaction_page = 0U;
@@ -16535,6 +16694,9 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     system_menu_exit_state.interaction_page = 9U;
     system_menu_exit_state.input_flags = 0x0CU;
     FakeSystemMenuPorts system_menu_exit_ports;
+    system_menu_exit_ports.mutate_after_open_mode_fourteen = true;
+    system_menu_exit_ports.input_lock_after_open_mode_fourteen = 0U;
+    system_menu_exit_ports.interaction_mode_after_open_mode_fourteen = 10U;
     const auto system_menu_exit =
         openswd3::special_modes::update_legacy_system_menu_input(
             system_menu_exit_state, system_menu_exit_ports
@@ -16542,13 +16704,12 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     test.expect_true(
         system_menu_exit_ports.input_commands ==
                 std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::open_mode_fourteen, 0x0EU},
-                    {SystemMenuCommand::exit, 0U}
+                    {SystemMenuCommand::open_mode_fourteen, 0x0EU}
                 } &&
-            system_menu_exit.helper_call_count == 3U &&
-            system_menu_exit.legacy_return_value ==
-                1000 + static_cast<i32>(SystemMenuCommand::exit),
-        "0x44B070 opens mode fourteen before the shared exit when mode seven receives bits two or three"
+            system_menu_exit_state.interaction_mode == 0U &&
+            system_menu_exit.helper_call_count == 2U &&
+            system_menu_exit.legacy_return_value == 10,
+        "0x44B070 opens mode fourteen, then the shared return rereads and dismisses its mutated page ten"
     );
 
     openswd3::special_modes::LegacySystemMenuState system_menu_mode_five_state;

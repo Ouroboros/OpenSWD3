@@ -374,6 +374,9 @@ struct LegacySystemMenuWorkspaceRequest {
 };
 
 struct LegacySystemMenuState {
+    compat::u16 lifecycle{};
+    compat::u16 callback_primary_word{};
+    LegacyStandardModeCallbackState callback_state;
     compat::u32 mode_word{};
     std::array<compat::u32, 6U> primary_owners{};
     compat::u32 list_owner{};
@@ -418,7 +421,6 @@ struct LegacySystemMenuState {
 
 enum class LegacySystemMenuInputCommand : compat::u8 {
     open_mode_fourteen,
-    exit,
     play_sample,
     play_named_sample,
     apply_music,
@@ -444,9 +446,13 @@ struct LegacySystemMenuMessage {
     compat::u32 battle_speed_index{};
 };
 
+class LegacyStandardModeCallbackBindingPorts;
+
 class LegacySystemMenuPorts {
 public:
     virtual ~LegacySystemMenuPorts() = default;
+    [[nodiscard]] virtual LegacyStandardModeCallbackBindingPorts&
+    callback_binding_ports() noexcept = 0;
     [[nodiscard]] virtual compat::u32
     allocate_system_menu_buffer(compat::u32 size) noexcept = 0;
     [[nodiscard]] virtual compat::i32
@@ -496,8 +502,14 @@ struct LegacySystemMenuResult {
 struct LegacySystemMenuInputResult {
     compat::i32 legacy_return_value{};
     compat::u32 helper_call_count{};
+    compat::u32 story_flag_query_count{};
+    compat::u32 callback_slot_write_count{};
     std::optional<LegacySystemMenuInputCommand> command;
 };
+
+[[nodiscard]] LegacySystemMenuInputResult return_from_legacy_system_menu_page(
+    LegacySystemMenuState& state, LegacySystemMenuPorts& ports
+) noexcept;
 
 [[nodiscard]] LegacySystemMenuInputResult confirm_legacy_system_menu_selection(
     LegacySystemMenuState& state, LegacySystemMenuPorts& ports

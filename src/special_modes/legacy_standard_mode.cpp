@@ -415,6 +415,56 @@ LegacySystemMenuResult release_legacy_system_menu(
     return result;
 }
 
+LegacySystemMenuInputResult return_from_legacy_system_menu_page(
+    LegacySystemMenuState& state, LegacySystemMenuPorts& ports
+) noexcept {
+    LegacySystemMenuInputResult result;
+    const auto set_legacy = [&result](const compat::u32 value) {
+        result.legacy_return_value = std::bit_cast<compat::i32>(value);
+    };
+    if (state.input_locked != 0U) {
+        set_legacy(state.input_locked);
+        return result;
+    }
+
+    const compat::u32 mode = state.interaction_mode;
+    set_legacy(mode);
+    switch (mode) {
+    case 0U: {
+        state.lifecycle = static_cast<compat::u16>(state.lifecycle - 1U);
+        const LegacySystemMenuResult release =
+            release_legacy_system_menu(state, ports);
+        result.helper_call_count += release.helper_call_count;
+        result.legacy_return_value = release.legacy_return_value;
+        const LegacyStandardModeCallbackBindingResult binding =
+            bind_legacy_standard_mode_callbacks(
+                state.callback_state,
+                state.lifecycle,
+                state.callback_primary_word,
+                ports.callback_binding_ports()
+            );
+        result.helper_call_count += binding.helper_call_count;
+        result.story_flag_query_count = binding.story_flag_query_count;
+        result.callback_slot_write_count = binding.slot_write_count;
+        result.legacy_return_value = binding.legacy_return_value;
+        return result;
+    }
+    case 1U:
+    case 2U:
+        --state.interaction_mode;
+        set_legacy(state.interaction_mode);
+        return result;
+    case 5U:
+        state.selected_entry = 0x11U;
+        return result;
+    case 10U:
+        state.interaction_mode = 0U;
+        return result;
+    default:
+        return result;
+    }
+}
+
 LegacySystemMenuInputResult confirm_legacy_system_menu_selection(
     LegacySystemMenuState& state, LegacySystemMenuPorts& ports
 ) noexcept {
@@ -1209,8 +1259,23 @@ LegacySystemMenuInputResult update_legacy_system_menu_input(
         const LegacySystemMenuInputResult confirmation =
             confirm_legacy_system_menu_selection(state, ports);
         result.helper_call_count += confirmation.helper_call_count;
+        result.story_flag_query_count += confirmation.story_flag_query_count;
+        result.callback_slot_write_count +=
+            confirmation.callback_slot_write_count;
         result.legacy_return_value = confirmation.legacy_return_value;
         result.command = confirmation.command;
+    };
+    const auto return_from_page = [&result, &ports, &state]() {
+        const LegacySystemMenuInputResult page_return =
+            return_from_legacy_system_menu_page(state, ports);
+        result.helper_call_count += page_return.helper_call_count;
+        result.story_flag_query_count += page_return.story_flag_query_count;
+        result.callback_slot_write_count +=
+            page_return.callback_slot_write_count;
+        result.legacy_return_value = page_return.legacy_return_value;
+        if (page_return.command.has_value()) {
+            result.command = page_return.command;
+        }
     };
     if (state.input_locked != 0U) {
         set_legacy(state.input_locked);
@@ -1273,7 +1338,7 @@ LegacySystemMenuInputResult update_legacy_system_menu_input(
         if (interaction_mode == 7U) {
             call(LegacySystemMenuInputCommand::open_mode_fourteen, 0x0EU);
         }
-        call(LegacySystemMenuInputCommand::exit);
+        return_from_page();
         return result;
     }
     if (interaction_mode == 10U) {
