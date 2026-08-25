@@ -162,7 +162,7 @@ void test_enemy_record_layout(openswd3::test::Context& test) {
 
 class TestRowOffsetAllocator final : public LegacyBattleRowOffsetAllocator {
 public:
-    LegacyBattleRenderGeometry* geometry{};
+    const std::unique_ptr<openswd3::compat::u32[]>* row_offsets{};
     bool fail{};
     bool use_requested_capacity{true};
     openswd3::compat::u32 provided_capacity{};
@@ -171,8 +171,7 @@ public:
 
     [[nodiscard]] LegacyBattleRowOffsetAllocation
     allocate(const openswd3::compat::u32 requested_bytes) noexcept override {
-        pointer_was_clear =
-            geometry != nullptr && geometry->primary_row_offsets == nullptr;
+        pointer_was_clear = row_offsets != nullptr && *row_offsets == nullptr;
         requests.push_back(requested_bytes);
         if (fail) {
             return {};
@@ -236,7 +235,7 @@ void test_primary_row_offsets_allocation_boundaries(
     geometry.primary_row_count = 222;
 
     TestRowOffsetAllocator failed_allocator;
-    failed_allocator.geometry = &geometry;
+    failed_allocator.row_offsets = &geometry.primary_row_offsets;
     failed_allocator.fail = true;
     const auto failed =
         openswd3::battle::rebuild_legacy_battle_primary_row_offsets(
@@ -253,7 +252,7 @@ void test_primary_row_offsets_allocation_boundaries(
     );
 
     TestRowOffsetAllocator zero_allocator;
-    zero_allocator.geometry = &geometry;
+    zero_allocator.row_offsets = &geometry.primary_row_offsets;
     const auto zero =
         openswd3::battle::rebuild_legacy_battle_primary_row_offsets(
             geometry, -17, 0, zero_allocator
@@ -269,7 +268,7 @@ void test_primary_row_offsets_allocation_boundaries(
     );
 
     TestRowOffsetAllocator negative_allocator;
-    negative_allocator.geometry = &geometry;
+    negative_allocator.row_offsets = &geometry.primary_row_offsets;
     negative_allocator.use_requested_capacity = false;
     negative_allocator.provided_capacity = 1U;
     const auto negative =
@@ -292,7 +291,7 @@ void test_primary_row_offsets_wrapped_allocation_prefix(
 ) {
     LegacyBattleRenderGeometry geometry;
     TestRowOffsetAllocator allocator;
-    allocator.geometry = &geometry;
+    allocator.row_offsets = &geometry.primary_row_offsets;
     const i32 wrapped_row_count = 0x40000001;
     const auto result =
         openswd3::battle::rebuild_legacy_battle_primary_row_offsets(
@@ -305,6 +304,86 @@ void test_primary_row_offsets_wrapped_allocation_prefix(
             geometry.primary_row_count == wrapped_row_count &&
             geometry.primary_row_offsets[0U] == 0U,
         "wrapped byte allocation stops at the original second write"
+    );
+}
+
+void test_surface_row_offsets_and_rectangle_consumption(
+    openswd3::test::Context& test
+) {
+    LegacyBattleRenderGeometry geometry;
+    geometry.primary_row_offsets =
+        std::make_unique<openswd3::compat::u32[]>(1U);
+    geometry.primary_row_offsets[0U] = 0x12345678U;
+    geometry.primary_row_stride = 77;
+    geometry.primary_row_count = 88;
+
+    const auto fixed =
+        openswd3::battle::rebuild_legacy_battle_surface_row_offsets(
+            geometry, 640, 480
+        );
+    test.expect_true(
+        fixed.status == LegacyBattleRowOffsetStatus::completed &&
+            fixed.requested_bytes == 1920U &&
+            fixed.legacy_return_value == 480U &&
+            geometry.surface_width == 640 && geometry.surface_height == 480 &&
+            geometry.surface_row_offsets[0U] == 0U &&
+            geometry.surface_row_offsets[1U] == 640U &&
+            geometry.surface_row_offsets[479U] == 0x4AD80U &&
+            geometry.primary_row_offsets[0U] == 0x12345678U &&
+            geometry.primary_row_stride == 77 &&
+            geometry.primary_row_count == 88,
+        "surface rows publish fixed dimensions without changing primary rows"
+    );
+
+    const i32 bottom = openswd3::battle::set_legacy_battle_render_rectangle(
+        geometry, 630, 470, 20, 20
+    );
+    test.expect_true(
+        geometry.left == 620 && geometry.top == 460 && geometry.right == 640 &&
+            geometry.bottom == 480 && bottom == 480,
+        "rectangle placement consumes dimensions published by surface rows"
+    );
+}
+
+void test_surface_row_offsets_failure_and_wrapped_prefix(
+    openswd3::test::Context& test
+) {
+    LegacyBattleRenderGeometry geometry;
+    geometry.surface_row_offsets =
+        std::make_unique<openswd3::compat::u32[]>(2U);
+    geometry.surface_width = 321;
+    geometry.surface_height = 123;
+
+    TestRowOffsetAllocator failed_allocator;
+    failed_allocator.row_offsets = &geometry.surface_row_offsets;
+    failed_allocator.fail = true;
+    const auto failed =
+        openswd3::battle::rebuild_legacy_battle_surface_row_offsets(
+            geometry, 800, 600, failed_allocator
+        );
+    test.expect_true(
+        failed.status == LegacyBattleRowOffsetStatus::allocation_failed &&
+            failed_allocator.pointer_was_clear &&
+            geometry.surface_row_offsets == nullptr &&
+            geometry.surface_width == 321 && geometry.surface_height == 123,
+        "surface allocation failure clears only its table and keeps dimensions"
+    );
+
+    TestRowOffsetAllocator wrapped_allocator;
+    wrapped_allocator.row_offsets = &geometry.surface_row_offsets;
+    const i32 wrapped_row_count = 0x40000001;
+    const auto wrapped =
+        openswd3::battle::rebuild_legacy_battle_surface_row_offsets(
+            geometry, 0x280, wrapped_row_count, wrapped_allocator
+        );
+    test.expect_true(
+        wrapped.status == LegacyBattleRowOffsetStatus::write_out_of_range &&
+            wrapped.requested_bytes == 4U &&
+            wrapped.legacy_return_value == 2U &&
+            geometry.surface_width == 0x280 &&
+            geometry.surface_height == wrapped_row_count &&
+            geometry.surface_row_offsets[0U] == 0U,
+        "surface wrapped allocation preserves its first write and new metadata"
     );
 }
 
@@ -444,6 +523,8 @@ int main() {
     test_primary_row_offsets_normal_and_fixed_caller(test);
     test_primary_row_offsets_allocation_boundaries(test);
     test_primary_row_offsets_wrapped_allocation_prefix(test);
+    test_surface_row_offsets_and_rectangle_consumption(test);
+    test_surface_row_offsets_failure_and_wrapped_prefix(test);
     test_render_rectangle_surface_placement(test);
     test_render_rectangle_wrapping_and_real_callers(test);
 #ifdef OPENSWD3_GAME_DATA_ROOT

@@ -8,6 +8,7 @@ namespace openswd3::battle {
 
 struct LegacyBattleRenderGeometry {
     std::unique_ptr<compat::u32[]> primary_row_offsets{};
+    std::unique_ptr<compat::u32[]> surface_row_offsets{};
     compat::i32 primary_row_stride{};
     compat::i32 primary_row_count{};
     compat::i32 surface_width{};
@@ -53,6 +54,22 @@ rebuild_legacy_battle_primary_row_offsets(
 
 [[nodiscard]] LegacyBattleRowOffsetResult
 rebuild_legacy_battle_primary_row_offsets(
+    LegacyBattleRenderGeometry& geometry,
+    compat::i32 row_stride,
+    compat::i32 row_count
+) noexcept;
+
+// sub_433E90.
+[[nodiscard]] LegacyBattleRowOffsetResult
+rebuild_legacy_battle_surface_row_offsets(
+    LegacyBattleRenderGeometry& geometry,
+    compat::i32 row_stride,
+    compat::i32 row_count,
+    LegacyBattleRowOffsetAllocator& allocator
+) noexcept;
+
+[[nodiscard]] LegacyBattleRowOffsetResult
+rebuild_legacy_battle_surface_row_offsets(
     LegacyBattleRenderGeometry& geometry,
     compat::i32 row_stride,
     compat::i32 row_count
