@@ -16104,6 +16104,225 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44D0F0 stops when the unflagged search would reread a cyclic node"
     );
 
+    using PlayerQuantityPath =
+        openswd3::special_modes::LegacyPlayerItemQuantityPath;
+    using PlayerQuantityStatus =
+        openswd3::special_modes::LegacyPlayerItemQuantityStatus;
+    LegacyStandardModeForwardNode player_combined;
+    player_combined.text_index = 5U;
+    player_combined.first_value = 5U;
+    player_combined.second_value = 2U;
+    LegacyStandardModeForwardNode* player_head = &player_combined;
+    FakeQuantityPorts player_combined_ports;
+    const auto player_combined_result =
+        openswd3::special_modes::update_legacy_player_item_quantities(
+            player_head, 5U, -3, 0U, player_combined_ports
+        );
+    test.expect_true(
+        player_combined_result.path == PlayerQuantityPath::updated_combined &&
+            player_combined.first_value == 4U &&
+            player_combined.second_value == 0U &&
+            player_combined_result.legacy_return_node == &player_combined,
+        "0x44D2D0 operation zero transfers a negative quantity-B residual into quantity A"
+    );
+
+    LegacyStandardModeForwardNode player_combined_release;
+    player_combined_release.text_index = 6U;
+    player_combined_release.first_value = 1U;
+    player_combined_release.second_value = 2U;
+    player_combined_release.release_token = 0x1111U;
+    player_head = &player_combined_release;
+    FakeQuantityPorts player_combined_release_ports;
+    const auto player_combined_released =
+        openswd3::special_modes::update_legacy_player_item_quantities(
+            player_head, 6U, -3, 0U, player_combined_release_ports
+        );
+    test.expect_true(
+        player_combined_released.path == PlayerQuantityPath::released &&
+            player_head == nullptr &&
+            player_combined_release.first_value == 0U &&
+            player_combined_release.second_value == 0U &&
+            player_combined_released.release_count == 2U,
+        "0x44D2D0 operation zero releases the record when transferred quantity A becomes nonpositive"
+    );
+
+    LegacyStandardModeForwardNode player_first_clamp;
+    player_first_clamp.text_index = 7U;
+    player_first_clamp.first_value = 90U;
+    player_first_clamp.second_value = 8U;
+    player_head = &player_first_clamp;
+    FakeQuantityPorts player_first_clamp_ports;
+    const auto player_first_clamped =
+        openswd3::special_modes::update_legacy_player_item_quantities(
+            player_head, 7U, 20, 1U, player_first_clamp_ports
+        );
+    test.expect_true(
+        player_first_clamped.path == PlayerQuantityPath::updated_first &&
+            player_first_clamped.quantity_clamped &&
+            player_first_clamp.first_value == 99U &&
+            player_first_clamp.second_value == 0U,
+        "0x44D2D0 operation one clamps quantity A to ninety-nine and clears quantity B"
+    );
+
+    LegacyStandardModeForwardNode player_first_retain;
+    player_first_retain.text_index = 8U;
+    player_first_retain.first_value = 1U;
+    player_first_retain.second_value = 1U;
+    player_head = &player_first_retain;
+    FakeQuantityPorts player_first_retain_ports;
+    const auto player_first_retained =
+        openswd3::special_modes::update_legacy_player_item_quantities(
+            player_head, 8U, -2, 1U, player_first_retain_ports
+        );
+    test.expect_true(
+        player_first_retained.path == PlayerQuantityPath::updated_first &&
+            player_first_retain.first_value == 0U &&
+            player_first_retain.second_value == 1U &&
+            player_head == &player_first_retain,
+        "0x44D2D0 operation one keeps a zeroed quantity A while signed-positive quantity B remains"
+    );
+
+    LegacyStandardModeForwardNode player_second_negative_a;
+    player_second_negative_a.text_index = 9U;
+    player_second_negative_a.first_value = 0xFFFFU;
+    player_second_negative_a.second_value = 1U;
+    player_head = &player_second_negative_a;
+    FakeQuantityPorts player_second_negative_a_ports;
+    const auto player_second_negative_a_result =
+        openswd3::special_modes::update_legacy_player_item_quantities(
+            player_head, 9U, -2, 2U, player_second_negative_a_ports
+        );
+    test.expect_true(
+        player_second_negative_a_result.path ==
+                PlayerQuantityPath::updated_second &&
+            player_second_negative_a.second_value == 0U &&
+            player_second_negative_a.first_value == 0xFFFFU &&
+            player_head == &player_second_negative_a,
+        "0x44D2D0 operation two preserves a signed-negative quantity A because it tests exact zero"
+    );
+
+    LegacyStandardModeForwardNode player_second_release;
+    player_second_release.text_index = 10U;
+    player_second_release.first_value = 0U;
+    player_second_release.second_value = 1U;
+    player_head = &player_second_release;
+    FakeQuantityPorts player_second_release_ports;
+    const auto player_second_released =
+        openswd3::special_modes::update_legacy_player_item_quantities(
+            player_head, 10U, -2, 2U, player_second_release_ports
+        );
+    test.expect_true(
+        player_second_released.path == PlayerQuantityPath::released &&
+            player_head == nullptr &&
+            player_second_released.release_count == 2U,
+        "0x44D2D0 operation two releases only when quantity A is exactly zero"
+    );
+
+    LegacyStandardModeForwardNode player_sentinel;
+    player_sentinel.text_index = 0xFFDCU;
+    player_sentinel.first_value = 5U;
+    player_sentinel.second_value = 6U;
+    player_head = &player_sentinel;
+    FakeQuantityPorts player_sentinel_ports;
+    const auto player_sentinel_result =
+        openswd3::special_modes::update_legacy_player_item_quantities(
+            player_head, 0xFFDCU, 3, 3U, player_sentinel_ports
+        );
+    test.expect_true(
+        player_sentinel_result.path ==
+                PlayerQuantityPath::unchanged_operation &&
+            player_sentinel_result.sentinel_forced_to_one &&
+            player_sentinel.first_value == 1U &&
+            player_sentinel.second_value == 0U,
+        "0x44D2D0 corrects FFDC to quantity A one even for an otherwise unchanged operation"
+    );
+
+    player_head = nullptr;
+    FakeQuantityPorts player_nonpositive_ports;
+    const auto player_nonpositive =
+        openswd3::special_modes::update_legacy_player_item_quantities(
+            player_head, 11U, 0, 0U, player_nonpositive_ports
+        );
+    test.expect_true(
+        player_nonpositive.path == PlayerQuantityPath::nonpositive_not_found &&
+            player_nonpositive_ports.allocation_count == 0U,
+        "0x44D2D0 does not allocate a missing record for a signed-nonpositive delta"
+    );
+
+    player_head = nullptr;
+    FakeQuantityPorts player_create_zero_ports;
+    const auto player_create_zero =
+        openswd3::special_modes::update_legacy_player_item_quantities(
+            player_head, 12U, 4, 0U, player_create_zero_ports
+        );
+    test.expect_true(
+        player_create_zero.path == PlayerQuantityPath::created &&
+            player_create_zero_ports.allocated_record.first_value == 0U &&
+            player_create_zero_ports.allocated_record.second_value == 4U &&
+            player_create_zero_ports.allocated_record.filter_flags == 0x8000U,
+        "0x44D2D0 creates operation-zero records in quantity B with bit fifteen set"
+    );
+
+    player_head = nullptr;
+    FakeQuantityPorts player_create_one_ports;
+    const auto player_create_one =
+        openswd3::special_modes::update_legacy_player_item_quantities(
+            player_head, 13U, 5, 1U, player_create_one_ports
+        );
+    test.expect_true(
+        player_create_one.path == PlayerQuantityPath::created &&
+            player_create_one_ports.allocated_record.first_value == 5U &&
+            player_create_one_ports.allocated_record.second_value == 0U &&
+            player_create_one_ports.allocated_record.filter_flags == 0U,
+        "0x44D2D0 creates operation-one records in quantity A without bit fifteen"
+    );
+
+    player_head = nullptr;
+    FakeQuantityPorts player_create_other_ports;
+    const auto player_create_other =
+        openswd3::special_modes::update_legacy_player_item_quantities(
+            player_head, 14U, 6, 3U, player_create_other_ports
+        );
+    test.expect_true(
+        player_create_other.path == PlayerQuantityPath::created &&
+            player_create_other_ports.allocated_record.first_value == 0U &&
+            player_create_other_ports.allocated_record.second_value == 0U &&
+            player_create_other_ports.allocated_record.filter_flags == 0U,
+        "0x44D2D0 still prepends an unknown-operation record with both quantities zero"
+    );
+
+    player_head = nullptr;
+    FakeQuantityPorts player_allocation_stop_ports;
+    player_allocation_stop_ports.allocation_available = false;
+    const auto player_allocation_stop =
+        openswd3::special_modes::update_legacy_player_item_quantities(
+            player_head, 0xFFDCU, 7, 2U, player_allocation_stop_ports
+        );
+    test.expect_true(
+        player_allocation_stop.status ==
+                PlayerQuantityStatus::allocation_stopped &&
+            !player_allocation_stop.sentinel_forced_to_one &&
+            player_head == nullptr,
+        "0x44D2D0 reaches allocation before FFDC quantity forcing on a missing record"
+    );
+
+    LegacyStandardModeForwardNode player_cycle;
+    player_cycle.next = &player_cycle;
+    player_cycle.text_index = 15U;
+    player_head = &player_cycle;
+    FakeQuantityPorts player_cycle_ports;
+    const auto player_cycle_result =
+        openswd3::special_modes::update_legacy_player_item_quantities(
+            player_head, 16U, 1, 0U, player_cycle_ports
+        );
+    test.expect_true(
+        player_cycle_result.status ==
+                PlayerQuantityStatus::chain_cycle_stopped &&
+            player_cycle_result.visited_count == 1U &&
+            player_cycle_ports.allocation_count == 0U,
+        "0x44D2D0 stops when id lookup would reread a cyclic record"
+    );
+
     using SystemMenuRecordCountStatus =
         openswd3::special_modes::LegacySystemMenuRecordCountStatus;
     openswd3::special_modes::LegacySystemMenuState record_count_null_state;

@@ -4724,6 +4724,156 @@ LegacyStandardModeQuantityResult update_legacy_standard_mode_quantity(
     return result;
 }
 
+LegacyPlayerItemQuantityResult update_legacy_player_item_quantities(
+    LegacyStandardModeForwardNode*& head,
+    const compat::u32 record_id,
+    const compat::i16 delta,
+    const compat::u16 operation,
+    LegacyStandardModeQuantityPorts& ports
+) noexcept {
+    LegacyPlayerItemQuantityResult result;
+    const compat::u16 stored_id = static_cast<compat::u16>(record_id);
+    LegacyStandardModeForwardNode* previous = nullptr;
+    LegacyStandardModeForwardNode* record = head;
+    std::vector<const LegacyStandardModeForwardNode*> visited;
+    while (record != nullptr && record->text_index != stored_id) {
+        if (std::find(visited.begin(), visited.end(), record) !=
+            visited.end()) {
+            result.status = LegacyPlayerItemQuantityStatus::chain_cycle_stopped;
+            return result;
+        }
+        visited.push_back(record);
+        ++result.visited_count;
+        previous = record;
+        record = const_cast<LegacyStandardModeForwardNode*>(record->next);
+    }
+    if (record != nullptr) {
+        ++result.visited_count;
+        const auto clamp_above_99 = [&result](compat::u16& quantity) {
+            const compat::i16 signed_quantity =
+                std::bit_cast<compat::i16>(quantity);
+            if (signed_quantity > 0x63) {
+                quantity = 0x63U;
+                result.quantity_clamped = true;
+                return true;
+            }
+            return false;
+        };
+        bool release = false;
+        if (operation == 0U) {
+            record->second_value = static_cast<compat::u16>(
+                record->second_value + static_cast<compat::u16>(delta)
+            );
+            if (clamp_above_99(record->second_value)) {
+                record->first_value = 0U;
+                result.path = LegacyPlayerItemQuantityPath::updated_combined;
+                result.legacy_return_node = record;
+                return result;
+            }
+            const compat::i16 second =
+                std::bit_cast<compat::i16>(record->second_value);
+            if (second <= 0) {
+                record->second_value = 0U;
+                record->first_value = static_cast<compat::u16>(
+                    record->first_value + static_cast<compat::u16>(second)
+                );
+                release = std::bit_cast<compat::i16>(record->first_value) <= 0;
+            }
+            result.path = LegacyPlayerItemQuantityPath::updated_combined;
+        } else if (operation == 1U) {
+            record->first_value = static_cast<compat::u16>(
+                record->first_value + static_cast<compat::u16>(delta)
+            );
+            if (clamp_above_99(record->first_value)) {
+                record->second_value = 0U;
+                result.path = LegacyPlayerItemQuantityPath::updated_first;
+                result.legacy_return_node = record;
+                return result;
+            }
+            if (std::bit_cast<compat::i16>(record->first_value) <= 0) {
+                record->first_value = 0U;
+                release = std::bit_cast<compat::i16>(record->second_value) <= 0;
+            }
+            result.path = LegacyPlayerItemQuantityPath::updated_first;
+        } else if (operation == 2U) {
+            record->second_value = static_cast<compat::u16>(
+                record->second_value + static_cast<compat::u16>(delta)
+            );
+            if (clamp_above_99(record->second_value)) {
+                record->first_value = 0U;
+                result.path = LegacyPlayerItemQuantityPath::updated_second;
+                result.legacy_return_node = record;
+                return result;
+            }
+            if (std::bit_cast<compat::i16>(record->second_value) <= 0) {
+                record->second_value = 0U;
+                release = record->first_value == 0U;
+            }
+            result.path = LegacyPlayerItemQuantityPath::updated_second;
+        } else {
+            result.path = LegacyPlayerItemQuantityPath::unchanged_operation;
+        }
+        if (release) {
+            if (previous == nullptr) {
+                head = const_cast<LegacyStandardModeForwardNode*>(record->next);
+            } else {
+                previous->next = record->next;
+            }
+            ports.release_quantity_value(record->release_token);
+            ++result.release_count;
+            ports.release_quantity_record(*record);
+            ++result.release_count;
+            result.path = LegacyPlayerItemQuantityPath::released;
+            return result;
+        }
+        if (record->text_index == 0xFFDCU) {
+            record->first_value = 1U;
+            record->second_value = 0U;
+            result.sentinel_forced_to_one = true;
+        }
+        result.legacy_return_node = record;
+        return result;
+    }
+
+    if (delta <= 0) {
+        result.path = LegacyPlayerItemQuantityPath::nonpositive_not_found;
+        return result;
+    }
+    record = ports.allocate_quantity_record();
+    if (record == nullptr) {
+        result.status = LegacyPlayerItemQuantityStatus::allocation_stopped;
+        return result;
+    }
+    *record = {};
+    compat::i16 initial_quantity = delta;
+    if (stored_id == 0xFFDCU) {
+        initial_quantity = 1;
+        result.sentinel_forced_to_one = true;
+        ports.initialize_missing_quantity_name(*record);
+    } else if (!ports.load_quantity_record_name(*record, record_id)) {
+        ports.release_quantity_value(record->release_token);
+        ++result.release_count;
+        ports.release_quantity_record(*record);
+        ++result.release_count;
+        result.path = LegacyPlayerItemQuantityPath::load_failed;
+        return result;
+    }
+    record->text_index = stored_id;
+    if (operation == 0U || operation == 2U) {
+        record->second_value = static_cast<compat::u16>(initial_quantity);
+        record->first_value = 0U;
+        record->filter_flags |= 0x8000U;
+    } else if (operation == 1U) {
+        record->first_value = static_cast<compat::u16>(initial_quantity);
+        record->second_value = 0U;
+    }
+    record->next = head;
+    head = record;
+    result.path = LegacyPlayerItemQuantityPath::created;
+    result.legacy_return_node = record;
+    return result;
+}
+
 LegacyStandardModeRecordCloneResult
 rebuild_legacy_standard_mode_selection_records(
     LegacyStandardModeForwardNode* source_head,

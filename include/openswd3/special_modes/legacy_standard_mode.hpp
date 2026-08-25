@@ -2280,6 +2280,45 @@ update_legacy_standard_mode_quantity(
     LegacyStandardModeQuantityPorts& ports
 ) noexcept;
 
+enum class LegacyPlayerItemQuantityStatus : compat::u8 {
+    completed,
+    allocation_stopped,
+    chain_cycle_stopped,
+};
+
+enum class LegacyPlayerItemQuantityPath : compat::u8 {
+    none,
+    updated_first,
+    updated_second,
+    updated_combined,
+    unchanged_operation,
+    released,
+    nonpositive_not_found,
+    load_failed,
+    created,
+};
+
+struct LegacyPlayerItemQuantityResult {
+    LegacyPlayerItemQuantityStatus status{
+        LegacyPlayerItemQuantityStatus::completed
+    };
+    LegacyPlayerItemQuantityPath path{LegacyPlayerItemQuantityPath::none};
+    LegacyStandardModeForwardNode* legacy_return_node{};
+    compat::u32 visited_count{};
+    compat::u32 release_count{};
+    bool quantity_clamped{};
+    bool sentinel_forced_to_one{};
+};
+
+[[nodiscard]] LegacyPlayerItemQuantityResult
+update_legacy_player_item_quantities(
+    LegacyStandardModeForwardNode*& head,
+    compat::u32 record_id,
+    compat::i16 delta,
+    compat::u16 operation,
+    LegacyStandardModeQuantityPorts& ports
+) noexcept;
+
 class LegacyStandardModeRecordClonePorts {
 public:
     virtual ~LegacyStandardModeRecordClonePorts() = default;
