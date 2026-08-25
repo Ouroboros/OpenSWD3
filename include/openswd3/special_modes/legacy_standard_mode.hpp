@@ -2224,6 +2224,62 @@ struct LegacyStandardModeForwardNode {
     std::string animated_text{};
 };
 
+class LegacyStandardModeQuantityPorts {
+public:
+    virtual ~LegacyStandardModeQuantityPorts() = default;
+    [[nodiscard]] virtual LegacyStandardModeForwardNode*
+    allocate_quantity_record() noexcept = 0;
+    virtual void initialize_missing_quantity_name(
+        LegacyStandardModeForwardNode& record
+    ) noexcept = 0;
+    [[nodiscard]] virtual bool load_quantity_record_name(
+        LegacyStandardModeForwardNode& record, compat::u32 record_id
+    ) noexcept = 0;
+    virtual void release_quantity_value(compat::u32 value) noexcept = 0;
+    virtual void
+    release_quantity_record(LegacyStandardModeForwardNode& record) noexcept = 0;
+};
+
+enum class LegacyStandardModeQuantityStatus : compat::u8 {
+    completed,
+    allocation_stopped,
+    first_chain_cycle_stopped,
+    second_chain_cycle_stopped,
+};
+
+enum class LegacyStandardModeQuantityPath : compat::u8 {
+    none,
+    updated_flagged,
+    updated_unflagged,
+    released_flagged,
+    released_unflagged,
+    negative_not_found,
+    load_failed,
+    created,
+};
+
+struct LegacyStandardModeQuantityResult {
+    LegacyStandardModeQuantityStatus status{
+        LegacyStandardModeQuantityStatus::completed
+    };
+    LegacyStandardModeQuantityPath path{LegacyStandardModeQuantityPath::none};
+    LegacyStandardModeForwardNode* legacy_return_node{};
+    compat::i16 residual_quantity{};
+    compat::u32 visited_count{};
+    compat::u32 release_count{};
+    bool quantity_clamped{};
+    bool sentinel_forced_to_one{};
+};
+
+[[nodiscard]] LegacyStandardModeQuantityResult
+update_legacy_standard_mode_quantity(
+    LegacyStandardModeForwardNode*& head,
+    compat::u32 record_id,
+    compat::i16 delta,
+    compat::i16 category,
+    LegacyStandardModeQuantityPorts& ports
+) noexcept;
+
 class LegacyStandardModeRecordClonePorts {
 public:
     virtual ~LegacyStandardModeRecordClonePorts() = default;

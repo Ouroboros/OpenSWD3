@@ -4553,6 +4553,177 @@ LegacyStandardModeCallbackBindingResult bind_legacy_standard_mode_callbacks(
     return result;
 }
 
+LegacyStandardModeQuantityResult update_legacy_standard_mode_quantity(
+    LegacyStandardModeForwardNode*& head,
+    const compat::u32 record_id,
+    const compat::i16 delta,
+    const compat::i16 category,
+    LegacyStandardModeQuantityPorts& ports
+) noexcept {
+    LegacyStandardModeQuantityResult result;
+    compat::i16 residual = delta;
+    const compat::u16 stored_id = static_cast<compat::u16>(record_id);
+
+    const auto find_record =
+        [&result, &head, stored_id](
+            const bool flagged,
+            const LegacyStandardModeQuantityStatus cycle_status,
+            LegacyStandardModeForwardNode*& previous
+        ) {
+            previous = nullptr;
+            LegacyStandardModeForwardNode* node = head;
+            std::vector<const LegacyStandardModeForwardNode*> visited;
+            while (node != nullptr) {
+                if (std::find(visited.begin(), visited.end(), node) !=
+                    visited.end()) {
+                    result.status = cycle_status;
+                    return static_cast<LegacyStandardModeForwardNode*>(nullptr);
+                }
+                visited.push_back(node);
+                ++result.visited_count;
+                if (node->text_index == stored_id &&
+                    ((node->filter_flags & 0x8000U) != 0U) == flagged) {
+                    return node;
+                }
+                previous = node;
+                node = const_cast<LegacyStandardModeForwardNode*>(node->next);
+            }
+            return static_cast<LegacyStandardModeForwardNode*>(nullptr);
+        };
+    const auto unlink_and_release = [&head, &ports, &result](
+                                        LegacyStandardModeForwardNode* previous,
+                                        LegacyStandardModeForwardNode& record
+                                    ) {
+        if (previous == nullptr) {
+            head = const_cast<LegacyStandardModeForwardNode*>(record.next);
+        } else {
+            previous->next = record.next;
+        }
+        ports.release_quantity_value(record.release_token);
+        ++result.release_count;
+        ports.release_quantity_record(record);
+        ++result.release_count;
+    };
+    const auto add_quantity =
+        [&result, &residual](LegacyStandardModeForwardNode& record) {
+            record.first_value = static_cast<compat::u16>(
+                record.first_value + static_cast<compat::u16>(residual)
+            );
+            compat::i16 quantity =
+                std::bit_cast<compat::i16>(record.first_value);
+            if (quantity > 0x63) {
+                record.first_value = 0x63U;
+                quantity = 0x63;
+                result.quantity_clamped = true;
+            }
+            residual = quantity;
+            result.residual_quantity = residual;
+            return quantity;
+        };
+    const auto finish_positive = [&result](
+                                     LegacyStandardModeForwardNode& record,
+                                     const LegacyStandardModeQuantityPath path
+                                 ) {
+        result.path = path;
+        if (record.text_index == 0xFFDCU) {
+            record.first_value = 1U;
+            result.residual_quantity = 1;
+            result.sentinel_forced_to_one = true;
+        }
+        result.legacy_return_node = &record;
+    };
+
+    if (category == 1 || residual < 0) {
+        LegacyStandardModeForwardNode* previous = nullptr;
+        LegacyStandardModeForwardNode* record = find_record(
+            true,
+            LegacyStandardModeQuantityStatus::first_chain_cycle_stopped,
+            previous
+        );
+        if (result.status != LegacyStandardModeQuantityStatus::completed) {
+            return result;
+        }
+        if (record != nullptr) {
+            const compat::i16 quantity = add_quantity(*record);
+            if (quantity > 0) {
+                finish_positive(
+                    *record, LegacyStandardModeQuantityPath::updated_flagged
+                );
+                return result;
+            }
+            unlink_and_release(previous, *record);
+            result.path = LegacyStandardModeQuantityPath::released_flagged;
+            if (quantity >= 0) {
+                return result;
+            }
+        }
+    }
+
+    if (category == 0 || residual < 0) {
+        LegacyStandardModeForwardNode* previous = nullptr;
+        LegacyStandardModeForwardNode* record = find_record(
+            false,
+            LegacyStandardModeQuantityStatus::second_chain_cycle_stopped,
+            previous
+        );
+        if (result.status != LegacyStandardModeQuantityStatus::completed) {
+            return result;
+        }
+        if (record != nullptr) {
+            const compat::i16 quantity = add_quantity(*record);
+            if (quantity <= 0) {
+                unlink_and_release(previous, *record);
+                result.path =
+                    LegacyStandardModeQuantityPath::released_unflagged;
+                return result;
+            }
+            finish_positive(
+                *record, LegacyStandardModeQuantityPath::updated_unflagged
+            );
+            return result;
+        }
+        if (residual < 0) {
+            result.path = LegacyStandardModeQuantityPath::negative_not_found;
+            result.residual_quantity = residual;
+            return result;
+        }
+    }
+
+    if (stored_id == 0xFFDCU) {
+        residual = 1;
+        result.sentinel_forced_to_one = true;
+    }
+    LegacyStandardModeForwardNode* record = ports.allocate_quantity_record();
+    if (record == nullptr) {
+        result.status = LegacyStandardModeQuantityStatus::allocation_stopped;
+        result.residual_quantity = residual;
+        return result;
+    }
+    *record = {};
+    if (stored_id == 0xFFDCU) {
+        ports.initialize_missing_quantity_name(*record);
+    } else if (!ports.load_quantity_record_name(*record, record_id)) {
+        ports.release_quantity_value(record->release_token);
+        ++result.release_count;
+        ports.release_quantity_record(*record);
+        ++result.release_count;
+        result.path = LegacyStandardModeQuantityPath::load_failed;
+        result.residual_quantity = residual;
+        return result;
+    }
+    record->text_index = stored_id;
+    if (category == 1) {
+        record->filter_flags |= 0x8000U;
+    }
+    record->first_value = static_cast<compat::u16>(residual);
+    record->next = head;
+    head = record;
+    result.path = LegacyStandardModeQuantityPath::created;
+    result.legacy_return_node = record;
+    result.residual_quantity = residual;
+    return result;
+}
+
 LegacyStandardModeRecordCloneResult
 rebuild_legacy_standard_mode_selection_records(
     LegacyStandardModeForwardNode* source_head,

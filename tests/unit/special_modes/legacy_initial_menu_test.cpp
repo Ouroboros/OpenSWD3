@@ -741,6 +741,48 @@ public:
     i32 command_return_base{1000};
 };
 
+class FakeQuantityPorts final
+    : public openswd3::special_modes::LegacyStandardModeQuantityPorts {
+public:
+    LegacyStandardModeForwardNode*
+    allocate_quantity_record() noexcept override {
+        ++allocation_count;
+        return allocation_available ? &allocated_record : nullptr;
+    }
+    void initialize_missing_quantity_name(
+        LegacyStandardModeForwardNode& record
+    ) noexcept override {
+        ++missing_name_count;
+        record.display_name = "missing";
+    }
+    bool load_quantity_record_name(
+        LegacyStandardModeForwardNode& record, const u32 record_id
+    ) noexcept override {
+        loaded_ids.push_back(record_id);
+        record.display_name = "loaded";
+        record.release_token = loaded_release_token;
+        return load_available;
+    }
+    void release_quantity_value(const u32 value) noexcept override {
+        released_values.push_back(value);
+    }
+    void release_quantity_record(
+        LegacyStandardModeForwardNode& record
+    ) noexcept override {
+        released_records.push_back(&record);
+    }
+
+    LegacyStandardModeForwardNode allocated_record;
+    bool allocation_available{true};
+    bool load_available{true};
+    u32 loaded_release_token{0x9988U};
+    u32 allocation_count{};
+    u32 missing_name_count{};
+    std::vector<u32> loaded_ids;
+    std::vector<u32> released_values;
+    std::vector<LegacyStandardModeForwardNode*> released_records;
+};
+
 class FakeCharacterAttributesPorts final
     : public openswd3::special_modes::LegacyCharacterAttributesPorts {
 public:
@@ -15815,6 +15857,251 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
                     {SystemMenuCommand::play_sample, 7U}
                 },
         "0x44BA20 wraps the first fixed item to eighteen before playing the sample"
+    );
+
+    using QuantityPath =
+        openswd3::special_modes::LegacyStandardModeQuantityPath;
+    using QuantityStatus =
+        openswd3::special_modes::LegacyStandardModeQuantityStatus;
+    LegacyStandardModeForwardNode quantity_flagged;
+    quantity_flagged.text_index = 5U;
+    quantity_flagged.first_value = 90U;
+    quantity_flagged.filter_flags = 0x8000U;
+    LegacyStandardModeForwardNode* quantity_head = &quantity_flagged;
+    FakeQuantityPorts quantity_flagged_ports;
+    const auto quantity_flagged_result =
+        openswd3::special_modes::update_legacy_standard_mode_quantity(
+            quantity_head, 5U, 20, 1, quantity_flagged_ports
+        );
+    test.expect_true(
+        quantity_flagged_result.status == QuantityStatus::completed &&
+            quantity_flagged_result.path == QuantityPath::updated_flagged &&
+            quantity_flagged_result.quantity_clamped &&
+            quantity_flagged.first_value == 99U &&
+            quantity_flagged_result.residual_quantity == 99 &&
+            quantity_flagged_result.legacy_return_node == &quantity_flagged &&
+            quantity_flagged_ports.allocation_count == 0U,
+        "0x44D0F0 updates a matching flagged record and clamps signed quantity above ninety-nine"
+    );
+
+    LegacyStandardModeForwardNode quantity_unflagged;
+    quantity_unflagged.text_index = 5U;
+    quantity_unflagged.first_value = 10U;
+    quantity_head = &quantity_unflagged;
+    FakeQuantityPorts quantity_unflagged_ports;
+    const auto quantity_unflagged_result =
+        openswd3::special_modes::update_legacy_standard_mode_quantity(
+            quantity_head, 5U, -3, 0, quantity_unflagged_ports
+        );
+    test.expect_true(
+        quantity_unflagged_result.path == QuantityPath::updated_unflagged &&
+            quantity_unflagged.first_value == 7U &&
+            quantity_unflagged_result.residual_quantity == 7 &&
+            quantity_unflagged_result.visited_count == 2U &&
+            quantity_unflagged_ports.released_records.empty(),
+        "0x44D0F0 searches flagged records first for a negative delta, then updates the unflagged match"
+    );
+
+    LegacyStandardModeForwardNode quantity_cascade_unflagged;
+    quantity_cascade_unflagged.text_index = 5U;
+    quantity_cascade_unflagged.first_value = 5U;
+    LegacyStandardModeForwardNode quantity_cascade_flagged;
+    quantity_cascade_flagged.next = &quantity_cascade_unflagged;
+    quantity_cascade_flagged.text_index = 5U;
+    quantity_cascade_flagged.first_value = 2U;
+    quantity_cascade_flagged.filter_flags = 0x8000U;
+    quantity_cascade_flagged.release_token = 0x1111U;
+    quantity_head = &quantity_cascade_flagged;
+    FakeQuantityPorts quantity_cascade_ports;
+    const auto quantity_cascade =
+        openswd3::special_modes::update_legacy_standard_mode_quantity(
+            quantity_head, 5U, -3, 1, quantity_cascade_ports
+        );
+    test.expect_true(
+        quantity_cascade.path == QuantityPath::updated_unflagged &&
+            quantity_head == &quantity_cascade_unflagged &&
+            quantity_cascade_unflagged.first_value == 4U &&
+            quantity_cascade.residual_quantity == 4 &&
+            quantity_cascade.release_count == 2U &&
+            quantity_cascade_ports.released_values ==
+                std::vector<u32>{0x1111U} &&
+            quantity_cascade_ports.released_records ==
+                std::vector<LegacyStandardModeForwardNode*>{
+                    &quantity_cascade_flagged
+                },
+        "0x44D0F0 removes a negative flagged record and applies its residual minus one to the unflagged match"
+    );
+
+    LegacyStandardModeForwardNode quantity_zero_flagged;
+    quantity_zero_flagged.text_index = 7U;
+    quantity_zero_flagged.first_value = 2U;
+    quantity_zero_flagged.filter_flags = 0x8000U;
+    quantity_zero_flagged.release_token = 0x2222U;
+    quantity_head = &quantity_zero_flagged;
+    FakeQuantityPorts quantity_zero_flagged_ports;
+    const auto quantity_zero_flagged_result =
+        openswd3::special_modes::update_legacy_standard_mode_quantity(
+            quantity_head, 7U, -2, 1, quantity_zero_flagged_ports
+        );
+    test.expect_true(
+        quantity_zero_flagged_result.path == QuantityPath::released_flagged &&
+            quantity_head == nullptr &&
+            quantity_zero_flagged_result.residual_quantity == 0 &&
+            quantity_zero_flagged_result.legacy_return_node == nullptr,
+        "0x44D0F0 removes an exactly zero flagged record and returns without searching the second category"
+    );
+
+    LegacyStandardModeForwardNode quantity_negative_unflagged;
+    quantity_negative_unflagged.text_index = 8U;
+    quantity_negative_unflagged.first_value = 1U;
+    quantity_negative_unflagged.release_token = 0x3333U;
+    quantity_head = &quantity_negative_unflagged;
+    FakeQuantityPorts quantity_negative_unflagged_ports;
+    const auto quantity_negative_unflagged_result =
+        openswd3::special_modes::update_legacy_standard_mode_quantity(
+            quantity_head, 8U, -2, 0, quantity_negative_unflagged_ports
+        );
+    test.expect_true(
+        quantity_negative_unflagged_result.path ==
+                QuantityPath::released_unflagged &&
+            quantity_head == nullptr &&
+            quantity_negative_unflagged_result.residual_quantity == -1 &&
+            quantity_negative_unflagged_result.release_count == 2U,
+        "0x44D0F0 removes a negative unflagged record and returns null"
+    );
+
+    quantity_head = nullptr;
+    FakeQuantityPorts quantity_missing_negative_ports;
+    const auto quantity_missing_negative =
+        openswd3::special_modes::update_legacy_standard_mode_quantity(
+            quantity_head, 9U, -1, 0, quantity_missing_negative_ports
+        );
+    test.expect_true(
+        quantity_missing_negative.path == QuantityPath::negative_not_found &&
+            quantity_missing_negative.residual_quantity == -1 &&
+            quantity_missing_negative_ports.allocation_count == 0U,
+        "0x44D0F0 returns null without allocation when a negative quantity finds neither category"
+    );
+
+    LegacyStandardModeForwardNode quantity_sentinel;
+    quantity_sentinel.text_index = 0xFFDCU;
+    quantity_sentinel.first_value = 2U;
+    quantity_head = &quantity_sentinel;
+    FakeQuantityPorts quantity_sentinel_ports;
+    const auto quantity_sentinel_result =
+        openswd3::special_modes::update_legacy_standard_mode_quantity(
+            quantity_head, 0xFFDCU, 10, 0, quantity_sentinel_ports
+        );
+    test.expect_true(
+        quantity_sentinel_result.path == QuantityPath::updated_unflagged &&
+            quantity_sentinel_result.sentinel_forced_to_one &&
+            quantity_sentinel.first_value == 1U &&
+            quantity_sentinel_result.residual_quantity == 1,
+        "0x44D0F0 forces a surviving FFDC record quantity back to one"
+    );
+
+    LegacyStandardModeForwardNode quantity_existing_head;
+    quantity_existing_head.text_index = 3U;
+    quantity_head = &quantity_existing_head;
+    FakeQuantityPorts quantity_create_ports;
+    const auto quantity_created =
+        openswd3::special_modes::update_legacy_standard_mode_quantity(
+            quantity_head, 0x12340005U, 4, 1, quantity_create_ports
+        );
+    test.expect_true(
+        quantity_created.path == QuantityPath::created &&
+            quantity_head == &quantity_create_ports.allocated_record &&
+            quantity_create_ports.allocated_record.next ==
+                &quantity_existing_head &&
+            quantity_create_ports.allocated_record.text_index == 5U &&
+            quantity_create_ports.allocated_record.first_value == 4U &&
+            quantity_create_ports.allocated_record.filter_flags == 0x8000U &&
+            quantity_create_ports.loaded_ids == std::vector<u32>{0x12340005U},
+        "0x44D0F0 loads a new flagged record with the full id, stores its low word, and prepends it"
+    );
+
+    quantity_head = nullptr;
+    FakeQuantityPorts quantity_create_sentinel_ports;
+    const auto quantity_created_sentinel =
+        openswd3::special_modes::update_legacy_standard_mode_quantity(
+            quantity_head, 0xFFDCU, 20, 2, quantity_create_sentinel_ports
+        );
+    test.expect_true(
+        quantity_created_sentinel.path == QuantityPath::created &&
+            quantity_created_sentinel.sentinel_forced_to_one &&
+            quantity_create_sentinel_ports.missing_name_count == 1U &&
+            quantity_create_sentinel_ports.loaded_ids.empty() &&
+            quantity_create_sentinel_ports.allocated_record.first_value == 1U &&
+            quantity_create_sentinel_ports.allocated_record.filter_flags == 0U,
+        "0x44D0F0 creates FFDC with the fixed missing name and quantity one without forcing category flags"
+    );
+
+    quantity_head = nullptr;
+    FakeQuantityPorts quantity_allocation_stop_ports;
+    quantity_allocation_stop_ports.allocation_available = false;
+    const auto quantity_allocation_stop =
+        openswd3::special_modes::update_legacy_standard_mode_quantity(
+            quantity_head, 0xFFDCU, 20, 1, quantity_allocation_stop_ports
+        );
+    test.expect_true(
+        quantity_allocation_stop.status == QuantityStatus::allocation_stopped &&
+            quantity_allocation_stop.sentinel_forced_to_one &&
+            quantity_allocation_stop.residual_quantity == 1 &&
+            quantity_head == nullptr,
+        "0x44D0F0 preserves FFDC quantity forcing before the allocation typed-stop"
+    );
+
+    quantity_head = nullptr;
+    FakeQuantityPorts quantity_load_stop_ports;
+    quantity_load_stop_ports.load_available = false;
+    const auto quantity_load_stop =
+        openswd3::special_modes::update_legacy_standard_mode_quantity(
+            quantity_head, 10U, 3, 0, quantity_load_stop_ports
+        );
+    test.expect_true(
+        quantity_load_stop.path == QuantityPath::load_failed &&
+            quantity_load_stop.release_count == 2U &&
+            quantity_load_stop_ports.released_values ==
+                std::vector<u32>{0x9988U} &&
+            quantity_load_stop_ports.released_records ==
+                std::vector<LegacyStandardModeForwardNode*>{
+                    &quantity_load_stop_ports.allocated_record
+                } &&
+            quantity_head == nullptr,
+        "0x44D0F0 releases the loaded-name owner and new record when record-name loading fails"
+    );
+
+    LegacyStandardModeForwardNode quantity_cycle;
+    quantity_cycle.next = &quantity_cycle;
+    quantity_cycle.text_index = 11U;
+    quantity_cycle.filter_flags = 0x8000U;
+    quantity_head = &quantity_cycle;
+    FakeQuantityPorts quantity_cycle_ports;
+    const auto quantity_cycle_result =
+        openswd3::special_modes::update_legacy_standard_mode_quantity(
+            quantity_head, 12U, 1, 1, quantity_cycle_ports
+        );
+    test.expect_true(
+        quantity_cycle_result.status ==
+                QuantityStatus::first_chain_cycle_stopped &&
+            quantity_cycle_result.visited_count == 1U &&
+            quantity_cycle_ports.allocation_count == 0U,
+        "0x44D0F0 stops when the flagged search would reread a cyclic node"
+    );
+
+    quantity_cycle.filter_flags = 0U;
+    quantity_head = &quantity_cycle;
+    FakeQuantityPorts quantity_second_cycle_ports;
+    const auto quantity_second_cycle =
+        openswd3::special_modes::update_legacy_standard_mode_quantity(
+            quantity_head, 12U, 1, 0, quantity_second_cycle_ports
+        );
+    test.expect_true(
+        quantity_second_cycle.status ==
+                QuantityStatus::second_chain_cycle_stopped &&
+            quantity_second_cycle.visited_count == 1U &&
+            quantity_second_cycle_ports.allocation_count == 0U,
+        "0x44D0F0 stops when the unflagged search would reread a cyclic node"
     );
 
     using SystemMenuRecordCountStatus =
