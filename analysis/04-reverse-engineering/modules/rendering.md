@@ -63,6 +63,7 @@ framebuffer 和 DirectDraw RECT 捕获仍是各自的 `blocked_runtime_oracle`�
 
 - [`framebuffer-and-display-presentation.md`](../evidence/framebuffer-and-display-presentation.md)
 - [`legacy-framebuffer-geometry-00416d30.md`](../evidence/legacy-framebuffer-geometry-00416d30.md)
+- [`battle-render-surface-rebuild-00433dc0-00437e90.md`](../evidence/battle-render-surface-rebuild-00433dc0-00437e90.md)
 - [`legacy-blitter-copy-004170e0.md`](../evidence/legacy-blitter-copy-004170e0.md)
 - [`legacy-blitter-assigned-effects-0041b280.md`](../evidence/legacy-blitter-assigned-effects-0041b280.md)
 - [`legacy-blitter-color-key-and-saturated-arithmetic.md`](../evidence/legacy-blitter-color-key-and-saturated-arithmetic.md)

@@ -35,6 +35,7 @@ using openswd3::battle::LegacyBattleLineRaster;
 using openswd3::battle::LegacyBattleRenderAuxiliaryBufferReleaser;
 using openswd3::battle::LegacyBattleRenderGeometry;
 using openswd3::battle::LegacyBattleRenderInitializationStatus;
+using openswd3::battle::LegacyBattleRenderSurfaceRebuildStatus;
 using openswd3::battle::LegacyBattleRowOffsetAllocation;
 using openswd3::battle::LegacyBattleRowOffsetAllocator;
 using openswd3::battle::LegacyBattleRowOffsetStatus;
@@ -2631,6 +2632,175 @@ void test_render_resource_cleanup(openswd3::test::Context& test) {
     );
 }
 
+void test_render_surface_rebuild_coordination(openswd3::test::Context& test) {
+    {
+        LegacyBattleRenderGeometry geometry;
+        SequencedRowOffsetAllocator allocator;
+        allocator.capacities = {-2, -2};
+        const auto result =
+            openswd3::battle::rebuild_legacy_battle_render_surface(
+                geometry,
+                openswd3::rendering::LegacySurfaceGeometry{
+                    .pitch_bytes = 1280,
+                    .width = 999,
+                    .height = 480,
+                },
+                allocator
+            );
+
+        test.expect_true(
+            result.status ==
+                    LegacyBattleRenderSurfaceRebuildStatus::completed &&
+                result.source.pitch_bytes == 1280 &&
+                result.source.height == 480 && result.rectangle_published &&
+                result.surface_row_offsets.status ==
+                    LegacyBattleRowOffsetStatus::completed &&
+                result.primary_row_offsets.status ==
+                    LegacyBattleRowOffsetStatus::completed &&
+                allocator.requests == std::vector<u32>({0x780U, 0xC00U}) &&
+                geometry.surface_width == 640 &&
+                geometry.surface_height == 480 &&
+                geometry.surface_row_offsets[479U] == 0x4AD80U &&
+                geometry.left == 0 && geometry.top == -800 &&
+                geometry.right == 480 && geometry.bottom == 480 &&
+                geometry.primary_row_stride == 1280 &&
+                geometry.primary_row_count == 768 &&
+                geometry.primary_row_offsets[767U] == 0xEFB00U,
+            "surface rebuild uses half pitch for rows but height and raw pitch for the legacy rectangle"
+        );
+    }
+
+    {
+        LegacyBattleRenderGeometry geometry;
+        geometry.surface_width = 10;
+        geometry.surface_height = 20;
+        geometry.primary_row_stride = 7;
+        geometry.primary_row_count = 8;
+        geometry.surface_row_offsets = std::make_unique<u32[]>(1U);
+        geometry.primary_row_offsets = std::make_unique<u32[]>(1U);
+        SequencedRowOffsetAllocator allocator;
+        allocator.capacities = {-1, -1};
+        const auto result =
+            openswd3::battle::rebuild_legacy_battle_render_surface(
+                geometry,
+                openswd3::rendering::LegacySurfaceGeometry{
+                    .pitch_bytes = 1280,
+                    .width = 640,
+                    .height = 480,
+                },
+                allocator
+            );
+
+        test.expect_true(
+            result.status ==
+                    LegacyBattleRenderSurfaceRebuildStatus::completed &&
+                result.surface_row_offsets.status ==
+                    LegacyBattleRowOffsetStatus::allocation_failed &&
+                result.primary_row_offsets.status ==
+                    LegacyBattleRowOffsetStatus::allocation_failed &&
+                result.rectangle_published &&
+                geometry.surface_row_offsets == nullptr &&
+                geometry.primary_row_offsets == nullptr &&
+                geometry.surface_width == 10 && geometry.surface_height == 20 &&
+                geometry.primary_row_stride == 7 &&
+                geometry.primary_row_count == 8 && geometry.left == -470 &&
+                geometry.top == -1260 && geometry.right == 10 &&
+                geometry.bottom == 20,
+            "ordinary allocation failures continue through rectangle and primary rebuild while preserving old metadata"
+        );
+    }
+
+    {
+        LegacyBattleRenderGeometry geometry;
+        geometry.left = 1;
+        geometry.top = 2;
+        geometry.right = 3;
+        geometry.bottom = 4;
+        geometry.primary_row_offsets = std::make_unique<u32[]>(1U);
+        u32* const old_primary = geometry.primary_row_offsets.get();
+        SequencedRowOffsetAllocator allocator;
+        allocator.capacities = {1};
+        const auto result =
+            openswd3::battle::rebuild_legacy_battle_render_surface(
+                geometry,
+                openswd3::rendering::LegacySurfaceGeometry{
+                    .pitch_bytes = 1280,
+                    .width = 640,
+                    .height = 480,
+                },
+                allocator
+            );
+
+        test.expect_true(
+            result.status ==
+                    LegacyBattleRenderSurfaceRebuildStatus::
+                        surface_row_offsets_write_out_of_range &&
+                !result.rectangle_published && allocator.call_index == 1U &&
+                geometry.surface_width == 640 &&
+                geometry.surface_height == 480 &&
+                geometry.surface_row_offsets != nullptr &&
+                geometry.primary_row_offsets.get() == old_primary &&
+                geometry.left == 1 && geometry.top == 2 &&
+                geometry.right == 3 && geometry.bottom == 4,
+            "surface row typed stop preserves its write prefix and blocks rectangle plus primary rebuild"
+        );
+    }
+
+    {
+        LegacyBattleRenderGeometry geometry;
+        SequencedRowOffsetAllocator allocator;
+        allocator.capacities = {-2, 1};
+        const auto result =
+            openswd3::battle::rebuild_legacy_battle_render_surface(
+                geometry,
+                openswd3::rendering::LegacySurfaceGeometry{
+                    .pitch_bytes = 1280,
+                    .width = 640,
+                    .height = 480,
+                },
+                allocator
+            );
+
+        test.expect_true(
+            result.status ==
+                    LegacyBattleRenderSurfaceRebuildStatus::
+                        primary_row_offsets_write_out_of_range &&
+                result.rectangle_published && allocator.call_index == 2U &&
+                geometry.surface_row_offsets[479U] == 0x4AD80U &&
+                geometry.left == 0 && geometry.top == -800 &&
+                geometry.right == 480 && geometry.bottom == 480 &&
+                geometry.primary_row_offsets != nullptr &&
+                geometry.primary_row_offsets[0U] == 0U &&
+                geometry.primary_row_stride == 1280 &&
+                geometry.primary_row_count == 768,
+            "primary row typed stop keeps the completed surface and rectangle prefix"
+        );
+    }
+
+    {
+        LegacyBattleRenderGeometry geometry;
+        SequencedRowOffsetAllocator allocator;
+        allocator.capacities = {-2, -2};
+        const auto result =
+            openswd3::battle::rebuild_legacy_battle_render_surface(
+                geometry,
+                openswd3::rendering::LegacySurfaceGeometry{
+                    .pitch_bytes = -5,
+                    .width = 123,
+                    .height = 0,
+                },
+                allocator
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleRenderSurfaceRebuildStatus::completed &&
+                allocator.requests.front() == 0U &&
+                geometry.surface_width == -2 && geometry.surface_height == 0,
+            "negative odd pitch uses signed truncation toward zero before row rebuild"
+        );
+    }
+}
+
 std::uint64_t
 direction_vector_hash(const LegacyBattleDirectionVectors& vectors) {
     std::uint64_t hash = UINT64_C(14695981039346656037);
@@ -3249,6 +3419,7 @@ int main() {
     test_directional_scan_division_and_typed_stops(test);
     test_render_auxiliary_buffer_release(test);
     test_render_resource_cleanup(test);
+    test_render_surface_rebuild_coordination(test);
     test_render_geometry_initialization_and_direction_table(test);
     test_render_geometry_initialization_failures(test);
     test_primary_row_offsets_normal_and_fixed_caller(test);

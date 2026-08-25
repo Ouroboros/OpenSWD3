@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v674
+版本：v675
 
 最后更新：2026-08-25
 
@@ -3877,4 +3877,6 @@ B7 P0 有限收口完成。
 
 - 模块10战斗绘制资源整体清理`0x00433D70`完成。先直接组合已关闭附属缓冲释放，再按surface行表、主行表顺序执行两个独立非空释放分支，并分别在释放返回后清零；尺寸、矩形、方向表和其他owner状态不变。两个主动caller和一个CRT退出回调均不消费旧EAX残值，现代三分支结果只作typed观测。定向测试锁定全空短路、附属回调期间两张行表仍存在、三项释放后为空及其他状态不变；零warning目标构建、独立ASan、Linux core`188/188`及Linux app`194/194`通过。工作包连续两次生成逐字节一致，当前`13/422`，即`10 platform_adapted + 3 assembly_exact + 409 pending_audit`，SHA256为`985059244669b9c60835a7cb09549c1bf52425aa01318190513b5137b3f55db1`。原版三条清理路径联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 
-下一项关闭`0x00433DC0`；先恢复渲染模块拥有的14行跨模块尺寸getter `0x00437E90` typed接口，再直接组合已关闭surface行表、矩形和主行表入口，保持宽度有符号除二及调用顺序。
+- 模块10战斗绘制surface协调重建`0x00433DC0`完成，并恢复渲染模块拥有的跨模块pitch/高度getter`0x00437E90`。旧DirectDraw字段来源证明getter首值是字节pitch、次值是高度；协调函数以pitch向零除二和高度重建surface行表，但矩形故意把高度作宽、未除二pitch作高，最后固定重建1280×768主行表。普通申请失败继续，surface与主表原写点分别typed-stop。定向测试锁定getter忽略现代逻辑宽、默认两表、交换矩形、申请失败前缀、两个typed-stop和负奇数pitch；零warning目标构建、独立ASan`2/2`、Linux core`188/188`及Linux app`194/194`通过。跨模块getter不增加battle计数；工作包连续两次生成逐字节一致，当前`14/422`，即`11 platform_adapted + 3 assembly_exact + 408 pending_audit`，SHA256为`c3cbb1b7497642e23191971bb1f0b97d679d124652cda8fb1c768dd1aaa812e3`。原版DirectDraw描述符与battle owner联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
+
+下一项关闭`0x00433F70`，完整恢复四个owner缓冲的旧值释放、尺寸乘法低32位申请、逐项发布和中途申请失败前缀；该函数无待关闭游戏callee。

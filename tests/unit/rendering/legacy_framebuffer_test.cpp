@@ -15,6 +15,21 @@ using openswd3::rendering::LegacyFramebuffer;
 using openswd3::rendering::LegacyRasterGeometryState;
 using openswd3::rendering::LegacySurfaceGeometry;
 
+void test_surface_pitch_and_height_query(openswd3::test::Context& test) {
+    const auto result =
+        openswd3::rendering::query_legacy_surface_pitch_and_height(
+            LegacySurfaceGeometry{
+                .pitch_bytes = -5,
+                .width = 777,
+                .height = -9,
+            }
+        );
+    test.expect_true(
+        result.pitch_bytes == -5 && result.height == -9,
+        "surface query copies pitch and height without validating or using width"
+    );
+}
+
 void test_default_owned_framebuffer(openswd3::test::Context& test) {
     LegacyFramebuffer framebuffer;
     const LegacyRasterGeometryState& geometry = framebuffer.geometry();
@@ -264,6 +279,7 @@ void test_row_offset_wrapping_and_guard(openswd3::test::Context& test) {
 
 int main() {
     openswd3::test::Context test;
+    test_surface_pitch_and_height_query(test);
     test_default_owned_framebuffer(test);
     test_padded_pitch(test);
     test_logical_hash_excludes_pitch_padding(test);

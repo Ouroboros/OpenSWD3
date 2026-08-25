@@ -174,6 +174,49 @@ bool release_legacy_battle_render_auxiliary_buffer(
     return true;
 }
 
+LegacyBattleRenderSurfaceRebuildResult rebuild_legacy_battle_render_surface(
+    LegacyBattleRenderGeometry& geometry,
+    const rendering::LegacySurfaceGeometry& source,
+    LegacyBattleRowOffsetAllocator& allocator
+) noexcept {
+    LegacyBattleRenderSurfaceRebuildResult result;
+    result.source = rendering::query_legacy_surface_pitch_and_height(source);
+
+    const compat::i32 row_stride = result.source.pitch_bytes / 2;
+    result.surface_row_offsets = rebuild_legacy_battle_surface_row_offsets(
+        geometry, row_stride, result.source.height, allocator
+    );
+    if (result.surface_row_offsets.status ==
+        LegacyBattleRowOffsetStatus::write_out_of_range) {
+        result.status = LegacyBattleRenderSurfaceRebuildStatus::
+            surface_row_offsets_write_out_of_range;
+        return result;
+    }
+
+    static_cast<void>(set_legacy_battle_render_rectangle(
+        geometry, 0, 0, result.source.height, result.source.pitch_bytes
+    ));
+    result.rectangle_published = true;
+
+    result.primary_row_offsets = rebuild_legacy_battle_primary_row_offsets(
+        geometry, 0x500, 0x300, allocator
+    );
+    if (result.primary_row_offsets.status ==
+        LegacyBattleRowOffsetStatus::write_out_of_range) {
+        result.status = LegacyBattleRenderSurfaceRebuildStatus::
+            primary_row_offsets_write_out_of_range;
+    }
+    return result;
+}
+
+LegacyBattleRenderSurfaceRebuildResult rebuild_legacy_battle_render_surface(
+    LegacyBattleRenderGeometry& geometry,
+    const rendering::LegacySurfaceGeometry& source
+) noexcept {
+    DefaultRowOffsetAllocator allocator;
+    return rebuild_legacy_battle_render_surface(geometry, source, allocator);
+}
+
 LegacyBattleRenderCleanupResult release_legacy_battle_render_resources(
     LegacyBattleRenderGeometry& geometry,
     LegacyBattleRenderAuxiliaryBufferReleaser& releaser

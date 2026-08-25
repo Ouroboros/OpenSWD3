@@ -29,6 +29,15 @@ checked_storage_word_count(const LegacySurfaceGeometry& surface) {
 
 }  // namespace
 
+LegacySurfacePitchAndHeight query_legacy_surface_pitch_and_height(
+    const LegacySurfaceGeometry& surface
+) noexcept {
+    return {
+        .pitch_bytes = surface.pitch_bytes,
+        .height = surface.height,
+    };
+}
+
 bool initialize_legacy_raster_geometry(
     LegacyRasterGeometryState& state, const LegacySurfaceGeometry& surface
 ) noexcept {

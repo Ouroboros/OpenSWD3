@@ -48,6 +48,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-render-resource-cleanup-00433d70.md",
     ),
+    "0x00433DC0": (
+        "platform_adapted",
+        "evidence/battle-render-surface-rebuild-00433dc0-00437e90.md",
+    ),
     "0x00433E20": (
         "platform_adapted",
         "evidence/battle-primary-row-offsets-00433e20.md",

@@ -24,6 +24,11 @@ struct LegacySurfaceGeometry {
     compat::i32 height{kLegacyFramebufferHeight};
 };
 
+struct LegacySurfacePitchAndHeight {
+    compat::i32 pitch_bytes{};
+    compat::i32 height{};
+};
+
 struct LegacyRasterGeometryState {
     LegacySurfaceGeometry surface{};
     compat::i32 clip_left{};
@@ -32,6 +37,11 @@ struct LegacyRasterGeometryState {
     compat::i32 clip_height{};
     std::array<compat::u32, kLegacyRowOffsetCapacity> row_byte_offsets{};
 };
+
+// sub_437E90.
+[[nodiscard]] LegacySurfacePitchAndHeight query_legacy_surface_pitch_and_height(
+    const LegacySurfaceGeometry& surface
+) noexcept;
 
 [[nodiscard]] bool initialize_legacy_raster_geometry(
     LegacyRasterGeometryState& state, const LegacySurfaceGeometry& surface
