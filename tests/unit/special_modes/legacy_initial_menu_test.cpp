@@ -887,9 +887,9 @@ public:
     std::vector<std::pair<u16, u32>> samples;
 };
 
-class FakeModeOneConfirmPorts final
-    : public FakeModeOneAdvancePorts,
-      public openswd3::special_modes::LegacySpecialModeModeOneConfirmPorts {
+class FakeModeOneConfirmPorts : public FakeModeOneAdvancePorts,
+                                public virtual openswd3::special_modes::
+                                    LegacySpecialModeModeOneConfirmPorts {
 public:
     openswd3::special_modes::LegacyStandardModeForwardNode*
     allocate_quantity_record() noexcept override {
@@ -962,6 +962,36 @@ public:
     std::vector<std::pair<u16, u32>> zero_filter_records;
     std::vector<u32> released_external_owners;
     std::vector<u32> released_frame_buffers;
+};
+
+class FakeModeOneFrameRuntimePorts final
+    : public openswd3::special_modes::
+          LegacySpecialModeRuntimeInitializationPorts {
+public:
+    std::optional<std::span<const u16>>
+    lock_primary_surface() noexcept override {
+        ++lock_count;
+        return runtime_surface_available
+            ? std::optional<std::span<const u16>>{runtime_surface}
+            : std::nullopt;
+    }
+    void unlock_primary_surface(
+        const std::optional<std::span<const u16>>
+    ) noexcept override {
+        ++unlock_count;
+    }
+    bool allocate_frame_buffer(const std::size_t byte_count) noexcept override {
+        allocation_sizes.push_back(byte_count);
+        return true;
+    }
+
+    std::vector<u16> runtime_surface = std::vector<u16>(
+        openswd3::special_modes::kLegacySpecialModeFramePixelCount, 0x7FFFU
+    );
+    bool runtime_surface_available{true};
+    u32 lock_count{};
+    u32 unlock_count{};
+    std::vector<std::size_t> allocation_sizes;
 };
 
 class FakeChainClonePorts final
@@ -1304,6 +1334,91 @@ public:
     std::size_t failed_frame_index{static_cast<std::size_t>(-1)};
     u16 first_frame_height{4U};
     u16 second_frame_height{2U};
+};
+
+class FakeModeOneFramePorts final
+    : public FakeModeOneConfirmPorts,
+      public openswd3::special_modes::LegacySpecialModeModeOneFramePorts {
+public:
+    explicit FakeModeOneFramePorts(
+        openswd3::special_modes::LegacySpecialModeModeOneFrameVisualState&
+            visual
+    ) noexcept
+        : bar_ports(visual.scrollbar_actions) {}
+
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationPorts&
+    runtime_initialization_ports() noexcept override {
+        return runtime_ports;
+    }
+    openswd3::special_modes::LegacyStandardModeBarPorts&
+    scrollbar_ports() noexcept override {
+        return bar_ports;
+    }
+    std::optional<std::span<u16>>
+    lock_render_surface(const u32 owner) noexcept override {
+        events.push_back(1U);
+        locked_owners.push_back(owner);
+        return render_surface_available
+            ? std::optional<std::span<u16>>{render_surface}
+            : std::nullopt;
+    }
+    void prepare_render_surface(
+        const u32 owner, const std::optional<std::span<u16>> pixels
+    ) noexcept override {
+        events.push_back(2U);
+        prepared_owners.push_back(owner);
+        prepared_with_surface.push_back(pixels.has_value());
+    }
+    u32 compose_color(
+        const u8 red, const u8 green, const u8 blue
+    ) noexcept override {
+        color_inputs.push_back({red, green, blue});
+        return 0x11000000U + static_cast<u32>(color_inputs.size());
+    }
+    i32 query_party_member(const u32 member_id) noexcept override {
+        events.push_back(3U);
+        queried_render_members.push_back(member_id);
+        return render_member_results[member_id - 0x1EU];
+    }
+    i32 draw_text(
+        const openswd3::special_modes::
+            LegacySpecialModeAttributeDeltaTextRequest& request
+    ) noexcept override {
+        events.push_back(4U);
+        delta_requests.push_back(request);
+        return static_cast<i32>(0x5000U + delta_requests.size());
+    }
+    std::optional<i32> execute(
+        const openswd3::special_modes::LegacySpecialModeModeOneFrameRequest&
+            request
+    ) noexcept override {
+        events.push_back(5U);
+        if (requests.size() == fail_request_index) {
+            return std::nullopt;
+        }
+        requests.push_back(request);
+        return static_cast<i32>(0x6000U + requests.size());
+    }
+
+    FakeModeOneFrameRuntimePorts runtime_ports;
+    FakeStandardModeBarPorts bar_ports;
+    std::vector<u16> render_surface = std::vector<u16>(
+        openswd3::special_modes::kLegacySpecialModeFramePixelCount, 0x1234U
+    );
+    bool render_surface_available{true};
+    std::size_t fail_request_index{std::numeric_limits<std::size_t>::max()};
+    std::array<i32, 4U> render_member_results{};
+    std::vector<std::array<u8, 3U>> color_inputs;
+    std::vector<u32> locked_owners;
+    std::vector<u32> prepared_owners;
+    std::vector<bool> prepared_with_surface;
+    std::vector<u32> queried_render_members;
+    std::vector<
+        openswd3::special_modes::LegacySpecialModeAttributeDeltaTextRequest>
+        delta_requests;
+    std::vector<openswd3::special_modes::LegacySpecialModeModeOneFrameRequest>
+        requests;
+    std::vector<u32> events;
 };
 
 struct TransitionGhostRequest {
@@ -20399,6 +20514,414 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             mode_one_pointer_weight_state.level == 2U &&
             mode_one_pointer_weight_returned.helper_call_count == 0U,
         "0x44DBC0 level ten returns to level two when any of the low four normalized input bits is set"
+    );
+
+    const auto render_mode_one_frame = [&special_runtime_background,
+                                        &special_runtime_world_frame,
+                                        &special_runtime_world_ports,
+                                        &special_runtime_format](
+                                           const auto& input,
+                                           auto& state,
+                                           auto& visual,
+                                           auto& runtime,
+                                           auto*& player,
+                                           auto& capacity,
+                                           auto& ports
+                                       ) {
+        openswd3::world_map::LegacyWorldStoryVmState story;
+        openswd3::rendering::LegacyFramebuffer framebuffer;
+        auto raster = framebuffer.geometry();
+        return openswd3::special_modes::
+            render_legacy_special_mode_mode_one_frame(
+                input,
+                state,
+                visual,
+                {},
+                runtime,
+                player,
+                {},
+                {},
+                {},
+                {},
+                capacity,
+                story,
+                framebuffer,
+                raster,
+                special_runtime_background,
+                special_runtime_world_frame,
+                special_runtime_world_ports,
+                special_runtime_format,
+                ports
+            );
+    };
+
+    openswd3::special_modes::LegacySpecialModeModeOneFrameInput
+        mode_one_frame_early_input;
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_frame_early_state;
+    mode_one_frame_early_state.level = 1U;
+    openswd3::special_modes::LegacySpecialModeModeOneFrameVisualState
+        mode_one_frame_early_visual;
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        mode_one_frame_early_runtime;
+    LegacyStandardModeForwardNode* mode_one_frame_early_player = nullptr;
+    u32 mode_one_frame_early_capacity = 0U;
+    FakeModeOneFramePorts mode_one_frame_early_ports(
+        mode_one_frame_early_visual
+    );
+    const auto mode_one_frame_early = render_mode_one_frame(
+        mode_one_frame_early_input,
+        mode_one_frame_early_state,
+        mode_one_frame_early_visual,
+        mode_one_frame_early_runtime,
+        mode_one_frame_early_player,
+        mode_one_frame_early_capacity,
+        mode_one_frame_early_ports
+    );
+    test.expect_true(
+        mode_one_frame_early.status ==
+                openswd3::special_modes::LegacySpecialModeModeOneFrameStatus::
+                    completed &&
+            mode_one_frame_early.color_compose_count == 3U &&
+            mode_one_frame_early.pointer_dispatched &&
+            mode_one_frame_early.alternate_dispatched &&
+            mode_one_frame_early.helper_call_count == 2U &&
+            mode_one_frame_early_ports.color_inputs ==
+                std::vector<std::array<u8, 3U>>{
+                    {0x19U, 0x17U, 0x11U},
+                    {0x0DU, 0x0DU, 0x09U},
+                    {0x18U, 0x0AU, 0x0BU}
+                } &&
+            mode_one_frame_early_ports.locked_owners.empty() &&
+            mode_one_frame_early_ports.requests.empty(),
+        "0x44EA60 composes three colors, dispatches pointer then alternate input, and returns before surface access when the mode request is zero"
+    );
+
+    openswd3::special_modes::LegacySpecialModeModeOneFrameInput
+        mode_one_frame_level_one_input;
+    mode_one_frame_level_one_input.surface_owner = 0x7788U;
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_frame_level_one_state;
+    mode_one_frame_level_one_state.level = 1U;
+    mode_one_frame_level_one_state.packed_mode = 2U;
+    mode_one_frame_level_one_state.transition_request = 2U;
+    openswd3::special_modes::LegacySpecialModeModeOneFrameVisualState
+        mode_one_frame_level_one_visual;
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        mode_one_frame_level_one_runtime;
+    mode_one_frame_level_one_runtime.darkened_frame_pixels.assign(
+        openswd3::special_modes::kLegacySpecialModeFramePixelCount, 0x3456U
+    );
+    LegacyStandardModeForwardNode* mode_one_frame_level_one_player = nullptr;
+    u32 mode_one_frame_level_one_capacity = 77U;
+    FakeModeOneFramePorts mode_one_frame_level_one_ports(
+        mode_one_frame_level_one_visual
+    );
+    const auto mode_one_frame_level_one = render_mode_one_frame(
+        mode_one_frame_level_one_input,
+        mode_one_frame_level_one_state,
+        mode_one_frame_level_one_visual,
+        mode_one_frame_level_one_runtime,
+        mode_one_frame_level_one_player,
+        mode_one_frame_level_one_capacity,
+        mode_one_frame_level_one_ports
+    );
+    const auto has_level_one_text = [&](const std::string_view text) {
+        return std::any_of(
+            mode_one_frame_level_one_ports.requests.begin(),
+            mode_one_frame_level_one_ports.requests.end(),
+            [&](const auto& request) { return request.text == text; }
+        );
+    };
+    test.expect_true(
+        mode_one_frame_level_one.status ==
+                openswd3::special_modes::LegacySpecialModeModeOneFrameStatus::
+                    completed &&
+            mode_one_frame_level_one.frame_copied &&
+            mode_one_frame_level_one.presented &&
+            mode_one_frame_level_one_visual.mouse_frame_index == 0x0DU &&
+            mode_one_frame_level_one_ports.render_surface[0U] == 0x3456U &&
+            mode_one_frame_level_one_ports.locked_owners ==
+                std::vector<u32>{0x7788U} &&
+            mode_one_frame_level_one_ports.prepared_with_surface ==
+                std::vector<bool>{true} &&
+            has_level_one_text(
+                std::string_view{
+                    "\xAB\xC8\xAD\xBE\x20\xB1\x7A\xAD\x6E\xB6\x52\xAA\x46\xA6\xE8\xC1\xD9\xAC\x4F\xBD\xE6\xAA\x46\xA6\xE8",
+                    24U
+                }
+            ) &&
+            has_level_one_text(
+                std::string_view{
+                    "\xB6\x52\x20\x20\x20\xBD\xE6\x20\x20\x20\xC2\xF7\xB6\x7D",
+                    14U
+                }
+            ) &&
+            std::any_of(
+                mode_one_frame_level_one_ports.requests.begin(),
+                mode_one_frame_level_one_ports.requests.end(),
+                [](const auto& request) {
+                    return request.operation ==
+                        openswd3::special_modes::
+                            LegacySpecialModeModeOneFrameOperation::
+                                draw_panel &&
+                        request.values[0U] == 0x182;
+                }
+            ) &&
+            mode_one_frame_level_one_ports.requests.back().operation ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOneFrameOperation::present,
+        "0x44EA60 copies the working frame, draws the level-one shop question and three-column choice highlight, then fixes the cursor frame and presents"
+    );
+
+    LegacyStandardModeForwardNode mode_one_frame_second_row;
+    mode_one_frame_second_row.text_index = 0xFFDCU;
+    mode_one_frame_second_row.display_name = "missing";
+    LegacyStandardModeForwardNode mode_one_frame_selected_row;
+    mode_one_frame_selected_row.next = &mode_one_frame_second_row;
+    mode_one_frame_selected_row.text_index = 0x1234U;
+    mode_one_frame_selected_row.combined_value = 2U;
+    mode_one_frame_selected_row.display_name = "sword";
+    mode_one_frame_selected_row.record_bytes[0x21U] = 7U;
+    mode_one_frame_selected_row.record_bytes[0x3BU] = 0xE0U;
+    mode_one_frame_selected_row.record_bytes[0x50U] = 0x34U;
+    mode_one_frame_selected_row.record_bytes[0x51U] = 0x12U;
+    mode_one_frame_selected_row.record_bytes[0x52U] = 100U;
+    openswd3::special_modes::LegacySpecialModeModeOneFrameInput
+        mode_one_frame_list_input;
+    mode_one_frame_list_input.surface_owner = 9U;
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_frame_list_state;
+    mode_one_frame_list_state.level = 2U;
+    mode_one_frame_list_state.transition_request = 2U;
+    mode_one_frame_list_state.total_count = 14;
+    mode_one_frame_list_state.visible_count = 2;
+    mode_one_frame_list_state.workspace_head = &mode_one_frame_selected_row;
+    mode_one_frame_list_state.visible_head = &mode_one_frame_selected_row;
+    mode_one_frame_list_state.frame_flags = 0x21U;
+    mode_one_frame_list_state.decrease_action_status = 1U;
+    mode_one_frame_list_state.increase_action_status = 0U;
+    mode_one_frame_list_state.member_deltas[0U].candidate_category_matches = 1U;
+    mode_one_frame_list_state.member_deltas[0U].values = {1, -1, 0};
+    openswd3::special_modes::LegacySpecialModeModeOneFrameVisualState
+        mode_one_frame_list_visual;
+    mode_one_frame_list_visual.member_animation_y.fill(0x10U);
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        mode_one_frame_list_runtime;
+    mode_one_frame_list_runtime.darkened_frame_pixels.assign(
+        openswd3::special_modes::kLegacySpecialModeFramePixelCount, 0x2222U
+    );
+    LegacyStandardModeForwardNode* mode_one_frame_list_player = nullptr;
+    u32 mode_one_frame_list_capacity = 1000U;
+    FakeModeOneFramePorts mode_one_frame_list_ports(mode_one_frame_list_visual);
+    mode_one_frame_list_ports.render_member_results.fill(1);
+    const auto mode_one_frame_list = render_mode_one_frame(
+        mode_one_frame_list_input,
+        mode_one_frame_list_state,
+        mode_one_frame_list_visual,
+        mode_one_frame_list_runtime,
+        mode_one_frame_list_player,
+        mode_one_frame_list_capacity,
+        mode_one_frame_list_ports
+    );
+    const auto list_texts = [&]() {
+        std::vector<std::string> texts;
+        for (const auto& request : mode_one_frame_list_ports.requests) {
+            if (!request.text.empty()) {
+                texts.push_back(request.text);
+            }
+        }
+        return texts;
+    }();
+    test.expect_true(
+        mode_one_frame_list.status ==
+                openswd3::special_modes::LegacySpecialModeModeOneFrameStatus::
+                    completed &&
+            mode_one_frame_list.rendered_record_count == 2U &&
+            mode_one_frame_list_state.frame_flags == 0x10U &&
+            mode_one_frame_list_state.decrease_action_status == 0U &&
+            mode_one_frame_list_state.increase_action_status == 0U &&
+            mode_one_frame_list_visual.member_animation_y ==
+                std::array<u16, 4U>{0x10U, 0x10U, 0x10U, 0x0EU} &&
+            mode_one_frame_list_runtime.actions.records[0U].base_variant ==
+                0x0DU &&
+            mode_one_frame_list_runtime.actions.records[3U].base_variant ==
+                5U &&
+            mode_one_frame_list_visual.selected_icon_action.action_id ==
+                0x1234U &&
+            mode_one_frame_list_visual.scrollbar.top == 0x42 &&
+            mode_one_frame_list_visual.scrollbar.first_split == 0x42 &&
+            mode_one_frame_list_visual.scrollbar.second_split == 0x42 &&
+            mode_one_frame_list_visual.scrollbar.bottom == 0x176 &&
+            mode_one_frame_list_ports.bar_ports.prepared_request
+                    .overlay_flags == 3U &&
+            mode_one_frame_list_ports.bar_ports.prepared_request.first_ratio ==
+                0.0F &&
+            mode_one_frame_list_ports.delta_requests.size() == 24U &&
+            std::find(list_texts.begin(), list_texts.end(), "sword         ") !=
+                list_texts.end() &&
+            std::find(list_texts.begin(), list_texts.end(), "   100") !=
+                list_texts.end() &&
+            std::find(list_texts.begin(), list_texts.end(), "  2") !=
+                list_texts.end() &&
+            std::any_of(
+                mode_one_frame_list_ports.requests.begin(),
+                mode_one_frame_list_ports.requests.end(),
+                [](const auto& request) {
+                    return request.operation ==
+                        openswd3::special_modes::
+                            LegacySpecialModeModeOneFrameOperation::
+                                draw_action &&
+                        request.values[0U] == 0x103 &&
+                        request.values[1U] == 0x195 &&
+                        request.values[2U] == 0x3F;
+                }
+            ),
+        "0x44EA60 renders the selected visible record, applies member animation masks, formats price and quantities, decays both arrow phases, and publishes the split scrollbar"
+    );
+
+    const auto render_overlay_level = [&](const u32 level,
+                                          const u32 packed_mode) {
+        openswd3::special_modes::LegacySpecialModeModeOneFrameInput input;
+        input.surface_owner = level;
+        openswd3::special_modes::LegacySpecialModeModeOneAdvanceState state;
+        state.level = level;
+        state.packed_mode = packed_mode;
+        state.transition_request = 2U;
+        openswd3::special_modes::LegacySpecialModeModeOneFrameVisualState
+            visual;
+        openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+            runtime;
+        runtime.darkened_frame_pixels.assign(
+            openswd3::special_modes::kLegacySpecialModeFramePixelCount, 1U
+        );
+        LegacyStandardModeForwardNode* player = nullptr;
+        u32 capacity = 10U;
+        FakeModeOneFramePorts ports(visual);
+        const auto result = render_mode_one_frame(
+            input, state, visual, runtime, player, capacity, ports
+        );
+        return std::pair{result, ports.requests};
+    };
+    const auto [mode_one_frame_level_three, level_three_requests] =
+        render_overlay_level(3U, 4U);
+    const auto [mode_one_frame_level_four, level_four_requests] =
+        render_overlay_level(4U, 8U);
+    const auto [mode_one_frame_level_ten, level_ten_requests] =
+        render_overlay_level(10U, 0U);
+    const auto contains_overlay_text = [](const auto& requests,
+                                          const std::string_view text) {
+        return std::any_of(
+            requests.begin(), requests.end(), [&](const auto& request) {
+                return request.text.find(text) != std::string::npos;
+            }
+        );
+    };
+    test.expect_true(
+        mode_one_frame_level_three.presented &&
+            mode_one_frame_level_four.presented &&
+            mode_one_frame_level_ten.presented &&
+            contains_overlay_text(
+                level_three_requests,
+                std::string_view{"\xC1\x60\xA6\x40\xAC\x4F", 6U}
+            ) &&
+            contains_overlay_text(
+                level_four_requests,
+                std::string_view{
+                    "\xAD\x6E\xB0\xA8\xA4\x57\xB8\xCB\xB3\xC6\xB6\xDC\x3F", 13U
+                }
+            ) &&
+            contains_overlay_text(
+                level_ten_requests,
+                std::string_view{
+                    "\xBF\xFA\xB1\x61\xA6\x68\xA4\x40\xC2\x49\xA6\x41\xA8\xD3\xA7\x61",
+                    16U
+                }
+            ),
+        "0x44EA60 overlays the buy-or-sell confirmation, immediate-equipment prompt, and insufficient-money notice for levels three, four, and ten"
+    );
+
+    openswd3::special_modes::LegacySpecialModeModeOneFrameInput
+        mode_one_frame_initialize_input;
+    mode_one_frame_initialize_input.surface_owner = 0x99U;
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_frame_initialize_state;
+    mode_one_frame_initialize_state.transition_request = 0xA0000002U;
+    openswd3::special_modes::LegacySpecialModeModeOneFrameVisualState
+        mode_one_frame_initialize_visual;
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        mode_one_frame_initialize_runtime;
+    LegacyStandardModeForwardNode* mode_one_frame_initialize_player = nullptr;
+    u32 mode_one_frame_initialize_capacity = 88U;
+    FakeModeOneFramePorts mode_one_frame_initialize_ports(
+        mode_one_frame_initialize_visual
+    );
+    const auto mode_one_frame_initialized = render_mode_one_frame(
+        mode_one_frame_initialize_input,
+        mode_one_frame_initialize_state,
+        mode_one_frame_initialize_visual,
+        mode_one_frame_initialize_runtime,
+        mode_one_frame_initialize_player,
+        mode_one_frame_initialize_capacity,
+        mode_one_frame_initialize_ports
+    );
+    test.expect_true(
+        mode_one_frame_initialized.status ==
+                openswd3::special_modes::LegacySpecialModeModeOneFrameStatus::
+                    completed &&
+            mode_one_frame_initialized.runtime_initialized &&
+            mode_one_frame_initialized.action_set_reinitialized &&
+            mode_one_frame_initialize_state.transition_request == 2U &&
+            mode_one_frame_initialize_state.level == 1U &&
+            mode_one_frame_initialize_runtime.enabled == 1U &&
+            mode_one_frame_initialize_ports.runtime_ports.lock_count == 1U &&
+            mode_one_frame_initialize_ports.runtime_ports.unlock_count == 1U &&
+            mode_one_frame_initialize_ports.runtime_ports.allocation_sizes ==
+                std::vector<std::size_t>{0x96000U, 0x96000U} &&
+            mode_one_frame_initialize_ports.render_surface[0U] == 0x4E73U,
+        "0x44EA60 clears the entry bit, directly initializes the darkened runtime, reinitializes actions for the second flag, then continues the same frame"
+    );
+
+    openswd3::special_modes::LegacySpecialModeModeOneFrameInput
+        mode_one_frame_surface_stop_input;
+    mode_one_frame_surface_stop_input.surface_owner = 0x55U;
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_frame_surface_stop_state;
+    mode_one_frame_surface_stop_state.level = 1U;
+    mode_one_frame_surface_stop_state.transition_request = 2U;
+    openswd3::special_modes::LegacySpecialModeModeOneFrameVisualState
+        mode_one_frame_surface_stop_visual;
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        mode_one_frame_surface_stop_runtime;
+    mode_one_frame_surface_stop_runtime.darkened_frame_pixels.assign(
+        openswd3::special_modes::kLegacySpecialModeFramePixelCount, 3U
+    );
+    LegacyStandardModeForwardNode* mode_one_frame_surface_stop_player = nullptr;
+    u32 mode_one_frame_surface_stop_capacity = 0U;
+    FakeModeOneFramePorts mode_one_frame_surface_stop_ports(
+        mode_one_frame_surface_stop_visual
+    );
+    mode_one_frame_surface_stop_ports.render_surface_available = false;
+    const auto mode_one_frame_surface_stopped = render_mode_one_frame(
+        mode_one_frame_surface_stop_input,
+        mode_one_frame_surface_stop_state,
+        mode_one_frame_surface_stop_visual,
+        mode_one_frame_surface_stop_runtime,
+        mode_one_frame_surface_stop_player,
+        mode_one_frame_surface_stop_capacity,
+        mode_one_frame_surface_stop_ports
+    );
+    test.expect_true(
+        mode_one_frame_surface_stopped.status ==
+                openswd3::special_modes::LegacySpecialModeModeOneFrameStatus::
+                    render_surface_stopped &&
+            !mode_one_frame_surface_stopped.frame_copied &&
+            mode_one_frame_surface_stop_ports.prepared_owners ==
+                std::vector<u32>{0x55U} &&
+            mode_one_frame_surface_stop_ports.prepared_with_surface ==
+                std::vector<bool>{false} &&
+            mode_one_frame_surface_stop_ports.requests.empty(),
+        "0x44EA60 prepares the captured surface result before stopping at the original full-frame destination write"
     );
 
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;

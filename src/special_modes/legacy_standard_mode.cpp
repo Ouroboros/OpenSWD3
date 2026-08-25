@@ -7643,6 +7643,865 @@ dispatch_legacy_special_mode_mode_one_pointer_input(
     return result;
 }
 
+LegacySpecialModeModeOneFrameResult render_legacy_special_mode_mode_one_frame(
+    const LegacySpecialModeModeOneFrameInput& input,
+    LegacySpecialModeModeOneAdvanceState& state,
+    LegacySpecialModeModeOneFrameVisualState& visual,
+    const std::span<const compat::u8> maps_payload,
+    LegacySpecialModeRuntimeInitializationState& runtime,
+    LegacyStandardModeForwardNode*& player_record_head,
+    const std::span<const compat::u16> empty_mode_record_ids,
+    const std::span<LegacyStandardModeForwardNode* const> fixed_slots,
+    const std::span<const compat::u32> replacement_masks,
+    const std::array<LegacyGuardianAttributeTarget, 4U>& base_attributes,
+    compat::u32& maximum_weight,
+    world_map::LegacyWorldStoryVmState& story_state,
+    rendering::LegacyFramebuffer& framebuffer,
+    rendering::LegacyRasterGeometryState& raster,
+    const world_map::LegacyWorldBackgroundSource& background_source,
+    const world_map::LegacyWorldFrameState& world_frame_state,
+    world_map::LegacyWorldFramePorts& world_frame_ports,
+    const rendering::LegacyPixelConversionState& pixel_format,
+    LegacySpecialModeModeOneFramePorts& ports
+) noexcept {
+    LegacySpecialModeModeOneFrameResult result;
+    const compat::u32 primary_color = ports.compose_color(0x19U, 0x17U, 0x11U);
+    static_cast<void>(ports.compose_color(0x0DU, 0x0DU, 0x09U));
+    static_cast<void>(ports.compose_color(0x18U, 0x0AU, 0x0BU));
+    result.color_compose_count = 3U;
+
+    const auto stop = [&](const LegacySpecialModeModeOneFrameStatus status) {
+        result.status = status;
+        return result;
+    };
+    const auto emit = [&](const LegacySpecialModeModeOneFrameOperation
+                              operation,
+                          const std::array<compat::i32, 8U>& values = {},
+                          const compat::u32 color = 0U,
+                          std::string text = {}) {
+        const std::optional<compat::i32> value = ports.execute(
+            LegacySpecialModeModeOneFrameRequest{
+                .operation = operation,
+                .values = values,
+                .color = color,
+                .text = std::move(text),
+            }
+        );
+        ++result.render_operation_count;
+        if (!value.has_value()) {
+            result.status =
+                LegacySpecialModeModeOneFrameStatus::render_operation_stopped;
+            return false;
+        }
+        result.legacy_return_value = *value;
+        return true;
+    };
+    const auto raw_word = [](const LegacyStandardModeForwardNode& record,
+                             const std::size_t offset) noexcept {
+        return static_cast<compat::u16>(
+            record.record_bytes[offset] |
+            (static_cast<compat::u16>(record.record_bytes[offset + 1U]) << 8U)
+        );
+    };
+    const auto signed_decrement_animation = [](compat::u16& value) noexcept {
+        value = static_cast<compat::u16>(value - 1U);
+        if (std::bit_cast<compat::i16>(value) < 0) {
+            value = 0U;
+            return 0;
+        }
+        return 1;
+    };
+    const auto format_decimal = [](const char* format, const auto... values) {
+        std::array<char, 512U> buffer{};
+        static_cast<void>(
+            std::snprintf(buffer.data(), buffer.size(), format, values...)
+        );
+        return std::string(buffer.data());
+    };
+
+    if ((state.transition_request & 0x80000000U) != 0U) {
+        state.transition_request &= 0x7FFFFFFFU;
+        const LegacySpecialModeRuntimeInitializationResult initialized =
+            initialize_legacy_special_mode_runtime(
+                runtime,
+                story_state,
+                framebuffer,
+                raster,
+                background_source,
+                world_frame_state,
+                world_frame_ports,
+                pixel_format,
+                ports.runtime_initialization_ports()
+            );
+        ++result.helper_call_count;
+        result.runtime_initialized = true;
+        if (initialized.status !=
+            LegacySpecialModeRuntimeInitializationStatus::completed) {
+            return stop(
+                LegacySpecialModeModeOneFrameStatus::
+                    runtime_initialization_stopped
+            );
+        }
+        state.level = 1U;
+        state.packed_mode = 0U;
+        state.total_count = 0;
+        state.window_offset = 0;
+        state.local_cursor = 0;
+        state.visible_count = 0;
+        state.workspace_head = runtime.workspace_record_head;
+        state.visible_head = runtime.workspace_record_head;
+        state.decrease_action_status = 0U;
+        state.increase_action_status = 0U;
+        visual.member_animation_y.fill(0U);
+    }
+    if ((state.transition_request & 0x20000000U) != 0U) {
+        initialize_legacy_special_mode_actions(runtime.actions);
+        ++result.helper_call_count;
+        result.action_set_reinitialized = true;
+        state.transition_request &= 0x0FFFFFFFU;
+    }
+
+    LegacySpecialModeModeOnePointerInputState pointer = input.pointer;
+    pointer.page_retreat_min_y = visual.scrollbar.top;
+    pointer.page_retreat_max_y = visual.scrollbar.first_split;
+    pointer.page_advance_min_y = visual.scrollbar.second_split;
+    pointer.page_advance_max_y = visual.scrollbar.bottom;
+    const LegacySpecialModeModeOnePointerInputResult pointer_result =
+        dispatch_legacy_special_mode_mode_one_pointer_input(
+            pointer,
+            state,
+            maps_payload,
+            runtime,
+            player_record_head,
+            empty_mode_record_ids,
+            fixed_slots,
+            replacement_masks,
+            base_attributes,
+            maximum_weight,
+            input.sample_owner,
+            ports
+        );
+    ++result.helper_call_count;
+    result.pointer_dispatched = true;
+    result.legacy_return_value = pointer_result.legacy_return_value;
+    if (pointer_result.status !=
+        LegacySpecialModeModeOnePointerInputStatus::completed) {
+        return stop(LegacySpecialModeModeOneFrameStatus::pointer_input_stopped);
+    }
+
+    const LegacySpecialModeModeOneAlternateInputResult alternate_result =
+        dispatch_legacy_special_mode_mode_one_alternate_input(
+            input.alternate,
+            state,
+            maps_payload,
+            runtime,
+            player_record_head,
+            empty_mode_record_ids,
+            fixed_slots,
+            replacement_masks,
+            base_attributes,
+            maximum_weight,
+            input.sample_owner,
+            ports
+        );
+    ++result.helper_call_count;
+    result.alternate_dispatched = true;
+    result.legacy_return_value = alternate_result.legacy_return_value;
+    if (alternate_result.status !=
+        LegacySpecialModeModeOneAlternateInputStatus::completed) {
+        return stop(
+            LegacySpecialModeModeOneFrameStatus::alternate_input_stopped
+        );
+    }
+    if (state.transition_request == 0U ||
+        state.transition_request == 0xC0000001U) {
+        return result;
+    }
+
+    const std::optional<std::span<compat::u16>> locked_pixels =
+        ports.lock_render_surface(input.surface_owner);
+    ports.prepare_render_surface(input.surface_owner, locked_pixels);
+    if (!locked_pixels.has_value() ||
+        locked_pixels->size() < kLegacySpecialModeFramePixelCount) {
+        return stop(
+            LegacySpecialModeModeOneFrameStatus::render_surface_stopped
+        );
+    }
+    if (runtime.darkened_frame_pixels.size() <
+        kLegacySpecialModeFramePixelCount) {
+        return stop(
+            LegacySpecialModeModeOneFrameStatus::darkened_frame_stopped
+        );
+    }
+    std::copy_n(
+        runtime.darkened_frame_pixels.begin(),
+        kLegacySpecialModeFramePixelCount,
+        locked_pixels->begin()
+    );
+    result.frame_copied = true;
+
+    if (state.level > 1U) {
+        if (!emit(
+                LegacySpecialModeModeOneFrameOperation::draw_action,
+                {0x100, 0, 0, 0, 0, 0, 0, 0}
+            )) {
+            return result;
+        }
+        constexpr std::array<compat::i32, 4U> kMemberX{
+            0x48, 0xC0, 0x138, 0x1B0
+        };
+        for (std::size_t index = 0U; index < 4U; ++index) {
+            result.legacy_return_value = ports.query_party_member(
+                static_cast<compat::u32>(0x1EU + index)
+            );
+            ++result.helper_call_count;
+            if (result.legacy_return_value != 0 &&
+                !emit(
+                    LegacySpecialModeModeOneFrameOperation::draw_action,
+                    {
+                        static_cast<compat::i32>(index),
+                        kMemberX[index],
+                        static_cast<compat::i32>(
+                            visual.member_animation_y[index]
+                        ) + 0x0C,
+                        1,
+                        0,
+                        0,
+                        0,
+                        0,
+                    }
+                )) {
+                return result;
+            }
+        }
+        if (!emit(
+                LegacySpecialModeModeOneFrameOperation::draw_panel,
+                {0x96, 0x1C0, 0x1E4, 0x1C, 0, 0, 0, 2}
+            ) ||
+            !emit(
+                LegacySpecialModeModeOneFrameOperation::draw_frame,
+                {0x9A,
+                 0x1C4,
+                 0x272,
+                 0x1D8,
+                 0,
+                 std::bit_cast<compat::i32>(0x80000008U),
+                 0,
+                 0},
+                primary_color
+            )) {
+            return result;
+        }
+    }
+
+    if (!emit(
+            LegacySpecialModeModeOneFrameOperation::draw_panel,
+            {0x1A4, 0x0A, 0xC8, 0x1C, 0, 0, 0, 2}
+        ) ||
+        !emit(
+            LegacySpecialModeModeOneFrameOperation::draw_frame,
+            {0x1A8,
+             0x0E,
+             0x268,
+             0x22,
+             0,
+             std::bit_cast<compat::i32>(0x80000008U),
+             0,
+             0},
+            primary_color
+        ) ||
+        !emit(
+            LegacySpecialModeModeOneFrameOperation::draw_cursor,
+            {0x264, 0x12, 0, 0, 0, 0, 0, 0},
+            maximum_weight
+        )) {
+        return result;
+    }
+
+    if (state.level == 1U) {
+        compat::i32 selection_x =
+            (state.packed_mode & 1U) != 0U ? 0x14B : 0x114;
+        if ((state.packed_mode & 3U) == 2U) {
+            selection_x = 0x182;
+        }
+        constexpr std::string_view kIntroduction{
+            "\xAB\xC8\xAD\xBE\x20\xB1\x7A\xAD\x6E\xB6\x52\xAA\x46\xA6\xE8\xC1\xD9\xAC\x4F\xBD\xE6\xAA\x46\xA6\xE8",
+            24U
+        };
+        constexpr std::string_view kChoices{
+            "\xB6\x52\x20\x20\x20\xBD\xE6\x20\x20\x20\xC2\xF7\xB6\x7D", 14U
+        };
+        if (!emit(
+                LegacySpecialModeModeOneFrameOperation::draw_panel,
+                {0xB0, 0x128, 0x1DC, 0x36, 0, 0, 0, 4}
+            ) ||
+            !emit(
+                LegacySpecialModeModeOneFrameOperation::draw_frame,
+                {0xB4,
+                 0x12C,
+                 0x1DC,
+                 0x15A,
+                 0,
+                 std::bit_cast<compat::i32>(0x80000008U),
+                 0,
+                 0},
+                primary_color
+            ) ||
+            !emit(
+                LegacySpecialModeModeOneFrameOperation::draw_text,
+                {0xB4, 0x12C, 4, 0, 0, 0, 0, 0},
+                primary_color,
+                std::string(kIntroduction)
+            ) ||
+            !emit(
+                LegacySpecialModeModeOneFrameOperation::draw_text,
+                {0x118, 0x145, 4, 0, 0, 0, 0, 0},
+                primary_color,
+                std::string(kChoices)
+            ) ||
+            !emit(
+                LegacySpecialModeModeOneFrameOperation::draw_panel,
+                {selection_x, 0x144, 0x30, 0x18, 0x14, 0x0D, 0, 5}
+            )) {
+            return result;
+        }
+    }
+
+    if (state.level >= 2U) {
+        constexpr std::string_view kExecute{"\xB0\xF5\xA6\xE6", 4U};
+        if (!emit(
+                LegacySpecialModeModeOneFrameOperation::draw_panel,
+                {0x1BC, 0x197, 0x28, 0x10, 2, 0, 0, 0}
+            ) ||
+            !emit(
+                LegacySpecialModeModeOneFrameOperation::draw_text,
+                {0x1BE, 0x197, 4, 0, 0, 0, 0, 0},
+                primary_color,
+                std::string(kExecute)
+            )) {
+            return result;
+        }
+        const compat::i32 pointer_x =
+            std::bit_cast<compat::i32>(input.pointer.pointer_x);
+        const compat::i32 pointer_y =
+            std::bit_cast<compat::i32>(input.pointer.pointer_y);
+        if (pointer_x > 0x1B8 && pointer_x < 0x1E0 && pointer_y > 0x193 &&
+            pointer_y < 0x1AF) {
+            const LegacySpecialModeWeightResult hover_weight =
+                calculate_legacy_special_mode_record_weight(
+                    state.workspace_head, state.packed_mode
+                );
+            ++result.helper_call_count;
+            if (hover_weight.status !=
+                LegacySpecialModeWeightStatus::completed) {
+                return stop(
+                    LegacySpecialModeModeOneFrameStatus::record_weight_stopped
+                );
+            }
+            if (hover_weight.total > 0 &&
+                !emit(
+                    LegacySpecialModeModeOneFrameOperation::draw_panel,
+                    {0x1B8, 0x193, 0x30, 0x18, 0x14, 0x0D, 0, 5}
+                )) {
+                return result;
+            }
+        }
+
+        constexpr std::string_view kBuy{"\xC1\xCA\xB6\x52", 4U};
+        constexpr std::string_view kSell{"\xBD\xE6\xA5\x58", 4U};
+        const std::string_view heading =
+            (state.packed_mode & 1U) != 0U ? kSell : kBuy;
+        if (!emit(
+                LegacySpecialModeModeOneFrameOperation::draw_panel,
+                {0x96, 0x0A, 0xE2, 0x54, 0, 0, 0, 2}
+            ) ||
+            !emit(
+                LegacySpecialModeModeOneFrameOperation::draw_frame,
+                {0x9A,
+                 0x0E,
+                 0xE2,
+                 0x22,
+                 0,
+                 std::bit_cast<compat::i32>(0x80000008U),
+                 0,
+                 0},
+                primary_color
+            ) ||
+            !emit(
+                LegacySpecialModeModeOneFrameOperation::draw_text,
+                {0xA6, 0x0E, 4, 0, 0, 0, 0, 0},
+                primary_color,
+                std::string(heading)
+            ) ||
+            !emit(
+                LegacySpecialModeModeOneFrameOperation::draw_panel,
+                {0x96, 0x32, 0x1E6, 0x159, 0, 0, 0, 2}
+            ) ||
+            !emit(
+                LegacySpecialModeModeOneFrameOperation::draw_frame,
+                {0x9A,
+                 0x36,
+                 0x1E6,
+                 0x183,
+                 0,
+                 std::bit_cast<compat::i32>(0x80000008U),
+                 0,
+                 0},
+                primary_color
+            ) ||
+            !emit(
+                LegacySpecialModeModeOneFrameOperation::fill_rectangle,
+                {0, 0, 0x180, 0x1E0, 0, 0, 0, 0}
+            ) ||
+            !emit(
+                LegacySpecialModeModeOneFrameOperation::draw_action,
+                {0x101, 0, 0x92, 0x28, 0, 0, 0, 0}
+            ) ||
+            !emit(
+                LegacySpecialModeModeOneFrameOperation::fill_rectangle,
+                {0x1A0, 0, 0x280, 0x1E0, 0, 0, 0, 0}
+            ) ||
+            !emit(
+                LegacySpecialModeModeOneFrameOperation::draw_action,
+                {0x101, 0x1A0, 0xB4, 0x28, 0, 0, 0, 0}
+            ) ||
+            !emit(
+                LegacySpecialModeModeOneFrameOperation::fill_rectangle,
+                {0, 0, 0x280, 0x1E0, 0, 0, 0, 0}
+            )) {
+            return result;
+        }
+
+        const LegacyStandardModeForwardNode* record = state.visible_head;
+        compat::i32 row = 0;
+        compat::i32 y = 0x40;
+        while (record != nullptr && y < 0x185) {
+            const bool selected = row == state.local_cursor;
+            if (selected) {
+                if (record->text_index != 0xFFDCU) {
+                    const LegacySpecialModeAttributeDeltaRenderResult deltas =
+                        render_legacy_special_mode_attribute_deltas(
+                            state.member_deltas, ports
+                        );
+                    ++result.helper_call_count;
+                    result.legacy_return_value = deltas.legacy_return_value;
+
+                    const compat::u16 icon_id = raw_word(*record, 0x50U);
+                    if (icon_id != 0U) {
+                        visual.selected_icon_action.action_id = icon_id;
+                        visual.selected_icon_action.base_variant = 0x44U;
+                        visual.selected_icon_action.variant_delta = 0U;
+                        if (!emit(
+                                LegacySpecialModeModeOneFrameOperation::
+                                    draw_action,
+                                {0x102, 0x1FE, 0x5A, icon_id, 0, 0, 0, 0}
+                            )) {
+                            return result;
+                        }
+                    }
+                    if (!emit(
+                            LegacySpecialModeModeOneFrameOperation::
+                                draw_record_panel,
+                            {0x96, 0x1C2, 0x1E6, 0x1DE, 0, 0, 0, 0}
+                        ) ||
+                        !emit(
+                            LegacySpecialModeModeOneFrameOperation::draw_text,
+                            {0x9A, 0x1C5, 4, 0, 0, 0, 0, 0},
+                            primary_color,
+                            record->display_name
+                        ) ||
+                        !emit(
+                            LegacySpecialModeModeOneFrameOperation::
+                                draw_record_panel,
+                            {0, 0, 0x280, 0x1E0, 0, 0, 0, 0}
+                        )) {
+                        return result;
+                    }
+                }
+
+                for (std::size_t member = 0U; member < 4U; ++member) {
+                    runtime.actions.records[member].base_variant = 0x0DU;
+                    compat::u16 advanced = static_cast<compat::u16>(
+                        visual.member_animation_y[member] + 1U
+                    );
+                    if (std::bit_cast<compat::i16>(advanced) > 0x10) {
+                        advanced = 0x10U;
+                    }
+                    visual.member_animation_y[member] = advanced;
+                }
+                if ((record->record_bytes[0x21U] & 7U) != 0U) {
+                    const compat::u8 flags = record->record_bytes[0x3BU];
+                    constexpr std::array<compat::u8, 4U> kMasks{
+                        0x80U, 0x40U, 0x20U, 0x10U
+                    };
+                    for (std::size_t member = 0U; member < 4U; ++member) {
+                        if ((flags & kMasks[member]) == 0U) {
+                            compat::u16 reduced = static_cast<compat::u16>(
+                                visual.member_animation_y[member] - 2U
+                            );
+                            if (std::bit_cast<compat::i16>(reduced) < 8) {
+                                reduced = 8U;
+                            }
+                            visual.member_animation_y[member] = reduced;
+                            runtime.actions.records[member].base_variant =
+                                member == 0U ? 0x39U : 5U;
+                        }
+                    }
+                }
+            }
+
+            const LegacySpecialModeEquipmentContributionResult contribution =
+                calculate_legacy_special_mode_equipment_contribution(
+                    player_record_head,
+                    fixed_slots,
+                    state.packed_mode,
+                    record->text_index,
+                    ports
+                );
+            ++result.helper_call_count;
+            if (contribution.status !=
+                LegacySpecialModeEquipmentContributionStatus::completed) {
+                return stop(
+                    LegacySpecialModeModeOneFrameStatus::
+                        equipment_contribution_stopped
+                );
+            }
+            const compat::u32 factor =
+                (state.packed_mode & 1U) != 0U ? 60U : 100U;
+            compat::u32 price_bits =
+                static_cast<compat::u32>(raw_word(*record, 0x52U)) * factor;
+            const compat::i32 price =
+                std::bit_cast<compat::i32>(price_bits) / 100;
+            const std::string name =
+                format_decimal("%-14s", record->display_name.c_str());
+            if (!emit(
+                    LegacySpecialModeModeOneFrameOperation::draw_text,
+                    {0x9E, y - 4, 4, 0, 0, 0, 0, 0},
+                    primary_color,
+                    name
+                ) ||
+                !emit(
+                    LegacySpecialModeModeOneFrameOperation::draw_text,
+                    {0x142, y, 4, 0, 0, 0, 0, 0},
+                    primary_color,
+                    format_decimal("%6d", price)
+                ) ||
+                !emit(
+                    LegacySpecialModeModeOneFrameOperation::draw_text,
+                    {0x1A0, y, 4, 0, 0, 0, 0, 0},
+                    primary_color,
+                    format_decimal("%3d", record->combined_value)
+                ) ||
+                !emit(
+                    LegacySpecialModeModeOneFrameOperation::draw_text,
+                    {0x1C2, y, 4, 0, 0, 0, 0, 0},
+                    primary_color,
+                    format_decimal("%3d", contribution.total)
+                )) {
+                return result;
+            }
+
+            visual.adjustment_actions[0U].action_id = 0x232AU;
+            visual.adjustment_actions[0U].base_variant = 0x1CU;
+            visual.adjustment_actions[0U].variant_delta = 0U;
+            visual.adjustment_actions[1U].action_id = 0x232AU;
+            visual.adjustment_actions[1U].base_variant = 0x1DU;
+            visual.adjustment_actions[1U].variant_delta = 0U;
+            const compat::i32 decrease_phase = selected
+                ? signed_decrement_animation(state.decrease_action_status)
+                : 0;
+            const compat::i32 increase_phase = selected
+                ? signed_decrement_animation(state.increase_action_status)
+                : 0;
+            if (!emit(
+                    LegacySpecialModeModeOneFrameOperation::draw_action,
+                    {0x103,
+                     0x194 + decrease_phase,
+                     y + decrease_phase - 2,
+                     0,
+                     0,
+                     0,
+                     0,
+                     0}
+                ) ||
+                !emit(
+                    LegacySpecialModeModeOneFrameOperation::draw_action,
+                    {0x104,
+                     0x184 + increase_phase,
+                     y + increase_phase - 2,
+                     0,
+                     0,
+                     0,
+                     0,
+                     0}
+                )) {
+                return result;
+            }
+            if (selected && record->text_index != 0xFFDCU &&
+                !emit(
+                    LegacySpecialModeModeOneFrameOperation::draw_panel,
+                    {0x96, y - 6, 0x154, 0x18, 0x14, 0x0D, 0, 5}
+                )) {
+                return result;
+            }
+            ++result.rendered_record_count;
+            record = record->next;
+            ++row;
+            y += 0x19;
+        }
+
+        if (!emit(
+                LegacySpecialModeModeOneFrameOperation::draw_panel,
+                {0x96, 0x193, 0x1AA, 0x1C, 0, 0, 0, 2}
+            ) ||
+            !emit(
+                LegacySpecialModeModeOneFrameOperation::draw_frame,
+                {0x9A,
+                 0x197,
+                 0x1AA,
+                 0x1A7,
+                 0,
+                 std::bit_cast<compat::i32>(0x80000008U),
+                 0,
+                 0},
+                primary_color
+            )) {
+            return result;
+        }
+        const LegacySpecialModeWeightResult weight =
+            calculate_legacy_special_mode_record_weight(
+                state.workspace_head, state.packed_mode
+            );
+        ++result.helper_call_count;
+        if (weight.status != LegacySpecialModeWeightStatus::completed) {
+            return stop(
+                LegacySpecialModeModeOneFrameStatus::record_weight_stopped
+            );
+        }
+        const compat::i32 signed_weight =
+            (state.packed_mode & 3U) == 1U ? -weight.total : weight.total;
+        if (!emit(
+                LegacySpecialModeModeOneFrameOperation::draw_text,
+                {0x9C, 0x197, 4, 0, 0, 0, 0, 0},
+                primary_color,
+                format_decimal(
+                    "\xC1\x60\xBB\xF9\x20%d\x20\xBE\x6C\xC3\x42\x20%d",
+                    weight.total,
+                    std::bit_cast<compat::i32>(
+                        maximum_weight - static_cast<compat::u32>(signed_weight)
+                    )
+                )
+            )) {
+            return result;
+        }
+        if (state.total_count > 13) {
+            compat::u32 overlay_flags = 0U;
+            compat::u32 updated = state.frame_flags;
+            if ((updated & 0x0FU) != 0U) {
+                updated = (updated & 0xFFFFFFF0U) | ((updated & 0x0FU) - 1U);
+                overlay_flags = 1U;
+            }
+            if ((updated & 0xF0U) != 0U) {
+                const compat::u32 high = ((updated >> 4U) & 0x0FU) - 1U;
+                updated = (updated & 0xFFFFFF0FU) | (high << 4U);
+                overlay_flags |= 2U;
+            }
+            state.frame_flags =
+                (state.frame_flags & 0xFFFF0000U) | (updated & 0x0000FFFFU);
+            const float first_ratio = static_cast<float>(state.local_cursor) /
+                static_cast<float>(state.total_count);
+            const compat::i32 absolute_index = std::bit_cast<compat::i32>(
+                std::bit_cast<compat::u32>(state.window_offset) +
+                std::bit_cast<compat::u32>(state.local_cursor)
+            );
+            const float second_ratio = static_cast<float>(absolute_index) /
+                static_cast<float>(state.total_count);
+            const LegacyStandardModeBarResult bar =
+                render_legacy_standard_mode_bar(
+                    LegacyStandardModeBarRequest{
+                        .x = 0x1EE,
+                        .y = 0x42,
+                        .height = 0x134,
+                        .overlay_flags = static_cast<compat::u8>(overlay_flags),
+                        .first_ratio = first_ratio,
+                        .second_ratio = second_ratio,
+                    },
+                    visual.scrollbar,
+                    visual.scrollbar_actions,
+                    ports.scrollbar_ports()
+                );
+            ++result.helper_call_count;
+            if (bar.stopped_after_frame_failure ||
+                bar.stopped_after_zero_height) {
+                return stop(
+                    LegacySpecialModeModeOneFrameStatus::scrollbar_stopped
+                );
+            }
+        }
+    }
+
+    if (state.level == 3U) {
+        const LegacySpecialModeWeightResult weight =
+            calculate_legacy_special_mode_record_weight(
+                state.workspace_head, state.packed_mode
+            );
+        ++result.helper_call_count;
+        if (weight.status != LegacySpecialModeWeightStatus::completed) {
+            return stop(
+                LegacySpecialModeModeOneFrameStatus::record_weight_stopped
+            );
+        }
+        const bool selling = (state.packed_mode & 1U) != 0U;
+        const std::string prompt = selling
+            ? format_decimal(
+                  "\xC1\x60\xA6\x40\xAC\x4F\x20%d\x20\xBB\xC8\xB9\xF4\x20\xAD\x6E\xBD\xE6\xB6\xDC\x3F",
+                  weight.total
+              )
+            : format_decimal(
+                  "\xC1\x60\xA6\x40\xAC\x4F\x20%d\x20\xBB\xC8\xB9\xF4\x20\xAD\x6E\xB6\x52\xB6\xDC\x3F",
+                  weight.total
+              );
+        const compat::i32 width =
+            static_cast<compat::i32>(prompt.size() * 11U + 0x18U);
+        const compat::i32 selection_x =
+            (state.packed_mode & 4U) != 0U ? 0x196 : 0x154;
+        constexpr std::string_view kConfirmAbandon{
+            "\xBD\x54\xA9\x77\x20\x20\xA9\xF1\xB1\xF3", 10U
+        };
+        if (!emit(
+                LegacySpecialModeModeOneFrameOperation::draw_panel,
+                {0xEC, 0x182, width, 0x44, -16, -16, -16, 4}
+            ) ||
+            !emit(
+                LegacySpecialModeModeOneFrameOperation::draw_frame,
+                {0xF0,
+                 0x186,
+                 width - 8,
+                 0x1C2,
+                 0,
+                 std::bit_cast<compat::i32>(0x80000008U),
+                 0,
+                 0},
+                primary_color
+            ) ||
+            !emit(
+                LegacySpecialModeModeOneFrameOperation::draw_text,
+                {0xFA, 0x190, 4, 0, 0, 0, 0, 0},
+                primary_color,
+                prompt
+            ) ||
+            !emit(
+                LegacySpecialModeModeOneFrameOperation::draw_text,
+                {0x15E, 0x1A9, 4, 0, 0, 0, 0, 0},
+                primary_color,
+                std::string(kConfirmAbandon)
+            ) ||
+            !emit(
+                LegacySpecialModeModeOneFrameOperation::draw_panel,
+                {selection_x, 0x1A7, 0x42, 0x18, 0x14, 0x0D, 0, 5}
+            )) {
+            return result;
+        }
+    }
+
+    if (state.level == 4U) {
+        constexpr std::string_view kEquipPrompt{
+            "\xAD\x6E\xB0\xA8\xA4\x57\xB8\xCB\xB3\xC6\xB6\xDC\x3F", 13U
+        };
+        constexpr std::string_view kConfirmAbandon{
+            "\x20\xBD\x54\xA9\x77\x20\x20\xA9\xF1\xB1\xF3\x20", 12U
+        };
+        const compat::i32 selection_x =
+            (state.packed_mode & 8U) != 0U ? 0x13C : 0xFA;
+        if (!emit(
+                LegacySpecialModeModeOneFrameOperation::draw_panel,
+                {0xEC, 0x182, 0xAE, 0x44, -16, -16, -16, 4}
+            ) ||
+            !emit(
+                LegacySpecialModeModeOneFrameOperation::draw_frame,
+                {0xF0,
+                 0x186,
+                 0x196,
+                 0x1C2,
+                 0,
+                 std::bit_cast<compat::i32>(0x80000008U),
+                 0,
+                 0},
+                primary_color
+            ) ||
+            !emit(
+                LegacySpecialModeModeOneFrameOperation::draw_text,
+                {0xFA, 0x186, 4, 0, 0, 0, 0, 0},
+                primary_color,
+                std::string(kEquipPrompt)
+            ) ||
+            !emit(
+                LegacySpecialModeModeOneFrameOperation::draw_text,
+                {0xFA, 0x1A9, 4, 0, 0, 0, 0, 0},
+                primary_color,
+                std::string(kConfirmAbandon)
+            ) ||
+            !emit(
+                LegacySpecialModeModeOneFrameOperation::draw_panel,
+                {selection_x, 0x1A7, 0x42, 0x18, 0x14, 0x0D, 0, 5}
+            )) {
+            return result;
+        }
+    }
+
+    if (state.level == 10U) {
+        constexpr std::string_view kInsufficientFunds{
+            "\xBF\xFA\xB1\x61\xA6\x68\xA4\x40\xC2\x49\xA6\x41\xA8\xD3\xA7\x61",
+            16U
+        };
+        if (!emit(
+                LegacySpecialModeModeOneFrameOperation::draw_panel,
+                {0xEC, 0x182, 0xAE, 0x26, -16, -16, -16, 4}
+            ) ||
+            !emit(
+                LegacySpecialModeModeOneFrameOperation::draw_frame,
+                {0xF0,
+                 0x186,
+                 0x1AE,
+                 0x1A4,
+                 0,
+                 std::bit_cast<compat::i32>(0x80000008U),
+                 0,
+                 0},
+                primary_color
+            ) ||
+            !emit(
+                LegacySpecialModeModeOneFrameOperation::draw_text,
+                {0xFA, 0x18A, 4, 0, 0, 0, 0, 0},
+                primary_color,
+                std::string(kInsufficientFunds)
+            )) {
+            return result;
+        }
+    }
+
+    visual.mouse_frame_index = 0x0DU;
+    if (!emit(
+            LegacySpecialModeModeOneFrameOperation::draw_software_cursor,
+            {0x0D, 0, 0, 0, 0, 0, 0, 0}
+        ) ||
+        !emit(
+            LegacySpecialModeModeOneFrameOperation::present,
+            {0x2711,
+             std::bit_cast<compat::i32>(input.surface_owner),
+             0,
+             0,
+             0,
+             0,
+             0,
+             0}
+        )) {
+        return result;
+    }
+    result.presented = true;
+    return result;
+}
+
 static LegacyGuardianAttributeTarget load_guardian_attribute_target(
     const std::span<const compat::u8> bytes
 ) noexcept {

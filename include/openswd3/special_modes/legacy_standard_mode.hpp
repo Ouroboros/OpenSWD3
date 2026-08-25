@@ -3303,6 +3303,118 @@ dispatch_legacy_special_mode_mode_one_pointer_input(
     LegacySpecialModeModeOneConfirmPorts& ports
 ) noexcept;
 
+enum class LegacySpecialModeModeOneFrameOperation : compat::u8 {
+    draw_action,
+    draw_panel,
+    draw_frame,
+    draw_text,
+    fill_rectangle,
+    draw_record_panel,
+    draw_cursor,
+    draw_software_cursor,
+    present,
+};
+
+struct LegacySpecialModeModeOneFrameRequest {
+    LegacySpecialModeModeOneFrameOperation operation{
+        LegacySpecialModeModeOneFrameOperation::draw_action
+    };
+    std::array<compat::i32, 8U> values{};
+    compat::u32 color{};
+    std::string text;
+};
+
+struct LegacySpecialModeModeOneFrameInput {
+    LegacySpecialModeModeOnePointerInputState pointer{};
+    LegacySpecialModeModeOneAlternateInputState alternate{};
+    compat::u32 surface_owner{};
+    compat::u32 sample_owner{};
+};
+
+struct LegacySpecialModeModeOneFrameVisualState {
+    std::array<compat::u16, 4U> member_animation_y{};
+    LegacyStandardModeBarOutputs scrollbar{};
+    std::array<asset_runtime::LegacyActionRecord, 2U> adjustment_actions{};
+    std::array<
+        asset_runtime::LegacyActionRecord,
+        kLegacyStandardSpecialModeInitializationRecordCount>
+        scrollbar_actions{};
+    asset_runtime::LegacyActionRecord selected_icon_action{};
+    compat::u32 mouse_frame_index{};
+};
+
+class LegacySpecialModeModeOneFramePorts
+    : public virtual LegacySpecialModeModeOneConfirmPorts,
+      public virtual LegacySpecialModeAttributeDeltaRenderPorts {
+public:
+    ~LegacySpecialModeModeOneFramePorts() override = default;
+    [[nodiscard]] virtual LegacySpecialModeRuntimeInitializationPorts&
+    runtime_initialization_ports() noexcept = 0;
+    [[nodiscard]] virtual LegacyStandardModeBarPorts&
+    scrollbar_ports() noexcept = 0;
+    [[nodiscard]] virtual std::optional<std::span<compat::u16>>
+    lock_render_surface(compat::u32 owner) noexcept = 0;
+    virtual void prepare_render_surface(
+        compat::u32 owner, std::optional<std::span<compat::u16>> locked_pixels
+    ) noexcept = 0;
+    [[nodiscard]] virtual std::optional<compat::i32>
+    execute(const LegacySpecialModeModeOneFrameRequest& request) noexcept = 0;
+};
+
+enum class LegacySpecialModeModeOneFrameStatus : compat::u8 {
+    completed,
+    runtime_initialization_stopped,
+    pointer_input_stopped,
+    alternate_input_stopped,
+    render_surface_stopped,
+    darkened_frame_stopped,
+    render_operation_stopped,
+    workspace_cycle_stopped,
+    equipment_contribution_stopped,
+    record_weight_stopped,
+    scrollbar_stopped,
+};
+
+struct LegacySpecialModeModeOneFrameResult {
+    LegacySpecialModeModeOneFrameStatus status{
+        LegacySpecialModeModeOneFrameStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 color_compose_count{};
+    compat::u32 helper_call_count{};
+    compat::u32 render_operation_count{};
+    compat::u32 rendered_record_count{};
+    bool runtime_initialized{};
+    bool action_set_reinitialized{};
+    bool pointer_dispatched{};
+    bool alternate_dispatched{};
+    bool frame_copied{};
+    bool presented{};
+};
+
+[[nodiscard]] LegacySpecialModeModeOneFrameResult
+render_legacy_special_mode_mode_one_frame(
+    const LegacySpecialModeModeOneFrameInput& input,
+    LegacySpecialModeModeOneAdvanceState& state,
+    LegacySpecialModeModeOneFrameVisualState& visual,
+    std::span<const compat::u8> maps_payload,
+    LegacySpecialModeRuntimeInitializationState& runtime,
+    LegacyStandardModeForwardNode*& player_record_head,
+    std::span<const compat::u16> empty_mode_record_ids,
+    std::span<LegacyStandardModeForwardNode* const> fixed_slots,
+    std::span<const compat::u32> replacement_masks,
+    const std::array<LegacyGuardianAttributeTarget, 4U>& base_attributes,
+    compat::u32& maximum_weight,
+    world_map::LegacyWorldStoryVmState& story_state,
+    rendering::LegacyFramebuffer& framebuffer,
+    rendering::LegacyRasterGeometryState& raster,
+    const world_map::LegacyWorldBackgroundSource& background_source,
+    const world_map::LegacyWorldFrameState& world_frame_state,
+    world_map::LegacyWorldFramePorts& world_frame_ports,
+    const rendering::LegacyPixelConversionState& pixel_format,
+    LegacySpecialModeModeOneFramePorts& ports
+) noexcept;
+
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
     completed,
     mode_mask_out_of_range,
