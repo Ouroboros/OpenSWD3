@@ -594,6 +594,57 @@ public:
         }
         return input_status_return;
     }
+    i32 query_system_menu_runtime_value(
+        const u32 service_id,
+        openswd3::special_modes::LegacySystemMenuState& state
+    ) noexcept override {
+        runtime_query_ids.push_back(service_id);
+        if (mutate_runtime_query_state) {
+            state.text_speed_index = text_speed_after_runtime_query;
+        }
+        return runtime_query_return;
+    }
+    i32 find_system_menu_pressed_key(
+        openswd3::special_modes::LegacySystemMenuState& state
+    ) noexcept override {
+        ++pressed_key_query_count;
+        if (mutate_pressed_key_state) {
+            state.pending_key_code = pending_key_after_query;
+        }
+        return pressed_key_return;
+    }
+    i32 read_system_menu_raw_key(
+        const u32 key_code, openswd3::special_modes::LegacySystemMenuState&
+    ) noexcept override {
+        raw_key_codes.push_back(key_code);
+        return raw_key_return;
+    }
+    bool copy_system_menu_text_prefix(
+        const u32 owner,
+        const u32 byte_offset,
+        const openswd3::special_modes::LegacySystemMenuText text,
+        const u32 byte_count,
+        openswd3::special_modes::LegacySystemMenuState&
+    ) noexcept override {
+        text_prefix_copies.push_back(
+            {owner, byte_offset, static_cast<u32>(text), byte_count}
+        );
+        return text_prefix_available;
+    }
+    i32 execute_system_menu_frame_command(
+        const openswd3::special_modes::LegacySystemMenuFrameCommand& command,
+        openswd3::special_modes::LegacySystemMenuState& state
+    ) noexcept override {
+        frame_commands.push_back(command);
+        if (mutate_frame_state && frame_commands.size() == mutate_frame_call) {
+            state.interaction_mode = mode_after_frame_call;
+            state.interaction_page = page_after_frame_call;
+        }
+        if (frame_commands.size() <= frame_command_returns.size()) {
+            return frame_command_returns[frame_commands.size() - 1U];
+        }
+        return frame_return_base + static_cast<i32>(frame_commands.size());
+    }
     i32 execute_system_menu_input_command(
         const openswd3::special_modes::LegacySystemMenuInputCommand command,
         const u32 argument,
@@ -655,6 +706,26 @@ public:
     u32 mutated_interaction_page{};
     u32 mutated_input_flags{};
     i32 input_status_return{};
+    std::vector<u32> runtime_query_ids;
+    i32 runtime_query_return{};
+    bool mutate_runtime_query_state{};
+    u32 text_speed_after_runtime_query{};
+    u32 pressed_key_query_count{};
+    i32 pressed_key_return{};
+    bool mutate_pressed_key_state{};
+    u32 pending_key_after_query{};
+    std::vector<u32> raw_key_codes;
+    i32 raw_key_return{};
+    std::vector<std::array<u32, 4U>> text_prefix_copies;
+    bool text_prefix_available{true};
+    std::vector<openswd3::special_modes::LegacySystemMenuFrameCommand>
+        frame_commands;
+    std::vector<i32> frame_command_returns;
+    i32 frame_return_base{2000};
+    bool mutate_frame_state{};
+    std::size_t mutate_frame_call{};
+    u32 mode_after_frame_call{};
+    u32 page_after_frame_call{};
     std::vector<
         std::pair<openswd3::special_modes::LegacySystemMenuInputCommand, u32>>
         input_commands;
@@ -15751,6 +15822,642 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44BA20 wraps the first fixed item to eighteen before playing the sample"
     );
 
+    using SystemMenuFrameCommandType =
+        openswd3::special_modes::LegacySystemMenuFrameCommandType;
+    using SystemMenuFrameStatus =
+        openswd3::special_modes::LegacySystemMenuFrameStatus;
+    using SystemMenuText = openswd3::special_modes::LegacySystemMenuText;
+    const auto count_frame_commands = [](const FakeSystemMenuPorts& ports,
+                                         const SystemMenuFrameCommandType type,
+                                         const SystemMenuText text) {
+        return static_cast<u32>(std::count_if(
+            ports.frame_commands.begin(),
+            ports.frame_commands.end(),
+            [type, text](const auto& command) {
+                return command.type == type && command.text == text;
+            }
+        ));
+    };
+
+    openswd3::special_modes::LegacySystemMenuState
+        system_menu_frame_notice_state;
+    system_menu_frame_notice_state.interaction_mode = 10U;
+    system_menu_frame_notice_state.interaction_page = 3U;
+    system_menu_frame_notice_state.primary_font = 0x11U;
+    system_menu_frame_notice_state.secondary_font = 0x22U;
+    system_menu_frame_notice_state.render_surface = 0x33445566U;
+    system_menu_frame_notice_state.frame_effect_low = 0x7788U;
+    FakeSystemMenuPorts system_menu_frame_notice_ports;
+    const auto system_menu_frame_notice =
+        openswd3::special_modes::update_legacy_system_menu_frame(
+            system_menu_frame_notice_state, system_menu_frame_notice_ports
+        );
+    test.expect_true(
+        system_menu_frame_notice.status == SystemMenuFrameStatus::completed &&
+            system_menu_frame_notice.command_count == 15U &&
+            count_frame_commands(
+                system_menu_frame_notice_ports,
+                SystemMenuFrameCommandType::draw_text,
+                SystemMenuText::settings
+            ) == 1U &&
+            system_menu_frame_notice_ports.frame_commands[3U].arguments[0U] ==
+                0x7788 &&
+            system_menu_frame_notice_ports.frame_commands[3U].arguments[1U] ==
+                0xD8 &&
+            std::bit_cast<u32>(
+                system_menu_frame_notice_ports.frame_commands[3U].arguments[6U]
+            ) == 0x80000008U &&
+            system_menu_frame_notice_ports.frame_commands[13U].type ==
+                SystemMenuFrameCommandType::draw_panel &&
+            system_menu_frame_notice_ports.frame_commands[14U].text ==
+                SystemMenuText::cannot_save,
+        "0x44C160 draws the five original top-level labels and the cannot-save notice"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState
+        system_menu_frame_mode_reread_state;
+    system_menu_frame_mode_reread_state.interaction_mode = 1U;
+    system_menu_frame_mode_reread_state.interaction_page = 0U;
+    system_menu_frame_mode_reread_state.edited_key_bindings.fill(1U);
+    FakeSystemMenuPorts system_menu_frame_mode_reread_ports;
+    system_menu_frame_mode_reread_ports.mutate_frame_state = true;
+    system_menu_frame_mode_reread_ports.mutate_frame_call = 13U;
+    system_menu_frame_mode_reread_ports.mode_after_frame_call = 5U;
+    system_menu_frame_mode_reread_ports.page_after_frame_call = 0U;
+    static_cast<void>(openswd3::special_modes::update_legacy_system_menu_frame(
+        system_menu_frame_mode_reread_state, system_menu_frame_mode_reread_ports
+    ));
+    test.expect_true(
+        system_menu_frame_mode_reread_state.interaction_mode == 5U &&
+            count_frame_commands(
+                system_menu_frame_mode_reread_ports,
+                SystemMenuFrameCommandType::draw_text,
+                SystemMenuText::key_name
+            ) == 16U,
+        "0x44C160 rereads the interaction mode after top-label callbacks and continues into key settings in the same frame"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState
+        system_menu_frame_record_state;
+    system_menu_frame_record_state.interaction_mode = 1U;
+    system_menu_frame_record_state.interaction_page = 2U;
+    system_menu_frame_record_state.entry_count = 6U;
+    system_menu_frame_record_state.list_owner = 0x1234U;
+    system_menu_frame_record_state.system_menu_page_start = 2U;
+    system_menu_frame_record_state.system_menu_visible_count = 2U;
+    system_menu_frame_record_state.system_menu_cursor_flags = 0x21U;
+    FakeSystemMenuPorts system_menu_frame_record_ports;
+    const auto system_menu_frame_record =
+        openswd3::special_modes::update_legacy_system_menu_frame(
+            system_menu_frame_record_state, system_menu_frame_record_ports
+        );
+    const auto record_scrollbar = std::find_if(
+        system_menu_frame_record_ports.frame_commands.begin(),
+        system_menu_frame_record_ports.frame_commands.end(),
+        [](const auto& command) {
+            return command.type ==
+                SystemMenuFrameCommandType::draw_record_scrollbar;
+        }
+    );
+    const auto first_record = std::find_if(
+        system_menu_frame_record_ports.frame_commands.begin(),
+        system_menu_frame_record_ports.frame_commands.end(),
+        [](const auto& command) {
+            return command.type ==
+                SystemMenuFrameCommandType::draw_record_entry;
+        }
+    );
+    test.expect_true(
+        system_menu_frame_record.status == SystemMenuFrameStatus::completed &&
+            system_menu_frame_record_state.system_menu_cursor_flags == 0x10U &&
+            record_scrollbar !=
+                system_menu_frame_record_ports.frame_commands.end() &&
+            record_scrollbar->arguments[3U] == 3 &&
+            record_scrollbar->fractions[0U] ==
+                static_cast<double>(static_cast<float>(2.0 / 6.0)) &&
+            record_scrollbar->fractions[1U] ==
+                static_cast<double>(static_cast<float>(4.0 / 6.0)) &&
+            count_frame_commands(
+                system_menu_frame_record_ports,
+                SystemMenuFrameCommandType::draw_record_entry,
+                SystemMenuText::record
+            ) == 2U &&
+            first_record->arguments[0U] == 2 &&
+            first_record->arguments[1U] == 0xF0 &&
+            first_record->arguments[2U] == 0x84 &&
+            system_menu_frame_record.legacy_return_value == 1,
+        "0x44C160 draws the Record scrollbar after consuming both cursor nibbles and then draws visible entries"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState
+        system_menu_frame_settings_state;
+    system_menu_frame_settings_state.interaction_mode = 1U;
+    system_menu_frame_settings_state.interaction_page = 3U;
+    system_menu_frame_settings_state.sound_effect_index = 2U;
+    system_menu_frame_settings_state.music_index = 3U;
+    system_menu_frame_settings_state.replacement_spacing = 0x64U;
+    system_menu_frame_settings_state.text_speed_index = 2U;
+    system_menu_frame_settings_state.battle_speed_index = 4U;
+    system_menu_frame_settings_state.description_owner = 0x8899U;
+    system_menu_frame_settings_state.description_reveal_length = 2U;
+    system_menu_frame_settings_state.description_reveal_countdown = 1U;
+    system_menu_frame_settings_state.description_reveal_interval = 3U;
+    system_menu_frame_settings_state.selected_row = 4U;
+    FakeSystemMenuPorts system_menu_frame_settings_ports;
+    system_menu_frame_settings_ports.runtime_query_return = 1;
+    const auto system_menu_frame_settings =
+        openswd3::special_modes::update_legacy_system_menu_frame(
+            system_menu_frame_settings_state, system_menu_frame_settings_ports
+        );
+    test.expect_true(
+        system_menu_frame_settings.status == SystemMenuFrameStatus::completed &&
+            system_menu_frame_settings.runtime_query_count == 3U &&
+            system_menu_frame_settings_ports.runtime_query_ids ==
+                std::vector<u32>{0x48U, 0x48U, 0x48U} &&
+            system_menu_frame_settings_ports.text_prefix_copies ==
+                std::vector<std::array<u32, 4U>>{
+                    {0x8899U,
+                     2U,
+                     static_cast<u32>(SystemMenuText::game_title),
+                     4U}
+                } &&
+            system_menu_frame_settings_state.description_reveal_length == 3U &&
+            system_menu_frame_settings_state.description_reveal_countdown ==
+                7U &&
+            count_frame_commands(
+                system_menu_frame_settings_ports,
+                SystemMenuFrameCommandType::draw_setting_action,
+                SystemMenuText::sound_effect
+            ) == 12U &&
+            count_frame_commands(
+                system_menu_frame_settings_ports,
+                SystemMenuFrameCommandType::draw_setting_action,
+                SystemMenuText::music
+            ) == 12U &&
+            count_frame_commands(
+                system_menu_frame_settings_ports,
+                SystemMenuFrameCommandType::draw_setting_action,
+                SystemMenuText::battle_speed
+            ) == 12U &&
+            count_frame_commands(
+                system_menu_frame_settings_ports,
+                SystemMenuFrameCommandType::draw_text,
+                SystemMenuText::medium
+            ) == 1U,
+        "0x44C160 draws all six settings, queries map effects three times, and advances the title prefix in two-byte units"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState
+        system_menu_frame_signed_setting_state;
+    system_menu_frame_signed_setting_state.interaction_mode = 1U;
+    system_menu_frame_signed_setting_state.interaction_page = 3U;
+    system_menu_frame_signed_setting_state.sound_effect_index = 0xFFFFFFFFU;
+    FakeSystemMenuPorts system_menu_frame_signed_setting_ports;
+    static_cast<void>(openswd3::special_modes::update_legacy_system_menu_frame(
+        system_menu_frame_signed_setting_state,
+        system_menu_frame_signed_setting_ports
+    ));
+    u32 signed_sound_variant_count{};
+    for (const auto& command :
+         system_menu_frame_signed_setting_ports.frame_commands) {
+        if (command.type == SystemMenuFrameCommandType::draw_setting_action &&
+            command.text == SystemMenuText::sound_effect &&
+            command.arguments[3U] == 0x22) {
+            ++signed_sound_variant_count;
+        }
+    }
+    test.expect_true(
+        signed_sound_variant_count == 12U,
+        "0x44C160 compares every sound-effect marker against the signed current index"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState
+        system_menu_frame_copy_stop_state;
+    system_menu_frame_copy_stop_state.interaction_mode = 1U;
+    system_menu_frame_copy_stop_state.interaction_page = 3U;
+    system_menu_frame_copy_stop_state.description_reveal_length = 1U;
+    system_menu_frame_copy_stop_state.description_reveal_countdown = 2U;
+    FakeSystemMenuPorts system_menu_frame_copy_stop_ports;
+    system_menu_frame_copy_stop_ports.text_prefix_available = false;
+    const auto system_menu_frame_copy_stop =
+        openswd3::special_modes::update_legacy_system_menu_frame(
+            system_menu_frame_copy_stop_state, system_menu_frame_copy_stop_ports
+        );
+    test.expect_true(
+        system_menu_frame_copy_stop.status ==
+                SystemMenuFrameStatus::description_owner_unavailable_stopped &&
+            system_menu_frame_copy_stop_state.description_reveal_countdown ==
+                2U &&
+            system_menu_frame_copy_stop_ports.text_prefix_copies.size() == 1U &&
+            count_frame_commands(
+                system_menu_frame_copy_stop_ports,
+                SystemMenuFrameCommandType::draw_text,
+                SystemMenuText::game_title
+            ) == 1U,
+        "0x44C160 stops at the original title-prefix write after preserving all earlier settings drawing"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState
+        system_menu_frame_source_stop_state;
+    system_menu_frame_source_stop_state.interaction_mode = 1U;
+    system_menu_frame_source_stop_state.interaction_page = 3U;
+    system_menu_frame_source_stop_state.description_reveal_length = 9U;
+    FakeSystemMenuPorts system_menu_frame_source_stop_ports;
+    const auto system_menu_frame_source_stop =
+        openswd3::special_modes::update_legacy_system_menu_frame(
+            system_menu_frame_source_stop_state,
+            system_menu_frame_source_stop_ports
+        );
+    test.expect_true(
+        system_menu_frame_source_stop.status ==
+                SystemMenuFrameStatus::
+                    description_source_out_of_range_stopped &&
+            system_menu_frame_source_stop_ports.text_prefix_copies.empty() &&
+            system_menu_frame_source_stop_state.description_reveal_countdown ==
+                0U,
+        "0x44C160 stops at the original game-title source read before decrementing the reveal countdown"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState
+        system_menu_frame_post_copy_source_stop_state;
+    system_menu_frame_post_copy_source_stop_state.interaction_mode = 1U;
+    system_menu_frame_post_copy_source_stop_state.interaction_page = 3U;
+    system_menu_frame_post_copy_source_stop_state.description_reveal_length =
+        8U;
+    system_menu_frame_post_copy_source_stop_state.description_reveal_countdown =
+        1U;
+    FakeSystemMenuPorts system_menu_frame_post_copy_source_stop_ports;
+    const auto system_menu_frame_post_copy_source_stop =
+        openswd3::special_modes::update_legacy_system_menu_frame(
+            system_menu_frame_post_copy_source_stop_state,
+            system_menu_frame_post_copy_source_stop_ports
+        );
+    test.expect_true(
+        system_menu_frame_post_copy_source_stop.status ==
+                SystemMenuFrameStatus::
+                    description_source_out_of_range_stopped &&
+            system_menu_frame_post_copy_source_stop_state
+                    .description_reveal_length == 9U &&
+            system_menu_frame_post_copy_source_stop_ports
+                    .text_prefix_copies[0U][3U] == 16U,
+        "0x44C160 preserves the full title copy and countdown increment before stopping at the later terminator read"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState system_menu_frame_exit_state;
+    system_menu_frame_exit_state.interaction_mode = 2U;
+    system_menu_frame_exit_state.interaction_page = 4U;
+    system_menu_frame_exit_state.selected_row = 0U;
+    system_menu_frame_exit_state.exit_action = 1U;
+    system_menu_frame_exit_state.exit_confirmation_value = 0x1EU;
+    FakeSystemMenuPorts system_menu_frame_exit_ports;
+    const auto system_menu_frame_exit =
+        openswd3::special_modes::update_legacy_system_menu_frame(
+            system_menu_frame_exit_state, system_menu_frame_exit_ports
+        );
+    test.expect_true(
+        system_menu_frame_exit.status == SystemMenuFrameStatus::completed &&
+            system_menu_frame_exit_state.exit_transition_offset == 0U &&
+            system_menu_frame_exit_state.exit_confirmation_value == 0x1FU &&
+            system_menu_frame_exit.legacy_return_value == 2 &&
+            count_frame_commands(
+                system_menu_frame_exit_ports,
+                SystemMenuFrameCommandType::draw_text,
+                SystemMenuText::exit_warning
+            ) == 1U &&
+            count_frame_commands(
+                system_menu_frame_exit_ports,
+                SystemMenuFrameCommandType::draw_text,
+                SystemMenuText::exit_game
+            ) == 1U &&
+            count_frame_commands(
+                system_menu_frame_exit_ports,
+                SystemMenuFrameCommandType::draw_text,
+                SystemMenuText::restart
+            ) == 1U,
+        "0x44C160 draws Exit Game before Restart and advances the selected exit confirmation"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState
+        system_menu_frame_negative_exit_progress_state;
+    system_menu_frame_negative_exit_progress_state.interaction_mode = 2U;
+    system_menu_frame_negative_exit_progress_state.interaction_page = 4U;
+    system_menu_frame_negative_exit_progress_state.exit_action = 1U;
+    system_menu_frame_negative_exit_progress_state.exit_confirmation_value =
+        0x80000000U;
+    system_menu_frame_negative_exit_progress_state.menu_flags = 2U;
+    system_menu_frame_negative_exit_progress_state.list_owner = 0x4321U;
+    FakeSystemMenuPorts system_menu_frame_negative_exit_progress_ports;
+    const auto system_menu_frame_negative_exit_progress =
+        openswd3::special_modes::update_legacy_system_menu_frame(
+            system_menu_frame_negative_exit_progress_state,
+            system_menu_frame_negative_exit_progress_ports
+        );
+    test.expect_true(
+        system_menu_frame_negative_exit_progress_state
+                    .exit_confirmation_value == 0x80000000U &&
+            system_menu_frame_negative_exit_progress_state.list_owner ==
+                0x4321U &&
+            system_menu_frame_negative_exit_progress.legacy_return_value == 2,
+        "0x44C160 treats high-bit exit-confirmation progress as negative and does not release the menu"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState
+        system_menu_frame_exit_game_state;
+    system_menu_frame_exit_game_state.interaction_mode = 2U;
+    system_menu_frame_exit_game_state.interaction_page = 4U;
+    system_menu_frame_exit_game_state.exit_action = 1U;
+    system_menu_frame_exit_game_state.exit_confirmation_value = 0x3BU;
+    system_menu_frame_exit_game_state.list_owner = 0x5566U;
+    system_menu_frame_exit_game_state.runtime_flags = 0x10U;
+    FakeSystemMenuPorts system_menu_frame_exit_game_ports;
+    static_cast<void>(openswd3::special_modes::update_legacy_system_menu_frame(
+        system_menu_frame_exit_game_state, system_menu_frame_exit_game_ports
+    ));
+    test.expect_true(
+        system_menu_frame_exit_game_state.exit_transition_offset ==
+                0xFFFFFFE3U &&
+            system_menu_frame_exit_game_state.exit_confirmation_value ==
+                0x3CU &&
+            system_menu_frame_exit_game_state.list_owner == 0U &&
+            system_menu_frame_exit_game_state.runtime_status == 0U &&
+            system_menu_frame_exit_game_state.exit_game_requested == 1U &&
+            system_menu_frame_exit_game_state.runtime_flags == 0x14U &&
+            system_menu_frame_exit_game_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::prepare_game_exit, 0U},
+                    {SystemMenuCommand::clear_runtime_flag, 1U}
+                } &&
+            system_menu_frame_exit_game_ports.events ==
+                std::vector<u32>{1U, 2U, 3U},
+        "0x44C160 releases the menu before requesting Exit Game and setting runtime flag two"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState
+        system_menu_frame_restart_state;
+    system_menu_frame_restart_state.interaction_mode = 2U;
+    system_menu_frame_restart_state.interaction_page = 4U;
+    system_menu_frame_restart_state.exit_action = 2U;
+    system_menu_frame_restart_state.exit_confirmation_value = 0x3BU;
+    system_menu_frame_restart_state.workspace_request = {7U, 8U, 9U, 10U};
+    FakeSystemMenuPorts system_menu_frame_restart_ports;
+    static_cast<void>(openswd3::special_modes::update_legacy_system_menu_frame(
+        system_menu_frame_restart_state, system_menu_frame_restart_ports
+    ));
+    test.expect_true(
+        system_menu_frame_restart_state.runtime_status == 0x80000003U &&
+            system_menu_frame_restart_state.workspace_request.page_kind == 7U &&
+            system_menu_frame_restart_state.workspace_request.primary_enabled ==
+                0U &&
+            system_menu_frame_restart_state.workspace_request
+                    .secondary_enabled == 0U &&
+            system_menu_frame_restart_state.workspace_request.preview_count ==
+                0U &&
+            system_menu_frame_restart_ports.input_commands.empty(),
+        "0x44C160 releases the menu before publishing the original Restart status and three zero values"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState system_menu_frame_keys_state;
+    system_menu_frame_keys_state.interaction_mode = 5U;
+    system_menu_frame_keys_state.selected_entry = 0x10U;
+    system_menu_frame_keys_state.edited_key_bindings.fill(1U);
+    system_menu_frame_keys_state.edited_key_bindings[4U] = 0xFFU;
+    FakeSystemMenuPorts system_menu_frame_keys_ports;
+    const auto system_menu_frame_keys =
+        openswd3::special_modes::update_legacy_system_menu_frame(
+            system_menu_frame_keys_state, system_menu_frame_keys_ports
+        );
+    test.expect_true(
+        system_menu_frame_keys.status == SystemMenuFrameStatus::completed &&
+            count_frame_commands(
+                system_menu_frame_keys_ports,
+                SystemMenuFrameCommandType::draw_text,
+                SystemMenuText::key_action
+            ) == 16U &&
+            count_frame_commands(
+                system_menu_frame_keys_ports,
+                SystemMenuFrameCommandType::draw_text,
+                SystemMenuText::key_name
+            ) == 16U &&
+            system_menu_frame_keys_ports.frame_commands.back().arguments[0U] ==
+                0x189 &&
+            system_menu_frame_keys_ports.frame_commands.back().arguments[2U] ==
+                0x2C,
+        "0x44C160 draws all sixteen key actions, maps unassigned keys to name zero, and selects Set"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState
+        system_menu_frame_key_code_stop_state;
+    system_menu_frame_key_code_stop_state.interaction_mode = 5U;
+    system_menu_frame_key_code_stop_state.edited_key_bindings.fill(1U);
+    system_menu_frame_key_code_stop_state.edited_key_bindings[4U] = 0x100U;
+    FakeSystemMenuPorts system_menu_frame_key_code_stop_ports;
+    const auto system_menu_frame_key_code_stop =
+        openswd3::special_modes::update_legacy_system_menu_frame(
+            system_menu_frame_key_code_stop_state,
+            system_menu_frame_key_code_stop_ports
+        );
+    test.expect_true(
+        system_menu_frame_key_code_stop.status ==
+                SystemMenuFrameStatus::key_code_out_of_range_stopped &&
+            count_frame_commands(
+                system_menu_frame_key_code_stop_ports,
+                SystemMenuFrameCommandType::draw_text,
+                SystemMenuText::key_action
+            ) == 1U &&
+            count_frame_commands(
+                system_menu_frame_key_code_stop_ports,
+                SystemMenuFrameCommandType::draw_text,
+                SystemMenuText::key_name
+            ) == 0U,
+        "0x44C160 stops at the original key-name table read after drawing the corresponding action"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState
+        system_menu_frame_key_action_stop_state;
+    system_menu_frame_key_action_stop_state.interaction_mode = 5U;
+    system_menu_frame_key_action_stop_state.selected_entry = 0x13U;
+    system_menu_frame_key_action_stop_state.edited_key_bindings.fill(1U);
+    FakeSystemMenuPorts system_menu_frame_key_action_stop_ports;
+    const auto system_menu_frame_key_action_stop =
+        openswd3::special_modes::update_legacy_system_menu_frame(
+            system_menu_frame_key_action_stop_state,
+            system_menu_frame_key_action_stop_ports
+        );
+    test.expect_true(
+        system_menu_frame_key_action_stop.status ==
+                SystemMenuFrameStatus::key_selection_out_of_range_stopped &&
+            count_frame_commands(
+                system_menu_frame_key_action_stop_ports,
+                SystemMenuFrameCommandType::draw_text,
+                SystemMenuText::key_name
+            ) == 16U,
+        "0x44C160 checks the full original action domain only at the action-box coordinate read"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState
+        system_menu_frame_negative_selection_state;
+    system_menu_frame_negative_selection_state.interaction_mode = 5U;
+    system_menu_frame_negative_selection_state.selected_entry = 0xFFFFFFFFU;
+    system_menu_frame_negative_selection_state.edited_key_bindings.fill(1U);
+    FakeSystemMenuPorts system_menu_frame_negative_selection_ports;
+    const auto system_menu_frame_negative_selection =
+        openswd3::special_modes::update_legacy_system_menu_frame(
+            system_menu_frame_negative_selection_state,
+            system_menu_frame_negative_selection_ports
+        );
+    openswd3::special_modes::LegacySystemMenuState
+        system_menu_frame_capture_selection_stop_state;
+    system_menu_frame_capture_selection_stop_state.interaction_mode = 7U;
+    system_menu_frame_capture_selection_stop_state.selected_entry = 0x10U;
+    system_menu_frame_capture_selection_stop_state.edited_key_bindings.fill(1U);
+    FakeSystemMenuPorts system_menu_frame_capture_selection_stop_ports;
+    const auto system_menu_frame_capture_selection_stop =
+        openswd3::special_modes::update_legacy_system_menu_frame(
+            system_menu_frame_capture_selection_stop_state,
+            system_menu_frame_capture_selection_stop_ports
+        );
+    test.expect_true(
+        system_menu_frame_negative_selection.status ==
+                SystemMenuFrameStatus::completed &&
+            system_menu_frame_capture_selection_stop.status ==
+                SystemMenuFrameStatus::key_selection_out_of_range_stopped &&
+            system_menu_frame_capture_selection_stop_ports
+                    .pressed_key_query_count == 1U &&
+            system_menu_frame_capture_selection_stop_ports.raw_key_codes ==
+                std::vector<u32>{0x0EU},
+        "0x44C160 preserves signed negative selection coordinates and stops capture only after both key reads"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState
+        system_menu_frame_backspace_state;
+    system_menu_frame_backspace_state.interaction_mode = 7U;
+    system_menu_frame_backspace_state.selected_entry = 0U;
+    system_menu_frame_backspace_state.edited_key_bindings.fill(1U);
+    FakeSystemMenuPorts system_menu_frame_backspace_ports;
+    system_menu_frame_backspace_ports.pressed_key_return = 0x20;
+    system_menu_frame_backspace_ports.raw_key_return = 0x80;
+    static_cast<void>(openswd3::special_modes::update_legacy_system_menu_frame(
+        system_menu_frame_backspace_state, system_menu_frame_backspace_ports
+    ));
+    test.expect_true(
+        system_menu_frame_backspace_state.interaction_mode == 5U &&
+            system_menu_frame_backspace_ports.pressed_key_query_count == 1U &&
+            system_menu_frame_backspace_ports.raw_key_codes ==
+                std::vector<u32>{0x0EU} &&
+            system_menu_frame_backspace_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::play_named_sample, 0x8BU}
+                },
+        "0x44C160 uses raw Backspace to leave key capture without changing an assigned binding"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState
+        system_menu_frame_pending_key_state;
+    system_menu_frame_pending_key_state.interaction_mode = 7U;
+    system_menu_frame_pending_key_state.selected_entry = 0U;
+    system_menu_frame_pending_key_state.edited_key_bindings.fill(1U);
+    system_menu_frame_pending_key_state.pending_key_code = 5U;
+    FakeSystemMenuPorts system_menu_frame_pending_key_ports;
+    system_menu_frame_pending_key_ports.pressed_key_return = 7;
+    const auto system_menu_frame_pending_key =
+        openswd3::special_modes::update_legacy_system_menu_frame(
+            system_menu_frame_pending_key_state,
+            system_menu_frame_pending_key_ports
+        );
+    test.expect_true(
+        system_menu_frame_pending_key_state.pending_key_code == 7U &&
+            system_menu_frame_pending_key.legacy_return_value == 5 &&
+            system_menu_frame_pending_key_ports.input_commands.empty(),
+        "0x44C160 returns the old pressed-key latch while publishing the newly sampled key"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState
+        system_menu_frame_unique_key_state;
+    system_menu_frame_unique_key_state.interaction_mode = 7U;
+    system_menu_frame_unique_key_state.selected_entry = 0U;
+    system_menu_frame_unique_key_state.edited_key_bindings.fill(1U);
+    system_menu_frame_unique_key_state.default_key_bindings[12U] = 0x77U;
+    FakeSystemMenuPorts system_menu_frame_unique_key_ports;
+    system_menu_frame_unique_key_ports.pressed_key_return = 0x20;
+    static_cast<void>(openswd3::special_modes::update_legacy_system_menu_frame(
+        system_menu_frame_unique_key_state, system_menu_frame_unique_key_ports
+    ));
+    test.expect_true(
+        system_menu_frame_unique_key_state.edited_key_bindings[4U] == 0x20U &&
+            system_menu_frame_unique_key_state.interaction_mode == 5U &&
+            system_menu_frame_unique_key_state.pending_key_code == 0x20U &&
+            system_menu_frame_unique_key_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::play_named_sample, 0x8BU}
+                },
+        "0x44C160 assigns a unique allowed key and returns to the editor"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState
+        system_menu_frame_duplicate_key_state;
+    system_menu_frame_duplicate_key_state.interaction_mode = 7U;
+    system_menu_frame_duplicate_key_state.selected_entry = 0U;
+    system_menu_frame_duplicate_key_state.edited_key_bindings.fill(1U);
+    system_menu_frame_duplicate_key_state.edited_key_bindings[6U] = 0x20U;
+    system_menu_frame_duplicate_key_state.default_key_bindings[12U] = 0x77U;
+    FakeSystemMenuPorts system_menu_frame_duplicate_key_ports;
+    system_menu_frame_duplicate_key_ports.pressed_key_return = 0x20;
+    static_cast<void>(openswd3::special_modes::update_legacy_system_menu_frame(
+        system_menu_frame_duplicate_key_state,
+        system_menu_frame_duplicate_key_ports
+    ));
+    test.expect_true(
+        system_menu_frame_duplicate_key_state.selected_entry == 1U &&
+            system_menu_frame_duplicate_key_state.pending_key_code == 0x20U &&
+            system_menu_frame_duplicate_key_state.displaced_key_code == 0x20U &&
+            system_menu_frame_duplicate_key_state.edited_key_bindings[6U] ==
+                0xFFU &&
+            system_menu_frame_duplicate_key_state.edited_key_bindings[4U] ==
+                0x20U &&
+            system_menu_frame_duplicate_key_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::play_named_sample, 0xB8U}
+                },
+        "0x44C160 moves a duplicate key to the conflicting action and preserves the displaced value"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState
+        system_menu_frame_rejected_key_state;
+    system_menu_frame_rejected_key_state.interaction_mode = 7U;
+    system_menu_frame_rejected_key_state.selected_entry = 0U;
+    system_menu_frame_rejected_key_state.edited_key_bindings.fill(1U);
+    system_menu_frame_rejected_key_state.default_key_bindings[12U] = 0x77U;
+    FakeSystemMenuPorts system_menu_frame_rejected_key_ports;
+    system_menu_frame_rejected_key_ports.pressed_key_return = 0x3A;
+    static_cast<void>(openswd3::special_modes::update_legacy_system_menu_frame(
+        system_menu_frame_rejected_key_state,
+        system_menu_frame_rejected_key_ports
+    ));
+    test.expect_true(
+        system_menu_frame_rejected_key_state.pending_key_code == 0x3AU &&
+            system_menu_frame_rejected_key_state.interaction_mode == 7U &&
+            system_menu_frame_rejected_key_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::play_named_sample, 0x8CU},
+                    {SystemMenuCommand::play_named_sample, 0x8CU}
+                },
+        "0x44C160 rejects the original fifteen key codes with two consecutive sample calls"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState
+        system_menu_frame_mode_six_state;
+    system_menu_frame_mode_six_state.interaction_mode = 6U;
+    system_menu_frame_mode_six_state.edited_key_bindings.fill(1U);
+    FakeSystemMenuPorts system_menu_frame_mode_six_ports;
+    static_cast<void>(openswd3::special_modes::update_legacy_system_menu_frame(
+        system_menu_frame_mode_six_state, system_menu_frame_mode_six_ports
+    ));
+    test.expect_true(
+        system_menu_frame_mode_six_state.interaction_mode == 7U &&
+            system_menu_frame_mode_six_ports.pressed_key_query_count == 0U,
+        "0x44C160 draws page six before advancing it to key-capture page seven"
+    );
+
     openswd3::special_modes::LegacySystemMenuState return_locked_state;
     return_locked_state.input_locked = 0x80000000U;
     return_locked_state.lifecycle = 3U;
@@ -15999,29 +16706,30 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             confirm_exit_action_state.input_locked == 1U &&
             confirm_exit_action_state.exit_confirmation_value == 0x1EU &&
             confirm_exit_action.legacy_return_value == 1,
-        "0x44BDA0 selects Exit Game and starts its confirmation countdown at thirty when menu flag one is set"
+        "0x44BDA0 selects Restart and starts its confirmation countdown at thirty when menu flag one is set"
     );
 
     openswd3::special_modes::LegacySystemMenuState
-        confirm_restart_without_flag_state;
-    confirm_restart_without_flag_state.interaction_mode = 1U;
-    confirm_restart_without_flag_state.interaction_page = 4U;
-    confirm_restart_without_flag_state.selected_row = 0U;
-    confirm_restart_without_flag_state.menu_flags = 0U;
-    confirm_restart_without_flag_state.exit_confirmation_value = 9U;
-    FakeSystemMenuPorts confirm_restart_without_flag_ports;
-    const auto confirm_restart_without_flag =
+        confirm_exit_game_without_flag_state;
+    confirm_exit_game_without_flag_state.interaction_mode = 1U;
+    confirm_exit_game_without_flag_state.interaction_page = 4U;
+    confirm_exit_game_without_flag_state.selected_row = 0U;
+    confirm_exit_game_without_flag_state.menu_flags = 0U;
+    confirm_exit_game_without_flag_state.exit_confirmation_value = 9U;
+    FakeSystemMenuPorts confirm_exit_game_without_flag_ports;
+    const auto confirm_exit_game_without_flag =
         openswd3::special_modes::confirm_legacy_system_menu_selection(
-            confirm_restart_without_flag_state,
-            confirm_restart_without_flag_ports
+            confirm_exit_game_without_flag_state,
+            confirm_exit_game_without_flag_ports
         );
     test.expect_true(
-        confirm_restart_without_flag_state.interaction_mode == 2U &&
-            confirm_restart_without_flag_state.exit_action == 1U &&
-            confirm_restart_without_flag_state.input_locked == 0U &&
-            confirm_restart_without_flag_state.exit_confirmation_value == 0U &&
-            confirm_restart_without_flag.legacy_return_value == 1,
-        "0x44BDA0 selects Restart without starting its confirmation countdown when menu flag one is clear"
+        confirm_exit_game_without_flag_state.interaction_mode == 2U &&
+            confirm_exit_game_without_flag_state.exit_action == 1U &&
+            confirm_exit_game_without_flag_state.input_locked == 0U &&
+            confirm_exit_game_without_flag_state.exit_confirmation_value ==
+                0U &&
+            confirm_exit_game_without_flag.legacy_return_value == 1,
+        "0x44BDA0 selects Exit Game without starting its confirmation countdown when menu flag one is clear"
     );
 
     openswd3::special_modes::LegacySystemMenuState

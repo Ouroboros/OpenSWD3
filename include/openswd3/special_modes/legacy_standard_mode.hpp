@@ -417,6 +417,22 @@ struct LegacySystemMenuState {
     std::array<compat::u32, 6U> exit_transition_values{};
     std::array<compat::u32, 32U> saved_key_bindings{};
     std::array<compat::u32, 32U> edited_key_bindings{};
+    std::array<compat::u32, 32U> default_key_bindings{};
+    compat::u32 render_surface{};
+    compat::u16 primary_font{};
+    compat::u16 secondary_font{};
+    compat::u16 frame_effect_low{};
+    compat::u32 description_owner{};
+    compat::u32 description_reveal_length{};
+    compat::u32 description_reveal_interval{};
+    compat::u32 description_reveal_countdown{};
+    compat::u32 exit_transition_offset{};
+    compat::u32 runtime_status{};
+    compat::u32 exit_game_requested{};
+    compat::u32 runtime_flags{};
+    compat::u32 pending_key_code{};
+    compat::u32 displaced_key_code{};
+    compat::u32 allow_primary_binding_duplicate{};
 };
 
 enum class LegacySystemMenuInputCommand : compat::u8 {
@@ -434,6 +450,62 @@ enum class LegacySystemMenuInputCommand : compat::u8 {
     finish_exit_transition,
     save_key_bindings,
     restore_default_key_bindings,
+    prepare_game_exit,
+    clear_runtime_flag,
+};
+
+enum class LegacySystemMenuText : compat::u8 {
+    save,
+    load,
+    record,
+    settings,
+    leave,
+    cannot_save,
+    sound_effect,
+    music,
+    replacement_spacing,
+    map_effect,
+    text_speed,
+    battle_speed,
+    key_settings,
+    version,
+    game_effect,
+    fastest,
+    fast,
+    medium,
+    slightly_slow,
+    slow,
+    game_title,
+    restart,
+    exit_game,
+    restart_warning,
+    exit_warning,
+    confirm,
+    abandon,
+    key_action,
+    key_name,
+    key_actions,
+    press_one_key,
+};
+
+enum class LegacySystemMenuFrameCommandType : compat::u8 {
+    calculate_color,
+    prepare_frame,
+    draw_frame_piece,
+    adjust_color,
+    draw_text,
+    draw_panel,
+    draw_record_scrollbar,
+    draw_record_entry,
+    draw_setting_action,
+    draw_selection_frame,
+};
+
+struct LegacySystemMenuFrameCommand {
+    LegacySystemMenuFrameCommandType type{};
+    LegacySystemMenuText text{};
+    std::array<compat::i32, 10U> arguments{};
+    std::array<double, 2U> fractions{};
 };
 
 struct LegacySystemMenuMessage {
@@ -470,6 +542,25 @@ public:
     ) noexcept = 0;
     [[nodiscard]] virtual compat::i32 query_system_menu_input_status(
         compat::u32 mask, LegacySystemMenuState& state
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 query_system_menu_runtime_value(
+        compat::u32 service_id, LegacySystemMenuState& state
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    find_system_menu_pressed_key(LegacySystemMenuState& state) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 read_system_menu_raw_key(
+        compat::u32 key_code, LegacySystemMenuState& state
+    ) noexcept = 0;
+    [[nodiscard]] virtual bool copy_system_menu_text_prefix(
+        compat::u32 owner,
+        compat::u32 byte_offset,
+        LegacySystemMenuText text,
+        compat::u32 byte_count,
+        LegacySystemMenuState& state
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 execute_system_menu_frame_command(
+        const LegacySystemMenuFrameCommand& command,
+        LegacySystemMenuState& state
     ) noexcept = 0;
     [[nodiscard]] virtual compat::i32 execute_system_menu_input_command(
         LegacySystemMenuInputCommand command,
@@ -540,6 +631,27 @@ struct LegacySystemMenuInputResult {
 ) noexcept;
 
 [[nodiscard]] LegacySystemMenuInputResult update_legacy_system_menu_input(
+    LegacySystemMenuState& state, LegacySystemMenuPorts& ports
+) noexcept;
+
+enum class LegacySystemMenuFrameStatus : compat::u8 {
+    completed,
+    description_owner_unavailable_stopped,
+    description_source_out_of_range_stopped,
+    key_selection_out_of_range_stopped,
+    key_code_out_of_range_stopped,
+};
+
+struct LegacySystemMenuFrameResult {
+    LegacySystemMenuFrameStatus status{LegacySystemMenuFrameStatus::completed};
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+    compat::u32 command_count{};
+    compat::u32 runtime_query_count{};
+    compat::u32 sample_call_count{};
+};
+
+[[nodiscard]] LegacySystemMenuFrameResult update_legacy_system_menu_frame(
     LegacySystemMenuState& state, LegacySystemMenuPorts& ports
 ) noexcept;
 

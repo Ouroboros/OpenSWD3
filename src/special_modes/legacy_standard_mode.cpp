@@ -1534,6 +1534,844 @@ LegacySystemMenuInputResult update_legacy_system_menu_input(
     return result;
 }
 
+LegacySystemMenuFrameResult update_legacy_system_menu_frame(
+    LegacySystemMenuState& state, LegacySystemMenuPorts& ports
+) noexcept {
+    LegacySystemMenuFrameResult result;
+    constexpr std::array<LegacySystemMenuText, 5U> kTopLevelTexts{
+        LegacySystemMenuText::save,
+        LegacySystemMenuText::load,
+        LegacySystemMenuText::record,
+        LegacySystemMenuText::settings,
+        LegacySystemMenuText::leave,
+    };
+    constexpr std::array<LegacySystemMenuText, 5U> kTextSpeedTexts{
+        LegacySystemMenuText::fastest,
+        LegacySystemMenuText::fast,
+        LegacySystemMenuText::medium,
+        LegacySystemMenuText::slightly_slow,
+        LegacySystemMenuText::slow,
+    };
+    constexpr std::array<compat::u16, 16U> kBindingSlots{
+        4U,
+        6U,
+        3U,
+        5U,
+        12U,
+        1U,
+        9U,
+        0U,
+        10U,
+        2U,
+        19U,
+        7U,
+        8U,
+        16U,
+        17U,
+        18U,
+    };
+    constexpr std::array<compat::u32, 15U> kRejectedKeyCodes{
+        0x3AU,
+        0x45U,
+        0x46U,
+        0x43U,
+        0x44U,
+        0x57U,
+        0x58U,
+        0x64U,
+        0x65U,
+        0x66U,
+        0xB7U,
+        0xDBU,
+        0xDCU,
+        0xDDU,
+        0x19U,
+    };
+    constexpr std::array<compat::i32, 3U> kKeyActionX{0x189, 0x1B6, 0x1E3};
+    constexpr std::array<compat::i32, 3U> kKeyActionWidth{0x2C, 0x2C, 0x62};
+    constexpr compat::u32 kGameTitleByteCount = 16U;
+
+    const auto emit = [&result, &ports, &state](
+                          const LegacySystemMenuFrameCommandType type,
+                          const LegacySystemMenuText text,
+                          const std::array<compat::i32, 10U>& arguments = {},
+                          const std::array<double, 2U>& fractions = {}
+                      ) {
+        const LegacySystemMenuFrameCommand command{
+            type, text, arguments, fractions
+        };
+        ++result.command_count;
+        ++result.helper_call_count;
+        result.legacy_return_value =
+            ports.execute_system_menu_frame_command(command, state);
+        return result.legacy_return_value;
+    };
+    const auto draw_text = [&emit, &state](
+                               const LegacySystemMenuText text,
+                               const compat::u16 font,
+                               const compat::i32 x,
+                               const compat::i32 y,
+                               const compat::i32 color,
+                               const compat::i32 value = 0
+                           ) {
+        return emit(
+            LegacySystemMenuFrameCommandType::draw_text,
+            text,
+            {font,
+             std::bit_cast<compat::i32>(state.render_surface),
+             x,
+             y,
+             color,
+             4,
+             value}
+        );
+    };
+    const auto play_named_sample = [&result,
+                                    &ports,
+                                    &state](const compat::u32 sample_id) {
+        ++result.sample_call_count;
+        ++result.helper_call_count;
+        result.legacy_return_value = ports.execute_system_menu_input_command(
+            LegacySystemMenuInputCommand::play_named_sample, sample_id, state
+        );
+        return result.legacy_return_value;
+    };
+    const auto query_runtime =
+        [&result, &ports, &state](const compat::u32 service_id) {
+            ++result.runtime_query_count;
+            ++result.helper_call_count;
+            result.legacy_return_value =
+                ports.query_system_menu_runtime_value(service_id, state);
+            return result.legacy_return_value;
+        };
+
+    compat::i32 color = emit(
+        LegacySystemMenuFrameCommandType::calculate_color,
+        LegacySystemMenuText::save,
+        {0x19, 0x17, 0x11}
+    );
+    emit(
+        LegacySystemMenuFrameCommandType::prepare_frame,
+        LegacySystemMenuText::save
+    );
+    const compat::u32 top_frame_high =
+        std::bit_cast<compat::u32>(emit(
+            LegacySystemMenuFrameCommandType::draw_selection_frame,
+            LegacySystemMenuText::save,
+            {0xD0, 0x36, 0x13C, 0x1E, 0x10, 0x10, 0x6C, 2}
+        )) &
+        0xFFFF0000U;
+    emit(
+        LegacySystemMenuFrameCommandType::draw_frame_piece,
+        LegacySystemMenuText::save,
+        {std::bit_cast<compat::i32>(top_frame_high | state.frame_effect_low),
+         0xD8,
+         0x3E,
+         0x204,
+         0x50,
+         0,
+         std::bit_cast<compat::i32>(0x80000008U)}
+    );
+    for (std::size_t index = 0U; index < kTopLevelTexts.size(); ++index) {
+        compat::i32 x = 0xDF + static_cast<compat::i32>(index * 0x3CU);
+        compat::i32 y = 0x3D;
+        compat::i32 text_color = color;
+        if (index != state.interaction_page) {
+            text_color = emit(
+                LegacySystemMenuFrameCommandType::adjust_color,
+                kTopLevelTexts[index],
+                {color, 1, -4, -4, -4}
+            );
+            ++x;
+            ++y;
+        }
+        draw_text(kTopLevelTexts[index], state.primary_font, x, y, text_color);
+    }
+
+    const compat::u32 initial_mode = state.interaction_mode;
+    result.legacy_return_value = std::bit_cast<compat::i32>(initial_mode);
+    if (initial_mode == 10U) {
+        emit(
+            LegacySystemMenuFrameCommandType::draw_panel,
+            LegacySystemMenuText::cannot_save,
+            {0xDC, 0x68, 0x84, 0x16, 2, 0, 0, 0}
+        );
+        draw_text(
+            LegacySystemMenuText::cannot_save,
+            state.secondary_font,
+            0xDC,
+            0x68,
+            color
+        );
+        return result;
+    }
+
+    if (state.interaction_mode == 1U || state.interaction_mode == 2U) {
+        if (state.interaction_page == 2U) {
+            const compat::u32 record_frame_high =
+                std::bit_cast<compat::u32>(emit(
+                    LegacySystemMenuFrameCommandType::draw_selection_frame,
+                    LegacySystemMenuText::record,
+                    {0xD4, 0x74, 0x190, 0x15E, 0, 0, 0, 2}
+                )) &
+                0xFFFF0000U;
+            emit(
+                LegacySystemMenuFrameCommandType::draw_frame_piece,
+                LegacySystemMenuText::record,
+                {std::bit_cast<compat::i32>(
+                     record_frame_high | state.frame_effect_low
+                 ),
+                 0xD8,
+                 0x78,
+                 0x25C,
+                 0x1CA,
+                 0,
+                 std::bit_cast<compat::i32>(0x80000008U)}
+            );
+            result.legacy_return_value =
+                std::bit_cast<compat::i32>(state.entry_count);
+            if (std::bit_cast<compat::i32>(state.entry_count) > 5) {
+                compat::u32 flags = state.system_menu_cursor_flags;
+                compat::u32 arrows = 0U;
+                const compat::u32 low_nibble = flags & 0x0FU;
+                if (low_nibble != 0U) {
+                    flags = (flags & 0xFFFFFFF0U) | (low_nibble - 1U);
+                    arrows = 1U;
+                    state.system_menu_cursor_flags = flags;
+                }
+                const compat::u32 high_nibble = flags & 0xF0U;
+                if (high_nibble != 0U) {
+                    flags = (flags & 0xFFFFFF00U) | (flags & 0x0FU) |
+                        (high_nibble - 0x10U);
+                    arrows |= 2U;
+                    state.system_menu_cursor_flags = flags;
+                }
+                const double total = static_cast<double>(
+                    std::bit_cast<compat::i32>(state.entry_count)
+                );
+                const float first_fraction = static_cast<float>(
+                    static_cast<double>(
+                        std::bit_cast<compat::i32>(state.system_menu_page_start)
+                    ) /
+                    total
+                );
+                const float second_fraction = static_cast<float>(
+                    static_cast<double>(std::bit_cast<compat::i32>(
+                        state.system_menu_page_start +
+                        state.system_menu_visible_count
+                    )) /
+                    total
+                );
+                emit(
+                    LegacySystemMenuFrameCommandType::draw_record_scrollbar,
+                    LegacySystemMenuText::record,
+                    {0x264, 0x84, 0x139, std::bit_cast<compat::i32>(arrows)},
+                    {static_cast<double>(first_fraction),
+                     static_cast<double>(second_fraction)}
+                );
+            }
+            if (state.list_owner != 0U) {
+                result.legacy_return_value =
+                    std::bit_cast<compat::i32>(state.system_menu_visible_count);
+                for (compat::u32 index = 0U; std::bit_cast<compat::i32>(index) <
+                     std::bit_cast<compat::i32>(
+                                                 state.system_menu_visible_count
+                     );
+                     ++index) {
+                    emit(
+                        LegacySystemMenuFrameCommandType::draw_record_entry,
+                        LegacySystemMenuText::record,
+                        {std::bit_cast<compat::i32>(
+                             state.system_menu_page_start + index
+                         ),
+                         0xF0,
+                         std::bit_cast<compat::i32>(index * 0x41U + 0x84U)}
+                    );
+                    result.legacy_return_value = std::bit_cast<compat::i32>(
+                        state.system_menu_visible_count
+                    );
+                }
+            }
+        }
+
+        if (state.interaction_page == 3U) {
+            const compat::u32 settings_frame_high =
+                std::bit_cast<compat::u32>(emit(
+                    LegacySystemMenuFrameCommandType::draw_selection_frame,
+                    LegacySystemMenuText::settings,
+                    {0xD4, 0x74, 0x190, 0xF8, 0, 0, 0, 2}
+                )) &
+                0xFFFF0000U;
+            emit(
+                LegacySystemMenuFrameCommandType::draw_frame_piece,
+                LegacySystemMenuText::settings,
+                {std::bit_cast<compat::i32>(
+                     settings_frame_high | state.frame_effect_low
+                 ),
+                 0xD8,
+                 0x78,
+                 0x25C,
+                 0x168,
+                 0,
+                 std::bit_cast<compat::i32>(0x80000008U)}
+            );
+            constexpr std::array<LegacySystemMenuText, 7U> kSettingLabels{
+                LegacySystemMenuText::sound_effect,
+                LegacySystemMenuText::music,
+                LegacySystemMenuText::replacement_spacing,
+                LegacySystemMenuText::map_effect,
+                LegacySystemMenuText::text_speed,
+                LegacySystemMenuText::battle_speed,
+                LegacySystemMenuText::key_settings,
+            };
+            for (std::size_t index = 0U; index < kSettingLabels.size();
+                 ++index) {
+                draw_text(
+                    kSettingLabels[index],
+                    state.secondary_font,
+                    index < 2U ? 0x108 : 0xDC,
+                    0x82 + static_cast<compat::i32>(index * 0x20U),
+                    color
+                );
+            }
+            draw_text(
+                LegacySystemMenuText::version,
+                state.primary_font,
+                0x20C,
+                0x159,
+                color
+            );
+            const auto draw_setting_range = [&emit](
+                                                const LegacySystemMenuText text,
+                                                const compat::u32 count,
+                                                const compat::u32 selected,
+                                                const compat::i32 y,
+                                                const bool selected_is_22
+                                            ) {
+                const compat::i32 signed_selected =
+                    std::bit_cast<compat::i32>(selected);
+                for (compat::u32 index = 0U; index < count; ++index) {
+                    compat::i32 variant = 0x23;
+                    const bool selected_item = index == selected;
+                    if (selected_is_22 ? selected_item
+                                       : std::bit_cast<compat::i32>(index) >
+                                signed_selected) {
+                        variant = 0x22;
+                    }
+                    emit(
+                        LegacySystemMenuFrameCommandType::draw_setting_action,
+                        text,
+                        {0x13C + std::bit_cast<compat::i32>(index * 0x10U),
+                         y,
+                         0x232A,
+                         variant}
+                    );
+                }
+            };
+            draw_setting_range(
+                LegacySystemMenuText::sound_effect,
+                12U,
+                state.sound_effect_index,
+                0x82,
+                false
+            );
+            draw_setting_range(
+                LegacySystemMenuText::music, 12U, state.music_index, 0xA2, false
+            );
+            for (compat::u32 index = 0U, value = 0x3CU; index < 3U;
+                 ++index, value += 0x28U) {
+                const compat::i32 variant =
+                    value == state.replacement_spacing ? 0x23 : 0x22;
+                emit(
+                    LegacySystemMenuFrameCommandType::draw_setting_action,
+                    LegacySystemMenuText::replacement_spacing,
+                    {0x13C + std::bit_cast<compat::i32>(index * 0x10U),
+                     0xC2,
+                     0x232A,
+                     variant,
+                     std::bit_cast<compat::i32>(value)}
+                );
+                if (value == state.replacement_spacing) {
+                    draw_text(
+                        LegacySystemMenuText::replacement_spacing,
+                        state.primary_font,
+                        0x1A4,
+                        0xC8,
+                        color,
+                        std::bit_cast<compat::i32>(value)
+                    );
+                }
+            }
+            for (compat::u32 index = 0U; index < 2U; ++index) {
+                const compat::i32 map_effect = query_runtime(0x48U);
+                const compat::i32 variant =
+                    std::bit_cast<compat::u32>(map_effect) == index ? 0x22
+                                                                    : 0x23;
+                emit(
+                    LegacySystemMenuFrameCommandType::draw_setting_action,
+                    LegacySystemMenuText::map_effect,
+                    {0x13C + std::bit_cast<compat::i32>(index * 0x10U),
+                     0xE2,
+                     0x232A,
+                     variant}
+                );
+            }
+            color = emit(
+                LegacySystemMenuFrameCommandType::calculate_color,
+                LegacySystemMenuText::settings,
+                {0x19, 0x17, 0x11}
+            );
+            const compat::i32 map_effect = query_runtime(0x48U);
+            draw_text(
+                LegacySystemMenuText::game_effect,
+                state.primary_font,
+                0x1A4,
+                0xE8,
+                color,
+                map_effect == 0 ? 1 : 0
+            );
+            for (compat::u32 index = 0U; index < 5U; ++index) {
+                const compat::i32 variant =
+                    index == state.text_speed_index ? 0x23 : 0x22;
+                emit(
+                    LegacySystemMenuFrameCommandType::draw_setting_action,
+                    LegacySystemMenuText::text_speed,
+                    {0x17C - std::bit_cast<compat::i32>(index * 0x10U),
+                     0x102,
+                     0x232A,
+                     variant}
+                );
+            }
+            LegacySystemMenuText speed_text = LegacySystemMenuText::text_speed;
+            if (state.text_speed_index < kTextSpeedTexts.size()) {
+                speed_text = kTextSpeedTexts[state.text_speed_index];
+            }
+            const compat::i32 title_color = emit(
+                LegacySystemMenuFrameCommandType::adjust_color,
+                LegacySystemMenuText::game_title,
+                {color, 1, -6, -6, -6}
+            );
+            draw_text(
+                LegacySystemMenuText::game_title,
+                state.primary_font,
+                0x1DA,
+                0x108,
+                title_color
+            );
+            const compat::u32 reveal_length = state.description_reveal_length;
+            const std::uint64_t copy_byte_count =
+                static_cast<std::uint64_t>(reveal_length) * 2U;
+            if (copy_byte_count > kGameTitleByteCount) {
+                result.status = LegacySystemMenuFrameStatus::
+                    description_source_out_of_range_stopped;
+                return result;
+            }
+            if (reveal_length > 0U) {
+                ++result.helper_call_count;
+                if (!ports.copy_system_menu_text_prefix(
+                        state.description_owner,
+                        2U,
+                        LegacySystemMenuText::game_title,
+                        static_cast<compat::u32>(copy_byte_count),
+                        state
+                    )) {
+                    result.status = LegacySystemMenuFrameStatus::
+                        description_owner_unavailable_stopped;
+                    return result;
+                }
+            }
+            --state.description_reveal_countdown;
+            if (std::bit_cast<compat::i32>(
+                    state.description_reveal_countdown
+                ) <= 0) {
+                state.description_reveal_length = reveal_length + 1U;
+                state.description_reveal_countdown =
+                    2U * state.description_reveal_interval + 1U;
+            }
+            draw_text(speed_text, state.primary_font, 0x1A4, 0x108, color);
+            const std::uint64_t title_offset =
+                static_cast<std::uint64_t>(state.description_reveal_length) *
+                2U;
+            if (title_offset > kGameTitleByteCount) {
+                result.status = LegacySystemMenuFrameStatus::
+                    description_source_out_of_range_stopped;
+                return result;
+            }
+            if (title_offset == kGameTitleByteCount) {
+                state.description_reveal_length = 0U;
+            }
+            draw_setting_range(
+                LegacySystemMenuText::battle_speed,
+                12U,
+                state.battle_speed_index,
+                0x122,
+                false
+            );
+            result.legacy_return_value = emit(
+                LegacySystemMenuFrameCommandType::draw_selection_frame,
+                LegacySystemMenuText::settings,
+                {std::bit_cast<compat::i32>(state.selected_row * 0x20U + 0x7EU),
+                 0x18E,
+                 0x20,
+                 0x14,
+                 0xD,
+                 0,
+                 5}
+            );
+        }
+
+        if (state.interaction_page == 4U) {
+            color = emit(
+                LegacySystemMenuFrameCommandType::calculate_color,
+                LegacySystemMenuText::leave,
+                {0x19, 0x17, 0x11}
+            );
+            const compat::u32 exit_frame_high =
+                std::bit_cast<compat::u32>(emit(
+                    LegacySystemMenuFrameCommandType::draw_selection_frame,
+                    LegacySystemMenuText::leave,
+                    {0x1DC, 0x60, 0x6C, 0x40, 0, 0, 0, 2}
+                )) &
+                0xFFFF0000U;
+            emit(
+                LegacySystemMenuFrameCommandType::draw_frame_piece,
+                LegacySystemMenuText::leave,
+                {std::bit_cast<compat::i32>(
+                     exit_frame_high | state.frame_effect_low
+                 ),
+                 0x1E0,
+                 0x64,
+                 0x244,
+                 0x9A,
+                 0,
+                 std::bit_cast<compat::i32>(0x80000008U)}
+            );
+            draw_text(
+                LegacySystemMenuText::exit_game,
+                state.secondary_font,
+                0x1E4,
+                0x68,
+                color
+            );
+            draw_text(
+                LegacySystemMenuText::restart,
+                state.secondary_font,
+                0x1E4,
+                0x82,
+                color
+            );
+            result.legacy_return_value = emit(
+                LegacySystemMenuFrameCommandType::draw_selection_frame,
+                LegacySystemMenuText::leave,
+                {std::bit_cast<compat::i32>(state.selected_row * 0x1AU + 0x66U),
+                 0x6C,
+                 0x1A,
+                 0x14,
+                 0xD,
+                 0,
+                 5}
+            );
+        }
+
+        if (state.interaction_mode == 2U) {
+            if (state.interaction_page != 4U) {
+                return result;
+            }
+            if ((state.menu_flags & 0x02U) == 0U) {
+                const compat::u32 confirm_frame_high =
+                    std::bit_cast<compat::u32>(emit(
+                        LegacySystemMenuFrameCommandType::draw_selection_frame,
+                        LegacySystemMenuText::confirm,
+                        {0x114, 0xC4, 0x156, 0x38, 0, 0, 0, 2}
+                    )) &
+                    0xFFFF0000U;
+                emit(
+                    LegacySystemMenuFrameCommandType::draw_frame_piece,
+                    LegacySystemMenuText::confirm,
+                    {std::bit_cast<compat::i32>(
+                         confirm_frame_high | state.frame_effect_low
+                     ),
+                     0x118,
+                     0xC8,
+                     0x266,
+                     0xF8,
+                     0,
+                     std::bit_cast<compat::i32>(0x80000008U)}
+                );
+                draw_text(
+                    state.exit_action == 1U
+                        ? LegacySystemMenuText::exit_warning
+                        : LegacySystemMenuText::restart_warning,
+                    state.secondary_font,
+                    0x11C,
+                    0xCA,
+                    color
+                );
+                draw_text(
+                    LegacySystemMenuText::confirm,
+                    state.secondary_font,
+                    0x1EE,
+                    0xE4,
+                    color
+                );
+                draw_text(
+                    LegacySystemMenuText::abandon,
+                    state.secondary_font,
+                    0x230,
+                    0xE4,
+                    color
+                );
+                emit(
+                    LegacySystemMenuFrameCommandType::draw_selection_frame,
+                    LegacySystemMenuText::confirm,
+                    {std::bit_cast<compat::i32>(
+                         state.exit_confirmation_value * 0x42U + 0x1E3U
+                     ),
+                     0xE2,
+                     0x42,
+                     0x18,
+                     0xD,
+                     0,
+                     5}
+                );
+            }
+            if (std::bit_cast<compat::i32>(state.exit_confirmation_value) >=
+                0x1E) {
+                const compat::u32 old_value = state.exit_confirmation_value;
+                state.exit_transition_offset = 0x1EU - old_value;
+                state.exit_confirmation_value = old_value + 1U;
+                result.legacy_return_value =
+                    std::bit_cast<compat::i32>(state.exit_confirmation_value);
+                if (std::bit_cast<compat::i32>(state.exit_confirmation_value) >=
+                    0x3C) {
+                    const LegacySystemMenuResult release =
+                        release_legacy_system_menu(state, ports);
+                    result.helper_call_count += release.helper_call_count;
+                    result.legacy_return_value = release.legacy_return_value;
+                    if (state.exit_action == 1U) {
+                        ++result.helper_call_count;
+                        result.legacy_return_value =
+                            ports.execute_system_menu_input_command(
+                                LegacySystemMenuInputCommand::prepare_game_exit,
+                                0U,
+                                state
+                            );
+                        state.runtime_status = 0U;
+                        state.exit_game_requested = 1U;
+                        ++result.helper_call_count;
+                        result.legacy_return_value =
+                            ports.execute_system_menu_input_command(
+                                LegacySystemMenuInputCommand::
+                                    clear_runtime_flag,
+                                1U,
+                                state
+                            );
+                        state.runtime_flags |= 4U;
+                        result.legacy_return_value =
+                            std::bit_cast<compat::i32>(state.runtime_flags);
+                    } else if (state.exit_action == 2U) {
+                        state.runtime_status = 0x80000003U;
+                        state.workspace_request.primary_enabled = 0U;
+                        state.workspace_request.secondary_enabled = 0U;
+                        state.workspace_request.preview_count = 0U;
+                    }
+                }
+            }
+        }
+    }
+
+    const compat::u32 key_page_mode = state.interaction_mode;
+    result.legacy_return_value = std::bit_cast<compat::i32>(key_page_mode);
+    if (key_page_mode != 5U && key_page_mode != 6U && key_page_mode != 7U) {
+        return result;
+    }
+    emit(
+        LegacySystemMenuFrameCommandType::draw_panel,
+        LegacySystemMenuText::key_actions,
+        {0xD8, 0x78, 0x20, 0xF0, 4, 0, 0, 0}
+    );
+    emit(
+        LegacySystemMenuFrameCommandType::draw_panel,
+        LegacySystemMenuText::key_actions,
+        {0xE0, 0x68, 0x184, 0x140, 4, 0, 0, 0}
+    );
+    emit(
+        LegacySystemMenuFrameCommandType::draw_panel,
+        LegacySystemMenuText::key_actions,
+        {0x184, 0x1BE, 0xC6, 0x12, 4, 0, 0, 0}
+    );
+    draw_text(
+        LegacySystemMenuText::key_actions,
+        state.primary_font,
+        0x184,
+        0x1BE,
+        color
+    );
+    for (std::size_t index = 0U; index < kBindingSlots.size(); ++index) {
+        const compat::i32 y = 0x68 + static_cast<compat::i32>(index * 0x14U);
+        draw_text(
+            LegacySystemMenuText::key_action,
+            state.primary_font,
+            0xE8,
+            y,
+            color,
+            static_cast<compat::i32>(index)
+        );
+        compat::u32 key_code = state.edited_key_bindings[kBindingSlots[index]];
+        if (key_code == 0xFFU) {
+            key_code = 0U;
+        }
+        if (key_code > 0xFFU) {
+            result.status =
+                LegacySystemMenuFrameStatus::key_code_out_of_range_stopped;
+            return result;
+        }
+        draw_text(
+            LegacySystemMenuText::key_name,
+            state.primary_font,
+            0x142,
+            y,
+            color,
+            std::bit_cast<compat::i32>(key_code)
+        );
+    }
+    const compat::i32 signed_selection =
+        std::bit_cast<compat::i32>(state.selected_entry);
+    if (signed_selection >= 0x10) {
+        const compat::u32 action_index = state.selected_entry - 0x10U;
+        if (action_index >= kKeyActionX.size()) {
+            result.status =
+                LegacySystemMenuFrameStatus::key_selection_out_of_range_stopped;
+            return result;
+        }
+        result.legacy_return_value = emit(
+            LegacySystemMenuFrameCommandType::draw_selection_frame,
+            LegacySystemMenuText::key_actions,
+            {kKeyActionX[action_index],
+             0x1BE,
+             kKeyActionWidth[action_index],
+             0x14,
+             0xD,
+             0,
+             5}
+        );
+    } else {
+        compat::i32 x_offset = 0;
+        compat::i32 width = 0xA2;
+        if (state.interaction_mode == 7U) {
+            draw_text(
+                LegacySystemMenuText::press_one_key,
+                state.primary_font,
+                0x1E4,
+                std::bit_cast<compat::i32>(
+                    state.selected_entry * 0x14U + 0x68U
+                ),
+                color
+            );
+        }
+        if (state.interaction_mode == 7U) {
+            x_offset = 0xA2;
+            width = 0x6C;
+        }
+        result.legacy_return_value = emit(
+            LegacySystemMenuFrameCommandType::draw_selection_frame,
+            LegacySystemMenuText::key_action,
+            {0x139 + x_offset,
+             std::bit_cast<compat::i32>(state.selected_entry * 0x14U + 0x67U),
+             width,
+             0x14,
+             0xD,
+             0,
+             5}
+        );
+    }
+
+    if (state.interaction_mode == 7U) {
+        ++result.helper_call_count;
+        compat::i32 pressed_key = ports.find_system_menu_pressed_key(state);
+        result.legacy_return_value = pressed_key;
+        ++result.helper_call_count;
+        const compat::i32 backspace =
+            ports.read_system_menu_raw_key(0x0EU, state);
+        result.legacy_return_value = backspace;
+        const compat::i32 capture_selection =
+            std::bit_cast<compat::i32>(state.selected_entry);
+        if (capture_selection < 0 ||
+            capture_selection >=
+                static_cast<compat::i32>(kBindingSlots.size())) {
+            result.status =
+                LegacySystemMenuFrameStatus::key_selection_out_of_range_stopped;
+            return result;
+        }
+        const compat::u16 selected_slot =
+            kBindingSlots[static_cast<std::size_t>(capture_selection)];
+        if (backspace != 0) {
+            if (state.edited_key_bindings[selected_slot] != 0xFFU) {
+                state.interaction_mode = 5U;
+                play_named_sample(0x8BU);
+                return result;
+            }
+            pressed_key = 0;
+        }
+        const compat::u32 previous_pending = state.pending_key_code;
+        result.legacy_return_value =
+            std::bit_cast<compat::i32>(previous_pending);
+        if (previous_pending != 0U) {
+            state.pending_key_code = std::bit_cast<compat::u32>(pressed_key);
+            return result;
+        }
+        const compat::u32 key_code = std::bit_cast<compat::u32>(pressed_key);
+        if (key_code != state.default_key_bindings[kBindingSlots[4U]] ||
+            state.allow_primary_binding_duplicate == 1U) {
+            if (key_code == state.edited_key_bindings[selected_slot]) {
+                state.interaction_mode = 5U;
+                return result;
+            }
+            if (key_code != 0U) {
+                if (std::find(
+                        kRejectedKeyCodes.begin(),
+                        kRejectedKeyCodes.end(),
+                        key_code
+                    ) == kRejectedKeyCodes.end()) {
+                    std::size_t duplicate_index = 0U;
+                    while (duplicate_index < kBindingSlots.size() &&
+                           (duplicate_index == state.selected_entry ||
+                            state.edited_key_bindings
+                                    [kBindingSlots[duplicate_index]] !=
+                                key_code)) {
+                        ++duplicate_index;
+                    }
+                    if (duplicate_index == kBindingSlots.size()) {
+                        state.edited_key_bindings[selected_slot] = key_code;
+                        state.interaction_mode = 5U;
+                        play_named_sample(0x8BU);
+                        state.pending_key_code = key_code;
+                        return result;
+                    }
+                    state.selected_entry =
+                        static_cast<compat::u32>(duplicate_index);
+                    state.pending_key_code = key_code;
+                    const compat::u16 duplicate_slot =
+                        kBindingSlots[duplicate_index];
+                    state.displaced_key_code =
+                        state.edited_key_bindings[duplicate_slot];
+                    state.edited_key_bindings[duplicate_slot] = 0xFFU;
+                    state.edited_key_bindings[selected_slot] = key_code;
+                    play_named_sample(0xB8U);
+                    return result;
+                }
+                play_named_sample(0x8CU);
+                play_named_sample(0x8CU);
+            }
+        }
+        state.pending_key_code = key_code;
+    }
+    if (state.interaction_mode == 6U) {
+        state.interaction_mode = 7U;
+    }
+    return result;
+}
+
 LegacyCharacterAttributesRebuildResult rebuild_legacy_character_attributes(
     LegacyCharacterAttributesState& state, LegacyCharacterAttributesPorts& ports
 ) noexcept {
