@@ -6,6 +6,17 @@
 
 namespace openswd3::battle {
 
+struct LegacyBattleLineRaster {
+    compat::i32 start_x{};
+    compat::i32 start_y{};
+    compat::i32 end_x{};
+    compat::i32 end_y{};
+    compat::i32 current_x{};
+    compat::i32 current_y{};
+    compat::i32 x_error{};
+    compat::i32 y_error{};
+};
+
 struct LegacyBattleRenderGeometry {
     std::unique_ptr<compat::u32[]> primary_row_offsets{};
     std::unique_ptr<compat::u32[]> surface_row_offsets{};
@@ -48,6 +59,10 @@ struct LegacyBattleHostSurfaceResult {
     bool rectangle_published{};
     compat::i32 legacy_return_value{};
 };
+
+// sub_434350.
+[[nodiscard]] bool
+advance_legacy_battle_line_raster(LegacyBattleLineRaster& raster) noexcept;
 
 // sub_433E20.
 [[nodiscard]] LegacyBattleRowOffsetResult

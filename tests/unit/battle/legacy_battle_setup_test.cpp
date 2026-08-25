@@ -12,6 +12,7 @@
 namespace {
 
 using openswd3::battle::LegacyBattleAssets;
+using openswd3::battle::LegacyBattleLineRaster;
 using openswd3::battle::LegacyBattleRenderGeometry;
 using openswd3::battle::LegacyBattleRowOffsetAllocation;
 using openswd3::battle::LegacyBattleRowOffsetAllocator;
@@ -189,6 +190,170 @@ public:
         };
     }
 };
+
+void test_line_raster_axis_and_diagonal_steps(openswd3::test::Context& test) {
+    LegacyBattleLineRaster vertical{
+        .start_x = 4,
+        .start_y = 4,
+        .end_x = 4,
+        .end_y = 2,
+        .current_x = 4,
+        .current_y = 4,
+    };
+    test.expect_true(
+        !openswd3::battle::advance_legacy_battle_line_raster(vertical) &&
+            vertical.current_x == 4 && vertical.current_y == 3,
+        "vertical raster uses the negative y step"
+    );
+    test.expect_true(
+        openswd3::battle::advance_legacy_battle_line_raster(vertical) &&
+            vertical.current_x == 4 && vertical.current_y == 2,
+        "vertical raster reports the endpoint after updating"
+    );
+
+    LegacyBattleLineRaster horizontal{
+        .start_x = 5,
+        .start_y = 3,
+        .end_x = 2,
+        .end_y = 3,
+        .current_x = 5,
+        .current_y = 3,
+    };
+    test.expect_true(
+        !openswd3::battle::advance_legacy_battle_line_raster(horizontal) &&
+            horizontal.current_x == 4 && horizontal.current_y == 3,
+        "horizontal raster uses the negative x step"
+    );
+
+    LegacyBattleLineRaster diagonal{
+        .start_x = 3,
+        .start_y = -2,
+        .end_x = 0,
+        .end_y = 1,
+        .current_x = 3,
+        .current_y = -2,
+        .x_error = 17,
+        .y_error = 19,
+    };
+    test.expect_true(
+        !openswd3::battle::advance_legacy_battle_line_raster(diagonal) &&
+            diagonal.current_x == 2 && diagonal.current_y == -1 &&
+            diagonal.x_error == 17 && diagonal.y_error == 19,
+        "equal-distance raster advances both axes without changing errors"
+    );
+}
+
+void test_line_raster_major_axes_and_thresholds(openswd3::test::Context& test) {
+    LegacyBattleLineRaster y_major{
+        .start_x = 0,
+        .start_y = 0,
+        .end_x = 2,
+        .end_y = 5,
+    };
+    const std::array<std::array<i32, 3>, 5> y_expected{{
+        {0, 1, 2},
+        {1, 2, -1},
+        {1, 3, 1},
+        {2, 4, -2},
+        {2, 5, 0},
+    }};
+    for (std::size_t index = 0; index < y_expected.size(); ++index) {
+        const bool arrived =
+            openswd3::battle::advance_legacy_battle_line_raster(y_major);
+        test.expect_true(
+            y_major.current_x == y_expected[index][0] &&
+                y_major.current_y == y_expected[index][1] &&
+                y_major.x_error == y_expected[index][2] &&
+                arrived == (index + 1U == y_expected.size()),
+            "y-major raster follows the strict half-error sequence"
+        );
+    }
+
+    LegacyBattleLineRaster x_major{
+        .start_x = 0,
+        .start_y = 0,
+        .end_x = 5,
+        .end_y = 2,
+    };
+    const std::array<std::array<i32, 3>, 5> x_expected{{
+        {1, 0, 2},
+        {2, 1, -1},
+        {3, 1, 1},
+        {4, 2, -2},
+        {5, 2, 0},
+    }};
+    for (std::size_t index = 0; index < x_expected.size(); ++index) {
+        const bool arrived =
+            openswd3::battle::advance_legacy_battle_line_raster(x_major);
+        test.expect_true(
+            x_major.current_x == x_expected[index][0] &&
+                x_major.current_y == x_expected[index][1] &&
+                x_major.y_error == x_expected[index][2] &&
+                arrived == (index + 1U == x_expected.size()),
+            "x-major raster follows the strict half-error sequence"
+        );
+    }
+}
+
+void test_line_raster_legacy_bug_and_wrapping(openswd3::test::Context& test) {
+    LegacyBattleLineRaster zero_length{
+        .start_x = 7,
+        .start_y = 9,
+        .end_x = 7,
+        .end_y = 9,
+        .current_x = 7,
+        .current_y = 9,
+    };
+    test.expect_true(
+        !openswd3::battle::advance_legacy_battle_line_raster(zero_length) &&
+            zero_length.current_x == 7 && zero_length.current_y == 10,
+        "zero-length raster preserves the original positive y step bug"
+    );
+
+    LegacyBattleLineRaster coordinate_wrap{
+        .start_x = std::numeric_limits<i32>::max(),
+        .start_y = 4,
+        .end_x = std::numeric_limits<i32>::min(),
+        .end_y = 4,
+        .current_x = std::numeric_limits<i32>::max(),
+        .current_y = 4,
+    };
+    test.expect_true(
+        openswd3::battle::advance_legacy_battle_line_raster(coordinate_wrap) &&
+            coordinate_wrap.current_x == std::numeric_limits<i32>::min(),
+        "coordinate addition wraps before endpoint comparison"
+    );
+
+    LegacyBattleLineRaster minimum_delta{
+        .start_x = std::numeric_limits<i32>::min(),
+        .start_y = 0,
+        .end_x = 0,
+        .end_y = 1,
+        .current_x = std::numeric_limits<i32>::min(),
+        .current_y = 0,
+    };
+    test.expect_true(
+        !openswd3::battle::advance_legacy_battle_line_raster(minimum_delta) &&
+            minimum_delta.current_x == std::numeric_limits<i32>::min() &&
+            minimum_delta.current_y == 1 &&
+            minimum_delta.x_error == std::numeric_limits<i32>::min(),
+        "minimum delta remains negative after wrapping negate"
+    );
+
+    LegacyBattleLineRaster error_wrap{
+        .start_x = 0,
+        .start_y = 0,
+        .end_x = 5,
+        .end_y = 2,
+        .y_error = std::numeric_limits<i32>::max(),
+    };
+    test.expect_true(
+        !openswd3::battle::advance_legacy_battle_line_raster(error_wrap) &&
+            error_wrap.current_x == 1 && error_wrap.current_y == 0 &&
+            error_wrap.y_error == std::numeric_limits<i32>::min() + 1,
+        "error accumulation wraps before the signed threshold comparison"
+    );
+}
 
 void test_primary_row_offsets_normal_and_fixed_caller(
     openswd3::test::Context& test
@@ -603,6 +768,9 @@ int main() {
     test_party_selection_and_three_member_formation(test);
     test_all_formation_sizes_and_mirroring(test);
     test_enemy_record_layout(test);
+    test_line_raster_axis_and_diagonal_steps(test);
+    test_line_raster_major_axes_and_thresholds(test);
+    test_line_raster_legacy_bug_and_wrapping(test);
     test_primary_row_offsets_normal_and_fixed_caller(test);
     test_primary_row_offsets_allocation_boundaries(test);
     test_primary_row_offsets_wrapped_allocation_prefix(test);

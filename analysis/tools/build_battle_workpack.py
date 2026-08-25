@@ -56,6 +56,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "assembly_exact",
         "evidence/battle-render-rectangle-004342e0.md",
     ),
+    "0x00434350": (
+        "assembly_exact",
+        "evidence/battle-line-raster-step-00434350.md",
+    ),
 }
 
 

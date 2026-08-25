@@ -21,6 +21,19 @@ wrapping_subtract(const compat::i32 left, const compat::i32 right) noexcept {
     );
 }
 
+[[nodiscard]] compat::i32 wrapping_negate(const compat::i32 value) noexcept {
+    return std::bit_cast<compat::i32>(0U - std::bit_cast<compat::u32>(value));
+}
+
+[[nodiscard]] compat::i32
+arithmetic_shift_right_one(const compat::i32 value) noexcept {
+    compat::u32 shifted = std::bit_cast<compat::u32>(value) >> 1U;
+    if (value < 0) {
+        shifted |= 0x80000000U;
+    }
+    return std::bit_cast<compat::i32>(shifted);
+}
+
 class DefaultRowOffsetAllocator final : public LegacyBattleRowOffsetAllocator {
 public:
     [[nodiscard]] LegacyBattleRowOffsetAllocation
@@ -97,6 +110,53 @@ public:
 }
 
 }  // namespace
+
+bool advance_legacy_battle_line_raster(
+    LegacyBattleLineRaster& raster
+) noexcept {
+    compat::i32 horizontal_distance =
+        wrapping_subtract(raster.end_x, raster.start_x);
+    compat::i32 vertical_distance =
+        wrapping_subtract(raster.end_y, raster.start_y);
+    compat::i32 horizontal_step = 1;
+    compat::i32 vertical_step = 1;
+
+    if (horizontal_distance < 0) {
+        horizontal_step = -1;
+        horizontal_distance = wrapping_negate(horizontal_distance);
+    }
+    if (vertical_distance < 0) {
+        vertical_step = -1;
+        vertical_distance = wrapping_negate(vertical_distance);
+    }
+
+    if (horizontal_distance == 0) {
+        raster.current_y = wrapping_add(raster.current_y, vertical_step);
+    } else if (vertical_distance == 0) {
+        raster.current_x = wrapping_add(raster.current_x, horizontal_step);
+    } else if (horizontal_distance < vertical_distance) {
+        raster.x_error = wrapping_add(raster.x_error, horizontal_distance);
+        if (raster.x_error > arithmetic_shift_right_one(vertical_distance)) {
+            raster.x_error =
+                wrapping_subtract(raster.x_error, vertical_distance);
+            raster.current_x = wrapping_add(raster.current_x, horizontal_step);
+        }
+        raster.current_y = wrapping_add(raster.current_y, vertical_step);
+    } else if (horizontal_distance == vertical_distance) {
+        raster.current_x = wrapping_add(raster.current_x, horizontal_step);
+        raster.current_y = wrapping_add(raster.current_y, vertical_step);
+    } else {
+        raster.y_error = wrapping_add(raster.y_error, vertical_distance);
+        if (raster.y_error > arithmetic_shift_right_one(horizontal_distance)) {
+            raster.y_error =
+                wrapping_subtract(raster.y_error, horizontal_distance);
+            raster.current_y = wrapping_add(raster.current_y, vertical_step);
+        }
+        raster.current_x = wrapping_add(raster.current_x, horizontal_step);
+    }
+
+    return raster.current_x == raster.end_x && raster.current_y == raster.end_y;
+}
 
 LegacyBattleRowOffsetResult rebuild_legacy_battle_primary_row_offsets(
     LegacyBattleRenderGeometry& geometry,
