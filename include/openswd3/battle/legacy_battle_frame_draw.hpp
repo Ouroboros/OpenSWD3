@@ -44,6 +44,7 @@ struct LegacyBattleLayeredFrameDrawResult {
     LegacyBattleFrameDrawResult second{};
     compat::u32 frame_load_calls{};
     compat::u32 frame_draw_calls{};
+    compat::i32 second_source_width{};
     compat::u32 legacy_return_value{};
 };
 
@@ -77,6 +78,22 @@ draw_legacy_battle_layered_resource_frames(
     compat::i32 second_width,
     compat::u32 second_frame_index = 1U,
     compat::u32 legacy_return_value = 0U
+) noexcept;
+
+// sub_450630: draw frame zero, then frame one by low-word width plus two.
+[[nodiscard]] LegacyBattleLayeredFrameDrawResult
+draw_legacy_battle_layered_low_word_width(
+    LegacyBattleFrameDrawState& state,
+    rendering::LegacyFramebuffer& framebuffer,
+    const rendering::LegacyBlitClipRectangle& clip,
+    rendering::LegacyBlitRequest& shared_request,
+    rendering::LegacyBlitEffectState& shared_effects,
+    rendering::LegacyRleRowJitterState& jitter,
+    rendering::LegacyFramePieceProvider& frame_provider,
+    compat::u32 resource_id,
+    compat::i32 x,
+    compat::i32 y,
+    compat::u32 width_seed
 ) noexcept;
 
 // sub_4505B0: draw frame zero, then optionally draw frame two and return one.

@@ -98,6 +98,7 @@ LegacyBattleLayeredFrameDrawResult draw_legacy_battle_layered_resource_frames(
     const compat::u32 legacy_return_value
 ) noexcept {
     LegacyBattleLayeredFrameDrawResult result{
+        .second_source_width = second_width,
         .legacy_return_value = legacy_return_value,
     };
     result.first = draw_legacy_battle_resource_frame(
@@ -145,6 +146,38 @@ LegacyBattleLayeredFrameDrawResult draw_legacy_battle_layered_resource_frames(
             LegacyBattleLayeredFrameDrawStatus::second_frame_typed_stop;
     }
     return result;
+}
+
+LegacyBattleLayeredFrameDrawResult draw_legacy_battle_layered_low_word_width(
+    LegacyBattleFrameDrawState& state,
+    rendering::LegacyFramebuffer& framebuffer,
+    const rendering::LegacyBlitClipRectangle& clip,
+    rendering::LegacyBlitRequest& shared_request,
+    rendering::LegacyBlitEffectState& shared_effects,
+    rendering::LegacyRleRowJitterState& jitter,
+    rendering::LegacyFramePieceProvider& frame_provider,
+    const compat::u32 resource_id,
+    const compat::i32 x,
+    const compat::i32 y,
+    const compat::u32 width_seed
+) noexcept {
+    const compat::i32 second_width =
+        static_cast<compat::i32>((width_seed & 0xFFFFU) + 2U);
+    return draw_legacy_battle_layered_resource_frames(
+        state,
+        framebuffer,
+        clip,
+        shared_request,
+        shared_effects,
+        jitter,
+        frame_provider,
+        resource_id,
+        x,
+        y,
+        second_width,
+        1U,
+        0U
+    );
 }
 
 LegacyBattleLayeredFrameDrawResult

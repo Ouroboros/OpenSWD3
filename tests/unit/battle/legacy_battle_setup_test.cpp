@@ -3345,6 +3345,55 @@ void test_battle_layered_resource_frames(openswd3::test::Context& test) {
     }
 }
 
+void test_battle_layered_low_word_width(openswd3::test::Context& test) {
+    const openswd3::rendering::LegacySurfaceGeometry surface{
+        .pitch_bytes = 80,
+        .width = 40,
+        .height = 30,
+    };
+    const openswd3::rendering::LegacyBlitClipRectangle clip{
+        .left = 0,
+        .top = 0,
+        .width = 40,
+        .height = 30,
+    };
+    openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+    BattleBorderFrameProvider provider;
+    openswd3::battle::LegacyBattleFrameDrawState state;
+    openswd3::rendering::LegacyBlitRequest shared_request;
+    openswd3::rendering::LegacyBlitEffectState shared_effects;
+    openswd3::rendering::LegacyRleRowJitterState jitter;
+    const auto result =
+        openswd3::battle::draw_legacy_battle_layered_low_word_width(
+            state,
+            framebuffer,
+            clip,
+            shared_request,
+            shared_effects,
+            jitter,
+            provider,
+            0x44U,
+            10,
+            5,
+            0xABCD0000U
+        );
+    test.expect_true(
+        result.status ==
+                openswd3::battle::LegacyBattleLayeredFrameDrawStatus::
+                    completed &&
+            result.legacy_return_value == 0U &&
+            result.second_source_width == 2 && result.frame_load_calls == 2U &&
+            result.frame_draw_calls == 2U &&
+            provider.resource_ids == std::vector<u32>{0x44U, 0x44U} &&
+            provider.load_indices == std::vector<u32>{0U, 1U} &&
+            state.current_frame_index == 1U &&
+            framebuffer.row_pixels(5U)[10U] == 0x1001U &&
+            framebuffer.row_pixels(7U)[11U] == 0x1001U &&
+            framebuffer.row_pixels(5U)[12U] == 0U,
+        "low-word width discards high bits adds two and always draws frame one"
+    );
+}
+
 void test_battle_layered_resource_frame_two(openswd3::test::Context& test) {
     const openswd3::rendering::LegacySurfaceGeometry surface{
         .pitch_bytes = 80,
@@ -5306,6 +5355,7 @@ int main() {
     test_battle_action_frame_draw(test);
     test_battle_indexed_action_frame_draw(test);
     test_battle_layered_resource_frames(test);
+    test_battle_layered_low_word_width(test);
     test_battle_layered_resource_frame_two(test);
     test_battle_resource_frame(test);
     test_battle_resource_frame_width(test);

@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v689
+版本：v690
 
 最后更新：2026-08-25
 
@@ -3893,5 +3893,6 @@ B7 P0 有限收口完成。
 - 模块10战斗选定资源帧定点绘制`0x004504E0`完成。完整37行查询并发布入口资源/帧，再以记录u16宽高、入口X/Y、flags 0和记录tail绘制一次。定向测试锁定4×3 indexed帧palette实际像素、参数传递、公共后缀和帧缺失前缀；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`23/422`，即`19 platform_adapted + 4 assembly_exact + 399 pending_audit`，SHA256为`015524d4f91c6eff446119a69631c5d2420cd36db2a81d32ee2cdd4189bf56af`。原版帧记录、共享blitter状态和framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 - 模块10战斗资源双层帧绘制`0x00450530`完成。完整68行先完整绘制同资源0号帧，再固定查询并发布1号帧；第四参数严格等于0才跳过第二层，负宽度仍进入blitter。第一遍正常公共后缀先清共享请求、RGB和跳行状态，第二遍观察清理后状态。定向测试锁定双帧查询顺序、首层残留与次层覆盖像素、零宽发布、负宽真实调用以及两层各自typed-stop前缀；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`24/422`，即`20 platform_adapted + 4 assembly_exact + 398 pending_audit`，SHA256为`e861b6ac14bbd7f9dc634141995616e41b521731a49ec893d65863188f69275f`。原版双层帧记录、共享blitter状态和framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 - 模块10战斗资源0号与2号双层帧绘制`0x004505B0`完成。完整70行复用相同首层、公共后缀、第二次查询与严格零门，但第二层固定帧2，并在正常公共尾恒定返回1。定向测试锁定0/2查询顺序、帧2按自身高度覆盖一列、零宽仍发布帧2及两条正常路径返回1；通用双层测试继续覆盖负宽与两层故障前缀。独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`25/422`，即`21 platform_adapted + 4 assembly_exact + 397 pending_audit`，SHA256为`b58d52d942500d92a9cdf092dd5fd6e82b5a5a338e84d97c7cdb3746272a9c40`。原版双层帧记录、共享blitter状态和framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
+- 模块10战斗资源双层帧低字宽度绘制`0x00450630`完成。完整65行先完整绘制0号帧，再必查并绘制1号帧；第二层宽度按u32执行入口第四参数低16位mask后加2，范围2..65537，高16位完全丢弃，不读取帧1宽且没有零门。定向测试使用高位非零、低字为0的种子锁定宽2、0/1查询顺序及2×3覆盖像素；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`26/422`，即`22 platform_adapted + 4 assembly_exact + 396 pending_audit`，SHA256为`5ca41aeade42f7970652f62904380dc81893335590bbea7d6746761c4afa661b`。原版宽度种子、双层帧记录、共享blitter状态和framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=25`的`0x00450630`战斗帧块绘制包装，继续完整审计其双帧选择、尺寸与软件绘制顺序。
+下一项回收`audit_order=26`的`0x004506B0`战斗帧块绘制包装，继续完整审计其帧选择、尺寸与软件绘制顺序。

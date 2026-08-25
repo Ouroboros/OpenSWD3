@@ -132,6 +132,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-layered-frame-two-draw-004505b0.md",
     ),
+    "0x00450630": (
+        "platform_adapted",
+        "evidence/battle-layered-low-word-width-00450630.md",
+    ),
     "0x00450A50": (
         "platform_adapted",
         "evidence/battle-color-vertical-fade-00450a50.md",
