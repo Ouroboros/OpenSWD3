@@ -17486,6 +17486,41 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44F770 preserves the completed prefix when the record chain would repeat"
     );
 
+    const auto empty_visible_count =
+        openswd3::special_modes::count_legacy_special_mode_visible_records(
+            nullptr
+        );
+    std::array<LegacyStandardModeForwardNode, 14U> visible_count_records{};
+    for (std::size_t index = 0U; index + 1U < visible_count_records.size();
+         ++index) {
+        visible_count_records[index].next = &visible_count_records[index + 1U];
+    }
+    const auto capped_visible_count =
+        openswd3::special_modes::count_legacy_special_mode_visible_records(
+            &visible_count_records[0U]
+        );
+    test.expect_true(
+        empty_visible_count.count == 0U &&
+            empty_visible_count.legacy_return_node == nullptr &&
+            capped_visible_count.count == 13U &&
+            capped_visible_count.legacy_return_node ==
+                &visible_count_records[13U],
+        "0x44F7D0 publishes at most thirteen records and returns the already-read fourteenth pointer"
+    );
+
+    LegacyStandardModeForwardNode repeated_visible_record;
+    repeated_visible_record.next = &repeated_visible_record;
+    const auto repeated_visible_count =
+        openswd3::special_modes::count_legacy_special_mode_visible_records(
+            &repeated_visible_record
+        );
+    test.expect_true(
+        repeated_visible_count.count == 13U &&
+            repeated_visible_count.legacy_return_node ==
+                &repeated_visible_record,
+        "0x44F7D0 counts a repeated self-link thirteen times instead of adding a non-original cycle stop"
+    );
+
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;
     for (std::size_t index = 0U; index < special_action_set.records.size();
          ++index) {

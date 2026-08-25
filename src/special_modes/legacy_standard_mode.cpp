@@ -5511,6 +5511,19 @@ LegacySpecialModeWeightResult calculate_legacy_special_mode_record_weight(
     return result;
 }
 
+LegacySpecialModeVisibleCountResult count_legacy_special_mode_visible_records(
+    const LegacyStandardModeForwardNode* head
+) noexcept {
+    LegacySpecialModeVisibleCountResult result;
+    const LegacyStandardModeForwardNode* record = head;
+    while (record != nullptr && result.count < 13U) {
+        ++result.count;
+        record = record->next;
+    }
+    result.legacy_return_node = record;
+    return result;
+}
+
 static LegacyGuardianAttributeTarget load_guardian_attribute_target(
     const std::span<const compat::u8> bytes
 ) noexcept {

@@ -2656,6 +2656,16 @@ calculate_legacy_special_mode_record_weight(
     const LegacyStandardModeForwardNode* head, compat::u32 packed_mode
 ) noexcept;
 
+struct LegacySpecialModeVisibleCountResult {
+    compat::u32 count{};
+    const LegacyStandardModeForwardNode* legacy_return_node{};
+};
+
+[[nodiscard]] LegacySpecialModeVisibleCountResult
+count_legacy_special_mode_visible_records(
+    const LegacyStandardModeForwardNode* head
+) noexcept;
+
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
     completed,
     mode_mask_out_of_range,
