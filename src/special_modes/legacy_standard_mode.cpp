@@ -5462,6 +5462,22 @@ LegacySpecialModeRuntimeCleanupResult cleanup_legacy_special_mode_runtime(
     return result;
 }
 
+compat::u32 resolve_legacy_special_mode_packed_value(
+    const compat::u32 packed_value
+) noexcept {
+    compat::u32 result = packed_value << 16U;
+    if ((packed_value & 0x00000100U) != 0U) {
+        result = 1U;
+    }
+    if ((packed_value & 0x00000200U) != 0U) {
+        result = packed_value >> 24U;
+    }
+    if ((packed_value & 0x00000400U) != 0U) {
+        result = 0x00000800U;
+    }
+    return result;
+}
+
 static LegacyGuardianAttributeTarget load_guardian_attribute_target(
     const std::span<const compat::u8> bytes
 ) noexcept {

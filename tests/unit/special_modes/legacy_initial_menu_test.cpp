@@ -17413,6 +17413,25 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44DA40 preserves cleared resource owners and one released record but does not zero the workspace after a cycle stop"
     );
 
+    test.expect_true(
+        openswd3::special_modes::resolve_legacy_special_mode_packed_value(
+            0x12340078U
+        ) == 0x00780000U &&
+            openswd3::special_modes::resolve_legacy_special_mode_packed_value(
+                0x12340100U
+            ) == 1U &&
+            openswd3::special_modes::resolve_legacy_special_mode_packed_value(
+                0xABCD0200U
+            ) == 0xABU &&
+            openswd3::special_modes::resolve_legacy_special_mode_packed_value(
+                0xABCD0300U
+            ) == 0xABU &&
+            openswd3::special_modes::resolve_legacy_special_mode_packed_value(
+                0xABCD0700U
+            ) == 0x800U,
+        "0x44FF90 starts with the low word shifted left, then applies bit-eight, bit-nine, and highest-priority bit-ten overrides"
+    );
+
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;
     for (std::size_t index = 0U; index < special_action_set.records.size();
          ++index) {

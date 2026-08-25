@@ -2635,6 +2635,9 @@ cleanup_legacy_special_mode_runtime(
     LegacySpecialModeRuntimeCleanupPorts& ports
 ) noexcept;
 
+[[nodiscard]] compat::u32
+resolve_legacy_special_mode_packed_value(compat::u32 packed_value) noexcept;
+
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
     completed,
     mode_mask_out_of_range,
