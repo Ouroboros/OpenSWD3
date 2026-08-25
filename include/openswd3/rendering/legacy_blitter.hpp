@@ -148,6 +148,7 @@ struct LegacyBlitResult {
 
 struct LegacyOutlineBlitResult {
     std::array<LegacyBlitResult, 4> passes{};
+    compat::u32 pass_count{};
 };
 
 // sub_417050. The original wrapper forces mode 0x24 and invokes the common
@@ -156,8 +157,8 @@ struct LegacyOutlineBlitResult {
     LegacyFramebuffer& framebuffer,
     const LegacyBlitClipRectangle& clip,
     const LegacyBlitSource& source,
-    const LegacyBlitRequest& request,
-    const LegacyBlitEffectState& effects,
+    LegacyBlitRequest& shared_request,
+    LegacyBlitEffectState& shared_effects,
     LegacyRleRowJitterState& jitter
 ) noexcept;
 

@@ -268,22 +268,31 @@ void test_outline_wrapper(openswd3::test::Context& test) {
         .height = 8,
     };
     LegacyRleRowJitterState jitter;
+    LegacyBlitRequest shared_request{
+        .destination_x = 3,
+        .destination_y = 3,
+        .source_width = 1,
+        .source_height = 1,
+        .target_height = 1,
+        .vertical_resample_enlarge_state = 1U,
+        .vertical_resample_phase_10_10 = 0x25U,
+        .opacity_step = 7,
+        .auxiliary = kColor,
+    };
+    LegacyBlitEffectState shared_effects;
 
     const auto result = openswd3::rendering::blit_legacy_outline_copy_paths(
         framebuffer,
         clip,
         LegacyBlitSource{.bytes = source},
-        LegacyBlitRequest{
-            .destination_x = 3,
-            .destination_y = 3,
-            .source_width = 1,
-            .source_height = 1,
-            .auxiliary = kColor,
-        },
-        LegacyBlitEffectState{},
+        shared_request,
+        shared_effects,
         jitter
     );
 
+    test.expect_equal(
+        result.pass_count, u32{4U}, "all four outline passes execute"
+    );
     for (const auto& pass : result.passes) {
         test.expect_equal(
             pass.status,
@@ -309,6 +318,43 @@ void test_outline_wrapper(openswd3::test::Context& test) {
         framebuffer.row_pixels(3U)[3U],
         static_cast<u16>(0xA55AU),
         "outline wrapper does not draw the center"
+    );
+    test.expect_true(
+        shared_request.target_height == 0 &&
+            shared_request.vertical_resample_phase_10_10 == 0U &&
+            shared_request.opacity_step == 0 &&
+            shared_request.vertical_resample_enlarge_state == 1U,
+        "outline propagates each accepted blit common epilogue"
+    );
+
+    LegacyBlitRequest stopped_request{
+        .destination_x = 3,
+        .destination_y = 3,
+        .source_width = 1,
+        .source_height = 1,
+        .target_height = 2,
+        .vertical_resample_phase_10_10 = 0x44U,
+        .opacity_step = 9,
+        .auxiliary = kColor,
+    };
+    LegacyBlitEffectState stopped_effects{.red_offset = 3};
+    const auto stopped = openswd3::rendering::blit_legacy_outline_copy_paths(
+        framebuffer,
+        clip,
+        LegacyBlitSource{},
+        stopped_request,
+        stopped_effects,
+        jitter
+    );
+    test.expect_true(
+        stopped.pass_count == 1U &&
+            stopped.passes[0].status ==
+                LegacyBlitExecutionStatus::malformed_source &&
+            stopped_request.target_height == 2 &&
+            stopped_request.vertical_resample_phase_10_10 == 0x44U &&
+            stopped_request.opacity_step == 9 &&
+            stopped_effects.red_offset == 3,
+        "outline typed stop preserves entry state and skips remaining passes"
     );
 }
 

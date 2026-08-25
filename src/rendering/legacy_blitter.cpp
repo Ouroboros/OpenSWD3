@@ -1913,13 +1913,13 @@ LegacyOutlineBlitResult blit_legacy_outline_copy_paths(
     LegacyFramebuffer& framebuffer,
     const LegacyBlitClipRectangle& clip,
     const LegacyBlitSource& source,
-    const LegacyBlitRequest& request,
-    const LegacyBlitEffectState& effects,
+    LegacyBlitRequest& shared_request,
+    LegacyBlitEffectState& shared_effects,
     LegacyRleRowJitterState& jitter
 ) noexcept {
     LegacyOutlineBlitResult result;
-    LegacyBlitRequest pass = request;
-    pass.flags |= 0x24U;
+    const LegacyBlitRequest stack_arguments = shared_request;
+    const u32 forced_flags = stack_arguments.flags | 0x24U;
 
     constexpr std::array<std::array<i32, 2>, 4> kOffsets{
         std::array<i32, 2>{1, 1},
@@ -1928,13 +1928,35 @@ LegacyOutlineBlitResult blit_legacy_outline_copy_paths(
         std::array<i32, 2>{1, -1},
     };
     for (std::size_t index = 0U; index < kOffsets.size(); ++index) {
+        LegacyBlitRequest pass = shared_request;
         pass.destination_x =
-            wrapping_add(request.destination_x, kOffsets[index][0]);
+            wrapping_add(stack_arguments.destination_x, kOffsets[index][0]);
         pass.destination_y =
-            wrapping_add(request.destination_y, kOffsets[index][1]);
+            wrapping_add(stack_arguments.destination_y, kOffsets[index][1]);
+        pass.source_width = stack_arguments.source_width;
+        pass.source_height = stack_arguments.source_height;
+        pass.flags = forced_flags;
+        pass.auxiliary = stack_arguments.auxiliary;
         result.passes[index] = blit_legacy_copy_paths(
-            framebuffer, clip, source, pass, effects, jitter
+            framebuffer, clip, source, pass, shared_effects, jitter
         );
+        ++result.pass_count;
+
+        const LegacyBlitExecutionStatus status = result.passes[index].status;
+        if (status != LegacyBlitExecutionStatus::completed &&
+            status != LegacyBlitExecutionStatus::clipped_out &&
+            status != LegacyBlitExecutionStatus::opacity_disabled) {
+            break;
+        }
+
+        shared_request.target_height = 0;
+        shared_request.horizontal_resample_displacement = 0;
+        shared_request.vertical_resample_phase_10_10 = 0U;
+        shared_request.opacity_step = 0;
+        shared_effects.red_offset = 0;
+        shared_effects.green_offset = 0;
+        shared_effects.blue_offset = 0;
+        shared_effects.skip_every_third_row = false;
     }
     return result;
 }
