@@ -16323,6 +16323,73 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44D2D0 stops when id lookup would reread a cyclic record"
     );
 
+    const auto player_merge_empty =
+        openswd3::special_modes::merge_legacy_player_item_quantities(nullptr);
+    test.expect_true(
+        player_merge_empty.status ==
+                openswd3::special_modes::LegacyPlayerItemMergeStatus::
+                    completed &&
+            player_merge_empty.legacy_return_value == 0 &&
+            player_merge_empty.merged_count == 0U,
+        "0x44D4E0 returns zero without touching an empty player-item list"
+    );
+
+    LegacyStandardModeForwardNode player_merge_negative;
+    player_merge_negative.first_value = 0x7FFFU;
+    player_merge_negative.second_value = 1U;
+    player_merge_negative.filter_flags = 0xA5A58000U;
+    LegacyStandardModeForwardNode player_merge_wrap;
+    player_merge_wrap.next = &player_merge_negative;
+    player_merge_wrap.first_value = 0xFFFFU;
+    player_merge_wrap.second_value = 1U;
+    player_merge_wrap.filter_flags = 0x12348000U;
+    LegacyStandardModeForwardNode player_merge_clamp;
+    player_merge_clamp.next = &player_merge_wrap;
+    player_merge_clamp.first_value = 90U;
+    player_merge_clamp.second_value = 20U;
+    player_merge_clamp.filter_flags = 0xFFFF8001U;
+    const auto player_merge =
+        openswd3::special_modes::merge_legacy_player_item_quantities(
+            &player_merge_clamp
+        );
+    test.expect_true(
+        player_merge.status ==
+                openswd3::special_modes::LegacyPlayerItemMergeStatus::
+                    completed &&
+            player_merge.merged_count == 3U &&
+            player_merge.clamped_count == 1U &&
+            player_merge_clamp.first_value == 99U &&
+            player_merge_wrap.first_value == 0U &&
+            player_merge_negative.first_value == 0x8000U &&
+            player_merge_clamp.second_value == 0U &&
+            player_merge_wrap.second_value == 0U &&
+            player_merge_negative.second_value == 0U &&
+            player_merge_clamp.filter_flags == 0xFFFF0001U &&
+            player_merge_wrap.filter_flags == 0x12340000U &&
+            player_merge_negative.filter_flags == 0xA5A50000U,
+        "0x44D4E0 clears bit fifteen, merges B into A, clears B, and clamps only signed values above ninety-nine"
+    );
+
+    LegacyStandardModeForwardNode player_merge_cycle;
+    player_merge_cycle.next = &player_merge_cycle;
+    player_merge_cycle.first_value = 1U;
+    player_merge_cycle.second_value = 2U;
+    player_merge_cycle.filter_flags = 0x8000U;
+    const auto player_merge_cycle_result =
+        openswd3::special_modes::merge_legacy_player_item_quantities(
+            &player_merge_cycle
+        );
+    test.expect_true(
+        player_merge_cycle_result.status ==
+                openswd3::special_modes::LegacyPlayerItemMergeStatus::
+                    chain_cycle_stopped &&
+            player_merge_cycle_result.merged_count == 1U &&
+            player_merge_cycle.first_value == 3U &&
+            player_merge_cycle.second_value == 0U &&
+            player_merge_cycle.filter_flags == 0U,
+        "0x44D4E0 preserves the first merge before stopping when a cycle would reread the node"
+    );
+
     using SystemMenuRecordCountStatus =
         openswd3::special_modes::LegacySystemMenuRecordCountStatus;
     openswd3::special_modes::LegacySystemMenuState record_count_null_state;

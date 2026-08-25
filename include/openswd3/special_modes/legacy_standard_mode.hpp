@@ -2319,6 +2319,22 @@ update_legacy_player_item_quantities(
     LegacyStandardModeQuantityPorts& ports
 ) noexcept;
 
+enum class LegacyPlayerItemMergeStatus : compat::u8 {
+    completed,
+    chain_cycle_stopped,
+};
+
+struct LegacyPlayerItemMergeResult {
+    LegacyPlayerItemMergeStatus status{LegacyPlayerItemMergeStatus::completed};
+    compat::i32 legacy_return_value{};
+    compat::u32 merged_count{};
+    compat::u32 clamped_count{};
+};
+
+[[nodiscard]] LegacyPlayerItemMergeResult merge_legacy_player_item_quantities(
+    LegacyStandardModeForwardNode* head
+) noexcept;
+
 class LegacyStandardModeRecordClonePorts {
 public:
     virtual ~LegacyStandardModeRecordClonePorts() = default;

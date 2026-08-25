@@ -4874,6 +4874,35 @@ LegacyPlayerItemQuantityResult update_legacy_player_item_quantities(
     return result;
 }
 
+LegacyPlayerItemMergeResult merge_legacy_player_item_quantities(
+    LegacyStandardModeForwardNode* head
+) noexcept {
+    LegacyPlayerItemMergeResult result;
+    std::vector<const LegacyStandardModeForwardNode*> visited;
+    LegacyStandardModeForwardNode* record = head;
+    while (record != nullptr) {
+        if (std::find(visited.begin(), visited.end(), record) !=
+            visited.end()) {
+            result.status = LegacyPlayerItemMergeStatus::chain_cycle_stopped;
+            return result;
+        }
+        visited.push_back(record);
+        record->filter_flags &= 0xFFFF7FFFU;
+        record->first_value = static_cast<compat::u16>(
+            record->first_value + record->second_value
+        );
+        record->second_value = 0U;
+        if (std::bit_cast<compat::i16>(record->first_value) > 0x63) {
+            record->first_value = 0x63U;
+            ++result.clamped_count;
+        }
+        ++result.merged_count;
+        record = const_cast<LegacyStandardModeForwardNode*>(record->next);
+    }
+    result.legacy_return_value = 0;
+    return result;
+}
+
 LegacyStandardModeRecordCloneResult
 rebuild_legacy_standard_mode_selection_records(
     LegacyStandardModeForwardNode* source_head,
