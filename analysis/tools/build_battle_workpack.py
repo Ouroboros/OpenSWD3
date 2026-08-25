@@ -96,6 +96,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-image-particle-spawn-00434dd0.md",
     ),
+    "0x0044FFE0": (
+        "platform_adapted",
+        "evidence/battle-border-panel-0044ffe0.md",
+    ),
     "0x0044FFC0": (
         "assembly_exact",
         "evidence/battle-action-threshold-0044ffc0.md",

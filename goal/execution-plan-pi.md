@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v680
+版本：v681
 
 最后更新：2026-08-25
 
@@ -3884,5 +3884,6 @@ B7 P0 有限收口完成。
 - 模块10战斗行动计时阈值发布`0x0044FFC0`完成。15行叶子按`20-setting`、两次乘5和左移2的原指令链，把32位战斗速度设置换算为typed行动阈值并返回同一bit pattern；全程保留低32位回绕，不新增夹值、溢出检查或设置门。原数据默认900、常规正负结果和两个有符号极值已锁定，唯一初始化caller与五处下游读取完成追溯。定向零warning目标、独立ASan`1/1`、Linux core`188/188`及Linux app`194/194`通过。工作包连续两次生成逐字节一致，当前`16/422`，即`12 platform_adapted + 4 assembly_exact + 406 pending_audit`，SHA256为`57a0fac7799b9d4c7e22a3b65691576c0ef21c3b2a9aa1a5bc99b95a0d6635a1`。原版速度设置、阈值与对象计时联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 
 - 模块10战斗矩形常量色垂直渐变`0x00450A50`按callee优先完成。27行包装先把第五个入口dword的完整栈槽地址发布为共享源，再以`x,y,width,height,8,0`调用已关闭软件blitter；现代实现以四字节小端snapshot替代悬空栈指针，直接组合typed blitter并保留调用期间的入口共享请求状态。固定模式8实际选择raw常量色垂直渐变而非普通实色copy；固定尾参数0表示空palette/辅助而非opacity，调用期间保留共享opacity；正常返回按通用blitter公共后缀清零单次目标高度、水平位移、纵向phase和opacity并保留跨调用放大位，typed-stop不清。颜色低word为`0xFFFF`时仍保留RLE误分类与既有callee typed-stop。定向测试锁定完整参数槽、三行渐变、正常后缀状态、typed-stop前缀、矩形外不变及误分类边界；零warning目标、独立ASan`1/1`、Linux core`188/188`及Linux app`194/194`通过。工作包连续两次生成逐字节一致，当前`17/422`，即`13 platform_adapted + 4 assembly_exact + 405 pending_audit`，SHA256为`4281418b222752187197c02299b6e6702467d0ae07bde12b74ab691d1ba35406`。原版颜色栈槽、共享blitter状态与framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
+- 模块10战斗九块边框与渐变底板协调`0x0044FFE0`完成。完整303行先查询并发布但不绘制4号帧，以两项重复次数加2后左移4的32位回绕尺寸绘制渐变底板，再按0/1/2顶边、每轮重取3/5左右边和6/7/8底边执行。1号与7号在零重复时仍查询；右边X只按3号宽计算，行Y只按5号高推进。typed实现直接组合已关闭帧查询、软件blitter和渐变包装，保留帧记录/source发布、正常公共后缀、帧缺失及draw typed-stop前缀。定向测试锁定11次动态查询、12次帧绘制、实际像素坐标、零重复及两类失败；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`18/422`，即`14 platform_adapted + 4 assembly_exact + 404 pending_audit`，SHA256为`eeaa4f63ef5c977c0ca9332be22d1cc37c426a4083d4471e9a2fa9ee32198a00`。原版边框帧缓存、共享blitter状态和framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=17`的`0x0044FFE0`战斗边框与渐变底板协调函数；其九处帧记录查询、八处软件blit和一处常量色垂直渐变callee均已关闭，必须直接组合typed接口并保留逐次帧重取、坐标推进和循环边界。
+下一项回收`audit_order=18`的`0x00450270`战斗帧块定点绘制包装；其帧查询和软件blitter callee均已关闭，继续按callee优先直接组合typed接口。
