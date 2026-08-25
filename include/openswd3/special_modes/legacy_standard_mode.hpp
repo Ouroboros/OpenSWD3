@@ -2436,6 +2436,23 @@ struct LegacyFixedItemLookupResult {
     std::span<LegacyStandardModeForwardNode* const> slots, compat::u16 record_id
 ) noexcept;
 
+enum class LegacyMaskedItemLookupStatus : compat::u8 {
+    completed,
+    chain_cycle_stopped,
+};
+
+struct LegacyMaskedItemLookupResult {
+    LegacyMaskedItemLookupStatus status{
+        LegacyMaskedItemLookupStatus::completed
+    };
+    const LegacyStandardModeForwardNode* legacy_return_node{};
+    compat::u32 visited_count{};
+};
+
+[[nodiscard]] LegacyMaskedItemLookupResult find_legacy_player_item_masked(
+    const LegacyStandardModeForwardNode* head, compat::u16 base_record_id
+) noexcept;
+
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
     completed,
     mode_mask_out_of_range,

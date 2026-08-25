@@ -16756,6 +16756,67 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44D650 stops at the original record-id read when a fixed slot is null"
     );
 
+    LegacyStandardModeForwardNode masked_second;
+    masked_second.text_index = 0x8124U;
+    LegacyStandardModeForwardNode masked_first;
+    masked_first.next = &masked_second;
+    masked_first.text_index = 0xC123U;
+    const auto masked_first_lookup =
+        openswd3::special_modes::find_legacy_player_item_masked(
+            &masked_first, 0x0123U
+        );
+    const auto masked_second_lookup =
+        openswd3::special_modes::find_legacy_player_item_masked(
+            &masked_first, 0x0124U
+        );
+    test.expect_true(
+        masked_first_lookup.status ==
+                openswd3::special_modes::LegacyMaskedItemLookupStatus::
+                    completed &&
+            masked_first_lookup.legacy_return_node == &masked_first &&
+            masked_first_lookup.visited_count == 1U &&
+            masked_second_lookup.legacy_return_node == &masked_second &&
+            masked_second_lookup.visited_count == 2U,
+        "0x44D680 masks category bits from stored player-item ids and returns the first base-id match"
+    );
+
+    const auto masked_full_target =
+        openswd3::special_modes::find_legacy_player_item_masked(
+            &masked_first, 0xC123U
+        );
+    test.expect_true(
+        masked_full_target.legacy_return_node == nullptr &&
+            masked_full_target.visited_count == 2U,
+        "0x44D680 keeps the target parameter full-width instead of masking its high category bits"
+    );
+
+    const auto masked_missing =
+        openswd3::special_modes::find_legacy_player_item_masked(
+            &masked_first, 0x0125U
+        );
+    test.expect_true(
+        masked_missing.status ==
+                openswd3::special_modes::LegacyMaskedItemLookupStatus::
+                    completed &&
+            masked_missing.legacy_return_node == nullptr &&
+            masked_missing.visited_count == 2U,
+        "0x44D680 returns null after the complete player-item chain has no base-id match"
+    );
+
+    masked_second.next = &masked_first;
+    const auto masked_cycle =
+        openswd3::special_modes::find_legacy_player_item_masked(
+            &masked_first, 0x0125U
+        );
+    test.expect_true(
+        masked_cycle.status ==
+                openswd3::special_modes::LegacyMaskedItemLookupStatus::
+                    chain_cycle_stopped &&
+            masked_cycle.legacy_return_node == nullptr &&
+            masked_cycle.visited_count == 2U,
+        "0x44D680 stops when an unmatched cycle would reread its first player-item record"
+    );
+
     using SystemMenuRecordCountStatus =
         openswd3::special_modes::LegacySystemMenuRecordCountStatus;
     openswd3::special_modes::LegacySystemMenuState record_count_null_state;
