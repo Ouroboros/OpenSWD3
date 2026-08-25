@@ -42,16 +42,16 @@ mov dword_4CD730, eax
 sub_4170E0(x, y, width, height, 8, 0)
 ```
 
-模式固定为8，尾参数固定为0。现代包装从入口共享blitter请求snapshot开始，只覆盖：
+模式固定为8，尾参数固定为0。`0x004170E0`在`0x00417481`把该第六个物理参数传给所选像素routine；它对应源palette/辅助指针，不是opacity。opacity来自共享`0x004CC2F0`。现代包装从入口共享blitter请求snapshot开始，只覆盖：
 
 - 目标X/Y；
 - 源宽/高；
 - flags为8；
-- opacity参数为0。
+- palette与辅助span为空。
 
-目标高度、水平位移、垂直重采样状态和辅助状态等不由本包装栈参数携带，调用期间继续使用入口共享snapshot。
+目标高度、水平位移、纵向phase、放大位和opacity等不由本包装栈参数携带，调用期间继续使用入口共享snapshot。
 
-通用blitter正常后缀在`0x0041749D..0x004174C1`清零多项单次调用共享状态。其中现代请求可见的目标高度、水平位移和纵向phase在`completed`、`clipped_out`或`opacity_disabled`返回后清零；跨调用放大位明确不清，继续保留。`unsupported_routine`、短源或目标越界等typed-stop代表原函数未到公共后缀，三项入口值不得提前清除。
+通用blitter正常后缀在`0x0041749D..0x004174C1`清零多项单次调用共享状态。其中现代请求可见的目标高度、水平位移、纵向phase和opacity在`completed`、`clipped_out`或`opacity_disabled`返回后清零；跨调用放大位明确不清，继续保留。`unsupported_routine`、短源或目标越界等typed-stop代表原函数未到公共后缀，四项入口值不得提前清除。
 
 callee返回后旧包装只执行`add esp, 0x18`和`retn`，EAX保持callee结果。现代函数直接返回`LegacyBlitResult`作为typed等价观测，并在正常返回分支发布上述共享后缀状态。
 
@@ -76,11 +76,12 @@ LST到C++：
 C++到LST：
 
 - 四字节snapshot每个字节都来自入口颜色dword；
-- 覆盖的六项request字段均来自原push；
+- 覆盖的矩形与flags来自前五个原push，空palette/辅助来自固定尾参数0；
 - 未覆盖的共享request字段来自旧callee读取的共享状态，不是新增业务；
 - framebuffer、clip、effect与jitter是旧全局的显式typed owner；
-- 正常分支三项单次状态清零与放大位保留来自通用blitter公共后缀；
-- typed-stop分支不清状态来自未到公共后缀；
+- 调用期间opacity保留来自共享`0x004CC2F0`，不冒充第六个栈参数；
+- 正常分支四项单次状态清零与放大位保留来自通用blitter公共后缀；
+- typed-stop分支不清四项状态来自未到公共后缀；
 - 没有新增颜色转换、透明色判断、几何夹值或失败重试。
 
 完整正向与反向追溯未发现未解释指令、参数、callee、共享写或出口。
@@ -92,9 +93,9 @@ C++到LST：
 - 32位颜色槽四字节小端snapshot；
 - 模式8选择raw槽`0x88`和常量色垂直渐变routine；
 - 第一行完整源色，后续行依原opacity递减；
-- 入口目标高度保留并产生三行输出，正常返回后目标高度、水平位移和纵向phase清零而放大位保留；
+- 入口目标高度与opacity保留并产生三行输出，正常返回后目标高度、水平位移、纵向phase和opacity清零而放大位保留；
 - 矩形外像素不变；
-- `0xFFFF`低word保留RLE误分类selection和既有callee typed-stop，且typed-stop不清三项单次状态。
+- `0xFFFF`低word保留RLE误分类selection和既有callee typed-stop，且typed-stop不清四项单次状态。
 
 battle聚合目标零warning构建及定向测试通过。
 

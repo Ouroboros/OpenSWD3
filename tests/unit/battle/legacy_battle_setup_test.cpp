@@ -2652,6 +2652,7 @@ void test_battle_color_fade(openswd3::test::Context& test) {
             shared_request.target_height == 0 &&
             shared_request.horizontal_resample_displacement == 0 &&
             shared_request.vertical_resample_phase_10_10 == 0U &&
+            shared_request.opacity_step == 0 &&
             shared_request.vertical_resample_enlarge_state == 1U &&
             row0[0U] == 0U && row0[1U] == 0x1234U && row0[2U] == 0x1234U &&
             row0[3U] == 0U && row1[0U] == 0U && row1[1U] != 0U &&
@@ -2672,6 +2673,7 @@ void test_battle_color_fade(openswd3::test::Context& test) {
     openswd3::rendering::LegacyBlitRequest marker_request{
         .target_height = 2,
         .vertical_resample_phase_10_10 = 33U,
+        .opacity_step = 9,
     };
     const auto marker_result = openswd3::battle::fade_legacy_battle_rectangle(
         state,
@@ -2703,7 +2705,8 @@ void test_battle_color_fade(openswd3::test::Context& test) {
             state.source_argument_slot ==
                 std::array<u8, 4>{0xFFU, 0xFFU, 0x34U, 0x12U} &&
             marker_request.target_height == 2 &&
-            marker_request.vertical_resample_phase_10_10 == 33U,
+            marker_request.vertical_resample_phase_10_10 == 33U &&
+            marker_request.opacity_step == 9,
         "FFFF low word keeps the RLE-family misclassification and existing callee stop"
     );
 }

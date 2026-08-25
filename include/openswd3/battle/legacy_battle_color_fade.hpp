@@ -13,7 +13,7 @@ struct LegacyBattleColorFadeState {
 
 // sub_450A50. shared_request supplies the entry snapshots of blitter state not
 // carried by this wrapper's stack arguments. The rectangle, mode, and trailing
-// opacity argument are overwritten exactly as in the original call.
+// palette/auxiliary argument are overwritten exactly as in the original call.
 [[nodiscard]] rendering::LegacyBlitResult fade_legacy_battle_rectangle(
     LegacyBattleColorFadeState& state,
     rendering::LegacyFramebuffer& framebuffer,

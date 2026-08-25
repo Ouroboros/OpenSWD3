@@ -30,7 +30,7 @@ rendering::LegacyBlitResult fade_legacy_battle_rectangle(
     request.source_width = width;
     request.source_height = height;
     request.flags = 8U;
-    request.opacity_step = 0;
+    request.auxiliary = {};
 
     const rendering::LegacyBlitResult result =
         rendering::blit_legacy_copy_paths(
@@ -52,6 +52,7 @@ rendering::LegacyBlitResult fade_legacy_battle_rectangle(
         shared_request.target_height = 0;
         shared_request.horizontal_resample_displacement = 0;
         shared_request.vertical_resample_phase_10_10 = 0U;
+        shared_request.opacity_step = 0;
     }
     return result;
 }
