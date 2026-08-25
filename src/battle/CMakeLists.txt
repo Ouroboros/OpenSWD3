@@ -8,6 +8,7 @@ add_library(
         legacy_battle_particle_spawn.cpp
         legacy_battle_render_geometry.cpp
         legacy_battle_setup.cpp
+        legacy_battle_timing.cpp
 )
 target_include_directories(
     openswd3_battle

@@ -6,6 +6,7 @@
 #include "openswd3/battle/legacy_battle_particle_spawn.hpp"
 #include "openswd3/battle/legacy_battle_render_geometry.hpp"
 #include "openswd3/battle/legacy_battle_setup.hpp"
+#include "openswd3/battle/legacy_battle_timing.hpp"
 
 #include <algorithm>
 #include <array>
@@ -2597,6 +2598,40 @@ void test_directional_scan_division_and_typed_stops(
     );
 }
 
+void test_action_timing_threshold(openswd3::test::Context& test) {
+    openswd3::battle::LegacyBattleTimingState state;
+    test.expect_equal(
+        state.action_threshold,
+        900,
+        "legacy battle action threshold keeps the original data default"
+    );
+
+    struct Case {
+        i32 speed_setting;
+        i32 expected_threshold;
+    };
+    constexpr std::array<Case, 6> cases{{
+        {11, 900},
+        {20, 0},
+        {0, 2000},
+        {21, -100},
+        {std::numeric_limits<i32>::min(), 2000},
+        {std::numeric_limits<i32>::max(), 2100},
+    }};
+    for (const auto& item : cases) {
+        state.action_threshold = -1;
+        const i32 returned =
+            openswd3::battle::publish_legacy_battle_action_threshold(
+                state, item.speed_setting
+            );
+        test.expect_true(
+            returned == item.expected_threshold &&
+                state.action_threshold == item.expected_threshold,
+            "battle speed setting publishes and returns the wrapped action threshold"
+        );
+    }
+}
+
 void append_rotation_word(std::vector<u8>& bytes, const u16 value) {
     bytes.push_back(static_cast<u8>(value & 0xFFU));
     bytes.push_back(static_cast<u8>(value >> 8U));
@@ -3722,6 +3757,7 @@ int main() {
     test_directional_scan_direct_mirror_transparent_and_combine(test);
     test_directional_scan_fixed_point_loops_and_bounds(test);
     test_directional_scan_division_and_typed_stops(test);
+    test_action_timing_threshold(test);
     test_literal_image_rotation(test);
     test_render_auxiliary_buffer_release(test);
     test_render_resource_cleanup(test);
