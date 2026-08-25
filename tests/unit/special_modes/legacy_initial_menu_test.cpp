@@ -17305,6 +17305,114 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44D920 completes darkening and grayscale before stopping at the second frame-buffer write"
     );
 
+    struct FakeSpecialModeRuntimeCleanupPorts final
+        : openswd3::special_modes::LegacySpecialModeRuntimeCleanupPorts {
+        LegacyStandardModeForwardNode*
+        allocate_quantity_record() noexcept override {
+            return nullptr;
+        }
+        void initialize_missing_quantity_name(
+            LegacyStandardModeForwardNode&
+        ) noexcept override {}
+        bool load_quantity_record_name(
+            LegacyStandardModeForwardNode&, const u32
+        ) noexcept override {
+            return false;
+        }
+        void release_quantity_value(const u32 value) noexcept override {
+            released_values.push_back(value);
+        }
+        void release_quantity_record(
+            LegacyStandardModeForwardNode& record
+        ) noexcept override {
+            released_records.push_back(&record);
+        }
+        i32 release_external_owner(const u32 owner) noexcept override {
+            released_external_owners.push_back(owner);
+            return 10;
+        }
+        i32 release_frame_buffer(const u32 buffer_index) noexcept override {
+            released_frame_buffers.push_back(buffer_index);
+            return static_cast<i32>(20U + buffer_index);
+        }
+
+        std::vector<u32> released_external_owners;
+        std::vector<u32> released_frame_buffers;
+        std::vector<u32> released_values;
+        std::vector<LegacyStandardModeForwardNode*> released_records;
+    };
+
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        cleanup_runtime_state;
+    cleanup_runtime_state.external_owner = 0x1234U;
+    cleanup_runtime_state.darkened_frame_pixels.assign(3U, 1U);
+    cleanup_runtime_state.working_frame_pixels.assign(3U, 2U);
+    cleanup_runtime_state.workspace_words.fill(0xFFFFFFFFU);
+    cleanup_runtime_state.workspace_head_bound = true;
+    LegacyStandardModeForwardNode cleanup_second_record;
+    cleanup_second_record.release_token = 0x22U;
+    LegacyStandardModeForwardNode cleanup_first_record;
+    cleanup_first_record.next = &cleanup_second_record;
+    cleanup_first_record.release_token = 0x11U;
+    cleanup_runtime_state.workspace_record_head = &cleanup_first_record;
+    FakeSpecialModeRuntimeCleanupPorts cleanup_runtime_ports;
+    const auto cleanup_runtime =
+        openswd3::special_modes::cleanup_legacy_special_mode_runtime(
+            cleanup_runtime_state, cleanup_runtime_ports
+        );
+    test.expect_true(
+        cleanup_runtime.status ==
+                openswd3::special_modes::LegacySpecialModeRuntimeCleanupStatus::
+                    completed &&
+            cleanup_runtime.legacy_return_value == 0 &&
+            cleanup_runtime.release_call_count == 7U &&
+            cleanup_runtime.released_record_count == 2U &&
+            cleanup_runtime_ports.released_external_owners ==
+                std::vector<u32>{0x1234U} &&
+            cleanup_runtime_ports.released_frame_buffers ==
+                std::vector<u32>{0U, 1U} &&
+            cleanup_runtime_ports.released_values ==
+                std::vector<u32>{0x11U, 0x22U} &&
+            cleanup_runtime_state.external_owner == 0U &&
+            cleanup_runtime_state.darkened_frame_pixels.empty() &&
+            cleanup_runtime_state.working_frame_pixels.empty() &&
+            cleanup_runtime_state.workspace_record_head == nullptr &&
+            cleanup_runtime_state.workspace_words[43U] == 0U &&
+            cleanup_runtime_state.workspace_head_bound,
+        "0x44DA40 releases the external owner and both frame buffers, drains the workspace chain, then clears all 44 dwords"
+    );
+
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        cycle_cleanup_state;
+    cycle_cleanup_state.external_owner = 0x5678U;
+    cycle_cleanup_state.darkened_frame_pixels.assign(2U, 3U);
+    cycle_cleanup_state.working_frame_pixels.assign(2U, 4U);
+    cycle_cleanup_state.workspace_words.fill(0xAAAAAAAAU);
+    LegacyStandardModeForwardNode cycle_cleanup_record;
+    cycle_cleanup_record.next = &cycle_cleanup_record;
+    cycle_cleanup_record.release_token = 0x33U;
+    cycle_cleanup_state.workspace_record_head = &cycle_cleanup_record;
+    FakeSpecialModeRuntimeCleanupPorts cycle_cleanup_ports;
+    const auto cycle_cleanup =
+        openswd3::special_modes::cleanup_legacy_special_mode_runtime(
+            cycle_cleanup_state, cycle_cleanup_ports
+        );
+    test.expect_true(
+        cycle_cleanup.status ==
+                openswd3::special_modes::LegacySpecialModeRuntimeCleanupStatus::
+                    workspace_chain_stopped &&
+            cycle_cleanup.release_call_count == 5U &&
+            cycle_cleanup.released_record_count == 1U &&
+            cycle_cleanup_state.external_owner == 0U &&
+            cycle_cleanup_state.darkened_frame_pixels.empty() &&
+            cycle_cleanup_state.working_frame_pixels.empty() &&
+            cycle_cleanup_state.workspace_record_head ==
+                &cycle_cleanup_record &&
+            cycle_cleanup_state.workspace_words[0U] == 0xAAAAAAAAU &&
+            cycle_cleanup_ports.released_values == std::vector<u32>{0x33U},
+        "0x44DA40 preserves cleared resource owners and one released record but does not zero the workspace after a cycle stop"
+    );
+
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;
     for (std::size_t index = 0U; index < special_action_set.records.size();
          ++index) {

@@ -2544,9 +2544,11 @@ inline constexpr std::size_t kLegacySpecialModeFramePixelCount = 0x4B000U;
 inline constexpr std::size_t kLegacySpecialModeFrameByteCount = 0x96000U;
 
 struct LegacySpecialModeRuntimeInitializationState {
+    compat::u32 external_owner{};
     std::vector<compat::u16> darkened_frame_pixels;
     std::vector<compat::u16> working_frame_pixels;
     std::array<compat::u32, 44U> workspace_words{};
+    LegacyStandardModeForwardNode* workspace_record_head{};
     bool workspace_head_bound{};
     std::array<compat::u32, 6U> runtime_dwords{};
     std::array<compat::u16, 6U> runtime_words{};
@@ -2601,6 +2603,36 @@ initialize_legacy_special_mode_runtime(
     world_map::LegacyWorldFramePorts& world_frame_ports,
     const rendering::LegacyPixelConversionState& pixel_format,
     LegacySpecialModeRuntimeInitializationPorts& ports
+) noexcept;
+
+class LegacySpecialModeRuntimeCleanupPorts
+    : public virtual LegacyStandardModeQuantityPorts {
+public:
+    ~LegacySpecialModeRuntimeCleanupPorts() override = default;
+    [[nodiscard]] virtual compat::i32
+    release_external_owner(compat::u32 owner) noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    release_frame_buffer(compat::u32 buffer_index) noexcept = 0;
+};
+
+enum class LegacySpecialModeRuntimeCleanupStatus : compat::u8 {
+    completed,
+    workspace_chain_stopped,
+};
+
+struct LegacySpecialModeRuntimeCleanupResult {
+    LegacySpecialModeRuntimeCleanupStatus status{
+        LegacySpecialModeRuntimeCleanupStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 release_call_count{};
+    compat::u32 released_record_count{};
+};
+
+[[nodiscard]] LegacySpecialModeRuntimeCleanupResult
+cleanup_legacy_special_mode_runtime(
+    LegacySpecialModeRuntimeInitializationState& state,
+    LegacySpecialModeRuntimeCleanupPorts& ports
 ) noexcept;
 
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {

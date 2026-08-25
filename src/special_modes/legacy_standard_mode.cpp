@@ -5419,12 +5419,46 @@ initialize_legacy_special_mode_runtime(
     );
 
     state.workspace_words.fill(0U);
+    state.workspace_record_head = nullptr;
     state.workspace_head_bound = true;
     state.runtime_dwords.fill(0U);
     state.runtime_words.fill(0U);
     state.enabled = 1U;
     initialize_legacy_special_mode_actions(state.actions);
     result.action_set_initialized = true;
+    return result;
+}
+
+LegacySpecialModeRuntimeCleanupResult cleanup_legacy_special_mode_runtime(
+    LegacySpecialModeRuntimeInitializationState& state,
+    LegacySpecialModeRuntimeCleanupPorts& ports
+) noexcept {
+    LegacySpecialModeRuntimeCleanupResult result;
+
+    result.legacy_return_value =
+        ports.release_external_owner(state.external_owner);
+    ++result.release_call_count;
+    state.external_owner = 0U;
+
+    result.legacy_return_value = ports.release_frame_buffer(0U);
+    ++result.release_call_count;
+    state.darkened_frame_pixels.clear();
+    result.legacy_return_value = ports.release_frame_buffer(1U);
+    ++result.release_call_count;
+    state.working_frame_pixels.clear();
+
+    const LegacyPlayerItemChainReleaseResult chain_release =
+        release_legacy_player_item_chain(state.workspace_record_head, ports);
+    result.release_call_count += chain_release.release_call_count;
+    result.released_record_count = chain_release.released_node_count;
+    if (chain_release.status != LegacyPlayerItemChainReleaseStatus::completed) {
+        result.status =
+            LegacySpecialModeRuntimeCleanupStatus::workspace_chain_stopped;
+        return result;
+    }
+
+    state.workspace_words.fill(0U);
+    result.legacy_return_value = 0;
     return result;
 }
 
