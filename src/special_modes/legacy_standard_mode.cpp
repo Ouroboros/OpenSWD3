@@ -4933,6 +4933,30 @@ clone_legacy_standard_mode_record_chain_reversed(
     return result;
 }
 
+LegacyPlayerItemChainReleaseResult release_legacy_player_item_chain(
+    LegacyStandardModeForwardNode*& head, LegacyStandardModeQuantityPorts& ports
+) noexcept {
+    LegacyPlayerItemChainReleaseResult result;
+    std::vector<const LegacyStandardModeForwardNode*> released;
+    while (head != nullptr) {
+        if (std::find(released.begin(), released.end(), head) !=
+            released.end()) {
+            result.status =
+                LegacyPlayerItemChainReleaseStatus::released_node_cycle_stopped;
+            return result;
+        }
+        LegacyStandardModeForwardNode* record = head;
+        released.push_back(record);
+        head = const_cast<LegacyStandardModeForwardNode*>(record->next);
+        ports.release_quantity_value(record->release_token);
+        ++result.release_call_count;
+        ports.release_quantity_record(*record);
+        ++result.release_call_count;
+        ++result.released_node_count;
+    }
+    return result;
+}
+
 LegacyStandardModeRecordCloneResult
 rebuild_legacy_standard_mode_selection_records(
     LegacyStandardModeForwardNode* source_head,

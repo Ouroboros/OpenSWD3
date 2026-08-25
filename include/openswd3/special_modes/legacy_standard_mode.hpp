@@ -2369,6 +2369,24 @@ clone_legacy_standard_mode_record_chain_reversed(
     LegacyStandardModeRecordClonePorts& ports
 ) noexcept;
 
+enum class LegacyPlayerItemChainReleaseStatus : compat::u8 {
+    completed,
+    released_node_cycle_stopped,
+};
+
+struct LegacyPlayerItemChainReleaseResult {
+    LegacyPlayerItemChainReleaseStatus status{
+        LegacyPlayerItemChainReleaseStatus::completed
+    };
+    compat::u32 released_node_count{};
+    compat::u32 release_call_count{};
+};
+
+[[nodiscard]] LegacyPlayerItemChainReleaseResult
+release_legacy_player_item_chain(
+    LegacyStandardModeForwardNode*& head, LegacyStandardModeQuantityPorts& ports
+) noexcept;
+
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
     completed,
     mode_mask_out_of_range,

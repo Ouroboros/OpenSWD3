@@ -16512,6 +16512,67 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44D520 preserves two completed clones before stopping when the source cycle would repeat"
     );
 
+    LegacyStandardModeForwardNode* release_empty_head = nullptr;
+    FakeQuantityPorts release_empty_ports;
+    const auto release_empty =
+        openswd3::special_modes::release_legacy_player_item_chain(
+            release_empty_head, release_empty_ports
+        );
+    test.expect_true(
+        release_empty.status ==
+                openswd3::special_modes::LegacyPlayerItemChainReleaseStatus::
+                    completed &&
+            release_empty.released_node_count == 0U &&
+            release_empty.release_call_count == 0U,
+        "0x44D5A0 leaves an empty player-item chain unchanged"
+    );
+
+    LegacyStandardModeForwardNode release_second;
+    release_second.release_token = 0x2222U;
+    LegacyStandardModeForwardNode release_first;
+    release_first.next = &release_second;
+    release_first.release_token = 0x1111U;
+    LegacyStandardModeForwardNode* release_head = &release_first;
+    FakeQuantityPorts release_ports;
+    const auto released =
+        openswd3::special_modes::release_legacy_player_item_chain(
+            release_head, release_ports
+        );
+    test.expect_true(
+        released.status ==
+                openswd3::special_modes::LegacyPlayerItemChainReleaseStatus::
+                    completed &&
+            release_head == nullptr && released.released_node_count == 2U &&
+            released.release_call_count == 4U &&
+            release_ports.released_values ==
+                std::vector<u32>{0x1111U, 0x2222U} &&
+            release_ports.released_records ==
+                std::vector<LegacyStandardModeForwardNode*>{
+                    &release_first, &release_second
+                },
+        "0x44D5A0 pops each head before releasing its name owner and 176-byte record"
+    );
+
+    LegacyStandardModeForwardNode release_cycle;
+    release_cycle.next = &release_cycle;
+    release_cycle.release_token = 0x3333U;
+    release_head = &release_cycle;
+    FakeQuantityPorts release_cycle_ports;
+    const auto released_cycle =
+        openswd3::special_modes::release_legacy_player_item_chain(
+            release_head, release_cycle_ports
+        );
+    test.expect_true(
+        released_cycle.status ==
+                openswd3::special_modes::LegacyPlayerItemChainReleaseStatus::
+                    released_node_cycle_stopped &&
+            release_head == &release_cycle &&
+            released_cycle.released_node_count == 1U &&
+            released_cycle.release_call_count == 2U &&
+            release_cycle_ports.released_values == std::vector<u32>{0x3333U},
+        "0x44D5A0 preserves the first completed release before stopping when a cycle exposes the freed node again"
+    );
+
     using SystemMenuRecordCountStatus =
         openswd3::special_modes::LegacySystemMenuRecordCountStatus;
     openswd3::special_modes::LegacySystemMenuState record_count_null_state;
