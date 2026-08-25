@@ -2,7 +2,7 @@
 
 状态：`platform_adapted`、`unit_tested`
 
-唯一行为真值为`swd3.exe.lst`。物理范围`0x00442D70..0x00442E3F`，88行，无FUNCTION CHUNK；唯一caller为41160，现已直接回收。唯一callee 44D6E0继续由已存在的typed名称合并端口隔离。
+唯一行为真值为`swd3.exe.lst`。物理范围`0x00442D70..0x00442E3F`，88行，无FUNCTION CHUNK；唯一caller为41160，现已直接回收。唯一callee 44D6E0也已关闭：名称端口只解析typed护驾贡献，D70把scratch前42字节映射为21个u16后直接调用属性应用helper。
 
 ## 精确顺序
 

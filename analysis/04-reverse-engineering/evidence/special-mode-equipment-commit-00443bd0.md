@@ -2,7 +2,7 @@
 
 状态：`platform_adapted`、`unit_tested`
 
-唯一行为真值为`swd3.exe.lst`。物理范围`0x00443BD0..0x00444169`，678行，无FUNCTION CHUNK。F40有五个code callsite，3B480另绑定为动作callback；F40统一commit分派现已直接回收。B9C0、BE40、BE90、BFC0与442F10已关闭并直接复用；40DC50查询、476A80动作加载、44D6E0装备复制保持窄端口，4885A0释放由typed容器/cleanup端口表达，sample8B/8C保持平台端口。
+唯一行为真值为`swd3.exe.lst`。物理范围`0x00443BD0..0x00444169`，678行，无FUNCTION CHUNK。F40有五个code callsite，3B480另绑定为动作callback；F40统一commit分派现已直接回收。B9C0、BE40、BE90、BFC0、442F10与44D6E0均已关闭并直接复用；装备端口只提供目标party的21-word属性记录，源贡献从已选装备176字节记录解析后直接应用。40DC50查询和476A80动作加载仍保持独立窄端口，4885A0释放由typed容器/cleanup端口表达，sample8B/8C保持平台端口。
 
 ## mode分派
 

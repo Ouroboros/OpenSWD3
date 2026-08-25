@@ -14,7 +14,7 @@
 
 模板索引使用当前selected party，而16项名称使用函数输入party，二者不得混淆。modern state以固定scratch/cache数组和destination offset替代裸pointer。
 
-442BC0后续已独立关闭并由AA0直接调用；44D6E0仍以`merge_guardian_attribute_record_name`窄端口保留。record table只暴露typed name，不向业务层传递`record+0x0C`裸地址。
+442BC0与44D6E0后续均已独立关闭并由AA0直接调用。record table端口只把名称解析为typed护驾贡献；AA0把scratch前42字节映射为21个u16后直接执行资源与战斗属性应用，不再保留name-merge行为端口，也不向业务层传递`record+0x0C`裸地址。
 
 ## typed-stop
 

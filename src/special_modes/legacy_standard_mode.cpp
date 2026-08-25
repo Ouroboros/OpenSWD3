@@ -2597,11 +2597,111 @@ LegacyCharacterAttributesRebuildResult rebuild_legacy_character_attributes(
     state.first_record.trailing_36 = base.trailing_36;
     state.first_record.bonuses = {};
 
+    LegacyGuardianAttributeTarget guardian_target;
+    guardian_target.words[0] =
+        static_cast<compat::u16>(state.second_record.primary_value);
+    guardian_target.words[1] =
+        static_cast<compat::u16>(state.second_record.primary_value >> 16U);
+    std::copy(
+        state.second_record.leading_values.begin(),
+        state.second_record.leading_values.end(),
+        guardian_target.words.begin() + 2
+    );
+    std::copy(
+        state.second_record.values.begin(),
+        state.second_record.values.end(),
+        guardian_target.words.begin() + 8
+    );
+    std::copy(
+        state.second_record.trailing_values.begin(),
+        state.second_record.trailing_values.end(),
+        guardian_target.words.begin() + 12
+    );
+    std::copy(
+        state.second_record.reserved_values.begin(),
+        state.second_record.reserved_values.end(),
+        guardian_target.words.begin() + 16
+    );
+    std::copy(
+        state.second_record.bonuses.begin(),
+        state.second_record.bonuses.end(),
+        guardian_target.words.begin() + 19
+    );
+    const auto store_guardian_target = [&]() noexcept {
+        state.second_record.primary_value =
+            static_cast<compat::u32>(guardian_target.words[0]) |
+            (static_cast<compat::u32>(guardian_target.words[1]) << 16U);
+        std::copy_n(
+            guardian_target.words.begin() + 2,
+            6U,
+            state.second_record.leading_values.begin()
+        );
+        std::copy_n(
+            guardian_target.words.begin() + 8,
+            4U,
+            state.second_record.values.begin()
+        );
+        std::copy_n(
+            guardian_target.words.begin() + 12,
+            4U,
+            state.second_record.trailing_values.begin()
+        );
+        std::copy_n(
+            guardian_target.words.begin() + 16,
+            3U,
+            state.second_record.reserved_values.begin()
+        );
+        std::copy_n(
+            guardian_target.words.begin() + 19,
+            2U,
+            state.second_record.bonuses.begin()
+        );
+    };
+    class CharacterAttributeApplicationAdapter final
+        : public LegacyGuardianAttributeApplicationPorts {
+    public:
+        explicit CharacterAttributeApplicationAdapter(
+            LegacyCharacterAttributesPorts& ports
+        ) noexcept
+            : ports_(ports) {}
+
+        std::optional<compat::i16> load_temporary_attribute_sign(
+            const compat::u16 template_key
+        ) noexcept override {
+            return ports_.load_temporary_attribute_sign(template_key);
+        }
+
+        compat::i32 release_temporary_attributes() noexcept override {
+            return ports_.release_temporary_attributes();
+        }
+
+    private:
+        LegacyCharacterAttributesPorts& ports_;
+    } application_ports(ports);
+
     for (const auto& contribution : state.contributions[mode]) {
-        ports.accumulate_character_attributes_record(state, contribution);
+        LegacyGuardianAttributeSource source;
+        source.template_key = contribution.guardian_template_key;
+        source.advanced_gate = contribution.guardian_advanced_gate;
+        source.application_mode = contribution.guardian_application_mode;
+        source.resource_values = contribution.guardian_resource_values;
+        source.battle_values = contribution.guardian_battle_values;
+        source.bonus_values = contribution.guardian_bonus_values;
         ++result.helper_call_count;
+        const LegacyGuardianAttributeApplicationResult applied =
+            apply_legacy_guardian_attributes(
+                guardian_target, source, application_ports
+            );
+        if (applied.status !=
+            LegacyGuardianAttributeApplicationStatus::completed) {
+            store_guardian_target();
+            result.status = LegacyCharacterAttributesRebuildStatus::
+                attribute_application_stopped;
+            return result;
+        }
         ++result.contribution_count;
     }
+    store_guardian_target();
     const auto add_words = [](auto& destination, const auto& source) {
         for (std::size_t index = 0U; index < destination.size(); ++index) {
             destination[index] =
@@ -5082,6 +5182,189 @@ LegacyPlayerItemIndexResult index_legacy_player_item_record(
     return result;
 }
 
+LegacyGuardianAttributeApplicationResult apply_legacy_guardian_attributes(
+    LegacyGuardianAttributeTarget& target,
+    const LegacyGuardianAttributeSource& source,
+    LegacyGuardianAttributeApplicationPorts& ports
+) noexcept {
+    LegacyGuardianAttributeApplicationResult result;
+    const std::optional<compat::i16> temporary_sign =
+        ports.load_temporary_attribute_sign(source.template_key);
+    if (!temporary_sign.has_value()) {
+        result.status = LegacyGuardianAttributeApplicationStatus::
+            temporary_attributes_unavailable;
+        return result;
+    }
+
+    if (*temporary_sign < 0) {
+        target.words[18] &= 0x7FFFU;
+    }
+
+    const auto add_word = [&](const std::size_t index,
+                              const compat::u16 value) noexcept {
+        target.words[index] =
+            static_cast<compat::u16>(target.words[index] + value);
+    };
+    const auto clamp_current_resources = [&]() noexcept {
+        for (std::size_t index = 0U; index < 3U; ++index) {
+            compat::u16& current = target.words[2U + index];
+            const compat::u16 maximum = target.words[5U + index];
+            if (std::bit_cast<compat::i16>(current) >
+                std::bit_cast<compat::i16>(maximum)) {
+                current = maximum;
+            }
+        }
+    };
+    const auto add_battle_and_bonus_values = [&]() noexcept {
+        add_word(8U, source.battle_values[0]);
+        add_word(9U, source.battle_values[1]);
+        add_word(10U, source.battle_values[3]);
+        add_word(11U, source.battle_values[2]);
+        add_word(12U, source.battle_values[4]);
+        add_word(15U, source.battle_values[5]);
+        add_word(19U, source.bonus_values[0]);
+        add_word(20U, source.bonus_values[1]);
+    };
+
+    if (source.advanced_gate > 0x001BU && (target.words[18] & 0x8000U) == 0U) {
+        for (std::size_t index = 0U; index < 3U; ++index) {
+            add_word(2U + index, source.resource_values[index]);
+        }
+        clamp_current_resources();
+        result.path =
+            LegacyGuardianAttributeApplicationPath::advanced_recover_only;
+        result.legacy_return_value =
+            std::bit_cast<compat::i16>(target.words[7]);
+        return result;
+    }
+
+    if (std::bit_cast<compat::i16>(target.words[18]) >= 0) {
+        if (source.application_mode == 0U) {
+            for (std::size_t index = 0U; index < 3U; ++index) {
+                add_word(2U + index, source.resource_values[index]);
+            }
+            clamp_current_resources();
+            add_battle_and_bonus_values();
+            result.path =
+                LegacyGuardianAttributeApplicationPath::recover_current;
+        }
+
+        if (source.application_mode == 0x0100U) {
+            for (std::size_t index = 0U; index < 3U; ++index) {
+                add_word(5U + index, source.resource_values[index]);
+            }
+            add_battle_and_bonus_values();
+            result.path =
+                LegacyGuardianAttributeApplicationPath::increase_capacity;
+        }
+
+        if (source.application_mode == 0x0200U) {
+            const std::array<compat::u16, 3U> maxima{
+                target.words[5], target.words[6], target.words[7]
+            };
+            for (std::size_t index = 0U; index < 3U; ++index) {
+                const compat::i32 maximum =
+                    std::bit_cast<compat::i16>(maxima[index]);
+                const compat::i32 percentage =
+                    std::bit_cast<compat::i16>(source.resource_values[index]);
+                const compat::u32 product_bits =
+                    static_cast<compat::u32>(maximum) *
+                    static_cast<compat::u32>(percentage);
+                const compat::i32 product =
+                    std::bit_cast<compat::i32>(product_bits);
+                add_word(2U + index, static_cast<compat::u16>(product / 100));
+            }
+            clamp_current_resources();
+            result.path =
+                LegacyGuardianAttributeApplicationPath::recover_percentage;
+        }
+    }
+
+    result.temporary_attributes_released = true;
+    result.legacy_return_value = ports.release_temporary_attributes();
+    return result;
+}
+
+static LegacyGuardianAttributeTarget load_guardian_attribute_target(
+    const std::span<const compat::u8> bytes
+) noexcept {
+    LegacyGuardianAttributeTarget target;
+    for (std::size_t index = 0U; index < target.words.size(); ++index) {
+        const std::size_t offset = index * 2U;
+        target.words[index] = static_cast<compat::u16>(
+            bytes[offset] | (static_cast<compat::u16>(bytes[offset + 1U]) << 8U)
+        );
+    }
+    return target;
+}
+
+static void store_guardian_attribute_target(
+    const LegacyGuardianAttributeTarget& target,
+    const std::span<compat::u8> bytes
+) noexcept {
+    for (std::size_t index = 0U; index < target.words.size(); ++index) {
+        const std::size_t offset = index * 2U;
+        bytes[offset] = static_cast<compat::u8>(target.words[index]);
+        bytes[offset + 1U] = static_cast<compat::u8>(target.words[index] >> 8U);
+    }
+}
+
+static LegacyGuardianAttributeSource load_guardian_attribute_source(
+    const std::span<const compat::u8> bytes
+) noexcept {
+    LegacyGuardianAttributeSource source;
+    source.template_key = read_u16_le(bytes, 0x3EU);
+    source.advanced_gate = read_u16_le(bytes, 0x52U);
+    source.application_mode = read_u16_le(bytes, 0x3CU);
+    for (std::size_t index = 0U; index < 3U; ++index) {
+        source.resource_values[index] = read_u16_le(bytes, 0x34U + index * 2U);
+    }
+    source.battle_values = {
+        read_u16_le(bytes, 0x28U),
+        read_u16_le(bytes, 0x2AU),
+        read_u16_le(bytes, 0x2CU),
+        read_u16_le(bytes, 0x2EU),
+        read_u16_le(bytes, 0x30U),
+        read_u16_le(bytes, 0x32U)
+    };
+    source.bonus_values = {
+        read_u16_le(bytes, 0x24U), read_u16_le(bytes, 0x26U)
+    };
+    return source;
+}
+
+static LegacyGuardianAttributeSource load_guardian_attribute_source(
+    const LegacyStandardModeForwardNode& record
+) noexcept {
+    return load_guardian_attribute_source(
+        std::span<const compat::u8>(record.record_bytes)
+    );
+}
+
+static bool apply_guardian_attribute_name_to_scratch(
+    LegacyStandardModeGuardianInitializationState& state,
+    const std::string_view record_name,
+    LegacyStandardModeGuardianAttributeCachePorts& ports
+) noexcept {
+    const std::optional<LegacyGuardianAttributeSource> source =
+        ports.resolve_guardian_attribute_source(record_name);
+    if (!source.has_value()) {
+        return false;
+    }
+    LegacyGuardianAttributeTarget target = load_guardian_attribute_target(
+        std::span<const compat::u8>(state.scratch_record).first(42U)
+    );
+    const LegacyGuardianAttributeApplicationResult applied =
+        apply_legacy_guardian_attributes(target, *source, ports);
+    if (applied.status != LegacyGuardianAttributeApplicationStatus::completed) {
+        return false;
+    }
+    store_guardian_attribute_target(
+        target, std::span<compat::u8>(state.scratch_record).first(42U)
+    );
+    return true;
+}
+
 LegacyStandardModeRecordCloneResult
 rebuild_legacy_standard_mode_selection_records(
     LegacyStandardModeForwardNode* source_head,
@@ -6678,12 +6961,28 @@ LegacyStandardModeEquipmentCommitResult commit_legacy_standard_mode_equipment(
                 party_target_out_of_range;
             return false;
         }
-        if (!ports.copy_equipment_record_to_party(target, *selected_record)) {
+        LegacyGuardianAttributeTarget* const attribute_target =
+            ports.resolve_equipment_guardian_target(
+                target, selected_record->text_index
+            );
+        if (attribute_target == nullptr) {
             result.status =
                 LegacyStandardModeEquipmentCommitStatus::record_copy_stopped;
             return false;
         }
         ++result.helper_call_count;
+        const LegacyGuardianAttributeApplicationResult applied =
+            apply_legacy_guardian_attributes(
+                *attribute_target,
+                load_guardian_attribute_source(*selected_record),
+                ports
+            );
+        if (applied.status !=
+            LegacyGuardianAttributeApplicationStatus::completed) {
+            result.status =
+                LegacyStandardModeEquipmentCommitStatus::record_copy_stopped;
+            return false;
+        }
         return true;
     };
 
@@ -13014,7 +13313,9 @@ populate_legacy_standard_mode_guardian_party_attributes(
             return result;
         }
         ++result.helper_call_count;
-        if (!ports.merge_guardian_attribute_record_name(state, *record_name)) {
+        if (!apply_guardian_attribute_name_to_scratch(
+                state, *record_name, ports
+            )) {
             result.status = LegacyStandardModeGuardianPartyAttributeStatus::
                 name_merge_stopped;
             return result;
@@ -13094,7 +13395,9 @@ combine_legacy_standard_mode_guardian_selected_attributes(
             }
         }
         ++result.helper_call_count;
-        if (!ports.merge_guardian_attribute_record_name(state, *record_name)) {
+        if (!apply_guardian_attribute_name_to_scratch(
+                state, *record_name, ports
+            )) {
             result.status = LegacyStandardModeGuardianSelectedAttributeStatus::
                 name_merge_stopped;
             return result;
@@ -13270,8 +13573,8 @@ adjust_legacy_standard_mode_guardian_record_exchange_attributes(
         return result;
     }
     if (old_record->text_index != 0xFFDCU &&
-        !ports.merge_guardian_attribute_record_name(
-            state, old_record->display_name
+        !apply_guardian_attribute_name_to_scratch(
+            state, old_record->display_name, ports
         )) {
         result.status =
             LegacyStandardModeGuardianRecordExchangeAttributeStatus::
@@ -13294,8 +13597,8 @@ adjust_legacy_standard_mode_guardian_record_exchange_attributes(
 
     clear_scratch();
     if (new_record.text_index != 0xFFDCU &&
-        !ports.merge_guardian_attribute_record_name(
-            state, new_record.display_name
+        !apply_guardian_attribute_name_to_scratch(
+            state, new_record.display_name, ports
         )) {
         result.status =
             LegacyStandardModeGuardianRecordExchangeAttributeStatus::
@@ -19740,6 +20043,28 @@ LegacyGameMenuInteractionCommitResult commit_legacy_game_menu_interaction(
             commit_ports.mutate_inventory(item_id, -1, 0);
         ++result.helper_call_count;
     };
+    const auto apply_equipment = [&](const compat::u32 slot,
+                                     const std::span<const compat::u8> source) {
+        LegacyGuardianAttributeTarget* const target =
+            commit_ports.resolve_game_menu_guardian_target(slot);
+        ++result.helper_call_count;
+        if (target == nullptr) {
+            result.status = LegacyGameMenuInteractionCommitStatus::
+                equipment_application_stopped;
+            return false;
+        }
+        const LegacyGuardianAttributeApplicationResult applied =
+            apply_legacy_guardian_attributes(
+                *target, load_guardian_attribute_source(source), commit_ports
+            );
+        if (applied.status !=
+            LegacyGuardianAttributeApplicationStatus::completed) {
+            result.status = LegacyGameMenuInteractionCommitStatus::
+                equipment_application_stopped;
+            return false;
+        }
+        return true;
+    };
     const auto finish_mode_two_refresh = [&]() noexcept {
         if (refresh_window()) {
             result.path =
@@ -20005,10 +20330,11 @@ LegacyGameMenuInteractionCommitResult commit_legacy_game_menu_interaction(
             const compat::i32 present = ports.query_item_presence(presence_id);
             ++result.helper_call_count;
             if (present != 0) {
-                commit_ports.copy_equipment_payload(
-                    presence_id - 0x1EU, record->record_bytes
-                );
-                ++result.helper_call_count;
+                if (!apply_equipment(
+                        presence_id - 0x1EU, record->record_bytes
+                    )) {
+                    return result;
+                }
             }
         }
         remove_inventory(item_id);
@@ -20025,10 +20351,9 @@ LegacyGameMenuInteractionCommitResult commit_legacy_game_menu_interaction(
         }
         if (state.selection_x == 0x1EU) {
             if ((record->equipment_type_flags & 0x0FU) >= 2U) {
-                commit_ports.copy_equipment_payload(
-                    state.record_zero, record->record_bytes
-                );
-                ++result.helper_call_count;
+                if (!apply_equipment(state.record_zero, record->record_bytes)) {
+                    return result;
+                }
                 if ((record->filter_flags & 0x80U) == 0U) {
                     remove_inventory(record->text_index);
                     if (result.legacy_return_value == 0) {

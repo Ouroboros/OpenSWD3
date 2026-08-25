@@ -826,20 +826,23 @@ public:
         ++allocation_count;
         return value;
     }
-    void accumulate_character_attributes_record(
-        openswd3::special_modes::LegacyCharacterAttributesState& state,
-        const openswd3::special_modes::LegacyCharacterAttributesContribution&
-            contribution
-    ) noexcept override {
-        accumulated_owners.push_back(contribution.owner);
+    std::optional<i16>
+    load_temporary_attribute_sign(const u16 template_key) noexcept override {
+        accumulated_owners.push_back(template_key);
         if ((accumulate_count % 16U) == 0U) {
-            state.second_record = aggregate_record;
             events.push_back(1U);
         }
         ++accumulate_count;
-        if (rebuild_input_flags.has_value()) {
-            state.input_flags = *rebuild_input_flags;
+        if (rebuild_input_flags.has_value() &&
+            rebuild_input_flags_target != nullptr) {
+            *rebuild_input_flags_target = *rebuild_input_flags;
         }
+        return temporary_attribute_available ? std::optional<i16>{0}
+                                             : std::nullopt;
+    }
+    i32 release_temporary_attributes() noexcept override {
+        ++temporary_release_count;
+        return 0;
     }
     openswd3::special_modes::LegacyCharacterAttributesScale
     query_character_attributes_scale(const u16 lookup_key) noexcept override {
@@ -897,9 +900,11 @@ public:
     std::vector<u32> allocation_sizes;
     std::size_t allocation_count{};
     u32 accumulate_count{};
+    u32 temporary_release_count{};
     std::vector<u32> accumulated_owners;
-    openswd3::special_modes::LegacyCharacterAttributesRecord aggregate_record;
+    bool temporary_attribute_available{true};
     std::optional<u8> rebuild_input_flags;
+    u8* rebuild_input_flags_target{};
     std::array<openswd3::special_modes::LegacyCharacterAttributesScale, 2U>
         scale_returns{{{10U, 2U}, {10U, 2U}}};
     std::vector<u16> queried_scale_keys;
@@ -3187,11 +3192,20 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 std::to_string(record_index);
         }
 
-        bool merge_guardian_attribute_record_name(
-            sm::LegacyStandardModeGuardianInitializationState&,
+        std::optional<sm::LegacyGuardianAttributeSource>
+        resolve_guardian_attribute_source(
             const std::string_view
         ) noexcept override {
-            return true;
+            return sm::LegacyGuardianAttributeSource{};
+        }
+
+        std::optional<i16>
+        load_temporary_attribute_sign(const u16) noexcept override {
+            return 0;
+        }
+
+        i32 release_temporary_attributes() noexcept override {
+            return 0;
         }
 
         std::optional<const sm::LegacyStandardModeForwardNode*>
@@ -4259,14 +4273,23 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return equipment_action_load;
         }
 
-        bool copy_equipment_record_to_party(
-            const u32 party_index,
-            const sm::LegacyStandardModeForwardNode& selected_record
+        sm::LegacyGuardianAttributeTarget* resolve_equipment_guardian_target(
+            const u32 party_index, const u16 source_record_id
         ) noexcept override {
-            copied_party_records.push_back(
-                {party_index, selected_record.text_index}
-            );
-            return equipment_record_copy_available;
+            copied_party_records.push_back({party_index, source_record_id});
+            return equipment_record_copy_available
+                ? &equipment_guardian_targets[party_index]
+                : nullptr;
+        }
+
+        std::optional<i16>
+        load_temporary_attribute_sign(const u16) noexcept override {
+            return equipment_record_copy_available ? std::optional<i16>{0}
+                                                   : std::nullopt;
+        }
+
+        i32 release_temporary_attributes() noexcept override {
+            return 0;
         }
 
         std::array<i32, 64U> item_presence{};
@@ -4285,6 +4308,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             };
         std::vector<std::pair<u32, i32>> commit_query_values;
         bool equipment_record_copy_available{true};
+        std::array<sm::LegacyGuardianAttributeTarget, 4U>
+            equipment_guardian_targets{};
         i32 released_workspace_return{-7};
         i32 released_filtered_records_return{-8};
         i32 callback_story_flag_value{};
@@ -6315,8 +6340,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 std::to_string(record_index);
         }
 
-        bool merge_guardian_attribute_record_name(
-            sm::LegacyStandardModeGuardianInitializationState& state,
+        std::optional<sm::LegacyGuardianAttributeSource>
+        resolve_guardian_attribute_source(
             const std::string_view record_name
         ) noexcept override {
             merged_attribute_names.emplace_back(record_name);
@@ -6325,25 +6350,26 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                     static_cast<std::size_t>(
                         party_attribute_failure_record + 1U
                     )) {
-                return false;
+                return std::nullopt;
             }
-            const auto write_word =
-                [&state](const std::size_t offset, const u16 value) {
-                    state.scratch_record[offset] =
-                        static_cast<u8>(value & 0xFFU);
-                    state.scratch_record[offset + 1U] =
-                        static_cast<u8>((value >> 8U) & 0xFFU);
-                };
+            sm::LegacyGuardianAttributeSource source;
             if (record_name == "old") {
-                write_word(0x0AU, 5U);
-                write_word(0x0CU, 7U);
-                write_word(0x0EU, 9U);
+                source.application_mode = 0x0100U;
+                source.resource_values = {5U, 7U, 9U};
             } else if (record_name == "new") {
-                write_word(0x0AU, 2U);
-                write_word(0x0CU, 3U);
-                write_word(0x0EU, 4U);
+                source.application_mode = 0x0100U;
+                source.resource_values = {2U, 3U, 4U};
             }
-            return true;
+            return source;
+        }
+
+        std::optional<i16>
+        load_temporary_attribute_sign(const u16) noexcept override {
+            return 0;
+        }
+
+        i32 release_temporary_attributes() noexcept override {
+            return 0;
         }
 
         std::optional<const sm::LegacyStandardModeForwardNode*>
@@ -8698,11 +8724,23 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 std::to_string(record_index);
         }
 
-        bool merge_guardian_attribute_record_name(
-            sm::LegacyStandardModeGuardianInitializationState&,
+        std::optional<sm::LegacyGuardianAttributeSource>
+        resolve_guardian_attribute_source(
             const std::string_view
         ) noexcept override {
-            return cache_steps_available;
+            return cache_steps_available
+                ? std::optional<
+                      sm::LegacyGuardianAttributeSource>{sm::LegacyGuardianAttributeSource{}}
+                : std::nullopt;
+        }
+
+        std::optional<i16>
+        load_temporary_attribute_sign(const u16) noexcept override {
+            return cache_steps_available ? std::optional<i16>{0} : std::nullopt;
+        }
+
+        i32 release_temporary_attributes() noexcept override {
+            return 0;
         }
 
         std::optional<const sm::LegacyStandardModeForwardNode*>
@@ -16868,6 +16906,176 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44D6B0 stops when a short cyclic chain would reread its second node"
     );
 
+    struct FakeGuardianAttributePorts final
+        : openswd3::special_modes::LegacyGuardianAttributeApplicationPorts {
+        std::optional<i16> temporary_sign{0};
+        i32 release_return{77};
+        u16 loaded_key{};
+        u32 load_count{};
+        u32 release_count{};
+
+        std::optional<i16> load_temporary_attribute_sign(
+            const u16 template_key
+        ) noexcept override {
+            loaded_key = template_key;
+            ++load_count;
+            return temporary_sign;
+        }
+
+        i32 release_temporary_attributes() noexcept override {
+            ++release_count;
+            return release_return;
+        }
+    };
+
+    using GuardianApplicationPath =
+        openswd3::special_modes::LegacyGuardianAttributeApplicationPath;
+    using GuardianApplicationStatus =
+        openswd3::special_modes::LegacyGuardianAttributeApplicationStatus;
+    openswd3::special_modes::LegacyGuardianAttributeSource guardian_source;
+    guardian_source.template_key = 0x1234U;
+    guardian_source.advanced_gate = 0x001BU;
+    guardian_source.resource_values = {5U, 6U, 7U};
+    guardian_source.battle_values = {10U, 20U, 30U, 40U, 50U, 60U};
+    guardian_source.bonus_values = {70U, 80U};
+
+    openswd3::special_modes::LegacyGuardianAttributeTarget unavailable_target;
+    unavailable_target.words[2] = 1U;
+    FakeGuardianAttributePorts unavailable_guardian_ports;
+    unavailable_guardian_ports.temporary_sign = std::nullopt;
+    const auto unavailable_guardian =
+        openswd3::special_modes::apply_legacy_guardian_attributes(
+            unavailable_target, guardian_source, unavailable_guardian_ports
+        );
+    test.expect_true(
+        unavailable_guardian.status ==
+                GuardianApplicationStatus::temporary_attributes_unavailable &&
+            unavailable_target.words[2] == 1U &&
+            unavailable_guardian_ports.loaded_key == 0x1234U &&
+            unavailable_guardian_ports.release_count == 0U,
+        "0x44D6E0 stops at the temporary-attribute build point without changing or releasing the target"
+    );
+
+    openswd3::special_modes::LegacyGuardianAttributeTarget advanced_target;
+    advanced_target.words[2] = 9U;
+    advanced_target.words[3] = 19U;
+    advanced_target.words[4] = 29U;
+    advanced_target.words[5] = 10U;
+    advanced_target.words[6] = 20U;
+    advanced_target.words[7] = 30U;
+    advanced_target.words[18] = 0x8001U;
+    guardian_source.advanced_gate = 0x001CU;
+    guardian_source.application_mode = 0U;
+    FakeGuardianAttributePorts advanced_guardian_ports;
+    advanced_guardian_ports.temporary_sign = -1;
+    const auto advanced_guardian =
+        openswd3::special_modes::apply_legacy_guardian_attributes(
+            advanced_target, guardian_source, advanced_guardian_ports
+        );
+    test.expect_true(
+        advanced_guardian.path ==
+                GuardianApplicationPath::advanced_recover_only &&
+            advanced_target.words[2] == 10U &&
+            advanced_target.words[3] == 20U &&
+            advanced_target.words[4] == 30U &&
+            advanced_target.words[18] == 1U &&
+            !advanced_guardian.temporary_attributes_released &&
+            advanced_guardian_ports.release_count == 0U,
+        "0x44D6E0 clears the blocking bit from a negative temporary sign, clamps advanced recovery, and preserves the original leaked block"
+    );
+
+    openswd3::special_modes::LegacyGuardianAttributeTarget current_target;
+    current_target.words[2] = 8U;
+    current_target.words[3] = 8U;
+    current_target.words[4] = 8U;
+    current_target.words[5] = 10U;
+    current_target.words[6] = 20U;
+    current_target.words[7] = 30U;
+    guardian_source.advanced_gate = 0x001BU;
+    guardian_source.application_mode = 0U;
+    FakeGuardianAttributePorts current_guardian_ports;
+    const auto current_guardian =
+        openswd3::special_modes::apply_legacy_guardian_attributes(
+            current_target, guardian_source, current_guardian_ports
+        );
+    test.expect_true(
+        current_guardian.path == GuardianApplicationPath::recover_current &&
+            current_target.words[2] == 10U && current_target.words[3] == 14U &&
+            current_target.words[4] == 15U && current_target.words[8] == 10U &&
+            current_target.words[9] == 20U && current_target.words[10] == 40U &&
+            current_target.words[11] == 30U &&
+            current_target.words[12] == 50U &&
+            current_target.words[15] == 60U &&
+            current_target.words[19] == 70U &&
+            current_target.words[20] == 80U &&
+            current_guardian.temporary_attributes_released &&
+            current_guardian.legacy_return_value == 77 &&
+            current_guardian_ports.release_count == 1U,
+        "0x44D6E0 mode zero restores current resources, clamps them, adds battle values in original field order, and releases the block"
+    );
+
+    openswd3::special_modes::LegacyGuardianAttributeTarget capacity_target;
+    capacity_target.words[5] = 10U;
+    capacity_target.words[6] = 20U;
+    capacity_target.words[7] = 30U;
+    guardian_source.application_mode = 0x0100U;
+    FakeGuardianAttributePorts capacity_guardian_ports;
+    const auto capacity_guardian =
+        openswd3::special_modes::apply_legacy_guardian_attributes(
+            capacity_target, guardian_source, capacity_guardian_ports
+        );
+    test.expect_true(
+        capacity_guardian.path == GuardianApplicationPath::increase_capacity &&
+            capacity_target.words[2] == 0U && capacity_target.words[5] == 15U &&
+            capacity_target.words[6] == 26U &&
+            capacity_target.words[7] == 37U &&
+            capacity_target.words[10] == 40U &&
+            capacity_target.words[11] == 30U &&
+            capacity_guardian_ports.release_count == 1U,
+        "0x44D6E0 mode 0x100 grows resource maxima without restoring currents and still adds battle values"
+    );
+
+    openswd3::special_modes::LegacyGuardianAttributeTarget percentage_target;
+    percentage_target.words[2] = 90U;
+    percentage_target.words[3] = 50U;
+    percentage_target.words[4] = 49U;
+    percentage_target.words[5] = 101U;
+    percentage_target.words[6] = 99U;
+    percentage_target.words[7] = 50U;
+    guardian_source.application_mode = 0x0200U;
+    guardian_source.resource_values = {25U, 0xFFE7U, 3U};
+    FakeGuardianAttributePorts percentage_guardian_ports;
+    const auto percentage_guardian =
+        openswd3::special_modes::apply_legacy_guardian_attributes(
+            percentage_target, guardian_source, percentage_guardian_ports
+        );
+    test.expect_true(
+        percentage_guardian.path ==
+                GuardianApplicationPath::recover_percentage &&
+            percentage_target.words[2] == 101U &&
+            percentage_target.words[3] == 26U &&
+            percentage_target.words[4] == 50U &&
+            percentage_guardian_ports.release_count == 1U,
+        "0x44D6E0 mode 0x200 uses signed maxima and percentages with truncation toward zero before signed clamping"
+    );
+
+    openswd3::special_modes::LegacyGuardianAttributeTarget blocked_target;
+    blocked_target.words[2] = 4U;
+    blocked_target.words[18] = 0x8000U;
+    guardian_source.application_mode = 0U;
+    FakeGuardianAttributePorts blocked_guardian_ports;
+    const auto blocked_guardian =
+        openswd3::special_modes::apply_legacy_guardian_attributes(
+            blocked_target, guardian_source, blocked_guardian_ports
+        );
+    test.expect_true(
+        blocked_guardian.path == GuardianApplicationPath::blocked &&
+            blocked_target.words[2] == 4U &&
+            blocked_target.words[18] == 0x8000U &&
+            blocked_guardian_ports.release_count == 1U,
+        "0x44D6E0 leaves all contributions blocked by a negative target flag but still releases temporary attributes"
+    );
+
     using SystemMenuRecordCountStatus =
         openswd3::special_modes::LegacySystemMenuRecordCountStatus;
     openswd3::special_modes::LegacySystemMenuState record_count_null_state;
@@ -19087,6 +19295,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         auto& contribution =
             character_attributes_rebuild_state.contributions[1U][index];
         contribution.owner = static_cast<u32>(0x1000U + index);
+        contribution.guardian_template_key =
+            static_cast<u16>(contribution.owner);
         if (index < 7U) {
             contribution.modifiers.fill(1);
         }
@@ -19098,17 +19308,23 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     character_attributes_scaled_contribution.modifiers = {
         1, -1, -128, 0, 0, 0, 0, 0, 0
     };
+    auto& character_attributes_current_contribution =
+        character_attributes_rebuild_state.contributions[1U][1U];
+    character_attributes_current_contribution.guardian_resource_values = {
+        100U, 101U, 102U
+    };
+    character_attributes_current_contribution.guardian_battle_values = {
+        1000U, 1001U, 1003U, 1002U, 200U, 203U
+    };
+    character_attributes_current_contribution.guardian_bonus_values = {7U, 8U};
+    auto& character_attributes_capacity_contribution =
+        character_attributes_rebuild_state.contributions[1U][0U];
+    character_attributes_capacity_contribution.guardian_application_mode =
+        0x0100U;
+    character_attributes_capacity_contribution.guardian_resource_values = {
+        103U, 104U, 105U
+    };
     FakeCharacterAttributesPorts character_attributes_rebuild_ports;
-    character_attributes_rebuild_ports.aggregate_record.leading_values = {
-        100U, 101U, 102U, 103U, 104U, 105U
-    };
-    character_attributes_rebuild_ports.aggregate_record.values = {
-        1000U, 1001U, 1002U, 1003U
-    };
-    character_attributes_rebuild_ports.aggregate_record.trailing_values = {
-        200U, 201U, 202U, 203U
-    };
-    character_attributes_rebuild_ports.aggregate_record.bonuses = {7U, 8U};
     character_attributes_rebuild_ports.scale_returns[0U] = {10U, 10U};
     const auto character_attributes_rebuild =
         openswd3::special_modes::rebuild_legacy_character_attributes(
@@ -19597,6 +19813,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     character_attributes_update_state.second_record_available = true;
     FakeCharacterAttributesPorts character_attributes_update_ports;
     character_attributes_update_ports.rebuild_input_flags = 0x04U;
+    character_attributes_update_ports.rebuild_input_flags_target =
+        &character_attributes_update_state.input_flags;
     const auto character_attributes_update =
         openswd3::special_modes::update_legacy_character_attributes(
             character_attributes_update_state, character_attributes_update_ports
@@ -21322,10 +21540,20 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             destination[4U] = equipment_payload_flags;
             return equipment_load_return;
         }
-        void copy_equipment_payload(
-            const u32 slot, const std::span<const u8>
-        ) noexcept override {
+        openswd3::special_modes::LegacyGuardianAttributeTarget*
+        resolve_game_menu_guardian_target(const u32 slot) noexcept override {
             copied_slots.push_back(slot);
+            return equipment_application_available
+                ? &game_menu_guardian_targets[slot]
+                : nullptr;
+        }
+        std::optional<i16>
+        load_temporary_attribute_sign(const u16) noexcept override {
+            return equipment_application_available ? std::optional<i16>{0}
+                                                   : std::nullopt;
+        }
+        i32 release_temporary_attributes() noexcept override {
+            return 0;
         }
         void remove_owned_action(const u16 action_id) noexcept override {
             removed_actions.push_back(action_id);
@@ -21438,6 +21666,9 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         std::vector<std::array<i32, 3U>> inventory_mutations;
         std::vector<u16> inventory_span_queries;
         std::vector<u16> loaded_action_ids;
+        bool equipment_application_available{true};
+        std::array<openswd3::special_modes::LegacyGuardianAttributeTarget, 4U>
+            game_menu_guardian_targets{};
         std::vector<u32> copied_slots;
         std::vector<u16> removed_actions;
         std::vector<const LegacyStandardModeForwardNode*> battle_records;

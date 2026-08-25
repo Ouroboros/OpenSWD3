@@ -354,6 +354,12 @@ struct LegacyCharacterAttributesContribution {
     compat::u32 owner{};
     compat::u16 lookup_key{};
     compat::u16 kind{};
+    compat::u16 guardian_template_key{};
+    compat::u16 guardian_advanced_gate{};
+    compat::u16 guardian_application_mode{};
+    std::array<compat::u16, 3U> guardian_resource_values{};
+    std::array<compat::u16, 6U> guardian_battle_values{};
+    std::array<compat::u16, 2U> guardian_bonus_values{};
     std::array<compat::i8, 9U> modifiers{};
 };
 
@@ -803,10 +809,10 @@ public:
     virtual ~LegacyCharacterAttributesPorts() = default;
     [[nodiscard]] virtual compat::u32
     allocate_character_attributes_buffer(compat::u32 size) noexcept = 0;
-    virtual void accumulate_character_attributes_record(
-        LegacyCharacterAttributesState& state,
-        const LegacyCharacterAttributesContribution& contribution
-    ) noexcept = 0;
+    [[nodiscard]] virtual std::optional<compat::i16>
+    load_temporary_attribute_sign(compat::u16 template_key) noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    release_temporary_attributes() noexcept = 0;
     [[nodiscard]] virtual LegacyCharacterAttributesScale
     query_character_attributes_scale(compat::u16 lookup_key) noexcept = 0;
     [[nodiscard]] virtual compat::i32
@@ -836,6 +842,7 @@ enum class LegacyCharacterAttributesRebuildStatus : compat::u8 {
     mode_out_of_range_stopped,
     first_record_unavailable_stopped,
     second_record_unavailable_stopped,
+    attribute_application_stopped,
     contribution_unavailable_stopped,
     scale_divisor_zero_stopped,
 };
@@ -2468,6 +2475,60 @@ struct LegacyPlayerItemIndexResult {
     const LegacyStandardModeForwardNode* head, compat::u32 index_value
 ) noexcept;
 
+struct LegacyGuardianAttributeTarget {
+    std::array<compat::u16, 21U> words{};
+};
+
+struct LegacyGuardianAttributeSource {
+    compat::u16 template_key{};
+    compat::u16 advanced_gate{};
+    compat::u16 application_mode{};
+    std::array<compat::u16, 3U> resource_values{};
+    std::array<compat::u16, 6U> battle_values{};
+    std::array<compat::u16, 2U> bonus_values{};
+};
+
+enum class LegacyGuardianAttributeApplicationStatus : compat::u8 {
+    completed,
+    temporary_attributes_unavailable,
+};
+
+enum class LegacyGuardianAttributeApplicationPath : compat::u8 {
+    blocked,
+    recover_current,
+    increase_capacity,
+    recover_percentage,
+    advanced_recover_only,
+};
+
+struct LegacyGuardianAttributeApplicationResult {
+    LegacyGuardianAttributeApplicationStatus status{
+        LegacyGuardianAttributeApplicationStatus::completed
+    };
+    LegacyGuardianAttributeApplicationPath path{
+        LegacyGuardianAttributeApplicationPath::blocked
+    };
+    bool temporary_attributes_released{};
+    compat::i32 legacy_return_value{};
+};
+
+class LegacyGuardianAttributeApplicationPorts {
+public:
+    virtual ~LegacyGuardianAttributeApplicationPorts() = default;
+
+    [[nodiscard]] virtual std::optional<compat::i16>
+    load_temporary_attribute_sign(compat::u16 template_key) noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    release_temporary_attributes() noexcept = 0;
+};
+
+[[nodiscard]] LegacyGuardianAttributeApplicationResult
+apply_legacy_guardian_attributes(
+    LegacyGuardianAttributeTarget& target,
+    const LegacyGuardianAttributeSource& source,
+    LegacyGuardianAttributeApplicationPorts& ports
+) noexcept;
+
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
     completed,
     mode_mask_out_of_range,
@@ -3024,15 +3085,16 @@ class LegacyStandardModeEquipmentCommitPorts
     : public LegacyStandardModeEquipmentListKindCyclePorts,
       public LegacyStandardModeFilterQueryPorts,
       public LegacyStandardModeDialogSetupPorts,
-      public LegacyStandardModeEquipmentCleanupPorts {
+      public LegacyStandardModeEquipmentCleanupPorts,
+      public virtual LegacyGuardianAttributeApplicationPorts {
 public:
     ~LegacyStandardModeEquipmentCommitPorts() override = default;
     [[nodiscard]] virtual std::optional<
         LegacyStandardModeEquipmentActionLoadResult>
     load_equipment_action(compat::u16 action_id) noexcept = 0;
-    [[nodiscard]] virtual bool copy_equipment_record_to_party(
-        compat::u32 party_index,
-        const LegacyStandardModeForwardNode& selected_record
+    [[nodiscard]] virtual LegacyGuardianAttributeTarget*
+    resolve_equipment_guardian_target(
+        compat::u32 party_index, compat::u16 source_record_id
     ) noexcept = 0;
 };
 
@@ -3236,7 +3298,8 @@ struct LegacyStandardModeGuardianListDrainResult {
 
 struct LegacyStandardModeGuardianInitializationState;
 
-class LegacyStandardModeGuardianAttributeCachePorts {
+class LegacyStandardModeGuardianAttributeCachePorts
+    : public virtual LegacyGuardianAttributeApplicationPorts {
 public:
     virtual ~LegacyStandardModeGuardianAttributeCachePorts() = default;
     [[nodiscard]] virtual std::optional<std::array<compat::u8, 0x38U>>
@@ -3247,8 +3310,8 @@ public:
     resolve_guardian_attribute_record_name(
         compat::u16 party_index, compat::u16 record_index
     ) noexcept = 0;
-    [[nodiscard]] virtual bool merge_guardian_attribute_record_name(
-        LegacyStandardModeGuardianInitializationState& state,
+    [[nodiscard]] virtual std::optional<LegacyGuardianAttributeSource>
+    resolve_guardian_attribute_source(
         std::string_view record_name
     ) noexcept = 0;
     [[nodiscard]] virtual std::optional<const LegacyStandardModeForwardNode*>
@@ -3559,7 +3622,8 @@ class LegacyGameMenuInteractionCommitPorts
     : public LegacyStandardModeMissingNodePorts,
       public LegacyStandardModeFilterQueryPorts,
       public LegacyStandardModeDialogSetupPorts,
-      public LegacyStandardModeCallbackBindingPorts {
+      public LegacyStandardModeCallbackBindingPorts,
+      public virtual LegacyGuardianAttributeApplicationPorts {
 public:
     ~LegacyGameMenuInteractionCommitPorts() override = default;
 
@@ -3571,9 +3635,8 @@ public:
     [[nodiscard]] virtual compat::i32 load_equipment_payload(
         compat::u16 action_id, std::span<compat::u8> destination
     ) noexcept = 0;
-    virtual void copy_equipment_payload(
-        compat::u32 slot, std::span<const compat::u8> source
-    ) noexcept = 0;
+    [[nodiscard]] virtual LegacyGuardianAttributeTarget*
+    resolve_game_menu_guardian_target(compat::u32 slot) noexcept = 0;
     virtual void remove_owned_action(compat::u16 action_id) noexcept = 0;
     virtual void release_inventory_root() noexcept = 0;
     [[nodiscard]] virtual LegacyStandardModeSpecialWorldTransitionRuntime&
@@ -3609,6 +3672,7 @@ enum class LegacyGameMenuInteractionCommitStatus : compat::u8 {
     dialog_setup_stopped,
     filtered_record_out_of_range,
     equipment_payload_stopped,
+    equipment_application_stopped,
     title_menu_stopped,
 };
 
