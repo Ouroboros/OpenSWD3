@@ -5500,7 +5500,7 @@ LegacySpecialModeWeightResult calculate_legacy_special_mode_record_weight(
             (static_cast<compat::u16>(record->record_bytes[0x53U]) << 8U)
         );
         compat::u32 product =
-            static_cast<compat::u32>(weight) * record->first_value;
+            static_cast<compat::u32>(weight) * record->combined_value;
         product *= static_cast<compat::u32>(percentage);
         const compat::i32 contribution =
             std::bit_cast<compat::i32>(product) / 100;

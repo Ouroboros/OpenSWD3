@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v637
+版本：v638
 
 最后更新：2026-08-23
 
@@ -3821,6 +3821,7 @@ B7 P0 有限收口完成。
 - 模块9模式1分页前进`0x0044E0C0`完成。cursor未在页尾时只跳到可见末项并立即返回；仅页尾才尝试window加13，越过total时恢复window但仍刷新当前文字、样本BF、帧标志和候选属性。成功翻页后重计可见数并按新末项夹cursor；短链保留已发布window13和null head。定向UT通过。workpack稳定为`207/227`，SHA256为`5a2f9741787c6093e6d8986c967088b66ec13a8ac623e91ca2224c3ab1859982`。
 - 模块9模式1分页后退`0x0044E1B0`完成。非零cursor只归零并立即返回；cursor为0时window减13，负结果把window/cursor都归零，否则按新window重建可见head。随后重计可见数、刷新文字、帧标志和候选属性；原函数没有样本BF调用。短链保留已发布window和null head。定向UT通过。workpack稳定为`208/227`，SHA256为`63413dd4ecc3258817e98a488e4f0599adb339479d0bb7fbbd538069c3d03ab0`。
 - 模块9模式1左向减少`0x0044E260`完成。level1把打包低两位减1并在0饱和；level2按signed选择当前记录，把combined值先u16减1，再以i16小于等于0夹到0，仅正结果播放样本B9，两条路径均发布左向动作状态2；level3/4分别清bit2/3。短链在数量读取前停止。定向UT通过。workpack稳定为`209/227`，SHA256为`cf2d2a345f231ca302e2964d7e4f5f62fe125ff72489b9307517f812357380d0`。
+- 模块9 F770字段映射复核完成：E330集成时由权威LST确认权重乘数读取原布局`+6`，typed字段必须为`combined_value`而非`first_value(+8)`。实现已纠正并加入不同poison值回归锁；正式workpack计数保持`209/227`。
 
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 

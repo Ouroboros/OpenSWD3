@@ -17542,11 +17542,13 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         record.record_bytes[0x53U] = static_cast<u8>(weight >> 8U);
     };
     LegacyStandardModeForwardNode weight_second;
-    weight_second.first_value = 4U;
+    weight_second.combined_value = 4U;
+    weight_second.first_value = 0x4444U;
     set_special_weight(weight_second, 5U);
     LegacyStandardModeForwardNode weight_first;
     weight_first.next = &weight_second;
-    weight_first.first_value = 3U;
+    weight_first.combined_value = 3U;
+    weight_first.first_value = 0x3333U;
     set_special_weight(weight_first, 10U);
     const auto full_weight =
         openswd3::special_modes::calculate_legacy_special_mode_record_weight(
@@ -17566,7 +17568,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     );
 
     LegacyStandardModeForwardNode overflow_weight;
-    overflow_weight.first_value = 0xFFFFU;
+    overflow_weight.combined_value = 0xFFFFU;
+    overflow_weight.first_value = 1U;
     set_special_weight(overflow_weight, 0xFFFFU);
     const auto wrapped_weight =
         openswd3::special_modes::calculate_legacy_special_mode_record_weight(
