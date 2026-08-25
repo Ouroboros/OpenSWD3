@@ -8567,6 +8567,7 @@ LegacySavePreviewCleanupResult cleanup_legacy_save_previews(
 LegacyHighPriorityMenuFrameResult coordinate_legacy_high_priority_menu_frame(
     LegacyHighPriorityMenuFrameState& state,
     LegacyHighPriorityCommonInputState& common_input,
+    world_map::LegacyWorldStoryVmState& story_state,
     LegacyHighPriorityMenuFramePorts& ports,
     LegacyHighPriorityCommonInputPorts& common_input_ports
 ) noexcept {
@@ -8584,6 +8585,7 @@ LegacyHighPriorityMenuFrameResult coordinate_legacy_high_priority_menu_frame(
     }
     state.mouse_frame_index = 0x0DU;
 
+    common_input.right_mouse = state.input_records[14U];
     common_input.submode = state.submode;
     common_input.activity_state = state.activity_state;
     const LegacyHighPriorityCommonInputResult input =
@@ -8600,15 +8602,17 @@ LegacyHighPriorityMenuFrameResult coordinate_legacy_high_priority_menu_frame(
     }
 
     if (state.submode == 0U) {
-        const std::optional<compat::i32> submode =
-            ports.dispatch_submode_zero(state);
+        const LegacyHighPriorityStoryFlagResult submode =
+            handle_legacy_high_priority_story_flags(
+                state.input_records, state.story_flag_selector, story_state
+            );
         ++result.helper_call_count;
         result.submode_dispatched = true;
-        if (!submode.has_value()) {
+        result.legacy_return_value = submode.legacy_return_value;
+        if (submode.status != LegacyHighPriorityStoryFlagStatus::completed) {
             result.status = LegacyHighPriorityMenuFrameStatus::submode_stopped;
             return result;
         }
-        result.legacy_return_value = *submode;
     } else if (state.submode == 1U) {
         const std::optional<compat::i32> submode =
             ports.dispatch_submode_one(state);
@@ -8688,6 +8692,62 @@ LegacyHighPriorityCommonInputResult handle_legacy_high_priority_common_input(
         result.legacy_return_value = *dispatched;
         return result;
     }
+    return result;
+}
+
+LegacyHighPriorityStoryFlagResult handle_legacy_high_priority_story_flags(
+    const std::array<
+        input_time_rng::LegacyInputRecord,
+        input_time_rng::kLegacyInputRecordCount>& input_records,
+    compat::u32& selected_flag,
+    world_map::LegacyWorldStoryVmState& story_state
+) noexcept {
+    LegacyHighPriorityStoryFlagResult result;
+    const input_time_rng::LegacyInputRecord& toggle = input_records[1U];
+    if (toggle.rapid_press_multiplicity != 0U &&
+        toggle.held_sample_count == 1U) {
+        if (selected_flag >= world_map::kLegacyWorldStoryFlagBytes * 8U) {
+            result.status = LegacyHighPriorityStoryFlagStatus::
+                selected_flag_out_of_range_stopped;
+            return result;
+        }
+        if (world_map::query_legacy_world_story_flag(
+                story_state, static_cast<compat::u16>(selected_flag)
+            )) {
+            world_map::clear_legacy_world_story_flag(
+                story_state, static_cast<compat::u16>(selected_flag)
+            );
+        } else {
+            world_map::set_legacy_world_story_flag(
+                story_state, static_cast<compat::u16>(selected_flag)
+            );
+        }
+        result.selected_flag_toggled = true;
+    }
+
+    const auto repeated = [](const input_time_rng::LegacyInputRecord& input) {
+        return input.rapid_press_multiplicity != 0U &&
+            (input.held_sample_count > 3U || input.held_sample_count == 1U);
+    };
+    constexpr std::array<std::pair<std::size_t, compat::i32>, 6U> kDirections{
+        {{3U, -1}, {5U, 1}, {4U, -6}, {6U, 6}, {7U, -120}, {8U, 120}}
+    };
+    for (const auto& [record_index, delta] : kDirections) {
+        if (repeated(input_records[record_index])) {
+            result.selected_delta = delta;
+            ++result.matched_direction_count;
+        }
+    }
+
+    selected_flag += static_cast<compat::u32>(result.selected_delta);
+    if (std::bit_cast<compat::i32>(selected_flag) < 0) {
+        selected_flag = 0x1FFFU;
+        result.selector_wrapped_low = true;
+    } else if (std::bit_cast<compat::i32>(selected_flag) >= 0x2000) {
+        selected_flag = 0U;
+        result.selector_wrapped_high = true;
+    }
+    result.legacy_return_value = std::bit_cast<compat::i32>(selected_flag);
     return result;
 }
 

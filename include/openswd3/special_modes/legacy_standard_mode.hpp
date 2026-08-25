@@ -3497,13 +3497,16 @@ struct LegacyHighPriorityMenuFrameState {
     compat::u32 activity_state{};
     compat::u32 submode{};
     compat::u32 mouse_frame_index{};
+    std::array<
+        input_time_rng::LegacyInputRecord,
+        input_time_rng::kLegacyInputRecordCount>
+        input_records{};
+    compat::u32 story_flag_selector{};
 };
 
 class LegacyHighPriorityMenuFramePorts {
 public:
     virtual ~LegacyHighPriorityMenuFramePorts() = default;
-    [[nodiscard]] virtual std::optional<compat::i32>
-    dispatch_submode_zero(LegacyHighPriorityMenuFrameState& state) noexcept = 0;
     [[nodiscard]] virtual std::optional<compat::i32>
     dispatch_submode_one(LegacyHighPriorityMenuFrameState& state) noexcept = 0;
     [[nodiscard]] virtual std::optional<compat::i32>
@@ -3540,6 +3543,7 @@ struct LegacyHighPriorityMenuFrameResult {
 coordinate_legacy_high_priority_menu_frame(
     LegacyHighPriorityMenuFrameState& state,
     LegacyHighPriorityCommonInputState& common_input,
+    world_map::LegacyWorldStoryVmState& story_state,
     LegacyHighPriorityMenuFramePorts& ports,
     LegacyHighPriorityCommonInputPorts& common_input_ports
 ) noexcept;
@@ -3580,6 +3584,32 @@ struct LegacyHighPriorityCommonInputResult {
 handle_legacy_high_priority_common_input(
     LegacyHighPriorityCommonInputState& state,
     LegacyHighPriorityCommonInputPorts& ports
+) noexcept;
+
+enum class LegacyHighPriorityStoryFlagStatus : compat::u8 {
+    completed,
+    selected_flag_out_of_range_stopped,
+};
+
+struct LegacyHighPriorityStoryFlagResult {
+    LegacyHighPriorityStoryFlagStatus status{
+        LegacyHighPriorityStoryFlagStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::i32 selected_delta{};
+    compat::u32 matched_direction_count{};
+    bool selected_flag_toggled{};
+    bool selector_wrapped_low{};
+    bool selector_wrapped_high{};
+};
+
+[[nodiscard]] LegacyHighPriorityStoryFlagResult
+handle_legacy_high_priority_story_flags(
+    const std::array<
+        input_time_rng::LegacyInputRecord,
+        input_time_rng::kLegacyInputRecordCount>& input_records,
+    compat::u32& selected_flag,
+    world_map::LegacyWorldStoryVmState& story_state
 ) noexcept;
 
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {

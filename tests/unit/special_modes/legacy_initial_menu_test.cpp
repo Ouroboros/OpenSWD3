@@ -1073,15 +1073,6 @@ public:
 class FakeHighPriorityMenuFramePorts final
     : public openswd3::special_modes::LegacyHighPriorityMenuFramePorts {
 public:
-    std::optional<i32> dispatch_submode_zero(
-        openswd3::special_modes::LegacyHighPriorityMenuFrameState& state
-    ) noexcept override {
-        events.push_back(2U);
-        if (submode_zero_activity.has_value()) {
-            state.activity_state = *submode_zero_activity;
-        }
-        return submode_zero_result;
-    }
     std::optional<i32> dispatch_submode_one(
         openswd3::special_modes::LegacyHighPriorityMenuFrameState& state
     ) noexcept override {
@@ -1098,10 +1089,8 @@ public:
         return render_result;
     }
 
-    std::optional<i32> submode_zero_result{20};
     std::optional<i32> submode_one_result{30};
     std::optional<i32> render_result{40};
-    std::optional<u32> submode_zero_activity;
     std::optional<u32> submode_one_activity;
     std::vector<u32> events;
 };
@@ -21312,22 +21301,130 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x406EB0 returns the final zero raw query without input and typed-stops at input-mode dispatch after the first pressed key in escape-left-control-right-control priority"
     );
 
+    std::array<
+        openswd3::input_time_rng::LegacyInputRecord,
+        openswd3::input_time_rng::kLegacyInputRecordCount>
+        story_flag_input_records{};
+    story_flag_input_records[1U].rapid_press_multiplicity = 1U;
+    story_flag_input_records[1U].held_sample_count = 1U;
+    for (const std::size_t index : {3U, 5U, 4U, 6U, 7U, 8U}) {
+        story_flag_input_records[index].rapid_press_multiplicity = 1U;
+        story_flag_input_records[index].held_sample_count = 1U;
+    }
+    u32 selected_story_flag = 10U;
+    openswd3::world_map::LegacyWorldStoryVmState story_flag_state;
+    const auto story_flag_advanced =
+        openswd3::special_modes::handle_legacy_high_priority_story_flags(
+            story_flag_input_records, selected_story_flag, story_flag_state
+        );
+    test.expect_true(
+        story_flag_advanced.status ==
+                openswd3::special_modes::LegacyHighPriorityStoryFlagStatus::
+                    completed &&
+            story_flag_advanced.legacy_return_value == 130 &&
+            story_flag_advanced.selected_delta == 120 &&
+            story_flag_advanced.matched_direction_count == 6U &&
+            story_flag_advanced.selected_flag_toggled &&
+            selected_story_flag == 130U &&
+            openswd3::world_map::query_legacy_world_story_flag(
+                story_flag_state, 10U
+            ) &&
+            !openswd3::world_map::query_legacy_world_story_flag(
+                story_flag_state, 130U
+            ),
+        "0x406F70 toggles the entry-selected story flag before direction processing and lets later matching directions overwrite earlier minus one, plus one, minus six, plus six, minus one hundred twenty with plus one hundred twenty"
+    );
+
+    std::array<
+        openswd3::input_time_rng::LegacyInputRecord,
+        openswd3::input_time_rng::kLegacyInputRecordCount>
+        low_wrap_story_flag_inputs{};
+    low_wrap_story_flag_inputs[7U].rapid_press_multiplicity = 1U;
+    low_wrap_story_flag_inputs[7U].held_sample_count = 4U;
+    low_wrap_story_flag_inputs[8U].rapid_press_multiplicity = 1U;
+    low_wrap_story_flag_inputs[8U].held_sample_count = 2U;
+    u32 low_wrap_story_flag = 0U;
+    openswd3::world_map::LegacyWorldStoryVmState low_wrap_story_flag_state;
+    const auto low_wrapped_story_flag =
+        openswd3::special_modes::handle_legacy_high_priority_story_flags(
+            low_wrap_story_flag_inputs,
+            low_wrap_story_flag,
+            low_wrap_story_flag_state
+        );
+    std::array<
+        openswd3::input_time_rng::LegacyInputRecord,
+        openswd3::input_time_rng::kLegacyInputRecordCount>
+        high_wrap_story_flag_inputs{};
+    high_wrap_story_flag_inputs[5U].rapid_press_multiplicity = 1U;
+    high_wrap_story_flag_inputs[5U].held_sample_count = 1U;
+    u32 high_wrap_story_flag = 0x1FFFU;
+    openswd3::world_map::LegacyWorldStoryVmState high_wrap_story_flag_state;
+    const auto high_wrapped_story_flag =
+        openswd3::special_modes::handle_legacy_high_priority_story_flags(
+            high_wrap_story_flag_inputs,
+            high_wrap_story_flag,
+            high_wrap_story_flag_state
+        );
+    test.expect_true(
+        low_wrapped_story_flag.selected_delta == -120 &&
+            low_wrapped_story_flag.matched_direction_count == 1U &&
+            low_wrapped_story_flag.selector_wrapped_low &&
+            low_wrap_story_flag == 0x1FFFU &&
+            high_wrapped_story_flag.selected_delta == 1 &&
+            high_wrapped_story_flag.selector_wrapped_high &&
+            high_wrap_story_flag == 0U,
+        "0x406F70 accepts held count one or above three, ignores counts two and three, and wraps the selector below zero to 8191 or at 8192 to zero"
+    );
+
+    std::array<
+        openswd3::input_time_rng::LegacyInputRecord,
+        openswd3::input_time_rng::kLegacyInputRecordCount>
+        stopped_story_flag_inputs{};
+    stopped_story_flag_inputs[1U].rapid_press_multiplicity = 1U;
+    stopped_story_flag_inputs[1U].held_sample_count = 1U;
+    stopped_story_flag_inputs[8U].rapid_press_multiplicity = 1U;
+    stopped_story_flag_inputs[8U].held_sample_count = 1U;
+    u32 stopped_story_flag = 0x2000U;
+    openswd3::world_map::LegacyWorldStoryVmState stopped_story_flag_state;
+    const auto stopped_story_flag_result =
+        openswd3::special_modes::handle_legacy_high_priority_story_flags(
+            stopped_story_flag_inputs,
+            stopped_story_flag,
+            stopped_story_flag_state
+        );
+    test.expect_true(
+        stopped_story_flag_result.status ==
+                openswd3::special_modes::LegacyHighPriorityStoryFlagStatus::
+                    selected_flag_out_of_range_stopped &&
+            !stopped_story_flag_result.selected_flag_toggled &&
+            stopped_story_flag_result.matched_direction_count == 0U &&
+            stopped_story_flag == 0x2000U,
+        "0x406F70 typed-stops at the pre-movement story-bit read for an out-of-range entry selector and preserves later direction inputs"
+    );
+
     openswd3::special_modes::LegacyHighPriorityMenuFrameState
         high_priority_inactive_state;
     high_priority_inactive_state.delay = 0U;
     high_priority_inactive_state.frame_count = 0xFFFFFFFFU;
     high_priority_inactive_state.activity_state = 3U;
     high_priority_inactive_state.submode = 9U;
+    high_priority_inactive_state.input_records[1U].rapid_press_multiplicity =
+        1U;
+    high_priority_inactive_state.input_records[1U].held_sample_count = 1U;
+    high_priority_inactive_state.story_flag_selector = 5U;
     openswd3::special_modes::LegacyHighPriorityCommonInputState
         high_priority_inactive_common;
     high_priority_inactive_common.keyboard[0x3BU] = 0x80U;
+    high_priority_inactive_common.keyboard[1U] = 0x80U;
     FakeHighPriorityCommonInputPorts high_priority_inactive_common_ports;
+    high_priority_inactive_common_ports.dispatch_activity = 0U;
+    openswd3::world_map::LegacyWorldStoryVmState high_priority_inactive_story;
     FakeHighPriorityMenuFramePorts high_priority_inactive_ports;
-    high_priority_inactive_ports.submode_zero_activity = 0U;
     const auto high_priority_inactive =
         openswd3::special_modes::coordinate_legacy_high_priority_menu_frame(
             high_priority_inactive_state,
             high_priority_inactive_common,
+            high_priority_inactive_story,
             high_priority_inactive_ports,
             high_priority_inactive_common_ports
         );
@@ -21347,9 +21444,14 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             high_priority_inactive_state.frame_count == 0U &&
             high_priority_inactive_state.activity_state == 0U &&
             high_priority_inactive_state.mouse_frame_index == 0x0DU &&
+            openswd3::world_map::query_legacy_world_story_flag(
+                high_priority_inactive_story, 5U
+            ) &&
             high_priority_inactive_common_ports.waits ==
                 std::vector<u32>{500U} &&
-            high_priority_inactive_ports.events == std::vector<u32>{2U},
+            high_priority_inactive_common_ports.events ==
+                std::vector<u32>{1U, 2U} &&
+            high_priority_inactive_ports.events.empty(),
         "0x406E30 clamps an underflowed delay, wraps the frame count, folds activity three to one, rereads the input-selected zero submode, and skips rendering after that submode closes activity"
     );
 
@@ -21363,6 +21465,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         high_priority_active_common;
     high_priority_active_common.keyboard[0x3CU] = 0x80U;
     FakeHighPriorityCommonInputPorts high_priority_active_common_ports;
+    openswd3::world_map::LegacyWorldStoryVmState high_priority_active_story;
     FakeHighPriorityMenuFramePorts high_priority_active_ports;
     high_priority_active_ports.submode_one_result = 31;
     high_priority_active_ports.render_result = 41;
@@ -21370,6 +21473,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         openswd3::special_modes::coordinate_legacy_high_priority_menu_frame(
             high_priority_active_state,
             high_priority_active_common,
+            high_priority_active_story,
             high_priority_active_ports,
             high_priority_active_common_ports
         );
@@ -21398,11 +21502,13 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     openswd3::special_modes::LegacyHighPriorityCommonInputState
         high_priority_other_common;
     FakeHighPriorityCommonInputPorts high_priority_other_common_ports;
+    openswd3::world_map::LegacyWorldStoryVmState high_priority_other_story;
     FakeHighPriorityMenuFramePorts high_priority_other_ports;
     const auto high_priority_other =
         openswd3::special_modes::coordinate_legacy_high_priority_menu_frame(
             high_priority_other_state,
             high_priority_other_common,
+            high_priority_other_story,
             high_priority_other_ports,
             high_priority_other_common_ports
         );
@@ -21425,11 +21531,14 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     stopped_high_priority_input_common.keyboard[1U] = 0x80U;
     FakeHighPriorityCommonInputPorts stopped_high_priority_input_common_ports;
     stopped_high_priority_input_common_ports.dispatch_result = std::nullopt;
+    openswd3::world_map::LegacyWorldStoryVmState
+        stopped_high_priority_input_story;
     FakeHighPriorityMenuFramePorts stopped_high_priority_input_ports;
     const auto stopped_high_priority_input =
         openswd3::special_modes::coordinate_legacy_high_priority_menu_frame(
             stopped_high_priority_input_state,
             stopped_high_priority_input_common,
+            stopped_high_priority_input_story,
             stopped_high_priority_input_ports,
             stopped_high_priority_input_common_ports
         );
@@ -21440,12 +21549,15 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     openswd3::special_modes::LegacyHighPriorityCommonInputState
         stopped_high_priority_submode_common;
     FakeHighPriorityCommonInputPorts stopped_high_priority_submode_common_ports;
+    openswd3::world_map::LegacyWorldStoryVmState
+        stopped_high_priority_submode_story;
     FakeHighPriorityMenuFramePorts stopped_high_priority_submode_ports;
     stopped_high_priority_submode_ports.submode_one_result = std::nullopt;
     const auto stopped_high_priority_submode =
         openswd3::special_modes::coordinate_legacy_high_priority_menu_frame(
             stopped_high_priority_submode_state,
             stopped_high_priority_submode_common,
+            stopped_high_priority_submode_story,
             stopped_high_priority_submode_ports,
             stopped_high_priority_submode_common_ports
         );
@@ -21456,12 +21568,15 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     openswd3::special_modes::LegacyHighPriorityCommonInputState
         stopped_high_priority_render_common;
     FakeHighPriorityCommonInputPorts stopped_high_priority_render_common_ports;
+    openswd3::world_map::LegacyWorldStoryVmState
+        stopped_high_priority_render_story;
     FakeHighPriorityMenuFramePorts stopped_high_priority_render_ports;
     stopped_high_priority_render_ports.render_result = std::nullopt;
     const auto stopped_high_priority_render =
         openswd3::special_modes::coordinate_legacy_high_priority_menu_frame(
             stopped_high_priority_render_state,
             stopped_high_priority_render_common,
+            stopped_high_priority_render_story,
             stopped_high_priority_render_ports,
             stopped_high_priority_render_common_ports
         );
