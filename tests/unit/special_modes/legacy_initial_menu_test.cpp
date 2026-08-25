@@ -18857,6 +18857,152 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44E0C0 preserves the published thirteen-row window and null visible head before stopping at the original forward-list read boundary"
     );
 
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_page_retreat_first;
+    mode_one_page_retreat_first.level = 2U;
+    mode_one_page_retreat_first.window_offset = 13;
+    mode_one_page_retreat_first.local_cursor = 5;
+    mode_one_page_retreat_first.visible_count = 13;
+    mode_one_page_retreat_first.frame_flags = 0x80U;
+    FakeModeOneAdvancePorts mode_one_page_retreat_first_ports;
+    const auto mode_one_moved_to_first =
+        openswd3::special_modes::retreat_legacy_special_mode_mode_one_page(
+            mode_one_page_retreat_first,
+            {},
+            comparison_bases,
+            {},
+            {},
+            mode_one_page_retreat_first_ports
+        );
+    test.expect_true(
+        mode_one_moved_to_first.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOnePageRetreatStatus::completed &&
+            mode_one_moved_to_first.path ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOnePageRetreatPath::
+                        selection_moved_to_first &&
+            mode_one_page_retreat_first.local_cursor == 0 &&
+            mode_one_page_retreat_first.window_offset == 13 &&
+            mode_one_page_retreat_first.frame_flags == 0x80U &&
+            mode_one_page_retreat_first_ports.samples.empty() &&
+            mode_one_moved_to_first.helper_call_count == 0U &&
+            mode_one_moved_to_first.legacy_return_value == 0,
+        "0x44E1B0 moves a nonzero cursor directly to the first visible row and returns before page, text, frame, and attribute work"
+    );
+
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_page_retreat;
+    mode_one_page_retreat.level = 2U;
+    mode_one_page_retreat.window_offset = 13;
+    mode_one_page_retreat.local_cursor = 0;
+    mode_one_page_retreat.visible_count = 2;
+    mode_one_page_retreat.workspace_head = &mode_one_page_nodes[0U];
+    mode_one_page_retreat.visible_head = &mode_one_page_nodes[13U];
+    FakeModeOneAdvancePorts mode_one_page_retreat_ports;
+    const auto mode_one_page_retreated =
+        openswd3::special_modes::retreat_legacy_special_mode_mode_one_page(
+            mode_one_page_retreat,
+            {},
+            comparison_bases,
+            {},
+            {},
+            mode_one_page_retreat_ports
+        );
+    test.expect_true(
+        mode_one_page_retreated.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOnePageRetreatStatus::completed &&
+            mode_one_page_retreated.path ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOnePageRetreatPath::page_retreated &&
+            mode_one_page_retreat.window_offset == 0 &&
+            mode_one_page_retreat.local_cursor == 0 &&
+            mode_one_page_retreat.visible_head == &mode_one_page_nodes[0U] &&
+            mode_one_page_retreat.visible_count == 13 &&
+            mode_one_page_retreat.shared_text[0U] == 0xB5U &&
+            mode_one_page_retreat.shared_text[1U] == 0x4CU &&
+            mode_one_page_retreat.shared_text[2U] == 0U &&
+            mode_one_page_retreat.frame_flags == 0x30U &&
+            mode_one_page_retreat_ports.samples.empty() &&
+            mode_one_page_retreat_ports.queried_member_ids ==
+                std::vector<u32>{0x1EU, 0x1FU, 0x20U, 0x21U} &&
+            mode_one_page_retreated.helper_call_count == 6U &&
+            mode_one_page_retreated.legacy_return_value == 4,
+        "0x44E1B0 retreats a first-row selection by thirteen, recounts, refreshes text and frame bits without sample BF, and compares candidate attributes"
+    );
+
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_page_retreat_clamp;
+    mode_one_page_retreat_clamp.level = 2U;
+    mode_one_page_retreat_clamp.window_offset = 5;
+    mode_one_page_retreat_clamp.local_cursor = 0;
+    mode_one_page_retreat_clamp.visible_count = 10;
+    mode_one_page_retreat_clamp.workspace_head = &mode_one_page_nodes[0U];
+    mode_one_page_retreat_clamp.visible_head = &mode_one_page_nodes[5U];
+    FakeModeOneAdvancePorts mode_one_page_retreat_clamp_ports;
+    const auto mode_one_page_clamped =
+        openswd3::special_modes::retreat_legacy_special_mode_mode_one_page(
+            mode_one_page_retreat_clamp,
+            {},
+            comparison_bases,
+            {},
+            {},
+            mode_one_page_retreat_clamp_ports
+        );
+    test.expect_true(
+        mode_one_page_clamped.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOnePageRetreatStatus::completed &&
+            mode_one_page_clamped.path ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOnePageRetreatPath::
+                        page_clamped_to_first &&
+            mode_one_page_retreat_clamp.window_offset == 0 &&
+            mode_one_page_retreat_clamp.local_cursor == 0 &&
+            mode_one_page_retreat_clamp.visible_head ==
+                &mode_one_page_nodes[0U] &&
+            mode_one_page_retreat_clamp.visible_count == 13 &&
+            mode_one_page_retreat_clamp.frame_flags == 0x30U &&
+            mode_one_page_retreat_clamp_ports.samples.empty() &&
+            mode_one_page_clamped.helper_call_count == 6U,
+        "0x44E1B0 clamps a negative page window and cursor to zero, then refreshes the first page without playing a sample"
+    );
+
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_page_retreat_head_stop;
+    mode_one_page_retreat_head_stop.level = 2U;
+    mode_one_page_retreat_head_stop.window_offset = 15;
+    mode_one_page_retreat_head_stop.local_cursor = 0;
+    mode_one_page_retreat_head_stop.visible_count = 1;
+    mode_one_page_retreat_head_stop.workspace_head = &mode_one_retreat_lone;
+    mode_one_page_retreat_head_stop.visible_head = &mode_one_retreat_lone;
+    FakeModeOneAdvancePorts mode_one_page_retreat_head_stop_ports;
+    const auto mode_one_page_retreat_head_stopped =
+        openswd3::special_modes::retreat_legacy_special_mode_mode_one_page(
+            mode_one_page_retreat_head_stop,
+            {},
+            comparison_bases,
+            {},
+            {},
+            mode_one_page_retreat_head_stop_ports
+        );
+    test.expect_true(
+        mode_one_page_retreat_head_stopped.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOnePageRetreatStatus::
+                        visible_head_advance_stopped &&
+            mode_one_page_retreat_head_stopped.path ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOnePageRetreatPath::page_retreated &&
+            mode_one_page_retreat_head_stop.window_offset == 2 &&
+            mode_one_page_retreat_head_stop.local_cursor == 0 &&
+            mode_one_page_retreat_head_stop.visible_head == nullptr &&
+            mode_one_page_retreat_head_stop_ports.samples.empty() &&
+            mode_one_page_retreat_head_stop.frame_flags == 0U,
+        "0x44E1B0 preserves the published window and null visible head before stopping at the original forward-list read boundary"
+    );
+
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;
     for (std::size_t index = 0U; index < special_action_set.records.size();
          ++index) {

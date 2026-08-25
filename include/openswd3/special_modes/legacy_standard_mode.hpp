@@ -2985,6 +2985,44 @@ advance_legacy_special_mode_mode_one_page(
     LegacySpecialModeModeOneAdvancePorts& ports
 ) noexcept;
 
+enum class LegacySpecialModeModeOnePageRetreatStatus : compat::u8 {
+    completed,
+    visible_head_advance_stopped,
+    selected_record_missing,
+    shared_text_stopped,
+    indexed_record_cycle_stopped,
+    indexed_record_missing,
+    attribute_comparison_stopped,
+};
+
+enum class LegacySpecialModeModeOnePageRetreatPath : compat::u8 {
+    unchanged,
+    selection_moved_to_first,
+    page_retreated,
+    page_clamped_to_first,
+};
+
+struct LegacySpecialModeModeOnePageRetreatResult {
+    LegacySpecialModeModeOnePageRetreatStatus status{
+        LegacySpecialModeModeOnePageRetreatStatus::completed
+    };
+    LegacySpecialModeModeOnePageRetreatPath path{
+        LegacySpecialModeModeOnePageRetreatPath::unchanged
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacySpecialModeModeOnePageRetreatResult
+retreat_legacy_special_mode_mode_one_page(
+    LegacySpecialModeModeOneAdvanceState& state,
+    std::span<const compat::u8> maps_payload,
+    const std::array<LegacyGuardianAttributeTarget, 4U>& base_attributes,
+    std::span<LegacyStandardModeForwardNode* const> fixed_slots,
+    std::span<const compat::u32> replacement_masks,
+    LegacySpecialModeModeOneAdvancePorts& ports
+) noexcept;
+
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
     completed,
     mode_mask_out_of_range,
