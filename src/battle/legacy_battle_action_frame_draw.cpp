@@ -229,6 +229,94 @@ LegacyBattleActionFrameDrawResult draw_legacy_battle_action_frame(
     return result;
 }
 
+LegacyBattlePreparedActionFrameDrawResult
+draw_legacy_battle_prepared_action_frame(
+    LegacyBattlePreparedActionFrameDrawState& state,
+    const std::span<asset_runtime::LegacyActionRecord> action_records,
+    rendering::LegacyFramebuffer& framebuffer,
+    const rendering::LegacyBlitClipRectangle& clip,
+    rendering::LegacyBlitRequest& shared_request,
+    rendering::LegacyBlitEffectState& shared_effects,
+    rendering::LegacyRleRowJitterState& jitter,
+    asset_runtime::LegacyActionUpdater& action_updater,
+    rendering::LegacyFramePieceProvider& frame_provider,
+    const compat::u32 action_id,
+    const compat::u32 action_record_index,
+    const compat::u32 action_update_ecx_snapshot,
+    const compat::i32 x,
+    const compat::i32 y
+) {
+    LegacyBattlePreparedActionFrameDrawResult result{
+        .draw_x = x,
+        .draw_y = y,
+    };
+    state.requested_record_index = action_record_index;
+    state.wrapped_record_offset = action_record_index *
+        static_cast<compat::u32>(asset_runtime::kLegacyActionRecordSize);
+    if (state.wrapped_record_offset % asset_runtime::kLegacyActionRecordSize !=
+        0U) {
+        result.status = LegacyBattlePreparedActionFrameDrawStatus::
+            action_record_out_of_range;
+        return result;
+    }
+    const std::size_t resolved_index =
+        state.wrapped_record_offset / asset_runtime::kLegacyActionRecordSize;
+    if (resolved_index >= action_records.size()) {
+        result.status = LegacyBattlePreparedActionFrameDrawStatus::
+            action_record_out_of_range;
+        return result;
+    }
+    state.resolved_record_index = static_cast<compat::u32>(resolved_index);
+
+    asset_runtime::LegacyActionRecord& action = action_records[resolved_index];
+    action.action_id = action_id;
+    action.base_variant = 0U;
+    state.action_update_attempted = true;
+    state.action_update = action_updater.update(action);
+    if (state.action_update.return_value == 0U) {
+        result.status =
+            LegacyBattlePreparedActionFrameDrawStatus::action_update_failed;
+        return result;
+    }
+
+    state.frame_resource_id = (action_update_ecx_snapshot & 0xFFFF0000U) |
+        static_cast<compat::u32>(action.field_4a);
+    state.frame_index = static_cast<compat::u32>(action.field_4c);
+    rendering::LegacyFramePiece piece{};
+    const bool available = frame_provider.load_frame_piece(
+        state.frame_resource_id, state.frame_index, piece
+    );
+    result.frame_load_calls = 1U;
+    if (!available) {
+        state.current_frame = {};
+        result.status =
+            LegacyBattlePreparedActionFrameDrawStatus::frame_unavailable;
+        return result;
+    }
+
+    state.current_frame = piece;
+    state.current_source = piece.source;
+    state.source_published = true;
+    rendering::LegacyBlitSource call_source = state.current_source;
+    call_source.palette = {};
+    rendering::LegacyBlitRequest request =
+        make_frame_request(shared_request, piece, x, y, action.mode_flags);
+    request.auxiliary = {};
+    const rendering::LegacyBlitResult blit = rendering::blit_legacy_copy_paths(
+        framebuffer, clip, call_source, request, shared_effects, jitter
+    );
+    result.frame_draw_calls = 1U;
+    result.blit_status = blit.status;
+    if (!accepted_blit_status(blit.status)) {
+        result.status =
+            LegacyBattlePreparedActionFrameDrawStatus::blit_typed_stop;
+        return result;
+    }
+
+    publish_blitter_normal_epilogue(shared_request, shared_effects);
+    return result;
+}
+
 LegacyBattleIndexedActionFrameDrawResult
 draw_legacy_battle_indexed_action_frame(
     LegacyBattleIndexedActionFrameDrawState& state,

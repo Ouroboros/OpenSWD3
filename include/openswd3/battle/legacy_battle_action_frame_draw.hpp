@@ -59,6 +59,40 @@ struct LegacyBattleIndexedActionFrameDrawState {
     rendering::LegacyBlitSource current_source{};
 };
 
+enum class LegacyBattlePreparedActionFrameDrawStatus : compat::u8 {
+    completed,
+    action_record_out_of_range,
+    action_update_failed,
+    frame_unavailable,
+    blit_typed_stop,
+};
+
+struct LegacyBattlePreparedActionFrameDrawState {
+    compat::u32 requested_record_index{};
+    compat::u32 wrapped_record_offset{};
+    compat::u32 resolved_record_index{};
+    bool action_update_attempted{};
+    asset_runtime::LegacyActionUpdateResult action_update{};
+    compat::u32 frame_resource_id{};
+    compat::u32 frame_index{};
+    bool source_published{};
+    rendering::LegacyFramePiece current_frame{};
+    rendering::LegacyBlitSource current_source{};
+};
+
+struct LegacyBattlePreparedActionFrameDrawResult {
+    LegacyBattlePreparedActionFrameDrawStatus status{
+        LegacyBattlePreparedActionFrameDrawStatus::completed
+    };
+    compat::u32 frame_load_calls{};
+    compat::u32 frame_draw_calls{};
+    compat::i32 draw_x{};
+    compat::i32 draw_y{};
+    rendering::LegacyBlitExecutionStatus blit_status{
+        rendering::LegacyBlitExecutionStatus::completed
+    };
+};
+
 enum class LegacyBattleIndexedActionFrameDrawStatus : compat::u8 {
     completed,
     action_record_out_of_range,
@@ -95,6 +129,25 @@ struct LegacyBattleIndexedActionFrameDrawResult {
     compat::i32 x,
     compat::i32 y,
     compat::u32 overlay_selector
+);
+
+// sub_4509D0.
+[[nodiscard]] LegacyBattlePreparedActionFrameDrawResult
+draw_legacy_battle_prepared_action_frame(
+    LegacyBattlePreparedActionFrameDrawState& state,
+    std::span<asset_runtime::LegacyActionRecord> action_records,
+    rendering::LegacyFramebuffer& framebuffer,
+    const rendering::LegacyBlitClipRectangle& clip,
+    rendering::LegacyBlitRequest& shared_request,
+    rendering::LegacyBlitEffectState& shared_effects,
+    rendering::LegacyRleRowJitterState& jitter,
+    asset_runtime::LegacyActionUpdater& action_updater,
+    rendering::LegacyFramePieceProvider& frame_provider,
+    compat::u32 action_id,
+    compat::u32 action_record_index,
+    compat::u32 action_update_ecx_snapshot,
+    compat::i32 x,
+    compat::i32 y
 );
 
 // sub_450400.
