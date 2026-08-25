@@ -19901,6 +19901,216 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44E4A0 level ten returns to level two without any other side effect"
     );
 
+    const auto dispatch_mode_one_alternate =
+        [](const openswd3::special_modes::
+               LegacySpecialModeModeOneAlternateInputState& input,
+           openswd3::special_modes::LegacySpecialModeModeOneAdvanceState& state,
+           openswd3::special_modes::LegacySpecialModeRuntimeInitializationState&
+               runtime,
+           LegacyStandardModeForwardNode*& player_head,
+           u32& maximum_weight,
+           FakeModeOneConfirmPorts& ports) {
+            return openswd3::special_modes::
+                dispatch_legacy_special_mode_mode_one_alternate_input(
+                    input,
+                    state,
+                    {},
+                    runtime,
+                    player_head,
+                    {},
+                    {},
+                    {},
+                    std::array<
+                        openswd3::special_modes::LegacyGuardianAttributeTarget,
+                        4U>{},
+                    maximum_weight,
+                    0xABCDEF01U,
+                    ports
+                );
+        };
+
+    openswd3::special_modes::LegacySpecialModeModeOneAlternateInputState
+        mode_one_alternate_exit_input;
+    mode_one_alternate_exit_input.exit_primary = {1U, 1U};
+    mode_one_alternate_exit_input.advance = {1U, 1U};
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_alternate_exit_state;
+    mode_one_alternate_exit_state.level = 3U;
+    mode_one_alternate_exit_state.packed_mode = 0x55U;
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        mode_one_alternate_exit_runtime;
+    LegacyStandardModeForwardNode* mode_one_alternate_exit_player = nullptr;
+    u32 mode_one_alternate_exit_weight = 0U;
+    FakeModeOneConfirmPorts mode_one_alternate_exit_ports;
+    const auto mode_one_alternate_exited = dispatch_mode_one_alternate(
+        mode_one_alternate_exit_input,
+        mode_one_alternate_exit_state,
+        mode_one_alternate_exit_runtime,
+        mode_one_alternate_exit_player,
+        mode_one_alternate_exit_weight,
+        mode_one_alternate_exit_ports
+    );
+    test.expect_true(
+        mode_one_alternate_exited.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOneAlternateInputStatus::completed &&
+            mode_one_alternate_exited.action ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOneAlternateInputAction::exit &&
+            mode_one_alternate_exit_state.level == 2U &&
+            mode_one_alternate_exit_state.packed_mode == 0x55U &&
+            mode_one_alternate_exited.helper_call_count == 1U,
+        "0x44F920 gives either exact-one exit pair priority over every direction and tail-dispatches E9D0"
+    );
+
+    openswd3::special_modes::LegacySpecialModeModeOneAlternateInputState
+        mode_one_alternate_advance_input;
+    mode_one_alternate_advance_input.advance = {1U, 10U};
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_alternate_advance_state;
+    mode_one_alternate_advance_state.level = 1U;
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        mode_one_alternate_advance_runtime;
+    LegacyStandardModeForwardNode* mode_one_alternate_advance_player = nullptr;
+    u32 mode_one_alternate_advance_weight = 0U;
+    FakeModeOneConfirmPorts mode_one_alternate_advance_ports;
+    const auto mode_one_alternate_advanced = dispatch_mode_one_alternate(
+        mode_one_alternate_advance_input,
+        mode_one_alternate_advance_state,
+        mode_one_alternate_advance_runtime,
+        mode_one_alternate_advance_player,
+        mode_one_alternate_advance_weight,
+        mode_one_alternate_advance_ports
+    );
+    test.expect_true(
+        mode_one_alternate_advanced.action ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOneAlternateInputAction::advance &&
+            mode_one_alternate_advance_state.packed_mode == 1U &&
+            mode_one_alternate_advanced.helper_call_count == 1U,
+        "0x44F920 accepts an active even repeat phase above seven and tail-dispatches DF00"
+    );
+
+    openswd3::special_modes::LegacySpecialModeModeOneAlternateInputState
+        mode_one_alternate_retreat_input;
+    mode_one_alternate_retreat_input.advance = {1U, 9U};
+    mode_one_alternate_retreat_input.retreat = {1U, 10U};
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_alternate_retreat_state;
+    mode_one_alternate_retreat_state.level = 1U;
+    mode_one_alternate_retreat_state.packed_mode = 2U;
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        mode_one_alternate_retreat_runtime;
+    LegacyStandardModeForwardNode* mode_one_alternate_retreat_player = nullptr;
+    u32 mode_one_alternate_retreat_weight = 0U;
+    FakeModeOneConfirmPorts mode_one_alternate_retreat_ports;
+    const auto mode_one_alternate_retreated = dispatch_mode_one_alternate(
+        mode_one_alternate_retreat_input,
+        mode_one_alternate_retreat_state,
+        mode_one_alternate_retreat_runtime,
+        mode_one_alternate_retreat_player,
+        mode_one_alternate_retreat_weight,
+        mode_one_alternate_retreat_ports
+    );
+    test.expect_true(
+        mode_one_alternate_retreated.action ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOneAlternateInputAction::retreat &&
+            mode_one_alternate_retreat_state.packed_mode == 1U,
+        "0x44F920 rejects an odd repeat phase even above seven, then continues priority scanning to DFF0"
+    );
+
+    openswd3::special_modes::LegacySpecialModeModeOneAlternateInputState
+        mode_one_alternate_stale_skip_input;
+    mode_one_alternate_stale_skip_input.page_retreat = {0U, 9U};
+    mode_one_alternate_stale_skip_input.decrease = {1U, 10U};
+    mode_one_alternate_stale_skip_input.confirm_primary = {1U, 1U};
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_alternate_stale_skip_state;
+    mode_one_alternate_stale_skip_state.level = 10U;
+    mode_one_alternate_stale_skip_state.packed_mode = 4U;
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        mode_one_alternate_stale_skip_runtime;
+    LegacyStandardModeForwardNode* mode_one_alternate_stale_skip_player =
+        nullptr;
+    u32 mode_one_alternate_stale_skip_weight = 0U;
+    FakeModeOneConfirmPorts mode_one_alternate_stale_skip_ports;
+    const auto mode_one_alternate_stale_skipped = dispatch_mode_one_alternate(
+        mode_one_alternate_stale_skip_input,
+        mode_one_alternate_stale_skip_state,
+        mode_one_alternate_stale_skip_runtime,
+        mode_one_alternate_stale_skip_player,
+        mode_one_alternate_stale_skip_weight,
+        mode_one_alternate_stale_skip_ports
+    );
+    test.expect_true(
+        mode_one_alternate_stale_skipped.action ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOneAlternateInputAction::confirm &&
+            mode_one_alternate_stale_skip_state.level == 2U &&
+            mode_one_alternate_stale_skip_state.packed_mode == 4U,
+        "0x44F920 uses the stale odd page-retreat phase low bit to reject a decrease repeat, then reaches exact-one confirm"
+    );
+
+    openswd3::special_modes::LegacySpecialModeModeOneAlternateInputState
+        mode_one_alternate_stale_decrease_input;
+    mode_one_alternate_stale_decrease_input.page_retreat = {0U, 8U};
+    mode_one_alternate_stale_decrease_input.decrease = {1U, 10U};
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_alternate_stale_decrease_state;
+    mode_one_alternate_stale_decrease_state.level = 3U;
+    mode_one_alternate_stale_decrease_state.packed_mode = 4U;
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        mode_one_alternate_stale_decrease_runtime;
+    LegacyStandardModeForwardNode* mode_one_alternate_stale_decrease_player =
+        nullptr;
+    u32 mode_one_alternate_stale_decrease_weight = 0U;
+    FakeModeOneConfirmPorts mode_one_alternate_stale_decrease_ports;
+    const auto mode_one_alternate_stale_decreased = dispatch_mode_one_alternate(
+        mode_one_alternate_stale_decrease_input,
+        mode_one_alternate_stale_decrease_state,
+        mode_one_alternate_stale_decrease_runtime,
+        mode_one_alternate_stale_decrease_player,
+        mode_one_alternate_stale_decrease_weight,
+        mode_one_alternate_stale_decrease_ports
+    );
+    test.expect_true(
+        mode_one_alternate_stale_decreased.action ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOneAlternateInputAction::decrease &&
+            mode_one_alternate_stale_decrease_state.packed_mode == 0U,
+        "0x44F920 uses the stale even page-retreat phase low bit to accept a decrease repeat above seven and tail-dispatch E260"
+    );
+
+    openswd3::special_modes::LegacySpecialModeModeOneAlternateInputState
+        mode_one_alternate_stale_increase_input;
+    mode_one_alternate_stale_increase_input.page_retreat = {0U, 8U};
+    mode_one_alternate_stale_increase_input.increase = {1U, 10U};
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_alternate_stale_increase_state;
+    mode_one_alternate_stale_increase_state.level = 3U;
+    openswd3::special_modes::LegacySpecialModeRuntimeInitializationState
+        mode_one_alternate_stale_increase_runtime;
+    LegacyStandardModeForwardNode* mode_one_alternate_stale_increase_player =
+        nullptr;
+    u32 mode_one_alternate_stale_increase_weight = 0U;
+    FakeModeOneConfirmPorts mode_one_alternate_stale_increase_ports;
+    const auto mode_one_alternate_stale_increased = dispatch_mode_one_alternate(
+        mode_one_alternate_stale_increase_input,
+        mode_one_alternate_stale_increase_state,
+        mode_one_alternate_stale_increase_runtime,
+        mode_one_alternate_stale_increase_player,
+        mode_one_alternate_stale_increase_weight,
+        mode_one_alternate_stale_increase_ports
+    );
+    test.expect_true(
+        mode_one_alternate_stale_increased.action ==
+                openswd3::special_modes::
+                    LegacySpecialModeModeOneAlternateInputAction::increase &&
+            mode_one_alternate_stale_increase_state.packed_mode == 4U,
+        "0x44F920 applies the same stale page-retreat phase low bit to increase repeats and tail-dispatches E330"
+    );
+
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;
     for (std::size_t index = 0U; index < special_action_set.records.size();
          ++index) {

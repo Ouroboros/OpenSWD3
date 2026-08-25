@@ -7142,6 +7142,214 @@ LegacySpecialModeModeOneConfirmResult confirm_legacy_special_mode_mode_one(
     }
 }
 
+LegacySpecialModeModeOneAlternateInputResult
+dispatch_legacy_special_mode_mode_one_alternate_input(
+    const LegacySpecialModeModeOneAlternateInputState& input,
+    LegacySpecialModeModeOneAdvanceState& state,
+    const std::span<const compat::u8> maps_payload,
+    LegacySpecialModeRuntimeInitializationState& runtime,
+    LegacyStandardModeForwardNode*& player_record_head,
+    const std::span<const compat::u16> empty_mode_record_ids,
+    const std::span<LegacyStandardModeForwardNode* const> fixed_slots,
+    const std::span<const compat::u32> replacement_masks,
+    const std::array<LegacyGuardianAttributeTarget, 4U>& base_attributes,
+    compat::u32& maximum_weight,
+    const compat::u32 sample_owner,
+    LegacySpecialModeModeOneConfirmPorts& ports
+) noexcept {
+    LegacySpecialModeModeOneAlternateInputResult result;
+    const auto exact_exit =
+        [](
+            const LegacySpecialModeModeOneAlternateButtonState& button
+        ) noexcept { return button.active == 1U && button.phase == 1U; };
+    const auto repeated =
+        [](
+            const LegacySpecialModeModeOneAlternateButtonState& button
+        ) noexcept {
+            return button.active != 0U &&
+                (button.phase == 1U ||
+                 ((button.phase & 1U) == 0U &&
+                  std::bit_cast<compat::i32>(button.phase) > 7));
+        };
+    const auto stale_repeated =
+        [&input](
+            const LegacySpecialModeModeOneAlternateButtonState& button
+        ) noexcept {
+            return button.active != 0U &&
+                (button.phase == 1U ||
+                 ((input.page_retreat.phase & 1U) == 0U &&
+                  std::bit_cast<compat::i32>(button.phase) > 7));
+        };
+    const auto exact_confirm =
+        [](
+            const LegacySpecialModeModeOneAlternateButtonState& button
+        ) noexcept { return button.active != 0U && button.phase == 1U; };
+
+    if (exact_exit(input.exit_primary) || exact_exit(input.exit_secondary)) {
+        result.action = LegacySpecialModeModeOneAlternateInputAction::exit;
+        LegacySpecialModeLevelExitState exit_state{
+            state.level, state.runtime_flags
+        };
+        const LegacySpecialModeLevelExitResult exited =
+            exit_legacy_special_mode_level(exit_state, runtime, ports);
+        ++result.helper_call_count;
+        state.level = exit_state.level;
+        state.runtime_flags = exit_state.transition_flags;
+        result.legacy_return_value = exited.legacy_return_value;
+        if (exited.status != LegacySpecialModeLevelExitStatus::completed) {
+            result.status =
+                LegacySpecialModeModeOneAlternateInputStatus::callee_stopped;
+        }
+        return result;
+    }
+    if (repeated(input.advance)) {
+        result.action = LegacySpecialModeModeOneAlternateInputAction::advance;
+        const LegacySpecialModeModeOneAdvanceResult advanced =
+            advance_legacy_special_mode_mode_one(
+                state,
+                maps_payload,
+                base_attributes,
+                fixed_slots,
+                replacement_masks,
+                sample_owner,
+                ports
+            );
+        ++result.helper_call_count;
+        result.legacy_return_value = advanced.legacy_return_value;
+        if (advanced.status !=
+            LegacySpecialModeModeOneAdvanceStatus::completed) {
+            result.status =
+                LegacySpecialModeModeOneAlternateInputStatus::callee_stopped;
+        }
+        return result;
+    }
+    if (repeated(input.retreat)) {
+        result.action = LegacySpecialModeModeOneAlternateInputAction::retreat;
+        const LegacySpecialModeModeOneRetreatResult retreated =
+            retreat_legacy_special_mode_mode_one(
+                state,
+                maps_payload,
+                base_attributes,
+                fixed_slots,
+                replacement_masks,
+                sample_owner,
+                ports
+            );
+        ++result.helper_call_count;
+        result.legacy_return_value = retreated.legacy_return_value;
+        if (retreated.status !=
+            LegacySpecialModeModeOneRetreatStatus::completed) {
+            result.status =
+                LegacySpecialModeModeOneAlternateInputStatus::callee_stopped;
+        }
+        return result;
+    }
+    if (repeated(input.page_advance)) {
+        result.action =
+            LegacySpecialModeModeOneAlternateInputAction::page_advance;
+        const LegacySpecialModeModeOnePageAdvanceResult advanced =
+            advance_legacy_special_mode_mode_one_page(
+                state,
+                maps_payload,
+                base_attributes,
+                fixed_slots,
+                replacement_masks,
+                sample_owner,
+                ports
+            );
+        ++result.helper_call_count;
+        result.legacy_return_value = advanced.legacy_return_value;
+        if (advanced.status !=
+            LegacySpecialModeModeOnePageAdvanceStatus::completed) {
+            result.status =
+                LegacySpecialModeModeOneAlternateInputStatus::callee_stopped;
+        }
+        return result;
+    }
+    if (repeated(input.page_retreat)) {
+        result.action =
+            LegacySpecialModeModeOneAlternateInputAction::page_retreat;
+        const LegacySpecialModeModeOnePageRetreatResult retreated =
+            retreat_legacy_special_mode_mode_one_page(
+                state,
+                maps_payload,
+                base_attributes,
+                fixed_slots,
+                replacement_masks,
+                ports
+            );
+        ++result.helper_call_count;
+        result.legacy_return_value = retreated.legacy_return_value;
+        if (retreated.status !=
+            LegacySpecialModeModeOnePageRetreatStatus::completed) {
+            result.status =
+                LegacySpecialModeModeOneAlternateInputStatus::callee_stopped;
+        }
+        return result;
+    }
+    if (stale_repeated(input.decrease)) {
+        result.action = LegacySpecialModeModeOneAlternateInputAction::decrease;
+        const LegacySpecialModeModeOneDecreaseResult decreased =
+            decrease_legacy_special_mode_mode_one_value(
+                state, sample_owner, ports
+            );
+        ++result.helper_call_count;
+        result.legacy_return_value = decreased.legacy_return_value;
+        if (decreased.status !=
+            LegacySpecialModeModeOneDecreaseStatus::completed) {
+            result.status =
+                LegacySpecialModeModeOneAlternateInputStatus::callee_stopped;
+        }
+        return result;
+    }
+    if (stale_repeated(input.increase)) {
+        result.action = LegacySpecialModeModeOneAlternateInputAction::increase;
+        const LegacySpecialModeModeOneIncreaseResult increased =
+            increase_legacy_special_mode_mode_one_value(
+                state,
+                player_record_head,
+                fixed_slots,
+                maximum_weight,
+                sample_owner,
+                ports
+            );
+        ++result.helper_call_count;
+        result.legacy_return_value = increased.legacy_return_value;
+        if (increased.status !=
+            LegacySpecialModeModeOneIncreaseStatus::completed) {
+            result.status =
+                LegacySpecialModeModeOneAlternateInputStatus::callee_stopped;
+        }
+        return result;
+    }
+    if (exact_confirm(input.confirm_primary) ||
+        exact_confirm(input.confirm_secondary)) {
+        result.action = LegacySpecialModeModeOneAlternateInputAction::confirm;
+        const LegacySpecialModeModeOneConfirmResult confirmed =
+            confirm_legacy_special_mode_mode_one(
+                state,
+                maps_payload,
+                runtime,
+                player_record_head,
+                empty_mode_record_ids,
+                fixed_slots,
+                replacement_masks,
+                base_attributes,
+                maximum_weight,
+                sample_owner,
+                ports
+            );
+        ++result.helper_call_count;
+        result.legacy_return_value = confirmed.legacy_return_value;
+        if (confirmed.status !=
+            LegacySpecialModeModeOneConfirmStatus::completed) {
+            result.status =
+                LegacySpecialModeModeOneAlternateInputStatus::callee_stopped;
+        }
+    }
+    return result;
+}
+
 static LegacyGuardianAttributeTarget load_guardian_attribute_target(
     const std::span<const compat::u8> bytes
 ) noexcept {
