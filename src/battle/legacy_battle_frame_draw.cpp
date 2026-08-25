@@ -1,5 +1,7 @@
 #include "openswd3/battle/legacy_battle_frame_draw.hpp"
 
+#include <bit>
+
 namespace openswd3::battle {
 namespace {
 
@@ -79,6 +81,85 @@ LegacyBattleFrameDrawResult draw_legacy_battle_frame_zero(
     }
 
     publish_blitter_normal_epilogue(shared_request, shared_effects);
+    return result;
+}
+
+LegacyBattleDecimalFrameDrawResult draw_legacy_battle_decimal_frames(
+    LegacyBattleDecimalFrameDrawState& state,
+    rendering::LegacyFramebuffer& framebuffer,
+    const rendering::LegacyBlitClipRectangle& clip,
+    rendering::LegacyBlitRequest& shared_request,
+    rendering::LegacyBlitEffectState& shared_effects,
+    rendering::LegacyRleRowJitterState& jitter,
+    rendering::LegacyFramePieceProvider& frame_provider,
+    const compat::u32 resource_id,
+    const compat::i32 value,
+    const compat::i32 x,
+    const compat::i32 y
+) noexcept {
+    state = {};
+    state.entry_x = x;
+    state.entry_y = y;
+
+    compat::i32 remainder = value;
+    compat::i32 divisor = 1000;
+    for (std::size_t index = 0U; index < state.digit_quotients.size();
+         ++index) {
+        state.current_remainder = remainder;
+        const compat::i32 quotient = remainder / divisor;
+        state.digit_quotients[index] = quotient;
+        remainder -= quotient * divisor;
+        if (quotient != 0 || state.leading_digit_seen) {
+            state.leading_digit_seen = true;
+            ++state.digit_count;
+        }
+        divisor /= 10;
+    }
+    if (state.digit_count == 0U) {
+        state.digit_count = 1U;
+    }
+
+    LegacyBattleDecimalFrameDrawResult result{
+        .decomposition_iterations = 4U,
+        .final_x = x,
+    };
+    compat::i32 current_x = x;
+    for (compat::u32 draw_index = 0U; draw_index < state.digit_count;
+         ++draw_index) {
+        const std::size_t digit_index =
+            state.digit_quotients.size() - 1U - draw_index;
+        const compat::u32 frame_index =
+            static_cast<compat::u16>(state.digit_quotients[digit_index]);
+        result.frame_indices[draw_index] = frame_index;
+        result.last_frame = draw_legacy_battle_resource_frame(
+            state.frame,
+            framebuffer,
+            clip,
+            shared_request,
+            shared_effects,
+            jitter,
+            frame_provider,
+            resource_id,
+            frame_index,
+            current_x,
+            y
+        );
+        result.frame_load_calls += result.last_frame.frame_load_calls;
+        result.frame_draw_calls += result.last_frame.frame_draw_calls;
+        if (result.last_frame.status !=
+            LegacyBattleFrameDrawStatus::completed) {
+            result.status =
+                LegacyBattleDecimalFrameDrawStatus::frame_typed_stop;
+            result.final_x = current_x;
+            return result;
+        }
+
+        ++result.drawn_digit_count;
+        const compat::u32 next_x_bits = static_cast<compat::u32>(current_x) -
+            static_cast<compat::u32>(state.frame.current_frame.width);
+        current_x = std::bit_cast<compat::i32>(next_x_bits);
+    }
+    result.final_x = current_x;
     return result;
 }
 

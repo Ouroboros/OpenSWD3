@@ -1,5 +1,7 @@
 #pragma once
 
+#include <array>
+
 #include "openswd3/compat/types.hpp"
 #include "openswd3/rendering/legacy_tiled_frame.hpp"
 
@@ -36,6 +38,34 @@ enum class LegacyBattleLayeredFrameDrawStatus : compat::u8 {
     second_frame_typed_stop,
 };
 
+enum class LegacyBattleDecimalFrameDrawStatus : compat::u8 {
+    completed,
+    frame_typed_stop,
+};
+
+struct LegacyBattleDecimalFrameDrawState {
+    compat::i32 entry_x{};
+    compat::i32 entry_y{};
+    compat::i32 current_remainder{};
+    bool leading_digit_seen{};
+    std::array<compat::i32, 4> digit_quotients{};
+    compat::u32 digit_count{};
+    LegacyBattleFrameDrawState frame{};
+};
+
+struct LegacyBattleDecimalFrameDrawResult {
+    LegacyBattleDecimalFrameDrawStatus status{
+        LegacyBattleDecimalFrameDrawStatus::completed
+    };
+    LegacyBattleFrameDrawResult last_frame{};
+    std::array<compat::u32, 4> frame_indices{};
+    compat::u32 decomposition_iterations{};
+    compat::u32 frame_load_calls{};
+    compat::u32 frame_draw_calls{};
+    compat::u32 drawn_digit_count{};
+    compat::i32 final_x{};
+};
+
 struct LegacyBattleLayeredFrameDrawResult {
     LegacyBattleLayeredFrameDrawStatus status{
         LegacyBattleLayeredFrameDrawStatus::completed
@@ -58,6 +88,22 @@ struct LegacyBattleLayeredFrameDrawResult {
     rendering::LegacyRleRowJitterState& jitter,
     rendering::LegacyFramePieceProvider& frame_provider,
     compat::u32 resource_id,
+    compat::i32 x,
+    compat::i32 y
+) noexcept;
+
+// sub_4506B0: decompose a signed four-digit value and draw digit frames right-to-left.
+[[nodiscard]] LegacyBattleDecimalFrameDrawResult
+draw_legacy_battle_decimal_frames(
+    LegacyBattleDecimalFrameDrawState& state,
+    rendering::LegacyFramebuffer& framebuffer,
+    const rendering::LegacyBlitClipRectangle& clip,
+    rendering::LegacyBlitRequest& shared_request,
+    rendering::LegacyBlitEffectState& shared_effects,
+    rendering::LegacyRleRowJitterState& jitter,
+    rendering::LegacyFramePieceProvider& frame_provider,
+    compat::u32 resource_id,
+    compat::i32 value,
     compat::i32 x,
     compat::i32 y
 ) noexcept;

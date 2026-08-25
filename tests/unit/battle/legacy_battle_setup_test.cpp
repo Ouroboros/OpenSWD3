@@ -3136,6 +3136,163 @@ void test_battle_indexed_action_frame_draw(openswd3::test::Context& test) {
     }
 }
 
+void test_battle_decimal_frames(openswd3::test::Context& test) {
+    const openswd3::rendering::LegacySurfaceGeometry surface{
+        .pitch_bytes = 160,
+        .width = 80,
+        .height = 40,
+    };
+    const openswd3::rendering::LegacyBlitClipRectangle clip{
+        .left = 0,
+        .top = 0,
+        .width = 80,
+        .height = 40,
+    };
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleBorderFrameProvider provider;
+        openswd3::battle::LegacyBattleDecimalFrameDrawState state;
+        openswd3::rendering::LegacyBlitRequest shared_request;
+        openswd3::rendering::LegacyBlitEffectState shared_effects;
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result = openswd3::battle::draw_legacy_battle_decimal_frames(
+            state,
+            framebuffer,
+            clip,
+            shared_request,
+            shared_effects,
+            jitter,
+            provider,
+            0x33U,
+            1234,
+            30,
+            5
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleDecimalFrameDrawStatus::
+                        completed &&
+                state.entry_x == 30 && state.entry_y == 5 &&
+                state.current_remainder == 4 && state.leading_digit_seen &&
+                state.digit_quotients ==
+                    std::array<openswd3::compat::i32, 4>{1, 2, 3, 4} &&
+                state.digit_count == 4U &&
+                result.decomposition_iterations == 4U &&
+                result.frame_load_calls == 4U &&
+                result.frame_draw_calls == 4U &&
+                result.drawn_digit_count == 4U && result.final_x == 13 &&
+                provider.resource_ids ==
+                    std::vector<u32>{0x33U, 0x33U, 0x33U, 0x33U} &&
+                provider.load_indices == std::vector<u32>{4U, 3U, 2U, 1U} &&
+                framebuffer.row_pixels(5U)[30U] == 0x1003U &&
+                framebuffer.row_pixels(12U)[29U] == 0x1003U &&
+                framebuffer.row_pixels(10U)[22U] == 0x1002U &&
+                framebuffer.row_pixels(7U)[17U] == 0x1001U,
+            "four decimal quotients draw units to thousands right-to-left"
+        );
+    }
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleBorderFrameProvider provider;
+        openswd3::battle::LegacyBattleDecimalFrameDrawState state;
+        openswd3::rendering::LegacyBlitRequest shared_request;
+        openswd3::rendering::LegacyBlitEffectState shared_effects;
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result = openswd3::battle::draw_legacy_battle_decimal_frames(
+            state,
+            framebuffer,
+            clip,
+            shared_request,
+            shared_effects,
+            jitter,
+            provider,
+            1U,
+            100,
+            40,
+            5
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleDecimalFrameDrawStatus::
+                        completed &&
+                state.digit_quotients ==
+                    std::array<openswd3::compat::i32, 4>{0, 1, 0, 0} &&
+                state.leading_digit_seen && state.digit_count == 3U &&
+                provider.load_indices == std::vector<u32>{0U, 0U, 1U} &&
+                result.final_x == 32,
+            "decimal decomposition retains zeros after the first nonzero digit"
+        );
+    }
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleBorderFrameProvider provider;
+        openswd3::battle::LegacyBattleDecimalFrameDrawState state;
+        openswd3::rendering::LegacyBlitRequest shared_request;
+        openswd3::rendering::LegacyBlitEffectState shared_effects;
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result = openswd3::battle::draw_legacy_battle_decimal_frames(
+            state,
+            framebuffer,
+            clip,
+            shared_request,
+            shared_effects,
+            jitter,
+            provider,
+            1U,
+            0,
+            40,
+            5
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleDecimalFrameDrawStatus::
+                        completed &&
+                !state.leading_digit_seen && state.digit_count == 1U &&
+                provider.load_indices == std::vector<u32>{0U} &&
+                result.drawn_digit_count == 1U && result.final_x == 38,
+            "all-zero decomposition forces exactly one zero frame"
+        );
+    }
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleBorderFrameProvider provider;
+        openswd3::battle::LegacyBattleDecimalFrameDrawState state;
+        openswd3::rendering::LegacyBlitRequest shared_request;
+        openswd3::rendering::LegacyBlitEffectState shared_effects;
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result = openswd3::battle::draw_legacy_battle_decimal_frames(
+            state,
+            framebuffer,
+            clip,
+            shared_request,
+            shared_effects,
+            jitter,
+            provider,
+            1U,
+            -12,
+            40,
+            5
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleDecimalFrameDrawStatus::
+                        frame_typed_stop &&
+                state.digit_quotients ==
+                    std::array<openswd3::compat::i32, 4>{0, 0, -1, -2} &&
+                state.current_remainder == -2 && state.digit_count == 2U &&
+                provider.load_indices == std::vector<u32>{0xFFFEU} &&
+                result.frame_load_calls == 1U &&
+                result.frame_draw_calls == 0U &&
+                result.drawn_digit_count == 0U && result.final_x == 40,
+            "negative units low word reaches the first frame lookup typed stop"
+        );
+    }
+}
+
 void test_battle_layered_resource_frames(openswd3::test::Context& test) {
     const openswd3::rendering::LegacySurfaceGeometry surface{
         .pitch_bytes = 80,
@@ -5354,6 +5511,7 @@ int main() {
     test_directional_scan_division_and_typed_stops(test);
     test_battle_action_frame_draw(test);
     test_battle_indexed_action_frame_draw(test);
+    test_battle_decimal_frames(test);
     test_battle_layered_resource_frames(test);
     test_battle_layered_low_word_width(test);
     test_battle_layered_resource_frame_two(test);
