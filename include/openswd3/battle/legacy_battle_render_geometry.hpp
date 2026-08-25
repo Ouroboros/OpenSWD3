@@ -41,6 +41,7 @@ struct LegacyBattleLineRaster {
 };
 
 struct LegacyBattleRenderGeometry {
+    LegacyBattleDirectionVectors direction_vectors{};
     std::unique_ptr<compat::u32[]> primary_row_offsets{};
     std::unique_ptr<compat::u32[]> surface_row_offsets{};
     compat::i32 primary_row_stride{};
@@ -83,6 +84,23 @@ struct LegacyBattleHostSurfaceResult {
     compat::i32 legacy_return_value{};
 };
 
+enum class LegacyBattleRenderInitializationStatus : compat::u8 {
+    completed,
+    primary_row_offsets_write_out_of_range,
+    surface_row_offsets_write_out_of_range,
+};
+
+struct LegacyBattleRenderInitializationResult {
+    LegacyBattleRenderInitializationStatus status{
+        LegacyBattleRenderInitializationStatus::completed
+    };
+    LegacyBattleRowOffsetResult primary_row_offsets{};
+    LegacyBattleRowOffsetResult surface_row_offsets{};
+    bool rectangle_published{};
+    bool direction_vectors_published{};
+    LegacyBattleRenderGeometry* legacy_return_value{};
+};
+
 // sub_434350.
 [[nodiscard]] bool
 advance_legacy_battle_line_raster(LegacyBattleLineRaster& raster) noexcept;
@@ -92,6 +110,18 @@ advance_legacy_battle_line_raster(LegacyBattleLineRaster& raster) noexcept;
 advance_legacy_battle_direction_raster(
     const LegacyBattleDirectionVectors& vectors,
     LegacyBattleDirectionRaster& raster
+) noexcept;
+
+// sub_433C40.
+[[nodiscard]] LegacyBattleRenderInitializationResult
+initialize_legacy_battle_render_geometry(
+    LegacyBattleRenderGeometry& geometry,
+    LegacyBattleRowOffsetAllocator& allocator
+) noexcept;
+
+[[nodiscard]] LegacyBattleRenderInitializationResult
+initialize_legacy_battle_render_geometry(
+    LegacyBattleRenderGeometry& geometry
 ) noexcept;
 
 // sub_433E20.

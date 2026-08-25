@@ -7,6 +7,7 @@
 #include "openswd3/battle/legacy_battle_setup.hpp"
 
 #include <array>
+#include <cstdint>
 #include <filesystem>
 #include <limits>
 #include <memory>
@@ -32,6 +33,7 @@ using openswd3::battle::LegacyBattleDirectionStepStatus;
 using openswd3::battle::LegacyBattleDirectionVectors;
 using openswd3::battle::LegacyBattleLineRaster;
 using openswd3::battle::LegacyBattleRenderGeometry;
+using openswd3::battle::LegacyBattleRenderInitializationStatus;
 using openswd3::battle::LegacyBattleRowOffsetAllocation;
 using openswd3::battle::LegacyBattleRowOffsetAllocator;
 using openswd3::battle::LegacyBattleRowOffsetStatus;
@@ -209,6 +211,32 @@ void test_enemy_record_layout(openswd3::test::Context& test) {
         "modern storage rejects a record exceeding the physical eight slots"
     );
 }
+
+class SequencedRowOffsetAllocator final
+    : public LegacyBattleRowOffsetAllocator {
+public:
+    // -2 uses the requested capacity; -1 returns allocation failure.
+    std::vector<i32> capacities;
+    std::vector<u32> requests;
+    std::size_t call_index{};
+
+    [[nodiscard]] LegacyBattleRowOffsetAllocation
+    allocate(const u32 requested_bytes) noexcept override {
+        requests.push_back(requested_bytes);
+        const i32 selected = capacities.at(call_index++);
+        if (selected == -1) {
+            return {};
+        }
+        const u32 capacity =
+            selected == -2 ? requested_bytes / 4U : static_cast<u32>(selected);
+        const std::size_t physical_words =
+            capacity == 0U ? 1U : static_cast<std::size_t>(capacity);
+        return {
+            .words = std::make_unique<u32[]>(physical_words),
+            .word_capacity = capacity,
+        };
+    }
+};
 
 class TestRowOffsetAllocator final : public LegacyBattleRowOffsetAllocator {
 public:
@@ -2502,6 +2530,192 @@ void test_directional_scan_division_and_typed_stops(
     );
 }
 
+std::uint64_t
+direction_vector_hash(const LegacyBattleDirectionVectors& vectors) {
+    std::uint64_t hash = UINT64_C(14695981039346656037);
+    const auto absorb = [&hash](const auto& values) {
+        for (const i32 value : values) {
+            const u32 bits = static_cast<u32>(value);
+            for (u32 shift = 0; shift < 32U; shift += 8U) {
+                hash ^= (bits >> shift) & 0xFFU;
+                hash *= UINT64_C(1099511628211);
+            }
+        }
+    };
+    absorb(vectors.horizontal);
+    absorb(vectors.vertical);
+    return hash;
+}
+
+void test_render_geometry_initialization_and_direction_table(
+    openswd3::test::Context& test
+) {
+    LegacyBattleRenderGeometry geometry;
+    geometry.primary_row_offsets = std::make_unique<u32[]>(1U);
+    geometry.surface_row_offsets = std::make_unique<u32[]>(1U);
+    geometry.primary_row_offsets[0U] = 0x11223344U;
+    geometry.surface_row_offsets[0U] = 0x55667788U;
+    u32* const abandoned_primary = geometry.primary_row_offsets.get();
+    u32* const abandoned_surface = geometry.surface_row_offsets.get();
+
+    SequencedRowOffsetAllocator allocator;
+    allocator.capacities = {-2, -2};
+    const auto result =
+        openswd3::battle::initialize_legacy_battle_render_geometry(
+            geometry, allocator
+        );
+    test.expect_true(
+        result.status == LegacyBattleRenderInitializationStatus::completed &&
+            result.primary_row_offsets.status ==
+                LegacyBattleRowOffsetStatus::completed &&
+            result.surface_row_offsets.status ==
+                LegacyBattleRowOffsetStatus::completed &&
+            result.rectangle_published && result.direction_vectors_published &&
+            result.legacy_return_value == &geometry &&
+            allocator.requests == std::vector<u32>{0xC00U, 0x780U} &&
+            geometry.primary_row_stride == 0x500 &&
+            geometry.primary_row_count == 0x300 &&
+            geometry.primary_row_offsets[0U] == 0U &&
+            geometry.primary_row_offsets[1U] == 0x500U &&
+            geometry.primary_row_offsets[0x2FFU] == 0xEFB00U &&
+            geometry.surface_width == 0x280 &&
+            geometry.surface_height == 0x1E0 &&
+            geometry.surface_row_offsets[0U] == 0U &&
+            geometry.surface_row_offsets[1U] == 0x280U &&
+            geometry.surface_row_offsets[0x1DFU] == 0x4AD80U &&
+            geometry.left == 0 && geometry.top == 0 &&
+            geometry.right == 0x280 && geometry.bottom == 0x1E0 &&
+            abandoned_primary[0U] == 0x11223344U &&
+            abandoned_surface[0U] == 0x55667788U,
+        "render initialization leaks old rows then publishes fixed surfaces"
+    );
+
+    const auto& directions = geometry.direction_vectors;
+    test.expect_true(
+        direction_vector_hash(directions) == UINT64_C(0x62C7B4D936076038) &&
+            directions.horizontal[0U] == -1000 &&
+            directions.vertical[0U] == 0 && directions.vertical[44U] == -964 &&
+            directions.vertical[89U] == -54816 &&
+            directions.horizontal[90U] == 0 &&
+            directions.vertical[90U] == -100000 &&
+            directions.horizontal[91U] == 1000 &&
+            directions.vertical[91U] == -28010 &&
+            directions.horizontal[179U] == 1000 &&
+            directions.vertical[179U] == 0 &&
+            directions.horizontal[180U] == 100000 &&
+            directions.vertical[180U] == 0 &&
+            directions.vertical[269U] == 54816 &&
+            directions.horizontal[270U] == 0 &&
+            directions.vertical[270U] == 100000 &&
+            directions.horizontal[271U] == -1000 &&
+            directions.vertical[271U] == 28010 &&
+            directions.vertical[359U] == 0,
+        "x87 tangent base and asymmetric quadrant copies match all 360 entries"
+    );
+
+    delete[] abandoned_primary;
+    delete[] abandoned_surface;
+}
+
+void test_render_geometry_initialization_failures(
+    openswd3::test::Context& test
+) {
+    {
+        LegacyBattleRenderGeometry geometry;
+        geometry.primary_row_stride = 11;
+        geometry.primary_row_count = 22;
+        geometry.surface_width = 10;
+        geometry.surface_height = 20;
+        SequencedRowOffsetAllocator allocator;
+        allocator.capacities = {-1, -1};
+        const auto result =
+            openswd3::battle::initialize_legacy_battle_render_geometry(
+                geometry, allocator
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleRenderInitializationStatus::completed &&
+                result.primary_row_offsets.status ==
+                    LegacyBattleRowOffsetStatus::allocation_failed &&
+                result.surface_row_offsets.status ==
+                    LegacyBattleRowOffsetStatus::allocation_failed &&
+                result.rectangle_published &&
+                result.direction_vectors_published &&
+                result.legacy_return_value == &geometry &&
+                geometry.primary_row_stride == 11 &&
+                geometry.primary_row_count == 22 &&
+                geometry.surface_width == 10 && geometry.surface_height == 20 &&
+                geometry.left == -630 && geometry.top == -460 &&
+                geometry.right == 10 && geometry.bottom == 20 &&
+                direction_vector_hash(geometry.direction_vectors) ==
+                    UINT64_C(0x62C7B4D936076038),
+            "both allocation failures preserve metadata and still build vectors"
+        );
+    }
+    {
+        LegacyBattleRenderGeometry geometry;
+        geometry.direction_vectors.horizontal.fill(7);
+        geometry.direction_vectors.vertical.fill(8);
+        SequencedRowOffsetAllocator allocator;
+        allocator.capacities = {0};
+        const auto result =
+            openswd3::battle::initialize_legacy_battle_render_geometry(
+                geometry, allocator
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleRenderInitializationStatus::
+                        primary_row_offsets_write_out_of_range &&
+                allocator.requests == std::vector<u32>{0xC00U} &&
+                result.primary_row_offsets.status ==
+                    LegacyBattleRowOffsetStatus::write_out_of_range &&
+                !result.rectangle_published &&
+                !result.direction_vectors_published &&
+                result.legacy_return_value == nullptr &&
+                geometry.primary_row_stride == 0x500 &&
+                geometry.primary_row_count == 0x300 &&
+                geometry.direction_vectors.horizontal[0U] == 7 &&
+                geometry.direction_vectors.vertical[0U] == 8,
+            "primary row typed stop prevents every later initialization stage"
+        );
+    }
+    {
+        LegacyBattleRenderGeometry geometry;
+        geometry.left = 1;
+        geometry.top = 2;
+        geometry.right = 3;
+        geometry.bottom = 4;
+        geometry.direction_vectors.horizontal.fill(7);
+        geometry.direction_vectors.vertical.fill(8);
+        SequencedRowOffsetAllocator allocator;
+        allocator.capacities = {-2, 0};
+        const auto result =
+            openswd3::battle::initialize_legacy_battle_render_geometry(
+                geometry, allocator
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleRenderInitializationStatus::
+                        surface_row_offsets_write_out_of_range &&
+                allocator.requests == std::vector<u32>{0xC00U, 0x780U} &&
+                result.primary_row_offsets.status ==
+                    LegacyBattleRowOffsetStatus::completed &&
+                result.surface_row_offsets.status ==
+                    LegacyBattleRowOffsetStatus::write_out_of_range &&
+                !result.rectangle_published &&
+                !result.direction_vectors_published &&
+                result.legacy_return_value == nullptr &&
+                geometry.surface_width == 0x280 &&
+                geometry.surface_height == 0x1E0 && geometry.left == 1 &&
+                geometry.top == 2 && geometry.right == 3 &&
+                geometry.bottom == 4 &&
+                geometry.direction_vectors.horizontal[0U] == 7 &&
+                geometry.direction_vectors.vertical[0U] == 8,
+            "surface row typed stop preserves primary rows and blocks the suffix"
+        );
+    }
+}
+
 void test_primary_row_offsets_normal_and_fixed_caller(
     openswd3::test::Context& test
 ) {
@@ -2932,6 +3146,8 @@ int main() {
     test_directional_scan_direct_mirror_transparent_and_combine(test);
     test_directional_scan_fixed_point_loops_and_bounds(test);
     test_directional_scan_division_and_typed_stops(test);
+    test_render_geometry_initialization_and_direction_table(test);
+    test_render_geometry_initialization_failures(test);
     test_primary_row_offsets_normal_and_fixed_caller(test);
     test_primary_row_offsets_allocation_boundaries(test);
     test_primary_row_offsets_wrapped_allocation_prefix(test);

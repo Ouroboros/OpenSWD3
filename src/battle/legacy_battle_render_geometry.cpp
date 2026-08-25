@@ -34,6 +34,55 @@ arithmetic_shift_right_one(const compat::i32 value) noexcept {
     return std::bit_cast<compat::i32>(shifted);
 }
 
+// Exact low-dword results from the original x87 sequence:
+// fild(index), fmul(0x3F91DCF4D98B0955), fptan, fmul(-1000.0f),
+// then the truncation-control-word conversion at sub_489654.
+inline constexpr std::array<compat::i32, 90> kNegativeTangentBase{
+    0,     -17,   -34,   -52,   -69,   -87,    -105,   -122,   -140,   -158,
+    -176,  -194,  -212,  -230,  -249,  -267,   -286,   -305,   -324,   -344,
+    -363,  -383,  -403,  -424,  -444,  -466,   -487,   -509,   -531,   -553,
+    -576,  -600,  -624,  -648,  -674,  -699,   -726,   -753,   -780,   -809,
+    -838,  -868,  -899,  -931,  -964,  -999,   -1034,  -1071,  -1109,  -1149,
+    -1190, -1233, -1278, -1325, -1374, -1426,  -1480,  -1538,  -1598,  -1662,
+    -1729, -1801, -1878, -1959, -2047, -2141,  -2242,  -2351,  -2470,  -2600,
+    -2742, -2898, -3071, -3263, -3478, -3722,  -3999,  -4318,  -4688,  -5125,
+    -5647, -6284, -7078, -8095, -9446, -11331, -14145, -18804, -28010, -54816,
+};
+
+void publish_direction_vectors(LegacyBattleDirectionVectors& vectors) noexcept {
+    for (std::size_t index = 0; index < kNegativeTangentBase.size(); ++index) {
+        vectors.horizontal[index] = -1000;
+        vectors.vertical[index] = kNegativeTangentBase[index];
+    }
+
+    for (std::size_t index = 0; index < 89U; ++index) {
+        const std::size_t destination = 91U + index;
+        vectors.horizontal[destination] = 1000;
+        vectors.vertical[destination] = kNegativeTangentBase[88U - index];
+    }
+
+    for (std::size_t index = 0; index < kNegativeTangentBase.size(); ++index) {
+        const std::size_t destination = 180U + index;
+        vectors.horizontal[destination] = 1000;
+        vectors.vertical[destination] =
+            wrapping_negate(kNegativeTangentBase[index]);
+    }
+
+    for (std::size_t index = 0; index < 89U; ++index) {
+        const std::size_t destination = 271U + index;
+        vectors.horizontal[destination] = -1000;
+        vectors.vertical[destination] =
+            wrapping_negate(kNegativeTangentBase[88U - index]);
+    }
+
+    vectors.horizontal[90U] = 0;
+    vectors.vertical[90U] = -100000;
+    vectors.horizontal[180U] = 100000;
+    vectors.vertical[180U] = 0;
+    vectors.horizontal[270U] = 0;
+    vectors.vertical[270U] = 100000;
+}
+
 class DefaultRowOffsetAllocator final : public LegacyBattleRowOffsetAllocator {
 public:
     [[nodiscard]] LegacyBattleRowOffsetAllocation
@@ -213,6 +262,54 @@ LegacyBattleDirectionStepStatus advance_legacy_battle_direction_raster(
     }
     raster.current_x = wrapping_add(raster.current_x, horizontal_step);
     return LegacyBattleDirectionStepStatus::completed;
+}
+
+LegacyBattleRenderInitializationResult initialize_legacy_battle_render_geometry(
+    LegacyBattleRenderGeometry& geometry,
+    LegacyBattleRowOffsetAllocator& allocator
+) noexcept {
+    // The legacy routine zeroes both published pointers before calling either
+    // rebuild helper, so the helpers cannot release any previous allocations.
+    static_cast<void>(geometry.primary_row_offsets.release());
+    static_cast<void>(geometry.surface_row_offsets.release());
+
+    LegacyBattleRenderInitializationResult result;
+    result.primary_row_offsets = rebuild_legacy_battle_primary_row_offsets(
+        geometry, 0x500, 0x300, allocator
+    );
+    if (result.primary_row_offsets.status ==
+        LegacyBattleRowOffsetStatus::write_out_of_range) {
+        result.status = LegacyBattleRenderInitializationStatus::
+            primary_row_offsets_write_out_of_range;
+        return result;
+    }
+
+    result.surface_row_offsets = rebuild_legacy_battle_surface_row_offsets(
+        geometry, 0x280, 0x1E0, allocator
+    );
+    if (result.surface_row_offsets.status ==
+        LegacyBattleRowOffsetStatus::write_out_of_range) {
+        result.status = LegacyBattleRenderInitializationStatus::
+            surface_row_offsets_write_out_of_range;
+        return result;
+    }
+
+    static_cast<void>(
+        set_legacy_battle_render_rectangle(geometry, 0, 0, 0x280, 0x1E0)
+    );
+    result.rectangle_published = true;
+
+    publish_direction_vectors(geometry.direction_vectors);
+    result.direction_vectors_published = true;
+    result.legacy_return_value = &geometry;
+    return result;
+}
+
+LegacyBattleRenderInitializationResult initialize_legacy_battle_render_geometry(
+    LegacyBattleRenderGeometry& geometry
+) noexcept {
+    DefaultRowOffsetAllocator allocator;
+    return initialize_legacy_battle_render_geometry(geometry, allocator);
 }
 
 LegacyBattleRowOffsetResult rebuild_legacy_battle_primary_row_offsets(
