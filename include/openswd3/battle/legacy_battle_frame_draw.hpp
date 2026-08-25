@@ -38,6 +38,53 @@ enum class LegacyBattleLayeredFrameDrawStatus : compat::u8 {
     second_frame_typed_stop,
 };
 
+enum class LegacyBattleDecimalPlaceStatus : compat::u8 {
+    completed,
+    typed_stop,
+};
+
+struct LegacyBattleTenPlaceDecimalState {
+    compat::u32 packed_color_state{};
+    compat::i32 remaining_value{};
+    compat::i32 x{};
+    compat::i32 y{};
+    compat::i32 leading_digit_seen{};
+};
+
+struct LegacyBattleDecimalPlaceResult {
+    LegacyBattleDecimalPlaceStatus status{
+        LegacyBattleDecimalPlaceStatus::completed
+    };
+    compat::u32 return_value{};
+};
+
+class LegacyBattleDecimalPlacePort {
+public:
+    virtual ~LegacyBattleDecimalPlacePort() = default;
+
+    [[nodiscard]] virtual LegacyBattleDecimalPlaceResult draw_place(
+        LegacyBattleTenPlaceDecimalState& state, compat::u32 divisor
+    ) noexcept = 0;
+};
+
+enum class LegacyBattleTenPlaceDecimalStatus : compat::u8 {
+    completed,
+    place_typed_stop,
+};
+
+struct LegacyBattleTenPlaceDecimalResult {
+    LegacyBattleTenPlaceDecimalStatus status{
+        LegacyBattleTenPlaceDecimalStatus::completed
+    };
+    std::array<compat::u32, 10> divisors{};
+    std::array<compat::u32, 10> place_returns{};
+    std::array<compat::u16, 10> x_advances{};
+    compat::u32 call_count{};
+    compat::u32 stopped_place_index{};
+    compat::i32 final_x{};
+    compat::u32 legacy_return_value{};
+};
+
 enum class LegacyBattleDecimalFrameDrawStatus : compat::u8 {
     completed,
     frame_typed_stop,
@@ -88,6 +135,17 @@ struct LegacyBattleLayeredFrameDrawResult {
     rendering::LegacyRleRowJitterState& jitter,
     rendering::LegacyFramePieceProvider& frame_provider,
     compat::u32 resource_id,
+    compat::i32 x,
+    compat::i32 y
+) noexcept;
+
+// sub_4507A0: coordinate ten decimal places from one billion through one.
+[[nodiscard]] LegacyBattleTenPlaceDecimalResult
+coordinate_legacy_battle_ten_place_decimal(
+    LegacyBattleTenPlaceDecimalState& state,
+    LegacyBattleDecimalPlacePort& place_port,
+    compat::u32 color_stack_slot,
+    compat::i32 value,
     compat::i32 x,
     compat::i32 y
 ) noexcept;

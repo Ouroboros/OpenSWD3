@@ -3136,6 +3136,120 @@ void test_battle_indexed_action_frame_draw(openswd3::test::Context& test) {
     }
 }
 
+void test_battle_ten_place_decimal_coordinator(openswd3::test::Context& test) {
+    class ScriptedPlacePort final
+        : public openswd3::battle::LegacyBattleDecimalPlacePort {
+    public:
+        openswd3::compat::i32 stop_index{-1};
+        std::vector<u32> divisors;
+        std::vector<openswd3::compat::i32> x_inputs;
+        std::vector<openswd3::compat::i32> y_inputs;
+        std::vector<openswd3::compat::i32> leading_inputs;
+        std::vector<openswd3::compat::i32> value_inputs;
+        std::vector<u32> packed_color_inputs;
+
+        [[nodiscard]] openswd3::battle::LegacyBattleDecimalPlaceResult
+        draw_place(
+            openswd3::battle::LegacyBattleTenPlaceDecimalState& state,
+            const u32 divisor
+        ) noexcept override {
+            const std::size_t index = divisors.size();
+            divisors.push_back(divisor);
+            x_inputs.push_back(state.x);
+            y_inputs.push_back(state.y);
+            leading_inputs.push_back(state.leading_digit_seen);
+            value_inputs.push_back(state.remaining_value);
+            packed_color_inputs.push_back(state.packed_color_state);
+            state.x += 100;
+            --state.remaining_value;
+            return {
+                .status =
+                    static_cast<openswd3::compat::i32>(index) == stop_index
+                    ? openswd3::battle::LegacyBattleDecimalPlaceStatus::
+                          typed_stop
+                    : openswd3::battle::LegacyBattleDecimalPlaceStatus::
+                          completed,
+                .return_value = static_cast<u32>(0xABCD0001U + index),
+            };
+        }
+    };
+
+    constexpr std::array<u32, 10> kDivisors{
+        1'000'000'000U,
+        100'000'000U,
+        10'000'000U,
+        1'000'000U,
+        100'000U,
+        10'000U,
+        1'000U,
+        100U,
+        10U,
+        1U,
+    };
+
+    {
+        ScriptedPlacePort port;
+        openswd3::battle::LegacyBattleTenPlaceDecimalState state{
+            .packed_color_state = 0x12345678U,
+        };
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_ten_place_decimal(
+                state, port, 0x9999ABCDU, 123, 10, 20
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleTenPlaceDecimalStatus::
+                        completed &&
+                result.divisors == kDivisors && result.call_count == 10U &&
+                result.legacy_return_value == 10U && result.final_x == 1065 &&
+                state.x == 1065 && state.y == 20 &&
+                state.remaining_value == 113 && state.leading_digit_seen == 1 &&
+                state.packed_color_state == 0xABCD5678U &&
+                port.divisors ==
+                    std::vector<u32>(kDivisors.begin(), kDivisors.end()) &&
+                port.x_inputs.front() == 10 && port.x_inputs.back() == 955 &&
+                port.y_inputs == std::vector<openswd3::compat::i32>(10U, 20) &&
+                port.leading_inputs ==
+                    std::vector<openswd3::compat::i32>{
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 1
+                    } &&
+                result.x_advances ==
+                    std::array<openswd3::compat::u16, 10>{
+                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+                    },
+            "ten-place coordinator rereads callee x and adds each low-word return"
+        );
+    }
+
+    {
+        ScriptedPlacePort port;
+        port.stop_index = 3;
+        openswd3::battle::LegacyBattleTenPlaceDecimalState state{
+            .packed_color_state = 0xFFFF0022U,
+        };
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_ten_place_decimal(
+                state, port, 0x1357U, 55, 10, 20
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleTenPlaceDecimalStatus::
+                        place_typed_stop &&
+                result.call_count == 4U && result.stopped_place_index == 3U &&
+                result.final_x == 416 && state.x == 416 &&
+                state.remaining_value == 51 && state.leading_digit_seen == 0 &&
+                state.packed_color_state == 0x13570022U &&
+                port.divisors ==
+                    std::vector<u32>{
+                        1'000'000'000U, 100'000'000U, 10'000'000U, 1'000'000U
+                    } &&
+                result.x_advances[0] == 1U && result.x_advances[1] == 2U &&
+                result.x_advances[2] == 3U && result.x_advances[3] == 0U,
+            "place typed stop preserves callee mutation without adding its return"
+        );
+    }
+}
+
 void test_battle_decimal_frames(openswd3::test::Context& test) {
     const openswd3::rendering::LegacySurfaceGeometry surface{
         .pitch_bytes = 160,
@@ -5511,6 +5625,7 @@ int main() {
     test_directional_scan_division_and_typed_stops(test);
     test_battle_action_frame_draw(test);
     test_battle_indexed_action_frame_draw(test);
+    test_battle_ten_place_decimal_coordinator(test);
     test_battle_decimal_frames(test);
     test_battle_layered_resource_frames(test);
     test_battle_layered_low_word_width(test);

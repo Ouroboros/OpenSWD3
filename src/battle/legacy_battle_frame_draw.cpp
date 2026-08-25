@@ -84,6 +84,65 @@ LegacyBattleFrameDrawResult draw_legacy_battle_frame_zero(
     return result;
 }
 
+LegacyBattleTenPlaceDecimalResult coordinate_legacy_battle_ten_place_decimal(
+    LegacyBattleTenPlaceDecimalState& state,
+    LegacyBattleDecimalPlacePort& place_port,
+    const compat::u32 color_stack_slot,
+    const compat::i32 value,
+    const compat::i32 x,
+    const compat::i32 y
+) noexcept {
+    constexpr std::array<compat::u32, 10> kDivisors{
+        1'000'000'000U,
+        100'000'000U,
+        10'000'000U,
+        1'000'000U,
+        100'000U,
+        10'000U,
+        1'000U,
+        100U,
+        10U,
+        1U,
+    };
+
+    state.packed_color_state = (state.packed_color_state & 0x0000FFFFU) |
+        ((color_stack_slot & 0xFFFFU) << 16U);
+    state.remaining_value = value;
+    state.x = x;
+    state.y = y;
+    state.leading_digit_seen = 0;
+
+    LegacyBattleTenPlaceDecimalResult result{
+        .divisors = kDivisors,
+        .final_x = x,
+    };
+    for (std::size_t index = 0U; index < kDivisors.size(); ++index) {
+        if (index + 1U == kDivisors.size()) {
+            state.leading_digit_seen = 1;
+        }
+        const LegacyBattleDecimalPlaceResult place =
+            place_port.draw_place(state, kDivisors[index]);
+        result.place_returns[index] = place.return_value;
+        ++result.call_count;
+        if (place.status != LegacyBattleDecimalPlaceStatus::completed) {
+            result.status = LegacyBattleTenPlaceDecimalStatus::place_typed_stop;
+            result.stopped_place_index = static_cast<compat::u32>(index);
+            result.final_x = state.x;
+            return result;
+        }
+
+        const compat::u16 advance =
+            static_cast<compat::u16>(place.return_value);
+        result.x_advances[index] = advance;
+        result.legacy_return_value = static_cast<compat::u32>(advance);
+        const compat::u32 next_x_bits = static_cast<compat::u32>(state.x) +
+            static_cast<compat::u32>(advance);
+        state.x = std::bit_cast<compat::i32>(next_x_bits);
+    }
+    result.final_x = state.x;
+    return result;
+}
+
 LegacyBattleDecimalFrameDrawResult draw_legacy_battle_decimal_frames(
     LegacyBattleDecimalFrameDrawState& state,
     rendering::LegacyFramebuffer& framebuffer,
