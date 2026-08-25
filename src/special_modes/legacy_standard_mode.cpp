@@ -8548,6 +8548,22 @@ LegacyInputMenuSavePreviewResetResult reset_legacy_input_menu_and_save_previews(
     return result;
 }
 
+LegacySavePreviewCleanupResult cleanup_legacy_save_previews(
+    std::array<LegacySavePreviewRecord, 3U>& previews,
+    LegacyInputMenuSavePreviewResetPorts& ports
+) noexcept {
+    LegacySavePreviewCleanupResult result;
+    for (LegacySavePreviewRecord& preview : previews) {
+        if (!ports.reset_save_preview(preview)) {
+            result.status =
+                LegacySavePreviewCleanupStatus::preview_reset_stopped;
+            return result;
+        }
+        ++result.preview_reset_count;
+    }
+    return result;
+}
+
 static LegacyGuardianAttributeTarget load_guardian_attribute_target(
     const std::span<const compat::u8> bytes
 ) noexcept {

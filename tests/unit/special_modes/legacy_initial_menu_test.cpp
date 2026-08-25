@@ -21117,6 +21117,49 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x406D30 typed-stops exactly at unavailable preview reset, load, or finalization while preserving every earlier reset and rebuilt preview"
     );
 
+    std::array<openswd3::special_modes::LegacySavePreviewRecord, 3U>
+        save_preview_cleanup_records;
+    for (auto& preview : save_preview_cleanup_records) {
+        preview.bytes.fill(0xEEU);
+    }
+    FakeInputMenuSavePreviewResetPorts save_preview_cleanup_ports;
+    const auto save_preview_cleanup =
+        openswd3::special_modes::cleanup_legacy_save_previews(
+            save_preview_cleanup_records, save_preview_cleanup_ports
+        );
+    std::array<openswd3::special_modes::LegacySavePreviewRecord, 3U>
+        stopped_save_preview_cleanup_records;
+    for (auto& preview : stopped_save_preview_cleanup_records) {
+        preview.bytes.fill(0xEEU);
+    }
+    FakeInputMenuSavePreviewResetPorts stopped_save_preview_cleanup_ports;
+    stopped_save_preview_cleanup_ports.fail_reset_at = 1U;
+    const auto stopped_save_preview_cleanup =
+        openswd3::special_modes::cleanup_legacy_save_previews(
+            stopped_save_preview_cleanup_records,
+            stopped_save_preview_cleanup_ports
+        );
+    test.expect_true(
+        save_preview_cleanup.status ==
+                openswd3::special_modes::LegacySavePreviewCleanupStatus::
+                    completed &&
+            save_preview_cleanup.preview_reset_count == 3U &&
+            save_preview_cleanup_ports.events == std::vector<u32>{1U, 1U, 1U} &&
+            save_preview_cleanup_records[0U].bytes[0U] == 0x10U &&
+            save_preview_cleanup_records[1U].bytes[0U] == 0x11U &&
+            save_preview_cleanup_records[2U].bytes[0U] == 0x12U &&
+            stopped_save_preview_cleanup.status ==
+                openswd3::special_modes::LegacySavePreviewCleanupStatus::
+                    preview_reset_stopped &&
+            stopped_save_preview_cleanup.preview_reset_count == 1U &&
+            stopped_save_preview_cleanup_ports.events ==
+                std::vector<u32>{1U, 1U} &&
+            stopped_save_preview_cleanup_records[0U].bytes[0U] == 0x10U &&
+            stopped_save_preview_cleanup_records[1U].bytes[0U] == 0xEEU &&
+            stopped_save_preview_cleanup_records[2U].bytes[0U] == 0xEEU,
+        "0x406E00 resets exactly three save preview records in address order and typed-stops before the unavailable record"
+    );
+
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;
     for (std::size_t index = 0U; index < special_action_set.records.size();
          ++index) {

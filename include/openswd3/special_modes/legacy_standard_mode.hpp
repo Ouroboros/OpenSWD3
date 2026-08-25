@@ -3471,6 +3471,23 @@ reset_legacy_input_menu_and_save_previews(
     LegacyInputMenuSavePreviewResetPorts& ports
 ) noexcept;
 
+enum class LegacySavePreviewCleanupStatus : compat::u8 {
+    completed,
+    preview_reset_stopped,
+};
+
+struct LegacySavePreviewCleanupResult {
+    LegacySavePreviewCleanupStatus status{
+        LegacySavePreviewCleanupStatus::completed
+    };
+    compat::u32 preview_reset_count{};
+};
+
+[[nodiscard]] LegacySavePreviewCleanupResult cleanup_legacy_save_previews(
+    std::array<LegacySavePreviewRecord, 3U>& previews,
+    LegacyInputMenuSavePreviewResetPorts& ports
+) noexcept;
+
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
     completed,
     mode_mask_out_of_range,
