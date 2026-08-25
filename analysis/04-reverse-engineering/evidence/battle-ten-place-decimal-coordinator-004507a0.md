@@ -8,7 +8,7 @@
 
 入口四个物理栈槽依次为颜色槽、待绘制值、X、Y；函数只读取颜色槽低16位。九个caller位于`0x004795EF`、`0x0047C354`、`0x0047C3AC`、`0x0047C40C`、`0x0047C42E`、`0x0047C4B2`、`0x0047C4F7`、`0x0047C545`和`0x0047C572`。
 
-唯一callee为`0x00450900`，固定调用十次。该callee在工作包中尚为`pending_audit`，本项以`LegacyBattleDecimalPlacePort`保留typed边界；callee关闭后必须回收端口并直接调用其typed实现。
+唯一callee为`0x00450900`，固定调用十次。该callee现已关闭，协调器直接调用`draw_legacy_battle_decimal_place`，不再保留opaque端口边界。
 
 ## 2. 入口共享状态发布
 
@@ -41,7 +41,7 @@
 
 前九次调用保持callee返回后的leading状态。第十次除数1调用前，函数无条件写`0x004FD780 = 1`，保证最低位由callee处理；不得把该写提前到除数10或调用之后。
 
-callee可修改共享待绘制值、X、Y和leading状态，caller不保存入口副本覆盖它们。typed端口接收可变共享state。
+callee可修改共享待绘制值、帧/source和leading状态，caller不保存入口副本覆盖它们。typed协调器与单位置位实现直接共享同一可变state。
 
 ## 4. 每次返回后的X推进
 
@@ -58,16 +58,16 @@ callee可修改共享待绘制值、X、Y和leading状态，caller不保存入�
 
 ## 5. typed-stop边界
 
-`0x00450900`未关闭期间，端口可报告typed-stop。此时：
+`0x00450900`现直接报告除零、帧缺失或blitter故障typed-stop。此时：
 
 - 保留入口共享发布；
-- 保留此前正常位的X推进；
-- 保留当前callee对共享state的变更；
+- 保留此前正常位的余数、leading、X推进和像素；
+- 保留当前callee已发布的帧/source前缀；
 - 不把当前未完成返回值低16位加入X；
 - 不调用后续除数；
 - 不伪造正常EAX返回。
 
-这只隔离待关闭callee的unsafe边界，不改变正常LST路径。
+前导零跳过是callee正常返回0，不属于typed-stop，协调器继续下一除数。
 
 ## 6. 双向追溯
 
@@ -77,23 +77,23 @@ callee可修改共享待绘制值、X、Y和leading状态，caller不保存入�
 - `0x004508D3..0x004508DD`：最低位调用前强制leading=1及最后调用；
 - `0x004508E2..0x004508F8`：最后低word推进、最终X发布和EAX低word返回。
 
-C++数组逐项对应十个立即数；端口调用前后直接共享同一state；结果数组只记录真实调用、原返回snapshot和低word推进。没有引入除数循环终止判断、前导零预判、颜色全槽覆盖或入口X缓存。
+C++数组逐项对应十个立即数；callee调用前后直接共享同一state；结果数组记录真实单位置位结果、完整EAX snapshot和低word推进。没有引入除数循环终止判断、前导零预判、颜色全槽覆盖或入口X缓存。
 
 完整正向和反向追溯没有未解释基本块、参数、共享写、callee或出口。
 
 ## 7. 验证与动态差分
 
-定向脚本端口测试覆盖：
+定向真实callee测试覆盖：
 
 - 十个除数及调用顺序；
 - 颜色只覆盖packed槽高16位；
 - 值、X、Y和leading入口发布；
-- 端口逐次改写X后caller重新读取；
-- 返回高16位噪声被忽略，低16位1..10逐次推进；
-- 前九次leading为0，第十次调用前强制为1；
-- 最终X 1065及正常返回10；
-- 第四次typed-stop保留callee的X/值变更，不加当前返回且阻断余下六次。
+- 前两个高位0正常跳过，随后直接绘制帧1..8；
+- 每次完整EAX高16位保留余数，caller只用低16位帧宽推进；
+- 最后一位调用前强制leading=1；
+- 最终X 85及正常返回15；
+- 帧4查询typed-stop保留前三个已绘制位、余数45和X 36，阻断最后一位。
 
 battle聚合目标零warning构建及定向测试通过。
 
-当前没有原版十位共享状态、`0x00450900`内部状态和framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整137行LST、typed callee边界和固定状态验证已经闭环。
+当前没有原版十位共享状态、帧记录和framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整137行LST、关闭callee直连和固定状态验证已经闭环。

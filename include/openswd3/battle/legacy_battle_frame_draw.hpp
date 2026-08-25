@@ -40,7 +40,10 @@ enum class LegacyBattleLayeredFrameDrawStatus : compat::u8 {
 
 enum class LegacyBattleDecimalPlaceStatus : compat::u8 {
     completed,
-    typed_stop,
+    skipped_leading_zero,
+    divide_by_zero,
+    frame_unavailable,
+    blit_typed_stop,
 };
 
 struct LegacyBattleTenPlaceDecimalState {
@@ -49,22 +52,26 @@ struct LegacyBattleTenPlaceDecimalState {
     compat::i32 x{};
     compat::i32 y{};
     compat::i32 leading_digit_seen{};
+    compat::u16 draw_mode{};
+    LegacyBattleFrameDrawState frame{};
 };
 
 struct LegacyBattleDecimalPlaceResult {
     LegacyBattleDecimalPlaceStatus status{
         LegacyBattleDecimalPlaceStatus::completed
     };
+    rendering::LegacyBlitExecutionStatus blit_status{
+        rendering::LegacyBlitExecutionStatus::completed
+    };
+    compat::u32 divisor{};
+    compat::u32 quotient{};
+    compat::u32 resource_id{};
+    compat::u32 frame_index{};
+    compat::u32 request_flags{};
+    compat::u32 frame_load_calls{};
+    compat::u32 frame_draw_calls{};
+    compat::i32 remaining_after{};
     compat::u32 return_value{};
-};
-
-class LegacyBattleDecimalPlacePort {
-public:
-    virtual ~LegacyBattleDecimalPlacePort() = default;
-
-    [[nodiscard]] virtual LegacyBattleDecimalPlaceResult draw_place(
-        LegacyBattleTenPlaceDecimalState& state, compat::u32 divisor
-    ) noexcept = 0;
 };
 
 enum class LegacyBattleTenPlaceDecimalStatus : compat::u8 {
@@ -77,6 +84,7 @@ struct LegacyBattleTenPlaceDecimalResult {
         LegacyBattleTenPlaceDecimalStatus::completed
     };
     std::array<compat::u32, 10> divisors{};
+    std::array<LegacyBattleDecimalPlaceResult, 10> places{};
     std::array<compat::u32, 10> place_returns{};
     std::array<compat::u16, 10> x_advances{};
     compat::u32 call_count{};
@@ -139,11 +147,28 @@ struct LegacyBattleLayeredFrameDrawResult {
     compat::i32 y
 ) noexcept;
 
+// sub_450900: draw one unsigned decimal place from shared battle state.
+[[nodiscard]] LegacyBattleDecimalPlaceResult draw_legacy_battle_decimal_place(
+    LegacyBattleTenPlaceDecimalState& state,
+    rendering::LegacyFramebuffer& framebuffer,
+    const rendering::LegacyBlitClipRectangle& clip,
+    rendering::LegacyBlitRequest& shared_request,
+    rendering::LegacyBlitEffectState& shared_effects,
+    rendering::LegacyRleRowJitterState& jitter,
+    rendering::LegacyFramePieceProvider& frame_provider,
+    compat::u32 divisor
+) noexcept;
+
 // sub_4507A0: coordinate ten decimal places from one billion through one.
 [[nodiscard]] LegacyBattleTenPlaceDecimalResult
 coordinate_legacy_battle_ten_place_decimal(
     LegacyBattleTenPlaceDecimalState& state,
-    LegacyBattleDecimalPlacePort& place_port,
+    rendering::LegacyFramebuffer& framebuffer,
+    const rendering::LegacyBlitClipRectangle& clip,
+    rendering::LegacyBlitRequest& shared_request,
+    rendering::LegacyBlitEffectState& shared_effects,
+    rendering::LegacyRleRowJitterState& jitter,
+    rendering::LegacyFramePieceProvider& frame_provider,
     compat::u32 color_stack_slot,
     compat::i32 value,
     compat::i32 x,

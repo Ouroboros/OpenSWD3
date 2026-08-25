@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v692
+版本：v693
 
 最后更新：2026-08-25
 
@@ -3895,6 +3895,7 @@ B7 P0 有限收口完成。
 - 模块10战斗资源0号与2号双层帧绘制`0x004505B0`完成。完整70行复用相同首层、公共后缀、第二次查询与严格零门，但第二层固定帧2，并在正常公共尾恒定返回1。定向测试锁定0/2查询顺序、帧2按自身高度覆盖一列、零宽仍发布帧2及两条正常路径返回1；通用双层测试继续覆盖负宽与两层故障前缀。独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`25/422`，即`21 platform_adapted + 4 assembly_exact + 397 pending_audit`，SHA256为`b58d52d942500d92a9cdf092dd5fd6e82b5a5a338e84d97c7cdb3746272a9c40`。原版双层帧记录、共享blitter状态和framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 - 模块10战斗资源双层帧低字宽度绘制`0x00450630`完成。完整65行先完整绘制0号帧，再必查并绘制1号帧；第二层宽度按u32执行入口第四参数低16位mask后加2，范围2..65537，高16位完全丢弃，不读取帧1宽且没有零门。定向测试使用高位非零、低字为0的种子锁定宽2、0/1查询顺序及2×3覆盖像素；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`26/422`，即`22 platform_adapted + 4 assembly_exact + 396 pending_audit`，SHA256为`5ca41aeade42f7970652f62904380dc81893335590bbea7d6746761c4afa661b`。原版宽度种子、双层帧记录、共享blitter状态和framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 - 模块10战斗四段十进制帧逆序绘制`0x004506B0`完成。完整122行固定按1000/100/10/1做四轮signed向零商余量分解；首个非零后保留内部零，全零仍强制一帧0，第一段商不夹为单个数字。绘制从单位商向高位，以商低16位查帧并按每个当前帧宽执行32位回绕X回退；负值不取绝对值。定向测试锁定`1234`的`4,3,2,1`逆序、不同帧宽覆盖与最终X、`100`内部零、`0`单帧及`-12`在`0xFFFE`查询点停止；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`27/422`，即`23 platform_adapted + 4 assembly_exact + 395 pending_audit`，SHA256为`97241c4c6a9abfd6a0a343c97ed7ead370775713ead3da65db6c3651c4557f35`。原版数字共享槽、帧记录、共享blitter状态和framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
-- 模块10战斗十位十进制绘制协调`0x004507A0`完成。完整137行只覆盖packed颜色槽高16位，发布值、X、Y并清leading，固定按十亿到一调用`0x00450900`十次。每次返回都重读callee可变X、加EAX低16位并发布；第十次调用前强制leading=1，正常返回最后推进低字。定向脚本端口锁定十个除数、颜色低word保留、callee逐次改写X、高位返回噪声忽略、最终X/返回及第四次typed-stop前缀；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`28/422`，即`24 platform_adapted + 4 assembly_exact + 394 pending_audit`，SHA256为`b0fbc0670df5927b8c889ec72ed84765746a6a6c0b3d1306b7482aeaa04796ab`。`0x00450900`尚未关闭，以typed端口隔离；原版十位共享状态和framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
+- 模块10战斗十位十进制绘制协调`0x004507A0`完成。完整137行只覆盖packed颜色槽高16位，发布值、X、Y并清leading，固定按十亿到一调用`0x00450900`十次。每次返回都重读共享X、加EAX低16位并发布；第十次调用前强制leading=1，正常返回最后推进低字。`0x00450900`关闭后已删除typed端口并直连；真实callee测试锁定十个除数、颜色低word保留、前导零跳过、完整EAX高字忽略、最终X/返回及帧查询typed-stop前缀。独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。原版十位共享状态和framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
+- 模块10战斗十进制单位置位`0x00450900`完成。完整99行对共享余数执行unsigned除法，只以商低16位和leading决定是否绘制；帧索引保留完整商，资源号高16位继承商或leading陈旧高字，低16位取颜色槽。模式`0x8000`固定flags `0x20`，其他模式0，两者均在共享X减16处以空tail绘制。正常后只用商低16位更新余数、置leading，并返回新余数高16位与帧宽低16位拼接值。定向测试锁定除零、商`0x10000`低字零跳过、两种资源高字继承、模式typed-stop、普通完成、indexed空tail故障及协调器直连完整路径；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`29/422`，即`25 platform_adapted + 4 assembly_exact + 393 pending_audit`，SHA256为`4b358c6cf3a9eceef402d93e9240b14fa9a8f05adec3da3a8c471d59ff2a1627`。原版单位置位共享状态、帧record和framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 
-下一项关闭`audit_order=28`的`0x00450900`十进制单位置位callee，并立即回收`0x004507A0`中的typed端口边界。
+下一项回收`audit_order=29`的`0x004509D0`战斗绘制包装，继续完整审计其帧查询、辅助callee与软件绘制顺序。
