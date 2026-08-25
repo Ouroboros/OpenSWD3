@@ -2843,6 +2843,68 @@ render_legacy_special_mode_attribute_deltas(
     LegacySpecialModeAttributeDeltaRenderPorts& ports
 ) noexcept;
 
+struct LegacySpecialModeModeOneAdvanceState {
+    compat::u32 level{};
+    compat::u32 packed_mode{};
+    compat::i32 total_count{};
+    compat::i32 window_offset{};
+    compat::i32 local_cursor{};
+    compat::i32 visible_count{};
+    const LegacyStandardModeForwardNode* workspace_head{};
+    const LegacyStandardModeForwardNode* visible_head{};
+    std::array<compat::u8, 128U> shared_text{};
+    compat::u32 frame_flags{};
+    std::array<LegacySpecialModeAttributeDelta, 4U> member_deltas{};
+};
+
+class LegacySpecialModeModeOneAdvancePorts
+    : public virtual LegacySpecialModeAttributeComparisonPorts {
+public:
+    ~LegacySpecialModeModeOneAdvancePorts() override = default;
+    [[nodiscard]] virtual compat::i32
+    play_sample(compat::u16 sample_id, compat::u32 sample_owner) noexcept = 0;
+};
+
+enum class LegacySpecialModeModeOneAdvanceStatus : compat::u8 {
+    completed,
+    visible_head_advance_stopped,
+    selected_record_missing,
+    shared_text_stopped,
+    indexed_record_cycle_stopped,
+    indexed_record_missing,
+    attribute_comparison_stopped,
+};
+
+enum class LegacySpecialModeModeOneAdvancePath : compat::u8 {
+    unchanged,
+    packed_mode_advanced,
+    selection_advanced,
+};
+
+struct LegacySpecialModeModeOneAdvanceResult {
+    LegacySpecialModeModeOneAdvanceStatus status{
+        LegacySpecialModeModeOneAdvanceStatus::completed
+    };
+    LegacySpecialModeModeOneAdvancePath path{
+        LegacySpecialModeModeOneAdvancePath::unchanged
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+    bool window_advanced{};
+    bool sample_played{};
+};
+
+[[nodiscard]] LegacySpecialModeModeOneAdvanceResult
+advance_legacy_special_mode_mode_one(
+    LegacySpecialModeModeOneAdvanceState& state,
+    std::span<const compat::u8> maps_payload,
+    const std::array<LegacyGuardianAttributeTarget, 4U>& base_attributes,
+    std::span<LegacyStandardModeForwardNode* const> fixed_slots,
+    std::span<const compat::u32> replacement_masks,
+    compat::u32 sample_owner,
+    LegacySpecialModeModeOneAdvancePorts& ports
+) noexcept;
+
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
     completed,
     mode_mask_out_of_range,

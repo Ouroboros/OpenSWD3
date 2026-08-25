@@ -856,6 +856,37 @@ public:
         requests;
 };
 
+class FakeModeOneAdvancePorts final
+    : public openswd3::special_modes::LegacySpecialModeModeOneAdvancePorts {
+public:
+    bool is_party_member_present(const u32 member_id) noexcept override {
+        queried_member_ids.push_back(member_id);
+        return present[static_cast<std::size_t>(member_id - 0x1EU)];
+    }
+    std::optional<i16>
+    load_temporary_attribute_sign(const u16 template_key) noexcept override {
+        loaded_template_keys.push_back(template_key);
+        return temporary_available ? std::optional<i16>{0} : std::nullopt;
+    }
+    i32 release_temporary_attributes() noexcept override {
+        ++release_count;
+        return 0;
+    }
+    i32
+    play_sample(const u16 sample_id, const u32 sample_owner) noexcept override {
+        samples.emplace_back(sample_id, sample_owner);
+        return sample_return;
+    }
+
+    std::array<bool, 4U> present{};
+    bool temporary_available{true};
+    i32 sample_return{777};
+    u32 release_count{};
+    std::vector<u32> queried_member_ids;
+    std::vector<u16> loaded_template_keys;
+    std::vector<std::pair<u16, u32>> samples;
+};
+
 class FakeChainClonePorts final
     : public openswd3::special_modes::LegacyStandardModeRecordClonePorts {
 public:
@@ -18321,6 +18352,157 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             absent_delta_render.value_draw_count == 0U &&
             absent_delta_ports.requests.empty(),
         "0x44FD30 still composes three colors and queries four member ids when every party member is absent"
+    );
+
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_level_one;
+    mode_one_level_one.level = 1U;
+    mode_one_level_one.packed_mode = 0xAABBCC01U;
+    FakeModeOneAdvancePorts mode_one_level_one_ports;
+    const auto mode_one_packed_advance =
+        openswd3::special_modes::advance_legacy_special_mode_mode_one(
+            mode_one_level_one,
+            {},
+            comparison_bases,
+            {},
+            {},
+            0x55U,
+            mode_one_level_one_ports
+        );
+    test.expect_true(
+        mode_one_packed_advance.status ==
+                openswd3::special_modes::LegacySpecialModeModeOneAdvanceStatus::
+                    completed &&
+            mode_one_packed_advance.path ==
+                openswd3::special_modes::LegacySpecialModeModeOneAdvancePath::
+                    packed_mode_advanced &&
+            mode_one_level_one.packed_mode == 0xAABBCC02U &&
+            std::bit_cast<u32>(mode_one_packed_advance.legacy_return_value) ==
+                0xAABBCC02U &&
+            mode_one_packed_advance.helper_call_count == 0U,
+        "0x44DF00 level one advances only the packed low-two-bit mode and clamps it to two"
+    );
+
+    LegacyStandardModeForwardNode mode_one_node_four;
+    mode_one_node_four.text_index = 4U;
+    LegacyStandardModeForwardNode mode_one_node_three;
+    mode_one_node_three.next = &mode_one_node_four;
+    mode_one_node_three.text_index = 0xFFDCU;
+    LegacyStandardModeForwardNode mode_one_node_two;
+    mode_one_node_two.next = &mode_one_node_three;
+    mode_one_node_two.text_index = 2U;
+    LegacyStandardModeForwardNode mode_one_node_one;
+    mode_one_node_one.next = &mode_one_node_two;
+    mode_one_node_one.text_index = 1U;
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_level_two;
+    mode_one_level_two.level = 2U;
+    mode_one_level_two.total_count = 4;
+    mode_one_level_two.window_offset = 0;
+    mode_one_level_two.local_cursor = 1;
+    mode_one_level_two.visible_count = 2;
+    mode_one_level_two.workspace_head = &mode_one_node_one;
+    mode_one_level_two.visible_head = &mode_one_node_one;
+    mode_one_level_two.frame_flags = 1U;
+    FakeModeOneAdvancePorts mode_one_level_two_ports;
+    const auto mode_one_selection_advance =
+        openswd3::special_modes::advance_legacy_special_mode_mode_one(
+            mode_one_level_two,
+            {},
+            comparison_bases,
+            {},
+            {},
+            0x12345678U,
+            mode_one_level_two_ports
+        );
+    test.expect_true(
+        mode_one_selection_advance.status ==
+                openswd3::special_modes::LegacySpecialModeModeOneAdvanceStatus::
+                    completed &&
+            mode_one_selection_advance.path ==
+                openswd3::special_modes::LegacySpecialModeModeOneAdvancePath::
+                    selection_advanced &&
+            mode_one_selection_advance.window_advanced &&
+            mode_one_level_two.window_offset == 1 &&
+            mode_one_level_two.local_cursor == 1 &&
+            mode_one_level_two.visible_head == &mode_one_node_two &&
+            mode_one_level_two.visible_count == 3 &&
+            mode_one_level_two.shared_text[0U] == 0xB5U &&
+            mode_one_level_two.shared_text[1U] == 0x4CU &&
+            mode_one_level_two.shared_text[2U] == 0U &&
+            mode_one_level_two.frame_flags == 0x31U &&
+            mode_one_selection_advance.sample_played &&
+            mode_one_level_two_ports.samples ==
+                std::vector<std::pair<u16, u32>>{{0x00BFU, 0x12345678U}} &&
+            mode_one_level_two_ports.queried_member_ids ==
+                std::vector<u32>{0x1EU, 0x1FU, 0x20U, 0x21U} &&
+            mode_one_selection_advance.helper_call_count == 7U &&
+            mode_one_selection_advance.legacy_return_value == 4,
+        "0x44DF00 level two scrolls the window, recounts from the visible head, resolves the selected text, plays sample BF, sets frame flags, and compares the low-sixteen-bit indexed record"
+    );
+
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_text_stop;
+    mode_one_text_stop.level = 2U;
+    mode_one_text_stop.total_count = 4;
+    mode_one_text_stop.local_cursor = 0;
+    mode_one_text_stop.visible_count = 2;
+    mode_one_text_stop.workspace_head = &mode_one_node_one;
+    mode_one_text_stop.visible_head = &mode_one_node_one;
+    FakeModeOneAdvancePorts mode_one_text_stop_ports;
+    const auto mode_one_text_stopped =
+        openswd3::special_modes::advance_legacy_special_mode_mode_one(
+            mode_one_text_stop,
+            {},
+            comparison_bases,
+            {},
+            {},
+            0x99U,
+            mode_one_text_stop_ports
+        );
+    test.expect_true(
+        mode_one_text_stopped.status ==
+                openswd3::special_modes::LegacySpecialModeModeOneAdvanceStatus::
+                    shared_text_stopped &&
+            mode_one_text_stop.local_cursor == 1 &&
+            mode_one_text_stop.visible_count == 4 &&
+            mode_one_text_stop_ports.samples.empty() &&
+            mode_one_text_stop.frame_flags == 0U,
+        "0x44DF00 preserves the cursor and visible recount but stops before audio and frame flags when selected text resolution fails"
+    );
+
+    LegacyStandardModeForwardNode mode_one_cycle;
+    mode_one_cycle.next = &mode_one_cycle;
+    mode_one_cycle.text_index = 0xFFDCU;
+    openswd3::special_modes::LegacySpecialModeModeOneAdvanceState
+        mode_one_index_cycle;
+    mode_one_index_cycle.level = 2U;
+    mode_one_index_cycle.total_count = 2;
+    mode_one_index_cycle.local_cursor = 0;
+    mode_one_index_cycle.visible_count = 2;
+    mode_one_index_cycle.workspace_head = &mode_one_cycle;
+    mode_one_index_cycle.visible_head = &mode_one_cycle;
+    FakeModeOneAdvancePorts mode_one_index_cycle_ports;
+    const auto mode_one_index_stopped =
+        openswd3::special_modes::advance_legacy_special_mode_mode_one(
+            mode_one_index_cycle,
+            {},
+            comparison_bases,
+            {},
+            {},
+            0x77U,
+            mode_one_index_cycle_ports
+        );
+    test.expect_true(
+        mode_one_index_stopped.status ==
+                openswd3::special_modes::LegacySpecialModeModeOneAdvanceStatus::
+                    indexed_record_cycle_stopped &&
+            mode_one_index_cycle.visible_count == 13 &&
+            mode_one_index_cycle.frame_flags == 0x30U &&
+            mode_one_index_stopped.sample_played &&
+            mode_one_index_cycle_ports.samples.size() == 1U &&
+            mode_one_index_cycle_ports.queried_member_ids.empty(),
+        "0x44DF00 preserves visible recount, audio, and frame flags before the D6B0 low-sixteen index stops on a repeated node"
     );
 
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;
