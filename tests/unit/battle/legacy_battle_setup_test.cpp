@@ -3345,6 +3345,97 @@ void test_battle_layered_resource_frames(openswd3::test::Context& test) {
     }
 }
 
+void test_battle_layered_resource_frame_two(openswd3::test::Context& test) {
+    const openswd3::rendering::LegacySurfaceGeometry surface{
+        .pitch_bytes = 80,
+        .width = 40,
+        .height = 30,
+    };
+    const openswd3::rendering::LegacyBlitClipRectangle clip{
+        .left = 0,
+        .top = 0,
+        .width = 40,
+        .height = 30,
+    };
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleBorderFrameProvider provider;
+        openswd3::battle::LegacyBattleFrameDrawState state;
+        openswd3::rendering::LegacyBlitRequest shared_request;
+        openswd3::rendering::LegacyBlitEffectState shared_effects;
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_layered_resource_frame_two(
+                state,
+                framebuffer,
+                clip,
+                shared_request,
+                shared_effects,
+                jitter,
+                provider,
+                0x66U,
+                10,
+                5,
+                1
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleLayeredFrameDrawStatus::
+                        completed &&
+                result.legacy_return_value == 1U &&
+                result.frame_load_calls == 2U &&
+                result.frame_draw_calls == 2U &&
+                provider.resource_ids == std::vector<u32>{0x66U, 0x66U} &&
+                provider.load_indices == std::vector<u32>{0U, 2U} &&
+                state.current_frame_index == 2U &&
+                framebuffer.row_pixels(5U)[10U] == 0x1002U &&
+                framebuffer.row_pixels(10U)[10U] == 0x1002U &&
+                framebuffer.row_pixels(5U)[11U] == 0x1000U &&
+                framebuffer.row_pixels(8U)[11U] == 0U,
+            "frame-two wrapper overlays explicit width and returns one"
+        );
+    }
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleBorderFrameProvider provider;
+        openswd3::battle::LegacyBattleFrameDrawState state;
+        openswd3::rendering::LegacyBlitRequest shared_request;
+        openswd3::rendering::LegacyBlitEffectState shared_effects;
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_layered_resource_frame_two(
+                state,
+                framebuffer,
+                clip,
+                shared_request,
+                shared_effects,
+                jitter,
+                provider,
+                1U,
+                10,
+                5,
+                0
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleLayeredFrameDrawStatus::
+                        completed &&
+                result.legacy_return_value == 1U &&
+                result.frame_load_calls == 2U &&
+                result.frame_draw_calls == 1U &&
+                result.second.status ==
+                    openswd3::battle::LegacyBattleFrameDrawStatus::
+                        width_nonpositive &&
+                provider.load_indices == std::vector<u32>{0U, 2U} &&
+                state.current_frame_index == 2U && state.source_published &&
+                framebuffer.row_pixels(5U)[10U] == 0x1000U,
+            "zero frame-two width still publishes frame two and returns one"
+        );
+    }
+}
+
 void test_battle_resource_frame(openswd3::test::Context& test) {
     const openswd3::rendering::LegacySurfaceGeometry surface{
         .pitch_bytes = 80,
@@ -5215,6 +5306,7 @@ int main() {
     test_battle_action_frame_draw(test);
     test_battle_indexed_action_frame_draw(test);
     test_battle_layered_resource_frames(test);
+    test_battle_layered_resource_frame_two(test);
     test_battle_resource_frame(test);
     test_battle_resource_frame_width(test);
     test_battle_frame_zero_draw(test);
