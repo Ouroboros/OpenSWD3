@@ -17723,6 +17723,137 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44FA40 stops at the original record-id read when a fixed party slot is null"
     );
 
+    LegacyStandardModeForwardNode workspace_sort_two;
+    workspace_sort_two.filter_flags = 2U;
+    workspace_sort_two.combined_value = 0x2222U;
+    set_special_weight(workspace_sort_two, 1U);
+    LegacyStandardModeForwardNode workspace_sort_one;
+    workspace_sort_one.next = &workspace_sort_two;
+    workspace_sort_one.filter_flags = 1U;
+    workspace_sort_one.combined_value = 0x1111U;
+    set_special_weight(workspace_sort_one, 1U);
+    LegacyStandardModeForwardNode workspace_sort_three;
+    workspace_sort_three.next = &workspace_sort_one;
+    workspace_sort_three.filter_flags = 3U;
+    workspace_sort_three.combined_value = 0x3333U;
+    set_special_weight(workspace_sort_three, 1U);
+    LegacyStandardModeForwardNode workspace_sort_sentinel;
+    workspace_sort_sentinel.next = &workspace_sort_three;
+    const auto workspace_sort =
+        openswd3::special_modes::build_legacy_special_mode_workspace_records(
+            workspace_sort_sentinel, 0U
+        );
+    test.expect_true(
+        workspace_sort.status ==
+                openswd3::special_modes::LegacySpecialModeWorkspaceBuildStatus::
+                    completed &&
+            workspace_sort.workspace_head == &workspace_sort_one &&
+            workspace_sort_one.next == &workspace_sort_two &&
+            workspace_sort_two.next == &workspace_sort_three &&
+            workspace_sort_three.next == nullptr &&
+            workspace_sort_sentinel.next == nullptr &&
+            workspace_sort.visible_count == 0U &&
+            workspace_sort.cleared_record_count == 3U &&
+            workspace_sort.moved_record_count == 3U &&
+            workspace_sort.skipped_record_count == 0U &&
+            workspace_sort_one.combined_value == 0U &&
+            workspace_sort_two.combined_value == 0U &&
+            workspace_sort_three.combined_value == 0U,
+        "0x44F800 clears the workspace and visible count, clears each source temporary word, and moves records into ascending resolved-key order"
+    );
+
+    LegacyStandardModeForwardNode workspace_equal_second;
+    workspace_equal_second.filter_flags = 5U;
+    set_special_weight(workspace_equal_second, 1U);
+    LegacyStandardModeForwardNode workspace_equal_first;
+    workspace_equal_first.next = &workspace_equal_second;
+    workspace_equal_first.filter_flags = 5U;
+    set_special_weight(workspace_equal_first, 1U);
+    LegacyStandardModeForwardNode workspace_equal_sentinel;
+    workspace_equal_sentinel.next = &workspace_equal_first;
+    const auto workspace_equal =
+        openswd3::special_modes::build_legacy_special_mode_workspace_records(
+            workspace_equal_sentinel, 0U
+        );
+    test.expect_true(
+        workspace_equal.workspace_head == &workspace_equal_second &&
+            workspace_equal_second.next == &workspace_equal_first &&
+            workspace_equal_first.next == nullptr,
+        "0x44F800 inserts a later equal-key record before the existing equal-key run"
+    );
+
+    LegacyStandardModeForwardNode workspace_mode_one_moved;
+    workspace_mode_one_moved.filter_flags = 2U;
+    workspace_mode_one_moved.combined_value = 3U;
+    set_special_weight(workspace_mode_one_moved, 1U);
+    LegacyStandardModeForwardNode workspace_mode_one_flagged;
+    workspace_mode_one_flagged.next = &workspace_mode_one_moved;
+    workspace_mode_one_flagged.filter_flags = 0x40U;
+    workspace_mode_one_flagged.combined_value = 2U;
+    set_special_weight(workspace_mode_one_flagged, 1U);
+    LegacyStandardModeForwardNode workspace_mode_one_zero;
+    workspace_mode_one_zero.next = &workspace_mode_one_flagged;
+    workspace_mode_one_zero.filter_flags = 1U;
+    workspace_mode_one_zero.combined_value = 1U;
+    set_special_weight(workspace_mode_one_zero, 0U);
+    LegacyStandardModeForwardNode workspace_mode_one_sentinel;
+    workspace_mode_one_sentinel.next = &workspace_mode_one_zero;
+    const auto workspace_mode_one =
+        openswd3::special_modes::build_legacy_special_mode_workspace_records(
+            workspace_mode_one_sentinel, 1U
+        );
+    test.expect_true(
+        workspace_mode_one.workspace_head == &workspace_mode_one_moved &&
+            workspace_mode_one_moved.next == nullptr &&
+            workspace_mode_one_sentinel.next == &workspace_mode_one_zero &&
+            workspace_mode_one_zero.next == &workspace_mode_one_flagged &&
+            workspace_mode_one_flagged.next == nullptr &&
+            workspace_mode_one.cleared_record_count == 3U &&
+            workspace_mode_one.moved_record_count == 1U &&
+            workspace_mode_one.skipped_record_count == 2U &&
+            workspace_mode_one_zero.combined_value == 0U &&
+            workspace_mode_one_flagged.combined_value == 0U,
+        "0x44F800 mode one keeps zero-weight and bit-forty records in the source chain after clearing their temporary words"
+    );
+
+    LegacyStandardModeForwardNode workspace_mode_two_flagged;
+    workspace_mode_two_flagged.filter_flags = 0x40U;
+    set_special_weight(workspace_mode_two_flagged, 0U);
+    LegacyStandardModeForwardNode workspace_mode_two_sentinel;
+    workspace_mode_two_sentinel.next = &workspace_mode_two_flagged;
+    const auto workspace_mode_two =
+        openswd3::special_modes::build_legacy_special_mode_workspace_records(
+            workspace_mode_two_sentinel, 2U
+        );
+    test.expect_true(
+        workspace_mode_two.workspace_head == &workspace_mode_two_flagged &&
+            workspace_mode_two.moved_record_count == 1U &&
+            workspace_mode_two.skipped_record_count == 0U &&
+            workspace_mode_two_sentinel.next == nullptr,
+        "0x44F800 applies the skip filter only when the packed-mode low two bits equal one"
+    );
+
+    LegacyStandardModeForwardNode workspace_source_cycle;
+    workspace_source_cycle.next = &workspace_source_cycle;
+    workspace_source_cycle.filter_flags = 1U;
+    set_special_weight(workspace_source_cycle, 0U);
+    LegacyStandardModeForwardNode workspace_cycle_sentinel;
+    workspace_cycle_sentinel.next = &workspace_source_cycle;
+    const auto workspace_cycle =
+        openswd3::special_modes::build_legacy_special_mode_workspace_records(
+            workspace_cycle_sentinel, 1U
+        );
+    test.expect_true(
+        workspace_cycle.status ==
+                openswd3::special_modes::LegacySpecialModeWorkspaceBuildStatus::
+                    source_chain_cycle_stopped &&
+            workspace_cycle.workspace_head == nullptr &&
+            workspace_cycle.cleared_record_count == 1U &&
+            workspace_cycle.skipped_record_count == 1U &&
+            workspace_cycle_sentinel.next == &workspace_source_cycle,
+        "0x44F800 preserves the first skipped source visit before stopping when the source node repeats"
+    );
+
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;
     for (std::size_t index = 0U; index < special_action_set.records.size();
          ++index) {

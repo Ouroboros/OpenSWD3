@@ -5609,6 +5609,80 @@ calculate_legacy_special_mode_equipment_contribution(
     return result;
 }
 
+LegacySpecialModeWorkspaceBuildResult
+build_legacy_special_mode_workspace_records(
+    LegacyStandardModeForwardNode& source_sentinel,
+    const compat::u32 packed_mode
+) noexcept {
+    LegacySpecialModeWorkspaceBuildResult result;
+    LegacyStandardModeForwardNode* source_predecessor = &source_sentinel;
+    LegacyStandardModeForwardNode* source =
+        const_cast<LegacyStandardModeForwardNode*>(source_sentinel.next);
+    std::vector<const LegacyStandardModeForwardNode*> visited_source;
+    while (source != nullptr) {
+        if (std::find(visited_source.begin(), visited_source.end(), source) !=
+            visited_source.end()) {
+            result.status = LegacySpecialModeWorkspaceBuildStatus::
+                source_chain_cycle_stopped;
+            return result;
+        }
+        visited_source.push_back(source);
+        source->combined_value = 0U;
+        ++result.cleared_record_count;
+
+        const compat::u16 weight = static_cast<compat::u16>(
+            source->record_bytes[0x52U] |
+            (static_cast<compat::u16>(source->record_bytes[0x53U]) << 8U)
+        );
+        if ((packed_mode & 3U) == 1U &&
+            (weight == 0U || (source->filter_flags & 0x40U) != 0U)) {
+            ++result.skipped_record_count;
+            source_predecessor = source;
+            source = const_cast<LegacyStandardModeForwardNode*>(source->next);
+            continue;
+        }
+
+        const compat::u32 source_key =
+            resolve_legacy_special_mode_packed_value(source->filter_flags);
+        LegacyStandardModeForwardNode* previous = nullptr;
+        LegacyStandardModeForwardNode* current = result.workspace_head;
+        compat::u32 previous_key = 0U;
+        std::vector<const LegacyStandardModeForwardNode*> visited_workspace;
+        while (current != nullptr) {
+            if (std::find(
+                    visited_workspace.begin(), visited_workspace.end(), current
+                ) != visited_workspace.end()) {
+                result.status = LegacySpecialModeWorkspaceBuildStatus::
+                    workspace_chain_cycle_stopped;
+                return result;
+            }
+            visited_workspace.push_back(current);
+            const compat::u32 current_key =
+                resolve_legacy_special_mode_packed_value(current->filter_flags);
+            if (current_key >= source_key && previous_key < source_key) {
+                break;
+            }
+            previous = current;
+            previous_key = current_key;
+            current = const_cast<LegacyStandardModeForwardNode*>(current->next);
+        }
+
+        source_predecessor->next = source->next;
+        LegacyStandardModeForwardNode* const next_source =
+            const_cast<LegacyStandardModeForwardNode*>(source->next);
+        if (previous == nullptr) {
+            source->next = result.workspace_head;
+            result.workspace_head = source;
+        } else {
+            source->next = previous->next;
+            previous->next = source;
+        }
+        ++result.moved_record_count;
+        source = next_source;
+    }
+    return result;
+}
+
 static LegacyGuardianAttributeTarget load_guardian_attribute_target(
     const std::span<const compat::u8> bytes
 ) noexcept {

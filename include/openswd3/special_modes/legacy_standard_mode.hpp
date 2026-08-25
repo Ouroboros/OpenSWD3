@@ -2705,6 +2705,28 @@ calculate_legacy_special_mode_equipment_contribution(
     LegacySpecialModeEquipmentContributionPorts& ports
 ) noexcept;
 
+enum class LegacySpecialModeWorkspaceBuildStatus : compat::u8 {
+    completed,
+    source_chain_cycle_stopped,
+    workspace_chain_cycle_stopped,
+};
+
+struct LegacySpecialModeWorkspaceBuildResult {
+    LegacySpecialModeWorkspaceBuildStatus status{
+        LegacySpecialModeWorkspaceBuildStatus::completed
+    };
+    LegacyStandardModeForwardNode* workspace_head{};
+    compat::u32 visible_count{};
+    compat::u32 cleared_record_count{};
+    compat::u32 moved_record_count{};
+    compat::u32 skipped_record_count{};
+};
+
+[[nodiscard]] LegacySpecialModeWorkspaceBuildResult
+build_legacy_special_mode_workspace_records(
+    LegacyStandardModeForwardNode& source_sentinel, compat::u32 packed_mode
+) noexcept;
+
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
     completed,
     mode_mask_out_of_range,
