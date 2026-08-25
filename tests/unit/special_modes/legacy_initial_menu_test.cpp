@@ -783,6 +783,20 @@ public:
     std::vector<LegacyStandardModeForwardNode*> released_records;
 };
 
+class FakeEquipmentContributionPorts final
+    : public openswd3::special_modes::
+          LegacySpecialModeEquipmentContributionPorts {
+public:
+    bool is_party_member_present(const u32 member_id) noexcept override {
+        queried_member_ids.push_back(member_id);
+        const std::size_t index = static_cast<std::size_t>(member_id - 0x1EU);
+        return present[index];
+    }
+
+    std::array<bool, 4U> present{};
+    std::vector<u32> queried_member_ids;
+};
+
 class FakeChainClonePorts final
     : public openswd3::special_modes::LegacyStandardModeRecordClonePorts {
 public:
@@ -17583,6 +17597,130 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             workspace_release_cycle_ports.released_values ==
                 std::vector<u32>{0xCCCCU},
         "0x44F8E0 preserves the first workspace release before stopping at the repeated freed node"
+    );
+
+    LegacyStandardModeForwardNode contribution_player_other;
+    contribution_player_other.text_index = 8U;
+    contribution_player_other.first_value = 50U;
+    LegacyStandardModeForwardNode contribution_player_match;
+    contribution_player_match.next = &contribution_player_other;
+    contribution_player_match.text_index = 7U;
+    contribution_player_match.first_value = 0xFFFEU;
+    contribution_player_match.second_value = 5U;
+    LegacyStandardModeForwardNode contribution_fixed_default;
+    contribution_fixed_default.text_index = 1U;
+    contribution_fixed_default.first_value = 100U;
+    LegacyStandardModeForwardNode contribution_fixed_positive;
+    contribution_fixed_positive.text_index = 7U;
+    contribution_fixed_positive.first_value = 7U;
+    LegacyStandardModeForwardNode contribution_fixed_negative;
+    contribution_fixed_negative.text_index = 7U;
+    contribution_fixed_negative.first_value = 0xFFFCU;
+    std::array<LegacyStandardModeForwardNode*, 64U> contribution_slots{};
+    contribution_slots.fill(&contribution_fixed_default);
+    contribution_slots[3U] = &contribution_fixed_positive;
+    contribution_slots[47U] = &contribution_fixed_negative;
+    FakeEquipmentContributionPorts contribution_ports;
+    contribution_ports.present = {true, false, true, false};
+    const auto equipment_contribution = openswd3::special_modes::
+        calculate_legacy_special_mode_equipment_contribution(
+            &contribution_player_match,
+            contribution_slots,
+            0U,
+            7U,
+            contribution_ports
+        );
+    test.expect_true(
+        equipment_contribution.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeEquipmentContributionStatus::completed &&
+            equipment_contribution.total == 6 &&
+            equipment_contribution.checked_player_record_count == 2U &&
+            equipment_contribution.party_presence_query_count == 4U &&
+            equipment_contribution.checked_fixed_slot_count == 32U &&
+            contribution_ports.queried_member_ids ==
+                std::vector<u32>{0x1EU, 0x1FU, 0x20U, 0x21U},
+        "0x44FA40 adds both signed player quantities and the first quantity from sixteen fixed slots for each present party member"
+    );
+
+    FakeEquipmentContributionPorts packed_contribution_ports;
+    packed_contribution_ports.present.fill(true);
+    const auto packed_equipment_contribution = openswd3::special_modes::
+        calculate_legacy_special_mode_equipment_contribution(
+            &contribution_player_match, {}, 2U, 7U, packed_contribution_ports
+        );
+    test.expect_true(
+        packed_equipment_contribution.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeEquipmentContributionStatus::completed &&
+            packed_equipment_contribution.total == 3 &&
+            packed_equipment_contribution.checked_player_record_count == 2U &&
+            packed_equipment_contribution.party_presence_query_count == 0U &&
+            packed_equipment_contribution.checked_fixed_slot_count == 0U &&
+            packed_contribution_ports.queried_member_ids.empty(),
+        "0x44FA40 skips all fixed party slots when either packed-mode low bit is set"
+    );
+
+    LegacyStandardModeForwardNode contribution_cycle;
+    contribution_cycle.next = &contribution_cycle;
+    contribution_cycle.text_index = 8U;
+    FakeEquipmentContributionPorts contribution_cycle_ports;
+    const auto cycle_equipment_contribution = openswd3::special_modes::
+        calculate_legacy_special_mode_equipment_contribution(
+            &contribution_cycle, {}, 1U, 7U, contribution_cycle_ports
+        );
+    test.expect_true(
+        cycle_equipment_contribution.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeEquipmentContributionStatus::
+                        player_chain_cycle_stopped &&
+            cycle_equipment_contribution.total == 0 &&
+            cycle_equipment_contribution.checked_player_record_count == 1U,
+        "0x44FA40 stops when the player record chain would reread a cyclic node"
+    );
+
+    FakeEquipmentContributionPorts short_contribution_ports;
+    short_contribution_ports.present[0U] = true;
+    const auto short_equipment_contribution = openswd3::special_modes::
+        calculate_legacy_special_mode_equipment_contribution(
+            &contribution_player_match,
+            std::span<LegacyStandardModeForwardNode* const>(
+                contribution_slots.data(), 3U
+            ),
+            0U,
+            7U,
+            short_contribution_ports
+        );
+    test.expect_true(
+        short_equipment_contribution.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeEquipmentContributionStatus::
+                        fixed_slot_table_out_of_range_stopped &&
+            short_equipment_contribution.total == 3 &&
+            short_equipment_contribution.checked_fixed_slot_count == 3U &&
+            short_equipment_contribution.party_presence_query_count == 1U,
+        "0x44FA40 preserves the player contribution before stopping at a missing fixed-slot pointer"
+    );
+
+    contribution_slots[2U] = nullptr;
+    FakeEquipmentContributionPorts null_contribution_ports;
+    null_contribution_ports.present[0U] = true;
+    const auto null_equipment_contribution = openswd3::special_modes::
+        calculate_legacy_special_mode_equipment_contribution(
+            &contribution_player_match,
+            contribution_slots,
+            0U,
+            7U,
+            null_contribution_ports
+        );
+    test.expect_true(
+        null_equipment_contribution.status ==
+                openswd3::special_modes::
+                    LegacySpecialModeEquipmentContributionStatus::
+                        null_fixed_slot_stopped &&
+            null_equipment_contribution.total == 3 &&
+            null_equipment_contribution.checked_fixed_slot_count == 2U,
+        "0x44FA40 stops at the original record-id read when a fixed party slot is null"
     );
 
     openswd3::special_modes::LegacySpecialModeActionSet special_action_set;

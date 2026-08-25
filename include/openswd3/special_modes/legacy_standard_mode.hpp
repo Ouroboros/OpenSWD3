@@ -2672,6 +2672,39 @@ release_legacy_special_mode_workspace_records(
     LegacyStandardModeQuantityPorts& ports
 ) noexcept;
 
+class LegacySpecialModeEquipmentContributionPorts {
+public:
+    virtual ~LegacySpecialModeEquipmentContributionPorts() = default;
+    [[nodiscard]] virtual bool
+    is_party_member_present(compat::u32 member_id) noexcept = 0;
+};
+
+enum class LegacySpecialModeEquipmentContributionStatus : compat::u8 {
+    completed,
+    player_chain_cycle_stopped,
+    fixed_slot_table_out_of_range_stopped,
+    null_fixed_slot_stopped,
+};
+
+struct LegacySpecialModeEquipmentContributionResult {
+    LegacySpecialModeEquipmentContributionStatus status{
+        LegacySpecialModeEquipmentContributionStatus::completed
+    };
+    compat::i32 total{};
+    compat::u32 checked_player_record_count{};
+    compat::u32 party_presence_query_count{};
+    compat::u32 checked_fixed_slot_count{};
+};
+
+[[nodiscard]] LegacySpecialModeEquipmentContributionResult
+calculate_legacy_special_mode_equipment_contribution(
+    const LegacyStandardModeForwardNode* player_record_head,
+    std::span<LegacyStandardModeForwardNode* const> fixed_slots,
+    compat::u32 packed_mode,
+    compat::u32 target_record_id,
+    LegacySpecialModeEquipmentContributionPorts& ports
+) noexcept;
+
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
     completed,
     mode_mask_out_of_range,

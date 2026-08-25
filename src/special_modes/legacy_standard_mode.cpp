@@ -5532,6 +5532,83 @@ release_legacy_special_mode_workspace_records(
     return release_legacy_player_item_chain(workspace_head, ports);
 }
 
+LegacySpecialModeEquipmentContributionResult
+calculate_legacy_special_mode_equipment_contribution(
+    const LegacyStandardModeForwardNode* player_record_head,
+    const std::span<LegacyStandardModeForwardNode* const> fixed_slots,
+    const compat::u32 packed_mode,
+    const compat::u32 target_record_id,
+    LegacySpecialModeEquipmentContributionPorts& ports
+) noexcept {
+    LegacySpecialModeEquipmentContributionResult result;
+    compat::u32 total_bits = 0U;
+    const auto add_signed_word =
+        [&total_bits](const compat::u16 value) noexcept {
+            total_bits +=
+                static_cast<compat::u32>(std::bit_cast<compat::i16>(value));
+        };
+    const auto publish_total = [&result, &total_bits]() noexcept {
+        result.total = std::bit_cast<compat::i32>(total_bits);
+    };
+
+    const LegacyStandardModeForwardNode* record = player_record_head;
+    std::vector<const LegacyStandardModeForwardNode*> visited;
+    while (record != nullptr) {
+        if (std::find(visited.begin(), visited.end(), record) !=
+            visited.end()) {
+            result.status = LegacySpecialModeEquipmentContributionStatus::
+                player_chain_cycle_stopped;
+            publish_total();
+            return result;
+        }
+        visited.push_back(record);
+        ++result.checked_player_record_count;
+        if (static_cast<compat::u32>(record->text_index) == target_record_id) {
+            add_signed_word(record->first_value);
+            add_signed_word(record->second_value);
+        }
+        record = record->next;
+    }
+
+    if ((packed_mode & 3U) != 0U) {
+        publish_total();
+        return result;
+    }
+
+    for (std::size_t member_index = 0U; member_index < 4U; ++member_index) {
+        ++result.party_presence_query_count;
+        if (!ports.is_party_member_present(
+                static_cast<compat::u32>(member_index + 0x1EU)
+            )) {
+            continue;
+        }
+        for (std::size_t slot_index = 0U; slot_index < 16U; ++slot_index) {
+            const std::size_t flat_index = member_index * 16U + slot_index;
+            if (flat_index >= fixed_slots.size()) {
+                result.status = LegacySpecialModeEquipmentContributionStatus::
+                    fixed_slot_table_out_of_range_stopped;
+                publish_total();
+                return result;
+            }
+            const LegacyStandardModeForwardNode* const fixed_record =
+                fixed_slots[flat_index];
+            if (fixed_record == nullptr) {
+                result.status = LegacySpecialModeEquipmentContributionStatus::
+                    null_fixed_slot_stopped;
+                publish_total();
+                return result;
+            }
+            ++result.checked_fixed_slot_count;
+            if (static_cast<compat::u32>(fixed_record->text_index) ==
+                target_record_id) {
+                add_signed_word(fixed_record->first_value);
+            }
+        }
+    }
+    publish_total();
+    return result;
+}
+
 static LegacyGuardianAttributeTarget load_guardian_attribute_target(
     const std::span<const compat::u8> bytes
 ) noexcept {
