@@ -3,6 +3,7 @@
 #include "openswd3/battle/legacy_battle_border_panel.hpp"
 #include "openswd3/battle/legacy_battle_color_fade.hpp"
 #include "openswd3/battle/legacy_battle_directional_scan.hpp"
+#include "openswd3/battle/legacy_battle_frame_draw.hpp"
 #include "openswd3/battle/legacy_battle_image_rotation.hpp"
 #include "openswd3/battle/legacy_battle_particle_frame.hpp"
 #include "openswd3/battle/legacy_battle_particle_spawn.hpp"
@@ -250,9 +251,12 @@ public:
     std::array<u16, 9> widths{2U, 4U, 5U, 7U, 1U, 9U, 11U, 13U, 15U};
     std::array<u16, 9> heights{3U, 3U, 6U, 8U, 1U, 10U, 12U, 12U, 12U};
     std::array<std::vector<u8>, 9> source_storage;
+    std::vector<u32> resource_ids;
     std::vector<u32> load_indices;
     i32 failed_index{-1};
     i32 empty_source_index{-1};
+    i32 indexed_source_index{-1};
+    std::array<u16, 4> indexed_palette{0U, 0x1111U, 0x2222U, 0x3333U};
 
     BattleBorderFrameProvider() {
         for (std::size_t index = 0U; index < source_storage.size(); ++index) {
@@ -268,10 +272,11 @@ public:
     }
 
     [[nodiscard]] bool load_frame_piece(
-        const u32,
+        const u32 resource_id,
         const u32 piece_index,
         openswd3::rendering::LegacyFramePiece& piece
     ) noexcept override {
+        resource_ids.push_back(resource_id);
         load_indices.push_back(piece_index);
         if (static_cast<i32>(piece_index) == failed_index ||
             piece_index >= source_storage.size()) {
@@ -285,7 +290,14 @@ public:
                         ? std::span<const u8>{}
                         : std::span<const u8>{source_storage[index]},
                     .layout =
-                        openswd3::rendering::LegacyBlitSourceLayout::direct_16,
+                        static_cast<i32>(piece_index) == indexed_source_index
+                        ? openswd3::rendering::LegacyBlitSourceLayout::indexed_8
+                        : openswd3::rendering::LegacyBlitSourceLayout::
+                              direct_16,
+                    .palette =
+                        static_cast<i32>(piece_index) == indexed_source_index
+                        ? std::span<const u16>{indexed_palette}
+                        : std::span<const u16>{},
                 },
             .width = widths[index],
             .height = heights[index],
@@ -2650,6 +2662,158 @@ void test_directional_scan_division_and_typed_stops(
     );
 }
 
+void test_battle_frame_zero_draw(openswd3::test::Context& test) {
+    const openswd3::rendering::LegacySurfaceGeometry surface{
+        .pitch_bytes = 160,
+        .width = 80,
+        .height = 60,
+    };
+    const openswd3::rendering::LegacyBlitClipRectangle clip{
+        .left = 0,
+        .top = 0,
+        .width = 80,
+        .height = 60,
+    };
+    openswd3::rendering::LegacyBlitEffectState effects;
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleBorderFrameProvider provider;
+        openswd3::battle::LegacyBattleFrameDrawState state;
+        openswd3::rendering::LegacyBlitRequest shared_request{
+            .target_height = 3,
+            .horizontal_resample_displacement = 4,
+            .vertical_resample_enlarge_state = 1U,
+            .vertical_resample_phase_10_10 = 0x121U,
+            .opacity_step = 6,
+        };
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result = openswd3::battle::draw_legacy_battle_frame_zero(
+            state,
+            framebuffer,
+            clip,
+            shared_request,
+            effects,
+            jitter,
+            provider,
+            0x3456U,
+            30,
+            40
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameDrawStatus::completed &&
+                result.frame_load_calls == 1U &&
+                result.frame_draw_calls == 1U &&
+                result.blit_status ==
+                    openswd3::rendering::LegacyBlitExecutionStatus::completed &&
+                provider.resource_ids == std::vector<u32>{0x3456U} &&
+                provider.load_indices == std::vector<u32>{0U} &&
+                state.frame_record_published && state.frame_record_available &&
+                state.source_published && state.current_frame_index == 0U &&
+                state.current_frame.width == 2U &&
+                state.current_frame.height == 3U &&
+                state.current_source.bytes.data() ==
+                    provider.source_storage[0].data() &&
+                shared_request.target_height == 0 &&
+                shared_request.horizontal_resample_displacement == 0 &&
+                shared_request.vertical_resample_phase_10_10 == 0U &&
+                shared_request.opacity_step == 0 &&
+                shared_request.vertical_resample_enlarge_state == 1U &&
+                framebuffer.row_pixels(40U)[30U] == 0x1000U &&
+                framebuffer.row_pixels(42U)[31U] == 0x1000U,
+            "frame-zero wrapper publishes frame and source before fixed-position draw"
+        );
+    }
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleBorderFrameProvider provider;
+        provider.failed_index = 0;
+        std::array<u8, 2> previous_source{0x34U, 0x12U};
+        openswd3::battle::LegacyBattleFrameDrawState state{
+            .source_published = true,
+            .current_source = openswd3::rendering::LegacyBlitSource{
+                .bytes = previous_source,
+            },
+        };
+        openswd3::rendering::LegacyBlitRequest shared_request{
+            .target_height = 9,
+            .opacity_step = 4,
+        };
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result = openswd3::battle::draw_legacy_battle_frame_zero(
+            state,
+            framebuffer,
+            clip,
+            shared_request,
+            effects,
+            jitter,
+            provider,
+            7U,
+            30,
+            40
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameDrawStatus::
+                        frame_unavailable &&
+                result.frame_load_calls == 1U &&
+                result.frame_draw_calls == 0U && state.frame_record_published &&
+                !state.frame_record_available && state.source_published &&
+                state.current_frame_index == 0U &&
+                state.current_source.bytes.data() == previous_source.data() &&
+                shared_request.target_height == 9 &&
+                shared_request.opacity_step == 4,
+            "missing frame publishes a null record but retains the previous source"
+        );
+    }
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleBorderFrameProvider provider;
+        provider.indexed_source_index = 0;
+        provider.source_storage[0].assign(6U, 2U);
+        openswd3::battle::LegacyBattleFrameDrawState state;
+        openswd3::rendering::LegacyBlitRequest shared_request{
+            .target_height = 3,
+            .vertical_resample_phase_10_10 = 0x55U,
+            .opacity_step = 8,
+        };
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result = openswd3::battle::draw_legacy_battle_frame_zero(
+            state,
+            framebuffer,
+            clip,
+            shared_request,
+            effects,
+            jitter,
+            provider,
+            8U,
+            30,
+            40
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameDrawStatus::
+                        blit_typed_stop &&
+                result.frame_load_calls == 1U &&
+                result.frame_draw_calls == 1U &&
+                result.blit_status ==
+                    openswd3::rendering::LegacyBlitExecutionStatus::
+                        palette_out_of_bounds &&
+                state.frame_record_available && state.source_published &&
+                state.current_source.layout ==
+                    openswd3::rendering::LegacyBlitSourceLayout::indexed_8 &&
+                state.current_source.palette.size() == 4U &&
+                shared_request.target_height == 3 &&
+                shared_request.vertical_resample_phase_10_10 == 0x55U &&
+                shared_request.opacity_step == 8,
+            "fixed zero tail keeps indexed layout but stops at the first palette read"
+        );
+    }
+}
+
 void test_battle_border_panel(openswd3::test::Context& test) {
     const openswd3::rendering::LegacySurfaceGeometry surface{
         .pitch_bytes = 320,
@@ -4125,6 +4289,7 @@ int main() {
     test_directional_scan_direct_mirror_transparent_and_combine(test);
     test_directional_scan_fixed_point_loops_and_bounds(test);
     test_directional_scan_division_and_typed_stops(test);
+    test_battle_frame_zero_draw(test);
     test_battle_border_panel(test);
     test_battle_color_fade(test);
     test_action_timing_threshold(test);

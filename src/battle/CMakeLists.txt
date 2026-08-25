@@ -5,6 +5,7 @@ add_library(
         legacy_battle_border_panel.cpp
         legacy_battle_color_fade.cpp
         legacy_battle_directional_scan.cpp
+        legacy_battle_frame_draw.cpp
         legacy_battle_image_rotation.cpp
         legacy_battle_particle_frame.cpp
         legacy_battle_particle_spawn.cpp

@@ -104,6 +104,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "assembly_exact",
         "evidence/battle-action-threshold-0044ffc0.md",
     ),
+    "0x00450270": (
+        "platform_adapted",
+        "evidence/battle-frame-zero-draw-00450270.md",
+    ),
     "0x00450A50": (
         "platform_adapted",
         "evidence/battle-color-vertical-fade-00450a50.md",
