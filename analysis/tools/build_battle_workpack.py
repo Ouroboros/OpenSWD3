@@ -52,6 +52,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-surface-row-offsets-00433e90.md",
     ),
+    "0x00433F00": (
+        "platform_adapted",
+        "evidence/battle-render-auxiliary-buffer-release-00433f00.md",
+    ),
     "0x00433F30": (
         "assembly_exact",
         "evidence/battle-host-surface-setup-00433f30.md",

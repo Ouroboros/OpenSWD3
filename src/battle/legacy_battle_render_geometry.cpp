@@ -160,6 +160,20 @@ public:
 
 }  // namespace
 
+bool release_legacy_battle_render_auxiliary_buffer(
+    LegacyBattleRenderGeometry& geometry,
+    LegacyBattleRenderAuxiliaryBufferReleaser& releaser
+) noexcept {
+    const compat::u32 token = geometry.auxiliary_buffer_token;
+    if (token == 0U) {
+        return false;
+    }
+
+    releaser.release(token);
+    geometry.auxiliary_buffer_token = 0U;
+    return true;
+}
+
 bool advance_legacy_battle_line_raster(
     LegacyBattleLineRaster& raster
 ) noexcept {

@@ -32,6 +32,7 @@ using openswd3::battle::LegacyBattleImageParticleSurface;
 using openswd3::battle::LegacyBattleDirectionStepStatus;
 using openswd3::battle::LegacyBattleDirectionVectors;
 using openswd3::battle::LegacyBattleLineRaster;
+using openswd3::battle::LegacyBattleRenderAuxiliaryBufferReleaser;
 using openswd3::battle::LegacyBattleRenderGeometry;
 using openswd3::battle::LegacyBattleRenderInitializationStatus;
 using openswd3::battle::LegacyBattleRowOffsetAllocation;
@@ -211,6 +212,21 @@ void test_enemy_record_layout(openswd3::test::Context& test) {
         "modern storage rejects a record exceeding the physical eight slots"
     );
 }
+
+class TrackingAuxiliaryBufferReleaser final
+    : public LegacyBattleRenderAuxiliaryBufferReleaser {
+public:
+    const LegacyBattleRenderGeometry* geometry{};
+    u32 release_count{};
+    u32 released_token{};
+    u32 owner_token_during_release{};
+
+    void release(const u32 token) noexcept override {
+        ++release_count;
+        released_token = token;
+        owner_token_during_release = geometry->auxiliary_buffer_token;
+    }
+};
 
 class SequencedRowOffsetAllocator final
     : public LegacyBattleRowOffsetAllocator {
@@ -2530,6 +2546,38 @@ void test_directional_scan_division_and_typed_stops(
     );
 }
 
+void test_render_auxiliary_buffer_release(openswd3::test::Context& test) {
+    LegacyBattleRenderGeometry geometry;
+    geometry.primary_row_stride = 123;
+    TrackingAuxiliaryBufferReleaser releaser;
+    releaser.geometry = &geometry;
+
+    const bool empty =
+        openswd3::battle::release_legacy_battle_render_auxiliary_buffer(
+            geometry, releaser
+        );
+    test.expect_true(
+        !empty && releaser.release_count == 0U &&
+            geometry.auxiliary_buffer_token == 0U &&
+            geometry.primary_row_stride == 123,
+        "empty auxiliary buffer release returns without calling the releaser"
+    );
+
+    geometry.auxiliary_buffer_token = 0x12345678U;
+    const bool released =
+        openswd3::battle::release_legacy_battle_render_auxiliary_buffer(
+            geometry, releaser
+        );
+    test.expect_true(
+        released && releaser.release_count == 1U &&
+            releaser.released_token == 0x12345678U &&
+            releaser.owner_token_during_release == 0x12345678U &&
+            geometry.auxiliary_buffer_token == 0U &&
+            geometry.primary_row_stride == 123,
+        "nonempty auxiliary buffer clears the owner only after release returns"
+    );
+}
+
 std::uint64_t
 direction_vector_hash(const LegacyBattleDirectionVectors& vectors) {
     std::uint64_t hash = UINT64_C(14695981039346656037);
@@ -3146,6 +3194,7 @@ int main() {
     test_directional_scan_direct_mirror_transparent_and_combine(test);
     test_directional_scan_fixed_point_loops_and_bounds(test);
     test_directional_scan_division_and_typed_stops(test);
+    test_render_auxiliary_buffer_release(test);
     test_render_geometry_initialization_and_direction_table(test);
     test_render_geometry_initialization_failures(test);
     test_primary_row_offsets_normal_and_fixed_caller(test);

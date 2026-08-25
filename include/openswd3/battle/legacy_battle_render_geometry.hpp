@@ -52,11 +52,18 @@ struct LegacyBattleRenderGeometry {
     compat::i32 top{};
     compat::i32 right{};
     compat::i32 bottom{};
+    compat::u32 auxiliary_buffer_token{};
 };
 
 struct LegacyBattleRowOffsetAllocation {
     std::unique_ptr<compat::u32[]> words{};
     compat::u32 word_capacity{};
+};
+
+class LegacyBattleRenderAuxiliaryBufferReleaser {
+public:
+    virtual ~LegacyBattleRenderAuxiliaryBufferReleaser() = default;
+    virtual void release(compat::u32 token) noexcept = 0;
 };
 
 class LegacyBattleRowOffsetAllocator {
@@ -110,6 +117,12 @@ advance_legacy_battle_line_raster(LegacyBattleLineRaster& raster) noexcept;
 advance_legacy_battle_direction_raster(
     const LegacyBattleDirectionVectors& vectors,
     LegacyBattleDirectionRaster& raster
+) noexcept;
+
+// sub_433F00.
+[[nodiscard]] bool release_legacy_battle_render_auxiliary_buffer(
+    LegacyBattleRenderGeometry& geometry,
+    LegacyBattleRenderAuxiliaryBufferReleaser& releaser
 ) noexcept;
 
 // sub_433C40.
