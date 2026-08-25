@@ -16817,6 +16817,57 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44D680 stops when an unmatched cycle would reread its first player-item record"
     );
 
+    LegacyStandardModeForwardNode indexed_third;
+    indexed_third.text_index = 3U;
+    LegacyStandardModeForwardNode indexed_second;
+    indexed_second.next = &indexed_third;
+    indexed_second.text_index = 2U;
+    LegacyStandardModeForwardNode indexed_first;
+    indexed_first.next = &indexed_second;
+    indexed_first.text_index = 1U;
+    const auto indexed_zero =
+        openswd3::special_modes::index_legacy_player_item_record(
+            &indexed_first, 0U
+        );
+    const auto indexed_low_word =
+        openswd3::special_modes::index_legacy_player_item_record(
+            &indexed_first, 0x00010002U
+        );
+    test.expect_true(
+        indexed_zero.status ==
+                openswd3::special_modes::LegacyPlayerItemIndexStatus::
+                    completed &&
+            indexed_zero.legacy_return_node == &indexed_first &&
+            indexed_zero.traversed_link_count == 0U &&
+            indexed_low_word.legacy_return_node == &indexed_third &&
+            indexed_low_word.traversed_link_count == 2U,
+        "0x44D6B0 returns index zero before advancing and uses only the parameter low word for index two"
+    );
+
+    const auto indexed_short =
+        openswd3::special_modes::index_legacy_player_item_record(
+            &indexed_first, 3U
+        );
+    test.expect_true(
+        indexed_short.legacy_return_node == nullptr &&
+            indexed_short.traversed_link_count == 3U,
+        "0x44D6B0 returns null after advancing past the last node before reaching the requested index"
+    );
+
+    indexed_third.next = &indexed_second;
+    const auto indexed_cycle =
+        openswd3::special_modes::index_legacy_player_item_record(
+            &indexed_first, 5U
+        );
+    test.expect_true(
+        indexed_cycle.status ==
+                openswd3::special_modes::LegacyPlayerItemIndexStatus::
+                    chain_cycle_stopped &&
+            indexed_cycle.legacy_return_node == nullptr &&
+            indexed_cycle.traversed_link_count == 3U,
+        "0x44D6B0 stops when a short cyclic chain would reread its second node"
+    );
+
     using SystemMenuRecordCountStatus =
         openswd3::special_modes::LegacySystemMenuRecordCountStatus;
     openswd3::special_modes::LegacySystemMenuState record_count_null_state;

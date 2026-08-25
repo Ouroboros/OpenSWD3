@@ -5056,6 +5056,32 @@ LegacyMaskedItemLookupResult find_legacy_player_item_masked(
     return result;
 }
 
+LegacyPlayerItemIndexResult index_legacy_player_item_record(
+    const LegacyStandardModeForwardNode* head, const compat::u32 index_value
+) noexcept {
+    LegacyPlayerItemIndexResult result;
+    const compat::u32 target_index = static_cast<compat::u16>(index_value);
+    compat::u32 current_index = 0U;
+    const LegacyStandardModeForwardNode* record = head;
+    std::vector<const LegacyStandardModeForwardNode*> visited;
+    while (record != nullptr) {
+        if (std::find(visited.begin(), visited.end(), record) !=
+            visited.end()) {
+            result.status = LegacyPlayerItemIndexStatus::chain_cycle_stopped;
+            return result;
+        }
+        visited.push_back(record);
+        if (current_index == target_index) {
+            result.legacy_return_node = record;
+            return result;
+        }
+        record = record->next;
+        ++current_index;
+        ++result.traversed_link_count;
+    }
+    return result;
+}
+
 LegacyStandardModeRecordCloneResult
 rebuild_legacy_standard_mode_selection_records(
     LegacyStandardModeForwardNode* source_head,

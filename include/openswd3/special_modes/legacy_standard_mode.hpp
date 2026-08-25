@@ -2453,6 +2453,21 @@ struct LegacyMaskedItemLookupResult {
     const LegacyStandardModeForwardNode* head, compat::u16 base_record_id
 ) noexcept;
 
+enum class LegacyPlayerItemIndexStatus : compat::u8 {
+    completed,
+    chain_cycle_stopped,
+};
+
+struct LegacyPlayerItemIndexResult {
+    LegacyPlayerItemIndexStatus status{LegacyPlayerItemIndexStatus::completed};
+    const LegacyStandardModeForwardNode* legacy_return_node{};
+    compat::u32 traversed_link_count{};
+};
+
+[[nodiscard]] LegacyPlayerItemIndexResult index_legacy_player_item_record(
+    const LegacyStandardModeForwardNode* head, compat::u32 index_value
+) noexcept;
+
 enum class LegacyStandardModeRecordCloneStatus : compat::u8 {
     completed,
     mode_mask_out_of_range,
