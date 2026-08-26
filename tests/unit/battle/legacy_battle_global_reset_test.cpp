@@ -23,6 +23,7 @@ using openswd3::battle::LegacyBattleGlobalResetState;
 using openswd3::battle::LegacyBattleActionDispatchState;
 using openswd3::battle::LegacyBattleFinalActorStepState;
 using openswd3::battle::LegacyBattleGroupBFrameState;
+using openswd3::battle::LegacyBattleDebugOverlayState;
 using openswd3::battle::LegacyBattleStartupCall;
 using openswd3::battle::LegacyBattleStartupCallReply;
 using openswd3::battle::LegacyBattleStartupCallRequest;
@@ -154,6 +155,7 @@ void seed_state(
     LegacyBattleFinalActorStepState& final_actor,
     LegacyBattleActionDispatchState& action,
     LegacyBattleGroupBFrameState& actor_frames,
+    LegacyBattleDebugOverlayState& debug_overlay,
     ResetPort& port
 ) {
     state.unmapped_bytes[0x00ABCDEFU] = 0x5AU;
@@ -210,6 +212,22 @@ void seed_state(
     actor_frames.shared.action_block_gate = 9U;
     actor_frames.shared.action.action_pending_aux = 9U;
     actor_frames.shared.action_pending_secondary = 9U;
+    debug_overlay.gate = 9U;
+    debug_overlay.resolved_actor_token = 0x11223344U;
+    debug_overlay.selection_order.fill(9U);
+    debug_overlay.battle_selector = 9;
+    debug_overlay.battle_mode = 0x22334455U;
+    debug_overlay.message_status = 0xAABBCCDDU;
+    debug_overlay.selection_status = 0x33445566U;
+    debug_overlay.lock_count = 0x44556677U;
+    debug_overlay.tsw_cache_bytes = 0x55667788U;
+    debug_overlay.initial_mode = 9;
+    debug_overlay.world_level = -7;
+    debug_overlay.battle_frame = 9U;
+    debug_overlay.frame_divisor = -11;
+    debug_overlay.marker_x = -13;
+    debug_overlay.marker_row = -15;
+    debug_overlay.text_buffer[0] = 'x';
 
     auto& color = port.battle_color_accumulation_state();
     color.countdown = 9;
@@ -282,11 +300,26 @@ void test_battle_global_reset(openswd3::test::Context& test) {
         LegacyBattleFinalActorStepState final_actor;
         LegacyBattleActionDispatchState action;
         LegacyBattleGroupBFrameState actor_frames;
+        LegacyBattleDebugOverlayState debug_overlay;
         ResetPort port;
-        seed_state(state, startup, final_actor, action, actor_frames, port);
+        seed_state(
+            state,
+            startup,
+            final_actor,
+            action,
+            actor_frames,
+            debug_overlay,
+            port
+        );
 
         const auto result = openswd3::battle::reset_legacy_battle_globals(
-            state, startup, final_actor, action, actor_frames, port
+            state,
+            startup,
+            final_actor,
+            action,
+            actor_frames,
+            debug_overlay,
+            port
         );
 
         const std::array expected_order{
@@ -495,6 +528,37 @@ void test_battle_global_reset(openswd3::test::Context& test) {
         );
         test.expect_true(
             std::ranges::all_of(
+                debug_overlay.selection_order,
+                [](const auto value) { return value == 0U; }
+            ) && debug_overlay.gate == 0U &&
+                debug_overlay.resolved_actor_token == 0x11223344U &&
+                debug_overlay.battle_selector == -1 &&
+                debug_overlay.battle_mode == 0x22334455U &&
+                debug_overlay.message_status == 0xAABBCC00U &&
+                debug_overlay.selection_status == 0x33445566U &&
+                debug_overlay.lock_count == 0x44556677U &&
+                debug_overlay.tsw_cache_bytes == 0x55667788U &&
+                debug_overlay.initial_mode == -1 &&
+                debug_overlay.world_level == -7 &&
+                debug_overlay.battle_frame == 0U &&
+                debug_overlay.frame_divisor == -11 &&
+                debug_overlay.marker_x == -13 &&
+                debug_overlay.marker_row == -15 &&
+                debug_overlay.text_buffer[0] == 'x' &&
+                state.unmapped_bytes.contains(0x005214ACU) == false &&
+                state.unmapped_bytes.contains(0x0053BD54U) == false &&
+                state.unmapped_bytes.contains(0x004A754CU) == false &&
+                state.unmapped_bytes.contains(0x004A7630U) == false &&
+                state.unmapped_bytes.contains(0x004A7644U) == false &&
+                state.unmapped_bytes.contains(0x0053BCECU) == false &&
+                state.unmapped_bytes.contains(0x0053BF00U) == false &&
+                state.unmapped_bytes.contains(0x0053BF74U) == false &&
+                state.unmapped_bytes.contains(0x0053BFBCU) == false &&
+                state.unmapped_bytes.contains(0x0053BDA0U) == false,
+            "global reset synchronizes the debug overlay write set and preserves the high bytes of its byte store"
+        );
+        test.expect_true(
+            std::ranges::all_of(
                 startup.reset.block_525470,
                 [](const auto value) { return value == 0U; }
             ) &&
@@ -546,11 +610,18 @@ void test_battle_global_reset(openswd3::test::Context& test) {
         LegacyBattleFinalActorStepState final_actor;
         LegacyBattleActionDispatchState action;
         LegacyBattleGroupBFrameState actor_frames;
+        LegacyBattleDebugOverlayState debug_overlay;
         ResetPort port;
         startup.reset.values_502940[0] = 0U;
 
         const auto result = openswd3::battle::reset_legacy_battle_globals(
-            state, startup, final_actor, action, actor_frames, port
+            state,
+            startup,
+            final_actor,
+            action,
+            actor_frames,
+            debug_overlay,
+            port
         );
         test.expect_true(
             !result.conditional_allocation_released &&

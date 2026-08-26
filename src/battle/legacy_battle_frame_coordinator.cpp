@@ -509,12 +509,29 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         return result;
     }
 
-    if (state.optional_post_input_gate != 1U) {
-        static_cast<void>(invoke(
+    if (state.debug_overlay.gate == 1U) {
+        result.debug_overlay = draw_legacy_battle_debug_overlay(
+            {
+                .overlay = state.debug_overlay,
+                .hotkeys = port.battle_debug_hotkey_state(),
+                .metrics = port.actor_metric_state(),
+                .startup = context.startup,
+                .final_actor = context.final_actor_step,
+                .message_state = port.battle_message_state(),
+                .effects = port.effect_coordinator_state(),
+                .framebuffer = context.frame_zero.framebuffer,
+            },
             port,
-            result,
-            LegacyBattleFrameCoordinatorCall::optional_post_input_stage
-        ));
+            {.vitality_stack_snapshot = request.debug_vitality_stack_snapshot}
+        );
+        ++result.debug_overlay_calls;
+        result.port_calls += result.debug_overlay.port_calls;
+        if (result.debug_overlay.status !=
+            LegacyBattleDebugOverlayStatus::completed) {
+            result.status =
+                LegacyBattleFrameCoordinatorStatus::debug_overlay_typed_stop;
+            return result;
+        }
     }
     static_cast<void>(invoke(
         port, result, LegacyBattleFrameCoordinatorCall::post_input_stage_0

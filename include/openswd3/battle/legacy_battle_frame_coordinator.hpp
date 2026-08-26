@@ -8,6 +8,7 @@
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
 #include "openswd3/battle/legacy_battle_color_accumulation.hpp"
 #include "openswd3/battle/legacy_battle_debug_hotkeys.hpp"
+#include "openswd3/battle/legacy_battle_debug_overlay.hpp"
 #include "openswd3/battle/legacy_battle_effect_coordinator.hpp"
 #include "openswd3/battle/legacy_battle_frame_effect.hpp"
 #include "openswd3/battle/legacy_battle_pre_frame.hpp"
@@ -60,7 +61,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     post_render_stage_2,
     post_render_stage_3,
     post_dialog_stage,
-    optional_post_input_stage,
+    reserved_debug_overlay_slot,
     post_input_stage_0,
     post_input_stage_1,
     finalize_overlay,
@@ -97,6 +98,7 @@ class LegacyBattleFrameCoordinatorPort
       public LegacyBattleEffectCallPort,
       public LegacyBattlePreFramePort,
       public LegacyBattleDebugHotkeyPort,
+      public LegacyBattleDebugOverlayPort,
       public virtual LegacyBattleEffectCoordinatorStatePort {
 public:
     using LegacyBattleEffectCallPort::invoke;
@@ -132,7 +134,6 @@ struct LegacyBattleFrameCoordinatorState {
     compat::u32 conditional_submode{};
     compat::u32 ui_state{};
     compat::u32 special_panel_suppression{};
-    compat::u32 optional_post_input_gate{};
     compat::u32 special_surface_gate{};
     compat::u16 screenshot_counter{};
     std::filesystem::path screenshot_path;
@@ -140,6 +141,7 @@ struct LegacyBattleFrameCoordinatorState {
     LegacyBattleStandaloneActionFrameDrawState standalone_action;
     LegacyBattleFrameEffectState frame_effect{};
     LegacyBattleHudFrameState hud{};
+    LegacyBattleDebugOverlayState debug_overlay{};
 };
 
 struct LegacyBattleFrameCoordinatorRequest {
@@ -154,6 +156,7 @@ struct LegacyBattleFrameCoordinatorRequest {
     compat::u32 standalone_action_update_ecx_snapshot{};
     compat::u32 standalone_action_update_edx_snapshot{};
     compat::u32 post_standalone_frame_ecx_snapshot{};
+    compat::u32 debug_vitality_stack_snapshot{};
 };
 
 struct LegacyBattleFrameCoordinatorContext {
@@ -211,6 +214,7 @@ enum class LegacyBattleFrameCoordinatorStatus : compat::u8 {
     color_accumulation_typed_stop,
     pre_frame_typed_stop,
     debug_hotkey_typed_stop,
+    debug_overlay_typed_stop,
 };
 
 struct LegacyBattleFrameCoordinatorResult {
@@ -228,6 +232,8 @@ struct LegacyBattleFrameCoordinatorResult {
     compat::u32 pre_frame_calls{};
     LegacyBattleDebugHotkeyResult debug_hotkeys{};
     compat::u32 debug_hotkey_calls{};
+    LegacyBattleDebugOverlayResult debug_overlay{};
+    compat::u32 debug_overlay_calls{};
     LegacyBattleFrameEffectResult frame_effect{};
     compat::u32 frame_effect_calls{};
     LegacyBattleActorPriorityResult actor_priority{};

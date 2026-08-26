@@ -3,6 +3,7 @@
 #include "openswd3/audio_video/legacy_sample_manager.hpp"
 #include "openswd3/battle/legacy_battle_color_accumulation.hpp"
 #include "openswd3/battle/legacy_battle_debug_hotkeys.hpp"
+#include "openswd3/battle/legacy_battle_debug_overlay.hpp"
 #include "openswd3/battle/legacy_battle_effect_coordinator.hpp"
 #include "openswd3/battle/legacy_battle_final_actor_step.hpp"
 #include "openswd3/battle/legacy_battle_pair_transition.hpp"
@@ -89,6 +90,7 @@ struct LegacyBattleGlobalResetResult {
     LegacyBattleFinalActorStepState& final_actor,
     LegacyBattleActionDispatchState& action,
     LegacyBattleGroupBFrameState& actor_frames,
+    LegacyBattleDebugOverlayState& debug_overlay,
     LegacyBattleGlobalResetRuntimePort& port
 );
 

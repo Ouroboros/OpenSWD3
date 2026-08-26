@@ -146,8 +146,8 @@ modern直接对typed bit-span执行相同访问。span缺失只在byte 2真实�
 
 bit未置位后：
 
-- 独立可选门dword不等于1时执行一个stage；
-- 再固定执行两个stage；
+- 独立调试叠加门dword精确等于1时直接组合已关闭战斗调试叠加层；旧opaque模型的条件方向相反，现已按LST纠正；
+- 叠加层正常返回后固定执行两个stage；叠加层文字、顺序、像素或signed除法typed-stop保留全部前缀并阻断这两个stage；
 - 共享颜色计数小于等于0且共享初始化门不等于1时，直接调用已关闭颜色初始化器并传入`24,24,24,0,0,0,8`，再把共享门写0；
 - 固定以参数1调用finalize callee。
 
@@ -180,6 +180,7 @@ finalize之后直接调用已关闭三通道颜色累加：固定递减请求，
 - `0x0045331C..0x00453379`：主阶段、画面效果直连、条件阶段、UI低word和固定帧；
 - `0x0045337F..0x00453431`：选中动作记录、双映射、九宫格、角色对象和独立帧；
 - `0x00453434..0x00453482`：ECX低word、四stage、三类跨模块队列、两倒计时；
+- `0x00453491..0x004534A3`：调试叠加精确门、typed直连及两个后续stage；
 - `0x00453485..0x00453490`：内部bit与返回3；
 - `0x00453491..0x00453514`：可选/固定stage、overlay、三通道颜色累加直连与surface分支；
 - `0x00453514..0x00453570`：截图word、路径、BMP写入、请求清零和活动返回。
@@ -198,6 +199,7 @@ C++到LST反向追溯覆盖完整412行、44个静态call站点和18个标签。
 - 固定帧直连、ECX高字/低word组合；
 - packed-row、头像、空对话与双倒计时直连；
 - 内部bit 17返回3及缺失bit表真实访问typed-stop；
+- 调试叠加精确等于1门、正常组合和子typed-stop后续阻断；
 - 角色预处理工作区typed-stop阻断metric与后续帧；
 - 三通道颜色初始化、共享门与尾寄存器，以及同帧颜色累加、计数递减与`0x3C000`前缀；
 - 临时surface路径、零token typed-stop和alternate门；
@@ -206,4 +208,4 @@ C++到LST反向追溯覆盖完整412行、44个静态call站点和18个标签。
 - 映射缺失发生在面板动作更新副作用之后；
 - battle聚合目标零warning，普通定向通过。
 
-当前没有原版剩余战斗callee、共享选择/队列/对话/倒计时状态、九float与计数、DirectDraw target surface、内部bit表、寄存器snapshot与BMP文件联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前没有原版剩余战斗callee、共享选择/队列/对话/倒计时状态、调试叠加字体/文字/角色查询状态、九float与计数、DirectDraw target surface、内部bit表、寄存器snapshot与BMP文件联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

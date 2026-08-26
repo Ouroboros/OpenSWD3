@@ -807,7 +807,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
 
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
-        state.optional_post_input_gate = 1U;
+        state.debug_overlay.gate = 1U;
         state.special_surface_gate = 1U;
         state.screenshot_counter = 0xFFFFU;
         Fixture fixture;
@@ -869,9 +869,11 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 fixture.bmp_ports.filenames ==
                     std::vector<std::string>{"c:\\snap\\1000.bmp"} &&
                 fixture.bmp_ports.close_calls == 1U &&
-                port.count(
-                    LegacyBattleFrameCoordinatorCall::optional_post_input_stage
-                ) == 0U &&
+                result.debug_overlay_calls == 1U &&
+                result.debug_overlay.status ==
+                    openswd3::battle::LegacyBattleDebugOverlayStatus::
+                        completed &&
+                result.debug_overlay.port_calls == 2U &&
                 port.count(
                     LegacyBattleFrameCoordinatorCall::alternate_surface_stage
                 ) == 0U,
@@ -970,6 +972,38 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
 
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
+        state.debug_overlay.gate = 1U;
+        state.debug_overlay.frame_divisor = 0;
+        Fixture fixture;
+        CoordinatorPort port;
+        port.battle_debug_hotkey_state().toggle_5244e0 = 1U;
+        configure_common_port(port);
+        auto context = fixture.context();
+
+        const auto result =
+            openswd3::battle::run_legacy_battle_frame_coordinator(
+                state, port, context, base_request()
+            );
+
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameCoordinatorStatus::
+                        debug_overlay_typed_stop &&
+                result.debug_overlay_calls == 1U &&
+                result.debug_overlay.status ==
+                    openswd3::battle::LegacyBattleDebugOverlayStatus::
+                        frame_divisor_zero &&
+                result.debug_overlay.text_draws == 12U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::post_input_stage_0
+                ) == 0U &&
+                result.color_initialization_calls == 0U,
+            "debug overlay division failure preserves its text prefix and blocks every later frame stage"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleFrameCoordinatorState state;
         Fixture fixture;
         CoordinatorPort port;
         configure_common_port(port);
@@ -986,10 +1020,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleFrameCoordinatorStatus::
                         internal_flag_typed_stop &&
                 result.countdown_calls == 2U && result.input_queries == 1U &&
-                port.count(
-                    LegacyBattleFrameCoordinatorCall::optional_post_input_stage
-                ) == 0U,
-            "missing internal bit table stops at byte two access after both countdown draws"
+                result.debug_overlay_calls == 0U,
+            "missing internal bit table stops at byte two access before the optional debug overlay"
         );
     }
 

@@ -400,6 +400,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-debug-hotkeys-0045d8f0.md",
     ),
+    "0x0045DEE0": (
+        "platform_adapted",
+        "evidence/battle-debug-overlay-0045dee0.md",
+    ),
 }
 
 
