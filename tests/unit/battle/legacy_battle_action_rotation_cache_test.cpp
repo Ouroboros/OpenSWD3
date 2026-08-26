@@ -50,6 +50,10 @@ struct UpdateStep {
     u16 field_4c{};
     u16 command_cursor{};
     u8 field_88{};
+    u32 draw_offset_x{};
+    u32 draw_offset_y{};
+    u32 mode_flags{};
+    u32 field_8c{};
     u32 eax{};
     u32 edx{};
     std::uint64_t domain_token{};
@@ -75,6 +79,10 @@ public:
         record.field_4c = step.field_4c;
         record.command_cursor = step.command_cursor;
         record.field_88 = step.field_88;
+        record.draw_offset_x = step.draw_offset_x;
+        record.draw_offset_y = step.draw_offset_y;
+        record.mode_flags = step.mode_flags;
+        record.field_8c = step.field_8c;
         return {
             .eax = step.eax,
             .edx = step.edx,
@@ -107,6 +115,11 @@ public:
             .owner_token = static_cast<u32>(0x100U + slot),
             .pointer_valid = pointer_valid,
             .bytes = images[slot],
+            .frame = {
+                .source = {.bytes = images[slot]},
+                .width = 12U,
+                .height = 1U,
+            },
         };
     }
 
@@ -481,6 +494,247 @@ void test_battle_action_rotation_cache(openswd3::test::Context& test) {
                 result.frame_query_calls == 1U && result.rotation_calls == 1U &&
                 result.skipped_cached_frames == 1U,
             "full repeated updater token record slots and owners stop proven loop"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleActionRotationCacheState state;
+        state.stored_action_id = 0U;
+        ScriptedRotationUpdatePort updater{{UpdateStep{.eax = 1U}}};
+        MutableRotationFramePort frames;
+        openswd3::rendering::LegacyFramebuffer framebuffer{{
+            .pitch_bytes = 160,
+            .width = 80,
+            .height = 60,
+        }};
+        openswd3::rendering::LegacyBlitRequest request{
+            .horizontal_resample_displacement = 9,
+        };
+        openswd3::rendering::LegacyBlitEffectState effects;
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_action_rotation_frame(
+                state,
+                updater,
+                framebuffer,
+                {.left = 0, .top = 0, .width = 80, .height = 60},
+                request,
+                effects,
+                jitter
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleActionRotationDrawStatus::
+                        completed &&
+                result.return_value == 0U && result.action_update_calls == 0U &&
+                result.frame_draw_calls == 0U && updater.calls == 0U &&
+                request.horizontal_resample_displacement == 9,
+            "zero stored action returns zero before update and shared displacement"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleActionRotationCacheState state;
+        state.stored_action_id = 0x1234U;
+        state.field_b4 = 30U;
+        state.field_b8 = 40U;
+        state.field_bc = 1U;
+        state.frame_owner_tokens[1U] = 0x101U;
+        std::vector<u8> pixels{
+            0x11U,
+            0x11U,
+            0x22U,
+            0x22U,
+            0x33U,
+            0x33U,
+            0x44U,
+            0x44U,
+        };
+        state.cached_frames[1U] = {
+            .source = {.bytes = pixels},
+            .width = 2U,
+            .height = 2U,
+        };
+        ScriptedRotationUpdatePort updater{
+            {UpdateStep{
+                .field_4c = 1U,
+                .draw_offset_x = 10U,
+                .draw_offset_y = 20U,
+                .mode_flags = 0U,
+                .field_8c = 0xCAFEBABEU,
+                .eax = 0U,
+            }},
+        };
+        openswd3::rendering::LegacyFramebuffer framebuffer{{
+            .pitch_bytes = 160,
+            .width = 80,
+            .height = 60,
+        }};
+        openswd3::rendering::LegacyBlitRequest request{
+            .horizontal_resample_displacement = 9,
+        };
+        openswd3::rendering::LegacyBlitEffectState effects;
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_action_rotation_frame(
+                state,
+                updater,
+                framebuffer,
+                {.left = 0, .top = 0, .width = 80, .height = 60},
+                request,
+                effects,
+                jitter
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleActionRotationDrawStatus::
+                        completed &&
+                result.action_update_calls == 1U && updater.calls == 1U &&
+                result.frame_draw_calls == 1U && result.frame_index == 1U &&
+                result.draw_x == 20 && result.draw_y == 20 &&
+                result.return_value == 0xCAFEBABEU && result.source_published &&
+                framebuffer.row_pixels(20U)[20U] == 0x1111U &&
+                request.target_height == 0 &&
+                request.horizontal_resample_displacement == 0 &&
+                request.vertical_resample_phase_10_10 == 0U &&
+                request.opacity_step == 0 && effects.red_offset == 0 &&
+                effects.green_offset == 0 && effects.blue_offset == 0 &&
+                !effects.skip_every_third_row,
+            "draw ignores zero update eax uses cached frame offsets and returns field eight-c"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleActionRotationCacheState state;
+        state.stored_action_id = 1U;
+        ScriptedRotationUpdatePort updater{
+            {UpdateStep{
+                .field_4c = 3U,
+                .eax = 1U,
+            }},
+        };
+        openswd3::rendering::LegacyFramebuffer framebuffer{{
+            .pitch_bytes = 8,
+            .width = 4,
+            .height = 4,
+        }};
+        openswd3::rendering::LegacyBlitRequest request;
+        openswd3::rendering::LegacyBlitEffectState effects;
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_action_rotation_frame(
+                state,
+                updater,
+                framebuffer,
+                {.left = 0, .top = 0, .width = 4, .height = 4},
+                request,
+                effects,
+                jitter
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleActionRotationDrawStatus::
+                        frame_index_out_of_range &&
+                result.action_update_calls == 1U &&
+                result.frame_draw_calls == 0U && !result.source_published,
+            "updated frame index outside three owner slots stops at first access"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleActionRotationCacheState state;
+        state.stored_action_id = 1U;
+        ScriptedRotationUpdatePort updater{
+            {UpdateStep{
+                .field_4c = 0U,
+                .eax = 0U,
+            }},
+        };
+        openswd3::rendering::LegacyFramebuffer framebuffer{{
+            .pitch_bytes = 8,
+            .width = 4,
+            .height = 4,
+        }};
+        openswd3::rendering::LegacyBlitRequest request{
+            .horizontal_resample_displacement = 6,
+        };
+        openswd3::rendering::LegacyBlitEffectState effects;
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_action_rotation_frame(
+                state,
+                updater,
+                framebuffer,
+                {.left = 0, .top = 0, .width = 4, .height = 4},
+                request,
+                effects,
+                jitter
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleActionRotationDrawStatus::
+                        cached_owner_invalid &&
+                result.action_update_calls == 1U &&
+                result.frame_draw_calls == 0U && !result.source_published &&
+                request.horizontal_resample_displacement == 6,
+            "valid frame slot with null owner stops before source and displacement"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleActionRotationCacheState state;
+        state.stored_action_id = 1U;
+        state.field_bc = 7U;
+        state.frame_owner_tokens[0U] = 0x100U;
+        std::vector<u8> indices(4U, 1U);
+        std::array<u16, 2> palette{0U, 0x1234U};
+        state.cached_frames[0U] = {
+            .source =
+                {
+                    .bytes = indices,
+                    .layout =
+                        openswd3::rendering::LegacyBlitSourceLayout::indexed_8,
+                    .palette = palette,
+                },
+            .width = 2U,
+            .height = 2U,
+        };
+        ScriptedRotationUpdatePort updater{
+            {UpdateStep{
+                .field_4c = 0U,
+                .field_8c = 0x11223344U,
+                .eax = 1U,
+            }},
+        };
+        openswd3::rendering::LegacyFramebuffer framebuffer{{
+            .pitch_bytes = 8,
+            .width = 4,
+            .height = 4,
+        }};
+        openswd3::rendering::LegacyBlitRequest request;
+        openswd3::rendering::LegacyBlitEffectState effects;
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_action_rotation_frame(
+                state,
+                updater,
+                framebuffer,
+                {.left = 0, .top = 0, .width = 4, .height = 4},
+                request,
+                effects,
+                jitter
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleActionRotationDrawStatus::
+                        blit_typed_stop &&
+                result.blit_status ==
+                    openswd3::rendering::LegacyBlitExecutionStatus::
+                        palette_out_of_bounds &&
+                result.frame_draw_calls == 1U && result.source_published &&
+                request.horizontal_resample_displacement == 7 &&
+                result.return_value == 0U,
+            "fixed empty tail stops indexed cache before suffix clear and field return"
         );
     }
 }

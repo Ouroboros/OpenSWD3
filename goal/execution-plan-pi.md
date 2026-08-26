@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v703
+版本：v704
 
 最后更新：2026-08-25
 
@@ -3907,5 +3907,6 @@ B7 P0 有限收口完成。
 - 模块10战斗三档刻度扫描动画`0x00451100`完成。完整207行先以资源234F帧0和record tail绘制底板，再按三个u16阈值固定三轮设置1像素竖clip并查询/绘制帧1；首轮clip高度来自帧0，后两轮来自帧1。每轮以counter低word的半速加一值命中`threshold..threshold+2`，相等目标会清marker，不等目标只清低word并保留marker。三轮后按递增前counter设置最终扫描竖条并再次绘制帧1，正常后才恢复全屏clip、递增counter低word；递增后半速值精确62时把低word写8000并返回1。定向测试锁定五次查询/绘制、逐轮缓存高度、四条实际竖像素、marker/目标双路径、循环查询失败前缀、indexed record palette tail以及counter高word保留与完成门；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`37/422`，即`32 platform_adapted + 5 assembly_exact + 385 pending_audit`，SHA256为`5abb276dcdc66012b327a81174b9bdd6d54773d548e984ebd053f04e52464001`。原版三项阈值、扫描counter、选择/目标状态、frame record、共享clip/blitter状态和framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 - 模块10战斗六级竖槽填充面板`0x004512B0`完成。完整171行先查资源241A帧2，把u16高度除6并与signed等级做低32位乘法；随后帧0以record tail绘制并推进内容Y，等级signed小于6才以帧0宽和scaled高度发布局部clip。帧2在X+4绘制；帧3查询并发布source后才把共享opacity写8，以模式14在X+11/Y+31绘制；正常后恢复640×480逻辑clip，再把帧1绘于内容Y+scaled高度。定向测试锁定查询序列2/0/2/3/1、等级5/6/-1、四帧实际像素与坐标、等级6跳过局部clip、帧3查询失败前不写opacity、帧3typed-stop保留opacity 8与局部clip及indexed record palette tail；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`38/422`，即`33 platform_adapted + 5 assembly_exact + 384 pending_audit`，SHA256为`c87b41bf99bc5934f2dff3b43f338e41fdca2309f5a973ab6798cf45b968760d`。原版五个frame record、等级值、共享clip/opacity/blitter状态和framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 - 模块10战斗三帧动作旋转缓存初始化`0x00451420`完成。完整140行以扩展动作record写入初始动作号和两个入口dword，进入动作更新循环；每轮精确保留`mov al/mov ax`形成帧号时的EAX高字和`mov dx`形成资源号时的EDX高字，以三个FFFF局部槽去重。未缓存帧严格按查询、owner缓存、局部槽、640/低word除数、owner解引用顺序执行，再直连已关闭literal图像模式3右移；command cursor为0时只清前0x98字节record，否则重置动作号/base variant继续更新。定向测试锁定两帧精确像素、field88高字清除、首/后续更新零返回、除零前缓存副作用、非法局部槽、invalid owner、closed callee短图typed-stop、shift 0正常早退、record清零及完整循环状态重复；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`39/422`，即`34 platform_adapted + 5 assembly_exact + 383 pending_audit`，SHA256为`a6e4b12626102ba8417c401bd55ee89b454d2d175711662b0d91a8b2bc7bc309`。原版动作更新后EAX/EDX、三帧owner、扩展动作状态、可写literal图像和分配器联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
+- 模块10战斗旋转缓存帧绘制`0x00451540`完成。完整70行在扩展状态存储动作号低word为0时直接返回0且不触状态；非零时重写动作号/base variant并调用更新器，但精确忽略更新后EAX。随后用更新后的u16帧索引访问上一项建立的三owner/frame缓存，先发布source再写共享水平位移，以扩展坐标减record偏移、record flags和固定空tail绘制；正常公共后缀后显式再次清水平位移并返回`field_8c`完整dword。定向测试锁定零动作门、更新EAX 0仍绘制、索引3首访问停止、有效索引空owner停止、偏移像素与完整返回、固定空tail indexed typed-stop及清理时机；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`40/422`，即`35 platform_adapted + 5 assembly_exact + 382 pending_audit`，SHA256为`c3532e0939d85ac8708799fd6c28ab9504059d088ca4cc1f9eaf238021363cdc`。原版扩展动作状态、更新后record、三owner/frame record、共享水平位移/blitter状态和framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=40`的`0x00451540`战斗旋转缓存帧绘制，继续完整审计零动作门、更新返回忽略、三owner缓存索引、共享水平位移、偏移坐标、固定空tail、公共后缀、显式位移清零与field8C返回。
+下一项回收`audit_order=41`的`0x004515E0`战斗旋转缓存动作播放，继续完整审计入口record清零、三槽去重、signed旋转方向、缓存owner绘制、等待word清零、动作更新循环、完成返回1与完整非终止域。

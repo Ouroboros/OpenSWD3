@@ -51,10 +51,10 @@ code_origin == game
 - 尾地址：`0x00484500`；
 - `confirmed_boundary`：`61`；
 - `medium`导航候选：`361`；
-- `pending_audit`：`383`；
+- `pending_audit`：`382`；
 - `assembly_exact`：`5`；
-- `platform_adapted`：`34`；
-- 已关闭：`39`。
+- `platform_adapted`：`35`；
+- 已关闭：`40`。
 
 六个稳定导航分组为：
 
@@ -287,8 +287,10 @@ I5最终必须锁定：
 
 `audit_order=39`的`0x00451420`已关闭为`platform_adapted`。它映射扩展动作record，入口写动作号和两个dword后进入动作更新循环；每轮精确保留`mov al/mov ax`后的EAX高字和`mov dx`后的EDX高字，以三项FFFF局部槽去重帧查询。未缓存帧按查询→owner缓存→局部槽→640/低word除数→指针解引用顺序，直接调用已关闭literal图像模式3右移；command cursor为0时只清前0x98字节record，否则重置动作号/base variant继续更新。只有record、槽、owner和端口完整token全部重复才判非终止。
 
+`audit_order=40`的`0x00451540`已关闭为`platform_adapted`。存储动作号低word为0时直接返回0；非零时重写动作号/base variant并调用更新器，但精确忽略更新EAX。更新后的u16帧索引访问上一项建立的三owner/frame缓存，先发布source再写共享水平位移；绘制坐标为入口扩展坐标减record偏移，使用record flags和固定空tail。正常公共后缀后显式再次清水平位移并返回`field_8c`，indexed或非法缓存typed-stop不得提前清理或发布返回。
+
 `audit_order=14`的`0x00434790`已关闭为`platform_adapted`。它只在首次调用以显式time seed CRT、发布三项共享值并扫描源图，随后直接组合已关闭粒子生成、线段推进与单像素颜色合成；剩余批次回放保留镜像检查X、源索引和实际写入X错位，粒子2×2绘制保留只跳第一透明色、只检查右像素及合成模式右上先合成后被原值覆盖。生命刷新、距离与目标矩形摘除、唯一/首/尾/中间四类双向链释放及其计数不对称均已闭环。三个上层caller都显式消费返回1作为阶段完成信号，尚待各自进入现代实现。
 
-下一项回收`audit_order=40`的`0x00451540`战斗旋转缓存帧绘制，继续完整审计零动作门、更新返回忽略、三owner缓存索引、共享水平位移、偏移坐标、固定空tail、公共后缀、显式位移清零与field8C返回。
+下一项回收`audit_order=41`的`0x004515E0`战斗旋转缓存动作播放，继续完整审计入口record清零、三槽去重、signed旋转方向、缓存owner绘制、等待word清零、动作更新循环、完成返回1与完整非终止域。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

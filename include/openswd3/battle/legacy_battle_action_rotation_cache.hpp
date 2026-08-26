@@ -3,6 +3,7 @@
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
 #include "openswd3/battle/legacy_battle_image_rotation.hpp"
 #include "openswd3/compat/types.hpp"
+#include "openswd3/rendering/legacy_tiled_frame.hpp"
 
 #include <array>
 #include <cstdint>
@@ -28,6 +29,7 @@ struct LegacyBattleMutableFrameImage {
     compat::u32 owner_token{};
     bool pointer_valid{};
     std::span<compat::u8> bytes{};
+    rendering::LegacyFramePiece frame{};
 };
 
 class LegacyBattleMutableFrameImagePort {
@@ -41,6 +43,7 @@ public:
 struct LegacyBattleActionRotationCacheState {
     asset_runtime::LegacyActionRecord action_record{};
     std::array<compat::u32, 3> frame_owner_tokens{};
+    std::array<rendering::LegacyFramePiece, 3> cached_frames{};
     compat::u32 field_b4{};
     compat::u32 field_b8{};
     compat::u32 field_bc{};
@@ -76,6 +79,29 @@ struct LegacyBattleActionRotationCacheResult {
     LegacyBattleImageRotationResult rotation{};
 };
 
+enum class LegacyBattleActionRotationDrawStatus : compat::u8 {
+    completed,
+    frame_index_out_of_range,
+    cached_owner_invalid,
+    blit_typed_stop,
+};
+
+struct LegacyBattleActionRotationDrawResult {
+    LegacyBattleActionRotationDrawStatus status{
+        LegacyBattleActionRotationDrawStatus::completed
+    };
+    compat::u32 action_update_calls{};
+    compat::u32 frame_draw_calls{};
+    compat::u32 frame_index{};
+    compat::i32 draw_x{};
+    compat::i32 draw_y{};
+    compat::u32 return_value{};
+    bool source_published{};
+    rendering::LegacyBlitExecutionStatus blit_status{
+        rendering::LegacyBlitExecutionStatus::completed
+    };
+};
+
 // sub_451420: initialize and rotate up to three cached battle action frames.
 [[nodiscard]] LegacyBattleActionRotationCacheResult
 initialize_legacy_battle_action_rotation_cache(
@@ -88,5 +114,17 @@ initialize_legacy_battle_action_rotation_cache(
     compat::u32 initial_action_id,
     compat::u32 rotation_divisor
 );
+
+// sub_451540: update and draw one frame from the rotation cache.
+[[nodiscard]] LegacyBattleActionRotationDrawResult
+draw_legacy_battle_action_rotation_frame(
+    LegacyBattleActionRotationCacheState& state,
+    LegacyBattleActionRotationUpdatePort& update_port,
+    rendering::LegacyFramebuffer& framebuffer,
+    const rendering::LegacyBlitClipRectangle& clip,
+    rendering::LegacyBlitRequest& shared_request,
+    rendering::LegacyBlitEffectState& shared_effects,
+    rendering::LegacyRleRowJitterState& jitter
+) noexcept;
 
 }  // namespace openswd3::battle

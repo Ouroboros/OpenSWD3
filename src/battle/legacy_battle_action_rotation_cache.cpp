@@ -1,6 +1,7 @@
 #include "openswd3/battle/legacy_battle_action_rotation_cache.hpp"
 
 #include <array>
+#include <bit>
 #include <cstring>
 #include <vector>
 
@@ -27,6 +28,33 @@ struct CycleSnapshot {
         left.frame_owner_tokens == right.frame_owner_tokens &&
         left.field_bc == right.field_bc &&
         left.domain_token == right.domain_token;
+}
+
+[[nodiscard]] compat::i32
+wrapping_subtract(const compat::u32 left, const compat::u32 right) noexcept {
+    return std::bit_cast<compat::i32>(left - right);
+}
+
+[[nodiscard]] bool accepted_blit_status(
+    const rendering::LegacyBlitExecutionStatus status
+) noexcept {
+    return status == rendering::LegacyBlitExecutionStatus::completed ||
+        status == rendering::LegacyBlitExecutionStatus::clipped_out ||
+        status == rendering::LegacyBlitExecutionStatus::opacity_disabled;
+}
+
+void publish_blitter_normal_epilogue(
+    rendering::LegacyBlitRequest& shared_request,
+    rendering::LegacyBlitEffectState& shared_effects
+) noexcept {
+    shared_request.target_height = 0;
+    shared_request.horizontal_resample_displacement = 0;
+    shared_request.vertical_resample_phase_10_10 = 0U;
+    shared_request.opacity_step = 0;
+    shared_effects.red_offset = 0;
+    shared_effects.green_offset = 0;
+    shared_effects.blue_offset = 0;
+    shared_effects.skip_every_third_row = false;
 }
 
 [[nodiscard]] bool rotation_returned_normally(
@@ -120,6 +148,7 @@ initialize_legacy_battle_action_rotation_cache(
                 image_port.query_frame_image(resource_id, frame_index);
             ++result.frame_query_calls;
             state.frame_owner_tokens[local_index] = image.owner_token;
+            state.cached_frames[local_index] = image.frame;
             result.local_frame_slots[local_index] = local_index;
 
             const compat::u16 divisor =
@@ -170,6 +199,73 @@ initialize_legacy_battle_action_rotation_cache(
             return result;
         }
     }
+}
+
+LegacyBattleActionRotationDrawResult draw_legacy_battle_action_rotation_frame(
+    LegacyBattleActionRotationCacheState& state,
+    LegacyBattleActionRotationUpdatePort& update_port,
+    rendering::LegacyFramebuffer& framebuffer,
+    const rendering::LegacyBlitClipRectangle& clip,
+    rendering::LegacyBlitRequest& shared_request,
+    rendering::LegacyBlitEffectState& shared_effects,
+    rendering::LegacyRleRowJitterState& jitter
+) noexcept {
+    LegacyBattleActionRotationDrawResult result;
+    if (state.stored_action_id == 0U) {
+        return result;
+    }
+
+    state.action_record.action_id =
+        static_cast<compat::u32>(state.stored_action_id);
+    state.action_record.base_variant = 0U;
+    static_cast<void>(update_port.update_action(state.action_record));
+    ++result.action_update_calls;
+
+    result.frame_index = static_cast<compat::u32>(state.action_record.field_4c);
+    if (result.frame_index >= state.frame_owner_tokens.size()) {
+        result.status =
+            LegacyBattleActionRotationDrawStatus::frame_index_out_of_range;
+        return result;
+    }
+    const std::size_t frame_slot = static_cast<std::size_t>(result.frame_index);
+    if (state.frame_owner_tokens[frame_slot] == 0U) {
+        result.status =
+            LegacyBattleActionRotationDrawStatus::cached_owner_invalid;
+        return result;
+    }
+
+    const rendering::LegacyFramePiece& frame = state.cached_frames[frame_slot];
+    rendering::LegacyBlitSource call_source = frame.source;
+    result.source_published = true;
+    shared_request.horizontal_resample_displacement =
+        std::bit_cast<compat::i32>(state.field_bc);
+    result.draw_x =
+        wrapping_subtract(state.field_b4, state.action_record.draw_offset_x);
+    result.draw_y =
+        wrapping_subtract(state.field_b8, state.action_record.draw_offset_y);
+
+    rendering::LegacyBlitRequest request = shared_request;
+    request.destination_x = result.draw_x;
+    request.destination_y = result.draw_y;
+    request.source_width = static_cast<compat::i32>(frame.width);
+    request.source_height = static_cast<compat::i32>(frame.height);
+    request.flags = state.action_record.mode_flags;
+    request.auxiliary = {};
+    call_source.palette = {};
+    const rendering::LegacyBlitResult blit = rendering::blit_legacy_copy_paths(
+        framebuffer, clip, call_source, request, shared_effects, jitter
+    );
+    ++result.frame_draw_calls;
+    result.blit_status = blit.status;
+    if (!accepted_blit_status(blit.status)) {
+        result.status = LegacyBattleActionRotationDrawStatus::blit_typed_stop;
+        return result;
+    }
+
+    publish_blitter_normal_epilogue(shared_request, shared_effects);
+    shared_request.horizontal_resample_displacement = 0;
+    result.return_value = state.action_record.field_8c;
+    return result;
 }
 
 }  // namespace openswd3::battle
