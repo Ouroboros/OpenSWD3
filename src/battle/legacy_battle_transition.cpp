@@ -269,6 +269,24 @@ music_path_for(const std::filesystem::path& data_root, const u16 battle_id) {
     return true;
 }
 
+[[nodiscard]] bool advance_actor_frames(
+    LegacyBattleTransitionPort& port,
+    const LegacyBattleTransitionRequest& request,
+    LegacyBattleTransitionResult& result
+) {
+    auto& sequence =
+        result.actor_frame_sequences[result.actor_frame_sequence_calls];
+    sequence = advance_legacy_battle_actor_frame_sequence(
+        port.actor_metric_state(), request.actor_frames
+    );
+    ++result.actor_frame_sequence_calls;
+    if (sequence.status != LegacyBattleActorFrameSequenceStatus::completed) {
+        result.status = LegacyBattleTransitionStatus::actor_frame_typed_stop;
+        return false;
+    }
+    return true;
+}
+
 [[nodiscard]] LegacyBattleTransitionStatus
 copy_failure_status(const CopyStatus status, const bool primary) noexcept {
     if (status == CopyStatus::allocation_out_of_range) {
@@ -368,7 +386,8 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
         result.status = LegacyBattleTransitionStatus::hud_typed_stop;
         return result;
     }
-    if (!rebuild_actor_order(startup, port, result)) {
+    if (!rebuild_actor_order(startup, port, result) ||
+        !advance_actor_frames(port, request, result)) {
         return result;
     }
     invoke_surface_operation(
@@ -545,7 +564,8 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
             result.status = LegacyBattleTransitionStatus::hud_typed_stop;
             return result;
         }
-        if (!rebuild_actor_order(startup, port, result)) {
+        if (!rebuild_actor_order(startup, port, result) ||
+            !advance_actor_frames(port, request, result)) {
             return result;
         }
         invoke_surface_operation(

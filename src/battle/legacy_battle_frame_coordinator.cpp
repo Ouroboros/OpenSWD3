@@ -227,9 +227,16 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             return result;
         }
     }
-    static_cast<void>(invoke(
-        port, result, LegacyBattleFrameCoordinatorCall::frame_followup_stage_0
-    ));
+    result.actor_frame_sequence = advance_legacy_battle_actor_frame_sequence(
+        port.actor_metric_state(), context.actor_frames
+    );
+    ++result.actor_frame_sequence_calls;
+    if (result.actor_frame_sequence.status !=
+        LegacyBattleActorFrameSequenceStatus::completed) {
+        result.status =
+            LegacyBattleFrameCoordinatorStatus::actor_frame_typed_stop;
+        return result;
+    }
     static_cast<void>(invoke(
         port, result, LegacyBattleFrameCoordinatorCall::frame_followup_stage_1
     ));

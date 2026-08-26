@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_actor_frame_sequence.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_frame_draw.hpp"
 #include "openswd3/battle/legacy_battle_frame_effect.hpp"
@@ -154,6 +155,7 @@ struct LegacyBattleTransitionRequest {
     std::filesystem::path data_root;
     compat::u32 scene_value{};
     compat::u16 status_word{};
+    LegacyBattleActorFrameAdvanceContext* actor_frames{};
 };
 
 enum class LegacyBattleTransitionStatus : compat::u8 {
@@ -170,6 +172,7 @@ enum class LegacyBattleTransitionStatus : compat::u8 {
     frame_effect_typed_stop,
     hud_typed_stop,
     actor_order_typed_stop,
+    actor_frame_typed_stop,
 };
 
 struct LegacyBattleTransitionResult {
@@ -198,6 +201,8 @@ struct LegacyBattleTransitionResult {
     compat::u32 hud_frame_calls{};
     compat::u32 actor_order_calls{};
     compat::u32 actor_order_selections{};
+    std::array<LegacyBattleActorFrameSequenceResult, 2> actor_frame_sequences{};
+    compat::u32 actor_frame_sequence_calls{};
     std::array<compat::u32, 4> release_order{};
     compat::u32 release_calls{};
     bool music_started{};

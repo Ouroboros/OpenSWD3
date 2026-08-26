@@ -29,10 +29,18 @@ struct Surface {
 
 class TransitionPorts final
     : public openswd3::battle::LegacyBattleTransitionPort,
+      public openswd3::battle::LegacyBattleActionDispatchPort,
       public openswd3::battle::LegacyBattleTransitionBufferPort,
       public openswd3::battle::LegacyBattleTransitionSurfacePort,
       public openswd3::battle::LegacyBattleSurfaceBlendPort {
 public:
+    [[nodiscard]] openswd3::battle::LegacyBattleActionCallReply invoke(
+        const openswd3::battle::LegacyBattleActionCallRequest& request
+    ) override {
+        action_requests.push_back(request);
+        return {};
+    }
+
     [[nodiscard]] LegacyBattleTransitionCallReply
     invoke(const LegacyBattleTransitionCallRequest& request) override {
         requests.push_back(request);
@@ -197,6 +205,8 @@ public:
     }
 
     std::unordered_map<u32, Surface> surfaces;
+    std::vector<openswd3::battle::LegacyBattleActionCallRequest>
+        action_requests;
     std::vector<LegacyBattleTransitionCallRequest> requests;
     std::vector<LegacyBattleHudCallRequest> hud_requests;
     std::deque<u32> random_values;
@@ -287,6 +297,67 @@ struct FrameFixture {
             )
         );
     }
+};
+
+class EmptyActionStreamProvider final
+    : public openswd3::asset_runtime::LegacyActionStreamProvider {
+public:
+    [[nodiscard]] openswd3::asset_runtime::LegacyActionStreamLoadResult
+    load_action_stream(u32, u32, bool) override {
+        return {};
+    }
+};
+
+class ZeroBoundedRandom final
+    : public openswd3::battle::LegacyBattleBoundedRandomPort {
+public:
+    [[nodiscard]] u32 random_bounded(u32) override {
+        return 0U;
+    }
+};
+
+class SilentIndicatorSound final
+    : public openswd3::battle::LegacyBattleIndicatorSoundPort {
+public:
+    void play_indicator_sound(u16, u16) override {}
+};
+
+class EmptyCountdownFlags final
+    : public openswd3::rendering::LegacyCountdownFlagPorts {
+public:
+    [[nodiscard]] bool query_internal_flag(u32) noexcept override {
+        return false;
+    }
+
+    void set_internal_flag(u32) noexcept override {}
+};
+
+struct ActorFrameFixture {
+    openswd3::battle::LegacyBattleGroupBFrameState state;
+    EmptyActionStreamProvider streams;
+    openswd3::asset_runtime::LegacyActionUpdater updater{streams};
+    ZeroBoundedRandom random;
+    SilentIndicatorSound sound;
+    EmptyCountdownFlags countdown_flags;
+    std::array<u8, 64> internal_flags{};
+    openswd3::battle::LegacyBattleActionDispatchContext dispatch;
+    openswd3::battle::LegacyBattleActorFrameAdvanceContext context;
+
+    ActorFrameFixture(TransitionPorts& ports, FrameFixture& frame)
+        : dispatch{
+              .framebuffer = frame.framebuffer,
+              .raster = frame.raster,
+              .shared_request = frame.request,
+              .shared_effects = frame.effects,
+              .jitter = frame.jitter,
+              .action_updater = updater,
+              .frame_provider = frame.provider,
+              .bounded_random = random,
+              .indicator_sound = sound,
+              .countdown_flags = countdown_flags,
+              .internal_flags = internal_flags,
+          },
+          context{state, ports, dispatch} {}
 };
 
 void add_default_surfaces(TransitionPorts& ports) {
@@ -426,6 +497,24 @@ void test_battle_transition(openswd3::test::Context& test) {
         ports.random_values = {0U, 55U};
         ports.actor_mode_returns[0x00525508U] = 1U;
         FrameFixture frame;
+        ActorFrameFixture actor_frames(ports, frame);
+        openswd3::battle::LegacyBattleActorMetricState foreign_metrics;
+        foreign_metrics.group_b_count = 1U;
+        foreign_metrics.actor_order[0] = 0U;
+        const auto shared_stop =
+            openswd3::battle::advance_legacy_battle_actor_frame_sequence(
+                foreign_metrics, &actor_frames.context
+            );
+        test.expect_true(
+            shared_stop.status ==
+                    openswd3::battle::LegacyBattleActorFrameSequenceStatus::
+                        shared_state_typed_stop &&
+                ports.action_requests.empty(),
+            "actor-frame sequence requires the action port to share the physical metric state"
+        );
+
+        auto transition_request = request(2U);
+        transition_request.actor_frames = &actor_frames.context;
 
         const auto result = openswd3::battle::run_legacy_battle_transition(
             state,
@@ -435,13 +524,17 @@ void test_battle_transition(openswd3::test::Context& test) {
             ports,
             ports,
             frame.context,
-            request(2U)
+            transition_request
         );
 
         test.expect_true(
             result.status ==
                     openswd3::battle::LegacyBattleTransitionStatus::completed &&
                 result.frame_effect_calls == 1U &&
+                result.actor_frame_sequence_calls == 1U &&
+                result.actor_frame_sequences[0].group_b_calls == 2U &&
+                result.actor_frame_sequences[0].group_a_calls == 2U &&
+                !ports.action_requests.empty() &&
                 result.entry_transition_frames == 34U &&
                 result.exit_transition_frames == 0U &&
                 result.target_clear_calls == 35U &&
@@ -472,6 +565,9 @@ void test_battle_transition(openswd3::test::Context& test) {
         ports.random_values = {99U, 1U, 27U};
         state.party_special_fields[1] = 1U;
         FrameFixture frame;
+        ActorFrameFixture actor_frames(ports, frame);
+        auto transition_request = request(0U);
+        transition_request.actor_frames = &actor_frames.context;
 
         const auto result = openswd3::battle::run_legacy_battle_transition(
             state,
@@ -481,7 +577,7 @@ void test_battle_transition(openswd3::test::Context& test) {
             ports,
             ports,
             frame.context,
-            request(0U)
+            transition_request
         );
 
         test.expect_true(
@@ -492,6 +588,7 @@ void test_battle_transition(openswd3::test::Context& test) {
                 result.frame_draw_calls == 2U &&
                 result.frame_effect_calls == 2U &&
                 result.hud_frame_calls == 2U &&
+                result.actor_frame_sequence_calls == 2U &&
                 ports.hud_requests.size() == 4U &&
                 result.entry_transition_frames == 34U &&
                 result.exit_transition_frames == 0U &&
