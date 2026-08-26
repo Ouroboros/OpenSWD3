@@ -44,6 +44,7 @@ struct LegacyBattleActionRotationCacheState {
     asset_runtime::LegacyActionRecord action_record{};
     std::array<compat::u32, 3> frame_owner_tokens{};
     std::array<rendering::LegacyFramePiece, 3> cached_frames{};
+    std::array<std::span<compat::u8>, 3> cached_mutable_images{};
     compat::u32 field_b4{};
     compat::u32 field_b8{};
     compat::u32 field_bc{};
@@ -77,6 +78,41 @@ struct LegacyBattleActionRotationCacheResult {
     compat::i32 rotation_shift{};
     std::array<compat::u16, 3> local_frame_slots{0xFFFFU, 0xFFFFU, 0xFFFFU};
     LegacyBattleImageRotationResult rotation{};
+};
+
+enum class LegacyBattleActionRotationPlaybackStatus : compat::u8 {
+    completed,
+    initial_action_update_stopped,
+    action_update_stopped,
+    frame_index_out_of_range,
+    cached_owner_invalid,
+    rotation_typed_stop,
+    blit_typed_stop,
+    action_loop_nonterminating,
+};
+
+struct LegacyBattleActionRotationPlaybackResult {
+    LegacyBattleActionRotationPlaybackStatus status{
+        LegacyBattleActionRotationPlaybackStatus::completed
+    };
+    compat::u32 action_update_calls{};
+    compat::u32 loop_iterations{};
+    compat::u32 rotation_calls{};
+    compat::u32 frame_draw_calls{};
+    compat::u32 skipped_cached_frames{};
+    compat::u32 wait_clear_calls{};
+    compat::u32 record_clear_calls{};
+    compat::u32 return_value{};
+    compat::u32 frame_index{};
+    compat::i32 rotation_shift{};
+    LegacyBattleImageRotationMode rotation_mode{
+        LegacyBattleImageRotationMode::pixels_right
+    };
+    std::array<compat::u16, 3> local_frame_slots{0xFFFFU, 0xFFFFU, 0xFFFFU};
+    LegacyBattleImageRotationResult rotation{};
+    rendering::LegacyBlitExecutionStatus blit_status{
+        rendering::LegacyBlitExecutionStatus::completed
+    };
 };
 
 enum class LegacyBattleActionRotationDrawStatus : compat::u8 {
@@ -126,5 +162,19 @@ draw_legacy_battle_action_rotation_frame(
     rendering::LegacyBlitEffectState& shared_effects,
     rendering::LegacyRleRowJitterState& jitter
 ) noexcept;
+
+// sub_4515E0: play unique cached frames with an optional cyclic rotation.
+[[nodiscard]] LegacyBattleActionRotationPlaybackResult
+play_legacy_battle_action_rotation_cache(
+    LegacyBattleActionRotationCacheState& state,
+    LegacyBattleActionRotationUpdatePort& update_port,
+    rendering::LegacyFramebuffer& framebuffer,
+    const rendering::LegacyBlitClipRectangle& clip,
+    rendering::LegacyBlitRequest& shared_request,
+    rendering::LegacyBlitEffectState& shared_effects,
+    rendering::LegacyRleRowJitterState& jitter,
+    compat::u32 unused_destination_snapshot,
+    compat::i32 rotation_amount
+);
 
 }  // namespace openswd3::battle

@@ -49,6 +49,8 @@ struct UpdateStep {
     u16 field_4a{};
     u16 field_4c{};
     u16 command_cursor{};
+    u16 wait_remaining{};
+    u16 wait_default{};
     u8 field_88{};
     u32 draw_offset_x{};
     u32 draw_offset_y{};
@@ -78,6 +80,8 @@ public:
         record.field_4a = step.field_4a;
         record.field_4c = step.field_4c;
         record.command_cursor = step.command_cursor;
+        record.wait_remaining = step.wait_remaining;
+        record.wait_default = step.wait_default;
         record.field_88 = step.field_88;
         record.draw_offset_x = step.draw_offset_x;
         record.draw_offset_y = step.draw_offset_y;
@@ -135,6 +139,59 @@ public:
     std::array<u8, openswd3::asset_runtime::kLegacyActionRecordSize> zero{};
     return std::memcmp(&record, zero.data(), zero.size()) == 0;
 }
+
+void install_cached_literal_frames(
+    openswd3::battle::LegacyBattleActionRotationCacheState& state,
+    MutableRotationFramePort& frames
+) {
+    for (std::size_t slot = 0; slot < frames.images.size(); ++slot) {
+        state.frame_owner_tokens[slot] = static_cast<u32>(0x100U + slot);
+        state.cached_mutable_images[slot] = frames.images[slot];
+        state.cached_frames[slot] = {
+            .source = {.bytes = frames.images[slot]},
+            .width = 12U,
+            .height = 1U,
+        };
+    }
+}
+
+struct RotationPlaybackFixture {
+    openswd3::battle::LegacyBattleActionRotationCacheState state;
+    MutableRotationFramePort frames;
+    openswd3::rendering::LegacyFramebuffer framebuffer{{
+        .pitch_bytes = 160,
+        .width = 80,
+        .height = 60,
+    }};
+    openswd3::rendering::LegacyBlitRequest request;
+    openswd3::rendering::LegacyBlitEffectState effects;
+    openswd3::rendering::LegacyRleRowJitterState jitter;
+
+    RotationPlaybackFixture() {
+        state.stored_action_id = 0x1234U;
+        state.field_b4 = 20U;
+        state.field_b8 = 20U;
+        install_cached_literal_frames(state, frames);
+    }
+
+    [[nodiscard]] openswd3::battle::LegacyBattleActionRotationPlaybackResult
+    play(
+        ScriptedRotationUpdatePort& updater,
+        const openswd3::compat::i32 rotation_amount
+    ) {
+        return openswd3::battle::play_legacy_battle_action_rotation_cache(
+            state,
+            updater,
+            framebuffer,
+            {.left = 0, .top = 0, .width = 80, .height = 60},
+            request,
+            effects,
+            jitter,
+            0xDEADBEEFU,
+            rotation_amount
+        );
+    }
+};
 
 }  // namespace
 
@@ -735,6 +792,320 @@ void test_battle_action_rotation_cache(openswd3::test::Context& test) {
                 request.horizontal_resample_displacement == 7 &&
                 result.return_value == 0U,
             "fixed empty tail stops indexed cache before suffix clear and field return"
+        );
+    }
+
+    {
+        RotationPlaybackFixture fixture;
+        fixture.state.stored_action_id = 0U;
+        fixture.state.action_record.field_24 = 0xDEADBEEFU;
+        ScriptedRotationUpdatePort updater{{UpdateStep{.eax = 1U}}};
+        const auto result = fixture.play(updater, 1);
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleActionRotationPlaybackStatus::
+                        completed &&
+                result.return_value == 0U && result.action_update_calls == 0U &&
+                result.record_clear_calls == 0U && updater.calls == 0U &&
+                fixture.state.action_record.field_24 == 0xDEADBEEFU,
+            "zero stored action returns zero before mandatory clear and update"
+        );
+    }
+
+    {
+        RotationPlaybackFixture fixture;
+        ScriptedRotationUpdatePort updater{
+            {
+                UpdateStep{
+                    .field_4c = 0U,
+                    .command_cursor = 1U,
+                    .wait_remaining = 7U,
+                    .wait_default = 8U,
+                    .eax = 1U,
+                    .domain_token = 1U,
+                },
+                UpdateStep{
+                    .field_4c = 1U,
+                    .command_cursor = 0U,
+                    .wait_remaining = 9U,
+                    .wait_default = 10U,
+                    .eax = 1U,
+                    .domain_token = 2U,
+                },
+            },
+        };
+        const auto result = fixture.play(updater, 1);
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleActionRotationPlaybackStatus::
+                        completed &&
+                result.return_value == 1U && result.action_update_calls == 2U &&
+                result.loop_iterations == 2U && result.rotation_calls == 2U &&
+                result.frame_draw_calls == 2U &&
+                result.wait_clear_calls == 2U &&
+                result.record_clear_calls == 2U &&
+                result.local_frame_slots ==
+                    std::array<u16, 3>{0U, 1U, 0xFFFFU} &&
+                result.rotation_mode ==
+                    openswd3::battle::LegacyBattleImageRotationMode::
+                        pixels_right &&
+                result.rotation_shift == 1 &&
+                action_record_is_zero(fixture.state.action_record) &&
+                read_word(fixture.frames.images[0U], 12U) == 12U &&
+                read_word(fixture.frames.images[1U], 12U) == 12U,
+            "positive rotation plays each unique frame clears waits and returns one"
+        );
+    }
+
+    {
+        RotationPlaybackFixture fixture;
+        ScriptedRotationUpdatePort updater{{UpdateStep{
+            .field_4c = 0U,
+            .command_cursor = 0U,
+            .eax = 1U,
+            .domain_token = 1U,
+        }}};
+        const auto result = fixture.play(updater, -1);
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleActionRotationPlaybackStatus::
+                        completed &&
+                result.rotation_mode ==
+                    openswd3::battle::LegacyBattleImageRotationMode::
+                        pixels_left &&
+                result.rotation_shift == 1 && result.rotation_calls == 1U &&
+                read_word(fixture.frames.images[0U], 12U) == 2U,
+            "negative rotation uses low thirty-two bit negation and left mode"
+        );
+    }
+
+    {
+        RotationPlaybackFixture fixture;
+        ScriptedRotationUpdatePort updater{
+            {
+                UpdateStep{
+                    .field_4c = 0U,
+                    .command_cursor = 1U,
+                    .wait_remaining = 3U,
+                    .wait_default = 4U,
+                    .eax = 1U,
+                    .domain_token = 1U,
+                },
+                UpdateStep{
+                    .field_4c = 0U,
+                    .command_cursor = 0U,
+                    .wait_remaining = 5U,
+                    .wait_default = 6U,
+                    .eax = 1U,
+                    .domain_token = 2U,
+                },
+            },
+        };
+        const auto result = fixture.play(updater, 0);
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleActionRotationPlaybackStatus::
+                        completed &&
+                result.rotation_calls == 0U && result.frame_draw_calls == 1U &&
+                result.skipped_cached_frames == 1U &&
+                result.wait_clear_calls == 2U &&
+                read_word(fixture.frames.images[0U], 12U) == 1U,
+            "zero rotation skips callee and repeated frame still clears waits"
+        );
+    }
+
+    {
+        RotationPlaybackFixture fixture;
+        fixture.state.action_record.field_24 = 0xFFFFFFFFU;
+        ScriptedRotationUpdatePort updater{{UpdateStep{
+            .field_4c = 0U,
+            .command_cursor = 1U,
+            .wait_remaining = 11U,
+            .wait_default = 12U,
+            .eax = 0U,
+            .domain_token = 1U,
+        }}};
+        const auto result = fixture.play(updater, 0);
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleActionRotationPlaybackStatus::
+                        initial_action_update_stopped &&
+                result.return_value == 0U && result.record_clear_calls == 1U &&
+                result.loop_iterations == 0U &&
+                fixture.state.action_record.field_24 == 0U &&
+                fixture.state.action_record.field_4c == 0U &&
+                fixture.state.action_record.wait_remaining == 11U,
+            "initial update failure preserves prefix after mandatory entry clear"
+        );
+    }
+
+    {
+        RotationPlaybackFixture fixture;
+        ScriptedRotationUpdatePort updater{
+            {
+                UpdateStep{
+                    .field_4c = 0U,
+                    .command_cursor = 1U,
+                    .wait_remaining = 3U,
+                    .wait_default = 4U,
+                    .eax = 1U,
+                    .domain_token = 1U,
+                },
+                UpdateStep{
+                    .field_4c = 1U,
+                    .command_cursor = 1U,
+                    .wait_remaining = 9U,
+                    .wait_default = 10U,
+                    .eax = 0U,
+                    .domain_token = 2U,
+                },
+            },
+        };
+        const auto result = fixture.play(updater, 0);
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleActionRotationPlaybackStatus::
+                        action_update_stopped &&
+                result.return_value == 0U && result.frame_draw_calls == 1U &&
+                result.wait_clear_calls == 1U &&
+                result.record_clear_calls == 1U &&
+                fixture.state.action_record.field_4c == 1U &&
+                fixture.state.action_record.wait_remaining == 9U,
+            "later update failure preserves next update record after prior wait clear"
+        );
+    }
+
+    {
+        RotationPlaybackFixture fixture;
+        ScriptedRotationUpdatePort updater{{UpdateStep{
+            .field_4c = 3U,
+            .command_cursor = 0U,
+            .eax = 1U,
+            .domain_token = 1U,
+        }}};
+        const auto result = fixture.play(updater, 0);
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleActionRotationPlaybackStatus::
+                        frame_index_out_of_range &&
+                result.frame_draw_calls == 0U && result.wait_clear_calls == 0U,
+            "frame index three stops at first local slot access"
+        );
+    }
+
+    {
+        RotationPlaybackFixture fixture;
+        fixture.state.frame_owner_tokens[0U] = 0U;
+        ScriptedRotationUpdatePort updater{{UpdateStep{
+            .field_4c = 0U,
+            .command_cursor = 0U,
+            .eax = 1U,
+            .domain_token = 1U,
+        }}};
+        const auto result = fixture.play(updater, 0);
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleActionRotationPlaybackStatus::
+                        cached_owner_invalid &&
+                result.local_frame_slots[0U] == 0U &&
+                result.frame_draw_calls == 0U && result.wait_clear_calls == 0U,
+            "zero rotation null owner stops after local slot before source draw"
+        );
+    }
+
+    {
+        RotationPlaybackFixture fixture;
+        fixture.frames.images[0U] = {0xFFU, 0xFFU};
+        fixture.state.cached_mutable_images[0U] = fixture.frames.images[0U];
+        fixture.state.cached_frames[0U].source.bytes =
+            fixture.frames.images[0U];
+        ScriptedRotationUpdatePort updater{{UpdateStep{
+            .field_4c = 0U,
+            .command_cursor = 0U,
+            .eax = 1U,
+            .domain_token = 1U,
+        }}};
+        const auto result = fixture.play(updater, 1);
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleActionRotationPlaybackStatus::
+                        rotation_typed_stop &&
+                result.rotation.status ==
+                    openswd3::battle::LegacyBattleImageRotationStatus::
+                        header_read_out_of_range &&
+                result.frame_draw_calls == 0U &&
+                result.wait_clear_calls == 0U &&
+                result.local_frame_slots[0U] == 0U,
+            "rotation unsafe read stops after local slot and before draw or waits"
+        );
+    }
+
+    {
+        RotationPlaybackFixture fixture;
+        std::vector<u8> indices(12U, 1U);
+        std::array<u16, 2> palette{0U, 0x1234U};
+        fixture.state.cached_frames[0U] = {
+            .source =
+                {
+                    .bytes = indices,
+                    .layout =
+                        openswd3::rendering::LegacyBlitSourceLayout::indexed_8,
+                    .palette = palette,
+                },
+            .width = 12U,
+            .height = 1U,
+        };
+        ScriptedRotationUpdatePort updater{{UpdateStep{
+            .field_4c = 0U,
+            .command_cursor = 0U,
+            .wait_remaining = 7U,
+            .wait_default = 8U,
+            .eax = 1U,
+            .domain_token = 1U,
+        }}};
+        const auto result = fixture.play(updater, 0);
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleActionRotationPlaybackStatus::
+                        blit_typed_stop &&
+                result.blit_status ==
+                    openswd3::rendering::LegacyBlitExecutionStatus::
+                        palette_out_of_bounds &&
+                result.frame_draw_calls == 1U &&
+                result.wait_clear_calls == 0U &&
+                fixture.state.action_record.wait_remaining == 7U,
+            "fixed empty tail indexed stop preserves wait words and blocks completion"
+        );
+    }
+
+    {
+        RotationPlaybackFixture fixture;
+        ScriptedRotationUpdatePort updater{
+            {
+                UpdateStep{
+                    .field_4c = 0U,
+                    .command_cursor = 1U,
+                    .eax = 1U,
+                    .domain_token = 9U,
+                },
+                UpdateStep{
+                    .field_4c = 0U,
+                    .command_cursor = 1U,
+                    .eax = 1U,
+                    .domain_token = 9U,
+                },
+            },
+        };
+        const auto result = fixture.play(updater, 0);
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleActionRotationPlaybackStatus::
+                        action_loop_nonterminating &&
+                result.action_update_calls == 3U &&
+                result.loop_iterations == 2U && result.frame_draw_calls == 1U &&
+                result.skipped_cached_frames == 1U &&
+                result.wait_clear_calls == 2U,
+            "full playback state repeats only after draw skip waits and updates"
         );
     }
 }

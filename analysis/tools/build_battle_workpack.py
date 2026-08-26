@@ -196,6 +196,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-action-rotation-frame-draw-00451540.md",
     ),
+    "0x004515E0": (
+        "platform_adapted",
+        "evidence/battle-action-rotation-playback-004515e0.md",
+    ),
 }
 
 
