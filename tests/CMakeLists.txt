@@ -274,6 +274,7 @@ add_executable(
     unit/battle/legacy_battle_hud_frame_test.cpp
     unit/battle/legacy_battle_intensity_effect_frame_test.cpp
     unit/battle/legacy_battle_object_reset_test.cpp
+    unit/battle/legacy_battle_party_item_order_test.cpp
     unit/battle/legacy_battle_player_item_order_test.cpp
     unit/battle/legacy_battle_player_item_quantity_test.cpp
     unit/battle/legacy_battle_post_action_test.cpp

@@ -418,6 +418,15 @@ void test_battle_startup(openswd3::test::Context& test) {
         low_item.legacy_token = 0x006000B0U;
         low_item.item_id = 3U;
         low_item.selected_count = 4U;
+        auto& party_items = *player_items.party_item_lists[0U];
+        party_items.sentinel.legacy_next_token = 0x00610000U;
+        auto& high_party_item = party_items.nodes.emplace_back();
+        high_party_item.legacy_token = 0x00610000U;
+        high_party_item.legacy_next_token = 0x006100B0U;
+        high_party_item.item_id = 8U;
+        auto& low_party_item = party_items.nodes.emplace_back();
+        low_party_item.legacy_token = 0x006100B0U;
+        low_party_item.item_id = 2U;
 
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
             state, ports, ports, ports, ports, ports, ports, request(7U)
@@ -446,8 +455,11 @@ void test_battle_startup(openswd3::test::Context& test) {
                 player_items.player_inventory.back().item_id == 9U &&
                 player_items.player_inventory.front().selected_count == 0U &&
                 player_items.player_inventory.back().selected_count == 0U &&
-                ports.call_count(LegacyBattleStartupCall::post_party_phase_b) ==
-                    1U &&
+                result.party_item_order.swaps == 1U &&
+                result.party_item_order.comparisons == 2U &&
+                party_items.sentinel.legacy_next_token == 0x006100B0U &&
+                party_items.nodes.front().item_id == 2U &&
+                party_items.nodes.back().item_id == 8U &&
                 state.party[0].role_id == 101U &&
                 state.party[0].position_x == 150U &&
                 state.party[0].position_y == 275U &&
@@ -617,9 +629,34 @@ void test_battle_startup(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattlePlayerItemOrderStatus::
                         item_node_typed_stop &&
                 result.player_item_order.fault_token == 0x00700000U &&
-                ports.call_count(LegacyBattleStartupCall::post_party_phase_b) ==
-                    0U,
-            "player-item order typed stop blocks the second pending global startup phase"
+                result.party_item_order.lists_visited == 0U,
+            "player-item order typed stop blocks party-item sorting and later startup phases"
+        );
+    }
+
+    {
+        LegacyBattleStartupState state;
+        StartupPorts ports;
+        ports.query_values = {{30U, 1U}};
+        ports.definition.enemy_count = 1U;
+        ports.random_values = {0U};
+        ports.world_item_list_state().party_item_lists[0U].reset();
+        const auto result = openswd3::battle::initialize_legacy_battle_startup(
+            state, ports, ports, ports, ports, ports, ports, request(21U)
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleStartupStatus::
+                        party_item_order_typed_stop &&
+                result.party_item_order.status ==
+                    openswd3::battle::LegacyBattlePartyItemOrderStatus::
+                        list_root_typed_stop &&
+                result.party_item_order.fault_list_index == 0U &&
+                result.initial_party_actor_count == 1U &&
+                ports.call_count(
+                    LegacyBattleStartupCall::apply_party_profile
+                ) == 0U,
+            "party-item root typed stop blocks profile binding after preserving actor configuration"
         );
     }
 

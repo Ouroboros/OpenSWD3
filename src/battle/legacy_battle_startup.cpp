@@ -579,9 +579,14 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         result.status = LegacyBattleStartupStatus::player_item_order_typed_stop;
         return result;
     }
-    static_cast<void>(
-        invoke(port, LegacyBattleStartupCall::post_party_phase_b)
+    result.party_item_order = order_legacy_battle_party_item_lists(
+        port.world_item_list_state(), result.player_item_order.return_eax
     );
+    if (result.party_item_order.status !=
+        LegacyBattlePartyItemOrderStatus::completed) {
+        result.status = LegacyBattleStartupStatus::party_item_order_typed_stop;
+        return result;
+    }
 
     for (u32 index = 0U; index < state.party_count; ++index) {
         if (index >= kLegacyBattleActorGroupAElementCount ||
