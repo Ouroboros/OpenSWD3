@@ -21,6 +21,7 @@
 #include <vector>
 
 void test_battle_action_rotation_cache(openswd3::test::Context& test);
+void test_battle_action_dispatch(openswd3::test::Context& test);
 void test_battle_actor_lifecycle(openswd3::test::Context& test);
 void test_battle_background_initialization(openswd3::test::Context& test);
 void test_battle_frame_coordinator(openswd3::test::Context& test);
@@ -6939,6 +6940,7 @@ int main() {
     test_battle_action_frame_draw(test);
     test_battle_action_record_clear(test);
     test_battle_action_rotation_cache(test);
+    test_battle_action_dispatch(test);
     test_battle_actor_lifecycle(test);
     test_battle_background_initialization(test);
     test_battle_frame_coordinator(test);

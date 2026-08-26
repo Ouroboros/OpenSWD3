@@ -1,6 +1,7 @@
 add_library(
     openswd3_battle
     STATIC
+        legacy_battle_action_dispatch.cpp
         legacy_battle_action_frame_draw.cpp
         legacy_battle_action_rotation_cache.cpp
         legacy_battle_actor_lifecycle.cpp
