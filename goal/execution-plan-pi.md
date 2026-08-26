@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v730
+版本：v731
 
 最后更新：2026-08-25
 
@@ -3935,4 +3935,6 @@ B7 P0 有限收口完成。
 - 模块10战斗八槽效果记录帧协调器`0x004582B0`完成。完整权威LST主体`0x004582B0..0x00458DDA`共1257行、65个静态call站点、64个局部标签，无外部FUNCTION CHUNK。实现恢复主/备用双152字节记录、两类animation counter、主初始化失败清备用记录、主镜像宽度保留参数token陈旧高word、两组sample pan callee高word、resource value/owner释放差异、signed status、三行奖励、pending和final gate。备用resource owner为零时，严格保留play sample、set pan和pan清零后在首次owner解引用typed-stop；最终EDX按alternate-active、最后callee、active槽物理地址或辅助奖励signed扩展更新。测试覆盖slot/owner/argument停点、主/备用完整资源路径、两类动画、同调用碰撞穿透、状态位、9999奖励夹值、packed高word、pending EDX及final失败；定向`1/1`、独立ASan`1/1`、Linux core`188/188`和Linux app`194/194`通过。工作包连续双跑逐字节一致，稳定为`65/422`，即`60 platform_adapted + 5 assembly_exact + 357 pending_audit`，SHA256为`15fcdaafd791221f24d15b6a84e16bafe69a1b5767d78e6c38668920b2052b60`。原版双记录内存、32类callee共享副作用、resource owner、参数对象、随机、sample、奖励输出及陈旧寄存器联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 - 模块10战斗群体效果记录帧协调器`0x00458DE0`完成。完整权威LST主体`0x00458DE0..0x004599AF`共1350行、71个静态call站点、80个局部标签，无外部FUNCTION CHUNK。实现恢复第二套八槽双记录、主sample先于owner首读、双offset AND门、四类镜像坐标、collision固定双Y与slot零、备用清主pan而保留自身pan、群体A/B状态发布、三套奖励路径和两次final gate。组A保留双guard、reward gate、special mode、逐角色offset重置、数组清零及汇总EAX/ECX陈旧高word；组B保留跨角色累计offset；单体路径独立消费旧辅助/高位行。测试覆盖slot/init/owner/argument停点、主/备用资源、状态选择、18角色边界、组A汇总、组B负基础奖励累计offset、单体奖励与双final寄存器；定向`1/1`、独立ASan`1/1`、Linux core`188/188`和Linux app`194/194`通过。工作包连续双跑逐字节一致，稳定为`66/422`，即`61 platform_adapted + 5 assembly_exact + 356 pending_audit`，SHA256为`c8621371690b5a7df477b7c24ab625c6ea44d2952af40988150797a55937551a`。原版双记录、18角色、24类callee共享副作用、resource owner、参数对象、sample、eligibility/reward表、奖励行对象及陈旧寄存器联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=67`的`0x004599B0`，必须从完整权威LST主体和所有外部FUNCTION CHUNK独立审计单条效果记录绘制、sample pan、资源释放和完成后主记录清零。
+- 模块10战斗单条效果记录帧`0x004599B0`完成。完整权威LST主体`0x004599B0..0x00459BE9`共269行、10个静态call站点、14个局部标签，无外部FUNCTION CHUNK。实现恢复signed status前缀、主record source/mode初始化、初始化失败清备用record、owner首次解引用、offset低word双AND门、镜像base offset、X完整减法与Y低word减法、sample参数坐标高word、左右pan保留play ECX/EDX高word、owner data token绘制、条件value释放、owner内部value清零和complete尾。唯一caller组B帧已删除`0x004599B0` opaque token并直接组合typed子状态，pending ID只在子返回1时清全1，typed-stop和port计数直接传播。测试覆盖slot、signed前缀、初始化失败、owner停点、镜像、坐标fallback/叠加、左右声像、data token、value零/非零释放和caller直连；定向`1/1`、独立ASan`1/1`、Linux core`188/188`和Linux app`194/194`通过。工作包连续双跑逐字节一致，稳定为`67/422`，即`62 platform_adapted + 5 assembly_exact + 355 pending_audit`，SHA256为`27859a515c2f6e90d8b520404f2c2baf2ecddcd6429d19a72b33d38bd99b1389`。原版主/备用record、9类callee共享副作用、resource owner内部槽、actor坐标、sample manager、framebuffer及陈旧寄存器联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=68`的`0x00459BF0`，必须从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗效果帧函数。

@@ -30,6 +30,7 @@ struct LegacyBattleActionCallReply {
     compat::u32 eax{};
     compat::u32 ecx{};
     compat::u32 edx{};
+    std::array<compat::u32, 8> outputs{};
     bool publish_accumulator{};
     compat::u32 accumulator{};
     bool publish_selection_word{};
@@ -187,6 +188,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     status_indicator_typed_stop,
     scale_scan_typed_stop,
     internal_flag_typed_stop,
+    effect_record_typed_stop,
 };
 
 struct LegacyBattleActionDispatchResult {

@@ -525,10 +525,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         LegacyBattleGroupBFrameState state;
         state.pending_effect_ids[1] = 7U;
         state.pending_effect_argument = 0x66U;
+        state.pending_effect_frame.primary[1].complete = 1U;
+        state.pending_effect_frame.primary[1].source_value = 0x77U;
         state.shared.action.group_a_to_actor[1] = 5U;
         Fixture fixture;
         DispatchPort port;
-        port.push(0x004599B0U, {.eax = 1U});
         port.push(0x0045AA00U, {.eax = 1U});
         auto context = fixture.context();
         const auto result =
@@ -538,8 +539,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.return_value == 1U &&
                 state.pending_effect_ids[1] == 0xFFFFFFFFU &&
-                has_call_argument(port, 0x004599B0U, 1U, 0x66U) &&
-                has_call_argument(port, 0x004599B0U, 2U, 1U) &&
+                state.pending_effect_frame.primary[1].source_value == 0U &&
+                port.count(0x004599B0U) == 0U &&
                 state.final_actor_state[1] == 0U &&
                 state.final_actor_targets[1] == 0xFFFFFFFFU &&
                 state.shared.queued_selection_word == 0xFFFFU,

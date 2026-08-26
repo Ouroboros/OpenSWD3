@@ -58,7 +58,6 @@ constexpr u32 kCallSetCompletionMode = 0x0047CEC0U;
 constexpr u32 kCallPrepareCompletionSurface = 0x0047F150U;
 constexpr u32 kCallQueryEffect = 0x004786D0U;
 constexpr u32 kCallPublishEffectMode = 0x00478B60U;
-constexpr u32 kCallPendingEffectStep = 0x004599B0U;
 constexpr u32 kCallFinalActorStep = 0x0045AA00U;
 
 [[nodiscard]] constexpr u32 to_bits(const i32 value) noexcept {
@@ -131,6 +130,33 @@ void replace_low_byte(u32& destination, const u8 value) noexcept {
     ++result.port_calls;
     return port.invoke(request);
 }
+
+class SingleEffectPortAdapter final : public LegacyBattleEffectCallPort {
+public:
+    explicit SingleEffectPortAdapter(LegacyBattleActionDispatchPort& port)
+        : port_(port) {}
+
+    [[nodiscard]] LegacyBattleEffectCallReply
+    invoke(const LegacyBattleEffectCallRequest& request) override {
+        LegacyBattleActionCallRequest action_request{};
+        action_request.callee_token = request.callee_token;
+        std::copy_n(
+            request.arguments.begin(),
+            action_request.arguments.size(),
+            action_request.arguments.begin()
+        );
+        const auto reply = port_.invoke(action_request);
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .outputs = reply.outputs,
+        };
+    }
+
+private:
+    LegacyBattleActionDispatchPort& port_;
+};
 
 void merge_nested(
     LegacyBattleActionDispatchResult& result,
@@ -1115,15 +1141,25 @@ action_decision_done:
         {source_token, effect_mode ? 1U : 0U}
     ));
 
-    if (state.pending_effect_ids[group_b_index] != 0xFFFFFFFFU &&
-        invoke(
-            port,
-            result,
-            kCallPendingEffectStep,
-            {source_token, state.pending_effect_argument, group_b_index}
-        )
-                .eax == 1U) {
-        state.pending_effect_ids[group_b_index] = 0xFFFFFFFFU;
+    if (state.pending_effect_ids[group_b_index] != 0xFFFFFFFFU) {
+        SingleEffectPortAdapter effect_port(port);
+        const auto effect = advance_legacy_battle_single_effect_frame(
+            state.pending_effect_frame,
+            effect_port,
+            source_token,
+            state.pending_effect_argument,
+            group_b_index
+        );
+        result.port_calls += effect.port_calls;
+        if (effect.status != LegacyBattleSingleEffectFrameStatus::completed) {
+            result.status =
+                LegacyBattleActionDispatchStatus::effect_record_typed_stop;
+            result.return_value = effect.return_value;
+            return result;
+        }
+        if (effect.return_value == 1U) {
+            state.pending_effect_ids[group_b_index] = 0xFFFFFFFFU;
+        }
     }
 
     const u32 mapped_actor = action.group_a_to_actor[group_b_index];

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_group_a_frame.hpp"
+#include "openswd3/battle/legacy_battle_single_effect_frame.hpp"
 
 #include <array>
 #include <span>
@@ -45,6 +46,7 @@ struct LegacyBattleGroupBFrameState {
 
     std::array<compat::u32, 8> pending_effect_ids{};
     compat::u32 pending_effect_argument{};
+    LegacyBattleSingleEffectFrameState pending_effect_frame{};
     std::array<compat::u32, 8> final_actor_state{};
     std::array<compat::u32, 8> final_actor_targets{};
     compat::u32 final_gate{};

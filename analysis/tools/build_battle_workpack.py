@@ -300,6 +300,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-group-effect-frame-00458de0.md",
     ),
+    "0x004599B0": (
+        "platform_adapted",
+        "evidence/battle-single-effect-frame-004599b0.md",
+    ),
 }
 
 
