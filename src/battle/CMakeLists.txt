@@ -22,6 +22,7 @@ add_library(
         legacy_battle_status_indicator.cpp
         legacy_battle_startup.cpp
         legacy_battle_timing.cpp
+        legacy_battle_transition.cpp
         legacy_battle_vertical_panel.cpp
 )
 target_include_directories(
