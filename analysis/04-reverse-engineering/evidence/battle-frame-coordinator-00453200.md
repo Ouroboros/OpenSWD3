@@ -146,8 +146,10 @@ bit未置位后：
 
 - 独立可选门dword不等于1时执行一个stage；
 - 再固定执行两个stage；
-- signed计数小于等于0且overlay latch不等于1时，以`24,24,24,0,0,0,8`调用创建callee，并把overlay latch写0；
+- 共享颜色计数小于等于0且overlay latch不等于1时，以`24,24,24,0,0,0,8`调用创建callee，并把overlay latch写0；
 - 固定以参数1调用finalize callee。
+
+finalize之后直接调用已关闭三通道颜色累加：固定递减请求，按共享九float与计数执行step零门、`current += step`或`step = target`、x87向零转换，并只调整framebuffer前`0x3C000`像素。overlay门与颜色累加读取同一typed计数；颜色framebuffer失败阻断surface与截图尾。
 
 随后：
 
@@ -177,7 +179,7 @@ bit未置位后：
 - `0x0045337F..0x00453431`：选中动作记录、双映射、九宫格、角色对象和独立帧；
 - `0x00453434..0x00453482`：ECX低word、四stage、三类跨模块队列、两倒计时；
 - `0x00453485..0x00453490`：内部bit与返回3；
-- `0x00453491..0x00453514`：可选/固定stage、overlay与surface分支；
+- `0x00453491..0x00453514`：可选/固定stage、overlay、三通道颜色累加直连与surface分支；
 - `0x00453514..0x00453570`：截图word、路径、BMP写入、请求清零和活动返回。
 
 C++到LST反向追溯覆盖完整412行、44个静态call站点和18个标签。
@@ -194,10 +196,11 @@ C++到LST反向追溯覆盖完整412行、44个静态call站点和18个标签。
 - 固定帧直连、ECX高字/低word组合；
 - packed-row、头像、空对话与双倒计时直连；
 - 内部bit 17返回3及缺失bit表真实访问typed-stop；
+- 三通道颜色累加、共享计数递减与`0x3C000`前缀；
 - 临时surface路径、零token typed-stop和alternate门；
 - 截图计数word回绕、路径、writer调用与请求清零；
 - 面板动作更新、双映射、九宫格、角色组A token、独立动作帧和第三类ECX snapshot；
 - 映射缺失发生在面板动作更新副作用之后；
 - battle聚合目标零warning，普通定向通过。
 
-当前没有原版44个callee、共享选择/队列/对话/倒计时状态、DirectDraw target surface、内部bit表、寄存器snapshot与BMP文件联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前没有原版剩余战斗callee、共享选择/队列/对话/倒计时状态、九float与计数、DirectDraw target surface、内部bit表、寄存器snapshot与BMP文件联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

@@ -17,6 +17,7 @@ add_library(
         legacy_battle_file_lifecycle.cpp
         legacy_battle_final_actor_step.cpp
         legacy_battle_border_panel.cpp
+        legacy_battle_color_accumulation.cpp
         legacy_battle_color_fade.cpp
         legacy_battle_directional_scan.cpp
         legacy_battle_frame_coordinator.cpp

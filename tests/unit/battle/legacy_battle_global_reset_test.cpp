@@ -174,6 +174,18 @@ void seed_state(
     startup.enemy_count = 8U;
     startup.party_count = 10U;
 
+    auto& color = port.battle_color_accumulation_state();
+    color.countdown = 9;
+    color.current_red = 9.0F;
+    color.current_green = 9.0F;
+    color.current_blue = 9.0F;
+    color.target_red = 9.0F;
+    color.target_green = 9.0F;
+    color.target_blue = 9.0F;
+    color.step_red = 9.0F;
+    color.step_green = 9.0F;
+    color.step_blue = 9.0F;
+
     auto& metrics = port.actor_metric_state();
     metrics.values.fill(9);
     metrics.actor_order.fill(9U);
@@ -306,6 +318,25 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 metrics.group_b_count == 0U && metrics.group_a_count == 0U &&
                 metrics.priority_actor_index == 0U,
             "metric order mask counts and priority aliases clear while the untouched group-B order remains"
+        );
+        const auto& color = port.battle_color_accumulation_state();
+        test.expect_true(
+            color.countdown == 0 && color.current_red == 0.0F &&
+                color.current_green == 0.0F && color.current_blue == 0.0F &&
+                color.target_red == 0.0F && color.target_green == 0.0F &&
+                color.target_blue == 0.0F && color.step_red == 0.0F &&
+                color.step_green == 0.0F && color.step_blue == 0.0F &&
+                state.unmapped_bytes.contains(0x004FDF8CU) == false &&
+                state.unmapped_bytes.contains(0x004FDFA4U) == false &&
+                state.unmapped_bytes.contains(0x00520D58U) == false &&
+                state.unmapped_bytes.contains(0x00520FB8U) == false &&
+                state.unmapped_bytes.contains(0x00521388U) == false &&
+                state.unmapped_bytes.contains(0x00521394U) == false &&
+                state.unmapped_bytes.contains(0x0052151CU) == false &&
+                state.unmapped_bytes.contains(0x00525430U) == false &&
+                state.unmapped_bytes.contains(0x00525448U) == false &&
+                state.unmapped_bytes.contains(0x00525468U) == false,
+            "global reset clears the unique battle color accumulation state without unmapped duplicate bytes"
         );
         const auto& shift = port.effect_shift_state();
         test.expect_true(

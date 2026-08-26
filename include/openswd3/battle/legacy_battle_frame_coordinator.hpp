@@ -6,6 +6,7 @@
 #include "openswd3/battle/legacy_battle_actor_priority.hpp"
 #include "openswd3/battle/legacy_battle_actor_frame_sequence.hpp"
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
+#include "openswd3/battle/legacy_battle_color_accumulation.hpp"
 #include "openswd3/battle/legacy_battle_effect_coordinator.hpp"
 #include "openswd3/battle/legacy_battle_frame_effect.hpp"
 #include "openswd3/battle/legacy_battle_transition.hpp"
@@ -95,6 +96,7 @@ struct LegacyBattleFrameCoordinatorCallReply {
 class LegacyBattleFrameCoordinatorPort
     : public LegacyBattleHudCallPort,
       public LegacyBattleEffectCallPort,
+      public virtual LegacyBattleColorAccumulationStatePort,
       public virtual LegacyBattleEffectCoordinatorStatePort {
 public:
     using LegacyBattleEffectCallPort::invoke;
@@ -135,7 +137,6 @@ struct LegacyBattleFrameCoordinatorState {
     compat::u32 conditional_submode{};
     compat::u32 ui_state{};
     compat::u32 special_panel_suppression{};
-    compat::i32 signed_counter{};
     compat::u32 overlay_latch{};
     compat::u32 optional_post_input_gate{};
     compat::u32 special_surface_gate{};
@@ -210,6 +211,7 @@ enum class LegacyBattleFrameCoordinatorStatus : compat::u8 {
     input_return_three,
     temporary_surface_typed_stop,
     hud_typed_stop,
+    color_accumulation_typed_stop,
 };
 
 struct LegacyBattleFrameCoordinatorResult {
@@ -247,6 +249,8 @@ struct LegacyBattleFrameCoordinatorResult {
     std::array<rendering::LegacyCountdownDisplayResult, 2> countdowns{};
     compat::u32 countdown_calls{};
     compat::u32 input_queries{};
+    rendering::LegacyFrameColorTransitionResult color_accumulation{};
+    compat::u32 color_accumulation_calls{};
     compat::u32 temporary_surface_calls{};
     compat::u32 surface_operation_calls{};
     rendering::LegacyBmpWriteResult screenshot{};

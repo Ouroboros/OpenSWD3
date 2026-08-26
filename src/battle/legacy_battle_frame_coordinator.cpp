@@ -490,7 +490,8 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
     static_cast<void>(invoke(
         port, result, LegacyBattleFrameCoordinatorCall::post_input_stage_1
     ));
-    if (state.signed_counter <= 0 && state.overlay_latch != 1U) {
+    if (port.battle_color_accumulation_state().countdown <= 0 &&
+        state.overlay_latch != 1U) {
         static_cast<void>(invoke(
             port,
             result,
@@ -502,6 +503,20 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
     static_cast<void>(invoke(
         port, result, LegacyBattleFrameCoordinatorCall::finalize_overlay, {1U}
     ));
+
+    result.color_accumulation = update_legacy_battle_color_accumulation(
+        port.battle_color_accumulation_state(),
+        true,
+        context.frame_zero.framebuffer,
+        context.pixel_conversion
+    );
+    ++result.color_accumulation_calls;
+    if (result.color_accumulation.status ==
+        rendering::LegacyFrameColorTransitionStatus::framebuffer_failed) {
+        result.status =
+            LegacyBattleFrameCoordinatorStatus::color_accumulation_typed_stop;
+        return result;
+    }
 
     if (state.special_surface_gate == 1U &&
         (state.mode_flags & 0x00000100U) == 0U) {

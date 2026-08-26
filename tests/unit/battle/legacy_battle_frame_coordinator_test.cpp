@@ -736,13 +736,15 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         state.optional_post_input_gate = 1U;
-        state.signed_counter = 1;
         state.special_surface_gate = 1U;
         state.screenshot_request = 1U;
         state.screenshot_counter = 0xFFFFU;
         Fixture fixture;
         CoordinatorPort port;
         configure_common_port(port);
+        auto& color = port.battle_color_accumulation_state();
+        color.countdown = 1;
+        color.step_red = 1.0F;
         auto context = fixture.context();
 
         const auto result =
@@ -755,6 +757,14 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleFrameCoordinatorStatus::
                         completed &&
                 result.return_value == 1U &&
+                result.color_accumulation_calls == 1U &&
+                result.color_accumulation.status ==
+                    openswd3::rendering::LegacyFrameColorTransitionStatus::
+                        completed &&
+                result.color_accumulation.countdown_decremented &&
+                result.color_accumulation.current_values_advanced &&
+                result.color_accumulation.applied_red == 1 &&
+                color.countdown == 0 && color.current_red == 1.0F &&
                 result.temporary_surface_calls == 1U &&
                 result.surface_operation_calls == 1U &&
                 port.surface_creates ==
