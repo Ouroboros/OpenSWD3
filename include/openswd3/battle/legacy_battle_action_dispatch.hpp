@@ -9,6 +9,7 @@
 #include "openswd3/battle/legacy_battle_group_b_order.hpp"
 #include "openswd3/battle/legacy_battle_player_item_quantity.hpp"
 #include "openswd3/battle/legacy_battle_scale_scan.hpp"
+#include "openswd3/battle/legacy_battle_shared_phase.hpp"
 #include "openswd3/battle/legacy_battle_status_indicator.hpp"
 #include "openswd3/compat/types.hpp"
 #include "openswd3/rendering/legacy_countdown.hpp"
@@ -65,6 +66,7 @@ struct LegacyBattleActionCallReply {
 class LegacyBattleActionDispatchPort
     : public virtual LegacyBattleActorMetricStatePort,
       public virtual LegacyBattleEffectShiftStatePort,
+      public virtual LegacyBattleSharedPhaseStatePort,
       public virtual LegacyBattleFrameRefreshStatePort,
       public virtual world_map::LegacyWorldItemListStatePort {
 public:
@@ -108,7 +110,6 @@ struct LegacyBattleActionDispatchState {
     compat::u32 action_runtime_flags{};
     compat::u16 side_selection_word{};
     compat::u32 scene_value{};
-    compat::u32 scene_gate{};
     compat::u32 input_mode{};
     compat::u32 battle_flags{};
     compat::u32 active_actor_count{};
@@ -126,7 +127,6 @@ struct LegacyBattleActionDispatchState {
     compat::u32 battle_submode{};
 
     compat::u32 message_gate{};
-    compat::u32 message_state{};
     compat::u32 message_aux{};
     compat::u32 choice_state{};
     compat::u32 choice_cursor{};

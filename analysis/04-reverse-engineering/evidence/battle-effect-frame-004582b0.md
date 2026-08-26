@@ -110,7 +110,7 @@ alternate active完整值等于1时：
 
 随后重读status：
 
-- signed负值：battle gate清零，battle mode latch写1；
+- signed负值：battle gate清零，唯一共享战斗消息/阶段写1；该dword与startup、动作和预帧路径共用typed端口；
 - bit3置位：依次处理bit`0x1000/0x2000/0x4000`，每项先清自身再发布固定`(30,1/2/3)`；高byte bit2即word bit`0x0400`置位时，把七个record u16按i16符号扩展后直连已关闭颜色初始化器，清该bit并把共享颜色初始化门写1；
 - bit2即word bit`0x0004`置位时发布actor index并把整个status word清零。
 

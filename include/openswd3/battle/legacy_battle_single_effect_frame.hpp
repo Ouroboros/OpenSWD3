@@ -17,7 +17,6 @@ struct LegacyBattleSingleEffectFrameState {
     compat::u32 current_resource_value_token{};
     compat::u32 released_owner_value_clears{};
     compat::u32 battle_gate{};
-    compat::u32 battle_mode_latch{};
 };
 
 enum class LegacyBattleSingleEffectFrameStatus : compat::u8 {

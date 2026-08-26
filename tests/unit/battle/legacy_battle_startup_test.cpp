@@ -486,7 +486,7 @@ void test_battle_startup(openswd3::test::Context& test) {
                 state.party_actor_mode_count == 2U &&
                 result.return_value == 1U &&
                 result.completion_status_published &&
-                state.completion_status == 0x67U &&
+                ports.battle_message_state() == 0x67U &&
                 ports.call_count(LegacyBattleStartupCall::set_enemy_mode) ==
                     1U &&
                 std::ranges::any_of(
@@ -536,7 +536,7 @@ void test_battle_startup(openswd3::test::Context& test) {
                     2U &&
                 result.return_value == 0U &&
                 result.completion_status_published &&
-                state.completion_status == 0x67U,
+                ports.battle_message_state() == 0x67U,
             "stale supplemental word selects random branch and duplicate random candidate retries without cap"
         );
     }

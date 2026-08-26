@@ -427,7 +427,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                 invoke(port, result, kCallResetActor, {actor_token})
             );
         }
-        if (state.action.message_state == 0x63U &&
+        if (port.battle_message_state() == 0x63U &&
             state.actor_start_guard_word == 0U) {
             static_cast<void>(
                 invoke(port, result, kCallResetActor, {actor_token})
@@ -1236,7 +1236,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         {0x118U, 0xAU, 0x1EU, kMessageFinalToken, 0x80000002U}
                     ));
                     state.final_actor_step.actor_order.fill(0U);
-                    state.action.message_state = 0x68U;
+                    port.battle_message_state() = 0x68U;
                     state.turn_resolution_bits = 0U;
                     state.action.active_effect_target = 0xFFFFFFFFU;
                     state.action.opponent_workspace.fill(0U);

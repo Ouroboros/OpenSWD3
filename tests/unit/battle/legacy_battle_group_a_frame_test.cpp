@@ -361,7 +361,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.return_value == 1U && state.turn_resolution_bits == 0U &&
                 openswd3::compat::u8(state.action.packed_actor_counter) == 1U &&
-                state.action.message_state == 0x67U &&
+                port.battle_message_state() == 0x67U &&
                 port.count(0x00471540U) == 2U &&
                 port.count(0x004714B0U) == 1U &&
                 has_call_argument(port, 0x004698E0U, 0U, 0x118U),

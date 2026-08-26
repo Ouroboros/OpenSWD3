@@ -50,6 +50,7 @@ void test_battle_party_item_order(openswd3::test::Context& test);
 void test_battle_player_item_order(openswd3::test::Context& test);
 void test_battle_player_item_quantity(openswd3::test::Context& test);
 void test_battle_post_action(openswd3::test::Context& test);
+void test_battle_pre_frame(openswd3::test::Context& test);
 void test_battle_single_effect_frame(openswd3::test::Context& test);
 void test_battle_scale_fill_panel(openswd3::test::Context& test);
 void test_battle_scale_scan(openswd3::test::Context& test);
@@ -6993,6 +6994,7 @@ int main() {
     test_battle_player_item_order(test);
     test_battle_player_item_quantity(test);
     test_battle_post_action(test);
+    test_battle_pre_frame(test);
     test_battle_single_effect_frame(test);
     test_battle_standalone_action_frame_draw(test);
     test_battle_offset_action_frame_draw(test);

@@ -1016,7 +1016,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
             if (low_byte - third_byte >=
                 static_cast<u32>(state.group_b_count)) {
                 state.phase_terminal = 0U;
-                state.message_state = 0x63U;
+                port.battle_message_state() = 0x63U;
             }
             result.return_value = 1U;
             return result;
@@ -1250,7 +1250,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
         state.frame_effect.blue_factor = 0;
         replace_low_word(state.phase_counter, 0U);
         state.frame_effect.fade_active = 1U;
-        state.message_state = 0x62U;
+        port.battle_message_state() = 0x62U;
         state.current_actor_index = 0xFFFFU;
         result.return_value = 1U;
         return result;
@@ -1745,7 +1745,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                 port,
                 result,
                 kCallChoiceFirst,
-                {state.message_gate, state.message_state}
+                {state.message_gate, port.battle_message_state()}
             ));
             state.message_gate = 0U;
         }
@@ -1756,7 +1756,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                 port,
                 result,
                 kCallChoiceSecond,
-                {1U, state.message_state}
+                {1U, port.battle_message_state()}
             ));
         }
         state.group_b_status_words[state.stored_group_b_index] |=
@@ -1970,7 +1970,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
         return result;
     }
     case 31U: {
-        state.message_state = 0U;
+        port.battle_message_state() = 0U;
         if (state.message_gate == 0U) {
             state.message_gate = 0x80000000U;
             rendering::initialize_legacy_countdown(

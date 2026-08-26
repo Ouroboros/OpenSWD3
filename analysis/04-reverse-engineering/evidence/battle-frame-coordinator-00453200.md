@@ -10,14 +10,14 @@
 
 入口固定把活动dword写1。随后调用music gate；只有完整EAX等于1且抑制byte为0时，才以共享路径和mode 0启动音乐，再把共享runtime handle传给commit。start EAX被commit覆盖，但后续阶段不使用该值。
 
-接着严格执行六个战斗阶段callee。第六个返回0时立即返回EAX 0：
+接着严格执行六个逻辑阶段：前两个仍是opaque战斗stage，第三项直接组合已关闭角色预处理，第四和第五项是已关闭metric与角色顺序重建，第六项仍是完成门callee。第六项返回0时立即返回EAX 0：
 
 - 活动dword保持1；
 - 不锁目标surface；
 - 不执行任何绘制、输入、截图或尾阶段；
 - 音乐与前五阶段副作用保留。
 
-这些战斗callee各自属于后续工作包，当前以有序typed端口表达；已关闭跨模块callee不留opaque边界。
+角色预处理直接复用最终角色、动作工作区和动态组B数量；其typed-stop保留前两个stage与自身前缀并阻断metric以后全部流程。只有三个尚未关闭stage保留有序typed端口，已关闭边界不再占opaque call。
 
 ## 3. 目标surface与渲染门
 
@@ -172,7 +172,7 @@ finalize之后直接调用已关闭三通道颜色累加：固定递减请求，
 
 ## 12. 双向追溯
 
-- `0x00453200..0x0045325D`：活动、音乐、六阶段与零早退；
+- `0x00453200..0x0045325D`：活动、音乐、双opaque stage、角色预处理、metric、顺序、完成门与零早退；
 - `0x0045325E..0x00453286`：target lock/unlock、渲染门与返回1；
 - `0x0045328C..0x0045331C`：选择mode、延迟刷新和交互可用发布；
 - `0x0045331C..0x00453379`：主阶段、画面效果直连、条件阶段、UI低word和固定帧；
@@ -188,7 +188,7 @@ C++到LST反向追溯覆盖完整412行、44个静态call站点和18个标签。
 
 定向测试覆盖：
 
-- 音乐启动/commit和第六stage零早退；
+- 音乐启动/commit、双opaque与typed角色预处理顺序、第六阶段零早退；
 - target lock/unlock后渲染门返回活动1；
 - 选择延迟刷新、共享值重读、active/auxiliary发布与交互门；
 - UI dword只改低word且保留高16位；
@@ -196,6 +196,7 @@ C++到LST反向追溯覆盖完整412行、44个静态call站点和18个标签。
 - 固定帧直连、ECX高字/低word组合；
 - packed-row、头像、空对话与双倒计时直连；
 - 内部bit 17返回3及缺失bit表真实访问typed-stop；
+- 角色预处理工作区typed-stop阻断metric与后续帧；
 - 三通道颜色初始化、共享门与尾寄存器，以及同帧颜色累加、计数递减与`0x3C000`前缀；
 - 临时surface路径、零token typed-stop和alternate门；
 - 截图计数word回绕、路径、writer调用与请求清零；

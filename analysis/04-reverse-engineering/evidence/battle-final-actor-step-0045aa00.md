@@ -74,7 +74,13 @@ removed byte以zero-extended dword与remaining做unsigned比较。达到或超�
 
 有效组B对象所有非typed-stop路径返回1。
 
-## 7. caller回收
+## 7. 角色预处理共享别名
+
+相邻`0x0045D490`关闭后，terminal、active、secondary、published、action execution、auxiliary、message、126 dword事件工作区和十组五dword角色记录直接复用本函数与动作分派的既有typed状态。预处理只新增此前未命名的source actor与双门字段，不复制角色状态或工作区。
+
+全局重置按原物理写集合清对应标量及工作区槽`0..9`、`16..95`，保留工作区其他槽和五dword记录。逐帧协调器通过同一两份状态调用预处理。
+
+## 8. caller回收
 
 组A帧直接组合typed实现；子返回1时才清最终门和选择word，子typed-stop立即作为父状态返回，父函数没有后续副作用。父函数仍保留原始“子返回0也最终返回1”的行为。
 
@@ -82,7 +88,7 @@ removed byte以zero-extended dword与remaining做unsigned比较。达到或超�
 
 两个caller源码均不再包含`0x0045AA00` token。
 
-## 8. 测试与动态差分
+## 9. 测试与动态差分
 
 定向测试覆盖：初始有效性失败、组A完成阈值和32字节逆向清零、三刷新、双组重置、角色顺序左移、removed unsigned终止、工作区typed-stop、配置后记录typed-stop、组B全1早退、坐标回绕、描述符bit5、动作发布、闭区间低byte递增、signed完成比较、组B重置、零描述符停点，以及组A/组B caller直连和组B父级typed-stop传播。
 

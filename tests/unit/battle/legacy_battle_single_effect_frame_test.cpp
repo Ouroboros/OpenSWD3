@@ -116,7 +116,7 @@ void test_battle_single_effect_frame(openswd3::test::Context& test) {
             );
         test.expect_true(
             result.return_value == 1U && state.battle_gate == 0U &&
-                state.battle_mode_latch == 1U &&
+                port.battle_message_state() == 1U &&
                 state.primary[0].source_value == 0U && port.calls.empty(),
             "signed status side effects precede complete record clear"
         );

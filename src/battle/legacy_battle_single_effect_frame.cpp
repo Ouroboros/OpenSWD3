@@ -75,7 +75,7 @@ LegacyBattleSingleEffectFrameResult advance_legacy_battle_single_effect_frame(
     auto& primary = state.primary[slot_index];
     if (std::bit_cast<i16>(primary.status_flags) < 0) {
         state.battle_gate = 0U;
-        state.battle_mode_latch = 1U;
+        port.battle_message_state() = 1U;
     }
 
     if (primary.complete == 0U) {

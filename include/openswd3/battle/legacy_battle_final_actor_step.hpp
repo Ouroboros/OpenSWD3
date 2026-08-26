@@ -18,6 +18,7 @@ struct LegacyBattleFinalActorStepState {
     compat::u32 active_actor_code{0xFFFFFFFFU};
     compat::u32 secondary_actor_code{};
     compat::u32 published_actor_code{};
+    compat::u32 source_actor_code{0xFFFFFFFFU};
 
     compat::u32 action_execution_active{};
     compat::u32 terminal_mode{};
@@ -25,7 +26,8 @@ struct LegacyBattleFinalActorStepState {
     compat::u32 frame_gate_b{};
     compat::u32 selection_gate{};
     compat::u32 auxiliary_gate{};
-    compat::u32 terminal_latch{};
+    compat::u32 pre_frame_gate_a{};
+    compat::u32 pre_frame_gate_b{};
 
     compat::u16 coordinate_x{};
     compat::u16 coordinate_y{};

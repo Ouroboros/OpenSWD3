@@ -9,6 +9,7 @@
 #include "openswd3/battle/legacy_battle_color_accumulation.hpp"
 #include "openswd3/battle/legacy_battle_effect_coordinator.hpp"
 #include "openswd3/battle/legacy_battle_frame_effect.hpp"
+#include "openswd3/battle/legacy_battle_pre_frame.hpp"
 #include "openswd3/battle/legacy_battle_transition.hpp"
 #include "openswd3/rendering/legacy_action_renderers.hpp"
 #include "openswd3/rendering/legacy_bmp_writer.hpp"
@@ -45,7 +46,6 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     music_commit,
     pre_frame_stage_0,
     pre_frame_stage_1,
-    pre_frame_stage_2,
     query_actor_metric,
     pre_frame_completion_gate,
     lock_target_surface,
@@ -95,6 +95,7 @@ struct LegacyBattleFrameCoordinatorCallReply {
 class LegacyBattleFrameCoordinatorPort
     : public LegacyBattleHudCallPort,
       public LegacyBattleEffectCallPort,
+      public LegacyBattlePreFramePort,
       public virtual LegacyBattleEffectCoordinatorStatePort {
 public:
     using LegacyBattleEffectCallPort::invoke;
@@ -184,6 +185,8 @@ struct LegacyBattleFrameCoordinatorContext {
     std::span<const compat::u8> internal_flags;
     const rendering::LegacyPixelConversionState& pixel_conversion;
     rendering::LegacyBmpWriterPorts& bmp_ports;
+    LegacyBattleFinalActorStepState& final_actor_step;
+    LegacyBattleActionDispatchState& action_dispatch;
     LegacyBattleActorFrameAdvanceContext* actor_frames{};
 };
 
@@ -209,6 +212,7 @@ enum class LegacyBattleFrameCoordinatorStatus : compat::u8 {
     temporary_surface_typed_stop,
     hud_typed_stop,
     color_accumulation_typed_stop,
+    pre_frame_typed_stop,
 };
 
 struct LegacyBattleFrameCoordinatorResult {
@@ -222,6 +226,8 @@ struct LegacyBattleFrameCoordinatorResult {
     compat::u32 lock_calls{};
     compat::u32 unlock_calls{};
     compat::u32 selection_refresh_calls{};
+    LegacyBattlePreFrameResult pre_frame{};
+    compat::u32 pre_frame_calls{};
     LegacyBattleFrameEffectResult frame_effect{};
     compat::u32 frame_effect_calls{};
     LegacyBattleActorPriorityResult actor_priority{};

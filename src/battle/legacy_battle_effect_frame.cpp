@@ -692,7 +692,7 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
     }
     if (std::bit_cast<i16>(primary.status_flags) < 0) {
         state.battle_gate = 0U;
-        state.battle_mode_latch = 1U;
+        port.battle_message_state() = 1U;
     }
     if ((primary.status_flags & 8U) != 0U) {
         if ((primary.status_flags & 0x1000U) != 0U) {
@@ -756,7 +756,7 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
             );
             state.resolved_actor_value =
                 invoke(port, result, kCallResolveActor, {actor_index}).eax;
-            state.message_state = 0U;
+            port.battle_message_state() = 0U;
         }
 
         u32 object_mode{};

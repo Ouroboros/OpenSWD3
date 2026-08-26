@@ -99,9 +99,16 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
     static_cast<void>(invoke(
         port, result, LegacyBattleFrameCoordinatorCall::pre_frame_stage_1
     ));
-    static_cast<void>(invoke(
-        port, result, LegacyBattleFrameCoordinatorCall::pre_frame_stage_2
-    ));
+    result.pre_frame = advance_legacy_battle_pre_frame(
+        context.final_actor_step, context.action_dispatch, port
+    );
+    ++result.pre_frame_calls;
+    result.port_calls += result.pre_frame.port_calls;
+    if (result.pre_frame.status != LegacyBattlePreFrameStatus::completed) {
+        result.status =
+            LegacyBattleFrameCoordinatorStatus::pre_frame_typed_stop;
+        return result;
+    }
     const auto actor_metrics = rebuild_legacy_battle_actor_metrics(port);
     result.port_calls += actor_metrics.port_calls;
     if (actor_metrics.status != LegacyBattleActorMetricStatus::completed) {

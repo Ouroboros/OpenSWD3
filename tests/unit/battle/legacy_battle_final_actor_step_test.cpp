@@ -125,7 +125,7 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
         test.expect_true(
             result.return_value == 1U && state.removed_group_a_count == 1U &&
                 state.frame_gate_a == 1U && state.frame_gate_b == 1U &&
-                action.message_state == 0x67U &&
+                port.battle_message_state() == 0x67U &&
                 std::ranges::all_of(
                     action.opponent_workspace,
                     [](const u32 value) { return value == 0U; }

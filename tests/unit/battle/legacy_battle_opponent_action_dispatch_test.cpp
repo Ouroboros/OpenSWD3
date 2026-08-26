@@ -481,8 +481,9 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         }
         test.expect_true(
             result.return_value == 1U && workspace_matches &&
-                state.action_pending_aux == 1U && state.scene_gate == 0U &&
-                state.message_state == 0x63U,
+                state.action_pending_aux == 1U &&
+                port.battle_terminal_latch() == 0U &&
+                port.battle_message_state() == 0x63U,
             "opponent action seventeen zeros workspace then writes eighteen spaced all one heads"
         );
     }

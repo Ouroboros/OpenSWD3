@@ -77,7 +77,7 @@ status bit1即word bit`0x0002`置位时，alternate active先写1，随后整个
 
 重读status：
 
-- signed负值：battle mode latch写1，battle gate清零；
+- signed负值：唯一共享战斗消息/阶段写1，battle gate清零；该dword与startup、动作和预帧路径共用typed端口；
 - bit3置位且bit`0x1000`置位：先清`0x1000`。group-wide mode等于1时首次直接读取参数对象mode；mode等于1按signed组B数量逐角色调用状态发布，否则按signed组A数量；group-wide mode不等于1时只对入口actor调用一次；
 - bit3置位且bit`0x0400`置位：把record七个u16按i16符号扩展后直连已关闭颜色初始化器，恢复其EAX/ECX/EDX尾寄存器，清该bit并把共享颜色初始化门写1；
 - bit2即word bit`0x0004`置位：group-wide mode等于1时，group-A-special等于1选择组A，否则选择组B；非群体模式只发布入口actor。最后整个status word清零。

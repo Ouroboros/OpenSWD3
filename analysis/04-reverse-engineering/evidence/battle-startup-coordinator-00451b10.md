@@ -148,7 +148,7 @@ remaining -= final_subtract_word
 remaining -= low16(supplemental_count_word)
 ```
 
-再以unsigned比较：若陈旧party actor mode byte不小于`remaining`，把完成状态写`0x67`。该写不改变EAX；无论条件真假都返回同一个回绕`remaining`。测试覆盖等于零时成立及正数域。
+再以unsigned比较：若陈旧party actor mode byte不小于`remaining`，把唯一共享战斗消息/阶段写`0x67`。相邻角色预处理关闭后，该dword与动作、效果和逐帧路径共用`LegacyBattleSharedPhaseStatePort`，不再保留startup副本。该写不改变EAX；无论条件真假都返回同一个回绕`remaining`。测试覆盖等于零时成立及正数域。
 
 ## 12. 双向追溯
 

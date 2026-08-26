@@ -311,7 +311,7 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
             );
         test.expect_true(
             result.return_value == 1U && state.battle_gate == 0U &&
-                state.battle_mode_latch == 1U &&
+                port.battle_message_state() == 1U &&
                 port.battle_color_initialization_gate() == 1U &&
                 result.color_initialization_calls == 1U &&
                 port.battle_color_accumulation_state().countdown == 7 &&

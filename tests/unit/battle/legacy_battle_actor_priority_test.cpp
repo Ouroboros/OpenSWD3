@@ -33,6 +33,13 @@ public:
         return {};
     }
 
+    [[nodiscard]] openswd3::battle::LegacyBattlePreFrameCallReply
+    invoke_pre_frame(
+        const openswd3::battle::LegacyBattlePreFrameCallRequest&
+    ) override {
+        return {};
+    }
+
     [[nodiscard]] u32 start_music(const std::filesystem::path&, u32) override {
         return 0U;
     }

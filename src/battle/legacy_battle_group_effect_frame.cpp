@@ -431,7 +431,7 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
     }
     replace_low_word(registers.eax, primary.status_flags);
     if (std::bit_cast<i16>(primary.status_flags) < 0) {
-        state.battle_mode_latch = 1U;
+        port.battle_message_state() = 1U;
         state.battle_gate = 0U;
     }
     if ((primary.status_flags & 8U) != 0U) {

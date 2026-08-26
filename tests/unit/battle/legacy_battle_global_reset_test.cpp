@@ -20,6 +20,8 @@ using openswd3::battle::LegacyBattleGlobalResetCallReply;
 using openswd3::battle::LegacyBattleGlobalResetCallStage;
 using openswd3::battle::LegacyBattleGlobalResetRuntimePort;
 using openswd3::battle::LegacyBattleGlobalResetState;
+using openswd3::battle::LegacyBattleActionDispatchState;
+using openswd3::battle::LegacyBattleFinalActorStepState;
 using openswd3::battle::LegacyBattleStartupCall;
 using openswd3::battle::LegacyBattleStartupCallReply;
 using openswd3::battle::LegacyBattleStartupCallRequest;
@@ -148,6 +150,8 @@ byte_at(const LegacyBattleGlobalResetState& state, const u32 address) {
 void seed_state(
     LegacyBattleGlobalResetState& state,
     LegacyBattleStartupState& startup,
+    LegacyBattleFinalActorStepState& final_actor,
+    LegacyBattleActionDispatchState& action,
     ResetPort& port
 ) {
     state.unmapped_bytes[0x00ABCDEFU] = 0x5AU;
@@ -173,6 +177,19 @@ void seed_state(
     startup.party[0].role_id = 9U;
     startup.enemy_count = 8U;
     startup.party_count = 10U;
+
+    final_actor.active_actor_code = 9U;
+    final_actor.secondary_actor_code = 9U;
+    final_actor.published_actor_code = 9U;
+    final_actor.source_actor_code = 9U;
+    final_actor.action_execution_active = 9U;
+    final_actor.auxiliary_gate = 9U;
+    port.battle_terminal_latch() = 9U;
+    final_actor.pre_frame_gate_a = 9U;
+    final_actor.pre_frame_gate_b = 9U;
+    final_actor.actor_runtime_records[0][0] = 9U;
+    port.battle_message_state() = 9U;
+    action.opponent_workspace.fill(9U);
 
     auto& color = port.battle_color_accumulation_state();
     color.countdown = 9;
@@ -231,11 +248,14 @@ void test_battle_global_reset(openswd3::test::Context& test) {
     {
         LegacyBattleGlobalResetState state;
         LegacyBattleStartupState startup;
+        LegacyBattleFinalActorStepState final_actor;
+        LegacyBattleActionDispatchState action;
         ResetPort port;
-        seed_state(state, startup, port);
+        seed_state(state, startup, final_actor, action, port);
 
-        const auto result =
-            openswd3::battle::reset_legacy_battle_globals(state, startup, port);
+        const auto result = openswd3::battle::reset_legacy_battle_globals(
+            state, startup, final_actor, action, port
+        );
 
         const std::array expected_order{
             LegacyBattleGlobalResetCallStage::display_surfaces,
@@ -341,6 +361,44 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 state.unmapped_bytes.contains(0x00525468U) == false,
             "global reset clears the unique battle color transition values without touching the separate initialization gate"
         );
+        const std::span<const u32> workspace{action.opponent_workspace};
+        test.expect_true(
+            final_actor.active_actor_code == 0U &&
+                final_actor.secondary_actor_code == 0U &&
+                final_actor.published_actor_code == 1U &&
+                final_actor.source_actor_code == 0xFFFFFFFFU &&
+                final_actor.action_execution_active == 0U &&
+                final_actor.auxiliary_gate == 0U &&
+                port.battle_terminal_latch() == 0U &&
+                final_actor.pre_frame_gate_a == 0U &&
+                final_actor.pre_frame_gate_b == 0U &&
+                final_actor.actor_runtime_records[0][0] == 9U &&
+                port.battle_message_state() == 0U &&
+                std::ranges::all_of(
+                    workspace.first(10U),
+                    [](const u32 value) { return value == 0U; }
+                ) &&
+                std::ranges::all_of(
+                    workspace.subspan(10U, 6U),
+                    [](const u32 value) { return value == 9U; }
+                ) &&
+                std::ranges::all_of(
+                    workspace.subspan(16U, 80U),
+                    [](const u32 value) { return value == 0U; }
+                ) &&
+                std::ranges::all_of(
+                    workspace.subspan(96U),
+                    [](const u32 value) { return value == 9U; }
+                ) &&
+                state.unmapped_bytes.contains(0x004A754CU) == false &&
+                state.unmapped_bytes.contains(0x004A7564U) == false &&
+                state.unmapped_bytes.contains(0x0053BCE8U) == false &&
+                state.unmapped_bytes.contains(0x0053BD50U) == false &&
+                state.unmapped_bytes.contains(0x0053BF60U) == false &&
+                state.unmapped_bytes.contains(0x0053BFB8U) == false &&
+                state.unmapped_bytes.contains(0x0053C018U) == false,
+            "global reset synchronizes pre-frame scalar aliases and only the two physical workspace ranges it actually writes"
+        );
         const auto& shift = port.effect_shift_state();
         test.expect_true(
             shift.actor_delta == 0 && shift.direction_mode == 0U &&
@@ -422,11 +480,14 @@ void test_battle_global_reset(openswd3::test::Context& test) {
     {
         LegacyBattleGlobalResetState state;
         LegacyBattleStartupState startup;
+        LegacyBattleFinalActorStepState final_actor;
+        LegacyBattleActionDispatchState action;
         ResetPort port;
         startup.reset.values_502940[0] = 0U;
 
-        const auto result =
-            openswd3::battle::reset_legacy_battle_globals(state, startup, port);
+        const auto result = openswd3::battle::reset_legacy_battle_globals(
+            state, startup, final_actor, action, port
+        );
         test.expect_true(
             !result.conditional_allocation_released &&
                 result.call_count == 8U &&

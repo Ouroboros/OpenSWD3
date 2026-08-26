@@ -39,6 +39,14 @@ public:
         return {.eax = 1U};
     }
 
+    [[nodiscard]] openswd3::battle::LegacyBattlePreFrameCallReply
+    invoke_pre_frame(
+        const openswd3::battle::LegacyBattlePreFrameCallRequest& request
+    ) override {
+        pre_frame_calls.push_back(request);
+        return {};
+    }
+
     [[nodiscard]] LegacyBattleHudCallReply
     invoke_hud(const LegacyBattleHudCallRequest& request) override {
         hud_calls.push_back(request);
@@ -76,6 +84,8 @@ public:
 
     std::vector<LegacyBattleFrameCoordinatorCallRequest> calls;
     std::vector<LegacyBattleEffectCallRequest> effect_calls;
+    std::vector<openswd3::battle::LegacyBattlePreFrameCallRequest>
+        pre_frame_calls;
     std::vector<LegacyBattleHudCallRequest> hud_calls;
     std::map<
         LegacyBattleFrameCoordinatorCall,
@@ -375,6 +385,8 @@ struct Fixture {
     std::array<u8, 16> internal_flags{};
     openswd3::rendering::LegacyPixelConversionState pixel_conversion;
     BmpPorts bmp_ports;
+    openswd3::battle::LegacyBattleFinalActorStepState final_actor_step;
+    openswd3::battle::LegacyBattleActionDispatchState action_dispatch;
 
     Fixture() {
         constexpr std::array<u16, 6> effect_pixels{
@@ -438,6 +450,8 @@ struct Fixture {
             .internal_flags = internal_flags,
             .pixel_conversion = pixel_conversion,
             .bmp_ports = bmp_ports,
+            .final_actor_step = final_actor_step,
+            .action_dispatch = action_dispatch,
         };
     }
 };
@@ -495,8 +509,35 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                     } &&
                 result.fixed_frame_calls == 0U &&
                 result.frame_effect_calls == 0U && result.lock_calls == 0U &&
-                port.calls.size() == 6U,
-            "frame coordinator preserves music start and six-stage zero early return with active latch set"
+                result.pre_frame_calls == 1U && port.calls.size() == 5U,
+            "frame coordinator preserves music start two opaque and one typed pre-frame stage before zero early return"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleFrameCoordinatorState state;
+        Fixture fixture;
+        fixture.final_actor_step.active_actor_code = 124U;
+        CoordinatorPort port;
+        port.battle_terminal_latch() = 1U;
+        port.battle_message_state() = 2U;
+        configure_common_port(port);
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::run_legacy_battle_frame_coordinator(
+                state, port, context, base_request()
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameCoordinatorStatus::
+                        pre_frame_typed_stop &&
+                result.pre_frame_calls == 1U &&
+                result.pre_frame.status ==
+                    openswd3::battle::LegacyBattlePreFrameStatus::
+                        opponent_workspace_typed_stop &&
+                fixture.final_actor_step.action_execution_active == 1U &&
+                result.lock_calls == 0U && port.effect_calls.empty(),
+            "pre-frame workspace stop preserves its prefix and blocks actor metrics lock and all later frame stages"
         );
     }
 
@@ -740,7 +781,11 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         state.screenshot_request = 1U;
         state.screenshot_counter = 0xFFFFU;
         Fixture fixture;
+        fixture.final_actor_step.active_actor_code = 8U;
+        fixture.final_actor_step.source_actor_code = 0xFFFFFFFFU;
         CoordinatorPort port;
+        port.battle_terminal_latch() = 1U;
+        port.battle_message_state() = 0U;
         configure_common_port(port);
         auto& color = port.battle_color_accumulation_state();
         auto context = fixture.context();
@@ -754,7 +799,13 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleFrameCoordinatorStatus::
                         completed &&
-                result.return_value == 1U &&
+                result.return_value == 1U && result.pre_frame_calls == 1U &&
+                result.pre_frame.status ==
+                    openswd3::battle::LegacyBattlePreFrameStatus::completed &&
+                fixture.final_actor_step.action_execution_active == 1U &&
+                fixture.action_dispatch.opponent_workspace[10U] == 1U &&
+                port.battle_message_state() == 3U &&
+                fixture.final_actor_step.pre_frame_gate_a == 1U &&
                 result.color_initialization_calls == 1U &&
                 result.color_initialization.return_eax == 24U &&
                 result.color_initialization.return_ecx == 0xFFFFFFE8U &&
@@ -793,7 +844,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 port.count(
                     LegacyBattleFrameCoordinatorCall::alternate_surface_stage
                 ) == 0U,
-            "completed frame initializes and advances shared color state before preserving temporary surface screenshot wrap and request clear"
+            "completed frame runs typed pre-frame and color stages before preserving temporary surface screenshot wrap and request clear"
         );
     }
 

@@ -300,7 +300,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                     {state.update_gate_argument}
                 )
                         .eax == 1U &&
-                action.message_state != 0x67U) {
+                port.battle_message_state() != 0x67U) {
                 static_cast<void>(invoke(
                     port,
                     result,

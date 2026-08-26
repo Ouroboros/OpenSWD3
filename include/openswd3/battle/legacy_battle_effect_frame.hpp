@@ -3,6 +3,7 @@
 #include "openswd3/battle/legacy_battle_color_accumulation.hpp"
 #include "openswd3/battle/legacy_battle_effect_shift.hpp"
 #include "openswd3/battle/legacy_battle_frame_refresh.hpp"
+#include "openswd3/battle/legacy_battle_shared_phase.hpp"
 #include "openswd3/compat/types.hpp"
 
 #include <array>
@@ -37,6 +38,7 @@ class LegacyBattleEffectCallPort
       public virtual LegacyBattleActorPublicationStatePort,
       public virtual LegacyBattleColorAccumulationStatePort,
       public virtual LegacyBattleEffectShiftStatePort,
+      public virtual LegacyBattleSharedPhaseStatePort,
       public virtual LegacyBattleFrameRefreshStatePort {
 public:
     virtual ~LegacyBattleEffectCallPort() = default;
@@ -117,7 +119,6 @@ struct LegacyBattleSharedEffectFrameState {
     compat::u32 split_suppression{};
 
     compat::u32 battle_gate{};
-    compat::u32 battle_mode_latch{};
 
     compat::u16 auxiliary_reward{};
     compat::i32 reward_value{};
@@ -138,7 +139,6 @@ struct LegacyBattleEffectFrameState
     compat::u32 target_surface_token{};
 
     compat::u32 battle_byte_flags{};
-    compat::u32 message_state{};
     compat::u32 resolved_actor_value{};
 
     std::array<compat::u32, kLegacyBattleEffectActorSlotCount> pending_step{};

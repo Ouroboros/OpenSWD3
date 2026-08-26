@@ -552,8 +552,8 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
         state.overlay_gate = 1U;
         if (static_cast<i32>(low_byte(state.opponent_processed_counter)) >=
             state.group_b_count) {
-            state.scene_gate = 0U;
-            state.message_state = 0x63U;
+            port.battle_terminal_latch() = 0U;
+            port.battle_message_state() = 0x63U;
         }
         return completed(result, 1U);
 
@@ -664,8 +664,8 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
         if (static_cast<i32>(processed) >= state.group_b_count) {
             state.opponent_workspace.fill(0U);
             state.action_pending_aux = 1U;
-            state.scene_gate = 0U;
-            state.message_state = 0x63U;
+            port.battle_terminal_latch() = 0U;
+            port.battle_message_state() = 0x63U;
             for (std::size_t index = 0U;
                  index < state.opponent_workspace.size();
                  index += 7U) {

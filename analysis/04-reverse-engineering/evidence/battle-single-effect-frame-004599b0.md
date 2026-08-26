@@ -19,7 +19,7 @@ slot越界只在首次主status/complete访问typed-stop。
 
 ## 2. signed status前缀
 
-函数先读取主status word。按i16为负时，严格先把battle gate清零，再把battle mode latch写1。该前缀即使主record complete已等于1也执行；随后成功尾会清整个主record。
+函数先读取主status word。按i16为负时，严格先把battle gate清零，再把唯一共享战斗消息/阶段写1。该dword与startup、动作和预帧路径共用`LegacyBattleSharedPhaseStatePort`。该前缀即使主record complete已等于1也执行；随后成功尾会清整个主record。
 
 ## 3. 主record初始化失败
 

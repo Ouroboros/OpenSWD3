@@ -6,6 +6,7 @@
 #include "openswd3/battle/legacy_battle_party_item_order.hpp"
 #include "openswd3/battle/legacy_battle_player_item_order.hpp"
 #include "openswd3/battle/legacy_battle_render_geometry.hpp"
+#include "openswd3/battle/legacy_battle_shared_phase.hpp"
 #include "openswd3/battle/legacy_battle_timing.hpp"
 #include "openswd3/compat/types.hpp"
 
@@ -144,6 +145,7 @@ struct LegacyBattleStartupCallReply {
 class LegacyBattleStartupPort
     : public virtual LegacyBattleActorMetricStatePort,
       public virtual LegacyBattleActorPublicationStatePort,
+      public virtual LegacyBattleSharedPhaseStatePort,
       public virtual world_map::LegacyWorldItemListStatePort {
 public:
     virtual ~LegacyBattleStartupPort() = default;
@@ -254,7 +256,6 @@ struct LegacyBattleStartupState {
     compat::u16 supplemental_count_word{};
     compat::u8 party_actor_mode_count{};
     compat::u16 final_subtract_word{};
-    compat::u32 completion_status{};
 };
 
 struct LegacyBattleStartupRequest {

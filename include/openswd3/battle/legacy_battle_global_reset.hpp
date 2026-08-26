@@ -4,6 +4,7 @@
 #include "openswd3/battle/legacy_battle_color_accumulation.hpp"
 #include "openswd3/battle/legacy_battle_effect_coordinator.hpp"
 #include "openswd3/battle/legacy_battle_effect_shift.hpp"
+#include "openswd3/battle/legacy_battle_final_actor_step.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 
 #include <array>
@@ -83,6 +84,8 @@ struct LegacyBattleGlobalResetResult {
 [[nodiscard]] LegacyBattleGlobalResetResult reset_legacy_battle_globals(
     LegacyBattleGlobalResetState& state,
     LegacyBattleStartupState& startup,
+    LegacyBattleFinalActorStepState& final_actor,
+    LegacyBattleActionDispatchState& action,
     LegacyBattleGlobalResetRuntimePort& port
 );
 
