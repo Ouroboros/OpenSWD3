@@ -1,0 +1,201 @@
+# 战斗逐帧画面协调器 `0x00453200`
+
+状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`。
+
+## 1. 完整LST范围
+
+权威LST函数为`0x00453200..0x00453570`，完整412行、44个静态call站点、18个标签，无外部FUNCTION CHUNK。函数无参数；导航调用图中同一上层战斗状态机存在33个直接call站点。
+
+## 2. 入口、音乐与首个早退
+
+入口固定把活动dword写1。随后调用music gate；只有完整EAX等于1且抑制byte为0时，才以共享路径和mode 0启动音乐，再把共享runtime handle传给commit。start EAX被commit覆盖，但后续阶段不使用该值。
+
+接着严格执行六个战斗阶段callee。第六个返回0时立即返回EAX 0：
+
+- 活动dword保持1；
+- 不锁目标surface；
+- 不执行任何绘制、输入、截图或尾阶段；
+- 音乐与前五阶段副作用保留。
+
+这些战斗callee各自属于后续工作包，当前以有序typed端口表达；已关闭跨模块callee不留opaque边界。
+
+## 3. 目标surface与渲染门
+
+第六阶段非零后：
+
+1. 以固定target surface token调用lock；
+2. 把返回token发布到共享当前目标指针槽；
+3. 立即以surface token与lock返回token调用unlock。
+
+随后渲染中止dword等于1时直接返回活动dword 1。lock/unlock副作用已完成，固定帧和后续阶段均不执行。
+
+## 4. 选择延迟与交互发布
+
+入口读取选择mode和选择值。仅当`mode==1 && value==0xFFFFFFFF`时把mode写0。
+
+刷新分支要求同时满足：
+
+```text
+input_source != 0xFFFFFFFF
+selection_active == 0
+selection_enable == 1
+selection_mode == 0
+```
+
+- 16位延迟小于`0x10`：只执行word递增，保留u16回绕；
+- 延迟不小于`0x10`：调用选择刷新callee并从共享槽重读值；
+- 新值不是全1：延迟word清零、active写1、auxiliary保存新值；
+- 新值仍为全1：不清延迟、不置active、不改auxiliary。
+
+交互可用dword最终严格等于：
+
+```text
+selection_value == 0xFFFFFFFF && selection_source == 0
+```
+
+## 5. 主绘制阶段与固定帧
+
+随后固定执行：
+
+1. 带共享参数的主frame stage；
+2. 当`conditional_mode != 1 || conditional_submode == 1`时执行条件stage；
+3. 三个后继stage；
+4. 一个完成门stage。
+
+完成门EAX不等于1时，只对共享UI dword的低word OR 1；高16位原样保留。
+
+然后直接调用已关闭`0x00450270`，固定资源`0x234D`、帧0、坐标`(0,384)`。frame unavailable或blitter typed-stop在原首次访问/绘制点阻断后续流程；不伪造选中角色、跨模块队列、输入或截图尾。
+
+## 6. 选中角色面板
+
+选择来源为0时跳过整个面板，后续低word调用使用固定帧callee后的显式陈旧ECX snapshot。
+
+选择来源非零时，原顺序为：
+
+1. 清零固定`0x26`个dword动作记录；
+2. 写动作号`0x233B`与base variant 0；
+3. 直接调用已关闭动作更新器；返回失败也继续；
+4. 第一次读取角色映射表；
+5. 用第一次映射完整u32作为第二次映射索引；
+6. 第二次映射值作为面板left；
+7. 第一次映射值只覆盖DX为动作记录`field_4a`，保留其高16位，形成九宫格资源号。
+
+映射缺失typed-stop发生在动作记录清零、字段写和动作更新之后，保留这些前缀副作用。
+
+面板直接调用已关闭九宫格helper：
+
+```text
+resource = (first_mapping & 0xffff0000) | action.field_4a
+left = second_mapping
+top = 397
+right = wrapping_i32(left + 0x74)
+bottom = 467
+opacity = 0
+flags = 0x80000008
+```
+
+九宫格失败在typed状态阻断。
+
+特殊面板抑制dword非零时跳过角色对象与独立动作帧，后续ECX高字取九宫格callee后snapshot。
+
+## 7. 角色对象与独立动作帧
+
+未抑制时，选择来源必须在`8..17`，并按已锁定角色组A基址和步长得到物理token。角色callee返回非零时跳过独立帧，后续ECX沿用该callee完整snapshot。
+
+角色callee返回0时，首次读取选择来源对应的X/Y坐标，再直接调用已关闭`0x00450B60`：
+
+```text
+action = 0x2391
+x = selected position.x
+y = selected position.y
+```
+
+独立动作helper内部仍需要其动作更新callee后的ECX/EDX陈旧高字，聚合请求显式提供这两个snapshot；helper完成后，后续低word调用使用独立帧callee后的另一个ECX snapshot。三个snapshot不互相替代。
+
+## 8. 陈旧ECX低word与跨模块直连
+
+面板路径汇合后，LST只执行`mov cx, gameplay_word`。modern保留此前选定snapshot高16位并替换低16位，再把完整u32传给下一战斗stage。
+
+随后四个后置战斗stage仍为后续工作包typed端口。之后立即直连已关闭跨模块helper，顺序不可交换：
+
+1. packed-row效果链更新/绘制；
+2. 角色头顶动作链更新/绘制；
+3. 对话链更新/绘制；
+4. 一个后续战斗stage；
+5. 倒计时`(400,8,0)`；
+6. 倒计时`(10,8,1)`。
+
+packed-row、头像链和对话使用各自真实typed owner，不在battle复制平行列表。对话只有`idle/completed`继续；surface、文本或控制typed失败阻断。倒计时只接受completed、inactive和suppressed三种正常状态。
+
+## 9. 内部bit 17与返回3
+
+两个倒计时后调用`0x0040DC50(0x11)`。该callee不是键盘DIK查询；它读取内部bit表：
+
+```text
+byte_index = 0x11 >> 3
+mask = 1 << (0x11 & 7)
+return (flags[byte_index] & mask) != 0
+```
+
+modern直接对typed bit-span执行相同访问。span缺失只在byte 2真实访问点typed-stop，保留此前全部绘制和倒计时副作用。bit置位时立即返回完整EAX 3，不执行后续stage、surface尾或截图。
+
+## 10. 后置stage与surface尾
+
+bit未置位后：
+
+- 独立可选门dword不等于1时执行一个stage；
+- 再固定执行两个stage；
+- signed计数小于等于0且overlay latch不等于1时，以`24,24,24,0,0,0,8`调用创建callee，并把overlay latch写0；
+- 固定以参数1调用finalize callee。
+
+随后：
+
+- special surface gate等于1且mode flags的bit`0x100`未置位：创建固定格式`0x2711`临时surface并从target surface执行虚操作；零token只在立即vtable访问点typed-stop；
+- 其他情况：调用alternate surface stage。
+
+## 11. 截图尾与最终返回
+
+截图请求dword等于1时：
+
+1. 16位计数器递增并回绕；
+2. 零扩展新word后加1000；
+3. 格式化`c:\\snap\\%d.bmp`；
+4. 直接调用已关闭16位framebuffer BMP writer，固定`640×480`；
+5. 无论writer结果如何，截图请求清零。
+
+截图编号不会携带陈旧EDX高字。测试锁定`0xFFFF -> 0 -> 1000`和精确路径。
+
+普通尾返回活动dword1。函数只有三类汇编正常返回：首阶段门返回0、内部bit返回3、其余路径返回活动dword1。
+
+## 12. 双向追溯
+
+- `0x00453200..0x0045325D`：活动、音乐、六阶段与零早退；
+- `0x0045325E..0x00453286`：target lock/unlock、渲染门与返回1；
+- `0x0045328C..0x0045331C`：选择mode、延迟刷新和交互可用发布；
+- `0x0045331C..0x00453379`：主阶段、条件阶段、UI低word和固定帧；
+- `0x0045337F..0x00453431`：选中动作记录、双映射、九宫格、角色对象和独立帧；
+- `0x00453434..0x00453482`：ECX低word、四stage、三类跨模块队列、两倒计时；
+- `0x00453485..0x00453490`：内部bit与返回3；
+- `0x00453491..0x00453514`：可选/固定stage、overlay与surface分支；
+- `0x00453514..0x00453570`：截图word、路径、BMP写入、请求清零和活动返回。
+
+C++到LST反向追溯覆盖完整412行、44个静态call站点和18个标签。
+
+## 13. 验证与动态差分
+
+定向测试覆盖：
+
+- 音乐启动/commit和第六stage零早退；
+- target lock/unlock后渲染门返回活动1；
+- 选择延迟刷新、共享值重读、active/auxiliary发布与交互门；
+- UI dword只改低word且保留高16位；
+- 固定帧直连、ECX高字/低word组合；
+- packed-row、头像、空对话与双倒计时直连；
+- 内部bit 17返回3及缺失bit表真实访问typed-stop；
+- 临时surface路径、零token typed-stop和alternate门；
+- 截图计数word回绕、路径、writer调用与请求清零；
+- 面板动作更新、双映射、九宫格、角色组A token、独立动作帧和第三类ECX snapshot；
+- 映射缺失发生在面板动作更新副作用之后；
+- battle聚合目标零warning，普通定向通过。
+
+当前没有原版44个callee、共享选择/队列/对话/倒计时状态、DirectDraw target surface、内部bit表、寄存器snapshot与BMP文件联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

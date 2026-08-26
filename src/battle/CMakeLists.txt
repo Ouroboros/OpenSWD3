@@ -10,6 +10,7 @@ add_library(
         legacy_battle_border_panel.cpp
         legacy_battle_color_fade.cpp
         legacy_battle_directional_scan.cpp
+        legacy_battle_frame_coordinator.cpp
         legacy_battle_frame_draw.cpp
         legacy_battle_image_rotation.cpp
         legacy_battle_object_reset.cpp
@@ -42,4 +43,6 @@ target_link_libraries(
         openswd3_project_warnings
         openswd3_rendering
         openswd3_resource_io
+        openswd3_story_scene
+        openswd3_world_map
 )
