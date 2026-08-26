@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v700
+版本：v701
 
 最后更新：2026-08-25
 
@@ -3904,5 +3904,6 @@ B7 P0 有限收口完成。
 - 模块10战斗资源选择与缓存帧复用绘制`0x00450BD0`完成。完整74行只对selector完整值0/1分别查询固定资源2359/2358，其他值忽略入口帧号并复用缓存frame与旧共享source；查询失败先发布空frame record而不清旧source。独立共享word精确等于4000时选择flags 20，软件绘制固定空tail；正常公共后缀后仅以帧宽覆写EAX低16位，高16位取显式post-blit snapshot。定向测试锁定两类资源、缓存复用、无缓存停止、查询失败发布顺序、模式20正常路径、混合EAX返回和indexed空tail故障；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`34/422`，即`29 platform_adapted + 5 assembly_exact + 388 pending_audit`，SHA256为`e038f025708ed5c2479d4823602b0b9f8e2a25c1971fa662a52f911399ab0904`。原版缓存帧record、共享source、模式word、blitter后EAX和framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 - 模块10战斗纵向状态面板绘制`0x00450C50`完成。完整363行以同一动作号的顶部、中段、填充、底部四组变体绘制纵向面板；顶部保留入口旧record，后三阶段逐次完整清零，四次帧查询分别保留更新后EAX/ECX/EDX的LST指定高字。中段按signed数量平铺；填充以x87 `7/max`扩展精度向零结果、signed商和共享计数计算局部clip，按帧高do-while推进并在完整步长不可达域保留首个draw后停止，正常后才恢复全屏clip并绘制底部。定向测试锁定首record旧wait、四组高字、selector变体、十次绘制坐标、比例与clip、分母零、更新/帧失败、indexed空tail和末次EAX返回；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`35/422`，即`30 platform_adapted + 5 assembly_exact + 387 pending_audit`，SHA256为`f56d741c3c6031548bec1dc51177600fb57bcd83a01f84324756df7e4505d6f7`。原版四次更新后寄存器、共享计数、x87结果、clip、四组frame record、共享blitter状态和framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 - 模块10战斗状态指示器动画`0x00450F90`完成。完整170行在tick零时按完成hold清状态或消费一次有界随机决定左右侧；状态低word精确1选择变体3，其余选择变体2，资源号保留更新后EAX高字，帧0以X=260+50×状态、Y=200和固定空tail绘制。正常后tick用signed除25判周期，周期点把packed亮度低字加倍后同时写入亮度与衰减word；亮度达64时复位、可增加右侧hold、完整清record并唯一返回1，否则衰减高word，归零时重载亮度、翻转状态并播放固定提示音。定向测试锁定随机0/1、hold门、旧record、陈旧资源高字、左右像素、周期packed加倍、阈值返回1、衰减翻转/声音及更新/帧/indexed停止前缀；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`36/422`，即`31 platform_adapted + 5 assembly_exact + 386 pending_audit`，SHA256为`5dc519754a634dbfc51f91f607714ee9e55f0b4f119e98993c1ad5ecfba50ad7`。原版有界随机表、更新后EAX、四个共享计数word、frame record、共享blitter状态、提示音后端和framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
+- 模块10战斗三档刻度扫描动画`0x00451100`完成。完整207行先以资源234F帧0和record tail绘制底板，再按三个u16阈值固定三轮设置1像素竖clip并查询/绘制帧1；首轮clip高度来自帧0，后两轮来自帧1。每轮以counter低word的半速加一值命中`threshold..threshold+2`，相等目标会清marker，不等目标只清低word并保留marker。三轮后按递增前counter设置最终扫描竖条并再次绘制帧1，正常后才恢复全屏clip、递增counter低word；递增后半速值精确62时把低word写8000并返回1。定向测试锁定五次查询/绘制、逐轮缓存高度、四条实际竖像素、marker/目标双路径、循环查询失败前缀、indexed record palette tail以及counter高word保留与完成门；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`37/422`，即`32 platform_adapted + 5 assembly_exact + 385 pending_audit`，SHA256为`5abb276dcdc66012b327a81174b9bdd6d54773d548e984ebd053f04e52464001`。原版三项阈值、扫描counter、选择/目标状态、frame record、共享clip/blitter状态和framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=37`的`0x00451100`战斗三档刻度扫描动画，继续完整审计底板/扫描帧查询、三项阈值clip、共享选择状态、半速计数推进、全屏clip恢复及返回1门。
+下一项回收`audit_order=38`的`0x004512B0`战斗六级竖槽填充面板，继续完整审计帧2高度除6、等级缩放clip、帧0/2/3/1绘制坐标、帧3模式20共享状态、全屏clip恢复及正常返回寄存器。
