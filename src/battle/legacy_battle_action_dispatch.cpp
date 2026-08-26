@@ -25,7 +25,6 @@ constexpr u32 kCallQueryActorClass = 0x00482E90U;
 constexpr u32 kCallQueryPercent = 0x00482F10U;
 constexpr u32 kCallPublishSignedValue = 0x0047D640U;
 constexpr u32 kCallSetActorAction = 0x004830A0U;
-constexpr u32 kCallPairAction = 0x0045D690U;
 constexpr u32 kCallQuerySelection = 0x0047C680U;
 constexpr u32 kCallQueryModeC = 0x0047C6B0U;
 constexpr u32 kCallClearMode = 0x0047D870U;
@@ -135,7 +134,7 @@ void replace_high_word(u32& destination, const u16 value) noexcept {
     LegacyBattleActionCallReply reply =
         port.invoke({.callee_token = callee, .arguments = arguments});
     if (reply.publish_accumulator) {
-        state.action_accumulator = reply.accumulator;
+        port.battle_pair_primary_value() = reply.accumulator;
     }
     if (reply.publish_selection_word) {
         state.selection_word = reply.selection_word;
@@ -456,14 +455,14 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                         port,
                         result,
                         kCallCommitVisual,
-                        {state.action_accumulator, 0U, 0U}
+                        {port.battle_pair_primary_value(), 0U, 0U}
                     );
                     if (reply.eax == 1U) {
                         state.selected_target_index =
                             static_cast<u16>(group_b_index);
                         state.selected_group_b_identity[group_b_index] =
                             group_b_index;
-                        state.action_accumulator = 0xFFFFFFFFU;
+                        port.battle_pair_primary_value() = 0xFFFFFFFFU;
                         if (!clear_framebuffer(state, context, result)) {
                             return result;
                         }
@@ -477,7 +476,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                         }
                     }
                 }
-                state.action_accumulator = 0U;
+                port.battle_pair_primary_value() = 0U;
                 static_cast<void>(
                     invoke(state, port, result, kCallClearPendingAction, {0U})
                 );
@@ -562,14 +561,14 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                                 port,
                                 result,
                                 kCallCommitVisual,
-                                {state.action_accumulator, 0U, 0U}
+                                {port.battle_pair_primary_value(), 0U, 0U}
                             )
                                     .eax == 1U) {
                             state.selected_target_index =
                                 static_cast<u16>(group_b_index);
                             state.selected_group_b_identity[group_b_index] =
                                 group_b_index;
-                            state.action_accumulator = 0xFFFFFFFFU;
+                            port.battle_pair_primary_value() = 0xFFFFFFFFU;
                             if (!clear_framebuffer(state, context, result) ||
                                 !update_effect_score(
                                     state, result, group_a_index, 5U
@@ -580,7 +579,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                                 state, port, result, kCallSetDelay, {0x12CU}
                             ));
                         }
-                        state.action_accumulator = 0U;
+                        port.battle_pair_primary_value() = 0U;
                         state.special_phase = 0U;
                         state.frame_effect.split_extent = 0U;
                         state.frame_effect.split_suppression = 0U;
@@ -676,13 +675,13 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                 port,
                 result,
                 kCallCommitVisual,
-                {state.action_accumulator, 0U, 0U}
+                {port.battle_pair_primary_value(), 0U, 0U}
             )
                     .eax == 1U) {
             state.selected_target_index = static_cast<u16>(group_b_index);
             state.selected_group_b_identity[group_b_index] = group_b_index;
             if (action == 0x195U || action == 0x196U || action == 0x199U) {
-                state.action_accumulator = 0xFFFFFFFFU;
+                port.battle_pair_primary_value() = 0xFFFFFFFFU;
             }
             if (action == 0x199U) {
                 static_cast<void>(
@@ -695,7 +694,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                 return result;
             }
         }
-        state.action_accumulator = 0U;
+        port.battle_pair_primary_value() = 0U;
         if (action == 0x199U) {
             state.current_actor_index = 0xFFFFU;
             static_cast<void>(
@@ -739,7 +738,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                 port,
                 result,
                 kCallCommitVisual,
-                {state.action_accumulator, 0U, 0U}
+                {port.battle_pair_primary_value(), 0U, 0U}
             );
             if (reply.eax == 1U) {
                 state.selected_target_index = static_cast<u16>(group_b_index);
@@ -754,13 +753,15 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
         }
 
         if (state.side_mode != 0U) {
-            static_cast<void>(invoke(
-                state,
+            result.pair_transition = advance_legacy_battle_pair_transition(
                 port,
-                result,
-                kCallPairAction,
-                {actor_token, group_b_token(group_b_index)}
-            ));
+                {
+                    .primary_object_token = actor_token,
+                    .secondary_object_token = group_b_token(group_b_index),
+                }
+            );
+            ++result.pair_transition_calls;
+            result.port_calls += result.pair_transition.port_calls;
         }
         const u16 actor_class = low_word(
             invoke(state, port, result, kCallQueryActorClass, {actor_token}).eax
@@ -770,33 +771,35 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                 invoke(state, port, result, kCallQueryPercent, {0x38U}).eax
             );
             state.signed_action_value = 0;
-            const u32 base = (10U * state.action_accumulator) / 100U;
+            const u32 base = (10U * port.battle_pair_primary_value()) / 100U;
             if (state.side_mode != 0U) {
-                state.action_accumulator = base +
-                    (static_cast<u32>(percent) * state.action_accumulator) /
+                port.battle_pair_primary_value() = base +
+                    (static_cast<u32>(percent) *
+                     port.battle_pair_primary_value()) /
                         100U;
             } else {
-                state.action_accumulator = base +
+                port.battle_pair_primary_value() = base +
                     (static_cast<u32>(percent) *
-                     (state.action_accumulator - base)) /
+                     (port.battle_pair_primary_value() - base)) /
                         100U;
                 static_cast<void>(
                     invoke(state, port, result, 0x004787D0U, {0x246FU})
                 );
-                state.action_accumulator = 0U - state.action_accumulator;
+                port.battle_pair_primary_value() =
+                    0U - port.battle_pair_primary_value();
                 static_cast<void>(invoke(
                     state,
                     port,
                     result,
                     kCallPublishSignedValue,
-                    {state.action_accumulator}
+                    {port.battle_pair_primary_value()}
                 ));
                 static_cast<void>(invoke(
                     state,
                     port,
                     result,
                     kCallCommitVisual,
-                    {state.action_accumulator, 0U, 0U}
+                    {port.battle_pair_primary_value(), 0U, 0U}
                 ));
                 static_cast<void>(
                     invoke(state, port, result, 0x0047CF00U, {8U})
@@ -814,15 +817,17 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
             ));
         }
         if (state.side_mode == 0U) {
-            static_cast<void>(invoke(
-                state,
+            result.pair_transition = advance_legacy_battle_pair_transition(
                 port,
-                result,
-                kCallPairAction,
-                {actor_token, target_token}
-            ));
+                {
+                    .primary_object_token = actor_token,
+                    .secondary_object_token = target_token,
+                }
+            );
+            ++result.pair_transition_calls;
+            result.port_calls += result.pair_transition.port_calls;
         }
-        state.action_accumulator = 0U;
+        port.battle_pair_primary_value() = 0U;
         state.selection_high_word = 0U;
         state.selection_word = 0U;
         static_cast<void>(invoke(state, port, result, kCallSetDelay, {0x12CU}));
@@ -885,7 +890,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
         if ((state.action_runtime_flags & 1U) == 0U) {
             return result;
         }
-        state.action_accumulator = 0U;
+        port.battle_pair_primary_value() = 0U;
         state.selection_word = 0U;
         state.selection_high_word = 0U;
         if (action == 2U) {
@@ -949,12 +954,12 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                 port,
                 result,
                 kCallCommitVisual,
-                {state.action_accumulator, 0U, 0U}
+                {port.battle_pair_primary_value(), 0U, 0U}
             );
             if (reply.eax == 1U) {
                 state.selected_target_index = static_cast<u16>(group_b_index);
                 state.selected_group_b_identity[group_b_index] = group_b_index;
-                state.action_accumulator = 0xFFFFFFFFU;
+                port.battle_pair_primary_value() = 0xFFFFFFFFU;
                 if (!clear_framebuffer(state, context, result)) {
                     return result;
                 }
@@ -966,7 +971,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                 }
             }
         }
-        state.action_accumulator = 0U;
+        port.battle_pair_primary_value() = 0U;
         static_cast<void>(
             invoke(state, port, result, kCallClearPendingAction, {0U})
         );
@@ -1636,7 +1641,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                     value = 0x270F;
                 }
                 state.signed_action_value = value;
-                state.action_accumulator += static_cast<u32>(value);
+                port.battle_pair_primary_value() += static_cast<u32>(value);
                 static_cast<void>(invoke(
                     state,
                     port,
@@ -1649,7 +1654,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                     port,
                     result,
                     kCallPublishSignedValue,
-                    {state.action_accumulator}
+                    {port.battle_pair_primary_value()}
                 ));
                 static_cast<void>(
                     invoke(state, port, result, 0x0047CEC0U, {1U})
@@ -1660,7 +1665,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                         port,
                         result,
                         kCallCommitVisual,
-                        {state.action_accumulator, 0U, 0U}
+                        {port.battle_pair_primary_value(), 0U, 0U}
                     )
                             .eax == 1U) {
                     state.frame_refresh_pending = 1U;
@@ -1670,7 +1675,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                         return result;
                     }
                 }
-                state.action_accumulator = 0U;
+                port.battle_pair_primary_value() = 0U;
             }
             state.message_aux = low_word(state.packed_action_state) & 0x7FFFU;
         }
@@ -1855,10 +1860,10 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                 port,
                 result,
                 kCallCommitVisual,
-                {state.action_accumulator, 0U, 0U}
+                {port.battle_pair_primary_value(), 0U, 0U}
             )
                     .eax == 1U) {
-            state.action_accumulator = 0xFFFFFFFFU;
+            port.battle_pair_primary_value() = 0xFFFFFFFFU;
             state.selected_target_index = static_cast<u16>(group_b_index);
             state.selected_group_b_identity[group_b_index] = group_b_index;
             state.frame_refresh_pending = 1U;
@@ -1870,7 +1875,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
             }
             replace_low_word(state.scan_push_state, 0x8000U);
         }
-        state.action_accumulator = 0U;
+        port.battle_pair_primary_value() = 0U;
         static_cast<void>(invoke(state, port, result, kCallPushState, {0x40U}));
         if ((state.scan_push_state & 0x8000U) != 0U) {
             finish_scan();
@@ -1906,7 +1911,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                 port,
                 result,
                 kCallCommitVisual,
-                {state.action_accumulator, 0U, 0U}
+                {port.battle_pair_primary_value(), 0U, 0U}
             )
                     .eax == 1U) {
             state.selected_target_index = static_cast<u16>(group_b_index);
@@ -1916,7 +1921,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                 return result;
             }
         }
-        state.action_accumulator = 0U;
+        port.battle_pair_primary_value() = 0U;
         state.current_actor_index = 0xFFFFU;
         result.return_value = 1U;
         return result;
@@ -2035,7 +2040,8 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
              state.selection_word,
              state.selection_high_word}
         );
-        state.action_accumulator = static_cast<u32>(signed_low_word(reply.eax));
+        port.battle_pair_primary_value() =
+            static_cast<u32>(signed_low_word(reply.eax));
         static_cast<void>(invoke(
             state,
             port,
@@ -2048,7 +2054,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
             port,
             result,
             kCallPublishSignedValue,
-            {state.action_accumulator}
+            {port.battle_pair_primary_value()}
         ));
         static_cast<void>(invoke(state, port, result, 0x0047CEC0U, {1U}));
         if (state.blocking_effect == 0U &&
@@ -2057,7 +2063,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                 port,
                 result,
                 kCallCommitVisual,
-                {state.action_accumulator, 0U, 0U}
+                {port.battle_pair_primary_value(), 0U, 0U}
             )
                     .eax == 1U) {
             if (!clear_internal_flag(context.internal_flags, 0x4AU)) {
@@ -2071,13 +2077,13 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
             if (!clear_framebuffer(state, context, result)) {
                 return result;
             }
-            state.action_accumulator = 0U;
+            port.battle_pair_primary_value() = 0U;
             state.message_gate = 0U;
             state.current_actor_index = 0xFFFFU;
             result.return_value = 1U;
             return result;
         }
-        state.action_accumulator = 0U;
+        port.battle_pair_primary_value() = 0U;
         return result;
     }
     case 33U:

@@ -217,7 +217,9 @@ void seed_state(
     metrics.priority_actor_index = 9U;
     metrics.priority_order_ready = 9U;
 
+    port.battle_pair_secondary_value() = 0x7788U;
     auto& shift = port.effect_shift_state();
+    shift.packed_reward = 0xAABBCCDDU;
     shift.actor_delta = 9;
     shift.direction_mode = 9U;
     shift.threshold_word = 9U;
@@ -237,7 +239,7 @@ void seed_state(
     coordinator.selected_actor_pair = 0xAABB1234U;
     coordinator.group_a_feedback_actor = 9U;
     coordinator.group_b_feedback_actor = 9U;
-    coordinator.shared_feedback_primary = 9U;
+    port.battle_pair_primary_value() = 9U;
     coordinator.group_a_arguments.fill(9U);
     coordinator.feedback_primary.fill(9U);
 }
@@ -401,8 +403,10 @@ void test_battle_global_reset(openswd3::test::Context& test) {
         );
         const auto& shift = port.effect_shift_state();
         test.expect_true(
-            shift.actor_delta == 0 && shift.direction_mode == 0U &&
-                shift.threshold_word == 0U && shift.completion_latch == 0U &&
+            shift.packed_reward == 0xAABBCCDDU && shift.actor_delta == 0 &&
+                shift.direction_mode == 0U && shift.threshold_word == 0U &&
+                shift.completion_latch == 0U &&
+                port.battle_pair_secondary_value() == 0x7788U &&
                 state.unmapped_bytes.contains(0x0053AE7AU) == false &&
                 state.unmapped_bytes.contains(0x0053BD5CU) == false &&
                 state.unmapped_bytes.contains(0x0053C000U) == false &&
@@ -424,7 +428,7 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 coordinator.selected_actor_pair == 0xAABBFFFFU &&
                 coordinator.group_a_feedback_actor == 0xFFFFU &&
                 coordinator.group_b_feedback_actor == 0xFFFFU &&
-                coordinator.shared_feedback_primary == 0U &&
+                port.battle_pair_primary_value() == 0U &&
                 std::ranges::all_of(
                     coordinator.group_a_arguments,
                     [](const auto value) { return value == 0U; }

@@ -16,7 +16,6 @@ constexpr u32 kCallQueryActor = 0x004786E0U;
 constexpr u32 kCallActorStatus = 0x0047CE80U;
 constexpr u32 kCallFeedback = 0x0047F150U;
 constexpr u32 kCallCopyActorValue = 0x0046F6E0U;
-constexpr u32 kCallFinalizePair = 0x0045D690U;
 constexpr u32 kCallQueryFinalActor = 0x0047F920U;
 constexpr u32 kCallQueryReward = 0x00472C70U;
 constexpr u32 kCallPublishRewardId = 0x004787D0U;
@@ -209,9 +208,23 @@ public:
     }
 
     void finalize_pair(const u32 first_actor, const u32 second_actor) {
-        static_cast<void>(
-            invoke(kCallFinalizePair, {first_actor, second_actor})
+        result.pair_transition = advance_legacy_battle_pair_transition(
+            port_,
+            {
+                .primary_object_token = first_actor,
+                .secondary_object_token = second_actor,
+            }
         );
+        ++result.pair_transition_calls;
+        result.port_calls += result.pair_transition.port_calls;
+    }
+
+    [[nodiscard]] u32& pair_primary_value() noexcept {
+        return port_.battle_pair_primary_value();
+    }
+
+    [[nodiscard]] u16& pair_secondary_value() noexcept {
+        return port_.battle_pair_secondary_value();
     }
 
     [[nodiscard]] u32 query_final_actor(const u32 actor_token) {
@@ -253,8 +266,8 @@ public:
     }
 
     void clear_feedback() noexcept {
-        state_.shared_feedback_primary = 0U;
-        state_.shared_feedback_secondary = 0U;
+        pair_primary_value() = 0U;
+        pair_secondary_value() = 0U;
         replace_high_word(shift_.packed_reward, 0U);
     }
 
@@ -664,8 +677,8 @@ LegacyBattleEffectCoordinatorResult advance_legacy_battle_effect_coordinator(
             }
             if (state.primary_suppression == 0U &&
                 run.feedback(
-                    state.shared_feedback_primary,
-                    state.shared_feedback_secondary,
+                    run.pair_primary_value(),
+                    run.pair_secondary_value(),
                     static_cast<u32>(signed_word(shift.packed_reward >> 16U))
                 ) == 1U) {
                 if (!run.publish_feedback_fill(
@@ -685,8 +698,8 @@ LegacyBattleEffectCoordinatorResult advance_legacy_battle_effect_coordinator(
             );
             if (state.group_a_effect_mode == 1U) {
                 static_cast<void>(run.feedback(
-                    state.shared_feedback_primary,
-                    state.shared_feedback_secondary,
+                    run.pair_primary_value(),
+                    run.pair_secondary_value(),
                     static_cast<u32>(signed_word(shift.packed_reward >> 16U))
                 ));
                 if (!run.validate_slot(target_index)) {
@@ -697,7 +710,7 @@ LegacyBattleEffectCoordinatorResult advance_legacy_battle_effect_coordinator(
                 if (state.primary_suppression == 0U &&
                     run.feedback(
                         state.feedback_primary[0],
-                        state.shared_feedback_secondary,
+                        run.pair_secondary_value(),
                         static_cast<u32>(
                             signed_word(shift.packed_reward >> 16U)
                         )
@@ -765,7 +778,7 @@ LegacyBattleEffectCoordinatorResult advance_legacy_battle_effect_coordinator(
         if (child_return != 1U) {
             if (group_effect_mode) {
                 run.publish_reward(
-                    current_token, 0x0052441CU, state.shared_feedback_primary
+                    current_token, 0x0052441CU, run.pair_primary_value()
                 );
             }
             result.return_value = 0U;
@@ -796,18 +809,18 @@ LegacyBattleEffectCoordinatorResult advance_legacy_battle_effect_coordinator(
 
         if (state.primary_suppression == 0U) {
             const u32 feedback_first = group_effect_mode
-                ? state.shared_feedback_primary
+                ? run.pair_primary_value()
                 : state.feedback_primary[0];
             const u32 feedback_second = target_group_b || group_effect_mode
                 ? 0U
-                : state.shared_feedback_secondary;
+                : run.pair_secondary_value();
             const u32 feedback_third = target_group_b || group_effect_mode
                 ? 0U
                 : static_cast<u32>(signed_word(shift.packed_reward >> 16U));
             if (run.feedback(feedback_first, feedback_second, feedback_third) ==
                 1U) {
                 if (group_effect_mode) {
-                    state.shared_feedback_primary = 0xFFFFFFFFU;
+                    run.pair_primary_value() = 0xFFFFFFFFU;
                 }
                 if (!target_group_b) {
                     state.framebuffer_dirty_latch = 1U;
@@ -892,8 +905,7 @@ LegacyBattleEffectCoordinatorResult advance_legacy_battle_effect_coordinator(
                     current_index * kLegacyBattleEffectCoordinatorGroupBStride
                 );
                 if (state.feedback_primary[index] > 0U) {
-                    state.shared_feedback_primary =
-                        state.feedback_primary[index];
+                    run.pair_primary_value() = state.feedback_primary[index];
                 }
                 run.finalize_pair(current_token, group_a_token(index));
                 state.processed_actor_slots[index] = index;

@@ -49,12 +49,12 @@
 
 反馈callee返回精确1时，函数按各路径原有差异发布反馈actor、组A发起计数、组B staged计数、dirty latch或actor槽，然后以内存字节`0xFF`填充`2 * Rect.right * Rect.bottom`。typed实现对唯一`LegacyFramebuffer`写入对应u16 `0xFFFF`像素；请求范围超过owned物理像素时先保留完整owned前缀，再在首次不可用像素停止。
 
-共享反馈primary、secondary和packed reward高word按原路径分开清理。`0x005202A8`的固定`0xAB0`字节清零恰好对应18个`0x98`主记录；三组反馈数组也各固定18 dword。先前单体8槽与群体10槽的重复建模已纠正为同一18槽虚共享状态，主记录、备用记录、公共渲染字段与奖励数组只保留一份物理typed存储。actor发布数组`0x00502984`也与战斗初始化重置收敛为同一18槽虚共享端口，初始化写`0xFFFFFFFF`与本函数按索引发布不再维护两份副本。
+共享反馈primary、secondary和packed reward高word按原路径分开清理。双对象数值转场关闭后，三处caller删除旧token并直接组合typed实现；primary与动作累计值、secondary与单体/群体辅助奖励、packed reward高word与效果步进分别共用唯一typed端口。`0x005202A8`的固定`0xAB0`字节清零恰好对应18个`0x98`主记录；三组反馈数组也各固定18 dword。先前单体8槽与群体10槽的重复建模已纠正为同一18槽虚共享状态，主记录、备用记录、公共渲染字段与奖励数组只保留一份物理typed存储。actor发布数组`0x00502984`也与战斗初始化重置收敛为同一18槽虚共享端口，初始化写`0xFFFFFFFF`与本函数按索引发布不再维护两份副本。
 
 全局重置`0x0045B630`写到的18槽主记录、两组模式、参数数组、计数器、反馈actor与活动latch已从未映射字节像回收，直接同步同一协调器状态；重置程序未写的scan limit、delay和反馈数组保持不变。
 
 ## 6. 测试与动态差分
 
-定向测试覆盖双UI入口门、单体/群体18槽共享与第19槽停点、当前组A/B越界、组A单目标双side、组A staged与group-wide路径、组B单目标双side、组B群体固定组A不对称、组B staged与group-wide路径、动态组B第9项停点、完整framebuffer填充、组A发起计数、组B自目标不发布dirty、初始化actor发布槽物理别名、全局重置物理别名及主帧caller直连。
+定向测试覆盖双UI入口门、单体/群体18槽共享与第19槽停点、当前组A/B越界、组A单目标双side、组A staged与group-wide路径、组B单目标双side、组B群体固定组A不对称、组B staged与group-wide路径、动态组B第9项停点、三处双对象数值转场caller直连、完整framebuffer填充、组A发起计数、组B自目标不发布dirty、初始化actor发布槽物理别名、全局重置物理别名及主帧caller直连。
 
-定向`1/1`、独立AddressSanitizer `1/1`、Linux core `188/188`和Linux app `194/194`通过。当前缺少原版两组完整角色对象、十个剩余callee共享副作用、动态数量与scan limit修改、反馈数组、framebuffer地址、Rect与寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+定向`1/1`、独立AddressSanitizer `1/1`、Linux core `188/188`和Linux app `194/194`通过。当前缺少原版两组完整角色对象、九个剩余callee共享副作用、动态数量与scan limit修改、反馈数组、framebuffer地址、Rect与寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

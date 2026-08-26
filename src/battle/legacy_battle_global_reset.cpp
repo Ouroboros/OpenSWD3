@@ -320,6 +320,7 @@ void synchronize_typed_aliases(
     LegacyBattleActionDispatchState& action,
     u32& message_state,
     u32& terminal_latch,
+    u32& pair_primary_value,
     rendering::LegacyFrameColorTransitionState& color_accumulation,
     LegacyBattleActorMetricState& metrics,
     LegacyBattleEffectShiftState& shift,
@@ -367,6 +368,7 @@ void synchronize_typed_aliases(
     final_actor.pre_frame_gate_b = 0U;
     message_state = 0U;
     terminal_latch = 0U;
+    pair_primary_value = 0U;
     std::fill_n(action.opponent_workspace.begin(), 10U, 0U);
     std::fill_n(action.opponent_workspace.begin() + 16U, 80U, 0U);
 
@@ -407,7 +409,6 @@ void synchronize_typed_aliases(
         (coordinator.selected_actor_pair & 0xFFFF0000U) | 0x0000FFFFU;
     coordinator.group_a_feedback_actor = 0xFFFFU;
     coordinator.group_b_feedback_actor = 0xFFFFU;
-    coordinator.shared_feedback_primary = 0U;
     coordinator.group_a_arguments.fill(0U);
 }
 
@@ -465,6 +466,7 @@ LegacyBattleGlobalResetResult reset_legacy_battle_globals(
         action,
         port.battle_message_state(),
         port.battle_terminal_latch(),
+        port.battle_pair_primary_value(),
         port.battle_color_accumulation_state(),
         port.actor_metric_state(),
         port.effect_shift_state(),

@@ -356,7 +356,7 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
             result.return_value == 1U && result.reward_iterations == 2U &&
                 state.reward_total[0] == 10U && state.reward_total[1] == 20U &&
                 state.reward_auxiliary[0] == 0U && state.reward_high[0] == 0U &&
-                state.auxiliary_reward == 0U &&
+                port.battle_pair_secondary_value() == 0U &&
                 (port.effect_shift_state().packed_reward & 0xFFFF0000U) == 0U &&
                 port.count(0x0047F150U) == 2U &&
                 has_argument(port, 0x0047F150U, 2U, 0xBBBB0000U) &&
@@ -393,8 +393,8 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
         LegacyBattleGroupEffectFrameState state;
         state.primary[0].complete = 1U;
         state.primary[0].status_flags = 1U;
-        state.auxiliary_reward = 2U;
         GroupEffectPort port;
+        port.battle_pair_secondary_value() = 2U;
         port.effect_shift_state().packed_reward = 3U << 16U;
         port.push(0x00481A40U, reward_reply(5U));
         const auto result =
@@ -404,7 +404,7 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.return_value == 1U && state.battle_gate == 0U &&
                 state.reward_display_total == 5U &&
-                state.auxiliary_reward == 0U &&
+                port.battle_pair_secondary_value() == 0U &&
                 (port.effect_shift_state().packed_reward & 0xFFFF0000U) == 0U &&
                 port.count(0x00478780U) == 1U && port.count(0x00481A40U) == 1U,
             "single actor reward publishes actor, clears gate and consumes stale rows"

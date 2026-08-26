@@ -776,7 +776,7 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
                  kAuxiliaryRewardToken,
                  kPackedRewardToken}
             );
-            state.auxiliary_reward = low_word(reward.outputs[0]);
+            port.battle_pair_secondary_value() = low_word(reward.outputs[0]);
             replace_high_word(
                 port.effect_shift_state().packed_reward,
                 low_word(reward.outputs[1])
@@ -811,7 +811,7 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
             ));
             reward_offset += 8U;
         }
-        if (state.auxiliary_reward != 0U) {
+        if (port.battle_pair_secondary_value() != 0U) {
             static_cast<void>(invoke(
                 port,
                 result,
@@ -825,7 +825,7 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
                 {argument_object_token,
                  to_bits(
                      static_cast<i32>(
-                         std::bit_cast<i16>(state.auxiliary_reward)
+                         std::bit_cast<i16>(port.battle_pair_secondary_value())
                      )
                  )}
             ));
@@ -868,7 +868,9 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
         }
 
         state.reward_auxiliary[slot_index] = to_bits(
-            static_cast<i32>(std::bit_cast<i16>(state.auxiliary_reward))
+            static_cast<i32>(
+                std::bit_cast<i16>(port.battle_pair_secondary_value())
+            )
         );
         state.reward_total[slot_index] += to_bits(state.reward_value);
         state.reward_high[slot_index] = to_bits(static_cast<i32>(high_reward));
@@ -876,7 +878,9 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
         state.pending_step[slot_index] = 0U;
         primary.status_flags = 0U;
         stale_final_edx = to_bits(
-            static_cast<i32>(std::bit_cast<i16>(state.auxiliary_reward))
+            static_cast<i32>(
+                std::bit_cast<i16>(port.battle_pair_secondary_value())
+            )
         );
     }
 

@@ -208,7 +208,7 @@ bit75未置且message gate bit0为1时，播放固定消息、再次清动作rec
 - framebuffer全1清屏；
 - phase-six与action-twenty-three两处玩家道具双数量步进。
 
-其余尚未关闭的角色、AI、数值、消息、选择和呈现callee以单一窄端口表达，callee地址仅作为`compat::u32` token，不转换为主机指针。端口reply可显式发布callee实际修改的accumulator与两个selection word；caller随后按LST重读。
+相邻双对象数值转场关闭后，两处调用均删除旧callee token并直接组合typed实现。动作累计值与效果协调器主反馈值收敛为唯一共享port；端口reply仍可在每个剩余callee后显式发布该物理值与两个selection word，caller随后按LST重读。其余尚未关闭的角色、AI、数值、消息、选择和呈现callee继续以单一窄端口表达，旧对象地址仅作为`compat::u32` token，不转换为主机指针。
 
 ## 17. typed故障点
 
@@ -246,4 +246,4 @@ bit75未置且message gate bit0为1时，播放固定消息、再次清动作rec
 - 95个原始唯一callee中86个端口边界全部存在，另外9个已关闭callee全部直连；
 - battle聚合目标零warning，普通定向通过。
 
-当前没有原版18个角色对象、95类callee共享副作用、全部数值/AI表、消息文本、输入bit、DirectDraw framebuffer、deformation allocator与SEH联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前没有原版18个角色对象、94类剩余callee共享副作用、全部数值/AI表、消息文本、输入bit、DirectDraw framebuffer、deformation allocator与SEH联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

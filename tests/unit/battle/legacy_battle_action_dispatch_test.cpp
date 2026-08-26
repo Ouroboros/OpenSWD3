@@ -307,10 +307,10 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
 
     {
         LegacyBattleActionDispatchState state;
-        state.action_accumulator = 1000U;
         state.group_a_to_actor[0] = 0U;
         Fixture fixture;
         DispatchPort port;
+        port.battle_pair_primary_value() = 1000U;
         port.action = 1U;
         port.push(0x0046F8C0U, {.eax = 1U});
         port.push(0x0047F150U, {.eax = 1U});
@@ -327,18 +327,44 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 state.frame_refresh_pending == 1U &&
                 result.framebuffer_clear_calls == 1U &&
                 fixture.framebuffer.physical_pixels()[0] == 0xFFFFU &&
-                state.action_accumulator == 0U && port.count(0x0045D690U) == 1U,
+                port.battle_pair_primary_value() == 0U &&
+                result.pair_transition_calls == 1U &&
+                result.pair_transition.port_calls == 1U,
             "ordinary attack publishes target clears framebuffer pairs actors and returns zero"
         );
     }
 
     {
         LegacyBattleActionDispatchState state;
-        state.action_accumulator = 1000U;
+        state.side_mode = 1U;
+        state.group_a_to_actor[0] = 0U;
+        Fixture fixture;
+        DispatchPort port;
+        port.battle_pair_primary_value() = 1000U;
+        port.action = 1U;
+        port.push(0x0046F8C0U, {.eax = 1U});
+        port.push(0x0047F150U, {.eax = 1U});
+        port.push(0x00482E90U, {.eax = 1U});
+        auto context = fixture.context();
+        const auto result = openswd3::battle::dispatch_legacy_battle_action(
+            state, port, context, 0U, 1U
+        );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.pair_transition_calls == 1U &&
+                result.pair_transition.port_calls == 1U &&
+                port.battle_pair_primary_value() == 0U,
+            "alternate-side ordinary attack directly composes the first pair transition call site"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
         state.group_a_to_actor[0] = 0U;
         state.blocking_effect = 1U;
         Fixture fixture;
         DispatchPort port;
+        port.battle_pair_primary_value() = 1000U;
         port.action = 1U;
         port.push(0x00482E90U, {.eax = 8U});
         port.push(0x00482F10U, {.eax = 50U});
@@ -383,10 +409,10 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
 
     {
         LegacyBattleActionDispatchState state;
-        state.action_accumulator = 10U;
         state.group_a_to_actor[0] = 0U;
         Fixture fixture;
         DispatchPort port;
+        port.battle_pair_primary_value() = 10U;
         port.action = 409U;
         auto context = fixture.context();
         const auto result = openswd3::battle::dispatch_legacy_battle_action(
@@ -560,11 +586,11 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
 
     {
         LegacyBattleActionDispatchState state;
-        state.action_accumulator = 9U;
         state.group_a_to_actor[0] = 0U;
         Fixture fixture;
         fixture.raster.surface.width = 641;
         DispatchPort port;
+        port.battle_pair_primary_value() = 9U;
         port.action = 1U;
         auto context = fixture.context();
         const auto result = openswd3::battle::dispatch_legacy_battle_action(

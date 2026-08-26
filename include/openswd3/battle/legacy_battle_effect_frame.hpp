@@ -1,8 +1,8 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_color_accumulation.hpp"
-#include "openswd3/battle/legacy_battle_effect_shift.hpp"
 #include "openswd3/battle/legacy_battle_frame_refresh.hpp"
+#include "openswd3/battle/legacy_battle_pair_transition.hpp"
 #include "openswd3/battle/legacy_battle_shared_phase.hpp"
 #include "openswd3/compat/types.hpp"
 
@@ -37,7 +37,7 @@ class LegacyBattleEffectCallPort
     : public virtual LegacyBattleActorMetricStatePort,
       public virtual LegacyBattleActorPublicationStatePort,
       public virtual LegacyBattleColorAccumulationStatePort,
-      public virtual LegacyBattleEffectShiftStatePort,
+      public virtual LegacyBattlePairTransitionPort,
       public virtual LegacyBattleSharedPhaseStatePort,
       public virtual LegacyBattleFrameRefreshStatePort {
 public:
@@ -120,7 +120,6 @@ struct LegacyBattleSharedEffectFrameState {
 
     compat::u32 battle_gate{};
 
-    compat::u16 auxiliary_reward{};
     compat::i32 reward_value{};
     compat::u32 reward_display_total{};
     std::array<compat::u32, kLegacyBattleEffectActorSlotCount>

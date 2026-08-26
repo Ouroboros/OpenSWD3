@@ -343,7 +343,7 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
             );
         test.expect_true(
             result.return_value == 1U && state.reward_value == 9999 &&
-                state.auxiliary_reward == 0xFF80U &&
+                port.battle_pair_secondary_value() == 0xFF80U &&
                 port.effect_shift_state().packed_reward == 0x00022222U &&
                 state.reward_auxiliary[0] == 0xFFFFFF80U &&
                 state.reward_total[0] == 9999U && state.reward_high[0] == 2U &&

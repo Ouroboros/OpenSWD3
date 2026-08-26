@@ -549,7 +549,8 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
                      kAuxiliaryRewardToken,
                      kPackedRewardToken}
                 );
-                state.auxiliary_reward = low_word(reward.outputs[0]);
+                port.battle_pair_secondary_value() =
+                    low_word(reward.outputs[0]);
                 replace_high_word(
                     shift_state.packed_reward, low_word(reward.outputs[1])
                 );
@@ -575,8 +576,8 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
                 );
                 reward_offset += 8U;
             }
-            replace_low_word(registers.ecx, state.auxiliary_reward);
-            if (state.auxiliary_reward != 0U) {
+            replace_low_word(registers.ecx, port.battle_pair_secondary_value());
+            if (port.battle_pair_secondary_value() != 0U) {
                 static_cast<void>(
                     invoke(kCallPublishRewardId, {reward_actor, 0x2367U})
                 );
@@ -584,9 +585,9 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
                     kCallPublishReward,
                     {reward_actor,
                      to_bits(
-                         static_cast<i32>(
-                             std::bit_cast<i16>(state.auxiliary_reward)
-                         )
+                         static_cast<i32>(std::bit_cast<i16>(
+                             port.battle_pair_secondary_value()
+                         ))
                      )}
                 ));
                 static_cast<void>(
@@ -598,7 +599,7 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
                 reward_offset += 8U;
                 registers.eax = reward_offset;
                 replace_low_word(registers.ecx, 0U);
-                state.auxiliary_reward = 0U;
+                port.battle_pair_secondary_value() = 0U;
             }
             const i16 high_reward =
                 std::bit_cast<i16>(high_word(shift_state.packed_reward));
@@ -617,7 +618,9 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
                 static_cast<void>(
                     invoke(kCallSetRewardMode, {reward_actor, 1U})
                 );
-                replace_low_word(registers.ecx, state.auxiliary_reward);
+                replace_low_word(
+                    registers.ecx, port.battle_pair_secondary_value()
+                );
                 replace_low_word(registers.eax, 0U);
                 replace_high_word(shift_state.packed_reward, 0U);
             }
@@ -625,7 +628,9 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
             if (store_per_actor) {
                 state.reward_total[reward_index] += to_bits(state.reward_value);
                 state.reward_auxiliary[reward_index] = to_bits(
-                    static_cast<i32>(std::bit_cast<i16>(state.auxiliary_reward))
+                    static_cast<i32>(
+                        std::bit_cast<i16>(port.battle_pair_secondary_value())
+                    )
                 );
                 state.reward_high[reward_index] = to_bits(
                     static_cast<i32>(

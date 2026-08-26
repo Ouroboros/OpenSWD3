@@ -385,8 +385,10 @@ I5最终必须锁定：
 
 `audit_order=88`的`0x0045D490`已关闭为`platform_adapted`。完整权威LST主体`0x0045D490..0x0045D685`从proc到endp共218行、7个静态call、9个分支、6个局部标签且无外部chunk。实现恢复terminal/active/message三门、action execution先写、`active+2`工作区真实store、source全1短路、组A建立与状态查询、五dword记录末store、1-based组B预查询、零基动态数量扫描、首个不可用发布和全部可用收束。active与线性索引均保留u32回绕；callee后重读可能动态改写的source、secondary与组B数量，不加现代上限。最终角色、动作工作区和metric数量复用既有typed状态，terminal/message进一步与startup、动作和效果路径收敛为唯一共享phase端口，只新增source与双门；全局重置按原写集合清标量及工作区`0..9/16..95`，保留其余槽和角色记录。唯一逐帧caller删除第三前置opaque stage并直连，子typed-stop阻断metric及后续全帧。
 
+`audit_order=89`的`0x0045D690`已关闭为`platform_adapted`。完整权威LST主体`0x0045D690..0x0045D801`从proc到endp共191行、141条实际指令、21个静态call、6个分支、5个局部标签且无外部chunk。实现保留共享primary入口snapshot、零值陈旧寄存器早退、只比较kind低word、kind 1的32位取负与三参数提交、kind 2/4的双零局部输出、i16符号扩展、回绕delta signed门、路径相关secondary发布，以及不同动作标识和提交参数顺序。kind 2尾写辅助奖励并清primary；kind 4先清primary再只替换打包奖励高word。动作累计/主反馈、辅助奖励/次反馈和打包奖励高word分别回收到唯一typed存储；全局重置只清原写集合中的primary。玩家动作双caller、对手动作单caller和效果协调器三caller全部删除旧token并直连，普通返回寄存器继续不被父路径消费。
+
 `audit_order=14`的`0x00434790`已关闭为`platform_adapted`。它只在首次调用以显式time seed CRT、发布三项共享值并扫描源图，随后直接组合已关闭粒子生成、线段推进与单像素颜色合成；剩余批次回放保留镜像检查X、源索引和实际写入X错位，粒子2×2绘制保留只跳第一透明色、只检查右像素及合成模式右上先合成后被原值覆盖。生命刷新、距离与目标矩形摘除、唯一/首/尾/中间四类双向链释放及其计数不对称均已闭环。三个上层caller都显式消费返回1作为阶段完成信号，尚待各自进入现代实现。
 
-下一项回收`audit_order=89`的`0x0045D690`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗辅助函数。
+下一项回收`audit_order=90`的`0x0045D810`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗辅助函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

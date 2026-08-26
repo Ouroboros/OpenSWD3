@@ -246,7 +246,9 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
                 result.framebuffer_fill_calls == 1U &&
                 state.framebuffer_dirty_latch == 1U &&
                 port.actor_publication_state().slots[0] == 0U &&
-                port.count(0x0046F6E0U) == 1U && port.count(0x0045D690U) == 1U,
+                port.count(0x0046F6E0U) == 1U &&
+                result.pair_transition_calls == 1U &&
+                result.pair_transition.port_calls == 0U,
             "current group-B single-target group-A path preserves copy and pair-finalization order"
         );
     }
@@ -310,7 +312,9 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
             result.return_value == 1U &&
                 result.group_effect_frame_calls == 1U &&
                 result.group_a_iterations == 1U &&
-                result.actor_status_calls == 1U && state.completed_count == 0U,
+                result.actor_status_calls == 1U &&
+                result.pair_transition_calls == 1U &&
+                state.completed_count == 0U,
             "group-B group-wide mode drains one eligible group-A actor and resets the exact completion counter"
         );
     }
@@ -377,6 +381,7 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
                 result.framebuffer_fill_calls == 1U &&
                 state.group_a_render_count == 1U &&
                 state.framebuffer_dirty_latch == 1U &&
+                result.pair_transition_calls == 1U &&
                 framebuffer.physical_pixels().front() == 0xFFFFU &&
                 framebuffer.physical_pixels().back() == 0xFFFFU,
             "successful feedback fills the complete physical framebuffer with all-ones pixels"

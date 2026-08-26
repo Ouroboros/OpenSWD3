@@ -14,7 +14,6 @@ using compat::u32;
 
 constexpr u32 kCallQueryAction = 0x004786B0U;
 constexpr u32 kCallPreparePair = 0x004758A0U;
-constexpr u32 kCallCommitPair = 0x0045D690U;
 constexpr u32 kCallCommitVisual = 0x0047F150U;
 constexpr u32 kCallSetDelay = 0x00478710U;
 constexpr u32 kCallQuerySelection = 0x0047C680U;
@@ -112,7 +111,7 @@ constexpr void replace_low_byte(u32& target, const u8 value) noexcept {
     LegacyBattleActionCallReply reply =
         port.invoke({.callee_token = callee, .arguments = arguments});
     if (reply.publish_accumulator) {
-        state.action_accumulator = reply.accumulator;
+        port.battle_pair_primary_value() = reply.accumulator;
     }
     if (reply.publish_selection_word) {
         state.selection_word = reply.selection_word;
@@ -151,8 +150,10 @@ constexpr void replace_low_byte(u32& target, const u8 value) noexcept {
     return true;
 }
 
-void clear_selection_state(LegacyBattleActionDispatchState& state) noexcept {
-    state.action_accumulator = 0U;
+void clear_selection_state(
+    LegacyBattleActionDispatchState& state, LegacyBattleActionDispatchPort& port
+) noexcept {
+    port.battle_pair_primary_value() = 0U;
     state.selection_word = 0U;
     state.selection_high_word = 0U;
 }
@@ -282,13 +283,15 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
             replace_low_word(
                 state.packed_action_state, static_cast<u16>(target_index)
             );
-            static_cast<void>(invoke(
-                state,
+            result.pair_transition = advance_legacy_battle_pair_transition(
                 port,
-                result,
-                kCallCommitPair,
-                {source_token, target_token}
-            ));
+                {
+                    .primary_object_token = source_token,
+                    .secondary_object_token = target_token,
+                }
+            );
+            ++result.pair_transition_calls;
+            result.port_calls += result.pair_transition.port_calls;
             if (state.blocking_effect == 0U &&
                 invoke(
                     state,
@@ -296,7 +299,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                     result,
                     kCallCommitVisual,
                     {target_token,
-                     state.action_accumulator,
+                     port.battle_pair_primary_value(),
                      state.selection_word,
                      state.selection_high_word}
                 )
@@ -306,7 +309,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                     return result;
                 }
             }
-            clear_selection_state(state);
+            clear_selection_state(state, port);
             state.current_actor_index = 0xFFFFU;
             static_cast<void>(
                 invoke(state, port, result, kCallSetDelay, {source_token, 300U})
@@ -339,7 +342,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                 port,
                 result,
                 kCallCommitVisual,
-                {target_token, state.action_accumulator, 0U, 0U}
+                {target_token, port.battle_pair_primary_value(), 0U, 0U}
             )
                     .eax == 1U) {
             if (target_index >= state.group_a_to_actor.size()) {
@@ -353,7 +356,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                 return result;
             }
         }
-        state.action_accumulator = 0U;
+        port.battle_pair_primary_value() = 0U;
         state.current_actor_index = 0xFFFFU;
         return completed(result, 1U);
     }
@@ -403,7 +406,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
         if ((state.action_runtime_flags & 1U) == 0U) {
             return result;
         }
-        clear_selection_state(state);
+        clear_selection_state(state, port);
         if (state.deformation_active && state.deformation) {
             state.deformation.reset();
             static_cast<void>(invoke(

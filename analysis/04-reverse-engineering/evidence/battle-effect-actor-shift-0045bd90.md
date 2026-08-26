@@ -56,7 +56,7 @@ arg0与scratch跨组A、组B及所有角色持续携带，不按角色重置。�
 
 ## 5. 单一物理状态与caller回收
 
-新`LegacyBattleEffectShiftStatePort`由效果端口与动作端口虚继承，统一保存phase、调用计数、方向、累计word、相邻packed reward、actor delta、threshold与completion latch。群体效果帧删除自己的组A/组B数量、packed reward、final gate word和latch副本；单体效果帧删除packed reward与final gate word副本。两类效果帧现共用同一角色数量与效果步进状态。
+新`LegacyBattleEffectShiftStatePort`由效果端口与动作端口虚继承，统一保存phase、调用计数、方向、累计word、相邻packed reward、actor delta、threshold与completion latch。群体效果帧删除自己的组A/组B数量、packed reward、final gate word和latch副本；单体效果帧删除packed reward与final gate word副本。两类效果帧现共用同一角色数量与效果步进状态。相邻双对象数值转场关闭后，kind 4尾部也通过该端口只替换packed reward高word，低word继续由本状态唯一保存。
 
 动作分派到单体效果帧的适配器覆盖共享状态getter，直接转发父动作端口的唯一metric与effect-shift状态，不创建临时副本。
 

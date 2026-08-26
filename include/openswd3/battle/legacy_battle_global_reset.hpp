@@ -3,8 +3,8 @@
 #include "openswd3/audio_video/legacy_sample_manager.hpp"
 #include "openswd3/battle/legacy_battle_color_accumulation.hpp"
 #include "openswd3/battle/legacy_battle_effect_coordinator.hpp"
-#include "openswd3/battle/legacy_battle_effect_shift.hpp"
 #include "openswd3/battle/legacy_battle_final_actor_step.hpp"
+#include "openswd3/battle/legacy_battle_pair_transition.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 
 #include <array>
@@ -28,7 +28,7 @@ struct LegacyBattleGlobalResetCallReply {
 class LegacyBattleGlobalResetRuntimePort
     : public LegacyBattleStartupPort,
       public virtual LegacyBattleColorAccumulationStatePort,
-      public virtual LegacyBattleEffectShiftStatePort,
+      public virtual LegacyBattlePairTransitionStatePort,
       public virtual LegacyBattleEffectCoordinatorStatePort,
       public LegacyBattleActionRotationReleasePort,
       public LegacyBattleRenderAuxiliaryBufferReleaser {

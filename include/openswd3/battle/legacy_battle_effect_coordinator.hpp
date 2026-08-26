@@ -49,9 +49,6 @@ struct LegacyBattleEffectCoordinatorState
     compat::u16 group_a_feedback_actor{};
     compat::u16 group_b_feedback_actor{};
 
-    compat::u32 shared_feedback_primary{};
-    compat::u16 shared_feedback_secondary{};
-
     std::array<compat::u32, 10> group_a_arguments{};
     std::array<compat::u32, kLegacyBattleEffectActorSlotCount>
         processed_actor_slots{};
@@ -110,6 +107,8 @@ struct LegacyBattleEffectCoordinatorResult {
     compat::u32 framebuffer_fill_calls{};
     compat::u32 group_a_iterations{};
     compat::u32 group_b_iterations{};
+    LegacyBattlePairTransitionResult pair_transition{};
+    compat::u32 pair_transition_calls{};
 };
 
 // Typed closure of legacy 0x0045C010. The two effect callees are composed

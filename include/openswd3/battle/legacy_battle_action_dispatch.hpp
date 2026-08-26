@@ -3,8 +3,8 @@
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
 #include "openswd3/asset_runtime/legacy_frame_deformation.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
-#include "openswd3/battle/legacy_battle_effect_shift.hpp"
 #include "openswd3/battle/legacy_battle_frame_effect.hpp"
+#include "openswd3/battle/legacy_battle_pair_transition.hpp"
 #include "openswd3/battle/legacy_battle_frame_refresh.hpp"
 #include "openswd3/battle/legacy_battle_group_b_order.hpp"
 #include "openswd3/battle/legacy_battle_player_item_quantity.hpp"
@@ -65,7 +65,7 @@ struct LegacyBattleActionCallReply {
 
 class LegacyBattleActionDispatchPort
     : public virtual LegacyBattleActorMetricStatePort,
-      public virtual LegacyBattleEffectShiftStatePort,
+      public virtual LegacyBattlePairTransitionPort,
       public virtual LegacyBattleSharedPhaseStatePort,
       public virtual LegacyBattleFrameRefreshStatePort,
       public virtual world_map::LegacyWorldItemListStatePort {
@@ -96,7 +96,6 @@ struct LegacyBattleActionDispatchState {
     compat::u16 stored_group_a_index{0xFFFFU};
     compat::u32 packed_action_state{};
 
-    compat::u32 action_accumulator{};
     compat::u16 selection_word{};
     compat::u16 selection_high_word{};
     compat::u32 selection_source{};
@@ -237,6 +236,8 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 action_record_clear_calls{};
     LegacyBattlePlayerItemQuantityResult player_item{};
     compat::u32 player_item_calls{};
+    LegacyBattlePairTransitionResult pair_transition{};
+    compat::u32 pair_transition_calls{};
 };
 
 // sub_4539B0: dispatch one action code for the selected group-A actor and

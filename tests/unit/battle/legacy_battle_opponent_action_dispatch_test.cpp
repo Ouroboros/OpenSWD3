@@ -266,11 +266,11 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
 
     {
         LegacyBattleActionDispatchState state;
-        state.action_accumulator = 3U;
         state.selection_word = 4U;
         state.selection_high_word = 5U;
         Fixture fixture;
         DispatchPort port;
+        port.battle_pair_primary_value() = 3U;
         port.action = 1U;
         auto context = fixture.context();
         const auto result =
@@ -282,10 +282,11 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 openswd3::compat::u16(state.packed_action_state) == 2U &&
                 state.selected_target_index == 2U &&
                 state.current_actor_index == 0xFFFFU &&
-                state.action_accumulator == 0U && state.selection_word == 0U &&
-                state.selection_high_word == 0U &&
+                port.battle_pair_primary_value() == 0U &&
+                state.selection_word == 0U && state.selection_high_word == 0U &&
                 fixture.framebuffer.physical_pixels().front() == 0xFFFFU &&
-                port.count(0x0045D690U) == 1U &&
+                result.pair_transition_calls == 1U &&
+                result.pair_transition.port_calls == 1U &&
                 has_call_argument(port, 0x00478710U, 1U, 300U),
             "opponent action one side zero commits pair then clears all three visual channels"
         );
@@ -294,11 +295,11 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
     {
         LegacyBattleActionDispatchState state;
         state.side_mode = 1U;
-        state.action_accumulator = 7U;
         state.selection_word = 8U;
         state.selection_high_word = 9U;
         Fixture fixture;
         DispatchPort port;
+        port.battle_pair_primary_value() = 7U;
         port.action = 1U;
         auto context = fixture.context();
         const auto result =
@@ -308,9 +309,10 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         test.expect_true(
             result.return_value == 1U && state.group_a_to_actor[3] == 3U &&
                 state.selected_target_index == 3U &&
-                state.action_accumulator == 0U && state.selection_word == 8U &&
-                state.selection_high_word == 9U &&
-                port.count(0x0045D690U) == 0U && port.count(0x00478710U) == 0U,
+                port.battle_pair_primary_value() == 0U &&
+                state.selection_word == 8U && state.selection_high_word == 9U &&
+                result.pair_transition_calls == 0U &&
+                port.count(0x00478710U) == 0U,
             "opponent action one side nonzero skips pair commit and preserves selection words"
         );
     }
@@ -583,10 +585,10 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
     {
         LegacyBattleActionDispatchState state;
         state.side_mode = 1U;
-        state.action_accumulator = 9U;
         Fixture fixture;
         fixture.raster.surface.width = 641;
         DispatchPort port;
+        port.battle_pair_primary_value() = 9U;
         port.action = 1U;
         auto context = fixture.context();
         const auto result =
