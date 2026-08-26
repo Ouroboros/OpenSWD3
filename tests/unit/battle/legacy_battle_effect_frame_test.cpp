@@ -311,12 +311,17 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
             );
         test.expect_true(
             result.return_value == 1U && state.battle_gate == 0U &&
-                state.battle_mode_latch == 1U && state.seven_value_gate == 1U &&
+                state.battle_mode_latch == 1U &&
+                port.battle_color_initialization_gate() == 1U &&
+                result.color_initialization_calls == 1U &&
+                port.battle_color_accumulation_state().countdown == 7 &&
+                port.battle_color_accumulation_state().current_red == 1.0F &&
+                port.battle_color_accumulation_state().current_green == 2.0F &&
+                port.battle_color_accumulation_state().current_blue == 3.0F &&
                 state.primary[0].status_flags == 0U &&
                 port.count(0x00482080U) == 3U &&
-                has_argument(port, 0x0045D3E0U, 6U, 7U) &&
                 has_argument(port, 0x00478780U, 0U, 4U),
-            "negative packed flags publish three modes, seven values, actor and clear word"
+            "negative packed flags publish modes typed color initialization actor and clear word"
         );
     }
 

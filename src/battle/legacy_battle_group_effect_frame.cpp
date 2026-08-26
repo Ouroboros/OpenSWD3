@@ -23,7 +23,6 @@ constexpr u32 kCallQueryAnimationCollision = 0x0045D810U;
 constexpr u32 kCallRenderResource = 0x004170E0U;
 constexpr u32 kCallReleaseResource = 0x004885A0U;
 constexpr u32 kCallPublishStatusMode = 0x00482080U;
-constexpr u32 kCallPublishSevenValues = 0x0045D3E0U;
 constexpr u32 kCallEligibility = 0x0047CE80U;
 constexpr u32 kCallPublishActor = 0x00478780U;
 constexpr u32 kCallRewardGate = 0x0047CEA0U;
@@ -467,19 +466,25 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
             }
         }
         if ((primary.status_flags & 0x0400U) != 0U) {
-            static_cast<void>(invoke(
-                kCallPublishSevenValues,
-                {primary.action_values[0],
-                 primary.action_values[1],
-                 primary.action_values[2],
-                 primary.action_values[3],
-                 primary.action_values[4],
-                 primary.action_values[5],
-                 primary.action_values[6]}
-            ));
+            const auto color = initialize_legacy_battle_color_accumulation(
+                port.battle_color_accumulation_state(),
+                {
+                    .current_red = static_cast<i16>(primary.action_values[0]),
+                    .current_green = static_cast<i16>(primary.action_values[1]),
+                    .current_blue = static_cast<i16>(primary.action_values[2]),
+                    .target_red = static_cast<i16>(primary.action_values[3]),
+                    .target_green = static_cast<i16>(primary.action_values[4]),
+                    .target_blue = static_cast<i16>(primary.action_values[5]),
+                    .countdown = static_cast<i16>(primary.action_values[6]),
+                }
+            );
+            ++result.color_initialization_calls;
+            registers.eax = color.return_eax;
+            registers.ecx = color.return_ecx;
+            registers.edx = color.return_edx;
             primary.status_flags =
                 static_cast<u16>(primary.status_flags & 0xFBFFU);
-            state.seven_value_gate = 1U;
+            port.battle_color_initialization_gate() = 1U;
         }
     }
 

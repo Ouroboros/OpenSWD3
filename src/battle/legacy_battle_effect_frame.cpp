@@ -31,7 +31,6 @@ constexpr u32 kCallFinalizeCoordinates = 0x00481FD0U;
 constexpr u32 kCallRenderResource = 0x004170E0U;
 constexpr u32 kCallReleaseResource = 0x004885A0U;
 constexpr u32 kCallPublishStatusMode = 0x00482080U;
-constexpr u32 kCallPublishSevenValues = 0x0045D3E0U;
 constexpr u32 kCallPublishActor = 0x00478780U;
 constexpr u32 kCallQueryRewardGate = 0x0047D8F0U;
 constexpr u32 kCallResolveActor = 0x00480AD0U;
@@ -715,22 +714,23 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
                 invoke(port, result, kCallPublishStatusMode, {0x1EU, 3U}).edx;
         }
         if ((primary.status_flags & 0x0400U) != 0U) {
-            stale_final_edx = invoke(
-                                  port,
-                                  result,
-                                  kCallPublishSevenValues,
-                                  {primary.action_values[0],
-                                   primary.action_values[1],
-                                   primary.action_values[2],
-                                   primary.action_values[3],
-                                   primary.action_values[4],
-                                   primary.action_values[5],
-                                   primary.action_values[6]}
-            )
-                                  .edx;
+            const auto color = initialize_legacy_battle_color_accumulation(
+                port.battle_color_accumulation_state(),
+                {
+                    .current_red = static_cast<i16>(primary.action_values[0]),
+                    .current_green = static_cast<i16>(primary.action_values[1]),
+                    .current_blue = static_cast<i16>(primary.action_values[2]),
+                    .target_red = static_cast<i16>(primary.action_values[3]),
+                    .target_green = static_cast<i16>(primary.action_values[4]),
+                    .target_blue = static_cast<i16>(primary.action_values[5]),
+                    .countdown = static_cast<i16>(primary.action_values[6]),
+                }
+            );
+            ++result.color_initialization_calls;
+            stale_final_edx = color.return_edx;
             primary.status_flags =
                 static_cast<u16>(primary.status_flags & 0xFBFFU);
-            state.seven_value_gate = 1U;
+            port.battle_color_initialization_gate() = 1U;
         }
     }
 

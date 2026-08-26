@@ -20,6 +20,16 @@ public:
         return battle_color_accumulation_state_;
     }
 
+    [[nodiscard]] virtual compat::u32&
+    battle_color_initialization_gate() noexcept {
+        return battle_color_initialization_gate_;
+    }
+
+    [[nodiscard]] virtual const compat::u32&
+    battle_color_initialization_gate() const noexcept {
+        return battle_color_initialization_gate_;
+    }
+
 protected:
     LegacyBattleColorAccumulationStatePort() = default;
     ~LegacyBattleColorAccumulationStatePort() = default;
@@ -27,7 +37,30 @@ protected:
 private:
     rendering::LegacyFrameColorTransitionState
         battle_color_accumulation_state_{};
+    compat::u32 battle_color_initialization_gate_{};
 };
+
+struct LegacyBattleColorInitializationRequest {
+    compat::i32 current_red{};
+    compat::i32 current_green{};
+    compat::i32 current_blue{};
+    compat::i32 target_red{};
+    compat::i32 target_green{};
+    compat::i32 target_blue{};
+    compat::i32 countdown{};
+};
+
+struct LegacyBattleColorInitializationResult {
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
+[[nodiscard]] LegacyBattleColorInitializationResult
+initialize_legacy_battle_color_accumulation(
+    rendering::LegacyFrameColorTransitionState& state,
+    const LegacyBattleColorInitializationRequest& request
+) noexcept;
 
 [[nodiscard]] rendering::LegacyFrameColorTransitionResult
 update_legacy_battle_color_accumulation(

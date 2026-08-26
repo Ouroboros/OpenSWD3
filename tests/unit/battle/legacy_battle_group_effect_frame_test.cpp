@@ -299,9 +299,14 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.return_value == 1U && result.status_iterations == 2U &&
                 tokens == std::vector<u32>({0x00525508U, 0x00528030U}) &&
-                port.count(0x0045D3E0U) == 1U && state.seven_value_gate == 1U &&
+                result.color_initialization_calls == 1U &&
+                port.battle_color_initialization_gate() == 1U &&
+                port.battle_color_accumulation_state().countdown == 7 &&
+                port.battle_color_accumulation_state().current_red == 1.0F &&
+                port.battle_color_accumulation_state().step_red ==
+                    (3.0F / 7.0F) &&
                 state.primary[0].status_flags == 8U,
-            "group-wide status mode follows argument mode and publishes seven values"
+            "group-wide status mode follows argument mode and publishes typed color initialization"
         );
     }
 

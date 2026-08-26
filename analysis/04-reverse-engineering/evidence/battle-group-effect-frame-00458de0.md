@@ -79,7 +79,7 @@ status bit1即word bit`0x0002`置位时，alternate active先写1，随后整个
 
 - signed负值：battle mode latch写1，battle gate清零；
 - bit3置位且bit`0x1000`置位：先清`0x1000`。group-wide mode等于1时首次直接读取参数对象mode；mode等于1按signed组B数量逐角色调用状态发布，否则按signed组A数量；group-wide mode不等于1时只对入口actor调用一次；
-- bit3置位且bit`0x0400`置位：发布record七个u16值，清该bit并置seven-value gate；
+- bit3置位且bit`0x0400`置位：把record七个u16按i16符号扩展后直连已关闭颜色初始化器，恢复其EAX/ECX/EDX尾寄存器，清该bit并把共享颜色初始化门写1；
 - bit2即word bit`0x0004`置位：group-wide mode等于1时，group-A-special等于1选择组A，否则选择组B；非群体模式只发布入口actor。最后整个status word清零。
 
 组A status发布在caller内先读取每个角色的两个独立guard dword，任一等于1即跳过；两者都不等于1才调用eligibility，完整EAX为0才发布actor。组B只要求eligibility完整EAX为0。
@@ -145,7 +145,7 @@ final gate word仍大于0时执行第二次gate：
 
 ## 10. callee、测试与动态差分
 
-原24个唯一直接callee中的`0x0045BD90`已关闭并直连；其余23个直接callee继续通过专用typed token端口发布完整EAX/ECX/EDX与输出。全角色步进内部两个尚未关闭actor callee复用同一端口。第八十二项已关闭唯一总协调器caller的五处调用并改为直接组合，同时把本函数与单体效果函数的公共记录、渲染字段和奖励数组收敛为同一18槽虚共享状态。
+原24个唯一直接callee中的`0x0045BD90`与`0x0045D3E0`已关闭并直连；其余22个直接callee继续通过专用typed token端口发布完整EAX/ECX/EDX与输出。全角色步进内部两个尚未关闭actor callee复用同一端口。第八十二项已关闭唯一总协调器caller的五处调用并改为直接组合，同时把本函数与单体效果函数的公共记录、渲染字段和奖励数组收敛为同一18槽虚共享状态。
 
 定向测试覆盖：
 
@@ -157,7 +157,7 @@ final gate word仍大于0时执行第二次gate：
 - collision固定双Y和slot零；
 - 备用sample后清主pan但保留备用pan；
 - 备用AL翻转、双release、complete与成功尾清record；
-- group-wide状态按参数mode选择组B及七值；
+- group-wide状态按参数mode选择组B及七项i16颜色初始化、共享门与尾寄存器；
 - 组A双guard状态发布；
 - 组A奖励数组清零与汇总陈旧ECX/EAX高word；
 - 组B`-1`基础reward下跨角色累计offset；
@@ -165,4 +165,4 @@ final gate word仍大于0时执行第二次gate：
 - 第11个组A角色保留前10角色前缀后typed-stop；
 - 两次全角色步进的EAX/恢复ECX来源、第一次0返回早退、第二次普通返回忽略与角色typed-stop传播。
 
-当前缺少原版双记录、18角色对象、23类剩余直接callee与效果步进内部两类actor callee共享副作用、resource owner、参数对象、sample、eligibility/reward表、奖励行对象和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版双记录、18角色对象、22类剩余直接callee与效果步进内部两类actor callee共享副作用、resource owner、参数对象、sample、eligibility/reward表、奖励行对象和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

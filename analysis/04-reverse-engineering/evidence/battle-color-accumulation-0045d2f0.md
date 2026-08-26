@@ -48,7 +48,7 @@
 
 ## 5. 单一typed存储与caller回收
 
-九个float与signed计数收敛到唯一`LegacyFrameColorTransitionState`，由`LegacyBattleColorAccumulationStatePort`虚共享。逐帧协调器在overlay最终化后直接调用本typed入口，再进入临时surface或备用surface路径；子framebuffer失败阻断surface与截图尾。
+九个float与signed计数收敛到唯一`LegacyFrameColorTransitionState`，由`LegacyBattleColorAccumulationStatePort`虚共享；相邻初始化函数关闭后，逐帧与两类效果caller使用的同一物理初始化门也收敛到该端口。逐帧协调器在overlay最终化后直接调用本typed入口，再进入临时surface或备用surface路径；子framebuffer失败阻断surface与截图尾。
 
 逐帧协调器此前持有的独立signed counter字段已删除，overlay创建门读取同一共享计数。战斗全局重置把十个对应dword从未映射字节像回收，固定写程序直接清同一typed状态，不保留平行副本。
 

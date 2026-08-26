@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_color_accumulation.hpp"
 #include "openswd3/battle/legacy_battle_effect_shift.hpp"
 #include "openswd3/battle/legacy_battle_frame_refresh.hpp"
 #include "openswd3/compat/types.hpp"
@@ -34,6 +35,7 @@ struct LegacyBattleEffectCallReply {
 class LegacyBattleEffectCallPort
     : public virtual LegacyBattleActorMetricStatePort,
       public virtual LegacyBattleActorPublicationStatePort,
+      public virtual LegacyBattleColorAccumulationStatePort,
       public virtual LegacyBattleEffectShiftStatePort,
       public virtual LegacyBattleFrameRefreshStatePort {
 public:
@@ -116,7 +118,6 @@ struct LegacyBattleSharedEffectFrameState {
 
     compat::u32 battle_gate{};
     compat::u32 battle_mode_latch{};
-    compat::u32 seven_value_gate{};
 
     compat::u16 auxiliary_reward{};
     compat::i32 reward_value{};
@@ -164,6 +165,7 @@ struct LegacyBattleEffectFrameResult {
     };
     compat::u32 return_value{};
     compat::u32 port_calls{};
+    compat::u32 color_initialization_calls{};
     compat::u32 primary_animation_steps{};
     compat::u32 alternate_animation_steps{};
 };

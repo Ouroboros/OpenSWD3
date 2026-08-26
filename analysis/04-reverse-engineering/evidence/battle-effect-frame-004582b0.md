@@ -111,10 +111,10 @@ alternate active完整值等于1时：
 随后重读status：
 
 - signed负值：battle gate清零，battle mode latch写1；
-- bit3置位：依次处理bit`0x1000/0x2000/0x4000`，每项先清自身再发布固定`(30,1/2/3)`；高byte bit2即word bit`0x0400`置位时发布七个record word，清该bit并置seven-value gate；
+- bit3置位：依次处理bit`0x1000/0x2000/0x4000`，每项先清自身再发布固定`(30,1/2/3)`；高byte bit2即word bit`0x0400`置位时，把七个record u16按i16符号扩展后直连已关闭颜色初始化器，清该bit并把共享颜色初始化门写1；
 - bit2即word bit`0x0004`置位时发布actor index并把整个status word清零。
 
-status-mode、seven-value与actor callee的完整EDX按最后执行者更新最终陈旧EDX；没有这些call时保留备用阶段来源。
+status-mode、颜色初始化与actor callee的完整EDX按最后执行者更新最终陈旧EDX；颜色初始化精确保留蓝current向零qword的高dword。没有这些call时保留备用阶段来源。
 
 ## 8. 奖励三行
 
@@ -152,7 +152,7 @@ final gate word按i16大于0时：
 
 ## 10. callee、测试与动态差分
 
-原32个唯一直接callee中的`0x0045BD90`已关闭并直连；其余31个资源、动画、角色、奖励、音频或owner边界继续使用专用typed token端口。全角色步进内部两个尚未关闭actor callee也复用同一端口。第八十二项进一步把本函数与群体效果函数的主记录、备用记录、活动槽、公共渲染字段和奖励数组收敛为同一18槽虚共享状态。
+原32个唯一直接callee中的`0x0045BD90`与`0x0045D3E0`已关闭并直连；其余30个资源、动画、角色、奖励、音频或owner边界继续使用专用typed token端口。全角色步进内部两个尚未关闭actor callee也复用同一端口。第八十二项进一步把本函数与群体效果函数的主记录、备用记录、活动槽、公共渲染字段和奖励数组收敛为同一18槽虚共享状态。
 
 定向测试覆盖：
 
@@ -165,9 +165,9 @@ final gate word按i16大于0时：
 - alternate动画的cadence、双随机与sample；
 - 备用owner在play/set-pan之后停点；
 - 备用完成的owner高word、AL翻转、双release和槽地址陈旧EDX；
-- signed status、三mode、七值与actor清word；
+- signed status、三mode、七项i16颜色初始化、共享门、蓝转换EDX与actor清word；
 - reward 9999夹值、负auxiliary、packed highword与三行顺序；
 - pending callee EDX进入已关闭全角色步进；
 - 子返回0早退、角色越界typed-stop与共享状态直连。
 
-当前缺少原版双记录内存、31类剩余直接callee与效果步进内部两类actor callee共享副作用、resource owner、参数对象字段、随机状态、sample manager、奖励输出和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版双记录内存、30类剩余直接callee与效果步进内部两类actor callee共享副作用、resource owner、参数对象字段、随机状态、sample manager、奖励输出和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

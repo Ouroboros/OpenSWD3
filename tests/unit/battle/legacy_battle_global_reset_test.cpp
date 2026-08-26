@@ -185,6 +185,7 @@ void seed_state(
     color.step_red = 9.0F;
     color.step_green = 9.0F;
     color.step_blue = 9.0F;
+    port.battle_color_initialization_gate() = 9U;
 
     auto& metrics = port.actor_metric_state();
     metrics.values.fill(9);
@@ -321,11 +322,13 @@ void test_battle_global_reset(openswd3::test::Context& test) {
         );
         const auto& color = port.battle_color_accumulation_state();
         test.expect_true(
-            color.countdown == 0 && color.current_red == 0.0F &&
-                color.current_green == 0.0F && color.current_blue == 0.0F &&
-                color.target_red == 0.0F && color.target_green == 0.0F &&
-                color.target_blue == 0.0F && color.step_red == 0.0F &&
-                color.step_green == 0.0F && color.step_blue == 0.0F &&
+            color.countdown == 0 &&
+                port.battle_color_initialization_gate() == 9U &&
+                color.current_red == 0.0F && color.current_green == 0.0F &&
+                color.current_blue == 0.0F && color.target_red == 0.0F &&
+                color.target_green == 0.0F && color.target_blue == 0.0F &&
+                color.step_red == 0.0F && color.step_green == 0.0F &&
+                color.step_blue == 0.0F &&
                 state.unmapped_bytes.contains(0x004FDF8CU) == false &&
                 state.unmapped_bytes.contains(0x004FDFA4U) == false &&
                 state.unmapped_bytes.contains(0x00520D58U) == false &&
@@ -336,7 +339,7 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 state.unmapped_bytes.contains(0x00525430U) == false &&
                 state.unmapped_bytes.contains(0x00525448U) == false &&
                 state.unmapped_bytes.contains(0x00525468U) == false,
-            "global reset clears the unique battle color accumulation state without unmapped duplicate bytes"
+            "global reset clears the unique battle color transition values without touching the separate initialization gate"
         );
         const auto& shift = port.effect_shift_state();
         test.expect_true(

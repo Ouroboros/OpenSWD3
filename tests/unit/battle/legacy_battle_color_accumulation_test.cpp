@@ -2,6 +2,7 @@
 
 #include "test.hpp"
 
+#include <bit>
 #include <cmath>
 #include <limits>
 
@@ -30,6 +31,92 @@ void test_battle_color_accumulation(openswd3::test::Context& test) {
     using openswd3::rendering::LegacyFramebuffer;
 
     const auto conversion = rgb565();
+
+    {
+        LegacyFrameColorTransitionState state;
+        const auto result =
+            openswd3::battle::initialize_legacy_battle_color_accumulation(
+                state,
+                {
+                    .current_red = 24,
+                    .current_green = 24,
+                    .current_blue = 24,
+                    .target_red = 0,
+                    .target_green = 0,
+                    .target_blue = 0,
+                    .countdown = 8,
+                }
+            );
+        test.expect_true(
+            state.countdown == 8 && state.current_red == 24.0F &&
+                state.current_green == 24.0F && state.current_blue == 24.0F &&
+                state.target_red == 0.0F && state.target_green == 0.0F &&
+                state.target_blue == 0.0F && state.step_red == -3.0F &&
+                state.step_green == -3.0F && state.step_blue == -3.0F &&
+                result.return_eax == 24U && result.return_ecx == 0xFFFFFFE8U &&
+                result.return_edx == 0U,
+            "color initialization publishes signed integer arguments and final blue conversion registers"
+        );
+    }
+
+    {
+        LegacyFrameColorTransitionState state;
+        const auto result =
+            openswd3::battle::initialize_legacy_battle_color_accumulation(
+                state,
+                {
+                    .current_red = 1,
+                    .current_green = 0,
+                    .current_blue = -1,
+                    .target_red = 2,
+                    .target_green = 0,
+                    .target_blue = -2,
+                    .countdown = 0,
+                }
+            );
+        test.expect_true(
+            std::bit_cast<openswd3::compat::u32>(state.step_red) ==
+                    0x7F800000U &&
+                std::bit_cast<openswd3::compat::u32>(state.step_green) ==
+                    0xFFC00000U &&
+                std::bit_cast<openswd3::compat::u32>(state.step_blue) ==
+                    0xFF800000U &&
+                result.return_eax == 0xFFFFFFFFU &&
+                result.return_ecx == 0xFFFFFFFFU &&
+                result.return_edx == 0xFFFFFFFFU,
+            "zero countdown preserves x87 positive infinity indefinite NaN negative infinity and signed blue registers"
+        );
+    }
+
+    {
+        LegacyFrameColorTransitionState state;
+        const auto result =
+            openswd3::battle::initialize_legacy_battle_color_accumulation(
+                state,
+                {
+                    .current_red =
+                        std::numeric_limits<openswd3::compat::i32>::max(),
+                    .current_green =
+                        std::numeric_limits<openswd3::compat::i32>::min(),
+                    .current_blue = -1,
+                    .target_red =
+                        std::numeric_limits<openswd3::compat::i32>::min(),
+                    .target_green =
+                        std::numeric_limits<openswd3::compat::i32>::max(),
+                    .target_blue = 2,
+                    .countdown = -2,
+                }
+            );
+        test.expect_true(
+            state.current_red == 2147483648.0F &&
+                std::bit_cast<openswd3::compat::u32>(state.step_red) ==
+                    0x80000000U &&
+                state.step_green == 0.5F && state.step_blue == -1.5F &&
+                result.return_eax == 0xFFFFFFFFU && result.return_ecx == 3U &&
+                result.return_edx == 0xFFFFFFFFU,
+            "initial float rounding precedes wrapped target subtraction and signed negative countdown division"
+        );
+    }
 
     {
         LegacyFrameColorTransitionState state;

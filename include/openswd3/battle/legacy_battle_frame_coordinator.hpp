@@ -63,7 +63,6 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     optional_post_input_stage,
     post_input_stage_0,
     post_input_stage_1,
-    create_overlay,
     finalize_overlay,
     alternate_surface_stage,
 };
@@ -96,7 +95,6 @@ struct LegacyBattleFrameCoordinatorCallReply {
 class LegacyBattleFrameCoordinatorPort
     : public LegacyBattleHudCallPort,
       public LegacyBattleEffectCallPort,
-      public virtual LegacyBattleColorAccumulationStatePort,
       public virtual LegacyBattleEffectCoordinatorStatePort {
 public:
     using LegacyBattleEffectCallPort::invoke;
@@ -137,7 +135,6 @@ struct LegacyBattleFrameCoordinatorState {
     compat::u32 conditional_submode{};
     compat::u32 ui_state{};
     compat::u32 special_panel_suppression{};
-    compat::u32 overlay_latch{};
     compat::u32 optional_post_input_gate{};
     compat::u32 special_surface_gate{};
     compat::u32 mode_flags{};
@@ -249,6 +246,8 @@ struct LegacyBattleFrameCoordinatorResult {
     std::array<rendering::LegacyCountdownDisplayResult, 2> countdowns{};
     compat::u32 countdown_calls{};
     compat::u32 input_queries{};
+    LegacyBattleColorInitializationResult color_initialization{};
+    compat::u32 color_initialization_calls{};
     rendering::LegacyFrameColorTransitionResult color_accumulation{};
     compat::u32 color_accumulation_calls{};
     compat::u32 temporary_surface_calls{};

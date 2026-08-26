@@ -491,14 +491,22 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         port, result, LegacyBattleFrameCoordinatorCall::post_input_stage_1
     ));
     if (port.battle_color_accumulation_state().countdown <= 0 &&
-        state.overlay_latch != 1U) {
-        static_cast<void>(invoke(
-            port,
-            result,
-            LegacyBattleFrameCoordinatorCall::create_overlay,
-            {0x18U, 0x18U, 0x18U, 0U, 0U, 0U, 8U}
-        ));
-        state.overlay_latch = 0U;
+        port.battle_color_initialization_gate() != 1U) {
+        result.color_initialization =
+            initialize_legacy_battle_color_accumulation(
+                port.battle_color_accumulation_state(),
+                {
+                    .current_red = 0x18,
+                    .current_green = 0x18,
+                    .current_blue = 0x18,
+                    .target_red = 0,
+                    .target_green = 0,
+                    .target_blue = 0,
+                    .countdown = 8,
+                }
+            );
+        ++result.color_initialization_calls;
+        port.battle_color_initialization_gate() = 0U;
     }
     static_cast<void>(invoke(
         port, result, LegacyBattleFrameCoordinatorCall::finalize_overlay, {1U}

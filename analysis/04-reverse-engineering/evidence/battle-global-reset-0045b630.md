@@ -41,7 +41,7 @@
 - 渲染owner固定731 dword清零映射回唯一`LegacyBattleRenderGeometry`；
 - 18槽metric、18槽角色顺序、18槽mask、两组数量与角色优先字段映射回唯一`LegacyBattleActorMetricState`；
 - 效果全角色步进的actor delta、方向、threshold与completion latch映射回唯一`LegacyBattleEffectShiftState`；
-- 三通道颜色累加的九个float与signed计数映射回唯一`LegacyFrameColorTransitionState`；
+- 三通道颜色累加与初始化的九个float及signed计数映射回唯一`LegacyFrameColorTransitionState`；共享初始化门不在本函数写集合中，必须保留入口值；
 - 效果总协调器的18槽主记录、两组模式、计数器、反馈actor、参数数组和活动latch映射回唯一`LegacyBattleEffectCoordinatorState`；未写的扫描计时与反馈数组保持不变；
 - 八槽group B顺序表不在本函数写集合中，必须原样保留；
 - 战斗启动复用的显示surface、敌我启动记录、重置块与记录数组映射回唯一`LegacyBattleStartupState`；
@@ -65,6 +65,6 @@
 
 ## 6. 测试与动态差分
 
-定向测试覆盖显示surface零/非零槽、旋转缓存嵌套释放、渲染资源释放、条件分配token零与非零、九阶段call顺序、234项写序散列、3300次物理写、13106字节、标量宽度、重复写、尾部6 dword、little-endian字节像、mapped地址排除、未触及字节保留、metric、颜色累加、effect-shift与effect-coordinator typed别名同步、记录默认值差异、group B顺序表不清零及固定返回0。
+定向测试覆盖显示surface零/非零槽、旋转缓存嵌套释放、渲染资源释放、条件分配token零与非零、九阶段call顺序、234项写序散列、3300次物理写、13106字节、标量宽度、重复写、尾部6 dword、little-endian字节像、mapped地址排除、未触及字节保留、metric、颜色值清零与初始化门保留、effect-shift与effect-coordinator typed别名同步、记录默认值差异、group B顺序表不清零及固定返回0。
 
 当前缺少原版全部全局内存、九类callee共享副作用、旧分配器、音频对象及寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

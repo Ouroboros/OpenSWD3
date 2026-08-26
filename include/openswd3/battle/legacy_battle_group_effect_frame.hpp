@@ -48,6 +48,7 @@ struct LegacyBattleGroupEffectFrameResult {
     };
     compat::u32 return_value{};
     compat::u32 port_calls{};
+    compat::u32 color_initialization_calls{};
     compat::u32 primary_renders{};
     compat::u32 alternate_renders{};
     compat::u32 status_iterations{};

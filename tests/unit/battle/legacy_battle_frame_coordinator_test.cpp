@@ -743,8 +743,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         CoordinatorPort port;
         configure_common_port(port);
         auto& color = port.battle_color_accumulation_state();
-        color.countdown = 1;
-        color.step_red = 1.0F;
         auto context = fixture.context();
 
         const auto result =
@@ -757,14 +755,22 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleFrameCoordinatorStatus::
                         completed &&
                 result.return_value == 1U &&
+                result.color_initialization_calls == 1U &&
+                result.color_initialization.return_eax == 24U &&
+                result.color_initialization.return_ecx == 0xFFFFFFE8U &&
+                result.color_initialization.return_edx == 0U &&
                 result.color_accumulation_calls == 1U &&
                 result.color_accumulation.status ==
                     openswd3::rendering::LegacyFrameColorTransitionStatus::
                         completed &&
                 result.color_accumulation.countdown_decremented &&
                 result.color_accumulation.current_values_advanced &&
-                result.color_accumulation.applied_red == 1 &&
-                color.countdown == 0 && color.current_red == 1.0F &&
+                result.color_accumulation.applied_red == 21 &&
+                color.countdown == 7 && color.current_red == 21.0F &&
+                color.current_green == 21.0F && color.current_blue == 21.0F &&
+                color.step_red == -3.0F && color.step_green == -3.0F &&
+                color.step_blue == -3.0F &&
+                port.battle_color_initialization_gate() == 0U &&
                 result.temporary_surface_calls == 1U &&
                 result.surface_operation_calls == 1U &&
                 port.surface_creates ==
@@ -787,7 +793,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 port.count(
                     LegacyBattleFrameCoordinatorCall::alternate_surface_stage
                 ) == 0U,
-            "completed frame preserves temporary surface branch screenshot word wrap filename and request clear"
+            "completed frame initializes and advances shared color state before preserving temporary surface screenshot wrap and request clear"
         );
     }
 
