@@ -2,6 +2,7 @@ add_library(
     openswd3_battle
     STATIC
         legacy_battle_action_frame_draw.cpp
+        legacy_battle_action_rotation_cache.cpp
         legacy_battle_assets.cpp
         legacy_battle_border_panel.cpp
         legacy_battle_color_fade.cpp
