@@ -185,7 +185,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         Fixture fixture;
         DispatchPort port;
         port.push(0x004786D0U, {.eax = 1U});
-        port.push(0x0045AA00U, {.eax = 1U});
+        port.push(0x00479850U, {.eax = 1U});
+        port.push(0x00480AD0U, {.eax = 0x1234U});
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
@@ -194,10 +195,34 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.return_value == 1U &&
                 has_call_argument(port, 0x00478B60U, 1U, 1U) &&
-                has_call_argument(port, 0x0045AA00U, 0U, 3U) &&
+                has_call_argument(port, 0x00479850U, 0U, 0x0052D680U) &&
                 state.shared.action.group_a_to_actor[0] == 0xFFFFFFFFU &&
                 state.shared.action.overlay_gate == 1U,
             "disabled group B body still runs effect and complete EAX final actor suffix"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState state;
+        state.shared.action.frame_effect.primary_suppression = 1U;
+        state.shared.action.group_a_to_actor[0] = 3U;
+        Fixture fixture;
+        DispatchPort port;
+        port.push(0x004786D0U, {.eax = 1U});
+        port.push(0x00479850U, {.eax = 1U});
+        port.push(0x00480AD0U, {.eax = 0U});
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        final_actor_descriptor_typed_stop &&
+                state.shared.action.group_a_to_actor[0] == 3U &&
+                state.shared.action.overlay_gate == 0U,
+            "group B frame propagates final actor descriptor stop before cleanup"
         );
     }
 
@@ -241,7 +266,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             );
         test.expect_true(
             result.return_value == 0xA5A55A5AU &&
-                state.shared.queued_actor_code == 4U &&
+                state.shared.final_actor_step.queued_actor_code == 4U &&
                 state.shared.action.active_effect_target == 0xFFFFFFFFU &&
                 port.count(0x004786D0U) == 0U,
             "completed opponent queue path returns reset actor full EAX before common suffix"
@@ -530,7 +555,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         state.shared.action.group_a_to_actor[1] = 5U;
         Fixture fixture;
         DispatchPort port;
-        port.push(0x0045AA00U, {.eax = 1U});
+        port.push(0x00479850U, {.eax = 1U});
+        port.push(0x00480AD0U, {.eax = 0x1234U});
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
@@ -541,6 +567,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 state.pending_effect_ids[1] == 0xFFFFFFFFU &&
                 state.pending_effect_frame.primary[1].source_value == 0U &&
                 port.count(0x004599B0U) == 0U &&
+                has_call_argument(port, 0x00479850U, 0U, 0x00532CD0U) &&
                 state.final_actor_state[1] == 0U &&
                 state.final_actor_targets[1] == 0xFFFFFFFFU &&
                 state.shared.queued_selection_word == 0xFFFFU,

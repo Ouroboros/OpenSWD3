@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v734
+版本：v735
 
 最后更新：2026-08-25
 
@@ -3943,4 +3943,6 @@ B7 P0 有限收口完成。
 
 - 模块10战斗角色ready查询`0x0045A980`完成。完整权威LST主体`0x0045A980..0x0045A9F4`从proc到endp共64行、1个静态call站点、4个局部标签，无外部FUNCTION CHUNK。实现恢复group完整值等于1才选组A、其他值选组B、两组角色token低32位回绕、global-zero与global-nonzero组A路径不同陈旧EAX、组A caller EDX保留、组B陈旧EAX/EDX以及callee完整EAX严格等于1才返回1。两个静态caller都位于尚未关闭的`0x0045EB40`，因此不提前回收。测试覆盖两条组A全局路径、组B任意非1 selector、四类陈旧寄存器、callee返回1/2/全1和全1 index回绕；定向`1/1`、独立ASan`1/1`、Linux core`188/188`和Linux app`194/194`通过。工作包连续双跑逐字节一致，稳定为`70/422`，即`65 platform_adapted + 5 assembly_exact + 352 pending_audit`，SHA256为`169ce3f753beee574a6941a3473779fa2aca2c5e1ad6c6de9cb0b4a786f32001`。原版组A/B对象、ready callee共享副作用及寄存器联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=71`的`0x0045AA00`，必须从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗帧函数。
+- 模块10战斗最终角色步进`0x0045AA00`完成。完整权威LST主体`0x0045AA00..0x0045ADEC`从proc到endp共465行、20个静态call站点、26个局部标签，无外部FUNCTION CHUNK。实现恢复完整group选择、组A第二byte完成计数、阈值控制的32字节逆向工作区清零、三刷新、角色公共清理、双组对象重置、角色顺序固定左移、removed byte unsigned终止、继续配置和五dword记录清零，以及组B全1早退、坐标低word回绕累加、描述符bit5延迟、动作发布、闭区间低byte递增、signed完成比较和末位重置。工作区、角色顺序、记录和描述符分别在首次真实访问typed-stop并保留此前副作用。组A/组B帧两个caller均删除`0x0045AA00` opaque token并直接组合；组A保留子返回0时父仍返回1，组B保留子完整返回，子typed-stop均阻止父清理。测试覆盖初始失败、组A完成/非完成、逆向清零、三刷新、双组重置、顺序左移、unsigned终止、两类typed-stop、组B全1、坐标、描述符、动作、闭区间计数、signed完成、末位重置、双caller直连和父级stop；定向`1/1`、独立ASan`1/1`、Linux core`188/188`和Linux app`194/194`通过。工作包连续双跑逐字节一致，稳定为`71/422`，即`66 platform_adapted + 5 assembly_exact + 351 pending_audit`，SHA256为`b2b2522b7777414b28bceefc5a2bc870b210d10cec0eec3e9fe248d1d1cf7625`。原版两组角色对象、14类callee共享副作用、角色工作区、描述符对象和寄存器联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=72`的`0x0045ADF0`，必须从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗帧函数。

@@ -58,7 +58,6 @@ constexpr u32 kCallSetCompletionMode = 0x0047CEC0U;
 constexpr u32 kCallPrepareCompletionSurface = 0x0047F150U;
 constexpr u32 kCallQueryEffect = 0x004786D0U;
 constexpr u32 kCallPublishEffectMode = 0x00478B60U;
-constexpr u32 kCallFinalActorStep = 0x0045AA00U;
 
 [[nodiscard]] constexpr u32 to_bits(const i32 value) noexcept {
     return std::bit_cast<u32>(value);
@@ -281,7 +280,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                 shared.action_block_gate = 0U;
                 action.action_pending_aux = 0U;
                 action.active_effect_target = 0xFFFFFFFFU;
-                shared.queued_actor_code = group_b_index + 1U;
+                shared.final_actor_step.queued_actor_code = group_b_index + 1U;
                 const auto reply =
                     invoke(port, result, kCallResetActor, {source_token});
                 result.return_value = reply.eax;
@@ -1163,10 +1162,14 @@ action_decision_done:
     }
 
     const u32 mapped_actor = action.group_a_to_actor[group_b_index];
-    const auto final =
-        invoke(port, result, kCallFinalActorStep, {mapped_actor, 0U});
-    result.return_value = final.eax;
-    if (final.eax == 1U) {
+    const auto final = advance_legacy_battle_final_actor_step(
+        shared.final_actor_step, action, port, mapped_actor, 0U
+    );
+    merge_nested(result, final);
+    if (final.status != LegacyBattleActionDispatchStatus::completed) {
+        return result;
+    }
+    if (final.return_value == 1U) {
         action.group_a_to_actor[group_b_index] = 0xFFFFFFFFU;
         state.final_actor_state[group_b_index] = 0U;
         state.final_actor_targets[group_b_index] = 0xFFFFFFFFU;

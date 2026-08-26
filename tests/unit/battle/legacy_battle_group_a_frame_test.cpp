@@ -181,9 +181,11 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
     {
         LegacyBattleGroupAFrameState state;
         state.action.frame_effect.primary_suppression = 1U;
+        state.final_action_gate = 9U;
         Fixture fixture;
         DispatchPort port;
         port.push(0x004786D0U, {.eax = 1U});
+        port.push(0x00479850U, {.eax = 1U});
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_a_frame(
@@ -192,8 +194,10 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.return_value == 1U &&
                 has_call_argument(port, 0x00478B60U, 1U, 1U) &&
+                has_call_argument(port, 0x00479850U, 0U, 0x005029D0U) &&
+                state.final_action_gate == 0U &&
                 state.final_selected_word == 0xFFFFU,
-            "group A frame publishes effect mode then always runs final actor step"
+            "group A frame directly composes the final actor step"
         );
     }
 
@@ -216,7 +220,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.return_value == 1U &&
                 state.selected_opponent_one_based == 1U &&
-                state.selection_gate == 1U &&
+                state.final_actor_step.selection_gate == 1U &&
                 state.actors[0].special_ready == 1U &&
                 state.actors[0].action_complete == 1U &&
                 port.count(0x00439070U) == 1U && port.count(0x0047CE80U) >= 3U,
@@ -237,7 +241,8 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 state, port, context, 0U
             );
         test.expect_true(
-            result.return_value == 1U && state.queued_actor_code == 9U &&
+            result.return_value == 1U &&
+                state.final_actor_step.queued_actor_code == 9U &&
                 state.actor_queue[0] == 10U && state.actor_queue[1] == 0U,
             "actor queue publishes first unfinished entry then shifts fixed tail left"
         );
@@ -255,9 +260,9 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             );
         test.expect_true(
             result.return_value == 1U && state.actors[2].frame_started == 1U &&
-                state.active_actor_code == 10U &&
+                state.final_actor_step.active_actor_code == 0xFFFFFFFFU &&
                 has_call_argument(port, 0x0045EE70U, 1U, 10U),
-            "idle available actor starts frame and publishes group code plus eight"
+            "started actor is cleared by the directly composed final actor suffix"
         );
     }
 
@@ -289,7 +294,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
     {
         LegacyBattleGroupAFrameState state;
         state.action.active_effect_target = 8U;
-        state.action_execution_active = 1U;
+        state.final_actor_step.action_execution_active = 1U;
         state.action.group_a_count = 0;
         state.action.group_b_count = 0;
         Fixture fixture;
@@ -306,7 +311,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             result.status == LegacyBattleActionDispatchStatus::completed &&
                 result.return_value == 1U && port.count(0x004539B0U) == 0U &&
                 port.count(0x004786B0U) == 1U &&
-                state.action_execution_active == 0U &&
+                state.final_actor_step.action_execution_active == 0U &&
                 state.action.active_effect_target == 0xFFFFFFFFU &&
                 state.shared_gate_4ff578 == 1U &&
                 state.shared_gate_4ff57c == 1U &&
@@ -319,7 +324,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
     {
         LegacyBattleGroupAFrameState state;
         state.action.active_effect_target = 8U;
-        state.action_execution_active = 0U;
+        state.final_actor_step.action_execution_active = 0U;
         Fixture fixture;
         DispatchPort port;
         port.action_target = 0xFFFFU;
@@ -353,11 +358,11 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.return_value == 1U && state.turn_resolution_bits == 0U &&
                 openswd3::compat::u8(state.action.packed_actor_counter) == 1U &&
-                state.action.message_state == 0x68U &&
+                state.action.message_state == 0x67U &&
                 port.count(0x00471540U) == 2U &&
                 port.count(0x004714B0U) == 1U &&
                 has_call_argument(port, 0x004698E0U, 0U, 0x118U),
-            "turn state crosses forty bit into signed completion in the same frame call"
+            "turn completion then takes the final actor terminal suffix in the same frame"
         );
     }
 

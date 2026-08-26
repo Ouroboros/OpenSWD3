@@ -189,6 +189,9 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     scale_scan_typed_stop,
     internal_flag_typed_stop,
     effect_record_typed_stop,
+    final_actor_workspace_typed_stop,
+    final_actor_record_typed_stop,
+    final_actor_descriptor_typed_stop,
 };
 
 struct LegacyBattleActionDispatchResult {

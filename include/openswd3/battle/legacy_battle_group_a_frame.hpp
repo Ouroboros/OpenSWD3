@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
+#include "openswd3/battle/legacy_battle_final_actor_step.hpp"
 
 #include <array>
 
@@ -30,12 +31,9 @@ struct LegacyBattleGroupAFrameState {
     std::array<LegacyBattleGroupAActorRuntime, 10> actors{};
 
     std::array<compat::u32, 10> actor_queue{};
-    compat::u32 queued_actor_code{};
-    compat::u32 active_actor_code{};
     compat::u32 selected_opponent_one_based{1U};
     compat::u32 selected_actor_one_based{1U};
     compat::u32 selection_mode{};
-    compat::u32 selection_gate{};
     compat::u32 selection_aux_gate{};
     compat::u32 target_ready_gate{};
     compat::u32 target_cleanup_gate{};
@@ -44,7 +42,6 @@ struct LegacyBattleGroupAFrameState {
     compat::u32 ui_gate_c{};
     compat::u32 ui_gate_d{};
 
-    compat::u32 action_execution_active{};
     compat::u32 action_side{};
     compat::u32 action_block_gate{};
     compat::u32 action_aux_gate{};
@@ -76,6 +73,7 @@ struct LegacyBattleGroupAFrameState {
     compat::u32 message_suppressed{};
     compat::u32 sample_handle_value{};
     compat::u32 final_action_gate{};
+    LegacyBattleFinalActorStepState final_actor_step{};
     compat::u16 queued_selection_word{0xFFFFU};
     compat::u16 final_selected_word{0xFFFFU};
 };
