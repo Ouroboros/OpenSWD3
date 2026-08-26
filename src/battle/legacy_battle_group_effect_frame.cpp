@@ -34,7 +34,6 @@ constexpr u32 kCallSetRewardMode = 0x0047CEC0U;
 constexpr u32 kCallPublishRewardId = 0x004787D0U;
 constexpr u32 kCallSetRewardOffset = 0x0047CF00U;
 constexpr u32 kCallPublishRewardSummary = 0x0047F150U;
-constexpr u32 kCallFinalGate = 0x0045BD90U;
 
 constexpr u32 kAuxiliaryRewardToken = 0x0053B0B0U;
 constexpr u32 kPackedRewardToken = 0x004FDF7AU;
@@ -62,6 +61,10 @@ struct ResourceView {
 
 [[nodiscard]] constexpr i16 signed_word(const u32 value) noexcept {
     return std::bit_cast<i16>(low_word(value));
+}
+
+[[nodiscard]] constexpr i32 signed_dword(const u32 value) noexcept {
+    return std::bit_cast<i32>(value);
 }
 
 [[nodiscard]] constexpr u32 to_bits(const i32 value) noexcept {
@@ -129,6 +132,14 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
 
     auto& primary = state.primary[slot_index];
     auto& alternate = state.alternate[slot_index];
+    auto& metrics = port.actor_metric_state();
+    auto& shift_state = port.effect_shift_state();
+    const auto group_a_count = [&]() {
+        return signed_dword(metrics.group_a_count);
+    };
+    const auto group_b_count = [&]() {
+        return signed_dword(metrics.group_b_count);
+    };
     Registers registers{.eax = primary.complete};
     auto invoke = [&](const u32 callee,
                       const std::initializer_list<u32> arguments = {}) {
@@ -435,8 +446,8 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
                 if (!read_argument_mode(object_mode)) {
                     return result;
                 }
-                const i32 count = object_mode == 1U ? state.group_b_count
-                                                    : state.group_a_count;
+                const i32 count =
+                    object_mode == 1U ? group_b_count() : group_a_count();
                 registers.eax = to_bits(count);
                 for (i32 index = 0; index < count; ++index) {
                     const u32 token = object_mode == 1U
@@ -476,8 +487,8 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
         if (group_wide_mode == 1U) {
             registers.eax = state.group_a_special_mode;
             if (state.group_a_special_mode == 1U) {
-                registers.eax = to_bits(state.group_a_count);
-                for (i32 index = 0; index < state.group_a_count; ++index) {
+                registers.eax = to_bits(group_a_count());
+                for (i32 index = 0; index < group_a_count(); ++index) {
                     const u32 unsigned_index = static_cast<u32>(index);
                     if (!validate_group_a(unsigned_index)) {
                         return result;
@@ -489,11 +500,11 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
                         static_cast<void>(invoke(kCallPublishActor, {token}));
                     }
                     ++result.status_iterations;
-                    registers.eax = to_bits(state.group_a_count);
+                    registers.eax = to_bits(group_a_count());
                 }
             } else {
-                registers.eax = to_bits(state.group_b_count);
-                for (i32 index = 0; index < state.group_b_count; ++index) {
+                registers.eax = to_bits(group_b_count());
+                for (i32 index = 0; index < group_b_count(); ++index) {
                     const u32 unsigned_index = static_cast<u32>(index);
                     if (!validate_group_b(unsigned_index)) {
                         return result;
@@ -503,7 +514,7 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
                         static_cast<void>(invoke(kCallPublishActor, {token}));
                     }
                     ++result.status_iterations;
-                    registers.eax = to_bits(state.group_b_count);
+                    registers.eax = to_bits(group_b_count());
                 }
             }
         } else {
@@ -535,7 +546,7 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
                 );
                 state.auxiliary_reward = low_word(reward.outputs[0]);
                 replace_high_word(
-                    state.packed_reward, low_word(reward.outputs[1])
+                    shift_state.packed_reward, low_word(reward.outputs[1])
                 );
             } else {
                 reward = invoke(
@@ -585,7 +596,7 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
                 state.auxiliary_reward = 0U;
             }
             const i16 high_reward =
-                std::bit_cast<i16>(high_word(state.packed_reward));
+                std::bit_cast<i16>(high_word(shift_state.packed_reward));
             replace_low_word(registers.eax, static_cast<u16>(high_reward));
             if (high_reward != 0) {
                 static_cast<void>(
@@ -603,7 +614,7 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
                 );
                 replace_low_word(registers.ecx, state.auxiliary_reward);
                 replace_low_word(registers.eax, 0U);
-                replace_high_word(state.packed_reward, 0U);
+                replace_high_word(shift_state.packed_reward, 0U);
             }
 
             if (store_per_actor) {
@@ -613,7 +624,7 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
                 );
                 state.reward_high[reward_index] = to_bits(
                     static_cast<i32>(
-                        std::bit_cast<i16>(high_word(state.packed_reward))
+                        std::bit_cast<i16>(high_word(shift_state.packed_reward))
                     )
                 );
                 state.reward_display_total = state.reward_total[reward_index];
@@ -639,8 +650,8 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
                                       state.reward_summary_gate == 1U) ||
                 state.group_a_special_mode == 1U;
             if (use_group_a) {
-                registers.eax = to_bits(state.group_a_count);
-                for (i32 index = 0; index < state.group_a_count; ++index) {
+                registers.eax = to_bits(group_a_count());
+                for (i32 index = 0; index < group_a_count(); ++index) {
                     const u32 unsigned_index = static_cast<u32>(index);
                     if (!validate_group_a(unsigned_index)) {
                         return result;
@@ -672,11 +683,11 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
                             );
                         }
                     }
-                    registers.eax = to_bits(state.group_a_count);
+                    registers.eax = to_bits(group_a_count());
                 }
             } else {
-                registers.eax = to_bits(state.group_b_count);
-                for (i32 index = 0; index < state.group_b_count; ++index) {
+                registers.eax = to_bits(group_b_count());
+                for (i32 index = 0; index < group_b_count(); ++index) {
                     const u32 unsigned_index = static_cast<u32>(index);
                     if (!validate_group_b(unsigned_index)) {
                         return result;
@@ -692,7 +703,7 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
                             token, true, unsigned_index, true, false, false
                         );
                     }
-                    registers.eax = to_bits(state.group_b_count);
+                    registers.eax = to_bits(group_b_count());
                 }
             }
         } else {
@@ -711,12 +722,31 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
         primary.status_flags = 0U;
     }
 
-    if (std::bit_cast<i16>(state.final_gate_word) > 0) {
+    if (std::bit_cast<i16>(shift_state.threshold_word) > 0) {
         u32 first_argument = registers.eax;
         replace_low_word(first_argument, primary.lookup_key_b);
-        state.final_gate_latch = 1U;
-        if (invoke(kCallFinalGate, {first_argument, primary.complete}).eax ==
-            0U) {
+        shift_state.completion_latch = 1U;
+        const auto shift = advance_legacy_battle_effect_shift(
+            port,
+            first_argument,
+            primary.complete,
+            registers.ecx,
+            primary.complete
+        );
+        result.port_calls += shift.port_calls;
+        registers.eax = shift.return_value;
+        registers.ecx = shift.final_ecx;
+        registers.edx = shift.final_edx;
+        if (shift.status != LegacyBattleEffectShiftStatus::completed) {
+            result.status = shift.status ==
+                    LegacyBattleEffectShiftStatus::group_a_actor_typed_stop
+                ? LegacyBattleGroupEffectFrameStatus::
+                      effect_shift_group_a_typed_stop
+                : LegacyBattleGroupEffectFrameStatus::
+                      effect_shift_group_b_typed_stop;
+            return result;
+        }
+        if (shift.return_value == 0U) {
             result.return_value = 0U;
             return result;
         }
@@ -726,10 +756,25 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
         result.return_value = 0U;
         return result;
     }
-    if (std::bit_cast<i16>(state.final_gate_word) > 0) {
+    if (std::bit_cast<i16>(shift_state.threshold_word) > 0) {
         u32 second_argument = registers.ecx;
         replace_low_word(second_argument, primary.lookup_key_b);
-        static_cast<void>(invoke(kCallFinalGate, {second_argument, 1U}));
+        const auto shift = advance_legacy_battle_effect_shift(
+            port, second_argument, 1U, second_argument, registers.edx
+        );
+        result.port_calls += shift.port_calls;
+        registers.eax = shift.return_value;
+        registers.ecx = shift.final_ecx;
+        registers.edx = shift.final_edx;
+        if (shift.status != LegacyBattleEffectShiftStatus::completed) {
+            result.status = shift.status ==
+                    LegacyBattleEffectShiftStatus::group_a_actor_typed_stop
+                ? LegacyBattleGroupEffectFrameStatus::
+                      effect_shift_group_a_typed_stop
+                : LegacyBattleGroupEffectFrameStatus::
+                      effect_shift_group_b_typed_stop;
+            return result;
+        }
     }
     state.rendered_primary_count = 0U;
     alternate = {};

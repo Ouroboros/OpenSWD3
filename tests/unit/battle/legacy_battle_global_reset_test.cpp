@@ -152,6 +152,10 @@ void seed_state(
 ) {
     state.unmapped_bytes[0x00ABCDEFU] = 0x5AU;
     state.unmapped_bytes[0x00520E40U] = 0x5AU;
+    state.unmapped_bytes[0x0053AE7AU] = 0x5AU;
+    state.unmapped_bytes[0x0053BD5CU] = 0x5AU;
+    state.unmapped_bytes[0x0053C000U] = 0x5AU;
+    state.unmapped_bytes[0x0053C4A0U] = 0x5AU;
     startup.display_surfaces = {11U, 22U};
     startup.background_rotation_cache.frame_owner_tokens[0] = 101U;
     startup.background_rotation_cache.cached_image_tokens[0] = 202U;
@@ -180,6 +184,12 @@ void seed_state(
     metrics.group_b_mode = 9U;
     metrics.priority_actor_index = 9U;
     metrics.priority_order_ready = 9U;
+
+    auto& shift = port.effect_shift_state();
+    shift.actor_delta = 9;
+    shift.direction_mode = 9U;
+    shift.threshold_word = 9U;
+    shift.completion_latch = 9U;
 }
 
 }  // namespace
@@ -276,6 +286,16 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 metrics.group_b_count == 0U && metrics.group_a_count == 0U &&
                 metrics.priority_actor_index == 0U,
             "metric order mask counts and priority aliases clear while the untouched group-B order remains"
+        );
+        const auto& shift = port.effect_shift_state();
+        test.expect_true(
+            shift.actor_delta == 0 && shift.direction_mode == 0U &&
+                shift.threshold_word == 0U && shift.completion_latch == 0U &&
+                state.unmapped_bytes.contains(0x0053AE7AU) == false &&
+                state.unmapped_bytes.contains(0x0053BD5CU) == false &&
+                state.unmapped_bytes.contains(0x0053C000U) == false &&
+                state.unmapped_bytes.contains(0x0053C4A0U) == false,
+            "global reset updates effect-shift aliases without retaining unmapped duplicate bytes"
         );
         test.expect_true(
             std::ranges::all_of(

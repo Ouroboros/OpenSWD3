@@ -37,8 +37,6 @@ struct LegacyBattleGroupEffectFrameState {
     compat::u32 split_suppression{};
     compat::u32 rendered_primary_count{};
 
-    compat::i32 group_a_count{};
-    compat::i32 group_b_count{};
     std::array<LegacyBattleGroupEffectActorState, 10> group_a{};
     std::array<LegacyBattleGroupEffectActorState, 8> group_b{};
 
@@ -50,15 +48,11 @@ struct LegacyBattleGroupEffectFrameState {
     compat::u32 seven_value_gate{};
 
     compat::u16 auxiliary_reward{};
-    compat::u32 packed_reward{};
     compat::i32 reward_value{};
     compat::u32 reward_display_total{};
     std::array<compat::u32, 10> reward_auxiliary{};
     std::array<compat::u32, 10> reward_total{};
     std::array<compat::u32, 10> reward_high{};
-
-    compat::u16 final_gate_word{};
-    compat::u32 final_gate_latch{};
 };
 
 enum class LegacyBattleGroupEffectFrameStatus : compat::u8 {
@@ -68,6 +62,8 @@ enum class LegacyBattleGroupEffectFrameStatus : compat::u8 {
     resource_owner_typed_stop,
     group_a_actor_typed_stop,
     group_b_actor_typed_stop,
+    effect_shift_group_a_typed_stop,
+    effect_shift_group_b_typed_stop,
 };
 
 struct LegacyBattleGroupEffectFrameResult {

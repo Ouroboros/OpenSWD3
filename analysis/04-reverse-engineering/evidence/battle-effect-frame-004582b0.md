@@ -143,8 +143,8 @@ final gate word按i16大于0时：
 
 - 保留当前陈旧EDX高word；
 - 只以主记录第二lookup key覆盖DX；
-- 调用final gate `(stale_value, primary_complete)`；
-- 返回0立即返回0。
+- 直连已关闭全角色数值步进`0x0045BD90`，参数为`(stale_value, primary_complete)`，入口ECX保留完整complete；
+- 子返回0立即返回0，角色typed-stop阻止后续收束。
 
 正常成功还要求：主记录complete完整值等于1、pending为0、alternate active为0。否则返回0。成功时先清共享Y，再清同槽备用152字节记录，随后清共享X与animation counter，返回1。
 
@@ -152,7 +152,7 @@ final gate word按i16大于0时：
 
 ## 10. callee、测试与动态差分
 
-32个唯一callee均属于尚未在本工作包关闭的资源、动画、角色、奖励、音频或owner边界，统一使用专用typed token端口；没有伪造已关闭callee直连。
+原32个唯一直接callee中的`0x0045BD90`已关闭并直连；其余31个资源、动画、角色、奖励、音频或owner边界继续使用专用typed token端口。全角色步进内部两个尚未关闭actor callee也复用同一端口。
 
 定向测试覆盖：
 
@@ -167,7 +167,7 @@ final gate word按i16大于0时：
 - 备用完成的owner高word、AL翻转、双release和槽地址陈旧EDX；
 - signed status、三mode、七值与actor清word；
 - reward 9999夹值、负auxiliary、packed highword与三行顺序；
-- pending callee EDX进入final gate；
-- final gate失败早退。
+- pending callee EDX进入已关闭全角色步进；
+- 子返回0早退、角色越界typed-stop与共享状态直连。
 
-当前缺少原版双记录内存、32类callee共享副作用、resource owner、参数对象字段、随机状态、sample manager、奖励输出和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版双记录内存、31类剩余直接callee与效果步进内部两类actor callee共享副作用、resource owner、参数对象字段、随机状态、sample manager、奖励输出和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

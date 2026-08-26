@@ -289,8 +289,8 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
         state.primary[0].complete = 1U;
         state.primary[0].status_flags = 0x1408U;
         state.primary[0].action_values = {1U, 2U, 3U, 4U, 5U, 6U, 7U};
-        state.group_b_count = 2;
         GroupEffectPort port;
+        port.actor_metric_state().group_b_count = 2U;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_effect_frame(
                 state, port, 0U, 0x1000U, 1U, 0U, 0U, 1U
@@ -310,9 +310,9 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
         state.primary[0].complete = 1U;
         state.primary[0].status_flags = 4U;
         state.group_a_special_mode = 1U;
-        state.group_a_count = 2;
         state.group_a[1].guard_ac0 = 1U;
         GroupEffectPort port;
+        port.actor_metric_state().group_a_count = 2U;
         port.push(0x0047CE80U, {.eax = 0U});
         const auto result =
             openswd3::battle::advance_legacy_battle_group_effect_frame(
@@ -333,8 +333,8 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
         state.primary[0].status_flags = 0x11U;
         state.group_a_reward_mode = 1U;
         state.reward_summary_gate = 1U;
-        state.group_a_count = 2;
         GroupEffectPort port;
+        port.actor_metric_state().group_a_count = 2U;
         port.push(0x0047CEA0U, {.eax = 0U});
         port.push(0x0047CEA0U, {.eax = 0U});
         port.push(0x00481010U, reward_reply(10U, 2U, 3U));
@@ -352,7 +352,7 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
                 state.reward_total[0] == 10U && state.reward_total[1] == 20U &&
                 state.reward_auxiliary[0] == 0U && state.reward_high[0] == 0U &&
                 state.auxiliary_reward == 0U &&
-                (state.packed_reward & 0xFFFF0000U) == 0U &&
+                (port.effect_shift_state().packed_reward & 0xFFFF0000U) == 0U &&
                 port.count(0x0047F150U) == 2U &&
                 has_argument(port, 0x0047F150U, 2U, 0xBBBB0000U) &&
                 has_argument(port, 0x0047F150U, 3U, 0xAAAA0000U),
@@ -364,8 +364,8 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
         LegacyBattleGroupEffectFrameState state;
         state.primary[0].complete = 1U;
         state.primary[0].status_flags = 0x10U;
-        state.group_b_count = 2;
         GroupEffectPort port;
+        port.actor_metric_state().group_b_count = 2U;
         port.push(0x0047CE80U, {.eax = 0U});
         port.push(0x0047CE80U, {.eax = 0U});
         port.push(0x00481010U, reward_reply(0xFFFFFFFFU, 2U, 3U));
@@ -389,8 +389,8 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
         state.primary[0].complete = 1U;
         state.primary[0].status_flags = 1U;
         state.auxiliary_reward = 2U;
-        state.packed_reward = 3U << 16U;
         GroupEffectPort port;
+        port.effect_shift_state().packed_reward = 3U << 16U;
         port.push(0x00481A40U, reward_reply(5U));
         const auto result =
             openswd3::battle::advance_legacy_battle_group_effect_frame(
@@ -400,7 +400,7 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
             result.return_value == 1U && state.battle_gate == 0U &&
                 state.reward_display_total == 5U &&
                 state.auxiliary_reward == 0U &&
-                (state.packed_reward & 0xFFFF0000U) == 0U &&
+                (port.effect_shift_state().packed_reward & 0xFFFF0000U) == 0U &&
                 port.count(0x00478780U) == 1U && port.count(0x00481A40U) == 1U,
             "single actor reward publishes actor, clears gate and consumes stale rows"
         );
@@ -411,8 +411,8 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
         state.primary[0].complete = 1U;
         state.primary[0].status_flags = 4U;
         state.group_a_special_mode = 1U;
-        state.group_a_count = 11;
         GroupEffectPort port;
+        port.actor_metric_state().group_a_count = 11U;
         for (int index = 0; index < 10; ++index) {
             port.push(0x0047CE80U, {.eax = 1U});
         }
@@ -434,40 +434,67 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
         LegacyBattleGroupEffectFrameState state;
         state.primary[0].complete = 1U;
         state.primary[0].lookup_key_b = 0x1234U;
-        state.final_gate_word = 1U;
         state.rendered_primary_count = 8U;
         state.alternate[0].source_value = 9U;
         GroupEffectPort port;
-        port.push(0x0045BD90U, {.eax = 1U, .ecx = 0xABCD0000U});
-        port.push(0x0045BD90U, {.eax = 0x77U});
+        port.effect_shift_state().threshold_word = 1U;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_effect_frame(
                 state, port, 0U, 0x1000U, 0U, 0U, 0U, 0U
             );
-        const auto first = arguments_for(port, 0x0045BD90U, 0U);
         test.expect_true(
             result.return_value == 1U &&
-                first == std::vector<u32>({0x00001234U, 0xABCD1234U}) &&
-                state.final_gate_latch == 1U &&
+                port.effect_shift_state().completion_latch == 1U &&
+                port.effect_shift_state().phase_word == 0x00D2U &&
+                port.effect_shift_state().accumulated_step == 0x00D2U &&
+                port.effect_shift_state().actor_delta == -0x00D2 &&
+                port.count(0x0045BD90U) == 0U &&
                 state.rendered_primary_count == 0U &&
                 state.alternate[0].source_value == 0U,
-            "two final gates use status EAX then first-callee ECX high words"
+            "two direct final gates restore first-call ECX, rearm to 420, then consume the second call as a direction-zero half step"
         );
     }
 
     {
         LegacyBattleGroupEffectFrameState state;
         state.primary[0].complete = 1U;
-        state.final_gate_word = 1U;
+        state.primary[0].lookup_key_b = 2U;
+        state.rendered_primary_count = 8U;
         GroupEffectPort port;
-        port.push(0x0045BD90U, {.eax = 0U});
+        port.effect_shift_state().threshold_word = 1U;
+        port.effect_shift_state().actor_delta = 1;
+        port.actor_metric_state().group_b_count = 9U;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_effect_frame(
                 state, port, 0U, 0x1000U, 0U, 0U, 0U, 0U
             );
         test.expect_true(
-            result.return_value == 0U && state.final_gate_latch == 1U &&
-                port.count(0x0045BD90U) == 1U,
+            result.status ==
+                    LegacyBattleGroupEffectFrameStatus::
+                        effect_shift_group_b_typed_stop &&
+                result.return_value == 0U &&
+                port.effect_shift_state().completion_latch == 1U &&
+                port.count(0x00478600U) == 8U &&
+                port.count(0x004785C0U) == 8U &&
+                state.rendered_primary_count == 8U,
+            "direct group final shift propagates the ninth group-B actor stop before group cleanup"
+        );
+    }
+
+    {
+        LegacyBattleGroupEffectFrameState state;
+        state.primary[0].complete = 1U;
+        GroupEffectPort port;
+        port.effect_shift_state().threshold_word = 1U;
+        port.effect_shift_state().actor_delta = 1;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_effect_frame(
+                state, port, 0U, 0x1000U, 0U, 0U, 0U, 0U
+            );
+        test.expect_true(
+            result.return_value == 0U &&
+                port.effect_shift_state().completion_latch == 1U &&
+                port.count(0x0045BD90U) == 0U,
             "first final gate zero returns before completion cleanup"
         );
     }

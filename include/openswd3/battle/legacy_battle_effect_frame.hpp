@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_effect_shift.hpp"
 #include "openswd3/battle/legacy_battle_frame_refresh.hpp"
 #include "openswd3/compat/types.hpp"
 
@@ -26,10 +27,13 @@ struct LegacyBattleEffectCallReply {
     compat::u32 ecx{};
     compat::u32 edx{};
     std::array<compat::u32, 8> outputs{};
+    compat::u32 output_write_mask{};
 };
 
 class LegacyBattleEffectCallPort
-    : public virtual LegacyBattleFrameRefreshStatePort {
+    : public virtual LegacyBattleActorMetricStatePort,
+      public virtual LegacyBattleEffectShiftStatePort,
+      public virtual LegacyBattleFrameRefreshStatePort {
 public:
     virtual ~LegacyBattleEffectCallPort() = default;
 
@@ -115,7 +119,6 @@ struct LegacyBattleEffectFrameState {
     compat::u32 resolved_actor_value{};
 
     compat::u16 auxiliary_reward{};
-    compat::u32 packed_reward{};
     compat::i32 reward_value{};
     compat::u32 reward_display_total{};
     std::array<compat::u32, 8> reward_auxiliary{};
@@ -128,8 +131,6 @@ struct LegacyBattleEffectFrameState {
     compat::i32 render_intensity_a{};
     compat::i32 render_intensity_b{};
     compat::i32 render_intensity_c{};
-
-    compat::u16 final_gate_word{};
 };
 
 enum class LegacyBattleEffectFrameStatus : compat::u8 {
@@ -137,6 +138,8 @@ enum class LegacyBattleEffectFrameStatus : compat::u8 {
     slot_index_typed_stop,
     argument_object_typed_stop,
     resource_owner_typed_stop,
+    group_a_actor_typed_stop,
+    group_b_actor_typed_stop,
 };
 
 struct LegacyBattleEffectFrameResult {

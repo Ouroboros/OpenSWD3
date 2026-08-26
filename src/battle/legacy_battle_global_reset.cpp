@@ -253,7 +253,7 @@ struct MappedRange {
     u32 bytes;
 };
 
-constexpr std::array<MappedRange, 25> kMappedRanges{{
+constexpr std::array<MappedRange, 28> kMappedRanges{{
     {0x004FE5CCU, 0x2CU},  {0x004FF0B0U, 0x0CU},  {0x004FF168U, 0x50U},
     {0x00502940U, 0x14U},  {0x0052022CU, 0x50U},  {0x00520D5CU, 0x48U},
     {0x00520E40U, 0x48U},  {0x005213A0U, 0x100U}, {0x005214ACU, 0x48U},
@@ -261,7 +261,8 @@ constexpr std::array<MappedRange, 25> kMappedRanges{{
     {0x00524324U, 0xF0U},  {0x005244E8U, 0x1F8U}, {0x00524788U, 0x1F8U},
     {0x0052544CU, 0x10U},  {0x00525470U, 0x98U},  {0x0053AE70U, 0x1CU},
     {0x0053AF70U, 0x140U}, {0x0053B0B8U, 0xB6CU}, {0x0053BCE0U, 0x04U},
-    {0x0053BCF4U, 0x04U},  {0x0053C040U, 0x04U},  {0x0053C048U, 0x04U},
+    {0x0053BCF4U, 0x04U},  {0x0053BD5CU, 0x04U},  {0x0053C000U, 0x04U},
+    {0x0053C040U, 0x04U},  {0x0053C048U, 0x04U},  {0x0053C4A0U, 0x04U},
     {0x0053C4C0U, 0x01U},
 }};
 
@@ -304,7 +305,9 @@ template <typename T> void clear_records(T& records) noexcept {
 }
 
 void synchronize_typed_aliases(
-    LegacyBattleStartupState& startup, LegacyBattleActorMetricState& metrics
+    LegacyBattleStartupState& startup,
+    LegacyBattleActorMetricState& metrics,
+    LegacyBattleEffectShiftState& shift
 ) {
     startup.render_geometry = {};
     auto& reset = startup.reset;
@@ -348,6 +351,11 @@ void synchronize_typed_aliases(
     metrics.group_b_mode = 0U;
     metrics.priority_actor_index = 0U;
     metrics.priority_order_ready = 0U;
+
+    shift.actor_delta = 0;
+    shift.direction_mode = 0U;
+    shift.threshold_word = 0U;
+    shift.completion_latch = 0U;
 }
 
 void record_call(
@@ -396,7 +404,9 @@ LegacyBattleGlobalResetResult reset_legacy_battle_globals(
     for (u32 index = 0U; index < 232U; ++index) {
         apply_write(state, kResetWrites[index], result);
     }
-    synchronize_typed_aliases(startup, port.actor_metric_state());
+    synchronize_typed_aliases(
+        startup, port.actor_metric_state(), port.effect_shift_state()
+    );
 
     record_call(
         result, LegacyBattleGlobalResetCallStage::pre_battle_resource_431960

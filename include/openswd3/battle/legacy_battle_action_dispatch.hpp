@@ -3,6 +3,7 @@
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
 #include "openswd3/asset_runtime/legacy_frame_deformation.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
+#include "openswd3/battle/legacy_battle_effect_shift.hpp"
 #include "openswd3/battle/legacy_battle_frame_effect.hpp"
 #include "openswd3/battle/legacy_battle_frame_refresh.hpp"
 #include "openswd3/battle/legacy_battle_group_b_order.hpp"
@@ -37,6 +38,7 @@ struct LegacyBattleActionCallReply {
     compat::u32 ecx{};
     compat::u32 edx{};
     std::array<compat::u32, 8> outputs{};
+    compat::u32 output_write_mask{};
     bool publish_accumulator{};
     compat::u32 accumulator{};
     bool publish_selection_word{};
@@ -60,6 +62,7 @@ struct LegacyBattleActionCallReply {
 
 class LegacyBattleActionDispatchPort
     : public virtual LegacyBattleActorMetricStatePort,
+      public virtual LegacyBattleEffectShiftStatePort,
       public virtual LegacyBattleFrameRefreshStatePort {
 public:
     virtual ~LegacyBattleActionDispatchPort() = default;

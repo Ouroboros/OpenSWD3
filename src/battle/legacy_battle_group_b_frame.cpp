@@ -150,7 +150,28 @@ public:
             .ecx = reply.ecx,
             .edx = reply.edx,
             .outputs = reply.outputs,
+            .output_write_mask = reply.output_write_mask,
         };
+    }
+
+    [[nodiscard]] LegacyBattleActorMetricState&
+    actor_metric_state() noexcept override {
+        return port_.actor_metric_state();
+    }
+
+    [[nodiscard]] const LegacyBattleActorMetricState&
+    actor_metric_state() const noexcept override {
+        return port_.actor_metric_state();
+    }
+
+    [[nodiscard]] LegacyBattleEffectShiftState&
+    effect_shift_state() noexcept override {
+        return port_.effect_shift_state();
+    }
+
+    [[nodiscard]] const LegacyBattleEffectShiftState&
+    effect_shift_state() const noexcept override {
+        return port_.effect_shift_state();
     }
 
 private:

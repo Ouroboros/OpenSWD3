@@ -275,16 +275,15 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
         LegacyBattleEffectFrameState state;
         state.primary[0].complete = 1U;
         state.primary[0].lookup_key_b = 0x1234U;
-        state.final_gate_word = 1U;
         state.alternate_active[0] = 1U;
         state.alternate[0].complete = 1U;
         state.alternate[0].pan_value = 0x33U;
         state.alternate[0].render_flags = 2U;
         EffectPort port;
+        port.effect_shift_state().threshold_word = 1U;
         port.push(0x004321E0U, {.eax = 1U});
         port.push(0x00431760U, resource_reply(0x12340000U, 0U, 10U, 11U, 0U));
         port.push(0x00485610U, {.eax = 0xAAAA0000U});
-        port.push(0x0045BD90U, {.eax = 1U});
         const auto result =
             openswd3::battle::advance_legacy_battle_effect_frame(
                 state, port, 0U, 0x1000U, 0U, 0U, 0U
@@ -293,8 +292,9 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
             result.return_value == 1U && state.alternate_active[0] == 0U &&
                 has_argument(port, 0x00485610U, 0U, 0x12340033U) &&
                 has_argument(port, 0x004170E0U, 4U, 3U) &&
-                has_argument(port, 0x0045BD90U, 0U, 0x004F1234U) &&
-                port.count(0x004885A0U) == 2U,
+                port.effect_shift_state().completion_latch == 1U &&
+                port.effect_shift_state().phase_word == 0x01A4U &&
+                port.count(0x0045BD90U) == 0U && port.count(0x004885A0U) == 2U,
             "alternate completion keeps owner high word, toggles AL parity and releases both tokens"
         );
     }
@@ -324,8 +324,8 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
         LegacyBattleEffectFrameState state;
         state.primary[0].complete = 1U;
         state.primary[0].status_flags = 0x11U;
-        state.packed_reward = 0x11112222U;
         EffectPort port;
+        port.effect_shift_state().packed_reward = 0x11112222U;
         port.push(0x0047D8F0U, {.eax = 1U});
         port.push(0x00480AD0U, {.eax = 0x77U});
         LegacyBattleEffectCallReply reward{.eax = 12000U};
@@ -339,7 +339,7 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.return_value == 1U && state.reward_value == 9999 &&
                 state.auxiliary_reward == 0xFF80U &&
-                state.packed_reward == 0x00022222U &&
+                port.effect_shift_state().packed_reward == 0x00022222U &&
                 state.reward_auxiliary[0] == 0xFFFFFF80U &&
                 state.reward_total[0] == 9999U && state.reward_high[0] == 2U &&
                 state.reward_display_total == 9999U &&
@@ -355,9 +355,8 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
         state.primary[0].lookup_key_b = 0x1234U;
         state.primary[0].resource_aux_value = 0xABCD0000U;
         state.pending_step[0] = 1U;
-        state.final_gate_word = 1U;
         EffectPort port;
-        port.push(0x0045BD90U, {.eax = 1U});
+        port.effect_shift_state().threshold_word = 1U;
         const auto result =
             openswd3::battle::advance_legacy_battle_effect_frame(
                 state, port, 0U, 0x1000U, 0U, 0U, 0U
@@ -365,8 +364,9 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.return_value == 1U && state.pending_step[0] == 0U &&
                 port.count(0x00459BF0U) == 0U &&
-                has_argument(port, 0x0045BD90U, 0U, 0xABCD1234U) &&
-                has_argument(port, 0x0045BD90U, 1U, 1U) &&
+                port.count(0x0045BD90U) == 0U &&
+                port.effect_shift_state().completion_latch == 1U &&
+                port.effect_shift_state().phase_word == 0x01A4U &&
                 state.animation_counter[0] == 0U,
             "typed pending completion preserves caller EDX high word for final gate"
         );
@@ -375,9 +375,31 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
     {
         LegacyBattleEffectFrameState state;
         state.primary[0].complete = 1U;
-        state.final_gate_word = 1U;
+        state.primary[0].lookup_key_b = 2U;
         EffectPort port;
-        port.push(0x0045BD90U, {.eax = 0U});
+        port.effect_shift_state().threshold_word = 1U;
+        port.effect_shift_state().actor_delta = 1;
+        port.actor_metric_state().group_a_count = 11U;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_effect_frame(
+                state, port, 0U, 0x1000U, 0U, 0U, 0U
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleEffectFrameStatus::group_a_actor_typed_stop &&
+                result.return_value == 0U && port.count(0x00478600U) == 10U &&
+                port.count(0x004785C0U) == 10U &&
+                state.primary[0].complete == 1U,
+            "direct final shift propagates the eleventh group-A actor stop before effect cleanup"
+        );
+    }
+
+    {
+        LegacyBattleEffectFrameState state;
+        state.primary[0].complete = 1U;
+        EffectPort port;
+        port.effect_shift_state().threshold_word = 1U;
+        port.effect_shift_state().actor_delta = 1;
         const auto result =
             openswd3::battle::advance_legacy_battle_effect_frame(
                 state, port, 0U, 0x1000U, 0U, 0U, 0U

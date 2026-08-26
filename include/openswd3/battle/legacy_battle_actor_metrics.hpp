@@ -36,11 +36,12 @@ struct LegacyBattleActorMetricState {
 
 class LegacyBattleActorMetricStatePort {
 public:
-    [[nodiscard]] LegacyBattleActorMetricState& actor_metric_state() noexcept {
+    [[nodiscard]] virtual LegacyBattleActorMetricState&
+    actor_metric_state() noexcept {
         return actor_metric_state_;
     }
 
-    [[nodiscard]] const LegacyBattleActorMetricState&
+    [[nodiscard]] virtual const LegacyBattleActorMetricState&
     actor_metric_state() const noexcept {
         return actor_metric_state_;
     }

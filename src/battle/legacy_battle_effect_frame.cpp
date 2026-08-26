@@ -41,7 +41,6 @@ constexpr u32 kCallPublishReward = 0x0047D640U;
 constexpr u32 kCallSetRewardMode = 0x0047CEC0U;
 constexpr u32 kCallPublishRewardId = 0x004787D0U;
 constexpr u32 kCallSetRewardOffset = 0x0047CF00U;
-constexpr u32 kCallFinalGate = 0x0045BD90U;
 
 constexpr u32 kAlternateActiveBaseToken = 0x004FF0BCU;
 constexpr u32 kAuxiliaryRewardToken = 0x0053B0B0U;
@@ -778,7 +777,10 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
                  kPackedRewardToken}
             );
             state.auxiliary_reward = low_word(reward.outputs[0]);
-            replace_high_word(state.packed_reward, low_word(reward.outputs[1]));
+            replace_high_word(
+                port.effect_shift_state().packed_reward,
+                low_word(reward.outputs[1])
+            );
         } else {
             reward = invoke(
                 port,
@@ -838,8 +840,9 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
             ));
             reward_offset += 8U;
         }
-        const i16 high_reward =
-            std::bit_cast<i16>(high_word(state.packed_reward));
+        const i16 high_reward = std::bit_cast<i16>(
+            high_word(port.effect_shift_state().packed_reward)
+        );
         if (high_reward != 0) {
             static_cast<void>(invoke(
                 port,
@@ -904,13 +907,25 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
         }
     }
 
-    if (std::bit_cast<i16>(state.final_gate_word) > 0) {
+    if (std::bit_cast<i16>(port.effect_shift_state().threshold_word) > 0) {
         u32 final_argument = stale_final_edx;
         replace_low_word(final_argument, primary.lookup_key_b);
-        if (invoke(
-                port, result, kCallFinalGate, {final_argument, primary.complete}
-            )
-                .eax == 0U) {
+        const auto shift = advance_legacy_battle_effect_shift(
+            port,
+            final_argument,
+            primary.complete,
+            primary.complete,
+            final_argument
+        );
+        result.port_calls += shift.port_calls;
+        if (shift.status != LegacyBattleEffectShiftStatus::completed) {
+            result.status = shift.status ==
+                    LegacyBattleEffectShiftStatus::group_a_actor_typed_stop
+                ? LegacyBattleEffectFrameStatus::group_a_actor_typed_stop
+                : LegacyBattleEffectFrameStatus::group_b_actor_typed_stop;
+            return result;
+        }
+        if (shift.return_value == 0U) {
             result.return_value = 0U;
             return result;
         }

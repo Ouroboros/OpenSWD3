@@ -129,23 +129,23 @@ final gate word按i16大于0时执行第一次gate：
 - 保留当前EAX高word；
 - 只以主记录第二lookup key覆盖AX；
 - 把final-gate latch写1；
-- 调用`(stale-EAX-with-key, primary complete)`；
-- 完整EAX为0立即返回0。
+- 直连已关闭全角色数值步进`0x0045BD90`，参数为`(stale-EAX-with-key, primary complete)`；
+- 子函数恢复入口完整ECX，返回0立即返回0，角色typed-stop阻止后续收束。
 
 随后要求主complete完整值等于1且alternate active为0，否则返回0。
 
 final gate word仍大于0时执行第二次gate：
 
-- 保留第一次gate callee ECX高word；
+- 保留第一次步进恢复的入口ECX高word；
 - 只覆盖CX为同一lookup key；
 - 第二参数固定1；
-- 忽略返回值。
+- 忽略普通返回值，但角色typed-stop仍阻止后续收束。
 
 成功尾按顺序把rendered-primary counter清零、清同槽备用152字节record、active清零并返回1。主record、共享X/Y、奖励数组和suppression不清。
 
 ## 10. callee、测试与动态差分
 
-24个唯一callee统一通过专用typed token端口发布完整EAX/ECX/EDX与输出；没有把物理地址转成主机指针。五个caller均属于尚未关闭的总协调器，暂不回收。
+原24个唯一直接callee中的`0x0045BD90`已关闭并直连；其余23个直接callee继续通过专用typed token端口发布完整EAX/ECX/EDX与输出。全角色步进内部两个尚未关闭actor callee复用同一端口。五个caller均属于尚未关闭的总协调器，暂不回收。
 
 定向测试覆盖：
 
@@ -163,6 +163,6 @@ final gate word仍大于0时执行第二次gate：
 - 组B`-1`基础reward下跨角色累计offset；
 - 单体普通reward和旧辅助/高位行消费；
 - 第11个组A角色保留前10角色前缀后typed-stop；
-- 两次final gate的EAX/ECX高word来源与第一次失败早退。
+- 两次全角色步进的EAX/恢复ECX来源、第一次0返回早退、第二次普通返回忽略与角色typed-stop传播。
 
-当前缺少原版双记录、18角色对象、24类callee共享副作用、resource owner、参数对象、sample、eligibility/reward表、奖励行对象和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版双记录、18角色对象、23类剩余直接callee与效果步进内部两类actor callee共享副作用、resource owner、参数对象、sample、eligibility/reward表、奖励行对象和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
