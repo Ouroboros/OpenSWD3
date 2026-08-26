@@ -4,24 +4,62 @@
 
 namespace openswd3::battle {
 
-class LegacyBattleActorGroupAStaticLifecyclePort {
-public:
-    virtual ~LegacyBattleActorGroupAStaticLifecyclePort() = default;
+inline constexpr compat::u32 kLegacyBattleActorGroupABaseToken = 0x005029D0U;
+inline constexpr compat::u32 kLegacyBattleActorGroupAElementSize = 0x2F34U;
+inline constexpr compat::u32 kLegacyBattleActorGroupAElementCount = 10U;
+inline constexpr compat::u32 kLegacyBattleActorGroupAConstructorToken =
+    0x0046E490U;
+inline constexpr compat::u32 kLegacyBattleActorGroupADestructorToken =
+    0x0046E4D0U;
 
-    virtual void construct_group() = 0;
+struct LegacyBattleActorVectorConstructionRequest {
+    compat::u32 base_token{};
+    compat::u32 element_size{};
+    compat::u32 element_count{};
+    compat::u32 constructor_token{};
+    compat::u32 destructor_token{};
+};
+
+class LegacyBattleActorVectorConstructionPort {
+public:
+    virtual ~LegacyBattleActorVectorConstructionPort() = default;
+
+    [[nodiscard]] virtual compat::u32 construct_vector(
+        const LegacyBattleActorVectorConstructionRequest& request
+    ) = 0;
+};
+
+class LegacyBattleActorGroupAExitRegistrationPort {
+public:
+    virtual ~LegacyBattleActorGroupAExitRegistrationPort() = default;
+
     [[nodiscard]] virtual compat::u32 register_exit_cleanup() = 0;
+};
+
+struct LegacyBattleActorGroupAConstructionResult {
+    LegacyBattleActorVectorConstructionRequest request{};
+    compat::u32 vector_constructor_calls{};
+    compat::u32 return_value{};
 };
 
 struct LegacyBattleActorGroupAStaticInitializationResult {
     compat::u32 construct_calls{};
+    compat::u32 construction_return_value{};
     compat::u32 exit_registration_calls{};
     compat::u32 return_value{};
 };
 
+// sub_4517B0: wrap the compiler vector-construction iterator for group A.
+[[nodiscard]] LegacyBattleActorGroupAConstructionResult
+construct_legacy_battle_actor_group_a(
+    LegacyBattleActorVectorConstructionPort& construction_port
+);
+
 // sub_4517A0 plus its external function chunk at loc_4517D0.
 [[nodiscard]] LegacyBattleActorGroupAStaticInitializationResult
 initialize_legacy_battle_actor_group_a_static_lifecycle(
-    LegacyBattleActorGroupAStaticLifecyclePort& lifecycle_port
+    LegacyBattleActorVectorConstructionPort& construction_port,
+    LegacyBattleActorGroupAExitRegistrationPort& exit_registration_port
 );
 
 }  // namespace openswd3::battle
