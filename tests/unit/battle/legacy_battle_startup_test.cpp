@@ -201,7 +201,7 @@ public:
     std::vector<u32> released_owners;
 };
 
-void poison_reset_blocks(LegacyBattleStartupState& state) {
+void poison_reset_blocks(LegacyBattleStartupState& state, StartupPorts& port) {
     auto& reset = state.reset;
     reset.block_525470.fill(1U);
     reset.block_4ff168.fill(1U);
@@ -213,7 +213,7 @@ void poison_reset_blocks(LegacyBattleStartupState& state) {
     reset.block_520e90.fill(1U);
     reset.block_4ff0bc.fill(1U);
     reset.block_5242b0.fill(1U);
-    reset.block_502984.fill(1U);
+    port.actor_publication_state().slots.fill(1U);
     reset.block_524420.fill(1U);
     reset.block_53ae90.fill(1U);
     reset.block_5244e8.fill(1U);
@@ -262,7 +262,9 @@ template <typename Range>
     };
 }
 
-[[nodiscard]] bool reset_blocks_match(const LegacyBattleStartupState& state) {
+[[nodiscard]] bool reset_blocks_match(
+    const LegacyBattleStartupState& state, const StartupPorts& port
+) {
     const auto& reset = state.reset;
     return all_equal(reset.block_525470, 0U) &&
         all_equal(reset.block_4ff168, 0U) &&
@@ -274,7 +276,7 @@ template <typename Range>
         all_equal(reset.block_520e90, 0U) &&
         all_equal(reset.block_4ff0bc, 0U) &&
         all_equal(reset.block_5242b0, 0xFFFFFFFFU) &&
-        all_equal(reset.block_502984, 0xFFFFFFFFU) &&
+        all_equal(port.actor_publication_state().slots, 0xFFFFFFFFU) &&
         all_equal(reset.block_524420, 0xFFFFFFFFU) &&
         all_equal(reset.block_53ae90, 0xFFFFFFFFU) &&
         all_equal(reset.block_5244e8, 0xFFFFFFFFU) &&
@@ -301,10 +303,10 @@ template <typename Range>
 void test_battle_startup(openswd3::test::Context& test) {
     {
         LegacyBattleStartupState state;
-        poison_reset_blocks(state);
+        StartupPorts ports;
+        poison_reset_blocks(state, ports);
         state.display_surfaces = {0x11110000U, 0x22220000U};
         state.mode_flags = 0xA5000000U;
-        StartupPorts ports;
         ports.query_values = {
             {30U, 1U},
             {32U, 1U},
@@ -329,8 +331,8 @@ void test_battle_startup(openswd3::test::Context& test) {
                 result.return_value == 0x87654321U &&
                 result.no_enemy_notification_calls == 1U &&
                 result.action_threshold == 900 &&
-                state.battle_id_word == 0x1234U && reset_blocks_match(state) &&
-                state.party_count == 2U &&
+                state.battle_id_word == 0x1234U &&
+                reset_blocks_match(state, ports) && state.party_count == 2U &&
                 state.party_presence ==
                     std::array<openswd3::compat::u8, 4>{1U, 0U, 1U, 0U} &&
                 state.party_source_indices[0] == 0U &&

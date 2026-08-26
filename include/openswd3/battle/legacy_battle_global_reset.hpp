@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/audio_video/legacy_sample_manager.hpp"
+#include "openswd3/battle/legacy_battle_effect_coordinator.hpp"
 #include "openswd3/battle/legacy_battle_effect_shift.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 
@@ -25,6 +26,7 @@ struct LegacyBattleGlobalResetCallReply {
 class LegacyBattleGlobalResetRuntimePort
     : public LegacyBattleStartupPort,
       public virtual LegacyBattleEffectShiftStatePort,
+      public virtual LegacyBattleEffectCoordinatorStatePort,
       public LegacyBattleActionRotationReleasePort,
       public LegacyBattleRenderAuxiliaryBufferReleaser {
 public:

@@ -11,6 +11,8 @@
 
 namespace {
 
+using openswd3::battle::LegacyBattleEffectCallReply;
+using openswd3::battle::LegacyBattleEffectCallRequest;
 using openswd3::battle::LegacyBattleFrameCoordinatorCall;
 using openswd3::battle::LegacyBattleFrameCoordinatorCallReply;
 using openswd3::battle::LegacyBattleFrameCoordinatorCallRequest;
@@ -29,6 +31,12 @@ public:
         calls.push_back(request);
         const auto found = replies.find(request.call);
         return found == replies.end() ? default_reply : found->second;
+    }
+
+    [[nodiscard]] LegacyBattleEffectCallReply
+    invoke(const LegacyBattleEffectCallRequest& request) override {
+        effect_calls.push_back(request);
+        return {.eax = 1U};
     }
 
     [[nodiscard]] LegacyBattleHudCallReply
@@ -67,6 +75,7 @@ public:
     }
 
     std::vector<LegacyBattleFrameCoordinatorCallRequest> calls;
+    std::vector<LegacyBattleEffectCallRequest> effect_calls;
     std::vector<LegacyBattleHudCallRequest> hud_calls;
     std::map<
         LegacyBattleFrameCoordinatorCall,
@@ -452,9 +461,6 @@ void configure_common_port(CoordinatorPort& port) {
         .eax = 1U;
     port.replies[LegacyBattleFrameCoordinatorCall::lock_target_surface].eax =
         0x004CD76CU;
-    port.replies
-        [LegacyBattleFrameCoordinatorCall::frame_followup_completion_gate]
-            .eax = 0U;
 }
 
 }  // namespace
@@ -609,6 +615,37 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 ) == 0U &&
                 result.fixed_frame_calls == 0U,
             "actor-frame context stop propagates before remaining frame followup stages"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleFrameCoordinatorState state;
+        state.ui_state = 0x8000U;
+        state.conditional_mode = 1U;
+        state.conditional_submode = 0U;
+        Fixture fixture;
+        CoordinatorPort port;
+        configure_common_port(port);
+        port.actor_metric_state().priority_actor_index = 0U;
+        auto& effects = port.effect_coordinator_state();
+        effects.primary[0].complete = 1U;
+        effects.primary_suppression = 1U;
+        auto context = fixture.context();
+
+        const auto result =
+            openswd3::battle::run_legacy_battle_frame_coordinator(
+                state, port, context, base_request()
+            );
+
+        test.expect_true(
+            result.effect_coordinator_calls == 1U &&
+                result.effect_coordinator.status ==
+                    openswd3::battle::LegacyBattleEffectCoordinatorStatus::
+                        completed &&
+                result.effect_coordinator.return_value == 1U &&
+                result.effect_coordinator.effect_frame_calls == 1U &&
+                state.ui_state == 0x8000U,
+            "main frame directly composes the closed effect coordinator and removes the opaque completion gate"
         );
     }
 

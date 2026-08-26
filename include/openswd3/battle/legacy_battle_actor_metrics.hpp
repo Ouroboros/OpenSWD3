@@ -34,6 +34,34 @@ struct LegacyBattleActorMetricState {
     compat::u32 priority_order_ready{};
 };
 
+struct LegacyBattleActorPublicationState {
+    LegacyBattleActorPublicationState() {
+        slots.fill(0xFFFFFFFFU);
+    }
+
+    std::array<compat::u32, 18> slots{};
+};
+
+class LegacyBattleActorPublicationStatePort {
+public:
+    [[nodiscard]] virtual LegacyBattleActorPublicationState&
+    actor_publication_state() noexcept {
+        return actor_publication_state_;
+    }
+
+    [[nodiscard]] virtual const LegacyBattleActorPublicationState&
+    actor_publication_state() const noexcept {
+        return actor_publication_state_;
+    }
+
+protected:
+    LegacyBattleActorPublicationStatePort() = default;
+    ~LegacyBattleActorPublicationStatePort() = default;
+
+private:
+    LegacyBattleActorPublicationState actor_publication_state_{};
+};
+
 class LegacyBattleActorMetricStatePort {
 public:
     [[nodiscard]] virtual LegacyBattleActorMetricState&

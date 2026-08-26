@@ -243,12 +243,22 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
     static_cast<void>(invoke(
         port, result, LegacyBattleFrameCoordinatorCall::frame_followup_stage_2
     ));
-    reply = invoke(
+    result.effect_coordinator = advance_legacy_battle_effect_coordinator(
+        port.effect_coordinator_state(),
         port,
-        result,
-        LegacyBattleFrameCoordinatorCall::frame_followup_completion_gate
+        context.frame_zero.framebuffer,
+        state.ui_state,
+        state.selection_source
     );
-    if (reply.eax != 1U) {
+    ++result.effect_coordinator_calls;
+    result.port_calls += result.effect_coordinator.port_calls;
+    if (result.effect_coordinator.status !=
+        LegacyBattleEffectCoordinatorStatus::completed) {
+        result.status =
+            LegacyBattleFrameCoordinatorStatus::effect_coordinator_typed_stop;
+        return result;
+    }
+    if (result.effect_coordinator.return_value != 1U) {
         state.ui_state |= 1U;
     }
 

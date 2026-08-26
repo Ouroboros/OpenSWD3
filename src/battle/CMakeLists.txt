@@ -11,6 +11,7 @@ add_library(
         legacy_battle_actor_ready.cpp
         legacy_battle_assets.cpp
         legacy_battle_background_initialization.cpp
+        legacy_battle_effect_coordinator.cpp
         legacy_battle_effect_frame.cpp
         legacy_battle_effect_shift.cpp
         legacy_battle_file_lifecycle.cpp

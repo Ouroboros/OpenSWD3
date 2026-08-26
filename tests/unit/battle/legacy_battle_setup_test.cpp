@@ -29,6 +29,7 @@ void test_battle_actor_priority(openswd3::test::Context& test);
 void test_battle_actor_ready(openswd3::test::Context& test);
 void test_battle_opponent_action_dispatch(openswd3::test::Context& test);
 void test_battle_background_initialization(openswd3::test::Context& test);
+void test_battle_effect_coordinator(openswd3::test::Context& test);
 void test_battle_effect_frame(openswd3::test::Context& test);
 void test_battle_effect_shift(openswd3::test::Context& test);
 void test_battle_frame_coordinator(openswd3::test::Context& test);
@@ -6967,6 +6968,7 @@ int main() {
     test_battle_actor_ready(test);
     test_battle_opponent_action_dispatch(test);
     test_battle_background_initialization(test);
+    test_battle_effect_coordinator(test);
     test_battle_effect_frame(test);
     test_battle_effect_shift(test);
     test_battle_frame_coordinator(test);

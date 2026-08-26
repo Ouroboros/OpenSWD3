@@ -5,6 +5,7 @@
 #include "openswd3/compat/types.hpp"
 
 #include <array>
+#include <cstddef>
 #include <initializer_list>
 
 namespace openswd3::battle {
@@ -32,6 +33,7 @@ struct LegacyBattleEffectCallReply {
 
 class LegacyBattleEffectCallPort
     : public virtual LegacyBattleActorMetricStatePort,
+      public virtual LegacyBattleActorPublicationStatePort,
       public virtual LegacyBattleEffectShiftStatePort,
       public virtual LegacyBattleFrameRefreshStatePort {
 public:
@@ -89,17 +91,18 @@ struct LegacyBattleIntensityEffectFrameResult {
     compat::u32 port_calls{};
 };
 
-struct LegacyBattleEffectFrameState {
-    std::array<LegacyBattleEffectRecord, 8> primary{};
-    std::array<LegacyBattleEffectRecord, 8> alternate{};
-    std::array<compat::u32, 8> alternate_active{};
-    std::array<compat::u32, 8> animation_counter{};
+inline constexpr std::size_t kLegacyBattleEffectActorSlotCount = 18U;
 
-    compat::u32 animation_mode{};
+struct LegacyBattleSharedEffectFrameState {
+    std::array<LegacyBattleEffectRecord, kLegacyBattleEffectActorSlotCount>
+        primary{};
+    std::array<LegacyBattleEffectRecord, kLegacyBattleEffectActorSlotCount>
+        alternate{};
+    std::array<compat::u32, kLegacyBattleEffectActorSlotCount>
+        alternate_active{};
+
     compat::u32 global_mode{};
     compat::u32 global_flip_mode{};
-    compat::u32 effect_object_token{};
-    compat::u32 target_surface_token{};
     compat::u32 sample_handle_value{};
     compat::u32 current_resource_value_token{};
     compat::i32 shared_x{};
@@ -111,20 +114,33 @@ struct LegacyBattleEffectFrameState {
     compat::u32 primary_suppression{};
     compat::u32 split_suppression{};
 
-    compat::u32 battle_byte_flags{};
     compat::u32 battle_gate{};
     compat::u32 battle_mode_latch{};
     compat::u32 seven_value_gate{};
-    compat::u32 message_state{};
-    compat::u32 resolved_actor_value{};
 
     compat::u16 auxiliary_reward{};
     compat::i32 reward_value{};
     compat::u32 reward_display_total{};
-    std::array<compat::u32, 8> reward_auxiliary{};
-    std::array<compat::u32, 8> reward_total{};
-    std::array<compat::u32, 8> reward_high{};
-    std::array<compat::u32, 8> pending_step{};
+    std::array<compat::u32, kLegacyBattleEffectActorSlotCount>
+        reward_auxiliary{};
+    std::array<compat::u32, kLegacyBattleEffectActorSlotCount> reward_total{};
+    std::array<compat::u32, kLegacyBattleEffectActorSlotCount> reward_high{};
+};
+
+struct LegacyBattleEffectFrameState
+    : public virtual LegacyBattleSharedEffectFrameState {
+    std::array<compat::u32, kLegacyBattleEffectActorSlotCount>
+        animation_counter{};
+
+    compat::u32 animation_mode{};
+    compat::u32 effect_object_token{};
+    compat::u32 target_surface_token{};
+
+    compat::u32 battle_byte_flags{};
+    compat::u32 message_state{};
+    compat::u32 resolved_actor_value{};
+
+    std::array<compat::u32, kLegacyBattleEffectActorSlotCount> pending_step{};
 
     std::array<LegacyBattleIntensityEffectRecord, 8> intensity_records{};
     std::array<compat::i8, 8> intensity_values{};

@@ -91,7 +91,7 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
         EffectPort port;
         const auto result =
             openswd3::battle::advance_legacy_battle_effect_frame(
-                state, port, 0U, 0x1000U, 0U, 0U, 8U
+                state, port, 0U, 0x1000U, 0U, 0U, 18U
             );
         test.expect_true(
             result.status ==

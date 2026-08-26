@@ -152,7 +152,9 @@ void seed_state(
 ) {
     state.unmapped_bytes[0x00ABCDEFU] = 0x5AU;
     state.unmapped_bytes[0x00520E40U] = 0x5AU;
+    state.unmapped_bytes[0x005202A8U] = 0x5AU;
     state.unmapped_bytes[0x0053AE7AU] = 0x5AU;
+    state.unmapped_bytes[0x0053BD40U] = 0x5AU;
     state.unmapped_bytes[0x0053BD5CU] = 0x5AU;
     state.unmapped_bytes[0x0053C000U] = 0x5AU;
     state.unmapped_bytes[0x0053C4A0U] = 0x5AU;
@@ -190,6 +192,24 @@ void seed_state(
     shift.direction_mode = 9U;
     shift.threshold_word = 9U;
     shift.completion_latch = 9U;
+
+    auto& coordinator = port.effect_coordinator_state();
+    coordinator.primary[0].complete = 9U;
+    coordinator.required_completion_count = 9U;
+    coordinator.group_a_global_gate = 9U;
+    coordinator.group_a_effect_mode = 9U;
+    coordinator.group_b_global_gate = 9U;
+    coordinator.group_b_effect_mode = 9U;
+    coordinator.group_b_argument = 9U;
+    coordinator.completed_count = 9U;
+    coordinator.group_a_render_count = 9U;
+    coordinator.actor_activity_latch = 9U;
+    coordinator.selected_actor_pair = 0xAABB1234U;
+    coordinator.group_a_feedback_actor = 9U;
+    coordinator.group_b_feedback_actor = 9U;
+    coordinator.shared_feedback_primary = 9U;
+    coordinator.group_a_arguments.fill(9U);
+    coordinator.feedback_primary.fill(9U);
 }
 
 }  // namespace
@@ -296,6 +316,34 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 state.unmapped_bytes.contains(0x0053C000U) == false &&
                 state.unmapped_bytes.contains(0x0053C4A0U) == false,
             "global reset updates effect-shift aliases without retaining unmapped duplicate bytes"
+        );
+        const auto& coordinator = port.effect_coordinator_state();
+        test.expect_true(
+            coordinator.primary[0].complete == 0U &&
+                coordinator.required_completion_count == 0U &&
+                coordinator.group_a_global_gate == 0U &&
+                coordinator.group_a_effect_mode == 0U &&
+                coordinator.group_b_global_gate == 9U &&
+                coordinator.group_b_effect_mode == 0U &&
+                coordinator.group_b_argument == 0U &&
+                coordinator.completed_count == 0U &&
+                coordinator.group_a_render_count == 0U &&
+                coordinator.actor_activity_latch == 0U &&
+                coordinator.selected_actor_pair == 0xAABBFFFFU &&
+                coordinator.group_a_feedback_actor == 0xFFFFU &&
+                coordinator.group_b_feedback_actor == 0xFFFFU &&
+                coordinator.shared_feedback_primary == 0U &&
+                std::ranges::all_of(
+                    coordinator.group_a_arguments,
+                    [](const auto value) { return value == 0U; }
+                ) &&
+                std::ranges::all_of(
+                    coordinator.feedback_primary,
+                    [](const auto value) { return value == 9U; }
+                ) &&
+                state.unmapped_bytes.contains(0x005202A8U) == false &&
+                state.unmapped_bytes.contains(0x0053BD40U) == false,
+            "global reset writes the shared effect coordinator aliases and preserves untouched scan feedback state"
         );
         test.expect_true(
             std::ranges::all_of(

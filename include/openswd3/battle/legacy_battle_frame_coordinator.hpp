@@ -6,6 +6,7 @@
 #include "openswd3/battle/legacy_battle_actor_priority.hpp"
 #include "openswd3/battle/legacy_battle_actor_frame_sequence.hpp"
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
+#include "openswd3/battle/legacy_battle_effect_coordinator.hpp"
 #include "openswd3/battle/legacy_battle_frame_effect.hpp"
 #include "openswd3/battle/legacy_battle_transition.hpp"
 #include "openswd3/rendering/legacy_action_renderers.hpp"
@@ -53,7 +54,6 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     query_actor_pair,
     frame_followup_stage_1,
     frame_followup_stage_2,
-    frame_followup_completion_gate,
     actor_ready_query,
     post_render_stage_1,
     post_render_stage_2,
@@ -94,8 +94,11 @@ struct LegacyBattleFrameCoordinatorCallReply {
 
 class LegacyBattleFrameCoordinatorPort
     : public LegacyBattleHudCallPort,
-      public virtual LegacyBattleActorMetricStatePort {
+      public LegacyBattleEffectCallPort,
+      public virtual LegacyBattleEffectCoordinatorStatePort {
 public:
+    using LegacyBattleEffectCallPort::invoke;
+
     virtual ~LegacyBattleFrameCoordinatorPort() = default;
 
     [[nodiscard]] virtual LegacyBattleFrameCoordinatorCallReply
@@ -193,6 +196,7 @@ enum class LegacyBattleFrameCoordinatorStatus : compat::u8 {
     actor_order_typed_stop,
     actor_priority_typed_stop,
     actor_frame_typed_stop,
+    effect_coordinator_typed_stop,
     render_aborted,
     fixed_frame_typed_stop,
     role_map_typed_stop,
@@ -225,6 +229,8 @@ struct LegacyBattleFrameCoordinatorResult {
     compat::u32 actor_priority_calls{};
     LegacyBattleActorFrameSequenceResult actor_frame_sequence{};
     compat::u32 actor_frame_sequence_calls{};
+    LegacyBattleEffectCoordinatorResult effect_coordinator{};
+    compat::u32 effect_coordinator_calls{};
     LegacyBattleHudFrameResult hud_frame{};
     compat::u32 hud_frame_calls{};
     LegacyBattleFrameDrawResult fixed_frame{};

@@ -8,6 +8,8 @@
 
 namespace {
 
+using openswd3::battle::LegacyBattleEffectCallReply;
+using openswd3::battle::LegacyBattleEffectCallRequest;
 using openswd3::battle::LegacyBattleFrameCoordinatorCallReply;
 using openswd3::battle::LegacyBattleFrameCoordinatorCallRequest;
 using openswd3::battle::LegacyBattleFrameCoordinatorPort;
@@ -24,6 +26,11 @@ public:
         const auto reply = replies.front();
         replies.pop_front();
         return reply;
+    }
+
+    [[nodiscard]] LegacyBattleEffectCallReply
+    invoke(const LegacyBattleEffectCallRequest&) override {
+        return {};
     }
 
     [[nodiscard]] u32 start_music(const std::filesystem::path&, u32) override {

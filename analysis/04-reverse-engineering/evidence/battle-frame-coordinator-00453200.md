@@ -60,10 +60,10 @@ selection_value == 0xFFFFFFFF && selection_source == 0
 1. 带共享参数的主frame stage；
 2. 直接调用已关闭`0x00453580`画面效果，以其共享pending rotation作入口参数；
 3. 当`conditional_mode != 1 || conditional_submode == 1`时执行条件stage；
-4. 三个后继stage；
-5. 一个完成门stage。
+4. 两个仍待关闭的后继stage；
+5. 直接调用已关闭`0x0045C010`效果总协调步进。
 
-画面效果typed-stop保留主frame stage及效果内部真实前缀，并阻断全部后继stage。完成门EAX不等于1时，只对共享UI dword的低word OR 1；高16位原样保留。
+画面效果typed-stop保留主frame stage及效果内部真实前缀，并阻断全部后继stage。效果总协调器复用主帧端口内唯一角色metric、效果步进和18槽记录状态；子typed-stop阻断固定帧，普通返回值不等于1时只对共享UI dword的低word OR 1，高16位原样保留。旧opaque完成门枚举和测试桩已删除。
 
 然后直接调用已关闭`0x00450270`，固定资源`0x234D`、帧0、坐标`(0,384)`。frame unavailable或blitter typed-stop在原首次访问/绘制点阻断后续流程；不伪造选中角色、跨模块队列、输入或截图尾。
 

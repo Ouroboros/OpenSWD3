@@ -253,17 +253,20 @@ struct MappedRange {
     u32 bytes;
 };
 
-constexpr std::array<MappedRange, 28> kMappedRanges{{
-    {0x004FE5CCU, 0x2CU},  {0x004FF0B0U, 0x0CU},  {0x004FF168U, 0x50U},
-    {0x00502940U, 0x14U},  {0x0052022CU, 0x50U},  {0x00520D5CU, 0x48U},
+constexpr std::array<MappedRange, 39> kMappedRanges{{
+    {0x004A7620U, 0x08U},  {0x004FDF7CU, 0x02U},  {0x004FE5CCU, 0x2CU},
+    {0x004FF0B0U, 0x0CU},  {0x004FF168U, 0x50U},  {0x00502940U, 0x14U},
+    {0x0052022CU, 0x50U},  {0x005202A8U, 0xAB0U}, {0x00520D5CU, 0x48U},
     {0x00520E40U, 0x48U},  {0x005213A0U, 0x100U}, {0x005214ACU, 0x48U},
     {0x005214F8U, 0x24U},  {0x0052411CU, 0x48U},  {0x00524268U, 0x20U},
     {0x00524324U, 0xF0U},  {0x005244E8U, 0x1F8U}, {0x00524788U, 0x1F8U},
     {0x0052544CU, 0x10U},  {0x00525470U, 0x98U},  {0x0053AE70U, 0x1CU},
     {0x0053AF70U, 0x140U}, {0x0053B0B8U, 0xB6CU}, {0x0053BCE0U, 0x04U},
-    {0x0053BCF4U, 0x04U},  {0x0053BD5CU, 0x04U},  {0x0053C000U, 0x04U},
-    {0x0053C040U, 0x04U},  {0x0053C048U, 0x04U},  {0x0053C4A0U, 0x04U},
-    {0x0053C4C0U, 0x01U},
+    {0x0052441CU, 0x04U},  {0x0053BCF4U, 0x04U},  {0x0053BD40U, 0x04U},
+    {0x0053BD5CU, 0x04U},  {0x0053BD7CU, 0x10U},  {0x0053BCECU, 0x04U},
+    {0x0053BF7CU, 0x04U},  {0x0053BFA8U, 0x04U},  {0x0053BFCCU, 0x04U},
+    {0x0053BFF4U, 0x04U},  {0x0053C000U, 0x04U},  {0x0053C040U, 0x04U},
+    {0x0053C048U, 0x04U},  {0x0053C4A0U, 0x04U},  {0x0053C4C0U, 0x01U},
 }};
 
 [[nodiscard]] bool is_mapped_byte(const u32 address) noexcept {
@@ -307,7 +310,8 @@ template <typename T> void clear_records(T& records) noexcept {
 void synchronize_typed_aliases(
     LegacyBattleStartupState& startup,
     LegacyBattleActorMetricState& metrics,
-    LegacyBattleEffectShiftState& shift
+    LegacyBattleEffectShiftState& shift,
+    LegacyBattleEffectCoordinatorState& coordinator
 ) {
     startup.render_geometry = {};
     auto& reset = startup.reset;
@@ -356,6 +360,28 @@ void synchronize_typed_aliases(
     shift.direction_mode = 0U;
     shift.threshold_word = 0U;
     shift.completion_latch = 0U;
+
+    coordinator.primary.fill({});
+    coordinator.required_completion_count = 0U;
+    coordinator.group_a_global_gate = 0U;
+    coordinator.group_a_effect_mode = 0U;
+    coordinator.group_b_effect_mode = 0U;
+    coordinator.group_b_argument = 0U;
+    coordinator.completion_target_count = 0U;
+    coordinator.completed_count = 0U;
+    coordinator.group_b_render_count = 0U;
+    coordinator.group_a_render_count = 0U;
+    coordinator.focus_release_latch = 0U;
+    coordinator.actor_activity_latch = 0U;
+    coordinator.group_activity_latch = 0U;
+    coordinator.framebuffer_dirty_latch = 0U;
+    coordinator.queried_actor_word = 0U;
+    coordinator.selected_actor_pair =
+        (coordinator.selected_actor_pair & 0xFFFF0000U) | 0x0000FFFFU;
+    coordinator.group_a_feedback_actor = 0xFFFFU;
+    coordinator.group_b_feedback_actor = 0xFFFFU;
+    coordinator.shared_feedback_primary = 0U;
+    coordinator.group_a_arguments.fill(0U);
 }
 
 void record_call(
@@ -405,7 +431,10 @@ LegacyBattleGlobalResetResult reset_legacy_battle_globals(
         apply_write(state, kResetWrites[index], result);
     }
     synchronize_typed_aliases(
-        startup, port.actor_metric_state(), port.effect_shift_state()
+        startup,
+        port.actor_metric_state(),
+        port.effect_shift_state(),
+        port.effect_coordinator_state()
     );
 
     record_call(

@@ -16,25 +16,11 @@ inline constexpr compat::u32 kLegacyBattleGroupEffectGroupBStride = 0x2B28U;
 struct LegacyBattleGroupEffectActorState {
     compat::u32 guard_ac0{};
     compat::u32 guard_ac1{};
+    compat::u32 argument_mode_gate{};
 };
 
-struct LegacyBattleGroupEffectFrameState {
-    std::array<LegacyBattleEffectRecord, 8> primary{};
-    std::array<LegacyBattleEffectRecord, 8> alternate{};
-    std::array<compat::u32, 8> alternate_active{};
-
-    compat::u32 global_mode{};
-    compat::u32 global_flip_mode{};
-    compat::u32 sample_handle_value{};
-    compat::u32 current_resource_value_token{};
-    compat::i32 shared_x{};
-    compat::i32 shared_y{};
-
-    compat::u16 shared_word_36{};
-    compat::u16 shared_word_38{};
-    compat::u16 shared_word_3a{};
-    compat::u32 primary_suppression{};
-    compat::u32 split_suppression{};
+struct LegacyBattleGroupEffectFrameState
+    : public virtual LegacyBattleSharedEffectFrameState {
     compat::u32 rendered_primary_count{};
 
     std::array<LegacyBattleGroupEffectActorState, 10> group_a{};
@@ -43,16 +29,6 @@ struct LegacyBattleGroupEffectFrameState {
     compat::u32 group_a_special_mode{};
     compat::u32 group_a_reward_mode{};
     compat::u32 reward_summary_gate{};
-    compat::u32 battle_gate{};
-    compat::u32 battle_mode_latch{};
-    compat::u32 seven_value_gate{};
-
-    compat::u16 auxiliary_reward{};
-    compat::i32 reward_value{};
-    compat::u32 reward_display_total{};
-    std::array<compat::u32, 10> reward_auxiliary{};
-    std::array<compat::u32, 10> reward_total{};
-    std::array<compat::u32, 10> reward_high{};
 };
 
 enum class LegacyBattleGroupEffectFrameStatus : compat::u8 {

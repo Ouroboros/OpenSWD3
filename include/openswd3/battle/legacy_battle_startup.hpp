@@ -142,7 +142,8 @@ struct LegacyBattleStartupCallReply {
 };
 
 class LegacyBattleStartupPort
-    : public virtual LegacyBattleActorMetricStatePort {
+    : public virtual LegacyBattleActorMetricStatePort,
+      public virtual LegacyBattleActorPublicationStatePort {
 public:
     virtual ~LegacyBattleStartupPort() = default;
 
@@ -169,7 +170,6 @@ struct LegacyBattleStartupResetBlocks {
     std::array<compat::u32, 0x32> block_520e90{};
     std::array<compat::u32, 0x12> block_4ff0bc{};
     std::array<compat::u32, 0x12> block_5242b0{};
-    std::array<compat::u32, 0x12> block_502984{};
     std::array<compat::u32, 0x12> block_524420{};
     std::array<compat::u32, 0x12> block_53ae90{};
     std::array<compat::u32, 0x7e> block_5244e8{};

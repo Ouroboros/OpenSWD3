@@ -6,7 +6,7 @@
 
 权威函数为`0x004582B0..0x00458DDA`，完整1257行、65个静态call站点、64个`loc_`标签，无外部FUNCTION CHUNK。唯一caller为尚未关闭的`0x0045C010`，共有8个静态调用点。
 
-ABI读取actor index、参数对象token、source value和slot index。slot按8槽固定域解释；每槽主记录与备用记录均为152字节：
+ABI读取actor index、参数对象token、source value和slot index。第八十二项caller审计确认主/备用物理工作区均为18个固定槽；每槽主记录与备用记录均为152字节：
 
 ```text
 primary:   0x005202A8 + slot * 0x98
@@ -152,7 +152,7 @@ final gate word按i16大于0时：
 
 ## 10. callee、测试与动态差分
 
-原32个唯一直接callee中的`0x0045BD90`已关闭并直连；其余31个资源、动画、角色、奖励、音频或owner边界继续使用专用typed token端口。全角色步进内部两个尚未关闭actor callee也复用同一端口。
+原32个唯一直接callee中的`0x0045BD90`已关闭并直连；其余31个资源、动画、角色、奖励、音频或owner边界继续使用专用typed token端口。全角色步进内部两个尚未关闭actor callee也复用同一端口。第八十二项进一步把本函数与群体效果函数的主记录、备用记录、活动槽、公共渲染字段和奖励数组收敛为同一18槽虚共享状态。
 
 定向测试覆盖：
 

@@ -46,7 +46,9 @@ constexpr u32 kEnemyStartupBaseToken = 0x005213A0U;
     return kEnemyStartupBaseToken + index * 0x20U;
 }
 
-void reset_startup_blocks(LegacyBattleStartupState& state) noexcept {
+void reset_startup_blocks(
+    LegacyBattleStartupState& state, LegacyBattleStartupPort& port
+) noexcept {
     auto& reset = state.reset;
     reset.block_525470.fill(0U);
     reset.block_4ff168.fill(0U);
@@ -68,7 +70,7 @@ void reset_startup_blocks(LegacyBattleStartupState& state) noexcept {
     reset.values_5244d8.fill(0U);
     reset.block_5242b0.fill(0xFFFFFFFFU);
     reset.value_524418 = 0U;
-    reset.block_502984.fill(0xFFFFFFFFU);
+    port.actor_publication_state().slots.fill(0xFFFFFFFFU);
     reset.block_524420.fill(0xFFFFFFFFU);
     reset.block_53ae90.fill(0xFFFFFFFFU);
     reset.block_5244e8.fill(0xFFFFFFFFU);
@@ -273,7 +275,7 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
     result.action_threshold = publish_legacy_battle_action_threshold(
         state.timing, request.speed_setting
     );
-    reset_startup_blocks(state);
+    reset_startup_blocks(state, port);
 
     state.control_switches.fill(1U);
     const auto control_reply = invoke(
