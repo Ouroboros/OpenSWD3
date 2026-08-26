@@ -252,6 +252,7 @@ add_executable(
     unit/battle/legacy_battle_action_rotation_cache_test.cpp
     unit/battle/legacy_battle_action_dispatch_test.cpp
     unit/battle/legacy_battle_actor_lifecycle_test.cpp
+    unit/battle/legacy_battle_actor_ready_test.cpp
     unit/battle/legacy_battle_opponent_action_dispatch_test.cpp
     unit/battle/legacy_battle_background_initialization_test.cpp
     unit/battle/legacy_battle_effect_frame_test.cpp
