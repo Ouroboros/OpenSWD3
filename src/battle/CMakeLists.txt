@@ -34,6 +34,7 @@ add_library(
         legacy_battle_intensity_effect_frame.cpp
         legacy_battle_object_reset.cpp
         legacy_battle_opponent_action_dispatch.cpp
+        legacy_battle_player_item_quantity.cpp
         legacy_battle_particle_frame.cpp
         legacy_battle_particle_spawn.cpp
         legacy_battle_post_action.cpp

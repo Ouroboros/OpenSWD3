@@ -71,6 +71,7 @@ release_legacy_world_item_lists(LegacyWorldItemListState& state) noexcept {
     }
 
     drain_nodes(state.player_inventory, result.player_nodes_released, result);
+    state.player_inventory_head_token = 0U;
 
     for (auto& list : state.party_item_lists) {
         release_sentinel_list(

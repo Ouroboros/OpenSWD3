@@ -26,7 +26,8 @@
 ```
 
 现代 `LegacyWorldItemNode` 保留四个 16 位业务字段和 `0xA0` 字节定义快照，以
-`std::vector<u8>` 接管说明字符串，以 `std::list` 接管 `next`。列表必须逐次
+`std::vector<u8>` 接管说明字符串，以 `std::list` 接管所有权，并用`compat::u32`
+`legacy_token/legacy_next_token`保留不转主机指针的物理链身份。列表必须逐次
 `pop_front()`；直接依赖容器整体析构不能证明原版的头到尾释放顺序。
 
 ## 2. 三段销毁控制流
@@ -35,7 +36,7 @@
 
 `dword_4A9940` 是可为空的普通链首，不含哨兵。空首直接跳到下一段；非空时每轮先把
 全局首写为 `node->next`，然后依次 `free(node->description)`、`free(node)`，再重新读取
-全局首。现代实现对应 `player_inventory.front()` 的说明释放和 `pop_front()`。
+全局首。现代实现对应 `player_inventory.front()` 的说明释放和 `pop_front()`，完成后同步把共享`player_inventory_head_token`写零。若四条必需队伍链预检失败，则玩家链与head token均保持不变。
 
 ### 四条必需队伍链：`0x0040F442..0x0040F498`
 
@@ -62,7 +63,7 @@ EDI 从 `0x004C8AD0` 每次加 4，直到 `0x004C8BD0`，即 `0x100 / 4 = 64` �
 
 ## 3. 平台适配与调用接线
 
-- 裸 `next`、分配地址和根指针改由 `std::list`、`std::optional` 与 RAII 表达；不复制
+- 裸 `next`、分配地址和根指针改由 `std::list`、`compat::u32` token、`std::optional` 与 RAII 表达；不复制
   循环链、悬空指针、重复释放等损坏域。
 - 每次说明释放都使用空 vector 交换，确保容量真正归还；只调用 `clear()` 不等价于
   原版 `free`。即使说明为空，原版仍调用 `free(NULL)`，结果中的

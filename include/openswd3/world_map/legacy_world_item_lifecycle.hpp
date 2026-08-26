@@ -21,7 +21,8 @@ inline constexpr std::array<compat::u8, 2U> kLegacyItemSentinelNameBytes{
 
 // The raw 0xB0-byte ItemNode stores its link at +0x00, four u16 fields at
 // +0x04..+0x0A, definition bytes at +0x0C..+0xAB and an owned description
-// pointer at +0xAC. std::list and std::vector replace the two raw pointers.
+// pointer at +0xAC. std::list and std::vector replace the two raw pointers;
+// legacy_token/legacy_next_token retain the 32-bit physical identity as metadata.
 struct LegacyWorldItemNode {
     compat::u16 item_id{};
     compat::u16 selected_count{};
@@ -30,6 +31,8 @@ struct LegacyWorldItemNode {
     std::array<compat::u8, kLegacyItemDefinitionSnapshotBytes>
         definition_snapshot{};
     std::vector<compat::u8> description;
+    compat::u32 legacy_token{};
+    compat::u32 legacy_next_token{};
 };
 
 struct LegacyWorldSentinelItemList {
@@ -42,6 +45,8 @@ struct LegacyWorldSentinelItemList {
 struct LegacyWorldItemListState {
     LegacyWorldItemListState() noexcept;
 
+    compat::u32 player_inventory_head_token{};
+    LegacyWorldItemNode player_inventory_head_alias{};
     std::list<LegacyWorldItemNode> player_inventory;
     std::array<
         std::optional<LegacyWorldSentinelItemList>,
@@ -51,6 +56,26 @@ struct LegacyWorldItemListState {
         std::optional<LegacyWorldSentinelItemList>,
         kLegacyRoleItemListCount>
         role_item_lists;
+};
+
+class LegacyWorldItemListStatePort {
+public:
+    [[nodiscard]] virtual LegacyWorldItemListState&
+    world_item_list_state() noexcept {
+        return world_item_list_state_;
+    }
+
+    [[nodiscard]] virtual const LegacyWorldItemListState&
+    world_item_list_state() const noexcept {
+        return world_item_list_state_;
+    }
+
+protected:
+    LegacyWorldItemListStatePort() = default;
+    ~LegacyWorldItemListStatePort() = default;
+
+private:
+    LegacyWorldItemListState world_item_list_state_{};
 };
 
 enum class LegacyWorldItemListReleaseStatus {

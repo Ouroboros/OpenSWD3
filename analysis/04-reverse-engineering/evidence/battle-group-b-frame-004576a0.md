@@ -117,9 +117,9 @@ side为1时把随机索引解释为组B；side为0时解释为组A。两条路�
 
 1. 再次查询target低word；
 2. selection clear；
-3. selection complete等于1时遍历全部组A，先reset target；queue completion等于1且对应completion word非0时，清word、defeated低word和间隔五dword槽，再依次reset completion slot、reset actor、query completion value；
+3. selection complete等于1时遍历全部组A，先reset target；queue completion等于1且对应completion word非0时，清word、defeated低word和间隔五dword槽，再依次reset completion slot、reset actor、query completion value，并把高word保留、低word覆盖后的完整item参数直连selector-zero玩家道具数量步进；
 4. selection complete不等于1且side非0，只按组Btarget reset；
-5. side为0时按组Atarget执行单槽完成逻辑，再reset target；
+5. side为0时按组Atarget执行单槽完成逻辑，使用同一selector-zero玩家道具数量直连，再reset target；
 6. reset当前组B source。
 
 全组A完成值调用保留`query completion value`完整EAX高word，只用固定表word覆盖低word。单组A分支保留callee后陈旧ECX高word，再覆盖CX。固定表索引为：
@@ -165,7 +165,7 @@ pending effect ID非全1时调用pending step `(source,shared_argument,index)`�
 
 ## 12. callee、测试与动态差分
 
-46个唯一callee中，已关闭对手动作分派`0x00455D60`直接typed组合；其余45个角色、AI、状态、文本、完成资源和效果callee继续使用共享typed token端口。
+46个唯一callee中，已关闭对手动作分派`0x00455D60`与玩家道具双数量步进`0x0045D180`直接typed组合；其余44个角色、AI、状态、文本、完成资源和效果callee继续使用共享typed token端口。
 
 定向测试覆盖：
 
@@ -178,7 +178,7 @@ pending effect ID非全1时调用pending step `(source,shared_argument,index)`�
 - profile覆盖EDX低byte；
 - signed status独立callee、双mode、文本、phase与目标；
 - 对手动作分派直连、未完成返回陈旧EBX写入及完整cleanup；
-- completion值保留EAX高word；
+- completion值保留EAX高word，并直接写共享玩家道具链数量A；
 - completion surface零token首字节停点、状态前缀与越界停点；
 - pending effect及final actor成功尾；
 - profile真实访问typed-stop。

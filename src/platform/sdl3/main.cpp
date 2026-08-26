@@ -5390,7 +5390,11 @@ public:
                         }
                         auto ports = action_ports();
                         static_cast<void>(ports.draw_frame_piece(
-                            *resolved_frame_, x, y, flags, opacity
+                            *resolved_frame_,
+                            x,
+                            y,
+                            flags,
+                            static_cast<openswd3::compat::i32>(opacity)
                         ));
                     }
 

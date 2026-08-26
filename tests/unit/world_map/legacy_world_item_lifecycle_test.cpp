@@ -47,6 +47,7 @@ void test_default_sentinel_layout(openswd3::test::Context& test) {
 
 void test_three_release_regions(openswd3::test::Context& test) {
     LegacyWorldItemListState state;
+    state.player_inventory_head_token = 0x00600000U;
     state.player_inventory.push_back(node_with_description({1U, 2U}));
     state.player_inventory.push_back(LegacyWorldItemNode{});
 
@@ -79,6 +80,7 @@ void test_three_release_regions(openswd3::test::Context& test) {
     );
     test.expect_true(
         state.player_inventory.empty() &&
+            state.player_inventory_head_token == 0U &&
             std::ranges::none_of(
                 state.party_item_lists,
                 [](const auto& list) { return list.has_value(); }
@@ -95,6 +97,7 @@ void test_missing_required_sentinel_is_transactional(
     openswd3::test::Context& test
 ) {
     LegacyWorldItemListState state;
+    state.player_inventory_head_token = 0x00600000U;
     state.player_inventory.push_back(node_with_description({1U}));
     state.party_item_lists[2U].reset();
     state.role_item_lists[0U]->nodes.push_back(node_with_description({2U}));
@@ -107,6 +110,7 @@ void test_missing_required_sentinel_is_transactional(
             result.missing_party_list_index == 2U &&
             result.description_release_calls == 0U &&
             state.player_inventory.size() == 1U &&
+            state.player_inventory_head_token == 0x00600000U &&
             state.party_item_lists[0U].has_value() &&
             !state.party_item_lists[2U].has_value() &&
             state.role_item_lists[0U]->nodes.size() == 1U,

@@ -7,10 +7,12 @@
 #include "openswd3/battle/legacy_battle_frame_effect.hpp"
 #include "openswd3/battle/legacy_battle_frame_refresh.hpp"
 #include "openswd3/battle/legacy_battle_group_b_order.hpp"
+#include "openswd3/battle/legacy_battle_player_item_quantity.hpp"
 #include "openswd3/battle/legacy_battle_scale_scan.hpp"
 #include "openswd3/battle/legacy_battle_status_indicator.hpp"
 #include "openswd3/compat/types.hpp"
 #include "openswd3/rendering/legacy_countdown.hpp"
+#include "openswd3/world_map/legacy_world_item_lifecycle.hpp"
 
 #include <array>
 #include <filesystem>
@@ -63,7 +65,8 @@ struct LegacyBattleActionCallReply {
 class LegacyBattleActionDispatchPort
     : public virtual LegacyBattleActorMetricStatePort,
       public virtual LegacyBattleEffectShiftStatePort,
-      public virtual LegacyBattleFrameRefreshStatePort {
+      public virtual LegacyBattleFrameRefreshStatePort,
+      public virtual world_map::LegacyWorldItemListStatePort {
 public:
     virtual ~LegacyBattleActionDispatchPort() = default;
 
@@ -213,6 +216,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     final_actor_workspace_typed_stop,
     final_actor_record_typed_stop,
     final_actor_descriptor_typed_stop,
+    player_item_typed_stop,
 };
 
 struct LegacyBattleActionDispatchResult {
@@ -231,6 +235,8 @@ struct LegacyBattleActionDispatchResult {
     LegacyBattleScaleScanResult scale_scan{};
     compat::u32 scale_scan_calls{};
     compat::u32 action_record_clear_calls{};
+    LegacyBattlePlayerItemQuantityResult player_item{};
+    compat::u32 player_item_calls{};
 };
 
 // sub_4539B0: dispatch one action code for the selected group-A actor and

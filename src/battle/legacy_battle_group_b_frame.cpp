@@ -48,7 +48,6 @@ constexpr u32 kCallSelectionComplete = 0x00478B40U;
 constexpr u32 kCallResetTarget = 0x00478AE0U;
 constexpr u32 kCallResetCompletionSlot = 0x004750C0U;
 constexpr u32 kCallQueryCompletionValue = 0x00478370U;
-constexpr u32 kCallPublishCompletionValue = 0x0045D180U;
 constexpr u32 kCallPublishBattleBit = 0x00483FF0U;
 constexpr u32 kCallQueryCompletionEffect = 0x0047F360U;
 constexpr u32 kCallPublishCompletionId = 0x004787D0U;
@@ -128,6 +127,26 @@ void replace_low_byte(u32& destination, const u8 value) noexcept {
     std::copy(arguments.begin(), arguments.end(), request.arguments.begin());
     ++result.port_calls;
     return port.invoke(request);
+}
+
+[[nodiscard]] bool publish_player_item_quantity(
+    LegacyBattleActionDispatchPort& port,
+    LegacyBattleActionDispatchResult& result,
+    const u32 item_id,
+    const u32 quantity_selector
+) {
+    result.player_item = advance_legacy_battle_player_item_quantity(
+        port, item_id, quantity_selector
+    );
+    ++result.player_item_calls;
+    result.port_calls += result.player_item.port_calls;
+    if (result.player_item.status !=
+        LegacyBattlePlayerItemQuantityStatus::completed) {
+        result.status =
+            LegacyBattleActionDispatchStatus::player_item_typed_stop;
+        return false;
+    }
+    return true;
 }
 
 class SingleEffectPortAdapter final : public LegacyBattleEffectCallPort {
@@ -966,12 +985,11 @@ action_decision_done:
                                 }
                                 const u32 argument =
                                     (stale.eax & 0xFFFF0000U) | table_value;
-                                static_cast<void>(invoke(
-                                    port,
-                                    result,
-                                    kCallPublishCompletionValue,
-                                    {argument, 0U}
-                                ));
+                                if (!publish_player_item_quantity(
+                                        port, result, argument, 0U
+                                    )) {
+                                    return result;
+                                }
                             }
                             ++result.group_a_iterations;
                         }
@@ -1017,12 +1035,11 @@ action_decision_done:
                         }
                         const u32 argument =
                             (stale.ecx & 0xFFFF0000U) | table_value;
-                        static_cast<void>(invoke(
-                            port,
-                            result,
-                            kCallPublishCompletionValue,
-                            {argument, 0U}
-                        ));
+                        if (!publish_player_item_quantity(
+                                port, result, argument, 0U
+                            )) {
+                            return result;
+                        }
                     }
                     static_cast<void>(
                         invoke(port, result, kCallResetTarget, {target})

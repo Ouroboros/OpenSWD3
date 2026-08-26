@@ -452,6 +452,56 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
 
     {
         LegacyBattleActionDispatchState state;
+        state.group_a_count = 1;
+        state.group_b_count = 1;
+        state.phase_counter = 1U;
+        state.group_b_status_words[0] = 7U;
+        Fixture fixture;
+        DispatchPort port;
+        port.action = 6U;
+        port.push(0x00471270U, {.eax = 1U});
+        port.push(0x00487C10U, {.eax = 0x00630000U});
+        auto context = fixture.context();
+        const auto result = openswd3::battle::dispatch_legacy_battle_action(
+            state, port, context, 0U, 0U
+        );
+        const auto& item =
+            port.world_item_list_state().player_inventory.front();
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.player_item_calls == 1U &&
+                result.player_item.return_token == 0x0063000CU &&
+                item.item_id == 7U && item.quantity_b == 1U,
+            "phase six completion directly publishes the target status into the shared player inventory"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        state.group_a_count = 1;
+        state.group_b_count = 1;
+        Fixture fixture;
+        DispatchPort port;
+        port.action = 23U;
+        port.push(0x00472430U, {.eax = 0x22U});
+        port.push(0x00487C10U, {.eax = 0x00640000U});
+        auto context = fixture.context();
+        const auto result = openswd3::battle::dispatch_legacy_battle_action(
+            state, port, context, 0U, 0U
+        );
+        const auto& item =
+            port.world_item_list_state().player_inventory.front();
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.player_item_calls == 1U &&
+                result.player_item.return_token == 0x0064000CU &&
+                item.item_id == 0x22U && item.quantity_b == 1U,
+            "action twenty-three message path directly publishes selector-one player quantity"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
         Fixture fixture;
         DispatchPort port;
         port.action = 13U;

@@ -52,7 +52,6 @@ constexpr u32 kCallStartTargetPhase = 0x004710D0U;
 constexpr u32 kCallCheckActorPhase = 0x00471270U;
 constexpr u32 kCallCommitTargetPhase = 0x00477710U;
 constexpr u32 kCallUpdateTarget = 0x0045EFB0U;
-constexpr u32 kCallPublishTargetState = 0x0045D180U;
 constexpr u32 kCallActionFourReady = 0x004745B0U;
 constexpr u32 kCallActionThirteenReady = 0x004717F0U;
 constexpr u32 kCallCommitMessageRecord = 0x0047DBD0U;
@@ -151,6 +150,26 @@ void replace_high_word(u32& destination, const u16 value) noexcept {
         state.opponent_spawn_count = reply.opponent_spawn_count;
     }
     return reply;
+}
+
+[[nodiscard]] bool publish_player_item_quantity(
+    LegacyBattleActionDispatchPort& port,
+    LegacyBattleActionDispatchResult& result,
+    const u32 item_id,
+    const u32 quantity_selector
+) {
+    result.player_item = advance_legacy_battle_player_item_quantity(
+        port, item_id, quantity_selector
+    );
+    ++result.player_item_calls;
+    result.port_calls += result.player_item.port_calls;
+    if (result.player_item.status !=
+        LegacyBattlePlayerItemQuantityStatus::completed) {
+        result.status =
+            LegacyBattleActionDispatchStatus::player_item_typed_stop;
+        return false;
+    }
+    return true;
 }
 
 void refresh_shared_frame(
@@ -1100,9 +1119,9 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
             state.selected_target_index = static_cast<u16>(group_b_index);
             replace_low_word(state.phase_counter, 0x1EU);
             const u16 status = state.group_b_status_words[group_b_index];
-            static_cast<void>(invoke(
-                state, port, result, kCallPublishTargetState, {status, 1U}
-            ));
+            if (!publish_player_item_quantity(port, result, status, 1U)) {
+                return result;
+            }
         }
         return result;
     case 7U:
@@ -1546,9 +1565,9 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                 kCallShowMessage,
                 {0x118U, 0xAU, 0x32U, 0x0053C16CU, 0x80000002U}
             ));
-            static_cast<void>(invoke(
-                state, port, result, kCallPublishTargetState, {message_code, 1U}
-            ));
+            if (!publish_player_item_quantity(port, result, message_code, 1U)) {
+                return result;
+            }
         } else {
             static_cast<void>(invoke(
                 state, port, result, kCallPlayMessage, {0x116U, 0x004AB784U}

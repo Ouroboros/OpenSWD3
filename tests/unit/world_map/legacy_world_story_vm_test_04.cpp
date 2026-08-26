@@ -3324,7 +3324,7 @@ void test_set_role_status_from_boolean_protocol(openswd3::test::Context& test) {
         "shared role-status missing FFF0 patches the controlled index key rather than literal FFF0"
     );
 
-    for (const u16 selector : {0x00F8U, 0x7777U}) {
+    for (const u16 selector : std::array<u16, 2U>{0x00F8U, 0x7777U}) {
         Fixture missing_value;
         missing_value.context.talk_data_offset = 0x1111U;
         missing_value.context.instruction_offset = 0x7FFCU;

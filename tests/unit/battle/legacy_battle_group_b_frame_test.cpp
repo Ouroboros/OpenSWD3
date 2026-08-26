@@ -462,6 +462,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         port.push(0x004786A0U, {.eax = 1U});
         port.push(0x00478B40U, {.eax = 1U});
         port.push(0x00478370U, {.eax = 0xABCD0000U});
+        port.push(0x00487C10U, {.eax = 0x00620000U});
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
@@ -471,7 +472,13 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             result.status == LegacyBattleActionDispatchStatus::completed &&
                 state.group_a_completion_words[0] == 0U &&
                 state.group_a_completion_slots[0] == 0U &&
-                has_call_argument(port, 0x0045D180U, 0U, 0xABCD1234U) &&
+                result.player_item_calls == 1U &&
+                result.player_item.return_token == 0x0062000CU &&
+                port.world_item_list_state().player_inventory.front().item_id ==
+                    0x1234U &&
+                port.world_item_list_state()
+                        .player_inventory.front()
+                        .quantity_a == 1U &&
                 port.count(0x004750C0U) == 1U,
             "all-target completion keeps query EAX high word and table low word"
         );

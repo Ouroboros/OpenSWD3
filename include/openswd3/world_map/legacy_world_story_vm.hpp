@@ -371,7 +371,7 @@ struct LegacyWorldStoryVmState {
 struct LegacyWorldStoryVmRuntime {
     LegacyRoleSpatialIndex* spatial_index{};
     LegacyWorldRoleSurfaceContext role_surface{};
-    std::span<compat::u8> mutable_maps_payload;
+    std::span<compat::u8> mutable_maps_payload{};
     LegacyMapsWorldDatabase* maps_database{};
     std::vector<LegacyWorldRoleRecord>* role_storage{};
     LegacyWorldRoleTransferState* role_transfer_state{};

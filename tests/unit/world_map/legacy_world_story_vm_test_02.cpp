@@ -1429,7 +1429,7 @@ void test_clear_common_join_latch_and_yield_protocol(
         u16 previous_at_audio{};
         fixture.ports.audio_service_callback = [&] {
             offset_at_audio = fixture.context.instruction_offset;
-            previous_at_audio = fixture.state.previous_opcode;
+            previous_at_audio = static_cast<u16>(fixture.state.previous_opcode);
         };
 
         const auto result = fixture.step();
@@ -1463,7 +1463,7 @@ void test_clear_common_join_latch_and_yield_protocol(
     u16 previous_at_audio{};
     latched.ports.audio_service_callback = [&] {
         offset_at_audio = latched.context.instruction_offset;
-        previous_at_audio = latched.state.previous_opcode;
+        previous_at_audio = static_cast<u16>(latched.state.previous_opcode);
     };
 
     const auto latched_result = latched.step();

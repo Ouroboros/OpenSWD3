@@ -234,7 +234,7 @@ using openswd3::world_map::OP_191_WAIT_CAMERA_TOP_WHILE_MOVING;
 using openswd3::world_map::OP_192_WAIT_MUSIC_STREAM_TRANSITION;
 using openswd3::world_map::OP_193_WAIT_STORY_VIDEO;
 
-void write_u16(
+[[maybe_unused]] void write_u16(
     const std::span<u8> bytes, const std::size_t offset, const u16 value
 ) noexcept {
     bytes[offset] = static_cast<u8>(value);
@@ -249,7 +249,7 @@ struct StoryVmTypedStopOpcode {
 
 constexpr StoryVmTypedStopOpcode kStoryVmTypedStop{};
 
-void write_u16(
+[[maybe_unused]] void write_u16(
     const std::span<u8> bytes,
     const std::size_t offset,
     const StoryVmTypedStopOpcode
@@ -271,7 +271,7 @@ struct StoryVmLookaheadTypedStopOpcode {
 
 constexpr StoryVmLookaheadTypedStopOpcode kStoryVmLookaheadTypedStop{};
 
-void write_u16(
+[[maybe_unused]] void write_u16(
     const std::span<u8> bytes,
     const std::size_t offset,
     const StoryVmLookaheadTypedStopOpcode
@@ -286,7 +286,7 @@ void write_u16(
     write_u16(bytes, offset + 8U, 0U);
 }
 
-[[nodiscard]] u16
+[[nodiscard, maybe_unused]] u16
 read_u16(const std::span<const u8> bytes, const std::size_t offset) noexcept {
     return static_cast<u16>(
         static_cast<u16>(bytes[offset]) |
@@ -294,7 +294,7 @@ read_u16(const std::span<const u8> bytes, const std::size_t offset) noexcept {
     );
 }
 
-[[nodiscard]] u32
+[[nodiscard, maybe_unused]] u32
 read_u32(const std::span<const u8> bytes, const std::size_t offset) noexcept {
     return static_cast<u32>(bytes[offset]) |
         (static_cast<u32>(bytes[offset + 1U]) << 8U) |
@@ -302,7 +302,7 @@ read_u32(const std::span<const u8> bytes, const std::size_t offset) noexcept {
         (static_cast<u32>(bytes[offset + 3U]) << 24U);
 }
 
-void write_u32(
+[[maybe_unused]] void write_u32(
     const std::span<u8> bytes, const std::size_t offset, const u32 value
 ) noexcept {
     bytes[offset] = static_cast<u8>(value);
@@ -334,7 +334,7 @@ private:
     std::filesystem::path root_;
 };
 
-[[nodiscard]] openswd3::rendering::LegacyPixelConversionState
+[[nodiscard, maybe_unused]] openswd3::rendering::LegacyPixelConversionState
 rgb565_conversion() {
     openswd3::rendering::LegacyPixelConversionState conversion;
     openswd3::rendering::select_legacy_pixel_conversion(
@@ -1378,7 +1378,8 @@ struct MapRoleWriteHarness {
     }
 };
 
-void prime_loaded_instruction(Fixture& fixture, const u16 raw_word) {
+[[maybe_unused]] void
+prime_loaded_instruction(Fixture& fixture, const u16 raw_word) {
     fixture.context.talk_data_offset = 0x1111U;
     fixture.context.instruction_offset = 0U;
     fixture.state.loaded_file_number = 1U;
@@ -1387,7 +1388,7 @@ void prime_loaded_instruction(Fixture& fixture, const u16 raw_word) {
     write_u16(fixture.state.window, 0U, raw_word);
 }
 
-void prime_long_camera_move(
+[[maybe_unused]] void prime_long_camera_move(
     Fixture& fixture,
     const u16 raw_word,
     const i16 first,
@@ -1403,7 +1404,7 @@ void prime_long_camera_move(
     write_u16(fixture.state.window, 10U, kStoryVmTypedStop);
 }
 
-void prime_role_camera_move(
+[[maybe_unused]] void prime_role_camera_move(
     Fixture& fixture,
     const u16 raw_word,
     const u16 selector,
@@ -1417,7 +1418,7 @@ void prime_role_camera_move(
     write_u16(fixture.state.window, 8U, kStoryVmTypedStop);
 }
 
-void prime_frame_color_transition(
+[[maybe_unused]] void prime_frame_color_transition(
     Fixture& fixture,
     const u16 raw_word,
     const std::array<i16, 6U>& components,
@@ -1435,7 +1436,7 @@ void prime_frame_color_transition(
     write_u16(fixture.state.window, 16U, kStoryVmTypedStop);
 }
 
-std::size_t write_dialog_instruction(
+[[maybe_unused]] std::size_t write_dialog_instruction(
     Fixture& fixture,
     const u16 raw_word,
     const u16 selector,

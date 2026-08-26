@@ -205,7 +205,8 @@ bit75未置且message gate bit0为1时，播放固定消息、再次清动作rec
 - 三档刻度扫描；
 - 内部bit查询/清除；
 - deformation typed对象构造/析构；
-- framebuffer全1清屏。
+- framebuffer全1清屏；
+- phase-six与action-twenty-three两处玩家道具双数量步进。
 
 其余尚未关闭的角色、AI、数值、消息、选择和呈现callee以单一窄端口表达，callee地址仅作为`compat::u32` token，不转换为主机指针。端口reply可显式发布callee实际修改的accumulator与两个selection word；caller随后按LST重读。
 
@@ -216,7 +217,8 @@ bit75未置且message gate bit0为1时，播放固定消息、再次清动作rec
 - target identity/status/event/summon表：首次元素访问；
 - resolved target零token：首次flags读取；
 - framebuffer尺寸过大：先发布frame refresh并写满owned前缀，再在首个越界像素停止；
-- 状态指示器、刻度扫描与内部bit：各closed helper真实故障点。
+- 状态指示器、刻度扫描与内部bit：各closed helper真实故障点；
+- 玩家道具链：未知token在首次节点访问停止，零分配先发布零head再停止。
 
 不对callee约定外普通返回值、百分比、action code或计数增加现代范围预验。
 
@@ -230,8 +232,9 @@ bit75未置且message gate bit0为1时，播放固定消息、再次清动作rec
 - case 2 deformation分配、构造、完成时析构与owner释放；
 - action404同调用0→1→2、双组push/pop顺序；
 - action409独有screen mode与scan push发布；
-- case 6减到2消息终态；
+- case 6减到2消息终态及完成时selector-one道具数量直连；
 - case 13事件槽；
+- case 23消息路径selector-one道具数量直连；
 - case 22已完成门与真实状态指示器完成路径；
 - case 24全组扫描；
 - case 31倒计时、bit75清除及目标访问延后；
@@ -240,7 +243,7 @@ bit75未置且message gate bit0为1时，播放固定消息、再次清动作rec
 - 超尺寸清屏已写满前缀与refresh时机；
 - 27个有效普通case、10个有效特殊动作逐项smoke；
 - 9个稀疏switch槽和越界action只执行两个入口callee；
-- 95个原始唯一callee中87个端口边界全部存在，另外8个已关闭callee全部直连；
+- 95个原始唯一callee中86个端口边界全部存在，另外9个已关闭callee全部直连；
 - battle聚合目标零warning，普通定向通过。
 
 当前没有原版18个角色对象、95类callee共享副作用、全部数值/AI表、消息文本、输入bit、DirectDraw framebuffer、deformation allocator与SEH联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
