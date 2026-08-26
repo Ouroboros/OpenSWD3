@@ -5,6 +5,7 @@ add_library(
         legacy_battle_action_rotation_cache.cpp
         legacy_battle_actor_lifecycle.cpp
         legacy_battle_assets.cpp
+        legacy_battle_file_lifecycle.cpp
         legacy_battle_border_panel.cpp
         legacy_battle_color_fade.cpp
         legacy_battle_directional_scan.cpp

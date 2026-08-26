@@ -1,4 +1,5 @@
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
+#include "openswd3/battle/legacy_battle_file_lifecycle.hpp"
 #include "openswd3/battle/legacy_battle_render_geometry.hpp"
 
 #include <vector>
@@ -87,6 +88,24 @@ public:
     openswd3::battle::LegacyBattleActorVectorDestructionRequest
         last_destruction_request{};
     std::vector<u32> events;
+};
+
+class TrackingBattleFileExitRegistrationPort final
+    : public openswd3::battle::LegacyBattleFileExitRegistrationPort {
+public:
+    [[nodiscard]] u32 register_exit_cleanup(const u32 cleanup_token) override {
+        registered_cleanup_token = cleanup_token;
+        file_constructed_at_registration =
+            observed_owner != nullptr && observed_owner->file.has_value();
+        ++calls;
+        return result;
+    }
+
+    openswd3::battle::LegacyBattleFileOwner* observed_owner{};
+    u32 result{};
+    u32 registered_cleanup_token{};
+    u32 calls{};
+    bool file_constructed_at_registration{};
 };
 
 class TrackingBattleRenderGeometryBindingObjectInitializationPort final
@@ -368,6 +387,37 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                 is_group_b_request(result.request) &&
                 is_group_b_request(destruction_port.last_destruction_request),
             "actor group B wrapper forwards exact vector destruction constants"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleFileOwner owner;
+        TrackingBattleFileExitRegistrationPort registration_port;
+        registration_port.observed_owner = &owner;
+        registration_port.result = 0x76543210U;
+        const auto initialization =
+            openswd3::battle::initialize_legacy_battle_file_static_lifecycle(
+                owner, registration_port
+            );
+        const auto cleanup =
+            openswd3::battle::release_legacy_battle_file(owner);
+        test.expect_true(
+            initialization.construction.owner_token ==
+                    openswd3::battle::kLegacyBattleFileOwnerToken &&
+                initialization.construction.construction_calls == 1U &&
+                initialization.construction.return_value ==
+                    openswd3::battle::kLegacyBattleFileOwnerToken &&
+                initialization.exit_registration_calls == 1U &&
+                initialization.return_value == 0x76543210U &&
+                registration_port.calls == 1U &&
+                registration_port.registered_cleanup_token ==
+                    openswd3::battle::kLegacyBattleFileExitCleanupToken &&
+                registration_port.file_constructed_at_registration &&
+                cleanup.owner_token ==
+                    openswd3::battle::kLegacyBattleFileOwnerToken &&
+                cleanup.cleanup_calls == 1U && cleanup.file_destroyed &&
+                !owner.file.has_value(),
+            "battle file static lifecycle constructs registers and destroys one owner"
         );
     }
 
