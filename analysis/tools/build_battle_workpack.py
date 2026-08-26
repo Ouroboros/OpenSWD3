@@ -240,6 +240,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-render-geometry-binding-static-thunk-004518e0.md",
     ),
+    "0x004518F0": (
+        "platform_adapted",
+        "evidence/battle-render-geometry-binding-initialization-004518f0.md",
+    ),
 }
 
 

@@ -13,6 +13,8 @@ inline constexpr compat::u32 kLegacyBattleRenderGeometryOwnerToken =
     0x0053B0B8U;
 inline constexpr compat::u32 kLegacyBattleRenderGeometryExitCleanupToken =
     0x004518D0U;
+inline constexpr compat::u32 kLegacyBattleRenderGeometryBindingObjectToken =
+    0x004FF5B8U;
 
 struct LegacyBattleDirectionVectors {
     std::array<compat::i32, kLegacyBattleDirectionCount> horizontal{};
@@ -71,12 +73,15 @@ public:
     virtual void release(compat::u32 token) noexcept = 0;
 };
 
-class LegacyBattleRenderGeometryBindingInitializationEntryPort {
+class LegacyBattleRenderGeometryBindingObjectInitializationPort {
 public:
-    virtual ~LegacyBattleRenderGeometryBindingInitializationEntryPort() =
+    virtual ~LegacyBattleRenderGeometryBindingObjectInitializationPort() =
         default;
 
-    [[nodiscard]] virtual compat::u32 initialize_binding() = 0;
+    [[nodiscard]] virtual compat::u32 initialize_binding_object(
+        compat::u32 binding_object_token,
+        compat::u32 render_geometry_owner_token
+    ) = 0;
 };
 
 class LegacyBattleRenderGeometryExitRegistrationPort {
@@ -152,6 +157,8 @@ struct LegacyBattleRenderInitializationResult {
 };
 
 struct LegacyBattleRenderGeometryBindingInitializationResult {
+    compat::u32 binding_object_token{};
+    compat::u32 render_geometry_owner_token{};
     compat::u32 initialization_calls{};
     compat::u32 return_value{};
 };
@@ -220,10 +227,18 @@ initialize_legacy_battle_render_geometry(
     LegacyBattleRenderGeometry& geometry
 ) noexcept;
 
-// sub_4518E0: tail-forward to the adjacent pending initialization entry.
+// sub_4518F0: call the pending binding-object initializer with fixed tokens.
+[[nodiscard]] LegacyBattleRenderGeometryBindingInitializationResult
+initialize_legacy_battle_render_geometry_binding(
+    LegacyBattleRenderGeometryBindingObjectInitializationPort&
+        object_initialization_port
+);
+
+// sub_4518E0: tail-forward to the adjacent typed initialization helper.
 [[nodiscard]] LegacyBattleRenderGeometryBindingInitializationResult
 forward_legacy_battle_render_geometry_binding_static_initialization(
-    LegacyBattleRenderGeometryBindingInitializationEntryPort& entry_port
+    LegacyBattleRenderGeometryBindingObjectInitializationPort&
+        object_initialization_port
 );
 
 // sub_4518A0 with loc_4518C0 and attached constructor sub_4518B0.

@@ -389,13 +389,29 @@ LegacyBattleRenderInitializationResult initialize_legacy_battle_render_geometry(
 }
 
 LegacyBattleRenderGeometryBindingInitializationResult
-forward_legacy_battle_render_geometry_binding_static_initialization(
-    LegacyBattleRenderGeometryBindingInitializationEntryPort& entry_port
+initialize_legacy_battle_render_geometry_binding(
+    LegacyBattleRenderGeometryBindingObjectInitializationPort&
+        object_initialization_port
 ) {
-    return LegacyBattleRenderGeometryBindingInitializationResult{
-        .initialization_calls = 1U,
-        .return_value = entry_port.initialize_binding(),
+    LegacyBattleRenderGeometryBindingInitializationResult result{
+        .binding_object_token = kLegacyBattleRenderGeometryBindingObjectToken,
+        .render_geometry_owner_token = kLegacyBattleRenderGeometryOwnerToken,
     };
+    result.return_value = object_initialization_port.initialize_binding_object(
+        result.binding_object_token, result.render_geometry_owner_token
+    );
+    result.initialization_calls = 1U;
+    return result;
+}
+
+LegacyBattleRenderGeometryBindingInitializationResult
+forward_legacy_battle_render_geometry_binding_static_initialization(
+    LegacyBattleRenderGeometryBindingObjectInitializationPort&
+        object_initialization_port
+) {
+    return initialize_legacy_battle_render_geometry_binding(
+        object_initialization_port
+    );
 }
 
 LegacyBattleRenderGeometryStaticInitializationResult

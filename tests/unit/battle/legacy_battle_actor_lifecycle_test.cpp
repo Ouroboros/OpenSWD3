@@ -89,17 +89,23 @@ public:
     std::vector<u32> events;
 };
 
-class TrackingBattleRenderGeometryBindingInitializationEntryPort final
+class TrackingBattleRenderGeometryBindingObjectInitializationPort final
     : public openswd3::battle::
-          LegacyBattleRenderGeometryBindingInitializationEntryPort {
+          LegacyBattleRenderGeometryBindingObjectInitializationPort {
 public:
-    [[nodiscard]] u32 initialize_binding() override {
+    [[nodiscard]] u32 initialize_binding_object(
+        const u32 binding_object_token, const u32 render_geometry_owner_token
+    ) override {
+        last_binding_object_token = binding_object_token;
+        last_render_geometry_owner_token = render_geometry_owner_token;
         ++calls;
         return result;
     }
 
     u32 result{};
     u32 calls{};
+    u32 last_binding_object_token{};
+    u32 last_render_geometry_owner_token{};
 };
 
 class TrackingBattleRenderGeometryExitRegistrationPort final
@@ -366,16 +372,40 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
     }
 
     {
-        TrackingBattleRenderGeometryBindingInitializationEntryPort entry_port;
-        entry_port.result = 0x89ABCDEFU;
-        const auto result = openswd3::battle::
+        TrackingBattleRenderGeometryBindingObjectInitializationPort
+            object_initialization_port;
+        object_initialization_port.result = 0x10203040U;
+        const auto direct =
+            openswd3::battle::initialize_legacy_battle_render_geometry_binding(
+                object_initialization_port
+            );
+        object_initialization_port.result = 0x89ABCDEFU;
+        const auto forwarded = openswd3::battle::
             forward_legacy_battle_render_geometry_binding_static_initialization(
-                entry_port
+                object_initialization_port
             );
         test.expect_true(
-            entry_port.calls == 1U && result.initialization_calls == 1U &&
-                result.return_value == 0x89ABCDEFU,
-            "render geometry binding static thunk tail-forwards once and preserves eax"
+            object_initialization_port.calls == 2U &&
+                object_initialization_port.last_binding_object_token ==
+                    openswd3::battle::
+                        kLegacyBattleRenderGeometryBindingObjectToken &&
+                object_initialization_port.last_render_geometry_owner_token ==
+                    openswd3::battle::kLegacyBattleRenderGeometryOwnerToken &&
+                direct.binding_object_token ==
+                    openswd3::battle::
+                        kLegacyBattleRenderGeometryBindingObjectToken &&
+                direct.render_geometry_owner_token ==
+                    openswd3::battle::kLegacyBattleRenderGeometryOwnerToken &&
+                direct.initialization_calls == 1U &&
+                direct.return_value == 0x10203040U &&
+                forwarded.binding_object_token ==
+                    openswd3::battle::
+                        kLegacyBattleRenderGeometryBindingObjectToken &&
+                forwarded.render_geometry_owner_token ==
+                    openswd3::battle::kLegacyBattleRenderGeometryOwnerToken &&
+                forwarded.initialization_calls == 1U &&
+                forwarded.return_value == 0x89ABCDEFU,
+            "render geometry binding wrapper passes fixed tokens and static thunk calls it"
         );
     }
 

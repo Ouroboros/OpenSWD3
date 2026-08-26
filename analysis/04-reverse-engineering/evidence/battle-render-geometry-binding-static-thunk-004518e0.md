@@ -17,16 +17,17 @@
 - 不建立额外返回层；
 - callee完整EAX成为本thunk完整EAX。
 
-`0x004518F0`是下一独立工作包，当前以typed initialization entry port隔离，避免提前把callee计入本项。该callee关闭后必须删除此opaque边界，并由本thunk直接调用typed helper。
+`0x004518F0`已在下一独立工作包关闭为typed固定参数包装器。本thunk现直接调用该helper；只有更深层、仍待`audit_order=106`关闭的绑定对象initializer保留typed端口。
 
 ## 3. typed映射
 
-`forward_legacy_battle_render_geometry_binding_static_initialization`只执行一次端口转发，并返回：
+`forward_legacy_battle_render_geometry_binding_static_initialization`直接调用`initialize_legacy_battle_render_geometry_binding`并返回其typed结果：
 
+- 固定绑定对象token和几何owner均由callee helper准备；
 - `initialization_calls=1`；
 - callee完整32位返回值。
 
-函数没有owner token，因为LST中固定owner与绑定对象参数均由callee准备，而不是本thunk准备。
+本thunk自身不准备token、不添加状态写。
 
 ## 4. 双向追溯
 
@@ -36,6 +37,6 @@
 
 ## 5. 验证与动态差分
 
-定向测试使用`0x89ABCDEF`返回snapshot，验证入口调用一次、结果调用计数为1、完整EAX不截断。battle聚合目标零warning构建、普通定向与独立ASan定向均`1/1`通过。
+定向测试使用`0x89ABCDEF`返回snapshot，验证入口直连typed helper、结果调用计数为1、固定参数由callee准备且完整EAX不截断。battle聚合目标零warning构建、普通定向与独立ASan定向均`1/1`通过。
 
 当前没有原版CRT静态初始化表与`0x004518F0`调用现场联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。本项纯尾转发已由完整LST和固定snapshot闭环。

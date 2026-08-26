@@ -51,10 +51,10 @@ code_origin == game
 - 尾地址：`0x00484500`；
 - `confirmed_boundary`：`61`；
 - `medium`导航候选：`361`；
-- `pending_audit`：`371`；
+- `pending_audit`：`370`；
 - `assembly_exact`：`5`；
-- `platform_adapted`：`46`；
-- 已关闭：`51`。
+- `platform_adapted`：`47`；
+- 已关闭：`52`。
 
 六个稳定导航分组为：
 
@@ -309,10 +309,12 @@ I5最终必须锁定：
 
 `audit_order=50`的`0x004518A0`已关闭为`platform_adapted`。完整范围含13行主体与`0x004518C0..0x004518CB`十行外部FUNCTION CHUNK；工作包未单列的`0x004518B0/0x004518D0`两个9行附件加载同一固定owner后分别尾跳已关闭几何初始化与资源清理。modern静态caller直接调用closed初始化，退出wrapper直接调用closed清理，仅CRT退出注册保留平台端口；最终返回仍为`_atexit`完整EAX。
 
-`audit_order=51`的`0x004518E0`已关闭为`platform_adapted`。完整9行、无chunk，唯一指令尾跳相邻`0x004518F0`；typed thunk只转发一次并原样传播callee完整EAX，不附加参数、状态或返回后处理。相邻callee为下一独立工作包，暂保留可回收typed entry port，关闭callee后必须直连typed helper。
+`audit_order=51`的`0x004518E0`已关闭为`platform_adapted`。完整9行、无chunk，唯一指令尾跳相邻`0x004518F0`；typed thunk只转发一次并原样传播callee完整EAX，不附加参数、状态或返回后处理。相邻callee现已关闭，thunk已直连typed helper并删除临时opaque entry。
+
+`audit_order=52`的`0x004518F0`已关闭为`platform_adapted`。完整14行、无chunk；按LST先压固定几何owner，再将固定绑定对象写入ECX，单次调用后续`audit_order=106`深层initializer并原样返回完整EAX。typed wrapper显式发布两个32位token，深层callee仍由可回收typed端口隔离。
 
 `audit_order=14`的`0x00434790`已关闭为`platform_adapted`。它只在首次调用以显式time seed CRT、发布三项共享值并扫描源图，随后直接组合已关闭粒子生成、线段推进与单像素颜色合成；剩余批次回放保留镜像检查X、源索引和实际写入X错位，粒子2×2绘制保留只跳第一透明色、只检查右像素及合成模式右上先合成后被原值覆盖。生命刷新、距离与目标矩形摘除、唯一/首/尾/中间四类双向链释放及其计数不对称均已闭环。三个上层caller都显式消费返回1作为阶段完成信号，尚待各自进入现代实现。
 
-下一项回收`audit_order=52`的`0x004518F0`战斗渲染几何绑定初始化包装器，继续审计固定绑定对象、固定几何owner、callee调用和完整EAX返回；关闭后立即回收`0x004518E0`的opaque entry port。
+下一项回收`audit_order=53`的`0x00451900`，必须将完整权威LST主体和所有外部FUNCTION CHUNK纳入同一次独立审计，锁定其静态初始化、退出注册、附件wrapper和返回约定。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。
