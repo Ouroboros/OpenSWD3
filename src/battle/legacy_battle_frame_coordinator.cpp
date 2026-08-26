@@ -109,9 +109,17 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             LegacyBattleFrameCoordinatorStatus::actor_metric_typed_stop;
         return result;
     }
-    static_cast<void>(invoke(
-        port, result, LegacyBattleFrameCoordinatorCall::pre_frame_stage_4
-    ));
+    const auto actor_order = rebuild_legacy_battle_actor_order(
+        port.actor_metric_state(),
+        port.actor_metric_state().group_b_count,
+        port.actor_metric_state().group_a_count,
+        port.actor_metric_state().entry_edx
+    );
+    if (actor_order.status != LegacyBattleActorOrderStatus::completed) {
+        result.status =
+            LegacyBattleFrameCoordinatorStatus::actor_order_typed_stop;
+        return result;
+    }
     reply = invoke(
         port,
         result,

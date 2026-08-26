@@ -24,6 +24,12 @@ public:
         }
         const auto found = replies.find(request.callee_token);
         if (found == replies.end() || found->second.empty()) {
+            if (request.callee_token == 0x004783B0U) {
+                return {
+                    .publish_metric_word = true,
+                    .metric_word = 1U,
+                };
+            }
             return {};
         }
         const auto reply = found->second.front();

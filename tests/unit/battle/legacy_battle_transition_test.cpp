@@ -419,6 +419,10 @@ void test_battle_transition(openswd3::test::Context& test) {
         startup.party_count = 2U;
         TransitionPorts ports;
         add_default_surfaces(ports);
+        ports.actor_metric_state().values[0] = 1;
+        ports.actor_metric_state().values[1] = 2;
+        ports.actor_metric_state().values[8] = 3;
+        ports.actor_metric_state().values[9] = 4;
         ports.random_values = {0U, 55U};
         ports.actor_mode_returns[0x00525508U] = 1U;
         FrameFixture frame;
@@ -461,6 +465,10 @@ void test_battle_transition(openswd3::test::Context& test) {
         startup.party_count = 2U;
         TransitionPorts ports;
         add_default_surfaces(ports);
+        ports.actor_metric_state().values[0] = 1;
+        ports.actor_metric_state().values[1] = 2;
+        ports.actor_metric_state().values[8] = 3;
+        ports.actor_metric_state().values[9] = 4;
         ports.random_values = {99U, 1U, 27U};
         state.party_special_fields[1] = 1U;
         FrameFixture frame;

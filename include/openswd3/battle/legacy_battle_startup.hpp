@@ -113,7 +113,6 @@ enum class LegacyBattleStartupCall : compat::u16 {
     configure_supplemental_actor,
     activate_supplemental_actor,
     query_actor_metric,
-    post_all_phase_b,
     post_all_phase_c,
     advance_enemy_action,
     finalize_party_actor,
@@ -276,6 +275,7 @@ enum class LegacyBattleStartupStatus : compat::u8 {
     party_source_index_out_of_range,
     party_actor_index_out_of_range,
     actor_metric_typed_stop,
+    actor_order_typed_stop,
     random_result_out_of_range,
 };
 
@@ -298,6 +298,7 @@ struct LegacyBattleStartupResult {
     compat::u32 enemy_action_advance_calls{};
     compat::u32 finalized_party_actor_count{};
     compat::u32 actor_metric_calls{};
+    compat::u32 actor_order_selections{};
     bool completion_status_published{};
     compat::u32 return_value{};
 };

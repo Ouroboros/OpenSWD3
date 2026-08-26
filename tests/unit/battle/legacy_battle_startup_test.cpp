@@ -88,6 +88,10 @@ public:
         case LegacyBattleStartupCall::supplemental_seed:
             reply.return_value = 0x2468ACE0U;
             break;
+        case LegacyBattleStartupCall::query_actor_metric:
+            reply.publish_metric_word = true;
+            reply.metric_word = 1U;
+            break;
         default:
             break;
         }
@@ -464,8 +468,7 @@ void test_battle_startup(openswd3::test::Context& test) {
                 ports.call_count(LegacyBattleStartupCall::query_actor_metric) ==
                     6U &&
                 result.actor_metric_calls == 6U &&
-                ports.call_count(LegacyBattleStartupCall::post_all_phase_b) ==
-                    1U &&
+                result.actor_order_selections == 6U &&
                 ports.call_count(LegacyBattleStartupCall::post_all_phase_c) ==
                     1U,
             "battle startup continues after background load zero and preserves enemy party ratio supplement and final unsigned state"

@@ -249,6 +249,26 @@ music_path_for(const std::filesystem::path& data_root, const u16 battle_id) {
     return effect.status == LegacyBattleFrameEffectStatus::completed;
 }
 
+[[nodiscard]] bool rebuild_actor_order(
+    const LegacyBattleStartupState& startup,
+    LegacyBattleTransitionPort& port,
+    LegacyBattleTransitionResult& result
+) {
+    const auto order = rebuild_legacy_battle_actor_order(
+        port.actor_metric_state(),
+        startup.enemy_count,
+        startup.party_count,
+        port.actor_metric_state().entry_edx
+    );
+    ++result.actor_order_calls;
+    result.actor_order_selections += order.selections;
+    if (order.status != LegacyBattleActorOrderStatus::completed) {
+        result.status = LegacyBattleTransitionStatus::actor_order_typed_stop;
+        return false;
+    }
+    return true;
+}
+
 [[nodiscard]] LegacyBattleTransitionStatus
 copy_failure_status(const CopyStatus status, const bool primary) noexcept {
     if (status == CopyStatus::allocation_out_of_range) {
@@ -346,6 +366,9 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
     ++result.hud_frame_calls;
     if (result.hud_frames[0].status != LegacyBattleHudFrameStatus::completed) {
         result.status = LegacyBattleTransitionStatus::hud_typed_stop;
+        return result;
+    }
+    if (!rebuild_actor_order(startup, port, result)) {
         return result;
     }
     invoke_surface_operation(
@@ -520,6 +543,9 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
         if (result.hud_frames[1].status !=
             LegacyBattleHudFrameStatus::completed) {
             result.status = LegacyBattleTransitionStatus::hud_typed_stop;
+            return result;
+        }
+        if (!rebuild_actor_order(startup, port, result)) {
             return result;
         }
         invoke_surface_operation(

@@ -43,6 +43,12 @@ public:
         if (request.callee_token == 0x00480AD0U) {
             return {.eax = 0xA0000000U};
         }
+        if (request.callee_token == 0x004783B0U) {
+            auto reply = default_reply;
+            reply.publish_metric_word = true;
+            reply.metric_word = 1U;
+            return reply;
+        }
         return default_reply;
     }
 

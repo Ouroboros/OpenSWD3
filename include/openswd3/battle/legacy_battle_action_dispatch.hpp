@@ -205,6 +205,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     internal_flag_typed_stop,
     effect_record_typed_stop,
     actor_metric_typed_stop,
+    actor_order_typed_stop,
     final_actor_workspace_typed_stop,
     final_actor_record_typed_stop,
     final_actor_descriptor_typed_stop,

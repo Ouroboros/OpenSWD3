@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_frame_draw.hpp"
 #include "openswd3/battle/legacy_battle_frame_effect.hpp"
 #include "openswd3/battle/legacy_battle_hud_frame.hpp"
@@ -97,8 +98,10 @@ struct LegacyBattleTransitionCallReply {
     compat::u32 return_value{};
 };
 
-class LegacyBattleTransitionPort : public LegacyBattleFrameEffectPort,
-                                   public LegacyBattleHudCallPort {
+class LegacyBattleTransitionPort
+    : public LegacyBattleFrameEffectPort,
+      public LegacyBattleHudCallPort,
+      public virtual LegacyBattleActorMetricStatePort {
 public:
     virtual ~LegacyBattleTransitionPort() = default;
 
@@ -166,6 +169,7 @@ enum class LegacyBattleTransitionStatus : compat::u8 {
     surface_blend_typed_stop,
     frame_effect_typed_stop,
     hud_typed_stop,
+    actor_order_typed_stop,
 };
 
 struct LegacyBattleTransitionResult {
@@ -192,6 +196,8 @@ struct LegacyBattleTransitionResult {
     compat::u32 frame_effect_calls{};
     std::array<LegacyBattleHudFrameResult, 2> hud_frames{};
     compat::u32 hud_frame_calls{};
+    compat::u32 actor_order_calls{};
+    compat::u32 actor_order_selections{};
     std::array<compat::u32, 4> release_order{};
     compat::u32 release_calls{};
     bool music_started{};

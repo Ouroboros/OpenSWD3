@@ -10,7 +10,7 @@
 
 ## 2. 双18 dword清零
 
-入口固定把第一张18 dword角色metric表清零，再把第二张18 dword辅助表清零。两次都是`ECX=0x12`、`EAX=0`与正向`rep stosd`；角色数量为零也不跳过清零。
+入口固定把第一张18 dword角色metric表清零，再把第二张18 dword角色顺序表清零。两次都是`ECX=0x12`、`EAX=0`与正向`rep stosd`；角色数量为零也不跳过清零。后一相邻函数直接覆盖顺序表前缀。
 
 两张物理表只保存在动作、启动与帧协调端口共同虚继承的单一typed状态中。同一组合端口跨多类caller只有一份存储。
 
@@ -67,4 +67,4 @@ ECX由函数尾`pop ecx`恢复为caller入口完整值。EDX不保存：group B�
 
 定向测试覆盖双表固定清零、caller ECX局部别名、两组token与步长、i16符号扩展、byte/word跨角色保留、动态数量增长与缩短、组A加8回绕、路径相关EAX/EDX、ECX恢复、第19次store时机、跨动作/启动端口的单一物理状态及七处已关闭caller回收。
 
-当前缺少原版两组角色对象、metric callee、动态数量修改、两张物理表、栈地址和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版两组角色对象、metric callee、动态数量修改、metric与角色顺序两张物理表、栈地址和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

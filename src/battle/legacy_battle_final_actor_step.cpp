@@ -11,7 +11,6 @@ using compat::u32;
 using compat::u8;
 
 constexpr u32 kCallValidateActor = 0x00479850U;
-constexpr u32 kCallRefreshB = 0x0045B190U;
 constexpr u32 kCallRefreshC = 0x0045B5A0U;
 constexpr u32 kCallRemoveActor = 0x004750C0U;
 constexpr u32 kCallPublishActorCode = 0x0045EFB0U;
@@ -92,6 +91,25 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
     return true;
 }
 
+[[nodiscard]] bool rebuild_actor_order(
+    LegacyBattleActionDispatchPort& port,
+    LegacyBattleActionDispatchResult& result
+) {
+    auto& metric_state = port.actor_metric_state();
+    const auto order = rebuild_legacy_battle_actor_order(
+        metric_state,
+        metric_state.group_b_count,
+        metric_state.group_a_count,
+        metric_state.entry_edx
+    );
+    if (order.status != LegacyBattleActorOrderStatus::completed) {
+        result.status =
+            LegacyBattleActionDispatchStatus::actor_order_typed_stop;
+        return false;
+    }
+    return true;
+}
+
 [[nodiscard]] bool zero_workspace_record(
     LegacyBattleActionDispatchState& action,
     LegacyBattleActionDispatchResult& result,
@@ -146,10 +164,10 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
                 to_bits(action.group_a_count) - static_cast<u32>(threshold)
             );
         }
-        if (!rebuild_actor_metrics(action, port, result)) {
+        if (!rebuild_actor_metrics(action, port, result) ||
+            !rebuild_actor_order(port, result)) {
             return result;
         }
-        static_cast<void>(invoke(port, result, kCallRefreshB));
         static_cast<void>(invoke(port, result, kCallRefreshC));
     } else {
         state.removed_group_a_count =
@@ -336,10 +354,10 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
         action.group_b_count = 1;
         replace_low_byte(action.packed_actor_counter, 0U);
         state.group_b_reset_word = 0U;
-        if (!rebuild_actor_metrics(action, port, result)) {
+        if (!rebuild_actor_metrics(action, port, result) ||
+            !rebuild_actor_order(port, result)) {
             return result;
         }
-        static_cast<void>(invoke(port, result, kCallRefreshB));
         static_cast<void>(invoke(port, result, kCallRefreshC));
     }
 

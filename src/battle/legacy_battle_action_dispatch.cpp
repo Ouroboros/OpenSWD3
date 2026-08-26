@@ -81,7 +81,6 @@ constexpr u32 kCallSummonMode = 0x0047DAB0U;
 constexpr u32 kCallPrepareSummon = 0x004786F0U;
 constexpr u32 kCallBuildSummon = 0x0046E890U;
 constexpr u32 kCallSummonReady = 0x00471D60U;
-constexpr u32 kCallStageOne = 0x0045B190U;
 constexpr u32 kCallActionTwentySevenReady = 0x004728E0U;
 constexpr u32 kCallActionSevenReady = 0x00479850U;
 constexpr u32 kCallSimpleActorUpdate = 0x00482310U;
@@ -184,6 +183,25 @@ void refresh_shared_frame(
     if (metrics.status != LegacyBattleActorMetricStatus::completed) {
         result.status =
             LegacyBattleActionDispatchStatus::actor_metric_typed_stop;
+        return false;
+    }
+    return true;
+}
+
+[[nodiscard]] bool rebuild_shared_actor_order(
+    LegacyBattleActionDispatchPort& port,
+    LegacyBattleActionDispatchResult& result
+) {
+    auto& metric_state = port.actor_metric_state();
+    const auto order = rebuild_legacy_battle_actor_order(
+        metric_state,
+        metric_state.group_b_count,
+        metric_state.group_a_count,
+        metric_state.entry_edx
+    );
+    if (order.status != LegacyBattleActorOrderStatus::completed) {
+        result.status =
+            LegacyBattleActionDispatchStatus::actor_order_typed_stop;
         return false;
     }
     return true;
@@ -1307,10 +1325,10 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
         state.message_aux = 0U;
         state.current_actor_index = 0xFFFFU;
         replace_low_word(state.phase_counter, 0U);
-        if (!rebuild_shared_actor_metrics(state, port, result)) {
+        if (!rebuild_shared_actor_metrics(state, port, result) ||
+            !rebuild_shared_actor_order(port, result)) {
             return result;
         }
-        static_cast<void>(invoke(state, port, result, kCallStageOne));
         result.return_value = 1U;
         return result;
     }

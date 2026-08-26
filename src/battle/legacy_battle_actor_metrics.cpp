@@ -70,7 +70,7 @@ template <typename Call>
 rebuild_impl(LegacyBattleActorMetricState& state, Call&& call) {
     LegacyBattleActorMetricResult result;
     std::ranges::fill(state.values, 0);
-    std::ranges::fill(state.secondary_values, 0U);
+    std::ranges::fill(state.actor_order, 0U);
     state.local_word = static_cast<u16>(state.entry_ecx);
     state.local_byte = static_cast<u8>(state.entry_ecx >> 16U);
 
@@ -277,6 +277,152 @@ rebuild_legacy_battle_actor_metrics(LegacyBattleFrameCoordinatorPort& port) {
         };
     };
     return rebuild_impl(state, call);
+}
+
+LegacyBattleActorOrderResult rebuild_legacy_battle_actor_order(
+    LegacyBattleActorMetricState& state,
+    const compat::u32 group_b_count,
+    const compat::u32 group_a_count,
+    const compat::u32 caller_edx
+) {
+    LegacyBattleActorOrderResult result;
+    state.group_b_count = group_b_count;
+    state.group_a_count = group_a_count;
+    u32 remaining = group_a_count + group_b_count;
+    u32 final_edx = caller_edx;
+    u32 output_index = 0U;
+
+    while (remaining != 0U) {
+        u32 candidate = 0U;
+        i32 candidate_value = 0;
+        while (true) {
+            if (candidate >= state.values.size()) {
+                result.status =
+                    LegacyBattleActorOrderStatus::metric_read_typed_stop;
+                result.return_value = candidate;
+                result.final_edx = final_edx;
+                return result;
+            }
+            candidate_value = state.values[candidate];
+            ++result.metric_reads;
+            if (candidate_value != 0) {
+                if (candidate >= state.selected_mask.size()) {
+                    result.status =
+                        LegacyBattleActorOrderStatus::mask_access_typed_stop;
+                    result.return_value = candidate;
+                    result.final_edx = final_edx;
+                    return result;
+                }
+                ++result.mask_reads;
+                if (state.selected_mask[candidate] != 1U) {
+                    break;
+                }
+            }
+            ++candidate;
+        }
+
+        if (candidate >= state.values.size()) {
+            result.status =
+                LegacyBattleActorOrderStatus::metric_read_typed_stop;
+            result.return_value = candidate;
+            result.final_edx = final_edx;
+            return result;
+        }
+        candidate_value = state.values[candidate];
+        ++result.metric_reads;
+        u32 selected = candidate;
+
+        u32 index = candidate + 1U;
+        final_edx = group_b_count;
+        while (index < group_b_count) {
+            if (index >= state.selected_mask.size()) {
+                result.status =
+                    LegacyBattleActorOrderStatus::mask_access_typed_stop;
+                result.return_value = index;
+                result.final_edx = final_edx;
+                return result;
+            }
+            ++result.mask_reads;
+            if (state.selected_mask[index] != 1U) {
+                if (index >= state.values.size()) {
+                    result.status =
+                        LegacyBattleActorOrderStatus::metric_read_typed_stop;
+                    result.return_value = index;
+                    result.final_edx = final_edx;
+                    return result;
+                }
+                const i32 value = state.values[index];
+                ++result.metric_reads;
+                if (value < candidate_value) {
+                    candidate_value = value;
+                    selected = index;
+                }
+            }
+            ++index;
+        }
+
+        final_edx = group_a_count;
+        const u32 group_a_bound = group_a_count + 8U;
+        index = 8U;
+        if (group_a_bound > index) {
+            while (index < group_a_bound) {
+                if (index >= state.selected_mask.size()) {
+                    result.status =
+                        LegacyBattleActorOrderStatus::mask_access_typed_stop;
+                    result.return_value = index;
+                    result.final_edx = final_edx;
+                    return result;
+                }
+                ++result.mask_reads;
+                if (state.selected_mask[index] != 1U) {
+                    if (index >= state.values.size()) {
+                        result.status = LegacyBattleActorOrderStatus::
+                            metric_read_typed_stop;
+                        result.return_value = index;
+                        result.final_edx = final_edx;
+                        return result;
+                    }
+                    const i32 value = state.values[index];
+                    ++result.metric_reads;
+                    if (value < candidate_value) {
+                        candidate_value = value;
+                        selected = index;
+                    }
+                }
+                ++index;
+            }
+        }
+
+        if (selected >= state.selected_mask.size()) {
+            result.status =
+                LegacyBattleActorOrderStatus::mask_access_typed_stop;
+            result.return_value = selected;
+            result.final_edx = final_edx;
+            return result;
+        }
+        state.selected_mask[selected] = 1U;
+        ++result.mask_writes;
+        if (output_index >= state.actor_order.size()) {
+            result.status =
+                LegacyBattleActorOrderStatus::order_store_typed_stop;
+            result.return_value = output_index;
+            result.final_edx = final_edx;
+            return result;
+        }
+        state.actor_order[output_index] = selected;
+        ++output_index;
+        ++result.selections;
+        --remaining;
+    }
+
+    std::ranges::fill(state.selected_mask, 0U);
+    result.return_value = 0U;
+    result.final_ecx = 0U;
+    result.final_edx = final_edx;
+    state.entry_eax = result.return_value;
+    state.entry_ecx = result.final_ecx;
+    state.entry_edx = result.final_edx;
+    return result;
 }
 
 }  // namespace openswd3::battle

@@ -12,7 +12,8 @@ class LegacyBattleStartupPort;
 
 struct LegacyBattleActorMetricState {
     std::array<compat::i32, 18> values{};
-    std::array<compat::u32, 18> secondary_values{};
+    std::array<compat::u32, 18> actor_order{};
+    std::array<compat::u32, 18> selected_mask{};
 
     compat::u32 group_b_count{};
     compat::u32 group_a_count{};
@@ -50,6 +51,13 @@ enum class LegacyBattleActorMetricStatus : compat::u8 {
     value_store_typed_stop,
 };
 
+enum class LegacyBattleActorOrderStatus : compat::u8 {
+    completed,
+    metric_read_typed_stop,
+    mask_access_typed_stop,
+    order_store_typed_stop,
+};
+
 struct LegacyBattleActorMetricResult {
     LegacyBattleActorMetricStatus status{
         LegacyBattleActorMetricStatus::completed
@@ -60,6 +68,19 @@ struct LegacyBattleActorMetricResult {
     compat::u32 port_calls{};
     compat::u32 group_b_iterations{};
     compat::u32 group_a_iterations{};
+};
+
+struct LegacyBattleActorOrderResult {
+    LegacyBattleActorOrderStatus status{
+        LegacyBattleActorOrderStatus::completed
+    };
+    compat::u32 return_value{};
+    compat::u32 final_ecx{};
+    compat::u32 final_edx{};
+    compat::u32 selections{};
+    compat::u32 metric_reads{};
+    compat::u32 mask_reads{};
+    compat::u32 mask_writes{};
 };
 
 [[nodiscard]] LegacyBattleActorMetricResult rebuild_legacy_battle_actor_metrics(
@@ -76,5 +97,12 @@ struct LegacyBattleActorMetricResult {
 
 [[nodiscard]] LegacyBattleActorMetricResult
 rebuild_legacy_battle_actor_metrics(LegacyBattleFrameCoordinatorPort& port);
+
+[[nodiscard]] LegacyBattleActorOrderResult rebuild_legacy_battle_actor_order(
+    LegacyBattleActorMetricState& state,
+    compat::u32 group_b_count,
+    compat::u32 group_a_count,
+    compat::u32 caller_edx = 0U
+);
 
 }  // namespace openswd3::battle

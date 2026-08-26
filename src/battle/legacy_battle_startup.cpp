@@ -729,7 +729,18 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         result.status = LegacyBattleStartupStatus::actor_metric_typed_stop;
         return result;
     }
-    static_cast<void>(invoke(port, LegacyBattleStartupCall::post_all_phase_b));
+    auto& metric_state = port.actor_metric_state();
+    const auto order = rebuild_legacy_battle_actor_order(
+        metric_state,
+        metric_state.group_b_count,
+        metric_state.group_a_count,
+        metric_state.entry_edx
+    );
+    result.actor_order_selections = order.selections;
+    if (order.status != LegacyBattleActorOrderStatus::completed) {
+        result.status = LegacyBattleStartupStatus::actor_order_typed_stop;
+        return result;
+    }
     static_cast<void>(invoke(port, LegacyBattleStartupCall::post_all_phase_c));
 
     for (u32 index = 0U; index < state.enemy_count; ++index) {

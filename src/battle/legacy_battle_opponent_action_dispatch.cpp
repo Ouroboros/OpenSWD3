@@ -40,7 +40,6 @@ constexpr u32 kCallMirrorOpponent = 0x0047F900U;
 constexpr u32 kCallPrepareOpponentScratch = 0x00476DB0U;
 constexpr u32 kCallUpdateOpponentScratch = 0x00478220U;
 constexpr u32 kCallCommitOpponentRecord = 0x00475720U;
-constexpr u32 kCallAdvanceBattleB = 0x0045B190U;
 constexpr u32 kCallAdvanceBattleC = 0x0045B5A0U;
 constexpr u32 kCallQueryOpponentCondition = 0x0047CE80U;
 constexpr u32 kCallActionTwoHundred = 0x00482310U;
@@ -179,7 +178,18 @@ void clear_selection_state(LegacyBattleActionDispatchState& state) noexcept {
             LegacyBattleActionDispatchStatus::actor_metric_typed_stop;
         return false;
     }
-    static_cast<void>(invoke(state, port, result, kCallAdvanceBattleB));
+    auto& metric_state = port.actor_metric_state();
+    const auto order = rebuild_legacy_battle_actor_order(
+        metric_state,
+        metric_state.group_b_count,
+        metric_state.group_a_count,
+        metric_state.entry_edx
+    );
+    if (order.status != LegacyBattleActorOrderStatus::completed) {
+        result.status =
+            LegacyBattleActionDispatchStatus::actor_order_typed_stop;
+        return false;
+    }
     static_cast<void>(invoke(state, port, result, kCallAdvanceBattleC));
     return true;
 }
