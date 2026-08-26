@@ -20,6 +20,7 @@
 #include <memory>
 #include <vector>
 
+void test_battle_status_indicator(openswd3::test::Context& test);
 void test_battle_vertical_panel(openswd3::test::Context& test);
 
 namespace {
@@ -6930,6 +6931,7 @@ int main() {
     test_battle_offset_action_frame_draw(test);
     test_battle_prepared_action_frame_draw(test);
     test_battle_indexed_action_frame_draw(test);
+    test_battle_status_indicator(test);
     test_battle_vertical_panel(test);
     test_battle_selected_or_cached_frame_draw(test);
     test_battle_ten_place_decimal_coordinator(test);

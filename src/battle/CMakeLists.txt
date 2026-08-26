@@ -12,6 +12,7 @@ add_library(
         legacy_battle_particle_spawn.cpp
         legacy_battle_render_geometry.cpp
         legacy_battle_setup.cpp
+        legacy_battle_status_indicator.cpp
         legacy_battle_timing.cpp
         legacy_battle_vertical_panel.cpp
 )

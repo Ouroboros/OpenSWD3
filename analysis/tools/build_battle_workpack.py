@@ -176,6 +176,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-vertical-status-panel-00450c50.md",
     ),
+    "0x00450F90": (
+        "platform_adapted",
+        "evidence/battle-status-indicator-animation-00450f90.md",
+    ),
 }
 
 
