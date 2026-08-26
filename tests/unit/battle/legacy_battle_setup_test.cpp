@@ -30,6 +30,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test);
 void test_battle_frame_effect(openswd3::test::Context& test);
 void test_battle_group_a_frame(openswd3::test::Context& test);
 void test_battle_group_b_frame(openswd3::test::Context& test);
+void test_battle_group_effect_frame(openswd3::test::Context& test);
 void test_battle_object_reset(openswd3::test::Context& test);
 void test_battle_scale_fill_panel(openswd3::test::Context& test);
 void test_battle_scale_scan(openswd3::test::Context& test);
@@ -6953,6 +6954,7 @@ int main() {
     test_battle_frame_effect(test);
     test_battle_group_a_frame(test);
     test_battle_group_b_frame(test);
+    test_battle_group_effect_frame(test);
     test_battle_object_reset(test);
     test_battle_standalone_action_frame_draw(test);
     test_battle_offset_action_frame_draw(test);

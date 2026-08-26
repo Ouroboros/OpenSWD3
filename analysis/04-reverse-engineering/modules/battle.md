@@ -2,7 +2,7 @@
 
 状态：`module_in_progress`
 
-当前关闭进度：`65/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
+当前关闭进度：`66/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
 
 ## 1. 唯一真值与模块目标
 
@@ -76,7 +76,7 @@ code_origin == game
 - `legacy_battle_assets`：FIGTALK固定窗口和`battle.ffd`头、索引、记录读取；
 - `legacy_battle_setup`：初始队伍筛选、固定阵型、镜像坐标和敌方记录布局。
 
-它们覆盖了`0x0046E0B0`、`0x0045F130`、`0x0045F1B0`与`0x00451B10`的部分有效资产路径或部分指令区间，但尚未证明所属函数的完整LST函数体、全部外部chunk、全部错误/循环/异常域、caller回收和完整战斗生命周期。因此这些历史切片继续不计数；当前`65/422`只来自本文件逐项登记且完成全部关闭门的函数，不得把其他测试通过、局部有效路径或真实battle 98样本当作函数关闭。
+它们覆盖了`0x0046E0B0`、`0x0045F130`、`0x0045F1B0`与`0x00451B10`的部分有效资产路径或部分指令区间，但尚未证明所属函数的完整LST函数体、全部外部chunk、全部错误/循环/异常域、caller回收和完整战斗生命周期。因此这些历史切片继续不计数；当前`66/422`只来自本文件逐项登记且完成全部关闭门的函数，不得把其他测试通过、局部有效路径或真实battle 98样本当作函数关闭。
 
 `app::battle_transition`和`frame_runtime`只实现顶层请求与返回编排，不属于422项战斗内部函数关闭计数。
 
@@ -339,8 +339,10 @@ I5最终必须锁定：
 
 `audit_order=65`的`0x004582B0`已关闭为`platform_adapted`。完整权威LST主体`0x004582B0..0x00458DDA`共1257行、65个静态call站点、64个局部标签且无外部chunk。实现恢复八槽主/备用双152字节效果记录、两类animation counter、主资源镜像宽度的参数token陈旧高word、主EAX/ECX与备用EDX/EAX声像高word、resource value/owner释放差异、signed status位、三行奖励、pending和final gate。备用零owner严格在play/set-pan及pan清零后首个解引用处typed-stop；最终EDX按alternate-active、末callee、active槽物理地址或辅助奖励signed扩展逐路径更新。32个唯一callee统一由typed token端口发布完整寄存器与输出快照。
 
+`audit_order=66`的`0x00458DE0`已关闭为`platform_adapted`。完整权威LST主体`0x00458DE0..0x004599AF`共1350行、71个静态call站点、80个局部标签且无外部chunk。实现恢复第二套八槽主/备用记录、主sample先于owner解引用、双offset AND门、四类镜像坐标、备用清主pan而保留自身pan、群体A/B状态发布、三套奖励路径与两次final gate。组A双guard、奖励gate、special mode和汇总陈旧EAX/ECX高word均独立保留；组B奖励offset跨角色累计，auxiliary和packed-high发布后清零再写数组。24个唯一callee统一由typed token端口发布完整寄存器与输出快照。
+
 `audit_order=14`的`0x00434790`已关闭为`platform_adapted`。它只在首次调用以显式time seed CRT、发布三项共享值并扫描源图，随后直接组合已关闭粒子生成、线段推进与单像素颜色合成；剩余批次回放保留镜像检查X、源索引和实际写入X错位，粒子2×2绘制保留只跳第一透明色、只检查右像素及合成模式右上先合成后被原值覆盖。生命刷新、距离与目标矩形摘除、唯一/首/尾/中间四类双向链释放及其计数不对称均已闭环。三个上层caller都显式消费返回1作为阶段完成信号，尚待各自进入现代实现。
 
-下一项回收`audit_order=66`的`0x00458DE0`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计第二套八槽效果记录协调、资源生命周期、状态奖励发布和最终完成收束。
+下一项回收`audit_order=67`的`0x004599B0`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计单条效果记录绘制、sample pan、资源释放和完成后主记录清零。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。
