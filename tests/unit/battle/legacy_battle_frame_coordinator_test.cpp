@@ -544,10 +544,40 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 result.fixed_frame_calls == 0U &&
                 port.count(LegacyBattleFrameCoordinatorCall::frame_stage) ==
                     1U &&
-                port.count(
-                    LegacyBattleFrameCoordinatorCall::conditional_stage
-                ) == 0U,
+                result.actor_priority_calls == 0U,
             "frame effect typed stop preserves main frame stage and blocks all following frame stages"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleFrameCoordinatorState state;
+        Fixture fixture;
+        CoordinatorPort port;
+        configure_common_port(port);
+        port.actor_metric_state().priority_actor_index = 18U;
+        auto context = fixture.context();
+
+        const auto result =
+            openswd3::battle::run_legacy_battle_frame_coordinator(
+                state, port, context, base_request()
+            );
+
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameCoordinatorStatus::
+                        actor_priority_typed_stop &&
+                result.actor_priority_calls == 1U &&
+                result.actor_priority.status ==
+                    openswd3::battle::LegacyBattleActorPriorityStatus::
+                        metric_typed_stop &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::query_actor_pair
+                ) == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::frame_followup_stage_0
+                ) == 0U &&
+                result.fixed_frame_calls == 0U,
+            "actor-priority typed stop propagates before all frame followup stages"
         );
     }
 
@@ -611,6 +641,10 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 state.interaction_available == 0U &&
                 state.ui_state == 0xABCD0001U &&
                 result.frame_effect_calls == 1U &&
+                result.actor_priority_calls == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::query_actor_pair
+                ) == 0U &&
                 result.fixed_frame_calls == 1U &&
                 result.hud_frame_calls == 1U && port.hud_calls.size() == 2U &&
                 result.gameplay_word_argument == 0xAAAA1234U &&

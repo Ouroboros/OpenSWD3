@@ -212,9 +212,20 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         return result;
     }
     if (state.conditional_mode != 1U || state.conditional_submode == 1U) {
-        static_cast<void>(invoke(
-            port, result, LegacyBattleFrameCoordinatorCall::conditional_stage
-        ));
+        result.actor_priority = update_legacy_battle_actor_priority(
+            port,
+            request.actor_priority_eax_snapshot,
+            request.actor_priority_ecx_snapshot,
+            request.actor_priority_edx_snapshot
+        );
+        ++result.actor_priority_calls;
+        result.port_calls += result.actor_priority.pair_query_calls;
+        if (result.actor_priority.status !=
+            LegacyBattleActorPriorityStatus::completed) {
+            result.status =
+                LegacyBattleFrameCoordinatorStatus::actor_priority_typed_stop;
+            return result;
+        }
     }
     static_cast<void>(invoke(
         port, result, LegacyBattleFrameCoordinatorCall::frame_followup_stage_0

@@ -6,6 +6,7 @@ add_library(
         legacy_battle_action_rotation_cache.cpp
         legacy_battle_actor_lifecycle.cpp
         legacy_battle_actor_metrics.cpp
+        legacy_battle_actor_priority.cpp
         legacy_battle_actor_ready.cpp
         legacy_battle_assets.cpp
         legacy_battle_background_initialization.cpp

@@ -3,6 +3,7 @@
 #include "openswd3/asset_runtime/legacy_action_draw_bridge.hpp"
 #include "openswd3/battle/legacy_battle_action_frame_draw.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
+#include "openswd3/battle/legacy_battle_actor_priority.hpp"
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
 #include "openswd3/battle/legacy_battle_frame_effect.hpp"
 #include "openswd3/battle/legacy_battle_transition.hpp"
@@ -48,7 +49,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     unlock_target_surface,
     refresh_selection,
     frame_stage,
-    conditional_stage,
+    query_actor_pair,
     frame_followup_stage_0,
     frame_followup_stage_1,
     frame_followup_stage_2,
@@ -149,6 +150,9 @@ struct LegacyBattleFrameCoordinatorRequest {
     std::span<const compat::u32> role_index_map;
     std::span<const LegacyBattleFrameCoordinatorPosition> role_positions;
     compat::u16 gameplay_word{};
+    compat::u32 actor_priority_eax_snapshot{};
+    compat::u32 actor_priority_ecx_snapshot{};
+    compat::u32 actor_priority_edx_snapshot{};
     compat::u32 post_frame_zero_ecx_snapshot{};
     compat::u32 post_tiled_frame_ecx_snapshot{};
     compat::u32 standalone_action_update_ecx_snapshot{};
@@ -186,6 +190,7 @@ enum class LegacyBattleFrameCoordinatorStatus : compat::u8 {
     pre_frame_returned_zero,
     actor_metric_typed_stop,
     actor_order_typed_stop,
+    actor_priority_typed_stop,
     render_aborted,
     fixed_frame_typed_stop,
     role_map_typed_stop,
@@ -214,6 +219,8 @@ struct LegacyBattleFrameCoordinatorResult {
     compat::u32 selection_refresh_calls{};
     LegacyBattleFrameEffectResult frame_effect{};
     compat::u32 frame_effect_calls{};
+    LegacyBattleActorPriorityResult actor_priority{};
+    compat::u32 actor_priority_calls{};
     LegacyBattleHudFrameResult hud_frame{};
     compat::u32 hud_frame_calls{};
     LegacyBattleFrameDrawResult fixed_frame{};

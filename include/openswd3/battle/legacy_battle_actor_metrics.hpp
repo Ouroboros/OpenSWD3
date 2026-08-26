@@ -25,6 +25,12 @@ struct LegacyBattleActorMetricState {
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
+
+    compat::u8 priority_update_gate{};
+    compat::u32 group_a_mode{};
+    compat::u32 group_b_mode{};
+    compat::u32 priority_actor_index{0xFFFFFFFFU};
+    compat::u32 priority_order_ready{};
 };
 
 class LegacyBattleActorMetricStatePort {
