@@ -51,10 +51,10 @@ code_origin == game
 - 尾地址：`0x00484500`；
 - `confirmed_boundary`：`61`；
 - `medium`导航候选：`361`；
-- `pending_audit`：`380`；
+- `pending_audit`：`379`；
 - `assembly_exact`：`5`；
-- `platform_adapted`：`37`；
-- 已关闭：`42`。
+- `platform_adapted`：`38`；
+- 已关闭：`43`。
 
 六个稳定导航分组为：
 
@@ -293,8 +293,10 @@ I5最终必须锁定：
 
 `audit_order=42`的`0x00451730`已关闭为`platform_adapted`。函数固定遍历扩展状态从`+0x9C`开始的六个owner槽：owner非空时先读取并释放嵌套image，回调返回后清内部指针，再释放owner并清外部槽；owner空则连孤立image payload也不触及。六轮后只清存储动作低word、`field_bc`与0x98 record，保留`field_b4/field_b8`并返回EAX 0。该完整LST同时把单帧绘制的typed owner边界从三槽修正为六槽，初始化/播放的三个局部FFFF槽仍只触及前三槽。
 
+`audit_order=43`的`0x004517A0`已关闭为`platform_adapted`。完整范围含13行主体与`0x004517D0..0x004517DB`十行外部FUNCTION CHUNK：先调用组A构造包装器，再无条件跳入chunk，把退出清理函数注册给CRT `_atexit`，最后原样返回注册EAX。typed lifecycle port保留构造、退出注册的严格顺序和完整32位注册结果；构造/析构callee分别留给紧邻工作包回收。
+
 `audit_order=14`的`0x00434790`已关闭为`platform_adapted`。它只在首次调用以显式time seed CRT、发布三项共享值并扫描源图，随后直接组合已关闭粒子生成、线段推进与单像素颜色合成；剩余批次回放保留镜像检查X、源索引和实际写入X错位，粒子2×2绘制保留只跳第一透明色、只检查右像素及合成模式右上先合成后被原值覆盖。生命刷新、距离与目标矩形摘除、唯一/首/尾/中间四类双向链释放及其计数不对称均已闭环。三个上层caller都显式消费返回1作为阶段完成信号，尚待各自进入现代实现。
 
-下一项回收`audit_order=43`的`0x004517A0`战斗记录容器静态生命周期注册，必须将`0x004517D0..0x004517DB`外部FUNCTION CHUNK计入完整函数，继续审计初始化callee、退出清理注册、全局容器地址、记录尺寸、资源键和构造/析构回调。
+下一项回收`audit_order=44`的`0x004517B0`战斗角色组A向量构造包装器，继续完整审计全局基址、元素尺寸`0x2F34`、数量10、构造/析构回调地址、编译器向量构造迭代器边界及caller opaque构造端口回收。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

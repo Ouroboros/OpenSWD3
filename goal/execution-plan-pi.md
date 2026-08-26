@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v706
+版本：v707
 
 最后更新：2026-08-25
 
@@ -3910,5 +3910,6 @@ B7 P0 有限收口完成。
 - 模块10战斗旋转缓存帧绘制`0x00451540`完成。完整70行在扩展状态存储动作号低word为0时直接返回0且不触状态；非零时重写动作号/base variant并调用更新器，但精确忽略更新后EAX。随后用更新后的u16帧索引访问扩展状态的六owner/frame缓存（上一项三槽局部表只填充前三槽），先发布source再写共享水平位移，以扩展坐标减record偏移、record flags和固定空tail绘制；正常公共后缀后显式再次清水平位移并返回`field_8c`完整dword。定向测试锁定零动作门、更新EAX 0仍绘制、索引6首访问停止、有效索引空owner停止、偏移像素与完整返回、固定空tail indexed typed-stop及清理时机；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`40/422`，即`35 platform_adapted + 5 assembly_exact + 382 pending_audit`，SHA256为`c3532e0939d85ac8708799fd6c28ab9504059d088ca4cc1f9eaf238021363cdc`。原版扩展动作状态、更新后record、六owner/frame record、共享水平位移/blitter状态和framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 - 模块10战斗旋转缓存动作播放`0x004515E0`完成。完整169行在存储动作非零时先完整清零0x98 record再更新，以三个FFFF局部槽只让每个u16帧索引旋转和绘制一次；signed旋转量正值直连closed模式3，负值低32位取负后直连模式2，零完全跳过rotation。首次帧随后从六owner/frame缓存的前三个局部索引以偏移坐标、record flags和固定空tail绘制；每轮draw正常或重复帧跳过后无条件清wait remaining/default，cursor为0再清record返回1，否则继续更新，首/后续更新失败均返回0。定向测试锁定零动作门、正/负/零旋转像素、两个唯一帧、重复帧跳过、双更新失败、非法索引、空owner、closed callee短图typed-stop、indexed空tail停止及完整循环状态重复；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`41/422`，即`36 platform_adapted + 5 assembly_exact + 381 pending_audit`，SHA256为`6218ed564e74720b95fdcd281bdb3ecfa3e38ff2db4c474d55f34e676067e7bd`。原版动作更新后record、六owner/frame/mutable image、三项局部槽、共享blitter状态和framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 - 模块10战斗六帧旋转缓存释放`0x00451730`完成。完整62行固定遍历扩展状态从`+0x9C`开始的六个owner槽；owner非空时先读并释放嵌套image，回调返回后清内部image，再释放owner并清外部槽，owner为空则连孤立image payload也不触及。六轮后只清存储动作低word、`field_bc`和0x98 record，保留`field_b4/field_b8`并以EAX 0返回。定向测试锁定三次image/四次owner精确交错顺序、回调期间旧token时机、空owner孤立payload保留、released span/frame清除、六空槽路径及最终字段边界；并依据本函数完整LST把单帧绘制owner边界从三槽修正为六槽，而初始化/播放三项局部FFFF槽仍只触及前三槽。独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`42/422`，即`37 platform_adapted + 5 assembly_exact + 380 pending_audit`，SHA256为`eb85083c37c8f563230fbe32db00de3abb86687bebf2538fec9c3c2c656aa07a`。原版六owner、嵌套image分配与释放回调联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
+- 模块10战斗角色组A静态生命周期注册`0x004517A0`完成。完整函数由13行主体和`0x004517D0..0x004517DB`十行外部FUNCTION CHUNK组成；主体先调用组A构造包装器并无条件跳入chunk，chunk把退出清理函数地址注册给CRT `_atexit`，caller回收参数后原样返回注册EAX。定向测试锁定构造严格先于注册、两者各调用一次、注册结果0和全1 bit pattern均原样返回；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`43/422`，即`38 platform_adapted + 5 assembly_exact + 379 pending_audit`，SHA256为`b5d2b4a67f330231983d4d0e7abc64b5de4b32f08bf816316bdec9758c9671f7`。原版CRT静态初始化表执行与退出注册结果联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=43`的`0x004517A0`战斗记录容器静态生命周期注册，必须将`0x004517D0..0x004517DB`外部FUNCTION CHUNK计入完整函数，继续审计初始化callee、退出清理注册、全局容器地址、记录尺寸、资源键和构造/析构回调。
+下一项回收`audit_order=44`的`0x004517B0`战斗角色组A向量构造包装器，继续完整审计全局基址、元素尺寸、数量、构造/析构回调地址、编译器向量构造迭代器边界及caller opaque构造端口回收。
