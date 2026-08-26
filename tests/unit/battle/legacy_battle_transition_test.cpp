@@ -28,7 +28,8 @@ struct Surface {
 class TransitionPorts final
     : public openswd3::battle::LegacyBattleTransitionPort,
       public openswd3::battle::LegacyBattleTransitionBufferPort,
-      public openswd3::battle::LegacyBattleTransitionSurfacePort {
+      public openswd3::battle::LegacyBattleTransitionSurfacePort,
+      public openswd3::battle::LegacyBattleSurfaceBlendPort {
 public:
     [[nodiscard]] LegacyBattleTransitionCallReply
     invoke(const LegacyBattleTransitionCallRequest& request) override {
@@ -126,6 +127,45 @@ public:
         unlocked.emplace_back(surface_token, lock_token);
     }
 
+    [[nodiscard]] i32 query_system_metric(const i32 index) override {
+        blend_metric_indices.push_back(index);
+        return index == 1 ? 480 : 640;
+    }
+
+    [[nodiscard]] u32 create_screen_surface(
+        const u32 owner_token, const i32 width, const i32 height
+    ) override {
+        blend_screen_creates.push_back({
+            owner_token,
+            static_cast<u32>(width),
+            static_cast<u32>(height),
+        });
+        return blend_screen_surface_token;
+    }
+
+    [[nodiscard]] u32
+    create_temporary_surface(const u32 owner_token, const u32 format) override {
+        blend_temporary_creates.push_back({owner_token, format});
+        return 0xA0000000U + static_cast<u32>(blend_temporary_creates.size());
+    }
+
+    [[nodiscard]] u32 random_below(const u32 bound) override {
+        blend_random_bounds.push_back(bound);
+        return blend_random_return;
+    }
+
+    [[nodiscard]] u32 operate_surface(
+        const openswd3::battle::LegacyBattleSurfaceBlendOperation& operation
+    ) override {
+        blend_operations.push_back(operation);
+        return generic_return;
+    }
+
+    [[nodiscard]] u32 release_surface(const u32 surface_token) override {
+        blend_released_tokens.push_back(surface_token);
+        return blend_release_return;
+    }
+
     [[nodiscard]] std::size_t
     call_count(const LegacyBattleTransitionCall call) const {
         return static_cast<std::size_t>(std::ranges::count_if(
@@ -148,6 +188,13 @@ public:
     std::vector<std::pair<u32, u32>> unlocked;
     std::vector<std::filesystem::path> music_paths;
     std::vector<u32> music_modes;
+    std::vector<i32> blend_metric_indices;
+    std::vector<std::array<u32, 3>> blend_screen_creates;
+    std::vector<std::array<u32, 2>> blend_temporary_creates;
+    std::vector<u32> blend_random_bounds;
+    std::vector<openswd3::battle::LegacyBattleSurfaceBlendOperation>
+        blend_operations;
+    std::vector<u32> blend_released_tokens;
     std::size_t short_allocation_index{static_cast<std::size_t>(-1)};
     std::size_t short_allocation_words{};
     u32 allocation_count{};
@@ -159,6 +206,9 @@ public:
     u32 music_commit_return{0x12345678U};
     u32 generic_return{0x11223344U};
     u32 default_actor_mode_return{};
+    u32 blend_screen_surface_token{0x90000000U};
+    u32 blend_random_return{19U};
+    u32 blend_release_return{0x87654321U};
 };
 
 class FixedFrameProvider final
@@ -256,7 +306,14 @@ void test_battle_transition(openswd3::test::Context& test) {
         FrameFixture frame;
 
         const auto result = openswd3::battle::run_legacy_battle_transition(
-            state, startup, ports, ports, ports, frame.context, request(1U)
+            state,
+            startup,
+            ports,
+            ports,
+            ports,
+            ports,
+            frame.context,
+            request(1U)
         );
 
         test.expect_true(
@@ -330,7 +387,14 @@ void test_battle_transition(openswd3::test::Context& test) {
         FrameFixture frame;
 
         const auto result = openswd3::battle::run_legacy_battle_transition(
-            state, startup, ports, ports, ports, frame.context, request(2U)
+            state,
+            startup,
+            ports,
+            ports,
+            ports,
+            ports,
+            frame.context,
+            request(2U)
         );
 
         test.expect_true(
@@ -359,12 +423,19 @@ void test_battle_transition(openswd3::test::Context& test) {
         startup.party_count = 2U;
         TransitionPorts ports;
         add_default_surfaces(ports);
-        ports.random_values = {2U, 1U, 27U};
+        ports.random_values = {99U, 1U, 27U};
         state.party_special_fields[1] = 1U;
         FrameFixture frame;
 
         const auto result = openswd3::battle::run_legacy_battle_transition(
-            state, startup, ports, ports, ports, frame.context, request(0U)
+            state,
+            startup,
+            ports,
+            ports,
+            ports,
+            ports,
+            frame.context,
+            request(0U)
         );
 
         test.expect_true(
@@ -393,8 +464,15 @@ void test_battle_transition(openswd3::test::Context& test) {
                 state.current_source_from_frame &&
                 result.refreshed_enemy_actors == 2U && result.message_emitted &&
                 startup.mode_flags == 0x80U &&
-                ports.call_count(LegacyBattleTransitionCall::blend_surfaces) ==
-                    1U &&
+                result.surface_blend_calls == 1U &&
+                result.surface_blend.status ==
+                    openswd3::battle::LegacyBattleSurfaceBlendStatus::
+                        completed &&
+                result.surface_blend.random_calls == 1440U &&
+                result.surface_blend.row_operation_calls == 960U &&
+                ports.blend_operations.size() == 964U &&
+                ports.blend_released_tokens == std::vector<u32>{0x90000000U} &&
+                ports.random_values.empty() &&
                 frame.provider.resource_ids ==
                     std::vector<u32>{0x234DU, 0x234DU},
             "mode zero redraw blend and second rare branch preserve actor slot and enemy refresh paths"
@@ -419,7 +497,14 @@ void test_battle_transition(openswd3::test::Context& test) {
             ports.music_gate_return = 1U;
             FrameFixture frame;
             const auto result = openswd3::battle::run_legacy_battle_transition(
-                state, startup, ports, ports, ports, frame.context, request(3U)
+                state,
+                startup,
+                ports,
+                ports,
+                ports,
+                ports,
+                frame.context,
+                request(3U)
             );
             paths_match = paths_match && result.music_started &&
                 state.music_path == paths[index] &&
@@ -437,12 +522,47 @@ void test_battle_transition(openswd3::test::Context& test) {
         auto startup = startup_state();
         TransitionPorts ports;
         add_default_surfaces(ports);
+        ports.random_values = {99U, 123U};
+        FrameFixture frame;
+
+        const auto result = openswd3::battle::run_legacy_battle_transition(
+            state,
+            startup,
+            ports,
+            ports,
+            ports,
+            ports,
+            frame.context,
+            request(3U)
+        );
+
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleTransitionStatus::completed &&
+                result.return_value == 123U && !result.message_emitted &&
+                ports.random_values.empty(),
+            "out of contract random values preserve nonzero branch and ordinary inclusive chance comparisons"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleTransitionState state;
+        auto startup = startup_state();
+        TransitionPorts ports;
+        add_default_surfaces(ports);
         ports.short_allocation_index = 0U;
         ports.short_allocation_words = 640U * 10U;
         FrameFixture frame;
 
         const auto result = openswd3::battle::run_legacy_battle_transition(
-            state, startup, ports, ports, ports, frame.context, request(1U)
+            state,
+            startup,
+            ports,
+            ports,
+            ports,
+            ports,
+            frame.context,
+            request(1U)
         );
 
         test.expect_true(

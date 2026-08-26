@@ -2,6 +2,7 @@
 
 #include "openswd3/battle/legacy_battle_frame_draw.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
+#include "openswd3/battle/legacy_battle_surface_blend.hpp"
 
 #include <array>
 #include <filesystem>
@@ -73,7 +74,6 @@ enum class LegacyBattleTransitionCall : compat::u16 {
     draw_full_image,
     transform_image,
     restore_clip,
-    blend_surfaces,
     music_gate,
     music_commit,
     random_below,
@@ -156,7 +156,7 @@ enum class LegacyBattleTransitionStatus : compat::u8 {
     frame_draw_typed_stop,
     enemy_index_out_of_range,
     party_index_out_of_range,
-    random_result_out_of_range,
+    surface_blend_typed_stop,
 };
 
 struct LegacyBattleTransitionResult {
@@ -177,6 +177,8 @@ struct LegacyBattleTransitionResult {
     compat::u32 transform_calls{};
     compat::u32 temporary_surface_calls{};
     compat::u32 surface_operation_calls{};
+    LegacyBattleSurfaceBlendResult surface_blend{};
+    compat::u32 surface_blend_calls{};
     std::array<compat::u32, 4> release_order{};
     compat::u32 release_calls{};
     bool music_started{};
@@ -197,6 +199,7 @@ struct LegacyBattleTransitionResult {
     LegacyBattleTransitionPort& port,
     LegacyBattleTransitionBufferPort& buffer_port,
     LegacyBattleTransitionSurfacePort& surface_port,
+    LegacyBattleSurfaceBlendPort& blend_port,
     LegacyBattleFrameZeroContext& frame_zero,
     const LegacyBattleTransitionRequest& request
 );

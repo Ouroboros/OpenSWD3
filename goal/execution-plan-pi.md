@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v721
+版本：v722
 
 最后更新：2026-08-25
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 恢复战斗双surface混合协调
+当前步骤：模块10 · 恢复战斗逐帧主状态机
 
 ## 0. 执行约定
 
@@ -3925,5 +3925,6 @@ B7 P0 有限收口完成。
 - 模块10战斗对象批量重置`0x00451A20`完成。完整58行、无外部chunk；固定顺序为一次全局reset、三个固定对象reset、`0x60`个dword正向清零、角色组B八槽遍历、角色组A十槽遍历。两个对象reset callee分别属于后续工作包，以typed端口保留边界；调用端复用已锁定的A/B基址、尺寸和数量，发布全部返回snapshot并最终保留末个组A callee完整EAX。定向测试锁定全局→固定三项→B八项→A十项共22次调用、384字节表在首个角色回调前已清零、所有18个物理token与固定步长；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`55/422`，即`50 platform_adapted + 5 assembly_exact + 367 pending_audit`，SHA256为`aac06ba9d5a2a77f1a8f2700db5f92a3a62d438262ea38135c116a51fda46872`。原版三个reset callee、固定表与18个角色对象联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 - 模块10大型战斗启动协调器`0x00451B10`完成。主函数完整1351行、60个静态call站点、48个标签、无外部chunk；邻接`0x00451AE0/0x00451A90`两个显示surface释放/创建附件一并typed闭合但正式只计主函数。实现完整覆盖阈值直连、固定零/全1块、18条混合宽度记录、陈旧队伍总数、窗口/几何、显示surface、`battle.ffd`完整ID/低word分离与零敌人callee EAX早退、背景初始化直连、组B敌人与组A队伍物化、1–4人坐标、缺席槽陈旧坐标、镜像callee后ECX高word、三组x87比率、陈旧补位word触发随机/顺序分支、无上限重复候选、敌方随机动作、补位后最终化及最终u32回绕判定。测试覆盖全部reset、失败早退、普通完整路径、随机与顺序补位、1–4人矩阵、零除integer-indefinite低dword零和第九敌人在前八项副作用后typed-stop；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`56/422`，即`51 platform_adapted + 5 assembly_exact + 366 pending_audit`，SHA256为`93c0d6de3d88edac4b455e9dde1a2686d5dc2f9885508628eaa504d8cfade53c`。`battle.ffd` loader、角色/AI及全局阶段callee仍各属后续工作包，原版文件对象、共享表、18角色、surface与随机状态联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 - 模块10战斗画面转场与后置事件`0x004527E0`完成。完整1002行、74个静态call站点、37个标签、无外部chunk；按原顺序恢复临时surface、两块`0x96000` raw分配、第二display槽优先的640×480逐行快照、mode 0/1/2各34帧进入及mode 1另33帧退出、目标清零/全图/转换调用、四token条件释放和两次clip恢复。mode 1的34项x87正弦整数表由LST常量与截断控制字生成后冻结；mode 0两次直接调用已关闭固定资源帧绘制并同步共享source ownership。音乐保留Europe、Arab、China三个独立inclusive区间及空白ID传data root的原行为；后置随机分支保留敌人门、队员准备、十槽首空写、消息和低字节flag更新。测试覆盖三种mode、未知mode音乐区间、两条罕见分支、四token释放顺序、raw/surface实际复制和第十一行typed-stop前缀；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`57/422`，即`52 platform_adapted + 5 assembly_exact + 365 pending_audit`，SHA256为`5b5501ff1accfa121802f76443f3afbe9bd8028ca4822c35a837b1b9bf7c0d71`。原版DirectDraw surface、allocator、图像转换、音乐、角色与消息callee联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
+- 模块10战斗双surface逐行混合`0x004530A0`完成。完整171行、12个静态call站点、6个标签、无外部chunk；先按系统高宽建立screen surface，再保留480项`random(20)+15`未使用表，随后按479→0顺序构造两份相同rectangle并执行primary逐行操作。零offset首轮即把完成计数累加到480，但原signed `<=480`条件强制第二轮，正常固定为1440次随机、960次逐行操作、两次secondary捕获和两次临时surface copy。六个入口参数仅前两个surface被读，caller生成的随机值继续传入但保持未读；screen/temporary零token分别在首次vtable访问typed-stop，最终正常路径只释放screen surface并返回完整release EAX。caller已删除opaque混合边界，并移除对三个随机callee结果的非原始范围typed-stop。测试覆盖正常两轮、rectangle顺序、未使用表、两个空token失败前缀、release返回及caller超约定随机域；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`58/422`，即`53 platform_adapted + 5 assembly_exact + 364 pending_audit`，SHA256为`6f2763f0eedf3578c55d5a85da35a513219c107a3bf99ccbc3a75d2a677dafd1`。原版系统指标、DirectDraw surface、CRT随机状态和虚调用联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=58`的`0x004530A0`，必须从完整权威LST主体和所有外部FUNCTION CHUNK独立审计其双surface混合、临时surface生命周期、随机参数传递、分支域与返回约定。
+下一项回收`audit_order=59`的`0x00453200`，必须从完整权威LST主体和所有外部FUNCTION CHUNK独立审计其战斗逐帧主状态机、33个caller入口、阶段分派、共享状态时序与返回约定。

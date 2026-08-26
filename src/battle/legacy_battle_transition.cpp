@@ -236,6 +236,7 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
     LegacyBattleTransitionPort& port,
     LegacyBattleTransitionBufferPort& buffer_port,
     LegacyBattleTransitionSurfacePort& surface_port,
+    LegacyBattleSurfaceBlendPort& blend_port,
     LegacyBattleFrameZeroContext& frame_zero,
     const LegacyBattleTransitionRequest& request
 ) {
@@ -480,21 +481,23 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
                                {3U, 0U, 0U, 0U, 0U, 0U}
         )
                                .return_value;
-        if (random >= 3U) {
+        LegacyBattleSurfaceBlendState blend_state;
+        result.surface_blend = run_legacy_battle_surface_blend(
+            blend_state,
+            blend_port,
+            LegacyBattleSurfaceBlendRequest{
+                .primary_surface_token = startup.display_surfaces[0],
+                .secondary_surface_token = startup.display_surfaces[1],
+                .ignored_arguments = {0U, 0U, 0U, random},
+            }
+        );
+        ++result.surface_blend_calls;
+        if (result.surface_blend.status !=
+            LegacyBattleSurfaceBlendStatus::completed) {
             result.status =
-                LegacyBattleTransitionStatus::random_result_out_of_range;
+                LegacyBattleTransitionStatus::surface_blend_typed_stop;
             return result;
         }
-        static_cast<void>(invoke(
-            port,
-            LegacyBattleTransitionCall::blend_surfaces,
-            {startup.display_surfaces[0],
-             startup.display_surfaces[1],
-             0U,
-             0U,
-             0U,
-             random}
-        ));
         break;
     }
     default:
@@ -546,22 +549,12 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
                            {2U, 0U, 0U, 0U, 0U, 0U}
     )
                            .return_value;
-    if (branch >= 2U) {
-        result.status =
-            LegacyBattleTransitionStatus::random_result_out_of_range;
-        return result;
-    }
     const u32 chance = invoke(
                            port,
                            LegacyBattleTransitionCall::random_below,
                            {100U, 0U, 0U, 0U, 0U, 0U}
     )
                            .return_value;
-    if (chance >= 100U) {
-        result.status =
-            LegacyBattleTransitionStatus::random_result_out_of_range;
-        return result;
-    }
 
     if (branch == 0U) {
         if (chance < 55U || chance > 60U) {

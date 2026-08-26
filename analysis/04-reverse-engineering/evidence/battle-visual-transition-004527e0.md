@@ -118,7 +118,7 @@ y_offset = wrapping_i32((-scale_step) << 5)
 
 - mode 2：只再清目标一次；合计35次清零、34次转换。
 - mode 1：当前source切换为第二转换图像；执行33帧。scale counter从`69*9=621`开始，每帧减18；清目标后按`-sine`、`+sine`顺序转换。进入+退出合计67次清零、134次转换。
-- mode 0：创建/调用一个临时surface，重复场景准备、两个阶段、固定资源0帧绘制、状态word与display呈现；再创建/调用一个临时surface，调用`random(3)`并以两个display surface和随机值执行blend。
+- mode 0：创建/调用一个临时surface，重复场景准备、两个阶段、固定资源0帧绘制、状态word与display呈现；再创建/调用一个临时surface，调用`random(3)`并把两个display surface和随机值传入已关闭逐行blend。blend只读取前两个surface参数，随机值按原ABI保持未读。
 
 已关闭帧绘制更新与转换图像共享的旧source全局。modern显式记录source当前来自frame还是转换token：首次frame后立即被第一转换图覆盖；mode 0第二次frame后保留frame来源。
 
@@ -182,6 +182,7 @@ C++到LST反向追溯覆盖1002行、74个静态call站点、37个标签、四�
 - 第二surface→第一raw、第一surface→第二raw的480×640实际像素复制；
 - 两次`0x96000`分配、两次转换及四token释放顺序；
 - mode 0/1/2的帧数、清零数、全图/转换数、临时surface与虚调用数；
+- mode 0直连逐行blend，超出约定的caller随机值仍被传入但不提前typed-stop；
 - 初始全图effect零与mode 0滑动effect `0x20`；
 - 冻结x87正弦与mode 1最终scale；
 - 两次固定资源0帧typed直连及source ownership；
