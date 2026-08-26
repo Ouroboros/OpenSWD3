@@ -741,7 +741,13 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         result.status = LegacyBattleStartupStatus::actor_order_typed_stop;
         return result;
     }
-    static_cast<void>(invoke(port, LegacyBattleStartupCall::post_all_phase_c));
+    const auto group_b_order =
+        rebuild_legacy_battle_group_b_order(metric_state);
+    result.group_b_order_copies = group_b_order.copied_slots;
+    if (group_b_order.status != LegacyBattleGroupBOrderStatus::completed) {
+        result.status = LegacyBattleStartupStatus::group_b_order_typed_stop;
+        return result;
+    }
 
     for (u32 index = 0U; index < state.enemy_count; ++index) {
         if (index >= kLegacyBattleActorGroupBElementCount) {

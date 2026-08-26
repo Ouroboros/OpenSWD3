@@ -469,8 +469,9 @@ void test_battle_startup(openswd3::test::Context& test) {
                     6U &&
                 result.actor_metric_calls == 6U &&
                 result.actor_order_selections == 6U &&
-                ports.call_count(LegacyBattleStartupCall::post_all_phase_c) ==
-                    1U,
+                result.group_b_order_copies == 2U &&
+                ports.actor_metric_state().group_b_order[0] == 0U &&
+                ports.actor_metric_state().group_b_order[1] == 1U,
             "battle startup continues after background load zero and preserves enemy party ratio supplement and final unsigned state"
         );
     }

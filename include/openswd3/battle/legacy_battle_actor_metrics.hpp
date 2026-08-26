@@ -14,6 +14,7 @@ struct LegacyBattleActorMetricState {
     std::array<compat::i32, 18> values{};
     std::array<compat::u32, 18> actor_order{};
     std::array<compat::u32, 18> selected_mask{};
+    std::array<compat::u32, 8> group_b_order{};
 
     compat::u32 group_b_count{};
     compat::u32 group_a_count{};

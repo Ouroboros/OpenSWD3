@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
+#include "openswd3/battle/legacy_battle_group_b_order.hpp"
 #include "openswd3/battle/legacy_battle_background_initialization.hpp"
 #include "openswd3/battle/legacy_battle_render_geometry.hpp"
 #include "openswd3/battle/legacy_battle_timing.hpp"
@@ -113,7 +114,6 @@ enum class LegacyBattleStartupCall : compat::u16 {
     configure_supplemental_actor,
     activate_supplemental_actor,
     query_actor_metric,
-    post_all_phase_c,
     advance_enemy_action,
     finalize_party_actor,
 };
@@ -276,6 +276,7 @@ enum class LegacyBattleStartupStatus : compat::u8 {
     party_actor_index_out_of_range,
     actor_metric_typed_stop,
     actor_order_typed_stop,
+    group_b_order_typed_stop,
     random_result_out_of_range,
 };
 
@@ -299,6 +300,7 @@ struct LegacyBattleStartupResult {
     compat::u32 finalized_party_actor_count{};
     compat::u32 actor_metric_calls{};
     compat::u32 actor_order_selections{};
+    compat::u32 group_b_order_copies{};
     bool completion_status_published{};
     compat::u32 return_value{};
 };

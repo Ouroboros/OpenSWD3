@@ -5,6 +5,7 @@
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_frame_effect.hpp"
 #include "openswd3/battle/legacy_battle_frame_refresh.hpp"
+#include "openswd3/battle/legacy_battle_group_b_order.hpp"
 #include "openswd3/battle/legacy_battle_scale_scan.hpp"
 #include "openswd3/battle/legacy_battle_status_indicator.hpp"
 #include "openswd3/compat/types.hpp"
@@ -157,7 +158,6 @@ struct LegacyBattleActionDispatchState {
     std::array<compat::u32, 18> selection_workspace{};
     std::array<compat::u32, 18> selected_group_b_identity{};
     std::array<compat::u32, 10> actor_effect_score{};
-    std::array<compat::u32, 8> available_group_b_indices{};
     std::array<compat::u32, 10> summon_runtime{};
     std::array<compat::u16, 10> summon_target_x{};
     std::array<compat::u16, 10> summon_target_y{};
@@ -206,6 +206,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     effect_record_typed_stop,
     actor_metric_typed_stop,
     actor_order_typed_stop,
+    group_b_order_typed_stop,
     final_actor_workspace_typed_stop,
     final_actor_record_typed_stop,
     final_actor_descriptor_typed_stop,

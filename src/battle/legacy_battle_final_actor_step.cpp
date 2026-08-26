@@ -11,7 +11,6 @@ using compat::u32;
 using compat::u8;
 
 constexpr u32 kCallValidateActor = 0x00479850U;
-constexpr u32 kCallRefreshC = 0x0045B5A0U;
 constexpr u32 kCallRemoveActor = 0x004750C0U;
 constexpr u32 kCallPublishActorCode = 0x0045EFB0U;
 constexpr u32 kCallResetActor = 0x0047C660U;
@@ -107,6 +106,13 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
             LegacyBattleActionDispatchStatus::actor_order_typed_stop;
         return false;
     }
+    const auto group_b_order =
+        rebuild_legacy_battle_group_b_order(metric_state);
+    if (group_b_order.status != LegacyBattleGroupBOrderStatus::completed) {
+        result.status =
+            LegacyBattleActionDispatchStatus::group_b_order_typed_stop;
+        return false;
+    }
     return true;
 }
 
@@ -168,7 +174,6 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
             !rebuild_actor_order(port, result)) {
             return result;
         }
-        static_cast<void>(invoke(port, result, kCallRefreshC));
     } else {
         state.removed_group_a_count =
             static_cast<u8>(state.removed_group_a_count + 1U);
@@ -358,7 +363,6 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
             !rebuild_actor_order(port, result)) {
             return result;
         }
-        static_cast<void>(invoke(port, result, kCallRefreshC));
     }
 
     result.return_value = 1U;

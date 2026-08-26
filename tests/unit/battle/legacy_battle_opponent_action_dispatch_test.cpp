@@ -428,7 +428,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 has_call_argument(port, 0x00475720U, 2U, 0xABCD1234U) &&
                 port.count(0x0045B0E0U) == 0U &&
                 port.count(0x004783B0U) == 3U &&
-                port.count(0x0045B190U) == 0U && port.count(0x0045B5A0U) == 2U,
+                port.count(0x0045B190U) == 0U && port.count(0x0045B5A0U) == 0U,
             "opponent action fifteen builds two mirrored records with callee stale EAX high words"
         );
     }
@@ -508,7 +508,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 state.post_battle_counter == 0U &&
                 port.count(0x0045B0E0U) == 0U &&
                 port.count(0x004783B0U) == 1U &&
-                port.count(0x0045B190U) == 0U && port.count(0x0045B5A0U) == 1U,
+                port.count(0x0045B190U) == 0U && port.count(0x0045B5A0U) == 0U,
             "opponent action seventeen collapses final special opponent and reruns three stages"
         );
     }

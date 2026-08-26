@@ -22,6 +22,7 @@ add_library(
         legacy_battle_frame_refresh.cpp
         legacy_battle_group_a_frame.cpp
         legacy_battle_group_b_frame.cpp
+        legacy_battle_group_b_order.cpp
         legacy_battle_group_effect_frame.cpp
         legacy_battle_hud_frame.cpp
         legacy_battle_image_rotation.cpp

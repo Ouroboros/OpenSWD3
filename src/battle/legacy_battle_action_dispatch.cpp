@@ -1602,7 +1602,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                         .eax == 1U) {
                     continue;
                 }
-                state.available_group_b_indices[index_u32] = index_u32;
+                port.actor_metric_state().group_b_order[index_u32] = index_u32;
                 reply = invoke(
                     state,
                     port,

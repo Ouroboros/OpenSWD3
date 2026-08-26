@@ -35,6 +35,7 @@ void test_battle_frame_refresh(openswd3::test::Context& test);
 void test_battle_final_actor_step(openswd3::test::Context& test);
 void test_battle_group_a_frame(openswd3::test::Context& test);
 void test_battle_group_b_frame(openswd3::test::Context& test);
+void test_battle_group_b_order(openswd3::test::Context& test);
 void test_battle_group_effect_frame(openswd3::test::Context& test);
 void test_battle_hud_frame(openswd3::test::Context& test);
 void test_battle_intensity_effect_frame(openswd3::test::Context& test);
@@ -6968,6 +6969,7 @@ int main() {
     test_battle_final_actor_step(test);
     test_battle_group_a_frame(test);
     test_battle_group_b_frame(test);
+    test_battle_group_b_order(test);
     test_battle_group_effect_frame(test);
     test_battle_hud_frame(test);
     test_battle_intensity_effect_frame(test);
