@@ -1,4 +1,5 @@
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
+#include "openswd3/battle/legacy_battle_render_geometry.hpp"
 
 #include <vector>
 
@@ -86,6 +87,30 @@ public:
     openswd3::battle::LegacyBattleActorVectorDestructionRequest
         last_destruction_request{};
     std::vector<u32> events;
+};
+
+class TrackingBattleRenderGeometryExitRegistrationPort final
+    : public openswd3::battle::LegacyBattleRenderGeometryExitRegistrationPort {
+public:
+    [[nodiscard]] u32 register_exit_cleanup(const u32 cleanup_token) override {
+        registered_cleanup_token = cleanup_token;
+        ++calls;
+        return registration_result;
+    }
+
+    u32 registration_result{};
+    u32 registered_cleanup_token{};
+    u32 calls{};
+};
+
+class TrackingBattleRenderAuxiliaryReleaser final
+    : public openswd3::battle::LegacyBattleRenderAuxiliaryBufferReleaser {
+public:
+    void release(const u32 token) noexcept override {
+        released.push_back(token);
+    }
+
+    std::vector<u32> released;
 };
 
 class TrackingActorSingletonStaticLifecyclePort final
@@ -324,6 +349,47 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                 is_group_b_request(result.request) &&
                 is_group_b_request(destruction_port.last_destruction_request),
             "actor group B wrapper forwards exact vector destruction constants"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleRenderGeometry geometry;
+        TrackingBattleRenderGeometryExitRegistrationPort registration_port;
+        registration_port.registration_result = 0x2468ACE0U;
+        const auto initialization = openswd3::battle::
+            initialize_legacy_battle_render_geometry_static_lifecycle(
+                geometry, registration_port
+            );
+        geometry.auxiliary_buffer_token = 0x12345678U;
+        TrackingBattleRenderAuxiliaryReleaser releaser;
+        const auto cleanup = openswd3::battle::
+            release_legacy_battle_render_geometry_static_lifecycle(
+                geometry, releaser
+            );
+        test.expect_true(
+            initialization.owner_token ==
+                    openswd3::battle::kLegacyBattleRenderGeometryOwnerToken &&
+                initialization.initialization.status ==
+                    openswd3::battle::LegacyBattleRenderInitializationStatus::
+                        completed &&
+                initialization.initialization_calls == 1U &&
+                initialization.exit_registration_calls == 1U &&
+                initialization.return_value == 0x2468ACE0U &&
+                registration_port.calls == 1U &&
+                registration_port.registered_cleanup_token ==
+                    openswd3::battle::
+                        kLegacyBattleRenderGeometryExitCleanupToken &&
+                cleanup.owner_token ==
+                    openswd3::battle::kLegacyBattleRenderGeometryOwnerToken &&
+                cleanup.cleanup_calls == 1U &&
+                cleanup.cleanup.auxiliary_buffer_released &&
+                cleanup.cleanup.surface_row_offsets_released &&
+                cleanup.cleanup.primary_row_offsets_released &&
+                releaser.released == std::vector<u32>{0x12345678U} &&
+                geometry.primary_row_offsets == nullptr &&
+                geometry.surface_row_offsets == nullptr &&
+                geometry.auxiliary_buffer_token == 0U,
+            "render geometry static lifecycle initializes registers and releases one owner"
         );
     }
 

@@ -388,6 +388,36 @@ LegacyBattleRenderInitializationResult initialize_legacy_battle_render_geometry(
     return initialize_legacy_battle_render_geometry(geometry, allocator);
 }
 
+LegacyBattleRenderGeometryStaticInitializationResult
+initialize_legacy_battle_render_geometry_static_lifecycle(
+    LegacyBattleRenderGeometry& geometry,
+    LegacyBattleRenderGeometryExitRegistrationPort& exit_registration_port
+) noexcept {
+    LegacyBattleRenderGeometryStaticInitializationResult result{
+        .owner_token = kLegacyBattleRenderGeometryOwnerToken,
+    };
+    result.initialization = initialize_legacy_battle_render_geometry(geometry);
+    result.initialization_calls = 1U;
+    result.return_value = exit_registration_port.register_exit_cleanup(
+        kLegacyBattleRenderGeometryExitCleanupToken
+    );
+    result.exit_registration_calls = 1U;
+    return result;
+}
+
+LegacyBattleRenderGeometryStaticCleanupResult
+release_legacy_battle_render_geometry_static_lifecycle(
+    LegacyBattleRenderGeometry& geometry,
+    LegacyBattleRenderAuxiliaryBufferReleaser& releaser
+) noexcept {
+    LegacyBattleRenderGeometryStaticCleanupResult result{
+        .owner_token = kLegacyBattleRenderGeometryOwnerToken,
+    };
+    result.cleanup = release_legacy_battle_render_resources(geometry, releaser);
+    result.cleanup_calls = 1U;
+    return result;
+}
+
 LegacyBattleRowOffsetResult rebuild_legacy_battle_primary_row_offsets(
     LegacyBattleRenderGeometry& geometry,
     const compat::i32 row_stride,
