@@ -50,6 +50,7 @@ public:
 
 class TrackingGroupBStaticLifecyclePort final
     : public openswd3::battle::LegacyBattleActorVectorConstructionPort,
+      public openswd3::battle::LegacyBattleActorVectorDestructionPort,
       public openswd3::battle::LegacyBattleActorExitRegistrationPort {
 public:
     [[nodiscard]] u32 construct_vector(
@@ -61,6 +62,15 @@ public:
         return construction_result;
     }
 
+    [[nodiscard]] u32 destroy_vector(
+        const openswd3::battle::LegacyBattleActorVectorDestructionRequest&
+            request
+    ) override {
+        events.push_back(6U);
+        last_destruction_request = request;
+        return destruction_result;
+    }
+
     [[nodiscard]] u32 register_exit_cleanup(const u32 cleanup_token) override {
         events.push_back(5U);
         registered_cleanup_token = cleanup_token;
@@ -68,10 +78,13 @@ public:
     }
 
     u32 construction_result{};
+    u32 destruction_result{};
     u32 registration_result{};
     u32 registered_cleanup_token{};
     openswd3::battle::LegacyBattleActorVectorConstructionRequest
         last_construction_request{};
+    openswd3::battle::LegacyBattleActorVectorDestructionRequest
+        last_destruction_request{};
     std::vector<u32> events;
 };
 
@@ -101,6 +114,19 @@ public:
         openswd3::battle::kLegacyBattleActorGroupBElementCount &&
         request.constructor_token ==
         openswd3::battle::kLegacyBattleActorGroupBConstructorToken &&
+        request.destructor_token ==
+        openswd3::battle::kLegacyBattleActorGroupBDestructorToken;
+}
+
+[[nodiscard]] bool is_group_b_request(
+    const openswd3::battle::LegacyBattleActorVectorDestructionRequest& request
+) noexcept {
+    return request.base_token ==
+        openswd3::battle::kLegacyBattleActorGroupBBaseToken &&
+        request.element_size ==
+        openswd3::battle::kLegacyBattleActorGroupBElementSize &&
+        request.element_count ==
+        openswd3::battle::kLegacyBattleActorGroupBElementCount &&
         request.destructor_token ==
         openswd3::battle::kLegacyBattleActorGroupBDestructorToken;
 }
@@ -196,6 +222,23 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                 is_group_b_request(result.request) &&
                 is_group_b_request(construction_port.last_construction_request),
             "actor group B wrapper forwards exact vector construction constants"
+        );
+    }
+
+    {
+        TrackingGroupBStaticLifecyclePort destruction_port;
+        destruction_port.destruction_result = 0x13572468U;
+        const auto result =
+            openswd3::battle::release_legacy_battle_actor_group_b(
+                destruction_port
+            );
+        test.expect_true(
+            destruction_port.events == std::vector<u32>{6U} &&
+                result.vector_destructor_calls == 1U &&
+                result.return_value == 0x13572468U &&
+                is_group_b_request(result.request) &&
+                is_group_b_request(destruction_port.last_destruction_request),
+            "actor group B wrapper forwards exact vector destruction constants"
         );
     }
 

@@ -52,6 +52,22 @@ LegacyBattleActorGroupADestructionResult release_legacy_battle_actor_group_a(
     return result;
 }
 
+LegacyBattleActorGroupBDestructionResult release_legacy_battle_actor_group_b(
+    LegacyBattleActorVectorDestructionPort& destruction_port
+) {
+    LegacyBattleActorGroupBDestructionResult result{
+        .request = {
+            .base_token = kLegacyBattleActorGroupBBaseToken,
+            .element_size = kLegacyBattleActorGroupBElementSize,
+            .element_count = kLegacyBattleActorGroupBElementCount,
+            .destructor_token = kLegacyBattleActorGroupBDestructorToken,
+        },
+    };
+    result.return_value = destruction_port.destroy_vector(result.request);
+    result.vector_destructor_calls = 1U;
+    return result;
+}
+
 LegacyBattleActorGroupAStaticInitializationResult
 initialize_legacy_battle_actor_group_a_static_lifecycle(
     LegacyBattleActorVectorConstructionPort& construction_port,

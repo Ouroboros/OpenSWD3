@@ -82,6 +82,12 @@ struct LegacyBattleActorGroupADestructionResult {
     compat::u32 return_value{};
 };
 
+struct LegacyBattleActorGroupBDestructionResult {
+    LegacyBattleActorVectorDestructionRequest request{};
+    compat::u32 vector_destructor_calls{};
+    compat::u32 return_value{};
+};
+
 struct LegacyBattleActorGroupAStaticInitializationResult {
     compat::u32 construct_calls{};
     compat::u32 construction_return_value{};
@@ -111,6 +117,12 @@ construct_legacy_battle_actor_group_b(
 // sub_4517E0: wrap the compiler vector-destruction iterator for group A.
 [[nodiscard]] LegacyBattleActorGroupADestructionResult
 release_legacy_battle_actor_group_a(
+    LegacyBattleActorVectorDestructionPort& destruction_port
+);
+
+// sub_451840: wrap the compiler vector-destruction iterator for group B.
+[[nodiscard]] LegacyBattleActorGroupBDestructionResult
+release_legacy_battle_actor_group_b(
     LegacyBattleActorVectorDestructionPort& destruction_port
 );
 
