@@ -265,6 +265,7 @@ add_executable(
     unit/battle/legacy_battle_hud_frame_test.cpp
     unit/battle/legacy_battle_intensity_effect_frame_test.cpp
     unit/battle/legacy_battle_object_reset_test.cpp
+    unit/battle/legacy_battle_post_action_test.cpp
     unit/battle/legacy_battle_scale_fill_panel_test.cpp
     unit/battle/legacy_battle_scale_scan_test.cpp
     unit/battle/legacy_battle_setup_test.cpp

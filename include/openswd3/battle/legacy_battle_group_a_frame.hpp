@@ -2,6 +2,7 @@
 
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_final_actor_step.hpp"
+#include "openswd3/battle/legacy_battle_post_action.hpp"
 
 #include <array>
 
@@ -30,7 +31,6 @@ struct LegacyBattleGroupAFrameState {
     std::array<compat::u32, 10> actor_ai_secondary{};
     std::array<LegacyBattleGroupAActorRuntime, 10> actors{};
 
-    std::array<compat::u32, 10> actor_queue{};
     compat::u32 selected_opponent_one_based{1U};
     compat::u32 selected_actor_one_based{1U};
     compat::u32 selection_mode{};
@@ -74,6 +74,7 @@ struct LegacyBattleGroupAFrameState {
     compat::u32 sample_handle_value{};
     compat::u32 final_action_gate{};
     LegacyBattleFinalActorStepState final_actor_step{};
+    LegacyBattlePostActionState post_action{};
     compat::u16 queued_selection_word{0xFFFFU};
     compat::u16 final_selected_word{0xFFFFU};
 };

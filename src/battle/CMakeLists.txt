@@ -27,6 +27,7 @@ add_library(
         legacy_battle_opponent_action_dispatch.cpp
         legacy_battle_particle_frame.cpp
         legacy_battle_particle_spawn.cpp
+        legacy_battle_post_action.cpp
         legacy_battle_render_geometry.cpp
         legacy_battle_scale_fill_panel.cpp
         legacy_battle_scale_scan.cpp

@@ -230,8 +230,8 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupAFrameState state;
-        state.actor_queue[0] = 9U;
-        state.actor_queue[1] = 10U;
+        state.final_actor_step.actor_order[0] = 9U;
+        state.final_actor_step.actor_order[1] = 10U;
         Fixture fixture;
         DispatchPort port;
         port.push(0x0047F920U, {.eax = 0U});
@@ -243,7 +243,8 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.return_value == 1U &&
                 state.final_actor_step.queued_actor_code == 9U &&
-                state.actor_queue[0] == 10U && state.actor_queue[1] == 0U,
+                state.final_actor_step.actor_order[0] == 10U &&
+                state.final_actor_step.actor_order[1] == 0U,
             "actor queue publishes first unfinished entry then shifts fixed tail left"
         );
     }
@@ -297,6 +298,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
         state.final_actor_step.action_execution_active = 1U;
         state.action.group_a_count = 0;
         state.action.group_b_count = 0;
+        state.action.selected_target_index = 0U;
         Fixture fixture;
         DispatchPort port;
         port.action = 5U;
@@ -311,13 +313,14 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             result.status == LegacyBattleActionDispatchStatus::completed &&
                 result.return_value == 1U && port.count(0x004539B0U) == 0U &&
                 port.count(0x004786B0U) == 1U &&
+                has_call_argument(port, 0x00478850U, 0U, 0x00525508U) &&
                 state.final_actor_step.action_execution_active == 0U &&
                 state.action.active_effect_target == 0xFFFFFFFFU &&
                 state.shared_gate_4ff578 == 1U &&
                 state.shared_gate_4ff57c == 1U &&
                 state.shared_gate_4ff580 == 1U &&
                 state.shared_gate_4ff584 == 1U,
-            "active actor directly calls closed action dispatcher then performs full cleanup suffix"
+            "active actor directly composes action dispatch and post-action cleanup suffixes"
         );
     }
 
@@ -396,7 +399,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupAFrameState state;
-        state.actor_queue[0] = 7U;
+        state.final_actor_step.actor_order[0] = 7U;
         Fixture fixture;
         DispatchPort port;
         auto context = fixture.context();
