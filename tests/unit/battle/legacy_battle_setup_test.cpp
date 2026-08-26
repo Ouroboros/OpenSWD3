@@ -25,6 +25,7 @@ void test_battle_action_dispatch(openswd3::test::Context& test);
 void test_battle_actor_lifecycle(openswd3::test::Context& test);
 void test_battle_opponent_action_dispatch(openswd3::test::Context& test);
 void test_battle_background_initialization(openswd3::test::Context& test);
+void test_battle_effect_frame(openswd3::test::Context& test);
 void test_battle_frame_coordinator(openswd3::test::Context& test);
 void test_battle_frame_effect(openswd3::test::Context& test);
 void test_battle_group_a_frame(openswd3::test::Context& test);
@@ -6947,6 +6948,7 @@ int main() {
     test_battle_actor_lifecycle(test);
     test_battle_opponent_action_dispatch(test);
     test_battle_background_initialization(test);
+    test_battle_effect_frame(test);
     test_battle_frame_coordinator(test);
     test_battle_frame_effect(test);
     test_battle_group_a_frame(test);

@@ -1,0 +1,128 @@
+#pragma once
+
+#include "openswd3/compat/types.hpp"
+
+#include <array>
+#include <initializer_list>
+
+namespace openswd3::battle {
+
+inline constexpr compat::u32 kLegacyBattleEffectPrimaryBaseToken = 0x005202A8U;
+inline constexpr compat::u32 kLegacyBattleEffectAlternateBaseToken =
+    0x004FE600U;
+inline constexpr compat::u32 kLegacyBattleEffectRecordStride = 0x98U;
+
+struct LegacyBattleEffectCallRequest {
+    compat::u32 callee_token{};
+    std::array<compat::u32, 12> arguments{};
+};
+
+struct LegacyBattleEffectCallReply {
+    compat::u32 eax{};
+    compat::u32 ecx{};
+    compat::u32 edx{};
+    std::array<compat::u32, 8> outputs{};
+};
+
+class LegacyBattleEffectCallPort {
+public:
+    virtual ~LegacyBattleEffectCallPort() = default;
+
+    [[nodiscard]] virtual LegacyBattleEffectCallReply
+    invoke(const LegacyBattleEffectCallRequest& request) = 0;
+};
+
+struct LegacyBattleEffectRecord {
+    compat::u32 source_value{};
+    compat::u32 zero_value{};
+    compat::u32 base_offset{};
+    compat::u16 base_y_offset{};
+    compat::u32 render_flags{};
+    compat::u32 resource_key_token{};
+    compat::u32 resource_aux_value{};
+    compat::u16 lookup_key_a{};
+    compat::u16 lookup_key_b{};
+    compat::u16 pan_value{};
+    compat::u16 status_flags{};
+    compat::u16 shared_word_36{};
+    compat::u16 shared_word_38{};
+    compat::u16 shared_word_3a{};
+    compat::u16 width_adjustment{};
+    compat::u16 y_adjustment{};
+    std::array<compat::u16, 7> action_values{};
+    compat::u32 complete{};
+    compat::u32 mode_snapshot{};
+};
+
+struct LegacyBattleEffectFrameState {
+    std::array<LegacyBattleEffectRecord, 8> primary{};
+    std::array<LegacyBattleEffectRecord, 8> alternate{};
+    std::array<compat::u32, 8> alternate_active{};
+    std::array<compat::u32, 8> animation_counter{};
+
+    compat::u32 animation_mode{};
+    compat::u32 global_mode{};
+    compat::u32 global_flip_mode{};
+    compat::u32 effect_object_token{};
+    compat::u32 target_surface_token{};
+    compat::u32 sample_handle_value{};
+    compat::u32 current_resource_value_token{};
+    compat::i32 shared_x{};
+    compat::i32 shared_y{};
+
+    compat::u16 shared_word_36{};
+    compat::u16 shared_word_38{};
+    compat::u16 shared_word_3a{};
+    compat::u32 primary_suppression{};
+    compat::u32 split_suppression{};
+
+    compat::u32 battle_byte_flags{};
+    compat::u32 battle_gate{};
+    compat::u32 battle_mode_latch{};
+    compat::u32 seven_value_gate{};
+    compat::u32 message_state{};
+    compat::u32 resolved_actor_value{};
+
+    compat::u16 auxiliary_reward{};
+    compat::u32 packed_reward{};
+    compat::i32 reward_value{};
+    compat::u32 reward_display_total{};
+    std::array<compat::u32, 8> reward_auxiliary{};
+    std::array<compat::u32, 8> reward_total{};
+    std::array<compat::u32, 8> reward_high{};
+    std::array<compat::u32, 8> pending_step{};
+
+    compat::u16 final_gate_word{};
+};
+
+enum class LegacyBattleEffectFrameStatus : compat::u8 {
+    completed,
+    slot_index_typed_stop,
+    argument_object_typed_stop,
+    resource_owner_typed_stop,
+};
+
+struct LegacyBattleEffectFrameResult {
+    LegacyBattleEffectFrameStatus status{
+        LegacyBattleEffectFrameStatus::completed
+    };
+    compat::u32 return_value{};
+    compat::u32 port_calls{};
+    compat::u32 primary_animation_steps{};
+    compat::u32 alternate_animation_steps{};
+};
+
+// Typed closure of legacy 0x004582B0. Physical addresses are published only
+// as 32-bit tokens; record, argument-object, resource-owner, and stale-register
+// effects stop at their original first access.
+[[nodiscard]] LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
+    LegacyBattleEffectFrameState& state,
+    LegacyBattleEffectCallPort& port,
+    compat::u32 actor_index,
+    compat::u32 argument_object_token,
+    compat::u32 argument_mode_gate,
+    compat::u32 source_value,
+    compat::u32 slot_index
+);
+
+}  // namespace openswd3::battle

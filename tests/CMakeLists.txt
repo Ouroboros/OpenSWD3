@@ -254,6 +254,7 @@ add_executable(
     unit/battle/legacy_battle_actor_lifecycle_test.cpp
     unit/battle/legacy_battle_opponent_action_dispatch_test.cpp
     unit/battle/legacy_battle_background_initialization_test.cpp
+    unit/battle/legacy_battle_effect_frame_test.cpp
     unit/battle/legacy_battle_frame_coordinator_test.cpp
     unit/battle/legacy_battle_frame_effect_test.cpp
     unit/battle/legacy_battle_group_a_frame_test.cpp
