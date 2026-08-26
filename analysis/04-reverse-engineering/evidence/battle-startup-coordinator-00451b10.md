@@ -136,6 +136,8 @@ modern以80位`long double`执行同序计算，有限域向零转i64并取低32
 
 ## 11. 最终阶段与返回
 
+初始组A角色配置后的第一个全局阶段已回收为玩家道具链typed排序；它按u16 item id稳定升序，每次比较先清当前selected count，交换后从head重扫。排序typed-stop阻断后续第二全局阶段、资料绑定和补位。第二阶段仍保留窄端口。
+
 补位后固定调用三个pending全局阶段。每名敌人调用`random(6)`，结果为N就对该组B对象调用N次固定参数零的动作推进。之后按补位后的队伍总数，对所有组A对象调用最终化callee。
 
 正常返回EAX按u32顺序计算：
@@ -156,7 +158,7 @@ remaining -= low16(supplemental_count_word)
 - `0x00451E53..0x00451EEC`：battle ID、`battle.ffd`及零敌人唯一普通早退；
 - `0x00451EED..0x00452018`：随机背景、已关闭背景helper与组B物化；
 - `0x00452018..0x0045227D`：队伍记录、1–4人坐标、陈旧槽偏移及组A配置；
-- `0x0045227D..0x00452449`：两个全局阶段、四类资料绑定与三组x87比率；
+- `0x0045227D..0x00452449`：已关闭玩家道具排序、第二全局阶段、四类资料绑定与三组x87比率；
 - `0x00452449..0x004526F2`：陈旧word门、随机/顺序两条补位路径；
 - `0x004526F2..0x004527A5`：三个全局阶段、敌方随机动作与队伍最终化；
 - `0x004527A5..0x004527DB`：两次u32减法、unsigned门、可选`0x67`与EAX返回。
@@ -175,9 +177,10 @@ C++到LST反向追溯覆盖1351行、全部48个标签、60个静态call站点�
 - 两名敌人、镜像低word及陈旧ECX高word；
 - 1–4人全部固定坐标和缺席槽不改写；
 - 三组比率、负比率与零除integer-indefinite低dword零；
+- 玩家道具升序、selected count清零、排序停点和第二全局阶段阻断；
 - 顺序补位、陈旧word触发随机补位、重复随机候选重试；
 - 敌人随机动作次数、补位后组A最终化、u32尾减法和`0x67`门；
 - 第九名敌人在前八名副作用后typed-stop；
 - battle聚合目标零warning，普通定向与独立ASan定向均`1/1`通过。
 
-`battle.ffd`具体open/load callee属于后续`audit_order=107/108`，角色、AI和全局阶段callee也各有后续工作包；当前只以typed端口关闭本caller顺序和数据流。原版文件对象、全部共享表、18个角色对象、窗口surface、随机状态与后续状态联合捕获后端缺失，`original_diff_verified`为`blocked_runtime_oracle`。
+`battle.ffd`具体open/load callee属于后续`audit_order=107/108`，角色、AI和其余全局阶段callee也各有后续工作包；当前只以typed端口关闭本caller顺序和数据流。原版文件对象、全部共享表、18个角色对象、窗口surface、随机状态与后续状态联合捕获后端缺失，`original_diff_verified`为`blocked_runtime_oracle`。

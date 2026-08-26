@@ -572,9 +572,13 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         ++result.initial_party_actor_count;
     }
 
-    static_cast<void>(
-        invoke(port, LegacyBattleStartupCall::post_party_phase_a)
-    );
+    result.player_item_order =
+        order_legacy_battle_player_items(port.world_item_list_state());
+    if (result.player_item_order.status !=
+        LegacyBattlePlayerItemOrderStatus::completed) {
+        result.status = LegacyBattleStartupStatus::player_item_order_typed_stop;
+        return result;
+    }
     static_cast<void>(
         invoke(port, LegacyBattleStartupCall::post_party_phase_b)
     );

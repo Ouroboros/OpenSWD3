@@ -407,6 +407,17 @@ void test_battle_startup(openswd3::test::Context& test) {
             .position_x = 300U,
             .position_y = 400U,
         };
+        auto& player_items = ports.world_item_list_state();
+        player_items.player_inventory_head_token = 0x00600000U;
+        auto& high_item = player_items.player_inventory.emplace_back();
+        high_item.legacy_token = 0x00600000U;
+        high_item.legacy_next_token = 0x006000B0U;
+        high_item.item_id = 9U;
+        high_item.selected_count = 3U;
+        auto& low_item = player_items.player_inventory.emplace_back();
+        low_item.legacy_token = 0x006000B0U;
+        low_item.item_id = 3U;
+        low_item.selected_count = 4U;
 
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
             state, ports, ports, ports, ports, ports, ports, request(7U)
@@ -428,6 +439,15 @@ void test_battle_startup(openswd3::test::Context& test) {
                 state.enemies[0].position_x == 540U &&
                 state.enemies[1].position_x == 340U &&
                 result.initial_party_actor_count == 2U &&
+                result.player_item_order.swaps == 1U &&
+                result.player_item_order.comparisons == 2U &&
+                player_items.player_inventory_head_token == 0x006000B0U &&
+                player_items.player_inventory.front().item_id == 3U &&
+                player_items.player_inventory.back().item_id == 9U &&
+                player_items.player_inventory.front().selected_count == 0U &&
+                player_items.player_inventory.back().selected_count == 0U &&
+                ports.call_count(LegacyBattleStartupCall::post_party_phase_b) ==
+                    1U &&
                 state.party[0].role_id == 101U &&
                 state.party[0].position_x == 150U &&
                 state.party[0].position_y == 275U &&
@@ -577,6 +597,29 @@ void test_battle_startup(openswd3::test::Context& test) {
         test.expect_true(
             positions_match,
             "one through four party layouts preserve all fixed coordinate branches and stale unused slots"
+        );
+    }
+
+    {
+        LegacyBattleStartupState state;
+        StartupPorts ports;
+        ports.definition.enemy_count = 1U;
+        ports.random_values = {0U};
+        ports.world_item_list_state().player_inventory_head_token = 0x00700000U;
+        const auto result = openswd3::battle::initialize_legacy_battle_startup(
+            state, ports, ports, ports, ports, ports, ports, request(20U)
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleStartupStatus::
+                        player_item_order_typed_stop &&
+                result.player_item_order.status ==
+                    openswd3::battle::LegacyBattlePlayerItemOrderStatus::
+                        item_node_typed_stop &&
+                result.player_item_order.fault_token == 0x00700000U &&
+                ports.call_count(LegacyBattleStartupCall::post_party_phase_b) ==
+                    0U,
+            "player-item order typed stop blocks the second pending global startup phase"
         );
     }
 

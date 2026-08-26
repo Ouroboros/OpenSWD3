@@ -2,6 +2,7 @@
 
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_group_b_order.hpp"
+#include "openswd3/battle/legacy_battle_player_item_order.hpp"
 #include "openswd3/battle/legacy_battle_background_initialization.hpp"
 #include "openswd3/battle/legacy_battle_render_geometry.hpp"
 #include "openswd3/battle/legacy_battle_timing.hpp"
@@ -101,7 +102,6 @@ enum class LegacyBattleStartupCall : compat::u16 {
     set_enemy_mode,
     configure_party_actor,
     query_party_actor_mode,
-    post_party_phase_a,
     post_party_phase_b,
     apply_party_profile,
     apply_party_value,
@@ -143,7 +143,8 @@ struct LegacyBattleStartupCallReply {
 
 class LegacyBattleStartupPort
     : public virtual LegacyBattleActorMetricStatePort,
-      public virtual LegacyBattleActorPublicationStatePort {
+      public virtual LegacyBattleActorPublicationStatePort,
+      public virtual world_map::LegacyWorldItemListStatePort {
 public:
     virtual ~LegacyBattleStartupPort() = default;
 
@@ -277,6 +278,7 @@ enum class LegacyBattleStartupStatus : compat::u8 {
     actor_metric_typed_stop,
     actor_order_typed_stop,
     group_b_order_typed_stop,
+    player_item_order_typed_stop,
     random_result_out_of_range,
 };
 
@@ -300,6 +302,7 @@ struct LegacyBattleStartupResult {
     LegacyBattleBackgroundInitializationResult background{};
     compat::u32 enemy_actor_count{};
     compat::u32 initial_party_actor_count{};
+    LegacyBattlePlayerItemOrderResult player_item_order{};
     compat::u32 supplemental_actor_count{};
     compat::u32 enemy_action_advance_calls{};
     compat::u32 finalized_party_actor_count{};
