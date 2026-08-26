@@ -1,0 +1,668 @@
+#include "openswd3/battle/legacy_battle_opponent_action_dispatch.hpp"
+
+#include <algorithm>
+#include <bit>
+#include <cstring>
+
+namespace openswd3::battle {
+namespace {
+
+using compat::i32;
+using compat::u8;
+using compat::u16;
+using compat::u32;
+
+constexpr u32 kCallQueryAction = 0x004786B0U;
+constexpr u32 kCallPreparePair = 0x004758A0U;
+constexpr u32 kCallCommitPair = 0x0045D690U;
+constexpr u32 kCallCommitVisual = 0x0047F150U;
+constexpr u32 kCallSetDelay = 0x00478710U;
+constexpr u32 kCallQuerySelection = 0x0047C680U;
+constexpr u32 kCallQuerySpecial = 0x0047D8E0U;
+constexpr u32 kCallAllocate = 0x00489E90U;
+constexpr u32 kCallDelete = 0x00489D00U;
+constexpr u32 kCallPrepareTargetPhase = 0x00484020U;
+constexpr u32 kCallFinishTargetPhase = 0x004841B0U;
+constexpr u32 kCallSetTargetMode = 0x004787F0U;
+constexpr u32 kCallClearMode = 0x0047D870U;
+constexpr u32 kCallPublishStage = 0x0045EFB0U;
+constexpr u32 kCallBeginEffect = 0x0045AF90U;
+constexpr u32 kCallTargetComplete = 0x00479850U;
+constexpr u32 kCallActionTen = 0x0047F3C0U;
+constexpr u32 kCallQueryModeB = 0x0047C950U;
+constexpr u32 kCallQueryModeC = 0x0047C6B0U;
+constexpr u32 kCallPushMode = 0x0047D830U;
+constexpr u32 kCallPopMode = 0x0047D810U;
+constexpr u32 kCallFinalizeMode = 0x0047D860U;
+constexpr u32 kCallQuerySeventeen = 0x004763D0U;
+constexpr u32 kCallInitializeOpponentWaves = 0x00476900U;
+constexpr u32 kCallResetOpponent = 0x0047D350U;
+constexpr u32 kCallMirrorOpponent = 0x0047F900U;
+constexpr u32 kCallPrepareOpponentScratch = 0x00476DB0U;
+constexpr u32 kCallUpdateOpponentScratch = 0x00478220U;
+constexpr u32 kCallCommitOpponentRecord = 0x00475720U;
+constexpr u32 kCallAdvanceBattleA = 0x0045B0E0U;
+constexpr u32 kCallAdvanceBattleB = 0x0045B190U;
+constexpr u32 kCallAdvanceBattleC = 0x0045B5A0U;
+constexpr u32 kCallQueryOpponentCondition = 0x0047CE80U;
+constexpr u32 kCallActionTwoHundred = 0x00482310U;
+constexpr u32 kCallActionThreeHundred = 0x00482840U;
+
+constexpr u32 kOpponentScratchToken = 0x005246E0U;
+constexpr u32 kOpponentRecordBaseToken = 0x005213A0U;
+constexpr u32 kOpponentRecordStride = 0x20U;
+[[nodiscard]] constexpr u32 to_bits(const i32 value) noexcept {
+    return std::bit_cast<u32>(value);
+}
+
+[[nodiscard]] constexpr u16 low_word(const u32 value) noexcept {
+    return static_cast<u16>(value);
+}
+
+[[nodiscard]] constexpr u8 low_byte(const u32 value) noexcept {
+    return static_cast<u8>(value);
+}
+
+constexpr void replace_low_word(u32& target, const u16 value) noexcept {
+    target = (target & 0xFFFF0000U) | static_cast<u32>(value);
+}
+
+constexpr void replace_low_byte(u32& target, const u8 value) noexcept {
+    target = (target & 0xFFFFFF00U) | static_cast<u32>(value);
+}
+
+[[nodiscard]] constexpr u32 group_a_token(const u32 index) noexcept {
+    return kLegacyBattleActionGroupABaseToken +
+        index * kLegacyBattleActionGroupAStride;
+}
+
+[[nodiscard]] constexpr u32 group_b_token(const u32 index) noexcept {
+    return kLegacyBattleActionGroupBBaseToken +
+        index * kLegacyBattleActionGroupBStride;
+}
+
+[[nodiscard]] constexpr u32 opponent_record_token(const u32 index) noexcept {
+    return kOpponentRecordBaseToken + index * kOpponentRecordStride;
+}
+
+[[nodiscard]] bool validate_group_a(
+    LegacyBattleActionDispatchResult& result, const u32 index
+) noexcept {
+    if (index < 10U) {
+        return true;
+    }
+    result.status = LegacyBattleActionDispatchStatus::group_a_index_typed_stop;
+    return false;
+}
+
+[[nodiscard]] bool validate_group_b(
+    LegacyBattleActionDispatchResult& result, const u32 index
+) noexcept {
+    if (index < 8U) {
+        return true;
+    }
+    result.status = LegacyBattleActionDispatchStatus::group_b_index_typed_stop;
+    return false;
+}
+
+[[nodiscard]] LegacyBattleActionCallReply invoke(
+    LegacyBattleActionDispatchState& state,
+    LegacyBattleActionDispatchPort& port,
+    LegacyBattleActionDispatchResult& result,
+    const u32 callee,
+    const std::array<u32, 8>& arguments = {}
+) {
+    ++result.port_calls;
+    LegacyBattleActionCallReply reply =
+        port.invoke({.callee_token = callee, .arguments = arguments});
+    if (reply.publish_accumulator) {
+        state.action_accumulator = reply.accumulator;
+    }
+    if (reply.publish_selection_word) {
+        state.selection_word = reply.selection_word;
+    }
+    if (reply.publish_selection_high_word) {
+        state.selection_high_word = reply.selection_high_word;
+    }
+    if (reply.publish_opponent_special_action) {
+        state.opponent_special_action = reply.opponent_special_action;
+    }
+    if (reply.publish_opponent_spawn_count) {
+        state.opponent_spawn_count = reply.opponent_spawn_count;
+    }
+    return reply;
+}
+
+[[nodiscard]] bool clear_framebuffer(
+    LegacyBattleActionDispatchState& state,
+    LegacyBattleActionDispatchContext& context,
+    LegacyBattleActionDispatchResult& result
+) noexcept {
+    const u32 width = static_cast<u32>(context.raster.surface.width);
+    const u32 height = static_cast<u32>(context.raster.surface.height);
+    const u32 requested_pixels = width * height;
+    state.frame_refresh_pending = 1U;
+    auto pixels = context.framebuffer.physical_pixels();
+    const std::size_t prefix =
+        std::min<std::size_t>(requested_pixels, pixels.size());
+    std::fill_n(pixels.begin(), prefix, 0xFFFFU);
+    ++result.framebuffer_clear_calls;
+    if (requested_pixels > pixels.size()) {
+        result.status =
+            LegacyBattleActionDispatchStatus::framebuffer_typed_stop;
+        return false;
+    }
+    return true;
+}
+
+void clear_selection_state(LegacyBattleActionDispatchState& state) noexcept {
+    state.action_accumulator = 0U;
+    state.selection_word = 0U;
+    state.selection_high_word = 0U;
+}
+
+void advance_battle_stages(
+    LegacyBattleActionDispatchState& state,
+    LegacyBattleActionDispatchPort& port,
+    LegacyBattleActionDispatchResult& result
+) {
+    static_cast<void>(invoke(state, port, result, kCallAdvanceBattleA));
+    static_cast<void>(invoke(state, port, result, kCallAdvanceBattleB));
+    static_cast<void>(invoke(state, port, result, kCallAdvanceBattleC));
+}
+
+[[nodiscard]] LegacyBattleActionDispatchResult
+completed(LegacyBattleActionDispatchResult result, const u32 value) noexcept {
+    result.return_value = value;
+    return result;
+}
+
+}  // namespace
+
+LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
+    LegacyBattleActionDispatchState& state,
+    LegacyBattleActionDispatchPort& port,
+    LegacyBattleActionDispatchContext& context,
+    const u32 group_b_index,
+    const u32 target_index
+) {
+    LegacyBattleActionDispatchResult result;
+    if (!validate_group_b(result, group_b_index)) {
+        return result;
+    }
+    const u32 source_token = group_b_token(group_b_index);
+    const u16 action = low_word(
+        invoke(state, port, result, kCallQueryAction, {source_token}).eax
+    );
+    result.action_code = action;
+
+    if (action > 100U) {
+        if (action == 200U) {
+            if (!validate_group_a(result, target_index)) {
+                return result;
+            }
+            static_cast<void>(invoke(
+                state,
+                port,
+                result,
+                kCallActionTwoHundred,
+                {source_token, group_a_token(target_index)}
+            ));
+            return result;
+        }
+        if (action == 300U) {
+            if (!validate_group_a(result, target_index)) {
+                return result;
+            }
+            const auto reply = invoke(
+                state,
+                port,
+                result,
+                kCallActionThreeHundred,
+                {source_token, group_a_token(target_index), 0xFFFFFFFFU, 0U}
+            );
+            if (reply.eax == 1U) {
+                state.current_actor_index = 0xFFFFU;
+                return completed(result, 1U);
+            }
+        }
+        return result;
+    }
+    if (action == 100U) {
+        return completed(result, 1U);
+    }
+
+    switch (action) {
+    case 1U: {
+        if (state.side_mode == 0U) {
+            if (!validate_group_a(result, target_index)) {
+                return result;
+            }
+            const u32 target_token = group_a_token(target_index);
+            if (invoke(
+                    state,
+                    port,
+                    result,
+                    kCallPreparePair,
+                    {source_token, target_token}
+                )
+                    .eax != 1U) {
+                return result;
+            }
+            state.action_pending = 1U;
+            state.action_pending_aux = 0U;
+            replace_low_word(
+                state.packed_action_state, static_cast<u16>(target_index)
+            );
+            static_cast<void>(invoke(
+                state,
+                port,
+                result,
+                kCallCommitPair,
+                {source_token, target_token}
+            ));
+            if (state.blocking_effect == 0U &&
+                invoke(
+                    state,
+                    port,
+                    result,
+                    kCallCommitVisual,
+                    {target_token,
+                     state.action_accumulator,
+                     state.selection_word,
+                     state.selection_high_word}
+                )
+                        .eax == 1U) {
+                state.selected_target_index = static_cast<u16>(target_index);
+                if (!clear_framebuffer(state, context, result)) {
+                    return result;
+                }
+            }
+            clear_selection_state(state);
+            state.current_actor_index = 0xFFFFU;
+            static_cast<void>(
+                invoke(state, port, result, kCallSetDelay, {source_token, 300U})
+            );
+            return result;
+        }
+
+        if (!validate_group_b(result, target_index)) {
+            return result;
+        }
+        const u32 target_token = group_b_token(target_index);
+        if (invoke(
+                state,
+                port,
+                result,
+                kCallPreparePair,
+                {source_token, target_token}
+            )
+                .eax != 1U) {
+            return result;
+        }
+        state.action_pending = 1U;
+        state.action_pending_aux = 0U;
+        replace_low_word(
+            state.packed_action_state, static_cast<u16>(target_index)
+        );
+        if (state.blocking_effect == 0U &&
+            invoke(
+                state,
+                port,
+                result,
+                kCallCommitVisual,
+                {target_token, state.action_accumulator, 0U, 0U}
+            )
+                    .eax == 1U) {
+            if (target_index >= state.group_a_to_actor.size()) {
+                result.status =
+                    LegacyBattleActionDispatchStatus::actor_map_typed_stop;
+                return result;
+            }
+            state.group_a_to_actor[target_index] = target_index;
+            state.selected_target_index = static_cast<u16>(target_index);
+            if (!clear_framebuffer(state, context, result)) {
+                return result;
+            }
+        }
+        state.action_accumulator = 0U;
+        state.current_actor_index = 0xFFFFU;
+        return completed(result, 1U);
+    }
+
+    case 2U: {
+        if ((state.action_runtime_flags & 0x8000U) == 0U) {
+            replace_low_word(
+                state.action_runtime_flags,
+                static_cast<u16>(state.action_runtime_flags | 0x8000U)
+            );
+            state.active_actor_snapshot = low_word(
+                invoke(state, port, result, kCallQuerySelection, {source_token})
+                    .eax
+            );
+            state.target_identity.fill(0xFFFFFFFFU);
+            replace_low_word(state.input_mode, 1U);
+            state.selection_workspace.fill(0U);
+            if (invoke(state, port, result, kCallQuerySpecial, {source_token})
+                    .eax == 1U) {
+                state.deformation_active = true;
+                const u32 owner =
+                    invoke(state, port, result, kCallAllocate, {0x2CU}).eax;
+                state.deformation_owner_token = owner;
+                if (owner != 0U) {
+                    try {
+                        state.deformation = std::make_unique<
+                            asset_runtime::LegacyDeformationNode>(
+                            asset_runtime::LegacyDeformationConfiguration{
+                                .framebuffer_width = 640U,
+                                .framebuffer_height = 480U,
+                                .origin_x = 0,
+                                .origin_y = 0,
+                                .field_width = 200U,
+                                .field_height = 200U,
+                            }
+                        );
+                    } catch (...) {
+                        static_cast<void>(
+                            invoke(state, port, result, kCallDelete, {owner})
+                        );
+                        state.deformation_owner_token = 0U;
+                        throw;
+                    }
+                }
+            }
+        }
+        if ((state.action_runtime_flags & 1U) == 0U) {
+            return result;
+        }
+        clear_selection_state(state);
+        if (state.deformation_active && state.deformation) {
+            state.deformation.reset();
+            static_cast<void>(invoke(
+                state,
+                port,
+                result,
+                kCallDelete,
+                {state.deformation_owner_token}
+            ));
+            state.deformation_owner_token = 0U;
+        }
+        state.deformation_active = false;
+        state.frame_effect.fade_active = 1U;
+        return completed(result, 1U);
+    }
+
+    case 6U: {
+        if (low_word(state.phase_counter) == 0U) {
+            if (!validate_group_a(result, target_index)) {
+                return result;
+            }
+            const u32 target_token = group_a_token(target_index);
+            static_cast<void>(invoke(
+                state,
+                port,
+                result,
+                kCallPrepareTargetPhase,
+                {source_token, target_index, target_token}
+            ));
+            static_cast<void>(invoke(
+                state, port, result, kCallSetTargetMode, {target_token, 1U}
+            ));
+            static_cast<void>(
+                invoke(state, port, result, kCallClearMode, {target_token, 1U})
+            );
+            static_cast<void>(invoke(
+                state, port, result, kCallPublishStage, {target_index + 8U}
+            ));
+            state.frame_effect.red_factor = -12;
+            state.frame_effect.green_factor = -12;
+            state.frame_effect.blue_factor = -12;
+            state.frame_effect.primary_suppression = 1U;
+            static_cast<void>(
+                invoke(state, port, result, kCallBeginEffect, {0U})
+            );
+            replace_low_word(state.phase_counter, 1U);
+            replace_low_word(state.input_mode, 1U);
+        }
+        if (invoke(
+                state,
+                port,
+                result,
+                kCallFinishTargetPhase,
+                {source_token, target_index}
+            )
+                .eax != 1U) {
+            return result;
+        }
+        replace_low_word(state.input_mode, 1U);
+        replace_low_word(state.phase_counter, 0U);
+        state.frame_effect.primary_suppression = 0U;
+        state.current_actor_index = 0xFFFFU;
+        state.frame_effect.fade_active = 1U;
+        return completed(result, 1U);
+    }
+
+    case 7U: {
+        if (!validate_group_a(result, target_index)) {
+            return result;
+        }
+        const u32 target_token = group_a_token(target_index);
+        if (invoke(state, port, result, kCallTargetComplete, {target_token})
+                .eax != 1U) {
+            return result;
+        }
+        static_cast<void>(
+            invoke(state, port, result, kCallSetDelay, {target_token, 0U})
+        );
+        const u32 stage = target_index + 4U;
+        static_cast<void>(
+            invoke(state, port, result, kCallPublishStage, {stage})
+        );
+        if (target_index <= 3U) {
+            replace_low_byte(
+                state.packed_actor_counter,
+                static_cast<u8>(state.packed_actor_counter + 1U)
+            );
+        }
+        if (state.active_target_code == stage) {
+            state.active_target_code = 0U;
+        }
+        if (state.active_effect_target == stage) {
+            state.active_effect_target = 0xFFFFFFFFU;
+            state.active_effect_gate = 0U;
+        }
+        return completed(result, 1U);
+    }
+
+    case 10U:
+        static_cast<void>(
+            invoke(state, port, result, kCallActionTen, {source_token, 0U})
+        );
+        return result;
+
+    case 11U:
+        if (invoke(
+                state,
+                port,
+                result,
+                kCallQueryModeB,
+                {source_token, source_token}
+            )
+                .eax != 1U) {
+            return result;
+        }
+        static_cast<void>(
+            invoke(state, port, result, kCallPushMode, {source_token, 0x1000U})
+        );
+        static_cast<void>(
+            invoke(state, port, result, kCallClearMode, {source_token, 0U})
+        );
+        static_cast<void>(
+            invoke(state, port, result, kCallFinalizeMode, {source_token, 8U})
+        );
+        state.overlay_gate = 1U;
+        return completed(result, 1U);
+
+    case 12U:
+        if (invoke(state, port, result, kCallQueryModeC, {source_token}).eax !=
+            1U) {
+            return result;
+        }
+        static_cast<void>(
+            invoke(state, port, result, kCallClearMode, {source_token, 1U})
+        );
+        static_cast<void>(
+            invoke(state, port, result, kCallPopMode, {source_token, 0x1000U})
+        );
+        static_cast<void>(
+            invoke(state, port, result, kCallFinalizeMode, {source_token, 8U})
+        );
+        state.overlay_gate = 1U;
+        if (static_cast<i32>(low_byte(state.opponent_processed_counter)) >=
+            state.group_b_count) {
+            state.scene_gate = 0U;
+            state.message_state = 0x63U;
+        }
+        return completed(result, 1U);
+
+    case 15U: {
+        if ((state.phase_counter & 0x8000U) == 0U) {
+            replace_low_word(state.phase_counter, 0x8019U);
+            static_cast<void>(invoke(
+                state,
+                port,
+                result,
+                kCallInitializeOpponentWaves,
+                {source_token}
+            ));
+            u32 wave = 0U;
+            while (wave < state.opponent_spawn_count) {
+                const u32 record_index = to_bits(state.group_b_count);
+                if (!validate_group_b(result, record_index)) {
+                    return result;
+                }
+                const u32 opponent_token = group_b_token(record_index);
+                static_cast<void>(invoke(
+                    state, port, result, kCallResetOpponent, {opponent_token}
+                ));
+                state.opponent_scratch.fill(std::byte{0});
+                auto& record = state.opponent_records[record_index];
+                record.action_id = state.opponent_special_action;
+                record.x = 0xF0U;
+                record.y = wave == 1U ? 0x15EU : 0xDCU;
+                record.runtime_value = 0U;
+                if (state.mirror_group_b_spawn == 1U) {
+                    static_cast<void>(invoke(
+                        state,
+                        port,
+                        result,
+                        kCallMirrorOpponent,
+                        {opponent_token, 1U}
+                    ));
+                    record.x = static_cast<u16>(0x280U - record.x);
+                }
+                const u32 stale_edx = ((record_index * 0x20U) & 0xFFFF0000U) |
+                    state.opponent_special_action;
+                static_cast<void>(invoke(
+                    state,
+                    port,
+                    result,
+                    kCallPrepareOpponentScratch,
+                    {kOpponentScratchToken, stale_edx}
+                ));
+                const auto update = invoke(
+                    state,
+                    port,
+                    result,
+                    kCallUpdateOpponentScratch,
+                    {kOpponentScratchToken}
+                );
+                const u32 stale_eax =
+                    (update.eax & 0xFFFF0000U) | state.opponent_special_action;
+                static_cast<void>(invoke(
+                    state,
+                    port,
+                    result,
+                    kCallCommitOpponentRecord,
+                    {opponent_token,
+                     opponent_record_token(record_index),
+                     stale_eax}
+                ));
+                static_cast<void>(invoke(
+                    state, port, result, kCallPopMode, {opponent_token, 0x400U}
+                ));
+                ++state.group_b_count;
+                ++result.group_b_iterations;
+                advance_battle_stages(state, port, result);
+                ++wave;
+            }
+        }
+        const u16 decremented =
+            static_cast<u16>(low_word(state.phase_counter) - 1U);
+        replace_low_word(state.phase_counter, decremented);
+        if ((decremented & 0x7FFFU) != 0U) {
+            return result;
+        }
+        state.current_actor_index = 0xFFFFU;
+        replace_low_word(state.phase_counter, 0U);
+        state.opponent_spawn_count = 0U;
+        return completed(result, 1U);
+    }
+
+    case 17U: {
+        if (invoke(state, port, result, kCallQuerySeventeen, {source_token})
+                .eax != 1U) {
+            return result;
+        }
+        static_cast<void>(
+            invoke(state, port, result, kCallClearMode, {source_token, 1U})
+        );
+        static_cast<void>(
+            invoke(state, port, result, kCallFinalizeMode, {source_token, 8U})
+        );
+        static_cast<void>(
+            invoke(state, port, result, kCallSetTargetMode, {source_token, 1U})
+        );
+        state.overlay_gate = 1U;
+        const u8 processed =
+            static_cast<u8>(state.opponent_processed_counter + 1U);
+        replace_low_byte(state.opponent_processed_counter, processed);
+        if (static_cast<i32>(processed) >= state.group_b_count) {
+            state.opponent_workspace.fill(0U);
+            state.action_pending_aux = 1U;
+            state.scene_gate = 0U;
+            state.message_state = 0x63U;
+            for (std::size_t index = 0U;
+                 index < state.opponent_workspace.size();
+                 index += 7U) {
+                state.opponent_workspace[index] = 0xFFFFFFFFU;
+            }
+        }
+        if (state.opponent_special_action != 0U) {
+            const auto condition = invoke(
+                state,
+                port,
+                result,
+                kCallQueryOpponentCondition,
+                {kLegacyBattleActionGroupBBaseToken}
+            );
+            if (condition.eax == 0U &&
+                to_bits(state.group_b_count) - processed == 1U) {
+                state.group_b_count = 1;
+                replace_low_byte(
+                    state.opponent_processed_counter, low_byte(condition.eax)
+                );
+                state.opponent_special_action = 0U;
+                state.post_battle_counter = 0U;
+                advance_battle_stages(state, port, result);
+            }
+        }
+        return completed(result, 1U);
+    }
+
+    default:
+        return result;
+    }
+}
+
+}  // namespace openswd3::battle

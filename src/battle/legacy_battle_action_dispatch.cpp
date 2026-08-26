@@ -142,6 +142,12 @@ void replace_high_word(u32& destination, const u16 value) noexcept {
     if (reply.publish_selection_high_word) {
         state.selection_high_word = reply.selection_high_word;
     }
+    if (reply.publish_opponent_special_action) {
+        state.opponent_special_action = reply.opponent_special_action;
+    }
+    if (reply.publish_opponent_spawn_count) {
+        state.opponent_spawn_count = reply.opponent_spawn_count;
+    }
     return reply;
 }
 

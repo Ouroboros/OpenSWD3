@@ -16,6 +16,7 @@ add_library(
         legacy_battle_frame_draw.cpp
         legacy_battle_image_rotation.cpp
         legacy_battle_object_reset.cpp
+        legacy_battle_opponent_action_dispatch.cpp
         legacy_battle_particle_frame.cpp
         legacy_battle_particle_spawn.cpp
         legacy_battle_render_geometry.cpp

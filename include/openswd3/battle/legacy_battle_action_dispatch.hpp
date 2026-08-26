@@ -36,6 +36,10 @@ struct LegacyBattleActionCallReply {
     compat::u16 selection_word{};
     bool publish_selection_high_word{};
     compat::u16 selection_high_word{};
+    bool publish_opponent_special_action{};
+    compat::u16 opponent_special_action{};
+    bool publish_opponent_spawn_count{};
+    compat::u16 opponent_spawn_count{};
     compat::u32 object_flags{};
 };
 
@@ -45,6 +49,13 @@ public:
 
     [[nodiscard]] virtual LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) = 0;
+};
+
+struct LegacyBattleOpponentRecord {
+    compat::u16 action_id{};
+    compat::u16 x{};
+    compat::u16 y{};
+    compat::u32 runtime_value{};
 };
 
 struct LegacyBattleActionDispatchState {
@@ -74,6 +85,7 @@ struct LegacyBattleActionDispatchState {
     compat::u32 action_runtime_flags{};
     compat::u16 side_selection_word{};
     compat::u32 scene_value{};
+    compat::u32 scene_gate{};
     compat::u32 input_mode{};
     compat::u32 battle_flags{};
     compat::u32 active_actor_count{};
@@ -101,6 +113,17 @@ struct LegacyBattleActionDispatchState {
 
     compat::u32 packed_actor_counter{};
     compat::u32 group_a_special_count{};
+    compat::u16 opponent_special_action{};
+    compat::u16 opponent_spawn_count{};
+    compat::u32 opponent_processed_counter{};
+    compat::u32 mirror_group_b_spawn{};
+    std::array<LegacyBattleOpponentRecord, 8> opponent_records{};
+    std::array<std::byte, 0xA4> opponent_scratch{};
+    std::array<compat::u32, 0x7E> opponent_workspace{};
+    compat::u32 active_target_code{};
+    compat::u32 active_effect_target{};
+    compat::u32 active_effect_gate{};
+    compat::u32 post_battle_counter{};
     compat::u32 current_summon_index{};
     compat::u32 summon_packed{};
     compat::u32 summon_gate{};
