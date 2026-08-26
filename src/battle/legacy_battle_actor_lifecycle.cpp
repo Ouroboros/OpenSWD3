@@ -19,6 +19,23 @@ LegacyBattleActorGroupAConstructionResult construct_legacy_battle_actor_group_a(
     return result;
 }
 
+LegacyBattleActorGroupBConstructionResult construct_legacy_battle_actor_group_b(
+    LegacyBattleActorVectorConstructionPort& construction_port
+) {
+    LegacyBattleActorGroupBConstructionResult result{
+        .request = {
+            .base_token = kLegacyBattleActorGroupBBaseToken,
+            .element_size = kLegacyBattleActorGroupBElementSize,
+            .element_count = kLegacyBattleActorGroupBElementCount,
+            .constructor_token = kLegacyBattleActorGroupBConstructorToken,
+            .destructor_token = kLegacyBattleActorGroupBDestructorToken,
+        },
+    };
+    result.return_value = construction_port.construct_vector(result.request);
+    result.vector_constructor_calls = 1U;
+    return result;
+}
+
 LegacyBattleActorGroupADestructionResult release_legacy_battle_actor_group_a(
     LegacyBattleActorVectorDestructionPort& destruction_port
 ) {
@@ -54,12 +71,13 @@ initialize_legacy_battle_actor_group_a_static_lifecycle(
 
 LegacyBattleActorGroupBStaticInitializationResult
 initialize_legacy_battle_actor_group_b_static_lifecycle(
-    LegacyBattleActorGroupBConstructionEntryPort& construction_entry_port,
+    LegacyBattleActorVectorConstructionPort& construction_port,
     LegacyBattleActorExitRegistrationPort& exit_registration_port
 ) {
     LegacyBattleActorGroupBStaticInitializationResult result;
-    result.construction_return_value =
-        construction_entry_port.construct_group();
+    const auto construction =
+        construct_legacy_battle_actor_group_b(construction_port);
+    result.construction_return_value = construction.return_value;
     result.construct_calls = 1U;
     result.return_value = exit_registration_port.register_exit_cleanup(
         kLegacyBattleActorGroupBExitCleanupToken

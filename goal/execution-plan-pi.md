@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v710
+版本：v711
 
 最后更新：2026-08-25
 
@@ -3914,5 +3914,6 @@ B7 P0 有限收口完成。
 - 模块10战斗角色组A向量构造包装器`0x004517B0`完成。完整19行按逆序压入组A析构回调、构造回调、数量10、元素尺寸`0x2F34`和全局基址，再调用MSVC向量构造迭代器并直接返回；typed request逐字段锁定五个物理参数并保留callee完整EAX。上一项静态初始化器已删除opaque构造入口，直接调用本typed helper；测试证明构造返回被记录但最终由后续`_atexit`结果覆盖。定向测试、独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`44/422`，即`39 platform_adapted + 5 assembly_exact + 378 pending_audit`，SHA256为`e2a8e98e2ee44b32bc15c9322888b8df06947eb71635ae0cdbac7210cdbe89ea`。原版编译器向量构造迭代器、角色元素构造/析构回调、全局数组字节与异常展开联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 - 模块10战斗角色组A向量析构包装器`0x004517E0`完成。完整17行按逆序压入组A析构回调、数量10、元素尺寸`0x2F34`和全局基址，调用MSVC向量析构迭代器并直接返回；typed destruction request逐字段锁定四个参数并保留callee完整EAX。静态生命周期CRT端口现显式接收本关闭函数token，退出注册目标不再opaque。定向测试锁定四项参数、单次析构调用、callee EAX和静态注册token；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`45/422`，即`40 platform_adapted + 5 assembly_exact + 377 pending_audit`，SHA256为`c0e0dea18b67a869b18e513556bfeac6a5a573e11e93fcb52aad8896b0a57afd`。原版编译器向量析构迭代器、角色元素析构回调、全局数组字节与异常展开联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 - 模块10战斗角色组B静态生命周期注册`0x00451800`完成。完整函数由13行主体和`0x00451830..0x0045183B`十行外部FUNCTION CHUNK组成；主体调用独立组B构造包装器，chunk把组B退出函数token注册给CRT `_atexit`并原样返回注册EAX。typed状态未复用组A参数，构造EAX仅记录且由注册结果覆盖。定向测试锁定组B构造严格先于注册、两个入口各一次、精确组B退出token及注册0/全1结果；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`46/422`，即`41 platform_adapted + 5 assembly_exact + 376 pending_audit`，SHA256为`214befc775dde579dd00bbd9853ae5133cb1ee6764a0409aa1f4268dcc4a636f`。原版组B构造状态、CRT静态初始化表执行与退出注册结果联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
+- 模块10战斗角色组B向量构造包装器`0x00451810`完成。完整19行按逆序压入组B析构回调、构造回调、数量8、元素尺寸`0x2B28`和全局基址，调用MSVC向量构造迭代器并直接返回；typed request与组A同形但五项常量完全独立，并保留callee完整EAX。组B静态caller已删除临时opaque构造入口，直接调用本helper。定向测试锁定五项参数、单次构造、callee EAX、构造先于退出注册及组A请求不回归；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`47/422`，即`42 platform_adapted + 5 assembly_exact + 375 pending_audit`，SHA256为`a6766c98157730a14587d67a66cdde375578b36ce2282468ade5931fe80b2fc8`。原版编译器向量构造迭代器、组B元素构造/析构回调、全局数组字节与异常展开联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=47`的`0x00451810`战斗角色组B向量构造包装器，继续完整审计全局基址、元素尺寸`0x2B28`、数量8、组B构造/析构回调、编译器向量构造边界及组B静态caller opaque构造入口回收。
+下一项回收`audit_order=48`的`0x00451840`战斗角色组B向量析构包装器，继续完整审计全局基址、元素尺寸`0x2B28`、数量8、组B析构回调、编译器向量析构边界及组B退出注册目标的typed闭合。

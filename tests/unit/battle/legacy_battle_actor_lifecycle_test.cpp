@@ -49,11 +49,15 @@ public:
 };
 
 class TrackingGroupBStaticLifecyclePort final
-    : public openswd3::battle::LegacyBattleActorGroupBConstructionEntryPort,
+    : public openswd3::battle::LegacyBattleActorVectorConstructionPort,
       public openswd3::battle::LegacyBattleActorExitRegistrationPort {
 public:
-    [[nodiscard]] u32 construct_group() override {
+    [[nodiscard]] u32 construct_vector(
+        const openswd3::battle::LegacyBattleActorVectorConstructionRequest&
+            request
+    ) override {
         events.push_back(4U);
+        last_construction_request = request;
         return construction_result;
     }
 
@@ -66,6 +70,8 @@ public:
     u32 construction_result{};
     u32 registration_result{};
     u32 registered_cleanup_token{};
+    openswd3::battle::LegacyBattleActorVectorConstructionRequest
+        last_construction_request{};
     std::vector<u32> events;
 };
 
@@ -82,6 +88,21 @@ public:
         openswd3::battle::kLegacyBattleActorGroupAConstructorToken &&
         request.destructor_token ==
         openswd3::battle::kLegacyBattleActorGroupADestructorToken;
+}
+
+[[nodiscard]] bool is_group_b_request(
+    const openswd3::battle::LegacyBattleActorVectorConstructionRequest& request
+) noexcept {
+    return request.base_token ==
+        openswd3::battle::kLegacyBattleActorGroupBBaseToken &&
+        request.element_size ==
+        openswd3::battle::kLegacyBattleActorGroupBElementSize &&
+        request.element_count ==
+        openswd3::battle::kLegacyBattleActorGroupBElementCount &&
+        request.constructor_token ==
+        openswd3::battle::kLegacyBattleActorGroupBConstructorToken &&
+        request.destructor_token ==
+        openswd3::battle::kLegacyBattleActorGroupBDestructorToken;
 }
 
 [[nodiscard]] bool is_group_a_request(
@@ -149,6 +170,7 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
             );
         test.expect_true(
             lifecycle_port.events == std::vector<u32>{4U, 5U} &&
+                is_group_b_request(lifecycle_port.last_construction_request) &&
                 lifecycle_port.registered_cleanup_token ==
                     openswd3::battle::
                         kLegacyBattleActorGroupBExitCleanupToken &&
@@ -157,6 +179,23 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                 result.exit_registration_calls == 1U &&
                 result.return_value == registration_result,
             "actor group B construction precedes its typed exit registration"
+        );
+    }
+
+    {
+        TrackingGroupBStaticLifecyclePort construction_port;
+        construction_port.construction_result = 0x55667788U;
+        const auto result =
+            openswd3::battle::construct_legacy_battle_actor_group_b(
+                construction_port
+            );
+        test.expect_true(
+            construction_port.events == std::vector<u32>{4U} &&
+                result.vector_constructor_calls == 1U &&
+                result.return_value == 0x55667788U &&
+                is_group_b_request(result.request) &&
+                is_group_b_request(construction_port.last_construction_request),
+            "actor group B wrapper forwards exact vector construction constants"
         );
     }
 
