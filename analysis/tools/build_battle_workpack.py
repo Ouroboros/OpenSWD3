@@ -248,6 +248,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-file-static-lifecycle-00451900.md",
     ),
+    "0x00451940": (
+        "platform_adapted",
+        "evidence/battle-background-initialization-00451940.md",
+    ),
 }
 
 

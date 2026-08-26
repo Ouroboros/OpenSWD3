@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v717
+版本：v718
 
 最后更新：2026-08-25
 
@@ -3921,5 +3921,6 @@ B7 P0 有限收口完成。
 - 模块10战斗渲染几何绑定静态转发`0x004518E0`完成。完整9行、无外部chunk，唯一指令尾跳相邻`0x004518F0`；typed thunk只调用一次相邻初始化entry并原样传播完整EAX，不添加参数、状态写或返回后处理。定向测试用非平凡bit pattern锁定单次调用和32位返回；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`51/422`，即`46 platform_adapted + 5 assembly_exact + 371 pending_audit`，SHA256为`d60cc8877aa4c490de2655890d4b8e325aefb8371ed30f0d3df1d094b3040185`。原版CRT静态初始化表与相邻callee调用现场联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`；相邻callee关闭后已删除临时opaque entry。
 - 模块10战斗渲染几何绑定初始化包装器`0x004518F0`完成。完整14行、无外部chunk；先压入固定几何owner `0x0053B0B8`，再将固定绑定对象`0x004FF5B8`写入ECX，单次调用后续`audit_order=106`深层initializer并直接返回完整EAX。typed wrapper显式传递两个32位token，深层callee暂保留可回收typed端口；`0x004518E0`静态thunk现已直连本helper。定向测试锁定参数顺序、单次调用与两个非平凡32位返回snapshot；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`52/422`，即`47 platform_adapted + 5 assembly_exact + 370 pending_audit`，SHA256为`fea92c7ea151fa946f20fdaa243be5f5f2272d15e7c6c5b906b37f1c1b0e02f8`。原版绑定对象内存、几何owner与深层initializer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 - 模块10战斗文件对象静态生命周期注册`0x00451900`完成。主函数由13行主体与`0x00451920..0x0045192B`十行外部FUNCTION CHUNK组成；工作包未单列的`0x00451910/0x00451930`两个9行附件加载同一固定文件owner后分别尾跳已关闭文件构造`0x00438000`与析构`0x00438030`。modern复用正式`LegacyFile`状态机，以`std::optional`在原时点真实构造和析构，不复制80字节裸布局；静态协调器保持构造先于注册，最终返回`_atexit`完整EAX。定向测试锁定固定owner、注册时对象已存在、精确退出token、注册EAX与一次真实析构；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`53/422`，即`48 platform_adapted + 5 assembly_exact + 369 pending_audit`，SHA256为`5d3fed758ae8101315dd12c979aeb6de37ea9b923986ef7efe4c2beb9d616706`。原版固定文件owner内存、Win32资源与CRT退出注册联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
+- 模块10战斗背景资源初始化`0x00451940`完成。完整108行、无外部chunk；严格恢复`all_map2.tsw`路径建立、六槽旋转缓存释放、旧背景释放、固定variant零TSW加载、indexed/direct命令流转换、signed `640/divisor`、mode3 literal循环右移、共享记录word与动作号低word双门、三帧动作旋转缓存初始化，以及三个完成word按高地址→低地址发布。load失败在释放前缀后唯一返回0且不写完成word；零除在转换后typed-stop；成功及正常门跳过均返回全1。typed实现直接复用TSW archive、命令流转换、literal旋转和动作缓存closed helper；定向测试锁定释放→加载→转换→旋转→动作更新顺序、完整参数、低word门、失败前缀、零除点和后缀逆序。真实`all_map2.tsw`物理槽1完成640×400转换及shift160循环右移，并加入`legacy_real_assets`全局锁；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`54/422`，即`49 platform_adapted + 5 assembly_exact + 368 pending_audit`，SHA256为`3b47efde1e5270cf24b8ec67a6a07965608c78d488c9d79724887b48c699d148`。原版路径缓冲、共享背景token、记录门、动作缓存与framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=54`的`0x00451940`，必须从完整权威LST主体和所有外部FUNCTION CHUNK独立审计其战斗初始化职责、callee顺序、共享状态副作用与返回约定。
+下一项回收`audit_order=55`的`0x00451A20`，必须从完整权威LST主体和所有外部FUNCTION CHUNK独立审计其真实职责、固定对象遍历、callee顺序、共享状态副作用与返回约定。
