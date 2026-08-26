@@ -89,6 +89,19 @@ public:
     std::vector<u32> events;
 };
 
+class TrackingBattleRenderGeometryBindingInitializationEntryPort final
+    : public openswd3::battle::
+          LegacyBattleRenderGeometryBindingInitializationEntryPort {
+public:
+    [[nodiscard]] u32 initialize_binding() override {
+        ++calls;
+        return result;
+    }
+
+    u32 result{};
+    u32 calls{};
+};
+
 class TrackingBattleRenderGeometryExitRegistrationPort final
     : public openswd3::battle::LegacyBattleRenderGeometryExitRegistrationPort {
 public:
@@ -349,6 +362,20 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                 is_group_b_request(result.request) &&
                 is_group_b_request(destruction_port.last_destruction_request),
             "actor group B wrapper forwards exact vector destruction constants"
+        );
+    }
+
+    {
+        TrackingBattleRenderGeometryBindingInitializationEntryPort entry_port;
+        entry_port.result = 0x89ABCDEFU;
+        const auto result = openswd3::battle::
+            forward_legacy_battle_render_geometry_binding_static_initialization(
+                entry_port
+            );
+        test.expect_true(
+            entry_port.calls == 1U && result.initialization_calls == 1U &&
+                result.return_value == 0x89ABCDEFU,
+            "render geometry binding static thunk tail-forwards once and preserves eax"
         );
     }
 

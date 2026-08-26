@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v714
+版本：v715
 
 最后更新：2026-08-25
 
@@ -3918,5 +3918,6 @@ B7 P0 有限收口完成。
 - 模块10战斗角色组B向量析构包装器`0x00451840`完成。完整17行按逆序压入组B析构回调、数量8、元素尺寸`0x2B28`和全局基址，调用MSVC向量析构迭代器并直接返回；typed destruction request使用独立组B四项常量并保留callee完整EAX，组B静态注册token对应本helper。定向测试锁定四项参数、单次析构、callee EAX及组A/组B构造请求不回归；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`48/422`，即`43 platform_adapted + 5 assembly_exact + 374 pending_audit`，SHA256为`b2f4ce251ed155d80783d489b217463bf5b51aca2166afe2e1dd6cb13e3848a7`。原版编译器向量析构迭代器、组B元素析构回调、全局数组字节与异常展开联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 - 模块10战斗单例角色记录静态生命周期注册`0x00451860`完成。主函数由13行主体和`0x00451880..0x0045188B`十行外部FUNCTION CHUNK组成；调用单例构造并把独立退出函数注册给CRT，原样返回`_atexit` EAX。工作包未单列的`0x00451870/0x00451890`两个9行附件也已完整审计并typed闭合：加载同一固定对象token后分别尾跳元素构造/析构，静态caller直接调用constructor helper且注册token对应destructor helper。定向测试锁定构造/析构固定token、两个尾跳EAX、构造先于注册、独立退出token和注册0/全1结果；最终独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`49/422`，即`44 platform_adapted + 5 assembly_exact + 373 pending_audit`，SHA256为`74661beae5eb06e5a0a323f2cd2794265234f4ace8a36c75198aaa4581d3d3cf`。原版单例对象字节、元素构造/析构本体、CRT静态初始化执行与退出注册联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 - 模块10战斗渲染几何静态生命周期注册`0x004518A0`完成。主函数由13行主体和`0x004518C0..0x004518CB`十行外部FUNCTION CHUNK组成；工作包未单列的`0x004518B0/0x004518D0`两个9行附件加载同一固定owner后分别尾跳已关闭几何初始化`0x00433C40`与资源清理`0x00433D70`。modern静态caller直接调用closed初始化，退出wrapper直接调用closed清理，仅CRT注册保留平台端口；原初始化typed-stop不阻断注册，最终返回仍为`_atexit`完整EAX。定向测试实际建立两张行表后注入附属token，锁定固定owner、初始化→注册顺序、cleanup token、注册EAX和附属缓冲→surface行表→primary行表清理；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`50/422`，即`45 platform_adapted + 5 assembly_exact + 372 pending_audit`，SHA256为`9e3378d395e8ab769403b219c496e3c654bb1aa76190361384e88ee24e912568`。原版静态owner内存、行表、附属缓冲与CRT退出注册联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
+- 模块10战斗渲染几何绑定静态转发`0x004518E0`完成。完整9行、无外部chunk，唯一指令尾跳相邻`0x004518F0`；typed thunk只调用一次相邻初始化entry并原样传播完整EAX，不添加参数、状态写或返回后处理。定向测试用非平凡bit pattern锁定单次调用和32位返回；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`51/422`，即`46 platform_adapted + 5 assembly_exact + 371 pending_audit`，SHA256为`d60cc8877aa4c490de2655890d4b8e325aefb8371ed30f0d3df1d094b3040185`。原版CRT静态初始化表与相邻callee调用现场联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`；callee关闭后必须删除临时opaque entry。
 
-下一项回收`audit_order=51`的`0x004518E0`，必须从完整权威LST主体和所有外部FUNCTION CHUNK独立审计其真实职责、控制流、状态副作用与返回约定。
+下一项回收`audit_order=52`的`0x004518F0`战斗渲染几何绑定初始化包装器，继续审计固定绑定对象、固定几何owner、callee调用和完整EAX返回；关闭后立即回收`0x004518E0`的opaque entry port。

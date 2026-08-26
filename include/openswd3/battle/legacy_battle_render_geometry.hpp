@@ -71,6 +71,14 @@ public:
     virtual void release(compat::u32 token) noexcept = 0;
 };
 
+class LegacyBattleRenderGeometryBindingInitializationEntryPort {
+public:
+    virtual ~LegacyBattleRenderGeometryBindingInitializationEntryPort() =
+        default;
+
+    [[nodiscard]] virtual compat::u32 initialize_binding() = 0;
+};
+
 class LegacyBattleRenderGeometryExitRegistrationPort {
 public:
     virtual ~LegacyBattleRenderGeometryExitRegistrationPort() = default;
@@ -143,6 +151,11 @@ struct LegacyBattleRenderInitializationResult {
     LegacyBattleRenderGeometry* legacy_return_value{};
 };
 
+struct LegacyBattleRenderGeometryBindingInitializationResult {
+    compat::u32 initialization_calls{};
+    compat::u32 return_value{};
+};
+
 struct LegacyBattleRenderGeometryStaticInitializationResult {
     compat::u32 owner_token{};
     LegacyBattleRenderInitializationResult initialization{};
@@ -206,6 +219,12 @@ initialize_legacy_battle_render_geometry(
 initialize_legacy_battle_render_geometry(
     LegacyBattleRenderGeometry& geometry
 ) noexcept;
+
+// sub_4518E0: tail-forward to the adjacent pending initialization entry.
+[[nodiscard]] LegacyBattleRenderGeometryBindingInitializationResult
+forward_legacy_battle_render_geometry_binding_static_initialization(
+    LegacyBattleRenderGeometryBindingInitializationEntryPort& entry_port
+);
 
 // sub_4518A0 with loc_4518C0 and attached constructor sub_4518B0.
 [[nodiscard]] LegacyBattleRenderGeometryStaticInitializationResult

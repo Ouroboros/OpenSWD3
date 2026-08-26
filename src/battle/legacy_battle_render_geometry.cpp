@@ -388,6 +388,16 @@ LegacyBattleRenderInitializationResult initialize_legacy_battle_render_geometry(
     return initialize_legacy_battle_render_geometry(geometry, allocator);
 }
 
+LegacyBattleRenderGeometryBindingInitializationResult
+forward_legacy_battle_render_geometry_binding_static_initialization(
+    LegacyBattleRenderGeometryBindingInitializationEntryPort& entry_port
+) {
+    return LegacyBattleRenderGeometryBindingInitializationResult{
+        .initialization_calls = 1U,
+        .return_value = entry_port.initialize_binding(),
+    };
+}
+
 LegacyBattleRenderGeometryStaticInitializationResult
 initialize_legacy_battle_render_geometry_static_lifecycle(
     LegacyBattleRenderGeometry& geometry,
