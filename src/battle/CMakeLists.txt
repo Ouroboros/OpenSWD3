@@ -24,6 +24,7 @@ add_library(
         legacy_battle_group_a_frame.cpp
         legacy_battle_group_b_frame.cpp
         legacy_battle_group_b_order.cpp
+        legacy_battle_global_reset.cpp
         legacy_battle_group_effect_frame.cpp
         legacy_battle_hud_frame.cpp
         legacy_battle_image_rotation.cpp
@@ -55,6 +56,7 @@ target_link_libraries(
     openswd3_battle
     PUBLIC
         openswd3_asset_runtime
+        openswd3_audio_video
         openswd3_compat
         openswd3_input_time_rng
         openswd3_project_options

@@ -280,6 +280,11 @@ enum class LegacyBattleStartupStatus : compat::u8 {
     random_result_out_of_range,
 };
 
+struct LegacyBattleDisplaySurfaceReleaseResult {
+    compat::u32 release_calls{};
+    compat::u32 return_value{};
+};
+
 struct LegacyBattleStartupResult {
     LegacyBattleStartupStatus status{LegacyBattleStartupStatus::completed};
     compat::i32 action_threshold{};
@@ -305,7 +310,13 @@ struct LegacyBattleStartupResult {
     compat::u32 return_value{};
 };
 
-// sub_451B10 with adjacent display-surface helpers sub_451AE0/sub_451A90.
+// sub_451AE0.
+[[nodiscard]] LegacyBattleDisplaySurfaceReleaseResult
+release_legacy_battle_display_surfaces(
+    LegacyBattleStartupState& state, LegacyBattleStartupPort& port
+);
+
+// sub_451B10 with adjacent display-surface helper sub_451A90.
 [[nodiscard]] LegacyBattleStartupResult initialize_legacy_battle_startup(
     LegacyBattleStartupState& state,
     LegacyBattleStartupPort& port,

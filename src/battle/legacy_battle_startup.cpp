@@ -236,6 +236,27 @@ struct SupplementalAddResult {
 
 }  // namespace
 
+LegacyBattleDisplaySurfaceReleaseResult release_legacy_battle_display_surfaces(
+    LegacyBattleStartupState& state, LegacyBattleStartupPort& port
+) {
+    LegacyBattleDisplaySurfaceReleaseResult result;
+    for (u32& surface : state.display_surfaces) {
+        result.return_value = surface;
+        if (surface != 0U) {
+            result.return_value =
+                invoke(
+                    port,
+                    LegacyBattleStartupCall::release_display_surface,
+                    {surface, 0U, 0U, 0U}
+                )
+                    .return_value;
+            surface = 0U;
+            ++result.release_calls;
+        }
+    }
+    return result;
+}
+
 LegacyBattleStartupResult initialize_legacy_battle_startup(
     LegacyBattleStartupState& state,
     LegacyBattleStartupPort& port,
@@ -341,17 +362,8 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         {0x004B8748U, 320U, 200U, 0U}
     ));
 
-    for (u32& surface : state.display_surfaces) {
-        if (surface != 0U) {
-            static_cast<void>(invoke(
-                port,
-                LegacyBattleStartupCall::release_display_surface,
-                {surface, 0U, 0U, 0U}
-            ));
-            surface = 0U;
-            ++result.released_display_surfaces;
-        }
-    }
+    result.released_display_surfaces =
+        release_legacy_battle_display_surfaces(state, port).release_calls;
     for (u32& surface : state.display_surfaces) {
         const u32 height =
             invoke(port, LegacyBattleStartupCall::system_metric_height)
