@@ -19,7 +19,6 @@ constexpr u32 kCallQueryOffsets = 0x00478400U;
 constexpr u32 kCallQueryBaseCoordinates = 0x00478470U;
 constexpr u32 kCallQueryAnimationMode = 0x00483840U;
 constexpr u32 kCallQueryCoordinates = 0x004783B0U;
-constexpr u32 kCallQueryAnimationCollision = 0x0045D810U;
 constexpr u32 kCallRenderResource = 0x004170E0U;
 constexpr u32 kCallReleaseResource = 0x004885A0U;
 constexpr u32 kCallPublishStatusMode = 0x00482080U;
@@ -323,18 +322,28 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
                 current_x = 0U - base_offset;
                 x = current_x;
             }
-            if (invoke(
-                    kCallQueryAnimationCollision,
-                    {0x0053BDE0U,
-                     0x0053BDE4U,
-                     to_bits(static_cast<i32>(signed_word(collision_x))),
-                     0U,
-                     to_bits(static_cast<i32>(signed_word(current_x))),
-                     0U,
-                     low_word(animation.outputs[0]),
-                     0U}
-                )
-                    .eax == 1U) {
+            result.animation_collision =
+                advance_legacy_battle_animation_collision(
+                    state,
+                    {
+                        .start_x =
+                            to_bits(static_cast<i32>(signed_word(collision_x))),
+                        .start_y = 0U,
+                        .end_x =
+                            to_bits(static_cast<i32>(signed_word(current_x))),
+                        .end_y = 0U,
+                        .step_multiplier = low_word(animation.outputs[0]),
+                        .counter_index = 0U,
+                    }
+                );
+            ++result.animation_collision_calls;
+            if (result.animation_collision.status !=
+                LegacyBattleAnimationCollisionStatus::completed) {
+                result.status = LegacyBattleGroupEffectFrameStatus::
+                    animation_collision_counter_typed_stop;
+                return result;
+            }
+            if (result.animation_collision.return_eax == 1U) {
                 primary.status_flags =
                     static_cast<u16>(primary.status_flags | 1U);
                 primary.complete = 1U;

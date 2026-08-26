@@ -208,8 +208,7 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
         mode.outputs[0] = 5U;
         port.push(0x00483840U, mode);
         port.push(0x004783B0U, pair_reply(120U, 240U));
-        port.push(0x004783B0U, pair_reply(20U, 30U));
-        port.push(0x0045D810U, {.eax = 1U});
+        port.push(0x004783B0U, pair_reply(115U, 240U));
         const auto result =
             openswd3::battle::advance_legacy_battle_effect_frame(
                 state, port, 2U, 0x1000U, 0U, 0U, 0U
@@ -218,11 +217,47 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
             result.return_value == 0U && state.animation_counter[0] == 1001U &&
                 state.shared_x == 100 && state.shared_y == 240 &&
                 state.primary[0].status_flags == 0U &&
-                result.primary_animation_steps == 1U &&
-                port.count(0x00485610U) == 1U &&
-                port.count(0x00430D10U) == 1U &&
+                result.primary_animation_steps == 1U,
+            "mode-one collision completion jumps the animation counter and runs the common suffix"
+        );
+        test.expect_true(
+            result.animation_collision_calls == 1U &&
+                result.animation_collision.return_eax == 1U &&
+                result.animation_collision.line_raster_calls == 5U &&
+                state.animation_collision_counter[0] == 0U,
+            "mode-one collision directly advances five horizontal steps and clears its counter"
+        );
+        test.expect_true(
+            port.count(0x00485610U) == 1U && port.count(0x00430D10U) == 1U &&
                 port.count(0x00478780U) == 1U && port.count(0x00481A40U) == 1U,
-            "mode-one collision jumps counter to thousand then runs common animation suffix"
+            "mode-one collision removes the opaque call and preserves the surrounding effects"
+        );
+    }
+
+    {
+        LegacyBattleEffectFrameState state;
+        state.animation_mode = 1U;
+        state.shared_x = 77;
+        state.shared_y = 88;
+        EffectPort port;
+        LegacyBattleEffectCallReply mode{.eax = 1U};
+        mode.outputs[0] = 5U;
+        port.push(0x00483840U, mode);
+        port.push(0x004783B0U, pair_reply(120U, 240U));
+        port.push(0x004783B0U, pair_reply(115U, 30U));
+        const auto result =
+            openswd3::battle::advance_legacy_battle_effect_frame(
+                state, port, 2U, 0x1000U, 0U, 0U, 8U
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleEffectFrameStatus::
+                        animation_collision_counter_typed_stop &&
+                result.animation_collision_calls == 1U &&
+                result.animation_collision.line_raster_calls == 0U &&
+                state.shared_x == 77 && state.shared_y == 88 &&
+                port.count(0x00485610U) == 0U && port.count(0x00430D50U) == 0U,
+            "the ninth collision counter stops the parent before sound and effect binding"
         );
     }
 

@@ -40,6 +40,7 @@ enum class LegacyBattleGroupEffectFrameStatus : compat::u8 {
     group_b_actor_typed_stop,
     effect_shift_group_a_typed_stop,
     effect_shift_group_b_typed_stop,
+    animation_collision_counter_typed_stop,
 };
 
 struct LegacyBattleGroupEffectFrameResult {
@@ -53,6 +54,8 @@ struct LegacyBattleGroupEffectFrameResult {
     compat::u32 alternate_renders{};
     compat::u32 status_iterations{};
     compat::u32 reward_iterations{};
+    LegacyBattleAnimationCollisionResult animation_collision{};
+    compat::u32 animation_collision_calls{};
 };
 
 // Typed closure of legacy 0x00458DE0. Physical actor, record, resource,

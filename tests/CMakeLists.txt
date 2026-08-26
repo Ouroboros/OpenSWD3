@@ -256,6 +256,7 @@ add_executable(
     unit/battle/legacy_battle_actor_metrics_test.cpp
     unit/battle/legacy_battle_actor_priority_test.cpp
     unit/battle/legacy_battle_actor_ready_test.cpp
+    unit/battle/legacy_battle_animation_collision_test.cpp
     unit/battle/legacy_battle_opponent_action_dispatch_test.cpp
     unit/battle/legacy_battle_background_initialization_test.cpp
     unit/battle/legacy_battle_color_accumulation_test.cpp

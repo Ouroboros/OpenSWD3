@@ -5,6 +5,7 @@ add_library(
         legacy_battle_action_frame_draw.cpp
         legacy_battle_action_rotation_cache.cpp
         legacy_battle_actor_frame_sequence.cpp
+        legacy_battle_animation_collision.cpp
         legacy_battle_actor_lifecycle.cpp
         legacy_battle_actor_metrics.cpp
         legacy_battle_actor_priority.cpp

@@ -221,17 +221,20 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
         LegacyBattleEffectCallReply animation{.eax = 1U};
         animation.outputs[0] = 5U;
         port.push(0x00483840U, animation);
-        port.push(0x004783B0U, pair_reply(20U, 99U));
-        port.push(0x0045D810U, {.eax = 1U});
+        port.push(0x004783B0U, pair_reply(155U, 99U));
         const auto result =
             openswd3::battle::advance_legacy_battle_group_effect_frame(
                 state, port, 0U, 0x1000U, 1U, 0U, 0U, 0U
             );
         test.expect_true(
-            result.return_value == 1U && state.primary[0].complete == 1U &&
-                has_argument(port, 0x0045D810U, 3U, 0U) &&
-                has_argument(port, 0x0045D810U, 5U, 0U) &&
-                has_argument(port, 0x0045D810U, 7U, 0U),
+            result.return_value == 1U && state.primary[0].complete == 1U,
+            "collision completion publishes the primary completion state"
+        );
+        test.expect_true(
+            result.animation_collision_calls == 1U &&
+                result.animation_collision.return_eax == 1U &&
+                result.animation_collision.line_raster_calls == 5U &&
+                state.animation_collision_counter[0] == 0U,
             "collision uses fixed zero Y coordinates and fixed slot zero"
         );
     }

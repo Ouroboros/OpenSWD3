@@ -93,6 +93,12 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
             &static_cast<LegacyBattleEffectFrameState&>(state).primary;
         const auto* group_primary =
             &static_cast<LegacyBattleGroupEffectFrameState&>(state).primary;
+        const auto* single_collision_counters =
+            &static_cast<LegacyBattleEffectFrameState&>(state)
+                 .animation_collision_counter;
+        const auto* group_collision_counters =
+            &static_cast<LegacyBattleGroupEffectFrameState&>(state)
+                 .animation_collision_counter;
         EffectCoordinatorPort port;
         state.primary[17].complete = 1U;
         const auto single =
@@ -109,12 +115,13 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
                 state, port, 0U, 1U, 0U, 0U, 18U
             );
         test.expect_true(
-            single_primary == group_primary && single.return_value == 1U &&
-                group.return_value == 1U &&
+            single_primary == group_primary &&
+                single_collision_counters == group_collision_counters &&
+                single.return_value == 1U && group.return_value == 1U &&
                 stopped.status ==
                     openswd3::battle::LegacyBattleEffectFrameStatus::
                         slot_index_typed_stop,
-            "single and group effects share one physical eighteen-record workspace and stop on slot eighteen"
+            "single and group effects share the physical records and collision counters and stop on slot eighteen"
         );
     }
 

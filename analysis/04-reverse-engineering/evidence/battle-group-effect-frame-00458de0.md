@@ -52,7 +52,7 @@ argument offsets两个低word必须**同时非零**才查询base coordinates并�
 
 ## 4. collision、绘制与主记录公共尾
 
-查询animation mode。完整EAX等于1时查询参数对象坐标，X完整减base offset；当前X低word为0时改为完整`0-base offset`。collision固定把两个Y参数和最终slot参数都传0，只传两项signed X、mode低word和两个共享坐标token。完整EAX等于1时status OR 1且complete写1。
+查询animation mode。完整EAX等于1时查询参数对象坐标，X完整减base offset；当前X低word为0时改为完整`0-base offset`。随后直接组合已关闭的动画沿线横向命中函数，固定两个Y和计数槽都为0，只传两项signed X与mode低word；共享XY和八槽u16计数与单体效果共用唯一状态。子返回1时status OR 1且complete写1。
 
 resource render使用共享signed X/Y、owner u16宽高、本地render flags，最后参数固定0。resource value即使为0也调用release，随后释放owner。
 
@@ -145,7 +145,7 @@ final gate word仍大于0时执行第二次gate：
 
 ## 10. callee、测试与动态差分
 
-原24个唯一直接callee中的`0x0045BD90`与`0x0045D3E0`已关闭并直连；其余22个直接callee继续通过专用typed token端口发布完整EAX/ECX/EDX与输出。全角色步进内部两个尚未关闭actor callee复用同一端口。第八十二项已关闭唯一总协调器caller的五处调用并改为直接组合，同时把本函数与单体效果函数的公共记录、渲染字段和奖励数组收敛为同一18槽虚共享状态。相邻双对象数值转场关闭后，辅助奖励word进一步与效果协调器次反馈及该转场收敛为唯一共享port，旧记录状态副本已删除。
+原24个唯一直接callee中的`0x0045BD90`、`0x0045D3E0`与`0x0045D810`已关闭并直连；其余21个直接callee继续通过专用typed token端口发布完整EAX/ECX/EDX与输出。全角色步进内部两个尚未关闭actor callee复用同一端口。第八十二项已关闭唯一总协调器caller的五处调用并改为直接组合，同时把本函数与单体效果函数的公共记录、渲染字段和奖励数组收敛为同一18槽虚共享状态。相邻双对象数值转场关闭后，辅助奖励word进一步与效果协调器次反馈及该转场收敛为唯一共享port；动画横向命中的八槽u16计数与共享XY也由两类效果帧共用，旧记录状态副本已删除。
 
 定向测试覆盖：
 
@@ -154,7 +154,7 @@ final gate word仍大于0时执行第二次gate：
 - 主owner零token在sample与主pan清零后停；
 - 参数对象在owner value和offset查询后的停点；
 - offset AND门、mode 0坐标非对称、EDX sample高word、无条件双release；
-- collision固定双Y和slot零；
+- 动画横向命中五步直连、固定双Y和计数槽零、共享计数清零；
 - 备用sample后清主pan但保留备用pan；
 - 备用AL翻转、双release、complete与成功尾清record；
 - group-wide状态按参数mode选择组B及七项i16颜色初始化、共享门与尾寄存器；
@@ -165,4 +165,4 @@ final gate word仍大于0时执行第二次gate：
 - 第11个组A角色保留前10角色前缀后typed-stop；
 - 两次全角色步进的EAX/恢复ECX来源、第一次0返回早退、第二次普通返回忽略与角色typed-stop传播。
 
-当前缺少原版双记录、18角色对象、22类剩余直接callee与效果步进内部两类actor callee共享副作用、resource owner、参数对象、sample、eligibility/reward表、奖励行对象和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版双记录、18角色对象、21类剩余直接callee与效果步进内部两类actor callee共享副作用、resource owner、参数对象、sample、eligibility/reward表、奖励行对象和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

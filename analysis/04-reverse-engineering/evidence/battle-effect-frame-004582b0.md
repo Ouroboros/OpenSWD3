@@ -26,7 +26,7 @@ slot越界只在首次主记录complete读取处typed-stop。参数对象和reso
 mode完整EAX等于1时：
 
 1. 分别查询actor与argument对象两组坐标；
-2. animation counter按signed小于1000且collision完整EAX等于1时，播放固定sample、只OR status低byte的bit0，并把counter写1000；
+2. animation counter按signed小于1000时，直接组合已关闭的动画沿线横向命中函数；其返回1时播放固定sample、只OR status低byte的bit0，并把counter写1000；八槽沿线计数与群体效果共用唯一状态，第九槽在子函数首次计数访问处typed-stop并阻断后续sample与surface；
 3. 绑定effect surface；counter原值为0时发布初始位置与固定particle；
 4. counter低32位加1；signed达到1000时把共享X写`actor_x-20`、共享Y写actor_y；
 5. 发布后续位置、present与advance；
@@ -81,7 +81,7 @@ sample参数先保留上述路径形成的ECX高word，再用record pan覆盖CX�
 
 ## 5. 二次collision与resource释放
 
-再次查询animation mode。完整EAX等于1时查询argument坐标，X完整减base offset、Y只减base-Y低word；若当前X低word为0，则collision X与本地X都写完整`0-base_offset`。collision完整EAX等于1时status OR 1并把complete写1。
+再次查询animation mode。完整EAX等于1时查询argument坐标，X完整减base offset、Y只减base-Y低word；若当前X低word为0，则collision X与本地X都写完整`0-base_offset`。随后第二处直接组合动画沿线横向命中；子返回1时status OR 1并把complete写1，子typed-stop阻断本次完成写入、resource render与后续帧。
 
 resource render严格传共享X/Y、u16宽高、本地render flags与resource data。resource value非0才释放value；owner在成功读取后总是释放。释放顺序固定value后owner。
 
@@ -152,7 +152,7 @@ final gate word按i16大于0时：
 
 ## 10. callee、测试与动态差分
 
-原32个唯一直接callee中的`0x0045BD90`与`0x0045D3E0`已关闭并直连；其余30个资源、动画、角色、奖励、音频或owner边界继续使用专用typed token端口。全角色步进内部两个尚未关闭actor callee也复用同一端口。第八十二项进一步把本函数与群体效果函数的主记录、备用记录、活动槽、公共渲染字段和奖励数组收敛为同一18槽虚共享状态。相邻双对象数值转场关闭后，辅助奖励word进一步与效果协调器次反馈及该转场收敛为唯一共享port，旧记录状态副本已删除。
+原32个唯一直接callee中的`0x0045BD90`、`0x0045D3E0`与`0x0045D810`已关闭并直连；其余29个资源、动画、角色、奖励、音频或owner边界继续使用专用typed token端口。全角色步进内部两个尚未关闭actor callee也复用同一端口。第八十二项进一步把本函数与群体效果函数的主记录、备用记录、活动槽、公共渲染字段和奖励数组收敛为同一18槽虚共享状态。相邻双对象数值转场关闭后，辅助奖励word进一步与效果协调器次反馈及该转场收敛为唯一共享port；动画横向命中的八槽u16计数与共享XY也由两类效果帧共用，旧记录状态副本已删除。
 
 定向测试覆盖：
 
@@ -161,7 +161,7 @@ final gate word按i16大于0时：
 - 主resource owner零token；
 - 参数对象在resource字段发布后的真实访问停点；
 - 主记录镜像、sample EAX/ECX高word、render flags与双release；
-- mode-one collision同调用穿透奖励尾；
+- mode-one横向命中五步直连、同调用穿透奖励尾、共享计数清零及第九槽父级typed-stop；
 - alternate动画的cadence、双随机与sample；
 - 备用owner在play/set-pan之后停点；
 - 备用完成的owner高word、AL翻转、双release和槽地址陈旧EDX；
@@ -170,4 +170,4 @@ final gate word按i16大于0时：
 - pending callee EDX进入已关闭全角色步进；
 - 子返回0早退、角色越界typed-stop与共享状态直连。
 
-当前缺少原版双记录内存、30类剩余直接callee与效果步进内部两类actor callee共享副作用、resource owner、参数对象字段、随机状态、sample manager、奖励输出和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版双记录内存、29类剩余直接callee与效果步进内部两类actor callee共享副作用、resource owner、参数对象字段、随机状态、sample manager、奖励输出和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

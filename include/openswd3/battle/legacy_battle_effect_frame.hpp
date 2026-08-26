@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_animation_collision.hpp"
 #include "openswd3/battle/legacy_battle_color_accumulation.hpp"
 #include "openswd3/battle/legacy_battle_frame_refresh.hpp"
 #include "openswd3/battle/legacy_battle_pair_transition.hpp"
@@ -97,7 +98,8 @@ struct LegacyBattleIntensityEffectFrameResult {
 
 inline constexpr std::size_t kLegacyBattleEffectActorSlotCount = 18U;
 
-struct LegacyBattleSharedEffectFrameState {
+struct LegacyBattleSharedEffectFrameState
+    : public LegacyBattleAnimationCollisionState {
     std::array<LegacyBattleEffectRecord, kLegacyBattleEffectActorSlotCount>
         primary{};
     std::array<LegacyBattleEffectRecord, kLegacyBattleEffectActorSlotCount>
@@ -109,8 +111,6 @@ struct LegacyBattleSharedEffectFrameState {
     compat::u32 global_flip_mode{};
     compat::u32 sample_handle_value{};
     compat::u32 current_resource_value_token{};
-    compat::i32 shared_x{};
-    compat::i32 shared_y{};
 
     compat::u16 shared_word_36{};
     compat::u16 shared_word_38{};
@@ -156,6 +156,7 @@ enum class LegacyBattleEffectFrameStatus : compat::u8 {
     resource_owner_typed_stop,
     group_a_actor_typed_stop,
     group_b_actor_typed_stop,
+    animation_collision_counter_typed_stop,
 };
 
 struct LegacyBattleEffectFrameResult {
@@ -167,6 +168,8 @@ struct LegacyBattleEffectFrameResult {
     compat::u32 color_initialization_calls{};
     compat::u32 primary_animation_steps{};
     compat::u32 alternate_animation_steps{};
+    LegacyBattleAnimationCollisionResult animation_collision{};
+    compat::u32 animation_collision_calls{};
 };
 
 // Typed closure of legacy 0x00459BF0. The source-zero return precedes slot

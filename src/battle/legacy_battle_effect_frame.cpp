@@ -14,7 +14,6 @@ using compat::u32;
 
 constexpr u32 kCallQueryAnimationMode = 0x00483840U;
 constexpr u32 kCallQueryCoordinates = 0x004783B0U;
-constexpr u32 kCallQueryAnimationCollision = 0x0045D810U;
 constexpr u32 kCallPlaySample = 0x00485610U;
 constexpr u32 kCallBindEffectSurface = 0x00430D50U;
 constexpr u32 kCallSetEffectPosition = 0x00430D10U;
@@ -221,21 +220,34 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
                     aux_x,
                     aux_y
                 );
-                if (signed_dword(state.animation_counter[slot_index]) < 1000 &&
-                    invoke(
-                        port,
-                        result,
-                        kCallQueryAnimationCollision,
-                        {0x0053BDE0U,
-                         0x0053BDE4U,
-                         to_bits(static_cast<i32>(signed_word(aux_x))),
-                         to_bits(static_cast<i32>(signed_word(aux_y))),
-                         to_bits(static_cast<i32>(signed_word(x))),
-                         to_bits(static_cast<i32>(signed_word(y))),
-                         low_word(mode_value),
-                         slot_index}
-                    )
-                            .eax == 1U) {
+                if (signed_dword(state.animation_counter[slot_index]) < 1000) {
+                    result.animation_collision =
+                        advance_legacy_battle_animation_collision(
+                            state,
+                            {
+                                .start_x = to_bits(
+                                    static_cast<i32>(signed_word(aux_x))
+                                ),
+                                .start_y = to_bits(
+                                    static_cast<i32>(signed_word(aux_y))
+                                ),
+                                .end_x =
+                                    to_bits(static_cast<i32>(signed_word(x))),
+                                .end_y =
+                                    to_bits(static_cast<i32>(signed_word(y))),
+                                .step_multiplier = low_word(mode_value),
+                                .counter_index = slot_index,
+                            }
+                        );
+                    ++result.animation_collision_calls;
+                    if (result.animation_collision.status !=
+                        LegacyBattleAnimationCollisionStatus::completed) {
+                        result.status = LegacyBattleEffectFrameStatus::
+                            animation_collision_counter_typed_stop;
+                        return result;
+                    }
+                }
+                if (result.animation_collision.return_eax == 1U) {
                     static_cast<void>(invoke(
                         port,
                         result,
@@ -539,20 +551,30 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
                     collision_x = 0U - base_offset;
                     x = collision_x;
                 }
-                if (invoke(
-                        port,
-                        result,
-                        kCallQueryAnimationCollision,
-                        {0x0053BDE0U,
-                         0x0053BDE4U,
-                         to_bits(static_cast<i32>(signed_word(aux_x))),
-                         to_bits(static_cast<i32>(signed_word(aux_y))),
-                         to_bits(static_cast<i32>(signed_word(collision_x))),
-                         to_bits(static_cast<i32>(signed_word(y))),
-                         low_word(mode_value),
-                         slot_index}
-                    )
-                        .eax == 1U) {
+                result.animation_collision =
+                    advance_legacy_battle_animation_collision(
+                        state,
+                        {
+                            .start_x =
+                                to_bits(static_cast<i32>(signed_word(aux_x))),
+                            .start_y =
+                                to_bits(static_cast<i32>(signed_word(aux_y))),
+                            .end_x = to_bits(
+                                static_cast<i32>(signed_word(collision_x))
+                            ),
+                            .end_y = to_bits(static_cast<i32>(signed_word(y))),
+                            .step_multiplier = low_word(mode_value),
+                            .counter_index = slot_index,
+                        }
+                    );
+                ++result.animation_collision_calls;
+                if (result.animation_collision.status !=
+                    LegacyBattleAnimationCollisionStatus::completed) {
+                    result.status = LegacyBattleEffectFrameStatus::
+                        animation_collision_counter_typed_stop;
+                    return result;
+                }
+                if (result.animation_collision.return_eax == 1U) {
                     primary.status_flags =
                         static_cast<u16>(primary.status_flags | 1U);
                     primary.complete = 1U;
