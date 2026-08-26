@@ -51,10 +51,10 @@ code_origin == game
 - 尾地址：`0x00484500`；
 - `confirmed_boundary`：`61`；
 - `medium`导航候选：`361`；
-- `pending_audit`：`388`；
+- `pending_audit`：`387`；
 - `assembly_exact`：`5`；
-- `platform_adapted`：`29`；
-- 已关闭：`34`。
+- `platform_adapted`：`30`；
+- 已关闭：`35`。
 
 六个稳定导航分组为：
 
@@ -277,8 +277,10 @@ I5最终必须锁定：
 
 `audit_order=34`的`0x00450BD0`已关闭为`platform_adapted`。selector完整值0和1分别查询固定资源2359和2358，其他值忽略帧参数并复用缓存frame与旧共享source；查询失败先发布空frame record，旧source不变。独立共享word精确等于4000时选择flags 20，所有路径固定空tail。正常blitter公共后缀后只覆写EAX低16位为帧宽，高16位保留显式post-blit snapshot；indexed帧在palette读取点typed-stop并阻断宽度后缀。
 
+`audit_order=35`的`0x00450C50`已关闭为`platform_adapted`。它以同一动作号的四组变体绘制纵向状态面板：顶部保留旧record，中段、填充和底部逐阶段完整清零；四次更新后资源/帧号分别保留LST指定的EAX、ECX或EDX高字。中段按signed数量平铺，填充以x87 `7/max`向零结果和signed商计算局部clip，按帧高do-while推进，随后才恢复640×480逻辑clip并绘制底部。固定空tail、公共后缀、零除/溢出和填充步长非终止域均在原发生点停止，正常返回末次blitter完整EAX snapshot。
+
 `audit_order=14`的`0x00434790`已关闭为`platform_adapted`。它只在首次调用以显式time seed CRT、发布三项共享值并扫描源图，随后直接组合已关闭粒子生成、线段推进与单像素颜色合成；剩余批次回放保留镜像检查X、源索引和实际写入X错位，粒子2×2绘制保留只跳第一透明色、只检查右像素及合成模式右上先合成后被原值覆盖。生命刷新、距离与目标矩形摘除、唯一/首/尾/中间四类双向链释放及其计数不对称均已闭环。三个上层caller都显式消费返回1作为阶段完成信号，尚待各自进入现代实现。
 
-下一项回收`audit_order=35`的`0x00450C50`战斗复合面板绘制，继续完整审计六个入口参数、资源准备、四组帧查询、共享比例算术、多轮软件绘制及返回值。
+下一项回收`audit_order=36`的`0x00450F90`战斗状态指示器动画，继续完整审计空闲计数门、随机初态、资源帧绘制、25 tick亮度推进、双word衰减、状态翻转、提示音、record清零及返回值。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

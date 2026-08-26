@@ -13,6 +13,7 @@ add_library(
         legacy_battle_render_geometry.cpp
         legacy_battle_setup.cpp
         legacy_battle_timing.cpp
+        legacy_battle_vertical_panel.cpp
 )
 target_include_directories(
     openswd3_battle
