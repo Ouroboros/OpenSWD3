@@ -78,7 +78,7 @@ removed byte以zero-extended dword与remaining做unsigned比较。达到或超�
 
 相邻`0x0045D490`关闭后，terminal、active、secondary、published、action execution、auxiliary、message、126 dword事件工作区和十组五dword角色记录直接复用本函数与动作分派的既有typed状态。预处理只新增此前未命名的source actor与双门字段，不复制角色状态或工作区。
 
-全局重置按原物理写集合清对应标量及工作区槽`0..9`、`16..95`，保留工作区其他槽和五dword记录。逐帧协调器通过同一两份状态调用预处理。
+全局重置按原物理写集合清对应标量及工作区槽`0..9`、`16..95`，保留工作区其他槽和五dword记录。逐帧协调器通过同一两份状态调用预处理。战斗调试快捷键进一步确认两项frame gate分别与逐帧选择mode及动作路径同址门共享，selection gate与逐帧active共享，排队角色与逐帧选择来源共享；C/W键和全局重置按原写序同步这些owner。十项角色顺序也与W键完整清零共用本状态。
 
 ## 8. caller回收
 

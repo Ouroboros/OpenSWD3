@@ -7,6 +7,7 @@
 #include "openswd3/battle/legacy_battle_actor_frame_sequence.hpp"
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
 #include "openswd3/battle/legacy_battle_color_accumulation.hpp"
+#include "openswd3/battle/legacy_battle_debug_hotkeys.hpp"
 #include "openswd3/battle/legacy_battle_effect_coordinator.hpp"
 #include "openswd3/battle/legacy_battle_frame_effect.hpp"
 #include "openswd3/battle/legacy_battle_pre_frame.hpp"
@@ -47,7 +48,6 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     pre_frame_stage_0,
     pre_frame_stage_1,
     query_actor_metric,
-    pre_frame_completion_gate,
     lock_target_surface,
     unlock_target_surface,
     refresh_selection,
@@ -96,6 +96,7 @@ class LegacyBattleFrameCoordinatorPort
     : public LegacyBattleHudCallPort,
       public LegacyBattleEffectCallPort,
       public LegacyBattlePreFramePort,
+      public LegacyBattleDebugHotkeyPort,
       public virtual LegacyBattleEffectCoordinatorStatePort {
 public:
     using LegacyBattleEffectCallPort::invoke;
@@ -122,13 +123,8 @@ struct LegacyBattleFrameCoordinatorState {
     };
     compat::u32 current_target_pointer_token{};
     compat::u32 render_abort_latch{};
-    compat::u32 selection_mode{};
-    compat::u32 selection_value{0xFFFFFFFFU};
-    compat::u32 input_source{0xFFFFFFFFU};
-    compat::u32 selection_active{};
     compat::u32 selection_enable{1U};
     compat::u16 selection_delay{};
-    compat::u32 selection_source{};
     compat::u32 selection_auxiliary{};
     compat::u32 interaction_available{};
     compat::u32 frame_parameter{};
@@ -138,8 +134,6 @@ struct LegacyBattleFrameCoordinatorState {
     compat::u32 special_panel_suppression{};
     compat::u32 optional_post_input_gate{};
     compat::u32 special_surface_gate{};
-    compat::u32 mode_flags{};
-    compat::u32 screenshot_request{};
     compat::u16 screenshot_counter{};
     std::filesystem::path screenshot_path;
     asset_runtime::LegacyActionRecord panel_action_record{};
@@ -187,6 +181,9 @@ struct LegacyBattleFrameCoordinatorContext {
     rendering::LegacyBmpWriterPorts& bmp_ports;
     LegacyBattleFinalActorStepState& final_actor_step;
     LegacyBattleActionDispatchState& action_dispatch;
+    LegacyBattleStartupState& startup;
+    const input_time_rng::LegacyKeyboardSnapshot& keyboard;
+    world_map::LegacyWorldPlayerControlState& player_control;
     LegacyBattleActorFrameAdvanceContext* actor_frames{};
 };
 
@@ -213,6 +210,7 @@ enum class LegacyBattleFrameCoordinatorStatus : compat::u8 {
     hud_typed_stop,
     color_accumulation_typed_stop,
     pre_frame_typed_stop,
+    debug_hotkey_typed_stop,
 };
 
 struct LegacyBattleFrameCoordinatorResult {
@@ -228,6 +226,8 @@ struct LegacyBattleFrameCoordinatorResult {
     compat::u32 selection_refresh_calls{};
     LegacyBattlePreFrameResult pre_frame{};
     compat::u32 pre_frame_calls{};
+    LegacyBattleDebugHotkeyResult debug_hotkeys{};
+    compat::u32 debug_hotkey_calls{};
     LegacyBattleFrameEffectResult frame_effect{};
     compat::u32 frame_effect_calls{};
     LegacyBattleActorPriorityResult actor_priority{};

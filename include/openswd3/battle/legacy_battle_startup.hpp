@@ -156,11 +156,16 @@ public:
 
 struct LegacyBattleStartupResetRecord {
     compat::u32 value_00{0xFFFFFFFFU};
+    compat::u32 value_04{};
+    compat::u16 value_08{};
     compat::u16 value_0a{};
     compat::u32 value_0c{};
+    compat::u32 value_10{};
     compat::u32 value_14{};
     compat::u32 value_18{};
 };
+
+static_assert(sizeof(LegacyBattleStartupResetRecord) == 0x1CU);
 
 struct LegacyBattleStartupResetBlocks {
     std::array<compat::u32, 0x26> block_525470{};
@@ -188,7 +193,6 @@ struct LegacyBattleStartupResetBlocks {
     std::array<compat::u32, 2> values_5244d8{};
     compat::u32 value_524418{};
     compat::u32 value_53c048{};
-    compat::u32 value_53ae70{0xFFFFFFFFU};
     compat::u16 value_53bf22{};
     compat::u32 value_53c4b0{};
 };

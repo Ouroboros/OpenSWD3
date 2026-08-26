@@ -22,6 +22,7 @@ using openswd3::battle::LegacyBattleGlobalResetRuntimePort;
 using openswd3::battle::LegacyBattleGlobalResetState;
 using openswd3::battle::LegacyBattleActionDispatchState;
 using openswd3::battle::LegacyBattleFinalActorStepState;
+using openswd3::battle::LegacyBattleGroupBFrameState;
 using openswd3::battle::LegacyBattleStartupCall;
 using openswd3::battle::LegacyBattleStartupCallReply;
 using openswd3::battle::LegacyBattleStartupCallRequest;
@@ -152,6 +153,7 @@ void seed_state(
     LegacyBattleStartupState& startup,
     LegacyBattleFinalActorStepState& final_actor,
     LegacyBattleActionDispatchState& action,
+    LegacyBattleGroupBFrameState& actor_frames,
     ResetPort& port
 ) {
     state.unmapped_bytes[0x00ABCDEFU] = 0x5AU;
@@ -172,7 +174,16 @@ void seed_state(
     startup.reset.values_502940[0] = 404U;
     startup.reset.block_525470.fill(9U);
     startup.reset.block_5244e8.fill(9U);
-    startup.reset.records_524788[0].value_00 = 9U;
+    startup.reset.records_524788[0] = {
+        .value_00 = 9U,
+        .value_04 = 9U,
+        .value_08 = 9U,
+        .value_0a = 9U,
+        .value_0c = 9U,
+        .value_10 = 9U,
+        .value_14 = 9U,
+        .value_18 = 9U,
+    };
     startup.enemies[0].role_id = 9U;
     startup.party[0].role_id = 9U;
     startup.enemy_count = 8U;
@@ -187,9 +198,18 @@ void seed_state(
     port.battle_terminal_latch() = 9U;
     final_actor.pre_frame_gate_a = 9U;
     final_actor.pre_frame_gate_b = 9U;
+    final_actor.frame_gate_a = 9U;
+    final_actor.frame_gate_b = 9U;
+    final_actor.selection_gate = 9U;
+    final_actor.queued_actor_code = 9U;
     final_actor.actor_runtime_records[0][0] = 9U;
     port.battle_message_state() = 9U;
     action.opponent_workspace.fill(9U);
+    actor_frames.shared.selection_aux_gate = 9U;
+    actor_frames.shared.target_ready_gate = 9U;
+    actor_frames.shared.action_block_gate = 9U;
+    actor_frames.shared.action.action_pending_aux = 9U;
+    actor_frames.shared.action_pending_secondary = 9U;
 
     auto& color = port.battle_color_accumulation_state();
     color.countdown = 9;
@@ -242,6 +262,15 @@ void seed_state(
     port.battle_pair_primary_value() = 9U;
     coordinator.group_a_arguments.fill(9U);
     coordinator.feedback_primary.fill(9U);
+
+    auto& debug = port.battle_debug_hotkey_state();
+    debug.toggle_5244e0 = 7U;
+    debug.selection_status_word_53c050 = 0xABCD0009U;
+    debug.actor_retarget_gate_53bf64 = 9U;
+    debug.battle_mode_flags_53bc24 = 9U;
+    debug.block_53af30.fill(9U);
+    debug.reset_gate_53bd50 = 9U;
+    debug.screenshot_request = 7U;
 }
 
 }  // namespace
@@ -252,11 +281,12 @@ void test_battle_global_reset(openswd3::test::Context& test) {
         LegacyBattleStartupState startup;
         LegacyBattleFinalActorStepState final_actor;
         LegacyBattleActionDispatchState action;
+        LegacyBattleGroupBFrameState actor_frames;
         ResetPort port;
-        seed_state(state, startup, final_actor, action, port);
+        seed_state(state, startup, final_actor, action, actor_frames, port);
 
         const auto result = openswd3::battle::reset_legacy_battle_globals(
-            state, startup, final_actor, action, port
+            state, startup, final_actor, action, actor_frames, port
         );
 
         const std::array expected_order{
@@ -374,7 +404,16 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 port.battle_terminal_latch() == 0U &&
                 final_actor.pre_frame_gate_a == 0U &&
                 final_actor.pre_frame_gate_b == 0U &&
+                final_actor.frame_gate_a == 0U &&
+                final_actor.frame_gate_b == 0U &&
+                final_actor.selection_gate == 0U &&
+                final_actor.queued_actor_code == 0U &&
                 final_actor.actor_runtime_records[0][0] == 9U &&
+                actor_frames.shared.selection_aux_gate == 0U &&
+                actor_frames.shared.target_ready_gate == 0U &&
+                actor_frames.shared.action_block_gate == 0U &&
+                actor_frames.shared.action.action_pending_aux == 0U &&
+                actor_frames.shared.action_pending_secondary == 0U &&
                 port.battle_message_state() == 0U &&
                 std::ranges::all_of(
                     workspace.first(10U),
@@ -441,6 +480,19 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 state.unmapped_bytes.contains(0x0053BD40U) == false,
             "global reset writes the shared effect coordinator aliases and preserves untouched scan feedback state"
         );
+        const auto& debug = port.battle_debug_hotkey_state();
+        test.expect_true(
+            debug.toggle_5244e0 == 7U &&
+                debug.selection_status_word_53c050 == 0xABCD0000U &&
+                debug.actor_retarget_gate_53bf64 == 0U &&
+                debug.battle_mode_flags_53bc24 == 0U &&
+                std::ranges::all_of(
+                    debug.block_53af30,
+                    [](const auto value) { return value == 0U; }
+                ) &&
+                debug.reset_gate_53bd50 == 0U && debug.screenshot_request == 7U,
+            "global reset synchronizes debug hotkey aliases and preserves globals outside its write set"
+        );
         test.expect_true(
             std::ranges::all_of(
                 startup.reset.block_525470,
@@ -453,6 +505,13 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 startup.reset.values_502940 ==
                     std::array<u32, 5>{0U, 0U, 0U, 0U, 0U} &&
                 startup.reset.records_524788[0].value_00 == 0U &&
+                startup.reset.records_524788[0].value_04 == 0U &&
+                startup.reset.records_524788[0].value_08 == 0U &&
+                startup.reset.records_524788[0].value_0a == 0U &&
+                startup.reset.records_524788[0].value_0c == 0U &&
+                startup.reset.records_524788[0].value_10 == 0U &&
+                startup.reset.records_524788[0].value_14 == 0U &&
+                startup.reset.records_524788[0].value_18 == 0U &&
                 startup.enemies[0].role_id == 0U &&
                 startup.party[0].role_id == 0U && startup.enemy_count == 0U &&
                 startup.party_count == 0U,
@@ -486,11 +545,12 @@ void test_battle_global_reset(openswd3::test::Context& test) {
         LegacyBattleStartupState startup;
         LegacyBattleFinalActorStepState final_actor;
         LegacyBattleActionDispatchState action;
+        LegacyBattleGroupBFrameState actor_frames;
         ResetPort port;
         startup.reset.values_502940[0] = 0U;
 
         const auto result = openswd3::battle::reset_legacy_battle_globals(
-            state, startup, final_actor, action, port
+            state, startup, final_actor, action, actor_frames, port
         );
         test.expect_true(
             !result.conditional_allocation_released &&

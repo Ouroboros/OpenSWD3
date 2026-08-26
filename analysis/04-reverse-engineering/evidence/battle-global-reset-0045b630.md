@@ -44,6 +44,8 @@
 - 三通道颜色累加与初始化的九个float及signed计数映射回唯一`LegacyFrameColorTransitionState`；共享初始化门不在本函数写集合中，必须保留入口值；
 - 角色预处理的active、secondary、published、source、action execution、auxiliary与双门映射回最终角色和动作状态；terminal与message映射回startup、动作、效果和预帧共用的唯一共享phase端口；事件工作区只清物理槽`0..9`和`16..95`，其他槽与五dword记录保持入口值；
 - 双对象数值转场的primary映射回动作累计值与效果协调器主反馈共用的唯一端口并按原写集合清零；secondary与打包奖励高word不在本函数写集合中，保持入口值；
+- 战斗调试快捷键映射的低word状态、重定向gate、battle mode flags、十dword辅助块与重置gate按原写集合清零；F1/X/K/F9/F2/P开关不在写集合中，保持入口值；
+- `0x00524788`的18条记录扩展为精确`0x1C`布局，126 dword全部映射到唯一启动状态并清零，不再只同步五个已知字段；最终角色十项顺序、frame gate、selection gate、排队角色及动作路径同址门也同步清零；
 - 效果总协调器的18槽主记录、两组模式、计数器、反馈actor、参数数组和活动latch映射回唯一`LegacyBattleEffectCoordinatorState`；未写的扫描计时与反馈数组保持不变；
 - 八槽group B顺序表不在本函数写集合中，必须原样保留；
 - 战斗启动复用的显示surface、敌我启动记录、重置块与记录数组映射回唯一`LegacyBattleStartupState`；
@@ -67,6 +69,6 @@
 
 ## 6. 测试与动态差分
 
-定向测试覆盖显示surface零/非零槽、旋转缓存嵌套释放、渲染资源释放、条件分配token零与非零、九阶段call顺序、234项写序散列、3300次物理写、13106字节、标量宽度、重复写、尾部6 dword、little-endian字节像、mapped地址排除、未触及字节保留、metric、颜色值清零与初始化门保留、角色预处理标量与工作区分段别名、双对象转场primary清零及secondary/打包高word保留、effect-shift与effect-coordinator typed别名同步、记录默认值差异、group B顺序表不清零及固定返回0。
+定向测试覆盖显示surface零/非零槽、旋转缓存嵌套释放、渲染资源释放、条件分配token零与非零、九阶段call顺序、234项写序散列、3300次物理写、13106字节、标量宽度、重复写、尾部6 dword、little-endian字节像、mapped地址排除、未触及字节保留、metric、颜色值清零与初始化门保留、角色预处理标量与工作区分段别名、双对象转场primary清零及secondary/打包高word保留、调试快捷键状态、完整18条启动记录、最终角色/动作同址门、effect-shift与effect-coordinator typed别名同步、记录默认值差异、group B顺序表不清零及固定返回0。
 
 当前缺少原版全部全局内存、九类callee共享副作用、旧分配器、音频对象及寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

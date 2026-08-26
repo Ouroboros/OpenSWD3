@@ -199,7 +199,7 @@ Windows LLVM `core` 与 `app` 均完成构建并通过 38/38 CTest。当前状�
 
 ## B3.5 实现验证
 
-`LegacyKeyboardSnapshot` 固定为 256 字节。`read_raw_key`、`synthesize_raw_key` 和 `find_first_pressed_key` 分别映射 `0x004372D0`、`0x00437300`、`0x004372E0`，保留只观察 `0x80`、OR 写入和 DIK 0/无按键返回值相同的合同。
+`LegacyKeyboardSnapshot` 固定为 256 字节。`read_raw_key`、`synthesize_raw_key` 和 `find_first_pressed_key` 分别映射 `0x004372D0`、`0x00437300`、`0x004372E0`，保留只观察 `0x80`、OR 写入和 DIK 0/无按键返回值相同的合同。战斗调试快捷键总处理关闭后，其中19个原始raw query caller已删除callee token并按机器码短路顺序直接读取同一snapshot；左Control非零时不会额外查询右Control。
 
 SDL3 平台层以显式物理 scancode 表生成 DIK 域快照，不使用字符键码或 SDL repeat；标准 PC 键、当前 16 个默认绑定、扩展键和部分国际键有固定映射测试。无法对应 DirectInput DIK 的 SDL 专用键保持未映射，属于 `platform_adapted`，不向核心虚构新键值。
 

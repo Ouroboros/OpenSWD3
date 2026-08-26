@@ -127,12 +127,33 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             LegacyBattleFrameCoordinatorStatus::actor_order_typed_stop;
         return result;
     }
-    reply = invoke(
-        port,
-        result,
-        LegacyBattleFrameCoordinatorCall::pre_frame_completion_gate
+    result.debug_hotkeys = coordinate_legacy_battle_debug_hotkeys(
+        context.keyboard,
+        port.battle_debug_hotkey_state(),
+        {
+            .startup = context.startup,
+            .final_actor = context.final_actor_step,
+            .actor_metrics = port.actor_metric_state(),
+            .actor_publication = port.actor_publication_state(),
+            .effect_coordinator = port.effect_coordinator_state(),
+            .effect_shift = port.effect_shift_state(),
+            .actor_frames = context.actor_frames == nullptr
+                ? nullptr
+                : &context.actor_frames->state,
+            .player_control = context.player_control,
+            .message_state = port.battle_message_state(),
+        },
+        port
     );
-    if (reply.eax == 0U) {
+    ++result.debug_hotkey_calls;
+    result.port_calls += result.debug_hotkeys.port_calls;
+    if (result.debug_hotkeys.status !=
+        LegacyBattleDebugHotkeyStatus::completed) {
+        result.status =
+            LegacyBattleFrameCoordinatorStatus::debug_hotkey_typed_stop;
+        return result;
+    }
+    if (result.debug_hotkeys.return_value == 0U) {
         result.status =
             LegacyBattleFrameCoordinatorStatus::pre_frame_returned_zero;
         result.return_value = 0U;
@@ -161,24 +182,31 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         return result;
     }
 
-    if (state.selection_mode == 1U && state.selection_value == 0xFFFFFFFFU) {
-        state.selection_mode = 0U;
+    auto& selection_mode = context.final_actor_step.frame_gate_b;
+    auto& selection_value = port.actor_metric_state().priority_actor_index;
+    auto& input_source = context.startup.reset.records_524788[0].value_00;
+    auto& selection_active = context.final_actor_step.selection_gate;
+    auto& selection_source = context.final_actor_step.queued_actor_code;
+    auto& debug_state = port.battle_debug_hotkey_state();
+
+    if (selection_mode == 1U && selection_value == 0xFFFFFFFFU) {
+        selection_mode = 0U;
     }
-    if (state.input_source != 0xFFFFFFFFU && state.selection_active == 0U &&
-        state.selection_enable == 1U && state.selection_mode == 0U) {
+    if (input_source != 0xFFFFFFFFU && selection_active == 0U &&
+        state.selection_enable == 1U && selection_mode == 0U) {
         if (state.selection_delay >= 0x10U) {
             reply = invoke(
                 port,
                 result,
                 LegacyBattleFrameCoordinatorCall::refresh_selection,
-                {state.selection_value}
+                {selection_value}
             );
             ++result.selection_refresh_calls;
-            state.selection_value = reply.published_value;
-            if (state.selection_value != 0xFFFFFFFFU) {
+            selection_value = reply.published_value;
+            if (selection_value != 0xFFFFFFFFU) {
                 state.selection_delay = 0U;
-                state.selection_active = 1U;
-                state.selection_auxiliary = state.selection_value;
+                selection_active = 1U;
+                state.selection_auxiliary = selection_value;
             }
         } else {
             state.selection_delay =
@@ -186,9 +214,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         }
     }
     state.interaction_available =
-        state.selection_value == 0xFFFFFFFFU && state.selection_source == 0U
-        ? 1U
-        : 0U;
+        selection_value == 0xFFFFFFFFU && selection_source == 0U ? 1U : 0U;
 
     static_cast<void>(invoke(
         port,
@@ -255,7 +281,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         port,
         context.frame_zero.framebuffer,
         state.ui_state,
-        state.selection_source
+        selection_source
     );
     ++result.effect_coordinator_calls;
     result.port_calls += result.effect_coordinator.port_calls;
@@ -289,8 +315,8 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
     }
 
     u32 stale_ecx = request.post_frame_zero_ecx_snapshot;
-    if (state.selection_source != 0U) {
-        const std::size_t source_index = state.selection_source;
+    if (selection_source != 0U) {
+        const std::size_t source_index = selection_source;
         state.panel_action_record = {};
         state.panel_action_record.action_id =
             kLegacyBattleFrameCoordinatorPanelAction;
@@ -340,14 +366,13 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         stale_ecx = request.post_tiled_frame_ecx_snapshot;
 
         if (state.special_panel_suppression == 0U) {
-            if (state.selection_source < 8U || state.selection_source >= 18U) {
+            if (selection_source < 8U || selection_source >= 18U) {
                 result.status =
                     LegacyBattleFrameCoordinatorStatus::role_actor_typed_stop;
                 return result;
             }
             const u32 actor_token = kLegacyBattleActorGroupABaseToken +
-                (state.selection_source - 8U) *
-                    kLegacyBattleActorGroupAElementSize;
+                (selection_source - 8U) * kLegacyBattleActorGroupAElementSize;
             reply = invoke(
                 port,
                 result,
@@ -534,7 +559,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
     }
 
     if (state.special_surface_gate == 1U &&
-        (state.mode_flags & 0x00000100U) == 0U) {
+        (debug_state.battle_mode_flags_53bc24 & 0x00000100U) == 0U) {
         const u32 temporary = port.create_temporary_surface(
             kLegacyBattleFrameCoordinatorSurfaceOwnerToken,
             kLegacyBattleFrameCoordinatorSurfaceFormat
@@ -557,7 +582,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         ));
     }
 
-    if (state.screenshot_request == 1U) {
+    if (debug_state.screenshot_request == 1U) {
         state.screenshot_counter =
             static_cast<u16>(state.screenshot_counter + 1U);
         const u32 screenshot_number =
@@ -574,7 +599,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             context.bmp_ports
         );
         ++result.screenshot_calls;
-        state.screenshot_request = 0U;
+        debug_state.screenshot_request = 0U;
     }
 
     result.return_value = state.active;

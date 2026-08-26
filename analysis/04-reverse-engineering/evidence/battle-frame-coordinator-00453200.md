@@ -10,14 +10,14 @@
 
 入口固定把活动dword写1。随后调用music gate；只有完整EAX等于1且抑制byte为0时，才以共享路径和mode 0启动音乐，再把共享runtime handle传给commit。start EAX被commit覆盖，但后续阶段不使用该值。
 
-接着严格执行六个逻辑阶段：前两个仍是opaque战斗stage，第三项直接组合已关闭角色预处理，第四和第五项是已关闭metric与角色顺序重建，第六项仍是完成门callee。第六项返回0时立即返回EAX 0：
+接着严格执行六个逻辑阶段：前两个仍是opaque战斗stage，第三项直接组合已关闭角色预处理，第四和第五项是已关闭metric与角色顺序重建，第六项直接组合已关闭战斗调试快捷键总处理。第六项的E键路径返回0时立即返回EAX 0：
 
 - 活动dword保持1；
 - 不锁目标surface；
 - 不执行任何绘制、输入、截图或尾阶段；
 - 音乐与前五阶段副作用保留。
 
-角色预处理直接复用最终角色、动作工作区和动态组B数量；其typed-stop保留前两个stage与自身前缀并阻断metric以后全部流程。只有三个尚未关闭stage保留有序typed端口，已关闭边界不再占opaque call。
+角色预处理直接复用最终角色、动作工作区和动态组B数量；其typed-stop保留前两个stage与自身前缀并阻断metric以后全部流程。调试快捷键直接读取typed DIK快照并复用角色数量、优先索引、最终角色门、启动记录、效果状态、速度模式与截图请求；其typed-stop保留metric和顺序重建副作用并阻断surface lock。只剩前两个尚未关闭前置stage保留有序typed端口，已关闭边界不再占opaque call。
 
 ## 3. 目标surface与渲染门
 
@@ -46,6 +46,8 @@ selection_mode == 0
 - 延迟不小于`0x10`：调用选择刷新callee并从共享槽重读值；
 - 新值不是全1：延迟word清零、active写1、auxiliary保存新值；
 - 新值仍为全1：不清延迟、不置active、不改auxiliary。
+
+选择值与角色metric优先索引是同一物理dword；输入源复用启动状态第一条`0x1C`记录的`+0x00`，选择active与mode分别复用最终角色selection gate与frame gate。调试快捷键或后续角色阶段的同址写入会真实影响本帧后续判断，不保留旧独立副本。
 
 交互可用dword最终严格等于：
 
@@ -158,7 +160,7 @@ finalize之后直接调用已关闭三通道颜色累加：固定递减请求，
 
 ## 11. 截图尾与最终返回
 
-截图请求dword等于1时：
+截图请求与调试P键复用唯一typed状态。截图请求dword等于1时：
 
 1. 16位计数器递增并回绕；
 2. 零扩展新word后加1000；
@@ -188,7 +190,7 @@ C++到LST反向追溯覆盖完整412行、44个静态call站点和18个标签。
 
 定向测试覆盖：
 
-- 音乐启动/commit、双opaque与typed角色预处理顺序、第六阶段零早退；
+- 音乐启动/commit、双opaque、typed角色预处理与调试快捷键顺序，以及E键第六阶段零早退；
 - target lock/unlock后渲染门返回活动1；
 - 选择延迟刷新、共享值重读、active/auxiliary发布与交互门；
 - UI dword只改低word且保留高16位；

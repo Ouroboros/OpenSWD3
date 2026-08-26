@@ -20,6 +20,7 @@ add_library(
         legacy_battle_border_panel.cpp
         legacy_battle_color_accumulation.cpp
         legacy_battle_color_fade.cpp
+        legacy_battle_debug_hotkeys.cpp
         legacy_battle_directional_scan.cpp
         legacy_battle_frame_coordinator.cpp
         legacy_battle_frame_effect.cpp

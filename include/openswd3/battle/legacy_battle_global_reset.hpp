@@ -2,6 +2,7 @@
 
 #include "openswd3/audio_video/legacy_sample_manager.hpp"
 #include "openswd3/battle/legacy_battle_color_accumulation.hpp"
+#include "openswd3/battle/legacy_battle_debug_hotkeys.hpp"
 #include "openswd3/battle/legacy_battle_effect_coordinator.hpp"
 #include "openswd3/battle/legacy_battle_final_actor_step.hpp"
 #include "openswd3/battle/legacy_battle_pair_transition.hpp"
@@ -30,6 +31,7 @@ class LegacyBattleGlobalResetRuntimePort
       public virtual LegacyBattleColorAccumulationStatePort,
       public virtual LegacyBattlePairTransitionStatePort,
       public virtual LegacyBattleEffectCoordinatorStatePort,
+      public virtual LegacyBattleDebugHotkeyStatePort,
       public LegacyBattleActionRotationReleasePort,
       public LegacyBattleRenderAuxiliaryBufferReleaser {
 public:
@@ -86,6 +88,7 @@ struct LegacyBattleGlobalResetResult {
     LegacyBattleStartupState& startup,
     LegacyBattleFinalActorStepState& final_actor,
     LegacyBattleActionDispatchState& action,
+    LegacyBattleGroupBFrameState& actor_frames,
     LegacyBattleGlobalResetRuntimePort& port
 );
 

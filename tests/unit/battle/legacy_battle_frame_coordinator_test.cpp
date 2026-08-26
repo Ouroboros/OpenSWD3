@@ -47,6 +47,18 @@ public:
         return {};
     }
 
+    [[nodiscard]] openswd3::battle::LegacyBattleDebugHotkeyCallReply
+    invoke_debug_hotkey(
+        const openswd3::battle::LegacyBattleDebugHotkeyCallRequest& request
+    ) override {
+        debug_calls.push_back(request);
+        return {};
+    }
+
+    void delay_milliseconds(const u32 milliseconds) override {
+        debug_delays.push_back(milliseconds);
+    }
+
     [[nodiscard]] LegacyBattleHudCallReply
     invoke_hud(const LegacyBattleHudCallRequest& request) override {
         hud_calls.push_back(request);
@@ -86,6 +98,9 @@ public:
     std::vector<LegacyBattleEffectCallRequest> effect_calls;
     std::vector<openswd3::battle::LegacyBattlePreFrameCallRequest>
         pre_frame_calls;
+    std::vector<openswd3::battle::LegacyBattleDebugHotkeyCallRequest>
+        debug_calls;
+    std::vector<u32> debug_delays;
     std::vector<LegacyBattleHudCallRequest> hud_calls;
     std::map<
         LegacyBattleFrameCoordinatorCall,
@@ -387,6 +402,9 @@ struct Fixture {
     BmpPorts bmp_ports;
     openswd3::battle::LegacyBattleFinalActorStepState final_actor_step;
     openswd3::battle::LegacyBattleActionDispatchState action_dispatch;
+    openswd3::battle::LegacyBattleStartupState startup;
+    openswd3::input_time_rng::LegacyKeyboardSnapshot keyboard{};
+    openswd3::world_map::LegacyWorldPlayerControlState player_control;
 
     Fixture() {
         constexpr std::array<u16, 6> effect_pixels{
@@ -452,6 +470,9 @@ struct Fixture {
             .bmp_ports = bmp_ports,
             .final_actor_step = final_actor_step,
             .action_dispatch = action_dispatch,
+            .startup = startup,
+            .keyboard = keyboard,
+            .player_control = player_control,
         };
     }
 };
@@ -471,8 +492,6 @@ base_request() {
 }
 
 void configure_common_port(CoordinatorPort& port) {
-    port.replies[LegacyBattleFrameCoordinatorCall::pre_frame_completion_gate]
-        .eax = 1U;
     port.replies[LegacyBattleFrameCoordinatorCall::lock_target_surface].eax =
         0x004CD76CU;
 }
@@ -487,9 +506,9 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         CoordinatorPort port;
         port.replies[LegacyBattleFrameCoordinatorCall::query_music_gate].eax =
             1U;
-        port.replies
-            [LegacyBattleFrameCoordinatorCall::pre_frame_completion_gate]
-                .eax = 0U;
+        port.battle_debug_hotkey_state().developer_tools_enabled = 1U;
+        fixture.keyboard[0x1DU] = 0x80U;
+        fixture.keyboard[0x12U] = 0x80U;
         auto context = fixture.context();
 
         const auto result =
@@ -509,8 +528,9 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                     } &&
                 result.fixed_frame_calls == 0U &&
                 result.frame_effect_calls == 0U && result.lock_calls == 0U &&
-                result.pre_frame_calls == 1U && port.calls.size() == 5U,
-            "frame coordinator preserves music start two opaque and one typed pre-frame stage before zero early return"
+                result.pre_frame_calls == 1U &&
+                result.debug_hotkey_calls == 1U && port.calls.size() == 4U,
+            "frame coordinator preserves music and pre-frame stages before the debug hotkey zero return"
         );
     }
 
@@ -723,8 +743,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         state.ui_state = 0xABCD0000U;
         state.selection_delay = 0x10U;
-        state.input_source = 7U;
         Fixture fixture;
+        fixture.startup.reset.records_524788[0].value_00 = 7U;
         fixture.internal_flags[0x11U >> 3U] =
             static_cast<u8>(1U << (0x11U & 7U));
         CoordinatorPort port;
@@ -744,21 +764,32 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                         input_return_three &&
                 result.return_value == 3U &&
                 result.selection_refresh_calls == 1U &&
-                state.selection_value == 5U && state.selection_delay == 0U &&
-                state.selection_active == 1U &&
+                state.selection_delay == 0U &&
                 state.selection_auxiliary == 5U &&
-                state.interaction_available == 0U &&
-                state.ui_state == 0xABCD0001U &&
-                result.frame_effect_calls == 1U &&
-                result.actor_priority_calls == 1U &&
-                port.count(
-                    LegacyBattleFrameCoordinatorCall::query_actor_pair
-                ) == 0U &&
-                result.actor_frame_sequence_calls == 1U &&
+                state.interaction_available == 0U,
+            "full pre-input path publishes the refreshed selection before later shared-state updates"
+        );
+        test.expect_true(
+            (state.ui_state & 0xFFFF0000U) == 0xABCD0000U,
+            "full pre-input path preserves the UI high word while the shared actor value selects the low-word path"
+        );
+        test.expect_true(
+            result.frame_effect_calls == 1U &&
+                result.actor_priority_calls == 1U,
+            "full pre-input path preserves the frame effect and priority stages"
+        );
+        test.expect_true(
+            result.actor_frame_sequence_calls == 1U &&
                 result.fixed_frame_calls == 1U &&
-                result.hud_frame_calls == 1U && port.hud_calls.size() == 2U &&
-                result.gameplay_word_argument == 0xAAAA1234U &&
-                result.packed_rows.visited_count == 0U &&
+                result.hud_frame_calls == 1U && port.hud_calls.size() == 2U,
+            "full pre-input path preserves the actor fixed-frame and HUD stages"
+        );
+        test.expect_true(
+            result.gameplay_word_argument == 0xAAAA1234U,
+            "full pre-input path preserves the stale gameplay high word"
+        );
+        test.expect_true(
+            result.packed_rows.visited_count == 0U &&
                 result.role_heads.visited_count == 0U &&
                 result.dialogs.status ==
                     openswd3::story_scene::LegacyDialogRuntimeStatus::idle &&
@@ -770,7 +801,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                     openswd3::rendering::LegacyCountdownDisplayStatus::
                         hidden_inactive &&
                 result.input_queries == 1U && result.screenshot_calls == 0U,
-            "full pre-input path preserves selection publication dword high word direct closed stages and internal bit seventeen return three"
+            "full pre-input path reaches both countdowns and returns three on internal bit seventeen"
         );
     }
 
@@ -778,12 +809,12 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         state.optional_post_input_gate = 1U;
         state.special_surface_gate = 1U;
-        state.screenshot_request = 1U;
         state.screenshot_counter = 0xFFFFU;
         Fixture fixture;
         fixture.final_actor_step.active_actor_code = 8U;
         fixture.final_actor_step.source_actor_code = 0xFFFFFFFFU;
         CoordinatorPort port;
+        port.battle_debug_hotkey_state().screenshot_request = 1U;
         port.battle_terminal_latch() = 1U;
         port.battle_message_state() = 0U;
         configure_common_port(port);
@@ -834,7 +865,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 state.screenshot_counter == 0U &&
                 state.screenshot_path ==
                     std::filesystem::path("c:\\snap\\1000.bmp") &&
-                state.screenshot_request == 0U &&
+                port.battle_debug_hotkey_state().screenshot_request == 0U &&
                 fixture.bmp_ports.filenames ==
                     std::vector<std::string>{"c:\\snap\\1000.bmp"} &&
                 fixture.bmp_ports.close_calls == 1U &&
@@ -850,9 +881,9 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
 
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
-        state.selection_source = 8U;
         state.special_panel_suppression = 0U;
         Fixture fixture;
+        fixture.final_actor_step.queued_actor_code = 8U;
         fixture.internal_flags[0x11U >> 3U] =
             static_cast<u8>(1U << (0x11U & 7U));
         CoordinatorPort port;
@@ -914,8 +945,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
 
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
-        state.selection_source = 8U;
         Fixture fixture;
+        fixture.final_actor_step.queued_actor_code = 8U;
         CoordinatorPort port;
         configure_common_port(port);
         auto context = fixture.context();

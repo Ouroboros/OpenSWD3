@@ -79,7 +79,7 @@ void reset_startup_blocks(
     state.supplemental_used.fill(0U);
     reset.block_524268.fill(0U);
     reset.value_53c048 = 0U;
-    reset.value_53ae70 = 0xFFFFFFFFU;
+    port.actor_metric_state().priority_actor_index = 0xFFFFFFFFU;
     reset.value_53bf22 = 0U;
     reset.value_53c4b0 = 0U;
     for (auto& record : reset.records_524788) {

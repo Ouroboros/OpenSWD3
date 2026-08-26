@@ -228,13 +228,16 @@ void poison_reset_blocks(LegacyBattleStartupState& state, StartupPorts& port) {
     reset.values_5244d8.fill(1U);
     reset.value_524418 = 1U;
     reset.value_53c048 = 1U;
-    reset.value_53ae70 = 1U;
+    port.actor_metric_state().priority_actor_index = 1U;
     reset.value_53bf22 = 1U;
     reset.value_53c4b0 = 1U;
     for (auto& record : reset.records_524788) {
         record.value_00 = 1U;
+        record.value_04 = 1U;
+        record.value_08 = 1U;
         record.value_0a = 1U;
         record.value_0c = 1U;
+        record.value_10 = 1U;
         record.value_14 = 1U;
         record.value_18 = 1U;
     }
@@ -284,8 +287,10 @@ template <typename Range>
                reset.records_524788,
                [](const auto& record) {
                    return record.value_00 == 0xFFFFFFFFU &&
+                       record.value_04 == 1U && record.value_08 == 1U &&
                        record.value_0a == 0U && record.value_0c == 0U &&
-                       record.value_14 == 0U && record.value_18 == 0U;
+                       record.value_10 == 1U && record.value_14 == 0U &&
+                       record.value_18 == 0U;
                }
         ) &&
         reset.value_4ff0b0 == 0U && reset.value_4fe5cc == 0U &&
@@ -294,7 +299,8 @@ template <typename Range>
         all_equal(reset.values_52544c, 0U) &&
         all_equal(reset.values_502940, 0U) &&
         all_equal(reset.values_5244d8, 0U) && reset.value_524418 == 0U &&
-        reset.value_53c048 == 0U && reset.value_53ae70 == 0xFFFFFFFFU &&
+        reset.value_53c048 == 0U &&
+        port.actor_metric_state().priority_actor_index == 0xFFFFFFFFU &&
         reset.value_53bf22 == 0U && reset.value_53c4b0 == 0U;
 }
 
