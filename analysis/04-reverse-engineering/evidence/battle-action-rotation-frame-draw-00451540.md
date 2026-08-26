@@ -26,13 +26,13 @@ callee只有动作更新`0x004321E0`和通用blitter `0x004170E0`各一次。typ
 
 与多个相邻绘制helper不同，本函数不检查更新后EAX。更新返回完整0仍继续使用更新器写入的record字段。测试用EAX 0完成正常缓存绘制，锁定该差异。
 
-## 4. 三owner缓存索引与source发布
+## 4. 六owner缓存索引与source发布
 
 更新后先以`xor eax,eax; mov ax,[record+0x4C]`得到零扩展u16帧索引，再访问`+0x9C+index*4`。
 
-现代只允许索引0、1、2；其他值在首次owner槽访问处typed-stop，不发布source、不写共享位移。有效槽owner为0时，在原`mov edx,[ecx]`解引用点以`cached_owner_invalid`停止；动作更新前缀保留。
+后续`0x00451730`完整LST证明扩展状态从`+0x9C`起实际有六个owner槽。现代允许索引0..5；索引6及以上在首次owner槽访问处typed-stop，不发布source、不写共享位移。有效槽owner为0时，在原`mov edx,[ecx]`解引用点以`cached_owner_invalid`停止；动作更新前缀保留。
 
-owner有效时，从对应typed frame record发布source。初始化工作包已把查询返回的owner token和frame record同时存入同一槽，因此caller/callee边界现已直接闭合。
+owner有效时，从对应typed frame record发布source。初始化工作包的三个局部FFFF槽只会填充前三槽，但owner数组本体保留六槽供其他路径使用；typed状态按六槽统一，caller/callee边界现已直接闭合。
 
 ## 5. 共享水平位移
 
@@ -82,11 +82,11 @@ C++到LST反向追溯覆盖70行全部基本块、两个callee、两次owner访�
 
 - 存储动作号0立即返回且共享位移不变；
 - 更新EAX 0仍使用更新record绘制；
-- u16索引3在首次三owner访问停止；
+- u16索引6在首次六owner访问停止；
 - 有效索引但owner 0在source发布前停止；
 - 固定空tail使indexed缓存保留位移并typed-stop；
 - 正常偏移坐标、实际像素、公共后缀、显式位移清零和完整`field_8c`返回。
 
 battle聚合目标零warning构建及定向测试通过。
 
-当前没有原版扩展动作状态、更新后record、三owner/frame record、共享水平位移/blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整70行LST与唯一caller已完成固定状态闭环。
+当前没有原版扩展动作状态、更新后record、六owner/frame record、共享水平位移/blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整70行LST与唯一caller已完成固定状态闭环。

@@ -117,6 +117,7 @@ public:
         }
         return {
             .owner_token = static_cast<u32>(0x100U + slot),
+            .image_token = static_cast<u32>(0x200U + slot),
             .pointer_valid = pointer_valid,
             .bytes = images[slot],
             .frame = {
@@ -131,6 +132,49 @@ public:
     std::vector<u32> resource_ids;
     std::vector<u32> frame_indices;
     bool pointer_valid{true};
+};
+
+class TrackingRotationReleasePort final
+    : public openswd3::battle::LegacyBattleActionRotationReleasePort {
+public:
+    explicit TrackingRotationReleasePort(
+        openswd3::battle::LegacyBattleActionRotationCacheState& state
+    ) noexcept
+        : state_(state) {}
+
+    void release_image(const u32 image_token) noexcept override {
+        events.push_back(0x10000000U | image_token);
+        bool found = false;
+        for (std::size_t slot = 0; slot < state_.cached_image_tokens.size();
+             ++slot) {
+            if (state_.cached_image_tokens[slot] == image_token) {
+                found = true;
+                order_ok = order_ok && state_.frame_owner_tokens[slot] != 0U;
+                break;
+            }
+        }
+        order_ok = order_ok && found;
+    }
+
+    void release_owner(const u32 owner_token) noexcept override {
+        events.push_back(0x20000000U | owner_token);
+        bool found = false;
+        for (std::size_t slot = 0; slot < state_.frame_owner_tokens.size();
+             ++slot) {
+            if (state_.frame_owner_tokens[slot] == owner_token) {
+                found = true;
+                order_ok = order_ok && state_.cached_image_tokens[slot] == 0U;
+                break;
+            }
+        }
+        order_ok = order_ok && found;
+    }
+
+    std::vector<u32> events;
+    bool order_ok{true};
+
+private:
+    openswd3::battle::LegacyBattleActionRotationCacheState& state_;
 };
 
 [[nodiscard]] bool action_record_is_zero(
@@ -247,7 +291,7 @@ void test_battle_action_rotation_cache(openswd3::test::Context& test) {
                 frames.frame_indices ==
                     std::vector<u32>{0xA1A10000U, 0xC3C30001U} &&
                 state.frame_owner_tokens ==
-                    std::array<u32, 3>{0x100U, 0x101U, 0U} &&
+                    std::array<u32, 6>{0x100U, 0x101U, 0U, 0U, 0U, 0U} &&
                 state.field_b4 == 0x22222222U &&
                 state.field_b8 == 0x33333333U &&
                 state.stored_action_id == 0x5678U &&
@@ -666,7 +710,7 @@ void test_battle_action_rotation_cache(openswd3::test::Context& test) {
         state.stored_action_id = 1U;
         ScriptedRotationUpdatePort updater{
             {UpdateStep{
-                .field_4c = 3U,
+                .field_4c = 6U,
                 .eax = 1U,
             }},
         };
@@ -694,7 +738,7 @@ void test_battle_action_rotation_cache(openswd3::test::Context& test) {
                         frame_index_out_of_range &&
                 result.action_update_calls == 1U &&
                 result.frame_draw_calls == 0U && !result.source_published,
-            "updated frame index outside three owner slots stops at first access"
+            "updated frame index outside six owner slots stops at first access"
         );
     }
 
@@ -1106,6 +1150,84 @@ void test_battle_action_rotation_cache(openswd3::test::Context& test) {
                 result.skipped_cached_frames == 1U &&
                 result.wait_clear_calls == 2U,
             "full playback state repeats only after draw skip waits and updates"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleActionRotationCacheState state;
+        state.frame_owner_tokens = {0x100U, 0x101U, 0U, 0x103U, 0U, 0x105U};
+        state.cached_image_tokens = {0x200U, 0U, 0x202U, 0x203U, 0U, 0x205U};
+        std::array<std::vector<u8>, 6> bytes;
+        for (std::size_t slot = 0; slot < bytes.size(); ++slot) {
+            bytes[slot] = {static_cast<u8>(slot + 1U)};
+            state.cached_mutable_images[slot] = bytes[slot];
+            state.cached_frames[slot] = {
+                .source = {.bytes = bytes[slot]},
+                .width = 1U,
+                .height = 1U,
+            };
+        }
+        std::memset(
+            &state.action_record,
+            0xA5,
+            openswd3::asset_runtime::kLegacyActionRecordSize
+        );
+        state.stored_action_id = 0x1234U;
+        state.field_b4 = 0x11112222U;
+        state.field_b8 = 0x33334444U;
+        state.field_bc = 0x55556666U;
+        TrackingRotationReleasePort release_port(state);
+        const auto result =
+            openswd3::battle::release_legacy_battle_action_rotation_cache(
+                state, release_port
+            );
+        test.expect_true(
+            result.image_release_calls == 3U &&
+                result.owner_release_calls == 4U &&
+                result.empty_owner_slots == 2U && result.return_value == 0U &&
+                release_port.order_ok &&
+                release_port.events ==
+                    std::vector<u32>{
+                        0x10000200U,
+                        0x20000100U,
+                        0x20000101U,
+                        0x10000203U,
+                        0x20000103U,
+                        0x10000205U,
+                        0x20000105U,
+                    } &&
+                state.frame_owner_tokens == std::array<u32, 6>{} &&
+                state.cached_image_tokens ==
+                    std::array<u32, 6>{0U, 0U, 0x202U, 0U, 0U, 0U} &&
+                state.cached_mutable_images[0U].empty() &&
+                !state.cached_mutable_images[2U].empty() &&
+                state.cached_frames[0U].source.bytes.empty() &&
+                !state.cached_frames[2U].source.bytes.empty() &&
+                state.stored_action_id == 0U && state.field_bc == 0U &&
+                state.field_b4 == 0x11112222U &&
+                state.field_b8 == 0x33334444U &&
+                action_record_is_zero(state.action_record),
+            "six slots release nested image before owner and preserve orphan payload"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleActionRotationCacheState state;
+        state.action_record.field_24 = 0xFFFFFFFFU;
+        state.stored_action_id = 9U;
+        state.field_bc = 8U;
+        TrackingRotationReleasePort release_port(state);
+        const auto result =
+            openswd3::battle::release_legacy_battle_action_rotation_cache(
+                state, release_port
+            );
+        test.expect_true(
+            result.image_release_calls == 0U &&
+                result.owner_release_calls == 0U &&
+                result.empty_owner_slots == 6U && release_port.events.empty() &&
+                state.stored_action_id == 0U && state.field_bc == 0U &&
+                action_record_is_zero(state.action_record),
+            "six empty owner slots skip callbacks but still clear extension and record"
         );
     }
 }

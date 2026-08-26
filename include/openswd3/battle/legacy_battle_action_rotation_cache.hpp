@@ -27,6 +27,7 @@ public:
 
 struct LegacyBattleMutableFrameImage {
     compat::u32 owner_token{};
+    compat::u32 image_token{};
     bool pointer_valid{};
     std::span<compat::u8> bytes{};
     rendering::LegacyFramePiece frame{};
@@ -40,11 +41,20 @@ public:
     query_frame_image(compat::u32 resource_id, compat::u32 frame_index) = 0;
 };
 
+class LegacyBattleActionRotationReleasePort {
+public:
+    virtual ~LegacyBattleActionRotationReleasePort() = default;
+
+    virtual void release_image(compat::u32 image_token) noexcept = 0;
+    virtual void release_owner(compat::u32 owner_token) noexcept = 0;
+};
+
 struct LegacyBattleActionRotationCacheState {
     asset_runtime::LegacyActionRecord action_record{};
-    std::array<compat::u32, 3> frame_owner_tokens{};
-    std::array<rendering::LegacyFramePiece, 3> cached_frames{};
-    std::array<std::span<compat::u8>, 3> cached_mutable_images{};
+    std::array<compat::u32, 6> frame_owner_tokens{};
+    std::array<compat::u32, 6> cached_image_tokens{};
+    std::array<rendering::LegacyFramePiece, 6> cached_frames{};
+    std::array<std::span<compat::u8>, 6> cached_mutable_images{};
     compat::u32 field_b4{};
     compat::u32 field_b8{};
     compat::u32 field_bc{};
@@ -122,6 +132,13 @@ enum class LegacyBattleActionRotationDrawStatus : compat::u8 {
     blit_typed_stop,
 };
 
+struct LegacyBattleActionRotationReleaseResult {
+    compat::u32 image_release_calls{};
+    compat::u32 owner_release_calls{};
+    compat::u32 empty_owner_slots{};
+    compat::u32 return_value{};
+};
+
 struct LegacyBattleActionRotationDrawResult {
     LegacyBattleActionRotationDrawStatus status{
         LegacyBattleActionRotationDrawStatus::completed
@@ -161,6 +178,13 @@ draw_legacy_battle_action_rotation_frame(
     rendering::LegacyBlitRequest& shared_request,
     rendering::LegacyBlitEffectState& shared_effects,
     rendering::LegacyRleRowJitterState& jitter
+) noexcept;
+
+// sub_451730: release all six nested image/owner cache slots.
+[[nodiscard]] LegacyBattleActionRotationReleaseResult
+release_legacy_battle_action_rotation_cache(
+    LegacyBattleActionRotationCacheState& state,
+    LegacyBattleActionRotationReleasePort& release_port
 ) noexcept;
 
 // sub_4515E0: play unique cached frames with an optional cyclic rotation.

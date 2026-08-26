@@ -51,10 +51,10 @@ code_origin == game
 - 尾地址：`0x00484500`；
 - `confirmed_boundary`：`61`；
 - `medium`导航候选：`361`；
-- `pending_audit`：`381`；
+- `pending_audit`：`380`；
 - `assembly_exact`：`5`；
-- `platform_adapted`：`36`；
-- 已关闭：`41`。
+- `platform_adapted`：`37`；
+- 已关闭：`42`。
 
 六个稳定导航分组为：
 
@@ -287,12 +287,14 @@ I5最终必须锁定：
 
 `audit_order=39`的`0x00451420`已关闭为`platform_adapted`。它映射扩展动作record，入口写动作号和两个dword后进入动作更新循环；每轮精确保留`mov al/mov ax`后的EAX高字和`mov dx`后的EDX高字，以三项FFFF局部槽去重帧查询。未缓存帧按查询→owner缓存→局部槽→640/低word除数→指针解引用顺序，直接调用已关闭literal图像模式3右移；command cursor为0时只清前0x98字节record，否则重置动作号/base variant继续更新。只有record、槽、owner和端口完整token全部重复才判非终止。
 
-`audit_order=40`的`0x00451540`已关闭为`platform_adapted`。存储动作号低word为0时直接返回0；非零时重写动作号/base variant并调用更新器，但精确忽略更新EAX。更新后的u16帧索引访问上一项建立的三owner/frame缓存，先发布source再写共享水平位移；绘制坐标为入口扩展坐标减record偏移，使用record flags和固定空tail。正常公共后缀后显式再次清水平位移并返回`field_8c`，indexed或非法缓存typed-stop不得提前清理或发布返回。
+`audit_order=40`的`0x00451540`已关闭为`platform_adapted`。存储动作号低word为0时直接返回0；非零时重写动作号/base variant并调用更新器，但精确忽略更新EAX。更新后的u16帧索引访问扩展状态的六owner/frame缓存；上一项的三槽局部表只填充前三槽，先发布source再写共享水平位移；绘制坐标为入口扩展坐标减record偏移，使用record flags和固定空tail。正常公共后缀后显式再次清水平位移并返回`field_8c`，indexed或非法缓存typed-stop不得提前清理或发布返回。
 
 `audit_order=41`的`0x004515E0`已关闭为`platform_adapted`。存储动作非零时先完整清0x98 record再更新；三个FFFF局部槽只让每个u16帧索引旋转和绘制一次。signed旋转量正值直连模式3，负值低32位取负后直连模式2，零跳过；随后从同一owner/frame缓存以偏移坐标、record flags和固定空tail绘制。每轮draw正常或缓存跳过后无条件清两个等待word，cursor为0再清record返回1，否则继续更新；更新失败返回0，完整状态重复才判非终止。
 
+`audit_order=42`的`0x00451730`已关闭为`platform_adapted`。函数固定遍历扩展状态从`+0x9C`开始的六个owner槽：owner非空时先读取并释放嵌套image，回调返回后清内部指针，再释放owner并清外部槽；owner空则连孤立image payload也不触及。六轮后只清存储动作低word、`field_bc`与0x98 record，保留`field_b4/field_b8`并返回EAX 0。该完整LST同时把单帧绘制的typed owner边界从三槽修正为六槽，初始化/播放的三个局部FFFF槽仍只触及前三槽。
+
 `audit_order=14`的`0x00434790`已关闭为`platform_adapted`。它只在首次调用以显式time seed CRT、发布三项共享值并扫描源图，随后直接组合已关闭粒子生成、线段推进与单像素颜色合成；剩余批次回放保留镜像检查X、源索引和实际写入X错位，粒子2×2绘制保留只跳第一透明色、只检查右像素及合成模式右上先合成后被原值覆盖。生命刷新、距离与目标矩形摘除、唯一/首/尾/中间四类双向链释放及其计数不对称均已闭环。三个上层caller都显式消费返回1作为阶段完成信号，尚待各自进入现代实现。
 
-下一项回收`audit_order=42`的`0x00451730`战斗六帧旋转缓存释放，继续完整审计六owner槽、先释放嵌套图像再清内部指针、后释放owner再清槽、空槽跳过、存储动作/共享位移清零、record完整清零与返回寄存器。
+下一项回收`audit_order=43`的`0x004517A0`战斗记录容器静态生命周期注册，必须将`0x004517D0..0x004517DB`外部FUNCTION CHUNK计入完整函数，继续审计初始化callee、退出清理注册、全局容器地址、记录尺寸、资源键和构造/析构回调。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

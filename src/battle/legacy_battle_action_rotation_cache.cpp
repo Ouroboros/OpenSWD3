@@ -11,7 +11,7 @@ namespace {
 struct CycleSnapshot {
     asset_runtime::LegacyActionRecord action_record{};
     std::array<compat::u16, 3> local_frame_slots{};
-    std::array<compat::u32, 3> frame_owner_tokens{};
+    std::array<compat::u32, 6> frame_owner_tokens{};
     compat::u32 field_bc{};
     std::uint64_t domain_token{};
 };
@@ -148,6 +148,7 @@ initialize_legacy_battle_action_rotation_cache(
                 image_port.query_frame_image(resource_id, frame_index);
             ++result.frame_query_calls;
             state.frame_owner_tokens[local_index] = image.owner_token;
+            state.cached_image_tokens[local_index] = image.image_token;
             state.cached_frames[local_index] = image.frame;
             state.cached_mutable_images[local_index] = image.bytes;
             result.local_frame_slots[local_index] = local_index;
@@ -200,6 +201,37 @@ initialize_legacy_battle_action_rotation_cache(
             return result;
         }
     }
+}
+
+LegacyBattleActionRotationReleaseResult
+release_legacy_battle_action_rotation_cache(
+    LegacyBattleActionRotationCacheState& state,
+    LegacyBattleActionRotationReleasePort& release_port
+) noexcept {
+    LegacyBattleActionRotationReleaseResult result;
+    for (std::size_t slot = 0; slot < state.frame_owner_tokens.size(); ++slot) {
+        if (state.frame_owner_tokens[slot] == 0U) {
+            ++result.empty_owner_slots;
+            continue;
+        }
+        if (state.cached_image_tokens[slot] != 0U) {
+            release_port.release_image(state.cached_image_tokens[slot]);
+            ++result.image_release_calls;
+            state.cached_image_tokens[slot] = 0U;
+            state.cached_mutable_images[slot] = {};
+            state.cached_frames[slot].source = {};
+        }
+        release_port.release_owner(state.frame_owner_tokens[slot]);
+        ++result.owner_release_calls;
+        state.frame_owner_tokens[slot] = 0U;
+        state.cached_frames[slot] = {};
+    }
+    state.stored_action_id = 0U;
+    state.field_bc = 0U;
+    std::memset(
+        &state.action_record, 0, asset_runtime::kLegacyActionRecordSize
+    );
+    return result;
 }
 
 LegacyBattleActionRotationDrawResult draw_legacy_battle_action_rotation_frame(
