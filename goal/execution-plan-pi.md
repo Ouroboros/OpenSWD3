@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v732
+版本：v733
 
 最后更新：2026-08-25
 
@@ -3939,4 +3939,6 @@ B7 P0 有限收口完成。
 
 - 模块10战斗强度衰减效果帧`0x00459BF0`完成。完整权威LST主体`0x00459BF0..0x00459D04`从proc到endp共130行、4个静态call站点、4个局部标签，无外部FUNCTION CHUNK。实现恢复source-zero先于slot访问、i8小于等于-32清零、坐标先于record写、global mode snapshot、初始化失败完整EAX/EDX、lookup分别保留初始化EAX/EDX高word、owner首次解引用、三项signed强度发布、signed16坐标减完整dword offset、u16宽高和data token绘制、无resource释放、强度u8减4以及render EDX返回。唯一caller八槽效果协调器已删除`0x00459BF0` opaque token并直接组合，子返回EDX继续作为父final gate陈旧高word来源，返回1才清主status和pending。测试覆盖source/slot顺序、signed阈值、坐标与record写序、初始化失败、双lookup高word、owner停点、绘制参数、强度发布/回绕、零释放和caller直连；定向`1/1`、独立ASan`1/1`、Linux core`188/188`和Linux app`194/194`通过。工作包连续双跑逐字节一致，稳定为`68/422`，即`63 platform_adapted + 5 assembly_exact + 354 pending_audit`，SHA256为`eeded089dcf355117380c5bff3afd0f0f0c666cdc5e25e7e1ea6b18744818c57`。原版八槽强度record、强度byte数组、4类callee共享副作用、resource owner、framebuffer及寄存器联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=69`的`0x00459D10`，必须从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗效果帧函数。
+- 模块10战斗HUD帧`0x00459D10`完成。完整权威LST主体`0x00459D10..0x0045A97C`从proc到endp共1363行、51个静态call站点、62个局部标签，无外部FUNCTION CHUNK。实现恢复固定字体前缀、顶部active队伍条、两类signed byte脉冲、十槽过滤、三次及条件第四次blocked查询、名字叠绘、actor值非对称平滑、primary/secondary/tertiary三组数值差异、bit27绝对值BUG、x87扩展与float两种向零转换、零分母整数不定低dword、底部signed三分步进及路径相关返回。四处x87 helper由已知规则直接闭合，其余23类callee保留统一HUD typed端口。画面转场两处旧状态发布伪边界和逐帧协调器旧后渲染伪边界均删除，三个caller直接组合typed HUD并传播stop。测试覆盖空HUD、十槽边界、顶部左右布局、x87宽度、颜色条、两类脉冲、重复blocked查询、名字叠绘、actor value停点、三组平滑、bit27 BUG、零分母、footer、转场双调用点、逐帧直连和父级stop；定向`1/1`、独立ASan`1/1`、Linux core`188/188`和Linux app`194/194`通过。工作包连续双跑逐字节一致，稳定为`69/422`，即`64 platform_adapted + 5 assembly_exact + 353 pending_audit`，SHA256为`0e58e2753b7f50a0ab4c10436a632b162c5a73675cd34cbf82b64e3a009912e5`。原版组A十对象、23类callee共享副作用、字体/文本、framebuffer、三组实时数值、映射表、actor内部value指针、x87控制字及寄存器联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=70`的`0x0045A980`，必须从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗帧函数。

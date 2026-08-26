@@ -14,6 +14,8 @@ using openswd3::battle::LegacyBattleTransitionAllocation;
 using openswd3::battle::LegacyBattleTransitionCall;
 using openswd3::battle::LegacyBattleTransitionCallReply;
 using openswd3::battle::LegacyBattleTransitionCallRequest;
+using openswd3::battle::LegacyBattleHudCallReply;
+using openswd3::battle::LegacyBattleHudCallRequest;
 using openswd3::battle::LegacyBattleTransitionLockedSurface;
 using openswd3::compat::i32;
 using openswd3::compat::u8;
@@ -63,6 +65,12 @@ public:
             break;
         }
         return reply;
+    }
+
+    [[nodiscard]] LegacyBattleHudCallReply
+    invoke_hud(const LegacyBattleHudCallRequest& request) override {
+        hud_requests.push_back(request);
+        return {};
     }
 
     [[nodiscard]]
@@ -190,6 +198,7 @@ public:
 
     std::unordered_map<u32, Surface> surfaces;
     std::vector<LegacyBattleTransitionCallRequest> requests;
+    std::vector<LegacyBattleHudCallRequest> hud_requests;
     std::deque<u32> random_values;
     std::unordered_map<u32, u32> actor_mode_returns;
     std::vector<u32> allocation_requests;
@@ -349,6 +358,8 @@ void test_battle_transition(openswd3::test::Context& test) {
                 result.secondary_conversion_calls == 1U &&
                 result.frame_draw_calls == 1U &&
                 result.frame_effect_calls == 1U &&
+                result.hud_frame_calls == 1U &&
+                ports.hud_requests.size() == 2U &&
                 !state.primary_command_stream.empty() &&
                 result.entry_transition_frames == 34U &&
                 result.exit_transition_frames == 33U &&
@@ -472,6 +483,8 @@ void test_battle_transition(openswd3::test::Context& test) {
                 result.secondary_conversion_calls == 0U &&
                 result.frame_draw_calls == 2U &&
                 result.frame_effect_calls == 2U &&
+                result.hud_frame_calls == 2U &&
+                ports.hud_requests.size() == 4U &&
                 result.entry_transition_frames == 34U &&
                 result.exit_transition_frames == 0U &&
                 result.target_clear_calls == 0U &&

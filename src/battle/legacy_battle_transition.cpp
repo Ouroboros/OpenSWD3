@@ -342,11 +342,12 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
         return result;
     }
     state.current_source_from_frame = true;
-    static_cast<void>(invoke(
-        port,
-        LegacyBattleTransitionCall::publish_status_word,
-        {request.status_word, 0U, 0U, 0U, 0U, 0U}
-    ));
+    result.hud_frames[0] = advance_legacy_battle_hud_frame(state.hud, port);
+    ++result.hud_frame_calls;
+    if (result.hud_frames[0].status != LegacyBattleHudFrameStatus::completed) {
+        result.status = LegacyBattleTransitionStatus::hud_typed_stop;
+        return result;
+    }
     invoke_surface_operation(
         port, result, startup.display_surfaces[0], state.target_surface_token
     );
@@ -514,11 +515,13 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
             return result;
         }
         state.current_source_from_frame = true;
-        static_cast<void>(invoke(
-            port,
-            LegacyBattleTransitionCall::publish_status_word,
-            {request.status_word, 0U, 0U, 0U, 0U, 0U}
-        ));
+        result.hud_frames[1] = advance_legacy_battle_hud_frame(state.hud, port);
+        ++result.hud_frame_calls;
+        if (result.hud_frames[1].status !=
+            LegacyBattleHudFrameStatus::completed) {
+            result.status = LegacyBattleTransitionStatus::hud_typed_stop;
+            return result;
+        }
         invoke_surface_operation(
             port,
             result,

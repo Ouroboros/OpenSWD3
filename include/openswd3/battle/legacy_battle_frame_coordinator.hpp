@@ -54,7 +54,6 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     frame_followup_stage_2,
     frame_followup_completion_gate,
     actor_ready_query,
-    post_render_stage_0,
     post_render_stage_1,
     post_render_stage_2,
     post_render_stage_3,
@@ -81,7 +80,7 @@ struct LegacyBattleFrameCoordinatorCallReply {
     compat::u32 published_value{};
 };
 
-class LegacyBattleFrameCoordinatorPort {
+class LegacyBattleFrameCoordinatorPort : public LegacyBattleHudCallPort {
 public:
     virtual ~LegacyBattleFrameCoordinatorPort() = default;
 
@@ -130,6 +129,7 @@ struct LegacyBattleFrameCoordinatorState {
     asset_runtime::LegacyActionRecord panel_action_record{};
     LegacyBattleStandaloneActionFrameDrawState standalone_action;
     LegacyBattleFrameEffectState frame_effect{};
+    LegacyBattleHudFrameState hud{};
 };
 
 struct LegacyBattleFrameCoordinatorRequest {
@@ -183,6 +183,7 @@ enum class LegacyBattleFrameCoordinatorStatus : compat::u8 {
     internal_flag_typed_stop,
     input_return_three,
     temporary_surface_typed_stop,
+    hud_typed_stop,
 };
 
 struct LegacyBattleFrameCoordinatorResult {
@@ -198,6 +199,8 @@ struct LegacyBattleFrameCoordinatorResult {
     compat::u32 selection_refresh_calls{};
     LegacyBattleFrameEffectResult frame_effect{};
     compat::u32 frame_effect_calls{};
+    LegacyBattleHudFrameResult hud_frame{};
+    compat::u32 hud_frame_calls{};
     LegacyBattleFrameDrawResult fixed_frame{};
     compat::u32 fixed_frame_calls{};
     asset_runtime::LegacyActionUpdateResult panel_action_update{};

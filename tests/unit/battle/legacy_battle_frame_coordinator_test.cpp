@@ -14,6 +14,8 @@ namespace {
 using openswd3::battle::LegacyBattleFrameCoordinatorCall;
 using openswd3::battle::LegacyBattleFrameCoordinatorCallReply;
 using openswd3::battle::LegacyBattleFrameCoordinatorCallRequest;
+using openswd3::battle::LegacyBattleHudCallReply;
+using openswd3::battle::LegacyBattleHudCallRequest;
 using openswd3::compat::i32;
 using openswd3::compat::u8;
 using openswd3::compat::u16;
@@ -27,6 +29,12 @@ public:
         calls.push_back(request);
         const auto found = replies.find(request.call);
         return found == replies.end() ? default_reply : found->second;
+    }
+
+    [[nodiscard]] LegacyBattleHudCallReply
+    invoke_hud(const LegacyBattleHudCallRequest& request) override {
+        hud_calls.push_back(request);
+        return {};
     }
 
     [[nodiscard]] u32
@@ -59,6 +67,7 @@ public:
     }
 
     std::vector<LegacyBattleFrameCoordinatorCallRequest> calls;
+    std::vector<LegacyBattleHudCallRequest> hud_calls;
     std::map<
         LegacyBattleFrameCoordinatorCall,
         LegacyBattleFrameCoordinatorCallReply>
@@ -544,6 +553,35 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
 
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
+        state.hud.active_actor_count = 11;
+        CoordinatorPort port;
+        configure_common_port(port);
+        Fixture fixture;
+        auto context = fixture.context();
+
+        const auto result =
+            openswd3::battle::run_legacy_battle_frame_coordinator(
+                state, port, context, base_request()
+            );
+
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameCoordinatorStatus::
+                        hud_typed_stop &&
+                result.fixed_frame_calls == 1U &&
+                result.hud_frame_calls == 1U &&
+                result.hud_frame.status ==
+                    openswd3::battle::LegacyBattleHudFrameStatus::
+                        actor_index_typed_stop &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::post_render_stage_1
+                ) == 0U,
+            "HUD typed stop propagates after fixed frame and blocks later render stages"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleFrameCoordinatorState state;
         state.ui_state = 0xABCD0000U;
         state.selection_delay = 0x10U;
         state.input_source = 7U;
@@ -574,6 +612,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 state.ui_state == 0xABCD0001U &&
                 result.frame_effect_calls == 1U &&
                 result.fixed_frame_calls == 1U &&
+                result.hud_frame_calls == 1U && port.hud_calls.size() == 2U &&
                 result.gameplay_word_argument == 0xAAAA1234U &&
                 result.packed_rows.visited_count == 0U &&
                 result.role_heads.visited_count == 0U &&

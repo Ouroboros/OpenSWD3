@@ -2,6 +2,7 @@
 
 #include "openswd3/battle/legacy_battle_frame_draw.hpp"
 #include "openswd3/battle/legacy_battle_frame_effect.hpp"
+#include "openswd3/battle/legacy_battle_hud_frame.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 #include "openswd3/battle/legacy_battle_surface_blend.hpp"
 
@@ -71,7 +72,6 @@ enum class LegacyBattleTransitionCall : compat::u16 {
     prepare_scene,
     scene_phase_a,
     scene_phase_b,
-    publish_status_word,
     draw_full_image,
     transform_image,
     restore_clip,
@@ -97,7 +97,8 @@ struct LegacyBattleTransitionCallReply {
     compat::u32 return_value{};
 };
 
-class LegacyBattleTransitionPort : public LegacyBattleFrameEffectPort {
+class LegacyBattleTransitionPort : public LegacyBattleFrameEffectPort,
+                                   public LegacyBattleHudCallPort {
 public:
     virtual ~LegacyBattleTransitionPort() = default;
 
@@ -141,6 +142,7 @@ struct LegacyBattleTransitionState {
     std::array<compat::u32, 10> party_special_fields{};
     std::array<compat::u32, 3> staged_surface_tokens{};
     LegacyBattleFrameEffectState frame_effect{};
+    LegacyBattleHudFrameState hud{};
     std::filesystem::path music_path;
 };
 
@@ -163,6 +165,7 @@ enum class LegacyBattleTransitionStatus : compat::u8 {
     party_index_out_of_range,
     surface_blend_typed_stop,
     frame_effect_typed_stop,
+    hud_typed_stop,
 };
 
 struct LegacyBattleTransitionResult {
@@ -187,6 +190,8 @@ struct LegacyBattleTransitionResult {
     compat::u32 surface_blend_calls{};
     std::array<LegacyBattleFrameEffectResult, 2> frame_effects{};
     compat::u32 frame_effect_calls{};
+    std::array<LegacyBattleHudFrameResult, 2> hud_frames{};
+    compat::u32 hud_frame_calls{};
     std::array<compat::u32, 4> release_order{};
     compat::u32 release_calls{};
     bool music_started{};
