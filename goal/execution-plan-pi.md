@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v719
+版本：v720
 
 最后更新：2026-08-25
 
@@ -3923,5 +3923,6 @@ B7 P0 有限收口完成。
 - 模块10战斗文件对象静态生命周期注册`0x00451900`完成。主函数由13行主体与`0x00451920..0x0045192B`十行外部FUNCTION CHUNK组成；工作包未单列的`0x00451910/0x00451930`两个9行附件加载同一固定文件owner后分别尾跳已关闭文件构造`0x00438000`与析构`0x00438030`。modern复用正式`LegacyFile`状态机，以`std::optional`在原时点真实构造和析构，不复制80字节裸布局；静态协调器保持构造先于注册，最终返回`_atexit`完整EAX。定向测试锁定固定owner、注册时对象已存在、精确退出token、注册EAX与一次真实析构；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`53/422`，即`48 platform_adapted + 5 assembly_exact + 369 pending_audit`，SHA256为`5d3fed758ae8101315dd12c979aeb6de37ea9b923986ef7efe4c2beb9d616706`。原版固定文件owner内存、Win32资源与CRT退出注册联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 - 模块10战斗背景资源初始化`0x00451940`完成。完整108行、无外部chunk；严格恢复`all_map2.tsw`路径建立、六槽旋转缓存释放、旧背景释放、固定variant零TSW加载、indexed/direct命令流转换、signed `640/divisor`、mode3 literal循环右移、共享记录word与动作号低word双门、三帧动作旋转缓存初始化，以及三个完成word按高地址→低地址发布。load失败在释放前缀后唯一返回0且不写完成word；零除在转换后typed-stop；成功及正常门跳过均返回全1。typed实现直接复用TSW archive、命令流转换、literal旋转和动作缓存closed helper；定向测试锁定释放→加载→转换→旋转→动作更新顺序、完整参数、低word门、失败前缀、零除点和后缀逆序。真实`all_map2.tsw`物理槽1完成640×400转换及shift160循环右移，并加入`legacy_real_assets`全局锁；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`54/422`，即`49 platform_adapted + 5 assembly_exact + 368 pending_audit`，SHA256为`3b47efde1e5270cf24b8ec67a6a07965608c78d488c9d79724887b48c699d148`。原版路径缓冲、共享背景token、记录门、动作缓存与framebuffer联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 - 模块10战斗对象批量重置`0x00451A20`完成。完整58行、无外部chunk；固定顺序为一次全局reset、三个固定对象reset、`0x60`个dword正向清零、角色组B八槽遍历、角色组A十槽遍历。两个对象reset callee分别属于后续工作包，以typed端口保留边界；调用端复用已锁定的A/B基址、尺寸和数量，发布全部返回snapshot并最终保留末个组A callee完整EAX。定向测试锁定全局→固定三项→B八项→A十项共22次调用、384字节表在首个角色回调前已清零、所有18个物理token与固定步长；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`55/422`，即`50 platform_adapted + 5 assembly_exact + 367 pending_audit`，SHA256为`aac06ba9d5a2a77f1a8f2700db5f92a3a62d438262ea38135c116a51fda46872`。原版三个reset callee、固定表与18个角色对象联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
+- 模块10大型战斗启动协调器`0x00451B10`完成。主函数完整1351行、60个静态call站点、48个标签、无外部chunk；邻接`0x00451AE0/0x00451A90`两个显示surface释放/创建附件一并typed闭合但正式只计主函数。实现完整覆盖阈值直连、固定零/全1块、18条混合宽度记录、陈旧队伍总数、窗口/几何、显示surface、`battle.ffd`完整ID/低word分离与零敌人callee EAX早退、背景初始化直连、组B敌人与组A队伍物化、1–4人坐标、缺席槽陈旧坐标、镜像callee后ECX高word、三组x87比率、陈旧补位word触发随机/顺序分支、无上限重复候选、敌方随机动作、补位后最终化及最终u32回绕判定。测试覆盖全部reset、失败早退、普通完整路径、随机与顺序补位、1–4人矩阵、零除integer-indefinite低dword零和第九敌人在前八项副作用后typed-stop；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`56/422`，即`51 platform_adapted + 5 assembly_exact + 366 pending_audit`，SHA256为`93c0d6de3d88edac4b455e9dde1a2686d5dc2f9885508628eaa504d8cfade53c`。`battle.ffd` loader、角色/AI及全局阶段callee仍各属后续工作包，原版文件对象、共享表、18角色、surface与随机状态联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=56`的`0x00451B10`，必须从完整权威LST主体和所有外部FUNCTION CHUNK独立审计其大型战斗启动协调流程、全部callee顺序、共享状态副作用、分支域与返回约定。
+下一项回收`audit_order=57`的`0x004527E0`，必须从完整权威LST主体和所有外部FUNCTION CHUNK独立审计其战斗画面缓冲与转换职责、分配/释放顺序、像素循环、分支域与返回约定。

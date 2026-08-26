@@ -27,6 +27,7 @@ void test_battle_object_reset(openswd3::test::Context& test);
 void test_battle_scale_fill_panel(openswd3::test::Context& test);
 void test_battle_scale_scan(openswd3::test::Context& test);
 void test_battle_status_indicator(openswd3::test::Context& test);
+void test_battle_startup(openswd3::test::Context& test);
 void test_battle_vertical_panel(openswd3::test::Context& test);
 
 namespace {
@@ -6944,6 +6945,7 @@ int main() {
     test_battle_scale_fill_panel(test);
     test_battle_scale_scan(test);
     test_battle_status_indicator(test);
+    test_battle_startup(test);
     test_battle_vertical_panel(test);
     test_battle_selected_or_cached_frame_draw(test);
     test_battle_ten_place_decimal_coordinator(test);

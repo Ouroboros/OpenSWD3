@@ -257,6 +257,7 @@ add_executable(
     unit/battle/legacy_battle_scale_scan_test.cpp
     unit/battle/legacy_battle_setup_test.cpp
     unit/battle/legacy_battle_status_indicator_test.cpp
+    unit/battle/legacy_battle_startup_test.cpp
     unit/battle/legacy_battle_vertical_panel_test.cpp
 )
 if(
