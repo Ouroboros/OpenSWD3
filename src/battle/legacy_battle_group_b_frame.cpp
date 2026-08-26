@@ -1,0 +1,1144 @@
+#include "openswd3/battle/legacy_battle_group_b_frame.hpp"
+
+#include "openswd3/battle/legacy_battle_opponent_action_dispatch.hpp"
+
+#include <algorithm>
+#include <bit>
+#include <limits>
+
+namespace openswd3::battle {
+namespace {
+
+using compat::i16;
+using compat::i32;
+using compat::u8;
+using compat::u16;
+using compat::u32;
+
+constexpr u32 kCallQueryTerminal = 0x0047CE80U;
+constexpr u32 kCallUpdateOpponent = 0x0047DAD0U;
+constexpr u32 kCallQueryUpdateGate = 0x004755E0U;
+constexpr u32 kCallPublishOpponentCallback = 0x0045EDF0U;
+constexpr u32 kCallQueryQueueCompletion = 0x0047F920U;
+constexpr u32 kCallResetActor = 0x00478850U;
+constexpr u32 kCallQueryActorBlocked = 0x0047D930U;
+constexpr u32 kCallQueryActorExcluded = 0x00478B50U;
+constexpr u32 kCallQueryTargetBusy = 0x00478690U;
+constexpr u32 kCallQueryIdle = 0x004786A0U;
+constexpr u32 kCallClearControl = 0x0047C660U;
+constexpr u32 kCallPrepareTarget = 0x00478AC0U;
+constexpr u32 kCallPrepareSelection = 0x00478B30U;
+constexpr u32 kCallPublishSelection = 0x00478A70U;
+constexpr u32 kCallQuerySelectionMode = 0x00483820U;
+constexpr u32 kCallRandomBounded = 0x00439070U;
+constexpr u32 kCallQueryOpponentMode = 0x00476080U;
+constexpr u32 kCallQueryStatusAction = 0x00476330U;
+constexpr u32 kCallSetActionMode = 0x00478710U;
+constexpr u32 kCallPublishStatusMode = 0x0047D860U;
+constexpr u32 kCallQuerySpecialAction = 0x0047D880U;
+constexpr u32 kCallQueryPhaseMode = 0x0047D8D0U;
+constexpr u32 kCallDisplayText = 0x004698E0U;
+constexpr u32 kCallQueryStatusSequence = 0x00480220U;
+constexpr u32 kCallQueryOpponentSwitch = 0x00476140U;
+constexpr u32 kCallQuerySignedStatus = 0x004761D0U;
+constexpr u32 kCallQueryActionTarget = 0x004786E0U;
+constexpr u32 kCallPublishActionStart = 0x0047C690U;
+constexpr u32 kCallSelectionClear = 0x00478B20U;
+constexpr u32 kCallSelectionComplete = 0x00478B40U;
+constexpr u32 kCallResetTarget = 0x00478AE0U;
+constexpr u32 kCallResetCompletionSlot = 0x004750C0U;
+constexpr u32 kCallQueryCompletionValue = 0x00478370U;
+constexpr u32 kCallPublishCompletionValue = 0x0045D180U;
+constexpr u32 kCallPublishBattleBit = 0x00483FF0U;
+constexpr u32 kCallQueryCompletionEffect = 0x0047F360U;
+constexpr u32 kCallPublishCompletionId = 0x004787D0U;
+constexpr u32 kCallPublishCompletionSource = 0x00478780U;
+constexpr u32 kCallPublishCompletionResource = 0x0047D640U;
+constexpr u32 kCallSetCompletionMode = 0x0047CEC0U;
+constexpr u32 kCallPrepareCompletionSurface = 0x0047F150U;
+constexpr u32 kCallQueryEffect = 0x004786D0U;
+constexpr u32 kCallPublishEffectMode = 0x00478B60U;
+constexpr u32 kCallPendingEffectStep = 0x004599B0U;
+constexpr u32 kCallFinalActorStep = 0x0045AA00U;
+
+[[nodiscard]] constexpr u32 to_bits(const i32 value) noexcept {
+    return std::bit_cast<u32>(value);
+}
+
+[[nodiscard]] constexpr u16 low_word(const u32 value) noexcept {
+    return static_cast<u16>(value);
+}
+
+[[nodiscard]] constexpr u16 high_word(const u32 value) noexcept {
+    return static_cast<u16>(value >> 16U);
+}
+
+[[nodiscard]] constexpr u8 low_byte(const u32 value) noexcept {
+    return static_cast<u8>(value);
+}
+
+[[nodiscard]] constexpr u8 high_byte(const u16 value) noexcept {
+    return static_cast<u8>(value >> 8U);
+}
+
+void replace_low_word(u32& destination, const u16 value) noexcept {
+    destination = (destination & 0xFFFF0000U) | value;
+}
+
+void replace_low_byte(u32& destination, const u8 value) noexcept {
+    destination = (destination & 0xFFFFFF00U) | value;
+}
+
+[[nodiscard]] constexpr u32 group_a_token(const u32 index) noexcept {
+    return kLegacyBattleActionGroupABaseToken +
+        index * kLegacyBattleActionGroupAStride;
+}
+
+[[nodiscard]] constexpr u32 group_b_token(const u32 index) noexcept {
+    return kLegacyBattleActionGroupBBaseToken +
+        index * kLegacyBattleActionGroupBStride;
+}
+
+[[nodiscard]] bool validate_group_a(
+    LegacyBattleActionDispatchResult& result, const u32 index
+) noexcept {
+    if (index < 10U) {
+        return true;
+    }
+    result.status = LegacyBattleActionDispatchStatus::group_a_index_typed_stop;
+    return false;
+}
+
+[[nodiscard]] bool validate_group_b(
+    LegacyBattleActionDispatchResult& result, const u32 index
+) noexcept {
+    if (index < 8U) {
+        return true;
+    }
+    result.status = LegacyBattleActionDispatchStatus::group_b_index_typed_stop;
+    return false;
+}
+
+[[nodiscard]] LegacyBattleActionCallReply invoke(
+    LegacyBattleActionDispatchPort& port,
+    LegacyBattleActionDispatchResult& result,
+    const u32 callee,
+    const std::initializer_list<u32> arguments = {}
+) {
+    LegacyBattleActionCallRequest request{};
+    request.callee_token = callee;
+    std::copy(arguments.begin(), arguments.end(), request.arguments.begin());
+    ++result.port_calls;
+    return port.invoke(request);
+}
+
+void merge_nested(
+    LegacyBattleActionDispatchResult& result,
+    const LegacyBattleActionDispatchResult& nested
+) noexcept {
+    result.port_calls += nested.port_calls;
+    result.framebuffer_clear_calls += nested.framebuffer_clear_calls;
+    result.group_a_iterations += nested.group_a_iterations;
+    result.group_b_iterations += nested.group_b_iterations;
+    result.terminal_resets += nested.terminal_resets;
+    result.status_indicator_calls += nested.status_indicator_calls;
+    result.scale_scan_calls += nested.scale_scan_calls;
+    result.action_record_clear_calls += nested.action_record_clear_calls;
+    result.status_indicator = nested.status_indicator;
+    result.scale_scan = nested.scale_scan;
+    result.action_code = nested.action_code;
+    result.return_value = nested.return_value;
+    result.status = nested.status;
+}
+
+[[nodiscard]] bool read_completion_value(
+    LegacyBattleGroupBFrameState& state,
+    LegacyBattleActionDispatchResult& result,
+    const u32 group_a_count,
+    u16& value
+) noexcept {
+    const u32 delta =
+        group_a_count - high_word(state.shared.defeated_actor_packed);
+    const u32 index = delta * 16U;
+    if (index >= state.completion_value_table.size()) {
+        result.status =
+            LegacyBattleActionDispatchStatus::target_table_typed_stop;
+        return false;
+    }
+    value = state.completion_value_table[index];
+    return true;
+}
+
+[[nodiscard]] bool fill_completion_surface(
+    LegacyBattleGroupBFrameState& state,
+    LegacyBattleActionDispatchResult& result
+) noexcept {
+    const u32 pixels = to_bits(state.completion_rect_right) *
+        to_bits(state.completion_rect_bottom);
+    const u32 byte_count = pixels * 2U;
+    const u32 word_count = byte_count >> 1U;
+    if (word_count == 0U) {
+        return true;
+    }
+    if (state.completion_surface_token == 0U) {
+        result.status =
+            LegacyBattleActionDispatchStatus::framebuffer_typed_stop;
+        return false;
+    }
+    const std::size_t owned = state.completion_surface.size();
+    const std::size_t written = std::min<std::size_t>(word_count, owned);
+    std::fill_n(state.completion_surface.begin(), written, 0xFFFFU);
+    if (static_cast<u32>(owned) < word_count) {
+        result.status =
+            LegacyBattleActionDispatchStatus::framebuffer_typed_stop;
+        return false;
+    }
+    return true;
+}
+
+}  // namespace
+
+LegacyBattleGroupBFrameState::LegacyBattleGroupBFrameState() noexcept {
+    pending_effect_ids.fill(0xFFFFFFFFU);
+    final_actor_targets.fill(0xFFFFFFFFU);
+}
+
+LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
+    LegacyBattleGroupBFrameState& state,
+    LegacyBattleActionDispatchPort& port,
+    LegacyBattleActionDispatchContext& context,
+    const u32 group_b_index
+) {
+    LegacyBattleActionDispatchResult result{};
+    auto& shared = state.shared;
+    auto& action = shared.action;
+
+    if (!validate_group_b(result, group_b_index)) {
+        return result;
+    }
+    const u32 source_token = group_b_token(group_b_index);
+    u32 stale_ebx = group_b_index * kLegacyBattleActionGroupBStride;
+
+    if (state.frame_enabled == 1U) {
+        if (invoke(port, result, kCallQueryTerminal, {source_token}).eax ==
+                0U &&
+            action.action_pending_aux == 0U &&
+            shared.action_pending_secondary == 0U) {
+            static_cast<void>(
+                invoke(port, result, kCallUpdateOpponent, {source_token})
+            );
+            if (state.post_update_gate[group_b_index] == 0U &&
+                invoke(
+                    port,
+                    result,
+                    kCallQueryUpdateGate,
+                    {state.update_gate_argument}
+                )
+                        .eax == 1U &&
+                action.message_state != 0x67U) {
+                static_cast<void>(invoke(
+                    port,
+                    result,
+                    kCallPublishOpponentCallback,
+                    {2U, group_b_index}
+                ));
+            }
+        }
+
+        const bool turn_state_nonzero = shared.turn_resolution_bits != 0U;
+        if (shared.action_aux_gate == 0U && !turn_state_nonzero &&
+            action.active_effect_target == group_b_index) {
+            if (invoke(port, result, kCallQueryQueueCompletion, {source_token})
+                    .eax == 1U) {
+                shared.selection_mode = 0U;
+                action.active_effect_gate = 0U;
+                shared.action_block_gate = 0U;
+                action.action_pending_aux = 0U;
+                action.active_effect_target = 0xFFFFFFFFU;
+                shared.queued_actor_code = group_b_index + 1U;
+                const auto reply =
+                    invoke(port, result, kCallResetActor, {source_token});
+                result.return_value = reply.eax;
+                return result;
+            }
+            if (invoke(port, result, kCallQueryTerminal, {source_token}).eax ==
+                1U) {
+                shared.selection_mode = 0U;
+                action.active_effect_gate = 0U;
+                shared.action_block_gate = 0U;
+                action.action_pending_aux = 0U;
+                action.active_effect_target = 0xFFFFFFFFU;
+                const auto reply =
+                    invoke(port, result, kCallResetActor, {source_token});
+                result.return_value = reply.eax;
+                return result;
+            }
+
+            if (state.phase_mode == 1U) {
+                if (shared.action_aux_gate == 0U &&
+                    shared.action_block_gate == 0U) {
+                    if (shared.action_side != 0U) {
+                        shared.target_ready_gate = 1U;
+                        static_cast<void>(invoke(
+                            port,
+                            result,
+                            kCallPublishSelection,
+                            {source_token, 0U}
+                        ));
+                        state.phase_progress = to_bits(action.group_b_count) -
+                            low_byte(action.opponent_processed_counter);
+                    } else {
+                        u32 scanned = 0U;
+                        if (action.group_a_count > 0) {
+                            stale_ebx = 1U;
+                            for (i32 index = 0; index < action.group_a_count;
+                                 ++index) {
+                                const u32 uindex = to_bits(index);
+                                if (!validate_group_a(result, uindex)) {
+                                    return result;
+                                }
+                                const u32 target = group_a_token(uindex);
+                                if (invoke(
+                                        port,
+                                        result,
+                                        kCallQueryTerminal,
+                                        {target}
+                                    )
+                                            .eax != 1U &&
+                                    shared.actor_ai_primary[uindex] != 1U &&
+                                    invoke(
+                                        port,
+                                        result,
+                                        kCallQueryActorBlocked,
+                                        {target}
+                                    )
+                                            .eax != 1U &&
+                                    invoke(
+                                        port,
+                                        result,
+                                        kCallQueryActorExcluded,
+                                        {target}
+                                    )
+                                            .eax != 1U &&
+                                    invoke(
+                                        port,
+                                        result,
+                                        kCallQueryTargetBusy,
+                                        {target}
+                                    )
+                                            .eax == 0U &&
+                                    invoke(
+                                        port,
+                                        result,
+                                        kCallQueryIdle,
+                                        {source_token}
+                                    )
+                                            .eax == 0U) {
+                                    static_cast<void>(invoke(
+                                        port,
+                                        result,
+                                        kCallClearControl,
+                                        {target, 0U}
+                                    ));
+                                    static_cast<void>(invoke(
+                                        port,
+                                        result,
+                                        kCallPrepareTarget,
+                                        {target}
+                                    ));
+                                    ++state.phase_progress;
+                                }
+                                ++scanned;
+                                ++result.group_a_iterations;
+                            }
+                        }
+                        const u32 threshold = scanned -
+                            high_word(shared.defeated_actor_packed) -
+                            shared.excluded_actor_count -
+                            low_byte(action.packed_actor_counter);
+                        if (std::bit_cast<i32>(state.phase_progress) >=
+                            std::bit_cast<i32>(threshold)) {
+                            u32 selected = 0U;
+                            while (selected < scanned) {
+                                if (!validate_group_a(result, selected)) {
+                                    return result;
+                                }
+                                if (invoke(
+                                        port,
+                                        result,
+                                        kCallQueryTerminal,
+                                        {group_a_token(selected)}
+                                    )
+                                        .eax != 1U) {
+                                    shared.target_ready_gate = 1U;
+                                    static_cast<void>(invoke(
+                                        port,
+                                        result,
+                                        kCallPrepareSelection,
+                                        {source_token}
+                                    ));
+                                    static_cast<void>(invoke(
+                                        port,
+                                        result,
+                                        kCallPublishSelection,
+                                        {source_token, selected}
+                                    ));
+                                    break;
+                                }
+                                ++selected;
+                            }
+                            action.action_pending_aux = 1U;
+                        }
+                    }
+                }
+                goto action_decision_done;
+            } else if (state.selection_initialized == 0U) {
+                const bool selection_mode =
+                    invoke(
+                        port, result, kCallQuerySelectionMode, {source_token}
+                    )
+                        .eax != 0U;
+                if (selection_mode) {
+                    const u32 remaining = to_bits(action.group_b_count) -
+                        low_byte(action.opponent_processed_counter);
+                    if (remaining == 1U) {
+                        while (true) {
+                            u32 selected = state.random_target_index;
+                            if (action.group_a_count != 0) {
+                                selected = invoke(
+                                               port,
+                                               result,
+                                               kCallRandomBounded,
+                                               {to_bits(action.group_a_count)}
+                                )
+                                               .eax;
+                                state.random_target_index = selected;
+                            }
+                            if (!validate_group_a(result, selected)) {
+                                return result;
+                            }
+                            if (shared.actor_ai_secondary[selected] != 1U &&
+                                shared.actor_ai_primary[selected] != 1U &&
+                                invoke(
+                                    port,
+                                    result,
+                                    kCallQueryTerminal,
+                                    {group_a_token(selected)}
+                                )
+                                        .eax != 1U) {
+                                break;
+                            }
+                        }
+                    } else {
+                        while (true) {
+                            u32 selected = state.random_target_index;
+                            if (action.group_b_count != 0) {
+                                selected = invoke(
+                                               port,
+                                               result,
+                                               kCallRandomBounded,
+                                               {to_bits(action.group_b_count)}
+                                )
+                                               .eax;
+                                state.random_target_index = selected;
+                            }
+                            if (!validate_group_b(result, selected)) {
+                                return result;
+                            }
+                            if (invoke(
+                                    port,
+                                    result,
+                                    kCallQueryTerminal,
+                                    {group_b_token(selected)}
+                                )
+                                        .eax != 1U &&
+                                selected != group_b_index) {
+                                break;
+                            }
+                        }
+                        shared.action_side = 1U;
+                    }
+                } else {
+                    while (true) {
+                        u32 selected = state.random_target_index;
+                        if (action.group_a_count != 0) {
+                            selected = invoke(
+                                           port,
+                                           result,
+                                           kCallRandomBounded,
+                                           {to_bits(action.group_a_count)}
+                            )
+                                           .eax;
+                            state.random_target_index = selected;
+                        }
+                        if (!validate_group_a(result, selected)) {
+                            return result;
+                        }
+                        if (shared.actor_ai_secondary[selected] != 1U &&
+                            shared.actor_ai_primary[selected] != 1U &&
+                            invoke(
+                                port,
+                                result,
+                                kCallQueryTerminal,
+                                {group_a_token(selected)}
+                            )
+                                    .eax != 1U) {
+                            break;
+                        }
+                    }
+                    if (invoke(
+                            port, result, kCallQueryOpponentMode, {source_token}
+                        )
+                            .eax == 1U) {
+                        shared.action_side = 1U;
+                        state.random_target_index = group_b_index;
+                    }
+                }
+                state.selection_initialized = 1U;
+            }
+
+            if (invoke(port, result, kCallQueryIdle, {source_token}).eax ==
+                0U) {
+                const u16 status = state.status_words[group_b_index];
+                state.phase_mode = 0U;
+                if (high_byte(status) != 0U) {
+                    state.random_target_index = low_byte(status);
+                }
+                const u32 profile_offset = state.action_profile_index * 14U;
+                if (profile_offset >= state.action_profile_bytes.size()) {
+                    result.status = LegacyBattleActionDispatchStatus::
+                        target_table_typed_stop;
+                    return result;
+                }
+                const u32 profile_argument =
+                    (state.stale_action_profile_edx & 0xFFFFFF00U) |
+                    state.action_profile_bytes[profile_offset];
+                if (invoke(
+                        port,
+                        result,
+                        kCallQueryStatusAction,
+                        {source_token, profile_argument}
+                    )
+                        .eax != 0U) {
+                    static_cast<void>(invoke(
+                        port, result, kCallPublishSelection, {source_token, 0U}
+                    ));
+                    static_cast<void>(invoke(
+                        port, result, kCallSetActionMode, {source_token, 0x11U}
+                    ));
+                    static_cast<void>(invoke(
+                        port, result, kCallPublishStatusMode, {source_token, 2U}
+                    ));
+                } else {
+                    const bool status_branch = std::bit_cast<i16>(status) < 0 ||
+                        (status & 0x6000U) != 0U;
+                    if (status_branch) {
+                        if (state.special_selection_pending == 1U) {
+                            shared.action_side = 1U;
+                            state.special_selection_pending = 0U;
+                        }
+                        if (std::bit_cast<i16>(status) < 0) {
+                            state.status_action_value =
+                                invoke(
+                                    port,
+                                    result,
+                                    kCallQuerySignedStatus,
+                                    {source_token}
+                                )
+                                    .eax;
+                            action.current_actor_index =
+                                static_cast<u16>(group_b_index);
+                        }
+                        if ((status & 0x4000U) != 0U) {
+                            static_cast<void>(invoke(
+                                port,
+                                result,
+                                kCallSetActionMode,
+                                {source_token, 2U}
+                            ));
+                            action.current_actor_index =
+                                static_cast<u16>(group_b_index);
+                            if (state.opponent_text_present[group_b_index] !=
+                                0U) {
+                                static_cast<void>(invoke(
+                                    port,
+                                    result,
+                                    kCallDisplayText,
+                                    {0x118U,
+                                     0U,
+                                     0x28U,
+                                     state.opponent_text_token_base +
+                                         group_b_index *
+                                             kLegacyBattleActionGroupBStride,
+                                     0x40U}
+                                ));
+                            }
+                        }
+                        if ((status & 0x2000U) != 0U) {
+                            static_cast<void>(invoke(
+                                port,
+                                result,
+                                kCallSetActionMode,
+                                {source_token, 6U}
+                            ));
+                            action.current_actor_index =
+                                static_cast<u16>(group_b_index);
+                        }
+                        if (invoke(
+                                port,
+                                result,
+                                kCallQuerySpecialAction,
+                                {source_token}
+                            )
+                                .eax == 1U) {
+                            state.special_action_latch = 1U;
+                        }
+                        if (invoke(
+                                port,
+                                result,
+                                kCallQueryPhaseMode,
+                                {source_token}
+                            )
+                                .eax == 1U) {
+                            state.phase_mode = 1U;
+                            state.phase_progress = 0U;
+                        }
+                        state.branch_misc = 0U;
+                        if (shared.action_side == 1U) {
+                            u32 selected = state.random_target_index;
+                            if (!validate_group_b(result, selected)) {
+                                return result;
+                            }
+                            if (invoke(
+                                    port,
+                                    result,
+                                    kCallQueryTerminal,
+                                    {group_b_token(selected)}
+                                )
+                                    .eax == 1U) {
+                                while (true) {
+                                    ++state.random_target_index;
+                                    selected = state.random_target_index;
+                                    if (selected > 8U) {
+                                        break;
+                                    }
+                                    if (!validate_group_b(result, selected)) {
+                                        return result;
+                                    }
+                                    if (invoke(
+                                            port,
+                                            result,
+                                            kCallQueryTerminal,
+                                            {group_b_token(selected)}
+                                        )
+                                            .eax != 1U) {
+                                        break;
+                                    }
+                                }
+                            }
+                            if (!validate_group_b(
+                                    result, state.random_target_index
+                                )) {
+                                return result;
+                            }
+                            if (invoke(
+                                    port,
+                                    result,
+                                    kCallQueryTerminal,
+                                    {group_b_token(state.random_target_index)}
+                                )
+                                    .eax != 0U) {
+                                goto action_decision_done;
+                            }
+                            static_cast<void>(invoke(
+                                port,
+                                result,
+                                kCallPublishSelection,
+                                {source_token, state.random_target_index}
+                            ));
+                        } else {
+                            u32 selected = state.random_target_index;
+                            if (!validate_group_a(result, selected)) {
+                                return result;
+                            }
+                            if (invoke(
+                                    port,
+                                    result,
+                                    kCallQueryTerminal,
+                                    {group_a_token(selected)}
+                                )
+                                    .eax == 1U) {
+                                while (true) {
+                                    ++state.random_target_index;
+                                    selected = state.random_target_index;
+                                    if (selected > 8U) {
+                                        break;
+                                    }
+                                    if (!validate_group_a(result, selected)) {
+                                        return result;
+                                    }
+                                    if (invoke(
+                                            port,
+                                            result,
+                                            kCallQueryTerminal,
+                                            {group_a_token(selected)}
+                                        )
+                                            .eax != 1U) {
+                                        break;
+                                    }
+                                }
+                            }
+                            if (!validate_group_a(
+                                    result, state.random_target_index
+                                )) {
+                                return result;
+                            }
+                            const u32 selected_token =
+                                group_a_token(state.random_target_index);
+                            if (invoke(
+                                    port,
+                                    result,
+                                    kCallQueryTerminal,
+                                    {selected_token}
+                                )
+                                    .eax == 0U) {
+                                static_cast<void>(invoke(
+                                    port,
+                                    result,
+                                    kCallPublishSelection,
+                                    {source_token, state.random_target_index}
+                                ));
+                                static_cast<void>(invoke(
+                                    port,
+                                    result,
+                                    kCallPrepareTarget,
+                                    {selected_token}
+                                ));
+                            }
+                        }
+                    } else {
+                        if (invoke(
+                                port,
+                                result,
+                                kCallQueryStatusSequence,
+                                {source_token, 0x0053BD40U}
+                            )
+                                .eax == 1U) {
+                            action.current_actor_index =
+                                static_cast<u16>(group_b_index);
+                            state.status_misc = 0U;
+                            if (invoke(
+                                    port,
+                                    result,
+                                    kCallQuerySpecialAction,
+                                    {source_token}
+                                )
+                                    .eax == 1U) {
+                                state.special_action_latch = 1U;
+                            }
+                            if (state.opponent_text_present[group_b_index] !=
+                                0U) {
+                                static_cast<void>(invoke(
+                                    port,
+                                    result,
+                                    kCallDisplayText,
+                                    {0x118U,
+                                     0U,
+                                     0x28U,
+                                     state.opponent_text_token_base +
+                                         group_b_index *
+                                             kLegacyBattleActionGroupBStride,
+                                     0x40U}
+                                ));
+                            }
+                        }
+                        if (invoke(
+                                port,
+                                result,
+                                kCallQueryOpponentSwitch,
+                                {source_token}
+                            )
+                                .eax == 1U) {
+                            shared.action_side = 1U;
+                            state.random_target_index = group_b_index;
+                        }
+                        action.current_actor_index =
+                            static_cast<u16>(group_b_index);
+                        if (invoke(
+                                port,
+                                result,
+                                kCallQueryPhaseMode,
+                                {source_token}
+                            )
+                                .eax == 1U) {
+                            state.phase_mode = 1U;
+                            state.phase_progress = 0U;
+                            goto action_decision_done;
+                        }
+                        if (state.phase_mode == 0U) {
+                            if (shared.action_side == 1U) {
+                                if (!validate_group_b(
+                                        result, state.random_target_index
+                                    )) {
+                                    return result;
+                                }
+                                if (invoke(
+                                        port,
+                                        result,
+                                        kCallQueryTerminal,
+                                        {group_b_token(
+                                            state.random_target_index
+                                        )}
+                                    )
+                                        .eax == 0U) {
+                                    static_cast<void>(invoke(
+                                        port,
+                                        result,
+                                        kCallPublishSelection,
+                                        {source_token,
+                                         state.random_target_index}
+                                    ));
+                                }
+                            } else {
+                                if (!validate_group_a(
+                                        result, state.random_target_index
+                                    )) {
+                                    return result;
+                                }
+                                const u32 selected_token =
+                                    group_a_token(state.random_target_index);
+                                if (invoke(
+                                        port,
+                                        result,
+                                        kCallQueryTerminal,
+                                        {selected_token}
+                                    )
+                                        .eax == 0U) {
+                                    static_cast<void>(invoke(
+                                        port,
+                                        result,
+                                        kCallPublishSelection,
+                                        {source_token,
+                                         state.random_target_index}
+                                    ));
+                                    static_cast<void>(invoke(
+                                        port,
+                                        result,
+                                        kCallPrepareTarget,
+                                        {selected_token}
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+action_decision_done:
+    if (state.frame_enabled == 1U && shared.action_aux_gate == 0U &&
+        shared.turn_resolution_bits == 0U) {
+        const auto idle = invoke(port, result, kCallQueryIdle, {source_token});
+        if (idle.eax == 1U) {
+            stale_ebx = 1U;
+            if (action.active_effect_target == group_b_index) {
+                shared.action_block_gate = 1U;
+                action.action_pending_aux = 1U;
+                static_cast<void>(invoke(
+                    port, result, kCallPublishActionStart, {source_token}
+                ));
+            }
+            action.current_actor_index = static_cast<u16>(group_b_index);
+            const u32 target_index = low_word(
+                invoke(port, result, kCallQueryActionTarget, {source_token}).eax
+            );
+            auto nested = dispatch_legacy_battle_opponent_action(
+                action, port, context, group_b_index, target_index
+            );
+            merge_nested(result, nested);
+            if (nested.status != LegacyBattleActionDispatchStatus::completed) {
+                return result;
+            }
+            if (nested.return_value == 1U) {
+                u32 completed_target = low_word(
+                    invoke(port, result, kCallQueryActionTarget, {source_token})
+                        .eax
+                );
+                static_cast<void>(
+                    invoke(port, result, kCallSelectionClear, {source_token})
+                );
+                if (invoke(port, result, kCallSelectionComplete, {source_token})
+                        .eax == 1U) {
+                    if (action.group_a_count > 0) {
+                        for (i32 index = 0; index < action.group_a_count;
+                             ++index) {
+                            const u32 uindex = to_bits(index);
+                            if (!validate_group_a(result, uindex)) {
+                                return result;
+                            }
+                            const u32 target = group_a_token(uindex);
+                            static_cast<void>(
+                                invoke(port, result, kCallResetTarget, {target})
+                            );
+                            if (invoke(
+                                    port,
+                                    result,
+                                    kCallQueryQueueCompletion,
+                                    {target}
+                                )
+                                        .eax == 1U &&
+                                state.group_a_completion_words[uindex] != 0U) {
+                                state.group_a_completion_words[uindex] = 0U;
+                                replace_low_word(
+                                    shared.defeated_actor_packed, 0U
+                                );
+                                state.group_a_completion_slots[uindex] = 0U;
+                                static_cast<void>(invoke(
+                                    port,
+                                    result,
+                                    kCallResetCompletionSlot,
+                                    {target}
+                                ));
+                                static_cast<void>(invoke(
+                                    port, result, kCallResetActor, {target}
+                                ));
+                                const auto stale = invoke(
+                                    port,
+                                    result,
+                                    kCallQueryCompletionValue,
+                                    {target}
+                                );
+                                u16 table_value{};
+                                if (!read_completion_value(
+                                        state,
+                                        result,
+                                        to_bits(action.group_a_count),
+                                        table_value
+                                    )) {
+                                    return result;
+                                }
+                                const u32 argument =
+                                    (stale.eax & 0xFFFF0000U) | table_value;
+                                static_cast<void>(invoke(
+                                    port,
+                                    result,
+                                    kCallPublishCompletionValue,
+                                    {argument, 0U}
+                                ));
+                            }
+                            ++result.group_a_iterations;
+                        }
+                    }
+                } else if (shared.action_side != 0U) {
+                    if (!validate_group_b(result, completed_target)) {
+                        return result;
+                    }
+                    static_cast<void>(invoke(
+                        port,
+                        result,
+                        kCallResetTarget,
+                        {group_b_token(completed_target)}
+                    ));
+                } else {
+                    if (!validate_group_a(result, completed_target)) {
+                        return result;
+                    }
+                    const u32 target = group_a_token(completed_target);
+                    if (invoke(
+                            port, result, kCallQueryQueueCompletion, {target}
+                        )
+                                .eax == 1U &&
+                        state.group_a_completion_words[completed_target] !=
+                            0U) {
+                        state.group_a_completion_words[completed_target] = 0U;
+                        replace_low_word(shared.defeated_actor_packed, 0U);
+                        state.group_a_completion_slots[completed_target] = 0U;
+                        static_cast<void>(
+                            invoke(port, result, kCallResetActor, {target})
+                        );
+                        const auto stale = invoke(
+                            port, result, kCallQueryCompletionValue, {target}
+                        );
+                        u16 table_value{};
+                        if (!read_completion_value(
+                                state,
+                                result,
+                                to_bits(action.group_a_count),
+                                table_value
+                            )) {
+                            return result;
+                        }
+                        const u32 argument =
+                            (stale.ecx & 0xFFFF0000U) | table_value;
+                        static_cast<void>(invoke(
+                            port,
+                            result,
+                            kCallPublishCompletionValue,
+                            {argument, 0U}
+                        ));
+                    }
+                    static_cast<void>(
+                        invoke(port, result, kCallResetTarget, {target})
+                    );
+                }
+
+                static_cast<void>(
+                    invoke(port, result, kCallResetActor, {source_token})
+                );
+                if ((shared.battle_byte_flags & 0x80U) != 0U) {
+                    if (action.group_a_count > 0) {
+                        for (i32 index = 0; index < action.group_a_count;
+                             ++index) {
+                            const u32 uindex = to_bits(index);
+                            if (!validate_group_a(result, uindex)) {
+                                return result;
+                            }
+                            const u32 target = group_a_token(uindex);
+                            if (shared.actor_ai_primary[uindex] == 0U &&
+                                invoke(
+                                    port, result, kCallQueryTerminal, {target}
+                                )
+                                        .eax == 0U) {
+                                static_cast<void>(invoke(
+                                    port,
+                                    result,
+                                    kCallPublishBattleBit,
+                                    {target, 0U}
+                                ));
+                            }
+                            ++result.group_a_iterations;
+                        }
+                    }
+                    replace_low_byte(
+                        shared.battle_byte_flags,
+                        static_cast<u8>(shared.battle_byte_flags & 0x7FU)
+                    );
+                }
+                state.selection_initialized = 0U;
+                shared.action_block_gate = 0U;
+                action.active_effect_gate = 0U;
+                action.action_pending_aux = 0U;
+                if (action.active_effect_target < 8U) {
+                    action.active_effect_target = 0U;
+                    shared.action_side = 0U;
+                    shared.active_effect_tail.fill(0U);
+                    action.active_effect_target = 0xFFFFFFFFU;
+                    action.active_target_code = 0U;
+                }
+                shared.action_stage_word = 0U;
+                shared.action_stage_word_b = 0U;
+                shared.target_ready_gate = 0U;
+                state.special_action_latch = 0U;
+                state.phase_mode = 0U;
+                state.phase_progress = 0U;
+                replace_low_word(action.action_runtime_flags, 0U);
+                state.status_words[group_b_index] = 0U;
+                action.post_battle_counter = 0U;
+                if (action.frame_effect.primary_suppression == 1U) {
+                    action.frame_effect.fade_active = 1U;
+                }
+                if ((shared.global_phase_countdown & 0x7FFFU) != 0U) {
+                    replace_low_word(
+                        shared.global_phase_countdown,
+                        static_cast<u16>(shared.global_phase_countdown - 1U)
+                    );
+                }
+
+                if (!validate_group_a(result, completed_target)) {
+                    return result;
+                }
+                if (invoke(
+                        port,
+                        result,
+                        kCallQueryCompletionEffect,
+                        {group_a_token(completed_target)}
+                    )
+                        .eax == 1U) {
+                    static_cast<void>(invoke(
+                        port,
+                        result,
+                        kCallPublishCompletionId,
+                        {source_token, 0x235EU}
+                    ));
+                    static_cast<void>(invoke(
+                        port,
+                        result,
+                        kCallPublishCompletionSource,
+                        {source_token}
+                    ));
+                    static_cast<void>(invoke(
+                        port,
+                        result,
+                        kCallPublishCompletionResource,
+                        {source_token, state.completion_resource_token}
+                    ));
+                    static_cast<void>(invoke(
+                        port, result, kCallSetCompletionMode, {source_token, 1U}
+                    ));
+                    if (invoke(
+                            port,
+                            result,
+                            kCallPrepareCompletionSurface,
+                            {source_token,
+                             state.completion_resource_token,
+                             0U,
+                             0U}
+                        )
+                            .eax == 1U) {
+                        action.group_a_to_actor[group_b_index] = group_b_index;
+                        state.completion_selected = 0xFFFFFFFFU;
+                        state.completion_gate = 1U;
+                        if (!fill_completion_surface(state, result)) {
+                            return result;
+                        }
+                    }
+                }
+            } else {
+                shared.action_block_gate = stale_ebx;
+            }
+        } else {
+            shared.action_block_gate = stale_ebx;
+        }
+    }
+
+    const bool effect_mode =
+        (low_word(invoke(port, result, kCallQueryEffect, {source_token}).eax) !=
+             0U &&
+         (action.frame_effect.primary_suppression == 1U ||
+          action.frame_effect.split_suppression == 1U)) ||
+        shared.global_effect_override == 1U;
+    static_cast<void>(invoke(
+        port,
+        result,
+        kCallPublishEffectMode,
+        {source_token, effect_mode ? 1U : 0U}
+    ));
+
+    if (state.pending_effect_ids[group_b_index] != 0xFFFFFFFFU &&
+        invoke(
+            port,
+            result,
+            kCallPendingEffectStep,
+            {source_token, state.pending_effect_argument, group_b_index}
+        )
+                .eax == 1U) {
+        state.pending_effect_ids[group_b_index] = 0xFFFFFFFFU;
+    }
+
+    const u32 mapped_actor = action.group_a_to_actor[group_b_index];
+    const auto final =
+        invoke(port, result, kCallFinalActorStep, {mapped_actor, 0U});
+    result.return_value = final.eax;
+    if (final.eax == 1U) {
+        action.group_a_to_actor[group_b_index] = 0xFFFFFFFFU;
+        state.final_actor_state[group_b_index] = 0U;
+        state.final_actor_targets[group_b_index] = 0xFFFFFFFFU;
+        shared.queued_selection_word = 0xFFFFU;
+        action.overlay_gate = 1U;
+        state.final_gate = 0U;
+    }
+    return result;
+}
+
+}  // namespace openswd3::battle
