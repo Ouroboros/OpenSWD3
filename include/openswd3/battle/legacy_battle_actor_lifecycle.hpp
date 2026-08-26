@@ -11,12 +11,21 @@ inline constexpr compat::u32 kLegacyBattleActorGroupAConstructorToken =
     0x0046E490U;
 inline constexpr compat::u32 kLegacyBattleActorGroupADestructorToken =
     0x0046E4D0U;
+inline constexpr compat::u32 kLegacyBattleActorGroupAExitCleanupToken =
+    0x004517E0U;
 
 struct LegacyBattleActorVectorConstructionRequest {
     compat::u32 base_token{};
     compat::u32 element_size{};
     compat::u32 element_count{};
     compat::u32 constructor_token{};
+    compat::u32 destructor_token{};
+};
+
+struct LegacyBattleActorVectorDestructionRequest {
+    compat::u32 base_token{};
+    compat::u32 element_size{};
+    compat::u32 element_count{};
     compat::u32 destructor_token{};
 };
 
@@ -29,16 +38,32 @@ public:
     ) = 0;
 };
 
+class LegacyBattleActorVectorDestructionPort {
+public:
+    virtual ~LegacyBattleActorVectorDestructionPort() = default;
+
+    [[nodiscard]] virtual compat::u32 destroy_vector(
+        const LegacyBattleActorVectorDestructionRequest& request
+    ) = 0;
+};
+
 class LegacyBattleActorGroupAExitRegistrationPort {
 public:
     virtual ~LegacyBattleActorGroupAExitRegistrationPort() = default;
 
-    [[nodiscard]] virtual compat::u32 register_exit_cleanup() = 0;
+    [[nodiscard]] virtual compat::u32
+    register_exit_cleanup(compat::u32 cleanup_token) = 0;
 };
 
 struct LegacyBattleActorGroupAConstructionResult {
     LegacyBattleActorVectorConstructionRequest request{};
     compat::u32 vector_constructor_calls{};
+    compat::u32 return_value{};
+};
+
+struct LegacyBattleActorGroupADestructionResult {
+    LegacyBattleActorVectorDestructionRequest request{};
+    compat::u32 vector_destructor_calls{};
     compat::u32 return_value{};
 };
 
@@ -53,6 +78,12 @@ struct LegacyBattleActorGroupAStaticInitializationResult {
 [[nodiscard]] LegacyBattleActorGroupAConstructionResult
 construct_legacy_battle_actor_group_a(
     LegacyBattleActorVectorConstructionPort& construction_port
+);
+
+// sub_4517E0: wrap the compiler vector-destruction iterator for group A.
+[[nodiscard]] LegacyBattleActorGroupADestructionResult
+release_legacy_battle_actor_group_a(
+    LegacyBattleActorVectorDestructionPort& destruction_port
 );
 
 // sub_4517A0 plus its external function chunk at loc_4517D0.
