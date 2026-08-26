@@ -17,6 +17,7 @@ add_library(
         legacy_battle_frame_coordinator.cpp
         legacy_battle_frame_effect.cpp
         legacy_battle_frame_draw.cpp
+        legacy_battle_frame_refresh.cpp
         legacy_battle_group_a_frame.cpp
         legacy_battle_group_b_frame.cpp
         legacy_battle_group_effect_frame.cpp

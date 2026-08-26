@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_frame_refresh.hpp"
 #include "openswd3/compat/types.hpp"
 
 #include <array>
@@ -15,6 +16,9 @@ inline constexpr compat::u32 kLegacyBattleEffectRecordStride = 0x98U;
 struct LegacyBattleEffectCallRequest {
     compat::u32 callee_token{};
     std::array<compat::u32, 12> arguments{};
+    compat::u32 eax{};
+    compat::u32 ecx{};
+    compat::u32 edx{};
 };
 
 struct LegacyBattleEffectCallReply {
@@ -24,7 +28,8 @@ struct LegacyBattleEffectCallReply {
     std::array<compat::u32, 8> outputs{};
 };
 
-class LegacyBattleEffectCallPort {
+class LegacyBattleEffectCallPort
+    : public virtual LegacyBattleFrameRefreshStatePort {
 public:
     virtual ~LegacyBattleEffectCallPort() = default;
 

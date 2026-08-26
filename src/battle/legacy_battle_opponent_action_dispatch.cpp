@@ -26,7 +26,6 @@ constexpr u32 kCallFinishTargetPhase = 0x004841B0U;
 constexpr u32 kCallSetTargetMode = 0x004787F0U;
 constexpr u32 kCallClearMode = 0x0047D870U;
 constexpr u32 kCallPublishStage = 0x0045EFB0U;
-constexpr u32 kCallBeginEffect = 0x0045AF90U;
 constexpr u32 kCallTargetComplete = 0x00479850U;
 constexpr u32 kCallActionTen = 0x0047F3C0U;
 constexpr u32 kCallQueryModeB = 0x0047C950U;
@@ -418,9 +417,13 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
             state.frame_effect.green_factor = -12;
             state.frame_effect.blue_factor = -12;
             state.frame_effect.primary_suppression = 1U;
-            static_cast<void>(
-                invoke(state, port, result, kCallBeginEffect, {0U})
+            const auto refresh = refresh_legacy_battle_frame(
+                port,
+                std::bit_cast<u16>(state.frame_effect.red_factor),
+                std::bit_cast<u16>(state.frame_effect.green_factor),
+                std::bit_cast<u16>(state.frame_effect.blue_factor)
             );
+            result.port_calls += refresh.port_calls;
             replace_low_word(state.phase_counter, 1U);
             replace_low_word(state.input_mode, 1U);
         }

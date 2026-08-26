@@ -3,6 +3,7 @@
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
 #include "openswd3/asset_runtime/legacy_frame_deformation.hpp"
 #include "openswd3/battle/legacy_battle_frame_effect.hpp"
+#include "openswd3/battle/legacy_battle_frame_refresh.hpp"
 #include "openswd3/battle/legacy_battle_scale_scan.hpp"
 #include "openswd3/battle/legacy_battle_status_indicator.hpp"
 #include "openswd3/compat/types.hpp"
@@ -24,6 +25,9 @@ inline constexpr compat::u32 kLegacyBattleActionGroupBStride = 0x2B28U;
 struct LegacyBattleActionCallRequest {
     compat::u32 callee_token{};
     std::array<compat::u32, 8> arguments{};
+    compat::u32 eax{};
+    compat::u32 ecx{};
+    compat::u32 edx{};
 };
 
 struct LegacyBattleActionCallReply {
@@ -44,7 +48,8 @@ struct LegacyBattleActionCallReply {
     compat::u32 object_flags{};
 };
 
-class LegacyBattleActionDispatchPort {
+class LegacyBattleActionDispatchPort
+    : public virtual LegacyBattleFrameRefreshStatePort {
 public:
     virtual ~LegacyBattleActionDispatchPort() = default;
 

@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v736
+版本：v737
 
 最后更新：2026-08-25
 
@@ -3947,4 +3947,6 @@ B7 P0 有限收口完成。
 
 - 模块10战斗战后目标重排`0x0045ADF0`完成。完整权威LST主体`0x0045ADF0..0x0045AF8E`从proc到endp共186行、11个静态call站点、7个局部标签，无外部FUNCTION CHUNK。实现恢复完整target入口门、组B目标先重置、unsigned组A扫描、source跳过、i16目标过滤、动态重载group B上界、首个非terminal候选发布、packed低byte加1终止条件、五callee清理、十项角色顺序和126 dword选择工作区固定清零。十项角色顺序就是组A帧actor queue与前一最终角色步进使用的同一物理数组，已收敛为单一typed存储。唯一组A帧caller删除`0x0045ADF0` opaque token并在动作完成后直接组合。测试覆盖完整入口不等、匹配后零数量、source跳过、负目标、非terminal候选重排、packed完成全局清理、队列物理别名、固定工作区清零和caller直连；定向`1/1`、独立ASan`1/1`、Linux core`188/188`和Linux app`194/194`通过。工作包连续双跑逐字节一致，稳定为`72/422`，即`67 platform_adapted + 5 assembly_exact + 350 pending_audit`，SHA256为`36b61dd27b1e2a051826b31b5615a81ce27a753d4ca41ac2b7329e5d0e0bb3de`。原版两组角色对象、8类callee共享副作用、动态数量修改、十项角色顺序表、126 dword选择工作区和寄存器联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=73`的`0x0045AF90`，必须从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗帧函数。
+- 模块10战斗共享画面刷新`0x0045AF90`完成。完整权威LST主体`0x0045AF90..0x0045B0D7`从proc到endp共138行、9个静态call站点、2个局部标签，无外部FUNCTION CHUNK。实现恢复三组snapshot与当前word的逐项低word比较、三条路径不同陈旧EAX/ECX/EDX、全等零调用早退、固定双surface迭代、Miles serve、surface lock/unlock、共享pitch捕获、640×480 viewport准备、红绿蓝i16算术右移半值与factor 1/2低32位乘法、三snapshot发布、refresh pending、最终surface及末个unlock完整EAX。每次实际刷新动态执行16次typed port call。角色动作分派四处、对手动作分派一处、八槽效果帧一处和群体效果帧一处共七个已关闭caller全部删除`0x0045AF90` opaque token并直接组合统一刷新器；刷新快照与surface状态只保存在动作/效果端口共同虚继承的单一typed存储，群体效果帧继续接收最终EAX/ECX/EDX，三个后续未关闭caller不提前修改。测试覆盖全等早退、高word保留、固定调用顺序、负奇数算术右移、双factor、pitch与snapshot、最终lock参数、完整返回和caller token回收；定向`1/1`、独立ASan`1/1`、Linux core`188/188`和Linux app`194/194`通过。工作包连续双跑逐字节一致，稳定为`73/422`，即`68 platform_adapted + 5 assembly_exact + 349 pending_audit`，SHA256为`6d7f0e4f96c171c00836922644956048c90b48bb441316863cce774719f448a8`。原版Miles serve、双surface、lock/unlock、viewport、三项颜色callee、framebuffer和寄存器联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=74`的`0x0045B0E0`，必须从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗帧函数。

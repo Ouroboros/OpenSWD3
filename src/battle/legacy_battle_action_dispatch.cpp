@@ -151,6 +151,20 @@ void replace_high_word(u32& destination, const u16 value) noexcept {
     return reply;
 }
 
+void refresh_shared_frame(
+    LegacyBattleActionDispatchState& state,
+    LegacyBattleActionDispatchPort& port,
+    LegacyBattleActionDispatchResult& result
+) {
+    const auto refresh = refresh_legacy_battle_frame(
+        port,
+        std::bit_cast<u16>(state.frame_effect.red_factor),
+        std::bit_cast<u16>(state.frame_effect.green_factor),
+        std::bit_cast<u16>(state.frame_effect.blue_factor)
+    );
+    result.port_calls += refresh.port_calls;
+}
+
 [[nodiscard]] bool clear_framebuffer(
     LegacyBattleActionDispatchState& state,
     LegacyBattleActionDispatchContext& context,
@@ -999,7 +1013,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
             replace_low_word(state.phase_counter, 1U);
             state.selected_target_index = static_cast<u16>(group_b_index);
             state.frame_effect.primary_suppression = 1U;
-            static_cast<void>(invoke(state, port, result, 0x0045AF90U, {0U}));
+            refresh_shared_frame(state, port, result);
             if (low_word(invoke(
                              state,
                              port,
@@ -1104,7 +1118,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
             state.frame_effect.blue_factor = -12;
             replace_low_word(state.phase_counter, 1U);
             state.frame_effect.primary_suppression = 1U;
-            static_cast<void>(invoke(state, port, result, 0x0045AF90U, {0U}));
+            refresh_shared_frame(state, port, result);
         }
         reply = invoke(
             state,
@@ -1156,7 +1170,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
             state.frame_effect.blue_factor = -12;
             replace_low_word(state.phase_counter, 1U);
             state.frame_effect.primary_suppression = 1U;
-            static_cast<void>(invoke(state, port, result, 0x0045AF90U, {0U}));
+            refresh_shared_frame(state, port, result);
             state.frame_effect.stage = 1;
         }
         reply = invoke(
@@ -1236,7 +1250,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
         state.frame_effect.green_factor = -12;
         state.frame_effect.blue_factor = -12;
         state.frame_effect.primary_suppression = 1U;
-        static_cast<void>(invoke(state, port, result, 0x0045AF90U, {0U}));
+        refresh_shared_frame(state, port, result);
         const u16 summon_index = low_word(state.summon_packed);
         if (summon_index >= state.summon_target_x.size()) {
             result.status =

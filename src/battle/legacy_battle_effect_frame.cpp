@@ -30,7 +30,6 @@ constexpr u32 kCallSetSamplePan = 0x00485650U;
 constexpr u32 kCallFinalizeCoordinates = 0x00481FD0U;
 constexpr u32 kCallRenderResource = 0x004170E0U;
 constexpr u32 kCallReleaseResource = 0x004885A0U;
-constexpr u32 kCallPublishSharedWords = 0x0045AF90U;
 constexpr u32 kCallPublishStatusMode = 0x00482080U;
 constexpr u32 kCallPublishSevenValues = 0x0045D3E0U;
 constexpr u32 kCallPublishActor = 0x00478780U;
@@ -586,7 +585,13 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
         state.shared_word_36 = primary.shared_word_36;
         state.shared_word_38 = primary.shared_word_38;
         state.shared_word_3a = primary.shared_word_3a;
-        static_cast<void>(invoke(port, result, kCallPublishSharedWords, {0U}));
+        const auto refresh = refresh_legacy_battle_frame(
+            port,
+            state.shared_word_36,
+            state.shared_word_38,
+            state.shared_word_3a
+        );
+        result.port_calls += refresh.port_calls;
         state.primary_suppression = 1U;
         state.split_suppression = 1U;
     }

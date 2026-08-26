@@ -22,7 +22,6 @@ constexpr u32 kCallQueryCoordinates = 0x004783B0U;
 constexpr u32 kCallQueryAnimationCollision = 0x0045D810U;
 constexpr u32 kCallRenderResource = 0x004170E0U;
 constexpr u32 kCallReleaseResource = 0x004885A0U;
-constexpr u32 kCallPublishSharedWords = 0x0045AF90U;
 constexpr u32 kCallPublishStatusMode = 0x00482080U;
 constexpr u32 kCallPublishSevenValues = 0x0045D3E0U;
 constexpr u32 kCallEligibility = 0x0047CE80U;
@@ -135,6 +134,9 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
                       const std::initializer_list<u32> arguments = {}) {
         LegacyBattleEffectCallRequest request{};
         request.callee_token = callee;
+        request.eax = registers.eax;
+        request.ecx = registers.ecx;
+        request.edx = registers.edx;
         std::copy(
             arguments.begin(), arguments.end(), request.arguments.begin()
         );
@@ -348,7 +350,16 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
         state.primary_suppression = 1U;
         state.split_suppression = 1U;
         registers.eax = 1U;
-        static_cast<void>(invoke(kCallPublishSharedWords, {0U}));
+        const auto refresh = refresh_legacy_battle_frame(
+            port,
+            state.shared_word_36,
+            state.shared_word_38,
+            state.shared_word_3a
+        );
+        result.port_calls += refresh.port_calls;
+        registers.eax = refresh.return_value;
+        registers.ecx = refresh.final_ecx;
+        registers.edx = refresh.final_edx;
     }
 
     if (state.alternate_active[slot_index] == 1U) {
