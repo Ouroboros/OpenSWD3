@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_background_initialization.hpp"
 #include "openswd3/battle/legacy_battle_render_geometry.hpp"
 #include "openswd3/battle/legacy_battle_timing.hpp"
@@ -111,7 +112,7 @@ enum class LegacyBattleStartupCall : compat::u16 {
     supplemental_seed,
     configure_supplemental_actor,
     activate_supplemental_actor,
-    post_all_phase_a,
+    query_actor_metric,
     post_all_phase_b,
     post_all_phase_c,
     advance_enemy_action,
@@ -121,15 +122,28 @@ enum class LegacyBattleStartupCall : compat::u16 {
 struct LegacyBattleStartupCallRequest {
     LegacyBattleStartupCall call{LegacyBattleStartupCall::prepare_runtime};
     std::array<compat::u32, 4> arguments{};
+    compat::u32 eax{};
+    compat::u32 ecx{};
+    compat::u32 edx{};
 };
 
 struct LegacyBattleStartupCallReply {
     compat::u32 return_value{};
     compat::u32 ecx_snapshot{};
+    compat::u32 edx_snapshot{};
     std::array<compat::i32, 4> outputs{};
+    bool publish_metric_byte{};
+    compat::u8 metric_byte{};
+    bool publish_metric_word{};
+    compat::u16 metric_word{};
+    bool publish_group_b_count{};
+    compat::u32 group_b_count{};
+    bool publish_group_a_count{};
+    compat::u32 group_a_count{};
 };
 
-class LegacyBattleStartupPort {
+class LegacyBattleStartupPort
+    : public virtual LegacyBattleActorMetricStatePort {
 public:
     virtual ~LegacyBattleStartupPort() = default;
 
@@ -261,6 +275,7 @@ enum class LegacyBattleStartupStatus : compat::u8 {
     enemy_index_out_of_range,
     party_source_index_out_of_range,
     party_actor_index_out_of_range,
+    actor_metric_typed_stop,
     random_result_out_of_range,
 };
 
@@ -282,6 +297,7 @@ struct LegacyBattleStartupResult {
     compat::u32 supplemental_actor_count{};
     compat::u32 enemy_action_advance_calls{};
     compat::u32 finalized_party_actor_count{};
+    compat::u32 actor_metric_calls{};
     bool completion_status_published{};
     compat::u32 return_value{};
 };

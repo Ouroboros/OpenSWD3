@@ -102,9 +102,13 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
     static_cast<void>(invoke(
         port, result, LegacyBattleFrameCoordinatorCall::pre_frame_stage_2
     ));
-    static_cast<void>(invoke(
-        port, result, LegacyBattleFrameCoordinatorCall::pre_frame_stage_3
-    ));
+    const auto actor_metrics = rebuild_legacy_battle_actor_metrics(port);
+    result.port_calls += actor_metrics.port_calls;
+    if (actor_metrics.status != LegacyBattleActorMetricStatus::completed) {
+        result.status =
+            LegacyBattleFrameCoordinatorStatus::actor_metric_typed_stop;
+        return result;
+    }
     static_cast<void>(invoke(
         port, result, LegacyBattleFrameCoordinatorCall::pre_frame_stage_4
     ));

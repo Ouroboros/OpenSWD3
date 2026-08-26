@@ -2,6 +2,7 @@
 
 #include "openswd3/asset_runtime/legacy_action_draw_bridge.hpp"
 #include "openswd3/battle/legacy_battle_action_frame_draw.hpp"
+#include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
 #include "openswd3/battle/legacy_battle_frame_effect.hpp"
 #include "openswd3/battle/legacy_battle_transition.hpp"
@@ -41,7 +42,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     pre_frame_stage_0,
     pre_frame_stage_1,
     pre_frame_stage_2,
-    pre_frame_stage_3,
+    query_actor_metric,
     pre_frame_stage_4,
     pre_frame_completion_gate,
     lock_target_surface,
@@ -71,6 +72,9 @@ struct LegacyBattleFrameCoordinatorCallRequest {
         LegacyBattleFrameCoordinatorCall::pre_frame_stage_0
     };
     std::array<compat::u32, 8> arguments{};
+    compat::u32 eax{};
+    compat::u32 ecx{};
+    compat::u32 edx{};
 };
 
 struct LegacyBattleFrameCoordinatorCallReply {
@@ -78,9 +82,19 @@ struct LegacyBattleFrameCoordinatorCallReply {
     compat::u32 ecx{};
     compat::u32 edx{};
     compat::u32 published_value{};
+    bool publish_metric_byte{};
+    compat::u8 metric_byte{};
+    bool publish_metric_word{};
+    compat::u16 metric_word{};
+    bool publish_group_b_count{};
+    compat::u32 group_b_count{};
+    bool publish_group_a_count{};
+    compat::u32 group_a_count{};
 };
 
-class LegacyBattleFrameCoordinatorPort : public LegacyBattleHudCallPort {
+class LegacyBattleFrameCoordinatorPort
+    : public LegacyBattleHudCallPort,
+      public virtual LegacyBattleActorMetricStatePort {
 public:
     virtual ~LegacyBattleFrameCoordinatorPort() = default;
 
@@ -171,6 +185,7 @@ struct LegacyBattleFrameCoordinatorContext {
 enum class LegacyBattleFrameCoordinatorStatus : compat::u8 {
     completed,
     pre_frame_returned_zero,
+    actor_metric_typed_stop,
     render_aborted,
     fixed_frame_typed_stop,
     role_map_typed_stop,

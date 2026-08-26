@@ -2,6 +2,7 @@
 
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
 #include "openswd3/asset_runtime/legacy_frame_deformation.hpp"
+#include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_frame_effect.hpp"
 #include "openswd3/battle/legacy_battle_frame_refresh.hpp"
 #include "openswd3/battle/legacy_battle_scale_scan.hpp"
@@ -46,10 +47,19 @@ struct LegacyBattleActionCallReply {
     bool publish_opponent_spawn_count{};
     compat::u16 opponent_spawn_count{};
     compat::u32 object_flags{};
+    bool publish_metric_byte{};
+    compat::u8 metric_byte{};
+    bool publish_metric_word{};
+    compat::u16 metric_word{};
+    bool publish_group_b_count{};
+    compat::u32 group_b_count{};
+    bool publish_group_a_count{};
+    compat::u32 group_a_count{};
 };
 
 class LegacyBattleActionDispatchPort
-    : public virtual LegacyBattleFrameRefreshStatePort {
+    : public virtual LegacyBattleActorMetricStatePort,
+      public virtual LegacyBattleFrameRefreshStatePort {
 public:
     virtual ~LegacyBattleActionDispatchPort() = default;
 
@@ -194,6 +204,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     scale_scan_typed_stop,
     internal_flag_typed_stop,
     effect_record_typed_stop,
+    actor_metric_typed_stop,
     final_actor_workspace_typed_stop,
     final_actor_record_typed_stop,
     final_actor_descriptor_typed_stop,

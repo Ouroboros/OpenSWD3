@@ -489,7 +489,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                     } &&
                 result.fixed_frame_calls == 0U &&
                 result.frame_effect_calls == 0U && result.lock_calls == 0U &&
-                port.calls.size() == 8U,
+                port.calls.size() == 7U,
             "frame coordinator preserves music start and six-stage zero early return with active latch set"
         );
     }

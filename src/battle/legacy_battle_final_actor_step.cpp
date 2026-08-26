@@ -11,7 +11,6 @@ using compat::u32;
 using compat::u8;
 
 constexpr u32 kCallValidateActor = 0x00479850U;
-constexpr u32 kCallRefreshA = 0x0045B0E0U;
 constexpr u32 kCallRefreshB = 0x0045B190U;
 constexpr u32 kCallRefreshC = 0x0045B5A0U;
 constexpr u32 kCallRemoveActor = 0x004750C0U;
@@ -72,6 +71,27 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
     return port.invoke({.callee_token = callee, .arguments = arguments});
 }
 
+[[nodiscard]] bool rebuild_actor_metrics(
+    LegacyBattleActionDispatchState& action,
+    LegacyBattleActionDispatchPort& port,
+    LegacyBattleActionDispatchResult& result
+) {
+    const auto metrics = rebuild_legacy_battle_actor_metrics(
+        port, to_bits(action.group_b_count), to_bits(action.group_a_count)
+    );
+    result.port_calls += metrics.port_calls;
+    action.group_b_count =
+        signed_dword(port.actor_metric_state().group_b_count);
+    action.group_a_count =
+        signed_dword(port.actor_metric_state().group_a_count);
+    if (metrics.status != LegacyBattleActorMetricStatus::completed) {
+        result.status =
+            LegacyBattleActionDispatchStatus::actor_metric_typed_stop;
+        return false;
+    }
+    return true;
+}
+
 [[nodiscard]] bool zero_workspace_record(
     LegacyBattleActionDispatchState& action,
     LegacyBattleActionDispatchResult& result,
@@ -126,7 +146,9 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
                 to_bits(action.group_a_count) - static_cast<u32>(threshold)
             );
         }
-        static_cast<void>(invoke(port, result, kCallRefreshA));
+        if (!rebuild_actor_metrics(action, port, result)) {
+            return result;
+        }
         static_cast<void>(invoke(port, result, kCallRefreshB));
         static_cast<void>(invoke(port, result, kCallRefreshC));
     } else {
@@ -314,7 +336,9 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
         action.group_b_count = 1;
         replace_low_byte(action.packed_actor_counter, 0U);
         state.group_b_reset_word = 0U;
-        static_cast<void>(invoke(port, result, kCallRefreshA));
+        if (!rebuild_actor_metrics(action, port, result)) {
+            return result;
+        }
         static_cast<void>(invoke(port, result, kCallRefreshB));
         static_cast<void>(invoke(port, result, kCallRefreshC));
     }

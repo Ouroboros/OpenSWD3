@@ -40,7 +40,6 @@ constexpr u32 kCallMirrorOpponent = 0x0047F900U;
 constexpr u32 kCallPrepareOpponentScratch = 0x00476DB0U;
 constexpr u32 kCallUpdateOpponentScratch = 0x00478220U;
 constexpr u32 kCallCommitOpponentRecord = 0x00475720U;
-constexpr u32 kCallAdvanceBattleA = 0x0045B0E0U;
 constexpr u32 kCallAdvanceBattleB = 0x0045B190U;
 constexpr u32 kCallAdvanceBattleC = 0x0045B5A0U;
 constexpr u32 kCallQueryOpponentCondition = 0x0047CE80U;
@@ -160,14 +159,29 @@ void clear_selection_state(LegacyBattleActionDispatchState& state) noexcept {
     state.selection_high_word = 0U;
 }
 
-void advance_battle_stages(
+[[nodiscard]] bool advance_battle_stages(
     LegacyBattleActionDispatchState& state,
     LegacyBattleActionDispatchPort& port,
     LegacyBattleActionDispatchResult& result
 ) {
-    static_cast<void>(invoke(state, port, result, kCallAdvanceBattleA));
+    const auto metrics = rebuild_legacy_battle_actor_metrics(
+        port,
+        std::bit_cast<u32>(state.group_b_count),
+        std::bit_cast<u32>(state.group_a_count)
+    );
+    result.port_calls += metrics.port_calls;
+    state.group_b_count =
+        std::bit_cast<i32>(port.actor_metric_state().group_b_count);
+    state.group_a_count =
+        std::bit_cast<i32>(port.actor_metric_state().group_a_count);
+    if (metrics.status != LegacyBattleActorMetricStatus::completed) {
+        result.status =
+            LegacyBattleActionDispatchStatus::actor_metric_typed_stop;
+        return false;
+    }
     static_cast<void>(invoke(state, port, result, kCallAdvanceBattleB));
     static_cast<void>(invoke(state, port, result, kCallAdvanceBattleC));
+    return true;
 }
 
 [[nodiscard]] LegacyBattleActionDispatchResult
@@ -596,7 +610,9 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                 ));
                 ++state.group_b_count;
                 ++result.group_b_iterations;
-                advance_battle_stages(state, port, result);
+                if (!advance_battle_stages(state, port, result)) {
+                    return result;
+                }
                 ++wave;
             }
         }
@@ -657,7 +673,9 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                 );
                 state.opponent_special_action = 0U;
                 state.post_battle_counter = 0U;
-                advance_battle_stages(state, port, result);
+                if (!advance_battle_stages(state, port, result)) {
+                    return result;
+                }
             }
         }
         return completed(result, 1U);

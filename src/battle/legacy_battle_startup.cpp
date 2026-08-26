@@ -719,7 +719,16 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         }
     }
 
-    static_cast<void>(invoke(port, LegacyBattleStartupCall::post_all_phase_a));
+    const auto metrics = rebuild_legacy_battle_actor_metrics(
+        port, state.enemy_count, state.party_count
+    );
+    result.actor_metric_calls += metrics.port_calls;
+    state.enemy_count = port.actor_metric_state().group_b_count;
+    state.party_count = port.actor_metric_state().group_a_count;
+    if (metrics.status != LegacyBattleActorMetricStatus::completed) {
+        result.status = LegacyBattleStartupStatus::actor_metric_typed_stop;
+        return result;
+    }
     static_cast<void>(invoke(port, LegacyBattleStartupCall::post_all_phase_b));
     static_cast<void>(invoke(port, LegacyBattleStartupCall::post_all_phase_c));
 

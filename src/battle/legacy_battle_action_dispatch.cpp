@@ -81,7 +81,6 @@ constexpr u32 kCallSummonMode = 0x0047DAB0U;
 constexpr u32 kCallPrepareSummon = 0x004786F0U;
 constexpr u32 kCallBuildSummon = 0x0046E890U;
 constexpr u32 kCallSummonReady = 0x00471D60U;
-constexpr u32 kCallStageZero = 0x0045B0E0U;
 constexpr u32 kCallStageOne = 0x0045B190U;
 constexpr u32 kCallActionTwentySevenReady = 0x004728E0U;
 constexpr u32 kCallActionSevenReady = 0x00479850U;
@@ -112,6 +111,10 @@ constexpr u32 kCallSpecialFourOhTwo = 0x00474BA0U;
 
 [[nodiscard]] constexpr i16 signed_low_word(const u32 value) noexcept {
     return std::bit_cast<i16>(low_word(value));
+}
+
+[[nodiscard]] constexpr u32 to_bits(const i32 value) noexcept {
+    return std::bit_cast<u32>(value);
 }
 
 void replace_low_word(u32& destination, const u16 value) noexcept {
@@ -163,6 +166,27 @@ void refresh_shared_frame(
         std::bit_cast<u16>(state.frame_effect.blue_factor)
     );
     result.port_calls += refresh.port_calls;
+}
+
+[[nodiscard]] bool rebuild_shared_actor_metrics(
+    LegacyBattleActionDispatchState& state,
+    LegacyBattleActionDispatchPort& port,
+    LegacyBattleActionDispatchResult& result
+) {
+    const auto metrics = rebuild_legacy_battle_actor_metrics(
+        port, to_bits(state.group_b_count), to_bits(state.group_a_count)
+    );
+    result.port_calls += metrics.port_calls;
+    state.group_b_count =
+        std::bit_cast<i32>(port.actor_metric_state().group_b_count);
+    state.group_a_count =
+        std::bit_cast<i32>(port.actor_metric_state().group_a_count);
+    if (metrics.status != LegacyBattleActorMetricStatus::completed) {
+        result.status =
+            LegacyBattleActionDispatchStatus::actor_metric_typed_stop;
+        return false;
+    }
+    return true;
 }
 
 [[nodiscard]] bool clear_framebuffer(
@@ -1283,7 +1307,9 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
         state.message_aux = 0U;
         state.current_actor_index = 0xFFFFU;
         replace_low_word(state.phase_counter, 0U);
-        static_cast<void>(invoke(state, port, result, kCallStageZero));
+        if (!rebuild_shared_actor_metrics(state, port, result)) {
+            return result;
+        }
         static_cast<void>(invoke(state, port, result, kCallStageOne));
         result.return_value = 1U;
         return result;

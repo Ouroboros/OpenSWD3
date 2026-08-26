@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v737
+版本：v738
 
 最后更新：2026-08-25
 
@@ -3949,4 +3949,6 @@ B7 P0 有限收口完成。
 
 - 模块10战斗共享画面刷新`0x0045AF90`完成。完整权威LST主体`0x0045AF90..0x0045B0D7`从proc到endp共138行、9个静态call站点、2个局部标签，无外部FUNCTION CHUNK。实现恢复三组snapshot与当前word的逐项低word比较、三条路径不同陈旧EAX/ECX/EDX、全等零调用早退、固定双surface迭代、Miles serve、surface lock/unlock、共享pitch捕获、640×480 viewport准备、红绿蓝i16算术右移半值与factor 1/2低32位乘法、三snapshot发布、refresh pending、最终surface及末个unlock完整EAX。每次实际刷新动态执行16次typed port call。角色动作分派四处、对手动作分派一处、八槽效果帧一处和群体效果帧一处共七个已关闭caller全部删除`0x0045AF90` opaque token并直接组合统一刷新器；刷新快照与surface状态只保存在动作/效果端口共同虚继承的单一typed存储，群体效果帧继续接收最终EAX/ECX/EDX，三个后续未关闭caller不提前修改。测试覆盖全等早退、高word保留、固定调用顺序、负奇数算术右移、双factor、pitch与snapshot、最终lock参数、完整返回和caller token回收；定向`1/1`、独立ASan`1/1`、Linux core`188/188`和Linux app`194/194`通过。工作包连续双跑逐字节一致，稳定为`73/422`，即`68 platform_adapted + 5 assembly_exact + 349 pending_audit`，SHA256为`6d7f0e4f96c171c00836922644956048c90b48bb441316863cce774719f448a8`。原版Miles serve、双surface、lock/unlock、viewport、三项颜色callee、framebuffer和寄存器联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=74`的`0x0045B0E0`，必须从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗帧函数。
+- 模块10战斗角色metric重建`0x0045B0E0`完成。完整权威LST主体`0x0045B0E0..0x0045B18B`从proc到endp共92行、2个静态call站点、4个局部标签，无外部FUNCTION CHUNK。实现恢复第一张18 dword metric表与第二张18 dword辅助表的固定顺序清零、caller ECX保存槽同时作为word与第三byte栈局部、callee不写时的陈旧局部保留、组B索引0与组A索引8起始、两组固定角色基址和步长、每次callee后动态重载完整u32数量、word的i16符号扩展、组A数量加8的u32回绕与unsigned门、路径相关EAX/EDX以及尾部ECX恢复。异常数量只在第19次真实表store处typed-stop，保留callee、局部输出、数量重载、双表清零和前18次写入。战斗启动、逐帧协调、角色动作分派、对手动作分派两处和最终角色步进两处共七个已关闭caller全部删除opaque边界并直接组合；两张表只保存在动作、启动与帧协调端口共同虚继承的单一typed状态。测试覆盖双表清零、栈局部别名、两组token和步长、signed word、跨角色局部保留、动态数量增长与缩短、组A加8回绕、返回寄存器、第19次store、跨端口单一存储和caller回归；定向`1/1`、独立ASan`1/1`、Linux core`188/188`和Linux app`194/194`通过。工作包连续双跑逐字节一致，稳定为`74/422`，即`69 platform_adapted + 5 assembly_exact + 348 pending_audit`，SHA256为`e04a03ab03cdeb9e8b2d57e14a7ab7ec76384c6c33ead3e0e6949abcf75ef43d`。原版两组角色对象、metric callee、动态数量修改、两张物理表、栈地址和寄存器联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=75`的`0x0045B190`，必须从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗帧函数。

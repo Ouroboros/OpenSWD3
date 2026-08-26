@@ -100,7 +100,8 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                 state.actor_runtime_records[1][4] == 0U &&
                 result.group_a_iterations == 1U &&
                 result.group_b_iterations == 1U &&
-                port.count(0x0045B0E0U) == 1U && port.count(0x0047C660U) == 2U,
+                port.count(0x0045B0E0U) == 0U &&
+                port.count(0x004783B0U) == 2U && port.count(0x0047C660U) == 2U,
             "group A completion clears the counted workspace and runs common actor cleanup"
         );
     }
@@ -206,7 +207,8 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                 action.group_b_count == 1 &&
                 (action.packed_actor_counter & 0xFFU) == 0U &&
                 state.group_b_reset_word == 0U &&
-                port.count(0x0045B0E0U) == 1U &&
+                port.count(0x0045B0E0U) == 0U &&
+                port.count(0x004783B0U) == 1U &&
                 port.calls[4].arguments[0] == 0x004B9F00U &&
                 port.calls[4].arguments[1] == 0x55U,
             "every non-one selector runs group B coordinates, descriptor, action and reset suffix"

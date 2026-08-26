@@ -461,8 +461,9 @@ void test_battle_startup(openswd3::test::Context& test) {
                 ) &&
                 ports.call_count(LegacyBattleStartupCall::apply_actor_mode) ==
                     4U &&
-                ports.call_count(LegacyBattleStartupCall::post_all_phase_a) ==
-                    1U &&
+                ports.call_count(LegacyBattleStartupCall::query_actor_metric) ==
+                    6U &&
+                result.actor_metric_calls == 6U &&
                 ports.call_count(LegacyBattleStartupCall::post_all_phase_b) ==
                     1U &&
                 ports.call_count(LegacyBattleStartupCall::post_all_phase_c) ==
