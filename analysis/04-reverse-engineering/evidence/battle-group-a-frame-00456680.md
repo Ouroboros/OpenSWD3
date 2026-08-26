@@ -1,0 +1,201 @@
+# 组A战斗帧主循环 `0x00456680`
+
+状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`。
+
+## 1. 完整LST范围
+
+权威函数为`0x00456680..0x0045769B`，完整1795行、101个静态call站点、84个`loc_`标签，无外部FUNCTION CHUNK。唯一caller为尚未关闭的`0x0045B5E0`，当前不提前计数。
+
+ABI读取一个组A索引并固定返回1。组A token按低32位建立：
+
+```text
+0x005029D0 + index * 0x2F34
+```
+
+入口索引只在首次对象callee处typed-stop；函数内部所有组A/组B计数循环同样只在对应迭代首次对象访问处停止，并保留此前迭代副作用。
+
+## 2. 画面效果门
+
+先查询当前组A对象的效果状态。只有：
+
+```text
+query低word非零 && (primary suppression == 1 || split suppression == 1)
+```
+
+或独立global override等于1时，才向对象发布mode 1；否则发布mode 0。`&&`与`||`优先级保持LST，不把global override错误并入query门。
+
+## 3. AI协调与随机对手
+
+AI协调只在全局enable等于1、两个pending门都为0时进入：
+
+1. 对当前对象执行prepare；
+2. global gate完整EAX等于1后advance；
+3. 当前角色两个AI标记任一等于1时，遍历`group_b_count`个组B对象统计terminal完整EAX等于1的数量；
+4. 尚有非terminal对象时发布selection mode 1，并执行无现代上限的随机重试：`random(group_b_count)+1`作为one-based组B索引，直到terminal查询不等于1；
+5. actor scene查询成功后分别查询两个AI完成callee并写当前角色状态。
+
+计数为0或全部terminal时走对象reset。随机callee超约定结果只在首次one-based组B对象访问处typed-stop。
+
+当前角色无两个AI标记时先播放固定sample，再扫描十槽actor queue的首个0。队列已满则不写；有空槽时按queue mode决定直接发布`index+8`或写入槽。
+
+## 4. 十槽actor queue
+
+从队首向后扫描，同时要求：
+
+- queued actor code仍为0；
+- current actor低word为`0xFFFF`；
+- 当前槽非0。
+
+槽值按`code-8`形成组A对象。queue completion不等于1时：
+
+- queued actor code写该槽值；
+- 若槽号小于9，把后续槽逐项左移；
+- 固定把最后槽清零；
+- 结束扫描。
+
+`code<8`在首次派生组A对象查询点typed-stop，不提前清理非法队列。
+
+## 5. 角色frame启动
+
+当前角色frame尚未启动、queue completion为0、idle查询为1、available查询为1且两个动作阻塞门为0时进入。两个独立早期reset条件：
+
+- queued selection word非`0xFFFF`，且`group_b_count - processed低byte <= 1`；
+- message state为99，且独立actor-start guard word为0。
+
+随后写frame started、active actor code=`index+8`，调用启动callee参数`(1,index+8,全1)`。actor-start guard位于相邻共享地址，不能与turn-resolution word合并。
+
+## 6. 角色AI执行阶段
+
+只有actor enabled等于1时处理。
+
+### 6.1 action complete尚未置1
+
+mode gate非0时，selected one-based值解释为组A对象。目标不busy、active effect target不等于`selected+7`且当前角色idle为0时清控制/呈现；delay callee返回1后发布`selected-1`、finalize actor并清一组selection门。
+
+mode gate为0且当前角色idle为0时：
+
+- 当前角色两个AI标记任一非0：selected opponent one-based解释为组B对象，清控制、选择目标、发布`selected-1`并清门；
+- 两个AI标记均为0：delay成功后，另一个one-based选择仍解释为组B对象；随后选择、发布、finalize actor并更新UI门。
+
+同一个共享one-based值在不同mode下可指向组A或组B；modern不统一成单一对象域。
+
+### 6.2 action complete等于1
+
+selection mode非0时遍历组A：两个AI标记都不等于1、other actor查询不等于1且当前角色idle为0时累加progress。达到`group_a_count - defeated byte - packed highword - excluded lowword`后，从最后一个组A对象向前找首个非terminal。
+
+selection mode为0时遍历组B：terminal对象及已映射对象计入terminal-like；非terminal且映射全1时清控制、选择对象并累加progress。达到`group_b_count-terminal_like`后从第一个组B对象向后找首个非terminal。
+
+选中后发布target-ready、prepare selection与索引。随后selection complete等于1时按AI标记或delay成功走两类门清理；delay mode等于4时另调用固定finalize。
+
+## 7. 已关闭动作主分派caller回收
+
+当active effect target等于`group_a_index+8`且action execution已激活：
+
+1. 发布两个动作门与current actor；
+2. prepare当前角色；
+3. 查询目标低word；
+4. **直接调用已关闭`dispatch_legacy_battle_action`**，不再保留`0x004539B0` opaque端口；
+5. 合并callee端口计数、清屏次数、循环计数与typed-stop；
+6. callee返回1才进入完成尾。
+
+完成尾再次查询目标并清当前动作，随后清动作门、相邻高byte、stage word和selection mode。目标不为`0xFFFF`时：
+
+- selection complete为1：遍历全部组B执行target reset；
+- 否则按独立action side把目标解释为组A或组B并reset；
+- 调用post action；
+- 随后无论action side如何，都把同一目标解释为组B并查询terminal；
+- terminal时可继续查询关联组A目标，并在`group_b_count + processed第三byte - processed低byte <= 1`时遍历全部组A发布固定值1；
+- battle byte bit`0x80`置位时遍历组B，对非terminal对象执行clear，再只清最低byte的该bit。
+
+公共cleanup调用actor reset，清连续28字节active-effect块、角色post/scene、多个共享门和值、两个stage word、cleanup word、action runtime低word与post counter，最后把active effect target写全1。primary suppression等于1时置fade；global phase低15位非零时只递减低word。
+
+## 8. 动作准备路径
+
+active effect target匹配但action execution尚未激活、action block为0时：
+
+- 查询目标低word并形成组B对象；
+- target busy为0时置execution、current actor；
+- selection complete非0且action side为0时遍历全部组B：对非terminal对象做第二次terminal查询，第二次等于0才prepare target；一个非terminal都没有则撤销execution；
+- selection complete为0、action side为0且独立target guard highword为0时，若原目标terminal且runtime word为0，则找首个非terminal组B对象。找到前按原顺序clear actor action、reset固定“组B前一槽”token，再发布索引；
+- execution仍为1时prepare最终目标；
+- 当前角色text byte非零时显示固定文本并清五个text runtime dword；
+- 最后begin actor action。
+
+独立target guard来自相邻未对齐dword的高word，不复用turn-resolution word。
+
+## 9. 回合结算状态机
+
+仅在action block为0、当前组A对象非terminal且两个AI标记都为0时进入。
+
+### 9.1 bit`0x4000`
+
+先置两个pending门。advance turn mode0返回1时，input mode只递增低word。比较域是u32：
+
+```text
+u16(input_mode) >=
+    u32(group_a_count - defeated_byte - packed_highword - excluded_lowword)
+```
+
+达到阈值后清phase高word，遍历组B非terminal对象：resolve target零token在首次`+0x54`读取处typed-stop；取word54无符号最大值写phase高word。原BUG使用当前`group_a_index`查询映射，而不是循环组B索引；该映射非全1时强制最大值200。
+
+phase最大值为0时先清turn word、input低word写1、清phase高word与两个pending门。随后仍调用turn commit；参数高word保留`group_b_count`高16位，低word覆盖为phase最大值。成功时：
+
+- 对当前组A对象发布结果1；
+- turn word写`0x8000`；
+- 清selection/queue/phase；
+- input低word使用独立尾算术：先u32减defeated byte，再只在低16位减packed highword，最后u32减excluded lowword。
+
+失败时遍历全部组A发布结果0，按门显示固定文本并播放sample，随后清turn、input、phase和两个pending门。
+
+### 9.2 signed bit`0x8000`
+
+bit`0x4000`阶段结束后会在同一次调用重读turn word，因此成功写`0x8000`可立即进入本阶段。置两个pending门并清selection/queue；若当前actor bit未置且advance turn mode1返回1，则：
+
+- overlay gate写1；
+- OR入`1<<group_a_index`；
+- defeated byte按u8加1回绕；
+- 用u32比较`defeated >= group_a_count-packed_highword-excluded_lowword`。
+
+达到阈值时显示最终文本、清十槽队列、message state写104、turn word清零、active effect target写全1并清504字节workspace。
+
+## 10. 最终尾
+
+无论普通路径如何，最后调用固定`final actor step(group_a_index,1)`。完整EAX等于1时清final action gate并把final selected word写`0xFFFF`。函数正常返回固定1。
+
+## 11. closed callee、端口与typed边界
+
+46个唯一callee中：
+
+- `0x004539B0`已直接回收为typed动作主分派；
+- 其余45个角色、AI、选择、文本、sample和数值callee继续使用单一typed token端口。
+
+所有对象地址、one-based目标、固定前一槽、scene与文本地址均为`compat::u32` token，不转主机指针。
+
+Typed-stop只位于：
+
+- 入口组A首次对象callee；
+- 计数循环每次首次组A/组B对象callee；
+- queue code派生对象首次查询；
+- one-based随机/选择首次对象callee；
+- action target首次组B对象callee；
+- resolved target零token后的word54读取；
+- 已关闭动作分派自身真实访问点。
+
+## 12. 验证与动态差分
+
+定向测试覆盖：
+
+- 入口组A越界；
+- effect mode组合门与固定最终尾；
+- AI terminal统计、one-based随机目标和两个完成标记；
+- 十槽queue首个未完成项与左移；
+- idle actor启动；
+- completed actor组B扫描与首个live选择；
+- active action直接调用已关闭主分派，确认端口不再出现旧callee token并完成全cleanup；
+- action target `0xFFFF`首次组B对象typed-stop；
+- turn `0x4000→0x8000→0`同调用穿透；
+- resolved word54最大值、stale turn参数与失败尾；
+- queue code小于8的派生对象停点；
+- 46个唯一callee全部存在，其中1个typed直连、45个端口边界。
+
+当前缺少原版组A/B对象、46类callee共享副作用、AI/选择/队列表、text/sample、resolved target内存与回合状态联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

@@ -2,7 +2,7 @@
 
 状态：`module_in_progress`
 
-当前关闭进度：`62/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
+当前关闭进度：`63/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
 
 ## 1. 唯一真值与模块目标
 
@@ -51,10 +51,10 @@ code_origin == game
 - 尾地址：`0x00484500`；
 - `confirmed_boundary`：`61`；
 - `medium`导航候选：`361`；
-- `pending_audit`：`364`；
+- `pending_audit`：`359`；
 - `assembly_exact`：`5`；
-- `platform_adapted`：`53`；
-- 已关闭：`58`。
+- `platform_adapted`：`58`；
+- 已关闭：`63`。
 
 六个稳定导航分组为：
 
@@ -76,7 +76,7 @@ code_origin == game
 - `legacy_battle_assets`：FIGTALK固定窗口和`battle.ffd`头、索引、记录读取；
 - `legacy_battle_setup`：初始队伍筛选、固定阵型、镜像坐标和敌方记录布局。
 
-它们覆盖了`0x0046E0B0`、`0x0045F130`、`0x0045F1B0`与`0x00451B10`的部分有效资产路径或部分指令区间，但尚未证明所属函数的完整LST函数体、全部外部chunk、全部错误/循环/异常域、caller回收和完整战斗生命周期。因此这些历史切片继续不计数；当前`62/422`只来自本文件逐项登记且完成全部关闭门的函数，不得把其他测试通过、局部有效路径或真实battle 98样本当作函数关闭。
+它们覆盖了`0x0046E0B0`、`0x0045F130`、`0x0045F1B0`与`0x00451B10`的部分有效资产路径或部分指令区间，但尚未证明所属函数的完整LST函数体、全部外部chunk、全部错误/循环/异常域、caller回收和完整战斗生命周期。因此这些历史切片继续不计数；当前`63/422`只来自本文件逐项登记且完成全部关闭门的函数，不得把其他测试通过、局部有效路径或真实battle 98样本当作函数关闭。
 
 `app::battle_transition`和`frame_runtime`只实现顶层请求与返回编排，不属于422项战斗内部函数关闭计数。
 
@@ -333,8 +333,10 @@ I5最终必须锁定：
 
 `audit_order=62`的`0x00455D60`已关闭为`platform_adapted`。权威主体`0x00455D60..0x0045662F`完整993行、51个静态call站点与33个局部标签，另纳入`0x00498370..0x00498384`的21字节异常FUNCTION CHUNK。实现恢复动作100/200/300、17项稀疏jump table的9个有效case、双side攻击尾差异、deformation生命周期、目标phase、低byte回绕、组B wave记录、220/350坐标、镜像、callee陈旧EAX高word、504字节workspace及18个间隔全1头。两个已关闭deformation callee和framebuffer清屏直接组合，其余35个唯一callee边界复用共享typed token端口。
 
+`audit_order=63`的`0x00456680`已关闭为`platform_adapted`。完整权威LST主体`0x00456680..0x0045769B`共1795行、101个静态call站点、84个局部标签且无外部chunk。实现恢复组A效果门、AI terminal统计与无上限随机组B选择、十槽actor queue、idle角色frame启动、两类completed选择循环、动作准备与清理、u32回合阈值、resolved word54最大值、陈旧commit参数、bit`0x4000→0x8000`同调用穿透和固定最终尾。已关闭`0x004539B0`动作主分派caller直接组合，其余45个唯一callee保留共享typed token端口；相邻actor-start guard、target guard highword和turn word保持独立。
+
 `audit_order=14`的`0x00434790`已关闭为`platform_adapted`。它只在首次调用以显式time seed CRT、发布三项共享值并扫描源图，随后直接组合已关闭粒子生成、线段推进与单像素颜色合成；剩余批次回放保留镜像检查X、源索引和实际写入X错位，粒子2×2绘制保留只跳第一透明色、只检查右像素及合成模式右上先合成后被原值覆盖。生命刷新、距离与目标矩形摘除、唯一/首/尾/中间四类双向链释放及其计数不对称均已闭环。三个上层caller都显式消费返回1作为阶段完成信号，尚待各自进入现代实现。
 
-下一项回收`audit_order=63`的`0x00456680`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计其组A战斗帧主循环、动作分派caller回收、AI/输入阶段时序和返回约定。
+下一项回收`audit_order=64`的`0x004576A0`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计其后续战斗帧输入与结算流程、组A帧主循环caller回收、共享状态顺序和返回约定。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。
