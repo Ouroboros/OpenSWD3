@@ -2,7 +2,7 @@
 
 状态：`module_in_progress`
 
-当前关闭进度：`67/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
+当前关闭进度：`68/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
 
 ## 1. 唯一真值与模块目标
 
@@ -76,7 +76,7 @@ code_origin == game
 - `legacy_battle_assets`：FIGTALK固定窗口和`battle.ffd`头、索引、记录读取；
 - `legacy_battle_setup`：初始队伍筛选、固定阵型、镜像坐标和敌方记录布局。
 
-它们覆盖了`0x0046E0B0`、`0x0045F130`、`0x0045F1B0`与`0x00451B10`的部分有效资产路径或部分指令区间，但尚未证明所属函数的完整LST函数体、全部外部chunk、全部错误/循环/异常域、caller回收和完整战斗生命周期。因此这些历史切片继续不计数；当前`67/422`只来自本文件逐项登记且完成全部关闭门的函数，不得把其他测试通过、局部有效路径或真实battle 98样本当作函数关闭。
+它们覆盖了`0x0046E0B0`、`0x0045F130`、`0x0045F1B0`与`0x00451B10`的部分有效资产路径或部分指令区间，但尚未证明所属函数的完整LST函数体、全部外部chunk、全部错误/循环/异常域、caller回收和完整战斗生命周期。因此这些历史切片继续不计数；当前`68/422`只来自本文件逐项登记且完成全部关闭门的函数，不得把其他测试通过、局部有效路径或真实battle 98样本当作函数关闭。
 
 `app::battle_transition`和`frame_runtime`只实现顶层请求与返回编排，不属于422项战斗内部函数关闭计数。
 
@@ -343,8 +343,10 @@ I5最终必须锁定：
 
 `audit_order=67`的`0x004599B0`已关闭为`platform_adapted`。完整权威LST主体`0x004599B0..0x00459BE9`共269行、10个静态call站点、14个局部标签且无外部chunk。实现恢复单条主152字节效果记录、signed status前缀、初始化失败清备用record、owner首次解引用、offset双低word AND门、镜像base offset、X完整减法与Y低word减法、sample参数坐标高word、左右pan保留play ECX/EDX高word、data token绘制、条件value释放、owner内部value清零和complete尾。唯一caller组B帧已删除opaque token并直接组合typed状态；pending只在子返回1时清全1，typed-stop与port call计数直接传播。
 
+`audit_order=68`的`0x00459BF0`已关闭为`platform_adapted`。完整权威LST主体`0x00459BF0..0x00459D04`从proc到endp共130行、4个静态call站点、4个局部标签且无外部chunk。实现恢复source-zero先于slot访问、i8小于等于-32清零、坐标先于record写、global mode snapshot、初始化失败完整EAX/EDX、lookup分别保留初始化EAX/EDX高word、owner首读、三项signed强度发布、signed16坐标减完整dword offset、u16宽高绘制、无resource释放、强度u8减4和render EDX返回。唯一caller八槽效果协调器已删除opaque token并直接组合；子返回EDX继续供父final gate使用，返回1才清pending。
+
 `audit_order=14`的`0x00434790`已关闭为`platform_adapted`。它只在首次调用以显式time seed CRT、发布三项共享值并扫描源图，随后直接组合已关闭粒子生成、线段推进与单像素颜色合成；剩余批次回放保留镜像检查X、源索引和实际写入X错位，粒子2×2绘制保留只跳第一透明色、只检查右像素及合成模式右上先合成后被原值覆盖。生命刷新、距离与目标矩形摘除、唯一/首/尾/中间四类双向链释放及其计数不对称均已闭环。三个上层caller都显式消费返回1作为阶段完成信号，尚待各自进入现代实现。
 
-下一项回收`audit_order=68`的`0x00459BF0`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗效果帧函数。
+下一项回收`audit_order=69`的`0x00459D10`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗效果帧函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

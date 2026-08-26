@@ -353,10 +353,10 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
         LegacyBattleEffectFrameState state;
         state.primary[0].complete = 1U;
         state.primary[0].lookup_key_b = 0x1234U;
+        state.primary[0].resource_aux_value = 0xABCD0000U;
         state.pending_step[0] = 1U;
         state.final_gate_word = 1U;
         EffectPort port;
-        port.push(0x00459BF0U, {.eax = 1U, .edx = 0xABCD0000U});
         port.push(0x0045BD90U, {.eax = 1U});
         const auto result =
             openswd3::battle::advance_legacy_battle_effect_frame(
@@ -364,10 +364,11 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
             );
         test.expect_true(
             result.return_value == 1U && state.pending_step[0] == 0U &&
+                port.count(0x00459BF0U) == 0U &&
                 has_argument(port, 0x0045BD90U, 0U, 0xABCD1234U) &&
                 has_argument(port, 0x0045BD90U, 1U, 1U) &&
                 state.animation_counter[0] == 0U,
-            "pending completion then final gate preserves explicit stale EDX high word"
+            "typed pending completion preserves caller EDX high word for final gate"
         );
     }
 

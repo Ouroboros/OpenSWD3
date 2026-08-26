@@ -42,7 +42,6 @@ constexpr u32 kCallPublishReward = 0x0047D640U;
 constexpr u32 kCallSetRewardMode = 0x0047CEC0U;
 constexpr u32 kCallPublishRewardId = 0x004787D0U;
 constexpr u32 kCallSetRewardOffset = 0x0047CF00U;
-constexpr u32 kCallPendingStep = 0x00459BF0U;
 constexpr u32 kCallFinalGate = 0x0045BD90U;
 
 constexpr u32 kAlternateActiveBaseToken = 0x004FF0BCU;
@@ -874,17 +873,27 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
     }
 
     if (state.pending_step[slot_index] == 1U) {
-        const auto pending = invoke(
+        const auto pending = advance_legacy_battle_intensity_effect_frame(
+            state,
             port,
-            result,
-            kCallPendingStep,
-            {argument_object_token,
-             primary.resource_key_token,
-             primary.resource_aux_value,
-             slot_index}
+            argument_object_token,
+            primary.resource_key_token,
+            primary.resource_aux_value,
+            slot_index
         );
-        stale_final_edx = pending.edx;
-        if (pending.eax == 1U) {
+        result.port_calls += pending.port_calls;
+        stale_final_edx = pending.final_edx;
+        if (pending.status !=
+            LegacyBattleIntensityEffectFrameStatus::completed) {
+            result.status = pending.status ==
+                    LegacyBattleIntensityEffectFrameStatus::
+                        slot_index_typed_stop
+                ? LegacyBattleEffectFrameStatus::slot_index_typed_stop
+                : LegacyBattleEffectFrameStatus::resource_owner_typed_stop;
+            result.return_value = pending.return_value;
+            return result;
+        }
+        if (pending.return_value == 1U) {
             primary.status_flags = 0U;
             state.pending_step[slot_index] = 0U;
         }

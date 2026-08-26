@@ -32,6 +32,17 @@ public:
     invoke(const LegacyBattleEffectCallRequest& request) = 0;
 };
 
+struct LegacyBattleIntensityEffectRecord {
+    compat::u32 source_value{};
+    compat::u32 secondary_value{};
+    compat::u32 x_offset{};
+    compat::u32 y_offset{};
+    compat::u32 render_flags{};
+    compat::u16 lookup_key_a{};
+    compat::u16 lookup_key_b{};
+    compat::u32 mode_snapshot{};
+};
+
 struct LegacyBattleEffectRecord {
     compat::u32 source_value{};
     compat::u32 zero_value{};
@@ -52,6 +63,21 @@ struct LegacyBattleEffectRecord {
     std::array<compat::u16, 7> action_values{};
     compat::u32 complete{};
     compat::u32 mode_snapshot{};
+};
+
+enum class LegacyBattleIntensityEffectFrameStatus : compat::u8 {
+    completed,
+    slot_index_typed_stop,
+    resource_owner_typed_stop,
+};
+
+struct LegacyBattleIntensityEffectFrameResult {
+    LegacyBattleIntensityEffectFrameStatus status{
+        LegacyBattleIntensityEffectFrameStatus::completed
+    };
+    compat::u32 return_value{};
+    compat::u32 final_edx{};
+    compat::u32 port_calls{};
 };
 
 struct LegacyBattleEffectFrameState {
@@ -92,6 +118,12 @@ struct LegacyBattleEffectFrameState {
     std::array<compat::u32, 8> reward_high{};
     std::array<compat::u32, 8> pending_step{};
 
+    std::array<LegacyBattleIntensityEffectRecord, 8> intensity_records{};
+    std::array<compat::i8, 8> intensity_values{};
+    compat::i32 render_intensity_a{};
+    compat::i32 render_intensity_b{};
+    compat::i32 render_intensity_c{};
+
     compat::u16 final_gate_word{};
 };
 
@@ -111,6 +143,19 @@ struct LegacyBattleEffectFrameResult {
     compat::u32 primary_animation_steps{};
     compat::u32 alternate_animation_steps{};
 };
+
+// Typed closure of legacy 0x00459BF0. The source-zero return precedes slot
+// access; caller-supplied EDX is retained until an original callee overwrites
+// it, and resource-owner access stops only at the original dereference.
+[[nodiscard]] LegacyBattleIntensityEffectFrameResult
+advance_legacy_battle_intensity_effect_frame(
+    LegacyBattleEffectFrameState& state,
+    LegacyBattleEffectCallPort& port,
+    compat::u32 actor_token,
+    compat::u32 source_value,
+    compat::u32 secondary_value,
+    compat::u32 slot_index
+);
 
 // Typed closure of legacy 0x004582B0. Physical addresses are published only
 // as 32-bit tokens; record, argument-object, resource-owner, and stale-register
