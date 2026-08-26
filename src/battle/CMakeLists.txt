@@ -11,6 +11,7 @@ add_library(
         legacy_battle_particle_frame.cpp
         legacy_battle_particle_spawn.cpp
         legacy_battle_render_geometry.cpp
+        legacy_battle_scale_fill_panel.cpp
         legacy_battle_scale_scan.cpp
         legacy_battle_setup.cpp
         legacy_battle_status_indicator.cpp

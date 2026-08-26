@@ -184,6 +184,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-scale-scan-animation-00451100.md",
     ),
+    "0x004512B0": (
+        "platform_adapted",
+        "evidence/battle-scale-fill-panel-004512b0.md",
+    ),
 }
 
 

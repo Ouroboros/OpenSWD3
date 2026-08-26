@@ -51,10 +51,10 @@ code_origin == game
 - 尾地址：`0x00484500`；
 - `confirmed_boundary`：`61`；
 - `medium`导航候选：`361`；
-- `pending_audit`：`385`；
+- `pending_audit`：`384`；
 - `assembly_exact`：`5`；
-- `platform_adapted`：`32`；
-- 已关闭：`37`。
+- `platform_adapted`：`33`；
+- 已关闭：`38`。
 
 六个稳定导航分组为：
 
@@ -283,8 +283,10 @@ I5最终必须锁定：
 
 `audit_order=37`的`0x00451100`已关闭为`platform_adapted`。它先查询资源234F帧0并以record tail绘制底板，再按三个u16阈值设置1像素竖clip，固定三轮查询/绘制帧1；第一轮clip高度来自帧0，后两轮来自帧1。每轮以counter低word半速值命中三格窗，更新选择marker或只清目标低word。最后按递增前counter设置扫描竖条并再画帧1，正常后才恢复全屏clip、递增counter低word；递增后半速值精确62时低word写8000并返回1。
 
+`audit_order=38`的`0x004512B0`已关闭为`platform_adapted`。它先查资源241A帧2，以u16高度除6并与signed等级做低32位乘法；帧0绘制后推进内容Y，等级小于6才按帧0宽和scaled高度发布局部clip。随后帧2在X+4绘制，帧3查询/source发布后才把共享opacity写8并以模式14在X+11/Y+31绘制；正常后恢复全屏，再把帧1画在内容Y+scaled高度。四次draw均保留record tail，负等级不夹值，typed-stop不提前恢复clip或清opacity。
+
 `audit_order=14`的`0x00434790`已关闭为`platform_adapted`。它只在首次调用以显式time seed CRT、发布三项共享值并扫描源图，随后直接组合已关闭粒子生成、线段推进与单像素颜色合成；剩余批次回放保留镜像检查X、源索引和实际写入X错位，粒子2×2绘制保留只跳第一透明色、只检查右像素及合成模式右上先合成后被原值覆盖。生命刷新、距离与目标矩形摘除、唯一/首/尾/中间四类双向链释放及其计数不对称均已闭环。三个上层caller都显式消费返回1作为阶段完成信号，尚待各自进入现代实现。
 
-下一项回收`audit_order=38`的`0x004512B0`战斗六级竖槽填充面板，继续完整审计帧2高度除6、等级缩放clip、帧0/2/3/1绘制坐标、帧3模式20共享状态、全屏clip恢复及正常返回寄存器。
+下一项回收`audit_order=39`的`0x00451420`战斗三帧动作旋转缓存初始化，继续完整审计thiscall五参数、局部三槽FFFF门、陈旧寄存器帧查询、三指针缓存、640/signed除数、已关闭literal旋转callee、动作更新循环、record清零与非终止域。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。
