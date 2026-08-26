@@ -88,6 +88,37 @@ public:
     std::vector<u32> events;
 };
 
+class TrackingActorSingletonStaticLifecyclePort final
+    : public openswd3::battle::LegacyBattleActorObjectLifecyclePort,
+      public openswd3::battle::LegacyBattleActorExitRegistrationPort {
+public:
+    [[nodiscard]] u32 construct_object(const u32 object_token) override {
+        events.push_back(7U);
+        constructed_object_token = object_token;
+        return construction_result;
+    }
+
+    [[nodiscard]] u32 destroy_object(const u32 object_token) override {
+        events.push_back(9U);
+        destroyed_object_token = object_token;
+        return destruction_result;
+    }
+
+    [[nodiscard]] u32 register_exit_cleanup(const u32 cleanup_token) override {
+        events.push_back(8U);
+        registered_cleanup_token = cleanup_token;
+        return registration_result;
+    }
+
+    u32 construction_result{};
+    u32 destruction_result{};
+    u32 registration_result{};
+    u32 constructed_object_token{};
+    u32 destroyed_object_token{};
+    u32 registered_cleanup_token{};
+    std::vector<u32> events;
+};
+
 [[nodiscard]] bool is_group_a_request(
     const openswd3::battle::LegacyBattleActorVectorConstructionRequest& request
 ) noexcept {
@@ -222,6 +253,60 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                 is_group_b_request(result.request) &&
                 is_group_b_request(construction_port.last_construction_request),
             "actor group B wrapper forwards exact vector construction constants"
+        );
+    }
+
+    for (const u32 registration_result : {0U, 0xFFFFFFFFU}) {
+        TrackingActorSingletonStaticLifecyclePort lifecycle_port;
+        lifecycle_port.construction_result = 0xCAFEBABEU;
+        lifecycle_port.registration_result = registration_result;
+        const auto result = openswd3::battle::
+            initialize_legacy_battle_actor_singleton_static_lifecycle(
+                lifecycle_port, lifecycle_port
+            );
+        test.expect_true(
+            lifecycle_port.events == std::vector<u32>{7U, 8U} &&
+                lifecycle_port.constructed_object_token ==
+                    openswd3::battle::kLegacyBattleActorSingletonToken &&
+                lifecycle_port.registered_cleanup_token ==
+                    openswd3::battle::
+                        kLegacyBattleActorSingletonExitCleanupToken &&
+                result.construct_calls == 1U &&
+                result.construction_return_value == 0xCAFEBABEU &&
+                result.exit_registration_calls == 1U &&
+                result.return_value == registration_result,
+            "actor singleton construction precedes its typed exit registration"
+        );
+    }
+
+    {
+        TrackingActorSingletonStaticLifecyclePort object_lifecycle_port;
+        object_lifecycle_port.construction_result = 0x10203040U;
+        const auto construction =
+            openswd3::battle::construct_legacy_battle_actor_singleton(
+                object_lifecycle_port
+            );
+        object_lifecycle_port.events.clear();
+        object_lifecycle_port.destruction_result = 0x90807060U;
+        const auto destruction =
+            openswd3::battle::release_legacy_battle_actor_singleton(
+                object_lifecycle_port
+            );
+        test.expect_true(
+            construction.object_token ==
+                    openswd3::battle::kLegacyBattleActorSingletonToken &&
+                construction.object_operation_calls == 1U &&
+                construction.return_value == 0x10203040U &&
+                object_lifecycle_port.constructed_object_token ==
+                    openswd3::battle::kLegacyBattleActorSingletonToken &&
+                object_lifecycle_port.events == std::vector<u32>{9U} &&
+                destruction.object_token ==
+                    openswd3::battle::kLegacyBattleActorSingletonToken &&
+                destruction.object_operation_calls == 1U &&
+                destruction.return_value == 0x90807060U &&
+                object_lifecycle_port.destroyed_object_token ==
+                    openswd3::battle::kLegacyBattleActorSingletonToken,
+            "actor singleton wrappers tail-call constructor and destructor on one token"
         );
     }
 

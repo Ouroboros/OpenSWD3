@@ -22,6 +22,9 @@ inline constexpr compat::u32 kLegacyBattleActorGroupBDestructorToken =
     0x00475590U;
 inline constexpr compat::u32 kLegacyBattleActorGroupBExitCleanupToken =
     0x00451840U;
+inline constexpr compat::u32 kLegacyBattleActorSingletonToken = 0x00521598U;
+inline constexpr compat::u32 kLegacyBattleActorSingletonExitCleanupToken =
+    0x00451890U;
 
 struct LegacyBattleActorVectorConstructionRequest {
     compat::u32 base_token{};
@@ -64,6 +67,16 @@ public:
     register_exit_cleanup(compat::u32 cleanup_token) = 0;
 };
 
+class LegacyBattleActorObjectLifecyclePort {
+public:
+    virtual ~LegacyBattleActorObjectLifecyclePort() = default;
+
+    [[nodiscard]] virtual compat::u32
+    construct_object(compat::u32 object_token) = 0;
+    [[nodiscard]] virtual compat::u32
+    destroy_object(compat::u32 object_token) = 0;
+};
+
 struct LegacyBattleActorGroupAConstructionResult {
     LegacyBattleActorVectorConstructionRequest request{};
     compat::u32 vector_constructor_calls{};
@@ -102,6 +115,31 @@ struct LegacyBattleActorGroupBStaticInitializationResult {
     compat::u32 return_value{};
 };
 
+struct LegacyBattleActorSingletonOperationResult {
+    compat::u32 object_token{};
+    compat::u32 object_operation_calls{};
+    compat::u32 return_value{};
+};
+
+struct LegacyBattleActorSingletonStaticInitializationResult {
+    compat::u32 construct_calls{};
+    compat::u32 construction_return_value{};
+    compat::u32 exit_registration_calls{};
+    compat::u32 return_value{};
+};
+
+// sub_451870: load the singleton token and tail-call its constructor.
+[[nodiscard]] LegacyBattleActorSingletonOperationResult
+construct_legacy_battle_actor_singleton(
+    LegacyBattleActorObjectLifecyclePort& object_lifecycle_port
+);
+
+// sub_451890: load the singleton token and tail-call its destructor.
+[[nodiscard]] LegacyBattleActorSingletonOperationResult
+release_legacy_battle_actor_singleton(
+    LegacyBattleActorObjectLifecyclePort& object_lifecycle_port
+);
+
 // sub_4517B0: wrap the compiler vector-construction iterator for group A.
 [[nodiscard]] LegacyBattleActorGroupAConstructionResult
 construct_legacy_battle_actor_group_a(
@@ -137,6 +175,13 @@ initialize_legacy_battle_actor_group_a_static_lifecycle(
 [[nodiscard]] LegacyBattleActorGroupBStaticInitializationResult
 initialize_legacy_battle_actor_group_b_static_lifecycle(
     LegacyBattleActorVectorConstructionPort& construction_port,
+    LegacyBattleActorExitRegistrationPort& exit_registration_port
+);
+
+// sub_451860 plus its external function chunk at loc_451880.
+[[nodiscard]] LegacyBattleActorSingletonStaticInitializationResult
+initialize_legacy_battle_actor_singleton_static_lifecycle(
+    LegacyBattleActorObjectLifecyclePort& object_lifecycle_port,
     LegacyBattleActorExitRegistrationPort& exit_registration_port
 );
 

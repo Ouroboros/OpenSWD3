@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v712
+版本：v713
 
 最后更新：2026-08-25
 
@@ -3916,5 +3916,6 @@ B7 P0 有限收口完成。
 - 模块10战斗角色组B静态生命周期注册`0x00451800`完成。完整函数由13行主体和`0x00451830..0x0045183B`十行外部FUNCTION CHUNK组成；主体调用独立组B构造包装器，chunk把组B退出函数token注册给CRT `_atexit`并原样返回注册EAX。typed状态未复用组A参数，构造EAX仅记录且由注册结果覆盖。定向测试锁定组B构造严格先于注册、两个入口各一次、精确组B退出token及注册0/全1结果；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`46/422`，即`41 platform_adapted + 5 assembly_exact + 376 pending_audit`，SHA256为`214befc775dde579dd00bbd9853ae5133cb1ee6764a0409aa1f4268dcc4a636f`。原版组B构造状态、CRT静态初始化表执行与退出注册结果联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 - 模块10战斗角色组B向量构造包装器`0x00451810`完成。完整19行按逆序压入组B析构回调、构造回调、数量8、元素尺寸`0x2B28`和全局基址，调用MSVC向量构造迭代器并直接返回；typed request与组A同形但五项常量完全独立，并保留callee完整EAX。组B静态caller已删除临时opaque构造入口，直接调用本helper。定向测试锁定五项参数、单次构造、callee EAX、构造先于退出注册及组A请求不回归；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`47/422`，即`42 platform_adapted + 5 assembly_exact + 375 pending_audit`，SHA256为`a6766c98157730a14587d67a66cdde375578b36ce2282468ade5931fe80b2fc8`。原版编译器向量构造迭代器、组B元素构造/析构回调、全局数组字节与异常展开联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 - 模块10战斗角色组B向量析构包装器`0x00451840`完成。完整17行按逆序压入组B析构回调、数量8、元素尺寸`0x2B28`和全局基址，调用MSVC向量析构迭代器并直接返回；typed destruction request使用独立组B四项常量并保留callee完整EAX，组B静态注册token对应本helper。定向测试锁定四项参数、单次析构、callee EAX及组A/组B构造请求不回归；独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`48/422`，即`43 platform_adapted + 5 assembly_exact + 374 pending_audit`，SHA256为`b2f4ce251ed155d80783d489b217463bf5b51aca2166afe2e1dd6cb13e3848a7`。原版编译器向量析构迭代器、组B元素析构回调、全局数组字节与异常展开联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
+- 模块10战斗单例角色记录静态生命周期注册`0x00451860`完成。主函数由13行主体和`0x00451880..0x0045188B`十行外部FUNCTION CHUNK组成；调用单例构造并把独立退出函数注册给CRT，原样返回`_atexit` EAX。工作包未单列的`0x00451870/0x00451890`两个9行附件也已完整审计并typed闭合：加载同一固定对象token后分别尾跳元素构造/析构，静态caller直接调用constructor helper且注册token对应destructor helper。定向测试锁定构造/析构固定token、两个尾跳EAX、构造先于注册、独立退出token和注册0/全1结果；最终独立ASan`1/1`、Linux core`188/188`与Linux app`194/194`通过。工作包稳定为`49/422`，即`44 platform_adapted + 5 assembly_exact + 373 pending_audit`，SHA256为`74661beae5eb06e5a0a323f2cd2794265234f4ace8a36c75198aaa4581d3d3cf`。原版单例对象字节、元素构造/析构本体、CRT静态初始化执行与退出注册联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=49`的`0x00451860`战斗单例角色记录静态生命周期注册，必须将`0x00451880..0x0045188B`外部FUNCTION CHUNK计入完整函数，继续审计固定对象token、尾跳构造/析构包装器、独立退出注册和`_atexit` EAX返回。
+下一项回收`audit_order=50`的`0x004518A0`战斗渲染几何静态生命周期注册，必须将`0x004518C0..0x004518CB`外部FUNCTION CHUNK计入完整函数，继续审计已关闭几何初始化callee的固定owner、退出清理包装器、独立注册和`_atexit` EAX返回。

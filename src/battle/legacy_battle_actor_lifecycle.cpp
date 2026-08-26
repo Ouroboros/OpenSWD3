@@ -102,4 +102,46 @@ initialize_legacy_battle_actor_group_b_static_lifecycle(
     return result;
 }
 
+LegacyBattleActorSingletonOperationResult
+construct_legacy_battle_actor_singleton(
+    LegacyBattleActorObjectLifecyclePort& object_lifecycle_port
+) {
+    LegacyBattleActorSingletonOperationResult result{
+        .object_token = kLegacyBattleActorSingletonToken,
+    };
+    result.return_value =
+        object_lifecycle_port.construct_object(result.object_token);
+    result.object_operation_calls = 1U;
+    return result;
+}
+
+LegacyBattleActorSingletonOperationResult release_legacy_battle_actor_singleton(
+    LegacyBattleActorObjectLifecyclePort& object_lifecycle_port
+) {
+    LegacyBattleActorSingletonOperationResult result{
+        .object_token = kLegacyBattleActorSingletonToken,
+    };
+    result.return_value =
+        object_lifecycle_port.destroy_object(result.object_token);
+    result.object_operation_calls = 1U;
+    return result;
+}
+
+LegacyBattleActorSingletonStaticInitializationResult
+initialize_legacy_battle_actor_singleton_static_lifecycle(
+    LegacyBattleActorObjectLifecyclePort& object_lifecycle_port,
+    LegacyBattleActorExitRegistrationPort& exit_registration_port
+) {
+    LegacyBattleActorSingletonStaticInitializationResult result;
+    const auto construction =
+        construct_legacy_battle_actor_singleton(object_lifecycle_port);
+    result.construction_return_value = construction.return_value;
+    result.construct_calls = 1U;
+    result.return_value = exit_registration_port.register_exit_cleanup(
+        kLegacyBattleActorSingletonExitCleanupToken
+    );
+    result.exit_registration_calls = 1U;
+    return result;
+}
+
 }  // namespace openswd3::battle
