@@ -177,6 +177,28 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         LegacyBattleFrameCoordinatorCall::frame_stage,
         {state.frame_parameter}
     ));
+    LegacyBattleFrameEffectContext frame_effect_context{
+        .framebuffer = context.frame_zero.framebuffer,
+        .raster = context.raster,
+        .shared_request = context.frame_zero.shared_request,
+        .shared_effects = context.frame_zero.shared_effects,
+        .jitter = context.frame_zero.jitter,
+    };
+    result.frame_effect = update_legacy_battle_frame_effect(
+        state.frame_effect,
+        context.frame_effect_port,
+        frame_effect_context,
+        context.frame_effect_source,
+        context.frame_effect_surfaces,
+        state.frame_effect.pending_rotation
+    );
+    ++result.frame_effect_calls;
+    if (result.frame_effect.status !=
+        LegacyBattleFrameEffectStatus::completed) {
+        result.status =
+            LegacyBattleFrameCoordinatorStatus::frame_effect_typed_stop;
+        return result;
+    }
     if (state.conditional_mode != 1U || state.conditional_submode == 1U) {
         static_cast<void>(invoke(
             port, result, LegacyBattleFrameCoordinatorCall::conditional_stage

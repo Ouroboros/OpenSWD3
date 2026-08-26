@@ -1,4 +1,5 @@
 #include "openswd3/battle/legacy_battle_frame_coordinator.hpp"
+#include "openswd3/rendering/legacy_image_command_stream.hpp"
 
 #include <algorithm>
 #include <array>
@@ -75,6 +76,26 @@ public:
     u32 temporary_surface_token{0x70000000U};
     u32 music_return{0x12345678U};
     u32 surface_operation_return{0x87654321U};
+};
+
+class FrameEffectPort final
+    : public openswd3::battle::LegacyBattleFrameEffectPort {
+public:
+    [[nodiscard]]
+    openswd3::battle::LegacyBattleActionRotationUpdateSnapshot
+    update_action(openswd3::asset_runtime::LegacyActionRecord&) override {
+        return {.domain_token = 1U};
+    }
+
+    [[nodiscard]] u32 surface_operation(
+        const openswd3::battle::LegacyBattleFrameEffectSurfaceRequest& request
+    ) override {
+        surface_requests.push_back(request);
+        return 1U;
+    }
+
+    std::vector<openswd3::battle::LegacyBattleFrameEffectSurfaceRequest>
+        surface_requests;
 };
 
 class ActionStreamProvider final
@@ -297,6 +318,10 @@ public:
 };
 
 struct Fixture {
+    std::vector<u8> frame_effect_bytes;
+    openswd3::battle::LegacyBattleFrameEffectSource frame_effect_source;
+    std::array<u32, 3> frame_effect_surfaces{0xA000U, 0xA100U, 0xA200U};
+    FrameEffectPort frame_effect_port;
     ActionStreamProvider action_stream;
     openswd3::asset_runtime::LegacyActionUpdater action_updater{action_stream};
     FrameProvider frame_provider;
@@ -310,6 +335,7 @@ struct Fixture {
     openswd3::battle::LegacyBattleFrameZeroContext frame_zero{
         frame_zero_state,
         framebuffer,
+        raster,
         clip,
         blit_request,
         effects,
@@ -333,6 +359,29 @@ struct Fixture {
     BmpPorts bmp_ports;
 
     Fixture() {
+        constexpr std::array<u16, 6> effect_pixels{
+            0x001FU,
+            0x03E0U,
+            0x7C00U,
+            0x4210U,
+            0x1234U,
+            0x2AAAU,
+        };
+        const std::span<const u8> effect_raw{
+            reinterpret_cast<const u8*>(effect_pixels.data()),
+            effect_pixels.size() * sizeof(u16),
+        };
+        frame_effect_bytes =
+            openswd3::rendering::encode_legacy_image_command_stream(
+                effect_raw, 3U, 2U, 16U
+            )
+                .bytes;
+        frame_effect_source = {
+            .token = 0xA100U,
+            .bytes = frame_effect_bytes,
+            .width = 3U,
+            .height = 2U,
+        };
         static_cast<void>(
             openswd3::rendering::initialize_legacy_raster_geometry(
                 raster,
@@ -351,6 +400,9 @@ struct Fixture {
         return {
             .frame_zero = frame_zero,
             .raster = raster,
+            .frame_effect_port = frame_effect_port,
+            .frame_effect_source = frame_effect_source,
+            .frame_effect_surfaces = frame_effect_surfaces,
             .action_updater = action_updater,
             .frame_provider = frame_provider,
             .packed_row_effects = packed_rows,
@@ -426,7 +478,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                     std::vector<std::filesystem::path>{
                         "game-data/music/current.mp3"
                     } &&
-                result.fixed_frame_calls == 0U && result.lock_calls == 0U &&
+                result.fixed_frame_calls == 0U &&
+                result.frame_effect_calls == 0U && result.lock_calls == 0U &&
                 port.calls.size() == 8U,
             "frame coordinator preserves music start and six-stage zero early return with active latch set"
         );
@@ -452,8 +505,40 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 result.return_value == 1U && result.lock_calls == 1U &&
                 result.unlock_calls == 1U &&
                 state.current_target_pointer_token == 0x004CD76CU &&
-                result.fixed_frame_calls == 0U,
+                result.fixed_frame_calls == 0U &&
+                result.frame_effect_calls == 0U,
             "render abort occurs only after target lock and immediate unlock and returns active latch"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleFrameCoordinatorState state;
+        Fixture fixture;
+        fixture.frame_effect_source.bytes = {};
+        CoordinatorPort port;
+        configure_common_port(port);
+        auto context = fixture.context();
+
+        const auto result =
+            openswd3::battle::run_legacy_battle_frame_coordinator(
+                state, port, context, base_request()
+            );
+
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameCoordinatorStatus::
+                        frame_effect_typed_stop &&
+                result.frame_effect_calls == 1U &&
+                result.frame_effect.status ==
+                    openswd3::battle::LegacyBattleFrameEffectStatus::
+                        source_blit_typed_stop &&
+                result.fixed_frame_calls == 0U &&
+                port.count(LegacyBattleFrameCoordinatorCall::frame_stage) ==
+                    1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::conditional_stage
+                ) == 0U,
+            "frame effect typed stop preserves main frame stage and blocks all following frame stages"
         );
     }
 
@@ -487,6 +572,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 state.selection_auxiliary == 5U &&
                 state.interaction_available == 0U &&
                 state.ui_state == 0xABCD0001U &&
+                result.frame_effect_calls == 1U &&
                 result.fixed_frame_calls == 1U &&
                 result.gameplay_word_argument == 0xAAAA1234U &&
                 result.packed_rows.visited_count == 0U &&

@@ -11,6 +11,7 @@ add_library(
         legacy_battle_color_fade.cpp
         legacy_battle_directional_scan.cpp
         legacy_battle_frame_coordinator.cpp
+        legacy_battle_frame_effect.cpp
         legacy_battle_frame_draw.cpp
         legacy_battle_image_rotation.cpp
         legacy_battle_object_reset.cpp

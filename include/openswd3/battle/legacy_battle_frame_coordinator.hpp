@@ -3,6 +3,7 @@
 #include "openswd3/asset_runtime/legacy_action_draw_bridge.hpp"
 #include "openswd3/battle/legacy_battle_action_frame_draw.hpp"
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
+#include "openswd3/battle/legacy_battle_frame_effect.hpp"
 #include "openswd3/battle/legacy_battle_transition.hpp"
 #include "openswd3/rendering/legacy_action_renderers.hpp"
 #include "openswd3/rendering/legacy_bmp_writer.hpp"
@@ -128,6 +129,7 @@ struct LegacyBattleFrameCoordinatorState {
     std::filesystem::path screenshot_path;
     asset_runtime::LegacyActionRecord panel_action_record{};
     LegacyBattleStandaloneActionFrameDrawState standalone_action;
+    LegacyBattleFrameEffectState frame_effect{};
 };
 
 struct LegacyBattleFrameCoordinatorRequest {
@@ -144,6 +146,9 @@ struct LegacyBattleFrameCoordinatorRequest {
 struct LegacyBattleFrameCoordinatorContext {
     LegacyBattleFrameZeroContext& frame_zero;
     rendering::LegacyRasterGeometryState& raster;
+    LegacyBattleFrameEffectPort& frame_effect_port;
+    LegacyBattleFrameEffectSource& frame_effect_source;
+    std::span<const compat::u32> frame_effect_surfaces;
     asset_runtime::LegacyActionUpdater& action_updater;
     rendering::LegacyFramePieceProvider& frame_provider;
     std::list<rendering::LegacyPackedRowEffect>& packed_row_effects;
@@ -174,6 +179,7 @@ enum class LegacyBattleFrameCoordinatorStatus : compat::u8 {
     standalone_frame_typed_stop,
     dialog_typed_stop,
     countdown_typed_stop,
+    frame_effect_typed_stop,
     internal_flag_typed_stop,
     input_return_three,
     temporary_surface_typed_stop,
@@ -190,6 +196,8 @@ struct LegacyBattleFrameCoordinatorResult {
     compat::u32 lock_calls{};
     compat::u32 unlock_calls{};
     compat::u32 selection_refresh_calls{};
+    LegacyBattleFrameEffectResult frame_effect{};
+    compat::u32 frame_effect_calls{};
     LegacyBattleFrameDrawResult fixed_frame{};
     compat::u32 fixed_frame_calls{};
     asset_runtime::LegacyActionUpdateResult panel_action_update{};

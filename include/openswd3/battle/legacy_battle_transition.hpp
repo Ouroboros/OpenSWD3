@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_frame_draw.hpp"
+#include "openswd3/battle/legacy_battle_frame_effect.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 #include "openswd3/battle/legacy_battle_surface_blend.hpp"
 
@@ -96,7 +97,7 @@ struct LegacyBattleTransitionCallReply {
     compat::u32 return_value{};
 };
 
-class LegacyBattleTransitionPort {
+class LegacyBattleTransitionPort : public LegacyBattleFrameEffectPort {
 public:
     virtual ~LegacyBattleTransitionPort() = default;
 
@@ -109,6 +110,7 @@ public:
 struct LegacyBattleFrameZeroContext {
     LegacyBattleFrameDrawState& state;
     rendering::LegacyFramebuffer& framebuffer;
+    rendering::LegacyRasterGeometryState& raster;
     const rendering::LegacyBlitClipRectangle& clip;
     rendering::LegacyBlitRequest& shared_request;
     rendering::LegacyBlitEffectState& shared_effects;
@@ -123,6 +125,7 @@ struct LegacyBattleTransitionState {
     compat::u32 active{};
     LegacyBattleTransitionAllocation primary_buffer{};
     LegacyBattleTransitionAllocation secondary_buffer{};
+    std::vector<compat::u8> primary_command_stream;
     compat::u32 primary_image_token{};
     compat::u32 secondary_image_token{};
     compat::u32 current_image_token{};
@@ -136,6 +139,8 @@ struct LegacyBattleTransitionState {
     compat::i32 transform_right{};
     std::array<compat::u32, 10> rare_actor_slots{};
     std::array<compat::u32, 10> party_special_fields{};
+    std::array<compat::u32, 3> staged_surface_tokens{};
+    LegacyBattleFrameEffectState frame_effect{};
     std::filesystem::path music_path;
 };
 
@@ -157,6 +162,7 @@ enum class LegacyBattleTransitionStatus : compat::u8 {
     enemy_index_out_of_range,
     party_index_out_of_range,
     surface_blend_typed_stop,
+    frame_effect_typed_stop,
 };
 
 struct LegacyBattleTransitionResult {
@@ -179,6 +185,8 @@ struct LegacyBattleTransitionResult {
     compat::u32 surface_operation_calls{};
     LegacyBattleSurfaceBlendResult surface_blend{};
     compat::u32 surface_blend_calls{};
+    std::array<LegacyBattleFrameEffectResult, 2> frame_effects{};
+    compat::u32 frame_effect_calls{};
     std::array<compat::u32, 4> release_order{};
     compat::u32 release_calls{};
     bool music_started{};

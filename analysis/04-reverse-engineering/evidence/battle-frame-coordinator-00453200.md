@@ -58,11 +58,12 @@ selection_value == 0xFFFFFFFF && selection_source == 0
 随后固定执行：
 
 1. 带共享参数的主frame stage；
-2. 当`conditional_mode != 1 || conditional_submode == 1`时执行条件stage；
-3. 三个后继stage；
-4. 一个完成门stage。
+2. 直接调用已关闭`0x00453580`画面效果，以其共享pending rotation作入口参数；
+3. 当`conditional_mode != 1 || conditional_submode == 1`时执行条件stage；
+4. 三个后继stage；
+5. 一个完成门stage。
 
-完成门EAX不等于1时，只对共享UI dword的低word OR 1；高16位原样保留。
+画面效果typed-stop保留主frame stage及效果内部真实前缀，并阻断全部后继stage。完成门EAX不等于1时，只对共享UI dword的低word OR 1；高16位原样保留。
 
 然后直接调用已关闭`0x00450270`，固定资源`0x234D`、帧0、坐标`(0,384)`。frame unavailable或blitter typed-stop在原首次访问/绘制点阻断后续流程；不伪造选中角色、跨模块队列、输入或截图尾。
 
@@ -172,7 +173,7 @@ bit未置位后：
 - `0x00453200..0x0045325D`：活动、音乐、六阶段与零早退；
 - `0x0045325E..0x00453286`：target lock/unlock、渲染门与返回1；
 - `0x0045328C..0x0045331C`：选择mode、延迟刷新和交互可用发布；
-- `0x0045331C..0x00453379`：主阶段、条件阶段、UI低word和固定帧；
+- `0x0045331C..0x00453379`：主阶段、画面效果直连、条件阶段、UI低word和固定帧；
 - `0x0045337F..0x00453431`：选中动作记录、双映射、九宫格、角色对象和独立帧；
 - `0x00453434..0x00453482`：ECX低word、四stage、三类跨模块队列、两倒计时；
 - `0x00453485..0x00453490`：内部bit与返回3；
@@ -189,6 +190,7 @@ C++到LST反向追溯覆盖完整412行、44个静态call站点和18个标签。
 - target lock/unlock后渲染门返回活动1；
 - 选择延迟刷新、共享值重读、active/auxiliary发布与交互门；
 - UI dword只改低word且保留高16位；
+- 主frame stage后画面效果直连及其typed-stop前缀；
 - 固定帧直连、ECX高字/低word组合；
 - packed-row、头像、空对话与双倒计时直连；
 - 内部bit 17返回3及缺失bit表真实访问typed-stop；

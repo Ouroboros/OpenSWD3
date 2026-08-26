@@ -30,11 +30,11 @@ modern保留“临时surface先于分配”的顺序；raw缓冲用typed token�
 
 modern逐行复制并保留低32位乘法。raw缓冲或surface越界在首个真实行访问typed-stop；已经复制的行和已完成的两次分配保留，不伪造unlock或cleanup。测试以十行短缓冲证明第十一行停止。
 
-快照成功后调用图像转换，固定几何`640×480`、bpp 16，返回token作为第一转换图像。
+快照成功后调用图像转换，固定几何`640×480`、bpp 16，返回token作为第一转换图像。`0x00453580`关闭后，caller还从同一raw快照直接复用已关闭`0x004014F0`编码结果建立typed命令流，并在任何场景准备前调用一次画面效果；该调用失败保留双分配、480行首快照与首次转换，并阻断全部场景阶段且不cleanup。
 
 ## 4. 首次场景绘制与可选第二快照
 
-随后依次执行场景准备、两个全局阶段、已关闭`0x00450270`固定资源0帧绘制、状态word发布，再由第一display surface呈现目标surface。
+画面效果完成后依次执行场景准备、两个全局阶段、已关闭`0x00450270`固定资源0帧绘制、状态word发布，再由第一display surface呈现目标surface。
 
 `0x00450270`已直接调用typed helper，不保留opaque边界；固定资源`0x234D`、X=0、Y=384、帧索引0。frame unavailable或blitter typed-stop阻断后续转场。
 
@@ -118,7 +118,7 @@ y_offset = wrapping_i32((-scale_step) << 5)
 
 - mode 2：只再清目标一次；合计35次清零、34次转换。
 - mode 1：当前source切换为第二转换图像；执行33帧。scale counter从`69*9=621`开始，每帧减18；清目标后按`-sine`、`+sine`顺序转换。进入+退出合计67次清零、134次转换。
-- mode 0：创建/调用一个临时surface，重复场景准备、两个阶段、固定资源0帧绘制、状态word与display呈现；再创建/调用一个临时surface，调用`random(3)`并把两个display surface和随机值传入已关闭逐行blend。blend只读取前两个surface参数，随机值按原ABI保持未读。
+- mode 0：创建/调用一个临时surface，先以同一第一转换命令流第二次直连`0x00453580`，再重复场景准备、两个阶段、固定资源0帧绘制、状态word与display呈现；之后创建/调用另一个临时surface，调用`random(3)`并把两个display surface和随机值传入已关闭逐行blend。blend只读取前两个surface参数，随机值按原ABI保持未读。
 
 已关闭帧绘制更新与转换图像共享的旧source全局。modern显式记录source当前来自frame还是转换token：首次frame后立即被第一转换图覆盖；mode 0第二次frame后保留frame来源。
 
@@ -165,7 +165,7 @@ ID 0、`0x71`、`0xBA..0xC5`和大于`0x10E`不追加文件名，仍把data root
 
 - `0x004527E0..0x0045283D`：准备、active、token清零、临时surface；
 - `0x00452840..0x004528DC`：双raw分配、第二surface首快照与转换；
-- `0x004528DC..0x00452A1B`：首场景、直接frame helper、可选第一surface次快照、第一图发布；
+- `0x004528DC..0x00452A1B`：首次画面效果直连、首场景、直接frame helper、可选第一surface次快照、第一图发布；
 - `0x00452A1B..0x00452C23`：mode 0/1/2的34帧进入循环与clip恢复；
 - `0x00452C23..0x00452E06`：mode专属第二阶段；
 - `0x00452E06..0x00452E6C`：四token条件释放、active清零和clip恢复；
@@ -185,6 +185,7 @@ C++到LST反向追溯覆盖1002行、74个静态call站点、37个标签、四�
 - mode 0直连逐行blend，超出约定的caller随机值仍被传入但不提前typed-stop；
 - 初始全图effect零与mode 0滑动effect `0x20`；
 - 冻结x87正弦与mode 1最终scale；
+- 首次与mode 0第二次画面效果typed直连、调用时点及失败前缀；
 - 两次固定资源0帧typed直连及source ownership；
 - Europe、Arab、China与gap ID音乐路径；
 - 两条低概率事件、mode门、十槽首空写、消息flag与最终EAX；

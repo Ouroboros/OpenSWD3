@@ -65,6 +65,19 @@ public:
         return reply;
     }
 
+    [[nodiscard]]
+    openswd3::battle::LegacyBattleActionRotationUpdateSnapshot
+    update_action(openswd3::asset_runtime::LegacyActionRecord&) override {
+        return {.domain_token = 1U};
+    }
+
+    [[nodiscard]] u32 surface_operation(
+        const openswd3::battle::LegacyBattleFrameEffectSurfaceRequest& request
+    ) override {
+        frame_effect_surface_requests.push_back(request);
+        return generic_return;
+    }
+
     [[nodiscard]] u32
     start_music(const std::filesystem::path& path, const u32 mode) override {
         music_paths.push_back(path);
@@ -194,6 +207,8 @@ public:
     std::vector<u32> blend_random_bounds;
     std::vector<openswd3::battle::LegacyBattleSurfaceBlendOperation>
         blend_operations;
+    std::vector<openswd3::battle::LegacyBattleFrameEffectSurfaceRequest>
+        frame_effect_surface_requests;
     std::vector<u32> blend_released_tokens;
     std::size_t short_allocation_index{static_cast<std::size_t>(-1)};
     std::size_t short_allocation_words{};
@@ -246,14 +261,23 @@ public:
 struct FrameFixture {
     openswd3::battle::LegacyBattleFrameDrawState state;
     openswd3::rendering::LegacyFramebuffer framebuffer;
+    openswd3::rendering::LegacyRasterGeometryState raster;
     openswd3::rendering::LegacyBlitClipRectangle clip{0, 0, 640, 480};
     openswd3::rendering::LegacyBlitRequest request;
     openswd3::rendering::LegacyBlitEffectState effects;
     openswd3::rendering::LegacyRleRowJitterState jitter;
     FixedFrameProvider provider;
     openswd3::battle::LegacyBattleFrameZeroContext context{
-        state, framebuffer, clip, request, effects, jitter, provider
+        state, framebuffer, raster, clip, request, effects, jitter, provider
     };
+
+    FrameFixture() {
+        static_cast<void>(
+            openswd3::rendering::initialize_legacy_raster_geometry(
+                raster, framebuffer.geometry().surface
+            )
+        );
+    }
 };
 
 void add_default_surfaces(TransitionPorts& ports) {
@@ -324,6 +348,8 @@ void test_battle_transition(openswd3::test::Context& test) {
                 result.primary_conversion_calls == 1U &&
                 result.secondary_conversion_calls == 1U &&
                 result.frame_draw_calls == 1U &&
+                result.frame_effect_calls == 1U &&
+                !state.primary_command_stream.empty() &&
                 result.entry_transition_frames == 34U &&
                 result.exit_transition_frames == 33U &&
                 result.target_clear_calls == 67U &&
@@ -400,6 +426,7 @@ void test_battle_transition(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     openswd3::battle::LegacyBattleTransitionStatus::completed &&
+                result.frame_effect_calls == 1U &&
                 result.entry_transition_frames == 34U &&
                 result.exit_transition_frames == 0U &&
                 result.target_clear_calls == 35U &&
@@ -444,6 +471,7 @@ void test_battle_transition(openswd3::test::Context& test) {
                 result.secondary_copy_rows == 0U &&
                 result.secondary_conversion_calls == 0U &&
                 result.frame_draw_calls == 2U &&
+                result.frame_effect_calls == 2U &&
                 result.entry_transition_frames == 34U &&
                 result.exit_transition_frames == 0U &&
                 result.target_clear_calls == 0U &&
@@ -542,6 +570,43 @@ void test_battle_transition(openswd3::test::Context& test) {
                 result.return_value == 123U && !result.message_emitted &&
                 ports.random_values.empty(),
             "out of contract random values preserve nonzero branch and ordinary inclusive chance comparisons"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleTransitionState state;
+        state.frame_effect.rotation_cache.stored_action_id = 1U;
+        auto startup = startup_state();
+        TransitionPorts ports;
+        add_default_surfaces(ports);
+        FrameFixture frame;
+
+        const auto result = openswd3::battle::run_legacy_battle_transition(
+            state,
+            startup,
+            ports,
+            ports,
+            ports,
+            ports,
+            frame.context,
+            request(1U)
+        );
+
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleTransitionStatus::
+                        frame_effect_typed_stop &&
+                result.primary_copy_rows == 480U &&
+                result.primary_conversion_calls == 1U &&
+                result.frame_effect_calls == 1U &&
+                result.frame_effects[0].status ==
+                    openswd3::battle::LegacyBattleFrameEffectStatus::
+                        rotation_frame_typed_stop &&
+                ports.call_count(LegacyBattleTransitionCall::prepare_scene) ==
+                    0U &&
+                result.frame_draw_calls == 0U && result.release_calls == 0U &&
+                state.active == 1U,
+            "transition preserves capture and conversion then stops before scene preparation on frame effect cache fault"
         );
     }
 

@@ -1,6 +1,7 @@
 #include "openswd3/battle/legacy_battle_transition.hpp"
 
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
+#include "openswd3/rendering/legacy_image_command_stream.hpp"
 
 #include <algorithm>
 #include <bit>
@@ -217,6 +218,37 @@ music_path_for(const std::filesystem::path& data_root, const u16 battle_id) {
     return data_root;
 }
 
+[[nodiscard]] bool run_frame_effect(
+    LegacyBattleTransitionState& state,
+    LegacyBattleTransitionPort& port,
+    LegacyBattleFrameZeroContext& frame_zero,
+    LegacyBattleTransitionResult& result
+) noexcept {
+    auto& effect = result.frame_effects[result.frame_effect_calls];
+    LegacyBattleFrameEffectContext context{
+        .framebuffer = frame_zero.framebuffer,
+        .raster = frame_zero.raster,
+        .shared_request = frame_zero.shared_request,
+        .shared_effects = frame_zero.shared_effects,
+        .jitter = frame_zero.jitter,
+    };
+    effect = update_legacy_battle_frame_effect(
+        state.frame_effect,
+        port,
+        context,
+        LegacyBattleFrameEffectSource{
+            .token = state.primary_image_token,
+            .bytes = state.primary_command_stream,
+            .width = static_cast<u16>(kLegacyBattleTransitionWidth),
+            .height = static_cast<u16>(kLegacyBattleTransitionHeight),
+        },
+        state.staged_surface_tokens,
+        state.frame_effect.pending_rotation
+    );
+    ++result.frame_effect_calls;
+    return effect.status == LegacyBattleFrameEffectStatus::completed;
+}
+
 [[nodiscard]] LegacyBattleTransitionStatus
 copy_failure_status(const CopyStatus status, const bool primary) noexcept {
     if (status == CopyStatus::allocation_out_of_range) {
@@ -250,6 +282,7 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
     state.active = 1U;
     state.primary_buffer = {};
     state.secondary_buffer = {};
+    state.primary_command_stream.clear();
     state.primary_image_token = 0U;
     state.secondary_image_token = 0U;
 
@@ -280,6 +313,22 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
         16U
     );
     ++result.primary_conversion_calls;
+    const std::span<const compat::u8> primary_pixels{
+        reinterpret_cast<const compat::u8*>(state.primary_buffer.words.data()),
+        state.primary_buffer.words.size() * sizeof(compat::u16),
+    };
+    state.primary_command_stream =
+        rendering::encode_legacy_image_command_stream(
+            primary_pixels,
+            static_cast<u16>(kLegacyBattleTransitionWidth),
+            static_cast<u16>(kLegacyBattleTransitionHeight),
+            16U
+        )
+            .bytes;
+    if (!run_frame_effect(state, port, frame_zero, result)) {
+        result.status = LegacyBattleTransitionStatus::frame_effect_typed_stop;
+        return result;
+    }
 
     static_cast<void>(invoke(
         port,
@@ -444,6 +493,11 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
         invoke_surface_operation(
             port, result, startup.display_surfaces[1], temporary_a
         );
+        if (!run_frame_effect(state, port, frame_zero, result)) {
+            result.status =
+                LegacyBattleTransitionStatus::frame_effect_typed_stop;
+            return result;
+        }
         static_cast<void>(invoke(
             port,
             LegacyBattleTransitionCall::prepare_scene,

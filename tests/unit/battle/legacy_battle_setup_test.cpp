@@ -24,6 +24,7 @@ void test_battle_action_rotation_cache(openswd3::test::Context& test);
 void test_battle_actor_lifecycle(openswd3::test::Context& test);
 void test_battle_background_initialization(openswd3::test::Context& test);
 void test_battle_frame_coordinator(openswd3::test::Context& test);
+void test_battle_frame_effect(openswd3::test::Context& test);
 void test_battle_object_reset(openswd3::test::Context& test);
 void test_battle_scale_fill_panel(openswd3::test::Context& test);
 void test_battle_scale_scan(openswd3::test::Context& test);
@@ -6941,6 +6942,7 @@ int main() {
     test_battle_actor_lifecycle(test);
     test_battle_background_initialization(test);
     test_battle_frame_coordinator(test);
+    test_battle_frame_effect(test);
     test_battle_object_reset(test);
     test_battle_standalone_action_frame_draw(test);
     test_battle_offset_action_frame_draw(test);
