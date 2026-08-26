@@ -51,10 +51,10 @@ code_origin == game
 - 尾地址：`0x00484500`；
 - `confirmed_boundary`：`61`；
 - `medium`导航候选：`361`；
-- `pending_audit`：`368`；
+- `pending_audit`：`367`；
 - `assembly_exact`：`5`；
-- `platform_adapted`：`49`；
-- 已关闭：`54`。
+- `platform_adapted`：`50`；
+- 已关闭：`55`。
 
 六个稳定导航分组为：
 
@@ -317,8 +317,10 @@ I5最终必须锁定：
 
 `audit_order=54`的`0x00451940`已关闭为`platform_adapted`。完整108行、无chunk；严格恢复`all_map2.tsw`路径、旋转缓存与旧背景释放、固定variant零加载、命令流转换、signed `640/divisor`、mode3循环右移、双word门下的三帧动作缓存初始化及三个完成word高地址到低地址发布。load失败唯一返回0；成功与正常跳过路径返回全1；除零和closed callee故障域按原访问点typed-stop。真实物理槽1完成640×400转换与shift160旋转。
 
+`audit_order=55`的`0x00451A20`已关闭为`platform_adapted`。完整58行、无chunk；固定执行一次全局reset、三个对象token reset、96个dword正向清零、角色组B八槽与组A十槽遍历。两个对象reset callee仍属于后续工作包，以typed端口隔离；最终返回保留末个组A callee完整EAX。定向测试锁定22次调用顺序、384字节表在角色循环前清零、全部18个物理token及步长。
+
 `audit_order=14`的`0x00434790`已关闭为`platform_adapted`。它只在首次调用以显式time seed CRT、发布三项共享值并扫描源图，随后直接组合已关闭粒子生成、线段推进与单像素颜色合成；剩余批次回放保留镜像检查X、源索引和实际写入X错位，粒子2×2绘制保留只跳第一透明色、只检查右像素及合成模式右上先合成后被原值覆盖。生命刷新、距离与目标矩形摘除、唯一/首/尾/中间四类双向链释放及其计数不对称均已闭环。三个上层caller都显式消费返回1作为阶段完成信号，尚待各自进入现代实现。
 
-下一项回收`audit_order=55`的`0x00451A20`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计其真实职责、固定对象遍历、callee顺序、共享状态副作用与返回约定。
+下一项回收`audit_order=56`的`0x00451B10`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计其大型战斗启动协调流程、全部callee顺序、共享状态副作用、分支域与返回约定。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

@@ -252,6 +252,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-background-initialization-00451940.md",
     ),
+    "0x00451A20": (
+        "platform_adapted",
+        "evidence/battle-object-reset-00451a20.md",
+    ),
 }
 
 
