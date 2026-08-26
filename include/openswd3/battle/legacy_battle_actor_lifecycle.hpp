@@ -13,6 +13,8 @@ inline constexpr compat::u32 kLegacyBattleActorGroupADestructorToken =
     0x0046E4D0U;
 inline constexpr compat::u32 kLegacyBattleActorGroupAExitCleanupToken =
     0x004517E0U;
+inline constexpr compat::u32 kLegacyBattleActorGroupBExitCleanupToken =
+    0x00451840U;
 
 struct LegacyBattleActorVectorConstructionRequest {
     compat::u32 base_token{};
@@ -47,12 +49,19 @@ public:
     ) = 0;
 };
 
-class LegacyBattleActorGroupAExitRegistrationPort {
+class LegacyBattleActorExitRegistrationPort {
 public:
-    virtual ~LegacyBattleActorGroupAExitRegistrationPort() = default;
+    virtual ~LegacyBattleActorExitRegistrationPort() = default;
 
     [[nodiscard]] virtual compat::u32
     register_exit_cleanup(compat::u32 cleanup_token) = 0;
+};
+
+class LegacyBattleActorGroupBConstructionEntryPort {
+public:
+    virtual ~LegacyBattleActorGroupBConstructionEntryPort() = default;
+
+    [[nodiscard]] virtual compat::u32 construct_group() = 0;
 };
 
 struct LegacyBattleActorGroupAConstructionResult {
@@ -68,6 +77,13 @@ struct LegacyBattleActorGroupADestructionResult {
 };
 
 struct LegacyBattleActorGroupAStaticInitializationResult {
+    compat::u32 construct_calls{};
+    compat::u32 construction_return_value{};
+    compat::u32 exit_registration_calls{};
+    compat::u32 return_value{};
+};
+
+struct LegacyBattleActorGroupBStaticInitializationResult {
     compat::u32 construct_calls{};
     compat::u32 construction_return_value{};
     compat::u32 exit_registration_calls{};
@@ -90,7 +106,14 @@ release_legacy_battle_actor_group_a(
 [[nodiscard]] LegacyBattleActorGroupAStaticInitializationResult
 initialize_legacy_battle_actor_group_a_static_lifecycle(
     LegacyBattleActorVectorConstructionPort& construction_port,
-    LegacyBattleActorGroupAExitRegistrationPort& exit_registration_port
+    LegacyBattleActorExitRegistrationPort& exit_registration_port
+);
+
+// sub_451800 plus its external function chunk at loc_451830.
+[[nodiscard]] LegacyBattleActorGroupBStaticInitializationResult
+initialize_legacy_battle_actor_group_b_static_lifecycle(
+    LegacyBattleActorGroupBConstructionEntryPort& construction_entry_port,
+    LegacyBattleActorExitRegistrationPort& exit_registration_port
 );
 
 }  // namespace openswd3::battle

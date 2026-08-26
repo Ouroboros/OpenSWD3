@@ -38,7 +38,7 @@ LegacyBattleActorGroupADestructionResult release_legacy_battle_actor_group_a(
 LegacyBattleActorGroupAStaticInitializationResult
 initialize_legacy_battle_actor_group_a_static_lifecycle(
     LegacyBattleActorVectorConstructionPort& construction_port,
-    LegacyBattleActorGroupAExitRegistrationPort& exit_registration_port
+    LegacyBattleActorExitRegistrationPort& exit_registration_port
 ) {
     LegacyBattleActorGroupAStaticInitializationResult result;
     const auto construction =
@@ -47,6 +47,22 @@ initialize_legacy_battle_actor_group_a_static_lifecycle(
     result.construction_return_value = construction.return_value;
     result.return_value = exit_registration_port.register_exit_cleanup(
         kLegacyBattleActorGroupAExitCleanupToken
+    );
+    result.exit_registration_calls = 1U;
+    return result;
+}
+
+LegacyBattleActorGroupBStaticInitializationResult
+initialize_legacy_battle_actor_group_b_static_lifecycle(
+    LegacyBattleActorGroupBConstructionEntryPort& construction_entry_port,
+    LegacyBattleActorExitRegistrationPort& exit_registration_port
+) {
+    LegacyBattleActorGroupBStaticInitializationResult result;
+    result.construction_return_value =
+        construction_entry_port.construct_group();
+    result.construct_calls = 1U;
+    result.return_value = exit_registration_port.register_exit_cleanup(
+        kLegacyBattleActorGroupBExitCleanupToken
     );
     result.exit_registration_calls = 1U;
     return result;
