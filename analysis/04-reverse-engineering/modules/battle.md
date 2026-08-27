@@ -399,8 +399,10 @@ I5最终必须锁定：
 
 `audit_order=95`的`0x0045E7D0`已关闭为`platform_adapted`。完整权威LST主体`0x0045E7D0..0x0045E9B3`从proc到endp共227行、144条实际指令、4个call、14个跳转、13个局部标签且无外部chunk。实现以live phase无符号索引固定16项signed偏移表，按原signed余2构造第一组640×480奇偶矩形并提交等待Blt；第一Blt后重读phase，按`offset×1280`以dword粒度清唯一framebuffer前缀，再次重读phase构造第二组暴露带矩形并提交。两个直接surface选择callee已关闭，两个矩形Blt保留完整destination/source、source token、等待标志和零尾typed端口；第一/第二surface零token、三次表越界和清零dword边界均在原实际访问点typed-stop并保留前缀。第二Blt后动态重读节拍计数/上限/mode，按signed门推进；mode bit使phase在0/1间按原余数切换，否则u32递增，phase到10时返回10后清完成门与phase。phase/节拍上限回收到唯一state port并由全局重置清零，节拍计数保持。逐帧caller恢复完成门任意非零而非精确1的原比较：非零且mode bit清零走整surface提交，否则直连纵向位移；旧opaque枚举保留reserved槽。位移typed-stop保留颜色累加前缀并阻断截图。
 
+`audit_order=96`的`0x0045E9C0`已关闭为`platform_adapted`。完整权威LST主体`0x0045E9C0..0x0045EA26`从proc到endp共53行、35条实际指令、2个call、4个跳转、4个局部标签且无外部chunk。实现精确扫描两个live u16奖励ID；`mov ax`只覆盖低word，入口或前一玩家道具callee返回的EAX高word继续作为完整item参数。两项之后按signed正数门，以固定`0x0300`和selector零调用已关闭玩家道具双数量步进；每轮callee后重新读取组B数量，再以signed索引门决定继续，不增加现代上限。全部完成后依次清结果完成高word、唯一组B metric数量和两项奖励ID，返回清零前最后读取的完整数量。任何子typed-stop均保留已完成奖励与玩家道具链副作用，并阻断三项尾store。奖励ID/完成双word由唯一结果整理state port持有；全局重置清完成双word但保留奖励ID。启动期重复组B数量副本删除，启动和全局重置均直写actor metric唯一owner。结果判定两处旧窄端口保留reserved枚举槽并直接组合typed整理：组A传入暂停音频完整EAX，组B传入暗化返回1；组A整理清数量后，同帧组B门动态重读观察零值。整理typed-stop阻断frame active发布、另一侧判定及全部后续逐帧阶段。
+
 `audit_order=14`的`0x00434790`已关闭为`platform_adapted`。它只在首次调用以显式time seed CRT、发布三项共享值并扫描源图，随后直接组合已关闭粒子生成、线段推进与单像素颜色合成；剩余批次回放保留镜像检查X、源索引和实际写入X错位，粒子2×2绘制保留只跳第一透明色、只检查右像素及合成模式右上先合成后被原值覆盖。生命刷新、距离与目标矩形摘除、唯一/首/尾/中间四类双向链释放及其计数不对称均已闭环。三个上层caller都显式消费返回1作为阶段完成信号，尚待各自进入现代实现。
 
-下一项回收`audit_order=96`的`0x0045E9C0`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计战斗结果整理函数。
+下一项回收`audit_order=97`的`0x0045EA30`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

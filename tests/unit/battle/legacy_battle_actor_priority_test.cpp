@@ -33,6 +33,11 @@ public:
         return {};
     }
 
+    [[nodiscard]] openswd3::battle::LegacyBattleActionCallReply
+    invoke(const openswd3::battle::LegacyBattleActionCallRequest&) override {
+        return {};
+    }
+
     [[nodiscard]] openswd3::battle::LegacyBattlePreFrameCallReply
     invoke_pre_frame(
         const openswd3::battle::LegacyBattlePreFrameCallRequest&

@@ -230,7 +230,7 @@ void poison_reset_blocks(LegacyBattleStartupState& state, StartupPorts& port) {
     reset.value_53c048 = 1U;
     port.actor_metric_state().priority_actor_index = 1U;
     reset.value_53bf22 = 1U;
-    reset.value_53c4b0 = 1U;
+    port.actor_metric_state().group_b_count = 1U;
     for (auto& record : reset.records_524788) {
         record.value_00 = 1U;
         record.value_04 = 1U;
@@ -301,7 +301,8 @@ template <typename Range>
         all_equal(reset.values_5244d8, 0U) && reset.value_524418 == 0U &&
         reset.value_53c048 == 0U &&
         port.actor_metric_state().priority_actor_index == 0xFFFFFFFFU &&
-        reset.value_53bf22 == 0U && reset.value_53c4b0 == 0U;
+        port.actor_metric_state().group_b_count == 0U &&
+        reset.value_53bf22 == 0U;
 }
 
 }  // namespace

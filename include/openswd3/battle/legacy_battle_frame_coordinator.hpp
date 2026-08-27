@@ -108,6 +108,7 @@ class LegacyBattleFrameCoordinatorPort
       public virtual LegacyBattleEffectCoordinatorStatePort {
 public:
     using LegacyBattleEffectCallPort::invoke;
+    using LegacyBattleOutcomeFinalizationPort::invoke;
 
     virtual ~LegacyBattleFrameCoordinatorPort() = default;
 

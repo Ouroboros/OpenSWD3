@@ -59,14 +59,22 @@ LegacyBattleOutcomeResolutionResult update_legacy_battle_outcome_resolution(
                 return result;
             }
             if (result.first_darkening.return_value == 1U) {
-                static_cast<void>(port.invoke_outcome_resolution(
+                const auto audio = port.invoke_outcome_resolution(
                     LegacyBattleOutcomeResolutionCall::suspend_audio_stream
-                ));
+                );
                 ++result.audio_suspend_calls;
-                static_cast<void>(port.invoke_outcome_resolution(
-                    LegacyBattleOutcomeResolutionCall::resolve_outcome
-                ));
+                result.first_finalization = finalize_legacy_battle_outcome(
+                    port, bindings.group_b_count, audio.eax
+                );
                 ++result.outcome_calls;
+                if (result.first_finalization.status !=
+                    LegacyBattleOutcomeFinalizationStatus::completed) {
+                    result.status = LegacyBattleOutcomeResolutionStatus::
+                        outcome_finalization_typed_stop;
+                    result.return_value =
+                        result.first_finalization.return_value;
+                    return result;
+                }
                 const u32 message_state = bindings.message_state;
                 bindings.frame_active = 2U;
                 if (message_state == 0x68U) {
@@ -106,11 +114,17 @@ LegacyBattleOutcomeResolutionResult update_legacy_battle_outcome_resolution(
         return result;
     }
 
-    const auto outcome = port.invoke_outcome_resolution(
-        LegacyBattleOutcomeResolutionCall::resolve_outcome
+    result.second_finalization = finalize_legacy_battle_outcome(
+        port, bindings.group_b_count, result.second_darkening.return_value
     );
     ++result.outcome_calls;
-    result.return_value = outcome.eax;
+    result.return_value = result.second_finalization.return_value;
+    if (result.second_finalization.status !=
+        LegacyBattleOutcomeFinalizationStatus::completed) {
+        result.status = LegacyBattleOutcomeResolutionStatus::
+            outcome_finalization_typed_stop;
+        return result;
+    }
     bindings.frame_active = 0U;
     return result;
 }

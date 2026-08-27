@@ -2,6 +2,7 @@
 
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_final_actor_step.hpp"
+#include "openswd3/battle/legacy_battle_outcome_finalization.hpp"
 #include "openswd3/battle/legacy_battle_outcome_state.hpp"
 #include "openswd3/compat/types.hpp"
 #include "openswd3/rendering/legacy_blitter.hpp"
@@ -11,7 +12,7 @@ namespace openswd3::battle {
 
 enum class LegacyBattleOutcomeResolutionCall : compat::u8 {
     suspend_audio_stream,
-    resolve_outcome,
+    reserved_outcome_finalization_slot,
 };
 
 struct LegacyBattleOutcomeResolutionCallReply {
@@ -21,7 +22,8 @@ struct LegacyBattleOutcomeResolutionCallReply {
 };
 
 class LegacyBattleOutcomeResolutionPort
-    : public virtual LegacyBattleOutcomeResolutionStatePort {
+    : public virtual LegacyBattleOutcomeFinalizationPort,
+      public virtual LegacyBattleOutcomeResolutionStatePort {
 public:
     virtual ~LegacyBattleOutcomeResolutionPort() = default;
 
@@ -34,7 +36,7 @@ public:
 struct LegacyBattleOutcomeResolutionBindings {
     compat::u32& frame_active;
     const compat::u32& group_a_count;
-    const compat::u32& group_b_count;
+    compat::u32& group_b_count;
     const LegacyBattleFinalActorStepState& final_actor;
     const LegacyBattleActionDispatchState& action;
     const compat::u32& message_state;
@@ -46,6 +48,7 @@ struct LegacyBattleOutcomeResolutionBindings {
 enum class LegacyBattleOutcomeResolutionStatus : compat::u8 {
     completed,
     full_frame_darkening_typed_stop,
+    outcome_finalization_typed_stop,
 };
 
 struct LegacyBattleOutcomeResolutionResult {
@@ -54,6 +57,8 @@ struct LegacyBattleOutcomeResolutionResult {
     };
     LegacyBattleFullFrameDarkeningResult first_darkening{};
     LegacyBattleFullFrameDarkeningResult second_darkening{};
+    LegacyBattleOutcomeFinalizationResult first_finalization{};
+    LegacyBattleOutcomeFinalizationResult second_finalization{};
     compat::u32 darkening_calls{};
     compat::u32 audio_suspend_calls{};
     compat::u32 outcome_calls{};

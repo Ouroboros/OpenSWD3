@@ -2,11 +2,14 @@
 #include "test.hpp"
 
 #include <algorithm>
+#include <array>
 #include <functional>
 #include <vector>
 
 namespace {
 
+using openswd3::battle::LegacyBattleActionCallReply;
+using openswd3::battle::LegacyBattleActionCallRequest;
 using openswd3::battle::LegacyBattleOutcomeResolutionBindings;
 using openswd3::battle::LegacyBattleOutcomeResolutionCall;
 using openswd3::battle::LegacyBattleOutcomeResolutionCallReply;
@@ -26,12 +29,33 @@ class OutcomePort final : public LegacyBattleOutcomeResolutionPort {
 public:
     LegacyBattleOutcomeResolutionState* shared_state{};
     std::vector<LegacyBattleOutcomeResolutionCall> calls;
-    LegacyBattleOutcomeResolutionCallReply outcome_reply{};
+    LegacyBattleOutcomeResolutionCallReply audio_reply{};
     std::function<void(LegacyBattleOutcomeResolutionCall)> on_call;
+    std::function<void(const LegacyBattleActionCallRequest&)> on_action_call;
+    std::vector<LegacyBattleActionCallRequest> action_calls;
+    u32 next_allocation_token{0x73000000U};
+    bool fail_allocation{};
 
     [[nodiscard]] LegacyBattleOutcomeResolutionState&
     outcome_resolution_state() noexcept override {
         return *shared_state;
+    }
+
+    [[nodiscard]] LegacyBattleActionCallReply
+    invoke(const LegacyBattleActionCallRequest& request) override {
+        action_calls.push_back(request);
+        if (on_action_call) {
+            on_action_call(request);
+        }
+        if (request.callee_token == 0x00487C10U) {
+            if (fail_allocation) {
+                return {};
+            }
+            const u32 token = next_allocation_token;
+            next_allocation_token += 0xB0U;
+            return {.eax = token};
+        }
+        return {};
     }
 
     [[nodiscard]] LegacyBattleOutcomeResolutionCallReply
@@ -42,8 +66,8 @@ public:
         if (on_call) {
             on_call(call);
         }
-        return call == LegacyBattleOutcomeResolutionCall::resolve_outcome
-            ? outcome_reply
+        return call == LegacyBattleOutcomeResolutionCall::suspend_audio_stream
+            ? audio_reply
             : LegacyBattleOutcomeResolutionCallReply{};
     }
 };
@@ -142,11 +166,13 @@ void test_battle_outcome_resolution(openswd3::test::Context& test) {
         fixture.state.darkening_gate = 1U;
         fixture.state.darkening.channel_delta = -30;
         fixture.group_b_count = 1U;
+        fixture.action.packed_actor_counter = 1U << 16U;
         fixture.message_state = 7U;
         std::ranges::fill(fixture.framebuffer.physical_pixels(), u16{0x7FFFU});
         OutcomePort port;
         port.shared_state = &fixture.state;
-        port.outcome_reply.eax = 0x12345678U;
+        port.audio_reply.eax = 0x12345678U;
+        port.outcome_finalization_state().player_reward_item_ids[0] = 0x42U;
 
         const auto result =
             update_legacy_battle_outcome_resolution(fixture.bindings(), port);
@@ -158,12 +184,22 @@ void test_battle_outcome_resolution(openswd3::test::Context& test) {
                 result.outcome_calls == 1U &&
                 port.calls ==
                     std::vector{
-                        LegacyBattleOutcomeResolutionCall::suspend_audio_stream,
-                        LegacyBattleOutcomeResolutionCall::resolve_outcome,
+                        LegacyBattleOutcomeResolutionCall::suspend_audio_stream
                     } &&
+                result.first_finalization.cleanup_applied &&
+                result.first_finalization.player_reward_calls == 1U &&
+                result.first_finalization.return_value == 1U &&
+                std::ranges::any_of(
+                    port.action_calls,
+                    [](const auto& call) {
+                        return call.callee_token == 0x00476DB0U &&
+                            call.arguments[1] == 0x12340042U;
+                    }
+                ) &&
+                fixture.group_b_count == 0U &&
                 fixture.state.resolution_latch == 1U &&
                 fixture.state.darkening.channel_delta == 0 &&
-                fixture.frame_active == 2U && result.return_value == 1U,
+                fixture.frame_active == 2U && result.return_value == 0U,
             "group-A completion darkens to the terminal step then suspends audio resolves the outcome and publishes mode two"
         );
         test.expect_true(
@@ -205,7 +241,6 @@ void test_battle_outcome_resolution(openswd3::test::Context& test) {
         fixture.state.darkening.channel_delta = -30;
         OutcomePort port;
         port.shared_state = &fixture.state;
-        port.outcome_reply.eax = 0xAABBCCDDU;
 
         const auto result =
             update_legacy_battle_outcome_resolution(fixture.bindings(), port);
@@ -214,13 +249,11 @@ void test_battle_outcome_resolution(openswd3::test::Context& test) {
             !result.group_a_threshold_met && result.group_b_threshold_met &&
                 result.darkening_calls == 1U &&
                 result.audio_suspend_calls == 0U &&
-                result.outcome_calls == 1U &&
-                port.calls ==
-                    std::vector{
-                        LegacyBattleOutcomeResolutionCall::resolve_outcome
-                    } &&
-                fixture.frame_active == 0U &&
-                result.return_value == 0xAABBCCDDU,
+                result.outcome_calls == 1U && port.calls.empty() &&
+                result.second_finalization.cleanup_applied &&
+                result.second_finalization.group_reward_calls == 2U &&
+                fixture.group_b_count == 0U && fixture.frame_active == 0U &&
+                result.return_value == 2U,
             "group-B completion resolves without audio suspension and returns the complete outcome EAX"
         );
     }
@@ -259,10 +292,9 @@ void test_battle_outcome_resolution(openswd3::test::Context& test) {
         fixture.state.darkening.channel_delta = -30;
         OutcomePort port;
         port.shared_state = &fixture.state;
-        port.outcome_reply.eax = 0x11223344U;
-        port.on_call = [&](const LegacyBattleOutcomeResolutionCall call) {
-            if (call == LegacyBattleOutcomeResolutionCall::resolve_outcome &&
-                port.calls.size() == 2U) {
+        port.on_action_call = [&](const LegacyBattleActionCallRequest& call) {
+            if (call.callee_token == 0x00476DB0U &&
+                call.arguments[1] == 0x0300U) {
                 fixture.action.packed_actor_counter = 2U;
                 fixture.state.darkening.channel_delta = -30;
             }
@@ -278,13 +310,48 @@ void test_battle_outcome_resolution(openswd3::test::Context& test) {
                 result.outcome_calls == 2U &&
                 port.calls ==
                     std::vector{
-                        LegacyBattleOutcomeResolutionCall::suspend_audio_stream,
-                        LegacyBattleOutcomeResolutionCall::resolve_outcome,
-                        LegacyBattleOutcomeResolutionCall::resolve_outcome,
+                        LegacyBattleOutcomeResolutionCall::suspend_audio_stream
                     } &&
-                result.return_value == 0x11223344U &&
+                result.first_finalization.group_reward_calls == 2U &&
+                result.second_finalization.cleanup_applied &&
+                result.return_value == 0U && fixture.group_b_count == 0U &&
                 fixture.frame_active == 0U,
             "the second side rereads progress and darkening state after the first outcome callee and can resolve again"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.group_a_count = 1U;
+        fixture.final_actor.removed_group_a_count = 1U;
+        fixture.group_b_count = 1U;
+        fixture.state.darkening_gate = 1U;
+        fixture.state.darkening.channel_delta = -30;
+        OutcomePort port;
+        port.shared_state = &fixture.state;
+        port.outcome_finalization_state().player_reward_item_ids = {7U, 8U};
+        port.outcome_finalization_state().completion_words = {9U, 10U};
+        port.fail_allocation = true;
+
+        const auto result =
+            update_legacy_battle_outcome_resolution(fixture.bindings(), port);
+
+        test.expect_true(
+            result.status ==
+                    LegacyBattleOutcomeResolutionStatus::
+                        outcome_finalization_typed_stop &&
+                result.group_a_threshold_met && result.darkening_calls == 1U &&
+                result.audio_suspend_calls == 1U &&
+                result.outcome_calls == 1U &&
+                result.first_finalization.status ==
+                    openswd3::battle::LegacyBattleOutcomeFinalizationStatus::
+                        player_item_quantity_typed_stop &&
+                fixture.frame_active == 1U && fixture.group_b_count == 1U &&
+                port.outcome_finalization_state().player_reward_item_ids ==
+                    std::array<u16, 2>{7U, 8U} &&
+                port.outcome_finalization_state().completion_words ==
+                    std::array<u16, 2>{9U, 10U},
+            "typed-stop in direct outcome finalization preserves the audio and darkening prefix but blocks frame mode and the second side"
         );
     }
 

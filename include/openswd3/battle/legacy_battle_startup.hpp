@@ -194,7 +194,6 @@ struct LegacyBattleStartupResetBlocks {
     compat::u32 value_524418{};
     compat::u32 value_53c048{};
     compat::u16 value_53bf22{};
-    compat::u32 value_53c4b0{};
 };
 
 struct LegacyBattleEnemyStartupRecord {

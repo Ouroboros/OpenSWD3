@@ -160,6 +160,7 @@ void seed_state(
     ResetPort& port
 ) {
     auto& outcome_resolution = port.outcome_resolution_state();
+    auto& outcome_finalization = port.outcome_finalization_state();
     auto& vertical_shift = port.battle_vertical_shift_state();
     state.unmapped_bytes[0x00ABCDEFU] = 0x5AU;
     state.unmapped_bytes[0x00520E40U] = 0x5AU;
@@ -242,6 +243,8 @@ void seed_state(
     outcome_resolution.darkening_gate = 9U;
     outcome_resolution.force_group_b_resolution = 9U;
     outcome_resolution.darkening.channel_delta = -30;
+    outcome_finalization.player_reward_item_ids = {11U, 12U};
+    outcome_finalization.completion_words = {13U, 14U};
     vertical_shift.phase_index = 9U;
     vertical_shift.tick_counter = 0x11223344U;
     vertical_shift.tick_limit = 0x55667788U;
@@ -329,6 +332,7 @@ void test_battle_global_reset(openswd3::test::Context& test) {
             port
         );
         auto& outcome_resolution = port.outcome_resolution_state();
+        auto& outcome_finalization = port.outcome_finalization_state();
         auto& vertical_shift = port.battle_vertical_shift_state();
 
         const auto result = openswd3::battle::reset_legacy_battle_globals(
@@ -588,6 +592,10 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 outcome_resolution.darkening_gate == 0U &&
                 outcome_resolution.force_group_b_resolution == 0U &&
                 outcome_resolution.darkening.channel_delta == -30 &&
+                outcome_finalization.player_reward_item_ids ==
+                    std::array<openswd3::compat::u16, 2>{11U, 12U} &&
+                outcome_finalization.completion_words ==
+                    std::array<openswd3::compat::u16, 2>{0U, 0U} &&
                 state.unmapped_bytes.contains(0x0053BF0CU) == false &&
                 state.unmapped_bytes.contains(0x0053BEFFU) == false &&
                 state.unmapped_bytes.contains(0x0053BF24U) == false &&

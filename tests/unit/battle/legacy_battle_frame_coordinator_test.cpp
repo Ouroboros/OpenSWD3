@@ -11,6 +11,8 @@
 
 namespace {
 
+using openswd3::battle::LegacyBattleActionCallReply;
+using openswd3::battle::LegacyBattleActionCallRequest;
 using openswd3::battle::LegacyBattleEffectCallReply;
 using openswd3::battle::LegacyBattleEffectCallRequest;
 using openswd3::battle::LegacyBattleFrameCoordinatorCall;
@@ -39,6 +41,20 @@ public:
         }
         const auto found = replies.find(request.call);
         return found == replies.end() ? default_reply : found->second;
+    }
+
+    [[nodiscard]] LegacyBattleActionCallReply
+    invoke(const LegacyBattleActionCallRequest& request) override {
+        action_calls.push_back(request);
+        if (request.callee_token == 0x00487C10U) {
+            if (fail_item_allocation) {
+                return {};
+            }
+            const u32 token = next_item_allocation_token;
+            next_item_allocation_token += 0xB0U;
+            return {.eax = token};
+        }
+        return {};
     }
 
     [[nodiscard]] LegacyBattleEffectCallReply
@@ -118,6 +134,7 @@ public:
     }
 
     std::vector<LegacyBattleFrameCoordinatorCallRequest> calls;
+    std::vector<LegacyBattleActionCallRequest> action_calls;
     std::vector<LegacyBattleEffectCallRequest> effect_calls;
     std::vector<openswd3::battle::LegacyBattlePreFrameCallRequest>
         pre_frame_calls;
@@ -146,6 +163,8 @@ public:
     bool publish_outcome_counts{};
     u32 outcome_group_b_count{};
     u32 outcome_group_a_count{};
+    u32 next_item_allocation_token{0x72000000U};
+    bool fail_item_allocation{};
     u32 temporary_surface_token{0x70000000U};
     u32 music_return{0x12345678U};
     u32 surface_operation_return{0x87654321U};
@@ -932,7 +951,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         port.publish_outcome_counts = true;
         port.outcome_group_b_count = 0U;
         port.outcome_group_a_count = 1U;
-        port.outcome_reply.eax = 0x55667788U;
         configure_common_port(port);
         auto context = fixture.context();
         auto frame_request = base_request();
@@ -956,11 +974,9 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 result.outcome_resolution.darkening_calls == 1U &&
                 result.outcome_resolution.audio_suspend_calls == 0U &&
                 result.outcome_resolution.outcome_calls == 1U &&
-                result.outcome_resolution.return_value == 0x55667788U &&
-                port.outcome_calls ==
-                    std::vector{
-                        LegacyBattleOutcomeResolutionCall::resolve_outcome
-                    } &&
+                result.outcome_resolution.return_value == 0U &&
+                result.outcome_resolution.second_finalization.cleanup_applied &&
+                port.outcome_calls.empty() &&
                 port.count(
                     LegacyBattleFrameCoordinatorCall::
                         reserved_outcome_resolution_slot
@@ -996,6 +1012,50 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                         reserved_vertical_shift_slot
                 ) == 0U,
             "frame coordinator directly resolves group-B completion before drawing the context prompt and vertical shift"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleFrameCoordinatorState state;
+        Fixture fixture;
+        fixture.final_actor_step.active_actor_code = 0U;
+        fixture.action_dispatch.packed_actor_counter = 1U;
+        CoordinatorPort port;
+        port.outcome_resolution_state().darkening_gate = 1U;
+        port.outcome_resolution_state().darkening.channel_delta = -30;
+        port.outcome_finalization_state().player_reward_item_ids = {7U, 8U};
+        port.publish_outcome_counts = true;
+        port.outcome_group_b_count = 1U;
+        port.outcome_group_a_count = 1U;
+        port.fail_item_allocation = true;
+        configure_common_port(port);
+        auto context = fixture.context();
+
+        const auto result =
+            openswd3::battle::run_legacy_battle_frame_coordinator(
+                state, port, context, base_request()
+            );
+
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameCoordinatorStatus::
+                        outcome_resolution_typed_stop &&
+                result.outcome_resolution.status ==
+                    openswd3::battle::LegacyBattleOutcomeResolutionStatus::
+                        outcome_finalization_typed_stop &&
+                result.outcome_resolution.darkening_calls == 1U &&
+                result.outcome_resolution.second_finalization.status ==
+                    openswd3::battle::LegacyBattleOutcomeFinalizationStatus::
+                        player_item_quantity_typed_stop &&
+                port.actor_metric_state().group_b_count == 1U &&
+                port.outcome_finalization_state().player_reward_item_ids ==
+                    std::array<u16, 2>{7U, 8U} &&
+                result.context_prompt_calls == 0U &&
+                result.color_initialization_calls == 0U &&
+                result.color_accumulation_calls == 0U &&
+                result.vertical_shift_calls == 0U &&
+                result.screenshot_calls == 0U,
+            "outcome finalization typed-stop preserves the darkening prefix and blocks every later frame stage"
         );
     }
 

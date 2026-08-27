@@ -6,7 +6,7 @@
 
 权威函数为`0x0045D180..0x0045D242`，从proc到endp完整109行、2个静态call、7个条件或无条件分支与6个局部标签，无外部FUNCTION CHUNK。
 
-导航表登记七个唯一caller、共13处调用。其中已关闭动作分派`0x004539B0`两处与组B帧`0x004576A0`两处已删除`0x0045D180`地址token并直接调用typed实现；其余九处调用属于后续尚未关闭函数，不提前改写。
+导航表登记七个唯一caller、共13处调用。其中已关闭动作分派`0x004539B0`两处、组B帧`0x004576A0`两处与结果奖励整理`0x0045E9C0`两处均已删除旧地址边界并直接调用typed实现；其余七处调用属于后续尚未关闭函数，不提前改写。
 
 两个callee分别是一次`0xB0`字节分配和一次以`node+0x0C`为目标的道具定义初始化。两者尚未关闭，继续通过动作端口保留完整调用顺序和分配EAX。
 
@@ -47,12 +47,12 @@
 
 ## 5. caller回收
 
-动作分派的phase-six完成路径和action-twenty-three消息路径直接发布selector-one数量；组B帧两处全目标完成路径直接发布selector-zero数量。四处caller都累计子端口调用数，子typed-stop立即阻断原调用点之后的状态推进，普通返回token按原调用点分别忽略或继续使用。
+动作分派的phase-six完成路径和action-twenty-three消息路径直接发布selector-one数量；组B帧两处全目标完成路径直接发布selector-zero数量。结果整理的两项玩家奖励和动态组B固定奖励均发布selector-zero数量，保留入口或前一callee EAX高word，并在子typed-stop时阻断三项尾store。六处caller都保留子端口调用与停止时序，普通返回token按原调用点分别忽略、继续使用或成为下一奖励的陈旧高word。
 
-caller测试确认四处源代码不再包含`0x0045D180`地址token，动作路径写数量B与bit15，组B路径写数量A并保留查询EAX高word和表值低word组合出的完整item参数。
+caller测试确认六处源代码不再包含旧地址token；动作路径写数量B与bit15，组B路径和结果整理写数量A，并保留各自查询、表值或前一callee组合出的完整item参数。
 
 ## 6. 验证与动态差分
 
-定向测试覆盖零item、头别名、真实next token遍历、精确item匹配、signed 99上限、selector双数量、u16回绕、新节点头插、完整参数传递、定义payload token、bit15、未知head停点、零分配发布顺序、共享世界道具链释放以及四处已关闭caller。
+定向测试覆盖零item、头别名、真实next token遍历、精确item匹配、signed 99上限、selector双数量、u16回绕、新节点头插、完整参数传递、定义payload token、bit15、未知head停点、零分配发布顺序、共享世界道具链释放以及六处已关闭caller。
 
 当前缺少原版分配器、道具定义初始化callee、真实玩家道具链、头别名相邻全局和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
