@@ -3,6 +3,7 @@
 #include <bit>
 #include <cstddef>
 
+#include "openswd3/battle/legacy_battle_actor_action_commit.hpp"
 #include "openswd3/battle/legacy_battle_actor_action_cycle.hpp"
 #include "openswd3/battle/legacy_battle_actor_action_reverse_cycle.hpp"
 #include "openswd3/battle/legacy_battle_menu_input_finalize.hpp"
@@ -269,9 +270,42 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
         }
         return true;
     };
+    const auto commit_actor_action = [&]() {
+        const auto nested = commit_legacy_battle_actor_action(
+            {
+                .startup_reset = bindings.startup_reset,
+                .final_actor = bindings.final_actor,
+                .metrics = bindings.metrics,
+                .input_dispatch = state,
+                .message_state = bindings.message_state,
+            },
+            port,
+            {.actor_code = eax,
+             .entry_eax = eax,
+             .entry_ecx = ecx,
+             .entry_edx = edx}
+        );
+        ++result.actor_action_commit_calls;
+        result.port_calls += nested.port_calls;
+        eax = nested.return_eax;
+        ecx = nested.return_ecx;
+        edx = nested.return_edx;
+        if (nested.status != LegacyBattleActorActionCommitStatus::completed) {
+            result.status =
+                LegacyBattleInputDispatchStatus::actor_action_commit_typed_stop;
+            return false;
+        }
+        return true;
+    };
     const auto cycle_actor_action = [&]() {
         const auto nested = cycle_legacy_battle_actor_action(
-            {.final_actor = bindings.final_actor},
+            {
+                .startup_reset = bindings.startup_reset,
+                .final_actor = bindings.final_actor,
+                .metrics = bindings.metrics,
+                .input_dispatch = state,
+                .message_state = bindings.message_state,
+            },
             port,
             {.entry_eax = eax, .entry_ecx = ecx, .entry_edx = edx}
         );
@@ -280,11 +314,22 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
         eax = nested.return_eax;
         ecx = nested.return_ecx;
         edx = nested.return_edx;
+        if (nested.status != LegacyBattleActorActionCycleStatus::completed) {
+            result.status =
+                LegacyBattleInputDispatchStatus::actor_action_cycle_typed_stop;
+            return false;
+        }
         return true;
     };
     const auto reverse_cycle_actor_action = [&]() {
         const auto nested = reverse_cycle_legacy_battle_actor_action(
-            {.final_actor = bindings.final_actor},
+            {
+                .startup_reset = bindings.startup_reset,
+                .final_actor = bindings.final_actor,
+                .metrics = bindings.metrics,
+                .input_dispatch = state,
+                .message_state = bindings.message_state,
+            },
             port,
             {.entry_eax = eax, .entry_ecx = ecx, .entry_edx = edx}
         );
@@ -293,9 +338,20 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
         eax = nested.return_eax;
         ecx = nested.return_ecx;
         edx = nested.return_edx;
+        if (nested.status !=
+            LegacyBattleActorActionReverseCycleStatus::completed) {
+            result.status = LegacyBattleInputDispatchStatus::
+                actor_action_reverse_cycle_typed_stop;
+            return false;
+        }
         return true;
     };
     const auto invoke_operation = [&](const LegacyBattleInputDispatchCall op) {
+        if (op ==
+            LegacyBattleInputDispatchCall::
+                reserved_actor_action_commit_direct_slot) {
+            return commit_actor_action();
+        }
         if (op ==
             LegacyBattleInputDispatchCall::reserved_actor_action_cycle_slot) {
             return cycle_actor_action();
@@ -436,9 +492,12 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
             }
             state.selected_option_word = held_count == 1U ? 0U : 3U;
             state.action_kind = 1U;
-            static_cast<void>(invoke_operation(
-                LegacyBattleInputDispatchCall::reserved_actor_action_cycle_slot
-            ));
+            if (!invoke_operation(
+                    LegacyBattleInputDispatchCall::
+                        reserved_actor_action_cycle_slot
+                )) {
+                return finish();
+            }
             if (bindings.message_state == 1U) {
                 if (!enter_target_selection()) {
                     return finish();
@@ -607,14 +666,19 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
     if (source->rapid_press_multiplicity != 0U) {
         ecx = source->held_sample_count;
         if (repeat(ecx, 3)) {
+            eax = (eax & 0xFFFF0000U) |
+                static_cast<u32>(state.selected_option_word);
             bindings.final_actor.pre_frame_gate_b = 1U;
             if (state.selected_option_word != 0xFFFFU) {
-                static_cast<void>(call(
-                    LegacyBattleInputDispatchCall::commit_selected_option,
-                    {static_cast<u32>(static_cast<i32>(
-                        std::bit_cast<compat::i16>(state.selected_option_word)
-                    ))}
+                eax = static_cast<u32>(static_cast<i32>(
+                    std::bit_cast<compat::i16>(state.selected_option_word)
                 ));
+                if (!invoke_operation(
+                        LegacyBattleInputDispatchCall::
+                            reserved_actor_action_commit_direct_slot
+                    )) {
+                    return finish();
+                }
                 if (bindings.message_state == 1U) {
                     if (!enter_target_selection()) {
                         return finish();
@@ -775,7 +839,9 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
             if (!invoke_operation(first)) {
                 return false;
             }
-            static_cast<void>(invoke_operation(second));
+            if (!invoke_operation(second)) {
+                return false;
+            }
             state.menu_action = menu_action;
             return true;
         };
@@ -820,10 +886,12 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
                         return finish();
                     }
                 }
-                static_cast<void>(invoke_operation(
-                    LegacyBattleInputDispatchCall::
-                        reserved_actor_action_reverse_cycle_slot
-                ));
+                if (!invoke_operation(
+                        LegacyBattleInputDispatchCall::
+                            reserved_actor_action_reverse_cycle_slot
+                    )) {
+                    return finish();
+                }
                 static_cast<void>(
                     call(LegacyBattleInputDispatchCall::commit_left)
                 );
@@ -857,10 +925,12 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
                 static_cast<void>(
                     call(LegacyBattleInputDispatchCall::commit_right)
                 );
-                static_cast<void>(invoke_operation(
-                    LegacyBattleInputDispatchCall::
-                        reserved_actor_action_cycle_slot
-                ));
+                if (!invoke_operation(
+                        LegacyBattleInputDispatchCall::
+                            reserved_actor_action_cycle_slot
+                    )) {
+                    return finish();
+                }
             }
         }
     }

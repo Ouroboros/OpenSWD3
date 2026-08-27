@@ -38,7 +38,7 @@ active actor非零时再次查询对象。查询零或battle mode bit`0x200`置�
 
 记录17命中时按原顺序清pre-frame gate B、置terminal与action execution active；原地址`0x0053AF38[active*4]`同样折叠到唯一共享数组的`opponent_workspace[active+2]`并写1，成功后置gate A、selection1和消息3并立即返回。
 
-记录14把prompt计数清零、置gate B并合成record0。记录15先置gate B；selected option word非全1时按i16符号扩展提交，并按消息1补一次selection commit后把word恢复全1。否则清prompt计数，按interaction mode 1到4分别调用四类callee且每次动态重读record15 held；鼠标Y位于两个unsigned开区间且held精确1时发布Y，独立mouse gate为1且held signed正时把菜单动作写5。
+记录14把prompt计数清零、置gate B并合成record0。记录15先以option替换EAX低word再置gate B；selected option word非全1时按i16符号扩展并直连typed动作提交，普通返回后才按消息1补一次selection commit并把word恢复全1；队列或角色typed-stop保留option与gate并阻断两项尾操作。否则清prompt计数，按interaction mode 1到4分别调用四类callee且每次动态重读record15 held；鼠标Y位于两个unsigned开区间且held精确1时发布Y，独立mouse gate为1且held signed正时把菜单动作写5。
 
 基础确认处理signed status bit0、按gate B和热点门选择是否直接清唯一热点vector及对话sentinel；record15 rapid为0时清gate B、把prompt计数写300、置gate A并清interaction mode。battle mode只清低byte bit`0x20`，最后commit selection。
 

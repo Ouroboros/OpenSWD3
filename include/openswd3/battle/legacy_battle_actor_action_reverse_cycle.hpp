@@ -5,7 +5,11 @@
 namespace openswd3::battle {
 
 struct LegacyBattleActorActionReverseCycleBindings {
+    LegacyBattleStartupResetBlocks& startup_reset;
     LegacyBattleFinalActorStepState& final_actor;
+    LegacyBattleActorMetricState& metrics;
+    LegacyBattleInputDispatchState& input_dispatch;
+    compat::u32& message_state;
 };
 
 struct LegacyBattleActorActionReverseCycleRequest {
@@ -14,7 +18,15 @@ struct LegacyBattleActorActionReverseCycleRequest {
     compat::u32 entry_edx{};
 };
 
+enum class LegacyBattleActorActionReverseCycleStatus : compat::u8 {
+    completed,
+    action_commit_typed_stop,
+};
+
 struct LegacyBattleActorActionReverseCycleResult {
+    LegacyBattleActorActionReverseCycleStatus status{
+        LegacyBattleActorActionReverseCycleStatus::completed
+    };
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};

@@ -2,6 +2,8 @@
 
 #include <array>
 
+#include "openswd3/battle/legacy_battle_actor_action_commit.hpp"
+
 namespace openswd3::battle {
 namespace {
 
@@ -45,18 +47,29 @@ reverse_cycle_legacy_battle_actor_action(
     ecx = resolve.ecx;
     edx = resolve.edx;
 
-    const auto commit = port.invoke_input_dispatch({
-        .call = LegacyBattleInputDispatchCall::actor_action_commit_candidate,
-        .arguments = {eax},
-        .eax = eax,
-        .ecx = ecx,
-        .edx = edx,
-    });
-    ++result.port_calls;
+    const auto commit = commit_legacy_battle_actor_action(
+        {
+            .startup_reset = bindings.startup_reset,
+            .final_actor = bindings.final_actor,
+            .metrics = bindings.metrics,
+            .input_dispatch = bindings.input_dispatch,
+            .message_state = bindings.message_state,
+        },
+        port,
+        {.actor_code = eax,
+         .entry_eax = eax,
+         .entry_ecx = ecx,
+         .entry_edx = edx}
+    );
+    result.port_calls += commit.port_calls;
     ++result.commit_calls;
-    result.return_eax = commit.eax;
-    result.return_ecx = commit.ecx;
-    result.return_edx = commit.edx;
+    result.return_eax = commit.return_eax;
+    result.return_ecx = commit.return_ecx;
+    result.return_edx = commit.return_edx;
+    if (commit.status != LegacyBattleActorActionCommitStatus::completed) {
+        result.status =
+            LegacyBattleActorActionReverseCycleStatus::action_commit_typed_stop;
+    }
     return result;
 }
 

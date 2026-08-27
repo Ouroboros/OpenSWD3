@@ -92,7 +92,7 @@ enum class LegacyBattleInputDispatchCall : compat::u8 {
     reserved_menu_page_advance_slot,
     reserved_actor_action_cycle_slot,
     reserved_actor_action_reverse_cycle_slot,
-    commit_selected_option,
+    reserved_actor_action_commit_direct_slot,
     commit_left,
     commit_right,
     reserved_menu_input_finalize_slot,
@@ -115,7 +115,7 @@ enum class LegacyBattleInputDispatchCall : compat::u8 {
     target_selection_scan_secondary,
     target_selection_refresh_state,
     actor_action_resolve_available,
-    actor_action_commit_candidate,
+    reserved_actor_action_commit_nested_slot,
     actor_action_resolve_available_reverse,
 };
 
@@ -199,6 +199,9 @@ enum class LegacyBattleInputDispatchStatus : compat::u8 {
     menu_page_advance_typed_stop,
     menu_input_finalize_typed_stop,
     target_selection_entry_typed_stop,
+    actor_action_commit_typed_stop,
+    actor_action_cycle_typed_stop,
+    actor_action_reverse_cycle_typed_stop,
 };
 
 struct LegacyBattleInputDispatchResult {
@@ -221,6 +224,7 @@ struct LegacyBattleInputDispatchResult {
     compat::u32 target_selection_entry_calls{};
     compat::u32 actor_action_cycle_calls{};
     compat::u32 actor_action_reverse_cycle_calls{};
+    compat::u32 actor_action_commit_calls{};
     bool returned_early{};
 };
 
