@@ -160,11 +160,11 @@ bit`0x4000`阶段结束后会在同一次调用重读turn word，因此成功写
 
 ## 10. 最终尾
 
-无论普通路径如何，最后调用固定`final actor step(group_a_index,1)`。完整EAX等于1时清final action gate并把final selected word写`0xFFFF`。函数正常返回固定1。
+无论普通路径如何，最后调用固定`final actor step(group_a_index,1)`。完整EAX等于1时清待执行动作提交与本函数共用的唯一activation latch，并把final selected word写`0xFFFF`。函数正常返回固定1。
 
 ## 11. closed callee、端口与typed边界
 
-两个pending门中，第二项与战斗结果判定latch、组B帧和调试快捷键共用唯一`LegacyBattleOutcomeResolutionStatePort`，不再保留组A帧副本。
+两个pending门中，第二项与战斗结果判定latch、组B帧和调试快捷键共用唯一`LegacyBattleOutcomeResolutionStatePort`，不再保留组A帧副本。最终尾activation latch也已回收到actor metric唯一state，由待执行动作提交置1、本函数成功尾清0、全局重置同步清0。
 
 46个唯一callee中：
 

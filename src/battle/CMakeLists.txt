@@ -44,6 +44,7 @@ add_library(
         legacy_battle_outcome_resolution.cpp
         legacy_battle_pair_transition.cpp
         legacy_battle_party_item_order.cpp
+        legacy_battle_pending_action_commit.cpp
         legacy_battle_player_item_order.cpp
         legacy_battle_player_item_quantity.cpp
         legacy_battle_particle_frame.cpp

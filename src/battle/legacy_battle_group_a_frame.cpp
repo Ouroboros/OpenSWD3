@@ -239,7 +239,7 @@ void merge_nested_result(
         return false;
     }
     if (nested.return_value == 1U) {
-        state.final_action_gate = 0U;
+        port.actor_metric_state().pending_action_activation_latch = 0U;
         state.final_selected_word = 0xFFFFU;
     }
     result.return_value = 1U;

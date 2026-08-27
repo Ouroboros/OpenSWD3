@@ -285,6 +285,7 @@ add_executable(
     unit/battle/legacy_battle_pair_transition_test.cpp
     unit/battle/legacy_battle_runtime_shutdown_test.cpp
     unit/battle/legacy_battle_party_item_order_test.cpp
+    unit/battle/legacy_battle_pending_action_commit_test.cpp
     unit/battle/legacy_battle_player_item_order_test.cpp
     unit/battle/legacy_battle_player_item_quantity_test.cpp
     unit/battle/legacy_battle_post_action_test.cpp

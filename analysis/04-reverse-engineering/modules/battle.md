@@ -405,8 +405,10 @@ I5最终必须锁定：
 
 `audit_order=98`的`0x0045EA80`已关闭为`platform_adapted`。完整权威LST主体`0x0045EA80..0x0045EB3C`从proc到endp共82行、50条实际指令、4个call、3个跳转、1个局部标签且无外部chunk。入口以u32回绕计算`组A基址+index*0x2F34`，不作十槽预验；选中对象callee只有精确返回1才继续，否则透传完整三寄存器。随后查询固定首对象，callee后读取battle mode bit`0x200`；查询零或mode置位时，依次显示固定CP950“無法撤退!!”五参数文字并以live混音等级播放`0x8C`样本，完整尾返回来自样本callee且不写成功状态。成功路径在查询/mode之后读取组B数量低byte，按原写序发布两个完成门1、结果latch0、辅助latch0、调试重置门0、调试叠加门0、选择token全1、message0、packed counter仅低byte替换和暗化门1；返回EAX0、ECX只替换CL、EDX保留查询值。调试快捷键state抽为无循环依赖共享port，叠加门移到动作分派/逐帧/reset共用的独立gate port；撤退四项新状态唯一持有，全局重置清两完成门与选择token并保留辅助latch。已关闭动作分派case3删除旧地址call，在选择计算、fade和300帧延迟后直接组合typed撤退提交，仍忽略子返回。
 
+`audit_order=99`的`0x0045EB40`已关闭为`platform_adapted`。完整权威LST主体`0x0045EB40..0x0045EC5A`从proc到endp共133行、94条实际指令、7个call、7个跳转、7个局部标签且无外部chunk。入口只各读一次组B/组A数量并低32位相加，signed非正时以总数、组A数量和caller EDX直接返回；正数按入口总数固定遍历18槽物理角色顺序，不重读上界、不加现代上限。每轮首次顺序值以signed `<8`固定本轮组别，但前置对象、ready参数、ready标记、提交对象和发布索引均在各自原指令点重读live槽；两类对象token保持u32回绕。前置callee入口锁定组B`0x565/0x159`与组A`0x3EF/0xBCD`陈旧乘积；已关闭ready查询扩展为完整三寄存器结果并直接组合，只有精确1才先置唯一activation latch、再向启动期共享ready槽写全1。提交callee只有精确1才向共享actor publication写归一索引并调用待关闭动作记录移除；ready/publication越界分别只在原store停止，第19次角色顺序读取停止且保留前18轮。双方数量、角色顺序、activation latch统一归actor metric，ready槽复用启动reset块，publication复用既有效果/启动state；组A最终步进清同一latch，全局重置同步清零。逐帧caller保留前一stage并把其EDX作为早退快照，删除旧第二followup调用后直接组合typed提交；子typed-stop阻断效果协调及后续绘制。
+
 `audit_order=14`的`0x00434790`已关闭为`platform_adapted`。它只在首次调用以显式time seed CRT、发布三项共享值并扫描源图，随后直接组合已关闭粒子生成、线段推进与单像素颜色合成；剩余批次回放保留镜像检查X、源索引和实际写入X错位，粒子2×2绘制保留只跳第一透明色、只检查右像素及合成模式右上先合成后被原值覆盖。生命刷新、距离与目标矩形摘除、唯一/首/尾/中间四类双向链释放及其计数不对称均已闭环。三个上层caller都显式消费返回1作为阶段完成信号，尚待各自进入现代实现。
 
-下一项回收`audit_order=99`的`0x0045EB40`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗函数。
+下一项回收`audit_order=100`的`0x0045EC60`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

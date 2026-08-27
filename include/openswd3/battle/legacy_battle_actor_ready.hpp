@@ -10,11 +10,17 @@ struct LegacyBattleActorReadyRequest {
     compat::u32 stale_edx{};
 };
 
+struct LegacyBattleActorReadyCallReply {
+    compat::u32 eax{};
+    compat::u32 ecx{};
+    compat::u32 edx{};
+};
+
 class LegacyBattleActorReadyPort {
 public:
     virtual ~LegacyBattleActorReadyPort() = default;
 
-    [[nodiscard]] virtual compat::u32
+    [[nodiscard]] virtual LegacyBattleActorReadyCallReply
     query_ready(const LegacyBattleActorReadyRequest& request) = 0;
 };
 
@@ -28,6 +34,8 @@ struct LegacyBattleActorReadyResult {
     compat::u32 actor_token{};
     compat::u32 stale_eax{};
     compat::u32 stale_edx{};
+    compat::u32 final_ecx{};
+    compat::u32 final_edx{};
     compat::u32 port_calls{};
 };
 

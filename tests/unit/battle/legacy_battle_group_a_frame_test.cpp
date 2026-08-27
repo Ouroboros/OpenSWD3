@@ -181,9 +181,9 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
     {
         LegacyBattleGroupAFrameState state;
         state.action.frame_effect.primary_suppression = 1U;
-        state.final_action_gate = 9U;
         Fixture fixture;
         DispatchPort port;
+        port.actor_metric_state().pending_action_activation_latch = 9U;
         port.push(0x004786D0U, {.eax = 1U});
         port.push(0x00479850U, {.eax = 1U});
         auto context = fixture.context();
@@ -195,7 +195,8 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             result.return_value == 1U &&
                 has_call_argument(port, 0x00478B60U, 1U, 1U) &&
                 has_call_argument(port, 0x00479850U, 0U, 0x005029D0U) &&
-                state.final_action_gate == 0U &&
+                port.actor_metric_state().pending_action_activation_latch ==
+                    0U &&
                 state.final_selected_word == 0xFFFFU,
             "group A frame directly composes the final actor step"
         );

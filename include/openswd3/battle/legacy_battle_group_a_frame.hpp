@@ -71,7 +71,6 @@ struct LegacyBattleGroupAFrameState {
     compat::u32 defeated_actor_packed{};
     compat::u32 message_suppressed{};
     compat::u32 sample_handle_value{};
-    compat::u32 final_action_gate{};
     LegacyBattleFinalActorStepState final_actor_step{};
     LegacyBattlePostActionState post_action{};
     compat::u16 queued_selection_word{0xFFFFU};

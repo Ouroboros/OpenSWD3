@@ -32,6 +32,7 @@ struct LegacyBattleActorMetricState {
     compat::u32 group_b_mode{};
     compat::u32 priority_actor_index{0xFFFFFFFFU};
     compat::u32 priority_order_ready{};
+    compat::u32 pending_action_activation_latch{};
 };
 
 struct LegacyBattleActorPublicationState {

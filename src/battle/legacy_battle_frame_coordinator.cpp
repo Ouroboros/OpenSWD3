@@ -270,12 +270,25 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             LegacyBattleFrameCoordinatorStatus::actor_frame_typed_stop;
         return result;
     }
-    static_cast<void>(invoke(
+    reply = invoke(
         port, result, LegacyBattleFrameCoordinatorCall::frame_followup_stage_1
-    ));
-    static_cast<void>(invoke(
-        port, result, LegacyBattleFrameCoordinatorCall::frame_followup_stage_2
-    ));
+    );
+    result.pending_actions = commit_legacy_battle_pending_actions(
+        {
+            .ready_actor_slots = context.startup.reset.block_524420,
+            .global_mode = port.effect_coordinator_state().global_mode,
+        },
+        port,
+        reply.edx
+    );
+    ++result.pending_action_calls;
+    result.port_calls += result.pending_actions.port_calls;
+    if (result.pending_actions.status !=
+        LegacyBattlePendingActionStatus::completed) {
+        result.status =
+            LegacyBattleFrameCoordinatorStatus::pending_action_typed_stop;
+        return result;
+    }
     result.effect_coordinator = advance_legacy_battle_effect_coordinator(
         port.effect_coordinator_state(),
         port,

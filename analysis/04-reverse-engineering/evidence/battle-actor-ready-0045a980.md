@@ -6,7 +6,7 @@
 
 权威函数为`0x0045A980..0x0045A9F4`，从proc到endp完整64行、1个静态call站点、4个`loc_`标签，无外部FUNCTION CHUNK。唯一callee为`0x0047C1F0`。
 
-两个静态caller都位于尚未关闭的`0x0045EB40`，因此本工作包不提前回收caller；后续关闭caller时必须直接组合本typed实现。
+两个静态callsite都位于已关闭待执行动作提交`0x0045EB40`，现已直接组合本typed实现并删除旧地址边界。caller在两次对象callee之间分别传入live顺序索引、固定组selector与前一callee EDX。
 
 ## 2. 组选择
 
@@ -39,7 +39,7 @@ group B = 0x00525508 + index * 0x2B28
 
 ## 4. 返回
 
-唯一callee完整EAX严格等于1时原样返回1；任何其他值，包括全1，都先清EAX并返回0。不布尔化为非零真值。
+唯一callee完整EAX严格等于1时原样返回1；任何其他值，包括全1，都先清EAX并返回0。不布尔化为非零真值。ECX与EDX不被归一化尾修改，typed结果完整保留callee返回，供已关闭caller的组B陈旧EDX路径继续使用。
 
 ## 5. 测试与动态差分
 
@@ -48,7 +48,8 @@ group B = 0x00525508 + index * 0x2B28
 - 组A global-zero的`0xBCD`中间值；
 - 组A global-nonzero的`0x3EF`中间值；
 - 组B任意非1 selector及`0x565/0x159`中间值；
-- callee返回1、2和全1的严格归一化；
-- 全1 actor index的token和陈旧EAX低32位回绕。
+- callee返回1、2和全1的严格归一化，以及ECX/EDX完整保留；
+- 全1 actor index的token和陈旧EAX低32位回绕；
+- 待执行动作caller两处直接组合及ready成功/失败后的不同EDX传递。
 
 当前缺少原版组A/B对象和ready callee共享副作用及寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

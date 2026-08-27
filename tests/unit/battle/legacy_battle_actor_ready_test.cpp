@@ -8,14 +8,14 @@ namespace {
 class ActorReadyPort final
     : public openswd3::battle::LegacyBattleActorReadyPort {
 public:
-    [[nodiscard]] openswd3::compat::u32 query_ready(
+    [[nodiscard]] openswd3::battle::LegacyBattleActorReadyCallReply query_ready(
         const openswd3::battle::LegacyBattleActorReadyRequest& request
     ) override {
         requests.push_back(request);
-        return return_value;
+        return reply;
     }
 
-    openswd3::compat::u32 return_value{};
+    openswd3::battle::LegacyBattleActorReadyCallReply reply{};
     std::vector<openswd3::battle::LegacyBattleActorReadyRequest> requests;
 };
 
@@ -30,7 +30,7 @@ void test_battle_actor_ready(openswd3::test::Context& test) {
             .caller_edx = 0xAABBCCDDU,
         };
         ActorReadyPort port;
-        port.return_value = 1U;
+        port.reply = {.eax = 1U, .ecx = 0x13579BDFU, .edx = 0x2468ACE0U};
         const auto result = openswd3::battle::query_legacy_battle_actor_ready(
             state, port, 2U, 1U
         );
@@ -39,6 +39,8 @@ void test_battle_actor_ready(openswd3::test::Context& test) {
                 result.actor_token == 0x00508838U &&
                 result.stale_eax == 0x0000179AU &&
                 result.stale_edx == 0xAABBCCDDU &&
+                result.final_ecx == 0x13579BDFU &&
+                result.final_edx == 0x2468ACE0U &&
                 port.requests.front().stale_eax == 0x0000179AU,
             "zero global branch selects group A and leaves BCD-multiple EAX"
         );
@@ -50,7 +52,7 @@ void test_battle_actor_ready(openswd3::test::Context& test) {
             .caller_edx = 0x12345678U,
         };
         ActorReadyPort port;
-        port.return_value = 2U;
+        port.reply = {.eax = 2U};
         const auto result = openswd3::battle::query_legacy_battle_actor_ready(
             state, port, 2U, 1U
         );
@@ -68,7 +70,7 @@ void test_battle_actor_ready(openswd3::test::Context& test) {
             .caller_edx = 0xFFFFFFFFU,
         };
         ActorReadyPort port;
-        port.return_value = 0xFFFFFFFFU;
+        port.reply = {.eax = 0xFFFFFFFFU};
         const auto result = openswd3::battle::query_legacy_battle_actor_ready(
             state, port, 3U, 0xFFFFFFFFU
         );
@@ -84,7 +86,7 @@ void test_battle_actor_ready(openswd3::test::Context& test) {
     {
         LegacyBattleActorReadyState state;
         ActorReadyPort port;
-        port.return_value = 1U;
+        port.reply = {.eax = 1U};
         const auto result = openswd3::battle::query_legacy_battle_actor_ready(
             state, port, 0xFFFFFFFFU, 1U
         );

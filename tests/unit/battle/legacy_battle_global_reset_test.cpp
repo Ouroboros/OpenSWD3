@@ -276,6 +276,7 @@ void seed_state(
     metrics.group_b_mode = 9U;
     metrics.priority_actor_index = 9U;
     metrics.priority_order_ready = 9U;
+    metrics.pending_action_activation_latch = 9U;
 
     port.battle_pair_secondary_value() = 0x7788U;
     auto& shift = port.effect_shift_state();
@@ -428,7 +429,8 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                     [](const auto value) { return value == 9U; }
                 ) &&
                 metrics.group_b_count == 0U && metrics.group_a_count == 0U &&
-                metrics.priority_actor_index == 0U,
+                metrics.priority_actor_index == 0U &&
+                metrics.pending_action_activation_latch == 0U,
             "metric order mask counts and priority aliases clear while the untouched group-B order remains"
         );
         const auto& color = port.battle_color_accumulation_state();
@@ -449,7 +451,8 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 state.unmapped_bytes.contains(0x0052151CU) == false &&
                 state.unmapped_bytes.contains(0x00525430U) == false &&
                 state.unmapped_bytes.contains(0x00525448U) == false &&
-                state.unmapped_bytes.contains(0x00525468U) == false,
+                state.unmapped_bytes.contains(0x00525468U) == false &&
+                state.unmapped_bytes.contains(0x0053BFD8U) == false,
             "global reset clears the unique battle color transition values without touching the separate initialization gate"
         );
         const std::span<const u32> workspace{action.opponent_workspace};

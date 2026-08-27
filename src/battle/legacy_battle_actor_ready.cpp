@@ -24,12 +24,14 @@ LegacyBattleActorReadyResult query_legacy_battle_actor_ready(
         result.stale_edx = actor_index * 0x159U;
     }
     ++result.port_calls;
-    const compat::u32 queried = port.query_ready({
+    const auto queried = port.query_ready({
         .actor_token = result.actor_token,
         .stale_eax = result.stale_eax,
         .stale_edx = result.stale_edx,
     });
-    result.return_value = queried == 1U ? queried : 0U;
+    result.return_value = queried.eax == 1U ? queried.eax : 0U;
+    result.final_ecx = queried.ecx;
+    result.final_edx = queried.edx;
     return result;
 }
 
