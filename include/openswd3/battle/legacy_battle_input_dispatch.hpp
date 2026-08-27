@@ -16,6 +16,8 @@
 
 namespace openswd3::battle {
 
+struct LegacyBattleFrameInputResolutionState;
+
 inline constexpr compat::u32 kLegacyBattleInputWarningTextToken = 0x004A7954U;
 inline constexpr compat::u32 kLegacyBattleInputWarningSample = 0x8CU;
 
@@ -68,7 +70,7 @@ private:
 enum class LegacyBattleInputDispatchCall : compat::u8 {
     refresh_action_mode,
     commit_selection,
-    mode_one,
+    reserved_menu_selection_retreat_slot,
     mode_two,
     mode_three,
     mode_four,
@@ -82,6 +84,10 @@ enum class LegacyBattleInputDispatchCall : compat::u8 {
     query_retreat_actor,
     configure_retreat_actor,
     display_retreat_warning,
+    menu_retreat_query_group_b_candidate,
+    menu_retreat_prepare_actor_origin,
+    menu_retreat_configure_actor_selection,
+    menu_retreat_query_group_a_candidate,
 };
 
 struct LegacyBattleInputDispatchCallRequest {
@@ -127,6 +133,8 @@ public:
 struct LegacyBattleInputDispatchBindings {
     compat::u32& render_abort_latch;
     LegacyBattleStartupResetBlocks& startup_reset;
+    compat::u16& startup_supplemental_count_word;
+    LegacyBattleFrameInputResolutionState& frame_input_resolution;
     LegacyBattleFinalActorStepState& final_actor;
     LegacyBattleActionDispatchState& action;
     LegacyBattleActorMetricState& metrics;
@@ -153,6 +161,7 @@ enum class LegacyBattleInputDispatchStatus : compat::u8 {
     completed,
     input_record_typed_stop,
     workspace_typed_stop,
+    menu_selection_retreat_typed_stop,
 };
 
 struct LegacyBattleInputDispatchResult {
@@ -167,6 +176,7 @@ struct LegacyBattleInputDispatchResult {
     compat::u32 input_record_writes{};
     compat::u32 port_calls{};
     compat::u32 delay_calls{};
+    compat::u32 menu_selection_retreat_calls{};
     bool returned_early{};
 };
 

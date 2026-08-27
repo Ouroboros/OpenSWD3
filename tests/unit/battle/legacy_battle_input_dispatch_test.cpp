@@ -4,6 +4,7 @@
 #include <map>
 #include <vector>
 
+#include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
 #include "test.hpp"
 
 namespace {
@@ -62,6 +63,8 @@ public:
 struct Fixture {
     u32 render_abort{};
     openswd3::battle::LegacyBattleStartupResetBlocks startup;
+    openswd3::compat::u16 supplemental_count{};
+    openswd3::battle::LegacyBattleFrameInputResolutionState frame_input;
     openswd3::battle::LegacyBattleFinalActorStepState final_actor;
     openswd3::battle::LegacyBattleActionDispatchState action;
     openswd3::battle::LegacyBattleActorMetricState metrics;
@@ -80,6 +83,8 @@ struct Fixture {
         return {
             .render_abort_latch = render_abort,
             .startup_reset = startup,
+            .startup_supplemental_count_word = supplemental_count,
+            .frame_input_resolution = frame_input,
             .final_actor = final_actor,
             .action = action,
             .metrics = metrics,
@@ -372,6 +377,62 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
                     LegacyBattleInputDispatchCall::commit_left
                 ) == 1U,
             "left choice input preserves the low-word sign wrap and direct hotspot count"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.message = 3U;
+        fixture.final_actor.active_actor_code = 8U;
+        fixture.input.records[4U].rapid_press_multiplicity = 1U;
+        fixture.input.records[4U].held_sample_count = 1U;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_input_dispatch(
+                fixture.bindings(), fixture.port, {}
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleInputDispatchStatus::
+                        completed &&
+                result.menu_selection_retreat_calls == 1U &&
+                fixture.port.battle_input_dispatch_state().menu_action == 1U &&
+                fixture.frame_input.target_selection_gate == 1U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        menu_retreat_configure_actor_selection
+                ) == 1U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::confirm_primary
+                ) == 1U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        reserved_menu_selection_retreat_slot
+                ) == 0U,
+            "record four directly retreats the live menu selection before its existing confirmation call"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.message = 3U;
+        fixture.final_actor.active_actor_code = 0x100U;
+        fixture.final_actor.pre_frame_gate_b = 9U;
+        fixture.input.records[4U].rapid_press_multiplicity = 1U;
+        fixture.input.records[4U].held_sample_count = 1U;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_input_dispatch(
+                fixture.bindings(), fixture.port, {}
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleInputDispatchStatus::
+                        menu_selection_retreat_typed_stop &&
+                result.menu_selection_retreat_calls == 1U &&
+                fixture.final_actor.pre_frame_gate_b == 0U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::confirm_primary
+                ) == 0U,
+            "menu-retreat typed-stop preserves its sample and blocks the following confirmation"
         );
     }
 

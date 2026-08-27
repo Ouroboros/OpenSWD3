@@ -121,7 +121,7 @@ coordinate_legacy_battle_frame_input_resolution(
         }
     } else {
         bindings.final_actor.pre_frame_gate_b = 1U;
-        input_state.mouse_action_gate = 0U;
+        state.pointer_activity_gate = 0U;
     }
     state.previous_mouse_x = bindings.input.current_mouse.logical_x;
     state.previous_mouse_y = bindings.input.current_mouse.logical_y;

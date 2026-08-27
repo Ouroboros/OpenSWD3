@@ -14,7 +14,7 @@
 
 入口先保存当前鼠标X/Y。只有当前坐标同时等于两项战斗前帧坐标，且pre-frame gate B为0时立即返回EAX 0，ECX/EDX保持caller入口值。
 
-坐标改变时先把pre-frame gate B写1、mouse action gate写0；同坐标但gate B非零则保留原gate。两项战斗前帧坐标随后无条件更新为当前值。
+坐标改变时先把pre-frame gate B写1、独立pointer activity gate写0；同坐标但gate B非零则保留原gate。该门与右侧按钮/目标命中使用的mouse action gate是两个物理全局，不能折叠。两项战斗前帧坐标随后无条件更新为当前值。
 
 原`0x004C8BEC`是选择热点链头，不建立第二份标量owner。现代直接以热点vector非空作为同一条件，调用已关闭严格开区间命中查询；命中时把零基索引和非零选择owner token发布到输入共享状态，miss发布零token。查询后按原时点重读live鼠标。
 
@@ -83,7 +83,7 @@ marker、source、offset、actor order和组A完成槽分别只在首次原始�
 
 状态复用：当前鼠标来自输入归一化owner；party source与offset来自启动owner；permission、extra、启动模式表和两个减数来自启动/reset owner；组A数量与组B数量来自metric owner；active、published、actor order与组A完成槽来自最终角色owner；selection、interaction、mouse action、selected option、热点token与样本混音来自输入分派owner；热点链只保留vector owner。
 
-新增状态只承载此前未命名的战斗前帧鼠标、菜单几何/行选择、阻断值、目标索引、十byte marker及边界。全局重置只同步权威LST实际写入的前帧鼠标、列表初值、当前equipment、scroll、origin和三项阻断值；未在reset写集合中的hover、行限制、边界、marker和其他选择保持入口值。
+新增状态只承载此前未命名的战斗前帧鼠标、独立pointer activity、菜单几何/行选择、阻断值、目标索引、十byte marker及边界。全局重置只同步权威LST实际写入的前帧鼠标、列表初值、当前equipment、scroll、origin和三项阻断值；未在reset写集合中的hover、行限制、边界、marker和其他选择保持入口值。
 
 ## 8. 验证与动态差分
 

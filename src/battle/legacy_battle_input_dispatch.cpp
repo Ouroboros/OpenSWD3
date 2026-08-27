@@ -3,6 +3,8 @@
 #include <bit>
 #include <cstddef>
 
+#include "openswd3/battle/legacy_battle_menu_selection_retreat.hpp"
+
 namespace openswd3::battle {
 namespace {
 
@@ -99,6 +101,43 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
         eax = std::bit_cast<u32>(quotient);
         edx = std::bit_cast<u32>(remainder);
         return remainder == 1;
+    };
+    const auto retreat_menu_selection = [&]() {
+        const auto nested = retreat_legacy_battle_menu_selection(
+            {
+                .startup_reset = bindings.startup_reset,
+                .startup_supplemental_count_word =
+                    bindings.startup_supplemental_count_word,
+                .frame_input_resolution = bindings.frame_input_resolution,
+                .final_actor = bindings.final_actor,
+                .metrics = bindings.metrics,
+                .input_dispatch = state,
+                .message_state = bindings.message_state,
+            },
+            port,
+            {.entry_eax = eax, .entry_ecx = ecx, .entry_edx = edx}
+        );
+        ++result.menu_selection_retreat_calls;
+        result.port_calls += nested.port_calls;
+        eax = nested.return_eax;
+        ecx = nested.return_ecx;
+        edx = nested.return_edx;
+        if (nested.status !=
+            LegacyBattleMenuSelectionRetreatStatus::completed) {
+            result.status = LegacyBattleInputDispatchStatus::
+                menu_selection_retreat_typed_stop;
+            return false;
+        }
+        return true;
+    };
+    const auto invoke_operation = [&](const LegacyBattleInputDispatchCall op) {
+        if (op ==
+            LegacyBattleInputDispatchCall::
+                reserved_menu_selection_retreat_slot) {
+            return retreat_menu_selection();
+        }
+        static_cast<void>(call(op));
+        return true;
     };
 
     state.menu_action = 0U;
@@ -390,9 +429,9 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
             bindings.context_prompt.frame_counter = 0U;
             if (state.interaction_mode == 1U) {
                 state.menu_action = 1U;
-                static_cast<void>(
-                    call(LegacyBattleInputDispatchCall::mode_one)
-                );
+                if (!retreat_menu_selection()) {
+                    return finish();
+                }
                 source = record(15U);
                 if (source == nullptr) {
                     return finish();
@@ -536,14 +575,16 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
             if (!repeat(eax, 3) || !bindings.dialogs.messages.empty()) {
                 return true;
             }
-            static_cast<void>(call(first));
+            if (!invoke_operation(first)) {
+                return false;
+            }
             static_cast<void>(call(second));
             state.menu_action = menu_action;
             return true;
         };
     if (!repeat_three_action(
             4U,
-            LegacyBattleInputDispatchCall::mode_one,
+            LegacyBattleInputDispatchCall::reserved_menu_selection_retreat_slot,
             LegacyBattleInputDispatchCall::confirm_primary,
             1U
         )) {
@@ -577,9 +618,9 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
             }
             if (bindings.dialogs.messages.empty()) {
                 if (bindings.message_state == 3U) {
-                    static_cast<void>(
-                        call(LegacyBattleInputDispatchCall::mode_one)
-                    );
+                    if (!retreat_menu_selection()) {
+                        return finish();
+                    }
                 }
                 static_cast<void>(
                     call(LegacyBattleInputDispatchCall::confirm_secondary)

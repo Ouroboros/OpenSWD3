@@ -201,6 +201,7 @@ void seed_state(
     startup.party_count = 10U;
     startup.mirror_mode = 7U;
     startup.supplemental_count_word = 9U;
+    startup.reset.value_524413 = 9U;
 
     final_actor.active_actor_code = 9U;
     final_actor.secondary_actor_code = 9U;
@@ -337,6 +338,15 @@ void seed_state(
     auto& frame_input = port.battle_frame_input_resolution_state();
     frame_input.previous_mouse_x = 9;
     frame_input.previous_mouse_y = 9;
+    frame_input.pointer_activity_gate = 9U;
+    frame_input.target_cursor = 9U;
+    frame_input.alternate_selection_limit = 9U;
+    frame_input.alternate_selection = 9U;
+    frame_input.target_actor_index = 9U;
+    frame_input.target_selection_gate = 9U;
+    frame_input.transition_value_a = 9U;
+    frame_input.transition_value_b = 9U;
+    frame_input.equipment_grid_selections.fill(9U);
     frame_input.list_selection = 9U;
     frame_input.grid_selection = 9U;
     frame_input.narrow_list_selection = 9U;
@@ -620,6 +630,18 @@ void test_battle_global_reset(openswd3::test::Context& test) {
         test.expect_true(
             frame_input.previous_mouse_x == 0 &&
                 frame_input.previous_mouse_y == 0 &&
+                frame_input.pointer_activity_gate == 9U &&
+                frame_input.target_cursor == 1U &&
+                frame_input.alternate_selection_limit == 2U &&
+                frame_input.alternate_selection == 1U &&
+                frame_input.target_actor_index == 0U &&
+                frame_input.target_selection_gate == 9U &&
+                frame_input.transition_value_a == 9U &&
+                frame_input.transition_value_b == 9U &&
+                frame_input.equipment_grid_selections[0] == 1U &&
+                frame_input.equipment_grid_selections[1] == 9U &&
+                frame_input.equipment_grid_selections[2] == 9U &&
+                frame_input.equipment_grid_selections[3] == 9U &&
                 frame_input.list_selection == 1U &&
                 frame_input.grid_selection == 1U &&
                 frame_input.narrow_list_selection == 9U &&
@@ -636,11 +658,17 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                     [](const auto value) { return value == 9U; }
                 ) &&
                 startup.supplemental_count_word == 0U &&
+                startup.reset.value_524413 == 9U &&
                 state.unmapped_bytes.contains(0x005028A0U) == false &&
                 state.unmapped_bytes.contains(0x005028A4U) == false &&
+                state.unmapped_bytes.contains(0x004A7550U) == false &&
                 state.unmapped_bytes.contains(0x004A7558U) == false &&
                 state.unmapped_bytes.contains(0x004A755CU) == false &&
+                state.unmapped_bytes.contains(0x004A7568U) == false &&
+                state.unmapped_bytes.contains(0x004A756CU) == false &&
                 state.unmapped_bytes.contains(0x004A7570U) == false &&
+                state.unmapped_bytes.contains(0x004FF578U) == false &&
+                state.unmapped_bytes.contains(0x0053BCF4U) == false &&
                 state.unmapped_bytes.contains(0x0053BD04U) == false &&
                 state.unmapped_bytes.contains(0x0053BD08U) == false &&
                 state.unmapped_bytes.contains(0x0053BD24U) == false &&
@@ -755,8 +783,8 @@ void test_battle_global_reset(openswd3::test::Context& test) {
             "write trace preserves all authoritative store tuples, the post-callee repeat, and final clear"
         );
         test.expect_true(
-            byte_at(state, 0x004A7568U) == 2U &&
-                byte_at(state, 0x004A7569U) == 0U &&
+            state.unmapped_bytes.contains(0x004A7568U) == false &&
+                state.unmapped_bytes.contains(0x004A7569U) == false &&
                 byte_at(state, 0x004A7574U) == 0xFFU &&
                 byte_at(state, 0x004A75FEU) == 0x10U &&
                 byte_at(state, 0x0053C154U) == 0U &&

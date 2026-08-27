@@ -161,6 +161,9 @@ void test_battle_frame_input_resolution(openswd3::test::Context& test) {
         fixture.metrics.group_a_count = 1U;
         fixture.startup.party_source_indices[0U] = 2U;
         fixture.startup.party_offsets[2U] = 100;
+        fixture.port.battle_input_dispatch_state().mouse_action_gate = 9U;
+        fixture.port.battle_frame_input_resolution_state()
+            .pointer_activity_gate = 8U;
         const auto result =
             openswd3::battle::coordinate_legacy_battle_frame_input_resolution(
                 fixture.bindings(), fixture.port
@@ -171,12 +174,14 @@ void test_battle_frame_input_resolution(openswd3::test::Context& test) {
                         .selected_option_word == 8U &&
                 fixture.final_actor.pre_frame_gate_b == 1U &&
                 fixture.port.battle_input_dispatch_state().mouse_action_gate ==
-                    0U &&
+                    9U &&
+                fixture.port.battle_frame_input_resolution_state()
+                        .pointer_activity_gate == 0U &&
                 fixture.port.battle_frame_input_resolution_state()
                         .previous_mouse_x == 100 &&
                 fixture.port.battle_frame_input_resolution_state()
                         .previous_mouse_y == 400,
-            "case zero publishes the first strict party hover and updates the shared previous mouse"
+            "case zero clears only the pointer-activity gate, preserves the mouse-action gate, and publishes the first party hover"
         );
     }
 

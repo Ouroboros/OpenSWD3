@@ -152,6 +152,7 @@ struct LegacyBattleStartupResetBlocks {
     compat::u32 value_4ff0b4{};
     compat::u16 value_4fe5d0{};
     compat::u32 value_4ff0b8{};
+    compat::u8 value_524413{};
     compat::u32 value_524414{};
     std::array<compat::u32, 4> values_52544c{};
     std::array<compat::u32, 5> values_502940{};
