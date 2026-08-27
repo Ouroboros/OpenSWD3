@@ -3,6 +3,7 @@
 #include <bit>
 #include <cstddef>
 
+#include "openswd3/battle/legacy_battle_actor_action_cycle.hpp"
 #include "openswd3/battle/legacy_battle_menu_input_finalize.hpp"
 #include "openswd3/battle/legacy_battle_menu_page_advance.hpp"
 #include "openswd3/battle/legacy_battle_menu_page_retreat.hpp"
@@ -267,7 +268,24 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
         }
         return true;
     };
+    const auto cycle_actor_action = [&]() {
+        const auto nested = cycle_legacy_battle_actor_action(
+            {.final_actor = bindings.final_actor},
+            port,
+            {.entry_eax = eax, .entry_ecx = ecx, .entry_edx = edx}
+        );
+        ++result.actor_action_cycle_calls;
+        result.port_calls += nested.port_calls;
+        eax = nested.return_eax;
+        ecx = nested.return_ecx;
+        edx = nested.return_edx;
+        return true;
+    };
     const auto invoke_operation = [&](const LegacyBattleInputDispatchCall op) {
+        if (op ==
+            LegacyBattleInputDispatchCall::reserved_actor_action_cycle_slot) {
+            return cycle_actor_action();
+        }
         if (op ==
             LegacyBattleInputDispatchCall::
                 reserved_menu_selection_retreat_slot) {
@@ -392,15 +410,16 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
     }
     if (source->rapid_press_multiplicity != 0U) {
         eax = source->held_sample_count;
+        const u32 held_count = eax;
         if (repeat(eax, 3)) {
             if (signed_bits(bindings.message_state) > 1) {
                 return early();
             }
-            state.selected_option_word = 0U;
-            state.selection_index = 1U;
-            static_cast<void>(
-                call(LegacyBattleInputDispatchCall::confirm_primary)
-            );
+            state.selected_option_word = held_count == 1U ? 0U : 3U;
+            state.action_kind = 1U;
+            static_cast<void>(invoke_operation(
+                LegacyBattleInputDispatchCall::reserved_actor_action_cycle_slot
+            ));
             if (bindings.message_state == 1U) {
                 if (!enter_target_selection()) {
                     return finish();
@@ -737,14 +756,14 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
             if (!invoke_operation(first)) {
                 return false;
             }
-            static_cast<void>(call(second));
+            static_cast<void>(invoke_operation(second));
             state.menu_action = menu_action;
             return true;
         };
     if (!repeat_three_action(
             4U,
             LegacyBattleInputDispatchCall::reserved_menu_selection_retreat_slot,
-            LegacyBattleInputDispatchCall::confirm_primary,
+            LegacyBattleInputDispatchCall::reserved_actor_action_cycle_slot,
             1U
         )) {
         return finish();
@@ -817,9 +836,10 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
                 static_cast<void>(
                     call(LegacyBattleInputDispatchCall::commit_right)
                 );
-                static_cast<void>(
-                    call(LegacyBattleInputDispatchCall::confirm_primary)
-                );
+                static_cast<void>(invoke_operation(
+                    LegacyBattleInputDispatchCall::
+                        reserved_actor_action_cycle_slot
+                ));
             }
         }
     }

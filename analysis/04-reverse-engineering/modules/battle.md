@@ -443,6 +443,8 @@ I5最终必须锁定：
 
 `audit_order=116`的`0x004620D0`已关闭为`platform_adapted`。完整权威LST主体`0x004620D0..0x0046231F`从proc到endp共269行、157条实际指令、7个静态call、23个跳转、12个局部标签、7个返回点且无外部chunk。函数依次执行entry word、input、outcome与signed message门；suppression为0时按group-B count减packed低byte决定是否清message；message 110保留u16小于30写29、等于30写100的非对称。dialog非空发布one-shot交互；ready未置、queued角色为0或非零message缺少option时刷新选择状态。真正进入时先清option cache，查询queued group-A角色；未完成则播放样本、重载queued角色、发布mouse/target/phase并配置选择。group-B index缺失或group-A index不匹配时发布message/action 1刷新；匹配时发布message 7、limit 2，并对同一signed group-B对象执行三次primary和两次secondary扫描，callee返回1才增加limit，最后清transition output。active/group-B越界只在首次真实对象call typed-stop并保留声音、gate、message与扫描前缀。逐帧输入十个静态caller已从五条typed业务路径直连；AI/action三处caller尚未关闭。交叉审计同时统一queued/published final-actor owner，拆开group-B index、group-A index与逐帧option cache，target-ready复用actor-frame共享owner，one-shot复用世界player-control owner。
 
-下一项回收`audit_order=117`的`0x00462320`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗函数。
+`audit_order=117`的`0x00462320`已关闭为`platform_adapted`。完整权威LST主体`0x00462320..0x00462381`从proc到endp共67行、30条实际指令、8个静态call、2个跳转、5个局部/默认标签、4个返回点且无外部chunk，函数后的四项跳表也已审计。入口从共享queued角色装载EAX并先清pre-frame gate B，再按u32计算`code-8`；unsigned结果大于3时返回转换后EAX并保留入口ECX/EDX。code 8/9/10/11分别把动作起点11/8/9/10交给可用动作轮转callee，再把其EAX作为参数交给动作提交callee，完整透传两级callee寄存器。逐帧输入记录2、记录4菜单后退和记录5菜单前进三个caller已直连；旧动作确认槽保留reserved数值且不再调用。记录2短按把option写0，长按除3余1路径保留原EBP除数3并在两次callee期间写3；记录4前置菜单typed-stop继续阻断动作轮转与菜单动作尾写。当前角色和清零gate均复用final-actor既有物理owner。
+
+下一项回收`audit_order=118`的`0x004623A0`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

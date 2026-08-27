@@ -21,6 +21,9 @@ public:
         const LegacyBattleInputDispatchCallRequest& request
     ) override {
         calls.push_back(request);
+        selected_option_snapshots.push_back(
+            battle_input_dispatch_state().selected_option_word
+        );
         const auto found = replies.find(request.call);
         return found == replies.end() ? default_reply : found->second;
     }
@@ -49,6 +52,7 @@ public:
     }
 
     std::vector<LegacyBattleInputDispatchCallRequest> calls;
+    std::vector<openswd3::compat::u16> selected_option_snapshots;
     std::map<LegacyBattleInputDispatchCall, LegacyBattleInputDispatchCallReply>
         replies;
     LegacyBattleInputDispatchCallReply default_reply{
@@ -430,6 +434,70 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
 
     {
         Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.final_actor.pre_frame_gate_b = 9U;
+        fixture.input.records[2U].rapid_press_multiplicity = 1U;
+        fixture.input.records[2U].held_sample_count = 1U;
+        fixture.port.replies
+            [LegacyBattleInputDispatchCall::actor_action_resolve_available] = {
+            .eax = 0x40U, .ecx = 0x50U, .edx = 0x60U
+        };
+        fixture.port.replies
+            [LegacyBattleInputDispatchCall::actor_action_commit_candidate] = {
+            .eax = 0x70U, .ecx = 0x80U, .edx = 0x90U
+        };
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_input_dispatch(
+                fixture.bindings(), fixture.port, {}
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleInputDispatchStatus::
+                        completed &&
+                result.actor_action_cycle_calls == 1U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        actor_action_resolve_available
+                ) == 1U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::actor_action_commit_candidate
+                ) == 1U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        reserved_actor_action_cycle_slot
+                ) == 0U &&
+                fixture.port.battle_input_dispatch_state().action_kind == 1U &&
+                fixture.port.battle_input_dispatch_state()
+                        .selected_option_word == 0xFFFFU &&
+                fixture.final_actor.pre_frame_gate_b == 0U &&
+                result.return_eax == 0x70U && result.return_ecx == 0x80U &&
+                result.return_edx == 0x90U,
+            "record two directly cycles the queued actor action before restoring the option cache"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.input.records[2U].rapid_press_multiplicity = 1U;
+        fixture.input.records[2U].held_sample_count = 16U;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_input_dispatch(
+                fixture.bindings(), fixture.port, {}
+            );
+        test.expect_true(
+            result.actor_action_cycle_calls == 1U &&
+                fixture.port.selected_option_snapshots.size() == 2U &&
+                fixture.port.selected_option_snapshots[0U] == 3U &&
+                fixture.port.selected_option_snapshots[1U] == 3U &&
+                fixture.port.battle_input_dispatch_state()
+                        .selected_option_word == 0xFFFFU,
+            "long record-two repeat preserves divisor three in the option word during both action calls"
+        );
+    }
+
+    {
+        Fixture fixture;
         fixture.message = 3U;
         fixture.final_actor.queued_actor_code = 8U;
         fixture.input.records[4U].rapid_press_multiplicity = 1U;
@@ -449,9 +517,18 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
                     LegacyBattleInputDispatchCall::
                         menu_retreat_configure_actor_selection
                 ) == 1U &&
+                result.actor_action_cycle_calls == 1U &&
                 fixture.port.count(
-                    LegacyBattleInputDispatchCall::confirm_primary
+                    LegacyBattleInputDispatchCall::
+                        actor_action_resolve_available
                 ) == 1U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::actor_action_commit_candidate
+                ) == 1U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        reserved_actor_action_cycle_slot
+                ) == 0U &&
                 fixture.port.count(
                     LegacyBattleInputDispatchCall::
                         reserved_menu_selection_retreat_slot
@@ -477,10 +554,50 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
                         menu_selection_retreat_typed_stop &&
                 result.menu_selection_retreat_calls == 1U &&
                 fixture.final_actor.pre_frame_gate_b == 0U &&
+                result.actor_action_cycle_calls == 0U &&
                 fixture.port.count(
-                    LegacyBattleInputDispatchCall::confirm_primary
+                    LegacyBattleInputDispatchCall::
+                        actor_action_resolve_available
+                ) == 0U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        reserved_actor_action_cycle_slot
                 ) == 0U,
             "menu-retreat typed-stop preserves its sample and blocks the following confirmation"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 9U;
+        fixture.final_actor.pre_frame_gate_b = 9U;
+        fixture.input.records[5U].rapid_press_multiplicity = 1U;
+        fixture.input.records[5U].held_sample_count = 1U;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_input_dispatch(
+                fixture.bindings(), fixture.port, {}
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleInputDispatchStatus::
+                        completed &&
+                result.actor_action_cycle_calls == 1U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::commit_right
+                ) == 1U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        actor_action_resolve_available
+                ) == 1U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::actor_action_commit_candidate
+                ) == 1U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        reserved_actor_action_cycle_slot
+                ) == 0U &&
+                fixture.final_actor.pre_frame_gate_b == 0U,
+            "record five commits the right input then directly cycles the queued actor action"
         );
     }
 
