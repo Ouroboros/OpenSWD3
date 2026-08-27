@@ -220,6 +220,10 @@ public:
         openswd3::rendering::LegacyFramePiece& piece
     ) noexcept override {
         requests.push_back({resource_id, piece_index});
+        if (unavailable_resource.has_value() &&
+            resource_id == *unavailable_resource) {
+            return false;
+        }
         piece = {
             .source =
                 openswd3::rendering::LegacyBlitSource{
@@ -235,6 +239,7 @@ public:
 
     std::vector<u8> bytes;
     std::vector<std::array<u32, 2>> requests;
+    std::optional<u32> unavailable_resource;
 };
 
 class PackedRowPorts final
@@ -909,6 +914,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         Fixture fixture;
+        fixture.final_actor_step.active_actor_code = 0U;
         CoordinatorPort port;
         port.outcome_resolution_state().darkening_gate = 1U;
         port.outcome_resolution_state().darkening.channel_delta = -30;
@@ -918,10 +924,14 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         port.outcome_reply.eax = 0x55667788U;
         configure_common_port(port);
         auto context = fixture.context();
+        auto frame_request = base_request();
+        frame_request.mouse_x = 27;
+        frame_request.mouse_y = 39;
+        frame_request.context_prompt_action_update_edx_snapshot = 0xABCD1234U;
 
         const auto result =
             openswd3::battle::run_legacy_battle_frame_coordinator(
-                state, port, context, base_request()
+                state, port, context, frame_request
             );
 
         test.expect_true(
@@ -945,9 +955,59 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                         reserved_outcome_resolution_slot
                 ) == 0U &&
                 port.count(
-                    LegacyBattleFrameCoordinatorCall::post_input_stage_1
-                ) == 1U,
-            "frame coordinator directly resolves group-B completion before continuing to the remaining post-input stage"
+                    LegacyBattleFrameCoordinatorCall::
+                        reserved_context_prompt_slot
+                ) == 0U &&
+                result.context_prompt_calls == 1U &&
+                result.context_prompt.branch ==
+                    openswd3::battle::LegacyBattleContextPromptBranch::
+                        actor_cursor &&
+                result.context_prompt.action_id == 0x238CU &&
+                result.context_prompt.x == 27 &&
+                result.context_prompt.y == 39 &&
+                port.battle_offset_action_frame_draw_state().frame_index ==
+                    0xABCD0000U,
+            "frame coordinator directly resolves group-B completion before drawing the context prompt"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleFrameCoordinatorState state;
+        Fixture fixture;
+        fixture.frame_provider.unavailable_resource = 0x0066U;
+        CoordinatorPort port;
+        port.outcome_resolution_state().darkening_gate = 1U;
+        port.outcome_resolution_state().darkening.channel_delta = -30;
+        port.publish_outcome_counts = true;
+        port.outcome_group_b_count = 0U;
+        port.outcome_group_a_count = 1U;
+        configure_common_port(port);
+        auto context = fixture.context();
+
+        const auto result =
+            openswd3::battle::run_legacy_battle_frame_coordinator(
+                state, port, context, base_request()
+            );
+
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameCoordinatorStatus::
+                        context_prompt_typed_stop &&
+                result.outcome_resolution_calls == 1U &&
+                result.context_prompt_calls == 1U &&
+                result.context_prompt.status ==
+                    openswd3::battle::LegacyBattleContextPromptStatus::
+                        offset_action_frame_typed_stop &&
+                result.context_prompt.draw.status ==
+                    openswd3::battle::LegacyBattleOffsetActionFrameDrawStatus::
+                        frame_unavailable &&
+                result.color_initialization_calls == 0U &&
+                result.color_accumulation_calls == 0U &&
+                result.temporary_surface_calls == 0U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::finalize_overlay
+                ) == 0U,
+            "context prompt typed-stop preserves the outcome prefix and blocks every later frame stage"
         );
     }
 

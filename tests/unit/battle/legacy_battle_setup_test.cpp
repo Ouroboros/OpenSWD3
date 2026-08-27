@@ -31,6 +31,7 @@ void test_battle_animation_collision(openswd3::test::Context& test);
 void test_battle_opponent_action_dispatch(openswd3::test::Context& test);
 void test_battle_background_initialization(openswd3::test::Context& test);
 void test_battle_color_accumulation(openswd3::test::Context& test);
+void test_battle_context_prompt(openswd3::test::Context& test);
 void test_battle_debug_hotkeys(openswd3::test::Context& test);
 void test_battle_debug_overlay(openswd3::test::Context& test);
 void test_battle_effect_coordinator(openswd3::test::Context& test);
@@ -6980,6 +6981,7 @@ int main() {
     test_battle_opponent_action_dispatch(test);
     test_battle_background_initialization(test);
     test_battle_color_accumulation(test);
+    test_battle_context_prompt(test);
     test_battle_debug_hotkeys(test);
     test_battle_debug_overlay(test);
     test_battle_effect_coordinator(test);

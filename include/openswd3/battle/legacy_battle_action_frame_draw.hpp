@@ -114,6 +114,20 @@ struct LegacyBattleOffsetActionFrameDrawState {
     bool result_latch_read{};
 };
 
+class LegacyBattleOffsetActionFrameDrawStatePort {
+public:
+    [[nodiscard]] virtual LegacyBattleOffsetActionFrameDrawState&
+    battle_offset_action_frame_draw_state() noexcept {
+        return offset_action_frame_draw_state_;
+    }
+
+protected:
+    ~LegacyBattleOffsetActionFrameDrawStatePort() = default;
+
+private:
+    LegacyBattleOffsetActionFrameDrawState offset_action_frame_draw_state_{};
+};
+
 struct LegacyBattleOffsetActionFrameDrawResult {
     LegacyBattleOffsetActionFrameDrawStatus status{
         LegacyBattleOffsetActionFrameDrawStatus::completed

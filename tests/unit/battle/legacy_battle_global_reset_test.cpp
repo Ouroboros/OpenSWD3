@@ -192,6 +192,7 @@ void seed_state(
     startup.party[0].role_id = 9U;
     startup.enemy_count = 8U;
     startup.party_count = 10U;
+    startup.mirror_mode = 7U;
 
     final_actor.active_actor_code = 9U;
     final_actor.secondary_actor_code = 9U;
@@ -212,6 +213,10 @@ void seed_state(
     port.battle_message_state() = 9U;
     action.phase_counter = 0x11223344U;
     action.packed_actor_counter = 0xAABBCCDDU;
+    action.message_gate = 0x80000001U;
+    action.message_aux = 0x55667788U;
+    action.selection_word = 0x1122U;
+    action.selection_high_word = 0x3344U;
     action.opponent_workspace.fill(9U);
     actor_frames.shared.selection_aux_gate = 9U;
     actor_frames.shared.target_ready_gate = 9U;
@@ -454,6 +459,11 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 final_actor.excluded_group_a_count == 0U &&
                 action.phase_counter == 0x11220000U &&
                 action.packed_actor_counter == 0xAABBCC00U &&
+                action.message_gate == 0U &&
+                action.message_aux == 0x55667788U &&
+                action.selection_word == 0x1122U &&
+                action.selection_high_word == 0x3344U &&
+                startup.mirror_mode == 0U &&
                 final_actor.actor_runtime_records[0][0] == 9U &&
                 actor_frames.shared.selection_aux_gate == 0U &&
                 actor_frames.shared.target_ready_gate == 0U &&

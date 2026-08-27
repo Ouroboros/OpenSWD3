@@ -7,6 +7,7 @@
 #include "openswd3/battle/legacy_battle_actor_frame_sequence.hpp"
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
 #include "openswd3/battle/legacy_battle_color_accumulation.hpp"
+#include "openswd3/battle/legacy_battle_context_prompt.hpp"
 #include "openswd3/battle/legacy_battle_debug_hotkeys.hpp"
 #include "openswd3/battle/legacy_battle_debug_overlay.hpp"
 #include "openswd3/battle/legacy_battle_effect_coordinator.hpp"
@@ -64,7 +65,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     post_dialog_stage,
     reserved_debug_overlay_slot,
     reserved_outcome_resolution_slot,
-    post_input_stage_1,
+    reserved_context_prompt_slot,
     finalize_overlay,
     alternate_surface_stage,
 };
@@ -101,6 +102,7 @@ class LegacyBattleFrameCoordinatorPort
       public LegacyBattleDebugHotkeyPort,
       public LegacyBattleDebugOverlayPort,
       public LegacyBattleOutcomeResolutionPort,
+      public LegacyBattleContextPromptPort,
       public virtual LegacyBattleEffectCoordinatorStatePort {
 public:
     using LegacyBattleEffectCallPort::invoke;
@@ -143,6 +145,7 @@ struct LegacyBattleFrameCoordinatorState {
     LegacyBattleStandaloneActionFrameDrawState standalone_action;
     LegacyBattleFrameEffectState frame_effect{};
     LegacyBattleHudFrameState hud{};
+    LegacyBattleContextPromptState context_prompt{};
     LegacyBattleDebugOverlayState debug_overlay{};
 };
 
@@ -159,6 +162,9 @@ struct LegacyBattleFrameCoordinatorRequest {
     compat::u32 standalone_action_update_edx_snapshot{};
     compat::u32 post_standalone_frame_ecx_snapshot{};
     compat::u32 debug_vitality_stack_snapshot{};
+    compat::i32 mouse_x{};
+    compat::i32 mouse_y{};
+    compat::u32 context_prompt_action_update_edx_snapshot{};
 };
 
 struct LegacyBattleFrameCoordinatorContext {
@@ -218,6 +224,7 @@ enum class LegacyBattleFrameCoordinatorStatus : compat::u8 {
     debug_hotkey_typed_stop,
     debug_overlay_typed_stop,
     outcome_resolution_typed_stop,
+    context_prompt_typed_stop,
 };
 
 struct LegacyBattleFrameCoordinatorResult {
@@ -239,6 +246,8 @@ struct LegacyBattleFrameCoordinatorResult {
     compat::u32 debug_overlay_calls{};
     LegacyBattleOutcomeResolutionResult outcome_resolution{};
     compat::u32 outcome_resolution_calls{};
+    LegacyBattleContextPromptResult context_prompt{};
+    compat::u32 context_prompt_calls{};
     LegacyBattleFrameEffectResult frame_effect{};
     compat::u32 frame_effect_calls{};
     LegacyBattleActorPriorityResult actor_priority{};

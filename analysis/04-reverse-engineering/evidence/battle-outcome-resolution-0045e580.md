@@ -101,9 +101,9 @@ difference = zero_extend(low_byte) - zero_extend(byte_2)
 
 ## 7. caller回收
 
-逐帧协调器在内部bit17与可选调试叠加之后无条件调用本函数，再执行相邻`0x0045E660`阶段。旧第一个post-input opaque stage已删除并直接组合typed结果判定。
+逐帧协调器在内部bit17与可选调试叠加之后无条件调用本函数，再直接组合已关闭的上下文提示绘制。旧第一个post-input opaque stage已删除并直接组合typed结果判定。
 
-子暗化typed-stop保留此前整帧全部角色、UI、对话、倒计时与调试叠加副作用，以及本函数latch/颜色偏移前缀；随后阻断`0x0045E660`、颜色初始化/累加、临时surface和截图。正常返回EAX按原caller不消费，继续后一阶段。
+子暗化typed-stop保留此前整帧全部角色、UI、对话、倒计时与调试叠加副作用，以及本函数latch/颜色偏移前缀；随后阻断上下文提示、颜色初始化/累加、临时surface和截图。正常返回EAX按原caller不消费，继续后一阶段。
 
 ## 8. 测试与动态差分
 

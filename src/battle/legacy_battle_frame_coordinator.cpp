@@ -559,9 +559,36 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         return result;
     }
 
-    static_cast<void>(invoke(
-        port, result, LegacyBattleFrameCoordinatorCall::post_input_stage_1
-    ));
+    result.context_prompt = draw_legacy_battle_context_prompt(
+        {
+            .prompt = state.context_prompt,
+            .action = context.action_dispatch,
+            .final_actor = context.final_actor_step,
+            .startup = context.startup,
+            .message_state = port.battle_message_state(),
+            .framebuffer = context.frame_zero.framebuffer,
+            .clip = context.frame_zero.clip,
+            .shared_request = context.frame_zero.shared_request,
+            .shared_effects = context.frame_zero.shared_effects,
+            .jitter = context.frame_zero.jitter,
+            .action_updater = context.action_updater,
+            .frame_provider = context.frame_provider,
+        },
+        port,
+        {
+            .mouse_x = request.mouse_x,
+            .mouse_y = request.mouse_y,
+            .action_update_edx_snapshot =
+                request.context_prompt_action_update_edx_snapshot,
+        }
+    );
+    ++result.context_prompt_calls;
+    if (result.context_prompt.status !=
+        LegacyBattleContextPromptStatus::completed) {
+        result.status =
+            LegacyBattleFrameCoordinatorStatus::context_prompt_typed_stop;
+        return result;
+    }
     if (port.battle_color_accumulation_state().countdown <= 0 &&
         port.battle_color_initialization_gate() != 1U) {
         result.color_initialization =

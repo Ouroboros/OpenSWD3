@@ -363,6 +363,7 @@ void synchronize_typed_aliases(
     clear_records(startup.party);
     startup.enemy_count = 0U;
     startup.party_count = 0U;
+    startup.mirror_mode = 0U;
 
     final_actor.active_actor_code = 0U;
     final_actor.secondary_actor_code = 0U;
@@ -384,6 +385,7 @@ void synchronize_typed_aliases(
     pair_primary_value = 0U;
     action.phase_counter &= 0xFFFF0000U;
     action.packed_actor_counter &= 0xFFFFFF00U;
+    action.message_gate = 0U;
     std::fill_n(action.opponent_workspace.begin(), 10U, 0U);
     std::fill_n(action.opponent_workspace.begin() + 16U, 80U, 0U);
 
