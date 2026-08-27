@@ -84,18 +84,18 @@ void test_battle_menu_page_retreat(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.message = 2U;
-        fixture.frame.list_selection = 5U;
-        fixture.frame.panel_scroll_a = 10U;
+        fixture.frame.grid_selection = 5U;
+        fixture.frame.panel_scroll_b = 10U;
         const auto result = retreat_legacy_battle_menu_page(
             fixture.bindings(), fixture.port, {}
         );
         test.expect_true(
-            fixture.frame.list_selection == 1U &&
-                fixture.frame.panel_scroll_a == 10U &&
+            fixture.frame.grid_selection == 1U &&
+                fixture.frame.panel_scroll_b == 10U &&
                 fixture.input.mouse_action_gate == 0U &&
                 result.return_eax == 1U && result.return_ecx == 0U &&
                 result.return_edx == 0xAABBCCDDU && result.sample_calls == 1U,
-            "message two first returns list selection to one without moving the page"
+            "message two first returns grid selection to one without moving the page"
         );
     }
 
@@ -103,14 +103,14 @@ void test_battle_menu_page_retreat(openswd3::test::Context& test) {
         Fixture fixture;
         fixture.message = 2U;
         fixture.input.menu_action = 1U;
-        fixture.frame.list_selection = 5U;
-        fixture.frame.panel_scroll_a = 10U;
+        fixture.frame.grid_selection = 5U;
+        fixture.frame.panel_scroll_b = 10U;
         auto result = retreat_legacy_battle_menu_page(
             fixture.bindings(), fixture.port, {}
         );
         test.expect_true(
-            fixture.frame.list_selection == 5U &&
-                fixture.frame.panel_scroll_a == 3U &&
+            fixture.frame.grid_selection == 5U &&
+                fixture.frame.panel_scroll_b == 3U &&
                 fixture.input.mouse_action_gate == 1U &&
                 result.return_eax == 1U && result.return_ecx == 3U &&
                 result.return_edx == 0xAABBCCDDU,
@@ -119,13 +119,13 @@ void test_battle_menu_page_retreat(openswd3::test::Context& test) {
 
         fixture.input.menu_action = 0U;
         fixture.input.mouse_action_gate = 0U;
-        fixture.frame.list_selection = 1U;
-        fixture.frame.panel_scroll_a = 3U;
+        fixture.frame.grid_selection = 1U;
+        fixture.frame.panel_scroll_b = 3U;
         result = retreat_legacy_battle_menu_page(
             fixture.bindings(), fixture.port, {}
         );
         test.expect_true(
-            fixture.frame.panel_scroll_a == 0U &&
+            fixture.frame.panel_scroll_b == 0U &&
                 fixture.input.mouse_action_gate == 1U &&
                 result.return_eax == 1U && result.return_ecx == 0xFFFFFFFCU,
             "message two clamps a negative page while preserving the signed subtraction in ECX"
@@ -135,28 +135,28 @@ void test_battle_menu_page_retreat(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.message = 27U;
-        fixture.frame.grid_selection = 4U;
-        fixture.frame.panel_scroll_b = 10U;
+        fixture.frame.list_selection = 4U;
+        fixture.frame.panel_scroll_a = 10U;
         auto result = retreat_legacy_battle_menu_page(
             fixture.bindings(), fixture.port, {}
         );
         test.expect_true(
-            fixture.frame.grid_selection == 1U &&
-                fixture.frame.panel_scroll_b == 10U &&
+            fixture.frame.list_selection == 1U &&
+                fixture.frame.panel_scroll_a == 10U &&
                 fixture.input.mouse_action_gate == 0U &&
                 result.return_eax == 1U && result.return_ecx == 0U,
-            "message twenty-seven first returns grid selection to one"
+            "message twenty-seven first returns list selection to one"
         );
 
         fixture.input.menu_action = 1U;
-        fixture.frame.grid_selection = 4U;
-        fixture.frame.panel_scroll_b = 6U;
+        fixture.frame.list_selection = 4U;
+        fixture.frame.panel_scroll_a = 6U;
         result = retreat_legacy_battle_menu_page(
             fixture.bindings(), fixture.port, {}
         );
         test.expect_true(
-            fixture.frame.grid_selection == 4U &&
-                fixture.frame.panel_scroll_b == 0U &&
+            fixture.frame.list_selection == 4U &&
+                fixture.frame.panel_scroll_a == 0U &&
                 fixture.input.mouse_action_gate == 1U &&
                 result.return_eax == 1U && result.return_ecx == 0xFFFFFFFFU,
             "message twenty-seven clamps page scroll while returning its negative ECX"

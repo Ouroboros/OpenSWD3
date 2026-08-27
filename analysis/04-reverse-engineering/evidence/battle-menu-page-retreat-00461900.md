@@ -8,17 +8,17 @@
 
 入口把完整message依次减2、减2、减23，只接受消息2、4、27；其他值在清pre-frame gate B后直接以`message-27`低32位返回，ECX/EDX保持入口值。三个有效case各恰好播放一次既有选择样本。
 
-## 2. 消息2列表分页后退
+## 2. 消息2网格分页后退
 
-样本后把menu action读入ECX，并把EAX强制为1。menu action为0且list selection不等于1时，只把selection写1并返回；panel scroll、mouse action gate均不变，ECX仍为0，EDX保留样本callee结果。
+样本后把menu action读入ECX，并把EAX强制为1。menu action为0且grid selection不等于1时，只把selection写1并返回；panel scroll、mouse action gate均不变，ECX仍为0，EDX保留样本callee结果。
 
-其余路径把panel scroll A减7并先写回完整u32。结果signed非负时直接置mouse action gate；signed负值时再把共享scroll写0，但ECX刻意保留负的减法结果。EAX保持1，EDX保持样本callee结果。
+其余路径把panel scroll B减7并先写回完整u32。结果signed非负时直接置mouse action gate；signed负值时再把共享scroll写0，但ECX刻意保留负的减法结果。EAX保持1，EDX保持样本callee结果。
 
-## 3. 消息27网格分页后退
+## 3. 消息27列表分页后退
 
-消息27与消息2同样先播放样本、装menu action并把EAX置1。menu action为0且grid selection不等于1时只把grid写1并返回，不修改scroll或gate。
+消息27与消息2同样先播放样本、装menu action并把EAX置1。menu action为0且list selection不等于1时只把list写1并返回，不修改scroll或gate。
 
-其余路径把panel scroll B减7并先写回；signed负值时把共享scroll夹0，但返回ECX仍保留负结果。随后置mouse action gate并返回，不写equipment缓存。
+其余路径把panel scroll A减7并先写回；signed负值时把共享scroll夹0，但返回ECX仍保留负结果。随后置mouse action gate并返回，不写equipment缓存。
 
 ## 4. 消息4装备网格分页后退
 
@@ -38,6 +38,6 @@ current equipment索引只在两次真实store处typed-stop。第一项越界时
 
 ## 6. 验证与动态差分
 
-定向测试覆盖：默认消息寄存器；消息2先归一selection、正scroll和负scroll的陈旧ECX；消息27先归一grid与负scroll；消息4先归一grid、正常双缓存写、负scroll EDX重载和首store typed-stop；interaction mode 3与record7两处caller直连；typed-stop阻断后续mode 4。
+定向测试覆盖：默认消息寄存器；消息2先归一grid、正scroll和负scroll的陈旧ECX；消息27先归一list与负scroll；消息4先归一grid、正常双缓存写、负scroll EDX重载和首store typed-stop；interaction mode 3与record7两处caller直连；typed-stop阻断后续mode 4。
 
 当前缺少原版菜单/分页全局、样本后端、两处caller输入记录与EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

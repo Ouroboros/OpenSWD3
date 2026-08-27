@@ -495,8 +495,8 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.message = 2U;
-        fixture.frame_input.list_selection = 1U;
-        fixture.frame_input.panel_scroll_a = 10U;
+        fixture.frame_input.grid_selection = 1U;
+        fixture.frame_input.panel_scroll_b = 10U;
         fixture.port.battle_input_dispatch_state().interaction_mode = 3U;
         fixture.input.records[15U].rapid_press_multiplicity = 1U;
         fixture.input.records[15U].held_sample_count = 1U;
@@ -509,7 +509,7 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleInputDispatchStatus::
                         completed &&
                 result.menu_page_retreat_calls == 1U &&
-                fixture.frame_input.panel_scroll_a == 3U &&
+                fixture.frame_input.panel_scroll_b == 3U &&
                 fixture.port.battle_input_dispatch_state().menu_action == 5U &&
                 fixture.port.count(
                     LegacyBattleInputDispatchCall::
@@ -522,8 +522,8 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.message = 2U;
-        fixture.frame_input.list_selection = 1U;
-        fixture.frame_input.panel_scroll_a = 10U;
+        fixture.frame_input.grid_selection = 1U;
+        fixture.frame_input.panel_scroll_b = 10U;
         fixture.input.records[7U].rapid_press_multiplicity = 1U;
         fixture.input.records[7U].held_sample_count = 1U;
         const auto result =
@@ -540,8 +540,8 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
             "record seven invokes page retreat once"
         );
         test.expect_true(
-            fixture.frame_input.panel_scroll_a == 3U,
-            "record seven publishes the retreated list page"
+            fixture.frame_input.panel_scroll_b == 3U,
+            "record seven publishes the retreated grid page"
         );
         test.expect_true(
             fixture.port.battle_input_dispatch_state().mouse_action_gate == 1U,

@@ -435,7 +435,7 @@ I5最终必须锁定：
 
 `audit_order=112`的`0x00461240`已关闭为`platform_adapted`。完整权威LST主体`0x00461240..0x004618A8`从proc到endp共785行、460条实际指令、19个call、47个跳转、44个局部/默认标签、14个返回点且无外部chunk；函数后的十项跳表和30-byte间接索引也已审计。函数以`message-1`分派与后退函数相同的九个消息case，恢复权限上界循环、signed byte列表限制、grid/scroll前进、equipment双数组写后置gate、行/alternate/narrow回绕及消息27无样本夹值。消息3按启动模式执行组B正向order或组A正向order/action cursor；callee拒绝后严格从共享cursor重装ECX/EDX并按live bound继续，不能误用callee返回寄存器。四类角色call完整恢复原乘法中间寄存器和物理token；组Bcount 9在第九次配置thiscall停止。组A完成槽/候选使用一基code地址，code 0在完成槽停止；大组原点使用另一原始公式并让code 10在一过尾thiscall停止。组A随后固定配置十对象、逐byte清marker，一基selected code 10则精确映射第十物理对象。权限、启动模式、order、完成槽、对象、marker和双数组仅在首次真实访问typed-stop。输入分派三处旧调用已直连，普通完整寄存器进入相邻确认/方向callee，停止阻断调用点后续输入。
 
-`audit_order=113`的`0x00461900`已关闭为`platform_adapted`。完整权威LST主体`0x00461900..0x00461A28`从proc到endp共148行、81条实际指令、3个call、12个跳转、8个局部标签、6个返回点且无外部chunk。函数只处理消息2、4、27，各播放一次样本；其他消息清pre-frame gate后返回`message-27`。消息2/27先把列表或网格selection归一到1，否则把对应scroll减7并作signed零夹，刻意让ECX保留负减法结果。消息4在同型grid分页后从共享scroll重装EDX，先置mouse action gate，再按current equipment索引写两份唯一缓存；typed-stop保留样本、夹值、gate及写前缀。输入分派interaction mode 3与record7两处旧调用均已直连，停止阻断后续鼠标发布、mode 4和最终输入提交。
+`audit_order=113`的`0x00461900`已关闭为`platform_adapted`。完整权威LST主体`0x00461900..0x00461A28`从proc到endp共148行、81条实际指令、3个call、12个跳转、8个局部标签、6个返回点且无外部chunk。函数只处理消息2、4、27，各播放一次样本；其他消息清pre-frame gate后返回`message-27`。消息2处理网格与panel B，消息27处理列表与panel A；两者先把selection归一到1，否则把对应scroll减7并作signed零夹，刻意让ECX保留负减法结果。消息4在同型grid分页后从共享scroll重装EDX，先置mouse action gate，再按current equipment索引写两份唯一缓存；typed-stop保留样本、夹值、gate及写前缀。输入分派interaction mode 3与record7两处旧调用均已直连，停止阻断后续鼠标发布、mode 4和最终输入提交。
 
 下一项回收`audit_order=114`的`0x00461A30`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗函数。
 

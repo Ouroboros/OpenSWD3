@@ -55,14 +55,14 @@ LegacyBattleMenuPageRetreatResult retreat_legacy_battle_menu_page(
         play_sample();
         ecx = input.menu_action;
         eax = 1U;
-        if (ecx == 0U && frame.list_selection != eax) {
-            frame.list_selection = eax;
+        if (ecx == 0U && frame.grid_selection != eax) {
+            frame.grid_selection = eax;
             return finish();
         }
-        ecx = frame.panel_scroll_a - 7U;
-        frame.panel_scroll_a = ecx;
+        ecx = frame.panel_scroll_b - 7U;
+        frame.panel_scroll_b = ecx;
         if (signed_bits(ecx) < 0) {
-            frame.panel_scroll_a = 0U;
+            frame.panel_scroll_b = 0U;
         }
         input.mouse_action_gate = eax;
         return finish();
@@ -111,14 +111,14 @@ LegacyBattleMenuPageRetreatResult retreat_legacy_battle_menu_page(
     play_sample();
     ecx = input.menu_action;
     eax = 1U;
-    if (ecx == 0U && frame.grid_selection != eax) {
-        frame.grid_selection = eax;
+    if (ecx == 0U && frame.list_selection != eax) {
+        frame.list_selection = eax;
         return finish();
     }
-    ecx = frame.panel_scroll_b - 7U;
-    frame.panel_scroll_b = ecx;
+    ecx = frame.panel_scroll_a - 7U;
+    frame.panel_scroll_a = ecx;
     if (signed_bits(ecx) < 0) {
-        frame.panel_scroll_b = 0U;
+        frame.panel_scroll_a = 0U;
     }
     input.mouse_action_gate = eax;
     return finish();
