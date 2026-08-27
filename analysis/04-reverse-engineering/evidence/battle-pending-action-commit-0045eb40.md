@@ -6,7 +6,7 @@
 
 权威LST完整主体为`0x0045EB40..0x0045EC5A`，从`proc`到`endp`共133行、94条实际指令、7个call、7个跳转、7个局部标签，没有外部`FUNCTION CHUNK`。
 
-函数无参数。唯一caller是已关闭逐帧画面协调器`0x00453200`；调用时点固定在角色帧顺序遍历和相邻前置stage之后、效果总协调之前。
+函数无参数。唯一caller是已关闭逐帧画面协调器`0x00453200`；调用时点固定在角色帧顺序遍历和已关闭双方完成数协调之后、效果总协调之前。
 
 七个静态call由四类callee组成：
 
@@ -60,7 +60,7 @@ publication越界只在原store停止，保留提交callee副作用。记录移�
 
 ready标记复用唯一战斗启动reset块；actor publication复用效果与启动共同使用的唯一18槽state。启动初始化把两者全部写`0xFFFFFFFF`，本函数不建立副本。
 
-逐帧caller保留相邻前置stage并读取其EDX作为零角色早退快照，随后直接组合typed待执行动作提交。旧第二followup opaque槽保留reserved枚举值但不再调用。子typed-stop保留角色帧与前置stage副作用，阻断效果总协调、固定帧和全部后续绘制。
+逐帧caller直接组合已关闭双方完成数协调，并读取其正常尾EDX作为零角色早退快照，随后直接组合typed待执行动作提交。旧第二followup opaque槽保留reserved枚举值但不再调用。子typed-stop保留角色帧与完成数协调副作用，阻断效果总协调、固定帧和全部后续绘制。
 
 ## 6. 验证与动态差分
 

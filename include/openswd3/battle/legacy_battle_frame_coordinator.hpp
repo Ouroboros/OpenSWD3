@@ -12,6 +12,7 @@
 #include "openswd3/battle/legacy_battle_debug_hotkeys.hpp"
 #include "openswd3/battle/legacy_battle_debug_overlay.hpp"
 #include "openswd3/battle/legacy_battle_effect_coordinator.hpp"
+#include "openswd3/battle/legacy_battle_frame_completion.hpp"
 #include "openswd3/battle/legacy_battle_frame_effect.hpp"
 #include "openswd3/battle/legacy_battle_outcome_resolution.hpp"
 #include "openswd3/battle/legacy_battle_pre_frame.hpp"
@@ -58,7 +59,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     refresh_selection,
     frame_stage,
     query_actor_pair,
-    frame_followup_stage_1,
+    reserved_frame_completion_slot,
     reserved_pending_action_commit_slot,
     actor_ready_query,
     post_render_stage_1,
@@ -74,6 +75,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     pending_action_ready_query,
     pending_action_commit_actor,
     pending_action_remove_actor_record,
+    frame_completion_query_actor,
 };
 
 struct LegacyBattleFrameCoordinatorCallRequest {
@@ -111,6 +113,7 @@ class LegacyBattleFrameCoordinatorPort
       public LegacyBattleContextPromptPort,
       public LegacyBattleVerticalShiftPort,
       public LegacyBattlePendingActionPort,
+      public LegacyBattleFrameCompletionPort,
       public virtual LegacyBattleEffectCoordinatorStatePort {
 public:
     using LegacyBattleEffectCallPort::invoke;
@@ -180,6 +183,26 @@ public:
         return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
     }
 
+    [[nodiscard]] LegacyBattleFrameCompletionCallReply invoke_frame_completion(
+        const LegacyBattleFrameCompletionCallRequest& request
+    ) override {
+        const auto reply = invoke({
+            .call =
+                LegacyBattleFrameCoordinatorCall::frame_completion_query_actor,
+            .arguments =
+                {
+                    request.actor_token,
+                    request.actor_index,
+                    request.actor_group,
+                    request.mask,
+                },
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        });
+        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
+    }
+
     [[nodiscard]] compat::u32 resolve_vertical_shift_surface(
         const compat::u32 owner_token, const compat::u32 selector
     ) override {
@@ -224,6 +247,8 @@ struct LegacyBattleFrameCoordinatorRequest {
     compat::u32 actor_priority_eax_snapshot{};
     compat::u32 actor_priority_ecx_snapshot{};
     compat::u32 actor_priority_edx_snapshot{};
+    compat::u32 post_actor_frame_ecx_snapshot{};
+    compat::u32 post_actor_frame_edx_snapshot{};
     compat::u32 post_frame_zero_ecx_snapshot{};
     compat::u32 post_tiled_frame_ecx_snapshot{};
     compat::u32 standalone_action_update_ecx_snapshot{};
@@ -273,6 +298,7 @@ enum class LegacyBattleFrameCoordinatorStatus : compat::u8 {
     actor_order_typed_stop,
     actor_priority_typed_stop,
     actor_frame_typed_stop,
+    frame_completion_typed_stop,
     pending_action_typed_stop,
     effect_coordinator_typed_stop,
     render_aborted,
@@ -326,6 +352,8 @@ struct LegacyBattleFrameCoordinatorResult {
     compat::u32 actor_priority_calls{};
     LegacyBattleActorFrameSequenceResult actor_frame_sequence{};
     compat::u32 actor_frame_sequence_calls{};
+    LegacyBattleFrameCompletionResult frame_completion{};
+    compat::u32 frame_completion_calls{};
     LegacyBattlePendingActionResult pending_actions{};
     compat::u32 pending_action_calls{};
     LegacyBattleEffectCoordinatorResult effect_coordinator{};

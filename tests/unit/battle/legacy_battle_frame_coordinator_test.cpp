@@ -40,21 +40,12 @@ public:
             actor_metric_state().group_a_count = outcome_group_a_count;
         }
         if (request.call ==
-                LegacyBattleFrameCoordinatorCall::frame_followup_stage_1 &&
-            pending_action_count_after_followup.has_value()) {
-            actor_metric_state().group_b_count =
-                *pending_action_count_after_followup;
-            actor_metric_state().group_a_count = 0U;
-            actor_metric_state().actor_order[0] =
-                pending_action_order_after_followup;
-            pending_action_count_after_followup.reset();
-        }
-        if (request.call ==
-                LegacyBattleFrameCoordinatorCall::pending_action_ready_query &&
-            pending_action_order_after_ready.has_value()) {
-            actor_metric_state().actor_order[0] =
-                *pending_action_order_after_ready;
-            pending_action_order_after_ready.reset();
+                LegacyBattleFrameCoordinatorCall::
+                    frame_completion_query_actor &&
+            completion_group_a_count_after_query.has_value()) {
+            actor_metric_state().group_a_count =
+                *completion_group_a_count_after_query;
+            completion_group_a_count_after_query.reset();
         }
         const auto found = replies.find(request.call);
         return found == replies.end() ? default_reply : found->second;
@@ -182,9 +173,7 @@ public:
     u32 outcome_group_a_count{};
     u32 next_item_allocation_token{0x72000000U};
     bool fail_item_allocation{};
-    std::optional<u32> pending_action_count_after_followup;
-    u32 pending_action_order_after_followup{};
-    std::optional<u32> pending_action_order_after_ready;
+    std::optional<u32> completion_group_a_count_after_query;
     u32 temporary_surface_token{0x70000000U};
     u32 music_return{0x12345678U};
     u32 surface_operation_return{0x87654321U};
@@ -379,11 +368,26 @@ public:
 };
 
 class CountdownFlags final
-    : public openswd3::rendering::LegacyCountdownFlagQueryPorts {
+    : public openswd3::rendering::LegacyCountdownFlagPorts {
 public:
     [[nodiscard]] bool query_internal_flag(u32) noexcept override {
         return false;
     }
+    void set_internal_flag(u32) noexcept override {}
+};
+
+class BattleRandom final
+    : public openswd3::battle::LegacyBattleBoundedRandomPort {
+public:
+    [[nodiscard]] u32 random_bounded(u32) override {
+        return 0U;
+    }
+};
+
+class BattleSound final
+    : public openswd3::battle::LegacyBattleIndicatorSoundPort {
+public:
+    void play_indicator_sound(u16, u16) override {}
 };
 
 class CountdownProvider final
@@ -471,6 +475,8 @@ struct Fixture {
     openswd3::rendering::LegacyCountdownState countdown;
     CountdownFlags countdown_flags;
     CountdownProvider countdown_provider;
+    BattleRandom battle_random;
+    BattleSound battle_sound;
     std::array<u8, 16> internal_flags{};
     openswd3::rendering::LegacyPixelConversionState pixel_conversion;
     BmpPorts bmp_ports;
@@ -515,6 +521,23 @@ struct Fixture {
             )
         );
         secondary_rng.seed(1U);
+    }
+
+    [[nodiscard]] openswd3::battle::LegacyBattleActionDispatchContext
+    action_context() {
+        return {
+            .framebuffer = framebuffer,
+            .raster = raster,
+            .shared_request = blit_request,
+            .shared_effects = effects,
+            .jitter = jitter,
+            .action_updater = action_updater,
+            .frame_provider = frame_provider,
+            .bounded_random = battle_random,
+            .indicator_sound = battle_sound,
+            .countdown_flags = countdown_flags,
+            .internal_flags = internal_flags,
+        };
     }
 
     [[nodiscard]] openswd3::battle::LegacyBattleFrameCoordinatorContext
@@ -746,7 +769,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleActorFrameSequenceStatus::
                         frame_context_typed_stop &&
                 port.count(
-                    LegacyBattleFrameCoordinatorCall::frame_followup_stage_1
+                    LegacyBattleFrameCoordinatorCall::
+                        reserved_frame_completion_slot
                 ) == 0U &&
                 result.fixed_frame_calls == 0U,
             "actor-frame context stop propagates before remaining frame followup stages"
@@ -758,8 +782,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         Fixture fixture;
         CoordinatorPort port;
         configure_common_port(port);
-        port.pending_action_count_after_followup = 1U;
-        port.pending_action_order_after_followup = 8U;
         auto context = fixture.context();
 
         const auto result =
@@ -771,48 +793,78 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleFrameCoordinatorStatus::
                         completed &&
+                result.frame_completion_calls == 1U &&
+                result.frame_completion.return_eax == 0U &&
                 result.pending_action_calls == 1U &&
                 result.pending_actions.status ==
                     openswd3::battle::LegacyBattlePendingActionStatus::
                         completed &&
-                result.pending_actions.port_calls == 4U &&
+                result.pending_actions.scanned_slots == 0U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        reserved_frame_completion_slot
+                ) == 0U &&
                 port.count(
                     LegacyBattleFrameCoordinatorCall::
                         reserved_pending_action_commit_slot
                 ) == 0U &&
-                port.count(
-                    LegacyBattleFrameCoordinatorCall::
-                        pending_action_prepare_actor
-                ) == 1U &&
-                port.count(
-                    LegacyBattleFrameCoordinatorCall::pending_action_ready_query
-                ) == 1U &&
-                port.count(
-                    LegacyBattleFrameCoordinatorCall::
-                        pending_action_commit_actor
-                ) == 1U &&
-                port.count(
-                    LegacyBattleFrameCoordinatorCall::
-                        pending_action_remove_actor_record
-                ) == 1U &&
-                fixture.startup.reset.block_524420[0] == 0xFFFFFFFFU &&
-                port.actor_metric_state().pending_action_activation_latch ==
-                    1U &&
-                port.actor_publication_state().slots[0] == 0U &&
                 result.effect_coordinator_calls == 1U,
-            "main frame directly commits pending actor actions after the first followup stage and removes the old opaque call"
+            "main frame directly composes completion and pending-action stages after actor frames without either old opaque call"
         );
     }
 
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
+        state.conditional_mode = 1U;
+        state.conditional_submode = 0U;
         Fixture fixture;
         CoordinatorPort port;
         configure_common_port(port);
-        port.pending_action_count_after_followup = 1U;
-        port.pending_action_order_after_followup = 8U;
-        port.pending_action_order_after_ready = 0xFFFFFFFFU;
+        port.actor_metric_state().priority_actor_index = 0U;
         auto context = fixture.context();
+        auto request = base_request();
+        request.post_actor_frame_ecx_snapshot = 0x12345678U;
+        request.post_actor_frame_edx_snapshot = 0x89ABCDEFU;
+
+        const auto result =
+            openswd3::battle::run_legacy_battle_frame_coordinator(
+                state, port, context, request
+            );
+
+        test.expect_true(
+            result.frame_completion_calls == 1U &&
+                result.frame_completion.return_eax == 0U &&
+                result.frame_completion.return_ecx == 0x12345678U &&
+                result.frame_completion.return_edx == 0x89ABCDEFU &&
+                result.frame_completion.mask_query_calls == 0U &&
+                result.pending_actions.initial_count == 0U &&
+                result.effect_coordinator_calls == 1U,
+            "the closed completion stage preserves post-actor-frame ECX and EDX on its selected-actor zero return before pending actions"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleFrameCoordinatorState state;
+        state.conditional_mode = 1U;
+        state.conditional_submode = 0U;
+        Fixture fixture;
+        CoordinatorPort port;
+        configure_common_port(port);
+        port.actor_metric_state().group_a_count = 1U;
+        port.replies[LegacyBattleFrameCoordinatorCall::query_actor_metric]
+            .publish_metric_word = true;
+        port.replies[LegacyBattleFrameCoordinatorCall::query_actor_metric]
+            .metric_word = 1U;
+        port.completion_group_a_count_after_query = 11U;
+        auto dispatch_context = fixture.action_context();
+        openswd3::battle::LegacyBattleGroupBFrameState actor_frame_state;
+        openswd3::battle::LegacyBattleActorFrameAdvanceContext actor_frames{
+            actor_frame_state,
+            port,
+            dispatch_context,
+        };
+        auto context = fixture.context();
+        context.actor_frames = &actor_frames;
 
         const auto result =
             openswd3::battle::run_legacy_battle_frame_coordinator(
@@ -822,15 +874,18 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     openswd3::battle::LegacyBattleFrameCoordinatorStatus::
-                        pending_action_typed_stop &&
-                result.pending_actions.status ==
-                    openswd3::battle::LegacyBattlePendingActionStatus::
-                        ready_actor_slot_typed_stop &&
-                port.actor_metric_state().pending_action_activation_latch ==
-                    1U &&
+                        frame_completion_typed_stop &&
+                result.actor_frame_sequence.status ==
+                    openswd3::battle::LegacyBattleActorFrameSequenceStatus::
+                        completed &&
+                result.frame_completion.status ==
+                    openswd3::battle::LegacyBattleFrameCompletionStatus::
+                        group_a_fields_typed_stop &&
+                result.frame_completion.stopped_index == 10U &&
+                result.pending_action_calls == 0U &&
                 result.effect_coordinator_calls == 0U &&
                 result.fixed_frame_calls == 0U,
-            "pending-action typed stop preserves the first followup and latch prefix then blocks effects and rendering"
+            "frame-completion typed stop preserves the completed actor-frame stage then blocks pending actions effects and rendering"
         );
     }
 

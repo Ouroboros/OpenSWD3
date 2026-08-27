@@ -62,11 +62,11 @@ selection_value == 0xFFFFFFFF && selection_source == 0
 1. 带共享参数的主frame stage；
 2. 直接调用已关闭`0x00453580`画面效果，以其共享pending rotation作入口参数；
 3. 当`conditional_mode != 1 || conditional_submode == 1`时执行条件stage；
-4. 一个仍待关闭的后继stage；
+4. 直接组合已关闭双方完成数协调：扫描组A对象双门和组B mask链，满足阈值后发布message及组门；
 5. 直接组合已关闭待执行动作提交：按入口总数遍历live角色顺序，处理ready标记、角色发布和记录移除；
 6. 直接调用已关闭`0x0045C010`效果总协调步进。
 
-画面效果typed-stop保留主frame stage及效果内部真实前缀，并阻断全部后继stage。待执行动作提交读取前一stage返回EDX作为零角色早退快照，复用唯一metric顺序/数量、启动ready槽、actor publication和activation latch；其typed-stop保留角色帧与前一stage前缀并阻断效果协调和固定帧。旧第二后继stage只保留reserved枚举值且不再调用。效果总协调器复用主帧端口内唯一角色metric、效果步进和18槽记录状态；子typed-stop阻断固定帧，普通返回值不等于1时只对共享UI dword的低word OR 1，高16位原样保留。旧opaque完成门枚举和测试桩已删除。
+画面效果typed-stop保留主frame stage及效果内部真实前缀，并阻断全部后继stage。双方完成数协调复用当前角色、双方数量、最终角色计数、动作phase/packed计数、结果暗化门、启动组门与message唯一owner；前一角色帧的post-call ECX/EDX由显式snapshot进入，正常尾EDX成为待执行动作零角色早退快照。其子typed-stop阻断待执行动作和后续帧，旧第一后继stage只保留reserved枚举值且不再调用。待执行动作提交复用唯一metric顺序/数量、启动ready槽、actor publication和activation latch；其typed-stop保留角色帧与完成数协调前缀并阻断效果协调和固定帧。旧第二后继stage只保留reserved枚举值且不再调用。效果总协调器复用主帧端口内唯一角色metric、效果步进和18槽记录状态；子typed-stop阻断固定帧，普通返回值不等于1时只对共享UI dword的低word OR 1，高16位原样保留。旧opaque完成门枚举和测试桩已删除。
 
 然后直接调用已关闭`0x00450270`，固定资源`0x234D`、帧0、坐标`(0,384)`。frame unavailable或blitter typed-stop在原首次访问/绘制点阻断后续流程；不伪造选中角色、跨模块队列、输入或截图尾。
 
@@ -179,7 +179,7 @@ finalize之后直接调用已关闭三通道颜色累加：固定递减请求，
 - `0x00453200..0x0045325D`：活动、音乐、双opaque stage、角色预处理、metric、顺序、完成门与零早退；
 - `0x0045325E..0x00453286`：target lock/unlock、渲染门与返回1；
 - `0x0045328C..0x0045331C`：选择mode、延迟刷新和交互可用发布；
-- `0x0045331C..0x00453379`：主阶段、画面效果直连、条件阶段、角色帧顺序、单一后继stage、待执行动作提交直连、效果协调、UI低word和固定帧；
+- `0x0045331C..0x00453379`：主阶段、画面效果直连、条件阶段、角色帧顺序、双方完成数与待执行动作提交直连、效果协调、UI低word和固定帧；
 - `0x0045337F..0x00453431`：选中动作记录、双映射、九宫格、角色对象和独立帧；
 - `0x00453434..0x00453482`：ECX低word、四stage、三类跨模块队列、两倒计时；
 - `0x00453491..0x004534A3`：调试叠加精确门、结果判定前置流程及上下文提示typed直连；
@@ -198,7 +198,8 @@ C++到LST反向追溯覆盖完整412行、44个静态call站点和18个标签。
 - 选择延迟刷新、共享值重读、active/auxiliary发布与交互门；
 - UI dword只改低word且保留高16位；
 - 主frame stage后画面效果直连及其typed-stop前缀；
-- 前一stage后live数量/顺序改写、待执行动作提交直连、旧opaque槽清零及子typed-stop阻断效果与绘制；
+- 角色帧后双方完成数协调直连、post-call寄存器snapshot、组A/组B消息发布与旧第一opaque槽清零；
+- 完成数协调后live数量/顺序改写、待执行动作提交直连、旧第二opaque槽清零及子typed-stop阻断效果与绘制；
 - 固定帧直连、ECX高字/低word组合；
 - packed-row、头像、空对话与双倒计时直连；
 - 内部bit 17返回3及缺失bit表真实访问typed-stop；

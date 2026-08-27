@@ -409,8 +409,10 @@ I5最终必须锁定：
 
 `audit_order=100`的`0x0045EC60`已关闭为`platform_adapted`。完整权威LST主体`0x0045EC60..0x0045EC71`从proc到endp共13行、4条实际指令、0个call、0个跳转、0个局部标签且无外部chunk。两参数cdecl叶函数先把完整u32索引读入ECX，再只读取第二栈槽低16位覆盖AX，最后向`0x004FF2EA+index*2`写一个word并返回；EAX高16位与EDX保持入口值。LST数据目录证明索引0是相邻前缀word，唯一caller三个callsite只传1、1、2，索引1/2正好别名结果奖励整理的两项u16奖励ID；三word已收敛到唯一结果整理state，不建立平行数组。目标地址乘加按u32回绕，owner只覆盖索引0..2；其他索引只在唯一原store处停止，保留此前ECX、AX和地址计算且不修改owner。已关闭结果奖励整理直接消费索引1/2写入，发放后只清两项ID；全局重置保留前缀与奖励ID。唯一caller`0x00462740`尚未关闭，不提前回收其三个callsite。
 
+`audit_order=101`的`0x0045EC80`已关闭为`platform_adapted`。完整权威LST主体`0x0045EC80..0x0045EDEF`从proc到endp共174行、108条实际指令、2个call、16个跳转、7个局部标签且无外部chunk。入口当前角色只有完整全1才扫描；组A按unsigned动态数量读取每个对象偏移`0x2B00/0x2B04`双dword，任一精确1跳过，否则以mask4查询并只对完整EAX 1累加u8 ready，callee后重读数量。组A阈值精确保留数量低byte减phase byte2和排除低byte的u8回绕，再与removed+ready完整和作signed比较；暗化门为0才回绕累加removed并发布message103。回退组B先过独立完成门，按动态完整数量无条件查询每个对象；packed低byte+ready的完整和与组B完整数量作signed比较，暗化门为0才只替换packed低byte、置组B完成门、清terminal并发布message99。成功/失败路径保留LST指定ECX高24位、CL替换和EDX ready或最终callee值。两组数量、当前角色、最终角色计数/terminal、动作phase/packed、暗化门、启动门与message全部复用既有owner，只新增十组对象双跳过字段；第11次组A真实字段读取停止。逐帧caller删除第一followup opaque调用并直接组合，显式post-actor-frame ECX/EDX snapshot进入，正常尾EDX继续传给待执行动作；子typed-stop阻断后续全部阶段。
+
 `audit_order=14`的`0x00434790`已关闭为`platform_adapted`。它只在首次调用以显式time seed CRT、发布三项共享值并扫描源图，随后直接组合已关闭粒子生成、线段推进与单像素颜色合成；剩余批次回放保留镜像检查X、源索引和实际写入X错位，粒子2×2绘制保留只跳第一透明色、只检查右像素及合成模式右上先合成后被原值覆盖。生命刷新、距离与目标矩形摘除、唯一/首/尾/中间四类双向链释放及其计数不对称均已闭环。三个上层caller都显式消费返回1作为阶段完成信号，尚待各自进入现代实现。
 
-下一项回收`audit_order=101`的`0x0045EC80`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗函数。
+下一项回收`audit_order=102`的`0x0045EDF0`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

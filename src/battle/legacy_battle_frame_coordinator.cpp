@@ -270,16 +270,35 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             LegacyBattleFrameCoordinatorStatus::actor_frame_typed_stop;
         return result;
     }
-    reply = invoke(
-        port, result, LegacyBattleFrameCoordinatorCall::frame_followup_stage_1
+    result.frame_completion = update_legacy_battle_frame_completion(
+        {
+            .actors = port.actor_metric_state(),
+            .final_actor = context.final_actor_step,
+            .action = context.action_dispatch,
+            .outcome = port.outcome_resolution_state(),
+            .startup_reset = context.startup.reset,
+            .message_state = port.battle_message_state(),
+        },
+        port,
+        result.actor_frame_sequence.return_value,
+        request.post_actor_frame_ecx_snapshot,
+        request.post_actor_frame_edx_snapshot
     );
+    ++result.frame_completion_calls;
+    result.port_calls += result.frame_completion.mask_query_calls;
+    if (result.frame_completion.status !=
+        LegacyBattleFrameCompletionStatus::completed) {
+        result.status =
+            LegacyBattleFrameCoordinatorStatus::frame_completion_typed_stop;
+        return result;
+    }
     result.pending_actions = commit_legacy_battle_pending_actions(
         {
             .ready_actor_slots = context.startup.reset.block_524420,
             .global_mode = port.effect_coordinator_state().global_mode,
         },
         port,
-        reply.edx
+        result.frame_completion.return_edx
     );
     ++result.pending_action_calls;
     result.port_calls += result.pending_actions.port_calls;
