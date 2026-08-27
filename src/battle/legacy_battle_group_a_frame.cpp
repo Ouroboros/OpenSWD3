@@ -30,7 +30,6 @@ constexpr u32 kCallPublishQueuedActor = 0x00464CC0U;
 constexpr u32 kCallQueryQueueCompletion = 0x0047F920U;
 constexpr u32 kCallQueryActorIdle = 0x004786A0U;
 constexpr u32 kCallQueryActorAvailable = 0x0047C670U;
-constexpr u32 kCallStartActorFrame = 0x0045EE70U;
 constexpr u32 kCallQueryOneBasedTarget = 0x00478690U;
 constexpr u32 kCallClearControl = 0x0047C660U;
 constexpr u32 kCallClearPresentation = 0x0047CC50U;
@@ -201,6 +200,10 @@ void merge_nested_result(
     outer.attack_order_calls += nested.attack_order_calls;
     if (nested.attack_order_calls != 0U) {
         outer.attack_order = nested.attack_order;
+    }
+    outer.attack_order_insert_calls += nested.attack_order_insert_calls;
+    if (nested.attack_order_insert_calls != 0U) {
+        outer.attack_order_insert = nested.attack_order_insert;
     }
     if (nested.status != LegacyBattleActionDispatchStatus::completed) {
         outer.status = nested.status;
@@ -441,12 +444,24 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
         }
         actor.frame_started = 1U;
         state.final_actor_step.active_actor_code = group_a_index + 8U;
-        static_cast<void>(invoke(
-            port,
-            result,
-            kCallStartActorFrame,
-            {1U, group_a_index + 8U, 0xFFFFFFFFU}
-        ));
+        result.attack_order_insert = insert_legacy_battle_attack_order_entry(
+            LegacyBattleAttackOrderInsertBindings{
+                .records = context.attack_order_records,
+                .party_source_words = context.attack_order_party_sources,
+                .primary_gate = context.attack_order_primary_gate,
+                .secondary_gate = context.attack_order_secondary_gate,
+            },
+            1U,
+            group_a_index + 8U,
+            0xFFFFFFFFU
+        );
+        ++result.attack_order_insert_calls;
+        if (result.attack_order_insert.status !=
+            LegacyBattleAttackOrderInsertStatus::completed) {
+            result.status = LegacyBattleActionDispatchStatus::
+                attack_order_insert_typed_stop;
+            return result;
+        }
     }
 
     if (state.actor_enabled[group_a_index] == 1U) {

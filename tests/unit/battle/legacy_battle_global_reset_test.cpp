@@ -181,6 +181,8 @@ void seed_state(
     startup.reset.values_502940[0] = 404U;
     startup.reset.block_525470.fill(9U);
     startup.reset.block_5244e8.fill(9U);
+    startup.reset.value_53bf80 = 9U;
+    startup.reset.value_53bfd0 = 9U;
     startup.reset.records_524788[0] = {
         .value_00 = 9U,
         .value_04 = 9U,
@@ -641,6 +643,10 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 startup.reset.records_524788[0].value_10 == 0U &&
                 startup.reset.records_524788[0].value_14 == 0U &&
                 startup.reset.records_524788[0].value_18 == 0U &&
+                startup.reset.value_53bf80 == 0U &&
+                startup.reset.value_53bfd0 == 0U &&
+                state.unmapped_bytes.contains(0x0053BF80U) == false &&
+                state.unmapped_bytes.contains(0x0053BFD0U) == false &&
                 startup.enemies[0].role_id == 0U &&
                 startup.party[0].role_id == 0U && startup.enemy_count == 0U &&
                 startup.party_count == 0U,

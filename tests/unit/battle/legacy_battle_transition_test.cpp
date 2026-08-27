@@ -361,6 +361,9 @@ struct ActorFrameFixture {
               .countdown_flags = countdown_flags,
               .internal_flags = internal_flags,
               .attack_order_records = startup.reset.records_524788,
+              .attack_order_party_sources = startup.reset.block_520e90,
+              .attack_order_primary_gate = &startup.reset.value_53bf80,
+              .attack_order_secondary_gate = &startup.reset.value_53bfd0,
           },
           context{state, ports, dispatch} {}
 };

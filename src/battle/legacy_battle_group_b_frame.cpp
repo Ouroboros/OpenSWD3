@@ -212,6 +212,10 @@ void merge_nested(
     if (nested.attack_order_calls != 0U) {
         result.attack_order = nested.attack_order;
     }
+    result.attack_order_insert_calls += nested.attack_order_insert_calls;
+    if (nested.attack_order_insert_calls != 0U) {
+        result.attack_order_insert = nested.attack_order_insert;
+    }
     result.status_indicator = nested.status_indicator;
     result.scale_scan = nested.scale_scan;
     result.action_code = nested.action_code;

@@ -114,6 +114,9 @@ struct Fixture {
     std::array<u8, 16> flags{};
     std::array<openswd3::battle::LegacyBattleStartupResetRecord, 0x12>
         attack_order_records{};
+    std::array<u32, 0x32> attack_order_party_sources{};
+    u32 attack_order_primary_gate{};
+    u32 attack_order_secondary_gate{};
 
     Fixture() {
         static_cast<void>(
@@ -138,6 +141,9 @@ struct Fixture {
             .countdown_flags = countdown_flags,
             .internal_flags = flags,
             .attack_order_records = attack_order_records,
+            .attack_order_party_sources = attack_order_party_sources,
+            .attack_order_primary_gate = &attack_order_primary_gate,
+            .attack_order_secondary_gate = &attack_order_secondary_gate,
             .status_indicator_action_eax_snapshot = 0U,
         };
     }
@@ -266,8 +272,38 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.return_value == 1U && state.actors[2].frame_started == 1U &&
                 state.final_actor_step.active_actor_code == 0xFFFFFFFFU &&
-                has_call_argument(port, 0x0045EE70U, 1U, 10U),
-            "started actor is cleared by the directly composed final actor suffix"
+                result.attack_order_insert_calls == 1U &&
+                result.attack_order_insert.record_written &&
+                fixture.attack_order_records[0].value_00 == 10U &&
+                fixture.attack_order_records[0].value_08 == 1U &&
+                port.count(0x0045EE70U) == 0U,
+            "started actor is registered directly then cleared by the composed final actor suffix"
+        );
+    }
+
+    {
+        LegacyBattleGroupAFrameState state;
+        Fixture fixture;
+        DispatchPort port;
+        port.push(0x0047F920U, {.eax = 0U});
+        auto context = fixture.context();
+        context.attack_order_party_sources = {};
+
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_a_frame(
+                state, port, context, 2U
+            );
+
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        attack_order_insert_typed_stop &&
+                state.actors[2].frame_started == 1U &&
+                state.final_actor_step.active_actor_code == 10U &&
+                fixture.attack_order_records[0].value_00 == 10U &&
+                fixture.attack_order_records[0].value_08 == 1U &&
+                result.return_value == 0U,
+            "attack-order source stop preserves actor start and record prefix then blocks the final actor suffix"
         );
     }
 

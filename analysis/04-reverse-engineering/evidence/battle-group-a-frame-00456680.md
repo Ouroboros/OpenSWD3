@@ -62,7 +62,7 @@ AI协调只在全局enable等于1、两个pending门都为0时进入：
 - queued selection word非`0xFFFF`，且`group_b_count - processed低byte <= 1`；
 - message state为99，且独立actor-start guard word为0。
 
-随后写frame started、active actor code=`index+8`，调用启动callee参数`(1,index+8,全1)`。actor-start guard位于相邻共享地址，不能与turn-resolution word合并。
+随后写frame started、active actor code=`index+8`，直接组合已关闭攻击顺序插入：以类型1、值`index+8`和全1位置把队员暂存数据搬入共享18条记录首空槽，并清对应源与双尾门。旧启动callee token删除；子typed-stop保留frame started和active actor发布，阻断后续AI与最终角色尾。actor-start guard位于相邻共享地址，不能与turn-resolution word合并。
 
 ## 6. 角色AI执行阶段
 
@@ -169,7 +169,8 @@ bit`0x4000`阶段结束后会在同一次调用重读turn word，因此成功写
 46个唯一callee中：
 
 - `0x004539B0`已直接回收为typed动作主分派；
-- 其余45个角色、AI、选择、文本、sample和数值callee继续使用单一typed token端口。
+- `0x0045EE70`已直接回收为typed攻击顺序插入；
+- 其余44个角色、AI、选择、文本、sample和数值callee继续使用单一typed token端口。
 
 所有对象地址、one-based目标、固定前一槽、scene与文本地址均为`compat::u32` token，不转主机指针。
 
@@ -191,13 +192,13 @@ Typed-stop只位于：
 - effect mode组合门与固定最终尾；
 - AI terminal统计、one-based随机目标和两个完成标记；
 - 十槽queue首个未完成项与左移；
-- idle actor启动；
+- idle actor启动后的攻击顺序记录、队员暂存源和双尾门真实访问点；
 - completed actor组B扫描与首个live选择；
 - active action直接调用已关闭主分派，确认端口不再出现旧callee token并完成全cleanup；
 - action target `0xFFFF`首次组B对象typed-stop；
 - turn `0x4000→0x8000→0`同调用穿透；
 - resolved word54最大值、stale turn参数与失败尾；
 - queue code小于8的派生对象停点；
-- 46个唯一callee全部存在，其中1个typed直连、45个端口边界。
+- 46个唯一callee全部存在，其中2个typed直连、44个端口边界。
 
-当前缺少原版组A/B对象、46类callee共享副作用、AI/选择/队列表、text/sample、resolved target内存与回合状态联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版组A/B对象、44类剩余callee共享副作用、攻击顺序/队员暂存动态轨迹、AI/选择/队列表、text/sample、resolved target内存与回合状态联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

@@ -50,7 +50,7 @@
 - 战斗上下文提示复用共享message、动作消息门/辅助值/两项坐标、最终角色active/pre-frame gate B及启动镜像模式；message、消息门、active、gate B和镜像模式清零，辅助值、坐标、提示计数、静态资源选择和偏移动作持久状态保持入口值；
 - 战斗纵向位移的phase与节拍上限映射到唯一state port并清零；节拍计数不在原写集合中，保持入口值；
 - 撤退提交两完成门和选择token映射到唯一state port并清零；辅助latch不在原写集合中保持入口值；battle mode/调试重置门与调试快捷键共享，叠加门改由撤退、逐帧和reset共用的独立gate port；
-- `0x00524788`的18条记录扩展为精确`0x1C`布局，126 dword全部映射到唯一启动状态并清零，不再只同步五个已知字段；已关闭攻击顺序登记的三个caller直接写同一记录owner，最终角色十项顺序、frame gate、selection gate、排队角色及动作路径同址门也同步清零；
+- `0x00524788`的18条记录扩展为精确`0x1C`布局，126 dword全部映射到唯一启动状态并清零，不再只同步五个已知字段；已关闭攻击顺序登记的三个caller和攻击顺序插入的组A caller直接写同一记录owner，插入尾部两项共享门也映射到startup reset并按原物理写清零；最终角色十项顺序、frame gate、selection gate、排队角色及动作路径同址门同步清零；
 - 效果总协调器的18槽主记录、两组模式、计数器、反馈actor、参数数组和活动latch映射回唯一`LegacyBattleEffectCoordinatorState`；未写的扫描计时与反馈数组保持不变；
 - 八槽group B顺序表不在本函数写集合中，必须原样保留；
 - 战斗启动复用的显示surface、敌我启动记录、重置块、记录数组与镜像模式映射回唯一`LegacyBattleStartupState`；
@@ -74,6 +74,6 @@
 
 ## 6. 测试与动态差分
 
-定向测试覆盖显示surface零/非零槽、旋转缓存嵌套释放、渲染资源释放、条件分配token零与非零、九阶段call顺序、234项写序散列、3300次物理写、13106字节、标量宽度、重复写、尾部6 dword、little-endian字节像、mapped地址排除、未触及字节保留、metric及待执行动作latch、颜色值清零与初始化门保留、角色预处理标量与工作区分段别名、双对象转场primary清零及secondary/打包高word保留、调试快捷键、调试叠加、结果判定、奖励槽写入、结果整理、撤退提交、上下文提示与纵向位移共享状态、完整18条启动记录、最终角色/动作同址门、effect-shift与effect-coordinator typed别名同步、记录默认值差异、group B顺序表不清零及固定返回0。
+定向测试覆盖显示surface零/非零槽、旋转缓存嵌套释放、渲染资源释放、条件分配token零与非零、九阶段call顺序、234项写序散列、3300次物理写、13106字节、标量宽度、重复写、尾部6 dword、little-endian字节像、mapped地址排除、未触及字节保留、metric及待执行动作latch、颜色值清零与初始化门保留、角色预处理标量与工作区分段别名、双对象转场primary清零及secondary/打包高word保留、调试快捷键、调试叠加、结果判定、奖励槽写入、结果整理、撤退提交、上下文提示与纵向位移共享状态、完整18条启动记录、攻击顺序插入双尾门、最终角色/动作同址门、effect-shift与effect-coordinator typed别名同步、记录默认值差异、group B顺序表不清零及固定返回0。
 
 当前缺少原版全部全局内存、九类callee共享副作用、旧分配器、音频对象及寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
