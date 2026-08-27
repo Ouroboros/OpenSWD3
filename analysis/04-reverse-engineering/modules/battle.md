@@ -451,6 +451,8 @@ I5最终必须锁定：
 
 `audit_order=120`的`0x004624C0`已关闭为`platform_adapted`。完整权威LST主体`0x004624C0..0x0046250A`从proc到endp共47行、30条实际指令、1个静态call、3个跳转、3个局部/返回标签、2个返回点且无外部chunk。入口固定读取group-A count并清EAX；count为0时返回0且保持入口ECX。其他路径从final-actor十槽队列起点逐dword完整比较候选code，不跳过零，也不动态重读count；未命中返回0与一过尾队列token。count大于10不加现代上限，在第十一次真实读取typed-stop。首个匹配code按`code-8`保留乘移寄存器，角色调用前EAX为索引乘`0xBCD`，ECX为group-A对象token，EDX为入口count；物理索引越界在首次真实角色call前停止。角色查询完整EAX为0时归一返回1，任何非零bit pattern返回0，并保留callee ECX/EDX。三个caller属于尚待各自工作包关闭的正向/反向候选轮转，当前既有轮转opaque边界不提前拆分；关闭caller时必须直连本typed实现。
 
-下一项回收`audit_order=121`的`0x00462510`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗函数。
+`audit_order=121`的`0x00462510`已关闭为`platform_adapted`。完整权威LST主体`0x00462510..0x0046262D`从proc到endp共128行、70条实际指令、4个静态call、9个跳转、9个局部/返回标签、1个返回点且无外部chunk。入口读取message并无条件清pre-frame gate B；message 1/2/4/30四个条件分别重读共享message，样本回调可令同次调用连续执行多分支。message 1按signed界限把action kind前进4，再读取九byte物理权限域，权限0时回退4；越界只在真实byte读取停止。message 2把共享action category按u32加1并按signed `>=3`把存储回绕0，但保留加1后的EAX，同时重置list selection与panel scroll A。message 4按signed比较轮转四类装备，依次恢复equipment grid和scroll缓存；负signed索引在首次真实四槽读取停止。message 30把grid selection加5并按signed上界把存储夹到10，但样本调用保留夹值前EAX。四条路径均播放样本46并保留各自预调用寄存器。逐帧记录5旧右向槽保留reserved数值并零调用；对话为空且message为3时先完成菜单选择前进，再直连本实现，普通返回后才轮转角色动作，typed-stop阻断轮转。
+
+下一项回收`audit_order=122`的`0x00462630`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

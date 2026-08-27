@@ -23,7 +23,8 @@ inline constexpr compat::u32 kLegacyBattleInputWarningSample = 0x8CU;
 
 struct LegacyBattleInputDispatchState {
     compat::u32 menu_action{};
-    compat::u32 action_kind{};  // 0x004A7548
+    compat::u32 action_kind{};            // 0x004A7548
+    compat::u32 action_category_index{};  // 0x0053BD18
     compat::u32 selection_index{1U};
     compat::u32 input_gate{};  // 0x0053C024
     compat::u32 input_latch{};
@@ -94,7 +95,7 @@ enum class LegacyBattleInputDispatchCall : compat::u8 {
     reserved_actor_action_reverse_cycle_slot,
     reserved_actor_action_commit_direct_slot,
     commit_left,
-    commit_right,
+    reserved_menu_context_advance_slot,
     reserved_menu_input_finalize_slot,
     query_active_actor,
     query_retreat_actor,
@@ -202,6 +203,7 @@ enum class LegacyBattleInputDispatchStatus : compat::u8 {
     actor_action_commit_typed_stop,
     actor_action_cycle_typed_stop,
     actor_action_reverse_cycle_typed_stop,
+    menu_context_advance_typed_stop,
 };
 
 struct LegacyBattleInputDispatchResult {
@@ -225,6 +227,7 @@ struct LegacyBattleInputDispatchResult {
     compat::u32 actor_action_cycle_calls{};
     compat::u32 actor_action_reverse_cycle_calls{};
     compat::u32 actor_action_commit_calls{};
+    compat::u32 menu_context_advance_calls{};
     bool returned_early{};
 };
 

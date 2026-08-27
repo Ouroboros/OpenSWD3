@@ -716,10 +716,12 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleInputDispatchStatus::
                         completed &&
+                result.menu_context_advance_calls == 1U &&
                 result.actor_action_cycle_calls == 1U &&
                 fixture.port.count(
-                    LegacyBattleInputDispatchCall::commit_right
-                ) == 1U &&
+                    LegacyBattleInputDispatchCall::
+                        reserved_menu_context_advance_slot
+                ) == 0U &&
                 fixture.port.count(
                     LegacyBattleInputDispatchCall::
                         actor_action_resolve_available
@@ -733,7 +735,40 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
                         reserved_actor_action_cycle_slot
                 ) == 0U &&
                 fixture.final_actor.pre_frame_gate_b == 0U,
-            "record five commits the right input then directly cycles the queued actor action"
+            "record five advances the live menu context then directly cycles the queued actor action"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.message = 1U;
+        fixture.final_actor.queued_actor_code = 9U;
+        fixture.final_actor.pre_frame_gate_b = 9U;
+        fixture.input.records[5U].rapid_press_multiplicity = 1U;
+        fixture.input.records[5U].held_sample_count = 1U;
+        auto& state = fixture.port.battle_input_dispatch_state();
+        state.action_kind = 9U;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_input_dispatch(
+                fixture.bindings(), fixture.port, {}
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleInputDispatchStatus::
+                        menu_context_advance_typed_stop &&
+                result.menu_context_advance_calls == 1U &&
+                result.actor_action_cycle_calls == 0U &&
+                fixture.final_actor.pre_frame_gate_b == 0U &&
+                state.action_kind == 9U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        reserved_menu_context_advance_slot
+                ) == 0U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        actor_action_resolve_available
+                ) == 0U,
+            "record-five menu context typed-stop blocks the following actor action cycle"
         );
     }
 
