@@ -32,7 +32,7 @@ source-zero和阈值返回都保留caller进入时的EDX；唯一caller在call�
 - `+0x08`写secondary value；
 - `+0x90`先清0，global mode完整值等于1时再写1。
 
-record物理token为`0x00524980 + slot * 0x98`。初始化callee完整EAX为0时直接返回该EAX，不查询resource、不发布强度、不绘制；返回EDX保留初始化callee完整EDX。
+record物理token为`0x00524980 + slot * 0x98`。typed record现补齐为精确`0x98`物理布局：已知字段保持原offset，未命名间隔只作为物理存储。slot0前28字节同时是已关闭攻击顺序移除固定读取的一过尾七dword源；两函数直接共用本数组唯一owner，攻击顺序移除只读且不修改强度record。全局重置的对应物理清零块同步清全部八条record。初始化callee完整EAX为0时直接返回该EAX，不查询resource、不发布强度、不绘制；返回EDX保留初始化callee完整EDX。
 
 ## 4. lookup陈旧高word
 

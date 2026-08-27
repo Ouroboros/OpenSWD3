@@ -206,7 +206,8 @@ bit75未置且message gate bit0为1时，播放固定消息、再次清动作rec
 - 内部bit查询/清除；
 - deformation typed对象构造/析构；
 - framebuffer全1清屏；
-- phase-six与action-twenty-three两处玩家道具双数量步进。
+- phase-six与action-twenty-three两处玩家道具双数量步进；
+- 四处攻击顺序首匹配移除与完整记录左移。
 
 相邻双对象数值转场关闭后，两处调用均删除旧callee token并直接组合typed实现。动作累计值与效果协调器主反馈值收敛为唯一共享port；端口reply仍可在每个剩余callee后显式发布该物理值与两个selection word，caller随后按LST重读。其余尚未关闭的角色、AI、数值、消息、选择和呈现callee继续以单一窄端口表达，旧对象地址仅作为`compat::u32` token，不转换为主机指针。
 
@@ -219,7 +220,8 @@ bit75未置且message gate bit0为1时，播放固定消息、再次清动作rec
 - framebuffer尺寸过大：先发布frame refresh并写满owned前缀，再在首个越界像素停止；
 - 状态指示器、刻度扫描与内部bit：各closed helper真实故障点；
 - 玩家道具链：未知token在首次节点访问停止，零分配先发布零head再停止；
-- 攻击顺序记录：在case25已写目标status后，于首个实际记录读取处停止，阻断current actor清理与成功尾。
+- 攻击顺序登记：在case25已写目标status后，于首个实际记录读取处停止，阻断current actor清理与成功尾；
+- 攻击顺序移除：四处均在原call位置直连；相邻强度效果记录缺失时保留对象/延迟/计数前缀，阻断call后的目标、状态或成功发布。
 
 不对callee约定外普通返回值、百分比、action code或计数增加现代范围预验。
 
@@ -244,9 +246,10 @@ bit75未置且message gate bit0为1时，播放固定消息、再次清动作rec
 - 超尺寸清屏已写满前缀与refresh时机；
 - 27个有效普通case、10个有效特殊动作逐项smoke；
 - 9个稀疏switch槽和越界action只执行两个入口callee；
-- 95个原始唯一callee中84个端口边界全部存在，另外11个已关闭callee全部直连；
+- 95个原始唯一callee中83个端口边界全部存在，另外12个已关闭callee全部直连；
 - case 3撤退提交成功、固定警告分支和旧地址调用清零；
 - case 25攻击顺序登记直连、旧地址调用清零及记录typed-stop前缀；
+- case 7攻击顺序移除直连、一过尾源读取stop传播及旧地址调用清零；
 - battle聚合目标零warning，普通定向通过。
 
-当前没有原版18个角色对象、84类剩余callee共享副作用、攻击顺序动态记录、全部数值/AI表、消息文本、输入bit、DirectDraw framebuffer、deformation allocator与SEH联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前没有原版18个角色对象、83类剩余callee共享副作用、攻击顺序与相邻强度效果动态记录、全部数值/AI表、消息文本、输入bit、DirectDraw framebuffer、deformation allocator与SEH联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

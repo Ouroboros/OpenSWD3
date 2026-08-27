@@ -2,6 +2,7 @@
 
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_actor_ready.hpp"
+#include "openswd3/battle/legacy_battle_attack_order_remove.hpp"
 #include "openswd3/compat/types.hpp"
 
 #include <array>
@@ -19,7 +20,7 @@ inline constexpr compat::u32 kLegacyBattlePendingActionGroupBStride = 0x2B28U;
 enum class LegacyBattlePendingActionCall : compat::u8 {
     prepare_actor,
     commit_actor,
-    remove_actor_record,
+    reserved_remove_actor_record,
 };
 
 struct LegacyBattlePendingActionCallRequest {
@@ -57,6 +58,8 @@ public:
 
 struct LegacyBattlePendingActionBindings {
     std::span<compat::u32> ready_actor_slots;
+    std::span<LegacyBattleStartupResetRecord> attack_order_records;
+    LegacyBattleIntensityEffectRecord* attack_order_adjacent_record{};
     compat::u32 global_mode{};
 };
 
@@ -65,6 +68,7 @@ enum class LegacyBattlePendingActionStatus : compat::u8 {
     actor_order_typed_stop,
     ready_actor_slot_typed_stop,
     actor_publication_slot_typed_stop,
+    attack_order_remove_typed_stop,
 };
 
 struct LegacyBattlePendingActionResult {
@@ -85,6 +89,7 @@ struct LegacyBattlePendingActionResult {
     compat::u32 remove_calls{};
     compat::u32 port_calls{};
     LegacyBattleActorReadyResult last_ready{};
+    LegacyBattleAttackOrderRemoveResult attack_order_remove{};
 };
 
 [[nodiscard]] LegacyBattlePendingActionResult

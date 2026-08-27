@@ -183,6 +183,8 @@ void seed_state(
     startup.reset.block_5244e8.fill(9U);
     startup.reset.value_53bf80 = 9U;
     startup.reset.value_53bfd0 = 9U;
+    port.effect_coordinator_state().intensity_records[0].source_value = 9U;
+    port.effect_coordinator_state().intensity_records[0].lookup_key_b = 9U;
     startup.reset.records_524788[0] = {
         .value_00 = 9U,
         .value_04 = 9U,
@@ -645,6 +647,12 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 startup.reset.records_524788[0].value_18 == 0U &&
                 startup.reset.value_53bf80 == 0U &&
                 startup.reset.value_53bfd0 == 0U &&
+                port.effect_coordinator_state()
+                        .intensity_records[0]
+                        .source_value == 0U &&
+                port.effect_coordinator_state()
+                        .intensity_records[0]
+                        .lookup_key_b == 0U &&
                 state.unmapped_bytes.contains(0x0053BF80U) == false &&
                 state.unmapped_bytes.contains(0x0053BFD0U) == false &&
                 startup.enemies[0].role_id == 0U &&

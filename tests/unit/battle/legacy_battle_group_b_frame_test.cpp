@@ -117,6 +117,8 @@ struct Fixture {
     std::array<u32, 0x32> attack_order_party_sources{};
     u32 attack_order_primary_gate{};
     u32 attack_order_secondary_gate{};
+    openswd3::battle::LegacyBattleIntensityEffectRecord
+        attack_order_adjacent_record{};
 
     Fixture() {
         static_cast<void>(
@@ -144,6 +146,7 @@ struct Fixture {
             .attack_order_party_sources = attack_order_party_sources,
             .attack_order_primary_gate = &attack_order_primary_gate,
             .attack_order_secondary_gate = &attack_order_secondary_gate,
+            .attack_order_adjacent_record = &attack_order_adjacent_record,
             .status_indicator_action_eax_snapshot = 0U,
         };
     }

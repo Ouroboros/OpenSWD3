@@ -74,7 +74,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     pending_action_prepare_actor,
     pending_action_ready_query,
     pending_action_commit_actor,
-    pending_action_remove_actor_record,
+    reserved_pending_action_remove_actor_record,
     frame_completion_query_actor,
 };
 
@@ -142,9 +142,9 @@ public:
             call =
                 LegacyBattleFrameCoordinatorCall::pending_action_commit_actor;
             break;
-        case LegacyBattlePendingActionCall::remove_actor_record:
+        case LegacyBattlePendingActionCall::reserved_remove_actor_record:
             call = LegacyBattleFrameCoordinatorCall::
-                pending_action_remove_actor_record;
+                reserved_pending_action_remove_actor_record;
             break;
         }
         const auto reply = invoke({

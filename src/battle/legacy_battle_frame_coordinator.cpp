@@ -295,6 +295,9 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
     result.pending_actions = commit_legacy_battle_pending_actions(
         {
             .ready_actor_slots = context.startup.reset.block_524420,
+            .attack_order_records = context.startup.reset.records_524788,
+            .attack_order_adjacent_record =
+                &port.effect_coordinator_state().intensity_records[0],
             .global_mode = port.effect_coordinator_state().global_mode,
         },
         port,

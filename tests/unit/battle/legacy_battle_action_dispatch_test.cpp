@@ -206,6 +206,8 @@ struct Fixture {
     std::array<u32, 0x32> attack_order_party_sources{};
     u32 attack_order_primary_gate{};
     u32 attack_order_secondary_gate{};
+    openswd3::battle::LegacyBattleIntensityEffectRecord
+        attack_order_adjacent_record{};
 
     Fixture() {
         static_cast<void>(
@@ -233,6 +235,7 @@ struct Fixture {
             .attack_order_party_sources = attack_order_party_sources,
             .attack_order_primary_gate = &attack_order_primary_gate,
             .attack_order_secondary_gate = &attack_order_secondary_gate,
+            .attack_order_adjacent_record = &attack_order_adjacent_record,
             .status_indicator_action_eax_snapshot = 0U,
         };
     }
@@ -734,6 +737,63 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 state.current_actor_index == 0xFFFFU &&
                 port.count(0x00482F10U) == 0U,
             "null resolved target stops at first flags dereference after current actor clear"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        state.group_a_count = 1;
+        state.group_b_count = 1;
+        state.group_a_to_actor[0] = 0U;
+        Fixture fixture;
+        fixture.attack_order_records[0].value_00 = 0U;
+        DispatchPort port;
+        port.action = 7U;
+        port.push(0x00479850U, {.eax = 1U});
+        auto context = fixture.context();
+
+        const auto result = openswd3::battle::dispatch_legacy_battle_action(
+            state, port, context, 0U, 0U
+        );
+
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.attack_order_remove_calls == 1U &&
+                result.attack_order_remove.matched &&
+                fixture.attack_order_records[0].value_00 == 0xFFFFFFFFU &&
+                (state.packed_actor_counter & 0xFFU) == 1U &&
+                port.count(0x0045EFB0U) == 0U && result.return_value == 1U,
+            "action seven removes the opponent directly from the shared attack order before publishing completion"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        state.group_a_count = 1;
+        state.group_b_count = 1;
+        state.group_a_to_actor[0] = 0U;
+        Fixture fixture;
+        fixture.attack_order_records[17].value_00 = 0U;
+        DispatchPort port;
+        port.action = 7U;
+        port.push(0x00479850U, {.eax = 1U});
+        auto context = fixture.context();
+        context.attack_order_adjacent_record = nullptr;
+
+        const auto result = openswd3::battle::dispatch_legacy_battle_action(
+            state, port, context, 0U, 0U
+        );
+
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        attack_order_remove_typed_stop &&
+                result.attack_order_remove.status ==
+                    openswd3::battle::LegacyBattleAttackOrderRemoveStatus::
+                        adjacent_record_typed_stop &&
+                (state.packed_actor_counter & 0xFFU) == 0U &&
+                result.return_value == 0U,
+            "attack-order one-past stop preserves the ready and delay prefix then blocks action completion"
         );
     }
 

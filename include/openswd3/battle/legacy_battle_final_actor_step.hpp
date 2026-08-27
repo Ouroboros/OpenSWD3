@@ -43,6 +43,7 @@ advance_legacy_battle_final_actor_step(
     LegacyBattleFinalActorStepState& state,
     LegacyBattleActionDispatchState& action,
     LegacyBattleActionDispatchPort& port,
+    LegacyBattleAttackOrderRemoveBindings attack_order,
     compat::u32 actor_index,
     compat::u32 actor_group
 );

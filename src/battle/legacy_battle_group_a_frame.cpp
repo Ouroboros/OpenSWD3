@@ -205,6 +205,10 @@ void merge_nested_result(
     if (nested.attack_order_insert_calls != 0U) {
         outer.attack_order_insert = nested.attack_order_insert;
     }
+    outer.attack_order_remove_calls += nested.attack_order_remove_calls;
+    if (nested.attack_order_remove_calls != 0U) {
+        outer.attack_order_remove = nested.attack_order_remove;
+    }
     if (nested.status != LegacyBattleActionDispatchStatus::completed) {
         outer.status = nested.status;
     }
@@ -234,11 +238,20 @@ void merge_nested_result(
 [[nodiscard]] bool finalize_frame(
     LegacyBattleGroupAFrameState& state,
     LegacyBattleActionDispatchPort& port,
+    LegacyBattleActionDispatchContext& context,
     LegacyBattleActionDispatchResult& result,
     const u32 actor_index
 ) {
     const auto nested = advance_legacy_battle_final_actor_step(
-        state.final_actor_step, state.action, port, actor_index, 1U
+        state.final_actor_step,
+        state.action,
+        port,
+        {
+            .records = context.attack_order_records,
+            .adjacent_intensity_record = context.attack_order_adjacent_record,
+        },
+        actor_index,
+        1U
     );
     merge_nested_result(result, nested);
     if (nested.status != LegacyBattleActionDispatchStatus::completed) {
@@ -1266,7 +1279,9 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
         }
     }
 
-    static_cast<void>(finalize_frame(state, port, result, group_a_index));
+    static_cast<void>(
+        finalize_frame(state, port, context, result, group_a_index)
+    );
     return result;
 }
 

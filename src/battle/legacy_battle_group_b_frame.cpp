@@ -216,6 +216,10 @@ void merge_nested(
     if (nested.attack_order_insert_calls != 0U) {
         result.attack_order_insert = nested.attack_order_insert;
     }
+    result.attack_order_remove_calls += nested.attack_order_remove_calls;
+    if (nested.attack_order_remove_calls != 0U) {
+        result.attack_order_remove = nested.attack_order_remove;
+    }
     result.status_indicator = nested.status_indicator;
     result.scale_scan = nested.scale_scan;
     result.action_code = nested.action_code;
@@ -1212,7 +1216,15 @@ action_decision_done:
 
     const u32 mapped_actor = action.group_a_to_actor[group_b_index];
     const auto final = advance_legacy_battle_final_actor_step(
-        shared.final_actor_step, action, port, mapped_actor, 0U
+        shared.final_actor_step,
+        action,
+        port,
+        {
+            .records = context.attack_order_records,
+            .adjacent_intensity_record = context.attack_order_adjacent_record,
+        },
+        mapped_actor,
+        0U
     );
     merge_nested(result, final);
     if (final.status != LegacyBattleActionDispatchStatus::completed) {

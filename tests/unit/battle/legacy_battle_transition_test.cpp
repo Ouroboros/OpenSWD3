@@ -340,6 +340,8 @@ struct ActorFrameFixture {
     SilentIndicatorSound sound;
     EmptyCountdownFlags countdown_flags;
     std::array<u8, 64> internal_flags{};
+    openswd3::battle::LegacyBattleIntensityEffectRecord
+        attack_order_adjacent_record{};
     openswd3::battle::LegacyBattleActionDispatchContext dispatch;
     openswd3::battle::LegacyBattleActorFrameAdvanceContext context;
 
@@ -364,6 +366,7 @@ struct ActorFrameFixture {
               .attack_order_party_sources = startup.reset.block_520e90,
               .attack_order_primary_gate = &startup.reset.value_53bf80,
               .attack_order_secondary_gate = &startup.reset.value_53bfd0,
+              .attack_order_adjacent_record = &attack_order_adjacent_record,
           },
           context{state, ports, dispatch} {}
 };

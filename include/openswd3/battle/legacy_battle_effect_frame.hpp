@@ -50,14 +50,27 @@ public:
 
 struct LegacyBattleIntensityEffectRecord {
     compat::u32 source_value{};
+    compat::u32 value_04{};
     compat::u32 secondary_value{};
+    compat::u32 value_0c{};
     compat::u32 x_offset{};
     compat::u32 y_offset{};
     compat::u32 render_flags{};
+    std::array<compat::u8, 0x2E> unknown_1c{};
     compat::u16 lookup_key_a{};
     compat::u16 lookup_key_b{};
+    std::array<compat::u8, 0x42> unknown_4e{};
     compat::u32 mode_snapshot{};
+    compat::u32 value_94{};
 };
+
+static_assert(sizeof(LegacyBattleIntensityEffectRecord) == 0x98U);
+static_assert(
+    offsetof(LegacyBattleIntensityEffectRecord, lookup_key_a) == 0x4AU
+);
+static_assert(
+    offsetof(LegacyBattleIntensityEffectRecord, mode_snapshot) == 0x90U
+);
 
 struct LegacyBattleEffectRecord {
     compat::u32 source_value{};

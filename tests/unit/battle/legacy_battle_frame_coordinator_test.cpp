@@ -483,6 +483,8 @@ struct Fixture {
     openswd3::battle::LegacyBattleFinalActorStepState final_actor_step;
     openswd3::battle::LegacyBattleActionDispatchState action_dispatch;
     openswd3::battle::LegacyBattleStartupState startup;
+    openswd3::battle::LegacyBattleIntensityEffectRecord
+        attack_order_adjacent_record{};
     openswd3::input_time_rng::LegacyKeyboardSnapshot keyboard{};
     openswd3::world_map::LegacyWorldPlayerControlState player_control;
 
@@ -541,6 +543,7 @@ struct Fixture {
             .attack_order_party_sources = startup.reset.block_520e90,
             .attack_order_primary_gate = &startup.reset.value_53bf80,
             .attack_order_secondary_gate = &startup.reset.value_53bfd0,
+            .attack_order_adjacent_record = &attack_order_adjacent_record,
         };
     }
 
@@ -861,6 +864,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             .metric_word = 1U;
         port.completion_group_a_count_after_query = 11U;
         auto dispatch_context = fixture.action_context();
+        dispatch_context.attack_order_adjacent_record =
+            &port.effect_coordinator_state().intensity_records[0];
         openswd3::battle::LegacyBattleGroupBFrameState actor_frame_state;
         openswd3::battle::LegacyBattleActorFrameAdvanceContext actor_frames{
             actor_frame_state,

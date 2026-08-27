@@ -177,21 +177,25 @@ LegacyBattlePendingActionResult commit_legacy_battle_pending_actions(
             publication[publication_index] = publication_index;
             ++result.publication_writes;
 
-            static_cast<void>(invoke(
-                port,
-                result,
-                {
-                    .call = LegacyBattlePendingActionCall::remove_actor_record,
-                    .actor_code = publication_code,
-                    .actor_index = publication_index,
-                    .actor_group = group_a ? 1U : 0U,
-                    .arguments = {publication_index, 0U},
-                    .eax = publication_index,
-                    .ecx = commit.ecx,
-                    .edx = commit.edx,
-                }
-            ));
+            result.attack_order_remove =
+                remove_legacy_battle_attack_order_entry(
+                    {
+                        .records = bindings.attack_order_records,
+                        .adjacent_intensity_record =
+                            bindings.attack_order_adjacent_record,
+                    },
+                    publication_code
+                );
             ++result.remove_calls;
+            result.return_value = result.attack_order_remove.return_eax;
+            result.final_ecx = result.attack_order_remove.return_ecx;
+            result.final_edx = result.attack_order_remove.return_edx;
+            if (result.attack_order_remove.status !=
+                LegacyBattleAttackOrderRemoveStatus::completed) {
+                result.status = LegacyBattlePendingActionStatus::
+                    attack_order_remove_typed_stop;
+                return result;
+            }
         }
 
         ++result.scanned_slots;

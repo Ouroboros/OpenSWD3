@@ -122,6 +122,8 @@ struct Fixture {
     std::array<u32, 0x32> attack_order_party_sources{};
     u32 attack_order_primary_gate{};
     u32 attack_order_secondary_gate{};
+    openswd3::battle::LegacyBattleIntensityEffectRecord
+        attack_order_adjacent_record{};
 
     Fixture() {
         static_cast<void>(
@@ -149,6 +151,7 @@ struct Fixture {
             .attack_order_party_sources = attack_order_party_sources,
             .attack_order_primary_gate = &attack_order_primary_gate,
             .attack_order_secondary_gate = &attack_order_secondary_gate,
+            .attack_order_adjacent_record = &attack_order_adjacent_record,
             .status_indicator_action_eax_snapshot = 0U,
         };
     }
@@ -380,6 +383,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         state.active_effect_gate = 9U;
         state.packed_actor_counter = 0xAABBCCFFU;
         Fixture fixture;
+        fixture.attack_order_records[0].value_00 = 7U;
         DispatchPort port;
         port.action = 7U;
         auto context = fixture.context();
@@ -393,7 +397,10 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 state.active_target_code == 0U &&
                 state.active_effect_target == 0xFFFFFFFFU &&
                 state.active_effect_gate == 0U &&
-                has_call_argument(port, 0x0045EFB0U, 0U, 7U),
+                result.attack_order_remove_calls == 1U &&
+                result.attack_order_remove.matched &&
+                fixture.attack_order_records[0].value_00 == 0xFFFFFFFFU &&
+                port.count(0x0045EFB0U) == 0U,
             "opponent action seven wraps packed low byte and clears matching active targets"
         );
     }

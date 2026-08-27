@@ -13,9 +13,9 @@
 - 两处`0x0047CF20`按角色对象执行待执行动作前置呈现；
 - 两处已关闭`0x0045A980`查询角色ready；
 - 两处`0x0047E5C0`提交角色对象的待执行动作；
-- 一处`0x0045EFB0`从18条动作记录中移除已提交角色；该记录区现由已关闭`0x0045EDF0`攻击顺序登记直接写入并与战斗启动/全局重置共享唯一owner。
+- 一处已关闭攻击顺序移除从18条动作记录中移除已提交角色；记录区由攻击顺序登记/插入直接写入并与战斗启动/全局重置共享唯一owner，左移尾源直接复用物理相邻强度效果记录0。
 
-角色ready已直接组合；另外三类callee仍属后续工作包，保留传递对象token、actor code/index/group及完整EAX/ECX/EDX的语义窄端口。
+角色ready与攻击顺序移除均已直接组合；另外两类callee仍属后续工作包，保留传递对象token、actor code/index/group及完整EAX/ECX/EDX的语义窄端口。
 
 ## 2. 入口数量与固定顺序指针
 
@@ -50,9 +50,9 @@ ready精确为1时，先再次读取live顺序，再把唯一动作激活latch�
 提交callee返回不等于1时直接进入下一顺序槽，不发布角色也不移除记录。精确返回1时，再次读取live顺序并按本轮初始分组归一索引：
 
 1. 把唯一18槽actor publication对应项写为该归一索引；
-2. 以同一归一索引调用待关闭记录移除callee。
+2. 以本轮实时角色编码直接组合攻击顺序首匹配移除；旧窄端口枚举只保留reserved数值槽，不再调用。
 
-publication越界只在原store停止，保留提交callee副作用。记录移除返回的完整EAX/ECX/EDX成为本轮及函数正常尾返回；若最后一轮未提交，则尾返回来自最后一个提交callee。
+publication越界只在原store停止，保留提交callee副作用。记录移除返回的完整EAX/ECX/EDX成为本轮及函数正常尾返回；相邻效果记录typed-stop也覆盖为其真实停点寄存器，并保留publication。若最后一轮未提交，则尾返回来自最后一个提交callee。
 
 ## 5. 单一typed owner与caller回收
 
@@ -64,6 +64,6 @@ ready标记复用唯一战斗启动reset块；actor publication复用效果与�
 
 ## 6. 验证与动态差分
 
-定向测试覆盖signed零/负/回绕总数、两组对象token、首/次callee陈旧寄存器、ready与提交精确1门、ready成功/失败EDX差异、每个callee之间live顺序改写、共享ready/activation/publication owner、记录移除参数、ready与publication原store停点、第19次顺序读取，以及逐帧caller直连和typed-stop传播。
+定向测试覆盖signed零/负/回绕总数、两组对象token、首/次callee陈旧寄存器、ready与提交精确1门、ready成功/失败EDX差异、每个callee之间live顺序改写、共享ready/activation/publication owner、攻击顺序移除直连、移除返回寄存器、相邻效果记录stop、ready与publication原store停点、第19次顺序读取，以及逐帧caller直连和typed-stop传播。
 
-当前缺少原版两组角色对象、三类剩余callee、18槽顺序/ready/publication/动作记录、动态callee改写及寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版两组角色对象、两类剩余callee、18槽顺序/ready/publication/攻击顺序、物理相邻强度效果记录、动态callee改写及寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

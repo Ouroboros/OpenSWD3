@@ -2,6 +2,7 @@
 #include "test.hpp"
 
 #include <algorithm>
+#include <array>
 #include <deque>
 #include <unordered_map>
 #include <vector>
@@ -49,10 +50,22 @@ public:
         );
     }
 
+    [[nodiscard]] openswd3::battle::LegacyBattleAttackOrderRemoveBindings
+    attack_order() {
+        return {
+            .records = attack_order_records,
+            .adjacent_intensity_record = &attack_order_adjacent_record,
+        };
+    }
+
     LegacyBattleFinalActorStepState* state_to_mutate{};
     u32 configured_actor_code{};
     std::unordered_map<u32, std::deque<LegacyBattleActionCallReply>> replies;
     std::vector<LegacyBattleActionCallRequest> calls;
+    std::array<openswd3::battle::LegacyBattleStartupResetRecord, 18>
+        attack_order_records{};
+    openswd3::battle::LegacyBattleIntensityEffectRecord
+        attack_order_adjacent_record{};
 };
 
 }  // namespace
@@ -67,7 +80,7 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
         LegacyBattleActionDispatchState action;
         FinalStepPort port;
         const auto result = advance_legacy_battle_final_actor_step(
-            state, action, port, 99U, 1U
+            state, action, port, port.attack_order(), 99U, 1U
         );
         test.expect_true(
             result.return_value == 0U && result.port_calls == 1U &&
@@ -91,8 +104,10 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
         FinalStepPort port;
         port.push(0x00479850U, {.eax = 1U});
         port.push(0x0047F340U, {.eax = 1U});
-        const auto result =
-            advance_legacy_battle_final_actor_step(state, action, port, 1U, 1U);
+        port.attack_order_records[0].value_00 = 9U;
+        const auto result = advance_legacy_battle_final_actor_step(
+            state, action, port, port.attack_order(), 1U, 1U
+        );
         test.expect_true(
             result.return_value == 1U && action.group_a_count == 1 &&
                 ((action.packed_actor_counter >> 8U) & 0xFFU) == 1U &&
@@ -107,6 +122,9 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                 result.group_a_iterations == 1U &&
                 result.group_b_iterations == 1U &&
                 port.count(0x0045B0E0U) == 0U &&
+                port.count(0x0045EFB0U) == 0U &&
+                result.attack_order_remove.matched &&
+                port.attack_order_records[0].value_00 == 0xFFFFFFFFU &&
                 port.count(0x004783B0U) == 2U && port.count(0x0047C660U) == 2U,
             "group A completion clears the counted workspace and runs common actor cleanup"
         );
@@ -120,8 +138,9 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
         action.opponent_workspace.fill(0xFFFFFFFFU);
         FinalStepPort port;
         port.push(0x00479850U, {.eax = 1U});
-        const auto result =
-            advance_legacy_battle_final_actor_step(state, action, port, 0U, 1U);
+        const auto result = advance_legacy_battle_final_actor_step(
+            state, action, port, port.attack_order(), 0U, 1U
+        );
         test.expect_true(
             result.return_value == 1U && state.removed_group_a_count == 1U &&
                 state.frame_gate_a == 1U && state.frame_gate_b == 1U &&
@@ -138,13 +157,43 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
     {
         LegacyBattleFinalActorStepState state;
         LegacyBattleActionDispatchState action;
+        state.group_a_slot_values[0] = 9U;
+        FinalStepPort port;
+        port.push(0x00479850U, {.eax = 1U});
+        port.attack_order_records[17].value_00 = 8U;
+        auto attack_order = port.attack_order();
+        attack_order.adjacent_intensity_record = nullptr;
+
+        const auto result = advance_legacy_battle_final_actor_step(
+            state, action, port, attack_order, 0U, 1U
+        );
+
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        attack_order_remove_typed_stop &&
+                state.removed_group_a_count == 1U &&
+                state.group_a_slot_values[0] == 9U &&
+                port.count(0x004750C0U) == 1U &&
+                port.count(0x0045EFB0U) == 0U &&
+                result.attack_order_remove.status ==
+                    openswd3::battle::LegacyBattleAttackOrderRemoveStatus::
+                        adjacent_record_typed_stop,
+            "final actor removal stop preserves validation and actor cleanup prefix then blocks slot clearing"
+        );
+    }
+
+    {
+        LegacyBattleFinalActorStepState state;
+        LegacyBattleActionDispatchState action;
         state.group_a_completion_flags[0] = 1U;
         action.group_a_count = 20;
         action.phase_counter = 0x00010000U;
         FinalStepPort port;
         port.push(0x00479850U, {.eax = 1U});
-        const auto result =
-            advance_legacy_battle_final_actor_step(state, action, port, 0U, 1U);
+        const auto result = advance_legacy_battle_final_actor_step(
+            state, action, port, port.attack_order(), 0U, 1U
+        );
         test.expect_true(
             result.status ==
                     LegacyBattleActionDispatchStatus::
@@ -165,8 +214,9 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
         port.configured_actor_code = 7U;
         port.push(0x00479850U, {.eax = 1U});
         port.push(0x0047F340U, {.eax = 1U});
-        const auto result =
-            advance_legacy_battle_final_actor_step(state, action, port, 0U, 1U);
+        const auto result = advance_legacy_battle_final_actor_step(
+            state, action, port, port.attack_order(), 0U, 1U
+        );
         test.expect_true(
             result.status ==
                     LegacyBattleActionDispatchStatus::
@@ -182,7 +232,7 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
         LegacyBattleActionDispatchState action;
         FinalStepPort port;
         const auto result = advance_legacy_battle_final_actor_step(
-            state, action, port, 0xFFFFFFFFU, 0U
+            state, action, port, port.attack_order(), 0xFFFFFFFFU, 0U
         );
         test.expect_true(
             result.return_value == 0U && result.port_calls == 0U,
@@ -203,8 +253,9 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
         port.push(0x00480AD0U, {.eax = 0x12345678U, .object_flags = 0x20U});
         port.push(0x0047F910U, {.eax = 0x55U});
         port.push(0x0047CE80U, {.eax = 0U});
+        port.attack_order_records[0].value_00 = 2U;
         const auto result = advance_legacy_battle_final_actor_step(
-            state, action, port, 2U, 0xFFFFFFFFU
+            state, action, port, port.attack_order(), 2U, 0xFFFFFFFFU
         );
         test.expect_true(
             result.return_value == 1U && state.coordinate_x == 3U &&
@@ -214,6 +265,9 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                 (action.packed_actor_counter & 0xFFU) == 0U &&
                 state.group_b_reset_word == 0U &&
                 port.count(0x0045B0E0U) == 0U &&
+                port.count(0x0045EFB0U) == 0U &&
+                result.attack_order_remove.matched &&
+                port.attack_order_records[0].value_00 == 0xFFFFFFFFU &&
                 port.count(0x004783B0U) == 1U &&
                 port.calls[4].arguments[0] == 0x004B9F00U &&
                 port.calls[4].arguments[1] == 0x55U,
@@ -229,8 +283,9 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
         port.push(0x00479850U, {.eax = 1U});
         port.push(0x00475870U, {.outputs = {2U, 0U}});
         port.push(0x00480AD0U, {.eax = 0U});
-        const auto result =
-            advance_legacy_battle_final_actor_step(state, action, port, 0U, 0U);
+        const auto result = advance_legacy_battle_final_actor_step(
+            state, action, port, port.attack_order(), 0U, 0U
+        );
         test.expect_true(
             result.status ==
                     LegacyBattleActionDispatchStatus::

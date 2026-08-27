@@ -6,6 +6,7 @@ add_library(
         legacy_battle_action_rotation_cache.cpp
         legacy_battle_attack_order_entry.cpp
         legacy_battle_attack_order_insert.cpp
+        legacy_battle_attack_order_remove.cpp
         legacy_battle_retreat_commit.cpp
         legacy_battle_actor_frame_sequence.cpp
         legacy_battle_animation_collision.cpp

@@ -421,6 +421,7 @@ void synchronize_typed_aliases(
     shift.completion_latch = 0U;
 
     coordinator.primary.fill({});
+    coordinator.intensity_records.fill({});
     coordinator.required_completion_count = 0U;
     coordinator.group_a_global_gate = 0U;
     coordinator.group_a_effect_mode = 0U;

@@ -49,7 +49,6 @@ constexpr u32 kCallCheckTargetPhase = 0x00472730U;
 constexpr u32 kCallStartTargetPhase = 0x004710D0U;
 constexpr u32 kCallCheckActorPhase = 0x00471270U;
 constexpr u32 kCallCommitTargetPhase = 0x00477710U;
-constexpr u32 kCallUpdateTarget = 0x0045EFB0U;
 constexpr u32 kCallActionFourReady = 0x004745B0U;
 constexpr u32 kCallActionThirteenReady = 0x004717F0U;
 constexpr u32 kCallCommitMessageRecord = 0x0047DBD0U;
@@ -147,6 +146,28 @@ void replace_high_word(u32& destination, const u16 value) noexcept {
         state.opponent_spawn_count = reply.opponent_spawn_count;
     }
     return reply;
+}
+
+[[nodiscard]] bool remove_attack_order_entry(
+    LegacyBattleActionDispatchContext& context,
+    LegacyBattleActionDispatchResult& result,
+    const u32 value
+) {
+    result.attack_order_remove = remove_legacy_battle_attack_order_entry(
+        {
+            .records = context.attack_order_records,
+            .adjacent_intensity_record = context.attack_order_adjacent_record,
+        },
+        value
+    );
+    ++result.attack_order_remove_calls;
+    if (result.attack_order_remove.status !=
+        LegacyBattleAttackOrderRemoveStatus::completed) {
+        result.status =
+            LegacyBattleActionDispatchStatus::attack_order_remove_typed_stop;
+        return false;
+    }
+    return true;
 }
 
 [[nodiscard]] bool publish_player_item_quantity(
@@ -1120,9 +1141,9 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
             state.packed_actor_counter =
                 (state.packed_actor_counter & 0xFFFFFF00U) |
                 static_cast<compat::u8>(state.packed_actor_counter + 1U);
-            static_cast<void>(
-                invoke(state, port, result, kCallUpdateTarget, {group_b_index})
-            );
+            if (!remove_attack_order_entry(context, result, group_b_index)) {
+                return result;
+            }
             state.selected_target_index = static_cast<u16>(group_b_index);
             replace_low_word(state.phase_counter, 0x1EU);
             const u16 status = state.group_b_status_words[group_b_index];
@@ -1146,9 +1167,9 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
             return result;
         }
         static_cast<void>(invoke(state, port, result, kCallSetDelay, {0U}));
-        static_cast<void>(
-            invoke(state, port, result, kCallUpdateTarget, {group_b_index})
-        );
+        if (!remove_attack_order_entry(context, result, group_b_index)) {
+            return result;
+        }
         if (group_b_index < 4U) {
             state.packed_actor_counter =
                 (state.packed_actor_counter & 0xFFFFFF00U) |
@@ -1336,13 +1357,11 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
         if (reply.eax != 1U) {
             return result;
         }
-        static_cast<void>(invoke(
-            state,
-            port,
-            result,
-            kCallUpdateTarget,
-            {static_cast<u32>(summon_index + 8U)}
-        ));
+        if (!remove_attack_order_entry(
+                context, result, static_cast<u32>(summon_index + 8U)
+            )) {
+            return result;
+        }
         state.battle_flags &= 0xFFFFFFFBU;
         state.summon_runtime[summon_index] = 0U;
         replace_low_word(state.summon_packed, 0U);
@@ -1721,9 +1740,11 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                     kCallPrepareTarget,
                     {group_b_token(group_b_index)}
                 ));
-                static_cast<void>(invoke(
-                    state, port, result, kCallUpdateTarget, {group_b_index}
-                ));
+                if (!remove_attack_order_entry(
+                        context, result, group_b_index
+                    )) {
+                    return result;
+                }
                 state.current_actor_index = 0xFFFFU;
             } else {
                 static_cast<void>(invoke(

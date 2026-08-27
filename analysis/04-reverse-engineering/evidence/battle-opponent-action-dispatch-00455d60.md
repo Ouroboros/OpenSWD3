@@ -164,7 +164,7 @@ special action非零时继续查询固定组B base。返回0且`group-B count - 
 - deformation typed构造与析构；
 - framebuffer前缀清屏。
 
-双对象数值转场caller已删除旧token并直接组合typed实现；动作累计值与玩家动作和效果协调器共用唯一共享port。其余34个唯一角色、AI、记录、模式与stage callee保持单一typed token端口。端口中的物理地址、scratch token与记录token均为`compat::u32`，不转主机指针。端口reply只在callee实际可写的共享槽发布累计值、selection word、special action与spawn count。
+双对象数值转场caller已删除旧token并直接组合typed实现；两处攻击顺序移除也在组A编码或组B阶段编码发布点直接组合，旧token删除。动作累计值与玩家动作和效果协调器共用唯一共享port。其余33个唯一角色、AI、记录、模式与stage callee保持单一typed token端口。端口中的物理地址、scratch token与记录token均为`compat::u32`，不转主机指针。端口reply只在callee实际可写的共享槽发布累计值、selection word、special action与spawn count。
 
 ## 11. typed故障点
 
@@ -172,7 +172,8 @@ special action非零时继续查询固定组B base。返回0且`group-B count - 
 - 按case解释的组A/组B target：首次目标对象callee；
 - case 1映射：视觉commit成功后的首次映射元素写；
 - case 15新对手：每次wave的首次组B对象reset；
-- framebuffer：先发布refresh并写满owned前缀，再在首个越界像素停止。
+- framebuffer：先发布refresh并写满owned前缀，再在首个越界像素停止；
+- 攻击顺序移除：相邻强度效果记录缺失时保留目标对象更新前缀，阻断phase、计数和active target清理。
 
 不对动作号、spawn count、phase、processed byte、group-B count或callee返回增加现代合理化。
 
@@ -186,13 +187,13 @@ special action非零时继续查询固定组B base。返回0且`group-B count - 
 - case 1双side的不同pair、返回值、selection清理和延迟；
 - case 2 deformation分配、构造、析构与owner释放；
 - case 6完整初始化/完成；
-- case 7低byte回绕与两个active target清理；
+- case 7攻击顺序移除直连、旧地址调用清零、低byte回绕与两个active target清理；
 - case 15双wave镜像、220/350坐标、callee EAX高word、三个stage、完成位形；
 - case 15第9项在8条完整副作用后typed-stop；
 - case 17 workspace零后18个间隔全1头与special collapse；
 - 9个有效case逐项smoke；
 - 动作0与8个稀疏槽只执行入口callee；
 - framebuffer越界前refresh与完整owned前缀；
-- 37个唯一原callee中35个端口边界全部存在，另2个deformation callee直接复用。
+- 37个唯一原callee中33个端口边界全部存在，另4个已关闭callee直接复用。
 
-当前缺少原版组A/B对象、36类剩余callee共享副作用、wave scratch与记录、AI表、DirectDraw framebuffer、allocator和SEH联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版组A/B对象、33类剩余callee共享副作用、攻击顺序与相邻强度效果记录、wave scratch与记录、AI表、DirectDraw framebuffer、allocator和SEH联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

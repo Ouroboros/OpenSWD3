@@ -38,7 +38,7 @@ group B = 0x00525508 + index * 0x2B28
 函数随后按原顺序：
 
 - 调用角色清理callee；
-- 发布`index + 8`角色code；
+- 以`index + 8`角色code直接组合攻击顺序首匹配移除；
 - 清对应十槽值；
 - 当前角色code命中时，先扫描完整组A，再扫描完整组B，对每个对象调用重置callee，最后发布七项共享门；
 - selected code命中时发布全1并清选择门；
@@ -67,10 +67,12 @@ removed byte以zero-extended dword与remaining做unsigned比较。达到或超�
 1. 坐标callee返回两个低word，分别以u16回绕累加；
 2. 描述符callee返回物理token，随后首次读取其偏移32的flag；零token在该实际访问点typed-stop，坐标副作用已保留；
 3. flag bit5置位时延迟加20，否则加3，均在u16域；
-4. 查询动作、以固定owner发布动作、发布actor index；
+4. 查询动作、以固定owner发布动作，再以actor index直接组合攻击顺序首匹配移除；
 5. signed index位于`0..group_b_count`闭区间时，打包计数低byte加1；
 6. `low_byte - third_byte`按低32位后做signed比较，达到group B数量时发布终止共享门；
 7. reset word非零时查询固定组B首对象；返回0且`group_b_count - low_byte == 1`时，把数量置1、低byte和reset word清零，再调用三个刷新callee。
+
+两组攻击顺序移除都复用启动期18条记录与物理相邻强度效果记录唯一owner。子typed-stop保留角色清理或动作发布前缀，并阻断组A槽清零或组B计数与终止门。旧opaque发布token完全删除。
 
 有效组B对象所有非typed-stop路径返回1。
 
@@ -90,6 +92,6 @@ removed byte以zero-extended dword与remaining做unsigned比较。达到或超�
 
 ## 9. 测试与动态差分
 
-定向测试覆盖：初始有效性失败、组A完成阈值和32字节逆向清零、三刷新、双组重置、角色顺序左移、removed unsigned终止、工作区typed-stop、配置后记录typed-stop、组B全1早退、坐标回绕、描述符bit5、动作发布、闭区间低byte递增、signed完成比较、组B重置、零描述符停点，以及组A/组B caller直连和组B父级typed-stop传播。
+定向测试覆盖：初始有效性失败、组A完成阈值和32字节逆向清零、三刷新、双组重置、攻击顺序移除与旧token清零、相邻效果记录stop前缀、角色顺序左移、removed unsigned终止、工作区typed-stop、配置后记录typed-stop、组B全1早退、坐标回绕、描述符bit5、动作发布、闭区间低byte递增、signed完成比较、组B重置、零描述符停点，以及组A/组B caller直连和组B父级typed-stop传播。
 
-当前缺少原版两组角色对象、14类callee共享副作用、角色工作区、描述符对象和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版两组角色对象、13类剩余callee共享副作用、攻击顺序与相邻强度效果记录、角色工作区、描述符对象和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

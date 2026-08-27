@@ -6,6 +6,7 @@
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_attack_order_entry.hpp"
 #include "openswd3/battle/legacy_battle_attack_order_insert.hpp"
+#include "openswd3/battle/legacy_battle_attack_order_remove.hpp"
 #include "openswd3/battle/legacy_battle_frame_effect.hpp"
 #include "openswd3/battle/legacy_battle_pair_transition.hpp"
 #include "openswd3/battle/legacy_battle_frame_refresh.hpp"
@@ -202,6 +203,7 @@ struct LegacyBattleActionDispatchContext {
     std::span<compat::u32> attack_order_party_sources;
     compat::u32* attack_order_primary_gate{};
     compat::u32* attack_order_secondary_gate{};
+    LegacyBattleIntensityEffectRecord* attack_order_adjacent_record{};
     compat::u32 status_indicator_action_eax_snapshot{};
 };
 
@@ -228,6 +230,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     player_item_typed_stop,
     attack_order_typed_stop,
     attack_order_insert_typed_stop,
+    attack_order_remove_typed_stop,
 };
 
 struct LegacyBattleActionDispatchResult {
@@ -256,6 +259,8 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 attack_order_calls{};
     LegacyBattleAttackOrderInsertResult attack_order_insert{};
     compat::u32 attack_order_insert_calls{};
+    LegacyBattleAttackOrderRemoveResult attack_order_remove{};
+    compat::u32 attack_order_remove_calls{};
 };
 
 // sub_4539B0: dispatch one action code for the selected group-A actor and

@@ -24,7 +24,6 @@ constexpr u32 kCallPrepareTargetPhase = 0x00484020U;
 constexpr u32 kCallFinishTargetPhase = 0x004841B0U;
 constexpr u32 kCallSetTargetMode = 0x004787F0U;
 constexpr u32 kCallClearMode = 0x0047D870U;
-constexpr u32 kCallPublishStage = 0x0045EFB0U;
 constexpr u32 kCallTargetComplete = 0x00479850U;
 constexpr u32 kCallActionTen = 0x0047F3C0U;
 constexpr u32 kCallQueryModeB = 0x0047C950U;
@@ -126,6 +125,28 @@ constexpr void replace_low_byte(u32& target, const u8 value) noexcept {
         state.opponent_spawn_count = reply.opponent_spawn_count;
     }
     return reply;
+}
+
+[[nodiscard]] bool remove_attack_order_entry(
+    LegacyBattleActionDispatchContext& context,
+    LegacyBattleActionDispatchResult& result,
+    const u32 value
+) {
+    result.attack_order_remove = remove_legacy_battle_attack_order_entry(
+        {
+            .records = context.attack_order_records,
+            .adjacent_intensity_record = context.attack_order_adjacent_record,
+        },
+        value
+    );
+    ++result.attack_order_remove_calls;
+    if (result.attack_order_remove.status !=
+        LegacyBattleAttackOrderRemoveStatus::completed) {
+        result.status =
+            LegacyBattleActionDispatchStatus::attack_order_remove_typed_stop;
+        return false;
+    }
+    return true;
 }
 
 [[nodiscard]] bool clear_framebuffer(
@@ -442,9 +463,11 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
             static_cast<void>(
                 invoke(state, port, result, kCallClearMode, {target_token, 1U})
             );
-            static_cast<void>(invoke(
-                state, port, result, kCallPublishStage, {target_index + 8U}
-            ));
+            if (!remove_attack_order_entry(
+                    context, result, target_index + 8U
+                )) {
+                return result;
+            }
             state.frame_effect.red_factor = -12;
             state.frame_effect.green_factor = -12;
             state.frame_effect.blue_factor = -12;
@@ -490,9 +513,9 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
             invoke(state, port, result, kCallSetDelay, {target_token, 0U})
         );
         const u32 stage = target_index + 4U;
-        static_cast<void>(
-            invoke(state, port, result, kCallPublishStage, {stage})
-        );
+        if (!remove_attack_order_entry(context, result, stage)) {
+            return result;
+        }
         if (target_index <= 3U) {
             replace_low_byte(
                 state.packed_actor_counter,

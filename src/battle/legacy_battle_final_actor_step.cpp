@@ -12,7 +12,6 @@ using compat::u8;
 
 constexpr u32 kCallValidateActor = 0x00479850U;
 constexpr u32 kCallRemoveActor = 0x004750C0U;
-constexpr u32 kCallPublishActorCode = 0x0045EFB0U;
 constexpr u32 kCallResetActor = 0x0047C660U;
 constexpr u32 kCallQueryContinuation = 0x0047F340U;
 constexpr u32 kCallConfigureActor = 0x00478330U;
@@ -133,10 +132,28 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
     return true;
 }
 
+[[nodiscard]] bool remove_attack_order_entry(
+    const LegacyBattleAttackOrderRemoveBindings attack_order,
+    LegacyBattleActionDispatchResult& result,
+    const u32 value
+) {
+    result.attack_order_remove =
+        remove_legacy_battle_attack_order_entry(attack_order, value);
+    ++result.attack_order_remove_calls;
+    if (result.attack_order_remove.status !=
+        LegacyBattleAttackOrderRemoveStatus::completed) {
+        result.status =
+            LegacyBattleActionDispatchStatus::attack_order_remove_typed_stop;
+        return false;
+    }
+    return true;
+}
+
 [[nodiscard]] LegacyBattleActionDispatchResult advance_group_a(
     LegacyBattleFinalActorStepState& state,
     LegacyBattleActionDispatchState& action,
     LegacyBattleActionDispatchPort& port,
+    const LegacyBattleAttackOrderRemoveBindings attack_order,
     const u32 actor_index
 ) {
     LegacyBattleActionDispatchResult result;
@@ -181,9 +198,9 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
 
     static_cast<void>(invoke(port, result, kCallRemoveActor, {actor_token}));
     const u32 actor_code = actor_index + 8U;
-    static_cast<void>(
-        invoke(port, result, kCallPublishActorCode, {actor_code})
-    );
+    if (!remove_attack_order_entry(attack_order, result, actor_code)) {
+        return result;
+    }
     state.group_a_slot_values[actor_index] = 0U;
 
     if (state.queued_actor_code == actor_code) {
@@ -284,6 +301,7 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
     LegacyBattleFinalActorStepState& state,
     LegacyBattleActionDispatchState& action,
     LegacyBattleActionDispatchPort& port,
+    const LegacyBattleAttackOrderRemoveBindings attack_order,
     const u32 actor_index
 ) {
     LegacyBattleActionDispatchResult result;
@@ -324,9 +342,9 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
         kCallPublishAction,
         {kPublishActionOwnerToken, action_reply.eax}
     ));
-    static_cast<void>(
-        invoke(port, result, kCallPublishActorCode, {actor_index})
-    );
+    if (!remove_attack_order_entry(attack_order, result, actor_index)) {
+        return result;
+    }
 
     const i32 signed_index = signed_dword(actor_index);
     if (signed_index >= 0 && signed_index <= action.group_b_count) {
@@ -375,12 +393,13 @@ LegacyBattleActionDispatchResult advance_legacy_battle_final_actor_step(
     LegacyBattleFinalActorStepState& state,
     LegacyBattleActionDispatchState& action,
     LegacyBattleActionDispatchPort& port,
+    const LegacyBattleAttackOrderRemoveBindings attack_order,
     const compat::u32 actor_index,
     const compat::u32 actor_group
 ) {
     return actor_group == 1U
-        ? advance_group_a(state, action, port, actor_index)
-        : advance_group_b(state, action, port, actor_index);
+        ? advance_group_a(state, action, port, attack_order, actor_index)
+        : advance_group_b(state, action, port, attack_order, actor_index);
 }
 
 }  // namespace openswd3::battle
