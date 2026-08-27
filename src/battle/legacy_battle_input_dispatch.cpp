@@ -4,6 +4,7 @@
 #include <cstddef>
 
 #include "openswd3/battle/legacy_battle_actor_action_cycle.hpp"
+#include "openswd3/battle/legacy_battle_actor_action_reverse_cycle.hpp"
 #include "openswd3/battle/legacy_battle_menu_input_finalize.hpp"
 #include "openswd3/battle/legacy_battle_menu_page_advance.hpp"
 #include "openswd3/battle/legacy_battle_menu_page_retreat.hpp"
@@ -281,10 +282,28 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
         edx = nested.return_edx;
         return true;
     };
+    const auto reverse_cycle_actor_action = [&]() {
+        const auto nested = reverse_cycle_legacy_battle_actor_action(
+            {.final_actor = bindings.final_actor},
+            port,
+            {.entry_eax = eax, .entry_ecx = ecx, .entry_edx = edx}
+        );
+        ++result.actor_action_reverse_cycle_calls;
+        result.port_calls += nested.port_calls;
+        eax = nested.return_eax;
+        ecx = nested.return_ecx;
+        edx = nested.return_edx;
+        return true;
+    };
     const auto invoke_operation = [&](const LegacyBattleInputDispatchCall op) {
         if (op ==
             LegacyBattleInputDispatchCall::reserved_actor_action_cycle_slot) {
             return cycle_actor_action();
+        }
+        if (op ==
+            LegacyBattleInputDispatchCall::
+                reserved_actor_action_reverse_cycle_slot) {
+            return reverse_cycle_actor_action();
         }
         if (op ==
             LegacyBattleInputDispatchCall::
@@ -771,7 +790,8 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
     if (!repeat_three_action(
             6U,
             LegacyBattleInputDispatchCall::reserved_menu_selection_advance_slot,
-            LegacyBattleInputDispatchCall::confirm_secondary,
+            LegacyBattleInputDispatchCall::
+                reserved_actor_action_reverse_cycle_slot,
             2U
         )) {
         return finish();
@@ -800,9 +820,10 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
                         return finish();
                     }
                 }
-                static_cast<void>(
-                    call(LegacyBattleInputDispatchCall::confirm_secondary)
-                );
+                static_cast<void>(invoke_operation(
+                    LegacyBattleInputDispatchCall::
+                        reserved_actor_action_reverse_cycle_slot
+                ));
                 static_cast<void>(
                     call(LegacyBattleInputDispatchCall::commit_left)
                 );

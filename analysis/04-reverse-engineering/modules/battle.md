@@ -445,6 +445,8 @@ I5最终必须锁定：
 
 `audit_order=117`的`0x00462320`已关闭为`platform_adapted`。完整权威LST主体`0x00462320..0x00462381`从proc到endp共67行、30条实际指令、8个静态call、2个跳转、5个局部/默认标签、4个返回点且无外部chunk，函数后的四项跳表也已审计。入口从共享queued角色装载EAX并先清pre-frame gate B，再按u32计算`code-8`；unsigned结果大于3时返回转换后EAX并保留入口ECX/EDX。code 8/9/10/11分别把动作起点11/8/9/10交给可用动作轮转callee，再把其EAX作为参数交给动作提交callee，完整透传两级callee寄存器。逐帧输入记录2、记录4菜单后退和记录5菜单前进三个caller已直连；旧动作确认槽保留reserved数值且不再调用。记录2短按把option写0，长按除3余1路径保留原EBP除数3并在两次callee期间写3；记录4前置菜单typed-stop继续阻断动作轮转与菜单动作尾写。当前角色和清零gate均复用final-actor既有物理owner。
 
-下一项回收`audit_order=118`的`0x004623A0`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗函数。
+`audit_order=118`的`0x004623A0`已关闭为`platform_adapted`。完整权威LST主体`0x004623A0..0x00462401`从proc到endp共67行、30条实际指令、8个静态call、2个跳转、5个局部/默认标签、4个返回点且无外部chunk，函数后的四项跳表也已审计。入口从共享queued角色装载EAX并先清pre-frame gate B，再按u32计算`code-8`；unsigned结果大于3时返回转换后EAX并保留入口ECX/EDX。code 8/9/10/11分别把反向动作起点9/10/11/8交给可用动作轮转callee，再把其EAX作为参数交给与正向轮转共用的动作提交callee，完整透传两级寄存器。逐帧输入记录6菜单前进和记录3选择后退两个caller已直连；旧secondary confirmation槽保留reserved数值且不再调用。记录6前置菜单typed-stop阻断反向轮转与菜单动作2尾写；记录3按原顺序执行热点回绕、可选菜单后退、反向轮转和左向动作边界。当前角色与清零gate继续复用final-actor唯一owner。
+
+下一项回收`audit_order=119`的`0x00462420`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

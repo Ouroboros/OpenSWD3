@@ -91,7 +91,7 @@ enum class LegacyBattleInputDispatchCall : compat::u8 {
     reserved_menu_page_retreat_slot,
     reserved_menu_page_advance_slot,
     reserved_actor_action_cycle_slot,
-    confirm_secondary,
+    reserved_actor_action_reverse_cycle_slot,
     commit_selected_option,
     commit_left,
     commit_right,
@@ -116,6 +116,7 @@ enum class LegacyBattleInputDispatchCall : compat::u8 {
     target_selection_refresh_state,
     actor_action_resolve_available,
     actor_action_commit_candidate,
+    actor_action_resolve_available_reverse,
 };
 
 struct LegacyBattleInputDispatchCallRequest {
@@ -219,6 +220,7 @@ struct LegacyBattleInputDispatchResult {
     compat::u32 menu_input_finalize_calls{};
     compat::u32 target_selection_entry_calls{};
     compat::u32 actor_action_cycle_calls{};
+    compat::u32 actor_action_reverse_cycle_calls{};
     bool returned_early{};
 };
 

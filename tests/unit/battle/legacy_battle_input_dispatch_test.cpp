@@ -404,6 +404,8 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
 
     {
         Fixture fixture;
+        fixture.final_actor.queued_actor_code = 10U;
+        fixture.final_actor.pre_frame_gate_b = 9U;
         fixture.input.records[3U].rapid_press_multiplicity = 1U;
         fixture.input.records[3U].held_sample_count = 1U;
         fixture.hotspots = {
@@ -422,12 +424,22 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
                         completed &&
                 fixture.port.battle_input_dispatch_state()
                         .choice_selection_index == 2U &&
+                result.actor_action_reverse_cycle_calls == 1U &&
                 fixture.port.count(
-                    LegacyBattleInputDispatchCall::confirm_secondary
+                    LegacyBattleInputDispatchCall::
+                        actor_action_resolve_available_reverse
                 ) == 1U &&
                 fixture.port.count(
+                    LegacyBattleInputDispatchCall::actor_action_commit_candidate
+                ) == 1U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        reserved_actor_action_reverse_cycle_slot
+                ) == 0U &&
+                fixture.port.count(
                     LegacyBattleInputDispatchCall::commit_left
-                ) == 1U,
+                ) == 1U &&
+                fixture.final_actor.pre_frame_gate_b == 0U,
             "left choice input preserves the low-word sign wrap and direct hotspot count"
         );
     }
@@ -622,9 +634,18 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
                     LegacyBattleInputDispatchCall::
                         menu_advance_configure_actor_selection
                 ) == 1U &&
+                result.actor_action_reverse_cycle_calls == 1U &&
                 fixture.port.count(
-                    LegacyBattleInputDispatchCall::confirm_secondary
+                    LegacyBattleInputDispatchCall::
+                        actor_action_resolve_available_reverse
                 ) == 1U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::actor_action_commit_candidate
+                ) == 1U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        reserved_actor_action_reverse_cycle_slot
+                ) == 0U &&
                 fixture.port.count(
                     LegacyBattleInputDispatchCall::
                         reserved_menu_selection_advance_slot
@@ -650,8 +671,14 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
                         menu_selection_advance_typed_stop &&
                 result.menu_selection_advance_calls == 1U &&
                 fixture.final_actor.pre_frame_gate_b == 0U &&
+                result.actor_action_reverse_cycle_calls == 0U &&
                 fixture.port.count(
-                    LegacyBattleInputDispatchCall::confirm_secondary
+                    LegacyBattleInputDispatchCall::
+                        actor_action_resolve_available_reverse
+                ) == 0U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        reserved_actor_action_reverse_cycle_slot
                 ) == 0U,
             "menu-advance typed-stop preserves its sample and blocks the following confirmation"
         );
