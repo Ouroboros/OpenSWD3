@@ -598,8 +598,29 @@ private:
         return true;
     }
 
-    void prepare_alternate_target() {
-        invoke(Call::prepare_alternate_target);
+    [[nodiscard]] bool cycle_group_a_target() {
+        const auto cycled = cycle_legacy_battle_group_a_target(
+            {
+                .frame_input = frame_,
+                .final_actor = final_actor_,
+                .metrics = metrics_,
+                .target_runtime = runtime_,
+                .supplemental_count_word =
+                    bindings_.startup_supplemental_count_word,
+            },
+            {.entry_eax = eax_, .entry_ecx = ecx_, .entry_edx = edx_}
+        );
+        ++result_.group_a_target_cycle_calls;
+        result_.group_a_target_cycle = cycled;
+        eax_ = cycled.return_eax;
+        ecx_ = cycled.return_ecx;
+        edx_ = cycled.return_edx;
+        if (cycled.status ==
+            LegacyBattleGroupATargetCycleStatus::target_order_typed_stop) {
+            typed_stop(Status::group_a_target_order_typed_stop);
+            return false;
+        }
+        return true;
     }
 
     [[nodiscard]] bool final_target_refresh() {
@@ -709,8 +730,7 @@ private:
                 edx_ -= eax_;
                 ecx_ = actor_code;
                 if (edx_ >= 4U) {
-                    prepare_alternate_target();
-                    return true;
+                    return cycle_group_a_target();
                 }
                 eax_ = final_actor_.pre_frame_gate_b;
                 ecx_ += 0xFFFFFFF9U;

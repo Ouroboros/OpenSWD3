@@ -2,6 +2,7 @@
 
 #include "openswd3/battle/legacy_battle_debug_hotkeys.hpp"
 #include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
+#include "openswd3/battle/legacy_battle_group_a_target_cycle.hpp"
 #include "openswd3/battle/legacy_battle_group_b_target_cycle.hpp"
 #include "openswd3/battle/legacy_battle_input_record_priming.hpp"
 
@@ -40,6 +41,7 @@ enum class LegacyBattleTargetSelectionRefreshStatus : compat::u8 {
     target_marker_typed_stop,
     actor_result_word_typed_stop,
     input_record_typed_stop,
+    group_a_target_order_typed_stop,
 };
 
 struct LegacyBattleTargetSelectionRefreshResult {
@@ -57,9 +59,11 @@ struct LegacyBattleTargetSelectionRefreshResult {
     compat::u32 actor_runtime_writes{};
     compat::u32 workspace_reads{};
     compat::u32 workspace_writes{};
+    compat::u32 group_a_target_cycle_calls{};
     compat::u32 group_b_target_cycle_calls{};
     compat::u32 input_record_prime_calls{};
     compat::u32 input_record_writes{};
+    LegacyBattleGroupATargetCycleResult group_a_target_cycle{};
     LegacyBattleGroupBTargetCycleResult group_b_target_cycle{};
 };
 

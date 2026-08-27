@@ -304,6 +304,99 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.target_ready = 1U;
+        fixture.message = 2U;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.metrics.group_a_count = 4U;
+        fixture.frame.target_cursor = 0U;
+        fixture.port.battle_input_dispatch_state().action_category_index = 1U;
+        auto& runtime = fixture.port.battle_target_selection_runtime_state();
+        runtime.selection_input_gate = 1U;
+        runtime.candidate_argument = 9U;
+        fixture.port.replies
+            [LegacyBattleTargetSelectionRuntimeCall::validate_primary_action] =
+            {.eax = 1U};
+        fixture.port.replies
+            [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_a] = {
+            .eax = 0U
+        };
+        fixture.port.replies
+            [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_b] = {
+            .eax = 0U
+        };
+        fixture.port.replies
+            [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_c] = {
+            .eax = 0U
+        };
+        const auto result = refresh_legacy_battle_target_selection(
+            fixture.bindings(), fixture.port, {}
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleTargetSelectionRefreshStatus::completed &&
+                result.group_a_target_cycle_calls == 1U &&
+                result.group_a_target_cycle.target_order_reads == 3U &&
+                result.input_record_prime_calls == 1U &&
+                result.port_calls == 5U && fixture.port.calls.size() == 5U &&
+                fixture.frame.target_cursor == 3U &&
+                fixture.frame.target_actor_index == 0U &&
+                fixture.final_actor.published_actor_code == 1U &&
+                runtime.selection_input_gate == 1U && fixture.message == 3U &&
+                result.return_eax == 2U && result.return_ecx == 1U,
+            "category fallback directly cycles the shared group-A target order then primes selection input"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.target_ready = 1U;
+        fixture.message = 2U;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.final_actor.published_actor_code = 9U;
+        fixture.metrics.group_a_count = 5U;
+        fixture.frame.target_cursor = 4U;
+        fixture.frame.target_actor_index = 7U;
+        fixture.port.battle_input_dispatch_state().action_category_index = 1U;
+        auto& runtime = fixture.port.battle_target_selection_runtime_state();
+        runtime.selection_input_gate = 1U;
+        runtime.candidate_argument = 9U;
+        fixture.port.replies
+            [LegacyBattleTargetSelectionRuntimeCall::validate_primary_action] =
+            {.eax = 1U};
+        fixture.port.replies
+            [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_a] = {
+            .eax = 0U
+        };
+        fixture.port.replies
+            [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_b] = {
+            .eax = 0U
+        };
+        fixture.port.replies
+            [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_c] = {
+            .eax = 0U
+        };
+        const auto result = refresh_legacy_battle_target_selection(
+            fixture.bindings(), fixture.port, {}
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleTargetSelectionRefreshStatus::
+                        group_a_target_order_typed_stop &&
+                result.group_a_target_cycle_calls == 1U &&
+                result.input_record_prime_calls == 0U &&
+                result.port_calls == 5U && fixture.port.calls.size() == 5U &&
+                fixture.frame.target_cursor == 4U &&
+                fixture.frame.target_actor_index == 7U &&
+                fixture.final_actor.published_actor_code == 9U &&
+                runtime.selection_input_gate == 0U && fixture.message == 2U &&
+                result.return_eax == 5U && result.return_ecx == 0U &&
+                result.return_edx == 5U,
+            "group-A target-order typed-stop preserves property fallback writes and blocks the final input tail"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.target_ready = 1U;
         fixture.message = 7U;
         fixture.final_actor.queued_actor_code = 8U;
         fixture.frame.alternate_selection = 2U;
