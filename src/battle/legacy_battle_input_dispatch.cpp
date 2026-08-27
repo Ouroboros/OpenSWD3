@@ -1,0 +1,666 @@
+#include "openswd3/battle/legacy_battle_input_dispatch.hpp"
+
+#include <bit>
+#include <cstddef>
+
+namespace openswd3::battle {
+namespace {
+
+using compat::i32;
+using compat::u16;
+using compat::u32;
+
+inline constexpr u32 kKeyboardToken = 0x004B8748U;
+inline constexpr u32 kWorkspaceActorOffset = 2U;
+
+[[nodiscard]] constexpr i32 signed_bits(const u32 value) noexcept {
+    return std::bit_cast<i32>(value);
+}
+
+[[nodiscard]] constexpr u32 group_a_token(const u32 actor_code) noexcept {
+    const u32 index = actor_code - 8U;
+    return kLegacyBattleActionGroupABaseToken +
+        index * kLegacyBattleActionGroupAStride;
+}
+
+}  // namespace
+
+LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
+    LegacyBattleInputDispatchBindings bindings,
+    LegacyBattleInputDispatchPort& port,
+    const LegacyBattleInputDispatchRequest& request
+) {
+    LegacyBattleInputDispatchResult result;
+    auto& state = port.battle_input_dispatch_state();
+    u32 eax = bindings.render_abort_latch;
+    u32 ecx = request.entry_ecx;
+    u32 edx = request.entry_edx;
+    const auto finish = [&]() {
+        result.return_eax = eax;
+        result.return_ecx = ecx;
+        result.return_edx = edx;
+        return result;
+    };
+    const auto early = [&]() {
+        result.returned_early = true;
+        return finish();
+    };
+    const auto call = [&](const LegacyBattleInputDispatchCall operation,
+                          const std::array<u32, 5>& arguments = {}) {
+        ++result.port_calls;
+        const auto reply = port.invoke_input_dispatch({
+            .call = operation,
+            .arguments = arguments,
+            .eax = eax,
+            .ecx = ecx,
+            .edx = edx,
+        });
+        eax = reply.eax;
+        ecx = reply.ecx;
+        edx = reply.edx;
+        return reply;
+    };
+    const auto raw_key = [&](const u32 dik) {
+        ++result.raw_key_queries;
+        eax = input_time_rng::read_raw_key(bindings.keyboard, dik);
+        ecx = kKeyboardToken;
+        return eax;
+    };
+    const auto record =
+        [&](const std::size_t index) -> input_time_rng::LegacyInputRecord* {
+        if (index >= bindings.input_records.size()) {
+            result.status =
+                LegacyBattleInputDispatchStatus::input_record_typed_stop;
+            return nullptr;
+        }
+        ++result.input_record_reads;
+        return &bindings.input_records[index];
+    };
+    const auto write_record_zero = [&](const u32 held_count) {
+        auto* const target = record(0U);
+        if (target == nullptr) {
+            return false;
+        }
+        target->rapid_press_multiplicity = 1U;
+        target->held_sample_count = held_count;
+        result.input_record_writes += 2U;
+        return true;
+    };
+    const auto repeat = [&](const u32 held_count, const i32 divisor) {
+        if (held_count == 1U) {
+            return true;
+        }
+        if (signed_bits(held_count) < 15) {
+            return false;
+        }
+        const i32 signed_count = signed_bits(held_count);
+        const i32 quotient = signed_count / divisor;
+        const i32 remainder = signed_count % divisor;
+        eax = std::bit_cast<u32>(quotient);
+        edx = std::bit_cast<u32>(remainder);
+        return remainder == 1;
+    };
+
+    state.menu_action = 0U;
+    if (eax == 1U) {
+        return finish();
+    }
+
+    eax = bindings.message_state;
+    ecx = bindings.final_actor.active_actor_code;
+    if (signed_bits(eax) < 2 && ecx != 0U &&
+        bindings.dialogs.messages.empty()) {
+        const std::array<u32, 8> permission_bytes{
+            static_cast<u32>(bindings.startup_reset.value_524414 & 0xFFU),
+            static_cast<u32>(bindings.startup_reset.value_524414 >> 8U & 0xFFU),
+            static_cast<u32>(
+                bindings.startup_reset.value_524414 >> 16U & 0xFFU
+            ),
+            static_cast<u32>(bindings.startup_reset.value_524414 >> 24U),
+            static_cast<u32>(bindings.startup_reset.value_524418 & 0xFFU),
+            static_cast<u32>(bindings.startup_reset.value_524418 >> 8U & 0xFFU),
+            static_cast<u32>(
+                bindings.startup_reset.value_524418 >> 16U & 0xFFU
+            ),
+            static_cast<u32>(bindings.startup_reset.value_524418 >> 24U),
+        };
+        for (u32 index = 0U; index < permission_bytes.size(); ++index) {
+            const u32 dik = index + 2U;
+            if (raw_key(dik) == 0U) {
+                continue;
+            }
+            if (dik == 6U) {
+                if (state.selection_index != 5U) {
+                    if (bindings.message_state == 0U) {
+                        bindings.message_state = 1U;
+                    }
+                    state.action_kind = 6U;
+                    bindings.final_actor.pre_frame_gate_a = 1U;
+                    state.selection_index = 5U;
+                    static_cast<void>(call(
+                        LegacyBattleInputDispatchCall::commit_selection, {0U}
+                    ));
+                }
+                bindings.message_state = 0U;
+                bindings.final_actor.pre_frame_gate_a = 0U;
+                state.selection_index = 1U;
+                return early();
+            }
+            if (bindings.message_state == 0U) {
+                bindings.message_state = 1U;
+            }
+            static_cast<void>(
+                call(LegacyBattleInputDispatchCall::refresh_action_mode)
+            );
+            if (permission_bytes[index] != 1U) {
+                return early();
+            }
+            state.action_kind = 6U;
+            bindings.final_actor.pre_frame_gate_a = 1U;
+            state.selection_index = index + 1U;
+            static_cast<void>(
+                call(LegacyBattleInputDispatchCall::commit_selection, {0U})
+            );
+            return early();
+        }
+        ecx = bindings.final_actor.active_actor_code;
+    }
+
+    eax = state.input_gate;
+    auto* base_record = record(1U);
+    if (base_record == nullptr) {
+        return finish();
+    }
+    u32 base_held = base_record->held_sample_count;
+    if (eax == 1U && base_held == 1U &&
+        base_record->rapid_press_multiplicity != 0U) {
+        state.input_latch |= 1U;
+    }
+
+    auto* source = record(9U);
+    if (source == nullptr) {
+        return finish();
+    }
+    if (source->rapid_press_multiplicity != 0U) {
+        eax = source->held_sample_count;
+        if (signed_bits(eax) >= 1 && !write_record_zero(eax)) {
+            return finish();
+        }
+    }
+
+    source = record(2U);
+    if (source == nullptr) {
+        return finish();
+    }
+    if (source->rapid_press_multiplicity != 0U) {
+        eax = source->held_sample_count;
+        if (repeat(eax, 3)) {
+            if (signed_bits(bindings.message_state) > 1) {
+                return early();
+            }
+            state.selected_option_word = 0U;
+            state.selection_index = 1U;
+            static_cast<void>(
+                call(LegacyBattleInputDispatchCall::confirm_primary)
+            );
+            if (bindings.message_state == 1U) {
+                static_cast<void>(
+                    call(LegacyBattleInputDispatchCall::commit_selection, {0U})
+                );
+            }
+            state.selected_option_word = 0xFFFFU;
+            return early();
+        }
+    }
+
+    source = record(18U);
+    if (source == nullptr) {
+        return finish();
+    }
+    if (source->rapid_press_multiplicity != 0U) {
+        eax = source->held_sample_count;
+        if (repeat(eax, 3)) {
+            if (state.retreat_block_word != 0U ||
+                state.action_block_gate == 1U ||
+                bindings.debug_hotkeys.actor_retarget_gate_53bf64 == 1U ||
+                bindings.message_state == 99U ||
+                bindings.message_state == 100U ||
+                !bindings.dialogs.messages.empty()) {
+                return early();
+            }
+            const u32 queried_actor = bindings.final_actor.active_actor_code;
+            ecx = group_a_token(queried_actor);
+            static_cast<void>(call(
+                LegacyBattleInputDispatchCall::query_active_actor,
+                {ecx, queried_actor}
+            ));
+            if (eax == 1U) {
+                return early();
+            }
+            edx = bindings.metrics.group_b_count;
+            ecx = static_cast<u32>(static_cast<compat::u8>(
+                bindings.final_actor.excluded_group_a_count
+            ));
+            edx -= ecx;
+            if (edx == 1U && state.retreat_target_word != 0xFFFFU) {
+                return early();
+            }
+            const u32 retreat_actor = bindings.final_actor.active_actor_code;
+            if (retreat_actor != 0U) {
+                ecx = group_a_token(retreat_actor);
+                static_cast<void>(call(
+                    LegacyBattleInputDispatchCall::query_retreat_actor,
+                    {ecx, retreat_actor}
+                ));
+                if (eax == 0U ||
+                    (bindings.debug_hotkeys.battle_mode_flags_53bc24 &
+                     0x200U) != 0U) {
+                    port.delay_input_milliseconds(20U);
+                    ++result.delay_calls;
+                    static_cast<void>(call(
+                        LegacyBattleInputDispatchCall::display_retreat_warning,
+                        {0x118U,
+                         10U,
+                         5U,
+                         kLegacyBattleInputWarningTextToken,
+                         0x40000002U}
+                    ));
+                    ++result.port_calls;
+                    edx = std::bit_cast<u32>(state.sample_mix_level);
+                    const auto sample = port.play_input_sample(
+                        kLegacyBattleInputWarningSample,
+                        state.sample_mix_level,
+                        eax,
+                        ecx,
+                        edx
+                    );
+                    eax = sample.eax;
+                    ecx = sample.ecx;
+                    edx = sample.edx;
+                    return early();
+                }
+                port.delay_input_milliseconds(50U);
+                ++result.delay_calls;
+                const u32 actor_code = bindings.final_actor.active_actor_code;
+                const u32 workspace_index = actor_code + kWorkspaceActorOffset;
+                bindings.message_state = 0x11U;
+                if (workspace_index >=
+                    bindings.action.opponent_workspace.size()) {
+                    result.status =
+                        LegacyBattleInputDispatchStatus::workspace_typed_stop;
+                    return finish();
+                }
+                bindings.action.opponent_workspace[workspace_index] = 0x11U;
+                ecx = group_a_token(actor_code);
+                static_cast<void>(call(
+                    LegacyBattleInputDispatchCall::configure_retreat_actor,
+                    {ecx, 1U, actor_code}
+                ));
+                const u32 live_actor = bindings.final_actor.active_actor_code;
+                eax = live_actor;
+                bindings.final_actor.auxiliary_gate = 1U;
+                bindings.final_actor.secondary_actor_code = live_actor;
+                bindings.message_state = 0U;
+                state.action_word = 0U;
+                bindings.final_actor.published_actor_code = live_actor - 7U;
+                state.retreat_block_word =
+                    static_cast<u16>(state.retreat_block_word | 0x4000U);
+                bindings.final_actor.active_actor_code = 0U;
+                bindings.final_actor.pre_frame_gate_a = 0U;
+                bindings.final_actor.frame_gate_b = 1U;
+                bindings.final_actor.frame_gate_a = 1U;
+                state.frame_value_a = 0U;
+                state.action_kind = 0U;
+                state.frame_value_b = 4U;
+                ecx = 0U;
+            }
+            base_record = record(1U);
+            if (base_record == nullptr) {
+                return finish();
+            }
+            base_held = base_record->held_sample_count;
+        }
+    }
+
+    source = record(17U);
+    if (source == nullptr) {
+        return finish();
+    }
+    if (source->rapid_press_multiplicity != 0U) {
+        eax = source->held_sample_count;
+        if (repeat(eax, 3) && signed_bits(bindings.message_state) < 2 &&
+            bindings.metrics.group_a_count != 0U &&
+            bindings.dialogs.messages.empty()) {
+            bindings.final_actor.pre_frame_gate_b = 0U;
+            bindings.terminal_latch = 1U;
+            bindings.final_actor.action_execution_active = 1U;
+            const u32 actor_code = bindings.final_actor.active_actor_code;
+            const u32 workspace_index = actor_code + kWorkspaceActorOffset;
+            if (workspace_index >= bindings.action.opponent_workspace.size()) {
+                result.status =
+                    LegacyBattleInputDispatchStatus::workspace_typed_stop;
+                return finish();
+            }
+            bindings.action.opponent_workspace[workspace_index] = 1U;
+            bindings.final_actor.pre_frame_gate_a = 1U;
+            state.selection_index = 1U;
+            bindings.message_state = 3U;
+            return early();
+        }
+    }
+
+    source = record(14U);
+    if (source == nullptr) {
+        return finish();
+    }
+    if (source->rapid_press_multiplicity != 0U) {
+        eax = source->held_sample_count;
+        if (signed_bits(eax) >= 1) {
+            bindings.context_prompt.frame_counter = 0U;
+            bindings.final_actor.pre_frame_gate_b = 1U;
+            if (!write_record_zero(eax)) {
+                return finish();
+            }
+        }
+    }
+
+    source = record(15U);
+    if (source == nullptr) {
+        return finish();
+    }
+    if (source->rapid_press_multiplicity != 0U) {
+        ecx = source->held_sample_count;
+        if (repeat(ecx, 3)) {
+            bindings.final_actor.pre_frame_gate_b = 1U;
+            if (state.selected_option_word != 0xFFFFU) {
+                static_cast<void>(call(
+                    LegacyBattleInputDispatchCall::commit_selected_option,
+                    {static_cast<u32>(static_cast<i32>(
+                        std::bit_cast<compat::i16>(state.selected_option_word)
+                    ))}
+                ));
+                if (bindings.message_state == 1U) {
+                    static_cast<void>(call(
+                        LegacyBattleInputDispatchCall::commit_selection, {0U}
+                    ));
+                }
+                state.selected_option_word = 0xFFFFU;
+                return early();
+            }
+            bindings.context_prompt.frame_counter = 0U;
+            if (state.interaction_mode == 1U) {
+                state.menu_action = 1U;
+                static_cast<void>(
+                    call(LegacyBattleInputDispatchCall::mode_one)
+                );
+                source = record(15U);
+                if (source == nullptr) {
+                    return finish();
+                }
+                ecx = source->held_sample_count;
+            }
+            if (state.interaction_mode == 2U) {
+                state.menu_action = 2U;
+                static_cast<void>(
+                    call(LegacyBattleInputDispatchCall::mode_two)
+                );
+                source = record(15U);
+                if (source == nullptr) {
+                    return finish();
+                }
+                ecx = source->held_sample_count;
+            }
+            if (state.interaction_mode == 3U) {
+                state.menu_action = 3U;
+                static_cast<void>(
+                    call(LegacyBattleInputDispatchCall::mode_three)
+                );
+                source = record(15U);
+                if (source == nullptr) {
+                    return finish();
+                }
+                ecx = source->held_sample_count;
+            }
+            if (state.interaction_mode == 4U) {
+                state.menu_action = 4U;
+                static_cast<void>(
+                    call(LegacyBattleInputDispatchCall::mode_four)
+                );
+                source = record(15U);
+                if (source == nullptr) {
+                    return finish();
+                }
+                ecx = source->held_sample_count;
+            }
+            eax = static_cast<u32>(request.mouse_y);
+            if (eax > request.mouse_lower_bound &&
+                eax < request.mouse_upper_bound && ecx == 1U) {
+                state.captured_mouse_y = eax;
+                state.captured_mouse_aux = 0U;
+            }
+            if (state.mouse_action_gate == 1U && signed_bits(ecx) >= 1) {
+                state.menu_action = 5U;
+            }
+            base_held = ecx;
+            if (!write_record_zero(base_held)) {
+                return finish();
+            }
+            bindings.final_actor.pre_frame_gate_b = 1U;
+        }
+    }
+
+    source = record(12U);
+    if (source == nullptr) {
+        return finish();
+    }
+    if (source->rapid_press_multiplicity != 0U) {
+        ecx = source->held_sample_count;
+        const i32 signed_count = signed_bits(ecx);
+        eax = std::bit_cast<u32>(signed_count / 3);
+        edx = std::bit_cast<u32>(signed_count % 3);
+        if (signed_count % 3 == 1) {
+            base_held = ecx;
+            bindings.final_actor.pre_frame_gate_b = 0U;
+            if (!write_record_zero(base_held)) {
+                return finish();
+            }
+        }
+    } else {
+        base_record = record(0U);
+        if (base_record == nullptr) {
+            return finish();
+        }
+        if (base_record->rapid_press_multiplicity == 0U) {
+            base_held = 0U;
+        }
+    }
+
+    base_record = record(0U);
+    if (base_record == nullptr) {
+        return finish();
+    }
+    if (base_record->rapid_press_multiplicity != 0U) {
+        bool trigger = base_held == 1U;
+        if (!trigger && signed_bits(base_held) >= 15) {
+            const i32 signed_count = signed_bits(base_held);
+            ecx = 6U;
+            eax = std::bit_cast<u32>(signed_count / 6);
+            edx = std::bit_cast<u32>(signed_count % 6);
+            trigger = signed_count % 6 == 1;
+        }
+        if (trigger) {
+            if (signed_bits(state.signed_status) < 0) {
+                state.signed_status |= 1U;
+            }
+            if ((bindings.final_actor.pre_frame_gate_b == 1U &&
+                 state.choice_guard != 0U) ||
+                (bindings.final_actor.pre_frame_gate_b != 1U &&
+                 !bindings.choice_hotspots.empty())) {
+                bindings.choice_hotspots.clear();
+                story_scene::clear_legacy_dialog_choice_chain(bindings.dialogs);
+                eax = 0U;
+            }
+            source = record(15U);
+            if (source == nullptr) {
+                return finish();
+            }
+            if (source->rapid_press_multiplicity == 0U) {
+                bindings.final_actor.pre_frame_gate_b = 0U;
+                bindings.context_prompt.frame_counter = 300U;
+                bindings.final_actor.pre_frame_gate_a = 1U;
+                state.interaction_mode = 0U;
+            }
+            if ((bindings.debug_hotkeys.battle_mode_flags_53bc24 & 0x20U) !=
+                0U) {
+                bindings.debug_hotkeys.battle_mode_flags_53bc24 &= 0xFFFFFFDFU;
+            }
+            static_cast<void>(
+                call(LegacyBattleInputDispatchCall::commit_selection, {0U})
+            );
+        }
+    }
+
+    const auto repeat_three_action =
+        [&](const std::size_t index,
+            const LegacyBattleInputDispatchCall first,
+            const LegacyBattleInputDispatchCall second,
+            const u32 menu_action) {
+            auto* const input = record(index);
+            if (input == nullptr || input->rapid_press_multiplicity == 0U) {
+                return input != nullptr;
+            }
+            eax = input->held_sample_count;
+            if (eax != 1U && signed_bits(eax) >= 15) {
+                ecx = 3U;
+            }
+            if (!repeat(eax, 3) || !bindings.dialogs.messages.empty()) {
+                return true;
+            }
+            static_cast<void>(call(first));
+            static_cast<void>(call(second));
+            state.menu_action = menu_action;
+            return true;
+        };
+    if (!repeat_three_action(
+            4U,
+            LegacyBattleInputDispatchCall::mode_one,
+            LegacyBattleInputDispatchCall::confirm_primary,
+            1U
+        )) {
+        return finish();
+    }
+    if (!repeat_three_action(
+            6U,
+            LegacyBattleInputDispatchCall::mode_two,
+            LegacyBattleInputDispatchCall::confirm_secondary,
+            2U
+        )) {
+        return finish();
+    }
+
+    source = record(3U);
+    if (source == nullptr) {
+        return finish();
+    }
+    if (source->rapid_press_multiplicity != 0U) {
+        eax = source->held_sample_count;
+        if (eax != 1U && signed_bits(eax) >= 15) {
+            ecx = 3U;
+        }
+        if (repeat(eax, 3)) {
+            if (!bindings.choice_hotspots.empty()) {
+                --state.choice_selection_index;
+                if ((state.choice_selection_index & 0x8000U) != 0U) {
+                    eax = static_cast<u32>(bindings.choice_hotspots.size());
+                    state.choice_selection_index = eax - 1U;
+                }
+            }
+            if (bindings.dialogs.messages.empty()) {
+                if (bindings.message_state == 3U) {
+                    static_cast<void>(
+                        call(LegacyBattleInputDispatchCall::mode_one)
+                    );
+                }
+                static_cast<void>(
+                    call(LegacyBattleInputDispatchCall::confirm_secondary)
+                );
+                static_cast<void>(
+                    call(LegacyBattleInputDispatchCall::commit_left)
+                );
+            }
+        }
+    }
+
+    source = record(5U);
+    if (source == nullptr) {
+        return finish();
+    }
+    if (source->rapid_press_multiplicity != 0U) {
+        eax = source->held_sample_count;
+        if (eax != 1U && signed_bits(eax) >= 15) {
+            ecx = 3U;
+        }
+        if (repeat(eax, 3)) {
+            if (!bindings.choice_hotspots.empty()) {
+                ++state.choice_selection_index;
+                eax = static_cast<u32>(bindings.choice_hotspots.size()) - 1U;
+                if (state.choice_selection_index > eax) {
+                    state.choice_selection_index = 0U;
+                }
+            }
+            if (bindings.dialogs.messages.empty()) {
+                if (bindings.message_state == 3U) {
+                    static_cast<void>(
+                        call(LegacyBattleInputDispatchCall::mode_two)
+                    );
+                }
+                static_cast<void>(
+                    call(LegacyBattleInputDispatchCall::commit_right)
+                );
+                static_cast<void>(
+                    call(LegacyBattleInputDispatchCall::confirm_primary)
+                );
+            }
+        }
+    }
+
+    for (const auto [index, operation] :
+         {std::pair{7U, LegacyBattleInputDispatchCall::mode_three},
+          std::pair{8U, LegacyBattleInputDispatchCall::mode_four}}) {
+        source = record(index);
+        if (source == nullptr) {
+            return finish();
+        }
+        if (source->rapid_press_multiplicity == 0U) {
+            continue;
+        }
+        const i32 signed_count = signed_bits(source->held_sample_count);
+        ecx = 3U;
+        eax = std::bit_cast<u32>(signed_count / 3);
+        edx = std::bit_cast<u32>(signed_count % 3);
+        if (signed_count % 3 == 1) {
+            static_cast<void>(call(operation));
+        }
+    }
+
+    base_record = record(0U);
+    if (base_record == nullptr) {
+        return finish();
+    }
+    if (base_record->rapid_press_multiplicity != 0U) {
+        eax = base_record->held_sample_count;
+        if (eax != 1U && signed_bits(eax) >= 15) {
+            ecx = 3U;
+        }
+        if (repeat(eax, 3)) {
+            static_cast<void>(
+                call(LegacyBattleInputDispatchCall::commit_final)
+            );
+            state.final_value_a = 0U;
+            state.final_value_b = 0U;
+        }
+    }
+    return finish();
+}
+
+}  // namespace openswd3::battle

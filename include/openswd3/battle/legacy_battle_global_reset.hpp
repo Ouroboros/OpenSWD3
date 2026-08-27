@@ -6,6 +6,7 @@
 #include "openswd3/battle/legacy_battle_debug_overlay.hpp"
 #include "openswd3/battle/legacy_battle_effect_coordinator.hpp"
 #include "openswd3/battle/legacy_battle_final_actor_step.hpp"
+#include "openswd3/battle/legacy_battle_input_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_outcome_resolution.hpp"
 #include "openswd3/battle/legacy_battle_pair_transition.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
@@ -40,6 +41,7 @@ class LegacyBattleGlobalResetRuntimePort
       public virtual LegacyBattleDebugHotkeyStatePort,
       public virtual LegacyBattleDebugOverlayGateStatePort,
       public virtual LegacyBattleVerticalShiftStatePort,
+      public virtual LegacyBattleInputDispatchStatePort,
       public LegacyBattleActionRotationReleasePort,
       public LegacyBattleRenderAuxiliaryBufferReleaser {
 public:

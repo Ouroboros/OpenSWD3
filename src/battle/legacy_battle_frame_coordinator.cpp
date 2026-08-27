@@ -93,14 +93,49 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         ++result.music_commit_calls;
     }
 
-    static_cast<void>(invoke(
+    const auto input_prelude = invoke(
         port, result, LegacyBattleFrameCoordinatorCall::pre_frame_stage_0
-    ));
-    static_cast<void>(invoke(
-        port, result, LegacyBattleFrameCoordinatorCall::pre_frame_stage_1
-    ));
+    );
+    result.input_dispatch = coordinate_legacy_battle_input_dispatch(
+        {
+            .render_abort_latch = state.render_abort_latch,
+            .startup_reset = context.startup.reset,
+            .final_actor = context.final_actor_step,
+            .action = context.action_dispatch,
+            .metrics = port.actor_metric_state(),
+            .debug_hotkeys = port.battle_debug_hotkey_state(),
+            .context_prompt = state.context_prompt,
+            .message_state = port.battle_message_state(),
+            .terminal_latch = port.battle_terminal_latch(),
+            .input_records = context.input_normalization.records,
+            .keyboard = context.keyboard,
+            .dialogs = context.dialogs,
+            .choice_hotspots = context.choice_hotspots,
+        },
+        port,
+        {
+            .entry_eax = input_prelude.eax,
+            .entry_ecx = input_prelude.ecx,
+            .entry_edx = input_prelude.edx,
+            .mouse_y = request.mouse_y,
+            .mouse_lower_bound = request.input_mouse_lower_bound,
+            .mouse_upper_bound = request.input_mouse_upper_bound,
+        }
+    );
+    ++result.input_dispatch_calls;
+    result.port_calls += result.input_dispatch.port_calls;
+    if (result.input_dispatch.status !=
+        LegacyBattleInputDispatchStatus::completed) {
+        result.status =
+            LegacyBattleFrameCoordinatorStatus::input_dispatch_typed_stop;
+        return result;
+    }
     result.pre_frame = advance_legacy_battle_pre_frame(
-        context.final_actor_step, context.action_dispatch, port
+        context.final_actor_step,
+        context.action_dispatch,
+        port,
+        result.input_dispatch.return_ecx,
+        result.input_dispatch.return_edx
     );
     ++result.pre_frame_calls;
     result.port_calls += result.pre_frame.port_calls;

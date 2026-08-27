@@ -21,6 +21,8 @@ using openswd3::battle::LegacyBattleFrameCoordinatorCallReply;
 using openswd3::battle::LegacyBattleFrameCoordinatorCallRequest;
 using openswd3::battle::LegacyBattleHudCallReply;
 using openswd3::battle::LegacyBattleHudCallRequest;
+using openswd3::battle::LegacyBattleInputDispatchCallReply;
+using openswd3::battle::LegacyBattleInputDispatchCallRequest;
 using openswd3::battle::LegacyBattleOutcomeResolutionCall;
 using openswd3::battle::LegacyBattleOutcomeResolutionCallReply;
 using openswd3::compat::i32;
@@ -106,6 +108,28 @@ public:
         return {};
     }
 
+    [[nodiscard]] LegacyBattleInputDispatchCallReply invoke_input_dispatch(
+        const LegacyBattleInputDispatchCallRequest& request
+    ) override {
+        input_dispatch_calls.push_back(request);
+        return input_dispatch_reply;
+    }
+
+    void delay_input_milliseconds(const u32 milliseconds) override {
+        input_dispatch_delays.push_back(milliseconds);
+    }
+
+    [[nodiscard]] LegacyBattleInputDispatchCallReply play_input_sample(
+        const u32 sound_id,
+        const i32 mix_level,
+        const u32 eax,
+        const u32 ecx,
+        const u32 edx
+    ) override {
+        input_sample_calls.push_back({sound_id, static_cast<u32>(mix_level)});
+        return {.eax = eax, .ecx = ecx, .edx = edx};
+    }
+
     [[nodiscard]] u32
     start_music(const std::filesystem::path& path, const u32 mode) override {
         music_paths.push_back(path);
@@ -153,6 +177,10 @@ public:
     std::vector<LegacyBattleOutcomeResolutionCall> outcome_calls;
     LegacyBattleOutcomeResolutionCallReply outcome_reply{};
     std::vector<LegacyBattleHudCallRequest> hud_calls;
+    std::vector<LegacyBattleInputDispatchCallRequest> input_dispatch_calls;
+    std::vector<u32> input_dispatch_delays;
+    std::vector<std::array<u32, 2>> input_sample_calls;
+    LegacyBattleInputDispatchCallReply input_dispatch_reply{};
     std::map<
         LegacyBattleFrameCoordinatorCall,
         LegacyBattleFrameCoordinatorCallReply>
@@ -486,7 +514,11 @@ struct Fixture {
     openswd3::battle::LegacyBattleStartupState startup;
     openswd3::battle::LegacyBattleIntensityEffectRecord
         attack_order_adjacent_record{};
+    openswd3::input_time_rng::LegacyInputNormalizationState
+        input_normalization{};
     openswd3::input_time_rng::LegacyKeyboardSnapshot keyboard{};
+    std::vector<openswd3::world_map::LegacyWorldInteractionHotspot>
+        choice_hotspots;
     openswd3::world_map::LegacyWorldPlayerControlState player_control;
 
     Fixture() {
@@ -576,7 +608,9 @@ struct Fixture {
             .final_actor_step = final_actor_step,
             .action_dispatch = action_dispatch,
             .startup = startup,
+            .input_normalization = input_normalization,
             .keyboard = keyboard,
+            .choice_hotspots = choice_hotspots,
             .player_control = player_control,
         };
     }
@@ -633,9 +667,38 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                     } &&
                 result.fixed_frame_calls == 0U &&
                 result.frame_effect_calls == 0U && result.lock_calls == 0U &&
+                result.input_dispatch_calls == 1U &&
                 result.pre_frame_calls == 1U &&
-                result.debug_hotkey_calls == 1U && port.calls.size() == 4U,
+                result.debug_hotkey_calls == 1U && port.calls.size() == 3U,
             "frame coordinator preserves music and pre-frame stages before the debug hotkey zero return"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleFrameCoordinatorState state;
+        Fixture fixture;
+        CoordinatorPort port;
+        fixture.final_actor_step.active_actor_code = 0x200U;
+        port.actor_metric_state().group_a_count = 1U;
+        fixture.input_normalization.records[17U].rapid_press_multiplicity = 1U;
+        fixture.input_normalization.records[17U].held_sample_count = 1U;
+        auto context = fixture.context();
+
+        const auto result =
+            openswd3::battle::run_legacy_battle_frame_coordinator(
+                state, port, context, base_request()
+            );
+
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameCoordinatorStatus::
+                        input_dispatch_typed_stop &&
+                result.input_dispatch.status ==
+                    openswd3::battle::LegacyBattleInputDispatchStatus::
+                        workspace_typed_stop &&
+                result.input_dispatch_calls == 1U &&
+                result.pre_frame_calls == 0U && result.debug_hotkey_calls == 0U,
+            "input-dispatch typed stop preserves the first prelude and blocks every later frame stage"
         );
     }
 

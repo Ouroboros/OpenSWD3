@@ -10,14 +10,14 @@
 
 入口固定把活动dword写1。随后调用music gate；只有完整EAX等于1且抑制byte为0时，才以共享路径和mode 0启动音乐，再把共享runtime handle传给commit。start EAX被commit覆盖，但后续阶段不使用该值。
 
-接着严格执行六个逻辑阶段：前两个仍是opaque战斗stage，第三项直接组合已关闭角色预处理，第四和第五项是已关闭metric与角色顺序重建，第六项直接组合已关闭战斗调试快捷键总处理。第六项的E键路径返回0时立即返回EAX 0：
+接着严格执行六个逻辑阶段：第一项`0x0045FC60`仍是后续工作包typed端口，第二项直接组合已关闭逐帧输入与指令分派，第三项直接组合已关闭角色预处理，第四和第五项是已关闭metric与角色顺序重建，第六项直接组合已关闭战斗调试快捷键总处理。第六项的E键路径返回0时立即返回EAX 0：
 
 - 活动dword保持1；
 - 不锁目标surface；
 - 不执行任何绘制、输入、截图或尾阶段；
 - 音乐与前五阶段副作用保留。
 
-角色预处理直接复用最终角色、动作工作区和动态组B数量；其typed-stop保留前两个stage与自身前缀并阻断metric以后全部流程。调试快捷键直接读取typed DIK快照并复用角色数量、优先索引、最终角色门、启动记录、效果状态、速度模式与截图请求；其typed-stop保留metric和顺序重建副作用并阻断surface lock。只剩前两个尚未关闭前置stage保留有序typed端口，已关闭边界不再占opaque call。
+输入分派直接复用20条输入记录、typed DIK快照、最终角色、动作工作区、角色数量、启动permission、共享消息/terminal、调试mode、prompt、对话和热点链；普通返回不形成成功门，完整ECX/EDX直接传给角色预处理，记录或工作区typed-stop保留第一stage及输入前缀并阻断全部后续阶段。角色预处理继续复用同一最终角色、动作工作区和动态组B数量；其typed-stop保留前两阶段与自身前缀并阻断metric以后全部流程。调试快捷键复用相同DIK与共享状态；其typed-stop保留metric和顺序重建副作用并阻断surface lock。现在只剩第一前置stage保留typed端口，已关闭边界不再占opaque call。
 
 ## 3. 目标surface与渲染门
 

@@ -318,6 +318,20 @@ void seed_state(
     debug.block_53af30.fill(9U);
     debug.reset_gate_53bd50 = 9U;
     debug.screenshot_request = 7U;
+
+    auto& input = port.battle_input_dispatch_state();
+    input.menu_action = 9U;
+    input.action_kind = 9U;
+    input.selection_index = 9U;
+    input.input_gate = 9U;
+    input.retreat_block_word = 9U;
+    input.retreat_target_word = 9U;
+    input.selected_option_word = 9U;
+    input.action_word = 9U;
+    input.interaction_mode = 9U;
+    input.signed_status = 9U;
+    input.choice_selection_index = 9U;
+    input.final_value_a = 9U;
 }
 
 }  // namespace
@@ -572,6 +586,18 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 ) &&
                 debug.reset_gate_53bd50 == 0U && debug.screenshot_request == 7U,
             "global reset synchronizes debug hotkey aliases and preserves globals outside its write set"
+        );
+        const auto& input = port.battle_input_dispatch_state();
+        test.expect_true(
+            input.menu_action == 0U && input.action_kind == 0U &&
+                input.selection_index == 1U && input.input_gate == 9U &&
+                input.retreat_block_word == 0U &&
+                input.retreat_target_word == 0xFFFFU &&
+                input.selected_option_word == 0xFFFFU &&
+                input.action_word == 9U && input.interaction_mode == 0U &&
+                input.signed_status == 0U &&
+                input.choice_selection_index == 0U && input.final_value_a == 9U,
+            "global reset synchronizes only the input-dispatch globals in its physical write set"
         );
         test.expect_true(
             std::ranges::all_of(

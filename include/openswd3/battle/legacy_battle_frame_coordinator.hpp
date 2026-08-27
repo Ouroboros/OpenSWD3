@@ -15,6 +15,7 @@
 #include "openswd3/battle/legacy_battle_effect_coordinator.hpp"
 #include "openswd3/battle/legacy_battle_frame_completion.hpp"
 #include "openswd3/battle/legacy_battle_frame_effect.hpp"
+#include "openswd3/battle/legacy_battle_input_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_outcome_resolution.hpp"
 #include "openswd3/battle/legacy_battle_pre_frame.hpp"
 #include "openswd3/battle/legacy_battle_transition.hpp"
@@ -29,6 +30,7 @@
 #include <filesystem>
 #include <list>
 #include <span>
+#include <vector>
 
 namespace openswd3::battle {
 
@@ -53,7 +55,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     query_music_gate,
     music_commit,
     pre_frame_stage_0,
-    pre_frame_stage_1,
+    reserved_input_dispatch_slot,
     query_actor_metric,
     lock_target_surface,
     unlock_target_surface,
@@ -117,6 +119,7 @@ class LegacyBattleFrameCoordinatorPort
       public LegacyBattleAttackOrderDequeuePort,
       public LegacyBattlePendingActionPort,
       public LegacyBattleFrameCompletionPort,
+      public LegacyBattleInputDispatchPort,
       public virtual LegacyBattleEffectCoordinatorStatePort {
 public:
     using LegacyBattleEffectCallPort::invoke;
@@ -282,6 +285,8 @@ struct LegacyBattleFrameCoordinatorRequest {
     compat::u32 debug_vitality_stack_snapshot{};
     compat::i32 mouse_x{};
     compat::i32 mouse_y{};
+    compat::u32 input_mouse_lower_bound{};
+    compat::u32 input_mouse_upper_bound{480U};
     compat::u32 context_prompt_action_update_edx_snapshot{};
 };
 
@@ -311,7 +316,9 @@ struct LegacyBattleFrameCoordinatorContext {
     LegacyBattleFinalActorStepState& final_actor_step;
     LegacyBattleActionDispatchState& action_dispatch;
     LegacyBattleStartupState& startup;
+    input_time_rng::LegacyInputNormalizationState& input_normalization;
     const input_time_rng::LegacyKeyboardSnapshot& keyboard;
+    std::vector<world_map::LegacyWorldInteractionHotspot>& choice_hotspots;
     world_map::LegacyWorldPlayerControlState& player_control;
     LegacyBattleActorFrameAdvanceContext* actor_frames{};
 };
@@ -343,6 +350,7 @@ enum class LegacyBattleFrameCoordinatorStatus : compat::u8 {
     color_accumulation_typed_stop,
     pre_frame_typed_stop,
     debug_hotkey_typed_stop,
+    input_dispatch_typed_stop,
     debug_overlay_typed_stop,
     outcome_resolution_typed_stop,
     context_prompt_typed_stop,
@@ -361,6 +369,8 @@ struct LegacyBattleFrameCoordinatorResult {
     compat::u32 unlock_calls{};
     compat::u32 selection_refresh_calls{};
     LegacyBattleAttackOrderDequeueResult attack_order_dequeue{};
+    LegacyBattleInputDispatchResult input_dispatch{};
+    compat::u32 input_dispatch_calls{};
     LegacyBattlePreFrameResult pre_frame{};
     compat::u32 pre_frame_calls{};
     LegacyBattleDebugHotkeyResult debug_hotkeys{};
