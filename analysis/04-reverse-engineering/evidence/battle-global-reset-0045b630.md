@@ -50,7 +50,7 @@
 - 战斗上下文提示复用共享message、动作消息门/辅助值/两项坐标、最终角色active/pre-frame gate B及启动镜像模式；message、消息门、active、gate B和镜像模式清零，辅助值、坐标、提示计数、静态资源选择和偏移动作持久状态保持入口值；
 - 战斗纵向位移的phase与节拍上限映射到唯一state port并清零；节拍计数不在原写集合中，保持入口值；
 - 撤退提交两完成门和选择token映射到唯一state port并清零；辅助latch不在原写集合中保持入口值；battle mode/调试重置门与调试快捷键共享，叠加门改由撤退、逐帧和reset共用的独立gate port；
-- `0x00524788`的18条记录扩展为精确`0x1C`布局，126 dword全部映射到唯一启动状态并清零，不再只同步五个已知字段；最终角色十项顺序、frame gate、selection gate、排队角色及动作路径同址门也同步清零；
+- `0x00524788`的18条记录扩展为精确`0x1C`布局，126 dword全部映射到唯一启动状态并清零，不再只同步五个已知字段；已关闭攻击顺序登记的三个caller直接写同一记录owner，最终角色十项顺序、frame gate、selection gate、排队角色及动作路径同址门也同步清零；
 - 效果总协调器的18槽主记录、两组模式、计数器、反馈actor、参数数组和活动latch映射回唯一`LegacyBattleEffectCoordinatorState`；未写的扫描计时与反馈数组保持不变；
 - 八槽group B顺序表不在本函数写集合中，必须原样保留；
 - 战斗启动复用的显示surface、敌我启动记录、重置块、记录数组与镜像模式映射回唯一`LegacyBattleStartupState`；

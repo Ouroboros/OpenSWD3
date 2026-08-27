@@ -117,6 +117,8 @@ struct Fixture {
     SoundPort sound;
     CountdownFlags countdown_flags;
     std::array<u8, 16> flags{};
+    std::array<openswd3::battle::LegacyBattleStartupResetRecord, 0x12>
+        attack_order_records{};
 
     Fixture() {
         static_cast<void>(
@@ -140,6 +142,7 @@ struct Fixture {
             .indicator_sound = sound,
             .countdown_flags = countdown_flags,
             .internal_flags = flags,
+            .attack_order_records = attack_order_records,
             .status_indicator_action_eax_snapshot = 0U,
         };
     }

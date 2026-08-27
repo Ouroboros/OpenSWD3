@@ -537,6 +537,7 @@ struct Fixture {
             .indicator_sound = battle_sound,
             .countdown_flags = countdown_flags,
             .internal_flags = internal_flags,
+            .attack_order_records = startup.reset.records_524788,
         };
     }
 

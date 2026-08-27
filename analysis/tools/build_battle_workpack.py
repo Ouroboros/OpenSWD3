@@ -440,6 +440,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-frame-completion-0045ec80.md",
     ),
+    "0x0045EDF0": (
+        "platform_adapted",
+        "evidence/battle-attack-order-entry-0045edf0.md",
+    ),
 }
 
 

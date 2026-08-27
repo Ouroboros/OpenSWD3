@@ -66,7 +66,6 @@ constexpr u32 kCallPrepareMessageToken = 0x00478220U;
 constexpr u32 kCallActionTwentyFour = 0x004724D0U;
 constexpr u32 kCallChoiceFirst = 0x00476160U;
 constexpr u32 kCallChoiceSecond = 0x00476250U;
-constexpr u32 kCallCommitChoice = 0x0045EDF0U;
 constexpr u32 kCallActionTwentyFiveReady = 0x00472710U;
 constexpr u32 kCallSetGlobalMode = 0x0047F900U;
 constexpr u32 kCallPrepareTarget = 0x00478850U;
@@ -1769,13 +1768,20 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
         }
         state.group_b_status_words[state.stored_group_b_index] |=
             static_cast<u16>(state.choice_cursor - 1U);
-        static_cast<void>(invoke(
-            state,
-            port,
-            result,
-            kCallCommitChoice,
-            {2U, state.stored_group_b_index}
-        ));
+        result.attack_order = append_legacy_battle_attack_order_entry(
+            context.attack_order_records,
+            2U,
+            state.stored_group_b_index,
+            state.choice_cursor - 1U,
+            0U
+        );
+        ++result.attack_order_calls;
+        if (result.attack_order.status !=
+            LegacyBattleAttackOrderEntryStatus::completed) {
+            result.status =
+                LegacyBattleActionDispatchStatus::attack_order_typed_stop;
+            return result;
+        }
         state.current_actor_index = 0xFFFFU;
         result.return_value = 1U;
         return result;

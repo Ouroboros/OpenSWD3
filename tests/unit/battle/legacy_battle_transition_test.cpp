@@ -343,7 +343,11 @@ struct ActorFrameFixture {
     openswd3::battle::LegacyBattleActionDispatchContext dispatch;
     openswd3::battle::LegacyBattleActorFrameAdvanceContext context;
 
-    ActorFrameFixture(TransitionPorts& ports, FrameFixture& frame)
+    ActorFrameFixture(
+        TransitionPorts& ports,
+        FrameFixture& frame,
+        openswd3::battle::LegacyBattleStartupState& startup
+    )
         : dispatch{
               .framebuffer = frame.framebuffer,
               .raster = frame.raster,
@@ -356,6 +360,7 @@ struct ActorFrameFixture {
               .indicator_sound = sound,
               .countdown_flags = countdown_flags,
               .internal_flags = internal_flags,
+              .attack_order_records = startup.reset.records_524788,
           },
           context{state, ports, dispatch} {}
 };
@@ -497,7 +502,7 @@ void test_battle_transition(openswd3::test::Context& test) {
         ports.random_values = {0U, 55U};
         ports.actor_mode_returns[0x00525508U] = 1U;
         FrameFixture frame;
-        ActorFrameFixture actor_frames(ports, frame);
+        ActorFrameFixture actor_frames(ports, frame, startup);
         openswd3::battle::LegacyBattleActorMetricState foreign_metrics;
         foreign_metrics.group_b_count = 1U;
         foreign_metrics.actor_order[0] = 0U;
@@ -541,7 +546,14 @@ void test_battle_transition(openswd3::test::Context& test) {
                 result.transform_calls == 34U &&
                 result.temporary_surface_calls == 35U &&
                 result.surface_operation_calls == 36U &&
-                result.enemy_rare_event_calls == 1U &&
+                result.attack_order_calls == 1U &&
+                result.attack_order.written &&
+                result.attack_order.written_index == 0U &&
+                startup.reset.records_524788[0].value_00 == 1U &&
+                startup.reset.records_524788[0].value_08 == 2U &&
+                ports.call_count(
+                    LegacyBattleTransitionCall::reserved_enemy_rare_event_slot
+                ) == 0U &&
                 result.prepared_party_actors == 2U &&
                 result.refreshed_enemy_actors == 0U && result.message_emitted &&
                 startup.mode_flags == 0x80U && result.return_value == 0x80U &&
@@ -565,7 +577,7 @@ void test_battle_transition(openswd3::test::Context& test) {
         ports.random_values = {99U, 1U, 27U};
         state.party_special_fields[1] = 1U;
         FrameFixture frame;
-        ActorFrameFixture actor_frames(ports, frame);
+        ActorFrameFixture actor_frames(ports, frame, startup);
         auto transition_request = request(0U);
         transition_request.actor_frames = &actor_frames.context;
 

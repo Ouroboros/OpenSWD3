@@ -112,6 +112,8 @@ struct Fixture {
     SoundPort sound;
     CountdownFlags countdown_flags;
     std::array<u8, 16> flags{};
+    std::array<openswd3::battle::LegacyBattleStartupResetRecord, 0x12>
+        attack_order_records{};
 
     Fixture() {
         static_cast<void>(
@@ -135,6 +137,7 @@ struct Fixture {
             .indicator_sound = sound,
             .countdown_flags = countdown_flags,
             .internal_flags = flags,
+            .attack_order_records = attack_order_records,
             .status_indicator_action_eax_snapshot = 0U,
         };
     }
@@ -244,10 +247,41 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             result.status == LegacyBattleActionDispatchStatus::completed &&
                 port.count(0x0047DAD0U) == 1U &&
                 has_call_argument(port, 0x004755E0U, 0U, 0x55U) &&
-                has_call_argument(port, 0x0045EDF0U, 0U, 2U) &&
-                has_call_argument(port, 0x0045EDF0U, 1U, 2U) &&
+                result.attack_order_calls == 1U &&
+                result.attack_order.written_index == 0U &&
+                fixture.attack_order_records[0].value_00 == 2U &&
+                fixture.attack_order_records[0].value_08 == 2U &&
+                port.count(0x0045EDF0U) == 0U &&
                 state.shared.action_block_gate == 0x5650U,
-            "live opponent update publishes fixed callback when update and message gates allow"
+            "live opponent update directly appends its index to the shared attack order when update and message gates allow"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState state;
+        state.frame_enabled = 1U;
+        state.update_gate_argument = 0x55U;
+        Fixture fixture;
+        DispatchPort port;
+        port.push(0x0047CE80U, {.eax = 0U});
+        port.push(0x004755E0U, {.eax = 1U});
+        auto context = fixture.context();
+        context.attack_order_records = {};
+
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 2U
+            );
+
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::attack_order_typed_stop &&
+                result.attack_order.status ==
+                    openswd3::battle::LegacyBattleAttackOrderEntryStatus::
+                        record_typed_stop &&
+                result.attack_order.return_eax == 0x00524788U &&
+                port.count(0x004786A0U) == 0U,
+            "attack-order typed stop preserves the opponent update prefix then blocks the remaining frame path"
         );
     }
 

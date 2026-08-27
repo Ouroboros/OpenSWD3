@@ -151,7 +151,7 @@ ID 0、`0x71`、`0xBA..0xC5`和大于`0x10E`不追加文件名，仍把data root
 
 ### 分支0
 
-只有随机值`55..60`进入。逐敌人查询mode；返回不等于1时调用事件callee，参数为固定2和敌人索引。随后逐队员依次执行消息准备与刷新。最后发固定文本token、flag`0x40000002`与坐标`(280,10,60)`。
+只有随机值`55..60`进入。逐敌人查询mode；返回不等于1时直接组合已关闭攻击顺序登记，以固定类型2把敌人索引写入共享18条记录首个全1槽，旧事件opaque枚举只保留reserved数值且不再调用；登记返回的EAX offset继续成为live EAX。随后逐队员依次执行消息准备与刷新。最后发固定文本token、flag`0x40000002`与坐标`(280,10,60)`。
 
 ### 分支1
 
@@ -188,8 +188,8 @@ C++到LST反向追溯覆盖1002行、74个静态call站点、37个标签、四�
 - 首次与mode 0第二次画面效果typed直连、调用时点及失败前缀；
 - 两次固定资源0帧typed直连及source ownership；
 - Europe、Arab、China与gap ID音乐路径；
-- 两条低概率事件、mode门、十槽首空写、消息flag与最终EAX；
+- 两条低概率事件、mode门、敌方攻击顺序直连、共享18槽、十槽首空写、消息flag与最终EAX；
 - 十行短raw缓冲在第十一行停止，不unlock、不cleanup、active保持1；
 - battle聚合目标零warning，普通定向与独立ASan定向均`1/1`通过。
 
-当前没有原版DirectDraw surface、allocator、图像转换、音乐后端、74个callee联合寄存器与角色状态捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。角色、场景、blend和消息callee均按各自后续工作包保留typed端口。
+当前没有原版DirectDraw surface、allocator、图像转换、音乐后端、剩余callee联合寄存器、攻击顺序动态轨迹与角色状态捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。角色、场景、blend和消息callee均按各自后续工作包保留typed端口。

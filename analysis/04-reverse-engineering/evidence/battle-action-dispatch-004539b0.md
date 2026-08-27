@@ -164,7 +164,7 @@ bit15已置时，bit0仍为0则返回0；bit0为1则置fade active并返回1。
 
 - 23：目标动作完成后查询消息code；`1..0x61A7`走名称构建/格式化与详细消息，0、`0x61A8`及更大值走两个固定文本；最终延迟300；
 - 24：目标callee返回低word；bit15置位时遍历全部组B非terminal对象，计算signed值、上夹9999、累加、刷新、发布与可选清屏；保存低15位，低word等于2才清current actor并返回1，否则清低word返回0；
-- 25：首次选择按目标准备结果显示成功/失败文本；成功保存双方索引、准备与更新目标。再次进入时更新目标status word，按两个独立门调用choice操作，OR入`choice_cursor-1`低word后commit并返回1；
+- 25：首次选择按目标准备结果显示成功/失败文本；成功保存双方索引、准备与更新目标。再次进入时更新目标status word，按两个独立门调用choice操作，OR入`choice_cursor-1`低word后直接组合已关闭攻击顺序登记，以类型2把已选组B索引写入共享18槽首个全1记录，再清current actor并返回1；
 - 26：直接调用已关闭`0x00451100`。保留scan runtime、push state、dialog word三组低word门；完成早退或目标动作成功后的共同尾按pop64、延迟300、清四项低word执行。视觉成功先发布全1 accumulator、screen mode 1、清屏与scan push `0x8000`；
 - 27：目标动作完成后以固定第一参数4计算选择；可选视觉成功发布目标并清屏，随后清accumulator/current actor并返回1。
 
@@ -218,7 +218,8 @@ bit75未置且message gate bit0为1时，播放固定消息、再次清动作rec
 - resolved target零token：首次flags读取；
 - framebuffer尺寸过大：先发布frame refresh并写满owned前缀，再在首个越界像素停止；
 - 状态指示器、刻度扫描与内部bit：各closed helper真实故障点；
-- 玩家道具链：未知token在首次节点访问停止，零分配先发布零head再停止。
+- 玩家道具链：未知token在首次节点访问停止，零分配先发布零head再停止；
+- 攻击顺序记录：在case25已写目标status后，于首个实际记录读取处停止，阻断current actor清理与成功尾。
 
 不对callee约定外普通返回值、百分比、action code或计数增加现代范围预验。
 
@@ -243,8 +244,9 @@ bit75未置且message gate bit0为1时，播放固定消息、再次清动作rec
 - 超尺寸清屏已写满前缀与refresh时机；
 - 27个有效普通case、10个有效特殊动作逐项smoke；
 - 9个稀疏switch槽和越界action只执行两个入口callee；
-- 95个原始唯一callee中85个端口边界全部存在，另外10个已关闭callee全部直连；
+- 95个原始唯一callee中84个端口边界全部存在，另外11个已关闭callee全部直连；
 - case 3撤退提交成功、固定警告分支和旧地址调用清零；
+- case 25攻击顺序登记直连、旧地址调用清零及记录typed-stop前缀；
 - battle聚合目标零warning，普通定向通过。
 
-当前没有原版18个角色对象、85类剩余callee共享副作用、全部数值/AI表、消息文本、输入bit、DirectDraw framebuffer、deformation allocator与SEH联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前没有原版18个角色对象、84类剩余callee共享副作用、攻击顺序动态记录、全部数值/AI表、消息文本、输入bit、DirectDraw framebuffer、deformation allocator与SEH联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

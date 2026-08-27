@@ -18,7 +18,6 @@ using compat::u32;
 constexpr u32 kCallQueryTerminal = 0x0047CE80U;
 constexpr u32 kCallUpdateOpponent = 0x0047DAD0U;
 constexpr u32 kCallQueryUpdateGate = 0x004755E0U;
-constexpr u32 kCallPublishOpponentCallback = 0x0045EDF0U;
 constexpr u32 kCallQueryQueueCompletion = 0x0047F920U;
 constexpr u32 kCallResetActor = 0x00478850U;
 constexpr u32 kCallQueryActorBlocked = 0x0047D930U;
@@ -209,6 +208,10 @@ void merge_nested(
     result.status_indicator_calls += nested.status_indicator_calls;
     result.scale_scan_calls += nested.scale_scan_calls;
     result.action_record_clear_calls += nested.action_record_clear_calls;
+    result.attack_order_calls += nested.attack_order_calls;
+    if (nested.attack_order_calls != 0U) {
+        result.attack_order = nested.attack_order;
+    }
     result.status_indicator = nested.status_indicator;
     result.scale_scan = nested.scale_scan;
     result.action_code = nested.action_code;
@@ -301,12 +304,16 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                 )
                         .eax == 1U &&
                 port.battle_message_state() != 0x67U) {
-                static_cast<void>(invoke(
-                    port,
-                    result,
-                    kCallPublishOpponentCallback,
-                    {2U, group_b_index}
-                ));
+                result.attack_order = append_legacy_battle_attack_order_entry(
+                    context.attack_order_records, 2U, group_b_index, 0U, 0U
+                );
+                ++result.attack_order_calls;
+                if (result.attack_order.status !=
+                    LegacyBattleAttackOrderEntryStatus::completed) {
+                    result.status = LegacyBattleActionDispatchStatus::
+                        attack_order_typed_stop;
+                    return result;
+                }
             }
         }
 

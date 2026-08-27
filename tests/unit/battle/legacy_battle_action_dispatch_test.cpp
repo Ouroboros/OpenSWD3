@@ -201,6 +201,8 @@ struct Fixture {
     SoundPort sound;
     std::array<u8, 16> flags{};
     CountdownFlags countdown_flags{flags};
+    std::array<openswd3::battle::LegacyBattleStartupResetRecord, 0x12>
+        attack_order_records{};
 
     Fixture() {
         static_cast<void>(
@@ -224,6 +226,7 @@ struct Fixture {
             .indicator_sound = sound,
             .countdown_flags = countdown_flags,
             .internal_flags = flags,
+            .attack_order_records = attack_order_records,
             .status_indicator_action_eax_snapshot = 0U,
         };
     }
@@ -755,6 +758,61 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         test.expect_true(
             actions_complete,
             "all twenty seven populated ordinary switch entries execute without default fallthrough"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        state.group_a_count = 1;
+        state.group_b_count = 1;
+        state.group_a_to_actor[0] = 0U;
+        state.battle_flags = 0x20U;
+        state.stored_group_b_index = 0U;
+        Fixture fixture;
+        DispatchPort port;
+        port.action = 25U;
+        auto context = fixture.context();
+
+        const auto result = openswd3::battle::dispatch_legacy_battle_action(
+            state, port, context, 0U, 0U
+        );
+
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.attack_order_calls == 1U &&
+                result.attack_order.written_index == 0U &&
+                fixture.attack_order_records[0].value_00 == 0U &&
+                fixture.attack_order_records[0].value_08 == 2U &&
+                port.count(0x0045EDF0U) == 0U &&
+                state.current_actor_index == 0xFFFFU &&
+                result.return_value == 1U,
+            "action twenty five directly appends the selected opponent to the shared attack order"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        state.group_a_count = 1;
+        state.group_b_count = 1;
+        state.group_a_to_actor[0] = 0U;
+        state.battle_flags = 0x20U;
+        state.stored_group_b_index = 0U;
+        Fixture fixture;
+        DispatchPort port;
+        port.action = 25U;
+        auto context = fixture.context();
+        context.attack_order_records = {};
+
+        const auto result = openswd3::battle::dispatch_legacy_battle_action(
+            state, port, context, 0U, 0U
+        );
+
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::attack_order_typed_stop &&
+                state.group_b_status_words[0] != 0U &&
+                result.return_value == 0U,
+            "attack-order typed stop preserves the choice status write then blocks action completion"
         );
     }
 

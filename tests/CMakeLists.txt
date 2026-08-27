@@ -251,6 +251,7 @@ add_executable(
     openswd3_battle_legacy_battle_setup_tests
     unit/battle/legacy_battle_action_rotation_cache_test.cpp
     unit/battle/legacy_battle_action_dispatch_test.cpp
+    unit/battle/legacy_battle_attack_order_entry_test.cpp
     unit/battle/legacy_battle_retreat_commit_test.cpp
     unit/battle/legacy_battle_actor_frame_sequence_test.cpp
     unit/battle/legacy_battle_actor_lifecycle_test.cpp
