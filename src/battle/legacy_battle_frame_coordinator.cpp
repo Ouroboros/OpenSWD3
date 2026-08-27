@@ -304,12 +304,39 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
     state.interaction_available =
         selection_value == 0xFFFFFFFFU && selection_source == 0U ? 1U : 0U;
 
-    static_cast<void>(invoke(
+    result.selection_frame = draw_legacy_battle_selection_frame(
+        {
+            .final_actor = context.final_actor_step,
+            .metrics = port.actor_metric_state(),
+            .action = context.action_dispatch,
+            .input_dispatch = port.battle_input_dispatch_state(),
+            .frame_input = port.battle_frame_input_resolution_state(),
+            .target_runtime = port.battle_target_selection_runtime_state(),
+            .debug_hotkeys = port.battle_debug_hotkey_state(),
+            .actor_frames = context.actor_frames == nullptr
+                ? nullptr
+                : &context.actor_frames->state,
+            .message_state = port.battle_message_state(),
+            .target_ready_gate = context.target_ready_gate,
+            .framebuffer = context.frame_zero.framebuffer,
+            .clip = context.frame_zero.clip,
+            .shared_request = context.frame_zero.shared_request,
+            .shared_effects = context.frame_zero.shared_effects,
+            .jitter = context.frame_zero.jitter,
+            .action_updater = context.action_updater,
+            .frame_provider = context.frame_provider,
+        },
         port,
-        result,
-        LegacyBattleFrameCoordinatorCall::frame_stage,
-        {state.frame_parameter}
-    ));
+        request.selection_frame_request
+    );
+    ++result.selection_frame_calls;
+    result.port_calls += result.selection_frame.port_calls;
+    if (result.selection_frame.status !=
+        LegacyBattleSelectionFrameStatus::completed) {
+        result.status =
+            LegacyBattleFrameCoordinatorStatus::selection_frame_typed_stop;
+        return result;
+    }
     LegacyBattleFrameEffectContext frame_effect_context{
         .framebuffer = context.frame_zero.framebuffer,
         .raster = context.raster,

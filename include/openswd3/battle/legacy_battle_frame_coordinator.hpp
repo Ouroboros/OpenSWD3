@@ -19,6 +19,7 @@
 #include "openswd3/battle/legacy_battle_input_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_outcome_resolution.hpp"
 #include "openswd3/battle/legacy_battle_pre_frame.hpp"
+#include "openswd3/battle/legacy_battle_selection_frame.hpp"
 #include "openswd3/battle/legacy_battle_transition.hpp"
 #include "openswd3/battle/legacy_battle_vertical_shift.hpp"
 #include "openswd3/rendering/legacy_action_renderers.hpp"
@@ -69,7 +70,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     lock_target_surface,
     unlock_target_surface,
     reserved_refresh_selection_slot,
-    frame_stage,
+    reserved_selection_frame_slot,
     query_actor_pair,
     reserved_frame_completion_slot,
     reserved_pending_action_commit_slot,
@@ -89,12 +90,39 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     reserved_pending_action_remove_actor_record,
     frame_completion_query_actor,
     attack_order_dequeue_query_actor,
+    selection_frame_query_group_a_replacement,
+    selection_frame_prepare_selected_actor,
+    selection_frame_query_selected_actor_release,
+    selection_frame_release_selected_actor,
+    selection_frame_reset_actor_selection,
+    selection_frame_draw_mouse_anchor,
+    selection_frame_configure_text_row,
+    selection_frame_configure_text_color,
+    selection_frame_query_text_length,
+    selection_frame_draw_text,
+    selection_frame_draw_action_summary,
+    selection_frame_draw_list_frame,
+    selection_frame_draw_list_contents,
+    selection_frame_draw_grid_frame,
+    selection_frame_draw_narrow_frame,
+    selection_frame_draw_grid_alternate,
+    selection_frame_draw_grid_mode,
+    selection_frame_draw_message_five,
+    selection_frame_draw_message_seven,
+    selection_frame_configure_text_font,
+    selection_frame_query_group_b_completion,
+    selection_frame_query_group_a_completion,
+    selection_frame_build_actor_snapshot,
+    selection_frame_query_actor_origin,
+    selection_frame_query_target_action_available,
+    selection_frame_draw_selection_hint,
 };
 
 struct LegacyBattleFrameCoordinatorCallRequest {
     LegacyBattleFrameCoordinatorCall call{
         LegacyBattleFrameCoordinatorCall::reserved_frame_input_resolution_slot
     };
+    compat::u32 object_token{};
     std::array<compat::u32, 8> arguments{};
     compat::u32 eax{};
     compat::u32 ecx{};
@@ -116,6 +144,12 @@ struct LegacyBattleFrameCoordinatorCallReply {
     compat::u32 group_a_count{};
     compat::i32 origin_x{};
     compat::i32 origin_y{};
+    compat::i32 selection_snapshot_x{};
+    compat::i32 selection_snapshot_y{};
+    compat::i32 selection_snapshot_width{};
+    compat::i32 selection_snapshot_height{};
+    compat::u16 selection_origin_x{};
+    compat::u16 selection_origin_y{};
     LegacyBattleFrameInputSurface actor_surface{};
 };
 
@@ -132,6 +166,7 @@ class LegacyBattleFrameCoordinatorPort
       public LegacyBattlePendingActionPort,
       public LegacyBattleFrameCompletionPort,
       public LegacyBattleFrameInputResolutionPort,
+      public LegacyBattleSelectionFramePort,
       public virtual LegacyBattleEffectCoordinatorStatePort {
 public:
     using LegacyBattleEffectCallPort::invoke;
@@ -141,6 +176,136 @@ public:
 
     [[nodiscard]] virtual LegacyBattleFrameCoordinatorCallReply
     invoke(const LegacyBattleFrameCoordinatorCallRequest& request) = 0;
+    [[nodiscard]] LegacyBattleSelectionFrameCallReply invoke_selection_frame(
+        const LegacyBattleSelectionFrameCallRequest& request
+    ) override {
+        LegacyBattleFrameCoordinatorCall call =
+            LegacyBattleFrameCoordinatorCall::
+                selection_frame_query_group_a_replacement;
+        switch (request.call) {
+        case LegacyBattleSelectionFrameCall::query_group_a_replacement:
+            break;
+        case LegacyBattleSelectionFrameCall::prepare_selected_actor:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_frame_prepare_selected_actor;
+            break;
+        case LegacyBattleSelectionFrameCall::query_selected_actor_release:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_frame_query_selected_actor_release;
+            break;
+        case LegacyBattleSelectionFrameCall::release_selected_actor:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_frame_release_selected_actor;
+            break;
+        case LegacyBattleSelectionFrameCall::reset_actor_selection:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_frame_reset_actor_selection;
+            break;
+        case LegacyBattleSelectionFrameCall::draw_mouse_anchor:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_frame_draw_mouse_anchor;
+            break;
+        case LegacyBattleSelectionFrameCall::configure_text_row:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_frame_configure_text_row;
+            break;
+        case LegacyBattleSelectionFrameCall::configure_text_color:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_frame_configure_text_color;
+            break;
+        case LegacyBattleSelectionFrameCall::query_text_length:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_frame_query_text_length;
+            break;
+        case LegacyBattleSelectionFrameCall::draw_text:
+            call = LegacyBattleFrameCoordinatorCall::selection_frame_draw_text;
+            break;
+        case LegacyBattleSelectionFrameCall::draw_action_summary:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_frame_draw_action_summary;
+            break;
+        case LegacyBattleSelectionFrameCall::draw_list_frame:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_frame_draw_list_frame;
+            break;
+        case LegacyBattleSelectionFrameCall::draw_list_contents:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_frame_draw_list_contents;
+            break;
+        case LegacyBattleSelectionFrameCall::draw_grid_frame:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_frame_draw_grid_frame;
+            break;
+        case LegacyBattleSelectionFrameCall::draw_narrow_frame:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_frame_draw_narrow_frame;
+            break;
+        case LegacyBattleSelectionFrameCall::draw_grid_alternate:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_frame_draw_grid_alternate;
+            break;
+        case LegacyBattleSelectionFrameCall::draw_grid_mode:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_frame_draw_grid_mode;
+            break;
+        case LegacyBattleSelectionFrameCall::draw_message_five:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_frame_draw_message_five;
+            break;
+        case LegacyBattleSelectionFrameCall::draw_message_seven:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_frame_draw_message_seven;
+            break;
+        case LegacyBattleSelectionFrameCall::configure_text_font:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_frame_configure_text_font;
+            break;
+        case LegacyBattleSelectionFrameCall::query_group_b_completion:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_frame_query_group_b_completion;
+            break;
+        case LegacyBattleSelectionFrameCall::query_group_a_completion:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_frame_query_group_a_completion;
+            break;
+        case LegacyBattleSelectionFrameCall::build_actor_snapshot:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_frame_build_actor_snapshot;
+            break;
+        case LegacyBattleSelectionFrameCall::query_actor_origin:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_frame_query_actor_origin;
+            break;
+        case LegacyBattleSelectionFrameCall::query_target_action_available:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_frame_query_target_action_available;
+            break;
+        case LegacyBattleSelectionFrameCall::draw_selection_hint:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_frame_draw_selection_hint;
+            break;
+        }
+        const auto reply = invoke({
+            .call = call,
+            .object_token = request.object_token,
+            .arguments = request.arguments,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        });
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .snapshot_x = reply.selection_snapshot_x,
+            .snapshot_y = reply.selection_snapshot_y,
+            .snapshot_width = reply.selection_snapshot_width,
+            .snapshot_height = reply.selection_snapshot_height,
+            .origin_x = reply.selection_origin_x,
+            .origin_y = reply.selection_origin_y,
+            .text_length = reply.eax,
+        };
+    }
     [[nodiscard]] LegacyBattleFrameInputResolutionCallReply
     invoke_frame_input_resolution(
         const LegacyBattleFrameInputResolutionCallRequest& request
@@ -326,7 +491,6 @@ struct LegacyBattleFrameCoordinatorState {
     compat::u16 selection_delay{};
     compat::u32 selection_auxiliary{};
     compat::u32 interaction_available{};
-    compat::u32 frame_parameter{};
     compat::u32 conditional_mode{};
     compat::u32 conditional_submode{};
     compat::u32 ui_state{};
@@ -350,6 +514,7 @@ struct LegacyBattleFrameCoordinatorRequest {
     compat::u32 actor_priority_ecx_snapshot{};
     compat::u32 actor_priority_edx_snapshot{};
     compat::u32 attack_order_dequeue_edx_snapshot{};
+    LegacyBattleSelectionFrameRequest selection_frame_request{};
     compat::u32 post_actor_frame_ecx_snapshot{};
     compat::u32 post_actor_frame_edx_snapshot{};
     compat::u32 post_frame_zero_ecx_snapshot{};
@@ -420,6 +585,7 @@ enum class LegacyBattleFrameCoordinatorStatus : compat::u8 {
     dialog_typed_stop,
     countdown_typed_stop,
     frame_effect_typed_stop,
+    selection_frame_typed_stop,
     internal_flag_typed_stop,
     input_return_three,
     temporary_surface_typed_stop,
@@ -464,6 +630,8 @@ struct LegacyBattleFrameCoordinatorResult {
     compat::u32 vertical_shift_calls{};
     LegacyBattleFrameEffectResult frame_effect{};
     compat::u32 frame_effect_calls{};
+    LegacyBattleSelectionFrameResult selection_frame{};
+    compat::u32 selection_frame_calls{};
     LegacyBattleActorPriorityResult actor_priority{};
     compat::u32 actor_priority_calls{};
     LegacyBattleActorFrameSequenceResult actor_frame_sequence{};

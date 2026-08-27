@@ -26,7 +26,7 @@ target-ready gate不等于1、当前queued角色code为0，或message非零且�
 
 ## 4. sample与角色配置
 
-队列未完成时，函数把sample mix装入ECX，以编号45调用既有sample command；EAX/ECX/EDX完整采用callee结果。随后重新读取queued code，把它装入EDX，发布mouse gate、target gate与phase 5，再重新计算group-A token和EAX=`index*0xBCD`，以两个固定output token调用角色选择配置。第二次实际对象call独立执行typed-stop，因此sample或外部callee若改变queued code，停止点仍保持此前声音和三项gate写。
+队列未完成时，函数把sample mix装入ECX，以编号45调用既有sample command；EAX/ECX/EDX完整采用callee结果。随后重新读取queued code，把它装入EDX，发布mouse gate、target gate与phase 5，再重新计算group-A token和EAX=`index*0xBCD`，以两个固定output token调用角色选择配置；callee写回的两项word同步到输入分派内唯一选择角色原点owner，供已关闭选择帧直接读取。第二次实际对象call独立执行typed-stop，因此sample或外部callee若改变queued code，停止点仍保持此前声音和三项gate写。
 
 配置返回后，group-B index word为全1，或signed group-A index不等于`queued_code-8`时，函数发布message 1、action kind 1并调用既有动作刷新。两个index word物理相邻但独立；group-A index不与逐帧option cache合并。
 

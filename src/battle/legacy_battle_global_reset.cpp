@@ -352,7 +352,8 @@ void synchronize_typed_aliases(
     LegacyBattleVerticalShiftState& vertical_shift,
     LegacyBattleInputDispatchState& input_dispatch,
     LegacyBattleFrameInputResolutionState& frame_input_resolution,
-    LegacyBattleTargetSelectionRuntimeState& target_selection
+    LegacyBattleTargetSelectionRuntimeState& target_selection,
+    LegacyBattleSelectionFrameState& selection_frame
 ) {
     startup.render_geometry = {};
     auto& reset = startup.reset;
@@ -541,6 +542,10 @@ void synchronize_typed_aliases(
     target_selection.target_actor_indices[0U] = 0U;
     target_selection.actor_result_words[0U] = 0U;
     target_selection.actor_result_words[1U] = 0U;
+
+    selection_frame.display_gate = 0U;
+    selection_frame.secondary_actor_gate = 0U;
+    selection_frame.selection_suppression = 0U;
     startup.supplemental_count_word = 0U;
 }
 
@@ -615,7 +620,8 @@ LegacyBattleGlobalResetResult reset_legacy_battle_globals(
         port.battle_vertical_shift_state(),
         port.battle_input_dispatch_state(),
         port.battle_frame_input_resolution_state(),
-        port.battle_target_selection_runtime_state()
+        port.battle_target_selection_runtime_state(),
+        port.battle_selection_frame_state()
     );
 
     record_call(

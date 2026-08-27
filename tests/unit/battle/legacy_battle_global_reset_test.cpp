@@ -327,6 +327,8 @@ void seed_state(
     input.selection_index = 9U;
     input.input_gate = 9U;
     input.retreat_block_word = 9U;
+    input.selection_actor_origin_x = 9U;
+    input.selection_actor_origin_y = 9U;
     input.retreat_target_word = 9U;
     input.selected_option_word = 9U;
     input.action_word = 9U;
@@ -380,6 +382,13 @@ void seed_state(
     target.action_remap_prefix.fill(9U);
     target.action_remap_gap.fill(9U);
     target.action_remap_suffix.fill(9U);
+
+    auto& selection_frame = port.battle_selection_frame_state();
+    selection_frame.actor_label_indices.fill(9U);
+    selection_frame.pointer_origin.fill(9U);
+    selection_frame.display_gate = 9U;
+    selection_frame.secondary_actor_gate = 9U;
+    selection_frame.selection_suppression = 9U;
 
     auto& frame_input = port.battle_frame_input_resolution_state();
     frame_input.previous_mouse_x = 9;
@@ -666,6 +675,8 @@ void test_battle_global_reset(openswd3::test::Context& test) {
             input.menu_action == 0U && input.action_kind == 1U &&
                 input.selection_index == 1U && input.input_gate == 9U &&
                 input.retreat_block_word == 0U &&
+                input.selection_actor_origin_x == 9U &&
+                input.selection_actor_origin_y == 9U &&
                 input.retreat_target_word == 0xFFFFU &&
                 input.selected_option_word == 0xFFFFU &&
                 input.action_word == 9U && input.interaction_mode == 0U &&
@@ -729,6 +740,20 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 state.unmapped_bytes.contains(0x0053BF24U) == false &&
                 state.unmapped_bytes.contains(0x0053C038U) == false,
             "global reset updates the target-selection owner only for bytes in the original write program"
+        );
+        const auto& selection_frame = port.battle_selection_frame_state();
+        test.expect_true(
+            selection_frame.display_gate == 0U &&
+                selection_frame.secondary_actor_gate == 0U &&
+                selection_frame.selection_suppression == 0U &&
+                selection_frame.actor_label_indices[0U] == 9U &&
+                selection_frame.pointer_origin[0U] == 9U &&
+                state.unmapped_bytes.contains(0x0053C184U) == false &&
+                state.unmapped_bytes.contains(0x0053BF1CU) == false &&
+                state.unmapped_bytes.contains(0x0053BF5CU) == false &&
+                state.unmapped_bytes.contains(0x0053BF68U) == false &&
+                state.unmapped_bytes.contains(0x0053BFBCU) == false,
+            "global reset clears only the three selection-frame fields covered by the original write program"
         );
         const auto& frame_input = port.battle_frame_input_resolution_state();
         test.expect_true(

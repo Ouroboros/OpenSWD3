@@ -29,7 +29,9 @@ struct LegacyBattleInputDispatchState {
     compat::u32 selection_index{1U};
     compat::u32 input_gate{};  // 0x0053C024
     compat::u32 input_latch{};
-    compat::u16 retreat_block_word{};  // 0x0053BF1C
+    compat::u16 retreat_block_word{};        // 0x0053BF1C
+    compat::u16 selection_actor_origin_x{};  // 0x0053BF4A
+    compat::u16 selection_actor_origin_y{};  // 0x0053BF4E
     compat::u32 action_block_gate{};
     compat::u16 retreat_target_word{0xFFFFU};   // 0x004A7626
     compat::u16 selected_option_word{0xFFFFU};  // 0x004A7644
@@ -133,6 +135,8 @@ struct LegacyBattleInputDispatchCallReply {
     compat::u32 eax{};
     compat::u32 ecx{};
     compat::u32 edx{};
+    compat::u16 output_word_a{};
+    compat::u16 output_word_b{};
 };
 
 class LegacyBattleInputDispatchPort

@@ -1,0 +1,686 @@
+#include "openswd3/battle/legacy_battle_selection_frame.hpp"
+
+#include <algorithm>
+#include <array>
+#include <map>
+#include <span>
+#include <vector>
+
+#include "test.hpp"
+
+namespace {
+
+using openswd3::battle::LegacyBattleSelectionFrameCall;
+using openswd3::battle::LegacyBattleSelectionFrameCallReply;
+using openswd3::battle::LegacyBattleSelectionFrameCallRequest;
+using openswd3::compat::u8;
+using openswd3::compat::u16;
+using openswd3::compat::u32;
+
+class SelectionPort final
+    : public openswd3::battle::LegacyBattleSelectionFramePort {
+public:
+    [[nodiscard]] LegacyBattleSelectionFrameCallReply invoke_selection_frame(
+        const LegacyBattleSelectionFrameCallRequest& request
+    ) override {
+        calls.push_back(request);
+        auto& index = reply_indices[request.call];
+        const auto found = replies.find(request.call);
+        if (found == replies.end() || index >= found->second.size()) {
+            return default_reply;
+        }
+        return found->second[index++];
+    }
+
+    void reply(
+        const LegacyBattleSelectionFrameCall call,
+        const LegacyBattleSelectionFrameCallReply value
+    ) {
+        replies[call].push_back(value);
+    }
+
+    std::vector<LegacyBattleSelectionFrameCallRequest> calls;
+    std::map<
+        LegacyBattleSelectionFrameCall,
+        std::vector<LegacyBattleSelectionFrameCallReply>>
+        replies;
+    std::map<LegacyBattleSelectionFrameCall, std::size_t> reply_indices;
+    LegacyBattleSelectionFrameCallReply default_reply{};
+};
+
+class FailingActionStreamProvider final
+    : public openswd3::asset_runtime::LegacyActionStreamProvider {
+public:
+    [[nodiscard]] openswd3::asset_runtime::LegacyActionStreamLoadResult
+    load_action_stream(u32, u32, bool) override {
+        return {};
+    }
+};
+
+class SelectionFrameProvider final
+    : public openswd3::rendering::LegacyFramePieceProvider {
+public:
+    SelectionFrameProvider() {
+        widths = {20U, 20U, 20U, 4U};
+        heights = {4U, 3U, 60U, 4U};
+        for (std::size_t index = 0U; index < storage.size(); ++index) {
+            storage[index].resize(
+                static_cast<std::size_t>(widths[index]) * heights[index] * 2U,
+                static_cast<u8>(index + 1U)
+            );
+        }
+    }
+
+    [[nodiscard]] bool load_frame_piece(
+        u32, const u32 frame_index, openswd3::rendering::LegacyFramePiece& piece
+    ) noexcept override {
+        if (fail || frame_index >= storage.size()) {
+            piece = {};
+            return false;
+        }
+        piece = {
+            .source =
+                {
+                    .bytes = storage[frame_index],
+                    .layout =
+                        openswd3::rendering::LegacyBlitSourceLayout::direct_16,
+                },
+            .width = widths[frame_index],
+            .height = heights[frame_index],
+        };
+        return true;
+    }
+
+    bool fail{};
+    std::array<u16, 4> widths{};
+    std::array<u16, 4> heights{};
+    std::array<std::vector<u8>, 4> storage;
+};
+
+struct Fixture {
+    Fixture() : action_updater(action_streams) {}
+
+    [[nodiscard]] openswd3::battle::LegacyBattleSelectionFrameBindings
+    bindings() {
+        return {
+            .final_actor = final_actor,
+            .metrics = metrics,
+            .action = action,
+            .input_dispatch = input,
+            .frame_input = frame,
+            .target_runtime = target,
+            .debug_hotkeys = debug,
+            .actor_frames = &actor_frames,
+            .message_state = message,
+            .target_ready_gate = target_ready,
+            .framebuffer = framebuffer,
+            .clip = clip,
+            .shared_request = request,
+            .shared_effects = effects,
+            .jitter = jitter,
+            .action_updater = action_updater,
+            .frame_provider = frame_provider,
+        };
+    }
+
+    openswd3::battle::LegacyBattleFinalActorStepState final_actor;
+    openswd3::battle::LegacyBattleActorMetricState metrics;
+    openswd3::battle::LegacyBattleActionDispatchState action;
+    openswd3::battle::LegacyBattleInputDispatchState input;
+    openswd3::battle::LegacyBattleFrameInputResolutionState frame;
+    openswd3::battle::LegacyBattleTargetSelectionRuntimeState target;
+    openswd3::battle::LegacyBattleDebugHotkeyState debug;
+    openswd3::battle::LegacyBattleGroupBFrameState actor_frames;
+    u32 message{};
+    u32 target_ready{};
+    openswd3::rendering::LegacyFramebuffer framebuffer{{
+        .pitch_bytes = 1280,
+        .width = 640,
+        .height = 480,
+    }};
+    openswd3::rendering::LegacyBlitClipRectangle clip{0, 0, 640, 480};
+    openswd3::rendering::LegacyBlitRequest request;
+    openswd3::rendering::LegacyBlitEffectState effects;
+    openswd3::rendering::LegacyRleRowJitterState jitter;
+    FailingActionStreamProvider action_streams;
+    openswd3::asset_runtime::LegacyActionUpdater action_updater;
+    SelectionFrameProvider frame_provider;
+    SelectionPort port;
+};
+
+[[nodiscard]] std::size_t count_call(
+    const SelectionPort& port, const LegacyBattleSelectionFrameCall call
+) {
+    return static_cast<std::size_t>(std::ranges::count_if(
+        port.calls, [call](const auto& request) { return request.call == call; }
+    ));
+}
+
+}  // namespace
+
+void test_battle_selection_frame(openswd3::test::Context& test) {
+    {
+        Fixture fixture;
+        fixture.message = 103U;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        completed &&
+                result.return_eax == 103U && result.port_calls == 0U &&
+                fixture.port.battle_selection_frame_state().display_gate == 0U,
+            "message one hundred three returns before queued actor and display state access"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 7U;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port, {.entry_edx = 0x12345678U}
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        group_a_actor_typed_stop &&
+                result.return_eax == 0xFFFFF433U &&
+                result.return_ecx == 0x005029D0U - 0x2F34U &&
+                result.return_edx == 0x12345678U && result.port_calls == 0U,
+            "queued actor code seven stops at the first real group-A query after preserving wrapped call registers"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.final_actor.actor_order[0U] = 9U;
+        fixture.final_actor.actor_order[1U] = 10U;
+        fixture.metrics.group_b_count = 1U;
+        fixture.metrics.group_a_count = 3U;
+        fixture.message = 30U;
+        fixture.port.reply(
+            LegacyBattleSelectionFrameCall::query_group_a_replacement,
+            {.eax = 1U}
+        );
+        fixture.port.reply(
+            LegacyBattleSelectionFrameCall::query_group_a_replacement,
+            {.eax = 1U}
+        );
+        fixture.port.reply(
+            LegacyBattleSelectionFrameCall::query_group_a_replacement,
+            {.eax = 0U}
+        );
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        completed &&
+                fixture.final_actor.queued_actor_code == 10U &&
+                fixture.final_actor.actor_order[1U] == 8U &&
+                fixture.message == 0U && fixture.target.target_argument == 0U &&
+                fixture.input.selection_animation_phase == 5U &&
+                fixture.frame.target_selection_gate == 1U &&
+                fixture.input.selection_runtime_gate == 0U &&
+                fixture.input.selection_cache_gate_a == 0U &&
+                fixture.input.selection_cache_gate_b == 0U &&
+                fixture.input.selection_cache_gate_c == 0U &&
+                std::ranges::all_of(
+                    fixture.input.selection_workspace,
+                    [](const u32 value) { return value == 0U; }
+                ) &&
+                count_call(
+                    fixture.port,
+                    LegacyBattleSelectionFrameCall::reset_actor_selection
+                ) == 1U,
+            "completed queued actor clears selection state resets live group-B objects and swaps the first reusable group-A order slot"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.message = 1U;
+        fixture.input.selection_animation_frame_b = 5U;
+        fixture.input.selection_animation_phase = 2U;
+        fixture.input.selection_runtime_gate = 1U;
+        fixture.frame.panel_origin_x = 100U;
+        fixture.frame.panel_origin_y = 50U;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        completed &&
+                result.scale_fill_panel.status ==
+                    openswd3::battle::LegacyBattleScaleFillPanelStatus::
+                        completed &&
+                fixture.input.selection_animation_frame_b == 6U &&
+                fixture.input.selection_animation_phase == 1U &&
+                result.return_eax == 1U &&
+                count_call(
+                    fixture.port,
+                    LegacyBattleSelectionFrameCall::configure_text_row
+                ) == 0U,
+            "message one draws the closed scale panel then advances the signed animation counters before text"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.message = 1U;
+        fixture.input.selection_animation_frame_b = 6U;
+        fixture.input.selection_animation_phase = 0U;
+        fixture.input.selection_runtime_gate = 1U;
+        fixture.input.action_kind = 5U;
+        fixture.frame.panel_origin_x = 100U;
+        fixture.frame.panel_origin_y = 50U;
+        fixture.port.battle_selection_frame_state().actor_label_indices[0U] =
+            3U;
+        fixture.port.reply(
+            LegacyBattleSelectionFrameCall::query_text_length, {.eax = 8U}
+        );
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port
+            );
+        const auto draw_text =
+            std::ranges::find_if(fixture.port.calls, [](const auto& request) {
+                return request.call ==
+                    LegacyBattleSelectionFrameCall::draw_text;
+            });
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        completed &&
+                draw_text != fixture.port.calls.end() &&
+                draw_text->arguments[0U] == 0x004CD76CU &&
+                draw_text->arguments[1U] == 124U &&
+                draw_text->arguments[2U] == 64U &&
+                draw_text->arguments[3U] == 0x0049E178U &&
+                count_call(
+                    fixture.port,
+                    LegacyBattleSelectionFrameCall::draw_action_summary
+                ) == 1U,
+            "message one at frame six preserves the stale actor-label slot and centered text geometry before the action summary"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.message = 2U;
+        fixture.input.selection_animation_frame_b = 7U;
+        fixture.input.selection_animation_frame_a = 10U;
+        fixture.frame.panel_row_limit_a = 0xFFU;
+        fixture.frame.panel_scroll_a = 4U;
+        fixture.port.default_reply.eax = 0x12340000U;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        completed &&
+                fixture.frame.lower_panel_aux == 0xFFFFFFFFU &&
+                fixture.frame.lower_panel_aux_index == 4U &&
+                fixture.input.selection_cache_gate_a == 1U &&
+                fixture.input.selection_cache_gate_b == 1U &&
+                fixture.input.selection_cache_gate_c == 1U &&
+                result.return_eax == 0x123400FFU &&
+                result.vertical_panel.action_update_calls == 0U,
+            "message two sign-extends the byte row limit and keeps the callee return high bytes when no vertical panel is needed"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.message = 4U;
+        fixture.frame.panel_row_limit_c = 8U;
+        fixture.target.candidate_gate_a = 6U;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        vertical_panel_typed_stop &&
+                result.vertical_panel.status ==
+                    openswd3::battle::LegacyBattleVerticalPanelStatus::
+                        action_update_failed &&
+                fixture.frame.lower_panel_aux == 8U &&
+                fixture.input.selection_cache_gate_c == 1U &&
+                fixture.input.selection_cache_gate_a == 0U &&
+                fixture.input.selection_cache_gate_b == 0U,
+            "message four propagates the closed vertical panel stop after publishing row state but before final cache gates"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.message = 6U;
+        fixture.input.retreat_block_word = 0x0021U;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        completed &&
+                fixture.input.retreat_block_word == 0x4021U &&
+                fixture.message == 0U &&
+                fixture.final_actor.queued_actor_code == 0U &&
+                fixture.input.selection_cache_gate_a == 1U &&
+                fixture.input.selection_cache_gate_b == 1U,
+            "message six ORs only the physical control byte and closes selection when both actor gates are clear"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.message = 3U;
+        fixture.frame.target_selection_block = 1U;
+        fixture.metrics.group_b_count = 9U;
+        for (u32 index = 0U; index < 8U; ++index) {
+            fixture.port.reply(
+                LegacyBattleSelectionFrameCall::query_group_b_completion,
+                {.eax = 1U}
+            );
+        }
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        group_b_actor_typed_stop &&
+                result.group_b_calls == 8U &&
+                count_call(
+                    fixture.port,
+                    LegacyBattleSelectionFrameCall::configure_text_font
+                ) == 1U,
+            "message three keeps the unbounded live count loop and stops on the ninth real group-B object call"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.message = 3U;
+        fixture.frame.target_selection_block = 1U;
+        fixture.action.opponent_workspace[0U] = 1U;
+        fixture.metrics.group_a_count = 9U;
+        fixture.frame.lower_panel_bottom = 0xAAAAAAAAU;
+        fixture.frame.lower_panel_top = 0xBBBBBBBBU;
+        fixture.frame.lower_panel_aux = 0xCCCCCCCCU;
+        fixture.frame.lower_panel_aux_index = 0xDDDDDDDDU;
+        for (u32 index = 0U; index < 8U; ++index) {
+            fixture.port.reply(
+                LegacyBattleSelectionFrameCall::query_group_a_completion,
+                {.eax = 1U}
+            );
+        }
+        fixture.port.reply(
+            LegacyBattleSelectionFrameCall::query_group_a_completion,
+            {.eax = 0U}
+        );
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        prepared_action_frame_typed_stop &&
+                result.action_frame_draw_calls == 1U &&
+                fixture.frame.lower_panel_bottom == 0x238FU &&
+                fixture.frame.lower_panel_top == 0x238FU &&
+                fixture.frame.lower_panel_aux == 0U &&
+                fixture.frame.lower_panel_aux_index == 0U,
+            "group-A marker record eight writes through the four physically overlapping lower-panel dwords"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.message = 3U;
+        fixture.frame.target_selection_block = 1U;
+        fixture.action.opponent_workspace[0U] = 1U;
+        fixture.metrics.group_a_count = 10U;
+        fixture.frame.lower_panel_bottom = 0xAAAAAAAAU;
+        for (u32 index = 0U; index < 9U; ++index) {
+            fixture.port.reply(
+                LegacyBattleSelectionFrameCall::query_group_a_completion,
+                {.eax = 1U}
+            );
+        }
+        fixture.port.reply(
+            LegacyBattleSelectionFrameCall::query_group_a_completion,
+            {.eax = 0U}
+        );
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port
+            );
+        const auto& state = fixture.port.battle_selection_frame_state();
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        prepared_action_frame_typed_stop &&
+                state.prepared_action_overlap_tail[0x88U] == 0x8FU &&
+                state.prepared_action_overlap_tail[0x89U] == 0x23U &&
+                fixture.frame.lower_panel_bottom == 0xAAAAAAAAU,
+            "group-A marker record nine uses the physical tail immediately after overlapping record eight"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.message = 3U;
+        fixture.metrics.group_b_count = 9U;
+        fixture.frame.target_cursor = 8U;
+        fixture.port.reply(
+            LegacyBattleSelectionFrameCall::query_group_b_completion,
+            {.eax = 1U}
+        );
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        target_actor_index_typed_stop &&
+                fixture.frame.target_cursor == 9U && result.group_b_calls == 1U,
+            "target cycling stops at target-map index nine after the completed current-target query and cursor write"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.final_actor.published_actor_code = 8U;
+        fixture.message = 3U;
+        fixture.action.opponent_workspace[0U] = 1U;
+        fixture.target.selection_input_gate = 1U;
+        fixture.port.battle_selection_frame_state().selection_suppression = 1U;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        completed &&
+                count_call(
+                    fixture.port,
+                    LegacyBattleSelectionFrameCall::draw_selection_hint
+                ) == 1U &&
+                result.action_frame_draw_calls == 0U,
+            "selection suppression skips actor marker construction but preserves the live input-gate hint"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.final_actor.published_actor_code = 1U;
+        fixture.message = 3U;
+        fixture.frame.target_actor_index = 0U;
+        fixture.port.reply(
+            LegacyBattleSelectionFrameCall::query_group_b_completion,
+            {.eax = 0U}
+        );
+        fixture.port.reply(
+            LegacyBattleSelectionFrameCall::build_actor_snapshot,
+            {
+                .snapshot_x = 100,
+                .snapshot_y = 50,
+                .snapshot_width = 20,
+                .snapshot_height = 10,
+            }
+        );
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        prepared_action_frame_typed_stop &&
+                result.prepared_action_frame.status ==
+                    openswd3::battle::
+                        LegacyBattlePreparedActionFrameDrawStatus::
+                            action_update_failed &&
+                result.action_frame_draw_calls == 1U &&
+                result.prepared_action_frame.draw_x == 110 &&
+                result.prepared_action_frame.draw_y == 55 &&
+                count_call(
+                    fixture.port,
+                    LegacyBattleSelectionFrameCall::reset_actor_selection
+                ) == 1U &&
+                std::ranges::any_of(
+                    fixture.port.calls,
+                    [](const auto& request) {
+                        return request.call ==
+                            LegacyBattleSelectionFrameCall::
+                                query_actor_origin &&
+                            request.arguments[0U] == 0x0053BF4AU &&
+                            request.arguments[1U] == 0x0053BF4EU;
+                    }
+                ),
+            "current group-B target propagates the closed action-frame update stop after reset snapshot and origin calls"
+        );
+    }
+
+    {
+        Fixture five;
+        five.final_actor.queued_actor_code = 8U;
+        five.message = 5U;
+        const auto five_result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                five.bindings(), five.port
+            );
+        Fixture seven;
+        seven.final_actor.queued_actor_code = 8U;
+        seven.message = 7U;
+        seven.frame.panel_origin_x = 100U;
+        seven.frame.panel_origin_y = 50U;
+        seven.frame.alternate_selection = 2U;
+        const auto seven_result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                seven.bindings(), seven.port
+            );
+        Fixture eight;
+        eight.final_actor.queued_actor_code = 8U;
+        eight.message = 8U;
+        eight.frame.narrow_list_selection = 3U;
+        const auto eight_result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                eight.bindings(), eight.port
+            );
+        Fixture thirty;
+        thirty.final_actor.queued_actor_code = 8U;
+        thirty.message = 30U;
+        thirty.frame.grid_selection = 4U;
+        thirty.frame.panel_scroll_b = 5U;
+        const auto thirty_result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                thirty.bindings(), thirty.port
+            );
+        test.expect_true(
+            five_result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        completed &&
+                five.port.calls.back().call ==
+                    LegacyBattleSelectionFrameCall::draw_message_five &&
+                five.port.calls.back().arguments[0U] == 0xC4U &&
+                five.port.calls.back().arguments[1U] == 0xCEU &&
+                seven_result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        completed &&
+                seven.port.calls.back().call ==
+                    LegacyBattleSelectionFrameCall::draw_message_seven &&
+                seven.port.calls.back().arguments[0U] == 112U &&
+                seven.port.calls.back().arguments[1U] == 58U &&
+                seven.port.calls.back().arguments[2U] == 2U &&
+                eight_result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        completed &&
+                eight.port.calls.back().call ==
+                    LegacyBattleSelectionFrameCall::draw_narrow_frame &&
+                eight.input.selection_cache_gate_a == 1U &&
+                eight.input.selection_cache_gate_b == 1U &&
+                thirty_result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        completed &&
+                thirty.port.calls.back().call ==
+                    LegacyBattleSelectionFrameCall::draw_grid_mode &&
+                thirty.port.calls.back().arguments[2U] == 4U &&
+                thirty.port.calls.back().arguments[3U] == 5U,
+            "messages five seven eight and thirty preserve their fixed render arguments and final cache publication"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.message = 27U;
+        fixture.frame.panel_row_limit_c = 7U;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        completed &&
+                count_call(
+                    fixture.port,
+                    LegacyBattleSelectionFrameCall::draw_grid_alternate
+                ) == 1U &&
+                fixture.input.selection_cache_gate_a == 1U &&
+                fixture.input.selection_cache_gate_b == 1U &&
+                fixture.input.selection_cache_gate_c == 1U,
+            "message twenty-seven keeps the alternate grid call and unsigned row threshold"
+        );
+    }
+}

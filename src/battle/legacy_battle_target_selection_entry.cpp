@@ -83,6 +83,7 @@ LegacyBattleTargetSelectionEntryResult enter_legacy_battle_target_selection(
         eax = reply.eax;
         ecx = reply.ecx;
         edx = reply.edx;
+        return reply;
     };
     const auto refresh_action = [&]() {
         bindings.message_state = 1U;
@@ -232,10 +233,12 @@ LegacyBattleTargetSelectionEntryResult enter_legacy_battle_target_selection(
             active_group_a_actor_typed_stop;
         return finish();
     }
-    invoke(
+    const auto configured = invoke(
         LegacyBattleInputDispatchCall::target_selection_configure_actor,
         {kSelectionActorOutputAToken, kSelectionActorOutputBToken}
     );
+    input.selection_actor_origin_x = configured.output_word_a;
+    input.selection_actor_origin_y = configured.output_word_b;
 
     if (input.selected_group_b_index == 0xFFFFU) {
         refresh_action();

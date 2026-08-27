@@ -317,7 +317,10 @@ void test_battle_target_selection_entry(openswd3::test::Context& test) {
             LegacyBattleInputDispatchCallReply{
                 .eax = 0U, .ecx = 0x10U, .edx = 0x20U
             },
-            std::nullopt,
+            LegacyBattleInputDispatchCallReply{
+                .output_word_a = 0x12U,
+                .output_word_b = 0x34U,
+            },
             LegacyBattleInputDispatchCallReply{
                 .eax = 0x30U, .ecx = 0x40U, .edx = 0x50U
             },
@@ -348,6 +351,10 @@ void test_battle_target_selection_entry(openswd3::test::Context& test) {
                     LegacyBattleInputDispatchCall::refresh_action_mode &&
                 fixture.message == 1U &&
                 fixture.port.battle_input_dispatch_state().action_kind == 1U &&
+                fixture.port.battle_input_dispatch_state()
+                        .selection_actor_origin_x == 0x12U &&
+                fixture.port.battle_input_dispatch_state()
+                        .selection_actor_origin_y == 0x34U &&
                 fixture.port.battle_input_dispatch_state().mouse_action_gate ==
                     1U &&
                 fixture.frame.target_selection_gate == 1U &&

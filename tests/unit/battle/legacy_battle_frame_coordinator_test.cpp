@@ -635,6 +635,12 @@ base_request() {
 void configure_common_port(CoordinatorPort& port) {
     port.replies[LegacyBattleFrameCoordinatorCall::lock_target_surface].eax =
         0x004CD76CU;
+    port.replies[LegacyBattleFrameCoordinatorCall::
+                     selection_frame_query_group_a_replacement]
+        .eax = 0U;
+    port.replies[LegacyBattleFrameCoordinatorCall::
+                     selection_frame_query_selected_actor_release]
+        .eax = 0U;
 }
 
 }  // namespace
@@ -809,10 +815,43 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleFrameEffectStatus::
                         source_blit_typed_stop &&
                 result.fixed_frame_calls == 0U &&
-                port.count(LegacyBattleFrameCoordinatorCall::frame_stage) ==
-                    1U &&
+                result.selection_frame_calls == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        reserved_selection_frame_slot
+                ) == 0U &&
                 result.actor_priority_calls == 0U,
-            "frame effect typed stop preserves main frame stage and blocks all following frame stages"
+            "frame effect typed stop preserves the typed selection frame and blocks all following frame stages"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleFrameCoordinatorState state;
+        Fixture fixture;
+        fixture.final_actor_step.queued_actor_code = 7U;
+        CoordinatorPort port;
+        configure_common_port(port);
+        auto context = fixture.context();
+
+        const auto result =
+            openswd3::battle::run_legacy_battle_frame_coordinator(
+                state, port, context, base_request()
+            );
+
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameCoordinatorStatus::
+                        selection_frame_typed_stop &&
+                result.selection_frame_calls == 1U &&
+                result.selection_frame.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        group_a_actor_typed_stop &&
+                result.frame_effect_calls == 0U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        reserved_selection_frame_slot
+                ) == 0U,
+            "selection-frame actor stop preserves all prior frame side effects and blocks frame effect"
         );
     }
 

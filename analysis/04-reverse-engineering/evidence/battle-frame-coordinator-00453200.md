@@ -47,7 +47,7 @@ selection_mode == 0
 - 新值不是全1：延迟word清零、active写1、auxiliary保存新值；
 - 新值仍为全1：不清延迟、不置active、不改auxiliary。
 
-旧选择刷新callee枚举只保留reserved数值且不再调用。出队内部唯一尚未关闭角色查询转接为窄端口；子typed-stop保留lock/unlock和出队输出/记录前缀，阻断主frame stage和后续全部帧。
+旧选择刷新callee枚举只保留reserved数值且不再调用。出队内部唯一尚未关闭角色查询转接为窄端口；子typed-stop保留lock/unlock和出队输出/记录前缀，阻断选择帧和后续全部帧。
 
 选择值与角色metric优先索引是同一物理七dword输出记录的首dword，后六dword也收敛到同一metric owner；全局重置按原物理写集合清完整七dword。输入源复用启动状态第一条`0x1C`记录的`+0x00`，选择active与mode分别复用最终角色selection gate与frame gate。调试快捷键或后续角色阶段的同址写入会真实影响本帧后续判断，不保留旧独立副本。
 
@@ -61,14 +61,14 @@ selection_value == 0xFFFFFFFF && selection_source == 0
 
 随后固定执行：
 
-1. 带共享参数的主frame stage；
+1. 直接组合已关闭选择帧：处理完成角色替换、十类message绘制、目标轮转与角色标记；旧frame-stage槽只保留reserved数值且零调用；
 2. 直接调用已关闭`0x00453580`画面效果，以其共享pending rotation作入口参数；
 3. 当`conditional_mode != 1 || conditional_submode == 1`时执行条件stage；
 4. 直接组合已关闭双方完成数协调：扫描组A对象双门和组B mask链，满足阈值后发布message及组门；
 5. 直接组合已关闭待执行动作提交：按入口总数遍历live角色顺序，处理ready标记、角色发布和记录移除；
 6. 直接调用已关闭`0x0045C010`效果总协调步进。
 
-画面效果typed-stop保留主frame stage及效果内部真实前缀，并阻断全部后继stage。双方完成数协调复用当前角色、双方数量、最终角色计数、动作phase/packed计数、结果暗化门、启动组门与message唯一owner；前一角色帧的post-call ECX/EDX由显式snapshot进入，正常尾EDX成为待执行动作零角色早退快照。其子typed-stop阻断待执行动作和后续帧，旧第一后继stage只保留reserved枚举值且不再调用。待执行动作提交复用唯一metric顺序/数量、启动ready槽、actor publication和activation latch，并直接组合攻击顺序移除；移除左移尾源与效果总协调器`intensity_records[0]`共用同一物理owner，旧pending移除端口槽只保留reserved数值且不再调用。其typed-stop保留角色帧、完成数协调及publication前缀并阻断效果协调和固定帧。旧第二后继stage只保留reserved枚举值且不再调用。效果总协调器复用主帧端口内唯一角色metric、效果步进和18槽记录状态；子typed-stop阻断固定帧，普通返回值不等于1时只对共享UI dword的低word OR 1，高16位原样保留。旧opaque完成门枚举和测试桩已删除。
+选择帧typed-stop保留交互可用发布及此前全部帧副作用，并阻断画面效果；画面效果typed-stop保留已完成选择帧及效果内部真实前缀，并阻断全部后继stage。双方完成数协调复用当前角色、双方数量、最终角色计数、动作phase/packed计数、结果暗化门、启动组门与message唯一owner；前一角色帧的post-call ECX/EDX由显式snapshot进入，正常尾EDX成为待执行动作零角色早退快照。其子typed-stop阻断待执行动作和后续帧，旧第一后继stage只保留reserved枚举值且不再调用。待执行动作提交复用唯一metric顺序/数量、启动ready槽、actor publication和activation latch，并直接组合攻击顺序移除；移除左移尾源与效果总协调器`intensity_records[0]`共用同一物理owner，旧pending移除端口槽只保留reserved数值且不再调用。其typed-stop保留角色帧、完成数协调及publication前缀并阻断效果协调和固定帧。旧第二后继stage只保留reserved枚举值且不再调用。效果总协调器复用主帧端口内唯一角色metric、效果步进和18槽记录状态；子typed-stop阻断固定帧，普通返回值不等于1时只对共享UI dword的低word OR 1，高16位原样保留。旧opaque完成门枚举和测试桩已删除。
 
 然后直接调用已关闭`0x00450270`，固定资源`0x234D`、帧0、坐标`(0,384)`。frame unavailable或blitter typed-stop在原首次访问/绘制点阻断后续流程；不伪造选中角色、跨模块队列、输入或截图尾。
 
@@ -181,7 +181,7 @@ finalize之后直接调用已关闭三通道颜色累加：固定递减请求，
 - `0x00453200..0x0045325D`：活动、音乐、双opaque stage、角色预处理、metric、顺序、完成门与零早退；
 - `0x0045325E..0x00453286`：target lock/unlock、渲染门与返回1；
 - `0x0045328C..0x0045331C`：选择mode、延迟刷新和交互可用发布；
-- `0x0045331C..0x00453379`：主阶段、画面效果直连、条件阶段、角色帧顺序、双方完成数与待执行动作提交直连、效果协调、UI低word和固定帧；
+- `0x0045331C..0x00453379`：选择帧直连、画面效果直连、条件阶段、角色帧顺序、双方完成数与待执行动作提交直连、效果协调、UI低word和固定帧；
 - `0x0045337F..0x00453431`：选中动作记录、双映射、九宫格、角色对象和独立帧；
 - `0x00453434..0x00453482`：ECX低word、四stage、三类跨模块队列、两倒计时；
 - `0x00453491..0x004534A3`：调试叠加精确门、结果判定前置流程及上下文提示typed直连；
@@ -197,7 +197,7 @@ C++到LST反向追溯覆盖完整412行、44个静态call站点和18个标签。
 
 - 音乐启动/commit、双opaque、typed角色预处理与调试快捷键顺序，以及E键第六阶段零早退；
 - target lock/unlock后渲染门返回活动1；
-- 选择延迟、攻击顺序出队直连、七dword共享输出、角色查询转接、旧opaque槽清零、active/auxiliary发布与交互门；
+- 选择延迟、攻击顺序出队直连、七dword共享输出、角色查询转接、旧opaque槽清零、active/auxiliary发布与交互门，以及选择帧typed-stop传播与旧frame-stage槽零调用；
 - UI dword只改低word且保留高16位；
 - 主frame stage后画面效果直连及其typed-stop前缀；
 - 角色帧后双方完成数协调直连、post-call寄存器snapshot、组A/组B消息发布与旧第一opaque槽清零；

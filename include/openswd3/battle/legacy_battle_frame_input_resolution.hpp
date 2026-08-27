@@ -48,6 +48,7 @@ struct LegacyBattleFrameInputResolutionState {
     compat::u32 lower_panel_top{};                 // 0x004FDC5C
     compat::u32 lower_panel_bottom{};              // 0x004FDC58
     compat::u32 lower_panel_aux{};                 // 0x004FDC60
+    compat::u32 lower_panel_aux_index{};           // 0x004FDC64
     compat::u32 final_panel_top{};                 // 0x004FD790
     compat::u32 final_panel_bottom{};              // 0x004FD794
     std::array<compat::u16, 8> option_role_ids{};  // 0x004FE5CA view
