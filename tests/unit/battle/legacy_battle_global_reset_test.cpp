@@ -245,6 +245,7 @@ void seed_state(
     outcome_resolution.darkening_gate = 9U;
     outcome_resolution.force_group_b_resolution = 9U;
     outcome_resolution.darkening.channel_delta = -30;
+    outcome_finalization.reward_item_slot_prefix = 10U;
     outcome_finalization.player_reward_item_ids = {11U, 12U};
     outcome_finalization.completion_words = {13U, 14U};
     vertical_shift.phase_index = 9U;
@@ -602,6 +603,7 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 outcome_resolution.darkening_gate == 0U &&
                 outcome_resolution.force_group_b_resolution == 0U &&
                 outcome_resolution.darkening.channel_delta == -30 &&
+                outcome_finalization.reward_item_slot_prefix == 10U &&
                 outcome_finalization.player_reward_item_ids ==
                     std::array<openswd3::compat::u16, 2>{11U, 12U} &&
                 outcome_finalization.completion_words ==

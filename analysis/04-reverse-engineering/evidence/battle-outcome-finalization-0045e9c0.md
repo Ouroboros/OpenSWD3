@@ -42,7 +42,7 @@ callee返回后按原顺序：
 
 ## 5. 单一typed owner与caller回收
 
-两项奖励ID和结果完成双word由唯一`LegacyBattleOutcomeFinalizationStatePort`持有。全局重置只清原写集合覆盖的结果完成低/高word，不清玩家奖励ID；本函数只清结果完成高word和两项奖励ID。
+奖励槽前缀word、两项奖励ID和结果完成双word由唯一`LegacyBattleOutcomeFinalizationStatePort`持有。已关闭奖励道具槽写入`0x0045EC60`的物理索引1/2直接发布这两项ID，索引0发布同state的前缀word；本函数live消费并只清两项ID。全局重置只清原写集合覆盖的结果完成低/高word，不清奖励槽前缀和玩家奖励ID。
 
 组B数量复用`LegacyBattleActorMetricStatePort`唯一存储。战斗启动旧`value_53c4b0`重复副本已删除，启动初始化和全局重置都直接清同一metric数量。固定奖励继续复用唯一玩家道具链，不建立战斗私有inventory。
 

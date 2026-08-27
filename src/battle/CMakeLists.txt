@@ -52,6 +52,7 @@ add_library(
         legacy_battle_post_action.cpp
         legacy_battle_pre_frame.cpp
         legacy_battle_render_geometry.cpp
+        legacy_battle_reward_item_slot.cpp
         legacy_battle_runtime_shutdown.cpp
         legacy_battle_scale_fill_panel.cpp
         legacy_battle_scale_scan.cpp

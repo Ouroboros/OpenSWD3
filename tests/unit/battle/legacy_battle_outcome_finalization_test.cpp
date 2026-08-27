@@ -1,4 +1,5 @@
 #include "openswd3/battle/legacy_battle_outcome_finalization.hpp"
+#include "openswd3/battle/legacy_battle_reward_item_slot.hpp"
 #include "test.hpp"
 
 #include <algorithm>
@@ -81,7 +82,16 @@ void test_battle_outcome_finalization(openswd3::test::Context& test) {
     {
         FinalizationPort port;
         auto& state = port.outcome_finalization_state();
-        state.player_reward_item_ids = {0x0123U, 0x0456U};
+        static_cast<void>(
+            openswd3::battle::write_legacy_battle_reward_item_slot(
+                state, 1U, 0x0123U, 0U, 0U
+            )
+        );
+        static_cast<void>(
+            openswd3::battle::write_legacy_battle_reward_item_slot(
+                state, 2U, 0x0456U, 0U, 0U
+            )
+        );
         state.completion_words = {0xAAAAU, 0xBBBBU};
         u32 group_b_count = 2U;
 

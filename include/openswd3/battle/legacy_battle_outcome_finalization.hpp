@@ -11,6 +11,7 @@ namespace openswd3::battle {
 inline constexpr compat::u32 kLegacyBattleOutcomeGroupRewardItem = 0x0300U;
 
 struct LegacyBattleOutcomeFinalizationState {
+    compat::u16 reward_item_slot_prefix{};
     std::array<compat::u16, 2> player_reward_item_ids{};
     std::array<compat::u16, 2> completion_words{};
 };
