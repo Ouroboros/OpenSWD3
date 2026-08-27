@@ -396,11 +396,20 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
     ));
     result.definition_archive_path =
         request.data_root / kLegacyBattleDefinitionArchiveName;
-    static_cast<void>(definition_load_port.open_archive(
-        result.definition_archive_path,
-        kLegacyBattleStartupArchiveObjectToken,
-        kLegacyBattleStartupArchiveScratchToken
-    ));
+    result.definition_archive_header =
+        load_legacy_battle_definition_archive_header(
+            state.render_binding_object,
+            state.archive_header_index_token,
+            definition_load_port,
+            {
+                .path = result.definition_archive_path,
+                .binding_object_token = kLegacyBattleStartupArchiveObjectToken,
+                .output_token = kLegacyBattleStartupArchiveScratchToken,
+                .number_of_bytes_read_token =
+                    request.archive_number_of_bytes_read_token,
+                .entry_edx = request.archive_entry_edx_snapshot,
+            }
+        );
     result.definition = definition_load_port.load_definition(
         result.definition_archive_path,
         kLegacyBattleStartupArchiveObjectToken,

@@ -460,6 +460,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-render-geometry-binding-object-initialization-0045f0f0.md",
     ),
+    "0x0045F130": (
+        "platform_adapted",
+        "evidence/battle-definition-archive-header-load-0045f130.md",
+    ),
 }
 
 

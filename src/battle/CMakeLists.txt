@@ -28,6 +28,7 @@ add_library(
         legacy_battle_context_prompt.cpp
         legacy_battle_debug_hotkeys.cpp
         legacy_battle_debug_overlay.cpp
+        legacy_battle_definition_archive.cpp
         legacy_battle_directional_scan.cpp
         legacy_battle_frame_completion.cpp
         legacy_battle_frame_coordinator.cpp

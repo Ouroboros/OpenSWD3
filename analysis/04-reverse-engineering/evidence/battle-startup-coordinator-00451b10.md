@@ -55,9 +55,9 @@ modern直接调用`rebuild_legacy_battle_render_surface`；其typed-stop阻断�
 
 ## 5. `battle.ffd`加载与唯一普通早退
 
-低word battle ID先送入准备callee。路径固定为`data_root / "battle.ffd"`；archive open收到固定对象、固定scratch与真实路径，definition load收到同一路径、固定对象、固定目标、完整32位battle ID和variant零。
+低word battle ID先送入准备callee。路径固定为`data_root / "battle.ffd"`。已关闭archive header读取直接复用第106项唯一`0x31F4`绑定对象，以固定只读独占参数打开文件，把`0x2714`字节写入对象`+4`，并把`this+0x1F48`发布到固定scratch输出owner；打开失败仍关闭全1handle，读取返回或短读不形成成功门。旧高层`open_archive`端口已删除，仅三项Windows文件API保持窄平台边界。
 
-加载callee返回均不作成功门；caller直接读取definition字段。enemy count和secondary count只取低16位。
+无论archive header读取返回0还是1，caller都继续调用后续definition load；该调用收到同一路径、固定对象、固定目标、完整32位battle ID和variant零。caller随后直接读取definition字段，enemy count和secondary count只取低16位。
 
 若enemy count为零，函数调用固定失败文本token与低16位battle ID，然后立即返回该callee完整EAX。此前阈值、所有reset、队伍扫描、几何/surface重建和文件加载副作用全部保留；背景、角色和补位阶段均不执行。
 
@@ -172,7 +172,7 @@ C++到LST反向追溯覆盖1351行、全部48个标签、60个静态call站点�
 - 所有固定reset块、18条混合宽度记录和四个控制switch；
 - 完整ID与低word分离、flags/延迟查询、窗口、几何和两个surface释放/创建；
 - surface完成word正序写与全1EAX snapshot；
-- archive真实路径、固定owner/scratch/目标、variant零及零敌人callee EAX早退；
+- archive真实路径、固定文件API参数、无效handle关闭、完整/短头部读取、固定owner/scratch/目标、打开失败仍继续definition load、variant零及零敌人callee EAX早退；
 - 背景image load零返回仍继续；
 - 两名敌人、镜像低word及陈旧ECX高word；
 - 1–4人全部固定坐标和缺席槽不改写；
@@ -183,4 +183,4 @@ C++到LST反向追溯覆盖1351行、全部48个标签、60个静态call站点�
 - 第九名敌人在前八名副作用后typed-stop；
 - battle聚合目标零warning，普通定向与独立ASan定向均`1/1`通过。
 
-`battle.ffd`具体open/load callee属于后续`audit_order=107/108`，角色、AI和其余全局阶段callee也各有后续工作包；当前只以typed端口关闭本caller顺序和数据流。原版文件对象、全部共享表、18个角色对象、窗口surface、随机状态与后续状态联合捕获后端缺失，`original_diff_verified`为`blocked_runtime_oracle`。
+`battle.ffd`头部open/read/close现由`audit_order=107`关闭并从caller直连，具体definition记录读取仍属于后续`audit_order=108`；角色、AI和其余全局阶段callee也各有后续工作包。原版Windows文件handle、完整归档对象、全部共享表、18个角色对象、窗口surface、随机状态与后续状态联合捕获后端缺失，`original_diff_verified`为`blocked_runtime_oracle`。

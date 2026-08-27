@@ -423,6 +423,8 @@ I5最终必须锁定：
 
 `audit_order=106`的`0x0045F0F0`已关闭为`platform_adapted`。完整权威LST主体`0x0045F0F0..0x0045F128`从proc到endp共34行、27条实际指令、0个call、1个跳转、1个局部标签且无外部chunk。单参数thiscall先把唯一栈参数几何owner token写到绑定对象`+0x0000`，再以EBX 0、EDI 0和ESI `this+0x3108`执行30轮固定循环：每轮先写ordinal，再按原`cdq/and/add/sar`序列写`floor(index*5/4)`，EDI加5后按signed小于150继续。typed绑定对象保持精确`0x31F4`物理布局：`+0x0004`起`0x2714`字节后续资源头部和`+0x2718..+0x3103`保留区均保持入口字节，30条8字节索引记录从`+0x3104`开始。正常返回EAX/ECX均为绑定对象token、EDX 0。唯一固定参数wrapper和相邻静态thunk删除深层opaque端口，直接复用同一对象owner；wrapper返回固定绑定对象token。
 
-下一项回收`audit_order=107`的`0x0045F130`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗函数。
+`audit_order=107`的`0x0045F130`已关闭为`platform_adapted`。完整权威LST主体`0x0045F130..0x0045F1A2`从proc到endp共62行、52条实际指令、4个call、1个跳转、1个局部标签且无外部chunk。双参数thiscall以绑定对象token、ANSI文件名和输出地址执行固定只读独占`CreateFileA`；全1handle失败时仍调用`CloseHandle`并返回EAX0、恢复ECX this及关闭EDX，不读对象也不发布输出。成功时固定把`0x2714`字节读入第106项同一对象`+4`，完全忽略`ReadFile`返回和实际长度，短读仅覆盖前缀；随后发布`this+0x1F48`索引token，关闭handle并强制返回EAX1、ECX this及关闭EDX。Windows open/read/close保留三项窄平台端口。唯一启动caller删除旧高层archive-open伪边界并直连；打开失败、短读或读失败都不阻断后续定义记录读取。
+
+下一项回收`audit_order=108`的`0x0045F1B0`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

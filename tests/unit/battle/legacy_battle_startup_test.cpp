@@ -98,16 +98,38 @@ public:
         return reply;
     }
 
-    [[nodiscard]] u32 open_archive(
-        const std::filesystem::path& archive_path,
-        const u32 archive_object_token,
-        const u32 scratch_token
+    [[nodiscard]] openswd3::battle::LegacyBattleDefinitionArchiveApiReply
+    open_header(
+        const openswd3::battle::LegacyBattleDefinitionArchiveOpenRequest&
+            request
     ) override {
-        opened_path = archive_path;
-        opened_archive_object_token = archive_object_token;
-        opened_scratch_token = scratch_token;
+        archive_open_request = request;
         ++archive_open_calls;
-        return 0xA5A5A5A5U;
+        return archive_open_reply;
+    }
+
+    [[nodiscard]] openswd3::battle::LegacyBattleDefinitionArchiveReadReply
+    read_header(
+        const openswd3::battle::LegacyBattleDefinitionArchiveReadRequest&
+            request,
+        const std::span<openswd3::compat::u8> destination
+    ) override {
+        archive_read_request = request;
+        std::ranges::fill(destination, 0xA6U);
+        ++archive_read_calls;
+        auto reply = archive_read_reply;
+        reply.bytes_read = static_cast<u32>(destination.size());
+        return reply;
+    }
+
+    [[nodiscard]] openswd3::battle::LegacyBattleDefinitionArchiveApiReply
+    close_header(
+        const openswd3::battle::LegacyBattleDefinitionArchiveCloseRequest&
+            request
+    ) override {
+        archive_close_request = request;
+        ++archive_close_calls;
+        return archive_close_reply;
     }
 
     [[nodiscard]] LegacyBattleDefinition load_definition(
@@ -180,12 +202,32 @@ public:
     std::unordered_map<u32, u32> query_values;
     std::deque<u32> random_values;
     std::vector<LegacyBattleStartupCallRequest> requests;
-    std::filesystem::path opened_path;
+    openswd3::battle::LegacyBattleDefinitionArchiveOpenRequest
+        archive_open_request{};
+    openswd3::battle::LegacyBattleDefinitionArchiveReadRequest
+        archive_read_request{};
+    openswd3::battle::LegacyBattleDefinitionArchiveCloseRequest
+        archive_close_request{};
+    openswd3::battle::LegacyBattleDefinitionArchiveApiReply archive_open_reply{
+        .eax = 0x70000001U,
+        .ecx = 0x11111111U,
+        .edx = 0x22222222U,
+    };
+    openswd3::battle::LegacyBattleDefinitionArchiveReadReply archive_read_reply{
+        .eax = 1U,
+        .ecx = 0x33333333U,
+        .edx = 0x44444444U,
+    };
+    openswd3::battle::LegacyBattleDefinitionArchiveApiReply archive_close_reply{
+        .eax = 1U,
+        .ecx = 0x55555555U,
+        .edx = 0x66666666U,
+    };
     std::filesystem::path loaded_path;
     std::filesystem::path background_path;
-    u32 opened_archive_object_token{};
-    u32 opened_scratch_token{};
     u32 archive_open_calls{};
+    u32 archive_read_calls{};
+    u32 archive_close_calls{};
     u32 loaded_archive_object_token{};
     u32 loaded_definition_token{};
     u32 loaded_battle_id{};
@@ -320,16 +362,17 @@ void test_battle_startup(openswd3::test::Context& test) {
             {0x00C9U, 7U},
             {0x1BB0U, 1U},
         };
+        static_cast<void>(
+            openswd3::battle::initialize_legacy_battle_render_geometry_binding(
+                state.render_binding_object
+            )
+        );
+        auto startup_request = request(0xABCD1234U);
+        startup_request.archive_number_of_bytes_read_token = 0x11112222U;
+        startup_request.archive_entry_edx_snapshot = 0x33334444U;
 
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
-            state,
-            ports,
-            ports,
-            ports,
-            ports,
-            ports,
-            ports,
-            request(0xABCD1234U)
+            state, ports, ports, ports, ports, ports, ports, startup_request
         );
 
         test.expect_true(
@@ -363,11 +406,42 @@ void test_battle_startup(openswd3::test::Context& test) {
                 result.display_surface_return_snapshot == 0xFFFFFFFFU &&
                 result.display_completion_write_order ==
                     std::array<openswd3::compat::u8, 3>{0U, 1U, 2U} &&
-                ports.opened_path ==
-                    std::filesystem::path("game-data/battle.ffd") &&
-                ports.opened_archive_object_token == 0x004FF5B8U &&
-                ports.opened_scratch_token == 0x005241FCU &&
+                result.definition_archive_header.status ==
+                    openswd3::battle::
+                        LegacyBattleDefinitionArchiveHeaderLoadStatus::
+                            completed &&
+                result.definition_archive_header.open_calls == 1U &&
+                result.definition_archive_header.read_calls == 1U &&
+                result.definition_archive_header.close_calls == 1U &&
                 ports.archive_open_calls == 1U &&
+                ports.archive_read_calls == 1U &&
+                ports.archive_close_calls == 1U &&
+                ports.archive_open_request.path ==
+                    std::filesystem::path("game-data/battle.ffd") &&
+                ports.archive_open_request.desired_access == 0x80000000U &&
+                ports.archive_open_request.share_mode == 0U &&
+                ports.archive_open_request.creation_disposition == 3U &&
+                ports.archive_open_request.flags_and_attributes == 0x80U &&
+                ports.archive_open_request.entry_eax == 0x004AAED0U &&
+                ports.archive_open_request.entry_ecx == 0x004FF5B8U &&
+                ports.archive_open_request.entry_edx == 0x33334444U &&
+                ports.archive_read_request.handle == 0x70000001U &&
+                ports.archive_read_request.destination_token == 0x004FF5BCU &&
+                ports.archive_read_request.requested_bytes == 0x2714U &&
+                ports.archive_read_request.entry_ecx == 0x11112222U &&
+                ports.archive_close_request.handle == 0x70000001U &&
+                ports.archive_close_request.entry_eax == 0x005241FCU &&
+                ports.archive_close_request.entry_ecx == 0x33333333U &&
+                ports.archive_close_request.entry_edx == 0x44444444U &&
+                state.archive_header_index_token == 0x00501500U &&
+                state.render_binding_object.battle_header_bytes.front() ==
+                    0xA6U &&
+                state.render_binding_object.battle_header_bytes.back() ==
+                    0xA6U &&
+                state.render_binding_object.index_records.back().ordinal ==
+                    29U &&
+                state.render_binding_object.index_records.back()
+                        .five_step_quarter == 36 &&
                 ports.loaded_path ==
                     std::filesystem::path("game-data/battle.ffd") &&
                 ports.loaded_archive_object_token == 0x004FF5B8U &&
@@ -393,6 +467,11 @@ void test_battle_startup(openswd3::test::Context& test) {
         state.mirror_mode = 1U;
         state.final_subtract_word = 1U;
         StartupPorts ports;
+        ports.archive_open_reply = {
+            .eax = 0xFFFFFFFFU,
+            .ecx = 0x77777777U,
+            .edx = 0x88888888U,
+        };
         ports.party_actor_mode_return = 1U;
         ports.query_values = {
             {30U, 1U},
@@ -442,6 +521,13 @@ void test_battle_startup(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     openswd3::battle::LegacyBattleStartupStatus::completed &&
+                result.definition_archive_header.status ==
+                    openswd3::battle::
+                        LegacyBattleDefinitionArchiveHeaderLoadStatus::
+                            open_failed &&
+                result.definition_archive_header.read_calls == 0U &&
+                result.definition_archive_header.close_calls == 1U &&
+                ports.definition_load_calls == 1U &&
                 result.background.status ==
                     openswd3::battle::
                         LegacyBattleBackgroundInitializationStatus::

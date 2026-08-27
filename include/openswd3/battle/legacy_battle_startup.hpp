@@ -2,6 +2,7 @@
 
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_background_initialization.hpp"
+#include "openswd3/battle/legacy_battle_definition_archive.hpp"
 #include "openswd3/battle/legacy_battle_group_b_order.hpp"
 #include "openswd3/battle/legacy_battle_party_item_order.hpp"
 #include "openswd3/battle/legacy_battle_player_item_order.hpp"
@@ -64,15 +65,10 @@ struct LegacyBattleDefinition {
     std::array<LegacyBattleDefinitionEnemyRecord, 8> enemies{};
 };
 
-class LegacyBattleDefinitionLoadPort {
+class LegacyBattleDefinitionLoadPort
+    : public LegacyBattleDefinitionArchiveHeaderPort {
 public:
-    virtual ~LegacyBattleDefinitionLoadPort() = default;
-
-    [[nodiscard]] virtual compat::u32 open_archive(
-        const std::filesystem::path& archive_path,
-        compat::u32 archive_object_token,
-        compat::u32 scratch_token
-    ) = 0;
+    ~LegacyBattleDefinitionLoadPort() override = default;
 
     [[nodiscard]] virtual LegacyBattleDefinition load_definition(
         const std::filesystem::path& archive_path,
@@ -229,6 +225,8 @@ struct LegacyBattlePartyMetricRecord {
 struct LegacyBattleStartupState {
     LegacyBattleTimingState timing{};
     LegacyBattleRenderGeometry render_geometry{};
+    LegacyBattleRenderGeometryBindingObject render_binding_object{};
+    compat::u32 archive_header_index_token{};
     LegacyBattleBackgroundState background{};
     LegacyBattleActionRotationCacheState background_rotation_cache{};
     LegacyBattleStartupResetBlocks reset{};
@@ -271,6 +269,8 @@ struct LegacyBattleStartupRequest {
     rendering::LegacyPixelConversionState pixel_conversion{};
     std::array<compat::u16, 4> party_role_ids{};
     std::array<compat::u32, 4> party_values{};
+    compat::u32 archive_number_of_bytes_read_token{};
+    compat::u32 archive_entry_edx_snapshot{};
 };
 
 enum class LegacyBattleStartupStatus : compat::u8 {
@@ -303,6 +303,7 @@ struct LegacyBattleStartupResult {
     compat::u32 display_surface_return_snapshot{};
     std::array<compat::u8, 3> display_completion_write_order{};
     std::filesystem::path definition_archive_path;
+    LegacyBattleDefinitionArchiveHeaderLoadResult definition_archive_header{};
     LegacyBattleDefinition definition{};
     compat::u32 definition_load_calls{};
     compat::u32 no_enemy_notification_calls{};
