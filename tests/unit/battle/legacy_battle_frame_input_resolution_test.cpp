@@ -159,7 +159,7 @@ void test_battle_frame_input_resolution(openswd3::test::Context& test) {
         fixture.set_mouse(100, 400);
         fixture.metrics.group_b_count = 2U;
         fixture.metrics.group_a_count = 1U;
-        fixture.startup.party_source_indices[0U] = 2U;
+        fixture.startup.action_mode_source.actor_label_indices[0U] = 2U;
         fixture.startup.party_offsets[2U] = 100;
         fixture.port.battle_input_dispatch_state().mouse_action_gate = 9U;
         fixture.port.battle_frame_input_resolution_state()

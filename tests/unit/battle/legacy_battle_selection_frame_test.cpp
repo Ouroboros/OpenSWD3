@@ -129,6 +129,7 @@ struct Fixture {
         return {
             .final_actor = final_actor,
             .metrics = metrics,
+            .actor_label_indices = actor_label_indices,
             .action = action,
             .input_dispatch = input,
             .frame_input = frame,
@@ -150,6 +151,7 @@ struct Fixture {
 
     openswd3::battle::LegacyBattleFinalActorStepState final_actor;
     openswd3::battle::LegacyBattleActorMetricState metrics;
+    std::array<u32, 10> actor_label_indices{};
     openswd3::battle::LegacyBattleActionDispatchState action;
     openswd3::battle::LegacyBattleInputDispatchState input;
     openswd3::battle::LegacyBattleFrameInputResolutionState frame;
@@ -357,8 +359,7 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
         fixture.input.action_kind = 5U;
         fixture.frame.panel_origin_x = 100U;
         fixture.frame.panel_origin_y = 50U;
-        fixture.port.battle_selection_frame_state().actor_label_indices[0U] =
-            3U;
+        fixture.actor_label_indices[0U] = 3U;
         fixture.port.reply(
             LegacyBattleSelectionFrameCall::query_text_length, {.eax = 8U}
         );

@@ -65,8 +65,21 @@ public:
 };
 
 struct Fixture {
+    Fixture() {
+        u32 token = 0x00600000U;
+        for (auto& pair : action_mode_source.option_sources) {
+            for (auto& source : pair) {
+                source.object_token = token;
+                token += 0x100U;
+            }
+        }
+    }
+
     u32 render_abort{};
     openswd3::battle::LegacyBattleStartupResetBlocks startup;
+    openswd3::battle::LegacyBattleActionModeSourceState action_mode_source;
+    std::array<openswd3::compat::u8, 4> party_presence{};
+    u32 startup_mode_flags{};
     openswd3::compat::u16 supplemental_count{};
     u32 mirror_mode{};
     openswd3::battle::LegacyBattleFrameInputResolutionState frame_input;
@@ -91,6 +104,9 @@ struct Fixture {
         return {
             .render_abort_latch = render_abort,
             .startup_reset = startup,
+            .action_mode_source = action_mode_source,
+            .startup_party_presence = party_presence,
+            .startup_mode_flags = startup_mode_flags,
             .startup_supplemental_count_word = supplemental_count,
             .startup_mirror_mode = mirror_mode,
             .frame_input_resolution = frame_input,
@@ -136,8 +152,15 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
         fixture.final_actor.queued_actor_code = 8U;
         fixture.startup.value_524414 = 1U;
         fixture.keyboard[2U] = 0x80U;
-        fixture.port
-            .replies[LegacyBattleInputDispatchCall::refresh_action_mode] = {
+        fixture.port.replies
+            [LegacyBattleInputDispatchCall::action_mode_query_primary_actor] = {
+            .eax = 1U, .ecx = 0x20U, .edx = 0x30U
+        };
+        fixture.port.replies
+            [LegacyBattleInputDispatchCall::action_mode_query_secondary_actor] =
+            {.eax = 1U, .ecx = 0x20U, .edx = 0x30U};
+        fixture.port.replies
+            [LegacyBattleInputDispatchCall::action_mode_query_active_actor] = {
             .eax = 0x10U, .ecx = 0x20U, .edx = 0x30U
         };
         const auto result =
@@ -150,8 +173,22 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
                 fixture.final_actor.pre_frame_gate_a == 1U &&
                 fixture.port.battle_input_dispatch_state().selection_index ==
                     1U &&
+                result.action_mode_refresh_calls == 1U &&
                 fixture.port.count(
-                    LegacyBattleInputDispatchCall::refresh_action_mode
+                    LegacyBattleInputDispatchCall::
+                        reserved_action_mode_refresh_slot
+                ) == 0U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        action_mode_query_primary_actor
+                ) == 1U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        action_mode_query_secondary_actor
+                ) == 1U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        action_mode_query_active_actor
                 ) == 1U &&
                 result.target_selection_entry_calls == 1U &&
                 result.target_selection_refresh_calls == 1U &&
@@ -183,17 +220,20 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     openswd3::battle::LegacyBattleInputDispatchStatus::
-                        target_selection_entry_typed_stop &&
-                result.target_selection_entry_calls == 1U &&
+                        action_mode_refresh_typed_stop &&
+                result.action_mode_refresh_calls == 1U &&
+                result.target_selection_entry_calls == 0U &&
                 fixture.message == 1U &&
-                fixture.final_actor.pre_frame_gate_a == 1U &&
+                fixture.final_actor.pre_frame_gate_a == 0U &&
                 fixture.port.battle_input_dispatch_state().selection_index ==
                     1U &&
                 fixture.port.count(
                     LegacyBattleInputDispatchCall::
-                        reserved_target_selection_entry_slot
-                ) == 0U,
-            "direct target-selection typed-stop preserves the permitted-key prefix and emits no opaque slot"
+                        reserved_action_mode_refresh_slot
+                ) == 0U &&
+                result.return_eax == 7U && result.return_ecx == 0U &&
+                result.return_edx == 0U,
+            "invalid actor stops in the direct action refresh before target-selection publication"
         );
     }
 

@@ -147,12 +147,13 @@ coordinate_legacy_battle_frame_input_resolution(
             return true;
         }
         while (signed_bits(ecx) < count) {
-            if (ecx >= bindings.startup.party_source_indices.size()) {
+            if (ecx >= 4U) {
                 result.status = LegacyBattleFrameInputResolutionStatus::
                     party_source_index_typed_stop;
                 return false;
             }
-            const u32 source = bindings.startup.party_source_indices[ecx];
+            const u32 source =
+                bindings.startup.action_mode_source.actor_label_indices[ecx];
             if (source >= bindings.startup.party_offsets.size()) {
                 result.status = LegacyBattleFrameInputResolutionStatus::
                     party_offset_typed_stop;
@@ -900,14 +901,14 @@ coordinate_legacy_battle_frame_input_resolution(
         u32 party_index = 0U;
         while (signed_bits(party_index) <
                signed_bits(bindings.metrics.group_a_count)) {
-            if (party_index >= bindings.startup.party_source_indices.size()) {
+            if (party_index >= 4U) {
                 return stop(
                     LegacyBattleFrameInputResolutionStatus::
                         party_source_index_typed_stop
                 );
             }
-            const u32 source =
-                bindings.startup.party_source_indices[party_index];
+            const u32 source = bindings.startup.action_mode_source
+                                   .actor_label_indices[party_index];
             if (party_index >=
                     bindings.final_actor.group_a_completion_flags.size() ||
                 party_index >=

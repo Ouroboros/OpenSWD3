@@ -24,8 +24,9 @@ inline constexpr compat::u32 kLegacyBattleInputWarningSample = 0x8CU;
 
 struct LegacyBattleInputDispatchState {
     compat::u32 menu_action{};
-    compat::u32 action_kind{};            // 0x004A7548
-    compat::u32 action_category_index{};  // 0x0053BD18
+    compat::u32 action_kind{};                // 0x004A7548
+    compat::u32 action_lookup_auxiliary{1U};  // 0x004A7554
+    compat::u32 action_category_index{};      // 0x0053BD18
     compat::u32 selection_index{1U};
     compat::u32 input_gate{};  // 0x0053C024
     compat::u32 input_latch{};
@@ -88,7 +89,7 @@ private:
 };
 
 enum class LegacyBattleInputDispatchCall : compat::u8 {
-    refresh_action_mode,
+    reserved_action_mode_refresh_slot,
     reserved_target_selection_entry_slot,
     reserved_menu_selection_retreat_slot,
     reserved_menu_selection_advance_slot,
@@ -121,6 +122,9 @@ enum class LegacyBattleInputDispatchCall : compat::u8 {
     reserved_available_actor_cycle_slot,
     reserved_actor_action_commit_nested_slot,
     reserved_available_actor_reverse_cycle_slot,
+    action_mode_query_primary_actor,
+    action_mode_query_secondary_actor,
+    action_mode_query_active_actor,
 };
 
 struct LegacyBattleInputDispatchCallRequest {
@@ -169,6 +173,9 @@ public:
 struct LegacyBattleInputDispatchBindings {
     compat::u32& render_abort_latch;
     LegacyBattleStartupResetBlocks& startup_reset;
+    const LegacyBattleActionModeSourceState& action_mode_source;
+    const std::array<compat::u8, 4>& startup_party_presence;
+    const compat::u32& startup_mode_flags;
     compat::u16& startup_supplemental_count_word;
     compat::u32& startup_mirror_mode;
     LegacyBattleFrameInputResolutionState& frame_input_resolution;
@@ -206,6 +213,7 @@ enum class LegacyBattleInputDispatchStatus : compat::u8 {
     menu_page_retreat_typed_stop,
     menu_page_advance_typed_stop,
     menu_input_finalize_typed_stop,
+    action_mode_refresh_typed_stop,
     target_selection_entry_typed_stop,
     actor_action_commit_typed_stop,
     actor_action_cycle_typed_stop,
@@ -231,6 +239,7 @@ struct LegacyBattleInputDispatchResult {
     compat::u32 menu_page_retreat_calls{};
     compat::u32 menu_page_advance_calls{};
     compat::u32 menu_input_finalize_calls{};
+    compat::u32 action_mode_refresh_calls{};
     compat::u32 target_selection_entry_calls{};
     compat::u32 target_selection_refresh_calls{};
     compat::u32 actor_action_cycle_calls{};

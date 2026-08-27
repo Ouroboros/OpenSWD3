@@ -3,6 +3,7 @@
 #include <bit>
 #include <cstddef>
 
+#include "openswd3/battle/legacy_battle_action_mode_refresh.hpp"
 #include "openswd3/battle/legacy_battle_actor_action_commit.hpp"
 #include "openswd3/battle/legacy_battle_actor_action_cycle.hpp"
 #include "openswd3/battle/legacy_battle_actor_action_reverse_cycle.hpp"
@@ -33,6 +34,13 @@ inline constexpr u32 kWorkspaceActorOffset = 2U;
     const u32 index = actor_code - 8U;
     return kLegacyBattleActionGroupABaseToken +
         index * kLegacyBattleActionGroupAStride;
+}
+
+[[nodiscard]] constexpr u32 input_permission_byte(
+    const LegacyBattleStartupResetBlocks& reset, const u32 index
+) noexcept {
+    const u32 word = index < 4U ? reset.value_524414 : reset.value_524418;
+    return word >> ((index & 3U) * 8U) & 0xFFU;
 }
 
 }  // namespace
@@ -241,10 +249,39 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
         }
         return true;
     };
+    const auto refresh_action_mode = [&]() {
+        const auto nested = refresh_legacy_battle_action_mode(
+            {
+                .startup_reset = bindings.startup_reset,
+                .source_state = bindings.action_mode_source,
+                .party_presence = bindings.startup_party_presence,
+                .startup_mode_flags = bindings.startup_mode_flags,
+                .final_actor = bindings.final_actor,
+                .frame_input = bindings.frame_input_resolution,
+                .input_dispatch = state,
+            },
+            port,
+            {.entry_eax = eax, .entry_ecx = ecx, .entry_edx = edx}
+        );
+        ++result.action_mode_refresh_calls;
+        result.port_calls += nested.port_calls;
+        eax = nested.return_eax;
+        ecx = nested.return_ecx;
+        edx = nested.return_edx;
+        if (nested.status != LegacyBattleActionModeRefreshStatus::completed) {
+            result.status =
+                LegacyBattleInputDispatchStatus::action_mode_refresh_typed_stop;
+            return false;
+        }
+        return true;
+    };
     const auto enter_target_selection = [&]() {
         const auto nested = enter_legacy_battle_target_selection(
             {
                 .startup_reset = bindings.startup_reset,
+                .action_mode_source = bindings.action_mode_source,
+                .startup_party_presence = bindings.startup_party_presence,
+                .startup_mode_flags = bindings.startup_mode_flags,
                 .startup_supplemental_count_word =
                     bindings.startup_supplemental_count_word,
                 .startup_mirror_mode = bindings.startup_mirror_mode,
@@ -268,6 +305,7 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
             {.entry_eax = eax, .entry_ecx = ecx, .entry_edx = edx}
         );
         ++result.target_selection_entry_calls;
+        result.action_mode_refresh_calls += nested.action_mode_refresh_calls;
         result.target_selection_refresh_calls +=
             nested.target_selection_refresh_calls;
         result.port_calls += nested.port_calls;
@@ -469,21 +507,7 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
     ecx = bindings.final_actor.queued_actor_code;
     if (signed_bits(eax) < 2 && ecx != 0U &&
         bindings.dialogs.messages.empty()) {
-        const std::array<u32, 8> permission_bytes{
-            static_cast<u32>(bindings.startup_reset.value_524414 & 0xFFU),
-            static_cast<u32>(bindings.startup_reset.value_524414 >> 8U & 0xFFU),
-            static_cast<u32>(
-                bindings.startup_reset.value_524414 >> 16U & 0xFFU
-            ),
-            static_cast<u32>(bindings.startup_reset.value_524414 >> 24U),
-            static_cast<u32>(bindings.startup_reset.value_524418 & 0xFFU),
-            static_cast<u32>(bindings.startup_reset.value_524418 >> 8U & 0xFFU),
-            static_cast<u32>(
-                bindings.startup_reset.value_524418 >> 16U & 0xFFU
-            ),
-            static_cast<u32>(bindings.startup_reset.value_524418 >> 24U),
-        };
-        for (u32 index = 0U; index < permission_bytes.size(); ++index) {
+        for (u32 index = 0U; index < 8U; ++index) {
             const u32 dik = index + 2U;
             if (raw_key(dik) == 0U) {
                 continue;
@@ -508,10 +532,10 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
             if (bindings.message_state == 0U) {
                 bindings.message_state = 1U;
             }
-            static_cast<void>(
-                call(LegacyBattleInputDispatchCall::refresh_action_mode)
-            );
-            if (permission_bytes[index] != 1U) {
+            if (!refresh_action_mode()) {
+                return finish();
+            }
+            if (input_permission_byte(bindings.startup_reset, index) != 1U) {
                 return early();
             }
             state.action_kind = 6U;

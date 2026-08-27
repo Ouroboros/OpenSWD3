@@ -63,9 +63,9 @@ message 0、大于30、103、以及9–26/28/29均保持权威默认返回，不
 
 ## 7. typed owner、caller回收与验证
 
-新增选择帧owner只承接十项标签索引、两项pointer origin、display/secondary/suppression gate、三类已关闭绘制状态、八项独立动作记录及后两项非重叠尾区。五项选择指针直接复用输入分派的selection workspace；物理控制word直接复用输入分派的retreat control word；两项角色原点word也复用输入分派内由已关闭target-selection entry配置callee写回的唯一owner。message、queued/published角色、actor order、动作workspace、两组数量、其余输入cache/动画、菜单选择、target map、debug gate与target runtime也继续复用既有唯一owner。
+选择帧owner只承接两项pointer origin、display/secondary/suppression gate、三类已关闭绘制状态、八项独立动作记录及后两项非重叠尾区。十项标签索引现复用启动状态中`0x004A75C8`起的单一物理视图：启动路径只访问前四项，选择帧保留后六项相邻读取。五项选择指针直接复用输入分派的selection workspace；物理控制word直接复用输入分派的retreat control word；两项角色原点word也复用输入分派内由已关闭target-selection entry配置callee写回的唯一owner。message、queued/published角色、actor order、动作workspace、两组数量、其余输入cache/动画、菜单选择、target map、debug gate与target runtime也继续复用既有唯一owner。
 
-global reset通过输入分派owner同步原234项写程序覆盖的控制word，并只同步选择帧owner内的display gate、secondary gate和suppression gate；五项选择指针、标签、pointer origin与输入owner中的actor origin未被原写程序覆盖，保持原值。
+global reset通过输入分派owner同步原234项写程序覆盖的控制word，并只同步选择帧owner内的display gate、secondary gate和suppression gate；五项选择指针、启动映射中的标签视图、pointer origin与输入owner中的actor origin未被原写程序覆盖，保持原值。
 
 主帧协调器原frame-stage槽保留相同枚举数值并改为reserved，交互可用发布后直连本实现。完成角色路径原目标准备callee槽也保留相同枚举数值并改为reserved，五项指针及message/cache/runtime清理后直连已关闭角色目标准备。任一子typed-stop保留此前副作用，并阻断本帧余下选择流程、画面效果和全部后续帧阶段；两个reserved槽均保持零调用。
 

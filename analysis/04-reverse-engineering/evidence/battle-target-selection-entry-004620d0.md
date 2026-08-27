@@ -4,7 +4,7 @@
 
 ## 1. 完整权威范围
 
-权威LST主体为`0x004620D0..0x0046231F`，从proc到endp共269行、157条实际指令、7个静态call、23个跳转、12个局部标签、7个`retn`，没有外部`FUNCTION CHUNK`。callee为既有队列完成查询、sample command、角色选择配置、两类目标扫描与动作刷新边界；原选择状态刷新callee已关闭并直连typed实现。
+权威LST主体为`0x004620D0..0x0046231F`，从proc到endp共269行、157条实际指令、7个静态call、23个跳转、12个局部标签、7个`retn`，没有外部`FUNCTION CHUNK`。callee为既有队列完成查询、sample command、角色选择配置、两类目标扫描及三项角色动作查询边界；动作模式刷新与选择状态刷新callee均已关闭并直连typed实现。
 
 导航caller共有十三个静态callsite：已关闭逐帧输入分派十处，未关闭AI/action函数三处。逐帧输入分派的八个直接数字键callsite在typed循环中合并为两条业务分支，record2、record15和base confirm三处仍各自保留原调用时机。
 
@@ -28,7 +28,7 @@ target-ready gate不等于1、当前queued角色code为0，或message非零且�
 
 队列未完成时，函数把sample mix装入ECX，以编号45调用既有sample command；EAX/ECX/EDX完整采用callee结果。随后重新读取queued code，把它装入EDX，发布mouse gate、target gate与phase 5，再重新计算group-A token和EAX=`index*0xBCD`，以两个固定output token调用角色选择配置；callee写回的两项word同步到输入分派内唯一选择角色原点owner，供已关闭选择帧直接读取。第二次实际对象call独立执行typed-stop，因此sample或外部callee若改变queued code，停止点仍保持此前声音和三项gate写。
 
-配置返回后，group-B index word为全1，或signed group-A index不等于`queued_code-8`时，函数发布message 1、action kind 1并调用既有动作刷新。两个index word物理相邻但独立；group-A index不与逐帧option cache合并。
+配置返回后，group-B index word为全1，或signed group-A index不等于`queued_code-8`时，函数发布message 1、action kind 1并直连已关闭动作模式刷新。两个index word物理相邻但独立；group-A index不与逐帧option cache合并。刷新typed-stop保留此前sample、gate和两项角色原点发布并立即返回。
 
 ## 5. 五项目标扫描
 
@@ -52,6 +52,6 @@ target-ready gate不等于1、当前queued角色code为0，或message非零且�
 
 ## 7. 验证与动态差分
 
-定向测试覆盖：四个入口门、group-B差值清message、message 110两种边界、dialog非空、ready刷新、active query完成、group-A一过前停止、sample/configure/刷新、五项扫描与可见数、group-B index 8前缀停止、逐帧输入普通直连和typed-stop传播，以及物理owner/reset交叉回归。
+定向测试覆盖：四个入口门、group-B差值清message、message 110两种边界、dialog非空、ready刷新、active query完成、group-A一过前停止、sample/configure/动作刷新普通与typed-stop、五项扫描与可见数、group-B index 8前缀停止、逐帧输入普通直连和typed-stop传播，以及物理owner/reset交叉回归。
 
-当前缺少原版两组角色对象、四类未关闭callee共享副作用、动态dialog head token、三处AI caller输入、两处输出word、已关闭刷新函数的动态状态/callee轨迹及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版两组角色对象、动作刷新内三个角色查询及其余未关闭callee共享副作用、动态dialog head token、三处AI caller输入、两处输出word、已关闭刷新函数的动态状态/callee轨迹及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

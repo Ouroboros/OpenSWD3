@@ -437,8 +437,8 @@ void test_battle_startup(openswd3::test::Context& test) {
                 reset_blocks_match(state, ports) && state.party_count == 2U &&
                 state.party_presence ==
                     std::array<openswd3::compat::u8, 4>{1U, 0U, 1U, 0U} &&
-                state.party_source_indices[0] == 0U &&
-                state.party_source_indices[1] == 2U &&
+                state.action_mode_source.actor_label_indices[0] == 0U &&
+                state.action_mode_source.actor_label_indices[1] == 2U &&
                 state.mode_flags == 0xA5000002U &&
                 state.action_delay == 0x12U &&
                 state.control_switches == std::array<u32, 4>{1U, 1U, 1U, 1U} &&

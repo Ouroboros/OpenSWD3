@@ -19,11 +19,10 @@
 namespace openswd3::battle {
 
 struct LegacyBattleSelectionFrameState {
-    std::array<compat::u32, 10> actor_label_indices{};  // 0x004A75C8
-    std::array<compat::u32, 2> pointer_origin{};        // 0x004A9924
-    compat::u32 display_gate{};                         // 0x0053BF5C
-    compat::u32 secondary_actor_gate{};                 // 0x0053BF68
-    compat::u32 selection_suppression{};                // 0x0053BFBC
+    std::array<compat::u32, 2> pointer_origin{};  // 0x004A9924
+    compat::u32 display_gate{};                   // 0x0053BF5C
+    compat::u32 secondary_actor_gate{};           // 0x0053BF68
+    compat::u32 selection_suppression{};          // 0x0053BFBC
 
     LegacyBattleScaleFillPanelState scale_fill_panel{};
     LegacyBattleVerticalPanelState vertical_panel{};
@@ -123,6 +122,7 @@ public:
 struct LegacyBattleSelectionFrameBindings {
     LegacyBattleFinalActorStepState& final_actor;
     LegacyBattleActorMetricState& metrics;
+    const std::array<compat::u32, 10>& actor_label_indices;
     LegacyBattleActionDispatchState& action;
     LegacyBattleInputDispatchState& input_dispatch;
     LegacyBattleFrameInputResolutionState& frame_input;

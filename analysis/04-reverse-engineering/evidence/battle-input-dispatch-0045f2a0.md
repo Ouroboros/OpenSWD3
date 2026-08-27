@@ -12,7 +12,7 @@
 
 ## 2. 八个直接指令键
 
-只有共享消息值signed小于2、live active actor非零且对话消息链为空时，才按DIK 2到9固定顺序查询。按键2/3/4/5和7/8/9先把零消息置1，再调用动作刷新，并分别读取启动reset中`0x00524414..0x0052441B`八个permission byte；byte不精确等于1时立即保留刷新callee寄存器返回。
+只有共享消息值signed小于2、live active actor非零且对话消息链为空时，才按DIK 2到9固定顺序查询。按键2/3/4/5和7/8/9先把零消息置1，再直连已关闭动作模式刷新，并在普通返回后实时读取启动reset中`0x00524414..0x0052441B`对应permission byte；不再保留刷新前快照。byte不精确等于1时立即保留刷新返回寄存器结束，刷新typed-stop则阻断后续动作、gate、selection与目标选择发布。
 
 permission为1时写动作kind 6、pre-frame gate A 1和selection `1/2/3/4/6/7/8`，调用selection commit后立即返回。按键6是原始特殊切换：selection不等于5时才发布kind/gate/selection5并commit，随后无条件把消息、gate清零且selection重置1；原本已为5时不调用任何战斗callee。
 
@@ -48,10 +48,10 @@ active actor非零时再次查询对象。查询零或battle mode bit`0x200`置�
 
 唯一caller是逐帧画面协调器。旧第二前置opaque stage已改为reserved槽；第一个`0x0045FC60`前置stage返回的ECX/EDX直接作为本函数入口snapshot。本函数普通返回无论0或非零都继续已关闭角色预处理，并把完整返回ECX/EDX传给该callee；输入记录或workspace typed-stop则保留第一前置stage与本函数前缀，阻断角色预处理、metric、surface和全部后续帧。
 
-实现直接复用启动permission、最终角色、动作workspace、角色数量、共享消息/terminal、调试mode、context prompt、输入记录、键盘、对话消息和热点链owner。其余尚未命名输入全局由单一`LegacyBattleInputDispatchStatePort`持有；全局重置只同步LST原写集合，未被reset触碰的输入值保持入口值。
+实现直接复用启动permission、最终角色、动作workspace、角色数量、共享消息/terminal、调试mode、context prompt、输入记录、键盘、对话消息和热点链owner。动作刷新新增的live相邻查找复用action kind、published actor、目标/列表选择owner，并只为`0x004A7554`保留一个独立typed值；`0x004A75C8`映射复用启动状态单一十dword物理视图。其余尚未命名输入全局由单一`LegacyBattleInputDispatchStatePort`持有；全局重置只同步LST原写集合，未被reset触碰的输入值保持入口值。
 
 ## 7. 验证与动态差分
 
-定向测试覆盖渲染中止、八键顺序与permission、按键6特殊复位、记录合成、signed重复节拍、陈旧ESI、撤退20/50ms双路径、警告与signed混音、workspace停点、记录17立即返回、selected option、鼠标开区间、热点清理与左右回绕、mode bit局部清除、输入span停点、全局重置别名及逐帧caller阻断。
+定向测试覆盖渲染中止、八键顺序与刷新后live permission、动作刷新普通/typed-stop传播、按键6特殊复位、记录合成、signed重复节拍、陈旧ESI、撤退20/50ms双路径、警告与signed混音、workspace停点、记录17立即返回、selected option、鼠标开区间、热点清理与左右回绕、mode bit局部清除、输入span停点、全局重置别名及逐帧caller阻断。
 
-当前缺少原版20条输入记录与DIK联合轨迹、17类战斗callee共享副作用、两组角色对象、对话/热点链、Sleep墙钟、样本后端、全部输入全局及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版20条输入记录与DIK联合轨迹、其余战斗callee共享副作用、两组角色对象、对话/热点链、Sleep墙钟、样本后端、全部输入全局及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

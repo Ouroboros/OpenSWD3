@@ -42,6 +42,9 @@ public:
         samples.push_back(
             {sound_id, static_cast<u32>(mix_level), eax, ecx, edx}
         );
+        if (sample_mode_flags != nullptr) {
+            *sample_mode_flags = sample_mode_flags_value;
+        }
         if (sample_reply.has_value()) {
             return *sample_reply;
         }
@@ -52,10 +55,25 @@ public:
     std::vector<std::optional<LegacyBattleInputDispatchCallReply>> replies;
     std::vector<std::array<u32, 5>> samples;
     std::optional<LegacyBattleInputDispatchCallReply> sample_reply;
+    u32* sample_mode_flags{};
+    u32 sample_mode_flags_value{};
 };
 
 struct Fixture {
+    Fixture() {
+        u32 token = 0x00600000U;
+        for (auto& pair : action_mode_source.option_sources) {
+            for (auto& source : pair) {
+                source.object_token = token;
+                token += 0x100U;
+            }
+        }
+    }
+
     openswd3::battle::LegacyBattleStartupResetBlocks startup;
+    openswd3::battle::LegacyBattleActionModeSourceState action_mode_source;
+    std::array<openswd3::compat::u8, 4> party_presence{};
+    u32 startup_mode_flags{};
     openswd3::compat::u16 supplemental_count{};
     u32 mirror_mode{};
     openswd3::battle::LegacyBattleFrameInputResolutionState frame;
@@ -77,6 +95,9 @@ struct Fixture {
     [[nodiscard]] LegacyBattleTargetSelectionEntryBindings bindings() {
         return {
             .startup_reset = startup,
+            .action_mode_source = action_mode_source,
+            .startup_party_presence = party_presence,
+            .startup_mode_flags = startup_mode_flags,
             .startup_supplemental_count_word = supplemental_count,
             .startup_mirror_mode = mirror_mode,
             .frame_input_resolution = frame,
@@ -327,9 +348,18 @@ void test_battle_target_selection_entry(openswd3::test::Context& test) {
                 .output_word_b = 0x34U,
             },
             LegacyBattleInputDispatchCallReply{
+                .eax = 1U, .ecx = 0x21U, .edx = 0x31U
+            },
+            LegacyBattleInputDispatchCallReply{
+                .eax = 1U, .ecx = 0x22U, .edx = 0x32U
+            },
+            LegacyBattleInputDispatchCallReply{
                 .eax = 0x30U, .ecx = 0x40U, .edx = 0x50U
             },
         };
+        fixture.party_presence[0U] = 1U;
+        fixture.port.sample_mode_flags = &fixture.startup_mode_flags;
+        fixture.port.sample_mode_flags_value = 2U;
         fixture.port.sample_reply = LegacyBattleInputDispatchCallReply{
             .eax = 0xAAU,
             .ecx = 0xBBU,
@@ -339,11 +369,11 @@ void test_battle_target_selection_entry(openswd3::test::Context& test) {
             fixture.bindings(), fixture.port, {.entry_edx = 0x77U}
         );
         test.expect_true(
-            result.port_calls == 4U && result.sample_calls == 1U &&
+            result.port_calls == 6U && result.sample_calls == 1U &&
                 fixture.port.samples.size() == 1U &&
                 fixture.port.samples[0U] ==
                     std::array<u32, 5>{0x2DU, 6U, 0U, 6U, 0x20U} &&
-                fixture.port.calls.size() == 3U &&
+                fixture.port.calls.size() == 5U &&
                 fixture.port.calls[1U].call ==
                     LegacyBattleInputDispatchCall::
                         target_selection_configure_actor &&
@@ -352,8 +382,20 @@ void test_battle_target_selection_entry(openswd3::test::Context& test) {
                 fixture.port.calls[1U].eax == 0U &&
                 fixture.port.calls[1U].ecx == 0x005029D0U &&
                 fixture.port.calls[1U].edx == 8U &&
+                result.action_mode_refresh_calls == 1U &&
                 fixture.port.calls[2U].call ==
-                    LegacyBattleInputDispatchCall::refresh_action_mode &&
+                    LegacyBattleInputDispatchCall::
+                        action_mode_query_primary_actor &&
+                fixture.port.calls[3U].call ==
+                    LegacyBattleInputDispatchCall::
+                        action_mode_query_secondary_actor &&
+                fixture.port.calls[4U].call ==
+                    LegacyBattleInputDispatchCall::
+                        action_mode_query_active_actor &&
+                fixture.startup_mode_flags == 2U &&
+                fixture.startup.value_53bf22 == 1U &&
+                fixture.startup.value_4fe5cc == 6U &&
+                fixture.startup.value_4ff0b0 == 0x004A79A0U &&
                 fixture.message == 1U &&
                 fixture.port.battle_input_dispatch_state().action_kind == 1U &&
                 fixture.port.battle_input_dispatch_state()
@@ -368,6 +410,43 @@ void test_battle_target_selection_entry(openswd3::test::Context& test) {
                 result.return_eax == 0x30U && result.return_ecx == 0x40U &&
                 result.return_edx == 0x50U,
             "unfinished active actor plays selection sound, configures the actor and refreshes when no group-B target exists"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.target_ready_gate = 1U;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.action_mode_source.option_sources[0U][0U].object_token = 0U;
+        auto& input = fixture.port.battle_input_dispatch_state();
+        input.selected_option_word = 3U;
+        input.selected_group_b_index = 0xFFFFU;
+        input.sample_mix_level = 6;
+        fixture.port.replies = {
+            LegacyBattleInputDispatchCallReply{
+                .eax = 0U, .ecx = 0x10U, .edx = 0x20U
+            },
+            LegacyBattleInputDispatchCallReply{
+                .output_word_a = 0x12U,
+                .output_word_b = 0x34U,
+            },
+        };
+        const auto result = enter_legacy_battle_target_selection(
+            fixture.bindings(), fixture.port, {.entry_edx = 0x77U}
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleTargetSelectionEntryStatus::
+                        action_mode_refresh_typed_stop &&
+                result.action_mode_refresh_calls == 1U &&
+                result.port_calls == 3U && result.sample_calls == 1U &&
+                fixture.port.calls.size() == 2U && fixture.message == 1U &&
+                input.action_kind == 1U &&
+                input.selection_actor_origin_x == 0x12U &&
+                input.selection_actor_origin_y == 0x34U &&
+                result.return_eax == 8U && result.return_ecx == 0U &&
+                result.return_edx == 0U,
+            "action refresh typed-stop preserves sample configuration and actor-origin publication"
         );
     }
 

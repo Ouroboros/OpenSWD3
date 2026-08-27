@@ -2,6 +2,8 @@
 
 #include <bit>
 
+#include "openswd3/battle/legacy_battle_action_mode_refresh.hpp"
+
 namespace openswd3::battle {
 namespace {
 
@@ -88,7 +90,30 @@ LegacyBattleTargetSelectionEntryResult enter_legacy_battle_target_selection(
     const auto refresh_action = [&]() {
         bindings.message_state = 1U;
         input.action_kind = 1U;
-        invoke(LegacyBattleInputDispatchCall::refresh_action_mode);
+        const auto nested = refresh_legacy_battle_action_mode(
+            {
+                .startup_reset = bindings.startup_reset,
+                .source_state = bindings.action_mode_source,
+                .party_presence = bindings.startup_party_presence,
+                .startup_mode_flags = bindings.startup_mode_flags,
+                .final_actor = final_actor,
+                .frame_input = frame,
+                .input_dispatch = input,
+            },
+            port,
+            {.entry_eax = eax, .entry_ecx = ecx, .entry_edx = edx}
+        );
+        ++result.action_mode_refresh_calls;
+        result.port_calls += nested.port_calls;
+        eax = nested.return_eax;
+        ecx = nested.return_ecx;
+        edx = nested.return_edx;
+        if (nested.status != LegacyBattleActionModeRefreshStatus::completed) {
+            result.status = LegacyBattleTargetSelectionEntryStatus::
+                action_mode_refresh_typed_stop;
+            return false;
+        }
+        return true;
     };
     const auto refresh_state = [&]() {
         const auto nested = refresh_legacy_battle_target_selection(
@@ -242,14 +267,14 @@ LegacyBattleTargetSelectionEntryResult enter_legacy_battle_target_selection(
     input.selection_actor_origin_y = configured.output_word_b;
 
     if (input.selected_group_b_index == 0xFFFFU) {
-        refresh_action();
+        static_cast<void>(refresh_action());
         return finish();
     }
     ecx = final_actor.queued_actor_code;
     edx = std::bit_cast<u32>(signed_word(input.selected_group_a_index));
     ecx -= 8U;
     if (edx != ecx) {
-        refresh_action();
+        static_cast<void>(refresh_action());
         return finish();
     }
 

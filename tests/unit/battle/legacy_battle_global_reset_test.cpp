@@ -382,7 +382,7 @@ void seed_state(
     target.action_remap_suffix.fill(9U);
 
     auto& selection_frame = port.battle_selection_frame_state();
-    selection_frame.actor_label_indices.fill(9U);
+    startup.action_mode_source.actor_label_indices.fill(9U);
     selection_frame.pointer_origin.fill(9U);
     selection_frame.display_gate = 9U;
     selection_frame.secondary_actor_gate = 9U;
@@ -740,7 +740,7 @@ void test_battle_global_reset(openswd3::test::Context& test) {
             selection_frame.display_gate == 0U &&
                 selection_frame.secondary_actor_gate == 0U &&
                 selection_frame.selection_suppression == 0U &&
-                selection_frame.actor_label_indices[0U] == 9U &&
+                startup.action_mode_source.actor_label_indices[0U] == 9U &&
                 selection_frame.pointer_origin[0U] == 9U &&
                 state.unmapped_bytes.contains(0x0053C184U) == false &&
                 state.unmapped_bytes.contains(0x0053BF1CU) == false &&

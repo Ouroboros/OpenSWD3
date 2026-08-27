@@ -489,11 +489,11 @@ private:
         invoke(Call::configure_text_row, ecx_, {0U});
         ecx_ = kTextStateToken;
         invoke(Call::configure_text_color, ecx_, {0xFFFEU});
-        if (esi_ >= state_.actor_label_indices.size()) {
+        if (esi_ >= bindings_.actor_label_indices.size()) {
             typed_stop(Status::actor_label_typed_stop);
             return;
         }
-        const u32 label_index = state_.actor_label_indices[esi_];
+        const u32 label_index = bindings_.actor_label_indices[esi_];
         const u32 label_token = kLabelStringBaseToken + label_index * 16U;
         eax_ = label_token;
         invoke(Call::query_text_length, 0U, {label_token});

@@ -192,6 +192,21 @@ struct LegacyBattlePartyMetricRecord {
     compat::u32 actor_value_b{};
 };
 
+struct LegacyBattleActionModeSourceRecord {
+    compat::u32 object_token{};
+    compat::u16 action_code{};
+};
+
+struct LegacyBattleActionModeSourceState {
+    // Physical view rooted at 0x004A75C8. Startup accesses only indices 0..3;
+    // the selection frame preserves the adjacent six dwords.
+    std::array<compat::u32, 10> actor_label_indices{
+        0U, 1U, 2U, 3U, 1U, 2U, 8U, 17U, 1U, 0x03040304U
+    };
+    std::array<std::array<LegacyBattleActionModeSourceRecord, 2>, 4>
+        option_sources{};
+};
+
 struct LegacyBattleStartupState {
     LegacyBattleTimingState timing{};
     LegacyBattleRenderGeometry render_geometry{};
@@ -204,7 +219,7 @@ struct LegacyBattleStartupState {
     compat::u16 battle_id_word{};
     std::array<compat::u8, 4> party_presence{};
     compat::u32 party_count{};
-    std::array<compat::u32, 4> party_source_indices{};
+    LegacyBattleActionModeSourceState action_mode_source{};
     compat::u32 mode_flags{};
     compat::u32 mirror_mode{};
     compat::u16 action_delay{60U};

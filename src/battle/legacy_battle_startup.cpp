@@ -17,6 +17,7 @@ using compat::u32;
 
 constexpr u32 kPartyPlacementBaseToken = 0x0053AF70U;
 constexpr u32 kEnemyStartupBaseToken = 0x005213A0U;
+constexpr u32 kPartySourceCount = 4U;
 
 [[nodiscard]] LegacyBattleStartupCallReply invoke(
     LegacyBattleStartupPort& port,
@@ -305,7 +306,7 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
          mapped_count < state.party_count;
          ++source) {
         if (state.party_presence[source] != 0U) {
-            state.party_source_indices[mapped_count] = source;
+            state.action_mode_source.actor_label_indices[mapped_count] = source;
             ++mapped_count;
         }
     }
@@ -537,13 +538,13 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
     }
 
     for (u32 index = 0U; index < state.party_count; ++index) {
-        if (index >= state.party_source_indices.size() ||
+        if (index >= kPartySourceCount ||
             index >= kLegacyBattleActorGroupAElementCount) {
             result.status =
                 LegacyBattleStartupStatus::party_actor_index_out_of_range;
             return result;
         }
-        const u32 source = state.party_source_indices[index];
+        const u32 source = state.action_mode_source.actor_label_indices[index];
         if (source >= request.party_role_ids.size()) {
             result.status =
                 LegacyBattleStartupStatus::party_source_index_out_of_range;
@@ -557,12 +558,12 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
 
     for (u32 index = 0U; index < state.party_count; ++index) {
         if (index >= kLegacyBattleActorGroupAElementCount ||
-            index >= state.party_source_indices.size()) {
+            index >= kPartySourceCount) {
             result.status =
                 LegacyBattleStartupStatus::party_actor_index_out_of_range;
             return result;
         }
-        const u32 source = state.party_source_indices[index];
+        const u32 source = state.action_mode_source.actor_label_indices[index];
         if (source >= request.party_role_ids.size()) {
             result.status =
                 LegacyBattleStartupStatus::party_source_index_out_of_range;
@@ -623,12 +624,12 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
 
     for (u32 index = 0U; index < state.party_count; ++index) {
         if (index >= kLegacyBattleActorGroupAElementCount ||
-            index >= state.party_source_indices.size()) {
+            index >= kPartySourceCount) {
             result.status =
                 LegacyBattleStartupStatus::party_actor_index_out_of_range;
             return result;
         }
-        const u32 source = state.party_source_indices[index];
+        const u32 source = state.action_mode_source.actor_label_indices[index];
         if (source >= request.party_values.size()) {
             result.status =
                 LegacyBattleStartupStatus::party_source_index_out_of_range;

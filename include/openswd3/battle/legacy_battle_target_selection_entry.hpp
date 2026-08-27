@@ -6,6 +6,9 @@ namespace openswd3::battle {
 
 struct LegacyBattleTargetSelectionEntryBindings {
     LegacyBattleStartupResetBlocks& startup_reset;
+    const LegacyBattleActionModeSourceState& action_mode_source;
+    const std::array<compat::u8, 4>& startup_party_presence;
+    const compat::u32& startup_mode_flags;
     compat::u16& startup_supplemental_count_word;
     compat::u32& startup_mirror_mode;
     LegacyBattleFrameInputResolutionState& frame_input_resolution;
@@ -33,6 +36,7 @@ enum class LegacyBattleTargetSelectionEntryStatus : compat::u8 {
     completed,
     active_group_a_actor_typed_stop,
     selected_group_b_actor_typed_stop,
+    action_mode_refresh_typed_stop,
     target_selection_refresh_typed_stop,
 };
 
@@ -47,6 +51,7 @@ struct LegacyBattleTargetSelectionEntryResult {
     compat::u32 sample_calls{};
     compat::u32 primary_scan_calls{};
     compat::u32 secondary_scan_calls{};
+    compat::u32 action_mode_refresh_calls{};
     compat::u32 target_selection_refresh_calls{};
 };
 
