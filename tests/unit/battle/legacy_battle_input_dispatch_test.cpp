@@ -68,6 +68,7 @@ struct Fixture {
     u32 render_abort{};
     openswd3::battle::LegacyBattleStartupResetBlocks startup;
     openswd3::compat::u16 supplemental_count{};
+    u32 mirror_mode{};
     openswd3::battle::LegacyBattleFrameInputResolutionState frame_input;
     openswd3::battle::LegacyBattleFinalActorStepState final_actor;
     openswd3::battle::LegacyBattleActionDispatchState action;
@@ -91,6 +92,7 @@ struct Fixture {
             .render_abort_latch = render_abort,
             .startup_reset = startup,
             .startup_supplemental_count_word = supplemental_count,
+            .startup_mirror_mode = mirror_mode,
             .frame_input_resolution = frame_input,
             .final_actor = final_actor,
             .action = action,
@@ -138,10 +140,6 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
             .replies[LegacyBattleInputDispatchCall::refresh_action_mode] = {
             .eax = 0x10U, .ecx = 0x20U, .edx = 0x30U
         };
-        fixture.port.replies
-            [LegacyBattleInputDispatchCall::target_selection_refresh_state] = {
-            .eax = 0x40U, .ecx = 0x50U, .edx = 0x60U
-        };
         const auto result =
             openswd3::battle::coordinate_legacy_battle_input_dispatch(
                 fixture.bindings(), fixture.port, {}
@@ -156,16 +154,17 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
                     LegacyBattleInputDispatchCall::refresh_action_mode
                 ) == 1U &&
                 result.target_selection_entry_calls == 1U &&
+                result.target_selection_refresh_calls == 1U &&
                 fixture.port.count(
                     LegacyBattleInputDispatchCall::
-                        target_selection_refresh_state
-                ) == 1U &&
+                        reserved_target_selection_refresh_state_slot
+                ) == 0U &&
                 fixture.port.count(
                     LegacyBattleInputDispatchCall::
                         reserved_target_selection_entry_slot
                 ) == 0U &&
-                result.return_eax == 0x40U && result.return_ecx == 0x50U &&
-                result.return_edx == 0x60U,
+                result.return_eax == 0U && result.return_ecx == 1U &&
+                result.return_edx == 0U,
             "the first permitted direct key refreshes, publishes selection one, and returns the commit registers"
         );
     }
@@ -390,10 +389,11 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
                 fixture.prompt.frame_counter == 300U &&
                 fixture.debug.battle_mode_flags_53bc24 == 0x103U &&
                 result.target_selection_entry_calls == 1U &&
+                result.target_selection_refresh_calls == 1U &&
                 fixture.port.count(
                     LegacyBattleInputDispatchCall::
-                        target_selection_refresh_state
-                ) == 1U &&
+                        reserved_target_selection_refresh_state_slot
+                ) == 0U &&
                 fixture.port.count(
                     LegacyBattleInputDispatchCall::
                         reserved_target_selection_entry_slot

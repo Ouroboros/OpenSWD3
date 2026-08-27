@@ -90,6 +90,7 @@ void test_battle_status_indicator(openswd3::test::Context& test);
 void test_battle_startup(openswd3::test::Context& test);
 void test_battle_surface_blend(openswd3::test::Context& test);
 void test_battle_target_selection_entry(openswd3::test::Context& test);
+void test_battle_target_selection_refresh(openswd3::test::Context& test);
 void test_battle_transition(openswd3::test::Context& test);
 void test_battle_vertical_panel(openswd3::test::Context& test);
 void test_battle_vertical_shift(openswd3::test::Context& test);
@@ -7070,6 +7071,7 @@ int main() {
     test_battle_startup(test);
     test_battle_surface_blend(test);
     test_battle_target_selection_entry(test);
+    test_battle_target_selection_refresh(test);
     test_battle_transition(test);
     test_battle_vertical_panel(test);
     test_battle_vertical_shift(test);

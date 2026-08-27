@@ -6,6 +6,7 @@
 #include "openswd3/battle/legacy_battle_debug_state.hpp"
 #include "openswd3/battle/legacy_battle_final_actor_step.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
+#include "openswd3/battle/legacy_battle_target_selection_runtime.hpp"
 #include "openswd3/input_time_rng/legacy_input.hpp"
 #include "openswd3/story_scene/legacy_dialog_runtime.hpp"
 #include "openswd3/world_map/legacy_world_interaction.hpp"
@@ -114,7 +115,7 @@ enum class LegacyBattleInputDispatchCall : compat::u8 {
     target_selection_configure_actor,
     target_selection_scan_primary,
     target_selection_scan_secondary,
-    target_selection_refresh_state,
+    reserved_target_selection_refresh_state_slot,
     actor_action_resolve_available,
     reserved_actor_action_commit_nested_slot,
     actor_action_resolve_available_reverse,
@@ -135,7 +136,8 @@ struct LegacyBattleInputDispatchCallReply {
 };
 
 class LegacyBattleInputDispatchPort
-    : public virtual LegacyBattleInputDispatchStatePort {
+    : public virtual LegacyBattleInputDispatchStatePort,
+      public virtual LegacyBattleTargetSelectionRuntimePort {
 public:
     virtual ~LegacyBattleInputDispatchPort() = default;
 
@@ -164,6 +166,7 @@ struct LegacyBattleInputDispatchBindings {
     compat::u32& render_abort_latch;
     LegacyBattleStartupResetBlocks& startup_reset;
     compat::u16& startup_supplemental_count_word;
+    compat::u32& startup_mirror_mode;
     LegacyBattleFrameInputResolutionState& frame_input_resolution;
     LegacyBattleFinalActorStepState& final_actor;
     LegacyBattleActionDispatchState& action;
@@ -225,6 +228,7 @@ struct LegacyBattleInputDispatchResult {
     compat::u32 menu_page_advance_calls{};
     compat::u32 menu_input_finalize_calls{};
     compat::u32 target_selection_entry_calls{};
+    compat::u32 target_selection_refresh_calls{};
     compat::u32 actor_action_cycle_calls{};
     compat::u32 actor_action_reverse_cycle_calls{};
     compat::u32 actor_action_commit_calls{};

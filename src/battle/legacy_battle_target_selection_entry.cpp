@@ -90,7 +90,35 @@ LegacyBattleTargetSelectionEntryResult enter_legacy_battle_target_selection(
         invoke(LegacyBattleInputDispatchCall::refresh_action_mode);
     };
     const auto refresh_state = [&]() {
-        invoke(LegacyBattleInputDispatchCall::target_selection_refresh_state);
+        const auto nested = refresh_legacy_battle_target_selection(
+            {
+                .startup_reset = bindings.startup_reset,
+                .startup_supplemental_count_word =
+                    bindings.startup_supplemental_count_word,
+                .startup_mirror_mode = bindings.startup_mirror_mode,
+                .frame_input_resolution = frame,
+                .final_actor = final_actor,
+                .action = action,
+                .metrics = bindings.metrics,
+                .debug_hotkeys = bindings.debug_hotkeys,
+                .input_dispatch = input,
+                .runtime = bindings.target_selection_runtime,
+                .target_ready_gate = bindings.target_ready_gate,
+                .message_state = bindings.message_state,
+            },
+            port,
+            {.entry_eax = eax, .entry_ecx = ecx, .entry_edx = edx}
+        );
+        ++result.target_selection_refresh_calls;
+        result.port_calls += nested.port_calls;
+        eax = nested.return_eax;
+        ecx = nested.return_ecx;
+        edx = nested.return_edx;
+        if (nested.status !=
+            LegacyBattleTargetSelectionRefreshStatus::completed) {
+            result.status = LegacyBattleTargetSelectionEntryStatus::
+                target_selection_refresh_typed_stop;
+        }
     };
     const auto compute_group_a = [&](const u32 actor_code) {
         const u32 index = actor_code - 8U;

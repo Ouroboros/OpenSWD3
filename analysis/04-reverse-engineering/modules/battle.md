@@ -455,6 +455,8 @@ I5最终必须锁定：
 
 `audit_order=122`的`0x00462630`已关闭为`platform_adapted`。完整权威LST主体`0x00462630..0x00462738`从proc到endp共122行、66条实际指令、4个静态call、9个跳转、9个局部/返回标签、1个返回点且无外部chunk。入口读取message并无条件清pre-frame gate B；message 1完成或跳过后，强制EAX为2、ECX为live message再判断message 2，后续message 4/30继续独立重读，样本回调仍可触发同次多分支。message 1按signed `action-4 >=1`回退action kind，再读取九byte权限域，权限0时加4恢复；越界在真实byte读取停止。message 2把action category按u32减1并先回写，signed负值只把存储回绕2，随后把list selection写1但不清panel scroll A。message 4把equipment selection减1并先回写，signed负值把EAX与存储回绕3；非负大索引在首次四槽读取停止，有效索引恢复grid与scroll缓存。message 30把grid selection减5并先回写，signed结果小于1时只把存储夹到1，样本保留减法EAX。逐帧记录3旧左向槽保留reserved数值且零调用；热点回绕、可选菜单选择后退和反向角色轮转完成后直连本实现，本实现typed-stop保留已完成轮转并阻断后续记录。
 
-下一项回收`audit_order=123`的`0x00462740`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗函数。
+`audit_order=123`的`0x00462740`已关闭为`platform_adapted`。完整权威LST主体`0x00462740..0x004640F1`从proc到endp共2820行、1662条实际指令、95个静态call、140个跳转、110个局部/默认标签、37个返回点且无外部chunk；函数后的200项主message压缩表和36项动作压缩表也已审计。入口仅在target-ready完整dword为1时运行，随后清selection runtime gate，以u32 `message-1`分派1/2/3/4/5/7/8/27/30/98/100–104/110–113/200；表内默认返回selector 20，表外保持caller ECX。message 1在输入gate和animation frame B signed阈值6后读取跨startup物理owner的action word重映射，再按36项动作表进入目标面板、角色提交或message回退。message 2/4/8/27/30完成候选gate、目标校验、三项角色属性、提示样本、默认/alternate回退及四类动作/装备路径。message 3提交动作、按live group-B count和固定四个group-A对象清选择、处理动作30/4和cleanup角色；message 5以行选择、高word偏移和group-A count在共享动作workspace物理word/dword视图写效果记录；message 7轮转target map或提交动作99。98–113保留`>=20`、`>20`、`>=30`三种signed阈值、AL-only actor byte替换和三条故意不同的状态清理；200保留两组live count清理。新runtime owner只承接未建模状态，既有message、角色、动作workspace、五dword记录、菜单、计数、镜像与startup尾块继续复用唯一owner；global reset只同步原234项写程序真实覆盖的字节。目标选择进入原刷新槽保留reserved数值且零调用，ready/queued短路直连本实现并传播typed-stop。
+
+下一项回收`audit_order=124`的`0x00464270`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

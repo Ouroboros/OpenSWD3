@@ -1,15 +1,20 @@
 #pragma once
 
-#include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
+#include "openswd3/battle/legacy_battle_target_selection_refresh.hpp"
 
 namespace openswd3::battle {
 
 struct LegacyBattleTargetSelectionEntryBindings {
+    LegacyBattleStartupResetBlocks& startup_reset;
+    compat::u16& startup_supplemental_count_word;
+    compat::u32& startup_mirror_mode;
     LegacyBattleFrameInputResolutionState& frame_input_resolution;
     LegacyBattleFinalActorStepState& final_actor;
     LegacyBattleActionDispatchState& action;
     LegacyBattleActorMetricState& metrics;
+    LegacyBattleDebugHotkeyState& debug_hotkeys;
     LegacyBattleInputDispatchState& input_dispatch;
+    LegacyBattleTargetSelectionRuntimeState& target_selection_runtime;
     story_scene::LegacyDialogRuntimeState& dialogs;
     compat::u32& one_shot_interaction_state;
     compat::u32& target_ready_gate;
@@ -27,6 +32,7 @@ enum class LegacyBattleTargetSelectionEntryStatus : compat::u8 {
     completed,
     active_group_a_actor_typed_stop,
     selected_group_b_actor_typed_stop,
+    target_selection_refresh_typed_stop,
 };
 
 struct LegacyBattleTargetSelectionEntryResult {
@@ -40,6 +46,7 @@ struct LegacyBattleTargetSelectionEntryResult {
     compat::u32 sample_calls{};
     compat::u32 primary_scan_calls{};
     compat::u32 secondary_scan_calls{};
+    compat::u32 target_selection_refresh_calls{};
 };
 
 // Typed closure of legacy 0x004620D0.

@@ -244,11 +244,18 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
     const auto enter_target_selection = [&]() {
         const auto nested = enter_legacy_battle_target_selection(
             {
+                .startup_reset = bindings.startup_reset,
+                .startup_supplemental_count_word =
+                    bindings.startup_supplemental_count_word,
+                .startup_mirror_mode = bindings.startup_mirror_mode,
                 .frame_input_resolution = bindings.frame_input_resolution,
                 .final_actor = bindings.final_actor,
                 .action = bindings.action,
                 .metrics = bindings.metrics,
+                .debug_hotkeys = bindings.debug_hotkeys,
                 .input_dispatch = state,
+                .target_selection_runtime =
+                    port.battle_target_selection_runtime_state(),
                 .dialogs = bindings.dialogs,
                 .one_shot_interaction_state =
                     bindings.one_shot_interaction_state,
@@ -260,6 +267,8 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
             {.entry_eax = eax, .entry_ecx = ecx, .entry_edx = edx}
         );
         ++result.target_selection_entry_calls;
+        result.target_selection_refresh_calls +=
+            nested.target_selection_refresh_calls;
         result.port_calls += nested.port_calls;
         eax = nested.return_eax;
         ecx = nested.return_ecx;

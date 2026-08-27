@@ -254,12 +254,12 @@ struct MappedRange {
     u32 bytes;
 };
 
-constexpr std::array<MappedRange, 89> kMappedRanges{{
+constexpr std::array<MappedRange, 107> kMappedRanges{{
     {0x004A7548U, 0x04U},  {0x004A754CU, 0x04U},  {0x004A7550U, 0x04U},
     {0x004A7558U, 0x08U},  {0x004A7564U, 0x0CU},  {0x004A7570U, 0x04U},
     {0x004A7620U, 0x08U},  {0x004A7630U, 0x02U},  {0x004A7644U, 0x02U},
     {0x004CAE7CU, 0x04U},  {0x004FF578U, 0x04U},  {0x004FDF7CU, 0x02U},
-    {0x004FDF8CU, 0x04U},  {0x004FDFA4U, 0x04U},  {0x004FE5CCU, 0x2CU},
+    {0x004FDF8CU, 0x04U},  {0x004FDFA4U, 0x04U},  {0x004FE5CCU, 0x30U},
     {0x005028A0U, 0x08U},  {0x00520D58U, 0x04U},  {0x00520FB8U, 0x04U},
     {0x00521388U, 0x04U},  {0x00521394U, 0x04U},  {0x0052151CU, 0x04U},
     {0x00525430U, 0x04U},  {0x00525448U, 0x04U},  {0x00525468U, 0x04U},
@@ -276,7 +276,7 @@ constexpr std::array<MappedRange, 89> kMappedRanges{{
     {0x0053BD50U, 0x08U},  {0x0053BD5CU, 0x04U},  {0x0053BD7CU, 0x10U},
     {0x0053BD90U, 0x14U},  {0x0053BDACU, 0x04U},  {0x0053BCECU, 0x04U},
     {0x0053BEFFU, 0x01U},  {0x0053BF00U, 0x01U},  {0x0053BF0CU, 0x02U},
-    {0x0053BF1CU, 0x02U},  {0x0053BF24U, 0x02U},  {0x0053BF2AU, 0x02U},
+    {0x0053BF1CU, 0x02U},  {0x0053BF24U, 0x04U},  {0x0053BF2AU, 0x02U},
     {0x0053BF5CU, 0x04U},  {0x0053BF60U, 0x04U},  {0x0053BF64U, 0x08U},
     {0x0053BF74U, 0x04U},  {0x0053BF7CU, 0x04U},  {0x0053BF80U, 0x04U},
     {0x0053BF88U, 0x04U},  {0x0053BFA8U, 0x04U},  {0x0053BFC0U, 0x08U},
@@ -284,7 +284,13 @@ constexpr std::array<MappedRange, 89> kMappedRanges{{
     {0x0053BFCCU, 0x04U},  {0x0053BFF4U, 0x04U},  {0x0053C000U, 0x04U},
     {0x0053C018U, 0x04U},  {0x0053BFE4U, 0x04U},  {0x0053C040U, 0x04U},
     {0x0053C048U, 0x04U},  {0x0053C050U, 0x02U},  {0x0053C4A0U, 0x04U},
-    {0x0053C4C0U, 0x01U},  {0x0053CEACU, 0x04U},
+    {0x0053C4C0U, 0x01U},  {0x0053CEACU, 0x04U},  {0x004A7646U, 0x01U},
+    {0x004FDC60U, 0x04U},  {0x004FE5C0U, 0x0CU},  {0x004FE5D2U, 0x02U},
+    {0x004FE5FCU, 0x0EU},  {0x00520DF8U, 0x20U},  {0x0052137CU, 0x24U},
+    {0x0053BCDCU, 0x04U},  {0x0053BD10U, 0x08U},  {0x0053BDA4U, 0x04U},
+    {0x0053BDE8U, 0x04U},  {0x0053BF1EU, 0x04U},  {0x0053BFFCU, 0x04U},
+    {0x0053C01CU, 0x04U},  {0x0053C038U, 0x04U},  {0x0053C498U, 0x02U},
+    {0x0053C4B0U, 0x08U},  {0x0053C4BCU, 0x04U},
 }};
 
 [[nodiscard]] bool is_mapped_byte(const u32 address) noexcept {
@@ -345,7 +351,8 @@ void synchronize_typed_aliases(
     LegacyBattleOutcomeFinalizationState& outcome_finalization,
     LegacyBattleVerticalShiftState& vertical_shift,
     LegacyBattleInputDispatchState& input_dispatch,
-    LegacyBattleFrameInputResolutionState& frame_input_resolution
+    LegacyBattleFrameInputResolutionState& frame_input_resolution,
+    LegacyBattleTargetSelectionRuntimeState& target_selection
 ) {
     startup.render_geometry = {};
     auto& reset = startup.reset;
@@ -514,6 +521,26 @@ void synchronize_typed_aliases(
     frame_input_resolution.selection_block_word = 0U;
     frame_input_resolution.target_selection_block = 0U;
     frame_input_resolution.target_selection_suppression = 0U;
+
+    target_selection.selection_input_gate = 0U;
+    target_selection.committed_actor_code = 0U;
+    target_selection.selected_action_kind = 0U;
+    target_selection.actor_commit_gate = 0U;
+    target_selection.action_mode_flags = 0U;
+    target_selection.candidate_gate_a = 0U;
+    target_selection.candidate_gate_b = 0U;
+    target_selection.candidate_argument = 0U;
+    target_selection.target_argument = 0U;
+    target_selection.target_effect_value &= 0xFFFF0000U;
+    target_selection.completion_gate = 0U;
+    target_selection.transition_timer = 0U;
+    target_selection.transition_state = 0U;
+    target_selection.transition_mode = 0U;
+    target_selection.transition_control_words = 0U;
+    target_selection.transition_sample_word = 0U;
+    target_selection.target_actor_indices[0U] = 0U;
+    target_selection.actor_result_words[0U] = 0U;
+    target_selection.actor_result_words[1U] = 0U;
     startup.supplemental_count_word = 0U;
 }
 
@@ -587,7 +614,8 @@ LegacyBattleGlobalResetResult reset_legacy_battle_globals(
         port.outcome_finalization_state(),
         port.battle_vertical_shift_state(),
         port.battle_input_dispatch_state(),
-        port.battle_frame_input_resolution_state()
+        port.battle_frame_input_resolution_state(),
+        port.battle_target_selection_runtime_state()
     );
 
     record_call(

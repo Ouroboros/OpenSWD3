@@ -351,6 +351,36 @@ void seed_state(
     input.selected_actor_reset_gate = 9U;
     input.selection_workspace.fill(9U);
 
+    auto& target = port.battle_target_selection_runtime_state();
+    target.selection_input_gate = 9U;
+    target.committed_actor_code = 9U;
+    target.selected_action_kind = 9U;
+    target.actor_commit_gate = 9U;
+    target.action_mode_flags = 9U;
+    target.selection_aux_gate = 9U;
+    target.candidate_gate_a = 9U;
+    target.candidate_gate_b = 9U;
+    target.candidate_argument = 9U;
+    target.target_argument = 9U;
+    target.target_effect_value = 0xABCD0009U;
+    target.actor_special_gate = 9U;
+    target.special_action_count = 9U;
+    target.completion_gate = 9U;
+    target.transition_timer = 9U;
+    target.transition_stage = 9U;
+    target.transition_state = 9U;
+    target.transition_mode = 9U;
+    target.transition_control_words = 9U;
+    target.transition_packed_value = 9U;
+    target.transition_sample_word = 9U;
+    target.transition_actor_index = 9U;
+    target.transition_aux_byte = 9U;
+    target.target_actor_indices.fill(9U);
+    target.actor_result_words.fill(9U);
+    target.action_remap_prefix.fill(9U);
+    target.action_remap_gap.fill(9U);
+    target.action_remap_suffix.fill(9U);
+
     auto& frame_input = port.battle_frame_input_resolution_state();
     frame_input.previous_mouse_x = 9;
     frame_input.previous_mouse_y = 9;
@@ -662,6 +692,43 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                     [](const auto value) { return value == 9U; }
                 ),
             "global reset synchronizes only the input-dispatch globals in its physical write set"
+        );
+        const auto& target = port.battle_target_selection_runtime_state();
+        test.expect_true(
+            target.selection_input_gate == 0U &&
+                target.committed_actor_code == 0U &&
+                target.selected_action_kind == 0U &&
+                target.actor_commit_gate == 0U &&
+                target.action_mode_flags == 0U &&
+                target.selection_aux_gate == 9U &&
+                target.candidate_gate_a == 0U &&
+                target.candidate_gate_b == 0U &&
+                target.candidate_argument == 0U &&
+                target.target_argument == 0U &&
+                target.target_effect_value == 0xABCD0000U &&
+                target.actor_special_gate == 9U &&
+                target.special_action_count == 9U &&
+                target.completion_gate == 0U && target.transition_timer == 0U &&
+                target.transition_stage == 9U &&
+                target.transition_state == 0U && target.transition_mode == 0U &&
+                target.transition_control_words == 0U &&
+                target.transition_packed_value == 9U &&
+                target.transition_sample_word == 0U &&
+                target.transition_actor_index == 9U &&
+                target.transition_aux_byte == 9U &&
+                target.target_actor_indices[0U] == 0U &&
+                target.target_actor_indices[1U] == 9U &&
+                target.actor_result_words[0U] == 0U &&
+                target.actor_result_words[1U] == 0U &&
+                target.actor_result_words[2U] == 9U &&
+                target.action_remap_prefix[0U] == 9U &&
+                target.action_remap_gap[0U] == 9U &&
+                target.action_remap_suffix[0U] == 9U &&
+                state.unmapped_bytes.contains(0x0053BFB8U) == false &&
+                state.unmapped_bytes.contains(0x0053BD10U) == false &&
+                state.unmapped_bytes.contains(0x0053BF24U) == false &&
+                state.unmapped_bytes.contains(0x0053C038U) == false,
+            "global reset updates the target-selection owner only for bytes in the original write program"
         );
         const auto& frame_input = port.battle_frame_input_resolution_state();
         test.expect_true(

@@ -125,6 +125,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             .startup_reset = context.startup.reset,
             .startup_supplemental_count_word =
                 context.startup.supplemental_count_word,
+            .startup_mirror_mode = context.startup.mirror_mode,
             .frame_input_resolution =
                 port.battle_frame_input_resolution_state(),
             .final_actor = context.final_actor_step,

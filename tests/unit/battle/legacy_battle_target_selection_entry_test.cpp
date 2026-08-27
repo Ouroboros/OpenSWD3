@@ -55,10 +55,14 @@ public:
 };
 
 struct Fixture {
+    openswd3::battle::LegacyBattleStartupResetBlocks startup;
+    openswd3::compat::u16 supplemental_count{};
+    u32 mirror_mode{};
     openswd3::battle::LegacyBattleFrameInputResolutionState frame;
     openswd3::battle::LegacyBattleFinalActorStepState final_actor;
     openswd3::battle::LegacyBattleActionDispatchState action;
     openswd3::battle::LegacyBattleActorMetricState metrics;
+    openswd3::battle::LegacyBattleDebugHotkeyState debug;
     openswd3::story_scene::LegacyDialogRuntimeState dialogs;
     u32 one_shot_interaction_state{};
     u32 target_ready_gate{};
@@ -68,11 +72,17 @@ struct Fixture {
 
     [[nodiscard]] LegacyBattleTargetSelectionEntryBindings bindings() {
         return {
+            .startup_reset = startup,
+            .startup_supplemental_count_word = supplemental_count,
+            .startup_mirror_mode = mirror_mode,
             .frame_input_resolution = frame,
             .final_actor = final_actor,
             .action = action,
             .metrics = metrics,
+            .debug_hotkeys = debug,
             .input_dispatch = port.battle_input_dispatch_state(),
+            .target_selection_runtime =
+                port.battle_target_selection_runtime_state(),
             .dialogs = dialogs,
             .one_shot_interaction_state = one_shot_interaction_state,
             .target_ready_gate = target_ready_gate,
@@ -207,27 +217,40 @@ void test_battle_target_selection_entry(openswd3::test::Context& test) {
         fixture.message = 5U;
         fixture.frame.target_selection_suppression = 1U;
         fixture.port.battle_input_dispatch_state().input_gate = 0x12340000U;
-        fixture.port.replies.push_back(
-            LegacyBattleInputDispatchCallReply{
-                .eax = 0xAAU,
-                .ecx = 0xBBU,
-                .edx = 0xCCU,
-            }
-        );
         const auto result = enter_legacy_battle_target_selection(
             fixture.bindings(), fixture.port, {.entry_edx = 0x44U}
         );
         test.expect_true(
-            fixture.port.calls.size() == 1U &&
-                fixture.port.calls[0U].call ==
-                    LegacyBattleInputDispatchCall::
-                        target_selection_refresh_state &&
-                fixture.port.calls[0U].eax == 0U &&
-                fixture.port.calls[0U].ecx == 5U &&
-                fixture.port.calls[0U].edx == 0x44U &&
-                result.return_eax == 0xAAU && result.return_ecx == 0xBBU &&
-                result.return_edx == 0xCCU,
-            "disabled target readiness refreshes state with the current branch registers"
+            fixture.port.calls.empty() &&
+                result.target_selection_refresh_calls == 1U &&
+                result.return_eax == 0U && result.return_ecx == 5U &&
+                result.return_edx == 0x44U,
+            "disabled target readiness directly runs the closed refresh and preserves branch ECX and EDX"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.message = 1U;
+        fixture.target_ready_gate = 1U;
+        auto& input = fixture.port.battle_input_dispatch_state();
+        auto& runtime = fixture.port.battle_target_selection_runtime_state();
+        input.action_kind = 37U;
+        input.selection_animation_frame_b = 6U;
+        runtime.selection_input_gate = 1U;
+        const auto result = enter_legacy_battle_target_selection(
+            fixture.bindings(), fixture.port, {}
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleTargetSelectionEntryStatus::
+                        target_selection_refresh_typed_stop &&
+                result.target_selection_refresh_calls == 1U &&
+                runtime.selection_input_gate == 0U &&
+                fixture.frame.target_selection_gate == 1U &&
+                fixture.port.calls.empty() && result.return_eax == 37U &&
+                result.return_ecx == 0U && result.return_edx == 6U,
+            "queued-actor refresh propagates the closed state machine typed-stop with its completed prefix"
         );
     }
 
