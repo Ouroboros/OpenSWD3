@@ -509,7 +509,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         return result;
     }
 
-    if (state.debug_overlay.gate == 1U) {
+    if (port.battle_debug_overlay_gate() == 1U) {
         result.debug_overlay = draw_legacy_battle_debug_overlay(
             {
                 .overlay = state.debug_overlay,

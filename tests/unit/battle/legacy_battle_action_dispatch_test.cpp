@@ -52,6 +52,19 @@ public:
         return default_reply;
     }
 
+    [[nodiscard]] openswd3::battle::LegacyBattleRetreatCommitCallReply
+    invoke_retreat_commit(
+        const openswd3::battle::LegacyBattleRetreatCommitCallRequest& request
+    ) override {
+        retreat_commit_calls.push_back(request);
+        if (retreat_commit_replies.empty()) {
+            return {.eax = 1U};
+        }
+        const auto reply = retreat_commit_replies.front();
+        retreat_commit_replies.pop_front();
+        return reply;
+    }
+
     void push(const u32 callee, const LegacyBattleActionCallReply reply) {
         replies[callee].push_back(reply);
     }
@@ -70,6 +83,10 @@ public:
     LegacyBattleActionCallReply default_reply{.eax = 1U};
     std::unordered_map<u32, std::deque<LegacyBattleActionCallReply>> replies;
     std::vector<LegacyBattleActionCallRequest> calls;
+    std::deque<openswd3::battle::LegacyBattleRetreatCommitCallReply>
+        retreat_commit_replies;
+    std::vector<openswd3::battle::LegacyBattleRetreatCommitCallRequest>
+        retreat_commit_calls;
 };
 
 class ActionStreamProvider final
@@ -302,6 +319,46 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 state.result_mode == 1U && state.battle_submode == 2U &&
                 port.count(0x0047CC40U) == 1U && port.count(0x0047F900U) == 1U,
             "action ninety nine performs exact terminal reset and two mode calls"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        state.action_runtime_flags = 0x8001U;
+        state.packed_actor_counter = 0xAABBCCDDU;
+        Fixture fixture;
+        DispatchPort port;
+        port.action = 3U;
+        port.actor_metric_state().group_b_count = 0x12U;
+        port.retreat_commit_replies = {
+            {.eax = 1U},
+            {.eax = 1U, .ecx = 0x12345678U, .edx = 0x87654321U},
+        };
+        port.battle_debug_hotkey_state().reset_gate_53bd50 = 9U;
+        port.battle_debug_overlay_gate() = 9U;
+        port.battle_message_state() = 9U;
+        auto context = fixture.context();
+
+        const auto result = openswd3::battle::dispatch_legacy_battle_action(
+            state, port, context, 0U, 0U
+        );
+
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.retreat_commit_calls == 1U &&
+                result.retreat_commit.branch ==
+                    openswd3::battle::LegacyBattleRetreatCommitBranch::
+                        committed &&
+                port.retreat_commit_calls.size() == 2U &&
+                port.count(0x0045EA80U) == 0U &&
+                state.packed_actor_counter == 0xAABBCC12U &&
+                port.retreat_commit_state().completion_gate_a == 1U &&
+                port.retreat_commit_state().completion_gate_b == 1U &&
+                port.battle_debug_hotkey_state().reset_gate_53bd50 == 0U &&
+                port.battle_debug_overlay_gate() == 0U &&
+                port.battle_message_state() == 0U &&
+                port.outcome_resolution_state().darkening_gate == 1U,
+            "action three directly finalizes the selected actor and publishes the shared battle state without the old opaque call"
         );
     }
 

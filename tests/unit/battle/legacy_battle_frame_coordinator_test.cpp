@@ -861,13 +861,13 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
 
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
-        state.debug_overlay.gate = 1U;
         state.special_surface_gate = 2U;
         state.screenshot_counter = 0xFFFFU;
         Fixture fixture;
         fixture.final_actor_step.active_actor_code = 8U;
         fixture.final_actor_step.source_actor_code = 0xFFFFFFFFU;
         CoordinatorPort port;
+        port.battle_debug_overlay_gate() = 1U;
         port.battle_debug_hotkey_state().screenshot_request = 1U;
         port.battle_terminal_latch() = 1U;
         port.battle_message_state() = 0U;
@@ -1256,10 +1256,10 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
 
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
-        state.debug_overlay.gate = 1U;
         state.debug_overlay.frame_divisor = 0;
         Fixture fixture;
         CoordinatorPort port;
+        port.battle_debug_overlay_gate() = 1U;
         port.battle_debug_hotkey_state().toggle_5244e0 = 1U;
         configure_common_port(port);
         auto context = fixture.context();

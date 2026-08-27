@@ -31,12 +31,14 @@ struct LegacyBattleGlobalResetCallReply {
 
 class LegacyBattleGlobalResetRuntimePort
     : public LegacyBattleStartupPort,
+      public virtual LegacyBattleRetreatCommitStatePort,
       public virtual LegacyBattleColorAccumulationStatePort,
       public virtual LegacyBattlePairTransitionStatePort,
       public virtual LegacyBattleOutcomeResolutionStatePort,
       public virtual LegacyBattleOutcomeFinalizationStatePort,
       public virtual LegacyBattleEffectCoordinatorStatePort,
       public virtual LegacyBattleDebugHotkeyStatePort,
+      public virtual LegacyBattleDebugOverlayGateStatePort,
       public virtual LegacyBattleVerticalShiftStatePort,
       public LegacyBattleActionRotationReleasePort,
       public LegacyBattleRenderAuxiliaryBufferReleaser {

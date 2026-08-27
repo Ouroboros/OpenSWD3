@@ -116,7 +116,7 @@ case 8–10、16、18–21、30以及大于36的值走default并返回0；只保
 
 case 2还可直接构造`640×480, origin 0,0, field 200×200` deformation对象；allocator返回0时owner保持空。runtime低word bit0未置位时返回0。
 
-完成阶段先清accumulator和两个selection word。case 2若battle flags bit`0x20`置位则保留deformation并返回；否则直接析构对象并释放owner。case 3调用选择计算callee。两者随后置fade active、延迟300、调用角色finalize并返回0。
+完成阶段先清accumulator和两个selection word。case 2若battle flags bit`0x20`置位则保留deformation并返回；否则直接析构对象并释放owner。case 3调用选择计算callee。两者随后置fade active、延迟300；case 3再直接组合已关闭撤退提交，按角色就绪、首对象状态和mode门决定提示音或九项共享状态发布。旧撤退callee token已删除，返回仍按原caller忽略。
 
 ## 8. case 4/5/7/11/12/17
 
@@ -243,7 +243,8 @@ bit75未置且message gate bit0为1时，播放固定消息、再次清动作rec
 - 超尺寸清屏已写满前缀与refresh时机；
 - 27个有效普通case、10个有效特殊动作逐项smoke；
 - 9个稀疏switch槽和越界action只执行两个入口callee；
-- 95个原始唯一callee中86个端口边界全部存在，另外9个已关闭callee全部直连；
+- 95个原始唯一callee中85个端口边界全部存在，另外10个已关闭callee全部直连；
+- case 3撤退提交成功、固定警告分支和旧地址调用清零；
 - battle聚合目标零warning，普通定向通过。
 
-当前没有原版18个角色对象、94类剩余callee共享副作用、全部数值/AI表、消息文本、输入bit、DirectDraw framebuffer、deformation allocator与SEH联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前没有原版18个角色对象、85类剩余callee共享副作用、全部数值/AI表、消息文本、输入bit、DirectDraw framebuffer、deformation allocator与SEH联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

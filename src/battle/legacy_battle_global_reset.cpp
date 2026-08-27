@@ -334,6 +334,8 @@ void synchronize_typed_aliases(
     LegacyBattleEffectCoordinatorState& coordinator,
     LegacyBattleDebugHotkeyState& debug_hotkeys,
     LegacyBattleDebugOverlayState& debug_overlay,
+    u32& debug_overlay_gate,
+    LegacyBattleRetreatCommitState& retreat_commit,
     LegacyBattleOutcomeResolutionState& outcome_resolution,
     LegacyBattleOutcomeFinalizationState& outcome_finalization,
     LegacyBattleVerticalShiftState& vertical_shift
@@ -441,11 +443,15 @@ void synchronize_typed_aliases(
     debug_hotkeys.block_53af30.fill(0U);
     debug_hotkeys.reset_gate_53bd50 = 0U;
 
-    debug_overlay.gate = 0U;
+    debug_overlay_gate = 0U;
     debug_overlay.selection_order.fill(0U);
     debug_overlay.battle_selector = -1;
     debug_overlay.initial_mode = -1;
     debug_overlay.battle_frame = 0U;
+
+    retreat_commit.completion_gate_a = 0U;
+    retreat_commit.completion_gate_b = 0U;
+    retreat_commit.selected_actor_token = 0U;
 
     outcome_resolution.resolution_latch = 0U;
     outcome_resolution.darkening_gate = 0U;
@@ -520,6 +526,8 @@ LegacyBattleGlobalResetResult reset_legacy_battle_globals(
         port.effect_coordinator_state(),
         port.battle_debug_hotkey_state(),
         debug_overlay,
+        port.battle_debug_overlay_gate(),
+        port.retreat_commit_state(),
         port.outcome_resolution_state(),
         port.outcome_finalization_state(),
         port.battle_vertical_shift_state()

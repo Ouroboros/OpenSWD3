@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
+#include "openswd3/battle/legacy_battle_debug_state.hpp"
 #include "openswd3/battle/legacy_battle_effect_coordinator.hpp"
 #include "openswd3/battle/legacy_battle_final_actor_step.hpp"
 #include "openswd3/battle/legacy_battle_group_b_frame.hpp"
@@ -47,41 +48,6 @@ struct LegacyBattleDebugHotkeyCallReply {
     compat::u32 group_b_count{};
     bool publish_priority_actor{};
     compat::u32 priority_actor{};
-};
-
-struct LegacyBattleDebugHotkeyState {
-    compat::u32 developer_tools_enabled{};
-    compat::u32 toggle_5244e0{};
-    compat::u32 toggle_53af68{};
-    compat::u32 message_latch_53ceb8{};
-    compat::u32 selection_status_word_53c050{};
-    compat::u32 actor_retarget_gate_53bf64{};
-    std::array<compat::u32, 6> selection_workspace_tail{};
-    compat::u32 text_mode_toggle_53c02c{};
-    compat::u32 battle_mode_flags_53bc24{};
-    std::array<compat::u32, 10> block_53af30{};
-    compat::u32 reset_gate_53bd50{};
-    compat::u32 screenshot_request{};
-};
-
-class LegacyBattleDebugHotkeyStatePort {
-public:
-    [[nodiscard]] virtual LegacyBattleDebugHotkeyState&
-    battle_debug_hotkey_state() noexcept {
-        return state_;
-    }
-
-    [[nodiscard]] virtual const LegacyBattleDebugHotkeyState&
-    battle_debug_hotkey_state() const noexcept {
-        return state_;
-    }
-
-protected:
-    LegacyBattleDebugHotkeyStatePort() = default;
-    ~LegacyBattleDebugHotkeyStatePort() = default;
-
-private:
-    LegacyBattleDebugHotkeyState state_{};
 };
 
 class LegacyBattleDebugHotkeyPort

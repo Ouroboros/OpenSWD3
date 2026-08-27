@@ -2,6 +2,7 @@
 
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
 #include "openswd3/asset_runtime/legacy_frame_deformation.hpp"
+#include "openswd3/battle/legacy_battle_retreat_commit.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_frame_effect.hpp"
 #include "openswd3/battle/legacy_battle_pair_transition.hpp"
@@ -65,7 +66,8 @@ struct LegacyBattleActionCallReply {
 };
 
 class LegacyBattleActionDispatchPort
-    : public virtual LegacyBattleActorMetricStatePort,
+    : public virtual LegacyBattleRetreatCommitPort,
+      public virtual LegacyBattleActorMetricStatePort,
       public virtual LegacyBattlePairTransitionPort,
       public virtual LegacyBattleSharedPhaseStatePort,
       public virtual LegacyBattleOutcomeResolutionStatePort,
@@ -240,6 +242,8 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 player_item_calls{};
     LegacyBattlePairTransitionResult pair_transition{};
     compat::u32 pair_transition_calls{};
+    LegacyBattleRetreatCommitResult retreat_commit{};
+    compat::u32 retreat_commit_calls{};
 };
 
 // sub_4539B0: dispatch one action code for the selected group-A actor and

@@ -32,7 +32,6 @@ constexpr u32 kCallFinalizeMode = 0x0047D860U;
 constexpr u32 kCallQueryModeB = 0x0047C950U;
 constexpr u32 kCallQuerySpecial = 0x0047D8E0U;
 constexpr u32 kCallComputeSelection = 0x00470E20U;
-constexpr u32 kCallFinalizeActor = 0x0045EA80U;
 constexpr u32 kCallActionReady = 0x00472CE0U;
 constexpr u32 kCallTargetReady = 0x004751C0U;
 constexpr u32 kCallResolveTarget = 0x00480AD0U;
@@ -924,9 +923,13 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
         }
         state.frame_effect.fade_active = 1U;
         static_cast<void>(invoke(state, port, result, kCallSetDelay, {0x12CU}));
-        static_cast<void>(
-            invoke(state, port, result, kCallFinalizeActor, {group_a_index})
+        result.retreat_commit = commit_legacy_battle_retreat(
+            {.packed_actor_counter = state.packed_actor_counter},
+            port,
+            group_a_index
         );
+        ++result.retreat_commit_calls;
+        result.port_calls += result.retreat_commit.port_calls;
         return result;
     }
     case 4U:

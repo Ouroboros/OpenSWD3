@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
+#include "openswd3/battle/legacy_battle_debug_state.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_debug_hotkeys.hpp"
 #include "openswd3/battle/legacy_battle_effect_coordinator.hpp"
@@ -52,7 +53,8 @@ struct LegacyBattleDebugOverlayTextRequest {
     compat::u32 height{};
 };
 
-class LegacyBattleDebugOverlayPort {
+class LegacyBattleDebugOverlayPort
+    : public virtual LegacyBattleDebugOverlayGateStatePort {
 public:
     virtual ~LegacyBattleDebugOverlayPort() = default;
 
@@ -73,7 +75,6 @@ public:
 };
 
 struct LegacyBattleDebugOverlayState {
-    compat::u32 gate{};
     compat::u32 resolved_actor_token{};
     std::array<compat::u32, 18> selection_order{};
 

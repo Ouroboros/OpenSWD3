@@ -159,6 +159,7 @@ void seed_state(
     LegacyBattleDebugOverlayState& debug_overlay,
     ResetPort& port
 ) {
+    auto& retreat_commit = port.retreat_commit_state();
     auto& outcome_resolution = port.outcome_resolution_state();
     auto& outcome_finalization = port.outcome_finalization_state();
     auto& vertical_shift = port.battle_vertical_shift_state();
@@ -224,7 +225,7 @@ void seed_state(
     actor_frames.shared.target_ready_gate = 9U;
     actor_frames.shared.action_block_gate = 9U;
     actor_frames.shared.action.action_pending_aux = 9U;
-    debug_overlay.gate = 9U;
+    port.battle_debug_overlay_gate() = 9U;
     debug_overlay.resolved_actor_token = 0x11223344U;
     debug_overlay.selection_order.fill(9U);
     debug_overlay.battle_selector = 9;
@@ -239,6 +240,7 @@ void seed_state(
     debug_overlay.marker_x = -13;
     debug_overlay.marker_row = -15;
     debug_overlay.text_buffer[0] = 'x';
+    retreat_commit = {9U, 9U, 9U, 9U};
     outcome_resolution.resolution_latch = 9U;
     outcome_resolution.darkening_gate = 9U;
     outcome_resolution.force_group_b_resolution = 9U;
@@ -331,6 +333,7 @@ void test_battle_global_reset(openswd3::test::Context& test) {
             debug_overlay,
             port
         );
+        auto& retreat_commit = port.retreat_commit_state();
         auto& outcome_resolution = port.outcome_resolution_state();
         auto& outcome_finalization = port.outcome_finalization_state();
         auto& vertical_shift = port.battle_vertical_shift_state();
@@ -561,7 +564,7 @@ void test_battle_global_reset(openswd3::test::Context& test) {
             std::ranges::all_of(
                 debug_overlay.selection_order,
                 [](const auto value) { return value == 0U; }
-            ) && debug_overlay.gate == 0U &&
+            ) && port.battle_debug_overlay_gate() == 0U &&
                 debug_overlay.resolved_actor_token == 0x11223344U &&
                 debug_overlay.battle_selector == -1 &&
                 debug_overlay.battle_mode == 0x22334455U &&
@@ -588,7 +591,11 @@ void test_battle_global_reset(openswd3::test::Context& test) {
             "global reset synchronizes the debug overlay write set and preserves the high bytes of its byte store"
         );
         test.expect_true(
-            outcome_resolution.resolution_latch == 0U &&
+            retreat_commit.completion_gate_a == 0U &&
+                retreat_commit.completion_gate_b == 0U &&
+                retreat_commit.auxiliary_latch == 9U &&
+                retreat_commit.selected_actor_token == 0U &&
+                outcome_resolution.resolution_latch == 0U &&
                 outcome_resolution.darkening_gate == 0U &&
                 outcome_resolution.force_group_b_resolution == 0U &&
                 outcome_resolution.darkening.channel_delta == -30 &&
