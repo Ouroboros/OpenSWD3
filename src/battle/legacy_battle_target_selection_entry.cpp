@@ -103,6 +103,7 @@ LegacyBattleTargetSelectionEntryResult enter_legacy_battle_target_selection(
                 .metrics = bindings.metrics,
                 .debug_hotkeys = bindings.debug_hotkeys,
                 .input_dispatch = input,
+                .input_records = bindings.input_records,
                 .runtime = bindings.target_selection_runtime,
                 .target_ready_gate = bindings.target_ready_gate,
                 .message_state = bindings.message_state,

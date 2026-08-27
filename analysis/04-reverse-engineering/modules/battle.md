@@ -461,6 +461,8 @@ I5最终必须锁定：
 
 `audit_order=125`的`0x00464CC0`已关闭为`platform_adapted`。完整权威LST主体`0x00464CC0..0x00464D96`从proc到endp共95行、73条实际指令、4个静态call、5个跳转、3个局部标签、1个返回点且无外部chunk。入口把group-A actor code写入唯一已提交角色owner，写动作1、提交门1及共享动作workspace的`10 + (code-8)`项，再按EAX=`index*0xBCD`、ECX=组Atoken、EDX caller值调用准备callee。workspace地址按u32回绕；code 7先写物理第9项，再在组A基址前一对象call停止。准备后以signed域比较processed低byte与live group-B count；只有正count较大时直连secondary RNG取随机起点并加1发布one-based组B code。每个对象查询前保留EAX=`code*0x565`、EDX=`code*0x345`、ECX=one-before token；完成返回1时循环递增code、按live count回绕1、递增ESI，并在signed `ESI >= count`时停止，否则查询下一对象。无现代循环上限或八对象count夹值，第九个对象在首次真实call停止。`0x0053BD50`删除target runtime副本，debug状态内语义化已提交角色成为目标刷新、撤退、调试与global reset共享唯一owner；`0x0053AF30`前十项也删除debug副本，调试全清和global reset只清动作owner；processed低byte复用动作owner。选择帧完成角色路径与组A逐角色帧queue-mode路径都已直连本实现，原选择帧槽保留reserved数值且零调用，组A旧callee token零调用；主帧进入角色序列前注入唯一action、final actor和target runtime owner。
 
-下一项回收`audit_order=126`的`0x00464DA0`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗函数。
+`audit_order=126`的`0x00464DA0`已关闭为`platform_adapted`。完整权威LST主体`0x00464DA0..0x00464DC0`从proc到endp共16行、7条实际指令、0个call、0个跳转、0个局部标签、1个返回点且无外部chunk。函数先置ECX=1、EAX=2，再按序写输入记录1的rapid-press multiplicity=1、记录1的held sample count=2、记录15的held sample count=2、记录12的held sample count=1，EDX保持caller值。四项地址都映射输入归一化records唯一owner；records不含记录1时零写停止，只含记录0..1时完成前两写后在记录15首次真实访问停止，不预先要求20项也不回滚。目标选择刷新权威LST的14个调用点通过共享分支统一直连本实现，原`refresh_target_display`槽改为reserved且生产代码零调用；主帧records经输入分派、目标选择入口传到目标刷新。子typed-stop保留此前动作、缓存、角色或目标发布并阻断后续调用。函数无分支、callee和不确定外部状态，完整LST与固定状态测试覆盖全部行为，不依赖动态oracle。
+
+下一项回收`audit_order=127`的`0x00464DD0`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

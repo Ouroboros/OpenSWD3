@@ -254,6 +254,7 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
                 .metrics = bindings.metrics,
                 .debug_hotkeys = bindings.debug_hotkeys,
                 .input_dispatch = state,
+                .input_records = bindings.input_records,
                 .target_selection_runtime =
                     port.battle_target_selection_runtime_state(),
                 .dialogs = bindings.dialogs,

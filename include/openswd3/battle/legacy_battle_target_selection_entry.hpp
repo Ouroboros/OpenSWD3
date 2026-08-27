@@ -14,6 +14,7 @@ struct LegacyBattleTargetSelectionEntryBindings {
     LegacyBattleActorMetricState& metrics;
     LegacyBattleDebugHotkeyState& debug_hotkeys;
     LegacyBattleInputDispatchState& input_dispatch;
+    std::span<input_time_rng::LegacyInputRecord> input_records;
     LegacyBattleTargetSelectionRuntimeState& target_selection_runtime;
     story_scene::LegacyDialogRuntimeState& dialogs;
     compat::u32& one_shot_interaction_state;

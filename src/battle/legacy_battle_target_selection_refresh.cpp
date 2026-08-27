@@ -57,9 +57,9 @@ public:
           frame_(bindings.frame_input_resolution),
           final_actor_(bindings.final_actor), action_(bindings.action),
           metrics_(bindings.metrics), debug_(bindings.debug_hotkeys),
-          input_(bindings.input_dispatch), runtime_(bindings.runtime),
-          eax_(request.entry_eax), ecx_(request.entry_ecx),
-          edx_(request.entry_edx) {}
+          input_(bindings.input_dispatch), records_(bindings.input_records),
+          runtime_(bindings.runtime), eax_(request.entry_eax),
+          ecx_(request.entry_ecx), edx_(request.entry_edx) {}
 
     [[nodiscard]] LegacyBattleTargetSelectionRefreshResult run() {
         eax_ = bindings_.target_ready_gate;
@@ -552,8 +552,18 @@ private:
         return true;
     }
 
-    void refresh_display() {
-        invoke(Call::refresh_target_display);
+    [[nodiscard]] bool prime_input_records() {
+        const auto primed = prime_legacy_battle_input_records(records_, edx_);
+        ++result_.input_record_prime_calls;
+        result_.input_record_writes += primed.record_writes;
+        eax_ = primed.return_eax;
+        ecx_ = primed.return_ecx;
+        edx_ = primed.return_edx;
+        if (primed.status != LegacyBattleInputRecordPrimingStatus::completed) {
+            typed_stop(Status::input_record_typed_stop);
+            return false;
+        }
+        return true;
     }
 
     void prepare_default_target() {
@@ -564,12 +574,12 @@ private:
         invoke(Call::prepare_alternate_target);
     }
 
-    void final_target_refresh() {
+    [[nodiscard]] bool final_target_refresh() {
         bindings_.message_state = 3U;
         input_.selection_animation_frame_a = 0U;
         input_.selection_animation_frame_b = 0U;
         input_.selection_animation_phase = 4U;
-        refresh_display();
+        return prime_input_records();
     }
 
     [[nodiscard]] bool
@@ -1014,7 +1024,9 @@ private:
             bindings_.message_state == 3U) {
             prepare_default_target();
         }
-        refresh_display();
+        if (!prime_input_records()) {
+            return;
+        }
         input_.selection_animation_phase = 4U;
         input_.selection_animation_frame_a = 0U;
         input_.selection_animation_frame_b = 0U;
@@ -1088,7 +1100,9 @@ private:
             )) {
             return;
         }
-        final_target_refresh();
+        if (!final_target_refresh()) {
+            return;
+        }
     }
 
     void case_three() {
@@ -1225,7 +1239,9 @@ private:
         input_.selection_cache_gate_a = 0U;
         input_.selection_cache_gate_b = 0U;
         input_.selection_cache_gate_c = 0U;
-        refresh_display();
+        if (!prime_input_records()) {
+            return;
+        }
 
         if (input_.selected_actor_cleanup_gate == 1U) {
             if (!invoke_group_a(
@@ -1289,7 +1305,9 @@ private:
             return false;
         }
         input_.selection_cache_gate_b = 0U;
-        refresh_display();
+        if (!prime_input_records()) {
+            return false;
+        }
         if (input_.selected_actor_cleanup_gate == 1U) {
             edx_ = final_actor_.published_actor_code;
             frame_.selection_actor_code = edx_;
@@ -1414,7 +1432,9 @@ private:
             )) {
             return;
         }
-        final_target_refresh();
+        if (!final_target_refresh()) {
+            return;
+        }
     }
 
     void case_five() {
@@ -1435,7 +1455,9 @@ private:
         if (!commit_actor_action_common(15U)) {
             return;
         }
-        refresh_display();
+        if (!prime_input_records()) {
+            return;
+        }
 
         eax_ = runtime_.target_effect_value >> 16U;
         ecx_ = eax_;
@@ -1513,7 +1535,9 @@ private:
         eax_ = frame_.alternate_selection_limit;
         if (ecx_ == eax_) {
             runtime_.selected_action_kind = 99U;
-            refresh_display();
+            if (!prime_input_records()) {
+                return;
+            }
             const u32 actor_code = final_actor_.queued_actor_code;
             if (!invoke_group_a(
                     Call::refresh_actor_selection, actor_code, {1U}
@@ -1618,7 +1642,9 @@ private:
         if (!resolve_property_fallback(0U, actor_code, local_output_, false)) {
             return;
         }
-        final_target_refresh();
+        if (!final_target_refresh()) {
+            return;
+        }
     }
 
     void case_twenty_seven() {
@@ -1655,7 +1681,9 @@ private:
         if (final_actor_.pre_frame_gate_b == 0U) {
             prepare_default_target();
         }
-        final_target_refresh();
+        if (!final_target_refresh()) {
+            return;
+        }
     }
 
     void case_thirty() {
@@ -1700,7 +1728,9 @@ private:
         if (!resolve_property_fallback(5U, actor_code, local_output_, false)) {
             return;
         }
-        final_target_refresh();
+        if (!final_target_refresh()) {
+            return;
+        }
     }
 
     void case_ninety_eight() {
@@ -1875,7 +1905,9 @@ private:
         input_.selection_cache_gate_a = 0U;
         input_.selection_cache_gate_b = 0U;
         bindings_.target_ready_gate = 0U;
-        refresh_display();
+        if (!prime_input_records()) {
+            return;
+        }
         if (input_.selected_actor_cleanup_gate == 1U) {
             eax_ = final_actor_.published_actor_code;
             frame_.selection_actor_code = eax_;
@@ -1895,6 +1927,7 @@ private:
     LegacyBattleActorMetricState& metrics_;
     LegacyBattleDebugHotkeyState& debug_;
     LegacyBattleInputDispatchState& input_;
+    std::span<input_time_rng::LegacyInputRecord> records_;
     LegacyBattleTargetSelectionRuntimeState& runtime_;
     LegacyBattleTargetSelectionRefreshResult result_{};
     u32 eax_{};

@@ -63,6 +63,10 @@ struct Fixture {
     openswd3::battle::LegacyBattleActionDispatchState action;
     openswd3::battle::LegacyBattleActorMetricState metrics;
     openswd3::battle::LegacyBattleDebugHotkeyState debug;
+    std::array<
+        openswd3::input_time_rng::LegacyInputRecord,
+        openswd3::input_time_rng::kLegacyInputRecordCount>
+        input_records{};
     openswd3::story_scene::LegacyDialogRuntimeState dialogs;
     u32 one_shot_interaction_state{};
     u32 target_ready_gate{};
@@ -81,6 +85,7 @@ struct Fixture {
             .metrics = metrics,
             .debug_hotkeys = debug,
             .input_dispatch = port.battle_input_dispatch_state(),
+            .input_records = input_records,
             .target_selection_runtime =
                 port.battle_target_selection_runtime_state(),
             .dialogs = dialogs,

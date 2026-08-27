@@ -63,7 +63,7 @@ enum class LegacyBattleTargetSelectionRuntimeCall : compat::u8 {
     draw_target_panel,
     commit_actor_action,
     refresh_actor_selection,
-    refresh_target_display,
+    reserved_input_record_priming_slot,
     prepare_default_target,
     prepare_alternate_target,
     validate_primary_action,
@@ -90,7 +90,8 @@ enum class LegacyBattleTargetSelectionRuntimeCall : compat::u8 {
 
 struct LegacyBattleTargetSelectionRuntimeCallRequest {
     LegacyBattleTargetSelectionRuntimeCall call{
-        LegacyBattleTargetSelectionRuntimeCall::refresh_target_display
+        LegacyBattleTargetSelectionRuntimeCall::
+            reserved_input_record_priming_slot
     };
     compat::u32 actor_token{};
     std::array<compat::u32, 5> arguments{};

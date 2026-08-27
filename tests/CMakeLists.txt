@@ -290,6 +290,7 @@ add_executable(
     unit/battle/legacy_battle_group_effect_frame_test.cpp
     unit/battle/legacy_battle_hud_frame_test.cpp
     unit/battle/legacy_battle_input_dispatch_test.cpp
+    unit/battle/legacy_battle_input_record_priming_test.cpp
     unit/battle/legacy_battle_frame_input_resolution_test.cpp
     unit/battle/legacy_battle_menu_context_advance_test.cpp
     unit/battle/legacy_battle_menu_context_retreat_test.cpp

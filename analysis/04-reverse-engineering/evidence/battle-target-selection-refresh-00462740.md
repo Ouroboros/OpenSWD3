@@ -27,7 +27,7 @@ selection input gate为0或animation frame B小于signed 6时直接返回；越�
 - 6、21、23、29、31、33回到message 3；17进入message 6；24同时置目标阻断；25只置动作模式低byte bit；26清辅助选择；
 - 27和30打开对应grid面板。
 
-动作完成后，仅pre-frame gate B为0且live message为3时调用默认目标准备，再刷新显示并把animation缓存写回`4/0/0`。动作callee可改写queued角色，因此每次实际角色call和后续记录store都动态重读owner。
+动作完成后，仅pre-frame gate B为0且live message为3时调用默认目标准备，再直连已关闭输入记录预置并把animation缓存写回`4/0/0`。其余13个原调用点也按各自原顺序统一直连：四项写复用主帧输入归一化records唯一owner，原opaque刷新槽保留reserved数值且零调用。动作callee可改写queued角色，因此每次实际角色call和后续记录store都动态重读owner。
 
 ## 4. message 2、4、8、27、30：候选与属性链
 
@@ -65,4 +65,4 @@ message 200先发布完整重置前缀，再按live group-B/group-A count清对�
 
 定向测试覆盖主跳表默认域、message 1阈值与物理重映射、动作5前缀停点、hovered 2/4、message 3提交与第九个group-B对象、message 5效果物理视图、message 7第九项target map、message 8/27/30、98/101的AL行为、100/102–104、111–113的阈值差异、110符号扩展、200重置前缀、global reset字节范围以及唯一caller传播。
 
-当前缺少原版两组角色对象、26类callee共享副作用、动态栈scratch地址、target map/效果workspace完整动态内容、transition动画后端及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版两组角色对象、25类callee共享副作用、动态栈scratch地址、target map/效果workspace完整动态内容、transition动画后端及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

@@ -64,6 +64,10 @@ struct Fixture {
     openswd3::battle::LegacyBattleActionDispatchState action;
     openswd3::battle::LegacyBattleActorMetricState metrics;
     openswd3::battle::LegacyBattleDebugHotkeyState debug;
+    std::array<
+        openswd3::input_time_rng::LegacyInputRecord,
+        openswd3::input_time_rng::kLegacyInputRecordCount>
+        input_records{};
     u32 target_ready{};
     u32 message{};
     TargetRefreshPort port;
@@ -80,6 +84,7 @@ struct Fixture {
             .metrics = metrics,
             .debug_hotkeys = debug,
             .input_dispatch = port.battle_input_dispatch_state(),
+            .input_records = input_records,
             .runtime = port.battle_target_selection_runtime_state(),
             .target_ready_gate = target_ready,
             .message_state = message,
@@ -195,19 +200,51 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                 fixture.frame.target_actor_index == 4U &&
                 fixture.frame.panel_scroll_a == 0U &&
                 input.selection_animation_phase == 4U &&
-                fixture.port.calls.size() == 3U &&
+                fixture.port.calls.size() == 2U &&
                 fixture.port.calls[0U].call ==
                     LegacyBattleTargetSelectionRuntimeCall::
                         set_cursor_position &&
                 fixture.port.calls[1U].call ==
                     LegacyBattleTargetSelectionRuntimeCall::draw_target_panel &&
                 fixture.port.calls[1U].edx == 4U &&
-                fixture.port.calls[2U].call ==
-                    LegacyBattleTargetSelectionRuntimeCall::
-                        refresh_target_display &&
-                result.return_eax == 2U && result.return_ecx == 0x004B8748U &&
+                result.input_record_prime_calls == 1U &&
+                result.input_record_writes == 4U &&
+                fixture.input_records[1U].rapid_press_multiplicity == 1U &&
+                fixture.input_records[1U].held_sample_count == 2U &&
+                fixture.input_records[15U].held_sample_count == 2U &&
+                fixture.input_records[12U].held_sample_count == 1U &&
+                result.return_eax == 2U && result.return_ecx == 1U &&
                 result.return_edx == 4U,
             "message one reads the physically adjacent remap word and executes the remapped action-two panel setup"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.target_ready = 1U;
+        fixture.message = 7U;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.frame.alternate_selection = 2U;
+        fixture.frame.alternate_selection_limit = 2U;
+        auto bindings = fixture.bindings();
+        bindings.input_records = std::span{fixture.input_records}.first(2U);
+        const auto result = refresh_legacy_battle_target_selection(
+            bindings, fixture.port, {.entry_edx = 0x66U}
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleTargetSelectionRefreshStatus::
+                        input_record_typed_stop &&
+                result.input_record_prime_calls == 1U &&
+                result.input_record_writes == 2U &&
+                fixture.input_records[1U].rapid_press_multiplicity == 1U &&
+                fixture.input_records[1U].held_sample_count == 2U &&
+                fixture.port.battle_target_selection_runtime_state()
+                        .selected_action_kind == 99U &&
+                fixture.final_actor.queued_actor_code == 8U &&
+                fixture.port.calls.empty() && result.return_eax == 2U &&
+                result.return_ecx == 1U && result.return_edx == 0x66U,
+            "input-record stop preserves the action publication and first two physical writes then blocks actor refresh"
         );
     }
 
@@ -382,7 +419,9 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                 workspace_word(fixture.action, 0x74U) == 0x123U &&
                 workspace_word(fixture.action, 0x76U) == 0x12CU &&
                 workspace_word(fixture.action, 0x78U) == 0x10EU &&
-                runtime.actor_result_words[8U] == 1U && result.port_calls == 5U,
+                runtime.actor_result_words[8U] == 1U &&
+                result.input_record_prime_calls == 1U &&
+                result.input_record_writes == 4U && result.port_calls == 4U,
             "message five commits action fifteen and publishes the row-one effect record through the shared physical workspace"
         );
     }
@@ -470,7 +509,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                 action_eight.port.calls[0U].edx == 0x004FE5D4U &&
                 runtime.selection_input_gate == 0U &&
                 eight_result.return_eax == 0xFFFFU &&
-                action_twenty_seven.port.calls.size() == 3U &&
+                action_twenty_seven.port.calls.size() == 2U &&
                 action_twenty_seven.port.calls[0U].call ==
                     LegacyBattleTargetSelectionRuntimeCall::
                         resolve_action_target &&
@@ -478,11 +517,12 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                 action_twenty_seven.port.calls[1U].call ==
                     LegacyBattleTargetSelectionRuntimeCall::
                         prepare_default_target &&
-                action_twenty_seven.port.calls[2U].call ==
-                    LegacyBattleTargetSelectionRuntimeCall::
-                        refresh_target_display &&
                 action_twenty_seven.message == 3U &&
-                twenty_seven_result.port_calls == 3U,
+                twenty_seven_result.input_record_prime_calls == 1U &&
+                twenty_seven_result.input_record_writes == 4U &&
+                twenty_seven_result.return_eax == 2U &&
+                twenty_seven_result.return_ecx == 1U &&
+                twenty_seven_result.port_calls == 2U,
             "messages eight and twenty-seven preserve the actor-runtime token register and the successful fallback order"
         );
     }
