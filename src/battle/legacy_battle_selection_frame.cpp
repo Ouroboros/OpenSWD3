@@ -417,6 +417,39 @@ private:
         state_input().selection_cache_gate_a = 1U;
     }
 
+    [[nodiscard]] bool draw_action_summary(
+        const u32 origin_x, const u32 origin_y, const u32 action_kind
+    ) {
+        result_.action_summary = draw_legacy_battle_action_summary(
+            {
+                .startup = bindings_.startup,
+                .final_actor = bindings_.final_actor,
+                .frame_input = bindings_.frame_input,
+                .input_dispatch = bindings_.input_dispatch,
+            },
+            port_,
+            {
+                .origin_x = origin_x,
+                .origin_y = origin_y,
+                .action_kind = action_kind,
+                .entry_eax = eax_,
+                .entry_ecx = ecx_,
+                .entry_edx = edx_,
+            }
+        );
+        ++result_.action_summary_calls;
+        result_.port_calls += result_.action_summary.port_calls;
+        eax_ = result_.action_summary.return_eax;
+        ecx_ = result_.action_summary.return_ecx;
+        edx_ = result_.action_summary.return_edx;
+        if (result_.action_summary.status !=
+            LegacyBattleActionSummaryStatus::completed) {
+            typed_stop(Status::action_summary_typed_stop);
+            return false;
+        }
+        return true;
+    }
+
     void draw_message_one() {
         if (bindings_.final_actor.queued_actor_code == 0U) {
             return;
@@ -518,7 +551,9 @@ private:
         eax_ = bindings_.frame_input.panel_origin_y + 42U;
         edx_ = state_input().action_kind;
         ecx_ = bindings_.frame_input.panel_origin_x + 14U;
-        invoke(Call::draw_action_summary, 0U, {ecx_, eax_, edx_});
+        if (!draw_action_summary(ecx_, eax_, edx_)) {
+            return;
+        }
     }
 
     [[nodiscard]] bool draw_vertical_panel(const u32 x, const u32 selector) {

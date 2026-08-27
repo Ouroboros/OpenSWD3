@@ -105,6 +105,9 @@ struct LegacyBattleStartupCallReply {
     compat::u32 group_b_count{};
     bool publish_group_a_count{};
     compat::u32 group_a_count{};
+    bool publish_group_a_profile{};
+    compat::u32 group_a_profile_token{};
+    compat::u32 group_a_profile_kind{};
 };
 
 class LegacyBattleStartupPort
@@ -207,6 +210,11 @@ struct LegacyBattleActionModeSourceState {
         option_sources{};
 };
 
+struct LegacyBattleGroupAProfileState {
+    std::array<compat::u32, 10> profile_tokens{};
+    std::array<compat::u32, 10> profile_kinds{};
+};
+
 struct LegacyBattleStartupState {
     LegacyBattleTimingState timing{};
     LegacyBattleRenderGeometry render_geometry{};
@@ -229,8 +237,8 @@ struct LegacyBattleStartupState {
     compat::u32 control_value_a{};
     compat::u32 control_value_b{};
     compat::u32 runtime_handle{};
-    compat::u16 frame_value_a{};
-    compat::u16 frame_value_b{};
+    compat::u16 primary_text_color{};    // 0x004FF104
+    compat::u16 secondary_text_color{};  // 0x005240BC
     compat::u32 logical_width{};
     compat::u32 logical_height{};
     compat::u32 enemy_count{};
@@ -238,6 +246,7 @@ struct LegacyBattleStartupState {
     compat::u16 background_resource{};
     std::array<LegacyBattleEnemyStartupRecord, 8> enemies{};
     std::array<LegacyBattlePartyStartupRecord, 10> party{};
+    LegacyBattleGroupAProfileState group_a_profiles{};
     std::array<compat::i32, 8> party_offsets{};
     std::array<LegacyBattlePartyMetricRecord, 10> party_metrics{};
     std::array<compat::u32, 0x29> enemy_scratch{};

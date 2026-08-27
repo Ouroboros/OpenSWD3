@@ -2,10 +2,20 @@
 
 #include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
 
+#include <array>
+
 namespace openswd3::battle {
 
 inline constexpr compat::u32 kLegacyBattleActionModeFixedTextToken =
     0x004A79A0U;
+inline constexpr std::array<compat::u32, 21>
+    kLegacyBattleStaticActionTextTokens{
+        0x004A76D0U, 0x004A76C8U, 0x004A76C0U, 0x004A76B8U, 0x004A76B0U,
+        0x004A76A8U, 0x004A76A0U, 0x004A7698U, 0x004A7690U, 0x004A7688U,
+        0x004A7680U, 0x004A7678U, 0x004A7670U, 0x004A7668U, 0x004A7660U,
+        0x004A7658U, 0x004A6BD8U, 0x004A7650U, 0x004A020CU, 0x004A7648U,
+        0x004A6BD0U,
+    };
 
 struct LegacyBattleActionModeRefreshBindings {
     LegacyBattleStartupResetBlocks& startup_reset;

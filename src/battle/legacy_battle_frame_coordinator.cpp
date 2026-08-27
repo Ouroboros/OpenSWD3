@@ -326,6 +326,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
     SecondaryRngBoundedAdapter selection_random(context.secondary_rng);
     result.selection_frame = draw_legacy_battle_selection_frame(
         {
+            .startup = context.startup,
             .final_actor = context.final_actor_step,
             .metrics = port.actor_metric_state(),
             .actor_label_indices =

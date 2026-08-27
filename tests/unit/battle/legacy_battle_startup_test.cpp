@@ -77,6 +77,11 @@ public:
         case LegacyBattleStartupCall::query_party_actor_mode:
             reply.return_value = party_actor_mode_return;
             break;
+        case LegacyBattleStartupCall::apply_party_profile:
+            reply.publish_group_a_profile = true;
+            reply.group_a_profile_token = request.arguments[1U];
+            reply.group_a_profile_kind = 0x38U;
+            break;
         case LegacyBattleStartupCall::query_primary_ratio:
             reply.outputs = {3, 2, 0, 0};
             break;
@@ -446,9 +451,9 @@ void test_battle_startup(openswd3::test::Context& test) {
                 state.control_value_b == 0x0CU &&
                 state.runtime_handle == 0x12345678U &&
                 state.window_rectangle == std::array<i32, 4>{1, 2, 641, 482} &&
-                state.frame_value_a == 0x1234U &&
-                state.frame_value_b == 0x5678U && state.logical_width == 320U &&
-                state.logical_height == 200U &&
+                state.primary_text_color == 0x1234U &&
+                state.secondary_text_color == 0x5678U &&
+                state.logical_width == 320U && state.logical_height == 200U &&
                 result.released_display_surfaces == 2U &&
                 result.created_display_surfaces == 2U &&
                 state.display_surfaces ==
@@ -628,6 +633,11 @@ void test_battle_startup(openswd3::test::Context& test) {
                 state.party[1].role_id == 102U &&
                 state.party[1].position_x == 85U &&
                 state.party[1].position_y == 370U &&
+                state.group_a_profiles.profile_tokens[0U] ==
+                    0x004C8AD0U +
+                        state.action_mode_source.actor_label_indices[0U] *
+                            0x40U &&
+                state.group_a_profiles.profile_kinds[0U] == 0x38U &&
                 state.party_offsets[0] == 124 && state.party_offsets[2] == 64 &&
                 result.supplemental_actor_count == 2U &&
                 state.party_count == 4U && state.party[2].role_id == 3U &&

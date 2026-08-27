@@ -333,14 +333,14 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         LegacyBattleStartupCall::initialize_word_object,
         {0x004C9A28U, 0x10U, 0U, 0U}
     ));
-    state.frame_value_a =
+    state.primary_text_color =
         static_cast<u16>(invoke(
                              port,
                              LegacyBattleStartupCall::lookup_triplet,
                              {0x1FU, 0x1DU, 0x17U, 0U}
         )
                              .return_value);
-    state.frame_value_b =
+    state.secondary_text_color =
         static_cast<u16>(invoke(
                              port,
                              LegacyBattleStartupCall::lookup_triplet,
@@ -575,6 +575,8 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
             LegacyBattleStartupCall::reset_actor,
             {actor_token, 0U, 0U, 0U}
         ));
+        state.group_a_profiles.profile_tokens[index] = 0U;
+        state.group_a_profiles.profile_kinds[index] = 0U;
         if (state.mirror_mode == 1U) {
             static_cast<void>(invoke(
                 port,
@@ -636,11 +638,17 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
             return result;
         }
         const u32 actor_token = group_a_actor_token(index);
-        static_cast<void>(invoke(
+        const auto profile = invoke(
             port,
             LegacyBattleStartupCall::apply_party_profile,
             {actor_token, 0x004C8AD0U + source * 0x40U, 0U, 0U}
-        ));
+        );
+        if (profile.publish_group_a_profile) {
+            state.group_a_profiles.profile_tokens[index] =
+                profile.group_a_profile_token;
+            state.group_a_profiles.profile_kinds[index] =
+                profile.group_a_profile_kind;
+        }
         static_cast<void>(invoke(
             port,
             LegacyBattleStartupCall::apply_party_value,

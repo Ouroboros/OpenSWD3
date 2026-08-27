@@ -100,7 +100,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     selection_frame_configure_text_color,
     selection_frame_query_text_length,
     selection_frame_draw_text,
-    selection_frame_draw_action_summary,
+    reserved_selection_frame_draw_action_summary_slot,
     selection_frame_draw_list_frame,
     selection_frame_draw_list_contents,
     selection_frame_draw_grid_frame,
@@ -118,6 +118,14 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     selection_frame_draw_selection_hint,
     actor_target_prepare_group_a_actor,
     actor_target_query_group_b_completion,
+    action_summary_configure_font_reset,
+    action_summary_configure_font_style,
+    action_summary_query_actor_special_gate,
+    action_summary_draw_text,
+    action_summary_query_action_available,
+    action_summary_action_mode_query_primary_actor,
+    action_summary_action_mode_query_secondary_actor,
+    action_summary_action_mode_query_active_actor,
 };
 
 struct LegacyBattleFrameCoordinatorCallRequest {
@@ -223,9 +231,9 @@ public:
         case LegacyBattleSelectionFrameCall::draw_text:
             call = LegacyBattleFrameCoordinatorCall::selection_frame_draw_text;
             break;
-        case LegacyBattleSelectionFrameCall::draw_action_summary:
+        case LegacyBattleSelectionFrameCall::reserved_draw_action_summary_slot:
             call = LegacyBattleFrameCoordinatorCall::
-                selection_frame_draw_action_summary;
+                reserved_selection_frame_draw_action_summary_slot;
             break;
         case LegacyBattleSelectionFrameCall::draw_list_frame:
             call = LegacyBattleFrameCoordinatorCall::
@@ -308,6 +316,53 @@ public:
             .origin_y = reply.selection_origin_y,
             .text_length = reply.eax,
         };
+    }
+    [[nodiscard]] LegacyBattleActionSummaryCallReply invoke_action_summary(
+        const LegacyBattleActionSummaryCallRequest& request
+    ) override {
+        LegacyBattleFrameCoordinatorCall call =
+            LegacyBattleFrameCoordinatorCall::
+                action_summary_configure_font_reset;
+        switch (request.call) {
+        case LegacyBattleActionSummaryCall::configure_font_reset:
+            break;
+        case LegacyBattleActionSummaryCall::configure_font_style:
+            call = LegacyBattleFrameCoordinatorCall::
+                action_summary_configure_font_style;
+            break;
+        case LegacyBattleActionSummaryCall::query_actor_special_gate:
+            call = LegacyBattleFrameCoordinatorCall::
+                action_summary_query_actor_special_gate;
+            break;
+        case LegacyBattleActionSummaryCall::draw_text:
+            call = LegacyBattleFrameCoordinatorCall::action_summary_draw_text;
+            break;
+        case LegacyBattleActionSummaryCall::query_action_available:
+            call = LegacyBattleFrameCoordinatorCall::
+                action_summary_query_action_available;
+            break;
+        case LegacyBattleActionSummaryCall::action_mode_query_primary_actor:
+            call = LegacyBattleFrameCoordinatorCall::
+                action_summary_action_mode_query_primary_actor;
+            break;
+        case LegacyBattleActionSummaryCall::action_mode_query_secondary_actor:
+            call = LegacyBattleFrameCoordinatorCall::
+                action_summary_action_mode_query_secondary_actor;
+            break;
+        case LegacyBattleActionSummaryCall::action_mode_query_active_actor:
+            call = LegacyBattleFrameCoordinatorCall::
+                action_summary_action_mode_query_active_actor;
+            break;
+        }
+        const auto reply = invoke({
+            .call = call,
+            .object_token = request.object_token,
+            .arguments = request.arguments,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        });
+        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
     }
     [[nodiscard]] LegacyBattleActorTargetPreparationCallReply
     invoke_actor_target_preparation(

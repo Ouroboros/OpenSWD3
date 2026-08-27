@@ -1,7 +1,5 @@
 #include "openswd3/battle/legacy_battle_action_mode_refresh.hpp"
 
-#include <array>
-
 namespace openswd3::battle {
 namespace {
 
@@ -12,14 +10,6 @@ constexpr u32 kGroupACount = 10U;
 constexpr u32 kActorMappingCount = 4U;
 constexpr u32 kOptionSourceCount = 4U;
 constexpr u32 kPermissionCount = 9U;
-
-inline constexpr std::array<u32, 21> kStaticActionTextTokens{
-    0x004A76D0U, 0x004A76C8U, 0x004A76C0U, 0x004A76B8U, 0x004A76B0U,
-    0x004A76A8U, 0x004A76A0U, 0x004A7698U, 0x004A7690U, 0x004A7688U,
-    0x004A7680U, 0x004A7678U, 0x004A7670U, 0x004A7668U, 0x004A7660U,
-    0x004A7658U, 0x004A6BD8U, 0x004A7650U, 0x004A020CU, 0x004A7648U,
-    0x004A6BD0U,
-};
 
 [[nodiscard]] constexpr u32 group_a_token(const u32 actor_index) noexcept {
     return kLegacyBattleActionGroupABaseToken +
@@ -91,7 +81,7 @@ void write_permission(
     const LegacyBattleActionModeRefreshBindings& bindings, const u32 code
 ) noexcept {
     if (code <= 0x29U) {
-        return kStaticActionTextTokens[code - 0x15U];
+        return kLegacyBattleStaticActionTextTokens[code - 0x15U];
     }
     switch (code) {
     case 0x2AU:

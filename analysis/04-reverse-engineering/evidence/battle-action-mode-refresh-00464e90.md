@@ -6,7 +6,7 @@
 
 权威LST主体为`0x00464E90..0x0046508E`，从proc到endp共215行、128条实际指令、3个静态call、14个跳转、10个局部/返回标签、1个`retn`，没有外部`FUNCTION CHUNK`。
 
-九个静态caller中，已关闭逐帧输入分派有七处，已关闭目标选择入口有一处，尚待独立审计的`0x004651D0`有一处。三个callee均为group-A角色对象查询，当前通过三项窄平台操作保留。
+九个静态caller现已全部关闭：逐帧输入分派七处、目标选择入口一处、动作摘要一处。三个callee均为group-A角色对象查询，当前通过三项窄平台操作保留。
 
 ## 2. 权限与动作workspace初始化
 
@@ -24,7 +24,7 @@ code仅在unsigned `[0x15,0x32)`内登记。每个命中项按旧count先写权�
 
 文字查找保留原始`dword_4A74A0[code]`越界物理语义：
 
-- code `0x15..0x29`读取审计到的21项固定token；
+- code `0x15..0x29`读取审计到的21项固定token；该物理表由本实现唯一持有，动作摘要直接复用其中第16..19项；
 - code `0x2A..0x31`跨入相邻live全局，依次复用action kind、published actor、target cursor、独立`0x004A7554`值、三项列表选择及selection actor code owner。
 
 因此没有把该读取现代化为独立安全字符串表；动态全局变化会直接成为动作文字token。
@@ -51,4 +51,4 @@ code仅在unsigned `[0x15,0x32)`内登记。每个命中项按旧count先写权�
 
 定向测试覆盖初始化写集、EDX高word、code范围两侧、两项普通动作、固定动作、21项静态与8项live相邻查找、三次对象寄存器形状、两类权限裁剪、最终回退/保持/越界、映射/source/object停点、逐帧输入live权限、两个已关闭caller普通与typed-stop传播，以及reserved槽零调用。定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过；源码零warning，app仅保留既有ALSA开发库CMake warning。工作包连续双跑逐字节一致，稳定为`129/422 = 124 platform_adapted + 5 assembly_exact + 293 pending_audit`，SHA256为`f0bc8129c6aff3c5b88836eb909085558c2a9f2eeffde7bd998016a7f9f0c071`。
 
-当前缺少原版四组option对象、三个角色查询callee共享副作用、未关闭caller及EAX/ECX/EDX联合动态捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版四组option对象、三个角色查询callee共享副作用及EAX/ECX/EDX联合动态捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

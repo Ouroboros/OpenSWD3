@@ -10,6 +10,9 @@
 
 namespace {
 
+using openswd3::battle::LegacyBattleActionSummaryCall;
+using openswd3::battle::LegacyBattleActionSummaryCallReply;
+using openswd3::battle::LegacyBattleActionSummaryCallRequest;
 using openswd3::battle::LegacyBattleSelectionFrameCall;
 using openswd3::battle::LegacyBattleSelectionFrameCallReply;
 using openswd3::battle::LegacyBattleSelectionFrameCallRequest;
@@ -28,6 +31,19 @@ public:
     ) override {
         target_calls.push_back(request);
         return {};
+    }
+
+    [[nodiscard]] LegacyBattleActionSummaryCallReply invoke_action_summary(
+        const LegacyBattleActionSummaryCallRequest& request
+    ) override {
+        action_summary_calls.push_back(request);
+        auto& index = action_summary_reply_indices[request.call];
+        const auto found = action_summary_replies.find(request.call);
+        if (found == action_summary_replies.end() ||
+            index >= found->second.size()) {
+            return action_summary_default_reply;
+        }
+        return found->second[index++];
     }
 
     [[nodiscard]] LegacyBattleSelectionFrameCallReply invoke_selection_frame(
@@ -50,6 +66,7 @@ public:
     }
 
     std::vector<LegacyBattleSelectionFrameCallRequest> calls;
+    std::vector<LegacyBattleActionSummaryCallRequest> action_summary_calls;
     std::vector<openswd3::battle::LegacyBattleActorTargetPreparationCallRequest>
         target_calls;
     std::map<
@@ -57,7 +74,14 @@ public:
         std::vector<LegacyBattleSelectionFrameCallReply>>
         replies;
     std::map<LegacyBattleSelectionFrameCall, std::size_t> reply_indices;
+    std::map<
+        LegacyBattleActionSummaryCall,
+        std::vector<LegacyBattleActionSummaryCallReply>>
+        action_summary_replies;
+    std::map<LegacyBattleActionSummaryCall, std::size_t>
+        action_summary_reply_indices;
     LegacyBattleSelectionFrameCallReply default_reply{};
+    LegacyBattleActionSummaryCallReply action_summary_default_reply{};
 };
 
 class SelectionRandom final
@@ -122,11 +146,17 @@ public:
 };
 
 struct Fixture {
-    Fixture() : action_updater(action_streams) {}
+    Fixture() : action_updater(action_streams) {
+        startup.group_a_profiles.profile_tokens.fill(1U);
+        for (auto& source : startup.action_mode_source.option_sources[0U]) {
+            source.object_token = 1U;
+        }
+    }
 
     [[nodiscard]] openswd3::battle::LegacyBattleSelectionFrameBindings
     bindings() {
         return {
+            .startup = startup,
             .final_actor = final_actor,
             .metrics = metrics,
             .actor_label_indices = actor_label_indices,
@@ -149,6 +179,7 @@ struct Fixture {
         };
     }
 
+    openswd3::battle::LegacyBattleStartupState startup;
     openswd3::battle::LegacyBattleFinalActorStepState final_actor;
     openswd3::battle::LegacyBattleActorMetricState metrics;
     std::array<u32, 10> actor_label_indices{};
@@ -181,6 +212,15 @@ struct Fixture {
 ) {
     return static_cast<std::size_t>(std::ranges::count_if(
         port.calls, [call](const auto& request) { return request.call == call; }
+    ));
+}
+
+[[nodiscard]] std::size_t count_action_summary_call(
+    const SelectionPort& port, const LegacyBattleActionSummaryCall call
+) {
+    return static_cast<std::size_t>(std::ranges::count_if(
+        port.action_summary_calls,
+        [call](const auto& request) { return request.call == call; }
     ));
 }
 
@@ -381,11 +421,53 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                 draw_text->arguments[1U] == 124U &&
                 draw_text->arguments[2U] == 64U &&
                 draw_text->arguments[3U] == 0x0049E178U &&
+                result.action_summary_calls == 1U &&
+                result.action_summary.fixed_action_rows == 4U &&
                 count_call(
                     fixture.port,
-                    LegacyBattleSelectionFrameCall::draw_action_summary
+                    LegacyBattleSelectionFrameCall::
+                        reserved_draw_action_summary_slot
+                ) == 0U &&
+                count_action_summary_call(
+                    fixture.port, LegacyBattleActionSummaryCall::draw_text
+                ) == 4U,
+            "message one at frame six preserves the stale actor-label slot then directly draws the complete action summary"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.message = 1U;
+        fixture.input.selection_animation_frame_b = 6U;
+        fixture.startup.group_a_profiles.profile_tokens[0U] = 0U;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        action_summary_typed_stop &&
+                result.action_summary_calls == 1U &&
+                result.action_summary.status ==
+                    openswd3::battle::LegacyBattleActionSummaryStatus::
+                        group_a_profile_typed_stop &&
+                result.action_summary.port_calls == 2U &&
+                count_call(
+                    fixture.port,
+                    LegacyBattleSelectionFrameCall::
+                        reserved_draw_action_summary_slot
+                ) == 0U &&
+                count_action_summary_call(
+                    fixture.port,
+                    LegacyBattleActionSummaryCall::configure_font_reset
+                ) == 1U &&
+                count_action_summary_call(
+                    fixture.port,
+                    LegacyBattleActionSummaryCall::configure_font_style
                 ) == 1U,
-            "message one at frame six preserves the stale actor-label slot and centered text geometry before the action summary"
+            "action-summary profile stop preserves the completed label draw and blocks every summary row"
         );
     }
 
