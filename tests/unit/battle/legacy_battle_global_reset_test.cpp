@@ -386,7 +386,6 @@ void seed_state(
     selection_frame.pointer_origin.fill(9U);
     selection_frame.display_gate = 9U;
     selection_frame.secondary_actor_gate = 9U;
-    selection_frame.selection_suppression = 9U;
 
     auto& frame_input = port.battle_frame_input_resolution_state();
     frame_input.previous_mouse_x = 9;
@@ -739,7 +738,6 @@ void test_battle_global_reset(openswd3::test::Context& test) {
         test.expect_true(
             selection_frame.display_gate == 0U &&
                 selection_frame.secondary_actor_gate == 0U &&
-                selection_frame.selection_suppression == 0U &&
                 startup.action_mode_source.actor_label_indices[0U] == 9U &&
                 selection_frame.pointer_origin[0U] == 9U &&
                 state.unmapped_bytes.contains(0x0053C184U) == false &&
@@ -747,7 +745,7 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 state.unmapped_bytes.contains(0x0053BF5CU) == false &&
                 state.unmapped_bytes.contains(0x0053BF68U) == false &&
                 state.unmapped_bytes.contains(0x0053BFBCU) == false,
-            "global reset clears only the three selection-frame fields covered by the original write program"
+            "global reset clears only the two selection-frame-owned fields covered by the original write program"
         );
         const auto& frame_input = port.battle_frame_input_resolution_state();
         test.expect_true(

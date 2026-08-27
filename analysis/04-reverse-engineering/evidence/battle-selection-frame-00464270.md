@@ -53,7 +53,7 @@ target-selection block等于1时扫描整组：
 
 block不等于1且当前group-B完成时，target cursor递增并按live signed count回绕1，再从九项target map读取新对象。每次发布target index与one-based actor code；遍历次数达到count则把message写1。target map index 9在真实读取点停止。
 
-published actor不是全1且selection suppression为0时构造当前标记：group-B顺序为重置、快照、原点；group-A one-based顺序为快照、原点、重置并把Y偏移加10。动作6额外查询目标可用性。最终动作号按target-action available选择，按循环索引直连prepared动作帧。原记录步长为`0x98`，第8项恰从`0x004FDC58`开始；因此只持久化前8项独立记录，第8项前16字节每次与lower-panel bottom/top/aux/aux-index四个typed dword互相装载写回，余下`0x120`字节保存第8项尾部和第9项，严格保留物理重叠而不建立副本。selection input gate等于1时，标记之后调用选择提示。
+published actor不是全1且共享pre-frame gate B为0时构造当前标记：group-B顺序为重置、快照、原点；group-A one-based顺序为快照、原点、重置并把Y偏移加10。动作6额外查询目标可用性。最终动作号按target-action available选择，按循环索引直连prepared动作帧。原记录步长为`0x98`，第8项恰从`0x004FDC58`开始；因此只持久化前8项独立记录，第8项前16字节每次与lower-panel bottom/top/aux/aux-index四个typed dword互相装载写回，余下`0x120`字节保存第8项尾部和第9项，严格保留物理重叠而不建立副本。selection input gate等于1时，标记之后调用选择提示。
 
 ## 6. message 5、6、7与默认路径
 
@@ -63,12 +63,12 @@ message 0、大于30、103、以及9–26/28/29均保持权威默认返回，不
 
 ## 7. typed owner、caller回收与验证
 
-选择帧owner只承接两项pointer origin、display/secondary/suppression gate、三类已关闭绘制状态、八项独立动作记录及后两项非重叠尾区。十项标签索引现复用启动状态中`0x004A75C8`起的单一物理视图：启动路径只访问前四项，选择帧保留后六项相邻读取。五项选择指针直接复用输入分派的selection workspace；物理控制word直接复用输入分派的retreat control word；两项角色原点word也复用输入分派内由已关闭target-selection entry配置callee写回的唯一owner。message、queued/published角色、actor order、动作workspace、两组数量、其余输入cache/动画、菜单选择、target map、debug gate与target runtime也继续复用既有唯一owner。
+选择帧owner只承接两项pointer origin、display/secondary gate、三类已关闭绘制状态、八项独立动作记录及后两项非重叠尾区。原suppression字段与final-actor pre-frame gate B同址，现直接复用后者唯一owner。十项标签索引现复用启动状态中`0x004A75C8`起的单一物理视图：启动路径只访问前四项，选择帧保留后六项相邻读取。五项选择指针直接复用输入分派的selection workspace；物理控制word直接复用输入分派的retreat control word；两项角色原点word也复用输入分派内由已关闭target-selection entry配置callee写回的唯一owner。message、queued/published角色、actor order、动作workspace、两组数量、其余输入cache/动画、菜单选择、target map、debug gate与target runtime也继续复用既有唯一owner。
 
-global reset通过输入分派owner同步原234项写程序覆盖的控制word，并只同步选择帧owner内的display gate、secondary gate和suppression gate；五项选择指针、启动映射中的标签视图、pointer origin与输入owner中的actor origin未被原写程序覆盖，保持原值。
+global reset通过输入分派owner同步原234项写程序覆盖的控制word，并只同步选择帧owner内的display gate和secondary gate；同址pre-frame gate B只通过final-actor owner清零；五项选择指针、启动映射中的标签视图、pointer origin与输入owner中的actor origin未被原写程序覆盖，保持原值。
 
 主帧协调器原frame-stage槽保留相同枚举数值并改为reserved，交互可用发布后直连本实现。完成角色路径原目标准备callee槽也保留相同枚举数值并改为reserved，五项指针及message/cache/runtime清理后直连已关闭角色目标准备。任一子typed-stop保留此前副作用，并阻断本帧余下选择流程、画面效果和全部后续帧阶段；两个reserved槽均保持零调用。
 
-定向测试覆盖：message 103和queued零早退、group-A一过前、完成角色替换及actor-order交换、message 1比例动画与文字居中、message 2 i8低byte、message 4纵向面板stop、message 5/7/8/27/30固定调用、message 6物理byte OR、message 3第九个group-B对象、target map index 9、suppression提示、prepared动作帧stop、动作记录第8项四dword物理重叠与第9项尾区、global reset覆盖范围及主帧caller传播。
+定向测试覆盖：message 103和queued零早退、group-A一过前、完成角色替换及actor-order交换、message 1比例动画与文字居中、message 2 i8低byte、message 4纵向面板stop、message 5/7/8/27/30固定调用、message 6物理byte OR、message 3第九个group-B对象、target map index 9、共享pre-frame门提示、prepared动作帧stop、动作记录第8项四dword物理重叠与第9项尾区、global reset覆盖范围及主帧caller传播。
 
 当前缺少原版两组角色对象、25类未关闭callee共享副作用、文字表内容、五项动态指针目标、动作记录/帧资源联合状态、动态栈scratch地址及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

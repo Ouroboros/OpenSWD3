@@ -2,6 +2,7 @@
 
 #include "openswd3/battle/legacy_battle_debug_hotkeys.hpp"
 #include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
+#include "openswd3/battle/legacy_battle_group_b_target_cycle.hpp"
 #include "openswd3/battle/legacy_battle_input_record_priming.hpp"
 
 namespace openswd3::battle {
@@ -56,8 +57,10 @@ struct LegacyBattleTargetSelectionRefreshResult {
     compat::u32 actor_runtime_writes{};
     compat::u32 workspace_reads{};
     compat::u32 workspace_writes{};
+    compat::u32 group_b_target_cycle_calls{};
     compat::u32 input_record_prime_calls{};
     compat::u32 input_record_writes{};
+    LegacyBattleGroupBTargetCycleResult group_b_target_cycle{};
 };
 
 // Typed closure of legacy 0x00462740.

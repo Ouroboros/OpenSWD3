@@ -1019,7 +1019,7 @@ private:
         if (ecx_ == 0xFFFFFFFFU) {
             return;
         }
-        if (state_.selection_suppression == 0U &&
+        if (bindings_.final_actor.pre_frame_gate_b == 0U &&
             !draw_current_target_marker(group_a)) {
             return;
         }

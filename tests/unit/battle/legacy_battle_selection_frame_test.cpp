@@ -595,7 +595,7 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
         fixture.message = 3U;
         fixture.action.opponent_workspace[0U] = 1U;
         fixture.target.selection_input_gate = 1U;
-        fixture.port.battle_selection_frame_state().selection_suppression = 1U;
+        fixture.final_actor.pre_frame_gate_b = 1U;
         const auto result =
             openswd3::battle::draw_legacy_battle_selection_frame(
                 fixture.bindings(), fixture.port

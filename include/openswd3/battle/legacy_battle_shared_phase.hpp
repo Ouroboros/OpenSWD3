@@ -29,7 +29,7 @@ protected:
     ~LegacyBattleSharedPhaseStatePort() = default;
 
 private:
-    compat::u32 battle_message_state_{};
+    compat::u32 battle_message_state_{};  // 0x0053BCEC
     compat::u32 battle_terminal_latch_{};
 };
 

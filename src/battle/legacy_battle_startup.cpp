@@ -851,7 +851,7 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
     result.return_value -= static_cast<u16>(state.supplemental_count_word);
     if (static_cast<u32>(state.party_actor_mode_count) >= result.return_value) {
         port.battle_message_state() = 0x67U;
-        result.completion_status_published = true;
+        result.message_state_published = true;
     }
     return result;
 }

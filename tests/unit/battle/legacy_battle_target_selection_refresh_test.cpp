@@ -220,6 +220,88 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
     }
 
     {
+        Fixture cycled;
+        cycled.target_ready = 1U;
+        cycled.message = 1U;
+        auto& cycled_runtime =
+            cycled.port.battle_target_selection_runtime_state();
+        auto& cycled_input = cycled.port.battle_input_dispatch_state();
+        cycled_runtime.selection_input_gate = 1U;
+        cycled_input.selection_animation_frame_b = 6U;
+        cycled_input.action_kind = 25U;
+        cycled.frame.target_actor_index = 1U;
+        cycled.metrics.group_b_count = 2U;
+        cycled.port.replies
+            [LegacyBattleTargetSelectionRuntimeCall::query_group_b_completion] =
+            {.eax = 0U};
+        const auto cycled_result = refresh_legacy_battle_target_selection(
+            cycled.bindings(), cycled.port, {}
+        );
+
+        Fixture idle;
+        idle.target_ready = 1U;
+        idle.message = 1U;
+        auto& idle_runtime = idle.port.battle_target_selection_runtime_state();
+        auto& idle_input = idle.port.battle_input_dispatch_state();
+        idle_runtime.selection_input_gate = 1U;
+        idle_input.selection_animation_frame_b = 6U;
+        idle_input.action_kind = 0U;
+        const auto idle_result = refresh_legacy_battle_target_selection(
+            idle.bindings(), idle.port, {}
+        );
+        test.expect_true(
+            cycled_result.status ==
+                    LegacyBattleTargetSelectionRefreshStatus::completed &&
+                cycled_result.group_b_target_cycle_calls == 1U &&
+                cycled_result.input_record_prime_calls == 1U &&
+                cycled.port.calls.size() == 2U &&
+                cycled.port.calls[0U].call ==
+                    LegacyBattleTargetSelectionRuntimeCall::
+                        query_group_b_completion &&
+                cycled.port.calls[1U].call ==
+                    LegacyBattleTargetSelectionRuntimeCall::
+                        reset_actor_selection &&
+                cycled.final_actor.published_actor_code == 2U &&
+                cycled_runtime.selection_input_gate == 1U &&
+                cycled.message == 3U && cycled_input.action_kind == 25U &&
+                cycled_input.selection_animation_phase == 4U &&
+                idle_result.group_b_target_cycle_calls == 0U &&
+                idle_result.input_record_prime_calls == 1U &&
+                idle.port.calls.empty() && idle.message == 1U,
+            "message-one common tail cycles only when the live shared message becomes three"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.target_ready = 1U;
+        fixture.message = 1U;
+        auto& runtime = fixture.port.battle_target_selection_runtime_state();
+        auto& input = fixture.port.battle_input_dispatch_state();
+        runtime.selection_input_gate = 1U;
+        input.selection_animation_frame_b = 6U;
+        input.action_kind = 25U;
+        fixture.frame.target_actor_index = 8U;
+        fixture.metrics.group_b_count = 9U;
+        const auto result = refresh_legacy_battle_target_selection(
+            fixture.bindings(), fixture.port, {.entry_edx = 0x77U}
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleTargetSelectionRefreshStatus::
+                        group_b_actor_typed_stop &&
+                result.group_b_target_cycle_calls == 1U &&
+                result.input_record_prime_calls == 0U &&
+                fixture.port.calls.empty() && fixture.message == 3U &&
+                runtime.selection_input_gate == 0U &&
+                (runtime.action_mode_flags & 0xFFU) == 0x10U &&
+                result.return_eax == 0xAC8U &&
+                result.return_ecx == 0x0053AE48U && result.return_edx == 6U,
+            "group-B target typed-stop preserves the message-one action prefix and blocks record priming"
+        );
+    }
+
+    {
         Fixture fixture;
         fixture.target_ready = 1U;
         fixture.message = 7U;
@@ -387,6 +469,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                 fixture.message == 3U &&
                 fixture.port.battle_input_dispatch_state().action_kind == 25U &&
                 fixture.frame.target_cursor == 9U &&
+                result.group_b_target_cycle_calls == 1U &&
                 result.group_b_calls == 1U && result.port_calls == 1U,
             "message seven stops on target-map index nine after the completed current-target query and cursor increment"
         );
@@ -509,20 +592,27 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                 action_eight.port.calls[0U].edx == 0x004FE5D4U &&
                 runtime.selection_input_gate == 0U &&
                 eight_result.return_eax == 0xFFFFU &&
-                action_twenty_seven.port.calls.size() == 2U &&
+                action_twenty_seven.port.calls.size() == 3U &&
                 action_twenty_seven.port.calls[0U].call ==
                     LegacyBattleTargetSelectionRuntimeCall::
                         resolve_action_target &&
                 action_twenty_seven.port.calls[0U].edx == 0x004FE5D4U &&
                 action_twenty_seven.port.calls[1U].call ==
                     LegacyBattleTargetSelectionRuntimeCall::
-                        prepare_default_target &&
+                        query_group_b_completion &&
+                action_twenty_seven.port.calls[2U].call ==
+                    LegacyBattleTargetSelectionRuntimeCall::
+                        reset_actor_selection &&
+                action_twenty_seven.port.calls[2U].arguments[0U] == 1U &&
+                runtime_twenty_seven.selection_input_gate == 1U &&
+                action_twenty_seven.final_actor.published_actor_code == 1U &&
                 action_twenty_seven.message == 3U &&
+                twenty_seven_result.group_b_target_cycle_calls == 1U &&
                 twenty_seven_result.input_record_prime_calls == 1U &&
                 twenty_seven_result.input_record_writes == 4U &&
                 twenty_seven_result.return_eax == 2U &&
                 twenty_seven_result.return_ecx == 1U &&
-                twenty_seven_result.port_calls == 2U,
+                twenty_seven_result.port_calls == 3U,
             "messages eight and twenty-seven preserve the actor-runtime token register and the successful fallback order"
         );
     }

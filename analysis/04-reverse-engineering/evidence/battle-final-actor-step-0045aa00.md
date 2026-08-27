@@ -40,7 +40,7 @@ group B = 0x00525508 + index * 0x2B28
 - 调用角色清理callee；
 - 以`index + 8`角色code直接组合攻击顺序首匹配移除；
 - 清对应十槽值；
-- 当前角色code命中时，先扫描完整组A，再扫描完整组B，对每个对象调用重置callee，最后发布七项共享门；
+- 当前角色code命中时，先扫描完整组A，再扫描完整组B，对每个对象调用重置callee，最后发布包含共享message 1的七项状态；
 - selected code命中时发布全1并清选择门；
 - 在当前group A数量内查找角色code，命中后固定左移至第九槽并把第十槽清零。
 
@@ -54,7 +54,7 @@ group B = 0x00525508 + index * 0x2B28
 remaining = group_a_count - excluded_count - phase_high_word
 ```
 
-removed byte以zero-extended dword与remaining做unsigned比较。达到或超过时固定清零126个dword工作区，发布终止共享值并返回1。
+removed byte以zero-extended dword与remaining做unsigned比较。达到或超过时固定清零126个dword工作区，发布双frame gate和共享message `0x67`并返回1。
 
 否则查询继续callee。完整EAX不等于1仍返回1；等于1时按顺序发布selected code加1、当前角色code、配置callee、pending、工作区偏移`2 + actor_index`的事件槽和辅助门，然后以callee可改写的角色code定位五dword记录并清零。事件槽与126 dword工作区保持同一物理别名，不能拆成独立数组；记录只在首次实际写入时typed-stop，且保留此前发布。
 
@@ -69,7 +69,7 @@ removed byte以zero-extended dword与remaining做unsigned比较。达到或超�
 3. flag bit5置位时延迟加20，否则加3，均在u16域；
 4. 查询动作、以固定owner发布动作，再以actor index直接组合攻击顺序首匹配移除；
 5. signed index位于`0..group_b_count`闭区间时，打包计数低byte加1；
-6. `low_byte - third_byte`按低32位后做signed比较，达到group B数量时发布终止共享门；
+6. `low_byte - third_byte`按低32位后做signed比较，达到group B数量时发布共享message `0x63`、清terminal latch并置双frame gate；
 7. reset word非零时查询固定组B首对象；返回0且`group_b_count - low_byte == 1`时，把数量置1、低byte和reset word清零，再调用三个刷新callee。
 
 两组攻击顺序移除都复用启动期18条记录与物理相邻强度效果记录唯一owner。子typed-stop保留角色清理或动作发布前缀，并阻断组A槽清零或组B计数与终止门。旧opaque发布token完全删除。
@@ -78,7 +78,7 @@ removed byte以zero-extended dword与remaining做unsigned比较。达到或超�
 
 ## 7. 角色预处理共享别名
 
-相邻`0x0045D490`关闭后，terminal、active、secondary、published、action execution、auxiliary、message、126 dword事件工作区和十组五dword角色记录直接复用本函数与动作分派的既有typed状态。预处理只新增此前未命名的source actor与双门字段，不复制角色状态或工作区。
+相邻`0x0045D490`关闭后，terminal、active、secondary、published、action execution、auxiliary、共享message `0x0053BCEC`、126 dword事件工作区和十组五dword角色记录直接复用本函数与动作分派的既有typed状态。预处理只新增此前未命名的source actor与双门字段，不复制角色状态或工作区。
 
 全局重置按原物理写集合清对应标量及工作区槽`0..9`、`16..95`，保留工作区其他槽和五dword记录。逐帧协调器通过同一两份状态调用预处理。战斗调试快捷键进一步确认两项frame gate分别与逐帧选择mode及动作路径同址门共享，selection gate与逐帧active共享，排队角色与逐帧选择来源共享；C/W键和全局重置按原写序同步这些owner。十项角色顺序也与W键完整清零共用本状态。
 
@@ -92,6 +92,6 @@ removed byte以zero-extended dword与remaining做unsigned比较。达到或超�
 
 ## 9. 测试与动态差分
 
-定向测试覆盖：初始有效性失败、组A完成阈值和32字节逆向清零、三刷新、双组重置、攻击顺序移除与旧token清零、相邻效果记录stop前缀、角色顺序左移、removed unsigned终止、工作区typed-stop、配置后记录typed-stop、组B全1早退、坐标回绕、描述符bit5、动作发布、闭区间低byte递增、signed完成比较、组B重置、零描述符停点，以及组A/组B caller直连和组B父级typed-stop传播。
+定向测试覆盖：初始有效性失败、组A完成阈值和32字节逆向清零、三刷新、双组重置、攻击顺序移除与旧token清零、相邻效果记录stop前缀、角色顺序左移、removed unsigned终止、工作区typed-stop、配置后记录typed-stop、组B全1早退、坐标回绕、描述符bit5、动作发布、闭区间低byte递增、signed完成比较、共享message 1/0x63/0x67、组B重置、零描述符停点，以及组A/组B caller直连和组B父级typed-stop传播。
 
 当前缺少原版两组角色对象、13类剩余callee共享副作用、攻击顺序与相邻强度效果记录、角色工作区、描述符对象和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

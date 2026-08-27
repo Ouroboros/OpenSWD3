@@ -116,6 +116,7 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                 action.opponent_workspace[15] == 0xFFFFFFFFU &&
                 state.queued_actor_code == 0U &&
                 state.active_actor_code == 0xFFFFFFFFU &&
+                port.battle_message_state() == 1U &&
                 state.actor_order[0] == 77U && state.actor_order[9] == 0U &&
                 action.opponent_workspace[3] == 1U &&
                 state.actor_runtime_records[1][4] == 0U &&
@@ -272,6 +273,28 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                 port.calls[4].arguments[0] == 0x004B9F00U &&
                 port.calls[4].arguments[1] == 0x55U,
             "every non-one selector runs group B coordinates, descriptor, action and reset suffix"
+        );
+    }
+
+    {
+        LegacyBattleFinalActorStepState state;
+        LegacyBattleActionDispatchState action;
+        action.group_b_count = 1;
+        FinalStepPort port;
+        port.push(0x00479850U, {.eax = 1U});
+        port.push(0x00475870U, {.outputs = {0U, 0U}});
+        port.push(0x00480AD0U, {.eax = 0x12345678U});
+        port.push(0x0047F910U, {.eax = 0x55U});
+        port.attack_order_records[0].value_00 = 0U;
+        const auto result = advance_legacy_battle_final_actor_step(
+            state, action, port, port.attack_order(), 0U, 0U
+        );
+        test.expect_true(
+            result.return_value == 1U && action.group_b_count == 1 &&
+                state.frame_gate_a == 1U && state.frame_gate_b == 1U &&
+                port.battle_message_state() == 0x63U &&
+                port.battle_terminal_latch() == 0U,
+            "final group-B actor publishes shared message 99 and clears the terminal latch"
         );
     }
 

@@ -543,7 +543,6 @@ void synchronize_typed_aliases(
 
     selection_frame.display_gate = 0U;
     selection_frame.secondary_actor_gate = 0U;
-    selection_frame.selection_suppression = 0U;
     startup.supplemental_count_word = 0U;
 }
 

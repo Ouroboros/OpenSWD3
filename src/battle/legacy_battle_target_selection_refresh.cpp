@@ -566,8 +566,36 @@ private:
         return true;
     }
 
-    void prepare_default_target() {
-        invoke(Call::prepare_default_target);
+    [[nodiscard]] bool prepare_default_target() {
+        const auto cycled = cycle_legacy_battle_group_b_target(
+            {
+                .frame_input = frame_,
+                .metrics = metrics_,
+                .final_actor = final_actor_,
+                .target_runtime = runtime_,
+                .message_state = bindings_.message_state,
+            },
+            port_,
+            {.entry_eax = eax_, .entry_ecx = ecx_, .entry_edx = edx_}
+        );
+        ++result_.group_b_target_cycle_calls;
+        result_.group_b_target_cycle = cycled;
+        result_.port_calls += cycled.port_calls;
+        result_.group_b_calls += cycled.port_calls;
+        eax_ = cycled.return_eax;
+        ecx_ = cycled.return_ecx;
+        edx_ = cycled.return_edx;
+        if (cycled.status ==
+            LegacyBattleGroupBTargetCycleStatus::target_order_typed_stop) {
+            typed_stop(Status::target_actor_index_typed_stop);
+            return false;
+        }
+        if (cycled.status ==
+            LegacyBattleGroupBTargetCycleStatus::group_b_actor_typed_stop) {
+            typed_stop(Status::group_b_actor_typed_stop);
+            return false;
+        }
+        return true;
     }
 
     void prepare_alternate_target() {
@@ -709,8 +737,8 @@ private:
         }
 
         eax_ = final_actor_.pre_frame_gate_b;
-        if (eax_ == 0U) {
-            prepare_default_target();
+        if (eax_ == 0U && !prepare_default_target()) {
+            return false;
         }
         return true;
     }
@@ -1021,8 +1049,8 @@ private:
             return;
         }
         if (final_actor_.pre_frame_gate_b == 0U &&
-            bindings_.message_state == 3U) {
-            prepare_default_target();
+            bindings_.message_state == 3U && !prepare_default_target()) {
+            return;
         }
         if (!prime_input_records()) {
             return;
@@ -1563,46 +1591,13 @@ private:
             return;
         }
 
-        ecx_ = frame_.target_actor_index;
         bindings_.message_state = 3U;
         input_.action_kind = 25U;
-        if (!invoke_group_b(Call::query_group_b_completion, ecx_)) {
+        if (final_actor_.pre_frame_gate_b == 0U && !prepare_default_target()) {
             return;
         }
-        if (eax_ != 1U) {
-            runtime_.selection_input_gate = 1U;
+        if (!final_target_refresh()) {
             return;
-        }
-
-        u32 scanned = 0U;
-        while (true) {
-            eax_ = frame_.target_cursor;
-            edx_ = metrics_.group_b_count;
-            ++eax_;
-            frame_.target_cursor = eax_;
-            if (signed_bits(eax_) > signed_bits(edx_)) {
-                eax_ = 1U;
-                frame_.target_cursor = eax_;
-            }
-            u32 target{};
-            if (!read_target_actor(eax_, target)) {
-                return;
-            }
-            ecx_ = target;
-            ++scanned;
-            frame_.target_actor_index = ecx_;
-            if (signed_bits(scanned) >= signed_bits(edx_)) {
-                bindings_.message_state = 1U;
-                runtime_.selection_input_gate = 1U;
-                return;
-            }
-            if (!invoke_group_b(Call::query_group_b_completion, ecx_)) {
-                return;
-            }
-            if (eax_ != 1U) {
-                runtime_.selection_input_gate = 1U;
-                return;
-            }
         }
     }
 
@@ -1678,8 +1673,8 @@ private:
         if (eax_ == 0U) {
             return;
         }
-        if (final_actor_.pre_frame_gate_b == 0U) {
-            prepare_default_target();
+        if (final_actor_.pre_frame_gate_b == 0U && !prepare_default_target()) {
+            return;
         }
         if (!final_target_refresh()) {
             return;
