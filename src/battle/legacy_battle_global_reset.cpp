@@ -474,7 +474,7 @@ void synchronize_typed_aliases(
     vertical_shift.tick_limit = 0U;
 
     input_dispatch.menu_action = 0U;
-    input_dispatch.action_kind = 0U;
+    input_dispatch.action_kind = 1U;
     input_dispatch.selection_index = 1U;
     input_dispatch.retreat_block_word = 0U;
     input_dispatch.action_block_gate = 0U;
@@ -485,12 +485,23 @@ void synchronize_typed_aliases(
     input_dispatch.interaction_mode = 0U;
     input_dispatch.signed_status = 0U;
     input_dispatch.choice_selection_index = 0U;
+    input_dispatch.selected_group_b_actor_code = 1U;
+    input_dispatch.selected_actor_cleanup_gate = 0U;
+    input_dispatch.selection_runtime_gate = 0U;
+    input_dispatch.selection_cache_gate_a = 0U;
+    input_dispatch.selection_cache_gate_b = 0U;
+    input_dispatch.selection_animation_frame_a = 0U;
+    input_dispatch.selection_animation_frame_b = 0U;
+    input_dispatch.selection_animation_phase = 0U;
+    input_dispatch.selection_mode_cache = 0U;
+    input_dispatch.selection_target_cache = 0U;
 
     frame_input_resolution.previous_mouse_x = 0;
     frame_input_resolution.previous_mouse_y = 0;
     frame_input_resolution.target_cursor = 1U;
     frame_input_resolution.list_selection = 1U;
     frame_input_resolution.grid_selection = 1U;
+    frame_input_resolution.selection_actor_code = 0xFFFFFFFFU;
     frame_input_resolution.alternate_selection_limit = 2U;
     frame_input_resolution.alternate_selection = 1U;
     frame_input_resolution.current_equipment_selection = 2U;

@@ -44,6 +44,20 @@ struct LegacyBattleInputDispatchState {
     compat::u32 choice_selection_index{};
     compat::u32 final_value_a{};
     compat::u32 final_value_b{};
+    compat::u32 selected_group_b_actor_code{1U};       // 0x004A754C
+    compat::u32 fallback_action_kind{};                // 0x0053BCF0
+    compat::u32 selected_actor_cleanup_gate{};         // 0x0053C018
+    compat::u32 selection_runtime_gate{};              // 0x0053BFB0
+    compat::u32 selection_cache_gate_a{};              // 0x0053BFC0
+    compat::u32 selection_cache_gate_b{};              // 0x0053BFC4
+    compat::u32 selection_cache_gate_c{};              // 0x0053BFC8
+    compat::u32 selection_animation_frame_a{};         // 0x0053BD90
+    compat::u32 selection_animation_frame_b{};         // 0x0053BD94
+    compat::u32 selection_animation_phase{};           // 0x0053BD98
+    compat::u32 selection_mode_cache{};                // 0x0053BF94
+    compat::u32 selection_target_cache{};              // 0x0053BFF0
+    compat::u32 selected_actor_reset_gate{};           // 0x0053C02C
+    std::array<compat::u32, 5> selection_workspace{};  // 0x0053C184
     compat::i32 sample_mix_level{};
 };
 
@@ -79,7 +93,7 @@ enum class LegacyBattleInputDispatchCall : compat::u8 {
     commit_selected_option,
     commit_left,
     commit_right,
-    commit_final,
+    reserved_menu_input_finalize_slot,
     query_active_actor,
     query_retreat_actor,
     configure_retreat_actor,
@@ -92,6 +106,8 @@ enum class LegacyBattleInputDispatchCall : compat::u8 {
     menu_advance_prepare_actor_origin,
     menu_advance_configure_actor_selection,
     menu_advance_query_group_a_candidate,
+    menu_finalize_reset_active_group_a_actor,
+    menu_finalize_reset_actor,
 };
 
 struct LegacyBattleInputDispatchCallRequest {
@@ -169,6 +185,7 @@ enum class LegacyBattleInputDispatchStatus : compat::u8 {
     menu_selection_advance_typed_stop,
     menu_page_retreat_typed_stop,
     menu_page_advance_typed_stop,
+    menu_input_finalize_typed_stop,
 };
 
 struct LegacyBattleInputDispatchResult {
@@ -187,6 +204,7 @@ struct LegacyBattleInputDispatchResult {
     compat::u32 menu_selection_advance_calls{};
     compat::u32 menu_page_retreat_calls{};
     compat::u32 menu_page_advance_calls{};
+    compat::u32 menu_input_finalize_calls{};
     bool returned_early{};
 };
 

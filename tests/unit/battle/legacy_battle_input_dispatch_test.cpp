@@ -497,6 +497,7 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
         fixture.message = 2U;
         fixture.frame_input.grid_selection = 1U;
         fixture.frame_input.panel_scroll_b = 10U;
+        fixture.final_actor.active_actor_code = 8U;
         fixture.port.battle_input_dispatch_state().interaction_mode = 3U;
         fixture.input.records[15U].rapid_press_multiplicity = 1U;
         fixture.input.records[15U].held_sample_count = 1U;
@@ -601,6 +602,7 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
         fixture.frame_input.panel_row_limit_a = 20U;
         fixture.frame_input.list_selection = 7U;
         fixture.frame_input.panel_scroll_a = 0U;
+        fixture.final_actor.active_actor_code = 8U;
         fixture.port.battle_input_dispatch_state().interaction_mode = 4U;
         fixture.input.records[15U].rapid_press_multiplicity = 1U;
         fixture.input.records[15U].held_sample_count = 1U;
@@ -672,6 +674,67 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
                 fixture.port.battle_input_dispatch_state().mouse_action_gate ==
                     1U,
             "record-eight page advance propagates its typed-stop after preserving normalization"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.input.records[0U].rapid_press_multiplicity = 1U;
+        fixture.input.records[0U].held_sample_count = 1U;
+        fixture.port.battle_input_dispatch_state().final_value_a = 9U;
+        fixture.port.battle_input_dispatch_state().final_value_b = 9U;
+        fixture.port.battle_input_dispatch_state().selection_animation_frame_a =
+            9U;
+        fixture.port.battle_input_dispatch_state().selection_animation_frame_b =
+            9U;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_input_dispatch(
+                fixture.bindings(), fixture.port, {}
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleInputDispatchStatus::
+                        completed &&
+                result.menu_input_finalize_calls == 1U &&
+                fixture.port.battle_input_dispatch_state().final_value_a ==
+                    0U &&
+                fixture.port.battle_input_dispatch_state().final_value_b ==
+                    0U &&
+                fixture.port.battle_input_dispatch_state()
+                        .selection_animation_frame_a == 0U &&
+                fixture.port.battle_input_dispatch_state()
+                        .selection_animation_frame_b == 0U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        reserved_menu_input_finalize_slot
+                ) == 0U,
+            "record zero directly finalizes menu input before clearing its trailing values"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.input.records[0U].rapid_press_multiplicity = 1U;
+        fixture.input.records[0U].held_sample_count = 1U;
+        fixture.port.battle_input_dispatch_state().final_value_a = 9U;
+        fixture.port.battle_input_dispatch_state().final_value_b = 9U;
+        fixture.port.battle_input_dispatch_state().selected_actor_cleanup_gate =
+            1U;
+        fixture.port.battle_input_dispatch_state().selected_group_b_actor_code =
+            0U;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_input_dispatch(
+                fixture.bindings(), fixture.port, {}
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleInputDispatchStatus::
+                        menu_input_finalize_typed_stop &&
+                result.menu_input_finalize_calls == 1U &&
+                fixture.port.battle_input_dispatch_state().final_value_a ==
+                    9U &&
+                fixture.port.battle_input_dispatch_state().final_value_b == 9U,
+            "menu-finalize typed-stop blocks the caller trailing-value clears"
         );
     }
 

@@ -334,6 +334,20 @@ void seed_state(
     input.signed_status = 9U;
     input.choice_selection_index = 9U;
     input.final_value_a = 9U;
+    input.selected_group_b_actor_code = 9U;
+    input.fallback_action_kind = 9U;
+    input.selected_actor_cleanup_gate = 9U;
+    input.selection_runtime_gate = 9U;
+    input.selection_cache_gate_a = 9U;
+    input.selection_cache_gate_b = 9U;
+    input.selection_cache_gate_c = 9U;
+    input.selection_animation_frame_a = 9U;
+    input.selection_animation_frame_b = 9U;
+    input.selection_animation_phase = 9U;
+    input.selection_mode_cache = 9U;
+    input.selection_target_cache = 9U;
+    input.selected_actor_reset_gate = 9U;
+    input.selection_workspace.fill(9U);
 
     auto& frame_input = port.battle_frame_input_resolution_state();
     frame_input.previous_mouse_x = 9;
@@ -342,6 +356,7 @@ void seed_state(
     frame_input.target_cursor = 9U;
     frame_input.alternate_selection_limit = 9U;
     frame_input.alternate_selection = 9U;
+    frame_input.selection_actor_code = 9U;
     frame_input.target_actor_index = 9U;
     frame_input.target_selection_gate = 9U;
     frame_input.transition_value_a = 9U;
@@ -616,14 +631,32 @@ void test_battle_global_reset(openswd3::test::Context& test) {
         );
         const auto& input = port.battle_input_dispatch_state();
         test.expect_true(
-            input.menu_action == 0U && input.action_kind == 0U &&
+            input.menu_action == 0U && input.action_kind == 1U &&
                 input.selection_index == 1U && input.input_gate == 9U &&
                 input.retreat_block_word == 0U &&
                 input.retreat_target_word == 0xFFFFU &&
                 input.selected_option_word == 0xFFFFU &&
                 input.action_word == 9U && input.interaction_mode == 0U &&
                 input.signed_status == 0U &&
-                input.choice_selection_index == 0U && input.final_value_a == 9U,
+                input.choice_selection_index == 0U &&
+                input.final_value_a == 9U &&
+                input.selected_group_b_actor_code == 1U &&
+                input.fallback_action_kind == 9U &&
+                input.selected_actor_cleanup_gate == 0U &&
+                input.selection_runtime_gate == 0U &&
+                input.selection_cache_gate_a == 0U &&
+                input.selection_cache_gate_b == 0U &&
+                input.selection_cache_gate_c == 9U &&
+                input.selection_animation_frame_a == 0U &&
+                input.selection_animation_frame_b == 0U &&
+                input.selection_animation_phase == 0U &&
+                input.selection_mode_cache == 0U &&
+                input.selection_target_cache == 0U &&
+                input.selected_actor_reset_gate == 9U &&
+                std::ranges::all_of(
+                    input.selection_workspace,
+                    [](const auto value) { return value == 9U; }
+                ),
             "global reset synchronizes only the input-dispatch globals in its physical write set"
         );
         const auto& frame_input = port.battle_frame_input_resolution_state();
@@ -645,6 +678,7 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 frame_input.list_selection == 1U &&
                 frame_input.grid_selection == 1U &&
                 frame_input.narrow_list_selection == 9U &&
+                frame_input.selection_actor_code == 0xFFFFFFFFU &&
                 frame_input.current_equipment_selection == 2U &&
                 frame_input.panel_scroll_a == 0U &&
                 frame_input.panel_scroll_b == 0U &&

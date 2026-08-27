@@ -45,6 +45,7 @@ add_library(
         legacy_battle_image_rotation.cpp
         legacy_battle_input_dispatch.cpp
         legacy_battle_frame_input_resolution.cpp
+        legacy_battle_menu_input_finalize.cpp
         legacy_battle_menu_page_advance.cpp
         legacy_battle_menu_page_retreat.cpp
         legacy_battle_menu_selection_advance.cpp

@@ -18,6 +18,7 @@ struct LegacyBattleFrameInputResolutionState {
     compat::u32 list_selection{1U};                // 0x004A7558
     compat::u32 grid_selection{1U};                // 0x004A755C
     compat::u32 narrow_list_selection{1U};         // 0x004A7560
+    compat::u32 selection_actor_code{0xFFFFFFFFU}; // 0x004A7564
     compat::u32 current_equipment_selection{2U};   // 0x004A7570
     compat::u32 target_cursor{1U};                 // 0x004A7550
     compat::u32 alternate_selection_limit{2U};     // 0x004A7568
