@@ -108,25 +108,6 @@ public:
     bool file_constructed_at_registration{};
 };
 
-class TrackingBattleRenderGeometryBindingObjectInitializationPort final
-    : public openswd3::battle::
-          LegacyBattleRenderGeometryBindingObjectInitializationPort {
-public:
-    [[nodiscard]] u32 initialize_binding_object(
-        const u32 binding_object_token, const u32 render_geometry_owner_token
-    ) override {
-        last_binding_object_token = binding_object_token;
-        last_render_geometry_owner_token = render_geometry_owner_token;
-        ++calls;
-        return result;
-    }
-
-    u32 result{};
-    u32 calls{};
-    u32 last_binding_object_token{};
-    u32 last_render_geometry_owner_token{};
-};
-
 class TrackingBattleRenderGeometryExitRegistrationPort final
     : public openswd3::battle::LegacyBattleRenderGeometryExitRegistrationPort {
 public:
@@ -422,40 +403,67 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
     }
 
     {
-        TrackingBattleRenderGeometryBindingObjectInitializationPort
-            object_initialization_port;
-        object_initialization_port.result = 0x10203040U;
+        openswd3::battle::LegacyBattleRenderGeometryBindingObject object;
+        object.battle_header_bytes.fill(0xA5U);
+        object.reserved_2718_3103.fill(0x5AU);
+        for (auto& record : object.index_records) {
+            record.ordinal = 0xFFFFFFFFU;
+            record.five_step_quarter = -1;
+        }
+
+        const auto object_initialization = openswd3::battle::
+            initialize_legacy_battle_render_geometry_binding_object(
+                object, 0x89ABCDEFU, 0x10203040U
+            );
+        bool records_match = true;
+        for (u32 index = 0U; index < object.index_records.size(); ++index) {
+            records_match = records_match &&
+                object.index_records[index].ordinal == index &&
+                object.index_records[index].five_step_quarter ==
+                    static_cast<openswd3::compat::i32>((index * 5U) / 4U);
+        }
+        bool untouched_bytes = true;
+        for (const auto value : object.battle_header_bytes) {
+            untouched_bytes = untouched_bytes && value == 0xA5U;
+        }
+        for (const auto value : object.reserved_2718_3103) {
+            untouched_bytes = untouched_bytes && value == 0x5AU;
+        }
+
         const auto direct =
             openswd3::battle::initialize_legacy_battle_render_geometry_binding(
-                object_initialization_port
+                object
             );
-        object_initialization_port.result = 0x89ABCDEFU;
         const auto forwarded = openswd3::battle::
             forward_legacy_battle_render_geometry_binding_static_initialization(
-                object_initialization_port
+                object
             );
         test.expect_true(
-            object_initialization_port.calls == 2U &&
-                object_initialization_port.last_binding_object_token ==
-                    openswd3::battle::
-                        kLegacyBattleRenderGeometryBindingObjectToken &&
-                object_initialization_port.last_render_geometry_owner_token ==
-                    openswd3::battle::kLegacyBattleRenderGeometryOwnerToken &&
+            sizeof(object) == 0x31F4U && records_match && untouched_bytes &&
+                object_initialization.binding_object_token == 0x89ABCDEFU &&
+                object_initialization.render_geometry_owner_token ==
+                    0x10203040U &&
+                object_initialization.records_written == 30U &&
+                object_initialization.return_eax == 0x89ABCDEFU &&
+                object_initialization.return_ecx == 0x89ABCDEFU &&
+                object_initialization.return_edx == 0U &&
                 direct.binding_object_token ==
                     openswd3::battle::
                         kLegacyBattleRenderGeometryBindingObjectToken &&
                 direct.render_geometry_owner_token ==
                     openswd3::battle::kLegacyBattleRenderGeometryOwnerToken &&
+                direct.object_initialization.records_written == 30U &&
                 direct.initialization_calls == 1U &&
-                direct.return_value == 0x10203040U &&
-                forwarded.binding_object_token ==
+                direct.return_value ==
                     openswd3::battle::
                         kLegacyBattleRenderGeometryBindingObjectToken &&
-                forwarded.render_geometry_owner_token ==
-                    openswd3::battle::kLegacyBattleRenderGeometryOwnerToken &&
-                forwarded.initialization_calls == 1U &&
-                forwarded.return_value == 0x89ABCDEFU,
-            "render geometry binding wrapper passes fixed tokens and static thunk calls it"
+                forwarded.object_initialization.records_written == 30U &&
+                forwarded.return_value ==
+                    openswd3::battle::
+                        kLegacyBattleRenderGeometryBindingObjectToken &&
+                object.render_geometry_owner_token ==
+                    openswd3::battle::kLegacyBattleRenderGeometryOwnerToken,
+            "render geometry binding initialization preserves the exact object layout and fixed wrapper tokens"
         );
     }
 

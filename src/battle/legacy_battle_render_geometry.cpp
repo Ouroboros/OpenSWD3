@@ -1,6 +1,7 @@
 #include "openswd3/battle/legacy_battle_render_geometry.hpp"
 
 #include <bit>
+#include <cstddef>
 #include <new>
 #include <utility>
 
@@ -388,30 +389,77 @@ LegacyBattleRenderInitializationResult initialize_legacy_battle_render_geometry(
     return initialize_legacy_battle_render_geometry(geometry, allocator);
 }
 
+LegacyBattleRenderGeometryBindingObjectInitializationResult
+initialize_legacy_battle_render_geometry_binding_object(
+    LegacyBattleRenderGeometryBindingObject& object,
+    const compat::u32 binding_object_token,
+    const compat::u32 render_geometry_owner_token
+) noexcept {
+    static_assert(
+        offsetof(
+            LegacyBattleRenderGeometryBindingObject, battle_header_bytes
+        ) == 0x0004U
+    );
+    static_assert(
+        offsetof(LegacyBattleRenderGeometryBindingObject, reserved_2718_3103) ==
+        0x2718U
+    );
+    static_assert(
+        offsetof(LegacyBattleRenderGeometryBindingObject, index_records) ==
+        0x3104U
+    );
+    static_assert(
+        sizeof(LegacyBattleRenderGeometryBindingIndexRecord) == 0x08U
+    );
+    static_assert(sizeof(LegacyBattleRenderGeometryBindingObject) == 0x31F4U);
+
+    LegacyBattleRenderGeometryBindingObjectInitializationResult result{
+        .binding_object_token = binding_object_token,
+        .render_geometry_owner_token = render_geometry_owner_token,
+    };
+    object.render_geometry_owner_token = render_geometry_owner_token;
+
+    compat::u32 ordinal = 0U;
+    compat::u32 five_step = 0U;
+    do {
+        object.index_records[ordinal].ordinal = ordinal;
+        object.index_records[ordinal].five_step_quarter =
+            static_cast<compat::i32>(five_step / 4U);
+        ++ordinal;
+        five_step += 5U;
+    } while (static_cast<compat::i32>(five_step) < 0x96);
+
+    result.records_written = ordinal;
+    result.return_eax = binding_object_token;
+    result.return_ecx = binding_object_token;
+    result.return_edx = 0U;
+    return result;
+}
+
 LegacyBattleRenderGeometryBindingInitializationResult
 initialize_legacy_battle_render_geometry_binding(
-    LegacyBattleRenderGeometryBindingObjectInitializationPort&
-        object_initialization_port
-) {
+    LegacyBattleRenderGeometryBindingObject& object
+) noexcept {
     LegacyBattleRenderGeometryBindingInitializationResult result{
         .binding_object_token = kLegacyBattleRenderGeometryBindingObjectToken,
         .render_geometry_owner_token = kLegacyBattleRenderGeometryOwnerToken,
     };
-    result.return_value = object_initialization_port.initialize_binding_object(
-        result.binding_object_token, result.render_geometry_owner_token
-    );
+    result.object_initialization =
+        initialize_legacy_battle_render_geometry_binding_object(
+            object,
+            result.binding_object_token,
+            result.render_geometry_owner_token
+        );
+    result.return_value = result.object_initialization.return_eax;
     result.initialization_calls = 1U;
     return result;
 }
 
 LegacyBattleRenderGeometryBindingInitializationResult
 forward_legacy_battle_render_geometry_binding_static_initialization(
-    LegacyBattleRenderGeometryBindingObjectInitializationPort&
-        object_initialization_port
-) {
-    return initialize_legacy_battle_render_geometry_binding(
-        object_initialization_port
-    );
+    LegacyBattleRenderGeometryBindingObject& object
+) noexcept {
+    return initialize_legacy_battle_render_geometry_binding(object);
 }
 
 LegacyBattleRenderGeometryStaticInitializationResult

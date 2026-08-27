@@ -309,9 +309,9 @@ I5最终必须锁定：
 
 `audit_order=50`的`0x004518A0`已关闭为`platform_adapted`。完整范围含13行主体与`0x004518C0..0x004518CB`十行外部FUNCTION CHUNK；工作包未单列的`0x004518B0/0x004518D0`两个9行附件加载同一固定owner后分别尾跳已关闭几何初始化与资源清理。modern静态caller直接调用closed初始化，退出wrapper直接调用closed清理，仅CRT退出注册保留平台端口；最终返回仍为`_atexit`完整EAX。
 
-`audit_order=51`的`0x004518E0`已关闭为`platform_adapted`。完整9行、无chunk，唯一指令尾跳相邻`0x004518F0`；typed thunk只转发一次并原样传播callee完整EAX，不附加参数、状态或返回后处理。相邻callee现已关闭，thunk已直连typed helper并删除临时opaque entry。
+`audit_order=51`的`0x004518E0`已关闭为`platform_adapted`。完整9行、无chunk，唯一指令尾跳相邻`0x004518F0`；typed thunk只转发一次同一绑定对象，不附加参数、状态或返回后处理。相邻两层callee现均已关闭，thunk不再持有opaque边界。
 
-`audit_order=52`的`0x004518F0`已关闭为`platform_adapted`。完整14行、无chunk；按LST先压固定几何owner，再将固定绑定对象写入ECX，单次调用后续`audit_order=106`深层initializer并原样返回完整EAX。typed wrapper显式发布两个32位token，深层callee仍由可回收typed端口隔离。
+`audit_order=52`的`0x004518F0`已关闭为`platform_adapted`。完整14行、无chunk；按LST先压固定几何owner，再将固定绑定对象写入ECX，单次直连已关闭`audit_order=106`深层initializer并返回绑定对象token EAX。typed wrapper显式发布两个32位token，深层callee端口已删除。
 
 `audit_order=53`的`0x00451900`已关闭为`platform_adapted`。完整范围含13行主体与`0x00451920..0x0045192B`十行外部FUNCTION CHUNK；工作包未单列的`0x00451910/0x00451930`两个9行附件加载同一固定文件owner后分别尾跳已关闭文件构造与析构。modern以`std::optional<LegacyFile>`在原时点真实建立和销毁typed文件对象，仅CRT退出注册保留平台端口；最终返回为`_atexit`完整EAX。
 
@@ -421,6 +421,8 @@ I5最终必须锁定：
 
 `audit_order=105`的`0x0045F020`已关闭为`platform_adapted`。完整权威LST主体`0x0045F020..0x0045F0E9`从proc到endp共110行、69条实际指令、1个call、11个跳转、9个局部标签且无外部chunk。单参数cdecl函数以EBX从0、ESI从18条攻击顺序首地址开始执行没有18槽上限的28字节扫描：首dword按signed小于7时直接选中，否则以`value-8`低32位按组A步长构造对象token，角色查询完整EAX精确1才继续。18条都跳过后真实读取进入八条精确`0x98`强度效果记录owner，并仍按28字节步长继续；已知相邻owner用尽时只在下一次真实dword读取停止。选中物理位置固定向调用方复制七dword；输出首项与角色metric优先索引同址，后六项也收敛到metric唯一owner。选中全1时不改顺序；非空且索引小于17时把后继完整记录左移到第17槽，再固定扫描18槽首空。未找到首空时故意保留原选中索引，导致满表从该索引起清尾的原行为不修复。尾部每条严格先写七个零dword再把首项写全1；正常清完返回EAX0、ECX0和一过尾EDX。唯一逐帧caller删除旧刷新选择token并在原五门与16帧延迟后直连；内部角色查询保留窄端口，子stop阻断主frame stage。全局重置同步清七dword输出记录。
 
-下一项回收`audit_order=106`的`0x0045F0F0`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗函数。
+`audit_order=106`的`0x0045F0F0`已关闭为`platform_adapted`。完整权威LST主体`0x0045F0F0..0x0045F128`从proc到endp共34行、27条实际指令、0个call、1个跳转、1个局部标签且无外部chunk。单参数thiscall先把唯一栈参数几何owner token写到绑定对象`+0x0000`，再以EBX 0、EDI 0和ESI `this+0x3108`执行30轮固定循环：每轮先写ordinal，再按原`cdq/and/add/sar`序列写`floor(index*5/4)`，EDI加5后按signed小于150继续。typed绑定对象保持精确`0x31F4`物理布局：`+0x0004`起`0x2714`字节后续资源头部和`+0x2718..+0x3103`保留区均保持入口字节，30条8字节索引记录从`+0x3104`开始。正常返回EAX/ECX均为绑定对象token、EDX 0。唯一固定参数wrapper和相邻静态thunk删除深层opaque端口，直接复用同一对象owner；wrapper返回固定绑定对象token。
+
+下一项回收`audit_order=107`的`0x0045F130`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

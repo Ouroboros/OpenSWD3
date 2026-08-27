@@ -456,6 +456,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-attack-order-dequeue-0045f020.md",
     ),
+    "0x0045F0F0": (
+        "platform_adapted",
+        "evidence/battle-render-geometry-binding-object-initialization-0045f0f0.md",
+    ),
 }
 
 

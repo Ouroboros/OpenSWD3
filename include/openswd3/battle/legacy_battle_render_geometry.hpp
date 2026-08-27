@@ -73,15 +73,26 @@ public:
     virtual void release(compat::u32 token) noexcept = 0;
 };
 
-class LegacyBattleRenderGeometryBindingObjectInitializationPort {
-public:
-    virtual ~LegacyBattleRenderGeometryBindingObjectInitializationPort() =
-        default;
+struct LegacyBattleRenderGeometryBindingIndexRecord {
+    compat::u32 ordinal{};
+    compat::i32 five_step_quarter{};
+};
 
-    [[nodiscard]] virtual compat::u32 initialize_binding_object(
-        compat::u32 binding_object_token,
-        compat::u32 render_geometry_owner_token
-    ) = 0;
+struct LegacyBattleRenderGeometryBindingObject {
+    compat::u32 render_geometry_owner_token{};
+    std::array<compat::u8, 0x2714> battle_header_bytes{};
+    std::array<compat::u8, 0x09EC> reserved_2718_3103{};
+    std::array<LegacyBattleRenderGeometryBindingIndexRecord, 30>
+        index_records{};
+};
+
+struct LegacyBattleRenderGeometryBindingObjectInitializationResult {
+    compat::u32 binding_object_token{};
+    compat::u32 render_geometry_owner_token{};
+    compat::u32 records_written{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
 };
 
 class LegacyBattleRenderGeometryExitRegistrationPort {
@@ -159,6 +170,8 @@ struct LegacyBattleRenderInitializationResult {
 struct LegacyBattleRenderGeometryBindingInitializationResult {
     compat::u32 binding_object_token{};
     compat::u32 render_geometry_owner_token{};
+    LegacyBattleRenderGeometryBindingObjectInitializationResult
+        object_initialization{};
     compat::u32 initialization_calls{};
     compat::u32 return_value{};
 };
@@ -227,19 +240,25 @@ initialize_legacy_battle_render_geometry(
     LegacyBattleRenderGeometry& geometry
 ) noexcept;
 
-// sub_4518F0: call the pending binding-object initializer with fixed tokens.
+// sub_45F0F0: initialize the exact binding-object owner and index records.
+[[nodiscard]] LegacyBattleRenderGeometryBindingObjectInitializationResult
+initialize_legacy_battle_render_geometry_binding_object(
+    LegacyBattleRenderGeometryBindingObject& object,
+    compat::u32 binding_object_token,
+    compat::u32 render_geometry_owner_token
+) noexcept;
+
+// sub_4518F0: call the closed binding-object initializer with fixed tokens.
 [[nodiscard]] LegacyBattleRenderGeometryBindingInitializationResult
 initialize_legacy_battle_render_geometry_binding(
-    LegacyBattleRenderGeometryBindingObjectInitializationPort&
-        object_initialization_port
-);
+    LegacyBattleRenderGeometryBindingObject& object
+) noexcept;
 
 // sub_4518E0: tail-forward to the adjacent typed initialization helper.
 [[nodiscard]] LegacyBattleRenderGeometryBindingInitializationResult
 forward_legacy_battle_render_geometry_binding_static_initialization(
-    LegacyBattleRenderGeometryBindingObjectInitializationPort&
-        object_initialization_port
-);
+    LegacyBattleRenderGeometryBindingObject& object
+) noexcept;
 
 // sub_4518A0 with loc_4518C0 and attached constructor sub_4518B0.
 [[nodiscard]] LegacyBattleRenderGeometryStaticInitializationResult
