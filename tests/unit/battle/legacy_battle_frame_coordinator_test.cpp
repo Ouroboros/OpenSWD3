@@ -667,10 +667,40 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                     } &&
                 result.fixed_frame_calls == 0U &&
                 result.frame_effect_calls == 0U && result.lock_calls == 0U &&
+                result.frame_input_resolution_calls == 1U &&
                 result.input_dispatch_calls == 1U &&
                 result.pre_frame_calls == 1U &&
-                result.debug_hotkey_calls == 1U && port.calls.size() == 3U,
-            "frame coordinator preserves music and pre-frame stages before the debug hotkey zero return"
+                result.debug_hotkey_calls == 1U && port.calls.size() == 2U,
+            "frame coordinator preserves music and typed input stages before the debug hotkey zero return"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleFrameCoordinatorState state;
+        Fixture fixture;
+        CoordinatorPort port;
+        fixture.input_normalization.current_mouse.logical_x = 10;
+        fixture.input_normalization.current_mouse.logical_y = 10;
+        fixture.final_actor_step.active_actor_code = 0x100U;
+        port.battle_message_state() = 3U;
+        auto context = fixture.context();
+
+        const auto result =
+            openswd3::battle::run_legacy_battle_frame_coordinator(
+                state, port, context, base_request()
+            );
+
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameCoordinatorStatus::
+                        frame_input_resolution_typed_stop &&
+                result.frame_input_resolution.status ==
+                    openswd3::battle::LegacyBattleFrameInputResolutionStatus::
+                        startup_mode_typed_stop &&
+                result.frame_input_resolution_calls == 1U &&
+                result.input_dispatch_calls == 0U &&
+                result.pre_frame_calls == 0U && result.debug_hotkey_calls == 0U,
+            "frame-input typed stop preserves the music prelude and blocks input dispatch plus every later frame stage"
         );
     }
 
@@ -698,7 +728,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                         workspace_typed_stop &&
                 result.input_dispatch_calls == 1U &&
                 result.pre_frame_calls == 0U && result.debug_hotkey_calls == 0U,
-            "input-dispatch typed stop preserves the first prelude and blocks every later frame stage"
+            "input-dispatch typed stop preserves frame input resolution and blocks every later frame stage"
         );
     }
 

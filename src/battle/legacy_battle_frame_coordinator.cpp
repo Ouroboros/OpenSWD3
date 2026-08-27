@@ -93,9 +93,32 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         ++result.music_commit_calls;
     }
 
-    const auto input_prelude = invoke(
-        port, result, LegacyBattleFrameCoordinatorCall::pre_frame_stage_0
-    );
+    result.frame_input_resolution =
+        coordinate_legacy_battle_frame_input_resolution(
+            {
+                .startup = context.startup,
+                .final_actor = context.final_actor_step,
+                .metrics = port.actor_metric_state(),
+                .input_dispatch = port.battle_input_dispatch_state(),
+                .input = context.input_normalization,
+                .message_state = port.battle_message_state(),
+                .choice_hotspots = context.choice_hotspots,
+            },
+            port,
+            {
+                .entry_eax = reply.eax,
+                .entry_ecx = reply.ecx,
+                .entry_edx = reply.edx,
+            }
+        );
+    ++result.frame_input_resolution_calls;
+    result.port_calls += result.frame_input_resolution.port_calls;
+    if (result.frame_input_resolution.status !=
+        LegacyBattleFrameInputResolutionStatus::completed) {
+        result.status = LegacyBattleFrameCoordinatorStatus::
+            frame_input_resolution_typed_stop;
+        return result;
+    }
     result.input_dispatch = coordinate_legacy_battle_input_dispatch(
         {
             .render_abort_latch = state.render_abort_latch,
@@ -114,9 +137,9 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         },
         port,
         {
-            .entry_eax = input_prelude.eax,
-            .entry_ecx = input_prelude.ecx,
-            .entry_edx = input_prelude.edx,
+            .entry_eax = result.frame_input_resolution.return_eax,
+            .entry_ecx = result.frame_input_resolution.return_ecx,
+            .entry_edx = result.frame_input_resolution.return_edx,
             .mouse_y = request.mouse_y,
             .mouse_lower_bound = request.input_mouse_lower_bound,
             .mouse_upper_bound = request.input_mouse_upper_bound,

@@ -200,6 +200,7 @@ void seed_state(
     startup.enemy_count = 8U;
     startup.party_count = 10U;
     startup.mirror_mode = 7U;
+    startup.supplemental_count_word = 9U;
 
     final_actor.active_actor_code = 9U;
     final_actor.secondary_actor_code = 9U;
@@ -332,6 +333,22 @@ void seed_state(
     input.signed_status = 9U;
     input.choice_selection_index = 9U;
     input.final_value_a = 9U;
+
+    auto& frame_input = port.battle_frame_input_resolution_state();
+    frame_input.previous_mouse_x = 9;
+    frame_input.previous_mouse_y = 9;
+    frame_input.list_selection = 9U;
+    frame_input.grid_selection = 9U;
+    frame_input.narrow_list_selection = 9U;
+    frame_input.current_equipment_selection = 9U;
+    frame_input.panel_scroll_a = 9U;
+    frame_input.panel_scroll_b = 9U;
+    frame_input.panel_origin_x = 9U;
+    frame_input.panel_origin_y = 9U;
+    frame_input.selection_block_word = 9U;
+    frame_input.target_selection_block = 9U;
+    frame_input.target_selection_suppression = 9U;
+    frame_input.target_markers.fill(9U);
 }
 
 }  // namespace
@@ -598,6 +615,41 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 input.signed_status == 0U &&
                 input.choice_selection_index == 0U && input.final_value_a == 9U,
             "global reset synchronizes only the input-dispatch globals in its physical write set"
+        );
+        const auto& frame_input = port.battle_frame_input_resolution_state();
+        test.expect_true(
+            frame_input.previous_mouse_x == 0 &&
+                frame_input.previous_mouse_y == 0 &&
+                frame_input.list_selection == 1U &&
+                frame_input.grid_selection == 1U &&
+                frame_input.narrow_list_selection == 9U &&
+                frame_input.current_equipment_selection == 2U &&
+                frame_input.panel_scroll_a == 0U &&
+                frame_input.panel_scroll_b == 0U &&
+                frame_input.panel_origin_x == 0U &&
+                frame_input.panel_origin_y == 0U &&
+                frame_input.selection_block_word == 0U &&
+                frame_input.target_selection_block == 0U &&
+                frame_input.target_selection_suppression == 0U &&
+                std::ranges::all_of(
+                    frame_input.target_markers,
+                    [](const auto value) { return value == 9U; }
+                ) &&
+                startup.supplemental_count_word == 0U &&
+                state.unmapped_bytes.contains(0x005028A0U) == false &&
+                state.unmapped_bytes.contains(0x005028A4U) == false &&
+                state.unmapped_bytes.contains(0x004A7558U) == false &&
+                state.unmapped_bytes.contains(0x004A755CU) == false &&
+                state.unmapped_bytes.contains(0x004A7570U) == false &&
+                state.unmapped_bytes.contains(0x0053BD04U) == false &&
+                state.unmapped_bytes.contains(0x0053BD08U) == false &&
+                state.unmapped_bytes.contains(0x0053BD24U) == false &&
+                state.unmapped_bytes.contains(0x0053BD28U) == false &&
+                state.unmapped_bytes.contains(0x0053BF0CU) == false &&
+                state.unmapped_bytes.contains(0x0053BF2AU) == false &&
+                state.unmapped_bytes.contains(0x0053BF88U) == false &&
+                state.unmapped_bytes.contains(0x0053C4C0U) == false,
+            "global reset synchronizes only the frame-input aliases in its physical write set"
         );
         test.expect_true(
             std::ranges::all_of(

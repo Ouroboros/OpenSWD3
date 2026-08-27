@@ -15,6 +15,7 @@
 #include "openswd3/battle/legacy_battle_effect_coordinator.hpp"
 #include "openswd3/battle/legacy_battle_frame_completion.hpp"
 #include "openswd3/battle/legacy_battle_frame_effect.hpp"
+#include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
 #include "openswd3/battle/legacy_battle_input_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_outcome_resolution.hpp"
 #include "openswd3/battle/legacy_battle_pre_frame.hpp"
@@ -54,8 +55,16 @@ struct LegacyBattleFrameCoordinatorPosition {
 enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     query_music_gate,
     music_commit,
-    pre_frame_stage_0,
+    reserved_frame_input_resolution_slot,
     reserved_input_dispatch_slot,
+    frame_input_validate_option_actor,
+    frame_input_configure_actor_selection,
+    frame_input_query_group_b_candidate,
+    frame_input_prepare_actor_origin,
+    frame_input_resolve_actor_surface,
+    frame_input_query_actor_mirror,
+    frame_input_query_group_b_mode,
+    frame_input_query_group_a_candidate,
     query_actor_metric,
     lock_target_surface,
     unlock_target_surface,
@@ -84,7 +93,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
 
 struct LegacyBattleFrameCoordinatorCallRequest {
     LegacyBattleFrameCoordinatorCall call{
-        LegacyBattleFrameCoordinatorCall::pre_frame_stage_0
+        LegacyBattleFrameCoordinatorCall::reserved_frame_input_resolution_slot
     };
     std::array<compat::u32, 8> arguments{};
     compat::u32 eax{};
@@ -105,6 +114,9 @@ struct LegacyBattleFrameCoordinatorCallReply {
     compat::u32 group_b_count{};
     bool publish_group_a_count{};
     compat::u32 group_a_count{};
+    compat::i32 origin_x{};
+    compat::i32 origin_y{};
+    LegacyBattleFrameInputSurface actor_surface{};
 };
 
 class LegacyBattleFrameCoordinatorPort
@@ -119,7 +131,7 @@ class LegacyBattleFrameCoordinatorPort
       public LegacyBattleAttackOrderDequeuePort,
       public LegacyBattlePendingActionPort,
       public LegacyBattleFrameCompletionPort,
-      public LegacyBattleInputDispatchPort,
+      public LegacyBattleFrameInputResolutionPort,
       public virtual LegacyBattleEffectCoordinatorStatePort {
 public:
     using LegacyBattleEffectCallPort::invoke;
@@ -129,6 +141,69 @@ public:
 
     [[nodiscard]] virtual LegacyBattleFrameCoordinatorCallReply
     invoke(const LegacyBattleFrameCoordinatorCallRequest& request) = 0;
+    [[nodiscard]] LegacyBattleFrameInputResolutionCallReply
+    invoke_frame_input_resolution(
+        const LegacyBattleFrameInputResolutionCallRequest& request
+    ) override {
+        LegacyBattleFrameCoordinatorCall call =
+            LegacyBattleFrameCoordinatorCall::
+                frame_input_configure_actor_selection;
+        switch (request.call) {
+        case LegacyBattleFrameInputResolutionCall::validate_option_actor:
+            call = LegacyBattleFrameCoordinatorCall::
+                frame_input_validate_option_actor;
+            break;
+        case LegacyBattleFrameInputResolutionCall::configure_actor_selection:
+            break;
+        case LegacyBattleFrameInputResolutionCall::query_group_b_candidate:
+            call = LegacyBattleFrameCoordinatorCall::
+                frame_input_query_group_b_candidate;
+            break;
+        case LegacyBattleFrameInputResolutionCall::prepare_actor_origin:
+            call = LegacyBattleFrameCoordinatorCall::
+                frame_input_prepare_actor_origin;
+            break;
+        case LegacyBattleFrameInputResolutionCall::resolve_actor_surface:
+            call = LegacyBattleFrameCoordinatorCall::
+                frame_input_resolve_actor_surface;
+            break;
+        case LegacyBattleFrameInputResolutionCall::query_actor_mirror:
+            call = LegacyBattleFrameCoordinatorCall::
+                frame_input_query_actor_mirror;
+            break;
+        case LegacyBattleFrameInputResolutionCall::query_group_b_mode:
+            call = LegacyBattleFrameCoordinatorCall::
+                frame_input_query_group_b_mode;
+            break;
+        case LegacyBattleFrameInputResolutionCall::query_group_a_candidate:
+            call = LegacyBattleFrameCoordinatorCall::
+                frame_input_query_group_a_candidate;
+            break;
+        }
+        const auto reply = invoke({
+            .call = call,
+            .arguments =
+                {
+                    request.actor_token,
+                    request.arguments[0],
+                    request.arguments[1],
+                    request.arguments[2],
+                    request.arguments[3],
+                },
+            .eax = request.eax,
+            .ecx = request.actor_token,
+            .edx = request.edx,
+        });
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .origin_x = reply.origin_x,
+            .origin_y = reply.origin_y,
+            .surface = reply.actor_surface,
+        };
+    }
+
     [[nodiscard]] virtual compat::u32
     start_music(const std::filesystem::path& path, compat::u32 mode) = 0;
     [[nodiscard]] virtual compat::u32
@@ -326,6 +401,7 @@ struct LegacyBattleFrameCoordinatorContext {
 enum class LegacyBattleFrameCoordinatorStatus : compat::u8 {
     completed,
     pre_frame_returned_zero,
+    frame_input_resolution_typed_stop,
     actor_metric_typed_stop,
     actor_order_typed_stop,
     actor_priority_typed_stop,
@@ -369,6 +445,8 @@ struct LegacyBattleFrameCoordinatorResult {
     compat::u32 unlock_calls{};
     compat::u32 selection_refresh_calls{};
     LegacyBattleAttackOrderDequeueResult attack_order_dequeue{};
+    LegacyBattleFrameInputResolutionResult frame_input_resolution{};
+    compat::u32 frame_input_resolution_calls{};
     LegacyBattleInputDispatchResult input_dispatch{};
     compat::u32 input_dispatch_calls{};
     LegacyBattlePreFrameResult pre_frame{};

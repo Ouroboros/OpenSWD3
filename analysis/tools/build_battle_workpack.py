@@ -472,6 +472,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-input-dispatch-0045f2a0.md",
     ),
+    "0x0045FC60": (
+        "platform_adapted",
+        "evidence/battle-frame-input-resolution-0045fc60.md",
+    ),
 }
 
 

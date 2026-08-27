@@ -254,11 +254,12 @@ struct MappedRange {
     u32 bytes;
 };
 
-constexpr std::array<MappedRange, 80> kMappedRanges{{
-    {0x004A7548U, 0x04U},  {0x004A754CU, 0x04U},  {0x004A7564U, 0x04U},
-    {0x004A7620U, 0x08U},  {0x004A7630U, 0x02U},  {0x004A7644U, 0x02U},
-    {0x004CAE7CU, 0x04U},  {0x004FDF7CU, 0x02U},  {0x004FDF8CU, 0x04U},
-    {0x004FDFA4U, 0x04U},  {0x004FE5CCU, 0x2CU},  {0x00520D58U, 0x04U},
+constexpr std::array<MappedRange, 87> kMappedRanges{{
+    {0x004A7548U, 0x04U},  {0x004A754CU, 0x04U},  {0x004A7558U, 0x08U},
+    {0x004A7564U, 0x04U},  {0x004A7570U, 0x04U},  {0x004A7620U, 0x08U},
+    {0x004A7630U, 0x02U},  {0x004A7644U, 0x02U},  {0x004CAE7CU, 0x04U},
+    {0x004FDF7CU, 0x02U},  {0x004FDF8CU, 0x04U},  {0x004FDFA4U, 0x04U},
+    {0x004FE5CCU, 0x2CU},  {0x005028A0U, 0x08U},  {0x00520D58U, 0x04U},
     {0x00520FB8U, 0x04U},  {0x00521388U, 0x04U},  {0x00521394U, 0x04U},
     {0x0052151CU, 0x04U},  {0x00525430U, 0x04U},  {0x00525448U, 0x04U},
     {0x00525468U, 0x04U},  {0x004FF0B0U, 0x0CU},  {0x004FF168U, 0x50U},
@@ -270,18 +271,19 @@ constexpr std::array<MappedRange, 80> kMappedRanges{{
     {0x0052544CU, 0x10U},  {0x00525470U, 0x98U},  {0x0053AE70U, 0x1CU},
     {0x0053AF70U, 0x140U}, {0x0053B0B8U, 0xB6CU}, {0x0053BCE0U, 0x04U},
     {0x0053BCE8U, 0x04U},  {0x0053BC24U, 0x04U},  {0x0052441CU, 0x04U},
-    {0x0053BCF4U, 0x04U},  {0x0053BD40U, 0x04U},  {0x0053BD50U, 0x08U},
-    {0x0053BD5CU, 0x04U},  {0x0053BD7CU, 0x10U},  {0x0053BD90U, 0x14U},
-    {0x0053BDACU, 0x04U},  {0x0053BCECU, 0x04U},  {0x0053BEFFU, 0x01U},
-    {0x0053BF00U, 0x01U},  {0x0053BF0CU, 0x02U},  {0x0053BF1CU, 0x02U},
-    {0x0053BF24U, 0x02U},  {0x0053BF5CU, 0x04U},  {0x0053BF60U, 0x04U},
+    {0x0053BCF4U, 0x04U},  {0x0053BD04U, 0x08U},  {0x0053BD24U, 0x08U},
+    {0x0053BD40U, 0x04U},  {0x0053BD50U, 0x08U},  {0x0053BD5CU, 0x04U},
+    {0x0053BD7CU, 0x10U},  {0x0053BD90U, 0x14U},  {0x0053BDACU, 0x04U},
+    {0x0053BCECU, 0x04U},  {0x0053BEFFU, 0x01U},  {0x0053BF00U, 0x01U},
+    {0x0053BF0CU, 0x02U},  {0x0053BF1CU, 0x02U},  {0x0053BF24U, 0x02U},
+    {0x0053BF2AU, 0x02U},  {0x0053BF5CU, 0x04U},  {0x0053BF60U, 0x04U},
     {0x0053BF64U, 0x08U},  {0x0053BF74U, 0x04U},  {0x0053BF7CU, 0x04U},
-    {0x0053BF80U, 0x04U},  {0x0053BFA8U, 0x04U},  {0x0053BFC0U, 0x08U},
-    {0x0053BFB8U, 0x08U},  {0x0053BFD0U, 0x04U},  {0x0053BFD8U, 0x04U},
-    {0x0053BFCCU, 0x04U},  {0x0053BFF4U, 0x04U},  {0x0053C000U, 0x04U},
-    {0x0053C018U, 0x04U},  {0x0053BFE4U, 0x04U},  {0x0053C040U, 0x04U},
-    {0x0053C048U, 0x04U},  {0x0053C050U, 0x02U},  {0x0053C4A0U, 0x04U},
-    {0x0053C4C0U, 0x01U},  {0x0053CEACU, 0x04U},
+    {0x0053BF80U, 0x04U},  {0x0053BF88U, 0x04U},  {0x0053BFA8U, 0x04U},
+    {0x0053BFC0U, 0x08U},  {0x0053BFB8U, 0x08U},  {0x0053BFD0U, 0x04U},
+    {0x0053BFD8U, 0x04U},  {0x0053BFCCU, 0x04U},  {0x0053BFF4U, 0x04U},
+    {0x0053C000U, 0x04U},  {0x0053C018U, 0x04U},  {0x0053BFE4U, 0x04U},
+    {0x0053C040U, 0x04U},  {0x0053C048U, 0x04U},  {0x0053C050U, 0x02U},
+    {0x0053C4A0U, 0x04U},  {0x0053C4C0U, 0x01U},  {0x0053CEACU, 0x04U},
 }};
 
 [[nodiscard]] bool is_mapped_byte(const u32 address) noexcept {
@@ -341,7 +343,8 @@ void synchronize_typed_aliases(
     LegacyBattleOutcomeResolutionState& outcome_resolution,
     LegacyBattleOutcomeFinalizationState& outcome_finalization,
     LegacyBattleVerticalShiftState& vertical_shift,
-    LegacyBattleInputDispatchState& input_dispatch
+    LegacyBattleInputDispatchState& input_dispatch,
+    LegacyBattleFrameInputResolutionState& frame_input_resolution
 ) {
     startup.render_geometry = {};
     auto& reset = startup.reset;
@@ -481,6 +484,20 @@ void synchronize_typed_aliases(
     input_dispatch.interaction_mode = 0U;
     input_dispatch.signed_status = 0U;
     input_dispatch.choice_selection_index = 0U;
+
+    frame_input_resolution.previous_mouse_x = 0;
+    frame_input_resolution.previous_mouse_y = 0;
+    frame_input_resolution.list_selection = 1U;
+    frame_input_resolution.grid_selection = 1U;
+    frame_input_resolution.current_equipment_selection = 2U;
+    frame_input_resolution.panel_scroll_a = 0U;
+    frame_input_resolution.panel_scroll_b = 0U;
+    frame_input_resolution.panel_origin_x = 0U;
+    frame_input_resolution.panel_origin_y = 0U;
+    frame_input_resolution.selection_block_word = 0U;
+    frame_input_resolution.target_selection_block = 0U;
+    frame_input_resolution.target_selection_suppression = 0U;
+    startup.supplemental_count_word = 0U;
 }
 
 void record_call(
@@ -552,7 +569,8 @@ LegacyBattleGlobalResetResult reset_legacy_battle_globals(
         port.outcome_resolution_state(),
         port.outcome_finalization_state(),
         port.battle_vertical_shift_state(),
-        port.battle_input_dispatch_state()
+        port.battle_input_dispatch_state(),
+        port.battle_frame_input_resolution_state()
     );
 
     record_call(

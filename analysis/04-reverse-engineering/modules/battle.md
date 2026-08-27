@@ -429,6 +429,8 @@ I5最终必须锁定：
 
 `audit_order=109`的`0x0045F2A0`已关闭为`platform_adapted`。完整权威LST主体`0x0045F2A0..0x0045FC5F`从proc到endp共1176行、868条实际指令、54个call、129个跳转、71个局部标签且无外部chunk。函数先清菜单动作并以渲染中止精确1早退；随后按固定顺序处理DIK 2..9与启动permission byte、20条输入记录中的15个固定槽、signed重复节拍、撤退20/50ms双路径、角色工作区、selected option、鼠标开区间、热点链清理/计数、左右回绕和最终尾清零。8次DIK与热点语义直接复用已关闭typed helper，17类后续战斗callee归单一typed输入端口。组A对象token严格以`active-8`的u32回绕索引计算，两处不同workspace基址均折叠为唯一共享数组的`active+2`物理槽；输入记录与workspace只在首次真实访问typed-stop。其余共享值复用启动、最终角色、动作、metric、消息/terminal、调试、prompt、对话和热点唯一owner，新增未命名值统一归输入分派state port并接入全局重置原写集合。唯一逐帧caller删除第二前置opaque stage，第一stage完整ECX/EDX进入本函数，本函数普通返回继续传入角色预处理，typed-stop阻断所有后续帧阶段。
 
-下一项回收`audit_order=110`的`0x0045FC60`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗函数。
+`audit_order=110`的`0x0045FC60`已关闭为`platform_adapted`。完整权威LST主体`0x0045FC60..0x00460BF7`从proc到endp共1917行、1165条实际指令、31个call、189个跳转、118个局部标签、27个返回点且无外部chunk。函数以战斗前帧鼠标和pre-frame gate形成入口门，直接复用热点vector首命中；31项消息switch只执行0/1/2/3/4/5/8/27/30九个case，严格恢复party hover、permission网格、signed行限制、菜单按钮、三列网格和全部strict/closed矩形边界。case3按启动模式选择组B或组A逆向目标扫描，复用启动party映射/offset、最终角色order/完成槽、metric数量和已关闭TSW像素查询；组A同active不可选时仍执行完整64点call，组B selection 6保留目标动作模式查询。party映射、offset、permission、启动模式、actor order、完成槽、marker和图像源仅在首次原始访问typed-stop。唯一逐帧caller删除最后前置opaque stage，音乐callee完整寄存器进入本函数，本函数完整ECX/EDX进入相邻输入分派；typed-stop阻断全部后续帧。全局重置只同步原写集合。
+
+下一项回收`audit_order=111`的`0x00460C40`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。
