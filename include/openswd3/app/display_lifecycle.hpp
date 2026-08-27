@@ -44,7 +44,7 @@ enum class ShutdownOperation {
     release_font_16,
     release_font_12,
     release_00406e00,
-    release_0045ea30,
+    reserved_battle_runtime_release_slot,
     release_00478110,
     drain_list_004a9a2c,
     release_0040f5e0,
@@ -100,6 +100,7 @@ public:
     virtual ~ShutdownPorts() = default;
 
     virtual void perform_shutdown_operation(ShutdownOperation operation) = 0;
+    virtual void release_battle_runtime() = 0;
     [[nodiscard]] virtual bool
     perform_shutdown_close(ShutdownCloseOperation operation) = 0;
     virtual void

@@ -87,6 +87,9 @@ public:
     void perform_shutdown_operation(openswd3::app::ShutdownOperation) override {
         record_shutdown();
     }
+    void release_battle_runtime() override {
+        record_shutdown();
+    }
     bool
     perform_shutdown_close(openswd3::app::ShutdownCloseOperation) override {
         record_shutdown();

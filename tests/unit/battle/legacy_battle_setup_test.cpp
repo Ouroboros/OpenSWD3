@@ -53,6 +53,7 @@ void test_battle_object_reset(openswd3::test::Context& test);
 void test_battle_outcome_finalization(openswd3::test::Context& test);
 void test_battle_outcome_resolution(openswd3::test::Context& test);
 void test_battle_pair_transition(openswd3::test::Context& test);
+void test_battle_runtime_shutdown(openswd3::test::Context& test);
 void test_battle_party_item_order(openswd3::test::Context& test);
 void test_battle_player_item_order(openswd3::test::Context& test);
 void test_battle_player_item_quantity(openswd3::test::Context& test);
@@ -7005,6 +7006,7 @@ int main() {
     test_battle_outcome_finalization(test);
     test_battle_outcome_resolution(test);
     test_battle_pair_transition(test);
+    test_battle_runtime_shutdown(test);
     test_battle_party_item_order(test);
     test_battle_player_item_order(test);
     test_battle_player_item_quantity(test);

@@ -12,7 +12,7 @@ ABI为thiscall：ECX是战斗绘制owner；无栈参数。
 
 - `0x004518D0`尾跳wrapper；该wrapper注册为CRT退出回调，返回值被运行库忽略；
 - `0x0045B630`普通调用，下一条owner无关读取覆盖EAX；
-- `0x0045EA30`普通调用，后续循环callee覆盖EAX。
+- `0x0045EA30`已关闭战斗运行时销毁直接组合typed清理，后续固定对象析构覆盖尾寄存器。
 
 直接callee为已关闭附属缓冲释放`0x00433F00`一处，以及旧内存释放入口`0x004885A0`两处。
 
@@ -32,7 +32,7 @@ ABI为thiscall：ECX是战斗绘制owner；无栈参数。
 
 现代实现直接调用已关闭`release_legacy_battle_render_auxiliary_buffer`，不保留opaque callback。两张行表沿用已关闭重建callee建立的独立`unique_ptr<u32[]>`所有权，并按surface后主表的源码顺序分别`reset()`。
 
-现代返回`LegacyBattleRenderCleanupResult`，只记录三个分支是否持有并释放资源，方便caller与测试核对。它不宣称复现原EAX残值；所有三个旧caller均不消费该值。
+现代返回`LegacyBattleRenderCleanupResult`，只记录三个分支是否持有并释放资源，方便caller与测试核对。它不宣称复现原EAX残值；三个caller均不消费该值，其中运行时销毁随后固定执行10次组A与8次组B对象析构。
 
 关键顺序没有被RAII析构次序替代：函数体显式先执行附属缓冲callee，再检查并释放surface行表，最后检查并释放主行表。owner本身的后续析构不承担本函数语义。
 

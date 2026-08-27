@@ -102,6 +102,7 @@ private:
 
 enum class ShutdownEventKind {
     operation,
+    battle_runtime,
     close,
     report,
 };
@@ -121,6 +122,10 @@ public:
         events.push_back(
             {ShutdownEventKind::operation, static_cast<u32>(operation)}
         );
+    }
+
+    void release_battle_runtime() override {
+        events.push_back({ShutdownEventKind::battle_runtime, 0U});
     }
 
     bool perform_shutdown_close(
@@ -149,6 +154,10 @@ public:
 
 ShutdownEvent operation_event(const openswd3::app::ShutdownOperation value) {
     return {ShutdownEventKind::operation, static_cast<u32>(value)};
+}
+
+ShutdownEvent battle_runtime_event() {
+    return {ShutdownEventKind::battle_runtime, 0U};
 }
 
 ShutdownEvent close_event(const openswd3::app::ShutdownCloseOperation value) {
@@ -260,7 +269,7 @@ void test_shutdown(openswd3::test::Context& test) {
         operation_event(release_font_16),
         operation_event(release_font_12),
         operation_event(release_00406e00),
-        operation_event(release_0045ea30),
+        battle_runtime_event(),
         operation_event(release_00478110),
         operation_event(drain_list_004a9a2c),
         operation_event(release_0040f5e0),

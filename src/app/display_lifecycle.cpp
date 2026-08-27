@@ -69,7 +69,7 @@ compat::i32 run_total_shutdown(ShutdownPorts& ports) {
     run(ShutdownOperation::release_font_16);
     run(ShutdownOperation::release_font_12);
     run(ShutdownOperation::release_00406e00);
-    run(ShutdownOperation::release_0045ea30);
+    ports.release_battle_runtime();
     run(ShutdownOperation::release_00478110);
     run(ShutdownOperation::drain_list_004a9a2c);
     run(ShutdownOperation::release_0040f5e0);

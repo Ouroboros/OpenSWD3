@@ -324,6 +324,10 @@ public:
         record_once();
     }
 
+    void release_battle_runtime() override {
+        record_once();
+    }
+
     bool
     perform_shutdown_close(openswd3::app::ShutdownCloseOperation) override {
         record_once();

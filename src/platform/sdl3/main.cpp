@@ -41,6 +41,7 @@
 #include "openswd3/asset_runtime/legacy_ani_role_particle_effect.hpp"
 #include "openswd3/asset_runtime/legacy_tsw_runtime.hpp"
 #include "openswd3/battle/legacy_battle_assets.hpp"
+#include "openswd3/battle/legacy_battle_runtime_shutdown.hpp"
 #include "openswd3/battle/legacy_battle_setup.hpp"
 #include "openswd3/diagnostics/log.hpp"
 #include "openswd3/input_time_rng/legacy_crt_rng.hpp"
@@ -1110,17 +1111,20 @@ private:
     bool& running_;
 };
 
-class SmokeShutdownPorts final : public openswd3::app::ShutdownPorts {
+class SmokeShutdownPorts final
+    : public openswd3::app::ShutdownPorts,
+      public openswd3::battle::LegacyBattleRuntimeShutdownPort {
 public:
     SmokeShutdownPorts(
         openswd3::rendering::LegacyTextRendererRuntime& text_renderers,
         openswd3::audio_video::LegacyStreamManager& stream_manager,
         openswd3::audio_video::LegacySampleManager& sample_manager,
-        openswd3::world_map::LegacyWorldItemListState& world_item_lists
+        openswd3::world_map::LegacyWorldItemListState& world_item_lists,
+        openswd3::battle::LegacyBattleStartupState& battle_runtime
     )
         : text_renderers_(text_renderers), stream_manager_(stream_manager),
-          sample_manager_(sample_manager), world_item_lists_(world_item_lists) {
-    }
+          sample_manager_(sample_manager), world_item_lists_(world_item_lists),
+          battle_runtime_(battle_runtime) {}
 
     void bind_packed_row_effects(
         std::list<openswd3::rendering::LegacyPackedRowEffect>& effects
@@ -1251,6 +1255,21 @@ public:
         }
     }
 
+    void release_battle_runtime() override {
+        static_cast<void>(openswd3::battle::shutdown_legacy_battle_runtime(
+            battle_runtime_, *this
+        ));
+    }
+
+    void release(openswd3::compat::u32) noexcept override {}
+
+    [[nodiscard]] openswd3::battle::LegacyBattleRuntimeShutdownCallReply
+    invoke_battle_runtime_shutdown(
+        const openswd3::battle::LegacyBattleRuntimeShutdownCallRequest&
+    ) override {
+        return {};
+    }
+
     bool
     perform_shutdown_close(openswd3::app::ShutdownCloseOperation) override {
         return true;
@@ -1265,6 +1284,7 @@ private:
     openswd3::audio_video::LegacyStreamManager& stream_manager_;
     openswd3::audio_video::LegacySampleManager& sample_manager_;
     openswd3::world_map::LegacyWorldItemListState& world_item_lists_;
+    openswd3::battle::LegacyBattleStartupState& battle_runtime_;
     openswd3::world_map::LegacyPictureActionLists* picture_actions_{};
     std::list<openswd3::rendering::LegacyPackedRowEffect>*
         packed_row_effects_{};
@@ -7278,8 +7298,13 @@ int main(const int argument_count, char** arguments) {
         running
     );
     openswd3::world_map::LegacyWorldItemListState world_item_lists;
+    openswd3::battle::LegacyBattleStartupState battle_runtime;
     SmokeShutdownPorts shutdown_ports(
-        text_renderers, stream_manager, sample_manager, world_item_lists
+        text_renderers,
+        stream_manager,
+        sample_manager,
+        world_item_lists,
+        battle_runtime
     );
 
     SdlProcessExitPorts exit_ports(running);
