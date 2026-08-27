@@ -118,6 +118,7 @@ struct Fixture {
     LegacyBattleActorMetricState metrics;
     LegacyBattleStartupState startup;
     LegacyBattleFinalActorStepState final_actor;
+    openswd3::battle::LegacyBattleActionDispatchState action;
     u32 message_state{};
     LegacyBattleEffectCoordinatorState effects;
     LegacyFramebuffer framebuffer;
@@ -134,6 +135,7 @@ struct Fixture {
             .metrics = metrics,
             .startup = startup,
             .final_actor = final_actor,
+            .action = action,
             .message_state = message_state,
             .effects = effects,
             .framebuffer = framebuffer,
@@ -203,7 +205,7 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
         fixture.overlay.battle_mode = 3U;
         fixture.message_state = 4U;
         fixture.final_actor.pre_frame_gate_b = 5U;
-        fixture.overlay.message_status = 0x12345678U;
+        fixture.action.packed_actor_counter = 0x12345678U;
         fixture.overlay.selection_status = 0xABCD4321U;
         fixture.final_actor.published_actor_code = 6U;
         fixture.overlay.lock_count = 7U;

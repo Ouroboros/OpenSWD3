@@ -319,7 +319,7 @@ LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
                 if (bindings.actor_frames != nullptr) {
                     bindings.actor_frames->shared.action.action_pending_aux =
                         0U;
-                    bindings.actor_frames->shared.action_pending_secondary = 0U;
+                    port.outcome_resolution_state().resolution_latch = 0U;
                 }
                 bindings.actor_metrics.priority_actor_index = 0xFFFFFFFFU;
 
@@ -425,7 +425,7 @@ LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
                 bindings.final_actor.frame_gate_b = 1U;
                 bindings.final_actor.frame_gate_a = 1U;
                 bindings.actor_frames->shared.action.action_pending_aux = 1U;
-                bindings.actor_frames->shared.action_pending_secondary = 1U;
+                port.outcome_resolution_state().resolution_latch = 1U;
                 bindings.final_actor.actor_order.fill(0U);
                 state.block_53af30.fill(0U);
                 for (auto& record : bindings.startup.reset.records_524788) {

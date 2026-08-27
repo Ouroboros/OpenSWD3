@@ -6,6 +6,7 @@
 #include "openswd3/battle/legacy_battle_frame_effect.hpp"
 #include "openswd3/battle/legacy_battle_pair_transition.hpp"
 #include "openswd3/battle/legacy_battle_frame_refresh.hpp"
+#include "openswd3/battle/legacy_battle_outcome_state.hpp"
 #include "openswd3/battle/legacy_battle_group_b_order.hpp"
 #include "openswd3/battle/legacy_battle_player_item_quantity.hpp"
 #include "openswd3/battle/legacy_battle_scale_scan.hpp"
@@ -67,6 +68,7 @@ class LegacyBattleActionDispatchPort
     : public virtual LegacyBattleActorMetricStatePort,
       public virtual LegacyBattlePairTransitionPort,
       public virtual LegacyBattleSharedPhaseStatePort,
+      public virtual LegacyBattleOutcomeResolutionStatePort,
       public virtual LegacyBattleFrameRefreshStatePort,
       public virtual world_map::LegacyWorldItemListStatePort {
 public:

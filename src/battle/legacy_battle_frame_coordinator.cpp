@@ -517,6 +517,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
                 .metrics = port.actor_metric_state(),
                 .startup = context.startup,
                 .final_actor = context.final_actor_step,
+                .action = context.action_dispatch,
                 .message_state = port.battle_message_state(),
                 .effects = port.effect_coordinator_state(),
                 .framebuffer = context.frame_zero.framebuffer,
@@ -533,9 +534,31 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             return result;
         }
     }
-    static_cast<void>(invoke(
-        port, result, LegacyBattleFrameCoordinatorCall::post_input_stage_0
-    ));
+    result.outcome_resolution = update_legacy_battle_outcome_resolution(
+        {
+            .frame_active = state.active,
+            .group_a_count = port.actor_metric_state().group_a_count,
+            .group_b_count = port.actor_metric_state().group_b_count,
+            .final_actor = context.final_actor_step,
+            .action = context.action_dispatch,
+            .message_state = port.battle_message_state(),
+            .battle_mode_flags =
+                port.battle_debug_hotkey_state().battle_mode_flags_53bc24,
+            .framebuffer = context.frame_zero.framebuffer,
+            .shared_effects = context.frame_zero.shared_effects,
+        },
+        port
+    );
+    ++result.outcome_resolution_calls;
+    result.port_calls += result.outcome_resolution.audio_suspend_calls +
+        result.outcome_resolution.outcome_calls;
+    if (result.outcome_resolution.status !=
+        LegacyBattleOutcomeResolutionStatus::completed) {
+        result.status =
+            LegacyBattleFrameCoordinatorStatus::outcome_resolution_typed_stop;
+        return result;
+    }
+
     static_cast<void>(invoke(
         port, result, LegacyBattleFrameCoordinatorCall::post_input_stage_1
     ));

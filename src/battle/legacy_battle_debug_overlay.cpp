@@ -400,7 +400,9 @@ LegacyBattleDebugOverlayResult draw_legacy_battle_debug_overlay(
             state,
             result,
             "MsD:%d dRole1:%d CanS:%d",
-            static_cast<int>(static_cast<compat::u8>(state.message_status)),
+            static_cast<int>(
+                static_cast<compat::u8>(bindings.action.packed_actor_counter)
+            ),
             static_cast<int>(bindings.effects.group_a_feedback_actor),
             static_cast<int>(static_cast<u16>(state.selection_status))
         );

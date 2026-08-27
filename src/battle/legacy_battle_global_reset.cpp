@@ -254,7 +254,7 @@ struct MappedRange {
     u32 bytes;
 };
 
-constexpr std::array<MappedRange, 68> kMappedRanges{{
+constexpr std::array<MappedRange, 74> kMappedRanges{{
     {0x004A754CU, 0x04U},  {0x004A7564U, 0x04U},  {0x004A7620U, 0x08U},
     {0x004A7630U, 0x02U},  {0x004A7644U, 0x02U},  {0x004FDF7CU, 0x02U},
     {0x004FDF8CU, 0x04U},  {0x004FDFA4U, 0x04U},  {0x004FE5CCU, 0x2CU},
@@ -271,13 +271,15 @@ constexpr std::array<MappedRange, 68> kMappedRanges{{
     {0x0053BCE0U, 0x04U},  {0x0053BCE8U, 0x04U},  {0x0053BC24U, 0x04U},
     {0x0052441CU, 0x04U},  {0x0053BCF4U, 0x04U},  {0x0053BD40U, 0x04U},
     {0x0053BD50U, 0x08U},  {0x0053BD5CU, 0x04U},  {0x0053BD7CU, 0x10U},
-    {0x0053BDA0U, 0x04U},  {0x0053BCECU, 0x04U},  {0x0053BF00U, 0x01U},
-    {0x0053BF60U, 0x04U},  {0x0053BF64U, 0x08U},  {0x0053BF74U, 0x04U},
-    {0x0053BF7CU, 0x04U},  {0x0053BF80U, 0x04U},  {0x0053BFA8U, 0x04U},
-    {0x0053BFC0U, 0x08U},  {0x0053BFB8U, 0x08U},  {0x0053BFCCU, 0x04U},
-    {0x0053BFF4U, 0x04U},  {0x0053C000U, 0x04U},  {0x0053C018U, 0x04U},
-    {0x0053C040U, 0x04U},  {0x0053C048U, 0x04U},  {0x0053C050U, 0x02U},
-    {0x0053C4A0U, 0x04U},  {0x0053C4C0U, 0x01U},
+    {0x0053BDA0U, 0x04U},  {0x0053BCECU, 0x04U},  {0x0053BEFFU, 0x01U},
+    {0x0053BF00U, 0x01U},  {0x0053BF0CU, 0x02U},  {0x0053BF24U, 0x02U},
+    {0x0053BF5CU, 0x04U},  {0x0053BF60U, 0x04U},  {0x0053BF64U, 0x08U},
+    {0x0053BF74U, 0x04U},  {0x0053BF7CU, 0x04U},  {0x0053BF80U, 0x04U},
+    {0x0053BFA8U, 0x04U},  {0x0053BFC0U, 0x08U},  {0x0053BFB8U, 0x08U},
+    {0x0053BFCCU, 0x04U},  {0x0053BFF4U, 0x04U},  {0x0053C000U, 0x04U},
+    {0x0053C018U, 0x04U},  {0x0053BFE4U, 0x04U},  {0x0053C040U, 0x04U},
+    {0x0053C048U, 0x04U},  {0x0053C050U, 0x02U},  {0x0053C4A0U, 0x04U},
+    {0x0053C4C0U, 0x01U},  {0x0053CEACU, 0x04U},
 }};
 
 [[nodiscard]] bool is_mapped_byte(const u32 address) noexcept {
@@ -331,7 +333,8 @@ void synchronize_typed_aliases(
     LegacyBattleEffectShiftState& shift,
     LegacyBattleEffectCoordinatorState& coordinator,
     LegacyBattleDebugHotkeyState& debug_hotkeys,
-    LegacyBattleDebugOverlayState& debug_overlay
+    LegacyBattleDebugOverlayState& debug_overlay,
+    LegacyBattleOutcomeResolutionState& outcome_resolution
 ) {
     startup.render_geometry = {};
     auto& reset = startup.reset;
@@ -374,9 +377,13 @@ void synchronize_typed_aliases(
     final_actor.selection_gate = 0U;
     final_actor.queued_actor_code = 0U;
     final_actor.actor_order.fill(0U);
+    final_actor.removed_group_a_count = 0U;
+    final_actor.excluded_group_a_count = 0U;
     message_state = 0U;
     terminal_latch = 0U;
     pair_primary_value = 0U;
+    action.phase_counter &= 0xFFFF0000U;
+    action.packed_actor_counter &= 0xFFFFFF00U;
     std::fill_n(action.opponent_workspace.begin(), 10U, 0U);
     std::fill_n(action.opponent_workspace.begin() + 16U, 80U, 0U);
 
@@ -384,7 +391,6 @@ void synchronize_typed_aliases(
     actor_frames.shared.target_ready_gate = 0U;
     actor_frames.shared.action_block_gate = 0U;
     actor_frames.shared.action.action_pending_aux = 0U;
-    actor_frames.shared.action_pending_secondary = 0U;
 
     color_accumulation = {};
 
@@ -434,9 +440,12 @@ void synchronize_typed_aliases(
     debug_overlay.gate = 0U;
     debug_overlay.selection_order.fill(0U);
     debug_overlay.battle_selector = -1;
-    debug_overlay.message_status &= 0xFFFFFF00U;
     debug_overlay.initial_mode = -1;
     debug_overlay.battle_frame = 0U;
+
+    outcome_resolution.resolution_latch = 0U;
+    outcome_resolution.darkening_gate = 0U;
+    outcome_resolution.force_group_b_resolution = 0U;
 }
 
 void record_call(
@@ -502,7 +511,8 @@ LegacyBattleGlobalResetResult reset_legacy_battle_globals(
         port.effect_shift_state(),
         port.effect_coordinator_state(),
         port.battle_debug_hotkey_state(),
-        debug_overlay
+        debug_overlay,
+        port.outcome_resolution_state()
     );
 
     record_call(

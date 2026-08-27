@@ -24,7 +24,6 @@ struct LegacyBattleGroupAFrameState {
 
     compat::u32 global_effect_override{};
     compat::u32 ai_coordination_enabled{};
-    compat::u32 action_pending_secondary{};
     compat::u32 actor_gate_argument{};
     std::array<compat::u32, 10> actor_enabled{};
     std::array<compat::u32, 10> actor_ai_primary{};

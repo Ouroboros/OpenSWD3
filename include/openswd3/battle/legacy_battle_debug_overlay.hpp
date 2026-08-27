@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_debug_hotkeys.hpp"
 #include "openswd3/battle/legacy_battle_effect_coordinator.hpp"
@@ -78,7 +79,6 @@ struct LegacyBattleDebugOverlayState {
 
     compat::i16 battle_selector{-1};
     compat::u32 battle_mode{};
-    compat::u32 message_status{};
     compat::u32 selection_status{};
     compat::u32 lock_count{};
     compat::u32 tsw_cache_bytes{};
@@ -99,6 +99,7 @@ struct LegacyBattleDebugOverlayBindings {
     LegacyBattleActorMetricState& metrics;
     LegacyBattleStartupState& startup;
     LegacyBattleFinalActorStepState& final_actor;
+    LegacyBattleActionDispatchState& action;
     compat::u32& message_state;
     LegacyBattleEffectCoordinatorState& effects;
     rendering::LegacyFramebuffer& framebuffer;

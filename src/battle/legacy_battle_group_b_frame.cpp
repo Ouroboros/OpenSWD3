@@ -288,7 +288,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
         if (invoke(port, result, kCallQueryTerminal, {source_token}).eax ==
                 0U &&
             action.action_pending_aux == 0U &&
-            shared.action_pending_secondary == 0U) {
+            port.outcome_resolution_state().resolution_latch == 0U) {
             static_cast<void>(
                 invoke(port, result, kCallUpdateOpponent, {source_token})
             );

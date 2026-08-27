@@ -4,6 +4,7 @@
 #include "openswd3/battle/legacy_battle_effect_coordinator.hpp"
 #include "openswd3/battle/legacy_battle_final_actor_step.hpp"
 #include "openswd3/battle/legacy_battle_group_b_frame.hpp"
+#include "openswd3/battle/legacy_battle_outcome_state.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 #include "openswd3/input_time_rng/legacy_input.hpp"
 #include "openswd3/world_map/legacy_world_player_control.hpp"
@@ -84,7 +85,8 @@ private:
 };
 
 class LegacyBattleDebugHotkeyPort
-    : public virtual LegacyBattleDebugHotkeyStatePort {
+    : public virtual LegacyBattleDebugHotkeyStatePort,
+      public virtual LegacyBattleOutcomeResolutionStatePort {
 public:
     virtual ~LegacyBattleDebugHotkeyPort() = default;
 

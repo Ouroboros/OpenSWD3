@@ -18,6 +18,8 @@ using openswd3::battle::LegacyBattleFrameCoordinatorCallReply;
 using openswd3::battle::LegacyBattleFrameCoordinatorCallRequest;
 using openswd3::battle::LegacyBattleHudCallReply;
 using openswd3::battle::LegacyBattleHudCallRequest;
+using openswd3::battle::LegacyBattleOutcomeResolutionCall;
+using openswd3::battle::LegacyBattleOutcomeResolutionCallReply;
 using openswd3::compat::i32;
 using openswd3::compat::u8;
 using openswd3::compat::u16;
@@ -29,6 +31,12 @@ public:
     [[nodiscard]] LegacyBattleFrameCoordinatorCallReply
     invoke(const LegacyBattleFrameCoordinatorCallRequest& request) override {
         calls.push_back(request);
+        if (request.call ==
+                LegacyBattleFrameCoordinatorCall::post_dialog_stage &&
+            publish_outcome_counts) {
+            actor_metric_state().group_b_count = outcome_group_b_count;
+            actor_metric_state().group_a_count = outcome_group_a_count;
+        }
         const auto found = replies.find(request.call);
         return found == replies.end() ? default_reply : found->second;
     }
@@ -57,6 +65,14 @@ public:
 
     void delay_milliseconds(const u32 milliseconds) override {
         debug_delays.push_back(milliseconds);
+    }
+
+    [[nodiscard]] LegacyBattleOutcomeResolutionCallReply
+    invoke_outcome_resolution(
+        const LegacyBattleOutcomeResolutionCall call
+    ) override {
+        outcome_calls.push_back(call);
+        return outcome_reply;
     }
 
     [[nodiscard]] LegacyBattleHudCallReply
@@ -101,6 +117,8 @@ public:
     std::vector<openswd3::battle::LegacyBattleDebugHotkeyCallRequest>
         debug_calls;
     std::vector<u32> debug_delays;
+    std::vector<LegacyBattleOutcomeResolutionCall> outcome_calls;
+    LegacyBattleOutcomeResolutionCallReply outcome_reply{};
     std::vector<LegacyBattleHudCallRequest> hud_calls;
     std::map<
         LegacyBattleFrameCoordinatorCall,
@@ -116,6 +134,9 @@ public:
         .edx = 0x22220000U,
         .published_value = 0xFFFFFFFFU,
     };
+    bool publish_outcome_counts{};
+    u32 outcome_group_b_count{};
+    u32 outcome_group_a_count{};
     u32 temporary_surface_token{0x70000000U};
     u32 music_return{0x12345678U};
     u32 surface_operation_return{0x87654321U};
@@ -874,10 +895,59 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleDebugOverlayStatus::
                         completed &&
                 result.debug_overlay.port_calls == 2U &&
+                result.outcome_resolution_calls == 1U &&
+                result.outcome_resolution.status ==
+                    openswd3::battle::LegacyBattleOutcomeResolutionStatus::
+                        completed &&
                 port.count(
                     LegacyBattleFrameCoordinatorCall::alternate_surface_stage
                 ) == 0U,
             "completed frame runs typed pre-frame and color stages before preserving temporary surface screenshot wrap and request clear"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleFrameCoordinatorState state;
+        Fixture fixture;
+        CoordinatorPort port;
+        port.outcome_resolution_state().darkening_gate = 1U;
+        port.outcome_resolution_state().darkening.channel_delta = -30;
+        port.publish_outcome_counts = true;
+        port.outcome_group_b_count = 0U;
+        port.outcome_group_a_count = 1U;
+        port.outcome_reply.eax = 0x55667788U;
+        configure_common_port(port);
+        auto context = fixture.context();
+
+        const auto result =
+            openswd3::battle::run_legacy_battle_frame_coordinator(
+                state, port, context, base_request()
+            );
+
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameCoordinatorStatus::
+                        completed &&
+                result.return_value == 0U &&
+                result.outcome_resolution_calls == 1U &&
+                !result.outcome_resolution.group_a_threshold_met &&
+                result.outcome_resolution.group_b_threshold_met &&
+                result.outcome_resolution.darkening_calls == 1U &&
+                result.outcome_resolution.audio_suspend_calls == 0U &&
+                result.outcome_resolution.outcome_calls == 1U &&
+                result.outcome_resolution.return_value == 0x55667788U &&
+                port.outcome_calls ==
+                    std::vector{
+                        LegacyBattleOutcomeResolutionCall::resolve_outcome
+                    } &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        reserved_outcome_resolution_slot
+                ) == 0U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::post_input_stage_1
+                ) == 1U,
+            "frame coordinator directly resolves group-B completion before continuing to the remaining post-input stage"
         );
     }
 
@@ -994,9 +1064,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleDebugOverlayStatus::
                         frame_divisor_zero &&
                 result.debug_overlay.text_draws == 12U &&
-                port.count(
-                    LegacyBattleFrameCoordinatorCall::post_input_stage_0
-                ) == 0U &&
+                result.outcome_resolution_calls == 0U &&
                 result.color_initialization_calls == 0U,
             "debug overlay division failure preserves its text prefix and blocks every later frame stage"
         );

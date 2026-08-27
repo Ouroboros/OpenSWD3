@@ -18,7 +18,7 @@
 
 frame enable完整值不等于1时跳过主体，仍执行公共画面效果、pending effect和最终actor尾。
 
-主体入口对当前组B对象执行terminal查询。仅terminal为0且两个pending dword都为0时调用update；当前对象post-update门为0、update gate完整EAX为1且message state不等于103时调用固定callback `(2,index)`。
+主体入口对当前组B对象执行terminal查询。仅terminal为0且两个pending dword都为0时调用update；第二pending dword现与组A帧、调试快捷键和结果判定latch共用唯一`LegacyBattleOutcomeResolutionStatePort`。当前对象post-update门为0、update gate完整EAX为1且message state不等于103时调用固定callback `(2,index)`。
 
 随后仅检查action auxiliary dword和turn-resolution **低word**。两者均为0且active effect target等于当前组B索引时：
 

@@ -176,10 +176,12 @@ one_based_group_b_token(const u32 one_based) noexcept {
     return port.invoke({.callee_token = callee, .arguments = arguments});
 }
 
-void reset_selection_gates(LegacyBattleGroupAFrameState& state) noexcept {
+void reset_selection_gates(
+    LegacyBattleGroupAFrameState& state, LegacyBattleActionDispatchPort& port
+) noexcept {
     state.final_actor_step.selection_gate = 0U;
     state.selection_aux_gate = 0U;
-    state.action_pending_secondary = 0U;
+    port.outcome_resolution_state().resolution_latch = 0U;
     state.action.action_pending_aux = 0U;
     state.final_actor_step.active_actor_code = 0U;
 }
@@ -273,7 +275,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
 
     if (state.ai_coordination_enabled == 1U &&
         state.action.action_pending_aux == 0U &&
-        state.action_pending_secondary == 0U) {
+        port.outcome_resolution_state().resolution_latch == 0U) {
         static_cast<void>(invoke(port, result, kCallPrepareAi, {actor_token}));
         if (invoke(
                 port, result, kCallQueryGlobalGate, {state.actor_gate_argument}
@@ -484,7 +486,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         static_cast<void>(
                             invoke(port, result, kCallSetSelectionMode, {0U})
                         );
-                        reset_selection_gates(state);
+                        reset_selection_gates(state, port);
                         state.ui_gate_a = 1U;
                         state.ui_gate_b = 1U;
                     }
@@ -523,7 +525,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     static_cast<void>(
                         invoke(port, result, kCallSetSelectionMode, {0U})
                     );
-                    reset_selection_gates(state);
+                    reset_selection_gates(state, port);
                     state.selected_opponent_one_based = 1U;
                 } else if (
                     invoke(
@@ -562,7 +564,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     static_cast<void>(
                         invoke(port, result, kCallFinalizeActor, {actor_token})
                     );
-                    reset_selection_gates(state);
+                    reset_selection_gates(state, port);
                     state.ui_gate_b = 1U;
                     state.ui_gate_c = 1U;
                 }
@@ -725,7 +727,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     state.ui_gate_b = 1U;
                     state.selected_actor_one_based = 1U;
                     state.ui_gate_c = 1U;
-                    reset_selection_gates(state);
+                    reset_selection_gates(state, port);
                 }
             }
         }
@@ -766,7 +768,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                 state.action_stage_word = 0U;
                 state.action.active_effect_gate = 0U;
                 state.action.action_pending_aux = 0U;
-                state.action_pending_secondary = 0U;
+                port.outcome_resolution_state().resolution_latch = 0U;
                 state.selection_mode = 0U;
                 state.final_actor_step.action_execution_active = 0U;
 
@@ -1075,7 +1077,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
         u16 turn = state.turn_resolution_bits;
         if ((turn & 0x4000U) != 0U) {
             state.action.action_pending_aux = 1U;
-            state.action_pending_secondary = 1U;
+            port.outcome_resolution_state().resolution_latch = 1U;
             if (invoke(port, result, kCallAdvanceTurnGate, {actor_token, 0U})
                     .eax == 1U) {
                 replace_low_word(
@@ -1129,7 +1131,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         replace_low_word(state.action.input_mode, 1U);
                         replace_high_word(state.action.phase_counter, 0U);
                         state.action.action_pending_aux = 0U;
-                        state.action_pending_secondary = 0U;
+                        port.outcome_resolution_state().resolution_latch = 0U;
                     }
                     const u32 stale_turn_argument =
                         (to_bits(state.action.group_b_count) & 0xFFFF0000U) |
@@ -1202,7 +1204,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         replace_low_word(state.action.input_mode, 1U);
                         replace_high_word(state.action.phase_counter, 0U);
                         state.action.action_pending_aux = 0U;
-                        state.action_pending_secondary = 0U;
+                        port.outcome_resolution_state().resolution_latch = 0U;
                     }
                 }
             }
@@ -1210,7 +1212,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
         }
         if (std::bit_cast<i16>(turn) < 0) {
             state.action.action_pending_aux = 1U;
-            state.action_pending_secondary = 1U;
+            port.outcome_resolution_state().resolution_latch = 1U;
             state.selection_aux_gate = 0U;
             state.final_actor_step.queued_actor_code = 0U;
             const u16 actor_bit = static_cast<u16>(1U << group_a_index);

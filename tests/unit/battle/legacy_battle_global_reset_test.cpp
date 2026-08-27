@@ -24,6 +24,7 @@ using openswd3::battle::LegacyBattleActionDispatchState;
 using openswd3::battle::LegacyBattleFinalActorStepState;
 using openswd3::battle::LegacyBattleGroupBFrameState;
 using openswd3::battle::LegacyBattleDebugOverlayState;
+using openswd3::battle::LegacyBattleOutcomeResolutionState;
 using openswd3::battle::LegacyBattleStartupCall;
 using openswd3::battle::LegacyBattleStartupCallReply;
 using openswd3::battle::LegacyBattleStartupCallRequest;
@@ -158,6 +159,7 @@ void seed_state(
     LegacyBattleDebugOverlayState& debug_overlay,
     ResetPort& port
 ) {
+    auto& outcome_resolution = port.outcome_resolution_state();
     state.unmapped_bytes[0x00ABCDEFU] = 0x5AU;
     state.unmapped_bytes[0x00520E40U] = 0x5AU;
     state.unmapped_bytes[0x005202A8U] = 0x5AU;
@@ -204,20 +206,22 @@ void seed_state(
     final_actor.frame_gate_b = 9U;
     final_actor.selection_gate = 9U;
     final_actor.queued_actor_code = 9U;
+    final_actor.removed_group_a_count = 9U;
+    final_actor.excluded_group_a_count = 0xCCDDU;
     final_actor.actor_runtime_records[0][0] = 9U;
     port.battle_message_state() = 9U;
+    action.phase_counter = 0x11223344U;
+    action.packed_actor_counter = 0xAABBCCDDU;
     action.opponent_workspace.fill(9U);
     actor_frames.shared.selection_aux_gate = 9U;
     actor_frames.shared.target_ready_gate = 9U;
     actor_frames.shared.action_block_gate = 9U;
     actor_frames.shared.action.action_pending_aux = 9U;
-    actor_frames.shared.action_pending_secondary = 9U;
     debug_overlay.gate = 9U;
     debug_overlay.resolved_actor_token = 0x11223344U;
     debug_overlay.selection_order.fill(9U);
     debug_overlay.battle_selector = 9;
     debug_overlay.battle_mode = 0x22334455U;
-    debug_overlay.message_status = 0xAABBCCDDU;
     debug_overlay.selection_status = 0x33445566U;
     debug_overlay.lock_count = 0x44556677U;
     debug_overlay.tsw_cache_bytes = 0x55667788U;
@@ -228,6 +232,10 @@ void seed_state(
     debug_overlay.marker_x = -13;
     debug_overlay.marker_row = -15;
     debug_overlay.text_buffer[0] = 'x';
+    outcome_resolution.resolution_latch = 9U;
+    outcome_resolution.darkening_gate = 9U;
+    outcome_resolution.force_group_b_resolution = 9U;
+    outcome_resolution.darkening.channel_delta = -30;
 
     auto& color = port.battle_color_accumulation_state();
     color.countdown = 9;
@@ -311,6 +319,7 @@ void test_battle_global_reset(openswd3::test::Context& test) {
             debug_overlay,
             port
         );
+        auto& outcome_resolution = port.outcome_resolution_state();
 
         const auto result = openswd3::battle::reset_legacy_battle_globals(
             state,
@@ -441,12 +450,15 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 final_actor.frame_gate_b == 0U &&
                 final_actor.selection_gate == 0U &&
                 final_actor.queued_actor_code == 0U &&
+                final_actor.removed_group_a_count == 0U &&
+                final_actor.excluded_group_a_count == 0U &&
+                action.phase_counter == 0x11220000U &&
+                action.packed_actor_counter == 0xAABBCC00U &&
                 final_actor.actor_runtime_records[0][0] == 9U &&
                 actor_frames.shared.selection_aux_gate == 0U &&
                 actor_frames.shared.target_ready_gate == 0U &&
                 actor_frames.shared.action_block_gate == 0U &&
                 actor_frames.shared.action.action_pending_aux == 0U &&
-                actor_frames.shared.action_pending_secondary == 0U &&
                 port.battle_message_state() == 0U &&
                 std::ranges::all_of(
                     workspace.first(10U),
@@ -534,7 +546,6 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 debug_overlay.resolved_actor_token == 0x11223344U &&
                 debug_overlay.battle_selector == -1 &&
                 debug_overlay.battle_mode == 0x22334455U &&
-                debug_overlay.message_status == 0xAABBCC00U &&
                 debug_overlay.selection_status == 0x33445566U &&
                 debug_overlay.lock_count == 0x44556677U &&
                 debug_overlay.tsw_cache_bytes == 0x55667788U &&
@@ -556,6 +567,19 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 state.unmapped_bytes.contains(0x0053BFBCU) == false &&
                 state.unmapped_bytes.contains(0x0053BDA0U) == false,
             "global reset synchronizes the debug overlay write set and preserves the high bytes of its byte store"
+        );
+        test.expect_true(
+            outcome_resolution.resolution_latch == 0U &&
+                outcome_resolution.darkening_gate == 0U &&
+                outcome_resolution.force_group_b_resolution == 0U &&
+                outcome_resolution.darkening.channel_delta == -30 &&
+                state.unmapped_bytes.contains(0x0053BF0CU) == false &&
+                state.unmapped_bytes.contains(0x0053BEFFU) == false &&
+                state.unmapped_bytes.contains(0x0053BF24U) == false &&
+                state.unmapped_bytes.contains(0x0053BF5CU) == false &&
+                state.unmapped_bytes.contains(0x0053BFE4U) == false &&
+                state.unmapped_bytes.contains(0x0053CEACU) == false,
+            "global reset synchronizes shared outcome gates while preserving action high fields and darkening delta"
         );
         test.expect_true(
             std::ranges::all_of(

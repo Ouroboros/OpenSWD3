@@ -164,6 +164,8 @@ bit`0x4000`阶段结束后会在同一次调用重读turn word，因此成功写
 
 ## 11. closed callee、端口与typed边界
 
+两个pending门中，第二项与战斗结果判定latch、组B帧和调试快捷键共用唯一`LegacyBattleOutcomeResolutionStatePort`，不再保留组A帧副本。
+
 46个唯一callee中：
 
 - `0x004539B0`已直接回收为typed动作主分派；

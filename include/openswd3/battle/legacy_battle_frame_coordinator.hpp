@@ -11,6 +11,7 @@
 #include "openswd3/battle/legacy_battle_debug_overlay.hpp"
 #include "openswd3/battle/legacy_battle_effect_coordinator.hpp"
 #include "openswd3/battle/legacy_battle_frame_effect.hpp"
+#include "openswd3/battle/legacy_battle_outcome_resolution.hpp"
 #include "openswd3/battle/legacy_battle_pre_frame.hpp"
 #include "openswd3/battle/legacy_battle_transition.hpp"
 #include "openswd3/rendering/legacy_action_renderers.hpp"
@@ -62,7 +63,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     post_render_stage_3,
     post_dialog_stage,
     reserved_debug_overlay_slot,
-    post_input_stage_0,
+    reserved_outcome_resolution_slot,
     post_input_stage_1,
     finalize_overlay,
     alternate_surface_stage,
@@ -99,6 +100,7 @@ class LegacyBattleFrameCoordinatorPort
       public LegacyBattlePreFramePort,
       public LegacyBattleDebugHotkeyPort,
       public LegacyBattleDebugOverlayPort,
+      public LegacyBattleOutcomeResolutionPort,
       public virtual LegacyBattleEffectCoordinatorStatePort {
 public:
     using LegacyBattleEffectCallPort::invoke;
@@ -215,6 +217,7 @@ enum class LegacyBattleFrameCoordinatorStatus : compat::u8 {
     pre_frame_typed_stop,
     debug_hotkey_typed_stop,
     debug_overlay_typed_stop,
+    outcome_resolution_typed_stop,
 };
 
 struct LegacyBattleFrameCoordinatorResult {
@@ -234,6 +237,8 @@ struct LegacyBattleFrameCoordinatorResult {
     compat::u32 debug_hotkey_calls{};
     LegacyBattleDebugOverlayResult debug_overlay{};
     compat::u32 debug_overlay_calls{};
+    LegacyBattleOutcomeResolutionResult outcome_resolution{};
+    compat::u32 outcome_resolution_calls{};
     LegacyBattleFrameEffectResult frame_effect{};
     compat::u32 frame_effect_calls{};
     LegacyBattleActorPriorityResult actor_priority{};

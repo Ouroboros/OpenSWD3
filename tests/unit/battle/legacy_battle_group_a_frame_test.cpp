@@ -392,7 +392,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 port.count(0x00483FD0U) == 1U &&
                 port.count(0x00485610U) == 1U &&
                 state.action.action_pending_aux == 0U &&
-                state.action_pending_secondary == 0U,
+                port.outcome_resolution_state().resolution_latch == 0U,
             "turn resolution preserves resolved maximum in stale low word and executes failure reset"
         );
     }
