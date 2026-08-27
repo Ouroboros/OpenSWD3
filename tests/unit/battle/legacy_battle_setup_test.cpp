@@ -57,6 +57,7 @@ void test_battle_group_effect_frame(openswd3::test::Context& test);
 void test_battle_hud_frame(openswd3::test::Context& test);
 void test_battle_input_dispatch(openswd3::test::Context& test);
 void test_battle_frame_input_resolution(openswd3::test::Context& test);
+void test_battle_menu_page_retreat(openswd3::test::Context& test);
 void test_battle_menu_selection_advance(openswd3::test::Context& test);
 void test_battle_menu_selection_retreat(openswd3::test::Context& test);
 void test_battle_intensity_effect_frame(openswd3::test::Context& test);
@@ -7013,6 +7014,7 @@ int main() {
     test_battle_frame_coordinator(test);
     test_battle_input_dispatch(test);
     test_battle_frame_input_resolution(test);
+    test_battle_menu_page_retreat(test);
     test_battle_menu_selection_advance(test);
     test_battle_menu_selection_retreat(test);
     test_battle_frame_effect(test);

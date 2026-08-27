@@ -494,6 +494,107 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
 
     {
         Fixture fixture;
+        fixture.message = 2U;
+        fixture.frame_input.list_selection = 1U;
+        fixture.frame_input.panel_scroll_a = 10U;
+        fixture.port.battle_input_dispatch_state().interaction_mode = 3U;
+        fixture.input.records[15U].rapid_press_multiplicity = 1U;
+        fixture.input.records[15U].held_sample_count = 1U;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_input_dispatch(
+                fixture.bindings(), fixture.port, {}
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleInputDispatchStatus::
+                        completed &&
+                result.menu_page_retreat_calls == 1U &&
+                fixture.frame_input.panel_scroll_a == 3U &&
+                fixture.port.battle_input_dispatch_state().menu_action == 5U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        reserved_menu_page_retreat_slot
+                ) == 0U,
+            "interaction mode three directly retreats the page before publishing its mouse action"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.message = 2U;
+        fixture.frame_input.list_selection = 1U;
+        fixture.frame_input.panel_scroll_a = 10U;
+        fixture.input.records[7U].rapid_press_multiplicity = 1U;
+        fixture.input.records[7U].held_sample_count = 1U;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_input_dispatch(
+                fixture.bindings(), fixture.port, {}
+            );
+        test.expect_true(
+            result.status ==
+                openswd3::battle::LegacyBattleInputDispatchStatus::completed,
+            "record seven page-retreat dispatch completes"
+        );
+        test.expect_true(
+            result.menu_page_retreat_calls == 1U,
+            "record seven invokes page retreat once"
+        );
+        test.expect_true(
+            fixture.frame_input.panel_scroll_a == 3U,
+            "record seven publishes the retreated list page"
+        );
+        test.expect_true(
+            fixture.port.battle_input_dispatch_state().mouse_action_gate == 1U,
+            "record seven publishes the page mouse gate"
+        );
+        test.expect_true(
+            fixture.port.count(
+                LegacyBattleInputDispatchCall::reserved_menu_page_retreat_slot
+            ) == 0U,
+            "record seven emits no opaque page-retreat slot"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.message = 4U;
+        fixture.frame_input.grid_selection = 1U;
+        fixture.frame_input.panel_scroll_b = 3U;
+        fixture.frame_input.current_equipment_selection = 4U;
+        fixture.input.records[7U].rapid_press_multiplicity = 1U;
+        fixture.input.records[7U].held_sample_count = 1U;
+        fixture.input.records[8U].rapid_press_multiplicity = 1U;
+        fixture.input.records[8U].held_sample_count = 1U;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_input_dispatch(
+                fixture.bindings(), fixture.port, {}
+            );
+        test.expect_true(
+            result.status ==
+                openswd3::battle::LegacyBattleInputDispatchStatus::
+                    menu_page_retreat_typed_stop,
+            "record seven propagates page-retreat typed-stop"
+        );
+        test.expect_true(
+            result.menu_page_retreat_calls == 1U,
+            "typed record seven invokes page retreat once"
+        );
+        test.expect_true(
+            fixture.frame_input.panel_scroll_b == 0U,
+            "typed record seven preserves the clamped grid page"
+        );
+        test.expect_true(
+            fixture.port.battle_input_dispatch_state().mouse_action_gate == 1U,
+            "typed record seven preserves the page mouse gate"
+        );
+        test.expect_true(
+            fixture.port.count(LegacyBattleInputDispatchCall::mode_four) == 0U,
+            "page-retreat typed-stop blocks the following mode-four input"
+        );
+    }
+
+    {
+        Fixture fixture;
         std::array<openswd3::input_time_rng::LegacyInputRecord, 2>
             short_input{};
         auto bindings = fixture.bindings();

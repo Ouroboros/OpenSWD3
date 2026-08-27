@@ -3,6 +3,7 @@
 #include <bit>
 #include <cstddef>
 
+#include "openswd3/battle/legacy_battle_menu_page_retreat.hpp"
 #include "openswd3/battle/legacy_battle_menu_selection_advance.hpp"
 #include "openswd3/battle/legacy_battle_menu_selection_retreat.hpp"
 
@@ -159,6 +160,30 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
         }
         return true;
     };
+    const auto retreat_menu_page = [&]() {
+        const auto nested = retreat_legacy_battle_menu_page(
+            {
+                .startup_reset = bindings.startup_reset,
+                .frame_input_resolution = bindings.frame_input_resolution,
+                .final_actor = bindings.final_actor,
+                .input_dispatch = state,
+                .message_state = bindings.message_state,
+            },
+            port,
+            {.entry_eax = eax, .entry_ecx = ecx, .entry_edx = edx}
+        );
+        ++result.menu_page_retreat_calls;
+        result.port_calls += nested.port_calls;
+        eax = nested.return_eax;
+        ecx = nested.return_ecx;
+        edx = nested.return_edx;
+        if (nested.status != LegacyBattleMenuPageRetreatStatus::completed) {
+            result.status =
+                LegacyBattleInputDispatchStatus::menu_page_retreat_typed_stop;
+            return false;
+        }
+        return true;
+    };
     const auto invoke_operation = [&](const LegacyBattleInputDispatchCall op) {
         if (op ==
             LegacyBattleInputDispatchCall::
@@ -169,6 +194,10 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
             LegacyBattleInputDispatchCall::
                 reserved_menu_selection_advance_slot) {
             return advance_menu_selection();
+        }
+        if (op ==
+            LegacyBattleInputDispatchCall::reserved_menu_page_retreat_slot) {
+            return retreat_menu_page();
         }
         static_cast<void>(call(op));
         return true;
@@ -485,9 +514,9 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
             }
             if (state.interaction_mode == 3U) {
                 state.menu_action = 3U;
-                static_cast<void>(
-                    call(LegacyBattleInputDispatchCall::mode_three)
-                );
+                if (!retreat_menu_page()) {
+                    return finish();
+                }
                 source = record(15U);
                 if (source == nullptr) {
                     return finish();
@@ -700,7 +729,9 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
     }
 
     for (const auto [index, operation] :
-         {std::pair{7U, LegacyBattleInputDispatchCall::mode_three},
+         {std::pair{
+              7U, LegacyBattleInputDispatchCall::reserved_menu_page_retreat_slot
+          },
           std::pair{8U, LegacyBattleInputDispatchCall::mode_four}}) {
         source = record(index);
         if (source == nullptr) {
@@ -713,8 +744,8 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
         ecx = 3U;
         eax = std::bit_cast<u32>(signed_count / 3);
         edx = std::bit_cast<u32>(signed_count % 3);
-        if (signed_count % 3 == 1) {
-            static_cast<void>(call(operation));
+        if (signed_count % 3 == 1 && !invoke_operation(operation)) {
+            return finish();
         }
     }
 
