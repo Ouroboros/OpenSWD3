@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <deque>
 #include <unordered_map>
 #include <vector>
@@ -25,7 +26,7 @@ using openswd3::compat::u32;
 
 class StartupPorts final
     : public openswd3::battle::LegacyBattleStartupPort,
-      public openswd3::battle::LegacyBattleDefinitionLoadPort,
+      public openswd3::battle::LegacyBattleDefinitionArchiveFilePort,
       public openswd3::battle::LegacyBattleBackgroundImageLoadPort,
       public openswd3::battle::LegacyBattleActionRotationReleasePort,
       public openswd3::battle::LegacyBattleActionRotationUpdatePort,
@@ -99,23 +100,72 @@ public:
     }
 
     [[nodiscard]] openswd3::battle::LegacyBattleDefinitionArchiveApiReply
-    open_header(
+    open_archive_file(
         const openswd3::battle::LegacyBattleDefinitionArchiveOpenRequest&
             request
     ) override {
-        archive_open_request = request;
+        archive_open_requests.push_back(request);
         ++archive_open_calls;
+        if (!archive_open_replies.empty()) {
+            const auto reply = archive_open_replies.front();
+            archive_open_replies.pop_front();
+            return reply;
+        }
         return archive_open_reply;
     }
 
     [[nodiscard]] openswd3::battle::LegacyBattleDefinitionArchiveReadReply
-    read_header(
+    read_archive_file(
         const openswd3::battle::LegacyBattleDefinitionArchiveReadRequest&
             request,
         const std::span<openswd3::compat::u8> destination
     ) override {
-        archive_read_request = request;
-        std::ranges::fill(destination, 0xA6U);
+        archive_read_requests.push_back(request);
+        std::ranges::fill(destination, 0U);
+        if (request.requested_bytes ==
+            openswd3::battle::kLegacyBattleDefinitionArchiveHeaderBytes) {
+            for (u32 index = 0U; index < 0x40U; ++index) {
+                destination[0x1F44U + index] = 1U;
+            }
+            if (force_definition_offset_stop) {
+                destination[0x1F45U] = 0x80U;
+            }
+        } else {
+            const auto write_u16 = [&](const u32 offset, const u16 value) {
+                destination[offset] = static_cast<openswd3::compat::u8>(value);
+                destination[offset + 1U] =
+                    static_cast<openswd3::compat::u8>(value >> 8U);
+            };
+            const auto write_u32 = [&](const u32 offset, const u32 value) {
+                destination[offset] = static_cast<openswd3::compat::u8>(value);
+                destination[offset + 1U] =
+                    static_cast<openswd3::compat::u8>(value >> 8U);
+                destination[offset + 2U] =
+                    static_cast<openswd3::compat::u8>(value >> 16U);
+                destination[offset + 3U] =
+                    static_cast<openswd3::compat::u8>(value >> 24U);
+            };
+            write_u32(0x04U, std::bit_cast<u32>(definition.rotation_divisor));
+            write_u16(0x24U, definition.secondary_count);
+            write_u16(0x28U, definition.background_action_id);
+            write_u32(0x58U, definition.background_field_b4);
+            write_u32(0x78U, definition.background_field_b8);
+            write_u16(0x98U, definition.enemy_count);
+            for (u32 index = 0U; index < definition.enemies.size(); ++index) {
+                write_u16(
+                    0x9CU + index * 4U, definition.enemies[index].role_id
+                );
+                write_u16(
+                    0xBCU + index * 2U, definition.enemies[index].mode_flag
+                );
+                write_u16(
+                    0xCCU + index * 4U, definition.enemies[index].position_x
+                );
+                write_u16(
+                    0xECU + index * 4U, definition.enemies[index].position_y
+                );
+            }
+        }
         ++archive_read_calls;
         auto reply = archive_read_reply;
         reply.bytes_read = static_cast<u32>(destination.size());
@@ -123,29 +173,23 @@ public:
     }
 
     [[nodiscard]] openswd3::battle::LegacyBattleDefinitionArchiveApiReply
-    close_header(
+    seek_archive_file(
+        const openswd3::battle::LegacyBattleDefinitionArchiveSeekRequest&
+            request
+    ) override {
+        archive_seek_requests.push_back(request);
+        ++archive_seek_calls;
+        return archive_seek_reply;
+    }
+
+    [[nodiscard]] openswd3::battle::LegacyBattleDefinitionArchiveApiReply
+    close_archive_file(
         const openswd3::battle::LegacyBattleDefinitionArchiveCloseRequest&
             request
     ) override {
-        archive_close_request = request;
+        archive_close_requests.push_back(request);
         ++archive_close_calls;
         return archive_close_reply;
-    }
-
-    [[nodiscard]] LegacyBattleDefinition load_definition(
-        const std::filesystem::path& archive_path,
-        const u32 archive_object_token,
-        const u32 definition_token,
-        const u32 battle_id,
-        const u32 variant_index
-    ) override {
-        loaded_path = archive_path;
-        loaded_archive_object_token = archive_object_token;
-        loaded_definition_token = definition_token;
-        loaded_battle_id = battle_id;
-        loaded_variant = variant_index;
-        ++definition_load_calls;
-        return definition;
     }
 
     [[nodiscard]] LegacyBattleBackgroundImageLoadResult load_image(
@@ -202,12 +246,16 @@ public:
     std::unordered_map<u32, u32> query_values;
     std::deque<u32> random_values;
     std::vector<LegacyBattleStartupCallRequest> requests;
-    openswd3::battle::LegacyBattleDefinitionArchiveOpenRequest
-        archive_open_request{};
-    openswd3::battle::LegacyBattleDefinitionArchiveReadRequest
-        archive_read_request{};
-    openswd3::battle::LegacyBattleDefinitionArchiveCloseRequest
-        archive_close_request{};
+    std::vector<openswd3::battle::LegacyBattleDefinitionArchiveOpenRequest>
+        archive_open_requests;
+    std::vector<openswd3::battle::LegacyBattleDefinitionArchiveReadRequest>
+        archive_read_requests;
+    std::vector<openswd3::battle::LegacyBattleDefinitionArchiveSeekRequest>
+        archive_seek_requests;
+    std::vector<openswd3::battle::LegacyBattleDefinitionArchiveCloseRequest>
+        archive_close_requests;
+    std::deque<openswd3::battle::LegacyBattleDefinitionArchiveApiReply>
+        archive_open_replies;
     openswd3::battle::LegacyBattleDefinitionArchiveApiReply archive_open_reply{
         .eax = 0x70000001U,
         .ecx = 0x11111111U,
@@ -218,27 +266,28 @@ public:
         .ecx = 0x33333333U,
         .edx = 0x44444444U,
     };
+    openswd3::battle::LegacyBattleDefinitionArchiveApiReply archive_seek_reply{
+        .eax = 0x2714U,
+        .ecx = 0x77777777U,
+        .edx = 0x88888888U,
+    };
     openswd3::battle::LegacyBattleDefinitionArchiveApiReply archive_close_reply{
         .eax = 1U,
         .ecx = 0x55555555U,
         .edx = 0x66666666U,
     };
-    std::filesystem::path loaded_path;
     std::filesystem::path background_path;
     u32 archive_open_calls{};
     u32 archive_read_calls{};
+    u32 archive_seek_calls{};
     u32 archive_close_calls{};
-    u32 loaded_archive_object_token{};
-    u32 loaded_definition_token{};
-    u32 loaded_battle_id{};
-    u32 loaded_variant{};
-    u32 definition_load_calls{};
     u32 background_resource{};
     u32 background_variant{};
     u32 background_load_calls{};
     u32 created_surface_count{};
     u32 no_enemy_return{0x87654321U};
     u32 party_actor_mode_return{};
+    bool force_definition_offset_stop{};
     std::vector<u32> released_images;
     std::vector<u32> released_owners;
 };
@@ -367,9 +416,12 @@ void test_battle_startup(openswd3::test::Context& test) {
                 state.render_binding_object
             )
         );
-        auto startup_request = request(0xABCD1234U);
+        auto startup_request = request(0xABCD0001U);
         startup_request.archive_number_of_bytes_read_token = 0x11112222U;
         startup_request.archive_entry_edx_snapshot = 0x33334444U;
+        startup_request.definition_record_number_of_bytes_read_token =
+            0x55556666U;
+        startup_request.definition_record_entry_edx_snapshot = 0x77778888U;
 
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
             state, ports, ports, ports, ports, ports, ports, startup_request
@@ -381,7 +433,7 @@ void test_battle_startup(openswd3::test::Context& test) {
                 result.return_value == 0x87654321U &&
                 result.no_enemy_notification_calls == 1U &&
                 result.action_threshold == 900 &&
-                state.battle_id_word == 0x1234U &&
+                state.battle_id_word == 0x0001U &&
                 reset_blocks_match(state, ports) && state.party_count == 2U &&
                 state.party_presence ==
                     std::array<openswd3::compat::u8, 4>{1U, 0U, 1U, 0U} &&
@@ -413,42 +465,55 @@ void test_battle_startup(openswd3::test::Context& test) {
                 result.definition_archive_header.open_calls == 1U &&
                 result.definition_archive_header.read_calls == 1U &&
                 result.definition_archive_header.close_calls == 1U &&
-                ports.archive_open_calls == 1U &&
-                ports.archive_read_calls == 1U &&
-                ports.archive_close_calls == 1U &&
-                ports.archive_open_request.path ==
+                result.definition_archive_record.status ==
+                    openswd3::battle::
+                        LegacyBattleDefinitionArchiveRecordLoadStatus::
+                            completed &&
+                result.definition_archive_record.battle_index == 1U &&
+                result.definition_archive_record.combined_record_index == 0U &&
+                result.definition_archive_record.file_offset == 0x2714U &&
+                ports.archive_open_calls == 2U &&
+                ports.archive_read_calls == 3U &&
+                ports.archive_seek_calls == 1U &&
+                ports.archive_close_calls == 2U &&
+                ports.archive_open_requests.size() == 2U &&
+                ports.archive_open_requests[0].path ==
                     std::filesystem::path("game-data/battle.ffd") &&
-                ports.archive_open_request.desired_access == 0x80000000U &&
-                ports.archive_open_request.share_mode == 0U &&
-                ports.archive_open_request.creation_disposition == 3U &&
-                ports.archive_open_request.flags_and_attributes == 0x80U &&
-                ports.archive_open_request.entry_eax == 0x004AAED0U &&
-                ports.archive_open_request.entry_ecx == 0x004FF5B8U &&
-                ports.archive_open_request.entry_edx == 0x33334444U &&
-                ports.archive_read_request.handle == 0x70000001U &&
-                ports.archive_read_request.destination_token == 0x004FF5BCU &&
-                ports.archive_read_request.requested_bytes == 0x2714U &&
-                ports.archive_read_request.entry_ecx == 0x11112222U &&
-                ports.archive_close_request.handle == 0x70000001U &&
-                ports.archive_close_request.entry_eax == 0x005241FCU &&
-                ports.archive_close_request.entry_ecx == 0x33333333U &&
-                ports.archive_close_request.entry_edx == 0x44444444U &&
+                ports.archive_open_requests[0].desired_access == 0x80000000U &&
+                ports.archive_open_requests[0].share_mode == 0U &&
+                ports.archive_open_requests[0].creation_disposition == 3U &&
+                ports.archive_open_requests[0].flags_and_attributes == 0x80U &&
+                ports.archive_open_requests[0].entry_eax == 0x004AAED0U &&
+                ports.archive_open_requests[0].entry_ecx == 0x004FF5B8U &&
+                ports.archive_open_requests[0].entry_edx == 0x33334444U &&
+                ports.archive_open_requests[1].entry_edx == 0x77778888U &&
+                ports.archive_read_requests.size() == 3U &&
+                ports.archive_read_requests[0].destination_token ==
+                    0x004FF5BCU &&
+                ports.archive_read_requests[0].entry_ecx == 0x11112222U &&
+                ports.archive_read_requests[1].destination_token ==
+                    0x004FF5BCU &&
+                ports.archive_read_requests[1].entry_ecx == 0x55556666U &&
+                ports.archive_read_requests[2].destination_token ==
+                    0x004FF1E0U &&
+                ports.archive_read_requests[2].requested_bytes == 0x010CU &&
+                ports.archive_seek_requests.size() == 1U &&
+                ports.archive_seek_requests[0].distance == 0x2714U &&
+                ports.archive_seek_requests[0].move_method == 0U &&
+                ports.archive_close_requests.size() == 2U &&
+                ports.archive_close_requests[0].entry_eax == 0x005241FCU &&
+                ports.archive_close_requests[1].entry_eax == 1U &&
+                ports.archive_close_requests[1].entry_ecx == 0x33333333U &&
+                ports.archive_close_requests[1].entry_edx == 0x44444444U &&
                 state.archive_header_index_token == 0x00501500U &&
-                state.render_binding_object.battle_header_bytes.front() ==
-                    0xA6U &&
-                state.render_binding_object.battle_header_bytes.back() ==
-                    0xA6U &&
+                state.render_binding_object.battle_header_bytes.front() == 0U &&
+                state.render_binding_object.battle_header_bytes.back() == 0U &&
                 state.render_binding_object.index_records.back().ordinal ==
                     29U &&
                 state.render_binding_object.index_records.back()
                         .five_step_quarter == 36 &&
-                ports.loaded_path ==
-                    std::filesystem::path("game-data/battle.ffd") &&
-                ports.loaded_archive_object_token == 0x004FF5B8U &&
-                ports.loaded_definition_token == 0x004FF1E0U &&
-                ports.loaded_battle_id == 0xABCD1234U &&
-                ports.loaded_variant == 0U &&
-                ports.definition_load_calls == 1U &&
+                result.definition_load_calls == 1U &&
+                result.definition.enemy_count == 0U &&
                 ports.call_count(
                     LegacyBattleStartupCall::release_display_surface
                 ) == 2U &&
@@ -467,11 +532,11 @@ void test_battle_startup(openswd3::test::Context& test) {
         state.mirror_mode = 1U;
         state.final_subtract_word = 1U;
         StartupPorts ports;
-        ports.archive_open_reply = {
+        ports.archive_open_replies.push_back({
             .eax = 0xFFFFFFFFU,
             .ecx = 0x77777777U,
             .edx = 0x88888888U,
-        };
+        });
         ports.party_actor_mode_return = 1U;
         ports.query_values = {
             {30U, 1U},
@@ -527,7 +592,11 @@ void test_battle_startup(openswd3::test::Context& test) {
                             open_failed &&
                 result.definition_archive_header.read_calls == 0U &&
                 result.definition_archive_header.close_calls == 1U &&
-                ports.definition_load_calls == 1U &&
+                result.definition_archive_record.status ==
+                    openswd3::battle::
+                        LegacyBattleDefinitionArchiveRecordLoadStatus::
+                            completed &&
+                result.definition_load_calls == 1U &&
                 result.background.status ==
                     openswd3::battle::
                         LegacyBattleBackgroundInitializationStatus::
@@ -778,6 +847,28 @@ void test_battle_startup(openswd3::test::Context& test) {
                         0x00538320U,
                     },
             "ninth enemy stops at the first actor object access after eight legacy side-effect prefixes"
+        );
+    }
+
+    {
+        LegacyBattleStartupState state;
+        StartupPorts ports;
+        ports.force_definition_offset_stop = true;
+        const auto result = openswd3::battle::initialize_legacy_battle_startup(
+            state, ports, ports, ports, ports, ports, ports, request(20U)
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleStartupStatus::
+                        definition_archive_typed_stop &&
+                result.definition_archive_record.status ==
+                    openswd3::battle::
+                        LegacyBattleDefinitionArchiveRecordLoadStatus::
+                            offset_table_typed_stop &&
+                result.definition_load_calls == 0U &&
+                result.no_enemy_notification_calls == 0U &&
+                ports.background_load_calls == 0U,
+            "definition offset typed stop preserves the loaded header and blocks every later startup phase"
         );
     }
 }

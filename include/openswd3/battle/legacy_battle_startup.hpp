@@ -48,37 +48,6 @@ inline constexpr std::array<compat::u16, 8> kLegacyBattleSupplementalRoleIds{
     40U,
 };
 
-struct LegacyBattleDefinitionEnemyRecord {
-    compat::u16 role_id{};
-    compat::u16 position_x{};
-    compat::u16 position_y{};
-    compat::u16 mode_flag{};
-};
-
-struct LegacyBattleDefinition {
-    compat::i32 rotation_divisor{};
-    compat::u16 secondary_count{};
-    compat::u16 background_action_id{};
-    compat::u32 background_field_b4{};
-    compat::u32 background_field_b8{};
-    compat::u16 enemy_count{};
-    std::array<LegacyBattleDefinitionEnemyRecord, 8> enemies{};
-};
-
-class LegacyBattleDefinitionLoadPort
-    : public LegacyBattleDefinitionArchiveHeaderPort {
-public:
-    ~LegacyBattleDefinitionLoadPort() override = default;
-
-    [[nodiscard]] virtual LegacyBattleDefinition load_definition(
-        const std::filesystem::path& archive_path,
-        compat::u32 archive_object_token,
-        compat::u32 definition_token,
-        compat::u32 battle_id,
-        compat::u32 variant_index
-    ) = 0;
-};
-
 enum class LegacyBattleStartupCall : compat::u16 {
     prepare_runtime,
     initialize_control_block,
@@ -227,6 +196,7 @@ struct LegacyBattleStartupState {
     LegacyBattleRenderGeometry render_geometry{};
     LegacyBattleRenderGeometryBindingObject render_binding_object{};
     compat::u32 archive_header_index_token{};
+    LegacyBattleDefinitionArchiveRecord definition_record{};
     LegacyBattleBackgroundState background{};
     LegacyBattleActionRotationCacheState background_rotation_cache{};
     LegacyBattleStartupResetBlocks reset{};
@@ -271,12 +241,15 @@ struct LegacyBattleStartupRequest {
     std::array<compat::u32, 4> party_values{};
     compat::u32 archive_number_of_bytes_read_token{};
     compat::u32 archive_entry_edx_snapshot{};
+    compat::u32 definition_record_number_of_bytes_read_token{};
+    compat::u32 definition_record_entry_edx_snapshot{};
 };
 
 enum class LegacyBattleStartupStatus : compat::u8 {
     completed,
     no_enemies,
     render_surface_typed_stop,
+    definition_archive_typed_stop,
     background_typed_stop,
     enemy_index_out_of_range,
     party_source_index_out_of_range,
@@ -304,6 +277,7 @@ struct LegacyBattleStartupResult {
     std::array<compat::u8, 3> display_completion_write_order{};
     std::filesystem::path definition_archive_path;
     LegacyBattleDefinitionArchiveHeaderLoadResult definition_archive_header{};
+    LegacyBattleDefinitionArchiveRecordLoadResult definition_archive_record{};
     LegacyBattleDefinition definition{};
     compat::u32 definition_load_calls{};
     compat::u32 no_enemy_notification_calls{};
@@ -332,7 +306,7 @@ release_legacy_battle_display_surfaces(
 [[nodiscard]] LegacyBattleStartupResult initialize_legacy_battle_startup(
     LegacyBattleStartupState& state,
     LegacyBattleStartupPort& port,
-    LegacyBattleDefinitionLoadPort& definition_load_port,
+    LegacyBattleDefinitionArchiveFilePort& archive_file_port,
     LegacyBattleBackgroundImageLoadPort& background_image_load_port,
     LegacyBattleActionRotationReleasePort& rotation_release_port,
     LegacyBattleActionRotationUpdatePort& action_update_port,

@@ -425,6 +425,8 @@ I5最终必须锁定：
 
 `audit_order=107`的`0x0045F130`已关闭为`platform_adapted`。完整权威LST主体`0x0045F130..0x0045F1A2`从proc到endp共62行、52条实际指令、4个call、1个跳转、1个局部标签且无外部chunk。双参数thiscall以绑定对象token、ANSI文件名和输出地址执行固定只读独占`CreateFileA`；全1handle失败时仍调用`CloseHandle`并返回EAX0、恢复ECX this及关闭EDX，不读对象也不发布输出。成功时固定把`0x2714`字节读入第106项同一对象`+4`，完全忽略`ReadFile`返回和实际长度，短读仅覆盖前缀；随后发布`this+0x1F48`索引token，关闭handle并强制返回EAX1、ECX this及关闭EDX。Windows open/read/close保留三项窄平台端口。唯一启动caller删除旧高层archive-open伪边界并直连；打开失败、短读或读失败都不阻断后续定义记录读取。
 
-下一项回收`audit_order=108`的`0x0045F1B0`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗函数。
+`audit_order=108`的`0x0045F1B0`已关闭为`platform_adapted`。完整权威LST主体`0x0045F1B0..0x0045F29D`从proc到endp共128行、108条实际指令、7个call、5个跳转、4个局部标签且无外部chunk。四参数thiscall以同一绑定对象、文件名、`0x10C`目标、battle ID和variant低byte重新打开并读取`0x2714`头部；全1handle仍关闭后返回0。battle ID只保留低16位，`this+0x1F48+id`的count按i8 signed非正拒绝，variant也按i8与count作strict-greater拒绝；随后把索引1到id-1的byte逐项i8符号扩展并u32累计，加signed variant后从`this+8+index*4`读取偏移dword。文件位置按`0x2714 + value*0x10C`低32位计算，seek返回忽略，再固定读`0x10C`记录并关闭；读取返回和短读均忽略。count和offset table只在首次真实越界访问typed-stop且故障路径不关闭。唯一启动caller删除最后高层definition load端口，直接持有raw记录唯一owner并按原offset投影背景、数量和八名敌人字段；普通0返回仍读取入口陈旧record，typed-stop阻断后续启动。
+
+下一项回收`audit_order=109`的`0x0045F2A0`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。
