@@ -28,6 +28,7 @@ void test_battle_actor_action_commit(openswd3::test::Context& test);
 void test_battle_actor_action_cycle(openswd3::test::Context& test);
 void test_battle_actor_action_reverse_cycle(openswd3::test::Context& test);
 void test_battle_actor_target_preparation(openswd3::test::Context& test);
+void test_battle_available_actor_cycle(openswd3::test::Context& test);
 void test_battle_action_dispatch(openswd3::test::Context& test);
 void test_battle_attack_order_dequeue(openswd3::test::Context& test);
 void test_battle_attack_order_entry(openswd3::test::Context& test);
@@ -7008,6 +7009,7 @@ int main() {
     test_battle_actor_action_cycle(test);
     test_battle_actor_action_reverse_cycle(test);
     test_battle_actor_target_preparation(test);
+    test_battle_available_actor_cycle(test);
     test_battle_action_dispatch(test);
     test_battle_attack_order_dequeue(test);
     test_battle_attack_order_entry(test);

@@ -100,7 +100,7 @@ void test_battle_actor_action_cycle(openswd3::test::Context& test) {
         fixture.metrics.group_a_count = 2U;
         fixture.port.replies = {
             LegacyBattleInputDispatchCallReply{
-                .eax = index + 8U,
+                .eax = 0U,
                 .ecx = 0x90U + index,
                 .edx = 0xA0U + index,
             },
@@ -119,15 +119,17 @@ void test_battle_actor_action_cycle(openswd3::test::Context& test) {
             result.status == LegacyBattleActorActionCycleStatus::completed &&
                 fixture.actor.pre_frame_gate_b == 0U &&
                 result.port_calls == 2U && result.resolve_calls == 1U &&
+                result.available_actor_cycle.candidate_calls == 4U &&
+                result.available_actor_cycle.candidate_codes[0U] ==
+                    expected_starts[index] &&
+                result.available_actor_cycle.candidate_codes[3U] ==
+                    index + 8U &&
                 result.commit_calls == 1U && fixture.port.calls.size() == 2U &&
                 fixture.port.calls[0U].call ==
-                    LegacyBattleInputDispatchCall::
-                        actor_action_resolve_available &&
-                fixture.port.calls[0U].arguments[0U] ==
-                    expected_starts[index] &&
-                fixture.port.calls[0U].eax == index &&
-                fixture.port.calls[0U].ecx == 0x22U &&
-                fixture.port.calls[0U].edx == 0x33U &&
+                    LegacyBattleInputDispatchCall::query_active_actor &&
+                fixture.port.calls[0U].eax == index * 0xBCDU &&
+                fixture.port.calls[0U].ecx == 0x005029D0U + index * 0x2F34U &&
+                fixture.port.calls[0U].edx == 2U &&
                 fixture.port.calls[1U].call ==
                     LegacyBattleInputDispatchCall::query_active_actor &&
                 fixture.port.calls[1U].eax == index * 0x3EFU &&
@@ -158,12 +160,14 @@ void test_battle_actor_action_cycle(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleActorActionCycleStatus::
-                        action_commit_typed_stop &&
-                result.resolve_calls == 1U && result.commit_calls == 1U &&
-                result.port_calls == 1U && fixture.port.calls.size() == 1U &&
-                result.return_eax == 11U && result.return_ecx == 0x90U &&
-                result.return_edx == 11U && fixture.startup.value_4ff0b0 == 9U,
-            "typed queue stop propagates through the forward cycle after preserving the resolver result"
+                        available_actor_cycle_typed_stop &&
+                result.resolve_calls == 1U && result.commit_calls == 0U &&
+                result.available_actor_cycle.candidate_calls == 1U &&
+                result.available_actor_cycle.candidate_codes[0U] == 11U &&
+                result.port_calls == 0U && fixture.port.calls.empty() &&
+                result.return_eax == 10U && result.return_edx == 12U &&
+                fixture.startup.value_4ff0b0 == 9U,
+            "candidate-order stop propagates through the forward cycle before queue commit"
         );
     }
 }
