@@ -33,19 +33,33 @@ reverse_cycle_legacy_battle_actor_action(
         return result;
     }
 
-    const auto resolve = port.invoke_input_dispatch({
-        .call = LegacyBattleInputDispatchCall::
-            actor_action_resolve_available_reverse,
-        .arguments = {kReverseCycleStarts[eax]},
-        .eax = eax,
-        .ecx = ecx,
-        .edx = edx,
-    });
-    ++result.port_calls;
+    result.available_actor_cycle = reverse_cycle_legacy_battle_available_actor(
+        {
+            .final_actor = bindings.final_actor,
+            .metrics = bindings.metrics,
+        },
+        port,
+        {
+            .starting_actor_code = kReverseCycleStarts[eax],
+            .entry_eax = eax,
+            .entry_ecx = ecx,
+            .entry_edx = edx,
+        }
+    );
     ++result.resolve_calls;
-    eax = resolve.eax;
-    ecx = resolve.ecx;
-    edx = resolve.edx;
+    result.port_calls += result.available_actor_cycle.port_calls;
+    eax = result.available_actor_cycle.return_eax;
+    ecx = result.available_actor_cycle.return_ecx;
+    edx = result.available_actor_cycle.return_edx;
+    if (result.available_actor_cycle.status !=
+        LegacyBattleAvailableActorCycleStatus::completed) {
+        result.status = LegacyBattleActorActionReverseCycleStatus::
+            available_actor_cycle_typed_stop;
+        result.return_eax = eax;
+        result.return_ecx = ecx;
+        result.return_edx = edx;
+        return result;
+    }
 
     const auto commit = commit_legacy_battle_actor_action(
         {

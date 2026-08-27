@@ -6,7 +6,7 @@
 
 权威LST主体为`0x004624C0..0x0046250A`，从proc到endp共47行、30条实际指令、1个静态call、3个跳转、3个局部/返回标签、2个`retn`，没有外部`FUNCTION CHUNK`。
 
-三个静态caller分别位于正向候选轮转两处和尚待独立审计的反向候选轮转一处。正向函数现已关闭并直接组合本实现；唯一callee仍为既有group-A角色状态查询边界。
+三个静态caller分别位于已关闭正向候选轮转两处和已关闭反向候选轮转一处；三处均直接组合本实现。唯一callee仍为既有group-A角色状态查询边界。
 
 ## 2. 固定count与队列扫描
 
@@ -28,8 +28,8 @@ count非零时才装载参数与十槽actor order起始token。扫描从索引0�
 
 ## 5. caller边界与验证
 
-正向候选轮转已关闭并在每次主表/相邻表候选查询时直接组合本实现，两处旧静态call不再保留opaque边界。反向候选轮转caller尚待所属工作包，关闭时同样必须直连本实现。
+正向和反向候选轮转都已关闭；每次主表或相邻物理候选查询均直接组合本实现，三处旧静态call不再保留opaque边界。两向轮转共享唯一物理候选表和actor order owner。
 
 定向测试覆盖count 0、固定count无匹配、零查询归一为1、非零查询归一为0、角色调用前EAX/ECX/EDX、十槽一过尾以及code 7回绕角色停点。
 
-当前缺少原版十槽角色队列、group-A对象、角色查询callee共享副作用、反向caller候选表轨迹及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版十槽角色队列、group-A对象、角色查询callee共享副作用及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

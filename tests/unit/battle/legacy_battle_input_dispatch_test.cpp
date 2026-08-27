@@ -504,8 +504,8 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
                 result.actor_action_reverse_cycle_calls == 1U &&
                 fixture.port.count(
                     LegacyBattleInputDispatchCall::
-                        actor_action_resolve_available_reverse
-                ) == 1U &&
+                        reserved_available_actor_reverse_cycle_slot
+                ) == 0U &&
                 fixture.port.count(
                     LegacyBattleInputDispatchCall::
                         reserved_actor_action_commit_nested_slot
@@ -551,7 +551,7 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
                         reserved_menu_context_retreat_slot
                 ) == 0U &&
                 fixture.port.samples.empty() && result.return_eax == 9U &&
-                result.return_ecx == 9U && result.return_edx == 0x33333333U,
+                result.return_ecx == 9U && result.return_edx == 1U,
             "record-three menu context typed-stop preserves the completed reverse cycle and blocks later records"
         );
     }
@@ -819,8 +819,8 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
                 result.actor_action_reverse_cycle_calls == 1U &&
                 fixture.port.count(
                     LegacyBattleInputDispatchCall::
-                        actor_action_resolve_available_reverse
-                ) == 1U &&
+                        reserved_available_actor_reverse_cycle_slot
+                ) == 0U &&
                 fixture.port.count(
                     LegacyBattleInputDispatchCall::
                         reserved_actor_action_commit_nested_slot
@@ -857,7 +857,7 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
                 result.actor_action_reverse_cycle_calls == 0U &&
                 fixture.port.count(
                     LegacyBattleInputDispatchCall::
-                        actor_action_resolve_available_reverse
+                        reserved_available_actor_reverse_cycle_slot
                 ) == 0U &&
                 fixture.port.count(
                     LegacyBattleInputDispatchCall::

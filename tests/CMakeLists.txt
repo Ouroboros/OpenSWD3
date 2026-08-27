@@ -256,6 +256,7 @@ add_executable(
     unit/battle/legacy_battle_actor_action_reverse_cycle_test.cpp
     unit/battle/legacy_battle_actor_target_preparation_test.cpp
     unit/battle/legacy_battle_available_actor_cycle_test.cpp
+    unit/battle/legacy_battle_available_actor_reverse_cycle_test.cpp
     unit/battle/legacy_battle_action_dispatch_test.cpp
     unit/battle/legacy_battle_attack_order_dequeue_test.cpp
     unit/battle/legacy_battle_attack_order_entry_test.cpp

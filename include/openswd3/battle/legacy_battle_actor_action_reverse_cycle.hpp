@@ -1,6 +1,6 @@
 #pragma once
 
-#include "openswd3/battle/legacy_battle_input_dispatch.hpp"
+#include "openswd3/battle/legacy_battle_available_actor_reverse_cycle.hpp"
 
 namespace openswd3::battle {
 
@@ -20,6 +20,7 @@ struct LegacyBattleActorActionReverseCycleRequest {
 
 enum class LegacyBattleActorActionReverseCycleStatus : compat::u8 {
     completed,
+    available_actor_cycle_typed_stop,
     action_commit_typed_stop,
 };
 
@@ -27,6 +28,7 @@ struct LegacyBattleActorActionReverseCycleResult {
     LegacyBattleActorActionReverseCycleStatus status{
         LegacyBattleActorActionReverseCycleStatus::completed
     };
+    LegacyBattleAvailableActorCycleResult available_actor_cycle{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};

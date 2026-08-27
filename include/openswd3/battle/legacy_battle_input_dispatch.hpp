@@ -120,7 +120,7 @@ enum class LegacyBattleInputDispatchCall : compat::u8 {
     reserved_target_selection_refresh_state_slot,
     reserved_available_actor_cycle_slot,
     reserved_actor_action_commit_nested_slot,
-    actor_action_resolve_available_reverse,
+    reserved_available_actor_reverse_cycle_slot,
 };
 
 struct LegacyBattleInputDispatchCallRequest {
