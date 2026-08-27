@@ -250,6 +250,7 @@ add_test(
 add_executable(
     openswd3_battle_legacy_battle_setup_tests
     unit/battle/legacy_battle_action_rotation_cache_test.cpp
+    unit/battle/legacy_battle_actor_action_candidate_availability_test.cpp
     unit/battle/legacy_battle_actor_action_commit_test.cpp
     unit/battle/legacy_battle_actor_action_cycle_test.cpp
     unit/battle/legacy_battle_actor_action_reverse_cycle_test.cpp

@@ -449,6 +449,8 @@ I5最终必须锁定：
 
 `audit_order=119`的`0x00462420`已关闭为`platform_adapted`。完整权威LST主体`0x00462420..0x004624BF`从proc到endp共92行、53条实际指令、1个静态call、8个跳转、6个局部/返回标签、1个返回点且无外部chunk。message非零且option全1时立即返回；否则以live group-A count减1，结果恰好0时直接清三个selection dword与一个word。其余路径扫描final-actor十槽队列，每轮动态重读count并以unsigned `index >= count-1`结束；count 12或0不加现代上限，在第十一次真实读取typed-stop。匹配非零actor code时按`code-8`保留乘移寄存器，调用既有group-A角色查询；返回1继续扫描，其他值交换queued角色与当前队列槽。队列、角色停点都在四项缓存清理前，保留全部前缀。逐帧输入selected option一处caller，以及正向/反向轮转八处caller均已直连；三类旧槽保留reserved数值且零调用。record15普通返回后才进入目标选择并恢复option；typed-stop阻断这些尾操作。两种轮转的提交typed-stop继续向逐帧输入传播并阻断各自菜单或方向尾路径。
 
-下一项回收`audit_order=120`的`0x004624C0`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗函数。
+`audit_order=120`的`0x004624C0`已关闭为`platform_adapted`。完整权威LST主体`0x004624C0..0x0046250A`从proc到endp共47行、30条实际指令、1个静态call、3个跳转、3个局部/返回标签、2个返回点且无外部chunk。入口固定读取group-A count并清EAX；count为0时返回0且保持入口ECX。其他路径从final-actor十槽队列起点逐dword完整比较候选code，不跳过零，也不动态重读count；未命中返回0与一过尾队列token。count大于10不加现代上限，在第十一次真实读取typed-stop。首个匹配code按`code-8`保留乘移寄存器，角色调用前EAX为索引乘`0xBCD`，ECX为group-A对象token，EDX为入口count；物理索引越界在首次真实角色call前停止。角色查询完整EAX为0时归一返回1，任何非零bit pattern返回0，并保留callee ECX/EDX。三个caller属于尚待各自工作包关闭的正向/反向候选轮转，当前既有轮转opaque边界不提前拆分；关闭caller时必须直连本typed实现。
+
+下一项回收`audit_order=121`的`0x00462510`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。
