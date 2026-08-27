@@ -27,6 +27,7 @@ enum class LegacyBattleSurfaceBlendOperationKind : compat::u8 {
     capture_secondary,
     blend_primary_row,
     copy_screen_to_temporary,
+    vertical_shift_frame,
 };
 
 struct LegacyBattleSurfaceBlendOperation {
@@ -37,6 +38,7 @@ struct LegacyBattleSurfaceBlendOperation {
     std::optional<LegacyBattleSurfaceBlendRectangle> destination_rectangle;
     compat::u32 source_token{};
     std::optional<LegacyBattleSurfaceBlendRectangle> source_rectangle;
+    compat::u32 flags{};
     compat::u32 trailing_zero_a{};
     compat::u32 trailing_zero_b{};
 };

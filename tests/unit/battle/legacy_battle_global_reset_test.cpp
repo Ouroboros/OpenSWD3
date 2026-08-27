@@ -160,6 +160,7 @@ void seed_state(
     ResetPort& port
 ) {
     auto& outcome_resolution = port.outcome_resolution_state();
+    auto& vertical_shift = port.battle_vertical_shift_state();
     state.unmapped_bytes[0x00ABCDEFU] = 0x5AU;
     state.unmapped_bytes[0x00520E40U] = 0x5AU;
     state.unmapped_bytes[0x005202A8U] = 0x5AU;
@@ -241,6 +242,9 @@ void seed_state(
     outcome_resolution.darkening_gate = 9U;
     outcome_resolution.force_group_b_resolution = 9U;
     outcome_resolution.darkening.channel_delta = -30;
+    vertical_shift.phase_index = 9U;
+    vertical_shift.tick_counter = 0x11223344U;
+    vertical_shift.tick_limit = 0x55667788U;
 
     auto& color = port.battle_color_accumulation_state();
     color.countdown = 9;
@@ -325,6 +329,7 @@ void test_battle_global_reset(openswd3::test::Context& test) {
             port
         );
         auto& outcome_resolution = port.outcome_resolution_state();
+        auto& vertical_shift = port.battle_vertical_shift_state();
 
         const auto result = openswd3::battle::reset_legacy_battle_globals(
             state,
@@ -590,6 +595,12 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 state.unmapped_bytes.contains(0x0053BFE4U) == false &&
                 state.unmapped_bytes.contains(0x0053CEACU) == false,
             "global reset synchronizes shared outcome gates while preserving action high fields and darkening delta"
+        );
+        test.expect_true(
+            vertical_shift.phase_index == 0U &&
+                vertical_shift.tick_counter == 0x11223344U &&
+                vertical_shift.tick_limit == 0U,
+            "global reset clears vertical shift phase and limit while preserving its live tick counter"
         );
         test.expect_true(
             std::ranges::all_of(

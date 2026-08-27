@@ -15,6 +15,7 @@
 #include "openswd3/battle/legacy_battle_outcome_resolution.hpp"
 #include "openswd3/battle/legacy_battle_pre_frame.hpp"
 #include "openswd3/battle/legacy_battle_transition.hpp"
+#include "openswd3/battle/legacy_battle_vertical_shift.hpp"
 #include "openswd3/rendering/legacy_action_renderers.hpp"
 #include "openswd3/rendering/legacy_bmp_writer.hpp"
 #include "openswd3/rendering/legacy_countdown.hpp"
@@ -67,7 +68,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     reserved_outcome_resolution_slot,
     reserved_context_prompt_slot,
     finalize_overlay,
-    alternate_surface_stage,
+    reserved_vertical_shift_slot,
 };
 
 struct LegacyBattleFrameCoordinatorCallRequest {
@@ -103,6 +104,7 @@ class LegacyBattleFrameCoordinatorPort
       public LegacyBattleDebugOverlayPort,
       public LegacyBattleOutcomeResolutionPort,
       public LegacyBattleContextPromptPort,
+      public LegacyBattleVerticalShiftPort,
       public virtual LegacyBattleEffectCoordinatorStatePort {
 public:
     using LegacyBattleEffectCallPort::invoke;
@@ -117,6 +119,12 @@ public:
     create_temporary_surface(compat::u32 owner_token, compat::u32 format) = 0;
     [[nodiscard]] virtual compat::u32
     operate_surface(compat::u32 object_token, compat::u32 source_token) = 0;
+
+    [[nodiscard]] compat::u32 resolve_vertical_shift_surface(
+        const compat::u32 owner_token, const compat::u32 selector
+    ) override {
+        return create_temporary_surface(owner_token, selector);
+    }
 };
 
 struct LegacyBattleFrameCoordinatorState {
@@ -225,6 +233,7 @@ enum class LegacyBattleFrameCoordinatorStatus : compat::u8 {
     debug_overlay_typed_stop,
     outcome_resolution_typed_stop,
     context_prompt_typed_stop,
+    vertical_shift_typed_stop,
 };
 
 struct LegacyBattleFrameCoordinatorResult {
@@ -248,6 +257,8 @@ struct LegacyBattleFrameCoordinatorResult {
     compat::u32 outcome_resolution_calls{};
     LegacyBattleContextPromptResult context_prompt{};
     compat::u32 context_prompt_calls{};
+    LegacyBattleVerticalShiftResult vertical_shift{};
+    compat::u32 vertical_shift_calls{};
     LegacyBattleFrameEffectResult frame_effect{};
     compat::u32 frame_effect_calls{};
     LegacyBattleActorPriorityResult actor_priority{};

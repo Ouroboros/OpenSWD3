@@ -125,6 +125,8 @@ Lock → 发布像素地址 → Unlock → 软件 writer 继续使用该地址 �
 
 两个 Blt 之间的清零位置、固定 byte 数、状态表和推进顺序共同决定原战斗抖动/位移结果。不能把它近似成一次 GPU shader 位移，也不能为减少提交而合并步骤。
 
+该函数现已关闭为typed纵向位移：三次live表读取、两组完整destination/source矩形、等待标志、dword粒度framebuffer前缀清零、call后节拍重读和phase 10返回后清门均由独立证据与测试锁定，逐帧caller不再经过旧opaque分支。
+
 ## 暂停与 Bink 对帧地址的依赖
 
 F8 暂停函数 `sub_411FA0` 不重新 Lock 游戏 surface。它直接在当前 `0x004CD76C` 指向的既有画面上反复画暂停文字，再以 flags 零提交。

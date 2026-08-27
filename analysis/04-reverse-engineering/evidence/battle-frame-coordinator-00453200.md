@@ -156,8 +156,8 @@ finalize之后直接调用已关闭三通道颜色累加：固定递减请求，
 
 随后：
 
-- special surface gate等于1且mode flags的bit`0x100`未置位：创建固定格式`0x2711`临时surface并从target surface执行虚操作；零token只在立即vtable访问点typed-stop；
-- 其他情况：调用alternate surface stage。
+- special surface gate任意非零且mode flags的bit`0x100`未置位：以固定selector`0x2711`解析primary surface并从target surface执行整surface虚操作；零token只在立即vtable访问点typed-stop；
+- gate为0或mode bit已置位：直接组合已关闭纵向位移，以16项signed表构造两组矩形Blt，中间按固定1280字节行宽清framebuffer暴露带，并按live节拍推进phase。
 
 ## 11. 截图尾与最终返回
 
@@ -183,7 +183,7 @@ finalize之后直接调用已关闭三通道颜色累加：固定递减请求，
 - `0x00453434..0x00453482`：ECX低word、四stage、三类跨模块队列、两倒计时；
 - `0x00453491..0x004534A3`：调试叠加精确门、结果判定前置流程及上下文提示typed直连；
 - `0x00453485..0x00453490`：内部bit与返回3；
-- `0x00453491..0x00453514`：可选/固定stage、overlay、三通道颜色累加直连与surface分支；
+- `0x00453491..0x00453514`：可选/固定stage、overlay、三通道颜色累加直连、整surface提交与纵向位移分支；
 - `0x00453514..0x00453570`：截图word、路径、BMP写入、请求清零和活动返回。
 
 C++到LST反向追溯覆盖完整412行、44个静态call站点和18个标签。
@@ -205,7 +205,7 @@ C++到LST反向追溯覆盖完整412行、44个静态call站点和18个标签。
 - 上下文提示300帧门、30项switch、鼠标/角色四路提示、偏移动作帧直连及子typed-stop后续阻断；
 - 角色预处理工作区typed-stop阻断metric与后续帧；
 - 三通道颜色初始化、共享门与尾寄存器，以及同帧颜色累加、计数递减与`0x3C000`前缀；
-- 临时surface路径、零token typed-stop和alternate门；
+- 任意非零surface门、整surface零token typed-stop、纵向位移双矩形提交及子typed-stop截图阻断；
 - 截图计数word回绕、路径、writer调用与请求清零；
 - 面板动作更新、双映射、九宫格、角色组A token、独立动作帧和第三类ECX snapshot；
 - 映射缺失发生在面板动作更新副作用之后；

@@ -334,7 +334,8 @@ void synchronize_typed_aliases(
     LegacyBattleEffectCoordinatorState& coordinator,
     LegacyBattleDebugHotkeyState& debug_hotkeys,
     LegacyBattleDebugOverlayState& debug_overlay,
-    LegacyBattleOutcomeResolutionState& outcome_resolution
+    LegacyBattleOutcomeResolutionState& outcome_resolution,
+    LegacyBattleVerticalShiftState& vertical_shift
 ) {
     startup.render_geometry = {};
     auto& reset = startup.reset;
@@ -448,6 +449,9 @@ void synchronize_typed_aliases(
     outcome_resolution.resolution_latch = 0U;
     outcome_resolution.darkening_gate = 0U;
     outcome_resolution.force_group_b_resolution = 0U;
+
+    vertical_shift.phase_index = 0U;
+    vertical_shift.tick_limit = 0U;
 }
 
 void record_call(
@@ -514,7 +518,8 @@ LegacyBattleGlobalResetResult reset_legacy_battle_globals(
         port.effect_coordinator_state(),
         port.battle_debug_hotkey_state(),
         debug_overlay,
-        port.outcome_resolution_state()
+        port.outcome_resolution_state(),
+        port.battle_vertical_shift_state()
     );
 
     record_call(

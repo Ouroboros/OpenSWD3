@@ -59,6 +59,7 @@ add_library(
         legacy_battle_timing.cpp
         legacy_battle_transition.cpp
         legacy_battle_vertical_panel.cpp
+        legacy_battle_vertical_shift.cpp
 )
 target_include_directories(
     openswd3_battle

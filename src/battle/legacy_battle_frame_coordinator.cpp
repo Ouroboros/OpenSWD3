@@ -625,7 +625,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         return result;
     }
 
-    if (state.special_surface_gate == 1U &&
+    if (state.special_surface_gate != 0U &&
         (debug_state.battle_mode_flags_53bc24 & 0x00000100U) == 0U) {
         const u32 temporary = port.create_temporary_surface(
             kLegacyBattleFrameCoordinatorSurfaceOwnerToken,
@@ -642,11 +642,19 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         );
         ++result.surface_operation_calls;
     } else {
-        static_cast<void>(invoke(
+        result.vertical_shift = run_legacy_battle_vertical_shift(
             port,
-            result,
-            LegacyBattleFrameCoordinatorCall::alternate_surface_stage
-        ));
+            state.special_surface_gate,
+            debug_state.battle_mode_flags_53bc24,
+            context.frame_zero.framebuffer
+        );
+        ++result.vertical_shift_calls;
+        if (result.vertical_shift.status !=
+            LegacyBattleVerticalShiftStatus::completed) {
+            result.status =
+                LegacyBattleFrameCoordinatorStatus::vertical_shift_typed_stop;
+            return result;
+        }
     }
 
     if (debug_state.screenshot_request == 1U) {

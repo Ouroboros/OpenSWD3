@@ -412,6 +412,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-context-prompt-0045e660.md",
     ),
+    "0x0045E7D0": (
+        "platform_adapted",
+        "evidence/battle-vertical-shift-0045e7d0.md",
+    ),
 }
 
 

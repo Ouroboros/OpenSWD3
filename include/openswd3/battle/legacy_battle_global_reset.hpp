@@ -9,6 +9,7 @@
 #include "openswd3/battle/legacy_battle_outcome_resolution.hpp"
 #include "openswd3/battle/legacy_battle_pair_transition.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
+#include "openswd3/battle/legacy_battle_vertical_shift.hpp"
 
 #include <array>
 #include <unordered_map>
@@ -35,6 +36,7 @@ class LegacyBattleGlobalResetRuntimePort
       public virtual LegacyBattleOutcomeResolutionStatePort,
       public virtual LegacyBattleEffectCoordinatorStatePort,
       public virtual LegacyBattleDebugHotkeyStatePort,
+      public virtual LegacyBattleVerticalShiftStatePort,
       public LegacyBattleActionRotationReleasePort,
       public LegacyBattleRenderAuxiliaryBufferReleaser {
 public:

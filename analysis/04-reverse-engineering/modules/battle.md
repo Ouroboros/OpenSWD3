@@ -397,8 +397,10 @@ I5最终必须锁定：
 
 `audit_order=94`的`0x0045E660`已关闭为`platform_adapted`。完整权威LST主体`0x0045E660..0x0045E7A3`从proc到endp共169行、92条实际指令、6个call、11个跳转、10个局部标签且无外部chunk；尾后3项直接跳转表与30字节间接switch表一并审计。入口消息门先取snapshot，逐帧计数u32递增后按signed与300比较；达到门且消息门bit31清零时返回递增计数，bit31置位继续，回绕为0也继续。30项switch精确恢复七个通用鼠标提示、case 3门及23个默认case，范围外值走默认；默认路径再按消息门bit31、active actor和镜像模式选择四类动作、鼠标或i16坐标、base variant及offset selector。六个call全部直连已关闭偏移动作帧绘制并复用唯一持久状态端口；只有消息actor路径在callee精确返回1后清消息辅助值，typed-stop保留此前前缀。共享message、动作消息门/辅助值/坐标、最终角色active/pre-frame门、启动镜像和逐帧渲染依赖均复用既有owner，仅新增计数和静态资源选择。全局重置同步清原写集合中的消息门与镜像，保持辅助值、坐标、计数和静态选择。唯一逐帧caller删除最后post-input opaque stage并直连；提示typed-stop保留结果判定前缀并阻断颜色、surface和截图。
 
+`audit_order=95`的`0x0045E7D0`已关闭为`platform_adapted`。完整权威LST主体`0x0045E7D0..0x0045E9B3`从proc到endp共227行、144条实际指令、4个call、14个跳转、13个局部标签且无外部chunk。实现以live phase无符号索引固定16项signed偏移表，按原signed余2构造第一组640×480奇偶矩形并提交等待Blt；第一Blt后重读phase，按`offset×1280`以dword粒度清唯一framebuffer前缀，再次重读phase构造第二组暴露带矩形并提交。两个直接surface选择callee已关闭，两个矩形Blt保留完整destination/source、source token、等待标志和零尾typed端口；第一/第二surface零token、三次表越界和清零dword边界均在原实际访问点typed-stop并保留前缀。第二Blt后动态重读节拍计数/上限/mode，按signed门推进；mode bit使phase在0/1间按原余数切换，否则u32递增，phase到10时返回10后清完成门与phase。phase/节拍上限回收到唯一state port并由全局重置清零，节拍计数保持。逐帧caller恢复完成门任意非零而非精确1的原比较：非零且mode bit清零走整surface提交，否则直连纵向位移；旧opaque枚举保留reserved槽。位移typed-stop保留颜色累加前缀并阻断截图。
+
 `audit_order=14`的`0x00434790`已关闭为`platform_adapted`。它只在首次调用以显式time seed CRT、发布三项共享值并扫描源图，随后直接组合已关闭粒子生成、线段推进与单像素颜色合成；剩余批次回放保留镜像检查X、源索引和实际写入X错位，粒子2×2绘制保留只跳第一透明色、只检查右像素及合成模式右上先合成后被原值覆盖。生命刷新、距离与目标矩形摘除、唯一/首/尾/中间四类双向链释放及其计数不对称均已闭环。三个上层caller都显式消费返回1作为阶段完成信号，尚待各自进入现代实现。
 
-下一项回收`audit_order=95`的`0x0045E7D0`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗辅助函数。
+下一项回收`audit_order=96`的`0x0045E9C0`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计战斗结果整理函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

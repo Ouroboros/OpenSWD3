@@ -100,6 +100,13 @@ public:
         return surface_operation_return;
     }
 
+    [[nodiscard]] u32 blit_vertical_shift(
+        const openswd3::battle::LegacyBattleSurfaceBlendOperation& operation
+    ) override {
+        vertical_shift_operations.push_back(operation);
+        return surface_operation_return;
+    }
+
     [[nodiscard]] std::size_t
     count(const LegacyBattleFrameCoordinatorCall call) const {
         return static_cast<std::size_t>(std::ranges::count_if(
@@ -128,6 +135,8 @@ public:
     std::vector<u32> music_modes;
     std::vector<std::array<u32, 2>> surface_creates;
     std::vector<std::array<u32, 2>> surface_operations;
+    std::vector<openswd3::battle::LegacyBattleSurfaceBlendOperation>
+        vertical_shift_operations;
     LegacyBattleFrameCoordinatorCallReply default_reply{
         .eax = 1U,
         .ecx = 0x11110000U,
@@ -834,7 +843,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         state.debug_overlay.gate = 1U;
-        state.special_surface_gate = 1U;
+        state.special_surface_gate = 2U;
         state.screenshot_counter = 0xFFFFU;
         Fixture fixture;
         fixture.final_actor_step.active_actor_code = 8U;
@@ -881,6 +890,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 port.battle_color_initialization_gate() == 0U &&
                 result.temporary_surface_calls == 1U &&
                 result.surface_operation_calls == 1U &&
+                result.vertical_shift_calls == 0U &&
                 port.surface_creates ==
                     std::vector<std::array<u32, 2>>{{0x004AB870U, 0x2711U}} &&
                 port.surface_operations ==
@@ -905,7 +915,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleOutcomeResolutionStatus::
                         completed &&
                 port.count(
-                    LegacyBattleFrameCoordinatorCall::alternate_surface_stage
+                    LegacyBattleFrameCoordinatorCall::
+                        reserved_vertical_shift_slot
                 ) == 0U,
             "completed frame runs typed pre-frame and color stages before preserving temporary surface screenshot wrap and request clear"
         );
@@ -966,8 +977,91 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 result.context_prompt.x == 27 &&
                 result.context_prompt.y == 39 &&
                 port.battle_offset_action_frame_draw_state().frame_index ==
-                    0xABCD0000U,
-            "frame coordinator directly resolves group-B completion before drawing the context prompt"
+                    0xABCD0000U &&
+                result.vertical_shift_calls == 1U &&
+                result.vertical_shift.status ==
+                    openswd3::battle::LegacyBattleVerticalShiftStatus::
+                        completed &&
+                result.vertical_shift.signed_offsets == std::array{4, 4, 4} &&
+                port.vertical_shift_operations.size() == 2U &&
+                port.vertical_shift_operations[0].destination_rectangle ==
+                    result.vertical_shift.operations[0].destination_rectangle &&
+                port.vertical_shift_operations[1].source_rectangle ==
+                    result.vertical_shift.operations[1].source_rectangle &&
+                port.vertical_shift_operations[0].flags == 0x01000000U &&
+                port.surface_operations.empty() &&
+                port.battle_vertical_shift_state().phase_index == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        reserved_vertical_shift_slot
+                ) == 0U,
+            "frame coordinator directly resolves group-B completion before drawing the context prompt and vertical shift"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleFrameCoordinatorState state;
+        state.special_surface_gate = 2U;
+        Fixture fixture;
+        fixture.final_actor_step.active_actor_code = 0U;
+        CoordinatorPort port;
+        port.battle_debug_hotkey_state().battle_mode_flags_53bc24 = 0x00000100U;
+        configure_common_port(port);
+        auto context = fixture.context();
+
+        const auto result =
+            openswd3::battle::run_legacy_battle_frame_coordinator(
+                state, port, context, base_request()
+            );
+
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameCoordinatorStatus::
+                        completed &&
+                result.vertical_shift_calls == 1U &&
+                result.vertical_shift.surface_resolve_calls == 2U &&
+                result.vertical_shift.surface_blit_calls == 2U &&
+                result.temporary_surface_calls == 0U &&
+                result.surface_operation_calls == 0U &&
+                state.special_surface_gate == 2U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        reserved_vertical_shift_slot
+                ) == 0U,
+            "battle mode bit forces the typed vertical shift even when the normal surface gate is nonzero"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleFrameCoordinatorState state;
+        Fixture fixture;
+        fixture.final_actor_step.active_actor_code = 0U;
+        CoordinatorPort port;
+        port.temporary_surface_token = 0U;
+        port.battle_debug_hotkey_state().screenshot_request = 1U;
+        configure_common_port(port);
+        auto context = fixture.context();
+
+        const auto result =
+            openswd3::battle::run_legacy_battle_frame_coordinator(
+                state, port, context, base_request()
+            );
+
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameCoordinatorStatus::
+                        vertical_shift_typed_stop &&
+                result.context_prompt_calls == 1U &&
+                result.color_accumulation_calls == 1U &&
+                result.vertical_shift_calls == 1U &&
+                result.vertical_shift.status ==
+                    openswd3::battle::LegacyBattleVerticalShiftStatus::
+                        primary_surface_typed_stop &&
+                result.vertical_shift.surface_resolve_calls == 1U &&
+                result.vertical_shift.surface_blit_calls == 0U &&
+                result.screenshot_calls == 0U &&
+                port.battle_debug_hotkey_state().screenshot_request == 1U,
+            "vertical shift typed-stop preserves the completed color prefix and blocks screenshot consumption"
         );
     }
 

@@ -52,6 +52,12 @@ public:
         return 0U;
     }
 
+    [[nodiscard]] u32 blit_vertical_shift(
+        const openswd3::battle::LegacyBattleSurfaceBlendOperation&
+    ) override {
+        return 0U;
+    }
+
     void push(const LegacyBattleFrameCoordinatorCallReply& reply) {
         replies.push_back(reply);
     }
