@@ -73,7 +73,7 @@ enum class LegacyBattleInputDispatchCall : compat::u8 {
     reserved_menu_selection_retreat_slot,
     reserved_menu_selection_advance_slot,
     reserved_menu_page_retreat_slot,
-    mode_four,
+    reserved_menu_page_advance_slot,
     confirm_primary,
     confirm_secondary,
     commit_selected_option,
@@ -168,6 +168,7 @@ enum class LegacyBattleInputDispatchStatus : compat::u8 {
     menu_selection_retreat_typed_stop,
     menu_selection_advance_typed_stop,
     menu_page_retreat_typed_stop,
+    menu_page_advance_typed_stop,
 };
 
 struct LegacyBattleInputDispatchResult {
@@ -185,6 +186,7 @@ struct LegacyBattleInputDispatchResult {
     compat::u32 menu_selection_retreat_calls{};
     compat::u32 menu_selection_advance_calls{};
     compat::u32 menu_page_retreat_calls{};
+    compat::u32 menu_page_advance_calls{};
     bool returned_early{};
 };
 

@@ -437,6 +437,8 @@ I5最终必须锁定：
 
 `audit_order=113`的`0x00461900`已关闭为`platform_adapted`。完整权威LST主体`0x00461900..0x00461A28`从proc到endp共148行、81条实际指令、3个call、12个跳转、8个局部标签、6个返回点且无外部chunk。函数只处理消息2、4、27，各播放一次样本；其他消息清pre-frame gate后返回`message-27`。消息2处理网格与panel B，消息27处理列表与panel A；两者先把selection归一到1，否则把对应scroll减7并作signed零夹，刻意让ECX保留负减法结果。消息4在同型grid分页后从共享scroll重装EDX，先置mouse action gate，再按current equipment索引写两份唯一缓存；typed-stop保留样本、夹值、gate及写前缀。输入分派interaction mode 3与record7两处旧调用均已直连，停止阻断后续鼠标发布、mode 4和最终输入提交。
 
-下一项回收`audit_order=114`的`0x00461A30`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗函数。
+`audit_order=114`的`0x00461A30`已关闭为`platform_adapted`。完整权威LST主体`0x00461A30..0x00461C00`从proc到endp共210行、112条实际指令、3个call、17个跳转、12个局部标签、5个返回点且无外部chunk。函数入口清pre-frame gate，只处理消息2、4、27并各以sample mix装EAX后播放一次样本。消息2按i8行限制先执行小于7早退，再把列表selection归一到7或让panel A前进7；CL局部写、高24位、signed byte、边界EDX和绕回负EAX全部保留。消息4和27处理网格与panel B；两者在menu action为0且grid不为7时共享`min(7,u16 limit)`归一和双equipment缓存副作用。普通消息4前进后按current equipment发布grid/page缓存；消息27只更新page，短网格时夹0并保留负ECX和夹取前EDX。双数组仅在真实store typed-stop。输入分派interaction mode 4与record8两处旧调用已直连；第113项分页后退的sample预调用EAX同期修正为原sample mix。
+
+下一项回收`audit_order=115`的`0x00461C10`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

@@ -588,8 +588,90 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
             "typed record seven preserves the page mouse gate"
         );
         test.expect_true(
-            fixture.port.count(LegacyBattleInputDispatchCall::mode_four) == 0U,
+            fixture.port.count(
+                LegacyBattleInputDispatchCall::reserved_menu_page_advance_slot
+            ) == 0U,
             "page-retreat typed-stop blocks the following mode-four input"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.message = 2U;
+        fixture.frame_input.panel_row_limit_a = 20U;
+        fixture.frame_input.list_selection = 7U;
+        fixture.frame_input.panel_scroll_a = 0U;
+        fixture.port.battle_input_dispatch_state().interaction_mode = 4U;
+        fixture.input.records[15U].rapid_press_multiplicity = 1U;
+        fixture.input.records[15U].held_sample_count = 1U;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_input_dispatch(
+                fixture.bindings(), fixture.port, {}
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleInputDispatchStatus::
+                        completed &&
+                result.menu_page_advance_calls == 1U &&
+                fixture.frame_input.panel_scroll_a == 7U &&
+                fixture.port.battle_input_dispatch_state().menu_action == 5U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        reserved_menu_page_advance_slot
+                ) == 0U,
+            "interaction mode four directly advances the page before publishing its mouse action"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.message = 27U;
+        fixture.frame_input.panel_row_limit_c = 20U;
+        fixture.frame_input.grid_selection = 1U;
+        fixture.frame_input.current_equipment_selection = 2U;
+        fixture.input.records[8U].rapid_press_multiplicity = 1U;
+        fixture.input.records[8U].held_sample_count = 1U;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_input_dispatch(
+                fixture.bindings(), fixture.port, {}
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleInputDispatchStatus::
+                        completed &&
+                result.menu_page_advance_calls == 1U &&
+                fixture.frame_input.grid_selection == 7U &&
+                fixture.frame_input.equipment_grid_selections[2U] == 7U &&
+                fixture.startup.values_52544c[2U] == 0U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        reserved_menu_page_advance_slot
+                ) == 0U,
+            "record eight directly advances and publishes the live grid page"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.message = 27U;
+        fixture.frame_input.panel_row_limit_c = 20U;
+        fixture.frame_input.grid_selection = 1U;
+        fixture.frame_input.current_equipment_selection = 4U;
+        fixture.input.records[8U].rapid_press_multiplicity = 1U;
+        fixture.input.records[8U].held_sample_count = 1U;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_input_dispatch(
+                fixture.bindings(), fixture.port, {}
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleInputDispatchStatus::
+                        menu_page_advance_typed_stop &&
+                result.menu_page_advance_calls == 1U &&
+                fixture.frame_input.grid_selection == 7U &&
+                fixture.port.battle_input_dispatch_state().mouse_action_gate ==
+                    1U,
+            "record-eight page advance propagates its typed-stop after preserving normalization"
         );
     }
 

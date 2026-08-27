@@ -39,6 +39,7 @@ LegacyBattleMenuPageRetreatResult retreat_legacy_battle_menu_page(
         return finish();
     };
     const auto play_sample = [&]() {
+        eax = std::bit_cast<u32>(input.sample_mix_level);
         const auto reply = port.play_input_sample(
             kSelectionSample, input.sample_mix_level, eax, ecx, edx
         );

@@ -6,7 +6,7 @@
 
 权威LST主体为`0x00461900..0x00461A28`，从proc到endp共148行、81条实际指令、3个call、12个跳转、8个局部标签、6个`retn`，没有外部`FUNCTION CHUNK`。
 
-入口把完整message依次减2、减2、减23，只接受消息2、4、27；其他值在清pre-frame gate B后直接以`message-27`低32位返回，ECX/EDX保持入口值。三个有效case各恰好播放一次既有选择样本。
+入口把完整message依次减2、减2、减23，只接受消息2、4、27；其他值在清pre-frame gate B后直接以`message-27`低32位返回，ECX/EDX保持入口值。三个有效case各先把sample mix装入EAX，再恰好播放一次既有选择样本。
 
 ## 2. 消息2网格分页后退
 

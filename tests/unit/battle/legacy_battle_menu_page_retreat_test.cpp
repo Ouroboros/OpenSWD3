@@ -84,6 +84,7 @@ void test_battle_menu_page_retreat(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.message = 2U;
+        fixture.input.sample_mix_level = -7;
         fixture.frame.grid_selection = 5U;
         fixture.frame.panel_scroll_b = 10U;
         const auto result = retreat_legacy_battle_menu_page(
@@ -94,7 +95,9 @@ void test_battle_menu_page_retreat(openswd3::test::Context& test) {
                 fixture.frame.panel_scroll_b == 10U &&
                 fixture.input.mouse_action_gate == 0U &&
                 result.return_eax == 1U && result.return_ecx == 0U &&
-                result.return_edx == 0xAABBCCDDU && result.sample_calls == 1U,
+                result.return_edx == 0xAABBCCDDU && result.sample_calls == 1U &&
+                fixture.port.samples[0U][1U] == 0xFFFFFFF9U &&
+                fixture.port.samples[0U][2U] == 0xFFFFFFF9U,
             "message two first returns grid selection to one without moving the page"
         );
     }
