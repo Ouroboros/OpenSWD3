@@ -1,4 +1,4 @@
-#include "openswd3/battle/legacy_battle_menu_selection_retreat.hpp"
+#include "openswd3/battle/legacy_battle_menu_selection_advance.hpp"
 
 #include <array>
 #include <bit>
@@ -52,12 +52,12 @@ permission_bytes(const LegacyBattleStartupResetBlocks& reset) noexcept {
 
 }  // namespace
 
-LegacyBattleMenuSelectionRetreatResult retreat_legacy_battle_menu_selection(
-    LegacyBattleMenuSelectionRetreatBindings bindings,
+LegacyBattleMenuSelectionAdvanceResult advance_legacy_battle_menu_selection(
+    LegacyBattleMenuSelectionAdvanceBindings bindings,
     LegacyBattleInputDispatchPort& port,
-    const LegacyBattleMenuSelectionRetreatRequest& request
+    const LegacyBattleMenuSelectionAdvanceRequest& request
 ) {
-    LegacyBattleMenuSelectionRetreatResult result;
+    LegacyBattleMenuSelectionAdvanceResult result;
     auto& frame = bindings.frame_input_resolution;
     auto& input = bindings.input_dispatch;
     u32 eax = bindings.message_state - 1U;
@@ -70,7 +70,7 @@ LegacyBattleMenuSelectionRetreatResult retreat_legacy_battle_menu_selection(
         result.return_edx = edx;
         return result;
     };
-    const auto stop = [&](const LegacyBattleMenuSelectionRetreatStatus status) {
+    const auto stop = [&](const LegacyBattleMenuSelectionAdvanceStatus status) {
         result.status = status;
         return finish();
     };
@@ -155,28 +155,26 @@ LegacyBattleMenuSelectionRetreatResult retreat_legacy_battle_menu_selection(
             return finish();
         }
         play_sample();
-        eax = input.selection_index - 1U;
+        eax = input.selection_index + 1U;
         input.selection_index = eax;
         auto permissions = permission_bytes(bindings.startup_reset);
         if (eax >= permissions.size()) {
             return stop(
-                LegacyBattleMenuSelectionRetreatStatus::permission_typed_stop
+                LegacyBattleMenuSelectionAdvanceStatus::permission_typed_stop
             );
         }
         if (permissions[eax] == 0U) {
-            edx = (edx & 0xFFFF0000U) |
-                static_cast<u32>(bindings.startup_reset.value_53bf22);
+            ecx = static_cast<u32>(bindings.startup_reset.value_53bf22);
+            edx = ecx + 5U;
             ecx = kPermissionBaseToken;
             while (true) {
-                --eax;
-                if (signed_bits(eax) < 1) {
-                    eax =
-                        static_cast<u32>(bindings.startup_reset.value_53bf22) +
-                        5U;
+                ++eax;
+                if (signed_bits(eax) > signed_bits(edx)) {
+                    eax = 1U;
                 }
                 if (eax >= permissions.size()) {
                     return stop(
-                        LegacyBattleMenuSelectionRetreatStatus::
+                        LegacyBattleMenuSelectionAdvanceStatus::
                             permission_typed_stop
                     );
                 }
@@ -190,25 +188,33 @@ LegacyBattleMenuSelectionRetreatResult retreat_legacy_battle_menu_selection(
         return finish();
     }
     case 2U: {
-        eax = frame.list_selection - 1U;
+        eax = frame.list_selection + 1U;
         frame.list_selection = eax;
-        if (signed_bits(eax) >= 1) {
+        if (signed_bits(eax) > 7) {
+            ecx = frame.panel_scroll_a + 1U;
+            frame.list_selection = 7U;
+            eax = std::bit_cast<u32>(static_cast<i32>(
+                static_cast<compat::i8>(frame.panel_row_limit_a)
+            ));
+            frame.panel_scroll_a = ecx;
+            ecx += 7U;
+            if (signed_bits(ecx) > signed_bits(eax)) {
+                eax -= 7U;
+                frame.panel_scroll_a = eax;
+                input.mouse_action_gate = 1U;
+                return finish();
+            }
             return common_sample_success();
         }
-        frame.list_selection = 1U;
-        eax = frame.panel_scroll_a;
-        if (signed_bits(eax) > 0) {
-            play_sample();
-        }
-        eax = frame.panel_scroll_a - 1U;
-        frame.panel_scroll_a = eax;
-        if (signed_bits(eax) >= 0) {
+        ecx = std::bit_cast<u32>(
+            static_cast<i32>(static_cast<compat::i8>(frame.panel_row_limit_a))
+        );
+        if (signed_bits(eax) > signed_bits(ecx)) {
+            frame.list_selection = ecx;
             input.mouse_action_gate = 1U;
             return finish();
         }
-        input.mouse_action_gate = 1U;
-        frame.panel_scroll_a = 0U;
-        return finish();
+        return common_sample_success();
     }
     case 3U: {
         eax = frame.target_selection_block;
@@ -220,20 +226,21 @@ LegacyBattleMenuSelectionRetreatResult retreat_legacy_battle_menu_selection(
             mode_index(bindings.final_actor.active_actor_code);
         if (startup_index >= bindings.startup_reset.block_520e90.size()) {
             return stop(
-                LegacyBattleMenuSelectionRetreatStatus::startup_mode_typed_stop
+                LegacyBattleMenuSelectionAdvanceStatus::startup_mode_typed_stop
             );
         }
         if (bindings.startup_reset.block_520e90[startup_index] == 0U) {
             while (true) {
-                eax = frame.target_cursor - 1U;
+                eax = frame.target_cursor + 1U;
+                ecx = bindings.metrics.group_b_count;
                 frame.target_cursor = eax;
-                if (signed_bits(eax) < 1) {
-                    eax = bindings.metrics.group_b_count;
+                if (signed_bits(eax) > signed_bits(ecx)) {
+                    eax = 1U;
                     frame.target_cursor = eax;
                 }
                 if (eax >= bindings.metrics.group_b_order.size()) {
                     return stop(
-                        LegacyBattleMenuSelectionRetreatStatus::
+                        LegacyBattleMenuSelectionAdvanceStatus::
                             group_b_order_typed_stop
                     );
                 }
@@ -241,13 +248,13 @@ LegacyBattleMenuSelectionRetreatResult retreat_legacy_battle_menu_selection(
                 load_group_b_object_registers(frame.target_actor_index);
                 if (frame.target_actor_index >= 8U) {
                     return stop(
-                        LegacyBattleMenuSelectionRetreatStatus::
+                        LegacyBattleMenuSelectionAdvanceStatus::
                             group_b_actor_typed_stop
                     );
                 }
                 const auto candidate = call(
                     LegacyBattleInputDispatchCall::
-                        menu_retreat_query_group_b_candidate,
+                        menu_advance_query_group_b_candidate,
                     ecx
                 );
                 if (candidate.eax != 1U) {
@@ -258,7 +265,7 @@ LegacyBattleMenuSelectionRetreatResult retreat_legacy_battle_menu_selection(
             load_group_b_object_registers(frame.target_actor_index);
             static_cast<void>(call(
                 LegacyBattleInputDispatchCall::
-                    menu_retreat_prepare_actor_origin,
+                    menu_advance_prepare_actor_origin,
                 ecx
             ));
             eax = bindings.metrics.group_b_count;
@@ -267,13 +274,13 @@ LegacyBattleMenuSelectionRetreatResult retreat_legacy_battle_menu_selection(
                 ecx = group_b_token(actor_index);
                 if (actor_index >= 8U) {
                     return stop(
-                        LegacyBattleMenuSelectionRetreatStatus::
+                        LegacyBattleMenuSelectionAdvanceStatus::
                             group_b_actor_typed_stop
                     );
                 }
                 static_cast<void>(call(
                     LegacyBattleInputDispatchCall::
-                        menu_retreat_configure_actor_selection,
+                        menu_advance_configure_actor_selection,
                     ecx,
                     {0U}
                 ));
@@ -284,7 +291,7 @@ LegacyBattleMenuSelectionRetreatResult retreat_legacy_battle_menu_selection(
             load_group_b_object_registers(frame.target_actor_index);
             static_cast<void>(call(
                 LegacyBattleInputDispatchCall::
-                    menu_retreat_configure_actor_selection,
+                    menu_advance_configure_actor_selection,
                 ecx,
                 {1U}
             ));
@@ -302,20 +309,20 @@ LegacyBattleMenuSelectionRetreatResult retreat_legacy_battle_menu_selection(
         eax -= ecx;
 
         if (eax >= 4U) {
-            ecx = frame.target_cursor - 1U;
-            frame.target_cursor = ecx;
-            if (signed_bits(ecx) < 1) {
-                ecx = eax;
-                frame.target_cursor = ecx;
+            edx = frame.target_cursor + 1U;
+            frame.target_cursor = edx;
+            if (signed_bits(edx) > signed_bits(eax)) {
+                edx = 1U;
+                frame.target_cursor = edx;
             }
             while (true) {
-                if (ecx >= bindings.final_actor.actor_order.size()) {
+                if (edx >= bindings.final_actor.actor_order.size()) {
                     return stop(
-                        LegacyBattleMenuSelectionRetreatStatus::
+                        LegacyBattleMenuSelectionAdvanceStatus::
                             actor_order_typed_stop
                     );
                 }
-                const u32 actor_code = bindings.final_actor.actor_order[ecx];
+                const u32 actor_code = bindings.final_actor.actor_order[edx];
                 frame.target_actor_index = actor_code;
                 load_group_a_completion_registers(actor_code);
                 if (actor_code == 0U ||
@@ -324,7 +331,7 @@ LegacyBattleMenuSelectionRetreatResult retreat_legacy_battle_menu_selection(
                     actor_code >
                         bindings.final_actor.group_a_slot_values.size()) {
                     return stop(
-                        LegacyBattleMenuSelectionRetreatStatus::
+                        LegacyBattleMenuSelectionAdvanceStatus::
                             group_a_actor_typed_stop
                     );
                 }
@@ -338,7 +345,7 @@ LegacyBattleMenuSelectionRetreatResult retreat_legacy_battle_menu_selection(
                     load_group_a_query_registers(actor_code);
                     const auto candidate = call(
                         LegacyBattleInputDispatchCall::
-                            menu_retreat_query_group_a_candidate,
+                            menu_advance_query_group_a_candidate,
                         ecx
                     );
                     rejected = candidate.eax == 1U;
@@ -346,32 +353,33 @@ LegacyBattleMenuSelectionRetreatResult retreat_legacy_battle_menu_selection(
                 if (!rejected) {
                     break;
                 }
-                ecx = frame.target_cursor - 1U;
-                frame.target_cursor = ecx;
-                if (signed_bits(ecx) < 1) {
-                    ecx = bindings.metrics.group_a_count;
-                    edx = static_cast<u32>(
-                        bindings.final_actor.excluded_group_a_count
-                    );
-                    eax = static_cast<u32>(
-                        bindings.startup_supplemental_count_word
-                    );
-                    ecx -= edx;
-                    ecx -= eax;
-                    frame.target_cursor = ecx;
+                edx = frame.target_cursor;
+                ecx = bindings.metrics.group_a_count;
+                eax = static_cast<u32>(
+                    bindings.final_actor.excluded_group_a_count
+                );
+                ++edx;
+                ecx -= eax;
+                eax =
+                    static_cast<u32>(bindings.startup_supplemental_count_word);
+                frame.target_cursor = edx;
+                ecx -= eax;
+                if (signed_bits(edx) > signed_bits(ecx)) {
+                    edx = 1U;
+                    frame.target_cursor = edx;
                 }
                 ++result.actor_iterations;
             }
             load_group_a_prepare_registers(frame.target_actor_index);
             if (frame.target_actor_index >= 10U) {
                 return stop(
-                    LegacyBattleMenuSelectionRetreatStatus::
+                    LegacyBattleMenuSelectionAdvanceStatus::
                         group_a_actor_typed_stop
                 );
             }
             static_cast<void>(call(
                 LegacyBattleInputDispatchCall::
-                    menu_retreat_prepare_actor_origin,
+                    menu_advance_prepare_actor_origin,
                 ecx
             ));
             eax = frame.target_actor_index;
@@ -381,10 +389,11 @@ LegacyBattleMenuSelectionRetreatResult retreat_legacy_battle_menu_selection(
         } else {
             while (true) {
                 ecx = input.action_kind;
-                --ecx;
+                eax = bindings.metrics.group_a_count;
+                ++ecx;
                 input.action_kind = ecx;
-                if (signed_bits(ecx) < 1) {
-                    ecx = bindings.metrics.group_a_count;
+                if (signed_bits(ecx) > signed_bits(eax)) {
+                    ecx = 1U;
                     input.action_kind = ecx;
                 }
                 load_group_a_completion_registers(ecx);
@@ -393,7 +402,7 @@ LegacyBattleMenuSelectionRetreatResult retreat_legacy_battle_menu_selection(
                         bindings.final_actor.group_a_completion_flags.size() ||
                     ecx > bindings.final_actor.group_a_slot_values.size()) {
                     return stop(
-                        LegacyBattleMenuSelectionRetreatStatus::
+                        LegacyBattleMenuSelectionAdvanceStatus::
                             group_a_actor_typed_stop
                     );
                 }
@@ -408,7 +417,7 @@ LegacyBattleMenuSelectionRetreatResult retreat_legacy_battle_menu_selection(
                     load_group_a_query_registers(actor_code);
                     const auto candidate = call(
                         LegacyBattleInputDispatchCall::
-                            menu_retreat_query_group_a_candidate,
+                            menu_advance_query_group_a_candidate,
                         ecx
                     );
                     rejected = candidate.eax == 1U;
@@ -421,7 +430,7 @@ LegacyBattleMenuSelectionRetreatResult retreat_legacy_battle_menu_selection(
             load_group_a_selection_registers(input.action_kind);
             static_cast<void>(call(
                 LegacyBattleInputDispatchCall::
-                    menu_retreat_prepare_actor_origin,
+                    menu_advance_prepare_actor_origin,
                 ecx
             ));
         }
@@ -429,13 +438,13 @@ LegacyBattleMenuSelectionRetreatResult retreat_legacy_battle_menu_selection(
         for (u32 actor_index = 0U; actor_index < 10U; ++actor_index) {
             static_cast<void>(call(
                 LegacyBattleInputDispatchCall::
-                    menu_retreat_configure_actor_selection,
+                    menu_advance_configure_actor_selection,
                 group_a_token(actor_index),
                 {0U}
             ));
             if (actor_index >= frame.target_markers.size()) {
                 return stop(
-                    LegacyBattleMenuSelectionRetreatStatus::
+                    LegacyBattleMenuSelectionAdvanceStatus::
                         target_marker_typed_stop
                 );
             }
@@ -446,12 +455,12 @@ LegacyBattleMenuSelectionRetreatResult retreat_legacy_battle_menu_selection(
         load_group_a_selection_registers(selected_code);
         if (selected_code == 0U || selected_code > 10U) {
             return stop(
-                LegacyBattleMenuSelectionRetreatStatus::group_a_actor_typed_stop
+                LegacyBattleMenuSelectionAdvanceStatus::group_a_actor_typed_stop
             );
         }
         static_cast<void>(call(
             LegacyBattleInputDispatchCall::
-                menu_retreat_configure_actor_selection,
+                menu_advance_configure_actor_selection,
             ecx,
             {1U}
         ));
@@ -460,54 +469,65 @@ LegacyBattleMenuSelectionRetreatResult retreat_legacy_battle_menu_selection(
         return finish();
     }
     case 4U: {
-        eax = frame.grid_selection - 1U;
-        frame.grid_selection = eax;
-        if (signed_bits(eax) < 1) {
-            frame.grid_selection = frame.panel_row_limit_c != 0U ? 1U : 0U;
-            eax = frame.panel_scroll_b - 1U;
-            frame.panel_scroll_b = eax;
-            if (signed_bits(eax) < 0) {
-                frame.panel_scroll_b = 0U;
+        ecx = frame.grid_selection + 1U;
+        frame.grid_selection = ecx;
+        if (signed_bits(ecx) > 7) {
+            ecx = frame.panel_scroll_b + 1U;
+            eax = static_cast<u32>(frame.panel_row_limit_c);
+            frame.panel_scroll_b = ecx;
+            ecx += 7U;
+            frame.grid_selection = 7U;
+            if (signed_bits(ecx) > signed_bits(eax)) {
+                eax -= 7U;
+                frame.panel_scroll_b = eax;
+            } else {
+                play_sample();
+            }
+        } else {
+            eax = static_cast<u32>(frame.panel_row_limit_c);
+            if (signed_bits(ecx) > signed_bits(eax)) {
+                frame.grid_selection = eax;
+            } else {
+                play_sample();
             }
         }
-        play_sample();
         eax = frame.current_equipment_selection;
-        edx = frame.grid_selection;
-        ecx = frame.panel_scroll_b;
-        input.mouse_action_gate = 1U;
+        ecx = frame.grid_selection;
+        edx = frame.panel_scroll_b;
         if (eax >= frame.equipment_grid_selections.size()) {
             return stop(
-                LegacyBattleMenuSelectionRetreatStatus::
+                LegacyBattleMenuSelectionAdvanceStatus::
                     equipment_selection_typed_stop
             );
         }
-        frame.equipment_grid_selections[eax] = edx;
+        frame.equipment_grid_selections[eax] = ecx;
         if (eax >= bindings.startup_reset.values_52544c.size()) {
             return stop(
-                LegacyBattleMenuSelectionRetreatStatus::
+                LegacyBattleMenuSelectionAdvanceStatus::
                     equipment_scroll_typed_stop
             );
         }
-        bindings.startup_reset.values_52544c[eax] = ecx;
+        bindings.startup_reset.values_52544c[eax] = edx;
+        input.mouse_action_gate = 1U;
         return finish();
     }
     case 5U:
         play_sample();
-        eax = frame.group_b_row_selection - 1U;
+        eax = frame.group_b_row_selection + 1U;
         frame.group_b_row_selection = eax;
-        if (signed_bits(eax) < 1) {
-            frame.group_b_row_selection = 2U;
+        if (signed_bits(eax) > 2) {
+            frame.group_b_row_selection = 1U;
         }
         return finish();
     case 7U:
         frame.transition_value_a = 0U;
         frame.transition_value_b = 0U;
         play_sample();
-        eax = frame.alternate_selection - 1U;
+        eax = frame.alternate_selection + 1U;
+        ecx = frame.alternate_selection_limit;
         frame.alternate_selection = eax;
-        if (signed_bits(eax) < 1) {
-            ecx = frame.alternate_selection_limit;
-            frame.alternate_selection = ecx;
+        if (signed_bits(eax) > signed_bits(ecx)) {
+            frame.alternate_selection = 1U;
         }
         return finish();
     case 8U: {
@@ -515,37 +535,47 @@ LegacyBattleMenuSelectionRetreatResult retreat_legacy_battle_menu_selection(
         if (frame.panel_row_limit_b == 0U) {
             return finish();
         }
-        eax = frame.narrow_list_selection - 1U;
+        eax = frame.narrow_list_selection;
+        edx = std::bit_cast<u32>(
+            static_cast<i32>(static_cast<compat::i8>(frame.panel_row_limit_b))
+        );
+        ++eax;
         frame.narrow_list_selection = eax;
-        if (signed_bits(eax) < 1) {
-            edx = std::bit_cast<u32>(static_cast<i32>(
-                static_cast<compat::i8>(frame.panel_row_limit_b)
-            ));
-            frame.narrow_list_selection = edx;
+        if (signed_bits(eax) > signed_bits(edx)) {
+            frame.narrow_list_selection = 1U;
         }
         return common_sample_success();
     }
-    case 27U:
-        eax = frame.grid_selection - 1U;
-        frame.grid_selection = eax;
-        if (signed_bits(eax) >= 1) {
+    case 27U: {
+        ecx = frame.grid_selection + 1U;
+        frame.grid_selection = ecx;
+        if (signed_bits(ecx) > 7) {
+            ecx = frame.panel_scroll_b + 1U;
+            eax = static_cast<u32>(frame.panel_row_limit_c);
+            frame.panel_scroll_b = ecx;
+            ecx += 7U;
+            frame.grid_selection = 7U;
+            if (signed_bits(ecx) > signed_bits(eax)) {
+                eax -= 7U;
+                frame.panel_scroll_b = eax;
+                input.mouse_action_gate = 1U;
+                return finish();
+            }
             return common_sample_success();
         }
-        frame.grid_selection = frame.panel_row_limit_c != 0U ? 1U : 0U;
-        eax = frame.panel_scroll_b - 1U;
-        frame.panel_scroll_b = eax;
-        if (signed_bits(eax) >= 0) {
+        eax = static_cast<u32>(frame.panel_row_limit_c);
+        if (signed_bits(ecx) > signed_bits(eax)) {
+            frame.grid_selection = eax;
             input.mouse_action_gate = 1U;
             return finish();
         }
-        input.mouse_action_gate = 1U;
-        frame.panel_scroll_b = 0U;
-        return finish();
+        return common_sample_success();
+    }
     case 30U:
-        eax = frame.grid_selection - 1U;
+        eax = frame.grid_selection + 1U;
         frame.grid_selection = eax;
-        if (signed_bits(eax) < 1) {
-            frame.grid_selection = 10U;
+        if (signed_bits(eax) > 10) {
+            frame.grid_selection = 1U;
         }
         return common_sample_success();
     default:

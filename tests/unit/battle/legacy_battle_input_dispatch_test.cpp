@@ -438,6 +438,62 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
 
     {
         Fixture fixture;
+        fixture.message = 3U;
+        fixture.final_actor.active_actor_code = 8U;
+        fixture.input.records[6U].rapid_press_multiplicity = 1U;
+        fixture.input.records[6U].held_sample_count = 1U;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_input_dispatch(
+                fixture.bindings(), fixture.port, {}
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleInputDispatchStatus::
+                        completed &&
+                result.menu_selection_advance_calls == 1U &&
+                fixture.port.battle_input_dispatch_state().menu_action == 2U &&
+                fixture.frame_input.target_selection_gate == 1U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        menu_advance_configure_actor_selection
+                ) == 1U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::confirm_secondary
+                ) == 1U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        reserved_menu_selection_advance_slot
+                ) == 0U,
+            "record six directly advances the live menu selection before its existing confirmation call"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.message = 3U;
+        fixture.final_actor.active_actor_code = 0x100U;
+        fixture.final_actor.pre_frame_gate_b = 9U;
+        fixture.input.records[6U].rapid_press_multiplicity = 1U;
+        fixture.input.records[6U].held_sample_count = 1U;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_input_dispatch(
+                fixture.bindings(), fixture.port, {}
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleInputDispatchStatus::
+                        menu_selection_advance_typed_stop &&
+                result.menu_selection_advance_calls == 1U &&
+                fixture.final_actor.pre_frame_gate_b == 0U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::confirm_secondary
+                ) == 0U,
+            "menu-advance typed-stop preserves its sample and blocks the following confirmation"
+        );
+    }
+
+    {
+        Fixture fixture;
         std::array<openswd3::input_time_rng::LegacyInputRecord, 2>
             short_input{};
         auto bindings = fixture.bindings();

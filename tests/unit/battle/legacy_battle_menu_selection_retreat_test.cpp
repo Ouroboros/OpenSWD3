@@ -330,13 +330,40 @@ void test_battle_menu_selection_retreat(openswd3::test::Context& test) {
                 fixture.frame.target_actor_index == 7U &&
                 fixture.port.calls[1U].ecx ==
                     openswd3::battle::kLegacyBattleActionGroupABaseToken +
-                        3U *
+                        2U *
                             openswd3::battle::kLegacyBattleActionGroupAStride &&
                 fixture.port.count(
                     LegacyBattleInputDispatchCall::
                         menu_retreat_configure_actor_selection
                 ) == 11U,
             "small group-A selection retreats with the one-based action cursor and leaves the separate target actor global untouched"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.message = 3U;
+        fixture.final_actor.active_actor_code = 9U;
+        fixture.metrics.group_a_count = 3U;
+        fixture.startup.block_520e90[5U] = 1U;
+        fixture.input.action_kind = 1U;
+        fixture.port.replies[LegacyBattleInputDispatchCall::
+                                 menu_retreat_query_group_a_candidate] = {
+            {.eax = 1U},
+            {.eax = 0U},
+        };
+        const auto result = retreat_legacy_battle_menu_selection(
+            fixture.bindings(), fixture.port, {}
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleMenuSelectionRetreatStatus::completed &&
+                fixture.input.action_kind == 2U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        menu_retreat_query_group_a_candidate
+                ) == 2U,
+            "small group-A rejection reloads the one-based action cursor before the next retreat"
         );
     }
 
@@ -388,6 +415,16 @@ void test_battle_menu_selection_retreat(openswd3::test::Context& test) {
                     LegacyBattleInputDispatchCall::
                         menu_retreat_configure_actor_selection
                 ) == 11U &&
+                fixture.port.calls[0U].ecx ==
+                    openswd3::battle::kLegacyBattleActionGroupABaseToken +
+                        openswd3::battle::kLegacyBattleActionGroupAStride &&
+                fixture.port.calls[1U].eax == 2U * 0x3EFU &&
+                fixture.port.calls[1U].ecx ==
+                    openswd3::battle::kLegacyBattleActionGroupABaseToken +
+                        2U *
+                            openswd3::battle::kLegacyBattleActionGroupAStride &&
+                fixture.port.calls[1U].edx == 2U * 0xBCDU &&
+                fixture.port.calls[2U].eax == 3U &&
                 result.actor_iterations == 10U,
             "large group-A selection uses actor order, clears all ten markers, and preserves the one-based selected configure index"
         );
@@ -406,8 +443,7 @@ void test_battle_menu_selection_retreat(openswd3::test::Context& test) {
         );
         test.expect_true(
             result.status ==
-                    LegacyBattleMenuSelectionRetreatStatus::
-                        group_a_actor_typed_stop &&
+                    LegacyBattleMenuSelectionRetreatStatus::completed &&
                 fixture.input.action_kind == 10U &&
                 std::ranges::all_of(
                     fixture.frame.target_markers,
@@ -416,10 +452,48 @@ void test_battle_menu_selection_retreat(openswd3::test::Context& test) {
                 fixture.port.count(
                     LegacyBattleInputDispatchCall::
                         menu_retreat_configure_actor_selection
-                ) == 10U &&
-                fixture.input.mouse_action_gate == 0U &&
-                fixture.frame.target_selection_gate == 0U,
-            "one-based selected group-A index ten stops only after all ten reset calls and marker writes"
+                ) == 11U &&
+                fixture.port.calls.back().ecx ==
+                    openswd3::battle::kLegacyBattleActionGroupABaseToken +
+                        9U *
+                            openswd3::battle::kLegacyBattleActionGroupAStride &&
+                fixture.input.mouse_action_gate == 1U &&
+                fixture.frame.target_selection_gate == 1U,
+            "one-based selected code ten maps to the tenth physical group-A object"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.message = 3U;
+        fixture.final_actor.active_actor_code = 9U;
+        fixture.metrics.group_a_count = 5U;
+        fixture.startup.block_520e90[5U] = 1U;
+        fixture.final_actor.actor_order[5U] = 10U;
+        fixture.frame.target_markers.fill(9U);
+        const auto result = retreat_legacy_battle_menu_selection(
+            fixture.bindings(), fixture.port, {}
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleMenuSelectionRetreatStatus::
+                        group_a_actor_typed_stop &&
+                fixture.input.action_kind == 0U &&
+                std::ranges::all_of(
+                    fixture.frame.target_markers,
+                    [](const auto value) { return value == 9U; }
+                ) &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        menu_retreat_configure_actor_selection
+                ) == 0U &&
+                result.return_eax == 10U * 0x3EFU &&
+                result.return_ecx ==
+                    openswd3::battle::kLegacyBattleActionGroupABaseToken +
+                        10U *
+                            openswd3::battle::kLegacyBattleActionGroupAStride &&
+                result.return_edx == 10U * 0xBCDU,
+            "large group-A code ten stops at the one-past prepare call after preserving its address registers"
         );
     }
 
