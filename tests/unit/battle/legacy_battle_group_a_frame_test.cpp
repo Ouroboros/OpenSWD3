@@ -1,4 +1,5 @@
 #include "openswd3/battle/legacy_battle_group_a_frame.hpp"
+#include "openswd3/battle/legacy_battle_target_selection_runtime.hpp"
 #include "test.hpp"
 
 #include <algorithm>
@@ -119,6 +120,9 @@ struct Fixture {
     u32 attack_order_secondary_gate{};
     openswd3::battle::LegacyBattleIntensityEffectRecord
         attack_order_adjacent_record{};
+    openswd3::battle::LegacyBattleActionDispatchState shared_action;
+    openswd3::battle::LegacyBattleFinalActorStepState shared_final_actor;
+    openswd3::battle::LegacyBattleTargetSelectionRuntimeState target_runtime;
 
     Fixture() {
         static_cast<void>(
@@ -148,6 +152,9 @@ struct Fixture {
             .attack_order_secondary_gate = &attack_order_secondary_gate,
             .attack_order_adjacent_record = &attack_order_adjacent_record,
             .status_indicator_action_eax_snapshot = 0U,
+            .shared_action_dispatch = &shared_action,
+            .shared_final_actor = &shared_final_actor,
+            .target_selection_runtime = &target_runtime,
         };
     }
 };
@@ -283,6 +290,51 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 fixture.attack_order_records[0].value_08 == 0U &&
                 port.count(0x0045EE70U) == 0U && port.count(0x0045EFB0U) == 0U,
             "started actor is registered then removed directly by the composed final actor suffix"
+        );
+    }
+
+    {
+        LegacyBattleGroupAFrameState state;
+        state.ai_coordination_enabled = 1U;
+        Fixture fixture;
+        DispatchPort port;
+        port.push(0x0047F920U, {.eax = 0U});
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_a_frame(
+                state, port, context, 2U
+            );
+        test.expect_true(
+            result.actor_target_preparation_calls == 1U &&
+                fixture.shared_action.opponent_workspace[12U] == 1U &&
+                fixture.shared_final_actor.published_actor_code == 0U &&
+                fixture.target_runtime.selected_action_kind == 1U &&
+                fixture.target_runtime.actor_commit_gate == 1U &&
+                port.battle_debug_hotkey_state().committed_actor_code == 10U &&
+                port.count(0x00478330U) == 1U && port.count(0x00464CC0U) == 0U,
+            "group-A queue caller directly prepares the shared actor target without invoking the closed boundary"
+        );
+    }
+
+    {
+        LegacyBattleGroupAFrameState state;
+        state.ai_coordination_enabled = 1U;
+        Fixture fixture;
+        DispatchPort port;
+        port.push(0x0047F920U, {.eax = 0U});
+        auto context = fixture.context();
+        context.target_selection_runtime = nullptr;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_a_frame(
+                state, port, context, 2U
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_target_preparation_typed_stop &&
+                result.actor_target_preparation_calls == 0U &&
+                port.count(0x00464CC0U) == 0U,
+            "group-A queue caller stops at the reclaimed boundary when the shared target owner is unavailable"
         );
     }
 

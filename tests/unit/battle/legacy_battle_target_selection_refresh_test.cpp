@@ -322,8 +322,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                         group_b_actor_typed_stop &&
                 result.group_b_calls == 8U && result.port_calls == 9U &&
                 fixture.final_actor.queued_actor_code == 0U &&
-                fixture.port.battle_target_selection_runtime_state()
-                        .committed_actor_code == 8U &&
+                fixture.debug.committed_actor_code == 8U &&
                 fixture.action.opponent_workspace[10U] == 1U,
             "message three commits the actor then stops at the ninth real group-B reset without adding a loop cap"
         );
@@ -377,7 +376,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                     LegacyBattleTargetSelectionRefreshStatus::completed &&
                 fixture.message == 0U &&
                 fixture.final_actor.queued_actor_code == 0U &&
-                runtime.committed_actor_code == 8U &&
+                fixture.debug.committed_actor_code == 8U &&
                 runtime.selected_action_kind == 15U &&
                 fixture.action.opponent_workspace[10U] == 15U &&
                 workspace_word(fixture.action, 0x74U) == 0x123U &&

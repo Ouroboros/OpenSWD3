@@ -335,12 +335,30 @@ private:
         state_input().selection_runtime_gate = 0U;
         bindings_.frame_input.target_selection_gate = 1U;
         state_input().selection_animation_phase = 5U;
-        if (!invoke_group_a(
-                Call::prepare_selected_actor,
-                bindings_.final_actor.queued_actor_code,
-                {},
-                GroupARegisterShape::eax_bcd
-            )) {
+        result_.actor_target_preparation = prepare_legacy_battle_actor_target(
+            {
+                .debug_hotkeys = bindings_.debug_hotkeys,
+                .target_runtime = bindings_.target_runtime,
+                .action = bindings_.action,
+                .final_actor = bindings_.final_actor,
+                .metrics = bindings_.metrics,
+            },
+            bindings_.bounded_random,
+            port_,
+            {
+                .actor_code = bindings_.final_actor.queued_actor_code,
+                .entry_eax = eax_,
+                .entry_ecx = ecx_,
+                .entry_edx = edx_,
+            }
+        );
+        result_.port_calls += result_.actor_target_preparation.port_calls;
+        eax_ = result_.actor_target_preparation.return_eax;
+        ecx_ = result_.actor_target_preparation.return_ecx;
+        edx_ = result_.actor_target_preparation.return_edx;
+        if (result_.actor_target_preparation.status !=
+            LegacyBattleActorTargetPreparationStatus::completed) {
+            typed_stop(Status::actor_target_preparation_typed_stop);
             return false;
         }
 

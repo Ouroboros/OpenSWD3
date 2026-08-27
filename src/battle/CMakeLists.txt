@@ -8,6 +8,7 @@ add_library(
         legacy_battle_actor_action_commit.cpp
         legacy_battle_actor_action_cycle.cpp
         legacy_battle_actor_action_reverse_cycle.cpp
+        legacy_battle_actor_target_preparation.cpp
         legacy_battle_attack_order_dequeue.cpp
         legacy_battle_attack_order_entry.cpp
         legacy_battle_attack_order_insert.cpp

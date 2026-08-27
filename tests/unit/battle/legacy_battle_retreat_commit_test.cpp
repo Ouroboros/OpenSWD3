@@ -88,7 +88,7 @@ void test_battle_retreat_commit(openswd3::test::Context& test) {
         auto& state = port.retreat_commit_state();
         state = {9U, 9U, 9U, 9U};
         port.actor_metric_state().group_b_count = 5U;
-        port.battle_debug_hotkey_state().reset_gate_53bd50 = 9U;
+        port.battle_debug_hotkey_state().committed_actor_code = 9U;
         port.battle_debug_overlay_gate() = 9U;
         port.outcome_resolution_state().resolution_latch = 9U;
         port.outcome_resolution_state().darkening_gate = 9U;
@@ -147,7 +147,7 @@ void test_battle_retreat_commit(openswd3::test::Context& test) {
         auto& state = port.retreat_commit_state();
         state = {9U, 9U, 9U, 9U};
         port.actor_metric_state().group_b_count = 0x1234U;
-        port.battle_debug_hotkey_state().reset_gate_53bd50 = 9U;
+        port.battle_debug_hotkey_state().committed_actor_code = 9U;
         port.battle_debug_overlay_gate() = 9U;
         port.outcome_resolution_state().resolution_latch = 9U;
         port.outcome_resolution_state().darkening_gate = 9U;
@@ -166,7 +166,7 @@ void test_battle_retreat_commit(openswd3::test::Context& test) {
                 state.completion_gate_b == 1U &&
                 port.outcome_resolution_state().resolution_latch == 0U &&
                 state.auxiliary_latch == 0U &&
-                port.battle_debug_hotkey_state().reset_gate_53bd50 == 0U &&
+                port.battle_debug_hotkey_state().committed_actor_code == 0U &&
                 port.battle_debug_overlay_gate() == 0U &&
                 state.selected_actor_token == 0xFFFFFFFFU &&
                 port.battle_message_state() == 0U &&

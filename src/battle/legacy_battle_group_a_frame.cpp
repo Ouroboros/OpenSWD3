@@ -1,5 +1,7 @@
 #include "openswd3/battle/legacy_battle_group_a_frame.hpp"
 
+#include "openswd3/battle/legacy_battle_actor_target_preparation.hpp"
+
 #include <algorithm>
 #include <bit>
 
@@ -26,7 +28,7 @@ constexpr u32 kCallQuerySecondaryAi = 0x0047D8D0U;
 constexpr u32 kCallResetActor = 0x00478850U;
 constexpr u32 kCallPlaySample = 0x00485610U;
 constexpr u32 kCallQueryQueueMode = 0x00483820U;
-constexpr u32 kCallPublishQueuedActor = 0x00464CC0U;
+constexpr u32 kCallPrepareQueuedActor = 0x00478330U;
 constexpr u32 kCallQueryQueueCompletion = 0x0047F920U;
 constexpr u32 kCallQueryActorIdle = 0x004786A0U;
 constexpr u32 kCallQueryActorAvailable = 0x0047C670U;
@@ -61,6 +63,45 @@ constexpr u32 kGroupBOneBeforeToken =
 constexpr u32 kActorSceneBaseToken = 0x004FE5D4U;
 constexpr u32 kMessagePrimaryToken = 0x004A7808U;
 constexpr u32 kMessageFinalToken = 0x004A77FCU;
+
+class ActorTargetPreparationAdapter final
+    : public LegacyBattleActorTargetPreparationPort {
+public:
+    explicit ActorTargetPreparationAdapter(
+        LegacyBattleActionDispatchPort& port
+    ) noexcept
+        : port_(port) {}
+
+    [[nodiscard]] LegacyBattleActorTargetPreparationCallReply
+    invoke_actor_target_preparation(
+        const LegacyBattleActorTargetPreparationCallRequest& request
+    ) override {
+        std::array<u32, 8> arguments{};
+        for (std::size_t index = 0U; index < request.arguments.size();
+             ++index) {
+            arguments[index] = request.arguments[index];
+        }
+        const auto reply = port_.invoke({
+            .callee_token = request.call ==
+                    LegacyBattleActorTargetPreparationCall::
+                        prepare_group_a_actor
+                ? kCallPrepareQueuedActor
+                : kCallQueryTerminal,
+            .arguments = arguments,
+            .eax = request.eax,
+            .ecx = request.object_token,
+            .edx = request.edx,
+        });
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+        };
+    }
+
+private:
+    LegacyBattleActionDispatchPort& port_;
+};
 
 [[nodiscard]] constexpr u32 to_bits(const i32 value) noexcept {
     return std::bit_cast<u32>(value);
@@ -385,14 +426,48 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     ++slot;
                 }
                 if (slot < state.final_actor_step.actor_order.size()) {
-                    if (invoke(port, result, kCallQueryQueueMode, {actor_token})
-                            .eax == 1U) {
-                        static_cast<void>(invoke(
-                            port,
-                            result,
-                            kCallPublishQueuedActor,
-                            {group_a_index + 8U}
-                        ));
+                    const auto queue_mode = invoke(
+                        port, result, kCallQueryQueueMode, {actor_token}
+                    );
+                    if (queue_mode.eax == 1U) {
+                        if (context.shared_action_dispatch == nullptr ||
+                            context.shared_final_actor == nullptr ||
+                            context.target_selection_runtime == nullptr) {
+                            result.status = LegacyBattleActionDispatchStatus::
+                                actor_target_preparation_typed_stop;
+                            return result;
+                        }
+                        ActorTargetPreparationAdapter adapter(port);
+                        const auto prepared =
+                            prepare_legacy_battle_actor_target(
+                                {
+                                    .debug_hotkeys =
+                                        port.battle_debug_hotkey_state(),
+                                    .target_runtime =
+                                        *context.target_selection_runtime,
+                                    .action = *context.shared_action_dispatch,
+                                    .final_actor = *context.shared_final_actor,
+                                    .metrics = port.actor_metric_state(),
+                                },
+                                context.bounded_random,
+                                adapter,
+                                {
+                                    .actor_code = group_a_index + 8U,
+                                    .entry_eax = queue_mode.eax,
+                                    .entry_ecx = queue_mode.ecx,
+                                    .entry_edx = group_a_index + 8U,
+                                }
+                            );
+                        ++result.actor_target_preparation_calls;
+                        result.port_calls += prepared.port_calls;
+                        if (prepared.status !=
+                            LegacyBattleActorTargetPreparationStatus::
+                                completed) {
+                            result.status = LegacyBattleActionDispatchStatus::
+                                actor_target_preparation_typed_stop;
+                            result.return_value = prepared.return_eax;
+                            return result;
+                        }
                     } else {
                         state.final_actor_step.actor_order[slot] =
                             group_a_index + 8U;

@@ -73,7 +73,7 @@ LegacyBattleRetreatCommitResult commit_legacy_battle_retreat(
     state.completion_gate_b = 1U;
     port.outcome_resolution_state().resolution_latch = 0U;
     state.auxiliary_latch = 0U;
-    port.battle_debug_hotkey_state().reset_gate_53bd50 = 0U;
+    port.battle_debug_hotkey_state().committed_actor_code = 0U;
     port.battle_debug_overlay_gate() = 0U;
     state.selected_actor_token = 0xFFFFFFFFU;
     port.battle_message_state() = 0U;

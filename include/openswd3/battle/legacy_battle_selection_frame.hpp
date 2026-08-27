@@ -4,6 +4,7 @@
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_action_frame_draw.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
+#include "openswd3/battle/legacy_battle_actor_target_preparation.hpp"
 #include "openswd3/battle/legacy_battle_debug_hotkeys.hpp"
 #include "openswd3/battle/legacy_battle_final_actor_step.hpp"
 #include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
@@ -56,7 +57,7 @@ private:
 
 enum class LegacyBattleSelectionFrameCall : compat::u8 {
     query_group_a_replacement,
-    prepare_selected_actor,
+    reserved_prepare_selected_actor_slot,
     query_selected_actor_release,
     release_selected_actor,
     reset_actor_selection,
@@ -108,7 +109,8 @@ struct LegacyBattleSelectionFrameCallReply {
 };
 
 class LegacyBattleSelectionFramePort
-    : public virtual LegacyBattleSelectionFrameStatePort {
+    : public virtual LegacyBattleSelectionFrameStatePort,
+      public virtual LegacyBattleActorTargetPreparationPort {
 public:
     virtual ~LegacyBattleSelectionFramePort() = default;
 
@@ -136,6 +138,7 @@ struct LegacyBattleSelectionFrameBindings {
     rendering::LegacyRleRowJitterState& jitter;
     asset_runtime::LegacyActionUpdater& action_updater;
     rendering::LegacyFramePieceProvider& frame_provider;
+    LegacyBattleBoundedRandomPort& bounded_random;
 };
 
 struct LegacyBattleSelectionFrameRequest {
@@ -158,6 +161,7 @@ enum class LegacyBattleSelectionFrameStatus : compat::u8 {
     action_workspace_typed_stop,
     actor_label_typed_stop,
     actor_frame_context_typed_stop,
+    actor_target_preparation_typed_stop,
     scale_fill_panel_typed_stop,
     vertical_panel_typed_stop,
     prepared_action_frame_typed_stop,
@@ -174,6 +178,7 @@ struct LegacyBattleSelectionFrameResult {
     compat::u32 group_a_calls{};
     compat::u32 group_b_calls{};
     compat::u32 action_frame_draw_calls{};
+    LegacyBattleActorTargetPreparationResult actor_target_preparation{};
     LegacyBattleScaleFillPanelResult scale_fill_panel{};
     LegacyBattleVerticalPanelResult vertical_panel{};
     LegacyBattlePreparedActionFrameDrawResult prepared_action_frame{};

@@ -20,6 +20,16 @@ using openswd3::compat::u32;
 class SelectionPort final
     : public openswd3::battle::LegacyBattleSelectionFramePort {
 public:
+    [[nodiscard]]
+    openswd3::battle::LegacyBattleActorTargetPreparationCallReply
+    invoke_actor_target_preparation(
+        const openswd3::battle::LegacyBattleActorTargetPreparationCallRequest&
+            request
+    ) override {
+        target_calls.push_back(request);
+        return {};
+    }
+
     [[nodiscard]] LegacyBattleSelectionFrameCallReply invoke_selection_frame(
         const LegacyBattleSelectionFrameCallRequest& request
     ) override {
@@ -40,12 +50,26 @@ public:
     }
 
     std::vector<LegacyBattleSelectionFrameCallRequest> calls;
+    std::vector<openswd3::battle::LegacyBattleActorTargetPreparationCallRequest>
+        target_calls;
     std::map<
         LegacyBattleSelectionFrameCall,
         std::vector<LegacyBattleSelectionFrameCallReply>>
         replies;
     std::map<LegacyBattleSelectionFrameCall, std::size_t> reply_indices;
     LegacyBattleSelectionFrameCallReply default_reply{};
+};
+
+class SelectionRandom final
+    : public openswd3::battle::LegacyBattleBoundedRandomPort {
+public:
+    [[nodiscard]] u32 random_bounded(const u32 bound) override {
+        bounds.push_back(bound);
+        return value;
+    }
+
+    u32 value{};
+    std::vector<u32> bounds;
 };
 
 class FailingActionStreamProvider final
@@ -120,6 +144,7 @@ struct Fixture {
             .jitter = jitter,
             .action_updater = action_updater,
             .frame_provider = frame_provider,
+            .bounded_random = random,
         };
     }
 
@@ -145,6 +170,7 @@ struct Fixture {
     FailingActionStreamProvider action_streams;
     openswd3::asset_runtime::LegacyActionUpdater action_updater;
     SelectionFrameProvider frame_provider;
+    SelectionRandom random;
     SelectionPort port;
 };
 
@@ -240,6 +266,53 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                     LegacyBattleSelectionFrameCall::reset_actor_selection
                 ) == 1U,
             "completed queued actor clears selection state resets live group-B objects and swaps the first reusable group-A order slot"
+        );
+        test.expect_true(
+            result.actor_target_preparation.status ==
+                    openswd3::battle::LegacyBattleActorTargetPreparationStatus::
+                        completed &&
+                fixture.port.target_calls.size() == 2U &&
+                fixture.debug.committed_actor_code == 8U &&
+                fixture.target.selected_action_kind == 1U &&
+                fixture.target.actor_commit_gate == 1U &&
+                fixture.action.opponent_workspace[10U] == 1U &&
+                fixture.final_actor.published_actor_code == 1U,
+            "completed queued actor directly prepares its shared target state before replacement scanning"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.metrics.group_b_count = 9U;
+        fixture.random.value = 8U;
+        fixture.port.reply(
+            LegacyBattleSelectionFrameCall::query_group_a_replacement,
+            {.eax = 1U}
+        );
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        actor_target_preparation_typed_stop &&
+                result.actor_target_preparation.status ==
+                    openswd3::battle::LegacyBattleActorTargetPreparationStatus::
+                        group_b_actor_typed_stop &&
+                fixture.debug.committed_actor_code == 8U &&
+                fixture.target.selected_action_kind == 1U &&
+                fixture.target.actor_commit_gate == 1U &&
+                fixture.action.opponent_workspace[10U] == 1U &&
+                fixture.final_actor.published_actor_code == 9U &&
+                fixture.input.selection_animation_phase == 5U &&
+                fixture.frame.target_selection_gate == 1U &&
+                count_call(
+                    fixture.port,
+                    LegacyBattleSelectionFrameCall::reset_actor_selection
+                ) == 0U,
+            "actor-target stop preserves completed-actor clearing and publications then blocks group resets"
         );
     }
 

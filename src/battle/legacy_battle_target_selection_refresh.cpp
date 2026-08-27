@@ -727,7 +727,7 @@ private:
         eax_ = actor_code;
         ecx_ = action_kind;
         runtime_.selected_action_kind = action_kind;
-        runtime_.committed_actor_code = actor_code;
+        bindings_.debug_hotkeys.committed_actor_code = actor_code;
         if (!write_actor_action(actor_code, action_kind)) {
             return false;
         }
@@ -892,7 +892,7 @@ private:
                 if (!write_runtime_record(eax_, 0U, 1U)) {
                     return;
                 }
-                runtime_.committed_actor_code = eax_;
+                bindings_.debug_hotkeys.committed_actor_code = eax_;
                 bindings_.startup_reset.value_4ff0b0 = 0U;
                 final_actor_.queued_actor_code = 0U;
                 bindings_.startup_reset.value_4ff0b4 = 0U;
@@ -906,7 +906,7 @@ private:
             case 17U:
                 eax_ = final_actor_.queued_actor_code;
                 final_actor_.queued_actor_code = 0U;
-                runtime_.committed_actor_code = eax_;
+                bindings_.debug_hotkeys.committed_actor_code = eax_;
                 bindings_.message_state = edx_;
                 break;
             case 22U: {
@@ -924,7 +924,7 @@ private:
                 eax_ = final_actor_.queued_actor_code;
                 edx_ = 0U;
                 bindings_.startup_reset.value_4ff0b0 = 0U;
-                runtime_.committed_actor_code = eax_;
+                bindings_.debug_hotkeys.committed_actor_code = eax_;
                 ecx_ = eax_ - 7U;
                 bindings_.startup_reset.value_4ff0b4 = 0U;
                 final_actor_.published_actor_code = ecx_;
@@ -984,7 +984,7 @@ private:
                 if (!write_runtime_record(eax_, 0U, 1U)) {
                     return;
                 }
-                runtime_.committed_actor_code = eax_;
+                bindings_.debug_hotkeys.committed_actor_code = eax_;
                 bindings_.startup_reset.value_4ff0b0 = 0U;
                 final_actor_.queued_actor_code = 0U;
                 bindings_.startup_reset.value_4ff0b4 = 0U;
@@ -1117,7 +1117,7 @@ private:
         if (!write_actor_action(actor_code, ecx_)) {
             return;
         }
-        runtime_.committed_actor_code = actor_code;
+        bindings_.debug_hotkeys.committed_actor_code = actor_code;
         final_actor_.queued_actor_code = 0U;
         runtime_.actor_commit_gate = 1U;
         if (!invoke_group_a(Call::refresh_actor_selection, actor_code, {1U})) {
@@ -1126,7 +1126,7 @@ private:
         bindings_.message_state = 0U;
         final_actor_.pre_frame_gate_b = 0U;
         runtime_.selection_input_gate = 0U;
-        eax_ = runtime_.committed_actor_code;
+        eax_ = bindings_.debug_hotkeys.committed_actor_code;
         if (frame_.target_selection_block == 1U) {
             ecx_ = eax_ * 5U - 40U;
             if (!write_runtime_record(eax_, 1U, 1U) ||
@@ -1140,7 +1140,7 @@ private:
         }
 
         if (input_.action_kind == 30U) {
-            const u32 committed = runtime_.committed_actor_code;
+            const u32 committed = bindings_.debug_hotkeys.committed_actor_code;
             ecx_ = committed - 8U;
             eax_ = frame_.current_equipment_selection;
             edx_ = 3U;
@@ -1175,12 +1175,12 @@ private:
                 runtime_.special_action_count = eax_;
             } else {
                 invoke(Call::stop_effect_sample, 0U, {0x300U, 0U});
-                eax_ = runtime_.committed_actor_code;
+                eax_ = bindings_.debug_hotkeys.committed_actor_code;
             }
         } else if (runtime_.selected_action_kind == 4U) {
             if (!invoke_group_a(
                     Call::apply_special_actor_action,
-                    runtime_.committed_actor_code
+                    bindings_.debug_hotkeys.committed_actor_code
                 )) {
                 return;
             }
@@ -1229,12 +1229,14 @@ private:
 
         if (input_.selected_actor_cleanup_gate == 1U) {
             if (!invoke_group_a(
-                    Call::query_actor_cleanup, runtime_.committed_actor_code
+                    Call::query_actor_cleanup,
+                    bindings_.debug_hotkeys.committed_actor_code
                 )) {
                 return;
             }
             if (eax_ == 1U) {
-                const u32 committed = runtime_.committed_actor_code;
+                const u32 committed =
+                    bindings_.debug_hotkeys.committed_actor_code;
                 eax_ = 5U;
                 edx_ = committed;
                 ecx_ = committed - 8U;
@@ -1266,7 +1268,7 @@ private:
         eax_ = actor_code;
         ecx_ = 15U;
         runtime_.selected_action_kind = 15U;
-        runtime_.committed_actor_code = actor_code;
+        bindings_.debug_hotkeys.committed_actor_code = actor_code;
         if (!write_actor_action(actor_code, 15U)) {
             return false;
         }
@@ -1301,7 +1303,7 @@ private:
         bindings_.startup_reset.value_53bf22 = 0U;
         if (!invoke_group_a(
                 Call::resolve_action_effect_value,
-                runtime_.committed_actor_code,
+                bindings_.debug_hotkeys.committed_actor_code,
                 {edx_, ecx_},
                 GroupARegisterShape::eax_3ef
             )) {
@@ -1317,7 +1319,7 @@ private:
         if (!write_effect_record(ecx_, static_cast<u16>(edx_), 0x10EU)) {
             return false;
         }
-        eax_ = runtime_.committed_actor_code;
+        eax_ = bindings_.debug_hotkeys.committed_actor_code;
         runtime_.target_effect_value =
             replace_low_word(runtime_.target_effect_value, ecx_);
         return write_actor_result(eax_, static_cast<u16>(ecx_));
@@ -1492,7 +1494,7 @@ private:
             ecx_ = replace_low_word(ecx_, logical_index);
         }
 
-        edx_ = runtime_.committed_actor_code;
+        edx_ = bindings_.debug_hotkeys.committed_actor_code;
         eax_ = 0U;
         bindings_.startup_reset.value_4ff0b0 = eax_;
         runtime_.target_effect_value =
@@ -1531,7 +1533,7 @@ private:
             input_.selection_animation_frame_b = 0U;
             bindings_.startup_reset.value_53bf22 = 0U;
             final_actor_.published_actor_code = ecx_;
-            runtime_.committed_actor_code = eax_;
+            bindings_.debug_hotkeys.committed_actor_code = eax_;
             input_.selection_animation_phase = 4U;
             bindings_.startup_reset.value_4ff0b8 = edx_;
             return;
@@ -1835,7 +1837,7 @@ private:
         runtime_.selected_action_kind = 0U;
         input_.action_kind = 1U;
         final_actor_.queued_actor_code = 0U;
-        runtime_.committed_actor_code = 0U;
+        bindings_.debug_hotkeys.committed_actor_code = 0U;
         bindings_.message_state = 0U;
         final_actor_.pre_frame_gate_b = 0U;
         runtime_.selection_input_gate = 0U;

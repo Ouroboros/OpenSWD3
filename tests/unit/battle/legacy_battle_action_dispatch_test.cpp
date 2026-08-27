@@ -346,7 +346,7 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
             {.eax = 1U},
             {.eax = 1U, .ecx = 0x12345678U, .edx = 0x87654321U},
         };
-        port.battle_debug_hotkey_state().reset_gate_53bd50 = 9U;
+        port.battle_debug_hotkey_state().committed_actor_code = 9U;
         port.battle_debug_overlay_gate() = 9U;
         port.battle_message_state() = 9U;
         auto context = fixture.context();
@@ -366,7 +366,7 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 state.packed_actor_counter == 0xAABBCC12U &&
                 port.retreat_commit_state().completion_gate_a == 1U &&
                 port.retreat_commit_state().completion_gate_b == 1U &&
-                port.battle_debug_hotkey_state().reset_gate_53bd50 == 0U &&
+                port.battle_debug_hotkey_state().committed_actor_code == 0U &&
                 port.battle_debug_overlay_gate() == 0U &&
                 port.battle_message_state() == 0U &&
                 port.outcome_resolution_state().darkening_gate == 1U,

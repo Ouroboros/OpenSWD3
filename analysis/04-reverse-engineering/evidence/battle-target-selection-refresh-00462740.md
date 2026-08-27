@@ -59,7 +59,7 @@ message 200先发布完整重置前缀，再按live group-B/group-A count清对�
 
 ## 7. typed owner、caller回收与验证
 
-新增target-selection runtime owner只承接尚未建模的物理状态；message、queued/published角色、动作workspace、角色五dword记录、菜单缓存、计数、镜像、补充人数与startup尾dword继续复用既有唯一owner。global reset按原234项写程序只清真实覆盖字节：未被reset写到的重映射、transition和数组尾部保持原值。
+新增target-selection runtime owner只承接尚未建模的物理状态；已提交角色改为复用debug状态内`0x0053BD50`唯一owner，不再保留runtime副本；message、queued/published角色、动作workspace、角色五dword记录、菜单缓存、计数、镜像、补充人数与startup尾dword继续复用既有唯一owner。global reset按原234项写程序只清真实覆盖字节：未被reset写到的重映射、transition和数组尾部保持原值。
 
 目标选择进入函数原刷新槽保留相同枚举数值并改为reserved，ready不足或queued短路时直接调用本实现。typed-stop按原caller返回并继续阻断逐帧输入尾路径；reserved槽保持零调用。
 

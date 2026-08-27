@@ -187,6 +187,9 @@ struct LegacyBattleActionDispatchState {
     rendering::LegacyCountdownState countdown{};
 };
 
+struct LegacyBattleTargetSelectionRuntimeState;
+struct LegacyBattleFinalActorStepState;
+
 struct LegacyBattleActionDispatchContext {
     rendering::LegacyFramebuffer& framebuffer;
     rendering::LegacyRasterGeometryState& raster;
@@ -205,6 +208,9 @@ struct LegacyBattleActionDispatchContext {
     compat::u32* attack_order_secondary_gate{};
     LegacyBattleIntensityEffectRecord* attack_order_adjacent_record{};
     compat::u32 status_indicator_action_eax_snapshot{};
+    LegacyBattleActionDispatchState* shared_action_dispatch{};
+    LegacyBattleFinalActorStepState* shared_final_actor{};
+    LegacyBattleTargetSelectionRuntimeState* target_selection_runtime{};
 };
 
 enum class LegacyBattleActionDispatchStatus : compat::u8 {
@@ -228,6 +234,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     final_actor_record_typed_stop,
     final_actor_descriptor_typed_stop,
     player_item_typed_stop,
+    actor_target_preparation_typed_stop,
     attack_order_typed_stop,
     attack_order_insert_typed_stop,
     attack_order_remove_typed_stop,
@@ -251,6 +258,7 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 action_record_clear_calls{};
     LegacyBattlePlayerItemQuantityResult player_item{};
     compat::u32 player_item_calls{};
+    compat::u32 actor_target_preparation_calls{};
     LegacyBattlePairTransitionResult pair_transition{};
     compat::u32 pair_transition_calls{};
     LegacyBattleRetreatCommitResult retreat_commit{};

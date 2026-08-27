@@ -11,6 +11,21 @@ using compat::i32;
 using compat::u16;
 using compat::u32;
 
+class SecondaryRngBoundedAdapter final : public LegacyBattleBoundedRandomPort {
+public:
+    explicit SecondaryRngBoundedAdapter(
+        input_time_rng::LegacySecondaryRng& random
+    ) noexcept
+        : random_(random) {}
+
+    [[nodiscard]] u32 random_bounded(const u32 bound) override {
+        return random_.next_bounded(bound);
+    }
+
+private:
+    input_time_rng::LegacySecondaryRng& random_;
+};
+
 [[nodiscard]] LegacyBattleFrameCoordinatorCallReply invoke(
     LegacyBattleFrameCoordinatorPort& port,
     LegacyBattleFrameCoordinatorResult& result,
@@ -201,6 +216,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         {
             .startup = context.startup,
             .final_actor = context.final_actor_step,
+            .action = context.action_dispatch,
             .actor_metrics = port.actor_metric_state(),
             .actor_publication = port.actor_publication_state(),
             .effect_coordinator = port.effect_coordinator_state(),
@@ -304,6 +320,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
     state.interaction_available =
         selection_value == 0xFFFFFFFFU && selection_source == 0U ? 1U : 0U;
 
+    SecondaryRngBoundedAdapter selection_random(context.secondary_rng);
     result.selection_frame = draw_legacy_battle_selection_frame(
         {
             .final_actor = context.final_actor_step,
@@ -325,6 +342,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             .jitter = context.frame_zero.jitter,
             .action_updater = context.action_updater,
             .frame_provider = context.frame_provider,
+            .bounded_random = selection_random,
         },
         port,
         request.selection_frame_request
@@ -374,6 +392,14 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
                 LegacyBattleFrameCoordinatorStatus::actor_priority_typed_stop;
             return result;
         }
+    }
+    if (context.actor_frames != nullptr) {
+        context.actor_frames->dispatch.shared_action_dispatch =
+            &context.action_dispatch;
+        context.actor_frames->dispatch.shared_final_actor =
+            &context.final_actor_step;
+        context.actor_frames->dispatch.target_selection_runtime =
+            &port.battle_target_selection_runtime_state();
     }
     result.actor_frame_sequence = advance_legacy_battle_actor_frame_sequence(
         port.actor_metric_state(), context.actor_frames

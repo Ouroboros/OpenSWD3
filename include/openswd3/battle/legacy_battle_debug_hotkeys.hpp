@@ -69,6 +69,7 @@ public:
 struct LegacyBattleDebugHotkeyBindings {
     LegacyBattleStartupState& startup;
     LegacyBattleFinalActorStepState& final_actor;
+    LegacyBattleActionDispatchState& action;
     LegacyBattleActorMetricState& actor_metrics;
     LegacyBattleActorPublicationState& actor_publication;
     LegacyBattleEffectCoordinatorState& effect_coordinator;

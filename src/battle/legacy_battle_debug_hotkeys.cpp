@@ -427,7 +427,9 @@ LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
                 bindings.actor_frames->shared.action.action_pending_aux = 1U;
                 port.outcome_resolution_state().resolution_latch = 1U;
                 bindings.final_actor.actor_order.fill(0U);
-                state.block_53af30.fill(0U);
+                std::fill_n(
+                    bindings.action.opponent_workspace.begin(), 10U, 0U
+                );
                 for (auto& record : bindings.startup.reset.records_524788) {
                     record = {};
                     record.value_00 = 0xFFFFFFFFU;
@@ -436,7 +438,7 @@ LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
                 bindings.effect_coordinator.completed_count = 0U;
                 state.actor_retarget_gate_53bf64 = 0U;
                 bindings.actor_frames->shared.selection_aux_gate = 0U;
-                state.reset_gate_53bd50 = 0U;
+                state.committed_actor_code = 0U;
                 bindings.final_actor.queued_actor_code = 0U;
                 bindings.actor_metrics.priority_actor_index = 0xFFFFFFFFU;
                 bindings.message_state = 0U;

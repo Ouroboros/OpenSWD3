@@ -36,7 +36,7 @@ AI协调只在全局enable等于1、两个pending门都为0时进入：
 
 计数为0或全部terminal时走对象reset。随机callee超约定结果只在首次one-based组B对象访问处typed-stop。
 
-当前角色无两个AI标记时先播放固定sample，再扫描十槽actor queue的首个0。队列已满则不写；有空槽时按queue mode决定直接发布`index+8`或写入槽。
+当前角色无两个AI标记时先播放固定sample，再扫描十槽actor queue的首个0。队列已满则不写；有空槽且queue mode等于1时，直接组合已关闭角色目标准备：向唯一已提交角色、动作workspace、动作/提交门和published actor owner发布`index+8`，按processed低byte与live group-B count决定是否从secondary RNG起点跳过已完成目标。其子typed-stop阻断本角色余下流程，旧callee token零调用。queue mode不等于1时仍把`index+8`写入空槽。
 
 ## 4. 十槽actor queue
 

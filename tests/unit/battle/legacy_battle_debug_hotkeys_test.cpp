@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <deque>
+#include <span>
 #include <vector>
 
 namespace {
@@ -52,6 +53,7 @@ public:
 struct Fixture {
     openswd3::battle::LegacyBattleStartupState startup;
     openswd3::battle::LegacyBattleFinalActorStepState final_actor;
+    openswd3::battle::LegacyBattleActionDispatchState action;
     openswd3::battle::LegacyBattleActorMetricState actor_metrics;
     openswd3::battle::LegacyBattleActorPublicationState actor_publication;
     openswd3::battle::LegacyBattleEffectCoordinatorState effect_coordinator;
@@ -65,6 +67,7 @@ struct Fixture {
         return {
             .startup = startup,
             .final_actor = final_actor,
+            .action = action,
             .actor_metrics = actor_metrics,
             .actor_publication = actor_publication,
             .effect_coordinator = effect_coordinator,
@@ -325,8 +328,8 @@ void test_battle_debug_hotkeys(openswd3::test::Context& test) {
         fixture.actor_frames.shared.selection_aux_gate = 9U;
         LegacyBattleDebugHotkeyState state;
         state.developer_tools_enabled = 1U;
-        state.block_53af30.fill(9U);
-        state.reset_gate_53bd50 = 9U;
+        fixture.action.opponent_workspace.fill(9U);
+        state.committed_actor_code = 9U;
         for (auto& record : fixture.startup.reset.records_524788) {
             record = {
                 .value_00 = 9U,
@@ -367,9 +370,11 @@ void test_battle_debug_hotkeys(openswd3::test::Context& test) {
                     [](const auto value) { return value == 0U; }
                 ) &&
                 std::ranges::all_of(
-                    state.block_53af30,
+                    std::span<const u32>{fixture.action.opponent_workspace}
+                        .first(10U),
                     [](const auto value) { return value == 0U; }
                 ) &&
+                fixture.action.opponent_workspace[10U] == 9U &&
                 std::ranges::all_of(
                     fixture.startup.reset.records_524788,
                     [](const auto& record) {

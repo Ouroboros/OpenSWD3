@@ -6,7 +6,7 @@
 
 权威LST主体为`0x00464270..0x00464C6F`，从proc到endp共1154行、747条实际指令、45个静态call、73个跳转、49个局部/默认标签、12个`retn`，没有外部`FUNCTION CHUNK`。函数后的30项message压缩表也已审计：1–8、27、30映射十条有效路径，9–26、28、29和表内默认槽归并到selector 10。
 
-唯一静态caller位于已关闭主帧协调器。45个call中，比例填充面板、纵向状态面板和prepared动作帧三类已关闭callee已直连；其余26类对象、菜单、文字和选择callee通过窄平台端口保留。
+唯一静态caller位于已关闭主帧协调器。45个call中，比例填充面板、纵向状态面板、prepared动作帧和角色目标准备四类已关闭callee已直连；其余25类对象、菜单、文字和选择callee通过窄平台端口保留。
 
 ## 2. 入口、完成角色替换与释放
 
@@ -67,8 +67,8 @@ message 0、大于30、103、以及9–26/28/29均保持权威默认返回，不
 
 global reset通过输入分派owner同步原234项写程序覆盖的控制word，并只同步选择帧owner内的display gate、secondary gate和suppression gate；五项选择指针、标签、pointer origin与输入owner中的actor origin未被原写程序覆盖，保持原值。
 
-主帧协调器原frame-stage槽保留相同枚举数值并改为reserved，交互可用发布后直连本实现。选择帧typed-stop保留音乐、输入、预帧、metric、debug、surface lock/unlock、攻击顺序出队与交互发布副作用，并阻断画面效果和全部后续帧阶段；reserved槽保持零调用。
+主帧协调器原frame-stage槽保留相同枚举数值并改为reserved，交互可用发布后直连本实现。完成角色路径原目标准备callee槽也保留相同枚举数值并改为reserved，五项指针及message/cache/runtime清理后直连已关闭角色目标准备。任一子typed-stop保留此前副作用，并阻断本帧余下选择流程、画面效果和全部后续帧阶段；两个reserved槽均保持零调用。
 
 定向测试覆盖：message 103和queued零早退、group-A一过前、完成角色替换及actor-order交换、message 1比例动画与文字居中、message 2 i8低byte、message 4纵向面板stop、message 5/7/8/27/30固定调用、message 6物理byte OR、message 3第九个group-B对象、target map index 9、suppression提示、prepared动作帧stop、动作记录第8项四dword物理重叠与第9项尾区、global reset覆盖范围及主帧caller传播。
 
-当前缺少原版两组角色对象、26类未关闭callee共享副作用、文字表内容、五项动态指针目标、动作记录/帧资源联合状态、动态栈scratch地址及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版两组角色对象、25类未关闭callee共享副作用、文字表内容、五项动态指针目标、动作记录/帧资源联合状态、动态栈scratch地址及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

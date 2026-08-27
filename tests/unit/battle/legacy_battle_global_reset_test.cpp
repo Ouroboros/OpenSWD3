@@ -317,8 +317,7 @@ void seed_state(
     debug.selection_status_word_53c050 = 0xABCD0009U;
     debug.actor_retarget_gate_53bf64 = 9U;
     debug.battle_mode_flags_53bc24 = 9U;
-    debug.block_53af30.fill(9U);
-    debug.reset_gate_53bd50 = 9U;
+    debug.committed_actor_code = 9U;
     debug.screenshot_request = 7U;
 
     auto& input = port.battle_input_dispatch_state();
@@ -355,7 +354,6 @@ void seed_state(
 
     auto& target = port.battle_target_selection_runtime_state();
     target.selection_input_gate = 9U;
-    target.committed_actor_code = 9U;
     target.selected_action_kind = 9U;
     target.actor_commit_gate = 9U;
     target.action_mode_flags = 9U;
@@ -663,11 +661,8 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 debug.selection_status_word_53c050 == 0xABCD0000U &&
                 debug.actor_retarget_gate_53bf64 == 0U &&
                 debug.battle_mode_flags_53bc24 == 0U &&
-                std::ranges::all_of(
-                    debug.block_53af30,
-                    [](const auto value) { return value == 0U; }
-                ) &&
-                debug.reset_gate_53bd50 == 0U && debug.screenshot_request == 7U,
+                debug.committed_actor_code == 0U &&
+                debug.screenshot_request == 7U,
             "global reset synchronizes debug hotkey aliases and preserves globals outside its write set"
         );
         const auto& input = port.battle_input_dispatch_state();
@@ -707,7 +702,6 @@ void test_battle_global_reset(openswd3::test::Context& test) {
         const auto& target = port.battle_target_selection_runtime_state();
         test.expect_true(
             target.selection_input_gate == 0U &&
-                target.committed_actor_code == 0U &&
                 target.selected_action_kind == 0U &&
                 target.actor_commit_gate == 0U &&
                 target.action_mode_flags == 0U &&

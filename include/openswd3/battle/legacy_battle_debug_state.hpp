@@ -16,8 +16,7 @@ struct LegacyBattleDebugHotkeyState {
     std::array<compat::u32, 6> selection_workspace_tail{};
     compat::u32 text_mode_toggle_53c02c{};
     compat::u32 battle_mode_flags_53bc24{};
-    std::array<compat::u32, 10> block_53af30{};
-    compat::u32 reset_gate_53bd50{};
+    compat::u32 committed_actor_code{};  // 0x0053BD50
     compat::u32 screenshot_request{};
 };
 

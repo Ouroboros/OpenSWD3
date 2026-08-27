@@ -460,8 +460,7 @@ void synchronize_typed_aliases(
     debug_hotkeys.selection_status_word_53c050 &= 0xFFFF0000U;
     debug_hotkeys.actor_retarget_gate_53bf64 = 0U;
     debug_hotkeys.battle_mode_flags_53bc24 = 0U;
-    debug_hotkeys.block_53af30.fill(0U);
-    debug_hotkeys.reset_gate_53bd50 = 0U;
+    debug_hotkeys.committed_actor_code = 0U;
 
     debug_overlay_gate = 0U;
     debug_overlay.selection_order.fill(0U);
@@ -524,7 +523,6 @@ void synchronize_typed_aliases(
     frame_input_resolution.target_selection_suppression = 0U;
 
     target_selection.selection_input_gate = 0U;
-    target_selection.committed_actor_code = 0U;
     target_selection.selected_action_kind = 0U;
     target_selection.actor_commit_gate = 0U;
     target_selection.action_mode_flags = 0U;

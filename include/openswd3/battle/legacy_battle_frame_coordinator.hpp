@@ -91,7 +91,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     frame_completion_query_actor,
     attack_order_dequeue_query_actor,
     selection_frame_query_group_a_replacement,
-    selection_frame_prepare_selected_actor,
+    reserved_selection_frame_prepare_selected_actor_slot,
     selection_frame_query_selected_actor_release,
     selection_frame_release_selected_actor,
     selection_frame_reset_actor_selection,
@@ -116,6 +116,8 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     selection_frame_query_actor_origin,
     selection_frame_query_target_action_available,
     selection_frame_draw_selection_hint,
+    actor_target_prepare_group_a_actor,
+    actor_target_query_group_b_completion,
 };
 
 struct LegacyBattleFrameCoordinatorCallRequest {
@@ -185,9 +187,10 @@ public:
         switch (request.call) {
         case LegacyBattleSelectionFrameCall::query_group_a_replacement:
             break;
-        case LegacyBattleSelectionFrameCall::prepare_selected_actor:
+        case LegacyBattleSelectionFrameCall::
+            reserved_prepare_selected_actor_slot:
             call = LegacyBattleFrameCoordinatorCall::
-                selection_frame_prepare_selected_actor;
+                reserved_selection_frame_prepare_selected_actor_slot;
             break;
         case LegacyBattleSelectionFrameCall::query_selected_actor_release:
             call = LegacyBattleFrameCoordinatorCall::
@@ -304,6 +307,35 @@ public:
             .origin_x = reply.selection_origin_x,
             .origin_y = reply.selection_origin_y,
             .text_length = reply.eax,
+        };
+    }
+    [[nodiscard]] LegacyBattleActorTargetPreparationCallReply
+    invoke_actor_target_preparation(
+        const LegacyBattleActorTargetPreparationCallRequest& request
+    ) override {
+        const auto call = request.call ==
+                LegacyBattleActorTargetPreparationCall::prepare_group_a_actor
+            ? LegacyBattleFrameCoordinatorCall::
+                  actor_target_prepare_group_a_actor
+            : LegacyBattleFrameCoordinatorCall::
+                  actor_target_query_group_b_completion;
+        std::array<compat::u32, 8> arguments{};
+        for (std::size_t index = 0U; index < request.arguments.size();
+             ++index) {
+            arguments[index] = request.arguments[index];
+        }
+        const auto reply = invoke({
+            .call = call,
+            .object_token = request.object_token,
+            .arguments = arguments,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        });
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
         };
     }
     [[nodiscard]] LegacyBattleFrameInputResolutionCallReply
