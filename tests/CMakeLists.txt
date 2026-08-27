@@ -291,6 +291,7 @@ add_executable(
     unit/battle/legacy_battle_input_dispatch_test.cpp
     unit/battle/legacy_battle_frame_input_resolution_test.cpp
     unit/battle/legacy_battle_menu_context_advance_test.cpp
+    unit/battle/legacy_battle_menu_context_retreat_test.cpp
     unit/battle/legacy_battle_menu_input_finalize_test.cpp
     unit/battle/legacy_battle_menu_page_advance_test.cpp
     unit/battle/legacy_battle_menu_page_retreat_test.cpp

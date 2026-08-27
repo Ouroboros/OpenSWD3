@@ -7,6 +7,7 @@
 #include "openswd3/battle/legacy_battle_actor_action_cycle.hpp"
 #include "openswd3/battle/legacy_battle_actor_action_reverse_cycle.hpp"
 #include "openswd3/battle/legacy_battle_menu_context_advance.hpp"
+#include "openswd3/battle/legacy_battle_menu_context_retreat.hpp"
 #include "openswd3/battle/legacy_battle_menu_input_finalize.hpp"
 #include "openswd3/battle/legacy_battle_menu_page_advance.hpp"
 #include "openswd3/battle/legacy_battle_menu_page_retreat.hpp"
@@ -347,6 +348,30 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
         }
         return true;
     };
+    const auto retreat_menu_context = [&]() {
+        const auto nested = retreat_legacy_battle_menu_context(
+            {
+                .startup_reset = bindings.startup_reset,
+                .final_actor = bindings.final_actor,
+                .frame_input_resolution = bindings.frame_input_resolution,
+                .input_dispatch = state,
+                .message_state = bindings.message_state,
+            },
+            port,
+            {.entry_eax = eax, .entry_ecx = ecx, .entry_edx = edx}
+        );
+        ++result.menu_context_retreat_calls;
+        result.port_calls += nested.port_calls;
+        eax = nested.return_eax;
+        ecx = nested.return_ecx;
+        edx = nested.return_edx;
+        if (nested.status != LegacyBattleMenuContextRetreatStatus::completed) {
+            result.status = LegacyBattleInputDispatchStatus::
+                menu_context_retreat_typed_stop;
+            return false;
+        }
+        return true;
+    };
     const auto advance_menu_context = [&]() {
         const auto nested = advance_legacy_battle_menu_context(
             {
@@ -416,6 +441,10 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
         if (op ==
             LegacyBattleInputDispatchCall::reserved_menu_context_advance_slot) {
             return advance_menu_context();
+        }
+        if (op ==
+            LegacyBattleInputDispatchCall::reserved_menu_context_retreat_slot) {
+            return retreat_menu_context();
         }
         static_cast<void>(call(op));
         return true;
@@ -921,9 +950,12 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
                     )) {
                     return finish();
                 }
-                static_cast<void>(
-                    call(LegacyBattleInputDispatchCall::commit_left)
-                );
+                if (!invoke_operation(
+                        LegacyBattleInputDispatchCall::
+                            reserved_menu_context_retreat_slot
+                    )) {
+                    return finish();
+                }
             }
         }
     }

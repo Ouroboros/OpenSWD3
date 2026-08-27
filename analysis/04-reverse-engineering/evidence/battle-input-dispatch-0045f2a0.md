@@ -42,7 +42,7 @@ active actor非零时再次查询对象。查询零或battle mode bit`0x200`置�
 
 基础确认处理signed status bit0、按gate B和热点门选择是否直接清唯一热点vector及对话sentinel；record15 rapid为0时清gate B、把prompt计数写300、置gate A并清interaction mode。battle mode只清低byte bit`0x20`，最后commit selection。
 
-记录3/5在热点链非空时分别按低word bit15回绕后退和按完整u32上界前进；计数直接使用已关闭热点计数语义。记录5的原右向槽已回收为菜单上下文前进，普通返回后才轮转角色动作，typed-stop阻断轮转。记录4/6/7/8和最终record0按原顺序调用模式、确认与方向callee，最终成功后只清两个尾dword。
+记录3/5在热点链非空时分别按低word bit15回绕后退和按完整u32上界前进；计数直接使用已关闭热点计数语义。记录3在反向角色轮转普通返回后直连菜单上下文后退，typed-stop保留轮转并阻断后续记录；记录5先直连菜单上下文前进，普通返回后才轮转角色动作，typed-stop阻断轮转。记录4/6/7/8和最终record0按原顺序调用模式、确认与方向callee，最终成功后只清两个尾dword。
 
 ## 6. caller回收与共享owner
 

@@ -514,11 +514,45 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
                     LegacyBattleInputDispatchCall::
                         reserved_actor_action_reverse_cycle_slot
                 ) == 0U &&
+                result.menu_context_retreat_calls == 1U &&
                 fixture.port.count(
-                    LegacyBattleInputDispatchCall::commit_left
-                ) == 1U &&
+                    LegacyBattleInputDispatchCall::
+                        reserved_menu_context_retreat_slot
+                ) == 0U &&
                 fixture.final_actor.pre_frame_gate_b == 0U,
-            "left choice input preserves the low-word sign wrap and direct hotspot count"
+            "left choice input preserves the low-word sign wrap and directly retreats the menu context"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.message = 1U;
+        fixture.final_actor.queued_actor_code = 10U;
+        fixture.final_actor.pre_frame_gate_b = 9U;
+        fixture.metrics.group_a_count = 1U;
+        fixture.input.records[3U].rapid_press_multiplicity = 1U;
+        fixture.input.records[3U].held_sample_count = 1U;
+        auto& state = fixture.port.battle_input_dispatch_state();
+        state.action_kind = 13U;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_input_dispatch(
+                fixture.bindings(), fixture.port, {}
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleInputDispatchStatus::
+                        menu_context_retreat_typed_stop &&
+                result.actor_action_reverse_cycle_calls == 1U &&
+                result.menu_context_retreat_calls == 1U &&
+                state.action_kind == 9U &&
+                fixture.final_actor.pre_frame_gate_b == 0U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        reserved_menu_context_retreat_slot
+                ) == 0U &&
+                fixture.port.samples.empty() && result.return_eax == 9U &&
+                result.return_ecx == 9U && result.return_edx == 0x33333333U,
+            "record-three menu context typed-stop preserves the completed reverse cycle and blocks later records"
         );
     }
 

@@ -25,14 +25,14 @@ code 8、9、10、11分别经跳表选择动作起点9、10、11、8。第一次
 旧secondary confirmation槽保留相同枚举数值并改为reserved，两个caller全部直连typed反向轮转：
 
 - 记录6先完成已关闭菜单前进，再执行反向轮转，普通返回后才发布菜单动作2；菜单前进或动作提交typed-stop都阻断尾写；
-- 记录3先按热点低word回绕更新选择；对话为空且message为3时先执行已关闭菜单后退，随后无条件进入反向轮转，最后才调用既有左向动作边界；动作提交typed-stop阻断左向尾调用。
+- 记录3先按热点低word回绕更新选择；对话为空且message为3时先执行已关闭菜单选择后退，随后无条件进入反向轮转，最后直连已关闭菜单上下文后退；动作提交typed-stop阻断上下文后退，上下文typed-stop保留已完成轮转并阻断后续记录。
 
-两个路径都不再发出reserved轮转槽，nested动作提交槽也为零调用。无效queued code按原default普通返回，caller继续原尾路径。
+两个路径都不再发出reserved轮转槽，nested动作提交与上下文后退槽也为零调用。无效queued code按原default普通返回，caller继续原尾路径。
 
 ## 5. 共享owner与验证
 
 当前角色严格复用final-actor queued owner，清零严格复用final-actor pre-frame gate B owner，没有新增重复物理状态。动作提交边界复用正向轮转已登记的同一typed操作。
 
-定向测试覆盖code 7与12默认返回、code 8..11的`9/10/11/8`四项起点、反向callee到typed队列提交的寄存器传递、提交typed-stop传播、记录6普通直连与前置菜单typed-stop阻断、记录3菜单/动作顺序、尾部左向调用及两个reserved槽零调用。
+定向测试覆盖code 7与12默认返回、code 8..11的`9/10/11/8`四项起点、反向callee到typed队列提交的寄存器传递、提交typed-stop传播、记录6普通直连与前置菜单typed-stop阻断、记录3菜单/轮转/上下文后退顺序、上下文typed-stop及三个reserved槽零调用。
 
 当前缺少原版当前角色、反向动作表callee、角色队列共享副作用、两个caller输入记录、热点链及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

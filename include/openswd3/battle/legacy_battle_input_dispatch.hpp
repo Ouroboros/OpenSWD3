@@ -94,7 +94,7 @@ enum class LegacyBattleInputDispatchCall : compat::u8 {
     reserved_actor_action_cycle_slot,
     reserved_actor_action_reverse_cycle_slot,
     reserved_actor_action_commit_direct_slot,
-    commit_left,
+    reserved_menu_context_retreat_slot,
     reserved_menu_context_advance_slot,
     reserved_menu_input_finalize_slot,
     query_active_actor,
@@ -204,6 +204,7 @@ enum class LegacyBattleInputDispatchStatus : compat::u8 {
     actor_action_cycle_typed_stop,
     actor_action_reverse_cycle_typed_stop,
     menu_context_advance_typed_stop,
+    menu_context_retreat_typed_stop,
 };
 
 struct LegacyBattleInputDispatchResult {
@@ -228,6 +229,7 @@ struct LegacyBattleInputDispatchResult {
     compat::u32 actor_action_reverse_cycle_calls{};
     compat::u32 actor_action_commit_calls{};
     compat::u32 menu_context_advance_calls{};
+    compat::u32 menu_context_retreat_calls{};
     bool returned_early{};
 };
 
