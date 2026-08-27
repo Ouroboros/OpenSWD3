@@ -43,11 +43,13 @@ selection_mode == 0
 ```
 
 - 16位延迟小于`0x10`：只执行word递增，保留u16回绕；
-- 延迟不小于`0x10`：调用选择刷新callee并从共享槽重读值；
+- 延迟不小于`0x10`：直接组合已关闭攻击顺序出队；它按无界28字节步长跳过角色查询精确返回1的组A记录，把首个可用或空记录完整七dword复制到共享输出，随后按原规则左移并重置尾部；
 - 新值不是全1：延迟word清零、active写1、auxiliary保存新值；
 - 新值仍为全1：不清延迟、不置active、不改auxiliary。
 
-选择值与角色metric优先索引是同一物理dword；输入源复用启动状态第一条`0x1C`记录的`+0x00`，选择active与mode分别复用最终角色selection gate与frame gate。调试快捷键或后续角色阶段的同址写入会真实影响本帧后续判断，不保留旧独立副本。
+旧选择刷新callee枚举只保留reserved数值且不再调用。出队内部唯一尚未关闭角色查询转接为窄端口；子typed-stop保留lock/unlock和出队输出/记录前缀，阻断主frame stage和后续全部帧。
+
+选择值与角色metric优先索引是同一物理七dword输出记录的首dword，后六dword也收敛到同一metric owner；全局重置按原物理写集合清完整七dword。输入源复用启动状态第一条`0x1C`记录的`+0x00`，选择active与mode分别复用最终角色selection gate与frame gate。调试快捷键或后续角色阶段的同址写入会真实影响本帧后续判断，不保留旧独立副本。
 
 交互可用dword最终严格等于：
 
@@ -195,7 +197,7 @@ C++到LST反向追溯覆盖完整412行、44个静态call站点和18个标签。
 
 - 音乐启动/commit、双opaque、typed角色预处理与调试快捷键顺序，以及E键第六阶段零早退；
 - target lock/unlock后渲染门返回活动1；
-- 选择延迟刷新、共享值重读、active/auxiliary发布与交互门；
+- 选择延迟、攻击顺序出队直连、七dword共享输出、角色查询转接、旧opaque槽清零、active/auxiliary发布与交互门；
 - UI dword只改低word且保留高16位；
 - 主frame stage后画面效果直连及其typed-stop前缀；
 - 角色帧后双方完成数协调直连、post-call寄存器snapshot、组A/组B消息发布与旧第一opaque槽清零；
@@ -214,4 +216,4 @@ C++到LST反向追溯覆盖完整412行、44个静态call站点和18个标签。
 - 映射缺失发生在面板动作更新副作用之后；
 - battle聚合目标零warning，普通定向通过。
 
-当前没有原版剩余战斗callee、共享选择/队列/对话/倒计时状态、调试叠加字体/文字/角色查询状态、结果判定计数/音频/整理状态、上下文提示计数/鼠标/动作帧状态、九float与计数、DirectDraw target surface、内部bit表、寄存器snapshot与BMP文件联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前没有原版剩余战斗callee、攻击顺序出队角色查询与无界相邻内存轨迹、共享选择/队列/对话/倒计时状态、调试叠加字体/文字/角色查询状态、结果判定计数/音频/整理状态、上下文提示计数/鼠标/动作帧状态、九float与计数、DirectDraw target surface、内部bit表、寄存器snapshot与BMP文件联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

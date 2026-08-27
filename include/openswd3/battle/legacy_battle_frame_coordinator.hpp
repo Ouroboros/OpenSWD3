@@ -6,6 +6,7 @@
 #include "openswd3/battle/legacy_battle_actor_priority.hpp"
 #include "openswd3/battle/legacy_battle_actor_frame_sequence.hpp"
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
+#include "openswd3/battle/legacy_battle_attack_order_dequeue.hpp"
 #include "openswd3/battle/legacy_battle_pending_action_commit.hpp"
 #include "openswd3/battle/legacy_battle_color_accumulation.hpp"
 #include "openswd3/battle/legacy_battle_context_prompt.hpp"
@@ -56,7 +57,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     query_actor_metric,
     lock_target_surface,
     unlock_target_surface,
-    refresh_selection,
+    reserved_refresh_selection_slot,
     frame_stage,
     query_actor_pair,
     reserved_frame_completion_slot,
@@ -76,6 +77,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     pending_action_commit_actor,
     reserved_pending_action_remove_actor_record,
     frame_completion_query_actor,
+    attack_order_dequeue_query_actor,
 };
 
 struct LegacyBattleFrameCoordinatorCallRequest {
@@ -112,6 +114,7 @@ class LegacyBattleFrameCoordinatorPort
       public LegacyBattleOutcomeResolutionPort,
       public LegacyBattleContextPromptPort,
       public LegacyBattleVerticalShiftPort,
+      public LegacyBattleAttackOrderDequeuePort,
       public LegacyBattlePendingActionPort,
       public LegacyBattleFrameCompletionPort,
       public virtual LegacyBattleEffectCoordinatorStatePort {
@@ -129,6 +132,27 @@ public:
     create_temporary_surface(compat::u32 owner_token, compat::u32 format) = 0;
     [[nodiscard]] virtual compat::u32
     operate_surface(compat::u32 object_token, compat::u32 source_token) = 0;
+
+    [[nodiscard]] LegacyBattleAttackOrderDequeueActorReply query_actor(
+        const LegacyBattleAttackOrderDequeueActorRequest& request
+    ) override {
+        const auto reply = invoke({
+            .call = LegacyBattleFrameCoordinatorCall::
+                attack_order_dequeue_query_actor,
+            .arguments =
+                {
+                    request.actor_token,
+                    request.actor_code,
+                    request.actor_index,
+                    request.stale_eax,
+                    request.stale_edx,
+                },
+            .eax = request.stale_eax,
+            .ecx = request.actor_token,
+            .edx = request.stale_edx,
+        });
+        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
+    }
 
     [[nodiscard]] LegacyBattlePendingActionCallReply invoke_pending_action(
         const LegacyBattlePendingActionCallRequest& request
@@ -247,6 +271,7 @@ struct LegacyBattleFrameCoordinatorRequest {
     compat::u32 actor_priority_eax_snapshot{};
     compat::u32 actor_priority_ecx_snapshot{};
     compat::u32 actor_priority_edx_snapshot{};
+    compat::u32 attack_order_dequeue_edx_snapshot{};
     compat::u32 post_actor_frame_ecx_snapshot{};
     compat::u32 post_actor_frame_edx_snapshot{};
     compat::u32 post_frame_zero_ecx_snapshot{};
@@ -297,6 +322,7 @@ enum class LegacyBattleFrameCoordinatorStatus : compat::u8 {
     actor_metric_typed_stop,
     actor_order_typed_stop,
     actor_priority_typed_stop,
+    attack_order_dequeue_typed_stop,
     actor_frame_typed_stop,
     frame_completion_typed_stop,
     pending_action_typed_stop,
@@ -334,6 +360,7 @@ struct LegacyBattleFrameCoordinatorResult {
     compat::u32 lock_calls{};
     compat::u32 unlock_calls{};
     compat::u32 selection_refresh_calls{};
+    LegacyBattleAttackOrderDequeueResult attack_order_dequeue{};
     LegacyBattlePreFrameResult pre_frame{};
     compat::u32 pre_frame_calls{};
     LegacyBattleDebugHotkeyResult debug_hotkeys{};

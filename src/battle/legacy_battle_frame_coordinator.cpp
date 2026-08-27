@@ -195,14 +195,34 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
     if (input_source != 0xFFFFFFFFU && selection_active == 0U &&
         state.selection_enable == 1U && selection_mode == 0U) {
         if (state.selection_delay >= 0x10U) {
-            reply = invoke(
-                port,
-                result,
-                LegacyBattleFrameCoordinatorCall::refresh_selection,
-                {selection_value}
-            );
+            result.attack_order_dequeue =
+                dequeue_legacy_battle_attack_order_entry(
+                    {
+                        .records = context.startup.reset.records_524788,
+                        .adjacent_intensity_records =
+                            port.effect_coordinator_state().intensity_records,
+                        .output =
+                            {
+                                .value_00 = &selection_value,
+                                .tail_dwords = port.actor_metric_state()
+                                                   .priority_actor_record_tail,
+                            },
+                    },
+                    port,
+                    {
+                        .entry_eax = selection_mode,
+                        .entry_ecx = selection_value,
+                        .entry_edx = request.attack_order_dequeue_edx_snapshot,
+                    }
+                );
             ++result.selection_refresh_calls;
-            selection_value = reply.published_value;
+            result.port_calls += result.attack_order_dequeue.actor_query_calls;
+            if (result.attack_order_dequeue.status !=
+                LegacyBattleAttackOrderDequeueStatus::completed) {
+                result.status = LegacyBattleFrameCoordinatorStatus::
+                    attack_order_dequeue_typed_stop;
+                return result;
+            }
             if (selection_value != 0xFFFFFFFFU) {
                 state.selection_delay = 0U;
                 selection_active = 1U;

@@ -280,6 +280,7 @@ void seed_state(
     metrics.group_a_mode = 9U;
     metrics.group_b_mode = 9U;
     metrics.priority_actor_index = 9U;
+    metrics.priority_actor_record_tail.fill(9U);
     metrics.priority_order_ready = 9U;
     metrics.pending_action_activation_latch = 9U;
 
@@ -435,6 +436,10 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 ) &&
                 metrics.group_b_count == 0U && metrics.group_a_count == 0U &&
                 metrics.priority_actor_index == 0U &&
+                std::ranges::all_of(
+                    metrics.priority_actor_record_tail,
+                    [](const auto value) { return value == 0U; }
+                ) &&
                 metrics.pending_action_activation_latch == 0U,
             "metric order mask counts and priority aliases clear while the untouched group-B order remains"
         );

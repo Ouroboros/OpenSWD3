@@ -412,6 +412,7 @@ void synchronize_typed_aliases(
     metrics.group_a_mode = 0U;
     metrics.group_b_mode = 0U;
     metrics.priority_actor_index = 0U;
+    metrics.priority_actor_record_tail.fill(0U);
     metrics.priority_order_ready = 0U;
     metrics.pending_action_activation_latch = 0U;
 

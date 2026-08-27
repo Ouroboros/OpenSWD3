@@ -13,6 +13,7 @@ namespace {
 
 using openswd3::battle::LegacyBattleActionCallReply;
 using openswd3::battle::LegacyBattleActionCallRequest;
+using openswd3::battle::LegacyBattleAttackOrderDequeueStatus;
 using openswd3::battle::LegacyBattleEffectCallReply;
 using openswd3::battle::LegacyBattleEffectCallRequest;
 using openswd3::battle::LegacyBattleFrameCoordinatorCall;
@@ -963,13 +964,21 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         state.ui_state = 0xABCD0000U;
         state.selection_delay = 0x10U;
         Fixture fixture;
-        fixture.startup.reset.records_524788[0].value_00 = 7U;
+        fixture.startup.reset.records_524788[0] = {
+            .value_00 = 5U,
+            .value_04 = 0x11111111U,
+            .value_08 = 0x2222U,
+            .value_0a = 0x3333U,
+            .value_0c = 0x44444444U,
+            .value_10 = 0x55555555U,
+            .value_14 = 0x66666666U,
+            .value_18 = 0x77777777U,
+        };
+        fixture.startup.reset.records_524788[1].value_00 = 0xFFFFFFFFU;
         fixture.internal_flags[0x11U >> 3U] =
             static_cast<u8>(1U << (0x11U & 7U));
         CoordinatorPort port;
         configure_common_port(port);
-        port.replies[LegacyBattleFrameCoordinatorCall::refresh_selection]
-            .published_value = 5U;
         auto context = fixture.context();
 
         const auto result =
@@ -983,8 +992,26 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                         input_return_three &&
                 result.return_value == 3U &&
                 result.selection_refresh_calls == 1U &&
+                result.attack_order_dequeue.status ==
+                    LegacyBattleAttackOrderDequeueStatus::completed &&
+                result.attack_order_dequeue.actor_query_calls == 0U &&
                 state.selection_delay == 0U &&
                 state.selection_auxiliary == 5U &&
+                port.actor_metric_state().priority_actor_record_tail ==
+                    std::array<u32, 6>{
+                        0x11111111U,
+                        0x33332222U,
+                        0x44444444U,
+                        0x55555555U,
+                        0x66666666U,
+                        0x77777777U,
+                    } &&
+                fixture.startup.reset.records_524788[0].value_00 ==
+                    0xFFFFFFFFU &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        reserved_refresh_selection_slot
+                ) == 0U &&
                 state.interaction_available == 0U,
             "full pre-input path publishes the refreshed selection before later shared-state updates"
         );
@@ -1021,6 +1048,52 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                         hidden_inactive &&
                 result.input_queries == 1U && result.screenshot_calls == 0U,
             "full pre-input path reaches both countdowns and returns three on internal bit seventeen"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleFrameCoordinatorState state;
+        state.selection_delay = 0x10U;
+        Fixture fixture;
+        fixture.startup.reset.records_524788[0].value_00 = 8U;
+        fixture.startup.reset.records_524788[1].value_00 = 0xFFFFFFFFU;
+        fixture.internal_flags[0x11U >> 3U] =
+            static_cast<u8>(1U << (0x11U & 7U));
+        CoordinatorPort port;
+        configure_common_port(port);
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         attack_order_dequeue_query_actor] = {
+            .eax = 0U,
+            .ecx = 0x005029D0U,
+            .edx = 0x13572468U,
+        };
+        auto context = fixture.context();
+        auto request = base_request();
+        request.attack_order_dequeue_edx_snapshot = 0x24681357U;
+
+        const auto result =
+            openswd3::battle::run_legacy_battle_frame_coordinator(
+                state, port, context, request
+            );
+        const auto query =
+            std::ranges::find_if(port.calls, [](const auto& call) {
+                return call.call ==
+                    LegacyBattleFrameCoordinatorCall::
+                        attack_order_dequeue_query_actor;
+            });
+
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameCoordinatorStatus::
+                        input_return_three &&
+                result.attack_order_dequeue.actor_query_calls == 1U &&
+                query != port.calls.end() &&
+                query->arguments[0] == 0x005029D0U &&
+                query->arguments[1] == 8U && query->arguments[2] == 0U &&
+                query->eax == 0U && query->ecx == 0x005029D0U &&
+                query->edx == 0x24681357U && state.selection_auxiliary == 8U &&
+                fixture.startup.reset.records_524788[0].value_00 == 0xFFFFFFFFU,
+            "selection refresh directly dequeues a group-A record through the remaining actor-query boundary"
         );
     }
 

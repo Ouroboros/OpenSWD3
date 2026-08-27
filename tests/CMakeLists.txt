@@ -251,6 +251,7 @@ add_executable(
     openswd3_battle_legacy_battle_setup_tests
     unit/battle/legacy_battle_action_rotation_cache_test.cpp
     unit/battle/legacy_battle_action_dispatch_test.cpp
+    unit/battle/legacy_battle_attack_order_dequeue_test.cpp
     unit/battle/legacy_battle_attack_order_entry_test.cpp
     unit/battle/legacy_battle_attack_order_insert_test.cpp
     unit/battle/legacy_battle_attack_order_remove_test.cpp

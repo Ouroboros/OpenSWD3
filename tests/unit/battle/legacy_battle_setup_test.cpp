@@ -22,6 +22,7 @@
 
 void test_battle_action_rotation_cache(openswd3::test::Context& test);
 void test_battle_action_dispatch(openswd3::test::Context& test);
+void test_battle_attack_order_dequeue(openswd3::test::Context& test);
 void test_battle_attack_order_entry(openswd3::test::Context& test);
 void test_battle_attack_order_insert(openswd3::test::Context& test);
 void test_battle_attack_order_remove(openswd3::test::Context& test);
@@ -6982,6 +6983,7 @@ int main() {
     test_battle_action_record_clear(test);
     test_battle_action_rotation_cache(test);
     test_battle_action_dispatch(test);
+    test_battle_attack_order_dequeue(test);
     test_battle_attack_order_entry(test);
     test_battle_attack_order_insert(test);
     test_battle_attack_order_remove(test);
