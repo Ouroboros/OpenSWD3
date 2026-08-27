@@ -441,6 +441,8 @@ I5最终必须锁定：
 
 `audit_order=115`的`0x00461C10`已关闭为`platform_adapted`。完整权威LST主体`0x00461C10..0x00462085`从proc到endp共504行、258条实际指令、7个静态call、20个跳转、25个局部/默认标签、8个返回点且无外部chunk；函数后的十项跳表和三十byte间接索引也已审计。入口清pre-frame gate并置mouse gate；selected group-B特殊清理按one-based code重置对象及固定缓存。message 1/2/4/5/7/8/27/30分别关闭、重建或切换菜单状态并按两套原始寄存器公式重置active group-A对象，默认只清动画帧。message 3先重置active group-A，再按live signed count重置group-B并固定重置十个group-A、逐byte清marker；count 9在第九次真实对象call停止。随后按action kind映射message或回退fallback kind，匹配路径清十项selection与五dword攻击缓存。所有物理状态复用input/frame/startup/final/metric唯一owner；全局reset补齐新增owner并把action kind恢复权威值1。逐帧输入record0旧调用已直连，typed-stop阻断caller两项尾清理。
 
-下一项回收`audit_order=116`的`0x004620D0`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗函数。
+`audit_order=116`的`0x004620D0`已关闭为`platform_adapted`。完整权威LST主体`0x004620D0..0x0046231F`从proc到endp共269行、157条实际指令、7个静态call、23个跳转、12个局部标签、7个返回点且无外部chunk。函数依次执行entry word、input、outcome与signed message门；suppression为0时按group-B count减packed低byte决定是否清message；message 110保留u16小于30写29、等于30写100的非对称。dialog非空发布one-shot交互；ready未置、queued角色为0或非零message缺少option时刷新选择状态。真正进入时先清option cache，查询queued group-A角色；未完成则播放样本、重载queued角色、发布mouse/target/phase并配置选择。group-B index缺失或group-A index不匹配时发布message/action 1刷新；匹配时发布message 7、limit 2，并对同一signed group-B对象执行三次primary和两次secondary扫描，callee返回1才增加limit，最后清transition output。active/group-B越界只在首次真实对象call typed-stop并保留声音、gate、message与扫描前缀。逐帧输入十个静态caller已从五条typed业务路径直连；AI/action三处caller尚未关闭。交叉审计同时统一queued/published final-actor owner，拆开group-B index、group-A index与逐帧option cache，target-ready复用actor-frame共享owner，one-shot复用世界player-control owner。
+
+下一项回收`audit_order=117`的`0x00462320`，从完整权威LST主体和所有外部FUNCTION CHUNK独立审计相邻战斗函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

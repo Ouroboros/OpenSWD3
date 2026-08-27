@@ -308,7 +308,7 @@ coordinate_legacy_battle_frame_input_resolution(
         return return_one();
     }
     case 1U: {
-        const u32 active_actor = bindings.final_actor.active_actor_code;
+        const u32 active_actor = bindings.final_actor.queued_actor_code;
         if (active_actor == 0U) {
             return return_zero();
         }
@@ -673,7 +673,7 @@ coordinate_legacy_battle_frame_input_resolution(
         state.selection_block_word != 0U) {
         return return_zero();
     }
-    const u32 active_actor = bindings.final_actor.active_actor_code;
+    const u32 active_actor = bindings.final_actor.queued_actor_code;
     const u32 startup_mode_index = active_actor * 5U - 40U;
     if (startup_mode_index >= bindings.startup.reset.block_520e90.size()) {
         return stop(

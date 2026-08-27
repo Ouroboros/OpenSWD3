@@ -72,6 +72,9 @@ struct Fixture {
     openswd3::battle::LegacyBattleContextPromptState prompt;
     u32 message{};
     u32 terminal{};
+    u32 one_shot_interaction_state{};
+    u32 target_ready_gate{};
+    u32 outcome_darkening_gate{};
     openswd3::input_time_rng::LegacyInputNormalizationState input;
     openswd3::input_time_rng::LegacyKeyboardSnapshot keyboard{};
     openswd3::story_scene::LegacyDialogRuntimeState dialogs;
@@ -92,6 +95,9 @@ struct Fixture {
             .context_prompt = prompt,
             .message_state = message,
             .terminal_latch = terminal,
+            .one_shot_interaction_state = one_shot_interaction_state,
+            .target_ready_gate = target_ready_gate,
+            .outcome_darkening_gate = outcome_darkening_gate,
             .input_records = input.records,
             .keyboard = keyboard,
             .dialogs = dialogs,
@@ -121,15 +127,17 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
 
     {
         Fixture fixture;
-        fixture.final_actor.active_actor_code = 8U;
+        fixture.final_actor.queued_actor_code = 8U;
         fixture.startup.value_524414 = 1U;
         fixture.keyboard[2U] = 0x80U;
         fixture.port
             .replies[LegacyBattleInputDispatchCall::refresh_action_mode] = {
             .eax = 0x10U, .ecx = 0x20U, .edx = 0x30U
         };
-        fixture.port.replies[LegacyBattleInputDispatchCall::commit_selection] =
-            {.eax = 0x40U, .ecx = 0x50U, .edx = 0x60U};
+        fixture.port.replies
+            [LegacyBattleInputDispatchCall::target_selection_refresh_state] = {
+            .eax = 0x40U, .ecx = 0x50U, .edx = 0x60U
+        };
         const auto result =
             openswd3::battle::coordinate_legacy_battle_input_dispatch(
                 fixture.bindings(), fixture.port, {}
@@ -143,9 +151,15 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
                 fixture.port.count(
                     LegacyBattleInputDispatchCall::refresh_action_mode
                 ) == 1U &&
+                result.target_selection_entry_calls == 1U &&
                 fixture.port.count(
-                    LegacyBattleInputDispatchCall::commit_selection
+                    LegacyBattleInputDispatchCall::
+                        target_selection_refresh_state
                 ) == 1U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        reserved_target_selection_entry_slot
+                ) == 0U &&
                 result.return_eax == 0x40U && result.return_ecx == 0x50U &&
                 result.return_edx == 0x60U,
             "the first permitted direct key refreshes, publishes selection one, and returns the commit registers"
@@ -154,7 +168,35 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
 
     {
         Fixture fixture;
-        fixture.final_actor.active_actor_code = 8U;
+        fixture.final_actor.queued_actor_code = 7U;
+        fixture.startup.value_524414 = 1U;
+        fixture.keyboard[2U] = 0x80U;
+        fixture.target_ready_gate = 1U;
+        fixture.port.battle_input_dispatch_state().selected_option_word = 3U;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_input_dispatch(
+                fixture.bindings(), fixture.port, {}
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleInputDispatchStatus::
+                        target_selection_entry_typed_stop &&
+                result.target_selection_entry_calls == 1U &&
+                fixture.message == 1U &&
+                fixture.final_actor.pre_frame_gate_a == 1U &&
+                fixture.port.battle_input_dispatch_state().selection_index ==
+                    1U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        reserved_target_selection_entry_slot
+                ) == 0U,
+            "direct target-selection typed-stop preserves the permitted-key prefix and emits no opaque slot"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
         fixture.startup.value_524414 = 0xFFFFFFFFU;
         fixture.startup.value_524418 = 0xFFFFFFFFU;
         fixture.port.battle_input_dispatch_state().selection_index = 5U;
@@ -177,7 +219,7 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
 
     {
         Fixture fixture;
-        fixture.final_actor.active_actor_code = 8U;
+        fixture.final_actor.queued_actor_code = 8U;
         fixture.metrics.group_b_count = 3U;
         fixture.input.records[18U].rapid_press_multiplicity = 1U;
         fixture.input.records[18U].held_sample_count = 1U;
@@ -211,7 +253,7 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
 
     {
         Fixture fixture;
-        fixture.final_actor.active_actor_code = 9U;
+        fixture.final_actor.queued_actor_code = 9U;
         fixture.metrics.group_b_count = 4U;
         fixture.input.records[18U].rapid_press_multiplicity = 1U;
         fixture.input.records[18U].held_sample_count = 1U;
@@ -234,7 +276,7 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
                 fixture.port.delays == std::vector<u32>{50U} &&
                 fixture.action.opponent_workspace[11U] == 0x11U &&
                 fixture.final_actor.secondary_actor_code == 9U &&
-                fixture.final_actor.active_actor_code == 0U &&
+                fixture.final_actor.queued_actor_code == 0U &&
                 fixture.final_actor.published_actor_code == 2U &&
                 fixture.final_actor.auxiliary_gate == 1U &&
                 fixture.final_actor.frame_gate_a == 1U &&
@@ -275,7 +317,7 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
 
     {
         Fixture fixture;
-        fixture.final_actor.active_actor_code = 8U;
+        fixture.final_actor.queued_actor_code = 8U;
         fixture.metrics.group_a_count = 1U;
         fixture.input.records[17U].rapid_press_multiplicity = 1U;
         fixture.input.records[17U].held_sample_count = 1U;
@@ -298,7 +340,7 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
 
     {
         Fixture fixture;
-        fixture.final_actor.active_actor_code = 0x200U;
+        fixture.final_actor.queued_actor_code = 0x200U;
         fixture.metrics.group_a_count = 1U;
         fixture.input.records[17U].rapid_press_multiplicity = 1U;
         fixture.input.records[17U].held_sample_count = 1U;
@@ -343,9 +385,15 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
                 fixture.final_actor.pre_frame_gate_b == 0U &&
                 fixture.prompt.frame_counter == 300U &&
                 fixture.debug.battle_mode_flags_53bc24 == 0x103U &&
+                result.target_selection_entry_calls == 1U &&
                 fixture.port.count(
-                    LegacyBattleInputDispatchCall::commit_selection
-                ) == 1U,
+                    LegacyBattleInputDispatchCall::
+                        target_selection_refresh_state
+                ) == 1U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        reserved_target_selection_entry_slot
+                ) == 0U,
             "base confirm clears the choice chain, resets prompt cadence, clears only mode bit 0x20, and commits"
         );
     }
@@ -383,7 +431,7 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.message = 3U;
-        fixture.final_actor.active_actor_code = 8U;
+        fixture.final_actor.queued_actor_code = 8U;
         fixture.input.records[4U].rapid_press_multiplicity = 1U;
         fixture.input.records[4U].held_sample_count = 1U;
         const auto result =
@@ -415,7 +463,7 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.message = 3U;
-        fixture.final_actor.active_actor_code = 0x100U;
+        fixture.final_actor.queued_actor_code = 0x100U;
         fixture.final_actor.pre_frame_gate_b = 9U;
         fixture.input.records[4U].rapid_press_multiplicity = 1U;
         fixture.input.records[4U].held_sample_count = 1U;
@@ -439,7 +487,7 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.message = 3U;
-        fixture.final_actor.active_actor_code = 8U;
+        fixture.final_actor.queued_actor_code = 8U;
         fixture.input.records[6U].rapid_press_multiplicity = 1U;
         fixture.input.records[6U].held_sample_count = 1U;
         const auto result =
@@ -471,7 +519,7 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.message = 3U;
-        fixture.final_actor.active_actor_code = 0x100U;
+        fixture.final_actor.queued_actor_code = 0x100U;
         fixture.final_actor.pre_frame_gate_b = 9U;
         fixture.input.records[6U].rapid_press_multiplicity = 1U;
         fixture.input.records[6U].held_sample_count = 1U;
@@ -497,7 +545,7 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
         fixture.message = 2U;
         fixture.frame_input.grid_selection = 1U;
         fixture.frame_input.panel_scroll_b = 10U;
-        fixture.final_actor.active_actor_code = 8U;
+        fixture.final_actor.queued_actor_code = 8U;
         fixture.port.battle_input_dispatch_state().interaction_mode = 3U;
         fixture.input.records[15U].rapid_press_multiplicity = 1U;
         fixture.input.records[15U].held_sample_count = 1U;
@@ -602,7 +650,7 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
         fixture.frame_input.panel_row_limit_a = 20U;
         fixture.frame_input.list_selection = 7U;
         fixture.frame_input.panel_scroll_a = 0U;
-        fixture.final_actor.active_actor_code = 8U;
+        fixture.final_actor.queued_actor_code = 8U;
         fixture.port.battle_input_dispatch_state().interaction_mode = 4U;
         fixture.input.records[15U].rapid_press_multiplicity = 1U;
         fixture.input.records[15U].held_sample_count = 1U;
@@ -720,8 +768,7 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
         fixture.port.battle_input_dispatch_state().final_value_b = 9U;
         fixture.port.battle_input_dispatch_state().selected_actor_cleanup_gate =
             1U;
-        fixture.port.battle_input_dispatch_state().selected_group_b_actor_code =
-            0U;
+        fixture.final_actor.published_actor_code = 0U;
         const auto result =
             openswd3::battle::coordinate_legacy_battle_input_dispatch(
                 fixture.bindings(), fixture.port, {}

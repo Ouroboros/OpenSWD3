@@ -334,7 +334,9 @@ void seed_state(
     input.signed_status = 9U;
     input.choice_selection_index = 9U;
     input.final_value_a = 9U;
-    input.selected_group_b_actor_code = 9U;
+    input.selected_group_b_index = 9U;
+    input.selected_group_a_index = 9U;
+    input.target_transition_word = 9U;
     input.fallback_action_kind = 9U;
     input.selected_actor_cleanup_gate = 9U;
     input.selection_runtime_gate = 9U;
@@ -640,7 +642,9 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 input.signed_status == 0U &&
                 input.choice_selection_index == 0U &&
                 input.final_value_a == 9U &&
-                input.selected_group_b_actor_code == 1U &&
+                input.selected_group_b_index == 0xFFFFU &&
+                input.selected_group_a_index == 9U &&
+                input.target_transition_word == 9U &&
                 input.fallback_action_kind == 9U &&
                 input.selected_actor_cleanup_gate == 0U &&
                 input.selection_runtime_gate == 0U &&

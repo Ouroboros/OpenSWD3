@@ -223,7 +223,7 @@ LegacyBattleMenuSelectionAdvanceResult advance_legacy_battle_menu_selection(
         }
         play_sample();
         const u32 startup_index =
-            mode_index(bindings.final_actor.active_actor_code);
+            mode_index(bindings.final_actor.queued_actor_code);
         if (startup_index >= bindings.startup_reset.block_520e90.size()) {
             return stop(
                 LegacyBattleMenuSelectionAdvanceStatus::startup_mode_typed_stop

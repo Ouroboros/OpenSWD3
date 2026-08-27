@@ -125,7 +125,7 @@ LegacyBattleContextPromptResult draw_legacy_battle_context_prompt(
     if ((message_gate & 0x80000000U) == 0U) {
         draw(
             LegacyBattleContextPromptBranch::actor_cursor,
-            bindings.final_actor.active_actor_code != 0U ? 0x238DU : 0x238CU,
+            bindings.final_actor.queued_actor_code != 0U ? 0x238DU : 0x238CU,
             0U,
             request.mouse_x,
             request.mouse_y,

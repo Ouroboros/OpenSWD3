@@ -8,6 +8,7 @@
 #include "openswd3/battle/legacy_battle_menu_page_retreat.hpp"
 #include "openswd3/battle/legacy_battle_menu_selection_advance.hpp"
 #include "openswd3/battle/legacy_battle_menu_selection_retreat.hpp"
+#include "openswd3/battle/legacy_battle_target_selection_entry.hpp"
 
 namespace openswd3::battle {
 namespace {
@@ -235,6 +236,37 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
         }
         return true;
     };
+    const auto enter_target_selection = [&]() {
+        const auto nested = enter_legacy_battle_target_selection(
+            {
+                .frame_input_resolution = bindings.frame_input_resolution,
+                .final_actor = bindings.final_actor,
+                .action = bindings.action,
+                .metrics = bindings.metrics,
+                .input_dispatch = state,
+                .dialogs = bindings.dialogs,
+                .one_shot_interaction_state =
+                    bindings.one_shot_interaction_state,
+                .target_ready_gate = bindings.target_ready_gate,
+                .outcome_darkening_gate = bindings.outcome_darkening_gate,
+                .message_state = bindings.message_state,
+            },
+            port,
+            {.entry_eax = eax, .entry_ecx = ecx, .entry_edx = edx}
+        );
+        ++result.target_selection_entry_calls;
+        result.port_calls += nested.port_calls;
+        eax = nested.return_eax;
+        ecx = nested.return_ecx;
+        edx = nested.return_edx;
+        if (nested.status !=
+            LegacyBattleTargetSelectionEntryStatus::completed) {
+            result.status = LegacyBattleInputDispatchStatus::
+                target_selection_entry_typed_stop;
+            return false;
+        }
+        return true;
+    };
     const auto invoke_operation = [&](const LegacyBattleInputDispatchCall op) {
         if (op ==
             LegacyBattleInputDispatchCall::
@@ -258,6 +290,11 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
             LegacyBattleInputDispatchCall::reserved_menu_input_finalize_slot) {
             return finalize_menu_input();
         }
+        if (op ==
+            LegacyBattleInputDispatchCall::
+                reserved_target_selection_entry_slot) {
+            return enter_target_selection();
+        }
         static_cast<void>(call(op));
         return true;
     };
@@ -268,7 +305,7 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
     }
 
     eax = bindings.message_state;
-    ecx = bindings.final_actor.active_actor_code;
+    ecx = bindings.final_actor.queued_actor_code;
     if (signed_bits(eax) < 2 && ecx != 0U &&
         bindings.dialogs.messages.empty()) {
         const std::array<u32, 8> permission_bytes{
@@ -298,9 +335,9 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
                     state.action_kind = 6U;
                     bindings.final_actor.pre_frame_gate_a = 1U;
                     state.selection_index = 5U;
-                    static_cast<void>(call(
-                        LegacyBattleInputDispatchCall::commit_selection, {0U}
-                    ));
+                    if (!enter_target_selection()) {
+                        return finish();
+                    }
                 }
                 bindings.message_state = 0U;
                 bindings.final_actor.pre_frame_gate_a = 0U;
@@ -319,12 +356,12 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
             state.action_kind = 6U;
             bindings.final_actor.pre_frame_gate_a = 1U;
             state.selection_index = index + 1U;
-            static_cast<void>(
-                call(LegacyBattleInputDispatchCall::commit_selection, {0U})
-            );
+            if (!enter_target_selection()) {
+                return finish();
+            }
             return early();
         }
-        ecx = bindings.final_actor.active_actor_code;
+        ecx = bindings.final_actor.queued_actor_code;
     }
 
     eax = state.input_gate;
@@ -365,9 +402,9 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
                 call(LegacyBattleInputDispatchCall::confirm_primary)
             );
             if (bindings.message_state == 1U) {
-                static_cast<void>(
-                    call(LegacyBattleInputDispatchCall::commit_selection, {0U})
-                );
+                if (!enter_target_selection()) {
+                    return finish();
+                }
             }
             state.selected_option_word = 0xFFFFU;
             return early();
@@ -389,7 +426,7 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
                 !bindings.dialogs.messages.empty()) {
                 return early();
             }
-            const u32 queried_actor = bindings.final_actor.active_actor_code;
+            const u32 queried_actor = bindings.final_actor.queued_actor_code;
             ecx = group_a_token(queried_actor);
             static_cast<void>(call(
                 LegacyBattleInputDispatchCall::query_active_actor,
@@ -406,7 +443,7 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
             if (edx == 1U && state.retreat_target_word != 0xFFFFU) {
                 return early();
             }
-            const u32 retreat_actor = bindings.final_actor.active_actor_code;
+            const u32 retreat_actor = bindings.final_actor.queued_actor_code;
             if (retreat_actor != 0U) {
                 ecx = group_a_token(retreat_actor);
                 static_cast<void>(call(
@@ -442,7 +479,7 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
                 }
                 port.delay_input_milliseconds(50U);
                 ++result.delay_calls;
-                const u32 actor_code = bindings.final_actor.active_actor_code;
+                const u32 actor_code = bindings.final_actor.queued_actor_code;
                 const u32 workspace_index = actor_code + kWorkspaceActorOffset;
                 bindings.message_state = 0x11U;
                 if (workspace_index >=
@@ -457,7 +494,7 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
                     LegacyBattleInputDispatchCall::configure_retreat_actor,
                     {ecx, 1U, actor_code}
                 ));
-                const u32 live_actor = bindings.final_actor.active_actor_code;
+                const u32 live_actor = bindings.final_actor.queued_actor_code;
                 eax = live_actor;
                 bindings.final_actor.auxiliary_gate = 1U;
                 bindings.final_actor.secondary_actor_code = live_actor;
@@ -466,7 +503,7 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
                 bindings.final_actor.published_actor_code = live_actor - 7U;
                 state.retreat_block_word =
                     static_cast<u16>(state.retreat_block_word | 0x4000U);
-                bindings.final_actor.active_actor_code = 0U;
+                bindings.final_actor.queued_actor_code = 0U;
                 bindings.final_actor.pre_frame_gate_a = 0U;
                 bindings.final_actor.frame_gate_b = 1U;
                 bindings.final_actor.frame_gate_a = 1U;
@@ -495,7 +532,7 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
             bindings.final_actor.pre_frame_gate_b = 0U;
             bindings.terminal_latch = 1U;
             bindings.final_actor.action_execution_active = 1U;
-            const u32 actor_code = bindings.final_actor.active_actor_code;
+            const u32 actor_code = bindings.final_actor.queued_actor_code;
             const u32 workspace_index = actor_code + kWorkspaceActorOffset;
             if (workspace_index >= bindings.action.opponent_workspace.size()) {
                 result.status =
@@ -541,9 +578,9 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
                     ))}
                 ));
                 if (bindings.message_state == 1U) {
-                    static_cast<void>(call(
-                        LegacyBattleInputDispatchCall::commit_selection, {0U}
-                    ));
+                    if (!enter_target_selection()) {
+                        return finish();
+                    }
                 }
                 state.selected_option_word = 0xFFFFU;
                 return early();
@@ -675,9 +712,9 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
                 0U) {
                 bindings.debug_hotkeys.battle_mode_flags_53bc24 &= 0xFFFFFFDFU;
             }
-            static_cast<void>(
-                call(LegacyBattleInputDispatchCall::commit_selection, {0U})
-            );
+            if (!enter_target_selection()) {
+                return finish();
+            }
         }
     }
 

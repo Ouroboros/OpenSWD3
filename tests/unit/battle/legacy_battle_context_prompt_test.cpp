@@ -249,7 +249,7 @@ void test_battle_context_prompt(openswd3::test::Context& test) {
         for (const u32 message : defaults) {
             Environment environment;
             environment.message_state = message;
-            environment.final_actor.active_actor_code = 0U;
+            environment.final_actor.queued_actor_code = 0U;
             ActionStreamProvider stream{false};
             openswd3::asset_runtime::LegacyActionUpdater updater{stream};
             FrameProvider frames;
@@ -269,7 +269,7 @@ void test_battle_context_prompt(openswd3::test::Context& test) {
 
         Environment out_of_range;
         out_of_range.message_state = 31U;
-        out_of_range.final_actor.active_actor_code = 8U;
+        out_of_range.final_actor.queued_actor_code = 8U;
         ActionStreamProvider stream{false};
         openswd3::asset_runtime::LegacyActionUpdater updater{stream};
         FrameProvider frames;

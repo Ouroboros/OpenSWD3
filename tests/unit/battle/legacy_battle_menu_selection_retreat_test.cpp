@@ -281,7 +281,7 @@ void test_battle_menu_selection_retreat(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.message = 3U;
-        fixture.final_actor.active_actor_code = 8U;
+        fixture.final_actor.queued_actor_code = 8U;
         fixture.metrics.group_b_count = 2U;
         fixture.metrics.group_b_order[2U] = 1U;
         const auto result = retreat_legacy_battle_menu_selection(
@@ -315,7 +315,7 @@ void test_battle_menu_selection_retreat(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.message = 3U;
-        fixture.final_actor.active_actor_code = 9U;
+        fixture.final_actor.queued_actor_code = 9U;
         fixture.metrics.group_a_count = 3U;
         fixture.startup.block_520e90[5U] = 1U;
         fixture.input.action_kind = 1U;
@@ -343,7 +343,7 @@ void test_battle_menu_selection_retreat(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.message = 3U;
-        fixture.final_actor.active_actor_code = 9U;
+        fixture.final_actor.queued_actor_code = 9U;
         fixture.metrics.group_a_count = 3U;
         fixture.startup.block_520e90[5U] = 1U;
         fixture.input.action_kind = 1U;
@@ -370,7 +370,7 @@ void test_battle_menu_selection_retreat(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.message = 3U;
-        fixture.final_actor.active_actor_code = 9U;
+        fixture.final_actor.queued_actor_code = 9U;
         fixture.metrics.group_a_count = 12U;
         fixture.startup.block_520e90[5U] = 1U;
         const auto result = retreat_legacy_battle_menu_selection(
@@ -389,7 +389,7 @@ void test_battle_menu_selection_retreat(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.message = 3U;
-        fixture.final_actor.active_actor_code = 9U;
+        fixture.final_actor.queued_actor_code = 9U;
         fixture.metrics.group_a_count = 5U;
         fixture.startup.block_520e90[5U] = 1U;
         fixture.final_actor.actor_order[5U] = 2U;
@@ -433,7 +433,7 @@ void test_battle_menu_selection_retreat(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.message = 3U;
-        fixture.final_actor.active_actor_code = 9U;
+        fixture.final_actor.queued_actor_code = 9U;
         fixture.metrics.group_a_count = 5U;
         fixture.startup.block_520e90[5U] = 1U;
         fixture.final_actor.actor_order[5U] = 9U;
@@ -466,7 +466,7 @@ void test_battle_menu_selection_retreat(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.message = 3U;
-        fixture.final_actor.active_actor_code = 9U;
+        fixture.final_actor.queued_actor_code = 9U;
         fixture.metrics.group_a_count = 5U;
         fixture.startup.block_520e90[5U] = 1U;
         fixture.final_actor.actor_order[5U] = 10U;
@@ -500,7 +500,7 @@ void test_battle_menu_selection_retreat(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.message = 3U;
-        fixture.final_actor.active_actor_code = 8U;
+        fixture.final_actor.queued_actor_code = 8U;
         fixture.metrics.group_b_count = 9U;
         const auto result = retreat_legacy_battle_menu_selection(
             fixture.bindings(), fixture.port, {}

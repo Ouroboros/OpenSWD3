@@ -189,7 +189,7 @@ void test_battle_frame_input_resolution(openswd3::test::Context& test) {
         Fixture fixture;
         fixture.set_mouse(20, 50);
         fixture.message = 1U;
-        fixture.final_actor.active_actor_code = 8U;
+        fixture.final_actor.queued_actor_code = 8U;
         fixture.startup.reset.value_524414 = 1U;
         fixture.port.battle_input_dispatch_state().selection_index = 2U;
         fixture.port.battle_input_dispatch_state().sample_mix_level = -5;
@@ -347,7 +347,7 @@ void test_battle_frame_input_resolution(openswd3::test::Context& test) {
         Fixture fixture;
         fixture.set_mouse(10, 10);
         fixture.message = 3U;
-        fixture.final_actor.active_actor_code = 8U;
+        fixture.final_actor.queued_actor_code = 8U;
         fixture.metrics.group_b_count = 1U;
         fixture.port.battle_input_dispatch_state().selection_index = 6U;
         fixture.prepare_visible_surface(10, 10);
@@ -381,7 +381,7 @@ void test_battle_frame_input_resolution(openswd3::test::Context& test) {
         Fixture fixture;
         fixture.set_mouse(10, 10);
         fixture.message = 3U;
-        fixture.final_actor.active_actor_code = 9U;
+        fixture.final_actor.queued_actor_code = 9U;
         fixture.metrics.group_a_count = 1U;
         fixture.startup.reset.block_520e90[5U] = 1U;
         fixture.port.battle_frame_input_resolution_state().target_markers.fill(
@@ -411,7 +411,7 @@ void test_battle_frame_input_resolution(openswd3::test::Context& test) {
         Fixture fixture;
         fixture.set_mouse(10, 10);
         fixture.message = 3U;
-        fixture.final_actor.active_actor_code = 8U;
+        fixture.final_actor.queued_actor_code = 8U;
         fixture.metrics.group_a_count = 1U;
         fixture.startup.reset.block_520e90[0U] = 1U;
         fixture.prepare_visible_surface(10, 10);
@@ -430,7 +430,7 @@ void test_battle_frame_input_resolution(openswd3::test::Context& test) {
         Fixture fixture;
         fixture.set_mouse(10, 10);
         fixture.message = 3U;
-        fixture.final_actor.active_actor_code = 9U;
+        fixture.final_actor.queued_actor_code = 9U;
         fixture.metrics.group_a_count = 12U;
         fixture.startup.reset.block_520e90[5U] = 1U;
         const auto result =
@@ -454,7 +454,7 @@ void test_battle_frame_input_resolution(openswd3::test::Context& test) {
         Fixture fixture;
         fixture.set_mouse(10, 10);
         fixture.message = 3U;
-        fixture.final_actor.active_actor_code = 9U;
+        fixture.final_actor.queued_actor_code = 9U;
         fixture.metrics.group_a_count = 1U;
         fixture.startup.reset.block_520e90[5U] = 1U;
         fixture.prepare_visible_surface(10, 10);
@@ -479,7 +479,7 @@ void test_battle_frame_input_resolution(openswd3::test::Context& test) {
         Fixture fixture;
         fixture.set_mouse(10, 10);
         fixture.message = 3U;
-        fixture.final_actor.active_actor_code = 0x100U;
+        fixture.final_actor.queued_actor_code = 0x100U;
         const auto result =
             openswd3::battle::coordinate_legacy_battle_frame_input_resolution(
                 fixture.bindings(), fixture.port

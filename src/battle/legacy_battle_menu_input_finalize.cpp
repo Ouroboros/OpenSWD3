@@ -68,7 +68,7 @@ LegacyBattleMenuInputFinalizeResult finalize_legacy_battle_menu_input(
         input.selection_animation_frame_b = 0U;
     };
     const auto call_active_group_a = [&](const bool publish_edx) {
-        const u32 code = final_actor.active_actor_code;
+        const u32 code = final_actor.queued_actor_code;
         const u32 index = group_a_index(code);
         eax = index * 0x3EFU;
         if (publish_edx) {
@@ -88,7 +88,7 @@ LegacyBattleMenuInputFinalizeResult finalize_legacy_battle_menu_input(
         return true;
     };
     const auto call_active_group_a_case_two = [&]() {
-        const u32 code = final_actor.active_actor_code;
+        const u32 code = final_actor.queued_actor_code;
         const u32 index = group_a_index(code);
         edx = code;
         eax = index * 0xBCDU;
@@ -123,7 +123,7 @@ LegacyBattleMenuInputFinalizeResult finalize_legacy_battle_menu_input(
     input.mouse_action_gate = 1U;
 
     if (ecx == 1U) {
-        const u32 code = input.selected_group_b_actor_code;
+        const u32 code = final_actor.published_actor_code;
         bindings.message_state = 0U;
         input.mouse_action_gate = 0U;
         eax = code * 0x159U;
@@ -165,7 +165,7 @@ LegacyBattleMenuInputFinalizeResult finalize_legacy_battle_menu_input(
 
     case 2U:
         ecx = 0U;
-        edx = final_actor.active_actor_code;
+        edx = final_actor.queued_actor_code;
         input.selection_workspace[0U] = ecx;
         bindings.message_state = eax;
         input.selection_workspace[1U] = ecx;
@@ -186,7 +186,7 @@ LegacyBattleMenuInputFinalizeResult finalize_legacy_battle_menu_input(
         return finish();
 
     case 3U: {
-        if (input.selected_option_word == 0xFFFFU) {
+        if (input.selected_group_a_index == 0xFFFFU) {
             bindings.message_state = eax;
             input.selection_animation_phase = 5U;
             input.selection_runtime_gate = 0U;
@@ -262,7 +262,7 @@ LegacyBattleMenuInputFinalizeResult finalize_legacy_battle_menu_input(
             return finish();
         }
 
-        ecx = final_actor.active_actor_code;
+        ecx = final_actor.queued_actor_code;
         frame.target_selection_block = 0U;
         input.selection_target_cache = 0U;
         startup.value_53bfd0 = 0U;

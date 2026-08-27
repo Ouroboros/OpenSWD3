@@ -485,7 +485,7 @@ void synchronize_typed_aliases(
     input_dispatch.interaction_mode = 0U;
     input_dispatch.signed_status = 0U;
     input_dispatch.choice_selection_index = 0U;
-    input_dispatch.selected_group_b_actor_code = 1U;
+    input_dispatch.selected_group_b_index = 0xFFFFU;
     input_dispatch.selected_actor_cleanup_gate = 0U;
     input_dispatch.selection_runtime_gate = 0U;
     input_dispatch.selection_cache_gate_a = 0U;

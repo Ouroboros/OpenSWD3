@@ -134,6 +134,11 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             .context_prompt = state.context_prompt,
             .message_state = port.battle_message_state(),
             .terminal_latch = port.battle_terminal_latch(),
+            .one_shot_interaction_state =
+                context.player_control.one_shot_interaction_state,
+            .target_ready_gate = context.target_ready_gate,
+            .outcome_darkening_gate =
+                port.outcome_resolution_state().darkening_gate,
             .input_records = context.input_normalization.records,
             .keyboard = context.keyboard,
             .dialogs = context.dialogs,

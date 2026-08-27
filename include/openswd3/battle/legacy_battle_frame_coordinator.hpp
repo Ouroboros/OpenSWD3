@@ -395,6 +395,7 @@ struct LegacyBattleFrameCoordinatorContext {
     const input_time_rng::LegacyKeyboardSnapshot& keyboard;
     std::vector<world_map::LegacyWorldInteractionHotspot>& choice_hotspots;
     world_map::LegacyWorldPlayerControlState& player_control;
+    compat::u32& target_ready_gate;
     LegacyBattleActorFrameAdvanceContext* actor_frames{};
 };
 

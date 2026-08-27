@@ -511,6 +511,7 @@ struct Fixture {
     BmpPorts bmp_ports;
     openswd3::battle::LegacyBattleFinalActorStepState final_actor_step;
     openswd3::battle::LegacyBattleActionDispatchState action_dispatch;
+    openswd3::battle::LegacyBattleGroupBFrameState actor_frame_state;
     openswd3::battle::LegacyBattleStartupState startup;
     openswd3::battle::LegacyBattleIntensityEffectRecord
         attack_order_adjacent_record{};
@@ -612,6 +613,7 @@ struct Fixture {
             .keyboard = keyboard,
             .choice_hotspots = choice_hotspots,
             .player_control = player_control,
+            .target_ready_gate = actor_frame_state.shared.target_ready_gate,
         };
     }
 };
@@ -681,7 +683,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         CoordinatorPort port;
         fixture.input_normalization.current_mouse.logical_x = 10;
         fixture.input_normalization.current_mouse.logical_y = 10;
-        fixture.final_actor_step.active_actor_code = 0x100U;
+        fixture.final_actor_step.queued_actor_code = 0x100U;
         port.battle_message_state() = 3U;
         auto context = fixture.context();
 
@@ -708,7 +710,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         Fixture fixture;
         CoordinatorPort port;
-        fixture.final_actor_step.active_actor_code = 0x200U;
+        fixture.final_actor_step.queued_actor_code = 0x200U;
         port.actor_metric_state().group_a_count = 1U;
         fixture.input_normalization.records[17U].rapid_press_multiplicity = 1U;
         fixture.input_normalization.records[17U].held_sample_count = 1U;
@@ -960,9 +962,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         auto dispatch_context = fixture.action_context();
         dispatch_context.attack_order_adjacent_record =
             &port.effect_coordinator_state().intensity_records[0];
-        openswd3::battle::LegacyBattleGroupBFrameState actor_frame_state;
         openswd3::battle::LegacyBattleActorFrameAdvanceContext actor_frames{
-            actor_frame_state,
+            fixture.actor_frame_state,
             port,
             dispatch_context,
         };

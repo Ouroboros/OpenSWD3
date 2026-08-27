@@ -32,7 +32,7 @@ live group-B count按i32判断；正数时从group-B物理首对象开始无现�
 
 selected group-B、active group-A、live group-B、十项marker、十项selection缓存和五dword攻击缓存均只在首次真实call或store处typed-stop。所有停止保留此前message、gate、workspace、角色call、marker和缓存写前缀，不执行原调用点后的动画或caller尾清理。
 
-新增状态全部并入既有input dispatch、frame input、startup reset、final actor和actor metric唯一owner，没有复制物理全局。全局reset同步补齐4A754C、4A7564及本函数使用的已映射selection状态，并把action kind恢复为权威reset值1；不在全局reset原写集合内的workspace、fallback和cache C保持入口值。
+新增状态全部并入既有input dispatch、frame input、startup reset、final actor和actor metric唯一owner，没有复制物理全局。相邻函数交叉审计进一步确认：当前菜单角色与既有queued owner同址，special group-B code与既有published owner同址；message 3读取的是独立group-A index word，不与逐帧option cache合并。全局reset把action kind恢复为权威值1并只同步原写集合内的group-B index；独立group-A index、workspace、fallback和cache C保持入口值。
 
 唯一caller为逐帧输入分派record0三帧重复路径。旧`commit_final`操作槽保留稳定reserved值，caller现直连typed实现；普通返回后才清两个尾值，typed-stop阻断这两项尾清理。
 

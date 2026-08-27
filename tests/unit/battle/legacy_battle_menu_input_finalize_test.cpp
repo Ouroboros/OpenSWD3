@@ -44,7 +44,7 @@ struct Fixture {
     FinalizePort port;
 
     Fixture() {
-        final_actor.active_actor_code = 8U;
+        final_actor.queued_actor_code = 8U;
     }
 
     [[nodiscard]] LegacyBattleMenuInputFinalizeBindings bindings() {
@@ -74,7 +74,7 @@ void test_battle_menu_input_finalize(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.input.selected_actor_cleanup_gate = 1U;
-        fixture.input.selected_group_b_actor_code = 1U;
+        fixture.final_actor.published_actor_code = 1U;
         fixture.input.selection_cache_gate_a = 9U;
         fixture.input.selection_cache_gate_b = 9U;
         fixture.startup.value_4ff0b0 = 9U;
@@ -115,7 +115,7 @@ void test_battle_menu_input_finalize(openswd3::test::Context& test) {
         Fixture fixture;
         fixture.message = 9U;
         fixture.input.selected_actor_cleanup_gate = 1U;
-        fixture.input.selected_group_b_actor_code = 0U;
+        fixture.final_actor.published_actor_code = 0U;
         fixture.input.selection_cache_gate_a = 9U;
         const auto result = finalize_legacy_battle_menu_input(
             fixture.bindings(), fixture.port, {.entry_edx = 0x33U}
@@ -195,7 +195,7 @@ void test_battle_menu_input_finalize(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.message = 2U;
-        fixture.final_actor.active_actor_code = 7U;
+        fixture.final_actor.queued_actor_code = 7U;
         fixture.input.selection_animation_frame_a = 9U;
         const auto result = finalize_legacy_battle_menu_input(
             fixture.bindings(), fixture.port, {}
@@ -217,7 +217,7 @@ void test_battle_menu_input_finalize(openswd3::test::Context& test) {
         Fixture fixture;
         fixture.message = 3U;
         fixture.input.action_kind = 2U;
-        fixture.input.selected_option_word = 0xFFFFU;
+        fixture.input.selected_group_a_index = 0xFFFFU;
         fixture.metrics.group_b_count = 2U;
         fixture.frame.target_markers.fill(9U);
         fixture.startup.block_4fe5d4.fill(9U);
@@ -269,7 +269,7 @@ void test_battle_menu_input_finalize(openswd3::test::Context& test) {
              }) {
             Fixture fixture;
             fixture.message = 3U;
-            fixture.input.selected_option_word = 0U;
+            fixture.input.selected_group_a_index = 0U;
             fixture.input.action_kind = item.action_kind;
             fixture.metrics.group_b_count = 0U;
             fixture.frame.transition_value_a = 9U;

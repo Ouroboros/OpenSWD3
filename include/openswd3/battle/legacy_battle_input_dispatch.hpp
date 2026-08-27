@@ -23,14 +23,14 @@ inline constexpr compat::u32 kLegacyBattleInputWarningSample = 0x8CU;
 
 struct LegacyBattleInputDispatchState {
     compat::u32 menu_action{};
-    compat::u32 action_kind{};
+    compat::u32 action_kind{};  // 0x004A7548
     compat::u32 selection_index{1U};
-    compat::u32 input_gate{};
+    compat::u32 input_gate{};  // 0x0053C024
     compat::u32 input_latch{};
-    compat::u16 retreat_block_word{};
+    compat::u16 retreat_block_word{};  // 0x0053BF1C
     compat::u32 action_block_gate{};
-    compat::u16 retreat_target_word{0xFFFFU};
-    compat::u16 selected_option_word{0xFFFFU};
+    compat::u16 retreat_target_word{0xFFFFU};   // 0x004A7626
+    compat::u16 selected_option_word{0xFFFFU};  // 0x004A7644
     compat::u16 action_word{};
     compat::u32 frame_gate_c{};
     compat::u32 frame_value_a{};
@@ -44,7 +44,9 @@ struct LegacyBattleInputDispatchState {
     compat::u32 choice_selection_index{};
     compat::u32 final_value_a{};
     compat::u32 final_value_b{};
-    compat::u32 selected_group_b_actor_code{1U};       // 0x004A754C
+    compat::u16 selected_group_b_index{0xFFFFU};       // 0x004A762C
+    compat::u16 selected_group_a_index{0xFFFFU};       // 0x004A762E
+    compat::u16 target_transition_word{};              // 0x0053BDEA
     compat::u32 fallback_action_kind{};                // 0x0053BCF0
     compat::u32 selected_actor_cleanup_gate{};         // 0x0053C018
     compat::u32 selection_runtime_gate{};              // 0x0053BFB0
@@ -83,7 +85,7 @@ private:
 
 enum class LegacyBattleInputDispatchCall : compat::u8 {
     refresh_action_mode,
-    commit_selection,
+    reserved_target_selection_entry_slot,
     reserved_menu_selection_retreat_slot,
     reserved_menu_selection_advance_slot,
     reserved_menu_page_retreat_slot,
@@ -108,6 +110,10 @@ enum class LegacyBattleInputDispatchCall : compat::u8 {
     menu_advance_query_group_a_candidate,
     menu_finalize_reset_active_group_a_actor,
     menu_finalize_reset_actor,
+    target_selection_configure_actor,
+    target_selection_scan_primary,
+    target_selection_scan_secondary,
+    target_selection_refresh_state,
 };
 
 struct LegacyBattleInputDispatchCallRequest {
@@ -162,6 +168,9 @@ struct LegacyBattleInputDispatchBindings {
     LegacyBattleContextPromptState& context_prompt;
     compat::u32& message_state;
     compat::u32& terminal_latch;
+    compat::u32& one_shot_interaction_state;
+    compat::u32& target_ready_gate;
+    compat::u32& outcome_darkening_gate;
     std::span<input_time_rng::LegacyInputRecord> input_records;
     const input_time_rng::LegacyKeyboardSnapshot& keyboard;
     story_scene::LegacyDialogRuntimeState& dialogs;
@@ -186,6 +195,7 @@ enum class LegacyBattleInputDispatchStatus : compat::u8 {
     menu_page_retreat_typed_stop,
     menu_page_advance_typed_stop,
     menu_input_finalize_typed_stop,
+    target_selection_entry_typed_stop,
 };
 
 struct LegacyBattleInputDispatchResult {
@@ -205,6 +215,7 @@ struct LegacyBattleInputDispatchResult {
     compat::u32 menu_page_retreat_calls{};
     compat::u32 menu_page_advance_calls{};
     compat::u32 menu_input_finalize_calls{};
+    compat::u32 target_selection_entry_calls{};
     bool returned_early{};
 };
 

@@ -14,10 +14,10 @@ struct LegacyBattleFinalActorStepState {
 
     compat::u8 removed_group_a_count{};
     compat::u16 excluded_group_a_count{};
-    compat::u32 queued_actor_code{};
-    compat::u32 active_actor_code{0xFFFFFFFFU};
+    compat::u32 queued_actor_code{};             // 0x0053BD54
+    compat::u32 active_actor_code{0xFFFFFFFFU};  // 0x0053AE70
     compat::u32 secondary_actor_code{};
-    compat::u32 published_actor_code{};
+    compat::u32 published_actor_code{};  // 0x004A754C
     compat::u32 source_actor_code{0xFFFFFFFFU};
 
     compat::u32 action_execution_active{};
