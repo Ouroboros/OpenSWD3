@@ -680,6 +680,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-script-dispatch-00469d20.md",
     ),
+    "0x0046E090": (
+        "assembly_exact",
+        "evidence/battle-group-a-primary-skip-getter-0046e090.md",
+    ),
 }
 
 

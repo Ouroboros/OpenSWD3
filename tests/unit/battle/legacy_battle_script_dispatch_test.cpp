@@ -322,6 +322,24 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
     {
         Fixture fixture;
         Port port;
+        fixture.opcode(58);
+        fixture.write_u16(2U, 0U);
+        fixture.write_u16(4U, 9U);
+        fixture.startup.reset.records_524788[0].value_00 = 0x12345678U;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        test.expect_true(
+            result.return_eax == 1U && fixture.workspace.cursor == 4U &&
+                port.calls.empty() &&
+                fixture.startup.reset.records_524788[0].value_00 == 0x12345678U,
+            "case fifty-eight keeps both fixed-address getter blocks dead"
+        );
+    }
+
+    {
+        Fixture fixture;
+        Port port;
         fixture.opcode(61);
         fixture.write_u16(2U, 8U);
         fixture.write_u16(4U, 9U);

@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v749
+版本：v750
 
 最后更新：2026-08-25
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗脚本相邻辅助函数
+当前步骤：模块10 · 审计组A角色次跳过状态读取
 
 ## 0. 执行约定
 
@@ -4116,4 +4116,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=161`的`0x00469D20`战斗脚本逐帧分派。完整权威LST主体`0x00469D20..0x0046DF35`共7454行、4669条真实指令、256个call、285个跳转、328个标签、102个返回点且无外部chunk。入口按脚本i16分派`-1..83`共85项，`0/7/32/38`与范围外值保持默认不推进；typed实现逐项保留bit15跨帧状态、变长列表与文字、三类76-byte文字动作、180-byte链节点、24-byte效果节点、玩家道具双数量、x87向零转换、signed除法、陈旧寄存器和每条不对称cursor。脚本0x8000-byte窗口与`0x0053CCC8..0x0053CEB8`工作区各有唯一typed owner，其余共享状态复用startup、角色指标、输入、选择、消息和奖励owner；纯typed顺序callee直接组合，未审业务callee保持窄token端口。世界主帧唯一caller删除固定返回1占位，SDL逐帧调用分派并把0/1/2/3原样交回既有战斗退出恢复分支。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过，源码零warning。工作包为`161/422 = 154 platform_adapted + 7 assembly_exact + 261 pending_audit`；生成器连续双跑逐字节一致，SHA256为`1ab13a95a22a4175d6663b6a2c0e5c185632078aed386bcd51c1763d664373ce`。动态差分因原版138项共享状态、动态对象、CRT随机、69个callee、画面/音频/文件及寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=162`的`0x0046E090`战斗脚本相邻辅助函数。
+本轮再完成`audit_order=162`的`0x0046E090`组A角色主跳过状态读取。完整权威LST主体`0x0046E090..0x0046E096`共10行、2条实际指令、0个call、0个跳转、0个标签、1个返回点且无外部chunk；行为只以ECX this完整读取组A角色`+0x2B00` dword并原样返回EAX。全程序没有真实call，唯一DATA XREF位于脚本case58；前一固定函数地址先装入EDX并测试，PE地址静态非零使`jnz`必然越过本函数地址加载和后续目标槽/攻击顺序死块。typed侧复用既有角色结算状态且不制造无用getter，case58回归确认组B路径仅推进4字节、零端口调用且攻击顺序不变。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过。工作包为`162/422 = 154 platform_adapted + 8 assembly_exact + 260 pending_audit`；生成器连续双跑逐字节一致，SHA256为`3a3d2dbd8e5b2f3f13402d674cd43e2dc965b85e18d23acc4048c031f4bdad47`。该目标静态不可达且两指令已完整审计，无需动态oracle。
+
+下一项回收`audit_order=163`的`0x0046E0A0`组A角色次跳过状态读取。
