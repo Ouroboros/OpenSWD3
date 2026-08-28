@@ -17,6 +17,7 @@
 #include "openswd3/battle/legacy_battle_selection_frame.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_entry.hpp"
 #include "openswd3/battle/legacy_battle_talisman_result_panel.hpp"
+#include "openswd3/battle/legacy_battle_transition_control_selection.hpp"
 #include "openswd3/battle/legacy_battle_victory_item_list_panel.hpp"
 #include "openswd3/battle/legacy_battle_victory_rewards.hpp"
 
@@ -67,7 +68,7 @@ enum class LegacyBattleMessagePhaseCall : compat::u8 {
     reserved_prepare_message_98_slot,
     reset_actor_state,
     query_actor_completion,
-    prepare_transition_control,
+    reserved_prepare_transition_control_slot,
     prepare_group_a_actor,
     reset_group_a_actor,
     set_group_a_actor_mode,
@@ -264,6 +265,8 @@ struct LegacyBattleMessagePhaseResult {
     LegacyBattleDefeatPanelResult defeat_panel{};
     compat::u32 talisman_result_panel_calls{};
     LegacyBattleTalismanResultPanelResult talisman_result_panel{};
+    compat::u32 transition_control_selection_calls{};
+    LegacyBattleTransitionControlSelectionResult transition_control_selection{};
     std::vector<LegacyBattleMessagePhaseCall> call_trace;
     compat::u32 call_trace_count{};
 };

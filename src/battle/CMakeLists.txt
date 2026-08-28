@@ -113,6 +113,7 @@ add_library(
         legacy_battle_talisman_result_panel.cpp
         legacy_battle_timing.cpp
         legacy_battle_transition.cpp
+        legacy_battle_transition_control_selection.cpp
         legacy_battle_vertical_panel.cpp
         legacy_battle_vertical_shift.cpp
         legacy_battle_victory_item_list_panel.cpp

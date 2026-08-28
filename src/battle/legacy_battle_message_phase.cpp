@@ -282,7 +282,18 @@ private:
             ++index;
         }
 
-        call(LegacyBattleMessagePhaseCall::prepare_transition_control);
+        result_.transition_control_selection =
+            select_legacy_battle_transition_control(
+                {
+                    .reset = bindings_.startup.reset,
+                    .target_selection = bindings_.target_selection,
+                },
+                {.entry_eax = eax_, .entry_ecx = ecx_, .entry_edx = edx_}
+            );
+        ++result_.transition_control_selection_calls;
+        eax_ = result_.transition_control_selection.return_eax;
+        ecx_ = result_.transition_control_selection.return_ecx;
+        edx_ = result_.transition_control_selection.return_edx;
         const u32 control = bindings_.target_selection.transition_control_words;
         eax_ = (eax_ & 0xFFFF0000U) | static_cast<u16>(control);
         if (static_cast<u16>(control) == 0U &&

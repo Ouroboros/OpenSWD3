@@ -138,7 +138,7 @@ phase为0时先读目标code与距离，距离至少20或目标phase查询成功
 
 ### 10.1 case 13
 
-phase零时建立factor=-12、primary suppression和动画。目标动作完成后清40字节临时record、只置offset `0x19`的bit`0x20`并commit；随后清视觉phase并置fade。最后扫描当前组A角色的前8个事件word，首个0写`target+1`。前8项全非零仍返回1，不访问第9、10项。
+phase零时建立factor=-12、primary suppression和动画。目标动作完成后清40字节临时record、只置offset `0x19`的bit`0x20`并commit；随后清视觉phase并置fade。最后扫描当前组A角色的前8个事件word，首个0写`target+1`。前8项全非零仍返回1，不访问第9、10项。前四个角色行直接复用startup reset的唯一40-word控制表，供已关闭消息99过渡控制选择按row-major消费；后六行继续由相邻物理tail承接，不建立前40项平行副本。缺少startup owner只在前四行首次真实事件槽访问typed-stop。
 
 ### 10.2 case 14
 

@@ -201,6 +201,7 @@ struct Fixture {
     SoundPort sound;
     std::array<u8, 16> flags{};
     CountdownFlags countdown_flags{flags};
+    openswd3::battle::LegacyBattleStartupResetBlocks startup_reset;
     std::array<openswd3::battle::LegacyBattleStartupResetRecord, 0x12>
         attack_order_records{};
     std::array<u32, 0x32> attack_order_party_sources{};
@@ -231,6 +232,7 @@ struct Fixture {
             .indicator_sound = sound,
             .countdown_flags = countdown_flags,
             .internal_flags = flags,
+            .startup_reset = &startup_reset,
             .attack_order_records = attack_order_records,
             .attack_order_party_sources = attack_order_party_sources,
             .attack_order_primary_gate = &attack_order_primary_gate,
@@ -605,11 +607,47 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
             state, port, context, 2U, 3U
         );
         test.expect_true(
-            result.return_value == 1U && state.group_a_event_slots[20U] == 4U &&
+            result.return_value == 1U &&
+                static_cast<u16>(fixture.startup_reset.block_52022c[10U]) ==
+                    4U &&
                 state.frame_effect.fade_active == 1U &&
                 state.frame_effect.primary_suppression == 0U &&
                 state.temporary_record[0x19U] == 0x20U,
-            "action thirteen initializes effect then appends target plus one to first empty actor event slot"
+            "action thirteen initializes effect then appends target plus one to the shared first-four-row event table"
+        );
+
+        LegacyBattleActionDispatchState tail_state;
+        Fixture tail_fixture;
+        DispatchPort tail_port;
+        tail_port.action = 13U;
+        auto tail_context = tail_fixture.context();
+        const auto tail_result =
+            openswd3::battle::dispatch_legacy_battle_action(
+                tail_state, tail_port, tail_context, 4U, 2U
+            );
+        test.expect_true(
+            tail_result.return_value == 1U &&
+                tail_state.group_a_event_slots_tail[0U] == 3U &&
+                tail_fixture.startup_reset.block_52022c[0U] == 0U,
+            "action thirteen keeps rows five through ten in the adjacent event-table tail without duplicating the shared prefix"
+        );
+
+        LegacyBattleActionDispatchState missing_state;
+        Fixture missing_fixture;
+        DispatchPort missing_port;
+        missing_port.action = 13U;
+        auto missing_context = missing_fixture.context();
+        missing_context.startup_reset = nullptr;
+        const auto missing_result =
+            openswd3::battle::dispatch_legacy_battle_action(
+                missing_state, missing_port, missing_context, 2U, 3U
+            );
+        test.expect_true(
+            missing_result.status ==
+                    LegacyBattleActionDispatchStatus::event_slot_typed_stop &&
+                missing_state.frame_effect.fade_active == 1U &&
+                missing_state.temporary_record[0x19U] == 0x20U,
+            "action thirteen stops at the first shared-prefix slot access after preserving its visual and record prefix"
         );
     }
 

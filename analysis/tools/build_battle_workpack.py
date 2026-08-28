@@ -652,6 +652,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-talisman-result-panel-00469340.md",
     ),
+    "0x004694E0": (
+        "assembly_exact",
+        "evidence/battle-transition-control-selection-004694e0.md",
+    ),
 }
 
 

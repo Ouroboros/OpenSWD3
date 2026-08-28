@@ -173,7 +173,7 @@ struct LegacyBattleActionDispatchState {
     std::array<compat::u32, 10> summon_runtime{};
     std::array<compat::u16, 10> summon_target_x{};
     std::array<compat::u16, 10> summon_target_y{};
-    std::array<compat::u16, 100> group_a_event_slots{};
+    std::array<compat::u16, 60> group_a_event_slots_tail{};
     std::array<compat::u16, 8> group_b_status_words{};
     std::array<compat::u16, 10> group_a_status_words{};
 
@@ -202,6 +202,7 @@ struct LegacyBattleActionDispatchContext {
     LegacyBattleIndicatorSoundPort& indicator_sound;
     rendering::LegacyCountdownFlagPorts& countdown_flags;
     std::span<compat::u8> internal_flags;
+    LegacyBattleStartupResetBlocks* startup_reset{};
     std::span<LegacyBattleStartupResetRecord> attack_order_records;
     std::span<compat::u32> attack_order_party_sources;
     compat::u32* attack_order_primary_gate{};

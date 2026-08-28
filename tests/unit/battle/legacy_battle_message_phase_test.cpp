@@ -652,27 +652,23 @@ void test_battle_message_phase(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.message = 0x63U;
-        fixture.port.reply(
-            LegacyBattleMessagePhaseCall::prepare_transition_control,
-            {.eax = 0xA5A50000U, .publish_transition_control_words = true}
-        );
         const auto result = run(fixture);
         test.expect_true(
-            result.return_eax == 0xA5A50000U && fixture.message == 0x64U &&
-                fixture.target_selection.transition_aux_byte == 0U,
-            "message 99 sends an empty control pair to message 100 while preserving EAX high word"
+            result.return_eax == 0U && fixture.message == 0x64U &&
+                fixture.target_selection.transition_aux_byte == 0U &&
+                result.transition_control_selection_calls == 1U &&
+                result.transition_control_selection.rows_scanned == 4U &&
+                result.transition_control_selection.zero_words_scanned == 40U &&
+                fixture.port.count(
+                    LegacyBattleMessagePhaseCall::
+                        reserved_prepare_transition_control_slot
+                ) == 0U,
+            "message 99 scans an empty control table directly and sends an empty pair to message 100"
         );
 
         Fixture completed;
         completed.message = 0x63U;
-        completed.port.reply(
-            LegacyBattleMessagePhaseCall::prepare_transition_control,
-            {
-                .eax = 0xB6B60000U,
-                .publish_transition_control_words = true,
-                .transition_control_words = 1U,
-            }
-        );
+        completed.startup.reset.block_52022c[5U] = 1U;
         completed.port.reply(
             LegacyBattleMessagePhaseCall::query_actor_completion, {.eax = 1U}
         );
@@ -692,13 +688,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         fixture.target_selection.special_action_count = 5U;
         fixture.startup.action_mode_source.actor_label_indices[1U] = 2U;
         fixture.action_profiles[112U] = 0x7AU;
-        fixture.port.reply(
-            LegacyBattleMessagePhaseCall::prepare_transition_control,
-            {
-                .publish_transition_control_words = true,
-                .transition_control_words = 1U,
-            }
-        );
+        fixture.startup.reset.block_52022c[5U] = 1U;
         fixture.port.reply(
             LegacyBattleMessagePhaseCall::query_actor_completion, {.eax = 0U}
         );
@@ -714,9 +704,9 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         };
         const auto result = run(fixture);
         const auto resolved = fixture.port.message_calls.back();
-        const auto committed = fixture.port.message_calls[10U];
-        const auto configured = fixture.port.message_calls[11U];
-        const auto resource = fixture.port.message_calls[12U];
+        const auto committed = fixture.port.message_calls[9U];
+        const auto configured = fixture.port.message_calls[10U];
+        const auto resource = fixture.port.message_calls[11U];
         bool records_reset = true;
         for (const auto& record : fixture.startup.reset.records_524788) {
             records_reset = records_reset && record.value_00 == 0xFFFFFFFFU &&
@@ -736,7 +726,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                 fixture.metrics.priority_actor_index == 9U &&
                 fixture.metrics.priority_actor_record_tail[0U] == 0U &&
                 fixture.debug_hotkeys.committed_actor_code == 9U &&
-                fixture.final_actor.published_actor_code == 0U &&
+                fixture.final_actor.published_actor_code == 1U &&
                 fixture.startup.reset.block_520e90[5U] == 1U &&
                 fixture.selection_frame.display_gate == 0U &&
                 fixture.target_ready_gate == 0U,
@@ -746,8 +736,9 @@ void test_battle_message_phase(openswd3::test::Context& test) {
             resolved.call ==
                     LegacyBattleMessagePhaseCall::resolve_action_item &&
                 resolved.actor_token ==
-                    openswd3::battle::
-                        kLegacyBattleMessagePhaseGroupBBaseToken &&
+                    openswd3::battle::kLegacyBattleMessagePhaseGroupBBaseToken +
+                        openswd3::battle::
+                            kLegacyBattleMessagePhaseGroupBElementSize &&
                 resolved.arguments[0U] == 0x55U &&
                 resolved.arguments[1U] == 0x7AU,
             "message 99 passes the selected resource and low-byte profile through the group-B item resolver"
@@ -777,13 +768,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                 {.eax = 1U}
             );
         }
-        fixture.port.reply(
-            LegacyBattleMessagePhaseCall::prepare_transition_control,
-            {
-                .publish_transition_control_words = true,
-                .transition_control_words = 9U,
-            }
-        );
+        fixture.target_selection.transition_control_words = 0x00010009U;
         fixture.port.reply(
             LegacyBattleMessagePhaseCall::query_actor_completion, {.eax = 0U}
         );

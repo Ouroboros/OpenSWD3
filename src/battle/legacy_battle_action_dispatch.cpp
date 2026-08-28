@@ -286,6 +286,50 @@ void refresh_shared_frame(
     return true;
 }
 
+[[nodiscard]] bool read_group_a_event_slot(
+    const LegacyBattleActionDispatchState& state,
+    LegacyBattleActionDispatchContext& context,
+    LegacyBattleActionDispatchResult& result,
+    const u32 index,
+    u16& value
+) noexcept {
+    if (index < 40U) {
+        if (context.startup_reset == nullptr) {
+            result.status =
+                LegacyBattleActionDispatchStatus::event_slot_typed_stop;
+            return false;
+        }
+        const u32 packed = context.startup_reset->block_52022c[index / 2U];
+        value = static_cast<u16>((index & 1U) == 0U ? packed : (packed >> 16U));
+        return true;
+    }
+    const u32 tail_index = index - 40U;
+    if (tail_index >= state.group_a_event_slots_tail.size()) {
+        result.status = LegacyBattleActionDispatchStatus::event_slot_typed_stop;
+        return false;
+    }
+    value = state.group_a_event_slots_tail[tail_index];
+    return true;
+}
+
+void write_group_a_event_slot(
+    LegacyBattleActionDispatchState& state,
+    LegacyBattleActionDispatchContext& context,
+    const u32 index,
+    const u16 value
+) noexcept {
+    if (index < 40U) {
+        u32& packed = context.startup_reset->block_52022c[index / 2U];
+        if ((index & 1U) == 0U) {
+            packed = (packed & 0xFFFF0000U) | value;
+        } else {
+            packed = (packed & 0x0000FFFFU) | (static_cast<u32>(value) << 16U);
+        }
+        return;
+    }
+    state.group_a_event_slots_tail[index - 40U] = value;
+}
+
 [[nodiscard]] bool publish_target(
     LegacyBattleActionDispatchState& state,
     LegacyBattleActionDispatchResult& result,
@@ -1234,15 +1278,17 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
         replace_low_word(state.phase_counter, 0U);
         for (u32 slot = 0U; slot < 8U; ++slot) {
             ++result.group_a_iterations;
-            const std::size_t index = group_a_index * 10U + slot;
-            if (index >= state.group_a_event_slots.size()) {
-                result.status =
-                    LegacyBattleActionDispatchStatus::event_slot_typed_stop;
+            const u32 index = group_a_index * 10U + slot;
+            u16 value = 0U;
+            if (!read_group_a_event_slot(
+                    state, context, result, index, value
+                )) {
                 return result;
             }
-            if (state.group_a_event_slots[index] == 0U) {
-                state.group_a_event_slots[index] =
-                    static_cast<u16>(group_b_index + 1U);
+            if (value == 0U) {
+                write_group_a_event_slot(
+                    state, context, index, static_cast<u16>(group_b_index + 1U)
+                );
                 result.return_value = 1U;
                 return result;
             }

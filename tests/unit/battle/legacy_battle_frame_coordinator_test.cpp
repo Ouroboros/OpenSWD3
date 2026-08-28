@@ -574,6 +574,7 @@ struct Fixture {
             .indicator_sound = battle_sound,
             .countdown_flags = countdown_flags,
             .internal_flags = internal_flags,
+            .startup_reset = &startup.reset,
             .attack_order_records = startup.reset.records_524788,
             .attack_order_party_sources = startup.reset.block_520e90,
             .attack_order_primary_gate = &startup.reset.value_53bf80,
@@ -2036,12 +2037,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         CoordinatorPort port;
         configure_common_port(port);
         port.battle_message_state() = 0x63U;
-        port.replies[LegacyBattleFrameCoordinatorCall::
-                         message_phase_prepare_transition_control]
-            .publish_message_phase_control_words = true;
-        port.replies[LegacyBattleFrameCoordinatorCall::
-                         message_phase_prepare_transition_control]
-            .message_phase_control_words = 1U;
+        fixture.startup.reset.block_52022c[5U] = 1U;
         port.replies[LegacyBattleFrameCoordinatorCall::
                          message_phase_query_actor_completion]
             .eax = 0U;
