@@ -24,6 +24,7 @@ void test_battle_action_mode_refresh(openswd3::test::Context& test);
 void test_battle_action_summary(openswd3::test::Context& test);
 void test_battle_alternate_grid_frame(openswd3::test::Context& test);
 void test_battle_mode_grid_frame(openswd3::test::Context& test);
+void test_battle_narrow_grid_frame(openswd3::test::Context& test);
 void test_battle_action_rotation_cache(openswd3::test::Context& test);
 void test_battle_actor_action_candidate_availability(
     openswd3::test::Context& test
@@ -7017,6 +7018,7 @@ int main() {
     test_battle_action_summary(test);
     test_battle_alternate_grid_frame(test);
     test_battle_mode_grid_frame(test);
+    test_battle_narrow_grid_frame(test);
     test_battle_action_rotation_cache(test);
     test_battle_actor_action_candidate_availability(test);
     test_battle_actor_action_commit(test);

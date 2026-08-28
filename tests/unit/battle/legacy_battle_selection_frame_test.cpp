@@ -1048,6 +1048,20 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
         eight.final_actor.queued_actor_code = 8U;
         eight.message = 8U;
         eight.frame.narrow_list_selection = 3U;
+        eight.port
+            .grid_frame_replies
+                [LegacyBattleGridFrameCall::initialize_narrow_rows]
+            .push_back({});
+        eight.port.grid_frame_replies[LegacyBattleGridFrameCall::refresh_actor]
+            .push_back({});
+        eight.port
+            .grid_frame_replies[LegacyBattleGridFrameCall::query_narrow_row]
+            .push_back({
+                .publish_row_value = true,
+                .row_value = 0xFFFFU,
+            });
+        eight.port.grid_frame_replies[LegacyBattleGridFrameCall::refresh_actor]
+            .push_back({});
         const auto eight_result =
             openswd3::battle::draw_legacy_battle_selection_frame(
                 eight.bindings(), eight.port
@@ -1071,11 +1085,49 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                 eight_result.status ==
                     openswd3::battle::LegacyBattleSelectionFrameStatus::
                         completed &&
-                eight.port.calls.back().call ==
-                    LegacyBattleSelectionFrameCall::draw_narrow_frame &&
+                eight_result.narrow_grid_frame_calls == 1U &&
+                eight_result.narrow_grid_frame.status ==
+                    openswd3::battle::LegacyBattleNarrowGridFrameStatus::
+                        completed &&
+                eight_result.narrow_grid_frame.row_query_calls == 1U &&
                 eight.input.selection_cache_gate_a == 1U &&
-                eight.input.selection_cache_gate_b == 1U,
-            "messages five seven and eight preserve their fixed render arguments and final cache publication"
+                eight.input.selection_cache_gate_b == 1U &&
+                eight.input.selection_cache_gate_c == 1U &&
+                count_call(
+                    eight.port,
+                    LegacyBattleSelectionFrameCall::
+                        reserved_draw_narrow_frame_slot
+                ) == 0U,
+            "messages five and seven preserve fixed arguments while message eight directly publishes the narrow grid caches"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.message = 8U;
+        fixture.frame_provider.fail = true;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        narrow_grid_frame_typed_stop &&
+                result.narrow_grid_frame_calls == 1U &&
+                result.narrow_grid_frame.status ==
+                    openswd3::battle::LegacyBattleNarrowGridFrameStatus::
+                        first_tiled_frame_typed_stop &&
+                fixture.input.selection_cache_gate_a == 0U &&
+                fixture.input.selection_cache_gate_b == 0U &&
+                fixture.input.selection_cache_gate_c == 1U &&
+                count_call(
+                    fixture.port,
+                    LegacyBattleSelectionFrameCall::
+                        reserved_draw_narrow_frame_slot
+                ) == 0U,
+            "message eight propagates the narrow grid prefix stop before final cache publication"
         );
     }
 

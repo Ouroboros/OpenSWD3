@@ -21,6 +21,8 @@ enum class LegacyBattleGridFrameCall : compat::u8 {
     query_alternate_row,
     query_mode_row,
     query_mode_secondary_count,
+    initialize_narrow_rows,
+    query_narrow_row,
 };
 
 struct LegacyBattleGridFrameCallRequest {

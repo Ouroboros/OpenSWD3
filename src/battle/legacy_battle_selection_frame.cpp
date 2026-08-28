@@ -134,10 +134,7 @@ public:
             invoke(Call::draw_message_seven, 0U, {eax_, edx_, ecx_});
             break;
         case 8U:
-            state_input().selection_cache_gate_c = 1U;
-            edx_ = bindings_.frame_input.narrow_list_selection;
-            invoke(Call::draw_narrow_frame, 0U, {0xE0U, 0x7EU, edx_});
-            set_selection_cache_gates();
+            draw_message_eight();
             break;
         case 27U:
             draw_message_twenty_seven();
@@ -781,6 +778,52 @@ private:
         return true;
     }
 
+    [[nodiscard]] bool draw_narrow_grid_frame(
+        const u32 origin_x, const u32 origin_y, const u32 selected_row
+    ) {
+        auto narrow_request = request_.narrow_grid_frame;
+        narrow_request.origin_x = origin_x;
+        narrow_request.origin_y = origin_y;
+        narrow_request.selected_row = selected_row;
+        narrow_request.entry_eax = eax_;
+        narrow_request.entry_ecx = ecx_;
+        narrow_request.entry_edx = edx_;
+        result_.narrow_grid_frame = draw_legacy_battle_narrow_grid_frame(
+            state_.narrow_grid_frame,
+            {
+                .queued_actor_code = bindings_.final_actor.queued_actor_code,
+                .panel_row_limit = bindings_.frame_input.panel_row_limit_b,
+                .selection_input_gate =
+                    bindings_.target_runtime.selection_input_gate,
+                .candidate_argument =
+                    bindings_.target_runtime.candidate_argument,
+                .primary_text_color = bindings_.startup.primary_text_color,
+                .selection_workspace =
+                    bindings_.input_dispatch.selection_workspace,
+                .panel_action_record = bindings_.panel_action_record,
+                .framebuffer = bindings_.framebuffer,
+                .raster = bindings_.raster,
+                .shared_effects = bindings_.shared_effects,
+                .jitter = bindings_.jitter,
+                .action_updater = bindings_.action_updater,
+                .frame_provider = bindings_.frame_provider,
+            },
+            port_,
+            narrow_request
+        );
+        ++result_.narrow_grid_frame_calls;
+        result_.port_calls += result_.narrow_grid_frame.port_calls;
+        eax_ = result_.narrow_grid_frame.return_eax;
+        ecx_ = result_.narrow_grid_frame.return_ecx;
+        edx_ = result_.narrow_grid_frame.return_edx;
+        if (result_.narrow_grid_frame.status !=
+            LegacyBattleNarrowGridFrameStatus::completed) {
+            typed_stop(Status::narrow_grid_frame_typed_stop);
+            return false;
+        }
+        return true;
+    }
+
     [[nodiscard]] bool draw_mode_grid_frame(
         const u32 origin_x, const u32 origin_y, const u32 selected_cell
     ) {
@@ -895,6 +938,15 @@ private:
                 )) {
                 return;
             }
+        }
+        set_selection_cache_gates();
+    }
+
+    void draw_message_eight() {
+        state_input().selection_cache_gate_c = 1U;
+        edx_ = bindings_.frame_input.narrow_list_selection;
+        if (!draw_narrow_grid_frame(0xE0U, 0x7EU, edx_)) {
+            return;
         }
         set_selection_cache_gates();
     }

@@ -6,7 +6,7 @@
 
 权威LST主体为`0x00464270..0x00464C6F`，从proc到endp共1154行、747条实际指令、45个静态call、73个跳转、49个局部/默认标签、12个`retn`，没有外部`FUNCTION CHUNK`。函数后的30项message压缩表也已审计：1–8、27、30映射十条有效路径，9–26、28、29和表内默认槽归并到selector 10。
 
-唯一静态caller位于已关闭主帧协调器。45个call中，比例填充面板、纵向状态面板、prepared动作帧、角色目标准备、动作摘要、列表框、列表内容、网格列表帧、替代网格列表帧和模式网格帧十类已关闭callee已直连；展开后的其余对象、菜单、文字和选择callee通过窄平台端口保留。
+唯一静态caller位于已关闭主帧协调器。45个call中，比例填充面板、纵向状态面板、prepared动作帧、角色目标准备、动作摘要、列表框、列表内容、网格列表帧、替代网格列表帧、模式网格帧和窄网格帧十一类已关闭callee已直连；展开后的其余对象、菜单、文字和选择callee通过窄平台端口保留。
 
 ## 2. 入口、完成角色替换与释放
 
@@ -36,7 +36,7 @@ frame达到6后配置文字行与颜色。角色标签索引来自入口/完成�
 
 - message 2先直连列表框，依次绘制三项基础动作框、当前分类框、底色与九宫格，并把frame A置10、frame B按signed域加2夹到7；仅完成后frame B等于7且frame A等于10时再直连最多七行列表内容，完成名称/数值、当前行双绘制、双矩形及底部说明。row-limit byte随后替换EAX低byte、按i8符号扩展到lower-panel auxiliary；signed大于7才直连纵向状态面板。任一列表框/列表内容子typed-stop保留cache C与已完成绘制前缀，并阻断auxiliary和cache A/B；
 - message 4直连网格列表帧：五项顶部动作框后绘制面板，仅flags bit15行计入七行上限，当前行完成双矩形、共享说明和输入发布；隐藏行只推进iterator且不增加modern扫描上限。正常返回才以u16 row limit发布auxiliary并用unsigned大于7决定纵向面板，X为414；任一grid子stop保留cache C及已完成前缀并阻断auxiliary和cache A/B；message 27直连替代网格列表帧：双九宫格后绘制固定标题，名称先于数值，七行后仍执行第八次查询但不绘制，当前行只绘制一处矩形并发布iterator；正常返回才按u16 row limit发布auxiliary，X为402，子stop同样阻断auxiliary和cache A/B；message 30直连模式网格帧：忽略caller多推的滚动参数，固定两列五行，首组复用、次组按signed容量推进、超总量显示“無”，当前格单矩形后按page/group修正target；子stop保留cache C并阻断cache A/B；
-- message 8绘制narrow列表；message 30绘制mode grid；
+- message 8直连窄网格帧：固定窄面板后稀疏查询，零结果不计七行上限，终止哨兵刷新，当前显示行重绘并发布原source iterator；其20-byte文字物理区直接复用选择工作区，子stop保留cache C并阻断cache A/B；message 30直连模式网格帧；
 - 正常尾统一置selection cache A/B。纵向面板typed-stop发生在auxiliary和cache C之后、A/B之前。
 
 三处纵向面板调用固定动作、Y坐标、middle count、共享fill offset与selector，并直连既有typed action updater、frame provider与blitter。
@@ -63,12 +63,12 @@ message 0、大于30、103、以及9–26/28/29均保持权威默认返回，不
 
 ## 7. typed owner、caller回收与验证
 
-选择帧owner只承接两项pointer origin、display/secondary gate、已关闭绘制的栈局部状态、八项独立动作记录及后两项非重叠尾区。动作摘要主/次颜色和组A profile继续由启动状态唯一持有；列表框面板动作记录直接复用主帧协调器owner，列表框四项动作框和网格列表帧五项动作框复用同一偏移动作帧state port；列表内容复用启动颜色、组A说明记录/index、输入门与candidate owner，网格列表帧另复用target argument及主帧面板记录；其MAPS和128字节共享文字只接受外部现有owner span；替代网格列表帧复用同一面板记录、row-limit、主色、输入门和target argument，但没有MAPS/共享文字owner；模式网格帧继续复用这些owner，栈state只增加单一文字缓冲和三项计数；原suppression字段与final-actor pre-frame gate B同址，现直接复用后者唯一owner。十项标签索引现复用启动状态中`0x004A75C8`起的单一物理视图：启动路径只访问前四项，选择帧保留后六项相邻读取。五项选择指针直接复用输入分派的selection workspace；物理控制word直接复用输入分派的retreat control word；两项角色原点word也复用输入分派内由已关闭target-selection entry配置callee写回的唯一owner。message、queued/published角色、actor order、动作workspace、两组数量、其余输入cache/动画、菜单选择、target map、debug gate与target runtime也继续复用既有唯一owner。
+选择帧owner只承接两项pointer origin、display/secondary gate、已关闭绘制的栈局部状态、八项独立动作记录及后两项非重叠尾区。动作摘要主/次颜色和组A profile继续由启动状态唯一持有；列表框面板动作记录直接复用主帧协调器owner，列表框四项动作框和网格列表帧五项动作框复用同一偏移动作帧state port；列表内容复用启动颜色、组A说明记录/index、输入门与candidate owner，网格列表帧另复用target argument及主帧面板记录；其MAPS和128字节共享文字只接受外部现有owner span；替代网格列表帧复用同一面板记录、row-limit、主色、输入门和target argument，但没有MAPS/共享文字owner；模式网格帧继续复用这些owner，栈state只增加单一文字缓冲和三项计数；窄网格帧复用面板、主色、输入门、candidate及共享byte，并把输入分派五dword选择工作区作为唯一20-byte文字owner，栈state只保存两个计数；原suppression字段与final-actor pre-frame gate B同址，现直接复用后者唯一owner。十项标签索引现复用启动状态中`0x004A75C8`起的单一物理视图：启动路径只访问前四项，选择帧保留后六项相邻读取。五项选择指针直接复用输入分派的selection workspace；物理控制word直接复用输入分派的retreat control word；两项角色原点word也复用输入分派内由已关闭target-selection entry配置callee写回的唯一owner。message、queued/published角色、actor order、动作workspace、两组数量、其余输入cache/动画、菜单选择、target map、debug gate与target runtime也继续复用既有唯一owner。
 
 global reset通过输入分派owner同步原234项写程序覆盖的控制word，并只同步选择帧owner内的display gate和secondary gate；同址pre-frame gate B只通过final-actor owner清零；五项选择指针、启动映射中的标签视图、pointer origin与输入owner中的actor origin未被原写程序覆盖，保持原值。
 
-主帧协调器原frame-stage槽保留相同枚举数值并改为reserved，交互可用发布后直连本实现。完成角色路径原目标准备callee槽也保留相同枚举数值并改为reserved，五项指针及message/cache/runtime清理后直连已关闭角色目标准备。任一子typed-stop保留此前副作用，并阻断本帧余下选择流程、画面效果和全部后续帧阶段；原动作摘要、列表框、列表内容、网格列表帧、替代网格列表帧和模式网格帧opaque槽也分别保留相同枚举数值并改为reserved；八个reserved槽均保持零调用。
+主帧协调器原frame-stage槽保留相同枚举数值并改为reserved，交互可用发布后直连本实现。完成角色路径原目标准备callee槽也保留相同枚举数值并改为reserved，五项指针及message/cache/runtime清理后直连已关闭角色目标准备。任一子typed-stop保留此前副作用，并阻断本帧余下选择流程、画面效果和全部后续帧阶段；原动作摘要、列表框、列表内容、网格列表帧、替代网格列表帧、模式网格帧和窄网格帧opaque槽也分别保留相同枚举数值并改为reserved；九个reserved槽均保持零调用。
 
-定向测试覆盖：message 103和queued零早退、group-A一过前、完成角色替换及actor-order交换、message 1比例动画、文字居中、完整动作摘要及profile子stop、message 2完整列表框/列表内容、资源/矩形/共享文字子stop、signed动画夹值、七行上限与i8低byte、message 4完整网格列表帧、隐藏行无上限扫描、双矩形/共享文字子stop及纵向面板stop、message 27完整替代网格列表帧、第八次查询、单矩形与子stop，message 30完整模式网格帧、两列五行、页组修正、“無”复制与子stop，message 5/7/8固定调用、message 6物理byte OR、message 3第九个group-B对象、target map index 9、共享pre-frame门提示、prepared动作帧stop、动作记录第8项四dword物理重叠与第9项尾区、global reset覆盖范围及主帧caller传播。
+定向测试覆盖：message 103和queued零早退、group-A一过前、完成角色替换及actor-order交换、message 1比例动画、文字居中、完整动作摘要及profile子stop、message 2完整列表框/列表内容、资源/矩形/共享文字子stop、signed动画夹值、七行上限与i8低byte、message 4完整网格列表帧、隐藏行无上限扫描、双矩形/共享文字子stop及纵向面板stop、message 27完整替代网格列表帧、第八次查询、单矩形与子stop，message 30完整模式网格帧、两列五行、页组修正、“無”复制与子stop，message 8完整窄网格帧、稀疏扫描、工作区文字重叠、显示行选中与子stop，message 5/7固定调用、message 6物理byte OR、message 3第九个group-B对象、target map index 9、共享pre-frame门提示、prepared动作帧stop、动作记录第8项四dword物理重叠与第9项尾区、global reset覆盖范围及主帧caller传播。
 
 当前缺少原版两组角色对象、未关闭callee共享副作用、文字表内容、五项动态指针目标、动作记录/帧资源联合状态、动态栈scratch地址、battle侧MAPS/共享文字owner实装及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

@@ -104,7 +104,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     reserved_selection_frame_draw_list_frame_slot,
     reserved_selection_frame_draw_list_contents_slot,
     reserved_selection_frame_draw_grid_frame_slot,
-    selection_frame_draw_narrow_frame,
+    reserved_selection_frame_draw_narrow_frame_slot,
     reserved_selection_frame_draw_grid_alternate_slot,
     reserved_selection_frame_draw_grid_mode_slot,
     selection_frame_draw_message_five,
@@ -136,6 +136,8 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     alternate_grid_frame_query_row,
     mode_grid_frame_query_row,
     mode_grid_frame_query_secondary_count,
+    narrow_grid_frame_initialize_rows,
+    narrow_grid_frame_query_row,
 };
 
 struct LegacyBattleFrameCoordinatorCallRequest {
@@ -279,9 +281,9 @@ public:
             call = LegacyBattleFrameCoordinatorCall::
                 reserved_selection_frame_draw_grid_frame_slot;
             break;
-        case LegacyBattleSelectionFrameCall::draw_narrow_frame:
+        case LegacyBattleSelectionFrameCall::reserved_draw_narrow_frame_slot:
             call = LegacyBattleFrameCoordinatorCall::
-                selection_frame_draw_narrow_frame;
+                reserved_selection_frame_draw_narrow_frame_slot;
             break;
         case LegacyBattleSelectionFrameCall::reserved_draw_grid_alternate_slot:
             call = LegacyBattleFrameCoordinatorCall::
@@ -520,6 +522,14 @@ public:
         case LegacyBattleGridFrameCall::query_mode_secondary_count:
             call = LegacyBattleFrameCoordinatorCall::
                 mode_grid_frame_query_secondary_count;
+            break;
+        case LegacyBattleGridFrameCall::initialize_narrow_rows:
+            call = LegacyBattleFrameCoordinatorCall::
+                narrow_grid_frame_initialize_rows;
+            break;
+        case LegacyBattleGridFrameCall::query_narrow_row:
+            call =
+                LegacyBattleFrameCoordinatorCall::narrow_grid_frame_query_row;
             break;
         }
         const auto reply = invoke({

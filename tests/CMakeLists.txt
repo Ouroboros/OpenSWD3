@@ -310,6 +310,7 @@ add_executable(
     unit/battle/legacy_battle_menu_selection_advance_test.cpp
     unit/battle/legacy_battle_menu_selection_retreat_test.cpp
     unit/battle/legacy_battle_mode_grid_frame_test.cpp
+    unit/battle/legacy_battle_narrow_grid_frame_test.cpp
     unit/battle/legacy_battle_intensity_effect_frame_test.cpp
     unit/battle/legacy_battle_object_reset_test.cpp
     unit/battle/legacy_battle_outcome_finalization_test.cpp
