@@ -543,6 +543,8 @@ I5最终必须锁定：
 
 `audit_order=166`的`0x0046E260`已关闭为`platform_adapted`。主块`0x0046E260..0x0046E285`与外部FUNCTION CHUNK `0x0046E390..0x0046E489`合计119行、53条实际指令、2个call、3个跳转、1个返回点。函数条件关闭FIGTALK句柄并清文件门，随后在chunk写帧门/脚本完成门1，按精确dword/word宽度清四项辅助值、value B/C、坐标、packed actor、等待低word、两项packed值、四word、list count、动态等待、page offset和辅助值，固定frame value写`0xFFFF`；未写的动态token、value A、对象/文字和完成状态保持。base非零才释放并清base/cursor，零base保留cursor。typed直接reset复用资产、workspace和shared唯一owner，固定数组以活动容量表示live分配。终止opcode与case1两个caller均回收旧端口；case1保存入口cursor，shutdown后仍写入口加4并传播2/3。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过，源码零warning。工作包为`166/422 = 157 platform_adapted + 9 assembly_exact + 256 pending_audit`，双跑SHA256为`81364312d136d0458c0e02d45666f9d87beb28d6f50b57a1f3cae320e2c531ff`。动态差分因原版持久句柄、关闭结果、动态地址和释放返回后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=167`的`0x0046E290`战斗脚本结束参数整理。
+`audit_order=167`的`0x0046E290`已关闭为`platform_adapted`。完整权威LST主体`0x0046E290..0x0046E385`共105行、69条实际指令、5个call、0个跳转、1个返回点且无外部chunk。函数把四组i16 X/Y控制点符号扩展为float，先执行参数0的死局部曲线采样，再以`frame*0.05`和冻结三次B样条矩阵生成四项基值，按原乘加顺序求X/Y；两项结果分别经x87向零qword转换取低dword，返回最终Y。typed纯函数冻结矩阵位模式、float收窄点与非法转换零低dword；case39唯一caller直接按当前段四点采样，写原value与坐标owner，恢复输出owner token后调用角色坐标服务，再推进20帧/6段状态。旧枚举槽reserved且生产零调用。测试覆盖帧0/10/20的正负曲线锚点、Y返回值及case39第一帧直连。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过，源码零warning；app仅有白名单ALSA提示。工作包为`167/422 = 158 platform_adapted + 9 assembly_exact + 255 pending_audit`，双跑SHA256为`479882f5b376d12d09248f571e0ae3127d3e016f27cef80530fd3f18da50f24a`。动态差分因原版x87、局部栈、输出指针和caller寄存器后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=168`的`0x0046E490`战斗相邻对象分配函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

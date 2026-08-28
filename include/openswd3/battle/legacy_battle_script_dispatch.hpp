@@ -184,7 +184,7 @@ enum class LegacyBattleScriptDispatchCall : compat::u32 {
     attack_order_insert = 0x0045EE70U,
     script_page_load = 0x0046E1E0U,
     reserved_script_shutdown = 0x0046E260U,
-    script_finalize = 0x0046E290U,
+    reserved_script_curve_sample = 0x0046E290U,
     pending_4707b0 = 0x004707B0U,
     pending_475820 = 0x00475820U,
     pending_476160 = 0x00476160U,

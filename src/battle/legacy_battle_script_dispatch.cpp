@@ -1,5 +1,7 @@
 #include "openswd3/battle/legacy_battle_script_dispatch.hpp"
 
+#include "openswd3/battle/legacy_battle_script_curve.hpp"
+
 #include <bit>
 #include <cstddef>
 #include <cstdint>
@@ -2100,18 +2102,26 @@ private:
         }
         const std::size_t segment = workspace_.position_y;
         const std::size_t base = segment * 2U;
-        invoke(
-            LegacyBattleScriptDispatchCall::script_finalize,
-            0U,
-            {workspace_.list_words[base],
-             workspace_.list_words[base + 1U],
-             workspace_.list_words[base + 2U],
-             workspace_.list_words[base + 3U],
-             workspace_.list_words[base + 4U],
-             workspace_.list_words[base + 5U],
-             workspace_.list_words[base + 6U],
-             workspace_.list_words[base + 7U]}
+        const auto curve = sample_legacy_battle_script_curve(
+            static_cast<float>(signed_word(workspace_.position_x)),
+            {{
+                {std::bit_cast<i16>(workspace_.list_words[base]),
+                 std::bit_cast<i16>(workspace_.list_words[base + 1U])},
+                {std::bit_cast<i16>(workspace_.list_words[base + 2U]),
+                 std::bit_cast<i16>(workspace_.list_words[base + 3U])},
+                {std::bit_cast<i16>(workspace_.list_words[base + 4U]),
+                 std::bit_cast<i16>(workspace_.list_words[base + 5U])},
+                {std::bit_cast<i16>(workspace_.list_words[base + 6U]),
+                 std::bit_cast<i16>(workspace_.list_words[base + 7U])},
+            }}
         );
+        workspace_.value_a = curve.x;
+        workspace_.value_b = curve.y;
+        workspace_.coordinate_x = curve.x;
+        workspace_.coordinate_y = curve.y;
+        eax_ = curve.return_value;
+        ecx_ = 0x0053CCE8U;
+        edx_ = 0x0053CCECU;
         const i32 actor = static_cast<i32>(
             high_word(workspace_.packed_actor_state) & 0x7FFFU
         );

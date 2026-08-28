@@ -1,3 +1,4 @@
+#include "openswd3/battle/legacy_battle_script_curve.hpp"
 #include "openswd3/battle/legacy_battle_script_dispatch.hpp"
 #include "test.hpp"
 
@@ -277,6 +278,39 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
             fixture.workspace.cursor == 4U &&
                 fixture.workspace.dynamic_wait_state == 0U,
             "case six advances only on the call after the count reaches zero"
+        );
+    }
+
+    {
+        Fixture fixture;
+        Port port;
+        fixture.opcode(39);
+        fixture.write_u16(2U, 0U);
+        for (u32 point = 0U; point < 5U; ++point) {
+            fixture.write_u16(4U + point * 4U, 60U);
+            fixture.write_u16(
+                6U + point * 4U,
+                std::bit_cast<u16>(static_cast<openswd3::compat::i16>(-60))
+            );
+        }
+        const auto expected =
+            openswd3::battle::sample_legacy_battle_script_curve(
+                1.0F, {{{100, 40}, {100, 40}, {160, -20}, {160, -20}}}
+            );
+        static_cast<void>(run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        ));
+        test.expect_true(
+            fixture.workspace.value_a == expected.x &&
+                fixture.workspace.value_b == expected.y &&
+                fixture.workspace.coordinate_x == expected.x &&
+                fixture.workspace.coordinate_y == expected.y &&
+                port.count(
+                    LegacyBattleScriptDispatchCall::reserved_script_curve_sample
+                ) == 0U &&
+                port.count(LegacyBattleScriptDispatchCall::pending_4785c0) ==
+                    1U,
+            "case thirty-nine samples the typed curve before publishing actor coordinates"
         );
     }
 

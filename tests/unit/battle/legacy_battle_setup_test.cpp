@@ -113,6 +113,7 @@ void test_battle_pre_frame(openswd3::test::Context& test);
 void test_battle_single_effect_frame(openswd3::test::Context& test);
 void test_battle_scale_fill_panel(openswd3::test::Context& test);
 void test_battle_scale_scan(openswd3::test::Context& test);
+void test_battle_script_curve(openswd3::test::Context& test);
 void test_battle_script_dispatch(openswd3::test::Context& test);
 void test_battle_status_indicator(openswd3::test::Context& test);
 void test_battle_startup(openswd3::test::Context& test);
@@ -7135,6 +7136,7 @@ int main() {
     test_battle_indexed_action_frame_draw(test);
     test_battle_scale_fill_panel(test);
     test_battle_scale_scan(test);
+    test_battle_script_curve(test);
     test_battle_script_dispatch(test);
     test_battle_status_indicator(test);
     test_battle_startup(test);
