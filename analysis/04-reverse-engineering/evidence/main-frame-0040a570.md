@@ -156,6 +156,8 @@ sub_40CF10()
 
 这里的 `0x0040CF10` 集中维护 Miles 音频对象。战斗画面在 `0x00453200` 内的 `0x0045350A` 自行调用 DirectDraw `Blt`。
 
+`audit_order=161`关闭后，SDL `SdlSmokeIdlePorts::step_battle()`不再固定返回1，而是以`LegacyBattleAssets::script`、唯一`LegacyBattleStartupState`及脚本工作区调用typed战斗脚本分派，并原样返回0/1/2/3。调用仍位于战斗活动门内；typed-stop只记录诊断并保持活动，不会误触发下述世界恢复路径。
+
 之后只按 `result` 分支，不再执行本帧的普通世界/剧情路径。
 
 ### result == 0

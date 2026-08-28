@@ -104,6 +104,7 @@ add_library(
         legacy_battle_runtime_shutdown.cpp
         legacy_battle_scale_fill_panel.cpp
         legacy_battle_scale_scan.cpp
+        legacy_battle_script_dispatch.cpp
         legacy_battle_selection_frame.cpp
         legacy_battle_selection_hint_frame.cpp
         legacy_battle_setup.cpp

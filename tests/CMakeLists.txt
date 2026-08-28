@@ -338,6 +338,7 @@ add_executable(
     unit/battle/legacy_battle_pre_frame_test.cpp
     unit/battle/legacy_battle_scale_fill_panel_test.cpp
     unit/battle/legacy_battle_scale_scan_test.cpp
+    unit/battle/legacy_battle_script_dispatch_test.cpp
     unit/battle/legacy_battle_setup_test.cpp
     unit/battle/legacy_battle_single_effect_frame_test.cpp
     unit/battle/legacy_battle_status_indicator_test.cpp

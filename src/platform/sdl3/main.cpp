@@ -42,6 +42,7 @@
 #include "openswd3/asset_runtime/legacy_tsw_runtime.hpp"
 #include "openswd3/battle/legacy_battle_assets.hpp"
 #include "openswd3/battle/legacy_battle_runtime_shutdown.hpp"
+#include "openswd3/battle/legacy_battle_script_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_setup.hpp"
 #include "openswd3/diagnostics/log.hpp"
 #include "openswd3/input_time_rng/legacy_crt_rng.hpp"
@@ -100,6 +101,7 @@
 #include <bit>
 #include <cstdint>
 #include <cctype>
+#include <cmath>
 #include <ctime>
 #include <filesystem>
 #include <fstream>
@@ -1665,6 +1667,7 @@ class SdlSmokeIdlePorts final
     : public openswd3::app::IdleRuntimePorts,
       public openswd3::app::FramePreparationPorts,
       public openswd3::app::FrameRuntimePorts,
+      public openswd3::battle::LegacyBattleScriptDispatchPort,
       public openswd3::rendering::LegacyPresentationPorts,
       public openswd3::audio_video::LegacyVideoFramePorts,
       public openswd3::world_map::LegacyWorldLoadProgressPorts {
@@ -1997,6 +2000,7 @@ public:
         openswd3::audio_video::LegacyVideoPlayer& video_player,
         openswd3::resource_io::LegacyResourceDatabases& resource_databases,
         openswd3::world_map::LegacyWorldItemListState& world_item_lists,
+        openswd3::battle::LegacyBattleStartupState& battle_runtime,
         std::filesystem::path data_directory,
         std::filesystem::path launch_directory,
         std::filesystem::path world_cache_directory,
@@ -2028,7 +2032,7 @@ public:
           audio_maintenance_(audio_maintenance),
           stream_manager_(stream_manager), sample_manager_(sample_manager),
           video_player_(video_player), resource_databases_(resource_databases),
-          world_item_lists_(world_item_lists),
+          world_item_lists_(world_item_lists), battle_runtime_(battle_runtime),
           data_directory_(std::move(data_directory)),
           launch_directory_(std::move(launch_directory)),
           world_cache_directory_(std::move(world_cache_directory)),
@@ -2458,6 +2462,18 @@ public:
     void release_display_and_world_for_battle_entry() override {}
     void close_world_map_view() override {}
     void initialize_battle(const openswd3::compat::u16 battle_id) override {
+        battle_runtime_ = {};
+        battle_script_workspace_ = {};
+        battle_script_shared_ = {};
+        battle_actor_metrics_ = {};
+        battle_final_actor_ = {};
+        battle_input_dispatch_ = {};
+        battle_target_selection_ = {};
+        battle_message_phase_ = {};
+        battle_victory_rewards_ = {};
+        battle_message_state_ = 0U;
+        next_battle_script_token_ = 0x01000000U;
+
         const auto loaded = openswd3::battle::load_legacy_battle_assets(
             data_directory_, battle_id, 0, battle_assets_
         );
@@ -2481,6 +2497,31 @@ public:
             );
             battle_setup_ready_ = prepared.status ==
                 openswd3::battle::LegacyBattleSetupStatus::ready;
+            if (battle_setup_ready_) {
+                battle_runtime_.battle_id_word = battle_id;
+                battle_runtime_.party_count = battle_setup_.party_count;
+                battle_runtime_.enemy_count = battle_setup_.enemy_count;
+                battle_runtime_.background_resource =
+                    battle_setup_.background_resource_id;
+                for (std::size_t index = 0U;
+                     index < battle_setup_.party.size(); ++index) {
+                    const auto& source = battle_setup_.party[index];
+                    auto& destination = battle_runtime_.party[index];
+                    destination.role_id = source.resource_id;
+                    destination.position_x = source.screen_x;
+                    destination.position_y = source.screen_y;
+                    destination.active = source.active ? 1U : 0U;
+                }
+                for (std::size_t index = 0U;
+                     index < battle_setup_.enemies.size(); ++index) {
+                    const auto& source = battle_setup_.enemies[index];
+                    auto& destination = battle_runtime_.enemies[index];
+                    destination.role_id = source.resource_id;
+                    destination.position_x = source.screen_x;
+                    destination.position_y = source.screen_y;
+                    destination.value_1c = source.active ? 1U : 0U;
+                }
+            }
         } else {
             battle_setup_ = {};
             battle_setup_ready_ = false;
@@ -2513,11 +2554,169 @@ public:
         }
     }
     void clear_party_battle_entry_bits() override {}
+
+    openswd3::battle::LegacyBattleScriptDispatchCallReply
+    invoke_battle_script(
+        openswd3::battle::LegacyBattleScriptWorkspace& workspace,
+        openswd3::battle::LegacyBattleScriptDispatchBindings&,
+        const openswd3::battle::LegacyBattleScriptDispatchCallRequest& request
+    ) override {
+        using openswd3::battle::LegacyBattleScriptDispatchCall;
+        auto reply = openswd3::battle::LegacyBattleScriptDispatchCallReply{
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        };
+        const auto group_a_index = [&]() -> std::optional<std::size_t> {
+            if (request.object_token <
+                openswd3::battle::kLegacyBattleScriptGroupABaseToken) {
+                return std::nullopt;
+            }
+            const auto relative = request.object_token -
+                openswd3::battle::kLegacyBattleScriptGroupABaseToken;
+            if (relative %
+                    openswd3::battle::kLegacyBattleScriptGroupAElementSize !=
+                0U) {
+                return std::nullopt;
+            }
+            const auto index = relative /
+                openswd3::battle::kLegacyBattleScriptGroupAElementSize;
+            if (index >= battle_runtime_.party.size()) {
+                return std::nullopt;
+            }
+            return static_cast<std::size_t>(index);
+        };
+        const auto group_b_index = [&]() -> std::optional<std::size_t> {
+            if (request.object_token <
+                openswd3::battle::kLegacyBattleScriptGroupBBaseToken) {
+                return std::nullopt;
+            }
+            const auto relative = request.object_token -
+                openswd3::battle::kLegacyBattleScriptGroupBBaseToken;
+            if (relative %
+                    openswd3::battle::kLegacyBattleScriptGroupBElementSize !=
+                0U) {
+                return std::nullopt;
+            }
+            const auto index = relative /
+                openswd3::battle::kLegacyBattleScriptGroupBElementSize;
+            if (index >= battle_runtime_.enemies.size()) {
+                return std::nullopt;
+            }
+            return static_cast<std::size_t>(index);
+        };
+
+        switch (request.call) {
+        case LegacyBattleScriptDispatchCall::allocate:
+            reply.eax = next_battle_script_token_;
+            next_battle_script_token_ += 0x100U;
+            break;
+        case LegacyBattleScriptDispatchCall::random_bounded:
+        case LegacyBattleScriptDispatchCall::random_bounded_tertiary:
+        case LegacyBattleScriptDispatchCall::random_bounded_quaternary:
+            reply.eax = request.arguments[0] == 0U
+                ? 0U
+                : crt_rng_.next() % request.arguments[0];
+            break;
+        case LegacyBattleScriptDispatchCall::random_bounded_secondary:
+            reply.eax = request.arguments[0] == 0U
+                ? 0U
+                : secondary_rng_.next_bounded(request.arguments[0]);
+            break;
+        case LegacyBattleScriptDispatchCall::x87_truncate: {
+            const float value = std::bit_cast<float>(request.arguments[0]);
+            openswd3::compat::i32 integer{};
+            if (std::isfinite(value)) {
+                const double truncated = std::trunc(static_cast<double>(value));
+                constexpr double minimum = static_cast<double>(
+                    std::numeric_limits<std::int64_t>::min()
+                );
+                constexpr double maximum = static_cast<double>(
+                    std::numeric_limits<std::int64_t>::max()
+                );
+                if (truncated >= minimum && truncated < maximum) {
+                    const auto wide = static_cast<std::int64_t>(truncated);
+                    integer = std::bit_cast<openswd3::compat::i32>(
+                        static_cast<openswd3::compat::u32>(wide)
+                    );
+                }
+            }
+            reply.eax = std::bit_cast<openswd3::compat::u32>(integer);
+            break;
+        }
+        case LegacyBattleScriptDispatchCall::pending_4783b0:
+        case LegacyBattleScriptDispatchCall::pending_478470:
+        case LegacyBattleScriptDispatchCall::pending_478600:
+        case LegacyBattleScriptDispatchCall::pending_484500:
+            if (const auto index = group_a_index(); index.has_value()) {
+                workspace.coordinate_x = battle_runtime_.party[*index].position_x;
+                workspace.coordinate_y = battle_runtime_.party[*index].position_y;
+                workspace.pair_x = battle_runtime_.party[*index].position_x;
+                workspace.pair_y = battle_runtime_.party[*index].position_y;
+            } else if (const auto index = group_b_index(); index.has_value()) {
+                workspace.coordinate_x = battle_runtime_.enemies[*index].position_x;
+                workspace.coordinate_y = battle_runtime_.enemies[*index].position_y;
+                workspace.pair_x = battle_runtime_.enemies[*index].position_x;
+                workspace.pair_y = battle_runtime_.enemies[*index].position_y;
+            }
+            break;
+        case LegacyBattleScriptDispatchCall::pending_4785c0:
+            if (const auto index = group_a_index(); index.has_value()) {
+                battle_runtime_.party[*index].position_x =
+                    static_cast<openswd3::compat::u16>(request.arguments[0]);
+                battle_runtime_.party[*index].position_y =
+                    static_cast<openswd3::compat::u16>(request.arguments[1]);
+            } else if (const auto index = group_b_index(); index.has_value()) {
+                battle_runtime_.enemies[*index].position_x =
+                    static_cast<openswd3::compat::u16>(request.arguments[0]);
+                battle_runtime_.enemies[*index].position_y =
+                    static_cast<openswd3::compat::u16>(request.arguments[1]);
+            }
+            break;
+        case LegacyBattleScriptDispatchCall::frame:
+            reply.eax = 1U;
+            break;
+        default:
+            break;
+        }
+        return reply;
+    }
+
     openswd3::compat::i32 step_battle() override {
         request_presentation(
             openswd3::rendering::LegacyPresentationSite::steady_battle
         );
-        return 1;
+        if (!battle_assets_ready_ || !battle_setup_ready_) {
+            return 0;
+        }
+        const auto result = openswd3::battle::run_legacy_battle_script_dispatch(
+            battle_script_workspace_,
+            {
+                .assets = battle_assets_,
+                .startup = battle_runtime_,
+                .metrics = battle_actor_metrics_,
+                .final_actor = battle_final_actor_,
+                .input_dispatch = battle_input_dispatch_,
+                .target_selection = battle_target_selection_,
+                .message_phase = battle_message_phase_,
+                .victory = battle_victory_rewards_,
+                .shared = battle_script_shared_,
+                .message_state = battle_message_state_,
+            },
+            *this
+        );
+        if (result.status !=
+            openswd3::battle::LegacyBattleScriptDispatchStatus::completed) {
+            std::string message{"battle script typed stop: status="};
+            message.append(std::to_string(static_cast<unsigned int>(result.status)));
+            message.append(", opcode=");
+            message.append(std::to_string(result.opcode));
+            message.append(", offset=");
+            message.append(std::to_string(result.stopped_offset));
+            openswd3::diagnostics::log_error(message);
+            return 1;
+        }
+        return std::bit_cast<openswd3::compat::i32>(result.return_eax);
     }
     void rebuild_display_after_result_zero() override {}
     void set_result_zero_world_state() override {}
@@ -6780,6 +6979,7 @@ private:
     openswd3::audio_video::LegacyVideoPlayer& video_player_;
     openswd3::resource_io::LegacyResourceDatabases& resource_databases_;
     openswd3::world_map::LegacyWorldItemListState& world_item_lists_;
+    openswd3::battle::LegacyBattleStartupState& battle_runtime_;
     std::filesystem::path data_directory_;
     std::filesystem::path launch_directory_;
     std::filesystem::path world_cache_directory_;
@@ -6811,6 +7011,17 @@ private:
     bool battle_assets_ready_{};
     openswd3::battle::LegacyBattleSetupState battle_setup_;
     bool battle_setup_ready_{};
+    openswd3::battle::LegacyBattleScriptWorkspace battle_script_workspace_;
+    openswd3::battle::LegacyBattleScriptSharedState battle_script_shared_;
+    openswd3::battle::LegacyBattleActorMetricState battle_actor_metrics_;
+    openswd3::battle::LegacyBattleFinalActorStepState battle_final_actor_;
+    openswd3::battle::LegacyBattleInputDispatchState battle_input_dispatch_;
+    openswd3::battle::LegacyBattleTargetSelectionRuntimeState
+        battle_target_selection_;
+    openswd3::battle::LegacyBattleMessagePhaseState battle_message_phase_;
+    openswd3::battle::LegacyBattleVictoryRewardState battle_victory_rewards_;
+    openswd3::compat::u32 battle_message_state_{};
+    openswd3::compat::u32 next_battle_script_token_{0x01000000U};
     openswd3::rendering::LegacyRasterGeometryState world_raster_;
     openswd3::rendering::LegacyFramebuffer world_interpolation_current_base_;
     openswd3::rendering::LegacyFramebuffer world_interpolation_current_final_;
@@ -7352,6 +7563,7 @@ int main(const int argument_count, char** arguments) {
         video_player,
         resource_databases,
         world_item_lists,
+        battle_runtime,
         data_directory.directory,
         launch_directory,
         executable_directory / "cache" / "maps",
