@@ -97,6 +97,25 @@ std::vector<u8> make_ffd() {
     return bytes;
 }
 
+void test_script_window_loader(openswd3::test::Context& test) {
+    const TestTree tree;
+    tree.write("FIGTALK.DAT", make_figtalk(2U));
+
+    LegacyBattleAssets assets;
+    assets.script.fill(0xCCU);
+    const auto status = openswd3::battle::load_legacy_battle_script_window(
+        tree.root(), 2U, assets
+    );
+    test.expect_true(
+        status == LegacyBattleAssetStatus::ready &&
+            assets.figtalk_data_offset == 0x20U &&
+            assets.figtalk_actual_size == 6U && assets.script[0] == 45U &&
+            assets.script[2] == 15U && assets.script[4] == 8U &&
+            assets.script[6] == 0U && assets.script.back() == 0U,
+        "typed FIGTALK loader follows the table and zero-fills its fixed window"
+    );
+}
+
 void test_load_sequence_and_offsets(openswd3::test::Context& test) {
     const TestTree tree;
     tree.write("FIGTALK.DAT", make_figtalk(2U));
@@ -206,6 +225,7 @@ void test_real_battle_98(openswd3::test::Context& test) {
 
 int main() {
     openswd3::test::Context test;
+    test_script_window_loader(test);
     test_load_sequence_and_offsets(test);
     test_variant_comparison_and_failure_order(test);
 #ifdef OPENSWD3_GAME_DATA_ROOT

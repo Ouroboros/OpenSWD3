@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v751
+版本：v752
 
 最后更新：2026-08-25
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗启动相邻角色状态函数
+当前步骤：模块10 · 审计战斗脚本角色服务
 
 ## 0. 执行约定
 
@@ -4120,4 +4120,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=163`的`0x0046E0A0`组A角色次跳过状态读取。完整权威LST主体`0x0046E0A0..0x0046E0A6`共10行、2条实际指令、0个call、0个跳转、0个标签、1个返回点且无外部chunk；行为只以ECX this完整读取组A角色`+0x2B04` dword并原样返回EAX。全程序没有真实call，唯一DATA XREF位于脚本case58组B路径；固定地址装入EDX并测试后因静态非零必然跳过后续死块。地址加载本身会留在返回EDX，因此typed case58以`compat::u32`恢复该token，但不转换为主机指针或恢复调用；回归同时确认cursor推进4字节、零端口调用与攻击顺序不变。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过，源码零warning。工作包为`163/422 = 154 platform_adapted + 9 assembly_exact + 259 pending_audit`；生成器连续双跑逐字节一致，SHA256为`af7a8f6f695cd1a78feaa4bb3ad950c6615bcdeb3a40edc7069faecd3340072f`。该目标静态不可达，两指令完整审计与caller寄存器回归共同关闭动态差分。
 
-下一项回收`audit_order=164`的`0x0046E0B0`战斗启动相邻角色状态函数。
+本轮再完成`audit_order=164`的`0x0046E0B0`战斗脚本窗口加载。完整权威LST主体`0x0046E0B0..0x0046E1D4`共148行、91条实际指令、9个call、4个跳转、3个返回点且无外部chunk。函数按`0x200+battle_id*4`读取FIGTALK数据偏移，再从`0x200+offset`分配、清零并固定读取`0x8000`-byte脚本窗口；文件已开门复用旧句柄，数据根缺失与零句柄有独立早退。typed窗口加载复用`LegacyBattleAssets::script`唯一owner，以窗口offset承接cursor；持久Win32句柄适配为RAII文件，open/seek/read失败显式状态化，短读保留前缀和零尾。总资产加载器和SDL战斗入口保持FIGTALK→FFD→setup顺序，原启动caller证据已补齐且生产无旧地址/opaque端口。测试覆盖合成表项、短读、零尾、大小写路径、错误顺序及真实battle 98。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过，源码零warning。工作包为`164/422 = 155 platform_adapted + 9 assembly_exact + 258 pending_audit`；生成器连续双跑逐字节一致，SHA256为`b942b4ad9007de131e998f1dde7ccba88b8a987b47cc1379f478cde573a56605`。动态差分因原版持久句柄、无效句柄零比较、未检查文件调用和动态分配地址后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=165`的`0x0046E1E0`战斗脚本角色服务。

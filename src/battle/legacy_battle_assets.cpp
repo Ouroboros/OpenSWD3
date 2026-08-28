@@ -226,6 +226,18 @@ seek_exact(resource_io::LegacyFile& file, const compat::u32 offset) noexcept {
 
 }  // namespace
 
+LegacyBattleAssetStatus load_legacy_battle_script_window(
+    const std::filesystem::path& data_root,
+    const compat::u16 battle_id,
+    LegacyBattleAssets& destination
+) {
+    return load_figtalk(
+        resolve_legacy_filename(data_root, "figtalk.dat"),
+        battle_id,
+        destination
+    );
+}
+
 compat::u16
 LegacyBattleAssets::record_u16(const std::size_t offset) const noexcept {
     if (offset + 1U >= ffd_record.size()) {
@@ -260,11 +272,8 @@ LegacyBattleAssetLoadResult load_legacy_battle_assets(
         return {LegacyBattleAssetStatus::battle_id_out_of_range};
     }
 
-    const LegacyBattleAssetStatus figtalk_status = load_figtalk(
-        resolve_legacy_filename(data_root, "figtalk.dat"),
-        battle_id,
-        destination
-    );
+    const LegacyBattleAssetStatus figtalk_status =
+        load_legacy_battle_script_window(data_root, battle_id, destination);
     if (figtalk_status != LegacyBattleAssetStatus::ready) {
         return {figtalk_status};
     }

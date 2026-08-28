@@ -64,6 +64,13 @@ struct LegacyBattleAssetLoadResult {
     };
 };
 
+// sub_46E0B0, with the persistent Win32 file handle adapted to a scoped file.
+[[nodiscard]] LegacyBattleAssetStatus load_legacy_battle_script_window(
+    const std::filesystem::path& data_root,
+    compat::u16 battle_id,
+    LegacyBattleAssets& destination
+);
+
 [[nodiscard]] LegacyBattleAssetLoadResult load_legacy_battle_assets(
     const std::filesystem::path& data_root,
     compat::u16 battle_id,

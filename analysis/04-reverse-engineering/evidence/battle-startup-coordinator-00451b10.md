@@ -55,7 +55,9 @@ modern直接调用`rebuild_legacy_battle_render_surface`；其typed-stop阻断�
 
 ## 5. `battle.ffd`加载与唯一普通早退
 
-低word battle ID先送入准备callee。路径固定为`data_root / "battle.ffd"`。已关闭archive header读取直接复用第106项唯一`0x31F4`绑定对象，以固定只读独占参数打开文件，把`0x2714`字节写入对象`+4`，并把`this+0x1F48`发布到固定scratch输出owner；打开失败仍关闭全1handle，读取返回或短读不形成成功门。旧高层`open_archive`端口已删除，仅三项Windows文件API保持窄平台边界。
+低word battle ID先送入准备callee。随后原函数调用`0x0046E0B0`：按`0x200+battle_id*4`读取FIGTALK偏移，跳到`0x200+offset`，分配并清零固定`0x8000` bytes后读取脚本窗口。该函数已由`load_legacy_battle_script_window`直接承接，窗口只由`LegacyBattleAssets::script`持有，当前指针只保存窗口内offset；生产SDL入口通过总资产加载器保持FIGTALK先于FFD和setup的顺序，不保留旧地址或opaque端口。
+
+之后路径固定为`data_root / "battle.ffd"`。已关闭archive header读取直接复用第106项唯一`0x31F4`绑定对象，以固定只读独占参数打开文件，把`0x2714`字节写入对象`+4`，并把`this+0x1F48`发布到固定scratch输出owner；打开失败仍关闭全1handle，读取返回或短读不形成成功门。旧高层`open_archive`端口已删除，仅三项Windows文件API保持窄平台边界。
 
 无论archive header读取返回0还是1，caller都继续直连已关闭definition record读取。它以同一路径和同一绑定对象重新打开并读取头部，按battle ID低16位的signed计数、前序signed byte累计和variant零定位偏移dword，以`0x2714 + value*0x10C`回绕公式seek，再把固定`0x10C`字节读入启动状态唯一raw记录owner。打开失败、signed门拒绝或短读普通返回均不构成caller成功门，只有count或偏移表真实访问typed-stop阻断后续启动。
 
