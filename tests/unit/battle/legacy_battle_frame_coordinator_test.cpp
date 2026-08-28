@@ -684,7 +684,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             "frame coordinator preserves music and typed input stages before the debug hotkey zero return"
         );
     }
-
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         Fixture fixture;
@@ -713,7 +712,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             "frame-input typed stop preserves the music prelude and blocks input dispatch plus every later frame stage"
         );
     }
-
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         Fixture fixture;
@@ -741,7 +739,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             "input-dispatch typed stop preserves frame input resolution and blocks every later frame stage"
         );
     }
-
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         Fixture fixture;
@@ -768,7 +765,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             "pre-frame workspace stop preserves its prefix and blocks actor metrics lock and all later frame stages"
         );
     }
-
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         state.render_abort_latch = 1U;
@@ -794,7 +790,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             "render abort occurs only after target lock and immediate unlock and returns active latch"
         );
     }
-
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         Fixture fixture;
@@ -856,7 +851,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             "selection-frame actor stop preserves all prior frame side effects and blocks frame effect"
         );
     }
-
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         Fixture fixture;
@@ -886,7 +880,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             "actor-priority typed stop propagates before all frame followup stages"
         );
     }
-
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         Fixture fixture;
@@ -920,7 +913,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             "actor-frame context stop propagates before remaining frame followup stages"
         );
     }
-
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         Fixture fixture;
@@ -964,7 +956,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             "main frame directly composes completion, pending-action and message-phase stages without their old opaque calls"
         );
     }
-
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         Fixture fixture;
@@ -1018,7 +1009,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             "main frame continues to the third post-render stage after victory rewards"
         );
     }
-
     {
         CoordinatorPort port;
         configure_common_port(port);
@@ -1154,7 +1144,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             "frame coordinator maps growth query, formatting, drawing and sample playback"
         );
     }
-
     {
         CoordinatorPort port;
         configure_common_port(port);
@@ -1176,6 +1165,12 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         port.replies
             [LegacyBattleFrameCoordinatorCall::growth_caption_query_panel]
                 .caption_transition_stage = 9U;
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         growth_completion_caption_play_sample] = {
+            .eax = 25U,
+            .ecx = 26U,
+            .edx = 27U,
+        };
 
         const auto name = port.invoke_growth_caption({
             .call =
@@ -1212,6 +1207,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             .text = {0x5BU, 0x5DU},
             .text_length = 2U,
         });
+        const auto sample =
+            port.play_growth_completion_sample(28U, 29U, 30U, 0x160U, -3);
 
         test.expect_true(
             name.publish_formatted_text && name.formatted_text[0U] == 0x41U &&
@@ -1233,11 +1230,15 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 port.count(
                     LegacyBattleFrameCoordinatorCall::
                         growth_caption_format_detail
+                ) == 1U &&
+                sample.eax == 25U && sample.ecx == 26U && sample.edx == 27U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        growth_completion_caption_play_sample
                 ) == 1U,
-            "frame coordinator maps caption name, query, drawing and bracket formatting"
+            "frame coordinator maps caption name, query, drawing, bracket formatting and completion sample playback"
         );
     }
-
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         state.conditional_mode = 1U;
@@ -1267,7 +1268,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             "the closed completion stage preserves post-actor-frame ECX and EDX on its selected-actor zero return before pending actions"
         );
     }
-
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         state.conditional_mode = 1U;
@@ -1314,7 +1314,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             "frame-completion typed stop preserves the completed actor-frame stage then blocks pending actions effects and rendering"
         );
     }
-
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         state.ui_state = 0x8000U;
@@ -1374,7 +1373,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             "HUD typed stop propagates after fixed frame and blocks later render stages"
         );
     }
-
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         Fixture fixture;
@@ -1419,7 +1417,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             "message-phase typed stop preserves HUD and the first post-render prefix while blocking every later stage"
         );
     }
-
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         state.ui_state = 0xABCD0000U;
@@ -1511,7 +1508,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             "full pre-input path reaches both countdowns and returns three on internal bit seventeen"
         );
     }
-
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         state.selection_delay = 0x10U;
@@ -1557,7 +1553,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             "selection refresh directly dequeues a group-A record through the remaining actor-query boundary"
         );
     }
-
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         state.special_surface_gate = 2U;
@@ -1713,7 +1708,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             "frame coordinator directly resolves group-B completion before drawing the context prompt and vertical shift"
         );
     }
-
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         Fixture fixture;
@@ -1757,7 +1751,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             "outcome finalization typed-stop preserves the darkening prefix and blocks every later frame stage"
         );
     }
-
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         state.special_surface_gate = 2U;
@@ -1790,7 +1783,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             "battle mode bit forces the typed vertical shift even when the normal surface gate is nonzero"
         );
     }
-
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         Fixture fixture;
@@ -1823,7 +1815,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             "vertical shift typed-stop preserves the completed color prefix and blocks screenshot consumption"
         );
     }
-
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         Fixture fixture;
@@ -1927,7 +1918,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             "selected role path directly updates panel tiled frame actor query and standalone action while choosing post-callee stale ecx"
         );
     }
-
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         Fixture fixture;
@@ -1952,7 +1942,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             "missing selected role map stops at first mapping read after fixed frame and panel action update side effects"
         );
     }
-
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         state.debug_overlay.frame_divisor = 0;
@@ -1982,7 +1971,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             "debug overlay division failure preserves its text prefix and blocks every later frame stage"
         );
     }
-
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         Fixture fixture;
@@ -2005,7 +1993,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             "missing internal bit table stops at byte two access before the optional debug overlay"
         );
     }
-
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         state.special_surface_gate = 1U;

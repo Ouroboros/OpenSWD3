@@ -1,7 +1,8 @@
-#include "openswd3/battle/legacy_battle_growth_caption.hpp"
+#include "openswd3/battle/legacy_battle_growth_completion_caption.hpp"
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <cstddef>
 #include <map>
 #include <span>
@@ -15,6 +16,7 @@ using openswd3::battle::LegacyBattleGrowthCaptionCall;
 using openswd3::battle::LegacyBattleGrowthCaptionCallReply;
 using openswd3::battle::LegacyBattleGrowthCaptionCallRequest;
 using openswd3::battle::LegacyBattleGrowthCaptionRequest;
+using openswd3::compat::i32;
 using openswd3::compat::u8;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
@@ -97,6 +99,24 @@ public:
         return LegacyBattleGrowthCaptionPort::invoke_growth_caption(request);
     }
 
+    [[nodiscard]] openswd3::battle::LegacyBattleGrowthCaptionRegisters
+    play_growth_completion_sample(
+        const u32 eax,
+        const u32 ecx,
+        const u32 edx,
+        const u32 sound_id,
+        const i32 mix_level
+    ) override {
+        sample_calls.push_back({
+            eax,
+            ecx,
+            edx,
+            sound_id,
+            std::bit_cast<u32>(mix_level),
+        });
+        return sample_reply;
+    }
+
     void reply(
         const LegacyBattleGrowthCaptionCall call,
         const LegacyBattleGrowthCaptionCallReply& reply
@@ -119,6 +139,12 @@ public:
         std::vector<LegacyBattleGrowthCaptionCallReply>>
         replies;
     std::map<LegacyBattleGrowthCaptionCall, std::size_t> reply_indices;
+    std::vector<std::array<u32, 5U>> sample_calls;
+    openswd3::battle::LegacyBattleGrowthCaptionRegisters sample_reply{
+        .eax = 0x10203040U,
+        .ecx = 0x50607080U,
+        .edx = 0x90A0B0C0U,
+    };
 };
 
 struct Fixture {
@@ -197,6 +223,33 @@ run(Fixture& fixture,
         .local_text_token = 0x70002000U,
     }) {
     return openswd3::battle::advance_legacy_battle_growth_caption(
+        fixture.bindings(), fixture.port, request
+    );
+}
+
+[[nodiscard]] openswd3::battle::LegacyBattleGrowthCaptionResult run_completion(
+    Fixture& fixture,
+    LegacyBattleGrowthCaptionRequest request = {
+        .initial_text_byte = 0x7FU,
+        .entry_eax = 0x11112222U,
+        .entry_ecx = 0x33334444U,
+        .entry_edx = 0x55556666U,
+        .rectangle_return =
+            {
+                .eax = 0x77778888U,
+                .ecx = 0x9999AAAAU,
+                .edx = 0xABCD5555U,
+            },
+        .frame_return =
+            {
+                .eax = 0xBBBBCCCCU,
+                .ecx = 0xDDDDEEEEU,
+                .edx = 0xFFFF0000U,
+            },
+        .local_text_token = 0x70002000U,
+    }
+) {
+    return openswd3::battle::advance_legacy_battle_growth_completion_caption(
         fixture.bindings(), fixture.port, request
     );
 }
@@ -383,6 +436,100 @@ void test_battle_growth_caption(openswd3::test::Context& test) {
                 result.format_calls == 2U && result.length_calls == 1U &&
                 result.text_draw_calls == 1U && result.return_eax == 64U,
             "growth caption stops after detail formatting but before the second lstrlen and draw"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.target.transition_mode = 2U;
+
+        const auto result = run_completion(fixture);
+
+        test.expect_true(
+            result.status == LegacyBattleGrowthCaptionStatus::completed &&
+                result.sample_calls == 0U && result.port_calls == 0U &&
+                result.return_eax == 0U && result.return_ecx == 0U &&
+                result.return_edx == 0x55556666U,
+            "growth completion caption keeps the seeded local buffer private when transition mode is not exactly one"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.target.transition_stage = 0U;
+        fixture.input.sample_mix_level = -4;
+        show_panel(fixture.port);
+
+        const auto result = run_completion(fixture);
+
+        test.expect_true(
+            result.status == LegacyBattleGrowthCaptionStatus::completed &&
+                result.sample_calls == 1U &&
+                fixture.port.sample_calls ==
+                    std::vector<std::array<u32, 5U>>{{
+                        0U,
+                        std::bit_cast<u32>(-4),
+                        0x55556666U,
+                        0x160U,
+                        std::bit_cast<u32>(-4),
+                    }} &&
+                fixture.port.calls.size() == 5U &&
+                fixture.port.calls[0U].call ==
+                    LegacyBattleGrowthCaptionCall::format_name &&
+                fixture.port.calls[0U].eax == 0x0049E158U &&
+                fixture.port.calls[0U].ecx == 0x70002000U &&
+                fixture.port.calls[0U].edx == 2U &&
+                fixture.port.calls[2U].call ==
+                    LegacyBattleGrowthCaptionCall::draw_text &&
+                fixture.port.calls[2U].eax == 1U &&
+                fixture.port.calls[2U].ecx == 0x004C9A28U &&
+                fixture.port.calls[2U].edx == 0x004CD76CU &&
+                fixture.port.calls[3U].call ==
+                    LegacyBattleGrowthCaptionCall::format_detail &&
+                fixture.port.calls[3U].eax == 0x70002000U &&
+                fixture.port.calls[3U].ecx == 0U &&
+                fixture.port.calls[3U].edx == 0x004CD76CU &&
+                fixture.port.calls[4U].call ==
+                    LegacyBattleGrowthCaptionCall::draw_text &&
+                fixture.port.calls[4U].eax == 0x004CD76CU &&
+                fixture.port.calls[4U].ecx == 0x004C9A28U &&
+                fixture.port.calls[4U].edx == 0x70002000U,
+            "growth completion caption plays the zero-stage sample and preserves its distinct format and draw register layouts"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.target.transition_stage = 9U;
+        fixture.port.reply(
+            LegacyBattleGrowthCaptionCall::query_panel,
+            {.eax = 0U, .ecx = 0x11110000U, .edx = 0x22220000U}
+        );
+
+        const auto result = run_completion(fixture);
+
+        test.expect_true(
+            result.status == LegacyBattleGrowthCaptionStatus::completed &&
+                result.sample_calls == 0U &&
+                fixture.port.sample_calls.empty() &&
+                result.text_draw_calls == 0U,
+            "growth completion caption skips its sample for every nonzero live stage"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.target.transition_stage = 0U;
+        fixture.target.transition_actor_index = 0xFFU;
+
+        const auto result = run_completion(fixture);
+
+        test.expect_true(
+            result.status ==
+                    LegacyBattleGrowthCaptionStatus::actor_index_typed_stop &&
+                result.sample_calls == 1U && result.format_calls == 0U &&
+                result.return_edx == 0xFFFFFFFFU,
+            "growth completion caption plays before the signed actor minus-one label access stops"
         );
     }
 }

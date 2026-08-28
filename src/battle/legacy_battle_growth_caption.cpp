@@ -19,6 +19,7 @@ inline constexpr u32 kFontToken = 0x004C9A28U;
 inline constexpr u32 kNameColor = 0xFFFFU;
 inline constexpr u32 kDetailColor = 0xF000U;
 inline constexpr u32 kFontSize = 0x10U;
+inline constexpr u32 kCompletionSample = 0x160U;
 inline constexpr std::array<std::array<u8, 4U>, 4U> kPartyNames{
     std::array<u8, 4U>{0xC1U, 0xC9U, 0xAFU, 0x53U},
     std::array<u8, 4U>{0xA9U, 0x67U, 0xA5U, 0x69U},
@@ -59,11 +60,28 @@ public:
 
     [[nodiscard]] LegacyBattleGrowthCaptionResult run() {
         local_text_.fill(0U);
-        local_text_[0U] = 0xFFU;
+        local_text_[0U] = is_completion() ? request_.initial_text_byte : 0xFFU;
         eax_ = 0U;
         ecx_ = 0U;
         if (bindings_.victory.target_selection.transition_mode != 1U) {
             return finish();
+        }
+        if (is_completion() &&
+            bindings_.victory.target_selection.transition_stage == 0U) {
+            ecx_ = std::bit_cast<u32>(
+                bindings_.victory.input_dispatch.sample_mix_level
+            );
+            const auto reply = port_.play_growth_completion_sample(
+                eax_,
+                ecx_,
+                edx_,
+                kCompletionSample,
+                bindings_.victory.input_dispatch.sample_mix_level
+            );
+            ++result_.sample_calls;
+            eax_ = reply.eax;
+            ecx_ = reply.ecx;
+            edx_ = reply.edx;
         }
 
         if (!format_name()) {
@@ -78,6 +96,10 @@ public:
     }
 
 private:
+    [[nodiscard]] bool is_completion() const noexcept {
+        return request_.variant == LegacyBattleGrowthCaptionVariant::completion;
+    }
+
     [[nodiscard]] LegacyBattleGrowthCaptionCallReply invoke(
         const LegacyBattleGrowthCaptionCall call,
         const std::array<u32, 6U>& arguments = {},
@@ -113,7 +135,12 @@ private:
         const i32 actor = static_cast<i32>(static_cast<i8>(
             bindings_.victory.target_selection.transition_actor_index
         ));
-        ecx_ = std::bit_cast<u32>(actor);
+        const u32 actor_bits = std::bit_cast<u32>(actor);
+        if (is_completion()) {
+            edx_ = actor_bits;
+        } else {
+            ecx_ = actor_bits;
+        }
         if (actor < 0 ||
             static_cast<std::size_t>(actor) >=
                 bindings_.victory.startup.action_mode_source.actor_label_indices
@@ -125,15 +152,24 @@ private:
         const u32 label =
             bindings_.victory.startup.action_mode_source
                 .actor_label_indices[static_cast<std::size_t>(actor)];
-        eax_ = request_.local_text_token;
-        edx_ = kLegacyBattleGrowthCaptionNameBaseToken + (label << 4U);
+        const u32 name_token =
+            kLegacyBattleGrowthCaptionNameBaseToken + (label << 4U);
+        if (is_completion()) {
+            eax_ = name_token;
+            ecx_ = request_.local_text_token;
+            edx_ = actor_bits;
+        } else {
+            eax_ = request_.local_text_token;
+            ecx_ = actor_bits;
+            edx_ = name_token;
+        }
         const auto fallback = default_name(label);
         const auto reply = invoke(
             LegacyBattleGrowthCaptionCall::format_name,
             {
                 request_.local_text_token,
                 kLegacyBattleGrowthCaptionNameFormatToken,
-                edx_,
+                name_token,
             },
             fallback
         );
@@ -146,7 +182,11 @@ private:
             return false;
         }
 
-        ecx_ = request_.local_text_token;
+        if (is_completion()) {
+            edx_ = request_.local_text_token;
+        } else {
+            ecx_ = request_.local_text_token;
+        }
         eax_ = local_text_length_;
         edx_ = 0U;
         ++result_.length_calls;
@@ -261,7 +301,11 @@ private:
         }
 
         ecx_ = kFontToken;
-        eax_ = request_.local_text_token;
+        if (is_completion()) {
+            edx_ = kFramebufferToken;
+        } else {
+            eax_ = request_.local_text_token;
+        }
         static_cast<void>(invoke(
             LegacyBattleGrowthCaptionCall::draw_text,
             {
@@ -281,7 +325,11 @@ private:
         local_text_.fill(0U);
         eax_ = 0U;
         ecx_ = 0U;
-        edx_ = request_.local_text_token;
+        if (is_completion()) {
+            eax_ = request_.local_text_token;
+        } else {
+            edx_ = request_.local_text_token;
+        }
         std::size_t caption_length = 0U;
         while (
             caption_length < bindings_.advancement.growth_caption_text.size() &&
@@ -325,15 +373,24 @@ private:
             return;
         }
 
-        eax_ = request_.local_text_token;
+        if (is_completion()) {
+            ecx_ = request_.local_text_token;
+        } else {
+            eax_ = request_.local_text_token;
+        }
         eax_ = local_text_length_;
         ++result_.length_calls;
         result_.detail_length = eax_;
-        edx_ = kFramebufferToken;
         const i32 detail_quarter = static_cast<i32>(eax_ >> 2U);
-        eax_ = static_cast<u32>(detail_quarter * 16);
         const i32 name_pixels = name_half_length_ * 8;
         result_.detail_x = name_pixels - detail_quarter * 16 + 0xFA;
+        if (is_completion()) {
+            eax_ = kFramebufferToken;
+            edx_ = request_.local_text_token;
+        } else {
+            edx_ = kFramebufferToken;
+            eax_ = static_cast<u32>(detail_quarter * 16);
+        }
         ecx_ = kFontToken;
         static_cast<void>(invoke(
             LegacyBattleGrowthCaptionCall::draw_text,

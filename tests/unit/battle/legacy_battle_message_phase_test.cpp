@@ -184,6 +184,24 @@ public:
             invoke_growth_caption(request);
     }
 
+    [[nodiscard]] openswd3::battle::LegacyBattleGrowthCaptionRegisters
+    play_growth_completion_sample(
+        const u32 eax,
+        const u32 ecx,
+        const u32 edx,
+        const u32 sound_id,
+        const i32 mix_level
+    ) override {
+        completion_sample_calls.push_back({
+            eax,
+            ecx,
+            edx,
+            sound_id,
+            std::bit_cast<u32>(mix_level),
+        });
+        return {.eax = eax, .ecx = ecx, .edx = edx};
+    }
+
     void reply(
         const LegacyBattleMessagePhaseCall call,
         const LegacyBattleMessagePhaseCallReply& reply
@@ -218,6 +236,7 @@ public:
     std::vector<std::array<u32, 2>> growth_sample_calls;
     std::vector<openswd3::battle::LegacyBattleGrowthCaptionCallRequest>
         caption_calls;
+    std::vector<std::array<u32, 5U>> completion_sample_calls;
     u32 growth_query_eax{};
     u32 caption_query_eax{};
 };
@@ -342,7 +361,6 @@ void test_battle_message_phase(openswd3::test::Context& test) {
             "message phase preserves unsigned switch rejection below and above 96 through 113"
         );
     }
-
     {
         Fixture fixture;
         fixture.message = 0x60U;
@@ -366,7 +384,6 @@ void test_battle_message_phase(openswd3::test::Context& test) {
             "message 98 publishes cache A before its opaque preparation call"
         );
     }
-
     {
         Fixture fixture;
         fixture.message = 0x61U;
@@ -403,7 +420,6 @@ void test_battle_message_phase(openswd3::test::Context& test) {
             "message 97 stops at the first display-slot read beyond ten group-A records"
         );
     }
-
     {
         Fixture fixture;
         fixture.message = 0x63U;
@@ -428,7 +444,6 @@ void test_battle_message_phase(openswd3::test::Context& test) {
             "message 99 clears its prefix then abandons setup when not every live group-B actor completes"
         );
     }
-
     {
         Fixture fixture;
         fixture.message = 0x63U;
@@ -482,7 +497,6 @@ void test_battle_message_phase(openswd3::test::Context& test) {
             "message 99 sends an already completed selected actor back to message 98 and aux two"
         );
     }
-
     {
         Fixture fixture;
         fixture.message = 0x63U;
@@ -565,7 +579,6 @@ void test_battle_message_phase(openswd3::test::Context& test) {
             "message 99 preserves each distinct group-A address-multiply register snapshot"
         );
     }
-
     {
         Fixture fixture;
         fixture.message = 0x63U;
@@ -601,7 +614,6 @@ void test_battle_message_phase(openswd3::test::Context& test) {
             "message 99 preserves unbounded dynamic call tracing across all eight and ten actor loops"
         );
     }
-
     {
         Fixture fixture;
         fixture.message = 0x64U;
@@ -681,7 +693,6 @@ void test_battle_message_phase(openswd3::test::Context& test) {
             "message 100 propagates victory panel failure before all caller-owned setup writes"
         );
     }
-
     {
         Fixture fixture;
         fixture.message = 0x65U;
@@ -885,7 +896,6 @@ void test_battle_message_phase(openswd3::test::Context& test) {
             "message 111 propagates the caption actor stop before its timer increment"
         );
     }
-
     {
         Fixture fixture;
         fixture.message = 0x70U;
@@ -923,14 +933,41 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                 selected.port.message_calls[1U].eax == 6042U &&
                 selected.port.message_calls[2U].eax == 2014U &&
                 selected.port.message_calls[2U].edx == 0U &&
+                advanced.growth_completion_caption_calls == 1U &&
                 selected.port.count(
-                    LegacyBattleMessagePhaseCall::advance_message_112
-                ) == 1U &&
+                    LegacyBattleMessagePhaseCall::
+                        reserved_advance_message_112_slot
+                ) == 0U &&
                 selected.target_selection.transition_timer == 1U,
-            "message 112 samples, queries, allocates and advances a newly selected actor"
+            "message 112 samples, queries, allocates and directly advances a newly selected actor"
+        );
+
+        Fixture rendered;
+        rendered.message = 0x70U;
+        rendered.target_selection.transition_actor_index = 2U;
+        rendered.target_selection.transition_mode = 1U;
+        rendered.target_selection.transition_stage = 0U;
+        rendered.startup.action_mode_source.actor_label_indices[2U] = 1U;
+        rendered.input_dispatch.sample_mix_level = -5;
+        rendered.port.battle_level_advancement_state().growth_caption_text = {
+            0x41U, 0U
+        };
+        rendered.port.caption_query_eax = 1U;
+        const auto rendered_result = run(rendered);
+        test.expect_true(
+            rendered_result.status ==
+                    openswd3::battle::LegacyBattleMessagePhaseStatus::
+                        completed &&
+                rendered_result.growth_completion_caption_calls == 1U &&
+                rendered_result.growth_completion_caption.sample_calls == 1U &&
+                rendered_result.growth_completion_caption.text_draw_calls ==
+                    2U &&
+                rendered.port.completion_sample_calls.size() == 1U &&
+                rendered.port.completion_sample_calls[0U][3U] == 0x160U &&
+                rendered.target_selection.transition_timer == 1U,
+            "message 112 directly renders the completion caption and increments its timer after the nested sample"
         );
     }
-
     {
         Fixture fixture;
         fixture.message = 0x71U;
@@ -968,7 +1005,6 @@ void test_battle_message_phase(openswd3::test::Context& test) {
             "message 113 samples and advances a selected actor without allocating when its query is nonzero"
         );
     }
-
     {
         Fixture zero;
         zero.message = 0x66U;

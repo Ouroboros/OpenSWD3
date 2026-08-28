@@ -786,7 +786,30 @@ private:
                 return transition_to(0x71U);
             }
         }
-        call(LegacyBattleMessagePhaseCall::advance_message_112, 0U, {0U, 0U});
+        auto caption_request = request_.growth_completion_caption_request;
+        caption_request.entry_eax = eax_;
+        caption_request.entry_ecx = ecx_;
+        caption_request.entry_edx = edx_;
+        result_.growth_completion_caption =
+            advance_legacy_battle_growth_completion_caption(
+                {
+                    .advancement = port_.battle_level_advancement_state(),
+                    .victory = bindings_.victory_rewards,
+                },
+                port_,
+                caption_request
+            );
+        ++result_.growth_completion_caption_calls;
+        result_.port_calls += result_.growth_completion_caption.port_calls;
+        eax_ = result_.growth_completion_caption.return_eax;
+        ecx_ = result_.growth_completion_caption.return_ecx;
+        edx_ = result_.growth_completion_caption.return_edx;
+        if (result_.growth_completion_caption.status !=
+            LegacyBattleGrowthCaptionStatus::completed) {
+            result_.status = LegacyBattleMessagePhaseStatus::
+                growth_completion_caption_typed_stop;
+            return finish();
+        }
         eax_ = bindings_.target_selection.transition_timer + 1U;
         bindings_.target_selection.transition_timer = eax_;
         return finish();

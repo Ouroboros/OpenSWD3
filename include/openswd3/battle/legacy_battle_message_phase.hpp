@@ -5,6 +5,7 @@
 #include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
 #include "openswd3/battle/legacy_battle_group_b_frame.hpp"
 #include "openswd3/battle/legacy_battle_growth_caption.hpp"
+#include "openswd3/battle/legacy_battle_growth_completion_caption.hpp"
 #include "openswd3/battle/legacy_battle_level_advancement.hpp"
 #include "openswd3/battle/legacy_battle_level_growth_panel.hpp"
 #include "openswd3/battle/legacy_battle_level_up_panel.hpp"
@@ -75,7 +76,7 @@ enum class LegacyBattleMessagePhaseCall : compat::u8 {
     reserved_advance_message_110_slot,
     reserved_advance_message_111_slot,
     select_message_112_actor,
-    advance_message_112,
+    reserved_advance_message_112_slot,
     select_message_113_actor,
     advance_message_113,
     advance_message_102,
@@ -175,6 +176,7 @@ struct LegacyBattleMessagePhaseRequest {
     LegacyBattleLevelAdvancementRequest level_advancement_request{};
     LegacyBattleLevelGrowthPanelRequest level_growth_panel_request{};
     LegacyBattleGrowthCaptionRequest growth_caption_request{};
+    LegacyBattleGrowthCaptionRequest growth_completion_caption_request{};
 };
 
 enum class LegacyBattleMessagePhaseStatus : compat::u8 {
@@ -192,6 +194,7 @@ enum class LegacyBattleMessagePhaseStatus : compat::u8 {
     level_advancement_typed_stop,
     level_growth_panel_typed_stop,
     growth_caption_typed_stop,
+    growth_completion_caption_typed_stop,
     target_selection_entry_typed_stop,
 };
 
@@ -215,6 +218,7 @@ struct LegacyBattleMessagePhaseResult {
     compat::u32 level_advancement_calls{};
     compat::u32 level_growth_panel_calls{};
     compat::u32 growth_caption_calls{};
+    compat::u32 growth_completion_caption_calls{};
     LegacyBattleTargetSelectionEntryResult target_selection_entry{};
     LegacyBattlePlayerItemQuantityResult player_item_quantity{};
     LegacyBattleVictoryRewardResult victory_rewards{};
@@ -222,6 +226,7 @@ struct LegacyBattleMessagePhaseResult {
     LegacyBattleLevelAdvancementResult level_advancement{};
     LegacyBattleLevelGrowthPanelResult level_growth_panel{};
     LegacyBattleGrowthCaptionResult growth_caption{};
+    LegacyBattleGrowthCaptionResult growth_completion_caption{};
     std::vector<LegacyBattleMessagePhaseCall> call_trace;
     compat::u32 call_trace_count{};
 };

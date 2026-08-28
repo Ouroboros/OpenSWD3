@@ -189,13 +189,14 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     growth_caption_query_panel,
     growth_caption_draw_text,
     growth_caption_format_detail,
+    growth_completion_caption_play_sample,
     message_phase_select_message_101_actor,
     message_phase_allocate_actor_transition,
     message_phase_advance_message_101,
     reserved_message_phase_advance_message_110_slot,
     reserved_message_phase_advance_message_111_slot,
     message_phase_select_message_112_actor,
-    message_phase_advance_message_112,
+    reserved_message_phase_advance_message_112_slot,
     message_phase_select_message_113_actor,
     message_phase_advance_message_113,
     message_phase_advance_message_102,
@@ -879,9 +880,9 @@ public:
             call = LegacyBattleFrameCoordinatorCall::
                 message_phase_select_message_112_actor;
             break;
-        case LegacyBattleMessagePhaseCall::advance_message_112:
+        case LegacyBattleMessagePhaseCall::reserved_advance_message_112_slot:
             call = LegacyBattleFrameCoordinatorCall::
-                message_phase_advance_message_112;
+                reserved_message_phase_advance_message_112_slot;
             break;
         case LegacyBattleMessagePhaseCall::select_message_113_actor:
             call = LegacyBattleFrameCoordinatorCall::
@@ -1251,6 +1252,28 @@ public:
                 ? request.text_length
                 : reply.caption_formatted_text_length,
         };
+    }
+    [[nodiscard]] LegacyBattleGrowthCaptionRegisters
+    play_growth_completion_sample(
+        const compat::u32 eax,
+        const compat::u32 ecx,
+        const compat::u32 edx,
+        const compat::u32 sound_id,
+        const compat::i32 mix_level
+    ) override {
+        const auto reply = invoke({
+            .call = LegacyBattleFrameCoordinatorCall::
+                growth_completion_caption_play_sample,
+            .arguments =
+                {
+                    sound_id,
+                    std::bit_cast<compat::u32>(mix_level),
+                },
+            .eax = eax,
+            .ecx = ecx,
+            .edx = edx,
+        });
+        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
     }
     [[nodiscard]] LegacyBattleActorTargetPreparationCallReply
     invoke_actor_target_preparation(

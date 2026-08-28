@@ -21,6 +21,11 @@ struct LegacyBattleGrowthCaptionBindings {
     LegacyBattleVictoryRewardBindings victory;
 };
 
+enum class LegacyBattleGrowthCaptionVariant : compat::u8 {
+    growth,
+    completion,
+};
+
 enum class LegacyBattleGrowthCaptionCall : compat::u8 {
     format_name,
     query_panel,
@@ -53,6 +58,12 @@ struct LegacyBattleGrowthCaptionCallReply {
     compat::u32 formatted_text_length{};
 };
 
+struct LegacyBattleGrowthCaptionRegisters {
+    compat::u32 eax{};
+    compat::u32 ecx{};
+    compat::u32 edx{};
+};
+
 class LegacyBattleGrowthCaptionPort {
 public:
     virtual ~LegacyBattleGrowthCaptionPort() = default;
@@ -73,9 +84,24 @@ public:
         }
         return reply;
     }
+
+    [[nodiscard]] virtual LegacyBattleGrowthCaptionRegisters
+    play_growth_completion_sample(
+        compat::u32 eax,
+        compat::u32 ecx,
+        compat::u32 edx,
+        compat::u32,
+        compat::i32
+    ) {
+        return {.eax = eax, .ecx = ecx, .edx = edx};
+    }
 };
 
 struct LegacyBattleGrowthCaptionRequest {
+    LegacyBattleGrowthCaptionVariant variant{
+        LegacyBattleGrowthCaptionVariant::growth
+    };
+    compat::u8 initial_text_byte{0xFFU};
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
@@ -102,6 +128,7 @@ struct LegacyBattleGrowthCaptionResult {
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
     compat::u32 port_calls{};
+    compat::u32 sample_calls{};
     compat::u32 format_calls{};
     compat::u32 length_calls{};
     compat::u32 text_draw_calls{};

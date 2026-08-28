@@ -364,6 +364,12 @@ target_link_libraries(
     openswd3_battle_legacy_battle_setup_tests
     PRIVATE openswd3_battle
 )
+if(WIN32)
+    target_link_options(
+        openswd3_battle_legacy_battle_setup_tests
+        PRIVATE "LINKER:/STACK:8388608"
+    )
+endif()
 
 add_test(
     NAME battle.legacy_battle_setup
