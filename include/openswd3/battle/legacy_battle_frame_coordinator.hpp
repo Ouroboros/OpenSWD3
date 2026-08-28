@@ -214,12 +214,16 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     reserved_message_phase_select_message_113_actor_slot,
     reserved_message_phase_advance_message_113_slot,
     reserved_message_phase_advance_message_102_slot,
-    message_phase_advance_message_103,
+    reserved_message_phase_advance_message_103_slot,
     victory_item_list_set_font_size,
     victory_item_list_draw_title,
     victory_item_list_query_panel,
     victory_item_list_format_row,
     victory_item_list_draw_row,
+    defeat_panel_draw_title,
+    defeat_panel_query,
+    defeat_panel_set_font_size,
+    defeat_panel_draw_detail,
 };
 
 struct LegacyBattleFrameCoordinatorCallRequest {
@@ -933,9 +937,9 @@ public:
             call = LegacyBattleFrameCoordinatorCall::
                 reserved_message_phase_advance_message_102_slot;
             break;
-        case LegacyBattleMessagePhaseCall::advance_message_103:
+        case LegacyBattleMessagePhaseCall::reserved_advance_message_103_slot:
             call = LegacyBattleFrameCoordinatorCall::
-                message_phase_advance_message_103;
+                reserved_message_phase_advance_message_103_slot;
             break;
         }
         std::array<compat::u32, 8> arguments{};
@@ -1347,6 +1351,46 @@ public:
             .definition = reply.growth_item_definition,
             .description = reply.growth_item_description,
             .description_length = reply.growth_item_description_length,
+        };
+    }
+    [[nodiscard]] LegacyBattleDefeatPanelCallReply invoke_defeat_panel(
+        const LegacyBattleDefeatPanelCallRequest& request
+    ) override {
+        LegacyBattleFrameCoordinatorCall call =
+            LegacyBattleFrameCoordinatorCall::defeat_panel_draw_title;
+        switch (request.call) {
+        case LegacyBattleDefeatPanelCall::draw_title:
+            break;
+        case LegacyBattleDefeatPanelCall::query_panel:
+            call = LegacyBattleFrameCoordinatorCall::defeat_panel_query;
+            break;
+        case LegacyBattleDefeatPanelCall::set_font_size:
+            call = LegacyBattleFrameCoordinatorCall::defeat_panel_set_font_size;
+            break;
+        case LegacyBattleDefeatPanelCall::draw_detail:
+            call = LegacyBattleFrameCoordinatorCall::defeat_panel_draw_detail;
+            break;
+        }
+        std::array<compat::u8, 64U> text{};
+        const std::size_t text_length =
+            std::min<std::size_t>(request.text_length, text.size());
+        std::copy_n(request.text.begin(), text_length, text.begin());
+        const auto reply = invoke({
+            .call = call,
+            .object_token = request.object_token,
+            .arguments = request.arguments,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+            .victory_text_bytes = text,
+            .victory_text_length = static_cast<compat::u32>(text_length),
+        });
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .publish_stage = reply.publish_growth_transition_stage,
+            .stage = reply.growth_transition_stage,
         };
     }
     [[nodiscard]] LegacyBattleVictoryItemListPanelCallReply

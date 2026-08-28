@@ -515,6 +515,8 @@ I5最终必须锁定：
 
 `audit_order=152`的`0x00469080`已关闭为`platform_adapted`。完整权威LST主体`0x00469080..0x00469211`共182行、115条实际指令、10个静态call、3个跳转、2个标签、1个返回点且无外部chunk。函数建立64-byte局部缓冲，将live u16战利品数量用于`212+count*20`清单底边，以字体18、共享动作`0x233B`、矩形和双层九宫格绘制CP950“戰利品”；两次九宫格资源均只替换前一callee返回EAX低word并保留高16位。固定查询精确1且live数量非零时，按十项名称token/u16数量表用`%-12s X %2d`逐行格式化，在`210,212+index*20`绘制；每行后重读live数量。第十一项首次真实访问和64-byte格式后续NUL分别typed-stop，保留此前画面/文字前缀且不恢复字体。正常路径最终恢复字体16。消息102在非零数量的timer与signed 150目标选择链后直连本实现；子stop保留timer/目标选择前缀并阻断后续主帧，旧阶段102槽reserved且生产零调用。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194 全部通过。源码构建零warning；app仅有既有ALSA开发库CMake提示。候选工作包为`152/422 = 147 platform_adapted + 5 assembly_exact + 270 pending_audit`，双跑SHA256为`2388ebe8469f93f60a05c2d65fbb53054820ffd64c7637f38986c9527eeeb978`。动态差分因原版seed、framebuffer/字体/边框、查询callee、名称指针/格式、动态栈、动作/画面/文字及寄存器后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=153`的`0x00469220`。
+`audit_order=153`的`0x00469220`已关闭为`platform_adapted`。完整权威LST主体`0x00469220..0x0046933B`共119行、68条实际指令、9个静态call、1个跳转、1个返回标签、1个返回点且无外部chunk。函数复用共享动作`0x233B`，以live stage构造矩形和双层九宫格；两次资源均只替换前一callee返回ECX低word并保留高16位。标题在`260,180`绘制CP950“戰鬥失敗”，固定查询`212,244,3`精确1时以字体17在`254,216`绘制“隊伍全滅!!”并恢复16；查询非1直接返回且不改字体。矩形或九宫格stop保留此前画面前缀并阻断后续查询/字体。消息103普通路径直连本实现，调试bit路径跳过；面板成功后才执行signed 150计时，子stop阻断timer、目标选择和后续主帧，旧阶段103槽reserved且生产零调用。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194 全部通过。源码构建零warning；app仅有既有ALSA开发库CMake提示。候选工作包为`153/422 = 148 platform_adapted + 5 assembly_exact + 269 pending_audit`，双跑SHA256为`4bdf1012bf7cedd05117ec62ad7c7d8f4476743fb05bbfcdb34e6c620a4ecfa3`。动态差分因原版framebuffer/字体/边框、查询callee、动作/画面/文字及寄存器后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=154`的`0x00469340`。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

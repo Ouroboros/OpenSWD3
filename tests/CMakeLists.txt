@@ -279,6 +279,7 @@ add_executable(
     unit/battle/legacy_battle_control_panel_frame_test.cpp
     unit/battle/legacy_battle_debug_hotkeys_test.cpp
     unit/battle/legacy_battle_debug_overlay_test.cpp
+    unit/battle/legacy_battle_defeat_panel_test.cpp
     unit/battle/legacy_battle_definition_archive_test.cpp
     unit/battle/legacy_battle_effect_coordinator_test.cpp
     unit/battle/legacy_battle_effect_frame_test.cpp

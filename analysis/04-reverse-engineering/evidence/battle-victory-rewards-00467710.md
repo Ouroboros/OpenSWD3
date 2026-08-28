@@ -64,7 +64,7 @@ profile、计数或动作标签只在原首次真实访问停止；此前callee�
 
 ## 7. owner、caller回收与验证
 
-共享双方数量、动作标签、sample mix、transition stage/timer/item count、玩家道具链、世界角色资源和银币均复用既有唯一owner。新增state只承接胜利面板动作记录、十项道具编号/数量/payload、四项稀疏奖励计数、两组角色跳过字段、三项奖励word、profile阈值和奖励完成门。后续已关闭战利品清单直接消费同一item count、十项payload和u16数量，不复制展示数组。全局重置按原写集合只清编号/数量前两项、全部十项payload和三项奖励word；未写的其余槽、稀疏计数、阈值、奖励门及角色字段保持原值。
+共享双方数量、动作标签、sample mix、transition stage/timer/item count、玩家道具链、世界角色资源和银币均复用既有唯一owner。新增state只承接胜利面板动作记录、十项道具编号/数量/payload、四项稀疏奖励计数、两组角色跳过字段、三项奖励word、profile阈值和奖励完成门。后续已关闭战利品清单直接消费同一item count、十项payload和u16数量，不复制展示数组；战败提示继续复用同一面板动作记录。全局重置按原写集合只清编号/数量前两项、全部十项payload和三项奖励word；未写的其余槽、稀疏计数、阈值、奖励门及角色字段保持原值。
 
 消息100现先直连本实现，再直连已关闭升级提示面板；旧消息100 opaque枚举槽改为reserved且生产零调用。本函数子typed-stop阻断升级面板和caller全部写入；升级面板子stop则保留已完成胜利奖励与自身画面前缀，再阻断actor-retarget、双cache、target-ready、queued和timer写入。
 

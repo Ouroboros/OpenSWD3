@@ -225,6 +225,22 @@ public:
         return reply;
     }
 
+    [[nodiscard]] openswd3::battle::LegacyBattleDefeatPanelCallReply
+    invoke_defeat_panel(
+        const openswd3::battle::LegacyBattleDefeatPanelCallRequest& request
+    ) override {
+        defeat_panel_calls.push_back(request);
+        auto reply =
+            openswd3::battle::LegacyBattleDefeatPanelPort::invoke_defeat_panel(
+                request
+            );
+        if (request.call ==
+            openswd3::battle::LegacyBattleDefeatPanelCall::query_panel) {
+            reply.eax = defeat_panel_query_eax;
+        }
+        return reply;
+    }
+
     [[nodiscard]]
     openswd3::battle::LegacyBattleVictoryItemListPanelCallReply
     invoke_victory_item_list_panel(
@@ -356,6 +372,8 @@ public:
     std::vector<
         openswd3::battle::LegacyBattleGrowthItemCompletionPanelCallRequest>
         growth_item_completion_panel_calls;
+    std::vector<openswd3::battle::LegacyBattleDefeatPanelCallRequest>
+        defeat_panel_calls;
     std::vector<openswd3::battle::LegacyBattleVictoryItemListPanelCallRequest>
         victory_item_list_calls;
     std::map<u32, std::vector<u8>> victory_item_list_texts;
@@ -367,6 +385,7 @@ public:
     u32 growth_item_result_selection_eax{};
     u32 growth_item_completion_panel_query_eax{};
     u32 victory_item_list_query_eax{};
+    u32 defeat_panel_query_eax{};
 };
 
 struct Fixture {
@@ -1325,6 +1344,39 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                 debug.input_dispatch.selection_cache_gate_a == 1U &&
                 debug.input_dispatch.selection_cache_gate_b == 1U,
             "message 103 debug bit completes at signed timer 30 without the normal frame"
+        );
+
+        Fixture defeat;
+        defeat.message = 0x67U;
+        defeat.target_selection.transition_timer = 149U;
+        defeat.input_dispatch.retreat_block_word = 1U;
+        defeat.port.defeat_panel_query_eax = 2U;
+        const auto defeat_result = run(defeat);
+        test.expect_true(
+            defeat_result.defeat_panel_calls == 1U &&
+                defeat_result.defeat_panel.title_draw_calls == 1U &&
+                defeat.target_selection.transition_timer == 150U &&
+                defeat_result.target_selection_entry_calls == 1U &&
+                defeat.port.count(
+                    LegacyBattleMessagePhaseCall::
+                        reserved_advance_message_103_slot
+                ) == 0U,
+            "message 103 directly draws the defeat panel before its signed timer reaches target selection"
+        );
+
+        Fixture invalid_defeat;
+        invalid_defeat.message = 0x67U;
+        invalid_defeat.target_selection.transition_timer = 7U;
+        invalid_defeat.frame_provider.successful_loads = 0U;
+        const auto invalid_defeat_result = run(invalid_defeat);
+        test.expect_true(
+            invalid_defeat_result.status ==
+                    openswd3::battle::LegacyBattleMessagePhaseStatus::
+                        defeat_panel_typed_stop &&
+                invalid_defeat_result.defeat_panel_calls == 1U &&
+                invalid_defeat.target_selection.transition_timer == 7U &&
+                invalid_defeat_result.target_selection_entry_calls == 0U,
+            "message 103 propagates defeat panel failure before timer and target-selection effects"
         );
 
         Fixture message_104;

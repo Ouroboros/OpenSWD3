@@ -1014,7 +1014,35 @@ private:
             }
             return finish();
         }
-        call(LegacyBattleMessagePhaseCall::advance_message_103);
+        auto panel_request = request_.defeat_panel_request;
+        panel_request.entry_eax = eax_;
+        panel_request.entry_ecx = ecx_;
+        panel_request.entry_edx = edx_;
+        result_.defeat_panel = draw_legacy_battle_defeat_panel(
+            {
+                .victory = bindings_.victory_rewards.state,
+                .target_selection = bindings_.target_selection,
+                .framebuffer = bindings_.victory_rewards.framebuffer,
+                .raster = bindings_.victory_rewards.raster,
+                .shared_effects = bindings_.victory_rewards.shared_effects,
+                .jitter = bindings_.victory_rewards.jitter,
+                .action_updater = bindings_.victory_rewards.action_updater,
+                .frame_provider = bindings_.victory_rewards.frame_provider,
+            },
+            port_,
+            panel_request
+        );
+        ++result_.defeat_panel_calls;
+        result_.port_calls += result_.defeat_panel.port_calls;
+        eax_ = result_.defeat_panel.return_eax;
+        ecx_ = result_.defeat_panel.return_ecx;
+        edx_ = result_.defeat_panel.return_edx;
+        if (result_.defeat_panel.status !=
+            LegacyBattleDefeatPanelStatus::completed) {
+            result_.status =
+                LegacyBattleMessagePhaseStatus::defeat_panel_typed_stop;
+            return finish();
+        }
         return common_timer_150();
     }
 

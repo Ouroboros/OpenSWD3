@@ -56,6 +56,7 @@ void test_battle_context_prompt(openswd3::test::Context& test);
 void test_battle_control_panel_frame(openswd3::test::Context& test);
 void test_battle_debug_hotkeys(openswd3::test::Context& test);
 void test_battle_debug_overlay(openswd3::test::Context& test);
+void test_battle_defeat_panel(openswd3::test::Context& test);
 void test_battle_definition_archive(openswd3::test::Context& test);
 void test_battle_effect_coordinator(openswd3::test::Context& test);
 void test_battle_effect_frame(openswd3::test::Context& test);
@@ -7066,6 +7067,7 @@ int main() {
     test_battle_control_panel_frame(test);
     test_battle_debug_hotkeys(test);
     test_battle_debug_overlay(test);
+    test_battle_defeat_panel(test);
     test_battle_definition_archive(test);
     test_battle_effect_coordinator(test);
     test_battle_effect_frame(test);

@@ -1289,6 +1289,18 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         port.replies
             [LegacyBattleFrameCoordinatorCall::victory_item_list_draw_row]
                 .eax = 53U;
+        port.replies[LegacyBattleFrameCoordinatorCall::defeat_panel_draw_title]
+            .eax = 54U;
+        port.replies[LegacyBattleFrameCoordinatorCall::defeat_panel_query] = {
+            .eax = 55U,
+            .publish_growth_transition_stage = true,
+            .growth_transition_stage = 9U,
+        };
+        port.replies
+            [LegacyBattleFrameCoordinatorCall::defeat_panel_set_font_size]
+                .eax = 56U;
+        port.replies[LegacyBattleFrameCoordinatorCall::defeat_panel_draw_detail]
+            .eax = 57U;
 
         const auto growth_query = port.invoke_growth_actor_selection({
             .call = openswd3::battle::LegacyBattleGrowthActorSelectionCall::
@@ -1478,6 +1490,66 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             .edx = 57U,
             .text = {0x41U, 0x20U, 0x58U, 0x20U, 0x37U},
             .text_length = 5U,
+        });
+        const auto defeat_title = port.invoke_defeat_panel({
+            .call = openswd3::battle::LegacyBattleDefeatPanelCall::draw_title,
+            .object_token = 0x004C9A28U,
+            .arguments =
+                {0x004CD76CU, 0x104U, 0xB4U, 0x004A7B08U, 0xFFC0U, 0x10U},
+            .eax = 58U,
+            .ecx = 59U,
+            .edx = 60U,
+            .text =
+                {
+                    0xBEU,
+                    0xD4U,
+                    0xB0U,
+                    0xABU,
+                    0xA5U,
+                    0xA2U,
+                    0xB1U,
+                    0xD1U,
+                },
+            .text_length = 8U,
+        });
+        const auto defeat_query = port.invoke_defeat_panel({
+            .call = openswd3::battle::LegacyBattleDefeatPanelCall::query_panel,
+            .arguments = {0xD4U, 0xF4U, 3U},
+            .eax = 61U,
+            .ecx = 62U,
+            .edx = 63U,
+        });
+        const auto defeat_font = port.invoke_defeat_panel({
+            .call =
+                openswd3::battle::LegacyBattleDefeatPanelCall::set_font_size,
+            .object_token = 0x004C9A28U,
+            .arguments = {0x004C9A28U, 0x11U},
+            .eax = 64U,
+            .ecx = 65U,
+            .edx = 66U,
+        });
+        const auto defeat_detail = port.invoke_defeat_panel({
+            .call = openswd3::battle::LegacyBattleDefeatPanelCall::draw_detail,
+            .object_token = 0x004C9A28U,
+            .arguments =
+                {0x004CD76CU, 0xFEU, 0xD8U, 0x004A7AFCU, 0xFFC0U, 0x10U},
+            .eax = 67U,
+            .ecx = 68U,
+            .edx = 69U,
+            .text =
+                {
+                    0xB6U,
+                    0xA4U,
+                    0xA5U,
+                    0xEEU,
+                    0xA5U,
+                    0xFEU,
+                    0xB7U,
+                    0xC0U,
+                    0x21U,
+                    0x21U,
+                },
+            .text_length = 10U,
         });
 
         const auto name = port.invoke_growth_caption({
@@ -1685,8 +1757,33 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 ) == 1U &&
                 port.count(
                     LegacyBattleFrameCoordinatorCall::victory_item_list_draw_row
+                ) == 1U &&
+                defeat_title.eax == 54U && defeat_query.eax == 55U &&
+                defeat_query.publish_stage && defeat_query.stage == 9U &&
+                defeat_font.eax == 56U && defeat_detail.eax == 57U &&
+                port.calls[19U].object_token == 0x004C9A28U &&
+                port.calls[19U].arguments[1U] == 0x104U &&
+                port.calls[19U].victory_text_length == 8U &&
+                port.calls[20U].arguments[0U] == 0xD4U &&
+                port.calls[20U].arguments[1U] == 0xF4U &&
+                port.calls[20U].arguments[2U] == 3U &&
+                port.calls[21U].arguments[1U] == 0x11U &&
+                port.calls[22U].arguments[1U] == 0xFEU &&
+                port.calls[22U].arguments[2U] == 0xD8U &&
+                port.calls[22U].victory_text_length == 10U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::defeat_panel_draw_title
+                ) == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::defeat_panel_query
+                ) == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::defeat_panel_set_font_size
+                ) == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::defeat_panel_draw_detail
                 ) == 1U,
-            "frame coordinator maps growth and victory item list services, captions and sample playback"
+            "frame coordinator maps growth, item list, defeat panel, caption and sample services"
         );
     }
     {
