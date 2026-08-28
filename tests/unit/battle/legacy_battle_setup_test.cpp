@@ -113,6 +113,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test);
 void test_battle_transition(openswd3::test::Context& test);
 void test_battle_vertical_panel(openswd3::test::Context& test);
 void test_battle_vertical_shift(openswd3::test::Context& test);
+void test_battle_victory_rewards(openswd3::test::Context& test);
 
 namespace {
 
@@ -7118,6 +7119,7 @@ int main() {
     test_battle_transition(test);
     test_battle_vertical_panel(test);
     test_battle_vertical_shift(test);
+    test_battle_victory_rewards(test);
     test_battle_selected_or_cached_frame_draw(test);
     test_battle_ten_place_decimal_coordinator(test);
     test_battle_decimal_frames(test);

@@ -94,6 +94,8 @@ if fade_step == 0: fade_step = 1
 | `0x004858D0` | mode 2 时轮询 ID 100；不存在则清零 mode/current | 低位逻辑为不存在 1、存在 0；其他 mode 返回 `mode-2` |
 | `0x00485910` | 总是写 mode；仅 mode 2 时写 pending divisor | mode 2 返回 divisor，否则返回 mode |
 
+战斗胜利结算现按原调用时机直连`0x00485710`，在停止全部sample和播放胜利音效之前固定提交stream 100、divisor 1的渐隐请求。
+
 `0x00485880` 的精确 mode 行为为：mode 1 用 divisor 1 发起 fade 后清零 mode/current 并
 返回零；mode 2 用 pending divisor 发起 fade、把 pending 复制到 current 并返回 manager
 结果；其他值返回 32 位回绕的 `mode-2`。`0x004858D0` 对 mode 0 返回零，对非零且非二

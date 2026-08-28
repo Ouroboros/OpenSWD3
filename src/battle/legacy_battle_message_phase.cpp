@@ -36,8 +36,8 @@ public:
         LegacyBattleMessagePhasePort& port,
         const LegacyBattleMessagePhaseRequest& request
     ) noexcept
-        : bindings_(bindings), port_(port), ecx_(request.entry_ecx),
-          edx_(request.entry_edx) {}
+        : bindings_(bindings), port_(port), request_(request),
+          ecx_(request.entry_ecx), edx_(request.entry_edx) {}
 
     [[nodiscard]] LegacyBattleMessagePhaseResult run() {
         eax_ = bindings_.state.entry_list_gate;
@@ -443,7 +443,7 @@ private:
                 LegacyBattleMessagePhaseStatus::player_item_quantity_typed_stop
             );
         }
-        bindings_.state.current_player_item_token =
+        bindings_.victory_rewards.state.player_item_tokens[0U] =
             result_.player_item_quantity.return_token;
         bindings_.target_selection.transition_aux_byte = 1U;
         eax_ = bindings_.target_selection.special_action_count - 1U;
@@ -503,7 +503,24 @@ private:
             bindings_.target_selection.completion_gate = 1U;
             return finish();
         }
-        call(LegacyBattleMessagePhaseCall::advance_message_100, 0U, {0U, 0U});
+        auto victory_request = request_.victory_reward_request;
+        victory_request.entry_eax = eax_;
+        victory_request.entry_ecx = ecx_;
+        victory_request.entry_edx = edx_;
+        result_.victory_rewards = advance_legacy_battle_victory_rewards(
+            bindings_.victory_rewards, port_, victory_request
+        );
+        ++result_.victory_reward_calls;
+        result_.port_calls += result_.victory_rewards.port_calls;
+        eax_ = result_.victory_rewards.return_eax;
+        ecx_ = result_.victory_rewards.return_ecx;
+        edx_ = result_.victory_rewards.return_edx;
+        if (result_.victory_rewards.status !=
+            LegacyBattleVictoryRewardStatus::completed) {
+            result_.status =
+                LegacyBattleMessagePhaseStatus::victory_rewards_typed_stop;
+            return finish();
+        }
         bindings_.debug_hotkeys.actor_retarget_gate_53bf64 = 0U;
         bindings_.input_dispatch.selection_cache_gate_a = 1U;
         bindings_.input_dispatch.selection_cache_gate_b = 1U;
@@ -786,6 +803,7 @@ private:
 
     LegacyBattleMessagePhaseBindings bindings_;
     LegacyBattleMessagePhasePort& port_;
+    LegacyBattleMessagePhaseRequest request_{};
     LegacyBattleMessagePhaseResult result_{};
     u32 eax_{};
     u32 ecx_{};

@@ -7,6 +7,7 @@
 #include "openswd3/battle/legacy_battle_player_item_quantity.hpp"
 #include "openswd3/battle/legacy_battle_selection_frame.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_entry.hpp"
+#include "openswd3/battle/legacy_battle_victory_rewards.hpp"
 
 #include <array>
 #include <span>
@@ -25,10 +26,9 @@ inline constexpr compat::u32 kLegacyBattleMessagePhaseGroupBElementSize =
 inline constexpr compat::u32 kLegacyBattleMessagePhaseSample = 0x160U;
 
 struct LegacyBattleMessagePhaseState {
-    compat::u32 entry_list_gate{};            // 0x004ACF48
-    compat::u32 transition_mode_gate{};       // 0x0053C004
-    compat::u32 group_b_bypass_gate{};        // 0x0053CEAC
-    compat::u32 current_player_item_token{};  // 0x00524468
+    compat::u32 entry_list_gate{};       // 0x004ACF48
+    compat::u32 transition_mode_gate{};  // 0x0053C004
+    compat::u32 group_b_bypass_gate{};   // 0x0053CEAC
 };
 
 class LegacyBattleMessagePhaseStatePort {
@@ -64,7 +64,7 @@ enum class LegacyBattleMessagePhaseCall : compat::u8 {
     configure_actor_action,
     query_actor_resource,
     resolve_action_item,
-    advance_message_100,
+    reserved_advance_message_100_slot,
     select_message_101_actor,
     allocate_actor_transition,
     advance_message_101,
@@ -125,8 +125,7 @@ struct LegacyBattleMessagePhaseCallReply {
 
 class LegacyBattleMessagePhasePort
     : public virtual LegacyBattleMessagePhaseStatePort,
-      public virtual LegacyBattleInputDispatchPort,
-      public virtual LegacyBattleActionDispatchPort {
+      public virtual LegacyBattleVictoryRewardPort {
 public:
     ~LegacyBattleMessagePhasePort() override = default;
 
@@ -158,11 +157,13 @@ struct LegacyBattleMessagePhaseBindings {
     compat::u32& outcome_darkening_gate;
     std::span<input_time_rng::LegacyInputRecord> input_records;
     std::span<const compat::u8> action_profile_bytes;
+    LegacyBattleVictoryRewardBindings victory_rewards;
 };
 
 struct LegacyBattleMessagePhaseRequest {
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
+    LegacyBattleVictoryRewardRequest victory_reward_request{};
 };
 
 enum class LegacyBattleMessagePhaseStatus : compat::u8 {
@@ -175,6 +176,7 @@ enum class LegacyBattleMessagePhaseStatus : compat::u8 {
     action_label_typed_stop,
     action_profile_typed_stop,
     player_item_quantity_typed_stop,
+    victory_rewards_typed_stop,
     target_selection_entry_typed_stop,
 };
 
@@ -193,8 +195,10 @@ struct LegacyBattleMessagePhaseResult {
     compat::u32 sample_calls{};
     compat::u32 target_selection_entry_calls{};
     compat::u32 player_item_quantity_calls{};
+    compat::u32 victory_reward_calls{};
     LegacyBattleTargetSelectionEntryResult target_selection_entry{};
     LegacyBattlePlayerItemQuantityResult player_item_quantity{};
+    LegacyBattleVictoryRewardResult victory_rewards{};
     std::vector<LegacyBattleMessagePhaseCall> call_trace;
     compat::u32 call_trace_count{};
 };

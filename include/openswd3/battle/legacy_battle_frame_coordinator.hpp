@@ -165,7 +165,16 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     message_phase_configure_actor_action,
     message_phase_query_actor_resource,
     message_phase_resolve_action_item,
-    message_phase_advance_message_100,
+    reserved_message_phase_victory_reward_slot,
+    victory_begin_music_fade,
+    victory_stop_all_samples,
+    victory_query_group_b_item,
+    victory_query_group_a_reward_block,
+    victory_apply_group_a_reward,
+    victory_prepare_group_a_actor,
+    victory_configure_group_a_actor,
+    victory_query_summary_panel,
+    victory_draw_text,
     message_phase_select_message_101_actor,
     message_phase_allocate_actor_transition,
     message_phase_advance_message_101,
@@ -197,6 +206,8 @@ struct LegacyBattleFrameCoordinatorCallRequest {
     compat::u32 control_text_token{};
     std::array<compat::u8, 24> control_text_bytes{};
     compat::u32 control_text_length{};
+    std::array<compat::u8, 64> victory_text_bytes{};
+    compat::u32 victory_text_length{};
 };
 
 struct LegacyBattleFrameCoordinatorCallReply {
@@ -268,6 +279,12 @@ struct LegacyBattleFrameCoordinatorCallReply {
     compat::u32 message_phase_mode_gate{};
     bool publish_message_phase_group_b_bypass{};
     compat::u32 message_phase_group_b_bypass{};
+    bool publish_victory_item_count{};
+    compat::u16 victory_item_count{};
+    bool publish_victory_reward_words{};
+    compat::u16 victory_committed_money_word{};
+    compat::u16 victory_experience_per_party_member{};
+    compat::u16 victory_reward_experience{};
     LegacyBattleFrameInputSurface actor_surface{};
 };
 
@@ -794,9 +811,9 @@ public:
             call = LegacyBattleFrameCoordinatorCall::
                 message_phase_resolve_action_item;
             break;
-        case LegacyBattleMessagePhaseCall::advance_message_100:
+        case LegacyBattleMessagePhaseCall::reserved_advance_message_100_slot:
             call = LegacyBattleFrameCoordinatorCall::
-                message_phase_advance_message_100;
+                reserved_message_phase_victory_reward_slot;
             break;
         case LegacyBattleMessagePhaseCall::select_message_101_actor:
             call = LegacyBattleFrameCoordinatorCall::
@@ -898,6 +915,92 @@ public:
                 reply.publish_message_phase_group_b_bypass,
             .group_b_bypass_gate = reply.message_phase_group_b_bypass,
         };
+    }
+    [[nodiscard]] LegacyBattleVictoryRewardCallReply invoke_victory_reward(
+        const LegacyBattleVictoryRewardCallRequest& request
+    ) override {
+        LegacyBattleFrameCoordinatorCall call =
+            LegacyBattleFrameCoordinatorCall::victory_query_group_b_item;
+        switch (request.call) {
+        case LegacyBattleVictoryRewardCall::query_group_b_item:
+            break;
+        case LegacyBattleVictoryRewardCall::query_group_a_reward_block:
+            call = LegacyBattleFrameCoordinatorCall::
+                victory_query_group_a_reward_block;
+            break;
+        case LegacyBattleVictoryRewardCall::apply_group_a_reward:
+            call =
+                LegacyBattleFrameCoordinatorCall::victory_apply_group_a_reward;
+            break;
+        case LegacyBattleVictoryRewardCall::prepare_group_a_actor:
+            call =
+                LegacyBattleFrameCoordinatorCall::victory_prepare_group_a_actor;
+            break;
+        case LegacyBattleVictoryRewardCall::configure_group_a_actor:
+            call = LegacyBattleFrameCoordinatorCall::
+                victory_configure_group_a_actor;
+            break;
+        case LegacyBattleVictoryRewardCall::query_summary_panel:
+            call =
+                LegacyBattleFrameCoordinatorCall::victory_query_summary_panel;
+            break;
+        case LegacyBattleVictoryRewardCall::draw_text:
+            call = LegacyBattleFrameCoordinatorCall::victory_draw_text;
+            break;
+        }
+        std::array<compat::u32, 8> arguments{};
+        for (std::size_t index = 0U; index < request.arguments.size();
+             ++index) {
+            arguments[index] = request.arguments[index];
+        }
+        const auto reply = invoke({
+            .call = call,
+            .object_token = request.actor_token,
+            .arguments = arguments,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+            .victory_text_bytes = request.text,
+            .victory_text_length = request.text_length,
+        });
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .publish_group_b_count = reply.publish_group_b_count,
+            .group_b_count = reply.group_b_count,
+            .publish_group_a_count = reply.publish_group_a_count,
+            .group_a_count = reply.group_a_count,
+            .publish_collected_item_count = reply.publish_victory_item_count,
+            .collected_item_count = reply.victory_item_count,
+            .publish_reward_words = reply.publish_victory_reward_words,
+            .committed_money_word = reply.victory_committed_money_word,
+            .experience_per_party_member =
+                reply.victory_experience_per_party_member,
+            .reward_experience = reply.victory_reward_experience,
+        };
+    }
+    [[nodiscard]] LegacyBattleVictoryRewardRegisters begin_music_fade(
+        const compat::u32 eax, const compat::u32 ecx, const compat::u32 edx
+    ) override {
+        const auto reply = invoke({
+            .call = LegacyBattleFrameCoordinatorCall::victory_begin_music_fade,
+            .eax = eax,
+            .ecx = ecx,
+            .edx = edx,
+        });
+        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
+    }
+    [[nodiscard]] LegacyBattleVictoryRewardRegisters stop_all_samples(
+        const compat::u32 eax, const compat::u32 ecx, const compat::u32 edx
+    ) override {
+        const auto reply = invoke({
+            .call = LegacyBattleFrameCoordinatorCall::victory_stop_all_samples,
+            .eax = eax,
+            .ecx = ecx,
+            .edx = edx,
+        });
+        return {.eax = 1U, .ecx = reply.ecx, .edx = reply.edx};
     }
     [[nodiscard]] LegacyBattleActorTargetPreparationCallReply
     invoke_actor_target_preparation(
@@ -1146,6 +1249,7 @@ struct LegacyBattleFrameCoordinatorRequest {
     compat::u32 post_standalone_frame_ecx_snapshot{};
     compat::u32 message_phase_entry_ecx_snapshot{};
     compat::u32 message_phase_entry_edx_snapshot{};
+    LegacyBattleVictoryRewardRequest victory_reward_request{};
     compat::u32 debug_vitality_stack_snapshot{};
     compat::i32 mouse_x{};
     compat::i32 mouse_y{};
@@ -1184,6 +1288,7 @@ struct LegacyBattleFrameCoordinatorContext {
     const input_time_rng::LegacyKeyboardSnapshot& keyboard;
     std::vector<world_map::LegacyWorldInteractionHotspot>& choice_hotspots;
     world_map::LegacyWorldPlayerControlState& player_control;
+    world_map::LegacyWorldStoryVmState& story_vm;
     compat::u32& target_ready_gate;
     LegacyBattleActorFrameAdvanceContext* actor_frames{};
     std::span<const compat::u8> maps_payload{};

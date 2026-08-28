@@ -385,7 +385,19 @@ void seed_state(
     message_phase.entry_list_gate = 9U;
     message_phase.transition_mode_gate = 9U;
     message_phase.group_b_bypass_gate = 9U;
-    message_phase.current_player_item_token = 9U;
+
+    auto& victory_rewards = port.battle_victory_reward_state();
+    victory_rewards.collected_item_ids.fill(9U);
+    victory_rewards.collected_item_quantities.fill(9U);
+    victory_rewards.player_item_tokens.fill(9U);
+    victory_rewards.committed_money_word = 9U;
+    victory_rewards.experience_per_party_member = 9U;
+    victory_rewards.reward_experience = 9U;
+    victory_rewards.party_reward_counters.fill(9U);
+    victory_rewards.group_a_skip_primary.fill(9U);
+    victory_rewards.group_a_skip_secondary.fill(9U);
+    victory_rewards.party_profile_threshold = 9U;
+    victory_rewards.actor_reward_gate = 9U;
 
     auto& selection_frame = port.battle_selection_frame_state();
     startup.action_mode_source.actor_label_indices.fill(9U);
@@ -889,8 +901,33 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 port.battle_message_phase_state().entry_list_gate == 9U &&
                 port.battle_message_phase_state().transition_mode_gate == 0U &&
                 port.battle_message_phase_state().group_b_bypass_gate == 0U &&
-                port.battle_message_phase_state().current_player_item_token ==
+                port.battle_victory_reward_state().collected_item_ids[0U] ==
                     0U &&
+                port.battle_victory_reward_state().collected_item_ids[1U] ==
+                    0U &&
+                port.battle_victory_reward_state().collected_item_ids[2U] ==
+                    9U &&
+                port.battle_victory_reward_state()
+                        .collected_item_quantities[0U] == 0U &&
+                port.battle_victory_reward_state()
+                        .collected_item_quantities[1U] == 0U &&
+                port.battle_victory_reward_state()
+                        .collected_item_quantities[2U] == 9U &&
+                std::ranges::all_of(
+                    port.battle_victory_reward_state().player_item_tokens,
+                    [](const u32 value) { return value == 0U; }
+                ) &&
+                port.battle_victory_reward_state().committed_money_word == 0U &&
+                port.battle_victory_reward_state()
+                        .experience_per_party_member == 0U &&
+                port.battle_victory_reward_state().reward_experience == 0U &&
+                std::ranges::all_of(
+                    port.battle_victory_reward_state().party_reward_counters,
+                    [](const u32 value) { return value == 9U; }
+                ) &&
+                port.battle_victory_reward_state().party_profile_threshold ==
+                    9U &&
+                port.battle_victory_reward_state().actor_reward_gate == 9U &&
                 port.effect_coordinator_state()
                         .intensity_records[0]
                         .source_value == 0U &&
@@ -899,7 +936,10 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                         .lookup_key_b == 0U &&
                 state.unmapped_bytes.contains(0x0053BF80U) == false &&
                 state.unmapped_bytes.contains(0x0053BFD0U) == false &&
+                state.unmapped_bytes.contains(0x004FF2F0U) == false &&
+                state.unmapped_bytes.contains(0x00525434U) == false &&
                 state.unmapped_bytes.contains(0x00524468U) == false &&
+                state.unmapped_bytes.contains(0x0053BF12U) == false &&
                 state.unmapped_bytes.contains(0x0053C004U) == false &&
                 startup.enemies[0].role_id == 0U &&
                 startup.party[0].role_id == 0U && startup.enemy_count == 0U &&

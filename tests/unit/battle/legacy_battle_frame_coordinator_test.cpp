@@ -521,6 +521,7 @@ struct Fixture {
     std::vector<openswd3::world_map::LegacyWorldInteractionHotspot>
         choice_hotspots;
     openswd3::world_map::LegacyWorldPlayerControlState player_control;
+    openswd3::world_map::LegacyWorldStoryVmState story_vm;
 
     Fixture() {
         constexpr std::array<u16, 6> effect_pixels{
@@ -613,6 +614,7 @@ struct Fixture {
             .keyboard = keyboard,
             .choice_hotspots = choice_hotspots,
             .player_control = player_control,
+            .story_vm = story_vm,
             .target_ready_gate = actor_frame_state.shared.target_ready_gate,
         };
     }
@@ -960,6 +962,49 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                         reserved_message_phase_slot
                 ) == 0U,
             "main frame directly composes completion, pending-action and message-phase stages without their old opaque calls"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleFrameCoordinatorState state;
+        Fixture fixture;
+        CoordinatorPort port;
+        configure_common_port(port);
+        port.battle_message_state() = 0x64U;
+        port.battle_victory_reward_state().committed_money_word = 0x8000U;
+        auto context = fixture.context();
+
+        const auto result =
+            openswd3::battle::run_legacy_battle_frame_coordinator(
+                state, port, context, base_request()
+            );
+
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameCoordinatorStatus::
+                        completed &&
+                result.message_phase.victory_reward_calls == 1U &&
+                result.message_phase.victory_rewards.status ==
+                    openswd3::battle::LegacyBattleVictoryRewardStatus::
+                        completed,
+            "main frame message 100 completes its directly composed victory reward result"
+        );
+        test.expect_true(
+            port.count(LegacyBattleFrameCoordinatorCall::victory_draw_text) ==
+                4U,
+            "main frame message 100 draws the victory title and three reward lines through its typed text boundary"
+        );
+        test.expect_true(
+            port.count(
+                LegacyBattleFrameCoordinatorCall::
+                    reserved_message_phase_victory_reward_slot
+            ) == 0U,
+            "main frame message 100 leaves the retired victory reward slot unused"
+        );
+        test.expect_true(
+            port.count(LegacyBattleFrameCoordinatorCall::post_render_stage_3) ==
+                1U,
+            "main frame continues to the third post-render stage after victory rewards"
         );
     }
 

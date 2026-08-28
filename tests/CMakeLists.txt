@@ -341,6 +341,7 @@ add_executable(
     unit/battle/legacy_battle_transition_test.cpp
     unit/battle/legacy_battle_vertical_panel_test.cpp
     unit/battle/legacy_battle_vertical_shift_test.cpp
+    unit/battle/legacy_battle_victory_rewards_test.cpp
 )
 if(
     EXISTS "${PROJECT_SOURCE_DIR}/../FIGTALK.dat" AND

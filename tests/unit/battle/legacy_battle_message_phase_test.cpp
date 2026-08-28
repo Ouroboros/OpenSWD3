@@ -17,6 +17,67 @@ using openswd3::compat::u16;
 using openswd3::compat::u32;
 using openswd3::compat::u8;
 
+class VictoryActionStreamProvider final
+    : public openswd3::asset_runtime::LegacyActionStreamProvider {
+public:
+    [[nodiscard]] openswd3::asset_runtime::LegacyActionStreamLoadResult
+    load_action_stream(const u32, const u32, const bool) override {
+        constexpr std::array<u16, 8> kWords{
+            0x5246U, 0x0077U, 0x5041U, 0U, 0x5859U, 2U, 3U, 0x4544U
+        };
+        bytes.clear();
+        for (const u16 word : kWords) {
+            bytes.push_back(static_cast<u8>(word));
+            bytes.push_back(static_cast<u8>(word >> 8U));
+        }
+        return {
+            openswd3::asset_runtime::LegacyActionStreamStatus::ready,
+            bytes,
+            false,
+        };
+    }
+
+    std::vector<u8> bytes;
+};
+
+class VictoryFrameProvider final
+    : public openswd3::rendering::LegacyFramePieceProvider {
+public:
+    [[nodiscard]] bool load_frame_piece(
+        const u32,
+        const u32 piece_index,
+        openswd3::rendering::LegacyFramePiece& piece
+    ) noexcept override {
+        if (fail || piece_index >= pixels.size()) {
+            return false;
+        }
+        piece = {
+            .source =
+                {
+                    .bytes = pixels[piece_index],
+                    .layout =
+                        openswd3::rendering::LegacyBlitSourceLayout::direct_16,
+                },
+            .width = 1U,
+            .height = 1U,
+        };
+        return true;
+    }
+
+    std::array<std::array<u8, 2>, 9> pixels{{
+        {1U, 0U},
+        {2U, 0U},
+        {3U, 0U},
+        {4U, 0U},
+        {5U, 0U},
+        {6U, 0U},
+        {7U, 0U},
+        {8U, 0U},
+        {9U, 0U},
+    }};
+    bool fail{};
+};
+
 class MessagePort final
     : public openswd3::battle::LegacyBattleMessagePhasePort {
 public:
@@ -102,6 +163,10 @@ public:
 };
 
 struct Fixture {
+    Fixture() : action_updater(action_streams), raster(framebuffer.geometry()) {
+        port.battle_victory_reward_state().committed_money_word = 0x8000U;
+    }
+
     [[nodiscard]] openswd3::battle::LegacyBattleMessagePhaseBindings
     bindings() {
         return {
@@ -122,6 +187,21 @@ struct Fixture {
             .outcome_darkening_gate = outcome_darkening_gate,
             .input_records = input.records,
             .action_profile_bytes = action_profiles,
+            .victory_rewards = {
+                .state = port.battle_victory_reward_state(),
+                .startup = startup,
+                .metrics = metrics,
+                .input_dispatch = input_dispatch,
+                .target_selection = target_selection,
+                .party_member_resources = party_member_resources,
+                .script_variables = script_variables,
+                .framebuffer = framebuffer,
+                .raster = raster,
+                .shared_effects = effects,
+                .jitter = jitter,
+                .action_updater = action_updater,
+                .frame_provider = frame_provider,
+            },
         };
     }
 
@@ -142,6 +222,20 @@ struct Fixture {
     u32 outcome_darkening_gate{};
     openswd3::input_time_rng::LegacyInputNormalizationState input;
     std::vector<u8> action_profiles = std::vector<u8>(600U, 0U);
+    std::array<openswd3::world_map::LegacyWorldStoryPartyMemberResources, 4>
+        party_member_resources{};
+    std::array<u32, 64> script_variables{};
+    openswd3::rendering::LegacyFramebuffer framebuffer{{
+        .pitch_bytes = 1280,
+        .width = 640,
+        .height = 480,
+    }};
+    VictoryActionStreamProvider action_streams;
+    openswd3::asset_runtime::LegacyActionUpdater action_updater;
+    openswd3::rendering::LegacyRasterGeometryState raster;
+    openswd3::rendering::LegacyBlitEffectState effects;
+    openswd3::rendering::LegacyRleRowJitterState jitter;
+    VictoryFrameProvider frame_provider;
     MessagePort port;
 };
 
@@ -374,7 +468,8 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                         completed &&
                 result.player_item_quantity_calls == 1U &&
                 result.player_item_quantity.created &&
-                fixture.state.current_player_item_token == 0x0090000CU &&
+                fixture.port.battle_victory_reward_state()
+                        .player_item_tokens[0U] == 0x0090000CU &&
                 fixture.target_selection.transition_aux_byte == 1U &&
                 fixture.target_selection.special_action_count == 4U &&
                 result.return_eax == 4U && records_reset &&
@@ -466,13 +561,40 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         const auto advanced = run(timed, 0x12340000U, 0x56780000U);
         test.expect_true(
             advanced.target_selection_entry_calls == 1U &&
+                advanced.victory_reward_calls == 1U &&
+                advanced.victory_rewards.status ==
+                    openswd3::battle::LegacyBattleVictoryRewardStatus::
+                        completed &&
+                timed.port.count(
+                    LegacyBattleMessagePhaseCall::
+                        reserved_advance_message_100_slot
+                ) == 0U &&
                 timed.target_selection.transition_timer == 150U &&
                 timed.debug_hotkeys.actor_retarget_gate_53bf64 == 0U &&
                 timed.input_dispatch.selection_cache_gate_a == 1U &&
                 timed.input_dispatch.selection_cache_gate_b == 1U &&
                 timed.target_ready_gate == 1U &&
                 timed.final_actor.queued_actor_code == 0U,
-            "message 100 publishes its setup gates then enters target selection at signed timer 150"
+            "message 100 directly distributes victory rewards before publishing setup gates and entering target selection"
+        );
+
+        Fixture stopped;
+        stopped.message = 0x64U;
+        stopped.debug_hotkeys.actor_retarget_gate_53bf64 = 9U;
+        stopped.frame_provider.fail = true;
+        const auto stopped_result = run(stopped);
+        test.expect_true(
+            stopped_result.status ==
+                    openswd3::battle::LegacyBattleMessagePhaseStatus::
+                        victory_rewards_typed_stop &&
+                stopped_result.victory_reward_calls == 1U &&
+                stopped_result.victory_rewards.status ==
+                    openswd3::battle::LegacyBattleVictoryRewardStatus::
+                        title_frame_typed_stop &&
+                stopped.debug_hotkeys.actor_retarget_gate_53bf64 == 9U &&
+                stopped.input_dispatch.selection_cache_gate_a == 0U &&
+                stopped.target_selection.transition_timer == 0U,
+            "message 100 propagates victory panel failure before all caller-owned setup writes"
         );
     }
 

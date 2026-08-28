@@ -641,11 +641,30 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
                 port.outcome_resolution_state().darkening_gate,
             .input_records = context.input_normalization.records,
             .action_profile_bytes = message_action_profiles,
+            .victory_rewards =
+                {
+                    .state = port.battle_victory_reward_state(),
+                    .startup = context.startup,
+                    .metrics = port.actor_metric_state(),
+                    .input_dispatch = port.battle_input_dispatch_state(),
+                    .target_selection =
+                        port.battle_target_selection_runtime_state(),
+                    .party_member_resources =
+                        context.story_vm.party_member_resources,
+                    .script_variables = context.story_vm.script_variables,
+                    .framebuffer = context.frame_zero.framebuffer,
+                    .raster = context.raster,
+                    .shared_effects = context.frame_zero.shared_effects,
+                    .jitter = context.frame_zero.jitter,
+                    .action_updater = context.action_updater,
+                    .frame_provider = context.frame_provider,
+                },
         },
         port,
         {
             .entry_ecx = request.message_phase_entry_ecx_snapshot,
             .entry_edx = request.message_phase_entry_edx_snapshot,
+            .victory_reward_request = request.victory_reward_request,
         }
     );
     ++result.message_phase_calls;

@@ -54,7 +54,7 @@
 - 效果总协调器的18槽主记录、八条强度效果记录、两组模式、计数器、反馈actor、参数数组和活动latch映射回唯一`LegacyBattleEffectCoordinatorState`；强度记录0同时是攻击顺序移除必读的一过尾七dword源，也是攻击顺序出队无界28字节扫描离开18槽后的首个物理区域；未写的扫描计时与反馈数组保持不变；
 - 八槽group B顺序表不在本函数写集合中，必须原样保留；
 - 战斗启动复用的显示surface、敌我启动记录、重置块、记录数组与镜像模式映射回唯一`LegacyBattleStartupState`；
-- `0x0053BCEC`继续映射到唯一共享message owner并清零；目标选择轮转不建立同址runtime副本，启动和最终角色的同址写也继续直接发布message；消息阶段新命名的mode gate、组B旁路门和当前道具token按原写集合清零，入口链门不在写集合内保持入口值；`0x0053BFBC`只保留final-actor pre-frame gate B owner，选择帧删除同址副本；
+- `0x0053BCEC`继续映射到唯一共享message owner并清零；目标选择轮转不建立同址runtime副本，启动和最终角色的同址写也继续直接发布message；消息阶段的mode gate和组B旁路门按原写集合清零，入口链门保持入口值；胜利奖励owner按原写集合只清十项payload、道具编号/数量前两项和三项奖励word，其余编号/数量槽、稀疏计数、阈值、奖励门及角色字段保持原值；`0x0053BFBC`只保留final-actor pre-frame gate B owner，选择帧删除同址副本；
 - 记录首字段的C++默认值为全1，但本函数执行整块清零，显式覆盖为零，不复用构造默认值。
 
 尚未被typed工作包命名的物理全局写入单一按地址存储的字节像。已映射地址从该字节像排除，避免与typed数组形成两个可分叉副本。字节像按小端序写入，未触及地址保持原值。
@@ -75,6 +75,6 @@
 
 ## 6. 测试与动态差分
 
-定向测试覆盖显示surface零/非零槽、旋转缓存嵌套释放、渲染资源释放、条件分配token零与非零、九阶段call顺序、234项写序散列、3300次物理写、13106字节、标量宽度、重复写、尾部6 dword、little-endian字节像、mapped地址排除、未触及字节保留、metric及待执行动作latch、颜色值清零与初始化门保留、角色预处理标量与工作区分段别名、双对象转场primary清零及secondary/打包高word保留、调试快捷键、调试叠加、结果判定、奖励槽写入、结果整理、撤退提交、上下文提示与纵向位移共享状态、完整18条启动记录、攻击顺序插入双尾门、移除相邻强度记录与出队七dword输出、最终角色/动作同址门、effect-shift与effect-coordinator typed别名同步、记录默认值差异、group B顺序表不清零、共享message无同址副本、消息阶段三项新owner清零与入口链门保留、pre-frame同址owner唯一性及固定返回0。
+定向测试覆盖显示surface零/非零槽、旋转缓存嵌套释放、渲染资源释放、条件分配token零与非零、九阶段call顺序、234项写序散列、3300次物理写、13106字节、标量宽度、重复写、尾部6 dword、little-endian字节像、mapped地址排除、未触及字节保留、metric及待执行动作latch、颜色值清零与初始化门保留、角色预处理标量与工作区分段别名、双对象转场primary清零及secondary/打包高word保留、调试快捷键、调试叠加、结果判定、奖励槽写入、结果整理、撤退提交、上下文提示与纵向位移共享状态、完整18条启动记录、攻击顺序插入双尾门、移除相邻强度记录与出队七dword输出、最终角色/动作同址门、effect-shift与effect-coordinator typed别名同步、记录默认值差异、group B顺序表不清零、共享message无同址副本、消息阶段双门清零与入口链门保留、胜利奖励十项payload和局部物理前缀清零、pre-frame同址owner唯一性及固定返回0。
 
 当前缺少原版全部全局内存、九类callee共享副作用、旧分配器、音频对象及寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
