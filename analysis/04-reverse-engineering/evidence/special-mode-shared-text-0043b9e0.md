@@ -15,7 +15,7 @@
 
 `mov ax`只覆盖EAX低16位，但后续特殊路径只比较AX，普通路径在使用索引前执行`and eax, 0FFFFh`。因此两条合法路径的可观察输入都精确等于记录`+0x04`的u16；宿主typed边界直接接收该值，不继承32位记录裸指针布局。
 
-函数写固定128字节共享buffer`0x004FC2A0`。LST共有46个直接调用点，分布于38个caller；参数寄存器分布为EAX 41次、ECX 3次、EDX 2次。八个caller各调用两次：`0x00440B20`、`0x00440C20`、`0x00440D20`、`0x00440E10`、`0x00440F00`、`0x00440FB0`、`0x00441160`和`0x0044E4A0`。战斗列表内容caller `0x004658EB`现已直接调用本typed实现：从组A对象field关联的记录`+4`取得text index，MAPS payload与固定128字节buffer由外部现有owner以span绑定，不在battle复制共享buffer。
+函数写固定128字节共享buffer`0x004FC2A0`。LST共有46个直接调用点，分布于38个caller；参数寄存器分布为EAX 41次、ECX 3次、EDX 2次。八个caller各调用两次：`0x00440B20`、`0x00440C20`、`0x00440D20`、`0x00440E10`、`0x00440F00`、`0x00440FB0`、`0x00441160`和`0x0044E4A0`。战斗列表内容caller `0x004658EB`与网格列表帧caller `0x00465D9C`现均直接调用本typed实现：从组A对象field关联的记录`+4`取得text index，MAPS payload与固定128字节buffer由外部现有owner以span绑定，不在battle复制共享buffer。
 
 ## 2. `0xFFDC`特殊路径
 

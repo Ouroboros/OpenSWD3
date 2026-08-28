@@ -9,6 +9,7 @@
 #include "openswd3/battle/legacy_battle_debug_hotkeys.hpp"
 #include "openswd3/battle/legacy_battle_final_actor_step.hpp"
 #include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
+#include "openswd3/battle/legacy_battle_grid_frame.hpp"
 #include "openswd3/battle/legacy_battle_group_b_frame.hpp"
 #include "openswd3/battle/legacy_battle_input_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_list_contents.hpp"
@@ -29,6 +30,7 @@ struct LegacyBattleSelectionFrameState {
     LegacyBattleVerticalPanelState vertical_panel{};
     LegacyBattlePreparedActionFrameDrawState prepared_action_frame{};
     LegacyBattleListContentsState list_contents{};
+    LegacyBattleGridFrameState grid_frame{};
     // Records 0..7 occupy 0x004FD798..0x004FDC57. Record 8 starts at
     // 0x004FDC58 and aliases the four lower-panel dwords for its first
     // 0x10 bytes; the remaining bytes and record 9 use the tail below.
@@ -70,7 +72,7 @@ enum class LegacyBattleSelectionFrameCall : compat::u8 {
     reserved_draw_action_summary_slot,
     reserved_draw_list_frame_slot,
     reserved_draw_list_contents_slot,
-    draw_grid_frame,
+    reserved_draw_grid_frame_slot,
     draw_narrow_frame,
     draw_grid_alternate,
     draw_grid_mode,
@@ -114,7 +116,8 @@ class LegacyBattleSelectionFramePort
       public virtual LegacyBattleActorTargetPreparationPort,
       public virtual LegacyBattleActionSummaryPort,
       public virtual LegacyBattleListFramePort,
-      public virtual LegacyBattleListContentsPort {
+      public virtual LegacyBattleListContentsPort,
+      public virtual LegacyBattleGridFramePort {
 public:
     virtual ~LegacyBattleSelectionFramePort() = default;
 
@@ -162,6 +165,7 @@ struct LegacyBattleSelectionFrameRequest {
     compat::u32 prepared_action_return_eax{};
     LegacyBattleListFrameRequest list_frame{};
     LegacyBattleListContentsRequest list_contents{};
+    LegacyBattleGridFrameRequest grid_frame{};
 };
 
 enum class LegacyBattleSelectionFrameStatus : compat::u8 {
@@ -180,6 +184,7 @@ enum class LegacyBattleSelectionFrameStatus : compat::u8 {
     action_summary_typed_stop,
     list_frame_typed_stop,
     list_contents_typed_stop,
+    grid_frame_typed_stop,
 };
 
 struct LegacyBattleSelectionFrameResult {
@@ -196,9 +201,11 @@ struct LegacyBattleSelectionFrameResult {
     compat::u32 action_summary_calls{};
     compat::u32 list_frame_calls{};
     compat::u32 list_contents_calls{};
+    compat::u32 grid_frame_calls{};
     LegacyBattleActionSummaryResult action_summary{};
     LegacyBattleListFrameResult list_frame{};
     LegacyBattleListContentsResult list_contents{};
+    LegacyBattleGridFrameResult grid_frame{};
     LegacyBattleActorTargetPreparationResult actor_target_preparation{};
     LegacyBattleScaleFillPanelResult scale_fill_panel{};
     LegacyBattleVerticalPanelResult vertical_panel{};

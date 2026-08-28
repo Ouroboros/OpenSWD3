@@ -103,7 +103,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     reserved_selection_frame_draw_action_summary_slot,
     reserved_selection_frame_draw_list_frame_slot,
     reserved_selection_frame_draw_list_contents_slot,
-    selection_frame_draw_grid_frame,
+    reserved_selection_frame_draw_grid_frame_slot,
     selection_frame_draw_narrow_frame,
     selection_frame_draw_grid_alternate,
     selection_frame_draw_grid_mode,
@@ -131,6 +131,8 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     list_contents_query_row,
     list_contents_resolve_negative_row,
     list_contents_resolve_regular_row,
+    grid_frame_initialize_rows,
+    grid_frame_query_row,
 };
 
 struct LegacyBattleFrameCoordinatorCallRequest {
@@ -145,6 +147,9 @@ struct LegacyBattleFrameCoordinatorCallRequest {
     compat::u32 list_text_token{};
     std::array<compat::u8, 10> list_text_bytes{};
     compat::u32 list_text_length{};
+    compat::u32 grid_text_token{};
+    std::array<compat::u8, 20> grid_text_bytes{};
+    compat::u32 grid_text_length{};
 };
 
 struct LegacyBattleFrameCoordinatorCallReply {
@@ -176,6 +181,14 @@ struct LegacyBattleFrameCoordinatorCallReply {
     compat::u16 list_limit_word{};
     bool publish_list_limit_byte{};
     compat::u8 list_limit_byte{};
+    bool publish_grid_panel_row_limit{};
+    compat::u16 grid_panel_row_limit{};
+    bool publish_grid_row_flags{};
+    compat::u32 grid_row_flags{};
+    bool publish_grid_row_value{};
+    compat::u32 grid_row_value{};
+    bool publish_grid_row_text{};
+    std::array<compat::u8, 20> grid_row_text{};
     LegacyBattleFrameInputSurface actor_surface{};
 };
 
@@ -259,9 +272,9 @@ public:
             call = LegacyBattleFrameCoordinatorCall::
                 reserved_selection_frame_draw_list_contents_slot;
             break;
-        case LegacyBattleSelectionFrameCall::draw_grid_frame:
+        case LegacyBattleSelectionFrameCall::reserved_draw_grid_frame_slot:
             call = LegacyBattleFrameCoordinatorCall::
-                selection_frame_draw_grid_frame;
+                reserved_selection_frame_draw_grid_frame_slot;
             break;
         case LegacyBattleSelectionFrameCall::draw_narrow_frame:
             call = LegacyBattleFrameCoordinatorCall::
@@ -462,6 +475,62 @@ public:
             .limit_word = reply.list_limit_word,
             .publish_limit_byte = reply.publish_list_limit_byte,
             .limit_byte = reply.list_limit_byte,
+        };
+    }
+    [[nodiscard]] LegacyBattleGridFrameCallReply invoke_grid_frame(
+        const LegacyBattleGridFrameCallRequest& request
+    ) override {
+        LegacyBattleFrameCoordinatorCall call =
+            LegacyBattleFrameCoordinatorCall::
+                selection_frame_configure_text_row;
+        switch (request.call) {
+        case LegacyBattleGridFrameCall::configure_font_mode:
+            break;
+        case LegacyBattleGridFrameCall::configure_font_style:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_frame_configure_text_color;
+            break;
+        case LegacyBattleGridFrameCall::configure_font_width:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_frame_configure_text_font;
+            break;
+        case LegacyBattleGridFrameCall::initialize_rows:
+            call = LegacyBattleFrameCoordinatorCall::grid_frame_initialize_rows;
+            break;
+        case LegacyBattleGridFrameCall::refresh_actor:
+            call =
+                LegacyBattleFrameCoordinatorCall::list_contents_refresh_actor;
+            break;
+        case LegacyBattleGridFrameCall::query_row:
+            call = LegacyBattleFrameCoordinatorCall::grid_frame_query_row;
+            break;
+        case LegacyBattleGridFrameCall::draw_text:
+            call = LegacyBattleFrameCoordinatorCall::selection_frame_draw_text;
+            break;
+        }
+        const auto reply = invoke({
+            .call = call,
+            .object_token = request.object_token,
+            .arguments = request.arguments,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+            .grid_text_token = request.text_token,
+            .grid_text_bytes = request.text_bytes,
+            .grid_text_length = request.text_length,
+        });
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .publish_panel_row_limit = reply.publish_grid_panel_row_limit,
+            .panel_row_limit = reply.grid_panel_row_limit,
+            .publish_row_flags = reply.publish_grid_row_flags,
+            .row_flags = reply.grid_row_flags,
+            .publish_row_value = reply.publish_grid_row_value,
+            .row_value = reply.grid_row_value,
+            .publish_row_text = reply.publish_grid_row_text,
+            .row_text = reply.grid_row_text,
         };
     }
     [[nodiscard]] LegacyBattleActorTargetPreparationCallReply

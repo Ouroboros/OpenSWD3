@@ -676,6 +676,64 @@ private:
         return true;
     }
 
+    [[nodiscard]] bool draw_grid_frame(
+        const u32 origin_x,
+        const u32 origin_y,
+        const u32 selected_row,
+        const u32 scroll_offset
+    ) {
+        auto grid_request = request_.grid_frame;
+        grid_request.origin_x = origin_x;
+        grid_request.origin_y = origin_y;
+        grid_request.selected_row = selected_row;
+        grid_request.scroll_offset = scroll_offset;
+        grid_request.entry_eax = eax_;
+        grid_request.entry_ecx = ecx_;
+        grid_request.entry_edx = edx_;
+        result_.grid_frame = draw_legacy_battle_grid_frame(
+            state_.grid_frame,
+            {
+                .queued_actor_code = bindings_.final_actor.queued_actor_code,
+                .action_category_index =
+                    bindings_.input_dispatch.action_category_index,
+                .panel_row_limit = bindings_.frame_input.panel_row_limit_c,
+                .selection_input_gate =
+                    bindings_.target_runtime.selection_input_gate,
+                .target_argument = bindings_.target_runtime.target_argument,
+                .primary_text_color = bindings_.startup.primary_text_color,
+                .secondary_text_color = bindings_.startup.secondary_text_color,
+                .actor_description_record_tokens =
+                    bindings_.startup.group_a_description_record_tokens,
+                .actor_description_text_indices =
+                    bindings_.startup.group_a_description_text_indices,
+                .maps_payload = bindings_.maps_payload,
+                .shared_text = bindings_.shared_text,
+                .panel_action_record = bindings_.panel_action_record,
+                .framebuffer = bindings_.framebuffer,
+                .clip = bindings_.clip,
+                .raster = bindings_.raster,
+                .shared_request = bindings_.shared_request,
+                .shared_effects = bindings_.shared_effects,
+                .jitter = bindings_.jitter,
+                .action_updater = bindings_.action_updater,
+                .frame_provider = bindings_.frame_provider,
+            },
+            port_,
+            grid_request
+        );
+        ++result_.grid_frame_calls;
+        result_.port_calls += result_.grid_frame.port_calls;
+        eax_ = result_.grid_frame.return_eax;
+        ecx_ = result_.grid_frame.return_ecx;
+        edx_ = result_.grid_frame.return_edx;
+        if (result_.grid_frame.status !=
+            LegacyBattleGridFrameStatus::completed) {
+            typed_stop(Status::grid_frame_typed_stop);
+            return false;
+        }
+        return true;
+    }
+
     void draw_message_two() {
         state_input().selection_cache_gate_c = 1U;
         if (!draw_list_frame(0xE0U, 0x7EU)) {
@@ -711,7 +769,9 @@ private:
         edx_ = bindings_.frame_input.panel_scroll_b;
         eax_ = bindings_.frame_input.grid_selection;
         state_input().selection_cache_gate_c = 1U;
-        invoke(Call::draw_grid_frame, 0U, {0xE0U, 0x7EU, eax_, edx_});
+        if (!draw_grid_frame(0xE0U, 0x7EU, eax_, edx_)) {
+            return;
+        }
         eax_ = replace_low_word(eax_, bindings_.frame_input.panel_row_limit_c);
         edx_ = bindings_.frame_input.panel_scroll_b;
         ecx_ = static_cast<u16>(eax_);

@@ -67,6 +67,7 @@ void test_battle_group_b_order(openswd3::test::Context& test);
 void test_battle_group_a_target_cycle(openswd3::test::Context& test);
 void test_battle_group_b_target_cycle(openswd3::test::Context& test);
 void test_battle_group_effect_frame(openswd3::test::Context& test);
+void test_battle_grid_frame(openswd3::test::Context& test);
 void test_battle_hud_frame(openswd3::test::Context& test);
 void test_battle_input_dispatch(openswd3::test::Context& test);
 void test_battle_input_record_priming(openswd3::test::Context& test);
@@ -7067,6 +7068,7 @@ int main() {
     test_battle_group_a_target_cycle(test);
     test_battle_group_b_target_cycle(test);
     test_battle_group_effect_frame(test);
+    test_battle_grid_frame(test);
     test_battle_hud_frame(test);
     test_battle_intensity_effect_frame(test);
     test_battle_object_reset(test);

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <functional>
 #include <map>
 #include <span>
 #include <vector>
@@ -16,6 +17,9 @@ using openswd3::battle::LegacyBattleActionSummaryCallRequest;
 using openswd3::battle::LegacyBattleListContentsCall;
 using openswd3::battle::LegacyBattleListContentsCallReply;
 using openswd3::battle::LegacyBattleListContentsCallRequest;
+using openswd3::battle::LegacyBattleGridFrameCall;
+using openswd3::battle::LegacyBattleGridFrameCallReply;
+using openswd3::battle::LegacyBattleGridFrameCallRequest;
 using openswd3::battle::LegacyBattleListFrameCall;
 using openswd3::battle::LegacyBattleListFrameCallReply;
 using openswd3::battle::LegacyBattleListFrameCallRequest;
@@ -72,6 +76,23 @@ public:
         return found->second[index++];
     }
 
+    [[nodiscard]] LegacyBattleGridFrameCallReply invoke_grid_frame(
+        const LegacyBattleGridFrameCallRequest& request
+    ) override {
+        grid_frame_calls.push_back(request);
+        if (request.call == LegacyBattleGridFrameCall::query_row &&
+            grid_on_query) {
+            grid_on_query();
+        }
+        auto& index = grid_frame_reply_indices[request.call];
+        const auto found = grid_frame_replies.find(request.call);
+        if (found == grid_frame_replies.end() ||
+            index >= found->second.size()) {
+            return grid_frame_default_reply;
+        }
+        return found->second[index++];
+    }
+
     [[nodiscard]] LegacyBattleSelectionFrameCallReply invoke_selection_frame(
         const LegacyBattleSelectionFrameCallRequest& request
     ) override {
@@ -95,6 +116,7 @@ public:
     std::vector<LegacyBattleActionSummaryCallRequest> action_summary_calls;
     std::vector<LegacyBattleListFrameCallRequest> list_frame_calls;
     std::vector<LegacyBattleListContentsCallRequest> list_contents_calls;
+    std::vector<LegacyBattleGridFrameCallRequest> grid_frame_calls;
     std::vector<openswd3::battle::LegacyBattleActorTargetPreparationCallRequest>
         target_calls;
     std::map<
@@ -116,6 +138,13 @@ public:
         list_contents_replies;
     std::map<LegacyBattleListContentsCall, std::size_t>
         list_contents_reply_indices;
+    std::map<
+        LegacyBattleGridFrameCall,
+        std::vector<LegacyBattleGridFrameCallReply>>
+        grid_frame_replies;
+    std::map<LegacyBattleGridFrameCall, std::size_t> grid_frame_reply_indices;
+    LegacyBattleGridFrameCallReply grid_frame_default_reply{};
+    std::function<void()> grid_on_query;
     LegacyBattleListFrameCallReply list_frame_default_reply{};
     LegacyBattleListContentsCallReply list_contents_default_reply{
         .publish_row_value = true,
@@ -707,6 +736,16 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
         fixture.message = 4U;
         fixture.frame.panel_row_limit_c = 8U;
         fixture.target.candidate_gate_a = 6U;
+        fixture.action_streams.fail = false;
+        fixture.port
+            .grid_frame_replies[LegacyBattleGridFrameCall::initialize_rows]
+            .push_back({
+                .publish_panel_row_limit = true,
+                .panel_row_limit = 8U,
+            });
+        fixture.port.grid_on_query = [&fixture]() {
+            fixture.action_streams.fail = true;
+        };
         const auto result =
             openswd3::battle::draw_legacy_battle_selection_frame(
                 fixture.bindings(), fixture.port
@@ -718,11 +757,49 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                 result.vertical_panel.status ==
                     openswd3::battle::LegacyBattleVerticalPanelStatus::
                         action_update_failed &&
+                result.grid_frame_calls == 1U &&
+                result.grid_frame.status ==
+                    openswd3::battle::LegacyBattleGridFrameStatus::completed &&
                 fixture.frame.lower_panel_aux == 8U &&
                 fixture.input.selection_cache_gate_c == 1U &&
                 fixture.input.selection_cache_gate_a == 0U &&
-                fixture.input.selection_cache_gate_b == 0U,
+                fixture.input.selection_cache_gate_b == 0U &&
+                count_call(
+                    fixture.port,
+                    LegacyBattleSelectionFrameCall::
+                        reserved_draw_grid_frame_slot
+                ) == 0U,
             "message four propagates the closed vertical panel stop after publishing row state but before final cache gates"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.message = 4U;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        grid_frame_typed_stop &&
+                result.grid_frame_calls == 1U &&
+                result.grid_frame.status ==
+                    openswd3::battle::LegacyBattleGridFrameStatus::
+                        action_frame_typed_stop &&
+                result.grid_frame.action_frame_calls == 1U &&
+                fixture.input.selection_cache_gate_c == 1U &&
+                fixture.input.selection_cache_gate_a == 0U &&
+                fixture.input.selection_cache_gate_b == 0U &&
+                fixture.frame.lower_panel_aux == 0U &&
+                count_call(
+                    fixture.port,
+                    LegacyBattleSelectionFrameCall::
+                        reserved_draw_grid_frame_slot
+                ) == 0U,
+            "message four propagates the first grid-frame stop before row state and final cache gates"
         );
     }
 
