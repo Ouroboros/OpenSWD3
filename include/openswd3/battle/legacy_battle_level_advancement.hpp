@@ -25,7 +25,9 @@ struct LegacyBattleLevelAdvancementState {
     world_map::LegacyWorldStoryPartyMemberResources baseline_scratch{};
     world_map::LegacyWorldStoryPartyMemberResources advanced_scratch{};
     world_map::LegacyWorldStoryPartyMemberResources profile_copy_scratch{};
-    compat::u32 completion_gate{};  // 0x0053C4C8
+    std::array<compat::u16, 3U> growth_delta_primary{};    // 0x005214A4
+    std::array<compat::u16, 6U> growth_delta_secondary{};  // 0x0052545C
+    compat::u32 completion_gate{};                         // 0x0053C4C8
 };
 
 class LegacyBattleLevelAdvancementStatePort {

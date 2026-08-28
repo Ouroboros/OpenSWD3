@@ -181,10 +181,14 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     level_advancement_build_profile,
     level_advancement_stop_sample,
     level_advancement_play_sample,
+    level_growth_query_panel,
+    level_growth_format_integer,
+    level_growth_draw_text,
+    level_growth_play_sample,
     message_phase_select_message_101_actor,
     message_phase_allocate_actor_transition,
     message_phase_advance_message_101,
-    message_phase_advance_message_110,
+    reserved_message_phase_advance_message_110_slot,
     message_phase_advance_message_111,
     message_phase_select_message_112_actor,
     message_phase_advance_message_112,
@@ -214,6 +218,8 @@ struct LegacyBattleFrameCoordinatorCallRequest {
     compat::u32 control_text_length{};
     std::array<compat::u8, 64> victory_text_bytes{};
     compat::u32 victory_text_length{};
+    std::array<compat::u8, 64> growth_text_bytes{};
+    compat::u32 growth_text_length{};
 };
 
 struct LegacyBattleFrameCoordinatorCallReply {
@@ -299,6 +305,13 @@ struct LegacyBattleFrameCoordinatorCallReply {
     world_map::LegacyWorldStoryPartyMemberResources level_profile{};
     bool publish_level_transition_mode{};
     compat::u32 level_transition_mode{};
+    bool publish_growth_transition_actor_index{};
+    compat::u8 growth_transition_actor_index{};
+    bool publish_growth_transition_stage{};
+    compat::u32 growth_transition_stage{};
+    bool publish_growth_formatted_text{};
+    std::array<compat::u8, 64> growth_formatted_text{};
+    compat::u32 growth_formatted_text_length{};
     LegacyBattleFrameInputSurface actor_surface{};
 };
 
@@ -841,9 +854,9 @@ public:
             call = LegacyBattleFrameCoordinatorCall::
                 message_phase_advance_message_101;
             break;
-        case LegacyBattleMessagePhaseCall::advance_message_110:
+        case LegacyBattleMessagePhaseCall::reserved_advance_message_110_slot:
             call = LegacyBattleFrameCoordinatorCall::
-                message_phase_advance_message_110;
+                reserved_message_phase_advance_message_110_slot;
             break;
         case LegacyBattleMessagePhaseCall::advance_message_111:
             call = LegacyBattleFrameCoordinatorCall::
@@ -1086,6 +1099,79 @@ public:
         const auto reply = invoke({
             .call =
                 LegacyBattleFrameCoordinatorCall::level_advancement_play_sample,
+            .arguments =
+                {
+                    sound_id,
+                    std::bit_cast<compat::u32>(mix_level),
+                },
+            .eax = eax,
+            .ecx = ecx,
+            .edx = edx,
+        });
+        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
+    }
+    [[nodiscard]] LegacyBattleLevelGrowthPanelCallReply
+    invoke_level_growth_panel(
+        const LegacyBattleLevelGrowthPanelCallRequest& request
+    ) override {
+        LegacyBattleFrameCoordinatorCall call =
+            LegacyBattleFrameCoordinatorCall::level_growth_query_panel;
+        switch (request.call) {
+        case LegacyBattleLevelGrowthPanelCall::query_panel:
+            break;
+        case LegacyBattleLevelGrowthPanelCall::format_integer:
+            call =
+                LegacyBattleFrameCoordinatorCall::level_growth_format_integer;
+            break;
+        case LegacyBattleLevelGrowthPanelCall::draw_text:
+            call = LegacyBattleFrameCoordinatorCall::level_growth_draw_text;
+            break;
+        }
+        std::array<compat::u32, 8> arguments{};
+        for (std::size_t index = 0U; index < request.arguments.size();
+             ++index) {
+            arguments[index] = request.arguments[index];
+        }
+        const auto reply = invoke({
+            .call = call,
+            .arguments = arguments,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+            .growth_text_bytes = request.text,
+            .growth_text_length = request.text_length,
+        });
+        const bool fallback_format =
+            request.call == LegacyBattleLevelGrowthPanelCall::format_integer &&
+            !reply.publish_growth_formatted_text;
+        return {
+            .eax = fallback_format ? request.text_length : reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .publish_transition_actor_index =
+                reply.publish_growth_transition_actor_index,
+            .transition_actor_index = reply.growth_transition_actor_index,
+            .publish_transition_stage = reply.publish_growth_transition_stage,
+            .transition_stage = reply.growth_transition_stage,
+            .publish_formatted_text =
+                reply.publish_growth_formatted_text || fallback_format,
+            .formatted_text =
+                fallback_format ? request.text : reply.growth_formatted_text,
+            .formatted_text_length = fallback_format
+                ? request.text_length
+                : reply.growth_formatted_text_length,
+        };
+    }
+    [[nodiscard]] LegacyBattleLevelGrowthPanelRegisters
+    play_level_growth_sample(
+        const compat::u32 eax,
+        const compat::u32 ecx,
+        const compat::u32 edx,
+        const compat::u32 sound_id,
+        const compat::i32 mix_level
+    ) override {
+        const auto reply = invoke({
+            .call = LegacyBattleFrameCoordinatorCall::level_growth_play_sample,
             .arguments =
                 {
                     sound_id,

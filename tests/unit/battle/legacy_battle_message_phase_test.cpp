@@ -136,6 +136,37 @@ public:
         return {.eax = eax, .ecx = ecx, .edx = edx};
     }
 
+    [[nodiscard]] openswd3::battle::LegacyBattleLevelGrowthPanelCallReply
+    invoke_level_growth_panel(
+        const openswd3::battle::LegacyBattleLevelGrowthPanelCallRequest& request
+    ) override {
+        growth_calls.push_back(request);
+        if (request.call ==
+            openswd3::battle::LegacyBattleLevelGrowthPanelCall::query_panel) {
+            return {
+                .eax = growth_query_eax,
+                .ecx = request.ecx,
+                .edx = request.edx,
+            };
+        }
+        return openswd3::battle::LegacyBattleLevelGrowthPanelPort::
+            invoke_level_growth_panel(request);
+    }
+
+    [[nodiscard]] openswd3::battle::LegacyBattleLevelGrowthPanelRegisters
+    play_level_growth_sample(
+        const u32 eax,
+        const u32 ecx,
+        const u32 edx,
+        const u32 sound_id,
+        const i32 mix_level
+    ) override {
+        growth_sample_calls.push_back(
+            {sound_id, std::bit_cast<u32>(mix_level)}
+        );
+        return {.eax = eax, .ecx = ecx, .edx = edx};
+    }
+
     void reply(
         const LegacyBattleMessagePhaseCall call,
         const LegacyBattleMessagePhaseCallReply& reply
@@ -165,6 +196,10 @@ public:
     std::vector<openswd3::battle::LegacyBattleInputDispatchCallRequest>
         input_calls;
     std::vector<std::array<u32, 2>> sample_calls;
+    std::vector<openswd3::battle::LegacyBattleLevelGrowthPanelCallRequest>
+        growth_calls;
+    std::vector<std::array<u32, 2>> growth_sample_calls;
+    u32 growth_query_eax{};
 };
 
 struct Fixture {
@@ -728,10 +763,46 @@ void test_battle_message_phase(openswd3::test::Context& test) {
             nonzero.status ==
                     openswd3::battle::LegacyBattleMessagePhaseStatus::
                         completed &&
+                nonzero.level_growth_panel_calls == 1U &&
+                nonzero.level_growth_panel.port_calls == 0U &&
                 fixture.port.count(
-                    LegacyBattleMessagePhaseCall::advance_message_110
-                ) == 1U,
-            "message 110 with existing transition state calls its frame even for actor FF"
+                    LegacyBattleMessagePhaseCall::
+                        reserved_advance_message_110_slot
+                ) == 0U,
+            "message 110 with existing transition state directly runs the growth panel even for actor FF"
+        );
+
+        Fixture rendered;
+        rendered.message = 0x6EU;
+        rendered.target_selection.transition_actor_index = 0U;
+        rendered.target_selection.transition_state = 1U;
+        rendered.startup.action_mode_source.actor_label_indices[0U] = 0U;
+        rendered.port.growth_query_eax = 1U;
+        const auto rendered_result = run(rendered);
+        test.expect_true(
+            rendered_result.status ==
+                    openswd3::battle::LegacyBattleMessagePhaseStatus::
+                        completed &&
+                rendered_result.level_growth_panel_calls == 1U &&
+                rendered_result.level_growth_panel.format_calls == 7U &&
+                rendered_result.level_growth_panel.text_draw_calls == 8U &&
+                rendered.port.count(
+                    LegacyBattleMessagePhaseCall::
+                        reserved_advance_message_110_slot
+                ) == 0U,
+            "message 110 renders the typed baseline growth panel and leaves the retired slot unused"
+        );
+
+        Fixture invalid_growth;
+        invalid_growth.message = 0x6EU;
+        invalid_growth.target_selection.transition_actor_index = 10U;
+        invalid_growth.target_selection.transition_state = 1U;
+        const auto invalid_growth_result = run(invalid_growth);
+        test.expect_true(
+            invalid_growth_result.status ==
+                openswd3::battle::LegacyBattleMessagePhaseStatus::
+                    level_growth_panel_typed_stop,
+            "message 110 propagates the growth-panel actor stop without an opaque fallback"
         );
 
         Fixture zero;

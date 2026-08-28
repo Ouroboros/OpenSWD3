@@ -1082,6 +1082,80 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     }
 
     {
+        CoordinatorPort port;
+        configure_common_port(port);
+        port.replies[LegacyBattleFrameCoordinatorCall::level_growth_query_panel]
+            .eax = 1U;
+        port.replies[LegacyBattleFrameCoordinatorCall::level_growth_query_panel]
+            .publish_growth_transition_actor_index = true;
+        port.replies[LegacyBattleFrameCoordinatorCall::level_growth_query_panel]
+            .growth_transition_actor_index = 3U;
+        port.replies
+            [LegacyBattleFrameCoordinatorCall::level_growth_format_integer]
+                .publish_growth_formatted_text = true;
+        port.replies
+            [LegacyBattleFrameCoordinatorCall::level_growth_format_integer]
+                .growth_formatted_text[0U] = 0x41U;
+        port.replies
+            [LegacyBattleFrameCoordinatorCall::level_growth_format_integer]
+                .growth_formatted_text_length = 1U;
+        port.replies[LegacyBattleFrameCoordinatorCall::level_growth_play_sample]
+            .eax = 0x87654321U;
+
+        const auto query = port.invoke_level_growth_panel({
+            .call =
+                openswd3::battle::LegacyBattleLevelGrowthPanelCall::query_panel,
+            .arguments = {0x70U, 0x10CU, 2U},
+            .eax = 4U,
+            .ecx = 5U,
+            .edx = 6U,
+        });
+        const auto formatted = port.invoke_level_growth_panel({
+            .call = openswd3::battle::LegacyBattleLevelGrowthPanelCall::
+                format_integer,
+            .arguments = {7U, 8U, 9U},
+            .eax = 10U,
+            .ecx = 11U,
+            .edx = 12U,
+            .text = {0x31U, 0x32U},
+            .text_length = 2U,
+        });
+        static_cast<void>(port.invoke_level_growth_panel({
+            .call =
+                openswd3::battle::LegacyBattleLevelGrowthPanelCall::draw_text,
+            .arguments = {13U, 14U, 15U},
+            .eax = 16U,
+            .ecx = 17U,
+            .edx = 18U,
+        }));
+        const auto played =
+            port.play_level_growth_sample(19U, 20U, 21U, 0x125U, -6);
+
+        test.expect_true(
+            query.eax == 1U && query.publish_transition_actor_index &&
+                query.transition_actor_index == 3U &&
+                formatted.publish_formatted_text &&
+                formatted.formatted_text[0U] == 0x41U &&
+                formatted.formatted_text_length == 1U &&
+                played.eax == 0x87654321U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::level_growth_query_panel
+                ) == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        level_growth_format_integer
+                ) == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::level_growth_draw_text
+                ) == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::level_growth_play_sample
+                ) == 1U,
+            "frame coordinator maps growth query, formatting, drawing and sample playback"
+        );
+    }
+
+    {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         state.conditional_mode = 1U;
         state.conditional_submode = 0U;

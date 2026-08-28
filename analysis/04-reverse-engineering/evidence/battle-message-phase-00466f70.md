@@ -6,7 +6,7 @@
 
 权威LST主体为`0x00466F70..0x004676BC`，从proc到endp共911行、560条带机器码和真实助记符的实际指令、40个静态call、47个跳转、43个局部标签、1个default标签和21个`retn`，没有外部`FUNCTION CHUNK`。唯一静态caller位于已关闭主帧协调器：HUD之后依次调用选择帧、本函数和后一战斗阶段；本工作包回收第二个后置槽并传播typed-stop。
 
-40个callsite由30处未审战斗调用、一次已关闭胜利奖励、一次已关闭升级面板、一次已关闭角色升级属性提交、三处已关闭目标选择进入、一次已关闭玩家道具数量和三处已关闭sample命令组成。胜利奖励、升级面板、角色升级、目标选择与玩家道具数量直接组合；音效复用typed接口；其余21类未审业务callee通过窄端口保留，循环和分支造成的30个静态位置均按原时序执行。
+40个callsite由29处未审战斗调用、一次已关闭胜利奖励、一次已关闭升级面板、一次已关闭角色升级属性提交、一次已关闭角色成长对照面板、三处已关闭目标选择进入、一次已关闭玩家道具数量和三处已关闭sample命令组成。胜利奖励、升级面板、角色升级、成长对照、目标选择与玩家道具数量直接组合；音效复用typed接口；其余20类未审业务callee通过窄端口保留，循环和分支造成的29个静态位置均按原时序执行。
 
 ## 2. 入口双门与switch域
 
@@ -51,7 +51,7 @@
 
 ## 5. 消息110–113
 
-110在transition state为零时按i8 actor构造组A对象，完成查询返回零才以`4,0`分配并保存state；state非零才调用阶段110。已有state时不验证actor byte，保留`0xFF`仍调用阶段的原行为。
+110在transition state为零时按i8 actor构造组A对象，完成查询返回零才以`4,0`分配并保存state；state非零时直连角色成长对照面板。已有state时caller不验证actor byte，保留`0xFF`仍进入面板并由callee立即早退的原行为。成长面板子stop直接传播；caller没有后续写入。旧阶段110槽改为reserved且生产零调用。
 
 111固定以`0,0`调用阶段111，随后按u32递增timer。
 
@@ -63,8 +63,8 @@
 
 message、双方数量、七dword优先记录、输入cache/文字门、目标选择状态、组A显示位置、动作标签、动作workspace、18条记录、50-dword表、sample mix、调试flags/committed、queued/published、显示门和目标就绪门均复用既有唯一owner。新增message state只承接此前没有typed存储的物理链门、mode gate和组B旁路门；消息99的当前道具payload实际是胜利奖励十项payload数组第0项，现复用该唯一owner。全局重置按原写集合清message的后两项、胜利奖励全部payload并保留链门。
 
-主帧协调器在HUD完成并执行第一后置阶段后直连本函数；原第二后置槽保留枚举数值并改为reserved，生产代码零调用。消息100内部依次直连胜利奖励和升级提示面板，旧阶段100槽同样reserved且生产零调用。本函数或胜利奖励typed-stop均阻断第三后置阶段、packed-row、头顶动作、对话和后续全部帧尾流程。
+主帧协调器在HUD完成并执行第一后置阶段后直连本函数；原第二后置槽保留枚举数值并改为reserved，生产代码零调用。消息100内部依次直连胜利奖励和升级提示面板，消息101在缺少actor时直连角色升级属性提交，消息110在transition存在时直连角色成长对照面板；旧阶段100与110槽均reserved且生产零调用。本函数或任一子函数typed-stop均阻断第三后置阶段、packed-row、头顶动作、对话和后续全部帧尾流程。
 
-定向测试覆盖入口双门、switch域、十三项有效消息、组A坐标sign-extension、双方live循环及第九/第十一个对象边界、消息99三种早退和完整道具路径、18条记录与七dword记录、workspace/50-dword表、profile高24位、各组A对象地址乘法的预调用EAX/ECX/EDX、道具typed组合、101/110分配差异、112/113 sample差异、102–104 signed阈值、目标选择子stop、动态调用trace超过40项、全局重置owner与唯一caller正常/stop传播。验证：定向测试、AddressSanitizer、Linux core `188/188`、Linux app `194/194`全部通过。源码构建零warning；app仅有既有ALSA开发库CMake warning。
+定向测试覆盖入口双门、switch域、十三项有效消息、组A坐标sign-extension、双方live循环及第九/第十一个对象边界、消息99三种早退和完整道具路径、18条记录与七dword记录、workspace/50-dword表、profile高24位、各组A对象地址乘法的预调用EAX/ECX/EDX、道具typed组合、101/110分配差异、110成长面板直连/旧槽零调用/子stop传播、112/113 sample差异、102–104 signed阈值、目标选择子stop、动态调用trace超过40项、全局重置owner与唯一caller正常/stop传播。验证：定向测试、AddressSanitizer、Linux core `188/188`、Linux app `194/194`全部通过。源码构建零warning；app仅有既有ALSA开发库CMake warning。
 
-当前缺少原版两组角色对象、21类未审业务callee共享副作用、显示/profile内容、音效与目标选择联合状态、动态链门及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版两组角色对象、20类未审业务callee共享副作用、显示/profile内容、音效与目标选择联合状态、动态链门及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

@@ -5,6 +5,7 @@
 #include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
 #include "openswd3/battle/legacy_battle_group_b_frame.hpp"
 #include "openswd3/battle/legacy_battle_level_advancement.hpp"
+#include "openswd3/battle/legacy_battle_level_growth_panel.hpp"
 #include "openswd3/battle/legacy_battle_level_up_panel.hpp"
 #include "openswd3/battle/legacy_battle_player_item_quantity.hpp"
 #include "openswd3/battle/legacy_battle_selection_frame.hpp"
@@ -70,7 +71,7 @@ enum class LegacyBattleMessagePhaseCall : compat::u8 {
     select_message_101_actor,
     allocate_actor_transition,
     advance_message_101,
-    advance_message_110,
+    reserved_advance_message_110_slot,
     advance_message_111,
     select_message_112_actor,
     advance_message_112,
@@ -128,7 +129,8 @@ struct LegacyBattleMessagePhaseCallReply {
 class LegacyBattleMessagePhasePort
     : public virtual LegacyBattleMessagePhaseStatePort,
       public virtual LegacyBattleVictoryRewardPort,
-      public virtual LegacyBattleLevelAdvancementPort {
+      public virtual LegacyBattleLevelAdvancementPort,
+      public virtual LegacyBattleLevelGrowthPanelPort {
 public:
     ~LegacyBattleMessagePhasePort() override = default;
 
@@ -169,6 +171,7 @@ struct LegacyBattleMessagePhaseRequest {
     LegacyBattleVictoryRewardRequest victory_reward_request{};
     LegacyBattleLevelUpPanelRequest level_up_panel_request{};
     LegacyBattleLevelAdvancementRequest level_advancement_request{};
+    LegacyBattleLevelGrowthPanelRequest level_growth_panel_request{};
 };
 
 enum class LegacyBattleMessagePhaseStatus : compat::u8 {
@@ -184,6 +187,7 @@ enum class LegacyBattleMessagePhaseStatus : compat::u8 {
     victory_rewards_typed_stop,
     level_up_panel_typed_stop,
     level_advancement_typed_stop,
+    level_growth_panel_typed_stop,
     target_selection_entry_typed_stop,
 };
 
@@ -205,11 +209,13 @@ struct LegacyBattleMessagePhaseResult {
     compat::u32 victory_reward_calls{};
     compat::u32 level_up_panel_calls{};
     compat::u32 level_advancement_calls{};
+    compat::u32 level_growth_panel_calls{};
     LegacyBattleTargetSelectionEntryResult target_selection_entry{};
     LegacyBattlePlayerItemQuantityResult player_item_quantity{};
     LegacyBattleVictoryRewardResult victory_rewards{};
     LegacyBattleLevelUpPanelResult level_up_panel{};
     LegacyBattleLevelAdvancementResult level_advancement{};
+    LegacyBattleLevelGrowthPanelResult level_growth_panel{};
     std::vector<LegacyBattleMessagePhaseCall> call_trace;
     compat::u32 call_trace_count{};
 };

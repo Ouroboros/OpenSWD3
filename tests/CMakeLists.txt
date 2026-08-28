@@ -304,6 +304,7 @@ add_executable(
     unit/battle/legacy_battle_frame_input_resolution_test.cpp
     unit/battle/legacy_battle_list_frame_test.cpp
     unit/battle/legacy_battle_level_advancement_test.cpp
+    unit/battle/legacy_battle_level_growth_panel_test.cpp
     unit/battle/legacy_battle_level_up_panel_test.cpp
     unit/battle/legacy_battle_list_contents_test.cpp
     unit/battle/legacy_battle_menu_context_advance_test.cpp
