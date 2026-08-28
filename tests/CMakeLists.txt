@@ -276,6 +276,7 @@ add_executable(
     unit/battle/legacy_battle_background_initialization_test.cpp
     unit/battle/legacy_battle_color_accumulation_test.cpp
     unit/battle/legacy_battle_context_prompt_test.cpp
+    unit/battle/legacy_battle_control_panel_frame_test.cpp
     unit/battle/legacy_battle_debug_hotkeys_test.cpp
     unit/battle/legacy_battle_debug_overlay_test.cpp
     unit/battle/legacy_battle_definition_archive_test.cpp

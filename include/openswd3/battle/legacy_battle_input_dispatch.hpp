@@ -49,22 +49,23 @@ struct LegacyBattleInputDispatchState {
     compat::u32 choice_selection_index{};
     compat::u32 final_value_a{};
     compat::u32 final_value_b{};
-    compat::u16 selected_group_b_index{0xFFFFU};       // 0x004A762C
-    compat::u16 selected_group_a_index{0xFFFFU};       // 0x004A762E
-    compat::u16 target_transition_word{};              // 0x0053BDEA
-    compat::u32 fallback_action_kind{};                // 0x0053BCF0
-    compat::u32 selected_actor_cleanup_gate{};         // 0x0053C018
-    compat::u32 selection_runtime_gate{};              // 0x0053BFB0
-    compat::u32 selection_cache_gate_a{};              // 0x0053BFC0
-    compat::u32 selection_cache_gate_b{};              // 0x0053BFC4
-    compat::u32 selection_cache_gate_c{};              // 0x0053BFC8
-    compat::u32 selection_animation_frame_a{};         // 0x0053BD90
-    compat::u32 selection_animation_frame_b{};         // 0x0053BD94
-    compat::u32 selection_animation_phase{};           // 0x0053BD98
-    compat::u32 selection_mode_cache{};                // 0x0053BF94
-    compat::u32 selection_target_cache{};              // 0x0053BFF0
-    compat::u32 selected_actor_reset_gate{};           // 0x0053C02C
-    std::array<compat::u32, 5> selection_workspace{};  // 0x0053C184
+    compat::u16 selected_group_b_index{0xFFFFU};            // 0x004A762C
+    compat::u16 selected_group_a_index{0xFFFFU};            // 0x004A762E
+    compat::u16 target_transition_word{};                   // 0x0053BDEA
+    compat::u32 fallback_action_kind{};                     // 0x0053BCF0
+    compat::u32 selected_actor_cleanup_gate{};              // 0x0053C018
+    compat::u32 selection_runtime_gate{};                   // 0x0053BFB0
+    compat::u32 selection_cache_gate_a{};                   // 0x0053BFC0
+    compat::u32 selection_cache_gate_b{};                   // 0x0053BFC4
+    compat::u32 selection_cache_gate_c{};                   // 0x0053BFC8
+    compat::u32 selection_animation_frame_a{};              // 0x0053BD90
+    compat::u32 selection_animation_frame_b{};              // 0x0053BD94
+    compat::u32 selection_animation_phase{};                // 0x0053BD98
+    compat::u32 selection_mode_cache{};                     // 0x0053BF94
+    compat::u32 selection_target_cache{};                   // 0x0053BFF0
+    compat::u32 selected_actor_reset_gate{};                // 0x0053C02C
+    std::array<compat::u32, 6> selection_text_workspace{};  // 0x0053C16C
+    std::array<compat::u32, 5> selection_workspace{};       // 0x0053C184
     compat::i32 sample_mix_level{};
 };
 

@@ -131,7 +131,7 @@ public:
             eax_ = bindings_.frame_input.panel_origin_x;
             edx_ += 8U;
             eax_ += 12U;
-            invoke(Call::draw_message_seven, 0U, {eax_, edx_, ecx_});
+            static_cast<void>(draw_control_panel_frame(eax_, edx_, ecx_));
             break;
         case 8U:
             draw_message_eight();
@@ -773,6 +773,51 @@ private:
         if (result_.alternate_grid_frame.status !=
             LegacyBattleAlternateGridFrameStatus::completed) {
             typed_stop(Status::alternate_grid_frame_typed_stop);
+            return false;
+        }
+        return true;
+    }
+
+    [[nodiscard]] bool draw_control_panel_frame(
+        const u32 origin_x, const u32 origin_y, const u32 selected_index
+    ) {
+        auto control_request = request_.control_panel_frame;
+        control_request.origin_x = origin_x;
+        control_request.origin_y = origin_y;
+        control_request.selected_index = selected_index;
+        control_request.entry_eax = eax_;
+        control_request.entry_ecx = ecx_;
+        control_request.entry_edx = edx_;
+        result_.control_panel_frame = draw_legacy_battle_control_panel_frame(
+            {
+                .state = state_.control_panel_frame,
+                .shared_color_fade = state_.selection_hint_frame.color_fade,
+                .alternate_selection_limit =
+                    bindings_.frame_input.alternate_selection_limit,
+                .selected_group_b_index =
+                    bindings_.input_dispatch.selected_group_b_index,
+                .transition_value_a = bindings_.frame_input.transition_value_a,
+                .transition_value_b = bindings_.frame_input.transition_value_b,
+                .selection_text_workspace =
+                    bindings_.input_dispatch.selection_text_workspace,
+                .framebuffer = bindings_.framebuffer,
+                .clip = bindings_.clip,
+                .shared_request = bindings_.shared_request,
+                .shared_effects = bindings_.shared_effects,
+                .jitter = bindings_.jitter,
+                .frame_provider = bindings_.frame_provider,
+            },
+            port_,
+            control_request
+        );
+        ++result_.control_panel_frame_calls;
+        result_.port_calls += result_.control_panel_frame.port_calls;
+        eax_ = result_.control_panel_frame.return_eax;
+        ecx_ = result_.control_panel_frame.return_ecx;
+        edx_ = result_.control_panel_frame.return_edx;
+        if (result_.control_panel_frame.status !=
+            LegacyBattleControlPanelFrameStatus::completed) {
+            typed_stop(Status::control_panel_frame_typed_stop);
             return false;
         }
         return true;

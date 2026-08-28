@@ -108,7 +108,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     reserved_selection_frame_draw_grid_alternate_slot,
     reserved_selection_frame_draw_grid_mode_slot,
     reserved_selection_frame_draw_message_five_slot,
-    selection_frame_draw_message_seven,
+    reserved_selection_frame_draw_message_seven_slot,
     selection_frame_configure_text_font,
     selection_frame_query_group_b_completion,
     selection_frame_query_group_a_completion,
@@ -147,6 +147,11 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     selection_hint_query_metric_pair,
     selection_hint_query_fade_width,
     selection_hint_query_fade_color,
+    control_panel_configure_font_reset,
+    control_panel_configure_font_style,
+    control_panel_draw_text,
+    control_panel_query_primary_option,
+    control_panel_query_special_option,
 };
 
 struct LegacyBattleFrameCoordinatorCallRequest {
@@ -164,6 +169,9 @@ struct LegacyBattleFrameCoordinatorCallRequest {
     compat::u32 grid_text_token{};
     std::array<compat::u8, 20> grid_text_bytes{};
     compat::u32 grid_text_length{};
+    compat::u32 control_text_token{};
+    std::array<compat::u8, 24> control_text_bytes{};
+    compat::u32 control_text_length{};
 };
 
 struct LegacyBattleFrameCoordinatorCallReply {
@@ -207,6 +215,10 @@ struct LegacyBattleFrameCoordinatorCallReply {
     bool publish_selection_hint_metric_pair{};
     compat::u32 selection_hint_metric_current{};
     compat::u32 selection_hint_metric_limit{};
+    bool publish_control_text{};
+    std::array<compat::u8, 24> control_text{};
+    bool publish_control_primary_value{};
+    compat::u32 control_primary_value{};
     LegacyBattleFrameInputSurface actor_surface{};
 };
 
@@ -310,9 +322,9 @@ public:
             call = LegacyBattleFrameCoordinatorCall::
                 reserved_selection_frame_draw_message_five_slot;
             break;
-        case LegacyBattleSelectionFrameCall::draw_message_seven:
+        case LegacyBattleSelectionFrameCall::reserved_draw_message_seven_slot:
             call = LegacyBattleFrameCoordinatorCall::
-                selection_frame_draw_message_seven;
+                reserved_selection_frame_draw_message_seven_slot;
             break;
         case LegacyBattleSelectionFrameCall::configure_text_font:
             call = LegacyBattleFrameCoordinatorCall::
@@ -630,6 +642,53 @@ public:
             .publish_metric_pair = reply.publish_selection_hint_metric_pair,
             .metric_current = reply.selection_hint_metric_current,
             .metric_limit = reply.selection_hint_metric_limit,
+        };
+    }
+    [[nodiscard]] LegacyBattleControlPanelFrameCallReply
+    invoke_control_panel_frame(
+        const LegacyBattleControlPanelFrameCallRequest& request
+    ) override {
+        LegacyBattleFrameCoordinatorCall call =
+            LegacyBattleFrameCoordinatorCall::
+                control_panel_configure_font_reset;
+        switch (request.call) {
+        case LegacyBattleControlPanelFrameCall::configure_font_reset:
+            break;
+        case LegacyBattleControlPanelFrameCall::configure_font_style:
+            call = LegacyBattleFrameCoordinatorCall::
+                control_panel_configure_font_style;
+            break;
+        case LegacyBattleControlPanelFrameCall::draw_text:
+            call = LegacyBattleFrameCoordinatorCall::control_panel_draw_text;
+            break;
+        case LegacyBattleControlPanelFrameCall::query_primary_option:
+            call = LegacyBattleFrameCoordinatorCall::
+                control_panel_query_primary_option;
+            break;
+        case LegacyBattleControlPanelFrameCall::query_special_option:
+            call = LegacyBattleFrameCoordinatorCall::
+                control_panel_query_special_option;
+            break;
+        }
+        const auto reply = invoke({
+            .call = call,
+            .object_token = request.object_token,
+            .arguments = request.arguments,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+            .control_text_token = request.text_token,
+            .control_text_bytes = request.text_bytes,
+            .control_text_length = request.text_length,
+        });
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .publish_text = reply.publish_control_text,
+            .text = reply.control_text,
+            .publish_primary_value = reply.publish_control_primary_value,
+            .primary_value = reply.control_primary_value,
         };
     }
     [[nodiscard]] LegacyBattleActorTargetPreparationCallReply

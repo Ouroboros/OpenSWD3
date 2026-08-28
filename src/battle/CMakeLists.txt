@@ -36,6 +36,7 @@ add_library(
         legacy_battle_color_accumulation.cpp
         legacy_battle_color_fade.cpp
         legacy_battle_context_prompt.cpp
+        legacy_battle_control_panel_frame.cpp
         legacy_battle_debug_hotkeys.cpp
         legacy_battle_debug_overlay.cpp
         legacy_battle_definition_archive.cpp

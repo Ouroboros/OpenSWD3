@@ -14,6 +14,9 @@ namespace {
 using openswd3::battle::LegacyBattleActionSummaryCall;
 using openswd3::battle::LegacyBattleActionSummaryCallReply;
 using openswd3::battle::LegacyBattleActionSummaryCallRequest;
+using openswd3::battle::LegacyBattleControlPanelFrameCall;
+using openswd3::battle::LegacyBattleControlPanelFrameCallReply;
+using openswd3::battle::LegacyBattleControlPanelFrameCallRequest;
 using openswd3::battle::LegacyBattleListContentsCall;
 using openswd3::battle::LegacyBattleListContentsCallReply;
 using openswd3::battle::LegacyBattleListContentsCallRequest;
@@ -96,6 +99,20 @@ public:
         return found->second[index++];
     }
 
+    [[nodiscard]] LegacyBattleControlPanelFrameCallReply
+    invoke_control_panel_frame(
+        const LegacyBattleControlPanelFrameCallRequest& request
+    ) override {
+        control_panel_calls.push_back(request);
+        auto& index = control_panel_reply_indices[request.call];
+        const auto found = control_panel_replies.find(request.call);
+        if (found == control_panel_replies.end() ||
+            index >= found->second.size()) {
+            return control_panel_default_reply;
+        }
+        return found->second[index++];
+    }
+
     [[nodiscard]] LegacyBattleSelectionHintFrameCallReply
     invoke_selection_hint_frame(
         const LegacyBattleSelectionHintFrameCallRequest& request
@@ -135,6 +152,7 @@ public:
     std::vector<LegacyBattleListContentsCallRequest> list_contents_calls;
     std::vector<LegacyBattleGridFrameCallRequest> grid_frame_calls;
     std::vector<LegacyBattleSelectionHintFrameCallRequest> selection_hint_calls;
+    std::vector<LegacyBattleControlPanelFrameCallRequest> control_panel_calls;
     std::vector<openswd3::battle::LegacyBattleActorTargetPreparationCallRequest>
         target_calls;
     std::map<
@@ -169,6 +187,13 @@ public:
     std::map<LegacyBattleSelectionHintFrameCall, std::size_t>
         selection_hint_reply_indices;
     LegacyBattleSelectionHintFrameCallReply selection_hint_default_reply{};
+    std::map<
+        LegacyBattleControlPanelFrameCall,
+        std::vector<LegacyBattleControlPanelFrameCallReply>>
+        control_panel_replies;
+    std::map<LegacyBattleControlPanelFrameCall, std::size_t>
+        control_panel_reply_indices;
+    LegacyBattleControlPanelFrameCallReply control_panel_default_reply{};
     std::function<void()> grid_on_query;
     LegacyBattleListFrameCallReply list_frame_default_reply{};
     LegacyBattleListContentsCallReply list_contents_default_reply{
@@ -1132,6 +1157,7 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
         seven.frame.panel_origin_x = 100U;
         seven.frame.panel_origin_y = 50U;
         seven.frame.alternate_selection = 2U;
+        seven.input.selected_group_b_index = 0U;
         const auto seven_result =
             openswd3::battle::draw_legacy_battle_selection_frame(
                 seven.bindings(), seven.port
@@ -1175,11 +1201,19 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                 seven_result.status ==
                     openswd3::battle::LegacyBattleSelectionFrameStatus::
                         completed &&
-                seven.port.calls.back().call ==
-                    LegacyBattleSelectionFrameCall::draw_message_seven &&
-                seven.port.calls.back().arguments[0U] == 112U &&
-                seven.port.calls.back().arguments[1U] == 58U &&
-                seven.port.calls.back().arguments[2U] == 2U &&
+                seven_result.control_panel_frame_calls == 1U &&
+                seven_result.control_panel_frame.status ==
+                    openswd3::battle::LegacyBattleControlPanelFrameStatus::
+                        completed &&
+                seven_result.control_panel_frame.border_calls == 2U &&
+                seven_result.control_panel_frame.rows[0U].x == 112U &&
+                seven_result.control_panel_frame.rows[0U].y == 58U &&
+                seven_result.control_panel_frame.release_selected_index == 2U &&
+                count_call(
+                    seven.port,
+                    LegacyBattleSelectionFrameCall::
+                        reserved_draw_message_seven_slot
+                ) == 0U &&
                 eight_result.status ==
                     openswd3::battle::LegacyBattleSelectionFrameStatus::
                         completed &&
@@ -1196,7 +1230,7 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                     LegacyBattleSelectionFrameCall::
                         reserved_draw_narrow_frame_slot
                 ) == 0U,
-            "messages five and eight directly draw typed panels while message seven preserves fixed arguments"
+            "messages five, seven and eight directly draw their typed panels"
         );
     }
 
@@ -1223,6 +1257,32 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                         reserved_draw_message_five_slot
                 ) == 0U,
             "message five propagates the guard panel prefix stop without using its reserved slot"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.message = 7U;
+        fixture.frame_provider.fail = true;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        control_panel_frame_typed_stop &&
+                result.control_panel_frame_calls == 1U &&
+                result.control_panel_frame.status ==
+                    openswd3::battle::LegacyBattleControlPanelFrameStatus::
+                        title_border_typed_stop &&
+                count_call(
+                    fixture.port,
+                    LegacyBattleSelectionFrameCall::
+                        reserved_draw_message_seven_slot
+                ) == 0U,
+            "message seven propagates the control panel prefix stop without using its reserved slot"
         );
     }
 
