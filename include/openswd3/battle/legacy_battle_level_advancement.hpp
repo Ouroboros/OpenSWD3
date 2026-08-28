@@ -27,6 +27,7 @@ struct LegacyBattleLevelAdvancementState {
     world_map::LegacyWorldStoryPartyMemberResources profile_copy_scratch{};
     std::array<compat::u16, 3U> growth_delta_primary{};    // 0x005214A4
     std::array<compat::u16, 6U> growth_delta_secondary{};  // 0x0052545C
+    std::array<compat::u8, 24U> growth_caption_text{};     // 0x0053C154
     compat::u32 completion_gate{};                         // 0x0053C4C8
 };
 

@@ -220,6 +220,7 @@ void seed_state(
     final_actor.excluded_group_a_count = 0xCCDDU;
     final_actor.actor_runtime_records[0][0] = 9U;
     port.battle_message_state() = 9U;
+    port.battle_level_advancement_state().growth_caption_text.fill(0xCCU);
     action.phase_counter = 0x11223344U;
     action.packed_actor_counter = 0xAABBCCDDU;
     action.message_gate = 0x80000001U;
@@ -607,6 +608,10 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 actor_frames.shared.action_block_gate == 0U &&
                 actor_frames.shared.action.action_pending_aux == 0U &&
                 port.battle_message_state() == 0U &&
+                std::ranges::all_of(
+                    port.battle_level_advancement_state().growth_caption_text,
+                    [](const u8 value) { return value == 0U; }
+                ) &&
                 std::ranges::all_of(
                     workspace.first(10U),
                     [](const u32 value) { return value == 0U; }

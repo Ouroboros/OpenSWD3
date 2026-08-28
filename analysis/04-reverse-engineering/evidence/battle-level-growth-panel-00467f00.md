@@ -62,7 +62,7 @@ actor存在时复用胜利结算唯一动作记录，只写动作`0x233B`和vari
 
 ## 7. owner、caller回收与验证
 
-动作记录、actor、标签、transition stage、成长阶段、sample mix、四项角色资源和完整56-byte快照均复用既有typed owner。三项primary与六项secondary成长差值加入角色升级状态，分别承接原非连续物理区域，不复制快照或角色记录。全局重置没有这些地址的原写集合，本工作包不新增伪清零。
+动作记录、actor、标签、transition stage、成长阶段、sample mix、四项角色资源和完整56-byte快照均复用既有typed owner。三项primary与六项secondary成长差值加入角色升级状态，分别承接原非连续物理区域；后续成长标题框的24-byte共享标题也复用该逻辑owner，但与相邻输入文字工作区保持独立数组。不复制快照或角色记录。成长差值不在全局重置的原写集合中，本工作包不新增伪清零；共享标题则由后续工作包按全局重置末尾原六dword写同步清零。
 
 消息110在既有transition状态非零时现直连本实现；旧`advance_message_110`枚举槽改为reserved并保持生产零调用。本函数typed-stop由消息阶段原样传播，caller没有任何后续副作用可执行。
 

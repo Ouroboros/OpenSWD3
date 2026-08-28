@@ -54,7 +54,7 @@ sample播放返回后只以当前actor索引替换AL，保留EAX高24位；索�
 
 ## 7. owner、caller回收与验证
 
-组A数量、双跳过字段、阈值、动作标签、过渡actor/mode、sample mix和四项角色资源均复用既有owner。level state承接两份56-byte模板、一份56-byte角色快照和此前未命名的完成门；后续成长对照面板又在同一逻辑owner中承接非连续的三项primary与六项secondary成长差值。完成门和成长差值都不在战斗全局重置的原写集合内，不新增伪清零。
+组A数量、双跳过字段、阈值、动作标签、过渡actor/mode、sample mix和四项角色资源均复用既有owner。level state承接两份56-byte模板、一份56-byte角色快照和此前未命名的完成门；后续成长对照面板又在同一逻辑owner中承接非连续的三项primary与六项secondary成长差值，成长标题框再承接独立24-byte共享标题。完成门和成长差值都不在战斗全局重置的原写集合内，不新增伪清零。
 
 消息101现于actor为`0xFF`时先直连本实现；本函数成功发布actor后直接回到原完成查询/转场，仍无actor才调用旧选角边界。本函数typed-stop阻断选角、完成查询、transition分配、message和timer写入。
 

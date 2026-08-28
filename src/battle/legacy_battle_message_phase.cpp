@@ -80,12 +80,7 @@ public:
         case 0x6EU:
             return message_110();
         case 0x6FU:
-            call(
-                LegacyBattleMessagePhaseCall::advance_message_111, 0U, {0U, 0U}
-            );
-            eax_ = bindings_.target_selection.transition_timer + 1U;
-            bindings_.target_selection.transition_timer = eax_;
-            return finish();
+            return message_111();
         case 0x70U:
             return message_112();
         case 0x71U:
@@ -646,6 +641,35 @@ private:
             return transition_to(0x70U);
         }
         call(LegacyBattleMessagePhaseCall::advance_message_101, 0U, {0U, 0U});
+        eax_ = bindings_.target_selection.transition_timer + 1U;
+        bindings_.target_selection.transition_timer = eax_;
+        return finish();
+    }
+
+    [[nodiscard]] LegacyBattleMessagePhaseResult message_111() {
+        auto caption_request = request_.growth_caption_request;
+        caption_request.entry_eax = eax_;
+        caption_request.entry_ecx = ecx_;
+        caption_request.entry_edx = edx_;
+        result_.growth_caption = advance_legacy_battle_growth_caption(
+            {
+                .advancement = port_.battle_level_advancement_state(),
+                .victory = bindings_.victory_rewards,
+            },
+            port_,
+            caption_request
+        );
+        ++result_.growth_caption_calls;
+        result_.port_calls += result_.growth_caption.port_calls;
+        eax_ = result_.growth_caption.return_eax;
+        ecx_ = result_.growth_caption.return_ecx;
+        edx_ = result_.growth_caption.return_edx;
+        if (result_.growth_caption.status !=
+            LegacyBattleGrowthCaptionStatus::completed) {
+            result_.status =
+                LegacyBattleMessagePhaseStatus::growth_caption_typed_stop;
+            return finish();
+        }
         eax_ = bindings_.target_selection.transition_timer + 1U;
         bindings_.target_selection.transition_timer = eax_;
         return finish();

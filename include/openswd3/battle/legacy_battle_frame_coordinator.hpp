@@ -185,11 +185,15 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     level_growth_format_integer,
     level_growth_draw_text,
     level_growth_play_sample,
+    growth_caption_format_name,
+    growth_caption_query_panel,
+    growth_caption_draw_text,
+    growth_caption_format_detail,
     message_phase_select_message_101_actor,
     message_phase_allocate_actor_transition,
     message_phase_advance_message_101,
     reserved_message_phase_advance_message_110_slot,
-    message_phase_advance_message_111,
+    reserved_message_phase_advance_message_111_slot,
     message_phase_select_message_112_actor,
     message_phase_advance_message_112,
     message_phase_select_message_113_actor,
@@ -220,6 +224,8 @@ struct LegacyBattleFrameCoordinatorCallRequest {
     compat::u32 victory_text_length{};
     std::array<compat::u8, 64> growth_text_bytes{};
     compat::u32 growth_text_length{};
+    std::array<compat::u8, 64> caption_text_bytes{};
+    compat::u32 caption_text_length{};
 };
 
 struct LegacyBattleFrameCoordinatorCallReply {
@@ -312,6 +318,13 @@ struct LegacyBattleFrameCoordinatorCallReply {
     bool publish_growth_formatted_text{};
     std::array<compat::u8, 64> growth_formatted_text{};
     compat::u32 growth_formatted_text_length{};
+    bool publish_caption_transition_actor_index{};
+    compat::u8 caption_transition_actor_index{};
+    bool publish_caption_transition_stage{};
+    compat::u32 caption_transition_stage{};
+    bool publish_caption_formatted_text{};
+    std::array<compat::u8, 64> caption_formatted_text{};
+    compat::u32 caption_formatted_text_length{};
     LegacyBattleFrameInputSurface actor_surface{};
 };
 
@@ -858,9 +871,9 @@ public:
             call = LegacyBattleFrameCoordinatorCall::
                 reserved_message_phase_advance_message_110_slot;
             break;
-        case LegacyBattleMessagePhaseCall::advance_message_111:
+        case LegacyBattleMessagePhaseCall::reserved_advance_message_111_slot:
             call = LegacyBattleFrameCoordinatorCall::
-                message_phase_advance_message_111;
+                reserved_message_phase_advance_message_111_slot;
             break;
         case LegacyBattleMessagePhaseCall::select_message_112_actor:
             call = LegacyBattleFrameCoordinatorCall::
@@ -1182,6 +1195,62 @@ public:
             .edx = edx,
         });
         return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
+    }
+    [[nodiscard]] LegacyBattleGrowthCaptionCallReply invoke_growth_caption(
+        const LegacyBattleGrowthCaptionCallRequest& request
+    ) override {
+        LegacyBattleFrameCoordinatorCall call =
+            LegacyBattleFrameCoordinatorCall::growth_caption_format_name;
+        switch (request.call) {
+        case LegacyBattleGrowthCaptionCall::format_name:
+            break;
+        case LegacyBattleGrowthCaptionCall::query_panel:
+            call = LegacyBattleFrameCoordinatorCall::growth_caption_query_panel;
+            break;
+        case LegacyBattleGrowthCaptionCall::draw_text:
+            call = LegacyBattleFrameCoordinatorCall::growth_caption_draw_text;
+            break;
+        case LegacyBattleGrowthCaptionCall::format_detail:
+            call =
+                LegacyBattleFrameCoordinatorCall::growth_caption_format_detail;
+            break;
+        }
+        std::array<compat::u32, 8> arguments{};
+        for (std::size_t index = 0U; index < request.arguments.size();
+             ++index) {
+            arguments[index] = request.arguments[index];
+        }
+        const auto reply = invoke({
+            .call = call,
+            .arguments = arguments,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+            .caption_text_bytes = request.text,
+            .caption_text_length = request.text_length,
+        });
+        const bool is_format =
+            request.call == LegacyBattleGrowthCaptionCall::format_name ||
+            request.call == LegacyBattleGrowthCaptionCall::format_detail;
+        const bool fallback_format =
+            is_format && !reply.publish_caption_formatted_text;
+        return {
+            .eax = fallback_format ? request.text_length : reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .publish_transition_actor_index =
+                reply.publish_caption_transition_actor_index,
+            .transition_actor_index = reply.caption_transition_actor_index,
+            .publish_transition_stage = reply.publish_caption_transition_stage,
+            .transition_stage = reply.caption_transition_stage,
+            .publish_formatted_text =
+                reply.publish_caption_formatted_text || fallback_format,
+            .formatted_text =
+                fallback_format ? request.text : reply.caption_formatted_text,
+            .formatted_text_length = fallback_format
+                ? request.text_length
+                : reply.caption_formatted_text_length,
+        };
     }
     [[nodiscard]] LegacyBattleActorTargetPreparationCallReply
     invoke_actor_target_preparation(

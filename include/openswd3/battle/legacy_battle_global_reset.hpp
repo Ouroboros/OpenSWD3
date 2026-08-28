@@ -50,6 +50,7 @@ class LegacyBattleGlobalResetRuntimePort
       public virtual LegacyBattleSelectionFrameStatePort,
       public virtual LegacyBattleMessagePhaseStatePort,
       public virtual LegacyBattleVictoryRewardStatePort,
+      public virtual LegacyBattleLevelAdvancementStatePort,
       public LegacyBattleActionRotationReleasePort,
       public LegacyBattleRenderAuxiliaryBufferReleaser {
 public:

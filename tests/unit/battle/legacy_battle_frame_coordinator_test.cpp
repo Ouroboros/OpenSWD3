@@ -1156,6 +1156,89 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     }
 
     {
+        CoordinatorPort port;
+        configure_common_port(port);
+        port.replies
+            [LegacyBattleFrameCoordinatorCall::growth_caption_format_name]
+                .publish_caption_formatted_text = true;
+        port.replies
+            [LegacyBattleFrameCoordinatorCall::growth_caption_format_name]
+                .caption_formatted_text[0U] = 0x41U;
+        port.replies
+            [LegacyBattleFrameCoordinatorCall::growth_caption_format_name]
+                .caption_formatted_text_length = 1U;
+        port.replies
+            [LegacyBattleFrameCoordinatorCall::growth_caption_query_panel]
+                .eax = 1U;
+        port.replies
+            [LegacyBattleFrameCoordinatorCall::growth_caption_query_panel]
+                .publish_caption_transition_stage = true;
+        port.replies
+            [LegacyBattleFrameCoordinatorCall::growth_caption_query_panel]
+                .caption_transition_stage = 9U;
+
+        const auto name = port.invoke_growth_caption({
+            .call =
+                openswd3::battle::LegacyBattleGrowthCaptionCall::format_name,
+            .arguments = {1U, 2U, 3U},
+            .eax = 4U,
+            .ecx = 5U,
+            .edx = 6U,
+            .text = {0x31U},
+            .text_length = 1U,
+        });
+        const auto query = port.invoke_growth_caption({
+            .call =
+                openswd3::battle::LegacyBattleGrowthCaptionCall::query_panel,
+            .arguments = {7U, 8U, 9U},
+            .eax = 10U,
+            .ecx = 11U,
+            .edx = 12U,
+        });
+        static_cast<void>(port.invoke_growth_caption({
+            .call = openswd3::battle::LegacyBattleGrowthCaptionCall::draw_text,
+            .arguments = {13U, 14U, 15U},
+            .eax = 16U,
+            .ecx = 17U,
+            .edx = 18U,
+        }));
+        const auto detail = port.invoke_growth_caption({
+            .call =
+                openswd3::battle::LegacyBattleGrowthCaptionCall::format_detail,
+            .arguments = {19U, 20U, 21U},
+            .eax = 22U,
+            .ecx = 23U,
+            .edx = 24U,
+            .text = {0x5BU, 0x5DU},
+            .text_length = 2U,
+        });
+
+        test.expect_true(
+            name.publish_formatted_text && name.formatted_text[0U] == 0x41U &&
+                name.formatted_text_length == 1U && query.eax == 1U &&
+                query.publish_transition_stage &&
+                query.transition_stage == 9U && detail.publish_formatted_text &&
+                detail.formatted_text_length == 2U &&
+                detail.formatted_text[0U] == 0x5BU &&
+                detail.formatted_text[1U] == 0x5DU &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::growth_caption_format_name
+                ) == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::growth_caption_query_panel
+                ) == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::growth_caption_draw_text
+                ) == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        growth_caption_format_detail
+                ) == 1U,
+            "frame coordinator maps caption name, query, drawing and bracket formatting"
+        );
+    }
+
+    {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         state.conditional_mode = 1U;
         state.conditional_submode = 0U;

@@ -672,6 +672,7 @@ LegacyBattleGlobalResetResult reset_legacy_battle_globals(
     for (u32 index = 232U; index < kResetWrites.size(); ++index) {
         apply_write(state, kResetWrites[index], result);
     }
+    port.battle_level_advancement_state().growth_caption_text.fill(0U);
     result.return_value = 0U;
     return result;
 }

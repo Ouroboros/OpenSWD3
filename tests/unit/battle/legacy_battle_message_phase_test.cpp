@@ -167,6 +167,23 @@ public:
         return {.eax = eax, .ecx = ecx, .edx = edx};
     }
 
+    [[nodiscard]] openswd3::battle::LegacyBattleGrowthCaptionCallReply
+    invoke_growth_caption(
+        const openswd3::battle::LegacyBattleGrowthCaptionCallRequest& request
+    ) override {
+        caption_calls.push_back(request);
+        if (request.call ==
+            openswd3::battle::LegacyBattleGrowthCaptionCall::query_panel) {
+            return {
+                .eax = caption_query_eax,
+                .ecx = request.ecx,
+                .edx = request.edx,
+            };
+        }
+        return openswd3::battle::LegacyBattleGrowthCaptionPort::
+            invoke_growth_caption(request);
+    }
+
     void reply(
         const LegacyBattleMessagePhaseCall call,
         const LegacyBattleMessagePhaseCallReply& reply
@@ -199,7 +216,10 @@ public:
     std::vector<openswd3::battle::LegacyBattleLevelGrowthPanelCallRequest>
         growth_calls;
     std::vector<std::array<u32, 2>> growth_sample_calls;
+    std::vector<openswd3::battle::LegacyBattleGrowthCaptionCallRequest>
+        caption_calls;
     u32 growth_query_eax{};
+    u32 caption_query_eax{};
 };
 
 struct Fixture {
@@ -823,10 +843,46 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         test.expect_true(
             wrapped.return_eax == 0U &&
                 message_111.target_selection.transition_timer == 0U &&
+                wrapped.growth_caption_calls == 1U &&
                 message_111.port.count(
-                    LegacyBattleMessagePhaseCall::advance_message_111
-                ) == 1U,
-            "message 111 advances its frame then wraps the full timer dword"
+                    LegacyBattleMessagePhaseCall::
+                        reserved_advance_message_111_slot
+                ) == 0U,
+            "message 111 directly runs the gated caption then wraps the full timer dword"
+        );
+
+        Fixture caption;
+        caption.message = 0x6FU;
+        caption.target_selection.transition_mode = 1U;
+        caption.target_selection.transition_actor_index = 0U;
+        caption.startup.action_mode_source.actor_label_indices[0U] = 0U;
+        caption.port.battle_level_advancement_state().growth_caption_text = {
+            0x41U, 0U
+        };
+        caption.port.caption_query_eax = 1U;
+        const auto caption_result = run(caption);
+        test.expect_true(
+            caption_result.status ==
+                    openswd3::battle::LegacyBattleMessagePhaseStatus::
+                        completed &&
+                caption_result.growth_caption_calls == 1U &&
+                caption_result.growth_caption.text_draw_calls == 2U &&
+                caption.target_selection.transition_timer == 1U,
+            "message 111 draws the typed growth caption before incrementing its timer"
+        );
+
+        Fixture invalid_caption;
+        invalid_caption.message = 0x6FU;
+        invalid_caption.target_selection.transition_mode = 1U;
+        invalid_caption.target_selection.transition_actor_index = 0xFFU;
+        invalid_caption.target_selection.transition_timer = 7U;
+        const auto invalid_caption_result = run(invalid_caption);
+        test.expect_true(
+            invalid_caption_result.status ==
+                    openswd3::battle::LegacyBattleMessagePhaseStatus::
+                        growth_caption_typed_stop &&
+                invalid_caption.target_selection.transition_timer == 7U,
+            "message 111 propagates the caption actor stop before its timer increment"
         );
     }
 
