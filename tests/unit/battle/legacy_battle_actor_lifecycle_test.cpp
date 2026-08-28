@@ -2,6 +2,7 @@
 #include "openswd3/battle/legacy_battle_file_lifecycle.hpp"
 #include "openswd3/battle/legacy_battle_render_geometry.hpp"
 
+#include <algorithm>
 #include <vector>
 
 #include "test.hpp"
@@ -9,6 +10,31 @@
 namespace {
 
 using openswd3::compat::u32;
+
+class TrackingGroupAElementPort final
+    : public openswd3::battle::LegacyBattleActorGroupAElementConstructionPort {
+public:
+    [[nodiscard]] openswd3::battle::LegacyBattleActorGroupAElementCallReply
+    construct_base(const u32 object_token) override {
+        events.push_back(1U);
+        base_object_token = object_token;
+        return base_reply;
+    }
+
+    [[nodiscard]] openswd3::battle::LegacyBattleActorGroupAElementCallReply
+    allocate(const u32 size) override {
+        events.push_back(2U);
+        allocation_size = size;
+        return allocation_reply;
+    }
+
+    openswd3::battle::LegacyBattleActorGroupAElementCallReply base_reply{};
+    openswd3::battle::LegacyBattleActorGroupAElementCallReply
+        allocation_reply{};
+    u32 base_object_token{};
+    u32 allocation_size{};
+    std::vector<u32> events;
+};
 
 class TrackingGroupALifecyclePort final
     : public openswd3::battle::LegacyBattleActorVectorConstructionPort,
@@ -222,6 +248,78 @@ public:
 }  // namespace
 
 void test_battle_actor_lifecycle(openswd3::test::Context& test) {
+    {
+        openswd3::battle::LegacyBattleActorGroupAElementState state{
+            .object_token = 0x005029D0U,
+            .field_2f18 = 0x1111U,
+            .field_2f26 = 0x2222U,
+        };
+        state.description_bytes.fill(0xA5U);
+        TrackingGroupAElementPort port;
+        port.base_reply = {.eax = 0x10U, .ecx = 0x20U, .edx = 0x30U};
+        port.allocation_reply = {
+            .eax = 0x70000000U,
+            .ecx = 0x55667788U,
+            .edx = 0x99AABBCCU,
+        };
+        const auto result =
+            openswd3::battle::construct_legacy_battle_actor_group_a_element(
+                state, port
+            );
+        test.expect_true(
+            port.events == std::vector<u32>{1U, 2U} &&
+                port.base_object_token == state.object_token &&
+                port.allocation_size == 0x38U && state.field_2f18 == 0U &&
+                state.field_2f26 == 0U &&
+                state.description_token == 0x70000000U &&
+                std::ranges::all_of(
+                    state.description_bytes,
+                    [](const auto value) { return value == 0U; }
+                ) &&
+                result.status ==
+                    openswd3::battle::
+                        LegacyBattleActorGroupAElementConstructionStatus::
+                            completed &&
+                result.base_constructor_calls == 1U &&
+                result.allocation_calls == 1U &&
+                result.description_bytes_written == 0x38U &&
+                result.return_eax == state.object_token &&
+                result.return_ecx == 0U && result.return_edx == 0x99AABBCCU,
+            "group-A element construction clears fields before allocating and zeroing its description"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleActorGroupAElementState state{
+            .object_token = 0x00505904U,
+            .field_2f18 = 3U,
+            .field_2f26 = 4U,
+        };
+        state.description_bytes.fill(0x5AU);
+        TrackingGroupAElementPort port;
+        port.allocation_reply = {.eax = 0U, .ecx = 7U, .edx = 8U};
+        const auto result =
+            openswd3::battle::construct_legacy_battle_actor_group_a_element(
+                state, port
+            );
+        test.expect_true(
+            state.field_2f18 == 0U && state.field_2f26 == 0U &&
+                state.description_token == 0U &&
+                std::ranges::all_of(
+                    state.description_bytes,
+                    [](const auto value) { return value == 0x5AU; }
+                ) &&
+                result.status ==
+                    openswd3::battle::
+                        LegacyBattleActorGroupAElementConstructionStatus::
+                            description_write_typed_stop &&
+                result.description_bytes_written == 0U &&
+                result.return_eax == 0U && result.return_ecx == 7U &&
+                result.return_edx == 8U,
+            "zero description allocation stops at the first write after both field clears"
+        );
+    }
+
     for (const u32 registration_result : {0U, 0xFFFFFFFFU}) {
         TrackingGroupALifecyclePort lifecycle_port;
         lifecycle_port.construction_result = 0xAABBCCDDU;

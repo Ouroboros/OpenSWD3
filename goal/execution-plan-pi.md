@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v755
+版本：v756
 
 最后更新：2026-08-25
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗相邻对象分配函数
+当前步骤：模块10 · 审计战斗组A角色元素析构
 
 ## 0. 执行约定
 
@@ -4128,4 +4128,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=167`的`0x0046E290`战斗脚本曲线坐标采样。完整权威LST主体`0x0046E290..0x0046E385`共105行、69条实际指令、5个call、0个跳转、1个返回点且无外部chunk。函数把四组i16 X/Y控制点符号扩展为float，先执行参数0的死局部曲线采样，再以`frame*0.05`和冻结三次B样条矩阵生成四项基值，按原乘加顺序求X/Y；两项结果分别经x87向零qword转换取低dword，返回最终Y。typed纯函数冻结矩阵位模式、float收窄点与非法转换零低dword；case39唯一caller直接按当前段四点采样，写原value与坐标owner，恢复输出owner token后调用角色坐标服务，再推进20帧/6段状态。旧枚举槽reserved且生产零调用。测试覆盖帧0/10/20的正负曲线锚点、Y返回值及case39第一帧直连。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过，源码零warning；app仅有白名单ALSA提示。工作包为`167/422 = 158 platform_adapted + 9 assembly_exact + 255 pending_audit`；生成器连续双跑逐字节一致，SHA256为`479882f5b376d12d09248f571e0ae3127d3e016f27cef80530fd3f18da50f24a`。动态差分因原版x87、局部栈、输出指针和caller寄存器后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=168`的`0x0046E490`战斗相邻对象分配函数。
+本轮再完成`audit_order=168`的`0x0046E490`战斗组A角色元素构造。完整权威LST主体`0x0046E490..0x0046E4C4`共31行、19条实际指令、2个call、0个跳转、1个返回点且无外部chunk。thiscall先调用未审基础角色构造，再清对象两个尾部word，分配56-byte附属记录，先发布token后按14 dword清零，正常返回this、ECX零与分配EDX。零分配不提前拒绝：基础构造和两word/token副作用已完成，在首次记录写入点typed-stop并保留旧记录字节。typed元素状态唯一持有对象token、记录token/字节和两word，物理与动态地址保持u32 token。组A向量包装器证据同步更新：构造回调已关闭，但析构与MSVC异常回滚尚未审计，暂保留vector port而不伪造半套EH。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过，源码零warning。工作包为`168/422 = 159 platform_adapted + 9 assembly_exact + 254 pending_audit`；生成器连续双跑逐字节一致，SHA256为`ecc7299e3826e585f760568696ce83324239e2784feb5466b7dccafa10552141`。动态差分因原版基础构造、动态地址、全局对象和向量EH后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=169`的`0x0046E4D0`战斗组A角色元素析构。

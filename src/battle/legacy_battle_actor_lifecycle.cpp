@@ -2,6 +2,37 @@
 
 namespace openswd3::battle {
 
+LegacyBattleActorGroupAElementConstructionResult
+construct_legacy_battle_actor_group_a_element(
+    LegacyBattleActorGroupAElementState& state,
+    LegacyBattleActorGroupAElementConstructionPort& port
+) {
+    LegacyBattleActorGroupAElementConstructionResult result;
+    static_cast<void>(port.construct_base(state.object_token));
+    ++result.base_constructor_calls;
+    state.field_2f26 = 0U;
+    state.field_2f18 = 0U;
+
+    const auto allocation = port.allocate(0x38U);
+    ++result.allocation_calls;
+    state.description_token = allocation.eax;
+    result.return_ecx = allocation.ecx;
+    result.return_edx = allocation.edx;
+    if (state.description_token == 0U) {
+        result.status = LegacyBattleActorGroupAElementConstructionStatus::
+            description_write_typed_stop;
+        result.return_eax = allocation.eax;
+        return result;
+    }
+
+    state.description_bytes.fill(0U);
+    result.description_bytes_written =
+        static_cast<compat::u32>(state.description_bytes.size());
+    result.return_eax = state.object_token;
+    result.return_ecx = 0U;
+    return result;
+}
+
 LegacyBattleActorGroupAConstructionResult construct_legacy_battle_actor_group_a(
     LegacyBattleActorVectorConstructionPort& construction_port
 ) {

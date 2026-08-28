@@ -2,6 +2,8 @@
 
 #include "openswd3/compat/types.hpp"
 
+#include <array>
+
 namespace openswd3::battle {
 
 inline constexpr compat::u32 kLegacyBattleActorGroupABaseToken = 0x005029D0U;
@@ -67,6 +69,30 @@ public:
     register_exit_cleanup(compat::u32 cleanup_token) = 0;
 };
 
+struct LegacyBattleActorGroupAElementState {
+    compat::u32 object_token{};
+    compat::u32 description_token{};
+    std::array<compat::u8, 0x38> description_bytes{};
+    compat::u16 field_2f18{};
+    compat::u16 field_2f26{};
+};
+
+struct LegacyBattleActorGroupAElementCallReply {
+    compat::u32 eax{};
+    compat::u32 ecx{};
+    compat::u32 edx{};
+};
+
+class LegacyBattleActorGroupAElementConstructionPort {
+public:
+    virtual ~LegacyBattleActorGroupAElementConstructionPort() = default;
+
+    [[nodiscard]] virtual LegacyBattleActorGroupAElementCallReply
+    construct_base(compat::u32 object_token) = 0;
+    [[nodiscard]] virtual LegacyBattleActorGroupAElementCallReply
+    allocate(compat::u32 size) = 0;
+};
+
 class LegacyBattleActorObjectLifecyclePort {
 public:
     virtual ~LegacyBattleActorObjectLifecyclePort() = default;
@@ -75,6 +101,23 @@ public:
     construct_object(compat::u32 object_token) = 0;
     [[nodiscard]] virtual compat::u32
     destroy_object(compat::u32 object_token) = 0;
+};
+
+enum class LegacyBattleActorGroupAElementConstructionStatus : compat::u8 {
+    completed,
+    description_write_typed_stop,
+};
+
+struct LegacyBattleActorGroupAElementConstructionResult {
+    LegacyBattleActorGroupAElementConstructionStatus status{
+        LegacyBattleActorGroupAElementConstructionStatus::completed
+    };
+    compat::u32 base_constructor_calls{};
+    compat::u32 allocation_calls{};
+    compat::u32 description_bytes_written{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
 };
 
 struct LegacyBattleActorGroupAConstructionResult {
@@ -127,6 +170,13 @@ struct LegacyBattleActorSingletonStaticInitializationResult {
     compat::u32 exit_registration_calls{};
     compat::u32 return_value{};
 };
+
+// sub_46E490.
+[[nodiscard]] LegacyBattleActorGroupAElementConstructionResult
+construct_legacy_battle_actor_group_a_element(
+    LegacyBattleActorGroupAElementState& state,
+    LegacyBattleActorGroupAElementConstructionPort& port
+);
 
 // sub_451870: load the singleton token and tail-call its constructor.
 [[nodiscard]] LegacyBattleActorSingletonOperationResult
