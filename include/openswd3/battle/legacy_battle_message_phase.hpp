@@ -4,6 +4,7 @@
 #include "openswd3/battle/legacy_battle_debug_hotkeys.hpp"
 #include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
 #include "openswd3/battle/legacy_battle_group_b_frame.hpp"
+#include "openswd3/battle/legacy_battle_level_up_panel.hpp"
 #include "openswd3/battle/legacy_battle_player_item_quantity.hpp"
 #include "openswd3/battle/legacy_battle_selection_frame.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_entry.hpp"
@@ -164,6 +165,7 @@ struct LegacyBattleMessagePhaseRequest {
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
     LegacyBattleVictoryRewardRequest victory_reward_request{};
+    LegacyBattleLevelUpPanelRequest level_up_panel_request{};
 };
 
 enum class LegacyBattleMessagePhaseStatus : compat::u8 {
@@ -177,6 +179,7 @@ enum class LegacyBattleMessagePhaseStatus : compat::u8 {
     action_profile_typed_stop,
     player_item_quantity_typed_stop,
     victory_rewards_typed_stop,
+    level_up_panel_typed_stop,
     target_selection_entry_typed_stop,
 };
 
@@ -196,9 +199,11 @@ struct LegacyBattleMessagePhaseResult {
     compat::u32 target_selection_entry_calls{};
     compat::u32 player_item_quantity_calls{};
     compat::u32 victory_reward_calls{};
+    compat::u32 level_up_panel_calls{};
     LegacyBattleTargetSelectionEntryResult target_selection_entry{};
     LegacyBattlePlayerItemQuantityResult player_item_quantity{};
     LegacyBattleVictoryRewardResult victory_rewards{};
+    LegacyBattleLevelUpPanelResult level_up_panel{};
     std::vector<LegacyBattleMessagePhaseCall> call_trace;
     compat::u32 call_trace_count{};
 };

@@ -48,9 +48,12 @@ public:
         const u32 piece_index,
         openswd3::rendering::LegacyFramePiece& piece
     ) noexcept override {
-        if (fail || piece_index >= pixels.size()) {
+        if (fail || load_attempts >= successful_loads ||
+            piece_index >= pixels.size()) {
+            ++load_attempts;
             return false;
         }
+        ++load_attempts;
         piece = {
             .source =
                 {
@@ -75,6 +78,8 @@ public:
         {8U, 0U},
         {9U, 0U},
     }};
+    std::size_t load_attempts{};
+    std::size_t successful_loads{1000U};
     bool fail{};
 };
 
@@ -565,6 +570,10 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                 advanced.victory_rewards.status ==
                     openswd3::battle::LegacyBattleVictoryRewardStatus::
                         completed &&
+                advanced.level_up_panel_calls == 1U &&
+                advanced.level_up_panel.status ==
+                    openswd3::battle::LegacyBattleLevelUpPanelStatus::
+                        completed &&
                 timed.port.count(
                     LegacyBattleMessagePhaseCall::
                         reserved_advance_message_100_slot
@@ -575,7 +584,27 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                 timed.input_dispatch.selection_cache_gate_b == 1U &&
                 timed.target_ready_gate == 1U &&
                 timed.final_actor.queued_actor_code == 0U,
-            "message 100 directly distributes victory rewards before publishing setup gates and entering target selection"
+            "message 100 directly distributes victory rewards and draws level-up state before publishing setup gates and entering target selection"
+        );
+
+        Fixture level_stopped;
+        level_stopped.message = 0x64U;
+        level_stopped.debug_hotkeys.actor_retarget_gate_53bf64 = 9U;
+        level_stopped.frame_provider.successful_loads = 394U;
+        const auto level_stopped_result = run(level_stopped);
+        test.expect_true(
+            level_stopped_result.status ==
+                    openswd3::battle::LegacyBattleMessagePhaseStatus::
+                        level_up_panel_typed_stop &&
+                level_stopped_result.victory_reward_calls == 1U &&
+                level_stopped_result.level_up_panel_calls == 1U &&
+                level_stopped_result.level_up_panel.status ==
+                    openswd3::battle::LegacyBattleLevelUpPanelStatus::
+                        title_frame_typed_stop &&
+                level_stopped.debug_hotkeys.actor_retarget_gate_53bf64 == 9U &&
+                level_stopped.input_dispatch.selection_cache_gate_a == 0U &&
+                level_stopped.target_selection.transition_timer == 0U,
+            "message 100 propagates level-up panel failure after victory rewards and before caller-owned setup writes"
         );
 
         Fixture stopped;

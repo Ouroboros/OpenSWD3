@@ -986,13 +986,24 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 result.message_phase.victory_reward_calls == 1U &&
                 result.message_phase.victory_rewards.status ==
                     openswd3::battle::LegacyBattleVictoryRewardStatus::
-                        completed,
-            "main frame message 100 completes its directly composed victory reward result"
+                        completed &&
+                result.message_phase.level_up_panel_calls == 1U &&
+                result.message_phase.level_up_panel.status ==
+                    openswd3::battle::LegacyBattleLevelUpPanelStatus::completed,
+            "main frame message 100 completes its directly composed victory reward and level-up results"
         );
         test.expect_true(
             port.count(LegacyBattleFrameCoordinatorCall::victory_draw_text) ==
-                4U,
-            "main frame message 100 draws the victory title and three reward lines through its typed text boundary"
+                    6U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        victory_query_summary_panel
+                ) == 2U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        victory_format_level_up_text
+                ) == 1U,
+            "main frame message 100 draws the victory and level-up panels through their typed text boundary"
         );
         test.expect_true(
             port.count(

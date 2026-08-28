@@ -66,7 +66,7 @@ profile、计数或动作标签只在原首次真实访问停止；此前callee�
 
 共享双方数量、动作标签、sample mix、transition stage/timer/item count、玩家道具链、世界角色资源和银币均复用既有唯一owner。新增state只承接胜利面板动作记录、十项道具编号/数量/payload、四项稀疏奖励计数、两组角色跳过字段、三项奖励word、profile阈值和奖励完成门。全局重置按原写集合只清编号/数量前两项、全部十项payload和三项奖励word；未写的其余槽、稀疏计数、阈值、奖励门及角色字段保持原值。
 
-消息100现直连本实现；旧消息100 opaque枚举槽改为reserved且生产零调用。子typed-stop保留胜利面板/奖励前缀并阻断caller的actor-retarget、双cache、target-ready、queued和timer写入。
+消息100现先直连本实现，再直连已关闭升级提示面板；旧消息100 opaque枚举槽改为reserved且生产零调用。本函数子typed-stop阻断升级面板和caller全部写入；升级面板子stop则保留已完成胜利奖励与自身画面前缀，再阻断actor-retarget、双cache、target-ready、queued和timer写入。
 
 定向测试覆盖双面板几何与画面停止前缀、固定CP950标题、奖励位15幂等门、音乐渐隐→sample全停→播放顺序、mix level预调用EAX、组B signed live循环和第九对象、十槽命中/新增/第十一槽停止顺序、玩家道具子stop、组A两字段精确1门、第十一对象、profile阈值、奖励/准备寄存器、组B数量3双计数、共享银币owner、三行CP950格式、全局重置物理范围、消息100正常直连与子stop传播。验证：定向测试、AddressSanitizer、Linux core `188/188`、Linux app `194/194`全部通过。源码构建零warning；app仅保留既有ALSA开发库CMake warning。
 

@@ -521,6 +521,40 @@ private:
                 LegacyBattleMessagePhaseStatus::victory_rewards_typed_stop;
             return finish();
         }
+
+        auto level_request = request_.level_up_panel_request;
+        level_request.entry_eax = eax_;
+        level_request.entry_ecx = ecx_;
+        level_request.entry_edx = edx_;
+        result_.level_up_panel = draw_legacy_battle_level_up_panel(
+            {
+                .victory = bindings_.victory_rewards.state,
+                .startup = bindings_.startup,
+                .target_selection = bindings_.target_selection,
+                .party_member_resources =
+                    bindings_.victory_rewards.party_member_resources,
+                .framebuffer = bindings_.victory_rewards.framebuffer,
+                .raster = bindings_.victory_rewards.raster,
+                .shared_effects = bindings_.victory_rewards.shared_effects,
+                .jitter = bindings_.victory_rewards.jitter,
+                .action_updater = bindings_.victory_rewards.action_updater,
+                .frame_provider = bindings_.victory_rewards.frame_provider,
+            },
+            port_,
+            level_request
+        );
+        ++result_.level_up_panel_calls;
+        result_.port_calls += result_.level_up_panel.port_calls;
+        eax_ = result_.level_up_panel.return_eax;
+        ecx_ = result_.level_up_panel.return_ecx;
+        edx_ = result_.level_up_panel.return_edx;
+        if (result_.level_up_panel.status !=
+            LegacyBattleLevelUpPanelStatus::completed) {
+            result_.status =
+                LegacyBattleMessagePhaseStatus::level_up_panel_typed_stop;
+            return finish();
+        }
+
         bindings_.debug_hotkeys.actor_retarget_gate_53bf64 = 0U;
         bindings_.input_dispatch.selection_cache_gate_a = 1U;
         bindings_.input_dispatch.selection_cache_gate_b = 1U;

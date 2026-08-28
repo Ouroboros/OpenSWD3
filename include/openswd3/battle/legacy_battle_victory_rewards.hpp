@@ -71,6 +71,7 @@ enum class LegacyBattleVictoryRewardCall : compat::u8 {
     prepare_group_a_actor,
     configure_group_a_actor,
     query_summary_panel,
+    format_level_up_text,
     draw_text,
 };
 
@@ -101,6 +102,10 @@ struct LegacyBattleVictoryRewardCallReply {
     compat::u16 committed_money_word{};
     compat::u16 experience_per_party_member{};
     compat::u16 reward_experience{};
+    bool publish_transition_actor_index{};
+    compat::u8 transition_actor_index{};
+    std::array<compat::u8, 64> formatted_text{};
+    compat::u32 formatted_text_length{};
 };
 
 struct LegacyBattleVictoryRewardRegisters {

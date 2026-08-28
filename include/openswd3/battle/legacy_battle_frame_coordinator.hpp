@@ -174,6 +174,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     victory_prepare_group_a_actor,
     victory_configure_group_a_actor,
     victory_query_summary_panel,
+    victory_format_level_up_text,
     victory_draw_text,
     message_phase_select_message_101_actor,
     message_phase_allocate_actor_transition,
@@ -285,6 +286,8 @@ struct LegacyBattleFrameCoordinatorCallReply {
     compat::u16 victory_committed_money_word{};
     compat::u16 victory_experience_per_party_member{};
     compat::u16 victory_reward_experience{};
+    std::array<compat::u8, 64> victory_formatted_text{};
+    compat::u32 victory_formatted_text_length{};
     LegacyBattleFrameInputSurface actor_surface{};
 };
 
@@ -944,6 +947,10 @@ public:
             call =
                 LegacyBattleFrameCoordinatorCall::victory_query_summary_panel;
             break;
+        case LegacyBattleVictoryRewardCall::format_level_up_text:
+            call =
+                LegacyBattleFrameCoordinatorCall::victory_format_level_up_text;
+            break;
         case LegacyBattleVictoryRewardCall::draw_text:
             call = LegacyBattleFrameCoordinatorCall::victory_draw_text;
             break;
@@ -978,6 +985,11 @@ public:
             .experience_per_party_member =
                 reply.victory_experience_per_party_member,
             .reward_experience = reply.victory_reward_experience,
+            .publish_transition_actor_index =
+                reply.publish_message_phase_actor_index,
+            .transition_actor_index = reply.message_phase_actor_index,
+            .formatted_text = reply.victory_formatted_text,
+            .formatted_text_length = reply.victory_formatted_text_length,
         };
     }
     [[nodiscard]] LegacyBattleVictoryRewardRegisters begin_music_fade(
