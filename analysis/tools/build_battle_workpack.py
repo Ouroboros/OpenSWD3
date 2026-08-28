@@ -664,6 +664,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "assembly_exact",
         "evidence/battle-transition-stage-advance-00469620.md",
     ),
+    "0x00469650": (
+        "platform_adapted",
+        "evidence/battle-debug-status-panel-00469650.md",
+    ),
 }
 
 

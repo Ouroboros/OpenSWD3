@@ -7,21 +7,24 @@
 namespace openswd3::battle {
 
 struct LegacyBattleTargetSelectionRuntimeState {
-    compat::u32 selection_input_gate{};      // 0x0053BFB8
-    compat::u32 selected_action_kind{};      // 0x0053BCE8
-    compat::u32 actor_commit_gate{};         // 0x0053BF60
-    compat::u32 action_mode_flags{};         // 0x0053BCDC
-    compat::u32 selection_aux_gate{};        // 0x0053BDA4
-    compat::u32 candidate_gate_a{};          // 0x0053BD9C
-    compat::u32 candidate_gate_b{};          // 0x0053BDA0
-    compat::u32 candidate_argument{};        // 0x0053BD10
-    compat::u32 target_argument{};           // 0x0053BD14
-    compat::u32 target_effect_value{};       // 0x0053BF24
-    compat::u32 actor_special_gate{};        // 0x0053C01C
-    compat::u32 special_action_count{};      // 0x0053C4B0
-    compat::u32 completion_gate{};           // 0x0053BFE4
-    compat::u32 transition_timer{};          // 0x0053BD20
-    compat::u32 transition_stage{};          // 0x0053C4BC
+    compat::u32 selection_input_gate{};        // 0x0053BFB8
+    compat::u32 selected_action_kind{};        // 0x0053BCE8
+    compat::u32 actor_commit_gate{};           // 0x0053BF60
+    compat::u32 action_mode_flags{};           // 0x0053BCDC
+    compat::u32 selection_aux_gate{};          // 0x0053BDA4
+    compat::u32 candidate_gate_a{};            // 0x0053BD9C
+    compat::u32 candidate_gate_b{};            // 0x0053BDA0
+    compat::u32 candidate_argument{};          // 0x0053BD10
+    compat::u32 target_argument{};             // 0x0053BD14
+    compat::u32 target_effect_value{};         // 0x0053BF24
+    compat::u32 actor_special_gate{};          // 0x0053C01C
+    compat::u32 special_action_count{};        // 0x0053C4B0
+    compat::u32 completion_gate{};             // 0x0053BFE4
+    compat::u32 transition_timer{};            // 0x0053BD20
+    compat::u32 transition_stage{};            // 0x0053C4BC
+    compat::u32 debug_status_profile_token{};  // 0x0053C4B8
+    // Platform-owned snapshot of the nine signed bytes at profile + 0x92.
+    std::array<compat::i8, 9> debug_status_values{};
     compat::u32 transition_state{};          // 0x0053C038
     compat::u32 transition_mode{};           // 0x0053BFFC
     compat::u32 transition_control_words{};  // 0x0053BF1E..0x0053BF21

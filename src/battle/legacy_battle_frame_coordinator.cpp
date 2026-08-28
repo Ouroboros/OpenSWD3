@@ -695,9 +695,33 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         result.status = LegacyBattleFrameCoordinatorStatus::dialog_typed_stop;
         return result;
     }
-    static_cast<void>(invoke(
-        port, result, LegacyBattleFrameCoordinatorCall::post_dialog_stage
-    ));
+    result.debug_status_panel = draw_legacy_battle_debug_status_panel(
+        {
+            .debug_hotkeys = port.battle_debug_hotkey_state(),
+            .target_selection = port.battle_target_selection_runtime_state(),
+            .victory_rewards = port.battle_victory_reward_state(),
+            .selection_frame = port.battle_selection_frame_state(),
+            .framebuffer = context.frame_zero.framebuffer,
+            .clip = context.frame_zero.clip,
+            .raster = context.raster,
+            .shared_request = context.frame_zero.shared_request,
+            .shared_effects = context.frame_zero.shared_effects,
+            .jitter = context.frame_zero.jitter,
+            .action_updater = context.action_updater,
+            .frame_provider = context.frame_provider,
+            .pixel_conversion = context.pixel_conversion,
+        },
+        port,
+        request.debug_status_panel_request
+    );
+    ++result.debug_status_panel_calls;
+    result.port_calls += result.debug_status_panel.port_calls;
+    if (result.debug_status_panel.status !=
+        LegacyBattleDebugStatusPanelStatus::completed) {
+        result.status =
+            LegacyBattleFrameCoordinatorStatus::debug_status_panel_typed_stop;
+        return result;
+    }
 
     result.countdowns[0] = rendering::draw_legacy_countdown(
         context.frame_zero.framebuffer,

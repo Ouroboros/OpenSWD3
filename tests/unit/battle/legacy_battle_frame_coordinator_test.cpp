@@ -37,7 +37,7 @@ public:
     invoke(const LegacyBattleFrameCoordinatorCallRequest& request) override {
         calls.push_back(request);
         if (request.call ==
-                LegacyBattleFrameCoordinatorCall::post_dialog_stage &&
+                LegacyBattleFrameCoordinatorCall::post_render_stage_3 &&
             publish_outcome_counts) {
             actor_metric_state().group_b_count = outcome_group_b_count;
             actor_metric_state().group_a_count = outcome_group_a_count;
@@ -2175,6 +2175,11 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 result.countdowns[1].status ==
                     openswd3::rendering::LegacyCountdownDisplayStatus::
                         hidden_inactive &&
+                result.debug_status_panel_calls == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        reserved_post_dialog_stage_slot
+                ) == 0U &&
                 result.input_queries == 1U && result.screenshot_calls == 0U,
             "full pre-input path reaches both countdowns and returns three on internal bit seventeen"
         );

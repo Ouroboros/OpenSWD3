@@ -39,6 +39,7 @@ add_library(
         legacy_battle_control_panel_frame.cpp
         legacy_battle_debug_hotkeys.cpp
         legacy_battle_debug_overlay.cpp
+        legacy_battle_debug_status_panel.cpp
         legacy_battle_defeat_panel.cpp
         legacy_battle_definition_archive.cpp
         legacy_battle_directional_scan.cpp

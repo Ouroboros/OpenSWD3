@@ -2,7 +2,7 @@
 
 状态：`module_in_progress`
 
-当前关闭进度：`88/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
+当前关闭进度：`158/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
 
 ## 1. 唯一真值与模块目标
 
@@ -51,10 +51,10 @@ code_origin == game
 - 尾地址：`0x00484500`；
 - `confirmed_boundary`：`61`；
 - `medium`导航候选：`361`；
-- `pending_audit`：`358`；
-- `assembly_exact`：`5`；
-- `platform_adapted`：`59`；
-- 已关闭：`64`。
+- `pending_audit`：`264`；
+- `assembly_exact`：`7`；
+- `platform_adapted`：`151`；
+- 已关闭：`158`。
 
 六个稳定导航分组为：
 
@@ -523,8 +523,10 @@ I5最终必须锁定：
 
 `audit_order=156`的`0x00469550`已关闭为`platform_adapted`。完整权威LST主体`0x00469550..0x00469619`共107行、73条实际指令、5个静态call、2个跳转、1个标签、2个返回点且无外部chunk。函数复用胜利结算唯一共享动作记录，写action `0x233B`与base variant零后更新动作；矩形参数保持`left,top,width,height,0,4,4,0`，内框按低32位回绕缩入4像素。九宫格资源从完整width重建高16位并只以live动作`field_4a`替换低word。显式文字X/Y都为零时改用`left+2,top+4`，否则保留调用者坐标；两路入口寄存器分别保留九宫格陈旧EDX或重建framebuffer/font/text链，最终返回文字callee完整EAX/ECX/EDX。HUD顶部姓名面板和footer提示均已直连本实现，footer保留signed向零除3及符号修正寄存器链；旧地址仅保留reserved常量且生产零调用。定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过，源码构建零warning；app仅有既有ALSA开发库CMake提示。候选工作包为`156/422 = 150 platform_adapted + 6 assembly_exact + 266 pending_audit`，双跑SHA256为`5bad96807c4944571a78f33f07f6c543c722dc48a546645d12de0060dccf8494`。动态差分因原版动作更新、framebuffer、矩形、九宫格、字体/文字与caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
 
-`audit_order=157`的`0x00469620`已关闭为`assembly_exact`。完整权威LST主体`0x00469620..0x00469648`共24行、14条实际指令、0个静态call、0个跳转、0个标签、1个返回点且无外部chunk。函数按低32位回绕计算`target - transition_stage - base_offset`，以x86 signed `idiv`向零取得商和余数，再把商回绕加到共享stage；商零时EAX/ECX返回1，否则返回0，EDX保留余数。除零与`INT_MIN/-1`在原`idiv`点typed-stop，保留numerator、入口stage和`cdq`符号扩展且不写stage。胜利摘要、升级提示、成长属性、两类成长标题、法宝完成提示、战利品清单、战败提示和炼符结果九个已关闭caller均直连唯一stage owner；各旧“查询面板”端口槽改为reserved且生产零调用，最后一个未审caller留给下一工作包。同帧连续面板现观察前一caller的live stage写回，不再由测试伪造互相矛盾的任意返回。定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过，源码构建零warning；app仅有既有ALSA开发库CMake提示。候选工作包为`157/422 = 150 platform_adapted + 7 assembly_exact + 265 pending_audit`，双跑SHA256为`52de3bfa93a4c4eeaceea18439d071df62783ee6891db4caa42e7e18af18447a`。动态差分因原版共享stage与十个caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
+`audit_order=157`的`0x00469620`已关闭为`assembly_exact`。完整权威LST主体`0x00469620..0x00469648`共24行、14条实际指令、0个静态call、0个跳转、0个标签、1个返回点且无外部chunk。函数按低32位回绕计算`target - transition_stage - base_offset`，以x86 signed `idiv`向零取得商和余数，再把商回绕加到共享stage；商零时EAX/ECX返回1，否则返回0，EDX保留余数。除零与`INT_MIN/-1`在原`idiv`点typed-stop，保留numerator、入口stage和`cdq`符号扩展且不写stage。胜利摘要、升级提示、成长属性、两类成长标题、法宝完成提示、战利品清单、战败提示、炼符结果和调试状态面板十个caller均直连唯一stage owner；各旧“查询面板”及后置阶段端口槽改为reserved且生产零调用。同帧连续面板现观察前一caller的live stage写回，不再由测试伪造互相矛盾的任意返回。定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过，源码构建零warning；app仅有既有ALSA开发库CMake提示。候选工作包为`157/422 = 150 platform_adapted + 7 assembly_exact + 265 pending_audit`，双跑SHA256为`52de3bfa93a4c4eeaceea18439d071df62783ee6891db4caa42e7e18af18447a`。动态差分因原版共享stage与十个caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=158`的`0x00469650`。
+`audit_order=158`的`0x00469650`已关闭为`platform_adapted`。完整权威LST主体`0x00469650..0x004698D8`共283行、196条实际指令、18个静态call、7个跳转、6个标签、1个返回点且无外部chunk。调试位`0x20`关闭时只完成8-byte局部seed初始化并返回；开启时复用胜利奖励唯一动作记录，以live stage绘制动态矩形、第一九宫格和profile标题，再以标题返回ECX高word与live动作低word绘制第二动态框。随后直连已关闭stage推进，固定参数`122,302,3`，仅返回1时访问profile `+0x92`九个signed byte。九行按20像素间距绘制固定标签与3像素渐变；零、正、负和小于`-10`分别保留颜色、`lstrcpyA/wsprintfA`、两次float乘法与x87向零qword转换，深负值先完成普通负值副作用再执行覆盖颜色/格式/宽度。局部格式文字虽未传给文字callee仍保留写入；正常尾返回EAX 0、标签表尾EDX和最后渐变ECX。动态profile token和九byte快照加入目标选择runtime唯一owner，动作/颜色渐变/stage复用既有owner。主帧在对话后、双倒计时前直连本实现，旧post-dialog槽reserved且生产零调用，子stop阻断全部帧尾。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过，源码零warning且app仅有既有ALSA提示。候选工作包为`158/422 = 151 platform_adapted + 7 assembly_exact + 264 pending_audit`，双跑SHA256为`55df5c550e4865dbfbf26e5b7efdf189bb41c6779905bc5a4be200dffa2f0dac`。动态差分因原版profile、动作/画面/字体、动态栈和主帧寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=159`的`0x004698E0`。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

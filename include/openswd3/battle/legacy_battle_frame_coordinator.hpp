@@ -12,6 +12,7 @@
 #include "openswd3/battle/legacy_battle_context_prompt.hpp"
 #include "openswd3/battle/legacy_battle_debug_hotkeys.hpp"
 #include "openswd3/battle/legacy_battle_debug_overlay.hpp"
+#include "openswd3/battle/legacy_battle_debug_status_panel.hpp"
 #include "openswd3/battle/legacy_battle_effect_coordinator.hpp"
 #include "openswd3/battle/legacy_battle_frame_completion.hpp"
 #include "openswd3/battle/legacy_battle_frame_effect.hpp"
@@ -80,7 +81,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     post_render_stage_1,
     reserved_message_phase_slot,
     post_render_stage_3,
-    post_dialog_stage,
+    reserved_post_dialog_stage_slot,
     reserved_debug_overlay_slot,
     reserved_outcome_resolution_slot,
     reserved_context_prompt_slot,
@@ -1898,6 +1899,7 @@ struct LegacyBattleFrameCoordinatorRequest {
     compat::u32 message_phase_entry_ecx_snapshot{};
     compat::u32 message_phase_entry_edx_snapshot{};
     LegacyBattleVictoryRewardRequest victory_reward_request{};
+    LegacyBattleDebugStatusPanelRequest debug_status_panel_request{};
     compat::u32 debug_vitality_stack_snapshot{};
     compat::i32 mouse_x{};
     compat::i32 mouse_y{};
@@ -1962,6 +1964,7 @@ enum class LegacyBattleFrameCoordinatorStatus : compat::u8 {
     tiled_frame_typed_stop,
     standalone_frame_typed_stop,
     dialog_typed_stop,
+    debug_status_panel_typed_stop,
     countdown_typed_stop,
     frame_effect_typed_stop,
     selection_frame_typed_stop,
@@ -2037,6 +2040,8 @@ struct LegacyBattleFrameCoordinatorResult {
     rendering::LegacyPackedRowEffectResult packed_rows{};
     world_map::LegacyRoleHeadActionResult role_heads{};
     story_scene::LegacyDialogRuntimeResult dialogs{};
+    LegacyBattleDebugStatusPanelResult debug_status_panel{};
+    compat::u32 debug_status_panel_calls{};
     std::array<rendering::LegacyCountdownDisplayResult, 2> countdowns{};
     compat::u32 countdown_calls{};
     compat::u32 input_queries{};
