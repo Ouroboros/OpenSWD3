@@ -1,11 +1,16 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_text_panel.hpp"
 #include "openswd3/compat/types.hpp"
 
+#include <algorithm>
 #include <array>
 #include <initializer_list>
 
 namespace openswd3::battle {
+
+inline constexpr compat::u32 kLegacyBattleHudReservedTextPanelSlot =
+    0x00469550U;
 
 struct LegacyBattleHudCallRequest {
     compat::u32 callee_token{};
@@ -19,13 +24,50 @@ struct LegacyBattleHudCallReply {
     std::array<compat::u32, 8> outputs{};
 };
 
-class LegacyBattleHudCallPort {
+class LegacyBattleHudCallPort
+    : public LegacyBattleTextPanelPort,
+      public virtual LegacyBattleVictoryRewardStatePort {
 public:
     virtual ~LegacyBattleHudCallPort() = default;
 
     [[nodiscard]] virtual LegacyBattleHudCallReply
     invoke_hud(const LegacyBattleHudCallRequest&) {
         return {};
+    }
+
+    [[nodiscard]] LegacyBattleTextPanelCallReply invoke_text_panel(
+        const LegacyBattleTextPanelCallRequest& request
+    ) override {
+        compat::u32 callee_token = 0x004321E0U;
+        switch (request.call) {
+        case LegacyBattleTextPanelCall::update_action:
+            break;
+        case LegacyBattleTextPanelCall::draw_rectangle:
+            callee_token = 0x0043B110U;
+            break;
+        case LegacyBattleTextPanelCall::draw_tiled_frame:
+            callee_token = 0x0042E850U;
+            break;
+        case LegacyBattleTextPanelCall::draw_text:
+            callee_token = 0x00436AD0U;
+            break;
+        }
+        LegacyBattleHudCallRequest call_request{};
+        call_request.callee_token = callee_token;
+        std::copy(
+            request.arguments.begin(),
+            request.arguments.end(),
+            call_request.arguments.begin()
+        );
+        const auto reply = invoke_hud(call_request);
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .publish_action_field_4a =
+                request.call == LegacyBattleTextPanelCall::update_action,
+            .action_field_4a = static_cast<compat::u16>(reply.outputs[0U]),
+        };
     }
 };
 
@@ -93,6 +135,8 @@ struct LegacyBattleHudFrameResult {
     compat::u32 top_actor_rows{};
     compat::u32 actor_rows{};
     compat::u32 x87_conversions{};
+    compat::u32 text_panel_calls{};
+    std::vector<LegacyBattleTextPanelResult> text_panels;
 };
 
 // Typed closure of legacy 0x00459D10. One call renders and advances the battle

@@ -12,7 +12,7 @@
 
 每次调用无条件先对固定字体token执行两次配置：第一次参数0，第二次参数`0xFFFE`。角色数非正、底部条关闭时，函数返回第二次字体callee完整EAX。
 
-角色数为正时，两轮循环的循环尾会把完整角色数重载到EAX；底部条关闭时最终返回该值。底部条开启时最终返回底部矩形callee完整EAX。
+角色数为正时，两轮循环的循环尾会把完整角色数重载到EAX；底部条关闭时最终返回该值。底部条开启时最终返回已关闭文字面板内部文字callee完整EAX。
 
 ## 3. 顶部队伍条
 
@@ -21,7 +21,7 @@
 每个active完整值等于1的角色：
 
 1. side mode完整值等于1时X为10，否则450；首行Y为10，只有active角色令Y加28；
-2. 查询actor数据并绘制170×20背景，内部点为`X+5,Y+2`；
+2. 查询actor数据后直连已关闭文字面板，以170×20背景和显式`X+5,Y+2`文字坐标绘制姓名；
 3. 查询primary current/max，以x87扩展精度计算`current/max*56`，通过已闭合向零qword转换取低dword；
 4. 在`X+100,Y+8`绘制显式宽度条；
 5. status低16非0时查询颜色并在`X+100,Y+12`绘制三高颜色条；
@@ -105,17 +105,18 @@ delta = signed(68 - position) / 3
 position += delta
 ```
 
-减法和加法按低32位回绕，除法向零。共享footer delta发布后，以`position-58,354,70,24,0,0,0x004A7814`绘制矩形并返回callee完整EAX。
+减法和加法按低32位回绕，除法向零。共享footer delta发布后，直连已关闭文字面板，以`position-58,354,70,24`绘制背景、以双零坐标触发`left+2,top+4`相对文字定位，并返回文字callee完整EAX。magic除法后的符号修正位、原始分子和delta分别重建为helper入口EAX/ECX/EDX。
 
 ## 10. caller回收
 
 - 画面转场首次建帧后直连一次；mode 0第二次建帧后再直连一次，分别保留两个HUD结果。
 - 逐帧协调器在固定框和可选角色面板之后直连一次；HUD内部port call计入父port call总数。
 - 任一HUD typed-stop立即映射caller专用HUD stop，阻止surface操作或后续渲染阶段。
+- HUD顶部与footer两个旧文字面板边界均已直连typed helper；共享动作记录复用胜利结算唯一owner，旧地址仅保留reserved常量且生产零调用。helper展开的动作更新、矩形、九宫格和文字四次服务调用计入父HUD及主帧port总数。
 - 转场旧`publish_status_word`伪边界和逐帧旧`post_render_stage_0`伪边界均删除；三个caller源码不再包含本函数token。
 
 ## 11. 测试与动态差分
 
-定向测试覆盖：空HUD返回、十槽边界、顶部左右位置、x87宽度、status颜色、top pulse、选中pulse、三次blocked与名字叠绘、actor value typed-stop时机、三组不同平滑、bit27 BUG、零分母x87低dword、footer signed步进，以及转场两调用点、逐帧直连和父级typed-stop传播。
+定向测试覆盖：空HUD返回、十槽边界、顶部左右位置、x87宽度、status颜色、top pulse、选中pulse、三次blocked与名字叠绘、actor value typed-stop时机、三组不同平滑、bit27 BUG、零分母x87低dword、footer signed步进、文字面板两种坐标分支与旧槽零调用，以及转场两调用点、逐帧直连和父级typed-stop传播。
 
-当前缺少原版组A十对象、23类端口callee共享副作用、字体/文本、framebuffer、三组实时数值、映射表、actor内部value指针、x87控制字和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版组A十对象、端口callee共享副作用、字体/文本、framebuffer、三组实时数值、映射表、actor内部value指针、x87控制字和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

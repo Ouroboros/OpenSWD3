@@ -21,7 +21,6 @@ using compat::u8;
 constexpr u32 kCallFontReset = 0x00435670U;
 constexpr u32 kCallFontStyle = 0x00435660U;
 constexpr u32 kCallResolveActor = 0x00480AD0U;
-constexpr u32 kCallDrawRectangle = 0x00469550U;
 constexpr u32 kCallQueryPrimaryValues = 0x00484500U;
 constexpr u32 kCallDrawExplicitFrame = 0x00450490U;
 constexpr u32 kCallQueryStatusValue = 0x00478340U;
@@ -189,16 +188,26 @@ LegacyBattleHudFrameResult advance_legacy_battle_hud_frame(
         if (state.actor_active[top_index] == 1U) {
             const u32 token = actor_token(top_index);
             const u32 resolved = invoke(kCallResolveActor, {token}).eax;
-            static_cast<void>(invoke(
-                kCallDrawRectangle,
-                {to_bits(top_x),
-                 to_bits(top_y),
-                 170U,
-                 20U,
-                 to_bits(wrapping_add(top_x, 5)),
-                 to_bits(wrapping_add(top_y, 2)),
-                 resolved}
+            result.text_panels.push_back(draw_legacy_battle_text_panel(
+                port.battle_victory_reward_state(),
+                port,
+                {
+                    .left = top_x,
+                    .top = top_y,
+                    .width = 170,
+                    .height = 20,
+                    .text_x = wrapping_add(top_x, 5),
+                    .text_y = wrapping_add(top_y, 2),
+                    .text_token = resolved,
+                    .entry = {
+                        .eax = resolved,
+                        .ecx = to_bits(wrapping_add(top_y, 2)),
+                        .edx = to_bits(wrapping_add(top_x, 5)),
+                    },
+                }
             ));
+            ++result.text_panel_calls;
+            result.port_calls += result.text_panels.back().port_calls;
             const auto primary = invoke(kCallQueryPrimaryValues, {token});
             ++result.x87_conversions;
             const u32 width = truncate_x87_low(ratio_extended(
@@ -654,21 +663,31 @@ LegacyBattleHudFrameResult advance_legacy_battle_hud_frame(
     }
 
     if (state.footer_mode == 1U) {
-        const i32 delta = wrapping_subtract(68, state.footer_position) / 3;
+        const i32 numerator = wrapping_subtract(68, state.footer_position);
+        const i32 delta = numerator / 3;
         state.footer_position = wrapping_add(state.footer_position, delta);
         state.footer_delta = delta;
-        result.return_value =
-            invoke(
-                kCallDrawRectangle,
-                {to_bits(wrapping_subtract(state.footer_position, 58)),
-                 354U,
-                 70U,
-                 24U,
-                 0U,
-                 0U,
-                 kFooterDataToken}
-            )
-                .eax;
+        result.text_panels.push_back(draw_legacy_battle_text_panel(
+            port.battle_victory_reward_state(),
+            port,
+            {
+                .left = wrapping_subtract(state.footer_position, 58),
+                .top = 354,
+                .width = 70,
+                .height = 24,
+                .text_x = 0,
+                .text_y = 0,
+                .text_token = kFooterDataToken,
+                .entry = {
+                    .eax = numerator < 0 ? 1U : 0U,
+                    .ecx = to_bits(numerator),
+                    .edx = to_bits(delta),
+                },
+            }
+        ));
+        ++result.text_panel_calls;
+        result.port_calls += result.text_panels.back().port_calls;
+        result.return_value = result.text_panels.back().return_registers.eax;
     }
     return result;
 }

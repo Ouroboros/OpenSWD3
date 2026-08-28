@@ -120,9 +120,17 @@ void test_battle_hud_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.status == LegacyBattleHudFrameStatus::completed &&
                 result.top_actor_rows == 1U && state.top_pulse == 1 &&
-                result.x87_conversions == 1U &&
-                has_argument(port, 0x00469550U, 0U, 10U) &&
-                has_argument(port, 0x00469550U, 4U, 15U) &&
+                result.x87_conversions == 1U && result.text_panel_calls == 1U &&
+                result.text_panels.size() == 1U &&
+                !result.text_panels[0U].used_default_text_position &&
+                result.text_panels[0U].action_entry.eax == 0x7000U &&
+                result.text_panels[0U].action_entry.ecx == 12U &&
+                result.text_panels[0U].action_entry.edx == 15U &&
+                port.count(
+                    openswd3::battle::kLegacyBattleHudReservedTextPanelSlot
+                ) == 0U &&
+                has_argument(port, 0x0043B110U, 0U, 10U) &&
+                has_argument(port, 0x00436AD0U, 2U, 15U) &&
                 has_argument(port, 0x00450490U, 2U, 110U) &&
                 has_argument(port, 0x00450490U, 4U, 28U) &&
                 has_argument(port, 0x00450A50U, 4U, 0x99U) &&
@@ -237,16 +245,25 @@ void test_battle_hud_frame(openswd3::test::Context& test) {
         LegacyBattleHudFrameState state;
         state.footer_mode = 1U;
         HudPort port;
-        port.push(0x00469550U, {.eax = 0xCAFEBABEU});
+        port.push(0x00436AD0U, {.eax = 0xCAFEBABEU});
         const auto result =
             openswd3::battle::advance_legacy_battle_hud_frame(state, port);
         test.expect_true(
             result.return_value == 0xCAFEBABEU && state.footer_delta == 22 &&
-                state.footer_position == 22 &&
-                has_argument(port, 0x00469550U, 0U, 0xFFFFFFDCU) &&
-                has_argument(port, 0x00469550U, 1U, 354U) &&
-                has_argument(port, 0x00469550U, 6U, 0x004A7814U),
-            "footer uses signed third-step convergence and returns rectangle EAX"
+                state.footer_position == 22 && result.text_panel_calls == 1U &&
+                result.text_panels.size() == 1U &&
+                result.text_panels[0U].used_default_text_position &&
+                result.text_panels[0U].action_entry.eax == 0U &&
+                result.text_panels[0U].action_entry.ecx == 68U &&
+                result.text_panels[0U].action_entry.edx == 22U &&
+                port.count(
+                    openswd3::battle::kLegacyBattleHudReservedTextPanelSlot
+                ) == 0U &&
+                has_argument(port, 0x0043B110U, 0U, 0xFFFFFFDCU) &&
+                has_argument(port, 0x0043B110U, 1U, 354U) &&
+                has_argument(port, 0x00436AD0U, 2U, 0xFFFFFFDEU) &&
+                has_argument(port, 0x00436AD0U, 4U, 0x004A7814U),
+            "footer uses signed third-step convergence and returns text EAX"
         );
     }
 }

@@ -521,6 +521,8 @@ I5最终必须锁定：
 
 `audit_order=155`的`0x004694E0`已关闭为`assembly_exact`。完整权威LST主体`0x004694E0..0x00469542`共53行、31条实际指令、0个静态call、6个跳转、5个标签、1个返回点且无外部chunk。函数在共享控制pair高word非零时完整保留EAX/ECX/EDX与状态并短路；否则按4行×10列row-major扫描startup reset唯一40-word表。首个非零项先发布0..3行号，再重读完整u16值、只清命中半word并写pair高word，返回扁平索引、`0x00520000 | value`和行首token。四十项全零时返回EAX 10与双表尾token，并保留陈旧低word。动作分派case 13前四个角色行直接写同一表、后六行保留相邻tail；消息99直连本实现并继续消费行号/值，旧准备控制槽reserved且生产零调用。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194 全部通过。源码构建零warning；app仅有既有ALSA开发库CMake提示。候选工作包为`155/422 = 149 platform_adapted + 6 assembly_exact + 267 pending_audit`，双跑SHA256为`7c9d24718fc9f4fc8b69161e8bbbbac4444290ae315173d2c2715531d349f769`。动态差分因原版共享表/pair与caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=156`的`0x00469550`。
+`audit_order=156`的`0x00469550`已关闭为`platform_adapted`。完整权威LST主体`0x00469550..0x00469619`共107行、73条实际指令、5个静态call、2个跳转、1个标签、2个返回点且无外部chunk。函数复用胜利结算唯一共享动作记录，写action `0x233B`与base variant零后更新动作；矩形参数保持`left,top,width,height,0,4,4,0`，内框按低32位回绕缩入4像素。九宫格资源从完整width重建高16位并只以live动作`field_4a`替换低word。显式文字X/Y都为零时改用`left+2,top+4`，否则保留调用者坐标；两路入口寄存器分别保留九宫格陈旧EDX或重建framebuffer/font/text链，最终返回文字callee完整EAX/ECX/EDX。HUD顶部姓名面板和footer提示均已直连本实现，footer保留signed向零除3及符号修正寄存器链；旧地址仅保留reserved常量且生产零调用。定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过，源码构建零warning；app仅有既有ALSA开发库CMake提示。候选工作包为`156/422 = 150 platform_adapted + 6 assembly_exact + 266 pending_audit`，双跑SHA256为`5bad96807c4944571a78f33f07f6c543c722dc48a546645d12de0060dccf8494`。动态差分因原版动作更新、framebuffer、矩形、九宫格、字体/文字与caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=157`的`0x00469620`。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。
