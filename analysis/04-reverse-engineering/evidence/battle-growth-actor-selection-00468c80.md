@@ -41,7 +41,7 @@
 
 ## 5. owner、caller回收与验证
 
-四项奖励计数、成长限制和成长道具码属于胜利奖励state的连续profile owner；全局重置按原写集合保留这三组profile。角色道具链与新节点继续复用`LegacyWorldItemListState`，不建立battle平行链。共享定义scratch只存在于本函数state；24-byte标题复用`LegacyBattleLevelAdvancementState::growth_caption_text`；transition mode/actor复用目标选择runtime。
+四项奖励计数、成长限制和成长道具码属于胜利奖励state的连续profile owner；全局重置按原写集合保留这三组profile。角色道具链与新节点继续复用`LegacyWorldItemListState`，不建立battle平行链。共享定义scratch只存在于本函数state；24-byte标题复用`LegacyBattleLevelAdvancementState::growth_caption_text`；transition mode/actor复用目标选择runtime。后续消息113现由已关闭法宝完全成长提示框直接消费同一24-byte标题，不复制文字owner。
 
 消息112在actor为`0xFF`时现已直连本实现；子typed-stop阻断caller的sample、完成查询、transition分配、成长完成标题框、timer和消息切换。选择后仍无actor的既有转113路径不变。旧选角槽保留枚举数值并改名为reserved，生产代码零调用。主帧端口映射组A完成查询、定义加载、道具存在查询和节点分配四类服务，定义说明使用权威最大有效长度覆盖的固定256-byte载荷与显式长度。
 

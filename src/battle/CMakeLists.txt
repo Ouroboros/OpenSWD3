@@ -58,6 +58,7 @@ add_library(
         legacy_battle_growth_actor_selection.cpp
         legacy_battle_growth_caption.cpp
         legacy_battle_growth_completion_caption.cpp
+        legacy_battle_growth_item_completion_panel.cpp
         legacy_battle_guard_panel_frame.cpp
         legacy_battle_hud_frame.cpp
         legacy_battle_image_rotation.cpp

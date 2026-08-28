@@ -6,6 +6,7 @@
 #include "openswd3/battle/legacy_battle_group_b_frame.hpp"
 #include "openswd3/battle/legacy_battle_growth_actor_selection.hpp"
 #include "openswd3/battle/legacy_battle_growth_caption.hpp"
+#include "openswd3/battle/legacy_battle_growth_item_completion_panel.hpp"
 #include "openswd3/battle/legacy_battle_growth_completion_caption.hpp"
 #include "openswd3/battle/legacy_battle_level_advancement.hpp"
 #include "openswd3/battle/legacy_battle_level_growth_panel.hpp"
@@ -79,7 +80,7 @@ enum class LegacyBattleMessagePhaseCall : compat::u8 {
     reserved_select_message_112_actor_slot,
     reserved_advance_message_112_slot,
     select_message_113_actor,
-    advance_message_113,
+    reserved_advance_message_113_slot,
     advance_message_102,
     advance_message_103,
 };
@@ -135,7 +136,8 @@ class LegacyBattleMessagePhasePort
       public virtual LegacyBattleLevelAdvancementPort,
       public virtual LegacyBattleLevelGrowthPanelPort,
       public virtual LegacyBattleGrowthActorSelectionPort,
-      public virtual LegacyBattleGrowthCaptionPort {
+      public virtual LegacyBattleGrowthCaptionPort,
+      public virtual LegacyBattleGrowthItemCompletionPanelPort {
 public:
     ~LegacyBattleMessagePhasePort() override = default;
 
@@ -179,6 +181,8 @@ struct LegacyBattleMessagePhaseRequest {
     LegacyBattleLevelGrowthPanelRequest level_growth_panel_request{};
     LegacyBattleGrowthCaptionRequest growth_caption_request{};
     LegacyBattleGrowthCaptionRequest growth_completion_caption_request{};
+    LegacyBattleGrowthItemCompletionPanelRequest
+        growth_item_completion_panel_request{};
 };
 
 enum class LegacyBattleMessagePhaseStatus : compat::u8 {
@@ -198,6 +202,7 @@ enum class LegacyBattleMessagePhaseStatus : compat::u8 {
     growth_actor_selection_typed_stop,
     growth_caption_typed_stop,
     growth_completion_caption_typed_stop,
+    growth_item_completion_panel_typed_stop,
     target_selection_entry_typed_stop,
 };
 
@@ -223,6 +228,7 @@ struct LegacyBattleMessagePhaseResult {
     compat::u32 growth_actor_selection_calls{};
     compat::u32 growth_caption_calls{};
     compat::u32 growth_completion_caption_calls{};
+    compat::u32 growth_item_completion_panel_calls{};
     LegacyBattleTargetSelectionEntryResult target_selection_entry{};
     LegacyBattlePlayerItemQuantityResult player_item_quantity{};
     LegacyBattleVictoryRewardResult victory_rewards{};
@@ -232,6 +238,7 @@ struct LegacyBattleMessagePhaseResult {
     LegacyBattleGrowthActorSelectionResult growth_actor_selection{};
     LegacyBattleGrowthCaptionResult growth_caption{};
     LegacyBattleGrowthCaptionResult growth_completion_caption{};
+    LegacyBattleGrowthItemCompletionPanelResult growth_item_completion_panel{};
     std::vector<LegacyBattleMessagePhaseCall> call_trace;
     compat::u32 call_trace_count{};
 };

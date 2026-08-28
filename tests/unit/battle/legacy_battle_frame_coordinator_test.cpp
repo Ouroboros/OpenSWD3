@@ -1198,6 +1198,39 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         port.replies
             [LegacyBattleFrameCoordinatorCall::growth_actor_allocate_item_node]
                 .growth_item_allocation_token = 0x70100000U;
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         growth_item_completion_format_text]
+            .eax = 41U;
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         growth_item_completion_format_text]
+            .publish_growth_item_formatted_text = true;
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         growth_item_completion_format_text]
+            .growth_item_formatted_text[0U] = 0x71U;
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         growth_item_completion_format_text]
+            .growth_item_formatted_text_length = 1U;
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         growth_item_completion_measure_text]
+            .publish_growth_item_measured_length = true;
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         growth_item_completion_measure_text]
+            .growth_item_measured_length = 9U;
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         growth_item_completion_query_panel]
+            .eax = 1U;
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         growth_item_completion_query_panel]
+            .publish_growth_transition_stage = true;
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         growth_item_completion_query_panel]
+            .growth_transition_stage = 7U;
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         growth_item_completion_set_font_size]
+            .eax = 42U;
+        port.replies
+            [LegacyBattleFrameCoordinatorCall::growth_item_completion_draw_text]
+                .eax = 43U;
 
         const auto growth_query = port.invoke_growth_actor_selection({
             .call = openswd3::battle::LegacyBattleGrowthActorSelectionCall::
@@ -1232,6 +1265,53 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             .eax = 10U,
             .ecx = 11U,
             .edx = 12U,
+        });
+        const auto item_format = port.invoke_growth_item_completion_panel({
+            .call = openswd3::battle::
+                LegacyBattleGrowthItemCompletionPanelCall::format_text,
+            .arguments = {0x70003000U, 0x004A7AD4U, 0x0053C154U},
+            .eax = 13U,
+            .ecx = 14U,
+            .edx = 15U,
+            .text = {0x31U},
+            .text_length = 1U,
+        });
+        const auto item_measure = port.invoke_growth_item_completion_panel({
+            .call = openswd3::battle::
+                LegacyBattleGrowthItemCompletionPanelCall::measure_text,
+            .arguments = {0x70003000U},
+            .eax = 16U,
+            .ecx = 17U,
+            .edx = 18U,
+            .text = {0x31U, 0x32U, 0x33U},
+            .text_length = 3U,
+        });
+        const auto item_query = port.invoke_growth_item_completion_panel({
+            .call = openswd3::battle::
+                LegacyBattleGrowthItemCompletionPanelCall::query_panel,
+            .arguments = {0xD4U, 0xF4U, 3U},
+            .eax = 19U,
+            .ecx = 20U,
+            .edx = 21U,
+        });
+        const auto item_font = port.invoke_growth_item_completion_panel({
+            .call = openswd3::battle::
+                LegacyBattleGrowthItemCompletionPanelCall::set_font_size,
+            .arguments = {0x004C9A28U, 0x11U},
+            .eax = 22U,
+            .ecx = 23U,
+            .edx = 24U,
+        });
+        const auto item_draw = port.invoke_growth_item_completion_panel({
+            .call = openswd3::battle::
+                LegacyBattleGrowthItemCompletionPanelCall::draw_text,
+            .arguments =
+                {0x004CD76CU, 0xD8U, 0xDAU, 0x70003000U, 0xFFC0U, 0x10U},
+            .eax = 25U,
+            .ecx = 26U,
+            .edx = 27U,
+            .text = {0x31U},
+            .text_length = 1U,
         });
 
         const auto name = port.invoke_growth_caption({
@@ -1327,8 +1407,41 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 port.count(
                     LegacyBattleFrameCoordinatorCall::
                         growth_actor_allocate_item_node
+                ) == 1U &&
+                item_format.eax == 41U && item_format.publish_formatted_text &&
+                item_format.formatted_text[0U] == 0x71U &&
+                item_format.formatted_text_length == 1U &&
+                item_measure.eax == 9U && item_query.eax == 1U &&
+                item_query.publish_transition_stage &&
+                item_query.transition_stage == 7U && item_font.eax == 42U &&
+                item_draw.eax == 43U &&
+                port.calls[4U].arguments[0U] == 0x70003000U &&
+                port.calls[4U].arguments[1U] == 0x004A7AD4U &&
+                port.calls[5U].caption_text_length == 3U &&
+                port.calls[6U].arguments[0U] == 0xD4U &&
+                port.calls[7U].arguments[1U] == 0x11U &&
+                port.calls[8U].arguments[0U] == 0x004CD76CU &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        growth_item_completion_format_text
+                ) == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        growth_item_completion_measure_text
+                ) == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        growth_item_completion_query_panel
+                ) == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        growth_item_completion_set_font_size
+                ) == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        growth_item_completion_draw_text
                 ) == 1U,
-            "frame coordinator maps growth actor item services, caption operations and completion sample playback"
+            "frame coordinator maps growth actor services, growth item completion text, caption operations and sample playback"
         );
     }
     {

@@ -299,6 +299,7 @@ add_executable(
     unit/battle/legacy_battle_grid_frame_test.cpp
     unit/battle/legacy_battle_growth_actor_selection_test.cpp
     unit/battle/legacy_battle_growth_caption_test.cpp
+    unit/battle/legacy_battle_growth_item_completion_panel_test.cpp
     unit/battle/legacy_battle_guard_panel_frame_test.cpp
     unit/battle/legacy_battle_hud_frame_test.cpp
     unit/battle/legacy_battle_input_dispatch_test.cpp

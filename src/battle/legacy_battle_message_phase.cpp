@@ -892,7 +892,36 @@ private:
                 return finish();
             }
         }
-        call(LegacyBattleMessagePhaseCall::advance_message_113, 0U, {0U, 0U});
+        auto panel_request = request_.growth_item_completion_panel_request;
+        panel_request.entry_eax = eax_;
+        panel_request.entry_ecx = ecx_;
+        panel_request.entry_edx = edx_;
+        result_.growth_item_completion_panel =
+            advance_legacy_battle_growth_item_completion_panel(
+                {
+                    .level_advancement = port_.battle_level_advancement_state(),
+                    .target_selection = bindings_.target_selection,
+                    .victory_rewards = bindings_.victory_rewards.state,
+                    .framebuffer = bindings_.victory_rewards.framebuffer,
+                    .raster = bindings_.victory_rewards.raster,
+                    .shared_effects = bindings_.victory_rewards.shared_effects,
+                    .jitter = bindings_.victory_rewards.jitter,
+                    .frame_provider = bindings_.victory_rewards.frame_provider,
+                },
+                port_,
+                panel_request
+            );
+        ++result_.growth_item_completion_panel_calls;
+        result_.port_calls += result_.growth_item_completion_panel.port_calls;
+        eax_ = result_.growth_item_completion_panel.return_eax;
+        ecx_ = result_.growth_item_completion_panel.return_ecx;
+        edx_ = result_.growth_item_completion_panel.return_edx;
+        if (result_.growth_item_completion_panel.status !=
+            LegacyBattleGrowthItemCompletionPanelStatus::completed) {
+            result_.status = LegacyBattleMessagePhaseStatus::
+                growth_item_completion_panel_typed_stop;
+            return finish();
+        }
         eax_ = bindings_.target_selection.transition_timer + 1U;
         bindings_.target_selection.transition_timer = eax_;
         return finish();

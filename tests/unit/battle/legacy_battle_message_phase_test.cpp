@@ -192,6 +192,26 @@ public:
         return reply;
     }
 
+    [[nodiscard]]
+    openswd3::battle::LegacyBattleGrowthItemCompletionPanelCallReply
+    invoke_growth_item_completion_panel(
+        const openswd3::battle::
+            LegacyBattleGrowthItemCompletionPanelCallRequest& request
+    ) override {
+        growth_item_completion_panel_calls.push_back(request);
+        if (request.call ==
+            openswd3::battle::LegacyBattleGrowthItemCompletionPanelCall::
+                query_panel) {
+            return {
+                .eax = growth_item_completion_panel_query_eax,
+                .ecx = request.ecx,
+                .edx = request.edx,
+            };
+        }
+        return openswd3::battle::LegacyBattleGrowthItemCompletionPanelPort::
+            invoke_growth_item_completion_panel(request);
+    }
+
     [[nodiscard]] openswd3::battle::LegacyBattleGrowthCaptionCallReply
     invoke_growth_caption(
         const openswd3::battle::LegacyBattleGrowthCaptionCallRequest& request
@@ -262,11 +282,15 @@ public:
     std::vector<openswd3::battle::LegacyBattleGrowthActorSelectionCallRequest>
         growth_actor_calls;
     std::map<u16, std::array<u8, 160U>> growth_actor_definitions;
+    std::vector<
+        openswd3::battle::LegacyBattleGrowthItemCompletionPanelCallRequest>
+        growth_item_completion_panel_calls;
     std::vector<openswd3::battle::LegacyBattleGrowthCaptionCallRequest>
         caption_calls;
     std::vector<std::array<u32, 5U>> completion_sample_calls;
     u32 growth_query_eax{};
     u32 caption_query_eax{};
+    u32 growth_item_completion_panel_query_eax{};
 };
 
 struct Fixture {
@@ -1067,11 +1091,58 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         const auto advanced = run(selected);
         test.expect_true(
             advanced.sample_calls == 1U &&
+                advanced.growth_item_completion_panel_calls == 1U &&
+                advanced.growth_item_completion_panel.port_calls == 0U &&
                 selected.port.count(
-                    LegacyBattleMessagePhaseCall::advance_message_113
-                ) == 1U &&
+                    LegacyBattleMessagePhaseCall::
+                        reserved_advance_message_113_slot
+                ) == 0U &&
                 selected.target_selection.transition_timer == 1U,
-            "message 113 samples and advances a selected actor without allocating when its query is nonzero"
+            "message 113 samples a selected actor then directly advances the mode-gated growth item completion panel"
+        );
+
+        Fixture rendered;
+        rendered.message = 0x71U;
+        rendered.target_selection.transition_actor_index = 2U;
+        rendered.target_selection.transition_mode = 1U;
+        rendered.target_selection.transition_stage = 12U;
+        rendered.port.battle_victory_reward_state()
+            .panel_action_record.field_4a = 0x4567U;
+        rendered.port.battle_level_advancement_state().growth_caption_text = {
+            0x41U, 0U
+        };
+        rendered.port.growth_item_completion_panel_query_eax = 1U;
+        const auto rendered_result = run(rendered);
+        test.expect_true(
+            rendered_result.status ==
+                    openswd3::battle::LegacyBattleMessagePhaseStatus::
+                        completed &&
+                rendered_result.growth_item_completion_panel_calls == 1U &&
+                rendered_result.growth_item_completion_panel.text_draw_calls ==
+                    1U &&
+                rendered_result.growth_item_completion_panel.font_size_calls ==
+                    2U &&
+                rendered.target_selection.transition_timer == 1U,
+            "message 113 directly draws the growth item completion message before incrementing its timer"
+        );
+
+        Fixture invalid_panel;
+        invalid_panel.message = 0x71U;
+        invalid_panel.target_selection.transition_actor_index = 2U;
+        invalid_panel.target_selection.transition_mode = 1U;
+        invalid_panel.target_selection.transition_timer = 7U;
+        invalid_panel.port.battle_level_advancement_state()
+            .growth_caption_text.fill(0x58U);
+        const auto invalid_panel_result = run(invalid_panel);
+        test.expect_true(
+            invalid_panel_result.status ==
+                    openswd3::battle::LegacyBattleMessagePhaseStatus::
+                        growth_item_completion_panel_typed_stop &&
+                invalid_panel.target_selection.transition_timer == 7U &&
+                invalid_panel_result.growth_item_completion_panel_calls == 1U &&
+                invalid_panel_result.growth_item_completion_panel
+                        .rectangle_calls == 0U,
+            "message 113 propagates the completion panel caption stop before its timer increment"
         );
     }
     {
