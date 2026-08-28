@@ -94,6 +94,7 @@ struct LegacyBattleScriptWorkspace {
     compat::u16 word_c{};                 // 0x0053CE9C
     compat::u16 word_d{};                 // 0x0053CE9E
     compat::u32 list_count{};             // 0x0053CEA0
+    compat::u32 shutdown_auxiliary{};     // 0x0053CEAC
     compat::u32 frame_after_move_gate{};  // 0x0053CEB0
     compat::u32 completion_gate{};        // 0x0053CEB8
 };
@@ -128,6 +129,7 @@ struct LegacyBattleScriptSharedState {
     compat::u16 effect_mask{};
     compat::u32 attack_order_primary_gate{};
     compat::u32 attack_order_secondary_gate{};
+    std::array<compat::u32, 4> shutdown_values{};      // 0x0053CE5C..0x0053CE68
     std::array<compat::u16, 18> actor_target_words{};  // 0x005028AC
     std::array<compat::u32, 18> actor_state_words{};
     std::array<compat::u32, 10> group_a_mirror_x{};          // 0x004FF558
@@ -144,7 +146,7 @@ struct LegacyBattleScriptSharedState {
 };
 
 struct LegacyBattleScriptDispatchBindings {
-    const LegacyBattleAssets& assets;
+    LegacyBattleAssets& assets;
     LegacyBattleStartupState& startup;
     LegacyBattleActorMetricState& metrics;
     LegacyBattleFinalActorStepState& final_actor;
@@ -181,7 +183,7 @@ enum class LegacyBattleScriptDispatchCall : compat::u32 {
     player_item_quantity = 0x0045D180U,
     attack_order_insert = 0x0045EE70U,
     script_page_load = 0x0046E1E0U,
-    script_shutdown = 0x0046E260U,
+    reserved_script_shutdown = 0x0046E260U,
     script_finalize = 0x0046E290U,
     pending_4707b0 = 0x004707B0U,
     pending_475820 = 0x00475820U,

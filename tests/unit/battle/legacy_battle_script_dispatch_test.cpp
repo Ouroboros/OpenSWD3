@@ -42,6 +42,11 @@ struct Fixture {
     LegacyBattleScriptWorkspace workspace;
     u32 message_state{};
 
+    Fixture() {
+        assets.script_capacity =
+            openswd3::battle::kLegacyBattleScriptWindowSize;
+    }
+
     [[nodiscard]] LegacyBattleScriptDispatchBindings bindings() {
         return {
             .assets = assets,
@@ -161,6 +166,28 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
                 result.return_eax == 1U && fixture.workspace.cursor == 0U &&
                 port.calls.empty(),
             "default battle script cases preserve the cursor"
+        );
+    }
+
+    {
+        Fixture fixture;
+        Port port;
+        fixture.opcode(1);
+        fixture.workspace.waiting_state = 0x8001U;
+        fixture.assets.script_capacity =
+            openswd3::battle::kLegacyBattleScriptPageSize;
+        fixture.assets.figtalk_actual_size = 7U;
+        port.frame_results = {2U};
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        test.expect_true(
+            result.return_eax == 2U && fixture.workspace.cursor == 4U &&
+                fixture.workspace.waiting_state == 0U &&
+                fixture.shared.script_completion_gate == 1U &&
+                fixture.assets.script_capacity == 0U &&
+                fixture.assets.figtalk_actual_size == 0U,
+            "case one preserves its entry cursor advance after direct script shutdown"
         );
     }
 
@@ -585,6 +612,18 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
         fixture.opcode(-1);
         fixture.startup.enemy_count = 1U;
         fixture.startup.party_count = 1U;
+        fixture.workspace.waiting_state = 0xCAFE1234U;
+        fixture.workspace.value_a = 77;
+        fixture.workspace.value_b = 88;
+        fixture.workspace.value_c = 99;
+        fixture.workspace.dynamic_command_token = 0x1234U;
+        fixture.workspace.shutdown_auxiliary = 6U;
+        fixture.shared.shutdown_values.fill(7U);
+        fixture.shared.frame_value = 3U;
+        fixture.assets.script_capacity =
+            openswd3::battle::kLegacyBattleScriptPageSize;
+        fixture.assets.figtalk_actual_size = 5U;
+        fixture.assets.figtalk_page_offset = 0x20U;
         const auto result = run_legacy_battle_script_dispatch(
             fixture.workspace, fixture.bindings(), port
         );
@@ -594,9 +633,24 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
                     2U &&
                 port.count(LegacyBattleScriptDispatchCall::global_reset) ==
                     1U &&
-                port.count(LegacyBattleScriptDispatchCall::script_shutdown) ==
-                    1U,
-            "terminal opcode cleans group B then group A and returns zero"
+                fixture.workspace.cursor == 0U &&
+                fixture.workspace.waiting_state == 0xCAFE0000U &&
+                fixture.workspace.value_a == 77 &&
+                fixture.workspace.value_b == 0 &&
+                fixture.workspace.value_c == 0 &&
+                fixture.workspace.dynamic_command_token == 0x1234U &&
+                fixture.workspace.shutdown_auxiliary == 0U &&
+                std::ranges::all_of(
+                    fixture.shared.shutdown_values,
+                    [](const auto value) { return value == 0U; }
+                ) &&
+                fixture.shared.frame_gate == 1U &&
+                fixture.shared.script_completion_gate == 1U &&
+                fixture.shared.frame_value == 0xFFFFU &&
+                fixture.assets.script_capacity == 0U &&
+                fixture.assets.figtalk_actual_size == 0U &&
+                fixture.assets.figtalk_page_offset == 0U,
+            "terminal opcode cleans actors then resets only the authoritative script state"
         );
     }
 }

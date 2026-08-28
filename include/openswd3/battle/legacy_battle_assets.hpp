@@ -54,7 +54,7 @@ struct LegacyBattleAssets {
     compat::u32 figtalk_data_offset{};
     compat::u32 figtalk_actual_size{};
     compat::u32 figtalk_page_offset{};
-    compat::u32 script_capacity{kLegacyBattleScriptWindowSize};
+    compat::u32 script_capacity{};
     compat::u32 record_actual_size{};
     std::filesystem::path figtalk_path;
     std::array<compat::u8, kLegacyBattleScriptWindowSize> script{};

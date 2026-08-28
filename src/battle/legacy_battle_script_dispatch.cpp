@@ -409,6 +409,42 @@ private:
         return true;
     }
 
+    void shutdown_script_direct() {
+        const bool had_script_allocation =
+            bindings_.assets.script_capacity != 0U;
+        bindings_.shared.frame_gate = 1U;
+        bindings_.shared.script_completion_gate = 1U;
+        bindings_.shared.shutdown_values.fill(0U);
+        workspace_.value_b = 0;
+        workspace_.value_c = 0;
+        workspace_.coordinate_x = 0;
+        workspace_.coordinate_y = 0;
+        workspace_.position_x = 0U;
+        workspace_.position_y = 0U;
+        workspace_.pair_x = 0U;
+        workspace_.pair_y = 0U;
+        workspace_.packed_actor_state = 0U;
+        workspace_.waiting_argument = 0U;
+        set_low_word(workspace_.waiting_state, 0U);
+        workspace_.packed_value_a = 0U;
+        workspace_.packed_value_b = 0U;
+        workspace_.word_a = 0U;
+        workspace_.word_b = 0U;
+        workspace_.word_c = 0U;
+        workspace_.word_d = 0U;
+        bindings_.shared.frame_value = 0xFFFFU;
+        workspace_.list_count = 0U;
+        workspace_.dynamic_wait_state = 0U;
+        bindings_.assets.figtalk_page_offset = 0U;
+        workspace_.shutdown_auxiliary = 0U;
+        if (had_script_allocation) {
+            bindings_.assets.figtalk_actual_size = 0U;
+            bindings_.assets.script_capacity = 0U;
+            workspace_.cursor = 0U;
+        }
+        eax_ = 0U;
+    }
+
     void cleanup_all_actors() {
         i32 index = 0;
         while (index < static_cast<i32>(bindings_.startup.enemy_count)) {
@@ -437,7 +473,7 @@ private:
         }
         set_low_word(workspace_.waiting_state, 0U);
         invoke(LegacyBattleScriptDispatchCall::global_reset);
-        invoke(LegacyBattleScriptDispatchCall::script_shutdown);
+        shutdown_script_direct();
         return finish(0U);
     }
 
@@ -479,9 +515,10 @@ private:
         if (result_.status != LegacyBattleScriptDispatchStatus::completed) {
             return finish(eax_);
         }
+        const u32 resume_cursor = workspace_.cursor;
         invoke(LegacyBattleScriptDispatchCall::global_reset);
-        invoke(LegacyBattleScriptDispatchCall::script_shutdown);
-        workspace_.cursor = wrapping_add(workspace_.cursor, 4U);
+        shutdown_script_direct();
+        workspace_.cursor = wrapping_add(resume_cursor, 4U);
         set_low_word(workspace_.waiting_state, 0U);
         bindings_.shared.script_completion_gate = 1U;
         return finish(static_cast<u32>(workspace_.value_a));

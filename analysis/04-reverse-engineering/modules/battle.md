@@ -541,6 +541,8 @@ I5最终必须锁定：
 
 `audit_order=165`的`0x0046E1E0`已关闭为`platform_adapted`。完整权威LST主体`0x0046E1E0..0x0046E25B`共69行、40条实际指令、4个call、1个跳转、1个返回点且无外部chunk。函数释放旧脚本base后分配并清零`0x1000` bytes，把同一token发布为base/cursor，再从FIGTALK绝对位置`offset+0x200`固定读取一页，读取尝试后发布原offset，返回ReadFile BOOL；ECX恢复入口，EDX保留局部读取长度栈token。typed页面加载复用唯一`LegacyBattleAssets::script`，新增活动容量区分初始`0x8000`窗口与`0x1000`页，宿主尾部不可访问；动态分配适配为同一数组，文件调用经SDL命名服务。脚本分派10个LST callsite已回收，case19两条分支汇入一个typed调用点；成功前先发布新页cursor零，失败在服务边界停止。测试覆盖页面offset、短读、零尾、活动容量越界、case48成功/查询失败/服务失败及case61/65新页cursor。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过，源码零warning。工作包为`165/422 = 156 platform_adapted + 9 assembly_exact + 257 pending_audit`，双跑SHA256为`741d16a1a4336e12dd9c31424f3868563beb2d60dce4afdf3cdb4f03df08517c`。动态差分因原版动态地址、持久句柄、未检查文件调用和局部栈token后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=166`的`0x0046E260`战斗脚本页面释放。
+`audit_order=166`的`0x0046E260`已关闭为`platform_adapted`。主块`0x0046E260..0x0046E285`与外部FUNCTION CHUNK `0x0046E390..0x0046E489`合计119行、53条实际指令、2个call、3个跳转、1个返回点。函数条件关闭FIGTALK句柄并清文件门，随后在chunk写帧门/脚本完成门1，按精确dword/word宽度清四项辅助值、value B/C、坐标、packed actor、等待低word、两项packed值、四word、list count、动态等待、page offset和辅助值，固定frame value写`0xFFFF`；未写的动态token、value A、对象/文字和完成状态保持。base非零才释放并清base/cursor，零base保留cursor。typed直接reset复用资产、workspace和shared唯一owner，固定数组以活动容量表示live分配。终止opcode与case1两个caller均回收旧端口；case1保存入口cursor，shutdown后仍写入口加4并传播2/3。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过，源码零warning。工作包为`166/422 = 157 platform_adapted + 9 assembly_exact + 256 pending_audit`，双跑SHA256为`81364312d136d0458c0e02d45666f9d87beb28d6f50b57a1f3cae320e2c531ff`。动态差分因原版持久句柄、关闭结果、动态地址和释放返回后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=167`的`0x0046E290`战斗脚本结束参数整理。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。
