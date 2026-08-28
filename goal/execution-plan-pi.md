@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v750
+版本：v751
 
 最后更新：2026-08-25
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计组A角色次跳过状态读取
+当前步骤：模块10 · 审计战斗启动相邻角色状态函数
 
 ## 0. 执行约定
 
@@ -4118,4 +4118,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=162`的`0x0046E090`组A角色主跳过状态读取。完整权威LST主体`0x0046E090..0x0046E096`共10行、2条实际指令、0个call、0个跳转、0个标签、1个返回点且无外部chunk；行为只以ECX this完整读取组A角色`+0x2B00` dword并原样返回EAX。全程序没有真实call，唯一DATA XREF位于脚本case58；前一固定函数地址先装入EDX并测试，PE地址静态非零使`jnz`必然越过本函数地址加载和后续目标槽/攻击顺序死块。typed侧复用既有角色结算状态且不制造无用getter，case58回归确认组B路径仅推进4字节、零端口调用且攻击顺序不变。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过。工作包为`162/422 = 154 platform_adapted + 8 assembly_exact + 260 pending_audit`；生成器连续双跑逐字节一致，SHA256为`3a3d2dbd8e5b2f3f13402d674cd43e2dc965b85e18d23acc4048c031f4bdad47`。该目标静态不可达且两指令已完整审计，无需动态oracle。
 
-下一项回收`audit_order=163`的`0x0046E0A0`组A角色次跳过状态读取。
+本轮再完成`audit_order=163`的`0x0046E0A0`组A角色次跳过状态读取。完整权威LST主体`0x0046E0A0..0x0046E0A6`共10行、2条实际指令、0个call、0个跳转、0个标签、1个返回点且无外部chunk；行为只以ECX this完整读取组A角色`+0x2B04` dword并原样返回EAX。全程序没有真实call，唯一DATA XREF位于脚本case58组B路径；固定地址装入EDX并测试后因静态非零必然跳过后续死块。地址加载本身会留在返回EDX，因此typed case58以`compat::u32`恢复该token，但不转换为主机指针或恢复调用；回归同时确认cursor推进4字节、零端口调用与攻击顺序不变。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过，源码零warning。工作包为`163/422 = 154 platform_adapted + 9 assembly_exact + 259 pending_audit`；生成器连续双跑逐字节一致，SHA256为`af7a8f6f695cd1a78feaa4bb3ad950c6615bcdeb3a40edc7069faecd3340072f`。该目标静态不可达，两指令完整审计与caller寄存器回归共同关闭动态差分。
+
+下一项回收`audit_order=164`的`0x0046E0B0`战斗启动相邻角色状态函数。

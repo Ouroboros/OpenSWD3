@@ -17,6 +17,8 @@ using compat::u8;
 using compat::u16;
 using compat::u32;
 
+constexpr u32 kLegacyBattleGroupASecondarySkipQueryToken = 0x0046E0A0U;
+
 [[nodiscard]] constexpr u16 low_word(const u32 value) noexcept {
     return static_cast<u16>(value & 0xFFFFU);
 }
@@ -2806,6 +2808,8 @@ private:
             const i32 index = actor_code - 8;
             bindings_.shared
                 .actor_state_words[static_cast<std::size_t>(index)] = 1U;
+        } else {
+            edx_ = kLegacyBattleGroupASecondarySkipQueryToken;
         }
         workspace_.cursor = wrapping_add(workspace_.cursor, 4U);
         return finish(1U);

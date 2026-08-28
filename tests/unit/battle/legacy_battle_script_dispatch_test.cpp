@@ -330,10 +330,10 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
             fixture.workspace, fixture.bindings(), port
         );
         test.expect_true(
-            result.return_eax == 1U && fixture.workspace.cursor == 4U &&
-                port.calls.empty() &&
+            result.return_eax == 1U && result.return_edx == 0x0046E0A0U &&
+                fixture.workspace.cursor == 4U && port.calls.empty() &&
                 fixture.startup.reset.records_524788[0].value_00 == 0x12345678U,
-            "case fifty-eight keeps both fixed-address getter blocks dead"
+            "case fifty-eight preserves the first fixed getter token while keeping both blocks dead"
         );
     }
 
