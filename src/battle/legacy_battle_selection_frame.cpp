@@ -734,6 +734,53 @@ private:
         return true;
     }
 
+    [[nodiscard]] bool draw_alternate_grid_frame(
+        const u32 origin_x,
+        const u32 origin_y,
+        const u32 selected_row,
+        const u32 scroll_offset
+    ) {
+        auto alternate_request = request_.alternate_grid_frame;
+        alternate_request.origin_x = origin_x;
+        alternate_request.origin_y = origin_y;
+        alternate_request.selected_row = selected_row;
+        alternate_request.scroll_offset = scroll_offset;
+        alternate_request.entry_eax = eax_;
+        alternate_request.entry_ecx = ecx_;
+        alternate_request.entry_edx = edx_;
+        result_.alternate_grid_frame = draw_legacy_battle_alternate_grid_frame(
+            state_.alternate_grid_frame,
+            {
+                .queued_actor_code = bindings_.final_actor.queued_actor_code,
+                .panel_row_limit = bindings_.frame_input.panel_row_limit_c,
+                .selection_input_gate =
+                    bindings_.target_runtime.selection_input_gate,
+                .target_argument = bindings_.target_runtime.target_argument,
+                .primary_text_color = bindings_.startup.primary_text_color,
+                .panel_action_record = bindings_.panel_action_record,
+                .framebuffer = bindings_.framebuffer,
+                .raster = bindings_.raster,
+                .shared_effects = bindings_.shared_effects,
+                .jitter = bindings_.jitter,
+                .action_updater = bindings_.action_updater,
+                .frame_provider = bindings_.frame_provider,
+            },
+            port_,
+            alternate_request
+        );
+        ++result_.alternate_grid_frame_calls;
+        result_.port_calls += result_.alternate_grid_frame.port_calls;
+        eax_ = result_.alternate_grid_frame.return_eax;
+        ecx_ = result_.alternate_grid_frame.return_ecx;
+        edx_ = result_.alternate_grid_frame.return_edx;
+        if (result_.alternate_grid_frame.status !=
+            LegacyBattleAlternateGridFrameStatus::completed) {
+            typed_stop(Status::alternate_grid_frame_typed_stop);
+            return false;
+        }
+        return true;
+    }
+
     void draw_message_two() {
         state_input().selection_cache_gate_c = 1U;
         if (!draw_list_frame(0xE0U, 0x7EU)) {
@@ -791,7 +838,9 @@ private:
         eax_ = bindings_.frame_input.panel_scroll_b;
         ecx_ = bindings_.frame_input.grid_selection;
         state_input().selection_cache_gate_c = 1U;
-        invoke(Call::draw_grid_alternate, 0U, {0xE0U, 0x7EU, ecx_, eax_});
+        if (!draw_alternate_grid_frame(0xE0U, 0x7EU, ecx_, eax_)) {
+            return;
+        }
         eax_ = replace_low_word(eax_, bindings_.frame_input.panel_row_limit_c);
         ecx_ = bindings_.frame_input.panel_scroll_b;
         edx_ = static_cast<u16>(eax_);

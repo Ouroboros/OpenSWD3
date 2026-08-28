@@ -1100,6 +1100,12 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
         fixture.final_actor.queued_actor_code = 8U;
         fixture.message = 27U;
         fixture.frame.panel_row_limit_c = 7U;
+        fixture.port
+            .grid_frame_replies[LegacyBattleGridFrameCall::initialize_rows]
+            .push_back({
+                .publish_panel_row_limit = true,
+                .panel_row_limit = 7U,
+            });
         const auto result =
             openswd3::battle::draw_legacy_battle_selection_frame(
                 fixture.bindings(), fixture.port
@@ -1108,14 +1114,50 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleSelectionFrameStatus::
                         completed &&
-                count_call(
-                    fixture.port,
-                    LegacyBattleSelectionFrameCall::draw_grid_alternate
-                ) == 1U &&
+                result.alternate_grid_frame_calls == 1U &&
+                result.alternate_grid_frame.status ==
+                    openswd3::battle::LegacyBattleAlternateGridFrameStatus::
+                        completed &&
+                result.alternate_grid_frame.tiled_frame_calls == 2U &&
+                result.alternate_grid_frame.row_query_calls == 1U &&
                 fixture.input.selection_cache_gate_a == 1U &&
                 fixture.input.selection_cache_gate_b == 1U &&
-                fixture.input.selection_cache_gate_c == 1U,
-            "message twenty-seven keeps the alternate grid call and unsigned row threshold"
+                fixture.input.selection_cache_gate_c == 1U &&
+                count_call(
+                    fixture.port,
+                    LegacyBattleSelectionFrameCall::
+                        reserved_draw_grid_alternate_slot
+                ) == 0U,
+            "message twenty-seven directly draws the alternate grid and publishes caches after its unsigned row threshold"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.message = 27U;
+        fixture.frame_provider.fail = true;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        alternate_grid_frame_typed_stop &&
+                result.alternate_grid_frame_calls == 1U &&
+                result.alternate_grid_frame.status ==
+                    openswd3::battle::LegacyBattleAlternateGridFrameStatus::
+                        first_tiled_frame_typed_stop &&
+                fixture.input.selection_cache_gate_a == 0U &&
+                fixture.input.selection_cache_gate_b == 0U &&
+                fixture.input.selection_cache_gate_c == 1U &&
+                count_call(
+                    fixture.port,
+                    LegacyBattleSelectionFrameCall::
+                        reserved_draw_grid_alternate_slot
+                ) == 0U,
+            "message twenty-seven propagates the alternate grid prefix stop before auxiliary and final cache publication"
         );
     }
 }

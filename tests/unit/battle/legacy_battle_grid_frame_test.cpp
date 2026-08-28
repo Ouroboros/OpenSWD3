@@ -133,8 +133,8 @@ public:
     }
 
     std::vector<Request> calls;
-    std::array<std::vector<Reply>, 7> replies;
-    std::array<std::size_t, 7> reply_offsets{};
+    std::array<std::vector<Reply>, 8> replies;
+    std::array<std::size_t, 8> reply_offsets{};
     std::function<void(std::size_t)> on_query;
 };
 

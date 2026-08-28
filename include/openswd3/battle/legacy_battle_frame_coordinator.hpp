@@ -105,7 +105,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     reserved_selection_frame_draw_list_contents_slot,
     reserved_selection_frame_draw_grid_frame_slot,
     selection_frame_draw_narrow_frame,
-    selection_frame_draw_grid_alternate,
+    reserved_selection_frame_draw_grid_alternate_slot,
     selection_frame_draw_grid_mode,
     selection_frame_draw_message_five,
     selection_frame_draw_message_seven,
@@ -133,6 +133,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     list_contents_resolve_regular_row,
     grid_frame_initialize_rows,
     grid_frame_query_row,
+    alternate_grid_frame_query_row,
 };
 
 struct LegacyBattleFrameCoordinatorCallRequest {
@@ -280,9 +281,9 @@ public:
             call = LegacyBattleFrameCoordinatorCall::
                 selection_frame_draw_narrow_frame;
             break;
-        case LegacyBattleSelectionFrameCall::draw_grid_alternate:
+        case LegacyBattleSelectionFrameCall::reserved_draw_grid_alternate_slot:
             call = LegacyBattleFrameCoordinatorCall::
-                selection_frame_draw_grid_alternate;
+                reserved_selection_frame_draw_grid_alternate_slot;
             break;
         case LegacyBattleSelectionFrameCall::draw_grid_mode:
             call = LegacyBattleFrameCoordinatorCall::
@@ -506,6 +507,10 @@ public:
             break;
         case LegacyBattleGridFrameCall::draw_text:
             call = LegacyBattleFrameCoordinatorCall::selection_frame_draw_text;
+            break;
+        case LegacyBattleGridFrameCall::query_alternate_row:
+            call = LegacyBattleFrameCoordinatorCall::
+                alternate_grid_frame_query_row;
             break;
         }
         const auto reply = invoke({
