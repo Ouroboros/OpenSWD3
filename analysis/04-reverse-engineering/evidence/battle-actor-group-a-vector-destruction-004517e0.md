@@ -25,7 +25,7 @@ LST按逆序压栈：
 
 调用后没有`add esp`，说明编译器helper清理四个参数；包装器紧接`retn`。最后一次写EAX来自`0x0048A560`，typed结果保留其完整32位snapshot，测试以`0x87654321`证明不布尔化或清零。
 
-编译器helper通常逆序调用元素析构并处理异常语义；其完整实现及元素析构`0x0046E4D0`仍为后续工作包，本项通过单一vector destruction port隔离该边界。
+元素析构现已关闭，并恢复正常扩展→基础清理及异常时基础清理的SEH链。编译器helper自身的十对象逆序迭代、全局数组字节映射和异常语义仍由单一vector destruction port隔离。
 
 ## 4. 退出注册回调闭合
 
@@ -63,4 +63,4 @@ C++到LST反向追溯覆盖17行完整函数、全部四个参数、callee与返
 
 battle聚合目标零warning构建及定向测试通过。
 
-当前没有原版编译器向量析构迭代器、角色元素析构回调、全局数组字节与异常展开联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整17行LST已完成固定参数闭环。
+当前没有原版编译器向量析构迭代器、全局十对象数组字节与异常展开联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整17行LST已完成固定参数闭环，元素析构另有独立证据。

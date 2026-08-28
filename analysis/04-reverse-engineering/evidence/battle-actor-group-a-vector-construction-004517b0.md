@@ -26,7 +26,7 @@ LST按逆序压栈：
 
 调用后没有`add esp`，说明编译器helper清理五个参数；包装器紧接`retn`。最后一次写EAX来自`0x0048A4C0`，因此typed结果保留其完整32位返回snapshot，尽管权威注释把包装器标为void且唯一caller忽略该值。
 
-元素构造回调现已关闭为`construct_legacy_battle_actor_group_a_element`；编译器向量迭代器与相邻析构回调仍共同承担EH回滚边界，因此本包装器暂时保留单一`LegacyBattleActorVectorConstructionPort`。测试以`0x12345678`证明返回不改写。
+元素构造与析构回调现均已关闭；编译器向量迭代器仍承担十对象的前向构造、失败时逆向回滚和全局数组字节映射，因此本包装器暂时保留单一`LegacyBattleActorVectorConstructionPort`。测试以`0x12345678`证明返回不改写。
 
 ## 4. caller边界回收
 
@@ -37,7 +37,7 @@ LST按逆序压栈：
 - 随后的`_atexit`结果覆盖最终EAX；
 - 构造事件严格先于退出注册事件。
 
-待相邻析构回调与编译器向量异常回滚语义关闭后，继续回收construction port；本次不提前伪造半套EH迭代。
+元素回调已不再阻塞；construction port只隔离尚未建立typed全局十对象存储的MSVC向量异常回滚边界，不再包含未知业务callee。
 
 ## 5. 双向追溯
 
@@ -65,4 +65,4 @@ C++到LST反向追溯覆盖19行完整函数、全部五个参数、callee与返
 
 battle聚合目标零warning构建及定向测试通过。
 
-当前没有原版编译器向量构造迭代器、角色元素析构回调、全局数组字节和异常展开联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整19行LST已完成固定参数闭环，元素构造行为另有独立证据。
+当前没有原版编译器向量构造迭代器、全局十对象数组字节和异常展开联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整19行LST已完成固定参数闭环，元素构造与析构行为各有独立证据。

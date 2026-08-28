@@ -547,6 +547,8 @@ I5最终必须锁定：
 
 `audit_order=168`的`0x0046E490`已关闭为`platform_adapted`。完整权威LST主体`0x0046E490..0x0046E4C4`共31行、19条实际指令、2个call、0个跳转、1个返回点且无外部chunk。thiscall先调用未审基础角色构造，再清对象`+0x2F26/+0x2F18`两个word，分配56-byte附属记录，先发布token后按14 dword清零，正常返回this、ECX零与分配EDX。零分配不提前拒绝：基础构造和两word/token副作用已完成，在首次记录写入点typed-stop并保留旧记录字节。typed元素状态唯一持有对象token、记录token/字节和两word，物理/动态地址保持u32 token。组A向量包装器证据同步更新：构造回调已关闭，但析构与MSVC异常回滚尚未审计，暂保留vector port而不伪造半套EH。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过，源码零warning。工作包为`168/422 = 159 platform_adapted + 9 assembly_exact + 254 pending_audit`，双跑SHA256为`ecc7299e3826e585f760568696ce83324239e2784feb5466b7dccafa10552141`。动态差分因原版基础构造、动态地址、全局对象和向量EH后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=169`的`0x0046E4D0`战斗组A角色元素析构。
+`audit_order=169`的`0x0046E4D0`已关闭为`platform_adapted`。主块`0x0046E4D0..0x0046E518`与SEH外部chunk `0x00498390..0x0049839D`合计62行、23条实际指令、2个call、2个跳转、1个返回点。正常路径建立SEH后按扩展清理→基础析构执行，返回基础EAX/ECX/EDX；扩展清理在unwind状态0抛出时，chunk重载this并仍调用基础析构，再继续传播原异常。typed析构复用元素唯一状态，两个内部析构保持窄端口；try/catch精确恢复基础析构保证，不吞异常。组A构造/析构回调均已关闭，两个vector包装器证据更新为只隔离MSVC对全局十对象数组的迭代与EH边界。测试覆盖正常附属记录释放、基础寄存器返回及扩展异常时基础析构后重抛。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过，源码零warning。工作包为`169/422 = 160 platform_adapted + 9 assembly_exact + 253 pending_audit`，双跑SHA256为`fa467eb8e05aaa1dd0a07bb27332df1a13b7fa8ad8ef9fddfaa08353e6bbb765`。动态差分因原版两级析构、全局对象、MSVC SEH和vector迭代器后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=170`的`0x0046E520`战斗相邻状态函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

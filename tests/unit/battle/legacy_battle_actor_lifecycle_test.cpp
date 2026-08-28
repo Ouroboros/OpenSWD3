@@ -3,6 +3,7 @@
 #include "openswd3/battle/legacy_battle_render_geometry.hpp"
 
 #include <algorithm>
+#include <stdexcept>
 #include <vector>
 
 #include "test.hpp"
@@ -33,6 +34,36 @@ public:
         allocation_reply{};
     u32 base_object_token{};
     u32 allocation_size{};
+    std::vector<u32> events;
+};
+
+class TrackingGroupAElementDestructionPort final
+    : public openswd3::battle::LegacyBattleActorGroupAElementDestructionPort {
+public:
+    [[nodiscard]] openswd3::battle::LegacyBattleActorGroupAElementCallReply
+    destroy_extension(
+        openswd3::battle::LegacyBattleActorGroupAElementState& state
+    ) override {
+        events.push_back(3U);
+        if (throw_from_extension) {
+            throw std::runtime_error{"extension destruction failed"};
+        }
+        state.description_token = 0U;
+        state.description_bytes.fill(0U);
+        return extension_reply;
+    }
+
+    [[nodiscard]] openswd3::battle::LegacyBattleActorGroupAElementCallReply
+    destroy_base(
+        openswd3::battle::LegacyBattleActorGroupAElementState&
+    ) override {
+        events.push_back(4U);
+        return base_reply;
+    }
+
+    openswd3::battle::LegacyBattleActorGroupAElementCallReply extension_reply{};
+    openswd3::battle::LegacyBattleActorGroupAElementCallReply base_reply{};
+    bool throw_from_extension{};
     std::vector<u32> events;
 };
 
@@ -317,6 +348,57 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                 result.return_eax == 0U && result.return_ecx == 7U &&
                 result.return_edx == 8U,
             "zero description allocation stops at the first write after both field clears"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleActorGroupAElementState state{
+            .object_token = 0x005029D0U,
+            .description_token = 0x70000000U,
+        };
+        state.description_bytes.fill(0xA5U);
+        TrackingGroupAElementDestructionPort port;
+        port.extension_reply = {.eax = 1U, .ecx = 2U, .edx = 3U};
+        port.base_reply = {.eax = 4U, .ecx = 5U, .edx = 6U};
+        const auto result =
+            openswd3::battle::release_legacy_battle_actor_group_a_element(
+                state, port
+            );
+        test.expect_true(
+            port.events == std::vector<u32>{3U, 4U} &&
+                state.description_token == 0U &&
+                std::ranges::all_of(
+                    state.description_bytes,
+                    [](const auto value) { return value == 0U; }
+                ) &&
+                result.extension_destructor_calls == 1U &&
+                result.base_destructor_calls == 1U && result.return_eax == 4U &&
+                result.return_ecx == 5U && result.return_edx == 6U,
+            "group-A element destruction releases the extension before returning the base destructor registers"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleActorGroupAElementState state{
+            .object_token = 0x00505904U,
+            .description_token = 0x71000000U,
+        };
+        TrackingGroupAElementDestructionPort port;
+        port.throw_from_extension = true;
+        bool caught = false;
+        try {
+            static_cast<void>(
+                openswd3::battle::release_legacy_battle_actor_group_a_element(
+                    state, port
+                )
+            );
+        } catch (const std::runtime_error&) {
+            caught = true;
+        }
+        test.expect_true(
+            caught && port.events == std::vector<u32>{3U, 4U} &&
+                state.description_token == 0x71000000U,
+            "SEH-equivalent unwind still invokes the base destructor before propagating"
         );
     }
 

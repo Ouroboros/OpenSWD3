@@ -93,6 +93,16 @@ public:
     allocate(compat::u32 size) = 0;
 };
 
+class LegacyBattleActorGroupAElementDestructionPort {
+public:
+    virtual ~LegacyBattleActorGroupAElementDestructionPort() = default;
+
+    [[nodiscard]] virtual LegacyBattleActorGroupAElementCallReply
+    destroy_extension(LegacyBattleActorGroupAElementState& state) = 0;
+    [[nodiscard]] virtual LegacyBattleActorGroupAElementCallReply
+    destroy_base(LegacyBattleActorGroupAElementState& state) = 0;
+};
+
 class LegacyBattleActorObjectLifecyclePort {
 public:
     virtual ~LegacyBattleActorObjectLifecyclePort() = default;
@@ -115,6 +125,14 @@ struct LegacyBattleActorGroupAElementConstructionResult {
     compat::u32 base_constructor_calls{};
     compat::u32 allocation_calls{};
     compat::u32 description_bytes_written{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
+struct LegacyBattleActorGroupAElementDestructionResult {
+    compat::u32 extension_destructor_calls{};
+    compat::u32 base_destructor_calls{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
@@ -176,6 +194,13 @@ struct LegacyBattleActorSingletonStaticInitializationResult {
 construct_legacy_battle_actor_group_a_element(
     LegacyBattleActorGroupAElementState& state,
     LegacyBattleActorGroupAElementConstructionPort& port
+);
+
+// sub_46E4D0 with its SEH unwind chunk at loc_498390.
+[[nodiscard]] LegacyBattleActorGroupAElementDestructionResult
+release_legacy_battle_actor_group_a_element(
+    LegacyBattleActorGroupAElementState& state,
+    LegacyBattleActorGroupAElementDestructionPort& port
 );
 
 // sub_451870: load the singleton token and tail-call its constructor.

@@ -33,6 +33,28 @@ construct_legacy_battle_actor_group_a_element(
     return result;
 }
 
+LegacyBattleActorGroupAElementDestructionResult
+release_legacy_battle_actor_group_a_element(
+    LegacyBattleActorGroupAElementState& state,
+    LegacyBattleActorGroupAElementDestructionPort& port
+) {
+    LegacyBattleActorGroupAElementDestructionResult result;
+    try {
+        static_cast<void>(port.destroy_extension(state));
+        ++result.extension_destructor_calls;
+    } catch (...) {
+        static_cast<void>(port.destroy_base(state));
+        throw;
+    }
+
+    const auto base = port.destroy_base(state);
+    ++result.base_destructor_calls;
+    result.return_eax = base.eax;
+    result.return_ecx = base.ecx;
+    result.return_edx = base.edx;
+    return result;
+}
+
 LegacyBattleActorGroupAConstructionResult construct_legacy_battle_actor_group_a(
     LegacyBattleActorVectorConstructionPort& construction_port
 ) {
