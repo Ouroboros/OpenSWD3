@@ -6,7 +6,7 @@
 
 权威LST主体为`0x00466F70..0x004676BC`，从proc到endp共911行、560条带机器码和真实助记符的实际指令、40个静态call、47个跳转、43个局部标签、1个default标签和21个`retn`，没有外部`FUNCTION CHUNK`。唯一静态caller位于已关闭主帧协调器：HUD之后依次调用选择帧、本函数和后一战斗阶段；本工作包回收第二个后置槽并传播typed-stop。
 
-40个callsite由24处未审战斗调用、一次已关闭胜利奖励、一次已关闭升级面板、一次已关闭角色升级属性提交、一次已关闭角色成长对照面板、一次已关闭成长标题框、一次已关闭成长完成标题框、一次已关闭成长角色选择、一次已关闭法宝成长结果角色选择、一次已关闭法宝完全成长提示框、三处已关闭目标选择进入、一次已关闭玩家道具数量和三处已关闭sample命令组成。胜利奖励、升级面板、角色升级、成长对照、双标题框、两类成长角色选择、法宝完全成长提示框、目标选择与玩家道具数量直接组合；音效复用typed接口；其余15类未审业务callee通过窄端口保留，循环和分支造成的24个静态位置均按原时序执行。
+40个callsite由23处未审战斗调用、一次已关闭胜利奖励、一次已关闭升级面板、一次已关闭角色升级属性提交、一次已关闭角色成长对照面板、一次已关闭成长标题框、一次已关闭成长完成标题框、一次已关闭成长角色选择、一次已关闭法宝成长结果角色选择、一次已关闭法宝完全成长提示框、一次已关闭战利品清单面板、三处已关闭目标选择进入、一次已关闭玩家道具数量和三处已关闭sample命令组成。胜利奖励、升级面板、角色升级、成长对照、双标题框、两类成长角色选择、法宝完全成长提示框、战利品清单、目标选择与玩家道具数量直接组合；音效复用typed接口；其余14类未审业务callee通过窄端口保留，循环和分支造成的23个静态位置均按原时序执行。
 
 ## 2. 入口双门与switch域
 
@@ -43,7 +43,7 @@
 
 101在actor byte为`0xFF`时先直连角色升级属性提交；该函数可发布首个升级角色，若仍为`0xFF`才调用既有选角，仍无actor则timer清零、message写112。actor存在且transition state为零时，按i8 sign-extension构造组A对象，完成查询返回零才以`2,0`分配transition并保存EAX。角色升级子stop阻断选角、完成查询和后续transition/message/timer写入。state仍为零直接返回；否则actor若变为`0xFF`同样转112，否则调用阶段101并递增timer。
 
-102在sample word为零时只置completion gate。非零时先递增timer；新值按i32不小于150时直连目标选择进入，成功后无条件调用阶段102。
+102在战利品u16数量为零时只置completion gate。非零时先递增timer；新值按i32不小于150时直连目标选择进入，成功后无条件直连战利品清单面板。面板先绘CP950“戰利品”双层底板，查询精确1且live数量非零时按十项名称token/u16数量表逐行绘制`%-12s X %2d`；每行后重读live数量。面板typed-stop保留caller的timer与目标选择前缀并阻断后续主帧。旧阶段102槽reserved且生产零调用。
 
 103总是先置cache A/B。battle flags bit3置位时递增timer，按i32达到30后清timer并置completion gate，不调用普通阶段。bit3未置位时先调用阶段103，再走signed 150阈值。
 
@@ -61,10 +61,10 @@
 
 ## 6. typed owner与caller回收
 
-message、双方数量、七dword优先记录、输入cache/文字门、目标选择状态、组A显示位置、动作标签、动作workspace、18条记录、50-dword表、sample mix、调试flags/committed、queued/published、显示门和目标就绪门均复用既有唯一owner。新增message state只承接此前没有typed存储的物理链门、mode gate和组B旁路门；消息99的当前道具payload实际是胜利奖励十项payload数组第0项，现复用该唯一owner。消息112成长角色选择新增的四项计数/限制/道具码复用胜利奖励连续profile，物理角色道具链复用世界道具唯一owner；消息113成长结果选择继续复用同一160-byte定义scratch。两函数和法宝提示框共用角色升级owner中的24-byte标题。全局重置按原写集合清message的后两项与胜利奖励payload，保留入口链门和三组成长profile。
+message、双方数量、七dword优先记录、输入cache/文字门、目标选择状态、组A显示位置、动作标签、动作workspace、18条记录、50-dword表、sample mix、调试flags/committed、queued/published、显示门和目标就绪门均复用既有唯一owner。新增message state只承接此前没有typed存储的物理链门、mode gate和组B旁路门；消息99的当前道具payload实际是胜利奖励十项payload数组第0项，现复用该唯一owner。消息102清单数量继续复用transition u16，名称token和数量复用胜利奖励十项数组。消息112成长角色选择新增的四项计数/限制/道具码复用胜利奖励连续profile，物理角色道具链复用世界道具唯一owner；消息113成长结果选择继续复用同一160-byte定义scratch。两函数和法宝提示框共用角色升级owner中的24-byte标题。全局重置按原写集合清message的后两项与胜利奖励payload，保留入口链门和三组成长profile。
 
-主帧协调器在HUD完成并执行第一后置阶段后直连本函数；原第二后置槽保留枚举数值并改为reserved，生产代码零调用。消息100内部依次直连胜利奖励和升级提示面板，消息101在缺少actor时直连角色升级属性提交，消息110在transition存在时直连角色成长对照面板，消息111固定直连成长标题框，消息112在缺少actor时直连成长角色选择，消息113在缺少actor时直连法宝成长结果角色选择并固定直连法宝完全成长提示框；旧阶段100、110、111、112、113与112/113选角槽均reserved且生产零调用。本函数或任一子函数typed-stop均阻断第三后置阶段、packed-row、头顶动作、对话和后续全部帧尾流程。
+主帧协调器在HUD完成并执行第一后置阶段后直连本函数；原第二后置槽保留枚举数值并改为reserved，生产代码零调用。消息100内部依次直连胜利奖励和升级提示面板，消息101在缺少actor时直连角色升级属性提交，消息102在战利品非零时直连战利品清单面板，消息110在transition存在时直连角色成长对照面板，消息111固定直连成长标题框，消息112在缺少actor时直连成长角色选择，消息113在缺少actor时直连法宝成长结果角色选择并固定直连法宝完全成长提示框；旧阶段100、102、110、111、112、113与112/113选角槽均reserved且生产零调用。本函数或任一子函数typed-stop均阻断第三后置阶段、packed-row、头顶动作、对话和后续全部帧尾流程。
 
-定向测试覆盖入口双门、switch域、十三项有效消息、组A坐标sign-extension、双方live循环及第九/第十一个对象边界、消息99三种早退和完整道具路径、18条记录与七dword记录、workspace/50-dword表、profile高24位、各组A对象地址乘法的预调用EAX/ECX/EDX、道具typed组合、101/110分配差异、110成长面板直连、111成长标题直连/timer回绕/子stop阻断、旧槽零调用、112成长角色选择直连/派生节点/子stop阻断及成长完成标题直连/variant寄存器/sample门/timer阻断、113成长结果选择直连/AX门/首成功/标题边界/子stop阻断及sample差异/法宝提示框/字体恢复/timer后置、102–104 signed阈值、目标选择子stop、动态调用trace超过40项、全局重置owner与唯一caller正常/stop传播。第151项验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194 全部通过。源码构建零warning；app仅有既有ALSA开发库CMake提示。
+定向测试覆盖入口双门、switch域、十三项有效消息、组A坐标sign-extension、双方live循环及第九/第十一个对象边界、消息99三种早退和完整道具路径、18条记录与七dword记录、workspace/50-dword表、profile高24位、各组A对象地址乘法的预调用EAX/ECX/EDX、道具typed组合、101/110分配差异、110成长面板直连、111成长标题直连/timer回绕/子stop阻断、旧槽零调用、112成长角色选择直连/派生节点/子stop阻断及成长完成标题直连/variant寄存器/sample门/timer阻断、113成长结果选择直连/AX门/首成功/标题边界/子stop阻断及sample差异/法宝提示框/字体恢复/timer后置、102战利品清单直连/阈值顺序/十项表/格式边界/子stop阻断、102–104 signed阈值、目标选择子stop、动态调用trace超过40项、全局重置owner与唯一caller正常/stop传播。第152项验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194 全部通过。源码构建零warning；app仅有既有ALSA开发库CMake提示。
 
-当前缺少原版两组角色对象、15类未审业务callee共享副作用、显示/profile内容、真实道具链与成长定义、成长结果profile链、法宝提示查询/字体、音效与目标选择联合状态、动态链门及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版两组角色对象、14类未审业务callee共享副作用、显示/profile内容、真实道具链与成长定义、成长结果profile链、战利品名称/查询/字体/格式、法宝提示查询/字体、音效与目标选择联合状态、动态链门及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

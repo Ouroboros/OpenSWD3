@@ -1258,6 +1258,37 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         port.replies
             [LegacyBattleFrameCoordinatorCall::growth_item_result_copy_caption]
                 .eax = 48U;
+        port.replies
+            [LegacyBattleFrameCoordinatorCall::victory_item_list_set_font_size]
+                .eax = 49U;
+        port.replies
+            [LegacyBattleFrameCoordinatorCall::victory_item_list_draw_title]
+                .eax = 50U;
+        port.replies
+            [LegacyBattleFrameCoordinatorCall::victory_item_list_query_panel] =
+            {
+                .eax = 51U,
+                .publish_victory_item_count = true,
+                .victory_item_count = 4U,
+            };
+        port.replies
+            [LegacyBattleFrameCoordinatorCall::victory_item_list_format_row]
+                .eax = 52U;
+        port.replies
+            [LegacyBattleFrameCoordinatorCall::victory_item_list_format_row]
+                .publish_victory_item_list_text = true;
+        port.replies
+            [LegacyBattleFrameCoordinatorCall::victory_item_list_format_row]
+                .victory_item_list_text[0U] = 0x91U;
+        port.replies
+            [LegacyBattleFrameCoordinatorCall::victory_item_list_format_row]
+                .victory_item_list_text[1U] = 0x92U;
+        port.replies
+            [LegacyBattleFrameCoordinatorCall::victory_item_list_format_row]
+                .victory_item_list_text_length = 2U;
+        port.replies
+            [LegacyBattleFrameCoordinatorCall::victory_item_list_draw_row]
+                .eax = 53U;
 
         const auto growth_query = port.invoke_growth_actor_selection({
             .call = openswd3::battle::LegacyBattleGrowthActorSelectionCall::
@@ -1394,6 +1425,59 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             .edx = 42U,
             .text = {0x46U, 0x41U},
             .text_length = 2U,
+        });
+        const auto reward_list_font = port.invoke_victory_item_list_panel({
+            .call = openswd3::battle::LegacyBattleVictoryItemListPanelCall::
+                set_font_size,
+            .object_token = 0x004C9A28U,
+            .arguments = {0x004C9A28U, 0x12U},
+            .eax = 43U,
+            .ecx = 44U,
+            .edx = 45U,
+        });
+        const auto reward_list_title = port.invoke_victory_item_list_panel({
+            .call = openswd3::battle::LegacyBattleVictoryItemListPanelCall::
+                draw_title,
+            .object_token = 0x004C9A28U,
+            .arguments =
+                {0x004CD76CU, 0x108U, 0xB4U, 0x004A7AF4U, 0xFFC0U, 0x10U},
+            .eax = 46U,
+            .ecx = 47U,
+            .edx = 48U,
+            .text = {0xBEU, 0xD4U, 0xA7U, 0x51U, 0xABU, 0x7EU},
+            .text_length = 6U,
+        });
+        const auto reward_list_query = port.invoke_victory_item_list_panel({
+            .call = openswd3::battle::LegacyBattleVictoryItemListPanelCall::
+                query_panel,
+            .arguments = {0xD4U, 0xFCU, 3U},
+            .eax = 49U,
+            .ecx = 50U,
+            .edx = 51U,
+        });
+        const auto reward_list_format = port.invoke_victory_item_list_panel({
+            .call = openswd3::battle::LegacyBattleVictoryItemListPanelCall::
+                format_item_row,
+            .arguments = {0x70004000U, 0x004A7AE8U, 0x71000000U, 7U},
+            .item_name_token = 0x71000000U,
+            .item_quantity = 7U,
+            .eax = 52U,
+            .ecx = 53U,
+            .edx = 54U,
+        });
+        const auto reward_list_draw = port.invoke_victory_item_list_panel({
+            .call = openswd3::battle::LegacyBattleVictoryItemListPanelCall::
+                draw_item_row,
+            .object_token = 0x004C9A28U,
+            .arguments =
+                {0x004CD76CU, 0xD2U, 0xD4U, 0x70004000U, 0xFFC0U, 0x10U},
+            .item_name_token = 0x71000000U,
+            .item_quantity = 7U,
+            .eax = 55U,
+            .ecx = 56U,
+            .edx = 57U,
+            .text = {0x41U, 0x20U, 0x58U, 0x20U, 0x37U},
+            .text_length = 5U,
         });
 
         const auto name = port.invoke_growth_caption({
@@ -1560,8 +1644,49 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 port.count(
                     LegacyBattleFrameCoordinatorCall::
                         growth_item_result_copy_caption
+                ) == 1U &&
+                reward_list_font.eax == 49U && reward_list_title.eax == 50U &&
+                reward_list_query.eax == 51U &&
+                reward_list_query.publish_item_count &&
+                reward_list_query.item_count == 4U &&
+                reward_list_format.eax == 52U &&
+                reward_list_format.publish_formatted_text &&
+                reward_list_format.formatted_text[0U] == 0x91U &&
+                reward_list_format.formatted_text[1U] == 0x92U &&
+                reward_list_format.formatted_text_length == 2U &&
+                reward_list_draw.eax == 53U &&
+                port.calls[14U].object_token == 0x004C9A28U &&
+                port.calls[14U].arguments[1U] == 0x12U &&
+                port.calls[15U].arguments[0U] == 0x004CD76CU &&
+                port.calls[15U].victory_text_length == 6U &&
+                port.calls[16U].arguments[0U] == 0xD4U &&
+                port.calls[16U].arguments[1U] == 0xFCU &&
+                port.calls[16U].arguments[2U] == 3U &&
+                port.calls[17U].arguments[1U] == 0x004A7AE8U &&
+                port.calls[17U].arguments[2U] == 0x71000000U &&
+                port.calls[17U].arguments[3U] == 7U &&
+                port.calls[18U].arguments[2U] == 0xD4U &&
+                port.calls[18U].victory_text_length == 5U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        victory_item_list_set_font_size
+                ) == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        victory_item_list_draw_title
+                ) == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        victory_item_list_query_panel
+                ) == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        victory_item_list_format_row
+                ) == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::victory_item_list_draw_row
                 ) == 1U,
-            "frame coordinator maps growth actor services, result selection, completion text, caption operations and sample playback"
+            "frame coordinator maps growth and victory item list services, captions and sample playback"
         );
     }
     {

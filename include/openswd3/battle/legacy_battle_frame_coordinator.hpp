@@ -213,8 +213,13 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     reserved_message_phase_advance_message_112_slot,
     reserved_message_phase_select_message_113_actor_slot,
     reserved_message_phase_advance_message_113_slot,
-    message_phase_advance_message_102,
+    reserved_message_phase_advance_message_102_slot,
     message_phase_advance_message_103,
+    victory_item_list_set_font_size,
+    victory_item_list_draw_title,
+    victory_item_list_query_panel,
+    victory_item_list_format_row,
+    victory_item_list_draw_row,
 };
 
 struct LegacyBattleFrameCoordinatorCallRequest {
@@ -320,6 +325,9 @@ struct LegacyBattleFrameCoordinatorCallReply {
     compat::u16 victory_reward_experience{};
     std::array<compat::u8, 64> victory_formatted_text{};
     compat::u32 victory_formatted_text_length{};
+    bool publish_victory_item_list_text{};
+    std::array<compat::u8, 64> victory_item_list_text{};
+    compat::u32 victory_item_list_text_length{};
     bool publish_level_requirement{};
     compat::u32 level_requirement{};
     bool publish_level_profile{};
@@ -921,9 +929,9 @@ public:
             call = LegacyBattleFrameCoordinatorCall::
                 reserved_message_phase_advance_message_113_slot;
             break;
-        case LegacyBattleMessagePhaseCall::advance_message_102:
+        case LegacyBattleMessagePhaseCall::reserved_advance_message_102_slot:
             call = LegacyBattleFrameCoordinatorCall::
-                message_phase_advance_message_102;
+                reserved_message_phase_advance_message_102_slot;
             break;
         case LegacyBattleMessagePhaseCall::advance_message_103:
             call = LegacyBattleFrameCoordinatorCall::
@@ -1339,6 +1347,52 @@ public:
             .definition = reply.growth_item_definition,
             .description = reply.growth_item_description,
             .description_length = reply.growth_item_description_length,
+        };
+    }
+    [[nodiscard]] LegacyBattleVictoryItemListPanelCallReply
+    invoke_victory_item_list_panel(
+        const LegacyBattleVictoryItemListPanelCallRequest& request
+    ) override {
+        LegacyBattleFrameCoordinatorCall call =
+            LegacyBattleFrameCoordinatorCall::victory_item_list_set_font_size;
+        switch (request.call) {
+        case LegacyBattleVictoryItemListPanelCall::set_font_size:
+            break;
+        case LegacyBattleVictoryItemListPanelCall::draw_title:
+            call =
+                LegacyBattleFrameCoordinatorCall::victory_item_list_draw_title;
+            break;
+        case LegacyBattleVictoryItemListPanelCall::query_panel:
+            call =
+                LegacyBattleFrameCoordinatorCall::victory_item_list_query_panel;
+            break;
+        case LegacyBattleVictoryItemListPanelCall::format_item_row:
+            call =
+                LegacyBattleFrameCoordinatorCall::victory_item_list_format_row;
+            break;
+        case LegacyBattleVictoryItemListPanelCall::draw_item_row:
+            call = LegacyBattleFrameCoordinatorCall::victory_item_list_draw_row;
+            break;
+        }
+        const auto reply = invoke({
+            .call = call,
+            .object_token = request.object_token,
+            .arguments = request.arguments,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+            .victory_text_bytes = request.text,
+            .victory_text_length = request.text_length,
+        });
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .publish_item_count = reply.publish_victory_item_count,
+            .item_count = reply.victory_item_count,
+            .publish_formatted_text = reply.publish_victory_item_list_text,
+            .formatted_text = reply.victory_item_list_text,
+            .formatted_text_length = reply.victory_item_list_text_length,
         };
     }
     [[nodiscard]] LegacyBattleGrowthItemCompletionPanelCallReply

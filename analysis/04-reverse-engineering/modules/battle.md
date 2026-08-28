@@ -513,6 +513,8 @@ I5最终必须锁定：
 
 `audit_order=151`的`0x00468FF0`已关闭为`platform_adapted`。完整权威LST主体`0x00468FF0..0x0046907F`共77行、46条实际指令、5个静态call、6个跳转、4个标签、2个返回点且无外部chunk。函数以live i32组A数量扫描物理角色，每次跳过后重读数量；两项角色字段或完成查询精确1时跳过，成长结果callee只测试AX，低16位零时忽略非零高word。首个AX非零结果把完整32-bit编号传给定义加载，随后释放临时说明，先置mode 1，再把共享160-byte scratch标题复制到24-byte成长标题，最后发布物理actor并立即返回，不继续扫描。标题缺NUL时保留mode和完整24-byte复制前缀，在第25个目标byte停止并不发布actor。消息113在actor缺失时直连本实现；子stop阻断sample、完成查询、分配、无actor fallback、法宝完成提示与timer，旧选角槽reserved且生产零调用。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194 全部通过。源码构建零warning；app仅有既有ALSA开发库CMake提示。候选工作包为`151/422 = 146 platform_adapted + 5 assembly_exact + 271 pending_audit`，双跑SHA256为`d85413d8c01df5e089d1bf183e11624b8e2a436ff867074bcdf59e07136b01ee`。动态差分因原版组A对象、完成查询、成长结果profile链及选择callee、MON定义/说明、共享scratch/标题/transition、字符串复制返回及寄存器后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=152`的`0x00469080`。
+`audit_order=152`的`0x00469080`已关闭为`platform_adapted`。完整权威LST主体`0x00469080..0x00469211`共182行、115条实际指令、10个静态call、3个跳转、2个标签、1个返回点且无外部chunk。函数建立64-byte局部缓冲，将live u16战利品数量用于`212+count*20`清单底边，以字体18、共享动作`0x233B`、矩形和双层九宫格绘制CP950“戰利品”；两次九宫格资源均只替换前一callee返回EAX低word并保留高16位。固定查询精确1且live数量非零时，按十项名称token/u16数量表用`%-12s X %2d`逐行格式化，在`210,212+index*20`绘制；每行后重读live数量。第十一项首次真实访问和64-byte格式后续NUL分别typed-stop，保留此前画面/文字前缀且不恢复字体。正常路径最终恢复字体16。消息102在非零数量的timer与signed 150目标选择链后直连本实现；子stop保留timer/目标选择前缀并阻断后续主帧，旧阶段102槽reserved且生产零调用。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194 全部通过。源码构建零warning；app仅有既有ALSA开发库CMake提示。候选工作包为`152/422 = 147 platform_adapted + 5 assembly_exact + 270 pending_audit`，双跑SHA256为`2388ebe8469f93f60a05c2d65fbb53054820ffd64c7637f38986c9527eeeb978`。动态差分因原版seed、framebuffer/字体/边框、查询callee、名称指针/格式、动态栈、动作/画面/文字及寄存器后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=153`的`0x00469220`。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

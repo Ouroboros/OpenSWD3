@@ -15,6 +15,7 @@
 #include "openswd3/battle/legacy_battle_player_item_quantity.hpp"
 #include "openswd3/battle/legacy_battle_selection_frame.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_entry.hpp"
+#include "openswd3/battle/legacy_battle_victory_item_list_panel.hpp"
 #include "openswd3/battle/legacy_battle_victory_rewards.hpp"
 
 #include <array>
@@ -82,7 +83,7 @@ enum class LegacyBattleMessagePhaseCall : compat::u8 {
     reserved_advance_message_112_slot,
     reserved_select_message_113_actor_slot,
     reserved_advance_message_113_slot,
-    advance_message_102,
+    reserved_advance_message_102_slot,
     advance_message_103,
 };
 
@@ -139,7 +140,8 @@ class LegacyBattleMessagePhasePort
       public virtual LegacyBattleGrowthActorSelectionPort,
       public virtual LegacyBattleGrowthCaptionPort,
       public virtual LegacyBattleGrowthItemCompletionPanelPort,
-      public virtual LegacyBattleGrowthItemResultSelectionPort {
+      public virtual LegacyBattleGrowthItemResultSelectionPort,
+      public virtual LegacyBattleVictoryItemListPanelPort {
 public:
     ~LegacyBattleMessagePhasePort() override = default;
 
@@ -187,6 +189,7 @@ struct LegacyBattleMessagePhaseRequest {
         growth_item_completion_panel_request{};
     LegacyBattleGrowthItemResultSelectionRequest
         growth_item_result_selection_request{};
+    LegacyBattleVictoryItemListPanelRequest victory_item_list_panel_request{};
 };
 
 enum class LegacyBattleMessagePhaseStatus : compat::u8 {
@@ -208,6 +211,7 @@ enum class LegacyBattleMessagePhaseStatus : compat::u8 {
     growth_completion_caption_typed_stop,
     growth_item_completion_panel_typed_stop,
     growth_item_result_selection_typed_stop,
+    victory_item_list_panel_typed_stop,
     target_selection_entry_typed_stop,
 };
 
@@ -246,6 +250,8 @@ struct LegacyBattleMessagePhaseResult {
     LegacyBattleGrowthCaptionResult growth_completion_caption{};
     LegacyBattleGrowthItemCompletionPanelResult growth_item_completion_panel{};
     LegacyBattleGrowthItemResultSelectionResult growth_item_result_selection{};
+    compat::u32 victory_item_list_panel_calls{};
+    LegacyBattleVictoryItemListPanelResult victory_item_list_panel{};
     std::vector<LegacyBattleMessagePhaseCall> call_trace;
     compat::u32 call_trace_count{};
 };

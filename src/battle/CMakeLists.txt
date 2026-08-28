@@ -113,6 +113,7 @@ add_library(
         legacy_battle_transition.cpp
         legacy_battle_vertical_panel.cpp
         legacy_battle_vertical_shift.cpp
+        legacy_battle_victory_item_list_panel.cpp
         legacy_battle_victory_rewards.cpp
 )
 target_include_directories(

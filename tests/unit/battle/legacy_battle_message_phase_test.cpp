@@ -1,5 +1,6 @@
 #include "openswd3/battle/legacy_battle_message_phase.hpp"
 
+#include <algorithm>
 #include <array>
 #include <bit>
 #include <map>
@@ -225,6 +226,40 @@ public:
     }
 
     [[nodiscard]]
+    openswd3::battle::LegacyBattleVictoryItemListPanelCallReply
+    invoke_victory_item_list_panel(
+        const openswd3::battle::LegacyBattleVictoryItemListPanelCallRequest&
+            request
+    ) override {
+        victory_item_list_calls.push_back(request);
+        auto reply = openswd3::battle::LegacyBattleVictoryItemListPanelPort::
+            invoke_victory_item_list_panel(request);
+        if (request.call ==
+            openswd3::battle::LegacyBattleVictoryItemListPanelCall::
+                query_panel) {
+            reply.eax = victory_item_list_query_eax;
+        }
+        const auto found =
+            victory_item_list_texts.find(request.item_name_token);
+        if (request.call ==
+                openswd3::battle::LegacyBattleVictoryItemListPanelCall::
+                    format_item_row &&
+            found != victory_item_list_texts.end()) {
+            reply.publish_formatted_text = true;
+            reply.formatted_text_length =
+                static_cast<u32>(found->second.size());
+            std::copy_n(
+                found->second.begin(),
+                std::min<std::size_t>(
+                    found->second.size(), reply.formatted_text.size()
+                ),
+                reply.formatted_text.begin()
+            );
+        }
+        return reply;
+    }
+
+    [[nodiscard]]
     openswd3::battle::LegacyBattleGrowthItemCompletionPanelCallReply
     invoke_growth_item_completion_panel(
         const openswd3::battle::
@@ -321,6 +356,9 @@ public:
     std::vector<
         openswd3::battle::LegacyBattleGrowthItemCompletionPanelCallRequest>
         growth_item_completion_panel_calls;
+    std::vector<openswd3::battle::LegacyBattleVictoryItemListPanelCallRequest>
+        victory_item_list_calls;
+    std::map<u32, std::vector<u8>> victory_item_list_texts;
     std::vector<openswd3::battle::LegacyBattleGrowthCaptionCallRequest>
         caption_calls;
     std::vector<std::array<u32, 5U>> completion_sample_calls;
@@ -328,6 +366,7 @@ public:
     u32 caption_query_eax{};
     u32 growth_item_result_selection_eax{};
     u32 growth_item_completion_panel_query_eax{};
+    u32 victory_item_list_query_eax{};
 };
 
 struct Fixture {
@@ -1219,8 +1258,9 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         const auto completed = run(zero);
         test.expect_true(
             zero.target_selection.completion_gate == 1U &&
-                completed.target_selection_entry_calls == 0U,
-            "message 102 completes immediately when its sample word is zero"
+                completed.target_selection_entry_calls == 0U &&
+                completed.victory_item_list_panel_calls == 0U,
+            "message 102 completes immediately when its item count is zero"
         );
 
         Fixture timed;
@@ -1228,14 +1268,49 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         timed.target_selection.transition_sample_word = 1U;
         timed.target_selection.transition_timer = 149U;
         timed.input_dispatch.retreat_block_word = 1U;
+        timed.port.battle_victory_reward_state().player_item_tokens[0U] =
+            0x71000000U;
+        timed.port.battle_victory_reward_state().collected_item_quantities[0U] =
+            2U;
+        timed.port.victory_item_list_query_eax = 1U;
+        timed.port.victory_item_list_texts[0x71000000U] = {
+            0x41U, 0x20U, 0x58U, 0x20U, 0x32U
+        };
         const auto advanced = run(timed);
         test.expect_true(
             advanced.target_selection_entry_calls == 1U &&
                 timed.target_selection.transition_timer == 150U &&
+                advanced.victory_item_list_panel_calls == 1U &&
+                advanced.victory_item_list_panel.item_rows_drawn == 1U &&
                 timed.port.count(
-                    LegacyBattleMessagePhaseCall::advance_message_102
-                ) == 1U,
-            "message 102 enters target selection at signed timer 150 then always advances its frame"
+                    LegacyBattleMessagePhaseCall::
+                        reserved_advance_message_102_slot
+                ) == 0U,
+            "message 102 enters target selection at signed timer 150 then directly draws the live victory item list"
+        );
+
+        Fixture invalid_panel;
+        invalid_panel.message = 0x66U;
+        invalid_panel.target_selection.transition_sample_word = 1U;
+        invalid_panel.target_selection.transition_timer = 7U;
+        invalid_panel.port.battle_victory_reward_state()
+            .player_item_tokens[0U] = 0x72000000U;
+        invalid_panel.port.battle_victory_reward_state()
+            .collected_item_quantities[0U] = 1U;
+        invalid_panel.port.victory_item_list_query_eax = 1U;
+        invalid_panel.port.victory_item_list_texts[0x72000000U].assign(
+            64U, 0x58U
+        );
+        const auto invalid_panel_result = run(invalid_panel);
+        test.expect_true(
+            invalid_panel_result.status ==
+                    openswd3::battle::LegacyBattleMessagePhaseStatus::
+                        victory_item_list_panel_typed_stop &&
+                invalid_panel.target_selection.transition_timer == 8U &&
+                invalid_panel_result.victory_item_list_panel_calls == 1U &&
+                invalid_panel_result.victory_item_list_panel.item_draw_calls ==
+                    0U,
+            "message 102 propagates the item row format stop after its timer write and before later frame stages"
         );
 
         Fixture debug;

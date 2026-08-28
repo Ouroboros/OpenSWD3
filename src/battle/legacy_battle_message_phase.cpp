@@ -967,7 +967,35 @@ private:
                 return finish();
             }
         }
-        call(LegacyBattleMessagePhaseCall::advance_message_102);
+        auto panel_request = request_.victory_item_list_panel_request;
+        panel_request.entry_eax = eax_;
+        panel_request.entry_ecx = ecx_;
+        panel_request.entry_edx = edx_;
+        result_.victory_item_list_panel =
+            draw_legacy_battle_victory_item_list_panel(
+                {
+                    .victory = bindings_.victory_rewards.state,
+                    .target_selection = bindings_.target_selection,
+                    .framebuffer = bindings_.victory_rewards.framebuffer,
+                    .raster = bindings_.victory_rewards.raster,
+                    .shared_effects = bindings_.victory_rewards.shared_effects,
+                    .jitter = bindings_.victory_rewards.jitter,
+                    .action_updater = bindings_.victory_rewards.action_updater,
+                    .frame_provider = bindings_.victory_rewards.frame_provider,
+                },
+                port_,
+                panel_request
+            );
+        ++result_.victory_item_list_panel_calls;
+        result_.port_calls += result_.victory_item_list_panel.port_calls;
+        eax_ = result_.victory_item_list_panel.return_eax;
+        ecx_ = result_.victory_item_list_panel.return_ecx;
+        edx_ = result_.victory_item_list_panel.return_edx;
+        if (result_.victory_item_list_panel.status !=
+            LegacyBattleVictoryItemListPanelStatus::completed) {
+            result_.status = LegacyBattleMessagePhaseStatus::
+                victory_item_list_panel_typed_stop;
+        }
         return finish();
     }
 
