@@ -130,8 +130,9 @@ public:
 };
 
 struct Fixture {
-    Fixture()
-        : action_updater(action_streams), raster(framebuffer.geometry()) {}
+    Fixture() : action_updater(action_streams), raster(framebuffer.geometry()) {
+        target.transition_stage = 40U;
+    }
 
     [[nodiscard]]
     openswd3::battle::LegacyBattleTalismanResultPanelBindings bindings() {
@@ -194,7 +195,8 @@ void test_battle_talisman_result_panel(openswd3::test::Context& test) {
         Fixture fixture;
         fixture.target.transition_stage = 12U;
         fixture.port.reply(
-            LegacyBattleTalismanResultPanelCall::query_panel,
+            LegacyBattleTalismanResultPanelCall::
+                reserved_transition_stage_advance_slot,
             {.eax = 2U, .ecx = 0x51515151U, .edx = 0x52525252U}
         );
         const LegacyBattleTalismanResultPanelRequest request{
@@ -210,7 +212,8 @@ void test_battle_talisman_result_panel(openswd3::test::Context& test) {
         test.expect_true(
             result.status == LegacyBattleTalismanResultPanelStatus::completed &&
                 result.rectangle_calls == 1U &&
-                result.tiled_frame_calls == 2U && result.query_calls == 1U &&
+                result.tiled_frame_calls == 2U && result.query_calls == 0U &&
+                result.transition_stage_calls == 1U &&
                 result.title_draw_calls == 0U && result.format_calls == 0U &&
                 result.detail_draw_calls == 0U &&
                 result.rectangle_height == 52 &&
@@ -218,9 +221,10 @@ void test_battle_talisman_result_panel(openswd3::test::Context& test) {
                 fixture.victory.panel_action_record.action_id ==
                     kLegacyBattleVictoryPanelAction &&
                 fixture.victory.panel_action_record.base_variant == 0U &&
-                result.return_eax == 2U && result.return_ecx == 0x51515151U &&
-                result.return_edx == 0x52525252U,
-            "talisman result panel draws both frames and returns a non-one query without result text"
+                fixture.target.transition_stage == 21U &&
+                result.return_eax == 0U && result.return_ecx == 0U &&
+                result.return_edx == 1U,
+            "talisman result panel draws both frames and returns the nonzero-quotient stage registers without result text"
         );
         test.expect_true(
             result.action_entry.eax == 0U && result.action_entry.ecx == 0U &&
@@ -234,19 +238,24 @@ void test_battle_talisman_result_panel(openswd3::test::Context& test) {
                 (result.second_frame_resource & 0xFFFF0000U) == 0xC3D40000U &&
                 (result.second_frame_resource & 0xFFFFU) ==
                     fixture.victory.panel_action_record.field_4a &&
-                fixture.port.calls[0U].arguments[0U] == 0xD4U &&
-                fixture.port.calls[0U].arguments[1U] == 0xFCU &&
-                fixture.port.calls[0U].arguments[2U] == 3U,
-            "talisman result panel preserves the ECX height chain, EDX then ECX resource high words and fixed query"
+                result.transition_stage.numerator == 28 &&
+                result.transition_stage.quotient == 9 &&
+                result.transition_stage.remainder == 1 &&
+                fixture.port.count(
+                    LegacyBattleTalismanResultPanelCall::
+                        reserved_transition_stage_advance_slot
+                ) == 0U,
+            "talisman result panel preserves the ECX height chain, EDX then ECX resource high words and typed stage arithmetic"
         );
     }
 
     {
         Fixture fixture;
-        fixture.target.transition_aux_byte = 0U;
+        fixture.target.transition_aux_byte = 1U;
         fixture.victory.player_item_tokens[0U] = 0x89ABCDEFU;
         fixture.port.reply(
-            LegacyBattleTalismanResultPanelCall::query_panel,
+            LegacyBattleTalismanResultPanelCall::
+                reserved_transition_stage_advance_slot,
             {
                 .eax = 1U,
                 .ecx = 0x11110000U,
@@ -293,15 +302,15 @@ void test_battle_talisman_result_panel(openswd3::test::Context& test) {
             "talisman result panel rereads the live result byte after query and draws the formatted success result"
         );
         test.expect_true(
-            fixture.port.calls.size() == 4U &&
-                fixture.port.calls[1U].arguments[0U] ==
+            fixture.port.calls.size() == 3U &&
+                fixture.port.calls[0U].arguments[0U] ==
                     kLegacyBattleTalismanFramebufferToken &&
-                fixture.port.calls[1U].arguments[1U] == 0x100U &&
-                fixture.port.calls[1U].arguments[2U] == 0xB4U &&
-                fixture.port.calls[1U].arguments[3U] ==
+                fixture.port.calls[0U].arguments[1U] == 0x100U &&
+                fixture.port.calls[0U].arguments[2U] == 0xB4U &&
+                fixture.port.calls[0U].arguments[3U] ==
                     kLegacyBattleTalismanSuccessTitleToken &&
-                fixture.port.calls[1U].eax == 1U &&
-                text_bytes(fixture.port.calls[1U]) ==
+                fixture.port.calls[0U].eax == 1U &&
+                text_bytes(fixture.port.calls[0U]) ==
                     std::vector<u8>({
                         0xB7U,
                         0xD2U,
@@ -312,11 +321,11 @@ void test_battle_talisman_result_panel(openswd3::test::Context& test) {
                         0xA5U,
                         0x5CU,
                     }) &&
-                fixture.port.calls[2U].arguments[0U] == 0x70001000U &&
-                fixture.port.calls[2U].arguments[1U] ==
+                fixture.port.calls[1U].arguments[0U] == 0x70001000U &&
+                fixture.port.calls[1U].arguments[1U] ==
                     kLegacyBattleTalismanSuccessFormatToken &&
-                fixture.port.calls[2U].arguments[2U] == 0x89ABCDEFU &&
-                text_bytes(fixture.port.calls[2U]) ==
+                fixture.port.calls[1U].arguments[2U] == 0x89ABCDEFU &&
+                text_bytes(fixture.port.calls[1U]) ==
                     std::vector<u8>({
                         0xB1U,
                         0x6FU,
@@ -330,19 +339,19 @@ void test_battle_talisman_result_panel(openswd3::test::Context& test) {
                         0x25U,
                         0x73U,
                     }) &&
-                fixture.port.calls[2U].item_name_token == 0x89ABCDEFU &&
-                fixture.port.calls[2U].eax == 0x89ABCDEFU &&
-                fixture.port.calls[2U].ecx == 0x70001000U &&
-                fixture.port.calls[2U].edx ==
+                fixture.port.calls[1U].item_name_token == 0x89ABCDEFU &&
+                fixture.port.calls[1U].eax == 0x89ABCDEFU &&
+                fixture.port.calls[1U].ecx == 0x70001000U &&
+                fixture.port.calls[1U].edx ==
                     kLegacyBattleTalismanFramebufferToken &&
-                fixture.port.calls[3U].eax ==
+                fixture.port.calls[2U].eax ==
                     kLegacyBattleTalismanFramebufferToken &&
-                fixture.port.calls[3U].ecx == kLegacyBattleVictoryFontToken &&
-                fixture.port.calls[3U].edx == 0x70001000U &&
-                fixture.port.calls[3U].arguments[1U] == 0xD0U &&
-                fixture.port.calls[3U].arguments[2U] == 0xDEU &&
-                fixture.port.calls[3U].arguments[3U] == 0x70001000U &&
-                fixture.port.calls[3U].object_token ==
+                fixture.port.calls[2U].ecx == kLegacyBattleVictoryFontToken &&
+                fixture.port.calls[2U].edx == 0x70001000U &&
+                fixture.port.calls[2U].arguments[1U] == 0xD0U &&
+                fixture.port.calls[2U].arguments[2U] == 0xDEU &&
+                fixture.port.calls[2U].arguments[3U] == 0x70001000U &&
+                fixture.port.calls[2U].object_token ==
                     kLegacyBattleVictoryFontToken,
             "talisman success path publishes the original title, format, item token and detail coordinates"
         );
@@ -352,7 +361,9 @@ void test_battle_talisman_result_panel(openswd3::test::Context& test) {
         Fixture fixture;
         fixture.target.transition_aux_byte = 2U;
         fixture.port.reply(
-            LegacyBattleTalismanResultPanelCall::query_panel, {.eax = 1U}
+            LegacyBattleTalismanResultPanelCall::
+                reserved_transition_stage_advance_slot,
+            {.eax = 1U}
         );
         const auto result = run(fixture);
         test.expect_true(
@@ -368,11 +379,11 @@ void test_battle_talisman_result_panel(openswd3::test::Context& test) {
             "talisman result panel uses the failure pair for every live result byte other than exact one"
         );
         test.expect_true(
-            fixture.port.calls[1U].arguments[3U] ==
+            fixture.port.calls[0U].arguments[3U] ==
                     kLegacyBattleTalismanFailureTitleToken &&
-                fixture.port.calls[1U].arguments[1U] == 0x100U &&
-                fixture.port.calls[1U].eax == 2U &&
-                text_bytes(fixture.port.calls[1U]) ==
+                fixture.port.calls[0U].arguments[1U] == 0x100U &&
+                fixture.port.calls[0U].eax == 2U &&
+                text_bytes(fixture.port.calls[0U]) ==
                     std::vector<u8>({
                         0xB7U,
                         0xD2U,
@@ -383,10 +394,10 @@ void test_battle_talisman_result_panel(openswd3::test::Context& test) {
                         0xB1U,
                         0xD1U,
                     }) &&
-                fixture.port.calls[2U].arguments[3U] ==
+                fixture.port.calls[1U].arguments[3U] ==
                     kLegacyBattleTalismanFailureDetailToken &&
-                fixture.port.calls[2U].arguments[1U] == 0xD0U &&
-                text_bytes(fixture.port.calls[2U]) ==
+                fixture.port.calls[1U].arguments[1U] == 0xD0U &&
+                text_bytes(fixture.port.calls[1U]) ==
                     std::vector<u8>({
                         0xA8U,
                         0x53U,
@@ -431,7 +442,9 @@ void test_battle_talisman_result_panel(openswd3::test::Context& test) {
         Fixture overflow;
         overflow.target.transition_aux_byte = 1U;
         overflow.port.reply(
-            LegacyBattleTalismanResultPanelCall::query_panel, {.eax = 1U}
+            LegacyBattleTalismanResultPanelCall::
+                reserved_transition_stage_advance_slot,
+            {.eax = 1U}
         );
         LegacyBattleTalismanResultPanelCallReply formatted{
             .publish_formatted_text = true,

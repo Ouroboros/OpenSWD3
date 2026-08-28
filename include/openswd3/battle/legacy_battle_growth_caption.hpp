@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "openswd3/battle/legacy_battle_level_advancement.hpp"
+#include "openswd3/battle/legacy_battle_transition_stage_advance.hpp"
 #include "openswd3/battle/legacy_battle_victory_rewards.hpp"
 #include "openswd3/compat/types.hpp"
 
@@ -28,7 +29,7 @@ enum class LegacyBattleGrowthCaptionVariant : compat::u8 {
 
 enum class LegacyBattleGrowthCaptionCall : compat::u8 {
     format_name,
-    query_panel,
+    reserved_transition_stage_advance_slot,
     draw_text,
     format_detail,
 };
@@ -116,6 +117,7 @@ enum class LegacyBattleGrowthCaptionStatus : compat::u8 {
     name_format_buffer_typed_stop,
     rectangle_typed_stop,
     frame_typed_stop,
+    transition_stage_typed_stop,
     caption_source_typed_stop,
     detail_format_buffer_typed_stop,
 };
@@ -138,6 +140,8 @@ struct LegacyBattleGrowthCaptionResult {
     compat::u32 detail_length{};
     compat::i32 rectangle_width{};
     compat::i32 detail_x{};
+    compat::u32 transition_stage_calls{};
+    LegacyBattleTransitionStageAdvanceResult transition_stage{};
     asset_runtime::LegacyActionUpdateResult panel_action_update{};
     rendering::LegacyRectangleEffectStatus rectangle_status{
         rendering::LegacyRectangleEffectStatus::completed

@@ -6,7 +6,7 @@
 
 权威LST主体为`0x00467F00..0x00468927`，从proc到endp共1007行、608条带机器码和真实助记符的实际指令、48个静态call、33个跳转、14个局部标签和1个返回点，没有外部`FUNCTION CHUNK`。唯一静态caller是已关闭消息阶段分派的消息110；原caller在transition对象存在时无条件调用本函数并立即返回，不消费返回值。
 
-48个callsite包括动作记录更新1次、固定矩形1次、九宫格2次、成长面板查询1次、`wsprintfA` 14次、文字绘制22次和sample播放7次。动作、矩形和九宫格复用已关闭typed实现；查询、格式与文字通过成长面板窄端口保留；sample播放按live signed mix level进入typed音频边界。
+48个callsite包括动作记录更新1次、固定矩形1次、九宫格2次、stage推进1次、`wsprintfA` 14次、文字绘制22次和sample播放7次。动作、矩形和九宫格复用已关闭typed实现；stage推进直接组合已关闭typed实现，格式与文字通过成长面板窄端口保留；sample播放按live signed mix level进入typed音频边界。
 
 ## 2. 入口、底板和角色标题
 
@@ -14,11 +14,11 @@
 
 actor存在时复用胜利结算唯一动作记录，只写动作`0x233B`和variant 0后更新。固定矩形参数为`196,76,212,transition_stage+40,0,4,4,0`。第一九宫格为`200,80,400,96`，资源低word读取动作记录`+0x4A`，高word保留矩形返回EDX。随后按i8符号扩展actor访问十项动作标签，名称token为`0x0049E148 + label*16`，在`280,80`以颜色`0xFFC0`绘制；负actor或第十一项在首次真实标签访问typed-stop，保留动作、矩形和第一九宫格前缀。
 
-第二九宫格为`200,112,400,transition_stage+112`；资源低word仍为动作记录`+0x4A`，高word保留名称文字返回ECX。之后固定查询`112,268,2`；返回EAX不精确等于1就直接返回。查询及后续格式/文字callee可发布live actor或transition stage；阶段动画使用另一物理u16 owner，不与画面transition stage合并。
+第二九宫格为`200,112,400,transition_stage+112`；资源低word仍为动作记录`+0x4A`，高word保留名称文字返回ECX。之后直连`base=112,target=268,divisor=2`的共享stage推进；signed商非零、返回EAX不等于1就直接返回。该无call单元只写唯一transition stage；后续格式/文字callee仍可发布其自身已证live副作用；阶段动画使用另一物理u16 owner，不与画面transition stage合并。
 
 ## 3. 七条CP950基线文字
 
-查询成功后，函数从上一升级提交保存的完整56-byte角色快照读取七个u16：三个limit和`+0x10..+0x16`四个派生属性。前三项按i16 sign-extension传给`wsprintfA`，后四项按u16 zero-extension。七条连续CP950格式依次为：
+stage商零后，函数从上一升级提交保存的完整56-byte角色快照读取七个u16：三个limit和`+0x10..+0x16`四个派生属性。前三项按i16 sign-extension传给`wsprintfA`，后四项按u16 zero-extension。七条连续CP950格式依次为：
 
 ```text
 生命力:%4d
@@ -68,4 +68,4 @@ actor存在时复用胜利结算唯一动作记录，只写动作`0x233B`和vari
 
 定向测试覆盖actor FF早退、底板/双九宫格/名称、七条CP950基线、阶段0与29/30/100、九项差值、最后两项只计算不显示、前三signed与后四unsigned比较、两条串行动画队列、sample寄存器、阶段29角色资源越界、格式缓冲边界、第十一actor、消息110直连/旧槽零调用/子stop传播和主帧四类generic映射。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194 全部通过。app配置仅出现白名单ALSA开发库缺失警告，源码编译零warning。
 
-当前缺少原版动作/矩形/九宫格/字体surface、成长面板查询callee、角色名称与当前记录联合状态、动态栈地址、`wsprintfA`返回、sample对象及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版动作/矩形/九宫格/字体surface、角色名称与当前记录联合状态、动态栈地址、`wsprintfA`返回、sample对象及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

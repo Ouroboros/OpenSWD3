@@ -45,9 +45,9 @@
 
 101在actor byte为`0xFF`时先直连角色升级属性提交；该函数可发布首个升级角色，若仍为`0xFF`才调用既有选角，仍无actor则timer清零、message写112。actor存在且transition state为零时，按i8 sign-extension构造组A对象，完成查询返回零才以`2,0`分配transition并保存EAX。角色升级子stop阻断选角、完成查询和后续transition/message/timer写入。state仍为零直接返回；否则actor若变为`0xFF`同样转112，否则调用阶段101并递增timer。
 
-102在战利品u16数量为零时只置completion gate。非零时先递增timer；新值按i32不小于150时直连目标选择进入，成功后无条件直连战利品清单面板。面板先绘CP950“戰利品”双层底板，查询精确1且live数量非零时按十项名称token/u16数量表逐行绘制`%-12s X %2d`；每行后重读live数量。面板typed-stop保留caller的timer与目标选择前缀并阻断后续主帧。旧阶段102槽reserved且生产零调用。
+102在战利品u16数量为零时只置completion gate。非零时先递增timer；新值按i32不小于150时直连目标选择进入，成功后无条件直连战利品清单面板。面板先绘CP950“戰利品”双层底板，共享stage商零且live数量非零时按十项名称token/u16数量表逐行绘制`%-12s X %2d`；每行后重读live数量。面板typed-stop保留caller的timer与目标选择前缀并阻断后续主帧。旧阶段102槽reserved且生产零调用。
 
-103总是先置cache A/B。battle flags bit3置位时递增timer，按i32达到30后清timer并置completion gate，不调用普通阶段。bit3未置位时先直连战败提示面板：双层底板显示CP950“戰鬥失敗”，查询精确1时以字体17显示“隊伍全滅!!”再恢复16。面板正常返回后才走signed 150阈值；子stop阻断timer和目标选择。旧阶段103槽reserved且生产零调用。
+103总是先置cache A/B。battle flags bit3置位时递增timer，按i32达到30后清timer并置completion gate，不调用普通阶段。bit3未置位时先直连战败提示面板：双层底板显示CP950“戰鬥失敗”，共享stage商零时以字体17显示“隊伍全滅!!”再恢复16。面板正常返回后才走signed 150阈值；子stop阻断timer和目标选择。旧阶段103槽reserved且生产零调用。
 
 104总是置cache A/B，再递增timer；新值按i32大于20才直连目标选择进入。102、100/103公共路径和104对应原三个静态目标选择callsite；typed-stop保留计时与各自前缀。
 

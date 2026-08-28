@@ -191,6 +191,7 @@ struct Fixture {
         state.reward_experience = 20U;
         state.party_profile_threshold = 5U;
         input.sample_mix_level = -4;
+        target.transition_stage = 72U;
         script_variables[0U] = 100U;
     }
 
@@ -267,7 +268,7 @@ void test_battle_victory_rewards(openswd3::test::Context& test) {
             result.status == LegacyBattleVictoryRewardStatus::completed &&
                 result.rectangle_calls == 1U &&
                 result.tiled_frame_calls == 2U &&
-                result.text_draw_calls == 1U && result.music_fade_calls == 0U &&
+                result.text_draw_calls == 4U && result.music_fade_calls == 0U &&
                 result.sample_calls == 0U &&
                 fixture.script_variables[0U] == 100U &&
                 fixture.target.transition_timer == 9U &&
@@ -275,8 +276,9 @@ void test_battle_victory_rewards(openswd3::test::Context& test) {
                 fixture.action_streams.action_ids ==
                     std::vector<u32>{0x233BU} &&
                 fixture.port.count(LegacyBattleVictoryRewardCall::draw_text) ==
-                    1U,
-            "committed victory rewards still draw both panels and the fixed title without distributing twice"
+                    4U &&
+                result.transition_stage.return_eax == 1U,
+            "committed victory rewards still draw the settled summary without distributing twice"
         );
         const auto& title = fixture.port.calls[0U];
         test.expect_true(
@@ -328,7 +330,9 @@ void test_battle_victory_rewards(openswd3::test::Context& test) {
             LegacyBattleVictoryRewardCall::apply_group_a_reward, {.eax = 0U}
         );
         fixture.port.reply(
-            LegacyBattleVictoryRewardCall::query_summary_panel, {.eax = 1U}
+            LegacyBattleVictoryRewardCall::
+                reserved_transition_stage_advance_slot,
+            {.eax = 1U}
         );
         const auto result = run(fixture, {.local_text_token = 0xABCDEF00U});
         test.expect_true(

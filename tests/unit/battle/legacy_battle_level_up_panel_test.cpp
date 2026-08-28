@@ -152,6 +152,7 @@ public:
 struct Fixture {
     Fixture() : action_updater(action_streams), raster(framebuffer.geometry()) {
         target.transition_actor_index = 2U;
+        target.transition_stage = 32U;
         startup.action_mode_source.actor_label_indices[2U] = 1U;
         party_resources[1U].field_2c = 7U;
     }
@@ -229,9 +230,10 @@ void test_battle_level_up_panel(openswd3::test::Context& test) {
 
     {
         Fixture fixture;
-        fixture.target.transition_stage = 20U;
+        fixture.target.transition_stage = 32U;
         fixture.port.reply(
-            LegacyBattleVictoryRewardCall::query_summary_panel,
+            LegacyBattleVictoryRewardCall::
+                reserved_transition_stage_advance_slot,
             {
                 .eax = 1U,
                 .ecx = 0x11110000U,
@@ -265,28 +267,30 @@ void test_battle_level_up_panel(openswd3::test::Context& test) {
             result.status == LegacyBattleLevelUpPanelStatus::completed &&
                 result.rectangle_calls == 1U &&
                 result.tiled_frame_calls == 2U &&
-                result.text_draw_calls == 2U && result.port_calls == 4U &&
+                result.text_draw_calls == 2U && result.port_calls == 3U &&
+                result.transition_stage_calls == 1U &&
                 fixture.victory.panel_action_record.action_id == 0x233BU &&
                 fixture.action_streams.action_ids ==
                     std::vector<u32>{0x233BU} &&
-                fixture.target.transition_actor_index == 3U,
+                fixture.target.transition_actor_index == 2U,
             "level-up presentation draws both panels, the fixed title and the live selected actor text"
         );
         const auto& title = fixture.port.calls[0U];
-        const auto& query = fixture.port.calls[1U];
-        const auto& format = fixture.port.calls[2U];
-        const auto& draw = fixture.port.calls[3U];
+        const auto& format = fixture.port.calls[1U];
+        const auto& draw = fixture.port.calls[2U];
         test.expect_true(
             title.call == LegacyBattleVictoryRewardCall::draw_text &&
                 title.arguments[1U] == 0x108U && title.arguments[2U] == 0xB4U &&
                 title.arguments[3U] == 0x004A7A44U &&
                 text_bytes(title) ==
                     std::vector<u8>{0xA4U, 0xC9U, 0xAFU, 0xC5U} &&
-                query.call ==
-                    LegacyBattleVictoryRewardCall::query_summary_panel &&
-                query.arguments[0U] == 3U && query.arguments[1U] == 0xF4U &&
-                query.arguments[2U] == 0xD4U,
-            "level-up presentation preserves the fixed CP950 title and summary query geometry"
+                result.transition_stage.return_eax == 1U &&
+                result.transition_stage.return_ecx == 1U &&
+                fixture.port.count(
+                    LegacyBattleVictoryRewardCall::
+                        reserved_transition_stage_advance_slot
+                ) == 0U,
+            "level-up presentation preserves the fixed CP950 title and uses the typed stage gate"
         );
         test.expect_true(
             format.call ==
@@ -302,10 +306,10 @@ void test_battle_level_up_panel(openswd3::test::Context& test) {
                 draw.edx == 0x004CD76CU &&
                 text_bytes(draw) ==
                     std::vector<u8>(kLevelText.begin(), kLevelText.end()),
-            "level-up presentation re-reads the actor after the query and preserves the format and draw register snapshots"
+            "level-up presentation reads the live actor after the stage gate and preserves the format and draw register snapshots"
         );
         test.expect_true(
-            fixture.frame_provider.resource_ids.size() == 434U &&
+            !fixture.frame_provider.resource_ids.empty() &&
                 (fixture.frame_provider.resource_ids[0U] & 0xFFFF0000U) ==
                     0xABCD0000U &&
                 (fixture.frame_provider.resource_ids.back() & 0xFFFF0000U) ==
@@ -319,7 +323,8 @@ void test_battle_level_up_panel(openswd3::test::Context& test) {
         fixture.target.transition_actor_index = 0xFFU;
         fixture.target.transition_mode = 0U;
         fixture.port.reply(
-            LegacyBattleVictoryRewardCall::query_summary_panel,
+            LegacyBattleVictoryRewardCall::
+                reserved_transition_stage_advance_slot,
             {.eax = 1U, .ecx = 2U, .edx = 3U}
         );
         const auto result =
@@ -328,13 +333,11 @@ void test_battle_level_up_panel(openswd3::test::Context& test) {
             result.status == LegacyBattleLevelUpPanelStatus::completed &&
                 result.rectangle_calls == 0U &&
                 result.tiled_frame_calls == 0U &&
-                result.text_draw_calls == 0U && result.port_calls == 1U &&
-                result.return_eax == 0xFFU && result.return_ecx == 2U &&
-                result.return_edx == 3U &&
-                fixture.port.calls[0U].eax == 0xFFU &&
-                fixture.port.calls[0U].ecx == 0U &&
-                fixture.port.calls[0U].edx == 9U,
-            "missing actor outside transition mode one skips the panel but still runs the summary query"
+                result.text_draw_calls == 0U && result.port_calls == 0U &&
+                result.transition_stage_calls == 1U &&
+                result.return_eax == 0xFFU && result.return_ecx == 1U &&
+                result.return_edx == 0U,
+            "missing actor outside transition mode one skips the panel but still runs the typed stage gate"
         );
     }
 
@@ -343,29 +346,24 @@ void test_battle_level_up_panel(openswd3::test::Context& test) {
         fixture.target.transition_actor_index = 0xFFU;
         fixture.target.transition_mode = 1U;
         fixture.port.reply(
-            LegacyBattleVictoryRewardCall::query_summary_panel, {.eax = 1U}
+            LegacyBattleVictoryRewardCall::
+                reserved_transition_stage_advance_slot,
+            {.eax = 1U}
         );
         const auto result = run(fixture);
         test.expect_true(
             result.status == LegacyBattleLevelUpPanelStatus::completed &&
                 result.rectangle_calls == 1U &&
                 result.tiled_frame_calls == 2U &&
-                result.text_draw_calls == 1U && result.port_calls == 2U,
+                result.text_draw_calls == 1U && result.port_calls == 1U &&
+                result.transition_stage_calls == 1U,
             "transition mode one still draws the level-up panel without a selected actor"
         );
     }
 
     {
         Fixture fixture;
-        fixture.target.transition_actor_index = 0xFFU;
-        fixture.port.reply(
-            LegacyBattleVictoryRewardCall::query_summary_panel,
-            {
-                .eax = 1U,
-                .publish_transition_actor_index = true,
-                .transition_actor_index = 0x80U,
-            }
-        );
+        fixture.target.transition_actor_index = 0x80U;
         const auto result = run(fixture);
         test.expect_true(
             result.status ==
@@ -380,7 +378,9 @@ void test_battle_level_up_panel(openswd3::test::Context& test) {
         Fixture fixture;
         fixture.startup.action_mode_source.actor_label_indices[2U] = 4U;
         fixture.port.reply(
-            LegacyBattleVictoryRewardCall::query_summary_panel, {.eax = 1U}
+            LegacyBattleVictoryRewardCall::
+                reserved_transition_stage_advance_slot,
+            {.eax = 1U}
         );
         const auto result = run(fixture);
         test.expect_true(
@@ -396,7 +396,9 @@ void test_battle_level_up_panel(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.port.reply(
-            LegacyBattleVictoryRewardCall::query_summary_panel, {.eax = 1U}
+            LegacyBattleVictoryRewardCall::
+                reserved_transition_stage_advance_slot,
+            {.eax = 1U}
         );
         std::array<u8, 64> oversized{};
         oversized.fill('X');
@@ -408,7 +410,8 @@ void test_battle_level_up_panel(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleLevelUpPanelStatus::format_buffer_typed_stop &&
-                result.text_draw_calls == 1U && result.port_calls == 3U &&
+                result.text_draw_calls == 1U && result.port_calls == 2U &&
+                result.transition_stage_calls == 1U &&
                 fixture.port.count(LegacyBattleVictoryRewardCall::draw_text) ==
                     1U,
             "level-up formatting stops after the formatter side effect and before the overflowing draw"

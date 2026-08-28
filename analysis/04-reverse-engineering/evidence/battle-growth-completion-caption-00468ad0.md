@@ -6,7 +6,7 @@
 
 权威LST主体为`0x00468AD0..0x00468C7E`，从proc到endp共187行、125条带机器码和真实助记符的实际指令、11个静态call、3个跳转、2个局部标签和1个返回点，没有外部`FUNCTION CHUNK`。唯一静态caller是已关闭消息阶段分派的消息112公共完成路径；caller固定压入两个零参数，本函数返回后重新读取timer并按u32加一。
 
-11个callsite包括sample播放1次、`wsprintfA` 2次、`lstrlenA` 2次、动作记录更新1次、固定矩形1次、九宫格1次、标题框查询1次和文字绘制2次。它与相邻成长标题框共享确定性的格式、动作、矩形、九宫格和文字业务实现，但以独立variant保留新增sample门及五个generic callsite不同的EAX/ECX/EDX布局。
+11个callsite包括sample播放1次、`wsprintfA` 2次、`lstrlenA` 2次、动作记录更新1次、固定矩形1次、九宫格1次、stage推进1次和文字绘制2次。它与相邻成长标题框共享确定性的格式、动作、矩形、九宫格和文字业务实现，但以独立variant保留新增sample门及五个generic callsite不同的EAX/ECX/EDX布局。
 
 ## 2. 入口seed、模式门与sample
 
@@ -28,7 +28,7 @@ stage在动作更新后重新读取用于矩形，矩形返回后又重新读取
 
 ## 4. 双行文字与寄存器variant
 
-九宫格后固定查询`180,236,3`；EAX不精确等于1时保留底板并返回。成功时第一行在`260,188`以颜色`0xFFFF`、字号16绘名称。该变体第一次文字调用前为EAX=查询返回1、ECX=字体token、EDX=framebuffer token。
+九宫格后直连`base=180,target=236,divisor=3`的共享stage推进；signed商非零、EAX不等于1时保留底板并返回。stage商零时第一行在`260,188`以颜色`0xFFFF`、字号16绘名称。该变体第一次文字调用前为EAX=stage商零返回1、ECX=字体token、EDX=framebuffer token。
 
 随后完整清零64-byte局部缓冲，以`[%s]`包裹角色升级状态中的共享24-byte标题。第二次格式调用前为EAX=局部缓冲token、ECX=0、EDX=第一行文字callee返回；24 byte内缺NUL时保留左括号、24个源byte和第一行文字后，在首次读取下一物理byte时typed-stop。格式结果达到64 byte则在第二次长度调用前停止。
 
@@ -48,6 +48,6 @@ transition mode/stage/actor、sample mix、动作标签、动作记录、framebu
 
 消息112现于actor有效后直连本实现；actor缺失时先直连已关闭成长角色选择，再保持既有sample、完成查询与transition分配顺序。正常返回后caller按u32递增timer；成长角色选择或本函数typed-stop均模拟callee不返回并阻断全部后置写。旧选角槽与旧阶段112槽均改为reserved且生产零调用。消息113仍保留其自身下一工作包边界，不提前回收。
 
-定向测试覆盖mode精确1门、live seed请求、stage零/非零sample门、sample前寄存器、sample后负一actor停止、CP950名称、五个variant generic调用寄存器、动态矩形/九宫格、查询非1、双行文字、消息112直连/旧槽零调用/timer及主帧sample映射。组合战斗Debug测试已有多个单函数栈帧超过1MB；仅Windows该测试目标以`/STACK:8388608`锁定8MB PE栈保留，生产目标不变。修正后Windows定向测试连续三次通过；Linux定向、AddressSanitizer、Linux core `188/188`和Windows app `194/194`全部通过，源码构建零warning。
+定向测试覆盖mode精确1门、live seed请求、stage零/非零sample门、sample前寄存器、sample后负一actor停止、CP950名称、五个variant generic调用寄存器、动态矩形/九宫格、stage商非零、双行文字、消息112直连/旧槽零调用/timer及主帧sample映射。组合战斗Debug测试已有多个单函数栈帧超过1MB；仅Windows该测试目标以`/STACK:8388608`锁定8MB PE栈保留，生产目标不变。修正后Windows定向测试连续三次通过；Linux定向、AddressSanitizer、Linux core `188/188`和Windows app `194/194`全部通过，源码构建零warning。
 
-当前缺少原版入口seed全局、sample对象、动作/矩形/九宫格/字体surface、标题查询callee、完整名称与共享标题联合状态、动态栈、格式/长度及寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版入口seed全局、sample对象、动作/矩形/九宫格/字体surface、完整名称与共享标题联合状态、动态栈、格式/长度及寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

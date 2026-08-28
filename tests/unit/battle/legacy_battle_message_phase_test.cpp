@@ -143,7 +143,8 @@ public:
     ) override {
         growth_calls.push_back(request);
         if (request.call ==
-            openswd3::battle::LegacyBattleLevelGrowthPanelCall::query_panel) {
+            openswd3::battle::LegacyBattleLevelGrowthPanelCall::
+                reserved_transition_stage_advance_slot) {
             return {
                 .eax = growth_query_eax,
                 .ecx = request.ecx,
@@ -236,7 +237,7 @@ public:
             invoke_talisman_result_panel(request);
         if (request.call ==
             openswd3::battle::LegacyBattleTalismanResultPanelCall::
-                query_panel) {
+                reserved_transition_stage_advance_slot) {
             reply.eax = talisman_result_panel_query_eax;
         }
         return reply;
@@ -252,8 +253,9 @@ public:
                 request
             );
         if (request.call ==
-            openswd3::battle::LegacyBattleDefeatPanelCall::query_panel) {
-            reply.eax = defeat_panel_query_eax;
+            openswd3::battle::LegacyBattleDefeatPanelCall::
+                reserved_transition_stage_advance_slot) {
+            reply.eax = defeat_panel_reserved_transition_stage_advance_slot_eax;
         }
         return reply;
     }
@@ -269,7 +271,7 @@ public:
             invoke_victory_item_list_panel(request);
         if (request.call ==
             openswd3::battle::LegacyBattleVictoryItemListPanelCall::
-                query_panel) {
+                reserved_transition_stage_advance_slot) {
             reply.eax = victory_item_list_query_eax;
         }
         const auto found =
@@ -301,7 +303,7 @@ public:
         growth_item_completion_panel_calls.push_back(request);
         if (request.call ==
             openswd3::battle::LegacyBattleGrowthItemCompletionPanelCall::
-                query_panel) {
+                reserved_transition_stage_advance_slot) {
             return {
                 .eax = growth_item_completion_panel_query_eax,
                 .ecx = request.ecx,
@@ -318,7 +320,8 @@ public:
     ) override {
         caption_calls.push_back(request);
         if (request.call ==
-            openswd3::battle::LegacyBattleGrowthCaptionCall::query_panel) {
+            openswd3::battle::LegacyBattleGrowthCaptionCall::
+                reserved_transition_stage_advance_slot) {
             return {
                 .eax = caption_query_eax,
                 .ecx = request.ecx,
@@ -404,7 +407,7 @@ public:
     u32 growth_item_result_selection_eax{};
     u32 growth_item_completion_panel_query_eax{};
     u32 victory_item_list_query_eax{};
-    u32 defeat_panel_query_eax{};
+    u32 defeat_panel_reserved_transition_stage_advance_slot_eax{};
     u32 talisman_result_panel_query_eax{};
 };
 
@@ -549,10 +552,11 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleMessagePhaseStatus::
                         completed &&
                 message_98.talisman_result_panel_calls == 1U &&
-                message_98.talisman_result_panel.query_calls == 1U &&
+                message_98.talisman_result_panel.query_calls == 0U &&
+                message_98.talisman_result_panel.transition_stage_calls == 1U &&
                 fixture.input_dispatch.selection_cache_gate_a == 1U &&
                 fixture.port.message_calls.empty() &&
-                fixture.port.talisman_result_panel_calls.size() == 1U,
+                fixture.port.talisman_result_panel_calls.empty(),
             "message 98 publishes cache A then directly draws its talisman result panel without the reserved slot"
         );
 
@@ -978,6 +982,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         rendered.message = 0x6EU;
         rendered.target_selection.transition_actor_index = 0U;
         rendered.target_selection.transition_state = 1U;
+        rendered.target_selection.transition_stage = 156U;
         rendered.startup.action_mode_source.actor_label_indices[0U] = 0U;
         rendered.port.growth_query_eax = 1U;
         const auto rendered_result = run(rendered);
@@ -1037,6 +1042,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         caption.message = 0x6FU;
         caption.target_selection.transition_mode = 1U;
         caption.target_selection.transition_actor_index = 0U;
+        caption.target_selection.transition_stage = 56U;
         caption.startup.action_mode_source.actor_label_indices[0U] = 0U;
         caption.port.battle_level_advancement_state().growth_caption_text = {
             0x41U, 0U
@@ -1158,7 +1164,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         rendered.message = 0x70U;
         rendered.target_selection.transition_actor_index = 2U;
         rendered.target_selection.transition_mode = 1U;
-        rendered.target_selection.transition_stage = 0U;
+        rendered.target_selection.transition_stage = 56U;
         rendered.startup.action_mode_source.actor_label_indices[2U] = 1U;
         rendered.input_dispatch.sample_mix_level = -5;
         rendered.port.battle_level_advancement_state().growth_caption_text = {
@@ -1171,13 +1177,12 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleMessagePhaseStatus::
                         completed &&
                 rendered_result.growth_completion_caption_calls == 1U &&
-                rendered_result.growth_completion_caption.sample_calls == 1U &&
+                rendered_result.growth_completion_caption.sample_calls == 0U &&
                 rendered_result.growth_completion_caption.text_draw_calls ==
                     2U &&
-                rendered.port.completion_sample_calls.size() == 1U &&
-                rendered.port.completion_sample_calls[0U][3U] == 0x160U &&
+                rendered.port.completion_sample_calls.empty() &&
                 rendered.target_selection.transition_timer == 1U,
-            "message 112 directly renders the completion caption and increments its timer after the nested sample"
+            "message 112 directly renders the settled completion caption before incrementing its timer"
         );
     }
     {
@@ -1254,7 +1259,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         rendered.message = 0x71U;
         rendered.target_selection.transition_actor_index = 2U;
         rendered.target_selection.transition_mode = 1U;
-        rendered.target_selection.transition_stage = 12U;
+        rendered.target_selection.transition_stage = 32U;
         rendered.port.battle_victory_reward_state()
             .panel_action_record.field_4a = 0x4567U;
         rendered.port.battle_level_advancement_state().growth_caption_text = {
@@ -1310,6 +1315,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         timed.message = 0x66U;
         timed.target_selection.transition_sample_word = 1U;
         timed.target_selection.transition_timer = 149U;
+        timed.target_selection.transition_stage = 20U;
         timed.input_dispatch.retreat_block_word = 1U;
         timed.port.battle_victory_reward_state().player_item_tokens[0U] =
             0x71000000U;
@@ -1336,6 +1342,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         invalid_panel.message = 0x66U;
         invalid_panel.target_selection.transition_sample_word = 1U;
         invalid_panel.target_selection.transition_timer = 7U;
+        invalid_panel.target_selection.transition_stage = 20U;
         invalid_panel.port.battle_victory_reward_state()
             .player_item_tokens[0U] = 0x72000000U;
         invalid_panel.port.battle_victory_reward_state()
@@ -1374,7 +1381,8 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         defeat.message = 0x67U;
         defeat.target_selection.transition_timer = 149U;
         defeat.input_dispatch.retreat_block_word = 1U;
-        defeat.port.defeat_panel_query_eax = 2U;
+        defeat.port.defeat_panel_reserved_transition_stage_advance_slot_eax =
+            2U;
         const auto defeat_result = run(defeat);
         test.expect_true(
             defeat_result.defeat_panel_calls == 1U &&

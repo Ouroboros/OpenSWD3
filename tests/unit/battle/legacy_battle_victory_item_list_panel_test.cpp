@@ -207,7 +207,7 @@ void test_battle_victory_item_list_panel(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.target.transition_sample_word = 0U;
-        fixture.target.transition_stage = 12U;
+        fixture.target.transition_stage = 0U;
         fixture.port.reply(
             LegacyBattleVictoryItemListPanelCall::set_font_size,
             {.eax = 0x11111111U, .ecx = 0x22222222U, .edx = 0x33333333U}
@@ -217,7 +217,8 @@ void test_battle_victory_item_list_panel(openswd3::test::Context& test) {
             {.eax = 0xABCD1234U, .ecx = 0x45454545U, .edx = 0x56565656U}
         );
         fixture.port.reply(
-            LegacyBattleVictoryItemListPanelCall::query_panel,
+            LegacyBattleVictoryItemListPanelCall::
+                reserved_transition_stage_advance_slot,
             {.eax = 1U, .ecx = 0x67676767U, .edx = 0x78787878U}
         );
         fixture.port.reply(
@@ -240,11 +241,12 @@ void test_battle_victory_item_list_panel(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleVictoryItemListPanelStatus::completed &&
                 result.initial_item_count == 0U &&
-                result.panel_bottom == 0xD4U && result.rectangle_height == 52 &&
-                result.list_frame_bottom == 224 &&
+                result.panel_bottom == 0xD4U && result.rectangle_height == 40 &&
+                result.list_frame_bottom == 212 &&
                 result.font_size_calls == 2U && result.rectangle_calls == 1U &&
                 result.tiled_frame_calls == 2U &&
-                result.title_draw_calls == 1U && result.query_calls == 1U &&
+                result.title_draw_calls == 1U && result.query_calls == 0U &&
+                result.transition_stage_calls == 1U &&
                 result.format_calls == 0U && result.item_draw_calls == 0U &&
                 result.local_text[0U] == 0xA5U &&
                 fixture.victory.panel_action_record.action_id ==
@@ -261,7 +263,7 @@ void test_battle_victory_item_list_panel(openswd3::test::Context& test) {
                 result.action_entry.edx == 0x33333333U &&
                 result.rectangle_entry.eax == 0x10101010U &&
                 result.rectangle_entry.ecx == 0x20202020U &&
-                result.rectangle_entry.edx == 52U &&
+                result.rectangle_entry.edx == 40U &&
                 (result.first_frame_resource & 0xFFFF0000U) == 0xA1B20000U &&
                 (result.first_frame_resource & 0xFFFFU) ==
                     fixture.victory.panel_action_record.field_4a &&
@@ -271,7 +273,7 @@ void test_battle_victory_item_list_panel(openswd3::test::Context& test) {
             "victory item list preserves the font, action, rectangle and two resource register chains"
         );
         test.expect_true(
-            fixture.port.calls.size() == 4U &&
+            fixture.port.calls.size() == 3U &&
                 fixture.port.calls[0U].arguments[1U] == 0x12U &&
                 fixture.port.calls[0U].eax == 0U &&
                 fixture.port.calls[0U].ecx == kLegacyBattleVictoryFontToken &&
@@ -286,18 +288,20 @@ void test_battle_victory_item_list_panel(openswd3::test::Context& test) {
                     std::vector<u8>(
                         {0xBEU, 0xD4U, 0xA7U, 0x51U, 0xABU, 0x7EU}
                     ) &&
-                fixture.port.calls[2U].arguments[0U] == 0xD4U &&
-                fixture.port.calls[2U].arguments[1U] == 0xD4U &&
-                fixture.port.calls[2U].arguments[2U] == 3U &&
-                fixture.port.calls[3U].arguments[1U] == 0x10U,
-            "victory item list publishes the original title bytes, fixed coordinates, query and font sizes"
+                fixture.port.calls[2U].arguments[1U] == 0x10U &&
+                result.transition_stage.return_eax == 1U &&
+                fixture.port.count(
+                    LegacyBattleVictoryItemListPanelCall::
+                        reserved_transition_stage_advance_slot
+                ) == 0U,
+            "victory item list publishes the original title bytes, fixed coordinates, typed stage and font sizes"
         );
     }
 
     {
         Fixture fixture;
         fixture.target.transition_sample_word = 2U;
-        fixture.target.transition_stage = 20U;
+        fixture.target.transition_stage = 40U;
         fixture.victory.player_item_tokens[0U] = 0x71000000U;
         fixture.victory.player_item_tokens[1U] = 0x72000000U;
         fixture.victory.collected_item_quantities[0U] = 7U;
@@ -307,7 +311,8 @@ void test_battle_victory_item_list_panel(openswd3::test::Context& test) {
             {.eax = 2U, .ecx = 0x10101010U, .edx = 0x20202020U}
         );
         fixture.port.reply(
-            LegacyBattleVictoryItemListPanelCall::query_panel,
+            LegacyBattleVictoryItemListPanelCall::
+                reserved_transition_stage_advance_slot,
             {.eax = 1U, .ecx = 0x11110000U, .edx = 0x22220000U}
         );
         constexpr std::array<u8, 8U> kFirst{
@@ -343,11 +348,11 @@ void test_battle_victory_item_list_panel(openswd3::test::Context& test) {
         const auto result = run(fixture, request);
         const auto formats =
             std::vector<LegacyBattleVictoryItemListPanelCallRequest>{
-                fixture.port.calls[3U], fixture.port.calls[5U]
+                fixture.port.calls[2U], fixture.port.calls[4U]
             };
         const auto draws =
             std::vector<LegacyBattleVictoryItemListPanelCallRequest>{
-                fixture.port.calls[4U], fixture.port.calls[6U]
+                fixture.port.calls[3U], fixture.port.calls[5U]
             };
         test.expect_true(
             result.status ==
@@ -383,10 +388,13 @@ void test_battle_victory_item_list_panel(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.target.transition_sample_word = 3U;
+        fixture.target.transition_stage = 60U;
         fixture.victory.player_item_tokens = {1U, 2U, 3U};
         fixture.victory.collected_item_quantities = {1U, 1U, 1U};
         fixture.port.reply(
-            LegacyBattleVictoryItemListPanelCall::query_panel, {.eax = 1U}
+            LegacyBattleVictoryItemListPanelCall::
+                reserved_transition_stage_advance_slot,
+            {.eax = 1U}
         );
         fixture.port.reply(
             LegacyBattleVictoryItemListPanelCall::draw_item_row,
@@ -411,7 +419,9 @@ void test_battle_victory_item_list_panel(openswd3::test::Context& test) {
         Fixture non_one;
         non_one.target.transition_sample_word = 1U;
         non_one.port.reply(
-            LegacyBattleVictoryItemListPanelCall::query_panel, {.eax = 2U}
+            LegacyBattleVictoryItemListPanelCall::
+                reserved_transition_stage_advance_slot,
+            {.eax = 2U}
         );
         const auto non_one_result = run(non_one, {});
         test.expect_true(
@@ -422,10 +432,13 @@ void test_battle_victory_item_list_panel(openswd3::test::Context& test) {
 
         Fixture overflow;
         overflow.target.transition_sample_word = 1U;
+        overflow.target.transition_stage = 20U;
         overflow.victory.player_item_tokens[0U] = 0x71000000U;
         overflow.victory.collected_item_quantities[0U] = 1U;
         overflow.port.reply(
-            LegacyBattleVictoryItemListPanelCall::query_panel, {.eax = 1U}
+            LegacyBattleVictoryItemListPanelCall::
+                reserved_transition_stage_advance_slot,
+            {.eax = 1U}
         );
         LegacyBattleVictoryItemListPanelCallReply overflow_reply{
             .publish_formatted_text = true,
@@ -457,10 +470,13 @@ void test_battle_victory_item_list_panel(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.target.transition_sample_word = 11U;
+        fixture.target.transition_stage = 220U;
         fixture.victory.player_item_tokens.fill(0x71000000U);
         fixture.victory.collected_item_quantities.fill(1U);
         fixture.port.reply(
-            LegacyBattleVictoryItemListPanelCall::query_panel, {.eax = 1U}
+            LegacyBattleVictoryItemListPanelCall::
+                reserved_transition_stage_advance_slot,
+            {.eax = 1U}
         );
         const auto result = run(fixture, {.local_text_token = 0x70008000U});
         test.expect_true(

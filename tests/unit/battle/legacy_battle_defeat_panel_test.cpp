@@ -190,7 +190,7 @@ void test_battle_defeat_panel(openswd3::test::Context& test) {
             {.eax = 0x41414141U, .ecx = 0xABCD1234U, .edx = 0x43434343U}
         );
         fixture.port.reply(
-            LegacyBattleDefeatPanelCall::query_panel,
+            LegacyBattleDefeatPanelCall::reserved_transition_stage_advance_slot,
             {.eax = 2U, .ecx = 0x51515151U, .edx = 0x52525252U}
         );
         const LegacyBattleDefeatPanelRequest request{
@@ -207,7 +207,8 @@ void test_battle_defeat_panel(openswd3::test::Context& test) {
             result.status == LegacyBattleDefeatPanelStatus::completed &&
                 result.rectangle_calls == 1U &&
                 result.tiled_frame_calls == 2U &&
-                result.title_draw_calls == 1U && result.query_calls == 1U &&
+                result.title_draw_calls == 1U && result.query_calls == 0U &&
+                result.transition_stage_calls == 1U &&
                 result.font_size_calls == 0U &&
                 result.detail_draw_calls == 0U &&
                 result.rectangle_height == 52 &&
@@ -215,9 +216,10 @@ void test_battle_defeat_panel(openswd3::test::Context& test) {
                 fixture.victory.panel_action_record.action_id ==
                     kLegacyBattleVictoryPanelAction &&
                 fixture.victory.panel_action_record.base_variant == 0U &&
-                result.return_eax == 2U && result.return_ecx == 0x51515151U &&
-                result.return_edx == 0x52525252U,
-            "defeat panel draws the fixed title and both frames then returns the non-one query registers"
+                fixture.target.transition_stage == 18U &&
+                result.return_eax == 0U && result.return_ecx == 0U &&
+                result.return_edx == 2U,
+            "defeat panel draws the fixed title and both frames then returns the nonzero-quotient stage registers"
         );
         test.expect_true(
             result.action_entry.eax == 0x01020304U &&
@@ -236,7 +238,7 @@ void test_battle_defeat_panel(openswd3::test::Context& test) {
             "defeat panel preserves its EAX stage chain and both ECX resource high-word variants"
         );
         test.expect_true(
-            fixture.port.calls.size() == 2U &&
+            fixture.port.calls.size() == 1U &&
                 fixture.port.calls[0U].object_token ==
                     kLegacyBattleVictoryFontToken &&
                 fixture.port.calls[0U].arguments[0U] ==
@@ -256,18 +258,19 @@ void test_battle_defeat_panel(openswd3::test::Context& test) {
                         0xB1U,
                         0xD1U,
                     }) &&
-                fixture.port.calls[1U].arguments[0U] == 0xD4U &&
-                fixture.port.calls[1U].arguments[1U] == 0xF4U &&
-                fixture.port.calls[1U].arguments[2U] == 3U,
-            "defeat panel publishes the original title bytes, coordinates and fixed query"
+                fixture.port.count(
+                    LegacyBattleDefeatPanelCall::
+                        reserved_transition_stage_advance_slot
+                ) == 0U,
+            "defeat panel publishes the original title bytes and leaves the retired stage slot unused"
         );
     }
 
     {
         Fixture fixture;
-        fixture.target.transition_stage = 20U;
+        fixture.target.transition_stage = 32U;
         fixture.port.reply(
-            LegacyBattleDefeatPanelCall::query_panel,
+            LegacyBattleDefeatPanelCall::reserved_transition_stage_advance_slot,
             {.eax = 1U, .ecx = 0x11110000U, .edx = 0x22220000U}
         );
         fixture.port.reply(
@@ -293,21 +296,21 @@ void test_battle_defeat_panel(openswd3::test::Context& test) {
             "defeat panel switches to font seventeen, draws the party defeat detail and restores font sixteen only for an exact-one query"
         );
         test.expect_true(
-            fixture.port.calls.size() == 5U &&
-                fixture.port.calls[2U].arguments[1U] == 0x11U &&
-                fixture.port.calls[2U].eax == 1U &&
-                fixture.port.calls[2U].edx == 0x22220000U &&
-                fixture.port.calls[3U].arguments[0U] ==
+            fixture.port.calls.size() == 4U &&
+                fixture.port.calls[1U].arguments[1U] == 0x11U &&
+                fixture.port.calls[1U].eax == 1U &&
+                fixture.port.calls[1U].edx == 0U &&
+                fixture.port.calls[2U].arguments[0U] ==
                     kLegacyBattleDefeatFramebufferToken &&
-                fixture.port.calls[3U].arguments[1U] == 0xFEU &&
-                fixture.port.calls[3U].arguments[2U] == 0xD8U &&
-                fixture.port.calls[3U].arguments[3U] ==
+                fixture.port.calls[2U].arguments[1U] == 0xFEU &&
+                fixture.port.calls[2U].arguments[2U] == 0xD8U &&
+                fixture.port.calls[2U].arguments[3U] ==
                     kLegacyBattleDefeatDetailToken &&
-                fixture.port.calls[3U].eax == 0x31313131U &&
-                fixture.port.calls[3U].ecx == kLegacyBattleVictoryFontToken &&
-                fixture.port.calls[3U].edx ==
+                fixture.port.calls[2U].eax == 0x31313131U &&
+                fixture.port.calls[2U].ecx == kLegacyBattleVictoryFontToken &&
+                fixture.port.calls[2U].edx ==
                     kLegacyBattleDefeatFramebufferToken &&
-                text_bytes(fixture.port.calls[3U]) ==
+                text_bytes(fixture.port.calls[2U]) ==
                     std::vector<u8>({
                         0xB6U,
                         0xA4U,
@@ -320,8 +323,10 @@ void test_battle_defeat_panel(openswd3::test::Context& test) {
                         0x21U,
                         0x21U,
                     }) &&
-                fixture.port.calls[4U].arguments[1U] == 0x10U,
-            "defeat panel preserves the query, font, detail text and restore callsite registers"
+                fixture.port.calls[3U].arguments[1U] == 0x10U &&
+                result.transition_stage.return_eax == 1U &&
+                result.transition_stage.return_ecx == 1U,
+            "defeat panel preserves the typed stage, font, detail text and restore callsite registers"
         );
     }
 

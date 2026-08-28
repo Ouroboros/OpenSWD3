@@ -5,6 +5,7 @@
 
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_runtime.hpp"
+#include "openswd3/battle/legacy_battle_transition_stage_advance.hpp"
 #include "openswd3/battle/legacy_battle_victory_rewards.hpp"
 #include "openswd3/compat/types.hpp"
 #include "openswd3/rendering/legacy_framebuffer.hpp"
@@ -30,7 +31,7 @@ struct LegacyBattleDefeatPanelBindings {
 
 enum class LegacyBattleDefeatPanelCall : compat::u8 {
     draw_title,
-    query_panel,
+    reserved_transition_stage_advance_slot,
     set_font_size,
     draw_detail,
 };
@@ -79,6 +80,7 @@ enum class LegacyBattleDefeatPanelStatus : compat::u8 {
     rectangle_typed_stop,
     title_frame_typed_stop,
     detail_frame_typed_stop,
+    transition_stage_typed_stop,
 };
 
 struct LegacyBattleDefeatPanelResult {
@@ -95,6 +97,8 @@ struct LegacyBattleDefeatPanelResult {
     compat::u32 query_calls{};
     compat::u32 font_size_calls{};
     compat::u32 detail_draw_calls{};
+    compat::u32 transition_stage_calls{};
+    LegacyBattleTransitionStageAdvanceResult transition_stage{};
     compat::i32 rectangle_height{};
     compat::i32 detail_frame_bottom{};
     compat::u32 first_frame_resource{};

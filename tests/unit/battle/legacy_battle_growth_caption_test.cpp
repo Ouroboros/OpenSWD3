@@ -151,7 +151,7 @@ struct Fixture {
     Fixture() : action_updater(action_streams), raster(framebuffer.geometry()) {
         target.transition_mode = 1U;
         target.transition_actor_index = 2U;
-        target.transition_stage = 20U;
+        target.transition_stage = 56U;
         startup.action_mode_source.actor_label_indices[2U] = 1U;
         victory.panel_action_record.field_4a = 0x77U;
         advancement.growth_caption_text = {0xA6U, 0xA8U, 0xAAU, 0xACU, 0U};
@@ -256,7 +256,7 @@ run(Fixture& fixture,
 
 void show_panel(Port& port) {
     port.reply(
-        LegacyBattleGrowthCaptionCall::query_panel,
+        LegacyBattleGrowthCaptionCall::reserved_transition_stage_advance_slot,
         {.eax = 1U, .ecx = 0x11110000U, .edx = 0x22220000U}
     );
 }
@@ -301,9 +301,12 @@ void test_battle_growth_caption(openswd3::test::Context& test) {
                 result.rectangle_width == 48 && result.detail_x == 250 &&
                 result.format_calls == 2U && result.length_calls == 2U &&
                 result.text_draw_calls == 2U &&
+                result.transition_stage_calls == 1U &&
+                result.transition_stage.return_eax == 1U &&
                 fixture.port.count(
-                    LegacyBattleGrowthCaptionCall::query_panel
-                ) == 1U &&
+                    LegacyBattleGrowthCaptionCall::
+                        reserved_transition_stage_advance_slot
+                ) == 0U &&
                 fixture.victory.panel_action_record.action_id == 0x233BU &&
                 !fixture.frame_provider.resource_ids.empty() &&
                 fixture.frame_provider.resource_ids.front() == 0xABCD0077U,
@@ -379,10 +382,7 @@ void test_battle_growth_caption(openswd3::test::Context& test) {
 
     {
         Fixture fixture;
-        fixture.port.reply(
-            LegacyBattleGrowthCaptionCall::query_panel,
-            {.eax = 0U, .ecx = 0x11110000U, .edx = 0x22220000U}
-        );
+        fixture.target.transition_stage = 20U;
 
         const auto result = run(fixture);
 
@@ -390,8 +390,10 @@ void test_battle_growth_caption(openswd3::test::Context& test) {
             result.status == LegacyBattleGrowthCaptionStatus::completed &&
                 result.format_calls == 1U && result.length_calls == 1U &&
                 result.text_draw_calls == 0U && result.rectangle_calls == 1U &&
-                result.tiled_frame_calls == 1U,
-            "growth caption keeps the frame but skips both text rows when the panel query is not exactly one"
+                result.tiled_frame_calls == 1U &&
+                result.transition_stage_calls == 1U &&
+                fixture.target.transition_stage == 32U,
+            "growth caption keeps the frame but skips both text rows while the stage quotient is nonzero"
         );
     }
 
@@ -473,28 +475,14 @@ void test_battle_growth_caption(openswd3::test::Context& test) {
                         0x160U,
                         std::bit_cast<u32>(-4),
                     }} &&
-                fixture.port.calls.size() == 5U &&
-                fixture.port.calls[0U].call ==
-                    LegacyBattleGrowthCaptionCall::format_name &&
-                fixture.port.calls[0U].eax == 0x0049E158U &&
-                fixture.port.calls[0U].ecx == 0x70002000U &&
-                fixture.port.calls[0U].edx == 2U &&
-                fixture.port.calls[2U].call ==
-                    LegacyBattleGrowthCaptionCall::draw_text &&
-                fixture.port.calls[2U].eax == 1U &&
-                fixture.port.calls[2U].ecx == 0x004C9A28U &&
-                fixture.port.calls[2U].edx == 0x004CD76CU &&
-                fixture.port.calls[3U].call ==
-                    LegacyBattleGrowthCaptionCall::format_detail &&
-                fixture.port.calls[3U].eax == 0x70002000U &&
-                fixture.port.calls[3U].ecx == 0U &&
-                fixture.port.calls[3U].edx == 0x004CD76CU &&
-                fixture.port.calls[4U].call ==
-                    LegacyBattleGrowthCaptionCall::draw_text &&
-                fixture.port.calls[4U].eax == 0x004CD76CU &&
-                fixture.port.calls[4U].ecx == 0x004C9A28U &&
-                fixture.port.calls[4U].edx == 0x70002000U,
-            "growth completion caption plays the zero-stage sample and preserves its distinct format and draw register layouts"
+                result.transition_stage_calls == 1U &&
+                fixture.target.transition_stage == 18U &&
+                result.text_draw_calls == 0U &&
+                fixture.port.count(
+                    LegacyBattleGrowthCaptionCall::
+                        reserved_transition_stage_advance_slot
+                ) == 0U,
+            "growth completion caption plays the zero-stage sample then waits for the typed stage to settle"
         );
     }
 
@@ -502,7 +490,8 @@ void test_battle_growth_caption(openswd3::test::Context& test) {
         Fixture fixture;
         fixture.target.transition_stage = 9U;
         fixture.port.reply(
-            LegacyBattleGrowthCaptionCall::query_panel,
+            LegacyBattleGrowthCaptionCall::
+                reserved_transition_stage_advance_slot,
             {.eax = 0U, .ecx = 0x11110000U, .edx = 0x22220000U}
         );
 

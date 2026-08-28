@@ -174,14 +174,14 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     victory_apply_group_a_reward,
     victory_prepare_group_a_actor,
     victory_configure_group_a_actor,
-    victory_query_summary_panel,
+    victory_reserved_transition_stage_advance_slot,
     victory_format_level_up_text,
     victory_draw_text,
     level_advancement_query_requirement,
     level_advancement_build_profile,
     level_advancement_stop_sample,
     level_advancement_play_sample,
-    level_growth_query_panel,
+    level_growth_reserved_transition_stage_advance_slot,
     level_growth_format_integer,
     level_growth_draw_text,
     level_growth_play_sample,
@@ -196,11 +196,11 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     growth_item_result_copy_caption,
     growth_item_completion_format_text,
     growth_item_completion_measure_text,
-    growth_item_completion_query_panel,
+    growth_item_completion_reserved_transition_stage_advance_slot,
     growth_item_completion_set_font_size,
     growth_item_completion_draw_text,
     growth_caption_format_name,
-    growth_caption_query_panel,
+    growth_caption_reserved_transition_stage_advance_slot,
     growth_caption_draw_text,
     growth_caption_format_detail,
     growth_completion_caption_play_sample,
@@ -217,14 +217,14 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     reserved_message_phase_advance_message_103_slot,
     victory_item_list_set_font_size,
     victory_item_list_draw_title,
-    victory_item_list_query_panel,
+    victory_item_list_reserved_transition_stage_advance_slot,
     victory_item_list_format_row,
     victory_item_list_draw_row,
     defeat_panel_draw_title,
-    defeat_panel_query,
+    defeat_panel_reserved_transition_stage_advance_slot,
     defeat_panel_set_font_size,
     defeat_panel_draw_detail,
-    talisman_result_query,
+    talisman_result_reserved_transition_stage_advance_slot,
     talisman_result_draw_success_title,
     talisman_result_format_success_detail,
     talisman_result_draw_success_detail,
@@ -1029,9 +1029,10 @@ public:
             call = LegacyBattleFrameCoordinatorCall::
                 victory_configure_group_a_actor;
             break;
-        case LegacyBattleVictoryRewardCall::query_summary_panel:
-            call =
-                LegacyBattleFrameCoordinatorCall::victory_query_summary_panel;
+        case LegacyBattleVictoryRewardCall::
+            reserved_transition_stage_advance_slot:
+            call = LegacyBattleFrameCoordinatorCall::
+                victory_reserved_transition_stage_advance_slot;
             break;
         case LegacyBattleVictoryRewardCall::format_level_up_text:
             call =
@@ -1177,9 +1178,11 @@ public:
         const LegacyBattleLevelGrowthPanelCallRequest& request
     ) override {
         LegacyBattleFrameCoordinatorCall call =
-            LegacyBattleFrameCoordinatorCall::level_growth_query_panel;
+            LegacyBattleFrameCoordinatorCall::
+                level_growth_reserved_transition_stage_advance_slot;
         switch (request.call) {
-        case LegacyBattleLevelGrowthPanelCall::query_panel:
+        case LegacyBattleLevelGrowthPanelCall::
+            reserved_transition_stage_advance_slot:
             break;
         case LegacyBattleLevelGrowthPanelCall::format_integer:
             call =
@@ -1368,8 +1371,10 @@ public:
         switch (request.call) {
         case LegacyBattleDefeatPanelCall::draw_title:
             break;
-        case LegacyBattleDefeatPanelCall::query_panel:
-            call = LegacyBattleFrameCoordinatorCall::defeat_panel_query;
+        case LegacyBattleDefeatPanelCall::
+            reserved_transition_stage_advance_slot:
+            call = LegacyBattleFrameCoordinatorCall::
+                defeat_panel_reserved_transition_stage_advance_slot;
             break;
         case LegacyBattleDefeatPanelCall::set_font_size:
             call = LegacyBattleFrameCoordinatorCall::defeat_panel_set_font_size;
@@ -1405,9 +1410,11 @@ public:
         const LegacyBattleTalismanResultPanelCallRequest& request
     ) override {
         LegacyBattleFrameCoordinatorCall call =
-            LegacyBattleFrameCoordinatorCall::talisman_result_query;
+            LegacyBattleFrameCoordinatorCall::
+                talisman_result_reserved_transition_stage_advance_slot;
         switch (request.call) {
-        case LegacyBattleTalismanResultPanelCall::query_panel:
+        case LegacyBattleTalismanResultPanelCall::
+            reserved_transition_stage_advance_slot:
             break;
         case LegacyBattleTalismanResultPanelCall::draw_success_title:
             call = LegacyBattleFrameCoordinatorCall::
@@ -1466,9 +1473,10 @@ public:
             call =
                 LegacyBattleFrameCoordinatorCall::victory_item_list_draw_title;
             break;
-        case LegacyBattleVictoryItemListPanelCall::query_panel:
-            call =
-                LegacyBattleFrameCoordinatorCall::victory_item_list_query_panel;
+        case LegacyBattleVictoryItemListPanelCall::
+            reserved_transition_stage_advance_slot:
+            call = LegacyBattleFrameCoordinatorCall::
+                victory_item_list_reserved_transition_stage_advance_slot;
             break;
         case LegacyBattleVictoryItemListPanelCall::format_item_row:
             call =
@@ -1513,9 +1521,10 @@ public:
             call = LegacyBattleFrameCoordinatorCall::
                 growth_item_completion_measure_text;
             break;
-        case LegacyBattleGrowthItemCompletionPanelCall::query_panel:
+        case LegacyBattleGrowthItemCompletionPanelCall::
+            reserved_transition_stage_advance_slot:
             call = LegacyBattleFrameCoordinatorCall::
-                growth_item_completion_query_panel;
+                growth_item_completion_reserved_transition_stage_advance_slot;
             break;
         case LegacyBattleGrowthItemCompletionPanelCall::set_font_size:
             call = LegacyBattleFrameCoordinatorCall::
@@ -1569,8 +1578,10 @@ public:
         switch (request.call) {
         case LegacyBattleGrowthCaptionCall::format_name:
             break;
-        case LegacyBattleGrowthCaptionCall::query_panel:
-            call = LegacyBattleFrameCoordinatorCall::growth_caption_query_panel;
+        case LegacyBattleGrowthCaptionCall::
+            reserved_transition_stage_advance_slot:
+            call = LegacyBattleFrameCoordinatorCall::
+                growth_caption_reserved_transition_stage_advance_slot;
             break;
         case LegacyBattleGrowthCaptionCall::draw_text:
             call = LegacyBattleFrameCoordinatorCall::growth_caption_draw_text;

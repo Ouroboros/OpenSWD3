@@ -5,6 +5,7 @@
 
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_runtime.hpp"
+#include "openswd3/battle/legacy_battle_transition_stage_advance.hpp"
 #include "openswd3/battle/legacy_battle_victory_rewards.hpp"
 #include "openswd3/compat/types.hpp"
 #include "openswd3/rendering/legacy_framebuffer.hpp"
@@ -36,7 +37,7 @@ struct LegacyBattleTalismanResultPanelBindings {
 };
 
 enum class LegacyBattleTalismanResultPanelCall : compat::u8 {
-    query_panel,
+    reserved_transition_stage_advance_slot,
     draw_success_title,
     format_success_detail,
     draw_success_detail,
@@ -46,7 +47,8 @@ enum class LegacyBattleTalismanResultPanelCall : compat::u8 {
 
 struct LegacyBattleTalismanResultPanelCallRequest {
     LegacyBattleTalismanResultPanelCall call{
-        LegacyBattleTalismanResultPanelCall::query_panel
+        LegacyBattleTalismanResultPanelCall::
+            reserved_transition_stage_advance_slot
     };
     compat::u32 object_token{};
     std::array<compat::u32, 8U> arguments{};
@@ -111,6 +113,7 @@ enum class LegacyBattleTalismanResultPanelStatus : compat::u8 {
     title_frame_typed_stop,
     detail_frame_typed_stop,
     format_buffer_typed_stop,
+    transition_stage_typed_stop,
 };
 
 struct LegacyBattleTalismanResultPanelResult {
@@ -127,6 +130,8 @@ struct LegacyBattleTalismanResultPanelResult {
     compat::u32 title_draw_calls{};
     compat::u32 format_calls{};
     compat::u32 detail_draw_calls{};
+    compat::u32 transition_stage_calls{};
+    LegacyBattleTransitionStageAdvanceResult transition_stage{};
     compat::i32 rectangle_height{};
     compat::i32 detail_frame_bottom{};
     compat::u32 first_frame_resource{};

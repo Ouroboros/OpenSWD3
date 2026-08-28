@@ -293,9 +293,20 @@ private:
     }
 
     void query_and_draw() {
-        static_cast<void>(invoke(
-            LegacyBattleGrowthCaptionCall::query_panel, {0xB4U, 0xECU, 3U}
-        ));
+        result_.transition_stage = advance_legacy_battle_transition_stage(
+            bindings_.victory.target_selection.transition_stage,
+            {.base_offset = 0xB4U, .target = 0xECU, .divisor = 3U}
+        );
+        ++result_.transition_stage_calls;
+        eax_ = result_.transition_stage.return_eax;
+        ecx_ = result_.transition_stage.return_ecx;
+        edx_ = result_.transition_stage.return_edx;
+        if (result_.transition_stage.status !=
+            LegacyBattleTransitionStageAdvanceStatus::completed) {
+            result_.status =
+                LegacyBattleGrowthCaptionStatus::transition_stage_typed_stop;
+            return;
+        }
         if (eax_ != 1U) {
             return;
         }

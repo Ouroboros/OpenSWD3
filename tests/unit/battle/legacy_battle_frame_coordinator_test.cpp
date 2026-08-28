@@ -964,6 +964,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         configure_common_port(port);
         port.battle_message_state() = 0x64U;
         port.battle_victory_reward_state().committed_money_word = 0x8000U;
+        port.battle_target_selection_runtime_state().transition_stage = 72U;
         auto context = fixture.context();
 
         const auto result =
@@ -986,16 +987,18 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         );
         test.expect_true(
             port.count(LegacyBattleFrameCoordinatorCall::victory_draw_text) ==
-                    6U &&
+                    5U &&
                 port.count(
                     LegacyBattleFrameCoordinatorCall::
-                        victory_query_summary_panel
-                ) == 2U &&
+                        victory_reserved_transition_stage_advance_slot
+                ) == 0U &&
                 port.count(
                     LegacyBattleFrameCoordinatorCall::
                         victory_format_level_up_text
-                ) == 1U,
-            "main frame message 100 draws the victory and level-up panels through their typed text boundary"
+                ) == 0U &&
+                port.battle_target_selection_runtime_state().transition_stage ==
+                    59U,
+            "main frame message 100 draws the settled victory summary then advances the level-up panel toward its own target"
         );
         test.expect_true(
             port.count(
@@ -1075,11 +1078,14 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     {
         CoordinatorPort port;
         configure_common_port(port);
-        port.replies[LegacyBattleFrameCoordinatorCall::level_growth_query_panel]
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         level_growth_reserved_transition_stage_advance_slot]
             .eax = 1U;
-        port.replies[LegacyBattleFrameCoordinatorCall::level_growth_query_panel]
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         level_growth_reserved_transition_stage_advance_slot]
             .publish_growth_transition_actor_index = true;
-        port.replies[LegacyBattleFrameCoordinatorCall::level_growth_query_panel]
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         level_growth_reserved_transition_stage_advance_slot]
             .growth_transition_actor_index = 3U;
         port.replies
             [LegacyBattleFrameCoordinatorCall::level_growth_format_integer]
@@ -1094,8 +1100,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             .eax = 0x87654321U;
 
         const auto query = port.invoke_level_growth_panel({
-            .call =
-                openswd3::battle::LegacyBattleLevelGrowthPanelCall::query_panel,
+            .call = openswd3::battle::LegacyBattleLevelGrowthPanelCall::
+                reserved_transition_stage_advance_slot,
             .arguments = {0x70U, 0x10CU, 2U},
             .eax = 4U,
             .ecx = 5U,
@@ -1130,7 +1136,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 formatted.formatted_text_length == 1U &&
                 played.eax == 0x87654321U &&
                 port.count(
-                    LegacyBattleFrameCoordinatorCall::level_growth_query_panel
+                    LegacyBattleFrameCoordinatorCall::
+                        level_growth_reserved_transition_stage_advance_slot
                 ) == 1U &&
                 port.count(
                     LegacyBattleFrameCoordinatorCall::
@@ -1157,15 +1164,15 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         port.replies
             [LegacyBattleFrameCoordinatorCall::growth_caption_format_name]
                 .caption_formatted_text_length = 1U;
-        port.replies
-            [LegacyBattleFrameCoordinatorCall::growth_caption_query_panel]
-                .eax = 1U;
-        port.replies
-            [LegacyBattleFrameCoordinatorCall::growth_caption_query_panel]
-                .publish_caption_transition_stage = true;
-        port.replies
-            [LegacyBattleFrameCoordinatorCall::growth_caption_query_panel]
-                .caption_transition_stage = 9U;
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         growth_caption_reserved_transition_stage_advance_slot]
+            .eax = 1U;
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         growth_caption_reserved_transition_stage_advance_slot]
+            .publish_caption_transition_stage = true;
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         growth_caption_reserved_transition_stage_advance_slot]
+            .caption_transition_stage = 9U;
         port.replies[LegacyBattleFrameCoordinatorCall::
                          growth_completion_caption_play_sample] = {
             .eax = 25U,
@@ -1217,15 +1224,18 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         port.replies[LegacyBattleFrameCoordinatorCall::
                          growth_item_completion_measure_text]
             .growth_item_measured_length = 9U;
-        port.replies[LegacyBattleFrameCoordinatorCall::
-                         growth_item_completion_query_panel]
-            .eax = 1U;
-        port.replies[LegacyBattleFrameCoordinatorCall::
-                         growth_item_completion_query_panel]
-            .publish_growth_transition_stage = true;
-        port.replies[LegacyBattleFrameCoordinatorCall::
-                         growth_item_completion_query_panel]
-            .growth_transition_stage = 7U;
+        port.replies
+            [LegacyBattleFrameCoordinatorCall::
+                 growth_item_completion_reserved_transition_stage_advance_slot]
+                .eax = 1U;
+        port.replies
+            [LegacyBattleFrameCoordinatorCall::
+                 growth_item_completion_reserved_transition_stage_advance_slot]
+                .publish_growth_transition_stage = true;
+        port.replies
+            [LegacyBattleFrameCoordinatorCall::
+                 growth_item_completion_reserved_transition_stage_advance_slot]
+                .growth_transition_stage = 7U;
         port.replies[LegacyBattleFrameCoordinatorCall::
                          growth_item_completion_set_font_size]
             .eax = 42U;
@@ -1266,12 +1276,12 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             [LegacyBattleFrameCoordinatorCall::victory_item_list_draw_title]
                 .eax = 50U;
         port.replies
-            [LegacyBattleFrameCoordinatorCall::victory_item_list_query_panel] =
-            {
-                .eax = 51U,
-                .publish_victory_item_count = true,
-                .victory_item_count = 4U,
-            };
+            [LegacyBattleFrameCoordinatorCall::
+                 victory_item_list_reserved_transition_stage_advance_slot] = {
+            .eax = 51U,
+            .publish_victory_item_count = true,
+            .victory_item_count = 4U,
+        };
         port.replies
             [LegacyBattleFrameCoordinatorCall::victory_item_list_format_row]
                 .eax = 52U;
@@ -1292,11 +1302,13 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 .eax = 53U;
         port.replies[LegacyBattleFrameCoordinatorCall::defeat_panel_draw_title]
             .eax = 54U;
-        port.replies[LegacyBattleFrameCoordinatorCall::defeat_panel_query] = {
-            .eax = 55U,
-            .publish_growth_transition_stage = true,
-            .growth_transition_stage = 9U,
-        };
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         defeat_panel_reserved_transition_stage_advance_slot] =
+            {
+                .eax = 55U,
+                .publish_growth_transition_stage = true,
+                .growth_transition_stage = 9U,
+            };
         port.replies
             [LegacyBattleFrameCoordinatorCall::defeat_panel_set_font_size]
                 .eax = 56U;
@@ -1358,8 +1370,9 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             .text_length = 3U,
         });
         const auto item_query = port.invoke_growth_item_completion_panel({
-            .call = openswd3::battle::
-                LegacyBattleGrowthItemCompletionPanelCall::query_panel,
+            .call =
+                openswd3::battle::LegacyBattleGrowthItemCompletionPanelCall::
+                    reserved_transition_stage_advance_slot,
             .arguments = {0xD4U, 0xF4U, 3U},
             .eax = 19U,
             .ecx = 20U,
@@ -1462,7 +1475,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         });
         const auto reward_list_query = port.invoke_victory_item_list_panel({
             .call = openswd3::battle::LegacyBattleVictoryItemListPanelCall::
-                query_panel,
+                reserved_transition_stage_advance_slot,
             .arguments = {0xD4U, 0xFCU, 3U},
             .eax = 49U,
             .ecx = 50U,
@@ -1514,7 +1527,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             .text_length = 8U,
         });
         const auto defeat_query = port.invoke_defeat_panel({
-            .call = openswd3::battle::LegacyBattleDefeatPanelCall::query_panel,
+            .call = openswd3::battle::LegacyBattleDefeatPanelCall::
+                reserved_transition_stage_advance_slot,
             .arguments = {0xD4U, 0xF4U, 3U},
             .eax = 61U,
             .ecx = 62U,
@@ -1564,8 +1578,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             .text_length = 1U,
         });
         const auto query = port.invoke_growth_caption({
-            .call =
-                openswd3::battle::LegacyBattleGrowthCaptionCall::query_panel,
+            .call = openswd3::battle::LegacyBattleGrowthCaptionCall::
+                reserved_transition_stage_advance_slot,
             .arguments = {7U, 8U, 9U},
             .eax = 10U,
             .ecx = 11U,
@@ -1603,7 +1617,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                     LegacyBattleFrameCoordinatorCall::growth_caption_format_name
                 ) == 1U &&
                 port.count(
-                    LegacyBattleFrameCoordinatorCall::growth_caption_query_panel
+                    LegacyBattleFrameCoordinatorCall::
+                        growth_caption_reserved_transition_stage_advance_slot
                 ) == 1U &&
                 port.count(
                     LegacyBattleFrameCoordinatorCall::growth_caption_draw_text
@@ -1670,7 +1685,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 ) == 1U &&
                 port.count(
                     LegacyBattleFrameCoordinatorCall::
-                        growth_item_completion_query_panel
+                        growth_item_completion_reserved_transition_stage_advance_slot
                 ) == 1U &&
                 port.count(
                     LegacyBattleFrameCoordinatorCall::
@@ -1750,7 +1765,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 ) == 1U &&
                 port.count(
                     LegacyBattleFrameCoordinatorCall::
-                        victory_item_list_query_panel
+                        victory_item_list_reserved_transition_stage_advance_slot
                 ) == 1U &&
                 port.count(
                     LegacyBattleFrameCoordinatorCall::
@@ -1776,7 +1791,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                     LegacyBattleFrameCoordinatorCall::defeat_panel_draw_title
                 ) == 1U &&
                 port.count(
-                    LegacyBattleFrameCoordinatorCall::defeat_panel_query
+                    LegacyBattleFrameCoordinatorCall::
+                        defeat_panel_reserved_transition_stage_advance_slot
                 ) == 1U &&
                 port.count(
                     LegacyBattleFrameCoordinatorCall::defeat_panel_set_font_size
@@ -1789,16 +1805,17 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     }
     {
         CoordinatorPort port;
-        port.replies[LegacyBattleFrameCoordinatorCall::talisman_result_query] =
-            {
-                .eax = 1U,
-                .ecx = 2U,
-                .edx = 3U,
-                .publish_message_phase_aux_byte = true,
-                .message_phase_aux_byte = 1U,
-                .publish_growth_transition_stage = true,
-                .growth_transition_stage = 9U,
-            };
+        port.replies
+            [LegacyBattleFrameCoordinatorCall::
+                 talisman_result_reserved_transition_stage_advance_slot] = {
+            .eax = 1U,
+            .ecx = 2U,
+            .edx = 3U,
+            .publish_message_phase_aux_byte = true,
+            .message_phase_aux_byte = 1U,
+            .publish_growth_transition_stage = true,
+            .growth_transition_stage = 9U,
+        };
         LegacyBattleFrameCoordinatorCallReply formatted{
             .eax = 4U,
             .ecx = 5U,
@@ -1813,7 +1830,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
 
         const auto query = port.invoke_talisman_result_panel({
             .call = openswd3::battle::LegacyBattleTalismanResultPanelCall::
-                query_panel,
+                reserved_transition_stage_advance_slot,
             .arguments = {0xD4U, 0xFCU, 3U},
             .eax = 7U,
             .ecx = 8U,
@@ -1872,7 +1889,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 port.calls[2U].arguments[2U] == 0x71000000U &&
                 port.calls[2U].victory_text_length == 2U &&
                 port.count(
-                    LegacyBattleFrameCoordinatorCall::talisman_result_query
+                    LegacyBattleFrameCoordinatorCall::
+                        talisman_result_reserved_transition_stage_advance_slot
                 ) == 1U &&
                 port.count(
                     LegacyBattleFrameCoordinatorCall::

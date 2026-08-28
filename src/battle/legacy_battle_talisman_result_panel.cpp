@@ -298,12 +298,20 @@ private:
     }
 
     void query_and_draw_result() {
-        static_cast<void>(invoke(
-            LegacyBattleTalismanResultPanelCall::query_panel,
-            0U,
-            {0xD4U, 0xFCU, 3U}
-        ));
-        ++result_.query_calls;
+        result_.transition_stage = advance_legacy_battle_transition_stage(
+            bindings_.target_selection.transition_stage,
+            {.base_offset = 0xD4U, .target = 0xFCU, .divisor = 3U}
+        );
+        ++result_.transition_stage_calls;
+        eax_ = result_.transition_stage.return_eax;
+        ecx_ = result_.transition_stage.return_ecx;
+        edx_ = result_.transition_stage.return_edx;
+        if (result_.transition_stage.status !=
+            LegacyBattleTransitionStageAdvanceStatus::completed) {
+            result_.status = LegacyBattleTalismanResultPanelStatus::
+                transition_stage_typed_stop;
+            return;
+        }
         if (eax_ != 1U) {
             return;
         }

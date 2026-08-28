@@ -5,6 +5,7 @@
 
 #include "openswd3/battle/legacy_battle_level_advancement.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_runtime.hpp"
+#include "openswd3/battle/legacy_battle_transition_stage_advance.hpp"
 #include "openswd3/battle/legacy_battle_victory_rewards.hpp"
 #include "openswd3/compat/types.hpp"
 
@@ -33,7 +34,7 @@ struct LegacyBattleGrowthItemCompletionPanelBindings {
 enum class LegacyBattleGrowthItemCompletionPanelCall : compat::u8 {
     format_text,
     measure_text,
-    query_panel,
+    reserved_transition_stage_advance_slot,
     set_font_size,
     draw_text,
 };
@@ -105,6 +106,7 @@ enum class LegacyBattleGrowthItemCompletionPanelStatus : compat::u8 {
     format_buffer_typed_stop,
     rectangle_typed_stop,
     frame_typed_stop,
+    transition_stage_typed_stop,
 };
 
 struct LegacyBattleGrowthItemCompletionPanelResult {
@@ -122,6 +124,8 @@ struct LegacyBattleGrowthItemCompletionPanelResult {
     compat::u32 query_calls{};
     compat::u32 font_size_calls{};
     compat::u32 text_draw_calls{};
+    compat::u32 transition_stage_calls{};
+    LegacyBattleTransitionStageAdvanceResult transition_stage{};
     compat::u32 first_measured_length{};
     compat::u32 second_measured_length{};
     compat::i32 half_text_length{};

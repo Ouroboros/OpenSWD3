@@ -104,7 +104,7 @@ public:
 struct Fixture {
     Fixture() : raster(framebuffer.geometry()) {
         target.transition_mode = 1U;
-        target.transition_stage = 12U;
+        target.transition_stage = 32U;
         victory.panel_action_record.field_4a = 0x4567U;
         advancement.growth_caption_text = {0x41U, 0x42U, 0U};
     }
@@ -189,7 +189,8 @@ void test_battle_growth_item_completion_panel(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.port.reply(
-            LegacyBattleGrowthItemCompletionPanelCall::query_panel,
+            LegacyBattleGrowthItemCompletionPanelCall::
+                reserved_transition_stage_advance_slot,
             {.eax = 1U, .ecx = 0x01020304U, .edx = 0x05060708U}
         );
         fixture.port.reply(
@@ -230,18 +231,19 @@ void test_battle_growth_item_completion_panel(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleGrowthItemCompletionPanelStatus::completed &&
-                result.port_calls == 7U && result.format_calls == 1U &&
+                result.port_calls == 6U && result.format_calls == 1U &&
                 result.length_calls == 2U && result.rectangle_calls == 1U &&
-                result.tiled_frame_calls == 1U && result.query_calls == 1U &&
+                result.tiled_frame_calls == 1U && result.query_calls == 0U &&
+                result.transition_stage_calls == 1U &&
                 result.font_size_calls == 2U && result.text_draw_calls == 1U &&
                 result.first_measured_length == 18U &&
                 result.second_measured_length == 18U &&
                 result.half_text_length == 9 &&
                 result.panel_base_width == 185U &&
                 result.rectangle_width == 197 &&
-                result.rectangle_height == 20 &&
+                result.rectangle_height == 40 &&
                 result.frame_resource_id == 0xABCD4567U &&
-                result.frame_right == 385 && result.frame_bottom == 224 &&
+                result.frame_right == 385 && result.frame_bottom == 244 &&
                 result.formatted_text_length == kExpectedText.size() &&
                 std::equal(
                     kExpectedText.begin(),
@@ -270,46 +272,46 @@ void test_battle_growth_item_completion_panel(openswd3::test::Context& test) {
                 fixture.port.calls[2U].eax == 0x70003000U &&
                 fixture.port.calls[2U].ecx == 0xDDDDEEEEU &&
                 fixture.port.calls[2U].edx == 0xFFFF0000U &&
-                fixture.port.calls[3U].arguments[0U] == 0xD4U &&
-                fixture.port.calls[3U].arguments[1U] == 0xF4U &&
-                fixture.port.calls[3U].arguments[2U] == 3U &&
-                fixture.port.calls[4U].eax == 1U &&
+                fixture.port.calls[3U].eax == 1U &&
+                fixture.port.calls[3U].ecx ==
+                    kLegacyBattleGrowthItemCompletionFontToken &&
+                fixture.port.calls[3U].edx == 0U &&
+                fixture.port.calls[3U].arguments[1U] == 0x11U &&
+                fixture.port.calls[4U].eax == 0x11111111U &&
                 fixture.port.calls[4U].ecx ==
                     kLegacyBattleGrowthItemCompletionFontToken &&
-                fixture.port.calls[4U].edx == 0x05060708U &&
-                fixture.port.calls[4U].arguments[1U] == 0x11U &&
-                fixture.port.calls[5U].eax == 0x11111111U &&
+                fixture.port.calls[4U].edx ==
+                    kLegacyBattleGrowthItemCompletionFramebufferToken &&
+                fixture.port.calls[4U].arguments[1U] == 0xD8U &&
+                fixture.port.calls[4U].arguments[2U] == 0xDAU &&
+                fixture.port.calls[4U].arguments[4U] == 0xFFC0U &&
+                fixture.port.calls[5U].eax == 0x44444444U &&
                 fixture.port.calls[5U].ecx ==
                     kLegacyBattleGrowthItemCompletionFontToken &&
-                fixture.port.calls[5U].edx ==
-                    kLegacyBattleGrowthItemCompletionFramebufferToken &&
-                fixture.port.calls[5U].arguments[1U] == 0xD8U &&
-                fixture.port.calls[5U].arguments[2U] == 0xDAU &&
-                fixture.port.calls[5U].arguments[4U] == 0xFFC0U &&
-                fixture.port.calls[6U].eax == 0x44444444U &&
-                fixture.port.calls[6U].ecx ==
-                    kLegacyBattleGrowthItemCompletionFontToken &&
-                fixture.port.calls[6U].edx == 0x66666666U &&
-                fixture.port.calls[6U].arguments[1U] == 0x10U,
-            "growth item completion panel preserves all seven generic callsite register layouts"
+                fixture.port.calls[5U].edx == 0x66666666U &&
+                fixture.port.calls[5U].arguments[1U] == 0x10U &&
+                fixture.port.count(
+                    LegacyBattleGrowthItemCompletionPanelCall::
+                        reserved_transition_stage_advance_slot
+                ) == 0U,
+            "growth item completion panel preserves all six live service callsite register layouts"
         );
     }
 
     {
         Fixture fixture;
-        fixture.port.reply(
-            LegacyBattleGrowthItemCompletionPanelCall::query_panel,
-            {.eax = 2U, .ecx = 0x12345678U, .edx = 0x90ABCDEFU}
-        );
+        fixture.target.transition_stage = 12U;
         const auto result = run(fixture);
         test.expect_true(
             result.status ==
                     LegacyBattleGrowthItemCompletionPanelStatus::completed &&
-                result.port_calls == 4U && result.font_size_calls == 0U &&
-                result.text_draw_calls == 0U && result.return_eax == 2U &&
-                result.return_ecx == 0x12345678U &&
-                result.return_edx == 0x90ABCDEFU,
-            "growth item completion panel draws no text and preserves the non-one panel query return"
+                result.port_calls == 3U && result.font_size_calls == 0U &&
+                result.text_draw_calls == 0U &&
+                result.transition_stage_calls == 1U &&
+                fixture.target.transition_stage == 18U &&
+                result.return_eax == 0U && result.return_ecx == 0U &&
+                result.return_edx == 2U,
+            "growth item completion panel draws no text while the typed stage quotient remains nonzero"
         );
     }
 

@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "openswd3/battle/legacy_battle_level_advancement.hpp"
+#include "openswd3/battle/legacy_battle_transition_stage_advance.hpp"
 #include "openswd3/battle/legacy_battle_victory_rewards.hpp"
 #include "openswd3/compat/types.hpp"
 
@@ -32,14 +33,14 @@ struct LegacyBattleLevelGrowthPanelBindings {
 };
 
 enum class LegacyBattleLevelGrowthPanelCall : compat::u8 {
-    query_panel,
+    reserved_transition_stage_advance_slot,
     format_integer,
     draw_text,
 };
 
 struct LegacyBattleLevelGrowthPanelCallRequest {
     LegacyBattleLevelGrowthPanelCall call{
-        LegacyBattleLevelGrowthPanelCall::query_panel
+        LegacyBattleLevelGrowthPanelCall::reserved_transition_stage_advance_slot
     };
     std::array<compat::u32, 6U> arguments{};
     compat::u32 eax{};
@@ -117,6 +118,7 @@ enum class LegacyBattleLevelGrowthPanelStatus : compat::u8 {
     rectangle_typed_stop,
     title_frame_typed_stop,
     summary_frame_typed_stop,
+    transition_stage_typed_stop,
     actor_index_typed_stop,
     party_member_resource_typed_stop,
     format_buffer_typed_stop,
@@ -137,6 +139,8 @@ struct LegacyBattleLevelGrowthPanelResult {
     compat::u32 tiled_frame_calls{};
     compat::u32 displayed_growth_values{};
     compat::u32 decremented_growth_values{};
+    compat::u32 transition_stage_calls{};
+    LegacyBattleTransitionStageAdvanceResult transition_stage{};
     asset_runtime::LegacyActionUpdateResult panel_action_update{};
     rendering::LegacyRectangleEffectStatus rectangle_status{
         rendering::LegacyRectangleEffectStatus::completed

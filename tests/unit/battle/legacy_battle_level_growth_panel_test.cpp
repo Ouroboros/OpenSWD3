@@ -144,6 +144,7 @@ public:
 struct Fixture {
     Fixture() : action_updater(action_streams), raster(framebuffer.geometry()) {
         target.transition_actor_index = 2U;
+        target.transition_stage = 156U;
         startup.action_mode_source.actor_label_indices[2U] = 1U;
         victory.panel_action_record.field_4a = 0x77U;
         input.sample_mix_level = -6;
@@ -247,7 +248,8 @@ run(Fixture& fixture,
 
 void show_panel(Port& port) {
     port.reply(
-        LegacyBattleLevelGrowthPanelCall::query_panel,
+        LegacyBattleLevelGrowthPanelCall::
+            reserved_transition_stage_advance_slot,
         {.eax = 1U, .ecx = 0xAAAA0000U, .edx = 0xBBBB0000U}
     );
 }
@@ -293,9 +295,12 @@ void test_battle_level_growth_panel(openswd3::test::Context& test) {
                 fixture.input.target_transition_word == 1U &&
                 result.format_calls == 7U && result.text_draw_calls == 8U &&
                 result.sample_calls == 0U &&
+                result.transition_stage_calls == 1U &&
+                result.transition_stage.return_eax == 1U &&
                 fixture.port.count(
-                    LegacyBattleLevelGrowthPanelCall::query_panel
-                ) == 1U &&
+                    LegacyBattleLevelGrowthPanelCall::
+                        reserved_transition_stage_advance_slot
+                ) == 0U &&
                 fixture.port.count(
                     LegacyBattleLevelGrowthPanelCall::format_integer
                 ) == 7U &&

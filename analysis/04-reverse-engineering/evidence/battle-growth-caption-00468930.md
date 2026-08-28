@@ -6,7 +6,7 @@
 
 权威LST主体为`0x00468930..0x00468AC5`，从proc到endp共173行、117条带机器码和真实助记符的实际指令、10个静态call、2个跳转、1个局部标签和1个返回点，没有外部`FUNCTION CHUNK`。唯一静态caller是已关闭消息阶段分派的消息111；原caller固定调用本函数，返回后重新读取timer并按u32加一。
 
-10个callsite包括`wsprintfA` 2次、`lstrlenA` 2次、动作记录更新1次、固定矩形1次、九宫格1次、标题框查询1次和文字绘制2次。格式、查询和文字通过窄typed端口保留；长度、动作、矩形和九宫格使用确定性typed实现。相邻成长完成标题框复用该业务核心，但通过独立variant保留sample门和不同的generic调用寄存器布局。
+10个callsite包括`wsprintfA` 2次、`lstrlenA` 2次、动作记录更新1次、固定矩形1次、九宫格1次、stage推进1次和文字绘制2次。stage推进、长度、动作、矩形和九宫格使用确定性typed实现；格式和文字通过窄typed端口保留。相邻成长完成标题框复用该业务核心，但通过独立variant保留sample门和不同的generic调用寄存器布局。
 
 ## 2. 入口模式门和角色名称
 
@@ -24,11 +24,11 @@
 - 九宫格为left=250、top=180、right=`half*20+250`、bottom=`transition_stage+180`、flags `0x80000008`；
 - 九宫格资源低word读取动作记录`+0x4A`，高word保留矩形返回EDX。
 
-矩形或九宫格typed-stop都保留此前名称格式、长度和动作更新。九宫格之后固定查询`180,236,3`，返回EAX不精确等于1就返回，保留底板但不绘两行文字。
+矩形或九宫格typed-stop都保留此前名称格式、长度和动作更新。九宫格之后直连`base=180,target=236,divisor=3`的共享stage推进，signed商非零、返回EAX不等于1就返回，保留底板但不绘两行文字。
 
 ## 4. 名称与共享标题
 
-查询成功后，第一行把局部名称在`260,188`以颜色`0xFFFF`、字号16绘制。随后函数以16次dword写把整个64-byte局部缓冲清零，区别于入口的首byte `0xFF`初始化。
+stage商零后，第一行把局部名称在`260,188`以颜色`0xFFFF`、字号16绘制。随后函数以16次dword写把整个64-byte局部缓冲清零，区别于入口的首byte `0xFF`初始化。
 
 第二次`wsprintfA`使用连续格式`[%s]`和共享24-byte标题owner。modern在24 byte内寻找NUL；找到时严格输出左方括号、原byte、右方括号并补NUL。若24 byte均非零，格式过程已写左括号和24个源byte后，在首次读取物理下一byte时typed-stop；名称行和部分格式副作用保留，第二次`lstrlenA`及绘制不执行。端口返回长度达到64时则在完整格式副作用后、第二次长度调用前停止。
 
@@ -48,6 +48,6 @@ transition mode/stage、actor、动作标签、动作记录和framebuffer均复�
 
 消息111现直连本实现；旧阶段111槽改为reserved且生产零调用。正常返回后caller仍按u32递增timer；标题框typed-stop模拟原故障不返回，阻断timer写入。
 
-定向测试覆盖mode精确1门、actor FF负索引、四byte CP950名称、双格式/双长度、动态矩形和九宫格宽度、查询非1、两行颜色与位置、24-byte源缺NUL、名称/详情缓冲边界、消息111直连/旧槽零调用/timer回绕/子stop阻断和主帧四类generic映射。补齐全局重置末尾写对该typed owner的同步后，定向测试、AddressSanitizer、Linux core 188/188和Linux app 194/194全部重新通过；最终重跑无warning/error/failure。首轮app配置仅出现既有ALSA开发库缺失白名单提示。
+定向测试覆盖mode精确1门、actor FF负索引、四byte CP950名称、双格式/双长度、动态矩形和九宫格宽度、stage商非零、两行颜色与位置、24-byte源缺NUL、名称/详情缓冲边界、消息111直连/旧槽零调用/timer回绕/子stop阻断和主帧四类generic映射。补齐全局重置末尾写对该typed owner的同步后，定向测试、AddressSanitizer、Linux core 188/188和Linux app 194/194全部重新通过；最终重跑无warning/error/failure。首轮app配置仅出现既有ALSA开发库缺失白名单提示。
 
-当前缺少原版动作/矩形/九宫格/字体surface、标题框查询callee、完整角色名称表与共享标题联合状态、动态栈地址、`wsprintfA/lstrlenA`返回及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版动作/矩形/九宫格/字体surface、完整角色名称表与共享标题联合状态、动态栈地址、`wsprintfA/lstrlenA`返回及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

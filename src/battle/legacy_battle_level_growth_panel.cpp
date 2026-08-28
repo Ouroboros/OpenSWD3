@@ -305,9 +305,20 @@ private:
     }
 
     void query_panel_and_draw_baseline() {
-        static_cast<void>(invoke(
-            LegacyBattleLevelGrowthPanelCall::query_panel, {0x70U, 0x10CU, 2U}
-        ));
+        result_.transition_stage = advance_legacy_battle_transition_stage(
+            bindings_.victory.target_selection.transition_stage,
+            {.base_offset = 0x70U, .target = 0x10CU, .divisor = 2U}
+        );
+        ++result_.transition_stage_calls;
+        eax_ = result_.transition_stage.return_eax;
+        ecx_ = result_.transition_stage.return_ecx;
+        edx_ = result_.transition_stage.return_edx;
+        if (result_.transition_stage.status !=
+            LegacyBattleTransitionStageAdvanceStatus::completed) {
+            result_.status =
+                LegacyBattleLevelGrowthPanelStatus::transition_stage_typed_stop;
+            return;
+        }
         if (eax_ != 1U) {
             return;
         }

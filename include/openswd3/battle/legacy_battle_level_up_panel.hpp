@@ -7,6 +7,7 @@
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_runtime.hpp"
+#include "openswd3/battle/legacy_battle_transition_stage_advance.hpp"
 #include "openswd3/battle/legacy_battle_victory_rewards.hpp"
 #include "openswd3/compat/types.hpp"
 #include "openswd3/rendering/legacy_framebuffer.hpp"
@@ -55,6 +56,7 @@ enum class LegacyBattleLevelUpPanelStatus : compat::u8 {
     rectangle_typed_stop,
     title_frame_typed_stop,
     summary_frame_typed_stop,
+    transition_stage_typed_stop,
     actor_index_typed_stop,
     party_member_resource_typed_stop,
     format_buffer_typed_stop,
@@ -71,6 +73,8 @@ struct LegacyBattleLevelUpPanelResult {
     compat::u32 text_draw_calls{};
     compat::u32 rectangle_calls{};
     compat::u32 tiled_frame_calls{};
+    compat::u32 transition_stage_calls{};
+    LegacyBattleTransitionStageAdvanceResult transition_stage{};
     compat::u32 formatted_text_length{};
     std::array<compat::u8, 64> formatted_text{};
     asset_runtime::LegacyActionUpdateResult panel_action_update{};

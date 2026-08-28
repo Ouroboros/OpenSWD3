@@ -7,6 +7,7 @@
 #include "openswd3/battle/legacy_battle_player_item_quantity.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_runtime.hpp"
+#include "openswd3/battle/legacy_battle_transition_stage_advance.hpp"
 #include "openswd3/compat/types.hpp"
 #include "openswd3/rendering/legacy_blitter.hpp"
 #include "openswd3/rendering/legacy_framebuffer.hpp"
@@ -73,7 +74,7 @@ enum class LegacyBattleVictoryRewardCall : compat::u8 {
     apply_group_a_reward,
     prepare_group_a_actor,
     configure_group_a_actor,
-    query_summary_panel,
+    reserved_transition_stage_advance_slot,
     format_level_up_text,
     draw_text,
 };
@@ -184,6 +185,7 @@ enum class LegacyBattleVictoryRewardStatus : compat::u8 {
     party_member_resource_typed_stop,
     party_reward_counter_typed_stop,
     script_variable_typed_stop,
+    transition_stage_typed_stop,
     format_buffer_typed_stop,
 };
 
@@ -204,6 +206,8 @@ struct LegacyBattleVictoryRewardResult {
     compat::u32 text_draw_calls{};
     compat::u32 rectangle_calls{};
     compat::u32 tiled_frame_calls{};
+    compat::u32 transition_stage_calls{};
+    LegacyBattleTransitionStageAdvanceResult transition_stage{};
     asset_runtime::LegacyActionUpdateResult panel_action_update{};
     rendering::LegacyRectangleEffectStatus rectangle_status{
         rendering::LegacyRectangleEffectStatus::completed
