@@ -577,6 +577,8 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         ));
         state.group_a_profiles.profile_tokens[index] = 0U;
         state.group_a_profiles.profile_kinds[index] = 0U;
+        state.group_a_description_record_tokens[index] = 0U;
+        state.group_a_description_text_indices[index] = 0U;
         if (state.mirror_mode == 1U) {
             static_cast<void>(invoke(
                 port,

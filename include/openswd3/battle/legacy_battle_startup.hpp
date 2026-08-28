@@ -247,6 +247,10 @@ struct LegacyBattleStartupState {
     std::array<LegacyBattleEnemyStartupRecord, 8> enemies{};
     std::array<LegacyBattlePartyStartupRecord, 10> party{};
     LegacyBattleGroupAProfileState group_a_profiles{};
+    // Group-A actor field view at 0x00505890 + index * 0x2F34 and the
+    // callee-observable text index at the referenced record's +4 word.
+    std::array<compat::u32, 10> group_a_description_record_tokens{};
+    std::array<compat::u16, 10> group_a_description_text_indices{};
     std::array<compat::i32, 8> party_offsets{};
     std::array<LegacyBattlePartyMetricRecord, 10> party_metrics{};
     std::array<compat::u32, 0x29> enemy_scratch{};

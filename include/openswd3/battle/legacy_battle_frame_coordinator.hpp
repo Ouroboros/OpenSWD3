@@ -102,7 +102,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     selection_frame_draw_text,
     reserved_selection_frame_draw_action_summary_slot,
     reserved_selection_frame_draw_list_frame_slot,
-    selection_frame_draw_list_contents,
+    reserved_selection_frame_draw_list_contents_slot,
     selection_frame_draw_grid_frame,
     selection_frame_draw_narrow_frame,
     selection_frame_draw_grid_alternate,
@@ -126,6 +126,11 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     action_summary_action_mode_query_primary_actor,
     action_summary_action_mode_query_secondary_actor,
     action_summary_action_mode_query_active_actor,
+    list_contents_initialize_rows,
+    list_contents_refresh_actor,
+    list_contents_query_row,
+    list_contents_resolve_negative_row,
+    list_contents_resolve_regular_row,
 };
 
 struct LegacyBattleFrameCoordinatorCallRequest {
@@ -137,6 +142,9 @@ struct LegacyBattleFrameCoordinatorCallRequest {
     compat::u32 eax{};
     compat::u32 ecx{};
     compat::u32 edx{};
+    compat::u32 list_text_token{};
+    std::array<compat::u8, 10> list_text_bytes{};
+    compat::u32 list_text_length{};
 };
 
 struct LegacyBattleFrameCoordinatorCallReply {
@@ -160,6 +168,14 @@ struct LegacyBattleFrameCoordinatorCallReply {
     compat::i32 selection_snapshot_height{};
     compat::u16 selection_origin_x{};
     compat::u16 selection_origin_y{};
+    bool publish_list_panel_row_limit{};
+    compat::u8 list_panel_row_limit{};
+    bool publish_list_row_value{};
+    compat::u32 list_row_value{};
+    bool publish_list_limit_word{};
+    compat::u16 list_limit_word{};
+    bool publish_list_limit_byte{};
+    compat::u8 list_limit_byte{};
     LegacyBattleFrameInputSurface actor_surface{};
 };
 
@@ -239,9 +255,9 @@ public:
             call = LegacyBattleFrameCoordinatorCall::
                 reserved_selection_frame_draw_list_frame_slot;
             break;
-        case LegacyBattleSelectionFrameCall::draw_list_contents:
+        case LegacyBattleSelectionFrameCall::reserved_draw_list_contents_slot:
             call = LegacyBattleFrameCoordinatorCall::
-                selection_frame_draw_list_contents;
+                reserved_selection_frame_draw_list_contents_slot;
             break;
         case LegacyBattleSelectionFrameCall::draw_grid_frame:
             call = LegacyBattleFrameCoordinatorCall::
@@ -382,6 +398,71 @@ public:
             .edx = request.edx,
         });
         return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
+    }
+    [[nodiscard]] LegacyBattleListContentsCallReply invoke_list_contents(
+        const LegacyBattleListContentsCallRequest& request
+    ) override {
+        LegacyBattleFrameCoordinatorCall call =
+            LegacyBattleFrameCoordinatorCall::
+                selection_frame_configure_text_row;
+        switch (request.call) {
+        case LegacyBattleListContentsCall::configure_font_mode:
+            break;
+        case LegacyBattleListContentsCall::configure_font_style:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_frame_configure_text_color;
+            break;
+        case LegacyBattleListContentsCall::configure_font_width:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_frame_configure_text_font;
+            break;
+        case LegacyBattleListContentsCall::initialize_rows:
+            call =
+                LegacyBattleFrameCoordinatorCall::list_contents_initialize_rows;
+            break;
+        case LegacyBattleListContentsCall::refresh_actor:
+            call =
+                LegacyBattleFrameCoordinatorCall::list_contents_refresh_actor;
+            break;
+        case LegacyBattleListContentsCall::query_row:
+            call = LegacyBattleFrameCoordinatorCall::list_contents_query_row;
+            break;
+        case LegacyBattleListContentsCall::resolve_negative_row:
+            call = LegacyBattleFrameCoordinatorCall::
+                list_contents_resolve_negative_row;
+            break;
+        case LegacyBattleListContentsCall::resolve_regular_row:
+            call = LegacyBattleFrameCoordinatorCall::
+                list_contents_resolve_regular_row;
+            break;
+        case LegacyBattleListContentsCall::draw_text:
+            call = LegacyBattleFrameCoordinatorCall::selection_frame_draw_text;
+            break;
+        }
+        const auto reply = invoke({
+            .call = call,
+            .object_token = request.object_token,
+            .arguments = request.arguments,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+            .list_text_token = request.text_token,
+            .list_text_bytes = request.text_bytes,
+            .list_text_length = request.text_length,
+        });
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .publish_panel_row_limit = reply.publish_list_panel_row_limit,
+            .panel_row_limit = reply.list_panel_row_limit,
+            .publish_row_value = reply.publish_list_row_value,
+            .row_value = reply.list_row_value,
+            .publish_limit_word = reply.publish_list_limit_word,
+            .limit_word = reply.list_limit_word,
+            .publish_limit_byte = reply.publish_list_limit_byte,
+            .limit_byte = reply.list_limit_byte,
+        };
     }
     [[nodiscard]] LegacyBattleActorTargetPreparationCallReply
     invoke_actor_target_preparation(
@@ -668,6 +749,8 @@ struct LegacyBattleFrameCoordinatorContext {
     world_map::LegacyWorldPlayerControlState& player_control;
     compat::u32& target_ready_gate;
     LegacyBattleActorFrameAdvanceContext* actor_frames{};
+    std::span<const compat::u8> maps_payload{};
+    std::span<compat::u8> shared_text{};
 };
 
 enum class LegacyBattleFrameCoordinatorStatus : compat::u8 {

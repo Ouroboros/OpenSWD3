@@ -58,6 +58,7 @@ add_library(
         legacy_battle_input_record_priming.cpp
         legacy_battle_frame_input_resolution.cpp
         legacy_battle_list_frame.cpp
+    legacy_battle_list_contents.cpp
         legacy_battle_menu_context_advance.cpp
         legacy_battle_menu_context_retreat.cpp
         legacy_battle_menu_input_finalize.cpp
@@ -114,6 +115,7 @@ target_link_libraries(
         openswd3_project_warnings
         openswd3_rendering
         openswd3_resource_io
+        openswd3_special_modes
         openswd3_story_scene
         openswd3_world_map
 )

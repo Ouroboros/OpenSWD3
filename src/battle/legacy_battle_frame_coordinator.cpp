@@ -351,6 +351,8 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             .action_updater = context.action_updater,
             .frame_provider = context.frame_provider,
             .bounded_random = selection_random,
+            .maps_payload = context.maps_payload,
+            .shared_text = context.shared_text,
         },
         port,
         request.selection_frame_request

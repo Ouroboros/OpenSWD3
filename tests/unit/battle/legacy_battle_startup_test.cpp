@@ -536,6 +536,8 @@ void test_battle_startup(openswd3::test::Context& test) {
         LegacyBattleStartupState state;
         state.mirror_mode = 1U;
         state.final_subtract_word = 1U;
+        state.group_a_description_record_tokens.fill(0xDEADBEEFU);
+        state.group_a_description_text_indices.fill(0xBEEFU);
         StartupPorts ports;
         ports.archive_open_replies.push_back({
             .eax = 0xFFFFFFFFU,
@@ -638,6 +640,12 @@ void test_battle_startup(openswd3::test::Context& test) {
                         state.action_mode_source.actor_label_indices[0U] *
                             0x40U &&
                 state.group_a_profiles.profile_kinds[0U] == 0x38U &&
+                state.group_a_description_record_tokens[0U] == 0U &&
+                state.group_a_description_record_tokens[1U] == 0U &&
+                state.group_a_description_record_tokens[2U] == 0xDEADBEEFU &&
+                state.group_a_description_text_indices[0U] == 0U &&
+                state.group_a_description_text_indices[1U] == 0U &&
+                state.group_a_description_text_indices[2U] == 0xBEEFU &&
                 state.party_offsets[0] == 124 && state.party_offsets[2] == 64 &&
                 result.supplemental_actor_count == 2U &&
                 state.party_count == 4U && state.party[2].role_id == 3U &&

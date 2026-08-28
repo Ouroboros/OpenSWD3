@@ -619,6 +619,63 @@ private:
         return true;
     }
 
+    [[nodiscard]] bool draw_list_contents(
+        const u32 origin_x,
+        const u32 origin_y,
+        const u32 selected_row,
+        const u32 scroll_offset
+    ) {
+        auto list_request = request_.list_contents;
+        list_request.origin_x = origin_x;
+        list_request.origin_y = origin_y;
+        list_request.selected_row = selected_row;
+        list_request.scroll_offset = scroll_offset;
+        list_request.entry_eax = eax_;
+        list_request.entry_ecx = ecx_;
+        list_request.entry_edx = edx_;
+        result_.list_contents = draw_legacy_battle_list_contents(
+            state_.list_contents,
+            {
+                .queued_actor_code = bindings_.final_actor.queued_actor_code,
+                .action_category_index =
+                    bindings_.input_dispatch.action_category_index,
+                .panel_row_limit = bindings_.frame_input.panel_row_limit_a,
+                .selection_input_gate =
+                    bindings_.target_runtime.selection_input_gate,
+                .candidate_argument =
+                    bindings_.target_runtime.candidate_argument,
+                .primary_text_color = bindings_.startup.primary_text_color,
+                .secondary_text_color = bindings_.startup.secondary_text_color,
+                .actor_description_record_tokens =
+                    bindings_.startup.group_a_description_record_tokens,
+                .actor_description_text_indices =
+                    bindings_.startup.group_a_description_text_indices,
+                .maps_payload = bindings_.maps_payload,
+                .shared_text = bindings_.shared_text,
+                .framebuffer = bindings_.framebuffer,
+                .clip = bindings_.clip,
+                .raster = bindings_.raster,
+                .shared_request = bindings_.shared_request,
+                .shared_effects = bindings_.shared_effects,
+                .jitter = bindings_.jitter,
+                .frame_provider = bindings_.frame_provider,
+            },
+            port_,
+            list_request
+        );
+        ++result_.list_contents_calls;
+        result_.port_calls += result_.list_contents.port_calls;
+        eax_ = result_.list_contents.return_eax;
+        ecx_ = result_.list_contents.return_ecx;
+        edx_ = result_.list_contents.return_edx;
+        if (result_.list_contents.status !=
+            LegacyBattleListContentsStatus::completed) {
+            typed_stop(Status::list_contents_typed_stop);
+            return false;
+        }
+        return true;
+    }
+
     void draw_message_two() {
         state_input().selection_cache_gate_c = 1U;
         if (!draw_list_frame(0xE0U, 0x7EU)) {
@@ -631,7 +688,9 @@ private:
         }
         edx_ = bindings_.frame_input.panel_scroll_a;
         eax_ = bindings_.frame_input.list_selection;
-        invoke(Call::draw_list_contents, 0U, {0xE8U, 0x86U, eax_, edx_});
+        if (!draw_list_contents(0xE8U, 0x86U, eax_, edx_)) {
+            return;
+        }
         eax_ = replace_low_byte(eax_, bindings_.frame_input.panel_row_limit_a);
         edx_ = bindings_.frame_input.panel_scroll_a;
         ecx_ =

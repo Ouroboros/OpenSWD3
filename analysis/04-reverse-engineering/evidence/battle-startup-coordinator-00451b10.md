@@ -99,7 +99,7 @@ definition与组B都只有八槽。第九项在首次actor对象访问处typed-s
 
 随后按组A基址`0x005029D0`、步长`0x2F34`逐项：reset；mirror mode为1时调用actor mode、令X=`640-X`并令对应X偏移=`624-old`；再以源索引派生固定`0x38`、`0x60`表token和placement token配置actor。actor mode查询严格等于1时递增陈旧byte计数，按u8回绕。
 
-两个pending全局阶段后，再为每个初始队员依次调用profile、value、palette、name四个callee，固定表步长分别为`0x40`与`0x10`。组A reset同步清唯一profile token/kind owner；profile callee只有显式发布时写回该owner，供已关闭动作摘要在原首次指针与kind访问点读取或typed-stop。
+两个pending全局阶段后，再为每个初始队员依次调用profile、value、palette、name四个callee，固定表步长分别为`0x40`与`0x10`。组A reset同步清唯一profile token/kind owner，以及对象说明记录token与callee可见text-index owner；profile callee只有显式发布时写回profile owner，供已关闭动作摘要在原首次指针与kind访问点读取或typed-stop。说明owner供已关闭列表内容在双矩形之后直连共享文字解析，不复制对象字段或共享文字buffer。
 
 ## 9. 三组x87比率
 
