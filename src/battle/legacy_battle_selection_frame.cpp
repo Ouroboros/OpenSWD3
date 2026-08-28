@@ -1364,6 +1364,51 @@ private:
         return draw_prepared_action(action_id, 0U, x, y);
     }
 
+    [[nodiscard]] bool
+    draw_selection_hint_frame(const u32 origin_x, const u32 origin_y) {
+        auto hint_request = request_.selection_hint_frame;
+        hint_request.origin_x = origin_x;
+        hint_request.origin_y = origin_y;
+        hint_request.entry_eax = eax_;
+        hint_request.entry_ecx = ecx_;
+        hint_request.entry_edx = edx_;
+        result_.selection_hint_frame = draw_legacy_battle_selection_hint_frame(
+            {
+                .state = state_.selection_hint_frame,
+                .queued_actor_code = bindings_.final_actor.queued_actor_code,
+                .party_source_words = bindings_.startup.reset.block_520e90,
+                .target_selection_block =
+                    bindings_.frame_input.target_selection_block,
+                .published_actor_code =
+                    bindings_.final_actor.published_actor_code,
+                .group_b_count = bindings_.metrics.group_b_count,
+                .mirror_mode = bindings_.startup.mirror_mode,
+                .panel_action_record = bindings_.panel_action_record,
+                .framebuffer = bindings_.framebuffer,
+                .clip = bindings_.clip,
+                .raster = bindings_.raster,
+                .shared_request = bindings_.shared_request,
+                .shared_effects = bindings_.shared_effects,
+                .jitter = bindings_.jitter,
+                .action_updater = bindings_.action_updater,
+                .frame_provider = bindings_.frame_provider,
+            },
+            port_,
+            hint_request
+        );
+        ++result_.selection_hint_frame_calls;
+        result_.port_calls += result_.selection_hint_frame.port_calls;
+        eax_ = result_.selection_hint_frame.return_eax;
+        ecx_ = result_.selection_hint_frame.return_ecx;
+        edx_ = result_.selection_hint_frame.return_edx;
+        if (result_.selection_hint_frame.status !=
+            LegacyBattleSelectionHintFrameStatus::completed) {
+            typed_stop(Status::selection_hint_frame_typed_stop);
+            return false;
+        }
+        return true;
+    }
+
     void draw_message_three() {
         ecx_ = kTextStateToken;
         invoke(Call::configure_text_font, ecx_, {16U});
@@ -1405,7 +1450,7 @@ private:
             return;
         }
         if (bindings_.target_runtime.selection_input_gate == 1U) {
-            invoke(Call::draw_selection_hint, 0U, {12U, 14U});
+            static_cast<void>(draw_selection_hint_frame(12U, 14U));
         }
     }
 

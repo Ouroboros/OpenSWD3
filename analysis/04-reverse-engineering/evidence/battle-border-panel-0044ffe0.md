@@ -38,7 +38,7 @@ arg14 = 32位底板颜色参数
 
 查询返回空指针时，帧记录全局已经写成空，但在读取`[eax]`处故障，共享源仍保留上一次值。现代`LegacyBattleBorderPanelState`分别记录当前帧记录是否发布/可用、帧索引、帧snapshot和当前源种类；frame provider失败只清当前帧记录，不提前改变源种类。
 
-正常帧查询成功后，source种类发布为frame。底板渐变调用前改为color argument，并保留完整四字节小端颜色槽。后续帧查询再改回frame。函数完成时当前帧为索引8。
+正常帧查询成功后，source种类发布为frame。底板渐变调用前改为color argument，并通过显式共享绑定保留完整四字节小端颜色槽，不在边框私有state建立第二owner；后续帧查询再改回frame。函数完成时当前帧为索引8。
 
 ## 3. 4号帧预取与渐变底板
 

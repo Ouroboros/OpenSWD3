@@ -20,7 +20,6 @@ struct LegacyBattleBorderPanelState {
     LegacyBattleBorderSourceKind source_kind{
         LegacyBattleBorderSourceKind::none
     };
-    LegacyBattleColorFadeState color_fade{};
 };
 
 enum class LegacyBattleBorderPanelStatus : compat::u8 {
@@ -48,6 +47,7 @@ struct LegacyBattleBorderPanelResult {
 // sub_44FFE0.
 [[nodiscard]] LegacyBattleBorderPanelResult draw_legacy_battle_border_panel(
     LegacyBattleBorderPanelState& state,
+    LegacyBattleColorFadeState& color_fade,
     rendering::LegacyFramebuffer& framebuffer,
     const rendering::LegacyBlitClipRectangle& clip,
     rendering::LegacyBlitRequest& shared_request,

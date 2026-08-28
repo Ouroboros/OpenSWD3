@@ -115,7 +115,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     selection_frame_build_actor_snapshot,
     selection_frame_query_actor_origin,
     selection_frame_query_target_action_available,
-    selection_frame_draw_selection_hint,
+    reserved_selection_frame_draw_selection_hint_slot,
     actor_target_prepare_group_a_actor,
     actor_target_query_group_b_completion,
     action_summary_configure_font_reset,
@@ -139,6 +139,14 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     narrow_grid_frame_initialize_rows,
     narrow_grid_frame_query_row,
     guard_panel_query_actor_label,
+    selection_hint_query_actor_label,
+    selection_hint_configure_font_width,
+    selection_hint_draw_text,
+    selection_hint_query_metric_source,
+    selection_hint_resolve_metric_value,
+    selection_hint_query_metric_pair,
+    selection_hint_query_fade_width,
+    selection_hint_query_fade_color,
 };
 
 struct LegacyBattleFrameCoordinatorCallRequest {
@@ -195,6 +203,10 @@ struct LegacyBattleFrameCoordinatorCallReply {
     compat::u32 grid_row_value{};
     bool publish_grid_row_text{};
     std::array<compat::u8, 20> grid_row_text{};
+    compat::u32 selection_hint_text_length{};
+    bool publish_selection_hint_metric_pair{};
+    compat::u32 selection_hint_metric_current{};
+    compat::u32 selection_hint_metric_limit{};
     LegacyBattleFrameInputSurface actor_surface{};
 };
 
@@ -326,9 +338,9 @@ public:
             call = LegacyBattleFrameCoordinatorCall::
                 selection_frame_query_target_action_available;
             break;
-        case LegacyBattleSelectionFrameCall::draw_selection_hint:
+        case LegacyBattleSelectionFrameCall::reserved_draw_selection_hint_slot:
             call = LegacyBattleFrameCoordinatorCall::
-                selection_frame_draw_selection_hint;
+                reserved_selection_frame_draw_selection_hint_slot;
             break;
         }
         const auto reply = invoke({
@@ -560,6 +572,64 @@ public:
             .row_value = reply.grid_row_value,
             .publish_row_text = reply.publish_grid_row_text,
             .row_text = reply.grid_row_text,
+        };
+    }
+    [[nodiscard]] LegacyBattleSelectionHintFrameCallReply
+    invoke_selection_hint_frame(
+        const LegacyBattleSelectionHintFrameCallRequest& request
+    ) override {
+        LegacyBattleFrameCoordinatorCall call =
+            LegacyBattleFrameCoordinatorCall::selection_hint_query_actor_label;
+        switch (request.call) {
+        case LegacyBattleSelectionHintFrameCall::query_actor_label:
+            break;
+        case LegacyBattleSelectionHintFrameCall::configure_font_width:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_hint_configure_font_width;
+            break;
+        case LegacyBattleSelectionHintFrameCall::draw_text:
+            call = LegacyBattleFrameCoordinatorCall::selection_hint_draw_text;
+            break;
+        case LegacyBattleSelectionHintFrameCall::query_metric_source:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_hint_query_metric_source;
+            break;
+        case LegacyBattleSelectionHintFrameCall::resolve_metric_value:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_hint_resolve_metric_value;
+            break;
+        case LegacyBattleSelectionHintFrameCall::query_metric_pair:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_hint_query_metric_pair;
+            break;
+        case LegacyBattleSelectionHintFrameCall::query_fade_width:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_hint_query_fade_width;
+            break;
+        case LegacyBattleSelectionHintFrameCall::query_fade_color:
+            call = LegacyBattleFrameCoordinatorCall::
+                selection_hint_query_fade_color;
+            break;
+        }
+        const auto reply = invoke({
+            .call = call,
+            .object_token = request.object_token,
+            .arguments = request.arguments,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+            .grid_text_token = request.text_token,
+            .grid_text_bytes = request.text_bytes,
+            .grid_text_length = request.text_length,
+        });
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .text_length = reply.selection_hint_text_length,
+            .publish_metric_pair = reply.publish_selection_hint_metric_pair,
+            .metric_current = reply.selection_hint_metric_current,
+            .metric_limit = reply.selection_hint_metric_limit,
         };
     }
     [[nodiscard]] LegacyBattleActorTargetPreparationCallReply

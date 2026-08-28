@@ -99,4 +99,4 @@ C++到LST：
 
 battle聚合目标零warning构建及定向测试通过。
 
-当前没有原版战斗颜色栈槽、共享blitter状态和framebuffer的联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整27行LST、callee回收、typed实现和固定状态已经闭环。
+当前没有原版战斗颜色栈槽、共享blitter状态和framebuffer的联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整27行LST、callee回收、typed实现和固定状态已经闭环。当前目标提示帧`0x00466BCB`与`0x00466BEF`两条镜像分支caller也已直连：阈值至少15且查询宽度非零时，以生命文字同侧X、提示原点Y加17、查询宽度、高3和查询颜色调用；颜色查询前原栈上的`0/0/24`预计算顺序保留，callee typed-stop保留颜色槽发布。

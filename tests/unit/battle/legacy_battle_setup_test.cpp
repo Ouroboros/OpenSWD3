@@ -26,6 +26,7 @@ void test_battle_alternate_grid_frame(openswd3::test::Context& test);
 void test_battle_mode_grid_frame(openswd3::test::Context& test);
 void test_battle_narrow_grid_frame(openswd3::test::Context& test);
 void test_battle_guard_panel_frame(openswd3::test::Context& test);
+void test_battle_selection_hint_frame(openswd3::test::Context& test);
 void test_battle_action_rotation_cache(openswd3::test::Context& test);
 void test_battle_actor_action_candidate_availability(
     openswd3::test::Context& test
@@ -5551,6 +5552,7 @@ void test_battle_border_panel(openswd3::test::Context& test) {
         .height = 100,
     };
     openswd3::rendering::LegacyBlitEffectState effects;
+    openswd3::battle::LegacyBattleColorFadeState color_fade;
 
     {
         openswd3::rendering::LegacyFramebuffer framebuffer{surface};
@@ -5565,6 +5567,7 @@ void test_battle_border_panel(openswd3::test::Context& test) {
         openswd3::rendering::LegacyRleRowJitterState jitter;
         const auto result = openswd3::battle::draw_legacy_battle_border_panel(
             state,
+            color_fade,
             framebuffer,
             clip,
             shared_request,
@@ -5597,7 +5600,7 @@ void test_battle_border_panel(openswd3::test::Context& test) {
                 state.source_kind ==
                     openswd3::battle::LegacyBattleBorderSourceKind::
                         frame_piece &&
-                state.color_fade.source_argument_slot ==
+                color_fade.source_argument_slot ==
                     std::array<u8, 4>{0x22U, 0x22U, 0U, 0U} &&
                 shared_request.target_height == 0 &&
                 shared_request.vertical_resample_phase_10_10 == 0U &&
@@ -5630,6 +5633,7 @@ void test_battle_border_panel(openswd3::test::Context& test) {
         openswd3::rendering::LegacyRleRowJitterState jitter;
         const auto result = openswd3::battle::draw_legacy_battle_border_panel(
             state,
+            color_fade,
             framebuffer,
             clip,
             shared_request,
@@ -5666,6 +5670,7 @@ void test_battle_border_panel(openswd3::test::Context& test) {
         openswd3::rendering::LegacyRleRowJitterState jitter;
         const auto result = openswd3::battle::draw_legacy_battle_border_panel(
             state,
+            color_fade,
             framebuffer,
             clip,
             shared_request,
@@ -5707,6 +5712,7 @@ void test_battle_border_panel(openswd3::test::Context& test) {
         openswd3::rendering::LegacyRleRowJitterState jitter;
         const auto result = openswd3::battle::draw_legacy_battle_border_panel(
             state,
+            color_fade,
             framebuffer,
             clip,
             shared_request,
@@ -7021,6 +7027,7 @@ int main() {
     test_battle_mode_grid_frame(test);
     test_battle_narrow_grid_frame(test);
     test_battle_guard_panel_frame(test);
+    test_battle_selection_hint_frame(test);
     test_battle_action_rotation_cache(test);
     test_battle_actor_action_candidate_availability(test);
     test_battle_actor_action_commit(test);

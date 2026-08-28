@@ -62,6 +62,7 @@ class BorderPanelDrawer final {
 public:
     BorderPanelDrawer(
         LegacyBattleBorderPanelState& state,
+        LegacyBattleColorFadeState& color_fade,
         rendering::LegacyFramebuffer& framebuffer,
         const rendering::LegacyBlitClipRectangle& clip,
         rendering::LegacyBlitRequest& shared_request,
@@ -70,9 +71,10 @@ public:
         rendering::LegacyFramePieceProvider& frame_provider,
         const compat::u32 resource_id
     ) noexcept
-        : state_(state), framebuffer_(framebuffer), clip_(clip),
-          shared_request_(shared_request), effects_(effects), jitter_(jitter),
-          frame_provider_(frame_provider), resource_id_(resource_id) {}
+        : state_(state), color_fade_(color_fade), framebuffer_(framebuffer),
+          clip_(clip), shared_request_(shared_request), effects_(effects),
+          jitter_(jitter), frame_provider_(frame_provider),
+          resource_id_(resource_id) {}
 
     [[nodiscard]] bool load(const compat::u32 frame_index) noexcept {
         rendering::LegacyFramePiece piece{};
@@ -135,7 +137,7 @@ public:
     ) noexcept {
         state_.source_kind = LegacyBattleBorderSourceKind::color_argument;
         const rendering::LegacyBlitResult blit = fade_legacy_battle_rectangle(
-            state_.color_fade,
+            color_fade_,
             framebuffer_,
             clip_,
             shared_request_,
@@ -168,6 +170,7 @@ public:
 
 private:
     LegacyBattleBorderPanelState& state_;
+    LegacyBattleColorFadeState& color_fade_;
     rendering::LegacyFramebuffer& framebuffer_;
     const rendering::LegacyBlitClipRectangle& clip_;
     rendering::LegacyBlitRequest& shared_request_;
@@ -182,6 +185,7 @@ private:
 
 LegacyBattleBorderPanelResult draw_legacy_battle_border_panel(
     LegacyBattleBorderPanelState& state,
+    LegacyBattleColorFadeState& color_fade,
     rendering::LegacyFramebuffer& framebuffer,
     const rendering::LegacyBlitClipRectangle& clip,
     rendering::LegacyBlitRequest& shared_request,
@@ -197,6 +201,7 @@ LegacyBattleBorderPanelResult draw_legacy_battle_border_panel(
 ) noexcept {
     BorderPanelDrawer drawer(
         state,
+        color_fade,
         framebuffer,
         clip,
         shared_request,

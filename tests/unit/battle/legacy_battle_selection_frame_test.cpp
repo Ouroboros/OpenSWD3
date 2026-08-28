@@ -26,6 +26,9 @@ using openswd3::battle::LegacyBattleListFrameCallRequest;
 using openswd3::battle::LegacyBattleSelectionFrameCall;
 using openswd3::battle::LegacyBattleSelectionFrameCallReply;
 using openswd3::battle::LegacyBattleSelectionFrameCallRequest;
+using openswd3::battle::LegacyBattleSelectionHintFrameCall;
+using openswd3::battle::LegacyBattleSelectionHintFrameCallReply;
+using openswd3::battle::LegacyBattleSelectionHintFrameCallRequest;
 using openswd3::compat::u8;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
@@ -93,6 +96,20 @@ public:
         return found->second[index++];
     }
 
+    [[nodiscard]] LegacyBattleSelectionHintFrameCallReply
+    invoke_selection_hint_frame(
+        const LegacyBattleSelectionHintFrameCallRequest& request
+    ) override {
+        selection_hint_calls.push_back(request);
+        auto& index = selection_hint_reply_indices[request.call];
+        const auto found = selection_hint_replies.find(request.call);
+        if (found == selection_hint_replies.end() ||
+            index >= found->second.size()) {
+            return selection_hint_default_reply;
+        }
+        return found->second[index++];
+    }
+
     [[nodiscard]] LegacyBattleSelectionFrameCallReply invoke_selection_frame(
         const LegacyBattleSelectionFrameCallRequest& request
     ) override {
@@ -117,6 +134,7 @@ public:
     std::vector<LegacyBattleListFrameCallRequest> list_frame_calls;
     std::vector<LegacyBattleListContentsCallRequest> list_contents_calls;
     std::vector<LegacyBattleGridFrameCallRequest> grid_frame_calls;
+    std::vector<LegacyBattleSelectionHintFrameCallRequest> selection_hint_calls;
     std::vector<openswd3::battle::LegacyBattleActorTargetPreparationCallRequest>
         target_calls;
     std::map<
@@ -144,6 +162,13 @@ public:
         grid_frame_replies;
     std::map<LegacyBattleGridFrameCall, std::size_t> grid_frame_reply_indices;
     LegacyBattleGridFrameCallReply grid_frame_default_reply{};
+    std::map<
+        LegacyBattleSelectionHintFrameCall,
+        std::vector<LegacyBattleSelectionHintFrameCallReply>>
+        selection_hint_replies;
+    std::map<LegacyBattleSelectionHintFrameCall, std::size_t>
+        selection_hint_reply_indices;
+    LegacyBattleSelectionHintFrameCallReply selection_hint_default_reply{};
     std::function<void()> grid_on_query;
     LegacyBattleListFrameCallReply list_frame_default_reply{};
     LegacyBattleListContentsCallReply list_contents_default_reply{
@@ -957,6 +982,31 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
         fixture.action.opponent_workspace[0U] = 1U;
         fixture.target.selection_input_gate = 1U;
         fixture.final_actor.pre_frame_gate_b = 1U;
+        fixture.metrics.group_b_count = 8U;
+        fixture.port
+            .selection_hint_replies
+                [LegacyBattleSelectionHintFrameCall::query_actor_label]
+            .push_back({.eax = 0x00501000U, .text_length = 4U});
+        fixture.port
+            .selection_hint_replies
+                [LegacyBattleSelectionHintFrameCall::configure_font_width]
+            .push_back({});
+        fixture.port
+            .selection_hint_replies
+                [LegacyBattleSelectionHintFrameCall::draw_text]
+            .push_back({});
+        fixture.port
+            .selection_hint_replies
+                [LegacyBattleSelectionHintFrameCall::configure_font_width]
+            .push_back({});
+        fixture.port
+            .selection_hint_replies
+                [LegacyBattleSelectionHintFrameCall::query_metric_source]
+            .push_back({.eax = 0x900U});
+        fixture.port
+            .selection_hint_replies
+                [LegacyBattleSelectionHintFrameCall::resolve_metric_value]
+            .push_back({.eax = 9U});
         const auto result =
             openswd3::battle::draw_legacy_battle_selection_frame(
                 fixture.bindings(), fixture.port
@@ -965,12 +1015,54 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleSelectionFrameStatus::
                         completed &&
+                result.selection_hint_frame_calls == 1U &&
+                result.selection_hint_frame.status ==
+                    openswd3::battle::LegacyBattleSelectionHintFrameStatus::
+                        completed &&
+                result.selection_hint_frame.actor_label_query_calls == 1U &&
+                result.selection_hint_frame.label_drawn &&
                 count_call(
                     fixture.port,
-                    LegacyBattleSelectionFrameCall::draw_selection_hint
-                ) == 1U &&
+                    LegacyBattleSelectionFrameCall::
+                        reserved_draw_selection_hint_slot
+                ) == 0U &&
                 result.action_frame_draw_calls == 0U,
-            "selection suppression skips actor marker construction but preserves the live input-gate hint"
+            "selection suppression skips actor marker construction but directly preserves the live input-gate hint"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.final_actor.published_actor_code = 8U;
+        fixture.metrics.group_b_count = 8U;
+        fixture.message = 3U;
+        fixture.action.opponent_workspace[0U] = 1U;
+        fixture.target.selection_input_gate = 1U;
+        fixture.final_actor.pre_frame_gate_b = 1U;
+        fixture.frame_provider.fail = true;
+        fixture.port
+            .selection_hint_replies
+                [LegacyBattleSelectionHintFrameCall::query_actor_label]
+            .push_back({.eax = 0x00501000U, .text_length = 4U});
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        selection_hint_frame_typed_stop &&
+                result.selection_hint_frame_calls == 1U &&
+                result.selection_hint_frame.status ==
+                    openswd3::battle::LegacyBattleSelectionHintFrameStatus::
+                        tiled_frame_typed_stop &&
+                count_call(
+                    fixture.port,
+                    LegacyBattleSelectionFrameCall::
+                        reserved_draw_selection_hint_slot
+                ) == 0U,
+            "selection message three propagates the direct hint-frame stop without using its reserved slot"
         );
     }
 
