@@ -19,6 +19,8 @@ enum class LegacyBattleGridFrameCall : compat::u8 {
     query_row,
     draw_text,
     query_alternate_row,
+    query_mode_row,
+    query_mode_secondary_count,
 };
 
 struct LegacyBattleGridFrameCallRequest {

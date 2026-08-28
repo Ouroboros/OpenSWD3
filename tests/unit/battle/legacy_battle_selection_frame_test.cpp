@@ -1052,15 +1052,6 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
             openswd3::battle::draw_legacy_battle_selection_frame(
                 eight.bindings(), eight.port
             );
-        Fixture thirty;
-        thirty.final_actor.queued_actor_code = 8U;
-        thirty.message = 30U;
-        thirty.frame.grid_selection = 4U;
-        thirty.frame.panel_scroll_b = 5U;
-        const auto thirty_result =
-            openswd3::battle::draw_legacy_battle_selection_frame(
-                thirty.bindings(), thirty.port
-            );
         test.expect_true(
             five_result.status ==
                     openswd3::battle::LegacyBattleSelectionFrameStatus::
@@ -1083,15 +1074,8 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                 eight.port.calls.back().call ==
                     LegacyBattleSelectionFrameCall::draw_narrow_frame &&
                 eight.input.selection_cache_gate_a == 1U &&
-                eight.input.selection_cache_gate_b == 1U &&
-                thirty_result.status ==
-                    openswd3::battle::LegacyBattleSelectionFrameStatus::
-                        completed &&
-                thirty.port.calls.back().call ==
-                    LegacyBattleSelectionFrameCall::draw_grid_mode &&
-                thirty.port.calls.back().arguments[2U] == 4U &&
-                thirty.port.calls.back().arguments[3U] == 5U,
-            "messages five seven eight and thirty preserve their fixed render arguments and final cache publication"
+                eight.input.selection_cache_gate_b == 1U,
+            "messages five seven and eight preserve their fixed render arguments and final cache publication"
         );
     }
 
@@ -1158,6 +1142,72 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                         reserved_draw_grid_alternate_slot
                 ) == 0U,
             "message twenty-seven propagates the alternate grid prefix stop before auxiliary and final cache publication"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.message = 30U;
+        fixture.frame.grid_selection = 4U;
+        fixture.frame.panel_scroll_b = 5U;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port
+            );
+        const auto mode_queries = std::ranges::count_if(
+            fixture.port.grid_frame_calls,
+            [](const LegacyBattleGridFrameCallRequest& call) {
+                return call.call == LegacyBattleGridFrameCall::query_mode_row;
+            }
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        completed &&
+                result.mode_grid_frame_calls == 1U &&
+                result.mode_grid_frame.status ==
+                    openswd3::battle::LegacyBattleModeGridFrameStatus::
+                        completed &&
+                result.mode_grid_frame.tiled_frame_calls == 2U &&
+                result.mode_grid_frame.text_copy_calls == 10U &&
+                mode_queries == 1 && fixture.target.target_argument == 0U &&
+                fixture.input.selection_cache_gate_a == 1U &&
+                fixture.input.selection_cache_gate_b == 1U &&
+                fixture.input.selection_cache_gate_c == 1U &&
+                count_call(
+                    fixture.port,
+                    LegacyBattleSelectionFrameCall::reserved_draw_grid_mode_slot
+                ) == 0U,
+            "message thirty directly draws the ten-cell mode grid and publishes final caches"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.message = 30U;
+        fixture.frame_provider.fail = true;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        mode_grid_frame_typed_stop &&
+                result.mode_grid_frame_calls == 1U &&
+                result.mode_grid_frame.status ==
+                    openswd3::battle::LegacyBattleModeGridFrameStatus::
+                        first_tiled_frame_typed_stop &&
+                fixture.input.selection_cache_gate_a == 0U &&
+                fixture.input.selection_cache_gate_b == 0U &&
+                fixture.input.selection_cache_gate_c == 1U &&
+                count_call(
+                    fixture.port,
+                    LegacyBattleSelectionFrameCall::reserved_draw_grid_mode_slot
+                ) == 0U,
+            "message thirty propagates the mode grid prefix stop before final cache publication"
         );
     }
 }

@@ -781,6 +781,49 @@ private:
         return true;
     }
 
+    [[nodiscard]] bool draw_mode_grid_frame(
+        const u32 origin_x, const u32 origin_y, const u32 selected_cell
+    ) {
+        auto mode_request = request_.mode_grid_frame;
+        mode_request.origin_x = origin_x;
+        mode_request.origin_y = origin_y;
+        mode_request.selected_cell = selected_cell;
+        mode_request.entry_eax = eax_;
+        mode_request.entry_ecx = ecx_;
+        mode_request.entry_edx = edx_;
+        result_.mode_grid_frame = draw_legacy_battle_mode_grid_frame(
+            state_.mode_grid_frame,
+            {
+                .queued_actor_code = bindings_.final_actor.queued_actor_code,
+                .panel_row_limit = bindings_.frame_input.panel_row_limit_c,
+                .selection_input_gate =
+                    bindings_.target_runtime.selection_input_gate,
+                .target_argument = bindings_.target_runtime.target_argument,
+                .primary_text_color = bindings_.startup.primary_text_color,
+                .panel_action_record = bindings_.panel_action_record,
+                .framebuffer = bindings_.framebuffer,
+                .raster = bindings_.raster,
+                .shared_effects = bindings_.shared_effects,
+                .jitter = bindings_.jitter,
+                .action_updater = bindings_.action_updater,
+                .frame_provider = bindings_.frame_provider,
+            },
+            port_,
+            mode_request
+        );
+        ++result_.mode_grid_frame_calls;
+        result_.port_calls += result_.mode_grid_frame.port_calls;
+        eax_ = result_.mode_grid_frame.return_eax;
+        ecx_ = result_.mode_grid_frame.return_ecx;
+        edx_ = result_.mode_grid_frame.return_edx;
+        if (result_.mode_grid_frame.status !=
+            LegacyBattleModeGridFrameStatus::completed) {
+            typed_stop(Status::mode_grid_frame_typed_stop);
+            return false;
+        }
+        return true;
+    }
+
     void draw_message_two() {
         state_input().selection_cache_gate_c = 1U;
         if (!draw_list_frame(0xE0U, 0x7EU)) {
@@ -860,7 +903,9 @@ private:
         ecx_ = bindings_.frame_input.panel_scroll_b;
         edx_ = bindings_.frame_input.grid_selection;
         state_input().selection_cache_gate_c = 1U;
-        invoke(Call::draw_grid_mode, 0U, {0xE0U, 0x7EU, edx_, ecx_});
+        if (!draw_mode_grid_frame(0xE0U, 0x7EU, edx_)) {
+            return;
+        }
         set_selection_cache_gates();
     }
 

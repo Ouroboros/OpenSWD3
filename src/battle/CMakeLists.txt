@@ -68,6 +68,7 @@ add_library(
         legacy_battle_menu_page_retreat.cpp
         legacy_battle_menu_selection_advance.cpp
         legacy_battle_menu_selection_retreat.cpp
+        legacy_battle_mode_grid_frame.cpp
         legacy_battle_target_selection_entry.cpp
         legacy_battle_target_selection_refresh.cpp
         legacy_battle_intensity_effect_frame.cpp
