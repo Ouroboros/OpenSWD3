@@ -189,6 +189,11 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     growth_actor_load_item_definition,
     growth_actor_query_item_presence,
     growth_actor_allocate_item_node,
+    growth_item_result_query_actor_completion,
+    growth_item_result_select_item,
+    growth_item_result_load_definition,
+    growth_item_result_release_description,
+    growth_item_result_copy_caption,
     growth_item_completion_format_text,
     growth_item_completion_measure_text,
     growth_item_completion_query_panel,
@@ -206,7 +211,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     reserved_message_phase_advance_message_111_slot,
     reserved_message_phase_select_message_112_actor_slot,
     reserved_message_phase_advance_message_112_slot,
-    message_phase_select_message_113_actor,
+    reserved_message_phase_select_message_113_actor_slot,
     reserved_message_phase_advance_message_113_slot,
     message_phase_advance_message_102,
     message_phase_advance_message_103,
@@ -907,9 +912,10 @@ public:
             call = LegacyBattleFrameCoordinatorCall::
                 reserved_message_phase_advance_message_112_slot;
             break;
-        case LegacyBattleMessagePhaseCall::select_message_113_actor:
+        case LegacyBattleMessagePhaseCall::
+            reserved_select_message_113_actor_slot:
             call = LegacyBattleFrameCoordinatorCall::
-                message_phase_select_message_113_actor;
+                reserved_message_phase_select_message_113_actor_slot;
             break;
         case LegacyBattleMessagePhaseCall::reserved_advance_message_113_slot:
             call = LegacyBattleFrameCoordinatorCall::
@@ -1270,6 +1276,69 @@ public:
             .publish_allocation_token =
                 reply.publish_growth_item_allocation_token,
             .allocation_token = reply.growth_item_allocation_token,
+        };
+    }
+    [[nodiscard]] LegacyBattleGrowthItemResultSelectionCallReply
+    invoke_growth_item_result_selection(
+        const LegacyBattleGrowthItemResultSelectionCallRequest& request
+    ) override {
+        LegacyBattleFrameCoordinatorCall call =
+            LegacyBattleFrameCoordinatorCall::
+                growth_item_result_query_actor_completion;
+        switch (request.call) {
+        case LegacyBattleGrowthItemResultSelectionCall::query_actor_completion:
+            break;
+
+        case LegacyBattleGrowthItemResultSelectionCall::select_growth_item:
+            call = LegacyBattleFrameCoordinatorCall::
+                growth_item_result_select_item;
+            break;
+
+        case LegacyBattleGrowthItemResultSelectionCall::load_item_definition:
+            call = LegacyBattleFrameCoordinatorCall::
+                growth_item_result_load_definition;
+            break;
+
+        case LegacyBattleGrowthItemResultSelectionCall::
+            release_item_description:
+            call = LegacyBattleFrameCoordinatorCall::
+                growth_item_result_release_description;
+            break;
+
+        case LegacyBattleGrowthItemResultSelectionCall::copy_caption:
+            call = LegacyBattleFrameCoordinatorCall::
+                growth_item_result_copy_caption;
+            break;
+        }
+        std::array<compat::u32, 8U> arguments{};
+        for (std::size_t index = 0U; index < request.arguments.size();
+             ++index) {
+            arguments[index] = request.arguments[index];
+        }
+        std::array<compat::u8, 64U> text{};
+        const std::size_t text_length =
+            std::min<std::size_t>(request.text_length, text.size());
+        std::copy_n(request.text.begin(), text_length, text.begin());
+        const auto reply = invoke({
+            .call = call,
+            .object_token = request.actor_token,
+            .arguments = arguments,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+            .caption_text_bytes = text,
+            .caption_text_length = static_cast<compat::u32>(text_length),
+        });
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .publish_group_a_count = reply.publish_group_a_count,
+            .group_a_count = reply.group_a_count,
+            .publish_definition = reply.publish_growth_item_definition,
+            .definition = reply.growth_item_definition,
+            .description = reply.growth_item_description,
+            .description_length = reply.growth_item_description_length,
         };
     }
     [[nodiscard]] LegacyBattleGrowthItemCompletionPanelCallReply

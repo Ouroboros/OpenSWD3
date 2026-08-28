@@ -844,7 +844,35 @@ private:
 
     [[nodiscard]] LegacyBattleMessagePhaseResult message_113() {
         if (bindings_.target_selection.transition_actor_index == 0xFFU) {
-            call(LegacyBattleMessagePhaseCall::select_message_113_actor);
+            auto selection_request =
+                request_.growth_item_result_selection_request;
+            selection_request.entry_eax = eax_;
+            selection_request.entry_ecx = ecx_;
+            selection_request.entry_edx = edx_;
+            result_.growth_item_result_selection =
+                advance_legacy_battle_growth_item_result_selection(
+                    {
+                        .victory = bindings_.victory_rewards.state,
+                        .metrics = bindings_.metrics,
+                        .target_selection = bindings_.target_selection,
+                        .level_advancement =
+                            port_.battle_level_advancement_state(),
+                    },
+                    port_,
+                    selection_request
+                );
+            ++result_.growth_item_result_selection_calls;
+            result_.port_calls +=
+                result_.growth_item_result_selection.port_calls;
+            eax_ = result_.growth_item_result_selection.return_eax;
+            ecx_ = result_.growth_item_result_selection.return_ecx;
+            edx_ = result_.growth_item_result_selection.return_edx;
+            if (result_.growth_item_result_selection.status !=
+                LegacyBattleGrowthItemResultSelectionStatus::completed) {
+                result_.status = LegacyBattleMessagePhaseStatus::
+                    growth_item_result_selection_typed_stop;
+                return finish();
+            }
             if (bindings_.target_selection.transition_actor_index != 0xFFU) {
                 edx_ = std::bit_cast<u32>(
                     bindings_.input_dispatch.sample_mix_level

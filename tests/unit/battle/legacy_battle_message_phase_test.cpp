@@ -193,6 +193,38 @@ public:
     }
 
     [[nodiscard]]
+    openswd3::battle::LegacyBattleGrowthItemResultSelectionCallReply
+    invoke_growth_item_result_selection(
+        const openswd3::battle::
+            LegacyBattleGrowthItemResultSelectionCallRequest& request
+    ) override {
+        growth_item_result_selection_calls.push_back(request);
+        auto reply =
+            openswd3::battle::LegacyBattleGrowthItemResultSelectionPort::
+                invoke_growth_item_result_selection(request);
+        if (request.call ==
+            openswd3::battle::LegacyBattleGrowthItemResultSelectionCall::
+                query_actor_completion) {
+            reply.eax = 0U;
+        }
+        if (request.call ==
+            openswd3::battle::LegacyBattleGrowthItemResultSelectionCall::
+                select_growth_item) {
+            reply.eax = growth_item_result_selection_eax;
+        }
+        const auto found =
+            growth_item_result_definitions.find(request.item_code);
+        if (request.call ==
+                openswd3::battle::LegacyBattleGrowthItemResultSelectionCall::
+                    load_item_definition &&
+            found != growth_item_result_definitions.end()) {
+            reply.publish_definition = true;
+            reply.definition = found->second;
+        }
+        return reply;
+    }
+
+    [[nodiscard]]
     openswd3::battle::LegacyBattleGrowthItemCompletionPanelCallReply
     invoke_growth_item_completion_panel(
         const openswd3::battle::
@@ -283,6 +315,10 @@ public:
         growth_actor_calls;
     std::map<u16, std::array<u8, 160U>> growth_actor_definitions;
     std::vector<
+        openswd3::battle::LegacyBattleGrowthItemResultSelectionCallRequest>
+        growth_item_result_selection_calls;
+    std::map<u32, std::array<u8, 160U>> growth_item_result_definitions;
+    std::vector<
         openswd3::battle::LegacyBattleGrowthItemCompletionPanelCallRequest>
         growth_item_completion_panel_calls;
     std::vector<openswd3::battle::LegacyBattleGrowthCaptionCallRequest>
@@ -290,6 +326,7 @@ public:
     std::vector<std::array<u32, 5U>> completion_sample_calls;
     u32 growth_query_eax{};
     u32 caption_query_eax{};
+    u32 growth_item_result_selection_eax{};
     u32 growth_item_completion_panel_query_eax{};
 };
 
@@ -1077,28 +1114,58 @@ void test_battle_message_phase(openswd3::test::Context& test) {
 
         Fixture selected;
         selected.message = 0x71U;
+        selected.metrics.group_a_count = 1U;
         selected.target_selection.transition_actor_index = 0xFFU;
-        selected.port.reply(
-            LegacyBattleMessagePhaseCall::select_message_113_actor,
-            {
-                .publish_transition_actor_index = true,
-                .transition_actor_index = 3U,
-            }
-        );
+        selected.target_selection.transition_stage = 12U;
+        selected.port.growth_item_result_selection_eax = 0x0665U;
+        selected.port.growth_item_result_definitions[0x0665U][0U] = 0x41U;
+        selected.port.growth_item_result_definitions[0x0665U][1U] = 0U;
         selected.port.reply(
             LegacyBattleMessagePhaseCall::query_actor_completion, {.eax = 1U}
         );
         const auto advanced = run(selected);
         test.expect_true(
-            advanced.sample_calls == 1U &&
+            advanced.growth_item_result_selection_calls == 1U &&
+                advanced.growth_item_result_selection.selected_actor_count ==
+                    1U &&
+                advanced.sample_calls == 1U &&
                 advanced.growth_item_completion_panel_calls == 1U &&
-                advanced.growth_item_completion_panel.port_calls == 0U &&
+                selected.target_selection.transition_mode == 1U &&
+                selected.target_selection.transition_actor_index == 0U &&
+                selected.port.count(
+                    LegacyBattleMessagePhaseCall::
+                        reserved_select_message_113_actor_slot
+                ) == 0U &&
                 selected.port.count(
                     LegacyBattleMessagePhaseCall::
                         reserved_advance_message_113_slot
                 ) == 0U &&
                 selected.target_selection.transition_timer == 1U,
-            "message 113 samples a selected actor then directly advances the mode-gated growth item completion panel"
+            "message 113 directly selects the first completed growth item actor before sampling and drawing its panel"
+        );
+
+        Fixture invalid_selection;
+        invalid_selection.message = 0x71U;
+        invalid_selection.metrics.group_a_count = 1U;
+        invalid_selection.target_selection.transition_actor_index = 0xFFU;
+        invalid_selection.target_selection.transition_timer = 7U;
+        invalid_selection.port.growth_item_result_selection_eax = 0x0669U;
+        invalid_selection.port.growth_item_result_definitions[0x0669U].fill(
+            0x58U
+        );
+        const auto invalid_selection_result = run(invalid_selection);
+        test.expect_true(
+            invalid_selection_result.status ==
+                    openswd3::battle::LegacyBattleMessagePhaseStatus::
+                        growth_item_result_selection_typed_stop &&
+                invalid_selection.target_selection.transition_mode == 1U &&
+                invalid_selection.target_selection.transition_actor_index ==
+                    0xFFU &&
+                invalid_selection.target_selection.transition_timer == 7U &&
+                invalid_selection_result.sample_calls == 0U &&
+                invalid_selection_result.growth_item_completion_panel_calls ==
+                    0U,
+            "message 113 propagates the result title copy stop before sampling, fallback, panel and timer effects"
         );
 
         Fixture rendered;

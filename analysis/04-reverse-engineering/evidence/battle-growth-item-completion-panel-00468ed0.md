@@ -48,7 +48,7 @@ opacity step为0，flags固定`0x80000008`。矩形和九宫格直接复用现�
 
 本函数不新增持久state。24-byte标题继续由`LegacyBattleLevelAdvancementState`唯一持有；transition mode/stage、胜利面板资源、framebuffer和字体对象均复用既有owner。64-byte文字仅是本次调用局部状态，物理地址以`compat::u32`请求token表示，不转换为宿主指针。
 
-消息113现已在既有选角、sample、组A完成查询和`8,1`分配链之后直连本实现。正常返回后才u32递增timer；本函数typed-stop阻断timer。入口actor已存在时仍直接进入本函数，不执行前述选角链。旧阶段113槽保留枚举数值并改名为reserved，生产代码零调用。
+消息113现已在法宝成长结果角色选择、sample、组A完成查询和`8,1`分配链之后直连本实现。结果选择会把共享定义scratch的标题复制到本函数消费的同一24-byte owner；正常返回后才u32递增timer。结果选择或本函数typed-stop均阻断后续timer。入口actor已存在时仍直接进入本函数，不执行前述选角链。旧选角槽与旧阶段113槽均保留枚举数值并改名为reserved，生产代码零调用。
 
 定向测试覆盖局部seed、mode精确1门、CP950完整字节、24-byte标题源边界、64-byte格式边界、两次长度、signed half、动态矩形/九宫格尺寸和资源高word、查询非1、字体17→16、七处generic寄存器布局、九宫格stop、消息113直连/旧槽零调用/timer后置/子stop传播及主帧五类服务映射。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194 全部通过。源码构建零warning；app仅有既有ALSA开发库CMake提示。
 
