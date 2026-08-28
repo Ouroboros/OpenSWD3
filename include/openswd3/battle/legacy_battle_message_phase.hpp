@@ -4,6 +4,7 @@
 #include "openswd3/battle/legacy_battle_debug_hotkeys.hpp"
 #include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
 #include "openswd3/battle/legacy_battle_group_b_frame.hpp"
+#include "openswd3/battle/legacy_battle_level_advancement.hpp"
 #include "openswd3/battle/legacy_battle_level_up_panel.hpp"
 #include "openswd3/battle/legacy_battle_player_item_quantity.hpp"
 #include "openswd3/battle/legacy_battle_selection_frame.hpp"
@@ -126,7 +127,8 @@ struct LegacyBattleMessagePhaseCallReply {
 
 class LegacyBattleMessagePhasePort
     : public virtual LegacyBattleMessagePhaseStatePort,
-      public virtual LegacyBattleVictoryRewardPort {
+      public virtual LegacyBattleVictoryRewardPort,
+      public virtual LegacyBattleLevelAdvancementPort {
 public:
     ~LegacyBattleMessagePhasePort() override = default;
 
@@ -166,6 +168,7 @@ struct LegacyBattleMessagePhaseRequest {
     compat::u32 entry_edx{};
     LegacyBattleVictoryRewardRequest victory_reward_request{};
     LegacyBattleLevelUpPanelRequest level_up_panel_request{};
+    LegacyBattleLevelAdvancementRequest level_advancement_request{};
 };
 
 enum class LegacyBattleMessagePhaseStatus : compat::u8 {
@@ -180,6 +183,7 @@ enum class LegacyBattleMessagePhaseStatus : compat::u8 {
     player_item_quantity_typed_stop,
     victory_rewards_typed_stop,
     level_up_panel_typed_stop,
+    level_advancement_typed_stop,
     target_selection_entry_typed_stop,
 };
 
@@ -200,10 +204,12 @@ struct LegacyBattleMessagePhaseResult {
     compat::u32 player_item_quantity_calls{};
     compat::u32 victory_reward_calls{};
     compat::u32 level_up_panel_calls{};
+    compat::u32 level_advancement_calls{};
     LegacyBattleTargetSelectionEntryResult target_selection_entry{};
     LegacyBattlePlayerItemQuantityResult player_item_quantity{};
     LegacyBattleVictoryRewardResult victory_rewards{};
     LegacyBattleLevelUpPanelResult level_up_panel{};
+    LegacyBattleLevelAdvancementResult level_advancement{};
     std::vector<LegacyBattleMessagePhaseCall> call_trace;
     compat::u32 call_trace_count{};
 };

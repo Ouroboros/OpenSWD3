@@ -67,7 +67,7 @@ sound ID 无效，近距离路径仍继续执行两次参数更新并返回 mana
 
 当前已经恢复的显示停用、总退出与战斗胜利结算`0x00485740`调用点统一经过
 `stop_all_legacy_samples()`，再进入同一个`LegacySampleManager`；胜利结算随后也以
-`0x12C`和live mix level直连`0x00485610`播放。其他入口作为剧情、世界和战斗后续模块的
+`0x12C`和live mix level直连`0x00485610`播放；角色升级属性提交则先按单sample停止语义停止`0x12C`，再以`0x12B`和live mix level播放升级提示。其他入口作为剧情、世界和战斗后续模块的
 公共命令边界保留；对应调用者尚未实现时不伪造调用。
 
 启动对话框前的 `play_startup_sound()` 不能接到 `0x00485610`：原 LST

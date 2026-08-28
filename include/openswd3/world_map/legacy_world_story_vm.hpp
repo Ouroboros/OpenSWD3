@@ -269,7 +269,10 @@ struct LegacyWorldStoryPartyMemberResources {
     compat::u16 transient_value{};
     compat::u32 field_28{};
     compat::u8 field_2c{};
+    std::array<compat::u8, 11U> tail_2d_to_37{};
 };
+
+static_assert(sizeof(LegacyWorldStoryPartyMemberResources) == 0x38U);
 
 [[nodiscard]] compat::i32 read_legacy_party_member_field(
     const LegacyWorldStoryPartyMemberResources& resources, compat::i32 selector

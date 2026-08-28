@@ -239,9 +239,7 @@ private:
                 party_member_resource_typed_stop;
             return;
         }
-        const u32 level = static_cast<u8>(
-            bindings_.party_member_resources[label].fields_10_to_1e[6U]
-        );
+        const u32 level = bindings_.party_member_resources[label].field_2c;
         edx_ = level;
         const u32 name_token = kLegacyBattleLevelUpNameBaseToken + eax_;
         eax_ = request_.local_text_token;

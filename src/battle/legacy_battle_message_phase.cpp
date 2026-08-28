@@ -567,11 +567,46 @@ private:
         eax_ = (eax_ & 0xFFFFFF00U) |
             bindings_.target_selection.transition_actor_index;
         if (bindings_.target_selection.transition_actor_index == 0xFFU) {
-            call(LegacyBattleMessagePhaseCall::select_message_101_actor);
+            auto level_request = request_.level_advancement_request;
+            level_request.entry_eax = eax_;
+            level_request.entry_ecx = ecx_;
+            level_request.entry_edx = edx_;
+            result_.level_advancement = advance_legacy_battle_actor_level(
+                {
+                    .state = port_.battle_level_advancement_state(),
+                    .victory = bindings_.victory_rewards.state,
+                    .startup = bindings_.startup,
+                    .metrics = bindings_.metrics,
+                    .input_dispatch = bindings_.input_dispatch,
+                    .target_selection = bindings_.target_selection,
+                    .party_member_resources =
+                        bindings_.victory_rewards.party_member_resources,
+                },
+                port_,
+                level_request
+            );
+            ++result_.level_advancement_calls;
+            result_.port_calls += result_.level_advancement.port_calls;
+            eax_ = result_.level_advancement.return_eax;
+            ecx_ = result_.level_advancement.return_ecx;
+            edx_ = result_.level_advancement.return_edx;
+            if (result_.level_advancement.status !=
+                LegacyBattleLevelAdvancementStatus::completed) {
+                result_.status = LegacyBattleMessagePhaseStatus::
+                    level_advancement_typed_stop;
+                return finish();
+            }
+
             eax_ = (eax_ & 0xFFFFFF00U) |
                 bindings_.target_selection.transition_actor_index;
             if (bindings_.target_selection.transition_actor_index == 0xFFU) {
-                return transition_to(0x70U);
+                call(LegacyBattleMessagePhaseCall::select_message_101_actor);
+                eax_ = (eax_ & 0xFFFFFF00U) |
+                    bindings_.target_selection.transition_actor_index;
+                if (bindings_.target_selection.transition_actor_index ==
+                    0xFFU) {
+                    return transition_to(0x70U);
+                }
             }
         }
 

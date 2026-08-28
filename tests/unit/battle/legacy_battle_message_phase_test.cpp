@@ -638,10 +638,36 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                         completed &&
                 fixture.message == 0x70U &&
                 fixture.target_selection.transition_timer == 0U &&
+                missing.level_advancement_calls == 1U &&
+                fixture.port.battle_level_advancement_state().completion_gate ==
+                    1U &&
                 fixture.port.count(
                     LegacyBattleMessagePhaseCall::select_message_101_actor
                 ) == 1U,
-            "message 101 transitions to 112 when actor selection remains minus one"
+            "message 101 completes level advancement and transitions to 112 when actor selection remains minus one"
+        );
+
+        Fixture level_invalid;
+        level_invalid.message = 0x65U;
+        level_invalid.target_selection.transition_actor_index = 0xFFU;
+        level_invalid.metrics.group_a_count = 11U;
+        level_invalid.port.battle_victory_reward_state()
+            .group_a_skip_primary.fill(1U);
+        const auto level_invalid_result = run(level_invalid);
+        test.expect_true(
+            level_invalid_result.status ==
+                    openswd3::battle::LegacyBattleMessagePhaseStatus::
+                        level_advancement_typed_stop &&
+                level_invalid_result.level_advancement_calls == 1U &&
+                level_invalid_result.level_advancement.status ==
+                    openswd3::battle::LegacyBattleLevelAdvancementStatus::
+                        group_a_actor_typed_stop &&
+                level_invalid.port.count(
+                    LegacyBattleMessagePhaseCall::select_message_101_actor
+                ) == 0U &&
+                level_invalid.port.battle_level_advancement_state()
+                        .completion_gate == 0U,
+            "message 101 propagates level advancement stop before actor selection and transition writes"
         );
 
         Fixture selected;
@@ -669,6 +695,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                         completed &&
                 selected.target_selection.transition_state == 0x88U &&
                 selected.target_selection.transition_timer == 1U &&
+                selected_result.level_advancement_calls == 1U &&
                 selected.port.message_calls[1U].eax == 2014U &&
                 selected.port.message_calls[1U].edx == 0x22222222U &&
                 selected.port.message_calls[2U].eax == 2014U &&

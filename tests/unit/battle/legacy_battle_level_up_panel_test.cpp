@@ -153,7 +153,7 @@ struct Fixture {
     Fixture() : action_updater(action_streams), raster(framebuffer.geometry()) {
         target.transition_actor_index = 2U;
         startup.action_mode_source.actor_label_indices[2U] = 1U;
-        party_resources[1U].fields_10_to_1e[6U] = 0xAB07U;
+        party_resources[1U].field_2c = 7U;
     }
 
     [[nodiscard]] openswd3::battle::LegacyBattleLevelUpPanelBindings

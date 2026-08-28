@@ -30,6 +30,7 @@
 #include "openswd3/world_map/legacy_role_head_actions.hpp"
 
 #include <array>
+#include <bit>
 #include <filesystem>
 #include <list>
 #include <span>
@@ -176,6 +177,10 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     victory_query_summary_panel,
     victory_format_level_up_text,
     victory_draw_text,
+    level_advancement_query_requirement,
+    level_advancement_build_profile,
+    level_advancement_stop_sample,
+    level_advancement_play_sample,
     message_phase_select_message_101_actor,
     message_phase_allocate_actor_transition,
     message_phase_advance_message_101,
@@ -288,6 +293,12 @@ struct LegacyBattleFrameCoordinatorCallReply {
     compat::u16 victory_reward_experience{};
     std::array<compat::u8, 64> victory_formatted_text{};
     compat::u32 victory_formatted_text_length{};
+    bool publish_level_requirement{};
+    compat::u32 level_requirement{};
+    bool publish_level_profile{};
+    world_map::LegacyWorldStoryPartyMemberResources level_profile{};
+    bool publish_level_transition_mode{};
+    compat::u32 level_transition_mode{};
     LegacyBattleFrameInputSurface actor_surface{};
 };
 
@@ -1013,6 +1024,78 @@ public:
             .edx = edx,
         });
         return {.eax = 1U, .ecx = reply.ecx, .edx = reply.edx};
+    }
+    [[nodiscard]] LegacyBattleLevelAdvancementCallReply
+    invoke_level_advancement(
+        const LegacyBattleLevelAdvancementCallRequest& request
+    ) override {
+        const auto call = request.call ==
+                LegacyBattleLevelAdvancementCall::query_level_requirement
+            ? LegacyBattleFrameCoordinatorCall::
+                  level_advancement_query_requirement
+            : LegacyBattleFrameCoordinatorCall::level_advancement_build_profile;
+        std::array<compat::u32, 8> arguments{};
+        for (std::size_t index = 0U; index < request.arguments.size();
+             ++index) {
+            arguments[index] = request.arguments[index];
+        }
+        const auto reply = invoke({
+            .call = call,
+            .arguments = arguments,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        });
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .publish_requirement = reply.publish_level_requirement,
+            .requirement = reply.level_requirement,
+            .publish_profile = reply.publish_level_profile,
+            .profile = reply.level_profile,
+            .publish_group_a_count = reply.publish_group_a_count,
+            .group_a_count = reply.group_a_count,
+            .publish_transition_mode = reply.publish_level_transition_mode,
+            .transition_mode = reply.level_transition_mode,
+        };
+    }
+    [[nodiscard]] LegacyBattleLevelAdvancementRegisters stop_level_sample(
+        const compat::u32 eax,
+        const compat::u32 ecx,
+        const compat::u32 edx,
+        const compat::u32 sound_id
+    ) override {
+        const auto reply = invoke({
+            .call =
+                LegacyBattleFrameCoordinatorCall::level_advancement_stop_sample,
+            .arguments = {sound_id},
+            .eax = eax,
+            .ecx = ecx,
+            .edx = edx,
+        });
+        return {.eax = 1U, .ecx = reply.ecx, .edx = reply.edx};
+    }
+    [[nodiscard]] LegacyBattleLevelAdvancementRegisters play_level_sample(
+        const compat::u32 eax,
+        const compat::u32 ecx,
+        const compat::u32 edx,
+        const compat::u32 sound_id,
+        const compat::i32 mix_level
+    ) override {
+        const auto reply = invoke({
+            .call =
+                LegacyBattleFrameCoordinatorCall::level_advancement_play_sample,
+            .arguments =
+                {
+                    sound_id,
+                    std::bit_cast<compat::u32>(mix_level),
+                },
+            .eax = eax,
+            .ecx = ecx,
+            .edx = edx,
+        });
+        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
     }
     [[nodiscard]] LegacyBattleActorTargetPreparationCallReply
     invoke_actor_target_preparation(

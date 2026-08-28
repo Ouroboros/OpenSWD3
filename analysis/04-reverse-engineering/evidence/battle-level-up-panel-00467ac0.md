@@ -20,7 +20,7 @@
 
 无论底板是否绘制，函数都固定以`212,244,3`查询结算面板；只有返回EAX精确等于1才继续。查询返回后重新读取live过渡角色索引，因此callee改写actor会影响后续文本。索引为`0xFF`直接返回；其他值按i8符号扩展后首次访问十项动作标签表，负值或第十一项在该真实访问typed-stop。
 
-动作标签读取后保留两条原算术链：ECX为`label*7`，EAX为`label*16`。随后从世界剧情VM唯一四项、每项56-byte的角色资源owner读取`+0x1C`单byte；只使用对应u16 typed字段的低byte，高byte必须忽略。标签超出四项时在名称token加基址之前停止，返回寄存器保持EAX缩放值、ECX七倍值和清零EDX。
+动作标签读取后保留两条原算术链：ECX为`label*7`，EAX为`label*16`。随后从世界剧情VM唯一四项、每项56-byte的角色资源owner读取`+0x2C`独立等级byte。标签超出四项时在名称token加基址之前停止，返回寄存器保持EAX缩放值、ECX七倍值和清零EDX。
 
 ## 4. 原格式串与绘制
 
@@ -36,6 +36,6 @@
 
 消息100现在依次直连胜利奖励和本升级面板；第142项旧阶段100槽继续reserved且生产零调用。本函数typed-stop发生时，已完成胜利奖励与升级面板前缀保留，但caller的actor-retarget、双cache、target-ready、queued和timer写入全部阻断。
 
-定向测试覆盖底板普通/跳过/模式1强制门、固定CP950标题、矩形与双九宫格几何、矩形和标题返回EDX高word链、公共查询精确1门、查询后actor重读、i8负索引、标签缩放停止寄存器、等级只读低byte、格式token与寄存器、64-byte溢出停止、上下九宫格停止前缀、消息100正常直连与子stop传播。验证：定向测试、AddressSanitizer、Linux core `188/188`、Linux app `194/194`全部通过。源码构建零warning；app仅保留既有ALSA开发库CMake warning。
+定向测试覆盖底板普通/跳过/模式1强制门、固定CP950标题、矩形与双九宫格几何、矩形和标题返回EDX高word链、公共查询精确1门、查询后actor重读、i8负索引、标签缩放停止寄存器、等级读取独立byte、格式token与寄存器、64-byte溢出停止、上下九宫格停止前缀、消息100正常直连与子stop传播。验证：定向测试、AddressSanitizer、Linux core `188/188`、Linux app `194/194`全部通过。源码构建零warning；app仅保留既有ALSA开发库CMake warning。
 
 当前缺少原版动作/画面/字体surface、结算查询callee、角色名称与等级联合状态、动态栈地址、`wsprintfA`返回及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

@@ -1020,6 +1020,68 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     }
 
     {
+        CoordinatorPort port;
+        configure_common_port(port);
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         level_advancement_query_requirement]
+            .publish_level_requirement = true;
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         level_advancement_query_requirement]
+            .level_requirement = 7U;
+        port.replies
+            [LegacyBattleFrameCoordinatorCall::level_advancement_build_profile]
+                .publish_level_profile = true;
+        port.replies
+            [LegacyBattleFrameCoordinatorCall::level_advancement_build_profile]
+                .level_profile.field_2c = 3U;
+        port.replies
+            [LegacyBattleFrameCoordinatorCall::level_advancement_play_sample]
+                .eax = 0x12345678U;
+
+        const auto requirement = port.invoke_level_advancement({
+            .call = openswd3::battle::LegacyBattleLevelAdvancementCall::
+                query_level_requirement,
+            .arguments = {1U, 2U, 3U, 4U},
+            .eax = 5U,
+            .ecx = 6U,
+            .edx = 7U,
+        });
+        const auto profile = port.invoke_level_advancement({
+            .call = openswd3::battle::LegacyBattleLevelAdvancementCall::
+                build_level_profile,
+            .arguments = {8U, 9U, 10U, 11U},
+            .eax = 12U,
+            .ecx = 13U,
+            .edx = 14U,
+        });
+        const auto stopped = port.stop_level_sample(15U, 16U, 17U, 0x12CU);
+        const auto played = port.play_level_sample(18U, 19U, 20U, 0x12BU, -4);
+
+        test.expect_true(
+            requirement.publish_requirement && requirement.requirement == 7U &&
+                profile.publish_profile && profile.profile.field_2c == 3U &&
+                stopped.eax == 1U && played.eax == 0x12345678U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        level_advancement_query_requirement
+                ) == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        level_advancement_build_profile
+                ) == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        level_advancement_stop_sample
+                ) == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        level_advancement_play_sample
+                ) == 1U,
+            "frame coordinator maps level requirement, profile build and both audio adapters"
+        );
+    }
+
+    {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         state.conditional_mode = 1U;
         state.conditional_submode = 0U;
