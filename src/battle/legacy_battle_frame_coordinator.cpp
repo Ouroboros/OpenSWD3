@@ -613,9 +613,49 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
     static_cast<void>(invoke(
         port, result, LegacyBattleFrameCoordinatorCall::post_render_stage_1
     ));
-    static_cast<void>(invoke(
-        port, result, LegacyBattleFrameCoordinatorCall::post_render_stage_2
-    ));
+    const std::span<const compat::u8> message_action_profiles =
+        context.actor_frames == nullptr
+        ? std::span<const compat::u8>{}
+        : std::span<const compat::u8>{
+              context.actor_frames->state.action_profile_bytes
+          };
+    result.message_phase = advance_legacy_battle_message_phase(
+        {
+            .state = port.battle_message_phase_state(),
+            .startup = context.startup,
+            .final_actor = context.final_actor_step,
+            .action = context.action_dispatch,
+            .metrics = port.actor_metric_state(),
+            .debug_hotkeys = port.battle_debug_hotkey_state(),
+            .input_dispatch = port.battle_input_dispatch_state(),
+            .frame_input_resolution =
+                port.battle_frame_input_resolution_state(),
+            .selection_frame = port.battle_selection_frame_state(),
+            .target_selection = port.battle_target_selection_runtime_state(),
+            .target_ready_gate = context.target_ready_gate,
+            .message_state = port.battle_message_state(),
+            .dialogs = context.dialogs,
+            .one_shot_interaction_state =
+                context.player_control.one_shot_interaction_state,
+            .outcome_darkening_gate =
+                port.outcome_resolution_state().darkening_gate,
+            .input_records = context.input_normalization.records,
+            .action_profile_bytes = message_action_profiles,
+        },
+        port,
+        {
+            .entry_ecx = request.message_phase_entry_ecx_snapshot,
+            .entry_edx = request.message_phase_entry_edx_snapshot,
+        }
+    );
+    ++result.message_phase_calls;
+    result.port_calls += result.message_phase.port_calls;
+    if (result.message_phase.status !=
+        LegacyBattleMessagePhaseStatus::completed) {
+        result.status =
+            LegacyBattleFrameCoordinatorStatus::message_phase_typed_stop;
+        return result;
+    }
     static_cast<void>(invoke(
         port, result, LegacyBattleFrameCoordinatorCall::post_render_stage_3
     ));

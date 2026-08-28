@@ -17,6 +17,7 @@
 #include "openswd3/battle/legacy_battle_frame_effect.hpp"
 #include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
 #include "openswd3/battle/legacy_battle_input_dispatch.hpp"
+#include "openswd3/battle/legacy_battle_message_phase.hpp"
 #include "openswd3/battle/legacy_battle_outcome_resolution.hpp"
 #include "openswd3/battle/legacy_battle_pre_frame.hpp"
 #include "openswd3/battle/legacy_battle_selection_frame.hpp"
@@ -76,7 +77,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     reserved_pending_action_commit_slot,
     actor_ready_query,
     post_render_stage_1,
-    post_render_stage_2,
+    reserved_message_phase_slot,
     post_render_stage_3,
     post_dialog_stage,
     reserved_debug_overlay_slot,
@@ -152,6 +153,30 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     control_panel_draw_text,
     control_panel_query_primary_option,
     control_panel_query_special_option,
+    message_phase_resolve_group_a_position,
+    message_phase_prepare_message_98,
+    message_phase_reset_actor_state,
+    message_phase_query_actor_completion,
+    message_phase_prepare_transition_control,
+    message_phase_prepare_group_a_actor,
+    message_phase_reset_group_a_actor,
+    message_phase_set_group_a_actor_mode,
+    message_phase_commit_active_actor,
+    message_phase_configure_actor_action,
+    message_phase_query_actor_resource,
+    message_phase_resolve_action_item,
+    message_phase_advance_message_100,
+    message_phase_select_message_101_actor,
+    message_phase_allocate_actor_transition,
+    message_phase_advance_message_101,
+    message_phase_advance_message_110,
+    message_phase_advance_message_111,
+    message_phase_select_message_112_actor,
+    message_phase_advance_message_112,
+    message_phase_select_message_113_actor,
+    message_phase_advance_message_113,
+    message_phase_advance_message_102,
+    message_phase_advance_message_103,
 };
 
 struct LegacyBattleFrameCoordinatorCallRequest {
@@ -219,6 +244,30 @@ struct LegacyBattleFrameCoordinatorCallReply {
     std::array<compat::u8, 24> control_text{};
     bool publish_control_primary_value{};
     compat::u32 control_primary_value{};
+    bool publish_message_phase_message{};
+    compat::u32 message_phase_message{};
+    bool publish_message_phase_actor_index{};
+    compat::u8 message_phase_actor_index{};
+    bool publish_message_phase_control_words{};
+    compat::u32 message_phase_control_words{};
+    bool publish_message_phase_transition_state{};
+    compat::u32 message_phase_transition_state{};
+    bool publish_message_phase_timer{};
+    compat::u32 message_phase_timer{};
+    bool publish_message_phase_sample_word{};
+    compat::u16 message_phase_sample_word{};
+    bool publish_message_phase_aux_byte{};
+    compat::u8 message_phase_aux_byte{};
+    bool publish_message_phase_completion_gate{};
+    compat::u32 message_phase_completion_gate{};
+    bool publish_message_phase_special_count{};
+    compat::u32 message_phase_special_count{};
+    bool publish_message_phase_target_ready{};
+    compat::u32 message_phase_target_ready{};
+    bool publish_message_phase_mode_gate{};
+    compat::u32 message_phase_mode_gate{};
+    bool publish_message_phase_group_b_bypass{};
+    compat::u32 message_phase_group_b_bypass{};
     LegacyBattleFrameInputSurface actor_surface{};
 };
 
@@ -236,6 +285,7 @@ class LegacyBattleFrameCoordinatorPort
       public LegacyBattleFrameCompletionPort,
       public LegacyBattleFrameInputResolutionPort,
       public LegacyBattleSelectionFramePort,
+      public LegacyBattleMessagePhasePort,
       public virtual LegacyBattleEffectCoordinatorStatePort {
 public:
     using LegacyBattleEffectCallPort::invoke;
@@ -691,6 +741,164 @@ public:
             .primary_value = reply.control_primary_value,
         };
     }
+    [[nodiscard]] LegacyBattleMessagePhaseCallReply invoke_message_phase(
+        const LegacyBattleMessagePhaseCallRequest& request
+    ) override {
+        LegacyBattleFrameCoordinatorCall call =
+            LegacyBattleFrameCoordinatorCall::
+                message_phase_resolve_group_a_position;
+        switch (request.call) {
+        case LegacyBattleMessagePhaseCall::resolve_group_a_position:
+            break;
+        case LegacyBattleMessagePhaseCall::prepare_message_98:
+            call = LegacyBattleFrameCoordinatorCall::
+                message_phase_prepare_message_98;
+            break;
+        case LegacyBattleMessagePhaseCall::reset_actor_state:
+            call = LegacyBattleFrameCoordinatorCall::
+                message_phase_reset_actor_state;
+            break;
+        case LegacyBattleMessagePhaseCall::query_actor_completion:
+            call = LegacyBattleFrameCoordinatorCall::
+                message_phase_query_actor_completion;
+            break;
+        case LegacyBattleMessagePhaseCall::prepare_transition_control:
+            call = LegacyBattleFrameCoordinatorCall::
+                message_phase_prepare_transition_control;
+            break;
+        case LegacyBattleMessagePhaseCall::prepare_group_a_actor:
+            call = LegacyBattleFrameCoordinatorCall::
+                message_phase_prepare_group_a_actor;
+            break;
+        case LegacyBattleMessagePhaseCall::reset_group_a_actor:
+            call = LegacyBattleFrameCoordinatorCall::
+                message_phase_reset_group_a_actor;
+            break;
+        case LegacyBattleMessagePhaseCall::set_group_a_actor_mode:
+            call = LegacyBattleFrameCoordinatorCall::
+                message_phase_set_group_a_actor_mode;
+            break;
+        case LegacyBattleMessagePhaseCall::commit_active_actor:
+            call = LegacyBattleFrameCoordinatorCall::
+                message_phase_commit_active_actor;
+            break;
+        case LegacyBattleMessagePhaseCall::configure_actor_action:
+            call = LegacyBattleFrameCoordinatorCall::
+                message_phase_configure_actor_action;
+            break;
+        case LegacyBattleMessagePhaseCall::query_actor_resource:
+            call = LegacyBattleFrameCoordinatorCall::
+                message_phase_query_actor_resource;
+            break;
+        case LegacyBattleMessagePhaseCall::resolve_action_item:
+            call = LegacyBattleFrameCoordinatorCall::
+                message_phase_resolve_action_item;
+            break;
+        case LegacyBattleMessagePhaseCall::advance_message_100:
+            call = LegacyBattleFrameCoordinatorCall::
+                message_phase_advance_message_100;
+            break;
+        case LegacyBattleMessagePhaseCall::select_message_101_actor:
+            call = LegacyBattleFrameCoordinatorCall::
+                message_phase_select_message_101_actor;
+            break;
+        case LegacyBattleMessagePhaseCall::allocate_actor_transition:
+            call = LegacyBattleFrameCoordinatorCall::
+                message_phase_allocate_actor_transition;
+            break;
+        case LegacyBattleMessagePhaseCall::advance_message_101:
+            call = LegacyBattleFrameCoordinatorCall::
+                message_phase_advance_message_101;
+            break;
+        case LegacyBattleMessagePhaseCall::advance_message_110:
+            call = LegacyBattleFrameCoordinatorCall::
+                message_phase_advance_message_110;
+            break;
+        case LegacyBattleMessagePhaseCall::advance_message_111:
+            call = LegacyBattleFrameCoordinatorCall::
+                message_phase_advance_message_111;
+            break;
+        case LegacyBattleMessagePhaseCall::select_message_112_actor:
+            call = LegacyBattleFrameCoordinatorCall::
+                message_phase_select_message_112_actor;
+            break;
+        case LegacyBattleMessagePhaseCall::advance_message_112:
+            call = LegacyBattleFrameCoordinatorCall::
+                message_phase_advance_message_112;
+            break;
+        case LegacyBattleMessagePhaseCall::select_message_113_actor:
+            call = LegacyBattleFrameCoordinatorCall::
+                message_phase_select_message_113_actor;
+            break;
+        case LegacyBattleMessagePhaseCall::advance_message_113:
+            call = LegacyBattleFrameCoordinatorCall::
+                message_phase_advance_message_113;
+            break;
+        case LegacyBattleMessagePhaseCall::advance_message_102:
+            call = LegacyBattleFrameCoordinatorCall::
+                message_phase_advance_message_102;
+            break;
+        case LegacyBattleMessagePhaseCall::advance_message_103:
+            call = LegacyBattleFrameCoordinatorCall::
+                message_phase_advance_message_103;
+            break;
+        }
+        std::array<compat::u32, 8> arguments{};
+        for (std::size_t index = 0U; index < request.arguments.size();
+             ++index) {
+            arguments[index] = request.arguments[index];
+        }
+        const auto reply = invoke({
+            .call = call,
+            .object_token = request.actor_token,
+            .arguments = arguments,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        });
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .publish_group_b_count = reply.publish_group_b_count,
+            .group_b_count = reply.group_b_count,
+            .publish_group_a_count = reply.publish_group_a_count,
+            .group_a_count = reply.group_a_count,
+            .publish_message_state = reply.publish_message_phase_message,
+            .message_state = reply.message_phase_message,
+            .publish_transition_actor_index =
+                reply.publish_message_phase_actor_index,
+            .transition_actor_index = reply.message_phase_actor_index,
+            .publish_transition_control_words =
+                reply.publish_message_phase_control_words,
+            .transition_control_words = reply.message_phase_control_words,
+            .publish_transition_state =
+                reply.publish_message_phase_transition_state,
+            .transition_state = reply.message_phase_transition_state,
+            .publish_transition_timer = reply.publish_message_phase_timer,
+            .transition_timer = reply.message_phase_timer,
+            .publish_transition_sample_word =
+                reply.publish_message_phase_sample_word,
+            .transition_sample_word = reply.message_phase_sample_word,
+            .publish_transition_aux_byte = reply.publish_message_phase_aux_byte,
+            .transition_aux_byte = reply.message_phase_aux_byte,
+            .publish_completion_gate =
+                reply.publish_message_phase_completion_gate,
+            .completion_gate = reply.message_phase_completion_gate,
+            .publish_special_action_count =
+                reply.publish_message_phase_special_count,
+            .special_action_count = reply.message_phase_special_count,
+            .publish_target_ready_gate =
+                reply.publish_message_phase_target_ready,
+            .target_ready_gate = reply.message_phase_target_ready,
+            .publish_transition_mode_gate =
+                reply.publish_message_phase_mode_gate,
+            .transition_mode_gate = reply.message_phase_mode_gate,
+            .publish_group_b_bypass_gate =
+                reply.publish_message_phase_group_b_bypass,
+            .group_b_bypass_gate = reply.message_phase_group_b_bypass,
+        };
+    }
     [[nodiscard]] LegacyBattleActorTargetPreparationCallReply
     invoke_actor_target_preparation(
         const LegacyBattleActorTargetPreparationCallRequest& request
@@ -936,6 +1144,8 @@ struct LegacyBattleFrameCoordinatorRequest {
     compat::u32 standalone_action_update_ecx_snapshot{};
     compat::u32 standalone_action_update_edx_snapshot{};
     compat::u32 post_standalone_frame_ecx_snapshot{};
+    compat::u32 message_phase_entry_ecx_snapshot{};
+    compat::u32 message_phase_entry_edx_snapshot{};
     compat::u32 debug_vitality_stack_snapshot{};
     compat::i32 mouse_x{};
     compat::i32 mouse_y{};
@@ -1006,6 +1216,7 @@ enum class LegacyBattleFrameCoordinatorStatus : compat::u8 {
     input_return_three,
     temporary_surface_typed_stop,
     hud_typed_stop,
+    message_phase_typed_stop,
     color_accumulation_typed_stop,
     pre_frame_typed_stop,
     debug_hotkey_typed_stop,
@@ -1060,6 +1271,8 @@ struct LegacyBattleFrameCoordinatorResult {
     compat::u32 effect_coordinator_calls{};
     LegacyBattleHudFrameResult hud_frame{};
     compat::u32 hud_frame_calls{};
+    LegacyBattleMessagePhaseResult message_phase{};
+    compat::u32 message_phase_calls{};
     LegacyBattleFrameDrawResult fixed_frame{};
     compat::u32 fixed_frame_calls{};
     asset_runtime::LegacyActionUpdateResult panel_action_update{};

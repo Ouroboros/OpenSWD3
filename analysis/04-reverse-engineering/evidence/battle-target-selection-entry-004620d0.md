@@ -1,12 +1,12 @@
 # 战斗目标选择进入 `0x004620D0`
 
-状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_partially_reclaimed`。
+状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`。
 
 ## 1. 完整权威范围
 
 权威LST主体为`0x004620D0..0x0046231F`，从proc到endp共269行、157条实际指令、7个静态call、23个跳转、12个局部标签、7个`retn`，没有外部`FUNCTION CHUNK`。callee为既有队列完成查询、sample command、角色选择配置、两类目标扫描及三项角色动作查询边界；动作模式刷新与选择状态刷新callee均已关闭并直连typed实现。
 
-导航caller共有十三个静态callsite：已关闭逐帧输入分派十处，未关闭AI/action函数三处。逐帧输入分派的八个直接数字键callsite在typed循环中合并为两条业务分支，record2、record15和base confirm三处仍各自保留原调用时机。
+导航caller共有十三个静态callsite：已关闭逐帧输入分派十处，已关闭消息阶段分派三处。逐帧输入分派的八个直接数字键callsite在typed循环中合并为两条业务分支，record2、record15和base confirm三处仍各自保留原调用时机；消息100/103共用signed 150阈值、消息102独立signed 150阈值、消息104使用signed大于20阈值，三处均直连本实现并传播子stop。
 
 ## 2. 入口门与消息短路
 

@@ -87,6 +87,7 @@ void test_battle_menu_page_advance(openswd3::test::Context& test);
 void test_battle_menu_page_retreat(openswd3::test::Context& test);
 void test_battle_menu_selection_advance(openswd3::test::Context& test);
 void test_battle_menu_selection_retreat(openswd3::test::Context& test);
+void test_battle_message_phase(openswd3::test::Context& test);
 void test_battle_intensity_effect_frame(openswd3::test::Context& test);
 void test_battle_object_reset(openswd3::test::Context& test);
 void test_battle_outcome_finalization(openswd3::test::Context& test);
@@ -7074,6 +7075,7 @@ int main() {
     test_battle_menu_page_retreat(test);
     test_battle_menu_selection_advance(test);
     test_battle_menu_selection_retreat(test);
+    test_battle_message_phase(test);
     test_battle_frame_effect(test);
     test_battle_frame_refresh(test);
     test_battle_full_frame_darkening(test);

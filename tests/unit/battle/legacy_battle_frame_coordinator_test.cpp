@@ -950,8 +950,16 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                     LegacyBattleFrameCoordinatorCall::
                         reserved_pending_action_commit_slot
                 ) == 0U &&
-                result.effect_coordinator_calls == 1U,
-            "main frame directly composes completion and pending-action stages after actor frames without either old opaque call"
+                result.effect_coordinator_calls == 1U &&
+                result.message_phase_calls == 1U &&
+                result.message_phase.status ==
+                    openswd3::battle::LegacyBattleMessagePhaseStatus::
+                        completed &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        reserved_message_phase_slot
+                ) == 0U,
+            "main frame directly composes completion, pending-action and message-phase stages without their old opaque calls"
         );
     }
 
@@ -1089,6 +1097,51 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                     LegacyBattleFrameCoordinatorCall::post_render_stage_1
                 ) == 0U,
             "HUD typed stop propagates after fixed frame and blocks later render stages"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleFrameCoordinatorState state;
+        Fixture fixture;
+        CoordinatorPort port;
+        configure_common_port(port);
+        port.battle_message_state() = 0x63U;
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         message_phase_prepare_transition_control]
+            .publish_message_phase_control_words = true;
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         message_phase_prepare_transition_control]
+            .message_phase_control_words = 1U;
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         message_phase_query_actor_completion]
+            .eax = 0U;
+        auto context = fixture.context();
+
+        const auto result =
+            openswd3::battle::run_legacy_battle_frame_coordinator(
+                state, port, context, base_request()
+            );
+
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameCoordinatorStatus::
+                        message_phase_typed_stop &&
+                result.hud_frame_calls == 1U &&
+                result.message_phase_calls == 1U &&
+                result.message_phase.status ==
+                    openswd3::battle::LegacyBattleMessagePhaseStatus::
+                        action_profile_typed_stop &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::post_render_stage_1
+                ) == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        reserved_message_phase_slot
+                ) == 0U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::post_render_stage_3
+                ) == 0U,
+            "message-phase typed stop preserves HUD and the first post-render prefix while blocking every later stage"
         );
     }
 

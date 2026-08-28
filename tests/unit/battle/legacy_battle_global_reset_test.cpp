@@ -381,6 +381,12 @@ void seed_state(
     target.action_remap_gap.fill(9U);
     target.action_remap_suffix.fill(9U);
 
+    auto& message_phase = port.battle_message_phase_state();
+    message_phase.entry_list_gate = 9U;
+    message_phase.transition_mode_gate = 9U;
+    message_phase.group_b_bypass_gate = 9U;
+    message_phase.current_player_item_token = 9U;
+
     auto& selection_frame = port.battle_selection_frame_state();
     startup.action_mode_source.actor_label_indices.fill(9U);
     selection_frame.pointer_origin.fill(9U);
@@ -880,6 +886,11 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 startup.reset.records_524788[0].value_18 == 0U &&
                 startup.reset.value_53bf80 == 0U &&
                 startup.reset.value_53bfd0 == 0U &&
+                port.battle_message_phase_state().entry_list_gate == 9U &&
+                port.battle_message_phase_state().transition_mode_gate == 0U &&
+                port.battle_message_phase_state().group_b_bypass_gate == 0U &&
+                port.battle_message_phase_state().current_player_item_token ==
+                    0U &&
                 port.effect_coordinator_state()
                         .intensity_records[0]
                         .source_value == 0U &&
@@ -888,6 +899,8 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                         .lookup_key_b == 0U &&
                 state.unmapped_bytes.contains(0x0053BF80U) == false &&
                 state.unmapped_bytes.contains(0x0053BFD0U) == false &&
+                state.unmapped_bytes.contains(0x00524468U) == false &&
+                state.unmapped_bytes.contains(0x0053C004U) == false &&
                 startup.enemies[0].role_id == 0U &&
                 startup.party[0].role_id == 0U && startup.enemy_count == 0U &&
                 startup.party_count == 0U,
