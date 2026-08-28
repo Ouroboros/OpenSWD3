@@ -37,7 +37,7 @@ public:
     invoke(const LegacyBattleFrameCoordinatorCallRequest& request) override {
         calls.push_back(request);
         if (request.call ==
-                LegacyBattleFrameCoordinatorCall::post_render_stage_3 &&
+                LegacyBattleFrameCoordinatorCall::post_render_stage_1 &&
             publish_outcome_counts) {
             actor_metric_state().group_b_count = outcome_group_b_count;
             actor_metric_state().group_a_count = outcome_group_a_count;
@@ -197,11 +197,11 @@ public:
         .edx = 0x22220000U,
         .published_value = 0xFFFFFFFFU,
     };
+    u32 next_item_allocation_token{0x72000000U};
+    bool fail_item_allocation{};
     bool publish_outcome_counts{};
     u32 outcome_group_b_count{};
     u32 outcome_group_a_count{};
-    u32 next_item_allocation_token{0x72000000U};
-    bool fail_item_allocation{};
     std::optional<u32> completion_group_a_count_after_query;
     u32 temporary_surface_token{0x70000000U};
     u32 music_return{0x12345678U};
@@ -1008,9 +1008,12 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             "main frame message 100 leaves the retired victory reward slot unused"
         );
         test.expect_true(
-            port.count(LegacyBattleFrameCoordinatorCall::post_render_stage_3) ==
-                1U,
-            "main frame continues to the third post-render stage after victory rewards"
+            port.count(
+                LegacyBattleFrameCoordinatorCall::
+                    reserved_text_message_frame_slot
+            ) == 0U &&
+                result.text_message_frame_calls == 1U,
+            "main frame directly advances the shared text-message list after victory rewards"
         );
     }
     {
@@ -2083,8 +2086,10 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                         reserved_message_phase_slot
                 ) == 0U &&
                 port.count(
-                    LegacyBattleFrameCoordinatorCall::post_render_stage_3
-                ) == 0U,
+                    LegacyBattleFrameCoordinatorCall::
+                        reserved_text_message_frame_slot
+                ) == 0U &&
+                result.text_message_frame_calls == 0U,
             "message-phase typed stop preserves HUD and the first post-render prefix while blocking every later stage"
         );
     }

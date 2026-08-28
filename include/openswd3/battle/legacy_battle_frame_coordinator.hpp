@@ -19,6 +19,7 @@
 #include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
 #include "openswd3/battle/legacy_battle_input_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_message_phase.hpp"
+#include "openswd3/battle/legacy_battle_text_message_frame.hpp"
 #include "openswd3/battle/legacy_battle_outcome_resolution.hpp"
 #include "openswd3/battle/legacy_battle_pre_frame.hpp"
 #include "openswd3/battle/legacy_battle_selection_frame.hpp"
@@ -80,7 +81,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     actor_ready_query,
     post_render_stage_1,
     reserved_message_phase_slot,
-    post_render_stage_3,
+    reserved_text_message_frame_slot,
     reserved_post_dialog_stage_slot,
     reserved_debug_overlay_slot,
     reserved_outcome_resolution_slot,
@@ -231,6 +232,8 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     talisman_result_draw_success_detail,
     talisman_result_draw_failure_title,
     talisman_result_draw_failure_detail,
+    text_message_frame_draw_text,
+    text_message_frame_release_node,
 };
 
 struct LegacyBattleFrameCoordinatorCallRequest {
@@ -390,12 +393,31 @@ class LegacyBattleFrameCoordinatorPort
       public LegacyBattleFrameInputResolutionPort,
       public LegacyBattleSelectionFramePort,
       public LegacyBattleMessagePhasePort,
+      public LegacyBattleTextMessageFramePort,
       public virtual LegacyBattleEffectCoordinatorStatePort {
 public:
     using LegacyBattleEffectCallPort::invoke;
     using LegacyBattleOutcomeFinalizationPort::invoke;
 
     virtual ~LegacyBattleFrameCoordinatorPort() = default;
+
+    [[nodiscard]] LegacyBattleTextMessageFrameCallReply
+    invoke_text_message_frame(
+        const LegacyBattleTextMessageFrameCallRequest& request
+    ) override {
+        const auto call =
+            request.call == LegacyBattleTextMessageFrameCall::draw_text
+            ? LegacyBattleFrameCoordinatorCall::text_message_frame_draw_text
+            : LegacyBattleFrameCoordinatorCall::text_message_frame_release_node;
+        const auto reply = invoke({
+            .call = call,
+            .arguments = request.arguments,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        });
+        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
+    }
 
     [[nodiscard]] virtual LegacyBattleFrameCoordinatorCallReply
     invoke(const LegacyBattleFrameCoordinatorCallRequest& request) = 0;
@@ -1899,6 +1921,7 @@ struct LegacyBattleFrameCoordinatorRequest {
     compat::u32 message_phase_entry_ecx_snapshot{};
     compat::u32 message_phase_entry_edx_snapshot{};
     LegacyBattleVictoryRewardRequest victory_reward_request{};
+    LegacyBattleTextMessageFrameRequest text_message_frame_request{};
     LegacyBattleDebugStatusPanelRequest debug_status_panel_request{};
     compat::u32 debug_vitality_stack_snapshot{};
     compat::i32 mouse_x{};
@@ -1973,6 +1996,7 @@ enum class LegacyBattleFrameCoordinatorStatus : compat::u8 {
     temporary_surface_typed_stop,
     hud_typed_stop,
     message_phase_typed_stop,
+    text_message_frame_typed_stop,
     color_accumulation_typed_stop,
     pre_frame_typed_stop,
     debug_hotkey_typed_stop,
@@ -2029,6 +2053,8 @@ struct LegacyBattleFrameCoordinatorResult {
     compat::u32 hud_frame_calls{};
     LegacyBattleMessagePhaseResult message_phase{};
     compat::u32 message_phase_calls{};
+    LegacyBattleTextMessageFrameResult text_message_frame{};
+    compat::u32 text_message_frame_calls{};
     LegacyBattleFrameDrawResult fixed_frame{};
     compat::u32 fixed_frame_calls{};
     asset_runtime::LegacyActionUpdateResult panel_action_update{};

@@ -679,9 +679,36 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             LegacyBattleFrameCoordinatorStatus::message_phase_typed_stop;
         return result;
     }
-    static_cast<void>(invoke(
-        port, result, LegacyBattleFrameCoordinatorCall::post_render_stage_3
-    ));
+    result.text_message_frame = advance_legacy_battle_text_message_frame(
+        {
+            .messages = context.startup.text_messages,
+            .head_token = context.startup.reset.block_5214f8[0],
+            .freeze_gate = state.render_abort_latch,
+            .panel_action_record =
+                port.battle_victory_reward_state().panel_action_record,
+            .color_fade = port.battle_selection_frame_state()
+                              .selection_hint_frame.color_fade,
+            .framebuffer = context.frame_zero.framebuffer,
+            .clip = context.frame_zero.clip,
+            .raster = context.raster,
+            .shared_request = context.frame_zero.shared_request,
+            .shared_effects = context.frame_zero.shared_effects,
+            .jitter = context.frame_zero.jitter,
+            .action_updater = context.action_updater,
+            .frame_provider = context.frame_provider,
+            .pixel_conversion = context.pixel_conversion,
+        },
+        port,
+        request.text_message_frame_request
+    );
+    ++result.text_message_frame_calls;
+    result.port_calls += result.text_message_frame.port_calls;
+    if (result.text_message_frame.status !=
+        LegacyBattleTextMessageFrameStatus::completed) {
+        result.status =
+            LegacyBattleFrameCoordinatorStatus::text_message_frame_typed_stop;
+        return result;
+    }
 
     result.packed_rows = rendering::update_draw_legacy_packed_row_effects(
         context.packed_row_effects,
