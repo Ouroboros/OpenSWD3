@@ -85,6 +85,30 @@ signed_increment_modulo_two(const u32 value) noexcept {
     return std::bit_cast<u32>(incremented % 2);
 }
 
+class DebugTextMessageAdapter final : public LegacyBattleTextMessagePort {
+public:
+    explicit DebugTextMessageAdapter(LegacyBattleDebugHotkeyPort& port)
+        : port_(port) {}
+
+    [[nodiscard]] LegacyBattleTextMessageCallReply invoke_text_message(
+        const LegacyBattleTextMessageCallRequest& request
+    ) override {
+        const auto reply = port_.invoke_debug_hotkey({
+            .call = request.call == LegacyBattleTextMessageCall::allocate
+                ? LegacyBattleDebugHotkeyCall::text_message_allocate
+                : LegacyBattleDebugHotkeyCall::text_message_measure,
+            .arguments = {request.argument},
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        });
+        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
+    }
+
+private:
+    LegacyBattleDebugHotkeyPort& port_;
+};
+
 class Runner final {
 public:
     Runner(
@@ -104,6 +128,31 @@ public:
     void delay(const u32 milliseconds) {
         port_.delay_milliseconds(milliseconds);
         ++result_.delay_calls;
+    }
+
+    [[nodiscard]] bool display_text(const u32 text_token) {
+        DebugTextMessageAdapter text_port(port_);
+        result_.text_messages.push_back(enqueue_legacy_battle_text_message(
+            bindings_.startup.text_messages,
+            bindings_.startup.reset.block_5214f8[0U],
+            text_port,
+            {
+                .value_04 = 0x208U,
+                .value_08 = 10U,
+                .kind = 30U,
+                .text_token = text_token,
+                .flags = 2U,
+            }
+        ));
+        ++result_.text_message_calls;
+        const auto& message = result_.text_messages.back();
+        result_.port_calls += message.allocation_calls + message.measure_calls;
+        if (message.status != LegacyBattleTextMessageStatus::completed) {
+            result_.status =
+                LegacyBattleDebugHotkeyStatus::text_message_typed_stop;
+            return false;
+        }
+        return true;
     }
 
     [[nodiscard]] LegacyBattleDebugHotkeyCallReply invoke(
@@ -136,14 +185,6 @@ private:
     LegacyBattleDebugHotkeyPort& port_;
     LegacyBattleDebugHotkeyResult& result_;
 };
-
-void display_text(Runner& runner, const u32 text_token) {
-    static_cast<void>(runner.invoke(
-        LegacyBattleDebugHotkeyCall::display_text,
-        0U,
-        {0x208U, 10U, 30U, text_token, 2U}
-    ));
-}
 
 }  // namespace
 
@@ -183,7 +224,9 @@ LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
                 if (state.message_latch_53ceb8 == 0U) {
                     state.message_latch_53ceb8 = 1U;
                 }
-                display_text(runner, kMessageTextToken);
+                if (!runner.display_text(kMessageTextToken)) {
+                    return result;
+                }
             }
 
             if (runner.key(keyboard, 0x2CU) != 0U) {
@@ -382,7 +425,9 @@ LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
                 }
                 state.battle_mode_flags_53bc24 =
                     (state.battle_mode_flags_53bc24 & 0xFFFFFF00U) | low;
-                display_text(runner, text_token);
+                if (!runner.display_text(text_token)) {
+                    return result;
+                }
             }
 
             if (runner.key(keyboard, 0x11U) != 0U) {

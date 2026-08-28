@@ -112,6 +112,7 @@ add_library(
         legacy_battle_startup.cpp
         legacy_battle_surface_blend.cpp
         legacy_battle_talisman_result_panel.cpp
+        legacy_battle_text_message.cpp
         legacy_battle_text_panel.cpp
         legacy_battle_timing.cpp
         legacy_battle_transition.cpp

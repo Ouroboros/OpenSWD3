@@ -30,7 +30,7 @@ permission为1时写动作kind 6、pre-frame gate A 1和selection `1/2/3/4/6/7/8
 
 记录18节拍命中后依次检查阻断word、动作块门、角色重定向门、消息99/100和对话链。随后先以u32回绕计算`active actor-8`，再按组A stride计算对象token并查询状态；组B数量减排除低byte精确等于1且目标word非全1时也直接返回。
 
-active actor非零时再次查询对象。查询零或battle mode bit`0x200`置位时固定Sleep 20ms、显示五参数警告、以样本`0x8C`和live signed混音等级播放，并返回样本完整寄存器。
+active actor非零时再次查询对象。查询零或battle mode bit`0x200`置位时固定Sleep 20ms，以五参数直连共享文字消息入链，再以样本`0x8C`和live signed混音等级播放，并返回样本完整寄存器；文字typed-stop阻断样本及后续输入分支。
 
 允许撤退时固定Sleep 50ms，先写消息17；原地址`0x0053AF58[(active-8)*4]`折叠到唯一共享数组的物理`opponent_workspace[active+2]`并写17，再以`active-8`组Atoken调用角色配置；随后动态重读active并依次发布辅助门、secondary、消息0、动作word低word0、published `active-7`、阻断word bit`0x4000`、active0、pre-frame gate A 0、双frame gate 1和尾部`0/0/4`。workspace索引按u32回绕且只在原store typed-stop，消息17已经可见并且不调用角色配置。
 

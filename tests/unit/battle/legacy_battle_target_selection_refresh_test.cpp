@@ -17,6 +17,26 @@ using openswd3::compat::u32;
 class TargetRefreshPort final
     : public openswd3::battle::LegacyBattleInputDispatchPort {
 public:
+    [[nodiscard]] openswd3::battle::LegacyBattleInputDispatchCallReply
+    invoke_input_dispatch(
+        const openswd3::battle::LegacyBattleInputDispatchCallRequest& request
+    ) override {
+        input_calls.push_back(request);
+        if (request.call ==
+            openswd3::battle::LegacyBattleInputDispatchCall::
+                text_message_allocate) {
+            const u32 token = next_text_message_token;
+            next_text_message_token += 0x24U;
+            return {.eax = token};
+        }
+        if (request.call ==
+            openswd3::battle::LegacyBattleInputDispatchCall::
+                text_message_measure) {
+            return {.eax = 4U};
+        }
+        return {};
+    }
+
     [[nodiscard]] LegacyBattleTargetSelectionRuntimeCallReply
     invoke_target_selection_runtime(
         const LegacyBattleTargetSelectionRuntimeCallRequest& request
@@ -52,11 +72,15 @@ public:
         LegacyBattleTargetSelectionRuntimeCallReply>
         replies;
     std::vector<LegacyBattleTargetSelectionRuntimeCallRequest> calls;
+    std::vector<openswd3::battle::LegacyBattleInputDispatchCallRequest>
+        input_calls;
     std::vector<std::array<u32, 5>> samples;
+    u32 next_text_message_token{0x76000000U};
 };
 
 struct Fixture {
     openswd3::battle::LegacyBattleStartupResetBlocks startup;
+    openswd3::battle::LegacyBattleTextMessageState text_messages;
     u16 supplemental_count{};
     u32 mirror_mode{};
     openswd3::battle::LegacyBattleFrameInputResolutionState frame;
@@ -76,6 +100,7 @@ struct Fixture {
     bindings() {
         return {
             .startup_reset = startup,
+            .text_messages = text_messages,
             .startup_supplemental_count_word = supplemental_count,
             .startup_mirror_mode = mirror_mode,
             .frame_input_resolution = frame,

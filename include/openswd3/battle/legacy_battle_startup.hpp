@@ -8,6 +8,7 @@
 #include "openswd3/battle/legacy_battle_player_item_order.hpp"
 #include "openswd3/battle/legacy_battle_render_geometry.hpp"
 #include "openswd3/battle/legacy_battle_shared_phase.hpp"
+#include "openswd3/battle/legacy_battle_text_message.hpp"
 #include "openswd3/battle/legacy_battle_timing.hpp"
 #include "openswd3/compat/types.hpp"
 
@@ -224,6 +225,7 @@ struct LegacyBattleStartupState {
     LegacyBattleBackgroundState background{};
     LegacyBattleActionRotationCacheState background_rotation_cache{};
     LegacyBattleStartupResetBlocks reset{};
+    LegacyBattleTextMessageState text_messages{};
     compat::u16 battle_id_word{};
     std::array<compat::u8, 4> party_presence{};
     compat::u32 party_count{};

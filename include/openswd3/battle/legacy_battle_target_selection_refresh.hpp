@@ -10,6 +10,7 @@ namespace openswd3::battle {
 
 struct LegacyBattleTargetSelectionRefreshBindings {
     LegacyBattleStartupResetBlocks& startup_reset;
+    LegacyBattleTextMessageState& text_messages;
     compat::u16& startup_supplemental_count_word;
     compat::u32& startup_mirror_mode;
     LegacyBattleFrameInputResolutionState& frame_input_resolution;
@@ -41,6 +42,7 @@ enum class LegacyBattleTargetSelectionRefreshStatus : compat::u8 {
     target_marker_typed_stop,
     actor_result_word_typed_stop,
     input_record_typed_stop,
+    text_message_typed_stop,
     group_a_target_order_typed_stop,
 };
 
@@ -63,6 +65,8 @@ struct LegacyBattleTargetSelectionRefreshResult {
     compat::u32 group_b_target_cycle_calls{};
     compat::u32 input_record_prime_calls{};
     compat::u32 input_record_writes{};
+    std::vector<LegacyBattleTextMessageResult> text_messages;
+    compat::u32 text_message_calls{};
     LegacyBattleGroupATargetCycleResult group_a_target_cycle{};
     LegacyBattleGroupBTargetCycleResult group_b_target_cycle{};
 };

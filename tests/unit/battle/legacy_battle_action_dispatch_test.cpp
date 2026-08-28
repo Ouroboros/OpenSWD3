@@ -52,6 +52,20 @@ public:
         return default_reply;
     }
 
+    [[nodiscard]] openswd3::battle::LegacyBattleTextMessageCallReply
+    invoke_text_message(
+        const openswd3::battle::LegacyBattleTextMessageCallRequest& request
+    ) override {
+        text_message_calls.push_back(request);
+        if (request.call ==
+            openswd3::battle::LegacyBattleTextMessageCall::allocate) {
+            const u32 token = next_text_message_token;
+            next_text_message_token += 0x24U;
+            return {.eax = token, .edx = request.edx};
+        }
+        return {.eax = text_length};
+    }
+
     [[nodiscard]] openswd3::battle::LegacyBattleRetreatCommitCallReply
     invoke_retreat_commit(
         const openswd3::battle::LegacyBattleRetreatCommitCallRequest& request
@@ -83,6 +97,10 @@ public:
     LegacyBattleActionCallReply default_reply{.eax = 1U};
     std::unordered_map<u32, std::deque<LegacyBattleActionCallReply>> replies;
     std::vector<LegacyBattleActionCallRequest> calls;
+    std::vector<openswd3::battle::LegacyBattleTextMessageCallRequest>
+        text_message_calls;
+    u32 next_text_message_token{0x71000000U};
+    u32 text_length{4U};
     std::deque<openswd3::battle::LegacyBattleRetreatCommitCallReply>
         retreat_commit_replies;
     std::vector<openswd3::battle::LegacyBattleRetreatCommitCallRequest>
@@ -202,6 +220,7 @@ struct Fixture {
     std::array<u8, 16> flags{};
     CountdownFlags countdown_flags{flags};
     openswd3::battle::LegacyBattleStartupResetBlocks startup_reset;
+    openswd3::battle::LegacyBattleTextMessageState text_messages;
     std::array<openswd3::battle::LegacyBattleStartupResetRecord, 0x12>
         attack_order_records{};
     std::array<u32, 0x32> attack_order_party_sources{};
@@ -233,6 +252,7 @@ struct Fixture {
             .countdown_flags = countdown_flags,
             .internal_flags = flags,
             .startup_reset = &startup_reset,
+            .text_messages = &text_messages,
             .attack_order_records = attack_order_records,
             .attack_order_party_sources = attack_order_party_sources,
             .attack_order_primary_gate = &attack_order_primary_gate,
@@ -542,7 +562,11 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 state.current_actor_index == 0xFFFFU &&
                 state.selected_target_index == 0xFFFFU &&
                 state.frame_effect.fade_active == 1U &&
-                port.count(0x00485610U) == 1U && port.count(0x004698E0U) == 1U,
+                port.count(0x00485610U) == 1U &&
+                result.text_message_calls == 1U &&
+                fixture.startup_reset.block_5214f8[0U] == 0x71000000U &&
+                fixture.text_messages.allocations[0U].record.text_token ==
+                    0x004A77F0U,
             "phase six countdown reaches two emits selected message and clears visual phase state"
         );
     }

@@ -86,7 +86,9 @@ enum class LegacyBattleTransitionCall : compat::u16 {
     prepare_actor_message,
     reset_actor_message,
     refresh_actor_message,
-    emit_message,
+    reserved_emit_message_slot,
+    text_message_allocate,
+    text_message_measure,
 };
 
 struct LegacyBattleTransitionCallRequest {
@@ -172,6 +174,7 @@ enum class LegacyBattleTransitionStatus : compat::u8 {
     surface_blend_typed_stop,
     frame_effect_typed_stop,
     hud_typed_stop,
+    text_message_typed_stop,
     actor_order_typed_stop,
     actor_frame_typed_stop,
     attack_order_typed_stop,
@@ -214,6 +217,8 @@ struct LegacyBattleTransitionResult {
     compat::u32 prepared_party_actors{};
     compat::u32 rare_slot_writes{};
     compat::u32 refreshed_enemy_actors{};
+    LegacyBattleTextMessageResult text_message{};
+    compat::u32 text_message_calls{};
     bool message_emitted{};
     compat::u32 return_value{};
 };

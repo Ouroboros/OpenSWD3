@@ -42,17 +42,40 @@ LegacyBattleRetreatCommitResult commit_legacy_battle_retreat(
     result.mode_bit_blocked = (mode_flags & 0x00000200U) != 0U;
     if (result.primary_actor.eax == 0U || result.mode_bit_blocked) {
         result.branch = LegacyBattleRetreatCommitBranch::warning;
-        result.warning_text = port.invoke_retreat_commit({
-            .call = LegacyBattleRetreatCommitCall::display_warning,
-            .arguments = {
-                0x0118U,
-                0x000AU,
-                0x0032U,
-                kLegacyBattleRetreatCommitWarningTextToken,
-                0x40000002U,
-            },
-        });
-        ++result.port_calls;
+        if (bindings.text_messages == nullptr ||
+            bindings.text_message_head == nullptr) {
+            result.status =
+                LegacyBattleRetreatCommitStatus::text_message_typed_stop;
+            return result;
+        }
+        result.warning_text = enqueue_legacy_battle_text_message(
+            *bindings.text_messages,
+            *bindings.text_message_head,
+            port,
+            {
+                .value_04 = 0x0118U,
+                .value_08 = 0x000AU,
+                .kind = 0x0032U,
+                .text_token = kLegacyBattleRetreatCommitWarningTextToken,
+                .flags = 0x40000002U,
+                .entry = {
+                    .eax = result.primary_actor.eax,
+                    .ecx = result.primary_actor.ecx,
+                    .edx = result.primary_actor.edx,
+                },
+            }
+        );
+        result.port_calls += result.warning_text.allocation_calls +
+            result.warning_text.measure_calls;
+        if (result.warning_text.status !=
+            LegacyBattleTextMessageStatus::completed) {
+            result.status =
+                LegacyBattleRetreatCommitStatus::text_message_typed_stop;
+            result.return_value = result.warning_text.return_registers.eax;
+            result.final_ecx = result.warning_text.return_registers.ecx;
+            result.final_edx = result.warning_text.return_registers.edx;
+            return result;
+        }
         result.warning_sample = port.invoke_retreat_commit({
             .call = LegacyBattleRetreatCommitCall::play_warning_sample,
             .arguments = {

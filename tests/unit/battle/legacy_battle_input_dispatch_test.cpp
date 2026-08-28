@@ -25,7 +25,20 @@ public:
             battle_input_dispatch_state().selected_option_word
         );
         const auto found = replies.find(request.call);
-        return found == replies.end() ? default_reply : found->second;
+        if (found != replies.end()) {
+            return found->second;
+        }
+        if (request.call ==
+            LegacyBattleInputDispatchCall::text_message_allocate) {
+            const u32 token = next_text_message_token;
+            next_text_message_token += 0x24U;
+            return {.eax = token, .edx = request.edx};
+        }
+        if (request.call ==
+            LegacyBattleInputDispatchCall::text_message_measure) {
+            return {.eax = 4U};
+        }
+        return default_reply;
     }
 
     void delay_input_milliseconds(const u32 milliseconds) override {
@@ -62,6 +75,7 @@ public:
     };
     std::vector<u32> delays;
     std::vector<std::array<u32, 2>> samples;
+    u32 next_text_message_token{0x74000000U};
 };
 
 struct Fixture {
@@ -77,6 +91,7 @@ struct Fixture {
 
     u32 render_abort{};
     openswd3::battle::LegacyBattleStartupResetBlocks startup;
+    openswd3::battle::LegacyBattleTextMessageState text_messages;
     openswd3::battle::LegacyBattleActionModeSourceState action_mode_source;
     std::array<openswd3::compat::u8, 4> party_presence{};
     u32 startup_mode_flags{};
@@ -104,6 +119,7 @@ struct Fixture {
         return {
             .render_abort_latch = render_abort,
             .startup_reset = startup,
+            .text_messages = text_messages,
             .action_mode_source = action_mode_source,
             .startup_party_presence = party_presence,
             .startup_mode_flags = startup_mode_flags,
@@ -282,13 +298,17 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
         test.expect_true(
             result.returned_early &&
                 fixture.port.delays == std::vector<u32>{20U} &&
+                result.text_message_calls == 1U &&
                 fixture.port.count(
-                    LegacyBattleInputDispatchCall::display_retreat_warning
+                    LegacyBattleInputDispatchCall::text_message_allocate
                 ) == 1U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::text_message_measure
+                ) == 1U &&
+                fixture.startup.block_5214f8[0U] == 0x74000000U &&
                 fixture.port.samples ==
                     std::vector<std::array<u32, 2>>{{0x8CU, 0xFFFFFFF9U}} &&
-                result.return_eax == 0x11111112U &&
-                result.return_ecx == 0x22222224U &&
+                result.return_eax == 1U && result.return_ecx == 0x005214FAU &&
                 result.return_edx == 0xFFFFFFFCU,
             "blocked retreat preserves the 20ms warning, text request, signed mix level, and sample tail"
         );

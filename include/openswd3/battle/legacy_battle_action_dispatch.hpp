@@ -16,6 +16,7 @@
 #include "openswd3/battle/legacy_battle_scale_scan.hpp"
 #include "openswd3/battle/legacy_battle_shared_phase.hpp"
 #include "openswd3/battle/legacy_battle_status_indicator.hpp"
+#include "openswd3/battle/legacy_battle_text_message.hpp"
 #include "openswd3/compat/types.hpp"
 #include "openswd3/rendering/legacy_countdown.hpp"
 #include "openswd3/world_map/legacy_world_item_lifecycle.hpp"
@@ -81,6 +82,22 @@ public:
 
     [[nodiscard]] virtual LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) = 0;
+
+    [[nodiscard]] LegacyBattleTextMessageCallReply invoke_text_message(
+        const LegacyBattleTextMessageCallRequest& request
+    ) override {
+        LegacyBattleActionCallRequest call_request{};
+        call_request.callee_token =
+            request.call == LegacyBattleTextMessageCall::allocate
+            ? kLegacyBattleTextMessageAllocateCallToken
+            : kLegacyBattleTextMessageLengthCallToken;
+        call_request.arguments[0U] = request.argument;
+        call_request.eax = request.eax;
+        call_request.ecx = request.ecx;
+        call_request.edx = request.edx;
+        const auto reply = invoke(call_request);
+        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
+    }
 };
 
 struct LegacyBattleOpponentRecord {
@@ -203,6 +220,7 @@ struct LegacyBattleActionDispatchContext {
     rendering::LegacyCountdownFlagPorts& countdown_flags;
     std::span<compat::u8> internal_flags;
     LegacyBattleStartupResetBlocks* startup_reset{};
+    LegacyBattleTextMessageState* text_messages{};
     std::span<LegacyBattleStartupResetRecord> attack_order_records;
     std::span<compat::u32> attack_order_party_sources;
     compat::u32* attack_order_primary_gate{};
@@ -235,6 +253,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     final_actor_record_typed_stop,
     final_actor_descriptor_typed_stop,
     player_item_typed_stop,
+    text_message_typed_stop,
     actor_target_preparation_typed_stop,
     attack_order_typed_stop,
     attack_order_insert_typed_stop,
@@ -259,6 +278,8 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 action_record_clear_calls{};
     LegacyBattlePlayerItemQuantityResult player_item{};
     compat::u32 player_item_calls{};
+    std::vector<LegacyBattleTextMessageResult> text_messages;
+    compat::u32 text_message_calls{};
     compat::u32 actor_target_preparation_calls{};
     LegacyBattlePairTransitionResult pair_transition{};
     compat::u32 pair_transition_calls{};

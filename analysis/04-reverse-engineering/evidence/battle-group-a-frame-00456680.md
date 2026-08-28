@@ -170,7 +170,8 @@ bit`0x4000`阶段结束后会在同一次调用重读turn word，因此成功写
 
 - `0x004539B0`已直接回收为typed动作主分派；
 - `0x0045EE70`已直接回收为typed攻击顺序插入；
-- 其余44个角色、AI、选择、文本、sample和数值callee继续使用单一typed token端口。
+- `0x004698E0`的三处调用已直接回收为typed文字消息入链；
+- 其余43个角色、AI、选择、文本、sample和数值callee继续使用单一typed token端口。
 
 所有对象地址、one-based目标、固定前一槽、scene与文本地址均为`compat::u32` token，不转主机指针。
 
@@ -199,6 +200,6 @@ Typed-stop只位于：
 - turn `0x4000→0x8000→0`同调用穿透；
 - resolved word54最大值、stale turn参数与失败尾；
 - queue code小于8的派生对象停点；
-- 46个唯一callee全部存在，其中2个typed直连、44个端口边界。
+- 46个唯一callee全部存在，其中3个typed直连、43个端口边界。
 
-当前缺少原版组A/B对象、44类剩余callee共享副作用、攻击顺序/队员暂存动态轨迹、AI/选择/队列表、text/sample、resolved target内存与回合状态联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版组A/B对象、43类剩余callee共享副作用、攻击顺序/队员暂存动态轨迹、AI/选择/队列表、text/sample、resolved target内存与回合状态联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

@@ -4,6 +4,7 @@
 #include "openswd3/battle/legacy_battle_debug_state.hpp"
 #include "openswd3/battle/legacy_battle_outcome_state.hpp"
 #include "openswd3/battle/legacy_battle_shared_phase.hpp"
+#include "openswd3/battle/legacy_battle_text_message.hpp"
 #include "openswd3/compat/types.hpp"
 
 #include <array>
@@ -46,8 +47,10 @@ private:
 enum class LegacyBattleRetreatCommitCall : compat::u8 {
     query_selected_actor_ready,
     query_primary_actor_state,
-    display_warning,
+    reserved_display_warning_slot,
     play_warning_sample,
+    text_message_allocate,
+    text_message_measure,
 };
 
 struct LegacyBattleRetreatCommitCallRequest {
@@ -73,7 +76,8 @@ class LegacyBattleRetreatCommitPort
       public virtual LegacyBattleDebugHotkeyStatePort,
       public virtual LegacyBattleDebugOverlayGateStatePort,
       public virtual LegacyBattleOutcomeResolutionStatePort,
-      public virtual LegacyBattleSharedPhaseStatePort {
+      public virtual LegacyBattleSharedPhaseStatePort,
+      public virtual LegacyBattleTextMessagePort {
 public:
     virtual ~LegacyBattleRetreatCommitPort() = default;
 
@@ -83,6 +87,21 @@ public:
         return {};
     }
 
+    [[nodiscard]] LegacyBattleTextMessageCallReply invoke_text_message(
+        const LegacyBattleTextMessageCallRequest& request
+    ) override {
+        const auto reply = invoke_retreat_commit({
+            .call = request.call == LegacyBattleTextMessageCall::allocate
+                ? LegacyBattleRetreatCommitCall::text_message_allocate
+                : LegacyBattleRetreatCommitCall::text_message_measure,
+            .arguments = {request.argument},
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        });
+        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
+    }
+
     [[nodiscard]] virtual compat::i32 battle_sample_mix_level() const noexcept {
         return 6;
     }
@@ -90,6 +109,8 @@ public:
 
 struct LegacyBattleRetreatCommitBindings {
     compat::u32& packed_actor_counter;
+    LegacyBattleTextMessageState* text_messages{};
+    compat::u32* text_message_head{};
 };
 
 enum class LegacyBattleRetreatCommitBranch : compat::u8 {
@@ -98,13 +119,21 @@ enum class LegacyBattleRetreatCommitBranch : compat::u8 {
     committed,
 };
 
+enum class LegacyBattleRetreatCommitStatus : compat::u8 {
+    completed,
+    text_message_typed_stop,
+};
+
 struct LegacyBattleRetreatCommitResult {
+    LegacyBattleRetreatCommitStatus status{
+        LegacyBattleRetreatCommitStatus::completed
+    };
     LegacyBattleRetreatCommitBranch branch{
         LegacyBattleRetreatCommitBranch::selected_actor_not_ready
     };
     LegacyBattleRetreatCommitCallReply selected_actor{};
     LegacyBattleRetreatCommitCallReply primary_actor{};
-    LegacyBattleRetreatCommitCallReply warning_text{};
+    LegacyBattleTextMessageResult warning_text{};
     LegacyBattleRetreatCommitCallReply warning_sample{};
     compat::u32 selected_object_token{};
     compat::u32 return_value{};

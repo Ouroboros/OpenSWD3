@@ -26,6 +26,30 @@ using compat::u32;
 inline constexpr u32 kKeyboardToken = 0x004B8748U;
 inline constexpr u32 kWorkspaceActorOffset = 2U;
 
+class InputTextMessageAdapter final : public LegacyBattleTextMessagePort {
+public:
+    explicit InputTextMessageAdapter(LegacyBattleInputDispatchPort& port)
+        : port_(port) {}
+
+    [[nodiscard]] LegacyBattleTextMessageCallReply invoke_text_message(
+        const LegacyBattleTextMessageCallRequest& request
+    ) override {
+        const auto reply = port_.invoke_input_dispatch({
+            .call = request.call == LegacyBattleTextMessageCall::allocate
+                ? LegacyBattleInputDispatchCall::text_message_allocate
+                : LegacyBattleInputDispatchCall::text_message_measure,
+            .arguments = {request.argument},
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        });
+        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
+    }
+
+private:
+    LegacyBattleInputDispatchPort& port_;
+};
+
 [[nodiscard]] constexpr i32 signed_bits(const u32 value) noexcept {
     return std::bit_cast<i32>(value);
 }
@@ -52,6 +76,7 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
 ) {
     LegacyBattleInputDispatchResult result;
     auto& state = port.battle_input_dispatch_state();
+    InputTextMessageAdapter text_message_port(port);
     u32 eax = bindings.render_abort_latch;
     u32 ecx = request.entry_ecx;
     u32 edx = request.entry_edx;
@@ -279,6 +304,7 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
         const auto nested = enter_legacy_battle_target_selection(
             {
                 .startup_reset = bindings.startup_reset,
+                .text_messages = bindings.text_messages,
                 .action_mode_source = bindings.action_mode_source,
                 .startup_party_presence = bindings.startup_party_presence,
                 .startup_mode_flags = bindings.startup_mode_flags,
@@ -644,15 +670,35 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
                      0x200U) != 0U) {
                     port.delay_input_milliseconds(20U);
                     ++result.delay_calls;
-                    static_cast<void>(call(
-                        LegacyBattleInputDispatchCall::display_retreat_warning,
-                        {0x118U,
-                         10U,
-                         5U,
-                         kLegacyBattleInputWarningTextToken,
-                         0x40000002U}
-                    ));
-                    ++result.port_calls;
+                    result.text_messages.push_back(
+                        enqueue_legacy_battle_text_message(
+                            bindings.text_messages,
+                            bindings.startup_reset.block_5214f8[0U],
+                            text_message_port,
+                            {
+                                .value_04 = 0x118U,
+                                .value_08 = 10U,
+                                .kind = 5U,
+                                .text_token =
+                                    kLegacyBattleInputWarningTextToken,
+                                .flags = 0x40000002U,
+                                .entry = {.eax = eax, .ecx = ecx, .edx = edx},
+                            }
+                        )
+                    );
+                    ++result.text_message_calls;
+                    const auto& warning = result.text_messages.back();
+                    result.port_calls +=
+                        warning.allocation_calls + warning.measure_calls;
+                    eax = warning.return_registers.eax;
+                    ecx = warning.return_registers.ecx;
+                    edx = warning.return_registers.edx;
+                    if (warning.status !=
+                        LegacyBattleTextMessageStatus::completed) {
+                        result.status = LegacyBattleInputDispatchStatus::
+                            text_message_typed_stop;
+                        return result;
+                    }
                     edx = std::bit_cast<u32>(state.sample_mix_level);
                     const auto sample = port.play_input_sample(
                         kLegacyBattleInputWarningSample,

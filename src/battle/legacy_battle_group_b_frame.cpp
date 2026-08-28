@@ -36,7 +36,6 @@ constexpr u32 kCallSetActionMode = 0x00478710U;
 constexpr u32 kCallPublishStatusMode = 0x0047D860U;
 constexpr u32 kCallQuerySpecialAction = 0x0047D880U;
 constexpr u32 kCallQueryPhaseMode = 0x0047D8D0U;
-constexpr u32 kCallDisplayText = 0x004698E0U;
 constexpr u32 kCallQueryStatusSequence = 0x00480220U;
 constexpr u32 kCallQueryOpponentSwitch = 0x00476140U;
 constexpr u32 kCallQuerySignedStatus = 0x004761D0U;
@@ -126,6 +125,40 @@ void replace_low_byte(u32& destination, const u8 value) noexcept {
     std::copy(arguments.begin(), arguments.end(), request.arguments.begin());
     ++result.port_calls;
     return port.invoke(request);
+}
+
+[[nodiscard]] bool publish_text_message(
+    LegacyBattleActionDispatchContext& context,
+    LegacyBattleActionDispatchPort& port,
+    LegacyBattleActionDispatchResult& result,
+    const std::array<u32, 5>& arguments
+) {
+    if (context.startup_reset == nullptr || context.text_messages == nullptr) {
+        result.status =
+            LegacyBattleActionDispatchStatus::text_message_typed_stop;
+        return false;
+    }
+    result.text_messages.push_back(enqueue_legacy_battle_text_message(
+        *context.text_messages,
+        context.startup_reset->block_5214f8[0U],
+        port,
+        {
+            .value_04 = arguments[0U],
+            .value_08 = arguments[1U],
+            .kind = static_cast<u16>(arguments[2U]),
+            .text_token = arguments[3U],
+            .flags = arguments[4U],
+        }
+    ));
+    ++result.text_message_calls;
+    const auto& message = result.text_messages.back();
+    result.port_calls += message.allocation_calls + message.measure_calls;
+    if (message.status != LegacyBattleTextMessageStatus::completed) {
+        result.status =
+            LegacyBattleActionDispatchStatus::text_message_typed_stop;
+        return false;
+    }
+    return true;
 }
 
 [[nodiscard]] bool publish_player_item_quantity(
@@ -640,18 +673,20 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                 static_cast<u16>(group_b_index);
                             if (state.opponent_text_present[group_b_index] !=
                                 0U) {
-                                static_cast<void>(invoke(
-                                    port,
-                                    result,
-                                    kCallDisplayText,
-                                    {0x118U,
-                                     0U,
-                                     0x28U,
-                                     state.opponent_text_token_base +
-                                         group_b_index *
-                                             kLegacyBattleActionGroupBStride,
-                                     0x40U}
-                                ));
+                                if (!publish_text_message(
+                                        context,
+                                        port,
+                                        result,
+                                        {0x118U,
+                                         0U,
+                                         0x28U,
+                                         state.opponent_text_token_base +
+                                             group_b_index *
+                                                 kLegacyBattleActionGroupBStride,
+                                         0x40U}
+                                    )) {
+                                    return result;
+                                }
                             }
                         }
                         if ((status & 0x2000U) != 0U) {
@@ -818,18 +853,20 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                             }
                             if (state.opponent_text_present[group_b_index] !=
                                 0U) {
-                                static_cast<void>(invoke(
-                                    port,
-                                    result,
-                                    kCallDisplayText,
-                                    {0x118U,
-                                     0U,
-                                     0x28U,
-                                     state.opponent_text_token_base +
-                                         group_b_index *
-                                             kLegacyBattleActionGroupBStride,
-                                     0x40U}
-                                ));
+                                if (!publish_text_message(
+                                        context,
+                                        port,
+                                        result,
+                                        {0x118U,
+                                         0U,
+                                         0x28U,
+                                         state.opponent_text_token_base +
+                                             group_b_index *
+                                                 kLegacyBattleActionGroupBStride,
+                                         0x40U}
+                                    )) {
+                                    return result;
+                                }
                             }
                         }
                         if (invoke(

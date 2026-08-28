@@ -61,8 +61,8 @@ message 200先发布完整重置前缀，再按live group-B/group-A count清对�
 
 新增target-selection runtime owner只承接尚未建模的物理状态；完整LST交叉扫描确认`0x0053BCEC`继续是既有共享message owner，本函数、战斗启动与最终角色步进均复用该单一存储，global reset按原写集合清零。已提交角色改为复用debug状态内`0x0053BD50`唯一owner，不再保留runtime副本；message、queued/published角色、动作workspace、角色五dword记录、菜单缓存、计数、镜像、补充人数与startup尾dword继续复用既有唯一owner。`0x0053BFBC`统一复用final-actor pre-frame gate B，选择帧不再保留第二份suppression存储。global reset按原234项写程序只清真实覆盖字节：未被reset写到的重映射、transition和数组尾部保持原值。
 
-目标选择进入函数原刷新槽保留相同枚举数值并改为reserved，ready不足或queued短路时直接调用本实现。默认组B目标和alternate组A目标两个原opaque槽也各自保留reserved数值；全部reserved槽生产代码零调用。三类子typed-stop均按原caller返回并阻断各自输入、message或动画尾路径。
+目标选择进入函数原刷新槽保留相同枚举数值并改为reserved，ready不足或queued短路时直接调用本实现。默认组B目标和alternate组A目标两个原opaque槽也各自保留reserved数值；全部reserved槽生产代码零调用。两处提示文字已在原调用位置直连共享文字消息入链，并复用启动状态唯一链头与动态节点owner；原文字槽只保留reserved数值。各类子typed-stop均按原caller返回并阻断各自输入、message或动画尾路径。
 
 定向测试覆盖主跳表默认域、message 1阈值与物理重映射、live共享message门、组A/组B轮转及子typed-stop、动作5前缀停点、hovered 2/4、message 3提交与第九个group-B对象、message 5效果物理视图、message 7完整轮转/发布/记录尾部与第九项target map、message 8/27/30、98/101的AL行为、100/102–104、111–113的阈值差异、110符号扩展、200重置前缀、global reset字节范围以及唯一caller传播。
 
-当前缺少原版两组角色对象、23类callee共享副作用、动态栈scratch地址、target map/效果workspace完整动态内容、transition动画后端及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版两组角色对象、22类callee共享副作用、动态栈scratch地址、target map/效果workspace完整动态内容、transition动画后端及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

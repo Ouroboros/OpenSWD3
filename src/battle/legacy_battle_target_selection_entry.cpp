@@ -119,6 +119,7 @@ LegacyBattleTargetSelectionEntryResult enter_legacy_battle_target_selection(
         const auto nested = refresh_legacy_battle_target_selection(
             {
                 .startup_reset = bindings.startup_reset,
+                .text_messages = bindings.text_messages,
                 .startup_supplemental_count_word =
                     bindings.startup_supplemental_count_word,
                 .startup_mirror_mode = bindings.startup_mirror_mode,

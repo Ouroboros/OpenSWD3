@@ -61,6 +61,13 @@ public:
                 random_values.pop_front();
             }
             break;
+        case LegacyBattleTransitionCall::text_message_allocate:
+            reply.return_value = next_text_message_token;
+            next_text_message_token += 0x24U;
+            break;
+        case LegacyBattleTransitionCall::text_message_measure:
+            reply.return_value = 4U;
+            break;
         case LegacyBattleTransitionCall::query_actor_mode: {
             const auto found = actor_mode_returns.find(request.arguments[0]);
             reply.return_value = found == actor_mode_returns.end()
@@ -234,6 +241,7 @@ public:
     u32 allocation_count{};
     u32 conversion_count{};
     u32 temporary_count{};
+    u32 next_text_message_token{0x79000000U};
     u32 next_lock_token{1U};
     u32 music_gate_return{};
     u32 music_start_return{0xABCDEF01U};
@@ -563,8 +571,12 @@ void test_battle_transition(openswd3::test::Context& test) {
                 result.prepared_party_actors == 2U &&
                 result.refreshed_enemy_actors == 0U && result.message_emitted &&
                 startup.mode_flags == 0x80U && result.return_value == 0x80U &&
-                ports.call_count(LegacyBattleTransitionCall::emit_message) ==
-                    1U,
+                result.text_message_calls == 1U &&
+                result.text_message.appended &&
+                startup.reset.block_5214f8[0U] == 0x79000000U &&
+                ports.call_count(
+                    LegacyBattleTransitionCall::reserved_emit_message_slot
+                ) == 0U,
             "mode two transition and first rare branch preserve enemy gate party refresh and message latch"
         );
     }

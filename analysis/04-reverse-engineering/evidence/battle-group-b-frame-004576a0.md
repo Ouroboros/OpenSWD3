@@ -165,7 +165,7 @@ pending effect ID非全1时调用pending step `(source,shared_argument,index)`�
 
 ## 12. callee、测试与动态差分
 
-46个唯一callee中，已关闭对手动作分派`0x00455D60`、玩家道具双数量步进`0x0045D180`与攻击顺序登记`0x0045EDF0`直接typed组合；其余43个角色、AI、状态、文本、完成资源和效果callee继续使用共享typed token端口。
+46个唯一callee中，已关闭对手动作分派`0x00455D60`、玩家道具双数量步进`0x0045D180`、攻击顺序登记`0x0045EDF0`和文字消息入链`0x004698E0`直接typed组合；文字消息的两处调用复用启动状态唯一链头和动态节点owner。其余42个角色、AI、状态、文本、完成资源和效果callee继续使用共享typed token端口。
 
 定向测试覆盖：
 
@@ -183,4 +183,4 @@ pending effect ID非全1时调用pending step `(source,shared_argument,index)`�
 - pending effect及final actor成功尾；
 - profile真实访问typed-stop。
 
-当前缺少原版组A/B对象、43类剩余callee共享副作用、攻击顺序动态记录、随机状态、AI/packed-status表、completion表、文本、资源surface及陈旧寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版组A/B对象、42类剩余callee共享副作用、攻击顺序动态记录、随机状态、AI/packed-status表、completion表、文本、资源surface及陈旧寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

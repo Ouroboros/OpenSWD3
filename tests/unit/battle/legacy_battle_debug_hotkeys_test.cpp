@@ -24,6 +24,15 @@ public:
         const LegacyBattleDebugHotkeyCallRequest& request
     ) override {
         calls.push_back(request);
+        if (request.call ==
+            LegacyBattleDebugHotkeyCall::text_message_allocate) {
+            const u32 token = next_text_message_token;
+            next_text_message_token += 0x24U;
+            return {.eax = token};
+        }
+        if (request.call == LegacyBattleDebugHotkeyCall::text_message_measure) {
+            return {.eax = 4U};
+        }
         if (replies.empty()) {
             return {};
         }
@@ -48,6 +57,7 @@ public:
     std::vector<LegacyBattleDebugHotkeyCallRequest> calls;
     std::deque<LegacyBattleDebugHotkeyCallReply> replies;
     std::vector<u32> delays;
+    u32 next_text_message_token{0x78000000U};
 };
 
 struct Fixture {
@@ -204,7 +214,9 @@ void test_battle_debug_hotkeys(openswd3::test::Context& test) {
                 state.battle_mode_flags_53bc24 == 0xABCD0002U &&
                 result.delay_calls == 4U &&
                 port.delays == std::vector<u32>{200U, 200U, 200U, 200U} &&
-                port.count(LegacyBattleDebugHotkeyCall::display_text) == 2U,
+                result.text_message_calls == 2U &&
+                fixture.startup.reset.block_5214f8[0U] == 0x78000000U &&
+                fixture.startup.text_messages.allocations.size() == 2U,
             "control toggles preserve blocking delays speed signed modulo and low-byte text bit updates"
         );
     }

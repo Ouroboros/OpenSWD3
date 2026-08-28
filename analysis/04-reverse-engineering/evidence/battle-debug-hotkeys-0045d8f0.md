@@ -107,7 +107,7 @@ H、J、P不受调试总门或Control约束，且固定在Control块之后执行
 
 全局重置同步清本函数已映射且属于原固定写集合的状态，未写入的F1/X/K/F9/F2/P开关保持入口值。
 
-逐帧协调器删除第六个前置opaque完成门并直接组合本函数；子返回0保留音乐、前置stage、角色预处理、metric和顺序副作用，然后在surface lock前返回。typed-stop也在同一点阻断后续surface、选择、绘制、输入和截图阶段。
+逐帧协调器删除第六个前置opaque完成门并直接组合本函数；子返回0保留音乐、前置stage、角色预处理、metric和顺序副作用，然后在surface lock前返回。typed-stop也在同一点阻断后续surface、选择、绘制、输入和截图阶段。F9和F2的两处文字发布已在原调用点直连共享文字消息入链，原文字槽只保留reserved枚举值。
 
 ## 8. 测试与动态差分
 
@@ -115,4 +115,4 @@ H、J、P不受调试总门或Control约束，且固定在Control块之后执行
 
 定向测试`1/1`、独立AddressSanitizer `1/1`、Linux core `188/188`与Linux app `194/194`全部通过；battle聚合源码零warning，app仅保留SDL上游缺少ALSA开发库的既定CMake环境提示。
 
-当前缺少原版完整键盘轨迹、12类剩余callee对象状态、Sleep墙钟、音频/文字/角色副作用与全部共享全局联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版完整键盘轨迹、11类剩余callee对象状态、Sleep墙钟、音频/文字/角色副作用与全部共享全局联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

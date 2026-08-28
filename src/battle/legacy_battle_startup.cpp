@@ -61,6 +61,7 @@ void reset_startup_blocks(
     reset.value_4ff0b4 = 0U;
     reset.value_4fe5d0 = 0U;
     reset.block_5214f8.fill(0U);
+    state.text_messages.allocations.clear();
     reset.value_4ff0b8 = 0U;
     reset.block_524268.fill(0U);
     reset.value_524414 = 0U;

@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v747
+版本：v748
 
 最后更新：2026-08-25
 
@@ -4110,4 +4110,6 @@ B7 P0 有限收口完成。
 
 `audit_order=158`的`0x00469650`已关闭为`platform_adapted`。完整权威LST主体`0x00469650..0x004698D8`共283行、196条实际指令、18个静态call、7个跳转、6个标签、1个返回点且无外部chunk。函数以调试位`0x20`为唯一门；开启后复用胜利奖励唯一动作记录，按三次live stage读取绘制动态矩形、固定标题框、profile标题和动态主体框。随后直连已关闭stage推进`base=122,target=302,divisor=3`，仅返回EAX 1时访问profile `+0x92`九个i8状态。九行固定标签按20像素间距绘制，零/正/负/小于`-10`保留各自颜色、死局部格式化、float乘法与x87向零宽度；深负值在普通负值颜色/格式/宽度完成后再次覆盖，未折叠副作用。正常尾保留EAX 0、标签表尾EDX和最后渐变ECX。动态profile token与九byte快照由目标选择runtime唯一承接，动作记录、颜色渐变和共享stage均复用既有owner。主帧在对话后、双倒计时前直连，旧post-dialog槽reserved且生产零调用，子stop阻断倒计时和全部帧尾。定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过，源码构建零warning；app仅有既有ALSA开发库CMake提示。候选工作包为`158/422 = 151 platform_adapted + 7 assembly_exact + 264 pending_audit`，双跑SHA256为`55df5c550e4865dbfbf26e5b7efdf189bb41c6779905bc5a4be200dffa2f0dac`。动态差分因原版动态profile、动作/矩形/九宫格、字体/文字、framebuffer、颜色渐变、动态栈及主帧联合寄存器捕获后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=159`的`0x004698E0`。
+`audit_order=159`的`0x004698E0`已关闭为`platform_adapted`。完整权威LST主体`0x004698E0..0x0046995F`共67行、43条实际指令、2个call、3个跳转、3个标签、1个返回点且无外部chunk。函数固定分配并清零36-byte文字节点，按原顺序写两项参数、16-bit类型、文字token和`lstrlenA`长度，再OR flags；入口flags的bit6置位时覆盖第二参数为1及`+0x14=0xFFFFFFE0`。随后沿共享链头逐next扫描到尾并追加新节点，空链直接写头，正常返回EAX 0；零分配、文字不可访问和未知链token只在原首次真实访问点typed-stop并保留此前副作用。链头复用startup reset物理块首项，动态节点存储由startup state唯一承接且启动reset同步清空。40个静态caller中17处已关闭caller全部直连，原opaque槽改为reserved且保持旧枚举数值；23处未审caller留到所属工作包。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过，源码零warning。候选工作包为`159/422 = 152 platform_adapted + 7 assembly_exact + 263 pending_audit`，双跑SHA256为`602c2a247eba0eda1d698b14ce4921d2bceb9307dc53f352c5440c18ce0a0e23`。动态差分因原版动态分配地址、真实CP950文字地址、共享链节点、40个caller联合寄存器及未审caller状态捕获后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=160`的`0x00469960`。

@@ -305,6 +305,7 @@ void poison_reset_blocks(LegacyBattleStartupState& state, StartupPorts& port) {
     reset.block_4fe5d4.fill(1U);
     reset.block_52022c.fill(1U);
     reset.block_5214f8.fill(1U);
+    state.text_messages.allocations.push_back({.token = 0x78000000U});
     reset.block_524268.fill(1U);
     reset.block_520e90.fill(1U);
     reset.block_4ff0bc.fill(1U);
@@ -371,6 +372,7 @@ template <typename Range>
         all_equal(reset.block_4fe5d4, 0U) &&
         all_equal(reset.block_52022c, 0U) &&
         all_equal(reset.block_5214f8, 0U) &&
+        state.text_messages.allocations.empty() &&
         all_equal(reset.block_524268, 0U) &&
         all_equal(reset.block_520e90, 0U) &&
         all_equal(reset.block_4ff0bc, 0U) &&

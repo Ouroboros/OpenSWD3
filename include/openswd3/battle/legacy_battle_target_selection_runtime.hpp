@@ -76,7 +76,7 @@ enum class LegacyBattleTargetSelectionRuntimeCall : compat::u8 {
     resolve_action_effect_value,
     query_action_thirty_override,
     query_action_four_override,
-    display_warning_text,
+    reserved_display_warning_text_slot,
     reset_actor_selection,
     build_selection_snapshot,
     query_actor_cleanup,

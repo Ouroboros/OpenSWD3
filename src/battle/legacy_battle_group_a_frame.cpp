@@ -51,7 +51,6 @@ constexpr u32 kCallPublishAllActors = 0x0047E950U;
 constexpr u32 kCallClearNonterminal = 0x00483FF0U;
 constexpr u32 kCallQueryTargetBusy = 0x00478690U;
 constexpr u32 kCallPrepareTarget = 0x00478AC0U;
-constexpr u32 kCallDisplayText = 0x004698E0U;
 constexpr u32 kCallBeginActorAction = 0x00470820U;
 constexpr u32 kCallAdvanceTurnGate = 0x00471540U;
 constexpr u32 kCallResolveTarget = 0x00480AD0U;
@@ -214,6 +213,40 @@ one_based_group_b_token(const u32 one_based) noexcept {
 ) {
     ++result.port_calls;
     return port.invoke({.callee_token = callee, .arguments = arguments});
+}
+
+[[nodiscard]] bool publish_text_message(
+    LegacyBattleActionDispatchContext& context,
+    LegacyBattleActionDispatchPort& port,
+    LegacyBattleActionDispatchResult& result,
+    const std::array<u32, 5>& arguments
+) {
+    if (context.startup_reset == nullptr || context.text_messages == nullptr) {
+        result.status =
+            LegacyBattleActionDispatchStatus::text_message_typed_stop;
+        return false;
+    }
+    result.text_messages.push_back(enqueue_legacy_battle_text_message(
+        *context.text_messages,
+        context.startup_reset->block_5214f8[0U],
+        port,
+        {
+            .value_04 = arguments[0U],
+            .value_08 = arguments[1U],
+            .kind = static_cast<u16>(arguments[2U]),
+            .text_token = arguments[3U],
+            .flags = arguments[4U],
+        }
+    ));
+    ++result.text_message_calls;
+    const auto& message = result.text_messages.back();
+    result.port_calls += message.allocation_calls + message.measure_calls;
+    if (message.status != LegacyBattleTextMessageStatus::completed) {
+        result.status =
+            LegacyBattleActionDispatchStatus::text_message_typed_stop;
+        return false;
+    }
+    return true;
 }
 
 void reset_selection_gates(
@@ -1155,18 +1188,20 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                 }
                 if (state.final_actor_step.action_execution_active == 1U) {
                     if (state.actor_text_present[group_a_index] != 0U) {
-                        static_cast<void>(invoke(
-                            port,
-                            result,
-                            kCallDisplayText,
-                            {0x118U,
-                             0U,
-                             0x28U,
-                             state.actor_text_token +
-                                 group_a_index *
-                                     kLegacyBattleActionGroupAStride,
-                             0x40U}
-                        ));
+                        if (!publish_text_message(
+                                context,
+                                port,
+                                result,
+                                {0x118U,
+                                 0U,
+                                 0x28U,
+                                 state.actor_text_token +
+                                     group_a_index *
+                                         kLegacyBattleActionGroupAStride,
+                                 0x40U}
+                            )) {
+                            return result;
+                        }
                         state.action_text_runtime.fill(0U);
                     }
                     static_cast<void>(invoke(
@@ -1290,16 +1325,18 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                             ++result.group_a_iterations;
                         }
                         if (state.message_suppressed == 0U) {
-                            static_cast<void>(invoke(
-                                port,
-                                result,
-                                kCallDisplayText,
-                                {0x118U,
-                                 0xAU,
-                                 0x1EU,
-                                 kMessagePrimaryToken,
-                                 0x80000002U}
-                            ));
+                            if (!publish_text_message(
+                                    context,
+                                    port,
+                                    result,
+                                    {0x118U,
+                                     0xAU,
+                                     0x1EU,
+                                     kMessagePrimaryToken,
+                                     0x80000002U}
+                                )) {
+                                return result;
+                            }
                         }
                         static_cast<void>(invoke(
                             port,
@@ -1338,12 +1375,18 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     high_word(state.defeated_actor_packed) -
                     state.excluded_actor_count;
                 if (defeated >= threshold) {
-                    static_cast<void>(invoke(
-                        port,
-                        result,
-                        kCallDisplayText,
-                        {0x118U, 0xAU, 0x1EU, kMessageFinalToken, 0x80000002U}
-                    ));
+                    if (!publish_text_message(
+                            context,
+                            port,
+                            result,
+                            {0x118U,
+                             0xAU,
+                             0x1EU,
+                             kMessageFinalToken,
+                             0x80000002U}
+                        )) {
+                        return result;
+                    }
                     state.final_actor_step.actor_order.fill(0U);
                     port.battle_message_state() = 0x68U;
                     state.turn_resolution_bits = 0U;

@@ -209,7 +209,7 @@ bit75未置且message gate bit0为1时，播放固定消息、再次清动作rec
 - phase-six与action-twenty-three两处玩家道具双数量步进；
 - 四处攻击顺序首匹配移除与完整记录左移。
 
-相邻双对象数值转场关闭后，两处调用均删除旧callee token并直接组合typed实现。动作累计值与效果协调器主反馈值收敛为唯一共享port；端口reply仍可在每个剩余callee后显式发布该物理值与两个selection word，caller随后按LST重读。其余尚未关闭的角色、AI、数值、消息、选择和呈现callee继续以单一窄端口表达，旧对象地址仅作为`compat::u32` token，不转换为主机指针。
+相邻双对象数值转场关闭后，两处调用均删除旧callee token并直接组合typed实现。五处文字发布也在原调用位置直连共享文字消息入链，复用启动状态的唯一链头和动态节点owner；原调用槽只保留reserved数值。动作累计值与效果协调器主反馈值收敛为唯一共享port；端口reply仍可在每个剩余callee后显式发布该物理值与两个selection word，caller随后按LST重读。其余尚未关闭的角色、AI、数值、消息、选择和呈现callee继续以单一窄端口表达，旧对象地址仅作为`compat::u32` token，不转换为主机指针。
 
 ## 17. typed故障点
 
@@ -246,7 +246,7 @@ bit75未置且message gate bit0为1时，播放固定消息、再次清动作rec
 - 超尺寸清屏已写满前缀与refresh时机；
 - 27个有效普通case、10个有效特殊动作逐项smoke；
 - 9个稀疏switch槽和越界action只执行两个入口callee；
-- 95个原始唯一callee中83个端口边界全部存在，另外12个已关闭callee全部直连；
+- 95个原始唯一callee中82个端口边界全部存在，另外13个已关闭callee全部直连；
 - case 3撤退提交成功、固定警告分支和旧地址调用清零；
 - case 25攻击顺序登记直连、旧地址调用清零及记录typed-stop前缀；
 - case 7攻击顺序移除直连、一过尾源读取stop传播及旧地址调用清零；

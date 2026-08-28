@@ -42,7 +42,6 @@ constexpr u32 kCallCommitTemporaryRecord = 0x0047E070U;
 constexpr u32 kCallRefreshTarget = 0x00478780U;
 constexpr u32 kCallComputeValue = 0x00481010U;
 constexpr u32 kCallPlayMessage = 0x00485610U;
-constexpr u32 kCallShowMessage = 0x004698E0U;
 constexpr u32 kCallQueryTargetCode = 0x0047F910U;
 constexpr u32 kCallQueryTargetDistance = 0x00477800U;
 constexpr u32 kCallCheckTargetPhase = 0x00472730U;
@@ -165,6 +164,40 @@ void replace_high_word(u32& destination, const u16 value) noexcept {
         LegacyBattleAttackOrderRemoveStatus::completed) {
         result.status =
             LegacyBattleActionDispatchStatus::attack_order_remove_typed_stop;
+        return false;
+    }
+    return true;
+}
+
+[[nodiscard]] bool publish_text_message(
+    LegacyBattleActionDispatchContext& context,
+    LegacyBattleActionDispatchPort& port,
+    LegacyBattleActionDispatchResult& result,
+    const std::array<u32, 5>& arguments
+) {
+    if (context.startup_reset == nullptr || context.text_messages == nullptr) {
+        result.status =
+            LegacyBattleActionDispatchStatus::text_message_typed_stop;
+        return false;
+    }
+    result.text_messages.push_back(enqueue_legacy_battle_text_message(
+        *context.text_messages,
+        context.startup_reset->block_5214f8[0U],
+        port,
+        {
+            .value_04 = arguments[0U],
+            .value_08 = arguments[1U],
+            .kind = static_cast<u16>(arguments[2U]),
+            .text_token = arguments[3U],
+            .flags = arguments[4U],
+        }
+    ));
+    ++result.text_message_calls;
+    const auto& message = result.text_messages.back();
+    result.port_calls += message.allocation_calls + message.measure_calls;
+    if (message.status != LegacyBattleTextMessageStatus::completed) {
+        result.status =
+            LegacyBattleActionDispatchStatus::text_message_typed_stop;
         return false;
     }
     return true;
@@ -988,12 +1021,23 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
         state.frame_effect.fade_active = 1U;
         static_cast<void>(invoke(state, port, result, kCallSetDelay, {0x12CU}));
         result.retreat_commit = commit_legacy_battle_retreat(
-            {.packed_actor_counter = state.packed_actor_counter},
+            {
+                .packed_actor_counter = state.packed_actor_counter,
+                .text_messages = context.text_messages,
+                .text_message_head = context.startup_reset == nullptr
+                    ? nullptr
+                    : &context.startup_reset->block_5214f8[0U],
+            },
             port,
             group_a_index
         );
         ++result.retreat_commit_calls;
         result.port_calls += result.retreat_commit.port_calls;
+        if (result.retreat_commit.status !=
+            LegacyBattleRetreatCommitStatus::completed) {
+            result.status =
+                LegacyBattleActionDispatchStatus::text_message_typed_stop;
+        }
         return result;
     }
     case 4U:
@@ -1067,13 +1111,14 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
             static_cast<void>(invoke(
                 state, port, result, kCallPlayMessage, {message_id, 0x004AB784U}
             ));
-            static_cast<void>(invoke(
-                state,
-                port,
-                result,
-                kCallShowMessage,
-                {0x118U, 0xAU, 0x28U, text_token, 0x80000002U}
-            ));
+            if (!publish_text_message(
+                    context,
+                    port,
+                    result,
+                    {0x118U, 0xAU, 0x28U, text_token, 0x80000002U}
+                )) {
+                return result;
+            }
             state.frame_effect.primary_suppression = 0U;
             state.frame_effect.red_factor = 0;
             state.frame_effect.green_factor = 0;
@@ -1630,13 +1675,14 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
             static_cast<void>(invoke(
                 state, port, result, kCallPlayMessage, {0x117U, 0x004AB784U}
             ));
-            static_cast<void>(invoke(
-                state,
-                port,
-                result,
-                kCallShowMessage,
-                {0x118U, 0xAU, 0x32U, 0x0053C16CU, 0x80000002U}
-            ));
+            if (!publish_text_message(
+                    context,
+                    port,
+                    result,
+                    {0x118U, 0xAU, 0x32U, 0x0053C16CU, 0x80000002U}
+                )) {
+                return result;
+            }
             if (!publish_player_item_quantity(port, result, message_code, 1U)) {
                 return result;
             }
@@ -1644,17 +1690,18 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
             static_cast<void>(invoke(
                 state, port, result, kCallPlayMessage, {0x116U, 0x004AB784U}
             ));
-            static_cast<void>(invoke(
-                state,
-                port,
-                result,
-                kCallShowMessage,
-                {0x118U,
-                 0xAU,
-                 0x1EU,
-                 message_code == 0x61A8U ? 0x004A77BCU : 0x004A77B0U,
-                 0x80000002U}
-            ));
+            if (!publish_text_message(
+                    context,
+                    port,
+                    result,
+                    {0x118U,
+                     0xAU,
+                     0x1EU,
+                     message_code == 0x61A8U ? 0x004A77BCU : 0x004A77B0U,
+                     0x80000002U}
+                )) {
+                return result;
+            }
         }
         static_cast<void>(invoke(state, port, result, kCallSetDelay, {0x12CU}));
         return result;
@@ -1767,13 +1814,14 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                 {group_b_token(group_b_index)}
             );
             if (reply.eax == 1U) {
-                static_cast<void>(invoke(
-                    state,
-                    port,
-                    result,
-                    kCallShowMessage,
-                    {0x118U, 0xAU, 0x32U, 0x004A77A4U, 0x80000002U}
-                ));
+                if (!publish_text_message(
+                        context,
+                        port,
+                        result,
+                        {0x118U, 0xAU, 0x32U, 0x004A77A4U, 0x80000002U}
+                    )) {
+                    return result;
+                }
                 static_cast<void>(
                     invoke(state, port, result, kCallSetGlobalMode, {1U})
                 );
@@ -1793,13 +1841,14 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                 }
                 state.current_actor_index = 0xFFFFU;
             } else {
-                static_cast<void>(invoke(
-                    state,
-                    port,
-                    result,
-                    kCallShowMessage,
-                    {0x118U, 0xAU, 0x32U, 0x004A7798U, 0x80000002U}
-                ));
+                if (!publish_text_message(
+                        context,
+                        port,
+                        result,
+                        {0x118U, 0xAU, 0x32U, 0x004A7798U, 0x80000002U}
+                    )) {
+                    return result;
+                }
             }
             result.return_value = 1U;
             return result;

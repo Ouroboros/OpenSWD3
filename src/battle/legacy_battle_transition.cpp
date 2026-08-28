@@ -27,6 +27,55 @@ constexpr u32 kTransitionPixelCount =
     );
 }
 
+class TransitionTextMessageAdapter final : public LegacyBattleTextMessagePort {
+public:
+    explicit TransitionTextMessageAdapter(LegacyBattleTransitionPort& port)
+        : port_(port) {}
+
+    [[nodiscard]] LegacyBattleTextMessageCallReply invoke_text_message(
+        const LegacyBattleTextMessageCallRequest& request
+    ) override {
+        const auto reply = port_.invoke({
+            .call = request.call == LegacyBattleTextMessageCall::allocate
+                ? LegacyBattleTransitionCall::text_message_allocate
+                : LegacyBattleTransitionCall::text_message_measure,
+            .arguments = {request.argument},
+        });
+        return {.eax = reply.return_value};
+    }
+
+private:
+    LegacyBattleTransitionPort& port_;
+};
+
+[[nodiscard]] bool emit_text_message(
+    LegacyBattleStartupState& startup,
+    LegacyBattleTransitionPort& port,
+    LegacyBattleTransitionResult& result,
+    const u32 text_token
+) {
+    TransitionTextMessageAdapter text_port(port);
+    result.text_message = enqueue_legacy_battle_text_message(
+        startup.text_messages,
+        startup.reset.block_5214f8[0U],
+        text_port,
+        {
+            .value_04 = 0x118U,
+            .value_08 = 0xAU,
+            .kind = 0x3CU,
+            .text_token = text_token,
+            .flags = 0x40000002U,
+        }
+    );
+    ++result.text_message_calls;
+    if (result.text_message.status !=
+        LegacyBattleTextMessageStatus::completed) {
+        result.status = LegacyBattleTransitionStatus::text_message_typed_stop;
+        return false;
+    }
+    return true;
+}
+
 [[nodiscard]] constexpr u32 group_a_actor_token(const u32 index) noexcept {
     return kLegacyBattleActorGroupABaseToken +
         kLegacyBattleActorGroupAElementSize * index;
@@ -713,11 +762,9 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
             ++result.prepared_party_actors;
         }
         static_cast<void>(latest_eax);
-        static_cast<void>(invoke(
-            port,
-            LegacyBattleTransitionCall::emit_message,
-            {0x118U, 0x0AU, 0x3CU, 0x004A7728U, 0x40000002U, 0U}
-        ));
+        if (!emit_text_message(startup, port, result, 0x004A7728U)) {
+            return result;
+        }
     } else {
         if (chance < 27U || chance > 32U) {
             result.return_value = chance;
@@ -779,11 +826,9 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
             ++result.refreshed_enemy_actors;
         }
         static_cast<void>(latest_eax);
-        static_cast<void>(invoke(
-            port,
-            LegacyBattleTransitionCall::emit_message,
-            {0x118U, 0x0AU, 0x3CU, 0x004A7718U, 0x40000002U, 0U}
-        ));
+        if (!emit_text_message(startup, port, result, 0x004A7718U)) {
+            return result;
+        }
     }
 
     startup.mode_flags |= 0x80U;

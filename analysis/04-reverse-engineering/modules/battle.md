@@ -2,7 +2,7 @@
 
 状态：`module_in_progress`
 
-当前关闭进度：`158/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
+当前关闭进度：`159/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
 
 ## 1. 唯一真值与模块目标
 
@@ -527,6 +527,8 @@ I5最终必须锁定：
 
 `audit_order=158`的`0x00469650`已关闭为`platform_adapted`。完整权威LST主体`0x00469650..0x004698D8`共283行、196条实际指令、18个静态call、7个跳转、6个标签、1个返回点且无外部chunk。调试位`0x20`关闭时只完成8-byte局部seed初始化并返回；开启时复用胜利奖励唯一动作记录，以live stage绘制动态矩形、第一九宫格和profile标题，再以标题返回ECX高word与live动作低word绘制第二动态框。随后直连已关闭stage推进，固定参数`122,302,3`，仅返回1时访问profile `+0x92`九个signed byte。九行按20像素间距绘制固定标签与3像素渐变；零、正、负和小于`-10`分别保留颜色、`lstrcpyA/wsprintfA`、两次float乘法与x87向零qword转换，深负值先完成普通负值副作用再执行覆盖颜色/格式/宽度。局部格式文字虽未传给文字callee仍保留写入；正常尾返回EAX 0、标签表尾EDX和最后渐变ECX。动态profile token和九byte快照加入目标选择runtime唯一owner，动作/颜色渐变/stage复用既有owner。主帧在对话后、双倒计时前直连本实现，旧post-dialog槽reserved且生产零调用，子stop阻断全部帧尾。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过，源码零warning且app仅有既有ALSA提示。候选工作包为`158/422 = 151 platform_adapted + 7 assembly_exact + 264 pending_audit`，双跑SHA256为`55df5c550e4865dbfbf26e5b7efdf189bb41c6779905bc5a4be200dffa2f0dac`。动态差分因原版profile、动作/画面/字体、动态栈和主帧寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=159`的`0x004698E0`。
+`audit_order=159`的`0x004698E0`已关闭为`platform_adapted`。完整权威LST主体`0x004698E0..0x0046995F`共67行、43条实际指令、2个call、3个跳转、3个标签、1个返回点且无外部chunk。函数固定分配并清零36-byte文字节点，按原顺序写两项参数、16-bit类型、文字token和`lstrlenA`长度，再OR flags；入口flags的bit6置位时覆盖第二参数为1及`+0x14=0xFFFFFFE0`。随后沿共享链头逐next扫描到尾并追加新节点，空链直接写头，正常返回EAX 0；零分配、文字不可访问和未知链token只在原首次真实访问点typed-stop并保留此前副作用。链头复用startup reset物理块首项，动态节点存储由startup state唯一承接且启动reset同步清空。40个静态caller中17处已关闭caller全部直连，原opaque槽改为reserved且保持旧枚举数值；23处未审caller留到所属工作包。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过，源码零warning。候选工作包为`159/422 = 152 platform_adapted + 7 assembly_exact + 263 pending_audit`，双跑SHA256为`602c2a247eba0eda1d698b14ce4921d2bceb9307dc53f352c5440c18ce0a0e23`。动态差分因原版动态分配地址、真实CP950文字地址、共享链节点、40个caller联合寄存器及未审caller状态捕获后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=160`的`0x00469960`。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

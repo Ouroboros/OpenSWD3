@@ -21,6 +21,16 @@ public:
         const LegacyBattleInputDispatchCallRequest& request
     ) override {
         calls.push_back(request);
+        if (request.call ==
+            LegacyBattleInputDispatchCall::text_message_allocate) {
+            const u32 token = next_text_message_token;
+            next_text_message_token += 0x24U;
+            return {.eax = token};
+        }
+        if (request.call ==
+            LegacyBattleInputDispatchCall::text_message_measure) {
+            return {.eax = 4U};
+        }
         const std::size_t index = calls.size() - 1U;
         if (index < replies.size() && replies[index].has_value()) {
             return *replies[index];
@@ -57,6 +67,7 @@ public:
     std::optional<LegacyBattleInputDispatchCallReply> sample_reply;
     u32* sample_mode_flags{};
     u32 sample_mode_flags_value{};
+    u32 next_text_message_token{0x75000000U};
 };
 
 struct Fixture {
@@ -71,6 +82,7 @@ struct Fixture {
     }
 
     openswd3::battle::LegacyBattleStartupResetBlocks startup;
+    openswd3::battle::LegacyBattleTextMessageState text_messages;
     openswd3::battle::LegacyBattleActionModeSourceState action_mode_source;
     std::array<openswd3::compat::u8, 4> party_presence{};
     u32 startup_mode_flags{};
@@ -95,6 +107,7 @@ struct Fixture {
     [[nodiscard]] LegacyBattleTargetSelectionEntryBindings bindings() {
         return {
             .startup_reset = startup,
+            .text_messages = text_messages,
             .action_mode_source = action_mode_source,
             .startup_party_presence = party_presence,
             .startup_mode_flags = startup_mode_flags,

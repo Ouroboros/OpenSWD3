@@ -36,6 +36,20 @@ public:
         return default_reply;
     }
 
+    [[nodiscard]] openswd3::battle::LegacyBattleTextMessageCallReply
+    invoke_text_message(
+        const openswd3::battle::LegacyBattleTextMessageCallRequest& request
+    ) override {
+        text_message_calls.push_back(request);
+        if (request.call ==
+            openswd3::battle::LegacyBattleTextMessageCall::allocate) {
+            const u32 token = next_text_message_token;
+            next_text_message_token += 0x24U;
+            return {.eax = token};
+        }
+        return {.eax = 4U};
+    }
+
     void push(const u32 callee, const LegacyBattleActionCallReply& reply) {
         replies[callee].push_back(reply);
     }
@@ -53,6 +67,9 @@ public:
     LegacyBattleActionCallReply default_reply{};
     std::unordered_map<u32, std::deque<LegacyBattleActionCallReply>> replies;
     std::vector<LegacyBattleActionCallRequest> calls;
+    std::vector<openswd3::battle::LegacyBattleTextMessageCallRequest>
+        text_message_calls;
+    u32 next_text_message_token{0x73000000U};
 };
 
 class ActionStreamProvider final
@@ -112,6 +129,8 @@ struct Fixture {
     SoundPort sound;
     CountdownFlags countdown_flags;
     std::array<u8, 16> flags{};
+    openswd3::battle::LegacyBattleStartupResetBlocks startup_reset;
+    openswd3::battle::LegacyBattleTextMessageState text_messages;
     std::array<openswd3::battle::LegacyBattleStartupResetRecord, 0x12>
         attack_order_records{};
     std::array<u32, 0x32> attack_order_party_sources{};
@@ -142,6 +161,8 @@ struct Fixture {
             .indicator_sound = sound,
             .countdown_flags = countdown_flags,
             .internal_flags = flags,
+            .startup_reset = &startup_reset,
+            .text_messages = &text_messages,
             .attack_order_records = attack_order_records,
             .attack_order_party_sources = attack_order_party_sources,
             .attack_order_primary_gate = &attack_order_primary_gate,
@@ -424,7 +445,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 state.special_action_latch == 1U && state.phase_mode == 1U &&
                 port.count(0x00476140U) == 0U &&
                 port.count(0x004761D0U) == 1U &&
-                port.count(0x004698E0U) == 1U &&
+                result.text_message_calls == 1U &&
+                fixture.startup_reset.block_5214f8[0U] == 0x73000000U &&
                 has_call_argument(port, 0x00478A70U, 1U, 2U),
             "negative packed status uses signed callee, both action modes, text and side target"
         );

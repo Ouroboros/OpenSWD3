@@ -32,6 +32,30 @@ inline constexpr u32 kTargetPanelToken = 0x004B8748U;
 inline constexpr u32 kWarningTextAToken = 0x004A7980U;
 inline constexpr u32 kWarningTextBToken = 0x004A7990U;
 
+class InputTextMessageAdapter final : public LegacyBattleTextMessagePort {
+public:
+    explicit InputTextMessageAdapter(LegacyBattleInputDispatchPort& port)
+        : port_(port) {}
+
+    [[nodiscard]] LegacyBattleTextMessageCallReply invoke_text_message(
+        const LegacyBattleTextMessageCallRequest& request
+    ) override {
+        const auto reply = port_.invoke_input_dispatch({
+            .call = request.call == LegacyBattleTextMessageCall::allocate
+                ? LegacyBattleInputDispatchCall::text_message_allocate
+                : LegacyBattleInputDispatchCall::text_message_measure,
+            .arguments = {request.argument},
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        });
+        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
+    }
+
+private:
+    LegacyBattleInputDispatchPort& port_;
+};
+
 [[nodiscard]] constexpr i32 signed_bits(const u32 value) noexcept {
     return std::bit_cast<i32>(value);
 }
@@ -772,12 +796,32 @@ private:
         invoke(Call::set_cursor_position, 0U, {0x108U, 0xB0U});
     }
 
-    void display_warning(const u32 text_token) {
-        invoke(
-            Call::display_warning_text,
-            0U,
-            {0x118U, 0xAU, 0x14U, text_token, 0x40000002U}
-        );
+    [[nodiscard]] bool display_warning(const u32 text_token) {
+        InputTextMessageAdapter text_message_port(port_);
+        result_.text_messages.push_back(enqueue_legacy_battle_text_message(
+            bindings_.text_messages,
+            bindings_.startup_reset.block_5214f8[0U],
+            text_message_port,
+            {
+                .value_04 = 0x118U,
+                .value_08 = 0xAU,
+                .kind = 0x14U,
+                .text_token = text_token,
+                .flags = 0x40000002U,
+                .entry = {.eax = eax_, .ecx = ecx_, .edx = edx_},
+            }
+        ));
+        ++result_.text_message_calls;
+        const auto& message = result_.text_messages.back();
+        result_.port_calls += message.allocation_calls + message.measure_calls;
+        eax_ = message.return_registers.eax;
+        ecx_ = message.return_registers.ecx;
+        edx_ = message.return_registers.edx;
+        if (message.status != LegacyBattleTextMessageStatus::completed) {
+            typed_stop(Status::text_message_typed_stop);
+            return false;
+        }
+        return true;
     }
 
     [[nodiscard]] bool commit_actor_action_common(const u32 action_kind) {
@@ -1438,8 +1482,9 @@ private:
                 (local_output_ & 0xFFFFU) == 0xFFFFU) {
                 return;
             }
-            if (eax_ == 3U || eax_ == 0U || eax_ == 2U) {
-                display_warning(kWarningTextBToken);
+            if ((eax_ == 3U || eax_ == 0U || eax_ == 2U) &&
+                !display_warning(kWarningTextBToken)) {
+                return;
             }
             edx_ = std::bit_cast<u32>(input_.sample_mix_level);
             sample(0x8CU);
@@ -1451,7 +1496,9 @@ private:
         }
         if (eax_ == 1U) {
             if ((runtime_.target_effect_value & 0xFFFFU) != 0U) {
-                display_warning(kWarningTextAToken);
+                if (!display_warning(kWarningTextAToken)) {
+                    return;
+                }
                 edx_ = std::bit_cast<u32>(input_.sample_mix_level);
                 sample(0x8CU);
                 return;

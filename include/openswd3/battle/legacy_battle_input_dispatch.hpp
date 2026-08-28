@@ -105,7 +105,7 @@ enum class LegacyBattleInputDispatchCall : compat::u8 {
     query_active_actor,
     query_retreat_actor,
     configure_retreat_actor,
-    display_retreat_warning,
+    reserved_display_retreat_warning_slot,
     menu_retreat_query_group_b_candidate,
     menu_retreat_prepare_actor_origin,
     menu_retreat_configure_actor_selection,
@@ -126,6 +126,8 @@ enum class LegacyBattleInputDispatchCall : compat::u8 {
     action_mode_query_primary_actor,
     action_mode_query_secondary_actor,
     action_mode_query_active_actor,
+    text_message_allocate,
+    text_message_measure,
 };
 
 struct LegacyBattleInputDispatchCallRequest {
@@ -174,6 +176,7 @@ public:
 struct LegacyBattleInputDispatchBindings {
     compat::u32& render_abort_latch;
     LegacyBattleStartupResetBlocks& startup_reset;
+    LegacyBattleTextMessageState& text_messages;
     const LegacyBattleActionModeSourceState& action_mode_source;
     const std::array<compat::u8, 4>& startup_party_presence;
     const compat::u32& startup_mode_flags;
@@ -209,6 +212,7 @@ enum class LegacyBattleInputDispatchStatus : compat::u8 {
     completed,
     input_record_typed_stop,
     workspace_typed_stop,
+    text_message_typed_stop,
     menu_selection_retreat_typed_stop,
     menu_selection_advance_typed_stop,
     menu_page_retreat_typed_stop,
@@ -235,6 +239,8 @@ struct LegacyBattleInputDispatchResult {
     compat::u32 input_record_writes{};
     compat::u32 port_calls{};
     compat::u32 delay_calls{};
+    std::vector<LegacyBattleTextMessageResult> text_messages;
+    compat::u32 text_message_calls{};
     compat::u32 menu_selection_retreat_calls{};
     compat::u32 menu_selection_advance_calls{};
     compat::u32 menu_page_retreat_calls{};

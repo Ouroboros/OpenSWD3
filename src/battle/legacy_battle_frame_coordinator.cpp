@@ -138,6 +138,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         {
             .render_abort_latch = state.render_abort_latch,
             .startup_reset = context.startup.reset,
+            .text_messages = context.startup.text_messages,
             .action_mode_source = context.startup.action_mode_source,
             .startup_party_presence = context.startup.party_presence,
             .startup_mode_flags = context.startup.mode_flags,
@@ -410,6 +411,9 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             &context.final_actor_step;
         context.actor_frames->dispatch.target_selection_runtime =
             &port.battle_target_selection_runtime_state();
+        context.actor_frames->dispatch.startup_reset = &context.startup.reset;
+        context.actor_frames->dispatch.text_messages =
+            &context.startup.text_messages;
     }
     result.actor_frame_sequence = advance_legacy_battle_actor_frame_sequence(
         port.actor_metric_state(), context.actor_frames

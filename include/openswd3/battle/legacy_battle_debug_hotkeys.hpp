@@ -16,7 +16,7 @@ namespace openswd3::battle {
 
 enum class LegacyBattleDebugHotkeyCall : compat::u8 {
     suspend_audio_output,
-    display_text,
+    reserved_display_text_slot,
     reset_group_a_primary,
     reset_group_a_secondary,
     configure_group_a,
@@ -27,6 +27,8 @@ enum class LegacyBattleDebugHotkeyCall : compat::u8 {
     restart_battle_music,
     query_actor_status,
     adjust_actor,
+    text_message_allocate,
+    text_message_measure,
 };
 
 struct LegacyBattleDebugHotkeyCallRequest {
@@ -84,6 +86,7 @@ enum class LegacyBattleDebugHotkeyStatus : compat::u8 {
     group_a_runtime_typed_stop,
     group_b_publication_typed_stop,
     actor_frame_state_typed_stop,
+    text_message_typed_stop,
 };
 
 struct LegacyBattleDebugHotkeyResult {
@@ -97,6 +100,8 @@ struct LegacyBattleDebugHotkeyResult {
     compat::u32 group_a_iterations{};
     compat::u32 group_b_iterations{};
     compat::u32 actor_adjust_iterations{};
+    std::vector<LegacyBattleTextMessageResult> text_messages;
+    compat::u32 text_message_calls{};
     bool control_chord_active{};
     bool early_return_zero{};
     bool full_reset_applied{};

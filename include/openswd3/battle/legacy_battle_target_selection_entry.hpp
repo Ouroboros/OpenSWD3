@@ -6,6 +6,7 @@ namespace openswd3::battle {
 
 struct LegacyBattleTargetSelectionEntryBindings {
     LegacyBattleStartupResetBlocks& startup_reset;
+    LegacyBattleTextMessageState& text_messages;
     const LegacyBattleActionModeSourceState& action_mode_source;
     const std::array<compat::u8, 4>& startup_party_presence;
     const compat::u32& startup_mode_flags;
