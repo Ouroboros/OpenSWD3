@@ -1171,6 +1171,68 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             .ecx = 26U,
             .edx = 27U,
         };
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         growth_actor_query_group_a_reward_block]
+            .eax = 31U;
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         growth_actor_load_item_definition]
+            .publish_growth_item_definition = true;
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         growth_actor_load_item_definition]
+            .growth_item_definition[0U] = 0x51U;
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         growth_actor_load_item_definition]
+            .growth_item_description[0U] = 0x61U;
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         growth_actor_load_item_definition]
+            .growth_item_description[1U] = 0x62U;
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         growth_actor_load_item_definition]
+            .growth_item_description_length = 2U;
+        port.replies
+            [LegacyBattleFrameCoordinatorCall::growth_actor_allocate_item_node]
+                .growth_item_allocation_failed = true;
+        port.replies
+            [LegacyBattleFrameCoordinatorCall::growth_actor_allocate_item_node]
+                .publish_growth_item_allocation_token = true;
+        port.replies
+            [LegacyBattleFrameCoordinatorCall::growth_actor_allocate_item_node]
+                .growth_item_allocation_token = 0x70100000U;
+
+        const auto growth_query = port.invoke_growth_actor_selection({
+            .call = openswd3::battle::LegacyBattleGrowthActorSelectionCall::
+                query_group_a_reward_block,
+            .actor_token = 0x005029D0U,
+            .eax = 1U,
+            .ecx = 2U,
+            .edx = 3U,
+        });
+        const auto growth_load = port.invoke_growth_actor_selection({
+            .call = openswd3::battle::LegacyBattleGrowthActorSelectionCall::
+                load_item_definition,
+            .destination_token = 0x0053BC28U,
+            .item_id = 0x0700U,
+            .arguments = {0x0053BC28U, 0x0700U},
+            .eax = 4U,
+            .ecx = 5U,
+            .edx = 6U,
+        });
+        static_cast<void>(port.invoke_growth_actor_selection({
+            .call = openswd3::battle::LegacyBattleGrowthActorSelectionCall::
+                query_item_presence,
+            .arguments = {0x1BB0U},
+            .eax = 7U,
+            .ecx = 8U,
+            .edx = 9U,
+        }));
+        const auto growth_allocation = port.invoke_growth_actor_selection({
+            .call = openswd3::battle::LegacyBattleGrowthActorSelectionCall::
+                allocate_item_node,
+            .arguments = {0xB0U},
+            .eax = 10U,
+            .ecx = 11U,
+            .edx = 12U,
+        });
 
         const auto name = port.invoke_growth_caption({
             .call =
@@ -1235,8 +1297,38 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 port.count(
                     LegacyBattleFrameCoordinatorCall::
                         growth_completion_caption_play_sample
+                ) == 1U &&
+                growth_query.eax == 31U && growth_load.publish_definition &&
+                growth_load.definition[0U] == 0x51U &&
+                growth_load.description_length == 2U &&
+                growth_load.description[0U] == 0x61U &&
+                growth_load.description[1U] == 0x62U &&
+                growth_allocation.allocation_failed &&
+                growth_allocation.publish_allocation_token &&
+                growth_allocation.allocation_token == 0x70100000U &&
+                port.calls[0U].object_token == 0x005029D0U &&
+                port.calls[1U].arguments[0U] == 0x0053BC28U &&
+                port.calls[1U].arguments[1U] == 0x0700U &&
+                port.calls[1U].arguments[2U] == 0U &&
+                port.calls[2U].arguments[0U] == 0x1BB0U &&
+                port.calls[3U].arguments[0U] == 0xB0U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        growth_actor_query_group_a_reward_block
+                ) == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        growth_actor_load_item_definition
+                ) == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        growth_actor_query_item_presence
+                ) == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        growth_actor_allocate_item_node
                 ) == 1U,
-            "frame coordinator maps caption name, query, drawing, bracket formatting and completion sample playback"
+            "frame coordinator maps growth actor item services, caption operations and completion sample playback"
         );
     }
     {

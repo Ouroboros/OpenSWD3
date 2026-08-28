@@ -185,6 +185,10 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     level_growth_format_integer,
     level_growth_draw_text,
     level_growth_play_sample,
+    growth_actor_query_group_a_reward_block,
+    growth_actor_load_item_definition,
+    growth_actor_query_item_presence,
+    growth_actor_allocate_item_node,
     growth_caption_format_name,
     growth_caption_query_panel,
     growth_caption_draw_text,
@@ -195,7 +199,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     message_phase_advance_message_101,
     reserved_message_phase_advance_message_110_slot,
     reserved_message_phase_advance_message_111_slot,
-    message_phase_select_message_112_actor,
+    reserved_message_phase_select_message_112_actor_slot,
     reserved_message_phase_advance_message_112_slot,
     message_phase_select_message_113_actor,
     message_phase_advance_message_113,
@@ -314,6 +318,14 @@ struct LegacyBattleFrameCoordinatorCallReply {
     compat::u32 level_transition_mode{};
     bool publish_growth_transition_actor_index{};
     compat::u8 growth_transition_actor_index{};
+    bool publish_growth_item_definition{};
+    std::array<compat::u8, world_map::kLegacyItemDefinitionSnapshotBytes>
+        growth_item_definition{};
+    std::array<compat::u8, 256U> growth_item_description{};
+    compat::u32 growth_item_description_length{};
+    bool growth_item_allocation_failed{};
+    bool publish_growth_item_allocation_token{};
+    compat::u32 growth_item_allocation_token{};
     bool publish_growth_transition_stage{};
     compat::u32 growth_transition_stage{};
     bool publish_growth_formatted_text{};
@@ -876,9 +888,10 @@ public:
             call = LegacyBattleFrameCoordinatorCall::
                 reserved_message_phase_advance_message_111_slot;
             break;
-        case LegacyBattleMessagePhaseCall::select_message_112_actor:
+        case LegacyBattleMessagePhaseCall::
+            reserved_select_message_112_actor_slot:
             call = LegacyBattleFrameCoordinatorCall::
-                message_phase_select_message_112_actor;
+                reserved_message_phase_select_message_112_actor_slot;
             break;
         case LegacyBattleMessagePhaseCall::reserved_advance_message_112_slot:
             call = LegacyBattleFrameCoordinatorCall::
@@ -1196,6 +1209,58 @@ public:
             .edx = edx,
         });
         return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
+    }
+    [[nodiscard]] LegacyBattleGrowthActorSelectionCallReply
+    invoke_growth_actor_selection(
+        const LegacyBattleGrowthActorSelectionCallRequest& request
+    ) override {
+        LegacyBattleFrameCoordinatorCall call =
+            LegacyBattleFrameCoordinatorCall::
+                growth_actor_query_group_a_reward_block;
+        switch (request.call) {
+        case LegacyBattleGrowthActorSelectionCall::query_group_a_reward_block:
+            break;
+        case LegacyBattleGrowthActorSelectionCall::load_item_definition:
+            call = LegacyBattleFrameCoordinatorCall::
+                growth_actor_load_item_definition;
+            break;
+        case LegacyBattleGrowthActorSelectionCall::query_item_presence:
+            call = LegacyBattleFrameCoordinatorCall::
+                growth_actor_query_item_presence;
+            break;
+        case LegacyBattleGrowthActorSelectionCall::allocate_item_node:
+            call = LegacyBattleFrameCoordinatorCall::
+                growth_actor_allocate_item_node;
+            break;
+        }
+        std::array<compat::u32, 8> arguments{};
+        for (std::size_t index = 0U; index < request.arguments.size();
+             ++index) {
+            arguments[index] = request.arguments[index];
+        }
+        const auto reply = invoke({
+            .call = call,
+            .object_token = request.actor_token,
+            .arguments = arguments,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        });
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .publish_group_a_count = reply.publish_group_a_count,
+            .group_a_count = reply.group_a_count,
+            .publish_definition = reply.publish_growth_item_definition,
+            .definition = reply.growth_item_definition,
+            .description = reply.growth_item_description,
+            .description_length = reply.growth_item_description_length,
+            .allocation_failed = reply.growth_item_allocation_failed,
+            .publish_allocation_token =
+                reply.publish_growth_item_allocation_token,
+            .allocation_token = reply.growth_item_allocation_token,
+        };
     }
     [[nodiscard]] LegacyBattleGrowthCaptionCallReply invoke_growth_caption(
         const LegacyBattleGrowthCaptionCallRequest& request

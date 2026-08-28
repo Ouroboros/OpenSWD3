@@ -35,6 +35,9 @@ struct LegacyBattleVictoryRewardState {
     std::array<compat::u16, 10> collected_item_quantities{};  // 0x00525434
     std::array<compat::u32, 10> player_item_tokens{};         // 0x00524468
     std::array<compat::u32, 4> party_reward_counters{};  // 0x004ACF54 + n*0x60
+    std::array<compat::u32, 4> party_growth_limits{};    // 0x004ACF58 + n*0x60
+    std::array<compat::u32, 4>
+        party_growth_item_codes{};                       // 0x004ACF5C + n*0x60
     std::array<compat::u32, 10> group_a_skip_primary{};  // actor + 0x2B00
     std::array<compat::u32, 10> group_a_skip_secondary{};  // actor + 0x2B04
     compat::u16 committed_money_word{};                    // 0x0053BF12

@@ -395,6 +395,8 @@ void seed_state(
     victory_rewards.experience_per_party_member = 9U;
     victory_rewards.reward_experience = 9U;
     victory_rewards.party_reward_counters.fill(9U);
+    victory_rewards.party_growth_limits.fill(9U);
+    victory_rewards.party_growth_item_codes.fill(9U);
     victory_rewards.group_a_skip_primary.fill(9U);
     victory_rewards.group_a_skip_secondary.fill(9U);
     victory_rewards.party_profile_threshold = 9U;
@@ -928,6 +930,14 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 port.battle_victory_reward_state().reward_experience == 0U &&
                 std::ranges::all_of(
                     port.battle_victory_reward_state().party_reward_counters,
+                    [](const u32 value) { return value == 9U; }
+                ) &&
+                std::ranges::all_of(
+                    port.battle_victory_reward_state().party_growth_limits,
+                    [](const u32 value) { return value == 9U; }
+                ) &&
+                std::ranges::all_of(
+                    port.battle_victory_reward_state().party_growth_item_codes,
                     [](const u32 value) { return value == 9U; }
                 ) &&
                 port.battle_victory_reward_state().party_profile_threshold ==

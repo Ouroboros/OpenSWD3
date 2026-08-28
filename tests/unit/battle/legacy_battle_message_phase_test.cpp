@@ -167,6 +167,31 @@ public:
         return {.eax = eax, .ecx = ecx, .edx = edx};
     }
 
+    [[nodiscard]]
+    openswd3::battle::LegacyBattleGrowthActorSelectionCallReply
+    invoke_growth_actor_selection(
+        const openswd3::battle::LegacyBattleGrowthActorSelectionCallRequest&
+            request
+    ) override {
+        growth_actor_calls.push_back(request);
+        auto reply = openswd3::battle::LegacyBattleGrowthActorSelectionPort::
+            invoke_growth_actor_selection(request);
+        if (request.call ==
+            openswd3::battle::LegacyBattleGrowthActorSelectionCall::
+                query_group_a_reward_block) {
+            reply.eax = 0U;
+        }
+        const auto found = growth_actor_definitions.find(request.item_id);
+        if (request.call ==
+                openswd3::battle::LegacyBattleGrowthActorSelectionCall::
+                    load_item_definition &&
+            found != growth_actor_definitions.end()) {
+            reply.publish_definition = true;
+            reply.definition = found->second;
+        }
+        return reply;
+    }
+
     [[nodiscard]] openswd3::battle::LegacyBattleGrowthCaptionCallReply
     invoke_growth_caption(
         const openswd3::battle::LegacyBattleGrowthCaptionCallRequest& request
@@ -234,6 +259,9 @@ public:
     std::vector<openswd3::battle::LegacyBattleLevelGrowthPanelCallRequest>
         growth_calls;
     std::vector<std::array<u32, 2>> growth_sample_calls;
+    std::vector<openswd3::battle::LegacyBattleGrowthActorSelectionCallRequest>
+        growth_actor_calls;
+    std::map<u16, std::array<u8, 160U>> growth_actor_definitions;
     std::vector<openswd3::battle::LegacyBattleGrowthCaptionCallRequest>
         caption_calls;
     std::vector<std::array<u32, 5U>> completion_sample_calls;
@@ -904,21 +932,42 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         test.expect_true(
             fixture.message == 0x71U &&
                 fixture.target_selection.transition_timer == 0U &&
-                missing.sample_calls == 0U,
-            "message 112 transitions to 113 without a sample when selection remains FF"
+                missing.sample_calls == 0U &&
+                missing.growth_actor_selection_calls == 1U &&
+                fixture.port.count(
+                    LegacyBattleMessagePhaseCall::
+                        reserved_select_message_112_actor_slot
+                ) == 0U,
+            "message 112 directly scans growth actors then transitions to 113 without a sample when selection remains FF"
         );
 
         Fixture selected;
         selected.message = 0x70U;
         selected.target_selection.transition_actor_index = 0xFFU;
         selected.input_dispatch.sample_mix_level = -4;
-        selected.port.reply(
-            LegacyBattleMessagePhaseCall::select_message_112_actor,
-            {
-                .publish_transition_actor_index = true,
-                .transition_actor_index = 2U,
-            }
-        );
+        selected.metrics.group_a_count = 3U;
+        selected.port.battle_victory_reward_state().group_a_skip_primary[0U] =
+            1U;
+        selected.port.battle_victory_reward_state().group_a_skip_primary[1U] =
+            1U;
+        selected.startup.action_mode_source.actor_label_indices[2U] = 0U;
+        selected.port.battle_victory_reward_state()
+            .party_growth_item_codes[0U] = 0U;
+        auto& selected_list =
+            *selected.port.world_item_list_state().party_item_lists[2U];
+        selected_list.nodes.emplace_back();
+        selected_list.nodes.back().item_id = 0x0700U;
+        selected_list.nodes.back().definition_snapshot
+            [openswd3::battle::kLegacyBattleGrowthItemTypeOffset] =
+            static_cast<u8>(openswd3::battle::kLegacyBattleGrowthItemType);
+        auto selected_definition = std::array<u8, 160U>{};
+        selected_definition[0U] = 0x41U;
+        selected_definition
+            [openswd3::battle::kLegacyBattleGrowthItemCodeOffset] = 0x34U;
+        selected_definition
+            [openswd3::battle::kLegacyBattleGrowthItemCodeOffset + 1U] = 0x12U;
+        selected.port.growth_actor_definitions[0x0700U] = selected_definition;
+        selected.port.growth_actor_definitions[0x1234U] = selected_definition;
         selected.port.reply(
             LegacyBattleMessagePhaseCall::query_actor_completion, {.eax = 0U}
         );
@@ -930,16 +979,36 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                 selected.port.count(
                     LegacyBattleMessagePhaseCall::allocate_actor_transition
                 ) == 1U &&
-                selected.port.message_calls[1U].eax == 6042U &&
-                selected.port.message_calls[2U].eax == 2014U &&
-                selected.port.message_calls[2U].edx == 0U &&
+                selected.port.message_calls[0U].eax == 6042U &&
+                selected.port.message_calls[1U].eax == 2014U &&
+                selected.port.message_calls[1U].edx == 0U &&
+                advanced.growth_actor_selection_calls == 1U &&
+                advanced.growth_actor_selection.selected_actor_count == 1U &&
                 advanced.growth_completion_caption_calls == 1U &&
                 selected.port.count(
                     LegacyBattleMessagePhaseCall::
                         reserved_advance_message_112_slot
                 ) == 0U &&
                 selected.target_selection.transition_timer == 1U,
-            "message 112 samples, queries, allocates and directly advances a newly selected actor"
+            "message 112 directly selects a growth actor before sampling, querying, allocating and advancing it"
+        );
+
+        Fixture invalid_selection;
+        invalid_selection.message = 0x70U;
+        invalid_selection.target_selection.transition_actor_index = 0xFFU;
+        invalid_selection.metrics.group_a_count = 1U;
+        invalid_selection.startup.action_mode_source.actor_label_indices[0U] =
+            100U;
+        invalid_selection.target_selection.transition_timer = 7U;
+        const auto invalid_selection_result = run(invalid_selection);
+        test.expect_true(
+            invalid_selection_result.status ==
+                    openswd3::battle::LegacyBattleMessagePhaseStatus::
+                        growth_actor_selection_typed_stop &&
+                invalid_selection.target_selection.transition_timer == 7U &&
+                invalid_selection_result.sample_calls == 0U &&
+                invalid_selection_result.growth_completion_caption_calls == 0U,
+            "message 112 propagates growth actor selection stop before sampling, allocation, caption and timer effects"
         );
 
         Fixture rendered;

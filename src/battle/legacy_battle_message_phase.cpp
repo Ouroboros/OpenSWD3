@@ -749,7 +749,34 @@ private:
 
     [[nodiscard]] LegacyBattleMessagePhaseResult message_112() {
         if (bindings_.target_selection.transition_actor_index == 0xFFU) {
-            call(LegacyBattleMessagePhaseCall::select_message_112_actor);
+            result_.growth_actor_selection =
+                advance_legacy_battle_growth_actor_selection(
+                    {
+                        .victory = bindings_.victory_rewards.state,
+                        .startup = bindings_.startup,
+                        .metrics = bindings_.metrics,
+                        .target_selection = bindings_.target_selection,
+                        .level_advancement =
+                            port_.battle_level_advancement_state(),
+                    },
+                    port_,
+                    {
+                        .entry_eax = eax_,
+                        .entry_ecx = ecx_,
+                        .entry_edx = edx_,
+                    }
+                );
+            ++result_.growth_actor_selection_calls;
+            result_.port_calls += result_.growth_actor_selection.port_calls;
+            eax_ = result_.growth_actor_selection.return_eax;
+            ecx_ = result_.growth_actor_selection.return_ecx;
+            edx_ = result_.growth_actor_selection.return_edx;
+            if (result_.growth_actor_selection.status !=
+                LegacyBattleGrowthActorSelectionStatus::completed) {
+                result_.status = LegacyBattleMessagePhaseStatus::
+                    growth_actor_selection_typed_stop;
+                return finish();
+            }
             if (bindings_.target_selection.transition_actor_index == 0xFFU) {
                 return transition_to(0x71U);
             }
