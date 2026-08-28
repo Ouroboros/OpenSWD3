@@ -115,6 +115,7 @@ void test_battle_scale_scan(openswd3::test::Context& test);
 void test_battle_status_indicator(openswd3::test::Context& test);
 void test_battle_startup(openswd3::test::Context& test);
 void test_battle_surface_blend(openswd3::test::Context& test);
+void test_battle_talisman_result_panel(openswd3::test::Context& test);
 void test_battle_selection_frame(openswd3::test::Context& test);
 void test_battle_target_selection_entry(openswd3::test::Context& test);
 void test_battle_target_selection_refresh(openswd3::test::Context& test);
@@ -7130,6 +7131,7 @@ int main() {
     test_battle_status_indicator(test);
     test_battle_startup(test);
     test_battle_surface_blend(test);
+    test_battle_talisman_result_panel(test);
     test_battle_selection_frame(test);
     test_battle_target_selection_entry(test);
     test_battle_target_selection_refresh(test);

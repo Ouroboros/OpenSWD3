@@ -155,7 +155,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     control_panel_query_primary_option,
     control_panel_query_special_option,
     message_phase_resolve_group_a_position,
-    message_phase_prepare_message_98,
+    reserved_message_phase_prepare_message_98_slot,
     message_phase_reset_actor_state,
     message_phase_query_actor_completion,
     message_phase_prepare_transition_control,
@@ -224,6 +224,12 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     defeat_panel_query,
     defeat_panel_set_font_size,
     defeat_panel_draw_detail,
+    talisman_result_query,
+    talisman_result_draw_success_title,
+    talisman_result_format_success_detail,
+    talisman_result_draw_success_detail,
+    talisman_result_draw_failure_title,
+    talisman_result_draw_failure_detail,
 };
 
 struct LegacyBattleFrameCoordinatorCallRequest {
@@ -847,9 +853,9 @@ public:
         switch (request.call) {
         case LegacyBattleMessagePhaseCall::resolve_group_a_position:
             break;
-        case LegacyBattleMessagePhaseCall::prepare_message_98:
+        case LegacyBattleMessagePhaseCall::reserved_prepare_message_98_slot:
             call = LegacyBattleFrameCoordinatorCall::
-                message_phase_prepare_message_98;
+                reserved_message_phase_prepare_message_98_slot;
             break;
         case LegacyBattleMessagePhaseCall::reset_actor_state:
             call = LegacyBattleFrameCoordinatorCall::
@@ -1391,6 +1397,59 @@ public:
             .edx = reply.edx,
             .publish_stage = reply.publish_growth_transition_stage,
             .stage = reply.growth_transition_stage,
+        };
+    }
+    [[nodiscard]] LegacyBattleTalismanResultPanelCallReply
+    invoke_talisman_result_panel(
+        const LegacyBattleTalismanResultPanelCallRequest& request
+    ) override {
+        LegacyBattleFrameCoordinatorCall call =
+            LegacyBattleFrameCoordinatorCall::talisman_result_query;
+        switch (request.call) {
+        case LegacyBattleTalismanResultPanelCall::query_panel:
+            break;
+        case LegacyBattleTalismanResultPanelCall::draw_success_title:
+            call = LegacyBattleFrameCoordinatorCall::
+                talisman_result_draw_success_title;
+            break;
+        case LegacyBattleTalismanResultPanelCall::format_success_detail:
+            call = LegacyBattleFrameCoordinatorCall::
+                talisman_result_format_success_detail;
+            break;
+        case LegacyBattleTalismanResultPanelCall::draw_success_detail:
+            call = LegacyBattleFrameCoordinatorCall::
+                talisman_result_draw_success_detail;
+            break;
+        case LegacyBattleTalismanResultPanelCall::draw_failure_title:
+            call = LegacyBattleFrameCoordinatorCall::
+                talisman_result_draw_failure_title;
+            break;
+        case LegacyBattleTalismanResultPanelCall::draw_failure_detail:
+            call = LegacyBattleFrameCoordinatorCall::
+                talisman_result_draw_failure_detail;
+            break;
+        }
+        const auto reply = invoke({
+            .call = call,
+            .object_token = request.object_token,
+            .arguments = request.arguments,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+            .victory_text_bytes = request.text,
+            .victory_text_length = request.text_length,
+        });
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .publish_stage = reply.publish_growth_transition_stage,
+            .stage = reply.growth_transition_stage,
+            .publish_result_mode = reply.publish_message_phase_aux_byte,
+            .result_mode = reply.message_phase_aux_byte,
+            .publish_formatted_text = reply.publish_victory_item_list_text,
+            .formatted_text = reply.victory_item_list_text,
+            .formatted_text_length = reply.victory_item_list_text_length,
         };
     }
     [[nodiscard]] LegacyBattleVictoryItemListPanelCallReply

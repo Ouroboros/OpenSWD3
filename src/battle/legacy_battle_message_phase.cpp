@@ -62,9 +62,7 @@ public:
         case 0x61U:
             return message_97();
         case 0x62U:
-            bindings_.input_dispatch.selection_cache_gate_a = 1U;
-            call(LegacyBattleMessagePhaseCall::prepare_message_98);
-            return finish();
+            return message_98();
         case 0x63U:
             return message_99();
         case 0x64U:
@@ -952,6 +950,40 @@ private:
         }
         eax_ = bindings_.target_selection.transition_timer + 1U;
         bindings_.target_selection.transition_timer = eax_;
+        return finish();
+    }
+
+    [[nodiscard]] LegacyBattleMessagePhaseResult message_98() {
+        bindings_.input_dispatch.selection_cache_gate_a = 1U;
+        auto panel_request = request_.talisman_result_panel_request;
+        panel_request.entry_eax = eax_;
+        panel_request.entry_ecx = ecx_;
+        panel_request.entry_edx = edx_;
+        result_.talisman_result_panel =
+            draw_legacy_battle_talisman_result_panel(
+                {
+                    .victory = bindings_.victory_rewards.state,
+                    .target_selection = bindings_.target_selection,
+                    .framebuffer = bindings_.victory_rewards.framebuffer,
+                    .raster = bindings_.victory_rewards.raster,
+                    .shared_effects = bindings_.victory_rewards.shared_effects,
+                    .jitter = bindings_.victory_rewards.jitter,
+                    .action_updater = bindings_.victory_rewards.action_updater,
+                    .frame_provider = bindings_.victory_rewards.frame_provider,
+                },
+                port_,
+                panel_request
+            );
+        ++result_.talisman_result_panel_calls;
+        result_.port_calls += result_.talisman_result_panel.port_calls;
+        eax_ = result_.talisman_result_panel.return_eax;
+        ecx_ = result_.talisman_result_panel.return_ecx;
+        edx_ = result_.talisman_result_panel.return_edx;
+        if (result_.talisman_result_panel.status !=
+            LegacyBattleTalismanResultPanelStatus::completed) {
+            result_.status = LegacyBattleMessagePhaseStatus::
+                talisman_result_panel_typed_stop;
+        }
         return finish();
     }
 

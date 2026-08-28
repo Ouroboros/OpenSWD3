@@ -342,6 +342,7 @@ add_executable(
     unit/battle/legacy_battle_status_indicator_test.cpp
     unit/battle/legacy_battle_startup_test.cpp
     unit/battle/legacy_battle_surface_blend_test.cpp
+    unit/battle/legacy_battle_talisman_result_panel_test.cpp
     unit/battle/legacy_battle_selection_frame_test.cpp
     unit/battle/legacy_battle_selection_hint_frame_test.cpp
     unit/battle/legacy_battle_target_selection_entry_test.cpp

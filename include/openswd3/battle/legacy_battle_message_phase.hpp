@@ -16,6 +16,7 @@
 #include "openswd3/battle/legacy_battle_player_item_quantity.hpp"
 #include "openswd3/battle/legacy_battle_selection_frame.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_entry.hpp"
+#include "openswd3/battle/legacy_battle_talisman_result_panel.hpp"
 #include "openswd3/battle/legacy_battle_victory_item_list_panel.hpp"
 #include "openswd3/battle/legacy_battle_victory_rewards.hpp"
 
@@ -63,7 +64,7 @@ private:
 
 enum class LegacyBattleMessagePhaseCall : compat::u8 {
     resolve_group_a_position,
-    prepare_message_98,
+    reserved_prepare_message_98_slot,
     reset_actor_state,
     query_actor_completion,
     prepare_transition_control,
@@ -143,7 +144,8 @@ class LegacyBattleMessagePhasePort
       public virtual LegacyBattleGrowthItemCompletionPanelPort,
       public virtual LegacyBattleGrowthItemResultSelectionPort,
       public virtual LegacyBattleVictoryItemListPanelPort,
-      public virtual LegacyBattleDefeatPanelPort {
+      public virtual LegacyBattleDefeatPanelPort,
+      public virtual LegacyBattleTalismanResultPanelPort {
 public:
     ~LegacyBattleMessagePhasePort() override = default;
 
@@ -193,6 +195,7 @@ struct LegacyBattleMessagePhaseRequest {
         growth_item_result_selection_request{};
     LegacyBattleVictoryItemListPanelRequest victory_item_list_panel_request{};
     LegacyBattleDefeatPanelRequest defeat_panel_request{};
+    LegacyBattleTalismanResultPanelRequest talisman_result_panel_request{};
 };
 
 enum class LegacyBattleMessagePhaseStatus : compat::u8 {
@@ -216,6 +219,7 @@ enum class LegacyBattleMessagePhaseStatus : compat::u8 {
     growth_item_result_selection_typed_stop,
     victory_item_list_panel_typed_stop,
     defeat_panel_typed_stop,
+    talisman_result_panel_typed_stop,
     target_selection_entry_typed_stop,
 };
 
@@ -258,6 +262,8 @@ struct LegacyBattleMessagePhaseResult {
     LegacyBattleVictoryItemListPanelResult victory_item_list_panel{};
     compat::u32 defeat_panel_calls{};
     LegacyBattleDefeatPanelResult defeat_panel{};
+    compat::u32 talisman_result_panel_calls{};
+    LegacyBattleTalismanResultPanelResult talisman_result_panel{};
     std::vector<LegacyBattleMessagePhaseCall> call_trace;
     compat::u32 call_trace_count{};
 };

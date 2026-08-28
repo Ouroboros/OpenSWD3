@@ -1787,6 +1787,116 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         );
     }
     {
+        CoordinatorPort port;
+        port.replies[LegacyBattleFrameCoordinatorCall::talisman_result_query] =
+            {
+                .eax = 1U,
+                .ecx = 2U,
+                .edx = 3U,
+                .publish_message_phase_aux_byte = true,
+                .message_phase_aux_byte = 1U,
+                .publish_growth_transition_stage = true,
+                .growth_transition_stage = 9U,
+            };
+        LegacyBattleFrameCoordinatorCallReply formatted{
+            .eax = 4U,
+            .ecx = 5U,
+            .edx = 6U,
+            .publish_victory_item_list_text = true,
+            .victory_item_list_text_length = 2U,
+        };
+        formatted.victory_item_list_text[0U] = 0x91U;
+        formatted.victory_item_list_text[1U] = 0x92U;
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         talisman_result_format_success_detail] = formatted;
+
+        const auto query = port.invoke_talisman_result_panel({
+            .call = openswd3::battle::LegacyBattleTalismanResultPanelCall::
+                query_panel,
+            .arguments = {0xD4U, 0xFCU, 3U},
+            .eax = 7U,
+            .ecx = 8U,
+            .edx = 9U,
+        });
+        static_cast<void>(port.invoke_talisman_result_panel({
+            .call = openswd3::battle::LegacyBattleTalismanResultPanelCall::
+                draw_success_title,
+            .object_token = 0x004C9A28U,
+            .arguments =
+                {0x004CD76CU, 0x100U, 0xB4U, 0x004A7B3CU, 0xFFC0U, 0x10U},
+            .eax = 10U,
+            .ecx = 11U,
+            .edx = 12U,
+            .text = {0xB7U, 0xD2U},
+            .text_length = 2U,
+        }));
+        const auto format = port.invoke_talisman_result_panel({
+            .call = openswd3::battle::LegacyBattleTalismanResultPanelCall::
+                format_success_detail,
+            .arguments = {0x70001000U, 0x004A7B30U, 0x71000000U},
+            .item_name_token = 0x71000000U,
+            .eax = 13U,
+            .ecx = 14U,
+            .edx = 15U,
+            .text = {0xB1U, 0x6FU},
+            .text_length = 2U,
+        });
+        static_cast<void>(port.invoke_talisman_result_panel({
+            .call = openswd3::battle::LegacyBattleTalismanResultPanelCall::
+                draw_success_detail,
+        }));
+        static_cast<void>(port.invoke_talisman_result_panel({
+            .call = openswd3::battle::LegacyBattleTalismanResultPanelCall::
+                draw_failure_title,
+        }));
+        static_cast<void>(port.invoke_talisman_result_panel({
+            .call = openswd3::battle::LegacyBattleTalismanResultPanelCall::
+                draw_failure_detail,
+        }));
+
+        test.expect_true(
+            port.calls.size() == 6U && query.eax == 1U && query.ecx == 2U &&
+                query.edx == 3U && query.publish_result_mode &&
+                query.result_mode == 1U && query.publish_stage &&
+                query.stage == 9U && format.eax == 4U &&
+                format.publish_formatted_text &&
+                format.formatted_text[0U] == 0x91U &&
+                format.formatted_text[1U] == 0x92U &&
+                format.formatted_text_length == 2U &&
+                port.calls[0U].arguments[0U] == 0xD4U &&
+                port.calls[0U].arguments[1U] == 0xFCU &&
+                port.calls[1U].object_token == 0x004C9A28U &&
+                port.calls[1U].victory_text_length == 2U &&
+                port.calls[2U].arguments[1U] == 0x004A7B30U &&
+                port.calls[2U].arguments[2U] == 0x71000000U &&
+                port.calls[2U].victory_text_length == 2U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::talisman_result_query
+                ) == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        talisman_result_draw_success_title
+                ) == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        talisman_result_format_success_detail
+                ) == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        talisman_result_draw_success_detail
+                ) == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        talisman_result_draw_failure_title
+                ) == 1U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        talisman_result_draw_failure_detail
+                ) == 1U,
+            "frame coordinator maps all talisman result services and their register, text and live-state replies"
+        );
+    }
+    {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         state.conditional_mode = 1U;
         state.conditional_submode = 0U;

@@ -225,6 +225,23 @@ public:
         return reply;
     }
 
+    [[nodiscard]]
+    openswd3::battle::LegacyBattleTalismanResultPanelCallReply
+    invoke_talisman_result_panel(
+        const openswd3::battle::LegacyBattleTalismanResultPanelCallRequest&
+            request
+    ) override {
+        talisman_result_panel_calls.push_back(request);
+        auto reply = openswd3::battle::LegacyBattleTalismanResultPanelPort::
+            invoke_talisman_result_panel(request);
+        if (request.call ==
+            openswd3::battle::LegacyBattleTalismanResultPanelCall::
+                query_panel) {
+            reply.eax = talisman_result_panel_query_eax;
+        }
+        return reply;
+    }
+
     [[nodiscard]] openswd3::battle::LegacyBattleDefeatPanelCallReply
     invoke_defeat_panel(
         const openswd3::battle::LegacyBattleDefeatPanelCallRequest& request
@@ -372,6 +389,8 @@ public:
     std::vector<
         openswd3::battle::LegacyBattleGrowthItemCompletionPanelCallRequest>
         growth_item_completion_panel_calls;
+    std::vector<openswd3::battle::LegacyBattleTalismanResultPanelCallRequest>
+        talisman_result_panel_calls;
     std::vector<openswd3::battle::LegacyBattleDefeatPanelCallRequest>
         defeat_panel_calls;
     std::vector<openswd3::battle::LegacyBattleVictoryItemListPanelCallRequest>
@@ -386,6 +405,7 @@ public:
     u32 growth_item_completion_panel_query_eax{};
     u32 victory_item_list_query_eax{};
     u32 defeat_panel_query_eax{};
+    u32 talisman_result_panel_query_eax{};
 };
 
 struct Fixture {
@@ -522,13 +542,32 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         );
 
         fixture.message = 0x62U;
+        fixture.port.talisman_result_panel_query_eax = 2U;
         const auto message_98 = run(fixture);
         test.expect_true(
-            message_98.port_calls == 1U &&
+            message_98.status ==
+                    openswd3::battle::LegacyBattleMessagePhaseStatus::
+                        completed &&
+                message_98.talisman_result_panel_calls == 1U &&
+                message_98.talisman_result_panel.query_calls == 1U &&
                 fixture.input_dispatch.selection_cache_gate_a == 1U &&
-                fixture.port.message_calls.back().call ==
-                    LegacyBattleMessagePhaseCall::prepare_message_98,
-            "message 98 publishes cache A before its opaque preparation call"
+                fixture.port.message_calls.empty() &&
+                fixture.port.talisman_result_panel_calls.size() == 1U,
+            "message 98 publishes cache A then directly draws its talisman result panel without the reserved slot"
+        );
+
+        Fixture stopped;
+        stopped.message = 0x62U;
+        stopped.frame_provider.fail = true;
+        const auto stopped_result = run(stopped);
+        test.expect_true(
+            stopped_result.status ==
+                    openswd3::battle::LegacyBattleMessagePhaseStatus::
+                        talisman_result_panel_typed_stop &&
+                stopped.input_dispatch.selection_cache_gate_a == 1U &&
+                stopped_result.talisman_result_panel_calls == 1U &&
+                stopped_result.talisman_result_panel.query_calls == 0U,
+            "message 98 preserves cache A and propagates a talisman panel stop before later frame stages"
         );
     }
     {
