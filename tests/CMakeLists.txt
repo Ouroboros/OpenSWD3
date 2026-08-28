@@ -296,6 +296,7 @@ add_executable(
     unit/battle/legacy_battle_group_b_target_cycle_test.cpp
     unit/battle/legacy_battle_group_effect_frame_test.cpp
     unit/battle/legacy_battle_grid_frame_test.cpp
+    unit/battle/legacy_battle_guard_panel_frame_test.cpp
     unit/battle/legacy_battle_hud_frame_test.cpp
     unit/battle/legacy_battle_input_dispatch_test.cpp
     unit/battle/legacy_battle_input_record_priming_test.cpp

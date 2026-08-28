@@ -1070,10 +1070,16 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
             five_result.status ==
                     openswd3::battle::LegacyBattleSelectionFrameStatus::
                         completed &&
-                five.port.calls.back().call ==
-                    LegacyBattleSelectionFrameCall::draw_message_five &&
-                five.port.calls.back().arguments[0U] == 0xC4U &&
-                five.port.calls.back().arguments[1U] == 0xCEU &&
+                five_result.guard_panel_frame_calls == 1U &&
+                five_result.guard_panel_frame.status ==
+                    openswd3::battle::LegacyBattleGuardPanelFrameStatus::
+                        completed &&
+                five_result.guard_panel_frame.actor_label_query_calls == 0U &&
+                count_call(
+                    five.port,
+                    LegacyBattleSelectionFrameCall::
+                        reserved_draw_message_five_slot
+                ) == 0U &&
                 seven_result.status ==
                     openswd3::battle::LegacyBattleSelectionFrameStatus::
                         completed &&
@@ -1098,7 +1104,33 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                     LegacyBattleSelectionFrameCall::
                         reserved_draw_narrow_frame_slot
                 ) == 0U,
-            "messages five and seven preserve fixed arguments while message eight directly publishes the narrow grid caches"
+            "messages five and eight directly draw typed panels while message seven preserves fixed arguments"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.message = 5U;
+        fixture.frame_provider.fail = true;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        guard_panel_frame_typed_stop &&
+                result.guard_panel_frame_calls == 1U &&
+                result.guard_panel_frame.status ==
+                    openswd3::battle::LegacyBattleGuardPanelFrameStatus::
+                        first_tiled_frame_typed_stop &&
+                count_call(
+                    fixture.port,
+                    LegacyBattleSelectionFrameCall::
+                        reserved_draw_message_five_slot
+                ) == 0U,
+            "message five propagates the guard panel prefix stop without using its reserved slot"
         );
     }
 

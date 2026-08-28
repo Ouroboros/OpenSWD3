@@ -116,8 +116,8 @@ public:
     }
 
     std::vector<Request> calls;
-    std::array<std::vector<Reply>, 12> replies;
-    std::array<std::size_t, 12> reply_offsets{};
+    std::array<std::vector<Reply>, 13> replies;
+    std::array<std::size_t, 13> reply_offsets{};
     std::function<void(const Request&)> on_call;
 };
 

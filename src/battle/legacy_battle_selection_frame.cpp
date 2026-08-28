@@ -120,7 +120,7 @@ public:
             draw_message_four();
             break;
         case 5U:
-            invoke(Call::draw_message_five, 0U, {0xC4U, 0xCEU});
+            draw_message_five();
             break;
         case 6U:
             draw_message_six();
@@ -778,6 +778,45 @@ private:
         return true;
     }
 
+    [[nodiscard]] bool
+    draw_guard_panel_frame(const u32 origin_x, const u32 origin_y) {
+        auto guard_request = request_.guard_panel_frame;
+        guard_request.origin_x = origin_x;
+        guard_request.origin_y = origin_y;
+        guard_request.entry_eax = eax_;
+        guard_request.entry_ecx = ecx_;
+        guard_request.entry_edx = edx_;
+        result_.guard_panel_frame = draw_legacy_battle_guard_panel_frame(
+            {
+                .group_b_row_selection =
+                    bindings_.frame_input.group_b_row_selection,
+                .group_a_count = bindings_.metrics.group_a_count,
+                .target_effect_value =
+                    bindings_.target_runtime.target_effect_value,
+                .panel_action_record = bindings_.panel_action_record,
+                .framebuffer = bindings_.framebuffer,
+                .raster = bindings_.raster,
+                .shared_effects = bindings_.shared_effects,
+                .jitter = bindings_.jitter,
+                .action_updater = bindings_.action_updater,
+                .frame_provider = bindings_.frame_provider,
+            },
+            port_,
+            guard_request
+        );
+        ++result_.guard_panel_frame_calls;
+        result_.port_calls += result_.guard_panel_frame.port_calls;
+        eax_ = result_.guard_panel_frame.return_eax;
+        ecx_ = result_.guard_panel_frame.return_ecx;
+        edx_ = result_.guard_panel_frame.return_edx;
+        if (result_.guard_panel_frame.status !=
+            LegacyBattleGuardPanelFrameStatus::completed) {
+            typed_stop(Status::guard_panel_frame_typed_stop);
+            return false;
+        }
+        return true;
+    }
+
     [[nodiscard]] bool draw_narrow_grid_frame(
         const u32 origin_x, const u32 origin_y, const u32 selected_row
     ) {
@@ -940,6 +979,10 @@ private:
             }
         }
         set_selection_cache_gates();
+    }
+
+    void draw_message_five() {
+        static_cast<void>(draw_guard_panel_frame(0xC4U, 0xCEU));
     }
 
     void draw_message_eight() {

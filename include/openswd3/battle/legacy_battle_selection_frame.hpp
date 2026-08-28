@@ -11,6 +11,7 @@
 #include "openswd3/battle/legacy_battle_final_actor_step.hpp"
 #include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
 #include "openswd3/battle/legacy_battle_grid_frame.hpp"
+#include "openswd3/battle/legacy_battle_guard_panel_frame.hpp"
 #include "openswd3/battle/legacy_battle_group_b_frame.hpp"
 #include "openswd3/battle/legacy_battle_input_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_list_contents.hpp"
@@ -82,7 +83,7 @@ enum class LegacyBattleSelectionFrameCall : compat::u8 {
     reserved_draw_narrow_frame_slot,
     reserved_draw_grid_alternate_slot,
     reserved_draw_grid_mode_slot,
-    draw_message_five,
+    reserved_draw_message_five_slot,
     draw_message_seven,
     configure_text_font,
     query_group_b_completion,
@@ -175,6 +176,7 @@ struct LegacyBattleSelectionFrameRequest {
     LegacyBattleAlternateGridFrameRequest alternate_grid_frame{};
     LegacyBattleModeGridFrameRequest mode_grid_frame{};
     LegacyBattleNarrowGridFrameRequest narrow_grid_frame{};
+    LegacyBattleGuardPanelFrameRequest guard_panel_frame{};
 };
 
 enum class LegacyBattleSelectionFrameStatus : compat::u8 {
@@ -197,6 +199,7 @@ enum class LegacyBattleSelectionFrameStatus : compat::u8 {
     alternate_grid_frame_typed_stop,
     mode_grid_frame_typed_stop,
     narrow_grid_frame_typed_stop,
+    guard_panel_frame_typed_stop,
 };
 
 struct LegacyBattleSelectionFrameResult {
@@ -217,6 +220,7 @@ struct LegacyBattleSelectionFrameResult {
     compat::u32 alternate_grid_frame_calls{};
     compat::u32 mode_grid_frame_calls{};
     compat::u32 narrow_grid_frame_calls{};
+    compat::u32 guard_panel_frame_calls{};
     LegacyBattleActionSummaryResult action_summary{};
     LegacyBattleListFrameResult list_frame{};
     LegacyBattleListContentsResult list_contents{};
@@ -224,6 +228,7 @@ struct LegacyBattleSelectionFrameResult {
     LegacyBattleAlternateGridFrameResult alternate_grid_frame{};
     LegacyBattleModeGridFrameResult mode_grid_frame{};
     LegacyBattleNarrowGridFrameResult narrow_grid_frame{};
+    LegacyBattleGuardPanelFrameResult guard_panel_frame{};
     LegacyBattleActorTargetPreparationResult actor_target_preparation{};
     LegacyBattleScaleFillPanelResult scale_fill_panel{};
     LegacyBattleVerticalPanelResult vertical_panel{};
