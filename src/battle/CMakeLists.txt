@@ -57,6 +57,7 @@ add_library(
         legacy_battle_input_dispatch.cpp
         legacy_battle_input_record_priming.cpp
         legacy_battle_frame_input_resolution.cpp
+        legacy_battle_list_frame.cpp
         legacy_battle_menu_context_advance.cpp
         legacy_battle_menu_context_retreat.cpp
         legacy_battle_menu_input_finalize.cpp

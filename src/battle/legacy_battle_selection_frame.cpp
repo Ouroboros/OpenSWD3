@@ -583,9 +583,47 @@ private:
         return true;
     }
 
+    [[nodiscard]] bool draw_list_frame(const u32 origin_x, const u32 origin_y) {
+        auto list_request = request_.list_frame;
+        list_request.origin_x = origin_x;
+        list_request.origin_y = origin_y;
+        list_request.entry_eax = eax_;
+        list_request.entry_ecx = ecx_;
+        list_request.entry_edx = edx_;
+        result_.list_frame = draw_legacy_battle_list_frame(
+            {
+                .input = bindings_.input_dispatch,
+                .panel_action_record = bindings_.panel_action_record,
+                .framebuffer = bindings_.framebuffer,
+                .clip = bindings_.clip,
+                .raster = bindings_.raster,
+                .shared_request = bindings_.shared_request,
+                .shared_effects = bindings_.shared_effects,
+                .jitter = bindings_.jitter,
+                .action_updater = bindings_.action_updater,
+                .frame_provider = bindings_.frame_provider,
+            },
+            port_,
+            list_request
+        );
+        ++result_.list_frame_calls;
+        result_.port_calls += result_.list_frame.port_calls;
+        eax_ = result_.list_frame.return_eax;
+        ecx_ = result_.list_frame.return_ecx;
+        edx_ = result_.list_frame.return_edx;
+        if (result_.list_frame.status !=
+            LegacyBattleListFrameStatus::completed) {
+            typed_stop(Status::list_frame_typed_stop);
+            return false;
+        }
+        return true;
+    }
+
     void draw_message_two() {
         state_input().selection_cache_gate_c = 1U;
-        invoke(Call::draw_list_frame, 0U, {0xE0U, 0x7EU});
+        if (!draw_list_frame(0xE0U, 0x7EU)) {
+            return;
+        }
         eax_ = state_input().selection_animation_frame_b;
         if (eax_ != 7U || state_input().selection_animation_frame_a != 10U) {
             set_selection_cache_gates();

@@ -11,6 +11,7 @@
 #include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
 #include "openswd3/battle/legacy_battle_group_b_frame.hpp"
 #include "openswd3/battle/legacy_battle_input_dispatch.hpp"
+#include "openswd3/battle/legacy_battle_list_frame.hpp"
 #include "openswd3/battle/legacy_battle_scale_fill_panel.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_runtime.hpp"
 #include "openswd3/battle/legacy_battle_vertical_panel.hpp"
@@ -65,7 +66,7 @@ enum class LegacyBattleSelectionFrameCall : compat::u8 {
     query_text_length,
     draw_text,
     reserved_draw_action_summary_slot,
-    draw_list_frame,
+    reserved_draw_list_frame_slot,
     draw_list_contents,
     draw_grid_frame,
     draw_narrow_frame,
@@ -109,7 +110,8 @@ struct LegacyBattleSelectionFrameCallReply {
 class LegacyBattleSelectionFramePort
     : public virtual LegacyBattleSelectionFrameStatePort,
       public virtual LegacyBattleActorTargetPreparationPort,
-      public virtual LegacyBattleActionSummaryPort {
+      public virtual LegacyBattleActionSummaryPort,
+      public virtual LegacyBattleListFramePort {
 public:
     virtual ~LegacyBattleSelectionFramePort() = default;
 
@@ -132,8 +134,10 @@ struct LegacyBattleSelectionFrameBindings {
     LegacyBattleGroupBFrameState* actor_frames;
     compat::u32& message_state;
     compat::u32& target_ready_gate;
+    asset_runtime::LegacyActionRecord& panel_action_record;
     rendering::LegacyFramebuffer& framebuffer;
     const rendering::LegacyBlitClipRectangle& clip;
+    rendering::LegacyRasterGeometryState& raster;
     rendering::LegacyBlitRequest& shared_request;
     rendering::LegacyBlitEffectState& shared_effects;
     rendering::LegacyRleRowJitterState& jitter;
@@ -151,6 +155,7 @@ struct LegacyBattleSelectionFrameRequest {
     compat::u32 vertical_panel_final_blit_eax{};
     compat::u32 prepared_action_update_ecx{};
     compat::u32 prepared_action_return_eax{};
+    LegacyBattleListFrameRequest list_frame{};
 };
 
 enum class LegacyBattleSelectionFrameStatus : compat::u8 {
@@ -167,6 +172,7 @@ enum class LegacyBattleSelectionFrameStatus : compat::u8 {
     vertical_panel_typed_stop,
     prepared_action_frame_typed_stop,
     action_summary_typed_stop,
+    list_frame_typed_stop,
 };
 
 struct LegacyBattleSelectionFrameResult {
@@ -181,7 +187,9 @@ struct LegacyBattleSelectionFrameResult {
     compat::u32 group_b_calls{};
     compat::u32 action_frame_draw_calls{};
     compat::u32 action_summary_calls{};
+    compat::u32 list_frame_calls{};
     LegacyBattleActionSummaryResult action_summary{};
+    LegacyBattleListFrameResult list_frame{};
     LegacyBattleActorTargetPreparationResult actor_target_preparation{};
     LegacyBattleScaleFillPanelResult scale_fill_panel{};
     LegacyBattleVerticalPanelResult vertical_panel{};

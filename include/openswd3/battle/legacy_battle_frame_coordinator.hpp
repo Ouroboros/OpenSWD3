@@ -101,7 +101,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     selection_frame_query_text_length,
     selection_frame_draw_text,
     reserved_selection_frame_draw_action_summary_slot,
-    selection_frame_draw_list_frame,
+    reserved_selection_frame_draw_list_frame_slot,
     selection_frame_draw_list_contents,
     selection_frame_draw_grid_frame,
     selection_frame_draw_narrow_frame,
@@ -235,9 +235,9 @@ public:
             call = LegacyBattleFrameCoordinatorCall::
                 reserved_selection_frame_draw_action_summary_slot;
             break;
-        case LegacyBattleSelectionFrameCall::draw_list_frame:
+        case LegacyBattleSelectionFrameCall::reserved_draw_list_frame_slot:
             call = LegacyBattleFrameCoordinatorCall::
-                selection_frame_draw_list_frame;
+                reserved_selection_frame_draw_list_frame_slot;
             break;
         case LegacyBattleSelectionFrameCall::draw_list_contents:
             call = LegacyBattleFrameCoordinatorCall::
@@ -358,6 +358,25 @@ public:
             .call = call,
             .object_token = request.object_token,
             .arguments = request.arguments,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        });
+        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
+    }
+    [[nodiscard]] LegacyBattleListFrameCallReply invoke_list_frame(
+        const LegacyBattleListFrameCallRequest& request
+    ) override {
+        const auto reply = invoke({
+            .call = LegacyBattleFrameCoordinatorCall::
+                selection_frame_configure_text_color,
+            .arguments =
+                {
+                    request.arguments[0],
+                    request.arguments[1],
+                    request.arguments[2],
+                    request.arguments[3],
+                },
             .eax = request.eax,
             .ecx = request.ecx,
             .edx = request.edx,

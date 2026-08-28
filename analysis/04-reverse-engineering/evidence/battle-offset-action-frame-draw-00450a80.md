@@ -6,7 +6,7 @@
 
 权威LST完整范围为`0x00450A80..0x00450B31`，从`proc`到`endp`共91行，没有外部`FUNCTION CHUNK`。
 
-cdecl五参数依次为动作号、base variant、目标X、目标Y和偏移模式selector。十个caller分布在`0x0045E6B8`、`0x0045E6ED`、`0x0045E70B`、`0x0045E743`、`0x0045E77E`、`0x0045E79B`、`0x004654A9`、`0x004654E3`、`0x00465A4A`和`0x00465A84`；前六个上下文提示callsite已由其caller直接组合typed实现，并通过唯一state port复用本函数持久状态。静态callsite都传selector 0，但调用路径可依据原栈值传入1，完整函数保留selector精确等于1的分支。`0x0045E743`是唯一立即比较返回值1的callsite。
+cdecl五参数依次为动作号、base variant、目标X、目标Y和偏移模式selector。十个caller分布在`0x0045E6B8`、`0x0045E6ED`、`0x0045E70B`、`0x0045E743`、`0x0045E77E`、`0x0045E79B`、`0x004654A9`、`0x004654E3`、`0x00465A4A`和`0x00465A84`；前六个上下文提示callsite与`0x004654A9`、`0x004654E3`两个列表框callsite已由caller直接组合typed实现，并通过唯一state port复用本函数持久状态；其余两个相邻callsite留到各自工作包。静态callsite都传selector 0，但调用路径可依据原栈值传入1，完整函数保留selector精确等于1的分支。`0x0045E743`是唯一立即比较返回值1的callsite。
 
 callee依次为动作更新器`0x004321E0`、帧查询`0x004315D0`和软件blitter`0x004170E0`各一次，三者均已关闭并由typed接口直连。
 

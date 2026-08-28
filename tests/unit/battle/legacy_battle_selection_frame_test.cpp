@@ -13,6 +13,9 @@ namespace {
 using openswd3::battle::LegacyBattleActionSummaryCall;
 using openswd3::battle::LegacyBattleActionSummaryCallReply;
 using openswd3::battle::LegacyBattleActionSummaryCallRequest;
+using openswd3::battle::LegacyBattleListFrameCall;
+using openswd3::battle::LegacyBattleListFrameCallReply;
+using openswd3::battle::LegacyBattleListFrameCallRequest;
 using openswd3::battle::LegacyBattleSelectionFrameCall;
 using openswd3::battle::LegacyBattleSelectionFrameCallReply;
 using openswd3::battle::LegacyBattleSelectionFrameCallRequest;
@@ -46,6 +49,13 @@ public:
         return found->second[index++];
     }
 
+    [[nodiscard]] LegacyBattleListFrameCallReply invoke_list_frame(
+        const LegacyBattleListFrameCallRequest& request
+    ) override {
+        list_frame_calls.push_back(request);
+        return list_frame_default_reply;
+    }
+
     [[nodiscard]] LegacyBattleSelectionFrameCallReply invoke_selection_frame(
         const LegacyBattleSelectionFrameCallRequest& request
     ) override {
@@ -67,6 +77,7 @@ public:
 
     std::vector<LegacyBattleSelectionFrameCallRequest> calls;
     std::vector<LegacyBattleActionSummaryCallRequest> action_summary_calls;
+    std::vector<LegacyBattleListFrameCallRequest> list_frame_calls;
     std::vector<openswd3::battle::LegacyBattleActorTargetPreparationCallRequest>
         target_calls;
     std::map<
@@ -82,6 +93,7 @@ public:
         action_summary_reply_indices;
     LegacyBattleSelectionFrameCallReply default_reply{};
     LegacyBattleActionSummaryCallReply action_summary_default_reply{};
+    LegacyBattleListFrameCallReply list_frame_default_reply{};
 };
 
 class SelectionRandom final
@@ -99,18 +111,38 @@ public:
 class FailingActionStreamProvider final
     : public openswd3::asset_runtime::LegacyActionStreamProvider {
 public:
+    FailingActionStreamProvider() {
+        constexpr std::array<u16, 8> kWords{
+            0x5246U, 0x0066U, 0x5041U, 0U, 0x5859U, 2U, 3U, 0x4544U
+        };
+        for (const u16 word : kWords) {
+            bytes.push_back(static_cast<u8>(word));
+            bytes.push_back(static_cast<u8>(word >> 8U));
+        }
+    }
+
     [[nodiscard]] openswd3::asset_runtime::LegacyActionStreamLoadResult
     load_action_stream(u32, u32, bool) override {
-        return {};
+        if (fail) {
+            return {};
+        }
+        return {
+            openswd3::asset_runtime::LegacyActionStreamStatus::ready,
+            bytes,
+            false,
+        };
     }
+
+    std::vector<u8> bytes;
+    bool fail{true};
 };
 
 class SelectionFrameProvider final
     : public openswd3::rendering::LegacyFramePieceProvider {
 public:
     SelectionFrameProvider() {
-        widths = {20U, 20U, 20U, 4U};
-        heights = {4U, 3U, 60U, 4U};
+        widths = {20U, 20U, 20U, 4U, 4U, 4U, 4U, 4U, 4U};
+        heights = {4U, 3U, 60U, 4U, 4U, 4U, 4U, 4U, 4U};
         for (std::size_t index = 0U; index < storage.size(); ++index) {
             storage[index].resize(
                 static_cast<std::size_t>(widths[index]) * heights[index] * 2U,
@@ -140,9 +172,9 @@ public:
     }
 
     bool fail{};
-    std::array<u16, 4> widths{};
-    std::array<u16, 4> heights{};
-    std::array<std::vector<u8>, 4> storage;
+    std::array<u16, 9> widths{};
+    std::array<u16, 9> heights{};
+    std::array<std::vector<u8>, 9> storage;
 };
 
 struct Fixture {
@@ -168,8 +200,10 @@ struct Fixture {
             .actor_frames = &actor_frames,
             .message_state = message,
             .target_ready_gate = target_ready,
+            .panel_action_record = panel_action_record,
             .framebuffer = framebuffer,
             .clip = clip,
+            .raster = raster,
             .shared_request = request,
             .shared_effects = effects,
             .jitter = jitter,
@@ -191,12 +225,16 @@ struct Fixture {
     openswd3::battle::LegacyBattleGroupBFrameState actor_frames;
     u32 message{};
     u32 target_ready{};
+    openswd3::asset_runtime::LegacyActionRecord panel_action_record{};
     openswd3::rendering::LegacyFramebuffer framebuffer{{
         .pitch_bytes = 1280,
         .width = 640,
         .height = 480,
     }};
     openswd3::rendering::LegacyBlitClipRectangle clip{0, 0, 640, 480};
+    openswd3::rendering::LegacyRasterGeometryState raster{
+        framebuffer.geometry()
+    };
     openswd3::rendering::LegacyBlitRequest request;
     openswd3::rendering::LegacyBlitEffectState effects;
     openswd3::rendering::LegacyRleRowJitterState jitter;
@@ -220,6 +258,15 @@ struct Fixture {
 ) {
     return static_cast<std::size_t>(std::ranges::count_if(
         port.action_summary_calls,
+        [call](const auto& request) { return request.call == call; }
+    ));
+}
+
+[[nodiscard]] std::size_t count_list_frame_call(
+    const SelectionPort& port, const LegacyBattleListFrameCall call
+) {
+    return static_cast<std::size_t>(std::ranges::count_if(
+        port.list_frame_calls,
         [call](const auto& request) { return request.call == call; }
     ));
 }
@@ -480,6 +527,7 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
         fixture.frame.panel_row_limit_a = 0xFFU;
         fixture.frame.panel_scroll_a = 4U;
         fixture.port.default_reply.eax = 0x12340000U;
+        fixture.action_streams.fail = false;
         const auto result =
             openswd3::battle::draw_legacy_battle_selection_frame(
                 fixture.bindings(), fixture.port
@@ -493,9 +541,62 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                 fixture.input.selection_cache_gate_a == 1U &&
                 fixture.input.selection_cache_gate_b == 1U &&
                 fixture.input.selection_cache_gate_c == 1U &&
+                fixture.input.selection_animation_frame_a == 10U &&
+                fixture.input.selection_animation_frame_b == 7U &&
+                result.list_frame_calls == 1U &&
+                result.list_frame.status ==
+                    openswd3::battle::LegacyBattleListFrameStatus::completed &&
+                result.list_frame.action_frame_calls == 4U &&
+                result.list_frame.font_style_calls == 2U &&
+                result.list_frame.panel_action_update_calls == 1U &&
+                result.list_frame.rectangle_calls == 1U &&
+                result.list_frame.tiled_frame_calls == 1U &&
+                count_list_frame_call(
+                    fixture.port,
+                    LegacyBattleListFrameCall::configure_font_style
+                ) == 2U &&
+                count_call(
+                    fixture.port,
+                    LegacyBattleSelectionFrameCall::
+                        reserved_draw_list_frame_slot
+                ) == 0U &&
                 result.return_eax == 0x123400FFU &&
                 result.vertical_panel.action_update_calls == 0U,
-            "message two sign-extends the byte row limit and keeps the callee return high bytes when no vertical panel is needed"
+            "message two directly draws and clamps the list frame before preserving the signed row-limit result"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.message = 2U;
+        fixture.input.selection_animation_frame_a = 2U;
+        fixture.input.selection_animation_frame_b = 3U;
+        fixture.panel_action_record.action_id = 0xAAAAAAAAU;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        list_frame_typed_stop &&
+                result.list_frame.status ==
+                    openswd3::battle::LegacyBattleListFrameStatus::
+                        action_frame_typed_stop &&
+                result.list_frame_calls == 1U &&
+                result.list_frame.action_frame_calls == 1U &&
+                fixture.input.selection_cache_gate_c == 1U &&
+                fixture.input.selection_cache_gate_a == 0U &&
+                fixture.input.selection_cache_gate_b == 0U &&
+                fixture.input.selection_animation_frame_a == 2U &&
+                fixture.input.selection_animation_frame_b == 3U &&
+                fixture.panel_action_record.action_id == 0xAAAAAAAAU &&
+                count_call(
+                    fixture.port,
+                    LegacyBattleSelectionFrameCall::draw_list_contents
+                ) == 0U,
+            "message two propagates the first list-frame stop before contents, row state, and final cache gates"
         );
     }
 
