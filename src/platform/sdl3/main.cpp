@@ -2503,8 +2503,8 @@ public:
                 battle_runtime_.enemy_count = battle_setup_.enemy_count;
                 battle_runtime_.background_resource =
                     battle_setup_.background_resource_id;
-                for (std::size_t index = 0U;
-                     index < battle_setup_.party.size(); ++index) {
+                for (std::size_t index = 0U; index < battle_setup_.party.size();
+                     ++index) {
                     const auto& source = battle_setup_.party[index];
                     auto& destination = battle_runtime_.party[index];
                     destination.role_id = source.resource_id;
@@ -2513,7 +2513,8 @@ public:
                     destination.active = source.active ? 1U : 0U;
                 }
                 for (std::size_t index = 0U;
-                     index < battle_setup_.enemies.size(); ++index) {
+                     index < battle_setup_.enemies.size();
+                     ++index) {
                     const auto& source = battle_setup_.enemies[index];
                     auto& destination = battle_runtime_.enemies[index];
                     destination.role_id = source.resource_id;
@@ -2555,8 +2556,7 @@ public:
     }
     void clear_party_battle_entry_bits() override {}
 
-    openswd3::battle::LegacyBattleScriptDispatchCallReply
-    invoke_battle_script(
+    openswd3::battle::LegacyBattleScriptDispatchCallReply invoke_battle_script(
         openswd3::battle::LegacyBattleScriptWorkspace& workspace,
         openswd3::battle::LegacyBattleScriptDispatchBindings&,
         const openswd3::battle::LegacyBattleScriptDispatchCallRequest& request
@@ -2611,6 +2611,19 @@ public:
             reply.eax = next_battle_script_token_;
             next_battle_script_token_ += 0x100U;
             break;
+        case LegacyBattleScriptDispatchCall::script_page_load: {
+            const auto status =
+                openswd3::battle::load_legacy_battle_script_page(
+                    std::bit_cast<openswd3::compat::i32>(request.arguments[0]),
+                    battle_assets_
+                );
+            reply.eax =
+                status == openswd3::battle::LegacyBattleAssetStatus::ready ? 1U
+                                                                           : 0U;
+            reply.typed_stop =
+                status != openswd3::battle::LegacyBattleAssetStatus::ready;
+            break;
+        }
         case LegacyBattleScriptDispatchCall::random_bounded:
         case LegacyBattleScriptDispatchCall::random_bounded_tertiary:
         case LegacyBattleScriptDispatchCall::random_bounded_quaternary:
@@ -2649,13 +2662,17 @@ public:
         case LegacyBattleScriptDispatchCall::pending_478600:
         case LegacyBattleScriptDispatchCall::pending_484500:
             if (const auto index = group_a_index(); index.has_value()) {
-                workspace.coordinate_x = battle_runtime_.party[*index].position_x;
-                workspace.coordinate_y = battle_runtime_.party[*index].position_y;
+                workspace.coordinate_x =
+                    battle_runtime_.party[*index].position_x;
+                workspace.coordinate_y =
+                    battle_runtime_.party[*index].position_y;
                 workspace.pair_x = battle_runtime_.party[*index].position_x;
                 workspace.pair_y = battle_runtime_.party[*index].position_y;
             } else if (const auto index = group_b_index(); index.has_value()) {
-                workspace.coordinate_x = battle_runtime_.enemies[*index].position_x;
-                workspace.coordinate_y = battle_runtime_.enemies[*index].position_y;
+                workspace.coordinate_x =
+                    battle_runtime_.enemies[*index].position_x;
+                workspace.coordinate_y =
+                    battle_runtime_.enemies[*index].position_y;
                 workspace.pair_x = battle_runtime_.enemies[*index].position_x;
                 workspace.pair_y = battle_runtime_.enemies[*index].position_y;
             }
@@ -2708,7 +2725,9 @@ public:
         if (result.status !=
             openswd3::battle::LegacyBattleScriptDispatchStatus::completed) {
             std::string message{"battle script typed stop: status="};
-            message.append(std::to_string(static_cast<unsigned int>(result.status)));
+            message.append(
+                std::to_string(static_cast<unsigned int>(result.status))
+            );
             message.append(", opcode=");
             message.append(std::to_string(result.opcode));
             message.append(", offset=");

@@ -692,6 +692,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-script-window-load-0046e0b0.md",
     ),
+    "0x0046E1E0": (
+        "platform_adapted",
+        "evidence/battle-script-page-load-0046e1e0.md",
+    ),
 }
 
 

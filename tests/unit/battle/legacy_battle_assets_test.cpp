@@ -114,6 +114,41 @@ void test_script_window_loader(openswd3::test::Context& test) {
             assets.script[6] == 0U && assets.script.back() == 0U,
         "typed FIGTALK loader follows the table and zero-fills its fixed window"
     );
+
+    constexpr u32 kPageOffset = 0x30U;
+    std::vector<u8> page_source(0x200U + kPageOffset + 3U, 0U);
+    page_source[0x200U + kPageOffset] = 0xAAU;
+    page_source[0x200U + kPageOffset + 1U] = 0xBBU;
+    page_source[0x200U + kPageOffset + 2U] = 0xCCU;
+    tree.write("FIGTALK.DAT", page_source);
+    assets.script.fill(0x5AU);
+    const auto page_status = openswd3::battle::load_legacy_battle_script_page(
+        static_cast<openswd3::compat::i32>(kPageOffset), assets
+    );
+    test.expect_true(
+        page_status == LegacyBattleAssetStatus::ready &&
+            assets.figtalk_page_offset == kPageOffset &&
+            assets.script_capacity ==
+                openswd3::battle::kLegacyBattleScriptPageSize &&
+            assets.figtalk_actual_size == 3U && assets.script[0] == 0xAAU &&
+            assets.script[2] == 0xCCU && assets.script[3] == 0U &&
+            assets.script[0x0FFFU] == 0U && assets.script[0x1000U] == 0x5AU,
+        "script page load replaces only the active 0x1000-byte window"
+    );
+
+    std::error_code ignored;
+    std::filesystem::remove(assets.figtalk_path, ignored);
+    assets.script.fill(0x5AU);
+    const auto missing_status =
+        openswd3::battle::load_legacy_battle_script_page(0, assets);
+    test.expect_true(
+        missing_status == LegacyBattleAssetStatus::script_page_open_failed &&
+            assets.script_capacity ==
+                openswd3::battle::kLegacyBattleScriptPageSize &&
+            assets.script[0] == 0U && assets.script[0x0FFFU] == 0U &&
+            assets.script[0x1000U] == 0x5AU,
+        "page replacement clears the active page before a file failure"
+    );
 }
 
 void test_load_sequence_and_offsets(openswd3::test::Context& test) {

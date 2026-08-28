@@ -10,6 +10,7 @@
 namespace openswd3::battle {
 
 inline constexpr std::size_t kLegacyBattleScriptWindowSize = 0x8000U;
+inline constexpr std::size_t kLegacyBattleScriptPageSize = 0x1000U;
 inline constexpr std::size_t kLegacyBattleFfdHeaderSize = 0x2714U;
 inline constexpr std::size_t kLegacyBattleFfdRecordSize = 0x010CU;
 inline constexpr std::size_t kLegacyBattleFfdEntryCount = 2000U;
@@ -38,6 +39,10 @@ enum class LegacyBattleAssetStatus {
     record_seek_failed,
     record_read_failed,
     record_short_read,
+    script_page_open_failed,
+    script_page_offset_out_of_range,
+    script_page_seek_failed,
+    script_page_read_failed,
 };
 
 struct LegacyBattleAssets {
@@ -48,7 +53,10 @@ struct LegacyBattleAssets {
     compat::u32 record_ordinal{};
     compat::u32 figtalk_data_offset{};
     compat::u32 figtalk_actual_size{};
+    compat::u32 figtalk_page_offset{};
+    compat::u32 script_capacity{kLegacyBattleScriptWindowSize};
     compat::u32 record_actual_size{};
+    std::filesystem::path figtalk_path;
     std::array<compat::u8, kLegacyBattleScriptWindowSize> script{};
     std::array<compat::u8, kLegacyBattleFfdHeaderSize> ffd_header{};
     std::array<compat::u8, kLegacyBattleFfdRecordSize> ffd_record{};
@@ -69,6 +77,11 @@ struct LegacyBattleAssetLoadResult {
     const std::filesystem::path& data_root,
     compat::u16 battle_id,
     LegacyBattleAssets& destination
+);
+
+// sub_46E1E0, with the released/allocation pair adapted to the same array.
+[[nodiscard]] LegacyBattleAssetStatus load_legacy_battle_script_page(
+    compat::i32 data_offset, LegacyBattleAssets& destination
 );
 
 [[nodiscard]] LegacyBattleAssetLoadResult load_legacy_battle_assets(

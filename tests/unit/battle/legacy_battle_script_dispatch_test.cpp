@@ -77,6 +77,7 @@ public:
     u32 allocation_token{0x1000U};
     u32 query_result{};
     u32 item_token{};
+    bool script_page_stop{};
 
     LegacyBattleScriptDispatchCallReply invoke_battle_script(
         LegacyBattleScriptWorkspace& workspace,
@@ -101,6 +102,10 @@ public:
             break;
         case LegacyBattleScriptDispatchCall::find_player_item:
             reply.eax = item_token;
+            break;
+        case LegacyBattleScriptDispatchCall::script_page_load:
+            reply.eax = script_page_stop ? 0U : 1U;
+            reply.typed_stop = script_page_stop;
             break;
         case LegacyBattleScriptDispatchCall::x87_truncate:
             reply.eax = std::bit_cast<u32>(
@@ -276,10 +281,10 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
             fixture.workspace, fixture.bindings(), port
         ));
         test.expect_true(
-            fixture.workspace.cursor == 4U &&
-                port.count(LegacyBattleScriptDispatchCall::prepare_script) ==
+            fixture.workspace.cursor == 0U &&
+                port.count(LegacyBattleScriptDispatchCall::script_page_load) ==
                     1U,
-            "case forty-eight uses its four-byte success path"
+            "case forty-eight loads its selected script page and resets the cursor"
         );
 
         Fixture failure;
@@ -293,9 +298,27 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
         test.expect_true(
             failure.workspace.cursor == 8U &&
                 failure_port.count(
-                    LegacyBattleScriptDispatchCall::prepare_script
+                    LegacyBattleScriptDispatchCall::script_page_load
                 ) == 0U,
-            "case forty-eight uses its eight-byte failure path"
+            "case forty-eight uses its eight-byte query-failure path"
+        );
+
+        Fixture stopped;
+        Port stopped_port;
+        stopped.opcode(48);
+        stopped.write_u16(2U, 7U);
+        stopped.write_u16(4U, 19U);
+        stopped_port.query_result = 1U;
+        stopped_port.script_page_stop = true;
+        const auto stopped_result = run_legacy_battle_script_dispatch(
+            stopped.workspace, stopped.bindings(), stopped_port
+        );
+        test.expect_true(
+            stopped_result.status ==
+                    LegacyBattleScriptDispatchStatus::
+                        script_page_load_typed_stop &&
+                stopped.workspace.cursor == 0U,
+            "script page failure stops after publishing the replacement cursor"
         );
     }
 
@@ -350,10 +373,10 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
             fixture.workspace, fixture.bindings(), port
         ));
         test.expect_true(
-            fixture.workspace.cursor == 8U &&
+            fixture.workspace.cursor == 0U &&
                 port.count(LegacyBattleScriptDispatchCall::pending_478ab0) ==
                     2U &&
-                port.count(LegacyBattleScriptDispatchCall::prepare_script) ==
+                port.count(LegacyBattleScriptDispatchCall::script_page_load) ==
                     1U,
             "case sixty-one calls the post-list script only when every query is zero"
         );
@@ -398,8 +421,8 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
             fixture.workspace, fixture.bindings(), port
         ));
         test.expect_true(
-            fixture.workspace.cursor == 6U &&
-                port.count(LegacyBattleScriptDispatchCall::prepare_script) ==
+            fixture.workspace.cursor == 0U &&
+                port.count(LegacyBattleScriptDispatchCall::script_page_load) ==
                     1U &&
                 port.count(LegacyBattleScriptDispatchCall::frame) == 0U,
             "case sixty-five takes the six-byte no-frame success path"
@@ -499,6 +522,25 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
             fixture.workspace.cursor == 2U &&
                 (fixture.shared.control_flags & 0x200U) != 0U,
             "case eighty-three falls through the case-seventeen cursor tail"
+        );
+    }
+
+    {
+        Fixture fixture;
+        Port port;
+        fixture.assets.script_capacity =
+            openswd3::battle::kLegacyBattleScriptPageSize;
+        fixture.workspace.cursor =
+            openswd3::battle::kLegacyBattleScriptPageSize;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::script_typed_stop &&
+                result.stopped_offset ==
+                    openswd3::battle::kLegacyBattleScriptPageSize,
+            "script page capacity stops the first byte beyond the active page"
         );
     }
 

@@ -260,7 +260,8 @@ private:
     }
 
     [[nodiscard]] bool read_u8(const u32 offset, u8& value) {
-        if (offset >= bindings_.assets.script.size()) {
+        if (offset >= bindings_.assets.script_capacity ||
+            offset >= bindings_.assets.script.size()) {
             result_.status =
                 LegacyBattleScriptDispatchStatus::script_typed_stop;
             result_.stopped_offset = offset;
@@ -312,11 +313,14 @@ private:
         return code > 7 ? group_a_token(code) : group_b_token(code);
     }
 
-    void invoke(
+    bool invoke(
         const LegacyBattleScriptDispatchCall call_kind,
         const u32 object_token = 0U,
         const std::initializer_list<u32> arguments = {}
     ) {
+        if (call_kind == LegacyBattleScriptDispatchCall::script_page_load) {
+            workspace_.cursor = 0U;
+        }
         LegacyBattleScriptDispatchCallRequest request{
             .call = call_kind,
             .object_token = object_token,
@@ -340,6 +344,12 @@ private:
         eax_ = reply.eax;
         ecx_ = reply.ecx;
         edx_ = reply.edx;
+        if (reply.typed_stop) {
+            result_.status =
+                LegacyBattleScriptDispatchStatus::script_page_load_typed_stop;
+            return false;
+        }
+        return true;
     }
 
     void run_frame() {
@@ -729,11 +739,13 @@ private:
         if (!read_u16(workspace_.cursor, next)) {
             return finish();
         }
-        invoke(
-            LegacyBattleScriptDispatchCall::prepare_script,
-            0U,
-            {std::bit_cast<u32>(signed_word(next))}
-        );
+        if (!invoke(
+                LegacyBattleScriptDispatchCall::script_page_load,
+                0U,
+                {std::bit_cast<u32>(signed_word(next))}
+            )) {
+            return finish(eax_);
+        }
         return finish(1U);
     }
 
@@ -1055,11 +1067,14 @@ private:
                         if (!read_u16(workspace_.cursor, next)) {
                             return finish();
                         }
-                        invoke(
-                            LegacyBattleScriptDispatchCall::prepare_script,
-                            0U,
-                            {std::bit_cast<u32>(signed_word(next))}
-                        );
+                        if (!invoke(
+                                LegacyBattleScriptDispatchCall::
+                                    script_page_load,
+                                0U,
+                                {std::bit_cast<u32>(signed_word(next))}
+                            )) {
+                            return finish(eax_);
+                        }
                         break;
                     }
                 }
@@ -1124,11 +1139,13 @@ private:
             if (!read_u16(wrapping_add(workspace_.cursor, 4U), argument)) {
                 return finish();
             }
-            invoke(
-                LegacyBattleScriptDispatchCall::prepare_script,
-                0U,
-                {std::bit_cast<u32>(signed_word(argument))}
-            );
+            if (!invoke(
+                    LegacyBattleScriptDispatchCall::script_page_load,
+                    0U,
+                    {std::bit_cast<u32>(signed_word(argument))}
+                )) {
+                return finish(eax_);
+            }
             set_low_word(
                 workspace_.packed_value_a,
                 static_cast<u16>(low_word(workspace_.packed_value_a) - 1U)
@@ -1207,11 +1224,13 @@ private:
             }
         }
         workspace_.position_x = selected;
-        invoke(
-            LegacyBattleScriptDispatchCall::prepare_script,
-            0U,
-            {std::bit_cast<u32>(signed_word(selected))}
-        );
+        if (!invoke(
+                LegacyBattleScriptDispatchCall::script_page_load,
+                0U,
+                {std::bit_cast<u32>(signed_word(selected))}
+            )) {
+            return finish(eax_);
+        }
         workspace_.position_x = 0U;
         workspace_.packed_value_b = 0U;
         bindings_.shared.frame_gate = 1U;
@@ -1672,11 +1691,13 @@ private:
             return finish();
         }
         workspace_.position_x = selected;
-        invoke(
-            LegacyBattleScriptDispatchCall::prepare_script,
-            0U,
-            {std::bit_cast<u32>(signed_word(selected))}
-        );
+        if (!invoke(
+                LegacyBattleScriptDispatchCall::script_page_load,
+                0U,
+                {std::bit_cast<u32>(signed_word(selected))}
+            )) {
+            return finish(eax_);
+        }
         workspace_.list_count = 0U;
         set_high_word(workspace_.packed_value_b, 0U);
         return finish(1U);
@@ -2496,11 +2517,13 @@ private:
             if (!read_u16(workspace_.cursor, next)) {
                 return finish();
             }
-            invoke(
-                LegacyBattleScriptDispatchCall::prepare_script,
-                0U,
-                {std::bit_cast<u32>(signed_word(next))}
-            );
+            if (!invoke(
+                    LegacyBattleScriptDispatchCall::script_page_load,
+                    0U,
+                    {std::bit_cast<u32>(signed_word(next))}
+                )) {
+                return finish(eax_);
+            }
             return finish(1U);
         }
         workspace_.cursor = wrapping_add(workspace_.cursor, 8U);
@@ -2939,11 +2962,13 @@ private:
                     if (!read_u16(workspace_.cursor, next)) {
                         return finish();
                     }
-                    invoke(
-                        LegacyBattleScriptDispatchCall::prepare_script,
-                        0U,
-                        {std::bit_cast<u32>(signed_word(next))}
-                    );
+                    if (!invoke(
+                            LegacyBattleScriptDispatchCall::script_page_load,
+                            0U,
+                            {std::bit_cast<u32>(signed_word(next))}
+                        )) {
+                        return finish(eax_);
+                    }
                     break;
                 }
             }
@@ -3088,11 +3113,13 @@ private:
             if (!read_u16(workspace_.cursor, next)) {
                 return finish();
             }
-            invoke(
-                LegacyBattleScriptDispatchCall::prepare_script,
-                0U,
-                {std::bit_cast<u32>(signed_word(next))}
-            );
+            if (!invoke(
+                    LegacyBattleScriptDispatchCall::script_page_load,
+                    0U,
+                    {std::bit_cast<u32>(signed_word(next))}
+                )) {
+                return finish(eax_);
+            }
             return finish(1U);
         }
         run_frame();
@@ -3604,11 +3631,13 @@ private:
         if (!read_u16(workspace_.cursor, next)) {
             return finish();
         }
-        invoke(
-            LegacyBattleScriptDispatchCall::prepare_script,
-            0U,
-            {std::bit_cast<u32>(signed_word(next))}
-        );
+        if (!invoke(
+                LegacyBattleScriptDispatchCall::script_page_load,
+                0U,
+                {std::bit_cast<u32>(signed_word(next))}
+            )) {
+            return finish(eax_);
+        }
         return finish(1U);
     }
 

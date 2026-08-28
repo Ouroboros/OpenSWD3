@@ -180,7 +180,7 @@ enum class LegacyBattleScriptDispatchCall : compat::u32 {
     global_reset = 0x0045B630U,
     player_item_quantity = 0x0045D180U,
     attack_order_insert = 0x0045EE70U,
-    prepare_script = 0x0046E1E0U,
+    script_page_load = 0x0046E1E0U,
     script_shutdown = 0x0046E260U,
     script_finalize = 0x0046E290U,
     pending_4707b0 = 0x004707B0U,
@@ -252,6 +252,7 @@ struct LegacyBattleScriptDispatchCallReply {
     compat::u32 eax{};
     compat::u32 ecx{};
     compat::u32 edx{};
+    bool typed_stop{};
 };
 
 class LegacyBattleScriptDispatchPort {
@@ -285,6 +286,7 @@ enum class LegacyBattleScriptDispatchStatus : compat::u8 {
     divide_overflow_typed_stop,
     string_typed_stop,
     closed_callee_typed_stop,
+    script_page_load_typed_stop,
 };
 
 struct LegacyBattleScriptDispatchRequest {

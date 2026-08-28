@@ -231,11 +231,50 @@ LegacyBattleAssetStatus load_legacy_battle_script_window(
     const compat::u16 battle_id,
     LegacyBattleAssets& destination
 ) {
-    return load_figtalk(
-        resolve_legacy_filename(data_root, "figtalk.dat"),
-        battle_id,
-        destination
+    destination.figtalk_path =
+        resolve_legacy_filename(data_root, "figtalk.dat");
+    destination.script_capacity = kLegacyBattleScriptWindowSize;
+    return load_figtalk(destination.figtalk_path, battle_id, destination);
+}
+
+LegacyBattleAssetStatus load_legacy_battle_script_page(
+    const compat::i32 data_offset, LegacyBattleAssets& destination
+) {
+    destination.script_capacity = kLegacyBattleScriptPageSize;
+    auto page = std::span<compat::u8>{destination.script}.first(
+        kLegacyBattleScriptPageSize
     );
+    std::ranges::fill(page, compat::u8{});
+
+    resource_io::LegacyFile file;
+    if (!file.open(
+            destination.figtalk_path,
+            resource_io::LegacyFileCreation::open_existing,
+            resource_io::LegacyFileAccess::read,
+            resource_io::LegacyFileSharing::read
+        )) {
+        return LegacyBattleAssetStatus::script_page_open_failed;
+    }
+
+    const compat::u32 physical_offset =
+        std::bit_cast<compat::u32>(data_offset) + kLegacyDatPrefixSize;
+    if (physical_offset >
+        static_cast<compat::u32>(std::numeric_limits<compat::i32>::max())) {
+        return LegacyBattleAssetStatus::script_page_offset_out_of_range;
+    }
+    if (!seek_exact(file, physical_offset)) {
+        return LegacyBattleAssetStatus::script_page_seek_failed;
+    }
+
+    destination.figtalk_actual_size =
+        static_cast<compat::u32>(kLegacyBattleScriptPageSize);
+    const bool read = file.read(page, destination.figtalk_actual_size);
+    destination.figtalk_page_offset = std::bit_cast<compat::u32>(data_offset);
+    if (!read) {
+        destination.figtalk_actual_size = 0U;
+        return LegacyBattleAssetStatus::script_page_read_failed;
+    }
+    return LegacyBattleAssetStatus::ready;
 }
 
 compat::u16
@@ -332,6 +371,14 @@ std::string_view legacy_battle_asset_status_message(
         return "cannot read battle record";
     case LegacyBattleAssetStatus::record_short_read:
         return "short battle record";
+    case LegacyBattleAssetStatus::script_page_open_failed:
+        return "cannot open FIGTALK script page";
+    case LegacyBattleAssetStatus::script_page_offset_out_of_range:
+        return "FIGTALK script page offset is out of range";
+    case LegacyBattleAssetStatus::script_page_seek_failed:
+        return "cannot seek FIGTALK script page";
+    case LegacyBattleAssetStatus::script_page_read_failed:
+        return "cannot read FIGTALK script page";
     }
     return "unknown battle asset status";
 }
