@@ -29,6 +29,41 @@ constexpr u32 kPartySourceCount = 4U;
     );
 }
 
+class StartupGroupAConfigurationDiagnosticPort final
+    : public LegacyBattleGroupAConfigurationDiagnosticPort {
+public:
+    explicit StartupGroupAConfigurationDiagnosticPort(
+        LegacyBattleStartupPort& port
+    ) noexcept
+        : port_(port) {}
+
+    [[nodiscard]] LegacyBattleGroupAConfigurationDiagnosticReply
+    report_missing_placement(
+        const LegacyBattleGroupAConfigurationDiagnosticRequest& request
+    ) override {
+        const auto reply = port_.invoke({
+            .call =
+                LegacyBattleStartupCall::group_a_missing_placement_diagnostic,
+            .arguments =
+                {
+                    request.window_token,
+                    request.text_token,
+                    request.source_token,
+                    request.source_line,
+                },
+            .eax = request.flags,
+        });
+        return {
+            .eax = reply.return_value,
+            .ecx = reply.ecx_snapshot,
+            .edx = reply.edx_snapshot,
+        };
+    }
+
+private:
+    LegacyBattleStartupPort& port_;
+};
+
 [[nodiscard]] constexpr u32 group_a_actor_token(const u32 index) noexcept {
     return kLegacyBattleActorGroupABaseToken +
         kLegacyBattleActorGroupAElementSize * index;
@@ -557,6 +592,7 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
     publish_party_positions(state);
     publish_party_offsets(state);
 
+    StartupGroupAConfigurationDiagnosticPort configuration_diagnostic(port);
     for (u32 index = 0U; index < state.party_count; ++index) {
         if (index >= kLegacyBattleActorGroupAElementCount ||
             index >= kPartySourceCount) {
@@ -571,7 +607,11 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
             return result;
         }
         const u32 actor_token = group_a_actor_token(index);
-        state.party[index].workspace.object_token = actor_token;
+        auto& party = state.party[index];
+        party.workspace.object_token = actor_token;
+        if (party.configuration.actor_record_token == 0U) {
+            party.configuration.actor_record_token = actor_token;
+        }
         static_cast<void>(invoke(
             port,
             LegacyBattleStartupCall::reset_actor,
@@ -587,19 +627,37 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
                 LegacyBattleStartupCall::apply_actor_mode,
                 {actor_token, 1U, 0U, 0U}
             ));
-            state.party[index].position_x =
-                static_cast<u16>(0x0280U - state.party[index].position_x);
+            party.position_x = static_cast<u16>(0x0280U - party.position_x);
             state.party_offsets[index * 2U] =
                 static_cast<i32>(0x0270U) - state.party_offsets[index * 2U];
         }
-        static_cast<void>(invoke(
-            port,
-            LegacyBattleStartupCall::configure_party_actor,
-            {actor_token,
-             0x004AB790U + source * 0x38U,
-             0x004ACF50U + source * 0x60U,
-             party_placement_token(index)}
-        ));
+        result.party_configurations[index] =
+            configure_legacy_battle_group_a_actor(
+                party.workspace,
+                party.configuration,
+                party.progress,
+                state.group_a_configuration_sources[source],
+                {
+                    .prefix = party.placement_prefix,
+                    .role_id = party.role_id,
+                    .position_x = party.position_x,
+                    .position_y = party.position_y,
+                    .field_1a = party.placement_field_1a,
+                    .active = party.active,
+                },
+                0x004AB790U + source * 0x38U,
+                0x004ACF50U + source * 0x60U,
+                party_placement_token(index),
+                request.window_token,
+                configuration_diagnostic
+            );
+        ++result.party_configuration_calls;
+        if (result.party_configurations[index].status !=
+            LegacyBattleGroupAConfigurationStatus::completed) {
+            result.status =
+                LegacyBattleStartupStatus::party_configuration_typed_stop;
+            return result;
+        }
         if (invoke(
                 port,
                 LegacyBattleStartupCall::query_party_actor_mode,

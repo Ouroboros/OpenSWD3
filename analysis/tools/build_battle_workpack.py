@@ -720,6 +720,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-group-a-workspace-reset-0046e6a0.md",
     ),
+    "0x0046E730": (
+        "platform_adapted",
+        "evidence/battle-group-a-configuration-0046e730.md",
+    ),
 }
 
 

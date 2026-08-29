@@ -540,6 +540,9 @@ void test_battle_startup(openswd3::test::Context& test) {
         state.final_subtract_word = 1U;
         state.group_a_description_record_tokens.fill(0xDEADBEEFU);
         state.group_a_description_text_indices.fill(0xBEEFU);
+        state.group_a_configuration_sources[0U].dwords[1U] = 12000U;
+        state.group_a_configuration_sources[0U].dwords[4U] = 0x56781234U;
+        state.group_a_configuration_sources[1U].dwords[1U] = 9000U;
         StartupPorts ports;
         ports.archive_open_replies.push_back({
             .eax = 0xFFFFFFFFU,
@@ -619,6 +622,34 @@ void test_battle_startup(openswd3::test::Context& test) {
                 state.enemies[0].position_x == 540U &&
                 state.enemies[1].position_x == 340U &&
                 result.initial_party_actor_count == 2U &&
+                result.party_configuration_calls == 2U &&
+                result.party_configurations[0U].status ==
+                    openswd3::battle::LegacyBattleGroupAConfigurationStatus::
+                        completed &&
+                result.party_configurations[0U]
+                        .workspace_reset.upper_workspace_dwords_zeroed ==
+                    0xBEU &&
+                state.party[0U].configuration.placement_primary[5U] ==
+                    0x00960065U &&
+                state.party[0U].configuration.placement_primary[6U] ==
+                    0x00000113U &&
+                state.party[0U].configuration.source_record_token ==
+                    0x004AB790U &&
+                state.party[1U].configuration.source_record_token ==
+                    0x004AB7C8U &&
+                static_cast<u16>(
+                    state.group_a_configuration_sources[0U].dwords[1U]
+                ) == 9999U &&
+                static_cast<u16>(
+                    state.party[0U].configuration.actor_record[1U]
+                ) == 12000U &&
+                ports.call_count(
+                    LegacyBattleStartupCall::reserved_configure_party_actor
+                ) == 0U &&
+                ports.call_count(
+                    LegacyBattleStartupCall::
+                        group_a_missing_placement_diagnostic
+                ) == 0U &&
                 result.player_item_order.swaps == 1U &&
                 result.player_item_order.comparisons == 2U &&
                 player_items.player_inventory_head_token == 0x006000B0U &&
@@ -791,6 +822,43 @@ void test_battle_startup(openswd3::test::Context& test) {
         test.expect_true(
             positions_match,
             "one through four party layouts preserve all fixed coordinate branches and stale unused slots"
+        );
+    }
+
+    {
+        LegacyBattleStartupState state;
+        StartupPorts ports;
+        ports.query_values[30U] = 1U;
+        ports.random_values = {0U, 0U};
+        ports.definition.enemy_count = 1U;
+        auto startup_request = request(14U);
+        startup_request.party_role_ids[0U] = 0U;
+        startup_request.window_token = 0x76543210U;
+        const auto result = openswd3::battle::initialize_legacy_battle_startup(
+            state, ports, ports, ports, ports, ports, ports, startup_request
+        );
+        const auto diagnostic = std::ranges::find_if(
+            ports.requests, [](const LegacyBattleStartupCallRequest& call) {
+                return call.call ==
+                    LegacyBattleStartupCall::
+                        group_a_missing_placement_diagnostic;
+            }
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleStartupStatus::completed &&
+                result.party_configuration_calls == 1U &&
+                result.party_configurations[0U].diagnostic_calls == 1U &&
+                diagnostic != ports.requests.end() &&
+                diagnostic->arguments ==
+                    std::array<u32, 4>{
+                        0x76543210U, 0x004A7C2CU, 0x004A7C44U, 0xDEU
+                    } &&
+                diagnostic->eax == 0U &&
+                ports.call_count(
+                    LegacyBattleStartupCall::reserved_configure_party_actor
+                ) == 0U,
+            "startup directly configures group-A actors and forwards the zero-role diagnostic in place"
         );
     }
 

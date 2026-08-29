@@ -4,6 +4,7 @@
 #include "openswd3/battle/legacy_battle_actor_progress.hpp"
 #include "openswd3/battle/legacy_battle_background_initialization.hpp"
 #include "openswd3/battle/legacy_battle_definition_archive.hpp"
+#include "openswd3/battle/legacy_battle_group_a_configuration.hpp"
 #include "openswd3/battle/legacy_battle_group_a_workspace_reset.hpp"
 #include "openswd3/battle/legacy_battle_group_b_order.hpp"
 #include "openswd3/battle/legacy_battle_party_item_order.hpp"
@@ -70,7 +71,7 @@ enum class LegacyBattleStartupCall : compat::u16 {
     apply_actor_mode,
     configure_enemy_actor,
     set_enemy_mode,
-    configure_party_actor,
+    reserved_configure_party_actor,
     query_party_actor_mode,
     apply_party_profile,
     apply_party_value,
@@ -85,6 +86,7 @@ enum class LegacyBattleStartupCall : compat::u16 {
     query_actor_metric,
     advance_enemy_action,
     finalize_party_actor,
+    group_a_missing_placement_diagnostic,
 };
 
 struct LegacyBattleStartupCallRequest {
@@ -179,12 +181,15 @@ struct LegacyBattleEnemyStartupRecord {
 };
 
 struct LegacyBattlePartyStartupRecord {
+    std::array<compat::u32, 5> placement_prefix{};
     compat::u16 role_id{};
     compat::u16 position_x{};
     compat::u16 position_y{};
+    compat::u16 placement_field_1a{};
     compat::u32 active{};
     LegacyBattleActorProgressState progress;
     LegacyBattleGroupAWorkspaceState workspace;
+    LegacyBattleGroupAConfigurationState configuration;
 };
 
 struct LegacyBattlePartyMetricRecord {
@@ -253,6 +258,8 @@ struct LegacyBattleStartupState {
     compat::u16 background_resource{};
     std::array<LegacyBattleEnemyStartupRecord, 8> enemies{};
     std::array<LegacyBattlePartyStartupRecord, 10> party{};
+    std::array<LegacyBattleGroupAConfigurationSourceRecord, 4>
+        group_a_configuration_sources{};
     LegacyBattleGroupAProfileState group_a_profiles{};
     // Group-A actor field view at 0x00505890 + index * 0x2F34 and the
     // callee-observable text index at the referenced record's +4 word.
@@ -270,6 +277,7 @@ struct LegacyBattleStartupState {
 struct LegacyBattleStartupRequest {
     compat::u32 battle_id{};
     compat::i32 speed_setting{};
+    compat::u32 window_token{};
     std::filesystem::path data_root;
     rendering::LegacySurfaceGeometry source_surface{};
     rendering::LegacyPixelConversionState pixel_conversion{};
@@ -296,6 +304,7 @@ enum class LegacyBattleStartupStatus : compat::u8 {
     player_item_order_typed_stop,
     party_item_order_typed_stop,
     random_result_out_of_range,
+    party_configuration_typed_stop,
 };
 
 struct LegacyBattleDisplaySurfaceReleaseResult {
@@ -320,6 +329,9 @@ struct LegacyBattleStartupResult {
     LegacyBattleBackgroundInitializationResult background{};
     compat::u32 enemy_actor_count{};
     compat::u32 initial_party_actor_count{};
+    compat::u32 party_configuration_calls{};
+    std::array<LegacyBattleGroupAConfigurationResult, 10>
+        party_configurations{};
     LegacyBattlePlayerItemOrderResult player_item_order{};
     LegacyBattlePartyItemOrderResult party_item_order{};
     compat::u32 supplemental_actor_count{};
