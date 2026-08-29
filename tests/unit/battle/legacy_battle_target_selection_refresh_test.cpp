@@ -1,5 +1,6 @@
 #include "openswd3/battle/legacy_battle_target_selection_refresh.hpp"
 
+#include <algorithm>
 #include <map>
 #include <vector>
 
@@ -137,8 +138,38 @@ struct Fixture {
 }  // namespace
 
 void test_battle_target_selection_refresh(openswd3::test::Context& test) {
+    using openswd3::battle::LegacyBattleActorActionThirtyOverrideStatus;
     using openswd3::battle::LegacyBattleTargetSelectionRefreshStatus;
     using openswd3::battle::refresh_legacy_battle_target_selection;
+
+    {
+        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+        actor.action_override_flags = 0x2000U;
+        const auto set = openswd3::battle::
+            query_legacy_battle_actor_action_thirty_override(
+                &actor, 0xAAAA5555U, 0xBBBB6666U, 0xCCCC7777U
+            );
+        actor.action_override_flags = 0xDFFFU;
+        const auto clear = openswd3::battle::
+            query_legacy_battle_actor_action_thirty_override(
+                &actor, 0x11112222U, 0x33334444U, 0x55556666U
+            );
+        const auto stopped = openswd3::battle::
+            query_legacy_battle_actor_action_thirty_override(
+                nullptr, 0x77778888U, 0x9999AAAAU, 0xBBBBCCCCU
+            );
+        test.expect_true(
+            set.return_eax == 1U && set.return_ecx == 0xBBBB6666U &&
+                set.return_edx == 0xCCCC7777U && clear.return_eax == 0U &&
+                clear.return_ecx == 0x33334444U &&
+                clear.return_edx == 0x55556666U &&
+                stopped.status ==
+                    LegacyBattleActorActionThirtyOverrideStatus::
+                        actor_state_typed_stop &&
+                stopped.return_eax == 0x77778888U,
+            "action-thirty override returns only actor bit thirteen and stops at the original read"
+        );
+    }
 
     {
         Fixture fixture;
@@ -566,6 +597,44 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                 fixture.debug.committed_actor_code == 8U &&
                 fixture.action.opponent_workspace[10U] == 1U,
             "message three commits the actor then stops at the ninth real group-B reset without adding a loop cap"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.target_ready = 1U;
+        fixture.message = 3U;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.port.battle_input_dispatch_state().action_kind = 30U;
+        fixture.port.battle_target_selection_runtime_state()
+            .selection_input_gate = 1U;
+        fixture.action.group_a_action_execution[0U].action_override_flags =
+            0x2000U;
+        const auto result = refresh_legacy_battle_target_selection(
+            fixture.bindings(), fixture.port, {}
+        );
+        const bool old_port_called = std::ranges::any_of(
+            fixture.port.calls,
+            [](const LegacyBattleTargetSelectionRuntimeCallRequest& request) {
+                return request.call ==
+                    LegacyBattleTargetSelectionRuntimeCall::
+                        reserved_query_action_thirty_override_slot;
+            }
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleTargetSelectionRefreshStatus::completed &&
+                result.action_thirty_override_calls == 1U &&
+                result.action_thirty_override.return_eax == 1U &&
+                !old_port_called &&
+                fixture.port.battle_target_selection_runtime_state()
+                        .selected_action_kind == 13U &&
+                fixture.port.battle_target_selection_runtime_state()
+                        .actor_special_gate == 1U &&
+                fixture.port.battle_target_selection_runtime_state()
+                        .special_action_count == 1U &&
+                fixture.action.opponent_workspace[10U] == 13U,
+            "action thirty reads the typed bit-thirteen owner and publishes action thirteen without the opaque query"
         );
     }
 

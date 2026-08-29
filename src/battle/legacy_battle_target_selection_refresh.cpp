@@ -1386,9 +1386,32 @@ private:
                 return;
             }
             edx_ = committed;
-            if (!invoke_group_a(
-                    Call::query_action_thirty_override, committed
-                )) {
+            if (committed < 8U) {
+                typed_stop(Status::group_a_actor_typed_stop);
+                return;
+            }
+            const u32 override_index = committed - 8U;
+            if (override_index >=
+                bindings_.action.group_a_action_execution.size()) {
+                typed_stop(Status::group_a_actor_typed_stop);
+                return;
+            }
+            ecx_ = kGroupABaseToken + override_index * kGroupAStride;
+            result_.action_thirty_override =
+                query_legacy_battle_actor_action_thirty_override(
+                    &bindings_.action
+                         .group_a_action_execution[override_index],
+                    eax_,
+                    ecx_,
+                    edx_
+                );
+            ++result_.action_thirty_override_calls;
+            eax_ = result_.action_thirty_override.return_eax;
+            ecx_ = result_.action_thirty_override.return_ecx;
+            edx_ = result_.action_thirty_override.return_edx;
+            if (result_.action_thirty_override.status !=
+                LegacyBattleActorActionThirtyOverrideStatus::completed) {
+                typed_stop(Status::group_a_actor_typed_stop);
                 return;
             }
             if (eax_ == 1U) {
@@ -2176,6 +2199,28 @@ private:
 };
 
 }  // namespace
+
+LegacyBattleActorActionThirtyOverrideResult
+query_legacy_battle_actor_action_thirty_override(
+    const LegacyBattleGroupAActionExecutionState* actor,
+    const u32 entry_eax,
+    const u32 entry_ecx,
+    const u32 entry_edx
+) noexcept {
+    LegacyBattleActorActionThirtyOverrideResult result{
+        .return_eax = entry_eax,
+        .return_ecx = entry_ecx,
+        .return_edx = entry_edx,
+    };
+    if (actor == nullptr) {
+        result.status =
+            LegacyBattleActorActionThirtyOverrideStatus::actor_state_typed_stop;
+        return result;
+    }
+    result.return_eax =
+        static_cast<u32>((actor->action_override_flags >> 13U) & 1U);
+    return result;
+}
 
 LegacyBattleTargetSelectionRefreshResult refresh_legacy_battle_target_selection(
     const LegacyBattleTargetSelectionRefreshBindings bindings,

@@ -52,6 +52,29 @@ enum class LegacyBattleTargetSelectionRefreshStatus : compat::u8 {
     actor_resource_release_typed_stop,
 };
 
+enum class LegacyBattleActorActionThirtyOverrideStatus : compat::u8 {
+    completed,
+    actor_state_typed_stop,
+};
+
+struct LegacyBattleActorActionThirtyOverrideResult {
+    LegacyBattleActorActionThirtyOverrideStatus status{
+        LegacyBattleActorActionThirtyOverrideStatus::completed
+    };
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
+// sub_4717D0.
+[[nodiscard]] LegacyBattleActorActionThirtyOverrideResult
+query_legacy_battle_actor_action_thirty_override(
+    const LegacyBattleGroupAActionExecutionState* actor,
+    compat::u32 entry_eax = 0U,
+    compat::u32 entry_ecx = 0U,
+    compat::u32 entry_edx = 0U
+) noexcept;
+
 struct LegacyBattleTargetSelectionRefreshResult {
     LegacyBattleTargetSelectionRefreshStatus status{
         LegacyBattleTargetSelectionRefreshStatus::completed
@@ -81,6 +104,8 @@ struct LegacyBattleTargetSelectionRefreshResult {
     compat::u32 resource_selection_calls{};
     LegacyBattleActorResourceReleaseResult resource_release{};
     compat::u32 resource_release_calls{};
+    LegacyBattleActorActionThirtyOverrideResult action_thirty_override{};
+    compat::u32 action_thirty_override_calls{};
 };
 
 // Typed closure of legacy 0x00462740.
