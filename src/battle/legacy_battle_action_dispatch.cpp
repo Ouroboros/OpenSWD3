@@ -91,7 +91,8 @@ constexpr u32 kCallTargetPhaseResource = 0x00478620U;
 constexpr u32 kCallTargetPhaseCoordinates = 0x00478470U;
 constexpr u32 kCallTargetPhaseDecode = 0x004019A0U;
 constexpr u32 kCallTargetPhaseProperty = 0x0047CE70U;
-constexpr u32 kCallCheckActorPhase = 0x00471270U;
+constexpr u32 kCallTargetPhaseSpawn = 0x00471FC0U;
+constexpr u32 kCallTargetPhaseRelease = 0x004885A0U;
 constexpr u32 kCallCommitTargetPhase = 0x00477710U;
 constexpr u32 kCallActionFourReady = 0x004745B0U;
 constexpr u32 kCallActionThirteenReady = 0x004717F0U;
@@ -453,7 +454,8 @@ void write_group_a_event_slot(
 }  // namespace
 
 LegacyBattleTargetPhaseStartResult start_legacy_battle_target_phase(
-    LegacyBattleOpponentRecord* target,
+    LegacyBattleTargetPhaseState* phase,
+    const LegacyBattleGroupAActionExecutionState* actor,
     LegacyBattleRenderGeometry* render_geometry,
     LegacyBattleActionDispatchPort& port,
     const LegacyBattleTargetPhaseStartRequest& request
@@ -462,7 +464,7 @@ LegacyBattleTargetPhaseStartResult start_legacy_battle_target_phase(
     result.return_eax = request.entry_eax;
     result.return_ecx = request.entry_ecx;
     result.return_edx = request.entry_edx;
-    if (target == nullptr || request.target_token == 0U) {
+    if (phase == nullptr || actor == nullptr || request.target_token == 0U) {
         result.status =
             LegacyBattleTargetPhaseStartStatus::target_object_typed_stop;
         return result;
@@ -487,15 +489,15 @@ LegacyBattleTargetPhaseStartResult start_legacy_battle_target_phase(
     const auto resource =
         invoke_phase(kCallTargetPhaseResource, {request.target_token});
     ++result.resource_query_calls;
-    target->target_phase.resource_token = resource.eax;
+    phase->resource_token = resource.eax;
 
     const auto coordinates =
         invoke_phase(kCallTargetPhaseCoordinates, {request.target_token});
     ++result.coordinate_query_calls;
-    target->target_phase.presentation = {};
+    phase->decoded_resource_token = 0U;
+    phase->emitter = {};
     result.presentation_dwords_zeroed = 0x16U;
-    if (target->target_phase.resource_token == 0U ||
-        resource.outputs[0U] == 0U) {
+    if (phase->resource_token == 0U || resource.outputs[0U] == 0U) {
         result.status =
             LegacyBattleTargetPhaseStartStatus::resource_object_typed_stop;
         return result;
@@ -505,52 +507,57 @@ LegacyBattleTargetPhaseStartResult start_legacy_battle_target_phase(
         kCallTargetPhaseDecode, {resource.outputs[0U], 0U, 0U, 0U}
     );
     ++result.decode_calls;
-    auto& presentation = target->target_phase.presentation;
-    presentation.decoded_resource_token = decoded.eax;
-    presentation.resource_width = static_cast<u16>(resource.outputs[1U]);
-    presentation.resource_height = static_cast<u16>(resource.outputs[2U]);
+    auto& emitter = phase->emitter;
+    phase->decoded_resource_token = decoded.eax;
+    emitter.source_pixels = decoded.resource_words;
+    emitter.source_width = static_cast<u16>(resource.outputs[1U]);
+    emitter.source_height = static_cast<u16>(resource.outputs[2U]);
 
     const i32 horizontal_delta = static_cast<i32>(
         std::bit_cast<i16>(static_cast<u16>(coordinates.outputs[0U]))
     );
-    presentation.horizontal_delta_minus_one = horizontal_delta - 1;
-    presentation.vertical_delta = static_cast<i32>(
+    emitter.source_origin_x = horizontal_delta - 1;
+    emitter.source_origin_y = static_cast<i32>(
         std::bit_cast<i16>(static_cast<u16>(coordinates.outputs[1U]))
     );
 
     const u32 source_x = static_cast<u32>(
-        static_cast<i32>(std::bit_cast<i16>(target->source_x_offset))
+        static_cast<i32>(std::bit_cast<i16>(actor->source_x_offset))
     );
     const u32 source_y = static_cast<u32>(
-        static_cast<i32>(std::bit_cast<i16>(target->source_y_offset))
+        static_cast<i32>(std::bit_cast<i16>(actor->source_y_offset))
     );
-    const u32 target_x =
-        static_cast<u32>(static_cast<i32>(std::bit_cast<i16>(target->x)));
-    presentation.x = std::bit_cast<i32>(source_x - source_y + target_x - 0x32U);
-    const u32 target_y =
-        static_cast<u32>(static_cast<i32>(std::bit_cast<i16>(target->y)));
-    presentation.y = std::bit_cast<i32>(
-        target_y - std::bit_cast<u32>(target->vertical_adjustment) + 0x28U
+    const u32 target_x = static_cast<u32>(
+        static_cast<i32>(std::bit_cast<i16>(actor->position_x))
     );
-    presentation.active_x = 1U;
-    presentation.active_y = 1U;
-    presentation.width = 0x14U;
-    presentation.height = 0x1EU;
-    presentation.derived_resource_height = presentation.resource_height < 0x64U
-        ? static_cast<u16>(presentation.resource_height - 0x0AU)
-        : static_cast<u16>(presentation.resource_height >> 1U);
-    presentation.spacing = 0x28U;
-    presentation.flags = 0x56U;
-    presentation.steps.fill(5U);
+    emitter.target_origin_x =
+        std::bit_cast<i32>(source_x - source_y + target_x - 0x32U);
+    const u32 target_y = static_cast<u32>(
+        static_cast<i32>(std::bit_cast<i16>(actor->position_y))
+    );
+    emitter.target_origin_y = std::bit_cast<i32>(
+        target_y - std::bit_cast<u32>(actor->target_phase_y_adjustment) + 0x28U
+    );
+    emitter.target_width = 1;
+    emitter.target_height = 1;
+    emitter.distance_offset_base = 0x14U;
+    emitter.lifetime_divisor = 0x1EU;
+    emitter.remaining_batches = emitter.source_height < 0x64U
+        ? static_cast<u16>(emitter.source_height - 0x0AU)
+        : static_cast<u16>(emitter.source_height >> 1U);
+    emitter.spawn_divisor = 0x28U;
+    emitter.flags = 0x56U;
+    emitter.published_value_2c = 5;
+    emitter.published_value_30 = 5;
+    emitter.published_value_34 = 5;
 
     const auto property =
         invoke_phase(kCallTargetPhaseProperty, {request.target_token});
     ++result.property_query_calls;
     if (property.eax == 1U) {
-        presentation.flags = static_cast<u16>(presentation.flags | 1U);
+        emitter.flags = static_cast<u16>(emitter.flags | 1U);
     }
-    target->target_phase.mode_flags =
-        static_cast<compat::u8>(target->target_phase.mode_flags | 8U);
+    phase->mode_flags = static_cast<compat::u8>(phase->mode_flags | 8U);
 
     if (render_geometry == nullptr) {
         result.status =
@@ -568,13 +575,160 @@ LegacyBattleTargetPhaseStartResult start_legacy_battle_target_phase(
         return result;
     }
 
-    target->target_phase.runtime_gate = 0U;
-    target->target_phase.block_0df4.fill(0U);
-    target->target_phase.block_0500.fill(0U);
-    target->target_phase.block_2bc8.fill(0U);
+    phase->runtime_gate = 0U;
+    phase->block_0df4.fill(0U);
+    phase->block_0500.fill(0U);
+    phase->block_2bc8.fill(0U);
     result.tail_dwords_zeroed = 8U + 0x26U + 0xBEU;
     result.return_eax = 0U;
     result.return_ecx = 0U;
+    return result;
+}
+
+LegacyBattleTargetPhaseAdvanceResult advance_legacy_battle_target_phase(
+    LegacyBattleTargetPhaseState* phase,
+    LegacyBattleImageParticleNodePool* nodes,
+    input_time_rng::LegacyCrtRng* rng,
+    LegacyBattleImageParticleSharedState* shared,
+    LegacyBattleImageParticleDiagnostics* diagnostics,
+    const LegacyBattleImageParticleSurface& surface,
+    rendering::LegacyPixelConversionState* pixel_format,
+    LegacyBattleActionDispatchPort& port,
+    const LegacyBattleTargetPhaseAdvanceRequest& request
+) {
+    LegacyBattleTargetPhaseAdvanceResult result;
+    result.return_eax = request.entry_eax;
+    result.return_ecx = request.entry_ecx;
+    result.return_edx = request.entry_edx;
+    if (phase == nullptr || request.target_token == 0U) {
+        result.status =
+            LegacyBattleTargetPhaseAdvanceStatus::target_object_typed_stop;
+        return result;
+    }
+
+    phase->tick = static_cast<u16>(phase->tick + 1U);
+    phase->emitter.published_value_2c = 5;
+    phase->emitter.published_value_30 = 5;
+    phase->emitter.published_value_34 = 5;
+    phase->active_gate = 1U;
+    if (nodes == nullptr || rng == nullptr || shared == nullptr ||
+        diagnostics == nullptr || pixel_format == nullptr) {
+        result.status =
+            LegacyBattleTargetPhaseAdvanceStatus::particle_frame_typed_stop;
+        return result;
+    }
+
+    result.particle_frame = update_legacy_battle_image_particles(
+        phase->emitter,
+        surface,
+        request.time_seed,
+        request.spawn_stack_snapshot,
+        *nodes,
+        *rng,
+        *shared,
+        *diagnostics,
+        *pixel_format
+    );
+    ++result.particle_frame_calls;
+    if (result.particle_frame.status !=
+        LegacyBattleImageParticleFrameStatus::completed) {
+        result.status =
+            LegacyBattleTargetPhaseAdvanceStatus::particle_frame_typed_stop;
+        return result;
+    }
+
+    if (result.particle_frame.legacy_return_value == 1) {
+        phase->tick = 0U;
+        phase->active_gate = 0U;
+        if (phase->decoded_resource_token != 0U) {
+            static_cast<void>(port.invoke({
+                .callee_token = kCallTargetPhaseRelease,
+                .arguments = {phase->decoded_resource_token},
+                .eax = phase->decoded_resource_token,
+                .ecx = request.target_token,
+                .edx = result.return_edx,
+            }));
+            ++result.port_calls;
+            ++result.resource_release_calls;
+        }
+        phase->decoded_resource_token = 0U;
+        phase->emitter = {};
+        result.presentation_dwords_zeroed = 0x16U;
+        phase->spawn_counters.fill(0U);
+        result.spawn_counter_clears = 5U;
+        phase->block_0df4.fill(0U);
+        phase->block_0500.fill(0U);
+        result.tail_dwords_zeroed = 8U + 0x26U;
+        result.return_eax = 1U;
+        return result;
+    }
+
+    if (phase->emitter.remaining_batches == 0U) {
+        result.return_eax = 0U;
+        return result;
+    }
+
+    const u32 horizontal = std::bit_cast<u32>(phase->emitter.source_origin_x);
+    const u32 vertical = std::bit_cast<u32>(phase->emitter.source_origin_y);
+    const u32 width_quarter =
+        static_cast<u32>(phase->emitter.source_width) >> 2U;
+    const u32 height = phase->emitter.source_height;
+    const u32 derived = phase->emitter.remaining_batches;
+    const auto spawn = [&](const u32 kind,
+                           const u32 index,
+                           const u32 x,
+                           const u32 y,
+                           const u32 iterations) {
+        static_cast<void>(port.invoke({
+            .callee_token = kCallTargetPhaseSpawn,
+            .arguments = {0x186AU, kind, index, x, y, iterations},
+            .ecx = request.target_token,
+        }));
+        ++result.port_calls;
+        ++result.spawn_calls;
+    };
+
+    spawn(
+        1U,
+        0U,
+        horizontal + width_quarter,
+        vertical + height - derived - 5U,
+        0x0EU
+    );
+    const i16 signed_tick = std::bit_cast<i16>(phase->tick);
+    if (signed_tick >= 10) {
+        spawn(
+            2U,
+            1U,
+            horizontal + width_quarter,
+            vertical + height - derived - 0x0AU,
+            0x0AU
+        );
+    }
+    if (signed_tick >= 20) {
+        spawn(
+            3U,
+            2U,
+            horizontal + width_quarter,
+            vertical + height - derived - 0x0FU,
+            0x0CU
+        );
+    }
+    if (signed_tick >= 30) {
+        spawn(
+            1U, 3U, horizontal + width_quarter, vertical + height - derived, 8U
+        );
+    }
+    if (signed_tick >= 40) {
+        spawn(
+            1U,
+            4U,
+            horizontal + width_quarter,
+            vertical + height - derived + 5U,
+            0x10U
+        );
+    }
+    result.return_eax = 0U;
     return result;
 }
 
@@ -1333,7 +1487,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
         state.current_actor_index = 0xFFFFU;
         result.return_value = 1U;
         return result;
-    case 6U:
+    case 6U: {
         if (!require_group_b()) {
             return result;
         }
@@ -1421,7 +1575,8 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                 return result;
             }
             result.target_phase_start = start_legacy_battle_target_phase(
-                &state.opponent_records[group_b_index],
+                &state.group_a_target_phases[group_a_index],
+                &state.group_a_action_execution[group_a_index],
                 &context.startup->render_geometry,
                 port,
                 {
@@ -1462,9 +1617,50 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                 );
             }
         }
-        reply =
-            invoke(state, port, result, kCallCheckActorPhase, {actor_token});
-        if (reply.eax == 1U) {
+        if (context.startup == nullptr) {
+            result.status = LegacyBattleActionDispatchStatus::
+                target_phase_advance_typed_stop;
+            return result;
+        }
+        const auto& render_geometry = context.startup->render_geometry;
+        std::span<const u32> surface_row_offsets;
+        if (render_geometry.surface_row_offsets != nullptr &&
+            render_geometry.surface_height > 0) {
+            surface_row_offsets = {
+                render_geometry.surface_row_offsets.get(),
+                static_cast<std::size_t>(render_geometry.surface_height),
+            };
+        }
+        result.target_phase_advance = advance_legacy_battle_target_phase(
+            &state.group_a_target_phases[group_a_index],
+            &state.target_phase_particle_nodes,
+            &state.target_phase_particle_rng,
+            &state.target_phase_particle_shared,
+            &state.target_phase_particle_diagnostics,
+            {
+                .width = context.raster.surface.width,
+                .height = context.raster.surface.height,
+                .row_offsets = surface_row_offsets,
+                .pixels = context.framebuffer.physical_pixels(),
+            },
+            &context.shared_effects.pixel_conversion,
+            port,
+            {
+                .target_token = actor_token,
+                .time_seed = context.target_phase_time_seed,
+                .spawn_stack_snapshot =
+                    context.target_phase_spawn_stack_snapshot,
+            }
+        );
+        ++result.target_phase_advance_calls;
+        result.port_calls += result.target_phase_advance.port_calls;
+        if (result.target_phase_advance.status !=
+            LegacyBattleTargetPhaseAdvanceStatus::completed) {
+            result.status = LegacyBattleActionDispatchStatus::
+                target_phase_advance_typed_stop;
+            return result;
+        }
+        if (result.target_phase_advance.return_eax == 1U) {
             static_cast<void>(
                 invoke(state, port, result, kCallEnablePresentation, {1U})
             );
@@ -1498,6 +1694,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
             }
         }
         return result;
+    }
     case 7U:
         if (!require_group_b()) {
             return result;

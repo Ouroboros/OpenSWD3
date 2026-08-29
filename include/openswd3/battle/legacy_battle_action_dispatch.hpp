@@ -5,6 +5,7 @@
 #include "openswd3/battle/legacy_battle_retreat_commit.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_render_geometry.hpp"
+#include "openswd3/battle/legacy_battle_particle_frame.hpp"
 #include "openswd3/battle/legacy_battle_attack_order_entry.hpp"
 #include "openswd3/battle/legacy_battle_attack_order_insert.hpp"
 #include "openswd3/battle/legacy_battle_attack_order_remove.hpp"
@@ -73,6 +74,7 @@ struct LegacyBattleActionCallReply {
     compat::u32 group_b_count{};
     bool publish_group_a_count{};
     compat::u32 group_a_count{};
+    std::span<compat::u16> resource_words{};
 };
 
 class LegacyBattleActionDispatchPort
@@ -112,33 +114,15 @@ public:
     }
 };
 
-struct LegacyBattleTargetPhasePresentationRecord {
-    compat::u32 decoded_resource_token{};  // actor + 0x0E14
-    compat::u16 resource_width{};          // actor + 0x0E18
-    compat::u16 resource_height{};         // actor + 0x0E1A
-    compat::i32 horizontal_delta_minus_one{};
-    compat::i32 vertical_delta{};
-    compat::i32 x{};
-    compat::u32 active_x{};
-    compat::i32 y{};
-    compat::u32 active_y{};
-    compat::u16 width{};
-    compat::u16 height{};
-    compat::u16 derived_resource_height{};
-    compat::u16 spacing{};
-    compat::u16 flags{};
-    compat::u16 reserved_2a{};
-    std::array<compat::u32, 3> steps{};
-    std::array<compat::u8, 0x20> reserved_38_57{};
-};
-
-static_assert(sizeof(LegacyBattleTargetPhasePresentationRecord) == 0x58U);
-
 struct LegacyBattleTargetPhaseState {
-    compat::u32 resource_token{};  // actor + 0x255C
-    LegacyBattleTargetPhasePresentationRecord presentation;
-    compat::u8 mode_flags{};     // actor + 0x2A87
-    compat::u32 runtime_gate{};  // actor + 0x2680
+    compat::u32 resource_token{};              // actor + 0x255C
+    compat::u32 decoded_resource_token{};      // actor + 0x0E14 token view
+    LegacyBattleImageParticleEmitter emitter;  // actor + 0x0E14 physical owner
+    compat::u16 tick{};                        // actor + 0x2F26
+    compat::u32 active_gate{};                 // actor + 0x2AFC
+    compat::u8 mode_flags{};                   // actor + 0x2A87
+    compat::u32 runtime_gate{};                // actor + 0x2680
+    std::array<compat::u32, 5> spawn_counters{};  // actor + 0x2EF8
     std::array<compat::u32, 8> block_0df4{};
     std::array<compat::u32, 0x26> block_0500{};
     std::array<compat::u32, 0xBE> block_2bc8{};
@@ -146,13 +130,9 @@ struct LegacyBattleTargetPhaseState {
 
 struct LegacyBattleOpponentRecord {
     compat::u16 action_id{};
-    compat::u16 x{};  // actor + 0x0D66
-    compat::u16 y{};  // actor + 0x0D68
+    compat::u16 x{};
+    compat::u16 y{};
     compat::u32 runtime_value{};
-    compat::i32 vertical_adjustment{};  // actor + 0x02B4
-    compat::u16 source_x_offset{};      // actor + 0x29AC
-    compat::u16 source_y_offset{};      // actor + 0x29B2
-    LegacyBattleTargetPhaseState target_phase;
 };
 
 struct LegacyBattleTargetPhaseStartRequest {
@@ -184,6 +164,38 @@ struct LegacyBattleTargetPhaseStartResult {
     compat::u32 tail_dwords_zeroed{};
     LegacyBattleHostSurfaceResult host_surface{};
     compat::u32 host_surface_calls{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
+struct LegacyBattleTargetPhaseAdvanceRequest {
+    compat::u32 target_token{};
+    compat::u32 time_seed{};
+    LegacyBattleImageParticleStackSnapshot spawn_stack_snapshot{};
+    compat::u32 entry_eax{};
+    compat::u32 entry_ecx{};
+    compat::u32 entry_edx{};
+};
+
+enum class LegacyBattleTargetPhaseAdvanceStatus : compat::u8 {
+    completed,
+    target_object_typed_stop,
+    particle_frame_typed_stop,
+};
+
+struct LegacyBattleTargetPhaseAdvanceResult {
+    LegacyBattleTargetPhaseAdvanceStatus status{
+        LegacyBattleTargetPhaseAdvanceStatus::completed
+    };
+    LegacyBattleImageParticleFrameResult particle_frame{};
+    compat::u32 particle_frame_calls{};
+    compat::u32 spawn_calls{};
+    compat::u32 resource_release_calls{};
+    compat::u32 presentation_dwords_zeroed{};
+    compat::u32 spawn_counter_clears{};
+    compat::u32 tail_dwords_zeroed{};
+    compat::u32 port_calls{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
@@ -246,6 +258,10 @@ struct LegacyBattleActionDispatchState {
     compat::u32 opponent_processed_counter{};
     compat::u32 mirror_group_b_spawn{};
     std::array<LegacyBattleOpponentRecord, 8> opponent_records{};
+    LegacyBattleImageParticleNodePool target_phase_particle_nodes;
+    LegacyBattleImageParticleSharedState target_phase_particle_shared;
+    LegacyBattleImageParticleDiagnostics target_phase_particle_diagnostics;
+    input_time_rng::LegacyCrtRng target_phase_particle_rng;
     std::array<std::byte, 0xA4> opponent_scratch{};
     std::array<compat::u32, 0x7E> opponent_workspace{};
     compat::u32 active_target_code{};
@@ -267,6 +283,7 @@ struct LegacyBattleActionDispatchState {
     std::array<compat::u32, 10> group_a_to_actor{};
     std::array<LegacyBattleGroupAActionExecutionState, 10>
         group_a_action_execution{};
+    std::array<LegacyBattleTargetPhaseState, 10> group_a_target_phases{};
     LegacyBattleGroupAActionExecutionSharedState group_a_action_shared{};
     std::array<compat::u32, 18> target_identity{};
     std::array<compat::u32, 18> selection_workspace{};
@@ -319,6 +336,8 @@ struct LegacyBattleActionDispatchContext {
     LegacyBattleTargetSelectionRuntimeState* target_selection_runtime{};
     std::span<const compat::u32> group_a_skip_primary;
     std::span<const compat::u32> group_a_skip_secondary;
+    compat::u32 target_phase_time_seed{};
+    LegacyBattleImageParticleStackSnapshot target_phase_spawn_stack_snapshot{};
     bool scripted_resource_release_test_compat{};
 };
 
@@ -355,6 +374,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     group_a_actor_list_action_typed_stop,
     group_a_mode_four_finalization_typed_stop,
     target_phase_start_typed_stop,
+    target_phase_advance_typed_stop,
 };
 
 struct LegacyBattleActionDispatchResult {
@@ -405,15 +425,32 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 group_a_mode_four_finalization_calls{};
     LegacyBattleTargetPhaseStartResult target_phase_start{};
     compat::u32 target_phase_start_calls{};
+    LegacyBattleTargetPhaseAdvanceResult target_phase_advance{};
+    compat::u32 target_phase_advance_calls{};
 };
 
 // sub_4710D0.
 [[nodiscard]] LegacyBattleTargetPhaseStartResult
 start_legacy_battle_target_phase(
-    LegacyBattleOpponentRecord* target,
+    LegacyBattleTargetPhaseState* phase,
+    const LegacyBattleGroupAActionExecutionState* actor,
     LegacyBattleRenderGeometry* render_geometry,
     LegacyBattleActionDispatchPort& port,
     const LegacyBattleTargetPhaseStartRequest& request
+);
+
+// sub_471270.
+[[nodiscard]] LegacyBattleTargetPhaseAdvanceResult
+advance_legacy_battle_target_phase(
+    LegacyBattleTargetPhaseState* phase,
+    LegacyBattleImageParticleNodePool* nodes,
+    input_time_rng::LegacyCrtRng* rng,
+    LegacyBattleImageParticleSharedState* shared,
+    LegacyBattleImageParticleDiagnostics* diagnostics,
+    const LegacyBattleImageParticleSurface& surface,
+    rendering::LegacyPixelConversionState* pixel_format,
+    LegacyBattleActionDispatchPort& port,
+    const LegacyBattleTargetPhaseAdvanceRequest& request
 );
 
 // sub_4539B0: dispatch one action code for the selected group-A actor and

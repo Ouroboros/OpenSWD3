@@ -53,7 +53,7 @@ public:
             return {.outputs = {0x30U, 0x40U}};
         }
         if (request.callee_token == 0x004019A0U) {
-            return {.eax = 0x74000000U};
+            return {.eax = 0x74000000U, .resource_words = decoded_pixels};
         }
         if (request.callee_token == 0x004783B0U) {
             auto reply = default_reply;
@@ -126,6 +126,7 @@ public:
     LegacyBattleActionCallReply default_reply{.eax = 1U};
     std::unordered_map<u32, std::deque<LegacyBattleActionCallReply>> replies;
     std::vector<LegacyBattleActionCallRequest> calls;
+    std::vector<u16> decoded_pixels = std::vector<u16>(0x20U * 0x50U, 0x1234U);
     std::vector<
         openswd3::battle::LegacyBattleGroupASummonMaterializationCallRequest>
         summon_materialization_calls;
@@ -649,10 +650,12 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         state.group_b_count = 1;
         state.phase_counter = 1U;
         state.group_b_status_words[0] = 7U;
+        state.group_a_target_phases[0U].emitter.initialized = 1;
+        state.group_a_target_phases[0U].emitter.remaining_batches = 0U;
+        state.group_a_target_phases[0U].emitter.spawned_count = 0;
         Fixture fixture;
         DispatchPort port;
         port.action = 6U;
-        port.push(0x00471270U, {.eax = 1U});
         port.push(0x00487C10U, {.eax = 0x00630000U});
         auto context = fixture.context();
         const auto result = openswd3::battle::dispatch_legacy_battle_action(
@@ -1083,21 +1086,23 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
     }
 
     {
-        openswd3::battle::LegacyBattleOpponentRecord target;
-        target.x = 240U;
-        target.y = 220U;
-        target.vertical_adjustment = 20;
-        target.source_x_offset = 40U;
-        target.source_y_offset = 10U;
-        target.target_phase.mode_flags = 0x80U;
-        target.target_phase.runtime_gate = 1U;
-        target.target_phase.block_0df4.fill(1U);
-        target.target_phase.block_0500.fill(2U);
-        target.target_phase.block_2bc8.fill(3U);
+        openswd3::battle::LegacyBattleTargetPhaseState phase;
+        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+        actor.position_x = 240U;
+        actor.position_y = 220U;
+        actor.target_phase_y_adjustment = 20;
+        actor.source_x_offset = 40U;
+        actor.source_y_offset = 10U;
+        phase.mode_flags = 0x80U;
+        phase.runtime_gate = 1U;
+        phase.block_0df4.fill(1U);
+        phase.block_0500.fill(2U);
+        phase.block_2bc8.fill(3U);
         Fixture fixture;
         DispatchPort port;
         const auto result = openswd3::battle::start_legacy_battle_target_phase(
-            &target,
+            &phase,
+            &actor,
             &fixture.startup.render_geometry,
             port,
             {
@@ -1109,7 +1114,7 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 .entry_edx = 0xCCCCCCCCU,
             }
         );
-        const auto& presentation = target.target_phase.presentation;
+        const auto& emitter = phase.emitter;
         test.expect_true(
             result.status ==
                     openswd3::battle::LegacyBattleTargetPhaseStartStatus::
@@ -1122,41 +1127,45 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 result.tail_dwords_zeroed == 0xECU &&
                 result.host_surface_calls == 1U && result.return_eax == 0U &&
                 result.return_ecx == 0U &&
-                target.target_phase.resource_token == 0x72000000U &&
-                presentation.decoded_resource_token == 0x74000000U &&
-                presentation.resource_width == 0x20U &&
-                presentation.resource_height == 0x50U &&
-                presentation.horizontal_delta_minus_one == 0x2F &&
-                presentation.vertical_delta == 0x40 && presentation.x == 220 &&
-                presentation.y == 240 && presentation.width == 0x14U &&
-                presentation.height == 0x1EU &&
-                presentation.derived_resource_height == 0x46U &&
-                presentation.spacing == 0x28U && presentation.flags == 0x57U &&
+                phase.resource_token == 0x72000000U &&
+                phase.decoded_resource_token == 0x74000000U &&
+                emitter.source_pixels.size() == 0x20U * 0x50U &&
+                emitter.source_width == 0x20U &&
+                emitter.source_height == 0x50U &&
+                emitter.source_origin_x == 0x2F &&
+                emitter.source_origin_y == 0x40 &&
+                emitter.target_origin_x == 220 &&
+                emitter.target_origin_y == 240 && emitter.target_width == 1 &&
+                emitter.target_height == 1 &&
+                emitter.distance_offset_base == 0x14U &&
+                emitter.lifetime_divisor == 0x1EU &&
+                emitter.remaining_batches == 0x46U &&
+                emitter.spawn_divisor == 0x28U && emitter.flags == 0x57U &&
+                emitter.published_value_2c == 5 &&
+                emitter.published_value_30 == 5 &&
+                emitter.published_value_34 == 5 && phase.mode_flags == 0x88U &&
+                phase.runtime_gate == 0U &&
                 std::ranges::all_of(
-                    presentation.steps,
-                    [](const u32 value) { return value == 5U; }
-                ) &&
-                target.target_phase.mode_flags == 0x88U &&
-                target.target_phase.runtime_gate == 0U &&
-                std::ranges::all_of(
-                    target.target_phase.block_0df4,
+                    phase.block_0df4,
                     [](const u32 value) { return value == 0U; }
                 ) &&
                 fixture.startup.render_geometry.surface_width == 640 &&
                 fixture.startup.render_geometry.surface_height == 480,
-            "target phase start publishes the decoded presentation, geometry and exact clear suffix"
+            "target phase start publishes the decoded emitter, geometry and exact clear suffix"
         );
     }
 
     {
-        openswd3::battle::LegacyBattleOpponentRecord target;
-        target.target_phase.presentation.flags = 0xFFFFU;
-        target.target_phase.block_0df4.fill(9U);
+        openswd3::battle::LegacyBattleTargetPhaseState phase;
+        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+        phase.emitter.flags = 0xFFFFU;
+        phase.block_0df4.fill(9U);
         Fixture fixture;
         DispatchPort port;
         port.push(0x00478620U, {.eax = 0U});
         const auto result = openswd3::battle::start_legacy_battle_target_phase(
-            &target,
+            &phase,
+            &actor,
             &fixture.startup.render_geometry,
             port,
             {.target_token = 0x00525508U,
@@ -1171,9 +1180,138 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 result.coordinate_query_calls == 1U &&
                 result.decode_calls == 0U &&
                 result.presentation_dwords_zeroed == 0x16U &&
-                target.target_phase.presentation.flags == 0U &&
-                target.target_phase.block_0df4[0U] == 9U,
-            "target phase resource stop preserves both callee calls and the presentation clear prefix"
+                phase.emitter.flags == 0U && phase.block_0df4[0U] == 9U,
+            "target phase resource stop preserves both callee calls and the emitter clear prefix"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleTargetPhaseState phase;
+        phase.tick = 39U;
+        phase.emitter.initialized = 1;
+        phase.emitter.remaining_batches = 1U;
+        phase.emitter.spawn_divisor = 1U;
+        phase.emitter.source_width = 40U;
+        phase.emitter.source_height = 1U;
+        phase.emitter.source_origin_x = 100;
+        phase.emitter.source_origin_y = 200;
+        phase.emitter.spawned_count = 1;
+        LegacyBattleActionDispatchState shared;
+        Fixture fixture;
+        DispatchPort port;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_target_phase(
+                &phase,
+                &shared.target_phase_particle_nodes,
+                &shared.target_phase_particle_rng,
+                &shared.target_phase_particle_shared,
+                &shared.target_phase_particle_diagnostics,
+                {},
+                &fixture.effects.pixel_conversion,
+                port,
+                {.target_token = 0x005029D0U, .time_seed = 0x12345678U}
+            );
+        const auto spawns = std::ranges::count_if(
+            port.calls, [](const LegacyBattleActionCallRequest& call) {
+                return call.callee_token == 0x00471FC0U;
+            }
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleTargetPhaseAdvanceStatus::
+                        completed &&
+                result.particle_frame_calls == 1U &&
+                result.particle_frame.legacy_return_value == 0 &&
+                result.spawn_calls == 5U && spawns == 5 && phase.tick == 40U &&
+                phase.active_gate == 1U && result.return_eax == 0U &&
+                has_call_argument(port, 0x00471FC0U, 1U, 1U) &&
+                has_call_argument(port, 0x00471FC0U, 2U, 0U) &&
+                has_call_argument(port, 0x00471FC0U, 3U, 110U) &&
+                has_call_argument(port, 0x00471FC0U, 4U, 195U) &&
+                has_call_argument(port, 0x00471FC0U, 5U, 0x0EU) &&
+                has_call_argument(port, 0x00471FC0U, 2U, 4U) &&
+                has_call_argument(port, 0x00471FC0U, 4U, 205U),
+            "target phase tick forty repeats all five threshold particle calls with the original coordinates"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleTargetPhaseState phase;
+        phase.tick = 0x7FFFU;
+        phase.emitter.initialized = 1;
+        phase.emitter.remaining_batches = 1U;
+        phase.emitter.spawn_divisor = 1U;
+        phase.emitter.source_height = 1U;
+        phase.emitter.spawned_count = 1;
+        LegacyBattleActionDispatchState shared;
+        Fixture fixture;
+        DispatchPort port;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_target_phase(
+                &phase,
+                &shared.target_phase_particle_nodes,
+                &shared.target_phase_particle_rng,
+                &shared.target_phase_particle_shared,
+                &shared.target_phase_particle_diagnostics,
+                {},
+                &fixture.effects.pixel_conversion,
+                port,
+                {.target_token = 0x005029D0U}
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleTargetPhaseAdvanceStatus::
+                        completed &&
+                phase.tick == 0x8000U && result.spawn_calls == 1U,
+            "target phase signed tick overflow suppresses the four threshold branches while keeping the unconditional spawn"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleTargetPhaseState phase;
+        phase.tick = 9U;
+        phase.active_gate = 1U;
+        phase.decoded_resource_token = 0x74000000U;
+        phase.emitter.initialized = 1;
+        phase.emitter.remaining_batches = 0U;
+        phase.emitter.spawned_count = 0;
+        phase.spawn_counters.fill(7U);
+        phase.block_0df4.fill(8U);
+        phase.block_0500.fill(9U);
+        phase.block_2bc8.fill(10U);
+        LegacyBattleActionDispatchState shared;
+        Fixture fixture;
+        DispatchPort port;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_target_phase(
+                &phase,
+                &shared.target_phase_particle_nodes,
+                &shared.target_phase_particle_rng,
+                &shared.target_phase_particle_shared,
+                &shared.target_phase_particle_diagnostics,
+                {},
+                &fixture.effects.pixel_conversion,
+                port,
+                {.target_token = 0x005029D0U}
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleTargetPhaseAdvanceStatus::
+                        completed &&
+                result.particle_frame.legacy_return_value == 1 &&
+                result.resource_release_calls == 1U &&
+                result.presentation_dwords_zeroed == 0x16U &&
+                result.spawn_counter_clears == 5U &&
+                result.tail_dwords_zeroed == 0x2EU && result.return_eax == 1U &&
+                phase.tick == 0U && phase.active_gate == 0U &&
+                phase.decoded_resource_token == 0U &&
+                std::ranges::all_of(
+                    phase.spawn_counters,
+                    [](const u32 value) { return value == 0U; }
+                ) &&
+                phase.block_0df4[0U] == 0U && phase.block_0500[0U] == 0U &&
+                phase.block_2bc8[0U] == 10U && port.count(0x004885A0U) == 1U,
+            "target phase completion releases the decoded buffer and clears only the original presentation, counters and two tail blocks"
         );
     }
 
@@ -1181,14 +1319,13 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         LegacyBattleActionDispatchState state;
         state.group_a_count = 1;
         state.group_b_count = 1;
-        state.opponent_records[0U].x = 240U;
-        state.opponent_records[0U].y = 220U;
-        state.opponent_records[0U].source_x_offset = 40U;
-        state.opponent_records[0U].source_y_offset = 10U;
+        state.group_a_action_execution[0U].position_x = 240U;
+        state.group_a_action_execution[0U].position_y = 220U;
+        state.group_a_action_execution[0U].source_x_offset = 40U;
+        state.group_a_action_execution[0U].source_y_offset = 10U;
         Fixture fixture;
         DispatchPort port;
         port.action = 6U;
-        port.push(0x00471270U, {.eax = 0U});
         auto context = fixture.context();
         const auto result = openswd3::battle::dispatch_legacy_battle_action(
             state, port, context, 0U, 0U
@@ -1203,8 +1340,9 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 port.count(0x004019A0U) == 1U &&
                 port.count(0x0047CE70U) == 1U && state.phase_condition == 1U &&
                 static_cast<u16>(state.phase_counter) == 1U &&
-                state.opponent_records[0U]
-                        .target_phase.presentation.decoded_resource_token ==
+                result.target_phase_advance_calls == 1U &&
+                port.count(0x00471270U) == 0U &&
+                state.group_a_target_phases[0U].decoded_resource_token ==
                     0x74000000U,
             "action six production starts the typed target phase without the whole-function opaque call"
         );

@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v792
+版本：v793
 
 最后更新：2026-08-29
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗角色动作效果与渲染函数 `0x00471270`
+当前步骤：模块10 · 审计战斗角色动作效果与渲染函数 `0x004714B0`
 
 ## 0. 执行约定
 
@@ -4200,6 +4200,8 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=203`的`0x00471080`战斗角色模式资源数量累计。完整权威LST主体`0x00471080..0x004710CD`共42行、25条实际指令、1个call、5个跳转、2个局部标签、1个返回点且无外部chunk。实现输出word先清零、破坏性资源链推进、bit27门、固定id排除、mode bits门，以及secondary/tertiary节点内和跨节点16位回绕累计。复用resource list唯一owner。mode grid production secondary-count caller改为typed直连，脚本compat默认关闭；随后的链头提交继续走typed路径。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`203/422 = 194 platform_adapted + 9 assembly_exact + 219 pending_audit`；生成器连续双跑逐字节一致，SHA256为`060968b2e3ee56d46b89501fbfa0bd0c0d15e1ff5d394634bd35b40b909b2f4d`。动态差分因原版mode资源链、caller输出word和寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-本轮再完成`audit_order=204`的`0x004710D0`战斗目标演出阶段初始化。完整权威LST主体`0x004710D0..0x0047126B`共171行、104条实际指令、7个call、3个跳转、3个局部标签、1个返回点且无外部chunk。实现group-B资源/坐标/解码窄callee序列、精确0x58字节演出记录、signed回绕坐标、资源高度分支、flags/mode bit、host surface重建，以及三段共236个尾部dword清零。每个opponent record新增唯一target-phase owner；已关闭host-surface typed直连，其余未审callee保持窄port。action 6阶段零caller移除整函数opaque地址并直接调用typed实现。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`204/422 = 195 platform_adapted + 9 assembly_exact + 218 pending_audit`；生成器连续双跑逐字节一致，SHA256为`01134ec0bd9e21316e2cab6823607c18a4f1b8f2d2716028b6f0441ae1cec2e6`。动态差分因原版group-B资源对象、图像解码分配、坐标/属性callee和caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+本轮再完成`audit_order=204`的`0x004710D0`战斗目标演出阶段初始化。完整权威LST主体`0x004710D0..0x0047126B`共171行、104条实际指令、7个call、3个跳转、3个局部标签、1个返回点且无外部chunk。实现group-B资源/坐标/解码窄callee序列、精确0x58字节演出记录、signed回绕坐标、资源高度分支、flags/mode bit、host surface重建，以及三段共236个尾部dword清零。每个group-A行动者新增唯一target-phase owner并复用既有particle emitter；隐藏this为group-A行动者、显式参数为group-B目标token。已关闭host-surface typed直连，其余未审callee保持窄port。action 6阶段零caller移除整函数opaque地址并直接调用typed实现。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`204/422 = 195 platform_adapted + 9 assembly_exact + 218 pending_audit`；生成器连续双跑逐字节一致，SHA256为`01134ec0bd9e21316e2cab6823607c18a4f1b8f2d2716028b6f0441ae1cec2e6`。动态差分因原版group-B资源对象、图像解码分配、坐标/属性callee和caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=205`的`0x00471270`战斗角色动作效果与渲染函数。
+本轮再完成`audit_order=205`的`0x00471270`战斗目标演出阶段推进。完整权威LST主体`0x00471270..0x004714AF`共239行、159条实际指令、7个call、7个跳转、6个局部标签、2个返回点且无外部chunk。实现16位tick前缀、particle emitter三值与active gate重写、已关闭image-particle frame typed直连、完成时资源释放和精确清零，以及remaining-batches非零时五档粒子槽调用。保留signed tick阈值，40以上每帧重复五档，回绕到负word后仅无条件第一档。target phase纠正为group-A行动者唯一owner并复用particle emitter；action 6公共推进点移除整函数opaque地址。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`205/422 = 196 platform_adapted + 9 assembly_exact + 217 pending_audit`；生成器连续双跑逐字节一致，SHA256为`874eb006550504b7b8ff044e090b29cbdd3fef4f47b5d871d133720ea842ea32`。动态差分因原版decoded buffer、粒子槽callee、CRT seed和caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=206`的`0x004714B0`战斗角色动作效果与渲染函数。
