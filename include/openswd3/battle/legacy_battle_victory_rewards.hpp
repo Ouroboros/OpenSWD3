@@ -3,6 +3,7 @@
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
+#include "openswd3/battle/legacy_battle_group_a_reward_profile_application.hpp"
 #include "openswd3/battle/legacy_battle_input_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_player_item_quantity.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
@@ -46,6 +47,7 @@ struct LegacyBattleVictoryRewardState {
     compat::u16 reward_experience{};                       // 0x0053BF16
     compat::u16 party_profile_threshold{};                 // 0x004A762A
     compat::u32 actor_reward_gate{};                       // 0x0053C4C4
+    LegacyBattleGroupARewardProfileState group_a_reward_profiles;
 };
 
 class LegacyBattleVictoryRewardStatePort {
@@ -71,7 +73,7 @@ private:
 enum class LegacyBattleVictoryRewardCall : compat::u8 {
     query_group_b_item,
     query_group_a_reward_block,
-    apply_group_a_reward,
+    reserved_apply_group_a_reward,
     prepare_group_a_actor,
     configure_group_a_actor,
     reserved_transition_stage_advance_slot,
@@ -187,6 +189,7 @@ enum class LegacyBattleVictoryRewardStatus : compat::u8 {
     script_variable_typed_stop,
     transition_stage_typed_stop,
     format_buffer_typed_stop,
+    group_a_reward_profile_typed_stop,
 };
 
 struct LegacyBattleVictoryRewardResult {
@@ -202,6 +205,7 @@ struct LegacyBattleVictoryRewardResult {
     compat::u32 sample_calls{};
     compat::u32 group_b_query_calls{};
     compat::u32 group_a_query_calls{};
+    compat::u32 group_a_reward_profile_calls{};
     compat::u32 player_item_quantity_calls{};
     compat::u32 text_draw_calls{};
     compat::u32 rectangle_calls{};
@@ -214,6 +218,8 @@ struct LegacyBattleVictoryRewardResult {
     };
     std::array<rendering::LegacyTiledFrameResult, 2> tiled_frames{};
     LegacyBattlePlayerItemQuantityResult player_item_quantity{};
+    std::array<LegacyBattleGroupARewardProfileApplicationResult, 10>
+        group_a_reward_profiles{};
     std::vector<LegacyBattleVictoryRewardCall> call_trace;
 };
 

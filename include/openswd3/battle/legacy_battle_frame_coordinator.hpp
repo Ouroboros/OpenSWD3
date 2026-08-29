@@ -173,7 +173,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     victory_stop_all_samples,
     victory_query_group_b_item,
     victory_query_group_a_reward_block,
-    victory_apply_group_a_reward,
+    reserved_victory_apply_group_a_reward,
     victory_prepare_group_a_actor,
     victory_configure_group_a_actor,
     victory_reserved_transition_stage_advance_slot,
@@ -1040,9 +1040,9 @@ public:
             call = LegacyBattleFrameCoordinatorCall::
                 victory_query_group_a_reward_block;
             break;
-        case LegacyBattleVictoryRewardCall::apply_group_a_reward:
-            call =
-                LegacyBattleFrameCoordinatorCall::victory_apply_group_a_reward;
+        case LegacyBattleVictoryRewardCall::reserved_apply_group_a_reward:
+            call = LegacyBattleFrameCoordinatorCall::
+                reserved_victory_apply_group_a_reward;
             break;
         case LegacyBattleVictoryRewardCall::prepare_group_a_actor:
             call =

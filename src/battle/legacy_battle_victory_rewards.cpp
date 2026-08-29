@@ -408,11 +408,31 @@ private:
         ecx_ = group_a_token(actor_index);
         eax_ = (label * 56U & 0xFFFF0000U) |
             static_cast<u32>(bindings_.state.reward_experience);
-        call(
-            LegacyBattleVictoryRewardCall::apply_group_a_reward,
+        auto& profile_result = result_.group_a_reward_profiles[actor_index];
+        profile_result = apply_legacy_battle_group_a_reward_profiles(
+            &bindings_.state.group_a_reward_profiles,
+            &bindings_.startup.party[actor_index]
+                 .attribute_aggregation.embedded_profiles,
             ecx_,
-            {kLegacyBattleVictoryProfileToken, eax_}
+            kLegacyBattleVictoryProfileToken,
+            port_,
+            {
+                .quantity = eax_,
+                .entry_eax = eax_,
+                .entry_edx = edx_,
+            }
         );
+        ++result_.group_a_reward_profile_calls;
+        result_.port_calls += profile_result.port_calls;
+        eax_ = profile_result.return_eax;
+        ecx_ = profile_result.return_ecx;
+        edx_ = profile_result.return_edx;
+        if (profile_result.status !=
+            LegacyBattleGroupARewardProfileApplicationStatus::completed) {
+            result_.status = LegacyBattleVictoryRewardStatus::
+                group_a_reward_profile_typed_stop;
+            return false;
+        }
         if (eax_ == 1U) {
             bindings_.state.actor_reward_gate = 1U;
         }

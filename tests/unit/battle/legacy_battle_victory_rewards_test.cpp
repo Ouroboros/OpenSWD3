@@ -254,6 +254,15 @@ text_bytes(const LegacyBattleVictoryRewardCallRequest& request) {
     };
 }
 
+void set_profile_word(
+    openswd3::battle::LegacyBattleGroupASummonProfileRecord& profile,
+    const std::size_t offset,
+    const u16 value
+) {
+    profile[offset] = static_cast<std::byte>(static_cast<u8>(value));
+    profile[offset + 1U] = static_cast<std::byte>(static_cast<u8>(value >> 8U));
+}
+
 }  // namespace
 
 void test_battle_victory_rewards(openswd3::test::Context& test) {
@@ -323,12 +332,11 @@ void test_battle_victory_rewards(openswd3::test::Context& test) {
             LegacyBattleVictoryRewardCall::query_group_a_reward_block,
             {.eax = 0U}
         );
-        fixture.port.reply(
-            LegacyBattleVictoryRewardCall::apply_group_a_reward, {.eax = 1U}
-        );
-        fixture.port.reply(
-            LegacyBattleVictoryRewardCall::apply_group_a_reward, {.eax = 0U}
-        );
+        auto& actor_profile = fixture.startup.party[0U]
+                                  .attribute_aggregation.embedded_profiles[0U];
+        set_profile_word(actor_profile, 0x04U, 10U);
+        set_profile_word(actor_profile, 0x10U, 5U);
+        fixture.state.group_a_reward_profiles.head.item_id = 5U;
         fixture.port.reply(
             LegacyBattleVictoryRewardCall::
                 reserved_transition_stage_advance_slot,
@@ -359,6 +367,12 @@ void test_battle_victory_rewards(openswd3::test::Context& test) {
                 fixture.party_resources[1U].field_00 == 0U &&
                 fixture.state.party_reward_counters[0U] == 1U &&
                 fixture.state.party_reward_counters[1U] == 1U &&
+                result.group_a_reward_profile_calls == 2U &&
+                result.group_a_reward_profiles[0U].matched_profiles == 1U &&
+                result.group_a_reward_profiles[0U].return_eax == 1U &&
+                result.group_a_reward_profiles[1U].return_eax == 0U &&
+                fixture.state.group_a_reward_profiles.head.quantity == 10U &&
+                fixture.state.group_a_reward_profiles.head.percentage == 100U &&
                 fixture.state.actor_reward_gate == 1U &&
                 fixture.state.committed_money_word == 0x8005U &&
                 fixture.script_variables[0U] == 105U &&
@@ -372,19 +386,17 @@ void test_battle_victory_rewards(openswd3::test::Context& test) {
             "victory distribution applies thresholded party experience, actor completion and one-time money"
         );
         test.expect_true(
-            fixture.port.calls[4U].call ==
-                    LegacyBattleVictoryRewardCall::apply_group_a_reward &&
-                fixture.port.calls[4U].eax == 20U &&
-                fixture.port.calls[4U].ecx == 0x005029D0U &&
-                fixture.port.calls[4U].edx == 10U &&
-                fixture.port.calls[5U].call ==
+            fixture.port.count(
+                LegacyBattleVictoryRewardCall::reserved_apply_group_a_reward
+            ) == 0U &&
+                fixture.port.calls[4U].call ==
                     LegacyBattleVictoryRewardCall::prepare_group_a_actor &&
-                fixture.port.calls[5U].eax == 0x004ACF54U &&
-                fixture.port.calls[5U].edx == 2U,
-            "victory party calls preserve the reward-word and counter-address register snapshots"
+                fixture.port.calls[4U].eax == 0x004ACF54U &&
+                fixture.port.calls[4U].edx == 2U,
+            "victory party caller directly applies reward profiles before preserving the counter-address register snapshot"
         );
         test.expect_true(
-            result.text_draw_calls == 4U && fixture.port.calls.size() >= 14U &&
+            result.text_draw_calls == 4U && fixture.port.calls.size() >= 12U &&
                 text_bytes(
                     fixture.port.calls[fixture.port.calls.size() - 3U]
                 ) ==
@@ -448,6 +460,39 @@ void test_battle_victory_rewards(openswd3::test::Context& test) {
 
     {
         Fixture fixture;
+        fixture.metrics.group_a_count = 1U;
+        fixture.startup.action_mode_source.actor_label_indices[0U] = 0U;
+        fixture.port.reply(
+            LegacyBattleVictoryRewardCall::query_group_a_reward_block,
+            {.eax = 0U}
+        );
+        auto& actor_profile = fixture.startup.party[0U]
+                                  .attribute_aggregation.embedded_profiles[0U];
+        set_profile_word(actor_profile, 0x04U, 10U);
+        set_profile_word(actor_profile, 0x10U, 7U);
+        fixture.state.group_a_reward_profiles.head.legacy_next_token =
+            0x00DEAD00U;
+        const auto result = run(fixture);
+        test.expect_true(
+            result.status ==
+                    LegacyBattleVictoryRewardStatus::
+                        group_a_reward_profile_typed_stop &&
+                result.group_a_reward_profile_calls == 1U &&
+                result.group_a_reward_profiles[0U].status ==
+                    openswd3::battle::
+                        LegacyBattleGroupARewardProfileApplicationStatus::
+                            profile_node_typed_stop &&
+                fixture.state.party_reward_counters[0U] == 0U &&
+                fixture.state.committed_money_word == 5U &&
+                fixture.port.count(
+                    LegacyBattleVictoryRewardCall::reserved_apply_group_a_reward
+                ) == 0U,
+            "victory caller propagates a direct reward-profile token stop before counters and money commit"
+        );
+    }
+
+    {
+        Fixture fixture;
         fixture.metrics.group_b_count = 3U;
         fixture.metrics.group_a_count = 1U;
         fixture.startup.action_mode_source.actor_label_indices[0U] = 0U;
@@ -459,9 +504,6 @@ void test_battle_victory_rewards(openswd3::test::Context& test) {
         fixture.port.reply(
             LegacyBattleVictoryRewardCall::query_group_a_reward_block,
             {.eax = 0U}
-        );
-        fixture.port.reply(
-            LegacyBattleVictoryRewardCall::apply_group_a_reward, {.eax = 0U}
         );
         const auto result = run(fixture);
         test.expect_true(
