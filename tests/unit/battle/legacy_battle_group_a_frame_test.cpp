@@ -96,9 +96,13 @@ public:
 class RandomPort final
     : public openswd3::battle::LegacyBattleBoundedRandomPort {
 public:
-    [[nodiscard]] u32 random_bounded(u32) override {
-        return 0U;
+    [[nodiscard]] u32 random_bounded(const u32 bound) override {
+        bounds.push_back(bound);
+        return value;
     }
+
+    u32 value{};
+    std::vector<u32> bounds;
 };
 
 class SoundPort final
@@ -153,6 +157,7 @@ struct Fixture {
         );
         for (auto& actor : startup.party) {
             actor.configuration.source_record_token = 0x004AB790U;
+            actor.configuration.actor_record_token = 0x005029D0U;
         }
     }
 
@@ -545,6 +550,56 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
     }
 
     {
+        openswd3::battle::LegacyBattleGroupAConfigurationState first_actor;
+        first_actor.actor_record_token = 0x005029D0U;
+        first_actor.actor_record[11U] = 20U;
+        RandomPort random;
+        const auto zero =
+            openswd3::battle::evaluate_legacy_battle_turn_commit_chance(
+                nullptr, random, {.candidate = 0U}
+            );
+        random.value = 35U;
+        const auto below_true =
+            openswd3::battle::evaluate_legacy_battle_turn_commit_chance(
+                &first_actor, random, {.candidate = 21U}
+            );
+        random.value = 36U;
+        const auto below_false =
+            openswd3::battle::evaluate_legacy_battle_turn_commit_chance(
+                &first_actor, random, {.candidate = 21U}
+            );
+        const auto equal =
+            openswd3::battle::evaluate_legacy_battle_turn_commit_chance(
+                &first_actor, random, {.candidate = 20U}
+            );
+        random.value = 70U;
+        const auto near =
+            openswd3::battle::evaluate_legacy_battle_turn_commit_chance(
+                &first_actor, random, {.candidate = 19U}
+            );
+        random.value = 90U;
+        const auto middle =
+            openswd3::battle::evaluate_legacy_battle_turn_commit_chance(
+                &first_actor, random, {.candidate = 12U}
+            );
+        const auto far =
+            openswd3::battle::evaluate_legacy_battle_turn_commit_chance(
+                &first_actor, random, {.candidate = 7U}
+            );
+        test.expect_true(
+            zero.return_eax == 0U && zero.random_calls == 0U &&
+                below_true.return_eax == 1U && below_true.difference == -1 &&
+                below_false.return_eax == 0U && equal.return_eax == 0U &&
+                equal.random_calls == 0U && near.return_eax == 1U &&
+                near.difference == 1 && middle.return_eax == 1U &&
+                middle.difference == 8 && far.return_eax == 1U &&
+                far.difference == 13 && far.random_calls == 0U &&
+                random.bounds == std::vector<u32>({100U, 100U, 100U, 100U}),
+            "turn commit chance preserves zero, equal, three inclusive random bands and deterministic far success"
+        );
+    }
+
+    {
         LegacyBattleGroupAFrameState state;
         state.turn_resolution_bits = 0x4000U;
         state.action.group_a_count = 1;
@@ -559,14 +614,16 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             );
         test.expect_true(
             result.return_value == 1U && state.turn_resolution_bits == 0U &&
-                openswd3::compat::u8(state.action.packed_actor_counter) == 1U &&
-                port.battle_message_state() == 0x67U &&
-                port.count(0x00471540U) == 2U &&
-                port.count(0x004714B0U) == 1U &&
+                openswd3::compat::u8(state.action.packed_actor_counter) == 0U &&
+                port.count(0x00471540U) == 1U &&
+                port.count(0x004714B0U) == 0U &&
+                result.turn_commit_chance_calls == 1U &&
+                result.turn_commit_chance.return_eax == 0U &&
+                result.turn_commit_chance.random_calls == 0U &&
                 result.text_message_calls == 1U &&
                 fixture.startup_reset.block_5214f8[0U] == 0x72000000U &&
                 fixture.text_messages.allocations[0U].record.value_04 == 0x118U,
-            "turn completion then takes the final actor terminal suffix in the same frame"
+            "zero turn candidate takes the deterministic failure reset without consuming random state"
         );
     }
 
@@ -581,7 +638,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
         port.push(0x0047CE80U, {.eax = 0U});
         port.push(0x0047CE80U, {.eax = 0U});
         port.push(0x00480AD0U, {.eax = 0xA0000000U, .object_flags = 50U});
-        port.push(0x004714B0U, {.eax = 0U});
+        fixture.random.value = 36U;
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_a_frame(
@@ -589,7 +646,13 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             );
         test.expect_true(
             result.return_value == 1U &&
-                has_call_argument(port, 0x004714B0U, 1U, 50U) &&
+                result.turn_commit_chance_calls == 1U &&
+                result.turn_commit_chance.actor_level == 0U &&
+                result.turn_commit_chance.difference == -50 &&
+                result.turn_commit_chance.random_calls == 1U &&
+                result.turn_commit_chance.return_eax == 0U &&
+                fixture.random.bounds == std::vector<u32>{100U} &&
+                port.count(0x004714B0U) == 0U &&
                 port.count(0x00483FD0U) == 1U &&
                 port.count(0x00485610U) == 1U &&
                 state.action.action_pending_aux == 0U &&

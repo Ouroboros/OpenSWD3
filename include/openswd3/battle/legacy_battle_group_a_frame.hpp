@@ -70,6 +70,14 @@ struct LegacyBattleGroupAFrameState {
     compat::u16 final_selected_word{0xFFFFU};
 };
 
+// sub_4714B0.
+[[nodiscard]] LegacyBattleTurnCommitChanceResult
+evaluate_legacy_battle_turn_commit_chance(
+    const LegacyBattleGroupAConfigurationState* first_actor,
+    LegacyBattleBoundedRandomPort& random,
+    const LegacyBattleTurnCommitChanceRequest& request
+);
+
 // Typed closure of legacy 0x00456680. One call advances the selected group-A
 // actor and always returns one unless a typed boundary stops at the original
 // first access.

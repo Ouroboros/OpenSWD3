@@ -201,6 +201,30 @@ struct LegacyBattleTargetPhaseAdvanceResult {
     compat::u32 return_edx{};
 };
 
+struct LegacyBattleTurnCommitChanceRequest {
+    compat::u16 candidate{};
+    compat::u32 entry_eax{};
+    compat::u32 entry_ecx{};
+    compat::u32 entry_edx{};
+};
+
+enum class LegacyBattleTurnCommitChanceStatus : compat::u8 {
+    completed,
+    actor_record_typed_stop,
+};
+
+struct LegacyBattleTurnCommitChanceResult {
+    LegacyBattleTurnCommitChanceStatus status{
+        LegacyBattleTurnCommitChanceStatus::completed
+    };
+    compat::u32 random_calls{};
+    compat::u8 actor_level{};
+    compat::i32 difference{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
 struct LegacyBattleActionDispatchState {
     compat::u32 side_mode{};
     compat::i32 group_a_count{};
@@ -375,6 +399,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     group_a_mode_four_finalization_typed_stop,
     target_phase_start_typed_stop,
     target_phase_advance_typed_stop,
+    turn_commit_chance_typed_stop,
 };
 
 struct LegacyBattleActionDispatchResult {
@@ -427,6 +452,8 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 target_phase_start_calls{};
     LegacyBattleTargetPhaseAdvanceResult target_phase_advance{};
     compat::u32 target_phase_advance_calls{};
+    LegacyBattleTurnCommitChanceResult turn_commit_chance{};
+    compat::u32 turn_commit_chance_calls{};
 };
 
 // sub_4710D0.

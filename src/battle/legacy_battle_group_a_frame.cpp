@@ -59,7 +59,6 @@ constexpr u32 kCallQueryTargetBusy = 0x00478690U;
 constexpr u32 kCallPrepareTarget = 0x00478AC0U;
 constexpr u32 kCallAdvanceTurnGate = 0x00471540U;
 constexpr u32 kCallResolveTarget = 0x00480AD0U;
-constexpr u32 kCallCommitTurn = 0x004714B0U;
 constexpr u32 kCallPublishTurnResult = 0x00483FD0U;
 
 constexpr u32 kGroupBOneBeforeToken =
@@ -569,6 +568,48 @@ void merge_nested_result(
 }
 
 }  // namespace
+
+LegacyBattleTurnCommitChanceResult evaluate_legacy_battle_turn_commit_chance(
+    const LegacyBattleGroupAConfigurationState* first_actor,
+    LegacyBattleBoundedRandomPort& random,
+    const LegacyBattleTurnCommitChanceRequest& request
+) {
+    LegacyBattleTurnCommitChanceResult result;
+    result.return_eax = request.entry_eax;
+    result.return_ecx = request.entry_ecx;
+    result.return_edx = request.entry_edx;
+    if (request.candidate == 0U) {
+        result.return_eax = 0U;
+        return result;
+    }
+    if (first_actor == nullptr || first_actor->actor_record_token == 0U) {
+        result.status =
+            LegacyBattleTurnCommitChanceStatus::actor_record_typed_stop;
+        return result;
+    }
+
+    result.actor_level = static_cast<u8>(first_actor->actor_record[11U]);
+    result.difference =
+        static_cast<i32>(result.actor_level) - request.candidate;
+    const auto roll = [&]() {
+        ++result.random_calls;
+        return random.random_bounded(100U);
+    };
+    if (result.actor_level < request.candidate) {
+        result.return_eax = roll() <= 0x23U ? 1U : 0U;
+        return result;
+    }
+    if (result.difference >= 1 && result.difference < 8) {
+        result.return_eax = roll() <= 0x46U ? 1U : 0U;
+        return result;
+    }
+    if (result.difference >= 8 && result.difference < 0x0D) {
+        result.return_eax = roll() <= 0x5AU ? 1U : 0U;
+        return result;
+    }
+    result.return_eax = result.difference >= 0x0D ? 1U : 0U;
+    return result;
+}
 
 LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
     LegacyBattleGroupAFrameState& state,
@@ -1599,14 +1640,29 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     const u32 stale_turn_argument =
                         (to_bits(state.action.group_b_count) & 0xFFFF0000U) |
                         high_word(state.action.phase_counter);
-                    if (invoke(
-                            port,
-                            result,
-                            kCallCommitTurn,
-                            {kLegacyBattleActionGroupABaseToken,
-                             stale_turn_argument}
-                        )
-                            .eax == 1U) {
+                    if (context.startup == nullptr) {
+                        result.status = LegacyBattleActionDispatchStatus::
+                            turn_commit_chance_typed_stop;
+                        return result;
+                    }
+                    result.turn_commit_chance =
+                        evaluate_legacy_battle_turn_commit_chance(
+                            &context.startup->party[0U].configuration,
+                            context.bounded_random,
+                            {
+                                .candidate = low_word(stale_turn_argument),
+                                .entry_eax = stale_turn_argument,
+                                .entry_ecx = kLegacyBattleActionGroupABaseToken,
+                            }
+                        );
+                    ++result.turn_commit_chance_calls;
+                    if (result.turn_commit_chance.status !=
+                        LegacyBattleTurnCommitChanceStatus::completed) {
+                        result.status = LegacyBattleActionDispatchStatus::
+                            turn_commit_chance_typed_stop;
+                        return result;
+                    }
+                    if (result.turn_commit_chance.return_eax == 1U) {
                         static_cast<void>(invoke(
                             port,
                             result,
