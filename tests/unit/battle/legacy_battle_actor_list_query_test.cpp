@@ -434,6 +434,95 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
     }
 
     {
+        list.next_resource_head_token = 0x76000000U;
+        list.resources = {
+            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+            {.token = 0x76000010U,
+             .next_token = 0x76000020U,
+             .name = "ordinary"},
+            {.token = 0x76000020U,
+             .secondary_quantity = -1,
+             .tertiary_quantity = 2,
+             .name = "flagged",
+             .capacity_gate_flags = 0x2000U},
+        };
+        const auto result = query_legacy_battle_actor_flagged_resource(
+            &list,
+            0x005029D0U,
+            {.occurrence = 1U,
+             .entry_eax = 0xAAAAAAAAU,
+             .entry_edx = 0xBBBBBBBBU}
+        );
+        test.expect_true(
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                result.commit_calls == 1U && result.nodes_visited == 2U &&
+                result.flagged_matches == 1U &&
+                result.copied_name == "flagged" &&
+                result.output_quantity == 1U && result.return_eax == 1U &&
+                result.return_ecx == 1U && result.return_edx == 1U,
+            "flagged resource query counts bit thirteen and wraps the secondary plus tertiary word sum"
+        );
+    }
+
+    {
+        list.next_resource_head_token = 0x76000000U;
+        list.resources = {
+            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+            {.token = 0x76000010U,
+             .secondary_quantity = 3,
+             .tertiary_quantity = 4,
+             .name = "stale-zero"},
+        };
+        const auto result = query_legacy_battle_actor_flagged_resource(
+            &list, 0x005029D0U, {.occurrence = 0U}
+        );
+        test.expect_true(
+            result.return_eax == 1U && result.flagged_matches == 0U &&
+                result.copied_name == "stale-zero" &&
+                result.output_quantity == 7U,
+            "flagged resource occurrence zero preserves the stale success on the first unflagged node"
+        );
+    }
+
+    {
+        list.next_resource_head_token = 0x76000000U;
+        list.resources = {
+            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+            {.token = 0x76000010U,
+             .name = "twenty-byte-name-xxxx",
+             .capacity_gate_flags = 0x2000U},
+        };
+        const auto result = query_legacy_battle_actor_flagged_resource(
+            &list, 0x005029D0U, {.occurrence = 1U, .output_capacity = 20U}
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActorListQueryStatus::list_text_typed_stop &&
+                result.nodes_visited == 1U && result.return_eax == 0x76000010U,
+            "flagged resource query stops at the original caller buffer boundary instead of truncating lstrcpy"
+        );
+    }
+
+    {
+        list.next_resource_head_token = 0x76000000U;
+        list.resources = {
+            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+            {.token = 0x76000010U,
+             .name = "only",
+             .capacity_gate_flags = 0x2000U},
+        };
+        const auto result = query_legacy_battle_actor_flagged_resource(
+            &list, 0x005029D0U, {.occurrence = 2U}
+        );
+        test.expect_true(
+            result.return_eax == 0U && result.nodes_visited == 2U &&
+                result.flagged_matches == 1U &&
+                list.resource_head_token == 0U && result.copied_name.empty(),
+            "flagged resource query destructively reaches null when the requested occurrence is absent"
+        );
+    }
+
+    {
         LegacyBattleGroupAWorkspaceState workspace;
         list.next_resource_head_token = 0x76000000U;
         list.selected_resource_token = 0x76000010U;

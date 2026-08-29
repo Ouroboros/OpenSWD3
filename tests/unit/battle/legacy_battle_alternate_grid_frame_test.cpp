@@ -143,6 +143,7 @@ struct Fixture {
             .selection_input_gate = selection_input_gate,
             .target_argument = target_argument,
             .primary_text_color = primary_text_color,
+            .party = party,
             .scripted_port_test_compat = true,
             .panel_action_record = panel_action_record,
             .framebuffer = framebuffer,
@@ -160,6 +161,7 @@ struct Fixture {
     u32 selection_input_gate{};
     u32 target_argument{};
     u16 primary_text_color{0x2222U};
+    std::array<openswd3::battle::LegacyBattlePartyStartupRecord, 4> party{};
     openswd3::asset_runtime::LegacyActionRecord panel_action_record;
     openswd3::rendering::LegacyFramebuffer framebuffer{{
         .pitch_bytes = 1280,
@@ -361,6 +363,42 @@ void test_battle_alternate_grid_frame(openswd3::test::Context& test) {
                     fixture.frame_provider.resource_ids, 0xBBBB0077U
                 ) > 0,
             "alternate grid preserves separate stale resource high words across both tiled bands"
+        );
+    }
+
+    {
+        Fixture fixture;
+        auto& list = fixture.party[0U].actor_list;
+        list.next_resource_head_token = 0x76000000U;
+        list.resources = {
+            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+            {.token = 0x76000010U,
+             .secondary_quantity = 2,
+             .tertiary_quantity = 3,
+             .name = "typed",
+             .capacity_gate_flags = 0x2000U},
+        };
+        auto bindings = fixture.bindings();
+        bindings.scripted_port_test_compat = false;
+        auto typed_request = request();
+        typed_request.selected_row = 1U;
+        typed_request.scroll_offset = 0U;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_alternate_grid_frame(
+                fixture.state, bindings, fixture.port, typed_request
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleAlternateGridFrameStatus::
+                        completed &&
+                result.actor_initialization_calls == 1U &&
+                fixture.panel_row_limit == 1U && result.row_query_calls == 2U &&
+                result.scanned_rows == 1U && result.displayed_rows == 1U &&
+                result.row_query.return_eax == 0U &&
+                result.rows[0U].value == 5U &&
+                same_text(result.rows[0U].row_text, "typed") &&
+                fixture.port.calls_of(Call::query_alternate_row).empty(),
+            "alternate grid production path enumerates bit-thirteen resources through the typed owner"
         );
     }
 

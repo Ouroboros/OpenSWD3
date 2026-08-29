@@ -92,7 +92,7 @@ struct LegacyBattleAlternateGridFrameResult {
     compat::u32 actor_refresh_calls{};
     LegacyBattleActorResourceListCommitResult actor_refresh{};
     compat::u32 row_query_calls{};
-    LegacyBattleActorResourceListQueryResult row_query{};
+    LegacyBattleActorFlaggedResourceQueryResult row_query{};
     compat::u32 scanned_rows{};
     compat::u32 displayed_rows{};
     compat::u32 text_draw_calls{};

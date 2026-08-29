@@ -519,6 +519,83 @@ commit_legacy_battle_actor_resource_list(
     return result;
 }
 
+LegacyBattleActorFlaggedResourceQueryResult
+query_legacy_battle_actor_flagged_resource(
+    LegacyBattleActorListQueryState* list,
+    const u32 actor_token,
+    const LegacyBattleActorFlaggedResourceQueryRequest& request
+) {
+    LegacyBattleActorFlaggedResourceQueryResult result;
+    result.return_eax = request.entry_eax;
+    result.return_ecx = actor_token;
+    result.return_edx = request.entry_edx;
+
+    const auto commit = commit_legacy_battle_actor_resource_list(
+        list, actor_token, request.entry_edx
+    );
+    ++result.commit_calls;
+    result.return_eax = commit.return_eax;
+    result.return_ecx = request.occurrence;
+    result.return_edx = 0x2000U;
+    if (commit.status != LegacyBattleActorListQueryStatus::completed) {
+        result.status = commit.status;
+        return result;
+    }
+
+    while (true) {
+        const auto current = std::ranges::find(
+            list->resources,
+            list->resource_head_token,
+            &LegacyBattleActorListResourceNode::token
+        );
+        if (current == list->resources.end()) {
+            result.status =
+                LegacyBattleActorListQueryStatus::resource_node_typed_stop;
+            result.return_eax = list->resource_head_token;
+            return result;
+        }
+
+        const u32 next = current->next_token;
+        list->resource_head_token = next;
+        ++result.nodes_visited;
+        result.return_eax = next;
+        if (next == 0U) {
+            result.return_eax = 0U;
+            return result;
+        }
+
+        const auto node = std::ranges::find(
+            list->resources, next, &LegacyBattleActorListResourceNode::token
+        );
+        if (node == list->resources.end()) {
+            result.status =
+                LegacyBattleActorListQueryStatus::resource_node_typed_stop;
+            result.return_eax = next;
+            return result;
+        }
+        if ((node->capacity_gate_flags & 0x2000U) != 0U) {
+            ++result.flagged_matches;
+        }
+        if (result.flagged_matches != request.occurrence) {
+            continue;
+        }
+
+        if (node->name.size() >= request.output_capacity) {
+            result.status =
+                LegacyBattleActorListQueryStatus::list_text_typed_stop;
+            return result;
+        }
+
+        result.copied_name = node->name;
+        const u16 secondary = std::bit_cast<u16>(node->secondary_quantity);
+        const u16 tertiary = std::bit_cast<u16>(node->tertiary_quantity);
+        result.output_quantity = static_cast<u16>(secondary + tertiary);
+        result.return_eax = 1U;
+        result.return_edx = result.output_quantity;
+        return result;
+    }
+}
+
 LegacyBattleActorResourceReleaseResult release_legacy_battle_actor_resource(
     LegacyBattleActorListQueryState* list,
     LegacyBattleGroupAWorkspaceState* workspace,

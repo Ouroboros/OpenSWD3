@@ -205,12 +205,12 @@ public:
                     state_.row_text = queried.row_text;
                 }
             } else {
-                result_.row_query = query_legacy_battle_actor_resource_list(
+                result_.row_query = query_legacy_battle_actor_flagged_resource(
                     &party->actor_list,
-                    &party->configuration,
                     ecx_,
-                    {.category_selector = 0U,
-                     .occurrence = iterator,
+                    {.occurrence = iterator,
+                     .output_capacity =
+                         static_cast<u32>(state_.row_text.size()),
                      .entry_eax = eax_,
                      .entry_edx = edx_}
                 );
@@ -225,12 +225,9 @@ public:
                 }
                 state_.row_value = result_.row_query.output_quantity;
                 state_.row_text.fill(0U);
-                const auto text_size = std::min(
-                    state_.row_text.size(), result_.row_query.copied_name.size()
-                );
-                std::copy_n(
+                std::copy(
                     result_.row_query.copied_name.begin(),
-                    text_size,
+                    result_.row_query.copied_name.end(),
                     state_.row_text.begin()
                 );
             }
