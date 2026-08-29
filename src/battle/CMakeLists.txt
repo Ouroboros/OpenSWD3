@@ -26,6 +26,7 @@ add_library(
         legacy_battle_actor_list_query.cpp
         legacy_battle_actor_metrics.cpp
         legacy_battle_actor_priority.cpp
+        legacy_battle_actor_profile_preparation.cpp
         legacy_battle_actor_progress.cpp
         legacy_battle_actor_ready.cpp
         legacy_battle_group_a_attribute_aggregation.cpp

@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v779
+版本：v780
 
 最后更新：2026-08-29
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗角色链表相邻函数 `0x004707B0`
+当前步骤：模块10 · 审计战斗角色动作准备函数 `0x00470820`
 
 ## 0. 执行约定
 
@@ -4176,4 +4176,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=191`的`0x004705C0`战斗角色链表资料应用。完整权威LST主体`0x004705C0..0x004707A9`共232行、144条实际指令、3个call、23个跳转、15个标签、3个返回点且无外部chunk。实现零occurrence无副作用早退、type mode flag、profile与16字节块清零、索引提交、第N节点筛选、资料加载、字符串复制、模式字段与三项派生word应用、copy latch及category mask返回规则。主链、final状态和物品效果均复用既有唯一owner；待审资料加载保持窄port。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`191/422 = 182 platform_adapted + 9 assembly_exact + 231 pending_audit`；生成器连续双跑逐字节一致，SHA256为`935fb2f925e84d3ec110a903f76519d1105ea2e46df0a9b71598c3cae630ab1c`。动态差分因原版链表、资料加载、字符串目标、模式字段与caller联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=192`的`0x004707B0`战斗角色链表相邻函数。
+本轮再完成`audit_order=192`的`0x004707B0`战斗角色资料准备。完整权威LST主体`0x004707B0..0x0047081B`共54行、29条实际指令、3个call、1个跳转、1个标签、1个返回点且无外部chunk。实现局部记录构造、actor context解析、输出word、profile加载、profile buffer条件fallback写入及最终mode bit发布。profile buffer与mode byte复用既有唯一owner；三个待审callee保持窄port。typed-stop保留局部构造前缀。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`192/422 = 183 platform_adapted + 9 assembly_exact + 230 pending_audit`；生成器连续双跑逐字节一致，SHA256为`2d26ed039dc48da07c0929878f47fe1489c3539ee0fe943220454b5b5429cfbc`。动态差分因原版局部记录、三个callee、profile buffer与caller联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=193`的`0x00470820`战斗角色动作准备函数。
