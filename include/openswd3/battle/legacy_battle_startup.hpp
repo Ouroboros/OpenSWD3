@@ -5,6 +5,7 @@
 #include "openswd3/battle/legacy_battle_background_initialization.hpp"
 #include "openswd3/battle/legacy_battle_definition_archive.hpp"
 #include "openswd3/battle/legacy_battle_group_a_attribute_aggregation.hpp"
+#include "openswd3/battle/legacy_battle_group_a_attribute_effect.hpp"
 #include "openswd3/battle/legacy_battle_group_a_configuration.hpp"
 #include "openswd3/battle/legacy_battle_group_a_npc_materialization.hpp"
 #include "openswd3/battle/legacy_battle_group_a_resource_pair.hpp"
@@ -201,6 +202,7 @@ struct LegacyBattlePartyStartupRecord {
     LegacyBattleGroupAWorkspaceState workspace;
     LegacyBattleGroupAConfigurationState configuration;
     LegacyBattleGroupAAttributeAggregationState attribute_aggregation;
+    LegacyBattleGroupAAttributeEffectState attribute_effect;
     LegacyBattleGroupAValuePairState value_pair;
     LegacyBattleGroupAResourcePairState resource_pair;
 };

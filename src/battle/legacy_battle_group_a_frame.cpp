@@ -1,6 +1,7 @@
 #include "openswd3/battle/legacy_battle_group_a_frame.hpp"
 
 #include "openswd3/battle/legacy_battle_actor_target_preparation.hpp"
+#include "openswd3/battle/legacy_battle_startup.hpp"
 
 #include <algorithm>
 #include <bit>
@@ -17,7 +18,11 @@ using compat::u32;
 constexpr u32 kCallQueryEffect = 0x004786D0U;
 constexpr u32 kCallPublishEffectMode = 0x00478B60U;
 constexpr u32 kCallPrepareAi = 0x0047DAD0U;
-constexpr u32 kCallAdvanceAi = 0x0046EE60U;
+constexpr u32 kCallPublishAttributeEffect = 0x0047F150U;
+constexpr u32 kCallSelectAttributeResource = 0x004787D0U;
+constexpr u32 kCallApplyAttributeMagnitude = 0x0047D640U;
+constexpr u32 kCallSelectAttributeOffset = 0x0047CF00U;
+constexpr u32 kCallFinalizeAttributeEffect = 0x0047CEC0U;
 constexpr u32 kCallQueryTerminal = 0x0047CE80U;
 constexpr u32 kCallSetSelectionMode = 0x00478330U;
 constexpr u32 kCallRandom = 0x00439070U;
@@ -99,6 +104,65 @@ public:
 
 private:
     LegacyBattleActionDispatchPort& port_;
+};
+
+class GroupAAttributeEffectAdapter final
+    : public LegacyBattleGroupAAttributeEffectPort {
+public:
+    GroupAAttributeEffectAdapter(
+        LegacyBattleActionDispatchPort& port,
+        LegacyBattleActionDispatchResult& result
+    ) noexcept
+        : port_(port), result_(result) {}
+
+    [[nodiscard]] LegacyBattleGroupAAttributeEffectCallReply
+    invoke_group_a_attribute_effect(
+        const LegacyBattleGroupAAttributeEffectCallRequest& request
+    ) override {
+        u32 callee = kCallPublishAttributeEffect;
+        switch (request.call) {
+        case LegacyBattleGroupAAttributeEffectCall::publish_channel_effect:
+            break;
+
+        case LegacyBattleGroupAAttributeEffectCall::select_channel_resource:
+            callee = kCallSelectAttributeResource;
+            break;
+
+        case LegacyBattleGroupAAttributeEffectCall::apply_channel_magnitude:
+            callee = kCallApplyAttributeMagnitude;
+            break;
+
+        case LegacyBattleGroupAAttributeEffectCall::select_channel_offset:
+            callee = kCallSelectAttributeOffset;
+            break;
+
+        case LegacyBattleGroupAAttributeEffectCall::finalize_channel_effect:
+            callee = kCallFinalizeAttributeEffect;
+            break;
+        }
+        std::array<u32, 8> arguments{};
+        for (std::size_t index = 0U; index < request.arguments.size();
+             ++index) {
+            arguments[index] = request.arguments[index];
+        }
+        ++result_.port_calls;
+        const auto reply = port_.invoke({
+            .callee_token = callee,
+            .arguments = arguments,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        });
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+        };
+    }
+
+private:
+    LegacyBattleActionDispatchPort& port_;
+    LegacyBattleActionDispatchResult& result_;
 };
 
 [[nodiscard]] constexpr u32 to_bits(const i32 value) noexcept {
@@ -377,9 +441,57 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
             actor_token
         );
         if (progress.return_eax == 1U) {
-            static_cast<void>(
-                invoke(port, result, kCallAdvanceAi, {actor_token})
-            );
+            if (context.startup == nullptr) {
+                result.status = LegacyBattleActionDispatchStatus::
+                    group_a_attribute_effect_typed_stop;
+                result.return_value = progress.return_eax;
+                return result;
+            }
+            auto& startup_actor = context.startup->party[group_a_index];
+            const u32 source_record_token =
+                startup_actor.configuration.source_record_token;
+            const std::array<u32, 14>* source_record = nullptr;
+            if (source_record_token != 0U &&
+                source_record_token ==
+                    startup_actor.configuration.actor_record_token) {
+                source_record = &startup_actor.configuration.actor_record;
+            } else {
+                for (u32 source_index = 0U; source_index <
+                     context.startup->group_a_configuration_sources.size();
+                     ++source_index) {
+                    if (source_record_token ==
+                        0x004AB790U + source_index * 0x38U) {
+                        source_record =
+                            &context.startup
+                                 ->group_a_configuration_sources[source_index]
+                                 .dwords;
+                        break;
+                    }
+                }
+            }
+            GroupAAttributeEffectAdapter attribute_effect_port(port, result);
+            result.group_a_attribute_effect =
+                apply_legacy_battle_group_a_attribute_effects(
+                    &startup_actor.attribute_effect,
+                    startup_actor.workspace,
+                    source_record,
+                    actor_token,
+                    source_record_token,
+                    attribute_effect_port,
+                    {
+                        .entry_eax = progress.return_eax,
+                        .entry_edx = progress.return_edx,
+                    }
+                );
+            ++result.group_a_attribute_effect_calls;
+            if (result.group_a_attribute_effect.status !=
+                LegacyBattleGroupAAttributeEffectStatus::completed) {
+                result.status = LegacyBattleActionDispatchStatus::
+                    group_a_attribute_effect_typed_stop;
+                result.return_value =
+                    result.group_a_attribute_effect.return_eax;
+                return result;
+            }
             if (state.actor_ai_primary[group_a_index] == 1U ||
                 state.actor_ai_secondary[group_a_index] == 1U) {
                 i32 terminal_count = 0;

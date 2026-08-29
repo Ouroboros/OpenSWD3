@@ -1,4 +1,5 @@
 #include "openswd3/battle/legacy_battle_group_a_frame.hpp"
+#include "openswd3/battle/legacy_battle_startup.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_runtime.hpp"
 #include "test.hpp"
 
@@ -130,6 +131,7 @@ struct Fixture {
     SoundPort sound;
     CountdownFlags countdown_flags;
     std::array<u8, 16> flags{};
+    openswd3::battle::LegacyBattleStartupState startup;
     openswd3::battle::LegacyBattleStartupResetBlocks startup_reset;
     openswd3::battle::LegacyBattleTextMessageState text_messages;
     std::array<openswd3::battle::LegacyBattleStartupResetRecord, 0x12>
@@ -149,6 +151,9 @@ struct Fixture {
                 raster, framebuffer.geometry().surface
             )
         );
+        for (auto& actor : startup.party) {
+            actor.configuration.source_record_token = 0x004AB790U;
+        }
     }
 
     [[nodiscard]] openswd3::battle::LegacyBattleActionDispatchContext
@@ -165,6 +170,7 @@ struct Fixture {
             .indicator_sound = sound,
             .countdown_flags = countdown_flags,
             .internal_flags = flags,
+            .startup = &startup,
             .startup_reset = &startup_reset,
             .text_messages = &text_messages,
             .attack_order_records = attack_order_records,
@@ -260,6 +266,11 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             );
         test.expect_true(
             result.return_value == 1U &&
+                result.group_a_attribute_effect_calls == 1U &&
+                result.group_a_attribute_effect.status ==
+                    openswd3::battle::LegacyBattleGroupAAttributeEffectStatus::
+                        completed &&
+                port.count(0x0046EE60U) == 0U &&
                 state.selected_opponent_one_based == 1U &&
                 state.final_actor_step.selection_gate == 1U &&
                 state.actors[0].special_ready == 1U &&
@@ -268,6 +279,71 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 port.count(0x0046E520U) == 0U &&
                 port.count(0x00439070U) == 1U && port.count(0x0047CE80U) >= 3U,
             "AI coordination counts terminals and retries one based target until live"
+        );
+    }
+
+    {
+        LegacyBattleGroupAFrameState state;
+        state.ai_coordination_enabled = 1U;
+        state.actor_ai_primary[0U] = 1U;
+        Fixture fixture;
+        fixture.startup.party[0U].workspace.tail_words[7U] = 200U;
+        fixture.startup.group_a_configuration_sources[0U].dwords[2U] = 25U
+            << 16U;
+        DispatchPort port;
+        auto context = fixture.context();
+
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_a_frame(
+                state, port, context, 0U
+            );
+
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.group_a_attribute_effect_calls == 1U &&
+                result.group_a_attribute_effect.active_channels == 1U &&
+                result.group_a_attribute_effect.computed_words[0U] == 0xFFCEU &&
+                fixture.startup.party[0U]
+                        .attribute_effect.temporary_values[0U] == 0U &&
+                port.count(0x0046EE60U) == 0U &&
+                port.count(0x0047F150U) == 1U &&
+                port.count(0x004787D0U) == 1U &&
+                port.count(0x0047D640U) == 1U &&
+                port.count(0x0047CF00U) == 1U &&
+                port.count(0x0047CEC0U) == 1U &&
+                has_call_argument(port, 0x0047F150U, 0U, 0xFFFFFFCEU) &&
+                has_call_argument(port, 0x004787D0U, 0U, 0x246FU) &&
+                has_call_argument(port, 0x0047D640U, 0U, 0xFFFFFFCEU) &&
+                has_call_argument(port, 0x0047CF00U, 0U, 0U) &&
+                has_call_argument(port, 0x0047CEC0U, 0U, 1U),
+            "completed progress directly applies the shared group-A attribute channel before the AI suffix"
+        );
+    }
+
+    {
+        LegacyBattleGroupAFrameState state;
+        state.ai_coordination_enabled = 1U;
+        state.actor_ai_primary[0U] = 1U;
+        Fixture fixture;
+        DispatchPort port;
+        auto context = fixture.context();
+        context.startup = nullptr;
+
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_a_frame(
+                state, port, context, 0U
+            );
+
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        group_a_attribute_effect_typed_stop &&
+                result.return_value == 1U &&
+                result.group_a_attribute_effect_calls == 0U &&
+                state.actors[0U].action_complete == 1U &&
+                state.actors[0U].update_ready == 1U &&
+                port.count(0x0046EE60U) == 0U && port.count(0x0047F150U) == 0U,
+            "missing startup actor owner stops after progress completion and before the reclaimed attribute call"
         );
     }
 
