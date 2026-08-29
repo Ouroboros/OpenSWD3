@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
 #include <map>
 #include <vector>
 
@@ -14,6 +15,7 @@ using openswd3::battle::LegacyBattleGrowthItemResultSelectionCallReply;
 using openswd3::battle::LegacyBattleGrowthItemResultSelectionCallRequest;
 using openswd3::battle::LegacyBattleGrowthItemResultSelectionRequest;
 using openswd3::compat::u8;
+using openswd3::compat::u16;
 using openswd3::compat::u32;
 
 class Port final
@@ -36,7 +38,8 @@ public:
                 LegacyBattleGrowthItemResultSelectionCall::
                     query_actor_completion ||
             request.call ==
-                LegacyBattleGrowthItemResultSelectionCall::select_growth_item) {
+                LegacyBattleGrowthItemResultSelectionCall::
+                    reserved_select_growth_item) {
             reply.eax = 0U;
         }
         return reply;
@@ -77,6 +80,7 @@ struct Fixture {
     openswd3::battle::LegacyBattleGrowthItemResultSelectionBindings bindings() {
         return {
             .victory = victory,
+            .startup = startup,
             .metrics = metrics,
             .target_selection = target,
             .level_advancement = advancement,
@@ -84,6 +88,7 @@ struct Fixture {
     }
 
     openswd3::battle::LegacyBattleVictoryRewardState victory;
+    openswd3::battle::LegacyBattleStartupState startup;
     openswd3::battle::LegacyBattleActorMetricState metrics;
     openswd3::battle::LegacyBattleTargetSelectionRuntimeState target;
     openswd3::battle::LegacyBattleLevelAdvancementState advancement;
@@ -109,11 +114,34 @@ title_definition(const std::initializer_list<u8> title) {
     return definition;
 }
 
+void set_profile_word(
+    openswd3::battle::LegacyBattleGroupASummonProfileRecord& profile,
+    const std::size_t offset,
+    const u16 value
+) {
+    profile[offset] = static_cast<std::byte>(static_cast<u8>(value));
+    profile[offset + 1U] = static_cast<std::byte>(static_cast<u8>(value >> 8U));
+}
+
+void seed_growth_reward(
+    Fixture& fixture,
+    const std::size_t actor_index,
+    const u16 item_id,
+    const u16 maximum
+) {
+    auto& profile = fixture.startup.party[actor_index]
+                        .attribute_aggregation.embedded_profiles[0U];
+    set_profile_word(profile, 0x04U, maximum);
+    set_profile_word(profile, 0x10U, item_id);
+    auto& head = fixture.port.group_a_reward_profile_state().head;
+    head.item_id = item_id;
+    head.quantity = maximum;
+}
+
 }  // namespace
 
 void test_battle_growth_item_result_selection(openswd3::test::Context& test) {
     using openswd3::battle::kLegacyBattleGrowthItemResultCaptionToken;
-    using openswd3::battle::kLegacyBattleGrowthItemResultProfileToken;
     using openswd3::battle::kLegacyBattleGrowthItemScratchToken;
     using openswd3::battle::kLegacyBattleVictoryGroupABaseToken;
     using openswd3::battle::kLegacyBattleVictoryGroupAElementSize;
@@ -173,20 +201,17 @@ void test_battle_growth_item_result_selection(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.metrics.group_a_count = 1U;
-        fixture.port.reply(
-            LegacyBattleGrowthItemResultSelectionCall::select_growth_item,
-            {.eax = 0xABCD0000U, .ecx = 0x10203040U, .edx = 0x50607080U}
-        );
         const auto result = run(fixture);
         test.expect_true(
             result.selected_actor_count == 0U && result.item_load_calls == 0U &&
                 result.return_eax == 1U &&
                 fixture.target.transition_actor_index == 0xFFU &&
+                result.growth_reward.return_eax == 0U &&
                 fixture.port.count(
                     LegacyBattleGrowthItemResultSelectionCall::
-                        select_growth_item
-                ) == 1U,
-            "growth item result selection tests only AX and skips a nonzero high-word return"
+                        reserved_select_growth_item
+                ) == 0U,
+            "growth item result selection directly skips an actor whose two embedded reward profiles are empty"
         );
     }
 
@@ -194,10 +219,7 @@ void test_battle_growth_item_result_selection(openswd3::test::Context& test) {
         Fixture fixture;
         fixture.metrics.group_a_count = 3U;
         fixture.victory.group_a_skip_primary[0U] = 1U;
-        fixture.port.reply(
-            LegacyBattleGrowthItemResultSelectionCall::select_growth_item,
-            {.eax = 0xABCD0665U, .ecx = 0x11111111U, .edx = 0x22222222U}
-        );
+        seed_growth_reward(fixture, 1U, 0x0665U, 10U);
         auto definition = title_definition({0x46U, 0x41U, 0x00U});
         LegacyBattleGrowthItemResultSelectionCallReply load_reply{
             .eax = 0x31313131U,
@@ -228,14 +250,14 @@ void test_battle_growth_item_result_selection(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleGrowthItemResultSelectionStatus::completed &&
-                result.port_calls == 5U &&
+                result.port_calls == 4U &&
                 result.completion_query_calls == 1U &&
                 result.item_selection_calls == 1U &&
                 result.item_load_calls == 1U &&
                 result.item_release_calls == 1U &&
                 result.caption_copy_calls == 1U &&
                 result.selected_actor_count == 1U &&
-                result.selected_item_code == 0xABCD0665U &&
+                result.selected_item_code == 0x0665U &&
                 fixture.target.transition_mode == 1U &&
                 fixture.target.transition_actor_index == 1U &&
                 fixture.advancement.growth_caption_text[0U] == 0x46U &&
@@ -255,34 +277,34 @@ void test_battle_growth_item_result_selection(openswd3::test::Context& test) {
                 fixture.port.calls[0U].ecx ==
                     kLegacyBattleVictoryGroupABaseToken +
                         kLegacyBattleVictoryGroupAElementSize &&
-                fixture.port.calls[1U].profile_token ==
-                    kLegacyBattleGrowthItemResultProfileToken &&
-                fixture.port.calls[1U].arguments[0U] ==
-                    kLegacyBattleGrowthItemResultProfileToken &&
-                fixture.port.calls[2U].destination_token ==
+                result.growth_reward.return_eax == 0x0665U &&
+                fixture.port.group_a_reward_profile_state()
+                        .head.blocking_flag == 1U &&
+                fixture.port.calls[1U].destination_token ==
                     kLegacyBattleGrowthItemScratchToken &&
-                fixture.port.calls[2U].item_code == 0xABCD0665U &&
-                fixture.port.calls[2U].eax == 0xABCD0665U &&
+                fixture.port.calls[1U].item_code == 0x0665U &&
+                fixture.port.calls[1U].eax == 0x0665U &&
+                fixture.port.calls[2U].source_token ==
+                    kLegacyBattleGrowthItemScratchToken &&
+                fixture.port.calls[2U].eax == 0x31313131U &&
+                fixture.port.calls[3U].destination_token ==
+                    kLegacyBattleGrowthItemResultCaptionToken &&
                 fixture.port.calls[3U].source_token ==
                     kLegacyBattleGrowthItemScratchToken &&
-                fixture.port.calls[3U].eax == 0x31313131U &&
-                fixture.port.calls[4U].destination_token ==
-                    kLegacyBattleGrowthItemResultCaptionToken &&
-                fixture.port.calls[4U].source_token ==
-                    kLegacyBattleGrowthItemScratchToken &&
-                fixture.port.calls[4U].eax == 0x41414141U &&
-                fixture.port.calls[4U].text_length == 2U,
-            "growth item result selection preserves the five callsite arguments and register chain"
+                fixture.port.calls[3U].eax == 0x41414141U &&
+                fixture.port.calls[3U].text_length == 2U &&
+                fixture.port.count(
+                    LegacyBattleGrowthItemResultSelectionCall::
+                        reserved_select_growth_item
+                ) == 0U,
+            "growth item result selection preserves the four remaining callsite arguments after direct reward selection"
         );
     }
 
     {
         Fixture fixture;
         fixture.metrics.group_a_count = 1U;
-        fixture.port.reply(
-            LegacyBattleGrowthItemResultSelectionCall::select_growth_item,
-            {.eax = 0x0669U}
-        );
+        seed_growth_reward(fixture, 0U, 0x0669U, 10U);
         LegacyBattleGrowthItemResultSelectionCallReply load_reply{
             .publish_definition = true,
         };
@@ -300,7 +322,7 @@ void test_battle_growth_item_result_selection(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGrowthItemResultSelectionStatus::
                         caption_destination_typed_stop &&
-                result.port_calls == 4U && result.caption_copy_calls == 1U &&
+                result.port_calls == 3U && result.caption_copy_calls == 1U &&
                 result.call_trace.back() ==
                     LegacyBattleGrowthItemResultSelectionCall::copy_caption &&
                 result.stopped_caption_index == 24U &&
@@ -314,6 +336,36 @@ void test_battle_growth_item_result_selection(openswd3::test::Context& test) {
                 result.return_ecx == 0x62626262U &&
                 result.return_edx == 0x63636363U,
             "growth item result selection preserves mode and the 24-byte copy prefix before the destination stop while withholding the actor"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.metrics.group_a_count = 1U;
+        auto& profile = fixture.startup.party[0U]
+                            .attribute_aggregation.embedded_profiles[0U];
+        set_profile_word(profile, 0x04U, 10U);
+        set_profile_word(profile, 0x10U, 7U);
+        fixture.port.group_a_reward_profile_state().head.item_id = 1U;
+        fixture.port.group_a_reward_profile_state().head.legacy_next_token =
+            0x00DEAD00U;
+        const auto result = run(fixture);
+        test.expect_true(
+            result.status ==
+                    LegacyBattleGrowthItemResultSelectionStatus::
+                        growth_reward_typed_stop &&
+                result.item_selection_calls == 1U &&
+                result.growth_reward.status ==
+                    openswd3::battle::
+                        LegacyBattleGroupAGrowthRewardSelectionStatus::
+                            profile_node_typed_stop &&
+                result.item_load_calls == 0U &&
+                fixture.target.transition_actor_index == 0xFFU &&
+                fixture.port.count(
+                    LegacyBattleGrowthItemResultSelectionCall::
+                        reserved_select_growth_item
+                ) == 0U,
+            "growth item caller propagates a direct compact-chain stop before loading item text"
         );
     }
 

@@ -59,6 +59,7 @@ void test_battle_group_a_embedded_profile_application(
 );
 void test_battle_group_a_item_effect_application(openswd3::test::Context& test);
 void test_battle_group_a_configuration(openswd3::test::Context& test);
+void test_battle_group_a_growth_reward_selection(openswd3::test::Context& test);
 void test_battle_group_a_npc_materialization(openswd3::test::Context& test);
 void test_battle_group_a_reward_profile_application(
     openswd3::test::Context& test
@@ -7093,6 +7094,7 @@ int main() {
     test_battle_group_a_embedded_profile_application(test);
     test_battle_group_a_item_effect_application(test);
     test_battle_group_a_configuration(test);
+    test_battle_group_a_growth_reward_selection(test);
     test_battle_group_a_npc_materialization(test);
     test_battle_group_a_reward_profile_application(test);
     test_battle_group_a_summon_materialization(test);

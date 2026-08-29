@@ -1251,9 +1251,9 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             .publish_group_a_count = true,
             .group_a_count = 6U,
         };
-        port.replies
-            [LegacyBattleFrameCoordinatorCall::growth_item_result_select_item]
-                .eax = 0x0665U;
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         reserved_growth_item_result_select_item]
+            .eax = 0x0665U;
         port.replies[LegacyBattleFrameCoordinatorCall::
                          growth_item_result_load_definition]
             .publish_growth_item_definition = true;
@@ -1414,7 +1414,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             port.invoke_growth_item_result_selection({
                 .call = openswd3::battle::
                     LegacyBattleGrowthItemResultSelectionCall::
-                        select_growth_item,
+                        reserved_select_growth_item,
                 .actor_token = 0x00505904U,
                 .profile_token = 0x004B8A00U,
                 .arguments = {0x004B8A00U},
@@ -1722,7 +1722,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 ) == 1U &&
                 port.count(
                     LegacyBattleFrameCoordinatorCall::
-                        growth_item_result_select_item
+                        reserved_growth_item_result_select_item
                 ) == 1U &&
                 port.count(
                     LegacyBattleFrameCoordinatorCall::

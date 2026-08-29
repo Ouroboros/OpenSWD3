@@ -575,6 +575,8 @@ I5最终必须锁定：
 
 `audit_order=182`的`0x0046F6E0`已关闭为`platform_adapted`。完整权威LST主体`0x0046F6E0..0x0046F84B`从proc到endp共160行，其中151个非标签物理行、104条实际指令、3个call、15个跳转、9个局部标签、1个返回点且无外部chunk。函数固定扫描组A角色两份资料，依次要求非零id、kind 51、组B目标记录word在1至9及计算地址非零，才把返回latch置1并访问共享奖励链。命中未阻塞节点固定加12，保留u16回绕、unsigned夹值和x87百分比；未命中尾插20字节节点，固定数量12不夹最大值，并保留根`+0x04`递增影响第二资料的别名。typed实现显式保留入口actor差值EDX、目标token低word替换、地址计算和第二轮EDX重载。第181项紧凑链提升为胜利与效果port共享的单一虚拟owner；效果协调器显式借用frame context中的startup两资料和组B目标门word，三个typed分支覆盖原四个静态caller，旧完整函数调用生产零次。测试覆盖四重门、所有owner stop、命中、阻塞、夹值、尾插、断链、零分配、零最大值、根别名、三caller路径和协调器stop；内联x87联合核对458,751组。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`182/422 = 173 platform_adapted + 9 assembly_exact + 240 pending_audit`，双跑SHA256为`b840953fb5739e4319c08f7e2affa12b7ae9e00364597c72c557dd1601464816`。动态差分因原版动态资料、目标记录、共享链token、分配器、x87控制字和四处caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=183`的`0x0046F850`战斗成长结果相邻函数。
+`audit_order=183`的`0x0046F850`已关闭为`platform_adapted`。完整权威LST主体`0x0046F850..0x0046F8B4`从proc到endp共63行，其中57个非标签物理行、39条实际指令、0个call、8个跳转、6个局部标签、1个返回点且无外部chunk。函数固定扫描组A角色两份资料，从共享紧凑链根按显式token查找同id节点；阻塞或数量不足的重复节点不终止扫描，只有首个未阻塞且数量按unsigned不小于资料最大值的节点成功。成功后把数量向下夹到最大值、置阻塞word 1并返回item id；最大值零立即成功并清数量。首次成功后仍读取第二item id，第二id非零才在链访问前早退，保留对应资料游标与首次节点token。typed实现复用startup两资料和第181、182项共享链owner；已关闭成长结果caller直接调用，旧成长选择槽及frame coordinator转发槽reserved且生产零调用。测试覆盖两资料全零、链头stop、充分/不足/阻塞重复、断链、首成功后的第二资料、零最大值、第二资料成功、定义/描述/标题链、标题stop和message传播。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`183/422 = 174 platform_adapted + 9 assembly_exact + 239 pending_audit`，双跑SHA256为`2b1b964c11dbf21fe09f4abaddf3759f2efbb558028bdf5fdca90187dc9749e5`。动态差分因原版动态资料、共享链token、成长caller寄存器和后续定义加载联合捕获后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=184`的`0x0046F8C0`战斗行动调度相邻函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

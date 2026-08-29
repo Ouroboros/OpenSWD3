@@ -211,7 +211,7 @@ public:
         }
         if (request.call ==
             openswd3::battle::LegacyBattleGrowthItemResultSelectionCall::
-                select_growth_item) {
+                reserved_select_growth_item) {
             reply.eax = growth_item_result_selection_eax;
         }
         const auto found =
@@ -1204,7 +1204,16 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         selected.metrics.group_a_count = 1U;
         selected.target_selection.transition_actor_index = 0xFFU;
         selected.target_selection.transition_stage = 12U;
-        selected.port.growth_item_result_selection_eax = 0x0665U;
+        auto& selected_profile =
+            selected.startup.party[0U]
+                .attribute_aggregation.embedded_profiles[0U];
+        selected_profile[0x04U] = static_cast<std::byte>(1U);
+        selected_profile[0x10U] = static_cast<std::byte>(0x65U);
+        selected_profile[0x11U] = static_cast<std::byte>(0x06U);
+        auto& selected_reward =
+            selected.port.group_a_reward_profile_state().head;
+        selected_reward.item_id = 0x0665U;
+        selected_reward.quantity = 1U;
         selected.port.growth_item_result_definitions[0x0665U][0U] = 0x41U;
         selected.port.growth_item_result_definitions[0x0665U][1U] = 0U;
         selected.port.reply(
@@ -1236,7 +1245,16 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         invalid_selection.metrics.group_a_count = 1U;
         invalid_selection.target_selection.transition_actor_index = 0xFFU;
         invalid_selection.target_selection.transition_timer = 7U;
-        invalid_selection.port.growth_item_result_selection_eax = 0x0669U;
+        auto& invalid_profile =
+            invalid_selection.startup.party[0U]
+                .attribute_aggregation.embedded_profiles[0U];
+        invalid_profile[0x04U] = static_cast<std::byte>(1U);
+        invalid_profile[0x10U] = static_cast<std::byte>(0x69U);
+        invalid_profile[0x11U] = static_cast<std::byte>(0x06U);
+        auto& invalid_reward =
+            invalid_selection.port.group_a_reward_profile_state().head;
+        invalid_reward.item_id = 0x0669U;
+        invalid_reward.quantity = 1U;
         invalid_selection.port.growth_item_result_definitions[0x0669U].fill(
             0x58U
         );

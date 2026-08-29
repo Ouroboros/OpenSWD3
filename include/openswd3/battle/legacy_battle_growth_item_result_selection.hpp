@@ -2,6 +2,7 @@
 
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_growth_actor_selection.hpp"
+#include "openswd3/battle/legacy_battle_group_a_growth_reward_selection.hpp"
 #include "openswd3/battle/legacy_battle_level_advancement.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_runtime.hpp"
 #include "openswd3/battle/legacy_battle_victory_rewards.hpp"
@@ -19,6 +20,7 @@ inline constexpr compat::u32 kLegacyBattleGrowthItemResultCaptionToken =
 
 struct LegacyBattleGrowthItemResultSelectionBindings {
     LegacyBattleVictoryRewardState& victory;
+    LegacyBattleStartupState& startup;
     LegacyBattleActorMetricState& metrics;
     LegacyBattleTargetSelectionRuntimeState& target_selection;
     LegacyBattleLevelAdvancementState& level_advancement;
@@ -26,7 +28,7 @@ struct LegacyBattleGrowthItemResultSelectionBindings {
 
 enum class LegacyBattleGrowthItemResultSelectionCall : compat::u8 {
     query_actor_completion,
-    select_growth_item,
+    reserved_select_growth_item,
     load_item_definition,
     release_item_description,
     copy_caption,
@@ -64,7 +66,8 @@ struct LegacyBattleGrowthItemResultSelectionCallReply {
 };
 
 class LegacyBattleGrowthItemResultSelectionPort
-    : public virtual LegacyBattleGrowthActorSelectionStatePort {
+    : public virtual LegacyBattleGrowthActorSelectionStatePort,
+      public virtual LegacyBattleGroupARewardProfileStatePort {
 public:
     virtual ~LegacyBattleGrowthItemResultSelectionPort() = default;
 
@@ -95,6 +98,7 @@ enum class LegacyBattleGrowthItemResultSelectionStatus : compat::u8 {
     completed,
     group_a_actor_typed_stop,
     caption_destination_typed_stop,
+    growth_reward_typed_stop,
 };
 
 struct LegacyBattleGrowthItemResultSelectionResult {
@@ -114,6 +118,7 @@ struct LegacyBattleGrowthItemResultSelectionResult {
     compat::u32 selected_item_code{};
     compat::u32 stopped_actor_index{};
     compat::u32 stopped_caption_index{};
+    LegacyBattleGroupAGrowthRewardSelectionResult growth_reward{};
     std::vector<LegacyBattleGrowthItemResultSelectionCall> call_trace;
 };
 

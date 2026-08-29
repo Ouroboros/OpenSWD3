@@ -192,7 +192,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     growth_actor_query_item_presence,
     growth_actor_allocate_item_node,
     growth_item_result_query_actor_completion,
-    growth_item_result_select_item,
+    reserved_growth_item_result_select_item,
     growth_item_result_load_definition,
     growth_item_result_release_description,
     growth_item_result_copy_caption,
@@ -1334,9 +1334,10 @@ public:
         case LegacyBattleGrowthItemResultSelectionCall::query_actor_completion:
             break;
 
-        case LegacyBattleGrowthItemResultSelectionCall::select_growth_item:
+        case LegacyBattleGrowthItemResultSelectionCall::
+            reserved_select_growth_item:
             call = LegacyBattleFrameCoordinatorCall::
-                growth_item_result_select_item;
+                reserved_growth_item_result_select_item;
             break;
 
         case LegacyBattleGrowthItemResultSelectionCall::load_item_definition:

@@ -863,6 +863,7 @@ private:
                 advance_legacy_battle_growth_item_result_selection(
                     {
                         .victory = bindings_.victory_rewards.state,
+                        .startup = bindings_.startup,
                         .metrics = bindings_.metrics,
                         .target_selection = bindings_.target_selection,
                         .level_advancement =

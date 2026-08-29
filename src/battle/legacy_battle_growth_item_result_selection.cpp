@@ -131,16 +131,23 @@ private:
         }
 
         ecx_ = actor_token;
-        static_cast<void>(invoke(
-            LegacyBattleGrowthItemResultSelectionCall::select_growth_item,
+        result_.growth_reward = select_legacy_battle_group_a_growth_reward(
+            &port_.group_a_reward_profile_state(),
+            &bindings_.startup.party[actor_index]
+                 .attribute_aggregation.embedded_profiles,
             actor_token,
-            0U,
-            0U,
-            kLegacyBattleGrowthItemResultProfileToken,
-            0U,
-            {kLegacyBattleGrowthItemResultProfileToken, 0U, 0U, 0U}
-        ));
+            kLegacyBattleGrowthItemResultProfileToken
+        );
         ++result_.item_selection_calls;
+        eax_ = result_.growth_reward.return_eax;
+        ecx_ = result_.growth_reward.return_ecx;
+        edx_ = result_.growth_reward.return_edx;
+        if (result_.growth_reward.status !=
+            LegacyBattleGroupAGrowthRewardSelectionStatus::completed) {
+            result_.status = LegacyBattleGrowthItemResultSelectionStatus::
+                growth_reward_typed_stop;
+            return ActorAdvance::stopped;
+        }
         if (static_cast<u16>(eax_) == 0U) {
             return ActorAdvance::skipped;
         }
