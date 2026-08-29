@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v773
+版本：v774
 
 最后更新：2026-08-29
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗列表与角色索引相邻函数 `0x0046FFE0`
+当前步骤：模块10 · 审计战斗组A角色最终处理函数 `0x0046FFF0`
 
 ## 0. 执行约定
 
@@ -4164,4 +4164,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=185`的`0x0046FF00`战斗组A profile模式选择。完整权威LST主体`0x0046FF00..0x0046FFD0`从proc到endp共95行，其中92个非标签物理行、58条实际指令、1个call、8个跳转、3个局部标签、4个返回点且无外部chunk。函数依次检查两项跳过状态、物品效果、重复identity与内嵌状态bit；状态bit命中立即写profile mode 1但不清计数。否则以共享阈值加8比较完成计数，达到时确定选择并清计数、发布identity；未达到且计数小于8直接返回；计数至少8时固定随机10，只比较AX，AX大于5才选择。typed实现复用第184项actor/shared owner、第179项内嵌状态与第180项物品效果owner，随机保留完整寄存器窄port。唯一caller属待审第187项，按规则不提前拆整体边界。测试覆盖全部门、确定阈值、随机5/6、高word和寄存器。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`185/422 = 176 platform_adapted + 9 assembly_exact + 237 pending_audit`；生成器连续双跑逐字节一致，SHA256为`5bbcff8346c51a72f94294b4442da14e3e6d9b8edc606d85c076f0f4ab96c866`。动态差分因原版actor状态、共享随机计数、随机callee和第187项caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=186`的`0x0046FFE0`战斗列表与角色索引相邻函数。
+本轮再完成`audit_order=186`的`0x0046FFE0`战斗角色列表索引提交。完整权威LST主体`0x0046FFE0..0x0046FFEC`共8行、3条实际指令、0个call、0个跳转、1个返回点且无外部chunk。函数无条件把actor next list index完整dword复制到current list index，EAX返回复制值，ECX/EDX保持；相等值仍写。两个字段复用第184项每actor动作owner，缺失时在首读取typed-stop。九个静态caller分布于六函数；待审第188至191项留到所属工作包，已关闭两个列表caller因未暴露actor物理owner登记边界缺口而不复制状态。测试覆盖typed-stop、完整32位复制、寄存器和相等写。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`186/422 = 177 platform_adapted + 9 assembly_exact + 236 pending_audit`；生成器连续双跑逐字节一致，SHA256为`ff1f2a148d947032f7b568f189054169c61541330ff2c814479697d9db0272b7`。动态差分因原版索引状态与九处caller联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=187`的`0x0046FFF0`战斗组A角色最终处理函数，并直连第180与185项。

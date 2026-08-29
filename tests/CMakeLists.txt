@@ -268,6 +268,7 @@ add_executable(
     unit/battle/legacy_battle_retreat_commit_test.cpp
     unit/battle/legacy_battle_actor_frame_sequence_test.cpp
     unit/battle/legacy_battle_actor_lifecycle_test.cpp
+    unit/battle/legacy_battle_actor_list_index_commit_test.cpp
     unit/battle/legacy_battle_actor_metrics_test.cpp
     unit/battle/legacy_battle_actor_priority_test.cpp
     unit/battle/legacy_battle_actor_progress_test.cpp

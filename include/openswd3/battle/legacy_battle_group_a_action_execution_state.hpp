@@ -30,6 +30,8 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u8 profile_mode{};                  // actor + 0x2F30
     compat::u16 profile_value{};                // actor + 0x2A0C
     compat::u16 identity_word{};                // actor + 0x0D64
+    compat::u32 current_list_index{};           // actor + 0x2EC0
+    compat::u32 next_list_index{};              // actor + 0x2EC4
     compat::u16 alternate_mode{};               // actor + 0x2A8C
     compat::u16 copied_word{};                  // actor + 0x00FC
     compat::u16 copied_runtime_word{};          // actor + 0x0DA4
