@@ -28,11 +28,6 @@ class StatePort final
     : public openswd3::battle::LegacyBattleActorListStatePort {
 public:
     [[nodiscard]] openswd3::battle::LegacyBattleActorListStateCallReply
-    rebuild_resource_list(const openswd3::compat::u32) override {
-        ++rebuild_calls;
-        return {};
-    }
-    [[nodiscard]] openswd3::battle::LegacyBattleActorListStateCallReply
     publish_message(const openswd3::compat::u32 text_token) override {
         ++message_calls;
         last_text = text_token;
@@ -45,7 +40,6 @@ public:
         ++sample_calls;
         return {};
     }
-    openswd3::compat::u32 rebuild_calls{};
     openswd3::compat::u32 message_calls{};
     openswd3::compat::u32 sample_calls{};
     openswd3::compat::u32 last_text{};
@@ -403,7 +397,8 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         actor.next_list_index = list.owner_token;
         list.nodes[1U].value_flags = 0x0805U;
         list.resource_owner_token = 0x75000000U;
-        list.resource_head_token = 0x76000000U;
+        list.resource_head_token = 0x76000010U;
+        list.next_resource_head_token = 0x76000000U;
         list.resources = {
             {.token = 0x76000000U,
              .resource_id = 5U,
@@ -421,6 +416,8 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         );
         test.expect_true(
             result.return_eax == 1U && result.rebuild_calls == 1U &&
+                result.resource_commit.head_writes == 1U &&
+                list.resource_head_token == 0x76000000U &&
                 result.resource_nodes_visited == 1U &&
                 list.selected_resource_token == 0x76000000U &&
                 result.index_commit_calls == 1U,
@@ -431,7 +428,8 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
     {
         actor.next_list_index = list.owner_token;
         list.nodes[1U].value_flags = 0x0806U;
-        list.resource_head_token = 0U;
+        list.resource_head_token = 0x76000000U;
+        list.next_resource_head_token = 0U;
         StatePort port;
         const auto result = process_legacy_battle_actor_list_state(
             &actor,

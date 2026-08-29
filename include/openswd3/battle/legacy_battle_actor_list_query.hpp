@@ -40,7 +40,8 @@ struct LegacyBattleActorListQueryState {
     compat::u32 head_token{};
     std::vector<LegacyBattleActorListNode> nodes;
     compat::u32 resource_owner_token{};
-    compat::u32 resource_head_token{};
+    compat::u32 resource_head_token{};       // actor + 0x2EC8
+    compat::u32 next_resource_head_token{};  // actor + 0x2ECC
     std::vector<LegacyBattleActorListResourceNode> resources;
     compat::u32 selected_resource_token{};
     compat::u16 primary_required{};
@@ -201,8 +202,6 @@ class LegacyBattleActorListStatePort {
 public:
     virtual ~LegacyBattleActorListStatePort() = default;
     [[nodiscard]] virtual LegacyBattleActorListStateCallReply
-    rebuild_resource_list(compat::u32 actor_token) = 0;
-    [[nodiscard]] virtual LegacyBattleActorListStateCallReply
     publish_message(compat::u32 text_token) = 0;
     [[nodiscard]] virtual LegacyBattleActorListStateCallReply
     play_sample(compat::u32 sample_token, compat::u32 mode) = 0;
@@ -217,6 +216,16 @@ struct LegacyBattleActorListStateRequest {
     compat::u32 entry_edx{};
 };
 
+struct LegacyBattleActorResourceListCommitResult {
+    LegacyBattleActorListQueryStatus status{
+        LegacyBattleActorListQueryStatus::completed
+    };
+    compat::u32 head_writes{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
 struct LegacyBattleActorListStateResult {
     LegacyBattleActorListQueryStatus status{
         LegacyBattleActorListQueryStatus::completed
@@ -227,6 +236,7 @@ struct LegacyBattleActorListStateResult {
     compat::u32 matches{};
     compat::u32 resource_nodes_visited{};
     compat::u32 rebuild_calls{};
+    LegacyBattleActorResourceListCommitResult resource_commit{};
     compat::u32 message_calls{};
     compat::u32 sample_calls{};
     compat::u32 message_token{};
@@ -298,6 +308,14 @@ execute_legacy_battle_actor_list_action(
     LegacyBattleActorListActionPort& port,
     const LegacyBattleActorListActionRequest& request = {}
 );
+
+// sub_470900.
+[[nodiscard]] LegacyBattleActorResourceListCommitResult
+commit_legacy_battle_actor_resource_list(
+    LegacyBattleActorListQueryState* list,
+    compat::u32 actor_token,
+    compat::u32 entry_edx
+) noexcept;
 
 // sub_470380.
 [[nodiscard]] LegacyBattleActorListStateResult

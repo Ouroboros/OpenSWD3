@@ -487,6 +487,25 @@ LegacyBattleActorListActionResult execute_legacy_battle_actor_list_action(
     return result;
 }
 
+LegacyBattleActorResourceListCommitResult
+commit_legacy_battle_actor_resource_list(
+    LegacyBattleActorListQueryState* list,
+    const u32 actor_token,
+    const u32 entry_edx
+) noexcept {
+    LegacyBattleActorResourceListCommitResult result;
+    result.return_ecx = actor_token;
+    result.return_edx = entry_edx;
+    if (actor_token == 0U || list == nullptr) {
+        result.status = LegacyBattleActorListQueryStatus::list_owner_typed_stop;
+        return result;
+    }
+    result.return_eax = list->next_resource_head_token;
+    list->resource_head_token = result.return_eax;
+    ++result.head_writes;
+    return result;
+}
+
 LegacyBattleActorListStateResult process_legacy_battle_actor_list_state(
     LegacyBattleGroupAActionExecutionState* actor,
     LegacyBattleActorListQueryState* list,
@@ -590,8 +609,18 @@ LegacyBattleActorListStateResult process_legacy_battle_actor_list_state(
     }
     if ((value & 0x0800U) != 0U) {
         list->primary_required = static_cast<u16>(value & 0x07FFU);
-        static_cast<void>(port.rebuild_resource_list(actor_token));
+        result.resource_commit = commit_legacy_battle_actor_resource_list(
+            list, actor_token, result.return_edx
+        );
         ++result.rebuild_calls;
+        result.return_eax = result.resource_commit.return_eax;
+        result.return_ecx = result.resource_commit.return_ecx;
+        result.return_edx = result.resource_commit.return_edx;
+        if (result.resource_commit.status !=
+            LegacyBattleActorListQueryStatus::completed) {
+            result.status = result.resource_commit.status;
+            return result;
+        }
         if (list->resource_owner_token == 0U) {
             result.status =
                 LegacyBattleActorListQueryStatus::resource_owner_typed_stop;
