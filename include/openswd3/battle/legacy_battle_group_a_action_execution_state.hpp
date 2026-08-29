@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/asset_runtime/legacy_action_record.hpp"
 #include "openswd3/compat/types.hpp"
 
 #include <array>
@@ -40,6 +41,14 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u32 secondary_value{};              // actor + 0x0360
     compat::u32 force_gate{};                   // actor + 0x03C8
     compat::u32 completion_gate{};              // actor + 0x03C4
+    asset_runtime::LegacyActionRecord turn_action_record{};  // actor + 0x0468
+    compat::u32 turn_frame_token{};              // actor + 0x254C
+    compat::i32 turn_countdown{};                // actor + 0x2668
+    compat::u32 turn_render_flags{};             // actor + 0x26A0
+    compat::u16 turn_threshold{};                // actor + 0x2958
+    compat::u16 turn_target_x_offset{};          // actor + 0x29B4
+    compat::u32 turn_completion_latch{};         // actor + 0x2AAC
+    compat::u16 turn_sample_word{};              // actor + 0x04C0
     compat::u16 auxiliary_word{};               // actor + 0x03B0
     compat::u16 secondary_auxiliary_word{};     // actor + 0x03AE
     std::array<compat::i16, 7> color_values{};  // actor + 0x03B2
@@ -80,6 +89,7 @@ struct LegacyBattleGroupAActionExecutionSharedState {
     compat::u32 draw_motion_b{};        // 0x004CD30C
     compat::u32 draw_motion_c{};        // 0x004CD304
     compat::u16 shared_motion_word{};   // 0x00521520
+    compat::u32 turn_frame_source_token{};  // 0x004CD730
 };
 
 }  // namespace openswd3::battle

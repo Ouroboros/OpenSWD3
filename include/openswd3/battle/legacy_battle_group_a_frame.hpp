@@ -78,6 +78,15 @@ evaluate_legacy_battle_turn_commit_chance(
     const LegacyBattleTurnCommitChanceRequest& request
 );
 
+// sub_471540.
+[[nodiscard]] LegacyBattleTurnAdvanceResult advance_legacy_battle_turn_gate(
+    LegacyBattleGroupAActionExecutionState* actor,
+    LegacyBattleGroupAActionExecutionSharedState* shared,
+    LegacyBattleActorProgressState* progress,
+    LegacyBattleActionDispatchPort& port,
+    const LegacyBattleTurnAdvanceRequest& request
+);
+
 // Typed closure of legacy 0x00456680. One call advances the selected group-A
 // actor and always returns one unless a typed boundary stops at the original
 // first access.
