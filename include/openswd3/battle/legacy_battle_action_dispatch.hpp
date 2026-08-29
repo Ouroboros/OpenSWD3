@@ -281,6 +281,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     group_a_action_execution_typed_stop,
     group_a_final_processing_typed_stop,
     group_a_actor_list_action_typed_stop,
+    group_a_mode_four_finalization_typed_stop,
 };
 
 struct LegacyBattleActionDispatchResult {
@@ -324,6 +325,9 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 group_a_final_processing_calls{};
     LegacyBattleActorListActionResult group_a_actor_list_action{};
     compat::u32 group_a_actor_list_action_calls{};
+    LegacyBattleActorModeFourFinalizationResult
+        group_a_mode_four_finalization{};
+    compat::u32 group_a_mode_four_finalization_calls{};
 };
 
 // sub_4539B0: dispatch one action code for the selected group-A actor and

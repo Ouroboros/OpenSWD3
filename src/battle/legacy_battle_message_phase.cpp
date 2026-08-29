@@ -463,6 +463,7 @@ private:
                 .action_mode_source = bindings_.startup.action_mode_source,
                 .startup_party_presence = bindings_.startup.party_presence,
                 .startup_mode_flags = bindings_.startup.mode_flags,
+                .party = bindings_.startup.party,
                 .startup_supplemental_count_word =
                     bindings_.startup.supplemental_count_word,
                 .startup_mirror_mode = bindings_.startup.mirror_mode,

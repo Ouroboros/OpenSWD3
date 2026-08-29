@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v782
+版本：v783
 
 最后更新：2026-08-29
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗角色链表相邻函数 `0x004708C0`
+当前步骤：模块10 · 审计战斗角色资源链重建函数 `0x00470900`
 
 ## 0. 执行约定
 
@@ -4182,4 +4182,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=194`的`0x00470890`战斗角色链表动作刷新。完整权威LST主体`0x00470890..0x004708BC`共23行、11条实际指令、0个call、2个跳转、1个标签、1个返回点且无外部chunk。实现secondary required零值早退、live容量16位回绕减法、signed负值夹零、字段清零及EAX/ECX/EDX寄存器结果。第193项两个caller均改为typed直连，旧刷新地址生产调用为零。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`194/422 = 185 platform_adapted + 9 assembly_exact + 228 pending_audit`；生成器连续双跑逐字节一致，SHA256为`3b36625fb2f7b531968a90e37018c19a31aa7e49dc8c3dc09bfcb200a9ecace6`。动态差分因原版actor记录、secondary required与caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=195`的`0x004708C0`战斗角色链表相邻函数。
+本轮再完成`audit_order=195`的`0x004708C0`战斗角色模式四收尾。完整权威LST主体`0x004708C0..0x004708F7`共26行、14条实际指令、0个call、1个跳转、1个标签、1个返回点且无外部chunk。实现replacement读取、mode bit发布、completion latch、非零action kind复制及304字节工作区清零；复用final、item和workspace唯一owner。组A帧与目标选择刷新两个caller均改为typed直连，party span仅沿bindings传递引用，旧地址生产调用为零。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`195/422 = 186 platform_adapted + 9 assembly_exact + 227 pending_audit`；生成器连续双跑逐字节一致，SHA256为`bc01de2599a2a2d3436786582e0de1a79c26ab46281f05ba0b236f27b25e8ba6`。动态差分因原版actor四段状态、两个caller及寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=196`的`0x00470900`战斗角色资源链重建函数。

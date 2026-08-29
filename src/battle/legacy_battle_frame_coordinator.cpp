@@ -142,6 +142,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             .action_mode_source = context.startup.action_mode_source,
             .startup_party_presence = context.startup.party_presence,
             .startup_mode_flags = context.startup.mode_flags,
+            .party = context.startup.party,
             .startup_supplemental_count_word =
                 context.startup.supplemental_count_word,
             .startup_mirror_mode = context.startup.mirror_mode,

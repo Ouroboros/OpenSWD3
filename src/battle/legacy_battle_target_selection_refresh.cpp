@@ -1622,7 +1622,35 @@ private:
         }
         bindings_.startup_reset.value_4ff0b8 = eax_;
         bindings_.startup_reset.value_53bf22 = 0U;
-        invoke(Call::finalize_actor_effect);
+        const u32 finalized_actor_code =
+            bindings_.debug_hotkeys.committed_actor_code;
+        if (finalized_actor_code < 8U) {
+            typed_stop(Status::group_a_actor_typed_stop);
+            return;
+        }
+        const u32 finalized_index = finalized_actor_code - 8U;
+        if (finalized_index >= bindings_.party.size()) {
+            typed_stop(Status::actor_mode_four_finalization_typed_stop);
+            return;
+        }
+        auto& party = bindings_.party[finalized_index];
+        const u32 actor_token =
+            kGroupABaseToken + finalized_index * kGroupAStride;
+        result_.mode_four_finalization = finalize_legacy_battle_actor_mode_four(
+            &party.final_processing,
+            &party.item_effect_application,
+            &party.workspace,
+            actor_token,
+            eax_
+        );
+        ++result_.mode_four_finalization_calls;
+        eax_ = result_.mode_four_finalization.return_eax;
+        ecx_ = result_.mode_four_finalization.return_ecx;
+        edx_ = result_.mode_four_finalization.return_edx;
+        if (result_.mode_four_finalization.status !=
+            LegacyBattleActorModeFourFinalizationStatus::completed) {
+            typed_stop(Status::actor_mode_four_finalization_typed_stop);
+        }
     }
 
     void case_seven() {

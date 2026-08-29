@@ -49,7 +49,6 @@ constexpr u32 kCallSelectOpponent = 0x00478AA0U;
 constexpr u32 kCallQueryOtherActor = 0x0047CEA0U;
 constexpr u32 kCallPrepareSelection = 0x00478B30U;
 constexpr u32 kCallSelectionComplete = 0x00478B40U;
-constexpr u32 kCallFinalizeModeFour = 0x004708C0U;
 constexpr u32 kCallQueryActionTarget = 0x004786E0U;
 constexpr u32 kCallPrepareAction = 0x0047C690U;
 constexpr u32 kCallClearActorAction = 0x00478B20U;
@@ -1192,9 +1191,29 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         invoke(port, result, kCallSetSelectionMode, {0U})
                     );
                     if (actor.delay_mode == 4U) {
-                        static_cast<void>(invoke(
-                            port, result, kCallFinalizeModeFour, {actor_token}
-                        ));
+                        if (context.startup == nullptr ||
+                            group_a_index >= context.startup->party.size()) {
+                            result.status = LegacyBattleActionDispatchStatus::
+                                group_a_mode_four_finalization_typed_stop;
+                            return result;
+                        }
+                        auto& party = context.startup->party[group_a_index];
+                        result.group_a_mode_four_finalization =
+                            finalize_legacy_battle_actor_mode_four(
+                                &party.final_processing,
+                                &party.item_effect_application,
+                                &party.workspace,
+                                actor_token,
+                                0U
+                            );
+                        ++result.group_a_mode_four_finalization_calls;
+                        if (result.group_a_mode_four_finalization.status !=
+                            LegacyBattleActorModeFourFinalizationStatus::
+                                completed) {
+                            result.status = LegacyBattleActionDispatchStatus::
+                                group_a_mode_four_finalization_typed_stop;
+                            return result;
+                        }
                     }
                     state.selection_aux_gate = 0U;
                     state.target_cleanup_gate = 0U;

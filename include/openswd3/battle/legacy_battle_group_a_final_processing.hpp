@@ -4,6 +4,7 @@
 #include "openswd3/battle/legacy_battle_group_a_attribute_aggregation.hpp"
 #include "openswd3/battle/legacy_battle_group_a_final_processing_state.hpp"
 #include "openswd3/battle/legacy_battle_group_a_profile_mode_selection.hpp"
+#include "openswd3/battle/legacy_battle_group_a_workspace_reset.hpp"
 
 namespace openswd3::battle {
 
@@ -61,6 +62,36 @@ struct LegacyBattleGroupAFinalProcessingResult {
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
 };
+
+enum class LegacyBattleActorModeFourFinalizationStatus : compat::u8 {
+    completed,
+    final_state_typed_stop,
+    item_state_typed_stop,
+    workspace_typed_stop,
+};
+
+struct LegacyBattleActorModeFourFinalizationResult {
+    LegacyBattleActorModeFourFinalizationStatus status{
+        LegacyBattleActorModeFourFinalizationStatus::completed
+    };
+    compat::u32 mode_flag_writes{};
+    compat::u32 completion_latch_writes{};
+    compat::u32 action_kind_writes{};
+    compat::u32 workspace_dwords_zeroed{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
+// sub_4708C0.
+[[nodiscard]] LegacyBattleActorModeFourFinalizationResult
+finalize_legacy_battle_actor_mode_four(
+    LegacyBattleGroupAFinalProcessingState* final_state,
+    LegacyBattleGroupAItemEffectApplicationState* item_effect,
+    LegacyBattleGroupAWorkspaceState* workspace,
+    compat::u32 actor_token,
+    compat::u32 entry_eax
+) noexcept;
 
 // sub_46FFF0.
 [[nodiscard]] LegacyBattleGroupAFinalProcessingResult

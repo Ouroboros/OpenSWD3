@@ -65,6 +65,29 @@ void test_battle_group_a_final_processing(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupAFinalProcessingState state;
+        LegacyBattleGroupAItemEffectApplicationState item;
+        LegacyBattleGroupAWorkspaceState workspace;
+        state.replacement_action_kind = 0x1234U;
+        workspace.early_workspace.fill(0xFFFFFFFFU);
+        const auto result = finalize_legacy_battle_actor_mode_four(
+            &state, &item, &workspace, 0x005029D0U, 0xA5A50000U
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActorModeFourFinalizationStatus::completed &&
+                item.mode_flags == 0x02U && item.action_kind == 0x1234U &&
+                state.completion_latch == 1U &&
+                result.workspace_dwords_zeroed == 0x4CU &&
+                workspace.early_workspace[0U] == 0U &&
+                workspace.early_workspace.back() == 0U &&
+                result.return_eax == 0U && result.return_ecx == 0U &&
+                result.return_edx == 0x005029D0U,
+            "mode-four finalization publishes flags and latch, conditionally copies action kind, then clears 304 bytes"
+        );
+    }
+
+    {
+        LegacyBattleGroupAFinalProcessingState state;
         LegacyBattleGroupAActionExecutionState action;
         LegacyBattleGroupAItemEffectApplicationState item;
         FinalPort port;

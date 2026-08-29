@@ -17,6 +17,53 @@ replace_low_word(const u32 value, const u16 low) noexcept {
 
 }  // namespace
 
+LegacyBattleActorModeFourFinalizationResult
+finalize_legacy_battle_actor_mode_four(
+    LegacyBattleGroupAFinalProcessingState* final_state,
+    LegacyBattleGroupAItemEffectApplicationState* item_effect,
+    LegacyBattleGroupAWorkspaceState* workspace,
+    const u32 actor_token,
+    const u32 entry_eax
+) noexcept {
+    LegacyBattleActorModeFourFinalizationResult result;
+    result.return_eax = entry_eax;
+    result.return_ecx = actor_token;
+    result.return_edx = actor_token;
+    if (actor_token == 0U || final_state == nullptr) {
+        result.status =
+            LegacyBattleActorModeFourFinalizationStatus::final_state_typed_stop;
+        return result;
+    }
+
+    const u16 replacement = final_state->replacement_action_kind;
+    result.return_eax = (entry_eax & 0xFFFF0000U) | replacement;
+    if (item_effect == nullptr) {
+        result.status =
+            LegacyBattleActorModeFourFinalizationStatus::item_state_typed_stop;
+        return result;
+    }
+    item_effect->mode_flags =
+        static_cast<compat::u8>(item_effect->mode_flags | 0x02U);
+    ++result.mode_flag_writes;
+    final_state->completion_latch = 1U;
+    ++result.completion_latch_writes;
+    if (replacement != 0U) {
+        item_effect->action_kind = replacement;
+        ++result.action_kind_writes;
+    }
+    if (workspace == nullptr) {
+        result.status =
+            LegacyBattleActorModeFourFinalizationStatus::workspace_typed_stop;
+        return result;
+    }
+    workspace->early_workspace.fill(0U);
+    result.workspace_dwords_zeroed =
+        static_cast<u32>(workspace->early_workspace.size());
+    result.return_eax = 0U;
+    result.return_ecx = 0U;
+    return result;
+}
+
 LegacyBattleGroupAFinalProcessingResult process_legacy_battle_group_a_final(
     LegacyBattleGroupAFinalProcessingState* state,
     LegacyBattleGroupAActionExecutionState* action,

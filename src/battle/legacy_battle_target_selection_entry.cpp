@@ -133,6 +133,7 @@ LegacyBattleTargetSelectionEntryResult enter_legacy_battle_target_selection(
                 .runtime = bindings.target_selection_runtime,
                 .target_ready_gate = bindings.target_ready_gate,
                 .message_state = bindings.message_state,
+                .party = bindings.party,
             },
             port,
             {.entry_eax = eax, .entry_ecx = ecx, .entry_edx = edx}

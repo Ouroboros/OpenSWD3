@@ -80,6 +80,7 @@ public:
 
 struct Fixture {
     openswd3::battle::LegacyBattleStartupResetBlocks startup;
+    std::array<openswd3::battle::LegacyBattlePartyStartupRecord, 4> party{};
     openswd3::battle::LegacyBattleTextMessageState text_messages;
     u16 supplemental_count{};
     u32 mirror_mode{};
@@ -113,6 +114,7 @@ struct Fixture {
             .runtime = port.battle_target_selection_runtime_state(),
             .target_ready_gate = target_ready,
             .message_state = message,
+            .party = party,
         };
     }
 };
@@ -622,7 +624,10 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                 workspace_word(fixture.action, 0x78U) == 0x10EU &&
                 runtime.actor_result_words[8U] == 1U &&
                 result.input_record_prime_calls == 1U &&
-                result.input_record_writes == 4U && result.port_calls == 4U,
+                result.input_record_writes == 4U && result.port_calls == 3U &&
+                result.mode_four_finalization_calls == 1U &&
+                fixture.party[0U].item_effect_application.mode_flags == 0x02U &&
+                fixture.party[0U].final_processing.completion_latch == 1U,
             "message five commits action fifteen and publishes the row-one effect record through the shared physical workspace"
         );
     }

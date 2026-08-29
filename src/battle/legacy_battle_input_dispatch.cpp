@@ -308,6 +308,7 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
                 .action_mode_source = bindings.action_mode_source,
                 .startup_party_presence = bindings.startup_party_presence,
                 .startup_mode_flags = bindings.startup_mode_flags,
+                .party = bindings.party,
                 .startup_supplemental_count_word =
                     bindings.startup_supplemental_count_word,
                 .startup_mirror_mode = bindings.startup_mirror_mode,
