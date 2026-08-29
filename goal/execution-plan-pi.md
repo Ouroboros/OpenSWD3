@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v789
+版本：v790
 
 最后更新：2026-08-29
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗角色资源链相邻函数 `0x00470FE0`
+当前步骤：模块10 · 审计战斗角色资源链相邻函数 `0x00471080`
 
 ## 0. 执行约定
 
@@ -4196,4 +4196,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=201`的`0x00470F70`战斗角色bit13资源显示查询。完整权威LST主体`0x00470F70..0x00470FD5`共60行、36条实际指令、2个call、4个跳转、2个返回点且无外部chunk。实现bit13第N项扫描、occurrence零陈旧成功、破坏性current推进、名称复制和secondary/tertiary 16位回绕求和。复用resource list唯一owner。alternate grid production caller改为typed直连；20-byte caller缓冲区在原始复制边界typed-stop，脚本compat默认关闭。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`201/422 = 192 platform_adapted + 9 assembly_exact + 221 pending_audit`；生成器连续双跑逐字节一致，SHA256为`83d366d03421276e5ce1e0580e59cdce4a115028c0d4493d763a5d12f5afb40a`。动态差分因原版bit13资源链、名称缓冲区、数量word和caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=202`的`0x00470FE0`战斗角色资源链相邻函数。
+本轮再完成`audit_order=202`的`0x00470FE0`战斗角色模式资源显示查询。完整权威LST主体`0x00470FE0..0x00471070`共87行、51条实际指令、2个call、9个跳转、7个局部标签、2个返回点且无外部chunk。实现mode零固定资源直达、mode非零bit27计数并排除固定id、occurrence零陈旧成功、selected token非对称写入、mode bits输出门、名称复制和secondary/tertiary 16位回绕求和。复用resource list唯一owner。mode grid production两处查询与两次已关闭链头提交改为typed直连，未审计secondary count保留窄port；20-byte caller缓冲区在原始复制边界typed-stop，脚本compat默认关闭。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`202/422 = 193 platform_adapted + 9 assembly_exact + 220 pending_audit`；生成器连续双跑逐字节一致，SHA256为`9c4944438acbe1b483f72b9df3a9383903af867abb8d37f9371d4b94c02604a5`。动态差分因原版mode资源链、selected token、caller局部和寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=203`的`0x00471080`战斗角色资源链相邻函数。

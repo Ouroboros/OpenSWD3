@@ -933,6 +933,9 @@ private:
                     bindings_.target_runtime.selection_input_gate,
                 .target_argument = bindings_.target_runtime.target_argument,
                 .primary_text_color = bindings_.startup.primary_text_color,
+                .party = bindings_.startup.party,
+                .scripted_port_test_compat =
+                    bindings_.scripted_grid_port_test_compat,
                 .panel_action_record = bindings_.panel_action_record,
                 .framebuffer = bindings_.framebuffer,
                 .raster = bindings_.raster,

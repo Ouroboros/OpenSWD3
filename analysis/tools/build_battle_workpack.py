@@ -840,6 +840,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-actor-flagged-resource-query-00470f70.md",
     ),
+    "0x00470FE0": (
+        "platform_adapted",
+        "evidence/battle-actor-mode-resource-query-00470fe0.md",
+    ),
 }
 
 

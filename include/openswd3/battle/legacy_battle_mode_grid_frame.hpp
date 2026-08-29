@@ -27,6 +27,8 @@ struct LegacyBattleModeGridFrameBindings {
     compat::u32& selection_input_gate;
     compat::u32& target_argument;
     const compat::u16& primary_text_color;
+    std::span<LegacyBattlePartyStartupRecord> party{};
+    bool scripted_port_test_compat{};
     asset_runtime::LegacyActionRecord& panel_action_record;
     rendering::LegacyFramebuffer& framebuffer;
     rendering::LegacyRasterGeometryState& raster;
@@ -97,6 +99,9 @@ struct LegacyBattleModeGridFrameResult {
     compat::u32 selection_rectangle_calls{};
     compat::u32 selected_page{};
     compat::u32 selected_group_index{};
+    LegacyBattleActorModeResourceQueryResult primary_query{};
+    LegacyBattleActorModeResourceQueryResult secondary_row_query{};
+    std::array<LegacyBattleActorResourceListCommitResult, 2> actor_refreshes{};
     asset_runtime::LegacyActionUpdateResult panel_action_update{};
     rendering::LegacyRectangleEffectStatus panel_rectangle_status{
         rendering::LegacyRectangleEffectStatus::completed

@@ -523,6 +523,145 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
     }
 
     {
+        list.next_resource_head_token = 0x77000000U;
+        list.selected_resource_token = 0xDEADBEEFU;
+        list.resources = {
+            {.token = 0x77000000U, .next_token = 0x77000010U, .name = {}},
+            {.token = 0x77000010U,
+             .next_token = 0x77000020U,
+             .resource_id = 0x222U,
+             .name = "ordinary"},
+            {.token = 0x77000020U,
+             .resource_id = 0x0300U,
+             .secondary_quantity = -1,
+             .tertiary_quantity = 2,
+             .name = "fixed",
+             .mode_flags = 0x01U},
+        };
+        const auto result = query_legacy_battle_actor_mode_resource(
+            &list,
+            0x005029D0U,
+            {.mode = 0U,
+             .occurrence = 1U,
+             .entry_eax = 0xAAAAAAAAU,
+             .entry_edx = 0xBBBBBBBBU}
+        );
+        test.expect_true(
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                result.nodes_visited == 2U && result.matches == 0U &&
+                result.selected_writes == 0U && result.outputs_published &&
+                result.copied_name == "fixed" && result.output_quantity == 1U &&
+                result.return_eax == 1U && result.return_ecx == 0x0300U &&
+                result.return_edx == 1U &&
+                list.selected_resource_token == 0xDEADBEEFU,
+            "mode resource query finds the fixed identifier without rewriting the selected token and wraps both quantity words"
+        );
+    }
+
+    {
+        list.next_resource_head_token = 0x77000000U;
+        list.resources = {
+            {.token = 0x77000000U, .next_token = 0x77000010U, .name = {}},
+            {.token = 0x77000010U,
+             .resource_id = 0x0300U,
+             .name = "twenty-byte-name-xxx",
+             .mode_flags = 0x01U},
+        };
+        const auto result = query_legacy_battle_actor_mode_resource(
+            &list,
+            0x005029D0U,
+            {.mode = 0U, .occurrence = 1U, .output_capacity = 20U}
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActorListQueryStatus::list_text_typed_stop &&
+                result.return_eax == 0x77000010U && !result.outputs_published,
+            "mode resource query stops at the caller string boundary before publishing wrapped quantities"
+        );
+    }
+
+    {
+        list.next_resource_head_token = 0x77000000U;
+        list.selected_resource_token = 0U;
+        list.resources = {
+            {.token = 0x77000000U, .next_token = 0x77000010U, .name = {}},
+            {.token = 0x77000010U,
+             .next_token = 0x77000020U,
+             .resource_id = 0x0300U,
+             .name = "excluded",
+             .category_mask = 0x08000000U,
+             .mode_flags = 0x01U},
+            {.token = 0x77000020U,
+             .next_token = 0x77000030U,
+             .resource_id = 0x222U,
+             .name = "first",
+             .category_mask = 0x08000000U,
+             .mode_flags = 0x01U},
+            {.token = 0x77000030U,
+             .resource_id = 0x333U,
+             .secondary_quantity = 3,
+             .tertiary_quantity = 4,
+             .name = "second",
+             .category_mask = 0x08000000U,
+             .mode_flags = 0x04U},
+        };
+        const auto result = query_legacy_battle_actor_mode_resource(
+            &list, 0x005029D0U, {.mode = 1U, .occurrence = 2U}
+        );
+        test.expect_true(
+            result.return_eax == 1U && result.nodes_visited == 3U &&
+                result.matches == 2U && result.selected_writes == 1U &&
+                result.outputs_published && result.copied_name == "second" &&
+                result.output_quantity == 7U &&
+                list.selected_resource_token == 0x77000030U,
+            "mode resource query counts bit twenty-seven nodes while excluding the fixed identifier"
+        );
+    }
+
+    {
+        list.next_resource_head_token = 0x77000000U;
+        list.selected_resource_token = 0U;
+        list.resources = {
+            {.token = 0x77000000U, .next_token = 0x77000010U, .name = {}},
+            {.token = 0x77000010U,
+             .secondary_quantity = 9,
+             .tertiary_quantity = 8,
+             .name = "stale",
+             .mode_flags = 0U},
+        };
+        const auto result = query_legacy_battle_actor_mode_resource(
+            &list, 0x005029D0U, {.mode = 1U, .occurrence = 0U}
+        );
+        test.expect_true(
+            result.return_eax == 1U && result.matches == 0U &&
+                result.selected_writes == 1U && !result.outputs_published &&
+                result.copied_name.empty() && result.output_quantity == 0U &&
+                list.selected_resource_token == 0x77000010U,
+            "mode resource occurrence zero selects the first unqualified node but preserves stale outputs when mode bits are clear"
+        );
+    }
+
+    {
+        list.next_resource_head_token = 0x77000000U;
+        list.resources = {
+            {.token = 0x77000000U, .next_token = 0x77000010U, .name = {}},
+            {.token = 0x77000010U,
+             .resource_id = 0x222U,
+             .name = "only",
+             .category_mask = 0x08000000U,
+             .mode_flags = 0x01U},
+        };
+        const auto result = query_legacy_battle_actor_mode_resource(
+            &list, 0x005029D0U, {.mode = 1U, .occurrence = 2U}
+        );
+        test.expect_true(
+            result.return_eax == 0U && result.nodes_visited == 2U &&
+                result.matches == 1U && list.resource_head_token == 0U,
+            "mode resource query destructively reaches null when the requested filtered occurrence is absent"
+        );
+    }
+
+    {
         LegacyBattleGroupAWorkspaceState workspace;
         list.next_resource_head_token = 0x76000000U;
         list.selected_resource_token = 0x76000010U;

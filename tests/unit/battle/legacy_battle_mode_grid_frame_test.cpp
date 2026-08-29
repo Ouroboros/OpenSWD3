@@ -1,4 +1,5 @@
 #include "openswd3/battle/legacy_battle_mode_grid_frame.hpp"
+#include "openswd3/battle/legacy_battle_startup.hpp"
 
 #include <algorithm>
 #include <array>
@@ -149,6 +150,8 @@ struct Fixture {
             .selection_input_gate = selection_input_gate,
             .target_argument = target_argument,
             .primary_text_color = primary_text_color,
+            .party = party,
+            .scripted_port_test_compat = true,
             .panel_action_record = panel_action_record,
             .framebuffer = framebuffer,
             .raster = raster,
@@ -165,6 +168,7 @@ struct Fixture {
     u32 selection_input_gate{};
     u32 target_argument{};
     u16 primary_text_color{0x2222U};
+    std::array<openswd3::battle::LegacyBattlePartyStartupRecord, 4> party{};
     openswd3::asset_runtime::LegacyActionRecord panel_action_record;
     openswd3::rendering::LegacyFramebuffer framebuffer{{
         .pitch_bytes = 1280,
@@ -572,6 +576,67 @@ void test_battle_mode_grid_frame(openswd3::test::Context& test) {
                 result.cells[0U].page == 2U && fixture.target_argument == 1U &&
                 fixture.panel_row_limit == 1U,
             "mode grid selected target applies page advance before the zero-primary decrement"
+        );
+    }
+
+    {
+        Fixture fixture;
+        auto bindings = fixture.bindings();
+        bindings.scripted_port_test_compat = false;
+        auto& actor_list = fixture.party[0U].actor_list;
+        actor_list.next_resource_head_token = 0x78000000U;
+        actor_list.resources = {
+            {.token = 0x78000000U, .next_token = 0x78000010U, .name = {}},
+            {.token = 0x78000010U,
+             .next_token = 0x78000020U,
+             .resource_id = 0x0300U,
+             .secondary_quantity = 2,
+             .name = "PRIMARY",
+             .mode_flags = 0x01U},
+            {.token = 0x78000020U,
+             .resource_id = 0x0222U,
+             .secondary_quantity = 2,
+             .name = "GROUP",
+             .category_mask = 0x08000000U,
+             .mode_flags = 0x01U},
+        };
+        fixture.port.reply(
+            Call::query_mode_secondary_count,
+            {.edx = 0xDEADBEEFU, .publish_row_value = true, .row_value = 2U}
+        );
+        const auto result =
+            openswd3::battle::draw_legacy_battle_mode_grid_frame(
+                fixture.state, bindings, fixture.port, request()
+            );
+        const auto primary_queries =
+            fixture.port.calls_of(Call::query_mode_row);
+        const auto refreshes = fixture.port.calls_of(Call::refresh_actor);
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleModeGridFrameStatus::
+                        completed &&
+                result.primary_query_calls == 1U &&
+                result.primary_query.outputs_published &&
+                result.primary_query.copied_name == "PRIMARY" &&
+                result.secondary_row_query_calls == 2U &&
+                result.secondary_row_query.outputs_published &&
+                result.secondary_row_query.copied_name == "GROUP" &&
+                result.actor_refresh_calls == 2U &&
+                result.actor_refreshes[0U].head_writes == 1U &&
+                result.actor_refreshes[1U].head_writes == 1U &&
+                fixture.panel_row_limit == 4U && primary_queries.empty() &&
+                refreshes.empty(),
+            "mode grid production queries and resource-head refreshes use the startup party typed owner"
+        );
+        const auto primary_text = text("PRIMARY");
+        const auto group_text = text("GROUP");
+        test.expect_true(
+            starts_with(result.cells[0U].row_text, primary_text) &&
+                starts_with(result.cells[1U].row_text, primary_text) &&
+                starts_with(result.cells[2U].row_text, group_text) &&
+                starts_with(result.cells[3U].row_text, group_text) &&
+                actor_list.selected_resource_token == 0x78000020U,
+            "mode grid production preserves primary rows and repeats the typed group label for its returned slot count"
         );
     }
 }

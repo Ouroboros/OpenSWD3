@@ -1,4 +1,5 @@
 #include "openswd3/battle/legacy_battle_mode_grid_frame.hpp"
+#include "openswd3/battle/legacy_battle_startup.hpp"
 
 #include <algorithm>
 #include <bit>
@@ -105,26 +106,67 @@ public:
             return finish();
         }
 
-        const auto primary = invoke({
-            .call = Call::query_mode_row,
-            .object_token = ecx_,
-            .arguments =
-                {0U, 1U, request_.row_text_token, request_.primary_count_token},
-            .eax = eax_,
-            .ecx = ecx_,
-            .edx = edx_,
-            .text_token = request_.row_text_token,
-            .text_bytes = state_.row_text,
-        });
-        ++result_.primary_query_calls;
-        if (primary.publish_row_value) {
-            state_.primary_count = primary.row_value;
-        }
-        if (primary.publish_row_text) {
-            state_.row_text = primary.row_text;
+        if (bindings_.scripted_port_test_compat) {
+            const auto primary = invoke({
+                .call = Call::query_mode_row,
+                .object_token = ecx_,
+                .arguments =
+                    {0U,
+                     1U,
+                     request_.row_text_token,
+                     request_.primary_count_token},
+                .eax = eax_,
+                .ecx = ecx_,
+                .edx = edx_,
+                .text_token = request_.row_text_token,
+                .text_bytes = state_.row_text,
+            });
+            ++result_.primary_query_calls;
+            if (primary.publish_row_value) {
+                state_.primary_count = primary.row_value;
+            }
+            if (primary.publish_row_text) {
+                state_.row_text = primary.row_text;
+            }
+        } else {
+            const u32 actor_index = actor_code - 8U;
+            if (actor_index >= bindings_.party.size()) {
+                result_.status = Status::group_a_actor_typed_stop;
+                return finish();
+            }
+            party_ = &bindings_.party[actor_index];
+            result_.primary_query = query_legacy_battle_actor_mode_resource(
+                &party_->actor_list,
+                ecx_,
+                {.mode = 0U,
+                 .occurrence = 1U,
+                 .output_capacity = static_cast<u32>(state_.row_text.size()),
+                 .entry_eax = eax_,
+                 .entry_edx = edx_}
+            );
+            ++result_.primary_query_calls;
+            eax_ = result_.primary_query.return_eax;
+            ecx_ = result_.primary_query.return_ecx;
+            edx_ = result_.primary_query.return_edx;
+            if (result_.primary_query.status !=
+                LegacyBattleActorListQueryStatus::completed) {
+                result_.status = Status::group_a_actor_typed_stop;
+                return finish();
+            }
+            if (result_.primary_query.outputs_published) {
+                state_.primary_count = result_.primary_query.output_quantity;
+                state_.row_text.fill(0U);
+                std::copy(
+                    result_.primary_query.copied_name.begin(),
+                    result_.primary_query.copied_name.end(),
+                    state_.row_text.begin()
+                );
+            }
         }
         bindings_.panel_row_limit = static_cast<u16>(state_.primary_count);
-        refresh_actor(actor_code, group_a_scaled_3021(actor_code));
+        if (!refresh_actor(actor_code, group_a_scaled_3021(actor_code))) {
+            return finish();
+        }
 
         const auto secondary_count = invoke({
             .call = Call::query_mode_secondary_count,
@@ -138,7 +180,9 @@ public:
         if (secondary_count.publish_row_value) {
             state_.secondary_count = secondary_count.row_value;
         }
-        refresh_actor(actor_code, edx_);
+        if (!refresh_actor(actor_code, edx_)) {
+            return finish();
+        }
 
         state_.group_slot_count = 0U;
         bindings_.target_argument = 1U;
@@ -295,29 +339,64 @@ private:
         if (cell > primary_count) {
             if (cell <= primary_count + secondary_count) {
                 trace.queried_secondary = true;
-                const auto queried = invoke({
-                    .call = Call::query_mode_row,
-                    .object_token =
-                        group_a_actor_token(bindings_.queued_actor_code),
-                    .arguments =
-                        {
-                            1U,
-                            page,
-                            request_.row_text_token,
-                            request_.primary_count_token,
-                        },
-                    .eax = group_a_scaled_1007(bindings_.queued_actor_code),
-                    .ecx = group_a_actor_token(bindings_.queued_actor_code),
-                    .edx = request_.row_text_token,
-                    .text_token = request_.row_text_token,
-                    .text_bytes = state_.row_text,
-                });
-                ++result_.secondary_row_query_calls;
-                if (queried.publish_row_value) {
-                    state_.group_slot_count = queried.row_value;
-                }
-                if (queried.publish_row_text) {
-                    state_.row_text = queried.row_text;
+                if (bindings_.scripted_port_test_compat) {
+                    const auto queried = invoke({
+                        .call = Call::query_mode_row,
+                        .object_token =
+                            group_a_actor_token(bindings_.queued_actor_code),
+                        .arguments =
+                            {
+                                1U,
+                                page,
+                                request_.row_text_token,
+                                request_.primary_count_token,
+                            },
+                        .eax = group_a_scaled_1007(bindings_.queued_actor_code),
+                        .ecx = group_a_actor_token(bindings_.queued_actor_code),
+                        .edx = request_.row_text_token,
+                        .text_token = request_.row_text_token,
+                        .text_bytes = state_.row_text,
+                    });
+                    ++result_.secondary_row_query_calls;
+                    if (queried.publish_row_value) {
+                        state_.group_slot_count = queried.row_value;
+                    }
+                    if (queried.publish_row_text) {
+                        state_.row_text = queried.row_text;
+                    }
+                } else {
+                    result_.secondary_row_query =
+                        query_legacy_battle_actor_mode_resource(
+                            &party_->actor_list,
+                            group_a_actor_token(bindings_.queued_actor_code),
+                            {.mode = 1U,
+                             .occurrence = page,
+                             .output_capacity =
+                                 static_cast<u32>(state_.row_text.size()),
+                             .entry_eax = group_a_scaled_1007(
+                                 bindings_.queued_actor_code
+                             ),
+                             .entry_edx = request_.row_text_token}
+                        );
+                    ++result_.secondary_row_query_calls;
+                    eax_ = result_.secondary_row_query.return_eax;
+                    ecx_ = result_.secondary_row_query.return_ecx;
+                    edx_ = result_.secondary_row_query.return_edx;
+                    if (result_.secondary_row_query.status !=
+                        LegacyBattleActorListQueryStatus::completed) {
+                        result_.status = Status::group_a_actor_typed_stop;
+                        return false;
+                    }
+                    if (result_.secondary_row_query.outputs_published) {
+                        state_.group_slot_count =
+                            result_.secondary_row_query.output_quantity;
+                        state_.row_text.fill(0U);
+                        std::copy(
+                            result_.secondary_row_query.copied_name.begin(),
+                            result_.secondary_row_query.copied_name.end(),
+                            state_.row_text.begin()
+                        );
+                    }
                 }
                 const i16 group_count = std::bit_cast<i16>(
                     static_cast<u16>(state_.group_slot_count)
@@ -422,18 +501,36 @@ private:
         return true;
     }
 
-    void refresh_actor(const u32 actor_code, const u32 refresh_edx) {
+    [[nodiscard]] bool
+    refresh_actor(const u32 actor_code, const u32 refresh_edx) {
         eax_ = group_a_scaled_1007(actor_code);
         ecx_ = group_a_actor_token(actor_code);
         edx_ = refresh_edx;
-        invoke({
-            .call = Call::refresh_actor,
-            .object_token = ecx_,
-            .eax = eax_,
-            .ecx = ecx_,
-            .edx = edx_,
-        });
+        if (bindings_.scripted_port_test_compat) {
+            invoke({
+                .call = Call::refresh_actor,
+                .object_token = ecx_,
+                .eax = eax_,
+                .ecx = ecx_,
+                .edx = edx_,
+            });
+        } else {
+            auto& refresh =
+                result_.actor_refreshes[result_.actor_refresh_calls];
+            refresh = commit_legacy_battle_actor_resource_list(
+                &party_->actor_list, ecx_, edx_
+            );
+            eax_ = refresh.return_eax;
+            ecx_ = refresh.return_ecx;
+            edx_ = refresh.return_edx;
+            if (refresh.status != LegacyBattleActorListQueryStatus::completed) {
+                result_.status = Status::group_a_actor_typed_stop;
+                ++result_.actor_refresh_calls;
+                return false;
+            }
+        }
         ++result_.actor_refresh_calls;
+        return true;
     }
 
     LegacyBattleGridFrameCallReply
@@ -491,6 +588,7 @@ private:
     LegacyBattleGridFramePort& port_;
     const LegacyBattleModeGridFrameRequest& request_;
     LegacyBattleModeGridFrameResult result_{};
+    LegacyBattlePartyStartupRecord* party_{};
     u32 eax_{};
     u32 ecx_{};
     u32 edx_{};
