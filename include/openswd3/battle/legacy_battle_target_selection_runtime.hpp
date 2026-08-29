@@ -89,6 +89,8 @@ enum class LegacyBattleTargetSelectionRuntimeCall : compat::u8 {
     start_effect_sample,
     finalize_actor_effect,
     set_actor_mode,
+    resource_profile_load,
+    resource_missing_word_diagnostic,
 };
 
 struct LegacyBattleTargetSelectionRuntimeCallRequest {

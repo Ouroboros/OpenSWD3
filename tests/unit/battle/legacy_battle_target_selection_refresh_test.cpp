@@ -115,6 +115,7 @@ struct Fixture {
             .target_ready_gate = target_ready,
             .message_state = message,
             .party = party,
+            .scripted_resource_selection_test_compat = true,
         };
     }
 };

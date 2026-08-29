@@ -25,6 +25,7 @@ struct LegacyBattleTargetSelectionRefreshBindings {
     compat::u32& target_ready_gate;
     compat::u32& message_state;
     std::span<LegacyBattlePartyStartupRecord> party{};
+    bool scripted_resource_selection_test_compat{};
 };
 
 struct LegacyBattleTargetSelectionRefreshRequest {
@@ -74,6 +75,8 @@ struct LegacyBattleTargetSelectionRefreshResult {
     LegacyBattleGroupBTargetCycleResult group_b_target_cycle{};
     LegacyBattleActorModeFourFinalizationResult mode_four_finalization{};
     compat::u32 mode_four_finalization_calls{};
+    LegacyBattleActorResourceSelectionResult resource_selection{};
+    compat::u32 resource_selection_calls{};
 };
 
 // Typed closure of legacy 0x00462740.

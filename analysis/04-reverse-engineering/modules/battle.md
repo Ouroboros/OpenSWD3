@@ -607,6 +607,8 @@ I5最终必须锁定：
 
 `audit_order=198`的`0x00470A10`已关闭为`platform_adapted`。完整权威LST主体`0x00470A10..0x00470ABB`共105行、60条实际指令、1个call、18个跳转、1个返回点且无外部chunk。实现六类category映射、保留输出初值、16位回绕计数、普通正值匹配和category 4额外bit独立递增。标准与alternate grid production链的计数、提交、查询均改为typed直连并复用party唯一owner；脚本化单测compat开关默认关闭。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`198/422 = 189 platform_adapted + 9 assembly_exact + 224 pending_audit`，双跑SHA256为`6c5586aaab691a5a1576cf43cdd9419129384afe85290c0d53509de99f714828`。动态差分因原版资源链、输出word和grid caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=199`的`0x00470AC0`战斗角色资源链相邻函数。
+`audit_order=199`的`0x00470AC0`已关闭为`platform_adapted`。完整权威LST主体`0x00470AC0..0x00470E15`共401行、244条实际指令、5个call、41个跳转、25个标签、4个返回点且无外部chunk。实现清零前缀、资源匹配、category 4双计数、三条profile加载路径、primary/secondary容量门、derived copy latch、runtime诊断、输出mode与数量递增/抑制。复用final、item、list、workspace、action和configuration唯一owner；第198项bit13重复byte owner已消除。目标选择case4/29/30三处production caller均typed直连，脚本化compat默认关闭。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`199/422 = 190 platform_adapted + 9 assembly_exact + 223 pending_audit`，双跑SHA256为`3e76f8dad71e3912b77eaca20b3db2c7f854c5ccab607ad9a4fb0a343a96b156`。动态差分因原版资源节点、profile加载、诊断、容量和caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=200`的`0x00470E20`战斗角色资源释放函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

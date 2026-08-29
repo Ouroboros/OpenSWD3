@@ -24,6 +24,31 @@ public:
     bool arguments_zero{};
 };
 
+class SelectionPort final
+    : public openswd3::battle::LegacyBattleActorResourceSelectionPort {
+public:
+    [[nodiscard]] openswd3::battle::
+        LegacyBattleActorResourceSelectionProfileReply
+        load_profile(
+            std::array<openswd3::compat::u32, 10>& buffer,
+            const openswd3::compat::u16 profile_id,
+            const openswd3::compat::u32 eax,
+            const openswd3::compat::u32 ecx,
+            const openswd3::compat::u32 edx
+        ) override {
+        profile_ids.push_back(profile_id);
+        buffer[0U] = profile_id;
+        return {.eax = eax, .ecx = ecx, .edx = edx};
+    }
+    void report_missing_runtime_word(
+        const openswd3::compat::u16 resource_id
+    ) override {
+        diagnostics.push_back(resource_id);
+    }
+    std::vector<openswd3::compat::u16> profile_ids;
+    std::vector<openswd3::compat::u16> diagnostics;
+};
+
 class StatePort final
     : public openswd3::battle::LegacyBattleActorListStatePort {
 public:
@@ -309,6 +334,119 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
     }
 
     {
+        LegacyBattleGroupAConfigurationState configuration;
+        configuration.actor_record_token = 0x00600000U;
+        configuration.actor_record[1U] = 5U << 16U;
+        LegacyBattleGroupAFinalProcessingState final_state;
+        final_state.profile_buffer.fill(0xFFFFFFFFU);
+        LegacyBattleGroupAItemEffectApplicationState item;
+        LegacyBattleGroupAWorkspaceState workspace;
+        workspace.tail_words[2U] = 0xFFFFU;
+        LegacyBattleGroupAActionExecutionState action;
+        list.next_resource_head_token = 0x76000000U;
+        list.resources = {
+            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+            {.token = 0x76000010U,
+             .resource_id = 2U,
+             .primary_quantity = 1U,
+             .tertiary_quantity = 4,
+             .name = {},
+             .category_mask = 0x10U,
+             .derived_words_40 = {11U, 12U, 13U},
+             .flags_49 = 0x02U,
+             .profile_id_4a = 7U,
+             .mode_flags = 0x01U,
+             .capacity_gate_flags = 0x8003U,
+             .alternate_profile_id_54 = 9U},
+        };
+        SelectionPort port;
+        const auto result = select_legacy_battle_actor_resource(
+            &list,
+            &configuration,
+            &final_state,
+            &item,
+            &workspace,
+            &action,
+            0x005029D0U,
+            port,
+            {.category_selector = 0U, .occurrence = 1U}
+        );
+        test.expect_true(
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                result.return_eax == 1U && result.output_mode == 1U &&
+                port.profile_ids[0U] == 9U && result.diagnostic_calls == 1U &&
+                list.selected_resource_token == 0x76000010U &&
+                list.primary_required == 3U && item.mode_flags == 0x40U &&
+                item.derived_words[1U] == 11U &&
+                final_state.profile_copy_latch == 1U &&
+                list.resources[1U].primary_quantity == 2U,
+            "resource selection loads the alternate profile, applies gates, diagnoses zero runtime word and increments quantity"
+        );
+    }
+
+    {
+        LegacyBattleGroupAFinalProcessingState final_state;
+        LegacyBattleGroupAItemEffectApplicationState item;
+        LegacyBattleGroupAWorkspaceState workspace;
+        LegacyBattleGroupAActionExecutionState action;
+        list.next_resource_head_token = 0x76000000U;
+        list.resources = {
+            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+            {.token = 0x76000010U,
+             .tertiary_quantity = 1,
+             .name = {},
+             .category_mask = 0x2000U,
+             .derived_word_30 = 0x1234U,
+             .profile_id_4a = 7U,
+             .capacity_gate_flags = 0x2000U},
+        };
+        SelectionPort port;
+        const auto result = select_legacy_battle_actor_resource(
+            &list,
+            nullptr,
+            &final_state,
+            &item,
+            &workspace,
+            &action,
+            0x005029D0U,
+            port,
+            {.category_selector = 4U, .occurrence = 1U}
+        );
+        test.expect_true(
+            result.return_eax == 1U && port.profile_ids[0U] == 7U &&
+                item.derived_words[0U] == 0x1234U &&
+                list.resources[1U].primary_quantity == 0U,
+            "category four bit-thirteen selection takes the early profile path without quantity mutation"
+        );
+    }
+
+    {
+        LegacyBattleGroupAFinalProcessingState final_state;
+        final_state.profile_buffer.fill(0xFFFFFFFFU);
+        final_state.pre_effect_words.fill(0xFFFFFFFFU);
+        LegacyBattleGroupAWorkspaceState workspace;
+        workspace.tail_words[2U] = 0xFFFFU;
+        SelectionPort port;
+        const auto result = select_legacy_battle_actor_resource(
+            nullptr,
+            nullptr,
+            &final_state,
+            nullptr,
+            &workspace,
+            nullptr,
+            0x005029D0U,
+            port,
+            {.occurrence = 0U}
+        );
+        test.expect_true(
+            result.return_eax == 0U && final_state.profile_buffer[0U] == 0U &&
+                final_state.pre_effect_words[0U] == 0U &&
+                workspace.tail_words[2U] == 0U,
+            "zero occurrence preserves the mandatory clearing prefix before failure"
+        );
+    }
+
+    {
         list.next_resource_head_token = 0x76000000U;
         list.resources = {
             {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
@@ -319,8 +457,8 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
              .name = {},
              .category_mask = 0x2000U,
              .mode_flags = 0x01U,
-             .extra_flags_4d = 0x20U},
-            {.token = 0x76000020U, .name = {}, .extra_flags_4d = 0x20U},
+             .capacity_gate_flags = 0x2000U},
+            {.token = 0x76000020U, .name = {}, .capacity_gate_flags = 0x2000U},
         };
         const auto result = count_legacy_battle_actor_resource_list(
             &list,

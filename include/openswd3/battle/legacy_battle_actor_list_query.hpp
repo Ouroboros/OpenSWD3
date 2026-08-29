@@ -1,8 +1,10 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_actor_list_index_commit.hpp"
+#include "openswd3/battle/legacy_battle_group_a_action_execution_state.hpp"
 #include "openswd3/battle/legacy_battle_group_a_final_processing_state.hpp"
 #include "openswd3/battle/legacy_battle_group_a_item_effect_application.hpp"
+#include "openswd3/battle/legacy_battle_group_a_workspace_reset.hpp"
 
 #include <span>
 #include <string>
@@ -31,14 +33,20 @@ struct LegacyBattleActorListResourceNode {
     compat::u32 token{};
     compat::u32 next_token{};
     compat::u16 resource_id{};
-    compat::u16 primary_quantity{};     // node + 0x06
-    compat::i16 secondary_quantity{};   // node + 0x08
-    compat::i16 tertiary_quantity{};    // node + 0x0A
-    std::string name;                   // node + 0x0C
-    compat::u32 category_mask{};        // node + 0x2C
+    compat::u16 primary_quantity{};    // node + 0x06
+    compat::i16 secondary_quantity{};  // node + 0x08
+    compat::i16 tertiary_quantity{};   // node + 0x0A
+    std::string name;                  // node + 0x0C
+    compat::u32 category_mask{};       // node + 0x2C
+    compat::u16 derived_word_30{};     // node + 0x30
+    std::array<compat::u16, 3> derived_words_40{};
+    compat::u16 gate_word_48{};         // node + 0x48
+    compat::u8 flags_49{};              // node + 0x49
+    compat::u16 profile_id_4a{};        // node + 0x4A
     compat::u8 mode_flags{};            // node + 0x46
     compat::u16 capacity_gate_flags{};  // node + 0x4C
-    compat::u8 extra_flags_4d{};        // node + 0x4D
+    compat::u16 alternate_profile_id_54{};
+    compat::u16 output_word_5c{};
 };
 
 struct LegacyBattleActorListQueryState {
@@ -222,6 +230,53 @@ struct LegacyBattleActorListStateRequest {
     compat::u32 entry_edx{};
 };
 
+struct LegacyBattleActorResourceSelectionProfileReply {
+    compat::u32 eax{};
+    compat::u32 ecx{};
+    compat::u32 edx{};
+};
+
+class LegacyBattleActorResourceSelectionPort {
+public:
+    virtual ~LegacyBattleActorResourceSelectionPort() = default;
+    [[nodiscard]] virtual LegacyBattleActorResourceSelectionProfileReply
+    load_profile(
+        std::array<compat::u32, 10>& buffer,
+        compat::u16 profile_id,
+        compat::u32 eax,
+        compat::u32 ecx,
+        compat::u32 edx
+    ) = 0;
+    virtual void report_missing_runtime_word(compat::u16 resource_id) = 0;
+};
+
+struct LegacyBattleActorResourceSelectionRequest {
+    compat::u32 category_selector{};
+    compat::u32 occurrence{};
+    compat::u32 entry_eax{};
+    compat::u32 entry_edx{};
+};
+
+struct LegacyBattleActorResourceSelectionResult {
+    LegacyBattleActorListQueryStatus status{
+        LegacyBattleActorListQueryStatus::completed
+    };
+    compat::u32 commit_calls{};
+    compat::u32 nodes_visited{};
+    compat::u32 matches{};
+    compat::u32 profile_load_calls{};
+    compat::u32 diagnostic_calls{};
+    compat::u32 selected_writes{};
+    compat::u32 quantity_writes{};
+    compat::u32 profile_buffer_dwords_zeroed{};
+    compat::u32 pre_effect_dwords_zeroed{};
+    compat::u16 output_runtime_word{};
+    compat::u16 output_mode{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
 struct LegacyBattleActorResourceListCountRequest {
     compat::u32 category_selector{};
     compat::u16 initial_count{};
@@ -356,6 +411,20 @@ execute_legacy_battle_actor_list_action(
     compat::u32 actor_token,
     LegacyBattleActorListActionPort& port,
     const LegacyBattleActorListActionRequest& request = {}
+);
+
+// sub_470AC0.
+[[nodiscard]] LegacyBattleActorResourceSelectionResult
+select_legacy_battle_actor_resource(
+    LegacyBattleActorListQueryState* list,
+    LegacyBattleGroupAConfigurationState* configuration,
+    LegacyBattleGroupAFinalProcessingState* final_state,
+    LegacyBattleGroupAItemEffectApplicationState* item_effect,
+    LegacyBattleGroupAWorkspaceState* workspace,
+    LegacyBattleGroupAActionExecutionState* action,
+    compat::u32 actor_token,
+    LegacyBattleActorResourceSelectionPort& port,
+    const LegacyBattleActorResourceSelectionRequest& request
 );
 
 // sub_470A10.

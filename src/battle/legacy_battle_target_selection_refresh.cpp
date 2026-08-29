@@ -32,6 +32,48 @@ inline constexpr u32 kTargetPanelToken = 0x004B8748U;
 inline constexpr u32 kWarningTextAToken = 0x004A7980U;
 inline constexpr u32 kWarningTextBToken = 0x004A7990U;
 
+class ResourceSelectionAdapter final
+    : public LegacyBattleActorResourceSelectionPort {
+public:
+    ResourceSelectionAdapter(
+        LegacyBattleInputDispatchPort& port,
+        LegacyBattleTargetSelectionRefreshResult& result
+    ) noexcept
+        : port_(port), result_(result) {}
+
+    [[nodiscard]] LegacyBattleActorResourceSelectionProfileReply load_profile(
+        std::array<u32, 10>&,
+        const u16 profile_id,
+        const u32 eax,
+        const u32 ecx,
+        const u32 edx
+    ) override {
+        const auto reply = port_.invoke_target_selection_runtime({
+            .call =
+                LegacyBattleTargetSelectionRuntimeCall::resource_profile_load,
+            .arguments = {profile_id},
+            .eax = eax,
+            .ecx = ecx,
+            .edx = edx,
+        });
+        ++result_.port_calls;
+        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
+    }
+
+    void report_missing_runtime_word(const u16 resource_id) override {
+        static_cast<void>(port_.invoke_target_selection_runtime({
+            .call = LegacyBattleTargetSelectionRuntimeCall::
+                resource_missing_word_diagnostic,
+            .arguments = {resource_id},
+        }));
+        ++result_.port_calls;
+    }
+
+private:
+    LegacyBattleInputDispatchPort& port_;
+    LegacyBattleTargetSelectionRefreshResult& result_;
+};
+
 class InputTextMessageAdapter final : public LegacyBattleTextMessagePort {
 public:
     explicit InputTextMessageAdapter(LegacyBattleInputDispatchPort& port)
@@ -647,6 +689,50 @@ private:
         return true;
     }
 
+    [[nodiscard]] bool
+    select_actor_resource(const u32 actor_code, const u32 category) {
+        if (actor_code < 8U) {
+            typed_stop(Status::group_a_actor_typed_stop);
+            return false;
+        }
+        const u32 index = actor_code - 8U;
+        if (index >= bindings_.party.size() ||
+            index >= bindings_.action.group_a_action_execution.size() ||
+            index >= bindings_.startup_reset.block_4fe5d4.size()) {
+            typed_stop(Status::actor_mode_four_finalization_typed_stop);
+            return false;
+        }
+        auto& party = bindings_.party[index];
+        ResourceSelectionAdapter adapter(port_, result_);
+        result_.resource_selection = select_legacy_battle_actor_resource(
+            &party.actor_list,
+            &party.configuration,
+            &party.final_processing,
+            &party.item_effect_application,
+            &party.workspace,
+            &bindings_.action.group_a_action_execution[index],
+            kGroupABaseToken + index * kGroupAStride,
+            adapter,
+            {.category_selector = category,
+             .occurrence = runtime_.target_argument,
+             .entry_eax = eax_,
+             .entry_edx = edx_}
+        );
+        ++result_.resource_selection_calls;
+        eax_ = result_.resource_selection.return_eax;
+        ecx_ = result_.resource_selection.return_ecx;
+        edx_ = result_.resource_selection.return_edx;
+        bindings_.startup_reset.block_4fe5d4[index] =
+            result_.resource_selection.output_runtime_word;
+        local_output_ = result_.resource_selection.output_mode;
+        if (result_.resource_selection.status !=
+            LegacyBattleActorListQueryStatus::completed) {
+            typed_stop(Status::actor_mode_four_finalization_typed_stop);
+            return false;
+        }
+        return true;
+    }
+
     [[nodiscard]] bool final_target_refresh() {
         bindings_.message_state = 3U;
         input_.selection_animation_frame_a = 0U;
@@ -1100,9 +1186,17 @@ private:
             case 6U:
             case 21U:
             case 23U:
-            case 29U:
             case 31U:
             case 33U:
+                bindings_.message_state = 3U;
+                break;
+            case 29U:
+                if (!bindings_.scripted_resource_selection_test_compat &&
+                    !select_actor_resource(
+                        bindings_.debug_hotkeys.committed_actor_code, 4U
+                    )) {
+                    return;
+                }
                 bindings_.message_state = 3U;
                 break;
             default:
@@ -1247,6 +1341,10 @@ private:
 
         if (input_.action_kind == 30U) {
             const u32 committed = bindings_.debug_hotkeys.committed_actor_code;
+            if (!bindings_.scripted_resource_selection_test_compat &&
+                !select_actor_resource(committed, 5U)) {
+                return;
+            }
             ecx_ = committed - 8U;
             eax_ = frame_.current_equipment_selection;
             edx_ = 3U;
@@ -1284,10 +1382,17 @@ private:
                 eax_ = bindings_.debug_hotkeys.committed_actor_code;
             }
         } else if (runtime_.selected_action_kind == 4U) {
-            if (!invoke_group_a(
-                    Call::apply_special_actor_action,
-                    bindings_.debug_hotkeys.committed_actor_code
-                )) {
+            if (bindings_.scripted_resource_selection_test_compat) {
+                if (!invoke_group_a(
+                        Call::apply_special_actor_action,
+                        bindings_.debug_hotkeys.committed_actor_code
+                    )) {
+                    return;
+                }
+            } else if (!select_actor_resource(
+                           bindings_.debug_hotkeys.committed_actor_code,
+                           frame_.current_equipment_selection
+                       )) {
                 return;
             }
         }
