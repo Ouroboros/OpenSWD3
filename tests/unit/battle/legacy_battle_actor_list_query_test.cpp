@@ -4,6 +4,33 @@
 
 namespace {
 
+class StatePort final
+    : public openswd3::battle::LegacyBattleActorListStatePort {
+public:
+    [[nodiscard]] openswd3::battle::LegacyBattleActorListStateCallReply
+    rebuild_resource_list(const openswd3::compat::u32) override {
+        ++rebuild_calls;
+        return {};
+    }
+    [[nodiscard]] openswd3::battle::LegacyBattleActorListStateCallReply
+    publish_message(const openswd3::compat::u32 text_token) override {
+        ++message_calls;
+        last_text = text_token;
+        return {.publish_message_token = true, .message_token = 0x74000000U};
+    }
+    [[nodiscard]] openswd3::battle::LegacyBattleActorListStateCallReply
+    play_sample(
+        const openswd3::compat::u32, const openswd3::compat::u32
+    ) override {
+        ++sample_calls;
+        return {};
+    }
+    openswd3::compat::u32 rebuild_calls{};
+    openswd3::compat::u32 message_calls{};
+    openswd3::compat::u32 sample_calls{};
+    openswd3::compat::u32 last_text{};
+};
+
 class QueryPort final
     : public openswd3::battle::LegacyBattleActorListQueryPort {
 public:
@@ -34,29 +61,36 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
     LegacyBattleActorListQueryState list{
         .owner_token = 0x71000000U,
         .head_token = 0x72000000U,
-        .nodes = {
-            {.token = 0x72000000U,
-             .next_token = 0x72000100U,
-             .category_flags = 0x10U,
-             .mode_flags = 0x05U,
-             .type = 0x1AU,
-             .text = {}},
-            {.token = 0x72000100U,
-             .next_token = 0x72000200U,
-             .category_flags = 0x10U,
-             .mode_flags = 0x05U,
-             .type = 0x1BU,
-             .profile_id = 7U,
-             .value_flags = 0xC800U,
-             .text = "first"},
-            {.token = 0x72000200U,
-             .category_flags = 0x10U,
-             .mode_flags = 0x01U,
-             .type = 0x1EU,
-             .profile_id = 8U,
-             .value_flags = 0x8005U,
-             .text = "second"},
-        },
+        .nodes =
+            {
+                {.token = 0x72000000U,
+                 .next_token = 0x72000100U,
+                 .category_flags = 0x10U,
+                 .mode_flags = 0x05U,
+                 .type = 0x1AU,
+                 .text = {}},
+                {.token = 0x72000100U,
+                 .next_token = 0x72000200U,
+                 .category_flags = 0x10U,
+                 .mode_flags = 0x05U,
+                 .type = 0x1BU,
+                 .profile_id = 7U,
+                 .value_flags = 0xC800U,
+                 .text = "first"},
+                {.token = 0x72000200U,
+                 .category_flags = 0x10U,
+                 .mode_flags = 0x01U,
+                 .type = 0x1EU,
+                 .profile_id = 8U,
+                 .value_flags = 0x8005U,
+                 .text = "second"},
+            },
+        .resource_owner_token = 0U,
+        .resource_head_token = 0U,
+        .resources = {},
+        .selected_resource_token = 0U,
+        .primary_required = 0U,
+        .secondary_required = 0U,
     };
 
     {
@@ -107,15 +141,20 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         LegacyBattleActorListQueryState type31{
             .owner_token = list.owner_token,
             .head_token = 0x73000000U,
-            .nodes = {
-                {.token = 0x73000000U,
-                 .category_flags = 0x0CU,
-                 .mode_flags = 0x04U,
-                 .type = 0x1FU,
-                 .profile_id = 9U,
-                 .value_flags = 0xFFFFU,
-                 .text = "profile"}
-            },
+            .nodes =
+                {{.token = 0x73000000U,
+                  .category_flags = 0x0CU,
+                  .mode_flags = 0x04U,
+                  .type = 0x1FU,
+                  .profile_id = 9U,
+                  .value_flags = 0xFFFFU,
+                  .text = "profile"}},
+            .resource_owner_token = 0U,
+            .resource_head_token = 0U,
+            .resources = {},
+            .selected_resource_token = 0U,
+            .primary_required = 0U,
+            .secondary_required = 0U,
         };
         QueryPort port;
         port.index = 1U;
@@ -173,6 +212,99 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
             result.count == 9U && result.matches == 0U &&
                 result.nodes_visited == 3U,
             "every non-twenty-eight type selector still tests only type thirty-one"
+        );
+    }
+
+    {
+        actor.next_list_index = list.owner_token;
+        list.nodes[1U].value_flags = 0x800AU;
+        list.primary_required = 0U;
+        StatePort port;
+        const auto result = process_legacy_battle_actor_list_state(
+            &actor,
+            &list,
+            0x005029D0U,
+            0U,
+            port,
+            {.category_selector = 0U,
+             .occurrence = 1U,
+             .actor_primary_capacity = 10}
+        );
+        test.expect_true(
+            result.return_eax == 1U && result.index_commit_calls == 2U &&
+                list.primary_required == 10U &&
+                list.selected_resource_token == 0U &&
+                result.message_calls == 0U,
+            "state processing publishes the primary threshold then succeeds on equal signed capacity"
+        );
+    }
+
+    {
+        actor.next_list_index = list.owner_token;
+        list.nodes[1U].value_flags = 0x0805U;
+        list.resource_owner_token = 0x75000000U;
+        list.resource_head_token = 0x76000000U;
+        list.resources = {
+            {.token = 0x76000000U,
+             .resource_id = 5U,
+             .primary_quantity = 1,
+             .secondary_quantity = 0}
+        };
+        StatePort port;
+        const auto result = process_legacy_battle_actor_list_state(
+            &actor,
+            &list,
+            0x005029D0U,
+            0U,
+            port,
+            {.category_selector = 0U, .occurrence = 1U}
+        );
+        test.expect_true(
+            result.return_eax == 1U && result.rebuild_calls == 1U &&
+                result.resource_nodes_visited == 1U &&
+                list.selected_resource_token == 0x76000000U &&
+                result.index_commit_calls == 1U,
+            "bit eleven rebuilds and selects a resource node with either positive quantity"
+        );
+    }
+
+    {
+        actor.next_list_index = list.owner_token;
+        list.nodes[1U].value_flags = 0x0806U;
+        list.resource_head_token = 0U;
+        StatePort port;
+        const auto result = process_legacy_battle_actor_list_state(
+            &actor,
+            &list,
+            0x005029D0U,
+            0U,
+            port,
+            {.category_selector = 0U, .occurrence = 1U}
+        );
+        test.expect_true(
+            result.return_eax == 0U && result.message_calls == 1U &&
+                result.sample_calls == 1U &&
+                result.message_token == 0x74000000U &&
+                port.last_text == 0x004A7CD0U,
+            "missing resource publishes one guarded message and sample"
+        );
+    }
+
+    {
+        actor.next_list_index = list.owner_token;
+        StatePort port;
+        const auto result = process_legacy_battle_actor_list_state(
+            &actor,
+            &list,
+            0x005029D0U,
+            0U,
+            port,
+            {.occurrence = 0U, .entry_eax = 0xFFFFFFFFU}
+        );
+        test.expect_true(
+            result.return_eax == 0U && result.index_commit_calls == 0U &&
+                result.nodes_visited == 0U,
+            "zero occurrence returns before list-index commit"
         );
     }
 

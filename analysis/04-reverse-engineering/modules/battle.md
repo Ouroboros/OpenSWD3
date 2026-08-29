@@ -589,6 +589,8 @@ I5最终必须锁定：
 
 `audit_order=189`的`0x004702E0`已关闭为`platform_adapted`。完整权威LST主体`0x004702E0..0x00470372`共94行、53条实际指令、1个call、17个跳转、8个标签、1个返回点且无外部chunk。复用第186/188项owner，实现相同category/type非对称筛选、全链扫描、调用者入口byte保留与逐匹配回绕递增；不清零、不提前停止、不加载资料，链尾EAX归零。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`189/422 = 180 platform_adapted + 9 assembly_exact + 233 pending_audit`，双跑SHA256为`bc99f85812f3e56476185df288b9e44dec03a7c3f3ac75936cd94862c8128449`。动态差分因原版链表、计数byte与caller联合捕获后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=190`的`0x00470380`战斗角色链表状态处理函数。
+`audit_order=190`的`0x00470380`已关闭为`platform_adapted`。完整权威LST主体`0x00470380..0x004705B7`共284行、164条实际指令、8个call、30个跳转、18个标签、4个返回点且无外部chunk。实现第N个27–30类节点筛选、bit15/14阈值发布、bit11资源链重建与资源选择、双索引提交、live signed容量比较、共享消息latch及消息/sample抑制顺序。主链、资源链、阈值和selected token扩展于第188项唯一owner；待审资源重建保持窄port。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`190/422 = 181 platform_adapted + 9 assembly_exact + 232 pending_audit`，双跑SHA256为`b470baa980d0fc1b5e3eb51745929f1e24f82750a59b551f46171a6174837bd7`。动态差分因原版两条链、live容量、消息/sample与caller联合捕获后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=191`的`0x004705C0`战斗角色链表资源重置函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

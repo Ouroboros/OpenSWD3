@@ -5,6 +5,7 @@
 namespace openswd3::battle {
 namespace {
 
+using compat::i32;
 using compat::u16;
 using compat::u32;
 
@@ -203,6 +204,172 @@ LegacyBattleActorListCountResult count_legacy_battle_actor_list(
             result.count = static_cast<compat::u8>(result.count + 1U);
             ++result.matches;
         }
+    }
+    result.return_eax = 0U;
+    return result;
+}
+
+LegacyBattleActorListStateResult process_legacy_battle_actor_list_state(
+    LegacyBattleGroupAActionExecutionState* actor,
+    LegacyBattleActorListQueryState* list,
+    const u32 actor_token,
+    const u32 message_token,
+    LegacyBattleActorListStatePort& port,
+    const LegacyBattleActorListStateRequest& request
+) {
+    constexpr u32 kMissingResourceText = 0x004A7CD0U;
+    constexpr u32 kPrimaryCapacityText = 0x004A7CC0U;
+    constexpr u32 kSecondaryCapacityText = 0x004A7CB0U;
+    constexpr u32 kMessageSampleToken = 0x004AB784U;
+
+    LegacyBattleActorListStateResult result;
+    result.message_token = message_token;
+    result.return_eax = request.entry_eax;
+    result.return_ecx = actor_token;
+    result.return_edx = request.entry_edx;
+    if (request.occurrence == 0U) {
+        result.return_eax = 0U;
+        return result;
+    }
+
+    const auto commit_index = [&]() -> bool {
+        result.index_commit = commit_legacy_battle_actor_list_index(
+            actor,
+            actor_token,
+            {.entry_eax = result.return_eax, .entry_edx = result.return_edx}
+        );
+        ++result.index_commit_calls;
+        result.return_eax = result.index_commit.return_eax;
+        if (result.index_commit.status !=
+            LegacyBattleActorListIndexCommitStatus::completed) {
+            result.status =
+                LegacyBattleActorListQueryStatus::actor_state_typed_stop;
+            return false;
+        }
+        if (list == nullptr || list->owner_token == 0U || actor == nullptr ||
+            actor->current_list_index != list->owner_token) {
+            result.status =
+                LegacyBattleActorListQueryStatus::list_owner_typed_stop;
+            return false;
+        }
+        return true;
+    };
+    const auto publish_message = [&](const u32 text_token) {
+        if (result.message_token != 0U) {
+            return;
+        }
+        const auto message = port.publish_message(text_token);
+        ++result.message_calls;
+        if (message.publish_message_token) {
+            result.message_token = message.message_token;
+        }
+        static_cast<void>(port.play_sample(kMessageSampleToken, 0x8CU));
+        ++result.sample_calls;
+    };
+
+    if (!commit_index()) {
+        return result;
+    }
+    const u32 mask = category_mask(request.category_selector);
+    u32 token = list->head_token;
+    const LegacyBattleActorListNode* matched = nullptr;
+    while (token != 0U) {
+        const auto found = std::ranges::find(
+            list->nodes, token, &LegacyBattleActorListNode::token
+        );
+        if (found == list->nodes.end()) {
+            result.status =
+                LegacyBattleActorListQueryStatus::list_node_typed_stop;
+            result.return_eax = token;
+            return result;
+        }
+        ++result.nodes_visited;
+        token = found->next_token;
+        if ((found->mode_flags & 0x05U) == 0U ||
+            (found->category_flags & mask) == 0U || found->type < 0x1BU ||
+            found->type > 0x1EU) {
+            continue;
+        }
+        ++result.matches;
+        if (result.matches == request.occurrence) {
+            matched = &*found;
+            break;
+        }
+    }
+    if (matched == nullptr) {
+        result.return_eax = 0U;
+        return result;
+    }
+
+    const u16 value = matched->value_flags;
+    if ((value & 0x8000U) != 0U) {
+        list->selected_resource_token = 0U;
+        list->primary_required = static_cast<u16>(value & 0x7FFFU);
+    }
+    if ((value & 0x4000U) != 0U) {
+        list->selected_resource_token = 0U;
+        list->secondary_required = static_cast<u16>(value & 0x3FFFU);
+    }
+    if ((value & 0x0800U) != 0U) {
+        list->primary_required = static_cast<u16>(value & 0x07FFU);
+        static_cast<void>(port.rebuild_resource_list(actor_token));
+        ++result.rebuild_calls;
+        if (list->resource_owner_token == 0U) {
+            result.status =
+                LegacyBattleActorListQueryStatus::resource_owner_typed_stop;
+            return result;
+        }
+        u32 resource_token = list->resource_head_token;
+        while (resource_token != 0U) {
+            const auto found = std::ranges::find(
+                list->resources,
+                resource_token,
+                &LegacyBattleActorListResourceNode::token
+            );
+            if (found == list->resources.end()) {
+                result.status =
+                    LegacyBattleActorListQueryStatus::resource_node_typed_stop;
+                result.return_eax = resource_token;
+                return result;
+            }
+            ++result.resource_nodes_visited;
+            resource_token = found->next_token;
+            if (found->resource_id != list->primary_required) {
+                continue;
+            }
+            if (found->primary_quantity <= 0 &&
+                found->secondary_quantity <= 0) {
+                publish_message(kMissingResourceText);
+                result.return_eax = 0U;
+                return result;
+            }
+            list->selected_resource_token = found->token;
+            result.return_eax = 1U;
+            return result;
+        }
+        publish_message(kMissingResourceText);
+        result.return_eax = 0U;
+        return result;
+    }
+
+    if (!commit_index()) {
+        return result;
+    }
+    if (list->primary_required != 0U) {
+        if (static_cast<i32>(request.actor_primary_capacity) >=
+            static_cast<i32>(list->primary_required)) {
+            result.return_eax = 1U;
+            return result;
+        }
+        publish_message(kPrimaryCapacityText);
+    }
+    if (list->secondary_required != 0U) {
+        if (static_cast<i32>(request.actor_secondary_capacity) >=
+            static_cast<i32>(list->secondary_required)) {
+            result.return_eax = 1U;
+            return result;
+        }
+        publish_message(kSecondaryCapacityText);
     }
     result.return_eax = 0U;
     return result;
