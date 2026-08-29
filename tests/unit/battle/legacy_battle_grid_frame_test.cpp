@@ -172,6 +172,7 @@ struct Fixture {
             .secondary_text_color = secondary_text_color,
             .actor_description_record_tokens = actor_description_record_tokens,
             .actor_description_text_indices = actor_description_text_indices,
+            .scripted_port_test_compat = true,
             .maps_payload = maps_payload,
             .shared_text = shared_text,
             .panel_action_record = panel_action_record,

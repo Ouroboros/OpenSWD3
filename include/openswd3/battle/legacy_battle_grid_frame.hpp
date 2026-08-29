@@ -2,6 +2,7 @@
 
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
 #include "openswd3/battle/legacy_battle_action_frame_draw.hpp"
+#include "openswd3/battle/legacy_battle_actor_list_query.hpp"
 #include "openswd3/rendering/legacy_rectangle_effect.hpp"
 #include "openswd3/rendering/legacy_tiled_frame.hpp"
 
@@ -9,6 +10,8 @@
 #include <span>
 
 namespace openswd3::battle {
+
+struct LegacyBattlePartyStartupRecord;
 
 enum class LegacyBattleGridFrameCall : compat::u8 {
     configure_font_mode,
@@ -81,6 +84,8 @@ struct LegacyBattleGridFrameBindings {
     const compat::u16& secondary_text_color;
     const std::array<compat::u32, 10>& actor_description_record_tokens;
     const std::array<compat::u16, 10>& actor_description_text_indices;
+    std::span<LegacyBattlePartyStartupRecord> party{};
+    bool scripted_port_test_compat{};
     std::span<const compat::u8> maps_payload;
     std::span<compat::u8> shared_text;
     asset_runtime::LegacyActionRecord& panel_action_record;
@@ -156,8 +161,11 @@ struct LegacyBattleGridFrameResult {
     compat::u32 panel_rectangle_calls{};
     compat::u32 tiled_frame_calls{};
     compat::u32 actor_initialization_calls{};
+    LegacyBattleActorResourceListCountResult actor_initialization{};
     compat::u32 actor_refresh_calls{};
+    LegacyBattleActorResourceListCommitResult actor_refresh{};
     compat::u32 row_query_calls{};
+    LegacyBattleActorResourceListQueryResult row_query{};
     compat::u32 scanned_rows{};
     compat::u32 hidden_rows{};
     compat::u32 displayed_rows{};

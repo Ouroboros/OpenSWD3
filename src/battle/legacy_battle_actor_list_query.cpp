@@ -617,6 +617,87 @@ query_legacy_battle_actor_resource_list(
     return result;
 }
 
+LegacyBattleActorResourceListCountResult
+count_legacy_battle_actor_resource_list(
+    LegacyBattleActorListQueryState* list,
+    const u32 actor_token,
+    const LegacyBattleActorResourceListCountRequest& request
+) {
+    LegacyBattleActorResourceListCountResult result;
+    result.count = request.initial_count;
+    result.return_eax = request.entry_eax;
+    result.return_ecx = actor_token;
+    result.return_edx = request.entry_edx;
+    const auto commit = commit_legacy_battle_actor_resource_list(
+        list, actor_token, request.entry_edx
+    );
+    ++result.commit_calls;
+    result.return_eax = commit.return_eax;
+    result.return_ecx = commit.return_ecx;
+    result.return_edx = commit.return_edx;
+    if (commit.status != LegacyBattleActorListQueryStatus::completed) {
+        result.status = commit.status;
+        return result;
+    }
+
+    u32 mask = request.category_selector;
+    if (mask == 0U) {
+        mask = 0x10U;
+    } else if (mask == 1U) {
+        mask = 0x0CU;
+    } else if (mask == 2U) {
+        mask = 0x1001U;
+    } else if (mask == 3U) {
+        mask = 0x0800U;
+    } else if (mask == 4U) {
+        mask = 0x2000U;
+    } else if (mask == 5U) {
+        mask = 0x08000000U;
+    }
+
+    while (list->resource_head_token != 0U) {
+        const auto cursor = std::ranges::find(
+            list->resources,
+            list->resource_head_token,
+            &LegacyBattleActorListResourceNode::token
+        );
+        if (cursor == list->resources.end()) {
+            result.status =
+                LegacyBattleActorListQueryStatus::resource_owner_typed_stop;
+            return result;
+        }
+        const u32 next = cursor->next_token;
+        list->resource_head_token = next;
+        result.return_edx = next;
+        if (next == 0U) {
+            result.return_eax = 0U;
+            break;
+        }
+        const auto node = std::ranges::find(
+            list->resources, next, &LegacyBattleActorListResourceNode::token
+        );
+        if (node == list->resources.end()) {
+            result.status =
+                LegacyBattleActorListQueryStatus::resource_owner_typed_stop;
+            return result;
+        }
+        ++result.nodes_visited;
+        const i32 derived = static_cast<i32>(node->tertiary_quantity) -
+            static_cast<i32>(node->primary_quantity) +
+            static_cast<i32>(node->secondary_quantity);
+        if ((node->category_mask & mask) != 0U &&
+            (node->mode_flags & 0x05U) != 0U && derived > 0) {
+            result.count = static_cast<u16>(result.count + 1U);
+            ++result.positive_matches;
+        }
+        if (mask == 0x2000U && (node->extra_flags_4d & 0x20U) != 0U) {
+            result.count = static_cast<u16>(result.count + 1U);
+            ++result.extra_matches;
+        }
+    }
+    return result;
+}
+
 LegacyBattleActorListStateResult process_legacy_battle_actor_list_state(
     LegacyBattleGroupAActionExecutionState* actor,
     LegacyBattleActorListQueryState* list,

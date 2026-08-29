@@ -309,6 +309,34 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
     }
 
     {
+        list.next_resource_head_token = 0x76000000U;
+        list.resources = {
+            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+            {.token = 0x76000010U,
+             .next_token = 0x76000020U,
+             .primary_quantity = 1U,
+             .tertiary_quantity = 2,
+             .name = {},
+             .category_mask = 0x2000U,
+             .mode_flags = 0x01U,
+             .extra_flags_4d = 0x20U},
+            {.token = 0x76000020U, .name = {}, .extra_flags_4d = 0x20U},
+        };
+        const auto result = count_legacy_battle_actor_resource_list(
+            &list,
+            0x005029D0U,
+            {.category_selector = 4U, .initial_count = 0xFFFEU}
+        );
+        test.expect_true(
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                result.count == 1U && result.nodes_visited == 2U &&
+                result.positive_matches == 1U && result.extra_matches == 2U &&
+                result.commit_calls == 1U && list.resource_head_token == 0U,
+            "resource count preserves the initial word, wraps increments, and category four counts its extra bit independently"
+        );
+    }
+
+    {
         LegacyBattleGroupAConfigurationState configuration;
         configuration.actor_record_token = 0x00600000U;
         configuration.actor_record[2U] = 2U;

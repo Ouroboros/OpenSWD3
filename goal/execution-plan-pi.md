@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v785
+版本：v786
 
 最后更新：2026-08-29
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗角色资源链相邻函数 `0x00470A10`
+当前步骤：模块10 · 审计战斗角色资源链相邻函数 `0x00470AC0`
 
 ## 0. 执行约定
 
@@ -4188,4 +4188,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=197`的`0x00470910`战斗角色资源链查询。完整权威LST主体`0x00470910..0x00470A05`共132行、86条实际指令、2个call、17个跳转、8个标签、2个返回点且无外部chunk。实现资源链头提交、破坏性前移、category/mode筛选、signed扫描派生、16位输出数量、bit15/14和字符串复制；保留计数后无条件比较导致的occurrence零陈旧成功。资源链与live容量复用唯一owner，权威LST无静态直接caller。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`197/422 = 188 platform_adapted + 9 assembly_exact + 225 pending_audit`；生成器连续双跑逐字节一致，SHA256为`c58f54c211943da1d68a40531cfd6f1749b5eac340567c397a7cdb2c13ff7191`。动态差分因原版资源链、live容量、字符串与寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=198`的`0x00470A10`战斗角色资源链相邻函数。
+本轮再完成`audit_order=198`的`0x00470A10`战斗角色资源链计数。完整权威LST主体`0x00470A10..0x00470ABB`共105行、60条实际指令、1个call、18个跳转、1个返回点且无外部chunk。实现六类category映射、保留输出初值、16位回绕计数、普通正值匹配和category 4额外bit独立递增。标准与alternate grid production链的计数、提交、查询均改为typed直连并复用party唯一owner；脚本化单测compat开关默认关闭。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`198/422 = 189 platform_adapted + 9 assembly_exact + 224 pending_audit`；生成器连续双跑逐字节一致，SHA256为`6c5586aaab691a5a1576cf43cdd9419129384afe85290c0d53509de99f714828`。动态差分因原版资源链、输出word和grid caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=199`的`0x00470AC0`战斗角色资源链相邻函数。

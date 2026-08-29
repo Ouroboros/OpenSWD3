@@ -163,6 +163,7 @@ struct LegacyBattleSelectionFrameBindings {
     asset_runtime::LegacyActionUpdater& action_updater;
     rendering::LegacyFramePieceProvider& frame_provider;
     LegacyBattleBoundedRandomPort& bounded_random;
+    bool scripted_grid_port_test_compat{};
     std::span<const compat::u8> maps_payload{};
     std::span<compat::u8> shared_text{};
 };

@@ -143,6 +143,7 @@ struct Fixture {
             .selection_input_gate = selection_input_gate,
             .target_argument = target_argument,
             .primary_text_color = primary_text_color,
+            .scripted_port_test_compat = true,
             .panel_action_record = panel_action_record,
             .framebuffer = framebuffer,
             .raster = raster,

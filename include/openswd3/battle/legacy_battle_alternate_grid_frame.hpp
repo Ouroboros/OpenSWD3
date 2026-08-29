@@ -24,6 +24,8 @@ struct LegacyBattleAlternateGridFrameBindings {
     compat::u32& selection_input_gate;
     compat::u32& target_argument;
     const compat::u16& primary_text_color;
+    std::span<LegacyBattlePartyStartupRecord> party{};
+    bool scripted_port_test_compat{};
     asset_runtime::LegacyActionRecord& panel_action_record;
     rendering::LegacyFramebuffer& framebuffer;
     rendering::LegacyRasterGeometryState& raster;
@@ -86,8 +88,11 @@ struct LegacyBattleAlternateGridFrameResult {
     compat::u32 panel_rectangle_calls{};
     compat::u32 tiled_frame_calls{};
     compat::u32 actor_initialization_calls{};
+    LegacyBattleActorResourceListCountResult actor_initialization{};
     compat::u32 actor_refresh_calls{};
+    LegacyBattleActorResourceListCommitResult actor_refresh{};
     compat::u32 row_query_calls{};
+    LegacyBattleActorResourceListQueryResult row_query{};
     compat::u32 scanned_rows{};
     compat::u32 displayed_rows{};
     compat::u32 text_draw_calls{};

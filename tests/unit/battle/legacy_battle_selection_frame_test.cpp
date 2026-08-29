@@ -316,6 +316,7 @@ struct Fixture {
             .action_updater = action_updater,
             .frame_provider = frame_provider,
             .bounded_random = random,
+            .scripted_grid_port_test_compat = true,
             .maps_payload = maps_payload,
             .shared_text = shared_text,
         };

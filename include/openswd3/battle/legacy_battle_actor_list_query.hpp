@@ -38,6 +38,7 @@ struct LegacyBattleActorListResourceNode {
     compat::u32 category_mask{};        // node + 0x2C
     compat::u8 mode_flags{};            // node + 0x46
     compat::u16 capacity_gate_flags{};  // node + 0x4C
+    compat::u8 extra_flags_4d{};        // node + 0x4D
 };
 
 struct LegacyBattleActorListQueryState {
@@ -221,6 +222,27 @@ struct LegacyBattleActorListStateRequest {
     compat::u32 entry_edx{};
 };
 
+struct LegacyBattleActorResourceListCountRequest {
+    compat::u32 category_selector{};
+    compat::u16 initial_count{};
+    compat::u32 entry_eax{};
+    compat::u32 entry_edx{};
+};
+
+struct LegacyBattleActorResourceListCountResult {
+    LegacyBattleActorListQueryStatus status{
+        LegacyBattleActorListQueryStatus::completed
+    };
+    compat::u32 commit_calls{};
+    compat::u32 nodes_visited{};
+    compat::u32 positive_matches{};
+    compat::u32 extra_matches{};
+    compat::u16 count{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
 struct LegacyBattleActorResourceListQueryRequest {
     compat::u32 category_selector{};
     compat::u32 occurrence{};
@@ -334,6 +356,14 @@ execute_legacy_battle_actor_list_action(
     compat::u32 actor_token,
     LegacyBattleActorListActionPort& port,
     const LegacyBattleActorListActionRequest& request = {}
+);
+
+// sub_470A10.
+[[nodiscard]] LegacyBattleActorResourceListCountResult
+count_legacy_battle_actor_resource_list(
+    LegacyBattleActorListQueryState* list,
+    compat::u32 actor_token,
+    const LegacyBattleActorResourceListCountRequest& request
 );
 
 // sub_470910.
