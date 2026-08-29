@@ -281,6 +281,7 @@ add_executable(
     unit/battle/legacy_battle_group_a_growth_reward_selection_test.cpp
     unit/battle/legacy_battle_group_a_item_effect_application_test.cpp
     unit/battle/legacy_battle_group_a_npc_materialization_test.cpp
+    unit/battle/legacy_battle_group_a_profile_mode_selection_test.cpp
     unit/battle/legacy_battle_group_a_reward_profile_application_test.cpp
     unit/battle/legacy_battle_group_a_summon_materialization_test.cpp
     unit/battle/legacy_battle_group_a_resource_pair_test.cpp

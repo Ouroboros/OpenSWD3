@@ -29,6 +29,7 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u8 record_mode_flags{};             // actor + 0x0393
     compat::u8 profile_mode{};                  // actor + 0x2F30
     compat::u16 profile_value{};                // actor + 0x2A0C
+    compat::u16 identity_word{};                // actor + 0x0D64
     compat::u16 alternate_mode{};               // actor + 0x2A8C
     compat::u16 copied_word{};                  // actor + 0x00FC
     compat::u16 copied_runtime_word{};          // actor + 0x0DA4
@@ -66,6 +67,8 @@ struct LegacyBattleGroupAActionExecutionState {
 struct LegacyBattleGroupAActionExecutionSharedState {
     compat::u32 profile_mode_active{};  // 0x0053CEB8
     compat::u8 completion_counter{};    // low byte 0x0053CEB4
+    compat::u32 profile_threshold{};    // 0x0053BCE4
+    compat::u32 last_identity{};        // 0x0053CEBC
     compat::u32 negative_flag{};        // 0x0053C008
     compat::u32 negative_reset{};       // 0x0053BD60
     compat::u32 color_gate{};           // 0x0053C030

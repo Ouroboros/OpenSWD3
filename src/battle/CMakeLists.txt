@@ -35,6 +35,7 @@ add_library(
         legacy_battle_group_a_growth_reward_selection.cpp
         legacy_battle_group_a_item_effect_application.cpp
         legacy_battle_group_a_npc_materialization.cpp
+        legacy_battle_group_a_profile_mode_selection.cpp
         legacy_battle_group_a_resource_pair.cpp
         legacy_battle_group_a_reward_profile_application.cpp
         legacy_battle_group_a_summon_materialization.cpp
