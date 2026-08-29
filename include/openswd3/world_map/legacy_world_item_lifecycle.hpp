@@ -22,7 +22,8 @@ inline constexpr std::array<compat::u8, 2U> kLegacyItemSentinelNameBytes{
 // The raw 0xB0-byte ItemNode stores its link at +0x00, four u16 fields at
 // +0x04..+0x0A, definition bytes at +0x0C..+0xAB and an owned description
 // pointer at +0xAC. std::list and std::vector replace the two raw pointers;
-// legacy_token/legacy_next_token retain the 32-bit physical identity as metadata.
+// legacy_token/legacy_next_token/legacy_description_token retain their 32-bit
+// physical identities as metadata.
 struct LegacyWorldItemNode {
     compat::u16 item_id{};
     compat::u16 selected_count{};
@@ -33,6 +34,7 @@ struct LegacyWorldItemNode {
     std::vector<compat::u8> description;
     compat::u32 legacy_token{};
     compat::u32 legacy_next_token{};
+    compat::u32 legacy_description_token{};
 };
 
 struct LegacyWorldSentinelItemList {

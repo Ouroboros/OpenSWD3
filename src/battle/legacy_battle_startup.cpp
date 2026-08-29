@@ -84,6 +84,57 @@ private:
     LegacyBattleStartupPort& port_;
 };
 
+class StartupGroupAAttributeAggregationPort final
+    : public LegacyBattleGroupAAttributeAggregationPort {
+public:
+    explicit StartupGroupAAttributeAggregationPort(
+        LegacyBattleStartupPort& port
+    ) noexcept
+        : port_(port) {}
+
+    [[nodiscard]] LegacyBattleGroupAAttributeAggregationCallReply
+    invoke_group_a_attribute_aggregation(
+        const LegacyBattleGroupAAttributeAggregationCallRequest& request
+    ) override {
+        LegacyBattleStartupCallRequest call{};
+        switch (request.call) {
+        case LegacyBattleGroupAAttributeAggregationCall::
+            report_missing_primary_attribute:
+            call.call = LegacyBattleStartupCall::
+                group_a_attribute_missing_primary_diagnostic;
+            call.arguments = {
+                request.window_token,
+                request.diagnostic_text_token,
+                request.diagnostic_source_token,
+                request.diagnostic_source_line,
+            };
+            call.eax = request.item_id;
+            break;
+
+        case LegacyBattleGroupAAttributeAggregationCall::apply_embedded_profile:
+            call.call = LegacyBattleStartupCall::group_a_embedded_profile_apply;
+            call.arguments = {
+                request.actor_token,
+                request.embedded_profile_token,
+                request.source_record_token,
+                request.embedded_profile_index,
+            };
+            call.eax = request.item_id;
+            call.group_a_profile_record = request.embedded_profile;
+            break;
+        }
+        const auto reply = port_.invoke(call);
+        return {
+            .eax = reply.return_value,
+            .ecx = reply.ecx_snapshot,
+            .edx = reply.edx_snapshot,
+        };
+    }
+
+private:
+    LegacyBattleStartupPort& port_;
+};
+
 class StartupGroupAConfigurationDiagnosticPort final
     : public LegacyBattleGroupAConfigurationDiagnosticPort {
 public:
@@ -761,6 +812,10 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
                 LegacyBattleStartupStatus::party_configuration_typed_stop;
             return result;
         }
+        state.group_a_profiles.profile_tokens[index] =
+            party.configuration.auxiliary_record_token;
+        state.group_a_profiles.profile_kinds[index] =
+            state.group_a_auxiliary_profile_kinds[source];
         if (invoke(
                 port,
                 LegacyBattleStartupCall::query_party_actor_mode,
@@ -789,6 +844,7 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         return result;
     }
 
+    StartupGroupAAttributeAggregationPort attribute_aggregation_port(port);
     for (u32 index = 0U; index < state.party_count; ++index) {
         if (index >= kLegacyBattleActorGroupAElementCount ||
             index >= kPartySourceCount) {
@@ -803,16 +859,37 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
             return result;
         }
         const u32 actor_token = group_a_actor_token(index);
-        const auto profile = invoke(
-            port,
-            LegacyBattleStartupCall::apply_party_profile,
-            {actor_token, 0x004C8AD0U + source * 0x40U, 0U, 0U}
-        );
-        if (profile.publish_group_a_profile) {
-            state.group_a_profiles.profile_tokens[index] =
-                profile.group_a_profile_token;
-            state.group_a_profiles.profile_kinds[index] =
-                profile.group_a_profile_kind;
+        LegacyBattleGroupAAttributeSourceTable attribute_sources{};
+        for (u32 slot = 0U; slot < kLegacyBattleGroupAAttributeSourceCount;
+             ++slot) {
+            const u32 source_index =
+                source * kLegacyBattleGroupAAttributeSourceCount + slot;
+            auto& source_owner =
+                port.world_item_list_state().role_item_lists[source_index];
+            if (source_owner.has_value()) {
+                attribute_sources[slot] = {
+                    .record = &source_owner->sentinel,
+                    .record_token = source_owner->sentinel.legacy_token,
+                };
+            }
+        }
+        result.party_attribute_aggregations[index] =
+            aggregate_legacy_battle_group_a_attributes(
+                &state.party[index].attribute_aggregation,
+                state.party[index].workspace,
+                state.party[index].configuration,
+                &attribute_sources,
+                actor_token,
+                0x004C8AD0U + source * 0x40U,
+                request.window_token,
+                attribute_aggregation_port
+            );
+        ++result.party_attribute_aggregation_calls;
+        if (result.party_attribute_aggregations[index].status !=
+            LegacyBattleGroupAAttributeAggregationStatus::completed) {
+            result.status = LegacyBattleStartupStatus::
+                party_attribute_aggregation_typed_stop;
+            return result;
         }
         result.party_value_pairs[index] =
             publish_legacy_battle_group_a_value_pair(

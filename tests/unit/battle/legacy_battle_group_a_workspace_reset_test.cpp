@@ -8,6 +8,7 @@
 void test_battle_group_a_workspace_reset(openswd3::test::Context& test) {
     openswd3::battle::LegacyBattleGroupAWorkspaceState state{
         .object_token = 0x005029D0U,
+        .special_item_latch = 0x89ABCDEFU,
         .field_2f0c = 0xA5A5A5A5U,
         .untouched_field_2f0e = 0x1357U,
         .untouched_field_2f26 = 0x2468U,
@@ -30,7 +31,8 @@ void test_battle_group_a_workspace_reset(openswd3::test::Context& test) {
             std::ranges::all_of(
                 state.tail_words, [](const auto value) { return value == 0U; }
             ) &&
-            state.field_2f0c == 0U && state.untouched_field_2f0e == 0x1357U &&
+            state.special_item_latch == 0x89ABCDEFU && state.field_2f0c == 0U &&
+            state.untouched_field_2f0e == 0x1357U &&
             state.untouched_field_2f26 == 0x2468U &&
             result.explicit_words_zeroed == 11U &&
             result.explicit_dwords_zeroed == 1U &&
@@ -45,6 +47,7 @@ void test_battle_group_a_workspace_reset(openswd3::test::Context& test) {
     openswd3::battle::LegacyBattleStartupState startup;
     auto& owned = startup.party[2U].workspace;
     owned.object_token = 0x00508838U;
+    owned.special_item_latch = 0x12345678U;
     owned.early_workspace.fill(0xAAAAAAAAU);
     owned.late_workspace.fill(0xBBBBBBBBU);
     owned.tail_words.fill(0xCCCCU);
@@ -52,6 +55,7 @@ void test_battle_group_a_workspace_reset(openswd3::test::Context& test) {
         openswd3::battle::reset_legacy_battle_group_a_workspace(owned);
     test.expect_true(
         owned_result.return_edx == owned.object_token &&
+            owned.special_item_latch == 0x12345678U &&
             std::ranges::all_of(
                 startup.party[2U].workspace.early_workspace,
                 [](const auto value) { return value == 0U; }

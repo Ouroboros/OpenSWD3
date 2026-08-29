@@ -10,6 +10,8 @@ struct LegacyBattleGroupAWorkspaceState {
     compat::u32 object_token{};
     // actor + 0x0AF0 .. +0x0C1F
     std::array<compat::u32, 0x4C> early_workspace{};
+    // actor + 0x2B18; reset_legacy_battle_group_a_workspace does not clear it.
+    compat::u32 special_item_latch{};
     // actor + 0x2B24 .. +0x2EBF; the upper 0xBE dwords are cleared first.
     std::array<compat::u32, 0xE7> late_workspace{};
     compat::u32 field_2f0c{};

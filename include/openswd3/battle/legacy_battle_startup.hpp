@@ -4,6 +4,7 @@
 #include "openswd3/battle/legacy_battle_actor_progress.hpp"
 #include "openswd3/battle/legacy_battle_background_initialization.hpp"
 #include "openswd3/battle/legacy_battle_definition_archive.hpp"
+#include "openswd3/battle/legacy_battle_group_a_attribute_aggregation.hpp"
 #include "openswd3/battle/legacy_battle_group_a_configuration.hpp"
 #include "openswd3/battle/legacy_battle_group_a_npc_materialization.hpp"
 #include "openswd3/battle/legacy_battle_group_a_resource_pair.hpp"
@@ -76,7 +77,7 @@ enum class LegacyBattleStartupCall : compat::u16 {
     set_enemy_mode,
     reserved_configure_party_actor,
     query_party_actor_mode,
-    apply_party_profile,
+    reserved_apply_party_attribute_aggregation,
     reserved_apply_party_value,
     reserved_apply_party_palette,
     apply_party_name,
@@ -94,6 +95,8 @@ enum class LegacyBattleStartupCall : compat::u16 {
     group_a_profile_load,
     group_a_profile_release,
     group_a_npc_missing_role_diagnostic,
+    group_a_attribute_missing_primary_diagnostic,
+    group_a_embedded_profile_apply,
 };
 
 struct LegacyBattleStartupCallRequest {
@@ -102,6 +105,7 @@ struct LegacyBattleStartupCallRequest {
     compat::u32 eax{};
     compat::u32 ecx{};
     compat::u32 edx{};
+    LegacyBattleGroupASummonProfileRecord group_a_profile_record{};
 };
 
 struct LegacyBattleStartupCallReply {
@@ -117,9 +121,6 @@ struct LegacyBattleStartupCallReply {
     compat::u32 group_b_count{};
     bool publish_group_a_count{};
     compat::u32 group_a_count{};
-    bool publish_group_a_profile{};
-    compat::u32 group_a_profile_token{};
-    compat::u32 group_a_profile_kind{};
     bool publish_group_a_profile_record{};
     LegacyBattleGroupASummonProfileRecord group_a_profile_record{};
 };
@@ -199,6 +200,7 @@ struct LegacyBattlePartyStartupRecord {
     LegacyBattleActorProgressState progress;
     LegacyBattleGroupAWorkspaceState workspace;
     LegacyBattleGroupAConfigurationState configuration;
+    LegacyBattleGroupAAttributeAggregationState attribute_aggregation;
     LegacyBattleGroupAValuePairState value_pair;
     LegacyBattleGroupAResourcePairState resource_pair;
 };
@@ -272,6 +274,9 @@ struct LegacyBattleStartupState {
     std::array<LegacyBattlePartyStartupRecord, 10> party{};
     std::array<LegacyBattleGroupAConfigurationSourceRecord, 4>
         group_a_configuration_sources{};
+    std::array<compat::u32, 4> group_a_auxiliary_profile_kinds{
+        0x38U, 0x38U, 0x38U, 0x38U
+    };
     LegacyBattleGroupAProfileState group_a_profiles{};
     // Group-A actor field view at 0x00505890 + index * 0x2F34 and the
     // callee-observable text index at the referenced record's +4 word.
@@ -320,6 +325,7 @@ enum class LegacyBattleStartupStatus : compat::u8 {
     party_resource_pair_typed_stop,
     party_value_pair_typed_stop,
     supplemental_materialization_typed_stop,
+    party_attribute_aggregation_typed_stop,
 };
 
 struct LegacyBattleDisplaySurfaceReleaseResult {
@@ -353,6 +359,9 @@ struct LegacyBattleStartupResult {
     std::array<LegacyBattleGroupAResourcePairResult, 10> party_resource_pairs{};
     LegacyBattlePlayerItemOrderResult player_item_order{};
     LegacyBattlePartyItemOrderResult party_item_order{};
+    compat::u32 party_attribute_aggregation_calls{};
+    std::array<LegacyBattleGroupAAttributeAggregationResult, 10>
+        party_attribute_aggregations{};
     compat::u32 supplemental_actor_count{};
     std::array<LegacyBattleGroupANpcMaterializationResult, 10>
         supplemental_materializations{};
