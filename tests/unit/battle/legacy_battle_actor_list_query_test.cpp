@@ -138,6 +138,45 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
     }
 
     {
+        actor.next_list_index = list.owner_token;
+        const auto result = count_legacy_battle_actor_list(
+            &actor,
+            &list,
+            0x005029D0U,
+            0x00610000U,
+            {.category_selector = 0U,
+             .type_selector = 0U,
+             .entry_count = 0xFFU,
+             .entry_eax = 0xAAAAAAAAU,
+             .entry_edx = 0xBBBBBBBBU}
+        );
+        test.expect_true(
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                result.nodes_visited == 3U && result.matches == 2U &&
+                result.count == 1U && result.return_eax == 0U &&
+                result.return_ecx == 0x00610000U &&
+                result.return_edx == 0xBBBBBBBBU,
+            "list count preserves the caller byte then wraps once per matching node"
+        );
+    }
+
+    {
+        actor.next_list_index = list.owner_token;
+        const auto result = count_legacy_battle_actor_list(
+            &actor,
+            &list,
+            0x005029D0U,
+            0x00610000U,
+            {.category_selector = 0U, .type_selector = 7U, .entry_count = 9U}
+        );
+        test.expect_true(
+            result.count == 9U && result.matches == 0U &&
+                result.nodes_visited == 3U,
+            "every non-twenty-eight type selector still tests only type thirty-one"
+        );
+    }
+
+    {
         QueryPort port;
         LegacyBattleActorListQueryState bad = list;
         bad.head_token = 0xDEADBEEFU;

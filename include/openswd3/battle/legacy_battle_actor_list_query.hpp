@@ -79,6 +79,28 @@ struct LegacyBattleActorListQueryResult {
     compat::u32 return_edx{};
 };
 
+struct LegacyBattleActorListCountRequest {
+    compat::u32 category_selector{};
+    compat::u32 type_selector{};
+    compat::u8 entry_count{};
+    compat::u32 entry_eax{};
+    compat::u32 entry_edx{};
+};
+
+struct LegacyBattleActorListCountResult {
+    LegacyBattleActorListQueryStatus status{
+        LegacyBattleActorListQueryStatus::completed
+    };
+    LegacyBattleActorListIndexCommitResult index_commit{};
+    compat::u32 index_commit_calls{};
+    compat::u32 nodes_visited{};
+    compat::u32 matches{};
+    compat::u8 count{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
 // sub_470180.
 [[nodiscard]] LegacyBattleActorListQueryResult query_legacy_battle_actor_list(
     LegacyBattleGroupAActionExecutionState* actor,
@@ -86,6 +108,15 @@ struct LegacyBattleActorListQueryResult {
     compat::u32 actor_token,
     LegacyBattleActorListQueryPort& port,
     const LegacyBattleActorListQueryRequest& request
+);
+
+// sub_4702E0.
+[[nodiscard]] LegacyBattleActorListCountResult count_legacy_battle_actor_list(
+    LegacyBattleGroupAActionExecutionState* actor,
+    LegacyBattleActorListQueryState* list,
+    compat::u32 actor_token,
+    compat::u32 count_token,
+    const LegacyBattleActorListCountRequest& request
 );
 
 }  // namespace openswd3::battle
