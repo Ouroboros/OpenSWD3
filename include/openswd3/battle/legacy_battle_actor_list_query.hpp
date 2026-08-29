@@ -1,6 +1,8 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_actor_list_index_commit.hpp"
+#include "openswd3/battle/legacy_battle_group_a_final_processing_state.hpp"
+#include "openswd3/battle/legacy_battle_group_a_item_effect_application.hpp"
 
 #include <span>
 #include <string>
@@ -15,7 +17,13 @@ struct LegacyBattleActorListNode {
     compat::u8 mode_flags{};       // node + 0x46
     compat::u16 type{};            // node + 0x5E
     compat::u16 profile_id{};      // node + 0x4A
+    compat::u16 value_40{};        // node + 0x40
+    compat::u16 value_42{};        // node + 0x42
+    compat::u16 value_44{};        // node + 0x44
+    compat::u16 copy_flags{};      // node + 0x48
     compat::u16 value_flags{};     // node + 0x4C
+    compat::u16 mode_value{};      // node + 0x54
+    compat::u16 output_value{};    // node + 0x5C
     std::string text;              // node + 0x0C
 };
 
@@ -75,6 +83,7 @@ enum class LegacyBattleActorListQueryStatus : compat::u8 {
     list_node_typed_stop,
     resource_owner_typed_stop,
     resource_node_typed_stop,
+    list_text_typed_stop,
     return_table_typed_stop,
 };
 
@@ -90,6 +99,33 @@ struct LegacyBattleActorListQueryResult {
     compat::u32 matched_token{};
     compat::u16 output_word{};
     std::string output_text;
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
+struct LegacyBattleActorListApplyRequest {
+    compat::u32 category_selector{};
+    compat::u32 type_selector{};
+    compat::u32 occurrence{};
+    compat::u32 entry_eax{};
+    compat::u32 entry_edx{};
+};
+
+struct LegacyBattleActorListApplyResult {
+    LegacyBattleActorListQueryStatus status{
+        LegacyBattleActorListQueryStatus::completed
+    };
+    LegacyBattleActorListIndexCommitResult index_commit{};
+    compat::u32 index_commit_calls{};
+    compat::u32 profile_load_calls{};
+    compat::u32 nodes_visited{};
+    compat::u32 matches{};
+    compat::u32 profile_buffer_dwords_zeroed{};
+    compat::u32 pre_effect_dwords_zeroed{};
+    compat::u32 derived_word_writes{};
+    compat::u32 mode_field_writes{};
+    compat::u32 output_value{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
@@ -170,6 +206,17 @@ struct LegacyBattleActorListCountResult {
     compat::u32 actor_token,
     LegacyBattleActorListQueryPort& port,
     const LegacyBattleActorListQueryRequest& request
+);
+
+// sub_4705C0.
+[[nodiscard]] LegacyBattleActorListApplyResult apply_legacy_battle_actor_list(
+    LegacyBattleGroupAActionExecutionState* actor,
+    LegacyBattleActorListQueryState* list,
+    LegacyBattleGroupAFinalProcessingState* final_state,
+    LegacyBattleGroupAItemEffectApplicationState* item_effect,
+    compat::u32 actor_token,
+    LegacyBattleActorListQueryPort& port,
+    const LegacyBattleActorListApplyRequest& request
 );
 
 // sub_4702E0.

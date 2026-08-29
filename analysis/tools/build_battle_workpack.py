@@ -796,6 +796,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-actor-list-state-processing-00470380.md",
     ),
+    "0x004705C0": (
+        "platform_adapted",
+        "evidence/battle-actor-list-profile-application-004705c0.md",
+    ),
 }
 
 

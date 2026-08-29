@@ -217,6 +217,67 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
 
     {
         actor.next_list_index = list.owner_token;
+        list.nodes[1U].value_40 = 11U;
+        list.nodes[1U].value_42 = 12U;
+        list.nodes[1U].value_44 = 13U;
+        list.nodes[1U].copy_flags = 0U;
+        list.nodes[1U].output_value = 77U;
+        LegacyBattleGroupAFinalProcessingState final_state;
+        final_state.profile_buffer.fill(0xFFFFFFFFU);
+        final_state.pre_effect_words.fill(0xFFFFFFFFU);
+        LegacyBattleGroupAItemEffectApplicationState item_effect;
+        QueryPort port;
+        const auto result = apply_legacy_battle_actor_list(
+            &actor,
+            &list,
+            &final_state,
+            &item_effect,
+            0x005029D0U,
+            port,
+            {.category_selector = 0U, .type_selector = 0U, .occurrence = 1U}
+        );
+        test.expect_true(
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                result.return_eax == 1U && result.output_value == 77U &&
+                result.profile_buffer_dwords_zeroed == 10U &&
+                result.pre_effect_dwords_zeroed == 4U &&
+                (item_effect.mode_flags & 0x80U) != 0U &&
+                item_effect.derived_words[1U] == 11U &&
+                item_effect.derived_words[2U] == 12U &&
+                item_effect.derived_words[3U] == 13U &&
+                reinterpret_cast<const char*>(
+                    final_state.pre_effect_words.data()
+                )[0] == 'f',
+            "list apply clears both buffers, loads the profile, copies text and publishes derived words"
+        );
+    }
+
+    {
+        actor.next_list_index = list.owner_token;
+        LegacyBattleGroupAFinalProcessingState final_state;
+        final_state.profile_buffer[0U] = 0xAABBCCDDU;
+        LegacyBattleGroupAItemEffectApplicationState item_effect;
+        item_effect.mode_flags = 0x40U;
+        QueryPort port;
+        const auto result = apply_legacy_battle_actor_list(
+            &actor,
+            &list,
+            &final_state,
+            &item_effect,
+            0x005029D0U,
+            port,
+            {.category_selector = 0U, .type_selector = 0U, .occurrence = 0U}
+        );
+        test.expect_true(
+            result.return_eax == 0xFFFFU && result.index_commit_calls == 0U &&
+                final_state.profile_buffer[0U] == 0xAABBCCDDU &&
+                item_effect.mode_flags == 0x40U,
+            "zero occurrence returns minus one before mode flags, clear, and index commit"
+        );
+    }
+
+    {
+        actor.next_list_index = list.owner_token;
         list.nodes[1U].value_flags = 0x800AU;
         list.primary_required = 0U;
         StatePort port;

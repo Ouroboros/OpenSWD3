@@ -591,6 +591,8 @@ I5最终必须锁定：
 
 `audit_order=190`的`0x00470380`已关闭为`platform_adapted`。完整权威LST主体`0x00470380..0x004705B7`共284行、164条实际指令、8个call、30个跳转、18个标签、4个返回点且无外部chunk。实现第N个27–30类节点筛选、bit15/14阈值发布、bit11资源链重建与资源选择、双索引提交、live signed容量比较、共享消息latch及消息/sample抑制顺序。主链、资源链、阈值和selected token扩展于第188项唯一owner；待审资源重建保持窄port。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`190/422 = 181 platform_adapted + 9 assembly_exact + 232 pending_audit`，双跑SHA256为`b470baa980d0fc1b5e3eb51745929f1e24f82750a59b551f46171a6174837bd7`。动态差分因原版两条链、live容量、消息/sample与caller联合捕获后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=191`的`0x004705C0`战斗角色链表资源重置函数。
+`audit_order=191`的`0x004705C0`已关闭为`platform_adapted`。完整权威LST主体`0x004705C0..0x004707A9`共232行、144条实际指令、3个call、23个跳转、15个标签、3个返回点且无外部chunk。实现零occurrence无副作用早退、type mode flag、profile与16字节块清零、索引提交、第N节点筛选、资料加载、字符串复制、模式字段与三项派生word应用、copy latch及category mask返回规则。主链、final状态和物品效果均复用既有唯一owner；待审资料加载保持窄port。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`191/422 = 182 platform_adapted + 9 assembly_exact + 231 pending_audit`，双跑SHA256为`935fb2f925e84d3ec110a903f76519d1105ea2e46df0a9b71598c3cae630ab1c`。动态差分因原版链表、资料加载、字符串目标、模式字段与caller联合捕获后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=192`的`0x004707B0`战斗角色链表相邻函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。
