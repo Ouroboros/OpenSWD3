@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
+#include "openswd3/battle/legacy_battle_actor_progress.hpp"
 #include "openswd3/battle/legacy_battle_background_initialization.hpp"
 #include "openswd3/battle/legacy_battle_definition_archive.hpp"
 #include "openswd3/battle/legacy_battle_group_b_order.hpp"
@@ -173,6 +174,7 @@ struct LegacyBattleEnemyStartupRecord {
     compat::u16 position_x{};
     compat::u16 position_y{};
     compat::u32 value_1c{};
+    LegacyBattleActorProgressState progress;
 };
 
 struct LegacyBattlePartyStartupRecord {
@@ -180,6 +182,7 @@ struct LegacyBattlePartyStartupRecord {
     compat::u16 position_x{};
     compat::u16 position_y{};
     compat::u32 active{};
+    LegacyBattleActorProgressState progress;
 };
 
 struct LegacyBattlePartyMetricRecord {

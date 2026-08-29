@@ -264,6 +264,8 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 state.final_actor_step.selection_gate == 1U &&
                 state.actors[0].special_ready == 1U &&
                 state.actors[0].action_complete == 1U &&
+                state.actors[0].update_ready == 1U &&
+                port.count(0x0046E520U) == 0U &&
                 port.count(0x00439070U) == 1U && port.count(0x0047CE80U) >= 3U,
             "AI coordination counts terminals and retries one based target until live"
         );

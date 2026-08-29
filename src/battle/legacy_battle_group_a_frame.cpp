@@ -17,7 +17,6 @@ using compat::u32;
 constexpr u32 kCallQueryEffect = 0x004786D0U;
 constexpr u32 kCallPublishEffectMode = 0x00478B60U;
 constexpr u32 kCallPrepareAi = 0x0047DAD0U;
-constexpr u32 kCallQueryGlobalGate = 0x0046E520U;
 constexpr u32 kCallAdvanceAi = 0x0046EE60U;
 constexpr u32 kCallQueryTerminal = 0x0047CE80U;
 constexpr u32 kCallSetSelectionMode = 0x00478330U;
@@ -371,10 +370,13 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
         state.action.action_pending_aux == 0U &&
         port.outcome_resolution_state().resolution_latch == 0U) {
         static_cast<void>(invoke(port, result, kCallPrepareAi, {actor_token}));
-        if (invoke(
-                port, result, kCallQueryGlobalGate, {state.actor_gate_argument}
-            )
-                .eax == 1U) {
+        const auto progress = advance_legacy_battle_actor_progress(
+            actor,
+            std::bit_cast<i32>(state.actor_gate_argument),
+            state.actor_progress_threshold,
+            actor_token
+        );
+        if (progress.return_eax == 1U) {
             static_cast<void>(
                 invoke(port, result, kCallAdvanceAi, {actor_token})
             );

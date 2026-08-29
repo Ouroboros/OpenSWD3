@@ -753,12 +753,13 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
                              {actor, 1U, 0U, 0U, 0U, 0U}
             )
                              .return_value;
-            latest_eax = invoke(
-                             port,
-                             LegacyBattleTransitionCall::refresh_actor_message,
-                             {actor, 0U, 0U, 0U, 0U, 0U}
+            latest_eax = advance_legacy_battle_actor_progress(
+                             startup.party[index].progress,
+                             0,
+                             state.actor_progress_threshold,
+                             actor
             )
-                             .return_value;
+                             .return_eax;
             ++result.prepared_party_actors;
         }
         static_cast<void>(latest_eax);
@@ -817,12 +818,13 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
                              {actor, 1U, 0U, 0U, 0U, 0U}
             )
                              .return_value;
-            latest_eax = invoke(
-                             port,
-                             LegacyBattleTransitionCall::refresh_actor_message,
-                             {actor, 0U, 0U, 0U, 0U, 0U}
+            latest_eax = advance_legacy_battle_actor_progress(
+                             startup.enemies[index].progress,
+                             0,
+                             state.actor_progress_threshold,
+                             actor
             )
-                             .return_value;
+                             .return_eax;
             ++result.refreshed_enemy_actors;
         }
         static_cast<void>(latest_eax);

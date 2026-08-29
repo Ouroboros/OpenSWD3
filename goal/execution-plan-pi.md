@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v757
+版本：v758
 
 最后更新：2026-08-25
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗相邻状态函数
+当前步骤：模块10 · 审计战斗相邻角色计算函数
 
 ## 0. 执行约定
 
@@ -4132,4 +4132,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=169`的`0x0046E4D0`战斗组A角色元素析构。主块`0x0046E4D0..0x0046E518`与SEH外部chunk `0x00498390..0x0049839D`合计62行、23条实际指令、2个call、2个跳转、1个返回点。正常路径建立SEH后按扩展清理→基础析构执行，返回基础EAX/ECX/EDX；扩展清理在unwind状态0抛出时，chunk重载this并仍调用基础析构，再继续传播原异常。typed析构复用元素唯一状态，两个内部析构保持窄端口；try/catch精确恢复基础析构保证，不吞异常。组A构造/析构回调均已关闭，两个vector包装器证据更新为只隔离MSVC对全局十对象数组的迭代与EH边界。测试覆盖正常附属记录释放、基础寄存器返回及扩展异常时基础析构后重抛。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过，源码零warning。工作包为`169/422 = 160 platform_adapted + 9 assembly_exact + 253 pending_audit`；生成器连续双跑逐字节一致，SHA256为`fa467eb8e05aaa1dd0a07bb27332df1a13b7fa8ad8ef9fddfaa08353e6bbb765`。动态差分因原版两级析构、全局对象、MSVC SEH和vector迭代器后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=170`的`0x0046E520`战斗相邻状态函数。
+本轮再完成`audit_order=170`的`0x0046E520`战斗角色行动进度更新。完整权威LST主体`0x0046E520..0x0046E690`共179行、118条实际指令、0个call、12个跳转、2个返回点且无外部chunk。函数先检查状态双bit、special/action完成门；通过后以u16 progress和全局i32阈值作signed比较。完成路径置action完成、清transition，按live frame-started/scene门清frame/post-action，固定清双cache并置update-ready，返回1。继续路径从首记录u16基值右移2/可选再右移1，参数1追加四分之一加1，按delay bits保留正负30%、multiplier百分比/二分和固定4点扣除，最后低16位回绕写progress、清完成并返回0。typed统一角色进度状态，组A帧直接调用后按返回1继续AI；转场party/enemy两路更新startup角色状态，旧token/reserved槽生产零调用。测试覆盖入口门、完成尾、正负调整、固定扣除及两个caller。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过，源码零warning。工作包为`170/422 = 161 platform_adapted + 9 assembly_exact + 252 pending_audit`；生成器连续双跑逐字节一致，SHA256为`308250c723c812ae5b277abb1241c514893dc3c6a9c3a25b9836f7134527b894`。动态差分因原版角色对象、首记录、全局阈值和caller共享状态后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=171`的`0x0046E6A0`战斗相邻角色计算函数。

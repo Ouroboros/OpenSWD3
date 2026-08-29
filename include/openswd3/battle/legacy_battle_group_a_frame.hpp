@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
+#include "openswd3/battle/legacy_battle_actor_progress.hpp"
 #include "openswd3/battle/legacy_battle_final_actor_step.hpp"
 #include "openswd3/battle/legacy_battle_post_action.hpp"
 
@@ -8,16 +9,7 @@
 
 namespace openswd3::battle {
 
-struct LegacyBattleGroupAActorRuntime {
-    compat::u32 mode_gate{};
-    compat::u32 action_complete{};
-    compat::u32 special_ready{};
-    compat::u32 progress{};
-    compat::u32 delay_mode{};
-    compat::u32 frame_started{};
-    compat::u32 scene_identity{};
-    compat::u32 post_action_value{};
-};
+using LegacyBattleGroupAActorRuntime = LegacyBattleActorProgressState;
 
 struct LegacyBattleGroupAFrameState {
     LegacyBattleActionDispatchState action{};
@@ -25,6 +17,7 @@ struct LegacyBattleGroupAFrameState {
     compat::u32 global_effect_override{};
     compat::u32 ai_coordination_enabled{};
     compat::u32 actor_gate_argument{};
+    compat::i32 actor_progress_threshold{};
     std::array<compat::u32, 10> actor_enabled{};
     std::array<compat::u32, 10> actor_ai_primary{};
     std::array<compat::u32, 10> actor_ai_secondary{};

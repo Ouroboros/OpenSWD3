@@ -85,7 +85,7 @@ enum class LegacyBattleTransitionCall : compat::u16 {
     reserved_enemy_rare_event_slot,
     prepare_actor_message,
     reset_actor_message,
-    refresh_actor_message,
+    reserved_actor_progress_update,
     reserved_emit_message_slot,
     text_message_allocate,
     text_message_measure,
@@ -147,6 +147,7 @@ struct LegacyBattleTransitionState {
     compat::i32 transform_right{};
     std::array<compat::u32, 10> rare_actor_slots{};
     std::array<compat::u32, 10> party_special_fields{};
+    compat::i32 actor_progress_threshold{};
     std::array<compat::u32, 3> staged_surface_tokens{};
     LegacyBattleFrameEffectState frame_effect{};
     LegacyBattleHudFrameState hud{};

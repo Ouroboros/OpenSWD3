@@ -569,6 +569,11 @@ void test_battle_transition(openswd3::test::Context& test) {
                     LegacyBattleTransitionCall::reserved_enemy_rare_event_slot
                 ) == 0U &&
                 result.prepared_party_actors == 2U &&
+                startup.party[0].progress.update_ready == 1U &&
+                startup.party[1].progress.update_ready == 1U &&
+                ports.call_count(
+                    LegacyBattleTransitionCall::reserved_actor_progress_update
+                ) == 0U &&
                 result.refreshed_enemy_actors == 0U && result.message_emitted &&
                 startup.mode_flags == 0x80U && result.return_value == 0x80U &&
                 result.text_message_calls == 1U &&
@@ -638,6 +643,11 @@ void test_battle_transition(openswd3::test::Context& test) {
                 result.rare_slot_writes == 1U &&
                 state.rare_actor_slots[0] == 8U &&
                 state.current_source_from_frame &&
+                startup.enemies[0].progress.update_ready == 1U &&
+                startup.enemies[1].progress.update_ready == 1U &&
+                ports.call_count(
+                    LegacyBattleTransitionCall::reserved_actor_progress_update
+                ) == 0U &&
                 result.refreshed_enemy_actors == 2U && result.message_emitted &&
                 startup.mode_flags == 0x80U &&
                 result.surface_blend_calls == 1U &&
