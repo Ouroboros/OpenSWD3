@@ -506,6 +506,117 @@ commit_legacy_battle_actor_resource_list(
     return result;
 }
 
+LegacyBattleActorResourceListQueryResult
+query_legacy_battle_actor_resource_list(
+    LegacyBattleActorListQueryState* list,
+    LegacyBattleGroupAConfigurationState* configuration,
+    const u32 actor_token,
+    const LegacyBattleActorResourceListQueryRequest& request
+) {
+    LegacyBattleActorResourceListQueryResult result;
+    result.return_eax = request.entry_eax;
+    result.return_ecx = actor_token;
+    result.return_edx = request.entry_edx;
+    const auto commit = commit_legacy_battle_actor_resource_list(
+        list, actor_token, request.entry_edx
+    );
+    ++result.commit_calls;
+    result.return_eax = commit.return_eax;
+    result.return_ecx = commit.return_ecx;
+    result.return_edx = commit.return_edx;
+    if (commit.status != LegacyBattleActorListQueryStatus::completed) {
+        result.status = commit.status;
+        return result;
+    }
+
+    u32 mask = request.category_selector;
+    if (mask == 0U) {
+        mask = 0x10U;
+    } else if (mask == 1U) {
+        mask = 0x0CU;
+    } else if (mask == 2U) {
+        mask = 0x1001U;
+    } else if (mask == 3U) {
+        mask = 0x0800U;
+    }
+    result.output_flags = 0U;
+    u32 matches = 0U;
+    const LegacyBattleActorListResourceNode* selected = nullptr;
+    while (list->resource_head_token != 0U) {
+        const auto cursor = std::ranges::find(
+            list->resources,
+            list->resource_head_token,
+            &LegacyBattleActorListResourceNode::token
+        );
+        if (cursor == list->resources.end()) {
+            result.status =
+                LegacyBattleActorListQueryStatus::resource_owner_typed_stop;
+            return result;
+        }
+        const u32 next = cursor->next_token;
+        list->resource_head_token = next;
+        if (next == 0U) {
+            break;
+        }
+        const auto node = std::ranges::find(
+            list->resources, next, &LegacyBattleActorListResourceNode::token
+        );
+        if (node == list->resources.end()) {
+            result.status =
+                LegacyBattleActorListQueryStatus::resource_owner_typed_stop;
+            return result;
+        }
+        ++result.nodes_visited;
+        const i32 derived = static_cast<i32>(node->tertiary_quantity) -
+            static_cast<i32>(node->primary_quantity) +
+            static_cast<i32>(node->secondary_quantity);
+        if ((node->category_mask & mask) != 0U &&
+            (node->mode_flags & 0x05U) != 0U && derived > 0) {
+            ++matches;
+            result.matches = matches;
+        }
+        if (matches == request.occurrence) {
+            selected = &*node;
+            break;
+        }
+    }
+    if (selected == nullptr) {
+        result.output_flags = 0U;
+        result.return_eax = 0U;
+        return result;
+    }
+
+    if ((selected->category_mask & mask) != 0U &&
+        (selected->mode_flags & 0x05U) != 0U) {
+        result.copied_name = selected->name;
+        result.output_quantity = static_cast<u16>(
+            static_cast<u16>(selected->tertiary_quantity) -
+            selected->primary_quantity +
+            static_cast<u16>(selected->secondary_quantity)
+        );
+        result.output_flags = 0x8000U;
+        if ((selected->capacity_gate_flags & 0x4000U) != 0U) {
+            if (configuration == nullptr ||
+                configuration->actor_record_token == 0U) {
+                result.status =
+                    LegacyBattleActorListQueryStatus::list_owner_typed_stop;
+                return result;
+            }
+            const u16 threshold =
+                static_cast<u16>(selected->capacity_gate_flags & 0x3FFFU);
+            const compat::i16 capacity = std::bit_cast<compat::i16>(
+                static_cast<u16>(configuration->actor_record[2U])
+            );
+            if (static_cast<i32>(threshold) > static_cast<i32>(capacity)) {
+                result.output_flags =
+                    static_cast<u16>(result.output_flags | 0x4000U);
+            }
+        }
+    }
+    result.return_eax = 1U;
+    return result;
+}
+
 LegacyBattleActorListStateResult process_legacy_battle_actor_list_state(
     LegacyBattleGroupAActionExecutionState* actor,
     LegacyBattleActorListQueryState* list,

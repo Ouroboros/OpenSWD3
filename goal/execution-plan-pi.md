@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v784
+版本：v785
 
 最后更新：2026-08-29
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗角色链表相邻函数 `0x00470910`
+当前步骤：模块10 · 审计战斗角色资源链相邻函数 `0x00470A10`
 
 ## 0. 执行约定
 
@@ -4186,4 +4186,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=196`的`0x00470900`战斗角色资源链头提交。完整权威LST主体`0x00470900..0x0047090C`共8行、3条实际指令、0个call、0个跳转、0个标签、1个返回点且无外部chunk。实现next资源链头到current资源链头的完整dword提交，相等值与零值也写入；current/next扩展于第188项唯一链表owner。第190项bit11 caller已改为typed直连，待审caller留到所属工作包，旧地址生产调用为零。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`196/422 = 187 platform_adapted + 9 assembly_exact + 226 pending_audit`；生成器连续双跑逐字节一致，SHA256为`61edff9d9172acbf3fe675a6ca334657d402de59dffe303618b924e2f702b412`。动态差分因原版current/next链头与caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=197`的`0x00470910`战斗角色链表相邻函数。
+本轮再完成`audit_order=197`的`0x00470910`战斗角色资源链查询。完整权威LST主体`0x00470910..0x00470A05`共132行、86条实际指令、2个call、17个跳转、8个标签、2个返回点且无外部chunk。实现资源链头提交、破坏性前移、category/mode筛选、signed扫描派生、16位输出数量、bit15/14和字符串复制；保留计数后无条件比较导致的occurrence零陈旧成功。资源链与live容量复用唯一owner，权威LST无静态直接caller。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`197/422 = 188 platform_adapted + 9 assembly_exact + 225 pending_audit`；生成器连续双跑逐字节一致，SHA256为`c58f54c211943da1d68a40531cfd6f1749b5eac340567c397a7cdb2c13ff7191`。动态差分因原版资源链、live容量、字符串与寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=198`的`0x00470A10`战斗角色资源链相邻函数。

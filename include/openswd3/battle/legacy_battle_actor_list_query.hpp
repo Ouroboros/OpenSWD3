@@ -31,8 +31,13 @@ struct LegacyBattleActorListResourceNode {
     compat::u32 token{};
     compat::u32 next_token{};
     compat::u16 resource_id{};
-    compat::i16 primary_quantity{};
-    compat::i16 secondary_quantity{};
+    compat::u16 primary_quantity{};     // node + 0x06
+    compat::i16 secondary_quantity{};   // node + 0x08
+    compat::i16 tertiary_quantity{};    // node + 0x0A
+    std::string name;                   // node + 0x0C
+    compat::u32 category_mask{};        // node + 0x2C
+    compat::u8 mode_flags{};            // node + 0x46
+    compat::u16 capacity_gate_flags{};  // node + 0x4C
 };
 
 struct LegacyBattleActorListQueryState {
@@ -216,6 +221,28 @@ struct LegacyBattleActorListStateRequest {
     compat::u32 entry_edx{};
 };
 
+struct LegacyBattleActorResourceListQueryRequest {
+    compat::u32 category_selector{};
+    compat::u32 occurrence{};
+    compat::u32 entry_eax{};
+    compat::u32 entry_edx{};
+};
+
+struct LegacyBattleActorResourceListQueryResult {
+    LegacyBattleActorListQueryStatus status{
+        LegacyBattleActorListQueryStatus::completed
+    };
+    compat::u32 commit_calls{};
+    compat::u32 nodes_visited{};
+    compat::u32 matches{};
+    compat::u16 output_flags{};
+    compat::u16 output_quantity{};
+    std::string copied_name;
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
 struct LegacyBattleActorResourceListCommitResult {
     LegacyBattleActorListQueryStatus status{
         LegacyBattleActorListQueryStatus::completed
@@ -307,6 +334,15 @@ execute_legacy_battle_actor_list_action(
     compat::u32 actor_token,
     LegacyBattleActorListActionPort& port,
     const LegacyBattleActorListActionRequest& request = {}
+);
+
+// sub_470910.
+[[nodiscard]] LegacyBattleActorResourceListQueryResult
+query_legacy_battle_actor_resource_list(
+    LegacyBattleActorListQueryState* list,
+    LegacyBattleGroupAConfigurationState* configuration,
+    compat::u32 actor_token,
+    const LegacyBattleActorResourceListQueryRequest& request
 );
 
 // sub_470900.

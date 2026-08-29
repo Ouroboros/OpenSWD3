@@ -309,6 +309,62 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
     }
 
     {
+        LegacyBattleGroupAConfigurationState configuration;
+        configuration.actor_record_token = 0x00600000U;
+        configuration.actor_record[2U] = 2U;
+        list.next_resource_head_token = 0x76000000U;
+        list.resources = {
+            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+            {.token = 0x76000010U,
+             .primary_quantity = 3U,
+             .secondary_quantity = -1,
+             .tertiary_quantity = 10,
+             .name = "resource",
+             .category_mask = 0x10U,
+             .mode_flags = 0x01U,
+             .capacity_gate_flags = 0x4003U},
+        };
+        const auto result = query_legacy_battle_actor_resource_list(
+            &list,
+            &configuration,
+            0x005029D0U,
+            {.category_selector = 0U, .occurrence = 1U}
+        );
+        test.expect_true(
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                result.return_eax == 1U && result.commit_calls == 1U &&
+                result.nodes_visited == 1U && result.matches == 1U &&
+                result.copied_name == "resource" &&
+                result.output_quantity == 6U &&
+                result.output_flags == 0xC000U &&
+                list.resource_head_token == 0x76000010U,
+            "resource query destructively advances the chain, counts a positive match and publishes quantity plus both flag bits"
+        );
+    }
+
+    {
+        list.next_resource_head_token = 0x76000000U;
+        list.resources = {
+            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+            {.token = 0x76000010U,
+             .name = {},
+             .category_mask = 0U,
+             .mode_flags = 0U},
+        };
+        const auto result = query_legacy_battle_actor_resource_list(
+            &list,
+            nullptr,
+            0x005029D0U,
+            {.category_selector = 0U, .occurrence = 0U}
+        );
+        test.expect_true(
+            result.return_eax == 1U && result.matches == 0U &&
+                result.output_flags == 0U && result.copied_name.empty(),
+            "occurrence zero takes the stale success branch after the first nonmatch and rechecks filters without copying"
+        );
+    }
+
+    {
         actor.next_list_index = list.owner_token;
         list.nodes[1U].value_40 = 11U;
         list.nodes[1U].value_42 = 12U;
@@ -403,7 +459,8 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
             {.token = 0x76000000U,
              .resource_id = 5U,
              .primary_quantity = 1,
-             .secondary_quantity = 0}
+             .secondary_quantity = 0,
+             .name = {}}
         };
         StatePort port;
         const auto result = process_legacy_battle_actor_list_state(
