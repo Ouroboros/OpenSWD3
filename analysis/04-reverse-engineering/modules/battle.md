@@ -585,6 +585,8 @@ I5最终必须锁定：
 
 `audit_order=187`的`0x0046FFF0`已关闭为`platform_adapted`。完整权威LST主体`0x0046FFF0..0x00470172`共175行、103条实际指令、4个call、21个跳转、11个标签、2个返回点且无外部chunk。实现零动作早退、模式替换、16字节前置清零、live actor record派生、typed物品效果与profile模式、40字节资料缓冲双加载、内嵌bit5 flag、三类动作转场及非对称0/1返回。新增状态仅持有原物理短生命周期字段，其余复用既有唯一owner；startup reset清零新owner。组A帧两处旧整函数opaque调用均已改为typed直连，旧地址生产调用为零；待审资料加载保留窄port。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`187/422 = 178 platform_adapted + 9 assembly_exact + 235 pending_audit`，双跑SHA256为`e57b6e6a64cbc3b2353a7baa7d2f2537263a2e330aa4de26211644361f163c2d`。动态差分因原版actor、资料记录、callee与caller联合捕获后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=188`的`0x00470180`战斗角色列表读取函数。
+`audit_order=188`的`0x00470180`已关闭为`platform_adapted`。完整权威LST主体`0x00470180..0x004702D4`共191行、111条实际指令、3个call、25个跳转、16个标签、2个返回点且无外部chunk。实现三类category mask映射、两类type映射、typed索引提交、有序链表扫描、先增后比的occurrence语义、失败`0xFFFF`、资料加载、字符串复制、bit15/14/11顺序覆盖、type31最终强制1及陈旧profile index返回表读取。actor索引复用既有owner，新增唯一链表owner；待审资料加载为窄port。两个已关闭caller当前只有无地址语义行查询port且缺少节点物化owner，本包不复制第二份节点状态。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`188/422 = 179 platform_adapted + 9 assembly_exact + 234 pending_audit`，双跑SHA256为`c9defe880e71c231ce22f4b49c04fc9aadd1b35b9585cec25548647291e09f2c`。动态差分因原版链表、资料加载、返回表、字符串目标与caller联合捕获后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=189`的`0x004702E0`战斗角色链表相邻读取函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。
