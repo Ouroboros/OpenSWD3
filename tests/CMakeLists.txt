@@ -272,6 +272,7 @@ add_executable(
     unit/battle/legacy_battle_actor_priority_test.cpp
     unit/battle/legacy_battle_actor_progress_test.cpp
     unit/battle/legacy_battle_actor_ready_test.cpp
+    unit/battle/legacy_battle_group_a_action_execution_test.cpp
     unit/battle/legacy_battle_group_a_attribute_aggregation_test.cpp
     unit/battle/legacy_battle_group_a_attribute_effect_test.cpp
     unit/battle/legacy_battle_group_a_effect_reward_application_test.cpp

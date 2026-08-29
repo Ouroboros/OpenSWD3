@@ -49,6 +49,7 @@ void test_battle_actor_metrics(openswd3::test::Context& test);
 void test_battle_actor_priority(openswd3::test::Context& test);
 void test_battle_actor_progress(openswd3::test::Context& test);
 void test_battle_actor_ready(openswd3::test::Context& test);
+void test_battle_group_a_action_execution(openswd3::test::Context& test);
 void test_battle_group_a_attribute_aggregation(openswd3::test::Context& test);
 void test_battle_group_a_attribute_effect(openswd3::test::Context& test);
 void test_battle_group_a_effect_reward_application(
@@ -7088,6 +7089,7 @@ int main() {
     test_battle_actor_priority(test);
     test_battle_actor_progress(test);
     test_battle_actor_ready(test);
+    test_battle_group_a_action_execution(test);
     test_battle_group_a_attribute_aggregation(test);
     test_battle_group_a_attribute_effect(test);
     test_battle_group_a_effect_reward_application(test);

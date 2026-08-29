@@ -11,6 +11,7 @@
 #include "openswd3/battle/legacy_battle_pair_transition.hpp"
 #include "openswd3/battle/legacy_battle_frame_refresh.hpp"
 #include "openswd3/battle/legacy_battle_outcome_state.hpp"
+#include "openswd3/battle/legacy_battle_group_a_action_execution.hpp"
 #include "openswd3/battle/legacy_battle_group_a_attribute_effect.hpp"
 #include "openswd3/battle/legacy_battle_group_a_summon_materialization.hpp"
 #include "openswd3/battle/legacy_battle_group_b_order.hpp"
@@ -191,6 +192,9 @@ struct LegacyBattleActionDispatchState {
     asset_runtime::LegacyActionRecord persistent_action_record{};
 
     std::array<compat::u32, 10> group_a_to_actor{};
+    std::array<LegacyBattleGroupAActionExecutionState, 10>
+        group_a_action_execution{};
+    LegacyBattleGroupAActionExecutionSharedState group_a_action_shared{};
     std::array<compat::u32, 18> target_identity{};
     std::array<compat::u32, 18> selection_workspace{};
     std::array<compat::u32, 18> selected_group_b_identity{};
@@ -240,6 +244,8 @@ struct LegacyBattleActionDispatchContext {
     LegacyBattleActionDispatchState* shared_action_dispatch{};
     LegacyBattleFinalActorStepState* shared_final_actor{};
     LegacyBattleTargetSelectionRuntimeState* target_selection_runtime{};
+    std::span<const compat::u32> group_a_skip_primary;
+    std::span<const compat::u32> group_a_skip_secondary;
 };
 
 enum class LegacyBattleActionDispatchStatus : compat::u8 {
@@ -270,6 +276,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     attack_order_remove_typed_stop,
     summon_materialization_typed_stop,
     group_a_attribute_effect_typed_stop,
+    group_a_action_execution_typed_stop,
 };
 
 struct LegacyBattleActionDispatchResult {
@@ -307,6 +314,8 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 summon_materialization_calls{};
     LegacyBattleGroupAAttributeEffectResult group_a_attribute_effect{};
     compat::u32 group_a_attribute_effect_calls{};
+    LegacyBattleGroupAActionExecutionResult group_a_action_execution{};
+    compat::u32 group_a_action_execution_calls{};
 };
 
 // sub_4539B0: dispatch one action code for the selected group-A actor and

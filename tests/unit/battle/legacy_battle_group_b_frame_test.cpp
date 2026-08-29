@@ -169,6 +169,8 @@ struct Fixture {
             .attack_order_secondary_gate = &attack_order_secondary_gate,
             .attack_order_adjacent_record = &attack_order_adjacent_record,
             .status_indicator_action_eax_snapshot = 0U,
+            .group_a_skip_primary = {},
+            .group_a_skip_secondary = {},
         };
     }
 };

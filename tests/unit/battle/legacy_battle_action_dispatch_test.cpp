@@ -289,6 +289,8 @@ struct Fixture {
             .attack_order_secondary_gate = &attack_order_secondary_gate,
             .attack_order_adjacent_record = &attack_order_adjacent_record,
             .status_indicator_action_eax_snapshot = 0U,
+            .group_a_skip_primary = {},
+            .group_a_skip_secondary = {},
         };
     }
 };
@@ -438,11 +440,12 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
     {
         LegacyBattleActionDispatchState state;
         state.group_a_to_actor[0] = 0U;
+        state.action_runtime_flags = 0x8000U;
+        state.group_a_action_execution[0U].completion_gate = 1U;
         Fixture fixture;
         DispatchPort port;
         port.battle_pair_primary_value() = 1000U;
         port.action = 1U;
-        port.push(0x0046F8C0U, {.eax = 1U});
         port.push(0x0047F150U, {.eax = 1U});
         port.push(0x00482E90U, {.eax = 1U});
         auto context = fixture.context();
@@ -468,11 +471,12 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         LegacyBattleActionDispatchState state;
         state.side_mode = 1U;
         state.group_a_to_actor[0] = 0U;
+        state.action_runtime_flags = 0x8000U;
+        state.group_a_action_execution[0U].completion_gate = 1U;
         Fixture fixture;
         DispatchPort port;
         port.battle_pair_primary_value() = 1000U;
         port.action = 1U;
-        port.push(0x0046F8C0U, {.eax = 1U});
         port.push(0x0047F150U, {.eax = 1U});
         port.push(0x00482E90U, {.eax = 1U});
         auto context = fixture.context();
@@ -492,6 +496,8 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         LegacyBattleActionDispatchState state;
         state.group_a_to_actor[0] = 0U;
         state.blocking_effect = 1U;
+        state.action_runtime_flags = 0x8000U;
+        state.group_a_action_execution[0U].completion_gate = 1U;
         Fixture fixture;
         DispatchPort port;
         port.battle_pair_primary_value() = 1000U;
@@ -757,6 +763,8 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
     {
         LegacyBattleActionDispatchState state;
         state.group_a_to_actor[0] = 0U;
+        state.action_runtime_flags = 0x8000U;
+        state.group_a_action_execution[0U].completion_gate = 1U;
         Fixture fixture;
         fixture.raster.surface.width = 641;
         DispatchPort port;

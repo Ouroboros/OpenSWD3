@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v771
+版本：v772
 
 最后更新：2026-08-29
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗行动调度相邻函数 `0x0046F8C0`
+当前步骤：模块10 · 审计战斗角色最终处理相邻函数 `0x0046FF00`
 
 ## 0. 执行约定
 
@@ -4160,4 +4160,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=183`的`0x0046F850`战斗组A成长奖励选择。完整权威LST主体`0x0046F850..0x0046F8B4`从proc到endp共63行，其中57个非标签物理行、39条实际指令、0个call、8个跳转、6个局部标签、1个返回点且无外部chunk。函数固定扫描组A角色两份资料，从共享紧凑链根按显式token查找同id节点；阻塞或数量不足的重复节点不终止扫描，只有首个未阻塞且数量按unsigned不小于资料最大值的节点成功。成功后把数量向下夹到最大值、置阻塞word 1并返回item id；最大值零立即成功并清数量。首次成功后仍读取第二item id，第二id非零才在链访问前早退，保留对应资料游标与首次节点token。typed实现复用startup两资料和第181、182项共享链owner；已关闭成长结果caller直接调用，旧成长选择槽及frame coordinator转发槽reserved且生产零调用。测试覆盖两资料全零、链头stop、充分/不足/阻塞重复、断链、首成功后的第二资料、零最大值、第二资料成功、定义/描述/标题链、标题stop和message传播。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`183/422 = 174 platform_adapted + 9 assembly_exact + 239 pending_audit`；生成器连续双跑逐字节一致，SHA256为`2b1b964c11dbf21fe09f4abaddf3759f2efbb558028bdf5fdca90187dc9749e5`。动态差分因原版动态资料、共享链token、成长caller寄存器和后续定义加载联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=184`的`0x0046F8C0`战斗行动调度相邻函数。
+本轮再完成`audit_order=184`的`0x0046F8C0`战斗组A动作执行。完整权威LST主体`0x0046F8C0..0x0046FEEE`从proc到endp共668行，其中637个非标签物理行、386条实际指令、11个call、48个跳转、31个局部标签、5个返回点且无外部chunk。函数完整覆盖入口门与目标早退、首/次0x98记录准备、actor flag消费、运行时0x4000与0x8000、七项颜色初始化、slot清理、两类目标调用、活动slot准备、位置计算、完成word、motion绘制、资源typed-stop以及五记录最终清理。完成路径复用全局动作flag、startup actor进度和第180项物品效果flag/激活owner；新增owner只保存actor局部记录、slot、位置、motion和资源视图，胜利跳过数组通过frame coordinator只读span绑定。三处静态caller在已关闭行动调度器中收敛为两个typed调用位置，普通与alternate side均直连，旧完整函数调用生产零次。测试覆盖入口、早退、flag消费、颜色、slot、目标、渲染、motion资源stop、激活倒计时及caller两side、阻塞效果和framebuffer stop。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`184/422 = 175 platform_adapted + 9 assembly_exact + 238 pending_audit`；生成器连续双跑逐字节一致，SHA256为`769db821e21fdc38842ae86bb1cbbf882b1a3453689c411e6fec2c3c8abfa506`。动态差分因原版actor完整状态、目标、资源、九类callee和三处caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=185`的`0x0046FF00`战斗角色最终处理相邻函数。

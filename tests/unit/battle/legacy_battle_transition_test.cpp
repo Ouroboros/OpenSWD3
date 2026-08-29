@@ -375,6 +375,8 @@ struct ActorFrameFixture {
               .attack_order_primary_gate = &startup.reset.value_53bf80,
               .attack_order_secondary_gate = &startup.reset.value_53bfd0,
               .attack_order_adjacent_record = &attack_order_adjacent_record,
+              .group_a_skip_primary = {},
+              .group_a_skip_secondary = {},
           },
           context{state, ports, dispatch} {}
 };

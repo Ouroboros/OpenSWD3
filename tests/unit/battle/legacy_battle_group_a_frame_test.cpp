@@ -182,6 +182,8 @@ struct Fixture {
             .shared_action_dispatch = &shared_action,
             .shared_final_actor = &shared_final_actor,
             .target_selection_runtime = &target_runtime,
+            .group_a_skip_primary = {},
+            .group_a_skip_secondary = {},
         };
     }
 };

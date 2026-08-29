@@ -411,6 +411,10 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             &context.final_actor_step;
         context.actor_frames->dispatch.target_selection_runtime =
             &port.battle_target_selection_runtime_state();
+        context.actor_frames->dispatch.group_a_skip_primary =
+            port.battle_victory_reward_state().group_a_skip_primary;
+        context.actor_frames->dispatch.group_a_skip_secondary =
+            port.battle_victory_reward_state().group_a_skip_secondary;
         context.actor_frames->dispatch.startup = &context.startup;
         context.actor_frames->dispatch.startup_reset = &context.startup.reset;
         context.actor_frames->dispatch.text_messages =
