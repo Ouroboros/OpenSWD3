@@ -13,6 +13,7 @@
 #include "openswd3/battle/legacy_battle_outcome_state.hpp"
 #include "openswd3/battle/legacy_battle_group_a_action_execution.hpp"
 #include "openswd3/battle/legacy_battle_group_a_attribute_effect.hpp"
+#include "openswd3/battle/legacy_battle_group_a_final_processing.hpp"
 #include "openswd3/battle/legacy_battle_group_a_summon_materialization.hpp"
 #include "openswd3/battle/legacy_battle_group_b_order.hpp"
 #include "openswd3/battle/legacy_battle_player_item_quantity.hpp"
@@ -277,6 +278,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     summon_materialization_typed_stop,
     group_a_attribute_effect_typed_stop,
     group_a_action_execution_typed_stop,
+    group_a_final_processing_typed_stop,
 };
 
 struct LegacyBattleActionDispatchResult {
@@ -316,6 +318,8 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 group_a_attribute_effect_calls{};
     LegacyBattleGroupAActionExecutionResult group_a_action_execution{};
     compat::u32 group_a_action_execution_calls{};
+    LegacyBattleGroupAFinalProcessingResult group_a_final_processing{};
+    compat::u32 group_a_final_processing_calls{};
 };
 
 // sub_4539B0: dispatch one action code for the selected group-A actor and

@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v774
+版本：v775
 
 最后更新：2026-08-29
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗组A角色最终处理函数 `0x0046FFF0`
+当前步骤：模块10 · 审计战斗角色列表读取函数 `0x00470180`
 
 ## 0. 执行约定
 
@@ -4166,4 +4166,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=186`的`0x0046FFE0`战斗角色列表索引提交。完整权威LST主体`0x0046FFE0..0x0046FFEC`共8行、3条实际指令、0个call、0个跳转、1个返回点且无外部chunk。函数无条件把actor next list index完整dword复制到current list index，EAX返回复制值，ECX/EDX保持；相等值仍写。两个字段复用第184项每actor动作owner，缺失时在首读取typed-stop。九个静态caller分布于六函数；待审第188至191项留到所属工作包，已关闭两个列表caller因未暴露actor物理owner登记边界缺口而不复制状态。测试覆盖typed-stop、完整32位复制、寄存器和相等写。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`186/422 = 177 platform_adapted + 9 assembly_exact + 236 pending_audit`；生成器连续双跑逐字节一致，SHA256为`ff1f2a148d947032f7b568f189054169c61541330ff2c814479697d9db0272b7`。动态差分因原版索引状态与九处caller联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=187`的`0x0046FFF0`战斗组A角色最终处理函数，并直连第180与185项。
+本轮再完成`audit_order=187`的`0x0046FFF0`战斗组A角色最终处理。完整权威LST主体`0x0046FFF0..0x00470172`共175行、103条实际指令、4个call、21个跳转、11个标签、2个返回点且无外部chunk。实现零动作早退、模式替换、16字节前置清零、live actor record派生、typed物品效果与profile模式、40字节资料缓冲双加载、内嵌bit5 flag、三类动作转场及非对称0/1返回。新增状态仅持有原物理短生命周期字段，其余复用既有唯一owner；startup reset清零新owner。组A帧两处旧整函数opaque调用均已改为typed直连，旧地址生产调用为零；待审资料加载保留窄port。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`187/422 = 178 platform_adapted + 9 assembly_exact + 235 pending_audit`；生成器连续双跑逐字节一致，SHA256为`e57b6e6a64cbc3b2353a7baa7d2f2537263a2e330aa4de26211644361f163c2d`。动态差分因原版actor、资料记录、callee与caller联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=188`的`0x00470180`战斗角色列表读取函数。

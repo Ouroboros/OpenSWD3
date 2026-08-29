@@ -41,7 +41,10 @@ constexpr u32 kCallClearControl = 0x0047C660U;
 constexpr u32 kCallClearPresentation = 0x0047CC50U;
 constexpr u32 kCallSetDelay = 0x00478710U;
 constexpr u32 kCallPublishSelection = 0x00478A70U;
-constexpr u32 kCallFinalizeActor = 0x0046FFF0U;
+constexpr u32 kCallLookupProfileItem = 0x00482F70U;
+constexpr u32 kCallRefreshProgressMultiplier = 0x00482F10U;
+constexpr u32 kCallApplyProfileItemDelta = 0x004830A0U;
+constexpr u32 kCallLoadProfile = 0x00476A80U;
 constexpr u32 kCallSelectOpponent = 0x00478AA0U;
 constexpr u32 kCallQueryOtherActor = 0x0047CEA0U;
 constexpr u32 kCallPrepareSelection = 0x00478B30U;
@@ -104,6 +107,93 @@ public:
 
 private:
     LegacyBattleActionDispatchPort& port_;
+};
+
+class GroupAFinalProcessingAdapter final
+    : public LegacyBattleGroupAFinalProcessingPort {
+public:
+    GroupAFinalProcessingAdapter(
+        LegacyBattleActionDispatchPort& port,
+        LegacyBattleActionDispatchResult& result
+    ) noexcept
+        : port_(port), result_(result) {}
+
+    [[nodiscard]] LegacyBattleGroupAItemEffectApplicationCallReply
+    invoke_group_a_item_effect_application(
+        const LegacyBattleGroupAItemEffectApplicationCallRequest& request
+    ) override {
+        u32 callee = kCallLookupProfileItem;
+        std::array<u32, 8> arguments{};
+        switch (request.call) {
+        case LegacyBattleGroupAItemEffectApplicationCall::
+            lookup_embedded_profile_item_id:
+            arguments[0] = request.effect_kind;
+            break;
+        case LegacyBattleGroupAItemEffectApplicationCall::
+            refresh_progress_multiplier:
+            callee = kCallRefreshProgressMultiplier;
+            arguments[0] = request.progress_multiplier;
+            break;
+        case LegacyBattleGroupAItemEffectApplicationCall::
+            apply_profile_item_quantity_delta:
+            callee = kCallApplyProfileItemDelta;
+            arguments[0] = request.item_list_token;
+            arguments[1] = request.effect_kind;
+            arguments[2] = request.quantity_delta;
+            break;
+        }
+        ++result_.port_calls;
+        const auto reply = port_.invoke({
+            .callee_token = callee,
+            .arguments = arguments,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        });
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .publish_progress_multiplier = reply.publish_accumulator,
+            .progress_multiplier = static_cast<u16>(reply.accumulator),
+        };
+    }
+
+    [[nodiscard]] LegacyBattleGroupAProfileModeRandomReply random_below(
+        const u32 bound, const u32 eax, const u32 ecx, const u32 edx
+    ) override {
+        ++result_.port_calls;
+        const auto reply = port_.invoke({
+            .callee_token = kCallRandom,
+            .arguments = {bound},
+            .eax = eax,
+            .ecx = ecx,
+            .edx = edx,
+        });
+        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
+    }
+
+    [[nodiscard]] LegacyBattleGroupAFinalProfileLoadReply load_profile(
+        const u32 buffer_token,
+        const u16 profile_id,
+        const u32 eax,
+        const u32 ecx,
+        const u32 edx
+    ) override {
+        ++result_.port_calls;
+        const auto reply = port_.invoke({
+            .callee_token = kCallLoadProfile,
+            .arguments = {buffer_token, profile_id},
+            .eax = eax,
+            .ecx = ecx,
+            .edx = edx,
+        });
+        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
+    }
+
+private:
+    LegacyBattleActionDispatchPort& port_;
+    LegacyBattleActionDispatchResult& result_;
 };
 
 class GroupAAttributeEffectAdapter final
@@ -276,6 +366,53 @@ one_based_group_b_token(const u32 one_based) noexcept {
 ) {
     ++result.port_calls;
     return port.invoke({.callee_token = callee, .arguments = arguments});
+}
+
+[[nodiscard]] bool process_group_a_final(
+    LegacyBattleGroupAFrameState& state,
+    LegacyBattleActionDispatchPort& port,
+    LegacyBattleActionDispatchContext& context,
+    LegacyBattleActionDispatchResult& result,
+    const u32 group_a_index,
+    const u32 actor_token
+) {
+    if (context.startup == nullptr || group_a_index >= 10U ||
+        group_a_index >= state.action.group_a_action_execution.size() ||
+        group_a_index >= context.startup->party.size()) {
+        result.status = LegacyBattleActionDispatchStatus::
+            group_a_final_processing_typed_stop;
+        return false;
+    }
+    const u32 skip_primary = group_a_index < context.group_a_skip_primary.size()
+        ? context.group_a_skip_primary[group_a_index]
+        : 0U;
+    const u32 skip_secondary =
+        group_a_index < context.group_a_skip_secondary.size()
+        ? context.group_a_skip_secondary[group_a_index]
+        : 0U;
+    auto& party = context.startup->party[group_a_index];
+    GroupAFinalProcessingAdapter adapter(port, result);
+    result.group_a_final_processing = process_legacy_battle_group_a_final(
+        &party.final_processing,
+        &state.action.group_a_action_execution[group_a_index],
+        party.progress,
+        &party.configuration,
+        party.attribute_aggregation,
+        &party.item_effect_application,
+        state.action.group_a_action_shared,
+        actor_token,
+        skip_primary,
+        skip_secondary,
+        adapter
+    );
+    ++result.group_a_final_processing_calls;
+    if (result.group_a_final_processing.status !=
+        LegacyBattleGroupAFinalProcessingStatus::completed) {
+        result.status = LegacyBattleActionDispatchStatus::
+            group_a_final_processing_typed_stop;
+        return false;
+    }
+    return true;
 }
 
 [[nodiscard]] bool publish_text_message(
@@ -734,9 +871,18 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                             kCallPublishSelection,
                             {state.selected_actor_one_based - 1U}
                         ));
-                        static_cast<void>(invoke(
-                            port, result, kCallFinalizeActor, {actor_token}
-                        ));
+                        if (!process_group_a_final(
+                                state,
+                                port,
+                                context,
+                                result,
+                                group_a_index,
+                                actor_token
+                            )) {
+                            result.return_value =
+                                result.group_a_final_processing.return_eax;
+                            return result;
+                        }
                         static_cast<void>(
                             invoke(port, result, kCallSetSelectionMode, {0U})
                         );
@@ -815,9 +961,18 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     static_cast<void>(
                         invoke(port, result, kCallSetSelectionMode, {0U})
                     );
-                    static_cast<void>(
-                        invoke(port, result, kCallFinalizeActor, {actor_token})
-                    );
+                    if (!process_group_a_final(
+                            state,
+                            port,
+                            context,
+                            result,
+                            group_a_index,
+                            actor_token
+                        )) {
+                        result.return_value =
+                            result.group_a_final_processing.return_eax;
+                        return result;
+                    }
                     reset_selection_gates(state, port);
                     state.ui_gate_b = 1U;
                     state.ui_gate_c = 1U;

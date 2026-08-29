@@ -788,6 +788,7 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
             LegacyBattleStartupCall::reset_actor,
             {actor_token, 0U, 0U, 0U}
         ));
+        party.final_processing = {};
         party.attribute_aggregation.embedded_profile_application.status_bits =
             0U;
         party.item_effect_application.derived_words[0U] = 0U;
