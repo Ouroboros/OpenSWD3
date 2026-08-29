@@ -790,6 +790,9 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         ));
         party.attribute_aggregation.embedded_profile_application.status_bits =
             0U;
+        party.item_effect_application.derived_words[0U] = 0U;
+        party.item_effect_application.action_kind = 0U;
+        party.item_effect_application.effect_flags = 0U;
         state.group_a_profiles.profile_tokens[index] = 0U;
         state.group_a_profiles.profile_kinds[index] = 0U;
         state.group_a_description_record_tokens[index] = 0U;

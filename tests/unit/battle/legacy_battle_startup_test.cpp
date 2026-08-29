@@ -576,6 +576,15 @@ void test_battle_startup(openswd3::test::Context& test) {
         state.party[0U]
             .attribute_aggregation.embedded_profile_application.status_bits =
             0xFFFFFFFFU;
+        state.party[0U].item_effect_application = {
+            .cached_profile_item_id = 0x1111U,
+            .effect_flags = 0xFFFFFFFFU,
+            .action_kind = 0xFFFFU,
+            .display_kind = 0x2222U,
+            .mode_flags = 0xFFU,
+            .activation_latch = 0xEEU,
+            .derived_words = {0xFFFFU, 0x3333U, 0x4444U, 0x5555U},
+        };
         StartupPorts ports;
         ports.supplemental_modifier_token = 0x004AB790U;
         ports.archive_open_replies.push_back({
@@ -753,6 +762,24 @@ void test_battle_startup(openswd3::test::Context& test) {
                 state.party[0U]
                         .attribute_aggregation.embedded_profile_application
                         .status_bits == 0U &&
+                state.party[0U].item_effect_application.effect_flags == 0U &&
+                state.party[0U].item_effect_application.action_kind == 0U &&
+                state.party[0U].item_effect_application.derived_words[0U] ==
+                    0U &&
+                state.party[0U]
+                        .item_effect_application.cached_profile_item_id ==
+                    0x1111U &&
+                state.party[0U].item_effect_application.display_kind ==
+                    0x2222U &&
+                state.party[0U].item_effect_application.mode_flags == 0xFFU &&
+                state.party[0U].item_effect_application.activation_latch ==
+                    0xEEU &&
+                state.party[0U].item_effect_application.derived_words[1U] ==
+                    0x3333U &&
+                state.party[0U].item_effect_application.derived_words[2U] ==
+                    0x4444U &&
+                state.party[0U].item_effect_application.derived_words[3U] ==
+                    0x5555U &&
                 state.party[0U].workspace.tail_words[5U] ==
                     openswd3::world_map::kLegacyItemSentinelId &&
                 ports.call_count(
