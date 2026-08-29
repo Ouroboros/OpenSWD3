@@ -2,6 +2,7 @@
 #include "test.hpp"
 
 #include <algorithm>
+#include <cstddef>
 #include <deque>
 #include <map>
 #include <vector>
@@ -14,6 +15,8 @@ using openswd3::battle::LegacyBattleEffectCoordinatorState;
 using openswd3::battle::LegacyBattleEffectCoordinatorStatus;
 using openswd3::battle::LegacyBattleEffectFrameState;
 using openswd3::battle::LegacyBattleGroupEffectFrameState;
+using openswd3::compat::u8;
+using openswd3::compat::u16;
 using openswd3::compat::u32;
 
 constexpr u32 kFeedback = 0x0047F150U;
@@ -59,14 +62,27 @@ void seed_completed_records(LegacyBattleEffectCoordinatorState& state) {
     }
 }
 
+void set_profile_word(
+    openswd3::battle::LegacyBattleGroupASummonProfileRecord& profile,
+    const std::size_t offset,
+    const u16 value
+) {
+    profile[offset] = static_cast<std::byte>(static_cast<u8>(value));
+    profile[offset + 1U] = static_cast<std::byte>(static_cast<u8>(value >> 8U));
+}
+
 [[nodiscard]] openswd3::battle::LegacyBattleEffectCoordinatorResult
 run(LegacyBattleEffectCoordinatorState& state,
     EffectCoordinatorPort& port,
     openswd3::rendering::LegacyFramebuffer& framebuffer,
     const u32 ui_state = 0x8000U,
-    const u32 focus_actor = 0U) {
+    const u32 focus_actor = 0U,
+    openswd3::battle::LegacyBattleStartupState* startup_state = nullptr) {
+    openswd3::battle::LegacyBattleStartupState fallback_startup;
+    auto& startup =
+        startup_state == nullptr ? fallback_startup : *startup_state;
     return openswd3::battle::advance_legacy_battle_effect_coordinator(
-        state, port, framebuffer, ui_state, focus_actor
+        state, startup, port, framebuffer, ui_state, focus_actor
     );
 }
 
@@ -238,14 +254,23 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
 
     {
         LegacyBattleEffectCoordinatorState state;
+        openswd3::battle::LegacyBattleStartupState startup;
         EffectCoordinatorPort port;
         openswd3::rendering::LegacyFramebuffer framebuffer;
         auto& metrics = port.actor_metric_state();
         metrics.priority_actor_index = 0U;
         metrics.group_b_mode = 0U;
         seed_completed_records(state);
+        state.group_b_copy_argument_words[0U] = 1U;
+        auto& profile =
+            startup.party[0U].attribute_aggregation.embedded_profiles[0U];
+        set_profile_word(profile, 0x04U, 100U);
+        set_profile_word(profile, 0x08U, 51U);
+        set_profile_word(profile, 0x10U, 7U);
+        port.group_a_reward_profile_state().head.item_id = 7U;
         port.feedback_return = 1U;
-        const auto result = run(state, port, framebuffer, 0x8000U, 8U);
+        const auto result =
+            run(state, port, framebuffer, 0x8000U, 8U, &startup);
         test.expect_true(
             result.return_value == 1U && result.effect_frame_calls == 1U &&
                 result.actor_query_calls == 2U &&
@@ -253,10 +278,50 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
                 result.framebuffer_fill_calls == 1U &&
                 state.framebuffer_dirty_latch == 1U &&
                 port.actor_publication_state().slots[0] == 0U &&
-                port.count(0x0046F6E0U) == 1U &&
+                result.group_a_effect_reward_calls == 1U &&
+                result.group_a_effect_reward.matched_profiles == 1U &&
+                port.group_a_reward_profile_state().head.quantity == 12U &&
+                port.group_a_reward_profile_state().head.percentage == 12U &&
+                port.count(0x0046F6E0U) == 0U &&
                 result.pair_transition_calls == 1U &&
                 result.pair_transition.port_calls == 0U,
-            "current group-B single-target group-A path preserves copy and pair-finalization order"
+            "current group-B single-target group-A path directly merges eligible reward profiles before pair finalization"
+        );
+    }
+
+    {
+        LegacyBattleEffectCoordinatorState state;
+        openswd3::battle::LegacyBattleStartupState startup;
+        EffectCoordinatorPort port;
+        openswd3::rendering::LegacyFramebuffer framebuffer;
+        auto& metrics = port.actor_metric_state();
+        metrics.priority_actor_index = 0U;
+        metrics.group_b_mode = 0U;
+        seed_completed_records(state);
+        state.group_b_copy_argument_words[0U] = 1U;
+        auto& profile =
+            startup.party[0U].attribute_aggregation.embedded_profiles[0U];
+        set_profile_word(profile, 0x04U, 100U);
+        set_profile_word(profile, 0x08U, 51U);
+        set_profile_word(profile, 0x10U, 7U);
+        port.group_a_reward_profile_state().head.item_id = 1U;
+        port.group_a_reward_profile_state().head.legacy_next_token =
+            0x00DEAD00U;
+        const auto result =
+            run(state, port, framebuffer, 0x8000U, 0U, &startup);
+        test.expect_true(
+            result.status ==
+                    LegacyBattleEffectCoordinatorStatus::
+                        group_a_effect_reward_typed_stop &&
+                result.group_a_effect_reward_calls == 1U &&
+                result.group_a_effect_reward.status ==
+                    openswd3::battle::
+                        LegacyBattleGroupAEffectRewardApplicationStatus::
+                            profile_node_typed_stop &&
+                result.pair_transition_calls == 0U &&
+                state.actor_activity_latch == 0U &&
+                port.count(0x0046F6E0U) == 0U,
+            "effect coordinator propagates the reclaimed reward-profile token stop before actor publication"
         );
     }
 
@@ -275,6 +340,7 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
                 result.framebuffer_fill_calls == 1U &&
                 state.group_b_feedback_actor == 0U &&
                 state.framebuffer_dirty_latch == 0U &&
+                result.group_a_effect_reward_calls == 0U &&
                 port.count(0x0046F6E0U) == 0U,
             "current group-B single-target group-B feedback fills without publishing the group-A dirty latch"
         );
@@ -297,7 +363,8 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
                 result.group_effect_frame_calls == 1U &&
                 result.effect_frame_calls == 0U &&
                 state.selected_actor_pair == 0xAAAA0000U &&
-                port.count(0x0046F6E0U) == 1U && port.count(0x00472C70U) == 0U,
+                result.group_a_effect_reward_calls == 1U &&
+                port.count(0x0046F6E0U) == 0U && port.count(0x00472C70U) == 0U,
             "current group-B group effect always targets group A regardless of the single-effect side mode"
         );
     }

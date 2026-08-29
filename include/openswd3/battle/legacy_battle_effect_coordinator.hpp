@@ -1,6 +1,8 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_group_a_effect_reward_application.hpp"
 #include "openswd3/battle/legacy_battle_group_effect_frame.hpp"
+#include "openswd3/battle/legacy_battle_startup.hpp"
 #include "openswd3/rendering/legacy_framebuffer.hpp"
 
 #include <array>
@@ -50,6 +52,7 @@ struct LegacyBattleEffectCoordinatorState
     compat::u16 group_b_feedback_actor{};
 
     std::array<compat::u32, 10> group_a_arguments{};
+    std::array<compat::u16, 8> group_b_copy_argument_words{};
     std::array<compat::u32, kLegacyBattleEffectActorSlotCount>
         processed_actor_slots{};
     std::array<compat::u32, kLegacyBattleEffectActorSlotCount>
@@ -91,6 +94,7 @@ enum class LegacyBattleEffectCoordinatorStatus : compat::u8 {
     effect_frame_typed_stop,
     group_effect_frame_typed_stop,
     framebuffer_typed_stop,
+    group_a_effect_reward_typed_stop,
 };
 
 struct LegacyBattleEffectCoordinatorResult {
@@ -103,12 +107,14 @@ struct LegacyBattleEffectCoordinatorResult {
     compat::u32 actor_status_calls{};
     compat::u32 effect_frame_calls{};
     compat::u32 group_effect_frame_calls{};
+    compat::u32 group_a_effect_reward_calls{};
     compat::u32 feedback_calls{};
     compat::u32 framebuffer_fill_calls{};
     compat::u32 group_a_iterations{};
     compat::u32 group_b_iterations{};
     LegacyBattlePairTransitionResult pair_transition{};
     compat::u32 pair_transition_calls{};
+    LegacyBattleGroupAEffectRewardApplicationResult group_a_effect_reward{};
 };
 
 // Typed closure of legacy 0x0045C010. The two effect callees are composed
@@ -117,6 +123,7 @@ struct LegacyBattleEffectCoordinatorResult {
 [[nodiscard]] LegacyBattleEffectCoordinatorResult
 advance_legacy_battle_effect_coordinator(
     LegacyBattleEffectCoordinatorState& state,
+    LegacyBattleStartupState& startup,
     LegacyBattleEffectCallPort& port,
     rendering::LegacyFramebuffer& framebuffer,
     compat::u32 ui_state,

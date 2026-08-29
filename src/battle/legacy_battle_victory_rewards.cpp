@@ -410,7 +410,7 @@ private:
             static_cast<u32>(bindings_.state.reward_experience);
         auto& profile_result = result_.group_a_reward_profiles[actor_index];
         profile_result = apply_legacy_battle_group_a_reward_profiles(
-            &bindings_.state.group_a_reward_profiles,
+            &port_.group_a_reward_profile_state(),
             &bindings_.startup.party[actor_index]
                  .attribute_aggregation.embedded_profiles,
             ecx_,

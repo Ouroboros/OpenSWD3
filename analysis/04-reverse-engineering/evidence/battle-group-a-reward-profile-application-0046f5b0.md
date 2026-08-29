@@ -30,7 +30,7 @@
 
 ## 5. caller回收与owner
 
-全程序唯一caller位于已关闭的战斗胜利奖励函数。它传入当前组A角色、固定奖励链token和奖励经验低word；原opaque调用之后只以EAX是否为1决定奖励gate。当前caller改为直接使用startup角色属性汇总中已有的两份内嵌资料和胜利奖励状态中的唯一紧凑链owner，直接发布typed返回寄存器与stop。
+全程序唯一caller位于已关闭的战斗胜利奖励函数。它传入当前组A角色、固定奖励链token和奖励经验低word；原opaque调用之后只以EAX是否为1决定奖励gate。当前caller改为直接使用startup角色属性汇总中已有的两份内嵌资料和胜利、效果运行路径共享状态端口中的唯一紧凑链owner，直接发布typed返回寄存器与stop。
 
 旧胜利奖励调用枚举槽及帧协调器转发槽保留为reserved，生产路径零调用。分配callee仍以固定20字节窄端口保留，不提前宣称底层内存管理器关闭。
 

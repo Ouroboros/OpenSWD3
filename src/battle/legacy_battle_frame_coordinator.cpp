@@ -469,6 +469,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
     }
     result.effect_coordinator = advance_legacy_battle_effect_coordinator(
         port.effect_coordinator_state(),
+        context.startup,
         port,
         context.frame_zero.framebuffer,
         state.ui_state,

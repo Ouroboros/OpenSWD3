@@ -47,7 +47,6 @@ struct LegacyBattleVictoryRewardState {
     compat::u16 reward_experience{};                       // 0x0053BF16
     compat::u16 party_profile_threshold{};                 // 0x004A762A
     compat::u32 actor_reward_gate{};                       // 0x0053C4C4
-    LegacyBattleGroupARewardProfileState group_a_reward_profiles;
 };
 
 class LegacyBattleVictoryRewardStatePort {
@@ -122,6 +121,7 @@ struct LegacyBattleVictoryRewardRegisters {
 
 class LegacyBattleVictoryRewardPort
     : public virtual LegacyBattleVictoryRewardStatePort,
+      public virtual LegacyBattleGroupARewardProfileStatePort,
       public virtual LegacyBattleInputDispatchPort,
       public virtual LegacyBattleActionDispatchPort {
 public:

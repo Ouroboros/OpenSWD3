@@ -760,6 +760,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-group-a-reward-profile-application-0046f5b0.md",
     ),
+    "0x0046F6E0": (
+        "platform_adapted",
+        "evidence/battle-group-a-effect-reward-application-0046f6e0.md",
+    ),
 }
 
 

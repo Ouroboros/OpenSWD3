@@ -336,7 +336,7 @@ void test_battle_victory_rewards(openswd3::test::Context& test) {
                                   .attribute_aggregation.embedded_profiles[0U];
         set_profile_word(actor_profile, 0x04U, 10U);
         set_profile_word(actor_profile, 0x10U, 5U);
-        fixture.state.group_a_reward_profiles.head.item_id = 5U;
+        fixture.port.group_a_reward_profile_state().head.item_id = 5U;
         fixture.port.reply(
             LegacyBattleVictoryRewardCall::
                 reserved_transition_stage_advance_slot,
@@ -371,8 +371,10 @@ void test_battle_victory_rewards(openswd3::test::Context& test) {
                 result.group_a_reward_profiles[0U].matched_profiles == 1U &&
                 result.group_a_reward_profiles[0U].return_eax == 1U &&
                 result.group_a_reward_profiles[1U].return_eax == 0U &&
-                fixture.state.group_a_reward_profiles.head.quantity == 10U &&
-                fixture.state.group_a_reward_profiles.head.percentage == 100U &&
+                fixture.port.group_a_reward_profile_state().head.quantity ==
+                    10U &&
+                fixture.port.group_a_reward_profile_state().head.percentage ==
+                    100U &&
                 fixture.state.actor_reward_gate == 1U &&
                 fixture.state.committed_money_word == 0x8005U &&
                 fixture.script_variables[0U] == 105U &&
@@ -470,7 +472,7 @@ void test_battle_victory_rewards(openswd3::test::Context& test) {
                                   .attribute_aggregation.embedded_profiles[0U];
         set_profile_word(actor_profile, 0x04U, 10U);
         set_profile_word(actor_profile, 0x10U, 7U);
-        fixture.state.group_a_reward_profiles.head.legacy_next_token =
+        fixture.port.group_a_reward_profile_state().head.legacy_next_token =
             0x00DEAD00U;
         const auto result = run(fixture);
         test.expect_true(

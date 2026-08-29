@@ -15,7 +15,6 @@ using compat::u32;
 constexpr u32 kCallQueryActor = 0x004786E0U;
 constexpr u32 kCallActorStatus = 0x0047CE80U;
 constexpr u32 kCallFeedback = 0x0047F150U;
-constexpr u32 kCallCopyActorValue = 0x0046F6E0U;
 constexpr u32 kCallQueryFinalActor = 0x0047F920U;
 constexpr u32 kCallQueryReward = 0x00472C70U;
 constexpr u32 kCallPublishRewardId = 0x004787D0U;
@@ -52,11 +51,12 @@ class Runner final {
 public:
     Runner(
         LegacyBattleEffectCoordinatorState& state,
+        LegacyBattleStartupState& startup,
         LegacyBattleEffectCallPort& port,
         rendering::LegacyFramebuffer& framebuffer
     )
-        : state_(state), port_(port), framebuffer_(framebuffer),
-          metrics_(port.actor_metric_state()),
+        : state_(state), startup_(startup), port_(port),
+          framebuffer_(framebuffer), metrics_(port.actor_metric_state()),
           publications_(port.actor_publication_state()),
           shift_(port.effect_shift_state()) {}
 
@@ -197,14 +197,43 @@ public:
         return invoke(kCallFeedback, {first, second, third}).eax;
     }
 
-    void copy_actor_value(const u32 destination_token) {
-        static_cast<void>(invoke(
-            kCallCopyActorValue,
-            {kLegacyBattleEffectCoordinatorCopySourceToken, destination_token},
-            0U,
-            kLegacyBattleEffectCoordinatorCopySourceToken,
-            0U
-        ));
+    [[nodiscard]] bool copy_actor_value(
+        const u32 actor_token,
+        const u32 profile_index,
+        const u32 destination_index
+    ) {
+        if (profile_index >= startup_.party.size()) {
+            result.status =
+                LegacyBattleEffectCoordinatorStatus::group_a_actor_typed_stop;
+            return false;
+        }
+        if (destination_index >= state_.group_b_copy_argument_words.size()) {
+            result.status =
+                LegacyBattleEffectCoordinatorStatus::group_b_actor_typed_stop;
+            return false;
+        }
+        result.group_a_effect_reward =
+            apply_legacy_battle_group_a_effect_rewards(
+                &port_.group_a_reward_profile_state(),
+                &startup_.party[profile_index]
+                     .attribute_aggregation.embedded_profiles,
+                &state_.group_b_copy_argument_words[destination_index],
+                actor_token,
+                kLegacyBattleEffectCoordinatorCopySourceToken,
+                kLegacyBattleEffectCoordinatorGroupBCopyBaseToken +
+                    destination_index *
+                        kLegacyBattleEffectCoordinatorGroupBStride,
+                port_
+            );
+        ++result.group_a_effect_reward_calls;
+        result.port_calls += result.group_a_effect_reward.port_calls;
+        if (result.group_a_effect_reward.status !=
+            LegacyBattleGroupAEffectRewardApplicationStatus::completed) {
+            result.status = LegacyBattleEffectCoordinatorStatus::
+                group_a_effect_reward_typed_stop;
+            return false;
+        }
+        return true;
     }
 
     void finalize_pair(const u32 first_actor, const u32 second_actor) {
@@ -313,6 +342,7 @@ public:
     }
 
     LegacyBattleEffectCoordinatorState& state_;
+    LegacyBattleStartupState& startup_;
     LegacyBattleEffectCallPort& port_;
     rendering::LegacyFramebuffer& framebuffer_;
     LegacyBattleActorMetricState& metrics_;
@@ -332,12 +362,13 @@ LegacyBattleEffectCoordinatorState::LegacyBattleEffectCoordinatorState() {
 
 LegacyBattleEffectCoordinatorResult advance_legacy_battle_effect_coordinator(
     LegacyBattleEffectCoordinatorState& state,
+    LegacyBattleStartupState& startup,
     LegacyBattleEffectCallPort& port,
     rendering::LegacyFramebuffer& framebuffer,
     const u32 ui_state,
     const u32 focus_actor
 ) {
-    Runner run(state, port, framebuffer);
+    Runner run(state, startup, port, framebuffer);
     auto& result = run.result;
     auto& metrics = port.actor_metric_state();
     auto& shift = port.effect_shift_state();
@@ -785,11 +816,9 @@ LegacyBattleEffectCoordinatorResult advance_legacy_battle_effect_coordinator(
             return result;
         }
 
-        if (!target_group_b) {
-            run.copy_actor_value(
-                kLegacyBattleEffectCoordinatorGroupBCopyBaseToken +
-                current_index * kLegacyBattleEffectCoordinatorGroupBStride
-            );
+        if (!target_group_b &&
+            !run.copy_actor_value(target_token, target_index, current_index)) {
+            return result;
         }
         i32 queried = 0;
         if (!run.query_actor(current_token, queried)) {
@@ -900,10 +929,11 @@ LegacyBattleEffectCoordinatorResult advance_legacy_battle_effect_coordinator(
             const auto& actor = state.group_a[index];
             if (actor_state != 1U && actor.guard_ac1 != 1U &&
                 actor.guard_ac0 != 1U) {
-                run.copy_actor_value(
-                    kLegacyBattleEffectCoordinatorGroupBCopyBaseToken +
-                    current_index * kLegacyBattleEffectCoordinatorGroupBStride
-                );
+                if (!run.copy_actor_value(
+                        group_a_token(index), index, current_index
+                    )) {
+                    return result;
+                }
                 if (state.feedback_primary[index] > 0U) {
                     run.pair_primary_value() = state.feedback_primary[index];
                 }
@@ -1014,12 +1044,9 @@ LegacyBattleEffectCoordinatorResult advance_legacy_battle_effect_coordinator(
             }
             if (child_return == 1U &&
                 state.processed_actor_slots[index] == 0xFFFFFFFFU) {
-                if (!scan_group_b) {
-                    run.copy_actor_value(
-                        kLegacyBattleEffectCoordinatorGroupBCopyBaseToken +
-                        current_index *
-                            kLegacyBattleEffectCoordinatorGroupBStride
-                    );
+                if (!scan_group_b &&
+                    !run.copy_actor_value(actor_token, index, current_index)) {
+                    return result;
                 }
                 state.processed_actor_slots[index] = index;
                 state.actor_activity_latch = 1U;
