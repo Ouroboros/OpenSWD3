@@ -20,18 +20,7 @@ public:
         arguments_zero = first == 0U && second == 0U;
         return {.eax = 4U, .ecx = 5U, .edx = 6U};
     }
-    [[nodiscard]] openswd3::battle::LegacyBattleActorListActionReply
-    refresh_actor(
-        const openswd3::compat::u32,
-        const openswd3::compat::u32 eax,
-        const openswd3::compat::u32 ecx,
-        const openswd3::compat::u32 edx
-    ) override {
-        ++refresh_calls;
-        return {.eax = eax + 1U, .ecx = ecx, .edx = edx};
-    }
     openswd3::compat::u32 release_calls{};
-    openswd3::compat::u32 refresh_calls{};
     bool arguments_zero{};
 };
 
@@ -280,16 +269,37 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         test.expect_true(
             result.release_calls == 1U && result.refresh_calls == 1U &&
                 port.arguments_zero && list.selected_resource_token == 0U &&
-                list.primary_required == 0U && result.return_eax == 5U,
+                list.primary_required == 0U && result.return_eax == 4U &&
+                result.return_edx == 0U,
             "selected resource path releases with two zero arguments then refreshes using returned registers"
+        );
+    }
+
+    {
+        LegacyBattleGroupAConfigurationState configuration;
+        configuration.actor_record_token = 0x00600000U;
+        configuration.actor_record[2U] = 0xA5A50003U;
+        list.secondary_required = 5U;
+        const auto result = refresh_legacy_battle_actor_list_action(
+            &list, &configuration, 0x005029D0U, 10U, 0xBEEF0000U
+        );
+        test.expect_true(
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                configuration.actor_record[2U] == 0xA5A50000U &&
+                list.secondary_required == 0U && result.capacity_writes == 2U &&
+                result.secondary_required_clears == 1U &&
+                result.return_eax == configuration.actor_record_token &&
+                result.return_edx == 0xBEEF0005U,
+            "secondary refresh preserves high words, wraps subtraction, clamps signed negative and returns stale register halves"
         );
     }
 
     {
         LegacyBattleGroupAItemEffectApplicationState item_effect;
         ActionPort port;
+        list.secondary_required = 0U;
         const auto result = execute_legacy_battle_actor_list_action(
-            nullptr,
+            &list,
             &item_effect,
             nullptr,
             0x005029D0U,
@@ -298,9 +308,9 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         );
         test.expect_true(
             result.status == LegacyBattleActorListQueryStatus::completed &&
-                result.refresh_calls == 1U && result.return_eax == 11U &&
-                result.return_edx == 12U,
-            "mode bit clear skips every list access and still performs the common refresh"
+                result.refresh_calls == 1U && result.return_eax == 10U &&
+                result.return_edx == 0U,
+            "mode bit clear skips primary state and still runs typed secondary refresh"
         );
     }
 

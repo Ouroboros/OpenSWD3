@@ -156,12 +156,17 @@ public:
         compat::u32 ecx,
         compat::u32 edx
     ) = 0;
-    [[nodiscard]] virtual LegacyBattleActorListActionReply refresh_actor(
-        compat::u32 actor_token,
-        compat::u32 eax,
-        compat::u32 ecx,
-        compat::u32 edx
-    ) = 0;
+};
+
+struct LegacyBattleActorListRefreshResult {
+    LegacyBattleActorListQueryStatus status{
+        LegacyBattleActorListQueryStatus::completed
+    };
+    compat::u32 capacity_writes{};
+    compat::u32 secondary_required_clears{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
 };
 
 struct LegacyBattleActorListActionRequest {
@@ -175,6 +180,7 @@ struct LegacyBattleActorListActionResult {
     };
     compat::u32 release_calls{};
     compat::u32 refresh_calls{};
+    LegacyBattleActorListRefreshResult refresh{};
     compat::u32 capacity_writes{};
     compat::u32 selected_resource_clears{};
     compat::u32 primary_required_clears{};
@@ -270,6 +276,16 @@ struct LegacyBattleActorListCountResult {
     compat::u32 actor_token,
     compat::u32 count_token,
     const LegacyBattleActorListCountRequest& request
+);
+
+// sub_470890.
+[[nodiscard]] LegacyBattleActorListRefreshResult
+refresh_legacy_battle_actor_list_action(
+    LegacyBattleActorListQueryState* list,
+    LegacyBattleGroupAConfigurationState* configuration,
+    compat::u32 actor_token,
+    compat::u32 entry_eax,
+    compat::u32 entry_edx
 );
 
 // sub_470820.

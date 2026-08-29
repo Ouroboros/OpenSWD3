@@ -59,7 +59,6 @@ constexpr u32 kCallClearNonterminal = 0x00483FF0U;
 constexpr u32 kCallQueryTargetBusy = 0x00478690U;
 constexpr u32 kCallPrepareTarget = 0x00478AC0U;
 constexpr u32 kCallReleaseActorResource = 0x00470E20U;
-constexpr u32 kCallRefreshActorListAction = 0x00470890U;
 constexpr u32 kCallAdvanceTurnGate = 0x00471540U;
 constexpr u32 kCallResolveTarget = 0x00480AD0U;
 constexpr u32 kCallCommitTurn = 0x004714B0U;
@@ -131,19 +130,6 @@ public:
         const auto reply = port_.invoke({
             .callee_token = kCallReleaseActorResource,
             .arguments = {first_argument, second_argument},
-            .eax = eax,
-            .ecx = actor_token != 0U ? actor_token : ecx,
-            .edx = edx,
-        });
-        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
-    }
-
-    [[nodiscard]] LegacyBattleActorListActionReply refresh_actor(
-        const u32 actor_token, const u32 eax, const u32 ecx, const u32 edx
-    ) override {
-        ++result_.port_calls;
-        const auto reply = port_.invoke({
-            .callee_token = kCallRefreshActorListAction,
             .eax = eax,
             .ecx = actor_token != 0U ? actor_token : ecx,
             .edx = edx,

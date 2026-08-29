@@ -597,6 +597,8 @@ I5最终必须锁定：
 
 `audit_order=193`的`0x00470820`已关闭为`platform_adapted`。完整权威LST主体`0x00470820..0x0047088C`共52行、29条实际指令、3个call、3个跳转、3个标签、2个返回点且无外部chunk。实现mode bit门控、primary容量16位回绕减法、signed负值夹零、selected resource双零参数释放、selected与required清零及统一刷新。组A帧唯一旧opaque caller已改为typed直连，startup reset清零链表owner；旧地址生产调用为零。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`193/422 = 184 platform_adapted + 9 assembly_exact + 229 pending_audit`，双跑SHA256为`36295238c0aedabbca297b2da0fdc67bbd65a102d8ec27e40eec44a434a4dcfb`。动态差分因原版actor记录、两个callee、selected resource与caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=194`的`0x00470890`战斗角色链表动作刷新函数。
+`audit_order=194`的`0x00470890`已关闭为`platform_adapted`。完整权威LST主体`0x00470890..0x004708BC`共23行、11条实际指令、0个call、2个跳转、1个标签、1个返回点且无外部chunk。实现secondary required零值早退、live容量16位回绕减法、signed负值夹零、字段清零及EAX/ECX/EDX寄存器结果。第193项两个caller均改为typed直连，旧刷新地址生产调用为零。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`194/422 = 185 platform_adapted + 9 assembly_exact + 228 pending_audit`，双跑SHA256为`3b36625fb2f7b531968a90e37018c19a31aa7e49dc8c3dc09bfcb200a9ecace6`。动态差分因原版actor记录、secondary required与caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=195`的`0x004708C0`战斗角色链表相邻函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。
