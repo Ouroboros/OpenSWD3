@@ -97,7 +97,8 @@ enum class LegacyBattleStartupCall : compat::u16 {
     group_a_profile_release,
     group_a_npc_missing_role_diagnostic,
     group_a_attribute_missing_primary_diagnostic,
-    group_a_embedded_profile_apply,
+    reserved_group_a_embedded_profile_apply,
+    group_a_embedded_profile_item_quantity,
 };
 
 struct LegacyBattleStartupCallRequest {

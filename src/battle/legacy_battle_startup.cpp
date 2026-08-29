@@ -111,8 +111,10 @@ public:
             call.eax = request.item_id;
             break;
 
-        case LegacyBattleGroupAAttributeAggregationCall::apply_embedded_profile:
-            call.call = LegacyBattleStartupCall::group_a_embedded_profile_apply;
+        case LegacyBattleGroupAAttributeAggregationCall::
+            reserved_apply_embedded_profile:
+            call.call = LegacyBattleStartupCall::
+                reserved_group_a_embedded_profile_apply;
             call.arguments = {
                 request.actor_token,
                 request.embedded_profile_token,
@@ -121,6 +123,21 @@ public:
             };
             call.eax = request.item_id;
             call.group_a_profile_record = request.embedded_profile;
+            break;
+
+        case LegacyBattleGroupAAttributeAggregationCall::
+            lookup_embedded_profile_item_quantity:
+            call.call =
+                LegacyBattleStartupCall::group_a_embedded_profile_item_quantity;
+            call.arguments = {
+                kLegacyBattleEmbeddedProfileItemListToken,
+                request.item_id,
+                0U,
+                0U,
+            };
+            call.eax = request.eax;
+            call.ecx = request.ecx;
+            call.edx = request.edx;
             break;
         }
         const auto reply = port_.invoke(call);
@@ -771,6 +788,8 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
             LegacyBattleStartupCall::reset_actor,
             {actor_token, 0U, 0U, 0U}
         ));
+        party.attribute_aggregation.embedded_profile_application.status_bits =
+            0U;
         state.group_a_profiles.profile_tokens[index] = 0U;
         state.group_a_profiles.profile_kinds[index] = 0U;
         state.group_a_description_record_tokens[index] = 0U;

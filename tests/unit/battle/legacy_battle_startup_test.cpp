@@ -109,6 +109,17 @@ public:
             reply.publish_metric_word = true;
             reply.metric_word = 1U;
             break;
+        case LegacyBattleStartupCall::group_a_embedded_profile_item_quantity: {
+            const auto found =
+                embedded_profile_item_quantities.find(request.arguments[1U]);
+            reply.return_value = found == embedded_profile_item_quantities.end()
+                ? 0U
+                : found->second;
+            reply.ecx_snapshot =
+                (request.ecx & 0xFFFF0000U) | request.arguments[1U];
+            reply.edx_snapshot = request.edx;
+            break;
+        }
         default:
             break;
         }
@@ -260,6 +271,7 @@ public:
 
     LegacyBattleDefinition definition{};
     std::unordered_map<u32, u32> query_values;
+    std::unordered_map<u32, u32> embedded_profile_item_quantities;
     std::deque<u32> random_values;
     std::deque<u32> supplemental_modifier_tokens;
     std::vector<LegacyBattleStartupCallRequest> requests;
@@ -561,6 +573,9 @@ void test_battle_startup(openswd3::test::Context& test) {
         state.group_a_configuration_sources[0U].dwords[1U] = 12000U;
         state.group_a_configuration_sources[0U].dwords[4U] = 0x56781234U;
         state.group_a_configuration_sources[1U].dwords[1U] = 9000U;
+        state.party[0U]
+            .attribute_aggregation.embedded_profile_application.status_bits =
+            0xFFFFFFFFU;
         StartupPorts ports;
         ports.supplemental_modifier_token = 0x004AB790U;
         ports.archive_open_replies.push_back({
@@ -598,6 +613,13 @@ void test_battle_startup(openswd3::test::Context& test) {
         }
         player_items.role_item_lists[0U]->sentinel.definition_snapshot[0x48U] =
             0U;
+        auto& embedded_word_profile =
+            player_items.role_item_lists[7U]->sentinel.definition_snapshot;
+        embedded_word_profile[0x48U] = 52U;
+        embedded_word_profile[0x49U] = 0U;
+        embedded_word_profile[0x50U] = 9U;
+        embedded_word_profile[0x51U] = 0U;
+        ports.embedded_profile_item_quantities = {{9U, 20U}};
         player_items.player_inventory_head_token = 0x00600000U;
         auto& high_item = player_items.player_inventory.emplace_back();
         high_item.legacy_token = 0x00600000U;
@@ -628,10 +650,11 @@ void test_battle_startup(openswd3::test::Context& test) {
                         group_a_attribute_missing_primary_diagnostic;
             }
         );
-        const auto embedded_profile_apply = std::ranges::find_if(
+        const auto embedded_profile_quantity = std::ranges::find_if(
             ports.requests, [](const LegacyBattleStartupCallRequest& call) {
                 return call.call ==
-                    LegacyBattleStartupCall::group_a_embedded_profile_apply;
+                    LegacyBattleStartupCall::
+                        group_a_embedded_profile_item_quantity;
             }
         );
 
@@ -724,6 +747,12 @@ void test_battle_startup(openswd3::test::Context& test) {
                         .source_records_visited == 16U &&
                 result.party_attribute_aggregations[0U]
                         .embedded_profile_apply_calls == 2U &&
+                result.party_attribute_aggregations[0U]
+                        .embedded_profile_applications[0U]
+                        .actor_word_writes == 1U &&
+                state.party[0U]
+                        .attribute_aggregation.embedded_profile_application
+                        .status_bits == 0U &&
                 state.party[0U].workspace.tail_words[5U] ==
                     openswd3::world_map::kLegacyItemSentinelId &&
                 ports.call_count(
@@ -731,8 +760,13 @@ void test_battle_startup(openswd3::test::Context& test) {
                         reserved_apply_party_attribute_aggregation
                 ) == 0U &&
                 ports.call_count(
-                    LegacyBattleStartupCall::group_a_embedded_profile_apply
-                ) == 4U &&
+                    LegacyBattleStartupCall::
+                        reserved_group_a_embedded_profile_apply
+                ) == 0U &&
+                ports.call_count(
+                    LegacyBattleStartupCall::
+                        group_a_embedded_profile_item_quantity
+                ) == 1U &&
                 ports.call_count(
                     LegacyBattleStartupCall::
                         group_a_attribute_missing_primary_diagnostic
@@ -742,15 +776,12 @@ void test_battle_startup(openswd3::test::Context& test) {
                     std::array<u32, 4>{0U, 0x004A7C94U, 0x004A7C44U, 0x182U} &&
                 attribute_diagnostic->eax ==
                     openswd3::world_map::kLegacyItemSentinelId &&
-                embedded_profile_apply != ports.requests.end() &&
-                embedded_profile_apply->arguments ==
-                    std::array<u32, 4>{
-                        0x005029D0U, 0x00502B28U, 0x006204D0U, 0U
-                    } &&
-                embedded_profile_apply->eax ==
-                    openswd3::world_map::kLegacyItemSentinelId &&
-                embedded_profile_apply->group_a_profile_record[0U] ==
-                    std::byte{0xB5U} &&
+                embedded_profile_quantity != ports.requests.end() &&
+                embedded_profile_quantity->arguments ==
+                    std::array<u32, 4>{0x004B8A00U, 9U, 0U, 0U} &&
+                embedded_profile_quantity->eax == 9U &&
+                embedded_profile_quantity->ecx == 0x005029D0U &&
+                embedded_profile_quantity->edx == 0x005029D0U &&
                 result.party_value_pair_calls == 2U &&
                 state.party[0U].value_pair.primary_value == 0x11111111U &&
                 state.party[0U].value_pair.secondary_value == 0x11111111U &&
@@ -1120,7 +1151,12 @@ void test_battle_startup(openswd3::test::Context& test) {
                         reserved_apply_party_attribute_aggregation
                 ) == 0U &&
                 ports.call_count(
-                    LegacyBattleStartupCall::group_a_embedded_profile_apply
+                    LegacyBattleStartupCall::
+                        reserved_group_a_embedded_profile_apply
+                ) == 0U &&
+                ports.call_count(
+                    LegacyBattleStartupCall::
+                        group_a_embedded_profile_item_quantity
                 ) == 0U,
             "missing role-item sentinel stops the direct attribute aggregation before value and resource publication"
         );

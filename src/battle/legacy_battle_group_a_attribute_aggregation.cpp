@@ -148,6 +148,38 @@ void add_early_bonus(
     ++result.early_bonus_additions;
 }
 
+class EmbeddedProfileApplicationPortAdapter final
+    : public LegacyBattleGroupAEmbeddedProfileApplicationPort {
+public:
+    explicit EmbeddedProfileApplicationPortAdapter(
+        LegacyBattleGroupAAttributeAggregationPort& port
+    ) noexcept
+        : port_(port) {}
+
+    [[nodiscard]] LegacyBattleGroupAEmbeddedProfileItemQuantityReply
+    lookup_embedded_profile_item_quantity(
+        const LegacyBattleGroupAEmbeddedProfileItemQuantityRequest& request
+    ) override {
+        const auto reply = port_.invoke_group_a_attribute_aggregation({
+            .call = LegacyBattleGroupAAttributeAggregationCall::
+                lookup_embedded_profile_item_quantity,
+            .actor_token = request.ecx,
+            .item_id = request.item_id,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        });
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+        };
+    }
+
+private:
+    LegacyBattleGroupAAttributeAggregationPort& port_;
+};
+
 }  // namespace
 
 LegacyBattleGroupAAttributeAggregationResult
@@ -268,21 +300,35 @@ aggregate_legacy_battle_group_a_attributes(
             if (source.record->item_id != world_map::kLegacyItemSentinelId) {
                 set_profile_word(embedded, 0x50U, source.record->item_id);
             }
-            const auto reply = port.invoke_group_a_attribute_aggregation({
-                .call = LegacyBattleGroupAAttributeAggregationCall::
-                    apply_embedded_profile,
-                .actor_token = actor_token,
-                .source_record_token = source_token,
-                .embedded_profile_token =
-                    actor_token + (embedded_index == 0U ? 0x158U : 0x1FCU),
-                .embedded_profile_index = embedded_index,
-                .item_id = source.record->item_id,
-                .embedded_profile = embedded,
-            });
-            ++result.port_calls;
+            const u32 embedded_profile_token =
+                actor_token + (embedded_index == 0U ? 0x158U : 0x1FCU);
+            EmbeddedProfileApplicationPortAdapter application_port(port);
+            auto& application =
+                result.embedded_profile_applications[embedded_index];
+            application = apply_legacy_battle_group_a_embedded_profile(
+                &state->embedded_profile_application,
+                configuration,
+                &embedded,
+                actor_token,
+                embedded_profile_token,
+                application_port,
+                {
+                    .entry_eax = embedded_profile_token,
+                    .entry_edx = actor_token,
+                }
+            );
             ++result.embedded_profile_apply_calls;
-            result.return_eax = reply.eax;
-            result.return_ecx = reply.ecx;
+            result.port_calls += application.port_calls;
+            result.return_eax = application.return_eax;
+            result.return_ecx = application.return_ecx;
+            result.return_edx = application.return_edx;
+            if (application.status !=
+                LegacyBattleGroupAEmbeddedProfileApplicationStatus::completed) {
+                result.status = LegacyBattleGroupAAttributeAggregationStatus::
+                    embedded_profile_application_typed_stop;
+                result.fault_source_index = source_index;
+                return result;
+            }
             result.return_edx = actor_token;
             continue;
         }

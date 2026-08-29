@@ -28,6 +28,7 @@ add_library(
         legacy_battle_actor_ready.cpp
         legacy_battle_group_a_attribute_aggregation.cpp
         legacy_battle_group_a_attribute_effect.cpp
+        legacy_battle_group_a_embedded_profile_application.cpp
         legacy_battle_group_a_configuration.cpp
         legacy_battle_group_a_npc_materialization.cpp
         legacy_battle_group_a_resource_pair.cpp

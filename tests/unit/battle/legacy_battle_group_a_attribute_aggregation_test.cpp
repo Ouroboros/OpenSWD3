@@ -112,6 +112,7 @@ void test_battle_group_a_attribute_aggregation(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleGroupAAttributeAggregationCall;
     using openswd3::battle::LegacyBattleGroupAAttributeAggregationState;
     using openswd3::battle::LegacyBattleGroupAAttributeAggregationStatus;
+    using openswd3::battle::LegacyBattleGroupAEmbeddedProfileApplicationStatus;
     using openswd3::battle::LegacyBattleGroupAConfigurationState;
     using openswd3::battle::LegacyBattleGroupAWorkspaceState;
     using openswd3::battle::aggregate_legacy_battle_group_a_attributes;
@@ -144,6 +145,8 @@ void test_battle_group_a_attribute_aggregation(openswd3::test::Context& test) {
         nodes[8U].item_id = openswd3::world_map::kLegacyItemSentinelId;
         nodes[15U].item_id = 0x039DU;
         nodes[15U].legacy_token = 0x73AB0F00U;
+        set_snapshot_word(nodes[7U], 0x48U, 50U);
+        set_snapshot_word(nodes[8U], 0x48U, 53U);
         set_snapshot_word(nodes[7U], 0x50U, 0xAAAAU);
         set_snapshot_word(nodes[8U], 0x50U, 0xBCDEU);
 
@@ -196,6 +199,13 @@ void test_battle_group_a_attribute_aggregation(openswd3::test::Context& test) {
                 result.actor_byte_additions == 108U &&
                 result.early_bonus_additions == 18U &&
                 result.embedded_profile_apply_calls == 2U &&
+                result.embedded_profile_applications[0U].status ==
+                    LegacyBattleGroupAEmbeddedProfileApplicationStatus::
+                        completed &&
+                result.embedded_profile_applications[1U].status ==
+                    LegacyBattleGroupAEmbeddedProfileApplicationStatus::
+                        completed &&
+                state.embedded_profile_application.status_bits == 0x05U &&
                 result.diagnostic_calls == 0U &&
                 result.special_item_latch_writes == 1U &&
                 profile_word(state.embedded_profiles[0U], 0x50U) == 0x0111U &&
@@ -216,13 +226,7 @@ void test_battle_group_a_attribute_aggregation(openswd3::test::Context& test) {
                 workspace.tail_words[7U] == 54U &&
                 workspace.tail_words[8U] == 60U &&
                 workspace.tail_words[9U] == 66U &&
-                workspace.special_item_latch == 1U &&
-                port.requests.size() == 2U &&
-                port.requests[0U].call ==
-                    LegacyBattleGroupAAttributeAggregationCall::
-                        apply_embedded_profile &&
-                port.requests[0U].embedded_profile_token == 0x00502B28U &&
-                port.requests[1U].embedded_profile_token == 0x00502BCCU &&
+                workspace.special_item_latch == 1U && port.requests.empty() &&
                 result.return_eax == 0x73AB0F00U &&
                 result.return_ecx == 0x73AB0001U &&
                 result.return_edx == 0x005029D0U,
@@ -294,7 +298,7 @@ void test_battle_group_a_attribute_aggregation(openswd3::test::Context& test) {
                     LegacyBattleGroupAAttributeAggregationStatus::completed &&
                 result.diagnostic_calls == 1U &&
                 result.embedded_profile_apply_calls == 2U &&
-                port.requests.size() == 3U &&
+                port.requests.size() == 1U &&
                 port.requests[0U].call ==
                     LegacyBattleGroupAAttributeAggregationCall::
                         report_missing_primary_attribute &&

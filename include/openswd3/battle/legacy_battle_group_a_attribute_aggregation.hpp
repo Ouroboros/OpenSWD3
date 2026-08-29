@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_group_a_configuration.hpp"
+#include "openswd3/battle/legacy_battle_group_a_embedded_profile_application.hpp"
 #include "openswd3/battle/legacy_battle_group_a_summon_materialization.hpp"
 #include "openswd3/battle/legacy_battle_group_a_workspace_reset.hpp"
 #include "openswd3/world_map/legacy_world_item_lifecycle.hpp"
@@ -30,11 +31,14 @@ using LegacyBattleGroupAAttributeSourceTable = std::array<
 struct LegacyBattleGroupAAttributeAggregationState {
     LegacyBattleGroupASummonProfileRecord primary_profile{};
     std::array<LegacyBattleGroupASummonProfileRecord, 2> embedded_profiles{};
+    LegacyBattleGroupAEmbeddedProfileApplicationState
+        embedded_profile_application{};
 };
 
 enum class LegacyBattleGroupAAttributeAggregationCall : compat::u8 {
     report_missing_primary_attribute,
-    apply_embedded_profile,
+    reserved_apply_embedded_profile,
+    lookup_embedded_profile_item_quantity,
 };
 
 struct LegacyBattleGroupAAttributeAggregationCallRequest {
@@ -52,6 +56,9 @@ struct LegacyBattleGroupAAttributeAggregationCallRequest {
     compat::u32 diagnostic_source_token{};
     compat::u32 diagnostic_source_line{};
     LegacyBattleGroupASummonProfileRecord embedded_profile{};
+    compat::u32 eax{};
+    compat::u32 ecx{};
+    compat::u32 edx{};
 };
 
 struct LegacyBattleGroupAAttributeAggregationCallReply {
@@ -75,6 +82,7 @@ enum class LegacyBattleGroupAAttributeAggregationStatus : compat::u8 {
     actor_state_typed_stop,
     source_record_typed_stop,
     actor_record_typed_stop,
+    embedded_profile_application_typed_stop,
 };
 
 struct LegacyBattleGroupAAttributeAggregationResult {
@@ -84,6 +92,8 @@ struct LegacyBattleGroupAAttributeAggregationResult {
     compat::u32 port_calls{};
     compat::u32 diagnostic_calls{};
     compat::u32 embedded_profile_apply_calls{};
+    std::array<LegacyBattleGroupAEmbeddedProfileApplicationResult, 2>
+        embedded_profile_applications{};
     compat::u32 embedded_profile_dwords_zeroed{};
     compat::u32 primary_profile_dwords_copied{};
     compat::u32 embedded_profile_dwords_copied{};
