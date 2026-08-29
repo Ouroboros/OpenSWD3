@@ -116,6 +116,7 @@ struct Fixture {
             .message_state = message,
             .party = party,
             .scripted_resource_selection_test_compat = true,
+            .scripted_resource_release_test_compat = true,
         };
     }
 };
@@ -898,6 +899,74 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                 result.return_eax == 0xFFFFFC11U &&
                 result.return_ecx == 0x004FFA9CU,
             "message one hundred ten sign-extends the actor byte and stops at the first one-before-base object query"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.target_ready = 1U;
+        fixture.message = 27U;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.port.battle_target_selection_runtime_state()
+            .selection_input_gate = 1U;
+        fixture.port.battle_target_selection_runtime_state().target_argument =
+            1U;
+        auto& actor_list = fixture.party[0U].actor_list;
+        actor_list.next_resource_head_token = 0x76000000U;
+        actor_list.resources = {
+            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+            {.token = 0x76000010U,
+             .resource_id = 0x20U,
+             .tertiary_quantity = 1,
+             .name = {},
+             .category_mask = 0x2000U,
+             .derived_word_30 = 0x1234U,
+             .profile_id_4a = 7U,
+             .capacity_gate_flags = 0x2000U},
+        };
+        auto bindings = fixture.bindings();
+        bindings.scripted_resource_selection_test_compat = false;
+        const auto result =
+            refresh_legacy_battle_target_selection(bindings, fixture.port, {});
+        test.expect_true(
+            result.resource_selection_calls == 1U,
+            "message twenty seven calls typed category-four resource selection"
+        );
+        test.expect_true(
+            result.resource_selection.return_eax == 1U,
+            "message twenty seven preserves typed category-four success"
+        );
+        test.expect_true(
+            actor_list.selected_resource_token == 0x76000010U,
+            "message twenty seven publishes the selected typed resource token"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.target_ready = 1U;
+        fixture.message = 5U;
+        fixture.final_actor.queued_actor_code = 8U;
+        auto& actor_list = fixture.party[0U].actor_list;
+        actor_list.next_resource_head_token = 0x76000000U;
+        actor_list.selected_resource_token = 0x76000010U;
+        actor_list.resources = {
+            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+            {.token = 0x76000010U,
+             .resource_id = 0x21U,
+             .secondary_quantity = 2,
+             .name = {}},
+        };
+        auto bindings = fixture.bindings();
+        bindings.scripted_resource_release_test_compat = false;
+        const auto result =
+            refresh_legacy_battle_target_selection(bindings, fixture.port, {});
+        test.expect_true(
+            result.resource_release_calls == 1U &&
+                result.resource_release.output_word == 0x21U &&
+                actor_list.selected_resource_token == 0U &&
+                actor_list.resources[1U].secondary_quantity == 1,
+            "message five uses the typed resource release before committing the actor action"
         );
     }
 

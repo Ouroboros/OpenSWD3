@@ -184,6 +184,7 @@ struct Fixture {
             .target_selection_runtime = &target_runtime,
             .group_a_skip_primary = {},
             .group_a_skip_secondary = {},
+            .scripted_resource_release_test_compat = true,
         };
     }
 };

@@ -4,26 +4,6 @@
 
 namespace {
 
-class ActionPort final
-    : public openswd3::battle::LegacyBattleActorListActionPort {
-public:
-    [[nodiscard]] openswd3::battle::LegacyBattleActorListActionReply
-    release_resource(
-        const openswd3::compat::u32,
-        const openswd3::compat::u32 first,
-        const openswd3::compat::u32 second,
-        const openswd3::compat::u32,
-        const openswd3::compat::u32,
-        const openswd3::compat::u32
-    ) override {
-        ++release_calls;
-        arguments_zero = first == 0U && second == 0U;
-        return {.eax = 4U, .ecx = 5U, .edx = 6U};
-    }
-    openswd3::compat::u32 release_calls{};
-    bool arguments_zero{};
-};
-
 class SelectionPort final
     : public openswd3::battle::LegacyBattleActorResourceSelectionPort {
 public:
@@ -262,9 +242,8 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         item_effect.mode_flags = 0x80U;
         list.selected_resource_token = 0U;
         list.primary_required = 7U;
-        ActionPort port;
         const auto result = execute_legacy_battle_actor_list_action(
-            &list, &item_effect, &configuration, 0x005029D0U, port
+            &list, &item_effect, &configuration, nullptr, 0x005029D0U
         );
         test.expect_true(
             result.status == LegacyBattleActorListQueryStatus::completed &&
@@ -278,19 +257,28 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
     {
         LegacyBattleGroupAConfigurationState configuration;
         LegacyBattleGroupAItemEffectApplicationState item_effect;
+        LegacyBattleGroupAWorkspaceState workspace;
         item_effect.mode_flags = 0x80U;
-        list.selected_resource_token = 0x76000000U;
+        list.next_resource_head_token = 0x76000000U;
+        list.selected_resource_token = 0x76000010U;
         list.primary_required = 9U;
-        ActionPort port;
+        list.resources = {
+            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+            {.token = 0x76000010U,
+             .resource_id = 4U,
+             .secondary_quantity = 2,
+             .name = {}},
+        };
         const auto result = execute_legacy_battle_actor_list_action(
-            &list, &item_effect, &configuration, 0x005029D0U, port
+            &list, &item_effect, &configuration, &workspace, 0x005029D0U
         );
         test.expect_true(
             result.release_calls == 1U && result.refresh_calls == 1U &&
-                port.arguments_zero && list.selected_resource_token == 0U &&
-                list.primary_required == 0U && result.return_eax == 4U &&
-                result.return_edx == 0U,
-            "selected resource path releases with two zero arguments then refreshes using returned registers"
+                list.selected_resource_token == 0U &&
+                list.primary_required == 0U &&
+                list.resources[1U].secondary_quantity == 1 &&
+                result.return_eax == 0x76000004U && result.return_edx == 0U,
+            "selected resource path uses the typed release then refreshes using its returned registers"
         );
     }
 
@@ -315,14 +303,13 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupAItemEffectApplicationState item_effect;
-        ActionPort port;
         list.secondary_required = 0U;
         const auto result = execute_legacy_battle_actor_list_action(
             &list,
             &item_effect,
             nullptr,
+            nullptr,
             0x005029D0U,
-            port,
             {.entry_eax = 10U, .entry_edx = 12U}
         );
         test.expect_true(
@@ -443,6 +430,113 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
                 final_state.pre_effect_words[0U] == 0U &&
                 workspace.tail_words[2U] == 0U,
             "zero occurrence preserves the mandatory clearing prefix before failure"
+        );
+    }
+
+    {
+        LegacyBattleGroupAWorkspaceState workspace;
+        list.next_resource_head_token = 0x76000000U;
+        list.selected_resource_token = 0x76000010U;
+        list.resources = {
+            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+            {.token = 0x76000010U,
+             .resource_id = 0x33U,
+             .primary_quantity = 4U,
+             .secondary_quantity = 2,
+             .name = {},
+             .gate_word_48 = 0x0402U},
+        };
+        const auto result = release_legacy_battle_actor_resource(
+            &list,
+            &workspace,
+            0x005029D0U,
+            {.entry_eax = 0xAAAAAAAAU, .entry_edx = 0xBBBB0000U}
+        );
+        test.expect_true(
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                result.commit_calls == 1U && result.nodes_visited == 1U &&
+                result.gate_writes == 1U && result.quantity_writes == 0U &&
+                result.deallocation_calls == 0U &&
+                list.resources[1U].gate_word_48 == 0x0401U &&
+                list.resources[1U].primary_quantity == 4U &&
+                list.selected_resource_token == 0x76000010U &&
+                result.return_eax == 0x76000033U && result.return_edx == 1U,
+            "resource release decrements the low-byte gate first and preserves quantities while the gate remains nonzero"
+        );
+    }
+
+    {
+        LegacyBattleGroupAWorkspaceState workspace;
+        list.next_resource_head_token = 0x76000000U;
+        list.selected_resource_token = 0x76000010U;
+        list.resources = {
+            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+            {.token = 0x76000010U,
+             .resource_id = 0x44U,
+             .primary_quantity = 2U,
+             .secondary_quantity = 2,
+             .name = {},
+             .capacity_gate_flags = 0x2000U},
+        };
+        const auto result = release_legacy_battle_actor_resource(
+            &list, &workspace, 0x005029D0U
+        );
+        test.expect_true(
+            result.quantity_writes == 2U && result.selected_clears == 1U &&
+                result.deallocation_calls == 0U &&
+                list.resources[1U].primary_quantity == 1U &&
+                list.resources[1U].secondary_quantity == 1 &&
+                list.selected_resource_token == 0U &&
+                result.output_word == 0U && result.return_eax == 0x76000000U,
+            "resource release decrements secondary before tertiary, also decrements primary, clears selection and applies bit-thirteen return suppression"
+        );
+    }
+
+    {
+        LegacyBattleGroupAWorkspaceState workspace;
+        list.next_resource_head_token = 0x76000000U;
+        list.selected_resource_token = 0x76000020U;
+        list.resources = {
+            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+            {.token = 0x76000010U,
+             .next_token = 0x76000020U,
+             .resource_id = 1U,
+             .name = {}},
+            {.token = 0x76000020U,
+             .next_token = 0x76000030U,
+             .resource_id = 2U,
+             .primary_quantity = 1U,
+             .secondary_quantity = 1,
+             .name = {}},
+            {.token = 0x76000030U, .resource_id = 3U, .name = {}},
+        };
+        const auto result = release_legacy_battle_actor_resource(
+            &list, &workspace, 0x005029D0U
+        );
+        test.expect_true(
+            result.nodes_visited == 2U && result.commit_calls == 2U &&
+                result.deallocation_calls == 1U && result.relink_writes == 1U &&
+                list.resources.size() == 3U &&
+                list.resources[1U].next_token == 0x76000030U &&
+                list.selected_resource_token == 0U &&
+                result.return_ecx == 0x76000010U &&
+                result.return_eax == 0x76000002U,
+            "resource release removes a depleted middle node and replays the destructive traversal count to patch its predecessor"
+        );
+    }
+
+    {
+        LegacyBattleGroupAWorkspaceState workspace;
+        list.next_resource_head_token = 0xABCD0000U;
+        list.selected_resource_token = 0U;
+        list.resources = {{.token = 0xABCD0000U, .name = {}}};
+        const auto result = release_legacy_battle_actor_resource(
+            &list, &workspace, 0x005029D0U
+        );
+        test.expect_true(
+            result.return_eax == 0xABCD0000U && result.return_ecx == 0U &&
+                result.nodes_visited == 0U,
+            "missing selected resource zeroes only AX and preserves the committed head high word"
         );
     }
 

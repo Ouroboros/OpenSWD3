@@ -248,6 +248,7 @@ struct LegacyBattleActionDispatchContext {
     LegacyBattleTargetSelectionRuntimeState* target_selection_runtime{};
     std::span<const compat::u32> group_a_skip_primary;
     std::span<const compat::u32> group_a_skip_secondary;
+    bool scripted_resource_release_test_compat{};
 };
 
 enum class LegacyBattleActionDispatchStatus : compat::u8 {
@@ -325,6 +326,8 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 group_a_final_processing_calls{};
     LegacyBattleActorListActionResult group_a_actor_list_action{};
     compat::u32 group_a_actor_list_action_calls{};
+    LegacyBattleActorResourceReleaseResult actor_resource_release{};
+    compat::u32 actor_resource_release_calls{};
     LegacyBattleActorModeFourFinalizationResult
         group_a_mode_four_finalization{};
     compat::u32 group_a_mode_four_finalization_calls{};

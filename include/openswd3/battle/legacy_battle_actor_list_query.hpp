@@ -154,25 +154,6 @@ struct LegacyBattleActorListCountRequest {
     compat::u32 entry_edx{};
 };
 
-struct LegacyBattleActorListActionReply {
-    compat::u32 eax{};
-    compat::u32 ecx{};
-    compat::u32 edx{};
-};
-
-class LegacyBattleActorListActionPort {
-public:
-    virtual ~LegacyBattleActorListActionPort() = default;
-    [[nodiscard]] virtual LegacyBattleActorListActionReply release_resource(
-        compat::u32 actor_token,
-        compat::u32 first_argument,
-        compat::u32 second_argument,
-        compat::u32 eax,
-        compat::u32 ecx,
-        compat::u32 edx
-    ) = 0;
-};
-
 struct LegacyBattleActorListRefreshResult {
     LegacyBattleActorListQueryStatus status{
         LegacyBattleActorListQueryStatus::completed
@@ -272,6 +253,29 @@ struct LegacyBattleActorResourceSelectionResult {
     compat::u32 pre_effect_dwords_zeroed{};
     compat::u16 output_runtime_word{};
     compat::u16 output_mode{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
+struct LegacyBattleActorResourceReleaseRequest {
+    compat::u32 entry_eax{};
+    compat::u32 entry_edx{};
+};
+
+struct LegacyBattleActorResourceReleaseResult {
+    LegacyBattleActorListQueryStatus status{
+        LegacyBattleActorListQueryStatus::completed
+    };
+    compat::u32 commit_calls{};
+    compat::u32 nodes_visited{};
+    compat::u32 identifier_matches{};
+    compat::u32 gate_writes{};
+    compat::u32 quantity_writes{};
+    compat::u32 selected_clears{};
+    compat::u32 deallocation_calls{};
+    compat::u32 relink_writes{};
+    compat::u16 output_word{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
@@ -408,8 +412,8 @@ execute_legacy_battle_actor_list_action(
     LegacyBattleActorListQueryState* list,
     LegacyBattleGroupAItemEffectApplicationState* item_effect,
     LegacyBattleGroupAConfigurationState* configuration,
+    LegacyBattleGroupAWorkspaceState* workspace,
     compat::u32 actor_token,
-    LegacyBattleActorListActionPort& port,
     const LegacyBattleActorListActionRequest& request = {}
 );
 
@@ -425,6 +429,15 @@ select_legacy_battle_actor_resource(
     compat::u32 actor_token,
     LegacyBattleActorResourceSelectionPort& port,
     const LegacyBattleActorResourceSelectionRequest& request
+);
+
+// sub_470E20.
+[[nodiscard]] LegacyBattleActorResourceReleaseResult
+release_legacy_battle_actor_resource(
+    LegacyBattleActorListQueryState* list,
+    LegacyBattleGroupAWorkspaceState* workspace,
+    compat::u32 actor_token,
+    const LegacyBattleActorResourceReleaseRequest& request = {}
 );
 
 // sub_470A10.

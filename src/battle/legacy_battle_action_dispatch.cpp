@@ -537,6 +537,31 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
         }
         return result.group_a_action_execution.return_eax == 1U;
     };
+    const auto release_actor_resource = [&]() -> bool {
+        if (context.startup == nullptr ||
+            group_a_index >= context.startup->party.size()) {
+            result.status = LegacyBattleActionDispatchStatus::
+                group_a_actor_list_action_typed_stop;
+            return false;
+        }
+
+        auto& party = context.startup->party[group_a_index];
+        result.actor_resource_release = release_legacy_battle_actor_resource(
+            &party.actor_list,
+            &party.workspace,
+            actor_token,
+            {.entry_edx = state.selection_source}
+        );
+        ++result.actor_resource_release_calls;
+        if (result.actor_resource_release.status !=
+            LegacyBattleActorListQueryStatus::completed) {
+            result.status = LegacyBattleActionDispatchStatus::
+                group_a_actor_list_action_typed_stop;
+            return false;
+        }
+
+        return true;
+    };
 
     if (action == 0x63U) {
         static_cast<void>(
@@ -1087,7 +1112,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
             }
             state.deformation_owner_token = 0U;
             state.deformation_active = false;
-        } else {
+        } else if (context.scripted_resource_release_test_compat) {
             state.computed_selection_word =
                 low_word(invoke(
                              state,
@@ -1097,6 +1122,13 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                              {state.selection_source, state.selection_context}
                 )
                              .eax);
+        } else {
+            if (!release_actor_resource()) {
+                return result;
+            }
+
+            state.computed_selection_word =
+                result.actor_resource_release.output_word;
         }
         state.frame_effect.fade_active = 1U;
         static_cast<void>(invoke(state, port, result, kCallSetDelay, {0x12CU}));
@@ -2127,15 +2159,24 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
         if (reply.eax != 1U) {
             return result;
         }
-        state.computed_selection_word =
-            low_word(invoke(
-                         state,
-                         port,
-                         result,
-                         kCallComputeSelection,
-                         {4U, state.selection_context}
-            )
-                         .eax);
+        if (context.scripted_resource_release_test_compat) {
+            state.computed_selection_word =
+                low_word(invoke(
+                             state,
+                             port,
+                             result,
+                             kCallComputeSelection,
+                             {4U, state.selection_context}
+                )
+                             .eax);
+        } else {
+            if (!release_actor_resource()) {
+                return result;
+            }
+
+            state.computed_selection_word =
+                result.actor_resource_release.output_word;
+        }
         if (state.blocking_effect == 0U &&
             invoke(
                 state,

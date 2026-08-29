@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v787
+版本：v788
 
 最后更新：2026-08-29
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗角色资源释放函数 `0x00470E20`
+当前步骤：模块10 · 审计战斗角色资源链相邻函数 `0x00470F70`
 
 ## 0. 执行约定
 
@@ -4190,6 +4190,8 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=198`的`0x00470A10`战斗角色资源链计数。完整权威LST主体`0x00470A10..0x00470ABB`共105行、60条实际指令、1个call、18个跳转、1个返回点且无外部chunk。实现六类category映射、保留输出初值、16位回绕计数、普通正值匹配和category 4额外bit独立递增。标准与alternate grid production链的计数、提交、查询均改为typed直连并复用party唯一owner；脚本化单测compat开关默认关闭。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`198/422 = 189 platform_adapted + 9 assembly_exact + 224 pending_audit`；生成器连续双跑逐字节一致，SHA256为`6c5586aaab691a5a1576cf43cdd9419129384afe85290c0d53509de99f714828`。动态差分因原版资源链、输出word和grid caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-本轮再完成`audit_order=199`的`0x00470AC0`战斗角色资源选择与资料应用。完整权威LST主体`0x00470AC0..0x00470E15`共401行、244条实际指令、5个call、41个跳转、25个标签、4个返回点且无外部chunk。实现清零前缀、资源匹配、category 4双计数、三条profile加载路径、primary/secondary容量门、derived copy latch、runtime诊断、输出mode与数量递增/抑制。复用final、item、list、workspace、action和configuration唯一owner；第198项bit13重复byte owner已消除。目标选择case4/29/30三处production caller均typed直连，脚本化compat默认关闭。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`199/422 = 190 platform_adapted + 9 assembly_exact + 223 pending_audit`；生成器连续双跑逐字节一致，SHA256为`3e76f8dad71e3912b77eaca20b3db2c7f854c5ccab607ad9a4fb0a343a96b156`。动态差分因原版资源节点、profile加载、诊断、容量和caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+本轮再完成`audit_order=199`的`0x00470AC0`战斗角色资源选择与资料应用。完整权威LST主体`0x00470AC0..0x00470E15`共401行、244条实际指令、5个call、41个跳转、25个标签、4个返回点且无外部chunk。实现清零前缀、资源匹配、category 4双计数、三条profile加载路径、primary/secondary容量门、derived copy latch、runtime诊断、输出mode与数量递增/抑制。复用final、item、list、workspace、action和configuration唯一owner；第198项bit13重复byte owner已消除。目标选择动作提交动态category、message 27固定category4、message 30固定category5三处production caller均typed直连，脚本化compat默认关闭。相邻释放函数审计时按权威地址纠正了固定category两处先前误接的动作枚举槽。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`199/422 = 190 platform_adapted + 9 assembly_exact + 223 pending_audit`；生成器连续双跑逐字节一致，SHA256为`3e76f8dad71e3912b77eaca20b3db2c7f854c5ccab607ad9a4fb0a343a96b156`。动态差分因原版资源节点、profile加载、诊断、容量和caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=200`的`0x00470E20`战斗角色资源释放函数。
+本轮再完成`audit_order=200`的`0x00470E20`战斗角色资源释放。完整权威LST主体`0x00470E20..0x00470F65`共165行、100条实际指令、3个call、19个跳转、3个返回点且无外部chunk。实现哨兵链resource id定位、低byte门控递减、category bit7/27门、secondary/tertiary优先级、primary独立递减、selected清零、节点销毁、提交后循环次数回放重链，以及bit13返回抑制和AX半寄存器语义。复用list与workspace唯一owner。动作dispatch两处、目标选择三处和链表动作一处production caller均typed直连，脚本compat默认关闭。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`200/422 = 191 platform_adapted + 9 assembly_exact + 222 pending_audit`；生成器连续双跑逐字节一致，SHA256为`981dcf48b591865cb3d92a84f30a9eacc849fbcf677e7758c87e6a2de80ad2ad`。动态差分因原版资源节点、allocator和caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=201`的`0x00470F70`战斗角色资源链相邻函数。

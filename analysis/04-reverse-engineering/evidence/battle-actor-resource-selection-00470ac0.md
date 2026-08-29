@@ -24,6 +24,6 @@
 
 profile/pre-effect/latch复用final owner；mode与derived words复用item owner；required与selected复用链表owner；`+0x2F14`复用workspace owner；runtime word复用action execution owner；live容量复用configuration owner。第198项曾将word `+0x4C` bit13另建byte字段，本项已立即消除该重复并统一使用word owner。
 
-三处静态caller均在已关闭目标选择刷新`0x00462740`：case4动态category、case29固定category4、case30固定category5。production party/action/startup输出均typed直连；脚本化单测compat开关默认关闭。
+三处静态caller均在已关闭目标选择刷新`0x00462740`：动作提交分支使用动态category，message 27固定category4，message 30固定category5。production party/action/startup输出均typed直连；脚本化单测compat开关默认关闭。本轮审计相邻释放函数时按权威地址重新核对caller，纠正了固定category两处先前误接到动作枚举槽的集成位置，并补充message 27 production caller测试。
 
 测试覆盖普通alternate profile、容量门、copy latch、零runtime诊断、输出mode、数量递增、category 4早退及occurrence零清零前缀。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`199/422 = 190 platform_adapted + 9 assembly_exact + 223 pending_audit`，SHA256为`3e76f8dad71e3912b77eaca20b3db2c7f854c5ccab607ad9a4fb0a343a96b156`。动态差分因原版资源节点、三profile加载、诊断、live容量和caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。

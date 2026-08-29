@@ -725,11 +725,43 @@ private:
         bindings_.startup_reset.block_4fe5d4[index] =
             result_.resource_selection.output_runtime_word;
         local_output_ = result_.resource_selection.output_mode;
+        call_output_ = result_.resource_selection.output_mode;
         if (result_.resource_selection.status !=
             LegacyBattleActorListQueryStatus::completed) {
             typed_stop(Status::actor_mode_four_finalization_typed_stop);
             return false;
         }
+        return true;
+    }
+
+    [[nodiscard]] bool release_actor_resource(const u32 actor_code) {
+        if (actor_code < 8U) {
+            typed_stop(Status::group_a_actor_typed_stop);
+            return false;
+        }
+        const u32 index = actor_code - 8U;
+        if (index >= bindings_.party.size()) {
+            typed_stop(Status::group_a_actor_typed_stop);
+            return false;
+        }
+
+        auto& party = bindings_.party[index];
+        result_.resource_release = release_legacy_battle_actor_resource(
+            &party.actor_list,
+            &party.workspace,
+            kGroupABaseToken + index * kGroupAStride,
+            {.entry_eax = eax_, .entry_edx = edx_}
+        );
+        ++result_.resource_release_calls;
+        eax_ = result_.resource_release.return_eax;
+        ecx_ = result_.resource_release.return_ecx;
+        edx_ = result_.resource_release.return_edx;
+        if (result_.resource_release.status !=
+            LegacyBattleActorListQueryStatus::completed) {
+            typed_stop(Status::actor_resource_release_typed_stop);
+            return false;
+        }
+
         return true;
     }
 
@@ -1186,17 +1218,9 @@ private:
             case 6U:
             case 21U:
             case 23U:
+            case 29U:
             case 31U:
             case 33U:
-                bindings_.message_state = 3U;
-                break;
-            case 29U:
-                if (!bindings_.scripted_resource_selection_test_compat &&
-                    !select_actor_resource(
-                        bindings_.debug_hotkeys.committed_actor_code, 4U
-                    )) {
-                    return;
-                }
                 bindings_.message_state = 3U;
                 break;
             default:
@@ -1341,10 +1365,6 @@ private:
 
         if (input_.action_kind == 30U) {
             const u32 committed = bindings_.debug_hotkeys.committed_actor_code;
-            if (!bindings_.scripted_resource_selection_test_compat &&
-                !select_actor_resource(committed, 5U)) {
-                return;
-            }
             ecx_ = committed - 8U;
             eax_ = frame_.current_equipment_selection;
             edx_ = 3U;
@@ -1353,12 +1373,16 @@ private:
                 return;
             }
             edx_ = runtime_.target_argument;
-            if (!invoke_group_a(
-                    Call::resolve_action_effect_value,
-                    committed,
-                    {eax_, edx_},
-                    GroupARegisterShape::eax_3ef
-                )) {
+            if (bindings_.scripted_resource_release_test_compat) {
+                if (!invoke_group_a(
+                        Call::resolve_action_effect_value,
+                        committed,
+                        {eax_, edx_},
+                        GroupARegisterShape::eax_3ef
+                    )) {
+                    return;
+                }
+            } else if (!release_actor_resource(committed)) {
                 return;
             }
             edx_ = committed;
@@ -1516,12 +1540,18 @@ private:
         edx_ = frame_.current_equipment_selection;
         bindings_.startup_reset.value_4ff0b8 = eax_;
         bindings_.startup_reset.value_53bf22 = 0U;
-        if (!invoke_group_a(
-                Call::resolve_action_effect_value,
-                bindings_.debug_hotkeys.committed_actor_code,
-                {edx_, ecx_},
-                GroupARegisterShape::eax_3ef
-            )) {
+        if (bindings_.scripted_resource_release_test_compat) {
+            if (!invoke_group_a(
+                    Call::resolve_action_effect_value,
+                    bindings_.debug_hotkeys.committed_actor_code,
+                    {edx_, ecx_},
+                    GroupARegisterShape::eax_3ef
+                )) {
+                return false;
+            }
+        } else if (!release_actor_resource(
+                       bindings_.debug_hotkeys.committed_actor_code
+                   )) {
             return false;
         }
         runtime_.target_effect_value =
@@ -1645,9 +1675,13 @@ private:
         const u32 actor_code = eax_;
         ecx_ = runtime_.target_argument;
         edx_ = frame_.current_equipment_selection;
-        if (!invoke_group_a(
-                Call::resolve_action_effect_value, actor_code, {edx_, ecx_}
-            )) {
+        if (bindings_.scripted_resource_release_test_compat) {
+            if (!invoke_group_a(
+                    Call::resolve_action_effect_value, actor_code, {edx_, ecx_}
+                )) {
+                return;
+            }
+        } else if (!release_actor_resource(actor_code)) {
             return;
         }
         runtime_.target_effect_value =
@@ -1857,16 +1891,20 @@ private:
         }
         local_output_ = 0U;
         edx_ = kActorRuntimeRecordToken + (eax_ - 8U) * 4U;
-        if (!invoke_group_a(
-                Call::resolve_action_target,
-                eax_,
-                {
-                    4U,
-                    runtime_.target_argument,
-                    kActorRuntimeRecordToken + (eax_ - 8U) * 4U,
-                },
-                GroupARegisterShape::eax_3ef
-            )) {
+        if (bindings_.scripted_resource_selection_test_compat) {
+            if (!invoke_group_a(
+                    Call::resolve_action_target,
+                    eax_,
+                    {
+                        4U,
+                        runtime_.target_argument,
+                        kActorRuntimeRecordToken + (eax_ - 8U) * 4U,
+                    },
+                    GroupARegisterShape::eax_3ef
+                )) {
+                return;
+            }
+        } else if (!select_actor_resource(eax_, 4U)) {
             return;
         }
         local_output_ = call_output_;
@@ -1900,15 +1938,19 @@ private:
         const u32 actor_code = eax_;
         local_output_ = 0U;
         edx_ = runtime_.target_argument;
-        if (!invoke_group_a(
-                Call::resolve_action_target,
-                actor_code,
-                {
-                    5U,
-                    runtime_.target_argument,
-                    kActorRuntimeRecordToken + (actor_code - 8U) * 4U,
-                }
-            )) {
+        if (bindings_.scripted_resource_selection_test_compat) {
+            if (!invoke_group_a(
+                    Call::resolve_action_target,
+                    actor_code,
+                    {
+                        5U,
+                        runtime_.target_argument,
+                        kActorRuntimeRecordToken + (actor_code - 8U) * 4U,
+                    }
+                )) {
+                return;
+            }
+        } else if (!select_actor_resource(actor_code, 5U)) {
             return;
         }
         local_output_ = call_output_;

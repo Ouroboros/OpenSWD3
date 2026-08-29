@@ -291,6 +291,7 @@ struct Fixture {
             .status_indicator_action_eax_snapshot = 0U,
             .group_a_skip_primary = {},
             .group_a_skip_secondary = {},
+            .scripted_resource_release_test_compat = true,
         };
     }
 };
@@ -412,7 +413,18 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         port.battle_debug_hotkey_state().committed_actor_code = 9U;
         port.battle_debug_overlay_gate() = 9U;
         port.battle_message_state() = 9U;
+        auto& actor_list = fixture.startup.party[0U].actor_list;
+        actor_list.next_resource_head_token = 0x76000000U;
+        actor_list.selected_resource_token = 0x76000010U;
+        actor_list.resources = {
+            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+            {.token = 0x76000010U,
+             .resource_id = 0x34U,
+             .secondary_quantity = 2,
+             .name = {}},
+        };
         auto context = fixture.context();
+        context.scripted_resource_release_test_compat = false;
 
         const auto result = openswd3::battle::dispatch_legacy_battle_action(
             state, port, context, 0U, 0U
@@ -421,6 +433,9 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
                 result.retreat_commit_calls == 1U &&
+                result.actor_resource_release_calls == 1U &&
+                result.actor_resource_release.output_word == 0x34U &&
+                actor_list.selected_resource_token == 0U &&
                 result.retreat_commit.branch ==
                     openswd3::battle::LegacyBattleRetreatCommitBranch::
                         committed &&
