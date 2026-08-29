@@ -637,6 +637,8 @@ void test_battle_startup(openswd3::test::Context& test) {
                 state.party[1].role_id == 102U &&
                 state.party[1].position_x == 85U &&
                 state.party[1].position_y == 370U &&
+                state.party[0].workspace.object_token == 0x005029D0U &&
+                state.party[1].workspace.object_token == 0x00505904U &&
                 state.group_a_profiles.profile_tokens[0U] ==
                     0x004C8AD0U +
                         state.action_mode_source.actor_label_indices[0U] *

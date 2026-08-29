@@ -26,6 +26,7 @@ add_library(
         legacy_battle_actor_priority.cpp
         legacy_battle_actor_progress.cpp
         legacy_battle_actor_ready.cpp
+        legacy_battle_group_a_workspace_reset.cpp
         legacy_battle_assets.cpp
         legacy_battle_background_initialization.cpp
         legacy_battle_effect_coordinator.cpp

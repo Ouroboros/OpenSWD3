@@ -571,6 +571,7 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
             return result;
         }
         const u32 actor_token = group_a_actor_token(index);
+        state.party[index].workspace.object_token = actor_token;
         static_cast<void>(invoke(
             port,
             LegacyBattleStartupCall::reset_actor,

@@ -4,6 +4,7 @@
 #include "openswd3/battle/legacy_battle_actor_progress.hpp"
 #include "openswd3/battle/legacy_battle_background_initialization.hpp"
 #include "openswd3/battle/legacy_battle_definition_archive.hpp"
+#include "openswd3/battle/legacy_battle_group_a_workspace_reset.hpp"
 #include "openswd3/battle/legacy_battle_group_b_order.hpp"
 #include "openswd3/battle/legacy_battle_party_item_order.hpp"
 #include "openswd3/battle/legacy_battle_player_item_order.hpp"
@@ -183,6 +184,7 @@ struct LegacyBattlePartyStartupRecord {
     compat::u16 position_y{};
     compat::u32 active{};
     LegacyBattleActorProgressState progress;
+    LegacyBattleGroupAWorkspaceState workspace;
 };
 
 struct LegacyBattlePartyMetricRecord {

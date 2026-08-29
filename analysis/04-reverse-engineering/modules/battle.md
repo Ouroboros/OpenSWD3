@@ -551,6 +551,8 @@ I5最终必须锁定：
 
 `audit_order=170`的`0x0046E520`已关闭为`platform_adapted`。完整权威LST主体`0x0046E520..0x0046E690`共179行、118条实际指令、0个call、12个跳转、2个返回点且无外部chunk。函数先检查状态word双bit、special/action完成门；通过后以u16 progress和全局i32阈值作signed比较。完成路径置action完成、清transition，按live frame-started/scene门清frame/post-action，固定清双cache并置update-ready，返回1。继续路径从首记录u16基值右移2/可选再右移1，参数1追加四分之一加1，按delay bits保留正负30%、multiplier百分比/二分和固定4点扣除，最后低16位回绕写progress、清完成并返回0。typed统一`LegacyBattleActorProgressState`，组A帧直接调用后按返回1继续AI；转场party/enemy两路更新startup角色状态，旧token/reserved槽生产零调用。测试覆盖入口门、完成尾、正负调整、固定扣除及两个caller。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过，源码零warning。工作包为`170/422 = 161 platform_adapted + 9 assembly_exact + 252 pending_audit`，双跑SHA256为`308250c723c812ae5b277abb1241c514893dc3c6a9c3a25b9836f7134527b894`。动态差分因原版角色对象、首记录、全局阈值和caller共享状态后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=171`的`0x0046E6A0`战斗相邻角色计算函数。
+`audit_order=171`的`0x0046E6A0`已关闭为`platform_adapted`。完整权威LST主体`0x0046E6A0..0x0046E720`共46行、26条实际指令、0个call、0个跳转、1个返回点且无外部chunk。函数先按原顺序清`+0x2F10..+0x2F24`十一项u16和`+0x2F0C`一项u32，再依次以三个`rep stosd`清`+0x2BC8`起`0xBE`项、`+0x0AF0`起`0x4C`项和`+0x2B24`起`0x29`项；高低两段组成`+0x2B24..+0x2EBF`连续`0xE7`项，但保持先高、早期、再低的写序，且不触及`+0x2F0E/+0x2F26`。返回固定EAX零、ECX零、EDX原this。typed工作区挂入startup组A角色唯一记录并绑定实际actor token；唯一caller仍是待审的下一项，当前startup继续以窄端口隔离整个caller，不伪造其余行为。测试覆盖非零填充、精确三段/十二项清零、相邻保留、返回寄存器及startup owner。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过，源码零warning。工作包为`171/422 = 162 platform_adapted + 9 assembly_exact + 251 pending_audit`，双跑SHA256为`d879fea89c0e09f1ae20585691376351145d022eae2143669394d4c03e2c0aa0`。动态差分因原版组A对象、三段物理内存与caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=172`的`0x0046E730`战斗组A角色配置函数，并直接组合已关闭工作区零化器。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。
