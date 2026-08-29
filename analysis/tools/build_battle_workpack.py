@@ -728,6 +728,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-group-a-resource-pair-0046e850.md",
     ),
+    "0x0046E870": (
+        "platform_adapted",
+        "evidence/battle-group-a-value-pair-0046e870.md",
+    ),
 }
 
 
