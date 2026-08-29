@@ -617,6 +617,8 @@ I5最终必须锁定：
 
 `audit_order=203`的`0x00471080`已关闭为`platform_adapted`。完整权威LST主体`0x00471080..0x004710CD`共42行、25条实际指令、1个call、5个跳转、2个局部标签、1个返回点且无外部chunk。实现输出word先清零、破坏性资源链推进、bit27门、固定id排除、mode bits门，以及secondary/tertiary节点内和跨节点16位回绕累计。复用resource list唯一owner。mode grid production secondary-count caller改为typed直连，脚本compat默认关闭；随后的链头提交继续走typed路径。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`203/422 = 194 platform_adapted + 9 assembly_exact + 219 pending_audit`，双跑SHA256为`060968b2e3ee56d46b89501fbfa0bd0c0d15e1ff5d394634bd35b40b909b2f4d`。动态差分因原版mode资源链、caller输出word和寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=204`的`0x004710D0`战斗角色动作效果与渲染函数。
+`audit_order=204`的`0x004710D0`已关闭为`platform_adapted`。完整权威LST主体`0x004710D0..0x0047126B`共171行、104条实际指令、7个call、3个跳转、3个局部标签、1个返回点且无外部chunk。实现group-B资源/坐标/解码窄callee序列、精确0x58字节演出记录、signed回绕坐标、资源高度分支、flags/mode bit、host surface重建，以及三段共236个尾部dword清零。每个opponent record新增唯一target-phase owner；已关闭host-surface typed直连，其余未审callee保持窄port。action 6阶段零caller移除整函数opaque地址并直接调用typed实现。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`204/422 = 195 platform_adapted + 9 assembly_exact + 218 pending_audit`，双跑SHA256为`01134ec0bd9e21316e2cab6823607c18a4f1b8f2d2716028b6f0441ae1cec2e6`。动态差分因原版group-B资源对象、图像解码分配、坐标/属性callee和caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=205`的`0x00471270`战斗角色动作效果与渲染函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

@@ -4,6 +4,7 @@
 #include "openswd3/asset_runtime/legacy_frame_deformation.hpp"
 #include "openswd3/battle/legacy_battle_retreat_commit.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
+#include "openswd3/battle/legacy_battle_render_geometry.hpp"
 #include "openswd3/battle/legacy_battle_attack_order_entry.hpp"
 #include "openswd3/battle/legacy_battle_attack_order_insert.hpp"
 #include "openswd3/battle/legacy_battle_attack_order_remove.hpp"
@@ -111,11 +112,81 @@ public:
     }
 };
 
+struct LegacyBattleTargetPhasePresentationRecord {
+    compat::u32 decoded_resource_token{};  // actor + 0x0E14
+    compat::u16 resource_width{};          // actor + 0x0E18
+    compat::u16 resource_height{};         // actor + 0x0E1A
+    compat::i32 horizontal_delta_minus_one{};
+    compat::i32 vertical_delta{};
+    compat::i32 x{};
+    compat::u32 active_x{};
+    compat::i32 y{};
+    compat::u32 active_y{};
+    compat::u16 width{};
+    compat::u16 height{};
+    compat::u16 derived_resource_height{};
+    compat::u16 spacing{};
+    compat::u16 flags{};
+    compat::u16 reserved_2a{};
+    std::array<compat::u32, 3> steps{};
+    std::array<compat::u8, 0x20> reserved_38_57{};
+};
+
+static_assert(sizeof(LegacyBattleTargetPhasePresentationRecord) == 0x58U);
+
+struct LegacyBattleTargetPhaseState {
+    compat::u32 resource_token{};  // actor + 0x255C
+    LegacyBattleTargetPhasePresentationRecord presentation;
+    compat::u8 mode_flags{};     // actor + 0x2A87
+    compat::u32 runtime_gate{};  // actor + 0x2680
+    std::array<compat::u32, 8> block_0df4{};
+    std::array<compat::u32, 0x26> block_0500{};
+    std::array<compat::u32, 0xBE> block_2bc8{};
+};
+
 struct LegacyBattleOpponentRecord {
     compat::u16 action_id{};
-    compat::u16 x{};
-    compat::u16 y{};
+    compat::u16 x{};  // actor + 0x0D66
+    compat::u16 y{};  // actor + 0x0D68
     compat::u32 runtime_value{};
+    compat::i32 vertical_adjustment{};  // actor + 0x02B4
+    compat::u16 source_x_offset{};      // actor + 0x29AC
+    compat::u16 source_y_offset{};      // actor + 0x29B2
+    LegacyBattleTargetPhaseState target_phase;
+};
+
+struct LegacyBattleTargetPhaseStartRequest {
+    compat::u32 target_token{};
+    compat::i32 surface_width{};
+    compat::i32 surface_height{};
+    compat::u32 entry_eax{};
+    compat::u32 entry_ecx{};
+    compat::u32 entry_edx{};
+};
+
+enum class LegacyBattleTargetPhaseStartStatus : compat::u8 {
+    completed,
+    target_object_typed_stop,
+    resource_object_typed_stop,
+    host_surface_typed_stop,
+};
+
+struct LegacyBattleTargetPhaseStartResult {
+    LegacyBattleTargetPhaseStartStatus status{
+        LegacyBattleTargetPhaseStartStatus::completed
+    };
+    compat::u32 port_calls{};
+    compat::u32 resource_query_calls{};
+    compat::u32 coordinate_query_calls{};
+    compat::u32 decode_calls{};
+    compat::u32 property_query_calls{};
+    compat::u32 presentation_dwords_zeroed{};
+    compat::u32 tail_dwords_zeroed{};
+    LegacyBattleHostSurfaceResult host_surface{};
+    compat::u32 host_surface_calls{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
 };
 
 struct LegacyBattleActionDispatchState {
@@ -283,6 +354,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     group_a_final_processing_typed_stop,
     group_a_actor_list_action_typed_stop,
     group_a_mode_four_finalization_typed_stop,
+    target_phase_start_typed_stop,
 };
 
 struct LegacyBattleActionDispatchResult {
@@ -331,7 +403,18 @@ struct LegacyBattleActionDispatchResult {
     LegacyBattleActorModeFourFinalizationResult
         group_a_mode_four_finalization{};
     compat::u32 group_a_mode_four_finalization_calls{};
+    LegacyBattleTargetPhaseStartResult target_phase_start{};
+    compat::u32 target_phase_start_calls{};
 };
+
+// sub_4710D0.
+[[nodiscard]] LegacyBattleTargetPhaseStartResult
+start_legacy_battle_target_phase(
+    LegacyBattleOpponentRecord* target,
+    LegacyBattleRenderGeometry* render_geometry,
+    LegacyBattleActionDispatchPort& port,
+    const LegacyBattleTargetPhaseStartRequest& request
+);
 
 // sub_4539B0: dispatch one action code for the selected group-A actor and
 // group-B target, preserving the original special-code predispatch and the

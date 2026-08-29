@@ -43,6 +43,18 @@ public:
         if (request.callee_token == 0x00480AD0U) {
             return {.eax = 0xA0000000U};
         }
+        if (request.callee_token == 0x00478620U) {
+            return {
+                .eax = 0x72000000U,
+                .outputs = {0x73000000U, 0x20U, 0x50U},
+            };
+        }
+        if (request.callee_token == 0x00478470U) {
+            return {.outputs = {0x30U, 0x40U}};
+        }
+        if (request.callee_token == 0x004019A0U) {
+            return {.eax = 0x74000000U};
+        }
         if (request.callee_token == 0x004783B0U) {
             auto reply = default_reply;
             reply.publish_metric_word = true;
@@ -1067,6 +1079,134 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 port.count(0x0046E890U) == 0U &&
                 static_cast<u16>(state.phase_counter) == 0U,
             "missing shared summon owner stops after allocation and clear before the first actor write"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleOpponentRecord target;
+        target.x = 240U;
+        target.y = 220U;
+        target.vertical_adjustment = 20;
+        target.source_x_offset = 40U;
+        target.source_y_offset = 10U;
+        target.target_phase.mode_flags = 0x80U;
+        target.target_phase.runtime_gate = 1U;
+        target.target_phase.block_0df4.fill(1U);
+        target.target_phase.block_0500.fill(2U);
+        target.target_phase.block_2bc8.fill(3U);
+        Fixture fixture;
+        DispatchPort port;
+        const auto result = openswd3::battle::start_legacy_battle_target_phase(
+            &target,
+            &fixture.startup.render_geometry,
+            port,
+            {
+                .target_token = 0x00525508U,
+                .surface_width = 640,
+                .surface_height = 480,
+                .entry_eax = 0xAAAAAAAAU,
+                .entry_ecx = 0xBBBBBBBBU,
+                .entry_edx = 0xCCCCCCCCU,
+            }
+        );
+        const auto& presentation = target.target_phase.presentation;
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleTargetPhaseStartStatus::
+                        completed &&
+                result.port_calls == 4U && result.resource_query_calls == 1U &&
+                result.coordinate_query_calls == 1U &&
+                result.decode_calls == 1U &&
+                result.property_query_calls == 1U &&
+                result.presentation_dwords_zeroed == 0x16U &&
+                result.tail_dwords_zeroed == 0xECU &&
+                result.host_surface_calls == 1U && result.return_eax == 0U &&
+                result.return_ecx == 0U &&
+                target.target_phase.resource_token == 0x72000000U &&
+                presentation.decoded_resource_token == 0x74000000U &&
+                presentation.resource_width == 0x20U &&
+                presentation.resource_height == 0x50U &&
+                presentation.horizontal_delta_minus_one == 0x2F &&
+                presentation.vertical_delta == 0x40 && presentation.x == 220 &&
+                presentation.y == 240 && presentation.width == 0x14U &&
+                presentation.height == 0x1EU &&
+                presentation.derived_resource_height == 0x46U &&
+                presentation.spacing == 0x28U && presentation.flags == 0x57U &&
+                std::ranges::all_of(
+                    presentation.steps,
+                    [](const u32 value) { return value == 5U; }
+                ) &&
+                target.target_phase.mode_flags == 0x88U &&
+                target.target_phase.runtime_gate == 0U &&
+                std::ranges::all_of(
+                    target.target_phase.block_0df4,
+                    [](const u32 value) { return value == 0U; }
+                ) &&
+                fixture.startup.render_geometry.surface_width == 640 &&
+                fixture.startup.render_geometry.surface_height == 480,
+            "target phase start publishes the decoded presentation, geometry and exact clear suffix"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleOpponentRecord target;
+        target.target_phase.presentation.flags = 0xFFFFU;
+        target.target_phase.block_0df4.fill(9U);
+        Fixture fixture;
+        DispatchPort port;
+        port.push(0x00478620U, {.eax = 0U});
+        const auto result = openswd3::battle::start_legacy_battle_target_phase(
+            &target,
+            &fixture.startup.render_geometry,
+            port,
+            {.target_token = 0x00525508U,
+             .surface_width = 640,
+             .surface_height = 480}
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleTargetPhaseStartStatus::
+                        resource_object_typed_stop &&
+                result.resource_query_calls == 1U &&
+                result.coordinate_query_calls == 1U &&
+                result.decode_calls == 0U &&
+                result.presentation_dwords_zeroed == 0x16U &&
+                target.target_phase.presentation.flags == 0U &&
+                target.target_phase.block_0df4[0U] == 9U,
+            "target phase resource stop preserves both callee calls and the presentation clear prefix"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        state.group_a_count = 1;
+        state.group_b_count = 1;
+        state.opponent_records[0U].x = 240U;
+        state.opponent_records[0U].y = 220U;
+        state.opponent_records[0U].source_x_offset = 40U;
+        state.opponent_records[0U].source_y_offset = 10U;
+        Fixture fixture;
+        DispatchPort port;
+        port.action = 6U;
+        port.push(0x00471270U, {.eax = 0U});
+        auto context = fixture.context();
+        const auto result = openswd3::battle::dispatch_legacy_battle_action(
+            state, port, context, 0U, 0U
+        );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.target_phase_start_calls == 1U &&
+                result.target_phase_start.port_calls == 4U &&
+                port.count(0x004710D0U) == 0U &&
+                port.count(0x00478620U) == 1U &&
+                port.count(0x00478470U) == 1U &&
+                port.count(0x004019A0U) == 1U &&
+                port.count(0x0047CE70U) == 1U && state.phase_condition == 1U &&
+                static_cast<u16>(state.phase_counter) == 1U &&
+                state.opponent_records[0U]
+                        .target_phase.presentation.decoded_resource_token ==
+                    0x74000000U,
+            "action six production starts the typed target phase without the whole-function opaque call"
         );
     }
 
