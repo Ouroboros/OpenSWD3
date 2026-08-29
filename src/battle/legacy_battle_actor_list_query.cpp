@@ -706,6 +706,75 @@ query_legacy_battle_actor_mode_resource(
     }
 }
 
+LegacyBattleActorModeResourceCountResult
+count_legacy_battle_actor_mode_resources(
+    LegacyBattleActorListQueryState* list,
+    const u32 actor_token,
+    const LegacyBattleActorModeResourceCountRequest& request
+) {
+    LegacyBattleActorModeResourceCountResult result;
+    result.return_eax = request.entry_eax;
+    result.return_ecx = actor_token;
+    result.return_edx = request.entry_edx;
+
+    const auto commit = commit_legacy_battle_actor_resource_list(
+        list, actor_token, request.entry_edx
+    );
+    ++result.commit_calls;
+    result.return_eax = commit.return_eax;
+    result.return_ecx = commit.return_ecx;
+    result.return_edx = commit.return_edx;
+    if (commit.status != LegacyBattleActorListQueryStatus::completed) {
+        result.status = commit.status;
+        return result;
+    }
+
+    result.return_ecx = request.output_token;
+    result.return_edx = 0x0300U;
+    result.count = 0U;
+    while (true) {
+        const auto current = std::ranges::find(
+            list->resources,
+            list->resource_head_token,
+            &LegacyBattleActorListResourceNode::token
+        );
+        if (current == list->resources.end()) {
+            result.status =
+                LegacyBattleActorListQueryStatus::resource_node_typed_stop;
+            result.return_eax = list->resource_head_token;
+            return result;
+        }
+
+        const u32 next = current->next_token;
+        list->resource_head_token = next;
+        ++result.nodes_visited;
+        result.return_eax = next;
+        if (next == 0U) {
+            result.return_eax = 0U;
+            return result;
+        }
+
+        const auto node = std::ranges::find(
+            list->resources, next, &LegacyBattleActorListResourceNode::token
+        );
+        if (node == list->resources.end()) {
+            result.status =
+                LegacyBattleActorListQueryStatus::resource_node_typed_stop;
+            return result;
+        }
+        if ((node->category_mask & 0x08000000U) == 0U ||
+            node->resource_id == 0x0300U || (node->mode_flags & 0x05U) == 0U) {
+            continue;
+        }
+
+        const u16 secondary = std::bit_cast<u16>(node->secondary_quantity);
+        const u16 tertiary = std::bit_cast<u16>(node->tertiary_quantity);
+        const u16 subtotal = static_cast<u16>(secondary + tertiary);
+        result.count = static_cast<u16>(result.count + subtotal);
+        ++result.matches;
+    }
+}
+
 LegacyBattleActorResourceReleaseResult release_legacy_battle_actor_resource(
     LegacyBattleActorListQueryState* list,
     LegacyBattleGroupAWorkspaceState* workspace,

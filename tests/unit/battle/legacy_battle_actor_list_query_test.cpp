@@ -662,6 +662,80 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
     }
 
     {
+        list.next_resource_head_token = 0x79000000U;
+        list.resources = {
+            {.token = 0x79000000U, .next_token = 0x79000010U, .name = {}},
+            {.token = 0x79000010U,
+             .next_token = 0x79000020U,
+             .resource_id = 0x0300U,
+             .name = "fixed",
+             .category_mask = 0x08000000U,
+             .mode_flags = 0x01U},
+            {.token = 0x79000020U,
+             .next_token = 0x79000030U,
+             .resource_id = 0x0222U,
+             .name = "unflagged",
+             .mode_flags = 0x01U},
+            {.token = 0x79000030U,
+             .next_token = 0x79000040U,
+             .resource_id = 0x0223U,
+             .name = "closed",
+             .category_mask = 0x08000000U,
+             .mode_flags = 0U},
+            {.token = 0x79000040U,
+             .next_token = 0x79000050U,
+             .resource_id = 0x0224U,
+             .secondary_quantity = 32767,
+             .tertiary_quantity = 32767,
+             .name = "large",
+             .category_mask = 0x08000000U,
+             .mode_flags = 0x01U},
+            {.token = 0x79000050U,
+             .resource_id = 0x0225U,
+             .secondary_quantity = 1,
+             .tertiary_quantity = 2,
+             .name = "small",
+             .category_mask = 0x08000000U,
+             .mode_flags = 0x04U},
+        };
+        const auto result = count_legacy_battle_actor_mode_resources(
+            &list,
+            0x005029D0U,
+            {.output_token = 0x0012FFD4U,
+             .entry_eax = 0xAAAAAAAAU,
+             .entry_edx = 0xBBBBBBBBU}
+        );
+        test.expect_true(
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                result.commit_calls == 1U && result.nodes_visited == 6U &&
+                result.matches == 2U && result.count == 1U &&
+                result.return_eax == 0U && result.return_ecx == 0x0012FFD4U &&
+                result.return_edx == 0x0300U && list.resource_head_token == 0U,
+            "mode resource count filters bit twenty-seven, fixed identifiers and output mode bits before wrapping all quantity words"
+        );
+    }
+
+    {
+        list.next_resource_head_token = 0x79000000U;
+        list.resources = {
+            {.token = 0x79000000U, .next_token = 0x79000010U, .name = {}},
+            {.token = 0x79000010U,
+             .resource_id = 0x0222U,
+             .secondary_quantity = 7,
+             .tertiary_quantity = 8,
+             .name = "excluded"},
+        };
+        const auto result = count_legacy_battle_actor_mode_resources(
+            &list, 0x005029D0U, {.output_token = 0x0012FFD4U}
+        );
+        test.expect_true(
+            result.return_eax == 0U && result.matches == 0U &&
+                result.count == 0U,
+            "mode resource count zeroes its output before traversing an excluded chain"
+        );
+    }
+
+    {
         LegacyBattleGroupAWorkspaceState workspace;
         list.next_resource_head_token = 0x76000000U;
         list.selected_resource_token = 0x76000010U;

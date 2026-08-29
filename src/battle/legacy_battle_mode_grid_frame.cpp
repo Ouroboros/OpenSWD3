@@ -168,17 +168,38 @@ public:
             return finish();
         }
 
-        const auto secondary_count = invoke({
-            .call = Call::query_mode_secondary_count,
-            .object_token = group_a_actor_token(actor_code),
-            .arguments = {0U, request_.secondary_count_token},
-            .eax = group_a_scaled_1007(actor_code),
-            .ecx = group_a_actor_token(actor_code),
-            .edx = group_a_scaled_3021(actor_code),
-        });
-        ++result_.secondary_count_query_calls;
-        if (secondary_count.publish_row_value) {
-            state_.secondary_count = secondary_count.row_value;
+        if (bindings_.scripted_port_test_compat) {
+            const auto secondary_count = invoke({
+                .call = Call::query_mode_secondary_count,
+                .object_token = group_a_actor_token(actor_code),
+                .arguments = {0U, request_.secondary_count_token},
+                .eax = group_a_scaled_1007(actor_code),
+                .ecx = group_a_actor_token(actor_code),
+                .edx = group_a_scaled_3021(actor_code),
+            });
+            ++result_.secondary_count_query_calls;
+            if (secondary_count.publish_row_value) {
+                state_.secondary_count = secondary_count.row_value;
+            }
+        } else {
+            result_.secondary_count_query =
+                count_legacy_battle_actor_mode_resources(
+                    &party_->actor_list,
+                    group_a_actor_token(actor_code),
+                    {.output_token = request_.secondary_count_token,
+                     .entry_eax = group_a_scaled_1007(actor_code),
+                     .entry_edx = group_a_scaled_3021(actor_code)}
+                );
+            ++result_.secondary_count_query_calls;
+            eax_ = result_.secondary_count_query.return_eax;
+            ecx_ = result_.secondary_count_query.return_ecx;
+            edx_ = result_.secondary_count_query.return_edx;
+            state_.secondary_count = result_.secondary_count_query.count;
+            if (result_.secondary_count_query.status !=
+                LegacyBattleActorListQueryStatus::completed) {
+                result_.status = Status::group_a_actor_typed_stop;
+                return finish();
+            }
         }
         if (!refresh_actor(actor_code, edx_)) {
             return finish();

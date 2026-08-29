@@ -600,16 +600,14 @@ void test_battle_mode_grid_frame(openswd3::test::Context& test) {
              .category_mask = 0x08000000U,
              .mode_flags = 0x01U},
         };
-        fixture.port.reply(
-            Call::query_mode_secondary_count,
-            {.edx = 0xDEADBEEFU, .publish_row_value = true, .row_value = 2U}
-        );
         const auto result =
             openswd3::battle::draw_legacy_battle_mode_grid_frame(
                 fixture.state, bindings, fixture.port, request()
             );
         const auto primary_queries =
             fixture.port.calls_of(Call::query_mode_row);
+        const auto secondary_counts =
+            fixture.port.calls_of(Call::query_mode_secondary_count);
         const auto refreshes = fixture.port.calls_of(Call::refresh_actor);
         test.expect_true(
             result.status ==
@@ -618,6 +616,9 @@ void test_battle_mode_grid_frame(openswd3::test::Context& test) {
                 result.primary_query_calls == 1U &&
                 result.primary_query.outputs_published &&
                 result.primary_query.copied_name == "PRIMARY" &&
+                result.secondary_count_query_calls == 1U &&
+                result.secondary_count_query.matches == 1U &&
+                result.secondary_count_query.count == 2U &&
                 result.secondary_row_query_calls == 2U &&
                 result.secondary_row_query.outputs_published &&
                 result.secondary_row_query.copied_name == "GROUP" &&
@@ -625,7 +626,7 @@ void test_battle_mode_grid_frame(openswd3::test::Context& test) {
                 result.actor_refreshes[0U].head_writes == 1U &&
                 result.actor_refreshes[1U].head_writes == 1U &&
                 fixture.panel_row_limit == 4U && primary_queries.empty() &&
-                refreshes.empty(),
+                secondary_counts.empty() && refreshes.empty(),
             "mode grid production queries and resource-head refreshes use the startup party typed owner"
         );
         const auto primary_text = text("PRIMARY");

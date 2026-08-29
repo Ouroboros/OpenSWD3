@@ -100,6 +100,7 @@ struct LegacyBattleModeGridFrameResult {
     compat::u32 selected_page{};
     compat::u32 selected_group_index{};
     LegacyBattleActorModeResourceQueryResult primary_query{};
+    LegacyBattleActorModeResourceCountResult secondary_count_query{};
     LegacyBattleActorModeResourceQueryResult secondary_row_query{};
     std::array<LegacyBattleActorResourceListCommitResult, 2> actor_refreshes{};
     asset_runtime::LegacyActionUpdateResult panel_action_update{};
