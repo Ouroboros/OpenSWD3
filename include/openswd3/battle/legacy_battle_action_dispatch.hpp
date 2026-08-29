@@ -11,6 +11,7 @@
 #include "openswd3/battle/legacy_battle_pair_transition.hpp"
 #include "openswd3/battle/legacy_battle_frame_refresh.hpp"
 #include "openswd3/battle/legacy_battle_outcome_state.hpp"
+#include "openswd3/battle/legacy_battle_actor_list_query.hpp"
 #include "openswd3/battle/legacy_battle_group_a_action_execution.hpp"
 #include "openswd3/battle/legacy_battle_group_a_attribute_effect.hpp"
 #include "openswd3/battle/legacy_battle_group_a_final_processing.hpp"
@@ -279,6 +280,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     group_a_attribute_effect_typed_stop,
     group_a_action_execution_typed_stop,
     group_a_final_processing_typed_stop,
+    group_a_actor_list_action_typed_stop,
 };
 
 struct LegacyBattleActionDispatchResult {
@@ -320,6 +322,8 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 group_a_action_execution_calls{};
     LegacyBattleGroupAFinalProcessingResult group_a_final_processing{};
     compat::u32 group_a_final_processing_calls{};
+    LegacyBattleActorListActionResult group_a_actor_list_action{};
+    compat::u32 group_a_actor_list_action_calls{};
 };
 
 // sub_4539B0: dispatch one action code for the selected group-A actor and

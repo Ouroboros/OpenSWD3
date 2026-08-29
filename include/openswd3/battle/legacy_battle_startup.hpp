@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
+#include "openswd3/battle/legacy_battle_actor_list_query.hpp"
 #include "openswd3/battle/legacy_battle_actor_progress.hpp"
 #include "openswd3/battle/legacy_battle_background_initialization.hpp"
 #include "openswd3/battle/legacy_battle_definition_archive.hpp"
@@ -207,6 +208,7 @@ struct LegacyBattlePartyStartupRecord {
     LegacyBattleGroupAAttributeAggregationState attribute_aggregation;
     LegacyBattleGroupAAttributeEffectState attribute_effect;
     LegacyBattleGroupAItemEffectApplicationState item_effect_application;
+    LegacyBattleActorListQueryState actor_list;
     LegacyBattleGroupAFinalProcessingState final_processing;
     LegacyBattleGroupAValuePairState value_pair;
     LegacyBattleGroupAResourcePairState resource_pair;

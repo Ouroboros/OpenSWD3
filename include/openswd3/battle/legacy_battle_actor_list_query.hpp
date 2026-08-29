@@ -139,6 +139,50 @@ struct LegacyBattleActorListCountRequest {
     compat::u32 entry_edx{};
 };
 
+struct LegacyBattleActorListActionReply {
+    compat::u32 eax{};
+    compat::u32 ecx{};
+    compat::u32 edx{};
+};
+
+class LegacyBattleActorListActionPort {
+public:
+    virtual ~LegacyBattleActorListActionPort() = default;
+    [[nodiscard]] virtual LegacyBattleActorListActionReply release_resource(
+        compat::u32 actor_token,
+        compat::u32 first_argument,
+        compat::u32 second_argument,
+        compat::u32 eax,
+        compat::u32 ecx,
+        compat::u32 edx
+    ) = 0;
+    [[nodiscard]] virtual LegacyBattleActorListActionReply refresh_actor(
+        compat::u32 actor_token,
+        compat::u32 eax,
+        compat::u32 ecx,
+        compat::u32 edx
+    ) = 0;
+};
+
+struct LegacyBattleActorListActionRequest {
+    compat::u32 entry_eax{};
+    compat::u32 entry_edx{};
+};
+
+struct LegacyBattleActorListActionResult {
+    LegacyBattleActorListQueryStatus status{
+        LegacyBattleActorListQueryStatus::completed
+    };
+    compat::u32 release_calls{};
+    compat::u32 refresh_calls{};
+    compat::u32 capacity_writes{};
+    compat::u32 selected_resource_clears{};
+    compat::u32 primary_required_clears{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
 struct LegacyBattleActorListStateCallReply {
     compat::u32 eax{};
     compat::u32 ecx{};
@@ -226,6 +270,17 @@ struct LegacyBattleActorListCountResult {
     compat::u32 actor_token,
     compat::u32 count_token,
     const LegacyBattleActorListCountRequest& request
+);
+
+// sub_470820.
+[[nodiscard]] LegacyBattleActorListActionResult
+execute_legacy_battle_actor_list_action(
+    LegacyBattleActorListQueryState* list,
+    LegacyBattleGroupAItemEffectApplicationState* item_effect,
+    LegacyBattleGroupAConfigurationState* configuration,
+    compat::u32 actor_token,
+    LegacyBattleActorListActionPort& port,
+    const LegacyBattleActorListActionRequest& request = {}
 );
 
 // sub_470380.

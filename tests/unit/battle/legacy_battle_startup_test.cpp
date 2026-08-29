@@ -576,6 +576,8 @@ void test_battle_startup(openswd3::test::Context& test) {
         state.party[0U]
             .attribute_aggregation.embedded_profile_application.status_bits =
             0xFFFFFFFFU;
+        state.party[0U].actor_list.primary_required = 0xFFFFU;
+        state.party[0U].actor_list.selected_resource_token = 0xFFFFFFFFU;
         state.party[0U].final_processing.completion_latch = 0xFFFFFFFFU;
         state.party[0U].final_processing.profile_buffer.fill(0xFFFFFFFFU);
         state.party[0U].item_effect_application = {
@@ -764,6 +766,8 @@ void test_battle_startup(openswd3::test::Context& test) {
                 state.party[0U]
                         .attribute_aggregation.embedded_profile_application
                         .status_bits == 0U &&
+                state.party[0U].actor_list.primary_required == 0U &&
+                state.party[0U].actor_list.selected_resource_token == 0U &&
                 state.party[0U].final_processing.completion_latch == 0U &&
                 state.party[0U].final_processing.profile_buffer[0U] == 0U &&
                 state.party[0U].item_effect_application.effect_flags == 0U &&

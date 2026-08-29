@@ -4,6 +4,37 @@
 
 namespace {
 
+class ActionPort final
+    : public openswd3::battle::LegacyBattleActorListActionPort {
+public:
+    [[nodiscard]] openswd3::battle::LegacyBattleActorListActionReply
+    release_resource(
+        const openswd3::compat::u32,
+        const openswd3::compat::u32 first,
+        const openswd3::compat::u32 second,
+        const openswd3::compat::u32,
+        const openswd3::compat::u32,
+        const openswd3::compat::u32
+    ) override {
+        ++release_calls;
+        arguments_zero = first == 0U && second == 0U;
+        return {.eax = 4U, .ecx = 5U, .edx = 6U};
+    }
+    [[nodiscard]] openswd3::battle::LegacyBattleActorListActionReply
+    refresh_actor(
+        const openswd3::compat::u32,
+        const openswd3::compat::u32 eax,
+        const openswd3::compat::u32 ecx,
+        const openswd3::compat::u32 edx
+    ) override {
+        ++refresh_calls;
+        return {.eax = eax + 1U, .ecx = ecx, .edx = edx};
+    }
+    openswd3::compat::u32 release_calls{};
+    openswd3::compat::u32 refresh_calls{};
+    bool arguments_zero{};
+};
+
 class StatePort final
     : public openswd3::battle::LegacyBattleActorListStatePort {
 public:
@@ -212,6 +243,64 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
             result.count == 9U && result.matches == 0U &&
                 result.nodes_visited == 3U,
             "every non-twenty-eight type selector still tests only type thirty-one"
+        );
+    }
+
+    {
+        LegacyBattleGroupAConfigurationState configuration;
+        configuration.actor_record_token = 0x00600000U;
+        configuration.actor_record[1U] = 5U << 16U;
+        LegacyBattleGroupAItemEffectApplicationState item_effect;
+        item_effect.mode_flags = 0x80U;
+        list.selected_resource_token = 0U;
+        list.primary_required = 7U;
+        ActionPort port;
+        const auto result = execute_legacy_battle_actor_list_action(
+            &list, &item_effect, &configuration, 0x005029D0U, port
+        );
+        test.expect_true(
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                (configuration.actor_record[1U] >> 16U) == 0U &&
+                list.primary_required == 0U && result.capacity_writes == 2U &&
+                result.refresh_calls == 1U && result.release_calls == 0U,
+            "actor list action wraps subtraction then clamps a negative signed capacity"
+        );
+    }
+
+    {
+        LegacyBattleGroupAConfigurationState configuration;
+        LegacyBattleGroupAItemEffectApplicationState item_effect;
+        item_effect.mode_flags = 0x80U;
+        list.selected_resource_token = 0x76000000U;
+        list.primary_required = 9U;
+        ActionPort port;
+        const auto result = execute_legacy_battle_actor_list_action(
+            &list, &item_effect, &configuration, 0x005029D0U, port
+        );
+        test.expect_true(
+            result.release_calls == 1U && result.refresh_calls == 1U &&
+                port.arguments_zero && list.selected_resource_token == 0U &&
+                list.primary_required == 0U && result.return_eax == 5U,
+            "selected resource path releases with two zero arguments then refreshes using returned registers"
+        );
+    }
+
+    {
+        LegacyBattleGroupAItemEffectApplicationState item_effect;
+        ActionPort port;
+        const auto result = execute_legacy_battle_actor_list_action(
+            nullptr,
+            &item_effect,
+            nullptr,
+            0x005029D0U,
+            port,
+            {.entry_eax = 10U, .entry_edx = 12U}
+        );
+        test.expect_true(
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                result.refresh_calls == 1U && result.return_eax == 11U &&
+                result.return_edx == 12U,
+            "mode bit clear skips every list access and still performs the common refresh"
         );
     }
 

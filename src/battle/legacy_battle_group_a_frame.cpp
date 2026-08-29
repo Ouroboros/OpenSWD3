@@ -58,7 +58,8 @@ constexpr u32 kCallPublishAllActors = 0x0047E950U;
 constexpr u32 kCallClearNonterminal = 0x00483FF0U;
 constexpr u32 kCallQueryTargetBusy = 0x00478690U;
 constexpr u32 kCallPrepareTarget = 0x00478AC0U;
-constexpr u32 kCallBeginActorAction = 0x00470820U;
+constexpr u32 kCallReleaseActorResource = 0x00470E20U;
+constexpr u32 kCallRefreshActorListAction = 0x00470890U;
 constexpr u32 kCallAdvanceTurnGate = 0x00471540U;
 constexpr u32 kCallResolveTarget = 0x00480AD0U;
 constexpr u32 kCallCommitTurn = 0x004714B0U;
@@ -107,6 +108,52 @@ public:
 
 private:
     LegacyBattleActionDispatchPort& port_;
+};
+
+class GroupAActorListActionAdapter final
+    : public LegacyBattleActorListActionPort {
+public:
+    GroupAActorListActionAdapter(
+        LegacyBattleActionDispatchPort& port,
+        LegacyBattleActionDispatchResult& result
+    ) noexcept
+        : port_(port), result_(result) {}
+
+    [[nodiscard]] LegacyBattleActorListActionReply release_resource(
+        const u32 actor_token,
+        const u32 first_argument,
+        const u32 second_argument,
+        const u32 eax,
+        const u32 ecx,
+        const u32 edx
+    ) override {
+        ++result_.port_calls;
+        const auto reply = port_.invoke({
+            .callee_token = kCallReleaseActorResource,
+            .arguments = {first_argument, second_argument},
+            .eax = eax,
+            .ecx = actor_token != 0U ? actor_token : ecx,
+            .edx = edx,
+        });
+        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
+    }
+
+    [[nodiscard]] LegacyBattleActorListActionReply refresh_actor(
+        const u32 actor_token, const u32 eax, const u32 ecx, const u32 edx
+    ) override {
+        ++result_.port_calls;
+        const auto reply = port_.invoke({
+            .callee_token = kCallRefreshActorListAction,
+            .eax = eax,
+            .ecx = actor_token != 0U ? actor_token : ecx,
+            .edx = edx,
+        });
+        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
+    }
+
+private:
+    LegacyBattleActionDispatchPort& port_;
+    LegacyBattleActionDispatchResult& result_;
 };
 
 class GroupAFinalProcessingAdapter final
@@ -412,6 +459,40 @@ one_based_group_b_token(const u32 one_based) noexcept {
             group_a_final_processing_typed_stop;
         return false;
     }
+    return true;
+}
+
+[[nodiscard]] bool execute_group_a_actor_list_action(
+    LegacyBattleGroupAFrameState& state,
+    LegacyBattleActionDispatchPort& port,
+    LegacyBattleActionDispatchContext& context,
+    LegacyBattleActionDispatchResult& result,
+    const u32 group_a_index,
+    const u32 actor_token
+) {
+    if (context.startup == nullptr || group_a_index >= 10U ||
+        group_a_index >= context.startup->party.size()) {
+        result.status = LegacyBattleActionDispatchStatus::
+            group_a_actor_list_action_typed_stop;
+        return false;
+    }
+    auto& party = context.startup->party[group_a_index];
+    GroupAActorListActionAdapter adapter(port, result);
+    result.group_a_actor_list_action = execute_legacy_battle_actor_list_action(
+        &party.actor_list,
+        &party.item_effect_application,
+        &party.configuration,
+        actor_token,
+        adapter
+    );
+    ++result.group_a_actor_list_action_calls;
+    if (result.group_a_actor_list_action.status !=
+        LegacyBattleActorListQueryStatus::completed) {
+        result.status = LegacyBattleActionDispatchStatus::
+            group_a_actor_list_action_typed_stop;
+        return false;
+    }
+    static_cast<void>(state);
     return true;
 }
 
@@ -1473,9 +1554,18 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         }
                         state.action_text_runtime.fill(0U);
                     }
-                    static_cast<void>(invoke(
-                        port, result, kCallBeginActorAction, {actor_token}
-                    ));
+                    if (!execute_group_a_actor_list_action(
+                            state,
+                            port,
+                            context,
+                            result,
+                            group_a_index,
+                            actor_token
+                        )) {
+                        result.return_value =
+                            result.group_a_actor_list_action.return_eax;
+                        return result;
+                    }
                 }
             }
         }

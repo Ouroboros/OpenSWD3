@@ -1,6 +1,7 @@
 #include "openswd3/battle/legacy_battle_actor_list_query.hpp"
 
 #include <algorithm>
+#include <bit>
 
 namespace openswd3::battle {
 namespace {
@@ -359,6 +360,80 @@ LegacyBattleActorListCountResult count_legacy_battle_actor_list(
         }
     }
     result.return_eax = 0U;
+    return result;
+}
+
+LegacyBattleActorListActionResult execute_legacy_battle_actor_list_action(
+    LegacyBattleActorListQueryState* list,
+    LegacyBattleGroupAItemEffectApplicationState* item_effect,
+    LegacyBattleGroupAConfigurationState* configuration,
+    const u32 actor_token,
+    LegacyBattleActorListActionPort& port,
+    const LegacyBattleActorListActionRequest& request
+) {
+    LegacyBattleActorListActionResult result;
+    result.return_eax = request.entry_eax;
+    result.return_ecx = actor_token;
+    result.return_edx = request.entry_edx;
+    if (actor_token == 0U || item_effect == nullptr) {
+        result.status =
+            LegacyBattleActorListQueryStatus::actor_state_typed_stop;
+        return result;
+    }
+
+    u32 eax = request.entry_eax;
+    u32 ecx = actor_token;
+    u32 edx = request.entry_edx;
+    if ((item_effect->mode_flags & 0x80U) != 0U) {
+        if (list == nullptr) {
+            result.status =
+                LegacyBattleActorListQueryStatus::list_owner_typed_stop;
+            return result;
+        }
+        if (list->selected_resource_token == 0U) {
+            if (configuration == nullptr ||
+                configuration->actor_record_token == 0U) {
+                result.status =
+                    LegacyBattleActorListQueryStatus::list_owner_typed_stop;
+                return result;
+            }
+            u32& value = configuration->actor_record[1U];
+            u16 capacity = static_cast<u16>(value >> 16U);
+            capacity = static_cast<u16>(capacity - list->primary_required);
+            value = (value & 0x0000FFFFU) | (static_cast<u32>(capacity) << 16U);
+            ++result.capacity_writes;
+            if (std::bit_cast<compat::i16>(capacity) < 0) {
+                value &= 0x0000FFFFU;
+                ++result.capacity_writes;
+                list->primary_required = 0U;
+                ++result.primary_required_clears;
+                const auto reply =
+                    port.refresh_actor(actor_token, eax, ecx, edx);
+                ++result.refresh_calls;
+                result.return_eax = reply.eax;
+                result.return_ecx = reply.ecx;
+                result.return_edx = reply.edx;
+                return result;
+            }
+        } else {
+            const auto reply =
+                port.release_resource(actor_token, 0U, 0U, eax, ecx, edx);
+            ++result.release_calls;
+            eax = reply.eax;
+            ecx = reply.ecx;
+            edx = reply.edx;
+            list->selected_resource_token = 0U;
+            ++result.selected_resource_clears;
+        }
+        list->primary_required = 0U;
+        ++result.primary_required_clears;
+    }
+
+    const auto reply = port.refresh_actor(actor_token, eax, ecx, edx);
+    ++result.refresh_calls;
+    result.return_eax = reply.eax;
+    result.return_ecx = reply.ecx;
+    result.return_edx = reply.edx;
     return result;
 }
 
