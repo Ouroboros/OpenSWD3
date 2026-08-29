@@ -35,10 +35,10 @@ LegacyBattleActionDispatchPort::invoke_group_a_summon_materialization(
         call.callee_token = kLegacyBattleGroupASummonDiagnosticCallToken;
         call.arguments = {
             request.window_token,
-            kLegacyBattleGroupASummonDiagnosticTextToken,
+            request.diagnostic_text_token,
             0U,
-            kLegacyBattleGroupASummonDiagnosticSourceToken,
-            kLegacyBattleGroupASummonDiagnosticSourceLine,
+            request.diagnostic_source_token,
+            request.diagnostic_source_line,
         };
         break;
     }

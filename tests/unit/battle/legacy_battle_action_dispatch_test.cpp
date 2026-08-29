@@ -905,6 +905,9 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 openswd3::battle::LegacyBattleGroupASummonMaterializationCall::
                     report_missing_role,
             .window_token = 0x12340000U,
+            .diagnostic_text_token = 0x004A7C68U,
+            .diagnostic_source_token = 0x004A7C44U,
+            .diagnostic_source_line = 0x123U,
         }));
         test.expect_true(
             port.count(0x00431150U) == 1U &&

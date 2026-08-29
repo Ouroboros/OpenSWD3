@@ -50,6 +50,7 @@ void test_battle_actor_priority(openswd3::test::Context& test);
 void test_battle_actor_progress(openswd3::test::Context& test);
 void test_battle_actor_ready(openswd3::test::Context& test);
 void test_battle_group_a_configuration(openswd3::test::Context& test);
+void test_battle_group_a_npc_materialization(openswd3::test::Context& test);
 void test_battle_group_a_summon_materialization(openswd3::test::Context& test);
 void test_battle_group_a_resource_pair(openswd3::test::Context& test);
 void test_battle_group_a_value_pair(openswd3::test::Context& test);
@@ -7075,6 +7076,7 @@ int main() {
     test_battle_actor_progress(test);
     test_battle_actor_ready(test);
     test_battle_group_a_configuration(test);
+    test_battle_group_a_npc_materialization(test);
     test_battle_group_a_summon_materialization(test);
     test_battle_group_a_resource_pair(test);
     test_battle_group_a_value_pair(test);

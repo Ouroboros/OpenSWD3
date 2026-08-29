@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v763
+版本：v764
 
-最后更新：2026-08-25
+最后更新：2026-08-29
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗相邻角色函数 `0x0046E9C0`
+当前步骤：模块10 · 审计战斗相邻角色函数 `0x0046EBB0`
 
 ## 0. 执行约定
 
@@ -4144,4 +4144,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=175`的`0x0046E890`战斗组A召唤角色资料物化。完整权威LST主体`0x0046E890..0x0046E9BD`共120行、102条实际指令、4个call、1个条件跳转、1个局部标签、1个返回点且无外部chunk。函数申请并清零0xA4召唤资料，按源记录角色号依次调用资料加载和动态文字释放，把同一32-byte源记录复制到角色两处并发布尾值/角色号；零角色号调用固定诊断后继续。资料六项word/byte、9-byte名字和角色别名按原顺序投影到角色基础记录，最终EAX返回资料token、EDX返回基础记录token，ECX组合资料指定dword高word与指定word。typed实现复用startup party唯一源/角色owner，四类首次访问stop保留此前调用和写入。action15首帧按共享召唤索引直连typed物化器，窗口token沿startup owner传播，旧地址生产零调用，成功后才发布phase。测试覆盖callee顺序、全部投影、非对齐名字、寄存器、诊断、四类stop和caller共享owner。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过，源码零warning。工作包为`175/422 = 166 platform_adapted + 9 assembly_exact + 247 pending_audit`；生成器连续双跑逐字节一致，SHA256为`1f0a60ebecb5d6c5a137cdf799c36d78f0f6372dc7c020c8a7a0374b277fda3d`。动态差分因原版组A对象、0xA4资料、mon.dat加载/动态文字释放、诊断窗口和action15寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=176`的`0x0046E9C0`战斗相邻角色函数。
+本轮再完成`audit_order=176`的`0x0046E9C0`战斗组A护援角色资料物化。完整权威LST主体`0x0046E9C0..0x0046EBA9`共196行、169条实际指令、4个call、1个条件跳转、1个局部标签、1个返回点且无外部chunk。函数分配并清零0xA4资料，按护援源角色号调用资料加载与动态文字释放，把32-byte源记录双份复制到角色并发布尾值/角色号，零角色号以NPC固定参数诊断后继续。资料主、次i16系数分别调整基础记录六项word/byte：`+0x0A`按signed基值，`+0x26/+0x28/+0x14/+0x16`与byte `+0x2C`按无符号基值，全部保持向零除10和低宽度回绕；随后投影资料byte、9-byte名字、镜像byte、别名token与`+0x60`word。正常返回EAX为基础记录token高word与资料word低word组合、ECX基础记录token、EDX资料token。typed实现复用startup party唯一角色、placement、配置源和基础记录owner；首角色live `+4`既可解析四份配置源，也可在stale首护援物化后切换为其基础记录。五类首次访问stop保留此前分配、清零、callee、复制与诊断副作用。startup随机与顺序两处caller统一直连，旧护援配置槽reserved且生产零调用，子stop阻断激活、mode、计数与使用标记。测试覆盖全部投影、signed/unsigned域、回绕、诊断、寄存器、五类stop、普通双caller、stale动态别名和零调整源前缀。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过，源码零warning且app仅有既有ALSA提示。工作包为`176/422 = 167 platform_adapted + 9 assembly_exact + 246 pending_audit`；生成器连续双跑逐字节一致，SHA256为`3f337f7a288106bd5968dc273869d2e89f36673fb52b82ab134b68ae98df41e1`。动态差分因原版组A对象、0xA4资料、mon.dat加载/动态文字释放、动态调整源和caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=177`的`0x0046EBB0`战斗相邻角色函数。

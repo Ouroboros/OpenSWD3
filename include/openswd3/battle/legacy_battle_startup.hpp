@@ -5,6 +5,7 @@
 #include "openswd3/battle/legacy_battle_background_initialization.hpp"
 #include "openswd3/battle/legacy_battle_definition_archive.hpp"
 #include "openswd3/battle/legacy_battle_group_a_configuration.hpp"
+#include "openswd3/battle/legacy_battle_group_a_npc_materialization.hpp"
 #include "openswd3/battle/legacy_battle_group_a_resource_pair.hpp"
 #include "openswd3/battle/legacy_battle_group_a_value_pair.hpp"
 #include "openswd3/battle/legacy_battle_group_a_workspace_reset.hpp"
@@ -83,12 +84,16 @@ enum class LegacyBattleStartupCall : compat::u16 {
     query_secondary_ratio,
     query_tertiary_ratio,
     supplemental_seed,
-    configure_supplemental_actor,
+    reserved_configure_supplemental_actor,
     activate_supplemental_actor,
     query_actor_metric,
     advance_enemy_action,
     finalize_party_actor,
     group_a_missing_placement_diagnostic,
+    group_a_profile_allocate,
+    group_a_profile_load,
+    group_a_profile_release,
+    group_a_npc_missing_role_diagnostic,
 };
 
 struct LegacyBattleStartupCallRequest {
@@ -115,6 +120,8 @@ struct LegacyBattleStartupCallReply {
     bool publish_group_a_profile{};
     compat::u32 group_a_profile_token{};
     compat::u32 group_a_profile_kind{};
+    bool publish_group_a_profile_record{};
+    LegacyBattleGroupASummonProfileRecord group_a_profile_record{};
 };
 
 class LegacyBattleStartupPort
@@ -312,6 +319,7 @@ enum class LegacyBattleStartupStatus : compat::u8 {
     party_configuration_typed_stop,
     party_resource_pair_typed_stop,
     party_value_pair_typed_stop,
+    supplemental_materialization_typed_stop,
 };
 
 struct LegacyBattleDisplaySurfaceReleaseResult {
@@ -346,6 +354,9 @@ struct LegacyBattleStartupResult {
     LegacyBattlePlayerItemOrderResult player_item_order{};
     LegacyBattlePartyItemOrderResult party_item_order{};
     compat::u32 supplemental_actor_count{};
+    std::array<LegacyBattleGroupANpcMaterializationResult, 10>
+        supplemental_materializations{};
+    compat::u32 supplemental_materialization_calls{};
     compat::u32 enemy_action_advance_calls{};
     compat::u32 finalized_party_actor_count{};
     compat::u32 actor_metric_calls{};

@@ -41,6 +41,9 @@ struct LegacyBattleGroupASummonMaterializationCallRequest {
     compat::u32 profile_token{};
     compat::u16 role_id{};
     compat::u32 window_token{};
+    compat::u32 diagnostic_text_token{};
+    compat::u32 diagnostic_source_token{};
+    compat::u32 diagnostic_source_line{};
     LegacyBattleGroupASummonProfileRecord profile_record{};
 };
 

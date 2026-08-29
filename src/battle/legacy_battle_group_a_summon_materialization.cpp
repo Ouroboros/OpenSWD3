@@ -161,6 +161,12 @@ materialize_legacy_battle_group_a_summon(
                 .call = LegacyBattleGroupASummonMaterializationCall::
                     report_missing_role,
                 .window_token = window_token,
+                .diagnostic_text_token =
+                    kLegacyBattleGroupASummonDiagnosticTextToken,
+                .diagnostic_source_token =
+                    kLegacyBattleGroupASummonDiagnosticSourceToken,
+                .diagnostic_source_line =
+                    kLegacyBattleGroupASummonDiagnosticSourceLine,
                 .profile_record = state->profile_record,
             }
         ));

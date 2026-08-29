@@ -92,7 +92,20 @@ public:
             reply.outputs = {5, 0, 0x13579BDF, 0};
             break;
         case LegacyBattleStartupCall::supplemental_seed:
-            reply.return_value = 0x2468ACE0U;
+            if (supplemental_modifier_tokens.empty()) {
+                reply.return_value = supplemental_modifier_token;
+            } else {
+                reply.return_value = supplemental_modifier_tokens.front();
+                supplemental_modifier_tokens.pop_front();
+            }
+            break;
+        case LegacyBattleStartupCall::group_a_profile_allocate:
+            reply.return_value =
+                0x71000000U + profile_allocation_count++ * 0xA4U;
+            break;
+        case LegacyBattleStartupCall::group_a_profile_load:
+            reply.publish_group_a_profile_record = true;
+            reply.group_a_profile_record = supplemental_profile;
             break;
         case LegacyBattleStartupCall::query_actor_metric:
             reply.publish_metric_word = true;
@@ -250,7 +263,10 @@ public:
     LegacyBattleDefinition definition{};
     std::unordered_map<u32, u32> query_values;
     std::deque<u32> random_values;
+    std::deque<u32> supplemental_modifier_tokens;
     std::vector<LegacyBattleStartupCallRequest> requests;
+    openswd3::battle::LegacyBattleGroupASummonProfileRecord
+        supplemental_profile{};
     std::vector<openswd3::battle::LegacyBattleDefinitionArchiveOpenRequest>
         archive_open_requests;
     std::vector<openswd3::battle::LegacyBattleDefinitionArchiveReadRequest>
@@ -290,8 +306,10 @@ public:
     u32 background_variant{};
     u32 background_load_calls{};
     u32 created_surface_count{};
+    u32 profile_allocation_count{};
     u32 no_enemy_return{0x87654321U};
     u32 party_actor_mode_return{};
+    u32 supplemental_modifier_token{};
     bool force_definition_offset_stop{};
     std::vector<u32> released_images;
     std::vector<u32> released_owners;
@@ -546,6 +564,7 @@ void test_battle_startup(openswd3::test::Context& test) {
         state.group_a_configuration_sources[0U].dwords[4U] = 0x56781234U;
         state.group_a_configuration_sources[1U].dwords[1U] = 9000U;
         StartupPorts ports;
+        ports.supplemental_modifier_token = 0x004AB790U;
         ports.archive_open_replies.push_back({
             .eax = 0xFFFFFFFFU,
             .ecx = 0x77777777U,
@@ -705,10 +724,34 @@ void test_battle_startup(openswd3::test::Context& test) {
                 state.group_a_description_text_indices[2U] == 0xBEEFU &&
                 state.party_offsets[0] == 124 && state.party_offsets[2] == 64 &&
                 result.supplemental_actor_count == 2U &&
+                result.supplemental_materialization_calls == 2U &&
+                result.supplemental_materializations[0U].status ==
+                    openswd3::battle::
+                        LegacyBattleGroupANpcMaterializationStatus::completed &&
+                result.supplemental_materializations[1U].status ==
+                    openswd3::battle::
+                        LegacyBattleGroupANpcMaterializationStatus::completed &&
+                ports.call_count(
+                    LegacyBattleStartupCall::
+                        reserved_configure_supplemental_actor
+                ) == 0U &&
+                ports.call_count(
+                    LegacyBattleStartupCall::group_a_profile_allocate
+                ) == 2U &&
+                ports.call_count(
+                    LegacyBattleStartupCall::group_a_profile_load
+                ) == 2U &&
+                ports.call_count(
+                    LegacyBattleStartupCall::group_a_profile_release
+                ) == 2U &&
                 state.party_count == 4U && state.party[2].role_id == 3U &&
                 state.party[3].role_id == 4U &&
                 state.party[2].position_x == 0xFF92U &&
                 state.party[3].position_x == 0xFF92U &&
+                state.party[2].configuration.profile_token == 0x71000000U &&
+                state.party[3].configuration.profile_token == 0x710000A4U &&
+                state.party[2].configuration.source_record_token ==
+                    state.party[2].configuration.actor_record_token &&
                 state.supplemental_count_word == 2U &&
                 state.party_metrics[0].primary_ratio_a == 84U &&
                 state.party_metrics[0].primary_ratio_b == 84U &&
@@ -749,7 +792,10 @@ void test_battle_startup(openswd3::test::Context& test) {
     {
         LegacyBattleStartupState state;
         state.supplemental_count_word = 1U;
+        state.party[0U].configuration.source_record_token = 0x004AB790U;
+        state.group_a_configuration_sources[0U].dwords[4U] = 0x12345678U;
         StartupPorts ports;
+        ports.supplemental_modifier_tokens = {0x004AB790U, 0x005029D0U};
         ports.query_values = {{34U, 1U}, {35U, 1U}};
         ports.random_values = {0U, 1U, 1U, 0U, 0U};
         ports.definition.enemy_count = 1U;
@@ -763,16 +809,73 @@ void test_battle_startup(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleStartupStatus::completed &&
                 result.initial_party_actor_count == 0U &&
                 result.supplemental_actor_count == 2U &&
+                result.supplemental_materialization_calls == 2U &&
+                result.supplemental_materializations[0U].status ==
+                    openswd3::battle::
+                        LegacyBattleGroupANpcMaterializationStatus::completed &&
+                result.supplemental_materializations[1U].status ==
+                    openswd3::battle::
+                        LegacyBattleGroupANpcMaterializationStatus::completed &&
                 state.party_count == 2U && state.party[0].role_id == 4U &&
                 state.party[1].role_id == 3U &&
                 state.supplemental_used[1] == 1U &&
                 state.supplemental_used[0] == 1U &&
                 ports.call_count(LegacyBattleStartupCall::random_below) == 5U &&
+                ports.call_count(
+                    LegacyBattleStartupCall::
+                        reserved_configure_supplemental_actor
+                ) == 0U &&
+                ports.call_count(
+                    LegacyBattleStartupCall::group_a_profile_allocate
+                ) == 2U &&
+                ports.call_count(
+                    LegacyBattleStartupCall::group_a_profile_load
+                ) == 2U &&
+                ports.call_count(
+                    LegacyBattleStartupCall::group_a_profile_release
+                ) == 2U &&
                 ports.call_count(LegacyBattleStartupCall::apply_actor_mode) ==
                     2U &&
                 result.return_value == 0U && result.message_state_published &&
                 ports.battle_message_state() == 0x67U,
-            "stale supplemental word selects random branch and duplicate random candidate retries without cap"
+            "stale supplemental word selects random branch and materializes both retry-selected NPC actors"
+        );
+    }
+
+    {
+        LegacyBattleStartupState state;
+        state.supplemental_count_word = 1U;
+        StartupPorts ports;
+        ports.supplemental_modifier_token = 0U;
+        ports.query_values = {{34U, 1U}};
+        ports.random_values = {0U, 0U};
+        ports.definition.enemy_count = 1U;
+
+        const auto result = openswd3::battle::initialize_legacy_battle_startup(
+            state, ports, ports, ports, ports, ports, ports, request(8U)
+        );
+
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleStartupStatus::
+                        supplemental_materialization_typed_stop &&
+                result.supplemental_actor_count == 0U &&
+                result.supplemental_materialization_calls == 1U &&
+                result.supplemental_materializations[0U].status ==
+                    openswd3::battle::
+                        LegacyBattleGroupANpcMaterializationStatus::
+                            modifier_record_typed_stop &&
+                state.party_count == 0U && state.party[0].role_id == 3U &&
+                state.party[0].configuration.profile_token == 0x71000000U &&
+                state.party[0].configuration.placement_word == 3U &&
+                ports.call_count(
+                    LegacyBattleStartupCall::
+                        reserved_configure_supplemental_actor
+                ) == 0U &&
+                ports.call_count(LegacyBattleStartupCall::apply_actor_mode) ==
+                    0U &&
+                !result.message_state_published,
+            "zero supplemental modifier stops after profile and placement publication before actor activation"
         );
     }
 
