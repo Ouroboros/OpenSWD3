@@ -273,6 +273,7 @@ add_executable(
     unit/battle/legacy_battle_actor_progress_test.cpp
     unit/battle/legacy_battle_actor_ready_test.cpp
     unit/battle/legacy_battle_group_a_configuration_test.cpp
+    unit/battle/legacy_battle_group_a_resource_pair_test.cpp
     unit/battle/legacy_battle_group_a_workspace_reset_test.cpp
     unit/battle/legacy_battle_animation_collision_test.cpp
     unit/battle/legacy_battle_opponent_action_dispatch_test.cpp

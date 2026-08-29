@@ -82,6 +82,9 @@ public:
             reply.group_a_profile_token = request.arguments[1U];
             reply.group_a_profile_kind = 0x38U;
             break;
+        case LegacyBattleStartupCall::apply_party_value:
+            reply.edx_snapshot = 0xCAFEBABEU;
+            break;
         case LegacyBattleStartupCall::query_primary_ratio:
             reply.outputs = {3, 2, 0, 0};
             break;
@@ -675,6 +678,16 @@ void test_battle_startup(openswd3::test::Context& test) {
                         state.action_mode_source.actor_label_indices[0U] *
                             0x40U &&
                 state.group_a_profiles.profile_kinds[0U] == 0x38U &&
+                result.party_resource_pair_calls == 2U &&
+                state.party[0U].resource_pair.primary_token == 0x004A9940U &&
+                state.party[0U].resource_pair.secondary_token == 0x004A9940U &&
+                result.party_resource_pairs[0U].writes == 2U &&
+                result.party_resource_pairs[0U].return_eax == 0x004A9940U &&
+                result.party_resource_pairs[0U].return_ecx == 0x005029D0U &&
+                result.party_resource_pairs[0U].return_edx == 0xCAFEBABEU &&
+                ports.call_count(
+                    LegacyBattleStartupCall::reserved_apply_party_palette
+                ) == 0U &&
                 state.group_a_description_record_tokens[0U] == 0U &&
                 state.group_a_description_record_tokens[1U] == 0U &&
                 state.group_a_description_record_tokens[2U] == 0xDEADBEEFU &&

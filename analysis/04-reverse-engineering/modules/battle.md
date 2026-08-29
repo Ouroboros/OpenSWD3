@@ -555,6 +555,8 @@ I5最终必须锁定：
 
 `audit_order=172`的`0x0046E730`已关闭为`platform_adapted`。完整权威LST主体`0x0046E730..0x0046E841`共122行、80条实际指令、2个call、8个跳转、1个返回点且无外部chunk。函数先直连已关闭工作区零化器，再把32-byte placement复制到角色两处并发布尾dword，把56-byte源记录复制到角色基础记录后发布源/辅助token、文字byte和placement word；零placement word调用窄诊断port后继续。基础记录内部复制两项u16，源记录按`+0A,+04,+0C,+06,+0E,+08`顺序以signed i16仅上限夹到9999，角色副本保持夹值前内容；最后清特殊状态并按角色副本bit7置1。正常返回EAX基础记录token、ECX源记录token，EDX低word来自基础记录、高word来自placement或诊断callee。三类token在首次真实访问typed-stop并保留前缀。startup唯一caller已直连typed配置器，旧业务枚举槽reserved，新诊断服务追加尾部，typed-stop阻断后续mode查询。测试覆盖复制、signed夹值、诊断时序/参数/寄存器、特殊bit、三类typed-stop和startup caller回收。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过，源码零warning。工作包为`172/422 = 163 platform_adapted + 9 assembly_exact + 250 pending_audit`，双跑SHA256为`1e8eb49e2803ef138da7b3b4a23e16e85967aa751360dfbf5056e41f9b9d5ac0`。动态差分因原版组A对象、源/placement记录、窗口、诊断callee与caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=173`的`0x0046E850`战斗相邻状态函数。
+`audit_order=173`的`0x0046E850`已关闭为`platform_adapted`。完整权威LST主体`0x0046E850..0x0046E860`共11行、4条实际指令、0个call、0个跳转、1个返回点且无外部chunk。函数把单个资源token依次完整写入组A角色`+0x2EC8/+0x2ECC`，返回EAX原token、ECX原this并完整保留入口陈旧EDX。typed资源pair挂入startup组A角色唯一记录；零actor token在首次写typed-stop且两项不变。startup初始队伍绑定循环在pending value callee后直连本实现并把其EDX传入，旧palette枚举槽reserved，正常后继续名字绑定。测试覆盖双写顺序、寄存器、首次写停止及两名caller直连。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过，源码零warning。工作包为`173/422 = 164 platform_adapted + 9 assembly_exact + 249 pending_audit`，双跑SHA256为`39296e047e86652a3e46b68c8bf4ce5496227c435f358a7f6574c6df0c4ea5d8`。动态差分因原版组A对象、共享资源表与caller前后callee寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=174`的`0x0046E870`战斗相邻数值函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

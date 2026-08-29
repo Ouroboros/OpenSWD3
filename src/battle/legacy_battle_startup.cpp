@@ -711,16 +711,25 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
             state.group_a_profiles.profile_kinds[index] =
                 profile.group_a_profile_kind;
         }
-        static_cast<void>(invoke(
+        const auto value = invoke(
             port,
             LegacyBattleStartupCall::apply_party_value,
             {actor_token, request.party_values[source], 0U, 0U}
-        ));
-        static_cast<void>(invoke(
-            port,
-            LegacyBattleStartupCall::apply_party_palette,
-            {actor_token, 0x004A9940U, 0U, 0U}
-        ));
+        );
+        result.party_resource_pairs[index] =
+            publish_legacy_battle_group_a_resource_pair(
+                state.party[index].resource_pair,
+                actor_token,
+                0x004A9940U,
+                value.edx_snapshot
+            );
+        ++result.party_resource_pair_calls;
+        if (result.party_resource_pairs[index].status !=
+            LegacyBattleGroupAResourcePairStatus::completed) {
+            result.status =
+                LegacyBattleStartupStatus::party_resource_pair_typed_stop;
+            return result;
+        }
         static_cast<void>(invoke(
             port,
             LegacyBattleStartupCall::apply_party_name,

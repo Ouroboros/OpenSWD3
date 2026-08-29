@@ -5,6 +5,7 @@
 #include "openswd3/battle/legacy_battle_background_initialization.hpp"
 #include "openswd3/battle/legacy_battle_definition_archive.hpp"
 #include "openswd3/battle/legacy_battle_group_a_configuration.hpp"
+#include "openswd3/battle/legacy_battle_group_a_resource_pair.hpp"
 #include "openswd3/battle/legacy_battle_group_a_workspace_reset.hpp"
 #include "openswd3/battle/legacy_battle_group_b_order.hpp"
 #include "openswd3/battle/legacy_battle_party_item_order.hpp"
@@ -75,7 +76,7 @@ enum class LegacyBattleStartupCall : compat::u16 {
     query_party_actor_mode,
     apply_party_profile,
     apply_party_value,
-    apply_party_palette,
+    reserved_apply_party_palette,
     apply_party_name,
     query_primary_ratio,
     query_secondary_ratio,
@@ -190,6 +191,7 @@ struct LegacyBattlePartyStartupRecord {
     LegacyBattleActorProgressState progress;
     LegacyBattleGroupAWorkspaceState workspace;
     LegacyBattleGroupAConfigurationState configuration;
+    LegacyBattleGroupAResourcePairState resource_pair;
 };
 
 struct LegacyBattlePartyMetricRecord {
@@ -305,6 +307,7 @@ enum class LegacyBattleStartupStatus : compat::u8 {
     party_item_order_typed_stop,
     random_result_out_of_range,
     party_configuration_typed_stop,
+    party_resource_pair_typed_stop,
 };
 
 struct LegacyBattleDisplaySurfaceReleaseResult {
@@ -332,6 +335,8 @@ struct LegacyBattleStartupResult {
     compat::u32 party_configuration_calls{};
     std::array<LegacyBattleGroupAConfigurationResult, 10>
         party_configurations{};
+    compat::u32 party_resource_pair_calls{};
+    std::array<LegacyBattleGroupAResourcePairResult, 10> party_resource_pairs{};
     LegacyBattlePlayerItemOrderResult player_item_order{};
     LegacyBattlePartyItemOrderResult party_item_order{};
     compat::u32 supplemental_actor_count{};
