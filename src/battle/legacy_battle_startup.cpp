@@ -307,6 +307,7 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
     const LegacyBattleStartupRequest& request
 ) {
     LegacyBattleStartupResult result;
+    state.window_token = request.window_token;
     state.battle_id_word = static_cast<u16>(request.battle_id);
     static_cast<void>(invoke(port, LegacyBattleStartupCall::prepare_runtime));
     result.action_threshold = publish_legacy_battle_action_threshold(

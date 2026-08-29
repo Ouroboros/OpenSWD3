@@ -28,6 +28,7 @@ add_library(
         legacy_battle_actor_ready.cpp
         legacy_battle_group_a_configuration.cpp
         legacy_battle_group_a_resource_pair.cpp
+        legacy_battle_group_a_summon_materialization.cpp
         legacy_battle_group_a_value_pair.cpp
         legacy_battle_group_a_workspace_reset.cpp
         legacy_battle_assets.cpp

@@ -424,6 +424,7 @@ void test_battle_startup(openswd3::test::Context& test) {
             )
         );
         auto startup_request = request(0xABCD0001U);
+        startup_request.window_token = 0x12340000U;
         startup_request.archive_number_of_bytes_read_token = 0x11112222U;
         startup_request.archive_entry_edx_snapshot = 0x33334444U;
         startup_request.definition_record_number_of_bytes_read_token =
@@ -440,6 +441,7 @@ void test_battle_startup(openswd3::test::Context& test) {
                 result.return_value == 0x87654321U &&
                 result.no_enemy_notification_calls == 1U &&
                 result.action_threshold == 900 &&
+                state.window_token == 0x12340000U &&
                 state.battle_id_word == 0x0001U &&
                 reset_blocks_match(state, ports) && state.party_count == 2U &&
                 state.party_presence ==

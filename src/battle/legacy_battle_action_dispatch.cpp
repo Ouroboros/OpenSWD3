@@ -1,6 +1,7 @@
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 
 #include "openswd3/battle/legacy_battle_action_frame_draw.hpp"
+#include "openswd3/battle/legacy_battle_startup.hpp"
 
 #include <algorithm>
 #include <bit>
@@ -8,6 +9,48 @@
 #include <limits>
 
 namespace openswd3::battle {
+
+LegacyBattleGroupASummonMaterializationCallReply
+LegacyBattleActionDispatchPort::invoke_group_a_summon_materialization(
+    const LegacyBattleGroupASummonMaterializationCallRequest& request
+) {
+    LegacyBattleActionCallRequest call{};
+    call.arguments[0U] = request.profile_token;
+    switch (request.call) {
+    case LegacyBattleGroupASummonMaterializationCall::allocate_profile:
+        call.callee_token = kLegacyBattleGroupASummonAllocateCallToken;
+        call.arguments[0U] = kLegacyBattleGroupASummonProfileSize;
+        break;
+
+    case LegacyBattleGroupASummonMaterializationCall::load_profile:
+        call.callee_token = kLegacyBattleGroupASummonLoadCallToken;
+        call.arguments[1U] = request.role_id;
+        break;
+
+    case LegacyBattleGroupASummonMaterializationCall::release_profile_text:
+        call.callee_token = kLegacyBattleGroupASummonReleaseCallToken;
+        break;
+
+    case LegacyBattleGroupASummonMaterializationCall::report_missing_role:
+        call.callee_token = kLegacyBattleGroupASummonDiagnosticCallToken;
+        call.arguments = {
+            request.window_token,
+            kLegacyBattleGroupASummonDiagnosticTextToken,
+            0U,
+            kLegacyBattleGroupASummonDiagnosticSourceToken,
+            kLegacyBattleGroupASummonDiagnosticSourceLine,
+        };
+        break;
+    }
+    const auto reply = invoke(call);
+    return {
+        .eax = reply.eax,
+        .ecx = reply.ecx,
+        .edx = reply.edx,
+        .profile_record = request.profile_record,
+    };
+}
+
 namespace {
 
 using compat::i16;
@@ -73,7 +116,6 @@ constexpr u32 kCallSetScreenMode = 0x0047CC40U;
 constexpr u32 kCallSelectSummon = 0x0047D350U;
 constexpr u32 kCallSummonMode = 0x0047DAB0U;
 constexpr u32 kCallPrepareSummon = 0x004786F0U;
-constexpr u32 kCallBuildSummon = 0x0046E890U;
 constexpr u32 kCallSummonReady = 0x00471D60U;
 constexpr u32 kCallActionTwentySevenReady = 0x004728E0U;
 constexpr u32 kCallActionSevenReady = 0x00479850U;
@@ -1419,9 +1461,42 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                     invoke(state, port, result, kCallSetGlobalMode, {1U})
                 );
             }
-            static_cast<void>(
-                invoke(state, port, result, kCallBuildSummon, {summon_index})
-            );
+            LegacyBattleGroupAConfigurationState* summon_state = nullptr;
+            LegacyBattleGroupAPlacementRecord summon_source{};
+            const LegacyBattleGroupAPlacementRecord* summon_source_view =
+                nullptr;
+            u32 summon_window_token = 0U;
+            if (context.startup != nullptr) {
+                auto& party = context.startup->party[summon_index];
+                summon_state = &party.configuration;
+                summon_source = {
+                    .prefix = party.placement_prefix,
+                    .role_id = party.role_id,
+                    .position_x = party.position_x,
+                    .position_y = party.position_y,
+                    .field_1a = party.placement_field_1a,
+                    .active = party.active,
+                };
+                summon_source_view = &summon_source;
+                summon_window_token = context.startup->window_token;
+            }
+            result.summon_materialization =
+                materialize_legacy_battle_group_a_summon(
+                    summon_state,
+                    summon_source_view,
+                    group_a_token(summon_index),
+                    0x0053AF70U + summon_index * 0x20U,
+                    summon_window_token,
+                    port
+                );
+            ++result.summon_materialization_calls;
+            result.port_calls += result.summon_materialization.port_calls;
+            if (result.summon_materialization.status !=
+                LegacyBattleGroupASummonMaterializationStatus::completed) {
+                result.status = LegacyBattleActionDispatchStatus::
+                    summon_materialization_typed_stop;
+                return result;
+            }
             replace_low_word(state.phase_counter, 1U);
             state.summon_x = 0U;
             state.summon_y = 0U;

@@ -52,6 +52,23 @@ public:
         return default_reply;
     }
 
+    [[nodiscard]] openswd3::battle::
+        LegacyBattleGroupASummonMaterializationCallReply
+        invoke_group_a_summon_materialization(
+            const openswd3::battle::
+                LegacyBattleGroupASummonMaterializationCallRequest& request
+        ) override {
+        summon_materialization_calls.push_back(request);
+        auto reply = openswd3::battle::LegacyBattleActionDispatchPort::
+            invoke_group_a_summon_materialization(request);
+        if (request.call ==
+            openswd3::battle::LegacyBattleGroupASummonMaterializationCall::
+                load_profile) {
+            reply.profile_record = summon_profile;
+        }
+        return reply;
+    }
+
     [[nodiscard]] openswd3::battle::LegacyBattleTextMessageCallReply
     invoke_text_message(
         const openswd3::battle::LegacyBattleTextMessageCallRequest& request
@@ -97,6 +114,10 @@ public:
     LegacyBattleActionCallReply default_reply{.eax = 1U};
     std::unordered_map<u32, std::deque<LegacyBattleActionCallReply>> replies;
     std::vector<LegacyBattleActionCallRequest> calls;
+    std::vector<
+        openswd3::battle::LegacyBattleGroupASummonMaterializationCallRequest>
+        summon_materialization_calls;
+    openswd3::battle::LegacyBattleGroupASummonProfileRecord summon_profile{};
     std::vector<openswd3::battle::LegacyBattleTextMessageCallRequest>
         text_message_calls;
     u32 next_text_message_token{0x71000000U};
@@ -219,8 +240,13 @@ struct Fixture {
     SoundPort sound;
     std::array<u8, 16> flags{};
     CountdownFlags countdown_flags{flags};
-    openswd3::battle::LegacyBattleStartupResetBlocks startup_reset;
-    openswd3::battle::LegacyBattleTextMessageState text_messages;
+    openswd3::battle::LegacyBattleStartupState startup;
+    openswd3::battle::LegacyBattleStartupResetBlocks& startup_reset{
+        startup.reset
+    };
+    openswd3::battle::LegacyBattleTextMessageState& text_messages{
+        startup.text_messages
+    };
     std::array<openswd3::battle::LegacyBattleStartupResetRecord, 0x12>
         attack_order_records{};
     std::array<u32, 0x32> attack_order_party_sources{};
@@ -230,6 +256,9 @@ struct Fixture {
         attack_order_adjacent_record{};
 
     Fixture() {
+        startup.party[0U].role_id = 1U;
+        startup.party[0U].active = 1U;
+        startup.party[0U].configuration.actor_record_token = 0x005029D0U;
         static_cast<void>(
             openswd3::rendering::initialize_legacy_raster_geometry(
                 raster, framebuffer.geometry().surface
@@ -251,6 +280,7 @@ struct Fixture {
             .indicator_sound = sound,
             .countdown_flags = countdown_flags,
             .internal_flags = flags,
+            .startup = &startup,
             .startup_reset = &startup_reset,
             .text_messages = &text_messages,
             .attack_order_records = attack_order_records,
@@ -262,6 +292,15 @@ struct Fixture {
         };
     }
 };
+
+void set_summon_profile_word(
+    openswd3::battle::LegacyBattleGroupASummonProfileRecord& record,
+    const std::size_t offset,
+    const u16 value
+) noexcept {
+    record[offset] = static_cast<std::byte>(static_cast<u8>(value));
+    record[offset + 1U] = static_cast<std::byte>(static_cast<u8>(value >> 8U));
+}
 
 [[nodiscard]] bool has_call_argument(
     const DispatchPort& port,
@@ -856,6 +895,152 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 (state.packed_actor_counter & 0xFFU) == 0U &&
                 result.return_value == 0U,
             "attack-order one-past stop preserves the ready and delay prefix then blocks action completion"
+        );
+    }
+
+    {
+        DispatchPort port;
+        static_cast<void>(port.invoke_group_a_summon_materialization({
+            .call =
+                openswd3::battle::LegacyBattleGroupASummonMaterializationCall::
+                    report_missing_role,
+            .window_token = 0x12340000U,
+        }));
+        test.expect_true(
+            port.count(0x00431150U) == 1U &&
+                has_call_argument(port, 0x00431150U, 0U, 0x12340000U) &&
+                has_call_argument(port, 0x00431150U, 1U, 0x004A7C68U) &&
+                has_call_argument(port, 0x00431150U, 2U, 0U) &&
+                has_call_argument(port, 0x00431150U, 3U, 0x004A7C44U) &&
+                has_call_argument(port, 0x00431150U, 4U, 0x123U),
+            "summon diagnostic adapter preserves the fixed window, text, flags, source, and line arguments"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        state.group_a_count = 1;
+        state.group_b_count = 1;
+        state.phase_counter = 0xAABB0000U;
+        state.group_a_status_words[0U] = 2U;
+        Fixture fixture;
+        fixture.startup.window_token = 0x12340000U;
+        auto& summon = fixture.startup.party[2U];
+        summon.placement_prefix = {1U, 2U, 3U, 4U, 5U};
+        summon.role_id = 7U;
+        summon.position_x = 0x2345U;
+        summon.position_y = 0x3456U;
+        summon.placement_field_1a = 0x4567U;
+        summon.active = 1U;
+        summon.configuration.actor_record_token = 0x005029D0U + 2U * 0x2F34U;
+        DispatchPort port;
+        port.action = 15U;
+        port.push(0x00487C10U, {.eax = 0x71000000U});
+        port.push(0x00471D60U, {.eax = 0U});
+        set_summon_profile_word(port.summon_profile, 0x56U, 0x1111U);
+        set_summon_profile_word(port.summon_profile, 0x60U, 0x2222U);
+        set_summon_profile_word(port.summon_profile, 0x64U, 0x3333U);
+        auto context = fixture.context();
+
+        const auto result = openswd3::battle::dispatch_legacy_battle_action(
+            state, port, context, 0U, 0U
+        );
+
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.return_value == 0U &&
+                result.summon_materialization_calls == 1U &&
+                result.summon_materialization.status ==
+                    openswd3::battle::
+                        LegacyBattleGroupASummonMaterializationStatus::
+                            completed &&
+                result.summon_materialization.return_eax == 0x71000000U &&
+                result.summon_materialization.return_edx ==
+                    summon.configuration.actor_record_token &&
+                port.summon_materialization_calls.size() == 3U &&
+                port.count(0x0046E890U) == 0U &&
+                port.count(0x00487C10U) == 1U &&
+                port.count(0x00476DB0U) == 1U &&
+                port.count(0x00478220U) == 1U &&
+                has_call_argument(port, 0x00476DB0U, 0U, 0x71000000U) &&
+                has_call_argument(port, 0x00476DB0U, 1U, 7U) &&
+                summon.configuration.profile_token == 0x71000000U &&
+                summon.configuration.placement_primary[5U] == 0x23450007U &&
+                summon.configuration.source_record_token ==
+                    summon.configuration.actor_record_token &&
+                (summon.configuration.actor_record[9U] >> 16U) == 0x1111U &&
+                summon.configuration.profile_field_f2 == 0x2222U &&
+                static_cast<u16>(summon.configuration.actor_record[1U]) ==
+                    0x3333U &&
+                state.phase_counter == 0xAABB0001U && state.summon_x == 0U &&
+                state.summon_y == 0U,
+            "action fifteen materializes the selected summon from the shared startup record before beginning its frame phase"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        state.group_a_count = 1;
+        state.group_b_count = 1;
+        state.group_a_status_words[0U] = 1U;
+        Fixture fixture;
+        fixture.startup.window_token = 0x76543210U;
+        fixture.startup.party[1U].role_id = 0U;
+        fixture.startup.party[1U].configuration.actor_record_token =
+            0x005029D0U + 0x2F34U;
+        DispatchPort port;
+        port.action = 15U;
+        port.push(0x00487C10U, {.eax = 0x72000000U});
+        port.push(0x00471D60U, {.eax = 0U});
+        auto context = fixture.context();
+
+        const auto result = openswd3::battle::dispatch_legacy_battle_action(
+            state, port, context, 0U, 0U
+        );
+
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.summon_materialization.diagnostic_calls == 1U &&
+                port.count(0x00431150U) == 1U &&
+                has_call_argument(port, 0x00431150U, 0U, 0x76543210U) &&
+                has_call_argument(port, 0x00431150U, 1U, 0x004A7C68U) &&
+                has_call_argument(port, 0x00431150U, 2U, 0U) &&
+                has_call_argument(port, 0x00431150U, 3U, 0x004A7C44U) &&
+                has_call_argument(port, 0x00431150U, 4U, 0x123U),
+            "zero summon role forwards the fixed diagnostic payload after profile release"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        state.group_a_count = 1;
+        state.group_b_count = 1;
+        state.group_a_status_words[0U] = 0U;
+        Fixture fixture;
+        DispatchPort port;
+        port.action = 15U;
+        port.push(0x00487C10U, {.eax = 0x73000000U});
+        auto context = fixture.context();
+        context.startup = nullptr;
+
+        const auto result = openswd3::battle::dispatch_legacy_battle_action(
+            state, port, context, 0U, 0U
+        );
+
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        summon_materialization_typed_stop &&
+                result.summon_materialization.status ==
+                    openswd3::battle::
+                        LegacyBattleGroupASummonMaterializationStatus::
+                            actor_state_typed_stop &&
+                result.summon_materialization.allocation_calls == 1U &&
+                result.summon_materialization.load_calls == 0U &&
+                port.count(0x00487C10U) == 1U &&
+                port.count(0x0046E890U) == 0U &&
+                static_cast<u16>(state.phase_counter) == 0U,
+            "missing shared summon owner stops after allocation and clear before the first actor write"
         );
     }
 

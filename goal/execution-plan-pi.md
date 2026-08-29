@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v762
+版本：v763
 
 最后更新：2026-08-25
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗相邻角色函数
+当前步骤：模块10 · 审计战斗相邻角色函数 `0x0046E9C0`
 
 ## 0. 执行约定
 
@@ -4142,4 +4142,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=174`的`0x0046E870`战斗组A角色共享数值双写。完整权威LST主体`0x0046E870..0x0046E880`共11行、4条实际指令、0个call、0个跳转、1个返回点且无外部chunk。函数把单个完整dword依次写入组A角色`+0x2EC0/+0x2EC4`，返回EAX原值、ECX原this并完整保留入口EDX。typed数值pair挂入startup组A角色唯一记录；零actor token在首次写typed-stop且两项不变。startup初始队伍绑定循环按权威caller以source索引作为EDX、请求party value作为输入直连本实现，再把返回EDX传给已关闭资源pair；旧value枚举槽reserved。测试覆盖双写、寄存器、首次写停止、两名caller直连及相邻资源pair EDX纠正。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过，源码零warning。工作包为`174/422 = 165 platform_adapted + 9 assembly_exact + 248 pending_audit`；生成器连续双跑逐字节一致，SHA256为`87a1424ffba3d06e6b76fb4cbe99b5841dd4d41e8d34dc8468419fdd2ff441be`。动态差分因原版组A对象、party value表与caller相邻callee寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=175`的`0x0046E890`战斗相邻角色函数。
+本轮再完成`audit_order=175`的`0x0046E890`战斗组A召唤角色资料物化。完整权威LST主体`0x0046E890..0x0046E9BD`共120行、102条实际指令、4个call、1个条件跳转、1个局部标签、1个返回点且无外部chunk。函数申请并清零0xA4召唤资料，按源记录角色号依次调用资料加载和动态文字释放，把同一32-byte源记录复制到角色两处并发布尾值/角色号；零角色号调用固定诊断后继续。资料六项word/byte、9-byte名字和角色别名按原顺序投影到角色基础记录，最终EAX返回资料token、EDX返回基础记录token，ECX组合资料指定dword高word与指定word。typed实现复用startup party唯一源/角色owner，四类首次访问stop保留此前调用和写入。action15首帧按共享召唤索引直连typed物化器，窗口token沿startup owner传播，旧地址生产零调用，成功后才发布phase。测试覆盖callee顺序、全部投影、非对齐名字、寄存器、诊断、四类stop和caller共享owner。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过，源码零warning。工作包为`175/422 = 166 platform_adapted + 9 assembly_exact + 247 pending_audit`；生成器连续双跑逐字节一致，SHA256为`1f0a60ebecb5d6c5a137cdf799c36d78f0f6372dc7c020c8a7a0374b277fda3d`。动态差分因原版组A对象、0xA4资料、mon.dat加载/动态文字释放、诊断窗口和action15寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=176`的`0x0046E9C0`战斗相邻角色函数。

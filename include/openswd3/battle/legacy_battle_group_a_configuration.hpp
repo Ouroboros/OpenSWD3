@@ -5,6 +5,7 @@
 #include "openswd3/compat/types.hpp"
 
 #include <array>
+#include <cstddef>
 
 namespace openswd3::battle {
 
@@ -38,6 +39,9 @@ struct LegacyBattleGroupAConfigurationState {
     compat::u32 placement_tail{};
     compat::u8 field_2a93{};
     compat::u16 placement_word{};
+    compat::u32 profile_token{};
+    std::array<std::byte, 0xA4> profile_record{};
+    compat::u16 profile_field_f2{};
 };
 
 struct LegacyBattleGroupAConfigurationDiagnosticRequest {

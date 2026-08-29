@@ -11,6 +11,7 @@
 #include "openswd3/battle/legacy_battle_pair_transition.hpp"
 #include "openswd3/battle/legacy_battle_frame_refresh.hpp"
 #include "openswd3/battle/legacy_battle_outcome_state.hpp"
+#include "openswd3/battle/legacy_battle_group_a_summon_materialization.hpp"
 #include "openswd3/battle/legacy_battle_group_b_order.hpp"
 #include "openswd3/battle/legacy_battle_player_item_quantity.hpp"
 #include "openswd3/battle/legacy_battle_scale_scan.hpp"
@@ -76,12 +77,18 @@ class LegacyBattleActionDispatchPort
       public virtual LegacyBattleSharedPhaseStatePort,
       public virtual LegacyBattleOutcomeResolutionStatePort,
       public virtual LegacyBattleFrameRefreshStatePort,
+      public virtual LegacyBattleGroupASummonMaterializationPort,
       public virtual world_map::LegacyWorldItemListStatePort {
 public:
     virtual ~LegacyBattleActionDispatchPort() = default;
 
     [[nodiscard]] virtual LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) = 0;
+
+    [[nodiscard]] LegacyBattleGroupASummonMaterializationCallReply
+    invoke_group_a_summon_materialization(
+        const LegacyBattleGroupASummonMaterializationCallRequest& request
+    ) override;
 
     [[nodiscard]] LegacyBattleTextMessageCallReply invoke_text_message(
         const LegacyBattleTextMessageCallRequest& request
@@ -206,6 +213,7 @@ struct LegacyBattleActionDispatchState {
 
 struct LegacyBattleTargetSelectionRuntimeState;
 struct LegacyBattleFinalActorStepState;
+struct LegacyBattleStartupState;
 
 struct LegacyBattleActionDispatchContext {
     rendering::LegacyFramebuffer& framebuffer;
@@ -219,6 +227,7 @@ struct LegacyBattleActionDispatchContext {
     LegacyBattleIndicatorSoundPort& indicator_sound;
     rendering::LegacyCountdownFlagPorts& countdown_flags;
     std::span<compat::u8> internal_flags;
+    LegacyBattleStartupState* startup{};
     LegacyBattleStartupResetBlocks* startup_reset{};
     LegacyBattleTextMessageState* text_messages{};
     std::span<LegacyBattleStartupResetRecord> attack_order_records;
@@ -258,6 +267,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     attack_order_typed_stop,
     attack_order_insert_typed_stop,
     attack_order_remove_typed_stop,
+    summon_materialization_typed_stop,
 };
 
 struct LegacyBattleActionDispatchResult {
@@ -291,6 +301,8 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 attack_order_insert_calls{};
     LegacyBattleAttackOrderRemoveResult attack_order_remove{};
     compat::u32 attack_order_remove_calls{};
+    LegacyBattleGroupASummonMaterializationResult summon_materialization{};
+    compat::u32 summon_materialization_calls{};
 };
 
 // sub_4539B0: dispatch one action code for the selected group-A actor and

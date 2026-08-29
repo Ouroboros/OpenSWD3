@@ -240,6 +240,7 @@ struct LegacyBattleStartupState {
     LegacyBattleActionRotationCacheState background_rotation_cache{};
     LegacyBattleStartupResetBlocks reset{};
     LegacyBattleTextMessageState text_messages{};
+    compat::u32 window_token{};
     compat::u16 battle_id_word{};
     std::array<compat::u8, 4> party_presence{};
     compat::u32 party_count{};
