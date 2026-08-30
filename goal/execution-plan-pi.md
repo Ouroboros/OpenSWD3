@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v827
+版本：v828
 
 最后更新：2026-08-31
 
@@ -117,6 +117,8 @@ python3 /mnt/d/Dev/Source/Project/stockkit/scripts/tg_notify.py "OpenSWD3 模块
 → 可用时与原程序差分
 → 零差异、零未决后并入模块
 ```
+
+每完成一轮逆向后，必须重新完整读取`AGENTS.md`和`APPEND_SYSTEM.md`，再开始下一轮。
 
 每个还原函数必须采用“汇编—C++ 双向收敛验证”，核对次数不设上限，以结论收敛而非
 完成固定次数作为停止条件。验证前先锁定 LST 地址范围、ABI、结构偏移和相关全局状态；
