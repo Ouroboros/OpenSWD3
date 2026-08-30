@@ -136,11 +136,10 @@
 - Linux与Windows统一使用Ninja Multi-Config。Linux首次构建或generator不匹配时configure；有效Ninja
   cache存在时直接build，由Ninja在CMake输入变化时自动重配，不得恢复每次无条件configure；主动更换
   compiler、preset关键变量或脚本传入的CMake选项时，设置`OPENSWD3_RECONFIGURE=1`强制重配。
-- `build.sh` 与 `build.bat` 的编译和 CTest 默认都使用当前在线 CPU 数量的并发 job。用户未明确要求时，
-  不得设置 `OPENSWD3_BUILD_JOBS` / `OPENSWD3_TEST_JOBS`，不得自行降为 `-j2` 或其他并发数。不得移除
-  同测试二进制调用锁或真实资产全局锁来换取虚假提速。
-- Linux core/app完整门禁只能分别通过`./build.sh core`和`./build.sh app`执行；不得手写展开脚本内部的
-  CMake build和CTest命令。
+- 仓库已有稳定命令或脚本能完成任务时，必须原样使用；不得自行拆解、重组或发明一长串等价命令。
+- Linux core/app完整门禁分别使用`./build.sh core`和`./build.sh app`。
+- `build.sh` 与 `build.bat` 的编译和 CTest 默认都使用当前在线 CPU 数量的并发 job。不得移除同测试
+  二进制调用锁或真实资产全局锁来换取虚假提速。
 - 修改后运行仓库现有的定向测试和适用的 Linux/Windows 完整门禁。命令没有实际执行时，
   不得声称已构建、已测试或已通过。
 - 构建成功不等于运行验证成功，测试枚举数量也不等于测试实际通过。
