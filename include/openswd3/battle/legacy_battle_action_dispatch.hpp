@@ -766,6 +766,21 @@ struct LegacyBattleActionFourEffectResult {
     compat::u32 return_edx{};
 };
 
+struct LegacyBattleTargetPropertyChanceRequest {
+    compat::u32 value{};
+};
+
+struct LegacyBattleTargetPropertyChanceResult {
+    compat::u32 random_calls{};
+    compat::u32 sampled_value{};
+    compat::i32 scaled_value{};
+    compat::i32 quotient{};
+    compat::u16 threshold{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
 struct LegacyBattleTargetPhaseAdvanceResult {
     LegacyBattleTargetPhaseAdvanceStatus status{
         LegacyBattleTargetPhaseAdvanceStatus::completed
@@ -1122,6 +1137,8 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 special_four_hundred_calls{};
     LegacyBattleActionFourEffectResult action_four_effect{};
     compat::u32 action_four_effect_calls{};
+    LegacyBattleTargetPropertyChanceResult target_property_chance{};
+    compat::u32 target_property_chance_calls{};
     LegacyBattleSummonFrameResult summon_frame{};
     compat::u32 summon_frame_calls{};
     LegacyBattleTurnCommitChanceResult turn_commit_chance{};
@@ -1140,6 +1157,13 @@ advance_legacy_battle_special_four_oh_five(
     LegacyBattleActionDispatchPort& port,
     LegacyBattleActionDispatchContext& context,
     const LegacyBattleSpecialFourOhFiveRequest& request
+);
+
+// sub_474B60.
+[[nodiscard]] LegacyBattleTargetPropertyChanceResult
+check_legacy_battle_target_property_chance(
+    LegacyBattleBoundedRandomPort& random,
+    const LegacyBattleTargetPropertyChanceRequest& request
 );
 
 // sub_4745B0.

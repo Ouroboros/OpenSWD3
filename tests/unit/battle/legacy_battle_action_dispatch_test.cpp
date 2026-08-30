@@ -3013,6 +3013,53 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
     }
 
     {
+        static RandomPort random;
+        random.value = 10U;
+        auto checked =
+            openswd3::battle::check_legacy_battle_target_property_chance(
+                random, {.value = 0U}
+            );
+        test.expect_true(
+            checked.return_eax == 1U && checked.random_calls == 1U &&
+                checked.sampled_value == 10U && checked.scaled_value == 0 &&
+                checked.quotient == 0 && checked.threshold == 10U &&
+                checked.return_ecx == 0U && checked.return_edx == 10U,
+            "target property chance accepts equality at the minimum ten-percent threshold"
+        );
+
+        random.value = 11U;
+        checked = openswd3::battle::check_legacy_battle_target_property_chance(
+            random, {.value = 0U}
+        );
+        test.expect_true(
+            checked.return_eax == 0U && checked.threshold == 10U,
+            "target property chance rejects the first sample above the inclusive threshold"
+        );
+
+        random.value = 80U;
+        checked = openswd3::battle::check_legacy_battle_target_property_chance(
+            random, {.value = 100U}
+        );
+        test.expect_true(
+            checked.return_eax == 1U && checked.scaled_value == 7000 &&
+                checked.quotient == 70 && checked.threshold == 80U,
+            "target property chance scales one hundred to an inclusive eighty-percent threshold"
+        );
+
+        random.value = 10U;
+        checked = openswd3::battle::check_legacy_battle_target_property_chance(
+            random, {.value = 0xFFFFFFFFU}
+        );
+        test.expect_true(
+            checked.return_eax == 1U && checked.scaled_value == -70 &&
+                checked.quotient == 0 && checked.threshold == 10U &&
+                checked.return_ecx == 0xFFFFFFBAU &&
+                checked.return_edx == 10U,
+            "target property chance preserves wrapped multiplication and signed truncation toward zero"
+        );
+    }
+
+    {
         LegacyBattleActionDispatchState state;
         Fixture fixture;
         DispatchPort port;
@@ -3029,6 +3076,32 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 state.current_actor_index == 0xFFFFU &&
                 port.count(0x00482F10U) == 0U,
             "null resolved target stops at first flags dereference after current actor clear"
+        );
+    }
+
+    {
+        static LegacyBattleActionDispatchState state;
+        static Fixture fixture;
+        fixture.random.value = 10U;
+        static DispatchPort port;
+        port.action = 33U;
+        port.push(0x00482F10U, {.eax = 0U});
+        static auto context = fixture.context();
+        static const auto result =
+            openswd3::battle::dispatch_legacy_battle_action(
+                state, port, context, 0U, 1U
+            );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.return_value == 1U &&
+                result.target_property_chance_calls == 1U &&
+                result.target_property_chance.sampled_value == 10U &&
+                result.target_property_chance.threshold == 10U &&
+                result.target_property_chance.return_eax == 1U &&
+                state.selected_target_index == 1U &&
+                state.frame_refresh_pending == 1U &&
+                port.count(0x00474B60U) == 0U,
+            "action thirty-three production uses the typed inclusive target-property chance without the opaque call"
         );
     }
 

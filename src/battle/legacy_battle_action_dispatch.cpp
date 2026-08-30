@@ -78,7 +78,6 @@ constexpr u32 kCallQuerySpecial = 0x0047D8E0U;
 constexpr u32 kCallComputeSelection = 0x00470E20U;
 constexpr u32 kCallTargetReady = 0x004751C0U;
 constexpr u32 kCallResolveTarget = 0x00480AD0U;
-constexpr u32 kCallTargetProperty = 0x00474B60U;
 constexpr u32 kCallSetMode = 0x0047F380U;
 constexpr u32 kCallEnablePresentation = 0x004787F0U;
 constexpr u32 kCallCommitTemporaryRecord = 0x0047E070U;
@@ -3343,6 +3342,29 @@ advance_legacy_battle_special_four_oh_six(
     result.return_eax = 0U;
     result.return_ecx = registers.ecx;
     result.return_edx = registers.edx;
+    return result;
+}
+
+LegacyBattleTargetPropertyChanceResult
+check_legacy_battle_target_property_chance(
+    LegacyBattleBoundedRandomPort& random,
+    const LegacyBattleTargetPropertyChanceRequest& request
+) {
+    LegacyBattleTargetPropertyChanceResult result;
+    result.sampled_value = random.random_bounded(100U);
+    ++result.random_calls;
+
+    const u32 scaled_bits = request.value * 70U;
+    result.scaled_value = std::bit_cast<i32>(scaled_bits);
+    result.quotient = result.scaled_value / 100;
+    result.return_edx = std::bit_cast<u32>(result.quotient);
+    result.threshold = static_cast<u16>(
+        static_cast<u16>(result.quotient) + 10U
+    );
+    replace_low_word(result.return_edx, result.threshold);
+    result.return_ecx = scaled_bits;
+    result.return_eax =
+        result.threshold >= static_cast<u16>(result.sampled_value) ? 1U : 0U;
     return result;
 }
 
@@ -6790,10 +6812,13 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
             return result;
         }
         reply = invoke(state, port, result, kCallQueryPercent, {0x21U});
-        if (invoke(
-                state, port, result, kCallTargetProperty, {low_word(reply.eax)}
-            )
-                .eax == 1U) {
+        result.target_property_chance =
+            check_legacy_battle_target_property_chance(
+                context.bounded_random,
+                {.value = low_word(reply.eax)}
+            );
+        ++result.target_property_chance_calls;
+        if (result.target_property_chance.return_eax == 1U) {
             static_cast<void>(invoke(state, port, result, kCallSetMode, {7U}));
             static_cast<void>(
                 invoke(state, port, result, kCallEnablePresentation, {1U})
