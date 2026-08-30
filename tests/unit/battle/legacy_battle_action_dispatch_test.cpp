@@ -987,7 +987,6 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         DispatchPort port;
         port.action = 15U;
         port.push(0x00487C10U, {.eax = 0x71000000U});
-        port.push(0x00471D60U, {.eax = 0U});
         set_summon_profile_word(port.summon_profile, 0x56U, 0x1111U);
         set_summon_profile_word(port.summon_profile, 0x60U, 0x2222U);
         set_summon_profile_word(port.summon_profile, 0x64U, 0x3333U);
@@ -1024,7 +1023,11 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 static_cast<u16>(summon.configuration.actor_record[1U]) ==
                     0x3333U &&
                 state.phase_counter == 0xAABB0001U && state.summon_x == 0U &&
-                state.summon_y == 0U,
+                state.summon_y == 0U && result.summon_frame_calls == 1U &&
+                result.summon_frame.return_eax == 0U &&
+                state.group_a_action_execution[0U].turn_threshold == 2U &&
+                state.group_a_action_shared.draw_motion_a == 0xFFFFFFE1U &&
+                port.count(0x00471D60U) == 0U,
             "action fifteen materializes the selected summon from the shared startup record before beginning its frame phase"
         );
     }
@@ -1042,7 +1045,6 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         DispatchPort port;
         port.action = 15U;
         port.push(0x00487C10U, {.eax = 0x72000000U});
-        port.push(0x00471D60U, {.eax = 0U});
         auto context = fixture.context();
 
         const auto result = openswd3::battle::dispatch_legacy_battle_action(
@@ -1612,6 +1614,145 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 port.battle_message_state() == 0x62U &&
                 state.current_actor_index == 0xFFFFU,
             "action fourteen production caller completes the typed reverse frame before publishing message ninety eight"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleTargetPhaseState phase;
+        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+        openswd3::battle::LegacyBattleGroupAActionExecutionSharedState shared;
+        Fixture fixture;
+        DispatchPort port;
+        auto context = fixture.context();
+        const auto stopped =
+            openswd3::battle::advance_legacy_battle_summon_frame(
+                &phase,
+                nullptr,
+                &shared,
+                port,
+                context.action_updater,
+                context.frame_provider,
+                {.actor_token = 0x005029D0U,
+                 .position_x = 100U,
+                 .position_y = 80U,
+                 .entry_eax = 0x11U,
+                 .entry_ecx = 0x22U,
+                 .entry_edx = 0x33U}
+            );
+        fixture.frame_provider.available = false;
+        const auto missing =
+            openswd3::battle::advance_legacy_battle_summon_frame(
+                &phase,
+                &actor,
+                &shared,
+                port,
+                context.action_updater,
+                context.frame_provider,
+                {.actor_token = 0x005029D0U,
+                 .position_x = 100U,
+                 .position_y = 80U}
+            );
+        test.expect_true(
+            stopped.status ==
+                    openswd3::battle::LegacyBattleSummonFrameStatus::
+                        actor_state_typed_stop &&
+                stopped.return_eax == 0x11U && stopped.return_ecx == 0x22U &&
+                stopped.return_edx == 0x33U &&
+                missing.status ==
+                    openswd3::battle::LegacyBattleSummonFrameStatus::
+                        frame_owner_typed_stop &&
+                missing.action_update_calls == 1U &&
+                missing.frame_lookup_calls == 1U && missing.sample_calls == 1U &&
+                missing.port_calls == 1U &&
+                actor.summon_render_flags == 1U &&
+                actor.summon_x_offset == 0U && actor.turn_sample_word == 0U &&
+                phase.action_record.base_variant == 0x24U,
+            "summon frame stops at the original actor and frame reads after preserving variant thirty six"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleTargetPhaseState phase;
+        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+        openswd3::battle::LegacyBattleGroupAActionExecutionSharedState shared;
+        actor.summon_action_id = 0x1234U;
+        actor.turn_threshold = 62U;
+        Fixture fixture;
+        DispatchPort port;
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_summon_frame(
+                &phase,
+                &actor,
+                &shared,
+                port,
+                context.action_updater,
+                context.frame_provider,
+                {.actor_token = 0x005029D0U,
+                 .position_x = 100U,
+                 .position_y = 80U}
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSummonFrameStatus::
+                        completed &&
+                result.return_eax == 0U && result.sample_calls == 1U &&
+                result.render_calls == 1U && result.port_calls == 2U &&
+                actor.summon_phase == 1U && actor.turn_threshold == 62U &&
+                phase.tick == 1U && shared.draw_motion_a == 1U &&
+                shared.draw_motion_b == 1U && shared.draw_motion_c == 1U &&
+                actor.summon_render_flags == 1U &&
+                actor.summon_x_offset == 32U &&
+                actor.turn_sample_word == 0U &&
+                phase.action_record.action_id == 0x1234U &&
+                port.count(0x00471D60U) == 0U &&
+                port.count(0x004321E0U) == 0U &&
+                port.count(0x004315D0U) == 0U,
+            "summon frame preserves the zero-to-one same-frame phase transition and signed motion publication"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleTargetPhaseState phase;
+        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+        openswd3::battle::LegacyBattleGroupAActionExecutionSharedState shared;
+        actor.summon_phase = 1U;
+        actor.turn_threshold = 2U;
+        actor.summon_completion_word = 9U;
+        phase.tick = 7U;
+        phase.block_2bc8.fill(0xAAAAAAAAU);
+        Fixture fixture;
+        DispatchPort port;
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_summon_frame(
+                &phase,
+                &actor,
+                &shared,
+                port,
+                context.action_updater,
+                context.frame_provider,
+                {.actor_token = 0x005029D0U,
+                 .position_x = 100U,
+                 .position_y = 80U}
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSummonFrameStatus::
+                        completed &&
+                result.return_eax == 1U && result.sample_calls == 2U &&
+                result.render_calls == 1U && result.port_calls == 3U &&
+                shared.draw_motion_a == 0xFFFFFFE2U &&
+                actor.turn_threshold == 0U && actor.summon_phase == 0U &&
+                actor.summon_render_flags == 0U &&
+                actor.summon_x_offset == 0U && phase.tick == 0U &&
+                actor.summon_completion_word == 0U &&
+                phase.action_record.action_id == 0U &&
+                phase.block_2bc8[0U] == 0U &&
+                port.calls[1U].callee_token == 0x004170E0U &&
+                port.calls[2U].callee_token == 0x00485610U &&
+                port.calls[2U].arguments[0U] == 0x6AU,
+            "summon frame renders the terminal phase before the fixed sample and exact owner clear"
         );
     }
 

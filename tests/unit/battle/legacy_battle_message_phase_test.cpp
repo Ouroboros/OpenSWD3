@@ -423,6 +423,8 @@ struct Fixture {
             .startup = startup,
             .final_actor = final_actor,
             .action = action,
+            .action_updater = action_updater,
+            .frame_provider = frame_provider,
             .metrics = metrics,
             .debug_hotkeys = debug_hotkeys,
             .input_dispatch = input_dispatch,
@@ -580,25 +582,37 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         fixture.metrics.group_a_count = 0U;
         fixture.startup.party[0U].position_x = 0xFFFFU;
         fixture.startup.party[0U].position_y = 0x8000U;
-        fixture.port.reply(
-            LegacyBattleMessagePhaseCall::resolve_group_a_position,
-            {.eax = 1U, .ecx = 0xABCDEF01U, .edx = 0xABCDEF02U}
-        );
+        fixture.action.group_a_action_execution[0U].summon_phase = 2U;
         const auto result = run(fixture);
-        const auto& call = fixture.port.message_calls[0U];
+        const auto& render = fixture.port.message_calls[1U];
         test.expect_true(
             result.status ==
                     openswd3::battle::LegacyBattleMessagePhaseStatus::
                         completed &&
-                result.return_eax == 1U &&
-                fixture.target_selection.transition_actor_index == 1U &&
-                call.actor_token ==
-                    openswd3::battle::
-                        kLegacyBattleMessagePhaseGroupABaseToken &&
-                call.eax == 0U && call.ecx == call.actor_token &&
-                call.edx == 0xFFFF8000U && call.arguments[0U] == 0xFFFFFFFFU &&
-                call.arguments[1U] == 0xFFFF8000U,
-            "message 97 sign-extends the next group-A display position and publishes AL on exact success"
+                result.return_eax == 1U && result.summon_frame_calls == 1U &&
+                result.summon_frame.return_eax == 1U &&
+                result.summon_frame.port_calls == 3U,
+            "message 97 completes the typed summon frame"
+        );
+        test.expect_true(
+            fixture.target_selection.transition_actor_index == 1U &&
+                result.call_trace_count == 0U,
+            "message 97 publishes AL without the retired whole-function slot"
+        );
+        test.expect_true(
+            fixture.port.message_calls.size() == 3U &&
+                fixture.port.message_calls[0U].call ==
+                    LegacyBattleMessagePhaseCall::summon_frame_play_sample &&
+                render.call ==
+                    LegacyBattleMessagePhaseCall::summon_frame_render &&
+                fixture.port.message_calls[2U].call ==
+                    LegacyBattleMessagePhaseCall::summon_frame_play_sample,
+            "message 97 emits sample render sample through narrow ports"
+        );
+        test.expect_true(
+            render.arguments[0U] == 0xFFFFFFFEU &&
+                render.arguments[1U] == 0xFFFF8000U,
+            "message 97 sign-extends the display position into render coordinates"
         );
 
         fixture.metrics.group_a_count = 10U;

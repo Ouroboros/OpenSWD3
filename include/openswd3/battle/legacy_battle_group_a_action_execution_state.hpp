@@ -30,6 +30,7 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u8 record_mode_flags{};             // actor + 0x0393
     compat::u8 profile_mode{};                  // actor + 0x2F30
     compat::u16 profile_value{};                // actor + 0x2A0C
+    compat::u16 summon_action_id{};             // actor + 0x2F14
     compat::u16 action_override_flags{};        // actor + 0x2A86
     compat::u16 identity_word{};                // actor + 0x0D64
     compat::u32 current_list_index{};           // actor + 0x2EC0
@@ -46,7 +47,11 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u32 turn_frame_token{};              // actor + 0x254C
     compat::i32 turn_countdown{};                // actor + 0x2668
     compat::u32 turn_render_flags{};             // actor + 0x26A0
+    compat::u32 summon_render_flags{};           // actor + 0x2688
+    compat::u32 summon_x_offset{};               // actor + 0x268C
     compat::u16 turn_threshold{};                // actor + 0x2958
+    compat::u16 summon_phase{};                  // actor + 0x2A66
+    compat::u16 summon_completion_word{};        // actor + 0x2A78
     compat::u16 turn_target_x_offset{};          // actor + 0x29B4
     compat::u32 turn_completion_latch{};         // actor + 0x2AAC
     compat::u16 turn_sample_word{};              // actor + 0x04C0

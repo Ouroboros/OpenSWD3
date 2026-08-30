@@ -156,7 +156,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     control_panel_draw_text,
     control_panel_query_primary_option,
     control_panel_query_special_option,
-    message_phase_resolve_group_a_position,
+    reserved_message_phase_resolve_group_a_position_slot,
     reserved_message_phase_prepare_message_98_slot,
     message_phase_reset_actor_state,
     message_phase_query_actor_completion,
@@ -217,6 +217,8 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     reserved_message_phase_advance_message_113_slot,
     reserved_message_phase_advance_message_102_slot,
     reserved_message_phase_advance_message_103_slot,
+    message_phase_summon_frame_play_sample,
+    message_phase_summon_frame_render,
     victory_item_list_set_font_size,
     victory_item_list_draw_title,
     victory_item_list_reserved_transition_stage_advance_slot,
@@ -872,9 +874,10 @@ public:
     ) override {
         LegacyBattleFrameCoordinatorCall call =
             LegacyBattleFrameCoordinatorCall::
-                message_phase_resolve_group_a_position;
+                reserved_message_phase_resolve_group_a_position_slot;
         switch (request.call) {
-        case LegacyBattleMessagePhaseCall::resolve_group_a_position:
+        case LegacyBattleMessagePhaseCall::
+            reserved_resolve_group_a_position_slot:
             break;
         case LegacyBattleMessagePhaseCall::reserved_prepare_message_98_slot:
             call = LegacyBattleFrameCoordinatorCall::
@@ -970,6 +973,14 @@ public:
         case LegacyBattleMessagePhaseCall::reserved_advance_message_103_slot:
             call = LegacyBattleFrameCoordinatorCall::
                 reserved_message_phase_advance_message_103_slot;
+            break;
+        case LegacyBattleMessagePhaseCall::summon_frame_play_sample:
+            call = LegacyBattleFrameCoordinatorCall::
+                message_phase_summon_frame_play_sample;
+            break;
+        case LegacyBattleMessagePhaseCall::summon_frame_render:
+            call = LegacyBattleFrameCoordinatorCall::
+                message_phase_summon_frame_render;
             break;
         }
         std::array<compat::u32, 8> arguments{};

@@ -636,6 +636,8 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             .startup = context.startup,
             .final_actor = context.final_actor_step,
             .action = context.action_dispatch,
+            .action_updater = context.action_updater,
+            .frame_provider = context.frame_provider,
             .metrics = port.actor_metric_state(),
             .debug_hotkeys = port.battle_debug_hotkey_state(),
             .input_dispatch = port.battle_input_dispatch_state(),

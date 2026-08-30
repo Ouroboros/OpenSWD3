@@ -160,7 +160,7 @@ private:
     void call(
         const LegacyBattleMessagePhaseCall call_kind,
         const u32 actor_token = 0U,
-        const std::array<u32, 4>& arguments = {}
+        const std::array<u32, 8>& arguments = {}
     ) {
         result_.call_trace.push_back(call_kind);
         ++result_.call_trace_count;
@@ -217,11 +217,39 @@ private:
         const u32 position_y = edx_;
         eax_ = index * 1007U;
         ecx_ = group_a_token(index);
-        call(
-            LegacyBattleMessagePhaseCall::resolve_group_a_position,
-            ecx_,
-            {position_x, position_y}
+        if (index >= bindings_.action.group_a_target_phases.size() ||
+            index >= bindings_.action.group_a_action_execution.size()) {
+            return stop(
+                LegacyBattleMessagePhaseStatus::group_a_position_typed_stop
+            );
+        }
+        result_.summon_frame = advance_legacy_battle_summon_frame(
+            &bindings_.action.group_a_target_phases[index],
+            &bindings_.action.group_a_action_execution[index],
+            &bindings_.action.group_a_action_shared,
+            port_,
+            bindings_.action_updater,
+            bindings_.frame_provider,
+            {
+                .actor_token = ecx_,
+                .position_x = position_x,
+                .position_y = position_y,
+                .entry_eax = eax_,
+                .entry_ecx = ecx_,
+                .entry_edx = edx_,
+            }
         );
+        ++result_.summon_frame_calls;
+        result_.port_calls += result_.summon_frame.port_calls;
+        eax_ = result_.summon_frame.return_eax;
+        ecx_ = result_.summon_frame.return_ecx;
+        edx_ = result_.summon_frame.return_edx;
+        if (result_.summon_frame.status !=
+            LegacyBattleSummonFrameStatus::completed) {
+            return stop(
+                LegacyBattleMessagePhaseStatus::summon_frame_typed_stop
+            );
+        }
         if (eax_ == 1U) {
             bindings_.target_selection.transition_actor_index =
                 static_cast<u8>(eax_);

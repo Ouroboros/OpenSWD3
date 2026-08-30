@@ -77,8 +77,18 @@ struct LegacyBattleActionCallReply {
     std::span<compat::u16> resource_words{};
 };
 
+class LegacyBattleSummonFramePort {
+public:
+    virtual ~LegacyBattleSummonFramePort() = default;
+
+    [[nodiscard]] virtual LegacyBattleActionCallReply invoke_summon_frame(
+        const LegacyBattleActionCallRequest& request
+    ) = 0;
+};
+
 class LegacyBattleActionDispatchPort
-    : public virtual LegacyBattleRetreatCommitPort,
+    : public virtual LegacyBattleSummonFramePort,
+      public virtual LegacyBattleRetreatCommitPort,
       public virtual LegacyBattleActorMetricStatePort,
       public virtual LegacyBattlePairTransitionPort,
       public virtual LegacyBattleSharedPhaseStatePort,
@@ -91,6 +101,12 @@ public:
 
     [[nodiscard]] virtual LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) = 0;
+
+    [[nodiscard]] LegacyBattleActionCallReply invoke_summon_frame(
+        const LegacyBattleActionCallRequest& request
+    ) override {
+        return invoke(request);
+    }
 
     [[nodiscard]] LegacyBattleGroupASummonMaterializationCallReply
     invoke_group_a_summon_materialization(
@@ -232,6 +248,18 @@ struct LegacyBattleActionThirteenResult {
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
 };
+
+struct LegacyBattleSummonFrameRequest {
+    compat::u32 actor_token{};
+    compat::u32 position_x{};
+    compat::u32 position_y{};
+    compat::u32 entry_eax{};
+    compat::u32 entry_ecx{};
+    compat::u32 entry_edx{};
+};
+
+using LegacyBattleSummonFrameStatus = LegacyBattleActionThirteenStatus;
+using LegacyBattleSummonFrameResult = LegacyBattleActionThirteenResult;
 
 using LegacyBattleActionFourteenRequest = LegacyBattleActionThirteenRequest;
 using LegacyBattleActionFourteenStatus = LegacyBattleActionThirteenStatus;
@@ -472,6 +500,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     target_phase_advance_typed_stop,
     action_thirteen_typed_stop,
     action_fourteen_typed_stop,
+    summon_frame_typed_stop,
     turn_commit_chance_typed_stop,
     turn_advance_typed_stop,
 };
@@ -530,6 +559,8 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 action_thirteen_calls{};
     LegacyBattleActionFourteenResult action_fourteen{};
     compat::u32 action_fourteen_calls{};
+    LegacyBattleSummonFrameResult summon_frame{};
+    compat::u32 summon_frame_calls{};
     LegacyBattleTurnCommitChanceResult turn_commit_chance{};
     compat::u32 turn_commit_chance_calls{};
     LegacyBattleTurnAdvanceResult turn_advance{};
@@ -580,6 +611,18 @@ advance_legacy_battle_action_fourteen(
     LegacyBattleActionDispatchPort& port,
     LegacyBattleActionDispatchContext& context,
     const LegacyBattleActionFourteenRequest& request
+);
+
+// sub_471D60.
+[[nodiscard]] LegacyBattleSummonFrameResult
+advance_legacy_battle_summon_frame(
+    LegacyBattleTargetPhaseState* phase,
+    LegacyBattleGroupAActionExecutionState* actor,
+    LegacyBattleGroupAActionExecutionSharedState* shared,
+    LegacyBattleSummonFramePort& port,
+    asset_runtime::LegacyActionUpdater& action_updater,
+    rendering::LegacyFramePieceProvider& frame_provider,
+    const LegacyBattleSummonFrameRequest& request
 );
 
 // sub_4539B0: dispatch one action code for the selected group-A actor and

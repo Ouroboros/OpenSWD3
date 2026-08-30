@@ -64,7 +64,7 @@ private:
 };
 
 enum class LegacyBattleMessagePhaseCall : compat::u8 {
-    resolve_group_a_position,
+    reserved_resolve_group_a_position_slot,
     reserved_prepare_message_98_slot,
     reset_actor_state,
     query_actor_completion,
@@ -88,14 +88,16 @@ enum class LegacyBattleMessagePhaseCall : compat::u8 {
     reserved_advance_message_113_slot,
     reserved_advance_message_102_slot,
     reserved_advance_message_103_slot,
+    summon_frame_play_sample,
+    summon_frame_render,
 };
 
 struct LegacyBattleMessagePhaseCallRequest {
     LegacyBattleMessagePhaseCall call{
-        LegacyBattleMessagePhaseCall::resolve_group_a_position
+        LegacyBattleMessagePhaseCall::reserved_resolve_group_a_position_slot
     };
     compat::u32 actor_token{};
-    std::array<compat::u32, 4> arguments{};
+    std::array<compat::u32, 8> arguments{};
     compat::u32 eax{};
     compat::u32 ecx{};
     compat::u32 edx{};
@@ -136,7 +138,8 @@ struct LegacyBattleMessagePhaseCallReply {
 };
 
 class LegacyBattleMessagePhasePort
-    : public virtual LegacyBattleMessagePhaseStatePort,
+    : public virtual LegacyBattleSummonFramePort,
+      public virtual LegacyBattleMessagePhaseStatePort,
       public virtual LegacyBattleVictoryRewardPort,
       public virtual LegacyBattleLevelAdvancementPort,
       public virtual LegacyBattleLevelGrowthPanelPort,
@@ -158,6 +161,21 @@ public:
             .edx = request.edx,
         };
     }
+
+    [[nodiscard]] LegacyBattleActionCallReply invoke_summon_frame(
+        const LegacyBattleActionCallRequest& request
+    ) override {
+        const auto reply = invoke_message_phase({
+            .call = request.callee_token == 0x00485610U
+                ? LegacyBattleMessagePhaseCall::summon_frame_play_sample
+                : LegacyBattleMessagePhaseCall::summon_frame_render,
+            .arguments = request.arguments,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        });
+        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
+    }
 };
 
 struct LegacyBattleMessagePhaseBindings {
@@ -165,6 +183,8 @@ struct LegacyBattleMessagePhaseBindings {
     LegacyBattleStartupState& startup;
     LegacyBattleFinalActorStepState& final_actor;
     LegacyBattleActionDispatchState& action;
+    asset_runtime::LegacyActionUpdater& action_updater;
+    rendering::LegacyFramePieceProvider& frame_provider;
     LegacyBattleActorMetricState& metrics;
     LegacyBattleDebugHotkeyState& debug_hotkeys;
     LegacyBattleInputDispatchState& input_dispatch;
@@ -222,6 +242,7 @@ enum class LegacyBattleMessagePhaseStatus : compat::u8 {
     defeat_panel_typed_stop,
     talisman_result_panel_typed_stop,
     target_selection_entry_typed_stop,
+    summon_frame_typed_stop,
 };
 
 struct LegacyBattleMessagePhaseResult {
@@ -267,6 +288,8 @@ struct LegacyBattleMessagePhaseResult {
     LegacyBattleTalismanResultPanelResult talisman_result_panel{};
     compat::u32 transition_control_selection_calls{};
     LegacyBattleTransitionControlSelectionResult transition_control_selection{};
+    LegacyBattleSummonFrameResult summon_frame{};
+    compat::u32 summon_frame_calls{};
     std::vector<LegacyBattleMessagePhaseCall> call_trace;
     compat::u32 call_trace_count{};
 };
