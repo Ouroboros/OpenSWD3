@@ -31,6 +31,28 @@ detected_processor_count="$(getconf _NPROCESSORS_ONLN)"
 build_jobs="${OPENSWD3_BUILD_JOBS:-$detected_processor_count}"
 test_jobs="${OPENSWD3_TEST_JOBS:-$detected_processor_count}"
 expected_generator="Ninja Multi-Config"
+build_label="linux-$target"
+sanitizer="${OPENSWD3_SANITIZER:-none}"
+
+case "$sanitizer" in
+none)
+    ;;
+
+address)
+    if [[ "$target" != "core" ]]; then
+        echo "[OpenSWD3] AddressSanitizer is available only for the core target." >&2
+        exit 2
+    fi
+    build_directory="build/linux-asan"
+    expected_generator="Ninja"
+    build_label="linux-asan"
+    ;;
+
+*)
+    echo "[OpenSWD3] Unsupported sanitizer: $sanitizer" >&2
+    exit 2
+    ;;
+esac
 
 if [[ ! "$build_jobs" =~ ^[1-9][0-9]*$ ]]; then
     echo "[OpenSWD3] OPENSWD3_BUILD_JOBS must be a positive integer." >&2
@@ -78,6 +100,14 @@ configure_arguments=(
     -DOPENSWD3_BUILD_APP:BOOL="$build_application"
 )
 
+if [[ "$sanitizer" == "address" ]]; then
+    configure_arguments+=(
+        -DCMAKE_BUILD_TYPE:STRING=Debug
+        "-DCMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer"
+        -DCMAKE_EXE_LINKER_FLAGS:STRING=-fsanitize=address
+    )
+fi
+
 if [[ "$target" == "app" ]]; then
     if ! command -v "$clang_executable" >/dev/null 2>&1; then
         echo "[OpenSWD3] Required tool not found: $clang_executable" >&2
@@ -95,23 +125,32 @@ if [[ "$target" == "app" ]]; then
 fi
 
 if [[ "${OPENSWD3_RECONFIGURE:-0}" == "1" || ! -f "$cache_file" || ! -f "$build_directory/build.ninja" ]]; then
-    echo "[OpenSWD3] Configure: linux-$target"
+    echo "[OpenSWD3] Configure: $build_label"
     "$cmake_executable" "${configure_arguments[@]}"
 else
-    echo "[OpenSWD3] Configure: linux-$target (reuse Ninja cache)"
+    echo "[OpenSWD3] Configure: $build_label (reuse Ninja cache)"
 fi
 
-echo "[OpenSWD3] Build: linux-$target-debug (parallel jobs: $build_jobs)"
+echo "[OpenSWD3] Build: $build_label-debug (parallel jobs: $build_jobs)"
 "$cmake_executable" \
     --build "$build_directory" \
     --config Debug \
     --parallel "$build_jobs"
 
 echo "[OpenSWD3] Test: Debug (parallel jobs: $test_jobs)"
-"$ctest_executable" \
-    --test-dir "$build_directory" \
-    -C Debug \
-    --parallel "$test_jobs" \
-    --output-on-failure
+if [[ "$sanitizer" == "address" ]]; then
+    ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 \
+        "$ctest_executable" \
+        --test-dir "$build_directory" \
+        -C Debug \
+        --parallel "$test_jobs" \
+        --output-on-failure
+else
+    "$ctest_executable" \
+        --test-dir "$build_directory" \
+        -C Debug \
+        --parallel "$test_jobs" \
+        --output-on-failure
+fi
 
 echo "[OpenSWD3] Build and tests completed successfully."
