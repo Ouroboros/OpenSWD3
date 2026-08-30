@@ -124,7 +124,9 @@ constexpr u32 kCallSpecialTurnFrame = 0x00483B30U;
 constexpr u32 kCallActionSevenReady = 0x00479850U;
 constexpr u32 kCallSimpleActorUpdate = 0x00482310U;
 constexpr u32 kCallActorExit = 0x00482840U;
-constexpr u32 kCallSpecialFourHundred = 0x00473C10U;
+constexpr u32 kCallSpecialFourHundredWorkspace = 0x004820A0U;
+constexpr u32 kCallSpecialFourHundredEffect = 0x004838D0U;
+constexpr u32 kCallSpecialFourHundredTargetEvent = 0x00474FC0U;
 constexpr u32 kCallActorSuspended = 0x0047D930U;
 constexpr u32 kCallClearPendingAction = 0x00482DA0U;
 constexpr u32 kCallTargetEffectProperty = 0x0047CEC0U;
@@ -3344,6 +3346,595 @@ advance_legacy_battle_special_four_oh_six(
     return result;
 }
 
+LegacyBattleSpecialFourHundredResult
+advance_legacy_battle_special_four_hundred(
+    LegacyBattleGroupAActionExecutionState* actor,
+    LegacyBattleActorProgressState* progress,
+    LegacyBattleGroupAActionExecutionSharedState* shared,
+    LegacyBattleActionDispatchPort& port,
+    LegacyBattleActionDispatchContext& context,
+    const LegacyBattleSpecialFourHundredRequest& request
+) {
+    LegacyBattleSpecialFourHundredResult result{
+        .return_eax = request.entry_eax,
+        .return_ecx = request.entry_ecx,
+        .return_edx = request.entry_edx,
+    };
+    if (actor == nullptr || request.actor_token == 0U) {
+        result.status =
+            LegacyBattleSpecialFourHundredStatus::actor_state_typed_stop;
+        return result;
+    }
+    if (actor->start_gate != 0U || actor->execution_complete == 1U) {
+        result.return_eax = 0U;
+        return result;
+    }
+
+    struct Registers {
+        u32 eax{};
+        u32 ecx{};
+        u32 edx{};
+    } registers{
+        .eax = request.entry_eax,
+        .ecx = request.entry_ecx,
+        .edx = request.entry_edx,
+    };
+    auto finish_zero = [&]() {
+        result.return_eax = 0U;
+        result.return_ecx = registers.ecx;
+        result.return_edx = registers.edx;
+        return result;
+    };
+    auto invoke_action = [&](const u32 callee,
+                             const std::array<u32, 8>& arguments = {}) {
+        ++result.port_calls;
+        const auto reply = port.invoke({
+            .callee_token = callee,
+            .arguments = arguments,
+            .eax = registers.eax,
+            .ecx = registers.ecx,
+            .edx = registers.edx,
+        });
+        registers.eax = reply.eax;
+        registers.ecx = reply.ecx;
+        registers.edx = reply.edx;
+        return reply;
+    };
+    const auto signed_word_bits = [](const u16 value) {
+        return to_bits(static_cast<i32>(std::bit_cast<i16>(value)));
+    };
+    const auto ensure_workspace = [&]()
+        -> std::array<u8, 0x4C0>& {
+        if (!actor->special_four_hundred_workspace) {
+            actor->special_four_hundred_workspace =
+                std::make_unique<std::array<u8, 0x4C0>>();
+        }
+        return *actor->special_four_hundred_workspace;
+    };
+    const auto read_workspace_word = [&](const std::size_t offset) {
+        const auto& workspace = ensure_workspace();
+        return static_cast<u16>(workspace[offset]) |
+            static_cast<u16>(static_cast<u16>(workspace[offset + 1U]) << 8U);
+    };
+    const auto write_workspace_word = [&](const std::size_t offset,
+                                          const u16 value) {
+        auto& workspace = ensure_workspace();
+        workspace[offset] = static_cast<u8>(value);
+        workspace[offset + 1U] = static_cast<u8>(value >> 8U);
+    };
+    const auto write_workspace_dword = [&](const std::size_t offset,
+                                           const u32 value) {
+        auto& workspace = ensure_workspace();
+        for (std::size_t byte = 0; byte < 4U; ++byte) {
+            workspace[offset + byte] =
+                static_cast<u8>(value >> (byte * 8U));
+        }
+    };
+    const auto initialize_workspace_record = [&](const std::size_t base) {
+        auto& workspace = ensure_workspace();
+        std::fill_n(workspace.begin() + static_cast<std::ptrdiff_t>(base),
+                    0x98U,
+                    static_cast<u8>(0U));
+        write_workspace_word(base + 0x92U, 1U);
+        for (std::size_t slot = 0; slot < 8U; ++slot) {
+            write_workspace_word(base + 4U + slot * 0x10U, 0xFFFFU);
+        }
+        write_workspace_dword(base + 0x80U, 0U);
+        write_workspace_dword(base + 0x84U, 0U);
+        write_workspace_dword(base + 0x88U, 0x0CU);
+    };
+    const auto load_frame = [&](asset_runtime::LegacyActionRecord& record,
+                                rendering::LegacyFramePiece& frame) {
+        ++result.frame_lookup_calls;
+        if (!context.frame_provider.load_frame_piece(
+                record.field_4a, record.field_4c, frame
+            )) {
+            actor->turn_frame_token = 0U;
+            result.status =
+                LegacyBattleSpecialFourHundredStatus::frame_owner_typed_stop;
+            return false;
+        }
+        actor->turn_frame_token = request.actor_token + 0x254CU;
+        return true;
+    };
+    const auto draw_frame = [&](const i32 x,
+                                const i32 y,
+                                const rendering::LegacyFramePiece& frame,
+                                const u32 flags,
+                                const u32 resource) {
+        ++result.render_calls;
+        return invoke_action(
+            kCallActionThirteenRender,
+            {
+                std::bit_cast<u32>(x),
+                std::bit_cast<u32>(y),
+                frame.width,
+                frame.height,
+                flags,
+                resource,
+            }
+        );
+    };
+    const auto call_target_event = [&]() {
+        ++result.target_event_calls;
+        registers.ecx = request.actor_token;
+        static_cast<void>(invoke_action(
+            kCallSpecialFourHundredTargetEvent,
+            {request.target_token, 0U}
+        ));
+    };
+
+    actor->turn_completion_latch = 1U;
+    auto& special = actor->special_action_record;
+    special.action_id = static_cast<u32>(actor->profile_value) + 0x5DCU;
+    special.base_variant = actor->special_profile_variant;
+    ++result.special_update_calls;
+    ++result.port_calls;
+    auto primary_reply = port.invoke_special_four_hundred_primary_update(
+        {
+            .callee_token = kCallSpecialActionUpdate,
+            .arguments = {
+                request.target_token,
+                request.actor_token + 0x0AF0U,
+            },
+            .eax = registers.eax,
+            .ecx = request.actor_token,
+            .edx = registers.edx,
+        },
+        special,
+        actor->turn_frame_token,
+        actor->turn_render_flags,
+        actor->special_primary_draw_x,
+        actor->special_primary_draw_y
+    );
+    registers.eax = primary_reply.eax;
+    registers.ecx = primary_reply.ecx;
+    registers.edx = primary_reply.edx;
+
+    auto& target_record = actor->special_target_action_record;
+    const bool begins_outward_phase =
+        (special.field_5a & 0x0108U) == 0x0108U;
+    if (begins_outward_phase) {
+        if (read_workspace_word(0x92U) == 0U) {
+            initialize_workspace_record(0U);
+            actor->special_four_hundred_counter = 0U;
+        }
+        special.external_mode = 1U;
+        target_record.action_id =
+            static_cast<u32>(actor->profile_value) + 0x5DCU;
+        target_record.base_variant =
+            static_cast<u32>(actor->special_profile_variant) + 0x28U;
+        while (target_record.field_4c < 2U) {
+            ++result.action_update_calls;
+            const auto updated = context.action_updater.update(target_record);
+            registers.eax = updated.return_value;
+            if (updated.return_value == 0U) {
+                return finish_zero();
+            }
+        }
+
+        rendering::LegacyFramePiece primary_frame{};
+        if (!load_frame(special, primary_frame)) {
+            return result;
+        }
+        if (shared == nullptr) {
+            result.status =
+                LegacyBattleSpecialFourHundredStatus::shared_state_typed_stop;
+            return result;
+        }
+        shared->special_render_mode = 8U;
+        shared->draw_motion_c = 10U;
+        const i32 x = static_cast<i32>(
+                          std::bit_cast<i16>(actor->special_primary_draw_x)
+                      ) - actor->turn_countdown;
+        const i32 y =
+            static_cast<i32>(std::bit_cast<i16>(actor->special_primary_draw_y));
+        static_cast<void>(draw_frame(
+            x, y, primary_frame, actor->turn_render_flags | 0x14U, 0U
+        ));
+        static_cast<void>(draw_frame(
+            x, y, primary_frame, actor->turn_render_flags | 0x10U, 0U
+        ));
+        if (actor->special_draw_mirror_mode == 0U) {
+            actor->turn_countdown += 10;
+        } else {
+            actor->turn_countdown -= 10;
+        }
+        target_record.external_mode = 1U;
+        if ((target_record.field_5a & 1U) != 0U) {
+            ++result.target_event_calls;
+            registers.ecx = request.target_token;
+            static_cast<void>(invoke_action(
+                kCallRefreshTarget, {request.target_token}
+            ));
+            target_record.field_5a = 0U;
+        }
+        if ((actor->turn_countdown % 150) != 0) {
+            return finish_zero();
+        }
+
+        special.field_5a = 0U;
+        actor->turn_threshold = 0U;
+        actor->special_four_hundred_counter = 0U;
+        actor->special_four_hundred_marker = 0xFFFFU;
+        special.external_mode = 0U;
+        target_record.external_mode = 0U;
+        actor->special_four_hundred_phase = 1U;
+    }
+
+    if (actor->special_four_hundred_phase == 1U) {
+        if (target_record.field_8c != 0U) {
+            rendering::LegacyFramePiece reverse_frame{};
+            if (!load_frame(special, reverse_frame)) {
+                return result;
+            }
+            if (shared == nullptr) {
+                result.status = LegacyBattleSpecialFourHundredStatus::
+                    shared_state_typed_stop;
+                return result;
+            }
+            shared->special_render_mode = 8U;
+            shared->draw_motion_c = 10U;
+            const i32 x = static_cast<i32>(
+                              std::bit_cast<i16>(
+                                  actor->special_primary_draw_x
+                              )
+                          ) - actor->turn_countdown;
+            const i32 y = static_cast<i32>(
+                std::bit_cast<i16>(actor->special_primary_draw_y)
+            );
+            static_cast<void>(draw_frame(
+                x, y, reverse_frame, actor->turn_render_flags | 0x14U, 0U
+            ));
+            static_cast<void>(draw_frame(
+                x, y, reverse_frame, actor->turn_render_flags | 0x10U, 0U
+            ));
+            if (actor->special_draw_mirror_mode == 0U) {
+                actor->turn_countdown -= 10;
+            } else {
+                actor->turn_countdown += 10;
+            }
+            target_record.external_mode = 1U;
+            if (actor->turn_countdown == 0) {
+                special.field_5a = 0U;
+                actor->turn_threshold = 0U;
+                actor->special_four_hundred_counter = 0U;
+                actor->special_four_hundred_marker = 0xFFFFU;
+                special.external_mode = 0U;
+                target_record.external_mode = 0U;
+                actor->special_four_hundred_phase = 0U;
+            }
+        } else {
+            target_record.action_id =
+                static_cast<u32>(actor->profile_value) + 0x5DCU;
+            target_record.base_variant =
+                static_cast<u32>(actor->special_profile_variant) + 0x28U;
+            ++result.action_update_calls;
+            const auto updated = context.action_updater.update(target_record);
+            registers.eax = updated.return_value;
+            if (updated.return_value == 0U) {
+                return finish_zero();
+            }
+
+            rendering::LegacyFramePiece target_frame{};
+            if (!load_frame(target_record, target_frame)) {
+                return result;
+            }
+            registers.eax = actor->turn_frame_token;
+            replace_low_word(registers.edx, target_record.field_58);
+            ++result.sample_play_calls;
+            static_cast<void>(invoke_action(
+                kCallPlayMessage, {registers.edx, 0x004AB784U}
+            ));
+            target_record.field_58 = 0U;
+            actor->render_flags = target_record.mode_flags;
+            actor->turn_target_x_offset = target_record.field_76;
+            const u16 target_original_field_76 = target_record.field_76;
+            if (actor->special_draw_mirror_mode == 1U) {
+                actor->render_flags ^= 1U;
+                actor->turn_target_x_offset = static_cast<u16>(
+                    target_frame.width - target_record.field_76
+                );
+            }
+
+            ++result.coordinate_query_calls;
+            const auto coordinates = invoke_action(
+                kCallActionThirteenQueryCoordinates,
+                {request.target_token, 0U}
+            );
+            const i16 primary_x = static_cast<i16>(
+                std::bit_cast<i16>(static_cast<u16>(coordinates.outputs[0U])) -
+                std::bit_cast<i16>(actor->turn_target_x_offset)
+            );
+            const i16 primary_y = static_cast<i16>(
+                std::bit_cast<i16>(static_cast<u16>(coordinates.outputs[1U])) -
+                std::bit_cast<i16>(
+                    static_cast<u16>(target_record.draw_offset_y)
+                )
+            );
+
+            constexpr std::size_t kSecondaryWorkspaceBase = 0x98U;
+            if (read_workspace_word(kSecondaryWorkspaceBase + 0x92U) == 0U) {
+                initialize_workspace_record(kSecondaryWorkspaceBase);
+            }
+            write_workspace_word(kSecondaryWorkspaceBase + 0x90U, 2U);
+            ensure_workspace()[kSecondaryWorkspaceBase + 0x94U] = 3U;
+            ensure_workspace()[kSecondaryWorkspaceBase + 0x95U] = 1U;
+            ++result.workspace_update_calls;
+            ++result.port_calls;
+            auto workspace_reply =
+                port.invoke_special_four_hundred_workspace_update(
+                    {
+                        .callee_token = kCallSpecialFourHundredWorkspace,
+                        .arguments = {
+                            request.actor_token + 0x1064U,
+                            target_record.field_4a,
+                            target_record.field_4c,
+                            actor->render_flags,
+                            signed_word_bits(static_cast<u16>(primary_x)),
+                            signed_word_bits(static_cast<u16>(primary_y)),
+                        },
+                        .eax = registers.eax,
+                        .ecx = request.actor_token,
+                        .edx = registers.edx,
+                    },
+                    std::span<u8>(ensure_workspace()).subspan(
+                        kSecondaryWorkspaceBase, 0x98U
+                    )
+                );
+            registers.eax = workspace_reply.eax;
+            registers.ecx = workspace_reply.ecx;
+            registers.edx = workspace_reply.edx;
+
+            if (!load_frame(target_record, target_frame)) {
+                return result;
+            }
+            if (shared == nullptr) {
+                result.status = LegacyBattleSpecialFourHundredStatus::
+                    shared_state_typed_stop;
+                return result;
+            }
+            shared->turn_frame_source_token = actor->turn_frame_token;
+            static_cast<void>(draw_frame(
+                primary_x,
+                primary_y,
+                target_frame,
+                actor->render_flags,
+                0U
+            ));
+
+            if ((target_record.field_5a & 8U) != 0U) {
+                actor->action_runtime_gate |= 0x800U;
+                actor->effect_secondary_action_record = {};
+                target_record.field_5a = 0U;
+            }
+            if ((actor->action_runtime_gate & 0x800U) != 0U) {
+                auto& secondary = actor->effect_secondary_action_record;
+                secondary.action_id = actor->copied_runtime_word;
+                secondary.base_variant = 0U;
+                if (target_record.field_24 != 0U) {
+                    secondary.action_id = target_record.field_24;
+                }
+                if (secondary.field_8c == 0U) {
+                    ++result.action_update_calls;
+                    const auto secondary_updated =
+                        context.action_updater.update(secondary);
+                    registers.eax = secondary_updated.return_value;
+                    if (secondary_updated.return_value == 0U) {
+                        return finish_zero();
+                    }
+                    rendering::LegacyFramePiece secondary_frame{};
+                    if (!load_frame(secondary, secondary_frame)) {
+                        return result;
+                    }
+                    actor->render_flags = secondary.mode_flags;
+                    actor->secondary_target_x_offset = secondary.field_76;
+                    const u16 secondary_original_field_76 =
+                        secondary.field_76;
+                    if (actor->special_draw_mirror_mode == 1U) {
+                        actor->render_flags ^= 1U;
+                        actor->secondary_target_x_offset = static_cast<u16>(
+                            secondary_frame.width - secondary.field_76
+                        );
+                    }
+                    replace_low_word(registers.edx, secondary.field_58);
+                    ++result.sample_play_calls;
+                    static_cast<void>(invoke_action(
+                        kCallPlayMessage,
+                        {registers.edx, 0x004AB784U}
+                    ));
+                    ++result.sample_pan_calls;
+                    if (actor->special_draw_mirror_mode == 1U) {
+                        replace_low_word(registers.eax, secondary.field_58);
+                        static_cast<void>(invoke_action(
+                            kCallSetSamplePan, {registers.eax, 0x10U}
+                        ));
+                    } else {
+                        replace_low_word(registers.ecx, secondary.field_58);
+                        static_cast<void>(invoke_action(
+                            kCallSetSamplePan,
+                            {registers.ecx, 0xFFFFFFF0U}
+                        ));
+                    }
+                    secondary.field_58 = 0U;
+                    shared->turn_frame_source_token = actor->turn_frame_token;
+                    actor->render_flags ^= 1U;
+                    actor->secondary_target_x_offset = static_cast<u16>(
+                        secondary_frame.width -
+                        actor->secondary_target_x_offset
+                    );
+                    u16 adjusted_secondary_field_76 =
+                        secondary_original_field_76;
+                    if (secondary_original_field_76 != 0U) {
+                        adjusted_secondary_field_76 = static_cast<u16>(
+                            secondary_frame.width - secondary_original_field_76
+                        );
+                    }
+                    i32 secondary_x = 0;
+                    i32 secondary_y = 0;
+                    if ((secondary.field_76 != 0U || secondary.field_78 != 0U) &&
+                        (target_record.field_76 != 0U ||
+                         target_record.field_78 != 0U)) {
+                        secondary_x = std::bit_cast<i16>(static_cast<u16>(
+                            static_cast<u16>(primary_x) -
+                            adjusted_secondary_field_76 +
+                            target_original_field_76
+                        ));
+                        secondary_y = std::bit_cast<i16>(static_cast<u16>(
+                            target_record.field_78 - secondary.field_78 +
+                            static_cast<u16>(primary_y)
+                        ));
+                    }
+                    static_cast<void>(draw_frame(
+                        secondary_x,
+                        secondary_y,
+                        secondary_frame,
+                        actor->render_flags,
+                        0U
+                    ));
+                    if ((secondary.field_5a & 1U) != 0U) {
+                        actor->motion_word = 0U;
+                        secondary.field_5a = 0U;
+                        call_target_event();
+                    }
+                }
+            }
+        }
+    }
+
+    if ((special.field_5a & 8U) != 0U) {
+        actor->action_runtime_gate |= 0x8000U;
+        special.field_5a = 0U;
+    }
+    if ((special.field_5a & 1U) != 0U) {
+        call_target_event();
+        special.field_5a = 0U;
+        actor->action_runtime_gate |= 0x8000U;
+        actor->motion_word = 0U;
+        actor->effect_action_record = {};
+        if (shared == nullptr) {
+            result.status =
+                LegacyBattleSpecialFourHundredStatus::shared_state_typed_stop;
+            return result;
+        }
+        shared->shared_motion_word = 0U;
+    }
+    if ((actor->action_runtime_gate & 0x8000U) == 0U) {
+        return finish_zero();
+    }
+
+    auto& effect = actor->effect_action_record;
+    effect.action_id = actor->copied_runtime_word;
+    effect.external_mode = 0U;
+    ++result.effect_update_calls;
+    ++result.port_calls;
+    auto effect_reply = port.invoke_special_four_hundred_effect_update(
+        {
+            .callee_token = kCallSpecialFourHundredEffect,
+            .arguments = {
+                request.target_token,
+                request.actor_token + 0x0630U,
+                special.field_76,
+                special.field_78,
+            },
+            .eax = registers.eax,
+            .ecx = request.actor_token,
+            .edx = registers.edx,
+        },
+        effect,
+        actor->turn_frame_token,
+        actor->render_flags,
+        actor->draw_x,
+        actor->draw_y
+    );
+    registers.eax = effect_reply.eax;
+    registers.ecx = effect_reply.ecx;
+    registers.edx = effect_reply.edx;
+    if ((effect.field_5a & 1U) != 0U) {
+        actor->motion_word = 0U;
+        effect.field_5a = 0U;
+        call_target_event();
+    }
+
+    rendering::LegacyFramePiece effect_frame{};
+    if (!load_frame(effect, effect_frame)) {
+        return result;
+    }
+    if (shared == nullptr) {
+        result.status =
+            LegacyBattleSpecialFourHundredStatus::shared_state_typed_stop;
+        return result;
+    }
+    shared->turn_frame_source_token = actor->turn_frame_token;
+    if (effect.field_8c != 1U) {
+        if ((actor->action_runtime_gate & 0x4000U) == 0U) {
+            static_cast<void>(draw_frame(
+                std::bit_cast<i16>(actor->draw_x),
+                std::bit_cast<i16>(actor->draw_y),
+                effect_frame,
+                actor->render_flags,
+                actor->resource.value_04
+            ));
+        }
+        return finish_zero();
+    }
+
+    special.field_24 = 0U;
+    target_record.field_24 = 0U;
+    if (special.field_8c != 1U || actor->special_four_hundred_phase != 0U) {
+        return finish_zero();
+    }
+
+    special = {};
+    target_record = {};
+    actor->turn_action_record = {};
+    actor->effect_action_record = {};
+    actor->effect_secondary_action_record = {};
+    result.action_record_clears = 5U;
+    if (actor->special_four_hundred_workspace) {
+        actor->special_four_hundred_workspace->fill(0U);
+    }
+    result.workspace_bytes_cleared = 0x4C0U;
+    actor->target_indices.fill(0xFFFFFFFFU);
+    actor->motion_word = 0U;
+    if (progress == nullptr) {
+        result.status =
+            LegacyBattleSpecialFourHundredStatus::progress_state_typed_stop;
+        return result;
+    }
+    progress->action_complete = 0U;
+    actor->action_runtime_gate = 0U;
+    actor->special_four_hundred_tail_word = 0U;
+    shared->completion_counter =
+        static_cast<u8>(shared->completion_counter + 1U);
+    shared->profile_mode_active = 0U;
+    actor->special_four_hundred_phase = 0U;
+    result.return_eax = 1U;
+    result.return_ecx = registers.ecx;
+    result.return_edx = registers.edx;
+    return result;
+}
+
 LegacyBattleSummonFrameResult advance_legacy_battle_summon_frame(
     LegacyBattleTargetPhaseState* phase,
     LegacyBattleGroupAActionExecutionState* actor,
@@ -3710,13 +4301,36 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                         {group_b_token(group_b_index)}
                     );
                 } else {
-                    reply = invoke(
-                        state,
-                        port,
-                        result,
-                        kCallSpecialFourHundred,
-                        {group_b_token(group_b_index), 0U}
-                    );
+                    if (context.startup == nullptr ||
+                        group_a_index >= context.startup->party.size()) {
+                        result.status = LegacyBattleActionDispatchStatus::
+                            special_four_hundred_typed_stop;
+                        return result;
+                    }
+                    result.special_four_hundred =
+                        advance_legacy_battle_special_four_hundred(
+                            &state.group_a_action_execution[group_a_index],
+                            &context.startup->party[group_a_index].progress,
+                            &state.group_a_action_shared,
+                            port,
+                            context,
+                            {
+                                .actor_token = actor_token,
+                                .target_token = group_b_token(group_b_index),
+                            }
+                        );
+                    ++result.special_four_hundred_calls;
+                    result.port_calls +=
+                        result.special_four_hundred.port_calls;
+                    if (result.special_four_hundred.status !=
+                        LegacyBattleSpecialFourHundredStatus::completed) {
+                        result.status = LegacyBattleActionDispatchStatus::
+                            special_four_hundred_typed_stop;
+                        return result;
+                    }
+                    reply.eax = result.special_four_hundred.return_eax;
+                    reply.ecx = result.special_four_hundred.return_ecx;
+                    reply.edx = result.special_four_hundred.return_edx;
                 }
                 if (reply.eax != 1U) {
                     return result;

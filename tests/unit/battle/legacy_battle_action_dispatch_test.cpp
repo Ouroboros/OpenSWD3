@@ -100,6 +100,58 @@ public:
             invoke_special_four_oh_six_secondary_update(request, record);
     }
 
+    [[nodiscard]] LegacyBattleActionCallReply
+    invoke_special_four_hundred_primary_update(
+        const LegacyBattleActionCallRequest& request,
+        openswd3::asset_runtime::LegacyActionRecord& record,
+        u32& frame_token,
+        u32& render_flags,
+        u16& draw_x,
+        u16& draw_y
+    ) override {
+        special_four_hundred_primary_records.push_back(&record);
+        return LegacyBattleActionDispatchPort::
+            invoke_special_four_hundred_primary_update(
+                request,
+                record,
+                frame_token,
+                render_flags,
+                draw_x,
+                draw_y
+            );
+    }
+
+    [[nodiscard]] LegacyBattleActionCallReply
+    invoke_special_four_hundred_workspace_update(
+        const LegacyBattleActionCallRequest& request,
+        std::span<u8> workspace
+    ) override {
+        special_four_hundred_workspaces.push_back(workspace.data());
+        return LegacyBattleActionDispatchPort::
+            invoke_special_four_hundred_workspace_update(request, workspace);
+    }
+
+    [[nodiscard]] LegacyBattleActionCallReply
+    invoke_special_four_hundred_effect_update(
+        const LegacyBattleActionCallRequest& request,
+        openswd3::asset_runtime::LegacyActionRecord& record,
+        u32& frame_token,
+        u32& render_flags,
+        u16& draw_x,
+        u16& draw_y
+    ) override {
+        special_four_hundred_effect_records.push_back(&record);
+        return LegacyBattleActionDispatchPort::
+            invoke_special_four_hundred_effect_update(
+                request,
+                record,
+                frame_token,
+                render_flags,
+                draw_x,
+                draw_y
+            );
+    }
+
     [[nodiscard]] openswd3::battle::
         LegacyBattleGroupASummonMaterializationCallReply
         invoke_group_a_summon_materialization(
@@ -168,6 +220,11 @@ public:
         special_four_oh_six_effect_records;
     std::vector<openswd3::asset_runtime::LegacyActionRecord*>
         special_four_oh_six_secondary_records;
+    std::vector<openswd3::asset_runtime::LegacyActionRecord*>
+        special_four_hundred_primary_records;
+    std::vector<u8*> special_four_hundred_workspaces;
+    std::vector<openswd3::asset_runtime::LegacyActionRecord*>
+        special_four_hundred_effect_records;
     std::vector<u16> decoded_pixels = std::vector<u16>(0x20U * 0x50U, 0x1234U);
     std::vector<
         openswd3::battle::LegacyBattleGroupASummonMaterializationCallRequest>
@@ -2214,6 +2271,329 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 state.action_pending == 1U &&
                 port.count(0x004735B0U) == 0U,
             "action four-oh-six production advances the typed four-record state machine without the opaque call"
+        );
+    }
+
+    {
+        const auto prepare_actor = [] {
+            LegacyBattleGroupAActionExecutionState actor;
+            actor.profile_value = 0x123U;
+            actor.special_profile_variant = 7U;
+            actor.special_action_record.field_4a = 1U;
+            actor.special_action_record.field_4c = 1U;
+            actor.special_primary_draw_x = 100U;
+            actor.special_primary_draw_y = 50U;
+            actor.turn_render_flags = 1U;
+            actor.special_target_action_record.cached_action_id = 0x6FFU;
+            actor.special_target_action_record.cached_base_variant = 0x2FU;
+            return actor;
+        };
+        LegacyBattleGroupAActionExecutionSharedState shared;
+        openswd3::battle::LegacyBattleActorProgressState progress;
+        Fixture fixture;
+        auto context = fixture.context();
+
+        auto gated_actor = prepare_actor();
+        gated_actor.start_gate = 1U;
+        DispatchPort gated_port;
+        const auto gated =
+            openswd3::battle::advance_legacy_battle_special_four_hundred(
+                &gated_actor,
+                &progress,
+                &shared,
+                gated_port,
+                context,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            gated.return_eax == 0U && gated.port_calls == 0U &&
+                gated_actor.turn_completion_latch == 0U,
+            "special four hundred preserves the two entry gates before every side effect"
+        );
+
+        auto outward_actor = prepare_actor();
+        outward_actor.special_action_record.field_5a = 0x0108U;
+        outward_actor.special_target_action_record.field_4c = 2U;
+        DispatchPort outward_port;
+        const auto outward =
+            openswd3::battle::advance_legacy_battle_special_four_hundred(
+                &outward_actor,
+                &progress,
+                &shared,
+                outward_port,
+                context,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            outward.return_eax == 0U &&
+                outward.special_update_calls == 1U &&
+                outward.render_calls == 2U &&
+                outward_actor.turn_countdown == 10 &&
+                outward_actor.special_action_record.external_mode == 1U &&
+                outward_actor.special_target_action_record.external_mode == 1U &&
+                outward_actor.special_four_hundred_workspace != nullptr &&
+                (*outward_actor.special_four_hundred_workspace)[0x92U] == 1U &&
+                (*outward_actor.special_four_hundred_workspace)[0x04U] == 0xFFU &&
+                (*outward_actor.special_four_hundred_workspace)[0x05U] == 0xFFU &&
+                shared.special_render_mode == 8U &&
+                shared.draw_motion_c == 10U &&
+                outward_port.special_four_hundred_primary_records.size() == 1U,
+            "special four hundred initializes the first workspace and advances the outward ten-pixel phase"
+        );
+
+        auto handoff_actor = prepare_actor();
+        handoff_actor.special_action_record.field_5a = 0x0108U;
+        handoff_actor.special_target_action_record.field_4c = 2U;
+        handoff_actor.special_target_action_record.field_8c = 1U;
+        handoff_actor.turn_countdown = 140;
+        DispatchPort handoff_port;
+        const auto handoff =
+            openswd3::battle::advance_legacy_battle_special_four_hundred(
+                &handoff_actor,
+                &progress,
+                &shared,
+                handoff_port,
+                context,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            handoff.return_eax == 0U && handoff.render_calls == 4U &&
+                handoff_actor.turn_countdown == 140 &&
+                handoff_actor.special_four_hundred_phase == 1U &&
+                handoff_actor.special_action_record.field_5a == 0U &&
+                handoff_actor.special_target_action_record.external_mode == 1U,
+            "special four hundred reaches signed one-fifty and begins the reverse phase in the same frame"
+        );
+
+        auto target_actor = prepare_actor();
+        target_actor.special_four_hundred_phase = 1U;
+        target_actor.special_target_action_record.field_58 = 0x44U;
+        target_actor.special_target_action_record.field_76 = 4U;
+        DispatchPort target_port;
+        target_port.push(
+            0x004783B0U,
+            {.eax = 1U, .outputs = {200U, 60U}}
+        );
+        const auto target =
+            openswd3::battle::advance_legacy_battle_special_four_hundred(
+                &target_actor,
+                &progress,
+                &shared,
+                target_port,
+                context,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            target.return_eax == 0U && target.action_update_calls == 1U &&
+                target.frame_lookup_calls == 2U &&
+                target.coordinate_query_calls == 1U &&
+                target.workspace_update_calls == 1U &&
+                target.sample_play_calls == 1U && target.render_calls == 1U &&
+                target_actor.special_target_action_record.field_58 == 0U &&
+                target_actor.special_four_hundred_workspace != nullptr &&
+                (*target_actor.special_four_hundred_workspace)[
+                    0x98U + 0x90U
+                ] == 2U &&
+                (*target_actor.special_four_hundred_workspace)[
+                    0x98U + 0x94U
+                ] == 3U &&
+                (*target_actor.special_four_hundred_workspace)[
+                    0x98U + 0x95U
+                ] == 1U &&
+                target_port.special_four_hundred_workspaces.size() == 1U &&
+                target_port.special_four_hundred_workspaces[0U] ==
+                    target_actor.special_four_hundred_workspace->data() + 0x98U,
+            "special four hundred updates the target action and passes the initialized secondary workspace to its narrow callee"
+        );
+
+        auto layered_actor = prepare_actor();
+        layered_actor.special_four_hundred_phase = 1U;
+        layered_actor.copied_runtime_word = 0x0777U;
+        layered_actor.special_target_action_record.field_5a = 8U;
+        layered_actor.special_target_action_record.field_76 = 4U;
+        DispatchPort layered_port;
+        layered_port.push(
+            0x004783B0U,
+            {.eax = 1U, .outputs = {200U, 60U}}
+        );
+        const auto layered =
+            openswd3::battle::advance_legacy_battle_special_four_hundred(
+                &layered_actor,
+                &progress,
+                &shared,
+                layered_port,
+                context,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                    .entry_eax = 0xAAAA0000U,
+                    .entry_ecx = 0xBBBB0000U,
+                    .entry_edx = 0xCCCC0000U,
+                }
+            );
+        test.expect_true(
+            layered.return_eax == 0U && layered.action_update_calls == 2U &&
+                layered.frame_lookup_calls == 3U &&
+                layered.sample_play_calls == 2U &&
+                layered.sample_pan_calls == 1U &&
+                layered.render_calls == 2U &&
+                (layered_actor.action_runtime_gate & 0x800U) != 0U &&
+                layered_actor.effect_secondary_action_record.action_id ==
+                    0x0777U &&
+                layered_actor.special_target_action_record.field_5a == 0U,
+            "special four hundred starts and draws the optional layered action while preserving its gate"
+        );
+
+        auto effect_actor = prepare_actor();
+        effect_actor.special_action_record.field_5a = 1U;
+        effect_actor.effect_action_record.field_4a = 1U;
+        effect_actor.effect_action_record.field_4c = 1U;
+        effect_actor.render_flags = 5U;
+        effect_actor.draw_x = 12U;
+        effect_actor.draw_y = 34U;
+        effect_actor.resource.value_04 = 0xCAFEBABEU;
+        shared.shared_motion_word = 9U;
+        DispatchPort effect_port;
+        const auto effect =
+            openswd3::battle::advance_legacy_battle_special_four_hundred(
+                &effect_actor,
+                &progress,
+                &shared,
+                effect_port,
+                context,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            effect.return_eax == 0U && effect.target_event_calls == 1U &&
+                effect.effect_update_calls == 1U &&
+                effect.frame_lookup_calls == 1U && effect.render_calls == 1U &&
+                (effect_actor.action_runtime_gate & 0x8000U) != 0U &&
+                effect_actor.special_action_record.field_5a == 0U &&
+                shared.shared_motion_word == 0U &&
+                effect_port.special_four_hundred_effect_records.size() == 1U &&
+                effect_port.special_four_hundred_effect_records[0U] ==
+                    &effect_actor.effect_action_record &&
+                effect_port.calls.back().arguments[5U] == 0xCAFEBABEU,
+            "special four hundred consumes the primary event and draws the pending effect record with its resource"
+        );
+
+        auto completed_actor = prepare_actor();
+        completed_actor.action_runtime_gate = 0x8000U;
+        completed_actor.special_action_record.field_8c = 1U;
+        completed_actor.effect_action_record.field_8c = 1U;
+        completed_actor.special_target_action_record.field_94 = 1U;
+        completed_actor.turn_action_record.field_94 = 2U;
+        completed_actor.effect_secondary_action_record.field_94 = 3U;
+        completed_actor.special_four_hundred_workspace =
+            std::make_unique<std::array<u8, 0x4C0>>();
+        completed_actor.special_four_hundred_workspace->fill(0xAAU);
+        completed_actor.target_indices.fill(0U);
+        completed_actor.motion_word = 9U;
+        completed_actor.special_four_hundred_tail_word = 7U;
+        progress.action_complete = 1U;
+        shared.completion_counter = 0xFFU;
+        shared.profile_mode_active = 1U;
+        DispatchPort completed_port;
+        const auto completed =
+            openswd3::battle::advance_legacy_battle_special_four_hundred(
+                &completed_actor,
+                &progress,
+                &shared,
+                completed_port,
+                context,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            completed.return_eax == 1U &&
+                completed.action_record_clears == 5U &&
+                completed.workspace_bytes_cleared == 0x4C0U &&
+                std::ranges::all_of(
+                    *completed_actor.special_four_hundred_workspace,
+                    [](const u8 value) { return value == 0U; }
+                ) &&
+                std::ranges::all_of(
+                    completed_actor.target_indices,
+                    [](const u32 value) { return value == 0xFFFFFFFFU; }
+                ) &&
+                progress.action_complete == 0U &&
+                completed_actor.action_runtime_gate == 0U &&
+                completed_actor.motion_word == 0U &&
+                completed_actor.special_four_hundred_tail_word == 0U &&
+                shared.completion_counter == 0U &&
+                shared.profile_mode_active == 0U,
+            "special four hundred clears five records and the contiguous workspace only after both completion gates close"
+        );
+
+        auto missing_actor = prepare_actor();
+        missing_actor.special_action_record.field_5a = 0x0108U;
+        missing_actor.special_target_action_record.field_4c = 2U;
+        fixture.frame_provider.available = false;
+        DispatchPort missing_port;
+        const auto missing =
+            openswd3::battle::advance_legacy_battle_special_four_hundred(
+                &missing_actor,
+                &progress,
+                &shared,
+                missing_port,
+                context,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            missing.status == openswd3::battle::
+                    LegacyBattleSpecialFourHundredStatus::frame_owner_typed_stop &&
+                missing_actor.turn_completion_latch == 1U &&
+                missing_actor.special_four_hundred_workspace != nullptr &&
+                (*missing_actor.special_four_hundred_workspace)[0x92U] == 1U &&
+                missing_actor.turn_frame_token == 0U,
+            "special four hundred stops at the original first frame dereference after workspace initialization"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        state.group_a_count = 1;
+        state.group_b_count = 1;
+        auto& actor = state.group_a_action_execution[0U];
+        actor.profile_value = 0x123U;
+        actor.special_profile_variant = 7U;
+        actor.action_runtime_gate = 0x8000U;
+        actor.special_action_record.field_8c = 1U;
+        actor.effect_action_record.field_8c = 1U;
+        Fixture fixture;
+        DispatchPort port;
+        port.action = 400U;
+        auto context = fixture.context();
+        const auto result = openswd3::battle::dispatch_legacy_battle_action(
+            state, port, context, 0U, 0U
+        );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.special_four_hundred_calls == 1U &&
+                result.special_four_hundred.return_eax == 1U &&
+                state.action_pending == 1U &&
+                port.count(0x00473C10U) == 0U,
+            "action four hundred production advances the typed special state machine without the opaque call"
         );
     }
 

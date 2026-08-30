@@ -5,6 +5,7 @@
 
 #include <array>
 #include <cstddef>
+#include <memory>
 
 namespace openswd3::battle {
 
@@ -45,6 +46,7 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u32 secondary_value{};              // actor + 0x0360
     asset_runtime::LegacyActionRecord primary_action_record{};  // actor + 0x0338
     asset_runtime::LegacyActionRecord turn_action_record{};     // actor + 0x0468
+    asset_runtime::LegacyActionRecord special_target_action_record{};  // actor + 0x0500
     asset_runtime::LegacyActionRecord effect_action_record{};  // actor + 0x0630
     asset_runtime::LegacyActionRecord effect_secondary_action_record{};  // actor + 0x06C8
     asset_runtime::LegacyActionRecord special_action_record{};  // actor + 0x0AF0
@@ -56,12 +58,15 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u16 retreat_ready_flags{};            // actor + 0x26D0
     compat::u32 summon_x_offset{};               // actor + 0x268C
     compat::u32 spawn_completion_offset{};       // actor + 0x2674
+    compat::u32 special_four_hundred_counter{};  // actor + 0x2678
     compat::u32 action_runtime_gate{};          // actor + 0x267C
     compat::u16 turn_threshold{};                // actor + 0x2958
     compat::u16 message_percent{};               // actor + 0x26DC
     compat::u16 summon_phase{};                  // actor + 0x2A66
     compat::u16 summon_completion_word{};        // actor + 0x2A78
     compat::u16 turn_target_x_offset{};          // actor + 0x29B4
+    compat::u16 special_primary_draw_x{};        // actor + 0x29B8
+    compat::u16 special_primary_draw_y{};        // actor + 0x29BA
     compat::u32 turn_completion_latch{};         // actor + 0x2AAC
     compat::u16 turn_sample_word{};              // actor + 0x04C0
     compat::u16 auxiliary_word{};               // actor + 0x03B0
@@ -82,10 +87,15 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u16 motion_word{};                  // actor + 0x2954
     compat::u16 motion_aux_word{};              // actor + 0x2956
     compat::u32 render_flags{};                 // actor + 0x26A4
+    compat::u16 special_four_hundred_marker{};   // actor + 0x2A8E
+    compat::u32 special_four_hundred_phase{};    // actor + 0x2AC4
+    compat::u16 special_four_hundred_tail_word{};  // actor + 0x26D4
     compat::u32 action_twenty_seven_motion_mode{};  // actor + 0x2B00
     compat::u32 special_draw_mirror_mode{};         // actor + 0x2B08
     LegacyBattleGroupAActionResourceRecord resource;
     std::array<compat::u32, 4> target_indices{};  // actor + 0x2A56
+    std::unique_ptr<std::array<compat::u8, 0x4C0>>
+        special_four_hundred_workspace;  // actor + 0x0FCC, lazy unique owner
     LegacyBattleGroupAActionExecutionRecord secondary_record;
     std::array<
         LegacyBattleGroupAActionExecutionRecord,
@@ -103,6 +113,7 @@ struct LegacyBattleGroupAActionExecutionSharedState {
     compat::u32 negative_flag{};        // 0x0053C008
     compat::u32 negative_reset{};       // 0x0053BD60
     compat::u32 action_completion_flags{};  // 0x0053C050
+    compat::u32 special_render_mode{};  // 0x004CC2F0
     compat::u32 draw_motion_a{};        // 0x004CD71C
     compat::u32 draw_motion_b{};        // 0x004CD30C
     compat::u32 draw_motion_c{};        // 0x004CD304

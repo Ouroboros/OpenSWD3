@@ -661,6 +661,8 @@ I5最终必须锁定：
 
 `audit_order=225`的`0x004735B0`已关闭为`platform_adapted`。完整权威LST主体`0x004735B0..0x00473C0D`共670行、419条实际指令、19个call、29个跳转、22个局部标签、2个返回点且无外部chunk。实现动作406主记录、bit0负三十淡出、bit1次记录负三十一至正一、gate四效果、bit14第四记录及bit13末段加二的四记录状态机，保留双低位同帧并行、效果完成后同帧级联、未初始化栈word、signed效果、32位累计与四记录清理。两个已关闭动作更新和frame provider typed直连，其余音频、绘制与效果callee保持窄port。新增`+0xB88`和`+0x6C8`唯一owner，唯一动作406 caller已typed化。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`225/422 = 216 platform_adapted + 9 assembly_exact + 197 pending_audit`，双跑SHA256为`290872970a1d7f66c574120b7b5b439511928839ed6cc836b341489c059ef0d8`。动态差分因原版四记录、frame、音频、绘制、效果链、未初始化栈word和caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=226`的`0x00473C10`战斗角色动作效果与渲染函数。
+`audit_order=226`的`0x00473C10`已关闭为`platform_adapted`。完整权威LST主体`0x00473C10..0x004745A4`共998行、604条实际指令、24个call、51个跳转、36个局部标签、2个返回点且无外部chunk。实现动作400双入口门、主记录冲出、signed一百五十整除反转、目标记录、连续双工作记录、可选附层、公共事件门、效果记录绘制和五记录收尾，保留十像素方向、同帧阶段切换、word回绕、陈旧寄存器高半、双flags变换、bit优先级及completion byte回绕。连续`0x4C0`工作区使用首次真实访问物化的唯一owner，避免放大所有行动者栈占用；唯一动作400 caller已typed化。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`226/422 = 217 platform_adapted + 9 assembly_exact + 196 pending_audit`，双跑SHA256为`9f51465d586ccff1e8351199c97c6b6345d3b9c4ec1ea20e9d05ceb0f8c5251d`。动态差分因原版五记录、连续工作区、frame、音频、绘制、目标事件、待审更新callee和caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=227`的`0x004745B0`战斗角色动作效果与渲染函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。
