@@ -1239,6 +1239,144 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
     }
 
     {
+        LegacyBattleTargetPhaseState phase;
+        phase.render_toggle_gate = 1U;
+        LegacyBattleGroupAActionExecutionState actor;
+        actor.profile_value = 0x123U;
+        actor.secondary_auxiliary_word = 5U;
+        actor.position_x = 100U;
+        actor.position_y = 50U;
+        actor.draw_x = 7U;
+        actor.draw_y = 8U;
+        actor.action_flags = 9U;
+        actor.copied_runtime_word = 0x1234U;
+        actor.action_twenty_seven_motion_mode = 1U;
+        actor.primary_action_record.cached_action_id = 0x123U;
+        actor.primary_action_record.cached_base_variant = 0x30U;
+        actor.primary_action_record.draw_offset_x = 4U;
+        actor.primary_action_record.draw_offset_y = 6U;
+        actor.primary_action_record.mode_flags = 1U;
+        actor.primary_action_record.field_58 = 0x44U;
+        LegacyBattleGroupAActionExecutionSharedState shared;
+        Fixture fixture;
+        fixture.stream_provider.bytes = {
+            0x46U, 0x52U, 0x66U, 0x00U, 0x44U, 0x45U,
+        };
+        DispatchPort port;
+        port.battle_pair_primary_value() = 9U;
+        port.push(0x004783B0U, {.outputs = {200U, 60U}});
+        port.push(0x00485610U, {.edx = 0xBBBB2222U});
+        port.push(0x00481010U, {.eax = 0x0000FFFFU});
+        auto context = fixture.context();
+        const auto active =
+            openswd3::battle::advance_legacy_battle_action_twenty_seven(
+                &phase,
+                &actor,
+                &shared,
+                port,
+                context,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            active.return_eax == 0U && active.action_update_calls == 1U &&
+                active.frame_lookup_calls == 1U &&
+                active.coordinate_query_calls == 1U &&
+                active.sample_play_calls == 1U &&
+                active.sample_pan_calls == 1U && active.render_calls == 3U &&
+                active.target_refresh_calls == 1U &&
+                active.effect_compute_calls == 1U &&
+                active.effect_publish_calls == 2U &&
+                active.secondary_record_calls == 1U &&
+                active.effect_value == -1 && shared.last_effect_value == -1 &&
+                port.battle_pair_primary_value() == 8U &&
+                actor.action_flags == 0U &&
+                actor.action_twenty_seven_completion_gate == 0x8000U &&
+                actor.action_twenty_seven_record.action_id == 0x1234U &&
+                actor.action_twenty_seven_record.base_variant == 0U,
+            "action twenty-seven publishes the signed effect then enters the secondary record phase"
+        );
+        test.expect_true(
+            actor.turn_target_x_offset == 28U &&
+                actor.source_x_offset == 27U && actor.turn_render_flags == 0U &&
+                actor.render_flags == 0x0CU &&
+                shared.draw_height_third == 10U &&
+                shared.draw_height_quarter == 8U &&
+                shared.draw_motion_a == 0xFFFFFFFFU &&
+                has_call_argument(port, 0x00485610U, 0U, 0x12340044U) &&
+                has_call_argument(port, 0x00485650U, 0U, 0xBBBB0044U) &&
+                has_call_argument(port, 0x00485650U, 1U, 0xFFFFFFF0U) &&
+                port.calls[3U].callee_token == 0x004170E0U &&
+                port.calls[3U].arguments[0U] == 72U &&
+                port.calls[3U].arguments[1U] == 50U &&
+                port.calls[4U].arguments[0U] == 72U &&
+                port.calls[4U].arguments[1U] == 44U &&
+                port.calls[10U].arguments[0U] == 7U &&
+                port.calls[10U].arguments[1U] == 8U,
+            "action twenty-seven preserves mirror offsets stale sample halves and all three draw formulas"
+        );
+
+        actor.primary_action_record = {};
+        actor.primary_action_record.cached_action_id = 0x123U;
+        actor.primary_action_record.cached_base_variant = 0x30U;
+        actor.primary_action_record.field_8c = 1U;
+        actor.action_twenty_seven_record.field_94 = 0xDEADBEEFU;
+        DispatchPort completion_port;
+        completion_port.push(0x004783B0U, {.outputs = {200U, 60U}});
+        const auto completed =
+            openswd3::battle::advance_legacy_battle_action_twenty_seven(
+                &phase,
+                &actor,
+                &shared,
+                completion_port,
+                context,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            completed.return_eax == 1U &&
+                completed.action_record_clears == 2U &&
+                completed.effect_compute_calls == 0U &&
+                actor.action_twenty_seven_completion_gate == 0U &&
+                actor.primary_action_record.action_id == 0U &&
+                actor.action_twenty_seven_record.field_94 == 0U,
+            "action twenty-seven clears both records only after the primary completion flag"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        state.group_b_count = 1;
+        state.group_a_action_execution[0U].profile_value = 0x123U;
+        state.group_a_action_execution[0U].primary_action_record.cached_action_id =
+            0x123U;
+        state.group_a_action_execution[0U].primary_action_record.cached_base_variant =
+            0x30U;
+        Fixture fixture;
+        fixture.stream_provider.bytes = {
+            0x46U, 0x52U, 0x66U, 0x00U, 0x44U, 0x45U,
+        };
+        DispatchPort port;
+        port.action = 27U;
+        port.push(0x004783B0U, {.outputs = {200U, 60U}});
+        auto context = fixture.context();
+        const auto result = openswd3::battle::dispatch_legacy_battle_action(
+            state, port, context, 0U, 0U
+        );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.action_twenty_seven_calls == 1U &&
+                result.action_twenty_seven.return_eax == 0U &&
+                port.count(0x004728E0U) == 0U,
+            "action twenty seven production advances the typed frame without the opaque call"
+        );
+    }
+
+    {
         LegacyBattleActionDispatchState state;
         state.group_b_count = 2;
         state.blocking_effect = 1U;

@@ -44,6 +44,7 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u32 secondary_value{};              // actor + 0x0360
     asset_runtime::LegacyActionRecord primary_action_record{};  // actor + 0x0338
     asset_runtime::LegacyActionRecord turn_action_record{};     // actor + 0x0468
+    asset_runtime::LegacyActionRecord action_twenty_seven_record{};  // actor + 0x0630
     compat::u32 turn_frame_token{};              // actor + 0x254C
     compat::i32 turn_countdown{};                // actor + 0x2668
     compat::u32 turn_render_flags{};             // actor + 0x26A0
@@ -51,6 +52,7 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u16 retreat_ready_flags{};            // actor + 0x26D0
     compat::u32 summon_x_offset{};               // actor + 0x268C
     compat::u32 spawn_completion_offset{};       // actor + 0x2674
+    compat::u32 action_twenty_seven_completion_gate{};  // actor + 0x267C
     compat::u16 turn_threshold{};                // actor + 0x2958
     compat::u16 message_percent{};               // actor + 0x26DC
     compat::u16 summon_phase{};                  // actor + 0x2A66
@@ -74,6 +76,7 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u16 motion_word{};                  // actor + 0x2954
     compat::u16 motion_aux_word{};              // actor + 0x2956
     compat::u32 render_flags{};                 // actor + 0x26A4
+    compat::u32 action_twenty_seven_motion_mode{};  // actor + 0x2B00
     LegacyBattleGroupAActionResourceRecord resource;
     std::array<compat::u32, 4> target_indices{};  // actor + 0x2A56
     LegacyBattleGroupAActionExecutionRecord secondary_record;
@@ -100,6 +103,7 @@ struct LegacyBattleGroupAActionExecutionSharedState {
     compat::u32 turn_frame_source_token{};  // 0x004CD730
     compat::u32 draw_height_third{};         // 0x004CD75C
     compat::u32 draw_height_quarter{};       // 0x004CD718
+    compat::i32 last_effect_value{};          // 0x0053AE8C
 };
 
 }  // namespace openswd3::battle

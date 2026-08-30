@@ -402,6 +402,44 @@ struct LegacyBattleActionTwentyFourResult {
     compat::u32 return_edx{};
 };
 
+struct LegacyBattleActionTwentySevenRequest {
+    compat::u32 actor_token{};
+    compat::u32 target_token{};
+    compat::u32 entry_eax{};
+    compat::u32 entry_ecx{};
+    compat::u32 entry_edx{};
+};
+
+enum class LegacyBattleActionTwentySevenStatus : compat::u8 {
+    completed,
+    actor_state_typed_stop,
+    phase_state_typed_stop,
+    frame_owner_typed_stop,
+    shared_state_typed_stop,
+};
+
+struct LegacyBattleActionTwentySevenResult {
+    LegacyBattleActionTwentySevenStatus status{
+        LegacyBattleActionTwentySevenStatus::completed
+    };
+    compat::u32 action_update_calls{};
+    compat::u32 frame_lookup_calls{};
+    compat::u32 coordinate_query_calls{};
+    compat::u32 sample_play_calls{};
+    compat::u32 sample_pan_calls{};
+    compat::u32 render_calls{};
+    compat::u32 target_refresh_calls{};
+    compat::u32 effect_compute_calls{};
+    compat::u32 effect_publish_calls{};
+    compat::u32 secondary_record_calls{};
+    compat::u32 action_record_clears{};
+    compat::u32 port_calls{};
+    compat::i32 effect_value{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
 struct LegacyBattleTargetPhaseAdvanceResult {
     LegacyBattleTargetPhaseAdvanceStatus status{
         LegacyBattleTargetPhaseAdvanceStatus::completed
@@ -663,6 +701,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     action_twenty_three_message_typed_stop,
     action_twenty_four_typed_stop,
     action_twenty_five_ready_typed_stop,
+    action_twenty_seven_typed_stop,
     summon_frame_typed_stop,
     turn_commit_chance_typed_stop,
     turn_advance_typed_stop,
@@ -732,6 +771,8 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 action_twenty_four_calls{};
     LegacyBattleActionTwentyFiveReadyResult action_twenty_five_ready{};
     compat::u32 action_twenty_five_ready_calls{};
+    LegacyBattleActionTwentySevenResult action_twenty_seven{};
+    compat::u32 action_twenty_seven_calls{};
     LegacyBattleSummonFrameResult summon_frame{};
     compat::u32 summon_frame_calls{};
     LegacyBattleTurnCommitChanceResult turn_commit_chance{};
@@ -828,6 +869,17 @@ advance_legacy_battle_action_twenty_four(
     LegacyBattleActionDispatchPort& port,
     LegacyBattleActionDispatchContext& context,
     const LegacyBattleActionTwentyFourRequest& request
+);
+
+// sub_4728E0.
+[[nodiscard]] LegacyBattleActionTwentySevenResult
+advance_legacy_battle_action_twenty_seven(
+    LegacyBattleTargetPhaseState* phase,
+    LegacyBattleGroupAActionExecutionState* actor,
+    LegacyBattleGroupAActionExecutionSharedState* shared,
+    LegacyBattleActionDispatchPort& port,
+    LegacyBattleActionDispatchContext& context,
+    const LegacyBattleActionTwentySevenRequest& request
 );
 
 // sub_472710.
