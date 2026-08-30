@@ -50,6 +50,7 @@ void test_battle_actor_list_query(openswd3::test::Context& test);
 void test_battle_actor_metrics(openswd3::test::Context& test);
 void test_battle_actor_priority(openswd3::test::Context& test);
 void test_battle_actor_profile_preparation(openswd3::test::Context& test);
+void test_battle_actor_message_percent_refresh(openswd3::test::Context& test);
 void test_battle_actor_progress(openswd3::test::Context& test);
 void test_battle_actor_ready(openswd3::test::Context& test);
 void test_battle_group_a_action_execution(openswd3::test::Context& test);
@@ -7096,6 +7097,7 @@ int main() {
     test_battle_actor_metrics(test);
     test_battle_actor_priority(test);
     test_battle_actor_profile_preparation(test);
+    test_battle_actor_message_percent_refresh(test);
     test_battle_actor_progress(test);
     test_battle_actor_ready(test);
     test_battle_group_a_action_execution(test);

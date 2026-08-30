@@ -166,7 +166,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     message_phase_set_group_a_actor_mode,
     message_phase_commit_active_actor,
     message_phase_configure_actor_action,
-    message_phase_query_actor_resource,
+    message_phase_refresh_actor_message_percent,
     message_phase_resolve_action_item,
     reserved_message_phase_victory_reward_slot,
     victory_begin_music_fade,
@@ -916,9 +916,9 @@ public:
             call = LegacyBattleFrameCoordinatorCall::
                 message_phase_configure_actor_action;
             break;
-        case LegacyBattleMessagePhaseCall::query_actor_resource:
+        case LegacyBattleMessagePhaseCall::refresh_actor_message_percent:
             call = LegacyBattleFrameCoordinatorCall::
-                message_phase_query_actor_resource;
+                message_phase_refresh_actor_message_percent;
             break;
         case LegacyBattleMessagePhaseCall::resolve_action_item:
             call = LegacyBattleFrameCoordinatorCall::

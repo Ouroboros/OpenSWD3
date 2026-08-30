@@ -711,7 +711,12 @@ void test_battle_message_phase(openswd3::test::Context& test) {
             LegacyBattleMessagePhaseCall::query_actor_completion, {.eax = 0U}
         );
         fixture.port.reply(
-            LegacyBattleMessagePhaseCall::query_actor_resource, {.eax = 0x55U}
+            LegacyBattleMessagePhaseCall::refresh_actor_message_percent,
+            {
+                .eax = 0U,
+                .publish_actor_message_percent = true,
+                .actor_message_percent = 0x55U,
+            }
         );
         fixture.port.reply(
             LegacyBattleMessagePhaseCall::resolve_action_item, {.eax = 0x1234U}
@@ -734,6 +739,9 @@ void test_battle_message_phase(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleMessagePhaseStatus::
                         completed &&
+                result.actor_message_percent_refresh_calls == 1U &&
+                result.actor_message_percent_refresh.percent_refresh_calls ==
+                    1U &&
                 result.player_item_quantity_calls == 1U &&
                 result.player_item_quantity.created &&
                 fixture.port.battle_victory_reward_state()
@@ -764,8 +772,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         test.expect_true(
             committed.call ==
                     LegacyBattleMessagePhaseCall::commit_active_actor &&
-                committed.eax == 3021U &&
-                committed.edx == 0x00505904U,
+                committed.eax == 3021U && committed.edx == 0x00505904U,
             "message 99 preserves the commit register snapshot after typed cleanup"
         );
         test.expect_true(
@@ -776,9 +783,12 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         );
         test.expect_true(
             resource.call ==
-                    LegacyBattleMessagePhaseCall::query_actor_resource &&
-                resource.eax == 3021U && resource.edx == 5U,
-            "message 99 preserves the resource-query register snapshot"
+                    LegacyBattleMessagePhaseCall::
+                        refresh_actor_message_percent &&
+                resource.actor_token == 0x00505904U &&
+                resource.arguments[0U] == 30U && resource.eax == 3021U &&
+                resource.edx == 5U,
+            "message 99 refreshes actor percent through only the pending callee and preserves its register snapshot"
         );
     }
     {

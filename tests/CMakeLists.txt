@@ -257,6 +257,7 @@ add_executable(
     unit/battle/legacy_battle_actor_action_commit_test.cpp
     unit/battle/legacy_battle_actor_action_cycle_test.cpp
     unit/battle/legacy_battle_actor_action_reverse_cycle_test.cpp
+    unit/battle/legacy_battle_actor_message_percent_refresh_test.cpp
     unit/battle/legacy_battle_actor_target_preparation_test.cpp
     unit/battle/legacy_battle_available_actor_cycle_test.cpp
     unit/battle/legacy_battle_available_actor_reverse_cycle_test.cpp

@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v820
+版本：v821
 
 最后更新：2026-08-30
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗角色动作效果与渲染函数 `0x00475160`
+当前步骤：模块10 · 审计战斗角色动作效果与渲染函数 `0x00475180`
 
 ## 0. 执行约定
 
@@ -4258,4 +4258,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=232`的`0x004750C0`战斗group-A行动者状态与资源计数清理函数。完整权威LST主体`0x004750C0..0x0047515D`共62行、55条实际指令、0个call、2个跳转、2个局部标签、1个返回点且无外部chunk。实现profile/pre-effect与十一个word按原顺序清零、资源头`+6`数量unsigned正值递减、零值保留、最终selection gate清除及EAX/ECX/EDX陈旧状态，保留`mov cx`高半继承、`+0x2F1A`不清理和资源节点故障前全部副作用。复用startup party重叠typed view与actor-list资源链owner；group-B frame、final-actor step、menu finalize四处分支、selection frame和message phase共八处caller均typed化，旧opaque枚举槽保留为reserved。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`232/422 = 223 platform_adapted + 9 assembly_exact + 190 pending_audit`；生成器连续双跑逐字节一致，SHA256为`8efdb823624eec1dbbfff179321885871b1e17dc052420e7ce5e01dd47a15f05`。动态差分因原版十个group-A行动者完整对象、资源链、八处caller寄存器及重叠物理字段联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=233`的`0x00475160`战斗角色动作效果与渲染函数。
+本轮再完成`audit_order=233`的`0x00475160`行动者消息百分比刷新包装函数。完整权威LST主体`0x00475160..0x00475172`共11行、9条实际指令、1个call、0个跳转、0个局部标签、1个返回点且无外部chunk。实现固定参数30调用待审`0x00482F10`、接收其`+0x26DC`百分比发布、callee后以行动者word只覆盖AX，并保留EAX高半及ECX/EDX；typed owner缺失严格位于callee及其副作用之后。复用既有group-A行动者消息百分比owner；message phase消息99唯一caller已typed化，旧整函数opaque槽收窄为callee槽且保持枚举数值稳定。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`233/422 = 224 platform_adapted + 9 assembly_exact + 189 pending_audit`；生成器连续双跑逐字节一致，SHA256为`6e03c5b7714886623eb36f34c9d4217dcd356abcc529ab0a7cfca172d9764b52`。动态差分因原版group-A行动者、`0x00482F10/0x004779F0`副作用、唯一caller寄存器和`+0x26DC`联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=234`的`0x00475180`战斗角色动作效果与渲染函数。

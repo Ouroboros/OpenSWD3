@@ -447,7 +447,33 @@ private:
 
         set_group_a_registers(actor_index, true, false);
         edx_ = attack_index;
-        call(LegacyBattleMessagePhaseCall::query_actor_resource, ecx_);
+        result_.call_trace.push_back(
+            LegacyBattleMessagePhaseCall::refresh_actor_message_percent
+        );
+        ++result_.call_trace_count;
+        result_.actor_message_percent_refresh =
+            refresh_legacy_battle_actor_message_percent(
+                &bindings_.action.group_a_action_execution[actor_index],
+                port_,
+                {
+                    .actor_token = ecx_,
+                    .entry_eax = eax_,
+                    .entry_ecx = ecx_,
+                    .entry_edx = edx_,
+                }
+            );
+        ++result_.actor_message_percent_refresh_calls;
+        result_.port_calls +=
+            result_.actor_message_percent_refresh.percent_refresh_calls;
+        eax_ = result_.actor_message_percent_refresh.return_eax;
+        ecx_ = result_.actor_message_percent_refresh.return_ecx;
+        edx_ = result_.actor_message_percent_refresh.return_edx;
+        if (result_.actor_message_percent_refresh.status !=
+            LegacyBattleActorMessagePercentRefreshStatus::completed) {
+            return stop(
+                LegacyBattleMessagePhaseStatus::actor_message_percent_typed_stop
+            );
+        }
         const u32 resource_value = eax_;
         ecx_ = actor_index;
         if (actor_index >=

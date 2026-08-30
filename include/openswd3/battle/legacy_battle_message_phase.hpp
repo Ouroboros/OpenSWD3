@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
+#include "openswd3/battle/legacy_battle_actor_message_percent_refresh.hpp"
 #include "openswd3/battle/legacy_battle_debug_hotkeys.hpp"
 #include "openswd3/battle/legacy_battle_defeat_panel.hpp"
 #include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
@@ -74,7 +75,7 @@ enum class LegacyBattleMessagePhaseCall : compat::u8 {
     set_group_a_actor_mode,
     commit_active_actor,
     configure_actor_action,
-    query_actor_resource,
+    refresh_actor_message_percent,
     resolve_action_item,
     reserved_advance_message_100_slot,
     select_message_101_actor,
@@ -107,6 +108,8 @@ struct LegacyBattleMessagePhaseCallReply {
     compat::u32 eax{};
     compat::u32 ecx{};
     compat::u32 edx{};
+    bool publish_actor_message_percent{};
+    compat::u16 actor_message_percent{};
     bool publish_group_b_count{};
     compat::u32 group_b_count{};
     bool publish_group_a_count{};
@@ -139,6 +142,7 @@ struct LegacyBattleMessagePhaseCallReply {
 
 class LegacyBattleMessagePhasePort
     : public virtual LegacyBattleSummonFramePort,
+      public virtual LegacyBattleActorMessagePercentRefreshPort,
       public virtual LegacyBattleMessagePhaseStatePort,
       public virtual LegacyBattleVictoryRewardPort,
       public virtual LegacyBattleLevelAdvancementPort,
@@ -162,9 +166,29 @@ public:
         };
     }
 
-    [[nodiscard]] LegacyBattleActionCallReply invoke_summon_frame(
-        const LegacyBattleActionCallRequest& request
+    [[nodiscard]] LegacyBattleActorMessagePercentRefreshCallReply
+    invoke_actor_message_percent_refresh(
+        const LegacyBattleActorMessagePercentRefreshCallRequest& request
     ) override {
+        const auto reply = invoke_message_phase({
+            .call = LegacyBattleMessagePhaseCall::refresh_actor_message_percent,
+            .actor_token = request.actor_token,
+            .arguments = {request.refresh_argument},
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        });
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .publish_message_percent = reply.publish_actor_message_percent,
+            .message_percent = reply.actor_message_percent,
+        };
+    }
+
+    [[nodiscard]] LegacyBattleActionCallReply
+    invoke_summon_frame(const LegacyBattleActionCallRequest& request) override {
         const auto reply = invoke_message_phase({
             .call = request.callee_token == 0x00485610U
                 ? LegacyBattleMessagePhaseCall::summon_frame_play_sample
@@ -228,6 +252,7 @@ enum class LegacyBattleMessagePhaseStatus : compat::u8 {
     attack_order_table_typed_stop,
     action_label_typed_stop,
     action_profile_typed_stop,
+    actor_message_percent_typed_stop,
     player_item_quantity_typed_stop,
     victory_rewards_typed_stop,
     level_up_panel_typed_stop,
@@ -261,6 +286,9 @@ struct LegacyBattleMessagePhaseResult {
     compat::u32 group_a_actor_cleanup_calls{};
     compat::u32 sample_calls{};
     compat::u32 target_selection_entry_calls{};
+    compat::u32 actor_message_percent_refresh_calls{};
+    LegacyBattleActorMessagePercentRefreshResult
+        actor_message_percent_refresh{};
     compat::u32 player_item_quantity_calls{};
     compat::u32 victory_reward_calls{};
     compat::u32 level_up_panel_calls{};
