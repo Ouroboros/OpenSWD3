@@ -64,6 +64,7 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u16 message_percent{};               // actor + 0x26DC
     compat::u16 summon_phase{};                  // actor + 0x2A66
     compat::u16 summon_completion_word{};        // actor + 0x2A78
+    compat::u16 special_particle_spawn_count{};  // actor + 0x2A80
     compat::u16 turn_target_x_offset{};          // actor + 0x29B4
     compat::u16 special_primary_draw_x{};        // actor + 0x29B8
     compat::u16 special_primary_draw_y{};        // actor + 0x29BA
@@ -74,6 +75,7 @@ struct LegacyBattleGroupAActionExecutionState {
     std::array<compat::i16, 7> color_values{};  // actor + 0x03B2
     compat::u16 position_x{};                   // actor + 0x0D66
     compat::u16 position_y{};                   // actor + 0x0D68
+    compat::u8 special_particle_coordinate_suppression{};  // actor + 0x0D94
     compat::u8 special_effect_direct_mode{};    // actor + 0x0D9C
     compat::u16 source_y{};                     // actor + 0x0DB2
     compat::i32 target_phase_y_adjustment{};    // actor + 0x02B4
@@ -87,6 +89,8 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u16 draw_y{};                       // actor + 0x29BE
     compat::u16 motion_word{};                  // actor + 0x2954
     compat::u16 motion_aux_word{};              // actor + 0x2956
+    compat::u32 special_particle_sequence_index{};  // actor + 0x2F0C
+    compat::u16 special_particle_sequence_count{};  // actor + 0x2F24
     compat::u32 render_flags{};                 // actor + 0x26A4
     compat::u16 special_four_hundred_marker{};   // actor + 0x2A8E
     compat::u32 special_four_hundred_phase{};    // actor + 0x2AC4

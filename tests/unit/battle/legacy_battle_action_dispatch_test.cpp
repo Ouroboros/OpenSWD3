@@ -132,6 +132,42 @@ public:
     }
 
     [[nodiscard]] LegacyBattleActionCallReply
+    invoke_action_four_oh_two_coordinate_update(
+        const LegacyBattleActionCallRequest& request,
+        u32& coordinate_x,
+        u32& coordinate_y
+    ) override {
+        action_four_oh_two_coordinate_calls.push_back(request);
+        action_four_oh_two_coordinates.push_back({coordinate_x, coordinate_y});
+        return LegacyBattleActionDispatchPort::
+            invoke_action_four_oh_two_coordinate_update(
+                request, coordinate_x, coordinate_y
+            );
+    }
+
+    [[nodiscard]] LegacyBattleActionCallReply
+    invoke_action_four_oh_two_particle(
+        const openswd3::battle::LegacyBattleActionFourOhTwoParticleCallRequest&
+            request,
+        u16& spawn_count
+    ) override {
+        action_four_oh_two_particles.push_back(request);
+        spawn_count = static_cast<u16>(spawn_count + 1U);
+        return LegacyBattleActionDispatchPort::
+            invoke_action_four_oh_two_particle(request, spawn_count);
+    }
+
+    [[nodiscard]] LegacyBattleActionCallReply
+    invoke_action_four_oh_two_completion(
+        const LegacyBattleActionCallRequest& request,
+        openswd3::asset_runtime::LegacyActionRecord& record
+    ) override {
+        action_four_oh_two_completion_records.push_back(&record);
+        return LegacyBattleActionDispatchPort::
+            invoke_action_four_oh_two_completion(request, record);
+    }
+
+    [[nodiscard]] LegacyBattleActionCallReply
     invoke_action_four_direct_effect_update(
         const LegacyBattleActionCallRequest& request,
         openswd3::asset_runtime::LegacyActionRecord& record,
@@ -244,6 +280,13 @@ public:
     std::vector<openswd3::asset_runtime::LegacyActionRecord*>
         special_four_hundred_primary_records;
     std::vector<u8*> special_four_hundred_workspaces;
+    std::vector<LegacyBattleActionCallRequest>
+        action_four_oh_two_coordinate_calls;
+    std::vector<std::array<u32, 2>> action_four_oh_two_coordinates;
+    std::vector<openswd3::battle::LegacyBattleActionFourOhTwoParticleCallRequest>
+        action_four_oh_two_particles;
+    std::vector<openswd3::asset_runtime::LegacyActionRecord*>
+        action_four_oh_two_completion_records;
     std::vector<openswd3::asset_runtime::LegacyActionRecord*>
         action_four_direct_effect_records;
     std::vector<openswd3::asset_runtime::LegacyActionRecord*>
@@ -3009,6 +3052,190 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 (fixture.flags[0x4BU >> 3U] &
                  static_cast<u8>(1U << (0x4BU & 7U))) == 0U,
             "action thirty one initializes five second countdown then escape clears bit before target access"
+        );
+    }
+
+    {
+        const auto prepare_actor = [] {
+            auto actor =
+                std::make_unique<LegacyBattleGroupAActionExecutionState>();
+            actor->profile_value = 0x123U;
+            actor->special_profile_variant = 7U;
+            actor->position_x = 10U;
+            actor->position_y = 20U;
+            actor->copied_runtime_word = 0x1234U;
+            return actor;
+        };
+
+        static auto transfer_actor_owner = prepare_actor();
+        auto& transfer_actor = *transfer_actor_owner;
+        transfer_actor.special_action_record.field_5a = 0x0202U;
+        transfer_actor.special_action_record.field_24 = 0x1111U;
+        transfer_actor.special_action_record.field_28 = 0x2222U;
+        static DispatchPort transfer_port;
+        transfer_port.push(0x00483B30U, {.eax = 1U});
+        static const auto transfer =
+            openswd3::battle::advance_legacy_battle_action_four_oh_two(
+                &transfer_actor,
+                transfer_port,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            transfer.return_eax == 0U && transfer.turn_frame_calls == 1U &&
+                transfer_actor.turn_action_record.action_id == 0x1111U &&
+                transfer_actor.turn_action_record.base_variant == 0x2222U &&
+                transfer_actor.special_action_record.field_24 == 0U &&
+                transfer_actor.special_action_record.field_28 == 0U &&
+                transfer_actor.special_action_record.field_5a == 0U &&
+                transfer_actor.special_action_record.external_mode == 0U &&
+                (transfer_actor.action_runtime_gate & 0x4000U) == 0U,
+            "action four-oh-two transfers the optional turn record and clears bit fourteen only on completion"
+        );
+
+        static auto event_actor_owner = prepare_actor();
+        auto& event_actor = *event_actor_owner;
+        event_actor.special_action_record.field_5a = 1U;
+        static DispatchPort event_port;
+        event_port.push(0x004783B0U, {.outputs = {100U, 200U}});
+        event_port.push(0x004783B0U, {.outputs = {100U, 200U}});
+        event_port.push(0x0047FC40U, {.eax = 0U});
+        static const auto event =
+            openswd3::battle::advance_legacy_battle_action_four_oh_two(
+                &event_actor,
+                event_port,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            event.return_eax == 0U && event.coordinate_query_calls == 2U &&
+                event.coordinate_update_calls == 2U &&
+                event.particle_spawn_calls == 1U &&
+                event.particle_commit_calls == 1U &&
+                event.sample_play_calls == 1U && event.completion_calls == 1U &&
+                event_actor.special_particle_sequence_index == 0U &&
+                event_actor.special_particle_sequence_count == 1U &&
+                event_actor.special_particle_spawn_count == 1U &&
+                event_actor.turn_threshold == 1U &&
+                event_actor.action_runtime_gate == 0x8000U &&
+                event_port.action_four_oh_two_particles.size() == 1U &&
+                event_port.action_four_oh_two_particles[0U].arguments[0U] ==
+                    0x1234U &&
+                event_port.action_four_oh_two_particles[0U].arguments[1U] ==
+                    0U &&
+                event_port.action_four_oh_two_particles[0U].arguments[2U] ==
+                    10U &&
+                event_port.action_four_oh_two_particles[0U].arguments[3U] ==
+                    0xFFFFFFB0U &&
+                event_port.action_four_oh_two_particles[0U].arguments[4U] ==
+                    100U &&
+                event_port.action_four_oh_two_particles[0U].arguments[5U] ==
+                    160U &&
+                event_port.action_four_oh_two_particles[0U].arguments[6U] ==
+                    1U &&
+                event_port.action_four_oh_two_particles[0U].arguments[7U] ==
+                    0x34U &&
+                event_port.action_four_oh_two_particles[0U].arguments[8U] ==
+                    0U,
+            "action four-oh-two consumes the event, advances the sequence, and emits the exact nine-argument first particle"
+        );
+
+        static auto suppressed_actor_owner = prepare_actor();
+        auto& suppressed_actor = *suppressed_actor_owner;
+        suppressed_actor.special_action_record.field_5a = 8U;
+        suppressed_actor.special_particle_coordinate_suppression = 2U;
+        static DispatchPort suppressed_port;
+        suppressed_port.push(0x004783B0U, {.outputs = {100U, 200U}});
+        suppressed_port.push(0x004783B0U, {.outputs = {100U, 200U}});
+        suppressed_port.push(0x0047FC40U, {.eax = 0U});
+        static const auto suppressed =
+            openswd3::battle::advance_legacy_battle_action_four_oh_two(
+                &suppressed_actor,
+                suppressed_port,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            suppressed.return_eax == 0U &&
+                suppressed_port.action_four_oh_two_coordinates.size() == 2U &&
+                suppressed_port.action_four_oh_two_coordinates[0U][0U] == 0U &&
+                suppressed_port.action_four_oh_two_coordinates[0U][1U] == 0U &&
+                suppressed_port.action_four_oh_two_particles[0U].arguments[4U] ==
+                    0U &&
+                suppressed_port.action_four_oh_two_particles[0U].arguments[5U] ==
+                    0xFFFFFFD8U,
+            "action four-oh-two zeroes both coordinates before each transform when suppression bit one is set"
+        );
+
+        static auto completed_actor_owner = prepare_actor();
+        auto& completed_actor = *completed_actor_owner;
+        completed_actor.action_runtime_gate = 0x8000U;
+        completed_actor.special_action_record.field_8c = 1U;
+        completed_actor.effect_action_record.field_94 = 0xAABBCCDDU;
+        completed_actor.special_particle_spawn_count = 8U;
+        completed_actor.special_particle_sequence_index = 3U;
+        completed_actor.special_particle_sequence_count = 4U;
+        static DispatchPort completed_port;
+        completed_port.push(0x0047FC40U, {.eax = 1U});
+        static const auto completed =
+            openswd3::battle::advance_legacy_battle_action_four_oh_two(
+                &completed_actor,
+                completed_port,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            completed.return_eax == 1U &&
+                completed.action_record_clears == 2U &&
+                completed_actor.action_runtime_gate == 0U &&
+                completed_actor.turn_threshold == 0U &&
+                completed_actor.special_particle_sequence_index == 0U &&
+                completed_actor.special_particle_sequence_count == 0U &&
+                completed_actor.effect_action_record.field_94 == 0U &&
+                completed_actor.special_action_record.field_8c == 0U,
+            "action four-oh-two clears both records and sequence counters only after the completion callee and main record finish"
+        );
+    }
+
+    {
+        static LegacyBattleActionDispatchState state;
+        state.group_a_count = 1;
+        state.group_b_count = 1;
+        auto& actor = state.group_a_action_execution[0U];
+        actor.profile_value = 0x123U;
+        actor.special_profile_variant = 7U;
+        actor.action_runtime_gate = 0x8000U;
+        actor.special_action_record.field_8c = 1U;
+        actor.special_particle_spawn_count = 8U;
+        static Fixture fixture;
+        static DispatchPort port;
+        port.action = 0x192U;
+        port.push(0x0047FC40U, {.eax = 1U});
+        static auto context = fixture.context();
+        static const auto result =
+            openswd3::battle::dispatch_legacy_battle_action(
+                state, port, context, 0U, 0U
+            );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.action_four_oh_two_calls == 1U &&
+                result.action_four_oh_two.return_eax == 1U &&
+                state.frame_effect.red_factor == -12 &&
+                state.frame_effect.green_factor == -12 &&
+                state.frame_effect.blue_factor == -12 &&
+                state.frame_effect.primary_suppression == 1U &&
+                state.frame_effect.alternate_surface_mode == 1U &&
+                state.action_pending == 1U &&
+                port.count(0x00474BA0U) == 0U,
+            "special action four hundred two production preserves frame-effect setup and uses the typed particle state machine"
         );
     }
 

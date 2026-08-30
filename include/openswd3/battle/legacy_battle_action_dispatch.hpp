@@ -51,6 +51,14 @@ struct LegacyBattleActionCallRequest {
     compat::u32 edx{};
 };
 
+struct LegacyBattleActionFourOhTwoParticleCallRequest {
+    compat::u32 callee_token{};
+    std::array<compat::u32, 9> arguments{};
+    compat::u32 eax{};
+    compat::u32 ecx{};
+    compat::u32 edx{};
+};
+
 struct LegacyBattleActionCallReply {
     compat::u32 eax{};
     compat::u32 ecx{};
@@ -173,6 +181,44 @@ public:
         std::span<compat::u8> workspace
     ) {
         static_cast<void>(workspace);
+        return invoke(request);
+    }
+
+    [[nodiscard]] virtual LegacyBattleActionCallReply
+    invoke_action_four_oh_two_coordinate_update(
+        const LegacyBattleActionCallRequest& request,
+        compat::u32& coordinate_x,
+        compat::u32& coordinate_y
+    ) {
+        static_cast<void>(coordinate_x);
+        static_cast<void>(coordinate_y);
+        return invoke(request);
+    }
+
+    [[nodiscard]] virtual LegacyBattleActionCallReply
+    invoke_action_four_oh_two_particle(
+        const LegacyBattleActionFourOhTwoParticleCallRequest& request,
+        compat::u16& spawn_count
+    ) {
+        LegacyBattleActionCallRequest call{
+            .callee_token = request.callee_token,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        };
+        for (std::size_t index = 0; index < call.arguments.size(); ++index) {
+            call.arguments[index] = request.arguments[index];
+        }
+        static_cast<void>(spawn_count);
+        return invoke(call);
+    }
+
+    [[nodiscard]] virtual LegacyBattleActionCallReply
+    invoke_action_four_oh_two_completion(
+        const LegacyBattleActionCallRequest& request,
+        asset_runtime::LegacyActionRecord& record
+    ) {
+        static_cast<void>(record);
         return invoke(request);
     }
 
@@ -781,6 +827,38 @@ struct LegacyBattleTargetPropertyChanceResult {
     compat::u32 return_edx{};
 };
 
+struct LegacyBattleActionFourOhTwoRequest {
+    compat::u32 actor_token{};
+    compat::u32 target_token{};
+    compat::u32 entry_eax{};
+    compat::u32 entry_ecx{};
+    compat::u32 entry_edx{};
+};
+
+enum class LegacyBattleActionFourOhTwoStatus : compat::u8 {
+    completed,
+    actor_state_typed_stop,
+};
+
+struct LegacyBattleActionFourOhTwoResult {
+    LegacyBattleActionFourOhTwoStatus status{
+        LegacyBattleActionFourOhTwoStatus::completed
+    };
+    compat::u32 special_update_calls{};
+    compat::u32 turn_frame_calls{};
+    compat::u32 coordinate_query_calls{};
+    compat::u32 coordinate_update_calls{};
+    compat::u32 particle_spawn_calls{};
+    compat::u32 particle_commit_calls{};
+    compat::u32 sample_play_calls{};
+    compat::u32 completion_calls{};
+    compat::u32 action_record_clears{};
+    compat::u32 port_calls{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
 struct LegacyBattleTargetPhaseAdvanceResult {
     LegacyBattleTargetPhaseAdvanceStatus status{
         LegacyBattleTargetPhaseAdvanceStatus::completed
@@ -1054,6 +1132,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     special_four_oh_six_typed_stop,
     special_four_hundred_typed_stop,
     action_four_effect_typed_stop,
+    action_four_oh_two_typed_stop,
     summon_frame_typed_stop,
     turn_commit_chance_typed_stop,
     turn_advance_typed_stop,
@@ -1139,6 +1218,8 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 action_four_effect_calls{};
     LegacyBattleTargetPropertyChanceResult target_property_chance{};
     compat::u32 target_property_chance_calls{};
+    LegacyBattleActionFourOhTwoResult action_four_oh_two{};
+    compat::u32 action_four_oh_two_calls{};
     LegacyBattleSummonFrameResult summon_frame{};
     compat::u32 summon_frame_calls{};
     LegacyBattleTurnCommitChanceResult turn_commit_chance{};
@@ -1157,6 +1238,14 @@ advance_legacy_battle_special_four_oh_five(
     LegacyBattleActionDispatchPort& port,
     LegacyBattleActionDispatchContext& context,
     const LegacyBattleSpecialFourOhFiveRequest& request
+);
+
+// sub_474BA0.
+[[nodiscard]] LegacyBattleActionFourOhTwoResult
+advance_legacy_battle_action_four_oh_two(
+    LegacyBattleGroupAActionExecutionState* actor,
+    LegacyBattleActionDispatchPort& port,
+    const LegacyBattleActionFourOhTwoRequest& request
 );
 
 // sub_474B60.
