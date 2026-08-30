@@ -136,9 +136,11 @@
 - Linux与Windows统一使用Ninja Multi-Config。Linux首次构建或generator不匹配时configure；有效Ninja
   cache存在时直接build，由Ninja在CMake输入变化时自动重配，不得恢复每次无条件configure；主动更换
   compiler、preset关键变量或脚本传入的CMake选项时，设置`OPENSWD3_RECONFIGURE=1`强制重配。
-- `build.sh` 与 `build.bat` 的编译和 CTest 默认都使用当前在线 CPU 数量的并发 job；需要调整时只设置
-  正整数环境变量 `OPENSWD3_BUILD_JOBS` / `OPENSWD3_TEST_JOBS`。不得移除同测试二进制调用锁或真实
-  资产全局锁来换取虚假提速。
+- `build.sh` 与 `build.bat` 的编译和 CTest 默认都使用当前在线 CPU 数量的并发 job。用户未明确要求时，
+  不得设置 `OPENSWD3_BUILD_JOBS` / `OPENSWD3_TEST_JOBS`，不得自行降为 `-j2` 或其他并发数。不得移除
+  同测试二进制调用锁或真实资产全局锁来换取虚假提速。
+- Linux core/app完整门禁只能分别通过`./build.sh core`和`./build.sh app`执行；不得手写展开脚本内部的
+  CMake build和CTest命令。定向目标与独立sanitizer构建目录不在此限制内。
 - 修改后运行仓库现有的定向测试和适用的 Linux/Windows 完整门禁。命令没有实际执行时，
   不得声称已构建、已测试或已通过。
 - 构建成功不等于运行验证成功，测试枚举数量也不等于测试实际通过。
@@ -151,11 +153,11 @@
   需要输入、批准或现场监督的交互式命令才使用 `interactive_shell`。
 - 不得使用前台 Bash、`ctx_execute`、subagent host command 或同类执行路径启动可能阻塞的
   工作，也不得用 `&`、`nohup`、`setsid`、`disown` 或 shell job control 模拟受管后台执行。
-- 受管进程在设施支持时必须配置有限安全超时，以及完成或失败通知。启动后不得 `sleep`、
-  轮询或占住当前回合；依赖受管通知返回结果。
-- 前台执行仅限确定有界、非交互、单次完成的命令，并且必须显式设置有限超时。
-- Git 操作不受必须使用受管后台设施的限制，可以在前台执行；网络 Git 或其他可能阻塞的
-  Git 操作仍必须显式设置有限超时。
+- 按用户明确要求，不得给受管命令、构建、测试、脚本或Git命令增加`timeout`包装，也不得在工具调用中
+  另设执行超时；只配置完成或失败通知，并通过受管设施的停止能力处理异常。启动后不得`sleep`、轮询
+  或占住当前回合；依赖受管通知返回结果。
+- 前台执行仅限确定有界、非交互、单次完成的命令，不得额外包`timeout`。
+- Git操作不受必须使用受管后台设施的限制，可以在前台执行；按用户要求同样不得增加`timeout`包装。
 - 如果受管执行设施不可用，或无法确定进程是否有界，必须 fail closed：不得启动进程，
   应停止并向用户确认如何继续。
 
