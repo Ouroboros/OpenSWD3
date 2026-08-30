@@ -95,9 +95,8 @@ class LegacyBattleSummonFramePort {
 public:
     virtual ~LegacyBattleSummonFramePort() = default;
 
-    [[nodiscard]] virtual LegacyBattleActionCallReply invoke_summon_frame(
-        const LegacyBattleActionCallRequest& request
-    ) = 0;
+    [[nodiscard]] virtual LegacyBattleActionCallReply
+    invoke_summon_frame(const LegacyBattleActionCallRequest& request) = 0;
 };
 
 class LegacyBattleActionDispatchPort
@@ -117,6 +116,23 @@ public:
     [[nodiscard]] virtual LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) = 0;
 
+    [[nodiscard]] virtual bool group_b_action_configuration_typed_stop(
+        compat::u32 callee_token
+    ) const noexcept {
+        static_cast<void>(callee_token);
+        return false;
+    }
+
+    [[nodiscard]] virtual std::shared_ptr<const std::array<compat::u8, 0xA4>>
+    group_b_action_resource_bytes() const {
+        return nullptr;
+    }
+
+    [[nodiscard]] virtual std::shared_ptr<const std::array<std::byte, 0x28>>
+    group_b_action_profile_buffer() const {
+        return nullptr;
+    }
+
     [[nodiscard]] virtual LegacyBattleActionCallReply
     invoke_special_action_update(
         const LegacyBattleActionCallRequest& request,
@@ -126,8 +142,7 @@ public:
         return invoke(request);
     }
 
-    [[nodiscard]] virtual LegacyBattleActionCallReply
-    invoke_special_turn_frame(
+    [[nodiscard]] virtual LegacyBattleActionCallReply invoke_special_turn_frame(
         const LegacyBattleActionCallRequest& request,
         asset_runtime::LegacyActionRecord& record
     ) {
@@ -298,9 +313,8 @@ public:
         return invoke(request);
     }
 
-    [[nodiscard]] LegacyBattleActionCallReply invoke_summon_frame(
-        const LegacyBattleActionCallRequest& request
-    ) override {
+    [[nodiscard]] LegacyBattleActionCallReply
+    invoke_summon_frame(const LegacyBattleActionCallRequest& request) override {
         return invoke(request);
     }
 
@@ -334,19 +348,12 @@ struct LegacyBattleTargetPhaseState {
     compat::u32 active_gate{};                 // actor + 0x2AFC
     compat::u8 mode_flags{};                   // actor + 0x2A87
     compat::u32 runtime_gate{};                // actor + 0x2680
-    compat::u32 render_toggle_gate{};           // actor + 0x2B08
+    compat::u32 render_toggle_gate{};          // actor + 0x2B08
     std::array<compat::u32, 5> spawn_counters{};  // actor + 0x2EF8
     std::array<compat::u32, 8> block_0df4{};
     asset_runtime::LegacyActionRecord action_record{};  // actor + 0x0500
     std::array<asset_runtime::LegacyActionRecord, 5>
         spawn_action_records{};  // actor + 0x2BC8
-};
-
-struct LegacyBattleOpponentRecord {
-    compat::u16 action_id{};
-    compat::u16 x{};
-    compat::u16 y{};
-    compat::u32 runtime_value{};
 };
 
 struct LegacyBattleActionMessageProfile {
@@ -1096,9 +1103,7 @@ struct LegacyBattleActionDispatchState {
     compat::u16 opponent_spawn_count{};
     compat::u32 opponent_processed_counter{};
     compat::u32 mirror_group_b_spawn{};
-    std::array<LegacyBattleOpponentRecord, 8> opponent_records{};
-    std::array<LegacyBattleActionMessageProfile, 8>
-        group_b_message_profiles{};
+    std::array<LegacyBattleActionMessageProfile, 8> group_b_message_profiles{};
     std::array<LegacyBattleRewardScaleActorState, 8> group_b_reward_scale{};
     std::array<std::unique_ptr<LegacyBattleGroupAActionExecutionState>, 8>
         group_b_action_execution{};
@@ -1243,6 +1248,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     turn_commit_chance_typed_stop,
     turn_advance_typed_stop,
     group_b_progress_typed_stop,
+    group_b_action_configuration_typed_stop,
 };
 
 struct LegacyBattleActionDispatchResult {
@@ -1389,8 +1395,7 @@ advance_legacy_battle_action_four_effect(
 );
 
 // sub_474FC0.
-[[nodiscard]] LegacyBattleTargetEffectResult
-apply_legacy_battle_target_effect(
+[[nodiscard]] LegacyBattleTargetEffectResult apply_legacy_battle_target_effect(
     LegacyBattleGroupAActionExecutionState* actor,
     LegacyBattleGroupAActionExecutionSharedState* shared,
     LegacyBattleActionDispatchPort& port,
@@ -1558,8 +1563,7 @@ advance_legacy_battle_target_phase_spawn_frame(
 );
 
 // sub_471D60.
-[[nodiscard]] LegacyBattleSummonFrameResult
-advance_legacy_battle_summon_frame(
+[[nodiscard]] LegacyBattleSummonFrameResult advance_legacy_battle_summon_frame(
     LegacyBattleTargetPhaseState* phase,
     LegacyBattleGroupAActionExecutionState* actor,
     LegacyBattleGroupAActionExecutionSharedState* shared,

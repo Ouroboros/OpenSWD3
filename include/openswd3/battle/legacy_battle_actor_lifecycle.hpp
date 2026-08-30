@@ -4,6 +4,7 @@
 #include "openswd3/compat/types.hpp"
 
 #include <array>
+#include <cstddef>
 
 namespace openswd3::battle {
 
@@ -19,6 +20,8 @@ inline constexpr compat::u32 kLegacyBattleActorGroupAExitCleanupToken =
 inline constexpr compat::u32 kLegacyBattleActorGroupBBaseToken = 0x00525508U;
 inline constexpr compat::u32 kLegacyBattleActorGroupBElementSize = 0x2B28U;
 inline constexpr compat::u32 kLegacyBattleActorGroupBElementCount = 8U;
+inline constexpr compat::u32 kLegacyBattleActorGroupBResourceStateBaseToken =
+    0x73000000U;
 inline constexpr compat::u32 kLegacyBattleActorGroupBConstructorToken =
     0x00475560U;
 inline constexpr compat::u32 kLegacyBattleActorGroupBDestructorToken =
@@ -107,10 +110,37 @@ public:
     destroy_base(LegacyBattleActorGroupAElementState& state) = 0;
 };
 
+struct LegacyBattleGroupBActionRecord {
+    std::array<std::byte, 0x14> prefix{};
+    compat::u16 action_id{};
+    compat::u16 reserved_16{};
+    compat::u16 position_x{};
+    compat::u16 position_y{};
+    compat::u32 runtime_value{};
+};
+
+static_assert(sizeof(LegacyBattleGroupBActionRecord) == 0x20U);
+static_assert(offsetof(LegacyBattleGroupBActionRecord, action_id) == 0x14U);
+static_assert(offsetof(LegacyBattleGroupBActionRecord, position_x) == 0x18U);
+static_assert(offsetof(LegacyBattleGroupBActionRecord, position_y) == 0x1AU);
+static_assert(offsetof(LegacyBattleGroupBActionRecord, runtime_value) == 0x1CU);
+
+struct LegacyBattleGroupBActionConfigurationState {
+    std::array<std::byte, 0x20> source_record{};   // actor + 0x0D50
+    std::array<std::byte, 0x20> copied_record{};   // actor + 0x0D70
+    std::array<std::byte, 0x28> profile_buffer{};  // actor + 0x0D90
+    compat::u32 timing_value{};                    // actor + 0x26B4
+    compat::u16 action_id{};                       // actor + 0x2A0C
+    compat::u8 resource_mode{};                    // actor + 0x2A93
+    compat::u32 source_runtime_value{};            // actor + 0x2AA0
+};
+
 struct LegacyBattleActorGroupBElementState {
     compat::u32 object_token{};
     compat::u32 resource_token{};
     std::array<compat::u8, 0xA4> resource_bytes{};
+    LegacyBattleGroupBActionRecord action_record{};
+    LegacyBattleGroupBActionConfigurationState action_configuration{};
 };
 
 struct LegacyBattleActorGroupBElementCallReply {

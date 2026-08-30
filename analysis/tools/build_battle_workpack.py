@@ -988,6 +988,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-group-b-actor-progress-004755e0.md",
     ),
+    "0x00475720": (
+        "platform_adapted",
+        "evidence/battle-group-b-action-configuration-00475720.md",
+    ),
 }
 
 

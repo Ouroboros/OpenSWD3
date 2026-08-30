@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <deque>
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
@@ -42,6 +43,12 @@ public:
         return default_reply;
     }
 
+    [[nodiscard]] bool group_b_action_configuration_typed_stop(
+        const u32 callee_token
+    ) const noexcept override {
+        return group_b_typed_stop_callee == callee_token;
+    }
+
     void push(const u32 callee, const LegacyBattleActionCallReply& reply) {
         replies[callee].push_back(reply);
     }
@@ -55,6 +62,7 @@ public:
     }
 
     u16 action{};
+    u32 group_b_typed_stop_callee{};
     LegacyBattleActionCallReply default_reply{.eax = 1U};
     std::unordered_map<u32, std::deque<LegacyBattleActionCallReply>> replies;
     std::vector<LegacyBattleActionCallRequest> calls;
@@ -116,6 +124,9 @@ struct Fixture {
     RandomPort random;
     SoundPort sound;
     CountdownFlags countdown_flags;
+    std::unique_ptr<openswd3::battle::LegacyBattleStartupState> startup{
+        std::make_unique<openswd3::battle::LegacyBattleStartupState>()
+    };
     std::array<u8, 16> flags{};
     std::array<openswd3::battle::LegacyBattleStartupResetRecord, 0x12>
         attack_order_records{};
@@ -147,6 +158,7 @@ struct Fixture {
             .indicator_sound = sound,
             .countdown_flags = countdown_flags,
             .internal_flags = flags,
+            .startup = startup.get(),
             .attack_order_records = attack_order_records,
             .attack_order_party_sources = attack_order_party_sources,
             .attack_order_primary_gate = &attack_order_primary_gate,
@@ -412,6 +424,11 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         state.group_b_count = 0;
         state.mirror_group_b_spawn = 1U;
         Fixture fixture;
+        fixture.startup->group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        (*fixture.startup->group_b_lifecycle)[0U].action_record.prefix[3U] =
+            std::byte{0xA5};
         DispatchPort port;
         port.action = 15U;
         port.push(
@@ -425,7 +442,15 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
             }
         );
         port.push(0x00478220U, {.eax = 0xABCD0000U});
+        port.push(
+            0x00478220U,
+            {.eax = 0x11110000U, .ecx = 0x11112222U, .edx = 0x11113333U}
+        );
         port.push(0x00478220U, {.eax = 0xBEEF0000U});
+        port.push(
+            0x00478220U,
+            {.eax = 0x22220000U, .ecx = 0x22222222U, .edx = 0x22223333U}
+        );
         auto context = fixture.context();
         const auto running =
             openswd3::battle::dispatch_legacy_battle_opponent_action(
@@ -439,13 +464,23 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         test.expect_true(
             running.return_value == 0U && completed.return_value == 1U &&
                 running.group_b_iterations == 2U && state.group_b_count == 2 &&
-                state.opponent_records[0].action_id == 0x1234U &&
-                state.opponent_records[0].x == 400U &&
-                state.opponent_records[0].y == 220U &&
-                state.opponent_records[1].x == 400U &&
-                state.opponent_records[1].y == 350U &&
+                fixture.startup->group_b_lifecycle != nullptr &&
+                (*fixture.startup->group_b_lifecycle)[0U]
+                        .action_record.action_id == 0x1234U &&
+                (*fixture.startup->group_b_lifecycle)[0U]
+                        .action_record.position_x == 400U &&
+                (*fixture.startup->group_b_lifecycle)[0U]
+                        .action_record.position_y == 220U &&
+                (*fixture.startup->group_b_lifecycle)[0U]
+                        .action_record.prefix[3U] == std::byte{0xA5} &&
+                (*fixture.startup->group_b_lifecycle)[1U]
+                        .action_record.position_x == 400U &&
+                (*fixture.startup->group_b_lifecycle)[1U]
+                        .action_record.position_y == 350U &&
                 state.opponent_spawn_count == 0U &&
-                has_call_argument(port, 0x00475720U, 2U, 0xABCD1234U) &&
+                has_call_argument(port, 0x00476DB0U, 1U, 0xABCD1234U) &&
+                port.count(0x00475720U) == 0U &&
+                port.count(0x00476A80U) == 2U &&
                 port.count(0x0045B0E0U) == 0U &&
                 port.count(0x004783B0U) == 3U &&
                 port.count(0x0045B190U) == 0U && port.count(0x0045B5A0U) == 0U,
@@ -478,6 +513,40 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 result.group_b_iterations == 8U && state.group_b_count == 8 &&
                 port.count(0x0047D350U) == 8U,
             "ninth opponent wave stops only after eight complete record side effects"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        Fixture fixture;
+        DispatchPort port;
+        port.action = 15U;
+        port.group_b_typed_stop_callee = 0x00476A80U;
+        port.push(
+            0x00476900U,
+            {
+                .publish_opponent_special_action = true,
+                .opponent_special_action = 0x1234U,
+                .publish_opponent_spawn_count = true,
+                .opponent_spawn_count = 1U,
+            }
+        );
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::dispatch_legacy_battle_opponent_action(
+                state, port, context, 0U, 99U
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        group_b_action_configuration_typed_stop &&
+                result.group_b_iterations == 0U && state.group_b_count == 0 &&
+                fixture.startup->group_b_lifecycle != nullptr &&
+                (*fixture.startup->group_b_lifecycle)[0U]
+                        .action_record.action_id == 0x1234U &&
+                port.count(0x00475720U) == 0U &&
+                port.count(0x00476A80U) == 1U && port.count(0x00478220U) == 1U,
+            "opponent action fifteen propagates the typed profile stop without completing the wave"
         );
     }
 

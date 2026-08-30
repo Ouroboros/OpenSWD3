@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v826
+版本：v827
 
 最后更新：2026-08-31
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗组B行动配置函数 `0x00475720`
+当前步骤：模块10 · 审计战斗组B行动资源重配置函数 `0x00475820`
 
 ## 0. 执行约定
 
@@ -4270,4 +4270,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=238`的`0x004755E0`战斗组B行动进度更新函数。完整权威LST主体`0x004755E0..0x0047570E`共153行、101条实际指令、0个call、9个跳转、9个局部标签、4个返回点且无外部chunk。实现bit6/bit14入口门、signed阈值、组B专属完成尾、资源`+0x5A`首次读取typed-stop、delay bit6、参数一增强、bit29正向30%、bit27负向30%、bit31额外10%、word回绕及EAX/ECX/EDX陈旧线程；同轮修正组A进度只写低word。行动者复用既有进度owner；164-byte资源块复用惰性堆分配的八槽组B元素生命周期owner，不建立平行基值，也不放大startup和聚合测试栈。startup随机循环与组B帧两个caller均删除整函数opaque调用并typed直连，保留首轮/后续陈旧EDX、opponent update前缀、攻击顺序和typed-stop传播。验证：定向CTest 1/1、AddressSanitizer 1/1、Linux core 188/188、Linux app 194/194全部通过，八份日志零warning/finding。工作包为`238/422 = 229 platform_adapted + 9 assembly_exact + 184 pending_audit`；生成器连续双跑逐字节一致，SHA256为`46479e8abfc645be658b6e29e16654e9887768455e70913ecbfd9f9b0d07cb72`。动态差分因原版八个组B完整对象、动态资源、阈值、delay flags、startup随机callee、组B更新callee及两个caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=239`的`0x00475720`战斗组B行动配置函数。
+本轮再完成`audit_order=239`的`0x00475720`战斗组B行动配置函数。完整权威LST主体`0x00475720..0x00475813`共108行、70条实际指令、3个call、4个跳转、4个局部标签、1个返回点且无外部chunk。实现两次32-byte记录复制、资源bit5双word回绕、source runtime发布、资源i16符号扩展、资源action/source fallback、profile ABI、资源文本释放及action `0x1C/0x2E`非对称时间值与终端寄存器；资源、profile和释放typed-stop均位于原访问或call边界。固定记录表与资源/profile/config收敛到惰性堆分配的八槽组B元素唯一owner，global reset和SDL坐标桥同步复用。startup与对手动作15两个caller均删除整函数opaque调用并typed直连，保留未知记录前缀、mirror低word、定义参数陈旧高word、scratch callee EAX高word、wave副作用与第九项停止。验证：定向CTest 1/1、AddressSanitizer/UndefinedBehaviorSanitizer 1/1、Linux core 188/188、Linux app 194/194全部通过，八份日志零warning/finding。工作包为`239/422 = 230 platform_adapted + 9 assembly_exact + 183 pending_audit`；生成器连续双跑逐字节一致，SHA256为`d9459aceff05130222a9c3d600bb3eaa41fa293336cfe9730ad0862128833d26`。动态差分因原版八个组B对象、记录表、动态资源、profile、三个callee、startup与动作15 scratch及两个caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=240`的`0x00475820`战斗组B行动资源重配置函数。

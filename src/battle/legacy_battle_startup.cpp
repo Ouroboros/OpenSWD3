@@ -1,6 +1,7 @@
 #include "openswd3/battle/legacy_battle_startup.hpp"
 
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
+#include "openswd3/battle/legacy_battle_group_b_action_configuration.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -145,6 +146,60 @@ public:
             .eax = reply.return_value,
             .ecx = reply.ecx_snapshot,
             .edx = reply.edx_snapshot,
+        };
+    }
+
+private:
+    LegacyBattleStartupPort& port_;
+};
+
+class StartupGroupBActionConfigurationPort final
+    : public LegacyBattleGroupBActionConfigurationPort {
+public:
+    explicit StartupGroupBActionConfigurationPort(
+        LegacyBattleStartupPort& port
+    ) noexcept
+        : port_(port) {}
+
+    [[nodiscard]] LegacyBattleGroupBActionConfigurationCallReply invoke(
+        const LegacyBattleGroupBActionConfigurationCallRequest& request
+    ) override {
+        LegacyBattleStartupCallRequest call{
+            .arguments = {request.arguments[0U], request.arguments[1U], 0U, 0U},
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        };
+        switch (request.call) {
+        case LegacyBattleGroupBActionConfigurationCall::
+            load_resource_definition:
+            call.call =
+                LegacyBattleStartupCall::group_b_load_resource_definition;
+            break;
+
+        case LegacyBattleGroupBActionConfigurationCall::load_action_profile:
+            call.call = LegacyBattleStartupCall::group_b_load_action_profile;
+            break;
+
+        case LegacyBattleGroupBActionConfigurationCall::release_resource_text:
+            call.call = LegacyBattleStartupCall::group_b_release_resource_text;
+            break;
+        }
+        const auto reply = port_.invoke(call);
+        return {
+            .eax = reply.return_value,
+            .ecx = reply.ecx_snapshot,
+            .edx = reply.edx_snapshot,
+            .typed_stop =
+                port_.group_b_action_configuration_typed_stop(call.call),
+            .resource_bytes = call.call ==
+                    LegacyBattleStartupCall::group_b_load_resource_definition
+                ? port_.group_b_action_resource_bytes()
+                : nullptr,
+            .profile_buffer = call.call ==
+                    LegacyBattleStartupCall::group_b_load_action_profile
+                ? port_.group_b_action_profile_buffer()
+                : nullptr,
         };
     }
 
@@ -699,6 +754,7 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
     }
     state.reset.block_525470.fill(0U);
 
+    StartupGroupBActionConfigurationPort group_b_configuration(port);
     for (u32 index = 0U; index < state.enemy_count; ++index) {
         if (index >= kLegacyBattleActorGroupBElementCount ||
             index >= result.definition.enemies.size()) {
@@ -713,11 +769,22 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         ));
         state.enemy_scratch.fill(0U);
         const auto& source = result.definition.enemies[index];
-        auto& target = state.enemies[index];
-        target.role_id = source.role_id;
-        target.position_x = source.position_x;
-        target.position_y = source.position_y;
-        target.value_1c = 0U;
+        if (state.group_b_lifecycle == nullptr) {
+            state.group_b_lifecycle = std::make_shared<std::array<
+                LegacyBattleActorGroupBElementState,
+                kLegacyBattleActorGroupBElementCount>>();
+        }
+        auto& element = (*state.group_b_lifecycle)[index];
+        element.object_token = actor_token;
+        if (element.resource_token == 0U) {
+            element.resource_token =
+                kLegacyBattleActorGroupBResourceStateBaseToken + index * 0xA4U;
+        }
+        auto& record = element.action_record;
+        record.action_id = source.role_id;
+        record.position_x = source.position_x;
+        record.position_y = source.position_y;
+        record.runtime_value = 0U;
         u32 role_argument = source.role_id;
         if (state.mirror_mode == 1U) {
             const auto mode_reply = invoke(
@@ -725,31 +792,23 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
                 LegacyBattleStartupCall::apply_actor_mode,
                 {actor_token, 1U, 0U, 0U}
             );
-            target.position_x = static_cast<u16>(0x0280U - target.position_x);
+            record.position_x = static_cast<u16>(0x0280U - record.position_x);
             role_argument =
                 (mode_reply.ecx_snapshot & 0xFFFF0000U) | source.role_id;
         }
-        const auto configure_reply = invoke(
-            port,
-            LegacyBattleStartupCall::configure_enemy_actor,
-            {actor_token, enemy_startup_token(index), role_argument, 0U}
+        const auto configuration = configure_legacy_battle_group_b_action(
+            &element,
+            &record,
+            group_b_configuration,
+            role_argument,
+            actor_token,
+            enemy_startup_token(index)
         );
-        if (configure_reply.publish_group_b_progress_resource) {
-            if (state.group_b_lifecycle == nullptr) {
-                state.group_b_lifecycle = std::make_shared<std::array<
-                    LegacyBattleActorGroupBElementState,
-                    kLegacyBattleActorGroupBElementCount>>();
-            }
-            auto& lifecycle = (*state.group_b_lifecycle)[index];
-            lifecycle.object_token = actor_token;
-            lifecycle.resource_token =
-                configure_reply.group_b_progress_resource_token;
-            lifecycle.resource_bytes[0x5AU] = static_cast<compat::u8>(
-                configure_reply.group_b_progress_base_speed
-            );
-            lifecycle.resource_bytes[0x5BU] = static_cast<compat::u8>(
-                configure_reply.group_b_progress_base_speed >> 8U
-            );
+        if (configuration.status !=
+            LegacyBattleGroupBActionConfigurationStatus::completed) {
+            result.status = LegacyBattleStartupStatus::
+                enemy_action_configuration_typed_stop;
+            return result;
         }
         if (source.mode_flag == 1U) {
             static_cast<void>(invoke(

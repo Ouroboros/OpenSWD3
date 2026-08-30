@@ -71,17 +71,9 @@ public:
                 random_values.pop_front();
             }
             break;
-        case LegacyBattleStartupCall::configure_enemy_actor:
-            if (publish_enemy_progress_resource) {
-                const u32 index =
-                    (request.arguments[0U] -
-                     openswd3::battle::kLegacyBattleActorGroupBBaseToken) /
-                    openswd3::battle::kLegacyBattleActorGroupBElementSize;
-                reply.publish_group_b_progress_resource = true;
-                reply.group_b_progress_resource_token =
-                    0x73000000U + index * 0xA4U;
-                reply.group_b_progress_base_speed = enemy_progress_base_speed;
-            }
+        case LegacyBattleStartupCall::group_b_load_resource_definition:
+        case LegacyBattleStartupCall::group_b_load_action_profile:
+        case LegacyBattleStartupCall::group_b_release_resource_text:
             break;
         case LegacyBattleStartupCall::apply_actor_mode:
             reply.ecx_snapshot = 0xBEEF0000U;
@@ -136,6 +128,24 @@ public:
             break;
         }
         return reply;
+    }
+
+    [[nodiscard]] bool group_b_action_configuration_typed_stop(
+        const LegacyBattleStartupCall call
+    ) const noexcept override {
+        return call ==
+            LegacyBattleStartupCall::group_b_load_resource_definition &&
+            !publish_enemy_progress_resource;
+    }
+
+    [[nodiscard]] std::shared_ptr<const std::array<openswd3::compat::u8, 0xA4>>
+    group_b_action_resource_bytes() const override {
+        auto bytes = std::make_shared<std::array<openswd3::compat::u8, 0xA4>>();
+        (*bytes)[0x5AU] =
+            static_cast<openswd3::compat::u8>(enemy_progress_base_speed);
+        (*bytes)[0x5BU] =
+            static_cast<openswd3::compat::u8>(enemy_progress_base_speed >> 8U);
+        return bytes;
     }
 
     [[nodiscard]] openswd3::battle::LegacyBattleDefinitionArchiveApiReply
@@ -582,6 +592,11 @@ void test_battle_startup(openswd3::test::Context& test) {
         LegacyBattleStartupState state;
         state.mirror_mode = 1U;
         state.final_subtract_word = 1U;
+        state.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        (*state.group_b_lifecycle)[0U].action_record.prefix[2U] =
+            std::byte{0xCA};
         state.group_a_description_record_tokens.fill(0xDEADBEEFU);
         state.group_a_description_text_indices.fill(0xBEEFU);
         state.group_a_configuration_sources[0U].dwords[1U] = 12000U;
@@ -709,9 +724,26 @@ void test_battle_startup(openswd3::test::Context& test) {
                 ports.background_resource == 2U &&
                 ports.background_variant == 0U &&
                 result.enemy_actor_count == 2U &&
-                state.enemies[0].role_id == 11U &&
-                state.enemies[0].position_x == 540U &&
-                state.enemies[1].position_x == 340U &&
+                state.group_b_lifecycle != nullptr &&
+                (*state.group_b_lifecycle)[0U].action_record.action_id == 11U &&
+                (*state.group_b_lifecycle)[0U].action_record.prefix[2U] ==
+                    std::byte{0xCA} &&
+                (*state.group_b_lifecycle)[0U].action_record.position_x ==
+                    540U &&
+                (*state.group_b_lifecycle)[1U].action_record.position_x ==
+                    340U &&
+                ports.call_count(
+                    LegacyBattleStartupCall::reserved_configure_enemy_actor
+                ) == 0U &&
+                ports.call_count(
+                    LegacyBattleStartupCall::group_b_load_resource_definition
+                ) == 2U &&
+                ports.call_count(
+                    LegacyBattleStartupCall::group_b_load_action_profile
+                ) == 2U &&
+                ports.call_count(
+                    LegacyBattleStartupCall::group_b_release_resource_text
+                ) == 2U &&
                 result.initial_party_actor_count == 2U &&
                 result.party_configuration_calls == 2U &&
                 result.party_configurations[0U].status ==
@@ -915,8 +947,9 @@ void test_battle_startup(openswd3::test::Context& test) {
                     ports.requests,
                     [](const LegacyBattleStartupCallRequest& call) {
                         return call.call ==
-                            LegacyBattleStartupCall::configure_enemy_actor &&
-                            call.arguments[2] == 0xBEEF000BU;
+                            LegacyBattleStartupCall::
+                                group_b_load_resource_definition &&
+                            call.arguments[1] == 0xBEEF000BU;
                     }
                 ) &&
                 ports.call_count(LegacyBattleStartupCall::apply_actor_mode) ==
@@ -1231,14 +1264,19 @@ void test_battle_startup(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     openswd3::battle::LegacyBattleStartupStatus::
-                        enemy_progress_typed_stop &&
-                result.enemy_action_advance_calls == 1U &&
+                        enemy_action_configuration_typed_stop &&
+                result.enemy_action_advance_calls == 0U &&
+                ports.call_count(
+                    LegacyBattleStartupCall::reserved_configure_enemy_actor
+                ) == 0U &&
                 ports.call_count(
                     LegacyBattleStartupCall::reserved_advance_enemy_action
                 ) == 0U &&
-                state.group_b_lifecycle == nullptr &&
+                state.group_b_lifecycle != nullptr &&
+                (*state.group_b_lifecycle)[0U]
+                        .action_configuration.timing_value == 0U &&
                 state.enemies[0U].progress.progress == 0U,
-            "startup stops at the first group B resource word access after configuration"
+            "startup propagates the group B resource loader stop after the record copy prefix"
         );
     }
 

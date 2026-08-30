@@ -2512,15 +2512,30 @@ public:
                     destination.position_y = source.screen_y;
                     destination.active = source.active ? 1U : 0U;
                 }
+                battle_runtime_.group_b_lifecycle =
+                    std::make_shared<std::array<
+                        openswd3::battle::LegacyBattleActorGroupBElementState,
+                        openswd3::battle::kLegacyBattleActorGroupBElementCount>>(
+                    );
                 for (std::size_t index = 0U;
                      index < battle_setup_.enemies.size();
                      ++index) {
                     const auto& source = battle_setup_.enemies[index];
-                    auto& destination = battle_runtime_.enemies[index];
-                    destination.role_id = source.resource_id;
-                    destination.position_x = source.screen_x;
-                    destination.position_y = source.screen_y;
-                    destination.value_1c = source.active ? 1U : 0U;
+                    auto& destination =
+                        (*battle_runtime_.group_b_lifecycle)[index];
+                    destination.object_token =
+                        openswd3::battle::kLegacyBattleActorGroupBBaseToken +
+                        static_cast<openswd3::compat::u32>(index) *
+                            openswd3::battle::
+                                kLegacyBattleActorGroupBElementSize;
+                    destination.resource_token = openswd3::battle::
+                            kLegacyBattleActorGroupBResourceStateBaseToken +
+                        static_cast<openswd3::compat::u32>(index) * 0xA4U;
+                    destination.action_record.action_id = source.resource_id;
+                    destination.action_record.position_x = source.screen_x;
+                    destination.action_record.position_y = source.screen_y;
+                    destination.action_record.runtime_value =
+                        source.active ? 1U : 0U;
                 }
             }
         } else {
@@ -2668,13 +2683,15 @@ public:
                     battle_runtime_.party[*index].position_y;
                 workspace.pair_x = battle_runtime_.party[*index].position_x;
                 workspace.pair_y = battle_runtime_.party[*index].position_y;
-            } else if (const auto index = group_b_index(); index.has_value()) {
-                workspace.coordinate_x =
-                    battle_runtime_.enemies[*index].position_x;
-                workspace.coordinate_y =
-                    battle_runtime_.enemies[*index].position_y;
-                workspace.pair_x = battle_runtime_.enemies[*index].position_x;
-                workspace.pair_y = battle_runtime_.enemies[*index].position_y;
+            } else if (const auto index = group_b_index();
+                       index.has_value() &&
+                       battle_runtime_.group_b_lifecycle != nullptr) {
+                const auto& record =
+                    (*battle_runtime_.group_b_lifecycle)[*index].action_record;
+                workspace.coordinate_x = record.position_x;
+                workspace.coordinate_y = record.position_y;
+                workspace.pair_x = record.position_x;
+                workspace.pair_y = record.position_y;
             }
             break;
         case LegacyBattleScriptDispatchCall::pending_4785c0:
@@ -2683,11 +2700,17 @@ public:
                     static_cast<openswd3::compat::u16>(request.arguments[0]);
                 battle_runtime_.party[*index].position_y =
                     static_cast<openswd3::compat::u16>(request.arguments[1]);
-            } else if (const auto index = group_b_index(); index.has_value()) {
-                battle_runtime_.enemies[*index].position_x =
-                    static_cast<openswd3::compat::u16>(request.arguments[0]);
-                battle_runtime_.enemies[*index].position_y =
-                    static_cast<openswd3::compat::u16>(request.arguments[1]);
+            } else if (const auto index = group_b_index();
+                       index.has_value() &&
+                       battle_runtime_.group_b_lifecycle != nullptr) {
+                auto& record =
+                    (*battle_runtime_.group_b_lifecycle)[*index].action_record;
+                record.position_x = static_cast<openswd3::compat::u16>(
+                    request.arguments[0]
+                );
+                record.position_y = static_cast<openswd3::compat::u16>(
+                    request.arguments[1]
+                );
             }
             break;
         case LegacyBattleScriptDispatchCall::frame:

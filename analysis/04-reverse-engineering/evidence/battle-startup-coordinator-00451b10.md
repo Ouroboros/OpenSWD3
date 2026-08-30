@@ -81,10 +81,10 @@ enemy count按signed正数门进入循环，因已mask为u16，只有零跳过�
 4. 从definition按原stride读role、X、Y、mode；
 5. 清record尾dword；
 6. mirror mode严格等于1时调用actor mode并令X低word为`640-X`；
-7. 配置actor；该未审callee只可窄发布动态资源token与资源`+0x5A`进度基值，写入组B元素生命周期唯一owner；
+7. 直接调用已关闭组B行动配置`0x00475720`，依次执行双记录复制、资源加载、字段发布、profile加载与资源文本释放；
 8. mode word严格等于1时调用额外模式callee。
 
-镜像路径在actor mode返回后只用`mov cx`覆盖下一参数低word，因此ECX高word为callee陈旧snapshot。modern端口显式携带该snapshot，并组合为`stale_high | role_low`；测试锁定非零高word。资源副作用未发布时不伪造默认指针，后续已关闭组B进度函数在首次`+0x5A`读取点typed-stop。
+固定记录表`0x005213A0 + index*0x20`由组B元素生命周期八槽唯一持有，startup不再保留role/坐标/runtime副本。caller只写LST实际覆盖的`+0x14/+0x18/+0x1A/+0x1C`，保留未知20-byte前缀与`+0x16`。镜像路径在actor mode返回后只用`mov cx`覆盖下一定义参数低word，因此ECX高word为callee陈旧snapshot；modern组合为`stale_high | role_low`并直接送typed配置。资源加载、profile或释放typed-stop保留此前reset、scratch、记录和mirror副作用，并阻断额外mode、随机进度与后续组A阶段；旧整函数opaque槽保留为reserved且零调用。
 
 definition与组B都只有八槽。第九项在首次actor对象访问处typed-stop，保留前八项全部副作用。
 
@@ -178,7 +178,7 @@ C++到LST反向追溯覆盖1351行、全部48个标签、60个静态call站点�
 - surface完成word正序写与全1EAX snapshot；
 - archive真实路径、固定文件API参数、无效handle关闭、完整/短头部读取、signed计数/variant/前序累计、偏移dword和`0x10C`记录、固定owner/scratch/目标、打开失败仍继续raw投影、定义typed-stop阻断、variant零及零敌人callee EAX早退；
 - 背景image load零返回仍继续；
-- 两名敌人、镜像低word及陈旧ECX高word；
+- 两名敌人、共享32-byte组B记录、未知前缀保留、镜像低word、陈旧ECX高word、三callee直连、旧行动配置opaque零调用及资源加载stop；
 - 1–4人全部固定坐标和缺席槽不改写；
 - 三组比率、负比率与零除integer-indefinite低dword零；
 - 玩家与四队伍道具升序、差异化selected count、陈旧EAX和双阶段排序停点；

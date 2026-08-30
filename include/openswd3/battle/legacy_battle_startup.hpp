@@ -80,7 +80,7 @@ enum class LegacyBattleStartupCall : compat::u16 {
     random_below,
     reset_actor,
     apply_actor_mode,
-    configure_enemy_actor,
+    reserved_configure_enemy_actor,
     set_enemy_mode,
     reserved_configure_party_actor,
     query_party_actor_mode,
@@ -105,6 +105,9 @@ enum class LegacyBattleStartupCall : compat::u16 {
     group_a_attribute_missing_primary_diagnostic,
     reserved_group_a_embedded_profile_apply,
     group_a_embedded_profile_item_quantity,
+    group_b_load_resource_definition,
+    group_b_load_action_profile,
+    group_b_release_resource_text,
 };
 
 struct LegacyBattleStartupCallRequest {
@@ -129,9 +132,6 @@ struct LegacyBattleStartupCallReply {
     compat::u32 group_b_count{};
     bool publish_group_a_count{};
     compat::u32 group_a_count{};
-    bool publish_group_b_progress_resource{};
-    compat::u32 group_b_progress_resource_token{};
-    compat::u16 group_b_progress_base_speed{};
     bool publish_group_a_profile_record{};
     LegacyBattleGroupASummonProfileRecord group_a_profile_record{};
 };
@@ -146,6 +146,23 @@ public:
 
     [[nodiscard]] virtual LegacyBattleStartupCallReply
     invoke(const LegacyBattleStartupCallRequest& request) = 0;
+
+    [[nodiscard]] virtual bool group_b_action_configuration_typed_stop(
+        LegacyBattleStartupCall call
+    ) const noexcept {
+        static_cast<void>(call);
+        return false;
+    }
+
+    [[nodiscard]] virtual std::shared_ptr<const std::array<compat::u8, 0xA4>>
+    group_b_action_resource_bytes() const {
+        return nullptr;
+    }
+
+    [[nodiscard]] virtual std::shared_ptr<const std::array<std::byte, 0x28>>
+    group_b_action_profile_buffer() const {
+        return nullptr;
+    }
 };
 
 struct LegacyBattleStartupResetRecord {
@@ -194,10 +211,6 @@ struct LegacyBattleStartupResetBlocks {
 };
 
 struct LegacyBattleEnemyStartupRecord {
-    compat::u16 role_id{};
-    compat::u16 position_x{};
-    compat::u16 position_y{};
-    compat::u32 value_1c{};
     LegacyBattleActorProgressState progress;
 };
 
@@ -344,6 +357,7 @@ enum class LegacyBattleStartupStatus : compat::u8 {
     party_value_pair_typed_stop,
     supplemental_materialization_typed_stop,
     party_attribute_aggregation_typed_stop,
+    enemy_action_configuration_typed_stop,
     enemy_progress_typed_stop,
 };
 

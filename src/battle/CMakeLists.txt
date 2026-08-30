@@ -76,6 +76,7 @@ add_library(
         legacy_battle_full_frame_darkening.cpp
         legacy_battle_group_a_frame.cpp
         legacy_battle_group_a_target_cycle.cpp
+        legacy_battle_group_b_action_configuration.cpp
         legacy_battle_group_b_frame.cpp
         legacy_battle_group_b_order.cpp
         legacy_battle_group_b_target_cycle.cpp

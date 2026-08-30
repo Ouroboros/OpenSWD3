@@ -316,6 +316,7 @@ add_executable(
     unit/battle/legacy_battle_final_actor_step_test.cpp
     unit/battle/legacy_battle_group_a_frame_test.cpp
     unit/battle/legacy_battle_group_a_target_cycle_test.cpp
+    unit/battle/legacy_battle_group_b_action_configuration_test.cpp
     unit/battle/legacy_battle_group_b_frame_test.cpp
     unit/battle/legacy_battle_global_reset_test.cpp
     unit/battle/legacy_battle_group_b_order_test.cpp

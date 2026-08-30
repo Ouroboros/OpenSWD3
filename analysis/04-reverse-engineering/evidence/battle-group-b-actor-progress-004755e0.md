@@ -30,7 +30,7 @@
 
 ## 4. typed owner与caller回收
 
-行动者字段继续复用既有`LegacyBattleActorProgressState`唯一owner；资源token与164-byte资源块复用惰性堆分配的八槽`LegacyBattleActorGroupBElementState`唯一owner，不建立平行base-speed副本，也不把八个大资源块压入startup或聚合测试栈。startup按相同索引把enemy进度视图与共享生命周期槽绑定到同一组B行动者；未审`configure_enemy_actor`只允许窄发布资源token与`+0x5A`基值，缺失发布时后续首次资源读取typed-stop。
+行动者字段继续复用既有`LegacyBattleActorProgressState`唯一owner；资源token与164-byte资源块复用惰性堆分配的八槽`LegacyBattleActorGroupBElementState`唯一owner，不建立平行base-speed副本，也不把八个大资源块压入startup或聚合测试栈。startup按相同索引把enemy进度视图、共享32-byte行动记录、配置字段与生命周期槽绑定到同一组B行动者；已关闭组B行动配置直接发布资源快照，资源加载typed-stop会在随机进度循环前阻断startup，正常路径由同一资源`+0x5A`供进度读取。
 
 startup随机循环删除整函数opaque调用，第一次调用继承随机callee的EDX，后续迭代继承上次进度函数EDX。组B帧在opponent更新后直接调用typed实现，继承更新callee的EDX，仅在返回EAX精确等于一且消息门允许时加入攻击顺序；资源typed-stop保留此前opponent更新副作用。两处旧整函数调用均为零。
 

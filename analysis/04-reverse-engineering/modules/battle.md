@@ -2,7 +2,7 @@
 
 状态：`module_in_progress`
 
-当前关闭进度：`159/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
+当前关闭进度：`239/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
 
 ## 1. 唯一真值与模块目标
 
@@ -51,10 +51,10 @@ code_origin == game
 - 尾地址：`0x00484500`；
 - `confirmed_boundary`：`61`；
 - `medium`导航候选：`361`；
-- `pending_audit`：`264`；
-- `assembly_exact`：`7`；
-- `platform_adapted`：`151`；
-- 已关闭：`158`。
+- `pending_audit`：`183`；
+- `assembly_exact`：`9`；
+- `platform_adapted`：`230`；
+- 已关闭：`239`。
 
 六个稳定导航分组为：
 
@@ -687,6 +687,8 @@ I5最终必须锁定：
 
 `audit_order=238`的`0x004755E0`已关闭为`platform_adapted`。完整权威LST主体`0x004755E0..0x0047570E`共153行、101条实际指令、0个call、9个跳转、9个局部标签、4个返回点且无外部chunk。实现bit6/bit14入口门、signed阈值、组B专属完成尾、资源`+0x5A`首次读取typed-stop、delay bit6、参数一增强、bit29正向30%、bit27负向30%、bit31额外10%、word回绕及EAX/ECX/EDX陈旧线程；同轮修正组A进度只写低word。行动者复用既有进度owner，资源复用惰性堆分配的八槽组B元素生命周期owner，避免平行基值与聚合测试栈膨胀。startup随机循环和组B帧两个caller均删除整函数opaque调用并typed直连；首轮/后续EDX、opponent update前缀、攻击顺序和typed-stop传播按原顺序保留。验证：定向CTest 1/1、AddressSanitizer 1/1、Linux core 188/188、Linux app 194/194全部通过，八份日志零warning/finding。工作包为`238/422 = 229 platform_adapted + 9 assembly_exact + 184 pending_audit`，双跑SHA256为`46479e8abfc645be658b6e29e16654e9887768455e70913ecbfd9f9b0d07cb72`。动态差分因原版八个组B完整对象、动态资源、阈值、delay flags、两个caller callee与寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=239`的`0x00475720`战斗组B行动配置函数。
+`audit_order=239`的`0x00475720`已关闭为`platform_adapted`。完整权威LST主体`0x00475720..0x00475813`共108行、70条实际指令、3个call、4个跳转、4个局部标签、1个返回点且无外部chunk。实现两次32-byte记录复制、资源bit5双word回绕、source runtime发布、资源i16符号扩展、资源action/source fallback、profile ABI、资源文本释放及action `0x1C/0x2E`非对称时间值与终端寄存器；资源、profile和释放typed-stop均位于原访问或call边界。固定记录表与资源/profile/config收敛到惰性堆分配的八槽组B元素唯一owner，global reset和SDL坐标桥同步复用。startup与对手动作15两个caller均删除整函数opaque调用并typed直连，保留未知记录前缀、mirror低word、定义参数陈旧高word、scratch callee EAX高word、wave副作用与第九项停止。验证：定向CTest 1/1、AddressSanitizer/UndefinedBehaviorSanitizer 1/1、Linux core 188/188、Linux app 194/194全部通过，八份日志零warning/finding。工作包为`239/422 = 230 platform_adapted + 9 assembly_exact + 183 pending_audit`，双跑SHA256为`d9459aceff05130222a9c3d600bb3eaa41fa293336cfe9730ad0862128833d26`。动态差分因原版八个组B对象、记录表、动态资源、profile、三个callee、startup与动作15 scratch及两个caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=240`的`0x00475820`战斗组B行动资源重配置函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

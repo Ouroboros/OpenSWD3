@@ -1,5 +1,8 @@
 #include "openswd3/battle/legacy_battle_opponent_action_dispatch.hpp"
 
+#include "openswd3/battle/legacy_battle_group_b_action_configuration.hpp"
+#include "openswd3/battle/legacy_battle_startup.hpp"
+
 #include <algorithm>
 #include <bit>
 #include <cstring>
@@ -37,7 +40,7 @@ constexpr u32 kCallResetOpponent = 0x0047D350U;
 constexpr u32 kCallMirrorOpponent = 0x0047F900U;
 constexpr u32 kCallPrepareOpponentScratch = 0x00476DB0U;
 constexpr u32 kCallUpdateOpponentScratch = 0x00478220U;
-constexpr u32 kCallCommitOpponentRecord = 0x00475720U;
+constexpr u32 kCallLoadOpponentProfile = 0x00476A80U;
 constexpr u32 kCallQueryOpponentCondition = 0x0047CE80U;
 constexpr u32 kCallActionTwoHundred = 0x00482310U;
 constexpr u32 kCallActionThreeHundred = 0x00482840U;
@@ -104,11 +107,19 @@ constexpr void replace_low_byte(u32& target, const u8 value) noexcept {
     LegacyBattleActionDispatchPort& port,
     LegacyBattleActionDispatchResult& result,
     const u32 callee,
-    const std::array<u32, 8>& arguments = {}
+    const std::array<u32, 8>& arguments = {},
+    const u32 eax = 0U,
+    const u32 ecx = 0U,
+    const u32 edx = 0U
 ) {
     ++result.port_calls;
-    LegacyBattleActionCallReply reply =
-        port.invoke({.callee_token = callee, .arguments = arguments});
+    LegacyBattleActionCallReply reply = port.invoke({
+        .callee_token = callee,
+        .arguments = arguments,
+        .eax = eax,
+        .ecx = ecx,
+        .edx = edx,
+    });
     if (reply.publish_accumulator) {
         port.battle_pair_primary_value() = reply.accumulator;
     }
@@ -126,6 +137,63 @@ constexpr void replace_low_byte(u32& target, const u8 value) noexcept {
     }
     return reply;
 }
+
+class OpponentGroupBActionConfigurationPort final
+    : public LegacyBattleGroupBActionConfigurationPort {
+public:
+    OpponentGroupBActionConfigurationPort(
+        LegacyBattleActionDispatchState& state,
+        LegacyBattleActionDispatchPort& port,
+        LegacyBattleActionDispatchResult& result
+    ) noexcept
+        : state_(state), port_(port), result_(result) {}
+
+    [[nodiscard]] LegacyBattleGroupBActionConfigurationCallReply invoke(
+        const LegacyBattleGroupBActionConfigurationCallRequest& request
+    ) override {
+        u32 callee = kCallPrepareOpponentScratch;
+        switch (request.call) {
+        case LegacyBattleGroupBActionConfigurationCall::
+            load_resource_definition:
+            break;
+
+        case LegacyBattleGroupBActionConfigurationCall::load_action_profile:
+            callee = kCallLoadOpponentProfile;
+            break;
+
+        case LegacyBattleGroupBActionConfigurationCall::release_resource_text:
+            callee = kCallUpdateOpponentScratch;
+            break;
+        }
+        const auto reply = ::openswd3::battle::invoke(
+            state_,
+            port_,
+            result_,
+            callee,
+            {request.arguments[0U], request.arguments[1U]},
+            request.eax,
+            request.ecx,
+            request.edx
+        );
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .typed_stop = port_.group_b_action_configuration_typed_stop(callee),
+            .resource_bytes = callee == kCallPrepareOpponentScratch
+                ? port_.group_b_action_resource_bytes()
+                : nullptr,
+            .profile_buffer = callee == kCallLoadOpponentProfile
+                ? port_.group_b_action_profile_buffer()
+                : nullptr,
+        };
+    }
+
+private:
+    LegacyBattleActionDispatchState& state_;
+    LegacyBattleActionDispatchPort& port_;
+    LegacyBattleActionDispatchResult& result_;
+};
 
 [[nodiscard]] bool remove_attack_order_entry(
     LegacyBattleActionDispatchContext& context,
@@ -593,6 +661,9 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                 kCallInitializeOpponentWaves,
                 {source_token}
             ));
+            OpponentGroupBActionConfigurationPort group_b_configuration(
+                state, port, result
+            );
             u32 wave = 0U;
             while (wave < state.opponent_spawn_count) {
                 const u32 record_index = to_bits(state.group_b_count);
@@ -604,10 +675,29 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                     state, port, result, kCallResetOpponent, {opponent_token}
                 ));
                 state.opponent_scratch.fill(std::byte{0});
-                auto& record = state.opponent_records[record_index];
+                if (context.startup == nullptr) {
+                    result.status = LegacyBattleActionDispatchStatus::
+                        group_b_action_configuration_typed_stop;
+                    return result;
+                }
+                if (context.startup->group_b_lifecycle == nullptr) {
+                    context.startup->group_b_lifecycle =
+                        std::make_shared<std::array<
+                            LegacyBattleActorGroupBElementState,
+                            kLegacyBattleActorGroupBElementCount>>();
+                }
+                auto& element =
+                    (*context.startup->group_b_lifecycle)[record_index];
+                element.object_token = opponent_token;
+                if (element.resource_token == 0U) {
+                    element.resource_token =
+                        kLegacyBattleActorGroupBResourceStateBaseToken +
+                        record_index * 0xA4U;
+                }
+                auto& record = element.action_record;
                 record.action_id = state.opponent_special_action;
-                record.x = 0xF0U;
-                record.y = wave == 1U ? 0x15EU : 0xDCU;
+                record.position_x = 0xF0U;
+                record.position_y = wave == 1U ? 0x15EU : 0xDCU;
                 record.runtime_value = 0U;
                 if (state.mirror_group_b_spawn == 1U) {
                     static_cast<void>(invoke(
@@ -617,7 +707,8 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                         kCallMirrorOpponent,
                         {opponent_token, 1U}
                     ));
-                    record.x = static_cast<u16>(0x280U - record.x);
+                    record.position_x =
+                        static_cast<u16>(0x280U - record.position_x);
                 }
                 const u32 stale_edx = ((record_index * 0x20U) & 0xFFFF0000U) |
                     state.opponent_special_action;
@@ -637,15 +728,21 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                 );
                 const u32 stale_eax =
                     (update.eax & 0xFFFF0000U) | state.opponent_special_action;
-                static_cast<void>(invoke(
-                    state,
-                    port,
-                    result,
-                    kCallCommitOpponentRecord,
-                    {opponent_token,
-                     opponent_record_token(record_index),
-                     stale_eax}
-                ));
+                const auto configuration =
+                    configure_legacy_battle_group_b_action(
+                        &element,
+                        &record,
+                        group_b_configuration,
+                        stale_eax,
+                        opponent_token,
+                        opponent_record_token(record_index)
+                    );
+                if (configuration.status !=
+                    LegacyBattleGroupBActionConfigurationStatus::completed) {
+                    result.status = LegacyBattleActionDispatchStatus::
+                        group_b_action_configuration_typed_stop;
+                    return result;
+                }
                 static_cast<void>(invoke(
                     state, port, result, kCallPopMode, {opponent_token, 0x400U}
                 ));

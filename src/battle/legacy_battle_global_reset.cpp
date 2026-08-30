@@ -385,6 +385,12 @@ void synchronize_typed_aliases(
         record.value_00 = 0U;
     }
     clear_records(startup.enemies);
+    if (startup.group_b_lifecycle != nullptr) {
+        for (auto& actor : *startup.group_b_lifecycle) {
+            actor.action_record = {};
+            actor.action_configuration = {};
+        }
+    }
     clear_records(startup.party);
     startup.enemy_count = 0U;
     startup.party_count = 0U;

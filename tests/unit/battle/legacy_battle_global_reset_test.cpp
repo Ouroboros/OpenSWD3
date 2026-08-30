@@ -195,7 +195,10 @@ void seed_state(
         .value_14 = 9U,
         .value_18 = 9U,
     };
-    startup.enemies[0].role_id = 9U;
+    startup.group_b_lifecycle = std::make_shared<std::array<
+        openswd3::battle::LegacyBattleActorGroupBElementState,
+        openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+    (*startup.group_b_lifecycle)[0U].action_record.action_id = 9U;
     startup.party[0].role_id = 9U;
     startup.enemy_count = 8U;
     startup.party_count = 10U;
@@ -956,7 +959,9 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 state.unmapped_bytes.contains(0x00524468U) == false &&
                 state.unmapped_bytes.contains(0x0053BF12U) == false &&
                 state.unmapped_bytes.contains(0x0053C004U) == false &&
-                startup.enemies[0].role_id == 0U &&
+                startup.group_b_lifecycle != nullptr &&
+                (*startup.group_b_lifecycle)[0U].action_record.action_id ==
+                    0U &&
                 startup.party[0].role_id == 0U && startup.enemy_count == 0U &&
                 startup.party_count == 0U,
             "existing startup typed aliases share the fixed global reset stores"
