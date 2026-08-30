@@ -635,6 +635,8 @@ I5最终必须锁定：
 
 `audit_order=212`的`0x00471D60`已关闭为`platform_adapted`。完整权威LST主体`0x00471D60..0x00471FB4`共255行、161条实际指令、5个call、10个跳转、7个局部标签、2个返回点且无外部chunk。实现召唤动作id、variant三十六、frame读取、sample先于frame解引用、render gate反向偏移、双phase同帧穿透、signed除二、word回绕、共享motion、bit2绘制、终态sample和精确清零。复用target-phase、group-A action-execution和shared owner；音频与绘制使用action/message共享窄port。动作十五与消息九十七两个caller均改为typed直连，原message-phase整函数槽保留reserved。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`212/422 = 203 platform_adapted + 9 assembly_exact + 210 pending_audit`，双跑SHA256为`373bd8bbe9088c04d1ae0c42b4075819e412b794f312a6477bad70bed52bedb7`。动态差分因原版角色、动作流、帧资源、音频、绘制和两个caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=213`的`0x00471FC0`战斗角色动作效果与渲染函数。
+`audit_order=213`的`0x00471FC0`已关闭为`platform_adapted`。完整权威LST主体`0x00471FC0..0x004721DE`共231行、144条实际指令、6个call、5个跳转、5个局部标签、2个返回点且无外部chunk。将`+0x2BC8`识别为五个152字节action record，实现slot更新、frame、signed line-raster固定步数、counter高半sample、signed完成边界、绘制、counter/raster清零和record保留。复用target-phase五槽、counter、raster、group-A actor与shared owner；已关闭callee typed直连，音频和绘制保留窄port。`0x00471270`五处caller全部typed化。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`213/422 = 204 platform_adapted + 9 assembly_exact + 209 pending_audit`，双跑SHA256为`c75dfbed50b46c8a9b12fc3eee511f8c6323bdcb0dbb402e147f402163ed6ba2`。动态差分因原版五槽记录、动作流、frame、音频、绘制与caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=214`的`0x004721F0`战斗角色动作效果与渲染函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

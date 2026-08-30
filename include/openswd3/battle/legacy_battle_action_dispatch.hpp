@@ -142,7 +142,8 @@ struct LegacyBattleTargetPhaseState {
     std::array<compat::u32, 5> spawn_counters{};  // actor + 0x2EF8
     std::array<compat::u32, 8> block_0df4{};
     asset_runtime::LegacyActionRecord action_record{};  // actor + 0x0500
-    std::array<compat::u32, 0xBE> block_2bc8{};
+    std::array<asset_runtime::LegacyActionRecord, 5>
+        spawn_action_records{};  // actor + 0x2BC8
 };
 
 struct LegacyBattleOpponentRecord {
@@ -199,23 +200,7 @@ enum class LegacyBattleTargetPhaseAdvanceStatus : compat::u8 {
     completed,
     target_object_typed_stop,
     particle_frame_typed_stop,
-};
-
-struct LegacyBattleTargetPhaseAdvanceResult {
-    LegacyBattleTargetPhaseAdvanceStatus status{
-        LegacyBattleTargetPhaseAdvanceStatus::completed
-    };
-    LegacyBattleImageParticleFrameResult particle_frame{};
-    compat::u32 particle_frame_calls{};
-    compat::u32 spawn_calls{};
-    compat::u32 resource_release_calls{};
-    compat::u32 presentation_dwords_zeroed{};
-    compat::u32 spawn_counter_clears{};
-    compat::u32 tail_dwords_zeroed{};
-    compat::u32 port_calls{};
-    compat::u32 return_eax{};
-    compat::u32 return_ecx{};
-    compat::u32 return_edx{};
+    spawn_frame_typed_stop,
 };
 
 struct LegacyBattleActionThirteenRequest {
@@ -249,6 +234,24 @@ struct LegacyBattleActionThirteenResult {
     compat::u32 return_edx{};
 };
 
+struct LegacyBattleTargetPhaseSpawnFrameRequest {
+    compat::u32 actor_token{};
+    compat::u32 action_id{};
+    compat::u32 action_variant{};
+    compat::u32 slot{};
+    compat::u32 target_x{};
+    compat::u32 target_y{};
+    compat::u32 iterations{};
+    compat::u32 entry_eax{};
+    compat::u32 entry_ecx{};
+    compat::u32 entry_edx{};
+};
+
+using LegacyBattleTargetPhaseSpawnFrameStatus =
+    LegacyBattleActionThirteenStatus;
+using LegacyBattleTargetPhaseSpawnFrameResult =
+    LegacyBattleActionThirteenResult;
+
 struct LegacyBattleSummonFrameRequest {
     compat::u32 actor_token{};
     compat::u32 position_x{};
@@ -264,6 +267,25 @@ using LegacyBattleSummonFrameResult = LegacyBattleActionThirteenResult;
 using LegacyBattleActionFourteenRequest = LegacyBattleActionThirteenRequest;
 using LegacyBattleActionFourteenStatus = LegacyBattleActionThirteenStatus;
 using LegacyBattleActionFourteenResult = LegacyBattleActionThirteenResult;
+
+struct LegacyBattleTargetPhaseAdvanceResult {
+    LegacyBattleTargetPhaseAdvanceStatus status{
+        LegacyBattleTargetPhaseAdvanceStatus::completed
+    };
+    LegacyBattleImageParticleFrameResult particle_frame{};
+    compat::u32 particle_frame_calls{};
+    compat::u32 spawn_calls{};
+    std::array<LegacyBattleTargetPhaseSpawnFrameResult, 5> spawn_frames{};
+    compat::u32 spawn_frame_calls{};
+    compat::u32 resource_release_calls{};
+    compat::u32 presentation_dwords_zeroed{};
+    compat::u32 spawn_counter_clears{};
+    compat::u32 tail_dwords_zeroed{};
+    compat::u32 port_calls{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
 
 struct LegacyBattleTurnCommitChanceRequest {
     compat::u16 candidate{};
@@ -581,6 +603,10 @@ start_legacy_battle_target_phase(
 [[nodiscard]] LegacyBattleTargetPhaseAdvanceResult
 advance_legacy_battle_target_phase(
     LegacyBattleTargetPhaseState* phase,
+    LegacyBattleGroupAActionExecutionState* actor,
+    LegacyBattleGroupAActionExecutionSharedState* action_shared,
+    asset_runtime::LegacyActionUpdater* action_updater,
+    rendering::LegacyFramePieceProvider* frame_provider,
     LegacyBattleImageParticleNodePool* nodes,
     input_time_rng::LegacyCrtRng* rng,
     LegacyBattleImageParticleSharedState* shared,
@@ -611,6 +637,18 @@ advance_legacy_battle_action_fourteen(
     LegacyBattleActionDispatchPort& port,
     LegacyBattleActionDispatchContext& context,
     const LegacyBattleActionFourteenRequest& request
+);
+
+// sub_471FC0.
+[[nodiscard]] LegacyBattleTargetPhaseSpawnFrameResult
+advance_legacy_battle_target_phase_spawn_frame(
+    LegacyBattleTargetPhaseState* phase,
+    LegacyBattleGroupAActionExecutionState* actor,
+    LegacyBattleGroupAActionExecutionSharedState* shared,
+    LegacyBattleSummonFramePort& port,
+    asset_runtime::LegacyActionUpdater& action_updater,
+    rendering::LegacyFramePieceProvider& frame_provider,
+    const LegacyBattleTargetPhaseSpawnFrameRequest& request
 );
 
 // sub_471D60.

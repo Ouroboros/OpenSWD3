@@ -91,7 +91,6 @@ constexpr u32 kCallTargetPhaseResource = 0x00478620U;
 constexpr u32 kCallTargetPhaseCoordinates = 0x00478470U;
 constexpr u32 kCallTargetPhaseDecode = 0x004019A0U;
 constexpr u32 kCallTargetPhaseProperty = 0x0047CE70U;
-constexpr u32 kCallTargetPhaseSpawn = 0x00471FC0U;
 constexpr u32 kCallTargetPhaseRelease = 0x004885A0U;
 constexpr u32 kCallCommitTargetPhase = 0x00477710U;
 constexpr u32 kCallActionFourReady = 0x004745B0U;
@@ -579,15 +578,181 @@ LegacyBattleTargetPhaseStartResult start_legacy_battle_target_phase(
     phase->runtime_gate = 0U;
     phase->block_0df4.fill(0U);
     phase->action_record = {};
-    phase->block_2bc8.fill(0U);
+    phase->spawn_action_records = {};
     result.tail_dwords_zeroed = 8U + 0x26U + 0xBEU;
     result.return_eax = 0U;
     result.return_ecx = 0U;
     return result;
 }
 
+LegacyBattleTargetPhaseSpawnFrameResult
+advance_legacy_battle_target_phase_spawn_frame(
+    LegacyBattleTargetPhaseState* phase,
+    LegacyBattleGroupAActionExecutionState* actor,
+    LegacyBattleGroupAActionExecutionSharedState* shared,
+    LegacyBattleSummonFramePort& port,
+    asset_runtime::LegacyActionUpdater& action_updater,
+    rendering::LegacyFramePieceProvider& frame_provider,
+    const LegacyBattleTargetPhaseSpawnFrameRequest& request
+) {
+    LegacyBattleTargetPhaseSpawnFrameResult result{
+        .return_eax = request.entry_eax,
+        .return_ecx = request.entry_ecx,
+        .return_edx = request.entry_edx,
+    };
+    if (phase == nullptr || actor == nullptr || request.actor_token == 0U ||
+        request.slot >= phase->spawn_action_records.size()) {
+        result.status =
+            LegacyBattleTargetPhaseSpawnFrameStatus::actor_state_typed_stop;
+        return result;
+    }
+    struct Registers {
+        u32 eax{};
+        u32 ecx{};
+        u32 edx{};
+    } registers{
+        .eax = request.entry_eax,
+        .ecx = request.entry_ecx,
+        .edx = request.entry_edx,
+    };
+    auto invoke_frame = [&](const u32 callee,
+                            const std::array<u32, 8>& arguments = {}) {
+        ++result.port_calls;
+        const auto reply = port.invoke_summon_frame({
+            .callee_token = callee,
+            .arguments = arguments,
+            .eax = registers.eax,
+            .ecx = registers.ecx,
+            .edx = registers.edx,
+        });
+        registers.eax = reply.eax;
+        registers.ecx = reply.ecx;
+        registers.edx = reply.edx;
+        return reply;
+    };
+    const auto signed_word_bits = [](const u16 value) {
+        return to_bits(static_cast<i32>(std::bit_cast<i16>(value)));
+    };
+
+    auto& record = phase->spawn_action_records[request.slot];
+    record.action_id = request.action_id;
+    record.base_variant = request.action_variant;
+    record.external_mode = actor->special_mode == 1U ? 1U : 0U;
+    ++result.action_update_calls;
+    const auto updated = action_updater.update(record);
+    if (updated.return_value == 0U) {
+        result.return_eax = 0U;
+        return result;
+    }
+
+    rendering::LegacyFramePiece frame{};
+    ++result.frame_lookup_calls;
+    if (!frame_provider.load_frame_piece(
+            record.field_4a, record.field_4c, frame
+        )) {
+        actor->turn_frame_token = 0U;
+        result.status =
+            LegacyBattleTargetPhaseSpawnFrameStatus::frame_owner_typed_stop;
+        result.return_eax = 0U;
+        return result;
+    }
+    actor->turn_frame_token = request.actor_token + 0x254CU;
+    if (shared == nullptr) {
+        result.status =
+            LegacyBattleTargetPhaseSpawnFrameStatus::shared_state_typed_stop;
+        return result;
+    }
+    shared->turn_frame_source_token = actor->turn_frame_token;
+
+    LegacyBattleLineRaster raster{};
+    raster.start_x = static_cast<i32>(std::bit_cast<i16>(static_cast<u16>(
+        request.target_x - record.draw_offset_x
+    )));
+    raster.start_y = static_cast<i32>(std::bit_cast<i16>(static_cast<u16>(
+        request.target_y - record.draw_offset_y
+    )));
+    const u32 end_x =
+        signed_word_bits(actor->position_x) +
+        signed_word_bits(actor->render_x_base) -
+        signed_word_bits(actor->source_y_offset) - record.draw_offset_x;
+    const u32 end_y =
+        signed_word_bits(actor->position_y) +
+        signed_word_bits(actor->render_y_base) -
+        std::bit_cast<u32>(actor->target_phase_y_adjustment) -
+        record.draw_offset_y;
+    raster.end_x = std::bit_cast<i32>(end_x);
+    raster.end_y = std::bit_cast<i32>(end_y);
+
+    const u32 iteration_limit =
+        request.iterations * phase->spawn_counters[request.slot];
+    if (std::bit_cast<i32>(iteration_limit) > 0) {
+        u32 iteration = 0U;
+        do {
+            ++result.line_raster_calls;
+            static_cast<void>(advance_legacy_battle_line_raster(raster));
+            ++iteration;
+        } while (std::bit_cast<i32>(iteration) <
+                 std::bit_cast<i32>(iteration_limit));
+    }
+    phase->block_0df4 = std::bit_cast<std::array<u32, 8>>(raster);
+    const u32 counter = phase->spawn_counters[request.slot] + 1U;
+    phase->spawn_counters[request.slot] = counter;
+    registers.eax = counter;
+    replace_low_word(registers.eax, record.field_58);
+    ++result.sample_calls;
+    static_cast<void>(invoke_frame(
+        kCallPlayMessage, {registers.eax, 0x004AB784U}
+    ));
+    record.field_58 = 0U;
+
+    const u32 boundary =
+        to_bits(raster.end_x) - actor->spawn_completion_offset;
+    const u32 current_x =
+        to_bits(raster.start_x) + to_bits(raster.current_x);
+    ++result.render_calls;
+    if (std::bit_cast<i32>(current_x) >= std::bit_cast<i32>(boundary)) {
+        static_cast<void>(invoke_frame(
+            kCallActionThirteenRender,
+            {
+                boundary,
+                to_bits(raster.end_y),
+                frame.width,
+                frame.height,
+                record.mode_flags,
+                0U,
+            }
+        ));
+        phase->spawn_counters[request.slot] = 0U;
+        phase->block_0df4.fill(0U);
+        result.return_eax = 1U;
+        result.return_ecx = registers.ecx;
+        result.return_edx = registers.edx;
+        return result;
+    }
+
+    static_cast<void>(invoke_frame(
+        kCallActionThirteenRender,
+        {
+            current_x,
+            to_bits(raster.start_y) + to_bits(raster.current_y),
+            frame.width,
+            frame.height,
+            record.mode_flags,
+            0U,
+        }
+    ));
+    result.return_eax = 0U;
+    result.return_ecx = registers.ecx;
+    result.return_edx = registers.edx;
+    return result;
+}
+
 LegacyBattleTargetPhaseAdvanceResult advance_legacy_battle_target_phase(
     LegacyBattleTargetPhaseState* phase,
+    LegacyBattleGroupAActionExecutionState* actor,
+    LegacyBattleGroupAActionExecutionSharedState* action_shared,
+    asset_runtime::LegacyActionUpdater* action_updater,
+    rendering::LegacyFramePieceProvider* frame_provider,
     LegacyBattleImageParticleNodePool* nodes,
     input_time_rng::LegacyCrtRng* rng,
     LegacyBattleImageParticleSharedState* shared,
@@ -680,54 +845,92 @@ LegacyBattleTargetPhaseAdvanceResult advance_legacy_battle_target_phase(
                            const u32 x,
                            const u32 y,
                            const u32 iterations) {
-        static_cast<void>(port.invoke({
-            .callee_token = kCallTargetPhaseSpawn,
-            .arguments = {0x186AU, kind, index, x, y, iterations},
-            .ecx = request.target_token,
-        }));
-        ++result.port_calls;
         ++result.spawn_calls;
+        if (actor == nullptr || action_shared == nullptr ||
+            action_updater == nullptr || frame_provider == nullptr ||
+            index >= result.spawn_frames.size()) {
+            result.status =
+                LegacyBattleTargetPhaseAdvanceStatus::spawn_frame_typed_stop;
+            return false;
+        }
+        result.spawn_frames[index] =
+            advance_legacy_battle_target_phase_spawn_frame(
+                phase,
+                actor,
+                action_shared,
+                port,
+                *action_updater,
+                *frame_provider,
+                {
+                    .actor_token = request.target_token,
+                    .action_id = 0x186AU,
+                    .action_variant = kind,
+                    .slot = index,
+                    .target_x = x,
+                    .target_y = y,
+                    .iterations = iterations,
+                }
+            );
+        ++result.spawn_frame_calls;
+        result.port_calls += result.spawn_frames[index].port_calls;
+        if (result.spawn_frames[index].status !=
+            LegacyBattleTargetPhaseSpawnFrameStatus::completed) {
+            result.status =
+                LegacyBattleTargetPhaseAdvanceStatus::spawn_frame_typed_stop;
+            return false;
+        }
+        return true;
     };
 
-    spawn(
-        1U,
-        0U,
-        horizontal + width_quarter,
-        vertical + height - derived - 5U,
-        0x0EU
-    );
+    if (!spawn(
+            1U,
+            0U,
+            horizontal + width_quarter,
+            vertical + height - derived - 5U,
+            0x0EU
+        )) {
+        return result;
+    }
     const i16 signed_tick = std::bit_cast<i16>(phase->tick);
-    if (signed_tick >= 10) {
-        spawn(
+    if (signed_tick >= 10 &&
+        !spawn(
             2U,
             1U,
             horizontal + width_quarter,
             vertical + height - derived - 0x0AU,
             0x0AU
-        );
+        )) {
+        return result;
     }
-    if (signed_tick >= 20) {
-        spawn(
+    if (signed_tick >= 20 &&
+        !spawn(
             3U,
             2U,
             horizontal + width_quarter,
             vertical + height - derived - 0x0FU,
             0x0CU
-        );
+        )) {
+        return result;
     }
-    if (signed_tick >= 30) {
-        spawn(
-            1U, 3U, horizontal + width_quarter, vertical + height - derived, 8U
-        );
+    if (signed_tick >= 30 &&
+        !spawn(
+            1U,
+            3U,
+            horizontal + width_quarter,
+            vertical + height - derived,
+            8U
+        )) {
+        return result;
     }
-    if (signed_tick >= 40) {
-        spawn(
+    if (signed_tick >= 40 &&
+        !spawn(
             1U,
             4U,
             horizontal + width_quarter,
             vertical + height - derived + 5U,
             0x10U
-        );
+        )) {
+        return result;
     }
     result.return_eax = 0U;
     return result;
@@ -1316,7 +1519,7 @@ LegacyBattleSummonFrameResult advance_legacy_battle_summon_frame(
     phase->tick = 0U;
     actor->summon_completion_word = 0U;
     phase->action_record = {};
-    phase->block_2bc8.fill(0U);
+    phase->spawn_action_records = {};
     result.return_eax = 1U;
     result.return_ecx = registers.ecx;
     result.return_edx = registers.edx;
@@ -2224,6 +2427,10 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
         }
         result.target_phase_advance = advance_legacy_battle_target_phase(
             &state.group_a_target_phases[group_a_index],
+            &state.group_a_action_execution[group_a_index],
+            &state.group_a_action_shared,
+            &context.action_updater,
+            &context.frame_provider,
             &state.target_phase_particle_nodes,
             &state.target_phase_particle_rng,
             &state.target_phase_particle_shared,

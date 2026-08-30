@@ -1109,7 +1109,7 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         phase.runtime_gate = 1U;
         phase.block_0df4.fill(1U);
         phase.action_record.action_id = 2U;
-        phase.block_2bc8.fill(3U);
+        phase.spawn_action_records[0U].action_id = 3U;
         Fixture fixture;
         DispatchPort port;
         const auto result = openswd3::battle::start_legacy_battle_target_phase(
@@ -1199,6 +1199,166 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
 
     {
         openswd3::battle::LegacyBattleTargetPhaseState phase;
+        LegacyBattleActionDispatchState shared;
+        Fixture fixture;
+        DispatchPort port;
+        auto& actor = shared.group_a_action_execution[0U];
+        const auto stopped =
+            openswd3::battle::advance_legacy_battle_target_phase_spawn_frame(
+                &phase,
+                &actor,
+                &shared.group_a_action_shared,
+                port,
+                fixture.action_updater,
+                fixture.frame_provider,
+                {.actor_token = 0x005029D0U,
+                 .action_id = 0x186AU,
+                 .action_variant = 1U,
+                 .slot = 5U,
+                 .entry_eax = 0x11U,
+                 .entry_ecx = 0x22U,
+                 .entry_edx = 0x33U}
+            );
+        fixture.frame_provider.available = false;
+        const auto missing =
+            openswd3::battle::advance_legacy_battle_target_phase_spawn_frame(
+                &phase,
+                &actor,
+                &shared.group_a_action_shared,
+                port,
+                fixture.action_updater,
+                fixture.frame_provider,
+                {.actor_token = 0x005029D0U,
+                 .action_id = 0x186AU,
+                 .action_variant = 2U,
+                 .slot = 0U}
+            );
+        fixture.frame_provider.available = true;
+        const auto no_shared =
+            openswd3::battle::advance_legacy_battle_target_phase_spawn_frame(
+                &phase,
+                &actor,
+                nullptr,
+                port,
+                fixture.action_updater,
+                fixture.frame_provider,
+                {.actor_token = 0x005029D0U,
+                 .action_id = 0x186AU,
+                 .action_variant = 3U,
+                 .slot = 1U}
+            );
+        test.expect_true(
+            stopped.status ==
+                    openswd3::battle::
+                        LegacyBattleTargetPhaseSpawnFrameStatus::
+                            actor_state_typed_stop &&
+                stopped.return_eax == 0x11U && stopped.return_ecx == 0x22U &&
+                stopped.return_edx == 0x33U &&
+                phase.spawn_action_records[0U].action_id == 0x186AU &&
+                missing.status ==
+                    openswd3::battle::
+                        LegacyBattleTargetPhaseSpawnFrameStatus::
+                            frame_owner_typed_stop &&
+                missing.action_update_calls == 1U &&
+                missing.frame_lookup_calls == 1U && missing.port_calls == 0U &&
+                no_shared.status ==
+                    openswd3::battle::
+                        LegacyBattleTargetPhaseSpawnFrameStatus::
+                            shared_state_typed_stop &&
+                no_shared.action_update_calls == 1U &&
+                no_shared.frame_lookup_calls == 1U &&
+                phase.spawn_action_records[1U].action_id == 0x186AU &&
+                actor.turn_frame_token == 0x00504F1CU,
+            "target phase spawn stops at the original slot and frame accesses"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleTargetPhaseState phase;
+        LegacyBattleActionDispatchState shared;
+        Fixture fixture;
+        DispatchPort port;
+        auto& actor = shared.group_a_action_execution[0U];
+        actor.position_x = 100U;
+        phase.spawn_counters[0U] = 0x1234FFFFU;
+        phase.spawn_action_records[0U].field_58 = 0x44U;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_target_phase_spawn_frame(
+                &phase,
+                &actor,
+                &shared.group_a_action_shared,
+                port,
+                fixture.action_updater,
+                fixture.frame_provider,
+                {.actor_token = 0x005029D0U,
+                 .action_id = 0x186AU,
+                 .action_variant = 3U,
+                 .slot = 0U,
+                 .target_x = 0U,
+                 .target_y = 0U,
+                 .iterations = 0U}
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::
+                        LegacyBattleTargetPhaseSpawnFrameStatus::completed &&
+                result.return_eax == 0U && result.line_raster_calls == 0U &&
+                result.sample_calls == 1U && result.render_calls == 1U,
+            "target phase spawn keeps zero iterations noncomplete"
+        );
+        test.expect_true(
+            phase.spawn_counters[0U] == 0x12350000U &&
+                phase.spawn_action_records[0U].field_58 == 0U,
+            "target phase spawn increments the counter and clears the sample word"
+        );
+        test.expect_true(
+            port.calls[0U].callee_token == 0x00485610U &&
+                port.calls[0U].arguments[0U] == 0x12350000U &&
+                port.calls[1U].callee_token == 0x004170E0U &&
+                port.calls[1U].arguments[0U] == 0U,
+            "target phase spawn preserves the incremented counter high half in the sample argument before drawing"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleTargetPhaseState phase;
+        LegacyBattleActionDispatchState shared;
+        Fixture fixture;
+        DispatchPort port;
+        auto& actor = shared.group_a_action_execution[0U];
+        phase.spawn_action_records[0U].field_58 = 0x55U;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_target_phase_spawn_frame(
+                &phase,
+                &actor,
+                &shared.group_a_action_shared,
+                port,
+                fixture.action_updater,
+                fixture.frame_provider,
+                {.actor_token = 0x005029D0U,
+                 .action_id = 0x186AU,
+                 .action_variant = 1U,
+                 .slot = 0U,
+                 .target_x = 0U,
+                 .target_y = 0U,
+                 .iterations = 8U}
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::
+                        LegacyBattleTargetPhaseSpawnFrameStatus::completed &&
+                result.return_eax == 1U && phase.spawn_counters[0U] == 0U &&
+                phase.block_0df4[0U] == 0U &&
+                phase.spawn_action_records[0U].action_id == 0x186AU &&
+                phase.spawn_action_records[0U].base_variant == 1U &&
+                phase.spawn_action_records[0U].field_58 == 0U &&
+                port.calls[1U].arguments[0U] == 0U,
+            "target phase spawn clamps the completed draw without clearing its slot action record"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleTargetPhaseState phase;
         phase.tick = 39U;
         phase.emitter.initialized = 1;
         phase.emitter.remaining_batches = 1U;
@@ -1214,6 +1374,10 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         const auto result =
             openswd3::battle::advance_legacy_battle_target_phase(
                 &phase,
+                &shared.group_a_action_execution[0U],
+                &shared.group_a_action_shared,
+                &fixture.action_updater,
+                &fixture.frame_provider,
                 &shared.target_phase_particle_nodes,
                 &shared.target_phase_particle_rng,
                 &shared.target_phase_particle_shared,
@@ -1223,26 +1387,23 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 port,
                 {.target_token = 0x005029D0U, .time_seed = 0x12345678U}
             );
-        const auto spawns = std::ranges::count_if(
-            port.calls, [](const LegacyBattleActionCallRequest& call) {
-                return call.callee_token == 0x00471FC0U;
-            }
-        );
         test.expect_true(
             result.status ==
                     openswd3::battle::LegacyBattleTargetPhaseAdvanceStatus::
                         completed &&
                 result.particle_frame_calls == 1U &&
                 result.particle_frame.legacy_return_value == 0 &&
-                result.spawn_calls == 5U && spawns == 5 && phase.tick == 40U &&
-                phase.active_gate == 1U && result.return_eax == 0U &&
-                has_call_argument(port, 0x00471FC0U, 1U, 1U) &&
-                has_call_argument(port, 0x00471FC0U, 2U, 0U) &&
-                has_call_argument(port, 0x00471FC0U, 3U, 110U) &&
-                has_call_argument(port, 0x00471FC0U, 4U, 195U) &&
-                has_call_argument(port, 0x00471FC0U, 5U, 0x0EU) &&
-                has_call_argument(port, 0x00471FC0U, 2U, 4U) &&
-                has_call_argument(port, 0x00471FC0U, 4U, 205U),
+                result.spawn_calls == 5U && result.spawn_frame_calls == 5U &&
+                phase.tick == 40U && phase.active_gate == 1U &&
+                result.return_eax == 0U && port.count(0x00471FC0U) == 0U &&
+                phase.spawn_action_records[0U].action_id == 0x186AU &&
+                phase.spawn_action_records[0U].base_variant == 1U &&
+                phase.spawn_action_records[1U].base_variant == 2U &&
+                phase.spawn_action_records[2U].base_variant == 3U &&
+                phase.spawn_action_records[3U].base_variant == 1U &&
+                phase.spawn_action_records[4U].base_variant == 1U &&
+                result.spawn_frames[0U].sample_calls == 1U &&
+                result.spawn_frames[4U].render_calls == 1U,
             "target phase tick forty repeats all five threshold particle calls with the original coordinates"
         );
     }
@@ -1261,6 +1422,10 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         const auto result =
             openswd3::battle::advance_legacy_battle_target_phase(
                 &phase,
+                &shared.group_a_action_execution[0U],
+                &shared.group_a_action_shared,
+                &fixture.action_updater,
+                &fixture.frame_provider,
                 &shared.target_phase_particle_nodes,
                 &shared.target_phase_particle_rng,
                 &shared.target_phase_particle_shared,
@@ -1290,13 +1455,17 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         phase.spawn_counters.fill(7U);
         phase.block_0df4.fill(8U);
         phase.action_record.action_id = 9U;
-        phase.block_2bc8.fill(10U);
+        phase.spawn_action_records[0U].action_id = 10U;
         LegacyBattleActionDispatchState shared;
         Fixture fixture;
         DispatchPort port;
         const auto result =
             openswd3::battle::advance_legacy_battle_target_phase(
                 &phase,
+                &shared.group_a_action_execution[0U],
+                &shared.group_a_action_shared,
+                &fixture.action_updater,
+                &fixture.frame_provider,
                 &shared.target_phase_particle_nodes,
                 &shared.target_phase_particle_rng,
                 &shared.target_phase_particle_shared,
@@ -1323,7 +1492,8 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 ) &&
                 phase.block_0df4[0U] == 0U &&
                 phase.action_record.action_id == 0U &&
-                phase.block_2bc8[0U] == 10U && port.count(0x004885A0U) == 1U,
+                phase.spawn_action_records[0U].action_id == 10U &&
+                port.count(0x004885A0U) == 1U,
             "target phase completion releases the decoded buffer and clears only the original presentation, counters and two tail blocks"
         );
     }
@@ -1720,7 +1890,7 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         actor.turn_threshold = 2U;
         actor.summon_completion_word = 9U;
         phase.tick = 7U;
-        phase.block_2bc8.fill(0xAAAAAAAAU);
+        phase.spawn_action_records[0U].action_id = 0xAAAAAAAAU;
         Fixture fixture;
         DispatchPort port;
         auto context = fixture.context();
@@ -1748,7 +1918,7 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 actor.summon_x_offset == 0U && phase.tick == 0U &&
                 actor.summon_completion_word == 0U &&
                 phase.action_record.action_id == 0U &&
-                phase.block_2bc8[0U] == 0U &&
+                phase.spawn_action_records[0U].action_id == 0U &&
                 port.calls[1U].callee_token == 0x004170E0U &&
                 port.calls[2U].callee_token == 0x00485610U &&
                 port.calls[2U].arguments[0U] == 0x6AU,

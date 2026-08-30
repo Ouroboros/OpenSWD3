@@ -884,6 +884,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-summon-frame-00471d60.md",
     ),
+    "0x00471FC0": (
+        "platform_adapted",
+        "evidence/battle-target-phase-spawn-frame-00471fc0.md",
+    ),
 }
 
 
