@@ -177,6 +177,23 @@ public:
     }
 
     [[nodiscard]] virtual LegacyBattleActionCallReply
+    invoke_action_four_direct_effect_update(
+        const LegacyBattleActionCallRequest& request,
+        asset_runtime::LegacyActionRecord& record,
+        compat::u32& frame_token,
+        compat::u32& render_flags,
+        compat::u16& draw_x,
+        compat::u16& draw_y
+    ) {
+        static_cast<void>(record);
+        static_cast<void>(frame_token);
+        static_cast<void>(render_flags);
+        static_cast<void>(draw_x);
+        static_cast<void>(draw_y);
+        return invoke(request);
+    }
+
+    [[nodiscard]] virtual LegacyBattleActionCallReply
     invoke_special_four_hundred_effect_update(
         const LegacyBattleActionCallRequest& request,
         asset_runtime::LegacyActionRecord& record,
@@ -711,6 +728,44 @@ struct LegacyBattleSpecialFourHundredResult {
     compat::u32 return_edx{};
 };
 
+struct LegacyBattleActionFourEffectRequest {
+    compat::u32 actor_token{};
+    compat::u32 target_token{};
+    compat::u32 entry_eax{};
+    compat::u32 entry_ecx{};
+    compat::u32 entry_edx{};
+};
+
+enum class LegacyBattleActionFourEffectStatus : compat::u8 {
+    completed,
+    actor_state_typed_stop,
+    progress_state_typed_stop,
+    frame_owner_typed_stop,
+    shared_state_typed_stop,
+};
+
+struct LegacyBattleActionFourEffectResult {
+    LegacyBattleActionFourEffectStatus status{
+        LegacyBattleActionFourEffectStatus::completed
+    };
+    compat::u32 special_update_calls{};
+    compat::u32 turn_frame_calls{};
+    LegacyBattleColorInitializationResult color_initialization{};
+    compat::u32 color_initialization_calls{};
+    LegacyBattleFrameRefreshResult frame_refresh{};
+    compat::u32 frame_refresh_calls{};
+    compat::u32 effect_update_calls{};
+    compat::u32 frame_lookup_calls{};
+    compat::u32 render_calls{};
+    compat::u32 target_event_calls{};
+    compat::u32 action_record_clears{};
+    compat::u32 workspace_bytes_cleared{};
+    compat::u32 port_calls{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
 struct LegacyBattleTargetPhaseAdvanceResult {
     LegacyBattleTargetPhaseAdvanceStatus status{
         LegacyBattleTargetPhaseAdvanceStatus::completed
@@ -983,6 +1038,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     special_four_oh_five_typed_stop,
     special_four_oh_six_typed_stop,
     special_four_hundred_typed_stop,
+    action_four_effect_typed_stop,
     summon_frame_typed_stop,
     turn_commit_chance_typed_stop,
     turn_advance_typed_stop,
@@ -1064,6 +1120,8 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 special_four_oh_six_calls{};
     LegacyBattleSpecialFourHundredResult special_four_hundred{};
     compat::u32 special_four_hundred_calls{};
+    LegacyBattleActionFourEffectResult action_four_effect{};
+    compat::u32 action_four_effect_calls{};
     LegacyBattleSummonFrameResult summon_frame{};
     compat::u32 summon_frame_calls{};
     LegacyBattleTurnCommitChanceResult turn_commit_chance{};
@@ -1082,6 +1140,17 @@ advance_legacy_battle_special_four_oh_five(
     LegacyBattleActionDispatchPort& port,
     LegacyBattleActionDispatchContext& context,
     const LegacyBattleSpecialFourOhFiveRequest& request
+);
+
+// sub_4745B0.
+[[nodiscard]] LegacyBattleActionFourEffectResult
+advance_legacy_battle_action_four_effect(
+    LegacyBattleGroupAActionExecutionState* actor,
+    LegacyBattleActorProgressState* progress,
+    LegacyBattleGroupAActionExecutionSharedState* shared,
+    LegacyBattleActionDispatchPort& port,
+    LegacyBattleActionDispatchContext& context,
+    const LegacyBattleActionFourEffectRequest& request
 );
 
 // sub_473C10.

@@ -74,6 +74,7 @@ struct LegacyBattleGroupAActionExecutionState {
     std::array<compat::i16, 7> color_values{};  // actor + 0x03B2
     compat::u16 position_x{};                   // actor + 0x0D66
     compat::u16 position_y{};                   // actor + 0x0D68
+    compat::u8 special_effect_direct_mode{};    // actor + 0x0D9C
     compat::u16 source_y{};                     // actor + 0x0DB2
     compat::i32 target_phase_y_adjustment{};    // actor + 0x02B4
     compat::u16 render_x_base{};                // actor + 0x0316

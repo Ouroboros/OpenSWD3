@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v814
+版本：v815
 
 最后更新：2026-08-29
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗角色动作效果与渲染函数 `0x004745B0`
+当前步骤：模块10 · 审计战斗角色动作效果与渲染函数 `0x00474B60`
 
 ## 0. 执行约定
 
@@ -4245,4 +4245,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=226`的`0x00473C10`战斗动作四百复合效果状态机。完整权威LST主体`0x00473C10..0x004745A4`共998行、604条实际指令、24个call、51个跳转、36个局部标签、2个返回点且无外部chunk。实现双入口门、主记录冲出、signed一百五十整除反转、目标记录、连续双工作记录、可选附层、公共事件门、效果记录绘制和五记录收尾，保留十像素方向、同帧阶段切换、word回绕、陈旧寄存器高半、双flags变换、bit优先级及completion byte回绕。连续`0x4C0`工作区使用首次真实访问物化的唯一owner，避免放大所有行动者栈占用；唯一动作400 caller已typed化。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`226/422 = 217 platform_adapted + 9 assembly_exact + 196 pending_audit`；生成器连续双跑逐字节一致，SHA256为`9f51465d586ccff1e8351199c97c6b6345d3b9c4ec1ea20e9d05ceb0f8c5251d`。动态差分因原版五记录、连续工作区、frame、音频、绘制、目标事件、待审更新callee和caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=227`的`0x004745B0`战斗角色动作效果与渲染函数。
+本轮再完成`audit_order=227`的`0x004745B0`战斗动作四与四百零四复合效果。完整权威LST主体`0x004745B0..0x00474B52`共582行、343条实际指令、12个call、32个跳转、22个局部标签、3个返回点且无外部chunk。普通动作4与特殊动作404共享主记录事件、可选转身记录、signed颜色初始化、每帧画面刷新、普通或直接效果更新、负八淡出和四记录收尾，保留bit优先级、bit14抑制、特殊模式净零进度、completion byte回绕及连续工作区清理。颜色初始化和画面刷新typed直连，两个production caller均删除整函数opaque调用。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`227/422 = 218 platform_adapted + 9 assembly_exact + 195 pending_audit`；生成器连续双跑逐字节一致，SHA256为`796f78d208b0f774040fa836b55a8d431d7f24eee72e290a6f406e2d5e5bbb05`。动态差分因原版四记录、frame、颜色、画面刷新、绘制、目标事件、两类待审效果callee和双caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=228`的`0x00474B60`战斗角色动作效果与渲染函数。

@@ -132,6 +132,27 @@ public:
     }
 
     [[nodiscard]] LegacyBattleActionCallReply
+    invoke_action_four_direct_effect_update(
+        const LegacyBattleActionCallRequest& request,
+        openswd3::asset_runtime::LegacyActionRecord& record,
+        u32& frame_token,
+        u32& render_flags,
+        u16& draw_x,
+        u16& draw_y
+    ) override {
+        action_four_direct_effect_records.push_back(&record);
+        return LegacyBattleActionDispatchPort::
+            invoke_action_four_direct_effect_update(
+                request,
+                record,
+                frame_token,
+                render_flags,
+                draw_x,
+                draw_y
+            );
+    }
+
+    [[nodiscard]] LegacyBattleActionCallReply
     invoke_special_four_hundred_effect_update(
         const LegacyBattleActionCallRequest& request,
         openswd3::asset_runtime::LegacyActionRecord& record,
@@ -223,6 +244,8 @@ public:
     std::vector<openswd3::asset_runtime::LegacyActionRecord*>
         special_four_hundred_primary_records;
     std::vector<u8*> special_four_hundred_workspaces;
+    std::vector<openswd3::asset_runtime::LegacyActionRecord*>
+        action_four_direct_effect_records;
     std::vector<openswd3::asset_runtime::LegacyActionRecord*>
         special_four_hundred_effect_records;
     std::vector<u16> decoded_pixels = std::vector<u16>(0x20U * 0x50U, 0x1234U);
@@ -699,6 +722,12 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         state.group_a_count = 2;
         state.group_b_count = 2;
         state.group_a_to_actor[0] = 0U;
+        auto& actor = state.group_a_action_execution[0U];
+        actor.profile_value = 0x123U;
+        actor.special_profile_variant = 7U;
+        actor.action_runtime_gate = 0x8000U;
+        actor.special_action_record.field_8c = 1U;
+        actor.effect_action_record.field_8c = 1U;
         Fixture fixture;
         DispatchPort port;
         port.action = 0x194U;
@@ -711,8 +740,10 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
             result.status == LegacyBattleActionDispatchStatus::completed &&
                 state.special_phase == 0U &&
                 state.frame_effect.split_suppression == 0U &&
+                result.action_four_effect_calls == 1U &&
                 result.group_a_iterations == 4U &&
                 result.group_b_iterations == 4U &&
+                port.count(0x004745B0U) == 0U &&
                 port.count(0x0047D810U) == 6U && port.count(0x0047D830U) == 6U,
             "special phase four hundred four runs pause action and restore loops in one fallthrough call"
         );
@@ -2594,6 +2625,313 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 state.action_pending == 1U &&
                 port.count(0x00473C10U) == 0U,
             "action four hundred production advances the typed special state machine without the opaque call"
+        );
+    }
+
+    {
+        const auto prepare_actor = [] {
+            auto actor =
+                std::make_unique<LegacyBattleGroupAActionExecutionState>();
+            actor->profile_value = 0x123U;
+            actor->special_profile_variant = 7U;
+            actor->special_action_record.field_4a = 1U;
+            actor->special_action_record.field_4c = 1U;
+            actor->effect_action_record.field_4a = 1U;
+            actor->effect_action_record.field_4c = 1U;
+            actor->render_flags = 5U;
+            actor->draw_x = 12U;
+            actor->draw_y = 34U;
+            actor->resource.value_04 = 0xCAFEBABEU;
+            return actor;
+        };
+        static LegacyBattleGroupAActionExecutionSharedState shared;
+        static openswd3::battle::LegacyBattleActorProgressState progress;
+        static Fixture fixture;
+        static auto context = fixture.context();
+
+        static auto gated_actor_owner = prepare_actor();
+        auto& gated_actor = *gated_actor_owner;
+        gated_actor.start_gate = 1U;
+        static DispatchPort gated_port;
+        static const auto gated =
+            openswd3::battle::advance_legacy_battle_action_four_effect(
+                &gated_actor,
+                &progress,
+                &shared,
+                gated_port,
+                context,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            gated.return_eax == 0U && gated.port_calls == 0U &&
+                gated_actor.turn_completion_latch == 0U,
+            "action four effect preserves both entry gates before the completion latch"
+        );
+
+        static auto transfer_actor_owner = prepare_actor();
+        auto& transfer_actor = *transfer_actor_owner;
+        transfer_actor.special_action_record.field_5a = 0x0202U;
+        transfer_actor.special_action_record.field_24 = 0x1111U;
+        transfer_actor.special_action_record.field_28 = 0x2222U;
+        static DispatchPort transfer_port;
+        transfer_port.push(0x00483B30U, {.eax = 1U});
+        static const auto transfer =
+            openswd3::battle::advance_legacy_battle_action_four_effect(
+                &transfer_actor,
+                &progress,
+                &shared,
+                transfer_port,
+                context,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            transfer.return_eax == 0U && transfer.turn_frame_calls == 1U &&
+                transfer_actor.turn_action_record.action_id == 0x1111U &&
+                transfer_actor.turn_action_record.base_variant == 0x2222U &&
+                transfer_actor.special_action_record.field_24 == 0U &&
+                transfer_actor.special_action_record.field_28 == 0U &&
+                transfer_actor.special_action_record.field_5a == 0U &&
+                transfer_actor.special_action_record.external_mode == 0U &&
+                (transfer_actor.action_runtime_gate & 0x4000U) == 0U,
+            "action four effect transfers the optional turn record then clears bit fourteen only on callee completion"
+        );
+
+        static auto color_actor_owner = prepare_actor();
+        auto& color_actor = *color_actor_owner;
+        color_actor.special_action_record.field_5a = 0x0408U;
+        color_actor.special_action_record.field_7a = 0xFFFFU;
+        color_actor.special_action_record.field_7c = 2U;
+        color_actor.special_action_record.field_7e = 3U;
+        color_actor.special_action_record.field_80 = 4U;
+        color_actor.special_action_record.field_82 = 5U;
+        color_actor.special_action_record.field_84 = 6U;
+        color_actor.special_action_record.field_86 = 7U;
+        static DispatchPort color_port;
+        static const auto colored =
+            openswd3::battle::advance_legacy_battle_action_four_effect(
+                &color_actor,
+                &progress,
+                &shared,
+                color_port,
+                context,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        const auto& color_state = color_port.battle_color_accumulation_state();
+        test.expect_true(
+            colored.return_eax == 0U &&
+                colored.color_initialization_calls == 1U &&
+                colored.frame_refresh_calls == 1U &&
+                colored.effect_update_calls == 1U &&
+                colored.frame_lookup_calls == 1U &&
+                colored.render_calls == 1U &&
+                color_port.battle_color_initialization_gate() == 1U &&
+                color_actor.special_action_record.field_5a == 0U &&
+                (color_actor.action_runtime_gate & 0x8000U) != 0U &&
+                color_state.current_red == -1.0F &&
+                color_state.target_blue == 6.0F && color_state.countdown == 7,
+            "action four effect initializes signed color channels before starting the effect record"
+        );
+
+        static auto direct_actor_owner = prepare_actor();
+        auto& direct_actor = *direct_actor_owner;
+        direct_actor.action_runtime_gate = 0x8000U;
+        direct_actor.special_effect_direct_mode = 1U;
+        direct_actor.special_action_record.field_8c = 1U;
+        direct_actor.position_x = 100U;
+        direct_actor.position_y = 50U;
+        direct_actor.turn_target_x_offset = 4U;
+        direct_actor.source_x_offset = 3U;
+        direct_actor.source_y = 8U;
+        direct_actor.auxiliary_word = 2U;
+        direct_actor.primary_action_record.draw_offset_y = 6U;
+        shared.shared_motion_word = 9U;
+        static DispatchPort direct_port;
+        direct_port.push(0x0047F940U, {.eax = 1U});
+        static const auto direct =
+            openswd3::battle::advance_legacy_battle_action_four_effect(
+                &direct_actor,
+                &progress,
+                &shared,
+                direct_port,
+                context,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            direct.return_eax == 0U && direct.effect_update_calls == 1U &&
+                direct.target_event_calls == 1U &&
+                direct.frame_lookup_calls == 1U && direct.render_calls == 1U &&
+                direct_actor.motion_word == 0xFFF8U &&
+                direct_actor.primary_action_record.field_8c == 1U &&
+                direct_actor.effect_action_record.field_8c == 1U &&
+                shared.shared_motion_word == 0U &&
+                direct_port.action_four_direct_effect_records.size() == 1U &&
+                has_call_argument(direct_port, 0x0047F940U, 4U, 99U) &&
+                has_call_argument(direct_port, 0x0047F940U, 5U, 46U),
+            "action four direct effect preserves signed coordinates, consumes bit zero, and advances the minus-eight fade"
+        );
+
+        static auto suppressed_actor_owner = prepare_actor();
+        auto& suppressed_actor = *suppressed_actor_owner;
+        suppressed_actor.action_runtime_gate = 0xC000U;
+        static DispatchPort suppressed_port;
+        suppressed_port.push(0x00483B30U, {.eax = 0U});
+        static const auto suppressed =
+            openswd3::battle::advance_legacy_battle_action_four_effect(
+                &suppressed_actor,
+                &progress,
+                &shared,
+                suppressed_port,
+                context,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            suppressed.return_eax == 0U && suppressed.turn_frame_calls == 1U &&
+                suppressed.effect_update_calls == 1U &&
+                suppressed.frame_lookup_calls == 1U &&
+                suppressed.render_calls == 0U &&
+                suppressed_actor.action_runtime_gate == 0xC000U,
+            "action four effect preserves the pending turn gate and suppresses fallback drawing while bit fourteen remains set"
+        );
+
+        static auto completed_actor_owner = prepare_actor();
+        auto& completed_actor = *completed_actor_owner;
+        completed_actor.action_runtime_gate = 0x8000U;
+        completed_actor.special_action_record.field_8c = 1U;
+        completed_actor.effect_action_record.field_8c = 1U;
+        completed_actor.special_target_action_record.field_94 = 1U;
+        completed_actor.turn_action_record.field_94 = 2U;
+        completed_actor.special_four_hundred_workspace =
+            std::make_unique<std::array<u8, 0x4C0>>();
+        completed_actor.special_four_hundred_workspace->fill(0xAAU);
+        completed_actor.target_indices.fill(0U);
+        progress.action_complete = 1U;
+        shared.completion_counter = 0xFFU;
+        shared.profile_mode_active = 1U;
+        static DispatchPort completed_port;
+        static const auto completed =
+            openswd3::battle::advance_legacy_battle_action_four_effect(
+                &completed_actor,
+                &progress,
+                &shared,
+                completed_port,
+                context,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            completed.return_eax == 1U &&
+                completed.action_record_clears == 4U &&
+                completed.workspace_bytes_cleared == 0x4C0U &&
+                std::ranges::all_of(
+                    *completed_actor.special_four_hundred_workspace,
+                    [](const u8 value) { return value == 0U; }
+                ) &&
+                std::ranges::all_of(
+                    completed_actor.target_indices,
+                    [](const u32 value) { return value == 0xFFFFFFFFU; }
+                ) &&
+                progress.action_complete == 0U &&
+                completed_actor.action_runtime_gate == 0U &&
+                shared.completion_counter == 0U &&
+                shared.profile_mode_active == 0U,
+            "action four effect clears four records and the shared workspace only after the special and effect records complete"
+        );
+
+        static auto missing_actor_owner = prepare_actor();
+        auto& missing_actor = *missing_actor_owner;
+        missing_actor.action_runtime_gate = 0x8000U;
+        fixture.frame_provider.available = false;
+        static DispatchPort missing_port;
+        static const auto missing =
+            openswd3::battle::advance_legacy_battle_action_four_effect(
+                &missing_actor,
+                &progress,
+                &shared,
+                missing_port,
+                context,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            missing.status == openswd3::battle::
+                    LegacyBattleActionFourEffectStatus::frame_owner_typed_stop &&
+                missing_actor.turn_completion_latch == 1U &&
+                missing_actor.turn_frame_token == 0U,
+            "action four effect stops at the original effect-frame dereference after preserving all prior calls"
+        );
+    }
+
+    {
+        static LegacyBattleActionDispatchState state;
+        state.group_a_count = 1;
+        state.group_b_count = 1;
+        auto& actor = state.group_a_action_execution[0U];
+        actor.profile_value = 0x123U;
+        actor.special_profile_variant = 7U;
+        actor.action_runtime_gate = 0x8000U;
+        actor.special_action_record.field_8c = 1U;
+        actor.effect_action_record.field_8c = 1U;
+        static Fixture fixture;
+        static DispatchPort port;
+        port.action = 4U;
+        static auto context = fixture.context();
+        static const auto result = openswd3::battle::dispatch_legacy_battle_action(
+            state, port, context, 0U, 0U
+        );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.action_four_effect_calls == 1U &&
+                result.action_four_effect.return_eax == 1U &&
+                state.action_pending == 1U &&
+                port.count(0x004745B0U) == 0U,
+            "ordinary action four production advances the typed effect state machine without the opaque call"
+        );
+    }
+
+    {
+        static LegacyBattleActionDispatchState state;
+        state.group_a_count = 1;
+        state.group_b_count = 1;
+        state.special_phase = 2U;
+        auto& actor = state.group_a_action_execution[0U];
+        actor.profile_value = 0x123U;
+        actor.special_profile_variant = 7U;
+        actor.action_runtime_gate = 0x8000U;
+        actor.special_action_record.field_8c = 1U;
+        actor.effect_action_record.field_8c = 1U;
+        static Fixture fixture;
+        static DispatchPort port;
+        port.action = 0x194U;
+        static auto context = fixture.context();
+        static const auto result = openswd3::battle::dispatch_legacy_battle_action(
+            state, port, context, 0U, 0U
+        );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.action_four_effect_calls == 1U &&
+                result.action_four_effect.return_eax == 1U &&
+                state.action_pending == 1U &&
+                port.count(0x004745B0U) == 0U,
+            "special action four hundred four shares the typed action-four effect state machine without the opaque call"
         );
     }
 
