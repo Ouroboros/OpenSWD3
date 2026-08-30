@@ -647,6 +647,8 @@ I5最终必须锁定：
 
 `audit_order=218`的`0x00472730`已关闭为`platform_adapted`。完整权威LST主体`0x00472730..0x004728C3`共217行、165条实际指令、5个call、16个跳转、8个局部标签、9个返回点且无外部chunk。实现目标profile flags/limit门、双方等级差、signed四分之一/三分之一、行动者优势与目标优势分段及inclusive随机阈值。目标profile字段归入既有group-B资料owner，group-A嵌套profile等级归入行动者执行owner；待审双输出callee保留窄port，caller旧整函数调用已移除。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`218/422 = 209 platform_adapted + 9 assembly_exact + 204 pending_audit`，双跑SHA256为`3c41311dab8141c7779904c960c5b406c37a363944ce3edb2c748fd787b8b151`。动态差分因原版双方对象/profile、双输出callee、随机状态与caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=219`的`0x004728D0`战斗角色动作效果与渲染函数。
+`audit_order=219`的`0x004728D0`已关闭为`platform_adapted`。完整权威LST主体`0x004728D0..0x004728DF`共9行、5条实际指令、0个call、0个跳转、0个局部标签、1个返回点且无外部chunk。实现行动者`+0x26D0` bit11清零查询，保留先覆盖AX再对完整EAX取反右移的语义，以及ECX行动者token和陈旧EDX。字段归入既有group-A行动者执行owner；退却提交与输入dispatch两处caller全部typed化，旧枚举槽保留为reserved。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`219/422 = 210 platform_adapted + 9 assembly_exact + 203 pending_audit`，双跑SHA256为`033fc9aa17a15173dc31d15998c498d18fa0e2f41a6abc39f43b9e28d511da58`。动态差分因原版行动者word与两处caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=220`的`0x004728E0`战斗角色动作效果与渲染函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

@@ -32,15 +32,31 @@ LegacyBattleRetreatCommitResult commit_legacy_battle_retreat(
         return result;
     }
 
-    result.primary_actor = port.invoke_retreat_commit({
-        .call = LegacyBattleRetreatCommitCall::query_primary_actor_state,
-        .object_token = kLegacyBattleRetreatCommitGroupABaseToken,
-    });
-    ++result.port_calls;
+    const auto* primary_actor = bindings.group_a_actions.empty()
+        ? nullptr
+        : &bindings.group_a_actions[0U];
+    result.primary_actor = query_legacy_battle_actor_retreat_ready(
+        primary_actor,
+        {
+            .actor_token = kLegacyBattleRetreatCommitGroupABaseToken,
+            .entry_eax = result.selected_actor.eax,
+            .entry_edx = result.selected_actor.edx,
+        }
+    );
+    ++result.primary_actor_calls;
+    if (result.primary_actor.status !=
+        LegacyBattleActorRetreatReadyStatus::completed) {
+        result.status =
+            LegacyBattleRetreatCommitStatus::primary_actor_typed_stop;
+        result.return_value = result.primary_actor.return_eax;
+        result.final_ecx = result.primary_actor.return_ecx;
+        result.final_edx = result.primary_actor.return_edx;
+        return result;
+    }
     const u32 mode_flags =
         port.battle_debug_hotkey_state().battle_mode_flags_53bc24;
     result.mode_bit_blocked = (mode_flags & 0x00000200U) != 0U;
-    if (result.primary_actor.eax == 0U || result.mode_bit_blocked) {
+    if (result.primary_actor.return_eax == 0U || result.mode_bit_blocked) {
         result.branch = LegacyBattleRetreatCommitBranch::warning;
         if (bindings.text_messages == nullptr ||
             bindings.text_message_head == nullptr) {
@@ -59,9 +75,9 @@ LegacyBattleRetreatCommitResult commit_legacy_battle_retreat(
                 .text_token = kLegacyBattleRetreatCommitWarningTextToken,
                 .flags = 0x40000002U,
                 .entry = {
-                    .eax = result.primary_actor.eax,
-                    .ecx = result.primary_actor.ecx,
-                    .edx = result.primary_actor.edx,
+                    .eax = result.primary_actor.return_eax,
+                    .ecx = result.primary_actor.return_ecx,
+                    .edx = result.primary_actor.return_edx,
                 },
             }
         );
@@ -107,8 +123,8 @@ LegacyBattleRetreatCommitResult commit_legacy_battle_retreat(
     result.branch = LegacyBattleRetreatCommitBranch::committed;
     result.return_value = 0U;
     result.final_ecx =
-        replace_low_byte(result.primary_actor.ecx, group_b_count);
-    result.final_edx = result.primary_actor.edx;
+        replace_low_byte(result.primary_actor.return_ecx, group_b_count);
+    result.final_edx = result.primary_actor.return_edx;
     result.state_committed = true;
     return result;
 }

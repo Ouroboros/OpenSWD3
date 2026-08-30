@@ -662,10 +662,29 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
             const u32 retreat_actor = bindings.final_actor.queued_actor_code;
             if (retreat_actor != 0U) {
                 ecx = group_a_token(retreat_actor);
-                static_cast<void>(call(
-                    LegacyBattleInputDispatchCall::query_retreat_actor,
-                    {ecx, retreat_actor}
-                ));
+                const auto* actor = retreat_actor <
+                        bindings.action.group_a_action_execution.size()
+                    ? &bindings.action.group_a_action_execution[retreat_actor]
+                    : nullptr;
+                result.actor_retreat_ready =
+                    query_legacy_battle_actor_retreat_ready(
+                        actor,
+                        {
+                            .actor_token = ecx,
+                            .entry_eax = eax,
+                            .entry_edx = edx,
+                        }
+                    );
+                ++result.actor_retreat_ready_calls;
+                if (result.actor_retreat_ready.status !=
+                    LegacyBattleActorRetreatReadyStatus::completed) {
+                    result.status = LegacyBattleInputDispatchStatus::
+                        actor_retreat_ready_typed_stop;
+                    return result;
+                }
+                eax = result.actor_retreat_ready.return_eax;
+                ecx = result.actor_retreat_ready.return_ecx;
+                edx = result.actor_retreat_ready.return_edx;
                 if (eax == 0U ||
                     (bindings.debug_hotkeys.battle_mode_flags_53bc24 &
                      0x200U) != 0U) {

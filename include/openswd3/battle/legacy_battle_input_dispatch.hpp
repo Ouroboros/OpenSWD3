@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
+#include "openswd3/battle/legacy_battle_actor_retreat_ready.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_context_prompt.hpp"
 #include "openswd3/battle/legacy_battle_debug_state.hpp"
@@ -103,7 +104,7 @@ enum class LegacyBattleInputDispatchCall : compat::u8 {
     reserved_menu_context_advance_slot,
     reserved_menu_input_finalize_slot,
     query_active_actor,
-    query_retreat_actor,
+    reserved_query_retreat_actor_slot,
     configure_retreat_actor,
     reserved_display_retreat_warning_slot,
     menu_retreat_query_group_b_candidate,
@@ -224,6 +225,7 @@ enum class LegacyBattleInputDispatchStatus : compat::u8 {
     actor_action_commit_typed_stop,
     actor_action_cycle_typed_stop,
     actor_action_reverse_cycle_typed_stop,
+    actor_retreat_ready_typed_stop,
     menu_context_advance_typed_stop,
     menu_context_retreat_typed_stop,
 };
@@ -242,6 +244,8 @@ struct LegacyBattleInputDispatchResult {
     compat::u32 delay_calls{};
     std::vector<LegacyBattleTextMessageResult> text_messages;
     compat::u32 text_message_calls{};
+    LegacyBattleActorRetreatReadyResult actor_retreat_ready{};
+    compat::u32 actor_retreat_ready_calls{};
     compat::u32 menu_selection_retreat_calls{};
     compat::u32 menu_selection_advance_calls{};
     compat::u32 menu_page_retreat_calls{};

@@ -286,17 +286,20 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
             .replies[LegacyBattleInputDispatchCall::query_active_actor] = {
             .eax = 0U
         };
-        fixture.port
-            .replies[LegacyBattleInputDispatchCall::query_retreat_actor] = {
-            .eax = 0U, .ecx = 0x10U, .edx = 0x20U
-        };
+        fixture.action.group_a_action_execution[8U].retreat_ready_flags =
+            0x0800U;
         fixture.port.battle_input_dispatch_state().sample_mix_level = -7;
         const auto result =
             openswd3::battle::coordinate_legacy_battle_input_dispatch(
                 fixture.bindings(), fixture.port, {}
             );
         test.expect_true(
-            result.returned_early &&
+            result.returned_early && result.actor_retreat_ready_calls == 1U &&
+                result.actor_retreat_ready.return_eax == 0U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        reserved_query_retreat_actor_slot
+                ) == 0U &&
                 fixture.port.delays == std::vector<u32>{20U} &&
                 result.text_message_calls == 1U &&
                 fixture.port.count(
@@ -324,10 +327,7 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
             .replies[LegacyBattleInputDispatchCall::query_active_actor] = {
             .eax = 0U
         };
-        fixture.port
-            .replies[LegacyBattleInputDispatchCall::query_retreat_actor] = {
-            .eax = 1U
-        };
+        fixture.action.group_a_action_execution[9U].retreat_ready_flags = 0U;
         const auto result =
             openswd3::battle::coordinate_legacy_battle_input_dispatch(
                 fixture.bindings(), fixture.port, {}
@@ -336,6 +336,12 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleInputDispatchStatus::
                         completed &&
+                result.actor_retreat_ready_calls == 1U &&
+                result.actor_retreat_ready.return_eax == 1U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        reserved_query_retreat_actor_slot
+                ) == 0U &&
                 fixture.port.delays == std::vector<u32>{50U} &&
                 fixture.action.opponent_workspace[11U] == 0x11U &&
                 fixture.final_actor.secondary_actor_code == 9U &&
@@ -352,28 +358,23 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
             openswd3::battle::kLegacyBattleActionGroupABaseToken +
             (9U - 8U) * openswd3::battle::kLegacyBattleActionGroupAStride;
         test.expect_true(
-            fixture.port.calls.size() == 3U,
-            "successful retreat performs exactly three typed battle calls"
+            fixture.port.calls.size() == 2U,
+            "successful retreat performs exactly two remaining opaque battle calls"
         );
         test.expect_true(
-            fixture.port.calls.size() >= 3U &&
+            fixture.port.calls.size() >= 2U &&
                 fixture.port.calls[0U].arguments[0U] == expected_actor_token,
             "active-actor query receives the exact group-A object token"
         );
         test.expect_true(
-            fixture.port.calls.size() >= 3U &&
+            fixture.port.calls.size() >= 2U &&
                 fixture.port.calls[1U].arguments[0U] == expected_actor_token,
-            "retreat query receives the exact group-A object token"
-        );
-        test.expect_true(
-            fixture.port.calls.size() >= 3U &&
-                fixture.port.calls[2U].arguments[0U] == expected_actor_token,
             "retreat configuration receives the exact group-A object token"
         );
         test.expect_true(
-            fixture.port.calls.size() >= 3U &&
-                fixture.port.calls[2U].arguments[1U] == 1U &&
-                fixture.port.calls[2U].arguments[2U] == 9U,
+            fixture.port.calls.size() >= 2U &&
+                fixture.port.calls[1U].arguments[1U] == 1U &&
+                fixture.port.calls[1U].arguments[2U] == 9U,
             "retreat configuration preserves the original stack arguments"
         );
     }

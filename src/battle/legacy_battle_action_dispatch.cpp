@@ -2758,6 +2758,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                 .text_message_head = context.startup_reset == nullptr
                     ? nullptr
                     : &context.startup_reset->block_5214f8[0U],
+                .group_a_actions = state.group_a_action_execution,
             },
             port,
             group_a_index

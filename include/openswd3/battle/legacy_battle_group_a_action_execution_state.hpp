@@ -48,6 +48,7 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::i32 turn_countdown{};                // actor + 0x2668
     compat::u32 turn_render_flags{};             // actor + 0x26A0
     compat::u32 summon_render_flags{};           // actor + 0x2688
+    compat::u16 retreat_ready_flags{};            // actor + 0x26D0
     compat::u32 summon_x_offset{};               // actor + 0x268C
     compat::u32 spawn_completion_offset{};       // actor + 0x2674
     compat::u16 turn_threshold{};                // actor + 0x2958

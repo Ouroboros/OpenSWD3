@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
+#include "openswd3/battle/legacy_battle_actor_retreat_ready.hpp"
 #include "openswd3/battle/legacy_battle_debug_state.hpp"
 #include "openswd3/battle/legacy_battle_outcome_state.hpp"
 #include "openswd3/battle/legacy_battle_shared_phase.hpp"
@@ -8,6 +9,7 @@
 #include "openswd3/compat/types.hpp"
 
 #include <array>
+#include <span>
 
 namespace openswd3::battle {
 
@@ -46,7 +48,7 @@ private:
 
 enum class LegacyBattleRetreatCommitCall : compat::u8 {
     query_selected_actor_ready,
-    query_primary_actor_state,
+    reserved_query_primary_actor_state_slot,
     reserved_display_warning_slot,
     play_warning_sample,
     text_message_allocate,
@@ -111,6 +113,7 @@ struct LegacyBattleRetreatCommitBindings {
     compat::u32& packed_actor_counter;
     LegacyBattleTextMessageState* text_messages{};
     compat::u32* text_message_head{};
+    std::span<const LegacyBattleGroupAActionExecutionState> group_a_actions{};
 };
 
 enum class LegacyBattleRetreatCommitBranch : compat::u8 {
@@ -121,6 +124,7 @@ enum class LegacyBattleRetreatCommitBranch : compat::u8 {
 
 enum class LegacyBattleRetreatCommitStatus : compat::u8 {
     completed,
+    primary_actor_typed_stop,
     text_message_typed_stop,
 };
 
@@ -132,7 +136,8 @@ struct LegacyBattleRetreatCommitResult {
         LegacyBattleRetreatCommitBranch::selected_actor_not_ready
     };
     LegacyBattleRetreatCommitCallReply selected_actor{};
-    LegacyBattleRetreatCommitCallReply primary_actor{};
+    LegacyBattleActorRetreatReadyResult primary_actor{};
+    compat::u32 primary_actor_calls{};
     LegacyBattleTextMessageResult warning_text{};
     LegacyBattleRetreatCommitCallReply warning_sample{};
     compat::u32 selected_object_token{};

@@ -428,10 +428,7 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         DispatchPort port;
         port.action = 3U;
         port.actor_metric_state().group_b_count = 0x12U;
-        port.retreat_commit_replies = {
-            {.eax = 1U},
-            {.eax = 1U, .ecx = 0x12345678U, .edx = 0x87654321U},
-        };
+        port.retreat_commit_replies = {{.eax = 1U, .edx = 0x87654321U}};
         port.battle_debug_hotkey_state().committed_actor_code = 9U;
         port.battle_debug_overlay_gate() = 9U;
         port.battle_message_state() = 9U;
@@ -461,8 +458,10 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 result.retreat_commit.branch ==
                     openswd3::battle::LegacyBattleRetreatCommitBranch::
                         committed &&
-                port.retreat_commit_calls.size() == 2U &&
+                result.retreat_commit.primary_actor_calls == 1U &&
+                port.retreat_commit_calls.size() == 1U &&
                 port.count(0x0045EA80U) == 0U &&
+                port.count(0x004728D0U) == 0U &&
                 state.packed_actor_counter == 0xAABBCC12U &&
                 port.retreat_commit_state().completion_gate_a == 1U &&
                 port.retreat_commit_state().completion_gate_b == 1U &&
