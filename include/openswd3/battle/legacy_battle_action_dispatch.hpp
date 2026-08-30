@@ -233,6 +233,10 @@ struct LegacyBattleActionThirteenResult {
     compat::u32 return_edx{};
 };
 
+using LegacyBattleActionFourteenRequest = LegacyBattleActionThirteenRequest;
+using LegacyBattleActionFourteenStatus = LegacyBattleActionThirteenStatus;
+using LegacyBattleActionFourteenResult = LegacyBattleActionThirteenResult;
+
 struct LegacyBattleTurnCommitChanceRequest {
     compat::u16 candidate{};
     compat::u32 entry_eax{};
@@ -467,6 +471,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     target_phase_start_typed_stop,
     target_phase_advance_typed_stop,
     action_thirteen_typed_stop,
+    action_fourteen_typed_stop,
     turn_commit_chance_typed_stop,
     turn_advance_typed_stop,
 };
@@ -523,6 +528,8 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 target_phase_advance_calls{};
     LegacyBattleActionThirteenResult action_thirteen{};
     compat::u32 action_thirteen_calls{};
+    LegacyBattleActionFourteenResult action_fourteen{};
+    compat::u32 action_fourteen_calls{};
     LegacyBattleTurnCommitChanceResult turn_commit_chance{};
     compat::u32 turn_commit_chance_calls{};
     LegacyBattleTurnAdvanceResult turn_advance{};
@@ -562,6 +569,17 @@ advance_legacy_battle_action_thirteen(
     LegacyBattleActionDispatchPort& port,
     LegacyBattleActionDispatchContext& context,
     const LegacyBattleActionThirteenRequest& request
+);
+
+// sub_471AD0.
+[[nodiscard]] LegacyBattleActionFourteenResult
+advance_legacy_battle_action_fourteen(
+    LegacyBattleTargetPhaseState* phase,
+    LegacyBattleGroupAActionExecutionState* actor,
+    LegacyBattleGroupAActionExecutionSharedState* shared,
+    LegacyBattleActionDispatchPort& port,
+    LegacyBattleActionDispatchContext& context,
+    const LegacyBattleActionFourteenRequest& request
 );
 
 // sub_4539B0: dispatch one action code for the selected group-A actor and

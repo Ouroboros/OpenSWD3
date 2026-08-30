@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <deque>
 #include <unordered_map>
 #include <vector>
@@ -1452,6 +1453,165 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 port.count(0x004783B0U) == 0U &&
                 port.count(0x004170E0U) == 1U,
             "action thirteen preserves the nonzero offset branch and renders the start point before the next raster frame"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleTargetPhaseState phase;
+        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+        openswd3::battle::LegacyBattleGroupAActionExecutionSharedState shared;
+        Fixture fixture;
+        DispatchPort port;
+        auto context = fixture.context();
+        const auto stopped =
+            openswd3::battle::advance_legacy_battle_action_fourteen(
+                &phase,
+                nullptr,
+                &shared,
+                port,
+                context,
+                {.actor_token = 0x005029D0U,
+                 .opponent_token = 0x00525508U,
+                 .entry_eax = 0x11U,
+                 .entry_ecx = 0x22U,
+                 .entry_edx = 0x33U}
+            );
+        fixture.frame_provider.available = false;
+        const auto missing =
+            openswd3::battle::advance_legacy_battle_action_fourteen(
+                &phase,
+                &actor,
+                &shared,
+                port,
+                context,
+                {.actor_token = 0x005029D0U,
+                 .opponent_token = 0x00525508U}
+            );
+        test.expect_true(
+            stopped.status ==
+                    openswd3::battle::LegacyBattleActionFourteenStatus::
+                        actor_state_typed_stop &&
+                stopped.return_eax == 0x11U && stopped.return_ecx == 0x22U &&
+                stopped.return_edx == 0x33U &&
+                missing.status ==
+                    openswd3::battle::LegacyBattleActionFourteenStatus::
+                        frame_owner_typed_stop &&
+                missing.action_update_calls == 1U &&
+                missing.frame_lookup_calls == 1U && missing.port_calls == 0U &&
+                phase.action_record.action_id == 0x186BU &&
+                phase.action_record.base_variant == 1U,
+            "action fourteen stops at the original actor and frame reads after preserving variant one"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleTargetPhaseState phase;
+        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+        openswd3::battle::LegacyBattleGroupAActionExecutionSharedState shared;
+        phase.runtime_gate = 1U;
+        Fixture fixture;
+        DispatchPort port;
+        auto context = fixture.context();
+        const auto completed =
+            openswd3::battle::advance_legacy_battle_action_fourteen(
+                &phase,
+                &actor,
+                &shared,
+                port,
+                context,
+                {.actor_token = 0x005029D0U,
+                 .opponent_token = 0x00525508U}
+            );
+        test.expect_true(
+            completed.status ==
+                    openswd3::battle::LegacyBattleActionFourteenStatus::
+                        completed &&
+                completed.return_eax == 1U &&
+                completed.coordinate_query_calls == 2U &&
+                completed.line_raster_calls == 1U &&
+                completed.sample_calls == 1U && completed.render_calls == 1U &&
+                completed.port_calls == 4U && phase.runtime_gate == 0U &&
+                phase.action_record.action_id == 0U &&
+                phase.block_0df4[0U] == 0U &&
+                actor.turn_frame_token == 0x00504F1CU &&
+                shared.turn_frame_source_token == actor.turn_frame_token &&
+                port.count(0x004321E0U) == 0U &&
+                port.count(0x004315D0U) == 0U &&
+                port.count(0x00434350U) == 0U &&
+                port.count(0x00471AD0U) == 0U,
+            "action fourteen directly completes the reverse first raster step and clears both physical owners"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleTargetPhaseState phase;
+        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+        openswd3::battle::LegacyBattleGroupAActionExecutionSharedState shared;
+        actor.position_x = 100U;
+        actor.position_y = 80U;
+        actor.render_x_base = 5U;
+        actor.render_y_base = 6U;
+        actor.source_y_offset = 2U;
+        Fixture fixture;
+        DispatchPort port;
+        port.push(0x00478400U, {.outputs = {2U, 3U}});
+        port.push(0x00478470U, {.outputs = {10U, 20U}});
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_action_fourteen(
+                &phase,
+                &actor,
+                &shared,
+                port,
+                context,
+                {.actor_token = 0x005029D0U,
+                 .opponent_token = 0x00525508U}
+            );
+        const auto raster = std::bit_cast<
+            openswd3::battle::LegacyBattleLineRaster>(phase.block_0df4);
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleActionFourteenStatus::
+                        completed &&
+                result.return_eax == 0U &&
+                result.coordinate_query_calls == 2U &&
+                result.line_raster_calls == 0U &&
+                phase.runtime_gate == 1U && raster.start_x == 12 &&
+                raster.start_y == 23 && raster.end_x == 103 &&
+                raster.end_y == 86 && port.count(0x00478400U) == 1U &&
+                port.count(0x00478470U) == 1U &&
+                port.count(0x004783B0U) == 0U &&
+                port.count(0x004170E0U) == 1U,
+            "action fourteen preserves the nonzero offset branch and reverses the raster from target to actor"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        state.group_a_count = 1;
+        state.group_b_count = 1;
+        state.group_a_target_phases[0U].runtime_gate = 1U;
+        Fixture fixture;
+        DispatchPort port;
+        port.action = 14U;
+        auto context = fixture.context();
+        const auto result = openswd3::battle::dispatch_legacy_battle_action(
+            state, port, context, 0U, 0U
+        );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.action_fourteen_calls == 1U &&
+                result.action_fourteen.return_eax == 1U &&
+                port.count(0x00471AD0U) == 0U && result.return_value == 1U &&
+                state.frame_effect.primary_suppression == 0U &&
+                state.frame_effect.red_factor == 0 &&
+                state.frame_effect.green_factor == 0 &&
+                state.frame_effect.blue_factor == 0 &&
+                state.frame_effect.fade_active == 1U &&
+                static_cast<u16>(state.phase_counter) == 0U &&
+                port.battle_message_state() == 0x62U &&
+                state.current_actor_index == 0xFFFFU,
+            "action fourteen production caller completes the typed reverse frame before publishing message ninety eight"
         );
     }
 
