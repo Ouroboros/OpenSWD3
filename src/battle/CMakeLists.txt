@@ -20,6 +20,7 @@ add_library(
         legacy_battle_attack_order_remove.cpp
         legacy_battle_actor_retreat_ready.cpp
         legacy_battle_retreat_commit.cpp
+        legacy_battle_reward_scale.cpp
         legacy_battle_actor_frame_sequence.cpp
         legacy_battle_animation_collision.cpp
         legacy_battle_actor_lifecycle.cpp

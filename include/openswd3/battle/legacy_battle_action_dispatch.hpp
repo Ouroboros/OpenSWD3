@@ -3,6 +3,7 @@
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
 #include "openswd3/asset_runtime/legacy_frame_deformation.hpp"
 #include "openswd3/battle/legacy_battle_retreat_commit.hpp"
+#include "openswd3/battle/legacy_battle_reward_scale.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_render_geometry.hpp"
 #include "openswd3/battle/legacy_battle_particle_frame.hpp"
@@ -577,6 +578,7 @@ struct LegacyBattleActionDispatchState {
     std::array<LegacyBattleOpponentRecord, 8> opponent_records{};
     std::array<LegacyBattleActionMessageProfile, 8>
         group_b_message_profiles{};
+    std::array<LegacyBattleRewardScaleActorState, 8> group_b_reward_scale{};
     LegacyBattleImageParticleNodePool target_phase_particle_nodes;
     LegacyBattleImageParticleSharedState target_phase_particle_shared;
     LegacyBattleImageParticleDiagnostics target_phase_particle_diagnostics;

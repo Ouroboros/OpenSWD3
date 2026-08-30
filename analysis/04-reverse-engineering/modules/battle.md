@@ -651,6 +651,8 @@ I5最终必须锁定：
 
 `audit_order=220`的`0x004728E0`已关闭为`platform_adapted`。完整权威LST主体`0x004728E0..0x00472C60`共379行、244条实际指令、13个call、13个跳转、10个局部标签、2个返回点且无外部chunk。实现variant 48主记录、frame与镜像、目标坐标、陈旧sample高半、方向声像、三层绘制、signed效果上夹值、32位pair-primary累计、完成门、第二记录阶段及双记录清零。新增唯一第二记录、完成门、运动模式和最后效果值owner，复用既有pair-primary owner；已关闭caller旧整函数调用。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`220/422 = 211 platform_adapted + 9 assembly_exact + 202 pending_audit`，双跑SHA256为`34f686fa2e25bca2074d491a38e22e61c23d1e5265c57633bdb9b7ff6a9145e2`。动态差分因原版行动者/目标、双记录、frame、坐标、音频、绘制、效果callee与caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=221`的`0x00472C70`战斗角色动作效果与渲染函数。
+`audit_order=221`的`0x00472C70`已关闭为`platform_adapted`。完整权威LST主体`0x00472C70..0x00472CD0`共48行、30条实际指令、2个call、1个跳转、1个局部标签、2个返回点且无外部chunk。实现group-B行动者status bit4门、两次固定callee、percent word破坏性减半，以及32位回绕乘积按signed除100向零截断再加一。新增八槽group-B reward-scale唯一owner，并通过frame coordinator现有action-dispatch引用借用；effect coordinator四处caller全部typed化。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`221/422 = 212 platform_adapted + 9 assembly_exact + 201 pending_audit`，双跑SHA256为`73fbce77d3a4b1d8548cf973447e0c9805888e04bf4c3c7bc9e17bc7395e21a3`。动态差分因原版group-B行动者、值槽、两个callee与四处caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=222`的`0x00472CE0`战斗角色动作效果与渲染函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

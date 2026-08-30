@@ -2,10 +2,12 @@
 
 #include "openswd3/battle/legacy_battle_group_a_effect_reward_application.hpp"
 #include "openswd3/battle/legacy_battle_group_effect_frame.hpp"
+#include "openswd3/battle/legacy_battle_reward_scale.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 #include "openswd3/rendering/legacy_framebuffer.hpp"
 
 #include <array>
+#include <span>
 
 namespace openswd3::battle {
 
@@ -95,6 +97,7 @@ enum class LegacyBattleEffectCoordinatorStatus : compat::u8 {
     group_effect_frame_typed_stop,
     framebuffer_typed_stop,
     group_a_effect_reward_typed_stop,
+    reward_scale_typed_stop,
 };
 
 struct LegacyBattleEffectCoordinatorResult {
@@ -108,6 +111,8 @@ struct LegacyBattleEffectCoordinatorResult {
     compat::u32 effect_frame_calls{};
     compat::u32 group_effect_frame_calls{};
     compat::u32 group_a_effect_reward_calls{};
+    LegacyBattleRewardScaleResult reward_scale{};
+    compat::u32 reward_scale_calls{};
     compat::u32 feedback_calls{};
     compat::u32 framebuffer_fill_calls{};
     compat::u32 group_a_iterations{};
@@ -123,6 +128,7 @@ struct LegacyBattleEffectCoordinatorResult {
 [[nodiscard]] LegacyBattleEffectCoordinatorResult
 advance_legacy_battle_effect_coordinator(
     LegacyBattleEffectCoordinatorState& state,
+    std::span<LegacyBattleRewardScaleActorState> group_b_reward_scale,
     LegacyBattleStartupState& startup,
     LegacyBattleEffectCallPort& port,
     rendering::LegacyFramebuffer& framebuffer,

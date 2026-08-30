@@ -16,7 +16,6 @@ constexpr u32 kCallQueryActor = 0x004786E0U;
 constexpr u32 kCallActorStatus = 0x0047CE80U;
 constexpr u32 kCallFeedback = 0x0047F150U;
 constexpr u32 kCallQueryFinalActor = 0x0047F920U;
-constexpr u32 kCallQueryReward = 0x00472C70U;
 constexpr u32 kCallPublishRewardId = 0x004787D0U;
 constexpr u32 kCallPublishRewardValue = 0x0047D640U;
 constexpr u32 kCallPublishRewardMode = 0x0047CEC0U;
@@ -51,11 +50,13 @@ class Runner final {
 public:
     Runner(
         LegacyBattleEffectCoordinatorState& state,
+        std::span<LegacyBattleRewardScaleActorState> group_b_reward_scale,
         LegacyBattleStartupState& startup,
         LegacyBattleEffectCallPort& port,
         rendering::LegacyFramebuffer& framebuffer
     )
-        : state_(state), startup_(startup), port_(port),
+        : state_(state), group_b_reward_scale_(group_b_reward_scale),
+          startup_(startup), port_(port),
           framebuffer_(framebuffer), metrics_(port.actor_metric_state()),
           publications_(port.actor_publication_state()),
           shift_(port.effect_shift_state()) {}
@@ -261,12 +262,33 @@ public:
             .eax;
     }
 
-    void publish_reward(
-        const u32 actor_token, const u32 value_token, const u32 value
+    [[nodiscard]] bool publish_reward(
+        const u32 actor_index,
+        const u32 actor_token,
+        const u32 value_token,
+        u32& value
     ) {
-        if (invoke(kCallQueryReward, {value_token}, 0U, actor_token, 0U).eax ==
-                1U &&
-            value > 0U) {
+        auto* actor = actor_index < group_b_reward_scale_.size()
+            ? &group_b_reward_scale_[actor_index]
+            : nullptr;
+        result.reward_scale = scale_legacy_battle_reward(
+            actor,
+            &value,
+            port_,
+            {
+                .actor_token = actor_token,
+                .entry_ecx = actor_token,
+            }
+        );
+        ++result.reward_scale_calls;
+        result.port_calls += result.reward_scale.port_calls;
+        if (result.reward_scale.status !=
+            LegacyBattleRewardScaleStatus::completed) {
+            result.status =
+                LegacyBattleEffectCoordinatorStatus::reward_scale_typed_stop;
+            return false;
+        }
+        if (result.reward_scale.return_eax == 1U && signed_dword(value) > 0) {
             static_cast<void>(invoke(
                 kCallPublishRewardId, {kLegacyBattleEffectCoordinatorRewardId}
             ));
@@ -274,6 +296,8 @@ public:
             static_cast<void>(invoke(kCallPublishRewardMode, {1U}));
             static_cast<void>(feedback(0U, value, 0U));
         }
+        static_cast<void>(value_token);
+        return true;
     }
 
     [[nodiscard]] bool fill_framebuffer() {
@@ -342,6 +366,7 @@ public:
     }
 
     LegacyBattleEffectCoordinatorState& state_;
+    std::span<LegacyBattleRewardScaleActorState> group_b_reward_scale_;
     LegacyBattleStartupState& startup_;
     LegacyBattleEffectCallPort& port_;
     rendering::LegacyFramebuffer& framebuffer_;
@@ -362,13 +387,14 @@ LegacyBattleEffectCoordinatorState::LegacyBattleEffectCoordinatorState() {
 
 LegacyBattleEffectCoordinatorResult advance_legacy_battle_effect_coordinator(
     LegacyBattleEffectCoordinatorState& state,
+    std::span<LegacyBattleRewardScaleActorState> group_b_reward_scale,
     LegacyBattleStartupState& startup,
     LegacyBattleEffectCallPort& port,
     rendering::LegacyFramebuffer& framebuffer,
     const u32 ui_state,
     const u32 focus_actor
 ) {
-    Runner run(state, startup, port, framebuffer);
+    Runner run(state, group_b_reward_scale, startup, port, framebuffer);
     auto& result = run.result;
     auto& metrics = port.actor_metric_state();
     auto& shift = port.effect_shift_state();
@@ -808,9 +834,14 @@ LegacyBattleEffectCoordinatorResult advance_legacy_battle_effect_coordinator(
         }
         if (child_return != 1U) {
             if (group_effect_mode) {
-                run.publish_reward(
-                    current_token, 0x0052441CU, run.pair_primary_value()
-                );
+                if (!run.publish_reward(
+                        current_index,
+                        current_token,
+                        0x0052441CU,
+                        run.pair_primary_value()
+                    )) {
+                    return result;
+                }
             }
             result.return_value = 0U;
             return result;
@@ -878,9 +909,14 @@ LegacyBattleEffectCoordinatorResult advance_legacy_battle_effect_coordinator(
             state.focus_release_latch = 0U;
         }
         if (!group_effect_mode && !target_group_b) {
-            run.publish_reward(
-                current_token, 0x005242B0U, state.feedback_primary[0]
-            );
+            if (!run.publish_reward(
+                    current_index,
+                    current_token,
+                    0x005242B0U,
+                    state.feedback_primary[0]
+                )) {
+                return result;
+            }
         }
 
         run.clear_feedback();
@@ -953,11 +989,14 @@ LegacyBattleEffectCoordinatorResult advance_legacy_battle_effect_coordinator(
                         return result;
                     }
                 }
-                run.publish_reward(
-                    current_token,
-                    0x005242B0U + index * 4U,
-                    state.feedback_primary[index]
-                );
+                if (!run.publish_reward(
+                        current_index,
+                        current_token,
+                        0x005242B0U + index * 4U,
+                        state.feedback_primary[index]
+                    )) {
+                    return result;
+                }
                 run.clear_feedback();
                 state.feedback_primary[index] = 0U;
                 ++state.completed_count;
@@ -1061,11 +1100,14 @@ LegacyBattleEffectCoordinatorResult advance_legacy_battle_effect_coordinator(
                     }
                 }
                 if (!scan_group_b) {
-                    run.publish_reward(
-                        current_token,
-                        0x005242B0U + index * 4U,
-                        state.feedback_primary[index]
-                    );
+                    if (!run.publish_reward(
+                            current_index,
+                            current_token,
+                            0x005242B0U + index * 4U,
+                            state.feedback_primary[index]
+                        )) {
+                        return result;
+                    }
                 }
                 run.clear_feedback();
                 state.feedback_primary[index] = 0U;
