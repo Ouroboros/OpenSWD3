@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v824
+版本：v825
 
 最后更新：2026-08-30
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗组B角色元素析构函数 `0x00475590`
+当前步骤：模块10 · 审计战斗组B行动进度更新函数 `0x004755E0`
 
 ## 0. 执行约定
 
@@ -4266,4 +4266,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=236`的`0x00475560`战斗组B角色元素构造函数。完整权威LST主体`0x00475560..0x00475588`共22行、16条实际指令、2个call、0个跳转、0个局部标签、1个返回点且无外部chunk。实现公共基础构造、固定164-byte分配、对象`+0x0C`资源token发布、41-dword清零及完整this/ECX/EDX返回；零分配在首次`rep stosd`访问点typed-stop，保留基础构造、零token和旧资源bytes，并锁定`EAX=0,ECX=0x29`及分配callee EDX。同轮修正同型组A构造零分配停止点ECX为14。复用actor lifecycle唯一owner；基础构造和分配器保留窄port，vector包装器因组B析构callback与MSVC EH未闭合而继续保留compiler边界。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`236/422 = 227 platform_adapted + 9 assembly_exact + 186 pending_audit`；生成器连续双跑逐字节一致，SHA256为`38cde44f651ea255393e834a4b12464cce5ef378adb2adf12b71fdcfbe66f587`。动态差分因原版八个组B完整对象、公共基础构造、真实分配、全局数组、析构回滚与MSVC向量EH联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=237`的`0x00475590`战斗组B角色元素析构函数。
+本轮再完成`audit_order=237`的`0x00475590`战斗组B角色元素析构函数。完整权威LST主块`0x00475590..0x004755D8`与外部chunk`0x004983B0..0x004983BD`合计55行、23条实际指令、2个call、2个跳转、2个局部标签和1个返回点。实现组B扩展析构→公共基础析构固定顺序、扩展异常时基础析构一次后传播、基础析构异常不重复调用，以及终端基础EAX/EDX与旧SEH链ECX恢复。复用组B元素构造的对象/resource唯一owner；两个未审callee保留窄port，构造/析构callback均关闭后vector包装器仅隔离MSVC八对象迭代与EH。同轮修正同型组A析构总行数和终端ECX来源。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`237/422 = 228 platform_adapted + 9 assembly_exact + 185 pending_audit`；生成器连续双跑逐字节一致，SHA256为`9978196e63aeaace2847623687cf8ded358ac19e17e608c839000c085226e825`。动态差分因原版八个组B完整对象、真实扩展/基础资源、两个callee、MSVC SEH链与向量EH联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=238`的`0x004755E0`战斗组B行动进度更新函数。

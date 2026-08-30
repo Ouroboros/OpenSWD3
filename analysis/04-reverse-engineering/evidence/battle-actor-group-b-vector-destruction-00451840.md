@@ -21,7 +21,7 @@ callee参数顺序为`base,size,count,destructor`。typed destruction request与
 
 调用后无`add esp`，compiler helper清理四个参数；包装器直接`retn`。typed结果保留callee完整EAX，测试以`0x13572468`锁定，不因函数注释为void而归零。
 
-编译器逆序析构、异常展开与组B元素析构回调仍为后续工作包；本项只关闭固定包装参数并以vector destruction port隔离该边界。
+组B元素析构callback`0x00475590`现已由typed helper关闭，并覆盖扩展→基础顺序、扩展异常时基础清理和旧SEH链ECX恢复。编译器helper自身的八对象逆序析构与异常展开仍由vector destruction port隔离。
 
 ## 4. 退出注册目标闭合
 
@@ -56,4 +56,4 @@ C++到LST反向追溯覆盖17行完整函数、四个参数、callee与返回寄
 
 battle聚合目标零warning构建及定向测试通过。
 
-当前没有原版编译器向量析构迭代器、组B元素析构回调、全局数组字节与异常展开联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整17行LST已完成固定参数闭环。
+当前没有原版编译器向量析构迭代器、八个完整全局对象字节与异常展开联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。元素析构callback已typed关闭；完整17行包装器LST已完成固定参数闭环。

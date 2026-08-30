@@ -4,9 +4,9 @@
 
 ## 1. 完整权威范围与SEH
 
-主块为`0x0046E4D0..0x0046E518`，外部`FUNCTION CHUNK`为`0x00498390..0x0049839D`；两部分合计62行、23条实际指令、2个call、2个跳转和1个返回点。chunk属于本析构函数，不能归入物理相邻函数。
+主块为`0x0046E4D0..0x0046E518`，外部`FUNCTION CHUNK`为`0x00498390..0x0049839D`；主块39行加chunk与分隔共55行、23条实际指令、2个call、2个跳转、2个局部标签和1个返回点。chunk属于本析构函数，不能归入物理相邻函数。
 
-函数是thiscall。入口建立MSVC SEH链并把unwind状态置0，随后调用扩展清理`0x00475180`；正常返回后把unwind状态置`-1`，再以同一this调用基础析构`0x00478300`。正常返回寄存器来自基础析构，函数仅恢复SEH与保存寄存器。
+函数是thiscall。入口建立MSVC SEH链并把unwind状态置0，随后调用扩展清理`0x00475180`；正常返回后把unwind状态置`-1`，再以同一this调用基础析构`0x00478300`。基础析构后EAX/EDX保持其返回，ECX则被保存的旧SEH链token覆盖；函数随后恢复`FS:[0]`与保存寄存器。
 
 若扩展清理在状态0抛出，外部chunk从保存局部重载this并尾跳基础析构，随后由SEH描述符继续异常展开。基础析构因此在正常和扩展异常两条路径都执行一次；函数不吞掉原异常。
 
@@ -14,7 +14,7 @@
 
 `release_legacy_battle_actor_group_a_element`复用构造工作包的唯一元素状态。扩展清理`0x00475180`已改为typed直连：按顺序处理行动者`+0x2BC4` secondary token和`+0` primary/description token，每个非零token仅通过待审`0x004885A0`窄释放端口，callee成功后才清字段。primary成功释放后同步清除已失效的56-byte宿主description内容。基础析构`0x00478300`仍保留窄typed端口。
 
-正常路径严格执行双资源清理→基础析构，并返回基础析构EAX/ECX/EDX。任一资源释放端口抛出时，当前token保持，先前已完成的token清零仍保留；catch路径随后调用基础析构并原样`throw`，对应SEH chunk。资源typed-stop同样先执行一次基础析构，再以typed状态阻止正常外层流程；异常路径不伪造正常结果，也不提前处理后续token。
+正常路径严格执行双资源清理→基础析构，并返回基础析构EAX/EDX与`LegacyBattleActorElementDestructionRequest`显式提供的旧SEH链ECX。任一资源释放端口抛出时，当前token保持，先前已完成的token清零仍保留；catch路径随后调用基础析构并原样`throw`，对应SEH chunk。资源typed-stop同样先执行一次基础析构，再以typed状态阻止正常外层流程，并恢复旧SEH链ECX；异常路径不伪造正常结果，也不提前处理后续token。
 
 ## 3. vector caller边界
 
@@ -22,6 +22,6 @@
 
 ## 4. 验证状态
 
-正常测试验证typed资源清理先于基础析构、primary token与宿主description内容失效、固定allocator token/offset以及基础EAX/ECX/EDX原样返回。异常测试令资源释放端口抛出，验证事件顺序仍为资源清理→基础析构，当前token保持，并在基础析构后把同一异常传播给caller。定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过，源码零warning。
+正常测试验证typed资源清理先于基础析构、primary token与宿主description内容失效、固定allocator token/offset、基础EAX/EDX保留和旧SEH链ECX恢复。异常测试令资源释放端口抛出，验证事件顺序仍为资源清理→基础析构，当前token保持，并在基础析构后把同一异常传播给caller。定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过，源码零warning。
 
 原版`0x004885A0`allocator副作用、基础析构内部状态、全局对象字节、MSVC SEH和vector迭代器缺少联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。当前双资源清理的正式inventory与验证见[`battle-group-a-resource-cleanup-00475180.md`](battle-group-a-resource-cleanup-00475180.md)。

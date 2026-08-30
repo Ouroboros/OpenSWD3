@@ -84,6 +84,10 @@ struct LegacyBattleActorGroupAElementCallReply {
     compat::u32 edx{};
 };
 
+struct LegacyBattleActorElementDestructionRequest {
+    compat::u32 seh_chain_token{};
+};
+
 class LegacyBattleActorGroupAElementConstructionPort {
 public:
     virtual ~LegacyBattleActorGroupAElementConstructionPort() = default;
@@ -125,6 +129,16 @@ public:
     allocate(compat::u32 size) = 0;
 };
 
+class LegacyBattleActorGroupBElementDestructionPort {
+public:
+    virtual ~LegacyBattleActorGroupBElementDestructionPort() = default;
+
+    virtual void
+    release_extension(LegacyBattleActorGroupBElementState& state) = 0;
+    [[nodiscard]] virtual LegacyBattleActorGroupBElementCallReply
+    destroy_base(LegacyBattleActorGroupBElementState& state) = 0;
+};
+
 class LegacyBattleActorObjectLifecyclePort {
 public:
     virtual ~LegacyBattleActorObjectLifecyclePort() = default;
@@ -164,6 +178,14 @@ struct LegacyBattleActorGroupBElementConstructionResult {
     compat::u32 base_constructor_calls{};
     compat::u32 allocation_calls{};
     compat::u32 resource_bytes_written{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
+struct LegacyBattleActorGroupBElementDestructionResult {
+    compat::u32 extension_destructor_calls{};
+    compat::u32 base_destructor_calls{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
@@ -251,11 +273,20 @@ construct_legacy_battle_actor_group_b_element(
     LegacyBattleActorGroupBElementConstructionPort& port
 );
 
+// sub_475590 with its SEH unwind chunk at loc_4983B0.
+[[nodiscard]] LegacyBattleActorGroupBElementDestructionResult
+release_legacy_battle_actor_group_b_element(
+    LegacyBattleActorGroupBElementState& state,
+    LegacyBattleActorGroupBElementDestructionPort& port,
+    LegacyBattleActorElementDestructionRequest request = {}
+);
+
 // sub_46E4D0 with its SEH unwind chunk at loc_498390.
 [[nodiscard]] LegacyBattleActorGroupAElementDestructionResult
 release_legacy_battle_actor_group_a_element(
     LegacyBattleActorGroupAElementState& state,
-    LegacyBattleActorGroupAElementDestructionPort& port
+    LegacyBattleActorGroupAElementDestructionPort& port,
+    LegacyBattleActorElementDestructionRequest request = {}
 );
 
 // sub_451870: load the singleton token and tail-call its constructor.

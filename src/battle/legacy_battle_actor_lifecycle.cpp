@@ -64,10 +64,34 @@ construct_legacy_battle_actor_group_b_element(
     return result;
 }
 
+LegacyBattleActorGroupBElementDestructionResult
+release_legacy_battle_actor_group_b_element(
+    LegacyBattleActorGroupBElementState& state,
+    LegacyBattleActorGroupBElementDestructionPort& port,
+    const LegacyBattleActorElementDestructionRequest request
+) {
+    LegacyBattleActorGroupBElementDestructionResult result;
+    try {
+        port.release_extension(state);
+        ++result.extension_destructor_calls;
+    } catch (...) {
+        static_cast<void>(port.destroy_base(state));
+        throw;
+    }
+
+    const auto base = port.destroy_base(state);
+    ++result.base_destructor_calls;
+    result.return_eax = base.eax;
+    result.return_ecx = request.seh_chain_token;
+    result.return_edx = base.edx;
+    return result;
+}
+
 LegacyBattleActorGroupAElementDestructionResult
 release_legacy_battle_actor_group_a_element(
     LegacyBattleActorGroupAElementState& state,
-    LegacyBattleActorGroupAElementDestructionPort& port
+    LegacyBattleActorGroupAElementDestructionPort& port,
+    const LegacyBattleActorElementDestructionRequest request
 ) {
     LegacyBattleActorGroupAElementDestructionResult result;
     try {
@@ -91,7 +115,7 @@ release_legacy_battle_actor_group_a_element(
         const auto base = port.destroy_base(state);
         ++result.base_destructor_calls;
         result.return_eax = base.eax;
-        result.return_ecx = base.ecx;
+        result.return_ecx = request.seh_chain_token;
         result.return_edx = base.edx;
         return result;
     }
@@ -102,7 +126,7 @@ release_legacy_battle_actor_group_a_element(
     const auto base = port.destroy_base(state);
     ++result.base_destructor_calls;
     result.return_eax = base.eax;
-    result.return_ecx = base.ecx;
+    result.return_ecx = request.seh_chain_token;
     result.return_edx = base.edx;
     return result;
 }

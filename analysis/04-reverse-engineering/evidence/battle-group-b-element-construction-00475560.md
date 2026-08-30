@@ -34,7 +34,7 @@
 
 `0x00451810`仍按`base=0x00525508,size=0x2B28,count=8,constructor=0x00475560,destructor=0x00475590`调用MSVC向量构造迭代器。
 
-本项只关闭构造callback。相邻析构callback`0x00475590`和编译器helper的异常回滚语义仍未审计，因此vector包装器继续保留单一窄construction port，不提前实现不完整的主机循环或伪造EH行为。构造callback token继续作为编译器ABI数据存在，不代表执行原地址。
+构造callback与后续析构callback`0x00475590`现均已typed关闭。编译器helper的八对象前向构造、失败逆向回滚与异常传播仍未审计，因此vector包装器继续保留单一窄construction port，不提前实现不完整的主机循环或伪造EH行为。callback token继续作为编译器ABI数据存在，不代表执行原地址。
 
 ## 5. 双向追溯
 
