@@ -697,6 +697,8 @@ I5最终必须锁定：
 
 `audit_order=243`的`0x00476080`已关闭为`platform_adapted`。完整权威LST主体`0x00476080..0x00476138`共102行、73条实际指令、1个call、14个跳转、5个局部标签、3个返回点且无外部chunk。实现bound 10随机低word两类映射、资源signed阈值与`field_4c/3`比较、完整timing override、两组资源门、actor高byte bit门、可见性门及模式1/2发布；保留超域随机完整值、signed向零除法、相等拒绝、原mode不清理和真实资源访问点typed-stop。随机直连已审secondary RNG owner，timing、资源、flags与输出字节收敛到组B actor lifecycle唯一owner。组Bframe唯一caller删除整函数opaque调用，返回1发布side/self-target，返回0保留组A目标，typed-stop阻断选择完成后缀。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`243/422 = 234 platform_adapted + 9 assembly_exact + 179 pending_audit`，双跑SHA256为`dce5ffe3646bc8cfcbc89c98cf946df9d3345eb9e36d3b8a3ea1ed03bb32f372`。动态差分因原版组B actor、动态资源、secondary RNG游标与caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=244`的`0x00476140`组B行动资料标记判定。
+`audit_order=244`的`0x00476140`已关闭为`platform_adapted`。完整权威LST主体`0x00476140..0x0047615E`共17行、8条实际指令、0个call、1个跳转、1个局部标签、2个返回点且无外部chunk。实现profile `+0x08` dword bit28优先、未置位时profile `+0x04` dword bit12 fallback，以及正常EAX 0/1、ECX actor token与EDX陈旧保持；actor映射缺失只在首个`+0x0D98`访问点typed-stop。两个dword复用组B行动配置40-byte profile唯一owner，不新增平行字段。组Bframe唯一caller删除整函数opaque调用，显式线程status-sequence、特殊行动、文字token或文字callee后的陈旧EAX/EDX；返回1发布side/自身索引，typed-stop保留此前状态、latch、文字与actor索引副作用并阻断phase后缀。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`244/422 = 235 platform_adapted + 9 assembly_exact + 178 pending_audit`，双跑SHA256为`d83e15d36d75d20d8e0f2c64e897df347e511b7a820fd48baac6a1863fd4dc6e`。动态差分因原版八个组B actor、动态profile、状态序列/特殊行动/文字callee及caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=245`的`0x00476160`组B行动对象资料组合。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

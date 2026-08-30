@@ -78,6 +78,7 @@ add_library(
         legacy_battle_group_a_target_cycle.cpp
         legacy_battle_group_b_action_configuration.cpp
         legacy_battle_group_b_action_execution.cpp
+        legacy_battle_group_b_action_profile_flag.cpp
         legacy_battle_group_b_action_reconfiguration.cpp
         legacy_battle_group_b_coordinate_offsets.cpp
         legacy_battle_group_b_frame.cpp

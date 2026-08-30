@@ -216,6 +216,17 @@ void write_group_b_resource_dword(
     resource[offset + 3U] = static_cast<u8>(value >> 24U);
 }
 
+void write_group_b_profile_dword(
+    std::array<std::byte, 0x28>& profile,
+    const std::size_t offset,
+    const u32 value
+) {
+    profile[offset] = static_cast<std::byte>(value);
+    profile[offset + 1U] = static_cast<std::byte>(value >> 8U);
+    profile[offset + 2U] = static_cast<std::byte>(value >> 16U);
+    profile[offset + 3U] = static_cast<std::byte>(value >> 24U);
+}
+
 void bind_group_b_coordinate_resource(
     Fixture& fixture, const u32 actor_index, const u16 x = 0U, const u16 y = 0U
 ) {
@@ -541,6 +552,98 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 fixture.random.bounds == std::vector<u32>{10U} &&
                 port.count(0x00476080U) == 0U,
             "opponent mode resource stop preserves random and blocks selection suffix"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState state;
+        state.frame_enabled = 1U;
+        state.post_update_gate[0U] = 1U;
+        state.shared.action.active_effect_target = 0U;
+        state.selection_initialized = 1U;
+        state.action_profile_bytes = {0U};
+        Fixture fixture;
+        bind_group_b_coordinate_resource(fixture, 0U);
+        auto& actor = (*fixture.startup->group_b_lifecycle)[0U];
+        write_group_b_profile_dword(
+            actor.action_configuration.profile_buffer,
+            0x08U,
+            0x10000000U
+        );
+        DispatchPort port;
+        port.push(0x00480220U, {.eax = 0x89ABCDEFU, .edx = 0x55667788U});
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.group_b_action_profile_flag_calls == 1U &&
+                state.shared.action_side == 1U &&
+                state.random_target_index == 0U &&
+                port.count(0x00476140U) == 0U,
+            "normal status directly applies the typed group B profile flag"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState state;
+        state.frame_enabled = 1U;
+        state.post_update_gate[0U] = 1U;
+        state.shared.action.active_effect_target = 0U;
+        state.selection_initialized = 1U;
+        state.action_profile_bytes = {0U};
+        state.shared.action.current_actor_index = 0x1234U;
+        Fixture fixture;
+        DispatchPort port;
+        port.push(0x00480220U, {.eax = 0xA1B2C3D4U, .edx = 0x55667788U});
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::
+                    group_b_action_profile_flag_typed_stop &&
+                result.return_value == 0xA1B2C3D4U &&
+                result.group_b_action_profile_flag_calls == 1U &&
+                state.shared.action.current_actor_index == 0x1234U &&
+                state.shared.action_side == 0U &&
+                state.selection_initialized == 1U &&
+                port.count(0x00476140U) == 0U &&
+                port.count(0x0047D8D0U) == 0U,
+            "profile flag actor stop preserves sequence EAX and blocks the suffix"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState state;
+        state.frame_enabled = 1U;
+        state.post_update_gate[0U] = 1U;
+        state.shared.action.active_effect_target = 0U;
+        state.selection_initialized = 1U;
+        state.action_profile_bytes = {0U};
+        state.status_misc = 9U;
+        state.shared.action.current_actor_index = 0x1234U;
+        Fixture fixture;
+        DispatchPort port;
+        port.push(0x00480220U, {.eax = 1U});
+        port.push(0x0047D880U, {.eax = 1U, .edx = 0x55667788U});
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::
+                    group_b_action_profile_flag_typed_stop &&
+                result.return_value == state.opponent_text_token_base &&
+                state.shared.action.current_actor_index == 0U &&
+                state.status_misc == 0U && state.special_action_latch == 1U &&
+                state.shared.action_side == 0U &&
+                port.count(0x00476140U) == 0U,
+            "profile flag stop preserves status prefix and the stale text token EAX"
         );
     }
 

@@ -1279,6 +1279,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     group_b_action_configuration_typed_stop,
     group_b_action_execution_typed_stop,
     group_b_opponent_mode_typed_stop,
+    group_b_action_profile_flag_typed_stop,
 };
 
 struct LegacyBattleActionDispatchResult {
@@ -1377,6 +1378,7 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 turn_advance_calls{};
     compat::u32 group_b_action_execution_calls{};
     compat::u32 group_b_opponent_mode_calls{};
+    compat::u32 group_b_action_profile_flag_calls{};
 };
 
 // sub_4731A0.

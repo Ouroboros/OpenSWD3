@@ -66,9 +66,9 @@ phase mode为0且selection initialized为0时查询selection mode。
 
 - selection mode非0，且`group_b_count-processed低byte==1`：在组A计数域随机，跳过两个AI dword任一等于1或terminal对象；
 - selection mode非0，且剩余不等于1：在组B计数域随机，跳过terminal和当前组B对象，成功后side写1；
-- selection mode为0：在组A计数域随机并跳过两个AI dword和terminal；随后opponent mode完整EAX等于1时side写1、随机索引改为当前组B索引。
+- selection mode为0：在组A计数域随机并跳过两个AI dword和terminal；随后直接组合已关闭`0x00476080`，按组B profile/resource与bound 10 secondary RNG判定，完整EAX等于1时side写1、随机索引改为当前组B索引。
 
-三类随机重试都无modern上限。随机callee返回超约定索引时，只在首次AI数组或对象terminal访问点typed-stop。初始化尾固定把selection initialized写1。
+三类随机重试都无modern上限。随机callee返回超约定索引时，只在首次AI数组或对象terminal访问点typed-stop。`0x00476080`的actor/resource typed-stop发生在随机消费后，保留此前组A目标选择并阻断side、自身索引与初始化尾。初始化正常尾固定把selection initialized写1。
 
 ## 5. packed status与陈旧EDX
 
@@ -98,7 +98,7 @@ status按i16为负或bit`0x6000`任一置位时进入特殊分支：
 
 side为1时把随机索引解释为组B；side为0时解释为组A。两条路径若当前目标terminal，则递增共享索引：组B路径允许推进到8并在首次one-past对象查询typed-stop；组A路径以`>8`退出递增，可在公共查询访问有效索引9。最终非terminal时发布索引，组A路径另prepare target。
 
-普通status路径先查询固定status-sequence token；成功后写current actor、清status misc、查询special action并可显示文本。独立`0x00476140`边界等于1时side写1且随机索引改为当前组B。最后查询phase mode；未进入phase时按side查询组B或组A目标，非terminal则发布索引，组A另prepare target。
+普通status路径先查询固定status-sequence token；成功后写current actor、清status misc、查询special action并可显示文本。随后直接组合已关闭`0x00476140`，读取组B profile `+0x08` dword bit28；未置位时再返回profile `+0x04` dword bit12。结果等于1时side写1且随机索引改为当前组B。actor typed-stop保留status-sequence或文字路径后的陈旧EAX/EDX及此前副作用，并阻断side、目标、第二次current actor、phase查询和后缀。最后查询phase mode；未进入phase时按side查询组B或组A目标，非terminal则发布索引，组A另prepare target。
 
 ## 7. 公共动作阶段与陈旧EBX
 
@@ -165,7 +165,7 @@ pending effect ID非全1时调用pending step `(source,shared_argument,index)`�
 
 ## 12. callee、测试与动态差分
 
-46个唯一callee中，已关闭对手动作分派`0x00455D60`、玩家道具双数量步进`0x0045D180`、攻击顺序登记`0x0045EDF0`、文字消息入链`0x004698E0`和组B行动进度`0x004755E0`直接typed组合；文字消息的两处调用复用启动状态唯一链头和动态节点owner，行动进度复用startup enemy的进度owner与共享八槽资源owner。其余41个角色、AI、状态、文本、完成资源和效果callee继续使用共享typed token端口。
+46个唯一callee中，已关闭对手动作分派`0x00455D60`、玩家道具双数量步进`0x0045D180`、攻击顺序登记`0x0045EDF0`、文字消息入链`0x004698E0`、组B行动进度`0x004755E0`、组B对手模式`0x00476080`和组B行动资料标记`0x00476140`直接typed组合；文字消息的两处调用复用启动状态唯一链头和动态节点owner，行动进度与两个组B判定复用startup的八槽actor/resource/profile owner。其余39个角色、AI、状态、文本、完成资源和效果callee继续使用共享typed token端口。
 
 定向测试覆盖：
 
@@ -176,11 +176,13 @@ pending effect ID非全1时调用pending step `(source,shared_argument,index)`�
 - phase side跳过随机/status；
 - 随机组B同伴；
 - profile覆盖EDX低byte；
+- 组B对手模式直接消费随机、发布自身目标及资源typed-stop前缀；
 - signed status独立callee、双mode、文本、phase与目标；
+- 普通status直接读取组B profile双bit、陈旧EAX/EDX与actor typed-stop前缀；
 - 对手动作分派直连、未完成返回陈旧EBX写入及完整cleanup；
 - completion值保留EAX高word，并直接写共享玩家道具链数量A；
 - completion surface零token首字节停点、状态前缀与越界停点；
 - pending effect及final actor成功尾；
 - profile真实访问typed-stop。
 
-当前缺少原版组A/B对象、42类剩余callee共享副作用、攻击顺序动态记录、随机状态、AI/packed-status表、completion表、文本、资源surface及陈旧寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版组A/B对象、39类剩余callee共享副作用、攻击顺序动态记录、随机状态、AI/packed-status表、completion表、文本、资源surface及陈旧寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

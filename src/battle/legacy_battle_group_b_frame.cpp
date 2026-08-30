@@ -1,5 +1,6 @@
 #include "openswd3/battle/legacy_battle_group_b_frame.hpp"
 
+#include "openswd3/battle/legacy_battle_group_b_action_profile_flag.hpp"
 #include "openswd3/battle/legacy_battle_group_b_opponent_mode.hpp"
 #include "openswd3/battle/legacy_battle_opponent_action_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
@@ -37,7 +38,6 @@ constexpr u32 kCallPublishStatusMode = 0x0047D860U;
 constexpr u32 kCallQuerySpecialAction = 0x0047D880U;
 constexpr u32 kCallQueryPhaseMode = 0x0047D8D0U;
 constexpr u32 kCallQueryStatusSequence = 0x00480220U;
-constexpr u32 kCallQueryOpponentSwitch = 0x00476140U;
 constexpr u32 kCallQuerySignedStatus = 0x004761D0U;
 constexpr u32 kCallQueryActionTarget = 0x004786E0U;
 constexpr u32 kCallPublishActionStart = 0x0047C690U;
@@ -872,25 +872,33 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                             }
                         }
                     } else {
-                        if (invoke(
-                                port,
-                                result,
-                                kCallQueryStatusSequence,
-                                {source_token, 0x0053BD40U}
-                            )
-                                .eax == 1U) {
+                        const auto status_sequence = invoke(
+                            port,
+                            result,
+                            kCallQueryStatusSequence,
+                            {source_token, 0x0053BD40U}
+                        );
+                        u32 profile_flag_entry_eax = status_sequence.eax;
+                        u32 profile_flag_entry_edx = status_sequence.edx;
+                        if (status_sequence.eax == 1U) {
                             action.current_actor_index =
                                 static_cast<u16>(group_b_index);
                             state.status_misc = 0U;
-                            if (invoke(
-                                    port,
-                                    result,
-                                    kCallQuerySpecialAction,
-                                    {source_token}
-                                )
-                                    .eax == 1U) {
+                            const auto special_action = invoke(
+                                port,
+                                result,
+                                kCallQuerySpecialAction,
+                                {source_token}
+                            );
+                            if (special_action.eax == 1U) {
                                 state.special_action_latch = 1U;
                             }
+
+                            profile_flag_entry_eax =
+                                state.opponent_text_token_base +
+                                group_b_index *
+                                    kLegacyBattleActionGroupBStride;
+                            profile_flag_entry_edx = special_action.edx;
                             if (state.opponent_text_present[group_b_index] !=
                                 0U) {
                                 if (!publish_text_message(
@@ -900,22 +908,49 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                         {0x118U,
                                          0U,
                                          0x28U,
-                                         state.opponent_text_token_base +
-                                             group_b_index *
-                                                 kLegacyBattleActionGroupBStride,
+                                         profile_flag_entry_eax,
                                          0x40U}
                                     )) {
                                     return result;
                                 }
+
+                                const auto& text_message =
+                                    result.text_messages.back();
+                                profile_flag_entry_eax =
+                                    text_message.return_registers.eax;
+                                profile_flag_entry_edx =
+                                    text_message.return_registers.edx;
                             }
                         }
-                        if (invoke(
-                                port,
-                                result,
-                                kCallQueryOpponentSwitch,
-                                {source_token}
-                            )
-                                .eax == 1U) {
+
+                        const LegacyBattleActorGroupBElementState* actor =
+                            nullptr;
+                        if (context.startup != nullptr &&
+                            context.startup->group_b_lifecycle != nullptr) {
+                            actor = &(*context.startup->group_b_lifecycle)
+                                [group_b_index];
+                        }
+
+                        const auto profile_flag =
+                            query_legacy_battle_group_b_action_profile_flag(
+                                actor,
+                                {
+                                    .actor_token = source_token,
+                                    .entry_eax = profile_flag_entry_eax,
+                                    .entry_edx = profile_flag_entry_edx,
+                                }
+                            );
+                        ++result.group_b_action_profile_flag_calls;
+                        if (profile_flag.status !=
+                            LegacyBattleGroupBActionProfileFlagStatus::
+                                completed) {
+                            result.status = LegacyBattleActionDispatchStatus::
+                                group_b_action_profile_flag_typed_stop;
+                            result.return_value = profile_flag.return_eax;
+                            return result;
+                        }
+
+                        if (profile_flag.return_eax == 1U) {
                             shared.action_side = 1U;
                             state.random_target_index = group_b_index;
                         }
