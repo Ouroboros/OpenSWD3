@@ -22,6 +22,7 @@
 #include "openswd3/battle/legacy_battle_group_a_final_processing.hpp"
 #include "openswd3/battle/legacy_battle_group_a_summon_materialization.hpp"
 #include "openswd3/battle/legacy_battle_group_b_action_composition.hpp"
+#include "openswd3/battle/legacy_battle_group_b_action_profile_mode.hpp"
 #include "openswd3/battle/legacy_battle_group_b_order.hpp"
 #include "openswd3/battle/legacy_battle_player_item_quantity.hpp"
 #include "openswd3/battle/legacy_battle_scale_scan.hpp"
@@ -1293,6 +1294,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     group_b_action_execution_typed_stop,
     group_b_opponent_mode_typed_stop,
     group_b_action_profile_flag_typed_stop,
+    group_b_action_profile_mode_typed_stop,
 };
 
 struct LegacyBattleActionDispatchResult {
@@ -1394,6 +1396,8 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 group_b_action_execution_calls{};
     compat::u32 group_b_opponent_mode_calls{};
     compat::u32 group_b_action_profile_flag_calls{};
+    LegacyBattleGroupBActionProfileModeResult group_b_action_profile_mode{};
+    compat::u32 group_b_action_profile_mode_calls{};
 };
 
 // sub_4731A0.

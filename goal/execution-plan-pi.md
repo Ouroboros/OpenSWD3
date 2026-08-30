@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v834
+版本：v835
 
 最后更新：2026-08-31
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗函数 `0x004761D0`
+当前步骤：模块10 · 审计战斗函数 `0x00476250`
 
 ## 0. 执行约定
 
@@ -4286,4 +4286,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=245`的`0x00476160`战斗组B行动对象资料组合函数。完整权威LST主体`0x00476160..0x004761C3`共48行、32条实际指令、4个call、0个跳转、0个局部标签和1个返回点且无外部chunk。实现actor内嵌164-byte行动资料加载、`+0x50` word发布、16-byte文字复制、40-byte profile加载、陈旧ECX/EAX高word、首个派生word回绕相加，以及固定mode 2的显示种类2、行动种类0、EAX一和mode bit7；两个loader与import文字复制保持三个窄port，待审mode callee只展开固定可达路径。行动资料/文字/派生word/mode收敛到组B生命周期唯一composition owner，profile复用既有配置owner，target phase只显式借用组Bmode byte。动作case25和脚本case23两个caller均删除整函数opaque调用并typed直连；typed-stop保留选择、status、三个共享操作数和候选扫描前缀，阻断门清理、攻击顺序、frame与cursor后缀。验证：定向测试、完整core AddressSanitizer`188/188`、Linux core`188/188`、Linux app`194/194`全部通过且源码零warning。工作包为`245/422 = 236 platform_adapted + 9 assembly_exact + 177 pending_audit`；生成器连续双跑逐字节一致，SHA256为`487e433f3e903148309c0fed9d1b330af42c3d851b0e0c8c95f6e7e658b8db4c`。动态差分因原版八个组B actor、内嵌164-byte资料、40-byte profile、三个callee、文字复制及两个caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=246`的`0x004761D0`组B行动profile与mode组合。
+本轮再完成`audit_order=246`的`0x004761D0`战斗组B行动profile与mode组合函数。完整权威LST主体`0x004761D0..0x0047624A`共59行、39条实际指令、3个call、2个跳转、2个局部标签和3个返回点且无外部chunk。实现selector非零时profile bit1门、固定mode 2与profile word返回；selector为零时先清首个派生word和40-byte profile，再用资源`+0x60`加载profile、加资源`+0x56`并固定mode 1；保留`rep stosd`后寄存器、callee EAX高word、资源真实访问点和三类typed-stop。selector/派生word/mode收敛到组B生命周期composition owner，profile与资源复用既有唯一owner；待审mode callee只展开参数1/2路径，profile loader保持窄port。组Bframe唯一caller删除整函数opaque调用并typed直连；typed-stop保留special-selection切换与内部清零/加载前缀，阻断status value、current actor、双mode/文字/phase/目标后缀。ASan揭示的历史frame-coordinator巨型测试函数29个夹具已仅在测试侧堆化。验证：定向测试、完整core AddressSanitizer`188/188`、Linux core`188/188`、Linux app`194/194`全部通过且源码零warning。工作包为`246/422 = 237 platform_adapted + 9 assembly_exact + 176 pending_audit`；生成器连续双跑逐字节一致，SHA256为`3ccf2b08608febd8a863f7fc31f1fd702e7978fc0250eefa6f0b7982bd8e9020`。动态差分因原版八个组B actor、动态资源、40-byte profile、profile loader及唯一caller共享状态/寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=247`的`0x00476250`组B行动profile与mode组合。

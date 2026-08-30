@@ -320,6 +320,7 @@ add_executable(
     unit/battle/legacy_battle_group_b_action_composition_test.cpp
     unit/battle/legacy_battle_group_b_action_configuration_test.cpp
     unit/battle/legacy_battle_group_b_action_profile_flag_test.cpp
+    unit/battle/legacy_battle_group_b_action_profile_mode_test.cpp
     unit/battle/legacy_battle_group_b_action_reconfiguration_test.cpp
     unit/battle/legacy_battle_group_b_coordinate_offsets_test.cpp
     unit/battle/legacy_battle_group_b_frame_test.cpp

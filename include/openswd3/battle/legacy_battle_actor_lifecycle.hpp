@@ -142,6 +142,7 @@ struct LegacyBattleGroupBActionCompositionState {
     compat::u16 action_kind{};                   // actor + 0x2A6C
     compat::u16 display_kind{};                  // actor + 0x2A70
     compat::u8 mode_flags{};                     // actor + 0x2A87
+    compat::u16 profile_mode_selector{};         // actor + 0x2A8C
 };
 
 struct LegacyBattleActorGroupBElementState {

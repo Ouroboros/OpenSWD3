@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <map>
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -654,14 +655,14 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         state.music_path = "game-data/music/current.mp3";
-        Fixture fixture;
+        auto fixture = std::make_unique<Fixture>();
         CoordinatorPort port;
         port.replies[LegacyBattleFrameCoordinatorCall::query_music_gate].eax =
             1U;
         port.battle_debug_hotkey_state().developer_tools_enabled = 1U;
-        fixture.keyboard[0x1DU] = 0x80U;
-        fixture.keyboard[0x12U] = 0x80U;
-        auto context = fixture.context();
+        fixture->keyboard[0x1DU] = 0x80U;
+        fixture->keyboard[0x12U] = 0x80U;
+        auto context = fixture->context();
 
         const auto result =
             openswd3::battle::run_legacy_battle_frame_coordinator(
@@ -689,13 +690,13 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     }
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
-        Fixture fixture;
+        auto fixture = std::make_unique<Fixture>();
         CoordinatorPort port;
-        fixture.input_normalization.current_mouse.logical_x = 10;
-        fixture.input_normalization.current_mouse.logical_y = 10;
-        fixture.final_actor_step.queued_actor_code = 0x100U;
+        fixture->input_normalization.current_mouse.logical_x = 10;
+        fixture->input_normalization.current_mouse.logical_y = 10;
+        fixture->final_actor_step.queued_actor_code = 0x100U;
         port.battle_message_state() = 3U;
-        auto context = fixture.context();
+        auto context = fixture->context();
 
         const auto result =
             openswd3::battle::run_legacy_battle_frame_coordinator(
@@ -717,13 +718,13 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     }
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
-        Fixture fixture;
+        auto fixture = std::make_unique<Fixture>();
         CoordinatorPort port;
-        fixture.final_actor_step.queued_actor_code = 0x200U;
+        fixture->final_actor_step.queued_actor_code = 0x200U;
         port.actor_metric_state().group_a_count = 1U;
-        fixture.input_normalization.records[17U].rapid_press_multiplicity = 1U;
-        fixture.input_normalization.records[17U].held_sample_count = 1U;
-        auto context = fixture.context();
+        fixture->input_normalization.records[17U].rapid_press_multiplicity = 1U;
+        fixture->input_normalization.records[17U].held_sample_count = 1U;
+        auto context = fixture->context();
 
         const auto result =
             openswd3::battle::run_legacy_battle_frame_coordinator(
@@ -744,13 +745,13 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     }
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
-        Fixture fixture;
-        fixture.final_actor_step.active_actor_code = 124U;
+        auto fixture = std::make_unique<Fixture>();
+        fixture->final_actor_step.active_actor_code = 124U;
         CoordinatorPort port;
         port.battle_terminal_latch() = 1U;
         port.battle_message_state() = 2U;
         configure_common_port(port);
-        auto context = fixture.context();
+        auto context = fixture->context();
         const auto result =
             openswd3::battle::run_legacy_battle_frame_coordinator(
                 state, port, context, base_request()
@@ -763,7 +764,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 result.pre_frame.status ==
                     openswd3::battle::LegacyBattlePreFrameStatus::
                         opponent_workspace_typed_stop &&
-                fixture.final_actor_step.action_execution_active == 1U &&
+                fixture->final_actor_step.action_execution_active == 1U &&
                 result.lock_calls == 0U && port.effect_calls.empty(),
             "pre-frame workspace stop preserves its prefix and blocks actor metrics lock and all later frame stages"
         );
@@ -771,10 +772,10 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         state.render_abort_latch = 1U;
-        Fixture fixture;
+        auto fixture = std::make_unique<Fixture>();
         CoordinatorPort port;
         configure_common_port(port);
-        auto context = fixture.context();
+        auto context = fixture->context();
 
         const auto result =
             openswd3::battle::run_legacy_battle_frame_coordinator(
@@ -795,11 +796,11 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     }
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
-        Fixture fixture;
-        fixture.frame_effect_source.bytes = {};
+        auto fixture = std::make_unique<Fixture>();
+        fixture->frame_effect_source.bytes = {};
         CoordinatorPort port;
         configure_common_port(port);
-        auto context = fixture.context();
+        auto context = fixture->context();
 
         const auto result =
             openswd3::battle::run_legacy_battle_frame_coordinator(
@@ -827,11 +828,11 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
 
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
-        Fixture fixture;
-        fixture.final_actor_step.queued_actor_code = 7U;
+        auto fixture = std::make_unique<Fixture>();
+        fixture->final_actor_step.queued_actor_code = 7U;
         CoordinatorPort port;
         configure_common_port(port);
-        auto context = fixture.context();
+        auto context = fixture->context();
 
         const auto result =
             openswd3::battle::run_legacy_battle_frame_coordinator(
@@ -856,11 +857,11 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     }
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
-        Fixture fixture;
+        auto fixture = std::make_unique<Fixture>();
         CoordinatorPort port;
         configure_common_port(port);
         port.actor_metric_state().priority_actor_index = 18U;
-        auto context = fixture.context();
+        auto context = fixture->context();
 
         const auto result =
             openswd3::battle::run_legacy_battle_frame_coordinator(
@@ -885,7 +886,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     }
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
-        Fixture fixture;
+        auto fixture = std::make_unique<Fixture>();
         CoordinatorPort port;
         configure_common_port(port);
         port.actor_metric_state().group_b_count = 1U;
@@ -893,7 +894,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             .publish_metric_word = true;
         port.replies[LegacyBattleFrameCoordinatorCall::query_actor_metric]
             .metric_word = 1U;
-        auto context = fixture.context();
+        auto context = fixture->context();
 
         const auto result =
             openswd3::battle::run_legacy_battle_frame_coordinator(
@@ -918,10 +919,10 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     }
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
-        Fixture fixture;
+        auto fixture = std::make_unique<Fixture>();
         CoordinatorPort port;
         configure_common_port(port);
-        auto context = fixture.context();
+        auto context = fixture->context();
 
         const auto result =
             openswd3::battle::run_legacy_battle_frame_coordinator(
@@ -961,13 +962,13 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     }
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
-        Fixture fixture;
+        auto fixture = std::make_unique<Fixture>();
         CoordinatorPort port;
         configure_common_port(port);
         port.battle_message_state() = 0x64U;
         port.battle_victory_reward_state().committed_money_word = 0x8000U;
         port.battle_target_selection_runtime_state().transition_stage = 72U;
-        auto context = fixture.context();
+        auto context = fixture->context();
 
         const auto result =
             openswd3::battle::run_legacy_battle_frame_coordinator(
@@ -1924,11 +1925,11 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         state.conditional_mode = 1U;
         state.conditional_submode = 0U;
-        Fixture fixture;
+        auto fixture = std::make_unique<Fixture>();
         CoordinatorPort port;
         configure_common_port(port);
         port.actor_metric_state().priority_actor_index = 0U;
-        auto context = fixture.context();
+        auto context = fixture->context();
         auto request = base_request();
         request.post_actor_frame_ecx_snapshot = 0x12345678U;
         request.post_actor_frame_edx_snapshot = 0x89ABCDEFU;
@@ -1953,7 +1954,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         state.conditional_mode = 1U;
         state.conditional_submode = 0U;
-        Fixture fixture;
+        auto fixture = std::make_unique<Fixture>();
         CoordinatorPort port;
         configure_common_port(port);
         port.actor_metric_state().group_a_count = 1U;
@@ -1962,15 +1963,15 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         port.replies[LegacyBattleFrameCoordinatorCall::query_actor_metric]
             .metric_word = 1U;
         port.completion_group_a_count_after_query = 11U;
-        auto dispatch_context = fixture.action_context();
+        auto dispatch_context = fixture->action_context();
         dispatch_context.attack_order_adjacent_record =
             &port.effect_coordinator_state().intensity_records[0];
         openswd3::battle::LegacyBattleActorFrameAdvanceContext actor_frames{
-            fixture.actor_frame_state,
+            fixture->actor_frame_state,
             port,
             dispatch_context,
         };
-        auto context = fixture.context();
+        auto context = fixture->context();
         context.actor_frames = &actor_frames;
 
         const auto result =
@@ -2000,14 +2001,14 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         state.ui_state = 0x8000U;
         state.conditional_mode = 1U;
         state.conditional_submode = 0U;
-        Fixture fixture;
+        auto fixture = std::make_unique<Fixture>();
         CoordinatorPort port;
         configure_common_port(port);
         port.actor_metric_state().priority_actor_index = 0U;
         auto& effects = port.effect_coordinator_state();
         effects.primary[0].complete = 1U;
         effects.primary_suppression = 1U;
-        auto context = fixture.context();
+        auto context = fixture->context();
 
         const auto result =
             openswd3::battle::run_legacy_battle_frame_coordinator(
@@ -2031,8 +2032,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         state.hud.active_actor_count = 11;
         CoordinatorPort port;
         configure_common_port(port);
-        Fixture fixture;
-        auto context = fixture.context();
+        auto fixture = std::make_unique<Fixture>();
+        auto context = fixture->context();
 
         const auto result =
             openswd3::battle::run_legacy_battle_frame_coordinator(
@@ -2056,15 +2057,15 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     }
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
-        Fixture fixture;
+        auto fixture = std::make_unique<Fixture>();
         CoordinatorPort port;
         configure_common_port(port);
         port.battle_message_state() = 0x63U;
-        fixture.startup.reset.block_52022c[5U] = 1U;
+        fixture->startup.reset.block_52022c[5U] = 1U;
         port.replies[LegacyBattleFrameCoordinatorCall::
                          message_phase_query_actor_completion]
             .eax = 0U;
-        auto context = fixture.context();
+        auto context = fixture->context();
 
         const auto result =
             openswd3::battle::run_legacy_battle_frame_coordinator(
@@ -2099,8 +2100,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         state.ui_state = 0xABCD0000U;
         state.selection_delay = 0x10U;
-        Fixture fixture;
-        fixture.startup.reset.records_524788[0] = {
+        auto fixture = std::make_unique<Fixture>();
+        fixture->startup.reset.records_524788[0] = {
             .value_00 = 5U,
             .value_04 = 0x11111111U,
             .value_08 = 0x2222U,
@@ -2110,12 +2111,12 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             .value_14 = 0x66666666U,
             .value_18 = 0x77777777U,
         };
-        fixture.startup.reset.records_524788[1].value_00 = 0xFFFFFFFFU;
-        fixture.internal_flags[0x11U >> 3U] =
+        fixture->startup.reset.records_524788[1].value_00 = 0xFFFFFFFFU;
+        fixture->internal_flags[0x11U >> 3U] =
             static_cast<u8>(1U << (0x11U & 7U));
         CoordinatorPort port;
         configure_common_port(port);
-        auto context = fixture.context();
+        auto context = fixture->context();
 
         const auto result =
             openswd3::battle::run_legacy_battle_frame_coordinator(
@@ -2142,7 +2143,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                         0x66666666U,
                         0x77777777U,
                     } &&
-                fixture.startup.reset.records_524788[0].value_00 ==
+                fixture->startup.reset.records_524788[0].value_00 ==
                     0xFFFFFFFFU &&
                 port.count(
                     LegacyBattleFrameCoordinatorCall::
@@ -2194,10 +2195,10 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         state.selection_delay = 0x10U;
-        Fixture fixture;
-        fixture.startup.reset.records_524788[0].value_00 = 8U;
-        fixture.startup.reset.records_524788[1].value_00 = 0xFFFFFFFFU;
-        fixture.internal_flags[0x11U >> 3U] =
+        auto fixture = std::make_unique<Fixture>();
+        fixture->startup.reset.records_524788[0].value_00 = 8U;
+        fixture->startup.reset.records_524788[1].value_00 = 0xFFFFFFFFU;
+        fixture->internal_flags[0x11U >> 3U] =
             static_cast<u8>(1U << (0x11U & 7U));
         CoordinatorPort port;
         configure_common_port(port);
@@ -2207,7 +2208,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             .ecx = 0x005029D0U,
             .edx = 0x13572468U,
         };
-        auto context = fixture.context();
+        auto context = fixture->context();
         auto request = base_request();
         request.attack_order_dequeue_edx_snapshot = 0x24681357U;
 
@@ -2232,7 +2233,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 query->arguments[1] == 8U && query->arguments[2] == 0U &&
                 query->eax == 0U && query->ecx == 0x005029D0U &&
                 query->edx == 0x24681357U && state.selection_auxiliary == 8U &&
-                fixture.startup.reset.records_524788[0].value_00 == 0xFFFFFFFFU,
+                fixture->startup.reset.records_524788[0].value_00 ==
+                    0xFFFFFFFFU,
             "selection refresh directly dequeues a group-A record through the remaining actor-query boundary"
         );
     }
@@ -2240,9 +2242,9 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         state.special_surface_gate = 2U;
         state.screenshot_counter = 0xFFFFU;
-        Fixture fixture;
-        fixture.final_actor_step.active_actor_code = 8U;
-        fixture.final_actor_step.source_actor_code = 0xFFFFFFFFU;
+        auto fixture = std::make_unique<Fixture>();
+        fixture->final_actor_step.active_actor_code = 8U;
+        fixture->final_actor_step.source_actor_code = 0xFFFFFFFFU;
         CoordinatorPort port;
         port.battle_debug_overlay_gate() = 1U;
         port.battle_debug_hotkey_state().screenshot_request = 1U;
@@ -2250,7 +2252,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         port.battle_message_state() = 0U;
         configure_common_port(port);
         auto& color = port.battle_color_accumulation_state();
-        auto context = fixture.context();
+        auto context = fixture->context();
 
         const auto result =
             openswd3::battle::run_legacy_battle_frame_coordinator(
@@ -2264,10 +2266,10 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 result.return_value == 1U && result.pre_frame_calls == 1U &&
                 result.pre_frame.status ==
                     openswd3::battle::LegacyBattlePreFrameStatus::completed &&
-                fixture.final_actor_step.action_execution_active == 1U &&
-                fixture.action_dispatch.opponent_workspace[10U] == 1U &&
+                fixture->final_actor_step.action_execution_active == 1U &&
+                fixture->action_dispatch.opponent_workspace[10U] == 1U &&
                 port.battle_message_state() == 3U &&
-                fixture.final_actor_step.pre_frame_gate_a == 1U &&
+                fixture->final_actor_step.pre_frame_gate_a == 1U &&
                 result.color_initialization_calls == 1U &&
                 result.color_initialization.return_eax == 24U &&
                 result.color_initialization.return_ecx == 0xFFFFFFE8U &&
@@ -2298,9 +2300,9 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 state.screenshot_path ==
                     std::filesystem::path("c:\\snap\\1000.bmp") &&
                 port.battle_debug_hotkey_state().screenshot_request == 0U &&
-                fixture.bmp_ports.filenames ==
+                fixture->bmp_ports.filenames ==
                     std::vector<std::string>{"c:\\snap\\1000.bmp"} &&
-                fixture.bmp_ports.close_calls == 1U &&
+                fixture->bmp_ports.close_calls == 1U &&
                 result.debug_overlay_calls == 1U &&
                 result.debug_overlay.status ==
                     openswd3::battle::LegacyBattleDebugOverlayStatus::
@@ -2320,8 +2322,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
 
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
-        Fixture fixture;
-        fixture.final_actor_step.active_actor_code = 0U;
+        auto fixture = std::make_unique<Fixture>();
+        fixture->final_actor_step.active_actor_code = 0U;
         CoordinatorPort port;
         port.outcome_resolution_state().darkening_gate = 1U;
         port.outcome_resolution_state().darkening.channel_delta = -30;
@@ -2329,7 +2331,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         port.outcome_group_b_count = 0U;
         port.outcome_group_a_count = 1U;
         configure_common_port(port);
-        auto context = fixture.context();
+        auto context = fixture->context();
         auto frame_request = base_request();
         frame_request.mouse_x = 27;
         frame_request.mouse_y = 39;
@@ -2393,9 +2395,9 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     }
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
-        Fixture fixture;
-        fixture.final_actor_step.active_actor_code = 0U;
-        fixture.action_dispatch.packed_actor_counter = 1U;
+        auto fixture = std::make_unique<Fixture>();
+        fixture->final_actor_step.active_actor_code = 0U;
+        fixture->action_dispatch.packed_actor_counter = 1U;
         CoordinatorPort port;
         port.outcome_resolution_state().darkening_gate = 1U;
         port.outcome_resolution_state().darkening.channel_delta = -30;
@@ -2405,7 +2407,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         port.outcome_group_a_count = 1U;
         port.fail_item_allocation = true;
         configure_common_port(port);
-        auto context = fixture.context();
+        auto context = fixture->context();
 
         const auto result =
             openswd3::battle::run_legacy_battle_frame_coordinator(
@@ -2437,12 +2439,12 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         state.special_surface_gate = 2U;
-        Fixture fixture;
-        fixture.final_actor_step.active_actor_code = 0U;
+        auto fixture = std::make_unique<Fixture>();
+        fixture->final_actor_step.active_actor_code = 0U;
         CoordinatorPort port;
         port.battle_debug_hotkey_state().battle_mode_flags_53bc24 = 0x00000100U;
         configure_common_port(port);
-        auto context = fixture.context();
+        auto context = fixture->context();
 
         const auto result =
             openswd3::battle::run_legacy_battle_frame_coordinator(
@@ -2468,13 +2470,13 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     }
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
-        Fixture fixture;
-        fixture.final_actor_step.active_actor_code = 0U;
+        auto fixture = std::make_unique<Fixture>();
+        fixture->final_actor_step.active_actor_code = 0U;
         CoordinatorPort port;
         port.temporary_surface_token = 0U;
         port.battle_debug_hotkey_state().screenshot_request = 1U;
         configure_common_port(port);
-        auto context = fixture.context();
+        auto context = fixture->context();
 
         const auto result =
             openswd3::battle::run_legacy_battle_frame_coordinator(
@@ -2500,8 +2502,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     }
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
-        Fixture fixture;
-        fixture.frame_provider.unavailable_resource = 0x0066U;
+        auto fixture = std::make_unique<Fixture>();
+        fixture->frame_provider.unavailable_resource = 0x0066U;
         CoordinatorPort port;
         port.outcome_resolution_state().darkening_gate = 1U;
         port.outcome_resolution_state().darkening.channel_delta = -30;
@@ -2509,7 +2511,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         port.outcome_group_b_count = 0U;
         port.outcome_group_a_count = 1U;
         configure_common_port(port);
-        auto context = fixture.context();
+        auto context = fixture->context();
 
         const auto result =
             openswd3::battle::run_legacy_battle_frame_coordinator(
@@ -2541,9 +2543,9 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         state.special_panel_suppression = 0U;
-        Fixture fixture;
-        fixture.final_actor_step.queued_actor_code = 8U;
-        fixture.internal_flags[0x11U >> 3U] =
+        auto fixture = std::make_unique<Fixture>();
+        fixture->final_actor_step.queued_actor_code = 8U;
+        fixture->internal_flags[0x11U >> 3U] =
             static_cast<u8>(1U << (0x11U & 7U));
         CoordinatorPort port;
         configure_common_port(port);
@@ -2560,7 +2562,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         auto request = base_request();
         request.role_index_map = role_map;
         request.role_positions = positions;
-        auto context = fixture.context();
+        auto context = fixture->context();
 
         const auto result =
             openswd3::battle::run_legacy_battle_frame_coordinator(
@@ -2603,11 +2605,11 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     }
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
-        Fixture fixture;
-        fixture.final_actor_step.queued_actor_code = 8U;
+        auto fixture = std::make_unique<Fixture>();
+        fixture->final_actor_step.queued_actor_code = 8U;
         CoordinatorPort port;
         configure_common_port(port);
-        auto context = fixture.context();
+        auto context = fixture->context();
 
         const auto result =
             openswd3::battle::run_legacy_battle_frame_coordinator(
@@ -2628,12 +2630,12 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         state.debug_overlay.frame_divisor = 0;
-        Fixture fixture;
+        auto fixture = std::make_unique<Fixture>();
         CoordinatorPort port;
         port.battle_debug_overlay_gate() = 1U;
         port.battle_debug_hotkey_state().toggle_5244e0 = 1U;
         configure_common_port(port);
-        auto context = fixture.context();
+        auto context = fixture->context();
 
         const auto result =
             openswd3::battle::run_legacy_battle_frame_coordinator(
@@ -2656,10 +2658,10 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     }
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
-        Fixture fixture;
+        auto fixture = std::make_unique<Fixture>();
         CoordinatorPort port;
         configure_common_port(port);
-        auto context = fixture.context();
+        auto context = fixture->context();
         context.internal_flags = {};
 
         const auto result =
@@ -2679,11 +2681,11 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         state.special_surface_gate = 1U;
-        Fixture fixture;
+        auto fixture = std::make_unique<Fixture>();
         CoordinatorPort port;
         configure_common_port(port);
         port.temporary_surface_token = 0U;
-        auto context = fixture.context();
+        auto context = fixture->context();
 
         const auto result =
             openswd3::battle::run_legacy_battle_frame_coordinator(

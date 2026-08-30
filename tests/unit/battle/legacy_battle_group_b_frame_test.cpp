@@ -38,6 +38,17 @@ public:
         return default_reply;
     }
 
+    [[nodiscard]] bool group_b_action_configuration_typed_stop(
+        const u32 callee_token
+    ) const noexcept override {
+        return action_profile_typed_stop && callee_token == 0x00476A80U;
+    }
+
+    [[nodiscard]] std::shared_ptr<const std::array<std::byte, 0x28>>
+    group_b_action_profile_buffer() const override {
+        return action_profile_buffer;
+    }
+
     [[nodiscard]] openswd3::battle::LegacyBattleTextMessageCallReply
     invoke_text_message(
         const openswd3::battle::LegacyBattleTextMessageCallRequest& request
@@ -71,7 +82,9 @@ public:
     std::vector<LegacyBattleActionCallRequest> calls;
     std::vector<openswd3::battle::LegacyBattleTextMessageCallRequest>
         text_message_calls;
+    std::shared_ptr<const std::array<std::byte, 0x28>> action_profile_buffer;
     u32 next_text_message_token{0x73000000U};
+    bool action_profile_typed_stop{};
 };
 
 class ActionStreamProvider final
@@ -684,9 +697,17 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         state.special_selection_pending = 1U;
         state.opponent_text_present[0] = 1U;
         Fixture fixture;
+        bind_group_b_coordinate_resource(fixture, 0U);
+        auto& actor = (*fixture.startup->group_b_lifecycle)[0U];
+        actor.action_composition.profile_mode_selector = 1U;
+        write_group_b_profile_dword(
+            actor.action_configuration.profile_buffer, 0x0CU, 0x02U
+        );
+        write_group_b_profile_dword(
+            actor.action_configuration.profile_buffer, 0x14U, 0x77U
+        );
         DispatchPort port;
         port.push(0x004786A0U, {.eax = 0U});
-        port.push(0x004761D0U, {.eax = 0x77U});
         port.push(0x0047D880U, {.eax = 1U});
         port.push(0x0047D8D0U, {.eax = 1U});
         port.push(0x0047CE80U, {.eax = 0U});
@@ -705,12 +726,115 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 state.shared.action_side == 1U &&
                 state.special_selection_pending == 0U &&
                 state.special_action_latch == 1U && state.phase_mode == 1U &&
+                result.group_b_action_profile_mode_calls == 1U &&
+                result.group_b_action_profile_mode.return_eax == 0x77U &&
+                actor.action_composition.mode_flags == 0x80U &&
+                actor.action_composition.action_kind == 0U &&
+                actor.action_composition.display_kind == 2U &&
                 port.count(0x00476140U) == 0U &&
-                port.count(0x004761D0U) == 1U &&
+                port.count(0x004761D0U) == 0U &&
                 result.text_message_calls == 1U &&
                 fixture.startup_reset.block_5214f8[0U] == 0x73000000U &&
                 has_call_argument(port, 0x00478A70U, 1U, 2U),
-            "negative packed status uses signed callee, both action modes, text and side target"
+            "negative packed status directly composes profile mode, both suffix modes, text and side target"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState state;
+        state.frame_enabled = 1U;
+        state.post_update_gate[0U] = 1U;
+        state.shared.action.active_effect_target = 0U;
+        state.selection_initialized = 1U;
+        state.action_profile_bytes = {0U};
+        state.status_words[0U] = 0xE000U;
+        state.special_selection_pending = 1U;
+        state.status_action_value = 0x55667788U;
+        state.shared.action.current_actor_index = 0x1234U;
+        Fixture fixture;
+        DispatchPort port;
+        port.push(0x004786A0U, {.eax = 0U});
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::
+                    group_b_action_profile_mode_typed_stop &&
+                result.return_value == 0x8000U &&
+                result.group_b_action_profile_mode.status ==
+                    openswd3::battle::
+                        LegacyBattleGroupBActionProfileModeStatus::
+                            actor_state_typed_stop &&
+                state.shared.action_side == 1U &&
+                state.special_selection_pending == 0U &&
+                state.status_action_value == 0x55667788U &&
+                state.shared.action.current_actor_index == 0x1234U &&
+                port.count(0x004761D0U) == 0U &&
+                port.count(0x00476A80U) == 0U &&
+                port.count(0x00478710U) == 0U &&
+                port.count(0x0047D880U) == 0U &&
+                result.text_message_calls == 0U,
+            "profile mode actor stop preserves selection prefix and blocks result publication and status suffix"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState state;
+        state.frame_enabled = 1U;
+        state.post_update_gate[0U] = 1U;
+        state.shared.action.active_effect_target = 0U;
+        state.selection_initialized = 1U;
+        state.action_profile_bytes = {0U};
+        state.status_words[0U] = 0x8000U;
+        state.special_selection_pending = 1U;
+        state.status_action_value = 0x55667788U;
+        state.shared.action.current_actor_index = 0x1234U;
+        Fixture fixture;
+        bind_group_b_coordinate_resource(fixture, 0U);
+        auto& actor = (*fixture.startup->group_b_lifecycle)[0U];
+        actor.action_configuration.profile_buffer.fill(std::byte{0xFF});
+        actor.action_composition.derived_words[0U] = 9U;
+        write_group_b_resource_word(actor.resource_bytes, 0x60U, 0x2468U);
+        auto partial =
+            std::make_shared<std::array<std::byte, 0x28>>();
+        (*partial)[0U] = std::byte{0x5A};
+        DispatchPort port;
+        port.action_profile_typed_stop = true;
+        port.action_profile_buffer = partial;
+        port.push(0x004786A0U, {.eax = 0U});
+        port.push(
+            0x00476A80U,
+            {.eax = 0xAAAABBBBU,
+             .ecx = 0xCCCCDDDDU,
+             .edx = 0xEEEEFFFFU}
+        );
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::
+                    group_b_action_profile_mode_typed_stop &&
+                result.return_value == 0xAAAABBBBU &&
+                result.group_b_action_profile_mode.status ==
+                    openswd3::battle::
+                        LegacyBattleGroupBActionProfileModeStatus::
+                            profile_load_typed_stop &&
+                result.group_b_action_profile_mode.profile_load_calls == 1U &&
+                state.shared.action_side == 1U &&
+                state.special_selection_pending == 0U &&
+                state.status_action_value == 0x55667788U &&
+                state.shared.action.current_actor_index == 0x1234U &&
+                actor.action_configuration.profile_buffer[0U] ==
+                    std::byte{0x5A} &&
+                actor.action_composition.derived_words[0U] == 0U &&
+                port.count(0x004761D0U) == 0U &&
+                port.count(0x00476A80U) == 1U &&
+                port.count(0x0047D880U) == 0U,
+            "profile loader stop preserves clear and load prefixes while blocking caller publication and suffix"
         );
     }
 

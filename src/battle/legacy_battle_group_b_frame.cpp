@@ -1,6 +1,7 @@
 #include "openswd3/battle/legacy_battle_group_b_frame.hpp"
 
 #include "openswd3/battle/legacy_battle_group_b_action_profile_flag.hpp"
+#include "openswd3/battle/legacy_battle_group_b_action_profile_mode.hpp"
 #include "openswd3/battle/legacy_battle_group_b_opponent_mode.hpp"
 #include "openswd3/battle/legacy_battle_opponent_action_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
@@ -38,7 +39,7 @@ constexpr u32 kCallPublishStatusMode = 0x0047D860U;
 constexpr u32 kCallQuerySpecialAction = 0x0047D880U;
 constexpr u32 kCallQueryPhaseMode = 0x0047D8D0U;
 constexpr u32 kCallQueryStatusSequence = 0x00480220U;
-constexpr u32 kCallQuerySignedStatus = 0x004761D0U;
+constexpr u32 kCallLoadActionProfile = 0x00476A80U;
 constexpr u32 kCallQueryActionTarget = 0x004786E0U;
 constexpr u32 kCallPublishActionStart = 0x0047C690U;
 constexpr u32 kCallSelectionClear = 0x00478B20U;
@@ -226,6 +227,45 @@ public:
 
 private:
     LegacyBattleActionDispatchPort& port_;
+};
+
+class ActionProfileModePortAdapter final
+    : public LegacyBattleGroupBActionProfileModePort {
+public:
+    ActionProfileModePortAdapter(
+        LegacyBattleActionDispatchPort& port,
+        LegacyBattleActionDispatchResult& result
+    ) noexcept
+        : port_(port), result_(result) {}
+
+    [[nodiscard]] LegacyBattleGroupBActionProfileModeLoadReply
+    load_action_profile(
+        const LegacyBattleGroupBActionProfileModeLoadRequest& request
+    ) override {
+        ++result_.port_calls;
+        LegacyBattleActionCallRequest call{
+            .callee_token = kCallLoadActionProfile,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        };
+        call.arguments[0U] = request.destination_token;
+        call.arguments[1U] = request.profile_id;
+        const auto reply = port_.invoke(call);
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .typed_stop = port_.group_b_action_configuration_typed_stop(
+                kCallLoadActionProfile
+            ),
+            .profile_buffer = port_.group_b_action_profile_buffer(),
+        };
+    }
+
+private:
+    LegacyBattleActionDispatchPort& port_;
+    LegacyBattleActionDispatchResult& result_;
 };
 
 void merge_nested(
@@ -686,19 +726,46 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                     const bool status_branch = std::bit_cast<i16>(status) < 0 ||
                         (status & 0x6000U) != 0U;
                     if (status_branch) {
+                        const u32 stale_special_selection_pending =
+                            state.special_selection_pending;
                         if (state.special_selection_pending == 1U) {
                             shared.action_side = 1U;
                             state.special_selection_pending = 0U;
                         }
                         if (std::bit_cast<i16>(status) < 0) {
-                            state.status_action_value =
-                                invoke(
-                                    port,
-                                    result,
-                                    kCallQuerySignedStatus,
-                                    {source_token}
-                                )
-                                    .eax;
+                            LegacyBattleActorGroupBElementState* actor =
+                                nullptr;
+                            if (context.startup != nullptr &&
+                                context.startup->group_b_lifecycle != nullptr) {
+                                actor = &(*context.startup->group_b_lifecycle)
+                                    [group_b_index];
+                            }
+                            ActionProfileModePortAdapter adapter(port, result);
+                            result.group_b_action_profile_mode =
+                                compose_legacy_battle_group_b_action_profile_mode(
+                                    actor,
+                                    adapter,
+                                    {
+                                        .actor_token = source_token,
+                                        .entry_eax = 0x8000U,
+                                        .entry_ecx = source_token,
+                                        .entry_edx =
+                                            stale_special_selection_pending,
+                                    }
+                                );
+                            ++result.group_b_action_profile_mode_calls;
+                            if (result.group_b_action_profile_mode.status !=
+                                LegacyBattleGroupBActionProfileModeStatus::
+                                    completed) {
+                                result.status =
+                                    LegacyBattleActionDispatchStatus::
+                                        group_b_action_profile_mode_typed_stop;
+                                result.return_value = result
+                                    .group_b_action_profile_mode.return_eax;
+                                return result;
+                            }
+                            state.status_action_value = result
+                                .group_b_action_profile_mode.return_eax;
                             action.current_actor_index =
                                 static_cast<u16>(group_b_index);
                         }
