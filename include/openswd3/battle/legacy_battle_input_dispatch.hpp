@@ -115,7 +115,7 @@ enum class LegacyBattleInputDispatchCall : compat::u8 {
     menu_advance_prepare_actor_origin,
     menu_advance_configure_actor_selection,
     menu_advance_query_group_a_candidate,
-    menu_finalize_reset_active_group_a_actor,
+    reserved_menu_finalize_reset_active_group_a_actor_slot,
     menu_finalize_reset_actor,
     target_selection_configure_actor,
     target_selection_scan_primary,

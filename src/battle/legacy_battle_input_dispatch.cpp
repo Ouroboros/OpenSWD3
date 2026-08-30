@@ -255,6 +255,8 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
                 .startup_reset = bindings.startup_reset,
                 .frame_input_resolution = bindings.frame_input_resolution,
                 .final_actor = bindings.final_actor,
+                .action = bindings.action,
+                .party = bindings.party,
                 .metrics = bindings.metrics,
                 .input_dispatch = state,
                 .message_state = bindings.message_state,

@@ -503,6 +503,11 @@ void merge_nested_result(
     outer.status_indicator_calls += nested.status_indicator_calls;
     outer.scale_scan_calls += nested.scale_scan_calls;
     outer.action_record_clear_calls += nested.action_record_clear_calls;
+    outer.group_a_actor_cleanup_calls +=
+        nested.group_a_actor_cleanup_calls;
+    if (nested.group_a_actor_cleanup_calls != 0U) {
+        outer.group_a_actor_cleanup = nested.group_a_actor_cleanup;
+    }
     outer.attack_order_calls += nested.attack_order_calls;
     if (nested.attack_order_calls != 0U) {
         outer.attack_order = nested.attack_order;
@@ -557,7 +562,8 @@ void merge_nested_result(
             .adjacent_intensity_record = context.attack_order_adjacent_record,
         },
         actor_index,
-        1U
+        1U,
+        context.startup
     );
     merge_nested_result(result, nested);
     if (nested.status != LegacyBattleActionDispatchStatus::completed) {

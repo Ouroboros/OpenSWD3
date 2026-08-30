@@ -245,6 +245,8 @@ struct LegacyBattleSelectionFrameResult {
     LegacyBattleSelectionHintFrameResult selection_hint_frame{};
     LegacyBattleControlPanelFrameResult control_panel_frame{};
     LegacyBattleActorTargetPreparationResult actor_target_preparation{};
+    LegacyBattleGroupAActorCleanupResult group_a_actor_cleanup{};
+    compat::u32 group_a_actor_cleanup_calls{};
     LegacyBattleScaleFillPanelResult scale_fill_panel{};
     LegacyBattleVerticalPanelResult vertical_panel{};
     LegacyBattlePreparedActionFrameDrawResult prepared_action_frame{};

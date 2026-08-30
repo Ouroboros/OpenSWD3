@@ -100,6 +100,7 @@ struct Fixture {
     openswd3::battle::LegacyBattleFrameInputResolutionState frame_input;
     openswd3::battle::LegacyBattleFinalActorStepState final_actor;
     openswd3::battle::LegacyBattleActionDispatchState action;
+    std::array<openswd3::battle::LegacyBattlePartyStartupRecord, 10> party;
     openswd3::battle::LegacyBattleActorMetricState metrics;
     openswd3::battle::LegacyBattleDebugHotkeyState debug;
     openswd3::battle::LegacyBattleContextPromptState prompt;
@@ -123,6 +124,7 @@ struct Fixture {
             .action_mode_source = action_mode_source,
             .startup_party_presence = party_presence,
             .startup_mode_flags = startup_mode_flags,
+            .party = party,
             .startup_supplemental_count_word = supplemental_count,
             .startup_mirror_mode = mirror_mode,
             .frame_input_resolution = frame_input,

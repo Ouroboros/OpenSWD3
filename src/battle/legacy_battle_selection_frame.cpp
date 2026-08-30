@@ -359,6 +359,36 @@ private:
             return false;
         }
 
+        const u32 cleanup_index =
+            bindings_.final_actor.queued_actor_code - 8U;
+        if (cleanup_index >= kGroupACount) {
+            typed_stop(Status::group_a_actor_typed_stop);
+            return false;
+        }
+        auto& party = bindings_.startup.party[cleanup_index];
+        result_.group_a_actor_cleanup = cleanup_legacy_battle_group_a_actor(
+            {
+                .actor = &bindings_.action.group_a_action_execution[
+                    cleanup_index
+                ],
+                .workspace = &party.workspace,
+                .final_processing = &party.final_processing,
+                .item_effect = &party.item_effect_application,
+                .attribute_effect = &party.attribute_effect,
+                .actor_list = &party.actor_list,
+            },
+            kGroupABaseToken + cleanup_index * kGroupAStride
+        );
+        ++result_.group_a_actor_cleanup_calls;
+        eax_ = result_.group_a_actor_cleanup.return_eax;
+        ecx_ = result_.group_a_actor_cleanup.return_ecx;
+        edx_ = result_.group_a_actor_cleanup.return_edx;
+        if (result_.group_a_actor_cleanup.status !=
+            LegacyBattleGroupAActorCleanupStatus::completed) {
+            typed_stop(Status::group_a_actor_typed_stop);
+            return false;
+        }
+
         esi_ = 0U;
         eax_ = bindings_.metrics.group_b_count;
         while (signed_dword(eax_) > 0 &&

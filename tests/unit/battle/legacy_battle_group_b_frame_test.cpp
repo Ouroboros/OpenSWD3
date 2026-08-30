@@ -1,9 +1,11 @@
 #include "openswd3/battle/legacy_battle_group_b_frame.hpp"
+#include "openswd3/battle/legacy_battle_startup.hpp"
 #include "test.hpp"
 
 #include <algorithm>
 #include <array>
 #include <deque>
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
@@ -129,6 +131,9 @@ struct Fixture {
     SoundPort sound;
     CountdownFlags countdown_flags;
     std::array<u8, 16> flags{};
+    std::unique_ptr<openswd3::battle::LegacyBattleStartupState> startup{
+        std::make_unique<openswd3::battle::LegacyBattleStartupState>()
+    };
     openswd3::battle::LegacyBattleStartupResetBlocks startup_reset;
     openswd3::battle::LegacyBattleTextMessageState text_messages;
     std::array<openswd3::battle::LegacyBattleStartupResetRecord, 0x12>
@@ -161,6 +166,7 @@ struct Fixture {
             .indicator_sound = sound,
             .countdown_flags = countdown_flags,
             .internal_flags = flags,
+            .startup = startup.get(),
             .startup_reset = &startup_reset,
             .text_messages = &text_messages,
             .attack_order_records = attack_order_records,
@@ -536,18 +542,43 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 state, port, context, 0U
             );
         test.expect_true(
-            result.status == LegacyBattleActionDispatchStatus::completed &&
-                state.group_a_completion_words[0] == 0U &&
-                state.group_a_completion_slots[0] == 0U &&
-                result.player_item_calls == 1U &&
-                result.player_item.return_token == 0x0062000CU &&
-                port.world_item_list_state().player_inventory.front().item_id ==
-                    0x1234U &&
-                port.world_item_list_state()
-                        .player_inventory.front()
-                        .quantity_a == 1U &&
-                port.count(0x004750C0U) == 1U,
-            "all-target completion keeps query EAX high word and table low word"
+            result.status == LegacyBattleActionDispatchStatus::completed,
+            "all-target completion retains completed status"
+        );
+        test.expect_true(
+            state.group_a_completion_words[0] == 0U,
+            "all-target completion clears the completed group-A word"
+        );
+        test.expect_true(
+            state.group_a_completion_slots[0] == 0U,
+            "all-target completion clears the completed group-A slot"
+        );
+        test.expect_true(
+            result.player_item_calls == 1U,
+            "all-target completion performs one player-item update"
+        );
+        test.expect_true(
+            result.player_item.return_token == 0x0062000CU,
+            "all-target completion preserves the player-item result token"
+        );
+        test.expect_true(
+            port.world_item_list_state().player_inventory.front().item_id ==
+                0x1234U,
+            "all-target completion keeps the table low word as item id"
+        );
+        test.expect_true(
+            port.world_item_list_state()
+                    .player_inventory.front()
+                    .quantity_a == 1U,
+            "all-target completion increments the player-item quantity"
+        );
+        test.expect_true(
+            result.group_a_actor_cleanup_calls == 1U,
+            "all-target completion merges the typed group-A cleanup result"
+        );
+        test.expect_true(
+            port.count(0x004750C0U) == 0U,
+            "all-target completion emits no opaque group-A cleanup call"
         );
     }
 

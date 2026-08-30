@@ -1,6 +1,7 @@
 #include "openswd3/battle/legacy_battle_group_b_frame.hpp"
 
 #include "openswd3/battle/legacy_battle_opponent_action_dispatch.hpp"
+#include "openswd3/battle/legacy_battle_startup.hpp"
 
 #include <algorithm>
 #include <bit>
@@ -44,7 +45,6 @@ constexpr u32 kCallPublishActionStart = 0x0047C690U;
 constexpr u32 kCallSelectionClear = 0x00478B20U;
 constexpr u32 kCallSelectionComplete = 0x00478B40U;
 constexpr u32 kCallResetTarget = 0x00478AE0U;
-constexpr u32 kCallResetCompletionSlot = 0x004750C0U;
 constexpr u32 kCallQueryCompletionValue = 0x00478370U;
 constexpr u32 kCallPublishBattleBit = 0x00483FF0U;
 constexpr u32 kCallQueryCompletionEffect = 0x0047F360U;
@@ -241,6 +241,11 @@ void merge_nested(
     result.status_indicator_calls += nested.status_indicator_calls;
     result.scale_scan_calls += nested.scale_scan_calls;
     result.action_record_clear_calls += nested.action_record_clear_calls;
+    result.group_a_actor_cleanup_calls +=
+        nested.group_a_actor_cleanup_calls;
+    if (nested.group_a_actor_cleanup_calls != 0U) {
+        result.group_a_actor_cleanup = nested.group_a_actor_cleanup;
+    }
     result.attack_order_calls += nested.attack_order_calls;
     if (nested.attack_order_calls != 0U) {
         result.attack_order = nested.attack_order;
@@ -1011,12 +1016,45 @@ action_decision_done:
                                     shared.defeated_actor_packed, 0U
                                 );
                                 state.group_a_completion_slots[uindex] = 0U;
-                                static_cast<void>(invoke(
-                                    port,
-                                    result,
-                                    kCallResetCompletionSlot,
-                                    {target}
-                                ));
+                                LegacyBattlePartyStartupRecord* party = nullptr;
+                                if (context.startup != nullptr &&
+                                    uindex < context.startup->party.size()) {
+                                    party = &context.startup->party[uindex];
+                                }
+                                auto& actor = action.group_a_action_execution[
+                                    uindex
+                                ];
+                                result.group_a_actor_cleanup =
+                                    cleanup_legacy_battle_group_a_actor(
+                                        {
+                                            .actor = &actor,
+                                            .workspace = party != nullptr
+                                                ? &party->workspace
+                                                : nullptr,
+                                            .final_processing = party != nullptr
+                                                ? &party->final_processing
+                                                : nullptr,
+                                            .item_effect = party != nullptr
+                                                ? &party->item_effect_application
+                                                : nullptr,
+                                            .attribute_effect = party != nullptr
+                                                ? &party->attribute_effect
+                                                : nullptr,
+                                            .actor_list = party != nullptr
+                                                ? &party->actor_list
+                                                : nullptr,
+                                        },
+                                        target
+                                    );
+                                ++result.group_a_actor_cleanup_calls;
+                                if (result.group_a_actor_cleanup.status !=
+                                    LegacyBattleGroupAActorCleanupStatus::
+                                        completed) {
+                                    result.status =
+                                        LegacyBattleActionDispatchStatus::
+                                            group_a_actor_cleanup_typed_stop;
+                                    return result;
+                                }
                                 static_cast<void>(invoke(
                                     port, result, kCallResetActor, {target}
                                 ));
@@ -1261,7 +1299,8 @@ action_decision_done:
             .adjacent_intensity_record = context.attack_order_adjacent_record,
         },
         mapped_actor,
-        0U
+        0U,
+        context.startup
     );
     merge_nested(result, final);
     if (final.status != LegacyBattleActionDispatchStatus::completed) {

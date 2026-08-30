@@ -45,7 +45,8 @@ advance_legacy_battle_final_actor_step(
     LegacyBattleActionDispatchPort& port,
     LegacyBattleAttackOrderRemoveBindings attack_order,
     compat::u32 actor_index,
-    compat::u32 actor_group
+    compat::u32 actor_group,
+    LegacyBattleStartupState* startup = nullptr
 );
 
 }  // namespace openswd3::battle

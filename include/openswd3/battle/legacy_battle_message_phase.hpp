@@ -70,7 +70,7 @@ enum class LegacyBattleMessagePhaseCall : compat::u8 {
     query_actor_completion,
     reserved_prepare_transition_control_slot,
     prepare_group_a_actor,
-    reset_group_a_actor,
+    reserved_reset_group_a_actor_slot,
     set_group_a_actor_mode,
     commit_active_actor,
     configure_actor_action,
@@ -257,6 +257,8 @@ struct LegacyBattleMessagePhaseResult {
     compat::u32 group_b_completion_calls{};
     compat::u32 group_a_reset_calls{};
     compat::u32 group_a_prepare_calls{};
+    std::vector<LegacyBattleGroupAActorCleanupResult> group_a_actor_cleanups;
+    compat::u32 group_a_actor_cleanup_calls{};
     compat::u32 sample_calls{};
     compat::u32 target_selection_entry_calls{};
     compat::u32 player_item_quantity_calls{};

@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v819
+版本：v820
 
-最后更新：2026-08-29
+最后更新：2026-08-30
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗角色动作效果与渲染函数 `0x004750C0`
+当前步骤：模块10 · 审计战斗角色动作效果与渲染函数 `0x00475160`
 
 ## 0. 执行约定
 
@@ -86,6 +86,7 @@ python3 /mnt/d/Dev/Source/Project/stockkit/scripts/tg_notify.py "OpenSWD3 模块
 - 文本内核：剧情脚本仍按汇编以原始字节和字节偏移解析，文本载荷在边界按 EXE 同目录 `openswd3.toml` 的 `[scripts].encoding` 解码；`big5` 对应 CP950、`gbk` 对应 CP936，缺省为 `big5`，不自动猜测。解码后的内核公共接口统一使用 `char16_t`/UTF-16，不使用平台宽度不同的 `wchar_t`。
 - 显示尺寸：游戏内分辨率固定为 `640×480`；`[window].width/height` 只记录 SDL3 宿主的普通窗口尺寸，`maximized` 记录最大化状态，内容保持等比缩放，正常退出时保存窗口布局并在下次启动恢复。
 - 汇编优先级：完整 LST 中的机器码字节与指令是唯一汇编主证据，高于 IDA 伪码、符号名、字符串解释和主观推断；ASM 不提供 LST 缺失的行为信息，不作为范围判定前置输入。
+- IDA 辅助入口：可用 `D:\Dev\Crack\IDA\idat.exe` 以 headless 模式打开 `swd3.idb`，辅助提取函数边界、交叉引用、类型和控制流；该输出只用于导航与复核，发生歧义时仍以完整 `swd3.exe.lst` 的机器码字节与指令为唯一行为真值。
 - 文件位置：所有新增文档、源码、测试和生成结果统一放在 `OpenSWD3/` 下分类保存；执行 GOAL 位于 `goal/`，逆向分析材料位于 `analysis/`。
 
 ### 当前事实基线
@@ -4255,4 +4256,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=231`的`0x00474FC0`战斗目标效果计算、累计与发布函数。完整权威LST主体`0x00474FC0..0x004750B3`共121行、72条实际指令、6个call、7个跳转、5个局部标签、1个返回点且无外部chunk。实现三寄存器低word曲线输入、负方向八、mode-one skip gate、目标刷新、signed效果与共享motion相加、9999 inclusive夹值、pair-primary无条件累计、负一发布抑制及最终latch，保留高半、32位回绕、先累计后哨兵和陈旧寄存器。新增五个行动者字段owner，复用既有motion、last-effect与pair-primary共享owner；六个未审callee保留窄port，group-A执行器、特殊动作400和动作4/404共七处caller均typed化。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`231/422 = 222 platform_adapted + 9 assembly_exact + 191 pending_audit`；生成器连续双跑逐字节一致，SHA256为`00d5ee47d782af9cd16de91e08cd818a5678fa578d047c38647c2ae3a71a4fce`。动态差分因原版行动者曲线字段、目标对象、共享motion/last-effect、pair-primary累计、六个callee和七处caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=232`的`0x004750C0`战斗角色动作效果与渲染函数。
+本轮再完成`audit_order=232`的`0x004750C0`战斗group-A行动者状态与资源计数清理函数。完整权威LST主体`0x004750C0..0x0047515D`共62行、55条实际指令、0个call、2个跳转、2个局部标签、1个返回点且无外部chunk。实现profile/pre-effect与十一个word按原顺序清零、资源头`+6`数量unsigned正值递减、零值保留、最终selection gate清除及EAX/ECX/EDX陈旧状态，保留`mov cx`高半继承、`+0x2F1A`不清理和资源节点故障前全部副作用。复用startup party重叠typed view与actor-list资源链owner；group-B frame、final-actor step、menu finalize四处分支、selection frame和message phase共八处caller均typed化，旧opaque枚举槽保留为reserved。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`232/422 = 223 platform_adapted + 9 assembly_exact + 190 pending_audit`；生成器连续双跑逐字节一致，SHA256为`8efdb823624eec1dbbfff179321885871b1e17dc052420e7ce5e01dd47a15f05`。动态差分因原版十个group-A行动者完整对象、资源链、八处caller寄存器及重叠物理字段联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=233`的`0x00475160`战斗角色动作效果与渲染函数。

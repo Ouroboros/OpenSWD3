@@ -8,6 +8,8 @@ struct LegacyBattleMenuInputFinalizeBindings {
     LegacyBattleStartupResetBlocks& startup_reset;
     LegacyBattleFrameInputResolutionState& frame_input_resolution;
     LegacyBattleFinalActorStepState& final_actor;
+    LegacyBattleActionDispatchState& action;
+    std::span<LegacyBattlePartyStartupRecord> party;
     LegacyBattleActorMetricState& metrics;
     LegacyBattleInputDispatchState& input_dispatch;
     compat::u32& message_state;
@@ -37,6 +39,7 @@ struct LegacyBattleMenuInputFinalizeResult {
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
     compat::u32 port_calls{};
+    LegacyBattleGroupAActorCleanupResult active_group_a_cleanup{};
     compat::u32 active_group_a_reset_calls{};
     compat::u32 actor_reset_calls{};
 };

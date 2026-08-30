@@ -673,6 +673,8 @@ I5最终必须锁定：
 
 `audit_order=231`的`0x00474FC0`已关闭为`platform_adapted`。完整权威LST主体`0x00474FC0..0x004750B3`共121行、72条实际指令、6个call、7个跳转、5个局部标签、1个返回点且无外部chunk。实现三寄存器低word曲线输入、负方向八、mode-one skip gate、目标刷新、signed效果与共享motion相加、9999 inclusive夹值、pair-primary无条件累计、负一发布抑制及最终latch，保留高半、32位回绕、先累计后哨兵和陈旧寄存器。新增五个行动者字段owner，复用既有motion、last-effect与pair-primary共享owner；六个未审callee保留窄port，group-A执行器、特殊动作400和动作4/404共七处caller均typed化。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`231/422 = 222 platform_adapted + 9 assembly_exact + 191 pending_audit`，双跑SHA256为`00d5ee47d782af9cd16de91e08cd818a5678fa578d047c38647c2ae3a71a4fce`。动态差分因原版行动者曲线字段、目标对象、共享motion/last-effect、pair-primary累计、六个callee和七处caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=232`的`0x004750C0`战斗角色动作效果与渲染函数。
+`audit_order=232`的`0x004750C0`已关闭为`platform_adapted`。完整权威LST主体`0x004750C0..0x0047515D`共62行、55条实际指令、0个call、2个跳转、2个局部标签、1个返回点且无外部chunk。实现行动者profile/pre-effect与十一个word按原顺序清零、资源头`+6`数量unsigned正值递减、零值保留、最终selection gate清除及EAX/ECX/EDX陈旧状态，保留`mov cx`高半继承、`+0x2F1A`不清理和资源节点故障前全部副作用。复用startup party各重叠typed view与actor-list资源链owner；group-B frame、final-actor step、menu finalize四处分支、selection frame和message phase共八处caller均typed化，旧opaque枚举槽保留为reserved。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`232/422 = 223 platform_adapted + 9 assembly_exact + 190 pending_audit`，双跑SHA256为`8efdb823624eec1dbbfff179321885871b1e17dc052420e7ce5e01dd47a15f05`。动态差分因原版十个group-A行动者完整对象、资源链、八处caller寄存器及重叠物理字段联合捕获后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=233`的`0x00475160`战斗角色动作效果与渲染函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

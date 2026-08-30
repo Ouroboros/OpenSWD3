@@ -162,7 +162,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     message_phase_query_actor_completion,
     reserved_message_phase_prepare_transition_control_slot,
     message_phase_prepare_group_a_actor,
-    message_phase_reset_group_a_actor,
+    reserved_message_phase_reset_group_a_actor_slot,
     message_phase_set_group_a_actor_mode,
     message_phase_commit_active_actor,
     message_phase_configure_actor_action,
@@ -900,9 +900,9 @@ public:
             call = LegacyBattleFrameCoordinatorCall::
                 message_phase_prepare_group_a_actor;
             break;
-        case LegacyBattleMessagePhaseCall::reset_group_a_actor:
+        case LegacyBattleMessagePhaseCall::reserved_reset_group_a_actor_slot:
             call = LegacyBattleFrameCoordinatorCall::
-                message_phase_reset_group_a_actor;
+                reserved_message_phase_reset_group_a_actor_slot;
             break;
         case LegacyBattleMessagePhaseCall::set_group_a_actor_mode:
             call = LegacyBattleFrameCoordinatorCall::

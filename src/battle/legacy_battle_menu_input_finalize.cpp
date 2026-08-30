@@ -67,6 +67,41 @@ LegacyBattleMenuInputFinalizeResult finalize_legacy_battle_menu_input(
         input.selection_animation_frame_a = 0U;
         input.selection_animation_frame_b = 0U;
     };
+    const auto cleanup_active_group_a = [&](const u32 index) {
+        LegacyBattlePartyStartupRecord* party = nullptr;
+        if (index < bindings.party.size()) {
+            party = &bindings.party[index];
+        }
+        result.active_group_a_cleanup = cleanup_legacy_battle_group_a_actor(
+            {
+                .actor = &bindings.action.group_a_action_execution[index],
+                .workspace =
+                    party != nullptr ? &party->workspace : nullptr,
+                .final_processing =
+                    party != nullptr ? &party->final_processing : nullptr,
+                .item_effect = party != nullptr
+                    ? &party->item_effect_application
+                    : nullptr,
+                .attribute_effect = party != nullptr
+                    ? &party->attribute_effect
+                    : nullptr,
+                .actor_list =
+                    party != nullptr ? &party->actor_list : nullptr,
+            },
+            group_a_token(index)
+        );
+        ++result.active_group_a_reset_calls;
+        eax = result.active_group_a_cleanup.return_eax;
+        ecx = result.active_group_a_cleanup.return_ecx;
+        edx = result.active_group_a_cleanup.return_edx;
+        if (result.active_group_a_cleanup.status !=
+            LegacyBattleGroupAActorCleanupStatus::completed) {
+            result.status = LegacyBattleMenuInputFinalizeStatus::
+                active_group_a_actor_typed_stop;
+            return false;
+        }
+        return true;
+    };
     const auto call_active_group_a = [&](const bool publish_edx) {
         const u32 code = final_actor.queued_actor_code;
         const u32 index = group_a_index(code);
@@ -80,12 +115,7 @@ LegacyBattleMenuInputFinalizeResult finalize_legacy_battle_menu_input(
                 active_group_a_actor_typed_stop;
             return false;
         }
-        invoke(
-            LegacyBattleInputDispatchCall::
-                menu_finalize_reset_active_group_a_actor
-        );
-        ++result.active_group_a_reset_calls;
-        return true;
+        return cleanup_active_group_a(index);
     };
     const auto call_active_group_a_case_two = [&]() {
         const u32 code = final_actor.queued_actor_code;
@@ -98,12 +128,7 @@ LegacyBattleMenuInputFinalizeResult finalize_legacy_battle_menu_input(
                 active_group_a_actor_typed_stop;
             return false;
         }
-        invoke(
-            LegacyBattleInputDispatchCall::
-                menu_finalize_reset_active_group_a_actor
-        );
-        ++result.active_group_a_reset_calls;
-        return true;
+        return cleanup_active_group_a(index);
     };
     const auto reset_selection_workspace = [&]() {
         input.selection_cache_gate_b = 0U;

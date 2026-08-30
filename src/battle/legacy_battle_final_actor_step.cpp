@@ -1,5 +1,7 @@
 #include "openswd3/battle/legacy_battle_final_actor_step.hpp"
 
+#include "openswd3/battle/legacy_battle_startup.hpp"
+
 #include <bit>
 
 namespace openswd3::battle {
@@ -11,7 +13,6 @@ using compat::u32;
 using compat::u8;
 
 constexpr u32 kCallValidateActor = 0x00479850U;
-constexpr u32 kCallRemoveActor = 0x004750C0U;
 constexpr u32 kCallResetActor = 0x0047C660U;
 constexpr u32 kCallQueryContinuation = 0x0047F340U;
 constexpr u32 kCallConfigureActor = 0x00478330U;
@@ -154,6 +155,7 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
     LegacyBattleActionDispatchState& action,
     LegacyBattleActionDispatchPort& port,
     const LegacyBattleAttackOrderRemoveBindings attack_order,
+    LegacyBattleStartupState* const startup,
     const u32 actor_index
 ) {
     LegacyBattleActionDispatchResult result;
@@ -196,7 +198,33 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
             static_cast<u8>(state.removed_group_a_count + 1U);
     }
 
-    static_cast<void>(invoke(port, result, kCallRemoveActor, {actor_token}));
+    LegacyBattlePartyStartupRecord* party = nullptr;
+    if (startup != nullptr && actor_index < startup->party.size()) {
+        party = &startup->party[actor_index];
+    }
+    auto& actor = action.group_a_action_execution[actor_index];
+    result.group_a_actor_cleanup = cleanup_legacy_battle_group_a_actor(
+        {
+            .actor = &actor,
+            .workspace = party != nullptr ? &party->workspace : nullptr,
+            .final_processing =
+                party != nullptr ? &party->final_processing : nullptr,
+            .item_effect =
+                party != nullptr ? &party->item_effect_application : nullptr,
+            .attribute_effect =
+                party != nullptr ? &party->attribute_effect : nullptr,
+            .actor_list = party != nullptr ? &party->actor_list : nullptr,
+        },
+        actor_token
+    );
+    ++result.group_a_actor_cleanup_calls;
+    if (result.group_a_actor_cleanup.status !=
+        LegacyBattleGroupAActorCleanupStatus::completed) {
+        result.status = LegacyBattleActionDispatchStatus::
+            group_a_actor_cleanup_typed_stop;
+        return result;
+    }
+
     const u32 actor_code = actor_index + 8U;
     if (!remove_attack_order_entry(attack_order, result, actor_code)) {
         return result;
@@ -395,10 +423,13 @@ LegacyBattleActionDispatchResult advance_legacy_battle_final_actor_step(
     LegacyBattleActionDispatchPort& port,
     const LegacyBattleAttackOrderRemoveBindings attack_order,
     const compat::u32 actor_index,
-    const compat::u32 actor_group
+    const compat::u32 actor_group,
+    LegacyBattleStartupState* const startup
 ) {
     return actor_group == 1U
-        ? advance_group_a(state, action, port, attack_order, actor_index)
+        ? advance_group_a(
+              state, action, port, attack_order, startup, actor_index
+          )
         : advance_group_b(state, action, port, attack_order, actor_index);
 }
 

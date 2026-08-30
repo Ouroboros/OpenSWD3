@@ -722,9 +722,9 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         };
         const auto result = run(fixture);
         const auto resolved = fixture.port.message_calls.back();
-        const auto committed = fixture.port.message_calls[9U];
-        const auto configured = fixture.port.message_calls[10U];
-        const auto resource = fixture.port.message_calls[11U];
+        const auto committed = fixture.port.message_calls[7U];
+        const auto configured = fixture.port.message_calls[8U];
+        const auto resource = fixture.port.message_calls[9U];
         bool records_reset = true;
         for (const auto& record : fixture.startup.reset.records_524788) {
             records_reset = records_reset && record.value_00 == 0xFFFFFFFFU &&
@@ -764,14 +764,21 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         test.expect_true(
             committed.call ==
                     LegacyBattleMessagePhaseCall::commit_active_actor &&
-                committed.eax == 3021U && committed.edx == 0U &&
-                configured.call ==
+                committed.eax == 3021U &&
+                committed.edx == 0x00505904U,
+            "message 99 preserves the commit register snapshot after typed cleanup"
+        );
+        test.expect_true(
+            configured.call ==
                     LegacyBattleMessagePhaseCall::configure_actor_action &&
-                configured.eax == 1007U && configured.edx == 3021U &&
-                resource.call ==
+                configured.eax == 1007U && configured.edx == 3021U,
+            "message 99 preserves the configure register snapshot"
+        );
+        test.expect_true(
+            resource.call ==
                     LegacyBattleMessagePhaseCall::query_actor_resource &&
                 resource.eax == 3021U && resource.edx == 5U,
-            "message 99 preserves each distinct group-A address-multiply register snapshot"
+            "message 99 preserves the resource-query register snapshot"
         );
     }
     {
@@ -798,7 +805,9 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                 result.group_b_reset_calls == 8U &&
                 result.group_a_reset_calls == 10U &&
                 result.group_a_prepare_calls == 10U &&
-                result.call_trace_count > 40U &&
+                result.group_a_actor_cleanup_calls == 10U &&
+                result.group_a_actor_cleanups.size() == 10U &&
+                result.call_trace_count > 30U &&
                 result.call_trace.size() == result.call_trace_count,
             "message 99 preserves unbounded dynamic call tracing across all eight and ten actor loops"
         );

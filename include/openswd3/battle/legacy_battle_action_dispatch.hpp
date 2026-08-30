@@ -17,6 +17,7 @@
 #include "openswd3/battle/legacy_battle_outcome_state.hpp"
 #include "openswd3/battle/legacy_battle_actor_list_query.hpp"
 #include "openswd3/battle/legacy_battle_group_a_action_execution.hpp"
+#include "openswd3/battle/legacy_battle_group_a_actor_cleanup.hpp"
 #include "openswd3/battle/legacy_battle_group_a_attribute_effect.hpp"
 #include "openswd3/battle/legacy_battle_group_a_final_processing.hpp"
 #include "openswd3/battle/legacy_battle_group_a_summon_materialization.hpp"
@@ -1183,6 +1184,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     summon_materialization_typed_stop,
     group_a_attribute_effect_typed_stop,
     group_a_action_execution_typed_stop,
+    group_a_actor_cleanup_typed_stop,
     group_a_final_processing_typed_stop,
     group_a_actor_list_action_typed_stop,
     group_a_mode_four_finalization_typed_stop,
@@ -1246,6 +1248,8 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 group_a_attribute_effect_calls{};
     LegacyBattleGroupAActionExecutionResult group_a_action_execution{};
     compat::u32 group_a_action_execution_calls{};
+    LegacyBattleGroupAActorCleanupResult group_a_actor_cleanup{};
+    compat::u32 group_a_actor_cleanup_calls{};
     LegacyBattleGroupAFinalProcessingResult group_a_final_processing{};
     compat::u32 group_a_final_processing_calls{};
     LegacyBattleActorListActionResult group_a_actor_list_action{};

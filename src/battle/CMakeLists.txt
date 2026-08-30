@@ -33,6 +33,7 @@ add_library(
         legacy_battle_actor_ready.cpp
         legacy_battle_group_a_attribute_aggregation.cpp
         legacy_battle_group_a_action_execution.cpp
+        legacy_battle_group_a_actor_cleanup.cpp
         legacy_battle_group_a_attribute_effect.cpp
         legacy_battle_group_a_effect_reward_application.cpp
         legacy_battle_group_a_embedded_profile_application.cpp

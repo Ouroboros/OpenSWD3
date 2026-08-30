@@ -480,6 +480,10 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
             result.actor_target_preparation.status ==
                     openswd3::battle::LegacyBattleActorTargetPreparationStatus::
                         completed &&
+                result.group_a_actor_cleanup.status ==
+                    openswd3::battle::
+                        LegacyBattleGroupAActorCleanupStatus::completed &&
+                result.group_a_actor_cleanup_calls == 1U &&
                 fixture.port.target_calls.size() == 2U &&
                 fixture.debug.committed_actor_code == 8U &&
                 fixture.target.selected_action_kind == 1U &&

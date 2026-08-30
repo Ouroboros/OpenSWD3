@@ -360,7 +360,34 @@ private:
             call(LegacyBattleMessagePhaseCall::prepare_group_a_actor, ecx_);
             ++result_.group_a_prepare_calls;
             ecx_ = group_a_token(index);
-            call(LegacyBattleMessagePhaseCall::reset_group_a_actor, ecx_);
+            auto& party = bindings_.startup.party[index];
+            result_.group_a_actor_cleanups.push_back(
+                cleanup_legacy_battle_group_a_actor(
+                    {
+                        .actor = &bindings_.action.group_a_action_execution[
+                            index
+                        ],
+                        .workspace = &party.workspace,
+                        .final_processing = &party.final_processing,
+                        .item_effect = &party.item_effect_application,
+                        .attribute_effect = &party.attribute_effect,
+                        .actor_list = &party.actor_list,
+                    },
+                    ecx_
+                )
+            );
+            ++result_.group_a_actor_cleanup_calls;
+            const auto& cleanup = result_.group_a_actor_cleanups.back();
+            eax_ = cleanup.return_eax;
+            ecx_ = cleanup.return_ecx;
+            edx_ = cleanup.return_edx;
+            if (cleanup.status !=
+                LegacyBattleGroupAActorCleanupStatus::completed) {
+                return stop(
+                    LegacyBattleMessagePhaseStatus::group_a_actor_typed_stop
+                );
+            }
+            ecx_ = group_a_token(index);
             call(
                 LegacyBattleMessagePhaseCall::set_group_a_actor_mode, ecx_, {1U}
             );
