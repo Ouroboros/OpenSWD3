@@ -81,6 +81,7 @@ add_library(
         legacy_battle_group_b_action_reconfiguration.cpp
         legacy_battle_group_b_coordinate_offsets.cpp
         legacy_battle_group_b_frame.cpp
+        legacy_battle_group_b_opponent_mode.cpp
         legacy_battle_group_b_order.cpp
         legacy_battle_group_b_target_cycle.cpp
         legacy_battle_global_reset.cpp

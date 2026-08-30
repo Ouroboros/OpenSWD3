@@ -96,9 +96,24 @@ public:
 class RandomPort final
     : public openswd3::battle::LegacyBattleBoundedRandomPort {
 public:
-    [[nodiscard]] u32 random_bounded(u32) override {
-        return 0U;
+    [[nodiscard]] u32 random_bounded(const u32 bound) override {
+        bounds.push_back(bound);
+        if (replies.empty()) {
+            return default_reply;
+        }
+
+        const u32 reply = replies.front();
+        replies.pop_front();
+        return reply;
     }
+
+    void push(const u32 reply) {
+        replies.push_back(reply);
+    }
+
+    u32 default_reply{};
+    std::deque<u32> replies;
+    std::vector<u32> bounds;
 };
 
 class SoundPort final
@@ -180,6 +195,26 @@ struct Fixture {
         };
     }
 };
+
+void write_group_b_resource_word(
+    std::array<u8, 0xA4>& resource,
+    const std::size_t offset,
+    const u16 value
+) {
+    resource[offset] = static_cast<u8>(value);
+    resource[offset + 1U] = static_cast<u8>(value >> 8U);
+}
+
+void write_group_b_resource_dword(
+    std::array<u8, 0xA4>& resource,
+    const std::size_t offset,
+    const u32 value
+) {
+    resource[offset] = static_cast<u8>(value);
+    resource[offset + 1U] = static_cast<u8>(value >> 8U);
+    resource[offset + 2U] = static_cast<u8>(value >> 16U);
+    resource[offset + 3U] = static_cast<u8>(value >> 24U);
+}
 
 void bind_group_b_coordinate_resource(
     Fixture& fixture, const u32 actor_index, const u16 x = 0U, const u16 y = 0U
@@ -436,6 +471,76 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 state.random_target_index == 1U &&
                 state.shared.action_side == 1U && port.count(0x00439070U) == 1U,
             "selection mode chooses random nonterminal group B peer and records side"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState state;
+        state.frame_enabled = 1U;
+        state.post_update_gate[0U] = 1U;
+        state.shared.action.active_effect_target = 0U;
+        state.shared.action.group_a_count = 1;
+        Fixture fixture;
+        bind_group_b_coordinate_resource(fixture, 0U);
+        auto& actor = (*fixture.startup->group_b_lifecycle)[0U];
+        write_group_b_resource_dword(actor.resource_bytes, 0x4CU, 3U);
+        write_group_b_resource_word(actor.resource_bytes, 0x64U, 0U);
+        write_group_b_resource_word(actor.resource_bytes, 0x7CU, 1U);
+        actor.resource_bytes[0x8EU] = 1U;
+        fixture.random.push(0x12340004U);
+        DispatchPort port;
+        port.push(0x004786A0U, {.eax = 1U});
+        port.push(0x004786A0U, {.eax = 0U});
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.group_b_opponent_mode_calls == 1U &&
+                actor.action_execution.opponent_mode == 1U &&
+                state.shared.action_side == 1U &&
+                state.random_target_index == 0U &&
+                state.selection_initialized == 1U &&
+                fixture.random.bounds == std::vector<u32>{10U} &&
+                port.count(0x00476080U) == 0U,
+            "group A selection directly applies the typed opponent mode result"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState state;
+        state.frame_enabled = 1U;
+        state.post_update_gate[0U] = 1U;
+        state.shared.action.active_effect_target = 0U;
+        state.shared.action.group_a_count = 1;
+        Fixture fixture;
+        fixture.startup->group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        auto& actor = (*fixture.startup->group_b_lifecycle)[0U];
+        actor.object_token =
+            openswd3::battle::kLegacyBattleActorGroupBBaseToken;
+        actor.action_configuration.timing_value = 0xCAFEBABEU;
+        fixture.random.push(5U);
+        DispatchPort port;
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::
+                    group_b_opponent_mode_typed_stop &&
+                result.return_value == 0xCAFEBABEU &&
+                result.group_b_opponent_mode_calls == 1U &&
+                state.selection_initialized == 0U &&
+                state.shared.action_side == 0U &&
+                actor.action_execution.opponent_mode == 0U &&
+                fixture.random.bounds == std::vector<u32>{10U} &&
+                port.count(0x00476080U) == 0U,
+            "opponent mode resource stop preserves random and blocks selection suffix"
         );
     }
 

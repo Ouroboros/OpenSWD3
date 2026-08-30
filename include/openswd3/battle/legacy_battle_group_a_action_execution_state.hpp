@@ -82,6 +82,7 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u8 special_particle_coordinate_suppression{};  // actor + 0x0D94
     compat::u8 special_effect_direct_mode{};    // actor + 0x0D9C
     compat::u8 effect_direction_flags{};        // actor + 0x26C0
+    compat::u8 opponent_mode{};                 // actor + 0x2A9C
     compat::u16 source_y{};                     // actor + 0x0DB2
     compat::i32 target_phase_y_adjustment{};    // actor + 0x02B4
     compat::u16 render_x_base{};                // actor + 0x0316

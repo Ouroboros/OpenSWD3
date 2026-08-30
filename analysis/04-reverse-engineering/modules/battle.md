@@ -695,6 +695,8 @@ I5最终必须锁定：
 
 `audit_order=242`的`0x004758A0`已关闭为`platform_adapted`。完整权威LST主体`0x004758A0..0x00476076`共869行、683条实际指令、32个call、61个跳转、45个局部标签、4个返回点且无外部chunk。实现profile-bit8前置失败与early latch、主/次/回合记录、bit14/15 runtime门、两段signed效果与u32累计、七word颜色、typed画面刷新、资源与render-source分时访问、两条绘制路径、五记录和0x4C0工作区收尾、四目标槽全一、bound 120完成延迟及零/一返回；保留效果发布顺序、9999夹值、-1抑制、word回绕、special-mode净零motion与真实访问点typed-stop。组B配置、动作29与执行器收敛到actor lifecycle唯一action-execution owner，复用共享累计、active-effect gate、颜色和画面刷新；16个未审callee保持窄port。对手动作1的组A/组B target两处caller均删除整函数opaque调用并typed直连，返回0或typed-stop阻断全部caller后缀。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`242/422 = 233 platform_adapted + 9 assembly_exact + 180 pending_audit`，双跑SHA256为`f47b368d0fd12ac6b17afd257f6dacd01a38c5fc53282b1603b264956a57f8ad`。动态差分因原版组B actor、双方target、动作/profile/资源、16个callee、共享累计/颜色/framebuffer/RNG与caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=243`的`0x00476080`战斗函数。
+`audit_order=243`的`0x00476080`已关闭为`platform_adapted`。完整权威LST主体`0x00476080..0x00476138`共102行、73条实际指令、1个call、14个跳转、5个局部标签、3个返回点且无外部chunk。实现bound 10随机低word两类映射、资源signed阈值与`field_4c/3`比较、完整timing override、两组资源门、actor高byte bit门、可见性门及模式1/2发布；保留超域随机完整值、signed向零除法、相等拒绝、原mode不清理和真实资源访问点typed-stop。随机直连已审secondary RNG owner，timing、资源、flags与输出字节收敛到组B actor lifecycle唯一owner。组Bframe唯一caller删除整函数opaque调用，返回1发布side/self-target，返回0保留组A目标，typed-stop阻断选择完成后缀。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`243/422 = 234 platform_adapted + 9 assembly_exact + 179 pending_audit`，双跑SHA256为`dce5ffe3646bc8cfcbc89c98cf946df9d3345eb9e36d3b8a3ea1ed03bb32f372`。动态差分因原版组B actor、动态资源、secondary RNG游标与caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=244`的`0x00476140`组B行动资料标记判定。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

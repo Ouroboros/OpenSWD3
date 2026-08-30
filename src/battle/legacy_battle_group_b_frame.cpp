@@ -1,5 +1,6 @@
 #include "openswd3/battle/legacy_battle_group_b_frame.hpp"
 
+#include "openswd3/battle/legacy_battle_group_b_opponent_mode.hpp"
 #include "openswd3/battle/legacy_battle_opponent_action_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 
@@ -30,7 +31,6 @@ constexpr u32 kCallPrepareSelection = 0x00478B30U;
 constexpr u32 kCallPublishSelection = 0x00478A70U;
 constexpr u32 kCallQuerySelectionMode = 0x00483820U;
 constexpr u32 kCallRandomBounded = 0x00439070U;
-constexpr u32 kCallQueryOpponentMode = 0x00476080U;
 constexpr u32 kCallQueryStatusAction = 0x00476330U;
 constexpr u32 kCallSetActionMode = 0x00478710U;
 constexpr u32 kCallPublishStatusMode = 0x0047D860U;
@@ -623,10 +623,26 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                             break;
                         }
                     }
-                    if (invoke(
-                            port, result, kCallQueryOpponentMode, {source_token}
-                        )
-                            .eax == 1U) {
+                    LegacyBattleActorGroupBElementState* opponent = nullptr;
+                    if (context.startup != nullptr &&
+                        context.startup->group_b_lifecycle != nullptr) {
+                        opponent = &(*context.startup->group_b_lifecycle)
+                            [group_b_index];
+                    }
+
+                    const auto opponent_mode =
+                        select_legacy_battle_group_b_opponent_mode(
+                            opponent, context.bounded_random
+                        );
+                    ++result.group_b_opponent_mode_calls;
+                    if (opponent_mode.status !=
+                        LegacyBattleGroupBOpponentModeStatus::completed) {
+                        result.status = LegacyBattleActionDispatchStatus::
+                            group_b_opponent_mode_typed_stop;
+                        result.return_value = opponent_mode.return_eax;
+                        return result;
+                    }
+                    if (opponent_mode.return_eax == 1U) {
                         shared.action_side = 1U;
                         state.random_target_index = group_b_index;
                     }

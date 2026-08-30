@@ -104,6 +104,7 @@ void test_battle_group_b_action_configuration(openswd3::test::Context& test);
 void test_battle_group_b_action_reconfiguration(openswd3::test::Context& test);
 void test_battle_group_b_coordinate_offsets(openswd3::test::Context& test);
 void test_battle_group_b_frame(openswd3::test::Context& test);
+void test_battle_group_b_opponent_mode(openswd3::test::Context& test);
 void test_battle_group_b_order(openswd3::test::Context& test);
 void test_battle_group_a_target_cycle(openswd3::test::Context& test);
 void test_battle_group_b_target_cycle(openswd3::test::Context& test);
@@ -7168,6 +7169,7 @@ int main() {
     test_battle_group_b_action_reconfiguration(test);
     test_battle_group_b_coordinate_offsets(test);
     test_battle_group_b_frame(test);
+    test_battle_group_b_opponent_mode(test);
     test_battle_group_b_order(test);
     test_battle_group_a_target_cycle(test);
     test_battle_group_b_target_cycle(test);
