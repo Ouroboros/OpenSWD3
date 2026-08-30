@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v809
+版本：v810
 
 最后更新：2026-08-29
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗角色动作效果与渲染函数 `0x00472CE0`
+当前步骤：模块10 · 审计战斗角色动作效果与渲染函数 `0x00473010`
 
 ## 0. 执行约定
 
@@ -4236,4 +4236,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=221`的`0x00472C70`战斗奖励值百分比缩放。完整权威LST主体`0x00472C70..0x00472CD0`共48行、30条实际指令、2个call、1个跳转、1个局部标签、2个返回点且无外部chunk。实现group-B行动者status bit4门、两次固定callee、percent word破坏性减半，以及32位回绕乘积按signed除100向零截断再加一。新增八槽group-B reward-scale唯一owner，并通过frame coordinator现有action-dispatch引用借用；effect coordinator四处caller全部typed化。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`221/422 = 212 platform_adapted + 9 assembly_exact + 201 pending_audit`；生成器连续双跑逐字节一致，SHA256为`73fbce77d3a4b1d8548cf973447e0c9805888e04bf4c3c7bc9e17bc7395e21a3`。动态差分因原版group-B行动者、值槽、两个callee与四处caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=222`的`0x00472CE0`战斗角色动作效果与渲染函数。
+本轮再完成`audit_order=222`的`0x00472CE0`战斗双记录动作逐帧演出。完整权威LST主体`0x00472CE0..0x00473007`共348行、226条实际指令、10个call、15个跳转、10个局部标签、2个返回点且无外部chunk。实现主记录variant 45、完成latch、双frame、镜像、陈旧sample高半、主阶段双绘制、field5A门、次记录坐标绘制、field8C完成门及双记录清零。动作28/32与34–36复用group-A owner，动作29使用按槽首次物化的group-B唯一堆owner，避免大型对象压栈。六处caller全部typed化。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`222/422 = 213 platform_adapted + 9 assembly_exact + 200 pending_audit`；生成器连续双跑逐字节一致，SHA256为`e7f9e3dc29279a64194d625122b691b8a0d09e85734515952c56f4bfa10244cd`。动态差分因原版双方行动者、双记录、frame、坐标、音频、绘制与六处caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=223`的`0x00473010`战斗角色动作效果与渲染函数。

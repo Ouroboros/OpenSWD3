@@ -5,6 +5,7 @@
 #include <array>
 #include <bit>
 #include <deque>
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
@@ -1345,6 +1346,158 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 actor.primary_action_record.action_id == 0U &&
                 actor.action_twenty_seven_record.field_94 == 0U,
             "action twenty-seven clears both records only after the primary completion flag"
+        );
+    }
+
+    {
+        LegacyBattleTargetPhaseState phase;
+        phase.render_toggle_gate = 1U;
+        LegacyBattleGroupAActionExecutionState actor;
+        actor.profile_value = 0x123U;
+        actor.position_x = 100U;
+        actor.position_y = 50U;
+        actor.action_twenty_seven_motion_mode = 1U;
+        LegacyBattleGroupAActionExecutionSharedState shared;
+        Fixture fixture;
+        fixture.stream_provider.bytes = {
+            0x54U, 0x41U, 0x09U, 0x00U,
+            0x58U, 0x41U, 0x05U, 0x00U,
+            0x59U, 0x58U, 0x04U, 0x00U, 0x06U, 0x00U,
+            0x46U, 0x52U, 0x44U, 0x00U,
+            0x32U, 0x4FU,
+        };
+        DispatchPort port;
+        port.push(
+            0x00485610U,
+            {.eax = 0xCCCC3333U, .ecx = 0xAAAA1111U, .edx = 0xBBBB2222U}
+        );
+        port.push(0x004783B0U, {.outputs = {200U, 60U}});
+        auto context = fixture.context();
+        const auto completed =
+            openswd3::battle::advance_legacy_battle_dual_record_action(
+                &phase,
+                &actor,
+                &shared,
+                port,
+                context,
+                {
+                    .actor_token = 0x12340000U,
+                    .coordinate_token = 0x56780000U,
+                    .secondary_action_id = 0x1965U,
+                }
+            );
+        test.expect_true(
+            completed.return_eax == 1U &&
+                completed.action_update_calls == 2U &&
+                completed.frame_lookup_calls == 2U &&
+                completed.coordinate_query_calls == 1U &&
+                completed.sample_play_calls == 1U &&
+                completed.sample_pan_calls == 1U &&
+                completed.render_calls == 3U &&
+                completed.action_record_clears == 2U &&
+                actor.turn_completion_latch == 1U &&
+                actor.primary_action_record.action_id == 0U &&
+                actor.action_twenty_seven_record.action_id == 0U,
+            "dual-record action advances both records and clears them only after secondary completion"
+        );
+        test.expect_true(
+            actor.turn_target_x_offset == 28U &&
+                actor.source_x_offset == 27U &&
+                actor.turn_render_flags == 1U && actor.render_flags == 0x0DU &&
+                shared.draw_height_third == 10U &&
+                shared.draw_height_quarter == 8U &&
+                shared.draw_motion_a == 0xFFFFFFFFU &&
+                has_call_argument(port, 0x00485650U, 0U, 0xAAAA0000U) &&
+                has_call_argument(port, 0x00485650U, 1U, 0xFFFFFFF0U) &&
+                port.calls[2U].callee_token == 0x004170E0U &&
+                port.calls[2U].arguments[0U] == 72U &&
+                port.calls[2U].arguments[1U] == 40U &&
+                port.calls[3U].arguments[0U] == 72U &&
+                port.calls[3U].arguments[1U] == 44U &&
+                port.calls[5U].arguments[0U] == 172U &&
+                port.calls[5U].arguments[1U] == 54U,
+            "dual-record action preserves mirror offsets stale sample high halves and all three draw formulas"
+        );
+
+        actor = {};
+        actor.profile_value = 0x123U;
+        fixture.frame_provider.available = false;
+        const auto missing =
+            openswd3::battle::advance_legacy_battle_dual_record_action(
+                &phase,
+                &actor,
+                &shared,
+                port,
+                context,
+                {
+                    .actor_token = 0x12340000U,
+                    .coordinate_token = 0x56780000U,
+                    .secondary_action_id = 0x1965U,
+                }
+            );
+        test.expect_true(
+            missing.status ==
+                    openswd3::battle::LegacyBattleDualRecordActionStatus::
+                        frame_owner_typed_stop &&
+                actor.turn_completion_latch == 1U &&
+                actor.turn_frame_token == 0U,
+            "dual-record action stops at the original first-frame dereference after publishing the completion latch"
+        );
+    }
+
+    {
+        constexpr std::array<u16, 5> actions{28U, 32U, 34U, 35U, 36U};
+        for (const u16 action : actions) {
+            LegacyBattleActionDispatchState state;
+            state.group_a_action_execution[0U].profile_value = 0x123U;
+            Fixture fixture;
+            fixture.stream_provider.bytes = {
+                0x54U, 0x41U, 0x09U, 0x00U,
+                0x46U, 0x52U, 0x44U, 0x00U,
+                0x32U, 0x4FU,
+            };
+            DispatchPort port;
+            port.action = action;
+            auto context = fixture.context();
+            const auto result = openswd3::battle::dispatch_legacy_battle_action(
+                state, port, context, 0U, 0U
+            );
+            test.expect_true(
+                result.status == LegacyBattleActionDispatchStatus::completed &&
+                    result.dual_record_action_calls == 1U &&
+                    result.dual_record_action.return_eax == 1U &&
+                    port.count(0x00472CE0U) == 0U,
+                "group-A action-family callers advance the typed dual-record action without the opaque call"
+            );
+        }
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        state.group_b_count = 2;
+        state.group_b_action_execution[1U] =
+            std::make_unique<LegacyBattleGroupAActionExecutionState>();
+        state.group_b_action_execution[1U]->profile_value = 0x456U;
+        Fixture fixture;
+        fixture.stream_provider.bytes = {
+            0x54U, 0x41U, 0x09U, 0x00U,
+            0x46U, 0x52U, 0x44U, 0x00U,
+            0x32U, 0x4FU,
+        };
+        DispatchPort port;
+        port.action = 29U;
+        auto context = fixture.context();
+        const auto result = openswd3::battle::dispatch_legacy_battle_action(
+            state, port, context, 0U, 1U
+        );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.dual_record_action_calls == 1U &&
+                result.dual_record_action.return_eax == 1U &&
+                state.group_b_action_execution[1U]->turn_completion_latch == 1U &&
+                state.group_a_action_execution[0U].turn_completion_latch == 0U &&
+                port.count(0x00472CE0U) == 0U,
+            "action twenty-nine owns and advances the selected group-B dual-record state"
         );
     }
 
@@ -2838,7 +2991,13 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
             LegacyBattleActionDispatchState state;
             state.selection_word = 7U;
             state.selection_high_word = 9U;
+            state.group_a_action_execution[0U].profile_value = 0x123U;
             Fixture fixture;
+            fixture.stream_provider.bytes = {
+                0x54U, 0x41U, 0x09U, 0x00U,
+                0x46U, 0x52U, 0x44U, 0x00U,
+                0x32U, 0x4FU,
+            };
             DispatchPort port;
             port.action = action;
             port.push(0x00481010U, {.eax = 5U});

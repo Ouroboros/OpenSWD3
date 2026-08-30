@@ -441,6 +441,40 @@ struct LegacyBattleActionTwentySevenResult {
     compat::u32 return_edx{};
 };
 
+struct LegacyBattleDualRecordActionRequest {
+    compat::u32 actor_token{};
+    compat::u32 coordinate_token{};
+    compat::u32 secondary_action_id{};
+    compat::u32 entry_eax{};
+    compat::u32 entry_ecx{};
+    compat::u32 entry_edx{};
+};
+
+enum class LegacyBattleDualRecordActionStatus : compat::u8 {
+    completed,
+    actor_state_typed_stop,
+    phase_state_typed_stop,
+    frame_owner_typed_stop,
+    shared_state_typed_stop,
+};
+
+struct LegacyBattleDualRecordActionResult {
+    LegacyBattleDualRecordActionStatus status{
+        LegacyBattleDualRecordActionStatus::completed
+    };
+    compat::u32 action_update_calls{};
+    compat::u32 frame_lookup_calls{};
+    compat::u32 coordinate_query_calls{};
+    compat::u32 sample_play_calls{};
+    compat::u32 sample_pan_calls{};
+    compat::u32 render_calls{};
+    compat::u32 action_record_clears{};
+    compat::u32 port_calls{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
 struct LegacyBattleTargetPhaseAdvanceResult {
     LegacyBattleTargetPhaseAdvanceStatus status{
         LegacyBattleTargetPhaseAdvanceStatus::completed
@@ -579,6 +613,10 @@ struct LegacyBattleActionDispatchState {
     std::array<LegacyBattleActionMessageProfile, 8>
         group_b_message_profiles{};
     std::array<LegacyBattleRewardScaleActorState, 8> group_b_reward_scale{};
+    std::array<std::unique_ptr<LegacyBattleGroupAActionExecutionState>, 8>
+        group_b_action_execution{};
+    std::array<std::unique_ptr<LegacyBattleTargetPhaseState>, 8>
+        group_b_target_phases{};
     LegacyBattleImageParticleNodePool target_phase_particle_nodes;
     LegacyBattleImageParticleSharedState target_phase_particle_shared;
     LegacyBattleImageParticleDiagnostics target_phase_particle_diagnostics;
@@ -704,6 +742,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     action_twenty_four_typed_stop,
     action_twenty_five_ready_typed_stop,
     action_twenty_seven_typed_stop,
+    dual_record_action_typed_stop,
     summon_frame_typed_stop,
     turn_commit_chance_typed_stop,
     turn_advance_typed_stop,
@@ -775,6 +814,8 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 action_twenty_five_ready_calls{};
     LegacyBattleActionTwentySevenResult action_twenty_seven{};
     compat::u32 action_twenty_seven_calls{};
+    LegacyBattleDualRecordActionResult dual_record_action{};
+    compat::u32 dual_record_action_calls{};
     LegacyBattleSummonFrameResult summon_frame{};
     compat::u32 summon_frame_calls{};
     LegacyBattleTurnCommitChanceResult turn_commit_chance{};
@@ -882,6 +923,17 @@ advance_legacy_battle_action_twenty_seven(
     LegacyBattleActionDispatchPort& port,
     LegacyBattleActionDispatchContext& context,
     const LegacyBattleActionTwentySevenRequest& request
+);
+
+// sub_472CE0.
+[[nodiscard]] LegacyBattleDualRecordActionResult
+advance_legacy_battle_dual_record_action(
+    LegacyBattleTargetPhaseState* phase,
+    LegacyBattleGroupAActionExecutionState* actor,
+    LegacyBattleGroupAActionExecutionSharedState* shared,
+    LegacyBattleActionDispatchPort& port,
+    LegacyBattleActionDispatchContext& context,
+    const LegacyBattleDualRecordActionRequest& request
 );
 
 // sub_472710.
