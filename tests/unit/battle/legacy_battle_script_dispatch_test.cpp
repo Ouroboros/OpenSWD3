@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <bit>
 #include <cstddef>
+#include <memory>
 #include <vector>
 
 namespace {
@@ -84,6 +85,10 @@ public:
     u32 query_result{};
     u32 item_token{};
     bool script_page_stop{};
+    bool typed_stop_enabled{};
+    LegacyBattleScriptDispatchCall typed_stop_call{
+        LegacyBattleScriptDispatchCall::noop_service
+    };
 
     LegacyBattleScriptDispatchCallReply invoke_battle_script(
         LegacyBattleScriptWorkspace& workspace,
@@ -135,6 +140,9 @@ public:
         default:
             break;
         }
+        if (typed_stop_enabled && request.call == typed_stop_call) {
+            reply.typed_stop = true;
+        }
         return reply;
     }
 
@@ -167,6 +175,95 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
                 result.return_eax == 1U && fixture.workspace.cursor == 0U &&
                 port.calls.empty(),
             "default battle script cases preserve the cursor"
+        );
+    }
+
+    {
+        Fixture fixture;
+        Port port;
+        fixture.opcode(80);
+        fixture.write_u16(2U, 2U);
+        fixture.write_u16(4U, 0xFF80U);
+        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        auto& actor = (*fixture.startup.group_b_lifecycle)[2U];
+        actor.object_token = 0x0052AB58U;
+        actor.resource_token = 0x73000148U;
+        actor.resource_bytes[0x60U] = 0x68U;
+        actor.resource_bytes[0x61U] = 0x24U;
+        actor.resource_bytes[0x64U] = 0x80U;
+        actor.resource_bytes[0x65U] = 0xFFU;
+        actor.resource_bytes[0x90U] = 0x7AU;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace,
+            fixture.bindings(),
+            port,
+            {.entry_eax = 0x11111111U,
+             .entry_ecx = 0xDEADBEEFU,
+             .entry_edx = 0x22222222U}
+        );
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.return_eax == 1U && result.return_ecx == 0xDEADBEEFU &&
+                result.return_edx == 0xFFFF2468U &&
+                fixture.workspace.cursor == 6U &&
+                fixture.workspace.value_a == -128 &&
+                fixture.workspace.packed_actor_state == 0x00020000U &&
+                actor.action_configuration.timing_value == 0U &&
+                actor.action_configuration.resource_mode == 0x7AU &&
+                actor.resource_bytes[0x4CU] == 0x80U &&
+                actor.resource_bytes[0x4DU] == 0xFFU &&
+                actor.resource_bytes[0x4EU] == 0xFFU &&
+                actor.resource_bytes[0x4FU] == 0xFFU,
+            "case eighty directly reconfigures the selected group B actor"
+        );
+        test.expect_true(
+            port.calls.size() == 3U &&
+                port.calls[0U].call ==
+                    LegacyBattleScriptDispatchCall::pending_476db0 &&
+                port.calls[0U].arguments[0U] == 0x73000148U &&
+                port.calls[0U].arguments[1U] == 0xFFFFFF80U &&
+                port.calls[0U].eax == 0xFFFFFF80U &&
+                port.calls[0U].ecx == 0x73000148U &&
+                port.calls[0U].edx == 0x000002B2U &&
+                port.calls[1U].call ==
+                    LegacyBattleScriptDispatchCall::pending_476a80 &&
+                port.calls[1U].eax == 0x0052B8E8U &&
+                port.calls[1U].ecx == 0x7300017AU &&
+                port.calls[1U].edx == 0xFFFF2468U &&
+                port.calls[2U].call ==
+                    LegacyBattleScriptDispatchCall::pending_478220 &&
+                port.calls[2U].argument_count == 1U,
+            "case eighty preserves the three reconfiguration callee ABIs"
+        );
+    }
+
+    {
+        Fixture fixture;
+        Port port;
+        fixture.opcode(80);
+        fixture.write_u16(2U, 0U);
+        fixture.write_u16(4U, 7U);
+        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        auto& actor = (*fixture.startup.group_b_lifecycle)[0U];
+        actor.object_token = 0x00525508U;
+        actor.resource_token = 0x73000000U;
+        port.typed_stop_enabled = true;
+        port.typed_stop_call = LegacyBattleScriptDispatchCall::pending_476a80;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::
+                        closed_callee_typed_stop &&
+                result.return_eax == 0x00526298U &&
+                result.return_ecx == 0x73000000U && result.return_edx == 0U &&
+                fixture.workspace.cursor == 0U && port.calls.size() == 2U,
+            "case eighty stops before the caller cursor advance when a reclaimed callee stops"
         );
     }
 

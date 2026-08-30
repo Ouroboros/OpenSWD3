@@ -1,5 +1,6 @@
 #include "openswd3/battle/legacy_battle_script_dispatch.hpp"
 
+#include "openswd3/battle/legacy_battle_group_b_action_reconfiguration.hpp"
 #include "openswd3/battle/legacy_battle_script_curve.hpp"
 
 #include <bit>
@@ -7,6 +8,7 @@
 #include <cstdint>
 #include <initializer_list>
 #include <limits>
+#include <memory>
 #include <optional>
 #include <utility>
 
@@ -353,6 +355,76 @@ private:
         }
         return true;
     }
+
+    [[nodiscard]] LegacyBattleGroupBActionConfigurationCallReply
+    invoke_group_b_action_reconfiguration_callee(
+        const LegacyBattleGroupBActionConfigurationCallRequest& request
+    ) {
+        LegacyBattleScriptDispatchCall call_kind =
+            LegacyBattleScriptDispatchCall::pending_476db0;
+        u32 argument_count = 2U;
+        switch (request.call) {
+        case LegacyBattleGroupBActionConfigurationCall::
+            load_resource_definition:
+            call_kind = LegacyBattleScriptDispatchCall::pending_476db0;
+            break;
+        case LegacyBattleGroupBActionConfigurationCall::load_action_profile:
+            call_kind = LegacyBattleScriptDispatchCall::pending_476a80;
+            break;
+        case LegacyBattleGroupBActionConfigurationCall::release_resource_text:
+            call_kind = LegacyBattleScriptDispatchCall::pending_478220;
+            argument_count = 1U;
+            break;
+        }
+
+        LegacyBattleScriptDispatchCallRequest call{
+            .call = call_kind,
+            .object_token = request.ecx,
+            .arguments = {},
+            .argument_count = argument_count,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+            .cursor = workspace_.cursor,
+        };
+        call.arguments[0U] = request.arguments[0U];
+        call.arguments[1U] = request.arguments[1U];
+        result_.call_trace.push_back(call_kind);
+        ++result_.port_calls;
+        const auto reply =
+            port_.invoke_battle_script(workspace_, bindings_, call);
+        eax_ = reply.eax;
+        ecx_ = reply.ecx;
+        edx_ = reply.edx;
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .typed_stop = reply.typed_stop,
+            .resource_bytes = nullptr,
+            .profile_buffer = nullptr,
+        };
+    }
+
+    class ScriptGroupBActionReconfigurationPort final
+        : public LegacyBattleGroupBActionConfigurationPort {
+    public:
+        explicit ScriptGroupBActionReconfigurationPort(
+            ScriptRunner& runner
+        ) noexcept
+            : runner_(runner) {}
+
+        [[nodiscard]] LegacyBattleGroupBActionConfigurationCallReply invoke(
+            const LegacyBattleGroupBActionConfigurationCallRequest& request
+        ) override {
+            return runner_.invoke_group_b_action_reconfiguration_callee(
+                request
+            );
+        }
+
+    private:
+        ScriptRunner& runner_;
+    };
 
     void run_frame() {
         invoke(LegacyBattleScriptDispatchCall::frame);
@@ -3652,11 +3724,42 @@ private:
         if (!token.has_value()) {
             return finish(eax_);
         }
-        invoke(
-            LegacyBattleScriptDispatchCall::pending_475820,
-            *token,
-            {std::bit_cast<u32>(workspace_.value_a)}
+
+        const u32 saved_entry_ecx = ecx_;
+        if (bindings_.startup.group_b_lifecycle == nullptr) {
+            bindings_.startup.group_b_lifecycle = std::make_shared<std::array<
+                LegacyBattleActorGroupBElementState,
+                kLegacyBattleActorGroupBElementCount>>();
+        }
+        auto& element = (*bindings_.startup.group_b_lifecycle)[actor];
+        element.object_token = *token;
+        if (element.resource_token == 0U) {
+            element.resource_token =
+                kLegacyBattleActorGroupBResourceStateBaseToken +
+                static_cast<u32>(actor) * 0xA4U;
+        }
+
+        ScriptGroupBActionReconfigurationPort reconfiguration_port(*this);
+        const auto reconfiguration = reconfigure_legacy_battle_group_b_action(
+            &element,
+            reconfiguration_port,
+            {
+                .definition_argument = std::bit_cast<u32>(workspace_.value_a),
+                .actor_token = *token,
+                .entry_edx = static_cast<u32>(actor) * 345U,
+            }
         );
+        eax_ = reconfiguration.return_eax;
+        ecx_ = reconfiguration.return_ecx;
+        edx_ = reconfiguration.return_edx;
+        if (reconfiguration.status !=
+            LegacyBattleGroupBActionReconfigurationStatus::completed) {
+            result_.status =
+                LegacyBattleScriptDispatchStatus::closed_callee_typed_stop;
+            return finish(eax_);
+        }
+
+        ecx_ = saved_entry_ecx;
         workspace_.cursor = wrapping_add(workspace_.cursor, 6U);
         return finish(1U);
     }

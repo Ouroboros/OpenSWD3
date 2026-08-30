@@ -2,7 +2,7 @@
 
 状态：`module_in_progress`
 
-当前关闭进度：`239/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
+当前关闭进度：`240/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
 
 ## 1. 唯一真值与模块目标
 
@@ -689,6 +689,8 @@ I5最终必须锁定：
 
 `audit_order=239`的`0x00475720`已关闭为`platform_adapted`。完整权威LST主体`0x00475720..0x00475813`共108行、70条实际指令、3个call、4个跳转、4个局部标签、1个返回点且无外部chunk。实现两次32-byte记录复制、资源bit5双word回绕、source runtime发布、资源i16符号扩展、资源action/source fallback、profile ABI、资源文本释放及action `0x1C/0x2E`非对称时间值与终端寄存器；资源、profile和释放typed-stop均位于原访问或call边界。固定记录表与资源/profile/config收敛到惰性堆分配的八槽组B元素唯一owner，global reset和SDL坐标桥同步复用。startup与对手动作15两个caller均删除整函数opaque调用并typed直连，保留未知记录前缀、mirror低word、定义参数陈旧高word、scratch callee EAX高word、wave副作用与第九项停止。验证：定向CTest 1/1、AddressSanitizer/UndefinedBehaviorSanitizer 1/1、Linux core 188/188、Linux app 194/194全部通过，八份日志零warning/finding。工作包为`239/422 = 230 platform_adapted + 9 assembly_exact + 183 pending_audit`，双跑SHA256为`d9459aceff05130222a9c3d600bb3eaa41fa293336cfe9730ad0862128833d26`。动态差分因原版八个组B对象、记录表、动态资源、profile、三个callee、startup与动作15 scratch及两个caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=240`的`0x00475820`战斗组B行动资源重配置函数。
+`audit_order=240`的`0x00475820`已关闭为`platform_adapted`。完整权威LST主体`0x00475820..0x00475868`共35行、24条实际指令、3个call、0个跳转、0个局部标签、1个返回点且无外部chunk。实现资源加载后把`+0x64`按i16符号扩展写入资源`+0x4C`、把资源`+0x90`低byte发布到actor、按陈旧CL/DX拼接profile ABI并释放资源；明确不修改actor`+0x26B4`，actor与164-byte资源继续复用惰性八槽组B唯一owner。脚本case 80删除整函数opaque调用并typed直连，恢复actor乘法地址、入口EDX、三个窄callee trace、cursor加6、EAX一、顶层ECX恢复及callee stop阻断后缀。验证：定向CTest 1/1、完整core AddressSanitizer 188/188、Linux core 188/188、Linux app 194/194全部通过，零OpenSWD3源码warning与sanitizer finding；app仅有既有ALSA环境提示。工作包为`240/422 = 231 platform_adapted + 9 assembly_exact + 182 pending_audit`，双跑SHA256为`fcd646b8c45368ea42a4ef7745a8245b405db1c340a05eb037ff81fc9da65b95`。动态差分因原版八个组B对象、动态资源、profile、三个callee、脚本case 80共享全局与caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=241`的`0x00475870`战斗函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。
