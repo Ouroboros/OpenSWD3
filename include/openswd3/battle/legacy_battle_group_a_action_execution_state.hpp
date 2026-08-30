@@ -33,6 +33,7 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u16 summon_action_id{};             // actor + 0x2F14
     compat::u16 action_override_flags{};        // actor + 0x2A86
     compat::u16 identity_word{};                // actor + 0x0D64
+    compat::u8 profile_level{};                 // *(actor + 0x0000) + 0x002C
     compat::u32 current_list_index{};           // actor + 0x2EC0
     compat::u32 next_list_index{};              // actor + 0x2EC4
     compat::u16 alternate_mode{};               // actor + 0x2A8C

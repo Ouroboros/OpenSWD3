@@ -154,8 +154,33 @@ struct LegacyBattleOpponentRecord {
 };
 
 struct LegacyBattleActionMessageProfile {
+    compat::u32 phase_flags{};           // target profile + 0x0020
+    compat::u16 phase_limit{};           // target profile + 0x0052
+    compat::u16 level{};                 // target profile + 0x0054
     compat::u16 message_code{};          // target profile + 0x0086
     compat::u16 acceptance_threshold{};  // target profile + 0x0088
+};
+
+struct LegacyBattleTargetPhaseCheckRequest {
+    compat::u32 target_token{};
+};
+
+enum class LegacyBattleTargetPhaseCheckStatus : compat::u8 {
+    completed,
+    target_profile_typed_stop,
+    actor_profile_typed_stop,
+};
+
+struct LegacyBattleTargetPhaseCheckResult {
+    LegacyBattleTargetPhaseCheckStatus status{
+        LegacyBattleTargetPhaseCheckStatus::completed
+    };
+    compat::u32 value_query_calls{};
+    compat::u32 random_calls{};
+    compat::i32 sampled_metric{};
+    compat::i32 sampled_argument{};
+    compat::i32 level_delta{};
+    compat::u32 return_eax{};
 };
 
 struct LegacyBattleTargetPhaseStartRequest {
@@ -629,6 +654,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     group_a_final_processing_typed_stop,
     group_a_actor_list_action_typed_stop,
     group_a_mode_four_finalization_typed_stop,
+    target_phase_check_typed_stop,
     target_phase_start_typed_stop,
     target_phase_advance_typed_stop,
     action_thirteen_typed_stop,
@@ -688,6 +714,8 @@ struct LegacyBattleActionDispatchResult {
     LegacyBattleActorModeFourFinalizationResult
         group_a_mode_four_finalization{};
     compat::u32 group_a_mode_four_finalization_calls{};
+    LegacyBattleTargetPhaseCheckResult target_phase_check{};
+    compat::u32 target_phase_check_calls{};
     LegacyBattleTargetPhaseStartResult target_phase_start{};
     compat::u32 target_phase_start_calls{};
     LegacyBattleTargetPhaseAdvanceResult target_phase_advance{};
@@ -711,6 +739,15 @@ struct LegacyBattleActionDispatchResult {
     LegacyBattleTurnAdvanceResult turn_advance{};
     compat::u32 turn_advance_calls{};
 };
+
+// sub_472730.
+[[nodiscard]] LegacyBattleTargetPhaseCheckResult
+check_legacy_battle_target_phase(
+    const LegacyBattleGroupAActionExecutionState* actor,
+    const LegacyBattleActionMessageProfile* target_profile,
+    LegacyBattleActionDispatchPort& port,
+    const LegacyBattleTargetPhaseCheckRequest& request
+);
 
 // sub_4710D0.
 [[nodiscard]] LegacyBattleTargetPhaseStartResult

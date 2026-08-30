@@ -88,7 +88,7 @@ constexpr u32 kCallPlayMessage = 0x00485610U;
 constexpr u32 kCallSetSamplePan = 0x00485650U;
 constexpr u32 kCallQueryTargetCode = 0x0047F910U;
 constexpr u32 kCallQueryTargetDistance = 0x00477800U;
-constexpr u32 kCallCheckTargetPhase = 0x00472730U;
+constexpr u32 kCallTargetPhaseValues = 0x00484500U;
 constexpr u32 kCallTargetPhaseResource = 0x00478620U;
 constexpr u32 kCallTargetPhaseCoordinates = 0x00478470U;
 constexpr u32 kCallTargetPhaseDecode = 0x004019A0U;
@@ -450,6 +450,90 @@ void write_group_a_event_slot(
 }
 
 }  // namespace
+
+LegacyBattleTargetPhaseCheckResult check_legacy_battle_target_phase(
+    const LegacyBattleGroupAActionExecutionState* actor,
+    const LegacyBattleActionMessageProfile* target_profile,
+    LegacyBattleActionDispatchPort& port,
+    const LegacyBattleTargetPhaseCheckRequest& request
+) {
+    LegacyBattleTargetPhaseCheckResult result;
+    if (target_profile == nullptr || request.target_token == 0U) {
+        result.status =
+            LegacyBattleTargetPhaseCheckStatus::target_profile_typed_stop;
+        return result;
+    }
+
+    ++result.value_query_calls;
+    const auto values = port.invoke({
+        .callee_token = kCallTargetPhaseValues,
+        .arguments = {request.target_token},
+        .ecx = request.target_token,
+    });
+    result.sampled_metric = std::bit_cast<i32>(values.outputs[0U]);
+    result.sampled_argument = std::bit_cast<i32>(values.outputs[1U]);
+
+    if ((target_profile->phase_flags & 0x20U) != 0U ||
+        (target_profile->phase_flags & 0x800U) == 0U ||
+        target_profile->phase_limit > 0x15U) {
+        return result;
+    }
+    if (actor == nullptr) {
+        result.status =
+            LegacyBattleTargetPhaseCheckStatus::actor_profile_typed_stop;
+        return result;
+    }
+
+    const i32 actor_level = static_cast<i32>(actor->profile_level);
+    const i32 target_level = static_cast<i32>(target_profile->level);
+    const i32 target_advantage = target_level - actor_level;
+    result.level_delta = target_advantage;
+    if (target_advantage >= 12) {
+        return result;
+    }
+
+    const i32 actor_advantage = actor_level - target_level;
+    if (actor_advantage >= 10) {
+        result.return_eax = 1U;
+        return result;
+    }
+    if (target_advantage >= 7 && target_advantage <= 11) {
+        result.return_eax = result.sampled_metric <= result.sampled_argument / 4
+            ? 1U
+            : 0U;
+        return result;
+    }
+
+    const auto compare_random = [&](const i32 threshold) {
+        ++result.random_calls;
+        const auto random = port.invoke({
+            .callee_token = kCallLegacyRandom,
+            .arguments = {100U},
+        });
+        return std::bit_cast<i32>(random.eax) <= threshold;
+    };
+    const i32 third = result.sampled_argument / 3;
+    if (actor_advantage >= 5 && actor_advantage < 10) {
+        result.return_eax =
+            result.sampled_metric <= third || compare_random(80) ? 1U : 0U;
+        return result;
+    }
+    if (target_advantage >= 1 && target_advantage < 7) {
+        result.return_eax = result.sampled_metric <= third ||
+                compare_random(20 - 5 * target_advantage)
+            ? 1U
+            : 0U;
+        return result;
+    }
+    if (actor_advantage < 0) {
+        return result;
+    }
+    result.return_eax = result.sampled_metric <= third ||
+            compare_random(10 * actor_advantage + 20)
+        ? 1U
+        : 0U;
+    return result;
+}
 
 LegacyBattleTargetPhaseStartResult start_legacy_battle_target_phase(
     LegacyBattleTargetPhaseState* phase,
@@ -2807,14 +2891,22 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
             if (distance >= 0x14U) {
                 state.phase_condition_aux = 1U;
             }
-            reply = invoke(
-                state,
+            result.target_phase_check = check_legacy_battle_target_phase(
+                &state.group_a_action_execution[group_a_index],
+                &state.group_b_message_profiles[group_b_index],
                 port,
-                result,
-                kCallCheckTargetPhase,
-                {group_b_token(group_b_index)}
+                {.target_token = group_b_token(group_b_index)}
             );
-            if (reply.eax == 1U) {
+            ++result.target_phase_check_calls;
+            result.port_calls += result.target_phase_check.value_query_calls +
+                result.target_phase_check.random_calls;
+            if (result.target_phase_check.status !=
+                LegacyBattleTargetPhaseCheckStatus::completed) {
+                result.status = LegacyBattleActionDispatchStatus::
+                    target_phase_check_typed_stop;
+                return result;
+            }
+            if (result.target_phase_check.return_eax == 1U) {
                 state.phase_condition_aux = 1U;
             } else if (state.phase_condition_aux != 1U) {
                 state.phase_condition = 0U;

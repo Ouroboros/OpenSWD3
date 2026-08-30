@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v805
+版本：v806
 
 最后更新：2026-08-29
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗角色动作效果与渲染函数 `0x00472730`
+当前步骤：模块10 · 审计战斗角色动作效果与渲染函数 `0x004728D0`
 
 ## 0. 执行约定
 
@@ -4228,4 +4228,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=217`的`0x00472710`战斗动作二十五资料就绪壳。完整权威LST主体`0x00472710..0x00472722`共12行、5条实际指令、1个call、0个跳转、0个局部标签、1个返回点且无外部chunk。函数仅读取显式目标`+0x0C`资料token、把返回值写入随后被`retn 4`丢弃的参数栈槽并无条件返回一。复用group-B目标资料typed owner保持原访问边界，case 25 caller不再调用旧整函数地址。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`217/422 = 208 platform_adapted + 9 assembly_exact + 205 pending_audit`；生成器连续双跑逐字节一致，SHA256为`422395e4f1f60d05994409676b038da1d6e943e8f8a8fb9a6dfcc8911604ebbd`。动态差分因原版目标对象`+0x0C`与caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=218`的`0x00472730`战斗角色动作效果与渲染函数。
+本轮再完成`audit_order=218`的`0x00472730`战斗目标阶段等级与随机判定。完整权威LST主体`0x00472730..0x004728C3`共217行、165条实际指令、5个call、16个跳转、8个局部标签、9个返回点且无外部chunk。实现目标profile flags/limit门、双方等级差、signed四分之一/三分之一、行动者优势与目标优势分段及inclusive随机阈值。目标profile字段归入既有group-B资料owner，group-A嵌套profile等级归入行动者执行owner；待审双输出callee保留窄port，caller旧整函数调用已移除。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`218/422 = 209 platform_adapted + 9 assembly_exact + 204 pending_audit`；生成器连续双跑逐字节一致，SHA256为`3c41311dab8141c7779904c960c5b406c37a363944ce3edb2c748fd787b8b151`。动态差分因原版双方对象/profile、双输出callee、随机状态与caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=219`的`0x004728D0`战斗角色动作效果与渲染函数。

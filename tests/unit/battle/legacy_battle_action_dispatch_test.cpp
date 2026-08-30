@@ -2346,9 +2346,145 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
     }
 
     {
+        LegacyBattleGroupAActionExecutionState actor;
+        actor.profile_level = 20U;
+        LegacyBattleActionMessageProfile profile{
+            .phase_flags = 0x800U,
+            .phase_limit = 0x15U,
+            .level = 10U,
+        };
+        DispatchPort port;
+        port.push(0x00484500U, {.outputs = {7U, 9U}});
+        const auto result = openswd3::battle::check_legacy_battle_target_phase(
+            &actor, &profile, port, {.target_token = 0x00525508U}
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleTargetPhaseCheckStatus::
+                        completed &&
+                result.value_query_calls == 1U && result.random_calls == 0U &&
+                result.return_eax == 1U && port.count(0x00484500U) == 1U &&
+                port.count(0x00439070U) == 0U,
+            "target phase check accepts an actor advantage of ten after the mandatory value query"
+        );
+    }
+
+    {
+        LegacyBattleGroupAActionExecutionState actor;
+        actor.profile_level = 10U;
+        LegacyBattleActionMessageProfile profile{
+            .phase_flags = 0x800U,
+            .level = 18U,
+        };
+        DispatchPort port;
+        port.push(
+            0x00484500U,
+            {
+                .outputs = {
+                    std::bit_cast<u32>(-2),
+                    std::bit_cast<u32>(-9),
+                },
+            }
+        );
+        const auto result = openswd3::battle::check_legacy_battle_target_phase(
+            &actor, &profile, port, {.target_token = 0x00525508U}
+        );
+        test.expect_true(
+            result.return_eax == 1U && result.level_delta == 8 &&
+                result.sampled_argument == -9 && result.random_calls == 0U,
+            "target phase check preserves signed divide-by-four truncation for a seven-to-eleven target advantage"
+        );
+    }
+
+    {
+        LegacyBattleGroupAActionExecutionState actor;
+        actor.profile_level = 15U;
+        LegacyBattleActionMessageProfile profile{
+            .phase_flags = 0x800U,
+            .level = 10U,
+        };
+        DispatchPort port;
+        port.push(0x00484500U, {.outputs = {4U, 9U}});
+        port.push(0x00439070U, {.eax = 80U});
+        const auto result = openswd3::battle::check_legacy_battle_target_phase(
+            &actor, &profile, port, {.target_token = 0x00525508U}
+        );
+        test.expect_true(
+            result.return_eax == 1U && result.random_calls == 1U &&
+                port.count(0x00439070U) == 1U,
+            "target phase check keeps the inclusive eighty random threshold for an actor advantage of five"
+        );
+    }
+
+    {
+        LegacyBattleGroupAActionExecutionState actor;
+        actor.profile_level = 10U;
+        LegacyBattleActionMessageProfile profile{
+            .phase_flags = 0x800U,
+            .level = 12U,
+        };
+        DispatchPort port;
+        port.push(0x00484500U, {.outputs = {4U, 9U}});
+        port.push(0x00439070U, {.eax = 11U});
+        const auto result = openswd3::battle::check_legacy_battle_target_phase(
+            &actor, &profile, port, {.target_token = 0x00525508U}
+        );
+        profile.phase_flags = 0x820U;
+        DispatchPort gated_port;
+        gated_port.push(0x00484500U, {.outputs = {1U, 99U}});
+        const auto gated = openswd3::battle::check_legacy_battle_target_phase(
+            nullptr,
+            &profile,
+            gated_port,
+            {.target_token = 0x00525508U}
+        );
+        profile.phase_flags = 0x800U;
+        DispatchPort stopped_port;
+        stopped_port.push(0x00484500U, {.outputs = {1U, 99U}});
+        const auto stopped = openswd3::battle::check_legacy_battle_target_phase(
+            nullptr,
+            &profile,
+            stopped_port,
+            {.target_token = 0x00525508U}
+        );
+        test.expect_true(
+            result.return_eax == 0U && result.random_calls == 1U &&
+                gated.status ==
+                    openswd3::battle::LegacyBattleTargetPhaseCheckStatus::
+                        completed &&
+                gated.value_query_calls == 1U &&
+                stopped.status ==
+                    openswd3::battle::LegacyBattleTargetPhaseCheckStatus::
+                        actor_profile_typed_stop &&
+                stopped.value_query_calls == 1U,
+            "target phase check keeps the level-scaled random rejection and original actor access point"
+        );
+    }
+
+    {
+        DispatchPort port;
+        const auto stopped = openswd3::battle::check_legacy_battle_target_phase(
+            nullptr, nullptr, port, {.target_token = 0x00525508U}
+        );
+        test.expect_true(
+            stopped.status ==
+                    openswd3::battle::LegacyBattleTargetPhaseCheckStatus::
+                        target_profile_typed_stop &&
+                stopped.value_query_calls == 0U,
+            "target phase check stops before the value query when target profile resolution is unavailable"
+        );
+    }
+
+    {
         LegacyBattleActionDispatchState state;
         state.group_a_count = 1;
         state.group_b_count = 1;
+        state.group_a_action_execution[0U].profile_level = 20U;
+        state.group_b_message_profiles[0U] = {
+            .phase_flags = 0x800U,
+            .phase_limit = 0x15U,
+            .level = 10U,
+        };
         state.group_a_action_execution[0U].position_x = 240U;
         state.group_a_action_execution[0U].position_y = 220U;
         state.group_a_action_execution[0U].source_x_offset = 40U;
@@ -2362,6 +2498,10 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         );
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.target_phase_check_calls == 1U &&
+                result.target_phase_check.return_eax == 1U &&
+                port.count(0x00472730U) == 0U &&
+                port.count(0x00484500U) == 1U &&
                 result.target_phase_start_calls == 1U &&
                 result.target_phase_start.port_calls == 4U &&
                 port.count(0x004710D0U) == 0U &&
