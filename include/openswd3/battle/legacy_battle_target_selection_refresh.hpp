@@ -75,6 +75,29 @@ query_legacy_battle_actor_action_thirty_override(
     compat::u32 entry_edx = 0U
 ) noexcept;
 
+enum class LegacyBattleActorActionFourOverrideStatus : compat::u8 {
+    completed,
+    actor_state_typed_stop,
+};
+
+struct LegacyBattleActorActionFourOverrideResult {
+    LegacyBattleActorActionFourOverrideStatus status{
+        LegacyBattleActorActionFourOverrideStatus::completed
+    };
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
+// sub_4717E0.
+[[nodiscard]] LegacyBattleActorActionFourOverrideResult
+query_legacy_battle_actor_action_four_override(
+    const LegacyBattleGroupAActionExecutionState* actor,
+    compat::u32 entry_eax = 0U,
+    compat::u32 entry_ecx = 0U,
+    compat::u32 entry_edx = 0U
+) noexcept;
+
 struct LegacyBattleTargetSelectionRefreshResult {
     LegacyBattleTargetSelectionRefreshStatus status{
         LegacyBattleTargetSelectionRefreshStatus::completed
@@ -106,6 +129,8 @@ struct LegacyBattleTargetSelectionRefreshResult {
     compat::u32 resource_release_calls{};
     LegacyBattleActorActionThirtyOverrideResult action_thirty_override{};
     compat::u32 action_thirty_override_calls{};
+    LegacyBattleActorActionFourOverrideResult action_four_override{};
+    compat::u32 action_four_override_calls{};
 };
 
 // Typed closure of legacy 0x00462740.

@@ -138,6 +138,7 @@ struct Fixture {
 }  // namespace
 
 void test_battle_target_selection_refresh(openswd3::test::Context& test) {
+    using openswd3::battle::LegacyBattleActorActionFourOverrideStatus;
     using openswd3::battle::LegacyBattleActorActionThirtyOverrideStatus;
     using openswd3::battle::LegacyBattleTargetSelectionRefreshStatus;
     using openswd3::battle::refresh_legacy_battle_target_selection;
@@ -168,6 +169,35 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                         actor_state_typed_stop &&
                 stopped.return_eax == 0x77778888U,
             "action-thirty override returns only actor bit thirteen and stops at the original read"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+        actor.action_override_flags = 0x1000U;
+        const auto set = openswd3::battle::
+            query_legacy_battle_actor_action_four_override(
+                &actor, 0xAAAA5555U, 0xBBBB6666U, 0xCCCC7777U
+            );
+        actor.action_override_flags = 0xEFFFU;
+        const auto clear = openswd3::battle::
+            query_legacy_battle_actor_action_four_override(
+                &actor, 0x11112222U, 0x33334444U, 0x55556666U
+            );
+        const auto stopped = openswd3::battle::
+            query_legacy_battle_actor_action_four_override(
+                nullptr, 0x77778888U, 0x9999AAAAU, 0xBBBBCCCCU
+            );
+        test.expect_true(
+            set.return_eax == 1U && set.return_ecx == 0xBBBB6666U &&
+                set.return_edx == 0xCCCC7777U && clear.return_eax == 0U &&
+                clear.return_ecx == 0x33334444U &&
+                clear.return_edx == 0x55556666U &&
+                stopped.status ==
+                    LegacyBattleActorActionFourOverrideStatus::
+                        actor_state_typed_stop &&
+                stopped.return_eax == 0x77778888U,
+            "action-four override returns only actor bit twelve and stops at the original read"
         );
     }
 
@@ -744,6 +774,49 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                         .selection_input_gate == 0U &&
                 overflow_result.sample_calls == 1U,
             "messages four and thirty preserve their asymmetric hover and signed panel-overflow sample registers"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.target_ready = 1U;
+        fixture.message = 4U;
+        fixture.frame.hovered_secondary = 0xFFFFFFFFU;
+        fixture.frame.current_equipment_selection = 1U;
+        fixture.final_actor.queued_actor_code = 8U;
+        auto& runtime = fixture.port.battle_target_selection_runtime_state();
+        runtime.selection_input_gate = 1U;
+        runtime.target_argument = 7U;
+        runtime.target_effect_value = 0x00010000U;
+        fixture.action.group_a_action_execution[0U].action_override_flags =
+            0x1000U;
+        fixture.port.replies
+            [LegacyBattleTargetSelectionRuntimeCall::resolve_action_target] = {
+            .eax = 1U,
+            .output_value = 0x1234U,
+        };
+        const auto result = refresh_legacy_battle_target_selection(
+            fixture.bindings(), fixture.port, {}
+        );
+        const bool old_port_called = std::ranges::any_of(
+            fixture.port.calls,
+            [](const LegacyBattleTargetSelectionRuntimeCallRequest& request) {
+                return request.call ==
+                    LegacyBattleTargetSelectionRuntimeCall::
+                        reserved_query_action_four_override_slot;
+            }
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleTargetSelectionRefreshStatus::completed &&
+                result.action_four_override_calls == 1U &&
+                result.action_four_override.return_eax == 1U &&
+                result.action_four_override.return_ecx == 0x005029D0U &&
+                result.action_four_override.return_edx == 0U &&
+                !old_port_called && result.port_calls == 1U &&
+                result.group_a_calls == 1U && fixture.message == 5U &&
+                fixture.frame.group_b_row_selection == 2U,
+            "action four reads the typed bit-twelve owner and advances the row-two target path without the opaque query"
         );
     }
 

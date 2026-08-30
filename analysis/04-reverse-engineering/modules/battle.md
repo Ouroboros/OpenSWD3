@@ -627,6 +627,8 @@ I5最终必须锁定：
 
 `audit_order=208`的`0x004717D0`已关闭为`platform_adapted`。完整权威LST主体`0x004717D0..0x004717DD`共6行、4条实际指令、0个call、0个跳转、1个返回点且无外部chunk。实现角色`+0x2A86`低word bit13查询，ECX/EDX保持，空owner在原始word读取点typed-stop。字段归入既有每角色action-execution唯一owner。目标选择动作三十production caller改为typed直连，命中后发布动作十三、special gate和计数，不再调用旧opaque查询。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`208/422 = 199 platform_adapted + 9 assembly_exact + 214 pending_audit`，双跑SHA256为`9683f3206166bfd7a3823be063ba3df678a87b4e4e15a6d06b3a76e4fa304563`。动态差分因原版角色flags word与目标选择caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=209`的`0x004717E0`战斗角色动作效果与渲染函数。
+`audit_order=209`的`0x004717E0`已关闭为`platform_adapted`。完整权威LST主体`0x004717E0..0x004717ED`共7行、4条实际指令、0个call、0个跳转、1个返回点且无外部chunk。实现角色`+0x2A86`低word bit12查询，ECX/EDX保持，空owner在原始word读取点typed-stop；与上一项共享同一action-execution唯一owner。目标选择动作四production caller改为typed直连，旧opaque枚举槽保留为reserved。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`209/422 = 200 platform_adapted + 9 assembly_exact + 213 pending_audit`，双跑SHA256为`3cf766089c6ed5cc1e7c5e48f32fa89e869be306d7ef2a38c907b0318dc295d8`。动态差分因原版角色flags word、目标解析callee与caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=210`的`0x004717F0`战斗角色动作效果与渲染函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

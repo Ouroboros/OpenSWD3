@@ -373,8 +373,7 @@ private:
         } else if (
             call == Call::query_group_b_completion ||
             call == Call::query_actor_property_a ||
-            call == Call::query_actor_cleanup ||
-            call == Call::query_action_four_override
+            call == Call::query_actor_cleanup
         ) {
             shape = GroupARegisterShape::eax_3ef;
         }
@@ -1649,7 +1648,32 @@ private:
             return;
         }
 
-        if (!invoke_group_a(Call::query_action_four_override, actor_code)) {
+        if (actor_code < 8U) {
+            typed_stop(Status::group_a_actor_typed_stop);
+            return;
+        }
+        const u32 override_index = actor_code - 8U;
+        if (override_index >=
+            bindings_.action.group_a_action_execution.size()) {
+            typed_stop(Status::group_a_actor_typed_stop);
+            return;
+        }
+        eax_ = override_index * 0x3EFU;
+        ecx_ = kGroupABaseToken + override_index * kGroupAStride;
+        result_.action_four_override =
+            query_legacy_battle_actor_action_four_override(
+                &bindings_.action.group_a_action_execution[override_index],
+                eax_,
+                ecx_,
+                edx_
+            );
+        ++result_.action_four_override_calls;
+        eax_ = result_.action_four_override.return_eax;
+        ecx_ = result_.action_four_override.return_ecx;
+        edx_ = result_.action_four_override.return_edx;
+        if (result_.action_four_override.status !=
+            LegacyBattleActorActionFourOverrideStatus::completed) {
+            typed_stop(Status::group_a_actor_typed_stop);
             return;
         }
         if (eax_ == 1U) {
@@ -2219,6 +2243,28 @@ query_legacy_battle_actor_action_thirty_override(
     }
     result.return_eax =
         static_cast<u32>((actor->action_override_flags >> 13U) & 1U);
+    return result;
+}
+
+LegacyBattleActorActionFourOverrideResult
+query_legacy_battle_actor_action_four_override(
+    const LegacyBattleGroupAActionExecutionState* actor,
+    const u32 entry_eax,
+    const u32 entry_ecx,
+    const u32 entry_edx
+) noexcept {
+    LegacyBattleActorActionFourOverrideResult result{
+        .return_eax = entry_eax,
+        .return_ecx = entry_ecx,
+        .return_edx = entry_edx,
+    };
+    if (actor == nullptr) {
+        result.status =
+            LegacyBattleActorActionFourOverrideStatus::actor_state_typed_stop;
+        return result;
+    }
+    result.return_eax =
+        static_cast<u32>((actor->action_override_flags >> 12U) & 1U);
     return result;
 }
 
