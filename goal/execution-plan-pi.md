@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v829
+版本：v830
 
 最后更新：2026-08-31
 
@@ -4276,4 +4276,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=240`的`0x00475820`战斗组B行动资源重配置函数。完整权威LST主体`0x00475820..0x00475868`共35行、24条实际指令、3个call、0个跳转、0个局部标签、1个返回点且无外部chunk。实现资源加载后把`+0x64`按i16符号扩展写入资源`+0x4C`、把资源`+0x90`低byte发布到actor、按陈旧CL/DX拼接profile ABI并释放资源；明确不修改actor`+0x26B4`，actor与164-byte资源继续复用惰性八槽组B唯一owner。脚本case 80删除整函数opaque调用并typed直连，恢复actor乘法地址、入口EDX、三个窄callee trace、cursor加6、EAX一、顶层ECX恢复及callee stop阻断后缀。验证：定向CTest 1/1、完整core AddressSanitizer 188/188、Linux core 188/188、Linux app 194/194全部通过，零OpenSWD3源码warning与sanitizer finding；app仅有既有ALSA环境提示。工作包为`240/422 = 231 platform_adapted + 9 assembly_exact + 182 pending_audit`；生成器连续双跑逐字节一致，SHA256为`fcd646b8c45368ea42a4ef7745a8245b405db1c340a05eb037ff81fc9da65b95`。动态差分因原版八个组B对象、动态资源、profile、三个callee、脚本case 80共享全局与caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=241`的`0x00475870`战斗函数。
+本轮再完成`audit_order=241`的`0x00475870`战斗组B资源坐标增量读取函数。完整权威LST主体`0x00475870..0x0047588F`从proc到endp共16行、9条实际指令、0个call、0个跳转、0个局部标签、1个返回点且无外部chunk。实现从组B actor资源`+0x62/+0x8A`按原序读取两个u16并写入两个输出，保留资源token重读、EDX高word陈旧、EAX输出token、ECX终端资源token，以及actor、资源和两个输出各自首次真实访问typed-stop；第二输出故障时保留第一输出。资源继续复用惰性八槽组B唯一owner。最终角色步进唯一caller删除`0x00475870` opaque调用并typed直连，只在完整返回后按u16回绕累加两个坐标；子stop保留角色有效性前缀并阻断坐标累加、描述符和后续动作。验证：战斗聚合定向测试、完整core AddressSanitizer `188/188`、Linux core `188/188`、Linux app `194/194`全部通过，零OpenSWD3源码warning与sanitizer finding；app仅有既有ALSA环境提示。工作包为`241/422 = 232 platform_adapted + 9 assembly_exact + 181 pending_audit`；生成器连续双跑逐字节一致，SHA256为`bdb2b3b42020d847ae21bc3f93054154fd8b6cb1e5a51017a7da01ca0c6c94e6`。动态差分因原版八个组B actor、动态164-byte资源、两个真实栈输出、入口陈旧EAX/EDX、caller共享坐标与寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=242`的`0x004758A0`战斗函数。

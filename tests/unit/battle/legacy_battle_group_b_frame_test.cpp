@@ -181,6 +181,26 @@ struct Fixture {
     }
 };
 
+void bind_group_b_coordinate_resource(
+    Fixture& fixture, const u32 actor_index, const u16 x = 0U, const u16 y = 0U
+) {
+    if (fixture.startup->group_b_lifecycle == nullptr) {
+        fixture.startup->group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+    }
+    auto& actor = (*fixture.startup->group_b_lifecycle)[actor_index];
+    actor.object_token = openswd3::battle::kLegacyBattleActorGroupBBaseToken +
+        actor_index * openswd3::battle::kLegacyBattleActorGroupBElementSize;
+    actor.resource_token =
+        openswd3::battle::kLegacyBattleActorGroupBResourceStateBaseToken +
+        actor_index * 0xA4U;
+    actor.resource_bytes[0x62U] = static_cast<u8>(x);
+    actor.resource_bytes[0x63U] = static_cast<u8>(x >> 8U);
+    actor.resource_bytes[0x8AU] = static_cast<u8>(y);
+    actor.resource_bytes[0x8BU] = static_cast<u8>(y >> 8U);
+}
+
 [[nodiscard]] bool has_call_argument(
     const DispatchPort& port,
     const u32 callee,
@@ -225,6 +245,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         state.shared.action.group_a_to_actor[0] = 3U;
         Fixture fixture;
         DispatchPort port;
+        bind_group_b_coordinate_resource(fixture, 3U);
         port.push(0x004786D0U, {.eax = 1U});
         port.push(0x00479850U, {.eax = 1U});
         port.push(0x00480AD0U, {.eax = 0x1234U});
@@ -249,6 +270,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         state.shared.action.group_a_to_actor[0] = 3U;
         Fixture fixture;
         DispatchPort port;
+        bind_group_b_coordinate_resource(fixture, 3U);
         port.push(0x004786D0U, {.eax = 1U});
         port.push(0x00479850U, {.eax = 1U});
         port.push(0x00480AD0U, {.eax = 0U});
@@ -683,6 +705,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         state.shared.action.group_a_to_actor[1] = 5U;
         Fixture fixture;
         DispatchPort port;
+        bind_group_b_coordinate_resource(fixture, 5U);
         port.push(0x00479850U, {.eax = 1U});
         port.push(0x00480AD0U, {.eax = 0x1234U});
         auto context = fixture.context();

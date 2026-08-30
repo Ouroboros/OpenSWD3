@@ -64,7 +64,7 @@ removed byte以zero-extended dword与remaining做unsigned比较。达到或超�
 
 有效对象按以下顺序执行：
 
-1. 坐标callee返回两个低word，分别以u16回绕累加；
+1. 直连已关闭`0x00475870`，从共享组B资源`+0x62/+0x8A`读取两个u16，callee完整返回后才分别以u16回绕累加；actor或资源缺失在原读取点typed-stop并阻断caller累加；
 2. 描述符callee返回物理token，随后首次读取其偏移32的flag；零token在该实际访问点typed-stop，坐标副作用已保留；
 3. flag bit5置位时延迟加20，否则加3，均在u16域；
 4. 查询动作、以固定owner发布动作，再以actor index直接组合攻击顺序首匹配移除；
@@ -92,6 +92,6 @@ removed byte以zero-extended dword与remaining做unsigned比较。达到或超�
 
 ## 9. 测试与动态差分
 
-定向测试覆盖：初始有效性失败、组A完成阈值和32字节逆向清零、三刷新、双组重置、攻击顺序移除与旧token清零、相邻效果记录stop前缀、角色顺序左移、removed unsigned终止、工作区typed-stop、配置后记录typed-stop、组B全1早退、坐标回绕、描述符bit5、动作发布、闭区间低byte递增、signed完成比较、共享message 1/0x63/0x67、组B重置、零描述符停点，以及组A/组B caller直连和组B父级typed-stop传播。
+定向测试覆盖：初始有效性失败、组A完成阈值和32字节逆向清零、三刷新、双组重置、攻击顺序移除与旧token清零、相邻效果记录stop前缀、角色顺序左移、removed unsigned终止、工作区typed-stop、配置后记录typed-stop、组B全1早退、共享资源坐标读取、坐标回绕、坐标owner typed-stop、描述符bit5、动作发布、闭区间低byte递增、signed完成比较、共享message 1/0x63/0x67、组B重置、零描述符停点，以及组A/组B caller直连和组B父级typed-stop传播。
 
-当前缺少原版两组角色对象、13类剩余callee共享副作用、攻击顺序与相邻强度效果记录、角色工作区、描述符对象和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版两组角色对象、组B动态坐标资源、12类剩余callee共享副作用、攻击顺序与相邻强度效果记录、角色工作区、描述符对象和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

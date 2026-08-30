@@ -16,7 +16,6 @@ constexpr u32 kCallValidateActor = 0x00479850U;
 constexpr u32 kCallResetActor = 0x0047C660U;
 constexpr u32 kCallQueryContinuation = 0x0047F340U;
 constexpr u32 kCallConfigureActor = 0x00478330U;
-constexpr u32 kCallQueryCoordinates = 0x00475870U;
 constexpr u32 kCallQueryDescriptor = 0x00480AD0U;
 constexpr u32 kCallQueryAction = 0x0047F910U;
 constexpr u32 kCallPublishAction = 0x00477710U;
@@ -29,10 +28,6 @@ constexpr u32 kPublishActionOwnerToken = 0x004B9F00U;
 
 [[nodiscard]] constexpr i32 signed_dword(const u32 value) noexcept {
     return std::bit_cast<i32>(value);
-}
-
-[[nodiscard]] constexpr u16 low_word(const u32 value) noexcept {
-    return static_cast<u16>(value);
 }
 
 [[nodiscard]] constexpr u16 high_word(const u32 value) noexcept {
@@ -220,8 +215,8 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
     ++result.group_a_actor_cleanup_calls;
     if (result.group_a_actor_cleanup.status !=
         LegacyBattleGroupAActorCleanupStatus::completed) {
-        result.status = LegacyBattleActionDispatchStatus::
-            group_a_actor_cleanup_typed_stop;
+        result.status =
+            LegacyBattleActionDispatchStatus::group_a_actor_cleanup_typed_stop;
         return result;
     }
 
@@ -330,6 +325,7 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
     LegacyBattleActionDispatchState& action,
     LegacyBattleActionDispatchPort& port,
     const LegacyBattleAttackOrderRemoveBindings attack_order,
+    LegacyBattleStartupState* const startup,
     const u32 actor_index
 ) {
     LegacyBattleActionDispatchResult result;
@@ -342,12 +338,29 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
         return result;
     }
 
-    const auto coordinates =
-        invoke(port, result, kCallQueryCoordinates, {actor_token});
-    state.coordinate_x =
-        static_cast<u16>(state.coordinate_x + low_word(coordinates.outputs[0]));
-    state.coordinate_y =
-        static_cast<u16>(state.coordinate_y + low_word(coordinates.outputs[1]));
+    const LegacyBattleActorGroupBElementState* coordinate_actor = nullptr;
+    if (startup != nullptr && startup->group_b_lifecycle != nullptr &&
+        actor_index < startup->group_b_lifecycle->size()) {
+        coordinate_actor = &(*startup->group_b_lifecycle)[actor_index];
+    }
+    u16 coordinate_x{};
+    u16 coordinate_y{};
+    const auto coordinates = read_legacy_battle_group_b_coordinate_offsets(
+        coordinate_actor,
+        &coordinate_x,
+        &coordinate_y,
+        {
+            .actor_token = actor_token,
+        }
+    );
+    if (coordinates.status !=
+        LegacyBattleGroupBCoordinateOffsetStatus::completed) {
+        result.status = LegacyBattleActionDispatchStatus::
+            group_b_coordinate_offset_typed_stop;
+        return result;
+    }
+    state.coordinate_x = static_cast<u16>(state.coordinate_x + coordinate_x);
+    state.coordinate_y = static_cast<u16>(state.coordinate_y + coordinate_y);
 
     const auto descriptor =
         invoke(port, result, kCallQueryDescriptor, {actor_token});
@@ -430,7 +443,9 @@ LegacyBattleActionDispatchResult advance_legacy_battle_final_actor_step(
         ? advance_group_a(
               state, action, port, attack_order, startup, actor_index
           )
-        : advance_group_b(state, action, port, attack_order, actor_index);
+        : advance_group_b(
+              state, action, port, attack_order, startup, actor_index
+          );
 }
 
 }  // namespace openswd3::battle

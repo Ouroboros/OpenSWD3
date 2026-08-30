@@ -15,6 +15,7 @@ using openswd3::battle::LegacyBattleActionCallReply;
 using openswd3::battle::LegacyBattleActionCallRequest;
 using openswd3::battle::LegacyBattleActionDispatchPort;
 using openswd3::battle::LegacyBattleFinalActorStepState;
+using openswd3::compat::u16;
 using openswd3::compat::u32;
 
 class FinalStepPort final : public LegacyBattleActionDispatchPort {
@@ -73,6 +74,26 @@ public:
         attack_order_adjacent_record{};
 };
 
+void bind_group_b_coordinate_resource(
+    FinalStepPort& port, const u32 actor_index, const u16 x, const u16 y
+) {
+    if (port.startup->group_b_lifecycle == nullptr) {
+        port.startup->group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+    }
+    auto& actor = (*port.startup->group_b_lifecycle)[actor_index];
+    actor.object_token = openswd3::battle::kLegacyBattleActorGroupBBaseToken +
+        actor_index * openswd3::battle::kLegacyBattleActorGroupBElementSize;
+    actor.resource_token =
+        openswd3::battle::kLegacyBattleActorGroupBResourceStateBaseToken +
+        actor_index * 0xA4U;
+    actor.resource_bytes[0x62U] = static_cast<openswd3::compat::u8>(x);
+    actor.resource_bytes[0x63U] = static_cast<openswd3::compat::u8>(x >> 8U);
+    actor.resource_bytes[0x8AU] = static_cast<openswd3::compat::u8>(y);
+    actor.resource_bytes[0x8BU] = static_cast<openswd3::compat::u8>(y >> 8U);
+}
+
 }  // namespace
 
 void test_battle_final_actor_step(openswd3::test::Context& test) {
@@ -111,13 +132,7 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
         port.push(0x0047F340U, {.eax = 1U});
         port.attack_order_records[0].value_00 = 9U;
         const auto result = advance_legacy_battle_final_actor_step(
-            state,
-            action,
-            port,
-            port.attack_order(),
-            1U,
-            1U,
-            port.startup.get()
+            state, action, port, port.attack_order(), 1U, 1U, port.startup.get()
         );
         test.expect_true(
             result.return_value == 1U && action.group_a_count == 1 &&
@@ -151,13 +166,7 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
         FinalStepPort port;
         port.push(0x00479850U, {.eax = 1U});
         const auto result = advance_legacy_battle_final_actor_step(
-            state,
-            action,
-            port,
-            port.attack_order(),
-            0U,
-            1U,
-            port.startup.get()
+            state, action, port, port.attack_order(), 0U, 1U, port.startup.get()
         );
         test.expect_true(
             result.return_value == 1U && state.removed_group_a_count == 1U &&
@@ -183,13 +192,7 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
         attack_order.adjacent_intensity_record = nullptr;
 
         const auto result = advance_legacy_battle_final_actor_step(
-            state,
-            action,
-            port,
-            attack_order,
-            0U,
-            1U,
-            port.startup.get()
+            state, action, port, attack_order, 0U, 1U, port.startup.get()
         );
 
         test.expect_true(
@@ -240,13 +243,7 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
         port.push(0x00479850U, {.eax = 1U});
         port.push(0x0047F340U, {.eax = 1U});
         const auto result = advance_legacy_battle_final_actor_step(
-            state,
-            action,
-            port,
-            port.attack_order(),
-            0U,
-            1U,
-            port.startup.get()
+            state, action, port, port.attack_order(), 0U, 1U, port.startup.get()
         );
         test.expect_true(
             result.status ==
@@ -274,19 +271,43 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
     {
         LegacyBattleFinalActorStepState state;
         LegacyBattleActionDispatchState action;
+        FinalStepPort port;
+        port.push(0x00479850U, {.eax = 1U});
+        const auto result = advance_legacy_battle_final_actor_step(
+            state, action, port, port.attack_order(), 0U, 0U
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        group_b_coordinate_offset_typed_stop &&
+                result.port_calls == 1U && state.coordinate_x == 0U &&
+                state.coordinate_y == 0U && port.count(0x00480AD0U) == 0U,
+            "group B coordinate owner stop preserves validation then blocks descriptor lookup"
+        );
+    }
+
+    {
+        LegacyBattleFinalActorStepState state;
+        LegacyBattleActionDispatchState action;
         action.group_b_count = 2;
         state.coordinate_x = 0xFFFEU;
         state.coordinate_y = 3U;
         state.group_b_reset_word = 9U;
         FinalStepPort port;
+        bind_group_b_coordinate_resource(port, 2U, 5U, 6U);
         port.push(0x00479850U, {.eax = 1U});
-        port.push(0x00475870U, {.outputs = {5U, 6U}});
         port.push(0x00480AD0U, {.eax = 0x12345678U, .object_flags = 0x20U});
         port.push(0x0047F910U, {.eax = 0x55U});
         port.push(0x0047CE80U, {.eax = 0U});
         port.attack_order_records[0].value_00 = 2U;
         const auto result = advance_legacy_battle_final_actor_step(
-            state, action, port, port.attack_order(), 2U, 0xFFFFFFFFU
+            state,
+            action,
+            port,
+            port.attack_order(),
+            2U,
+            0xFFFFFFFFU,
+            port.startup.get()
         );
         test.expect_true(
             result.return_value == 1U && state.coordinate_x == 3U &&
@@ -300,9 +321,10 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                 result.attack_order_remove.matched &&
                 port.attack_order_records[0].value_00 == 0xFFFFFFFFU &&
                 port.count(0x004783B0U) == 1U &&
-                port.calls[4].arguments[0] == 0x004B9F00U &&
-                port.calls[4].arguments[1] == 0x55U,
-            "every non-one selector runs group B coordinates, descriptor, action and reset suffix"
+                port.calls[3].arguments[0] == 0x004B9F00U &&
+                port.calls[3].arguments[1] == 0x55U &&
+                port.count(0x00475870U) == 0U,
+            "every non-one selector reads group B coordinates before descriptor, action and reset suffix"
         );
     }
 
@@ -311,13 +333,13 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
         LegacyBattleActionDispatchState action;
         action.group_b_count = 1;
         FinalStepPort port;
+        bind_group_b_coordinate_resource(port, 0U, 0U, 0U);
         port.push(0x00479850U, {.eax = 1U});
-        port.push(0x00475870U, {.outputs = {0U, 0U}});
         port.push(0x00480AD0U, {.eax = 0x12345678U});
         port.push(0x0047F910U, {.eax = 0x55U});
         port.attack_order_records[0].value_00 = 0U;
         const auto result = advance_legacy_battle_final_actor_step(
-            state, action, port, port.attack_order(), 0U, 0U
+            state, action, port, port.attack_order(), 0U, 0U, port.startup.get()
         );
         test.expect_true(
             result.return_value == 1U && action.group_b_count == 1 &&
@@ -333,18 +355,18 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
         LegacyBattleActionDispatchState action;
         state.coordinate_x = 7U;
         FinalStepPort port;
+        bind_group_b_coordinate_resource(port, 0U, 2U, 0U);
         port.push(0x00479850U, {.eax = 1U});
-        port.push(0x00475870U, {.outputs = {2U, 0U}});
         port.push(0x00480AD0U, {.eax = 0U});
         const auto result = advance_legacy_battle_final_actor_step(
-            state, action, port, port.attack_order(), 0U, 0U
+            state, action, port, port.attack_order(), 0U, 0U, port.startup.get()
         );
         test.expect_true(
             result.status ==
                     LegacyBattleActionDispatchStatus::
                         final_actor_descriptor_typed_stop &&
-                state.coordinate_x == 9U && result.port_calls == 3U &&
-                port.count(0x0047F910U) == 0U,
+                state.coordinate_x == 9U && result.port_calls == 2U &&
+                port.count(0x00475870U) == 0U && port.count(0x0047F910U) == 0U,
             "group B null descriptor stops at the first object-field access after coordinates"
         );
     }

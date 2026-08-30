@@ -1211,6 +1211,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     group_b_order_typed_stop,
     final_actor_workspace_typed_stop,
     final_actor_record_typed_stop,
+    group_b_coordinate_offset_typed_stop,
     final_actor_descriptor_typed_stop,
     player_item_typed_stop,
     text_message_typed_stop,
