@@ -3697,6 +3697,12 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
 
     {
         LegacyBattleActionDispatchState state;
+        auto& ready = state.group_a_action_execution[0U];
+        ready.profile_value = 1U;
+        ready.primary_action_record.cached_action_id = 1U;
+        ready.primary_action_record.cached_base_variant = 0x30U;
+        ready.primary_action_record.field_5a = 9U;
+        ready.action_runtime_gate = 2U;
         Fixture fixture;
         DispatchPort port;
         port.action = 33U;
@@ -3716,28 +3722,34 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
     }
 
     {
-        static LegacyBattleActionDispatchState state;
-        static Fixture fixture;
-        fixture.random.value = 10U;
-        static DispatchPort port;
+        auto state = std::make_unique<LegacyBattleActionDispatchState>();
+        auto& ready = state->group_a_action_execution[0U];
+        ready.profile_value = 1U;
+        ready.primary_action_record.cached_action_id = 1U;
+        ready.primary_action_record.cached_base_variant = 0x30U;
+        ready.primary_action_record.field_5a = 9U;
+        ready.action_runtime_gate = 2U;
+        auto fixture = std::make_unique<Fixture>();
+        fixture->random.value = 10U;
+        DispatchPort port;
         port.action = 33U;
         port.push(0x00482F10U, {.eax = 0U});
-        static auto context = fixture.context();
-        static const auto result =
-            openswd3::battle::dispatch_legacy_battle_action(
-                state, port, context, 0U, 1U
-            );
+        auto context = fixture->context();
+        const auto result = openswd3::battle::dispatch_legacy_battle_action(
+            *state, port, context, 0U, 1U
+        );
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
-                result.return_value == 1U &&
+                result.return_value == 1U && result.target_ready_calls == 1U &&
+                result.target_ready.return_eax == 1U &&
                 result.target_property_chance_calls == 1U &&
                 result.target_property_chance.sampled_value == 10U &&
                 result.target_property_chance.threshold == 10U &&
                 result.target_property_chance.return_eax == 1U &&
-                state.selected_target_index == 1U &&
-                state.frame_refresh_pending == 1U &&
-                port.count(0x00474B60U) == 0U,
-            "action thirty-three production uses the typed inclusive target-property chance without the opaque call"
+                state->selected_target_index == 1U &&
+                state->frame_refresh_pending == 1U &&
+                port.count(0x004751C0U) == 0U && port.count(0x00474B60U) == 0U,
+            "action thirty-three directly advances target ready and the inclusive target-property chance without either opaque call"
         );
     }
 

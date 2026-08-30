@@ -76,7 +76,6 @@ constexpr u32 kCallFinalizeMode = 0x0047D860U;
 constexpr u32 kCallQueryModeB = 0x0047C950U;
 constexpr u32 kCallQuerySpecial = 0x0047D8E0U;
 constexpr u32 kCallComputeSelection = 0x00470E20U;
-constexpr u32 kCallTargetReady = 0x004751C0U;
 constexpr u32 kCallResolveTarget = 0x00480AD0U;
 constexpr u32 kCallSetMode = 0x0047F380U;
 constexpr u32 kCallEnablePresentation = 0x004787F0U;
@@ -7451,14 +7450,26 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
         if (!require_group_b()) {
             return result;
         }
-        reply = invoke(
-            state,
+        result.target_ready = advance_legacy_battle_target_ready(
+            &state.group_a_action_execution[group_a_index],
+            &state.group_a_action_shared,
             port,
-            result,
-            kCallTargetReady,
-            {group_b_token(group_b_index), 0x1791U}
+            context,
+            {
+                .actor_token = actor_token,
+                .target_token = group_b_token(group_b_index),
+                .unused_argument = 0x1791U,
+            }
         );
-        if (reply.eax != 1U) {
+        ++result.target_ready_calls;
+        result.port_calls += result.target_ready.port_calls;
+        if (result.target_ready.status !=
+            LegacyBattleTargetReadyStatus::completed) {
+            result.status =
+                LegacyBattleActionDispatchStatus::target_ready_typed_stop;
+            return result;
+        }
+        if (result.target_ready.return_eax != 1U) {
             return result;
         }
         state.current_actor_index = 0xFFFFU;

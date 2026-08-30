@@ -103,6 +103,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test);
 void test_battle_group_b_order(openswd3::test::Context& test);
 void test_battle_group_a_target_cycle(openswd3::test::Context& test);
 void test_battle_group_b_target_cycle(openswd3::test::Context& test);
+void test_battle_target_ready(openswd3::test::Context& test);
 void test_battle_group_effect_frame(openswd3::test::Context& test);
 void test_battle_grid_frame(openswd3::test::Context& test);
 void test_battle_growth_actor_selection(openswd3::test::Context& test);
@@ -7115,6 +7116,7 @@ int main() {
     test_battle_group_a_profile_mode_selection(test);
     test_battle_group_a_resource_cleanup(test);
     test_battle_group_a_reward_profile_application(test);
+    test_battle_target_ready(test);
     test_battle_group_a_summon_materialization(test);
     test_battle_group_a_resource_pair(test);
     test_battle_group_a_value_pair(test);

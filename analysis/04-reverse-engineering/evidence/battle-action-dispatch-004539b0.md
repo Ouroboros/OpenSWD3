@@ -188,7 +188,7 @@ bit75未置且message gate bit0为1时，播放固定消息、再次清动作rec
 
 ## 15. case 33–36
 
-- 33：目标动作`0x1791`完成后先清current actor，再解析目标对象；零token在首次flags读取点typed-stop。flags bit`0x20`置位直接返回1。否则查询percent和属性，成功时mode 7、presentation 1、发布目标并清屏；最终返回1；
+- 33：先直连已关闭目标动作就绪状态机，复用当前group-A行动者owner、group-B目标token和未读取的`0x1791`；只有状态机返回一才清current actor并解析目标对象。状态机返回零或typed-stop都阻断后缀。目标零token仍在随后首次flags读取点typed-stop；flags bit`0x20`置位直接返回1，否则查询percent和属性，成功时mode 7、presentation 1、发布目标并清屏，最终返回1；
 - 34：计算signed值，发布该值、视觉commit`(value,0,0)`，清signed槽；
 - 35：发布selection word、视觉commit`(0,word,0)`，清selection word；
 - 36：发布selection high word、视觉commit`(0,0,high)`，清high word。
@@ -207,7 +207,8 @@ bit75未置且message gate bit0为1时，播放固定消息、再次清动作rec
 - deformation typed对象构造/析构；
 - framebuffer全1清屏；
 - phase-six与action-twenty-three两处玩家道具双数量步进；
-- 四处攻击顺序首匹配移除与完整记录左移。
+- 四处攻击顺序首匹配移除与完整记录左移；
+- case 33目标动作就绪、双阶段粒子与双记录清理。
 
 相邻双对象数值转场关闭后，两处调用均删除旧callee token并直接组合typed实现。五处文字发布也在原调用位置直连共享文字消息入链，复用启动状态的唯一链头和动态节点owner；原调用槽只保留reserved数值。动作累计值与效果协调器主反馈值收敛为唯一共享port；端口reply仍可在每个剩余callee后显式发布该物理值与两个selection word，caller随后按LST重读。其余尚未关闭的角色、AI、数值、消息、选择和呈现callee继续以单一窄端口表达，旧对象地址仅作为`compat::u32` token，不转换为主机指针。
 
@@ -221,7 +222,8 @@ bit75未置且message gate bit0为1时，播放固定消息、再次清动作rec
 - 状态指示器、刻度扫描与内部bit：各closed helper真实故障点；
 - 玩家道具链：未知token在首次节点访问停止，零分配先发布零head再停止；
 - 攻击顺序登记：在case25已写目标status后，于首个实际记录读取处停止，阻断current actor清理与成功尾；
-- 攻击顺序移除：四处均在原call位置直连；相邻强度效果记录缺失时保留对象/延迟/计数前缀，阻断call后的目标、状态或成功发布。
+- 攻击顺序移除：四处均在原call位置直连；相邻强度效果记录缺失时保留对象/延迟/计数前缀，阻断call后的目标、状态或成功发布；
+- case 33目标动作就绪：行动者、frame返回记录和共享source owner分别在原始首次访问点停止，并阻断current actor清理与后续目标解析。
 
 不对callee约定外普通返回值、百分比、action code或计数增加现代范围预验。
 
@@ -241,15 +243,15 @@ bit75未置且message gate bit0为1时，播放固定消息、再次清动作rec
 - case 22已完成门与真实状态指示器完成路径；
 - case 24全组扫描；
 - case 31倒计时、bit75清除及目标访问延后；
-- case 33零target真实解引用停点；
+- case 33目标动作就绪直接typed组合、双阶段/陈旧sequence及零target真实解引用停点；
 - case 34–36三分量尾；
 - 超尺寸清屏已写满前缀与refresh时机；
 - 27个有效普通case、10个有效特殊动作逐项smoke；
 - 9个稀疏switch槽和越界action只执行两个入口callee；
-- 95个原始唯一callee中82个端口边界全部存在，另外13个已关闭callee全部直连；
+- 95个原始唯一callee中81个窄端口边界全部存在，另外14个已关闭callee全部直连；
 - case 3撤退提交成功、固定警告分支和旧地址调用清零；
 - case 25攻击顺序登记直连、旧地址调用清零及记录typed-stop前缀；
 - case 7攻击顺序移除直连、一过尾源读取stop传播及旧地址调用清零；
 - battle聚合目标零warning，普通定向通过。
 
-当前没有原版18个角色对象、83类剩余callee共享副作用、攻击顺序与相邻强度效果动态记录、全部数值/AI表、消息文本、输入bit、DirectDraw framebuffer、deformation allocator与SEH联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前没有原版18个角色对象、剩余callee共享副作用、目标动作就绪的真实ACT/TSW/粒子/音频/绘制联合状态、攻击顺序与相邻强度效果动态记录、全部数值/AI表、消息文本、输入bit、DirectDraw framebuffer、deformation allocator与SEH联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

@@ -27,6 +27,7 @@
 #include "openswd3/battle/legacy_battle_shared_phase.hpp"
 #include "openswd3/battle/legacy_battle_status_indicator.hpp"
 #include "openswd3/battle/legacy_battle_text_message.hpp"
+#include "openswd3/battle/legacy_battle_target_ready.hpp"
 #include "openswd3/compat/types.hpp"
 #include "openswd3/rendering/legacy_countdown.hpp"
 #include "openswd3/world_map/legacy_world_item_lifecycle.hpp"
@@ -47,6 +48,8 @@ inline constexpr compat::u32 kLegacyBattleActionGroupBStride = 0x2B28U;
 struct LegacyBattleActionCallRequest {
     compat::u32 callee_token{};
     std::array<compat::u32, 8> arguments{};
+    compat::u32 argument_8{};
+    bool has_argument_8{};
     compat::u32 eax{};
     compat::u32 ecx{};
     compat::u32 edx{};
@@ -219,6 +222,8 @@ public:
         for (std::size_t index = 0; index < call.arguments.size(); ++index) {
             call.arguments[index] = request.arguments[index];
         }
+        call.argument_8 = request.arguments[8U];
+        call.has_argument_8 = true;
         static_cast<void>(spawn_count);
         return invoke(call);
     }
@@ -229,6 +234,33 @@ public:
         asset_runtime::LegacyActionRecord& record
     ) {
         static_cast<void>(record);
+        return invoke(request);
+    }
+
+    [[nodiscard]] virtual LegacyBattleActionCallReply
+    invoke_target_ready_particle(
+        const LegacyBattleActionFourOhTwoParticleCallRequest& request
+    ) {
+        LegacyBattleActionCallRequest call{
+            .callee_token = request.callee_token,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        };
+        for (std::size_t index = 0; index < call.arguments.size(); ++index) {
+            call.arguments[index] = request.arguments[index];
+        }
+        call.argument_8 = request.arguments[8U];
+        call.has_argument_8 = true;
+        return invoke(call);
+    }
+
+    [[nodiscard]] virtual LegacyBattleActionCallReply
+    invoke_target_ready_completion(
+        const LegacyBattleActionCallRequest& request,
+        LegacyBattleGroupAActionExecutionState& actor
+    ) {
+        static_cast<void>(actor);
         return invoke(request);
     }
 
@@ -1206,6 +1238,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     action_four_effect_typed_stop,
     action_four_oh_two_typed_stop,
     special_four_oh_nine_typed_stop,
+    target_ready_typed_stop,
     summon_frame_typed_stop,
     turn_commit_chance_typed_stop,
     turn_advance_typed_stop,
@@ -1297,6 +1330,8 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 action_four_oh_two_calls{};
     LegacyBattleSpecialFourOhNineResult special_four_oh_nine{};
     compat::u32 special_four_oh_nine_calls{};
+    LegacyBattleTargetReadyResult target_ready{};
+    compat::u32 target_ready_calls{};
     LegacyBattleSummonFrameResult summon_frame{};
     compat::u32 summon_frame_calls{};
     LegacyBattleTurnCommitChanceResult turn_commit_chance{};
