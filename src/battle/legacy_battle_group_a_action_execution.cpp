@@ -278,17 +278,29 @@ advance_legacy_battle_group_a_action_execution(
         shared.shared_motion_word = 0U;
         clear_record(state->slot_records[slot_index]);
         ++result.record_clears;
-        reply = invoke(
-            0x00474FC0U,
-            {target_token, 1U, 0U, 0U, 0U, 0U, 0U, 0U},
-            target_token,
-            actor_token,
-            edx
+        const auto target_effect = apply_legacy_battle_target_effect(
+            state,
+            &shared,
+            port,
+            {
+                .actor_token = actor_token,
+                .target_token = target_token,
+                .mode = 1U,
+                .entry_eax = target_token,
+                .entry_ecx = actor_token,
+                .entry_edx = edx,
+            }
         );
-        eax = reply.eax;
-        ecx = reply.ecx;
-        edx = reply.edx;
+        result.port_calls += target_effect.port_calls;
+        eax = target_effect.return_eax;
+        ecx = target_effect.return_ecx;
+        edx = target_effect.return_edx;
         ++result.target_calls;
+        if (target_effect.status != LegacyBattleTargetEffectStatus::completed) {
+            result.status =
+                LegacyBattleGroupAActionExecutionStatus::actor_state_typed_stop;
+            return result;
+        }
         state->action_flags = 0U;
     }
 
@@ -364,17 +376,30 @@ advance_legacy_battle_group_a_action_execution(
             edx = reply.edx;
         }
         if ((record_word(slot, 0x5AU) & 1U) != 0U) {
-            reply = invoke(
-                0x00474FC0U,
-                {target_token, 1U, 0U, 0U, 0U, 0U, 0U, 0U},
-                eax,
-                actor_token,
-                1U
+            const auto target_effect = apply_legacy_battle_target_effect(
+                state,
+                &shared,
+                port,
+                {
+                    .actor_token = actor_token,
+                    .target_token = target_token,
+                    .mode = 1U,
+                    .entry_eax = eax,
+                    .entry_ecx = actor_token,
+                    .entry_edx = 1U,
+                }
             );
-            eax = reply.eax;
-            ecx = reply.ecx;
-            edx = reply.edx;
+            result.port_calls += target_effect.port_calls;
+            eax = target_effect.return_eax;
+            ecx = target_effect.return_ecx;
+            edx = target_effect.return_edx;
             ++result.target_calls;
+            if (target_effect.status !=
+                LegacyBattleTargetEffectStatus::completed) {
+                result.status = LegacyBattleGroupAActionExecutionStatus::
+                    actor_state_typed_stop;
+                return result;
+            }
             set_record_word(slot, 0x5AU, 0U);
         }
     } else {

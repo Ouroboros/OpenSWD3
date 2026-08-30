@@ -745,6 +745,38 @@ struct LegacyBattleSpecialFourOhSixResult {
     compat::u32 return_edx{};
 };
 
+struct LegacyBattleTargetEffectRequest {
+    compat::u32 actor_token{};
+    compat::u32 target_token{};
+    compat::u32 mode{};
+    compat::u32 entry_eax{};
+    compat::u32 entry_ecx{};
+    compat::u32 entry_edx{};
+};
+
+enum class LegacyBattleTargetEffectStatus : compat::u8 {
+    completed,
+    actor_state_typed_stop,
+    shared_state_typed_stop,
+};
+
+struct LegacyBattleTargetEffectResult {
+    LegacyBattleTargetEffectStatus status{
+        LegacyBattleTargetEffectStatus::completed
+    };
+    compat::u32 curve_query_calls{};
+    compat::u32 skip_gate_calls{};
+    compat::u32 target_refresh_calls{};
+    compat::u32 effect_compute_calls{};
+    compat::u32 effect_apply_calls{};
+    compat::u32 effect_property_calls{};
+    compat::u32 port_calls{};
+    compat::i32 effect_value{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
 struct LegacyBattleSpecialFourHundredRequest {
     compat::u32 actor_token{};
     compat::u32 target_token{};
@@ -1314,6 +1346,15 @@ advance_legacy_battle_action_four_effect(
     LegacyBattleActionDispatchPort& port,
     LegacyBattleActionDispatchContext& context,
     const LegacyBattleActionFourEffectRequest& request
+);
+
+// sub_474FC0.
+[[nodiscard]] LegacyBattleTargetEffectResult
+apply_legacy_battle_target_effect(
+    LegacyBattleGroupAActionExecutionState* actor,
+    LegacyBattleGroupAActionExecutionSharedState* shared,
+    LegacyBattleActionDispatchPort& port,
+    const LegacyBattleTargetEffectRequest& request
 );
 
 // sub_473C10.

@@ -130,7 +130,10 @@ constexpr u32 kCallActionFourOhTwoCompletion = 0x0047FC40U;
 constexpr u32 kCallSpecialFourOhNineCoordinateUpdate = 0x00484230U;
 constexpr u32 kCallSpecialFourHundredWorkspace = 0x004820A0U;
 constexpr u32 kCallSpecialFourHundredEffect = 0x004838D0U;
-constexpr u32 kCallSpecialFourHundredTargetEvent = 0x00474FC0U;
+constexpr u32 kCallTargetEffectCurve = 0x00477830U;
+constexpr u32 kCallTargetEffectSkipGate = 0x0047CD60U;
+constexpr u32 kCallTargetEffectApply = 0x0047D640U;
+constexpr u32 kLegacyBattleTargetEffectCurveTableToken = 0x004ACBA8U;
 constexpr u32 kCallActorSuspended = 0x0047D930U;
 constexpr u32 kCallClearPendingAction = 0x00482DA0U;
 constexpr u32 kCallTargetEffectProperty = 0x0047CEC0U;
@@ -3911,11 +3914,34 @@ advance_legacy_battle_action_four_effect(
     };
     const auto call_target_event = [&]() {
         ++result.target_event_calls;
-        registers.ecx = request.actor_token;
-        static_cast<void>(invoke_action(
-            kCallSpecialFourHundredTargetEvent,
-            {request.target_token, 0U}
-        ));
+        const auto event = apply_legacy_battle_target_effect(
+            actor,
+            shared,
+            port,
+            {
+                .actor_token = request.actor_token,
+                .target_token = request.target_token,
+                .mode = 0U,
+                .entry_eax = registers.eax,
+                .entry_ecx = request.actor_token,
+                .entry_edx = registers.edx,
+            }
+        );
+        result.port_calls += event.port_calls;
+        registers.eax = event.return_eax;
+        registers.ecx = event.return_ecx;
+        registers.edx = event.return_edx;
+        if (event.status == LegacyBattleTargetEffectStatus::actor_state_typed_stop) {
+            result.status =
+                LegacyBattleActionFourEffectStatus::actor_state_typed_stop;
+            return false;
+        }
+        if (event.status == LegacyBattleTargetEffectStatus::shared_state_typed_stop) {
+            result.status =
+                LegacyBattleActionFourEffectStatus::shared_state_typed_stop;
+            return false;
+        }
+        return true;
     };
 
     actor->turn_completion_latch = 1U;
@@ -4051,7 +4077,9 @@ advance_legacy_battle_action_four_effect(
         actor->action_runtime_gate |= 0x8000U;
         actor->motion_word = 0U;
         special.field_5a = 0U;
-        call_target_event();
+        if (!call_target_event()) {
+            return result;
+        }
         actor->effect_action_record = {};
     }
 
@@ -4170,7 +4198,9 @@ advance_legacy_battle_action_four_effect(
         }
         shared->shared_motion_word = 0U;
         effect.field_5a = 0U;
-        call_target_event();
+        if (!call_target_event()) {
+            return result;
+        }
     }
 
     rendering::LegacyFramePiece effect_frame{};
@@ -4239,6 +4269,138 @@ advance_legacy_battle_action_four_effect(
     result.return_ecx = registers.ecx;
     result.return_edx = registers.edx;
     return result;
+}
+
+LegacyBattleTargetEffectResult apply_legacy_battle_target_effect(
+    LegacyBattleGroupAActionExecutionState* actor,
+    LegacyBattleGroupAActionExecutionSharedState* shared,
+    LegacyBattleActionDispatchPort& port,
+    const LegacyBattleTargetEffectRequest& request
+) {
+    LegacyBattleTargetEffectResult result{
+        .return_eax = request.entry_eax,
+        .return_ecx = request.entry_ecx,
+        .return_edx = request.entry_edx,
+    };
+    if (actor == nullptr || request.actor_token == 0U) {
+        result.status =
+            LegacyBattleTargetEffectStatus::actor_state_typed_stop;
+        return result;
+    }
+
+    struct Registers {
+        u32 eax{};
+        u32 ecx{};
+        u32 edx{};
+    } registers{
+        .eax = request.entry_eax,
+        .ecx = request.entry_ecx,
+        .edx = request.entry_edx,
+    };
+    auto invoke_action = [&](const u32 callee,
+                             const std::array<u32, 8>& arguments = {}) {
+        ++result.port_calls;
+        const auto reply = port.invoke({
+            .callee_token = callee,
+            .arguments = arguments,
+            .eax = registers.eax,
+            .ecx = registers.ecx,
+            .edx = registers.edx,
+        });
+        registers.eax = reply.eax;
+        registers.ecx = reply.ecx;
+        registers.edx = reply.edx;
+        return reply;
+    };
+    const auto finish = [&]() {
+        actor->effect_application_latch = 1U;
+        result.return_eax = registers.eax;
+        result.return_ecx = registers.ecx;
+        result.return_edx = registers.edx;
+        return result;
+    };
+
+    actor->motion_word = 0U;
+    if (shared == nullptr) {
+        result.status =
+            LegacyBattleTargetEffectStatus::shared_state_typed_stop;
+        return result;
+    }
+    shared->shared_motion_word = 0U;
+    replace_low_word(registers.eax, actor->effect_curve_value_a);
+    replace_low_word(registers.ecx, actor->effect_curve_value_b);
+    replace_low_word(registers.edx, actor->effect_curve_index);
+    ++result.curve_query_calls;
+    static_cast<void>(invoke_action(
+        kCallTargetEffectCurve,
+        {
+            kLegacyBattleTargetEffectCurveTableToken,
+            registers.edx,
+            registers.ecx,
+            registers.eax,
+        }
+    ));
+    shared->shared_motion_word = low_word(registers.eax);
+    registers.eax = (registers.eax & 0xFFFFFF00U) |
+        static_cast<u32>(actor->effect_direction_flags);
+    const u32 direction = (actor->effect_direction_flags & 0x80U) != 0U
+        ? 8U
+        : 0U;
+
+    registers.eax = request.mode;
+    if (request.mode == 1U) {
+        registers.eax = actor->effect_application_latch;
+        if (registers.eax == 0U) {
+            registers.ecx = request.target_token;
+            ++result.skip_gate_calls;
+            const auto gate =
+                invoke_action(kCallTargetEffectSkipGate, {direction});
+            if (gate.eax != 0U) {
+                return finish();
+            }
+        }
+    }
+
+    registers.ecx = request.target_token;
+    ++result.target_refresh_calls;
+    static_cast<void>(invoke_action(kCallRefreshTarget, {request.target_token}));
+    registers.eax = 0U;
+    registers.ecx = request.actor_token;
+    shared->last_effect_value = 0;
+    ++result.effect_compute_calls;
+    static_cast<void>(invoke_action(
+        kCallComputeValue, {request.target_token, 0U, 0U}
+    ));
+    registers.eax = std::bit_cast<u32>(
+        static_cast<i32>(std::bit_cast<i16>(low_word(registers.eax)))
+    );
+    shared->last_effect_value = std::bit_cast<i32>(registers.eax);
+    if (registers.eax != 0U) {
+        registers.edx = std::bit_cast<u32>(
+            static_cast<i32>(std::bit_cast<i16>(shared->shared_motion_word))
+        );
+        registers.eax += registers.edx;
+        shared->last_effect_value = std::bit_cast<i32>(registers.eax);
+    }
+    if (std::bit_cast<i32>(registers.eax) >= 0x270F) {
+        registers.eax = 0x270FU;
+        shared->last_effect_value = 0x270F;
+    }
+    registers.edx = port.battle_pair_primary_value();
+    registers.edx += registers.eax;
+    port.battle_pair_primary_value() = registers.edx;
+    result.effect_value = std::bit_cast<i32>(registers.eax);
+    if (registers.eax != 0xFFFFFFFFU) {
+        registers.ecx = request.target_token;
+        ++result.effect_apply_calls;
+        static_cast<void>(
+            invoke_action(kCallTargetEffectApply, {registers.eax})
+        );
+        registers.ecx = request.target_token;
+        ++result.effect_property_calls;
+        static_cast<void>(invoke_action(kCallTargetEffectProperty, {1U}));
+    }
+    return finish();
 }
 
 LegacyBattleSpecialFourHundredResult
@@ -4372,11 +4534,34 @@ advance_legacy_battle_special_four_hundred(
     };
     const auto call_target_event = [&]() {
         ++result.target_event_calls;
-        registers.ecx = request.actor_token;
-        static_cast<void>(invoke_action(
-            kCallSpecialFourHundredTargetEvent,
-            {request.target_token, 0U}
-        ));
+        const auto event = apply_legacy_battle_target_effect(
+            actor,
+            shared,
+            port,
+            {
+                .actor_token = request.actor_token,
+                .target_token = request.target_token,
+                .mode = 0U,
+                .entry_eax = registers.eax,
+                .entry_ecx = request.actor_token,
+                .entry_edx = registers.edx,
+            }
+        );
+        result.port_calls += event.port_calls;
+        registers.eax = event.return_eax;
+        registers.ecx = event.return_ecx;
+        registers.edx = event.return_edx;
+        if (event.status == LegacyBattleTargetEffectStatus::actor_state_typed_stop) {
+            result.status =
+                LegacyBattleSpecialFourHundredStatus::actor_state_typed_stop;
+            return false;
+        }
+        if (event.status == LegacyBattleTargetEffectStatus::shared_state_typed_stop) {
+            result.status = LegacyBattleSpecialFourHundredStatus::
+                shared_state_typed_stop;
+            return false;
+        }
+        return true;
     };
 
     actor->turn_completion_latch = 1U;
@@ -4710,7 +4895,9 @@ advance_legacy_battle_special_four_hundred(
                     if ((secondary.field_5a & 1U) != 0U) {
                         actor->motion_word = 0U;
                         secondary.field_5a = 0U;
-                        call_target_event();
+                        if (!call_target_event()) {
+                            return result;
+                        }
                     }
                 }
             }
@@ -4722,7 +4909,9 @@ advance_legacy_battle_special_four_hundred(
         special.field_5a = 0U;
     }
     if ((special.field_5a & 1U) != 0U) {
-        call_target_event();
+        if (!call_target_event()) {
+            return result;
+        }
         special.field_5a = 0U;
         actor->action_runtime_gate |= 0x8000U;
         actor->motion_word = 0U;
@@ -4768,7 +4957,9 @@ advance_legacy_battle_special_four_hundred(
     if ((effect.field_5a & 1U) != 0U) {
         actor->motion_word = 0U;
         effect.field_5a = 0U;
-        call_target_event();
+        if (!call_target_event()) {
+            return result;
+        }
     }
 
     rendering::LegacyFramePiece effect_frame{};

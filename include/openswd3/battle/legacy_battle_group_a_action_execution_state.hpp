@@ -40,6 +40,8 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u32 next_list_index{};              // actor + 0x2EC4
     compat::u16 alternate_mode{};               // actor + 0x2A8C
     compat::u16 copied_word{};                  // actor + 0x00FC
+    compat::u16 effect_curve_value_a{};         // actor + 0x00F6
+    compat::u16 effect_curve_value_b{};         // actor + 0x00F8
     compat::u16 copied_runtime_word{};          // actor + 0x0DA4
     compat::u16 action_flags{};                 // actor + 0x0392
     compat::u32 primary_value{};                // actor + 0x035C
@@ -77,6 +79,7 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u16 position_y{};                   // actor + 0x0D68
     compat::u8 special_particle_coordinate_suppression{};  // actor + 0x0D94
     compat::u8 special_effect_direct_mode{};    // actor + 0x0D9C
+    compat::u8 effect_direction_flags{};        // actor + 0x26C0
     compat::u16 source_y{};                     // actor + 0x0DB2
     compat::i32 target_phase_y_adjustment{};    // actor + 0x02B4
     compat::u16 render_x_base{};                // actor + 0x0316
@@ -97,6 +100,8 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u16 special_four_hundred_tail_word{};  // actor + 0x26D4
     compat::u32 action_twenty_seven_motion_mode{};  // actor + 0x2B00
     compat::u32 special_draw_mirror_mode{};         // actor + 0x2B08
+    compat::u32 effect_application_latch{};         // actor + 0x2B14
+    compat::u16 effect_curve_index{};               // actor + 0x2F1A
     LegacyBattleGroupAActionResourceRecord resource;
     std::array<compat::u32, 4> target_indices{};  // actor + 0x2A56
     std::unique_ptr<std::array<compat::u8, 0x4C0>>

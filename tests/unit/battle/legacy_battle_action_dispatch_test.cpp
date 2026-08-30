@@ -2575,6 +2575,10 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
             effect.return_eax == 0U && effect.target_event_calls == 1U &&
                 effect.effect_update_calls == 1U &&
                 effect.frame_lookup_calls == 1U && effect.render_calls == 1U &&
+                effect_port.count(0x00474FC0U) == 0U &&
+                effect_port.count(0x00477830U) == 1U &&
+                effect_port.count(0x00478780U) == 1U &&
+                effect_port.count(0x00481010U) == 1U &&
                 (effect_actor.action_runtime_gate & 0x8000U) != 0U &&
                 effect_actor.special_action_record.field_5a == 0U &&
                 shared.shared_motion_word == 0U &&
@@ -2834,10 +2838,14 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
             direct.return_eax == 0U && direct.effect_update_calls == 1U &&
                 direct.target_event_calls == 1U &&
                 direct.frame_lookup_calls == 1U && direct.render_calls == 1U &&
+                direct_port.count(0x00474FC0U) == 0U &&
+                direct_port.count(0x00477830U) == 1U &&
+                direct_port.count(0x00478780U) == 1U &&
+                direct_port.count(0x00481010U) == 1U &&
                 direct_actor.motion_word == 0xFFF8U &&
                 direct_actor.primary_action_record.field_8c == 1U &&
                 direct_actor.effect_action_record.field_8c == 1U &&
-                shared.shared_motion_word == 0U &&
+                shared.shared_motion_word == 1U &&
                 direct_port.action_four_direct_effect_records.size() == 1U &&
                 has_call_argument(direct_port, 0x0047F940U, 4U, 99U) &&
                 has_call_argument(direct_port, 0x0047F940U, 5U, 46U),
@@ -3071,6 +3079,199 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 (fixture.flags[0x4BU >> 3U] &
                  static_cast<u8>(1U << (0x4BU & 7U))) == 0U,
             "action thirty one initializes five second countdown then escape clears bit before target access"
+        );
+    }
+
+    {
+        static DispatchPort actor_stop_port;
+        static const auto actor_stop =
+            openswd3::battle::apply_legacy_battle_target_effect(
+                nullptr,
+                nullptr,
+                actor_stop_port,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                    .mode = 1U,
+                    .entry_eax = 0x11111111U,
+                    .entry_ecx = 0x22222222U,
+                    .entry_edx = 0x33333333U,
+                }
+            );
+        test.expect_true(
+            actor_stop.status == openswd3::battle::
+                    LegacyBattleTargetEffectStatus::actor_state_typed_stop &&
+                actor_stop.return_eax == 0x11111111U &&
+                actor_stop.return_ecx == 0x22222222U &&
+                actor_stop.return_edx == 0x33333333U &&
+                actor_stop.port_calls == 0U,
+            "target effect stops at the first actor motion write without changing entry registers"
+        );
+
+        static auto shared_stop_actor_owner =
+            std::make_unique<LegacyBattleGroupAActionExecutionState>();
+        auto& shared_stop_actor = *shared_stop_actor_owner;
+        shared_stop_actor.motion_word = 9U;
+        static DispatchPort shared_stop_port;
+        static const auto shared_stop =
+            openswd3::battle::apply_legacy_battle_target_effect(
+                &shared_stop_actor,
+                nullptr,
+                shared_stop_port,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                    .entry_eax = 0x11111111U,
+                    .entry_ecx = 0x22222222U,
+                    .entry_edx = 0x33333333U,
+                }
+            );
+        test.expect_true(
+            shared_stop.status == openswd3::battle::
+                    LegacyBattleTargetEffectStatus::shared_state_typed_stop &&
+                shared_stop_actor.motion_word == 0U &&
+                shared_stop.return_eax == 0x11111111U &&
+                shared_stop.return_ecx == 0x22222222U &&
+                shared_stop.return_edx == 0x33333333U &&
+                shared_stop.port_calls == 0U,
+            "target effect stops at the first shared motion write after clearing actor motion"
+        );
+
+        static auto skip_actor_owner =
+            std::make_unique<LegacyBattleGroupAActionExecutionState>();
+        auto& skip_actor = *skip_actor_owner;
+        skip_actor.effect_curve_value_a = 0x1111U;
+        skip_actor.effect_curve_value_b = 0x2222U;
+        skip_actor.effect_curve_index = 0x3333U;
+        skip_actor.effect_direction_flags = 0x80U;
+        static LegacyBattleGroupAActionExecutionSharedState skip_shared;
+        static DispatchPort skip_port;
+        skip_port.push(
+            0x00477830U,
+            {.eax = 0x12348001U, .ecx = 0x44444444U, .edx = 0x55555555U}
+        );
+        skip_port.push(
+            0x0047CD60U,
+            {.eax = 0xAAAAAAAAU, .ecx = 0xBBBBBBBBU, .edx = 0xCCCCCCCCU}
+        );
+        static const auto skipped =
+            openswd3::battle::apply_legacy_battle_target_effect(
+                &skip_actor,
+                &skip_shared,
+                skip_port,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                    .mode = 1U,
+                    .entry_eax = 0xAAAA0000U,
+                    .entry_ecx = 0xBBBB0000U,
+                    .entry_edx = 0xCCCC0000U,
+                }
+            );
+        test.expect_true(
+            skipped.return_eax == 0xAAAAAAAAU &&
+                skipped.return_ecx == 0xBBBBBBBBU &&
+                skipped.return_edx == 0xCCCCCCCCU &&
+                skipped.curve_query_calls == 1U &&
+                skipped.skip_gate_calls == 1U &&
+                skipped.target_refresh_calls == 0U &&
+                skip_shared.shared_motion_word == 0x8001U &&
+                skip_actor.motion_word == 0U &&
+                skip_actor.effect_application_latch == 1U &&
+                has_call_argument(skip_port, 0x00477830U, 0U, 0x004ACBA8U) &&
+                has_call_argument(skip_port, 0x00477830U, 1U, 0xCCCC3333U) &&
+                has_call_argument(skip_port, 0x00477830U, 2U, 0xBBBB2222U) &&
+                has_call_argument(skip_port, 0x00477830U, 3U, 0xAAAA1111U) &&
+                has_call_argument(skip_port, 0x0047CD60U, 0U, 8U),
+            "target effect samples four full register arguments and honors the mode-one direction skip gate"
+        );
+
+        static auto full_actor_owner =
+            std::make_unique<LegacyBattleGroupAActionExecutionState>();
+        auto& full_actor = *full_actor_owner;
+        static LegacyBattleGroupAActionExecutionSharedState full_shared;
+        static DispatchPort full_port;
+        full_port.battle_pair_primary_value() = 10U;
+        full_port.push(0x00477830U, {.eax = 0xFFFCU});
+        full_port.push(0x00478780U, {.eax = 0x10U, .ecx = 0x20U, .edx = 0x30U});
+        full_port.push(0x00481010U, {.eax = 10U, .ecx = 0x40U, .edx = 0x50U});
+        full_port.push(0x0047D640U, {.eax = 0x60U, .ecx = 0x70U, .edx = 0x80U});
+        full_port.push(0x0047CEC0U, {.eax = 0x90U, .ecx = 0xA0U, .edx = 0xB0U});
+        static const auto full =
+            openswd3::battle::apply_legacy_battle_target_effect(
+                &full_actor,
+                &full_shared,
+                full_port,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                    .mode = 0U,
+                }
+            );
+        test.expect_true(
+            full.return_eax == 0x90U && full.return_ecx == 0xA0U &&
+                full.return_edx == 0xB0U && full.effect_value == 6 &&
+                full_shared.last_effect_value == 6 &&
+                full_port.battle_pair_primary_value() == 16U &&
+                full.effect_apply_calls == 1U &&
+                full.effect_property_calls == 1U &&
+                has_call_argument(full_port, 0x0047D640U, 0U, 6U) &&
+                has_call_argument(full_port, 0x0047CEC0U, 0U, 1U),
+            "target effect sign-extends both words, accumulates the result, and publishes it to the target"
+        );
+
+        static auto clamp_actor_owner =
+            std::make_unique<LegacyBattleGroupAActionExecutionState>();
+        auto& clamp_actor = *clamp_actor_owner;
+        static LegacyBattleGroupAActionExecutionSharedState clamp_shared;
+        static DispatchPort clamp_port;
+        clamp_port.push(0x00477830U, {.eax = 0U});
+        clamp_port.push(0x00481010U, {.eax = 0x2710U});
+        static const auto clamped =
+            openswd3::battle::apply_legacy_battle_target_effect(
+                &clamp_actor,
+                &clamp_shared,
+                clamp_port,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            clamped.effect_value == 0x270F &&
+                clamp_shared.last_effect_value == 0x270F &&
+                clamp_port.battle_pair_primary_value() == 0x270FU &&
+                has_call_argument(clamp_port, 0x0047D640U, 0U, 0x270FU),
+            "target effect clamps signed values at nine thousand nine hundred ninety nine before accumulation"
+        );
+
+        static auto sentinel_actor_owner =
+            std::make_unique<LegacyBattleGroupAActionExecutionState>();
+        auto& sentinel_actor = *sentinel_actor_owner;
+        static LegacyBattleGroupAActionExecutionSharedState sentinel_shared;
+        static DispatchPort sentinel_port;
+        sentinel_port.battle_pair_primary_value() = 10U;
+        sentinel_port.push(0x00477830U, {.eax = 0U});
+        sentinel_port.push(0x00481010U, {.eax = 0xFFFFU});
+        static const auto sentinel =
+            openswd3::battle::apply_legacy_battle_target_effect(
+                &sentinel_actor,
+                &sentinel_shared,
+                sentinel_port,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            sentinel.return_eax == 0xFFFFFFFFU && sentinel.return_edx == 9U &&
+                sentinel.effect_value == -1 &&
+                sentinel_shared.last_effect_value == -1 &&
+                sentinel_port.battle_pair_primary_value() == 9U &&
+                sentinel.effect_apply_calls == 0U &&
+                sentinel.effect_property_calls == 0U &&
+                sentinel_port.count(0x00474FC0U) == 0U,
+            "target effect accumulates negative one before skipping target publication"
         );
     }
 
