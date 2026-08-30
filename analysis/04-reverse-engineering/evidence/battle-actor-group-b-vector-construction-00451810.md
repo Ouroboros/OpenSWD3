@@ -26,7 +26,7 @@ callee参数顺序为`base,size,count,constructor,destructor`。typed request与
 
 调用后无`add esp`，编译器helper清理五个参数；包装器直接`retn`。typed结果保留helper完整EAX，测试以`0x55667788`锁定；唯一caller虽忽略该值，modern不擅自归零。
 
-构造迭代器和组B元素构造/析构回调仍为后续工作包，当前以共享vector construction port隔离MSVC/EH边界；request本身区分组A与组B。
+组B元素构造callback`0x00475560`现已由typed helper关闭；元素析构callback`0x00475590`与构造迭代器的异常回滚语义仍为后续工作包。当前继续以共享vector construction port隔离未闭合的MSVC/EH边界；request本身区分组A与组B。
 
 ## 4. caller边界回收
 
@@ -34,6 +34,7 @@ callee参数顺序为`base,size,count,constructor,destructor`。typed request与
 
 - caller收到组B五项常量；
 - 构造helper事件先于退出注册；
+- 元素构造callback的基础构造、固定164-byte分配、token发布、全清零与零分配停止点由独立typed测试锁定；
 - 构造EAX只记录，最终返回仍为`_atexit` EAX；
 - 注册目标仍为组B退出函数；
 - 组A请求未受影响。
@@ -64,4 +65,4 @@ C++到LST反向追溯覆盖19行完整函数、五个参数、callee与返回寄
 
 battle聚合目标零warning构建及定向测试通过。
 
-当前没有原版编译器向量构造迭代器、组B元素构造/析构回调、全局数组字节与异常展开联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整19行LST已完成固定参数闭环。
+当前没有原版编译器向量构造迭代器、组B元素析构callback、八个完整全局对象字节与异常展开联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。元素构造callback已经typed关闭；完整19行包装器LST已完成固定参数闭环。

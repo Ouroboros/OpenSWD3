@@ -103,6 +103,28 @@ public:
     destroy_base(LegacyBattleActorGroupAElementState& state) = 0;
 };
 
+struct LegacyBattleActorGroupBElementState {
+    compat::u32 object_token{};
+    compat::u32 resource_token{};
+    std::array<compat::u8, 0xA4> resource_bytes{};
+};
+
+struct LegacyBattleActorGroupBElementCallReply {
+    compat::u32 eax{};
+    compat::u32 ecx{};
+    compat::u32 edx{};
+};
+
+class LegacyBattleActorGroupBElementConstructionPort {
+public:
+    virtual ~LegacyBattleActorGroupBElementConstructionPort() = default;
+
+    [[nodiscard]] virtual LegacyBattleActorGroupBElementCallReply
+    construct_base(compat::u32 object_token) = 0;
+    [[nodiscard]] virtual LegacyBattleActorGroupBElementCallReply
+    allocate(compat::u32 size) = 0;
+};
+
 class LegacyBattleActorObjectLifecyclePort {
 public:
     virtual ~LegacyBattleActorObjectLifecyclePort() = default;
@@ -125,6 +147,23 @@ struct LegacyBattleActorGroupAElementConstructionResult {
     compat::u32 base_constructor_calls{};
     compat::u32 allocation_calls{};
     compat::u32 description_bytes_written{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
+enum class LegacyBattleActorGroupBElementConstructionStatus : compat::u8 {
+    completed,
+    resource_write_typed_stop,
+};
+
+struct LegacyBattleActorGroupBElementConstructionResult {
+    LegacyBattleActorGroupBElementConstructionStatus status{
+        LegacyBattleActorGroupBElementConstructionStatus::completed
+    };
+    compat::u32 base_constructor_calls{};
+    compat::u32 allocation_calls{};
+    compat::u32 resource_bytes_written{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
@@ -203,6 +242,13 @@ struct LegacyBattleActorSingletonStaticInitializationResult {
 construct_legacy_battle_actor_group_a_element(
     LegacyBattleActorGroupAElementState& state,
     LegacyBattleActorGroupAElementConstructionPort& port
+);
+
+// sub_475560.
+[[nodiscard]] LegacyBattleActorGroupBElementConstructionResult
+construct_legacy_battle_actor_group_b_element(
+    LegacyBattleActorGroupBElementState& state,
+    LegacyBattleActorGroupBElementConstructionPort& port
 );
 
 // sub_46E4D0 with its SEH unwind chunk at loc_498390.

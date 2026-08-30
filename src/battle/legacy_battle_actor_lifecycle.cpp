@@ -21,13 +21,44 @@ construct_legacy_battle_actor_group_a_element(
     if (state.resource_cleanup.primary_resource_token == 0U) {
         result.status = LegacyBattleActorGroupAElementConstructionStatus::
             description_write_typed_stop;
-        result.return_eax = allocation.eax;
+        result.return_eax = 0U;
+        result.return_ecx = 0x0EU;
         return result;
     }
 
     state.description_bytes.fill(0U);
     result.description_bytes_written =
         static_cast<compat::u32>(state.description_bytes.size());
+    result.return_eax = state.object_token;
+    result.return_ecx = 0U;
+    return result;
+}
+
+LegacyBattleActorGroupBElementConstructionResult
+construct_legacy_battle_actor_group_b_element(
+    LegacyBattleActorGroupBElementState& state,
+    LegacyBattleActorGroupBElementConstructionPort& port
+) {
+    LegacyBattleActorGroupBElementConstructionResult result;
+    static_cast<void>(port.construct_base(state.object_token));
+    ++result.base_constructor_calls;
+
+    const auto allocation = port.allocate(0xA4U);
+    ++result.allocation_calls;
+    state.resource_token = allocation.eax;
+    result.return_ecx = allocation.ecx;
+    result.return_edx = allocation.edx;
+    if (state.resource_token == 0U) {
+        result.status = LegacyBattleActorGroupBElementConstructionStatus::
+            resource_write_typed_stop;
+        result.return_eax = 0U;
+        result.return_ecx = 0x29U;
+        return result;
+    }
+
+    state.resource_bytes.fill(0U);
+    result.resource_bytes_written =
+        static_cast<compat::u32>(state.resource_bytes.size());
     result.return_eax = state.object_token;
     result.return_ecx = 0U;
     return result;

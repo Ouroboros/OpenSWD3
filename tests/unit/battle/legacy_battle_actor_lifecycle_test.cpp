@@ -37,6 +37,31 @@ public:
     std::vector<u32> events;
 };
 
+class TrackingGroupBElementPort final
+    : public openswd3::battle::LegacyBattleActorGroupBElementConstructionPort {
+public:
+    [[nodiscard]] openswd3::battle::LegacyBattleActorGroupBElementCallReply
+    construct_base(const u32 object_token) override {
+        events.push_back(1U);
+        base_object_token = object_token;
+        return base_reply;
+    }
+
+    [[nodiscard]] openswd3::battle::LegacyBattleActorGroupBElementCallReply
+    allocate(const u32 size) override {
+        events.push_back(2U);
+        allocation_size = size;
+        return allocation_reply;
+    }
+
+    openswd3::battle::LegacyBattleActorGroupBElementCallReply base_reply{};
+    openswd3::battle::LegacyBattleActorGroupBElementCallReply
+        allocation_reply{};
+    u32 base_object_token{};
+    u32 allocation_size{};
+    std::vector<u32> events;
+};
+
 class TrackingGroupAElementDestructionPort final
     : public openswd3::battle::LegacyBattleActorGroupAElementDestructionPort {
 public:
@@ -352,9 +377,81 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                         LegacyBattleActorGroupAElementConstructionStatus::
                             description_write_typed_stop &&
                 result.description_bytes_written == 0U &&
-                result.return_eax == 0U && result.return_ecx == 7U &&
+                result.return_eax == 0U && result.return_ecx == 0x0EU &&
                 result.return_edx == 8U,
-            "zero description allocation stops at the first write after both field clears"
+            "zero description allocation stops with the rep-stos count after both field clears"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleActorGroupBElementState state{
+            .object_token = 0x00525508U,
+            .resource_token = 0x11111111U,
+        };
+        state.resource_bytes.fill(0xA5U);
+        TrackingGroupBElementPort port;
+        port.base_reply = {.eax = 0x10U, .ecx = 0x20U, .edx = 0x30U};
+        port.allocation_reply = {
+            .eax = 0x71000000U,
+            .ecx = 0x55667788U,
+            .edx = 0x99AABBCCU,
+        };
+        const auto result =
+            openswd3::battle::construct_legacy_battle_actor_group_b_element(
+                state, port
+            );
+        test.expect_true(
+            port.events == std::vector<u32>{1U, 2U} &&
+                port.base_object_token == state.object_token &&
+                port.allocation_size == 0xA4U &&
+                state.resource_token == 0x71000000U &&
+                std::ranges::all_of(
+                    state.resource_bytes,
+                    [](const auto value) { return value == 0U; }
+                ) &&
+                result.status ==
+                    openswd3::battle::
+                        LegacyBattleActorGroupBElementConstructionStatus::
+                            completed &&
+                result.base_constructor_calls == 1U &&
+                result.allocation_calls == 1U &&
+                result.resource_bytes_written == 0xA4U &&
+                result.return_eax == state.object_token &&
+                result.return_ecx == 0U && result.return_edx == 0x99AABBCCU,
+            "group-B element construction invokes the base before allocating and zeroing its resource"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleActorGroupBElementState state{
+            .object_token = 0x00528030U,
+            .resource_token = 0x22222222U,
+        };
+        state.resource_bytes.fill(0x5AU);
+        TrackingGroupBElementPort port;
+        port.allocation_reply = {.eax = 0U, .ecx = 7U, .edx = 8U};
+        const auto result =
+            openswd3::battle::construct_legacy_battle_actor_group_b_element(
+                state, port
+            );
+        test.expect_true(
+            port.events == std::vector<u32>{1U, 2U} &&
+                port.base_object_token == state.object_token &&
+                port.allocation_size == 0xA4U && state.resource_token == 0U &&
+                std::ranges::all_of(
+                    state.resource_bytes,
+                    [](const auto value) { return value == 0x5AU; }
+                ) &&
+                result.status ==
+                    openswd3::battle::
+                        LegacyBattleActorGroupBElementConstructionStatus::
+                            resource_write_typed_stop &&
+                result.base_constructor_calls == 1U &&
+                result.allocation_calls == 1U &&
+                result.resource_bytes_written == 0U &&
+                result.return_eax == 0U && result.return_ecx == 0x29U &&
+                result.return_edx == 8U,
+            "zero group-B allocation stops at the first resource write after publishing the null token"
         );
     }
 
