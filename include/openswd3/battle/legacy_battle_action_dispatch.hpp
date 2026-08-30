@@ -122,9 +122,10 @@ struct LegacyBattleTargetPhaseState {
     compat::u32 active_gate{};                 // actor + 0x2AFC
     compat::u8 mode_flags{};                   // actor + 0x2A87
     compat::u32 runtime_gate{};                // actor + 0x2680
+    compat::u32 render_toggle_gate{};           // actor + 0x2B08
     std::array<compat::u32, 5> spawn_counters{};  // actor + 0x2EF8
     std::array<compat::u32, 8> block_0df4{};
-    std::array<compat::u32, 0x26> block_0500{};
+    asset_runtime::LegacyActionRecord action_record{};  // actor + 0x0500
     std::array<compat::u32, 0xBE> block_2bc8{};
 };
 
@@ -195,6 +196,37 @@ struct LegacyBattleTargetPhaseAdvanceResult {
     compat::u32 presentation_dwords_zeroed{};
     compat::u32 spawn_counter_clears{};
     compat::u32 tail_dwords_zeroed{};
+    compat::u32 port_calls{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
+struct LegacyBattleActionThirteenRequest {
+    compat::u32 actor_token{};
+    compat::u32 opponent_token{};
+    compat::u32 entry_eax{};
+    compat::u32 entry_ecx{};
+    compat::u32 entry_edx{};
+};
+
+enum class LegacyBattleActionThirteenStatus : compat::u8 {
+    completed,
+    actor_state_typed_stop,
+    frame_owner_typed_stop,
+    shared_state_typed_stop,
+};
+
+struct LegacyBattleActionThirteenResult {
+    LegacyBattleActionThirteenStatus status{
+        LegacyBattleActionThirteenStatus::completed
+    };
+    compat::u32 action_update_calls{};
+    compat::u32 frame_lookup_calls{};
+    compat::u32 coordinate_query_calls{};
+    compat::u32 line_raster_calls{};
+    compat::u32 sample_calls{};
+    compat::u32 render_calls{};
     compat::u32 port_calls{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
@@ -434,6 +466,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     group_a_mode_four_finalization_typed_stop,
     target_phase_start_typed_stop,
     target_phase_advance_typed_stop,
+    action_thirteen_typed_stop,
     turn_commit_chance_typed_stop,
     turn_advance_typed_stop,
 };
@@ -488,6 +521,8 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 target_phase_start_calls{};
     LegacyBattleTargetPhaseAdvanceResult target_phase_advance{};
     compat::u32 target_phase_advance_calls{};
+    LegacyBattleActionThirteenResult action_thirteen{};
+    compat::u32 action_thirteen_calls{};
     LegacyBattleTurnCommitChanceResult turn_commit_chance{};
     compat::u32 turn_commit_chance_calls{};
     LegacyBattleTurnAdvanceResult turn_advance{};
@@ -516,6 +551,17 @@ advance_legacy_battle_target_phase(
     rendering::LegacyPixelConversionState* pixel_format,
     LegacyBattleActionDispatchPort& port,
     const LegacyBattleTargetPhaseAdvanceRequest& request
+);
+
+// sub_4717F0.
+[[nodiscard]] LegacyBattleActionThirteenResult
+advance_legacy_battle_action_thirteen(
+    LegacyBattleTargetPhaseState* phase,
+    LegacyBattleGroupAActionExecutionState* actor,
+    LegacyBattleGroupAActionExecutionSharedState* shared,
+    LegacyBattleActionDispatchPort& port,
+    LegacyBattleActionDispatchContext& context,
+    const LegacyBattleActionThirteenRequest& request
 );
 
 // sub_4539B0: dispatch one action code for the selected group-A actor and

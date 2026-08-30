@@ -58,9 +58,9 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u16 source_y{};                     // actor + 0x0DB2
     compat::i32 target_phase_y_adjustment{};    // actor + 0x02B4
     compat::u32 position_adjustment{};          // actor + 0x034C
+    compat::u16 render_y_base{};                // actor + 0x0318
     compat::u16 source_x_offset{};              // actor + 0x29AC
     compat::u16 source_y_offset{};              // actor + 0x29B2
-    compat::u16 target_x_offset{};              // actor + 0x29B4
     compat::u16 draw_x{};                       // actor + 0x29BC
     compat::u16 draw_y{};                       // actor + 0x29BE
     compat::u16 motion_word{};                  // actor + 0x2954

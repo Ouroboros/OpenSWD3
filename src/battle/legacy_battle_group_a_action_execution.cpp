@@ -310,7 +310,7 @@ advance_legacy_battle_group_a_action_execution(
         if ((state->render_flags & 1U) != 0U) {
             const i32 x = static_cast<i32>(signed_word(state->position_x)) +
                 static_cast<i32>(signed_word(state->source_x_offset)) -
-                static_cast<i32>(signed_word(state->target_x_offset));
+                static_cast<i32>(signed_word(state->turn_target_x_offset));
             const i32 y = static_cast<i32>(signed_word(state->auxiliary_word)) +
                 static_cast<i32>(signed_word(state->position_y)) -
                 std::bit_cast<i32>(state->position_adjustment);

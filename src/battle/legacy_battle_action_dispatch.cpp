@@ -95,7 +95,10 @@ constexpr u32 kCallTargetPhaseSpawn = 0x00471FC0U;
 constexpr u32 kCallTargetPhaseRelease = 0x004885A0U;
 constexpr u32 kCallCommitTargetPhase = 0x00477710U;
 constexpr u32 kCallActionFourReady = 0x004745B0U;
-constexpr u32 kCallActionThirteenReady = 0x004717F0U;
+constexpr u32 kCallActionThirteenQueryOffsets = 0x00478400U;
+constexpr u32 kCallActionThirteenQueryCoordinates = 0x004783B0U;
+constexpr u32 kCallActionThirteenQueryBase = 0x00478470U;
+constexpr u32 kCallActionThirteenRender = 0x004170E0U;
 constexpr u32 kCallCommitMessageRecord = 0x0047DBD0U;
 constexpr u32 kCallActionFourteenReady = 0x00471AD0U;
 constexpr u32 kCallQueryLiveIndex = 0x004786E0U;
@@ -577,7 +580,7 @@ LegacyBattleTargetPhaseStartResult start_legacy_battle_target_phase(
 
     phase->runtime_gate = 0U;
     phase->block_0df4.fill(0U);
-    phase->block_0500.fill(0U);
+    phase->action_record = {};
     phase->block_2bc8.fill(0U);
     result.tail_dwords_zeroed = 8U + 0x26U + 0xBEU;
     result.return_eax = 0U;
@@ -657,7 +660,7 @@ LegacyBattleTargetPhaseAdvanceResult advance_legacy_battle_target_phase(
         phase->spawn_counters.fill(0U);
         result.spawn_counter_clears = 5U;
         phase->block_0df4.fill(0U);
-        phase->block_0500.fill(0U);
+        phase->action_record = {};
         result.tail_dwords_zeroed = 8U + 0x26U;
         result.return_eax = 1U;
         return result;
@@ -729,6 +732,217 @@ LegacyBattleTargetPhaseAdvanceResult advance_legacy_battle_target_phase(
         );
     }
     result.return_eax = 0U;
+    return result;
+}
+
+LegacyBattleActionThirteenResult advance_legacy_battle_action_thirteen(
+    LegacyBattleTargetPhaseState* phase,
+    LegacyBattleGroupAActionExecutionState* actor,
+    LegacyBattleGroupAActionExecutionSharedState* shared,
+    LegacyBattleActionDispatchPort& port,
+    LegacyBattleActionDispatchContext& context,
+    const LegacyBattleActionThirteenRequest& request
+) {
+    LegacyBattleActionThirteenResult result{
+        .return_eax = request.entry_eax,
+        .return_ecx = request.entry_ecx,
+        .return_edx = request.entry_edx,
+    };
+    if (phase == nullptr || actor == nullptr || request.actor_token == 0U) {
+        result.status =
+            LegacyBattleActionThirteenStatus::actor_state_typed_stop;
+        return result;
+    }
+
+    struct Registers {
+        u32 eax{};
+        u32 ecx{};
+        u32 edx{};
+    } registers{
+        .eax = request.entry_eax,
+        .ecx = request.entry_ecx,
+        .edx = request.entry_edx,
+    };
+    auto invoke_action = [&](const u32 callee,
+                             const std::array<u32, 8>& arguments = {}) {
+        ++result.port_calls;
+        const auto reply = port.invoke({
+            .callee_token = callee,
+            .arguments = arguments,
+            .eax = registers.eax,
+            .ecx = registers.ecx,
+            .edx = registers.edx,
+        });
+        registers.eax = reply.eax;
+        registers.ecx = reply.ecx;
+        registers.edx = reply.edx;
+        return reply;
+    };
+    const auto signed_word_bits = [](const u16 value) {
+        return to_bits(static_cast<i32>(std::bit_cast<i16>(value)));
+    };
+
+    phase->action_record.action_id = 0x186BU;
+    phase->action_record.base_variant = 0U;
+    phase->action_record.external_mode = actor->special_mode == 1U ? 1U : 0U;
+    ++result.action_update_calls;
+    const auto updated = context.action_updater.update(phase->action_record);
+    if (updated.return_value == 0U) {
+        result.return_eax = 0U;
+        result.return_ecx = registers.ecx;
+        result.return_edx = registers.edx;
+        return result;
+    }
+
+    rendering::LegacyFramePiece frame{};
+    ++result.frame_lookup_calls;
+    if (!context.frame_provider.load_frame_piece(
+            phase->action_record.field_4a,
+            phase->action_record.field_4c,
+            frame
+        )) {
+        actor->turn_frame_token = 0U;
+        result.status =
+            LegacyBattleActionThirteenStatus::frame_owner_typed_stop;
+        result.return_eax = 0U;
+        result.return_ecx = registers.ecx;
+        result.return_edx = registers.edx;
+        return result;
+    }
+    actor->turn_frame_token = request.actor_token + 0x254CU;
+    if (shared == nullptr) {
+        result.status =
+            LegacyBattleActionThirteenStatus::shared_state_typed_stop;
+        return result;
+    }
+    shared->turn_frame_source_token = actor->turn_frame_token;
+    actor->turn_target_x_offset =
+        static_cast<u16>(phase->action_record.draw_offset_x);
+    actor->turn_render_flags = phase->action_record.mode_flags;
+    if (phase->render_toggle_gate == 1U) {
+        const compat::u8 low =
+            static_cast<compat::u8>(actor->turn_render_flags);
+        actor->turn_render_flags =
+            (actor->turn_render_flags & 0xFFFFFF00U) |
+            static_cast<u32>((low & 1U) != 0U ? low & 0xFEU : low | 1U);
+        actor->turn_target_x_offset = static_cast<u16>(
+            frame.width -
+            static_cast<u16>(phase->action_record.draw_offset_x)
+        );
+    }
+
+    registers.ecx = request.opponent_token;
+    ++result.coordinate_query_calls;
+    const auto offsets = invoke_action(
+        kCallActionThirteenQueryOffsets, {request.opponent_token}
+    );
+    u32 endpoint_x{};
+    u32 endpoint_y{};
+    if (low_word(offsets.outputs[0U]) == 0U ||
+        low_word(offsets.outputs[1U]) == 0U) {
+        ++result.coordinate_query_calls;
+        const auto coordinates = invoke_action(
+            kCallActionThirteenQueryCoordinates, {request.opponent_token}
+        );
+        endpoint_x = static_cast<u16>(
+            low_word(coordinates.outputs[0U]) - actor->turn_target_x_offset
+        );
+        endpoint_y = static_cast<u16>(
+            low_word(coordinates.outputs[1U]) -
+            static_cast<u16>(phase->action_record.draw_offset_y)
+        );
+    } else {
+        ++result.coordinate_query_calls;
+        const auto base = invoke_action(
+            kCallActionThirteenQueryBase, {request.opponent_token}
+        );
+        endpoint_x = base.outputs[0U] + static_cast<u16>(
+            low_word(offsets.outputs[0U]) - actor->turn_target_x_offset
+        );
+        endpoint_y = base.outputs[1U] + static_cast<u16>(
+            low_word(offsets.outputs[1U]) -
+            static_cast<u16>(phase->action_record.draw_offset_y)
+        );
+    }
+
+    LegacyBattleLineRaster raster{};
+    const u32 start_x =
+        signed_word_bits(actor->source_x_offset) -
+        signed_word_bits(actor->source_y_offset) +
+        signed_word_bits(actor->position_x) -
+        signed_word_bits(actor->turn_target_x_offset);
+    const u32 start_y =
+        signed_word_bits(actor->render_y_base) +
+        signed_word_bits(actor->position_y) -
+        std::bit_cast<u32>(actor->target_phase_y_adjustment) -
+        phase->action_record.draw_offset_y;
+    raster.start_x = std::bit_cast<i32>(start_x);
+    raster.start_y = std::bit_cast<i32>(start_y);
+    raster.end_x = static_cast<i32>(signed_low_word(endpoint_x));
+    raster.end_y = static_cast<i32>(signed_low_word(endpoint_y));
+
+    bool completed = false;
+    const u32 iteration_bits = phase->runtime_gate << 3U;
+    if (std::bit_cast<i32>(iteration_bits) > 0) {
+        u32 iteration = 0U;
+        do {
+            ++result.line_raster_calls;
+            static_cast<void>(advance_legacy_battle_line_raster(raster));
+            registers.edx = to_bits(raster.current_x) + to_bits(raster.start_x);
+            if (registers.edx == to_bits(raster.end_x)) {
+                completed = true;
+                break;
+            }
+            ++iteration;
+        } while (std::bit_cast<i32>(iteration) <
+                 std::bit_cast<i32>(iteration_bits));
+    }
+    phase->block_0df4 = std::bit_cast<std::array<u32, 8>>(raster);
+    phase->runtime_gate += 1U;
+
+    replace_low_word(registers.edx, phase->action_record.field_58);
+    ++result.sample_calls;
+    static_cast<void>(invoke_action(
+        kCallPlayMessage, {registers.edx, 0x004AB784U}
+    ));
+    phase->action_record.field_58 = 0U;
+
+    ++result.render_calls;
+    if (completed) {
+        static_cast<void>(invoke_action(
+            kCallActionThirteenRender,
+            {
+                signed_word_bits(static_cast<u16>(endpoint_x)),
+                signed_word_bits(static_cast<u16>(endpoint_y)),
+                frame.width,
+                frame.height,
+                actor->turn_render_flags,
+                0U,
+            }
+        ));
+        phase->runtime_gate = 0U;
+        phase->block_0df4.fill(0U);
+        phase->action_record = {};
+        result.return_eax = 1U;
+        result.return_ecx = registers.ecx;
+        result.return_edx = registers.edx;
+        return result;
+    }
+
+    static_cast<void>(invoke_action(
+        kCallActionThirteenRender,
+        {
+            to_bits(raster.start_x) + to_bits(raster.current_x),
+            to_bits(raster.start_y) + to_bits(raster.current_y),
+            frame.width,
+            frame.height,
+            actor->turn_render_flags,
+            0U,
+        }
+    ));
+    result.return_eax = 0U;
+    result.return_ecx = registers.ecx;
+    result.return_edx = registers.edx;
     return result;
 }
 
@@ -1752,14 +1966,25 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
             state.frame_effect.primary_suppression = 1U;
             refresh_shared_frame(state, port, result);
         }
-        reply = invoke(
-            state,
+        result.action_thirteen = advance_legacy_battle_action_thirteen(
+            &state.group_a_target_phases[group_a_index],
+            &state.group_a_action_execution[group_a_index],
+            &state.group_a_action_shared,
             port,
-            result,
-            kCallActionThirteenReady,
-            {group_b_token(group_b_index)}
+            context,
+            {
+                .actor_token = group_a_token(group_a_index),
+                .opponent_token = group_b_token(group_b_index),
+            }
         );
-        if (reply.eax != 1U) {
+        ++result.action_thirteen_calls;
+        if (result.action_thirteen.status !=
+            LegacyBattleActionThirteenStatus::completed) {
+            result.status =
+                LegacyBattleActionDispatchStatus::action_thirteen_typed_stop;
+            return result;
+        }
+        if (result.action_thirteen.return_eax != 1U) {
             return result;
         }
         state.temporary_record.fill(0U);

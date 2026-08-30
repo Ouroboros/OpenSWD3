@@ -629,6 +629,8 @@ I5最终必须锁定：
 
 `audit_order=209`的`0x004717E0`已关闭为`platform_adapted`。完整权威LST主体`0x004717E0..0x004717ED`共7行、4条实际指令、0个call、0个跳转、1个返回点且无外部chunk。实现角色`+0x2A86`低word bit12查询，ECX/EDX保持，空owner在原始word读取点typed-stop；与上一项共享同一action-execution唯一owner。目标选择动作四production caller改为typed直连，旧opaque枚举槽保留为reserved。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`209/422 = 200 platform_adapted + 9 assembly_exact + 213 pending_audit`，双跑SHA256为`3cf766089c6ed5cc1e7c5e48f32fa89e869be306d7ef2a38c907b0318dc295d8`。动态差分因原版角色flags word、目标解析callee与caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=210`的`0x004717F0`战斗角色动作效果与渲染函数。
+`audit_order=210`的`0x004717F0`已关闭为`platform_adapted`。完整权威LST主体`0x004717F0..0x00471AC5`共317行、204条实际指令、9个call、13个跳转、12个局部标签、2个返回点且无外部chunk。实现动作十三的动作记录更新、frame读取、bit0翻转、双坐标分支、signed坐标、八倍runtime gate line-raster、每帧音频、绘制、完成清零及零/一返回。复用target-phase动作记录/raster块、group-A action-execution与shared frame-source唯一owner，并消除`+0x29B4`重复字段。action-dispatch caller改为typed直连，已关闭的动作更新、frame provider和line-raster直接复用typed实现；未审坐标、音频和绘制保留窄port。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`210/422 = 201 platform_adapted + 9 assembly_exact + 212 pending_audit`，双跑SHA256为`7b2090d4a74387607b52ee59b1faea21ce4b9a866179adeb32ddc44d0a839e7d`。动态差分因原版行动者、目标、动作流、帧资源、坐标callee、音频与绘制寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=211`的`0x00471AD0`战斗角色动作效果与渲染函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

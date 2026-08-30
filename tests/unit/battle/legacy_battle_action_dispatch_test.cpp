@@ -186,6 +186,9 @@ public:
     [[nodiscard]] bool load_frame_piece(
         u32, u32, openswd3::rendering::LegacyFramePiece& piece
     ) noexcept override {
+        if (!available) {
+            return false;
+        }
         piece = {
             .source =
                 openswd3::rendering::LegacyBlitSource{
@@ -200,6 +203,7 @@ public:
     }
 
     std::vector<u8> bytes;
+    bool available{true};
 };
 
 class RandomPort final
@@ -698,6 +702,7 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
 
     {
         LegacyBattleActionDispatchState state;
+        state.group_a_target_phases[2U].runtime_gate = 1U;
         Fixture fixture;
         DispatchPort port;
         port.action = 13U;
@@ -706,7 +711,9 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
             state, port, context, 2U, 3U
         );
         test.expect_true(
-            result.return_value == 1U &&
+            result.return_value == 1U && result.action_thirteen_calls == 1U &&
+                result.action_thirteen.return_eax == 1U &&
+                port.count(0x004717F0U) == 0U &&
                 static_cast<u16>(fixture.startup_reset.block_52022c[10U]) ==
                     4U &&
                 state.frame_effect.fade_active == 1U &&
@@ -716,6 +723,7 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         );
 
         LegacyBattleActionDispatchState tail_state;
+        tail_state.group_a_target_phases[4U].runtime_gate = 1U;
         Fixture tail_fixture;
         DispatchPort tail_port;
         tail_port.action = 13U;
@@ -732,6 +740,7 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         );
 
         LegacyBattleActionDispatchState missing_state;
+        missing_state.group_a_target_phases[2U].runtime_gate = 1U;
         Fixture missing_fixture;
         DispatchPort missing_port;
         missing_port.action = 13U;
@@ -1096,7 +1105,7 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         phase.mode_flags = 0x80U;
         phase.runtime_gate = 1U;
         phase.block_0df4.fill(1U);
-        phase.block_0500.fill(2U);
+        phase.action_record.action_id = 2U;
         phase.block_2bc8.fill(3U);
         Fixture fixture;
         DispatchPort port;
@@ -1277,7 +1286,7 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         phase.emitter.spawned_count = 0;
         phase.spawn_counters.fill(7U);
         phase.block_0df4.fill(8U);
-        phase.block_0500.fill(9U);
+        phase.action_record.action_id = 9U;
         phase.block_2bc8.fill(10U);
         LegacyBattleActionDispatchState shared;
         Fixture fixture;
@@ -1309,9 +1318,140 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                     phase.spawn_counters,
                     [](const u32 value) { return value == 0U; }
                 ) &&
-                phase.block_0df4[0U] == 0U && phase.block_0500[0U] == 0U &&
+                phase.block_0df4[0U] == 0U &&
+                phase.action_record.action_id == 0U &&
                 phase.block_2bc8[0U] == 10U && port.count(0x004885A0U) == 1U,
             "target phase completion releases the decoded buffer and clears only the original presentation, counters and two tail blocks"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleTargetPhaseState phase;
+        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+        openswd3::battle::LegacyBattleGroupAActionExecutionSharedState shared;
+        Fixture fixture;
+        DispatchPort port;
+        auto context = fixture.context();
+        const auto stopped =
+            openswd3::battle::advance_legacy_battle_action_thirteen(
+                &phase,
+                nullptr,
+                &shared,
+                port,
+                context,
+                {.actor_token = 0x005029D0U,
+                 .opponent_token = 0x00525508U,
+                 .entry_eax = 0x11U,
+                 .entry_ecx = 0x22U,
+                 .entry_edx = 0x33U}
+            );
+        fixture.frame_provider.available = false;
+        const auto missing =
+            openswd3::battle::advance_legacy_battle_action_thirteen(
+                &phase,
+                &actor,
+                &shared,
+                port,
+                context,
+                {.actor_token = 0x005029D0U,
+                 .opponent_token = 0x00525508U}
+            );
+        test.expect_true(
+            stopped.status ==
+                    openswd3::battle::LegacyBattleActionThirteenStatus::
+                        actor_state_typed_stop &&
+                stopped.return_eax == 0x11U && stopped.return_ecx == 0x22U &&
+                stopped.return_edx == 0x33U &&
+                missing.status ==
+                    openswd3::battle::LegacyBattleActionThirteenStatus::
+                        frame_owner_typed_stop &&
+                missing.action_update_calls == 1U &&
+                missing.frame_lookup_calls == 1U && missing.port_calls == 0U &&
+                actor.turn_frame_token == 0U &&
+                phase.action_record.action_id == 0x186BU,
+            "action thirteen stops at the original actor and frame reads after preserving the initialized record prefix"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleTargetPhaseState phase;
+        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+        openswd3::battle::LegacyBattleGroupAActionExecutionSharedState shared;
+        phase.runtime_gate = 1U;
+        phase.render_toggle_gate = 1U;
+        Fixture fixture;
+        DispatchPort port;
+        auto context = fixture.context();
+        const auto completed =
+            openswd3::battle::advance_legacy_battle_action_thirteen(
+                &phase,
+                &actor,
+                &shared,
+                port,
+                context,
+                {.actor_token = 0x005029D0U,
+                 .opponent_token = 0x00525508U}
+            );
+        test.expect_true(
+            completed.status ==
+                    openswd3::battle::LegacyBattleActionThirteenStatus::
+                        completed &&
+                completed.return_eax == 1U &&
+                completed.action_update_calls == 1U &&
+                completed.frame_lookup_calls == 1U &&
+                completed.coordinate_query_calls == 2U &&
+                completed.line_raster_calls == 1U &&
+                completed.sample_calls == 1U && completed.render_calls == 1U &&
+                completed.port_calls == 4U && phase.runtime_gate == 0U &&
+                phase.action_record.action_id == 0U &&
+                phase.block_0df4[0U] == 0U &&
+                actor.turn_frame_token == 0x00504F1CU &&
+                actor.turn_target_x_offset == 32U &&
+                (actor.turn_render_flags & 1U) == 1U &&
+                shared.turn_frame_source_token == actor.turn_frame_token &&
+                port.count(0x004321E0U) == 0U &&
+                port.count(0x004315D0U) == 0U &&
+                port.count(0x00434350U) == 0U &&
+                port.count(0x004717F0U) == 0U,
+            "action thirteen directly updates the record and frame, toggles bit zero, completes the first raster step and clears both physical owners"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleTargetPhaseState phase;
+        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+        openswd3::battle::LegacyBattleGroupAActionExecutionSharedState shared;
+        actor.position_x = 100U;
+        actor.position_y = 80U;
+        Fixture fixture;
+        DispatchPort port;
+        port.push(0x00478400U, {.outputs = {2U, 3U}});
+        port.push(0x00478470U, {.outputs = {10U, 20U}});
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_action_thirteen(
+                &phase,
+                &actor,
+                &shared,
+                port,
+                context,
+                {.actor_token = 0x005029D0U,
+                 .opponent_token = 0x00525508U}
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleActionThirteenStatus::
+                        completed &&
+                result.return_eax == 0U &&
+                result.coordinate_query_calls == 2U &&
+                result.line_raster_calls == 0U &&
+                phase.runtime_gate == 1U &&
+                phase.action_record.action_id == 0x186BU &&
+                port.count(0x00478400U) == 1U &&
+                port.count(0x00478470U) == 1U &&
+                port.count(0x004783B0U) == 0U &&
+                port.count(0x004170E0U) == 1U,
+            "action thirteen preserves the nonzero offset branch and renders the start point before the next raster frame"
         );
     }
 
