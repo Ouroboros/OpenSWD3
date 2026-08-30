@@ -118,6 +118,8 @@ constexpr u32 kCallSelectSummon = 0x0047D350U;
 constexpr u32 kCallSummonMode = 0x0047DAB0U;
 constexpr u32 kCallPrepareSummon = 0x004786F0U;
 constexpr u32 kCallActionTwentySevenSecondary = 0x004838D0U;
+constexpr u32 kCallSpecialActionUpdate = 0x004831C0U;
+constexpr u32 kCallSpecialTurnFrame = 0x00483B30U;
 constexpr u32 kCallActionSevenReady = 0x00479850U;
 constexpr u32 kCallSimpleActorUpdate = 0x00482310U;
 constexpr u32 kCallActorExit = 0x00482840U;
@@ -127,7 +129,6 @@ constexpr u32 kCallClearPendingAction = 0x00482DA0U;
 constexpr u32 kCallSpecialFourOhFive = 0x004731A0U;
 constexpr u32 kCallSpecialFourOhSix = 0x004735B0U;
 constexpr u32 kCallSpecialFourOhNine = 0x00474E60U;
-constexpr u32 kCallSpecialFiveHundred = 0x00473010U;
 constexpr u32 kCallSpecialFourOhTwo = 0x00474BA0U;
 
 [[nodiscard]] constexpr u32 group_a_token(const u32 index) noexcept {
@@ -2071,7 +2072,7 @@ advance_legacy_battle_action_twenty_seven(
 
     if ((actor->action_flags & 9U) != 0U) {
         actor->action_flags = 0U;
-        actor->action_twenty_seven_completion_gate = 0x8000U;
+        actor->action_runtime_gate = 0x8000U;
         registers.ecx = request.target_token;
         ++result.target_refresh_calls;
         static_cast<void>(
@@ -2108,7 +2109,7 @@ advance_legacy_battle_action_twenty_seven(
         ));
     }
 
-    if (actor->action_twenty_seven_completion_gate != 0x8000U) {
+    if (actor->action_runtime_gate != 0x8000U) {
         result.return_eax = 0U;
         result.return_ecx = registers.ecx;
         result.return_edx = registers.edx;
@@ -2150,7 +2151,7 @@ advance_legacy_battle_action_twenty_seven(
         return result;
     }
 
-    actor->action_twenty_seven_completion_gate = 0U;
+    actor->action_runtime_gate = 0U;
     secondary = {};
     record = {};
     result.action_record_clears += 2U;
@@ -2424,6 +2425,174 @@ advance_legacy_battle_dual_record_action(
     secondary = {};
     primary = {};
     result.action_record_clears = 2U;
+    result.return_eax = 1U;
+    result.return_ecx = registers.ecx;
+    result.return_edx = registers.edx;
+    return result;
+}
+
+LegacyBattleSpecialFiveHundredResult
+advance_legacy_battle_special_five_hundred(
+    LegacyBattleGroupAActionExecutionState* actor,
+    LegacyBattleGroupAActionExecutionSharedState* shared,
+    LegacyBattleActionDispatchPort& port,
+    const LegacyBattleSpecialFiveHundredRequest& request
+) {
+    LegacyBattleSpecialFiveHundredResult result{
+        .return_eax = request.entry_eax,
+        .return_ecx = request.entry_ecx,
+        .return_edx = request.entry_edx,
+    };
+    if (actor == nullptr || request.actor_token == 0U) {
+        result.status =
+            LegacyBattleSpecialFiveHundredStatus::actor_state_typed_stop;
+        return result;
+    }
+
+    struct Registers {
+        u32 eax{};
+        u32 ecx{};
+        u32 edx{};
+    } registers{
+        .eax = request.entry_eax,
+        .ecx = request.entry_ecx,
+        .edx = request.entry_edx,
+    };
+    const auto update_registers = [&](const LegacyBattleActionCallReply& reply) {
+        registers.eax = reply.eax;
+        registers.ecx = reply.ecx;
+        registers.edx = reply.edx;
+    };
+    const auto signed_record_word = [](const u16 value) {
+        return static_cast<i32>(std::bit_cast<i16>(value));
+    };
+
+    auto& special = actor->special_action_record;
+    special.base_variant = actor->special_profile_variant;
+    actor->turn_completion_latch = 1U;
+    special.action_id = static_cast<u32>(actor->profile_value) + 0x5DCU;
+    ++result.special_update_calls;
+    ++result.port_calls;
+    auto reply = port.invoke_special_action_update(
+        {
+            .callee_token = kCallSpecialActionUpdate,
+            .arguments = {
+                request.source_token,
+                request.actor_token + 0x0AF0U,
+            },
+            .eax = special.action_id,
+            .ecx = request.actor_token,
+            .edx = request.source_token,
+        },
+        special
+    );
+    update_registers(reply);
+
+    registers.edx = 0x4000U;
+    u16 flags = special.field_5a;
+    if ((flags & 2U) != 0U) {
+        if (special.field_24 != 0U) {
+            actor->action_runtime_gate |= 0x4000U;
+            actor->turn_action_record.action_id = special.field_24;
+            actor->turn_action_record.base_variant = special.field_28;
+        }
+        if ((flags & 0x0200U) != 0U) {
+            special.external_mode = 1U;
+        }
+        special.field_24 = 0U;
+        special.field_5a = static_cast<u16>(flags & 0xFFFDU);
+        special.field_28 = 0U;
+    }
+
+    if ((actor->action_runtime_gate & 0x4000U) != 0U) {
+        registers.edx = special.field_78;
+        ++result.turn_frame_calls;
+        ++result.port_calls;
+        reply = port.invoke_special_turn_frame(
+            {
+                .callee_token = kCallSpecialTurnFrame,
+                .arguments = {
+                    request.actor_token + 0x0468U,
+                    static_cast<u32>(special.field_78),
+                },
+                .eax = registers.eax,
+                .ecx = request.actor_token,
+                .edx = registers.edx,
+            },
+            actor->turn_action_record
+        );
+        update_registers(reply);
+        if (reply.eax == 1U) {
+            actor->action_runtime_gate &= ~0x4000U;
+            special.field_5a = 0U;
+            special.external_mode = 0U;
+            actor->turn_action_record = {};
+            ++result.action_record_clears;
+        }
+    }
+
+    flags = special.field_5a;
+    if ((flags & 8U) != 0U) {
+        if ((flags & 0x0400U) != 0U) {
+            if (shared == nullptr) {
+                result.status =
+                    LegacyBattleSpecialFiveHundredStatus::shared_state_typed_stop;
+                result.return_eax = registers.eax;
+                result.return_ecx = registers.ecx;
+                result.return_edx = registers.edx;
+                return result;
+            }
+            port.battle_color_initialization_gate() = 1U;
+            result.color_initialization =
+                initialize_legacy_battle_color_accumulation(
+                    port.battle_color_accumulation_state(),
+                    {
+                        .current_red = signed_record_word(special.field_7a),
+                        .current_green = signed_record_word(special.field_7c),
+                        .current_blue = signed_record_word(special.field_7e),
+                        .target_red = signed_record_word(special.field_80),
+                        .target_green = signed_record_word(special.field_82),
+                        .target_blue = signed_record_word(special.field_84),
+                        .countdown = signed_record_word(special.field_86),
+                    }
+                );
+            ++result.color_initialization_calls;
+            registers.eax = result.color_initialization.return_eax;
+            registers.ecx = result.color_initialization.return_ecx;
+            registers.edx = result.color_initialization.return_edx;
+            special.field_5a = static_cast<u16>(special.field_5a & 0xFBFFU);
+        }
+        if (shared == nullptr) {
+            result.status =
+                LegacyBattleSpecialFiveHundredStatus::shared_state_typed_stop;
+            result.return_eax = registers.eax;
+            result.return_ecx = registers.ecx;
+            result.return_edx = registers.edx;
+            return result;
+        }
+        if ((shared->action_completion_flags & 0x8000U) == 0U) {
+            shared->action_completion_flags |= 0x8000U;
+        }
+    }
+
+    if (shared == nullptr) {
+        result.status =
+            LegacyBattleSpecialFiveHundredStatus::shared_state_typed_stop;
+        result.return_eax = registers.eax;
+        result.return_ecx = registers.ecx;
+        result.return_edx = registers.edx;
+        return result;
+    }
+    if ((shared->action_completion_flags & 1U) == 0U) {
+        result.return_eax = 0U;
+        result.return_ecx = registers.ecx;
+        result.return_edx = registers.edx;
+        return result;
+    }
+
+    actor->action_runtime_gate = 0U;
+    special = {};
+    ++result.action_record_clears;
     result.return_eax = 1U;
     result.return_ecx = registers.ecx;
     result.return_edx = registers.edx;
@@ -3017,10 +3186,25 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                 return result;
             }
         } else if (action == 0x1F4U) {
-            reply = invoke(
-                state, port, result, kCallSpecialFiveHundred, {target_token}
-            );
-            if (reply.eax != 1U) {
+            result.special_five_hundred =
+                advance_legacy_battle_special_five_hundred(
+                    &state.group_a_action_execution[group_a_index],
+                    &state.group_a_action_shared,
+                    port,
+                    {
+                        .actor_token = actor_token,
+                        .source_token = target_token,
+                    }
+                );
+            ++result.special_five_hundred_calls;
+            result.port_calls += result.special_five_hundred.port_calls;
+            if (result.special_five_hundred.status !=
+                LegacyBattleSpecialFiveHundredStatus::completed) {
+                result.status = LegacyBattleActionDispatchStatus::
+                    special_five_hundred_typed_stop;
+                return result;
+            }
+            if (result.special_five_hundred.return_eax != 1U) {
                 return result;
             }
         } else {

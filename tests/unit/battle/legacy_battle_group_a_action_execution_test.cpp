@@ -279,11 +279,16 @@ void test_battle_group_a_action_execution(openswd3::test::Context& test) {
             0U,
             port
         );
+        const auto& color = port.battle_color_accumulation_state();
         test.expect_true(
             result.return_eax == 1U && result.color_calls == 1U &&
-                result.record_clears == 6U && shared.color_gate == 1U &&
-                port.count(0x0045D3E0U) == 1U &&
-                port.requests[1U].arguments[0U] == 0x0000FFFFU,
+                result.record_clears == 6U &&
+                port.battle_color_initialization_gate() == 1U &&
+                port.count(0x0045D3E0U) == 0U &&
+                color.current_red == -1.0F && color.current_green == 2.0F &&
+                color.current_blue == -3.0F && color.target_red == 4.0F &&
+                color.target_green == -5.0F && color.target_blue == 6.0F &&
+                color.countdown == -7,
             "color flag publishes seven signed words clears its bit and clears the selected slot before completion"
         );
     }

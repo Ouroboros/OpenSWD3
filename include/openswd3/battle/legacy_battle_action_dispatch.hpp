@@ -3,6 +3,7 @@
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
 #include "openswd3/asset_runtime/legacy_frame_deformation.hpp"
 #include "openswd3/battle/legacy_battle_retreat_commit.hpp"
+#include "openswd3/battle/legacy_battle_color_accumulation.hpp"
 #include "openswd3/battle/legacy_battle_reward_scale.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_render_geometry.hpp"
@@ -95,6 +96,7 @@ class LegacyBattleActionDispatchPort
       public virtual LegacyBattleSharedPhaseStatePort,
       public virtual LegacyBattleOutcomeResolutionStatePort,
       public virtual LegacyBattleFrameRefreshStatePort,
+      public virtual LegacyBattleColorAccumulationStatePort,
       public virtual LegacyBattleGroupASummonMaterializationPort,
       public virtual world_map::LegacyWorldItemListStatePort {
 public:
@@ -102,6 +104,24 @@ public:
 
     [[nodiscard]] virtual LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) = 0;
+
+    [[nodiscard]] virtual LegacyBattleActionCallReply
+    invoke_special_action_update(
+        const LegacyBattleActionCallRequest& request,
+        asset_runtime::LegacyActionRecord& record
+    ) {
+        static_cast<void>(record);
+        return invoke(request);
+    }
+
+    [[nodiscard]] virtual LegacyBattleActionCallReply
+    invoke_special_turn_frame(
+        const LegacyBattleActionCallRequest& request,
+        asset_runtime::LegacyActionRecord& record
+    ) {
+        static_cast<void>(record);
+        return invoke(request);
+    }
 
     [[nodiscard]] LegacyBattleActionCallReply invoke_summon_frame(
         const LegacyBattleActionCallRequest& request
@@ -475,6 +495,35 @@ struct LegacyBattleDualRecordActionResult {
     compat::u32 return_edx{};
 };
 
+struct LegacyBattleSpecialFiveHundredRequest {
+    compat::u32 actor_token{};
+    compat::u32 source_token{};
+    compat::u32 entry_eax{};
+    compat::u32 entry_ecx{};
+    compat::u32 entry_edx{};
+};
+
+enum class LegacyBattleSpecialFiveHundredStatus : compat::u8 {
+    completed,
+    actor_state_typed_stop,
+    shared_state_typed_stop,
+};
+
+struct LegacyBattleSpecialFiveHundredResult {
+    LegacyBattleSpecialFiveHundredStatus status{
+        LegacyBattleSpecialFiveHundredStatus::completed
+    };
+    compat::u32 special_update_calls{};
+    compat::u32 turn_frame_calls{};
+    LegacyBattleColorInitializationResult color_initialization{};
+    compat::u32 color_initialization_calls{};
+    compat::u32 action_record_clears{};
+    compat::u32 port_calls{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
 struct LegacyBattleTargetPhaseAdvanceResult {
     LegacyBattleTargetPhaseAdvanceStatus status{
         LegacyBattleTargetPhaseAdvanceStatus::completed
@@ -743,6 +792,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     action_twenty_five_ready_typed_stop,
     action_twenty_seven_typed_stop,
     dual_record_action_typed_stop,
+    special_five_hundred_typed_stop,
     summon_frame_typed_stop,
     turn_commit_chance_typed_stop,
     turn_advance_typed_stop,
@@ -816,6 +866,8 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 action_twenty_seven_calls{};
     LegacyBattleDualRecordActionResult dual_record_action{};
     compat::u32 dual_record_action_calls{};
+    LegacyBattleSpecialFiveHundredResult special_five_hundred{};
+    compat::u32 special_five_hundred_calls{};
     LegacyBattleSummonFrameResult summon_frame{};
     compat::u32 summon_frame_calls{};
     LegacyBattleTurnCommitChanceResult turn_commit_chance{};
@@ -934,6 +986,15 @@ advance_legacy_battle_dual_record_action(
     LegacyBattleActionDispatchPort& port,
     LegacyBattleActionDispatchContext& context,
     const LegacyBattleDualRecordActionRequest& request
+);
+
+// sub_473010.
+[[nodiscard]] LegacyBattleSpecialFiveHundredResult
+advance_legacy_battle_special_five_hundred(
+    LegacyBattleGroupAActionExecutionState* actor,
+    LegacyBattleGroupAActionExecutionSharedState* shared,
+    LegacyBattleActionDispatchPort& port,
+    const LegacyBattleSpecialFiveHundredRequest& request
 );
 
 // sub_472710.

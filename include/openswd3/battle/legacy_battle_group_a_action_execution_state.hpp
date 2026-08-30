@@ -30,6 +30,7 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u8 record_mode_flags{};             // actor + 0x0393
     compat::u8 profile_mode{};                  // actor + 0x2F30
     compat::u16 profile_value{};                // actor + 0x2A0C
+    compat::u16 special_profile_variant{};       // actor + 0x2A8A
     compat::u16 summon_action_id{};             // actor + 0x2F14
     compat::u16 action_override_flags{};        // actor + 0x2A86
     compat::u16 identity_word{};                // actor + 0x0D64
@@ -45,6 +46,7 @@ struct LegacyBattleGroupAActionExecutionState {
     asset_runtime::LegacyActionRecord primary_action_record{};  // actor + 0x0338
     asset_runtime::LegacyActionRecord turn_action_record{};     // actor + 0x0468
     asset_runtime::LegacyActionRecord action_twenty_seven_record{};  // actor + 0x0630
+    asset_runtime::LegacyActionRecord special_action_record{};  // actor + 0x0AF0
     compat::u32 turn_frame_token{};              // actor + 0x254C
     compat::i32 turn_countdown{};                // actor + 0x2668
     compat::u32 turn_render_flags{};             // actor + 0x26A0
@@ -52,7 +54,7 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u16 retreat_ready_flags{};            // actor + 0x26D0
     compat::u32 summon_x_offset{};               // actor + 0x268C
     compat::u32 spawn_completion_offset{};       // actor + 0x2674
-    compat::u32 action_twenty_seven_completion_gate{};  // actor + 0x267C
+    compat::u32 action_runtime_gate{};          // actor + 0x267C
     compat::u16 turn_threshold{};                // actor + 0x2958
     compat::u16 message_percent{};               // actor + 0x26DC
     compat::u16 summon_phase{};                  // actor + 0x2A66
@@ -95,7 +97,7 @@ struct LegacyBattleGroupAActionExecutionSharedState {
     compat::u32 last_identity{};        // 0x0053CEBC
     compat::u32 negative_flag{};        // 0x0053C008
     compat::u32 negative_reset{};       // 0x0053BD60
-    compat::u32 color_gate{};           // 0x0053C030
+    compat::u32 action_completion_flags{};  // 0x0053C050
     compat::u32 draw_motion_a{};        // 0x004CD71C
     compat::u32 draw_motion_b{};        // 0x004CD30C
     compat::u32 draw_motion_c{};        // 0x004CD304

@@ -215,17 +215,22 @@ advance_legacy_battle_group_a_action_execution(
 
     if ((state->action_flags & 0x0008U) != 0U) {
         if ((state->action_flags & 0x0400U) != 0U) {
-            shared.color_gate = 1U;
-            std::array<u32, 8> arguments{};
-            for (std::size_t index = 0U; index < state->color_values.size();
-                 ++index) {
-                arguments[index] =
-                    std::bit_cast<u16>(state->color_values[index]);
-            }
-            reply = invoke(0x0045D3E0U, arguments, eax, ecx, edx);
-            eax = reply.eax;
-            ecx = reply.ecx;
-            edx = reply.edx;
+            port.battle_color_initialization_gate() = 1U;
+            const auto color = initialize_legacy_battle_color_accumulation(
+                port.battle_color_accumulation_state(),
+                {
+                    .current_red = state->color_values[0U],
+                    .current_green = state->color_values[1U],
+                    .current_blue = state->color_values[2U],
+                    .target_red = state->color_values[3U],
+                    .target_green = state->color_values[4U],
+                    .target_blue = state->color_values[5U],
+                    .countdown = state->color_values[6U],
+                }
+            );
+            eax = color.return_eax;
+            ecx = color.return_ecx;
+            edx = color.return_edx;
             ++result.color_calls;
             state->action_flags =
                 static_cast<u16>(state->action_flags & ~0x0400U);

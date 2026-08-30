@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v810
+版本：v811
 
 最后更新：2026-08-29
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗角色动作效果与渲染函数 `0x00473010`
+当前步骤：模块10 · 审计战斗角色动作效果与渲染函数 `0x004731A0`
 
 ## 0. 执行约定
 
@@ -4238,4 +4238,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=222`的`0x00472CE0`战斗双记录动作逐帧演出。完整权威LST主体`0x00472CE0..0x00473007`共348行、226条实际指令、10个call、15个跳转、10个局部标签、2个返回点且无外部chunk。实现主记录variant 45、完成latch、双frame、镜像、陈旧sample高半、主阶段双绘制、field5A门、次记录坐标绘制、field8C完成门及双记录清零。动作28/32与34–36复用group-A owner，动作29使用按槽首次物化的group-B唯一堆owner，避免大型对象压栈。六处caller全部typed化。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`222/422 = 213 platform_adapted + 9 assembly_exact + 200 pending_audit`；生成器连续双跑逐字节一致，SHA256为`e7f9e3dc29279a64194d625122b691b8a0d09e85734515952c56f4bfa10244cd`。动态差分因原版双方行动者、双记录、frame、坐标、音频、绘制与六处caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=223`的`0x00473010`战斗角色动作效果与渲染函数。
+本轮再完成`audit_order=223`的`0x00473010`战斗动作五百特殊记录协调。完整权威LST主体`0x00473010..0x00473198`共175行、105条实际指令、3个call、9个跳转、7个局部标签、2个返回点且无外部chunk。实现动作500特殊记录初始化、bit1事件转移、runtime bit14、逐帧记录门、signed七颜色初始化、bit10消费、共享bit15发布、bit0完成门及双记录清理。两个pending callee保留带记录引用的窄port；已关闭颜色初始化typed直连，并合并`0x0053C030`唯一owner及回收group-A动作执行遗留opaque caller。唯一动作500 caller已typed化。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`223/422 = 214 platform_adapted + 9 assembly_exact + 199 pending_audit`；生成器连续双跑逐字节一致，SHA256为`123a6e7c65e089a9165d570b9b62d23f41cea80dad85a05f200437b995182066`。动态差分因原版特殊记录、逐帧记录、两个pending callee、共享完成flags、颜色状态与caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=224`的`0x004731A0`战斗角色动作效果与渲染函数。

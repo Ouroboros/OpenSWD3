@@ -1294,7 +1294,7 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 active.effect_value == -1 && shared.last_effect_value == -1 &&
                 port.battle_pair_primary_value() == 8U &&
                 actor.action_flags == 0U &&
-                actor.action_twenty_seven_completion_gate == 0x8000U &&
+                actor.action_runtime_gate == 0x8000U &&
                 actor.action_twenty_seven_record.action_id == 0x1234U &&
                 actor.action_twenty_seven_record.base_variant == 0U,
             "action twenty-seven publishes the signed effect then enters the secondary record phase"
@@ -1342,7 +1342,7 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
             completed.return_eax == 1U &&
                 completed.action_record_clears == 2U &&
                 completed.effect_compute_calls == 0U &&
-                actor.action_twenty_seven_completion_gate == 0U &&
+                actor.action_runtime_gate == 0U &&
                 actor.primary_action_record.action_id == 0U &&
                 actor.action_twenty_seven_record.field_94 == 0U,
             "action twenty-seven clears both records only after the primary completion flag"
@@ -1498,6 +1498,153 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 state.group_a_action_execution[0U].turn_completion_latch == 0U &&
                 port.count(0x00472CE0U) == 0U,
             "action twenty-nine owns and advances the selected group-B dual-record state"
+        );
+    }
+
+    {
+        LegacyBattleGroupAActionExecutionState actor;
+        actor.profile_value = 0x123U;
+        actor.special_profile_variant = 7U;
+        actor.special_action_record.field_5a = 0x0202U;
+        actor.special_action_record.field_24 = 0x456U;
+        actor.special_action_record.field_28 = 0x789U;
+        actor.special_action_record.field_78 = 0x55U;
+        LegacyBattleGroupAActionExecutionSharedState shared;
+        DispatchPort port;
+        port.push(0x00483B30U, {.eax = 0U});
+        const auto staged =
+            openswd3::battle::advance_legacy_battle_special_five_hundred(
+                &actor,
+                &shared,
+                port,
+                {
+                    .actor_token = 0x005029D0U,
+                    .source_token = 0x00525508U,
+                }
+            );
+        test.expect_true(
+            staged.return_eax == 0U && staged.special_update_calls == 1U &&
+                staged.turn_frame_calls == 1U && staged.port_calls == 2U &&
+                actor.turn_completion_latch == 1U &&
+                actor.special_action_record.action_id == 0x6FFU &&
+                actor.special_action_record.base_variant == 7U &&
+                actor.special_action_record.field_24 == 0U &&
+                actor.special_action_record.field_28 == 0U &&
+                actor.special_action_record.field_5a == 0x0200U &&
+                actor.special_action_record.external_mode == 1U &&
+                actor.action_runtime_gate == 0x4000U &&
+                actor.turn_action_record.action_id == 0x456U &&
+                actor.turn_action_record.base_variant == 0x789U,
+            "special five-hundred transfers the pending event into the turn record before destructive source clearing"
+        );
+        test.expect_true(
+            has_call_argument(port, 0x004831C0U, 0U, 0x00525508U) &&
+                has_call_argument(port, 0x004831C0U, 1U, 0x005034C0U) &&
+                has_call_argument(port, 0x00483B30U, 0U, 0x00502E38U) &&
+                has_call_argument(port, 0x00483B30U, 1U, 0x55U),
+            "special five-hundred preserves both pending-callee object tokens and the record word"
+        );
+
+        actor.action_runtime_gate = 0U;
+        actor.special_action_record.field_5a = 0x0408U;
+        actor.special_action_record.field_7a = 0xFFFFU;
+        actor.special_action_record.field_7c = 2U;
+        actor.special_action_record.field_7e = 3U;
+        actor.special_action_record.field_80 = 4U;
+        actor.special_action_record.field_82 = 5U;
+        actor.special_action_record.field_84 = 6U;
+        actor.special_action_record.field_86 = 7U;
+        DispatchPort color_port;
+        const auto colored =
+            openswd3::battle::advance_legacy_battle_special_five_hundred(
+                &actor,
+                &shared,
+                color_port,
+                {
+                    .actor_token = 0x005029D0U,
+                    .source_token = 0x00525508U,
+                }
+            );
+        const auto& color_state = color_port.battle_color_accumulation_state();
+        test.expect_true(
+            colored.return_eax == 0U &&
+                colored.color_initialization_calls == 1U &&
+                color_port.battle_color_initialization_gate() == 1U &&
+                shared.action_completion_flags == 0x8000U &&
+                actor.special_action_record.field_5a == 8U &&
+                color_state.current_red == -1.0F &&
+                color_state.current_green == 2.0F &&
+                color_state.current_blue == 3.0F &&
+                color_state.target_red == 4.0F &&
+                color_state.target_green == 5.0F &&
+                color_state.target_blue == 6.0F && color_state.countdown == 7,
+            "special five-hundred initializes signed color channels once then publishes shared bit fifteen"
+        );
+
+        shared.action_completion_flags |= 1U;
+        actor.action_runtime_gate = 0xDEAD8EEFU;
+        const auto completed =
+            openswd3::battle::advance_legacy_battle_special_five_hundred(
+                &actor,
+                &shared,
+                color_port,
+                {
+                    .actor_token = 0x005029D0U,
+                    .source_token = 0x00525508U,
+                }
+            );
+        test.expect_true(
+            completed.return_eax == 1U &&
+                completed.action_record_clears == 1U &&
+                actor.action_runtime_gate == 0U &&
+                actor.special_action_record.action_id == 0U &&
+                actor.special_action_record.field_5a == 0U,
+            "special five-hundred clears its runtime gate and special record only after shared bit zero"
+        );
+
+        DispatchPort stopped_port;
+        const auto stopped =
+            openswd3::battle::advance_legacy_battle_special_five_hundred(
+                &actor,
+                nullptr,
+                stopped_port,
+                {
+                    .actor_token = 0x005029D0U,
+                    .source_token = 0x00525508U,
+                }
+            );
+        test.expect_true(
+            stopped.status ==
+                    openswd3::battle::LegacyBattleSpecialFiveHundredStatus::
+                        shared_state_typed_stop &&
+                stopped.special_update_calls == 1U &&
+                actor.turn_completion_latch == 1U &&
+                stopped_port.count(0x004831C0U) == 1U,
+            "special five-hundred stops at the original shared-completion access after the pending update"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        state.group_a_count = 1;
+        state.group_b_count = 1;
+        state.group_a_action_execution[0U].profile_value = 0x123U;
+        state.group_a_action_shared.action_completion_flags = 1U;
+        Fixture fixture;
+        DispatchPort port;
+        port.action = 500U;
+        auto context = fixture.context();
+        const auto result = openswd3::battle::dispatch_legacy_battle_action(
+            state, port, context, 0U, 0U
+        );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.special_five_hundred_calls == 1U &&
+                result.special_five_hundred.return_eax == 1U &&
+                state.action_pending == 1U &&
+                port.count(0x00473010U) == 0U &&
+                port.count(0x004831C0U) == 1U,
+            "action five-hundred production advances the typed special record without the opaque call"
         );
     }
 
