@@ -1,6 +1,6 @@
 # 战斗组A角色元素析构 `0x0046E4D0`
 
-状态：`platform_adapted`。完整主块、SEH外部chunk、typed析构链、vector边界、验证和inventory双生成均已收敛。
+状态：`platform_adapted`。完整主块、SEH外部chunk、typed双资源清理、基础析构链、vector边界与验证均已收敛。
 
 ## 1. 完整权威范围与SEH
 
@@ -12,9 +12,9 @@
 
 ## 2. typed析构链
 
-`release_legacy_battle_actor_group_a_element`复用构造工作包的唯一元素状态。扩展清理与基础析构各保留窄typed端口，因为其内部函数仍属后续工作包。
+`release_legacy_battle_actor_group_a_element`复用构造工作包的唯一元素状态。扩展清理`0x00475180`已改为typed直连：按顺序处理行动者`+0x2BC4` secondary token和`+0` primary/description token，每个非零token仅通过待审`0x004885A0`窄释放端口，callee成功后才清字段。primary成功释放后同步清除已失效的56-byte宿主description内容。基础析构`0x00478300`仍保留窄typed端口。
 
-正常路径严格执行扩展→基础，并返回基础析构EAX/ECX/EDX。typed端口可在扩展阶段释放56-byte附属记录token与内容。扩展端口抛出时，catch路径先调用基础析构再原样`throw`，对应SEH chunk；异常路径不伪造正常结果对象，也不提前清扩展端口未完成的状态。
+正常路径严格执行双资源清理→基础析构，并返回基础析构EAX/ECX/EDX。任一资源释放端口抛出时，当前token保持，先前已完成的token清零仍保留；catch路径随后调用基础析构并原样`throw`，对应SEH chunk。资源typed-stop同样先执行一次基础析构，再以typed状态阻止正常外层流程；异常路径不伪造正常结果，也不提前处理后续token。
 
 ## 3. vector caller边界
 
@@ -22,6 +22,6 @@
 
 ## 4. 验证状态
 
-正常测试验证扩展清理先于基础析构、附属记录由扩展端口释放、基础EAX/ECX/EDX原样返回。异常测试令扩展端口抛出，验证事件顺序仍为扩展→基础，附属记录保持扩展失败前状态，并在基础析构后把同一异常传播给caller。定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过，源码零warning。
+正常测试验证typed资源清理先于基础析构、primary token与宿主description内容失效、固定allocator token/offset以及基础EAX/ECX/EDX原样返回。异常测试令资源释放端口抛出，验证事件顺序仍为资源清理→基础析构，当前token保持，并在基础析构后把同一异常传播给caller。定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过，源码零warning。
 
-inventory生成器连续双跑逐字节一致，正式计数为`169/422 = 160 platform_adapted + 9 assembly_exact + 253 pending_audit`，SHA256为`fa467eb8e05aaa1dd0a07bb27332df1a13b7fa8ad8ef9fddfaa08353e6bbb765`。原版两级析构内部副作用、全局对象字节、MSVC SEH和vector迭代器缺少联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。
+原版`0x004885A0`allocator副作用、基础析构内部状态、全局对象字节、MSVC SEH和vector迭代器缺少联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。当前双资源清理的正式inventory与验证见[`battle-group-a-resource-cleanup-00475180.md`](battle-group-a-resource-cleanup-00475180.md)。

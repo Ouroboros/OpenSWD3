@@ -15,10 +15,10 @@ construct_legacy_battle_actor_group_a_element(
 
     const auto allocation = port.allocate(0x38U);
     ++result.allocation_calls;
-    state.description_token = allocation.eax;
+    state.resource_cleanup.primary_resource_token = allocation.eax;
     result.return_ecx = allocation.ecx;
     result.return_edx = allocation.edx;
-    if (state.description_token == 0U) {
+    if (state.resource_cleanup.primary_resource_token == 0U) {
         result.status = LegacyBattleActorGroupAElementConstructionStatus::
             description_write_typed_stop;
         result.return_eax = allocation.eax;
@@ -40,11 +40,32 @@ release_legacy_battle_actor_group_a_element(
 ) {
     LegacyBattleActorGroupAElementDestructionResult result;
     try {
-        static_cast<void>(port.destroy_extension(state));
-        ++result.extension_destructor_calls;
+        result.resource_cleanup = release_legacy_battle_group_a_resources(
+            &state.resource_cleanup,
+            port,
+            {
+                .actor_token = state.object_token,
+                .entry_ecx = state.object_token,
+            }
+        );
+        ++result.resource_cleanup_calls;
     } catch (...) {
         static_cast<void>(port.destroy_base(state));
         throw;
+    }
+    if (result.resource_cleanup.status !=
+        LegacyBattleGroupAResourceCleanupStatus::completed) {
+        result.status = LegacyBattleActorGroupAElementDestructionStatus::
+            resource_cleanup_typed_stop;
+        const auto base = port.destroy_base(state);
+        ++result.base_destructor_calls;
+        result.return_eax = base.eax;
+        result.return_ecx = base.ecx;
+        result.return_edx = base.edx;
+        return result;
+    }
+    if (result.resource_cleanup.primary_resource_released) {
+        state.description_bytes.fill(0U);
     }
 
     const auto base = port.destroy_base(state);

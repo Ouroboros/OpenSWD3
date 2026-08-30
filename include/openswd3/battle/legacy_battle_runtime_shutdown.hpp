@@ -27,16 +27,21 @@ static_assert(
 );
 
 enum class LegacyBattleRuntimeShutdownCall : compat::u8 {
-    release_group_a_object,
+    release_group_a_resource,
     release_group_b_object,
 };
 
 struct LegacyBattleRuntimeShutdownCallRequest {
     LegacyBattleRuntimeShutdownCall call{
-        LegacyBattleRuntimeShutdownCall::release_group_a_object
+        LegacyBattleRuntimeShutdownCall::release_group_a_resource
     };
     compat::u32 object_token{};
     compat::u32 object_index{};
+    compat::u32 resource_token{};
+    compat::u32 resource_offset{};
+    compat::u32 eax{};
+    compat::u32 ecx{};
+    compat::u32 edx{};
 };
 
 struct LegacyBattleRuntimeShutdownCallReply {
@@ -46,7 +51,8 @@ struct LegacyBattleRuntimeShutdownCallReply {
 };
 
 class LegacyBattleRuntimeShutdownPort
-    : public LegacyBattleRenderAuxiliaryBufferReleaser {
+    : public LegacyBattleRenderAuxiliaryBufferReleaser,
+      public virtual LegacyBattleGroupAResourceReleasePort {
 public:
     ~LegacyBattleRuntimeShutdownPort() override = default;
 
@@ -54,14 +60,33 @@ public:
     invoke_battle_runtime_shutdown(
         const LegacyBattleRuntimeShutdownCallRequest& request
     ) = 0;
+
+    [[nodiscard]] LegacyBattleGroupAResourceReleaseCallReply
+    release_group_a_resource(
+        const LegacyBattleGroupAResourceReleaseCallRequest& request
+    ) override {
+        const auto reply = invoke_battle_runtime_shutdown({
+            .call = LegacyBattleRuntimeShutdownCall::release_group_a_resource,
+            .object_token = request.actor_token,
+            .object_index = request.actor_index,
+            .resource_token = request.resource_token,
+            .resource_offset = request.resource_offset,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        });
+        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
+    }
 };
 
 struct LegacyBattleRuntimeShutdownResult {
     LegacyBattleRenderCleanupResult render_cleanup{};
-    std::array<LegacyBattleRuntimeShutdownCallReply, 10> group_a_replies{};
+    std::array<LegacyBattleGroupAResourceCleanupResult, 10>
+        group_a_resource_cleanups{};
     std::array<LegacyBattleRuntimeShutdownCallReply, 8> group_b_replies{};
     compat::u32 render_cleanup_calls{};
     compat::u32 group_a_calls{};
+    compat::u32 group_a_resource_calls{};
     compat::u32 group_b_calls{};
     compat::u32 return_value{};
     compat::u32 final_ecx{};

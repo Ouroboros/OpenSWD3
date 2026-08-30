@@ -23,14 +23,14 @@ public:
         const LegacyBattleRuntimeShutdownCallRequest& request
     ) override {
         calls.push_back(request);
-        const u32 prefix = request.call ==
-                LegacyBattleRuntimeShutdownCall::release_group_a_object
-            ? 0xA0000000U
-            : 0xB0000000U;
+        const bool group_a_resource = request.call ==
+            LegacyBattleRuntimeShutdownCall::release_group_a_resource;
+        const u32 prefix = group_a_resource ? 0xA0000000U : 0xB0000000U;
         return {
             .eax = prefix | request.object_index,
             .ecx = request.object_token,
-            .edx = request.object_index + 0x100U,
+            .edx = group_a_resource ? request.resource_offset
+                                    : request.object_index + 0x100U,
         };
     }
 
@@ -56,6 +56,12 @@ void test_battle_runtime_shutdown(openswd3::test::Context& test) {
             std::make_unique<u32[]>(2U);
         startup.render_geometry.surface_row_offsets =
             std::make_unique<u32[]>(3U);
+        for (u32 index = 0U; index < kLegacyBattleGroupAObjectCount; ++index) {
+            startup.party[index].resource_cleanup.primary_resource_token =
+                0xA1000000U + index;
+            startup.party[index].resource_cleanup.secondary_resource_token =
+                0xA2000000U + index;
+        }
         ShutdownPort port;
 
         const auto result = shutdown_legacy_battle_runtime(startup, port);
@@ -63,18 +69,31 @@ void test_battle_runtime_shutdown(openswd3::test::Context& test) {
         bool group_a_tokens_match = true;
         bool group_b_tokens_match = true;
         for (u32 index = 0U; index < kLegacyBattleGroupAObjectCount; ++index) {
-            const auto& call = port.calls[index];
+            const auto& secondary = port.calls[index * 2U];
+            const auto& primary = port.calls[index * 2U + 1U];
+            const u32 object_token = kLegacyBattleGroupAObjectBaseToken +
+                index * kLegacyBattleGroupAObjectStride;
             group_a_tokens_match = group_a_tokens_match &&
-                call.call ==
-                    LegacyBattleRuntimeShutdownCall::release_group_a_object &&
-                call.object_index == index &&
-                call.object_token ==
-                    kLegacyBattleGroupAObjectBaseToken +
-                        index * kLegacyBattleGroupAObjectStride;
+                secondary.call ==
+                    LegacyBattleRuntimeShutdownCall::release_group_a_resource &&
+                primary.call ==
+                    LegacyBattleRuntimeShutdownCall::release_group_a_resource &&
+                secondary.object_index == index &&
+                primary.object_index == index &&
+                secondary.object_token == object_token &&
+                primary.object_token == object_token &&
+                secondary.resource_token == 0xA2000000U + index &&
+                secondary.resource_offset == 0x2BC4U &&
+                primary.resource_token == 0xA1000000U + index &&
+                primary.resource_offset == 0U &&
+                startup.party[index].resource_cleanup.primary_resource_token ==
+                    0U &&
+                startup.party[index]
+                        .resource_cleanup.secondary_resource_token == 0U;
         }
         for (u32 index = 0U; index < kLegacyBattleGroupBObjectCount; ++index) {
             const auto& call =
-                port.calls[kLegacyBattleGroupAObjectCount + index];
+                port.calls[kLegacyBattleGroupAObjectCount * 2U + index];
             group_b_tokens_match = group_b_tokens_match &&
                 call.call ==
                     LegacyBattleRuntimeShutdownCall::release_group_b_object &&
@@ -93,10 +112,11 @@ void test_battle_runtime_shutdown(openswd3::test::Context& test) {
                 startup.render_geometry.surface_row_offsets == nullptr &&
                 startup.render_geometry.primary_row_offsets == nullptr &&
                 port.released_tokens == std::vector<u32>{0x12345678U} &&
-                result.group_a_calls == 10U && result.group_b_calls == 8U &&
-                port.calls.size() == 18U && group_a_tokens_match &&
-                group_b_tokens_match,
-            "runtime shutdown releases typed render resources before fixed ten group-A and eight group-B object calls"
+                result.group_a_calls == 10U &&
+                result.group_a_resource_calls == 20U &&
+                result.group_b_calls == 8U && port.calls.size() == 28U &&
+                group_a_tokens_match && group_b_tokens_match,
+            "runtime shutdown releases typed render resources before fixed ten group-A cleanups and eight group-B object calls"
         );
         test.expect_true(
             result.return_value == 0xB0000007U &&
@@ -118,13 +138,15 @@ void test_battle_runtime_shutdown(openswd3::test::Context& test) {
             !result.render_cleanup.auxiliary_buffer_released &&
                 !result.render_cleanup.surface_row_offsets_released &&
                 !result.render_cleanup.primary_row_offsets_released &&
-                port.released_tokens.empty() && port.calls.size() == 18U &&
+                port.released_tokens.empty() && result.group_a_calls == 10U &&
+                result.group_a_resource_calls == 0U &&
+                result.group_b_calls == 8U && port.calls.size() == 8U &&
                 port.calls.front().object_token ==
-                    kLegacyBattleGroupAObjectBaseToken &&
+                    kLegacyBattleGroupBObjectBaseToken &&
                 port.calls.back().object_token ==
                     kLegacyBattleGroupBObjectBaseToken +
                         7U * kLegacyBattleGroupBObjectStride,
-            "empty render resources do not suppress either fixed object destructor loop"
+            "empty resources do not suppress either fixed group-A cleanup or group-B destructor loop"
         );
     }
 }

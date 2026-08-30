@@ -11,6 +11,7 @@
 #include "openswd3/battle/legacy_battle_group_a_item_effect_application.hpp"
 #include "openswd3/battle/legacy_battle_group_a_final_processing_state.hpp"
 #include "openswd3/battle/legacy_battle_group_a_npc_materialization.hpp"
+#include "openswd3/battle/legacy_battle_group_a_resource_cleanup.hpp"
 #include "openswd3/battle/legacy_battle_group_a_resource_pair.hpp"
 #include "openswd3/battle/legacy_battle_group_a_value_pair.hpp"
 #include "openswd3/battle/legacy_battle_group_a_workspace_reset.hpp"
@@ -202,6 +203,7 @@ struct LegacyBattlePartyStartupRecord {
     compat::u16 position_y{};
     compat::u16 placement_field_1a{};
     compat::u32 active{};
+    LegacyBattleGroupAResourceCleanupState resource_cleanup;
     LegacyBattleActorProgressState progress;
     LegacyBattleGroupAWorkspaceState workspace;
     LegacyBattleGroupAConfigurationState configuration;

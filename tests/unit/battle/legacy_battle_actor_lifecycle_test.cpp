@@ -40,17 +40,22 @@ public:
 class TrackingGroupAElementDestructionPort final
     : public openswd3::battle::LegacyBattleActorGroupAElementDestructionPort {
 public:
-    [[nodiscard]] openswd3::battle::LegacyBattleActorGroupAElementCallReply
-    destroy_extension(
-        openswd3::battle::LegacyBattleActorGroupAElementState& state
+    [[nodiscard]]
+    openswd3::battle::LegacyBattleGroupAResourceReleaseCallReply
+    release_group_a_resource(
+        const openswd3::battle::LegacyBattleGroupAResourceReleaseCallRequest&
+            request
     ) override {
         events.push_back(3U);
+        resource_requests.push_back(request);
         if (throw_from_extension) {
             throw std::runtime_error{"extension destruction failed"};
         }
-        state.description_token = 0U;
-        state.description_bytes.fill(0U);
-        return extension_reply;
+        return {
+            .eax = extension_reply.eax,
+            .ecx = extension_reply.ecx,
+            .edx = extension_reply.edx,
+        };
     }
 
     [[nodiscard]] openswd3::battle::LegacyBattleActorGroupAElementCallReply
@@ -64,6 +69,8 @@ public:
     openswd3::battle::LegacyBattleActorGroupAElementCallReply extension_reply{};
     openswd3::battle::LegacyBattleActorGroupAElementCallReply base_reply{};
     bool throw_from_extension{};
+    std::vector<openswd3::battle::LegacyBattleGroupAResourceReleaseCallRequest>
+        resource_requests;
     std::vector<u32> events;
 };
 
@@ -302,7 +309,7 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                 port.base_object_token == state.object_token &&
                 port.allocation_size == 0x38U && state.field_2f18 == 0U &&
                 state.field_2f26 == 0U &&
-                state.description_token == 0x70000000U &&
+                state.resource_cleanup.primary_resource_token == 0x70000000U &&
                 std::ranges::all_of(
                     state.description_bytes,
                     [](const auto value) { return value == 0U; }
@@ -335,7 +342,7 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
             );
         test.expect_true(
             state.field_2f18 == 0U && state.field_2f26 == 0U &&
-                state.description_token == 0U &&
+                state.resource_cleanup.primary_resource_token == 0U &&
                 std::ranges::all_of(
                     state.description_bytes,
                     [](const auto value) { return value == 0x5AU; }
@@ -354,7 +361,9 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
     {
         openswd3::battle::LegacyBattleActorGroupAElementState state{
             .object_token = 0x005029D0U,
-            .description_token = 0x70000000U,
+            .resource_cleanup = {
+                .primary_resource_token = 0x70000000U,
+            },
         };
         state.description_bytes.fill(0xA5U);
         TrackingGroupAElementDestructionPort port;
@@ -366,12 +375,15 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
             );
         test.expect_true(
             port.events == std::vector<u32>{3U, 4U} &&
-                state.description_token == 0U &&
+                state.resource_cleanup.primary_resource_token == 0U &&
                 std::ranges::all_of(
                     state.description_bytes,
                     [](const auto value) { return value == 0U; }
                 ) &&
-                result.extension_destructor_calls == 1U &&
+                result.resource_cleanup_calls == 1U &&
+                result.resource_cleanup.resource_release_calls == 1U &&
+                port.resource_requests[0U].callee_token == 0x004885A0U &&
+                port.resource_requests[0U].resource_offset == 0U &&
                 result.base_destructor_calls == 1U && result.return_eax == 4U &&
                 result.return_ecx == 5U && result.return_edx == 6U,
             "group-A element destruction releases the extension before returning the base destructor registers"
@@ -380,8 +392,36 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
 
     {
         openswd3::battle::LegacyBattleActorGroupAElementState state{
+            .resource_cleanup = {
+                .primary_resource_token = 0x70000000U,
+            },
+        };
+        TrackingGroupAElementDestructionPort port;
+        port.base_reply = {.eax = 7U, .ecx = 8U, .edx = 9U};
+        const auto result =
+            openswd3::battle::release_legacy_battle_actor_group_a_element(
+                state, port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::
+                        LegacyBattleActorGroupAElementDestructionStatus::
+                            resource_cleanup_typed_stop &&
+                port.events == std::vector<u32>{4U} &&
+                port.resource_requests.empty() &&
+                state.resource_cleanup.primary_resource_token == 0x70000000U &&
+                result.base_destructor_calls == 1U && result.return_eax == 7U &&
+                result.return_ecx == 8U && result.return_edx == 9U,
+            "group-A typed-stop still runs the SEH base cleanup before propagating its status"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleActorGroupAElementState state{
             .object_token = 0x00505904U,
-            .description_token = 0x71000000U,
+            .resource_cleanup = {
+                .primary_resource_token = 0x71000000U,
+            },
         };
         TrackingGroupAElementDestructionPort port;
         port.throw_from_extension = true;
@@ -397,7 +437,7 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
         }
         test.expect_true(
             caught && port.events == std::vector<u32>{3U, 4U} &&
-                state.description_token == 0x71000000U,
+                state.resource_cleanup.primary_resource_token == 0x71000000U,
             "SEH-equivalent unwind still invokes the base destructor before propagating"
         );
     }

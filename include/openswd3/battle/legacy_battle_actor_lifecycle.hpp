@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_group_a_resource_cleanup.hpp"
 #include "openswd3/compat/types.hpp"
 
 #include <array>
@@ -71,7 +72,7 @@ public:
 
 struct LegacyBattleActorGroupAElementState {
     compat::u32 object_token{};
-    compat::u32 description_token{};
+    LegacyBattleGroupAResourceCleanupState resource_cleanup{};
     std::array<compat::u8, 0x38> description_bytes{};
     compat::u16 field_2f18{};
     compat::u16 field_2f26{};
@@ -93,12 +94,11 @@ public:
     allocate(compat::u32 size) = 0;
 };
 
-class LegacyBattleActorGroupAElementDestructionPort {
+class LegacyBattleActorGroupAElementDestructionPort
+    : public virtual LegacyBattleGroupAResourceReleasePort {
 public:
     virtual ~LegacyBattleActorGroupAElementDestructionPort() = default;
 
-    [[nodiscard]] virtual LegacyBattleActorGroupAElementCallReply
-    destroy_extension(LegacyBattleActorGroupAElementState& state) = 0;
     [[nodiscard]] virtual LegacyBattleActorGroupAElementCallReply
     destroy_base(LegacyBattleActorGroupAElementState& state) = 0;
 };
@@ -130,8 +130,17 @@ struct LegacyBattleActorGroupAElementConstructionResult {
     compat::u32 return_edx{};
 };
 
+enum class LegacyBattleActorGroupAElementDestructionStatus : compat::u8 {
+    completed,
+    resource_cleanup_typed_stop,
+};
+
 struct LegacyBattleActorGroupAElementDestructionResult {
-    compat::u32 extension_destructor_calls{};
+    LegacyBattleActorGroupAElementDestructionStatus status{
+        LegacyBattleActorGroupAElementDestructionStatus::completed
+    };
+    LegacyBattleGroupAResourceCleanupResult resource_cleanup{};
+    compat::u32 resource_cleanup_calls{};
     compat::u32 base_destructor_calls{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
