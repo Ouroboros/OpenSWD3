@@ -334,6 +334,18 @@ struct LegacyBattleActionTwentyThreeMessageResult {
     compat::u32 return_edx{};
 };
 
+enum class LegacyBattleActionTwentyFiveReadyStatus : compat::u8 {
+    completed,
+    target_profile_typed_stop,
+};
+
+struct LegacyBattleActionTwentyFiveReadyResult {
+    LegacyBattleActionTwentyFiveReadyStatus status{
+        LegacyBattleActionTwentyFiveReadyStatus::completed
+    };
+    compat::u32 return_eax{};
+};
+
 struct LegacyBattleActionTwentyFourRequest {
     compat::u32 actor_token{};
     compat::u32 entry_eax{};
@@ -624,6 +636,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     action_twenty_three_typed_stop,
     action_twenty_three_message_typed_stop,
     action_twenty_four_typed_stop,
+    action_twenty_five_ready_typed_stop,
     summon_frame_typed_stop,
     turn_commit_chance_typed_stop,
     turn_advance_typed_stop,
@@ -689,6 +702,8 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 action_twenty_three_message_calls{};
     LegacyBattleActionTwentyFourResult action_twenty_four{};
     compat::u32 action_twenty_four_calls{};
+    LegacyBattleActionTwentyFiveReadyResult action_twenty_five_ready{};
+    compat::u32 action_twenty_five_ready_calls{};
     LegacyBattleSummonFrameResult summon_frame{};
     compat::u32 summon_frame_calls{};
     LegacyBattleTurnCommitChanceResult turn_commit_chance{};
@@ -777,6 +792,12 @@ advance_legacy_battle_action_twenty_four(
     LegacyBattleActionDispatchContext& context,
     const LegacyBattleActionTwentyFourRequest& request
 );
+
+// sub_472710.
+[[nodiscard]] LegacyBattleActionTwentyFiveReadyResult
+query_legacy_battle_action_twenty_five_ready(
+    const LegacyBattleActionMessageProfile* target_profile
+) noexcept;
 
 // sub_471FC0.
 [[nodiscard]] LegacyBattleTargetPhaseSpawnFrameResult

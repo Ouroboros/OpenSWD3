@@ -110,7 +110,6 @@ constexpr u32 kCallBuildMessageToken = 0x00476DB0U;
 constexpr u32 kCallPrepareMessageToken = 0x00478220U;
 constexpr u32 kCallChoiceFirst = 0x00476160U;
 constexpr u32 kCallChoiceSecond = 0x00476250U;
-constexpr u32 kCallActionTwentyFiveReady = 0x00472710U;
 constexpr u32 kCallSetGlobalMode = 0x0047F900U;
 constexpr u32 kCallPrepareTarget = 0x00478850U;
 constexpr u32 kCallPushState = 0x0047D810U;
@@ -1608,6 +1607,19 @@ consume_legacy_battle_action_twenty_three_message(
     result.return_ecx = registers.ecx;
     result.return_edx = registers.edx;
     return result;
+}
+
+LegacyBattleActionTwentyFiveReadyResult
+query_legacy_battle_action_twenty_five_ready(
+    const LegacyBattleActionMessageProfile* target_profile
+) noexcept {
+    if (target_profile == nullptr) {
+        return {
+            .status = LegacyBattleActionTwentyFiveReadyStatus::
+                target_profile_typed_stop,
+        };
+    }
+    return {.return_eax = 1U};
 }
 
 LegacyBattleActionTwentyFourResult advance_legacy_battle_action_twenty_four(
@@ -3610,14 +3622,18 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
             return result;
         }
         if (state.stored_group_b_index == 0xFFFFU) {
-            reply = invoke(
-                state,
-                port,
-                result,
-                kCallActionTwentyFiveReady,
-                {group_b_token(group_b_index)}
-            );
-            if (reply.eax == 1U) {
+            result.action_twenty_five_ready =
+                query_legacy_battle_action_twenty_five_ready(
+                    &state.group_b_message_profiles[group_b_index]
+                );
+            ++result.action_twenty_five_ready_calls;
+            if (result.action_twenty_five_ready.status !=
+                LegacyBattleActionTwentyFiveReadyStatus::completed) {
+                result.status = LegacyBattleActionDispatchStatus::
+                    action_twenty_five_ready_typed_stop;
+                return result;
+            }
+            if (result.action_twenty_five_ready.return_eax == 1U) {
                 if (!publish_text_message(
                         context,
                         port,

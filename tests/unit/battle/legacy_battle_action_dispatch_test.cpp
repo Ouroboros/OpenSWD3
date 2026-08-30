@@ -2379,6 +2379,28 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
     }
 
     {
+        LegacyBattleActionMessageProfile profile;
+        const auto stopped =
+            openswd3::battle::query_legacy_battle_action_twenty_five_ready(
+                nullptr
+            );
+        const auto ready =
+            openswd3::battle::query_legacy_battle_action_twenty_five_ready(
+                &profile
+            );
+        test.expect_true(
+            stopped.status ==
+                    openswd3::battle::LegacyBattleActionTwentyFiveReadyStatus::
+                        target_profile_typed_stop &&
+                ready.status ==
+                    openswd3::battle::LegacyBattleActionTwentyFiveReadyStatus::
+                        completed &&
+                ready.return_eax == 1U,
+            "action twenty-five ready preserves the target profile access boundary and constant return"
+        );
+    }
+
+    {
         bool actions_complete = true;
         constexpr std::array<u16, 27> actions{
             1U,  2U,  3U,  4U,  5U,  6U,  7U,  11U, 12U,
@@ -2400,7 +2422,8 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
             );
             actions_complete = actions_complete &&
                 result.status == LegacyBattleActionDispatchStatus::completed &&
-                result.action_code == action;
+                result.action_code == action &&
+                port.count(0x00472710U) == 0U;
         }
         test.expect_true(
             actions_complete,
