@@ -426,6 +426,73 @@ private:
         ScriptRunner& runner_;
     };
 
+    [[nodiscard]] LegacyBattleGroupBActionCompositionCallReply
+    invoke_group_b_action_composition_callee(
+        const LegacyBattleGroupBActionCompositionCallRequest& request
+    ) {
+        LegacyBattleScriptDispatchCall call_kind =
+            LegacyBattleScriptDispatchCall::pending_476db0;
+        switch (request.call) {
+        case LegacyBattleGroupBActionCompositionCall::
+            load_resource_definition:
+            call_kind = LegacyBattleScriptDispatchCall::pending_476db0;
+            break;
+
+        case LegacyBattleGroupBActionCompositionCall::copy_action_text:
+            call_kind = LegacyBattleScriptDispatchCall::legacy_string_copy;
+            break;
+
+        case LegacyBattleGroupBActionCompositionCall::load_action_profile:
+            call_kind = LegacyBattleScriptDispatchCall::pending_476a80;
+            break;
+        }
+
+        LegacyBattleScriptDispatchCallRequest call{
+            .call = call_kind,
+            .object_token = request.ecx,
+            .argument_count = 2U,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+            .cursor = workspace_.cursor,
+        };
+        call.arguments[0U] = request.arguments[0U];
+        call.arguments[1U] = request.arguments[1U];
+        result_.call_trace.push_back(call_kind);
+        ++result_.port_calls;
+        const auto reply =
+            port_.invoke_battle_script(workspace_, bindings_, call);
+        eax_ = reply.eax;
+        ecx_ = reply.ecx;
+        edx_ = reply.edx;
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .typed_stop = reply.typed_stop,
+            .resource_definition = nullptr,
+            .profile_buffer = nullptr,
+        };
+    }
+
+    class ScriptGroupBActionCompositionPort final
+        : public LegacyBattleGroupBActionCompositionPort {
+    public:
+        explicit ScriptGroupBActionCompositionPort(
+            ScriptRunner& runner
+        ) noexcept
+            : runner_(runner) {}
+
+        [[nodiscard]] LegacyBattleGroupBActionCompositionCallReply invoke(
+            const LegacyBattleGroupBActionCompositionCallRequest& request
+        ) override {
+            return runner_.invoke_group_b_action_composition_callee(request);
+        }
+
+    private:
+        ScriptRunner& runner_;
+    };
+
     void run_frame() {
         invoke(LegacyBattleScriptDispatchCall::frame);
     }
@@ -1508,8 +1575,10 @@ private:
             return finish();
         }
         workspace_.value_a = signed_word(slot_word);
-        const i32 actor = signed_word(actor_word);
-        i32 candidate = signed_word(candidate_word);
+        workspace_.value_b = signed_word(actor_word);
+        workspace_.value_c = signed_word(candidate_word);
+        const i32 actor = workspace_.value_b;
+        i32 candidate = workspace_.value_c;
         if (actor > 7) {
             bindings_.shared.selected_target =
                 bindings_.final_actor.queued_actor_code;
@@ -1562,15 +1631,14 @@ private:
             bindings_.shared
                 .actor_state_words[static_cast<std::size_t>(actor_index)] = 2U;
         } else {
-            const i32 slot = signed_word(slot_word);
-            if (slot < 0 || slot >= 18) {
+            if (actor < 0 || actor >= 18) {
                 return stop(
                     LegacyBattleScriptDispatchStatus::shared_state_typed_stop,
-                    static_cast<u32>(slot)
+                    static_cast<u32>(actor)
                 );
             }
-            bindings_.shared
-                .actor_target_words[static_cast<std::size_t>(slot)] = 0U;
+            const auto actor_index = static_cast<std::size_t>(actor);
+            bindings_.shared.actor_target_words[actor_index] = 0U;
             while (candidate <= 7) {
                 const auto token = group_b_token(candidate);
                 if (!token.has_value()) {
@@ -1581,28 +1649,51 @@ private:
                     break;
                 }
                 ++candidate;
+                workspace_.value_c = candidate;
             }
-            bindings_.shared
-                .actor_target_words[static_cast<std::size_t>(slot)] =
+            bindings_.shared.actor_target_words[actor_index] =
                 static_cast<u16>(candidate);
             bindings_.shared.selection_gate_b = 1U;
             bindings_.shared.script_aux_gate = 1U;
-            bindings_.shared
-                .actor_target_words[static_cast<std::size_t>(slot)] =
+            bindings_.shared.actor_target_words[actor_index] =
                 static_cast<u16>(
-                    bindings_.shared
-                        .actor_target_words[static_cast<std::size_t>(slot)] |
-                    0x4000U
+                    bindings_.shared.actor_target_words[actor_index] | 0x4000U
                 );
             const auto token = group_b_token(actor);
             if (!token.has_value()) {
                 return finish(eax_);
             }
-            invoke(
-                LegacyBattleScriptDispatchCall::pending_476160,
-                *token,
-                {static_cast<u32>(candidate)}
-            );
+            LegacyBattleActorGroupBElementState* element = nullptr;
+            if (bindings_.startup.group_b_lifecycle != nullptr &&
+                actor_index < bindings_.startup.group_b_lifecycle->size()) {
+                element = &(*bindings_.startup.group_b_lifecycle)[actor_index];
+            }
+            ScriptGroupBActionCompositionPort composition_port(*this);
+            result_.group_b_action_composition =
+                compose_legacy_battle_group_b_action(
+                    element,
+                    &bindings_.message_state,
+                    composition_port,
+                    {
+                        .definition_argument =
+                            std::bit_cast<u32>(workspace_.value_a),
+                        .actor_token = *token,
+                        .output_token = 0x0053BD40U,
+                        .entry_eax = eax_,
+                        .entry_ecx = *token,
+                        .entry_edx = static_cast<u32>(345 * actor),
+                    }
+                );
+            ++result_.group_b_action_composition_calls;
+            eax_ = result_.group_b_action_composition.return_eax;
+            ecx_ = result_.group_b_action_composition.return_ecx;
+            edx_ = result_.group_b_action_composition.return_edx;
+            if (result_.group_b_action_composition.status !=
+                LegacyBattleGroupBActionCompositionStatus::completed) {
+                result_.status = LegacyBattleScriptDispatchStatus::
+                    group_b_action_composition_typed_stop;
+                return finish(eax_);
+            }
             if (!insert_attack_order_direct(
                     2U, std::bit_cast<u32>(actor), 0U
                 )) {

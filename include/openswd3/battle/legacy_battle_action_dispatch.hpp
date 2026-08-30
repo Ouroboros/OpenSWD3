@@ -21,6 +21,7 @@
 #include "openswd3/battle/legacy_battle_group_a_attribute_effect.hpp"
 #include "openswd3/battle/legacy_battle_group_a_final_processing.hpp"
 #include "openswd3/battle/legacy_battle_group_a_summon_materialization.hpp"
+#include "openswd3/battle/legacy_battle_group_b_action_composition.hpp"
 #include "openswd3/battle/legacy_battle_group_b_order.hpp"
 #include "openswd3/battle/legacy_battle_player_item_quantity.hpp"
 #include "openswd3/battle/legacy_battle_scale_scan.hpp"
@@ -375,7 +376,8 @@ struct LegacyBattleTargetPhaseState {
     LegacyBattleImageParticleEmitter emitter;  // actor + 0x0E14 physical owner
     compat::u16 tick{};                        // actor + 0x2F26
     compat::u32 active_gate{};                 // actor + 0x2AFC
-    compat::u8 mode_flags{};                   // actor + 0x2A87
+    compat::u8 group_a_mode_flags{};    // group A actor + 0x2A87
+    compat::u8* borrowed_mode_flags{};  // group B lifecycle owner
     compat::u32 runtime_gate{};                // actor + 0x2680
     compat::u32 render_toggle_gate{};          // actor + 0x2B08
     std::array<compat::u32, 5> spawn_counters{};  // actor + 0x2EF8
@@ -383,6 +385,16 @@ struct LegacyBattleTargetPhaseState {
     asset_runtime::LegacyActionRecord action_record{};  // actor + 0x0500
     std::array<asset_runtime::LegacyActionRecord, 5>
         spawn_action_records{};  // actor + 0x2BC8
+
+    [[nodiscard]] compat::u8& mode_flags() noexcept {
+        return borrowed_mode_flags == nullptr ? group_a_mode_flags
+                                              : *borrowed_mode_flags;
+    }
+
+    [[nodiscard]] const compat::u8& mode_flags() const noexcept {
+        return borrowed_mode_flags == nullptr ? group_a_mode_flags
+                                              : *borrowed_mode_flags;
+    }
 };
 
 struct LegacyBattleActionMessageProfile {
@@ -1276,6 +1288,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     turn_commit_chance_typed_stop,
     turn_advance_typed_stop,
     group_b_progress_typed_stop,
+    group_b_action_composition_typed_stop,
     group_b_action_configuration_typed_stop,
     group_b_action_execution_typed_stop,
     group_b_opponent_mode_typed_stop,
@@ -1376,6 +1389,8 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 turn_commit_chance_calls{};
     LegacyBattleTurnAdvanceResult turn_advance{};
     compat::u32 turn_advance_calls{};
+    LegacyBattleGroupBActionCompositionResult group_b_action_composition{};
+    compat::u32 group_b_action_composition_calls{};
     compat::u32 group_b_action_execution_calls{};
     compat::u32 group_b_opponent_mode_calls{};
     compat::u32 group_b_action_profile_flag_calls{};

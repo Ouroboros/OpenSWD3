@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v833
+版本：v834
 
 最后更新：2026-08-31
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗函数 `0x00476160`
+当前步骤：模块10 · 审计战斗函数 `0x004761D0`
 
 ## 0. 执行约定
 
@@ -4284,4 +4284,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=244`的`0x00476140`战斗组B行动资料标记判定函数。完整权威LST主体`0x00476140..0x0047615E`共17行、8条实际指令、0个call、1个跳转、1个局部标签、2个返回点且无外部chunk。实现profile `+0x08` dword bit28优先、未置位时profile `+0x04` dword bit12 fallback，以及正常EAX 0/1、ECX actor token与EDX陈旧保持；actor映射缺失只在首个`+0x0D98`访问点typed-stop。两个dword复用组B行动配置40-byte profile唯一owner，不新增平行字段。组Bframe唯一caller删除整函数opaque调用，显式线程status-sequence、特殊行动、文字token或文字callee后的陈旧EAX/EDX；返回1发布side/自身索引，typed-stop保留此前状态、latch、文字与actor索引副作用并阻断phase后缀。验证：定向测试、完整core AddressSanitizer`188/188`、Linux core`188/188`、Linux app`194/194`全部通过且源码零warning。工作包为`244/422 = 235 platform_adapted + 9 assembly_exact + 178 pending_audit`；生成器连续双跑逐字节一致，SHA256为`d83e15d36d75d20d8e0f2c64e897df347e511b7a820fd48baac6a1863fd4dc6e`。动态差分因原版八个组B actor、动态profile、状态序列/特殊行动/文字callee及caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=245`的`0x00476160`组B行动对象资料组合。
+本轮再完成`audit_order=245`的`0x00476160`战斗组B行动对象资料组合函数。完整权威LST主体`0x00476160..0x004761C3`共48行、32条实际指令、4个call、0个跳转、0个局部标签和1个返回点且无外部chunk。实现actor内嵌164-byte行动资料加载、`+0x50` word发布、16-byte文字复制、40-byte profile加载、陈旧ECX/EAX高word、首个派生word回绕相加，以及固定mode 2的显示种类2、行动种类0、EAX一和mode bit7；两个loader与import文字复制保持三个窄port，待审mode callee只展开固定可达路径。行动资料/文字/派生word/mode收敛到组B生命周期唯一composition owner，profile复用既有配置owner，target phase只显式借用组Bmode byte。动作case25和脚本case23两个caller均删除整函数opaque调用并typed直连；typed-stop保留选择、status、三个共享操作数和候选扫描前缀，阻断门清理、攻击顺序、frame与cursor后缀。验证：定向测试、完整core AddressSanitizer`188/188`、Linux core`188/188`、Linux app`194/194`全部通过且源码零warning。工作包为`245/422 = 236 platform_adapted + 9 assembly_exact + 177 pending_audit`；生成器连续双跑逐字节一致，SHA256为`487e433f3e903148309c0fed9d1b330af42c3d851b0e0c8c95f6e7e658b8db4c`。动态差分因原版八个组B actor、内嵌164-byte资料、40-byte profile、三个callee、文字复制及两个caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=246`的`0x004761D0`组B行动profile与mode组合。

@@ -164,7 +164,7 @@ bit15已置时，bit0仍为0则返回0；bit0为1则置fade active并返回1。
 
 - 23：目标动作完成后查询消息code；`1..0x61A7`走名称构建/格式化与详细消息，0、`0x61A8`及更大值走两个固定文本；最终延迟300；
 - 24：目标callee返回低word；bit15置位时遍历全部组B非terminal对象，计算signed值、上夹9999、累加、刷新、发布与可选清屏；保存低15位，低word等于2才清current actor并返回1，否则清低word返回0；
-- 25：首次选择按目标准备结果显示成功/失败文本；成功保存双方索引、准备与更新目标。再次进入时更新目标status word，按两个独立门调用choice操作，OR入`choice_cursor-1`低word后直接组合已关闭攻击顺序登记，以类型2把已选组B索引写入共享18槽首个全1记录，再清current actor并返回1；
+- 25：首次选择按目标准备结果显示成功/失败文本；成功保存双方索引、准备与更新目标。再次进入时更新目标status word；第一choice门非零时在原调用点直接组合已关闭组B行动对象资料，成功后才清该门；第二choice门非零时调用剩余choice操作。随后OR入`choice_cursor-1`低word并直接组合已关闭攻击顺序登记，以类型2把已选组B索引写入共享18槽首个全1记录，再清current actor并返回1。资料组合typed-stop保留choice/status前缀并阻断门清理、第二choice、攻击顺序与成功尾；
 - 26：直接调用已关闭`0x00451100`。保留scan runtime、push state、dialog word三组低word门；完成早退或目标动作成功后的共同尾按pop64、延迟300、清四项低word执行。视觉成功先发布全1 accumulator、screen mode 1、清屏与scan push `0x8000`；
 - 27：目标动作完成后以固定第一参数4计算选择；可选视觉成功发布目标并清屏，随后清accumulator/current actor并返回1。
 

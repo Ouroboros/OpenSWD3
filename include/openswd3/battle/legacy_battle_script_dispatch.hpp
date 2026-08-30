@@ -4,6 +4,7 @@
 #include "openswd3/battle/legacy_battle_assets.hpp"
 #include "openswd3/battle/legacy_battle_attack_order_insert.hpp"
 #include "openswd3/battle/legacy_battle_final_actor_step.hpp"
+#include "openswd3/battle/legacy_battle_group_b_action_composition.hpp"
 #include "openswd3/battle/legacy_battle_group_b_order.hpp"
 #include "openswd3/battle/legacy_battle_input_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_message_phase.hpp"
@@ -187,7 +188,7 @@ enum class LegacyBattleScriptDispatchCall : compat::u32 {
     reserved_script_curve_sample = 0x0046E290U,
     pending_4707b0 = 0x004707B0U,
     reserved_group_b_action_reconfiguration = 0x00475820U,
-    pending_476160 = 0x00476160U,
+    reserved_group_b_action_composition = 0x00476160U,
     pending_476250 = 0x00476250U,
     pending_476920 = 0x00476920U,
     pending_4769a0 = 0x004769A0U,
@@ -240,6 +241,7 @@ enum class LegacyBattleScriptDispatchCall : compat::u32 {
     allocate = 0x00487C10U,
     release_allocation = 0x004885A0U,
     x87_truncate = 0x00489654U,
+    legacy_string_copy = 0x00499168U,
 };
 
 struct LegacyBattleScriptDispatchCallRequest {
@@ -292,6 +294,7 @@ enum class LegacyBattleScriptDispatchStatus : compat::u8 {
     string_typed_stop,
     closed_callee_typed_stop,
     script_page_load_typed_stop,
+    group_b_action_composition_typed_stop,
 };
 
 struct LegacyBattleScriptDispatchRequest {
@@ -312,6 +315,8 @@ struct LegacyBattleScriptDispatchResult {
     compat::u32 return_edx{};
     compat::u32 port_calls{};
     compat::u32 stopped_offset{};
+    LegacyBattleGroupBActionCompositionResult group_b_action_composition{};
+    compat::u32 group_b_action_composition_calls{};
     std::vector<LegacyBattleScriptDispatchCall> call_trace;
 };
 

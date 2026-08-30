@@ -135,12 +135,22 @@ struct LegacyBattleGroupBActionConfigurationState {
     compat::u32 source_runtime_value{};            // actor + 0x2AA0
 };
 
+struct LegacyBattleGroupBActionCompositionState {
+    std::array<compat::u8, 0xA4> resource_definition{};  // actor + 0x0010
+    std::array<compat::u8, 0x10> action_text{};          // actor + 0x2630
+    std::array<compat::u16, 4> derived_words{};  // actor + 0x29A4..0x29AA
+    compat::u16 action_kind{};                   // actor + 0x2A6C
+    compat::u16 display_kind{};                  // actor + 0x2A70
+    compat::u8 mode_flags{};                     // actor + 0x2A87
+};
+
 struct LegacyBattleActorGroupBElementState {
     compat::u32 object_token{};
     compat::u32 resource_token{};
     std::array<compat::u8, 0xA4> resource_bytes{};
     LegacyBattleGroupBActionRecord action_record{};
     LegacyBattleGroupBActionConfigurationState action_configuration{};
+    LegacyBattleGroupBActionCompositionState action_composition{};
     LegacyBattleGroupAActionExecutionState action_execution{};
 };
 

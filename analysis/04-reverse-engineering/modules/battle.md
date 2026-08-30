@@ -2,7 +2,7 @@
 
 状态：`module_in_progress`
 
-当前关闭进度：`242/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
+当前关闭进度：`245/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
 
 ## 1. 唯一真值与模块目标
 
@@ -51,10 +51,10 @@ code_origin == game
 - 尾地址：`0x00484500`；
 - `confirmed_boundary`：`61`；
 - `medium`导航候选：`361`；
-- `pending_audit`：`180`；
+- `pending_audit`：`177`；
 - `assembly_exact`：`9`；
-- `platform_adapted`：`233`；
-- 已关闭：`242`。
+- `platform_adapted`：`236`；
+- 已关闭：`245`。
 
 六个稳定导航分组为：
 
@@ -76,7 +76,7 @@ code_origin == game
 - `legacy_battle_assets`：FIGTALK固定窗口和`battle.ffd`头、索引、记录读取；
 - `legacy_battle_setup`：初始队伍筛选、固定阵型、镜像坐标和敌方记录布局。
 
-它们覆盖了`0x0046E0B0`、`0x0045F130`、`0x0045F1B0`与`0x00451B10`的部分有效资产路径或部分指令区间，但尚未证明所属函数的完整LST函数体、全部外部chunk、全部错误/循环/异常域、caller回收和完整战斗生命周期。因此这些历史切片继续不计数；当前`88/422`只来自本文件逐项登记且完成全部关闭门的函数，不得把其他测试通过、局部有效路径或真实battle 98样本当作函数关闭。
+它们覆盖了`0x0046E0B0`、`0x0045F130`、`0x0045F1B0`与`0x00451B10`的部分有效资产路径或部分指令区间，但尚未证明所属函数的完整LST函数体、全部外部chunk、全部错误/循环/异常域、caller回收和完整战斗生命周期。因此这些历史切片继续不计数；当前`245/422`只来自本文件逐项登记且完成全部关闭门的函数，不得把其他测试通过、局部有效路径或真实battle 98样本当作函数关闭。
 
 `app::battle_transition`和`frame_runtime`只实现顶层请求与返回编排，不属于422项战斗内部函数关闭计数。
 
@@ -699,6 +699,8 @@ I5最终必须锁定：
 
 `audit_order=244`的`0x00476140`已关闭为`platform_adapted`。完整权威LST主体`0x00476140..0x0047615E`共17行、8条实际指令、0个call、1个跳转、1个局部标签、2个返回点且无外部chunk。实现profile `+0x08` dword bit28优先、未置位时profile `+0x04` dword bit12 fallback，以及正常EAX 0/1、ECX actor token与EDX陈旧保持；actor映射缺失只在首个`+0x0D98`访问点typed-stop。两个dword复用组B行动配置40-byte profile唯一owner，不新增平行字段。组Bframe唯一caller删除整函数opaque调用，显式线程status-sequence、特殊行动、文字token或文字callee后的陈旧EAX/EDX；返回1发布side/自身索引，typed-stop保留此前状态、latch、文字与actor索引副作用并阻断phase后缀。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`244/422 = 235 platform_adapted + 9 assembly_exact + 178 pending_audit`，双跑SHA256为`d83e15d36d75d20d8e0f2c64e897df347e511b7a820fd48baac6a1863fd4dc6e`。动态差分因原版八个组B actor、动态profile、状态序列/特殊行动/文字callee及caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=245`的`0x00476160`组B行动对象资料组合。
+`audit_order=245`的`0x00476160`已关闭为`platform_adapted`。完整权威LST主体`0x00476160..0x004761C3`共48行、32条实际指令、4个call、0个跳转、0个局部标签和1个返回点且无外部chunk。实现actor内嵌164-byte行动资料加载、`+0x50` word发布、16-byte文字复制、40-byte profile加载、陈旧ECX/EAX高word、首个派生word回绕相加，以及固定mode 2的显示种类2、行动种类0、EAX一和mode bit7；两个loader与import文字复制保持三个窄port，待审mode callee只展开固定可达路径。行动资料/文字/派生word/mode收敛到组B生命周期唯一composition owner，profile复用既有配置owner，target phase只显式借用组Bmode byte。动作case25和脚本case23两个caller均删除整函数opaque调用并typed直连；typed-stop保留选择、status、三个共享操作数和候选扫描前缀，阻断门清理、攻击顺序、frame与cursor后缀。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`245/422 = 236 platform_adapted + 9 assembly_exact + 177 pending_audit`，双跑SHA256为`487e433f3e903148309c0fed9d1b330af42c3d851b0e0c8c95f6e7e658b8db4c`。动态差分因原版八个组B actor、内嵌资料、profile、三个callee、文字复制及两个caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=246`的`0x004761D0`组B行动profile与mode组合。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

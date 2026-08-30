@@ -105,7 +105,8 @@ constexpr u32 kCallPublishScene = 0x004707B0U;
 constexpr u32 kCallFinalizeSelection = 0x00478B30U;
 constexpr u32 kCallBuildMessageToken = 0x00476DB0U;
 constexpr u32 kCallPrepareMessageToken = 0x00478220U;
-constexpr u32 kCallChoiceFirst = 0x00476160U;
+constexpr u32 kCallLoadActionProfile = 0x00476A80U;
+constexpr u32 kCallLegacyStringCopy = 0x00499168U;
 constexpr u32 kCallChoiceSecond = 0x00476250U;
 constexpr u32 kCallSetGlobalMode = 0x0047F900U;
 constexpr u32 kCallPrepareTarget = 0x00478850U;
@@ -197,6 +198,71 @@ void replace_high_word(u32& destination, const u16 value) noexcept {
     }
     return reply;
 }
+
+class ActionCompositionPortAdapter final
+    : public LegacyBattleGroupBActionCompositionPort {
+public:
+    ActionCompositionPortAdapter(
+        LegacyBattleActionDispatchPort& port,
+        LegacyBattleActionDispatchResult& result
+    ) noexcept
+        : port_(port), result_(result) {}
+
+    [[nodiscard]] LegacyBattleGroupBActionCompositionCallReply invoke(
+        const LegacyBattleGroupBActionCompositionCallRequest& request
+    ) override {
+        u32 callee{};
+        switch (request.call) {
+        case LegacyBattleGroupBActionCompositionCall::
+            load_resource_definition:
+            callee = kCallBuildMessageToken;
+            break;
+
+        case LegacyBattleGroupBActionCompositionCall::copy_action_text:
+            callee = kCallLegacyStringCopy;
+            break;
+
+        case LegacyBattleGroupBActionCompositionCall::load_action_profile:
+            callee = kCallLoadActionProfile;
+            break;
+        }
+
+        ++result_.port_calls;
+        LegacyBattleActionCallRequest call{
+            .callee_token = callee,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        };
+        call.arguments[0U] = request.arguments[0U];
+        call.arguments[1U] = request.arguments[1U];
+        const auto reply = port_.invoke(call);
+        LegacyBattleGroupBActionCompositionCallReply mapped{
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .typed_stop =
+                port_.group_b_action_configuration_typed_stop(callee),
+            .resource_definition = nullptr,
+            .profile_buffer = nullptr,
+        };
+        if (request.call == LegacyBattleGroupBActionCompositionCall::
+                load_resource_definition) {
+            mapped.resource_definition = port_.group_b_action_resource_bytes();
+        }
+
+        if (request.call == LegacyBattleGroupBActionCompositionCall::
+                load_action_profile) {
+            mapped.profile_buffer = port_.group_b_action_profile_buffer();
+        }
+
+        return mapped;
+    }
+
+private:
+    LegacyBattleActionDispatchPort& port_;
+    LegacyBattleActionDispatchResult& result_;
+};
 
 [[nodiscard]] bool remove_attack_order_entry(
     LegacyBattleActionDispatchContext& context,
@@ -647,7 +713,8 @@ LegacyBattleTargetPhaseStartResult start_legacy_battle_target_phase(
     if (property.eax == 1U) {
         emitter.flags = static_cast<u16>(emitter.flags | 1U);
     }
-    phase->mode_flags = static_cast<compat::u8>(phase->mode_flags | 8U);
+    phase->mode_flags() =
+        static_cast<compat::u8>(phase->mode_flags() | 8U);
 
     if (render_geometry == nullptr) {
         result.status =
@@ -7053,13 +7120,37 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
         state.group_b_status_words[state.stored_group_b_index] = 0x8000U;
         if (state.message_gate != 0U) {
             state.group_b_status_words[state.stored_group_b_index] = 0x4000U;
-            static_cast<void>(invoke(
-                state,
-                port,
-                result,
-                kCallChoiceFirst,
-                {state.message_gate, port.battle_message_state()}
-            ));
+            const u32 object_token = group_b_token(state.stored_group_b_index);
+            LegacyBattleActorGroupBElementState* actor = nullptr;
+            if (context.startup != nullptr &&
+                context.startup->group_b_lifecycle != nullptr &&
+                state.stored_group_b_index <
+                    context.startup->group_b_lifecycle->size()) {
+                actor = &(*context.startup->group_b_lifecycle)
+                    [state.stored_group_b_index];
+            }
+            ActionCompositionPortAdapter adapter(port, result);
+            result.group_b_action_composition =
+                compose_legacy_battle_group_b_action(
+                    actor,
+                    &port.battle_message_state(),
+                    adapter,
+                    {
+                        .definition_argument = state.message_gate,
+                        .actor_token = object_token,
+                        .output_token = 0x0053BD40U,
+                        .entry_eax = object_token,
+                        .entry_ecx = object_token,
+                        .entry_edx = object_token,
+                    }
+                );
+            ++result.group_b_action_composition_calls;
+            if (result.group_b_action_composition.status !=
+                LegacyBattleGroupBActionCompositionStatus::completed) {
+                result.status = LegacyBattleActionDispatchStatus::
+                    group_b_action_composition_typed_stop;
+                return result;
+            }
             state.message_gate = 0U;
         }
         if (state.message_aux != 0U) {
@@ -7272,12 +7363,17 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
             if (owned_phase == nullptr) {
                 owned_phase = std::make_unique<LegacyBattleTargetPhaseState>();
             }
-            action_actor =
+            LegacyBattleActorGroupBElementState* group_b_owner =
                 context.startup == nullptr ||
                     context.startup->group_b_lifecycle == nullptr
                 ? nullptr
-                : &(*context.startup->group_b_lifecycle)[group_b_index]
-                       .action_execution;
+                : &(*context.startup->group_b_lifecycle)[group_b_index];
+            owned_phase->borrowed_mode_flags = group_b_owner == nullptr
+                ? nullptr
+                : &group_b_owner->action_composition.mode_flags;
+            action_actor = group_b_owner == nullptr
+                ? nullptr
+                : &group_b_owner->action_execution;
             action_phase = owned_phase.get();
             object_token = group_b_token(group_b_index);
         }
