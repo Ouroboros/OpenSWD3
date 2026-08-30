@@ -1135,13 +1135,120 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
     }
 
     {
+        LegacyBattleTargetPhaseState phase;
+        phase.render_toggle_gate = 1U;
+        LegacyBattleGroupAActionExecutionState actor;
+        actor.profile_value = 0x123U;
+        actor.secondary_auxiliary_word = 5U;
+        actor.position_x = 100U;
+        actor.position_y = 50U;
+        actor.action_flags = 9U;
+        actor.copied_runtime_word = 0x1234U;
+        actor.primary_action_record.cached_action_id = 0x123U;
+        actor.primary_action_record.cached_base_variant = 0x28U;
+        actor.primary_action_record.draw_offset_x = 4U;
+        actor.primary_action_record.draw_offset_y = 6U;
+        actor.primary_action_record.mode_flags = 1U;
+        actor.primary_action_record.field_58 = 0x44U;
+        LegacyBattleGroupAActionExecutionSharedState shared;
+        Fixture fixture;
+        fixture.stream_provider.bytes = {
+            0x46U, 0x52U, 0x66U, 0x00U, 0x44U, 0x45U,
+        };
+        DispatchPort port;
+        port.push(0x00485610U, {.edx = 0xBBBB2222U});
+        auto context = fixture.context();
+        const auto special =
+            openswd3::battle::advance_legacy_battle_action_twenty_four(
+                &phase,
+                &actor,
+                &shared,
+                port,
+                context,
+                {.actor_token = 0x12340000U}
+            );
+        test.expect_true(
+            static_cast<u16>(special.return_eax) == 0x9234U &&
+                special.sample_play_calls == 1U &&
+                special.sample_pan_calls == 1U && special.render_calls == 2U &&
+                actor.turn_completion_latch == 1U && actor.action_flags == 0U &&
+                actor.turn_target_x_offset == 28U &&
+                actor.source_x_offset == 27U && actor.turn_render_flags == 0U &&
+                actor.render_flags == 0x0DU &&
+                shared.draw_height_third == 10U &&
+                shared.draw_height_quarter == 8U &&
+                shared.draw_motion_a == 0xFFFFFFFAU &&
+                actor.primary_action_record.field_58 == 0U,
+            "action twenty-four mirrors offsets publishes draw state and returns the copied word with bit fifteen"
+        );
+        test.expect_true(
+            has_call_argument(port, 0x00485610U, 0U, 0x12340044U) &&
+                has_call_argument(port, 0x00485650U, 0U, 0xBBBB0044U) &&
+                has_call_argument(port, 0x00485650U, 1U, 0xFFFFFFF0U) &&
+                has_call_argument(port, 0x004170E0U, 0U, 96U) &&
+                has_call_argument(port, 0x004170E0U, 1U, 40U) &&
+                port.calls[3U].arguments[0U] == 96U &&
+                port.calls[3U].arguments[1U] == 44U,
+            "action twenty-four preserves stale sample halves and both original draw coordinate formulas"
+        );
+
+        actor.primary_action_record = {};
+        actor.primary_action_record.cached_action_id = 0x123U;
+        actor.primary_action_record.cached_base_variant = 0x28U;
+        actor.primary_action_record.field_8c = 1U;
+        actor.action_flags = 0U;
+        fixture.frame_provider.available = false;
+        const auto missing =
+            openswd3::battle::advance_legacy_battle_action_twenty_four(
+                &phase,
+                &actor,
+                &shared,
+                port,
+                context,
+                {.actor_token = 0x12340000U}
+            );
+        test.expect_true(
+            missing.status ==
+                    openswd3::battle::LegacyBattleActionTwentyFourStatus::
+                        frame_owner_typed_stop &&
+                actor.turn_completion_latch == 1U,
+            "action twenty-four stops at the original frame dereference after setting its completion latch"
+        );
+
+        actor.primary_action_record = {};
+        actor.primary_action_record.cached_action_id = 0x123U;
+        actor.primary_action_record.cached_base_variant = 0x28U;
+        actor.primary_action_record.field_8c = 1U;
+        fixture.frame_provider.available = true;
+        DispatchPort completion_port;
+        const auto completed =
+            openswd3::battle::advance_legacy_battle_action_twenty_four(
+                &phase,
+                &actor,
+                &shared,
+                completion_port,
+                context,
+                {.actor_token = 0x12340000U}
+            );
+        test.expect_true(
+            static_cast<u16>(completed.return_eax) == 2U &&
+                completed.action_record_clears == 1U &&
+                actor.turn_completion_latch == 0U &&
+                actor.primary_action_record.action_id == 0U,
+            "action twenty-four clears the primary record and latch only after a completed draw"
+        );
+    }
+
+    {
         LegacyBattleActionDispatchState state;
         state.group_b_count = 2;
         state.blocking_effect = 1U;
+        state.group_a_action_execution[0U].profile_value = 0x123U;
+        state.group_a_action_execution[0U].action_flags = 1U;
+        state.group_a_action_execution[0U].copied_runtime_word = 1U;
         Fixture fixture;
         DispatchPort port;
         port.action = 24U;
-        port.push(0x004724D0U, {.eax = 0x8001U});
         port.push(0x00481010U, {.eax = 100U});
         port.push(0x00481010U, {.eax = 200U});
         auto context = fixture.context();
@@ -1149,7 +1256,10 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
             state, port, context, 0U, 0U
         );
         test.expect_true(
-            result.group_b_iterations == 2U && state.message_aux == 1U &&
+            result.action_twenty_four_calls == 1U &&
+                result.action_twenty_four.return_eax == 0x8001U &&
+                port.count(0x004724D0U) == 0U &&
+                result.group_b_iterations == 2U && state.message_aux == 1U &&
                 openswd3::compat::u16(state.packed_action_state) == 0U &&
                 port.count(0x00481010U) == 2U && port.count(0x00478780U) == 2U,
             "action twenty four scans every live target accumulates signed values and clears nonterminal low word"

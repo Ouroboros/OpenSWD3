@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v803
+版本：v804
 
 最后更新：2026-08-29
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗角色动作效果与渲染函数 `0x004724D0`
+当前步骤：模块10 · 审计战斗角色动作效果与渲染函数 `0x00472710`
 
 ## 0. 执行约定
 
@@ -4224,4 +4224,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=215`的`0x00472430`战斗动作二十三消息码消费。完整权威LST主体`0x00472430..0x004724C2`共79行、49条实际指令、3个call、5个跳转、5个局部标签、3个返回点且无外部chunk。建立group-B目标资料`+0x86/+0x88`唯一typed owner与group-A行动者`+0x26DC`百分比字段，实现零码sentinel、百分比刷新、bound 10随机、`percent/25`夹值、无符号阈值拒绝、接受后破坏性清零。百分比刷新和随机保留窄port，case 23 caller改为typed结果。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`215/422 = 206 platform_adapted + 9 assembly_exact + 207 pending_audit`；生成器连续双跑逐字节一致，SHA256为`defe4cdd4cf11bc2a2d536d703e48f59f6939f82ec772d5c6ff33ca4743dc4a0`。动态差分因原版目标资料、行动者百分比刷新、随机状态与caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=216`的`0x004724D0`战斗角色动作效果与渲染函数。
+本轮再完成`audit_order=216`的`0x004724D0`战斗动作二十四双层逐帧演出。完整权威LST主体`0x004724D0..0x004726F4`共239行、155条实际指令、6个call、8个跳转、7个局部标签、3个返回点且无外部chunk。复用行动者主`LegacyActionRecord` owner，实现variant 40、完成latch、frame、宽度镜像、共享高度/运动值、陈旧sample高半、固定左声像、双层坐标、特殊`copied word | bit15`返回及完成record清零。已关闭callee typed直连，音频和绘制保留窄port；case 24 caller全部typed化。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`216/422 = 207 platform_adapted + 9 assembly_exact + 206 pending_audit`；生成器连续双跑逐字节一致，SHA256为`0396b1b954d73c7ee168de52bed12094255a5ecb13fdb96c5af7e876de725f71`。动态差分因原版行动者record、frame、sample、绘制与caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=217`的`0x00472710`战斗角色动作效果与渲染函数。
