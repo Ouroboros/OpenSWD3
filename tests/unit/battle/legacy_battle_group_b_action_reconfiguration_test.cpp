@@ -93,7 +93,7 @@ void test_battle_group_b_action_reconfiguration(openswd3::test::Context& test) {
             .resource_token = 0x73000148U,
         };
         actor.action_configuration.timing_value = 0xCAFEBABEU;
-        actor.action_configuration.action_id = 0x1357U;
+        actor.action_execution.profile_value = 0x1357U;
         actor.action_configuration.source_runtime_value = 0x2468ACE0U;
         auto profile = std::make_shared<std::array<std::byte, 0x28>>();
         profile->fill(std::byte{0x5AU});
@@ -133,7 +133,7 @@ void test_battle_group_b_action_reconfiguration(openswd3::test::Context& test) {
                 result.port_calls == 3U &&
                 actor.action_configuration.timing_value == 0xCAFEBABEU &&
                 actor.action_configuration.resource_mode == 0x7AU &&
-                actor.action_configuration.action_id == 0x1357U &&
+                actor.action_execution.profile_value == 0x1357U &&
                 actor.action_configuration.source_runtime_value ==
                     0x2468ACE0U &&
                 actor.action_configuration.profile_buffer == *profile &&

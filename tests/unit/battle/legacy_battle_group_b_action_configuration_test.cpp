@@ -169,7 +169,8 @@ void test_battle_group_b_action_configuration(openswd3::test::Context& test) {
                 state.copied_record == state.source_record &&
                 state.profile_buffer == *profile &&
                 state.source_runtime_value == 0xABCD5678U &&
-                state.resource_mode == 0x7AU && state.action_id == 0x1234U &&
+                state.resource_mode == 0x7AU &&
+                actor.action_execution.profile_value == 0x1234U &&
                 state.timing_value == 0U,
             "group B action configuration copies both records and publishes typed actor state"
         );

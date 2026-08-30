@@ -7268,17 +7268,16 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
             if (!require_group_b()) {
                 return result;
             }
-            auto& owned_actor =
-                state.group_b_action_execution[group_b_index];
             auto& owned_phase = state.group_b_target_phases[group_b_index];
-            if (owned_actor == nullptr) {
-                owned_actor = std::make_unique<
-                    LegacyBattleGroupAActionExecutionState>();
-            }
             if (owned_phase == nullptr) {
                 owned_phase = std::make_unique<LegacyBattleTargetPhaseState>();
             }
-            action_actor = owned_actor.get();
+            action_actor =
+                context.startup == nullptr ||
+                    context.startup->group_b_lifecycle == nullptr
+                ? nullptr
+                : &(*context.startup->group_b_lifecycle)[group_b_index]
+                       .action_execution;
             action_phase = owned_phase.get();
             object_token = group_b_token(group_b_index);
         }

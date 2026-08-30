@@ -450,6 +450,9 @@ struct Fixture {
         attack_order_adjacent_record{};
 
     Fixture() {
+        startup.group_b_lifecycle = std::make_unique<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
         startup.party[0U].role_id = 1U;
         startup.party[0U].active = 1U;
         startup.party[0U].configuration.actor_record_token = 0x005029D0U;
@@ -1661,10 +1664,13 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
     {
         LegacyBattleActionDispatchState state;
         state.group_b_count = 2;
-        state.group_b_action_execution[1U] =
-            std::make_unique<LegacyBattleGroupAActionExecutionState>();
-        state.group_b_action_execution[1U]->profile_value = 0x456U;
         Fixture fixture;
+        fixture.startup.group_b_lifecycle = std::make_unique<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        auto& group_b_action =
+            (*fixture.startup.group_b_lifecycle)[1U].action_execution;
+        group_b_action.profile_value = 0x456U;
         fixture.stream_provider.bytes = {
             0x54U, 0x41U, 0x09U, 0x00U,
             0x46U, 0x52U, 0x44U, 0x00U,
@@ -1680,7 +1686,7 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
             result.status == LegacyBattleActionDispatchStatus::completed &&
                 result.dual_record_action_calls == 1U &&
                 result.dual_record_action.return_eax == 1U &&
-                state.group_b_action_execution[1U]->turn_completion_latch == 1U &&
+                group_b_action.turn_completion_latch == 1U &&
                 state.group_a_action_execution[0U].turn_completion_latch == 0U &&
                 port.count(0x00472CE0U) == 0U,
             "action twenty-nine owns and advances the selected group-B dual-record state"

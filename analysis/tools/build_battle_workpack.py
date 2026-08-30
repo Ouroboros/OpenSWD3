@@ -1000,6 +1000,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-group-b-coordinate-offsets-00475870.md",
     ),
+    "0x004758A0": (
+        "platform_adapted",
+        "evidence/battle-group-b-action-execution-004758a0.md",
+    ),
 }
 
 

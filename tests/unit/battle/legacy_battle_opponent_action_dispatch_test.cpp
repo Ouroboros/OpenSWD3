@@ -43,6 +43,33 @@ public:
         return default_reply;
     }
 
+    [[nodiscard]] LegacyBattleActionCallReply invoke_group_b_actor_update(
+        const LegacyBattleActionCallRequest& request,
+        openswd3::battle::LegacyBattleActorGroupBElementState& actor
+    ) override {
+        const auto reply = invoke(request);
+        if (complete_group_b_execution &&
+            request.callee_token == 0x0047C950U) {
+            actor.action_execution.primary_action_record.field_8c = 1U;
+        }
+        return reply;
+    }
+
+    [[nodiscard]] LegacyBattleActionCallReply invoke_group_b_action_record(
+        const LegacyBattleActionCallRequest& request,
+        openswd3::asset_runtime::LegacyActionRecord& record
+    ) override {
+        const auto reply = invoke(request);
+        if (complete_group_b_execution) {
+            record.field_8c = 1U;
+            if (request.callee_token == 0x004831C0U) {
+                record.field_5a = 4U;
+                record.field_24 = 1U;
+            }
+        }
+        return reply;
+    }
+
     [[nodiscard]] bool group_b_action_configuration_typed_stop(
         const u32 callee_token
     ) const noexcept override {
@@ -63,6 +90,7 @@ public:
 
     u16 action{};
     u32 group_b_typed_stop_callee{};
+    bool complete_group_b_execution{true};
     LegacyBattleActionCallReply default_reply{.eax = 1U};
     std::unordered_map<u32, std::deque<LegacyBattleActionCallReply>> replies;
     std::vector<LegacyBattleActionCallRequest> calls;
@@ -137,6 +165,26 @@ struct Fixture {
         attack_order_adjacent_record{};
 
     Fixture() {
+        startup->group_b_lifecycle = std::make_unique<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        for (std::size_t index = 0U;
+             index < startup->group_b_lifecycle->size(); ++index) {
+            auto& actor = (*startup->group_b_lifecycle)[index];
+            actor.object_token = 0x00525508U +
+                static_cast<u32>(index) * 0x2B28U;
+            actor.action_execution.turn_frame_token =
+                0x70000000U + static_cast<u32>(index) * 0x100U;
+            actor.action_execution.resource.token =
+                0x70100000U + static_cast<u32>(index) * 0x100U;
+            actor.action_execution.resource.value_0c = 32U;
+            actor.action_execution.resource.value_0e = 24U;
+            actor.action_execution.render_source_token =
+                0x71000000U + static_cast<u32>(index) * 0x100U;
+            actor.action_execution.render_source_value_04 =
+                0x72000000U + static_cast<u32>(index) * 0x100U;
+            actor.action_configuration.profile_buffer[0x0CU] = std::byte{1U};
+        }
         static_cast<void>(
             openswd3::rendering::initialize_legacy_raster_geometry(
                 raster, framebuffer.geometry().surface
@@ -297,7 +345,9 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         Fixture fixture;
         DispatchPort port;
         port.battle_pair_primary_value() = 3U;
-        port.action = 1U;
+        port.push(0x004786B0U, {.eax = 1U, .edx = 0x13572468U});
+        (*fixture.startup->group_b_lifecycle)[1U]
+            .action_configuration.profile_buffer[0x0CU] = std::byte{9U};
         auto context = fixture.context();
         const auto result =
             openswd3::battle::dispatch_legacy_battle_opponent_action(
@@ -311,8 +361,19 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 port.battle_pair_primary_value() == 0U &&
                 state.selection_word == 0U && state.selection_high_word == 0U &&
                 fixture.framebuffer.physical_pixels().front() == 0xFFFFU &&
+                result.group_b_action_execution_calls == 1U &&
                 result.pair_transition_calls == 1U &&
                 result.pair_transition.port_calls == 1U &&
+                has_call_argument(port, 0x004831C0U, 0U, 0x00508838U) &&
+                std::ranges::find_if(
+                    port.calls,
+                    [](const auto& call) {
+                        return call.callee_token == 0x0047C6B0U &&
+                            call.eax == 0x0000179AU &&
+                            call.edx == 0x13572468U;
+                    }
+                ) != port.calls.end() &&
+                port.count(0x004758A0U) == 0U &&
                 has_call_argument(port, 0x00478710U, 1U, 300U),
             "opponent action one side zero commits pair then clears all three visual channels"
         );
@@ -326,7 +387,9 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         Fixture fixture;
         DispatchPort port;
         port.battle_pair_primary_value() = 7U;
-        port.action = 1U;
+        port.push(0x004786B0U, {.eax = 1U, .edx = 0x24681357U});
+        (*fixture.startup->group_b_lifecycle)[1U]
+            .action_configuration.profile_buffer[0x0CU] = std::byte{9U};
         auto context = fixture.context();
         const auto result =
             openswd3::battle::dispatch_legacy_battle_opponent_action(
@@ -337,7 +400,18 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 state.selected_target_index == 3U &&
                 port.battle_pair_primary_value() == 0U &&
                 state.selection_word == 8U && state.selection_high_word == 9U &&
+                result.group_b_action_execution_calls == 1U &&
                 result.pair_transition_calls == 0U &&
+                has_call_argument(port, 0x004831C0U, 0U, 0x0052D680U) &&
+                std::ranges::find_if(
+                    port.calls,
+                    [](const auto& call) {
+                        return call.callee_token == 0x0047C6B0U &&
+                            call.eax == 0x0000102FU &&
+                            call.edx == 0x24681357U;
+                    }
+                ) != port.calls.end() &&
+                port.count(0x004758A0U) == 0U &&
                 port.count(0x00478710U) == 0U,
             "opponent action one side nonzero skips pair commit and preserves selection words"
         );

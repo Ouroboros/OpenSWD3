@@ -31,6 +31,7 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u8 record_mode_flags{};             // actor + 0x0393
     compat::u8 profile_mode{};                  // actor + 0x2F30
     compat::u16 profile_value{};                // actor + 0x2A0C
+    compat::u16 profile_variant_override{};      // actor + 0x2A0E
     compat::u16 special_profile_variant{};       // actor + 0x2A8A
     compat::u16 summon_action_id{};             // actor + 0x2F14
     compat::u16 action_override_flags{};        // actor + 0x2A86
@@ -71,6 +72,7 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u16 special_primary_draw_x{};        // actor + 0x29B8
     compat::u16 special_primary_draw_y{};        // actor + 0x29BA
     compat::u32 turn_completion_latch{};         // actor + 0x2AAC
+    compat::u32 turn_completion_aux{};           // actor + 0x2AB0
     compat::u16 turn_sample_word{};              // actor + 0x04C0
     compat::u16 auxiliary_word{};               // actor + 0x03B0
     compat::u16 secondary_auxiliary_word{};     // actor + 0x03AE
@@ -95,6 +97,10 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u32 special_particle_sequence_index{};  // actor + 0x2F0C
     compat::u16 special_particle_sequence_count{};  // actor + 0x2F24
     compat::u32 render_flags{};                 // actor + 0x26A4
+    compat::u32 render_source_token{};           // actor + 0x2548
+    compat::u32 render_source_value_04{};        // *(actor + 0x2548) + 0x04
+    compat::u16 completion_delay_word{};         // actor + 0x2A12
+    compat::u16 completion_word{};               // actor + 0x26D6
     compat::u16 special_four_hundred_marker{};   // actor + 0x2A8E
     compat::u32 special_four_hundred_phase{};    // actor + 0x2AC4
     compat::u16 special_four_hundred_tail_word{};  // actor + 0x26D4

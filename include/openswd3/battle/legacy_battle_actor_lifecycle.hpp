@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_group_a_action_execution_state.hpp"
 #include "openswd3/battle/legacy_battle_group_a_resource_cleanup.hpp"
 #include "openswd3/compat/types.hpp"
 
@@ -130,7 +131,6 @@ struct LegacyBattleGroupBActionConfigurationState {
     std::array<std::byte, 0x20> copied_record{};   // actor + 0x0D70
     std::array<std::byte, 0x28> profile_buffer{};  // actor + 0x0D90
     compat::u32 timing_value{};                    // actor + 0x26B4
-    compat::u16 action_id{};                       // actor + 0x2A0C
     compat::u8 resource_mode{};                    // actor + 0x2A93
     compat::u32 source_runtime_value{};            // actor + 0x2AA0
 };
@@ -141,6 +141,7 @@ struct LegacyBattleActorGroupBElementState {
     std::array<compat::u8, 0xA4> resource_bytes{};
     LegacyBattleGroupBActionRecord action_record{};
     LegacyBattleGroupBActionConfigurationState action_configuration{};
+    LegacyBattleGroupAActionExecutionState action_execution{};
 };
 
 struct LegacyBattleActorGroupBElementCallReply {

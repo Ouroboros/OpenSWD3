@@ -1,6 +1,7 @@
 #include "openswd3/battle/legacy_battle_opponent_action_dispatch.hpp"
 
 #include "openswd3/battle/legacy_battle_group_b_action_configuration.hpp"
+#include "openswd3/battle/legacy_battle_group_b_action_execution.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 
 #include <algorithm>
@@ -16,7 +17,6 @@ using compat::u16;
 using compat::u32;
 
 constexpr u32 kCallQueryAction = 0x004786B0U;
-constexpr u32 kCallPreparePair = 0x004758A0U;
 constexpr u32 kCallCommitVisual = 0x0047F150U;
 constexpr u32 kCallSetDelay = 0x00478710U;
 constexpr u32 kCallQuerySelection = 0x0047C680U;
@@ -309,9 +309,9 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
         return result;
     }
     const u32 source_token = group_b_token(group_b_index);
-    const u16 action = low_word(
-        invoke(state, port, result, kCallQueryAction, {source_token}).eax
-    );
+    const auto action_reply =
+        invoke(state, port, result, kCallQueryAction, {source_token});
+    const u16 action = low_word(action_reply.eax);
     result.action_code = action;
 
     if (action > 100U) {
@@ -357,14 +357,34 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                 return result;
             }
             const u32 target_token = group_a_token(target_index);
-            if (invoke(
+            auto* const actor =
+                context.startup == nullptr ||
+                    context.startup->group_b_lifecycle == nullptr
+                ? nullptr
+                : &(*context.startup->group_b_lifecycle)[group_b_index];
+            const auto execution =
+                advance_legacy_battle_group_b_action_execution(
+                    actor,
+                    state.group_a_action_shared,
                     state,
                     port,
-                    result,
-                    kCallPreparePair,
-                    {source_token, target_token}
-                )
-                    .eax != 1U) {
+                    context,
+                    {
+                        .actor_token = source_token,
+                        .target_token = target_token,
+                        .entry_eax = target_index * 0x0BCDU,
+                        .entry_edx = action_reply.edx,
+                    }
+                );
+            ++result.group_b_action_execution_calls;
+            result.port_calls += execution.port_calls;
+            if (execution.status !=
+                LegacyBattleGroupBActionExecutionStatus::completed) {
+                result.status = LegacyBattleActionDispatchStatus::
+                    group_b_action_execution_typed_stop;
+                return result;
+            }
+            if (execution.return_eax != 1U) {
                 return result;
             }
             state.action_pending = 1U;
@@ -410,14 +430,33 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
             return result;
         }
         const u32 target_token = group_b_token(target_index);
-        if (invoke(
-                state,
-                port,
-                result,
-                kCallPreparePair,
-                {source_token, target_token}
-            )
-                .eax != 1U) {
+        auto* const actor =
+            context.startup == nullptr ||
+                context.startup->group_b_lifecycle == nullptr
+            ? nullptr
+            : &(*context.startup->group_b_lifecycle)[group_b_index];
+        const auto execution = advance_legacy_battle_group_b_action_execution(
+            actor,
+            state.group_a_action_shared,
+            state,
+            port,
+            context,
+            {
+                .actor_token = source_token,
+                .target_token = target_token,
+                .entry_eax = target_index * 0x0565U,
+                .entry_edx = action_reply.edx,
+            }
+        );
+        ++result.group_b_action_execution_calls;
+        result.port_calls += execution.port_calls;
+        if (execution.status !=
+            LegacyBattleGroupBActionExecutionStatus::completed) {
+            result.status = LegacyBattleActionDispatchStatus::
+                group_b_action_execution_typed_stop;
+            return result;
+        }
+        if (execution.return_eax != 1U) {
             return result;
         }
         state.action_pending = 1U;

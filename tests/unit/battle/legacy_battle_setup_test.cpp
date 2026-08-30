@@ -78,6 +78,7 @@ void test_battle_group_a_resource_pair(openswd3::test::Context& test);
 void test_battle_group_a_value_pair(openswd3::test::Context& test);
 void test_battle_group_a_workspace_reset(openswd3::test::Context& test);
 void test_battle_animation_collision(openswd3::test::Context& test);
+void test_battle_group_b_action_execution(openswd3::test::Context& test);
 void test_battle_opponent_action_dispatch(openswd3::test::Context& test);
 void test_battle_background_initialization(openswd3::test::Context& test);
 void test_battle_color_accumulation(openswd3::test::Context& test);
@@ -7125,6 +7126,7 @@ int main() {
     test_battle_group_a_value_pair(test);
     test_battle_group_a_workspace_reset(test);
     test_battle_animation_collision(test);
+    test_battle_group_b_action_execution(test);
     test_battle_opponent_action_dispatch(test);
     test_battle_background_initialization(test);
     test_battle_color_accumulation(test);

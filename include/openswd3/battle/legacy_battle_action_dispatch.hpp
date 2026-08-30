@@ -40,6 +40,8 @@
 
 namespace openswd3::battle {
 
+struct LegacyBattleActorGroupBElementState;
+
 inline constexpr compat::u32 kLegacyBattleActionGroupABaseToken = 0x005029D0U;
 inline constexpr compat::u32 kLegacyBattleActionGroupBBaseToken = 0x00525508U;
 inline constexpr compat::u32 kLegacyBattleActionGroupAStride = 0x2F34U;
@@ -131,6 +133,33 @@ public:
     [[nodiscard]] virtual std::shared_ptr<const std::array<std::byte, 0x28>>
     group_b_action_profile_buffer() const {
         return nullptr;
+    }
+
+    [[nodiscard]] virtual LegacyBattleActionCallReply
+    invoke_group_b_actor_update(
+        const LegacyBattleActionCallRequest& request,
+        LegacyBattleActorGroupBElementState& actor
+    ) {
+        static_cast<void>(actor);
+        return invoke(request);
+    }
+
+    [[nodiscard]] virtual LegacyBattleActionCallReply
+    invoke_group_b_action_record(
+        const LegacyBattleActionCallRequest& request,
+        asset_runtime::LegacyActionRecord& record
+    ) {
+        static_cast<void>(record);
+        return invoke(request);
+    }
+
+    [[nodiscard]] virtual LegacyBattleActionCallReply
+    invoke_group_b_secondary_record(
+        const LegacyBattleActionCallRequest& request,
+        LegacyBattleGroupAActionExecutionRecord& record
+    ) {
+        static_cast<void>(record);
+        return invoke(request);
     }
 
     [[nodiscard]] virtual LegacyBattleActionCallReply
@@ -1105,8 +1134,6 @@ struct LegacyBattleActionDispatchState {
     compat::u32 mirror_group_b_spawn{};
     std::array<LegacyBattleActionMessageProfile, 8> group_b_message_profiles{};
     std::array<LegacyBattleRewardScaleActorState, 8> group_b_reward_scale{};
-    std::array<std::unique_ptr<LegacyBattleGroupAActionExecutionState>, 8>
-        group_b_action_execution{};
     std::array<std::unique_ptr<LegacyBattleTargetPhaseState>, 8>
         group_b_target_phases{};
     LegacyBattleImageParticleNodePool target_phase_particle_nodes;
@@ -1250,6 +1277,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     turn_advance_typed_stop,
     group_b_progress_typed_stop,
     group_b_action_configuration_typed_stop,
+    group_b_action_execution_typed_stop,
 };
 
 struct LegacyBattleActionDispatchResult {
@@ -1346,6 +1374,7 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 turn_commit_chance_calls{};
     LegacyBattleTurnAdvanceResult turn_advance{};
     compat::u32 turn_advance_calls{};
+    compat::u32 group_b_action_execution_calls{};
 };
 
 // sub_4731A0.

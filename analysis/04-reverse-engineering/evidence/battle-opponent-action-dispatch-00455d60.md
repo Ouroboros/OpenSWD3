@@ -52,7 +52,7 @@ case 3–5、8、9、13、14、16以及动作0均走default，返回0且只执�
 
 ### side mode为0
 
-第二参数解释为组A目标。准备成功后：
+第二参数解释为组A目标。target首次有效性检查后，以组B source为this、组A target为显式参数直接调用已关闭的组B行动执行函数。typed-stop映射为父级`group_b_action_execution_typed_stop`；返回0与typed-stop都阻断pending、pair commit、视觉提交和全部side尾，只有完整返回1才继续：
 
 - action pending写1；
 - action pending auxiliary清零；
@@ -63,9 +63,9 @@ blocking effect为0且视觉commit完整EAX等于1时，发布selected target、
 
 ### side mode非0
 
-第二参数解释为组B目标。准备后同样写pending与packed低word，但明确不调用pair commit。视觉commit参数只保留accumulator，另两项固定0。成功时先写映射表目标槽与selected target，再清framebuffer。
+第二参数解释为组B目标。target首次有效性检查后，以相同组B source和组B target调用同一typed执行入口；返回0和typed-stop同样阻断全部后缀。返回1后写pending与packed低word，但明确不调用pair commit。视觉commit参数只保留accumulator，另两项固定0。成功时先写映射表目标槽与selected target，再清framebuffer。
 
-公共尾只清accumulator和current actor，故selection两个word保持陈旧值；不设置延迟，返回1。
+公共尾只清accumulator和current actor，故selection两个word保持陈旧值；不设置延迟，返回1。两处旧`0x004758A0`整函数opaque调用均已删除。
 
 ## 5. case 2：选择与deformation生命周期
 
@@ -164,7 +164,7 @@ special action非零时继续查询固定组B base。返回0且`group-B count - 
 - deformation typed构造与析构；
 - framebuffer前缀清屏。
 
-双对象数值转场caller已删除旧token并直接组合typed实现；两处攻击顺序移除也在组A编码或组B阶段编码发布点直接组合，旧token删除。组B行动配置关闭后，case 15也删除整个`0x00475720` opaque调用，直接复用typed实现；其内部资源加载、profile加载和资源文本释放仍各保持一个窄端口。动作累计值与玩家动作和效果协调器共用唯一共享port。其余角色、AI、记录、模式与stage callee保持单一typed token端口。端口中的物理地址、scratch token与记录token均为`compat::u32`，不转主机指针。端口reply只在callee实际可写的共享槽发布累计值、selection word、special action与spawn count。
+双对象数值转场caller已删除旧token并直接组合typed实现；两处攻击顺序移除也在组A编码或组B阶段编码发布点直接组合，旧token删除。组B行动配置关闭后，case 15也删除整个`0x00475720` opaque调用，直接复用typed实现；其内部资源加载、profile加载和资源文本释放仍各保持一个窄端口。组B行动执行关闭后，case 1的组A/组B target两处也改为typed直连，直接复用actor lifecycle中的唯一action-execution owner、共享累计值、颜色与画面刷新；执行器内部未审callee保持窄actor/记录/generic port。动作累计值与玩家动作和效果协调器共用唯一共享port。其余角色、AI、记录、模式与stage callee保持单一typed token端口。端口中的物理地址、scratch token与记录token均为`compat::u32`，不转主机指针。端口reply只在callee实际可写的共享槽发布累计值、selection word、special action与spawn count。
 
 ## 11. typed故障点
 
@@ -184,7 +184,7 @@ special action非零时继续查询固定组B base。返回0且`group-B count - 
 - 入口组B越界；
 - 动作100与未识别大动作的target延迟访问；
 - 动作200/300及200的首次组A target停点；
-- case 1双side的不同pair、返回值、selection清理和延迟；
+- case 1双side的组B行动执行typed直连、组A/组B target、返回0后缀阻断、typed-stop传播、旧整函数零调用、不同pair、selection清理和延迟；
 - case 2 deformation分配、构造、析构与owner释放；
 - case 6完整初始化/完成；
 - case 7攻击顺序移除直连、旧地址调用清零、低byte回绕与两个active target清理；

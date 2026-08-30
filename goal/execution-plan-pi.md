@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v830
+版本：v831
 
 最后更新：2026-08-31
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗函数 `0x00475870`
+当前步骤：模块10 · 审计战斗函数 `0x00476080`
 
 ## 0. 执行约定
 
@@ -4278,4 +4278,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=241`的`0x00475870`战斗组B资源坐标增量读取函数。完整权威LST主体`0x00475870..0x0047588F`从proc到endp共16行、9条实际指令、0个call、0个跳转、0个局部标签、1个返回点且无外部chunk。实现从组B actor资源`+0x62/+0x8A`按原序读取两个u16并写入两个输出，保留资源token重读、EDX高word陈旧、EAX输出token、ECX终端资源token，以及actor、资源和两个输出各自首次真实访问typed-stop；第二输出故障时保留第一输出。资源继续复用惰性八槽组B唯一owner。最终角色步进唯一caller删除`0x00475870` opaque调用并typed直连，只在完整返回后按u16回绕累加两个坐标；子stop保留角色有效性前缀并阻断坐标累加、描述符和后续动作。验证：战斗聚合定向测试、完整core AddressSanitizer `188/188`、Linux core `188/188`、Linux app `194/194`全部通过，零OpenSWD3源码warning与sanitizer finding；app仅有既有ALSA环境提示。工作包为`241/422 = 232 platform_adapted + 9 assembly_exact + 181 pending_audit`；生成器连续双跑逐字节一致，SHA256为`bdb2b3b42020d847ae21bc3f93054154fd8b6cb1e5a51017a7da01ca0c6c94e6`。动态差分因原版八个组B actor、动态164-byte资源、两个真实栈输出、入口陈旧EAX/EDX、caller共享坐标与寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=242`的`0x004758A0`战斗函数。
+本轮再完成`audit_order=242`的`0x004758A0`战斗组B行动执行函数。完整权威LST主体`0x004758A0..0x00476076`共869行、683条实际指令、32个call、61个跳转、45个局部标签、4个返回点且无外部chunk。实现profile-bit8前置失败与early latch、主/次/回合记录、bit14/15 runtime门、两段signed效果与u32累计、七word颜色、typed画面刷新、资源与render-source分时访问、两条绘制路径、五记录和0x4C0工作区收尾、四目标槽全一、bound 120完成延迟及零/一返回；保留效果发布顺序、9999夹值、-1抑制、word回绕、special-mode净零motion与真实访问点typed-stop。组B配置、动作29和执行器收敛到actor lifecycle唯一action-execution owner，复用共享累计、active-effect gate、颜色与画面刷新；16个未审callee保持窄port。对手动作1的组A/组B target两处caller均删除整函数opaque调用并typed直连，返回0或typed-stop阻断全部caller后缀。验证：定向测试、完整core AddressSanitizer`188/188`、Linux core`188/188`、Linux app`194/194`全部通过且源码零warning。工作包为`242/422 = 233 platform_adapted + 9 assembly_exact + 180 pending_audit`；生成器连续双跑逐字节一致，SHA256为`f47b368d0fd12ac6b17afd257f6dacd01a38c5fc53282b1603b264956a57f8ad`。动态差分因原版组B actor、双方target、动作/profile/资源、16个callee、共享累计/颜色/framebuffer/RNG与caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=243`的`0x00476080`战斗函数。

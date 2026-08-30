@@ -126,16 +126,16 @@ configure_legacy_battle_group_b_action(
         static_cast<i32>(std::bit_cast<i16>(read_word(resource, 0x64U)));
     write_dword(resource, 0x4CU, std::bit_cast<u32>(signed_resource_value));
     state.resource_mode = resource[0x90U];
-    state.action_id = read_word(resource, 0x50U);
-    if (state.action_id == 0U) {
-        state.action_id = source->action_id;
+    actor->action_execution.profile_value = read_word(resource, 0x50U);
+    if (actor->action_execution.profile_value == 0U) {
+        actor->action_execution.profile_value = source->action_id;
     }
 
     const u32 profile_argument =
         (source->runtime_value & 0xFFFF0000U) | read_word(resource, 0x60U);
     const u32 profile_ecx =
         (std::bit_cast<u32>(signed_resource_value) & 0xFFFF0000U) |
-        state.action_id;
+        actor->action_execution.profile_value;
     reply = port.invoke({
         .call = LegacyBattleGroupBActionConfigurationCall::load_action_profile,
         .arguments = {actor_token + 0x0D90U, profile_argument},
@@ -176,13 +176,13 @@ configure_legacy_battle_group_b_action(
     result.return_eax = reply.eax;
     result.return_ecx = reply.ecx;
     result.return_edx = reply.edx;
-    if (state.action_id == 0x001CU) {
+    if (actor->action_execution.profile_value == 0x001CU) {
         state.timing_value = 0x0000A028U;
         write_dword(resource, 0x4CU, state.timing_value);
         result.return_eax = state.timing_value;
         result.return_edx = actor->resource_token;
     }
-    if (state.action_id == 0x002EU) {
+    if (actor->action_execution.profile_value == 0x002EU) {
         state.timing_value = 0x0001D4C0U;
         write_dword(resource, 0x4CU, state.timing_value);
         result.return_eax = state.timing_value;
