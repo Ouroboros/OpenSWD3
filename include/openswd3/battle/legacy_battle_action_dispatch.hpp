@@ -185,6 +185,15 @@ public:
     }
 
     [[nodiscard]] virtual LegacyBattleActionCallReply
+    invoke_special_four_oh_nine_coordinate_update(
+        const LegacyBattleActionCallRequest& request,
+        asset_runtime::LegacyActionRecord& record
+    ) {
+        static_cast<void>(record);
+        return invoke(request);
+    }
+
+    [[nodiscard]] virtual LegacyBattleActionCallReply
     invoke_action_four_oh_two_coordinate_update(
         const LegacyBattleActionCallRequest& request,
         compat::u32& coordinate_x,
@@ -859,6 +868,35 @@ struct LegacyBattleActionFourOhTwoResult {
     compat::u32 return_edx{};
 };
 
+struct LegacyBattleSpecialFourOhNineRequest {
+    compat::u32 actor_token{};
+    compat::u32 target_token{};
+    compat::u32 entry_eax{};
+    compat::u32 entry_ecx{};
+    compat::u32 entry_edx{};
+};
+
+enum class LegacyBattleSpecialFourOhNineStatus : compat::u8 {
+    completed,
+    actor_state_typed_stop,
+    shared_state_typed_stop,
+};
+
+struct LegacyBattleSpecialFourOhNineResult {
+    LegacyBattleSpecialFourOhNineStatus status{
+        LegacyBattleSpecialFourOhNineStatus::completed
+    };
+    compat::u32 special_update_calls{};
+    compat::u32 coordinate_query_calls{};
+    compat::u32 coordinate_update_calls{};
+    compat::u32 stage_two_calls{};
+    compat::u32 action_record_clears{};
+    compat::u32 port_calls{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
 struct LegacyBattleTargetPhaseAdvanceResult {
     LegacyBattleTargetPhaseAdvanceStatus status{
         LegacyBattleTargetPhaseAdvanceStatus::completed
@@ -1133,6 +1171,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     special_four_hundred_typed_stop,
     action_four_effect_typed_stop,
     action_four_oh_two_typed_stop,
+    special_four_oh_nine_typed_stop,
     summon_frame_typed_stop,
     turn_commit_chance_typed_stop,
     turn_advance_typed_stop,
@@ -1220,6 +1259,8 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 target_property_chance_calls{};
     LegacyBattleActionFourOhTwoResult action_four_oh_two{};
     compat::u32 action_four_oh_two_calls{};
+    LegacyBattleSpecialFourOhNineResult special_four_oh_nine{};
+    compat::u32 special_four_oh_nine_calls{};
     LegacyBattleSummonFrameResult summon_frame{};
     compat::u32 summon_frame_calls{};
     LegacyBattleTurnCommitChanceResult turn_commit_chance{};
@@ -1238,6 +1279,15 @@ advance_legacy_battle_special_four_oh_five(
     LegacyBattleActionDispatchPort& port,
     LegacyBattleActionDispatchContext& context,
     const LegacyBattleSpecialFourOhFiveRequest& request
+);
+
+// sub_474E60.
+[[nodiscard]] LegacyBattleSpecialFourOhNineResult
+advance_legacy_battle_special_four_oh_nine(
+    LegacyBattleGroupAActionExecutionState* actor,
+    LegacyBattleGroupAActionExecutionSharedState* shared,
+    LegacyBattleActionDispatchPort& port,
+    const LegacyBattleSpecialFourOhNineRequest& request
 );
 
 // sub_474BA0.

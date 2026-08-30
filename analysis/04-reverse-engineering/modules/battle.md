@@ -669,6 +669,8 @@ I5最终必须锁定：
 
 `audit_order=229`的`0x00474BA0`已关闭为`platform_adapted`。完整权威LST主体`0x00474BA0..0x00474E57`共294行、187条实际指令、10个call、14个跳转、10个局部标签、2个返回点且无外部chunk。实现动作402可选转身记录、bit0/bit3事件、双坐标查询与抑制、sequence发布、signed三帧节拍、八向粒子、九参数粒子边界、粒子提交与双完成门，保留word回绕、坐标表和spawn count不清理行为。唯一动作402 caller已typed化。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`229/422 = 220 platform_adapted + 9 assembly_exact + 193 pending_audit`，双跑SHA256为`89762014c855c7bfb77ca3bbfe5719f90ae3b4233fb8b328f3d794cfaf3f7bdc`。动态差分因原版主/转身/效果记录、坐标更新、八向粒子、sample、完成callee和caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=230`的`0x00474E60`战斗角色动作效果与渲染函数。
+`audit_order=230`的`0x00474E60`已关闭为`platform_adapted`。完整权威LST主体`0x00474E60..0x00474FB4`共158行、97条实际指令、4个call、9个跳转、7个局部标签、2个返回点且无外部chunk。实现入口三寄存器清零、主记录动作id与variant发布、gate零主更新、gate一坐标更新、gate二直接效果模式与阶段推进、主记录完成清理、共享bit15事件、shared bit0与signed gate最终完成门，并保留同帧级联和陈旧寄存器。复用既有行动者主记录、runtime gate、direct mode与共享完成flags唯一owner；四个未审callee保留窄typed边界，唯一动作409 caller已typed化。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`230/422 = 221 platform_adapted + 9 assembly_exact + 192 pending_audit`，双跑SHA256为`0cc03fb3dea71c05aef606c1dadbb43d79921904905afebdaac83e922720d37c`。动态差分因原版行动者主记录、目标坐标、直接效果、共享完成flags、四个callee和caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=231`的`0x00474FC0`战斗角色动作效果与渲染函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

@@ -127,6 +127,7 @@ constexpr u32 kCallActionFourOhTwoCoordinateUpdate = 0x00481FD0U;
 constexpr u32 kCallActionFourOhTwoParticle = 0x004800F0U;
 constexpr u32 kCallActionFourOhTwoParticleCommit = 0x004801A0U;
 constexpr u32 kCallActionFourOhTwoCompletion = 0x0047FC40U;
+constexpr u32 kCallSpecialFourOhNineCoordinateUpdate = 0x00484230U;
 constexpr u32 kCallSpecialFourHundredWorkspace = 0x004820A0U;
 constexpr u32 kCallSpecialFourHundredEffect = 0x004838D0U;
 constexpr u32 kCallSpecialFourHundredTargetEvent = 0x00474FC0U;
@@ -135,7 +136,6 @@ constexpr u32 kCallClearPendingAction = 0x00482DA0U;
 constexpr u32 kCallTargetEffectProperty = 0x0047CEC0U;
 constexpr u32 kCallActorEffectMode = 0x0047CF00U;
 constexpr u32 kCallActorEffectAction = 0x004787D0U;
-constexpr u32 kCallSpecialFourOhNine = 0x00474E60U;
 
 [[nodiscard]] constexpr u32 group_a_token(const u32 index) noexcept {
     return kLegacyBattleActionGroupABaseToken +
@@ -3348,6 +3348,191 @@ advance_legacy_battle_special_four_oh_six(
     return result;
 }
 
+LegacyBattleSpecialFourOhNineResult
+advance_legacy_battle_special_four_oh_nine(
+    LegacyBattleGroupAActionExecutionState* actor,
+    LegacyBattleGroupAActionExecutionSharedState* shared,
+    LegacyBattleActionDispatchPort& port,
+    const LegacyBattleSpecialFourOhNineRequest& request
+) {
+    LegacyBattleSpecialFourOhNineResult result{};
+    if (actor == nullptr || request.actor_token == 0U) {
+        result.status =
+            LegacyBattleSpecialFourOhNineStatus::actor_state_typed_stop;
+        return result;
+    }
+
+    struct Registers {
+        u32 eax{};
+        u32 ecx{};
+        u32 edx{};
+    } registers{
+        .eax = 0U,
+        .ecx = static_cast<u32>(actor->profile_value),
+        .edx = static_cast<u32>(actor->special_profile_variant),
+    };
+    auto publish_registers = [&]() {
+        result.return_eax = registers.eax;
+        result.return_ecx = registers.ecx;
+        result.return_edx = registers.edx;
+        return result;
+    };
+    auto finish_zero = [&]() {
+        result.return_eax = 0U;
+        result.return_ecx = registers.ecx;
+        result.return_edx = registers.edx;
+        return result;
+    };
+    auto invoke_action = [&](const u32 callee,
+                             const std::array<u32, 8>& arguments = {}) {
+        ++result.port_calls;
+        const auto reply = port.invoke({
+            .callee_token = callee,
+            .arguments = arguments,
+            .eax = registers.eax,
+            .ecx = registers.ecx,
+            .edx = registers.edx,
+        });
+        registers.eax = reply.eax;
+        registers.ecx = reply.ecx;
+        registers.edx = reply.edx;
+        return reply;
+    };
+
+    u32 coordinate_x = 0U;
+    u32 coordinate_y = 0U;
+    auto& special = actor->special_action_record;
+    registers.ecx += 0x5DCU;
+    special.action_id = registers.ecx;
+    special.base_variant = registers.edx;
+    registers.ecx = actor->action_runtime_gate;
+    actor->turn_completion_latch = 1U;
+    if (actor->action_runtime_gate == 0U) {
+        ++result.special_update_calls;
+        ++result.port_calls;
+        const auto primary_reply =
+            port.invoke_special_four_hundred_primary_update(
+                {
+                    .callee_token = kCallSpecialActionUpdate,
+                    .arguments = {
+                        request.target_token,
+                        request.actor_token + 0x0AF0U,
+                    },
+                    .eax = registers.eax,
+                    .ecx = request.actor_token,
+                    .edx = registers.edx,
+                },
+                special,
+                actor->turn_frame_token,
+                actor->turn_render_flags,
+                actor->special_primary_draw_x,
+                actor->special_primary_draw_y
+            );
+        registers.eax = primary_reply.eax;
+        registers.ecx = primary_reply.ecx;
+        registers.edx = primary_reply.edx;
+    }
+
+    if (actor->action_runtime_gate == 1U) {
+        registers.edx = special.base_variant;
+        special.base_variant = registers.edx + 1U;
+        registers.edx = special.base_variant;
+        registers.ecx = request.target_token;
+        ++result.coordinate_query_calls;
+        const auto coordinates = invoke_action(
+            kCallActionThirteenQueryCoordinates,
+            {request.target_token, 0U}
+        );
+        coordinate_x = coordinates.outputs[0U];
+        coordinate_y = coordinates.outputs[1U];
+        registers.eax = coordinate_x;
+        registers.edx = coordinate_y;
+        registers.ecx = request.actor_token;
+        ++result.coordinate_update_calls;
+        ++result.port_calls;
+        const auto updated =
+            port.invoke_special_four_oh_nine_coordinate_update(
+                {
+                    .callee_token = kCallSpecialFourOhNineCoordinateUpdate,
+                    .arguments = {
+                        coordinate_x,
+                        coordinate_y,
+                        request.actor_token + 0x0AF0U,
+                    },
+                    .eax = registers.eax,
+                    .ecx = request.actor_token,
+                    .edx = registers.edx,
+                },
+                special
+            );
+        registers.eax = updated.eax;
+        registers.ecx = updated.ecx;
+        registers.edx = updated.edx;
+    }
+
+    registers.ecx = actor->action_runtime_gate;
+    registers.eax = 2U;
+    if (actor->action_runtime_gate == 2U) {
+        registers.ecx = special.base_variant;
+        actor->special_effect_direct_mode |= 8U;
+        special.base_variant = registers.ecx + registers.eax;
+        registers.eax = special.base_variant;
+        registers.ecx = request.actor_token;
+        ++result.stage_two_calls;
+        const auto stage_two = invoke_action(
+            kCallActorExit,
+            {
+                request.target_token,
+                special.action_id,
+                special.base_variant,
+            }
+        );
+        if (stage_two.eax == 1U) {
+            actor->action_runtime_gate = 3U;
+        }
+    }
+
+    if (special.field_8c == 1U) {
+        registers.ecx = 0U;
+        registers.eax = 0U;
+        special = {};
+        ++result.action_record_clears;
+        actor->action_runtime_gate += 1U;
+    }
+    if ((special.field_5a & 8U) != 0U) {
+        if (shared == nullptr) {
+            result.status =
+                LegacyBattleSpecialFourOhNineStatus::shared_state_typed_stop;
+            return publish_registers();
+        }
+        registers.ecx = shared->action_completion_flags;
+        registers.eax = 0x8000U;
+        if ((shared->action_completion_flags & 0x8000U) == 0U) {
+            shared->action_completion_flags |= 0x8000U;
+        }
+        special.field_5a = 0U;
+    }
+    if (shared == nullptr) {
+        result.status =
+            LegacyBattleSpecialFourOhNineStatus::shared_state_typed_stop;
+        return publish_registers();
+    }
+    if ((shared->action_completion_flags & 1U) == 0U ||
+        std::bit_cast<i32>(actor->action_runtime_gate) < 3) {
+        return finish_zero();
+    }
+
+    actor->action_runtime_gate = 0U;
+    registers.ecx = 0U;
+    registers.eax = 1U;
+    special = {};
+    ++result.action_record_clears;
+    result.return_eax = registers.eax;
+    result.return_ecx = registers.ecx;
+    result.return_edx = registers.edx;
+    return result;
+}
+
 LegacyBattleActionFourOhTwoResult
 advance_legacy_battle_action_four_oh_two(
     LegacyBattleGroupAActionExecutionState* actor,
@@ -5319,10 +5504,25 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                 return result;
             }
         } else if (action == 0x199U) {
-            reply = invoke(
-                state, port, result, kCallSpecialFourOhNine, {target_token}
-            );
-            if (reply.eax != 1U) {
+            result.special_four_oh_nine =
+                advance_legacy_battle_special_four_oh_nine(
+                    &state.group_a_action_execution[group_a_index],
+                    &state.group_a_action_shared,
+                    port,
+                    {
+                        .actor_token = actor_token,
+                        .target_token = target_token,
+                    }
+                );
+            ++result.special_four_oh_nine_calls;
+            result.port_calls += result.special_four_oh_nine.port_calls;
+            if (result.special_four_oh_nine.status !=
+                LegacyBattleSpecialFourOhNineStatus::completed) {
+                result.status = LegacyBattleActionDispatchStatus::
+                    special_four_oh_nine_typed_stop;
+                return result;
+            }
+            if (result.special_four_oh_nine.return_eax != 1U) {
                 return result;
             }
         } else if (action == 0x1F4U) {

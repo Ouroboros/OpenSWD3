@@ -132,6 +132,16 @@ public:
     }
 
     [[nodiscard]] LegacyBattleActionCallReply
+    invoke_special_four_oh_nine_coordinate_update(
+        const LegacyBattleActionCallRequest& request,
+        openswd3::asset_runtime::LegacyActionRecord& record
+    ) override {
+        special_four_oh_nine_coordinate_records.push_back(&record);
+        return LegacyBattleActionDispatchPort::
+            invoke_special_four_oh_nine_coordinate_update(request, record);
+    }
+
+    [[nodiscard]] LegacyBattleActionCallReply
     invoke_action_four_oh_two_coordinate_update(
         const LegacyBattleActionCallRequest& request,
         u32& coordinate_x,
@@ -280,6 +290,8 @@ public:
     std::vector<openswd3::asset_runtime::LegacyActionRecord*>
         special_four_hundred_primary_records;
     std::vector<u8*> special_four_hundred_workspaces;
+    std::vector<openswd3::asset_runtime::LegacyActionRecord*>
+        special_four_oh_nine_coordinate_records;
     std::vector<LegacyBattleActionCallRequest>
         action_four_oh_two_coordinate_calls;
     std::vector<std::array<u32, 2>> action_four_oh_two_coordinates;
@@ -742,6 +754,11 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
     {
         LegacyBattleActionDispatchState state;
         state.group_a_to_actor[0] = 0U;
+        auto& actor = state.group_a_action_execution[0U];
+        actor.profile_value = 0x123U;
+        actor.special_profile_variant = 7U;
+        actor.action_runtime_gate = 3U;
+        state.group_a_action_shared.action_completion_flags = 1U;
         Fixture fixture;
         DispatchPort port;
         port.battle_pair_primary_value() = 10U;
@@ -754,6 +771,8 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
             result.return_value == 1U && state.current_actor_index == 0xFFFFU &&
                 openswd3::compat::u16(state.scan_push_state) == 0x8000U &&
                 state.frame_refresh_pending == 1U &&
+                result.special_four_oh_nine_calls == 1U &&
+                port.count(0x00474E60U) == 0U &&
                 port.count(0x0047CC40U) == 1U &&
                 has_call_argument(port, 0x0047F150U, 0U, 10U),
             "special action four hundred nine preserves unique screen mode and scan push publication"
@@ -3052,6 +3071,195 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 (fixture.flags[0x4BU >> 3U] &
                  static_cast<u8>(1U << (0x4BU & 7U))) == 0U,
             "action thirty one initializes five second countdown then escape clears bit before target access"
+        );
+    }
+
+    {
+        const auto prepare_actor = [] {
+            auto actor =
+                std::make_unique<LegacyBattleGroupAActionExecutionState>();
+            actor->profile_value = 0x123U;
+            actor->special_profile_variant = 7U;
+            return actor;
+        };
+        static LegacyBattleGroupAActionExecutionSharedState shared;
+
+        static DispatchPort actor_stop_port;
+        static const auto actor_stop =
+            openswd3::battle::advance_legacy_battle_special_four_oh_nine(
+                nullptr,
+                nullptr,
+                actor_stop_port,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                    .entry_eax = 0x11111111U,
+                    .entry_ecx = 0x22222222U,
+                    .entry_edx = 0x33333333U,
+                }
+            );
+        test.expect_true(
+            actor_stop.status == openswd3::battle::
+                    LegacyBattleSpecialFourOhNineStatus::actor_state_typed_stop &&
+                actor_stop.return_eax == 0U && actor_stop.return_ecx == 0U &&
+                actor_stop.return_edx == 0U && actor_stop.port_calls == 0U,
+            "special four-oh-nine stops at the first actor read after clearing the legacy registers"
+        );
+
+        static auto stage_zero_actor_owner = prepare_actor();
+        auto& stage_zero_actor = *stage_zero_actor_owner;
+        shared.action_completion_flags = 0U;
+        static DispatchPort stage_zero_port;
+        static const auto stage_zero =
+            openswd3::battle::advance_legacy_battle_special_four_oh_nine(
+                &stage_zero_actor,
+                &shared,
+                stage_zero_port,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            stage_zero.return_eax == 0U && stage_zero.return_ecx == 0U &&
+                stage_zero.return_edx == 0U &&
+                stage_zero.special_update_calls == 1U &&
+                stage_zero_actor.turn_completion_latch == 1U &&
+                stage_zero_actor.special_action_record.action_id == 0x6FFU &&
+                stage_zero_actor.special_action_record.base_variant == 7U &&
+                stage_zero_actor.action_runtime_gate == 0U,
+            "special four-oh-nine gate zero updates the main record before reading shared completion flags"
+        );
+
+        static auto stage_one_actor_owner = prepare_actor();
+        auto& stage_one_actor = *stage_one_actor_owner;
+        stage_one_actor.action_runtime_gate = 1U;
+        shared.action_completion_flags = 0U;
+        static DispatchPort stage_one_port;
+        stage_one_port.push(0x004783B0U, {.outputs = {100U, 200U}});
+        static const auto stage_one =
+            openswd3::battle::advance_legacy_battle_special_four_oh_nine(
+                &stage_one_actor,
+                &shared,
+                stage_one_port,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            stage_one.return_eax == 0U && stage_one.return_ecx == 1U &&
+                stage_one.return_edx == 0U &&
+                stage_one.coordinate_query_calls == 1U &&
+                stage_one.coordinate_update_calls == 1U &&
+                stage_one_actor.special_action_record.base_variant == 8U &&
+                stage_one_port.special_four_oh_nine_coordinate_records.size() ==
+                    1U &&
+                stage_one_port.special_four_oh_nine_coordinate_records[0U] ==
+                    &stage_one_actor.special_action_record &&
+                has_call_argument(stage_one_port, 0x00484230U, 0U, 100U) &&
+                has_call_argument(stage_one_port, 0x00484230U, 1U, 200U),
+            "special four-oh-nine gate one increments the variant and passes target coordinates with the main record"
+        );
+
+        static auto stage_two_actor_owner = prepare_actor();
+        auto& stage_two_actor = *stage_two_actor_owner;
+        stage_two_actor.action_runtime_gate = 2U;
+        shared.action_completion_flags = 0U;
+        static DispatchPort stage_two_port;
+        stage_two_port.push(0x00482840U, {.eax = 1U});
+        static const auto stage_two =
+            openswd3::battle::advance_legacy_battle_special_four_oh_nine(
+                &stage_two_actor,
+                &shared,
+                stage_two_port,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            stage_two.return_eax == 0U && stage_two.stage_two_calls == 1U &&
+                stage_two_actor.action_runtime_gate == 3U &&
+                (stage_two_actor.special_effect_direct_mode & 8U) != 0U &&
+                stage_two_actor.special_action_record.base_variant == 9U &&
+                has_call_argument(stage_two_port, 0x00482840U, 0U, 0x56780000U) &&
+                has_call_argument(stage_two_port, 0x00482840U, 1U, 0x6FFU) &&
+                has_call_argument(stage_two_port, 0x00482840U, 2U, 9U),
+            "special four-oh-nine gate two publishes mode bit three and advances to gate three only on callee completion"
+        );
+
+        static auto event_actor_owner = prepare_actor();
+        auto& event_actor = *event_actor_owner;
+        event_actor.special_action_record.field_5a = 8U;
+        shared.action_completion_flags = 0U;
+        static DispatchPort event_port;
+        static const auto event =
+            openswd3::battle::advance_legacy_battle_special_four_oh_nine(
+                &event_actor,
+                &shared,
+                event_port,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            event.return_eax == 0U &&
+                shared.action_completion_flags == 0x8000U &&
+                event_actor.special_action_record.field_5a == 0U,
+            "special four-oh-nine consumes main bit three and publishes shared bit fifteen once"
+        );
+
+        static auto completed_actor_owner = prepare_actor();
+        auto& completed_actor = *completed_actor_owner;
+        completed_actor.action_runtime_gate = 2U;
+        completed_actor.special_action_record.field_8c = 1U;
+        shared.action_completion_flags = 1U;
+        static DispatchPort completed_port;
+        completed_port.push(0x00482840U, {.eax = 1U});
+        static const auto completed =
+            openswd3::battle::advance_legacy_battle_special_four_oh_nine(
+                &completed_actor,
+                &shared,
+                completed_port,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            completed.return_eax == 1U && completed.return_ecx == 0U &&
+                completed.action_record_clears == 2U &&
+                completed_actor.action_runtime_gate == 0U &&
+                completed_actor.special_action_record.action_id == 0U &&
+                (completed_actor.special_effect_direct_mode & 8U) != 0U,
+            "special four-oh-nine permits stage two, main completion, gate increment, and shared completion in one frame"
+        );
+
+        static auto shared_stop_actor_owner = prepare_actor();
+        auto& shared_stop_actor = *shared_stop_actor_owner;
+        shared_stop_actor.action_runtime_gate = 1U;
+        static DispatchPort shared_stop_port;
+        shared_stop_port.push(0x004783B0U, {.outputs = {100U, 200U}});
+        static const auto shared_stop =
+            openswd3::battle::advance_legacy_battle_special_four_oh_nine(
+                &shared_stop_actor,
+                nullptr,
+                shared_stop_port,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            shared_stop.status == openswd3::battle::
+                    LegacyBattleSpecialFourOhNineStatus::shared_state_typed_stop &&
+                shared_stop.return_eax == 2U &&
+                shared_stop.return_ecx == 1U &&
+                shared_stop.coordinate_update_calls == 1U &&
+                shared_stop_actor.special_action_record.base_variant == 8U,
+            "special four-oh-nine stops at the original shared flag read after preserving gate-one side effects"
         );
     }
 
