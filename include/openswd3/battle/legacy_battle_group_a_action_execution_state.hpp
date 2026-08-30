@@ -45,7 +45,7 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u32 secondary_value{};              // actor + 0x0360
     asset_runtime::LegacyActionRecord primary_action_record{};  // actor + 0x0338
     asset_runtime::LegacyActionRecord turn_action_record{};     // actor + 0x0468
-    asset_runtime::LegacyActionRecord action_twenty_seven_record{};  // actor + 0x0630
+    asset_runtime::LegacyActionRecord effect_action_record{};  // actor + 0x0630
     asset_runtime::LegacyActionRecord special_action_record{};  // actor + 0x0AF0
     compat::u32 turn_frame_token{};              // actor + 0x254C
     compat::i32 turn_countdown{};                // actor + 0x2668
@@ -79,6 +79,7 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u16 motion_aux_word{};              // actor + 0x2956
     compat::u32 render_flags{};                 // actor + 0x26A4
     compat::u32 action_twenty_seven_motion_mode{};  // actor + 0x2B00
+    compat::u32 special_draw_mirror_mode{};         // actor + 0x2B08
     LegacyBattleGroupAActionResourceRecord resource;
     std::array<compat::u32, 4> target_indices{};  // actor + 0x2A56
     LegacyBattleGroupAActionExecutionRecord secondary_record;

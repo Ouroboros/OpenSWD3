@@ -123,6 +123,15 @@ public:
         return invoke(request);
     }
 
+    [[nodiscard]] virtual LegacyBattleActionCallReply
+    invoke_special_four_oh_five_update(
+        const LegacyBattleActionCallRequest& request,
+        asset_runtime::LegacyActionRecord& record
+    ) {
+        static_cast<void>(record);
+        return invoke(request);
+    }
+
     [[nodiscard]] LegacyBattleActionCallReply invoke_summon_frame(
         const LegacyBattleActionCallRequest& request
     ) override {
@@ -524,6 +533,46 @@ struct LegacyBattleSpecialFiveHundredResult {
     compat::u32 return_edx{};
 };
 
+struct LegacyBattleSpecialFourOhFiveRequest {
+    compat::u32 actor_token{};
+    compat::u32 target_token{};
+    compat::u32 entry_eax{};
+    compat::u32 entry_ecx{};
+    compat::u32 entry_edx{};
+};
+
+enum class LegacyBattleSpecialFourOhFiveStatus : compat::u8 {
+    completed,
+    actor_state_typed_stop,
+    frame_owner_typed_stop,
+    shared_state_typed_stop,
+    phase_state_typed_stop,
+};
+
+struct LegacyBattleSpecialFourOhFiveResult {
+    LegacyBattleSpecialFourOhFiveStatus status{
+        LegacyBattleSpecialFourOhFiveStatus::completed
+    };
+    compat::u32 action_update_calls{};
+    compat::u32 frame_lookup_calls{};
+    compat::u32 sample_play_calls{};
+    compat::u32 sample_pan_calls{};
+    compat::u32 render_calls{};
+    LegacyBattleFrameRefreshResult frame_refresh{};
+    compat::u32 frame_refresh_calls{};
+    compat::u32 coordinate_query_calls{};
+    compat::u32 effect_update_calls{};
+    compat::u32 target_refresh_calls{};
+    compat::u32 effect_compute_calls{};
+    compat::u32 effect_publish_calls{};
+    compat::u32 action_record_clears{};
+    compat::u32 port_calls{};
+    compat::i32 effect_value{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
 struct LegacyBattleTargetPhaseAdvanceResult {
     LegacyBattleTargetPhaseAdvanceStatus status{
         LegacyBattleTargetPhaseAdvanceStatus::completed
@@ -793,6 +842,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     action_twenty_seven_typed_stop,
     dual_record_action_typed_stop,
     special_five_hundred_typed_stop,
+    special_four_oh_five_typed_stop,
     summon_frame_typed_stop,
     turn_commit_chance_typed_stop,
     turn_advance_typed_stop,
@@ -868,6 +918,8 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 dual_record_action_calls{};
     LegacyBattleSpecialFiveHundredResult special_five_hundred{};
     compat::u32 special_five_hundred_calls{};
+    LegacyBattleSpecialFourOhFiveResult special_four_oh_five{};
+    compat::u32 special_four_oh_five_calls{};
     LegacyBattleSummonFrameResult summon_frame{};
     compat::u32 summon_frame_calls{};
     LegacyBattleTurnCommitChanceResult turn_commit_chance{};
@@ -875,6 +927,18 @@ struct LegacyBattleActionDispatchResult {
     LegacyBattleTurnAdvanceResult turn_advance{};
     compat::u32 turn_advance_calls{};
 };
+
+// sub_4731A0.
+[[nodiscard]] LegacyBattleSpecialFourOhFiveResult
+advance_legacy_battle_special_four_oh_five(
+    LegacyBattleActionDispatchState& dispatch,
+    LegacyBattleTargetPhaseState* phase,
+    LegacyBattleGroupAActionExecutionState* actor,
+    LegacyBattleGroupAActionExecutionSharedState* shared,
+    LegacyBattleActionDispatchPort& port,
+    LegacyBattleActionDispatchContext& context,
+    const LegacyBattleSpecialFourOhFiveRequest& request
+);
 
 // sub_472730.
 [[nodiscard]] LegacyBattleTargetPhaseCheckResult

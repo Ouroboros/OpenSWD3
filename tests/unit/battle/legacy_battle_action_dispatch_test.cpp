@@ -70,6 +70,16 @@ public:
         return default_reply;
     }
 
+    [[nodiscard]] LegacyBattleActionCallReply
+    invoke_special_four_oh_five_update(
+        const LegacyBattleActionCallRequest& request,
+        openswd3::asset_runtime::LegacyActionRecord& record
+    ) override {
+        special_four_oh_five_records.push_back(&record);
+        return LegacyBattleActionDispatchPort::
+            invoke_special_four_oh_five_update(request, record);
+    }
+
     [[nodiscard]] openswd3::battle::
         LegacyBattleGroupASummonMaterializationCallReply
         invoke_group_a_summon_materialization(
@@ -132,6 +142,8 @@ public:
     LegacyBattleActionCallReply default_reply{.eax = 1U};
     std::unordered_map<u32, std::deque<LegacyBattleActionCallReply>> replies;
     std::vector<LegacyBattleActionCallRequest> calls;
+    std::vector<openswd3::asset_runtime::LegacyActionRecord*>
+        special_four_oh_five_records;
     std::vector<u16> decoded_pixels = std::vector<u16>(0x20U * 0x50U, 0x1234U);
     std::vector<
         openswd3::battle::LegacyBattleGroupASummonMaterializationCallRequest>
@@ -1295,8 +1307,8 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 port.battle_pair_primary_value() == 8U &&
                 actor.action_flags == 0U &&
                 actor.action_runtime_gate == 0x8000U &&
-                actor.action_twenty_seven_record.action_id == 0x1234U &&
-                actor.action_twenty_seven_record.base_variant == 0U,
+                actor.effect_action_record.action_id == 0x1234U &&
+                actor.effect_action_record.base_variant == 0U,
             "action twenty-seven publishes the signed effect then enters the secondary record phase"
         );
         test.expect_true(
@@ -1323,7 +1335,7 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         actor.primary_action_record.cached_action_id = 0x123U;
         actor.primary_action_record.cached_base_variant = 0x30U;
         actor.primary_action_record.field_8c = 1U;
-        actor.action_twenty_seven_record.field_94 = 0xDEADBEEFU;
+        actor.effect_action_record.field_94 = 0xDEADBEEFU;
         DispatchPort completion_port;
         completion_port.push(0x004783B0U, {.outputs = {200U, 60U}});
         const auto completed =
@@ -1344,7 +1356,7 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 completed.effect_compute_calls == 0U &&
                 actor.action_runtime_gate == 0U &&
                 actor.primary_action_record.action_id == 0U &&
-                actor.action_twenty_seven_record.field_94 == 0U,
+                actor.effect_action_record.field_94 == 0U,
             "action twenty-seven clears both records only after the primary completion flag"
         );
     }
@@ -1397,7 +1409,7 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 completed.action_record_clears == 2U &&
                 actor.turn_completion_latch == 1U &&
                 actor.primary_action_record.action_id == 0U &&
-                actor.action_twenty_seven_record.action_id == 0U,
+                actor.effect_action_record.action_id == 0U,
             "dual-record action advances both records and clears them only after secondary completion"
         );
         test.expect_true(
@@ -1645,6 +1657,255 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 port.count(0x00473010U) == 0U &&
                 port.count(0x004831C0U) == 1U,
             "action five-hundred production advances the typed special record without the opaque call"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState dispatch;
+        LegacyBattleTargetPhaseState phase;
+        phase.tick = 3U;
+        LegacyBattleGroupAActionExecutionState actor;
+        actor.profile_value = 0x123U;
+        actor.special_profile_variant = 7U;
+        actor.position_x = 100U;
+        actor.position_y = 50U;
+        actor.source_y = 70U;
+        actor.copied_runtime_word = 0xABCDU;
+        actor.action_twenty_seven_motion_mode = 1U;
+        actor.special_draw_mirror_mode = 1U;
+        actor.special_action_record.cached_action_id = 0x6FFU;
+        actor.special_action_record.cached_base_variant = 7U;
+        actor.special_action_record.draw_offset_x = 4U;
+        actor.special_action_record.draw_offset_y = 6U;
+        actor.special_action_record.mode_flags = 1U;
+        actor.special_action_record.field_58 = 0x44U;
+        actor.special_action_record.field_5a = 9U;
+        actor.special_action_record.field_76 = 5U;
+        actor.special_action_record.field_78 = 8U;
+        actor.effect_action_record.field_94 = 0xDEADBEEFU;
+        LegacyBattleGroupAActionExecutionSharedState shared;
+        Fixture fixture;
+        fixture.stream_provider.bytes = {
+            0x46U, 0x52U, 0x66U, 0x00U, 0x44U, 0x45U,
+        };
+        DispatchPort port;
+        port.battle_pair_primary_value() = 9U;
+        port.push(0x004783B0U, {.outputs = {200U, 60U}});
+        port.push(0x00481010U, {.eax = 0x0000FFFFU});
+        port.push(0x0047CEC0U, {.eax = 1U});
+        port.push(0x0047CEC0U, {.eax = 1U});
+        port.push(0x0047CEC0U, {.eax = 1U, .edx = 0xBEEF1234U});
+        auto context = fixture.context();
+        const auto completed =
+            openswd3::battle::advance_legacy_battle_special_four_oh_five(
+                dispatch,
+                &phase,
+                &actor,
+                &shared,
+                port,
+                context,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            completed.return_eax == 1U &&
+                completed.action_update_calls == 1U &&
+                completed.frame_lookup_calls == 1U &&
+                completed.sample_play_calls == 1U &&
+                completed.sample_pan_calls == 1U &&
+                completed.render_calls == 2U &&
+                completed.frame_refresh_calls == 1U &&
+                completed.coordinate_query_calls == 1U &&
+                completed.effect_update_calls == 1U &&
+                completed.target_refresh_calls == 1U &&
+                completed.effect_compute_calls == 1U &&
+                completed.effect_publish_calls == 11U &&
+                completed.action_record_clears == 2U &&
+                completed.effect_value == -1 && shared.last_effect_value == 1 &&
+                port.battle_pair_primary_value() == 8U && phase.tick == 0U &&
+                actor.special_action_record.action_id == 0U &&
+                actor.effect_action_record.field_94 == 0U,
+            "special four-oh-five completes its signed effect publication then clears both records"
+        );
+        test.expect_true(
+            actor.turn_target_x_offset == 28U &&
+                actor.source_x_offset == 27U &&
+                actor.turn_render_flags == 0U && actor.render_flags == 0x0CU &&
+                shared.draw_height_third == 10U &&
+                shared.draw_height_quarter == 8U &&
+                shared.draw_motion_a == 0xFFFFFFFFU &&
+                port.special_four_oh_five_records.size() == 1U &&
+                port.special_four_oh_five_records[0U] ==
+                    &actor.effect_action_record &&
+                has_call_argument(port, 0x00485610U, 0U, 0x12340044U) &&
+                has_call_argument(port, 0x0047F940U, 0U, 0x56780000U) &&
+                has_call_argument(port, 0x0047F940U, 1U, 0x12340630U) &&
+                has_call_argument(port, 0x0047F940U, 3U, 0xABCDU) &&
+                has_call_argument(port, 0x0047F940U, 4U, 99U) &&
+                has_call_argument(port, 0x0047F940U, 5U, 52U) &&
+                has_call_argument(port, 0x0047F940U, 6U, 70U) &&
+                port.calls[2U].callee_token == 0x004170E0U &&
+                port.calls[2U].arguments[0U] == 67U &&
+                port.calls[2U].arguments[1U] == 40U &&
+                port.calls[3U].arguments[0U] == 72U &&
+                port.calls[3U].arguments[1U] == 44U &&
+                port.calls.back().callee_token == 0x0047F150U &&
+                port.calls.back().arguments[3U] == 0xBEEF0008U,
+            "special four-oh-five preserves mirror offsets two draw formulas pending-effect arguments and low-word commit"
+        );
+
+        LegacyBattleGroupAActionExecutionState pending_actor;
+        pending_actor.profile_value = 0x123U;
+        pending_actor.special_profile_variant = 7U;
+        pending_actor.special_action_record.cached_action_id = 0x6FFU;
+        pending_actor.special_action_record.cached_base_variant = 7U;
+        pending_actor.special_action_record.field_5a = 9U;
+        LegacyBattleTargetPhaseState pending_phase;
+        DispatchPort pending_port;
+        pending_port.push(0x004783B0U, {.outputs = {10U, 20U}});
+        pending_port.push(0x0047F940U, {.eax = 0U});
+        const auto pending =
+            openswd3::battle::advance_legacy_battle_special_four_oh_five(
+                dispatch,
+                &pending_phase,
+                &pending_actor,
+                &shared,
+                pending_port,
+                context,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            pending.return_eax == 0U && pending.effect_update_calls == 1U &&
+                pending.target_refresh_calls == 0U &&
+                pending.action_record_clears == 0U &&
+                pending_phase.tick == 1U &&
+                pending_actor.special_action_record.action_id == 0x6FFU,
+            "special four-oh-five retains the incremented phase tick and both records while the pending effect is incomplete"
+        );
+
+        LegacyBattleGroupAActionExecutionState stopped_actor;
+        stopped_actor.profile_value = 0x123U;
+        stopped_actor.special_profile_variant = 7U;
+        stopped_actor.special_action_record.cached_action_id = 0x6FFU;
+        stopped_actor.special_action_record.cached_base_variant = 7U;
+        stopped_actor.special_action_record.field_5a = 9U;
+        fixture.frame_provider.available = false;
+        DispatchPort missing_port;
+        const auto missing =
+            openswd3::battle::advance_legacy_battle_special_four_oh_five(
+                dispatch,
+                &phase,
+                &stopped_actor,
+                &shared,
+                missing_port,
+                context,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            missing.status == openswd3::battle::
+                    LegacyBattleSpecialFourOhFiveStatus::
+                        frame_owner_typed_stop &&
+                stopped_actor.turn_completion_latch == 1U &&
+                stopped_actor.turn_frame_token == 0U,
+            "special four-oh-five stops at the original frame dereference after the action update"
+        );
+
+        fixture.frame_provider.available = true;
+        LegacyBattleGroupAActionExecutionState shared_stop_actor;
+        shared_stop_actor.profile_value = 0x123U;
+        shared_stop_actor.special_profile_variant = 7U;
+        shared_stop_actor.special_action_record.cached_action_id = 0x6FFU;
+        shared_stop_actor.special_action_record.cached_base_variant = 7U;
+        const auto shared_stop =
+            openswd3::battle::advance_legacy_battle_special_four_oh_five(
+                dispatch,
+                &phase,
+                &shared_stop_actor,
+                nullptr,
+                missing_port,
+                context,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            shared_stop.status == openswd3::battle::
+                    LegacyBattleSpecialFourOhFiveStatus::
+                        shared_state_typed_stop &&
+                shared_stop_actor.turn_frame_token == 0x1234254CU,
+            "special four-oh-five stops at the first shared draw-state write after publishing the frame token"
+        );
+
+        LegacyBattleGroupAActionExecutionState phase_stop_actor;
+        phase_stop_actor.profile_value = 0x123U;
+        phase_stop_actor.special_profile_variant = 7U;
+        phase_stop_actor.special_action_record.cached_action_id = 0x6FFU;
+        phase_stop_actor.special_action_record.cached_base_variant = 7U;
+        phase_stop_actor.special_action_record.field_5a = 9U;
+        DispatchPort phase_stop_port;
+        phase_stop_port.push(0x004783B0U, {.outputs = {10U, 20U}});
+        const auto phase_stop =
+            openswd3::battle::advance_legacy_battle_special_four_oh_five(
+                dispatch,
+                nullptr,
+                &phase_stop_actor,
+                &shared,
+                phase_stop_port,
+                context,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                }
+            );
+        test.expect_true(
+            phase_stop.status == openswd3::battle::
+                    LegacyBattleSpecialFourOhFiveStatus::
+                        phase_state_typed_stop &&
+                phase_stop.coordinate_query_calls == 1U &&
+                phase_stop.effect_update_calls == 0U,
+            "special four-oh-five stops at the original phase-tick access after drawing and querying coordinates"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        state.group_a_count = 1;
+        state.group_b_count = 1;
+        auto& actor = state.group_a_action_execution[0U];
+        actor.profile_value = 0x123U;
+        actor.special_profile_variant = 7U;
+        actor.special_action_record.cached_action_id = 0x6FFU;
+        actor.special_action_record.cached_base_variant = 7U;
+        actor.special_action_record.field_5a = 9U;
+        Fixture fixture;
+        fixture.stream_provider.bytes = {
+            0x46U, 0x52U, 0x66U, 0x00U, 0x44U, 0x45U,
+        };
+        DispatchPort port;
+        port.action = 405U;
+        port.push(0x004783B0U, {.outputs = {10U, 20U}});
+        port.push(0x00481010U, {.eax = 1U});
+        auto context = fixture.context();
+        const auto result = openswd3::battle::dispatch_legacy_battle_action(
+            state, port, context, 0U, 0U
+        );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.special_four_oh_five_calls == 1U &&
+                result.special_four_oh_five.return_eax == 1U &&
+                state.action_pending == 1U &&
+                port.count(0x004731A0U) == 0U &&
+                port.count(0x0047F940U) == 1U,
+            "action four-oh-five production advances the typed effect-and-render path without the opaque call"
         );
     }
 

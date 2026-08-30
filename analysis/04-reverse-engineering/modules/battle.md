@@ -657,6 +657,8 @@ I5最终必须锁定：
 
 `audit_order=223`的`0x00473010`已关闭为`platform_adapted`。完整权威LST主体`0x00473010..0x00473198`共175行、105条实际指令、3个call、9个跳转、7个局部标签、2个返回点且无外部chunk。实现动作500特殊记录初始化、bit1事件转移、runtime bit14、逐帧记录门、signed七颜色初始化、bit10消费、共享bit15发布、bit0完成门及双记录清理。两个pending callee保留带记录引用的窄port；已关闭颜色初始化typed直连，并合并`0x0053C030`唯一owner及回收group-A动作执行遗留opaque caller。唯一动作500 caller已typed化。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`223/422 = 214 platform_adapted + 9 assembly_exact + 199 pending_audit`，双跑SHA256为`123a6e7c65e089a9165d570b9b62d23f41cea80dad85a05f200437b995182066`。动态差分因原版特殊记录、逐帧记录、两个pending callee、共享完成flags、颜色状态与caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=224`的`0x004731A0`战斗角色动作效果与渲染函数。
+`audit_order=224`的`0x004731A0`已关闭为`platform_adapted`。完整权威LST主体`0x004731A0..0x00473598`共430行、277条实际指令、22个call、14个跳转、10个局部标签、2个返回点且无外部chunk。实现动作405特殊记录更新、frame lookup、镜像word回绕、三份运动值、陈旧sample高半、双层绘制、typed共享刷新、低字节flags门、phase tick、八参数pending效果更新、signed值夹限、32位累计、十一段发布、最终陈旧EDX高半及双记录清理。已关闭动作更新、frame provider和共享刷新typed直连；其余待审对象、音频、绘制及效果callee保持窄port。`+0x630`统一为共享效果动作记录owner，唯一动作405 caller已typed化。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`224/422 = 215 platform_adapted + 9 assembly_exact + 198 pending_audit`，双跑SHA256为`ccf81d40f67ff5e28898e99fb005f7d8c072961c4f5f5c08303a5f54d80d4ddd`。动态差分因原版特殊记录、frame资源、音频、绘制、共享刷新、效果更新、数值计算、发布链和caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=225`的`0x004735B0`战斗角色动作效果与渲染函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。
