@@ -274,7 +274,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         Fixture fixture;
         DispatchPort port;
         port.push(0x0047CE80U, {.eax = 0U});
-        port.push(0x004755E0U, {.eax = 1U});
         port.push(0x004786A0U, {.eax = 0U});
         auto context = fixture.context();
         const auto result =
@@ -284,14 +283,40 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
                 port.count(0x0047DAD0U) == 1U &&
-                has_call_argument(port, 0x004755E0U, 0U, 0x55U) &&
+                port.count(0x004755E0U) == 0U &&
+                fixture.startup->enemies[2U].progress.action_complete == 1U &&
                 result.attack_order_calls == 1U &&
                 result.attack_order.written_index == 0U &&
                 fixture.attack_order_records[0].value_00 == 2U &&
                 fixture.attack_order_records[0].value_08 == 2U &&
                 port.count(0x0045EDF0U) == 0U &&
                 state.shared.action_block_gate == 0x5650U,
-            "live opponent update directly appends its index to the shared attack order when update and message gates allow"
+            "live opponent update directly advances progress and appends its index when message gates allow"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState state;
+        state.frame_enabled = 1U;
+        state.shared.actor_progress_threshold = 100;
+        Fixture fixture;
+        DispatchPort port;
+        port.push(0x0047CE80U, {.eax = 0U});
+        port.push(0x0047DAD0U, {.edx = 0xA5A55A5AU});
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 2U
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        group_b_progress_typed_stop &&
+                port.count(0x0047DAD0U) == 1U &&
+                port.count(0x004755E0U) == 0U &&
+                result.attack_order_calls == 0U &&
+                fixture.startup->enemies[2U].progress.progress == 0U,
+            "group B frame preserves the opponent update before the direct progress resource stop"
         );
     }
 
@@ -302,7 +327,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         Fixture fixture;
         DispatchPort port;
         port.push(0x0047CE80U, {.eax = 0U});
-        port.push(0x004755E0U, {.eax = 1U});
         auto context = fixture.context();
         context.attack_order_records = {};
 
@@ -318,7 +342,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleAttackOrderEntryStatus::
                         record_typed_stop &&
                 result.attack_order.return_eax == 0x00524788U &&
-                port.count(0x004786A0U) == 0U,
+                port.count(0x004755E0U) == 0U && port.count(0x004786A0U) == 0U,
             "attack-order typed stop preserves the opponent update prefix then blocks the remaining frame path"
         );
     }
@@ -567,9 +591,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             "all-target completion keeps the table low word as item id"
         );
         test.expect_true(
-            port.world_item_list_state()
-                    .player_inventory.front()
-                    .quantity_a == 1U,
+            port.world_item_list_state().player_inventory.front().quantity_a ==
+                1U,
             "all-target completion increments the player-item quantity"
         );
         test.expect_true(

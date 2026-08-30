@@ -81,10 +81,10 @@ enemy count按signed正数门进入循环，因已mask为u16，只有零跳过�
 4. 从definition按原stride读role、X、Y、mode；
 5. 清record尾dword；
 6. mirror mode严格等于1时调用actor mode并令X低word为`640-X`；
-7. 配置actor；
+7. 配置actor；该未审callee只可窄发布动态资源token与资源`+0x5A`进度基值，写入组B元素生命周期唯一owner；
 8. mode word严格等于1时调用额外模式callee。
 
-镜像路径在actor mode返回后只用`mov cx`覆盖下一参数低word，因此ECX高word为callee陈旧snapshot。modern端口显式携带该snapshot，并组合为`stale_high | role_low`；测试锁定非零高word。
+镜像路径在actor mode返回后只用`mov cx`覆盖下一参数低word，因此ECX高word为callee陈旧snapshot。modern端口显式携带该snapshot，并组合为`stale_high | role_low`；测试锁定非零高word。资源副作用未发布时不伪造默认指针，后续已关闭组B进度函数在首次`+0x5A`读取点typed-stop。
 
 definition与组B都只有八槽。第九项在首次actor对象访问处typed-stop，保留前八项全部副作用。
 
@@ -142,7 +142,7 @@ modern以80位`long double`执行同序计算，有限域向零转i64并取低32
 
 初始组A角色配置后的两个全局阶段均已回收。第一阶段对玩家道具链按u16 item id稳定升序，每次比较先清当前selected count，交换后从head重扫；第二阶段接收第一阶段EAX，依次稳定排序四个队伍道具sentinel链，不清selected count，交换后只重扫当前根。第一阶段typed-stop阻断第二阶段，第二阶段typed-stop阻断资料绑定和补位。
 
-补位后固定调用三个pending全局阶段。每名敌人调用`random(6)`，结果为N就对该组B对象调用N次固定参数零的动作推进。之后按补位后的队伍总数，对所有组A对象调用最终化callee。
+补位后固定调用三个pending全局阶段。每名敌人调用`random(6)`，结果为N就对该组B对象直接调用N次已关闭`0x004755E0`，固定参数零并使用本次动作阈值。第一次调用的EDX继承random callee，后续迭代继承前一次进度返回；整函数旧opaque枚举槽保留为reserved且零调用。资源typed-stop保留此前全部启动副作用和已完成迭代，并阻断组A最终化。之后按补位后的队伍总数，对所有组A对象调用最终化callee。
 
 正常返回EAX按u32顺序计算：
 

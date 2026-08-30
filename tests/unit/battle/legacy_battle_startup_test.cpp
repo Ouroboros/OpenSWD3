@@ -71,6 +71,18 @@ public:
                 random_values.pop_front();
             }
             break;
+        case LegacyBattleStartupCall::configure_enemy_actor:
+            if (publish_enemy_progress_resource) {
+                const u32 index =
+                    (request.arguments[0U] -
+                     openswd3::battle::kLegacyBattleActorGroupBBaseToken) /
+                    openswd3::battle::kLegacyBattleActorGroupBElementSize;
+                reply.publish_group_b_progress_resource = true;
+                reply.group_b_progress_resource_token =
+                    0x73000000U + index * 0xA4U;
+                reply.group_b_progress_base_speed = enemy_progress_base_speed;
+            }
+            break;
         case LegacyBattleStartupCall::apply_actor_mode:
             reply.ecx_snapshot = 0xBEEF0000U;
             break;
@@ -320,6 +332,8 @@ public:
     u32 no_enemy_return{0x87654321U};
     u32 party_actor_mode_return{};
     u32 supplemental_modifier_token{};
+    u16 enemy_progress_base_speed{400U};
+    bool publish_enemy_progress_resource{true};
     bool force_definition_offset_stop{};
     std::vector<u32> released_images;
     std::vector<u32> released_owners;
@@ -885,6 +899,12 @@ void test_battle_startup(openswd3::test::Context& test) {
                 state.party_metrics[0].tertiary_numerator == 5 &&
                 state.party_metrics[0].actor_value_a == 0x13579BDFU &&
                 result.enemy_action_advance_calls == 2U &&
+                ports.call_count(
+                    LegacyBattleStartupCall::reserved_advance_enemy_action
+                ) == 0U &&
+                state.group_b_lifecycle != nullptr &&
+                (*state.group_b_lifecycle)[0U].resource_token == 0x73000000U &&
+                state.enemies[0U].progress.progress == 200U &&
                 result.finalized_party_actor_count == 4U &&
                 state.party_actor_mode_count == 2U &&
                 result.return_value == 1U && result.message_state_published &&
@@ -1196,6 +1216,29 @@ void test_battle_startup(openswd3::test::Context& test) {
                         group_a_embedded_profile_item_quantity
                 ) == 0U,
             "missing role-item sentinel stops the direct attribute aggregation before value and resource publication"
+        );
+    }
+
+    {
+        LegacyBattleStartupState state;
+        StartupPorts ports;
+        ports.publish_enemy_progress_resource = false;
+        ports.definition.enemy_count = 1U;
+        ports.random_values = {0U, 1U};
+        const auto result = openswd3::battle::initialize_legacy_battle_startup(
+            state, ports, ports, ports, ports, ports, ports, request(20U)
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleStartupStatus::
+                        enemy_progress_typed_stop &&
+                result.enemy_action_advance_calls == 1U &&
+                ports.call_count(
+                    LegacyBattleStartupCall::reserved_advance_enemy_action
+                ) == 0U &&
+                state.group_b_lifecycle == nullptr &&
+                state.enemies[0U].progress.progress == 0U,
+            "startup stops at the first group B resource word access after configuration"
         );
     }
 

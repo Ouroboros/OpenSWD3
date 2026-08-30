@@ -1242,6 +1242,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     summon_frame_typed_stop,
     turn_commit_chance_typed_stop,
     turn_advance_typed_stop,
+    group_b_progress_typed_stop,
 };
 
 struct LegacyBattleActionDispatchResult {

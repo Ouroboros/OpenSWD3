@@ -18,7 +18,6 @@ using compat::u32;
 
 constexpr u32 kCallQueryTerminal = 0x0047CE80U;
 constexpr u32 kCallUpdateOpponent = 0x0047DAD0U;
-constexpr u32 kCallQueryUpdateGate = 0x004755E0U;
 constexpr u32 kCallQueryQueueCompletion = 0x0047F920U;
 constexpr u32 kCallResetActor = 0x00478850U;
 constexpr u32 kCallQueryActorBlocked = 0x0047D930U;
@@ -338,27 +337,47 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                 0U &&
             action.action_pending_aux == 0U &&
             port.outcome_resolution_state().resolution_latch == 0U) {
-            static_cast<void>(
-                invoke(port, result, kCallUpdateOpponent, {source_token})
-            );
-            if (state.post_update_gate[group_b_index] == 0U &&
-                invoke(
-                    port,
-                    result,
-                    kCallQueryUpdateGate,
-                    {state.update_gate_argument}
-                )
-                        .eax == 1U &&
-                port.battle_message_state() != 0x67U) {
-                result.attack_order = append_legacy_battle_attack_order_entry(
-                    context.attack_order_records, 2U, group_b_index, 0U, 0U
-                );
-                ++result.attack_order_calls;
-                if (result.attack_order.status !=
-                    LegacyBattleAttackOrderEntryStatus::completed) {
+            const auto update_reply =
+                invoke(port, result, kCallUpdateOpponent, {source_token});
+            if (state.post_update_gate[group_b_index] == 0U) {
+                if (context.startup == nullptr) {
                     result.status = LegacyBattleActionDispatchStatus::
-                        attack_order_typed_stop;
+                        group_b_progress_typed_stop;
                     return result;
+                }
+                auto& enemy = context.startup->enemies[group_b_index];
+                const auto* const lifecycle =
+                    context.startup->group_b_lifecycle == nullptr
+                    ? nullptr
+                    : &(*context.startup->group_b_lifecycle)[group_b_index];
+                const auto progress =
+                    advance_legacy_battle_actor_group_b_progress(
+                        enemy.progress,
+                        lifecycle,
+                        std::bit_cast<i32>(state.update_gate_argument),
+                        state.shared.actor_progress_threshold,
+                        source_token,
+                        update_reply.edx
+                    );
+                if (progress.status !=
+                    LegacyBattleActorGroupBProgressStatus::completed) {
+                    result.status = LegacyBattleActionDispatchStatus::
+                        group_b_progress_typed_stop;
+                    return result;
+                }
+                if (progress.return_eax == 1U &&
+                    port.battle_message_state() != 0x67U) {
+                    result
+                        .attack_order = append_legacy_battle_attack_order_entry(
+                        context.attack_order_records, 2U, group_b_index, 0U, 0U
+                    );
+                    ++result.attack_order_calls;
+                    if (result.attack_order.status !=
+                        LegacyBattleAttackOrderEntryStatus::completed) {
+                        result.status = LegacyBattleActionDispatchStatus::
+                            attack_order_typed_stop;
+                        return result;
+                    }
                 }
             }
         }

@@ -4,6 +4,8 @@
 
 namespace openswd3::battle {
 
+struct LegacyBattleActorGroupBElementState;
+
 struct LegacyBattleActorProgressState {
     compat::u32 mode_gate{};            // actor + 0x26D0, low word observed
     compat::u32 action_complete{};      // actor + 0x2AB0
@@ -30,6 +32,23 @@ struct LegacyBattleActorProgressResult {
     compat::u32 negative_adjustment{};
 };
 
+enum class LegacyBattleActorGroupBProgressStatus : compat::u8 {
+    completed,
+    resource_typed_stop,
+};
+
+struct LegacyBattleActorGroupBProgressResult {
+    LegacyBattleActorGroupBProgressStatus status{
+        LegacyBattleActorGroupBProgressStatus::completed
+    };
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+    compat::u32 base_increment{};
+    compat::u32 positive_adjustment{};
+    compat::u32 negative_adjustment{};
+};
+
 // sub_46E520.
 [[nodiscard]] LegacyBattleActorProgressResult
 advance_legacy_battle_actor_progress(
@@ -37,6 +56,17 @@ advance_legacy_battle_actor_progress(
     compat::i32 argument,
     compat::i32 completion_threshold,
     compat::u32 object_token = 0U
+) noexcept;
+
+// sub_4755E0.
+[[nodiscard]] LegacyBattleActorGroupBProgressResult
+advance_legacy_battle_actor_group_b_progress(
+    LegacyBattleActorProgressState& state,
+    const LegacyBattleActorGroupBElementState* element,
+    compat::i32 argument,
+    compat::i32 completion_threshold,
+    compat::u32 object_token = 0U,
+    compat::u32 entry_edx = 0U
 ) noexcept;
 
 }  // namespace openswd3::battle

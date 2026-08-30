@@ -18,7 +18,7 @@
 
 frame enable完整值不等于1时跳过主体，仍执行公共画面效果、pending effect和最终actor尾。
 
-主体入口对当前组B对象执行terminal查询。仅terminal为0且两个pending dword都为0时调用update；第二pending dword现与组A帧、调试快捷键和结果判定latch共用唯一`LegacyBattleOutcomeResolutionStatePort`。当前对象post-update门为0、update gate完整EAX为1且message state不等于103时直接组合已关闭攻击顺序登记，以固定类型2把当前索引写入共享18条记录的首个全1槽；旧callback token删除。子typed-stop保留update前缀并阻断余下角色帧。
+主体入口对当前组B对象执行terminal查询。仅terminal为0且两个pending dword都为0时调用update；第二pending dword现与组A帧、调试快捷键和结果判定latch共用唯一`LegacyBattleOutcomeResolutionStatePort`。当前对象post-update门为0时，直接复用startup enemy中的进度与共享八槽动态资源唯一owner调用已关闭`0x004755E0`；参数按原32位位形传入，EDX继承update callee。进度返回EAX精确为1且message state不等于103时，直接组合已关闭攻击顺序登记，以固定类型2把当前索引写入共享18条记录的首个全1槽。资源typed-stop保留update前缀并阻断余下角色帧；旧进度函数和攻击顺序callback token均删除。
 
 随后仅检查action auxiliary dword和turn-resolution **低word**。两者均为0且active effect target等于当前组B索引时：
 
@@ -165,13 +165,13 @@ pending effect ID非全1时调用pending step `(source,shared_argument,index)`�
 
 ## 12. callee、测试与动态差分
 
-46个唯一callee中，已关闭对手动作分派`0x00455D60`、玩家道具双数量步进`0x0045D180`、攻击顺序登记`0x0045EDF0`和文字消息入链`0x004698E0`直接typed组合；文字消息的两处调用复用启动状态唯一链头和动态节点owner。其余42个角色、AI、状态、文本、完成资源和效果callee继续使用共享typed token端口。
+46个唯一callee中，已关闭对手动作分派`0x00455D60`、玩家道具双数量步进`0x0045D180`、攻击顺序登记`0x0045EDF0`、文字消息入链`0x004698E0`和组B行动进度`0x004755E0`直接typed组合；文字消息的两处调用复用启动状态唯一链头和动态节点owner，行动进度复用startup enemy的进度owner与共享八槽资源owner。其余41个角色、AI、状态、文本、完成资源和效果callee继续使用共享typed token端口。
 
 定向测试覆盖：
 
 - 入口组B越界；
 - frame disabled仍执行公共尾及完整EAX；
-- live update、攻击顺序共享记录直连、旧callback清零、记录typed-stop前缀与陈旧stride EBX写block；
+- live update、组B进度与攻击顺序共享记录直连、两个旧callback清零、资源typed-stop前缀、记录typed-stop前缀与陈旧stride EBX写block；
 - queue完成直接返回reset完整EAX；
 - phase side跳过随机/status；
 - 随机组B同伴；

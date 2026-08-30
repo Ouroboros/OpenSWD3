@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
+#include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
 #include "openswd3/battle/legacy_battle_actor_list_query.hpp"
 #include "openswd3/battle/legacy_battle_actor_progress.hpp"
 #include "openswd3/battle/legacy_battle_background_initialization.hpp"
@@ -26,6 +27,7 @@
 
 #include <array>
 #include <filesystem>
+#include <memory>
 
 namespace openswd3::battle {
 
@@ -93,7 +95,7 @@ enum class LegacyBattleStartupCall : compat::u16 {
     reserved_configure_supplemental_actor,
     activate_supplemental_actor,
     query_actor_metric,
-    advance_enemy_action,
+    reserved_advance_enemy_action,
     finalize_party_actor,
     group_a_missing_placement_diagnostic,
     group_a_profile_allocate,
@@ -127,6 +129,9 @@ struct LegacyBattleStartupCallReply {
     compat::u32 group_b_count{};
     bool publish_group_a_count{};
     compat::u32 group_a_count{};
+    bool publish_group_b_progress_resource{};
+    compat::u32 group_b_progress_resource_token{};
+    compat::u16 group_b_progress_base_speed{};
     bool publish_group_a_profile_record{};
     LegacyBattleGroupASummonProfileRecord group_a_profile_record{};
 };
@@ -282,6 +287,8 @@ struct LegacyBattleStartupState {
     compat::u32 definition_secondary_count{};
     compat::u16 background_resource{};
     std::array<LegacyBattleEnemyStartupRecord, 8> enemies{};
+    std::shared_ptr<std::array<LegacyBattleActorGroupBElementState, 8>>
+        group_b_lifecycle;
     std::array<LegacyBattlePartyStartupRecord, 10> party{};
     std::array<LegacyBattleGroupAConfigurationSourceRecord, 4>
         group_a_configuration_sources{};
@@ -337,6 +344,7 @@ enum class LegacyBattleStartupStatus : compat::u8 {
     party_value_pair_typed_stop,
     supplemental_materialization_typed_stop,
     party_attribute_aggregation_typed_stop,
+    enemy_progress_typed_stop,
 };
 
 struct LegacyBattleDisplaySurfaceReleaseResult {

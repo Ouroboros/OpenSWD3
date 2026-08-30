@@ -685,6 +685,8 @@ I5最终必须锁定：
 
 `audit_order=237`的`0x00475590`已关闭为`platform_adapted`。完整权威LST主块`0x00475590..0x004755D8`与外部chunk`0x004983B0..0x004983BD`合计55行、23条实际指令、2个call、2个跳转、2个局部标签和1个返回点。实现组B扩展析构→公共基础析构固定顺序、扩展异常时基础析构一次后传播、基础析构异常不重复调用，以及终端基础EAX/EDX与旧SEH链ECX恢复。复用组B元素构造的对象/resource唯一owner；两个未审callee保留窄port，构造/析构callback均关闭后vector包装器仅隔离MSVC八对象迭代与EH。同轮修正同型组A析构总行数和终端ECX来源。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`237/422 = 228 platform_adapted + 9 assembly_exact + 185 pending_audit`，双跑SHA256为`9978196e63aeaace2847623687cf8ded358ac19e17e608c839000c085226e825`。动态差分因原版八个组B完整对象、真实扩展/基础资源、两个callee、MSVC SEH链与向量EH联合捕获后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=238`的`0x004755E0`战斗组B行动进度更新函数。
+`audit_order=238`的`0x004755E0`已关闭为`platform_adapted`。完整权威LST主体`0x004755E0..0x0047570E`共153行、101条实际指令、0个call、9个跳转、9个局部标签、4个返回点且无外部chunk。实现bit6/bit14入口门、signed阈值、组B专属完成尾、资源`+0x5A`首次读取typed-stop、delay bit6、参数一增强、bit29正向30%、bit27负向30%、bit31额外10%、word回绕及EAX/ECX/EDX陈旧线程；同轮修正组A进度只写低word。行动者复用既有进度owner，资源复用惰性堆分配的八槽组B元素生命周期owner，避免平行基值与聚合测试栈膨胀。startup随机循环和组B帧两个caller均删除整函数opaque调用并typed直连；首轮/后续EDX、opponent update前缀、攻击顺序和typed-stop传播按原顺序保留。验证：定向CTest 1/1、AddressSanitizer 1/1、Linux core 188/188、Linux app 194/194全部通过，八份日志零warning/finding。工作包为`238/422 = 229 platform_adapted + 9 assembly_exact + 184 pending_audit`，双跑SHA256为`46479e8abfc645be658b6e29e16654e9887768455e70913ecbfd9f9b0d07cb72`。动态差分因原版八个组B完整对象、动态资源、阈值、delay flags、两个caller callee与寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=239`的`0x00475720`战斗组B行动配置函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

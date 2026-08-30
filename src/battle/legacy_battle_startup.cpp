@@ -729,11 +729,28 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
             role_argument =
                 (mode_reply.ecx_snapshot & 0xFFFF0000U) | source.role_id;
         }
-        static_cast<void>(invoke(
+        const auto configure_reply = invoke(
             port,
             LegacyBattleStartupCall::configure_enemy_actor,
             {actor_token, enemy_startup_token(index), role_argument, 0U}
-        ));
+        );
+        if (configure_reply.publish_group_b_progress_resource) {
+            if (state.group_b_lifecycle == nullptr) {
+                state.group_b_lifecycle = std::make_shared<std::array<
+                    LegacyBattleActorGroupBElementState,
+                    kLegacyBattleActorGroupBElementCount>>();
+            }
+            auto& lifecycle = (*state.group_b_lifecycle)[index];
+            lifecycle.object_token = actor_token;
+            lifecycle.resource_token =
+                configure_reply.group_b_progress_resource_token;
+            lifecycle.resource_bytes[0x5AU] = static_cast<compat::u8>(
+                configure_reply.group_b_progress_base_speed
+            );
+            lifecycle.resource_bytes[0x5BU] = static_cast<compat::u8>(
+                configure_reply.group_b_progress_base_speed >> 8U
+            );
+        }
         if (source.mode_flag == 1U) {
             static_cast<void>(invoke(
                 port,
@@ -1109,24 +1126,38 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
             result.status = LegacyBattleStartupStatus::enemy_index_out_of_range;
             return result;
         }
-        const u32 repeats =
-            invoke(
-                port, LegacyBattleStartupCall::random_below, {6U, 0U, 0U, 0U}
-            )
-                .return_value;
+        const auto random_reply = invoke(
+            port, LegacyBattleStartupCall::random_below, {6U, 0U, 0U, 0U}
+        );
+        const u32 repeats = random_reply.return_value;
         if (repeats >= 6U) {
             result.status =
                 LegacyBattleStartupStatus::random_result_out_of_range;
             return result;
         }
         const u32 actor_token = group_b_actor_token(index);
+        auto& enemy = state.enemies[index];
+        const auto* const lifecycle = state.group_b_lifecycle == nullptr
+            ? nullptr
+            : &(*state.group_b_lifecycle)[index];
+        u32 stale_edx = random_reply.edx_snapshot;
         for (u32 count = 0U; count < repeats; ++count) {
-            static_cast<void>(invoke(
-                port,
-                LegacyBattleStartupCall::advance_enemy_action,
-                {actor_token, 0U, 0U, 0U}
-            ));
+            const auto progress = advance_legacy_battle_actor_group_b_progress(
+                enemy.progress,
+                lifecycle,
+                0,
+                result.action_threshold,
+                actor_token,
+                stale_edx
+            );
             ++result.enemy_action_advance_calls;
+            stale_edx = progress.return_edx;
+            if (progress.status !=
+                LegacyBattleActorGroupBProgressStatus::completed) {
+                result.status =
+                    LegacyBattleStartupStatus::enemy_progress_typed_stop;
+                return result;
+            }
         }
     }
 
