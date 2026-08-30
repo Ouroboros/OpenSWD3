@@ -46,7 +46,9 @@ struct LegacyBattleGroupAActionExecutionState {
     asset_runtime::LegacyActionRecord primary_action_record{};  // actor + 0x0338
     asset_runtime::LegacyActionRecord turn_action_record{};     // actor + 0x0468
     asset_runtime::LegacyActionRecord effect_action_record{};  // actor + 0x0630
+    asset_runtime::LegacyActionRecord effect_secondary_action_record{};  // actor + 0x06C8
     asset_runtime::LegacyActionRecord special_action_record{};  // actor + 0x0AF0
+    asset_runtime::LegacyActionRecord special_secondary_action_record{};  // actor + 0x0B88
     compat::u32 turn_frame_token{};              // actor + 0x254C
     compat::i32 turn_countdown{};                // actor + 0x2668
     compat::u32 turn_render_flags{};             // actor + 0x26A0
@@ -72,7 +74,9 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u16 render_x_base{};                // actor + 0x0316
     compat::u16 render_y_base{};                // actor + 0x0318
     compat::u16 source_x_offset{};              // actor + 0x29AC
+    compat::u16 secondary_source_x_offset{};    // actor + 0x29AE
     compat::u16 source_y_offset{};              // actor + 0x29B2
+    compat::u16 secondary_target_x_offset{};    // actor + 0x29B6
     compat::u16 draw_x{};                       // actor + 0x29BC
     compat::u16 draw_y{};                       // actor + 0x29BE
     compat::u16 motion_word{};                  // actor + 0x2954
