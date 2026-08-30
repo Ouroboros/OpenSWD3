@@ -152,7 +152,7 @@ void test_battle_group_a_action_execution(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupAActionExecutionState state;
-        state.completion_gate = 1U;
+        state.primary_action_record.field_8c = 1U;
         LegacyBattleGroupAActionExecutionSharedState shared;
         LegacyBattleActionDispatchState dispatch;
         dispatch.action_runtime_flags = 0x8000U;
@@ -189,7 +189,7 @@ void test_battle_group_a_action_execution(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupAActionExecutionState state;
-        state.completion_gate = 1U;
+        state.primary_action_record.field_8c = 1U;
         LegacyBattleGroupAActionExecutionSharedState shared;
         LegacyBattleActionDispatchState dispatch;
         dispatch.action_runtime_flags = 0x8000U;
@@ -246,7 +246,8 @@ void test_battle_group_a_action_execution(openswd3::test::Context& test) {
         );
         test.expect_true(
             result.return_eax == 0U && state.primary_value == 0U &&
-                state.secondary_value == 0U && state.force_gate == 0U &&
+                state.secondary_value == 0U &&
+                state.primary_action_record.external_mode == 0U &&
                 state.secondary_record.dwords[0U] == 0x11111111U &&
                 state.secondary_record.dwords[2U] == 0x22222222U &&
                 (state.action_flags & 0x0202U) == 0U &&
@@ -258,7 +259,7 @@ void test_battle_group_a_action_execution(openswd3::test::Context& test) {
     {
         LegacyBattleGroupAActionExecutionState state;
         state.action_flags = 0x0408U;
-        state.completion_gate = 1U;
+        state.primary_action_record.field_8c = 1U;
         state.color_values = {-1, 2, -3, 4, -5, 6, -7};
         LegacyBattleGroupAActionExecutionSharedState shared;
         LegacyBattleActionDispatchState dispatch;
@@ -290,7 +291,7 @@ void test_battle_group_a_action_execution(openswd3::test::Context& test) {
     {
         LegacyBattleGroupAActionExecutionState state;
         state.action_flags = 1U;
-        state.completion_gate = 1U;
+        state.primary_action_record.field_8c = 1U;
         LegacyBattleGroupAActionExecutionSharedState shared;
         LegacyBattleActionDispatchState dispatch;
         LegacyBattleActorProgressState progress;
@@ -342,7 +343,8 @@ void test_battle_group_a_action_execution(openswd3::test::Context& test) {
             port
         );
         test.expect_true(
-            result.return_eax == 1U && state.completion_gate == 1U &&
+            result.return_eax == 1U &&
+                state.primary_action_record.field_8c == 0U &&
                 port.count(0x0047F940U) == 1U &&
                 port.count(0x00474FC0U) == 1U && result.target_calls == 1U,
             "render-mode one publishes completion and consumes the slot low-bit through target mode one"

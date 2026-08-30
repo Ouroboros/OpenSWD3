@@ -41,9 +41,8 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u16 action_flags{};                 // actor + 0x0392
     compat::u32 primary_value{};                // actor + 0x035C
     compat::u32 secondary_value{};              // actor + 0x0360
-    compat::u32 force_gate{};                   // actor + 0x03C8
-    compat::u32 completion_gate{};              // actor + 0x03C4
-    asset_runtime::LegacyActionRecord turn_action_record{};  // actor + 0x0468
+    asset_runtime::LegacyActionRecord primary_action_record{};  // actor + 0x0338
+    asset_runtime::LegacyActionRecord turn_action_record{};     // actor + 0x0468
     compat::u32 turn_frame_token{};              // actor + 0x254C
     compat::i32 turn_countdown{};                // actor + 0x2668
     compat::u32 turn_render_flags{};             // actor + 0x26A0
@@ -63,7 +62,6 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u16 position_y{};                   // actor + 0x0D68
     compat::u16 source_y{};                     // actor + 0x0DB2
     compat::i32 target_phase_y_adjustment{};    // actor + 0x02B4
-    compat::u32 position_adjustment{};          // actor + 0x034C
     compat::u16 render_x_base{};                // actor + 0x0316
     compat::u16 render_y_base{};                // actor + 0x0318
     compat::u16 source_x_offset{};              // actor + 0x29AC
@@ -75,7 +73,6 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u32 render_flags{};                 // actor + 0x26A4
     LegacyBattleGroupAActionResourceRecord resource;
     std::array<compat::u32, 4> target_indices{};  // actor + 0x2A56
-    LegacyBattleGroupAActionExecutionRecord primary_record;
     LegacyBattleGroupAActionExecutionRecord secondary_record;
     std::array<
         LegacyBattleGroupAActionExecutionRecord,
@@ -98,6 +95,8 @@ struct LegacyBattleGroupAActionExecutionSharedState {
     compat::u32 draw_motion_c{};        // 0x004CD304
     compat::u16 shared_motion_word{};   // 0x00521520
     compat::u32 turn_frame_source_token{};  // 0x004CD730
+    compat::u32 draw_height_third{};         // 0x004CD75C
+    compat::u32 draw_height_quarter{};       // 0x004CD718
 };
 
 }  // namespace openswd3::battle

@@ -12,6 +12,9 @@ namespace {
 
 using openswd3::battle::LegacyBattleActionCallReply;
 using openswd3::battle::LegacyBattleActionCallRequest;
+using openswd3::battle::LegacyBattleGroupAActionExecutionSharedState;
+using openswd3::battle::LegacyBattleGroupAActionExecutionState;
+using openswd3::battle::LegacyBattleTargetPhaseState;
 using openswd3::compat::i32;
 using openswd3::compat::u8;
 using openswd3::compat::u16;
@@ -474,7 +477,7 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         LegacyBattleActionDispatchState state;
         state.group_a_to_actor[0] = 0U;
         state.action_runtime_flags = 0x8000U;
-        state.group_a_action_execution[0U].completion_gate = 1U;
+        state.group_a_action_execution[0U].primary_action_record.field_8c = 1U;
         Fixture fixture;
         DispatchPort port;
         port.battle_pair_primary_value() = 1000U;
@@ -505,7 +508,7 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         state.side_mode = 1U;
         state.group_a_to_actor[0] = 0U;
         state.action_runtime_flags = 0x8000U;
-        state.group_a_action_execution[0U].completion_gate = 1U;
+        state.group_a_action_execution[0U].primary_action_record.field_8c = 1U;
         Fixture fixture;
         DispatchPort port;
         port.battle_pair_primary_value() = 1000U;
@@ -530,7 +533,7 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         state.group_a_to_actor[0] = 0U;
         state.blocking_effect = 1U;
         state.action_runtime_flags = 0x8000U;
-        state.group_a_action_execution[0U].completion_gate = 1U;
+        state.group_a_action_execution[0U].primary_action_record.field_8c = 1U;
         Fixture fixture;
         DispatchPort port;
         port.battle_pair_primary_value() = 1000U;
@@ -678,9 +681,203 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
     }
 
     {
+        LegacyBattleTargetPhaseState phase;
+        LegacyBattleGroupAActionExecutionState actor;
+        actor.profile_value = 0x123U;
+        LegacyBattleGroupAActionExecutionSharedState shared;
+        Fixture fixture;
+        DispatchPort port;
+        auto context = fixture.context();
+        fixture.stream_provider.bytes.clear();
+        const auto no_action =
+            openswd3::battle::advance_legacy_battle_action_twenty_three(
+                &phase,
+                &actor,
+                &shared,
+                port,
+                context,
+                {.actor_token = 0x12340000U, .opponent_token = 0x525508U}
+            );
+        actor.primary_action_record = {};
+        fixture.stream_provider.bytes = {
+            0x46U, 0x52U, 0x66U, 0x00U, 0x41U, 0x50U, 0x00U, 0x00U,
+            0x59U, 0x58U, 0x00U, 0x00U, 0x00U, 0x00U, 0x44U, 0x45U,
+        };
+        fixture.frame_provider.available = false;
+        const auto no_frame =
+            openswd3::battle::advance_legacy_battle_action_twenty_three(
+                &phase,
+                &actor,
+                &shared,
+                port,
+                context,
+                {.actor_token = 0x12340000U, .opponent_token = 0x525508U}
+            );
+        actor.primary_action_record = {};
+        fixture.frame_provider.available = true;
+        const auto no_shared =
+            openswd3::battle::advance_legacy_battle_action_twenty_three(
+                &phase,
+                &actor,
+                nullptr,
+                port,
+                context,
+                {.actor_token = 0x12340000U, .opponent_token = 0x525508U}
+            );
+        actor.primary_action_record = {};
+        const auto no_phase =
+            openswd3::battle::advance_legacy_battle_action_twenty_three(
+                nullptr,
+                &actor,
+                &shared,
+                port,
+                context,
+                {.actor_token = 0x12340000U, .opponent_token = 0x525508U}
+            );
+        test.expect_true(
+            no_action.return_eax == 0U && no_action.frame_lookup_calls == 0U,
+            "action twenty-three returns directly when the updater returns zero"
+        );
+        test.expect_true(
+            no_frame.status ==
+                    openswd3::battle::LegacyBattleActionTwentyThreeStatus::
+                        frame_owner_typed_stop &&
+                no_frame.action_update_calls == 1U &&
+                no_frame.frame_lookup_calls == 1U,
+            "action twenty-three stops at the original frame dereference"
+        );
+        test.expect_true(
+            no_shared.status ==
+                    openswd3::battle::LegacyBattleActionTwentyThreeStatus::
+                        shared_state_typed_stop &&
+                no_shared.frame_lookup_calls == 1U,
+            "action twenty-three publishes the frame token before the shared owner stop"
+        );
+        test.expect_true(
+            no_phase.status ==
+                    openswd3::battle::LegacyBattleActionTwentyThreeStatus::
+                        phase_state_typed_stop &&
+                actor.turn_frame_token == 0x1234254CU && port.calls.empty(),
+            "action twenty-three reaches the render toggle owner only after frame publication"
+        );
+    }
+
+    {
+        LegacyBattleTargetPhaseState phase;
+        phase.render_toggle_gate = 1U;
+        LegacyBattleGroupAActionExecutionState actor;
+        actor.profile_value = 0x123U;
+        actor.primary_action_record.cached_action_id = 0x123U;
+        actor.primary_action_record.cached_base_variant = 0x2BU;
+        actor.primary_action_record.draw_offset_x = 4U;
+        actor.primary_action_record.draw_offset_y = 0x00010004U;
+        actor.primary_action_record.mode_flags = 1U;
+        actor.primary_action_record.field_58 = 0x44U;
+        LegacyBattleGroupAActionExecutionSharedState shared;
+        Fixture fixture;
+        fixture.stream_provider.bytes = {
+            0x46U, 0x52U, 0x66U, 0x00U, 0x44U, 0x45U,
+        };
+        DispatchPort port;
+        port.push(
+            0x004783B0U,
+            {.outputs = {100U, 50U}}
+        );
+        port.push(
+            0x00485610U,
+            {.eax = 0xAAAA1111U, .edx = 0xBBBB2222U}
+        );
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_action_twenty_three(
+                &phase,
+                &actor,
+                &shared,
+                port,
+                context,
+                {.actor_token = 0x12340000U, .opponent_token = 0x525508U}
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleActionTwentyThreeStatus::
+                        completed &&
+                result.return_eax == 0U && result.coordinate_query_calls == 1U &&
+                result.sample_play_calls == 1U &&
+                result.sample_pan_calls == 1U && result.render_calls == 2U &&
+                actor.primary_action_record.draw_offset_x == 28U &&
+                actor.primary_action_record.field_1c == 0x8000U &&
+                actor.primary_action_record.field_58 == 0U &&
+                actor.render_flags == 0x0CU &&
+                shared.turn_frame_source_token == 0x1234254CU &&
+                shared.draw_height_third == 10U &&
+                shared.draw_height_quarter == 8U &&
+                shared.draw_motion_a == 0xFFFFFFFAU &&
+                shared.draw_motion_b == 0xFFFFFFFAU &&
+                shared.draw_motion_c == 0xFFFFFFFAU,
+            "action twenty-three updates the primary record and publishes the shared draw state"
+        );
+        test.expect_true(
+            has_call_argument(port, 0x00485610U, 0U, 0x12340044U) &&
+                has_call_argument(port, 0x00485650U, 0U, 0xAAAA0044U) &&
+                has_call_argument(port, 0x00485650U, 1U, 0xFFFFFFF0U) &&
+                has_call_argument(port, 0x004170E0U, 0U, 67U) &&
+                has_call_argument(port, 0x004170E0U, 1U, 0x00010028U) &&
+                port.calls[4U].arguments[0U] == 72U &&
+                port.calls[4U].arguments[1U] == 46U,
+            "action twenty-three preserves stale sample halves and the asymmetric first-layer y arithmetic"
+        );
+    }
+
+    {
+        LegacyBattleTargetPhaseState phase;
+        LegacyBattleGroupAActionExecutionState actor;
+        actor.profile_value = 0x123U;
+        actor.primary_action_record.cached_action_id = 0x123U;
+        actor.primary_action_record.cached_base_variant = 0x2BU;
+        actor.primary_action_record.mode_flags = 0x80000003U;
+        actor.primary_action_record.field_58 = 0x55U;
+        LegacyBattleGroupAActionExecutionSharedState shared;
+        Fixture fixture;
+        fixture.stream_provider.bytes = {
+            0x46U, 0x52U, 0x66U, 0x00U, 0x44U, 0x45U,
+        };
+        DispatchPort port;
+        port.push(0x004783B0U, {.outputs = {400U, 60U}});
+        port.push(
+            0x00485610U,
+            {.eax = 0xAAAA1111U, .edx = 0xBBBB2222U}
+        );
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_action_twenty_three(
+                &phase,
+                &actor,
+                &shared,
+                port,
+                context,
+                {.actor_token = 0x12340000U,
+                 .opponent_token = 0x525508U,
+                 .skip_primary = 1U}
+            );
+        test.expect_true(
+            result.return_eax == 0U && actor.render_flags == 0x8000000FU &&
+                shared.draw_motion_a == 0xFFFFFFFFU &&
+                has_call_argument(port, 0x00485650U, 0U, 0xBBBB0055U) &&
+                has_call_argument(port, 0x00485650U, 1U, 0x10U),
+            "action twenty-three uses the returned edx high half for the right-side pan and the skip motion"
+        );
+    }
+
+    {
         LegacyBattleActionDispatchState state;
         state.group_a_count = 1;
         state.group_b_count = 1;
+        state.group_a_action_execution[0U].profile_value = 0x123U;
+        state.group_a_action_execution[0U]
+            .primary_action_record.cached_action_id = 0x123U;
+        state.group_a_action_execution[0U]
+            .primary_action_record.cached_base_variant = 0x2BU;
+        state.group_a_action_execution[0U].primary_action_record.field_8c = 1U;
         Fixture fixture;
         DispatchPort port;
         port.action = 23U;
@@ -693,8 +890,24 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         const auto& item =
             port.world_item_list_state().player_inventory.front();
         test.expect_true(
-            result.status == LegacyBattleActionDispatchStatus::completed &&
-                result.player_item_calls == 1U &&
+            result.action_twenty_three_calls == 1U &&
+                port.count(0x004721F0U) == 0U,
+            "action twenty-three caller removes the old whole-function address"
+        );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed,
+            "action twenty-three caller preserves completed dispatch status"
+        );
+        test.expect_true(
+            result.action_twenty_three.status ==
+                    openswd3::battle::LegacyBattleActionTwentyThreeStatus::
+                        completed &&
+                result.action_twenty_three.return_eax == 1U &&
+                result.action_twenty_three.action_record_clears == 1U,
+            "action twenty-three caller directly uses the typed completion result"
+        );
+        test.expect_true(
+            result.player_item_calls == 1U &&
                 result.player_item.return_token == 0x0064000CU &&
                 item.item_id == 0x22U && item.quantity_b == 1U,
             "action twenty-three message path directly publishes selector-one player quantity"
@@ -804,7 +1017,7 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         LegacyBattleActionDispatchState state;
         state.group_a_to_actor[0] = 0U;
         state.action_runtime_flags = 0x8000U;
-        state.group_a_action_execution[0U].completion_gate = 1U;
+        state.group_a_action_execution[0U].primary_action_record.field_8c = 1U;
         Fixture fixture;
         fixture.raster.surface.width = 641;
         DispatchPort port;
