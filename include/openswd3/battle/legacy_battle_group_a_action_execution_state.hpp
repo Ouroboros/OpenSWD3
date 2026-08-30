@@ -50,6 +50,7 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u32 summon_x_offset{};               // actor + 0x268C
     compat::u32 spawn_completion_offset{};       // actor + 0x2674
     compat::u16 turn_threshold{};                // actor + 0x2958
+    compat::u16 message_percent{};               // actor + 0x26DC
     compat::u16 summon_phase{};                  // actor + 0x2A66
     compat::u16 summon_completion_word{};        // actor + 0x2A78
     compat::u16 turn_target_x_offset{};          // actor + 0x29B4

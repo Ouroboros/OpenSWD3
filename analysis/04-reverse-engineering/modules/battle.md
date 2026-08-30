@@ -639,6 +639,8 @@ I5最终必须锁定：
 
 `audit_order=214`的`0x004721F0`已关闭为`platform_adapted`。完整权威LST主体`0x004721F0..0x00472428`共261行、167条实际指令、7个call、10个跳转、9个局部标签、3个返回点且无外部chunk。把行动者`+0x338`迁为唯一`LegacyActionRecord` owner，并消除`external_mode`、`field_8c`、`draw_offset_y`的旧重复字段；实现动作更新、frame、完成清零、宽度镜像、目标相对坐标、共享高度/运动值、陈旧高半sample参数、左右声像与双层非对称绘制。已关闭callee typed直连，目标坐标、音频和绘制保留窄port；case 23 caller全部typed化。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`214/422 = 205 platform_adapted + 9 assembly_exact + 208 pending_audit`，双跑SHA256为`84bd7142794065107646c5ae9bd5233694e1cc2eafac5fc9362b2fbd25ac9f04`。动态差分因原版行动者记录、目标坐标、frame、sample、绘制与caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=215`的`0x00472430`战斗角色动作效果与渲染函数。
+`audit_order=215`的`0x00472430`已关闭为`platform_adapted`。完整权威LST主体`0x00472430..0x004724C2`共79行、49条实际指令、3个call、5个跳转、5个局部标签、3个返回点且无外部chunk。建立group-B目标资料`+0x86/+0x88`唯一typed owner与group-A行动者`+0x26DC`百分比字段，实现零码sentinel、百分比刷新、bound 10随机、`percent/25`夹值、无符号阈值拒绝、接受后破坏性清零。百分比刷新和随机保留窄port，case 23 caller改为typed结果。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。工作包为`215/422 = 206 platform_adapted + 9 assembly_exact + 207 pending_audit`，双跑SHA256为`defe4cdd4cf11bc2a2d536d703e48f59f6939f82ec772d5c6ff33ca4743dc4a0`。动态差分因原版目标资料、行动者百分比刷新、随机状态与caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=216`的`0x004724D0`战斗角色动作效果与渲染函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

@@ -58,6 +58,7 @@ using compat::i32;
 using compat::u16;
 using compat::u32;
 
+constexpr u32 kCallLegacyRandom = 0x00439070U;
 constexpr u32 kCallQueryAction = 0x004786B0U;
 constexpr u32 kCallQueryFallbackAction = 0x004786C0U;
 constexpr u32 kCallActorTerminal = 0x0047CE80U;
@@ -105,7 +106,6 @@ constexpr u32 kCallPrepareOpponent = 0x00478AE0U;
 constexpr u32 kCallSelectOpponent = 0x00478A70U;
 constexpr u32 kCallPublishScene = 0x004707B0U;
 constexpr u32 kCallFinalizeSelection = 0x00478B30U;
-constexpr u32 kCallQueryMessageCode = 0x00472430U;
 constexpr u32 kCallBuildMessageToken = 0x00476DB0U;
 constexpr u32 kCallPrepareMessageToken = 0x00478220U;
 constexpr u32 kCallActionTwentyFour = 0x004724D0U;
@@ -1520,6 +1520,92 @@ advance_legacy_battle_action_twenty_three(
     ));
 
     result.return_eax = 0U;
+    result.return_ecx = registers.ecx;
+    result.return_edx = registers.edx;
+    return result;
+}
+
+LegacyBattleActionTwentyThreeMessageResult
+consume_legacy_battle_action_twenty_three_message(
+    LegacyBattleGroupAActionExecutionState* actor,
+    LegacyBattleActionMessageProfile* profile,
+    LegacyBattleActionDispatchPort& port,
+    const LegacyBattleActionTwentyThreeMessageRequest& request
+) {
+    LegacyBattleActionTwentyThreeMessageResult result{
+        .return_eax = request.entry_eax,
+        .return_ecx = request.entry_ecx,
+        .return_edx = request.entry_edx,
+    };
+    if (profile == nullptr) {
+        result.status = LegacyBattleActionTwentyThreeMessageStatus::
+            profile_state_typed_stop;
+        return result;
+    }
+
+    struct Registers {
+        u32 eax{};
+        u32 ecx{};
+        u32 edx{};
+    } registers{
+        .eax = request.entry_eax,
+        .ecx = request.entry_ecx,
+        .edx = request.entry_edx,
+    };
+    auto invoke_message = [&](const u32 callee,
+                              const std::array<u32, 8>& arguments = {}) {
+        ++result.port_calls;
+        const auto reply = port.invoke({
+            .callee_token = callee,
+            .arguments = arguments,
+            .eax = registers.eax,
+            .ecx = registers.ecx,
+            .edx = registers.edx,
+        });
+        registers.eax = reply.eax;
+        registers.ecx = reply.ecx;
+        registers.edx = reply.edx;
+        return reply;
+    };
+
+    registers.eax = request.profile_token;
+    if (profile->message_code == 0U) {
+        replace_low_word(registers.eax, 0x61A8U);
+        result.return_eax = registers.eax;
+        return result;
+    }
+    if (actor == nullptr || request.actor_token == 0U) {
+        result.status = LegacyBattleActionTwentyThreeMessageStatus::
+            actor_state_typed_stop;
+        return result;
+    }
+
+    registers.ecx = request.actor_token;
+    ++result.percent_refresh_calls;
+    const auto refreshed = invoke_message(kCallQueryPercent, {0x17U});
+    actor->message_percent = low_word(refreshed.eax);
+    if (actor->message_percent < 100U) {
+        ++result.random_calls;
+        const auto random = invoke_message(kCallLegacyRandom, {10U});
+        const u32 ratio = static_cast<u32>(actor->message_percent) / 25U;
+        registers.eax = ratio;
+        const u16 random_value = low_word(random.eax);
+        const u16 adjusted = ratio <= random_value
+            ? static_cast<u16>(random_value - ratio)
+            : 0U;
+        if (adjusted >= profile->acceptance_threshold) {
+            replace_low_word(registers.eax, 0U);
+            result.return_eax = registers.eax;
+            result.return_ecx = registers.ecx;
+            result.return_edx = registers.edx;
+            return result;
+        }
+    }
+
+    replace_low_word(registers.eax, profile->message_code);
+    profile->message_code = 0U;
+    ++result.message_code_clears;
+    result.return_eax = registers.eax;
     result.return_ecx = registers.ecx;
     result.return_edx = registers.edx;
     return result;
@@ -3168,14 +3254,26 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
         if (result.action_twenty_three.return_eax != 1U) {
             return result;
         }
-        const u16 message_code = low_word(invoke(
-                                              state,
-                                              port,
-                                              result,
-                                              kCallQueryMessageCode,
-                                              {group_b_token(group_b_index)}
-        )
-                                              .eax);
+        result.action_twenty_three_message =
+            consume_legacy_battle_action_twenty_three_message(
+                &state.group_a_action_execution[group_a_index],
+                &state.group_b_message_profiles[group_b_index],
+                port,
+                {
+                    .actor_token = actor_token,
+                    .profile_token = group_b_token(group_b_index) + 0x0CU,
+                }
+            );
+        ++result.action_twenty_three_message_calls;
+        result.port_calls += result.action_twenty_three_message.port_calls;
+        if (result.action_twenty_three_message.status !=
+            LegacyBattleActionTwentyThreeMessageStatus::completed) {
+            result.status = LegacyBattleActionDispatchStatus::
+                action_twenty_three_message_typed_stop;
+            return result;
+        }
+        const u16 message_code =
+            low_word(result.action_twenty_three_message.return_eax);
         if (message_code != 0U && message_code < 0x61A8U) {
             static_cast<void>(invoke(
                 state,

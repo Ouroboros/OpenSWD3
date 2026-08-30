@@ -12,6 +12,7 @@ namespace {
 
 using openswd3::battle::LegacyBattleActionCallReply;
 using openswd3::battle::LegacyBattleActionCallRequest;
+using openswd3::battle::LegacyBattleActionMessageProfile;
 using openswd3::battle::LegacyBattleGroupAActionExecutionSharedState;
 using openswd3::battle::LegacyBattleGroupAActionExecutionState;
 using openswd3::battle::LegacyBattleTargetPhaseState;
@@ -869,6 +870,94 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
     }
 
     {
+        LegacyBattleGroupAActionExecutionState actor;
+        LegacyBattleActionMessageProfile empty_profile;
+        DispatchPort port;
+        const auto empty =
+            openswd3::battle::consume_legacy_battle_action_twenty_three_message(
+                nullptr,
+                &empty_profile,
+                port,
+                {.profile_token = 0xABCD0000U}
+            );
+        LegacyBattleActionMessageProfile live_profile{
+            .message_code = 0x22U,
+            .acceptance_threshold = 3U,
+        };
+        const auto no_actor =
+            openswd3::battle::consume_legacy_battle_action_twenty_three_message(
+                nullptr,
+                &live_profile,
+                port,
+                {.actor_token = 0x12340000U, .profile_token = 0xABCD0000U}
+            );
+        test.expect_true(
+            static_cast<u16>(empty.return_eax) == 0x61A8U &&
+                empty.port_calls == 0U &&
+                no_actor.status ==
+                    openswd3::battle::
+                        LegacyBattleActionTwentyThreeMessageStatus::
+                            actor_state_typed_stop &&
+                live_profile.message_code == 0x22U && port.calls.empty(),
+            "action twenty-three message query returns the sentinel before actor access and preserves live codes on actor stop"
+        );
+
+        port.push(0x00482F10U, {.eax = 0U});
+        port.push(0x00439070U, {.eax = 5U});
+        const auto rejected =
+            openswd3::battle::consume_legacy_battle_action_twenty_three_message(
+                &actor,
+                &live_profile,
+                port,
+                {.actor_token = 0x12340000U, .profile_token = 0xABCD0000U}
+            );
+        test.expect_true(
+            static_cast<u16>(rejected.return_eax) == 0U &&
+                rejected.percent_refresh_calls == 1U &&
+                rejected.random_calls == 1U &&
+                rejected.message_code_clears == 0U &&
+                live_profile.message_code == 0x22U,
+            "action twenty-three message query keeps the code when adjusted random meets the threshold"
+        );
+
+        live_profile.acceptance_threshold = 4U;
+        port.push(0x00482F10U, {.eax = 50U});
+        port.push(0x00439070U, {.eax = 5U});
+        const auto accepted =
+            openswd3::battle::consume_legacy_battle_action_twenty_three_message(
+                &actor,
+                &live_profile,
+                port,
+                {.actor_token = 0x12340000U, .profile_token = 0xABCD0000U}
+            );
+        test.expect_true(
+            static_cast<u16>(accepted.return_eax) == 0x22U &&
+                actor.message_percent == 50U && accepted.random_calls == 1U &&
+                accepted.message_code_clears == 1U &&
+                live_profile.message_code == 0U,
+            "action twenty-three message query subtracts the percent quarter and destructively consumes an accepted code"
+        );
+
+        live_profile.message_code = 0x44U;
+        live_profile.acceptance_threshold = 0U;
+        port.push(0x00482F10U, {.eax = 100U});
+        const auto certain =
+            openswd3::battle::consume_legacy_battle_action_twenty_three_message(
+                &actor,
+                &live_profile,
+                port,
+                {.actor_token = 0x12340000U, .profile_token = 0xABCD0000U}
+            );
+        test.expect_true(
+            static_cast<u16>(certain.return_eax) == 0x44U &&
+                certain.random_calls == 0U &&
+                certain.message_code_clears == 1U &&
+                port.count(0x00439070U) == 2U,
+            "action twenty-three message query skips random at one hundred and consumes the code"
+        );
+    }
+
+    {
         LegacyBattleActionDispatchState state;
         state.group_a_count = 1;
         state.group_b_count = 1;
@@ -878,10 +967,13 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         state.group_a_action_execution[0U]
             .primary_action_record.cached_base_variant = 0x2BU;
         state.group_a_action_execution[0U].primary_action_record.field_8c = 1U;
+        state.group_b_message_profiles[0U] = {
+            .message_code = 0x22U,
+            .acceptance_threshold = 2U,
+        };
         Fixture fixture;
         DispatchPort port;
         port.action = 23U;
-        port.push(0x00472430U, {.eax = 0x22U});
         port.push(0x00487C10U, {.eax = 0x00640000U});
         auto context = fixture.context();
         const auto result = openswd3::battle::dispatch_legacy_battle_action(
@@ -907,7 +999,11 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
             "action twenty-three caller directly uses the typed completion result"
         );
         test.expect_true(
-            result.player_item_calls == 1U &&
+            result.action_twenty_three_message_calls == 1U &&
+                result.action_twenty_three_message.message_code_clears == 1U &&
+                state.group_b_message_profiles[0U].message_code == 0U &&
+                port.count(0x00472430U) == 0U &&
+                result.player_item_calls == 1U &&
                 result.player_item.return_token == 0x0064000CU &&
                 item.item_id == 0x22U && item.quantity_b == 1U,
             "action twenty-three message path directly publishes selector-one player quantity"
