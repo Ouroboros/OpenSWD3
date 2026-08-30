@@ -140,7 +140,7 @@
   不得设置 `OPENSWD3_BUILD_JOBS` / `OPENSWD3_TEST_JOBS`，不得自行降为 `-j2` 或其他并发数。不得移除
   同测试二进制调用锁或真实资产全局锁来换取虚假提速。
 - Linux core/app完整门禁只能分别通过`./build.sh core`和`./build.sh app`执行；不得手写展开脚本内部的
-  CMake build和CTest命令。定向目标与独立sanitizer构建目录不在此限制内。
+  CMake build和CTest命令。
 - 修改后运行仓库现有的定向测试和适用的 Linux/Windows 完整门禁。命令没有实际执行时，
   不得声称已构建、已测试或已通过。
 - 构建成功不等于运行验证成功，测试枚举数量也不等于测试实际通过。
