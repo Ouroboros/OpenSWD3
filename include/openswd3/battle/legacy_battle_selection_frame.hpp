@@ -13,6 +13,7 @@
 #include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
 #include "openswd3/battle/legacy_battle_grid_frame.hpp"
 #include "openswd3/battle/legacy_battle_guard_panel_frame.hpp"
+#include "openswd3/battle/legacy_battle_group_b_action_six_target_availability.hpp"
 #include "openswd3/battle/legacy_battle_group_b_frame.hpp"
 #include "openswd3/battle/legacy_battle_input_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_list_contents.hpp"
@@ -250,6 +251,9 @@ struct LegacyBattleSelectionFrameResult {
     LegacyBattleScaleFillPanelResult scale_fill_panel{};
     LegacyBattleVerticalPanelResult vertical_panel{};
     LegacyBattlePreparedActionFrameDrawResult prepared_action_frame{};
+    compat::u32 action_six_availability_queries{};
+    LegacyBattleGroupBActionSixTargetAvailabilityResult
+        action_six_availability{};
 };
 
 // Typed closure of legacy 0x00464270.

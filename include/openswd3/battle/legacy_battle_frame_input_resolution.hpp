@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_final_actor_step.hpp"
+#include "openswd3/battle/legacy_battle_group_b_action_six_target_availability.hpp"
 #include "openswd3/battle/legacy_battle_input_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 #include "openswd3/rendering/legacy_image_command_stream.hpp"
@@ -84,7 +85,7 @@ enum class LegacyBattleFrameInputResolutionCall : compat::u8 {
     prepare_actor_origin,
     resolve_actor_surface,
     query_actor_mirror,
-    query_group_b_mode,
+    reserved_query_group_b_action_six_target_availability_slot,
     query_group_a_candidate,
 };
 
@@ -170,6 +171,9 @@ struct LegacyBattleFrameInputResolutionResult {
     compat::u32 hotspot_queries{};
     compat::u32 image_queries{};
     compat::u32 actor_iterations{};
+    compat::u32 action_six_availability_queries{};
+    LegacyBattleGroupBActionSixTargetAvailabilityResult
+        action_six_availability{};
     bool returned_early{};
 };
 

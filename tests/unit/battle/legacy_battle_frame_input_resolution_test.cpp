@@ -1,7 +1,9 @@
 #include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
 
 #include <algorithm>
+#include <array>
 #include <map>
+#include <memory>
 #include <vector>
 
 #include "test.hpp"
@@ -349,7 +351,13 @@ void test_battle_frame_input_resolution(openswd3::test::Context& test) {
         fixture.message = 3U;
         fixture.final_actor.queued_actor_code = 8U;
         fixture.metrics.group_b_count = 1U;
-        fixture.port.battle_input_dispatch_state().selection_index = 6U;
+        fixture.port.battle_input_dispatch_state().action_kind = 6U;
+        fixture.port.battle_frame_input_resolution_state()
+            .target_action_available = 9U;
+        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            8>>();
+        (*fixture.startup.group_b_lifecycle)[0U].resource_token = 1U;
         fixture.prepare_visible_surface(10, 10);
         const auto result =
             openswd3::battle::coordinate_legacy_battle_frame_input_resolution(
@@ -368,12 +376,73 @@ void test_battle_frame_input_resolution(openswd3::test::Context& test) {
                         configure_actor_selection
                 ) == 2U &&
                 fixture.port.count(
-                    LegacyBattleFrameInputResolutionCall::query_group_b_mode
-                ) == 1U &&
+                    LegacyBattleFrameInputResolutionCall::
+                        reserved_query_group_b_action_six_target_availability_slot
+                ) == 0U &&
+                result.action_six_availability_queries == 1U &&
+                result.action_six_availability.resource_flags == 0U &&
                 fixture.port.battle_frame_input_resolution_state()
                         .target_action_available == 0U &&
                 result.image_queries == 1U,
-            "case three scans group B in reverse and commits the first visible pixel candidate"
+            "case three type-checks action six availability after committing the first visible group-B target"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.set_mouse(10, 10);
+        fixture.message = 3U;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.metrics.group_b_count = 1U;
+        fixture.port.battle_input_dispatch_state().selection_index = 6U;
+        fixture.port.battle_frame_input_resolution_state()
+            .target_action_available = 9U;
+        fixture.prepare_visible_surface(10, 10);
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_frame_input_resolution(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameInputResolutionStatus::
+                        completed &&
+                result.action_six_availability_queries == 0U &&
+                fixture.port.battle_frame_input_resolution_state()
+                        .target_action_available == 1U,
+            "case three gates the target query with action kind rather than the unrelated selection index"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.set_mouse(10, 10);
+        fixture.message = 3U;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.metrics.group_b_count = 1U;
+        fixture.port.battle_input_dispatch_state().action_kind = 6U;
+        fixture.port.battle_frame_input_resolution_state()
+            .target_action_available = 9U;
+        fixture.prepare_visible_surface(10, 10);
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_frame_input_resolution(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameInputResolutionStatus::
+                        group_b_actor_typed_stop &&
+                result.action_six_availability_queries == 1U &&
+                result.action_six_availability.status ==
+                    openswd3::battle::
+                        LegacyBattleGroupBActionSixTargetAvailabilityStatus::
+                            actor_state_typed_stop &&
+                fixture.final_actor.published_actor_code == 1U &&
+                fixture.port.battle_frame_input_resolution_state()
+                        .selected_target_index == 0U &&
+                fixture.port.battle_frame_input_resolution_state()
+                        .target_action_available == 1U &&
+                result.return_ecx == 0x00525508U,
+            "case three actor stop preserves the committed target prefix and blocks the action-six availability clear"
         );
     }
 

@@ -301,6 +301,37 @@ private:
         return true;
     }
 
+    [[nodiscard]] bool
+    query_group_b_action_six_target_availability(const u32 index) {
+        eax_ = index * 0x565U;
+        edx_ = index * 0x159U;
+        ecx_ = kGroupBBaseToken + index * kGroupBStride;
+        LegacyBattleActorGroupBElementState* actor = nullptr;
+        if (bindings_.startup.group_b_lifecycle != nullptr &&
+            index < bindings_.startup.group_b_lifecycle->size()) {
+            actor = &(*bindings_.startup.group_b_lifecycle)[index];
+        }
+        result_.action_six_availability =
+            query_legacy_battle_group_b_action_six_target_availability(
+                actor,
+                {
+                    .actor_token = ecx_,
+                    .entry_eax = eax_,
+                    .entry_edx = edx_,
+                }
+            );
+        ++result_.action_six_availability_queries;
+        eax_ = result_.action_six_availability.return_eax;
+        ecx_ = result_.action_six_availability.return_ecx;
+        edx_ = result_.action_six_availability.return_edx;
+        if (result_.action_six_availability.status !=
+            LegacyBattleGroupBActionSixTargetAvailabilityStatus::completed) {
+            typed_stop(Status::group_b_actor_typed_stop);
+            return false;
+        }
+        return true;
+    }
+
     [[nodiscard]] bool read_action_workspace(const u32 actor_code, u32& value) {
         const u32 index = (actor_code * 5U) - 40U;
         if (index >= bindings_.action.opponent_workspace.size()) {
@@ -1360,6 +1391,15 @@ private:
                 return false;
             }
             if (eax_ != 1U) {
+                if (state_input().action_kind == 6U) {
+                    bindings_.frame_input.target_action_available = 1U;
+                    if (!query_group_b_action_six_target_availability(target)) {
+                        return false;
+                    }
+                    if (eax_ == 0U) {
+                        bindings_.frame_input.target_action_available = 0U;
+                    }
+                }
                 return true;
             }
         }

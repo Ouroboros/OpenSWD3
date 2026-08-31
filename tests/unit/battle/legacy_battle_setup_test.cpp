@@ -119,6 +119,9 @@ void test_battle_group_b_action_profile_selection(
     openswd3::test::Context& test
 );
 void test_battle_group_b_action_reconfiguration(openswd3::test::Context& test);
+void test_battle_group_b_action_six_target_availability(
+    openswd3::test::Context& test
+);
 void test_battle_group_b_action_seventeen_frame(
     openswd3::test::Context& test
 );
@@ -7204,6 +7207,7 @@ int main() {
     test_battle_group_b_action_profile_mode(test);
     test_battle_group_b_action_profile_selection(test);
     test_battle_group_b_action_reconfiguration(test);
+    test_battle_group_b_action_six_target_availability(test);
     test_battle_group_b_action_seventeen_frame(test);
     test_battle_group_b_coordinate_offsets(test);
     test_battle_group_b_frame(test);

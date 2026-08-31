@@ -722,13 +722,37 @@ coordinate_legacy_battle_frame_input_resolution(
                         actor_token, 2U, true, true, typed_stop
                     )) {
                     publish_target(actor_index + 1U, actor_index, actor_token);
-                    if (input_state.selection_index == 6U) {
-                        const auto mode = call(
-                            LegacyBattleFrameInputResolutionCall::
-                                query_group_b_mode,
-                            actor_token
-                        );
-                        if (mode.eax == 0U) {
+                    if (input_state.action_kind == 6U) {
+                        LegacyBattleActorGroupBElementState* actor = nullptr;
+                        if (bindings.startup.group_b_lifecycle != nullptr &&
+                            actor_index <
+                                bindings.startup.group_b_lifecycle->size()) {
+                            actor = &(
+                                *bindings.startup.group_b_lifecycle
+                            )[actor_index];
+                        }
+                        result.action_six_availability =
+                            query_legacy_battle_group_b_action_six_target_availability(
+                                actor,
+                                {
+                                    .actor_token = actor_token,
+                                    .entry_eax = eax,
+                                    .entry_edx = edx,
+                                }
+                            );
+                        ++result.action_six_availability_queries;
+                        eax = result.action_six_availability.return_eax;
+                        ecx = result.action_six_availability.return_ecx;
+                        edx = result.action_six_availability.return_edx;
+                        if (result.action_six_availability.status !=
+                            LegacyBattleGroupBActionSixTargetAvailabilityStatus::
+                                completed) {
+                            return stop(
+                                LegacyBattleFrameInputResolutionStatus::
+                                    group_b_actor_typed_stop
+                            );
+                        }
+                        if (eax == 0U) {
                             state.target_action_available = 0U;
                         }
                     }

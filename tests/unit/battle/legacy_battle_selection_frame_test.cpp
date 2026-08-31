@@ -1005,6 +1005,98 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
         );
     }
 
+    for (const auto [threshold, expected] :
+         std::array<std::array<u16, 2>, 2>{{{0x15U, 1U}, {0x16U, 0U}}}) {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.message = 3U;
+        fixture.metrics.group_b_count = 2U;
+        fixture.frame.target_actor_index = 0U;
+        fixture.frame.target_cursor = 0U;
+        fixture.target.target_actor_indices[1U] = 0U;
+        fixture.input.action_kind = 6U;
+        fixture.final_actor.pre_frame_gate_b = 1U;
+        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            8>>();
+        auto& actor = (*fixture.startup.group_b_lifecycle)[0U];
+        actor.resource_token = 0x73001234U;
+        actor.resource_bytes[0x21U] = 0x08U;
+        actor.resource_bytes[0x52U] = static_cast<u8>(threshold);
+        actor.resource_bytes[0x53U] = static_cast<u8>(threshold >> 8U);
+        fixture.port.reply(
+            LegacyBattleSelectionFrameCall::query_group_b_completion,
+            {.eax = 1U}
+        );
+        fixture.port.reply(
+            LegacyBattleSelectionFrameCall::query_group_b_completion,
+            {.eax = 0U}
+        );
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        completed &&
+                result.action_six_availability_queries == 1U &&
+                result.action_six_availability.resource_threshold ==
+                    threshold &&
+                fixture.frame.target_action_available == expected &&
+                fixture.frame.target_cursor == 1U &&
+                fixture.frame.target_actor_index == 0U &&
+                fixture.final_actor.published_actor_code == 1U &&
+                result.group_b_calls == 2U &&
+                count_call(
+                    fixture.port,
+                    LegacyBattleSelectionFrameCall::query_group_b_completion
+                ) == 2U,
+            "target cycling type-checks action six availability after the distinct completion query"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.message = 3U;
+        fixture.metrics.group_b_count = 2U;
+        fixture.frame.target_actor_index = 0U;
+        fixture.frame.target_cursor = 0U;
+        fixture.target.target_actor_indices[1U] = 0U;
+        fixture.input.action_kind = 6U;
+        fixture.final_actor.pre_frame_gate_b = 1U;
+        fixture.frame.target_action_available = 9U;
+        fixture.port.reply(
+            LegacyBattleSelectionFrameCall::query_group_b_completion,
+            {.eax = 1U}
+        );
+        fixture.port.reply(
+            LegacyBattleSelectionFrameCall::query_group_b_completion,
+            {.eax = 0U}
+        );
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        group_b_actor_typed_stop &&
+                result.action_six_availability_queries == 1U &&
+                result.action_six_availability.status ==
+                    openswd3::battle::
+                        LegacyBattleGroupBActionSixTargetAvailabilityStatus::
+                            actor_state_typed_stop &&
+                fixture.frame.target_action_available == 1U &&
+                fixture.frame.target_cursor == 1U &&
+                fixture.frame.target_actor_index == 0U &&
+                fixture.final_actor.published_actor_code == 1U &&
+                result.group_b_calls == 2U && result.return_ecx == 0x00525508U,
+            "target cycling actor stop preserves the selected target and availability-one prefix while blocking the frame suffix"
+        );
+    }
+
     {
         Fixture fixture;
         fixture.final_actor.queued_actor_code = 8U;
