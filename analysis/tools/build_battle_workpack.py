@@ -1060,6 +1060,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-group-b-script-resource-parameters-00476920.md",
     ),
+    "0x004769A0": (
+        "platform_adapted",
+        "evidence/battle-group-b-script-action-item-parameters-004769a0.md",
+    ),
 }
 
 

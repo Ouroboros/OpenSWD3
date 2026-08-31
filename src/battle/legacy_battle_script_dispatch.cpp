@@ -3033,36 +3033,77 @@ private:
     }
 
     [[nodiscard]] LegacyBattleScriptDispatchResult case_fifty_six() {
+        const u32 caller_ecx = ecx_;
         u16 actor{};
-        std::array<u16, 6> arguments{};
         if (!read_u16(wrapping_add(workspace_.cursor, 2U), actor)) {
-            return finish();
-        }
-        for (std::size_t index = 0U; index < arguments.size(); ++index) {
-            if (!read_u16(
-                    wrapping_add(
-                        workspace_.cursor, 4U + static_cast<u32>(index) * 2U
-                    ),
-                    arguments[index]
-                )) {
-                return finish();
-            }
-        }
-        const auto token = group_b_token(static_cast<i32>(actor));
-        if (!token.has_value()) {
             return finish(eax_);
         }
-        invoke(
-            LegacyBattleScriptDispatchCall::pending_4769a0,
-            *token,
-            {arguments[0],
-             arguments[1],
-             arguments[2],
-             arguments[3],
-             arguments[4],
-             arguments[5]}
-        );
+        set_low_word(ecx_, actor);
+        set_high_word(workspace_.packed_actor_state, actor);
+
+        std::array<u16, 6> parameters{};
+        if (!read_u16(wrapping_add(workspace_.cursor, 14U), parameters[5U])) {
+            return finish(eax_);
+        }
+        set_low_word(eax_, parameters[5U]);
+        if (!read_u16(wrapping_add(workspace_.cursor, 12U), parameters[4U])) {
+            return finish(eax_);
+        }
+        set_low_word(edx_, parameters[4U]);
+        if (!read_u16(wrapping_add(workspace_.cursor, 10U), parameters[3U])) {
+            return finish(eax_);
+        }
+        set_low_word(eax_, parameters[3U]);
+        if (!read_u16(wrapping_add(workspace_.cursor, 8U), parameters[2U])) {
+            return finish(eax_);
+        }
+        set_low_word(edx_, parameters[2U]);
+        if (!read_u16(wrapping_add(workspace_.cursor, 6U), parameters[1U])) {
+            return finish(eax_);
+        }
+        set_low_word(eax_, parameters[1U]);
+        eax_ = actor;
+        if (!read_u16(wrapping_add(workspace_.cursor, 4U), parameters[0U])) {
+            return finish(eax_);
+        }
+        set_low_word(edx_, parameters[0U]);
+
+        const u32 actor_index = actor;
+        const u32 actor_token = kLegacyBattleScriptGroupBBaseToken +
+            actor_index * kLegacyBattleScriptGroupBElementSize;
+        edx_ = actor_index * 1381U;
+        ecx_ = actor_token;
+        LegacyBattleActorGroupBElementState* actor_state = nullptr;
+        if (bindings_.startup.group_b_lifecycle != nullptr &&
+            actor_index < bindings_.startup.group_b_lifecycle->size()) {
+            actor_state = &(*bindings_.startup.group_b_lifecycle)[actor_index];
+        }
+
+        result_.group_b_script_action_item_parameters =
+            write_legacy_battle_group_b_script_action_item_parameters(
+                actor_state,
+                {
+                    .parameters = parameters,
+                    .actor_token = actor_token,
+                    .entry_eax = eax_,
+                    .entry_edx = edx_,
+                }
+            );
+        ++result_.group_b_script_action_item_parameters_calls;
+        eax_ = result_.group_b_script_action_item_parameters.return_eax;
+        ecx_ = result_.group_b_script_action_item_parameters.return_ecx;
+        edx_ = result_.group_b_script_action_item_parameters.return_edx;
+        if (result_.group_b_script_action_item_parameters.status !=
+            LegacyBattleGroupBScriptActionItemParametersStatus::completed) {
+            result_.status = LegacyBattleScriptDispatchStatus::
+                group_b_script_action_item_parameters_typed_stop;
+            result_.stopped_offset =
+                result_.group_b_script_action_item_parameters.stopped_offset;
+            return finish(eax_);
+        }
+
         workspace_.cursor = wrapping_add(workspace_.cursor, 16U);
+        ecx_ = caller_ecx;
         return finish(1U);
     }
 

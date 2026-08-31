@@ -21,6 +21,7 @@ using openswd3::battle::LegacyBattleScriptDispatchCallReply;
 using openswd3::battle::LegacyBattleScriptDispatchCallRequest;
 using openswd3::battle::LegacyBattleScriptDispatchPort;
 using openswd3::battle::LegacyBattleScriptDispatchStatus;
+using openswd3::battle::LegacyBattleGroupBScriptActionItemParametersStatus;
 using openswd3::battle::LegacyBattleGroupBScriptResourceParametersStatus;
 using openswd3::battle::LegacyBattleScriptPlayerItemQuantity;
 using openswd3::battle::LegacyBattleScriptSharedState;
@@ -649,6 +650,322 @@ void test_battle_group_b_script_resource_parameters_script_caller(
                 result.return_ecx == kLegacyBattleScriptGroupBBaseToken &&
                 result.return_edx == 0U && port.calls.empty(),
             "case seventy four resource stop consumes the first source byte before blocking the first write"
+        );
+    }
+}
+
+void test_battle_group_b_script_action_item_parameters_script_caller(
+    openswd3::test::Context& test
+) {
+    using openswd3::battle::kLegacyBattleScriptGroupBBaseToken;
+    using openswd3::battle::kLegacyBattleScriptGroupBElementSize;
+    using openswd3::battle::run_legacy_battle_script_dispatch;
+
+    const auto resource_word = [](const auto& actor, const u32 index) {
+        const u32 offset = 0x66U + index * 2U;
+        return static_cast<u16>(
+            static_cast<u16>(actor.resource_bytes[offset]) |
+            (static_cast<u16>(actor.resource_bytes[offset + 1U]) << 8U)
+        );
+    };
+
+    {
+        auto fixture_owner = std::make_unique<Fixture>();
+        auto& fixture = *fixture_owner;
+        Port port;
+        fixture.opcode(56);
+        fixture.write_u16(2U, 2U);
+        const std::array<u16, 6> parameters{
+            0x1111U, 0U, 0x8002U, 0U, 0xFFFFU, 0U
+        };
+        for (u32 index = 0U; index < parameters.size(); ++index) {
+            fixture.write_u16(4U + index * 2U, parameters[index]);
+        }
+        fixture.workspace.packed_actor_state = 0xAAAA1234U;
+        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        auto& actor = (*fixture.startup.group_b_lifecycle)[2U];
+        actor.resource_token = 0x73ABCDEFU;
+        actor.resource_bytes.fill(0xEEU);
+
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace,
+            fixture.bindings(),
+            port,
+            {
+                .entry_eax = 0xA5A51234U,
+                .entry_ecx = 0xDEADBEEFU,
+                .entry_edx = 0xCAFEBABEU,
+            }
+        );
+        bool parameters_match = true;
+        for (u32 index = 0U; index < parameters.size(); ++index) {
+            const u16 expected = parameters[index] == 0U
+                ? static_cast<u16>(0xEEEEU)
+                : parameters[index];
+            parameters_match =
+                parameters_match && resource_word(actor, index) == expected;
+        }
+        const u32 actor_token = kLegacyBattleScriptGroupBBaseToken +
+            2U * kLegacyBattleScriptGroupBElementSize;
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.group_b_script_action_item_parameters_calls == 1U &&
+                result.group_b_script_action_item_parameters.status ==
+                    LegacyBattleGroupBScriptActionItemParametersStatus::
+                        completed &&
+                result.group_b_script_action_item_parameters.parameter_reads ==
+                    6U &&
+                result.group_b_script_action_item_parameters
+                        .resource_pointer_loads == 3U &&
+                result.group_b_script_action_item_parameters.resource_writes ==
+                    3U &&
+                result.group_b_script_action_item_parameters.return_eax == 0U &&
+                result.group_b_script_action_item_parameters.return_ecx ==
+                    actor_token &&
+                result.group_b_script_action_item_parameters.return_edx ==
+                    0x73ABCDEFU &&
+                fixture.workspace.packed_actor_state == 0x00021234U &&
+                fixture.workspace.cursor == 16U && parameters_match &&
+                actor.resource_bytes[0x65U] == 0xEEU &&
+                actor.resource_bytes[0x72U] == 0xEEU &&
+                result.return_eax == 1U && result.return_ecx == 0xDEADBEEFU &&
+                result.return_edx == 0x73ABCDEFU && port.calls.empty() &&
+                port.count(
+                    LegacyBattleScriptDispatchCall::
+                        reserved_group_b_script_action_item_parameters
+                ) == 0U,
+            "case fifty six writes each nonzero main item parameter and preserves every zero slot without an opaque call"
+        );
+    }
+
+    {
+        auto fixture_owner = std::make_unique<Fixture>();
+        auto& fixture = *fixture_owner;
+        Port port;
+        fixture.opcode(56);
+        fixture.write_u16(2U, 1U);
+        fixture.write_u16(14U, 0xBEEFU);
+        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        auto& actor = (*fixture.startup.group_b_lifecycle)[1U];
+        actor.resource_token = 0x740000AAU;
+        actor.resource_bytes.fill(0xEEU);
+
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace,
+            fixture.bindings(),
+            port,
+            {
+                .entry_eax = 0x11112222U,
+                .entry_ecx = 0xDEADBEEFU,
+                .entry_edx = 0x33334444U,
+            }
+        );
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.group_b_script_action_item_parameters
+                        .resource_pointer_loads == 1U &&
+                result.group_b_script_action_item_parameters.return_eax ==
+                    0xBEEFU &&
+                result.group_b_script_action_item_parameters.return_ecx ==
+                    0x740000AAU &&
+                result.group_b_script_action_item_parameters.return_edx ==
+                    1381U &&
+                resource_word(actor, 5U) == 0xBEEFU &&
+                fixture.workspace.cursor == 16U && result.return_eax == 1U &&
+                result.return_ecx == 0xDEADBEEFU &&
+                result.return_edx == 1381U && port.calls.empty(),
+            "case fifty six uses ecx only for the sixth resource reload and leaves the caller address scale in edx"
+        );
+    }
+
+    {
+        auto fixture_owner = std::make_unique<Fixture>();
+        auto& fixture = *fixture_owner;
+        Port port;
+        fixture.opcode(56);
+        fixture.write_u16(2U, 0xFFFFU);
+        fixture.workspace.packed_actor_state = 0xAAAA2222U;
+
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace,
+            fixture.bindings(),
+            port,
+            {
+                .entry_eax = 0x11112222U,
+                .entry_ecx = 0xDEADBEEFU,
+                .entry_edx = 0x33334444U,
+            }
+        );
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.group_b_script_action_item_parameters_calls == 1U &&
+                result.group_b_script_action_item_parameters.parameter_reads ==
+                    6U &&
+                result.group_b_script_action_item_parameters
+                        .resource_pointer_loads == 0U &&
+                result.group_b_script_action_item_parameters.resource_writes ==
+                    0U &&
+                fixture.workspace.packed_actor_state == 0xFFFF2222U &&
+                fixture.workspace.cursor == 16U && result.return_eax == 1U &&
+                result.return_ecx == 0xDEADBEEFU &&
+                result.return_edx == 0xFFFFU * 1381U && port.calls.empty(),
+            "case fifty six all-zero parameters never dereference an out-of-range actor"
+        );
+    }
+
+    {
+        auto fixture_owner = std::make_unique<Fixture>();
+        auto& fixture = *fixture_owner;
+        Port port;
+        fixture.opcode(56);
+        fixture.write_u16(2U, 2U);
+        fixture.write_u16(4U, 0x1111U);
+        fixture.workspace.packed_actor_state = 0xAAAA1234U;
+
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace,
+            fixture.bindings(),
+            port,
+            {
+                .entry_eax = 0x11112222U,
+                .entry_ecx = 0xDEADBEEFU,
+                .entry_edx = 0x33334444U,
+            }
+        );
+        const u32 actor_token = kLegacyBattleScriptGroupBBaseToken +
+            2U * kLegacyBattleScriptGroupBElementSize;
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::
+                        group_b_script_action_item_parameters_typed_stop &&
+                result.group_b_script_action_item_parameters.status ==
+                    LegacyBattleGroupBScriptActionItemParametersStatus::
+                        actor_state_typed_stop &&
+                result.group_b_script_action_item_parameters
+                        .stopped_parameter_index == 0U &&
+                result.group_b_script_action_item_parameters.parameter_reads ==
+                    1U &&
+                result.group_b_script_action_item_parameters
+                        .resource_pointer_loads == 0U &&
+                fixture.workspace.packed_actor_state == 0x00021234U &&
+                fixture.workspace.cursor == 0U &&
+                result.return_eax == 0x1111U &&
+                result.return_ecx == actor_token &&
+                result.return_edx == 2762U && port.calls.empty(),
+            "case fifty six actor stop occurs only when the first nonzero parameter requests the resource"
+        );
+    }
+
+    {
+        auto fixture_owner = std::make_unique<Fixture>();
+        auto& fixture = *fixture_owner;
+        Port port;
+        fixture.opcode(56);
+        fixture.write_u16(2U, 0U);
+        fixture.write_u16(6U, 0x2222U);
+        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        auto& actor = (*fixture.startup.group_b_lifecycle)[0U];
+        actor.resource_token = 0U;
+        actor.resource_bytes.fill(0xEEU);
+
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::
+                        group_b_script_action_item_parameters_typed_stop &&
+                result.group_b_script_action_item_parameters.status ==
+                    LegacyBattleGroupBScriptActionItemParametersStatus::
+                        resource_write_typed_stop &&
+                result.group_b_script_action_item_parameters.stopped_offset ==
+                    0x68U &&
+                result.group_b_script_action_item_parameters
+                        .stopped_parameter_index == 1U &&
+                result.group_b_script_action_item_parameters.parameter_reads ==
+                    2U &&
+                result.group_b_script_action_item_parameters
+                        .resource_pointer_loads == 1U &&
+                result.group_b_script_action_item_parameters.resource_writes ==
+                    0U &&
+                resource_word(actor, 1U) == 0xEEEEU &&
+                fixture.workspace.cursor == 0U &&
+                result.return_eax == 0x2222U &&
+                result.return_ecx == kLegacyBattleScriptGroupBBaseToken &&
+                result.return_edx == 0U && port.calls.empty(),
+            "case fifty six zero first parameter defers the resource stop to the second paired word"
+        );
+    }
+
+    {
+        auto fixture_owner = std::make_unique<Fixture>();
+        auto& fixture = *fixture_owner;
+        Port port;
+        fixture.opcode(56);
+        fixture.write_u16(2U, 3U);
+        fixture.workspace.packed_actor_state = 0xAAAA1234U;
+        fixture.assets.script_capacity = 14U;
+
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace,
+            fixture.bindings(),
+            port,
+            {
+                .entry_eax = 0x11112222U,
+                .entry_ecx = 0xDEADBEEFU,
+                .entry_edx = 0x33334444U,
+            }
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::script_typed_stop &&
+                result.stopped_offset == 14U &&
+                result.group_b_script_action_item_parameters_calls == 0U &&
+                fixture.workspace.packed_actor_state == 0x00031234U &&
+                fixture.workspace.cursor == 0U &&
+                result.return_eax == 0x11112222U &&
+                result.return_ecx == 0xDEAD0003U &&
+                result.return_edx == 0x33334444U && port.calls.empty(),
+            "case fifty six reads the final script parameter first and stops before every callee resource access"
+        );
+    }
+
+    {
+        auto fixture_owner = std::make_unique<Fixture>();
+        auto& fixture = *fixture_owner;
+        Port port;
+        fixture.opcode(56);
+        fixture.assets.script[2U] = 2U;
+        fixture.assets.script_capacity = 3U;
+        fixture.workspace.packed_actor_state = 0xAAAA1234U;
+
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace,
+            fixture.bindings(),
+            port,
+            {
+                .entry_eax = 0x11112222U,
+                .entry_ecx = 0xDEADBEEFU,
+                .entry_edx = 0x33334444U,
+            }
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::script_typed_stop &&
+                result.stopped_offset == 3U &&
+                result.group_b_script_action_item_parameters_calls == 0U &&
+                fixture.workspace.packed_actor_state == 0xAAAA1234U &&
+                fixture.workspace.cursor == 0U &&
+                result.return_eax == 0x11112222U &&
+                result.return_ecx == 0xDEADBEEFU &&
+                result.return_edx == 0x33334444U && port.calls.empty(),
+            "case fifty six actor high-byte stop blocks the packed actor prefix and preserves all entry registers"
         );
     }
 }
