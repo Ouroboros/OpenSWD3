@@ -24,6 +24,7 @@
 #include "openswd3/battle/legacy_battle_group_b_action_composition.hpp"
 #include "openswd3/battle/legacy_battle_group_b_action_profile_mode.hpp"
 #include "openswd3/battle/legacy_battle_group_b_action_profile_selection.hpp"
+#include "openswd3/battle/legacy_battle_group_b_action_seventeen_frame.hpp"
 #include "openswd3/battle/legacy_battle_group_b_order.hpp"
 #include "openswd3/battle/legacy_battle_group_b_status_action.hpp"
 #include "openswd3/battle/legacy_battle_player_item_quantity.hpp"
@@ -1299,6 +1300,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     group_b_action_profile_mode_typed_stop,
     group_b_action_profile_selection_typed_stop,
     group_b_status_action_typed_stop,
+    group_b_action_seventeen_frame_typed_stop,
 };
 
 struct LegacyBattleActionDispatchResult {
@@ -1407,6 +1409,9 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 group_b_action_profile_selection_calls{};
     LegacyBattleGroupBStatusActionResult group_b_status_action{};
     compat::u32 group_b_status_action_calls{};
+    LegacyBattleGroupBActionSeventeenFrameResult
+        group_b_action_seventeen_frame{};
+    compat::u32 group_b_action_seventeen_frame_calls{};
 };
 
 // sub_4731A0.

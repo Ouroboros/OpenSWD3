@@ -323,6 +323,7 @@ add_executable(
     unit/battle/legacy_battle_group_b_action_profile_mode_test.cpp
     unit/battle/legacy_battle_group_b_action_profile_selection_test.cpp
     unit/battle/legacy_battle_group_b_action_reconfiguration_test.cpp
+    unit/battle/legacy_battle_group_b_action_seventeen_frame_test.cpp
     unit/battle/legacy_battle_group_b_coordinate_offsets_test.cpp
     unit/battle/legacy_battle_group_b_frame_test.cpp
     unit/battle/legacy_battle_group_b_opponent_mode_test.cpp

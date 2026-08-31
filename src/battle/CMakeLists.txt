@@ -83,6 +83,7 @@ add_library(
         legacy_battle_group_b_action_execution.cpp
         legacy_battle_group_b_action_profile_flag.cpp
         legacy_battle_group_b_action_reconfiguration.cpp
+        legacy_battle_group_b_action_seventeen_frame.cpp
         legacy_battle_group_b_coordinate_offsets.cpp
         legacy_battle_group_b_frame.cpp
         legacy_battle_group_b_opponent_mode.cpp

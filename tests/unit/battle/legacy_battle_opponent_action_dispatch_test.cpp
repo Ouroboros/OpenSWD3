@@ -101,18 +101,41 @@ class ActionStreamProvider final
 public:
     [[nodiscard]] openswd3::asset_runtime::LegacyActionStreamLoadResult
     load_action_stream(u32, u32, bool) override {
-        return {};
+        if (!ready) {
+            return {};
+        }
+
+        return {
+            .status = openswd3::asset_runtime::LegacyActionStreamStatus::ready,
+            .stream = bytes,
+        };
     }
+
+    std::array<u8, 2> bytes{0x44U, 0x45U};
+    bool ready{};
 };
 
 class FrameProvider final
     : public openswd3::rendering::LegacyFramePieceProvider {
 public:
     [[nodiscard]] bool load_frame_piece(
-        u32, u32, openswd3::rendering::LegacyFramePiece&
+        u32, u32, openswd3::rendering::LegacyFramePiece& piece
     ) noexcept override {
-        return false;
+        if (!available) {
+            return false;
+        }
+
+        piece.source = {
+            .bytes = source,
+            .layout = openswd3::rendering::LegacyBlitSourceLayout::direct_16,
+        };
+        piece.width = 1U;
+        piece.height = 1U;
+        return true;
     }
+
+    std::array<u8, 2> source{0x34U, 0x12U};
+    bool available{};
 };
 
 class RandomPort final
@@ -621,6 +644,72 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 port.count(0x00475720U) == 0U &&
                 port.count(0x00476A80U) == 1U && port.count(0x00478220U) == 1U,
             "opponent action fifteen propagates the typed profile stop without completing the wave"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        state.group_b_count = 1;
+        Fixture fixture;
+        auto& actor =
+            (*fixture.startup->group_b_lifecycle)[0U].action_execution;
+        actor.turn_countdown = 7;
+        actor.profile_value = 0x1234U;
+        actor.position_x = 100U;
+        actor.position_y = 100U;
+        auto& record = actor.turn_action_record;
+        record.action_id = actor.profile_value;
+        record.cached_action_id = actor.profile_value;
+        record.base_variant = 0x24U;
+        record.cached_base_variant = 0x24U;
+        record.field_4a = 2U;
+        record.field_4c = 2U;
+        fixture.stream_provider.ready = true;
+        fixture.frame_provider.available = true;
+        DispatchPort port;
+        port.action = 17U;
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::dispatch_legacy_battle_opponent_action(
+                state, port, context, 0U, 99U
+            );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.return_value == 0U &&
+                result.group_b_action_seventeen_frame_calls == 1U &&
+                result.group_b_action_seventeen_frame.return_eax == 0U &&
+                openswd3::compat::u8(state.opponent_processed_counter) == 0U &&
+                state.overlay_gate == 0U && port.count(0x004763D0U) == 0U &&
+                port.count(0x0047D870U) == 0U &&
+                port.count(0x0047D860U) == 0U &&
+                port.count(0x004787F0U) == 0U &&
+                port.count(0x00478600U) == 1U && port.count(0x004785C0U) == 1U,
+            "opponent action seventeen frame zero preserves the public per-frame path"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        state.group_b_count = 1;
+        Fixture fixture;
+        DispatchPort port;
+        port.action = 17U;
+        auto context = fixture.context();
+        context.startup = nullptr;
+        const auto result =
+            openswd3::battle::dispatch_legacy_battle_opponent_action(
+                state, port, context, 0U, 99U
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        group_b_action_seventeen_frame_typed_stop &&
+                result.return_value == 17U &&
+                result.group_b_action_seventeen_frame_calls == 1U &&
+                result.port_calls == 1U && state.overlay_gate == 0U &&
+                openswd3::compat::u8(state.opponent_processed_counter) == 0U &&
+                port.count(0x004763D0U) == 0U && port.count(0x0047D870U) == 0U,
+            "opponent action seventeen propagates the first actor typed stop"
         );
     }
 

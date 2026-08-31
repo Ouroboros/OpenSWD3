@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v838
+版本：v839
 
 最后更新：2026-08-31
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗函数 `0x004763D0`
+当前步骤：模块10 · 审计战斗函数 `0x00476600`
 
 ## 0. 执行约定
 
@@ -4294,4 +4294,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=249`的`0x00476330`战斗组B状态行动随机判定函数。完整权威LST主体`0x00476330..0x004763D0`共77行、52条实际指令、4个call、7个跳转、3个局部标签和4个返回点且无外部chunk。实现actor `+0x26D0` bit11无随机早退、固定bound 12废弃随机、资源`+0x91`零机会、参数低byte减资源`+0x54`后按signed差值进入八成、五成、直接失败或资源机会四段判定，以及差值恰五时RNG后资源token和机会值重读；保留严格小于、低word比较、第二随机高word、未知RNG后ECX与两处真实资源故障点。actor gate复用既有`retreat_ready_flags`，资源复用组B生命周期164-byte唯一owner，随机复用frame coordinator共享secondary RNG adapter。组Bframe唯一caller删除整函数opaque调用并typed直连；返回一仍依次发布selection零、action mode 17和status mode 2，返回零继续packed status分支，typed-stop阻断两侧全部后缀并回收此前不可达的后续actor-stop测试。验证：战斗聚合定向测试、完整core AddressSanitizer`188/188`、Linux core`188/188`、Linux app`194/194`全部通过，零OpenSWD3源码warning和sanitizer finding；app仅有既有ALSA开发库环境提示。工作包为`249/422 = 240 platform_adapted + 9 assembly_exact + 173 pending_audit`；生成器连续双跑逐字节一致，SHA256为`65863cd90ce794c0fc48837eab6c8f3e02e175b20e6adb0d386ac84276151116`。动态差分因原版八个组B actor、动态资源`+0x54/+0x91`、secondary RNG游标及唯一caller寄存器与状态后缀联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=250`的`0x004763D0`战斗函数。
+本轮再完成`audit_order=250`的`0x004763D0`战斗组B行动十七逐帧演出函数。完整权威LST主体`0x004763D0..0x004765F8`共259行、158条实际指令、8个call、15个跳转、14个局部标签和3个返回点且无外部chunk。实现signed倒计时小于等于六时精确清零`0x98`字节动作记录并返回一，以及逐帧路径中的首段sample、profile行动记录、固定variant、完整special-mode门、typed动作更新、双u16键帧查询、倒计时十五sample与声像、镜像bit两次切换、完整32位draw-offset门与u16宽度回绕、坐标正负25发布、六参数软件blitter、正常epilogue和倒计时回绕递减；保留播放返回ECX/EDX陈旧高word、帧查询后的寄存器knownness、两处不同frame首次解引用故障点及blitter失败前缀。actor、动作记录、frame token、位置、音效字和倒计时复用组B生命周期既有action-execution owner，共享frame source与blitter scratch复用现有唯一owner，动作更新、帧查询和软件blitter直接typed调用，坐标及音频保持四个窄port。对手动作case 17唯一caller删除整函数opaque调用并typed直连；完整`EAX=1`才执行三步收尾，零返回保留公共逐帧路径，typed-stop阻断全部收尾后缀。验证：战斗聚合定向测试、完整core AddressSanitizer`188/188`、Linux core`188/188`、Linux app`194/194`全部通过，三份最终日志零OpenSWD3源码warning和sanitizer finding。工作包为`250/422 = 241 platform_adapted + 9 assembly_exact + 172 pending_audit`；生成器连续双跑逐字节一致，SHA256为`eca8395402f46d93532dfadda60ae9a71f8c6d300ff94710b51100ce8196d3c3`。动态差分因原版组B actor、动作记录流、帧描述符、音频返回寄存器、坐标callee、软件blitter共享状态及唯一caller后缀联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=251`的`0x00476600`战斗函数。

@@ -2,6 +2,7 @@
 
 #include "openswd3/battle/legacy_battle_group_b_action_configuration.hpp"
 #include "openswd3/battle/legacy_battle_group_b_action_execution.hpp"
+#include "openswd3/battle/legacy_battle_group_b_action_seventeen_frame.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 
 #include <algorithm>
@@ -34,7 +35,10 @@ constexpr u32 kCallQueryModeC = 0x0047C6B0U;
 constexpr u32 kCallPushMode = 0x0047D830U;
 constexpr u32 kCallPopMode = 0x0047D810U;
 constexpr u32 kCallFinalizeMode = 0x0047D860U;
-constexpr u32 kCallQuerySeventeen = 0x004763D0U;
+constexpr u32 kCallPlaySample = 0x00485610U;
+constexpr u32 kCallSetSamplePan = 0x00485650U;
+constexpr u32 kCallQueryCoordinates = 0x00478600U;
+constexpr u32 kCallPublishCoordinates = 0x004785C0U;
 constexpr u32 kCallInitializeOpponentWaves = 0x00476900U;
 constexpr u32 kCallResetOpponent = 0x0047D350U;
 constexpr u32 kCallMirrorOpponent = 0x0047F900U;
@@ -193,6 +197,54 @@ private:
     LegacyBattleActionDispatchState& state_;
     LegacyBattleActionDispatchPort& port_;
     LegacyBattleActionDispatchResult& result_;
+};
+
+class OpponentGroupBActionSeventeenFramePort final
+    : public LegacyBattleGroupBActionSeventeenFramePort {
+public:
+    explicit OpponentGroupBActionSeventeenFramePort(
+        LegacyBattleActionDispatchPort& port
+    ) noexcept
+        : port_(port) {}
+
+    [[nodiscard]] LegacyBattleGroupBActionSeventeenFrameCallReply invoke(
+        const LegacyBattleGroupBActionSeventeenFrameCallRequest& request
+    ) override {
+        u32 callee = kCallPlaySample;
+        switch (request.call) {
+        case LegacyBattleGroupBActionSeventeenFrameCall::play_sample:
+            break;
+
+        case LegacyBattleGroupBActionSeventeenFrameCall::set_sample_pan:
+            callee = kCallSetSamplePan;
+            break;
+
+        case LegacyBattleGroupBActionSeventeenFrameCall::query_coordinates:
+            callee = kCallQueryCoordinates;
+            break;
+
+        case LegacyBattleGroupBActionSeventeenFrameCall::publish_coordinates:
+            callee = kCallPublishCoordinates;
+            break;
+        }
+
+        const auto reply = port_.invoke({
+            .callee_token = callee,
+            .arguments = {request.arguments[0U], request.arguments[1U]},
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        });
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .outputs = {reply.outputs[0U], reply.outputs[1U]},
+        };
+    }
+
+private:
+    LegacyBattleActionDispatchPort& port_;
 };
 
 [[nodiscard]] bool remove_attack_order_entry(
@@ -806,10 +858,47 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
     }
 
     case 17U: {
-        if (invoke(state, port, result, kCallQuerySeventeen, {source_token})
-                .eax != 1U) {
+        auto* const element = context.startup == nullptr ||
+                context.startup->group_b_lifecycle == nullptr
+            ? nullptr
+            : &(*context.startup->group_b_lifecycle)[group_b_index];
+        auto* const actor =
+            element == nullptr ? nullptr : &element->action_execution;
+        OpponentGroupBActionSeventeenFramePort frame_port(port);
+        result.group_b_action_seventeen_frame =
+            advance_legacy_battle_group_b_action_seventeen_frame(
+                actor,
+                &state.group_a_action_shared,
+                frame_port,
+                context.action_updater,
+                context.frame_provider,
+                context.framebuffer,
+                context.raster,
+                context.shared_request,
+                context.shared_effects,
+                context.jitter,
+                {
+                    .actor_token = source_token,
+                    .entry_eax = action_reply.eax,
+                    .entry_ecx = source_token,
+                    .entry_edx = action_reply.edx,
+                }
+            );
+        ++result.group_b_action_seventeen_frame_calls;
+        result.port_calls +=
+            result.group_b_action_seventeen_frame.port_calls;
+        if (result.group_b_action_seventeen_frame.status !=
+            LegacyBattleGroupBActionSeventeenFrameStatus::completed) {
+            result.status = LegacyBattleActionDispatchStatus::
+                group_b_action_seventeen_frame_typed_stop;
+            result.return_value =
+                result.group_b_action_seventeen_frame.return_eax;
             return result;
         }
+        if (result.group_b_action_seventeen_frame.return_eax != 1U) {
+            return result;
+        }
+
         static_cast<void>(
             invoke(state, port, result, kCallClearMode, {source_token, 1U})
         );
