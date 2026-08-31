@@ -433,8 +433,7 @@ private:
         LegacyBattleScriptDispatchCall call_kind =
             LegacyBattleScriptDispatchCall::pending_476db0;
         switch (request.call) {
-        case LegacyBattleGroupBActionCompositionCall::
-            load_resource_definition:
+        case LegacyBattleGroupBActionCompositionCall::load_resource_definition:
             call_kind = LegacyBattleScriptDispatchCall::pending_476db0;
             break;
 
@@ -471,7 +470,7 @@ private:
             .edx = reply.edx,
             .typed_stop = reply.typed_stop,
             .resource_definition = nullptr,
-            .profile_buffer = nullptr,
+            .profile_buffer = port_.group_b_action_profile_buffer(),
         };
     }
 
@@ -487,6 +486,58 @@ private:
             const LegacyBattleGroupBActionCompositionCallRequest& request
         ) override {
             return runner_.invoke_group_b_action_composition_callee(request);
+        }
+
+    private:
+        ScriptRunner& runner_;
+    };
+
+    [[nodiscard]] LegacyBattleGroupBActionProfileModeLoadReply
+    invoke_group_b_action_profile_selection_callee(
+        const LegacyBattleGroupBActionProfileModeLoadRequest& request
+    ) {
+        LegacyBattleScriptDispatchCallRequest call{
+            .call = LegacyBattleScriptDispatchCall::pending_476a80,
+            .object_token = request.ecx,
+            .argument_count = 2U,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+            .cursor = workspace_.cursor,
+        };
+        call.arguments[0U] = request.destination_token;
+        call.arguments[1U] = request.profile_id;
+        result_.call_trace.push_back(call.call);
+        ++result_.port_calls;
+        const auto reply =
+            port_.invoke_battle_script(workspace_, bindings_, call);
+        eax_ = reply.eax;
+        ecx_ = reply.ecx;
+        edx_ = reply.edx;
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .typed_stop = reply.typed_stop,
+            .profile_buffer = port_.group_b_action_profile_buffer(),
+        };
+    }
+
+    class ScriptGroupBActionProfileSelectionPort final
+        : public LegacyBattleGroupBActionProfileModePort {
+    public:
+        explicit ScriptGroupBActionProfileSelectionPort(
+            ScriptRunner& runner
+        ) noexcept
+            : runner_(runner) {}
+
+        [[nodiscard]] LegacyBattleGroupBActionProfileModeLoadReply
+        load_action_profile(
+            const LegacyBattleGroupBActionProfileModeLoadRequest& request
+        ) override {
+            return runner_.invoke_group_b_action_profile_selection_callee(
+                request
+            );
         }
 
     private:
@@ -1655,10 +1706,9 @@ private:
                 static_cast<u16>(candidate);
             bindings_.shared.selection_gate_b = 1U;
             bindings_.shared.script_aux_gate = 1U;
-            bindings_.shared.actor_target_words[actor_index] =
-                static_cast<u16>(
-                    bindings_.shared.actor_target_words[actor_index] | 0x4000U
-                );
+            bindings_.shared.actor_target_words[actor_index] = static_cast<u16>(
+                bindings_.shared.actor_target_words[actor_index] | 0x4000U
+            );
             const auto token = group_b_token(actor);
             if (!token.has_value()) {
                 return finish(eax_);
@@ -2898,15 +2948,43 @@ private:
         }
         bindings_.shared.actor_target_words[static_cast<std::size_t>(slot)] =
             static_cast<u16>(candidate);
-        const auto actor = group_b_token(workspace_.value_a);
-        if (!actor.has_value()) {
+        const auto actor_token = group_b_token(workspace_.value_b);
+        if (!actor_token.has_value()) {
             return finish(eax_);
         }
-        invoke(
-            LegacyBattleScriptDispatchCall::pending_476250,
-            *actor,
-            {static_cast<u32>(candidate)}
-        );
+        LegacyBattleActorGroupBElementState* actor = nullptr;
+        if (bindings_.startup.group_b_lifecycle != nullptr) {
+            actor = &(
+                *bindings_.startup.group_b_lifecycle
+            )[static_cast<std::size_t>(workspace_.value_b)];
+        }
+        ScriptGroupBActionProfileSelectionPort adapter(*this);
+        result_.group_b_action_profile_selection =
+            select_legacy_battle_group_b_action_profile(
+                actor,
+                {
+                    .low_word = &bindings_.shared.actor_target_words
+                                     [static_cast<std::size_t>(slot)],
+                    .high_word = &bindings_.shared.actor_target_words
+                                      [static_cast<std::size_t>(slot) + 1U],
+                },
+                adapter,
+                {
+                    .selector_argument = std::bit_cast<u32>(workspace_.value_a),
+                    .output_token = 0x005028ACU + static_cast<u32>(slot) * 2U,
+                    .actor_token = *actor_token,
+                }
+            );
+        ++result_.group_b_action_profile_selection_calls;
+        eax_ = result_.group_b_action_profile_selection.return_eax;
+        ecx_ = result_.group_b_action_profile_selection.return_ecx;
+        edx_ = result_.group_b_action_profile_selection.return_edx;
+        if (result_.group_b_action_profile_selection.status !=
+            LegacyBattleGroupBActionProfileSelectionStatus::completed) {
+            result_.status = LegacyBattleScriptDispatchStatus::
+                group_b_action_profile_selection_typed_stop;
+            return finish(eax_);
+        }
         const u16 mask = eax_ == 1U ? 0x8000U : 0x4000U;
         bindings_.shared.actor_target_words[static_cast<std::size_t>(slot)] =
             static_cast<u16>(

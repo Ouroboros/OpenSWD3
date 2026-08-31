@@ -648,6 +648,129 @@ void test_battle_group_b_action_composition_action_caller(
     }
 }
 
+void test_battle_group_b_action_profile_selection_action_caller(
+    openswd3::test::Context& test
+) {
+    using openswd3::battle::LegacyBattleActionDispatchState;
+    using openswd3::battle::LegacyBattleActionDispatchStatus;
+    using openswd3::battle::LegacyBattleGroupBActionProfileSelectionStatus;
+
+    {
+        auto state = std::make_unique<LegacyBattleActionDispatchState>();
+        state->group_a_count = 1;
+        state->group_b_count = 1;
+        state->group_a_to_actor[0U] = 0U;
+        state->battle_flags = 0x20U;
+        state->stored_group_b_index = 0U;
+        state->message_aux = 1U;
+        state->choice_state = 2U;
+        auto fixture = std::make_unique<Fixture>();
+        auto& actor = (*fixture->startup.group_b_lifecycle)[0U];
+        actor.resource_token = 0x71000000U;
+        actor.resource_bytes[0x76U] = 0x34U;
+        actor.resource_bytes[0x77U] = 0x12U;
+        actor.action_composition.profile_mode_selector = 0x7777U;
+        actor.action_composition.mode_flags = 0x10U;
+        DispatchPort port;
+        port.action = 25U;
+        port.battle_message_state() = 0xDEADU;
+        port.group_b_action_profile =
+            std::make_shared<std::array<std::byte, 0x28>>();
+        (*port.group_b_action_profile)[0x0CU] = std::byte{0x02};
+        (*port.group_b_action_profile)[0x0EU] = std::byte{0x68};
+        (*port.group_b_action_profile)[0x0FU] = std::byte{0x24};
+        (*port.group_b_action_profile)[0x14U] = std::byte{0x56};
+        auto context = fixture->context();
+
+        const auto result = openswd3::battle::dispatch_legacy_battle_action(
+            *state, port, context, 0U, 0U
+        );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.group_b_action_profile_selection_calls == 1U &&
+                result.group_b_action_profile_selection.status ==
+                    LegacyBattleGroupBActionProfileSelectionStatus::completed &&
+                result.group_b_action_profile_selection.return_eax == 0U &&
+                result.group_b_action_profile_selection.output_value == 0x56U &&
+                result.attack_order_calls == 1U &&
+                state->group_b_status_words[0U] == 0x8002U &&
+                state->message_aux == 1U &&
+                port.battle_message_state() == 0x56U &&
+                actor.action_composition.profile_mode_selector == 0x7777U &&
+                actor.action_composition.derived_words[0U] == 0x2468U &&
+                actor.action_composition.action_kind == 0U &&
+                actor.action_composition.display_kind == 2U &&
+                actor.action_composition.mode_flags == 0x90U &&
+                port.count(0x00476A80U) == 1U &&
+                port.count(0x00476250U) == 0U,
+            "action twenty five directly selects profile mode two with fixed selector zero before attack order"
+        );
+        test.expect_true(
+            std::ranges::any_of(
+                port.calls,
+                [](const LegacyBattleActionCallRequest& call) {
+                    return call.callee_token == 0x00476A80U &&
+                        call.arguments[0U] == 0x00526298U &&
+                        call.arguments[1U] == 0x1234U &&
+                        call.eax == 0x71000000U && call.ecx == 0x1234U &&
+                        call.edx == 0x00526298U;
+                }
+            ),
+            "action twenty five preserves the remaining profile-loader ABI after reclaiming 00476250"
+        );
+    }
+
+    {
+        auto state = std::make_unique<LegacyBattleActionDispatchState>();
+        state->group_a_count = 1;
+        state->group_b_count = 1;
+        state->group_a_to_actor[0U] = 0U;
+        state->battle_flags = 0x20U;
+        state->stored_group_b_index = 0U;
+        state->current_actor_index = 5U;
+        state->message_aux = 1U;
+        auto fixture = std::make_unique<Fixture>();
+        auto& actor = (*fixture->startup.group_b_lifecycle)[0U];
+        actor.resource_token = 0x72000000U;
+        actor.resource_bytes[0x76U] = 0x78U;
+        actor.resource_bytes[0x77U] = 0x56U;
+        actor.action_configuration.profile_buffer.fill(std::byte{0xFF});
+        actor.action_composition.derived_words[0U] = 0x7777U;
+        DispatchPort port;
+        port.action = 25U;
+        port.battle_message_state() = 0x1234U;
+        port.group_b_action_profile =
+            std::make_shared<std::array<std::byte, 0x28>>();
+        (*port.group_b_action_profile)[0U] = std::byte{0x5A};
+        port.group_b_action_typed_stop_callee = 0x00476A80U;
+        auto context = fixture->context();
+
+        const auto result = openswd3::battle::dispatch_legacy_battle_action(
+            *state, port, context, 0U, 0U
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        group_b_action_profile_selection_typed_stop &&
+                result.group_b_action_profile_selection.status ==
+                    LegacyBattleGroupBActionProfileSelectionStatus::
+                        profile_load_typed_stop &&
+                state->choice_cursor == 1U && state->choice_commit == 1U &&
+                state->group_b_status_words[0U] == 0x8000U &&
+                state->current_actor_index == 5U &&
+                port.battle_message_state() == 0x1234U &&
+                actor.action_configuration.profile_buffer[0U] ==
+                    std::byte{0x5A} &&
+                actor.action_composition.derived_words[0U] == 0U &&
+                result.attack_order_calls == 0U &&
+                fixture->attack_order_records[0U].value_08 == 0U &&
+                port.count(0x00476A80U) == 1U &&
+                port.count(0x00476250U) == 0U,
+            "action profile-selection loader stop preserves choice prefix and blocks status merge attack order and actor cleanup"
+        );
+    }
+}
+
 void test_battle_action_dispatch(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleActionDispatchState;
     using openswd3::battle::LegacyBattleActionDispatchStatus;

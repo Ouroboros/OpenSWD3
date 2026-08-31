@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v835
+版本：v836
 
 最后更新：2026-08-31
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗函数 `0x00476250`
+当前步骤：模块10 · 审计战斗函数 `0x004762F0`
 
 ## 0. 执行约定
 
@@ -4288,4 +4288,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=246`的`0x004761D0`战斗组B行动profile与mode组合函数。完整权威LST主体`0x004761D0..0x0047624A`共59行、39条实际指令、3个call、2个跳转、2个局部标签和3个返回点且无外部chunk。实现selector非零时profile bit1门、固定mode 2与profile word返回；selector为零时先清首个派生word和40-byte profile，再用资源`+0x60`加载profile、加资源`+0x56`并固定mode 1；保留`rep stosd`后寄存器、callee EAX高word、资源真实访问点和三类typed-stop。selector/派生word/mode收敛到组B生命周期composition owner，profile与资源复用既有唯一owner；待审mode callee只展开参数1/2路径，profile loader保持窄port。组Bframe唯一caller删除整函数opaque调用并typed直连；typed-stop保留special-selection切换与内部清零/加载前缀，阻断status value、current actor、双mode/文字/phase/目标后缀。ASan揭示的历史frame-coordinator巨型测试函数29个夹具已仅在测试侧堆化。验证：定向测试、完整core AddressSanitizer`188/188`、Linux core`188/188`、Linux app`194/194`全部通过且源码零warning。工作包为`246/422 = 237 platform_adapted + 9 assembly_exact + 176 pending_audit`；生成器连续双跑逐字节一致，SHA256为`3ccf2b08608febd8a863f7fc31f1fd702e7978fc0250eefa6f0b7982bd8e9020`。动态差分因原版八个组B actor、动态资源、40-byte profile、profile loader及唯一caller共享状态/寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=247`的`0x00476250`组B行动profile与mode组合。
+本轮再完成`audit_order=247`的`0x00476250`战斗组B行动profile选择函数。完整权威LST主体`0x00476250..0x004762E1`共73行、45条实际指令、3个call、3个跳转、3个局部标签和2个返回点且无外部chunk。实现40-byte profile与首个派生word清零、完整32位selector对资源`+0x72/+0x76`的选择、profile loader、profile bit1分流、固定mode 1/2、selector低word存储、profile word零扩展dword输出及返回寄存器线程；脚本状态word输出保留对相邻word清零的重叠32位写。profile、资源、派生word、selector与mode均复用组B生命周期既有唯一owner，待审profile loader保持窄port。动作25和脚本opcode54两个caller均删除整函数opaque调用并typed直连，纠正opcode54的value-B actor/value-A selector映射；typed-stop保留caller与callee真实前缀并阻断攻击顺序、frame、清理和cursor后缀。验证：定向测试、完整core AddressSanitizer`188/188`、Linux core`188/188`、Linux app`194/194`全部通过且源码零warning。工作包为`247/422 = 238 platform_adapted + 9 assembly_exact + 175 pending_audit`；生成器连续双跑逐字节一致，SHA256为`ab7d35841c7e125acaea17efacaebf0c0aebd14233b9a0360547dc4d9efa6095`。动态差分因原版八个组B actor、动态资源、40-byte profile、profile loader、重叠dword输出与两个caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=248`的`0x004762F0`组B资源随机阈值查询。

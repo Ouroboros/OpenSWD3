@@ -40,6 +40,9 @@ void test_battle_available_actor_reverse_cycle(openswd3::test::Context& test);
 void test_battle_group_b_action_composition_action_caller(
     openswd3::test::Context& test
 );
+void test_battle_group_b_action_profile_selection_action_caller(
+    openswd3::test::Context& test
+);
 void test_battle_action_dispatch(openswd3::test::Context& test);
 void test_battle_attack_order_dequeue(openswd3::test::Context& test);
 void test_battle_attack_order_entry(openswd3::test::Context& test);
@@ -107,6 +110,9 @@ void test_battle_group_b_action_composition(openswd3::test::Context& test);
 void test_battle_group_b_action_configuration(openswd3::test::Context& test);
 void test_battle_group_b_action_profile_flag(openswd3::test::Context& test);
 void test_battle_group_b_action_profile_mode(openswd3::test::Context& test);
+void test_battle_group_b_action_profile_selection(
+    openswd3::test::Context& test
+);
 void test_battle_group_b_action_reconfiguration(openswd3::test::Context& test);
 void test_battle_group_b_coordinate_offsets(openswd3::test::Context& test);
 void test_battle_group_b_frame(openswd3::test::Context& test);
@@ -156,6 +162,9 @@ void test_battle_scale_fill_panel(openswd3::test::Context& test);
 void test_battle_scale_scan(openswd3::test::Context& test);
 void test_battle_script_curve(openswd3::test::Context& test);
 void test_battle_group_b_action_composition_script_caller(
+    openswd3::test::Context& test
+);
+void test_battle_group_b_action_profile_selection_script_caller(
     openswd3::test::Context& test
 );
 void test_battle_script_dispatch(openswd3::test::Context& test);
@@ -7101,6 +7110,7 @@ int main() {
     test_battle_available_actor_cycle(test);
     test_battle_available_actor_reverse_cycle(test);
     test_battle_group_b_action_composition_action_caller(test);
+    test_battle_group_b_action_profile_selection_action_caller(test);
     test_battle_action_dispatch(test);
     test_battle_attack_order_dequeue(test);
     test_battle_attack_order_entry(test);
@@ -7179,6 +7189,7 @@ int main() {
     test_battle_group_b_action_configuration(test);
     test_battle_group_b_action_profile_flag(test);
     test_battle_group_b_action_profile_mode(test);
+    test_battle_group_b_action_profile_selection(test);
     test_battle_group_b_action_reconfiguration(test);
     test_battle_group_b_coordinate_offsets(test);
     test_battle_group_b_frame(test);
@@ -7215,6 +7226,7 @@ int main() {
     test_battle_scale_scan(test);
     test_battle_script_curve(test);
     test_battle_group_b_action_composition_script_caller(test);
+    test_battle_group_b_action_profile_selection_script_caller(test);
     test_battle_script_dispatch(test);
     test_battle_status_indicator(test);
     test_battle_startup(test);

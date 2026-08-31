@@ -79,6 +79,7 @@ add_library(
         legacy_battle_group_b_action_composition.cpp
         legacy_battle_group_b_action_configuration.cpp
         legacy_battle_group_b_action_profile_mode.cpp
+        legacy_battle_group_b_action_profile_selection.cpp
         legacy_battle_group_b_action_execution.cpp
         legacy_battle_group_b_action_profile_flag.cpp
         legacy_battle_group_b_action_reconfiguration.cpp

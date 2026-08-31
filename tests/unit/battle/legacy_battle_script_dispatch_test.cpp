@@ -89,6 +89,7 @@ public:
     LegacyBattleScriptDispatchCall typed_stop_call{
         LegacyBattleScriptDispatchCall::noop_service
     };
+    std::shared_ptr<std::array<std::byte, 0x28>> group_b_action_profile;
 
     LegacyBattleScriptDispatchCallReply invoke_battle_script(
         LegacyBattleScriptWorkspace& workspace,
@@ -144,6 +145,11 @@ public:
             reply.typed_stop = true;
         }
         return reply;
+    }
+
+    [[nodiscard]] std::shared_ptr<const std::array<std::byte, 0x28>>
+    group_b_action_profile_buffer() const override {
+        return group_b_action_profile;
     }
 
     [[nodiscard]] std::size_t
@@ -256,8 +262,9 @@ void test_battle_group_b_action_composition_script_caller(
             fixture.workspace, fixture.bindings(), port
         );
         test.expect_true(
-            result.status == LegacyBattleScriptDispatchStatus::
-                    group_b_action_composition_typed_stop &&
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::
+                        group_b_action_composition_typed_stop &&
                 result.group_b_action_composition.status ==
                     openswd3::battle::
                         LegacyBattleGroupBActionCompositionStatus::
@@ -275,6 +282,179 @@ void test_battle_group_b_action_composition_script_caller(
                 port.count(LegacyBattleScriptDispatchCall::pending_476a80) ==
                     0U,
             "case twenty three composition stop preserves its selection prefix and blocks attack-order frame and cursor suffixes"
+        );
+    }
+}
+
+void test_battle_group_b_action_profile_selection_script_caller(
+    openswd3::test::Context& test
+) {
+    using openswd3::battle::LegacyBattleGroupBActionProfileSelectionStatus;
+    using openswd3::battle::run_legacy_battle_script_dispatch;
+
+    {
+        auto fixture_owner = std::make_unique<Fixture>();
+        auto& fixture = *fixture_owner;
+        Port port;
+        fixture.opcode(54);
+        fixture.write_u16(2U, 3U);
+        fixture.write_u16(4U, 2U);
+        fixture.write_u16(6U, 0U);
+        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        auto& actor = (*fixture.startup.group_b_lifecycle)[2U];
+        actor.resource_token = 0x71000000U;
+        actor.resource_bytes[0x76U] = 0x34U;
+        actor.resource_bytes[0x77U] = 0x12U;
+        actor.action_composition.profile_mode_selector = 0x7777U;
+        actor.action_composition.derived_words[1U] = 0x55AAU;
+        actor.action_composition.action_kind = 9U;
+        fixture.shared.actor_target_words[3U] = 0xBEEFU;
+        port.group_b_action_profile =
+            std::make_shared<std::array<std::byte, 0x28>>();
+        (*port.group_b_action_profile)[0x0EU] = std::byte{0x68};
+        (*port.group_b_action_profile)[0x0FU] = std::byte{0x24};
+
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.group_b_action_profile_selection_calls == 1U &&
+                result.group_b_action_profile_selection.status ==
+                    LegacyBattleGroupBActionProfileSelectionStatus::completed &&
+                result.group_b_action_profile_selection.return_eax == 1U &&
+                fixture.shared.actor_target_words[2U] == 0x8000U &&
+                fixture.shared.actor_target_words[3U] == 0xBEEFU &&
+                fixture.workspace.cursor == 8U &&
+                fixture.workspace.value_a == 0 &&
+                fixture.workspace.value_b == 0 &&
+                fixture.workspace.value_c == 0 &&
+                actor.action_composition.profile_mode_selector == 3U &&
+                actor.action_composition.derived_words[0U] == 0x2468U &&
+                actor.action_composition.derived_words[1U] == 0x55AAU &&
+                actor.action_composition.action_kind == 1U &&
+                fixture.startup.reset.records_524788[0U].value_08 == 2U &&
+                port.count(LegacyBattleScriptDispatchCall::pending_476a80) ==
+                    1U &&
+                port.count(LegacyBattleScriptDispatchCall::frame) == 1U &&
+                port.count(
+                    LegacyBattleScriptDispatchCall::
+                        reserved_group_b_action_profile_selection
+                ) == 0U,
+            "case fifty four selects the value-b actor and mode one stores value-a before bit fifteen"
+        );
+        test.expect_true(
+            std::ranges::any_of(
+                port.calls,
+                [](const LegacyBattleScriptDispatchCallRequest& call) {
+                    return call.call ==
+                        LegacyBattleScriptDispatchCall::pending_476a80 &&
+                        call.object_token == 0x1234U &&
+                        call.arguments[0U] == 0x0052B8E8U &&
+                        call.arguments[1U] == 0x1234U &&
+                        call.eax == 0x71000000U && call.ecx == 0x1234U &&
+                        call.edx == 0x0052B8E8U;
+                }
+            ),
+            "case fifty four preserves the remaining profile-loader ABI after reclaiming 00476250"
+        );
+    }
+
+    {
+        auto fixture_owner = std::make_unique<Fixture>();
+        auto& fixture = *fixture_owner;
+        Port port;
+        fixture.opcode(54);
+        fixture.write_u16(2U, 5U);
+        fixture.write_u16(4U, 1U);
+        fixture.write_u16(6U, 4U);
+        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        auto& actor = (*fixture.startup.group_b_lifecycle)[1U];
+        actor.resource_token = 0x72000000U;
+        actor.resource_bytes[0x76U] = 0x78U;
+        actor.resource_bytes[0x77U] = 0x56U;
+        actor.action_composition.profile_mode_selector = 0x9999U;
+        actor.action_composition.mode_flags = 0x10U;
+        fixture.shared.actor_target_words[2U] = 0xBEEFU;
+        port.group_b_action_profile =
+            std::make_shared<std::array<std::byte, 0x28>>();
+        (*port.group_b_action_profile)[0x0CU] = std::byte{0x02};
+        (*port.group_b_action_profile)[0x0EU] = std::byte{0x57};
+        (*port.group_b_action_profile)[0x0FU] = std::byte{0x13};
+        (*port.group_b_action_profile)[0x14U] = std::byte{0x2A};
+
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.group_b_action_profile_selection.return_eax == 0U &&
+                result.group_b_action_profile_selection.output_value == 0x2AU &&
+                fixture.shared.actor_target_words[1U] == 0x402AU &&
+                fixture.shared.actor_target_words[2U] == 0U &&
+                actor.action_composition.profile_mode_selector == 0x9999U &&
+                actor.action_composition.derived_words[0U] == 0x1357U &&
+                actor.action_composition.action_kind == 0U &&
+                actor.action_composition.display_kind == 2U &&
+                actor.action_composition.mode_flags == 0x90U &&
+                fixture.startup.reset.records_524788[0U].value_00 == 5U &&
+                fixture.startup.reset.records_524788[0U].value_08 == 2U,
+            "case fifty four mode two publishes profile word fourteen before caller bit fourteen"
+        );
+    }
+
+    {
+        auto fixture_owner = std::make_unique<Fixture>();
+        auto& fixture = *fixture_owner;
+        Port port;
+        fixture.opcode(54);
+        fixture.write_u16(2U, 3U);
+        fixture.write_u16(4U, 2U);
+        fixture.write_u16(6U, 0U);
+        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        auto& actor = (*fixture.startup.group_b_lifecycle)[2U];
+        actor.resource_token = 0x73000000U;
+        actor.resource_bytes[0x76U] = 0xBCU;
+        actor.resource_bytes[0x77U] = 0x9AU;
+        actor.action_configuration.profile_buffer.fill(std::byte{0xFF});
+        actor.action_composition.derived_words[0U] = 0x7777U;
+        port.group_b_action_profile =
+            std::make_shared<std::array<std::byte, 0x28>>();
+        (*port.group_b_action_profile)[0U] = std::byte{0x5A};
+        port.typed_stop_enabled = true;
+        port.typed_stop_call = LegacyBattleScriptDispatchCall::pending_476a80;
+
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::
+                        group_b_action_profile_selection_typed_stop &&
+                result.group_b_action_profile_selection.status ==
+                    LegacyBattleGroupBActionProfileSelectionStatus::
+                        profile_load_typed_stop &&
+                fixture.workspace.cursor == 0U &&
+                fixture.workspace.value_a == 3 &&
+                fixture.workspace.value_b == 2 &&
+                fixture.workspace.value_c == 0 &&
+                fixture.shared.actor_target_words[2U] == 0U &&
+                actor.action_configuration.profile_buffer[0U] ==
+                    std::byte{0x5A} &&
+                actor.action_composition.derived_words[0U] == 0U &&
+                fixture.startup.reset.records_524788[0U].value_08 == 0U &&
+                port.count(LegacyBattleScriptDispatchCall::frame) == 0U &&
+                port.count(
+                    LegacyBattleScriptDispatchCall::
+                        reserved_group_b_action_profile_selection
+                ) == 0U,
+            "case fifty four loader stop preserves selection prefix and blocks status attack-order frame and cursor suffix"
         );
     }
 }

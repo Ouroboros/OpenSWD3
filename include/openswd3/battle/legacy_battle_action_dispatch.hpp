@@ -23,6 +23,7 @@
 #include "openswd3/battle/legacy_battle_group_a_summon_materialization.hpp"
 #include "openswd3/battle/legacy_battle_group_b_action_composition.hpp"
 #include "openswd3/battle/legacy_battle_group_b_action_profile_mode.hpp"
+#include "openswd3/battle/legacy_battle_group_b_action_profile_selection.hpp"
 #include "openswd3/battle/legacy_battle_group_b_order.hpp"
 #include "openswd3/battle/legacy_battle_player_item_quantity.hpp"
 #include "openswd3/battle/legacy_battle_scale_scan.hpp"
@@ -377,8 +378,8 @@ struct LegacyBattleTargetPhaseState {
     LegacyBattleImageParticleEmitter emitter;  // actor + 0x0E14 physical owner
     compat::u16 tick{};                        // actor + 0x2F26
     compat::u32 active_gate{};                 // actor + 0x2AFC
-    compat::u8 group_a_mode_flags{};    // group A actor + 0x2A87
-    compat::u8* borrowed_mode_flags{};  // group B lifecycle owner
+    compat::u8 group_a_mode_flags{};           // group A actor + 0x2A87
+    compat::u8* borrowed_mode_flags{};         // group B lifecycle owner
     compat::u32 runtime_gate{};                // actor + 0x2680
     compat::u32 render_toggle_gate{};          // actor + 0x2B08
     std::array<compat::u32, 5> spawn_counters{};  // actor + 0x2EF8
@@ -1295,6 +1296,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     group_b_opponent_mode_typed_stop,
     group_b_action_profile_flag_typed_stop,
     group_b_action_profile_mode_typed_stop,
+    group_b_action_profile_selection_typed_stop,
 };
 
 struct LegacyBattleActionDispatchResult {
@@ -1398,6 +1400,9 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 group_b_action_profile_flag_calls{};
     LegacyBattleGroupBActionProfileModeResult group_b_action_profile_mode{};
     compat::u32 group_b_action_profile_mode_calls{};
+    LegacyBattleGroupBActionProfileSelectionResult
+        group_b_action_profile_selection{};
+    compat::u32 group_b_action_profile_selection_calls{};
 };
 
 // sub_4731A0.

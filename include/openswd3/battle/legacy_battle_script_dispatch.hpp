@@ -5,6 +5,7 @@
 #include "openswd3/battle/legacy_battle_attack_order_insert.hpp"
 #include "openswd3/battle/legacy_battle_final_actor_step.hpp"
 #include "openswd3/battle/legacy_battle_group_b_action_composition.hpp"
+#include "openswd3/battle/legacy_battle_group_b_action_profile_selection.hpp"
 #include "openswd3/battle/legacy_battle_group_b_order.hpp"
 #include "openswd3/battle/legacy_battle_input_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_message_phase.hpp"
@@ -14,6 +15,7 @@
 #include "openswd3/compat/types.hpp"
 
 #include <array>
+#include <memory>
 #include <vector>
 
 namespace openswd3::battle {
@@ -189,7 +191,7 @@ enum class LegacyBattleScriptDispatchCall : compat::u32 {
     pending_4707b0 = 0x004707B0U,
     reserved_group_b_action_reconfiguration = 0x00475820U,
     reserved_group_b_action_composition = 0x00476160U,
-    pending_476250 = 0x00476250U,
+    reserved_group_b_action_profile_selection = 0x00476250U,
     pending_476920 = 0x00476920U,
     pending_4769a0 = 0x004769A0U,
     pending_476a10 = 0x00476A10U,
@@ -278,6 +280,11 @@ public:
             .edx = request.edx,
         };
     }
+
+    [[nodiscard]] virtual std::shared_ptr<const std::array<std::byte, 0x28>>
+    group_b_action_profile_buffer() const {
+        return nullptr;
+    }
 };
 
 enum class LegacyBattleScriptDispatchStatus : compat::u8 {
@@ -295,6 +302,7 @@ enum class LegacyBattleScriptDispatchStatus : compat::u8 {
     closed_callee_typed_stop,
     script_page_load_typed_stop,
     group_b_action_composition_typed_stop,
+    group_b_action_profile_selection_typed_stop,
 };
 
 struct LegacyBattleScriptDispatchRequest {
@@ -317,6 +325,9 @@ struct LegacyBattleScriptDispatchResult {
     compat::u32 stopped_offset{};
     LegacyBattleGroupBActionCompositionResult group_b_action_composition{};
     compat::u32 group_b_action_composition_calls{};
+    LegacyBattleGroupBActionProfileSelectionResult
+        group_b_action_profile_selection{};
+    compat::u32 group_b_action_profile_selection_calls{};
     std::vector<LegacyBattleScriptDispatchCall> call_trace;
 };
 
