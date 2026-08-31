@@ -10,9 +10,9 @@
 
 1. 已关闭战斗渲染资源清理`0x00433D70`；
 2. 已关闭group-A双资源清理`0x00475180`；
-3. 组B对象析构`0x00476A60`。
+3. 已关闭组B资源释放`0x00476A60`。
 
-渲染资源清理和group-A双资源清理均已直接组合typed实现。group-B对象析构仍属于后续工作包，当前只以窄端口保留完整对象token、索引和EAX/ECX/EDX，不提前宣称其内部关闭。
+渲染资源清理、group-A双资源清理和group-B资源释放现均已直接组合typed实现。组B只在深层CRT释放callee保留窄端口；`0x00476A60`整函数opaque边界已回收。
 
 ## 2. 固定group-A十对象
 
@@ -36,7 +36,9 @@
 0x00525508 + index * 0x2B28, index = 0..7
 ```
 
-第八次组B析构返回后，函数只恢复ESI并`retn`；pop不改EAX/ECX/EDX，因此完整尾返回来自最后一个组B析构。typed结果显式保留三项寄存器，不把EAX规范化为bool或调用计数。
+每槽typed直连组B资源释放：先从对象`+0x0C`读取token到EAX；零token跳过CRT端口并留下EAX零，非零token只在端口正常返回后清token及modern内联资源。EDX从前一槽线程传递，ECX在每次调用前由当前对象token覆盖。现代组Bowner缺失只在首个真实字段访问处typed-stop，不伪造后续七槽完成。
+
+第八次组B释放返回后，函数只恢复ESI并`retn`；pop不改EAX/ECX/EDX，因此完整尾返回来自最后一个组B释放。typed结果显式保留三项寄存器，不把EAX规范化为bool或调用计数。
 
 ## 4. 渲染资源唯一owner
 
@@ -52,10 +54,10 @@
 
 已关闭总销毁原本把本函数保留为通用地址枚举操作。该枚举值现只保留reserved数值槽；总销毁在字体与前一资源释放之后直接调用typed战斗运行时销毁，再继续下一固定资源阶段。
 
-SDL关闭端持有唯一战斗启动/渲染状态并调用同一typed入口。group-A只剩`0x004885A0`allocator释放窄端口，group-B析构继续由平台窄端口承接；当前没有宿主后端时返回零寄存器，但固定十次group-A cleanup、八次group-B调用、渲染清理和总销毁顺序不被省略。
+SDL关闭端持有唯一战斗启动/渲染状态并调用同一typed入口。group-A与group-B均只在`0x004885A0`allocator释放保留窄平台端口；当前宿主空后端返回零寄存器，但固定十次group-A cleanup、八次group-B字段读取、零token跳过、非零token成功后清owner、渲染清理和总销毁顺序不被省略。
 
 ## 6. 验证与动态差分
 
-定向测试覆盖非空/空渲染资源、辅助token释放、三项资源清零、十槽group-A双token顺序与清零、空token零allocator调用、完整10/8对象token序列、固定步长/尾地址、第八个group-B完整寄存器返回，以及总销毁中typed调用的精确位置。应用生命周期、窗口销毁和平台集成测试共同锁定caller顺序。
+定向测试覆盖非空/空渲染资源、辅助token释放、三项资源清零、十槽group-A双token顺序与清零、完整10/8对象token序列、八槽group-B非零释放、八槽全零跳过、owner缺失首槽停止、固定步长/尾地址、第八个group-B完整寄存器返回，以及总销毁中typed调用的精确位置。应用生命周期、窗口销毁和平台集成测试共同锁定caller顺序。
 
-当前缺少原版10个group-A对象、8个group-B对象、`0x004885A0`allocator释放、group-B析构副作用和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版10个group-A对象、8个group-B对象、动态164-byte资源、`0x004885A0`allocator释放和完整寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

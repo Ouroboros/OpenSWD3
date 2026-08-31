@@ -6,7 +6,7 @@
 
 权威行为真值仅为`swd3.exe.lst`。主块是`0x00475590..0x004755D8`，外部`FUNCTION CHUNK`是`0x004983B0..0x004983BD`；合计55行、23条实际指令、2个call、2个跳转、2个局部标签和1个返回点。chunk同时包含状态0清理funclet和SEH描述符，属于本函数而不是物理相邻函数。
 
-函数是thiscall，入口ECX为尺寸`0x2B28`的组B角色对象。它没有普通call caller；地址由组B向量构造包装器`0x00451810`和向量析构包装器`0x00451840`作为callback参数传给MSVC compiler helper。两个callee固定为扩展资源析构`0x00476A60`和公共基础析构`0x00478300`。
+函数是thiscall，入口ECX为尺寸`0x2B28`的组B角色对象。它没有普通call caller；地址由组B向量构造包装器`0x00451810`和向量析构包装器`0x00451840`作为callback参数传给MSVC compiler helper。两个callee固定为已关闭组B资源释放`0x00476A60`和公共基础析构`0x00478300`。
 
 ## 2. 正常析构与寄存器
 
@@ -30,9 +30,11 @@
 
 `LegacyBattleActorGroupBElementState`继续作为唯一物理owner，承接对象token、对象`+0x0C`资源token与164-byte资源记录。本工作包不建立第二份析构状态。
 
-扩展析构和公共基础析构均尚未独立审计，因此只保留两个窄typed端口：前者可直接修改组B元素owner并抛出，后者接收同一owner并返回三寄存器。包装器本身只负责固定调用顺序、SEH等价清理与终端寄存器发布；没有重新引入整个`0x00475590` opaque调用。
+扩展资源析构`0x00476A60`现已独立关闭：包装器在SEH状态0内直接调用typed组B资源释放，复用同一元素owner；非零token只在CRT释放边界正常返回后清零并失效164-byte内联资源，零token跳过释放，callee异常保留当前token和内容。旧`release_extension`整函数端口已删除，只在其深层CRT释放callee保留窄typed边界。公共基础析构`0x00478300`仍由既有窄端口接收同一owner并返回三寄存器。
 
-`LegacyBattleActorElementDestructionRequest::seh_chain_token`显式承接原版保存的旧`FS:[0]`值。正常返回以该token覆盖ECX；物理SEH地址仍只作为`compat::u32` token，不转换为宿主指针。
+资源typed-stop按状态0异常清理等价规则仍执行一次公共基础析构，再返回显式typed状态。释放端口抛出时外部cleanup chunk执行一次基础析构并传播原异常；基础析构自身抛出时不重复调用。
+
+`LegacyBattleActorElementDestructionRequest::seh_chain_token`显式承接原版保存的旧`FS:[0]`值，同时把入口EDX线程给扩展资源释放。正常返回以旧SEH token覆盖ECX；物理SEH地址仍只作为`compat::u32` token，不转换为宿主指针。
 
 同轮也修正同型组A元素析构`0x0046E4D0`：其完整范围同样是主块39行加外部chunk、合计55行与23条指令；正常及typed结果的ECX恢复旧SEH链token，而不是误传公共基础析构ECX。
 
@@ -57,8 +59,8 @@ C++到LST反向追溯覆盖主块与完整chunk、全部23条实际指令、两�
 
 ## 7. 验证与动态差分
 
-正常回归覆盖扩展析构→基础析构顺序、唯一资源owner修改、每个callee单次调用、基础EAX/EDX保留和旧SEH链ECX恢复。异常回归分别覆盖扩展抛出后基础析构一次且原异常传播，以及基础析构抛出时不重复调用。组A回归同步锁定旧SEH链ECX。
+正常回归覆盖typed资源释放→基础析构顺序、CRT callee请求、唯一资源owner修改、每个callee单次调用、基础EAX/EDX保留和旧SEH链ECX恢复。异常回归分别覆盖资源释放抛出后基础析构一次且原异常传播、资源typed-stop仍执行基础清理，以及基础析构抛出时不重复调用。组A回归同步锁定旧SEH链ECX。
 
 定向测试、AddressSanitizer、Linux core `188/188`与Linux app `194/194`全部通过，源码零warning。
 
-当前没有原版八个组B完整对象、真实扩展/基础资源、两个callee副作用、MSVC SEH链、向量迭代与异常回滚联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。该阻塞不影响完整主块与chunk的静态闭环和Linux验证。
+当前没有原版八个组B完整对象、真实扩展/基础资源、CRT释放callee副作用、MSVC SEH链、向量迭代与异常回滚联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。该阻塞不影响完整主块与chunk的静态闭环和Linux验证。

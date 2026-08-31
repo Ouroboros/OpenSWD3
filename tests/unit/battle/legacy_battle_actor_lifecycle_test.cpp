@@ -65,17 +65,19 @@ public:
 class TrackingGroupBElementDestructionPort final
     : public openswd3::battle::LegacyBattleActorGroupBElementDestructionPort {
 public:
-    void release_extension(
-        openswd3::battle::LegacyBattleActorGroupBElementState& state
+    [[nodiscard]]
+    openswd3::battle::LegacyBattleGroupBResourceReleaseCallReply
+    release_group_b_resource(
+        const openswd3::battle::LegacyBattleGroupBResourceReleaseCallRequest&
+            request
     ) override {
         events.push_back(3U);
-        if (clear_extension) {
-            state.resource_token = 0U;
-            state.resource_bytes.fill(0U);
-        }
+        resource_requests.push_back(request);
         if (throw_from_extension) {
             throw std::runtime_error{"group-B extension destruction failed"};
         }
+
+        return extension_reply;
     }
 
     [[nodiscard]] openswd3::battle::LegacyBattleActorGroupBElementCallReply
@@ -86,11 +88,15 @@ public:
         if (throw_from_base) {
             throw std::runtime_error{"group-B base destruction failed"};
         }
+
         return base_reply;
     }
 
+    openswd3::battle::LegacyBattleGroupBResourceReleaseCallReply
+        extension_reply{};
     openswd3::battle::LegacyBattleActorGroupBElementCallReply base_reply{};
-    bool clear_extension{};
+    std::vector<openswd3::battle::LegacyBattleGroupBResourceReleaseCallRequest>
+        resource_requests;
     bool throw_from_extension{};
     bool throw_from_base{};
     std::vector<u32> events;
@@ -496,11 +502,13 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
         };
         state.resource_bytes.fill(0xA5U);
         TrackingGroupBElementDestructionPort port;
-        port.clear_extension = true;
+        port.extension_reply = {.eax = 1U, .ecx = 2U, .edx = 3U};
         port.base_reply = {.eax = 4U, .ecx = 5U, .edx = 6U};
         const auto result =
             openswd3::battle::release_legacy_battle_actor_group_b_element(
-                state, port, {.seh_chain_token = 0x76543210U}
+                state,
+                port,
+                {.seh_chain_token = 0x76543210U, .entry_edx = 0x89ABCDEFU}
             );
         test.expect_true(
             port.events == std::vector<u32>{3U, 4U} &&
@@ -509,10 +517,21 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                     state.resource_bytes,
                     [](const auto value) { return value == 0U; }
                 ) &&
+                result.resource_cleanup.resource_release_calls == 1U &&
+                result.resource_cleanup.resource_released &&
                 result.extension_destructor_calls == 1U &&
                 result.base_destructor_calls == 1U && result.return_eax == 4U &&
-                result.return_ecx == 0x76543210U && result.return_edx == 6U,
-            "group-B element destruction runs extension then base and restores the prior SEH chain in ECX"
+                result.return_ecx == 0x76543210U && result.return_edx == 6U &&
+                port.resource_requests.size() == 1U &&
+                port.resource_requests[0U].callee_token == 0x004885A0U &&
+                port.resource_requests[0U].actor_token == state.object_token &&
+                port.resource_requests[0U].actor_index == 0U &&
+                port.resource_requests[0U].resource_token == 0x71000000U &&
+                port.resource_requests[0U].resource_offset == 0x0CU &&
+                port.resource_requests[0U].eax == 0x71000000U &&
+                port.resource_requests[0U].ecx == state.object_token &&
+                port.resource_requests[0U].edx == 0x89ABCDEFU,
+            "group-B element destruction releases its typed resource before the base and restores the prior SEH chain"
         );
     }
 
@@ -552,7 +571,6 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
         };
         state.resource_bytes.fill(0xA5U);
         TrackingGroupBElementDestructionPort port;
-        port.clear_extension = true;
         port.throw_from_base = true;
         bool caught = false;
         try {
@@ -572,6 +590,39 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                     [](const auto value) { return value == 0U; }
                 ),
             "group-B base failure propagates without invoking the base cleanup twice"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleActorGroupBElementState state{
+            .resource_token = 0x74000000U,
+        };
+        state.resource_bytes.fill(0x6BU);
+        TrackingGroupBElementDestructionPort port;
+        port.base_reply = {.eax = 7U, .ecx = 8U, .edx = 9U};
+        const auto result =
+            openswd3::battle::release_legacy_battle_actor_group_b_element(
+                state, port, {.seh_chain_token = 0x87654321U}
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::
+                        LegacyBattleActorGroupBElementDestructionStatus::
+                            resource_cleanup_typed_stop &&
+                result.resource_cleanup.status ==
+                    openswd3::battle::LegacyBattleGroupBResourceCleanupStatus::
+                        actor_state_typed_stop &&
+                port.events == std::vector<u32>{4U} &&
+                port.resource_requests.empty() &&
+                state.resource_token == 0x74000000U &&
+                std::ranges::all_of(
+                    state.resource_bytes,
+                    [](const auto value) { return value == 0x6BU; }
+                ) &&
+                result.extension_destructor_calls == 1U &&
+                result.base_destructor_calls == 1U && result.return_eax == 7U &&
+                result.return_ecx == 0x87654321U && result.return_edx == 9U,
+            "group-B resource typed-stop still runs the SEH base cleanup before restoring its chain token"
         );
     }
 

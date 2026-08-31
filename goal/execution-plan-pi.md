@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v847
+版本：v848
 
 最后更新：2026-08-31
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗函数 `0x00476A60`
+当前步骤：模块10 · 审计战斗函数 `0x00476A80`
 
 ## 0. 执行约定
 
@@ -4312,4 +4312,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=258`的`0x00476A10`战斗组B脚本特殊行动道具参数写入函数。完整权威LST主体`0x00476A10..0x00476A56`共50行、21条实际指令、0个call、4个跳转、4个局部/返回标签和1个返回点且无外部chunk。实现四个u16脚本参数的可选资源写入：零值跳过全部actor/资源访问并保留旧word，非零才逐项重读资源token并原样小端写入；目标序列严格为`+0x72/+0x74/+0x76/+0x74`，第4项按原指令再次覆盖第2项目标而不写连续的`+0x78`，前三项线程EDX、末项线程ECX，EAX低word逐项覆盖且高word保留，全零参数即使actor越界也不得提前停止。资源继续复用组B生命周期既有164-byte唯一owner。脚本case 75唯一caller删除旧整函数opaque调用并typed直连，恢复真实的`+0x0A/+0x08/+0x06/+0x04`逆序读取、packed actor高word、组Bactor地址步长、callee入口EDX的`1381 * actor`、成功cursor加12/EAX一/入口ECX恢复，以及脚本、actor或资源typed-stop时的寄存器和状态前缀。验证：战斗聚合定向测试、完整core AddressSanitizer`188/188`、Linux core`188/188`、Linux app`194/194`全部通过，最终日志零OpenSWD3源码warning、测试失败和sanitizer finding；新增文件全量及历史文件触碰行通过clang-format Werror门。工作包为`258/422 = 249 platform_adapted + 9 assembly_exact + 164 pending_audit`；生成器连续双跑逐字节一致，SHA256为`2cbfd010f10dc8ab9898e34ef6b87504ada8f26c6454ac756c8e9ec7781bc4b4`。动态差分因原版组Bactor、动态资源token、三个物理目标word、脚本case 75逆序读取期间的原始参数地址及唯一caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=259`的`0x00476A60`战斗组B资源释放函数。
+本轮再完成`audit_order=259`的`0x00476A60`战斗组B资源释放函数。完整权威LST主体`0x00476A60..0x00476A7B`共18行、11条实际指令、1个call、1个跳转、1个局部标签和1个返回点且无外部chunk；唯一callee为CRT释放包装`0x004885A0`，其16行/9指令完整体及深层调试堆`0x004885C0`的502行/343指令/20 call/49跳转/30标签/1返回完整体均已审计且无chunk。实现严格先读取actor `+0x0C`资源token到EAX：零token跳过释放并返回EAX零；非零token先进入窄CRT释放端口，只有callee正常返回后才清token，端口抛出或不返回均阻断清零；三个非零路径终端寄存器完整保留callee reply。组B资源token和164-byte内容继续复用既有元素唯一owner，modern在成功释放后同步清空内联资源以表示已释放动态块，零token和失败路径保留旧内容。已关闭组B元素析构删除旧`release_extension`整函数端口并在SEH状态0 typed直连，保留资源异常/typed-stop时一次基础清理及基础异常不重复；战斗运行时销毁删除固定八槽组B整函数opaque调用，逐槽typed直连，保留组A到组B寄存器线程、全零八槽跳过、缺失owner首槽真实字段访问typed-stop和第八槽终端返回。验证：战斗聚合定向测试、完整core AddressSanitizer`188/188`、Linux core`188/188`、Linux app`194/194`全部通过，最终日志零OpenSWD3源码warning、测试失败和sanitizer finding；新增文件全量及历史文件触碰行通过clang-format Werror门。工作包为`259/422 = 250 platform_adapted + 9 assembly_exact + 163 pending_audit`；生成器连续双跑逐字节一致，SHA256为`4945f927c95279da877e5179cc2e8ffadd044e110e141c46f27693d8bb832fd6`。动态差分因原版八个组Bactor、动态资源token与164-byte块、CRT debug heap/client hook/诊断陷阱及两个caller和callee寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=260`的`0x00476A80`战斗MON.DAT资料读取函数。

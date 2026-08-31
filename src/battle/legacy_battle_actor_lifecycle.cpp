@@ -72,11 +72,28 @@ release_legacy_battle_actor_group_b_element(
 ) {
     LegacyBattleActorGroupBElementDestructionResult result;
     try {
-        port.release_extension(state);
+        result.resource_cleanup = release_legacy_battle_group_b_resource(
+            &state,
+            port,
+            {
+                .actor_token = state.object_token,
+                .actor_index =
+                    (state.object_token - kLegacyBattleActorGroupBBaseToken) /
+                    kLegacyBattleActorGroupBElementSize,
+                .entry_eax = request.seh_chain_token,
+                .entry_ecx = state.object_token,
+                .entry_edx = request.entry_edx,
+            }
+        );
         ++result.extension_destructor_calls;
     } catch (...) {
         static_cast<void>(port.destroy_base(state));
         throw;
+    }
+    if (result.resource_cleanup.status !=
+        LegacyBattleGroupBResourceCleanupStatus::completed) {
+        result.status = LegacyBattleActorGroupBElementDestructionStatus::
+            resource_cleanup_typed_stop;
     }
 
     const auto base = port.destroy_base(state);

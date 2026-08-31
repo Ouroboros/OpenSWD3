@@ -40,18 +40,38 @@ LegacyBattleRuntimeShutdownResult shutdown_legacy_battle_runtime(
     object_token = kLegacyBattleGroupBObjectBaseToken;
     for (compat::u32 index = 0U; index < kLegacyBattleGroupBObjectCount;
          ++index) {
-        result.group_b_replies[index] = port.invoke_battle_runtime_shutdown({
-            .call = LegacyBattleRuntimeShutdownCall::release_group_b_object,
-            .object_token = object_token,
-            .object_index = index,
-            .eax = eax,
-            .ecx = object_token,
-            .edx = edx,
-        });
+        auto* const actor = startup.group_b_lifecycle == nullptr
+            ? nullptr
+            : &(*startup.group_b_lifecycle)[index];
+        result.group_b_resource_cleanups[index] =
+            release_legacy_battle_group_b_resource(
+                actor,
+                port,
+                {
+                    .actor_token = object_token,
+                    .actor_index = index,
+                    .entry_eax = eax,
+                    .entry_ecx = object_token,
+                    .entry_edx = edx,
+                }
+            );
         ++result.group_b_calls;
-        eax = result.group_b_replies[index].eax;
-        ecx = result.group_b_replies[index].ecx;
-        edx = result.group_b_replies[index].edx;
+        result.group_b_resource_calls +=
+            result.group_b_resource_cleanups[index].resource_release_calls;
+        eax = result.group_b_resource_cleanups[index].return_eax;
+        ecx = result.group_b_resource_cleanups[index].return_ecx;
+        edx = result.group_b_resource_cleanups[index].return_edx;
+        if (result.group_b_resource_cleanups[index].status !=
+            LegacyBattleGroupBResourceCleanupStatus::completed) {
+            result.status =
+                LegacyBattleRuntimeShutdownStatus::group_b_resource_typed_stop;
+            result.stopped_group_b_index = index;
+            result.return_value = eax;
+            result.final_ecx = ecx;
+            result.final_edx = edx;
+            return result;
+        }
+
         object_token += kLegacyBattleGroupBObjectStride;
     }
 

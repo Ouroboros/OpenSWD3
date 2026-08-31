@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_group_b_resource_cleanup.hpp"
 #include "openswd3/battle/legacy_battle_render_geometry.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 #include "openswd3/compat/types.hpp"
@@ -28,7 +29,7 @@ static_assert(
 
 enum class LegacyBattleRuntimeShutdownCall : compat::u8 {
     release_group_a_resource,
-    release_group_b_object,
+    release_group_b_resource,
 };
 
 struct LegacyBattleRuntimeShutdownCallRequest {
@@ -52,7 +53,8 @@ struct LegacyBattleRuntimeShutdownCallReply {
 
 class LegacyBattleRuntimeShutdownPort
     : public LegacyBattleRenderAuxiliaryBufferReleaser,
-      public virtual LegacyBattleGroupAResourceReleasePort {
+      public virtual LegacyBattleGroupAResourceReleasePort,
+      public virtual LegacyBattleGroupBResourceReleasePort {
 public:
     ~LegacyBattleRuntimeShutdownPort() override = default;
 
@@ -77,17 +79,45 @@ public:
         });
         return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
     }
+
+    [[nodiscard]] LegacyBattleGroupBResourceReleaseCallReply
+    release_group_b_resource(
+        const LegacyBattleGroupBResourceReleaseCallRequest& request
+    ) override {
+        const auto reply = invoke_battle_runtime_shutdown({
+            .call = LegacyBattleRuntimeShutdownCall::release_group_b_resource,
+            .object_token = request.actor_token,
+            .object_index = request.actor_index,
+            .resource_token = request.resource_token,
+            .resource_offset = request.resource_offset,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        });
+        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
+    }
+};
+
+enum class LegacyBattleRuntimeShutdownStatus : compat::u8 {
+    completed,
+    group_b_resource_typed_stop,
 };
 
 struct LegacyBattleRuntimeShutdownResult {
+    LegacyBattleRuntimeShutdownStatus status{
+        LegacyBattleRuntimeShutdownStatus::completed
+    };
     LegacyBattleRenderCleanupResult render_cleanup{};
     std::array<LegacyBattleGroupAResourceCleanupResult, 10>
         group_a_resource_cleanups{};
-    std::array<LegacyBattleRuntimeShutdownCallReply, 8> group_b_replies{};
+    std::array<LegacyBattleGroupBResourceCleanupResult, 8>
+        group_b_resource_cleanups{};
     compat::u32 render_cleanup_calls{};
     compat::u32 group_a_calls{};
     compat::u32 group_a_resource_calls{};
     compat::u32 group_b_calls{};
+    compat::u32 group_b_resource_calls{};
+    compat::u32 stopped_group_b_index{};
     compat::u32 return_value{};
     compat::u32 final_ecx{};
     compat::u32 final_edx{};
