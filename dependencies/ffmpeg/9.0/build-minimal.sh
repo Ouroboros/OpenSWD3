@@ -8,7 +8,8 @@ SOURCE_CACHE="${CACHE_ROOT}/source"
 ARCHIVE="${SOURCE_CACHE}/ffmpeg-9.0.tar.xz"
 SIGNATURE="${SOURCE_CACHE}/ffmpeg-9.0.tar.xz.asc"
 KEY_FILE="${SCRIPT_DIR}/ffmpeg-devel.asc"
-WORK_ROOT="${OPENSWD3_FFMPEG_WORK_ROOT:-${TMPDIR:-/tmp}/openswd3-ffmpeg-9.0}"
+PROJECT_TMP_ROOT="${PROJECT_ROOT}/build/tmp/runtime"
+WORK_ROOT="${OPENSWD3_FFMPEG_WORK_ROOT:-${PROJECT_TMP_ROOT}/openswd3-ffmpeg-9.0}"
 SOURCE_DIR="${WORK_ROOT}/source"
 WINDOWS_LLVM_BIN="${OPENSWD3_WINDOWS_LLVM_BIN:-/mnt/d/Dev/Compiler/LLVM/x64/bin}"
 JOBS="${OPENSWD3_FFMPEG_JOBS:-$(nproc)}"
@@ -39,10 +40,25 @@ require_command() {
 require_command curl
 require_command gpg
 require_command make
+require_command realpath
 require_command sha256sum
 require_command tar
 
-mkdir -p "${SOURCE_CACHE}" "${WORK_ROOT}"
+PROJECT_TMP_ROOT="$(realpath -m -- "${PROJECT_TMP_ROOT}")"
+WORK_ROOT="$(realpath -m -- "${WORK_ROOT}")"
+case "${WORK_ROOT}/" in
+    "${PROJECT_ROOT}/"*) ;;
+    *)
+        printf 'FFmpeg work directory must stay inside the repository: %s\n' \
+            "${WORK_ROOT}" >&2
+        exit 1
+        ;;
+esac
+SOURCE_DIR="${WORK_ROOT}/source"
+mkdir -p "${SOURCE_CACHE}" "${PROJECT_TMP_ROOT}" "${WORK_ROOT}"
+export TMPDIR="${PROJECT_TMP_ROOT}"
+export TMP="${PROJECT_TMP_ROOT}"
+export TEMP="${PROJECT_TMP_ROOT}"
 if [[ ! -f "${ARCHIVE}" ]]; then
     curl --fail --location --retry 3 --output "${ARCHIVE}" "${SOURCE_URL}"
 fi
@@ -63,7 +79,7 @@ if [[ "${actual_sha256}" != "${SOURCE_SHA256}" ]]; then
     exit 1
 fi
 
-gnupg_home="$(mktemp -d "${TMPDIR:-/tmp}/openswd3-ffmpeg-gpg.XXXXXX")"
+gnupg_home="$(mktemp -d "${PROJECT_TMP_ROOT}/openswd3-ffmpeg-gpg.XXXXXX")"
 cleanup_gnupg() {
     rm -rf "${gnupg_home}"
 }

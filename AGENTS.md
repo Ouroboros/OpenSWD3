@@ -184,6 +184,16 @@
 - 所有新增源码、文档、测试、工具和整理后的证据统一放在 OpenSWD3 仓库内分类保存。
 - 逆向证据放 `analysis/04-reverse-engineering/`，工具放 `analysis/tools/`，执行 PLAN 放
   `goal/`，构建和 VM 临时输出放 `build/`。
+- 严禁在系统 `/tmp`、`/var/tmp` 或仓库外其他临时目录创建、写入、复制或保留任何
+  OpenSWD3 项目临时产物。LST 摘录、导航日志、diff/format preview、草稿源码、探针源码与
+  二进制、构建日志、测试日志和 inventory 中间文件都必须放在仓库内的 `build/tmp/`、
+  `build/workpack<N>/` 或对应分类目录。
+- 运行可能使用临时文件的项目命令前，必须把 `TMPDIR`、`TMP` 和 `TEMP` 指向仓库内
+  `build/tmp/runtime/`；不得主动读写、依赖或把项目输出重定向到受管工具在系统临时目录中的
+  内部运行时文件。
+- 发现已有 OpenSWD3 临时产物落在仓库外时，必须立即暂停当前实现，把产物迁回仓库内
+  `build/tmp/migrated-system-tmp/`，生成迁移清单，并机械确认系统临时目录不再残留项目产物后
+  才能继续。
 - 原始游戏数据、EXE、用户 VM 输出和构建产物不得误提交。
 - 用户返回的原始 capture 先放 `build/vm/`。只有最小、来源明确、可复核的证据才整理进
   `analysis/04-reverse-engineering/artifacts/`。
