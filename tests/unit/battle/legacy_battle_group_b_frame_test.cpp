@@ -618,15 +618,21 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             );
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::
-                    group_b_action_profile_flag_typed_stop &&
-                result.return_value == 0xA1B2C3D4U &&
-                result.group_b_action_profile_flag_calls == 1U &&
+                    group_b_status_action_typed_stop &&
+                result.return_value == 0U &&
+                result.group_b_status_action.status ==
+                    openswd3::battle::LegacyBattleGroupBStatusActionStatus::
+                        actor_state_typed_stop &&
+                result.group_b_status_action_calls == 1U &&
+                result.group_b_action_profile_flag_calls == 0U &&
                 state.shared.action.current_actor_index == 0x1234U &&
                 state.shared.action_side == 0U &&
                 state.selection_initialized == 1U &&
+                port.count(0x00476330U) == 0U &&
+                port.count(0x00480220U) == 0U &&
                 port.count(0x00476140U) == 0U &&
                 port.count(0x0047D8D0U) == 0U,
-            "profile flag actor stop preserves sequence EAX and blocks the suffix"
+            "status action actor stop now precedes the profile flag sequence"
         );
     }
 
@@ -650,13 +656,21 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             );
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::
-                    group_b_action_profile_flag_typed_stop &&
-                result.return_value == state.opponent_text_token_base &&
-                state.shared.action.current_actor_index == 0U &&
-                state.status_misc == 0U && state.special_action_latch == 1U &&
+                    group_b_status_action_typed_stop &&
+                result.return_value == 0U &&
+                result.group_b_status_action.status ==
+                    openswd3::battle::LegacyBattleGroupBStatusActionStatus::
+                        actor_state_typed_stop &&
+                result.group_b_status_action_calls == 1U &&
+                result.group_b_action_profile_flag_calls == 0U &&
+                state.shared.action.current_actor_index == 0x1234U &&
+                state.status_misc == 9U && state.special_action_latch == 0U &&
                 state.shared.action_side == 0U &&
+                port.count(0x00476330U) == 0U &&
+                port.count(0x00480220U) == 0U &&
+                port.count(0x0047D880U) == 0U &&
                 port.count(0x00476140U) == 0U,
-            "profile flag stop preserves status prefix and the stale text token EAX"
+            "status action actor stop blocks the former profile flag status prefix"
         );
     }
 
@@ -668,9 +682,14 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         state.action_profile_bytes = {0x7AU};
         state.stale_action_profile_edx = 0x11223300U;
         Fixture fixture;
+        bind_group_b_coordinate_resource(fixture, 0U);
+        auto& actor = (*fixture.startup->group_b_lifecycle)[0U];
+        write_group_b_resource_word(actor.resource_bytes, 0x54U, 0x10U);
+        actor.resource_bytes[0x91U] = 1U;
+        fixture.random.push(0xAAAA000BU);
+        fixture.random.push(0xBBBB0007U);
         DispatchPort port;
         port.push(0x004786A0U, {.eax = 0U});
-        port.push(0x00476330U, {.eax = 1U});
         port.push(0x004786A0U, {.eax = 0U});
         auto context = fixture.context();
         const auto result =
@@ -679,11 +698,17 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             );
         test.expect_true(
             result.return_value == 0U &&
-                has_call_argument(port, 0x00476330U, 0U, 0x00525508U) &&
-                has_call_argument(port, 0x00476330U, 1U, 0x1122337AU) &&
+                result.group_b_status_action_calls == 1U &&
+                result.group_b_status_action.argument == 0x7AU &&
+                result.group_b_status_action.initial_random_value ==
+                    0xAAAA000BU &&
+                result.group_b_status_action.decision_random_value ==
+                    0xBBBB0007U &&
+                fixture.random.bounds == std::vector<u32>{12U, 10U} &&
+                port.count(0x00476330U) == 0U &&
                 has_call_argument(port, 0x00478710U, 1U, 0x11U) &&
                 has_call_argument(port, 0x0047D860U, 1U, 2U),
-            "profile byte replaces only stale EDX low byte before status action query"
+            "profile byte drives the typed status action and its true caller suffix"
         );
     }
 
@@ -761,22 +786,59 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             );
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::
-                    group_b_action_profile_mode_typed_stop &&
-                result.return_value == 0x8000U &&
-                result.group_b_action_profile_mode.status ==
-                    openswd3::battle::
-                        LegacyBattleGroupBActionProfileModeStatus::
-                            actor_state_typed_stop &&
-                state.shared.action_side == 1U &&
-                state.special_selection_pending == 0U &&
+                    group_b_status_action_typed_stop &&
+                result.return_value == 0U &&
+                result.group_b_status_action.status ==
+                    openswd3::battle::LegacyBattleGroupBStatusActionStatus::
+                        actor_state_typed_stop &&
+                result.group_b_status_action_calls == 1U &&
+                result.group_b_action_profile_mode_calls == 0U &&
+                state.shared.action_side == 0U &&
+                state.special_selection_pending == 1U &&
                 state.status_action_value == 0x55667788U &&
                 state.shared.action.current_actor_index == 0x1234U &&
+                fixture.random.bounds.empty() &&
+                port.count(0x00476330U) == 0U &&
                 port.count(0x004761D0U) == 0U &&
                 port.count(0x00476A80U) == 0U &&
                 port.count(0x00478710U) == 0U &&
                 port.count(0x0047D880U) == 0U &&
                 result.text_message_calls == 0U,
-            "profile mode actor stop preserves selection prefix and blocks result publication and status suffix"
+            "status action actor stop precedes the formerly reachable profile mode boundary"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState state;
+        state.frame_enabled = 1U;
+        state.shared.action.active_effect_target = 0U;
+        state.selection_initialized = 1U;
+        state.action_profile_bytes = {0x7AU};
+        Fixture fixture;
+        bind_group_b_coordinate_resource(fixture, 0U);
+        auto& actor = (*fixture.startup->group_b_lifecycle)[0U];
+        actor.resource_token = 0U;
+        fixture.random.push(0xCAFE000BU);
+        DispatchPort port;
+        port.push(0x004786A0U, {.eax = 0U});
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::
+                    group_b_status_action_typed_stop &&
+                result.group_b_status_action.status ==
+                    openswd3::battle::LegacyBattleGroupBStatusActionStatus::
+                        resource_read_typed_stop &&
+                result.group_b_status_action.random_calls == 1U &&
+                result.group_b_status_action.return_eax == 0U &&
+                result.group_b_status_action.return_edx == 0xCAFE000BU &&
+                fixture.random.bounds == std::vector<u32>{12U} &&
+                port.count(0x00476330U) == 0U &&
+                port.count(0x00478710U) == 0U,
+            "status action resource stop preserves its initial random and blocks the caller suffix"
         );
     }
 

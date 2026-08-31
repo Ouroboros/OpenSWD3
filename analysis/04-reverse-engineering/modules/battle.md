@@ -2,7 +2,7 @@
 
 状态：`module_in_progress`
 
-当前关闭进度：`248/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
+当前关闭进度：`249/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
 
 ## 1. 唯一真值与模块目标
 
@@ -51,10 +51,10 @@ code_origin == game
 - 尾地址：`0x00484500`；
 - `confirmed_boundary`：`61`；
 - `medium`导航候选：`361`；
-- `pending_audit`：`177`；
+- `pending_audit`：`173`；
 - `assembly_exact`：`9`；
-- `platform_adapted`：`236`；
-- 已关闭：`245`。
+- `platform_adapted`：`240`；
+- 已关闭：`249`。
 
 六个稳定导航分组为：
 
@@ -76,7 +76,7 @@ code_origin == game
 - `legacy_battle_assets`：FIGTALK固定窗口和`battle.ffd`头、索引、记录读取；
 - `legacy_battle_setup`：初始队伍筛选、固定阵型、镜像坐标和敌方记录布局。
 
-它们覆盖了`0x0046E0B0`、`0x0045F130`、`0x0045F1B0`与`0x00451B10`的部分有效资产路径或部分指令区间，但尚未证明所属函数的完整LST函数体、全部外部chunk、全部错误/循环/异常域、caller回收和完整战斗生命周期。因此这些历史切片继续不计数；当前`245/422`只来自本文件逐项登记且完成全部关闭门的函数，不得把其他测试通过、局部有效路径或真实battle 98样本当作函数关闭。
+它们覆盖了`0x0046E0B0`、`0x0045F130`、`0x0045F1B0`与`0x00451B10`的部分有效资产路径或部分指令区间，但尚未证明所属函数的完整LST函数体、全部外部chunk、全部错误/循环/异常域、caller回收和完整战斗生命周期。因此这些历史切片继续不计数；当前`249/422`只来自本文件逐项登记且完成全部关闭门的函数，不得把其他测试通过、局部有效路径或真实battle 98样本当作函数关闭。
 
 `app::battle_transition`和`frame_runtime`只实现顶层请求与返回编排，不属于422项战斗内部函数关闭计数。
 
@@ -707,6 +707,8 @@ I5最终必须锁定：
 
 本轮再完成`audit_order=248`的`0x004762F0`战斗组B胜利奖励道具随机选择函数。完整权威LST主体`0x004762F0..0x00476323`共27行、17条实际指令、1个call、2个跳转、1个局部标签和2个返回点且无外部chunk。实现actor `+0x0C`动态资源、`+0x82`零道具不消费随机、固定bound 20、RNG后资源token重读、`AX`与`+0x84`无符号严格小于阈值、成功重读道具，以及只清/覆盖`AX`和`ECX/EDX`寄存器线程；初次资源访问与RNG后第二次资源访问的typed-stop都位于原故障点并保留此前副作用。资源复用组B生命周期八槽唯一owner，随机复用frame coordinator既有secondary RNG adapter。胜利奖励唯一caller删除整函数opaque查询并typed直连，旧枚举槽保留reserved；live signed上界、八槽物理边界、十槽归并、玩家道具副作用及后续组A顺序不变。验证：战斗聚合定向测试、完整core AddressSanitizer`188/188`、Linux core`188/188`、Linux app`194/194`全部通过，零OpenSWD3源码warning和sanitizer finding；app仅有既有ALSA开发库环境提示。工作包为`248/422 = 239 platform_adapted + 9 assembly_exact + 174 pending_audit`；生成器连续双跑逐字节一致，SHA256为`1011219b57c1a5536dc36e394441d73feb593191c3c9347405e019295b6c14ae`。动态差分因原版八个组B actor、动态资源`+0x82/+0x84`、secondary RNG游标及胜利奖励caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=249`的`0x00476330`组B行动随机决策函数。
+本轮再完成`audit_order=249`的`0x00476330`战斗组B状态行动随机判定函数。完整权威LST主体`0x00476330..0x004763D0`共77行、52条实际指令、4个call、7个跳转、3个局部标签和4个返回点且无外部chunk。实现actor `+0x26D0` bit11无随机早退、固定bound 12废弃随机、资源`+0x91`零机会、参数低byte减资源`+0x54`后按signed差值进入八成、五成、直接失败或资源机会四段判定，以及差值恰五时RNG后资源token和机会值重读；保留严格小于、低word比较、第二随机高word、未知RNG后ECX与两处真实资源故障点。actor gate复用既有`retreat_ready_flags`，资源复用组B生命周期164-byte唯一owner，随机复用frame coordinator共享secondary RNG adapter。组Bframe唯一caller删除整函数opaque调用并typed直连；返回一仍依次发布selection零、action mode 17和status mode 2，返回零继续packed status分支，typed-stop阻断两侧全部后缀并回收此前不可达的后续actor-stop测试。验证：战斗聚合定向测试、完整core AddressSanitizer`188/188`、Linux core`188/188`、Linux app`194/194`全部通过，零OpenSWD3源码warning和sanitizer finding；app仅有既有ALSA开发库环境提示。工作包为`249/422 = 240 platform_adapted + 9 assembly_exact + 173 pending_audit`；生成器连续双跑逐字节一致，SHA256为`65863cd90ce794c0fc48837eab6c8f3e02e175b20e6adb0d386ac84276151116`。动态差分因原版八个组B actor、动态资源`+0x54/+0x91`、secondary RNG游标及唯一caller寄存器与状态后缀联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=250`的`0x004763D0`战斗函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

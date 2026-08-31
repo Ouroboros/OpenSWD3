@@ -327,6 +327,7 @@ add_executable(
     unit/battle/legacy_battle_group_b_frame_test.cpp
     unit/battle/legacy_battle_group_b_opponent_mode_test.cpp
     unit/battle/legacy_battle_group_b_reward_item_selection_test.cpp
+    unit/battle/legacy_battle_group_b_status_action_test.cpp
     unit/battle/legacy_battle_global_reset_test.cpp
     unit/battle/legacy_battle_group_b_order_test.cpp
     unit/battle/legacy_battle_group_b_target_cycle_test.cpp

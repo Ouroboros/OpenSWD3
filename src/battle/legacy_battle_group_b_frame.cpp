@@ -3,6 +3,7 @@
 #include "openswd3/battle/legacy_battle_group_b_action_profile_flag.hpp"
 #include "openswd3/battle/legacy_battle_group_b_action_profile_mode.hpp"
 #include "openswd3/battle/legacy_battle_group_b_opponent_mode.hpp"
+#include "openswd3/battle/legacy_battle_group_b_status_action.hpp"
 #include "openswd3/battle/legacy_battle_opponent_action_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 
@@ -33,7 +34,6 @@ constexpr u32 kCallPrepareSelection = 0x00478B30U;
 constexpr u32 kCallPublishSelection = 0x00478A70U;
 constexpr u32 kCallQuerySelectionMode = 0x00483820U;
 constexpr u32 kCallRandomBounded = 0x00439070U;
-constexpr u32 kCallQueryStatusAction = 0x00476330U;
 constexpr u32 kCallSetActionMode = 0x00478710U;
 constexpr u32 kCallPublishStatusMode = 0x0047D860U;
 constexpr u32 kCallQuerySpecialAction = 0x0047D880U;
@@ -706,13 +706,32 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                 const u32 profile_argument =
                     (state.stale_action_profile_edx & 0xFFFFFF00U) |
                     state.action_profile_bytes[profile_offset];
-                if (invoke(
-                        port,
-                        result,
-                        kCallQueryStatusAction,
-                        {source_token, profile_argument}
-                    )
-                        .eax != 0U) {
+                LegacyBattleActorGroupBElementState* status_actor = nullptr;
+                if (context.startup != nullptr &&
+                    context.startup->group_b_lifecycle != nullptr) {
+                    status_actor = &(*context.startup->group_b_lifecycle)
+                        [group_b_index];
+                }
+                result.group_b_status_action =
+                    query_legacy_battle_group_b_status_action(
+                        status_actor,
+                        context.bounded_random,
+                        {
+                            .actor_token = source_token,
+                            .entry_eax = profile_offset,
+                            .entry_edx = profile_argument,
+                        }
+                    );
+                ++result.group_b_status_action_calls;
+                if (result.group_b_status_action.status !=
+                    LegacyBattleGroupBStatusActionStatus::completed) {
+                    result.status = LegacyBattleActionDispatchStatus::
+                        group_b_status_action_typed_stop;
+                    result.return_value =
+                        result.group_b_status_action.return_eax;
+                    return result;
+                }
+                if (result.group_b_status_action.return_eax != 0U) {
                     static_cast<void>(invoke(
                         port, result, kCallPublishSelection, {source_token, 0U}
                     ));
