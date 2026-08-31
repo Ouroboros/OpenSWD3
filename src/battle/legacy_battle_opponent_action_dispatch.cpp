@@ -3,6 +3,7 @@
 #include "openswd3/battle/legacy_battle_group_b_action_configuration.hpp"
 #include "openswd3/battle/legacy_battle_group_b_action_execution.hpp"
 #include "openswd3/battle/legacy_battle_group_b_action_seventeen_frame.hpp"
+#include "openswd3/battle/legacy_battle_group_b_opponent_wave_parameters.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 
 #include <algorithm>
@@ -39,7 +40,6 @@ constexpr u32 kCallPlaySample = 0x00485610U;
 constexpr u32 kCallSetSamplePan = 0x00485650U;
 constexpr u32 kCallQueryCoordinates = 0x00478600U;
 constexpr u32 kCallPublishCoordinates = 0x004785C0U;
-constexpr u32 kCallInitializeOpponentWaves = 0x00476900U;
 constexpr u32 kCallResetOpponent = 0x0047D350U;
 constexpr u32 kCallMirrorOpponent = 0x0047F900U;
 constexpr u32 kCallPrepareOpponentScratch = 0x00476DB0U;
@@ -744,14 +744,32 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
 
     case 15U: {
         if ((state.phase_counter & 0x8000U) == 0U) {
+            const u32 initialization_entry_eax = state.phase_counter;
             replace_low_word(state.phase_counter, 0x8019U);
-            static_cast<void>(invoke(
-                state,
-                port,
-                result,
-                kCallInitializeOpponentWaves,
-                {source_token}
-            ));
+            const auto* const source_actor = context.startup == nullptr ||
+                    context.startup->group_b_lifecycle == nullptr
+                ? nullptr
+                : &(*context.startup->group_b_lifecycle)[group_b_index];
+            result.group_b_opponent_wave_parameters =
+                read_legacy_battle_group_b_opponent_wave_parameters(
+                    source_actor,
+                    &state.opponent_special_action,
+                    &state.opponent_spawn_count,
+                    {
+                        .actor_token = source_token,
+                        .first_output_token = 0x0053BF28U,
+                        .second_output_token = 0x0053BF2AU,
+                        .entry_eax = initialization_entry_eax,
+                        .entry_edx = action_reply.edx,
+                    }
+                );
+            ++result.group_b_opponent_wave_parameters_calls;
+            if (result.group_b_opponent_wave_parameters.status !=
+                LegacyBattleGroupBOpponentWaveParametersStatus::completed) {
+                result.status = LegacyBattleActionDispatchStatus::
+                    group_b_opponent_wave_parameters_typed_stop;
+                return result;
+            }
             OpponentGroupBActionConfigurationPort group_b_configuration(
                 state, port, result
             );

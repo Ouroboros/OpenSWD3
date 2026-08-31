@@ -518,26 +518,60 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
 
     {
         LegacyBattleActionDispatchState state;
+        state.phase_counter = 0x12340000U;
+        state.opponent_special_action = 0x1111U;
+        state.opponent_spawn_count = 0x2222U;
+        Fixture fixture;
+        DispatchPort port;
+        port.action = 15U;
+        auto context = fixture.context();
+        context.startup = nullptr;
+        const auto result =
+            openswd3::battle::dispatch_legacy_battle_opponent_action(
+                state, port, context, 0U, 99U
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        group_b_opponent_wave_parameters_typed_stop &&
+                result.group_b_opponent_wave_parameters_calls == 1U &&
+                result.group_b_opponent_wave_parameters.status ==
+                    openswd3::battle::
+                        LegacyBattleGroupBOpponentWaveParametersStatus::
+                            actor_state_typed_stop &&
+                result.group_b_opponent_wave_parameters.return_eax ==
+                    0x12340000U &&
+                result.group_b_opponent_wave_parameters.return_ecx ==
+                    0x00525508U &&
+                result.group_b_opponent_wave_parameters.return_edx ==
+                    0x0053BF28U &&
+                state.phase_counter == 0x12348019U &&
+                state.opponent_special_action == 0x1111U &&
+                state.opponent_spawn_count == 0x2222U &&
+                result.group_b_iterations == 0U &&
+                port.count(0x00476900U) == 0U && port.calls.size() == 1U,
+            "opponent action fifteen stops at the source actor read after committing the phase prefix"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        state.phase_counter = 0xCAFE0000U;
         state.group_b_count = 0;
         state.mirror_group_b_spawn = 1U;
         Fixture fixture;
         fixture.startup->group_b_lifecycle = std::make_shared<std::array<
             openswd3::battle::LegacyBattleActorGroupBElementState,
             openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
-        (*fixture.startup->group_b_lifecycle)[0U].action_record.prefix[3U] =
-            std::byte{0xA5};
+        auto& source_actor = (*fixture.startup->group_b_lifecycle)[0U];
+        source_actor.action_record.prefix[3U] = std::byte{0xA5};
+        source_actor.action_configuration.profile_buffer[0x20U] =
+            std::byte{0x34};
+        source_actor.action_configuration.profile_buffer[0x21U] =
+            std::byte{0x12};
+        source_actor.action_configuration.profile_buffer[0x24U] = std::byte{2U};
         DispatchPort port;
         port.action = 15U;
-        port.push(
-            0x00476900U,
-            {
-                .eax = 1U,
-                .publish_opponent_special_action = true,
-                .opponent_special_action = 0x1234U,
-                .publish_opponent_spawn_count = true,
-                .opponent_spawn_count = 2U,
-            }
-        );
         port.push(0x00478220U, {.eax = 0xABCD0000U});
         port.push(
             0x00478220U,
@@ -561,6 +595,17 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         test.expect_true(
             running.return_value == 0U && completed.return_value == 1U &&
                 running.group_b_iterations == 2U && state.group_b_count == 2 &&
+                running.group_b_opponent_wave_parameters_calls == 1U &&
+                completed.group_b_opponent_wave_parameters_calls == 0U &&
+                running.group_b_opponent_wave_parameters.special_action ==
+                    0x1234U &&
+                running.group_b_opponent_wave_parameters.spawn_count == 2U &&
+                running.group_b_opponent_wave_parameters.return_eax ==
+                    0xCAFE0002U &&
+                running.group_b_opponent_wave_parameters.return_ecx ==
+                    0x0053BF2AU &&
+                running.group_b_opponent_wave_parameters.return_edx ==
+                    0x0053BF28U &&
                 fixture.startup->group_b_lifecycle != nullptr &&
                 (*fixture.startup->group_b_lifecycle)[0U]
                         .action_record.action_id == 0x1234U &&
@@ -576,6 +621,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                         .action_record.position_y == 350U &&
                 state.opponent_spawn_count == 0U &&
                 has_call_argument(port, 0x00476DB0U, 1U, 0xABCD1234U) &&
+                port.count(0x00476900U) == 0U &&
                 port.count(0x00475720U) == 0U &&
                 port.count(0x00476A80U) == 2U &&
                 port.count(0x0045B0E0U) == 0U &&
@@ -589,15 +635,10 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         LegacyBattleActionDispatchState state;
         state.group_b_count = 0;
         Fixture fixture;
+        (*fixture.startup->group_b_lifecycle)[0U]
+            .action_configuration.profile_buffer[0x24U] = std::byte{9U};
         DispatchPort port;
         port.action = 15U;
-        port.push(
-            0x00476900U,
-            {
-                .publish_opponent_spawn_count = true,
-                .opponent_spawn_count = 9U,
-            }
-        );
         auto context = fixture.context();
         const auto result =
             openswd3::battle::dispatch_legacy_battle_opponent_action(
@@ -608,7 +649,8 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                     LegacyBattleActionDispatchStatus::
                         group_b_index_typed_stop &&
                 result.group_b_iterations == 8U && state.group_b_count == 8 &&
-                port.count(0x0047D350U) == 8U,
+                result.group_b_opponent_wave_parameters_calls == 1U &&
+                port.count(0x00476900U) == 0U && port.count(0x0047D350U) == 8U,
             "ninth opponent wave stops only after eight complete record side effects"
         );
     }
@@ -616,18 +658,14 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
     {
         LegacyBattleActionDispatchState state;
         Fixture fixture;
+        auto& source_profile = (*fixture.startup->group_b_lifecycle)[0U]
+                                   .action_configuration.profile_buffer;
+        source_profile[0x20U] = std::byte{0x34};
+        source_profile[0x21U] = std::byte{0x12};
+        source_profile[0x24U] = std::byte{1U};
         DispatchPort port;
         port.action = 15U;
         port.group_b_typed_stop_callee = 0x00476A80U;
-        port.push(
-            0x00476900U,
-            {
-                .publish_opponent_special_action = true,
-                .opponent_special_action = 0x1234U,
-                .publish_opponent_spawn_count = true,
-                .opponent_spawn_count = 1U,
-            }
-        );
         auto context = fixture.context();
         const auto result =
             openswd3::battle::dispatch_legacy_battle_opponent_action(
@@ -641,6 +679,8 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 fixture.startup->group_b_lifecycle != nullptr &&
                 (*fixture.startup->group_b_lifecycle)[0U]
                         .action_record.action_id == 0x1234U &&
+                result.group_b_opponent_wave_parameters_calls == 1U &&
+                port.count(0x00476900U) == 0U &&
                 port.count(0x00475720U) == 0U &&
                 port.count(0x00476A80U) == 1U && port.count(0x00478220U) == 1U,
             "opponent action fifteen propagates the typed profile stop without completing the wave"

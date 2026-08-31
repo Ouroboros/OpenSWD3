@@ -116,7 +116,7 @@ case 11的查询站点同时保留ECX source与栈上的source token；typed端�
 phase低wordbit15未置位时：
 
 1. phase低word写`0x8019`，保留高word；
-2. 调用初始化callee，读取两个独立u16输出：special action与spawn count；
+2. 直接调用已关闭的组B wave参数typed函数，按actor `+0x0DB0` word写special action，再按`+0x0DB4` byte零扩展写spawn count；
 3. 对每个spawn：
    - 以当前group-B count选择新组B对象；
    - reset该对象；
@@ -131,7 +131,7 @@ phase低wordbit15未置位时：
    - group-B count低32位加1；
    - 固定调用三个battle stage。
 
-固定记录表不再由动作分派保留副本，而与startup、进度、global reset和SDL坐标桥共用八槽组B元素生命周期owner。资源加载、profile或释放typed-stop保留当前wave此前reset、scratch、记录与mirror副作用，但阻断pop、计数和三个stage；旧`0x00475720` opaque地址零调用。循环没有现代上限。第9项仍只在首次新组B对象访问处typed-stop，前8条记录、计数及全部callee副作用保留。
+固定记录表不再由动作分派保留副本，而与startup、进度、global reset和SDL坐标桥共用八槽组B元素生命周期owner。wave参数也直接读取该owner内既有40-byte profile的尾部字段，不新增平行profile或输出状态；旧`0x00476900`地址生产调用为零。源actor缺失时保留phase `0x8019`前缀和两个旧输出，并阻断wave循环。资源加载、profile或释放typed-stop保留当前wave此前reset、scratch、记录与mirror副作用，但阻断pop、计数和三个stage；旧`0x00475720` opaque地址零调用。循环没有现代上限。第9项仍只在首次新组B对象访问处typed-stop，前8条记录、计数及全部callee副作用保留。
 
 初始化后及后续调用均先对phase低word减1，再测试低word低15位。非零返回0；归零时current actor写`0xFFFF`、phase低word与spawn count清零并返回1。若已初始化位形错误地传入低word0，原行为是回绕到`0xFFFF`，不夹到完成。
 
@@ -164,13 +164,14 @@ special action非零时继续查询固定组B base。返回0且`group-B count - 
 - deformation typed构造与析构；
 - framebuffer前缀清屏。
 
-双对象数值转场caller已删除旧token并直接组合typed实现；两处攻击顺序移除也在组A编码或组B阶段编码发布点直接组合，旧token删除。组B行动配置关闭后，case 15也删除整个`0x00475720` opaque调用，直接复用typed实现；其内部资源加载、profile加载和资源文本释放仍各保持一个窄端口。组B行动执行关闭后，case 1的组A/组B target两处也改为typed直连，直接复用actor lifecycle中的唯一action-execution owner、共享累计值、颜色与画面刷新；执行器内部未审callee保持窄actor/记录/generic port。动作累计值与玩家动作和效果协调器共用唯一共享port。其余角色、AI、记录、模式与stage callee保持单一typed token端口。端口中的物理地址、scratch token与记录token均为`compat::u32`，不转主机指针。端口reply只在callee实际可写的共享槽发布累计值、selection word、special action与spawn count。
+双对象数值转场caller已删除旧token并直接组合typed实现；两处攻击顺序移除也在组A编码或组B阶段编码发布点直接组合，旧token删除。组B行动配置关闭后，case 15也删除整个`0x00475720` opaque调用，直接复用typed实现；其内部资源加载、profile加载和资源文本释放仍各保持一个窄端口。组B行动执行关闭后，case 1的组A/组B target两处也改为typed直连，直接复用actor lifecycle中的唯一action-execution owner、共享累计值、颜色与画面刷新；执行器内部未审callee保持窄actor/记录/generic port。动作累计值与玩家动作和效果协调器共用唯一共享port。其余角色、AI、记录、模式与stage callee保持单一typed token端口。端口中的物理地址、scratch token与记录token均为`compat::u32`，不转主机指针。wave参数关闭后，special action与spawn count不再由generic port reply发布，而由typed函数直接写入既有两个u16共享槽。
 
 ## 11. typed故障点
 
 - 入口组B：首次动作号查询；
 - 按case解释的组A/组B target：首次目标对象callee；
 - case 1映射：视觉commit成功后的首次映射元素写；
+- case 15参数：源actor缺失在`+0x0DB0`首次读取点停止，保留phase与旧输出前缀；纯函数另锁定两个输出各自的首次写入点和第一输出部分提交；
 - case 15新对手：每次wave的首次组B对象reset；行动配置的资源、profile与释放stop都位于对应内部callee或首次资源访问点；
 - framebuffer：先发布refresh并写满owned前缀，再在首个越界像素停止；
 - 攻击顺序移除：相邻强度效果记录缺失时保留目标对象更新前缀，阻断phase、计数和active target清理。
@@ -188,7 +189,7 @@ special action非零时继续查询固定组B base。返回0且`group-B count - 
 - case 2 deformation分配、构造、析构与owner释放；
 - case 6完整初始化/完成；
 - case 7攻击顺序移除直连、旧地址调用清零、低byte回绕与两个active target清理；
-- case 15双wave镜像、共享记录前缀保留、220/350坐标、callee EAX高word、行动配置typed直连、profile stop、旧opaque零调用、三个stage与完成位形；
+- case 15 wave参数profile尾字段、两项有序输出、AX零扩展与EAX高word保留、源actor停止前缀、双wave镜像、共享记录前缀保留、220/350坐标、行动配置typed直连、profile stop、两个旧opaque地址零调用、三个stage与完成位形；
 - case 15第9项在8条完整副作用后typed-stop；
 - case 17 workspace零后18个间隔全1头与special collapse；
 - 9个有效case逐项smoke；
