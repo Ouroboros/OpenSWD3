@@ -9,6 +9,7 @@
 #include "openswd3/battle/legacy_battle_group_b_order.hpp"
 #include "openswd3/battle/legacy_battle_group_b_script_action_item_parameters.hpp"
 #include "openswd3/battle/legacy_battle_group_b_script_resource_parameters.hpp"
+#include "openswd3/battle/legacy_battle_group_b_script_special_action_item_parameters.hpp"
 #include "openswd3/battle/legacy_battle_input_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_message_phase.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
@@ -196,7 +197,7 @@ enum class LegacyBattleScriptDispatchCall : compat::u32 {
     reserved_group_b_action_profile_selection = 0x00476250U,
     reserved_group_b_script_resource_parameters = 0x00476920U,
     reserved_group_b_script_action_item_parameters = 0x004769A0U,
-    pending_476a10 = 0x00476A10U,
+    reserved_group_b_script_special_action_item_parameters = 0x00476A10U,
     pending_476a80 = 0x00476A80U,
     pending_476db0 = 0x00476DB0U,
     pending_477bd0 = 0x00477BD0U,
@@ -307,6 +308,7 @@ enum class LegacyBattleScriptDispatchStatus : compat::u8 {
     group_b_action_profile_selection_typed_stop,
     group_b_script_resource_parameters_typed_stop,
     group_b_script_action_item_parameters_typed_stop,
+    group_b_script_special_action_item_parameters_typed_stop,
 };
 
 struct LegacyBattleScriptDispatchRequest {
@@ -338,6 +340,9 @@ struct LegacyBattleScriptDispatchResult {
     LegacyBattleGroupBScriptActionItemParametersResult
         group_b_script_action_item_parameters{};
     compat::u32 group_b_script_action_item_parameters_calls{};
+    LegacyBattleGroupBScriptSpecialActionItemParametersResult
+        group_b_script_special_action_item_parameters{};
+    compat::u32 group_b_script_special_action_item_parameters_calls{};
     std::vector<LegacyBattleScriptDispatchCall> call_trace;
 };
 

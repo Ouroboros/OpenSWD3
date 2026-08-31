@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v846
+版本：v847
 
 最后更新：2026-08-31
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗函数 `0x00476A10`
+当前步骤：模块10 · 审计战斗函数 `0x00476A60`
 
 ## 0. 执行约定
 
@@ -4310,4 +4310,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=257`的`0x004769A0`战斗组B脚本行动道具参数写入函数。完整权威LST主体`0x004769A0..0x00476A08`共59行、31条实际指令、0个call、6个跳转、6个局部/返回标签和1个返回点且无外部chunk。实现六个u16脚本参数对资源`+0x66..+0x70`三组主行动道具选项word的可选写入：零值跳过全部actor/资源访问并保留旧word，非零才逐项重读资源token并原样小端写入；前五项线程EDX，末项线程ECX，EAX低word逐项覆盖且高word保留，全零参数即使actor越界也不得提前停止。资源继续复用组B生命周期既有164-byte唯一owner。脚本case 56唯一caller删除旧整函数opaque调用并typed直连，恢复真实的`+0x0E/+0x0C/+0x0A/+0x08/+0x06/+0x04`逆序读取、packed actor高word、组Bactor地址步长、callee入口EDX的`1381 * actor`、成功cursor加16/EAX一/入口ECX恢复，以及脚本、actor或资源typed-stop时的寄存器和状态前缀。验证：战斗聚合定向测试、完整core AddressSanitizer`188/188`、Linux core`188/188`、Linux app`194/194`全部通过，最终日志零OpenSWD3源码warning、测试失败和sanitizer finding；新增文件全量及历史文件触碰行通过clang-format Werror门。独立静态审计首轮因未把`locret`计入标签而失败，修正具名断言后确认真实6标签并通过。工作包为`257/422 = 248 platform_adapted + 9 assembly_exact + 165 pending_audit`；生成器连续双跑逐字节一致，SHA256为`25ebeb502311a1658be79d8682671cd6a394b1ca07ee9ade511d32fbe842a42b`。动态差分因原版组Bactor、动态资源token、六个目标word、脚本case 56逆序读取期间的原始参数地址及唯一caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=258`的`0x00476A10`战斗函数。
+本轮再完成`audit_order=258`的`0x00476A10`战斗组B脚本特殊行动道具参数写入函数。完整权威LST主体`0x00476A10..0x00476A56`共50行、21条实际指令、0个call、4个跳转、4个局部/返回标签和1个返回点且无外部chunk。实现四个u16脚本参数的可选资源写入：零值跳过全部actor/资源访问并保留旧word，非零才逐项重读资源token并原样小端写入；目标序列严格为`+0x72/+0x74/+0x76/+0x74`，第4项按原指令再次覆盖第2项目标而不写连续的`+0x78`，前三项线程EDX、末项线程ECX，EAX低word逐项覆盖且高word保留，全零参数即使actor越界也不得提前停止。资源继续复用组B生命周期既有164-byte唯一owner。脚本case 75唯一caller删除旧整函数opaque调用并typed直连，恢复真实的`+0x0A/+0x08/+0x06/+0x04`逆序读取、packed actor高word、组Bactor地址步长、callee入口EDX的`1381 * actor`、成功cursor加12/EAX一/入口ECX恢复，以及脚本、actor或资源typed-stop时的寄存器和状态前缀。验证：战斗聚合定向测试、完整core AddressSanitizer`188/188`、Linux core`188/188`、Linux app`194/194`全部通过，最终日志零OpenSWD3源码warning、测试失败和sanitizer finding；新增文件全量及历史文件触碰行通过clang-format Werror门。工作包为`258/422 = 249 platform_adapted + 9 assembly_exact + 164 pending_audit`；生成器连续双跑逐字节一致，SHA256为`2cbfd010f10dc8ab9898e34ef6b87504ada8f26c6454ac756c8e9ec7781bc4b4`。动态差分因原版组Bactor、动态资源token、三个物理目标word、脚本case 75逆序读取期间的原始参数地址及唯一caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=259`的`0x00476A60`战斗组B资源释放函数。

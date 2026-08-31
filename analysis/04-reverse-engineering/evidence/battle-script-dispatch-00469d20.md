@@ -402,7 +402,7 @@ cursor前进2，设置独立脚本门为1，发布cursor后调用完整战斗帧
 
 ### case `75`
 
-把`script+2`按u16直接寻址组B对象，以`script+4/+6/+8/+10`四个word按原压栈顺序调用服务，cursor前进12并返回1。四个参数均由只改AX/DX低word的寄存器链形成，完整32-bit高word按各自调用前状态保留。
+把`script+2`作为组Bactor u16并写入packed状态高word。caller按`script+0x0A/+0x08/+0x06/+0x04`逆序读取四个word，形成原EAX/EDX局部覆盖、actor地址和`1381 * actor`寄存器前缀后直连已关闭typed函数。四个非零word的资源写入目标依次为`+0x72/+0x74/+0x76/+0x74`，第4项按原指令再次覆盖第2项而不写`+0x78`；零值跳过actor和资源访问并保留旧word，前三项使用EDX，末项使用ECX。全零参数不得因actor越界提前停止。只有typed函数完成后cursor才前进12、EAX返回1并恢复入口ECX；脚本、actor或资源typed-stop保留真实前缀并阻断成功后缀，旧整函数opaque地址生产调用为零。
 
 ### case `76`
 
