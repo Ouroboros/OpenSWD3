@@ -1,3 +1,4 @@
+#include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 
 #include <algorithm>
@@ -30,7 +31,8 @@ class StartupPorts final
       public openswd3::battle::LegacyBattleBackgroundImageLoadPort,
       public openswd3::battle::LegacyBattleActionRotationReleasePort,
       public openswd3::battle::LegacyBattleActionRotationUpdatePort,
-      public openswd3::battle::LegacyBattleMutableFrameImagePort {
+      public openswd3::battle::LegacyBattleMutableFrameImagePort,
+      public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
     [[nodiscard]] LegacyBattleStartupCallReply
     invoke(const LegacyBattleStartupCallRequest& request) override {
@@ -72,7 +74,7 @@ public:
             }
             break;
         case LegacyBattleStartupCall::group_b_load_resource_definition:
-        case LegacyBattleStartupCall::group_b_load_action_profile:
+        case LegacyBattleStartupCall::reserved_group_b_load_action_profile:
         case LegacyBattleStartupCall::group_b_release_resource_text:
             break;
         case LegacyBattleStartupCall::apply_actor_mode:
@@ -739,8 +741,9 @@ void test_battle_startup(openswd3::test::Context& test) {
                     LegacyBattleStartupCall::group_b_load_resource_definition
                 ) == 2U &&
                 ports.call_count(
-                    LegacyBattleStartupCall::group_b_load_action_profile
-                ) == 2U &&
+                    LegacyBattleStartupCall::
+                        reserved_group_b_load_action_profile
+                ) == 0U &&
                 ports.call_count(
                     LegacyBattleStartupCall::group_b_release_resource_text
                 ) == 2U &&

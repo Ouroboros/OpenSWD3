@@ -44,7 +44,6 @@ constexpr u32 kCallResetOpponent = 0x0047D350U;
 constexpr u32 kCallMirrorOpponent = 0x0047F900U;
 constexpr u32 kCallPrepareOpponentScratch = 0x00476DB0U;
 constexpr u32 kCallUpdateOpponentScratch = 0x00478220U;
-constexpr u32 kCallLoadOpponentProfile = 0x00476A80U;
 constexpr u32 kCallQueryOpponentCondition = 0x0047CE80U;
 constexpr u32 kCallActionTwoHundred = 0x00482310U;
 constexpr u32 kCallActionThreeHundred = 0x00482840U;
@@ -161,9 +160,16 @@ public:
             load_resource_definition:
             break;
 
-        case LegacyBattleGroupBActionConfigurationCall::load_action_profile:
-            callee = kCallLoadOpponentProfile;
-            break;
+        case LegacyBattleGroupBActionConfigurationCall::
+            reserved_load_action_profile:
+            return {
+                .eax = 0U,
+                .ecx = 0U,
+                .edx = 0U,
+                .typed_stop = true,
+                .resource_bytes = nullptr,
+                .profile_buffer = nullptr,
+            };
 
         case LegacyBattleGroupBActionConfigurationCall::release_resource_text:
             callee = kCallUpdateOpponentScratch;
@@ -187,9 +193,7 @@ public:
             .resource_bytes = callee == kCallPrepareOpponentScratch
                 ? port_.group_b_action_resource_bytes()
                 : nullptr,
-            .profile_buffer = callee == kCallLoadOpponentProfile
-                ? port_.group_b_action_profile_buffer()
-                : nullptr,
+            .profile_buffer = nullptr,
         };
     }
 
@@ -409,8 +413,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                 return result;
             }
             const u32 target_token = group_a_token(target_index);
-            auto* const actor =
-                context.startup == nullptr ||
+            auto* const actor = context.startup == nullptr ||
                     context.startup->group_b_lifecycle == nullptr
                 ? nullptr
                 : &(*context.startup->group_b_lifecycle)[group_b_index];
@@ -482,8 +485,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
             return result;
         }
         const u32 target_token = group_b_token(target_index);
-        auto* const actor =
-            context.startup == nullptr ||
+        auto* const actor = context.startup == nullptr ||
                 context.startup->group_b_lifecycle == nullptr
             ? nullptr
             : &(*context.startup->group_b_lifecycle)[group_b_index];
@@ -842,6 +844,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                         &element,
                         &record,
                         group_b_configuration,
+                        port,
                         stale_eax,
                         opponent_token,
                         opponent_record_token(record_index)
@@ -903,8 +906,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                 }
             );
         ++result.group_b_action_seventeen_frame_calls;
-        result.port_calls +=
-            result.group_b_action_seventeen_frame.port_calls;
+        result.port_calls += result.group_b_action_seventeen_frame.port_calls;
         if (result.group_b_action_seventeen_frame.status !=
             LegacyBattleGroupBActionSeventeenFrameStatus::completed) {
             result.status = LegacyBattleActionDispatchStatus::

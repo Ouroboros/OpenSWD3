@@ -108,7 +108,8 @@ public:
 };
 
 class LegacyBattleActionDispatchPort
-    : public virtual LegacyBattleSummonFramePort,
+    : public virtual LegacyBattleMonDatabasePort,
+      public virtual LegacyBattleSummonFramePort,
       public virtual LegacyBattleRetreatCommitPort,
       public virtual LegacyBattleActorMetricStatePort,
       public virtual LegacyBattlePairTransitionPort,
@@ -133,11 +134,6 @@ public:
 
     [[nodiscard]] virtual std::shared_ptr<const std::array<compat::u8, 0xA4>>
     group_b_action_resource_bytes() const {
-        return nullptr;
-    }
-
-    [[nodiscard]] virtual std::shared_ptr<const std::array<std::byte, 0x28>>
-    group_b_action_profile_buffer() const {
         return nullptr;
     }
 

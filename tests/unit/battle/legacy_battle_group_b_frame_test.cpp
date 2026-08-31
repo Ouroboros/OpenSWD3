@@ -1,3 +1,4 @@
+#include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_group_b_frame.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 #include "test.hpp"
@@ -18,7 +19,8 @@ using openswd3::compat::u32;
 using openswd3::compat::u8;
 
 class DispatchPort final
-    : public openswd3::battle::LegacyBattleActionDispatchPort {
+    : public openswd3::battle::LegacyBattleActionDispatchPort,
+      public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
     [[nodiscard]] LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) override {
@@ -36,17 +38,6 @@ public:
             return {.eax = action_target};
         }
         return default_reply;
-    }
-
-    [[nodiscard]] bool group_b_action_configuration_typed_stop(
-        const u32 callee_token
-    ) const noexcept override {
-        return action_profile_typed_stop && callee_token == 0x00476A80U;
-    }
-
-    [[nodiscard]] std::shared_ptr<const std::array<std::byte, 0x28>>
-    group_b_action_profile_buffer() const override {
-        return action_profile_buffer;
     }
 
     [[nodiscard]] openswd3::battle::LegacyBattleTextMessageCallReply
@@ -82,9 +73,7 @@ public:
     std::vector<LegacyBattleActionCallRequest> calls;
     std::vector<openswd3::battle::LegacyBattleTextMessageCallRequest>
         text_message_calls;
-    std::shared_ptr<const std::array<std::byte, 0x28>> action_profile_buffer;
     u32 next_text_message_token{0x73000000U};
-    bool action_profile_typed_stop{};
 };
 
 class ActionStreamProvider final
@@ -859,28 +848,19 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         actor.action_configuration.profile_buffer.fill(std::byte{0xFF});
         actor.action_composition.derived_words[0U] = 9U;
         write_group_b_resource_word(actor.resource_bytes, 0x60U, 0x2468U);
-        auto partial =
-            std::make_shared<std::array<std::byte, 0x28>>();
-        (*partial)[0U] = std::byte{0x5A};
         DispatchPort port;
-        port.action_profile_typed_stop = true;
-        port.action_profile_buffer = partial;
+        port.allocation_succeeds = false;
         port.push(0x004786A0U, {.eax = 0U});
-        port.push(
-            0x00476A80U,
-            {.eax = 0xAAAABBBBU,
-             .ecx = 0xCCCCDDDDU,
-             .edx = 0xEEEEFFFFU}
-        );
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
                 state, port, context, 0U
             );
         test.expect_true(
-            result.status == LegacyBattleActionDispatchStatus::
-                    group_b_action_profile_mode_typed_stop &&
-                result.return_value == 0xAAAABBBBU &&
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        group_b_action_profile_mode_typed_stop &&
+                result.return_value == 0U &&
                 result.group_b_action_profile_mode.status ==
                     openswd3::battle::
                         LegacyBattleGroupBActionProfileModeStatus::
@@ -891,11 +871,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 state.status_action_value == 0x55667788U &&
                 state.shared.action.current_actor_index == 0x1234U &&
                 actor.action_configuration.profile_buffer[0U] ==
-                    std::byte{0x5A} &&
+                    std::byte{0U} &&
                 actor.action_composition.derived_words[0U] == 0U &&
                 port.count(0x004761D0U) == 0U &&
-                port.count(0x00476A80U) == 1U &&
-                port.count(0x0047D880U) == 0U,
+                port.count(0x00476A80U) == 0U && port.allocation_calls == 1U &&
+                port.release_calls == 0U && port.count(0x0047D880U) == 0U,
             "profile loader stop preserves clear and load prefixes while blocking caller publication and suffix"
         );
     }

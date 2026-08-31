@@ -39,7 +39,6 @@ constexpr u32 kCallPublishStatusMode = 0x0047D860U;
 constexpr u32 kCallQuerySpecialAction = 0x0047D880U;
 constexpr u32 kCallQueryPhaseMode = 0x0047D8D0U;
 constexpr u32 kCallQueryStatusSequence = 0x00480220U;
-constexpr u32 kCallLoadActionProfile = 0x00476A80U;
 constexpr u32 kCallQueryActionTarget = 0x004786E0U;
 constexpr u32 kCallPublishActionStart = 0x0047C690U;
 constexpr u32 kCallSelectionClear = 0x00478B20U;
@@ -229,45 +228,6 @@ private:
     LegacyBattleActionDispatchPort& port_;
 };
 
-class ActionProfileModePortAdapter final
-    : public LegacyBattleGroupBActionProfileModePort {
-public:
-    ActionProfileModePortAdapter(
-        LegacyBattleActionDispatchPort& port,
-        LegacyBattleActionDispatchResult& result
-    ) noexcept
-        : port_(port), result_(result) {}
-
-    [[nodiscard]] LegacyBattleGroupBActionProfileModeLoadReply
-    load_action_profile(
-        const LegacyBattleGroupBActionProfileModeLoadRequest& request
-    ) override {
-        ++result_.port_calls;
-        LegacyBattleActionCallRequest call{
-            .callee_token = kCallLoadActionProfile,
-            .eax = request.eax,
-            .ecx = request.ecx,
-            .edx = request.edx,
-        };
-        call.arguments[0U] = request.destination_token;
-        call.arguments[1U] = request.profile_id;
-        const auto reply = port_.invoke(call);
-        return {
-            .eax = reply.eax,
-            .ecx = reply.ecx,
-            .edx = reply.edx,
-            .typed_stop = port_.group_b_action_configuration_typed_stop(
-                kCallLoadActionProfile
-            ),
-            .profile_buffer = port_.group_b_action_profile_buffer(),
-        };
-    }
-
-private:
-    LegacyBattleActionDispatchPort& port_;
-    LegacyBattleActionDispatchResult& result_;
-};
-
 void merge_nested(
     LegacyBattleActionDispatchResult& result,
     const LegacyBattleActionDispatchResult& nested
@@ -280,8 +240,7 @@ void merge_nested(
     result.status_indicator_calls += nested.status_indicator_calls;
     result.scale_scan_calls += nested.scale_scan_calls;
     result.action_record_clear_calls += nested.action_record_clear_calls;
-    result.group_a_actor_cleanup_calls +=
-        nested.group_a_actor_cleanup_calls;
+    result.group_a_actor_cleanup_calls += nested.group_a_actor_cleanup_calls;
     if (nested.group_a_actor_cleanup_calls != 0U) {
         result.group_a_actor_cleanup = nested.group_a_actor_cleanup;
     }
@@ -666,8 +625,9 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                     LegacyBattleActorGroupBElementState* opponent = nullptr;
                     if (context.startup != nullptr &&
                         context.startup->group_b_lifecycle != nullptr) {
-                        opponent = &(*context.startup->group_b_lifecycle)
-                            [group_b_index];
+                        opponent = &(
+                            *context.startup->group_b_lifecycle
+                        )[group_b_index];
                     }
 
                     const auto opponent_mode =
@@ -709,8 +669,8 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                 LegacyBattleActorGroupBElementState* status_actor = nullptr;
                 if (context.startup != nullptr &&
                     context.startup->group_b_lifecycle != nullptr) {
-                    status_actor = &(*context.startup->group_b_lifecycle)
-                        [group_b_index];
+                    status_actor =
+                        &(*context.startup->group_b_lifecycle)[group_b_index];
                 }
                 result.group_b_status_action =
                     query_legacy_battle_group_b_status_action(
@@ -756,14 +716,14 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                 nullptr;
                             if (context.startup != nullptr &&
                                 context.startup->group_b_lifecycle != nullptr) {
-                                actor = &(*context.startup->group_b_lifecycle)
-                                    [group_b_index];
+                                actor = &(
+                                    *context.startup->group_b_lifecycle
+                                )[group_b_index];
                             }
-                            ActionProfileModePortAdapter adapter(port, result);
                             result.group_b_action_profile_mode =
                                 compose_legacy_battle_group_b_action_profile_mode(
                                     actor,
-                                    adapter,
+                                    port,
                                     {
                                         .actor_token = source_token,
                                         .entry_eax = 0x8000U,
@@ -779,12 +739,13 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                 result.status =
                                     LegacyBattleActionDispatchStatus::
                                         group_b_action_profile_mode_typed_stop;
-                                result.return_value = result
-                                    .group_b_action_profile_mode.return_eax;
+                                result.return_value =
+                                    result.group_b_action_profile_mode
+                                        .return_eax;
                                 return result;
                             }
-                            state.status_action_value = result
-                                .group_b_action_profile_mode.return_eax;
+                            state.status_action_value =
+                                result.group_b_action_profile_mode.return_eax;
                             action.current_actor_index =
                                 static_cast<u16>(group_b_index);
                         }
@@ -982,8 +943,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
 
                             profile_flag_entry_eax =
                                 state.opponent_text_token_base +
-                                group_b_index *
-                                    kLegacyBattleActionGroupBStride;
+                                group_b_index * kLegacyBattleActionGroupBStride;
                             profile_flag_entry_edx = special_action.edx;
                             if (state.opponent_text_present[group_b_index] !=
                                 0U) {
@@ -1013,8 +973,9 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                             nullptr;
                         if (context.startup != nullptr &&
                             context.startup->group_b_lifecycle != nullptr) {
-                            actor = &(*context.startup->group_b_lifecycle)
-                                [group_b_index];
+                            actor = &(
+                                *context.startup->group_b_lifecycle
+                            )[group_b_index];
                         }
 
                         const auto profile_flag =
@@ -1177,9 +1138,8 @@ action_decision_done:
                                     uindex < context.startup->party.size()) {
                                     party = &context.startup->party[uindex];
                                 }
-                                auto& actor = action.group_a_action_execution[
-                                    uindex
-                                ];
+                                auto& actor =
+                                    action.group_a_action_execution[uindex];
                                 result.group_a_actor_cleanup =
                                     cleanup_legacy_battle_group_a_actor(
                                         {
@@ -1191,7 +1151,8 @@ action_decision_done:
                                                 ? &party->final_processing
                                                 : nullptr,
                                             .item_effect = party != nullptr
-                                                ? &party->item_effect_application
+                                                ? &party
+                                                       ->item_effect_application
                                                 : nullptr,
                                             .attribute_effect = party != nullptr
                                                 ? &party->attribute_effect

@@ -28,7 +28,7 @@ using compat::u32;
 LegacyBattleGroupBActionProfileModeResult
 compose_legacy_battle_group_b_action_profile_mode(
     LegacyBattleActorGroupBElementState* const actor,
-    LegacyBattleGroupBActionProfileModePort& port,
+    LegacyBattleMonDatabasePort& mon_port,
     const LegacyBattleGroupBActionProfileModeRequest& request
 ) {
     LegacyBattleGroupBActionProfileModeResult result{
@@ -73,22 +73,29 @@ compose_legacy_battle_group_b_action_profile_mode(
 
     result.profile_id = read_resource_word(actor->resource_bytes, 0x60U);
     result.return_ecx = result.profile_id;
-    auto reply = port.load_action_profile({
-        .destination_token = result.return_edx,
-        .profile_id = result.profile_id,
-        .eax = result.return_eax,
-        .ecx = result.return_ecx,
-        .edx = result.return_edx,
-    });
+    const auto profile_result = load_legacy_battle_mon_profile(
+        profile,
+        mon_port,
+        {
+            .path = "mon.dat",
+            .output_token = result.return_edx,
+            .profile_id = result.profile_id,
+            .file_name_token = 0x004AAED0U,
+            .entry_eax = result.return_eax,
+            .entry_ecx = result.return_ecx,
+            .entry_edx = result.return_edx,
+        }
+    );
     ++result.profile_load_calls;
-    result.return_eax = reply.eax;
-    result.return_ecx = reply.ecx;
-    result.return_edx = reply.edx;
-    if (reply.profile_buffer != nullptr) {
-        profile = *reply.profile_buffer;
-    }
-
-    if (reply.typed_stop) {
+    result.return_eax = profile_result.return_eax;
+    result.return_ecx = profile_result.return_ecx;
+    result.return_edx = profile_result.return_edx;
+    if (profile_result.status ==
+            LegacyBattleMonProfileLoadStatus::stream_zero_typed_stop ||
+        profile_result.status ==
+            LegacyBattleMonProfileLoadStatus::stream_access_typed_stop ||
+        profile_result.status ==
+            LegacyBattleMonProfileLoadStatus::output_access_typed_stop) {
         result.status =
             LegacyBattleGroupBActionProfileModeStatus::profile_load_typed_stop;
         return result;

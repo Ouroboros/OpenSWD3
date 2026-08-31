@@ -184,6 +184,7 @@ target_link_libraries(
     PUBLIC
         openswd3_asset_runtime
         openswd3_audio_video
+        openswd3_battle_mon
         openswd3_compat
         openswd3_input_time_rng
         openswd3_project_options

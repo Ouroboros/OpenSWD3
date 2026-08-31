@@ -105,7 +105,6 @@ constexpr u32 kCallPublishScene = 0x004707B0U;
 constexpr u32 kCallFinalizeSelection = 0x00478B30U;
 constexpr u32 kCallBuildMessageToken = 0x00476DB0U;
 constexpr u32 kCallPrepareMessageToken = 0x00478220U;
-constexpr u32 kCallLoadActionProfile = 0x00476A80U;
 constexpr u32 kCallLegacyStringCopy = 0x00499168U;
 constexpr u32 kCallSetGlobalMode = 0x0047F900U;
 constexpr u32 kCallPrepareTarget = 0x00478850U;
@@ -221,9 +220,16 @@ public:
             callee = kCallLegacyStringCopy;
             break;
 
-        case LegacyBattleGroupBActionCompositionCall::load_action_profile:
-            callee = kCallLoadActionProfile;
-            break;
+        case LegacyBattleGroupBActionCompositionCall::
+            reserved_load_action_profile:
+            return {
+                .eax = 0U,
+                .ecx = 0U,
+                .edx = 0U,
+                .typed_stop = true,
+                .resource_definition = nullptr,
+                .profile_buffer = nullptr,
+            };
         }
 
         ++result_.port_calls;
@@ -250,51 +256,7 @@ public:
             mapped.resource_definition = port_.group_b_action_resource_bytes();
         }
 
-        if (request.call == LegacyBattleGroupBActionCompositionCall::
-                load_action_profile) {
-            mapped.profile_buffer = port_.group_b_action_profile_buffer();
-        }
-
         return mapped;
-    }
-
-private:
-    LegacyBattleActionDispatchPort& port_;
-    LegacyBattleActionDispatchResult& result_;
-};
-
-class ActionProfileSelectionPortAdapter final
-    : public LegacyBattleGroupBActionProfileModePort {
-public:
-    ActionProfileSelectionPortAdapter(
-        LegacyBattleActionDispatchPort& port,
-        LegacyBattleActionDispatchResult& result
-    ) noexcept
-        : port_(port), result_(result) {}
-
-    [[nodiscard]] LegacyBattleGroupBActionProfileModeLoadReply
-    load_action_profile(
-        const LegacyBattleGroupBActionProfileModeLoadRequest& request
-    ) override {
-        ++result_.port_calls;
-        LegacyBattleActionCallRequest call{
-            .callee_token = kCallLoadActionProfile,
-            .eax = request.eax,
-            .ecx = request.ecx,
-            .edx = request.edx,
-        };
-        call.arguments[0U] = request.destination_token;
-        call.arguments[1U] = request.profile_id;
-        const auto reply = port_.invoke(call);
-        return {
-            .eax = reply.eax,
-            .ecx = reply.ecx,
-            .edx = reply.edx,
-            .typed_stop = port_.group_b_action_configuration_typed_stop(
-                kCallLoadActionProfile
-            ),
-            .profile_buffer = port_.group_b_action_profile_buffer(),
-        };
     }
 
 private:
@@ -7173,6 +7135,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                     actor,
                     &port.battle_message_state(),
                     adapter,
+                    port,
                     {
                         .definition_argument = state.message_gate,
                         .actor_token = object_token,
@@ -7203,12 +7166,11 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                     *context.startup->group_b_lifecycle
                 )[state.stored_group_b_index];
             }
-            ActionProfileSelectionPortAdapter adapter(port, result);
             result.group_b_action_profile_selection =
                 select_legacy_battle_group_b_action_profile(
                     actor,
                     &port.battle_message_state(),
-                    adapter,
+                    port,
                     {
                         .selector_argument = 0U,
                         .output_token = 0x0053BD40U,

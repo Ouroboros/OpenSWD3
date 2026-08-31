@@ -7,6 +7,7 @@
 #include "openswd3/battle/legacy_battle_debug_state.hpp"
 #include "openswd3/battle/legacy_battle_final_actor_step.hpp"
 #include "openswd3/battle/legacy_battle_group_b_action_item_option.hpp"
+#include "openswd3/battle/legacy_battle_mon_profile.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_runtime.hpp"
 #include "openswd3/input_time_rng/legacy_input.hpp"
@@ -149,7 +150,8 @@ struct LegacyBattleInputDispatchCallReply {
 };
 
 class LegacyBattleInputDispatchPort
-    : public virtual LegacyBattleInputDispatchStatePort,
+    : public virtual LegacyBattleMonDatabasePort,
+      public virtual LegacyBattleInputDispatchStatePort,
       public virtual LegacyBattleTargetSelectionRuntimePort,
       public virtual LegacyBattleGroupBActionItemOptionPort {
 public:

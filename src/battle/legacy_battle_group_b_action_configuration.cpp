@@ -57,6 +57,7 @@ configure_legacy_battle_group_b_action(
     LegacyBattleActorGroupBElementState* const actor,
     const LegacyBattleGroupBActionRecord* const source,
     LegacyBattleGroupBActionConfigurationPort& port,
+    LegacyBattleMonDatabasePort& mon_port,
     const u32 definition_argument,
     const u32 actor_token,
     const u32 source_token
@@ -136,21 +137,31 @@ configure_legacy_battle_group_b_action(
     const u32 profile_ecx =
         (std::bit_cast<u32>(signed_resource_value) & 0xFFFF0000U) |
         actor->action_execution.profile_value;
-    reply = port.invoke({
-        .call = LegacyBattleGroupBActionConfigurationCall::load_action_profile,
-        .arguments = {actor_token + 0x0D90U, profile_argument},
-        .eax = actor_token + 0x0D90U,
-        .ecx = profile_ecx,
-        .edx = profile_argument,
-    });
+    const auto profile_result = load_legacy_battle_mon_profile(
+        state.profile_buffer,
+        mon_port,
+        {
+            .path = "mon.dat",
+            .output_token = actor_token + 0x0D90U,
+            .profile_id = profile_argument,
+            .file_name_token = 0x004AAED0U,
+            .entry_eax = actor_token + 0x0D90U,
+            .entry_ecx = profile_ecx,
+            .entry_edx = profile_argument,
+        }
+    );
     ++result.port_calls;
-    publish_reply(*actor, reply);
-    if (reply.typed_stop) {
+    if (profile_result.status ==
+            LegacyBattleMonProfileLoadStatus::stream_zero_typed_stop ||
+        profile_result.status ==
+            LegacyBattleMonProfileLoadStatus::stream_access_typed_stop ||
+        profile_result.status ==
+            LegacyBattleMonProfileLoadStatus::output_access_typed_stop) {
         result.status = LegacyBattleGroupBActionConfigurationStatus::
             profile_load_typed_stop;
-        result.return_eax = reply.eax;
-        result.return_ecx = reply.ecx;
-        result.return_edx = reply.edx;
+        result.return_eax = profile_result.return_eax;
+        result.return_ecx = profile_result.return_ecx;
+        result.return_edx = profile_result.return_edx;
         return result;
     }
 
@@ -158,9 +169,9 @@ configure_legacy_battle_group_b_action(
         .call =
             LegacyBattleGroupBActionConfigurationCall::release_resource_text,
         .arguments = {actor->resource_token, 0U},
-        .eax = reply.eax,
+        .eax = profile_result.return_eax,
         .ecx = actor->resource_token,
-        .edx = reply.edx,
+        .edx = profile_result.return_edx,
     });
     ++result.port_calls;
     publish_reply(*actor, reply);

@@ -1,3 +1,4 @@
+#include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_actor_profile_preparation.hpp"
 
 #include "test.hpp"
@@ -5,7 +6,8 @@
 namespace {
 
 class ProfilePort final
-    : public openswd3::battle::LegacyBattleActorProfilePreparationPort {
+    : public openswd3::battle::LegacyBattleActorProfilePreparationPort,
+      public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
     [[nodiscard]] openswd3::battle::LegacyBattleActorProfilePreparationReply
     build_record(const openswd3::compat::u32 source_value) override {
@@ -34,26 +36,10 @@ public:
         context = context_token;
         return {.record = record, .eax = eax, .ecx = ecx, .edx = edx};
     }
-    [[nodiscard]] openswd3::battle::LegacyBattleActorProfilePreparationReply
-    load_profile(
-        const openswd3::compat::u32 buffer_token,
-        const openswd3::compat::u16 profile_id,
-        const openswd3::compat::u32,
-        const openswd3::compat::u32,
-        const openswd3::compat::u32
-    ) override {
-        ++load_calls;
-        buffer = buffer_token;
-        profile = profile_id;
-        return {.eax = 0xAAAAU, .ecx = 0xBBBBU, .edx = 0xCCCCU};
-    }
     openswd3::compat::u32 build_calls{};
     openswd3::compat::u32 resolve_calls{};
-    openswd3::compat::u32 load_calls{};
     openswd3::compat::u32 source{};
     openswd3::compat::u32 context{};
-    openswd3::compat::u32 buffer{};
-    openswd3::compat::u16 profile{};
 };
 
 }  // namespace
@@ -70,6 +56,7 @@ void test_battle_actor_profile_preparation(openswd3::test::Context& test) {
             &item_effect,
             0x005029D0U,
             port,
+            port,
             {.source_value = 9U, .context_token = 0x71000000U}
         );
         test.expect_true(
@@ -79,9 +66,8 @@ void test_battle_actor_profile_preparation(openswd3::test::Context& test) {
                 result.fallback_writes == 1U &&
                 (final_state.profile_buffer[3U] >> 16U) == 0x5678U &&
                 (item_effect.mode_flags & 0x80U) != 0U && port.source == 9U &&
-                port.context == 0x71000000U && port.buffer == 0x00503760U &&
-                port.profile == 7U && result.return_eax == 0xAAAAU &&
-                result.return_ecx == 0xBBBBU && result.return_edx == 0xCCCCU,
+                port.context == 0x71000000U &&
+                result.profile_load_calls == 1U && port.read_calls == 3U,
             "profile preparation builds, resolves, loads, publishes fallback and sets mode bit"
         );
     }
@@ -92,8 +78,10 @@ void test_battle_actor_profile_preparation(openswd3::test::Context& test) {
         final_state.profile_buffer[3U] = 0xABCD0000U;
         LegacyBattleGroupAItemEffectApplicationState item_effect;
         ProfilePort port;
+        port.set_profile_dword(0x0CU, 0xABCD0000U);
+        port.set_profile_dword(0x10U, 1U);
         const auto result = prepare_legacy_battle_actor_profile(
-            &final_state, &item_effect, 0x005029D0U, port, {}
+            &final_state, &item_effect, 0x005029D0U, port, port, {}
         );
         test.expect_true(
             result.fallback_writes == 0U &&
@@ -107,7 +95,7 @@ void test_battle_actor_profile_preparation(openswd3::test::Context& test) {
         ProfilePort port;
         LegacyBattleGroupAItemEffectApplicationState item_effect;
         const auto result = prepare_legacy_battle_actor_profile(
-            nullptr, &item_effect, 0x005029D0U, port, {}
+            nullptr, &item_effect, 0x005029D0U, port, port, {}
         );
         test.expect_true(
             result.status ==

@@ -43,6 +43,7 @@ void test_battle_group_b_action_composition_action_caller(
 void test_battle_group_b_action_profile_selection_action_caller(
     openswd3::test::Context& test
 );
+void test_battle_action_dispatch_invalid_group_a(openswd3::test::Context& test);
 void test_battle_action_dispatch(openswd3::test::Context& test);
 void test_battle_attack_order_dequeue(openswd3::test::Context& test);
 void test_battle_attack_order_entry(openswd3::test::Context& test);
@@ -127,6 +128,7 @@ void test_battle_group_b_opponent_wave_parameters(
     openswd3::test::Context& test
 );
 void test_battle_group_b_resource_cleanup(openswd3::test::Context& test);
+void test_battle_mon_profile(openswd3::test::Context& test);
 void test_battle_group_b_script_action_item_parameters(
     openswd3::test::Context& test
 );
@@ -7144,6 +7146,7 @@ int main() {
     test_battle_available_actor_reverse_cycle(test);
     test_battle_group_b_action_composition_action_caller(test);
     test_battle_group_b_action_profile_selection_action_caller(test);
+    test_battle_action_dispatch_invalid_group_a(test);
     test_battle_action_dispatch(test);
     test_battle_attack_order_dequeue(test);
     test_battle_attack_order_entry(test);
@@ -7231,6 +7234,7 @@ int main() {
     test_battle_group_b_action_seventeen_frame(test);
     test_battle_group_b_opponent_wave_parameters(test);
     test_battle_group_b_resource_cleanup(test);
+    test_battle_mon_profile(test);
     test_battle_group_b_script_action_item_parameters(test);
     test_battle_group_b_script_resource_parameters(test);
     test_battle_group_b_script_special_action_item_parameters(test);

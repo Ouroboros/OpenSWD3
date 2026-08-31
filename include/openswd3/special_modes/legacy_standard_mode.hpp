@@ -2,6 +2,7 @@
 
 #include "openswd3/asset_runtime/legacy_action_draw_bridge.hpp"
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
+#include "openswd3/battle/legacy_battle_mon_profile.hpp"
 #include "openswd3/compat/types.hpp"
 #include "openswd3/input_time_rng/legacy_input.hpp"
 #include "openswd3/rendering/legacy_frame_color.hpp"
@@ -814,13 +815,12 @@ struct LegacyCharacterAttributesState {
         contributions{};
 };
 
-class LegacyCharacterAttributesPorts {
+class LegacyCharacterAttributesPorts
+    : public virtual battle::LegacyBattleMonDatabasePort {
 public:
     virtual ~LegacyCharacterAttributesPorts() = default;
     [[nodiscard]] virtual compat::u32
     allocate_character_attributes_buffer(compat::u32 size) noexcept = 0;
-    [[nodiscard]] virtual std::optional<compat::i16>
-    load_temporary_attribute_sign(compat::u16 template_key) noexcept = 0;
     [[nodiscard]] virtual compat::i32
     release_temporary_attributes() noexcept = 0;
     [[nodiscard]] virtual LegacyCharacterAttributesScale
@@ -2503,6 +2503,7 @@ struct LegacyGuardianAttributeSource {
 enum class LegacyGuardianAttributeApplicationStatus : compat::u8 {
     completed,
     temporary_attributes_unavailable,
+    profile_load_stopped,
 };
 
 enum class LegacyGuardianAttributeApplicationPath : compat::u8 {
@@ -2520,16 +2521,22 @@ struct LegacyGuardianAttributeApplicationResult {
     LegacyGuardianAttributeApplicationPath path{
         LegacyGuardianAttributeApplicationPath::blocked
     };
+    compat::u32 temporary_attribute_allocation_calls{};
+    compat::u32 profile_load_calls{};
     bool temporary_attributes_released{};
     compat::i32 legacy_return_value{};
 };
 
-class LegacyGuardianAttributeApplicationPorts {
+class LegacyGuardianAttributeApplicationPorts
+    : public virtual battle::LegacyBattleMonDatabasePort {
 public:
     virtual ~LegacyGuardianAttributeApplicationPorts() = default;
 
-    [[nodiscard]] virtual std::optional<compat::i16>
-    load_temporary_attribute_sign(compat::u16 template_key) noexcept = 0;
+    [[nodiscard]] virtual compat::u32
+    allocate_temporary_attributes(std::size_t size) noexcept {
+        static_cast<void>(size);
+        return 0U;
+    }
     [[nodiscard]] virtual compat::i32
     release_temporary_attributes() noexcept = 0;
 };
@@ -4553,16 +4560,14 @@ struct LegacyStandardModeEquipmentActionLoadResult {
 };
 
 class LegacyStandardModeEquipmentCommitPorts
-    : public LegacyStandardModeEquipmentListKindCyclePorts,
+    : public virtual battle::LegacyBattleMonDatabasePort,
+      public LegacyStandardModeEquipmentListKindCyclePorts,
       public LegacyStandardModeFilterQueryPorts,
       public LegacyStandardModeDialogSetupPorts,
       public LegacyStandardModeEquipmentCleanupPorts,
       public virtual LegacyGuardianAttributeApplicationPorts {
 public:
     ~LegacyStandardModeEquipmentCommitPorts() override = default;
-    [[nodiscard]] virtual std::optional<
-        LegacyStandardModeEquipmentActionLoadResult>
-    load_equipment_action(compat::u16 action_id) noexcept = 0;
     [[nodiscard]] virtual LegacyGuardianAttributeTarget*
     resolve_equipment_guardian_target(
         compat::u32 party_index, compat::u16 source_record_id
@@ -4651,7 +4656,8 @@ struct LegacyStandardModeEquipmentRenderRequest {
     operator==(const LegacyStandardModeEquipmentRenderRequest&) const = default;
 };
 
-class LegacyStandardModeEquipmentRenderPorts {
+class LegacyStandardModeEquipmentRenderPorts
+    : public virtual battle::LegacyBattleMonDatabasePort {
 public:
     virtual ~LegacyStandardModeEquipmentRenderPorts() = default;
     [[nodiscard]] virtual bool equipment_transition_ready() noexcept = 0;
@@ -4664,9 +4670,6 @@ public:
         compat::i32 red_delta,
         compat::i32 green_delta,
         compat::i32 blue_delta
-    ) noexcept = 0;
-    [[nodiscard]] virtual bool load_equipment_render_action(
-        compat::u16 action_id, compat::u16& variant_index
     ) noexcept = 0;
     [[nodiscard]] virtual compat::i32 execute_equipment_render(
         const LegacyStandardModeEquipmentRenderRequest& request
@@ -5090,7 +5093,8 @@ prepare_legacy_standard_mode_special_world_transition(
 ) noexcept;
 
 class LegacyGameMenuInteractionCommitPorts
-    : public LegacyStandardModeMissingNodePorts,
+    : public virtual battle::LegacyBattleMonDatabasePort,
+      public LegacyStandardModeMissingNodePorts,
       public LegacyStandardModeFilterQueryPorts,
       public LegacyStandardModeDialogSetupPorts,
       public LegacyStandardModeCallbackBindingPorts,
@@ -5103,9 +5107,6 @@ public:
     ) noexcept = 0;
     [[nodiscard]] virtual std::optional<compat::i32>
     inventory_record_span(compat::u16 item_id) noexcept = 0;
-    [[nodiscard]] virtual compat::i32 load_equipment_payload(
-        compat::u16 action_id, std::span<compat::u8> destination
-    ) noexcept = 0;
     [[nodiscard]] virtual LegacyGuardianAttributeTarget*
     resolve_game_menu_guardian_target(compat::u32 slot) noexcept = 0;
     virtual void remove_owned_action(compat::u16 action_id) noexcept = 0;

@@ -2080,6 +2080,65 @@ public:
         initialize_standard_special_modes();
     }
 
+    [[nodiscard]] openswd3::battle::LegacyBattleMonDatabaseCallReply
+    invoke_legacy_battle_mon_database(
+        const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
+        const std::span<openswd3::compat::u8> destination
+    ) override {
+        using Call = openswd3::battle::LegacyBattleMonDatabaseCall;
+        switch (request.call) {
+        case Call::open_file: {
+            mon_file_.close();
+            mon_file_.clear();
+            if (request.path != nullptr) {
+                mon_file_.open(
+                    data_directory_ / *request.path, std::ios::binary
+                );
+            }
+            if (!mon_file_.is_open()) {
+                mon_file_.clear();
+                mon_file_.open(data_directory_ / "MON.DAT", std::ios::binary);
+            }
+            return {
+                .eax = mon_file_.is_open() ? kMonFileHandleToken : 0xFFFFFFFFU,
+                .ecx = request.ecx,
+                .edx = request.edx,
+            };
+        }
+
+        case Call::seek_file:
+            mon_file_.clear();
+            mon_file_.seekg(
+                static_cast<std::streamoff>(request.distance), std::ios::beg
+            );
+            return {
+                .eax = request.distance,
+                .ecx = request.ecx,
+                .edx = request.edx,
+            };
+
+        case Call::read_file:
+            if (mon_file_.is_open() && !destination.empty()) {
+                mon_file_.read(
+                    reinterpret_cast<char*>(destination.data()),
+                    static_cast<std::streamsize>(destination.size())
+                );
+            }
+            return {.eax = 1U, .ecx = request.ecx, .edx = request.edx};
+
+        case Call::allocate_stream:
+            return {
+                .eax = kMonStreamToken,
+                .ecx = request.ecx,
+                .edx = request.edx,
+            };
+
+        case Call::release_stream:
+            return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
+        }
+        return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
+    }
+
     [[nodiscard]] std::list<openswd3::rendering::LegacyPackedRowEffect>&
     packed_row_effects() noexcept {
         return world_frame_effects_.packed_rows;
@@ -7022,6 +7081,9 @@ private:
     openswd3::resource_io::LegacyResourceDatabases& resource_databases_;
     openswd3::world_map::LegacyWorldItemListState& world_item_lists_;
     openswd3::battle::LegacyBattleStartupState& battle_runtime_;
+    static constexpr openswd3::compat::u32 kMonFileHandleToken = 1U;
+    static constexpr openswd3::compat::u32 kMonStreamToken = 0x0053B810U;
+    std::ifstream mon_file_;
     std::filesystem::path data_directory_;
     std::filesystem::path launch_directory_;
     std::filesystem::path world_cache_directory_;

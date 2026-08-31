@@ -27,13 +27,36 @@ using compat::u32;
     return selector == 1U ? 0x1FU : selector;
 }
 
+[[nodiscard]] constexpr u32 read_profile_dword(
+    const LegacyBattleMonProfile& profile, const std::size_t offset
+) noexcept {
+    return std::to_integer<u32>(profile[offset]) |
+        (std::to_integer<u32>(profile[offset + 1U]) << 8U) |
+        (std::to_integer<u32>(profile[offset + 2U]) << 16U) |
+        (std::to_integer<u32>(profile[offset + 3U]) << 24U);
+}
+
+void write_profile_dword(
+    LegacyBattleMonProfile& profile, const std::size_t offset, const u32 value
+) noexcept {
+    profile[offset] = static_cast<std::byte>(value);
+    profile[offset + 1U] = static_cast<std::byte>(value >> 8U);
+    profile[offset + 2U] = static_cast<std::byte>(value >> 16U);
+    profile[offset + 3U] = static_cast<std::byte>(value >> 24U);
+}
+
+[[nodiscard]] std::span<std::byte>
+profile_bytes(std::array<u32, 10U>& profile) noexcept {
+    return std::as_writable_bytes(std::span{profile});
+}
+
 }  // namespace
 
 LegacyBattleActorListQueryResult query_legacy_battle_actor_list(
     LegacyBattleGroupAActionExecutionState* actor,
     LegacyBattleActorListQueryState* list,
     const u32 actor_token,
-    LegacyBattleActorListQueryPort& port,
+    LegacyBattleMonDatabasePort& mon_port,
     const LegacyBattleActorListQueryRequest& request
 ) {
     LegacyBattleActorListQueryResult result;
@@ -110,13 +133,34 @@ LegacyBattleActorListQueryResult query_legacy_battle_actor_list(
     if (type != 0x1CU && type != 0x1FU) {
         result.output_word = 0U;
     } else {
-        const auto reply =
-            port.load_profile(matched->profile_id, eax, ecx, edx);
+        LegacyBattleMonProfile profile{};
+        write_profile_dword(profile, 0x10U, request.stale_profile_index);
+        const auto profile_result = load_legacy_battle_mon_profile(
+            profile,
+            mon_port,
+            {
+                .path = "mon.dat",
+                .output_token = request.profile_buffer_token,
+                .profile_id = matched->profile_id,
+                .file_name_token = 0x004AAED0U,
+                .entry_eax = eax,
+                .entry_ecx = ecx,
+                .entry_edx = edx,
+            }
+        );
         ++result.profile_load_calls;
-        eax = reply.eax;
-        ecx = reply.ecx;
-        edx = reply.edx;
-        profile_index = reply.profile_index;
+        eax = profile_result.return_eax;
+        ecx = profile_result.return_ecx;
+        edx = profile_result.return_edx;
+        profile_index = read_profile_dword(profile, 0x10U) & 0xFFFFU;
+        if (legacy_battle_mon_profile_load_stopped(profile_result.status)) {
+            result.status =
+                LegacyBattleActorListQueryStatus::profile_load_typed_stop;
+            result.return_eax = eax;
+            result.return_ecx = ecx;
+            result.return_edx = edx;
+            return result;
+        }
         result.output_text = matched->text;
 
         const u16 value = matched->value_flags;
@@ -154,7 +198,7 @@ LegacyBattleActorListApplyResult apply_legacy_battle_actor_list(
     LegacyBattleGroupAFinalProcessingState* final_state,
     LegacyBattleGroupAItemEffectApplicationState* item_effect,
     const u32 actor_token,
-    LegacyBattleActorListQueryPort& port,
+    LegacyBattleMonDatabasePort& mon_port,
     const LegacyBattleActorListApplyRequest& request
 ) {
     LegacyBattleActorListApplyResult result;
@@ -242,12 +286,28 @@ LegacyBattleActorListApplyResult apply_legacy_battle_actor_list(
     }
 
     result.output_value = matched->output_value;
-    const auto reply = port.load_profile(
-        matched->profile_id, matched->token, actor_token, request.entry_edx
+    const auto profile_result = load_legacy_battle_mon_profile(
+        profile_bytes(final_state->profile_buffer),
+        mon_port,
+        {
+            .path = "mon.dat",
+            .output_token = actor_token + 0x0D90U,
+            .profile_id = matched->profile_id,
+            .file_name_token = 0x004AAED0U,
+            .entry_eax = matched->token,
+            .entry_ecx = actor_token,
+            .entry_edx = request.entry_edx,
+        }
     );
     ++result.profile_load_calls;
-    result.return_ecx = reply.ecx;
-    result.return_edx = reply.edx;
+    result.return_eax = profile_result.return_eax;
+    result.return_ecx = profile_result.return_ecx;
+    result.return_edx = profile_result.return_edx;
+    if (legacy_battle_mon_profile_load_stopped(profile_result.status)) {
+        result.status =
+            LegacyBattleActorListQueryStatus::profile_load_typed_stop;
+        return result;
+    }
 
     final_state->pre_effect_words.fill(0U);
     result.pre_effect_dwords_zeroed =
@@ -258,14 +318,14 @@ LegacyBattleActorListApplyResult apply_legacy_battle_actor_list(
         if (index >= sizeof(final_state->pre_effect_words)) {
             result.status =
                 LegacyBattleActorListQueryStatus::list_text_typed_stop;
-            result.return_eax = reply.eax;
+            result.return_eax = profile_result.return_eax;
             return result;
         }
         destination[index] = static_cast<compat::u8>(matched->text[index]);
     }
     if (matched->text.size() >= sizeof(final_state->pre_effect_words)) {
         result.status = LegacyBattleActorListQueryStatus::list_text_typed_stop;
-        result.return_eax = reply.eax;
+        result.return_eax = profile_result.return_eax;
         return result;
     }
 
@@ -1148,6 +1208,7 @@ LegacyBattleActorResourceSelectionResult select_legacy_battle_actor_resource(
     LegacyBattleGroupAActionExecutionState* action,
     const u32 actor_token,
     LegacyBattleActorResourceSelectionPort& port,
+    LegacyBattleMonDatabasePort& mon_port,
     const LegacyBattleActorResourceSelectionRequest& request
 ) {
     LegacyBattleActorResourceSelectionResult result;
@@ -1257,30 +1318,46 @@ LegacyBattleActorResourceSelectionResult select_legacy_battle_actor_resource(
     ++result.selected_writes;
     result.output_mode = 0U;
     const auto load_profile = [&](const u16 profile_id) {
-        const auto reply = port.load_profile(
-            final_state->profile_buffer,
-            profile_id,
-            result.return_eax,
-            result.return_ecx,
-            result.return_edx
+        const auto profile_result = load_legacy_battle_mon_profile(
+            profile_bytes(final_state->profile_buffer),
+            mon_port,
+            {
+                .path = "mon.dat",
+                .output_token = request.profile_buffer_token,
+                .profile_id = profile_id,
+                .file_name_token = 0x004AAED0U,
+                .entry_eax = result.return_eax,
+                .entry_ecx = result.return_ecx,
+                .entry_edx = result.return_edx,
+            }
         );
         ++result.profile_load_calls;
-        result.return_eax = reply.eax;
-        result.return_ecx = reply.ecx;
-        result.return_edx = reply.edx;
+        result.return_eax = profile_result.return_eax;
+        result.return_ecx = profile_result.return_ecx;
+        result.return_edx = profile_result.return_edx;
+        if (legacy_battle_mon_profile_load_stopped(profile_result.status)) {
+            result.status =
+                LegacyBattleActorListQueryStatus::profile_load_typed_stop;
+            return false;
+        }
+        return true;
     };
 
     if (mask == 0x2000U && (selected->capacity_gate_flags & 0x2000U) != 0U) {
-        load_profile(selected->profile_id_4a);
+        if (!load_profile(selected->profile_id_4a)) {
+            return result;
+        }
         item_effect->derived_words[0U] = selected->derived_word_30;
         result.return_eax = 1U;
         return result;
     }
-    load_profile(
-        selected->alternate_profile_id_54 != 0U
-            ? selected->alternate_profile_id_54
-            : selected->profile_id_4a
-    );
+    if (!load_profile(
+            selected->alternate_profile_id_54 != 0U
+                ? selected->alternate_profile_id_54
+                : selected->profile_id_4a
+        )) {
+        return result;
+    }
 
     if ((selected->capacity_gate_flags & 0x8000U) != 0U) {
         const u16 required =

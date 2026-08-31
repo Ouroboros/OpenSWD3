@@ -5,6 +5,7 @@
 #include "openswd3/battle/legacy_battle_group_a_final_processing_state.hpp"
 #include "openswd3/battle/legacy_battle_group_a_item_effect_application.hpp"
 #include "openswd3/battle/legacy_battle_group_a_workspace_reset.hpp"
+#include "openswd3/battle/legacy_battle_mon_profile.hpp"
 
 #include <span>
 #include <string>
@@ -62,30 +63,13 @@ struct LegacyBattleActorListQueryState {
     compat::u16 secondary_required{};
 };
 
-struct LegacyBattleActorListProfileReply {
-    compat::u32 eax{};
-    compat::u32 ecx{};
-    compat::u32 edx{};
-    compat::u32 profile_index{};
-};
-
-class LegacyBattleActorListQueryPort {
-public:
-    virtual ~LegacyBattleActorListQueryPort() = default;
-    [[nodiscard]] virtual LegacyBattleActorListProfileReply load_profile(
-        compat::u16 profile_id,
-        compat::u32 eax,
-        compat::u32 ecx,
-        compat::u32 edx
-    ) = 0;
-};
-
 struct LegacyBattleActorListQueryRequest {
     compat::u32 category_selector{};
     compat::u32 type_selector{};
     compat::u32 occurrence{};
     compat::u16 entry_output_word{};
     compat::u32 stale_profile_index{};
+    compat::u32 profile_buffer_token{};
     compat::u32 entry_eax{};
     compat::u32 entry_edx{};
     std::span<const compat::u16> return_table;
@@ -100,6 +84,7 @@ enum class LegacyBattleActorListQueryStatus : compat::u8 {
     resource_node_typed_stop,
     list_text_typed_stop,
     return_table_typed_stop,
+    profile_load_typed_stop,
 };
 
 struct LegacyBattleActorListQueryResult {
@@ -211,29 +196,16 @@ struct LegacyBattleActorListStateRequest {
     compat::u32 entry_edx{};
 };
 
-struct LegacyBattleActorResourceSelectionProfileReply {
-    compat::u32 eax{};
-    compat::u32 ecx{};
-    compat::u32 edx{};
-};
-
 class LegacyBattleActorResourceSelectionPort {
 public:
     virtual ~LegacyBattleActorResourceSelectionPort() = default;
-    [[nodiscard]] virtual LegacyBattleActorResourceSelectionProfileReply
-    load_profile(
-        std::array<compat::u32, 10>& buffer,
-        compat::u16 profile_id,
-        compat::u32 eax,
-        compat::u32 ecx,
-        compat::u32 edx
-    ) = 0;
     virtual void report_missing_runtime_word(compat::u16 resource_id) = 0;
 };
 
 struct LegacyBattleActorResourceSelectionRequest {
     compat::u32 category_selector{};
     compat::u32 occurrence{};
+    compat::u32 profile_buffer_token{};
     compat::u32 entry_eax{};
     compat::u32 entry_edx{};
 };
@@ -436,7 +408,7 @@ struct LegacyBattleActorListCountResult {
     LegacyBattleGroupAActionExecutionState* actor,
     LegacyBattleActorListQueryState* list,
     compat::u32 actor_token,
-    LegacyBattleActorListQueryPort& port,
+    LegacyBattleMonDatabasePort& mon_port,
     const LegacyBattleActorListQueryRequest& request
 );
 
@@ -447,7 +419,7 @@ struct LegacyBattleActorListCountResult {
     LegacyBattleGroupAFinalProcessingState* final_state,
     LegacyBattleGroupAItemEffectApplicationState* item_effect,
     compat::u32 actor_token,
-    LegacyBattleActorListQueryPort& port,
+    LegacyBattleMonDatabasePort& mon_port,
     const LegacyBattleActorListApplyRequest& request
 );
 
@@ -492,6 +464,7 @@ select_legacy_battle_actor_resource(
     LegacyBattleGroupAActionExecutionState* action,
     compat::u32 actor_token,
     LegacyBattleActorResourceSelectionPort& port,
+    LegacyBattleMonDatabasePort& mon_port,
     const LegacyBattleActorResourceSelectionRequest& request
 );
 

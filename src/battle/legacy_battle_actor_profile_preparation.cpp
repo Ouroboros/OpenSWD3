@@ -32,6 +32,7 @@ LegacyBattleActorProfilePreparationResult prepare_legacy_battle_actor_profile(
     LegacyBattleGroupAItemEffectApplicationState* item_effect,
     const u32 actor_token,
     LegacyBattleActorProfilePreparationPort& port,
+    LegacyBattleMonDatabasePort& mon_port,
     const LegacyBattleActorProfilePreparationRequest& request
 ) {
     LegacyBattleActorProfilePreparationResult result;
@@ -56,17 +57,28 @@ LegacyBattleActorProfilePreparationResult prepare_legacy_battle_actor_profile(
     result.output_value = record.output_value;
     ++result.output_writes;
 
-    reply = port.load_profile(
-        actor_token + 0x0D90U,
-        record.profile_id,
-        reply.eax,
-        reply.ecx,
-        reply.edx
+    const auto profile_result = load_legacy_battle_mon_profile(
+        std::as_writable_bytes(std::span{final_state->profile_buffer}),
+        mon_port,
+        {
+            .path = "mon.dat",
+            .output_token = actor_token + 0x0D90U,
+            .profile_id = record.profile_id,
+            .file_name_token = 0x004AAED0U,
+            .entry_eax = reply.eax,
+            .entry_ecx = reply.ecx,
+            .entry_edx = reply.edx,
+        }
     );
     ++result.profile_load_calls;
-    result.return_eax = reply.eax;
-    result.return_ecx = reply.ecx;
-    result.return_edx = reply.edx;
+    result.return_eax = profile_result.return_eax;
+    result.return_ecx = profile_result.return_ecx;
+    result.return_edx = profile_result.return_edx;
+    if (legacy_battle_mon_profile_load_stopped(profile_result.status)) {
+        result.status =
+            LegacyBattleActorProfilePreparationStatus::profile_load_typed_stop;
+        return result;
+    }
 
     if (profile_word(*final_state, 0x10U) == 0U) {
         write_profile_word(*final_state, 0x0EU, record.fallback_value);

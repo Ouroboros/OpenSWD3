@@ -40,13 +40,13 @@ struct LegacyBattleGroupBActionProfileSelectionResult {
     compat::u32 return_edx{};
 };
 
-// sub_476250. The fixed mode-one and mode-two paths are expanded directly;
-// only the still-pending action-profile loader remains behind a narrow port.
+// sub_476250. The fixed mode-one and mode-two paths and the closed MON.DAT
+// profile loader are expanded directly.
 [[nodiscard]] LegacyBattleGroupBActionProfileSelectionResult
 select_legacy_battle_group_b_action_profile(
     LegacyBattleActorGroupBElementState* actor,
     const LegacyBattleGroupBActionProfileSelectionOutput& output,
-    LegacyBattleGroupBActionProfileModePort& port,
+    LegacyBattleMonDatabasePort& mon_port,
     const LegacyBattleGroupBActionProfileSelectionRequest& request
 );
 
@@ -54,11 +54,11 @@ select_legacy_battle_group_b_action_profile(
 select_legacy_battle_group_b_action_profile(
     LegacyBattleActorGroupBElementState* const actor,
     compat::u32* const output,
-    LegacyBattleGroupBActionProfileModePort& port,
+    LegacyBattleMonDatabasePort& mon_port,
     const LegacyBattleGroupBActionProfileSelectionRequest& request
 ) {
     return select_legacy_battle_group_b_action_profile(
-        actor, {.dword = output}, port, request
+        actor, {.dword = output}, mon_port, request
     );
 }
 

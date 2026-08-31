@@ -1,3 +1,4 @@
+#include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_opponent_action_dispatch.hpp"
 #include "test.hpp"
 
@@ -17,7 +18,8 @@ using openswd3::compat::u16;
 using openswd3::compat::u32;
 
 class DispatchPort final
-    : public openswd3::battle::LegacyBattleActionDispatchPort {
+    : public openswd3::battle::LegacyBattleActionDispatchPort,
+      public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
     [[nodiscard]] LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) override {
@@ -623,7 +625,8 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 has_call_argument(port, 0x00476DB0U, 1U, 0xABCD1234U) &&
                 port.count(0x00476900U) == 0U &&
                 port.count(0x00475720U) == 0U &&
-                port.count(0x00476A80U) == 2U &&
+                port.count(0x00476A80U) == 0U && port.open_calls == 1U &&
+                port.read_calls == 6U && port.release_calls == 2U &&
                 port.count(0x0045B0E0U) == 0U &&
                 port.count(0x004783B0U) == 3U &&
                 port.count(0x0045B190U) == 0U && port.count(0x0045B5A0U) == 0U,
@@ -665,7 +668,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         source_profile[0x24U] = std::byte{1U};
         DispatchPort port;
         port.action = 15U;
-        port.group_b_typed_stop_callee = 0x00476A80U;
+        port.allocation_succeeds = false;
         auto context = fixture.context();
         const auto result =
             openswd3::battle::dispatch_legacy_battle_opponent_action(
@@ -682,7 +685,8 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 result.group_b_opponent_wave_parameters_calls == 1U &&
                 port.count(0x00476900U) == 0U &&
                 port.count(0x00475720U) == 0U &&
-                port.count(0x00476A80U) == 1U && port.count(0x00478220U) == 1U,
+                port.count(0x00476A80U) == 0U && port.allocation_calls == 1U &&
+                port.release_calls == 0U && port.count(0x00478220U) == 1U,
             "opponent action fifteen propagates the typed profile stop without completing the wave"
         );
     }

@@ -177,9 +177,16 @@ public:
                 LegacyBattleStartupCall::group_b_load_resource_definition;
             break;
 
-        case LegacyBattleGroupBActionConfigurationCall::load_action_profile:
-            call.call = LegacyBattleStartupCall::group_b_load_action_profile;
-            break;
+        case LegacyBattleGroupBActionConfigurationCall::
+            reserved_load_action_profile:
+            return {
+                .eax = 0U,
+                .ecx = 0U,
+                .edx = 0U,
+                .typed_stop = true,
+                .resource_bytes = nullptr,
+                .profile_buffer = nullptr,
+            };
 
         case LegacyBattleGroupBActionConfigurationCall::release_resource_text:
             call.call = LegacyBattleStartupCall::group_b_release_resource_text;
@@ -196,10 +203,7 @@ public:
                     LegacyBattleStartupCall::group_b_load_resource_definition
                 ? port_.group_b_action_resource_bytes()
                 : nullptr,
-            .profile_buffer = call.call ==
-                    LegacyBattleStartupCall::group_b_load_action_profile
-                ? port_.group_b_action_profile_buffer()
-                : nullptr,
+            .profile_buffer = nullptr,
         };
     }
 
@@ -800,6 +804,7 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
             &element,
             &record,
             group_b_configuration,
+            port,
             role_argument,
             actor_token,
             enemy_startup_token(index)

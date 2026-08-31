@@ -1,3 +1,4 @@
+#include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_actor_list_query.hpp"
 
 #include "test.hpp"
@@ -5,20 +6,25 @@
 namespace {
 
 class SelectionPort final
-    : public openswd3::battle::LegacyBattleActorResourceSelectionPort {
+    : public openswd3::battle::LegacyBattleActorResourceSelectionPort,
+      public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
-    [[nodiscard]] openswd3::battle::
-        LegacyBattleActorResourceSelectionProfileReply
-        load_profile(
-            std::array<openswd3::compat::u32, 10>& buffer,
-            const openswd3::compat::u16 profile_id,
-            const openswd3::compat::u32 eax,
-            const openswd3::compat::u32 ecx,
-            const openswd3::compat::u32 edx
-        ) override {
-        profile_ids.push_back(profile_id);
-        buffer[0U] = profile_id;
-        return {.eax = eax, .ecx = ecx, .edx = edx};
+    [[nodiscard]] openswd3::battle::LegacyBattleMonDatabaseCallReply
+    invoke_legacy_battle_mon_database(
+        const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
+        const std::span<openswd3::compat::u8> destination
+    ) override {
+        if (request.call ==
+                openswd3::battle::LegacyBattleMonDatabaseCall::seek_file &&
+            seek_calls % 3U == 1U) {
+            profile_ids.push_back(
+                static_cast<openswd3::compat::u16>(
+                    (request.distance - auxiliary_root - 0x200U) / 4U
+                )
+            );
+        }
+        return LegacyBattleMonDatabaseFixture::
+            invoke_legacy_battle_mon_database(request, destination);
     }
     void report_missing_runtime_word(
         const openswd3::compat::u16 resource_id
@@ -50,21 +56,24 @@ public:
     openswd3::compat::u32 last_text{};
 };
 
-class QueryPort final
-    : public openswd3::battle::LegacyBattleActorListQueryPort {
+class QueryPort final : public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
-    [[nodiscard]] openswd3::battle::LegacyBattleActorListProfileReply
-    load_profile(
-        const openswd3::compat::u16 profile_id,
-        const openswd3::compat::u32 eax,
-        const openswd3::compat::u32 ecx,
-        const openswd3::compat::u32 edx
+    [[nodiscard]] openswd3::battle::LegacyBattleMonDatabaseCallReply
+    invoke_legacy_battle_mon_database(
+        const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
+        const std::span<openswd3::compat::u8> destination
     ) override {
-        ++calls;
-        last_profile = profile_id;
-        return {.eax = eax, .ecx = ecx, .edx = edx, .profile_index = index};
+        set_profile_dword(0x10U, index);
+        if (request.call ==
+                openswd3::battle::LegacyBattleMonDatabaseCall::seek_file &&
+            seek_calls % 3U == 1U) {
+            last_profile = static_cast<openswd3::compat::u16>(
+                (request.distance - auxiliary_root - 0x200U) / 4U
+            );
+        }
+        return LegacyBattleMonDatabaseFixture::
+            invoke_legacy_battle_mon_database(request, destination);
     }
-    openswd3::compat::u32 calls{};
     openswd3::compat::u16 last_profile{};
     openswd3::compat::u32 index{};
 };
@@ -151,7 +160,7 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         );
         test.expect_true(
             result.return_eax == 0xFFFFU && result.output_word == 0xFFFFU &&
-                result.matches == 2U && port.calls == 0U,
+                result.matches == 2U && port.read_calls == 0U,
             "zero occurrence never matches because the counter increments before comparison"
         );
     }
@@ -356,6 +365,7 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
             &action,
             0x005029D0U,
             port,
+            port,
             {.category_selector = 0U, .occurrence = 1U}
         );
         test.expect_true(
@@ -397,6 +407,7 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
             &action,
             0x005029D0U,
             port,
+            port,
             {.category_selector = 4U, .occurrence = 1U}
         );
         test.expect_true(
@@ -422,6 +433,7 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
             &workspace,
             nullptr,
             0x005029D0U,
+            port,
             port,
             {.occurrence = 0U}
         );

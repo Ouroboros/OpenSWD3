@@ -267,7 +267,8 @@ struct LegacyBattleScriptDispatchCallReply {
     bool typed_stop{};
 };
 
-class LegacyBattleScriptDispatchPort {
+class LegacyBattleScriptDispatchPort
+    : public virtual LegacyBattleMonDatabasePort {
 public:
     virtual ~LegacyBattleScriptDispatchPort() = default;
 
@@ -282,11 +283,6 @@ public:
             .ecx = request.ecx,
             .edx = request.edx,
         };
-    }
-
-    [[nodiscard]] virtual std::shared_ptr<const std::array<std::byte, 0x28>>
-    group_b_action_profile_buffer() const {
-        return nullptr;
     }
 };
 

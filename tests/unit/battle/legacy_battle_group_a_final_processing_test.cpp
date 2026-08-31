@@ -1,3 +1,4 @@
+#include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_group_a_final_processing.hpp"
 
 #include "test.hpp"
@@ -7,16 +8,15 @@
 namespace {
 
 using openswd3::battle::LegacyBattleGroupAFinalProcessingPort;
-using openswd3::battle::LegacyBattleGroupAFinalProfileLoadReply;
 using openswd3::battle::LegacyBattleGroupAItemEffectApplicationCallReply;
 using openswd3::battle::LegacyBattleGroupAItemEffectApplicationCallRequest;
 using openswd3::battle::LegacyBattleGroupAProfileModeRandomReply;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
 
-class FinalPort final : public LegacyBattleGroupAFinalProcessingPort {
+class FinalPort final : public LegacyBattleGroupAFinalProcessingPort,
+                        public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
-    std::vector<u16> profile_ids;
     u32 item_calls{};
     u32 random_calls{};
 
@@ -36,17 +36,6 @@ public:
         const u32, const u32 eax, const u32 ecx, const u32 edx
     ) override {
         ++random_calls;
-        return {.eax = eax, .ecx = ecx, .edx = edx};
-    }
-
-    [[nodiscard]] LegacyBattleGroupAFinalProfileLoadReply load_profile(
-        const u32,
-        const u16 profile_id,
-        const u32 eax,
-        const u32 ecx,
-        const u32 edx
-    ) override {
-        profile_ids.push_back(profile_id);
         return {.eax = eax, .ecx = ecx, .edx = edx};
     }
 };
@@ -103,6 +92,7 @@ void test_battle_group_a_final_processing(openswd3::test::Context& test) {
             0U,
             0U,
             port,
+            port,
             {.entry_eax = 0xAABBCCDDU, .entry_edx = 0x11223344U}
         );
         test.expect_true(
@@ -134,6 +124,7 @@ void test_battle_group_a_final_processing(openswd3::test::Context& test) {
             0x005029D0U,
             0U,
             0U,
+            port,
             port
         );
         test.expect_true(
@@ -166,13 +157,13 @@ void test_battle_group_a_final_processing(openswd3::test::Context& test) {
             1U,
             0U,
             port,
+            port,
             {.entry_eax = 0xABCD0000U, .entry_edx = 0x12340000U}
         );
         test.expect_true(
             result.return_eax == 0U && result.item_effect_calls == 1U &&
                 result.profile_mode_calls == 1U &&
-                result.profile_load_calls == 1U &&
-                port.profile_ids.size() == 1U && port.profile_ids[0] == 0U &&
+                result.profile_load_calls == 1U && port.read_calls == 3U &&
                 item.derived_words[0] == 0x4567U &&
                 result.pre_effect_dwords_zeroed == 4U &&
                 result.profile_buffer_dwords_zeroed == 10U,
@@ -201,12 +192,12 @@ void test_battle_group_a_final_processing(openswd3::test::Context& test) {
             0x005029D0U,
             1U,
             0U,
+            port,
             port
         );
         test.expect_true(
             result.return_eax == 1U && result.profile_load_calls == 2U &&
-                port.profile_ids.size() == 2U && port.profile_ids[0] == 0U &&
-                port.profile_ids[1] == 9U &&
+                port.open_calls == 1U && port.read_calls == 6U &&
                 state.profile_buffer[1] == 0x00000100U &&
                 item.display_kind == 23U && item.action_kind == 200U,
             "nonzero profile performs the second load and publishes an unblocked transition"
@@ -231,6 +222,7 @@ void test_battle_group_a_final_processing(openswd3::test::Context& test) {
             0x005029D0U,
             0U,
             0U,
+            port,
             port
         );
         test.expect_true(

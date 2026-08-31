@@ -1,3 +1,4 @@
+#include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 #include "test.hpp"
 
@@ -23,7 +24,8 @@ using openswd3::compat::u16;
 using openswd3::compat::u32;
 
 class DispatchPort final
-    : public openswd3::battle::LegacyBattleActionDispatchPort {
+    : public openswd3::battle::LegacyBattleActionDispatchPort,
+      public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
     [[nodiscard]] LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) override {
@@ -274,11 +276,6 @@ public:
         return group_b_action_definition;
     }
 
-    [[nodiscard]] std::shared_ptr<const std::array<std::byte, 0x28>>
-    group_b_action_profile_buffer() const override {
-        return group_b_action_profile;
-    }
-
     void push(const u32 callee, const LegacyBattleActionCallReply reply) {
         replies[callee].push_back(reply);
     }
@@ -296,7 +293,6 @@ public:
     u32 terminal_return{};
     u32 group_b_action_typed_stop_callee{};
     std::shared_ptr<std::array<u8, 0xA4>> group_b_action_definition;
-    std::shared_ptr<std::array<std::byte, 0x28>> group_b_action_profile;
     LegacyBattleActionCallReply default_reply{.eax = 1U};
     std::unordered_map<u32, std::deque<LegacyBattleActionCallReply>> replies;
     std::vector<LegacyBattleActionCallRequest> calls;
@@ -564,9 +560,7 @@ void test_battle_group_b_action_composition_action_caller(
         (*port.group_b_action_definition)[0x3FU] = 0xBEU;
         (*port.group_b_action_definition)[0x50U] = 0x68U;
         (*port.group_b_action_definition)[0x51U] = 0x24U;
-        port.group_b_action_profile =
-            std::make_shared<std::array<std::byte, 0x28>>();
-        (*port.group_b_action_profile)[0x0EU] = std::byte{0x03U};
+        port.set_profile_word(0x0EU, 3U);
         auto context = fixture->context();
 
         const auto result = openswd3::battle::dispatch_legacy_battle_action(
@@ -576,8 +570,7 @@ void test_battle_group_b_action_composition_action_caller(
             result.status == LegacyBattleActionDispatchStatus::completed &&
                 result.group_b_action_composition_calls == 1U &&
                 result.group_b_action_composition.port_calls == 3U &&
-                result.attack_order_calls == 1U &&
-                state->message_gate == 0U &&
+                result.attack_order_calls == 1U && state->message_gate == 0U &&
                 port.battle_message_state() == 0x2468U &&
                 actor.action_composition.action_text[0U] == 'A' &&
                 actor.action_composition.derived_words[0U] == 8U &&
@@ -586,7 +579,9 @@ void test_battle_group_b_action_composition_action_caller(
                 actor.action_composition.mode_flags == 0x80U &&
                 port.count(0x00476DB0U) == 1U &&
                 port.count(0x00499168U) == 1U &&
-                port.count(0x00476A80U) == 1U &&
+                port.count(0x00476A80U) == 0U && port.open_calls == 1U &&
+                port.read_calls == 3U && port.release_calls == 1U &&
+                port.requested_profile_ids == std::vector<u16>{0xBEEFU} &&
                 port.count(0x00476160U) == 0U,
             "action twenty five composes the selected group B actor directly before appending attack order"
         );
@@ -674,12 +669,9 @@ void test_battle_group_b_action_profile_selection_action_caller(
         DispatchPort port;
         port.action = 25U;
         port.battle_message_state() = 0xDEADU;
-        port.group_b_action_profile =
-            std::make_shared<std::array<std::byte, 0x28>>();
-        (*port.group_b_action_profile)[0x0CU] = std::byte{0x02};
-        (*port.group_b_action_profile)[0x0EU] = std::byte{0x68};
-        (*port.group_b_action_profile)[0x0FU] = std::byte{0x24};
-        (*port.group_b_action_profile)[0x14U] = std::byte{0x56};
+        port.set_profile_dword(0x0CU, 2U);
+        port.set_profile_word(0x0EU, 0x2468U);
+        port.set_profile_word(0x14U, 0x0056U);
         auto context = fixture->context();
 
         const auto result = openswd3::battle::dispatch_legacy_battle_action(
@@ -701,22 +693,16 @@ void test_battle_group_b_action_profile_selection_action_caller(
                 actor.action_composition.action_kind == 0U &&
                 actor.action_composition.display_kind == 2U &&
                 actor.action_composition.mode_flags == 0x90U &&
-                port.count(0x00476A80U) == 1U &&
+                port.count(0x00476A80U) == 0U && port.open_calls == 1U &&
+                port.read_calls == 3U && port.release_calls == 1U &&
+                port.requested_profile_ids == std::vector<u16>{0x1234U} &&
                 port.count(0x00476250U) == 0U,
             "action twenty five directly selects profile mode two with fixed selector zero before attack order"
         );
         test.expect_true(
-            std::ranges::any_of(
-                port.calls,
-                [](const LegacyBattleActionCallRequest& call) {
-                    return call.callee_token == 0x00476A80U &&
-                        call.arguments[0U] == 0x00526298U &&
-                        call.arguments[1U] == 0x1234U &&
-                        call.eax == 0x71000000U && call.ecx == 0x1234U &&
-                        call.edx == 0x00526298U;
-                }
-            ),
-            "action twenty five preserves the remaining profile-loader ABI after reclaiming 00476250"
+            port.allocation_calls == 1U &&
+                port.requested_profile_ids == std::vector<u16>{0x1234U},
+            "action twenty five preserves the typed MON profile identifier after reclaiming 00476250"
         );
     }
 
@@ -739,10 +725,7 @@ void test_battle_group_b_action_profile_selection_action_caller(
         DispatchPort port;
         port.action = 25U;
         port.battle_message_state() = 0x1234U;
-        port.group_b_action_profile =
-            std::make_shared<std::array<std::byte, 0x28>>();
-        (*port.group_b_action_profile)[0U] = std::byte{0x5A};
-        port.group_b_action_typed_stop_callee = 0x00476A80U;
+        port.allocation_succeeds = false;
         auto context = fixture->context();
 
         const auto result = openswd3::battle::dispatch_legacy_battle_action(
@@ -760,37 +743,41 @@ void test_battle_group_b_action_profile_selection_action_caller(
                 state->current_actor_index == 5U &&
                 port.battle_message_state() == 0x1234U &&
                 actor.action_configuration.profile_buffer[0U] ==
-                    std::byte{0x5A} &&
+                    std::byte{0U} &&
                 actor.action_composition.derived_words[0U] == 0U &&
                 result.attack_order_calls == 0U &&
                 fixture->attack_order_records[0U].value_08 == 0U &&
-                port.count(0x00476A80U) == 1U &&
-                port.count(0x00476250U) == 0U,
+                port.count(0x00476A80U) == 0U && port.allocation_calls == 1U &&
+                port.release_calls == 0U && port.count(0x00476250U) == 0U,
             "action profile-selection loader stop preserves choice prefix and blocks status merge attack order and actor cleanup"
         );
     }
 }
 
-void test_battle_action_dispatch(openswd3::test::Context& test) {
+void test_battle_action_dispatch_invalid_group_a(
+    openswd3::test::Context& test
+) {
     using openswd3::battle::LegacyBattleActionDispatchState;
     using openswd3::battle::LegacyBattleActionDispatchStatus;
 
-    {
-        LegacyBattleActionDispatchState state;
-        Fixture fixture;
-        DispatchPort port;
-        auto context = fixture.context();
-        const auto result = openswd3::battle::dispatch_legacy_battle_action(
-            state, port, context, 10U, 0U
-        );
-        test.expect_true(
-            result.status ==
-                    LegacyBattleActionDispatchStatus::
-                        group_a_index_typed_stop &&
-                result.port_calls == 0U,
-            "group A overflow stops at first actor object query"
-        );
-    }
+    LegacyBattleActionDispatchState state;
+    Fixture fixture;
+    DispatchPort port;
+    auto context = fixture.context();
+    const auto result = openswd3::battle::dispatch_legacy_battle_action(
+        state, port, context, 10U, 0U
+    );
+    test.expect_true(
+        result.status ==
+                LegacyBattleActionDispatchStatus::group_a_index_typed_stop &&
+            result.port_calls == 0U,
+        "group A overflow stops at first actor object query"
+    );
+}
+
+void test_battle_action_dispatch(openswd3::test::Context& test) {
+    using openswd3::battle::LegacyBattleActionDispatchState;
+    using openswd3::battle::LegacyBattleActionDispatchStatus;
 
     {
         LegacyBattleActionDispatchState state;

@@ -41,25 +41,6 @@ public:
     ) noexcept
         : port_(port), result_(result) {}
 
-    [[nodiscard]] LegacyBattleActorResourceSelectionProfileReply load_profile(
-        std::array<u32, 10>&,
-        const u16 profile_id,
-        const u32 eax,
-        const u32 ecx,
-        const u32 edx
-    ) override {
-        const auto reply = port_.invoke_target_selection_runtime({
-            .call =
-                LegacyBattleTargetSelectionRuntimeCall::resource_profile_load,
-            .arguments = {profile_id},
-            .eax = eax,
-            .ecx = ecx,
-            .edx = edx,
-        });
-        ++result_.port_calls;
-        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
-    }
-
     void report_missing_runtime_word(const u16 resource_id) override {
         static_cast<void>(port_.invoke_target_selection_runtime({
             .call = LegacyBattleTargetSelectionRuntimeCall::
@@ -712,6 +693,7 @@ private:
             &bindings_.action.group_a_action_execution[index],
             kGroupABaseToken + index * kGroupAStride,
             adapter,
+            port_,
             {.category_selector = category,
              .occurrence = runtime_.target_argument,
              .entry_eax = eax_,
@@ -1398,8 +1380,7 @@ private:
             ecx_ = kGroupABaseToken + override_index * kGroupAStride;
             result_.action_thirty_override =
                 query_legacy_battle_actor_action_thirty_override(
-                    &bindings_.action
-                         .group_a_action_execution[override_index],
+                    &bindings_.action.group_a_action_execution[override_index],
                     eax_,
                     ecx_,
                     edx_

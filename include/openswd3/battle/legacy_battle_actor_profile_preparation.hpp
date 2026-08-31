@@ -2,6 +2,7 @@
 
 #include "openswd3/battle/legacy_battle_group_a_final_processing_state.hpp"
 #include "openswd3/battle/legacy_battle_group_a_item_effect_application.hpp"
+#include "openswd3/battle/legacy_battle_mon_profile.hpp"
 
 namespace openswd3::battle {
 
@@ -31,13 +32,6 @@ public:
         compat::u32 ecx,
         compat::u32 edx
     ) = 0;
-    [[nodiscard]] virtual LegacyBattleActorProfilePreparationReply load_profile(
-        compat::u32 buffer_token,
-        compat::u16 profile_id,
-        compat::u32 eax,
-        compat::u32 ecx,
-        compat::u32 edx
-    ) = 0;
 };
 
 struct LegacyBattleActorProfilePreparationRequest {
@@ -50,6 +44,7 @@ struct LegacyBattleActorProfilePreparationRequest {
 enum class LegacyBattleActorProfilePreparationStatus : compat::u8 {
     completed,
     actor_state_typed_stop,
+    profile_load_typed_stop,
 };
 
 struct LegacyBattleActorProfilePreparationResult {
@@ -75,6 +70,7 @@ prepare_legacy_battle_actor_profile(
     LegacyBattleGroupAItemEffectApplicationState* item_effect,
     compat::u32 actor_token,
     LegacyBattleActorProfilePreparationPort& port,
+    LegacyBattleMonDatabasePort& mon_port,
     const LegacyBattleActorProfilePreparationRequest& request
 );
 

@@ -34,6 +34,7 @@ struct LegacyBattleGroupBActionReconfigurationResult {
 reconfigure_legacy_battle_group_b_action(
     LegacyBattleActorGroupBElementState* actor,
     LegacyBattleGroupBActionConfigurationPort& port,
+    LegacyBattleMonDatabasePort& mon_port,
     const LegacyBattleGroupBActionReconfigurationRequest& request
 );
 

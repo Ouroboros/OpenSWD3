@@ -1,3 +1,4 @@
+#include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_script_curve.hpp"
 #include "openswd3/battle/legacy_battle_script_dispatch.hpp"
 #include "test.hpp"
@@ -80,7 +81,8 @@ struct Fixture {
     }
 };
 
-class Port final : public LegacyBattleScriptDispatchPort {
+class Port final : public LegacyBattleScriptDispatchPort,
+                   public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
     std::vector<LegacyBattleScriptDispatchCallRequest> calls;
     std::vector<u32> frame_results;
@@ -93,7 +95,6 @@ public:
     LegacyBattleScriptDispatchCall typed_stop_call{
         LegacyBattleScriptDispatchCall::noop_service
     };
-    std::shared_ptr<std::array<std::byte, 0x28>> group_b_action_profile;
 
     LegacyBattleScriptDispatchCallReply invoke_battle_script(
         LegacyBattleScriptWorkspace& workspace,
@@ -151,11 +152,6 @@ public:
         return reply;
     }
 
-    [[nodiscard]] std::shared_ptr<const std::array<std::byte, 0x28>>
-    group_b_action_profile_buffer() const override {
-        return group_b_action_profile;
-    }
-
     [[nodiscard]] std::size_t
     count(const LegacyBattleScriptDispatchCall call) const {
         std::size_t total = 0U;
@@ -195,6 +191,7 @@ void test_battle_group_b_action_composition_script_caller(
         actor.action_composition.resource_definition[0x51U] = 0x56U;
         actor.action_configuration.profile_buffer[0x0EU] = std::byte{0x02U};
         actor.action_composition.derived_words[0U] = 1U;
+        port.set_profile_word(0x0EU, 2U);
         const auto result = run_legacy_battle_script_dispatch(
             fixture.workspace, fixture.bindings(), port
         );
@@ -219,7 +216,7 @@ void test_battle_group_b_action_composition_script_caller(
             "case twenty three publishes all three shared operands and directly composes the selected group B actor"
         );
         test.expect_true(
-            port.calls.size() == 5U &&
+            port.calls.size() == 4U &&
                 port.calls[0U].call ==
                     LegacyBattleScriptDispatchCall::pending_47ce80 &&
                 port.calls[1U].call ==
@@ -232,9 +229,9 @@ void test_battle_group_b_action_composition_script_caller(
                 port.calls[1U].edx == 690U &&
                 port.calls[2U].call ==
                     LegacyBattleScriptDispatchCall::legacy_string_copy &&
-                port.calls[3U].call ==
-                    LegacyBattleScriptDispatchCall::pending_476a80 &&
-                port.calls[4U].call == LegacyBattleScriptDispatchCall::frame &&
+                port.calls[3U].call == LegacyBattleScriptDispatchCall::frame &&
+                port.open_calls == 1U && port.read_calls == 3U &&
+                port.release_calls == 1U &&
                 port.count(
                     LegacyBattleScriptDispatchCall::
                         reserved_group_b_action_composition
@@ -315,10 +312,7 @@ void test_battle_group_b_action_profile_selection_script_caller(
         actor.action_composition.derived_words[1U] = 0x55AAU;
         actor.action_composition.action_kind = 9U;
         fixture.shared.actor_target_words[3U] = 0xBEEFU;
-        port.group_b_action_profile =
-            std::make_shared<std::array<std::byte, 0x28>>();
-        (*port.group_b_action_profile)[0x0EU] = std::byte{0x68};
-        (*port.group_b_action_profile)[0x0FU] = std::byte{0x24};
+        port.set_profile_word(0x0EU, 0x2468U);
 
         const auto result = run_legacy_battle_script_dispatch(
             fixture.workspace, fixture.bindings(), port
@@ -341,7 +335,9 @@ void test_battle_group_b_action_profile_selection_script_caller(
                 actor.action_composition.action_kind == 1U &&
                 fixture.startup.reset.records_524788[0U].value_08 == 2U &&
                 port.count(LegacyBattleScriptDispatchCall::pending_476a80) ==
-                    1U &&
+                    0U &&
+                port.open_calls == 1U && port.read_calls == 3U &&
+                port.release_calls == 1U &&
                 port.count(LegacyBattleScriptDispatchCall::frame) == 1U &&
                 port.count(
                     LegacyBattleScriptDispatchCall::
@@ -350,19 +346,9 @@ void test_battle_group_b_action_profile_selection_script_caller(
             "case fifty four selects the value-b actor and mode one stores value-a before bit fifteen"
         );
         test.expect_true(
-            std::ranges::any_of(
-                port.calls,
-                [](const LegacyBattleScriptDispatchCallRequest& call) {
-                    return call.call ==
-                        LegacyBattleScriptDispatchCall::pending_476a80 &&
-                        call.object_token == 0x1234U &&
-                        call.arguments[0U] == 0x0052B8E8U &&
-                        call.arguments[1U] == 0x1234U &&
-                        call.eax == 0x71000000U && call.ecx == 0x1234U &&
-                        call.edx == 0x0052B8E8U;
-                }
-            ),
-            "case fifty four preserves the remaining profile-loader ABI after reclaiming 00476250"
+            port.requested_profile_ids == std::vector<u16>{0x1234U} &&
+                port.allocation_calls == 1U,
+            "case fifty four preserves the typed MON profile identifier after reclaiming 00476250"
         );
     }
 
@@ -384,12 +370,9 @@ void test_battle_group_b_action_profile_selection_script_caller(
         actor.action_composition.profile_mode_selector = 0x9999U;
         actor.action_composition.mode_flags = 0x10U;
         fixture.shared.actor_target_words[2U] = 0xBEEFU;
-        port.group_b_action_profile =
-            std::make_shared<std::array<std::byte, 0x28>>();
-        (*port.group_b_action_profile)[0x0CU] = std::byte{0x02};
-        (*port.group_b_action_profile)[0x0EU] = std::byte{0x57};
-        (*port.group_b_action_profile)[0x0FU] = std::byte{0x13};
-        (*port.group_b_action_profile)[0x14U] = std::byte{0x2A};
+        port.set_profile_dword(0x0CU, 2U);
+        port.set_profile_word(0x0EU, 0x1357U);
+        port.set_profile_word(0x14U, 0x002AU);
 
         const auto result = run_legacy_battle_script_dispatch(
             fixture.workspace, fixture.bindings(), port
@@ -428,11 +411,7 @@ void test_battle_group_b_action_profile_selection_script_caller(
         actor.resource_bytes[0x77U] = 0x9AU;
         actor.action_configuration.profile_buffer.fill(std::byte{0xFF});
         actor.action_composition.derived_words[0U] = 0x7777U;
-        port.group_b_action_profile =
-            std::make_shared<std::array<std::byte, 0x28>>();
-        (*port.group_b_action_profile)[0U] = std::byte{0x5A};
-        port.typed_stop_enabled = true;
-        port.typed_stop_call = LegacyBattleScriptDispatchCall::pending_476a80;
+        port.allocation_succeeds = false;
 
         const auto result = run_legacy_battle_script_dispatch(
             fixture.workspace, fixture.bindings(), port
@@ -450,7 +429,7 @@ void test_battle_group_b_action_profile_selection_script_caller(
                 fixture.workspace.value_c == 0 &&
                 fixture.shared.actor_target_words[2U] == 0U &&
                 actor.action_configuration.profile_buffer[0U] ==
-                    std::byte{0x5A} &&
+                    std::byte{0U} &&
                 actor.action_composition.derived_words[0U] == 0U &&
                 fixture.startup.reset.records_524788[0U].value_08 == 0U &&
                 port.count(LegacyBattleScriptDispatchCall::frame) == 0U &&
@@ -1288,8 +1267,7 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
         test.expect_true(
             result.status == LegacyBattleScriptDispatchStatus::completed &&
                 result.return_eax == 1U && result.return_ecx == 0xDEADBEEFU &&
-                result.return_edx == 0xFFFF2468U &&
-                fixture.workspace.cursor == 6U &&
+                result.return_edx == 5U && fixture.workspace.cursor == 6U &&
                 fixture.workspace.value_a == -128 &&
                 fixture.workspace.packed_actor_state == 0x00020000U &&
                 actor.action_configuration.timing_value == 0U &&
@@ -1301,7 +1279,7 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
             "case eighty directly reconfigures the selected group B actor"
         );
         test.expect_true(
-            port.calls.size() == 3U &&
+            port.calls.size() == 2U &&
                 port.calls[0U].call ==
                     LegacyBattleScriptDispatchCall::pending_476db0 &&
                 port.calls[0U].arguments[0U] == 0x73000148U &&
@@ -1310,13 +1288,9 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
                 port.calls[0U].ecx == 0x73000148U &&
                 port.calls[0U].edx == 0x000002B2U &&
                 port.calls[1U].call ==
-                    LegacyBattleScriptDispatchCall::pending_476a80 &&
-                port.calls[1U].eax == 0x0052B8E8U &&
-                port.calls[1U].ecx == 0x7300017AU &&
-                port.calls[1U].edx == 0xFFFF2468U &&
-                port.calls[2U].call ==
                     LegacyBattleScriptDispatchCall::pending_478220 &&
-                port.calls[2U].argument_count == 1U,
+                port.calls[1U].argument_count == 1U && port.open_calls == 1U &&
+                port.read_calls == 3U && port.release_calls == 1U,
             "case eighty preserves the three reconfiguration callee ABIs"
         );
     }
@@ -1333,8 +1307,7 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
         auto& actor = (*fixture.startup.group_b_lifecycle)[0U];
         actor.object_token = 0x00525508U;
         actor.resource_token = 0x73000000U;
-        port.typed_stop_enabled = true;
-        port.typed_stop_call = LegacyBattleScriptDispatchCall::pending_476a80;
+        port.allocation_succeeds = false;
         const auto result = run_legacy_battle_script_dispatch(
             fixture.workspace, fixture.bindings(), port
         );
@@ -1342,9 +1315,10 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleScriptDispatchStatus::
                         closed_callee_typed_stop &&
-                result.return_eax == 0x00526298U &&
-                result.return_ecx == 0x73000000U && result.return_edx == 0U &&
-                fixture.workspace.cursor == 0U && port.calls.size() == 2U,
+                result.return_eax == 0U && result.return_ecx == 0x100U &&
+                result.return_edx == port.file_handle &&
+                fixture.workspace.cursor == 0U && port.calls.size() == 1U &&
+                port.allocation_calls == 1U && port.release_calls == 0U,
             "case eighty stops before the caller cursor advance when a reclaimed callee stops"
         );
     }

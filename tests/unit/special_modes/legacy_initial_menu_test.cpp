@@ -1,3 +1,4 @@
+#include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/special_modes/legacy_initial_menu.hpp"
 #include "openswd3/special_modes/legacy_standard_mode.hpp"
 
@@ -843,20 +844,17 @@ public:
 };
 
 class FakeAttributeComparisonPorts final
-    : public openswd3::special_modes::
-          LegacySpecialModeAttributeComparisonPorts {
+    : public openswd3::special_modes::LegacySpecialModeAttributeComparisonPorts,
+      public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
     bool is_party_member_present(const u32 member_id) noexcept override {
         queried_member_ids.push_back(member_id);
         return present[static_cast<std::size_t>(member_id - 0x1EU)];
     }
-    std::optional<i16>
-    load_temporary_attribute_sign(const u16 template_key) noexcept override {
-        loaded_template_keys.push_back(template_key);
-        if (loaded_template_keys.size() == unavailable_at_call) {
-            return std::nullopt;
-        }
-        return 0;
+    u32 allocate_temporary_attributes(const std::size_t) noexcept override {
+        ++temporary_allocation_count;
+        return temporary_allocation_count == unavailable_at_call ? 0U
+                                                                 : 0x0053BC30U;
     }
     i32 release_temporary_attributes() noexcept override {
         ++release_count;
@@ -865,9 +863,9 @@ public:
 
     std::array<bool, 4U> present{};
     std::size_t unavailable_at_call{std::numeric_limits<std::size_t>::max()};
+    u32 temporary_allocation_count{};
     u32 release_count{};
     std::vector<u32> queried_member_ids;
-    std::vector<u16> loaded_template_keys;
 };
 
 class FakeAttributeDeltaRenderPorts final
@@ -901,17 +899,17 @@ public:
         requests;
 };
 
-class FakeModeOneAdvancePorts : public virtual openswd3::special_modes::
-                                    LegacySpecialModeModeOneIncreasePorts {
+class FakeModeOneAdvancePorts
+    : public virtual openswd3::special_modes::
+          LegacySpecialModeModeOneIncreasePorts,
+      public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
     bool is_party_member_present(const u32 member_id) noexcept override {
         queried_member_ids.push_back(member_id);
         return present[static_cast<std::size_t>(member_id - 0x1EU)];
     }
-    std::optional<i16>
-    load_temporary_attribute_sign(const u16 template_key) noexcept override {
-        loaded_template_keys.push_back(template_key);
-        return temporary_available ? std::optional<i16>{0} : std::nullopt;
+    u32 allocate_temporary_attributes(const std::size_t) noexcept override {
+        return temporary_available ? 0x0053BC30U : 0U;
     }
     i32 release_temporary_attributes() noexcept override {
         ++release_count;
@@ -928,7 +926,6 @@ public:
     i32 sample_return{777};
     u32 release_count{};
     std::vector<u32> queried_member_ids;
-    std::vector<u16> loaded_template_keys;
     std::vector<std::pair<u16, u32>> samples;
 };
 
@@ -1537,27 +1534,25 @@ public:
 };
 
 class FakeCharacterAttributesPorts final
-    : public openswd3::special_modes::LegacyCharacterAttributesPorts {
+    : public openswd3::special_modes::LegacyCharacterAttributesPorts,
+      public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
     u32 allocate_character_attributes_buffer(const u32 size) noexcept override {
+        if (size == 40U) {
+            if ((accumulate_count % 16U) == 0U) {
+                events.push_back(1U);
+            }
+            ++accumulate_count;
+            if (rebuild_input_flags.has_value() &&
+                rebuild_input_flags_target != nullptr) {
+                *rebuild_input_flags_target = *rebuild_input_flags;
+            }
+            return temporary_attribute_available ? 0x0053BC30U : 0U;
+        }
         allocation_sizes.push_back(size);
         const u32 value = allocation_returns[allocation_count];
         ++allocation_count;
         return value;
-    }
-    std::optional<i16>
-    load_temporary_attribute_sign(const u16 template_key) noexcept override {
-        accumulated_owners.push_back(template_key);
-        if ((accumulate_count % 16U) == 0U) {
-            events.push_back(1U);
-        }
-        ++accumulate_count;
-        if (rebuild_input_flags.has_value() &&
-            rebuild_input_flags_target != nullptr) {
-            *rebuild_input_flags_target = *rebuild_input_flags;
-        }
-        return temporary_attribute_available ? std::optional<i16>{0}
-                                             : std::nullopt;
     }
     i32 release_temporary_attributes() noexcept override {
         ++temporary_release_count;
@@ -1620,7 +1615,6 @@ public:
     std::size_t allocation_count{};
     u32 accumulate_count{};
     u32 temporary_release_count{};
-    std::vector<u32> accumulated_owners;
     bool temporary_attribute_available{true};
     std::optional<u8> rebuild_input_flags;
     u8* rebuild_input_flags_target{};
@@ -3954,7 +3948,8 @@ void test_standard_mode_entry_initialization(openswd3::test::Context& test) {
 void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
     namespace sm = openswd3::special_modes;
     class GuardianPorts final
-        : public sm::LegacyStandardModeGuardianInitializationPorts {
+        : public sm::LegacyStandardModeGuardianInitializationPorts,
+          public openswd3::test::LegacyBattleMonDatabaseFixture {
     public:
         u32
         allocate_guardian_storage(const std::size_t size) noexcept override {
@@ -4003,9 +3998,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return sm::LegacyGuardianAttributeSource{};
         }
 
-        std::optional<i16>
-        load_temporary_attribute_sign(const u16) noexcept override {
-            return 0;
+        u32 allocate_temporary_attributes(const std::size_t) noexcept override {
+            return 0x0053BC30U;
         }
 
         i32 release_temporary_attributes() noexcept override {
@@ -4644,7 +4638,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
     }
 
     class EquipmentRenderPorts final
-        : public sm::LegacyStandardModeEquipmentRenderPorts {
+        : public sm::LegacyStandardModeEquipmentRenderPorts,
+          public openswd3::test::LegacyBattleMonDatabaseFixture {
     public:
         explicit EquipmentRenderPorts(
             std::array<LegacyActionRecord, 18U>& actions
@@ -4680,15 +4675,18 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return color - 1;
         }
 
-        bool load_equipment_render_action(
-            const u16 action_id, u16& variant_index
-        ) noexcept override {
-            loaded_actions.push_back(action_id);
-            if (failed_action.has_value() && *failed_action == action_id) {
-                return false;
+        [[nodiscard]] openswd3::battle::LegacyBattleMonDatabaseCallReply
+        invoke_legacy_battle_mon_database(
+            const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
+            const std::span<u8> destination
+        ) override {
+            set_profile_word(0x10U, render_variant);
+            if (!requested_profile_ids.empty()) {
+                allocation_succeeds = !failed_action.has_value() ||
+                    *failed_action != requested_profile_ids.back();
             }
-            variant_index = render_variant;
-            return true;
+            return openswd3::test::LegacyBattleMonDatabaseFixture::
+                invoke_legacy_battle_mon_database(request, destination);
         }
 
         i32 execute_equipment_render(
@@ -4710,7 +4708,6 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         u32 transition_queries{};
         std::vector<i32> colors;
         std::vector<std::array<i32, 5U>> adjustments;
-        std::vector<u16> loaded_actions;
         std::vector<sm::LegacyStandardModeEquipmentRenderRequest> requests;
     };
 
@@ -4761,7 +4758,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 rendered.row_count == 1U && rendered.bar_count == 1U &&
                 !rendered.transition_triggered && state.final_zero == 0x10U &&
                 ports.transition_queries == 1U &&
-                ports.loaded_actions == std::vector<u16>{0x345U} &&
+                ports.requested_profile_ids == std::vector<u16>{0x345U} &&
                 ports.adjustments.size() == 2U &&
                 cost != ports.requests.end() &&
                 action != ports.requests.end() && action->values[1] == 0 &&
@@ -4856,7 +4853,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             visible_stopped.status ==
                     sm::LegacyStandardModeEquipmentRenderStatus::
                         visible_chain_stopped &&
-                visible_stop_ports.loaded_actions.empty(),
+                visible_stop_ports.requested_profile_ids.empty(),
             "0x4442B0 visible-chain typed-stop occurs at the first window-node read"
         );
 
@@ -4959,7 +4956,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
     }
 
     class EquipmentInputPorts final
-        : public sm::LegacyStandardModeEquipmentInputPorts {
+        : public sm::LegacyStandardModeEquipmentInputPorts,
+          public openswd3::test::LegacyBattleMonDatabaseFixture {
     public:
         i32 invoke_equipment_input(
             const sm::LegacyStandardModeEquipmentInputTarget target,
@@ -5071,10 +5069,19 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return released_workspace_return;
         }
 
-        std::optional<sm::LegacyStandardModeEquipmentActionLoadResult>
-        load_equipment_action(const u16 action_id) noexcept override {
-            loaded_action_ids.push_back(action_id);
-            return equipment_action_load;
+        [[nodiscard]] openswd3::battle::LegacyBattleMonDatabaseCallReply
+        invoke_legacy_battle_mon_database(
+            const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
+            const std::span<u8> destination
+        ) override {
+            if (equipment_action_load.has_value()) {
+                set_profile_dword(0x04U, equipment_action_load->flags);
+            }
+            open_succeeds = true;
+            allocation_succeeds = equipment_action_load.has_value() &&
+                equipment_action_load->legacy_return_value == 1;
+            return openswd3::test::LegacyBattleMonDatabaseFixture::
+                invoke_legacy_battle_mon_database(request, destination);
         }
 
         sm::LegacyGuardianAttributeTarget* resolve_equipment_guardian_target(
@@ -5086,10 +5093,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 : nullptr;
         }
 
-        std::optional<i16>
-        load_temporary_attribute_sign(const u16) noexcept override {
-            return equipment_record_copy_available ? std::optional<i16>{0}
-                                                   : std::nullopt;
+        u32 allocate_temporary_attributes(const std::size_t) noexcept override {
+            return equipment_record_copy_available ? 0x0053BC30U : 0U;
         }
 
         i32 release_temporary_attributes() noexcept override {
@@ -5132,7 +5137,6 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         std::vector<u32> list_kind_events;
         std::vector<u32> commit_query_ids;
         std::vector<u32> dialog_events;
-        std::vector<u16> loaded_action_ids;
         std::vector<std::array<u32, 2U>> copied_party_records;
         std::vector<u32> released_workspace_tokens;
         std::vector<u16> released_missing_equipment_records;
@@ -5964,7 +5968,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 commit_state.mode_enabled == 2U &&
                 commit_state.transition_word == 3U &&
                 commit_state.party_primary_resources[0U] == 5U &&
-                commit_transition_ports.loaded_action_ids ==
+                commit_transition_ports.requested_profile_ids ==
                     std::vector<u16>{77U} &&
                 commit_transition_ports.samples.empty(),
             "0x443BD0 mode1 action flag0 enters mode2 without deducting resources"
@@ -7103,7 +7107,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
     }
 
     class SelectionPorts final
-        : public sm::LegacyStandardModeGuardianCommitPorts {
+        : public sm::LegacyStandardModeGuardianCommitPorts,
+          public openswd3::test::LegacyBattleMonDatabaseFixture {
     public:
         i32 invoke_guardian_selection(
             const sm::LegacyStandardModeGuardianSelectionTarget target,
@@ -7167,9 +7172,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return source;
         }
 
-        std::optional<i16>
-        load_temporary_attribute_sign(const u16) noexcept override {
-            return 0;
+        u32 allocate_temporary_attributes(const std::size_t) noexcept override {
+            return 0x0053BC30U;
         }
 
         i32 release_temporary_attributes() noexcept override {
@@ -9479,7 +9483,9 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         );
     }
 
-    class InputPorts final : public sm::LegacyStandardModeGuardianInputPorts {
+    class InputPorts final
+        : public sm::LegacyStandardModeGuardianInputPorts,
+          public openswd3::test::LegacyBattleMonDatabaseFixture {
     public:
         i32 invoke_guardian_input(
             const sm::LegacyStandardModeGuardianInputTarget target,
@@ -9538,9 +9544,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 : std::nullopt;
         }
 
-        std::optional<i16>
-        load_temporary_attribute_sign(const u16) noexcept override {
-            return cache_steps_available ? std::optional<i16>{0} : std::nullopt;
+        u32 allocate_temporary_attributes(const std::size_t) noexcept override {
+            return cache_steps_available ? 0x0053BC30U : 0U;
         }
 
         i32 release_temporary_attributes() noexcept override {
@@ -17711,19 +17716,21 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     );
 
     struct FakeGuardianAttributePorts final
-        : openswd3::special_modes::LegacyGuardianAttributeApplicationPorts {
+        : openswd3::special_modes::LegacyGuardianAttributeApplicationPorts,
+          openswd3::test::LegacyBattleMonDatabaseFixture {
         std::optional<i16> temporary_sign{0};
         i32 release_return{77};
-        u16 loaded_key{};
         u32 load_count{};
         u32 release_count{};
 
-        std::optional<i16> load_temporary_attribute_sign(
-            const u16 template_key
-        ) noexcept override {
-            loaded_key = template_key;
+        u32 allocate_temporary_attributes(const std::size_t) noexcept override {
             ++load_count;
-            return temporary_sign;
+            if (temporary_sign.has_value() && *temporary_sign < 0) {
+                set_profile_word(0x18U, 0x8000U);
+            } else {
+                set_profile_word(0x18U, 0U);
+            }
+            return temporary_sign.has_value() ? 0x0053BC30U : 0U;
         }
 
         i32 release_temporary_attributes() noexcept override {
@@ -17755,7 +17762,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         unavailable_guardian.status ==
                 GuardianApplicationStatus::temporary_attributes_unavailable &&
             unavailable_target.words[2] == 1U &&
-            unavailable_guardian_ports.loaded_key == 0x1234U &&
+            unavailable_guardian_ports.load_count == 1U &&
             unavailable_guardian_ports.release_count == 0U,
         "0x44D6E0 stops at the temporary-attribute build point without changing or releasing the target"
     );
@@ -18718,8 +18725,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             comparison_ports.release_count == 27U &&
             comparison_ports.queried_member_ids ==
                 std::vector<u32>{0x1EU, 0x1FU, 0x20U, 0x21U} &&
-            comparison_ports.loaded_template_keys.front() == 0x100U &&
-            comparison_ports.loaded_template_keys[16U] == 0x200U,
+            comparison_ports.requested_profile_ids.front() == 0x100U &&
+            comparison_ports.requested_profile_ids[16U] == 0x200U,
         "0x44FAF0 compares sixteen current slots with eleven candidate-or-current replacements and publishes the three signed attribute deltas"
     );
 
@@ -18741,7 +18748,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     test.expect_true(
         comparison_bit_fifteen.members[0U].values ==
                 std::array<i32, 3U>{0, 0, 0} &&
-            comparison_bit_fifteen_ports.loaded_template_keys[16U] == 0x100U,
+            comparison_bit_fifteen_ports.requested_profile_ids[16U] == 0x100U,
         "0x44FAF0 clears candidate bit fifteen after masking, so a replacement mask containing bit fifteen cannot match"
     );
 
@@ -25464,9 +25471,9 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             character_attributes_rebuild.helper_call_count == 17U &&
             character_attributes_rebuild.contribution_count == 16U &&
             character_attributes_rebuild_ports.accumulate_count == 16U &&
-            character_attributes_rebuild_ports.accumulated_owners.front() ==
+            character_attributes_rebuild_ports.requested_profile_ids.front() ==
                 0x1000U &&
-            character_attributes_rebuild_ports.accumulated_owners.back() ==
+            character_attributes_rebuild_ports.requested_profile_ids.back() ==
                 0x100FU &&
             character_attributes_rebuild_ports.queried_scale_keys ==
                 std::vector<u16>{77U} &&
@@ -27671,7 +27678,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     class GameMenuCommitPorts final
         : public openswd3::special_modes::LegacyGameMenuInteractionCommitPorts,
           public openswd3::special_modes::
-              LegacyStandardModeSpecialWorldTransitionPorts {
+              LegacyStandardModeSpecialWorldTransitionPorts,
+          public openswd3::test::LegacyBattleMonDatabaseFixture {
     public:
         void insert_missing_node(
             const LegacyStandardModeForwardNode** source_head,
@@ -27715,12 +27723,15 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             inventory_span_queries.push_back(item_id);
             return inventory_span;
         }
-        i32 load_equipment_payload(
-            const u16 action_id, const std::span<u8> destination
-        ) noexcept override {
-            loaded_action_ids.push_back(action_id);
-            destination[4U] = equipment_payload_flags;
-            return equipment_load_return;
+        [[nodiscard]] openswd3::battle::LegacyBattleMonDatabaseCallReply
+        invoke_legacy_battle_mon_database(
+            const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
+            const std::span<u8> destination
+        ) override {
+            set_profile_dword(0x04U, equipment_payload_flags);
+            open_succeeds = equipment_load_return == 1;
+            return openswd3::test::LegacyBattleMonDatabaseFixture::
+                invoke_legacy_battle_mon_database(request, destination);
         }
         openswd3::special_modes::LegacyGuardianAttributeTarget*
         resolve_game_menu_guardian_target(const u32 slot) noexcept override {
@@ -27729,10 +27740,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
                 ? &game_menu_guardian_targets[slot]
                 : nullptr;
         }
-        std::optional<i16>
-        load_temporary_attribute_sign(const u16) noexcept override {
-            return equipment_application_available ? std::optional<i16>{0}
-                                                   : std::nullopt;
+        u32 allocate_temporary_attributes(const std::size_t) noexcept override {
+            return equipment_application_available ? 0x0053BC30U : 0U;
         }
         i32 release_temporary_attributes() noexcept override {
             return 0;
@@ -27847,7 +27856,6 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         std::vector<LegacyStandardModeDialogDrawRequest> dialog_draws;
         std::vector<std::array<i32, 3U>> inventory_mutations;
         std::vector<u16> inventory_span_queries;
-        std::vector<u16> loaded_action_ids;
         bool equipment_application_available{true};
         std::array<openswd3::special_modes::LegacyGuardianAttributeTarget, 4U>
             game_menu_guardian_targets{};
@@ -30319,20 +30327,37 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         commit_equipment.status ==
-                openswd3::special_modes::LegacyGameMenuInteractionCommitStatus::
-                    window_refresh_stopped &&
-            commit_equipment_ports.commit_port_state.loaded_action_ids ==
-                std::vector<u16>{0x77U} &&
-            commit_equipment_ports.commit_port_state.copied_slots ==
-                std::vector<u32>{0U, 2U, 3U} &&
+            openswd3::special_modes::LegacyGameMenuInteractionCommitStatus::
+                window_refresh_stopped,
+        "0x446700 reaches the window typed stop after equipment application"
+    );
+    test.expect_true(
+        commit_equipment_ports.commit_port_state.requested_profile_ids ==
+                std::vector<u16>{0x77U, 0U, 0U, 0U} &&
+            commit_equipment_ports.commit_port_state.open_calls == 1U,
+        "0x446700 shares one MON handle across equipment and guardian profile identifiers"
+    );
+    test.expect_true(
+        commit_equipment_ports.commit_port_state.copied_slots ==
+            std::vector<u32>{0U, 2U, 3U},
+        "0x446700 applies the equipment profile to the original guardian slots"
+    );
+    test.expect_true(
+        commit_equipment_ports.commit_port_state.inventory_mutations.size() >=
+                2U &&
             commit_equipment_ports.commit_port_state.inventory_mutations[0] ==
                 std::array<i32, 3U>{0x100, -1, 0} &&
             commit_mode_three.status ==
                 openswd3::special_modes::LegacyGameMenuInteractionCommitStatus::
                     window_refresh_stopped &&
-            commit_mode_three_state.interaction_mode == 2U &&
+            commit_mode_three_state.interaction_mode == 2U,
+        "0x446700 preserves inventory and mode-three side effects before the window stop"
+    );
+    test.expect_true(
+        !commit_equipment_ports.commit_port_state.copied_slots.empty() &&
             commit_equipment_ports.commit_port_state.copied_slots.back() ==
                 3U &&
+            !commit_equipment_ports.played_samples.empty() &&
             commit_equipment_ports.played_samples.back() ==
                 std::pair<u16, u32>{0x8BU, 0x55556666U},
         "0x446700 preserves equipment side effects before the window typed stop"

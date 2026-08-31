@@ -342,6 +342,7 @@ add_executable(
     unit/battle/legacy_battle_group_b_order_test.cpp
     unit/battle/legacy_battle_group_b_target_cycle_test.cpp
     unit/battle/legacy_battle_group_effect_frame_test.cpp
+    unit/battle/legacy_battle_mon_profile_test.cpp
     unit/battle/legacy_battle_grid_frame_test.cpp
     unit/battle/legacy_battle_growth_actor_selection_test.cpp
     unit/battle/legacy_battle_growth_caption_test.cpp
@@ -412,6 +413,12 @@ if(
     target_compile_definitions(
         openswd3_battle_legacy_battle_setup_tests
         PRIVATE OPENSWD3_GAME_DATA_ROOT="${PROJECT_SOURCE_DIR}/.."
+    )
+endif()
+if(EXISTS "${PROJECT_SOURCE_DIR}/../MON.DAT")
+    target_compile_definitions(
+        openswd3_battle_legacy_battle_setup_tests
+        PRIVATE OPENSWD3_MON_DATA_PATH="${PROJECT_SOURCE_DIR}/../MON.DAT"
     )
 endif()
 target_include_directories(

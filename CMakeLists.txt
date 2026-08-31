@@ -66,6 +66,26 @@ add_subdirectory(src/asset_runtime)
 add_subdirectory(src/rendering)
 add_subdirectory(src/story_scene)
 add_subdirectory(src/world_map)
+
+add_library(
+    openswd3_battle_mon
+    STATIC
+        src/battle/legacy_battle_mon_profile.cpp
+)
+target_include_directories(
+    openswd3_battle_mon
+    PUBLIC
+        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+)
+target_link_libraries(
+    openswd3_battle_mon
+    PUBLIC
+        openswd3_compat
+        openswd3_project_options
+        openswd3_project_warnings
+)
+
 add_subdirectory(src/special_modes)
 add_subdirectory(src/audio_video)
 add_subdirectory(src/battle)

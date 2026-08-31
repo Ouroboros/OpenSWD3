@@ -44,7 +44,6 @@ constexpr u32 kCallPublishSelection = 0x00478A70U;
 constexpr u32 kCallLookupProfileItem = 0x00482F70U;
 constexpr u32 kCallRefreshProgressMultiplier = 0x00482F10U;
 constexpr u32 kCallApplyProfileItemDelta = 0x004830A0U;
-constexpr u32 kCallLoadProfile = 0x00476A80U;
 constexpr u32 kCallSelectOpponent = 0x00478AA0U;
 constexpr u32 kCallQueryOtherActor = 0x0047CEA0U;
 constexpr u32 kCallPrepareSelection = 0x00478B30U;
@@ -168,24 +167,6 @@ public:
         const auto reply = port_.invoke({
             .callee_token = kCallRandom,
             .arguments = {bound},
-            .eax = eax,
-            .ecx = ecx,
-            .edx = edx,
-        });
-        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
-    }
-
-    [[nodiscard]] LegacyBattleGroupAFinalProfileLoadReply load_profile(
-        const u32 buffer_token,
-        const u16 profile_id,
-        const u32 eax,
-        const u32 ecx,
-        const u32 edx
-    ) override {
-        ++result_.port_calls;
-        const auto reply = port_.invoke({
-            .callee_token = kCallLoadProfile,
-            .arguments = {buffer_token, profile_id},
             .eax = eax,
             .ecx = ecx,
             .edx = edx,
@@ -405,7 +386,8 @@ one_based_group_b_token(const u32 one_based) noexcept {
         actor_token,
         skip_primary,
         skip_secondary,
-        adapter
+        adapter,
+        port
     );
     ++result.group_a_final_processing_calls;
     if (result.group_a_final_processing.status !=
@@ -503,8 +485,7 @@ void merge_nested_result(
     outer.status_indicator_calls += nested.status_indicator_calls;
     outer.scale_scan_calls += nested.scale_scan_calls;
     outer.action_record_clear_calls += nested.action_record_clear_calls;
-    outer.group_a_actor_cleanup_calls +=
-        nested.group_a_actor_cleanup_calls;
+    outer.group_a_actor_cleanup_calls += nested.group_a_actor_cleanup_calls;
     if (nested.group_a_actor_cleanup_calls != 0U) {
         outer.group_a_actor_cleanup = nested.group_a_actor_cleanup;
     }
@@ -677,9 +658,8 @@ LegacyBattleTurnAdvanceResult advance_legacy_battle_turn_gate(
     const auto queue = invoke_turn(kCallQueryQueueCompletion);
     if (queue.eax == 1U) {
         if (actor->turn_countdown > static_cast<i16>(actor->turn_threshold)) {
-            actor->turn_countdown = from_bits(
-                to_bits(actor->turn_countdown) - 1U
-            );
+            actor->turn_countdown =
+                from_bits(to_bits(actor->turn_countdown) - 1U);
             result.return_eax = 0U;
         } else {
             actor->turn_countdown = 0x0F;
@@ -690,9 +670,9 @@ LegacyBattleTurnAdvanceResult advance_legacy_battle_turn_gate(
         return result;
     }
 
-    edx = static_cast<u32>(static_cast<i32>(
-        static_cast<i16>(actor->turn_threshold)
-    ));
+    edx = static_cast<u32>(
+        static_cast<i32>(static_cast<i16>(actor->turn_threshold))
+    );
     if (actor->turn_countdown <= static_cast<i16>(actor->turn_threshold)) {
         actor->turn_action_record = {};
         ++result.action_record_clears;
@@ -759,12 +739,10 @@ LegacyBattleTurnAdvanceResult advance_legacy_battle_turn_gate(
         actor->turn_sample_word = 0x2FU;
         eax = request.sample_handle;
         ++result.sample_play_calls;
-        const auto played = invoke_turn(
-            kCallPlaySample, {0x2FU, request.sample_handle}
-        );
-        u32 sample_argument = progress->post_action_value == 1U
-            ? played.edx
-            : played.ecx;
+        const auto played =
+            invoke_turn(kCallPlaySample, {0x2FU, request.sample_handle});
+        u32 sample_argument =
+            progress->post_action_value == 1U ? played.edx : played.ecx;
         replace_low_word(sample_argument, actor->turn_sample_word);
         ++result.sample_pan_calls;
         static_cast<void>(invoke_turn(
@@ -802,14 +780,14 @@ LegacyBattleTurnAdvanceResult advance_legacy_battle_turn_gate(
         return result;
     }
     shared->turn_frame_source_token = frame.outputs[0U];
-    const u32 render_x = to_bits(static_cast<i32>(
-        static_cast<i16>(actor->position_x)
-    )) - to_bits(static_cast<i32>(
-        static_cast<i16>(actor->turn_target_x_offset)
-    ));
-    const u32 render_y = to_bits(static_cast<i32>(
-        static_cast<i16>(actor->position_y)
-    )) - actor->turn_action_record.draw_offset_y;
+    const u32 render_x =
+        to_bits(static_cast<i32>(static_cast<i16>(actor->position_x))) -
+        to_bits(
+            static_cast<i32>(static_cast<i16>(actor->turn_target_x_offset))
+        );
+    const u32 render_y =
+        to_bits(static_cast<i32>(static_cast<i16>(actor->position_y))) -
+        actor->turn_action_record.draw_offset_y;
     ++result.render_calls;
     static_cast<void>(invoke_turn(
         kCallRenderTurnFrame,
@@ -1814,8 +1792,8 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
             result.port_calls += result.turn_advance.port_calls;
             if (result.turn_advance.status !=
                 LegacyBattleTurnAdvanceStatus::completed) {
-                result.status = LegacyBattleActionDispatchStatus::
-                    turn_advance_typed_stop;
+                result.status =
+                    LegacyBattleActionDispatchStatus::turn_advance_typed_stop;
                 result.return_value = result.turn_advance.return_eax;
                 return result;
             }

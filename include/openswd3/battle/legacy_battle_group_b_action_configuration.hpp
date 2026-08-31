@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
+#include "openswd3/battle/legacy_battle_mon_profile.hpp"
 
 #include <array>
 #include <memory>
@@ -9,7 +10,7 @@ namespace openswd3::battle {
 
 enum class LegacyBattleGroupBActionConfigurationCall : compat::u8 {
     load_resource_definition,
-    load_action_profile,
+    reserved_load_action_profile,
     release_resource_text,
 };
 
@@ -67,6 +68,7 @@ configure_legacy_battle_group_b_action(
     LegacyBattleActorGroupBElementState* actor,
     const LegacyBattleGroupBActionRecord* source,
     LegacyBattleGroupBActionConfigurationPort& port,
+    LegacyBattleMonDatabasePort& mon_port,
     compat::u32 definition_argument,
     compat::u32 actor_token,
     compat::u32 source_token

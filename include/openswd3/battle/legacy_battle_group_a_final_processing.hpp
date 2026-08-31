@@ -5,28 +5,15 @@
 #include "openswd3/battle/legacy_battle_group_a_final_processing_state.hpp"
 #include "openswd3/battle/legacy_battle_group_a_profile_mode_selection.hpp"
 #include "openswd3/battle/legacy_battle_group_a_workspace_reset.hpp"
+#include "openswd3/battle/legacy_battle_mon_profile.hpp"
 
 namespace openswd3::battle {
-
-struct LegacyBattleGroupAFinalProfileLoadReply {
-    compat::u32 eax{};
-    compat::u32 ecx{};
-    compat::u32 edx{};
-};
 
 class LegacyBattleGroupAFinalProcessingPort
     : public LegacyBattleGroupAItemEffectApplicationPort,
       public LegacyBattleGroupAProfileModeSelectionPort {
 public:
     ~LegacyBattleGroupAFinalProcessingPort() override = default;
-
-    [[nodiscard]] virtual LegacyBattleGroupAFinalProfileLoadReply load_profile(
-        compat::u32 buffer_token,
-        compat::u16 profile_id,
-        compat::u32 eax,
-        compat::u32 ecx,
-        compat::u32 edx
-    ) = 0;
 };
 
 struct LegacyBattleGroupAFinalProcessingRequest {
@@ -40,6 +27,7 @@ enum class LegacyBattleGroupAFinalProcessingStatus : compat::u8 {
     actor_record_typed_stop,
     item_effect_typed_stop,
     profile_mode_typed_stop,
+    profile_load_typed_stop,
 };
 
 struct LegacyBattleGroupAFinalProcessingResult {
@@ -107,6 +95,7 @@ process_legacy_battle_group_a_final(
     compat::u32 skip_primary,
     compat::u32 skip_secondary,
     LegacyBattleGroupAFinalProcessingPort& port,
+    LegacyBattleMonDatabasePort& mon_port,
     const LegacyBattleGroupAFinalProcessingRequest& request = {}
 );
 

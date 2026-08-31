@@ -106,7 +106,7 @@ enum class LegacyBattleStartupCall : compat::u16 {
     reserved_group_a_embedded_profile_apply,
     group_a_embedded_profile_item_quantity,
     group_b_load_resource_definition,
-    group_b_load_action_profile,
+    reserved_group_b_load_action_profile,
     group_b_release_resource_text,
 };
 
@@ -137,7 +137,8 @@ struct LegacyBattleStartupCallReply {
 };
 
 class LegacyBattleStartupPort
-    : public virtual LegacyBattleActorMetricStatePort,
+    : public virtual LegacyBattleMonDatabasePort,
+      public virtual LegacyBattleActorMetricStatePort,
       public virtual LegacyBattleActorPublicationStatePort,
       public virtual LegacyBattleSharedPhaseStatePort,
       public virtual world_map::LegacyWorldItemListStatePort {
@@ -156,11 +157,6 @@ public:
 
     [[nodiscard]] virtual std::shared_ptr<const std::array<compat::u8, 0xA4>>
     group_b_action_resource_bytes() const {
-        return nullptr;
-    }
-
-    [[nodiscard]] virtual std::shared_ptr<const std::array<std::byte, 0x28>>
-    group_b_action_profile_buffer() const {
         return nullptr;
     }
 };

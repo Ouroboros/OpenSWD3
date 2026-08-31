@@ -1,3 +1,4 @@
+#include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_group_b_action_composition.hpp"
 #include "test.hpp"
 
@@ -25,16 +26,8 @@ void write_word(
     bytes[offset + 1U] = static_cast<u8>(value >> 8U);
 }
 
-void write_word(
-    std::array<std::byte, 0x28>& bytes,
-    const std::size_t offset,
-    const u16 value
-) {
-    bytes[offset] = static_cast<std::byte>(value);
-    bytes[offset + 1U] = static_cast<std::byte>(value >> 8U);
-}
-
-class Port final : public LegacyBattleGroupBActionCompositionPort {
+class Port final : public LegacyBattleGroupBActionCompositionPort,
+                   public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
     [[nodiscard]] LegacyBattleGroupBActionCompositionCallReply invoke(
         const LegacyBattleGroupBActionCompositionCallRequest& request
@@ -61,11 +54,8 @@ public:
             reply.edx = copy_edx;
             break;
 
-        case LegacyBattleGroupBActionCompositionCall::load_action_profile:
-            reply.eax = profile_eax;
-            reply.ecx = profile_ecx;
-            reply.edx = profile_edx;
-            reply.profile_buffer = profile;
+        case LegacyBattleGroupBActionCompositionCall::
+            reserved_load_action_profile:
             break;
         }
 
@@ -79,17 +69,11 @@ public:
     std::shared_ptr<std::array<u8, 0xA4>> definition{
         std::make_shared<std::array<u8, 0xA4>>()
     };
-    std::shared_ptr<std::array<std::byte, 0x28>> profile{
-        std::make_shared<std::array<std::byte, 0x28>>()
-    };
     u32 definition_eax{0x11111111U};
     u32 definition_ecx{0x22222222U};
     u32 definition_edx{0x33333333U};
     u32 copy_ecx{0xCAFE1234U};
     u32 copy_edx{0x44444444U};
-    u32 profile_eax{0x12345678U};
-    u32 profile_ecx{0x55555555U};
-    u32 profile_edx{0x66666666U};
 };
 
 }  // namespace
@@ -105,6 +89,7 @@ void test_battle_group_b_action_composition(openswd3::test::Context& test) {
         const auto result = compose_legacy_battle_group_b_action(
             nullptr,
             &output,
+            port,
             port,
             {
                 .definition_argument = 7U,
@@ -138,6 +123,7 @@ void test_battle_group_b_action_composition(openswd3::test::Context& test) {
             &actor,
             &output,
             port,
+            port,
             {
                 .definition_argument = 9U,
                 .actor_token = 0x00525508U,
@@ -167,6 +153,7 @@ void test_battle_group_b_action_composition(openswd3::test::Context& test) {
         const auto result = compose_legacy_battle_group_b_action(
             actor.get(),
             &output,
+            port,
             port,
             {
                 .definition_argument = 0x12U,
@@ -200,13 +187,13 @@ void test_battle_group_b_action_composition(openswd3::test::Context& test) {
         (*port.definition)[1U] = 0U;
         write_word(*port.definition, 0x3EU, 0x1357U);
         write_word(*port.definition, 0x50U, 0x6688U);
-        write_word(*port.profile, 0x0EU, 5U);
-        port.typed_stop_call =
-            LegacyBattleGroupBActionCompositionCall::load_action_profile;
+        port.set_profile_word(0x0EU, 5U);
+        port.allocation_succeeds = false;
         u32 output{};
         const auto result = compose_legacy_battle_group_b_action(
             actor.get(),
             &output,
+            port,
             port,
             {
                 .definition_argument = 0x34U,
@@ -220,12 +207,8 @@ void test_battle_group_b_action_composition(openswd3::test::Context& test) {
                     LegacyBattleGroupBActionCompositionStatus::
                         profile_load_typed_stop &&
                 result.port_calls == 3U && result.text_bytes_written == 2U &&
-                output == 0x6688U && result.return_eax == 0x12345678U &&
-                result.return_ecx == 0x55555555U &&
-                result.return_edx == 0x66666666U &&
+                output == 0x6688U && result.return_eax == 0U &&
                 actor->action_composition.action_text[0U] == 'P' &&
-                actor->action_configuration.profile_buffer[0x0EU] ==
-                    std::byte{5U} &&
                 actor->action_composition.derived_words[0U] == 9U &&
                 actor->action_composition.mode_flags == 0x04U,
             "profile loader typed stop preserves loader side effects and blocks derived word and fixed mode suffixes"
@@ -241,6 +224,7 @@ void test_battle_group_b_action_composition(openswd3::test::Context& test) {
         const auto result = compose_legacy_battle_group_b_action(
             &actor,
             nullptr,
+            port,
             port,
             {
                 .definition_argument = 3U,
@@ -269,6 +253,7 @@ void test_battle_group_b_action_composition(openswd3::test::Context& test) {
         const auto result = compose_legacy_battle_group_b_action(
             &actor,
             &output,
+            port,
             port,
             {
                 .definition_argument = 4U,
@@ -302,11 +287,12 @@ void test_battle_group_b_action_composition(openswd3::test::Context& test) {
         std::ranges::copy(text, port.definition->begin());
         write_word(*port.definition, 0x3EU, 0xBEEFU);
         write_word(*port.definition, 0x50U, 0x2468U);
-        write_word(*port.profile, 0x0EU, 0xFFFEU);
+        port.set_profile_word(0x0EU, 0xFFFEU);
         u32 output{};
         const auto result = compose_legacy_battle_group_b_action(
             &actor,
             &output,
+            port,
             port,
             {
                 .definition_argument = 0x77U,
@@ -324,7 +310,6 @@ void test_battle_group_b_action_composition(openswd3::test::Context& test) {
                 result.text_bytes_written == 6U && output == 0x2468U &&
                 result.profile_word == 0xFFFEU && result.return_eax == 1U &&
                 result.return_ecx == 0x00525508U &&
-                result.return_edx == 0x66666666U &&
                 actor.action_composition.derived_words[0U] == 1U &&
                 actor.action_composition.action_kind == 0U &&
                 actor.action_composition.display_kind == 2U &&
@@ -332,17 +317,13 @@ void test_battle_group_b_action_composition(openswd3::test::Context& test) {
             "action composition copies text loads the profile wraps the derived word and applies fixed mode two"
         );
         test.expect_true(
-            port.calls.size() == 3U &&
+            port.calls.size() == 2U &&
                 port.calls[0U].arguments[0U] == 0x00525518U &&
                 port.calls[0U].arguments[1U] == 0x77U &&
                 port.calls[1U].arguments[0U] == 0x00527B38U &&
                 port.calls[1U].arguments[1U] == 0x00525518U &&
-                port.calls[2U].arguments[0U] == 0x00526298U &&
-                port.calls[2U].arguments[1U] == 0xCAFEBEEFU &&
-                port.calls[2U].eax == 0x00527B38U &&
-                port.calls[2U].ecx == 0xCAFEBEEFU &&
-                port.calls[2U].edx == 0x00526298U,
-            "action composition preserves all three remaining callee ABIs and the stale ECX high word"
+                port.read_calls == 3U,
+            "action composition preserves the opaque definition and text ABIs plus the typed MON boundary"
         );
     }
 }

@@ -15,6 +15,26 @@ namespace openswd3::special_modes {
 namespace {
 
 constexpr compat::u16 kEntrySoundId = 0x00BBU;
+constexpr compat::u32 kMonProfileScratchToken = 0x004BAB74U;
+constexpr compat::u32 kMonFileNameToken = 0x004AAED0U;
+
+[[nodiscard]] constexpr compat::u16 read_mon_profile_word(
+    const battle::LegacyBattleMonProfile& profile, const std::size_t offset
+) noexcept {
+    return static_cast<compat::u16>(
+        std::to_integer<compat::u16>(profile[offset]) |
+        (std::to_integer<compat::u16>(profile[offset + 1U]) << 8U)
+    );
+}
+
+[[nodiscard]] constexpr compat::u32 read_mon_profile_dword(
+    const battle::LegacyBattleMonProfile& profile, const std::size_t offset
+) noexcept {
+    return std::to_integer<compat::u32>(profile[offset]) |
+        (std::to_integer<compat::u32>(profile[offset + 1U]) << 8U) |
+        (std::to_integer<compat::u32>(profile[offset + 2U]) << 16U) |
+        (std::to_integer<compat::u32>(profile[offset + 3U]) << 24U);
+}
 constexpr compat::u32 kLowModeActionId = 0x0000232AU;
 constexpr compat::u32 kModeThreeSixChoiceActionId = 0x0000232BU;
 constexpr compat::u32 kHighModeSecondaryValue = 0x0000EA60U;
@@ -2666,10 +2686,32 @@ LegacyCharacterAttributesRebuildResult rebuild_legacy_character_attributes(
         ) noexcept
             : ports_(ports) {}
 
-        std::optional<compat::i16> load_temporary_attribute_sign(
-            const compat::u16 template_key
+        compat::u32 allocate_temporary_attributes(
+            const std::size_t size
         ) noexcept override {
-            return ports_.load_temporary_attribute_sign(template_key);
+            return ports_.allocate_character_attributes_buffer(
+                static_cast<compat::u32>(size)
+            );
+        }
+
+        [[nodiscard]] battle::LegacyBattleMonDatabaseState&
+        legacy_battle_mon_database_state() noexcept override {
+            return ports_.legacy_battle_mon_database_state();
+        }
+
+        [[nodiscard]] battle::LegacyBattleMonProfile&
+        legacy_battle_mon_profile_scratch() noexcept override {
+            return ports_.legacy_battle_mon_profile_scratch();
+        }
+
+        [[nodiscard]] battle::LegacyBattleMonDatabaseCallReply
+        invoke_legacy_battle_mon_database(
+            const battle::LegacyBattleMonDatabaseCallRequest& request,
+            const std::span<compat::u8> destination
+        ) override {
+            return ports_.invoke_legacy_battle_mon_database(
+                request, destination
+            );
         }
 
         compat::i32 release_temporary_attributes() noexcept override {
@@ -5211,15 +5253,36 @@ LegacyGuardianAttributeApplicationResult apply_legacy_guardian_attributes(
     LegacyGuardianAttributeApplicationPorts& ports
 ) noexcept {
     LegacyGuardianAttributeApplicationResult result;
-    const std::optional<compat::i16> temporary_sign =
-        ports.load_temporary_attribute_sign(source.template_key);
-    if (!temporary_sign.has_value()) {
+    const compat::u32 profile_token = ports.allocate_temporary_attributes(
+        battle::kLegacyBattleMonProfileBytes
+    );
+    ++result.temporary_attribute_allocation_calls;
+    if (profile_token == 0U) {
         result.status = LegacyGuardianAttributeApplicationStatus::
             temporary_attributes_unavailable;
         return result;
     }
 
-    if (*temporary_sign < 0) {
+    battle::LegacyBattleMonProfile profile{};
+    const auto profile_result = battle::load_legacy_battle_mon_profile(
+        profile,
+        ports,
+        {
+            .path = "mon.dat",
+            .output_token = profile_token,
+            .profile_id = source.template_key,
+            .file_name_token = kMonFileNameToken,
+            .entry_eax = source.template_key,
+        }
+    );
+    ++result.profile_load_calls;
+    if (battle::legacy_battle_mon_profile_load_stopped(profile_result.status)) {
+        result.status =
+            LegacyGuardianAttributeApplicationStatus::profile_load_stopped;
+        return result;
+    }
+
+    if ((read_mon_profile_word(profile, 0x18U) & 0x8000U) != 0U) {
         target.words[18] &= 0x7FFFU;
     }
 
@@ -11082,14 +11145,29 @@ LegacyStandardModeEquipmentRenderResult render_legacy_standard_mode_equipment(
                  0}
             );
             if (state.list_kind <= 1U && node->text_index != 0xFFDCU) {
-                compat::u16 variant = 0U;
-                if (!ports.load_equipment_render_action(
-                        node->equipment_action_id, variant
+                auto& profile = ports.legacy_battle_mon_profile_scratch();
+                const auto profile_result =
+                    battle::load_legacy_battle_mon_profile(
+                        profile,
+                        ports,
+                        {
+                            .path = "mon.dat",
+                            .output_token = kMonProfileScratchToken,
+                            .profile_id = node->equipment_action_id,
+                            .file_name_token = kMonFileNameToken,
+                            .entry_eax = kMonProfileScratchToken,
+                            .entry_edx = node->equipment_action_id,
+                        }
+                    );
+                if (battle::legacy_battle_mon_profile_load_stopped(
+                        profile_result.status
                     )) {
                     result.status = LegacyStandardModeEquipmentRenderStatus::
                         action_load_stopped;
                     return result;
                 }
+                const compat::u16 variant =
+                    read_mon_profile_word(profile, 0x10U);
                 constexpr std::array<compat::i32, 12U> kVariants{
                     8, 1, 2, 3, 4, -1, 5, 6, 7, -1, 9, 10
                 };
@@ -11785,19 +11863,32 @@ LegacyStandardModeEquipmentCommitResult commit_legacy_standard_mode_equipment(
         return result;
     }
 
-    const std::optional<LegacyStandardModeEquipmentActionLoadResult> loaded =
-        ports.load_equipment_action(selected_record->equipment_action_id);
+    auto& profile = ports.legacy_battle_mon_profile_scratch();
+    profile.fill(std::byte{0});
+    const auto profile_result = battle::load_legacy_battle_mon_profile(
+        profile,
+        ports,
+        {
+            .path = "mon.dat",
+            .output_token = kMonProfileScratchToken,
+            .profile_id = selected_record->equipment_action_id,
+            .file_name_token = kMonFileNameToken,
+            .entry_ecx = selected_record->equipment_action_id,
+            .entry_edx = kMonProfileScratchToken,
+        }
+    );
     ++result.helper_call_count;
-    if (!loaded.has_value()) {
+    result.legacy_return_value =
+        std::bit_cast<compat::i32>(profile_result.return_eax);
+    if (battle::legacy_battle_mon_profile_load_stopped(profile_result.status)) {
         result.status =
             LegacyStandardModeEquipmentCommitStatus::action_load_stopped;
         return result;
     }
-    result.legacy_return_value = loaded->legacy_return_value;
-    if (loaded->legacy_return_value != 1) {
+    if (result.legacy_return_value != 1) {
         return result;
     }
-    if ((loaded->flags & 1U) == 0U) {
+    if ((read_mon_profile_dword(profile, 0x04U) & 1U) == 0U) {
         ++state.mode_enabled;
         state.transition_word =
             static_cast<compat::u16>(state.mode_enabled + 1U);
@@ -24908,12 +24999,30 @@ LegacyGameMenuInteractionCommitResult commit_legacy_game_menu_interaction(
             return result;
         }
 
-        std::array<compat::u8, 0x28U> equipment_payload{};
-        const compat::i32 loaded = commit_ports.load_equipment_payload(
-            record->equipment_action_id, equipment_payload
+        auto& profile = commit_ports.legacy_battle_mon_profile_scratch();
+        profile.fill(std::byte{0});
+        const auto profile_result = battle::load_legacy_battle_mon_profile(
+            profile,
+            commit_ports,
+            {
+                .path = "mon.dat",
+                .output_token = kMonProfileScratchToken,
+                .profile_id = record->equipment_action_id,
+                .file_name_token = kMonFileNameToken,
+                .entry_ecx = record->equipment_action_id,
+                .entry_edx = kMonProfileScratchToken,
+            }
         );
         ++result.helper_call_count;
-        if (loaded != 1 || (equipment_payload[4U] & 1U) == 0U) {
+        if (battle::legacy_battle_mon_profile_load_stopped(
+                profile_result.status
+            )) {
+            result.status = LegacyGameMenuInteractionCommitStatus::
+                equipment_payload_stopped;
+            return result;
+        }
+        if (profile_result.return_eax != 1U ||
+            (read_mon_profile_dword(profile, 0x04U) & 1U) == 0U) {
             state.interaction_mode = 3U;
             play(0x8BU);
             finish_mode_two_refresh();

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
+#include "openswd3/battle/legacy_battle_mon_profile.hpp"
 
 #include <array>
 #include <memory>
@@ -10,7 +11,7 @@ namespace openswd3::battle {
 enum class LegacyBattleGroupBActionCompositionCall : compat::u8 {
     load_resource_definition,
     copy_action_text,
-    load_action_profile,
+    reserved_load_action_profile,
 };
 
 struct LegacyBattleGroupBActionCompositionCallRequest {
@@ -79,6 +80,7 @@ compose_legacy_battle_group_b_action(
     LegacyBattleActorGroupBElementState* actor,
     compat::u32* output,
     LegacyBattleGroupBActionCompositionPort& port,
+    LegacyBattleMonDatabasePort& mon_port,
     const LegacyBattleGroupBActionCompositionRequest& request
 );
 
