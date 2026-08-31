@@ -17,7 +17,6 @@ using Status = LegacyBattleControlPanelFrameStatus;
 
 constexpr u32 kGroupBBaseToken = 0x00525508U;
 constexpr u32 kGroupBStride = 0x2B28U;
-constexpr u32 kGroupBCount = 8U;
 constexpr u32 kNormalStyle = 0xFFFEU;
 constexpr u32 kSelectedStyle = 0xF000U;
 constexpr u32 kBorderColor = 0x48U;
@@ -335,19 +334,6 @@ private:
                     .group_b_actors[static_cast<std::size_t>(signed_index)];
     }
 
-    [[nodiscard]] bool prepare_group_b_query(const u32 source_index) {
-        prepare_group_b_registers(source_index);
-        const i32 signed_index = static_cast<i32>(
-            std::bit_cast<i16>(bindings_.selected_group_b_index)
-        );
-        if (signed_index < 0 ||
-            static_cast<u32>(signed_index) >= kGroupBCount) {
-            result_.status = Status::group_b_actor_typed_stop;
-            return false;
-        }
-        return true;
-    }
-
     [[nodiscard]] bool draw_primary_rows() {
         for (u32 source_index = 0U; source_index < 3U; ++source_index) {
             clear_text();
@@ -438,20 +424,42 @@ private:
     [[nodiscard]] bool draw_special_rows() {
         for (u32 source_index = 0U; source_index < 2U; ++source_index) {
             clear_text();
-            if (!prepare_group_b_query(source_index)) {
+            prepare_group_b_registers(source_index);
+            result_.special_options[source_index] =
+                load_legacy_battle_group_b_action_item_special_option(
+                    primary_actor(),
+                    text_bytes(),
+                    port_,
+                    {
+                        .selector = source_index,
+                        .actor_token = ecx_,
+                        .text_destination_token =
+                            kLegacyBattleControlPanelSharedTextToken,
+                        .entry_eax = eax_,
+                        .entry_ecx = ecx_,
+                        .entry_edx = edx_,
+                    }
+                );
+            ++result_.special_query_calls;
+            result_.port_calls +=
+                result_.special_options[source_index].definition_load_calls +
+                result_.special_options[source_index].name_copy_calls;
+            eax_ = result_.special_options[source_index].return_eax;
+            ecx_ = result_.special_options[source_index].return_ecx;
+            edx_ = result_.special_options[source_index].return_edx;
+            if (result_.special_options[source_index].status !=
+                LegacyBattleGroupBActionItemSpecialOptionStatus::completed) {
+                result_.status = result_.special_options[source_index].status ==
+                            LegacyBattleGroupBActionItemSpecialOptionStatus::
+                                actor_state_typed_stop ||
+                        result_.special_options[source_index].status ==
+                            LegacyBattleGroupBActionItemSpecialOptionStatus::
+                                resource_read_typed_stop
+                    ? Status::group_b_actor_typed_stop
+                    : Status::special_option_typed_stop;
                 return false;
             }
-            const auto reply = invoke({
-                .call = Call::query_special_option,
-                .object_token = ecx_,
-                .arguments =
-                    {source_index, kLegacyBattleControlPanelSharedTextToken},
-                .eax = eax_,
-                .ecx = ecx_,
-                .edx = edx_,
-            });
-            ++result_.special_query_calls;
-            if (reply.eax != 1U) {
+            if (eax_ != 1U) {
                 continue;
             }
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_group_b_action_item_option.hpp"
+#include "openswd3/battle/legacy_battle_group_b_action_item_special_option.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_refresh.hpp"
 
 namespace openswd3::battle {
@@ -43,6 +44,7 @@ enum class LegacyBattleTargetSelectionEntryStatus : compat::u8 {
     action_mode_refresh_typed_stop,
     target_selection_refresh_typed_stop,
     primary_option_typed_stop,
+    secondary_option_typed_stop,
 };
 
 struct LegacyBattleTargetSelectionEntryResult {
@@ -57,6 +59,8 @@ struct LegacyBattleTargetSelectionEntryResult {
     compat::u32 primary_scan_calls{};
     std::array<LegacyBattleGroupBActionItemOptionResult, 3> primary_options{};
     compat::u32 secondary_scan_calls{};
+    std::array<LegacyBattleGroupBActionItemSpecialOptionResult, 2>
+        secondary_options{};
     compat::u32 action_mode_refresh_calls{};
     compat::u32 target_selection_refresh_calls{};
 };

@@ -155,7 +155,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     control_panel_configure_font_style,
     control_panel_draw_text,
     reserved_control_panel_query_primary_option_slot,
-    control_panel_query_special_option,
+    reserved_control_panel_query_special_option_slot,
     reserved_message_phase_resolve_group_a_position_slot,
     reserved_message_phase_prepare_message_98_slot,
     message_phase_reset_actor_state,
@@ -894,9 +894,10 @@ public:
             call = LegacyBattleFrameCoordinatorCall::
                 reserved_control_panel_query_primary_option_slot;
             break;
-        case LegacyBattleControlPanelFrameCall::query_special_option:
+        case LegacyBattleControlPanelFrameCall::
+            reserved_query_special_option_slot:
             call = LegacyBattleFrameCoordinatorCall::
-                control_panel_query_special_option;
+                reserved_control_panel_query_special_option_slot;
             break;
         }
         const auto reply = invoke({

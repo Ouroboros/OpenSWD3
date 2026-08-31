@@ -534,15 +534,16 @@ void test_battle_target_selection_entry(openswd3::test::Context& test) {
         write_word(actor.resource_bytes, 0x66U, 0x1111U);
         write_word(actor.resource_bytes, 0x6AU, 0U);
         write_word(actor.resource_bytes, 0x6EU, 0x3333U);
+        write_word(actor.resource_bytes, 0x72U, 0x4444U);
+        write_word(actor.resource_bytes, 0x76U, 0U);
         fixture.port.definition_replies = {
             DefinitionLoadReply{.definition = definition('A')},
             DefinitionLoadReply{.definition = definition('C')},
+            DefinitionLoadReply{.definition = definition('D')},
         };
         fixture.port.replies = {
             LegacyBattleInputDispatchCallReply{.eax = 0U},
             std::nullopt,
-            LegacyBattleInputDispatchCallReply{.eax = 1U},
-            LegacyBattleInputDispatchCallReply{.eax = 0U},
         };
         const auto result = enter_legacy_battle_target_selection(
             fixture.bindings(), fixture.port, {}
@@ -553,32 +554,75 @@ void test_battle_target_selection_entry(openswd3::test::Context& test) {
                 result.port_calls == 9U && result.sample_calls == 1U &&
                 result.primary_scan_calls == 3U &&
                 result.secondary_scan_calls == 2U &&
-                fixture.port.calls.size() == 4U && fixture.message == 7U &&
+                fixture.port.calls.size() == 2U && fixture.message == 7U &&
                 fixture.frame.alternate_selection_limit == 5U &&
                 fixture.frame.transition_value_a == 0U &&
-                fixture.port.definition_requests.size() == 2U &&
+                fixture.port.definition_requests.size() == 3U &&
                 fixture.port.definition_requests[0U].destination_token ==
                     0x00525518U &&
                 fixture.port.definition_requests[0U].definition_argument ==
                     0x1111U &&
                 fixture.port.definition_requests[1U].definition_argument ==
                     0x73003333U &&
-                fixture.port.copy_requests.size() == 2U &&
+                fixture.port.definition_requests[2U].definition_argument ==
+                    0x4444U &&
+                fixture.port.copy_requests.size() == 3U &&
                 std::ranges::none_of(
                     fixture.port.calls,
                     [](const LegacyBattleInputDispatchCallRequest& call) {
                         return call.call ==
                             LegacyBattleInputDispatchCall::
-                                reserved_target_selection_scan_primary_slot;
+                                reserved_target_selection_scan_primary_slot ||
+                            call.call ==
+                            LegacyBattleInputDispatchCall::
+                                reserved_target_selection_scan_secondary_slot;
                     }
-                ) &&
-                fixture.port.calls[2U].call ==
-                    LegacyBattleInputDispatchCall::
-                        target_selection_scan_secondary &&
-                fixture.port.calls[2U].eax == 0U &&
-                fixture.port.calls[2U].ecx == 0x00525508U &&
-                fixture.port.calls[2U].edx == 0U,
-            "matching selected actors scan three primary and two secondary entries and publish the exact visible count"
+                ),
+            "matching selected actors type-load three primary and two secondary entries and publish the exact visible count"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.target_ready_gate = 1U;
+        fixture.final_actor.queued_actor_code = 8U;
+        auto& input = fixture.port.battle_input_dispatch_state();
+        input.selected_option_word = 3U;
+        input.selected_group_b_index = 0U;
+        input.selected_group_a_index = 0U;
+        fixture.frame.transition_value_a = 9U;
+        write_word(fixture.group_b_actors[0U].resource_bytes, 0x72U, 0x5555U);
+        fixture.port.definition_replies = {
+            DefinitionLoadReply{
+                .eax = 0xAAAAAAAAU,
+                .ecx = 0xBBBBBBBBU,
+                .edx = 0xCCCCCCCCU,
+                .typed_stop = true,
+                .definition = definition('S'),
+            },
+        };
+        fixture.port.replies = {
+            LegacyBattleInputDispatchCallReply{.eax = 0U},
+            std::nullopt,
+        };
+        const auto result = enter_legacy_battle_target_selection(
+            fixture.bindings(), fixture.port, {}
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleTargetSelectionEntryStatus::
+                        secondary_option_typed_stop &&
+                result.primary_scan_calls == 3U &&
+                result.secondary_scan_calls == 1U && result.port_calls == 4U &&
+                fixture.port.calls.size() == 2U &&
+                fixture.frame.alternate_selection_limit == 2U &&
+                fixture.frame.transition_value_a == 9U &&
+                result.return_eax == 0xAAAAAAAAU &&
+                result.return_ecx == 0xBBBBBBBBU &&
+                result.return_edx == 0xCCCCCCCCU &&
+                fixture.group_b_actors[0U]
+                        .action_composition.resource_definition[0U] == 'S',
+            "secondary loader stop preserves the setup and loaded definition while blocking the remaining scan"
         );
     }
 

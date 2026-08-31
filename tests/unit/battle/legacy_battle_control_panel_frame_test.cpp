@@ -233,9 +233,6 @@ void prepare_no_options(Fixture& fixture) {
     fixture.port.reply(Call::draw_text, {});
     fixture.port.reply(Call::configure_font_style, {});
     fixture.port.reply(Call::draw_text, {});
-    for (u32 index = 0U; index < 2U; ++index) {
-        fixture.port.reply(Call::query_special_option, {.eax = 0U});
-    }
     fixture.port.reply(Call::configure_font_style, {});
     fixture.port.reply(Call::draw_text, {});
     fixture.port.reply(Call::configure_font_style, {});
@@ -311,6 +308,8 @@ void test_battle_control_panel_frame(openswd3::test::Context& test) {
         write_word(resource, 0x66U, 100U);
         write_word(resource, 0x6AU, 1U);
         write_word(resource, 0x6EU, 1U);
+        write_word(resource, 0x72U, 2U);
+        write_word(resource, 0x76U, 3U);
         fixture.port.reply_definition({.definition = definition('A')});
         fixture.port.reply(Call::configure_font_style, {});
         fixture.port.reply(Call::draw_text, {});
@@ -320,20 +319,24 @@ void test_battle_control_panel_frame(openswd3::test::Context& test) {
         fixture.port.reply(Call::configure_font_style, {});
         fixture.port.reply(Call::draw_text, {});
         fixture.port.reply_definition({.definition = definition('C')});
+        fixture.port.reply_definition({.definition = definition('D')});
+        fixture.port.reply_definition({.definition = definition('E')});
         std::size_t load_index = 0U;
         fixture.port.on_definition_load =
             [&fixture, &load_index](const DefinitionLoadRequest&) {
                 constexpr std::array<u16, 3> values{100U, 200U, 300U};
-                write_word(
-                    fixture.group_b_actors[1U].resource_bytes,
-                    0x66U,
-                    values[load_index++]
-                );
+                if (load_index < values.size()) {
+                    write_word(
+                        fixture.group_b_actors[1U].resource_bytes,
+                        0x66U,
+                        values[load_index]
+                    );
+                }
+                ++load_index;
             };
         fixture.port.reply(Call::configure_font_style, {});
         fixture.port.reply(Call::draw_text, {});
         for (u32 index = 0U; index < 2U; ++index) {
-            fixture.port.reply(Call::query_special_option, {.eax = 1U});
             fixture.port.reply(Call::configure_font_style, {});
             fixture.port.reply(Call::draw_text, {});
         }
@@ -363,15 +366,19 @@ void test_battle_control_panel_frame(openswd3::test::Context& test) {
         );
         test.expect_true(
             fixture.transition_value_a == 200U &&
-                fixture.transition_value_b == 0U && primary.size() == 3U &&
+                fixture.transition_value_b == 0U && primary.size() == 5U &&
                 primary[0U].destination_token ==
                     primary[0U].actor_token + 0x10U &&
                 primary[0U].definition_argument == 100U &&
                 primary[1U].definition_argument == 1U &&
                 primary[2U].definition_argument == 0x73000001U &&
+                primary[3U].definition_argument == 2U &&
+                primary[4U].definition_argument == 0x73000003U &&
                 fixture.port.calls_of(Call::reserved_query_primary_option_slot)
+                    .empty() &&
+                fixture.port.calls_of(Call::reserved_query_special_option_slot)
                     .empty(),
-            "control panel publishes the selected primary value through the closed loader and preserves selector-two high bits"
+            "control panel type-loads primary and special definitions while preserving their selector-specific high bits"
         );
         test.expect_true(
             result.rows[4U].text_token ==
@@ -393,13 +400,15 @@ void test_battle_control_panel_frame(openswd3::test::Context& test) {
         fixture.port.reply(Call::configure_font_style, {});
         fixture.port.reply(Call::draw_text, {});
         write_word(fixture.group_b_actors[1U].resource_bytes, 0x66U, 1U);
+        write_word(fixture.group_b_actors[1U].resource_bytes, 0x72U, 2U);
+        write_word(fixture.group_b_actors[1U].resource_bytes, 0x76U, 3U);
         fixture.port.reply_definition({.definition = definition('P')});
+        fixture.port.reply_definition({.definition = definition('Q')});
+        fixture.port.reply_definition({.definition = definition('R')});
         fixture.port.reply(Call::configure_font_style, {});
         fixture.port.reply(Call::draw_text, {});
-        fixture.port.reply(Call::query_special_option, {.eax = 1U});
         fixture.port.reply(Call::configure_font_style, {});
         fixture.port.reply(Call::draw_text, {});
-        fixture.port.reply(Call::query_special_option, {.eax = 1U});
         fixture.port.reply(Call::configure_font_style, {});
         fixture.port.reply(Call::draw_text, {});
         fixture.port.reply(Call::configure_font_style, {});
@@ -420,6 +429,40 @@ void test_battle_control_panel_frame(openswd3::test::Context& test) {
                 result.rows[3U].selected_index == 4U &&
                 result.rows[3U].source_index == 1U && result.rows[3U].selected,
             "control panel selected second special row publishes zero primary and one-based special value"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.port.reply(Call::draw_text, {});
+        fixture.port.reply(Call::configure_font_reset, {});
+        fixture.port.reply(Call::configure_font_style, {});
+        fixture.port.reply(Call::draw_text, {});
+        write_word(fixture.group_b_actors[1U].resource_bytes, 0x72U, 4U);
+        fixture.port.reply_definition({
+            .eax = 0xAAAAAAAAU,
+            .ecx = 0xBBBBBBBBU,
+            .edx = 0xCCCCCCCCU,
+            .typed_stop = true,
+            .definition = definition('S'),
+        });
+        const auto result =
+            openswd3::battle::draw_legacy_battle_control_panel_frame(
+                fixture.bindings(), fixture.port, request(2U)
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleControlPanelFrameStatus::
+                        special_option_typed_stop &&
+                result.primary_query_calls == 3U &&
+                result.special_query_calls == 1U &&
+                result.text_draw_calls == 2U &&
+                result.return_eax == 0xAAAAAAAAU &&
+                result.return_ecx == 0xBBBBBBBBU &&
+                result.return_edx == 0xCCCCCCCCU &&
+                fixture.port.calls_of(Call::reserved_query_special_option_slot)
+                    .empty(),
+            "control panel propagates the special loader stop after preserving its title and attack rows"
         );
     }
 

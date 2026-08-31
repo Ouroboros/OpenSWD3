@@ -2,6 +2,7 @@
 
 #include "openswd3/battle/legacy_battle_border_panel.hpp"
 #include "openswd3/battle/legacy_battle_group_b_action_item_option.hpp"
+#include "openswd3/battle/legacy_battle_group_b_action_item_special_option.hpp"
 #include "openswd3/battle/legacy_battle_selection_hint_frame.hpp"
 #include "openswd3/compat/types.hpp"
 
@@ -34,7 +35,7 @@ enum class LegacyBattleControlPanelFrameCall : compat::u8 {
     configure_font_style,
     draw_text,
     reserved_query_primary_option_slot,
-    query_special_option,
+    reserved_query_special_option_slot,
 };
 
 struct LegacyBattleControlPanelFrameCallRequest {
@@ -129,6 +130,7 @@ enum class LegacyBattleControlPanelFrameStatus : compat::u8 {
     body_border_typed_stop,
     group_b_actor_typed_stop,
     primary_option_typed_stop,
+    special_option_typed_stop,
 };
 
 struct LegacyBattleControlPanelRowTrace {
@@ -157,6 +159,8 @@ struct LegacyBattleControlPanelFrameResult {
     compat::u32 primary_query_calls{};
     std::array<LegacyBattleGroupBActionItemOptionResult, 3> primary_options{};
     compat::u32 special_query_calls{};
+    std::array<LegacyBattleGroupBActionItemSpecialOptionResult, 2>
+        special_options{};
     compat::u32 primary_rows{};
     compat::u32 special_rows{};
     compat::u32 visible_option_rows{};

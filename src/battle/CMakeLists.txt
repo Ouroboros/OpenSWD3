@@ -80,6 +80,7 @@ add_library(
         legacy_battle_group_b_action_configuration.cpp
         legacy_battle_group_b_action_item_option.cpp
         legacy_battle_group_b_action_item_selection.cpp
+        legacy_battle_group_b_action_item_special_option.cpp
         legacy_battle_group_b_action_profile_mode.cpp
         legacy_battle_group_b_action_profile_selection.cpp
         legacy_battle_group_b_action_execution.cpp

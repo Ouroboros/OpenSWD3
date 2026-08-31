@@ -120,7 +120,7 @@ enum class LegacyBattleInputDispatchCall : compat::u8 {
     menu_finalize_reset_actor,
     target_selection_configure_actor,
     reserved_target_selection_scan_primary_slot,
-    target_selection_scan_secondary,
+    reserved_target_selection_scan_secondary_slot,
     reserved_target_selection_refresh_state_slot,
     reserved_available_actor_cycle_slot,
     reserved_actor_action_commit_nested_slot,

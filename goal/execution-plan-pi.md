@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v841
+版本：v842
 
 最后更新：2026-08-31
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗函数 `0x00476860`
+当前步骤：模块10 · 审计战斗函数 `0x004768D0`
 
 ## 0. 执行约定
 
@@ -4300,4 +4300,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=252`的`0x00476780`战斗组B行动道具主选项加载函数。完整权威LST主体`0x00476780..0x0047685D`共110行、80条实际指令、6个call、6个跳转、3个局部标签和4个返回点且无外部chunk。实现完整32位selector 0/1/2门、动态资源`+0x66/+0x6A/+0x6E`定义word、selector 2资源高word保留、待审定义loader窄边界、loader后资源token重读、固定当前`+0x66` dword输出、三组原寄存器顺序、逐字节含NUL文字复制和首次越界typed-stop；非法selector与零定义清完整EAX，正常成功返回完整EAX一。actor、资源和内嵌定义复用组B生命周期唯一owner，共享文字继续使用既有选择workspace。目标选择与控制面板两个已关闭caller均删除三次主选项整函数opaque调用并typed直连，旧枚举值保留reserved，完整`EAX=1`成功门、扫描顺序、特殊选项路径和选中行发布不变；frame协调器统一适配定义加载与名称复制两个窄端口。验证：战斗聚合定向测试、完整core AddressSanitizer`188/188`、Linux core`188/188`、Linux app`194/194`全部通过，最终日志零OpenSWD3源码warning、测试失败和sanitizer finding；新增文件全量及历史文件触碰行通过clang-format Werror门。工作包为`252/422 = 243 platform_adapted + 9 assembly_exact + 170 pending_audit`；生成器连续双跑逐字节一致，SHA256为`271e8fc04270e71bf0651f5fa2f4264ec7830f2913ce4c6ce8b96050e96fed4a`。动态差分因原版组Bactor、动态资源三处定义word、真实定义loader副作用、内嵌名称、`lstrcpyA`逐字节访问、共享输出及两个caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=253`的`0x00476860`战斗函数。
+本轮再完成`audit_order=253`的`0x00476860`战斗组B行动道具特殊选项加载函数。完整权威LST主体`0x00476860..0x004768CC`共61行、41条实际指令、4个call、4个跳转、2个局部标签和3个返回点且无外部chunk。实现完整32位selector 0/1门、动态资源`+0x72/+0x76`定义word、selector 0零扩展与selector 1资源高word保留、待审定义loader窄边界、内嵌164-byte定义发布、两组原寄存器顺序、逐字节含NUL文字复制和首次越界typed-stop；非法selector与零定义清完整EAX，正常成功返回完整EAX一，且不增加主选项函数才有的资源重读或dword输出。actor、资源和内嵌定义复用组B生命周期唯一owner，共享文字继续使用既有选择workspace，定义加载和名称复制复用上一项既有窄port。目标选择与控制面板两个已关闭caller均删除两次特殊选项整函数opaque调用并typed直连，旧枚举数值保留reserved且生产零调用，完整`EAX=1`成功门、扫描顺序、格式化特殊行和后续transition/面板逻辑保持不变。验证：战斗聚合测试、完整core AddressSanitizer`188/188`、Linux core`188/188`、Linux app`194/194`全部通过，最终日志零OpenSWD3源码warning、测试失败和sanitizer finding；新增文件全量及历史文件触碰行通过clang-format Werror门。工作包为`253/422 = 244 platform_adapted + 9 assembly_exact + 169 pending_audit`；生成器连续双跑逐字节一致，SHA256为`d56b618548ed10b877f2d2086a24b3e42b9062afe6be4d26d080f018a6c0d3ed`。动态差分因原版组Bactor、动态资源两处定义word、真实定义loader副作用、内嵌名称、`lstrcpyA`逐字节访问、共享文字及两个caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=254`的`0x004768D0`战斗函数。
