@@ -167,7 +167,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     message_phase_commit_active_actor,
     message_phase_configure_actor_action,
     message_phase_refresh_actor_message_percent,
-    message_phase_resolve_action_item,
+    reserved_message_phase_resolve_action_item_slot,
     reserved_message_phase_victory_reward_slot,
     victory_begin_music_fade,
     victory_stop_all_samples,
@@ -236,6 +236,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     talisman_result_draw_failure_detail,
     text_message_frame_draw_text,
     text_message_frame_release_node,
+    message_phase_load_action_item_definition,
 };
 
 struct LegacyBattleFrameCoordinatorCallRequest {
@@ -333,6 +334,9 @@ struct LegacyBattleFrameCoordinatorCallReply {
     compat::u32 message_phase_mode_gate{};
     bool publish_message_phase_group_b_bypass{};
     compat::u32 message_phase_group_b_bypass{};
+    bool message_phase_action_item_typed_stop{};
+    std::shared_ptr<const std::array<compat::u8, 0xA4>>
+        message_phase_action_item_definition{};
     bool publish_victory_item_count{};
     compat::u16 victory_item_count{};
     bool publish_victory_reward_words{};
@@ -920,9 +924,9 @@ public:
             call = LegacyBattleFrameCoordinatorCall::
                 message_phase_refresh_actor_message_percent;
             break;
-        case LegacyBattleMessagePhaseCall::resolve_action_item:
+        case LegacyBattleMessagePhaseCall::reserved_resolve_action_item_slot:
             call = LegacyBattleFrameCoordinatorCall::
-                message_phase_resolve_action_item;
+                reserved_message_phase_resolve_action_item_slot;
             break;
         case LegacyBattleMessagePhaseCall::reserved_advance_message_100_slot:
             call = LegacyBattleFrameCoordinatorCall::
@@ -982,6 +986,10 @@ public:
             call = LegacyBattleFrameCoordinatorCall::
                 message_phase_summon_frame_render;
             break;
+        case LegacyBattleMessagePhaseCall::load_action_item_definition:
+            call = LegacyBattleFrameCoordinatorCall::
+                message_phase_load_action_item_definition;
+            break;
         }
         std::array<compat::u32, 8> arguments{};
         for (std::size_t index = 0U; index < request.arguments.size();
@@ -1037,6 +1045,9 @@ public:
             .publish_group_b_bypass_gate =
                 reply.publish_message_phase_group_b_bypass,
             .group_b_bypass_gate = reply.message_phase_group_b_bypass,
+            .typed_stop = reply.message_phase_action_item_typed_stop,
+            .group_b_action_item_definition =
+                reply.message_phase_action_item_definition,
         };
     }
     [[nodiscard]] LegacyBattleVictoryRewardCallReply invoke_victory_reward(

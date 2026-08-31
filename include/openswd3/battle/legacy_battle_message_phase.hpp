@@ -5,6 +5,7 @@
 #include "openswd3/battle/legacy_battle_debug_hotkeys.hpp"
 #include "openswd3/battle/legacy_battle_defeat_panel.hpp"
 #include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
+#include "openswd3/battle/legacy_battle_group_b_action_item_selection.hpp"
 #include "openswd3/battle/legacy_battle_group_b_frame.hpp"
 #include "openswd3/battle/legacy_battle_growth_actor_selection.hpp"
 #include "openswd3/battle/legacy_battle_growth_caption.hpp"
@@ -23,6 +24,7 @@
 #include "openswd3/battle/legacy_battle_victory_rewards.hpp"
 
 #include <array>
+#include <memory>
 #include <span>
 #include <vector>
 
@@ -76,7 +78,7 @@ enum class LegacyBattleMessagePhaseCall : compat::u8 {
     commit_active_actor,
     configure_actor_action,
     refresh_actor_message_percent,
-    resolve_action_item,
+    reserved_resolve_action_item_slot,
     reserved_advance_message_100_slot,
     select_message_101_actor,
     allocate_actor_transition,
@@ -91,6 +93,7 @@ enum class LegacyBattleMessagePhaseCall : compat::u8 {
     reserved_advance_message_103_slot,
     summon_frame_play_sample,
     summon_frame_render,
+    load_action_item_definition,
 };
 
 struct LegacyBattleMessagePhaseCallRequest {
@@ -138,6 +141,9 @@ struct LegacyBattleMessagePhaseCallReply {
     compat::u32 transition_mode_gate{};
     bool publish_group_b_bypass_gate{};
     compat::u32 group_b_bypass_gate{};
+    bool typed_stop{};
+    std::shared_ptr<const std::array<compat::u8, 0xA4>>
+        group_b_action_item_definition{};
 };
 
 class LegacyBattleMessagePhasePort
@@ -268,6 +274,7 @@ enum class LegacyBattleMessagePhaseStatus : compat::u8 {
     talisman_result_panel_typed_stop,
     target_selection_entry_typed_stop,
     summon_frame_typed_stop,
+    group_b_action_item_selection_typed_stop,
 };
 
 struct LegacyBattleMessagePhaseResult {
@@ -289,6 +296,8 @@ struct LegacyBattleMessagePhaseResult {
     compat::u32 actor_message_percent_refresh_calls{};
     LegacyBattleActorMessagePercentRefreshResult
         actor_message_percent_refresh{};
+    compat::u32 group_b_action_item_selection_calls{};
+    LegacyBattleGroupBActionItemSelectionResult group_b_action_item_selection{};
     compat::u32 player_item_quantity_calls{};
     compat::u32 victory_reward_calls{};
     compat::u32 level_up_panel_calls{};

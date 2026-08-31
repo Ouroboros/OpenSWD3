@@ -653,6 +653,42 @@ void configure_common_port(CoordinatorPort& port) {
 
 void test_battle_frame_coordinator(openswd3::test::Context& test) {
     {
+        CoordinatorPort port;
+        auto definition = std::make_shared<std::array<u8, 0xA4>>();
+        (*definition)[0x48U] = 0x34U;
+        port.replies[LegacyBattleFrameCoordinatorCall::
+                         message_phase_load_action_item_definition] = {
+            .eax = 0x11112222U,
+            .ecx = 0x33334444U,
+            .edx = 0x55556666U,
+            .message_phase_action_item_typed_stop = true,
+            .message_phase_action_item_definition = definition,
+        };
+        const auto reply = port.invoke_message_phase({
+            .call = openswd3::battle::LegacyBattleMessagePhaseCall::
+                load_action_item_definition,
+            .actor_token = 0x00528030U,
+            .arguments = {0x00528040U, 0xABCD1234U},
+            .eax = 0xABCD1234U,
+            .ecx = 0x00528040U,
+            .edx = 0x73001234U,
+        });
+        const auto& request = port.calls.back();
+        test.expect_true(
+            request.call ==
+                    LegacyBattleFrameCoordinatorCall::
+                        message_phase_load_action_item_definition &&
+                request.object_token == 0x00528030U &&
+                request.arguments[0U] == 0x00528040U &&
+                request.arguments[1U] == 0xABCD1234U &&
+                request.eax == 0xABCD1234U && request.ecx == 0x00528040U &&
+                request.edx == 0x73001234U && reply.typed_stop &&
+                reply.group_b_action_item_definition == definition,
+            "frame coordinator forwards the message action-item definition loader and its typed stop"
+        );
+    }
+
+    {
         openswd3::battle::LegacyBattleFrameCoordinatorState state;
         state.music_path = "game-data/music/current.mp3";
         auto fixture = std::make_unique<Fixture>();

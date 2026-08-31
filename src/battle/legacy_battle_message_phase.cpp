@@ -29,6 +29,40 @@ using compat::u8;
     return std::bit_cast<i32>(value);
 }
 
+class MessagePhaseGroupBActionItemPort final
+    : public LegacyBattleGroupBActionItemSelectionPort {
+public:
+    explicit MessagePhaseGroupBActionItemPort(
+        LegacyBattleMessagePhasePort& port
+    ) noexcept
+        : port_(port) {}
+
+    [[nodiscard]] LegacyBattleGroupBActionItemDefinitionLoadReply
+    load_action_item_definition(
+        const LegacyBattleGroupBActionItemDefinitionLoadRequest& request
+    ) override {
+        const auto reply = port_.invoke_message_phase({
+            .call = LegacyBattleMessagePhaseCall::load_action_item_definition,
+            .actor_token = request.actor_token,
+            .arguments =
+                {request.destination_token, request.definition_argument},
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        });
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .typed_stop = reply.typed_stop,
+            .definition = reply.group_b_action_item_definition,
+        };
+    }
+
+private:
+    LegacyBattleMessagePhasePort& port_;
+};
+
 class MessagePhaseMachine {
 public:
     MessagePhaseMachine(
@@ -506,11 +540,44 @@ private:
                 LegacyBattleMessagePhaseStatus::group_b_actor_typed_stop
             );
         }
-        call(
-            LegacyBattleMessagePhaseCall::resolve_action_item,
-            ecx_,
-            {resource_value, profile_argument}
-        );
+        auto* const group_b_actor =
+            bindings_.startup.group_b_lifecycle == nullptr
+            ? nullptr
+            : &(*bindings_.startup.group_b_lifecycle)[group_b_index];
+        MessagePhaseGroupBActionItemPort action_item_port(port_);
+        result_.group_b_action_item_selection =
+            select_legacy_battle_group_b_action_item(
+                group_b_actor,
+                bindings_.victory_rewards.bounded_random,
+                action_item_port,
+                {
+                    .actor_token = ecx_,
+                    .resource_value = resource_value,
+                    .profile_argument = profile_argument,
+                    .entry_eax = eax_,
+                    .entry_ecx = ecx_,
+                    .entry_edx = edx_,
+                }
+            );
+        ++result_.group_b_action_item_selection_calls;
+        result_.port_calls +=
+            result_.group_b_action_item_selection.definition_load_calls;
+        if (result_.group_b_action_item_selection.definition_load_calls != 0U) {
+            result_.call_trace.push_back(
+                LegacyBattleMessagePhaseCall::load_action_item_definition
+            );
+            ++result_.call_trace_count;
+        }
+        eax_ = result_.group_b_action_item_selection.return_eax;
+        ecx_ = result_.group_b_action_item_selection.return_ecx;
+        edx_ = result_.group_b_action_item_selection.return_edx;
+        if (result_.group_b_action_item_selection.status !=
+            LegacyBattleGroupBActionItemSelectionStatus::completed) {
+            return stop(
+                LegacyBattleMessagePhaseStatus::
+                    group_b_action_item_selection_typed_stop
+            );
+        }
         if (static_cast<u16>(eax_) == 0U) {
             bindings_.target_selection.transition_aux_byte = 2U;
             return finish();

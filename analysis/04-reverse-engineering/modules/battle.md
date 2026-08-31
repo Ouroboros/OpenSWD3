@@ -2,7 +2,7 @@
 
 状态：`module_in_progress`
 
-当前关闭进度：`250/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
+当前关闭进度：`251/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
 
 ## 1. 唯一真值与模块目标
 
@@ -51,10 +51,10 @@ code_origin == game
 - 尾地址：`0x00484500`；
 - `confirmed_boundary`：`61`；
 - `medium`导航候选：`361`；
-- `pending_audit`：`172`；
+- `pending_audit`：`171`；
 - `assembly_exact`：`9`；
-- `platform_adapted`：`241`；
-- 已关闭：`250`。
+- `platform_adapted`：`242`；
+- 已关闭：`251`。
 
 六个稳定导航分组为：
 
@@ -76,7 +76,7 @@ code_origin == game
 - `legacy_battle_assets`：FIGTALK固定窗口和`battle.ffd`头、索引、记录读取；
 - `legacy_battle_setup`：初始队伍筛选、固定阵型、镜像坐标和敌方记录布局。
 
-它们覆盖了`0x0046E0B0`、`0x0045F130`、`0x0045F1B0`与`0x00451B10`的部分有效资产路径或部分指令区间，但尚未证明所属函数的完整LST函数体、全部外部chunk、全部错误/循环/异常域、caller回收和完整战斗生命周期。因此这些历史切片继续不计数；当前`250/422`只来自本文件逐项登记且完成全部关闭门的函数，不得把其他测试通过、局部有效路径或真实battle 98样本当作函数关闭。
+它们覆盖了`0x0046E0B0`、`0x0045F130`、`0x0045F1B0`与`0x00451B10`的部分有效资产路径或部分指令区间，但尚未证明所属函数的完整LST函数体、全部外部chunk、全部错误/循环/异常域、caller回收和完整战斗生命周期。因此这些历史切片继续不计数；当前`251/422`只来自本文件逐项登记且完成全部关闭门的函数，不得把其他测试通过、局部有效路径或真实battle 98样本当作函数关闭。
 
 `app::battle_transition`和`frame_runtime`只实现顶层请求与返回编排，不属于422项战斗内部函数关闭计数。
 
@@ -711,6 +711,8 @@ I5最终必须锁定：
 
 本轮再完成`audit_order=250`的`0x004763D0`战斗组B行动十七逐帧演出函数。完整权威LST主体`0x004763D0..0x004765F8`共259行、158条实际指令、8个call、15个跳转、14个局部标签和3个返回点且无外部chunk。实现signed倒计时小于等于六时精确清零`0x98`字节动作记录并返回一，以及逐帧路径中的首段sample、profile行动记录、固定variant、完整special-mode门、typed动作更新、双u16键帧查询、倒计时十五sample与声像、镜像bit两次切换、完整32位draw-offset门与u16宽度回绕、坐标正负25发布、六参数软件blitter、正常epilogue和倒计时回绕递减；保留播放返回ECX/EDX陈旧高word、帧查询后的寄存器knownness、两处不同frame首次解引用故障点及blitter失败前缀。actor、动作记录、frame token、位置、音效字和倒计时复用组B生命周期既有action-execution owner，共享frame source与blitter scratch复用现有唯一owner，动作更新、帧查询和软件blitter直接typed调用，坐标及音频保持四个窄port。对手动作case 17唯一caller删除整函数opaque调用并typed直连；完整`EAX=1`才执行三步收尾，零返回保留公共逐帧路径，typed-stop阻断全部收尾后缀。验证：战斗聚合定向测试、完整core AddressSanitizer`188/188`、Linux core`188/188`、Linux app`194/194`全部通过，三份最终日志零OpenSWD3源码warning和sanitizer finding。工作包为`250/422 = 241 platform_adapted + 9 assembly_exact + 172 pending_audit`；生成器连续双跑逐字节一致，SHA256为`eca8395402f46d93532dfadda60ae9a71f8c6d300ff94710b51100ce8196d3c3`。动态差分因原版组B actor、动作记录流、帧描述符、音频返回寄存器、坐标callee、软件blitter共享状态及唯一caller后缀联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=251`的`0x00476600`战斗函数。
+本轮再完成`audit_order=251`的`0x00476600`战斗组B行动道具随机选择函数。完整权威LST主体`0x00476600..0x00476776`共178行、120条实际指令、6个call、21个跳转、10个局部标签和3个返回点且无外部chunk。实现actor一次性bit门、参数低word分段的首次随机上限、原increment-mask-decrement归一化及`0xFFFF`下溢、三类动态资源定义、60/90严格概率门、随机后资源token与定义word重读、内嵌164-byte定义发布、加载后bit清除、定义bit27道具word返回及只清`AX`的失败高word保留；选择1的loader `ECX`未知高word另以knownness显式表示。actor、动态资源、内嵌定义和一次性bit复用组B生命周期既有唯一owner，两次随机复用frame协调器secondary RNG adapter；待审定义加载器只保留窄port。消息99唯一caller删除整函数opaque调用并typed直连，旧枚举槽保留reserved，低`AX`成功门、玩家道具数量和特殊行动计数后缀不变；actor、资源或loader typed-stop阻断道具、aux和计数后缀。frame协调器同步追加新窄调用及定义/typed-stop透传。验证：战斗聚合定向测试、完整core AddressSanitizer`188/188`、Linux core`188/188`、Linux app`194/194`全部通过，最终日志零OpenSWD3源码warning、测试失败和sanitizer finding。工作包为`251/422 = 242 platform_adapted + 9 assembly_exact + 171 pending_audit`；生成器连续双跑逐字节一致，SHA256为`a24a467dbcad3e860e862638d3d04060de274731ba995b3565b59ff57aa23389`。动态差分因原版组B actor、动态资源四处word、secondary RNG状态、真实定义加载副作用、内嵌定义及消息99 caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=252`的`0x00476780`战斗函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

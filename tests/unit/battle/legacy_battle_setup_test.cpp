@@ -108,6 +108,7 @@ void test_battle_global_reset(openswd3::test::Context& test);
 void test_battle_group_a_frame(openswd3::test::Context& test);
 void test_battle_group_b_action_composition(openswd3::test::Context& test);
 void test_battle_group_b_action_configuration(openswd3::test::Context& test);
+void test_battle_group_b_action_item_selection(openswd3::test::Context& test);
 void test_battle_group_b_action_profile_flag(openswd3::test::Context& test);
 void test_battle_group_b_action_profile_mode(openswd3::test::Context& test);
 void test_battle_group_b_action_profile_selection(
@@ -7192,6 +7193,7 @@ int main() {
     test_battle_group_a_frame(test);
     test_battle_group_b_action_composition(test);
     test_battle_group_b_action_configuration(test);
+    test_battle_group_b_action_item_selection(test);
     test_battle_group_b_action_profile_flag(test);
     test_battle_group_b_action_profile_mode(test);
     test_battle_group_b_action_profile_selection(test);

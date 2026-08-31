@@ -4,6 +4,7 @@
 #include <array>
 #include <bit>
 #include <map>
+#include <memory>
 #include <vector>
 
 #include "test.hpp"
@@ -716,6 +717,19 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         fixture.target_selection.special_action_count = 5U;
         fixture.startup.action_mode_source.actor_label_indices[1U] = 2U;
         fixture.action_profiles[112U] = 0x7AU;
+        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            8>>();
+        auto& opponent = (*fixture.startup.group_b_lifecycle)[1U];
+        opponent.resource_token = 0x73001234U;
+        opponent.action_execution.retreat_ready_flags = 0x0020U;
+        opponent.resource_bytes[0x54U] = 0x80U;
+        opponent.resource_bytes[0x66U] = 0x44U;
+        opponent.resource_bytes[0x67U] = 0x33U;
+        auto loaded_definition = std::make_shared<std::array<u8, 0xA4>>();
+        (*loaded_definition)[0x23U] = 0x08U;
+        (*loaded_definition)[0x48U] = 0x34U;
+        (*loaded_definition)[0x49U] = 0x12U;
         fixture.startup.reset.block_52022c[5U] = 1U;
         fixture.port.reply(
             LegacyBattleMessagePhaseCall::query_actor_completion, {.eax = 0U}
@@ -729,7 +743,13 @@ void test_battle_message_phase(openswd3::test::Context& test) {
             }
         );
         fixture.port.reply(
-            LegacyBattleMessagePhaseCall::resolve_action_item, {.eax = 0x1234U}
+            LegacyBattleMessagePhaseCall::load_action_item_definition,
+            {
+                .eax = 0xAAAAAAAAU,
+                .ecx = 0xBBBBBBBBU,
+                .edx = 0xCCCCCCCCU,
+                .group_b_action_item_definition = loaded_definition,
+            }
         );
         fixture.port.action_replies = {
             {.eax = 0x00900000U},
@@ -752,6 +772,10 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                 result.actor_message_percent_refresh_calls == 1U &&
                 result.actor_message_percent_refresh.percent_refresh_calls ==
                     1U &&
+                result.group_b_action_item_selection_calls == 1U &&
+                result.group_b_action_item_selection.random_calls == 2U &&
+                result.group_b_action_item_selection.definition_load_calls ==
+                    1U &&
                 result.player_item_quantity_calls == 1U &&
                 result.player_item_quantity.created &&
                 fixture.port.battle_victory_reward_state()
@@ -770,14 +794,24 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         );
         test.expect_true(
             resolved.call ==
-                    LegacyBattleMessagePhaseCall::resolve_action_item &&
+                    LegacyBattleMessagePhaseCall::load_action_item_definition &&
                 resolved.actor_token ==
                     openswd3::battle::kLegacyBattleMessagePhaseGroupBBaseToken +
                         openswd3::battle::
                             kLegacyBattleMessagePhaseGroupBElementSize &&
-                resolved.arguments[0U] == 0x55U &&
-                resolved.arguments[1U] == 0x7AU,
-            "message 99 passes the selected resource and low-byte profile through the group-B item resolver"
+                resolved.arguments[0U] == resolved.actor_token + 0x10U &&
+                resolved.arguments[1U] == 0x3344U && resolved.eax == 0x3344U &&
+                resolved.ecx == resolved.actor_token + 0x10U &&
+                resolved.edx == 0x73001234U &&
+                result.group_b_action_item_selection.initial_random_bound ==
+                    3U &&
+                result.group_b_action_item_selection.decision_threshold ==
+                    60U &&
+                fixture.port.count(
+                    LegacyBattleMessagePhaseCall::
+                        reserved_resolve_action_item_slot
+                ) == 0U,
+            "message 99 selects and loads the group-B item definition without the retired whole-function slot"
         );
         test.expect_true(
             committed.call ==
@@ -799,6 +833,129 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                 resource.arguments[0U] == 30U && resource.eax == 3021U &&
                 resource.edx == 5U,
             "message 99 refreshes actor percent through only the pending callee and preserves its register snapshot"
+        );
+    }
+    {
+        Fixture fixture;
+        fixture.message = 0x63U;
+        fixture.target_selection.special_action_count = 5U;
+        fixture.startup.action_mode_source.actor_label_indices[1U] = 2U;
+        fixture.action_profiles[112U] = 0x7AU;
+        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            8>>();
+        auto& opponent = (*fixture.startup.group_b_lifecycle)[1U];
+        opponent.resource_token = 0x73001234U;
+        opponent.action_execution.retreat_ready_flags = 0x0020U;
+        opponent.resource_bytes[0x54U] = 0x80U;
+        opponent.resource_bytes[0x66U] = 0x44U;
+        opponent.resource_bytes[0x67U] = 0x33U;
+        fixture.startup.reset.block_52022c[5U] = 1U;
+        fixture.port.reply(
+            LegacyBattleMessagePhaseCall::query_actor_completion, {.eax = 0U}
+        );
+        fixture.port.reply(
+            LegacyBattleMessagePhaseCall::refresh_actor_message_percent,
+            {
+                .eax = 0x55U,
+                .publish_actor_message_percent = true,
+                .actor_message_percent = 0x55U,
+            }
+        );
+        fixture.port.reply(
+            LegacyBattleMessagePhaseCall::load_action_item_definition,
+            {
+                .eax = 0xA1A2A3A4U,
+                .ecx = 0xB1B2B3B4U,
+                .edx = 0xC1C2C3C4U,
+                .typed_stop = true,
+            }
+        );
+        const auto result = run(fixture);
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleMessagePhaseStatus::
+                        group_b_action_item_selection_typed_stop &&
+                result.group_b_action_item_selection_calls == 1U &&
+                result.group_b_action_item_selection.status ==
+                    openswd3::battle::
+                        LegacyBattleGroupBActionItemSelectionStatus::
+                            definition_load_typed_stop &&
+                result.return_eax == 0xA1A2A3A4U &&
+                result.return_ecx == 0xB1B2B3B4U &&
+                result.return_edx == 0xC1C2C3C4U &&
+                fixture.target_selection.transition_aux_byte == 0U &&
+                fixture.target_selection.special_action_count == 5U &&
+                result.player_item_quantity_calls == 0U &&
+                opponent.action_execution.retreat_ready_flags == 0x0020U &&
+                fixture.port.count(
+                    LegacyBattleMessagePhaseCall::
+                        reserved_resolve_action_item_slot
+                ) == 0U &&
+                fixture.port.count(
+                    LegacyBattleMessagePhaseCall::load_action_item_definition
+                ) == 1U,
+            "message 99 propagates the definition-loader stop before item publication and count consumption"
+        );
+    }
+    {
+        Fixture fixture;
+        fixture.message = 0x63U;
+        fixture.target_selection.special_action_count = 5U;
+        fixture.startup.action_mode_source.actor_label_indices[1U] = 2U;
+        fixture.action_profiles[112U] = 0x7AU;
+        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            8>>();
+        auto& opponent = (*fixture.startup.group_b_lifecycle)[1U];
+        opponent.resource_token = 0x73001234U;
+        opponent.action_execution.retreat_ready_flags = 0x0020U;
+        opponent.resource_bytes[0x54U] = 0x80U;
+        opponent.resource_bytes[0x66U] = 0x44U;
+        opponent.resource_bytes[0x67U] = 0x33U;
+        auto loaded_definition = std::make_shared<std::array<u8, 0xA4>>();
+        (*loaded_definition)[0x20U] = 0x78U;
+        (*loaded_definition)[0x21U] = 0x56U;
+        (*loaded_definition)[0x22U] = 0x34U;
+        (*loaded_definition)[0x23U] = 0x12U;
+        fixture.startup.reset.block_52022c[5U] = 1U;
+        fixture.port.reply(
+            LegacyBattleMessagePhaseCall::query_actor_completion, {.eax = 0U}
+        );
+        fixture.port.reply(
+            LegacyBattleMessagePhaseCall::refresh_actor_message_percent,
+            {
+                .eax = 0x55U,
+                .publish_actor_message_percent = true,
+                .actor_message_percent = 0x55U,
+            }
+        );
+        fixture.port.reply(
+            LegacyBattleMessagePhaseCall::load_action_item_definition,
+            {
+                .eax = 0xAAAAAAAAU,
+                .ecx = 0xBBBBBBBBU,
+                .edx = 0xCCCCCCCCU,
+                .group_b_action_item_definition = loaded_definition,
+            }
+        );
+        const auto result = run(fixture);
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleMessagePhaseStatus::
+                        completed &&
+                result.return_eax == 0x12340000U &&
+                result.return_ecx == 0xBBBBBBBBU &&
+                result.return_edx == 0xCCCCCCCCU &&
+                fixture.target_selection.transition_aux_byte == 2U &&
+                fixture.target_selection.special_action_count == 5U &&
+                result.player_item_quantity_calls == 0U &&
+                opponent.action_execution.retreat_ready_flags == 0U &&
+                fixture.port.count(
+                    LegacyBattleMessagePhaseCall::
+                        reserved_resolve_action_item_slot
+                ) == 0U,
+            "message 99 compares only AX and keeps the loaded definition high word on failure"
         );
     }
     {
