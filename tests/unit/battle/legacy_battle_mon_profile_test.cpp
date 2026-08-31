@@ -96,6 +96,11 @@ public:
 
         case LegacyBattleMonDatabaseCall::release_stream:
             return release_reply;
+
+        case LegacyBattleMonDatabaseCall::query_definition_text_size:
+        case LegacyBattleMonDatabaseCall::allocate_definition_text:
+        case LegacyBattleMonDatabaseCall::release_definition_text:
+            return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
         }
         return {};
     }
@@ -228,6 +233,11 @@ public:
 
         case LegacyBattleMonDatabaseCall::release_stream:
             ++release_calls;
+            return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
+
+        case LegacyBattleMonDatabaseCall::query_definition_text_size:
+        case LegacyBattleMonDatabaseCall::allocate_definition_text:
+        case LegacyBattleMonDatabaseCall::release_definition_text:
             return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
         }
         return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};

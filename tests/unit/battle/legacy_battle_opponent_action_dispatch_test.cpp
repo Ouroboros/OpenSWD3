@@ -622,11 +622,12 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 (*fixture.startup->group_b_lifecycle)[1U]
                         .action_record.position_y == 350U &&
                 state.opponent_spawn_count == 0U &&
-                has_call_argument(port, 0x00476DB0U, 1U, 0xABCD1234U) &&
+                port.requested_definition_ids ==
+                    std::vector<u32>{0x1234U, 0x1234U, 0x1234U, 0x1234U} &&
                 port.count(0x00476900U) == 0U &&
                 port.count(0x00475720U) == 0U &&
                 port.count(0x00476A80U) == 0U && port.open_calls == 1U &&
-                port.read_calls == 6U && port.release_calls == 2U &&
+                port.read_calls == 18U && port.release_calls == 6U &&
                 port.count(0x0045B0E0U) == 0U &&
                 port.count(0x004783B0U) == 3U &&
                 port.count(0x0045B190U) == 0U && port.count(0x0045B5A0U) == 0U,
@@ -677,7 +678,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleActionDispatchStatus::
-                        group_b_action_configuration_typed_stop &&
+                        mon_definition_load_typed_stop &&
                 result.group_b_iterations == 0U && state.group_b_count == 0 &&
                 fixture.startup->group_b_lifecycle != nullptr &&
                 (*fixture.startup->group_b_lifecycle)[0U]
@@ -686,7 +687,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 port.count(0x00476900U) == 0U &&
                 port.count(0x00475720U) == 0U &&
                 port.count(0x00476A80U) == 0U && port.allocation_calls == 1U &&
-                port.release_calls == 0U && port.count(0x00478220U) == 1U,
+                port.release_calls == 0U && port.count(0x00478220U) == 0U,
             "opponent action fifteen propagates the typed profile stop without completing the wave"
         );
     }

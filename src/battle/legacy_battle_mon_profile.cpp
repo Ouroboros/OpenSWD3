@@ -458,6 +458,16 @@ LegacyBattleMonDatabasePort::legacy_battle_mon_profile_scratch() noexcept {
     return mon_profile_scratch_;
 }
 
+std::array<compat::u8, kLegacyBattleMonDefinitionScratchBytes>&
+LegacyBattleMonDatabasePort::legacy_battle_mon_definition_scratch() noexcept {
+    return mon_definition_scratch_;
+}
+
+std::vector<compat::u8>& LegacyBattleMonDatabasePort::
+    legacy_battle_mon_definition_scratch_description() noexcept {
+    return mon_definition_scratch_description_;
+}
+
 LegacyBattleMonDatabaseCallReply
 LegacyBattleMonDatabasePort::invoke_legacy_battle_mon_database(
     const LegacyBattleMonDatabaseCallRequest& request,

@@ -1,3 +1,4 @@
+#include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_outcome_resolution.hpp"
 #include "test.hpp"
 
@@ -25,13 +26,16 @@ using openswd3::rendering::LegacyBlitEffectState;
 using openswd3::rendering::LegacyFramebuffer;
 using openswd3::rendering::LegacySurfaceGeometry;
 
-class OutcomePort final : public LegacyBattleOutcomeResolutionPort {
+class OutcomePort final
+    : public LegacyBattleOutcomeResolutionPort,
+      public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
     LegacyBattleOutcomeResolutionState* shared_state{};
     std::vector<LegacyBattleOutcomeResolutionCall> calls;
     LegacyBattleOutcomeResolutionCallReply audio_reply{};
     std::function<void(LegacyBattleOutcomeResolutionCall)> on_call;
     std::function<void(const LegacyBattleActionCallRequest&)> on_action_call;
+    std::function<void(u32)> on_definition_load;
     std::vector<LegacyBattleActionCallRequest> action_calls;
     u32 next_allocation_token{0x73000000U};
     bool fail_allocation{};
@@ -56,6 +60,22 @@ public:
             return {.eax = token};
         }
         return {};
+    }
+
+    [[nodiscard]] openswd3::battle::LegacyBattleMonDatabaseCallReply
+    invoke_legacy_battle_mon_database(
+        const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
+        const std::span<openswd3::compat::u8> destination
+    ) override {
+        auto reply = openswd3::test::LegacyBattleMonDatabaseFixture::
+            invoke_legacy_battle_mon_database(request, destination);
+        if (request.call ==
+                openswd3::battle::LegacyBattleMonDatabaseCall::
+                    allocate_stream &&
+            on_definition_load && !requested_definition_ids.empty()) {
+            on_definition_load(requested_definition_ids.back());
+        }
+        return reply;
     }
 
     [[nodiscard]] LegacyBattleOutcomeResolutionCallReply
@@ -189,13 +209,8 @@ void test_battle_outcome_resolution(openswd3::test::Context& test) {
                 result.first_finalization.cleanup_applied &&
                 result.first_finalization.player_reward_calls == 1U &&
                 result.first_finalization.return_value == 1U &&
-                std::ranges::any_of(
-                    port.action_calls,
-                    [](const auto& call) {
-                        return call.callee_token == 0x00476DB0U &&
-                            call.arguments[1] == 0x12340042U;
-                    }
-                ) &&
+                port.requested_definition_ids ==
+                    std::vector<u32>{0x0042U, 0x0300U} &&
                 fixture.group_b_count == 0U &&
                 fixture.state.resolution_latch == 1U &&
                 fixture.state.darkening.channel_delta == 0 &&
@@ -292,9 +307,8 @@ void test_battle_outcome_resolution(openswd3::test::Context& test) {
         fixture.state.darkening.channel_delta = -30;
         OutcomePort port;
         port.shared_state = &fixture.state;
-        port.on_action_call = [&](const LegacyBattleActionCallRequest& call) {
-            if (call.callee_token == 0x00476DB0U &&
-                call.arguments[1] == 0x0300U) {
+        port.on_definition_load = [&](const u32 definition_id) {
+            if (definition_id == 0x0300U) {
                 fixture.action.packed_actor_counter = 2U;
                 fixture.state.darkening.channel_delta = -30;
             }

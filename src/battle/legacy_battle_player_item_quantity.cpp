@@ -2,6 +2,9 @@
 
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 
+#include <algorithm>
+#include <array>
+
 #include <bit>
 #include <cstddef>
 #include <new>
@@ -11,13 +14,13 @@ namespace {
 
 using compat::i16;
 using compat::i32;
+using compat::u8;
 using compat::u16;
 using compat::u32;
 using world_map::LegacyWorldItemListState;
 using world_map::LegacyWorldItemNode;
 
 constexpr u32 kAllocateCallToken = 0x00487C10U;
-constexpr u32 kInitializeCallToken = 0x00476DB0U;
 constexpr std::size_t kFlagByteOffset = 0x21U;
 
 [[nodiscard]] constexpr i16 signed_word(const u16 value) noexcept {
@@ -132,12 +135,41 @@ LegacyBattlePlayerItemQuantityResult advance_legacy_battle_player_item_quantity(
     node.legacy_next_token = old_head_token;
     node.item_id = item_word;
 
-    LegacyBattleActionCallRequest initialize_request{};
-    initialize_request.callee_token = kInitializeCallToken;
-    initialize_request.arguments[0] = payload_token(node.legacy_token);
-    initialize_request.arguments[1] = item_id;
+    std::array<u8, kLegacyBattleMonDefinitionBytes> definition{};
+    std::copy(
+        node.definition_snapshot.cbegin(),
+        node.definition_snapshot.cend(),
+        definition.begin()
+    );
+    definition[0xA0U] = static_cast<u8>(node.legacy_description_token);
+    definition[0xA1U] = static_cast<u8>(node.legacy_description_token >> 8U);
+    definition[0xA2U] = static_cast<u8>(node.legacy_description_token >> 16U);
+    definition[0xA3U] = static_cast<u8>(node.legacy_description_token >> 24U);
+    const auto definition_result = load_legacy_battle_mon_definition(
+        definition,
+        node.description,
+        port,
+        {
+            .path = "mon.dat",
+            .output_token = payload_token(node.legacy_token),
+            .definition_id = item_id,
+        }
+    );
     ++result.port_calls;
-    static_cast<void>(port.invoke(initialize_request));
+    std::copy_n(
+        definition.cbegin(),
+        node.definition_snapshot.size(),
+        node.definition_snapshot.begin()
+    );
+    node.legacy_description_token = static_cast<u32>(definition[0xA0U]) |
+        (static_cast<u32>(definition[0xA1U]) << 8U) |
+        (static_cast<u32>(definition[0xA2U]) << 16U) |
+        (static_cast<u32>(definition[0xA3U]) << 24U);
+    if (legacy_battle_mon_definition_load_stopped(definition_result.status)) {
+        result.status = LegacyBattlePlayerItemQuantityStatus::
+            mon_definition_load_typed_stop;
+        return result;
+    }
 
     if (quantity_selector == 1U) {
         node.quantity_b = 1U;

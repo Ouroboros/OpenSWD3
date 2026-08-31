@@ -248,6 +248,29 @@ add_test(
 )
 
 add_executable(
+    openswd3_battle_legacy_battle_mon_definition_tests
+    unit/battle/legacy_battle_mon_definition_test.cpp
+)
+if(EXISTS "${PROJECT_SOURCE_DIR}/../MON.DAT")
+    target_compile_definitions(
+        openswd3_battle_legacy_battle_mon_definition_tests
+        PRIVATE OPENSWD3_MON_DATA_PATH="${PROJECT_SOURCE_DIR}/../MON.DAT"
+    )
+endif()
+target_include_directories(
+    openswd3_battle_legacy_battle_mon_definition_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_battle_legacy_battle_mon_definition_tests
+    PRIVATE openswd3_battle_mon
+)
+add_test(
+    NAME battle.legacy_battle_mon_definition
+    COMMAND openswd3_battle_legacy_battle_mon_definition_tests
+)
+
+add_executable(
     openswd3_battle_legacy_battle_setup_tests
     unit/battle/legacy_battle_action_mode_refresh_test.cpp
     unit/battle/legacy_battle_action_summary_test.cpp

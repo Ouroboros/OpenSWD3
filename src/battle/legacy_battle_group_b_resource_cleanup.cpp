@@ -41,6 +41,7 @@ LegacyBattleGroupBResourceCleanupResult release_legacy_battle_group_b_resource(
     result.return_edx = reply.edx;
     state->resource_token = 0U;
     state->resource_bytes.fill(0U);
+    state->resource_description.clear();
     result.resource_released = true;
     return result;
 }

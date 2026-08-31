@@ -188,12 +188,16 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     level_growth_draw_text,
     level_growth_play_sample,
     growth_actor_query_group_a_reward_block,
-    growth_actor_load_item_definition,
+    reserved_growth_actor_load_item_definition,
+    growth_actor_load_item_definition =
+        reserved_growth_actor_load_item_definition,
     growth_actor_query_item_presence,
     growth_actor_allocate_item_node,
     growth_item_result_query_actor_completion,
     reserved_growth_item_result_select_item,
-    growth_item_result_load_definition,
+    reserved_growth_item_result_load_definition,
+    growth_item_result_load_definition =
+        reserved_growth_item_result_load_definition,
     growth_item_result_release_description,
     growth_item_result_copy_caption,
     growth_item_completion_format_text,
@@ -236,7 +240,9 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     talisman_result_draw_failure_detail,
     text_message_frame_draw_text,
     text_message_frame_release_node,
-    group_b_action_item_load_definition,
+    reserved_group_b_action_item_load_definition,
+    group_b_action_item_load_definition =
+        reserved_group_b_action_item_load_definition,
     group_b_action_item_copy_name,
 };
 
@@ -428,29 +434,6 @@ public:
 
     [[nodiscard]] virtual LegacyBattleFrameCoordinatorCallReply
     invoke(const LegacyBattleFrameCoordinatorCallRequest& request) = 0;
-
-    [[nodiscard]] LegacyBattleGroupBActionItemDefinitionLoadReply
-    load_action_item_definition(
-        const LegacyBattleGroupBActionItemDefinitionLoadRequest& request
-    ) override {
-        const auto reply = invoke({
-            .call = LegacyBattleFrameCoordinatorCall::
-                group_b_action_item_load_definition,
-            .object_token = request.actor_token,
-            .arguments =
-                {request.destination_token, request.definition_argument},
-            .eax = request.eax,
-            .ecx = request.ecx,
-            .edx = request.edx,
-        });
-        return {
-            .eax = reply.eax,
-            .ecx = reply.ecx,
-            .edx = reply.edx,
-            .typed_stop = reply.message_phase_action_item_typed_stop,
-            .definition = reply.message_phase_action_item_definition,
-        };
-    }
 
     [[nodiscard]] LegacyBattleGroupBActionItemNameCopyReply
     copy_action_item_name(
@@ -1034,9 +1017,9 @@ public:
             call = LegacyBattleFrameCoordinatorCall::
                 message_phase_summon_frame_render;
             break;
-        case LegacyBattleMessagePhaseCall::load_action_item_definition:
+        case LegacyBattleMessagePhaseCall::reserved_load_action_item_definition:
             call = LegacyBattleFrameCoordinatorCall::
-                group_b_action_item_load_definition;
+                reserved_group_b_action_item_load_definition;
             break;
         }
         std::array<compat::u32, 8> arguments{};
@@ -1352,9 +1335,10 @@ public:
         switch (request.call) {
         case LegacyBattleGrowthActorSelectionCall::query_group_a_reward_block:
             break;
-        case LegacyBattleGrowthActorSelectionCall::load_item_definition:
+        case LegacyBattleGrowthActorSelectionCall::
+            reserved_load_item_definition:
             call = LegacyBattleFrameCoordinatorCall::
-                growth_actor_load_item_definition;
+                reserved_growth_actor_load_item_definition;
             break;
         case LegacyBattleGrowthActorSelectionCall::query_item_presence:
             call = LegacyBattleFrameCoordinatorCall::
@@ -1411,9 +1395,10 @@ public:
                 reserved_growth_item_result_select_item;
             break;
 
-        case LegacyBattleGrowthItemResultSelectionCall::load_item_definition:
+        case LegacyBattleGrowthItemResultSelectionCall::
+            reserved_load_item_definition:
             call = LegacyBattleFrameCoordinatorCall::
-                growth_item_result_load_definition;
+                reserved_growth_item_result_load_definition;
             break;
 
         case LegacyBattleGrowthItemResultSelectionCall::

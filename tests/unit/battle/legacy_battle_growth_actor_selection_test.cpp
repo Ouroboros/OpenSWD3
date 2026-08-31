@@ -1,3 +1,4 @@
+#include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_growth_actor_selection.hpp"
 
 #include <algorithm>
@@ -49,7 +50,8 @@ definition(const std::vector<u8>& name, const u16 code, const u32 limit) {
 }
 
 class Port final
-    : public openswd3::battle::LegacyBattleGrowthActorSelectionPort {
+    : public openswd3::battle::LegacyBattleGrowthActorSelectionPort,
+      public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
     [[nodiscard]] LegacyBattleGrowthActorSelectionCallReply
     invoke_growth_actor_selection(
@@ -104,6 +106,20 @@ public:
         replies;
     std::map<LegacyBattleGrowthActorSelectionCall, std::size_t> reply_indices;
     std::map<u16, std::array<u8, 160U>> definitions;
+
+protected:
+    [[nodiscard]] std::optional<bool> prepare_definition_record(
+        const std::span<u8> destination, const u32 definition_id
+    ) noexcept override {
+        const auto found = definitions.find(static_cast<u16>(definition_id));
+        if (found == definitions.end()) {
+            return false;
+        }
+        std::copy(
+            found->second.cbegin(), found->second.cend(), destination.begin()
+        );
+        return true;
+    }
 };
 
 struct Fixture {
@@ -229,31 +245,21 @@ void test_battle_growth_actor_selection(openswd3::test::Context& test) {
             "growth actor selection appends a zeroed typed item, copies its caption and publishes the transition"
         );
         test.expect_true(
-            fixture.port.calls.size() == 6U &&
+            fixture.port.calls.size() == 3U &&
                 fixture.port.calls[0U].call ==
                     LegacyBattleGrowthActorSelectionCall::
                         query_group_a_reward_block &&
                 fixture.port.calls[0U].actor_token == 0x005029D0U &&
                 fixture.port.calls[1U].call ==
-                    LegacyBattleGrowthActorSelectionCall::
-                        load_item_definition &&
-                fixture.port.calls[1U].destination_token == 0x0053BC28U &&
-                fixture.port.calls[1U].item_id == 0x0700U &&
-                fixture.port.calls[1U].eax == 0U &&
-                fixture.port.calls[1U].ecx == 0x00500700U &&
-                fixture.port.calls[2U].call ==
                     LegacyBattleGrowthActorSelectionCall::query_item_presence &&
-                fixture.port.calls[2U].arguments[0U] == 0x1BB0U &&
-                fixture.port.calls[2U].eax == 0U &&
-                fixture.port.calls[2U].ecx == 2U &&
-                fixture.port.calls[2U].edx == 2U &&
-                fixture.port.calls[5U].call ==
-                    LegacyBattleGrowthActorSelectionCall::
-                        load_item_definition &&
-                fixture.port.calls[5U].destination_token == 0x7001000CU &&
-                fixture.port.calls[5U].item_id == 0x1234U &&
-                fixture.port.calls[5U].eax == 0x70010000U &&
-                fixture.port.calls[5U].ecx == 0x1234U,
+                fixture.port.calls[1U].arguments[0U] == 0x1BB0U &&
+                fixture.port.calls[2U].call ==
+                    LegacyBattleGrowthActorSelectionCall::allocate_item_node &&
+                fixture.port.calls[2U].arguments[0U] == 0xB0U &&
+                fixture.port.requested_definition_ids ==
+                    std::vector<u32>{0x0700U, 0x1234U, 0x1234U} &&
+                fixture.port.read_calls == 9U &&
+                fixture.port.release_calls == 3U,
             "growth actor selection preserves the actor query, scratch load, presence query and allocated-record register layouts"
         );
     }

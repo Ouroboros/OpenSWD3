@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_group_a_configuration.hpp"
+#include "openswd3/battle/legacy_battle_mon_definition.hpp"
 #include "openswd3/compat/types.hpp"
 
 #include <array>
@@ -11,8 +12,6 @@ namespace openswd3::battle {
 inline constexpr compat::u32 kLegacyBattleGroupASummonProfileSize = 0xA4U;
 inline constexpr compat::u32 kLegacyBattleGroupASummonAllocateCallToken =
     0x00487C10U;
-inline constexpr compat::u32 kLegacyBattleGroupASummonLoadCallToken =
-    0x00476DB0U;
 inline constexpr compat::u32 kLegacyBattleGroupASummonReleaseCallToken =
     0x00478220U;
 inline constexpr compat::u32 kLegacyBattleGroupASummonDiagnosticCallToken =
@@ -29,7 +28,8 @@ using LegacyBattleGroupASummonProfileRecord =
 
 enum class LegacyBattleGroupASummonMaterializationCall : compat::u8 {
     allocate_profile,
-    load_profile,
+    reserved_load_profile,
+    load_profile = reserved_load_profile,
     release_profile_text,
     report_missing_role,
 };
@@ -54,7 +54,8 @@ struct LegacyBattleGroupASummonMaterializationCallReply {
     LegacyBattleGroupASummonProfileRecord profile_record{};
 };
 
-class LegacyBattleGroupASummonMaterializationPort {
+class LegacyBattleGroupASummonMaterializationPort
+    : public virtual LegacyBattleMonDatabasePort {
 public:
     virtual ~LegacyBattleGroupASummonMaterializationPort() = default;
 
@@ -70,6 +71,7 @@ enum class LegacyBattleGroupASummonMaterializationStatus : compat::u8 {
     actor_state_typed_stop,
     source_record_typed_stop,
     actor_record_typed_stop,
+    profile_load_typed_stop,
 };
 
 struct LegacyBattleGroupASummonMaterializationResult {

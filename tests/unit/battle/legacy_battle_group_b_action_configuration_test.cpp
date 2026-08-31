@@ -108,13 +108,8 @@ void test_battle_group_b_action_configuration(openswd3::test::Context& test) {
         };
         Port port;
         port.profile.fill(std::byte{0x6AU});
+        port.definition = *resource_snapshot();
         port.replies = {
-            {.eax = 0x11111111U,
-             .ecx = 0x22222222U,
-             .edx = 0x33333333U,
-             .typed_stop = false,
-             .resource_bytes = resource_snapshot(),
-             .profile_buffer = nullptr},
             {.eax = 0x77777777U,
              .ecx = 0x88888888U,
              .edx = 0x99999999U,
@@ -136,8 +131,8 @@ void test_battle_group_b_action_configuration(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGroupBActionConfigurationStatus::completed &&
                 result.port_calls == 3U && result.copied_dwords == 16U &&
-                port.open_calls == 1U && port.seek_calls == 3U &&
-                port.read_calls == 3U && port.release_calls == 1U &&
+                port.open_calls == 1U && port.seek_calls == 6U &&
+                port.read_calls == 6U && port.release_calls == 2U &&
                 std::memcmp(
                     state.source_record.data(), &source, sizeof(source)
                 ) == 0 &&
@@ -164,14 +159,7 @@ void test_battle_group_b_action_configuration(openswd3::test::Context& test) {
             .resource_token = 0x73000000U,
         };
         Port port;
-        port.replies.push_back({
-            .eax = 0U,
-            .ecx = 0U,
-            .edx = 0U,
-            .typed_stop = true,
-            .resource_bytes = nullptr,
-            .profile_buffer = nullptr,
-        });
+        port.allocation_succeeds = false;
         const auto result = configure_legacy_battle_group_b_action(
             &actor, &source, port, port, 7U, actor.object_token, 0x005213A0U
         );
@@ -190,15 +178,8 @@ void test_battle_group_b_action_configuration(openswd3::test::Context& test) {
             .resource_token = 0x73000000U,
         };
         Port port;
-        port.replies.push_back({
-            .eax = 0U,
-            .ecx = 0U,
-            .edx = 0U,
-            .typed_stop = false,
-            .resource_bytes = resource_snapshot(),
-            .profile_buffer = nullptr,
-        });
-        port.allocation_succeeds = false;
+        port.definition = *resource_snapshot();
+        port.allocation_results = {true, false};
         const auto result = configure_legacy_battle_group_b_action(
             &actor, &source, port, port, 7U, actor.object_token, 0x005213A0U
         );
@@ -206,7 +187,7 @@ void test_battle_group_b_action_configuration(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGroupBActionConfigurationStatus::
                         profile_load_typed_stop &&
-                result.port_calls == 2U && port.release_calls == 0U,
+                result.port_calls == 2U && port.release_calls == 1U,
             "group B action configuration stops at the MON zero-allocation access point"
         );
     }

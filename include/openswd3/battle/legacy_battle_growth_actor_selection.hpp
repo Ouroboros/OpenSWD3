@@ -2,6 +2,7 @@
 
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_level_advancement.hpp"
+#include "openswd3/battle/legacy_battle_mon_definition.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_runtime.hpp"
 #include "openswd3/battle/legacy_battle_victory_rewards.hpp"
@@ -31,6 +32,7 @@ struct LegacyBattleGrowthItemDefinitionState {
     std::array<compat::u8, world_map::kLegacyItemDefinitionSnapshotBytes>
         bytes{};
     std::vector<compat::u8> description;
+    compat::u32 description_token{};
 };
 
 struct LegacyBattleGrowthActorSelectionState {
@@ -59,7 +61,8 @@ private:
 
 enum class LegacyBattleGrowthActorSelectionCall : compat::u8 {
     query_group_a_reward_block,
-    load_item_definition,
+    reserved_load_item_definition,
+    load_item_definition = reserved_load_item_definition,
     query_item_presence,
     allocate_item_node,
 };
@@ -94,7 +97,8 @@ struct LegacyBattleGrowthActorSelectionCallReply {
 };
 
 class LegacyBattleGrowthActorSelectionPort
-    : public virtual LegacyBattleGrowthActorSelectionStatePort,
+    : public virtual LegacyBattleMonDatabasePort,
+      public virtual LegacyBattleGrowthActorSelectionStatePort,
       public virtual world_map::LegacyWorldItemListStatePort {
 public:
     virtual ~LegacyBattleGrowthActorSelectionPort() = default;
@@ -134,6 +138,7 @@ enum class LegacyBattleGrowthActorSelectionStatus : compat::u8 {
     allocation_typed_stop,
     caption_source_typed_stop,
     caption_destination_typed_stop,
+    definition_load_typed_stop,
 };
 
 struct LegacyBattleGrowthActorSelectionResult {

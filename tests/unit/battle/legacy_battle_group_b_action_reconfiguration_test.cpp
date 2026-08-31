@@ -89,19 +89,15 @@ void test_battle_group_b_action_reconfiguration(openswd3::test::Context& test) {
         LegacyBattleActorGroupBElementState actor{
             .object_token = 0x0052AB58U,
             .resource_token = 0x73000148U,
+            .resource_description = {},
         };
         actor.action_configuration.timing_value = 0xCAFEBABEU;
         actor.action_execution.profile_value = 0x1357U;
         actor.action_configuration.source_runtime_value = 0x2468ACE0U;
         Port port;
+        port.definition = *resource_snapshot();
         port.set_profile_word(0x14U, 0x1122U);
         port.replies = {
-            {.eax = 0x11111111U,
-             .ecx = 0xBEEFCA11U,
-             .edx = 0x22222222U,
-             .typed_stop = false,
-             .resource_bytes = resource_snapshot(),
-             .profile_buffer = nullptr},
             {.eax = 0x66666666U,
              .ecx = 0x77777777U,
              .edx = 0x88888888U,
@@ -121,7 +117,7 @@ void test_battle_group_b_action_reconfiguration(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGroupBActionReconfigurationStatus::completed &&
                 result.port_calls == 3U && port.open_calls == 1U &&
-                port.read_calls == 3U &&
+                port.read_calls == 6U &&
                 actor.action_configuration.timing_value == 0xCAFEBABEU &&
                 actor.action_configuration.resource_mode == 0x7AU &&
                 actor.action_execution.profile_value == 0x1357U &&
@@ -139,16 +135,10 @@ void test_battle_group_b_action_reconfiguration(openswd3::test::Context& test) {
         LegacyBattleActorGroupBElementState actor{
             .object_token = 0x00525508U,
             .resource_token = 0x73000000U,
+            .resource_description = {},
         };
         Port port;
-        port.replies.push_back({
-            .eax = 0U,
-            .ecx = 0U,
-            .edx = 0U,
-            .typed_stop = true,
-            .resource_bytes = nullptr,
-            .profile_buffer = nullptr,
-        });
+        port.allocation_succeeds = false;
         const auto result = reconfigure_legacy_battle_group_b_action(
             &actor,
             port,
@@ -167,17 +157,11 @@ void test_battle_group_b_action_reconfiguration(openswd3::test::Context& test) {
         LegacyBattleActorGroupBElementState actor{
             .object_token = 0x00525508U,
             .resource_token = 0x73000000U,
+            .resource_description = {},
         };
         Port port;
-        port.replies.push_back({
-            .eax = 0U,
-            .ecx = 0U,
-            .edx = 0U,
-            .typed_stop = false,
-            .resource_bytes = resource_snapshot(),
-            .profile_buffer = nullptr,
-        });
-        port.allocation_succeeds = false;
+        port.definition = *resource_snapshot();
+        port.allocation_results = {true, false};
         const auto result = reconfigure_legacy_battle_group_b_action(
             &actor,
             port,
@@ -188,7 +172,7 @@ void test_battle_group_b_action_reconfiguration(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGroupBActionReconfigurationStatus::
                         profile_load_typed_stop &&
-                result.port_calls == 2U && port.release_calls == 0U,
+                result.port_calls == 2U && port.release_calls == 1U,
             "group B action reconfiguration stops at the original zero-allocation MON access"
         );
     }

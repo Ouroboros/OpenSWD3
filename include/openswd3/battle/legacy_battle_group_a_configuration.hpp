@@ -6,6 +6,7 @@
 
 #include <array>
 #include <cstddef>
+#include <vector>
 
 namespace openswd3::battle {
 
@@ -41,6 +42,7 @@ struct LegacyBattleGroupAConfigurationState {
     compat::u16 placement_word{};
     compat::u32 profile_token{};
     std::array<std::byte, 0xA4> profile_record{};
+    std::vector<compat::u8> profile_description{};
     compat::u16 profile_field_f2{};
 };
 

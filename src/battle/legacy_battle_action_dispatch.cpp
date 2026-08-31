@@ -22,10 +22,8 @@ LegacyBattleActionDispatchPort::invoke_group_a_summon_materialization(
         call.arguments[0U] = kLegacyBattleGroupASummonProfileSize;
         break;
 
-    case LegacyBattleGroupASummonMaterializationCall::load_profile:
-        call.callee_token = kLegacyBattleGroupASummonLoadCallToken;
-        call.arguments[1U] = request.role_id;
-        break;
+    case LegacyBattleGroupASummonMaterializationCall::reserved_load_profile:
+        return {.profile_record = request.profile_record};
 
     case LegacyBattleGroupASummonMaterializationCall::release_profile_text:
         call.callee_token = kLegacyBattleGroupASummonReleaseCallToken;
@@ -103,7 +101,6 @@ constexpr u32 kCallPrepareOpponent = 0x00478AE0U;
 constexpr u32 kCallSelectOpponent = 0x00478A70U;
 constexpr u32 kCallPublishScene = 0x004707B0U;
 constexpr u32 kCallFinalizeSelection = 0x00478B30U;
-constexpr u32 kCallBuildMessageToken = 0x00476DB0U;
 constexpr u32 kCallPrepareMessageToken = 0x00478220U;
 constexpr u32 kCallLegacyStringCopy = 0x00499168U;
 constexpr u32 kCallSetGlobalMode = 0x0047F900U;
@@ -212,9 +209,15 @@ public:
         u32 callee{};
         switch (request.call) {
         case LegacyBattleGroupBActionCompositionCall::
-            load_resource_definition:
-            callee = kCallBuildMessageToken;
-            break;
+            reserved_load_resource_definition:
+            return {
+                .eax = 0U,
+                .ecx = 0U,
+                .edx = 0U,
+                .typed_stop = true,
+                .resource_definition = nullptr,
+                .profile_buffer = nullptr,
+            };
 
         case LegacyBattleGroupBActionCompositionCall::copy_action_text:
             callee = kCallLegacyStringCopy;
@@ -246,15 +249,10 @@ public:
             .eax = reply.eax,
             .ecx = reply.ecx,
             .edx = reply.edx,
-            .typed_stop =
-                port_.group_b_action_configuration_typed_stop(callee),
+            .typed_stop = port_.group_b_action_configuration_typed_stop(callee),
             .resource_definition = nullptr,
             .profile_buffer = nullptr,
         };
-        if (request.call == LegacyBattleGroupBActionCompositionCall::
-                load_resource_definition) {
-            mapped.resource_definition = port_.group_b_action_resource_bytes();
-        }
 
         return mapped;
     }
@@ -6906,13 +6904,24 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
         const u16 message_code =
             low_word(result.action_twenty_three_message.return_eax);
         if (message_code != 0U && message_code < 0x61A8U) {
-            static_cast<void>(invoke(
-                state,
+            const auto definition_result = load_legacy_battle_mon_definition(
+                port.legacy_battle_mon_definition_scratch(),
+                port.legacy_battle_mon_definition_scratch_description(),
                 port,
-                result,
-                kCallBuildMessageToken,
-                {0x00453BC28U, message_code}
-            ));
+                {
+                    .path = "mon.dat",
+                    .output_token = 0x00453BC28U,
+                    .definition_id = message_code,
+                }
+            );
+            ++result.port_calls;
+            if (legacy_battle_mon_definition_load_stopped(
+                    definition_result.status
+                )) {
+                result.status = LegacyBattleActionDispatchStatus::
+                    mon_definition_load_typed_stop;
+                return result;
+            }
             static_cast<void>(invoke(
                 state, port, result, kCallPrepareMessageToken, {0x00453BC28U}
             ));

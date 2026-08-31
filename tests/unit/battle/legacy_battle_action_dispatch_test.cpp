@@ -331,6 +331,42 @@ public:
         retreat_commit_replies;
     std::vector<openswd3::battle::LegacyBattleRetreatCommitCallRequest>
         retreat_commit_calls;
+
+    [[nodiscard]] openswd3::battle::LegacyBattleMonDatabaseCallReply
+    invoke_legacy_battle_mon_database(
+        const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
+        const std::span<u8> destination
+    ) override {
+        if (group_b_action_typed_stop_callee != 0U &&
+            request.call ==
+                openswd3::battle::LegacyBattleMonDatabaseCall::
+                    allocate_stream) {
+            allocation_succeeds = false;
+        }
+        return openswd3::test::LegacyBattleMonDatabaseFixture::
+            invoke_legacy_battle_mon_database(request, destination);
+    }
+
+protected:
+    [[nodiscard]] std::optional<bool> prepare_definition_record(
+        const std::span<u8> destination, const u32
+    ) noexcept override {
+        if (group_b_action_definition != nullptr) {
+            std::copy(
+                group_b_action_definition->cbegin(),
+                group_b_action_definition->cend(),
+                destination.begin()
+            );
+            return true;
+        }
+        std::transform(
+            summon_profile.cbegin(),
+            summon_profile.cend(),
+            destination.begin(),
+            [](const std::byte value) { return std::to_integer<u8>(value); }
+        );
+        return true;
+    }
 };
 
 class ActionStreamProvider final
@@ -577,10 +613,11 @@ void test_battle_group_b_action_composition_action_caller(
                 actor.action_composition.action_kind == 0U &&
                 actor.action_composition.display_kind == 2U &&
                 actor.action_composition.mode_flags == 0x80U &&
-                port.count(0x00476DB0U) == 1U &&
+                port.count(0x00476DB0U) == 0U &&
                 port.count(0x00499168U) == 1U &&
                 port.count(0x00476A80U) == 0U && port.open_calls == 1U &&
-                port.read_calls == 3U && port.release_calls == 1U &&
+                port.read_calls == 6U && port.release_calls == 2U &&
+                port.requested_definition_ids == std::vector<u32>{0x77U} &&
                 port.requested_profile_ids == std::vector<u16>{0xBEEFU} &&
                 port.count(0x00476160U) == 0U,
             "action twenty five composes the selected group B actor directly before appending attack order"
@@ -589,10 +626,9 @@ void test_battle_group_b_action_composition_action_caller(
             std::ranges::any_of(
                 port.calls,
                 [](const LegacyBattleActionCallRequest& call) {
-                    return call.callee_token == 0x00476DB0U &&
-                        call.arguments[0U] == 0x00525518U &&
-                        call.arguments[1U] == 0x77U && call.eax == 0x77U &&
-                        call.ecx == 0x00525508U && call.edx == 0x00525508U;
+                    return call.callee_token == 0x00499168U &&
+                        call.arguments[0U] == 0x00527B38U &&
+                        call.arguments[1U] == 0x00525518U;
                 }
             ),
             "action twenty five preserves the original this pointer definition argument and stale EDX at the reclaimed callsite"
@@ -623,21 +659,23 @@ void test_battle_group_b_action_composition_action_caller(
             *state, port, context, 0U, 0U
         );
         test.expect_true(
-            result.status == LegacyBattleActionDispatchStatus::
-                    group_b_action_composition_typed_stop &&
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        group_b_action_composition_typed_stop &&
                 result.group_b_action_composition.status ==
                     openswd3::battle::
                         LegacyBattleGroupBActionCompositionStatus::
-                            text_copy_typed_stop &&
+                            resource_load_typed_stop &&
                 state->choice_commit == 1U &&
                 state->group_b_status_words[0U] == 0x4000U &&
                 state->message_gate == 0x55U &&
-                port.battle_message_state() == 0x1234U &&
+                port.battle_message_state() == 0U &&
                 result.attack_order_calls == 0U &&
                 fixture->attack_order_records[0U].value_08 == 0U &&
-                port.count(0x00476DB0U) == 1U &&
-                port.count(0x00499168U) == 1U &&
-                port.count(0x00476A80U) == 0U,
+                port.count(0x00476DB0U) == 0U &&
+                port.count(0x00499168U) == 0U &&
+                port.count(0x00476A80U) == 0U && port.allocation_calls == 1U &&
+                port.release_calls == 0U,
             "action composition typed stop preserves the choice prefix and blocks message cleanup and attack-order suffix"
         );
     }
@@ -4117,13 +4155,12 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 result.summon_materialization.return_eax == 0x71000000U &&
                 result.summon_materialization.return_edx ==
                     summon.configuration.actor_record_token &&
-                port.summon_materialization_calls.size() == 3U &&
+                port.summon_materialization_calls.size() == 2U &&
                 port.count(0x0046E890U) == 0U &&
                 port.count(0x00487C10U) == 1U &&
-                port.count(0x00476DB0U) == 1U &&
+                port.count(0x00476DB0U) == 0U &&
                 port.count(0x00478220U) == 1U &&
-                has_call_argument(port, 0x00476DB0U, 0U, 0x71000000U) &&
-                has_call_argument(port, 0x00476DB0U, 1U, 7U) &&
+                port.requested_definition_ids == std::vector<u32>{7U} &&
                 summon.configuration.profile_token == 0x71000000U &&
                 summon.configuration.placement_primary[5U] == 0x23450007U &&
                 summon.configuration.source_record_token ==

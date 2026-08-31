@@ -349,6 +349,18 @@ public:
     bool force_definition_offset_stop{};
     std::vector<u32> released_images;
     std::vector<u32> released_owners;
+
+protected:
+    [[nodiscard]] std::optional<bool> prepare_definition_record(
+        const std::span<openswd3::compat::u8> destination, const u32
+    ) noexcept override {
+        std::ranges::fill(destination, 0U);
+        destination[0x5AU] =
+            static_cast<openswd3::compat::u8>(enemy_progress_base_speed);
+        destination[0x5BU] =
+            static_cast<openswd3::compat::u8>(enemy_progress_base_speed >> 8U);
+        return true;
+    }
 };
 
 void poison_reset_blocks(LegacyBattleStartupState& state, StartupPorts& port) {
@@ -739,7 +751,7 @@ void test_battle_startup(openswd3::test::Context& test) {
                 ) == 0U &&
                 ports.call_count(
                     LegacyBattleStartupCall::group_b_load_resource_definition
-                ) == 2U &&
+                ) == 0U &&
                 ports.call_count(
                     LegacyBattleStartupCall::
                         reserved_group_b_load_action_profile
@@ -912,7 +924,7 @@ void test_battle_startup(openswd3::test::Context& test) {
                 ) == 2U &&
                 ports.call_count(
                     LegacyBattleStartupCall::group_a_profile_load
-                ) == 2U &&
+                ) == 0U &&
                 ports.call_count(
                     LegacyBattleStartupCall::group_a_profile_release
                 ) == 2U &&
@@ -946,15 +958,8 @@ void test_battle_startup(openswd3::test::Context& test) {
                 ports.battle_message_state() == 0x67U &&
                 ports.call_count(LegacyBattleStartupCall::set_enemy_mode) ==
                     1U &&
-                std::ranges::any_of(
-                    ports.requests,
-                    [](const LegacyBattleStartupCallRequest& call) {
-                        return call.call ==
-                            LegacyBattleStartupCall::
-                                group_b_load_resource_definition &&
-                            call.arguments[1] == 0xBEEF000BU;
-                    }
-                ) &&
+                ports.requested_definition_ids ==
+                    std::vector<u32>{0x000BU, 0x000CU, 0x0003U, 0x0004U} &&
                 ports.call_count(LegacyBattleStartupCall::apply_actor_mode) ==
                     4U &&
                 ports.call_count(LegacyBattleStartupCall::query_actor_metric) ==
@@ -1009,7 +1014,7 @@ void test_battle_startup(openswd3::test::Context& test) {
                 ) == 2U &&
                 ports.call_count(
                     LegacyBattleStartupCall::group_a_profile_load
-                ) == 2U &&
+                ) == 0U &&
                 ports.call_count(
                     LegacyBattleStartupCall::group_a_profile_release
                 ) == 2U &&
@@ -1259,6 +1264,7 @@ void test_battle_startup(openswd3::test::Context& test) {
         LegacyBattleStartupState state;
         StartupPorts ports;
         ports.publish_enemy_progress_resource = false;
+        ports.allocation_succeeds = false;
         ports.definition.enemy_count = 1U;
         ports.random_values = {0U, 1U};
         const auto result = openswd3::battle::initialize_legacy_battle_startup(

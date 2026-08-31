@@ -60,28 +60,34 @@ reconfigure_legacy_battle_group_b_action(
         return result;
     }
 
-    auto reply = port.invoke({
-        .call =
-            LegacyBattleGroupBActionConfigurationCall::load_resource_definition,
-        .arguments = {actor->resource_token, request.definition_argument},
-        .eax = request.definition_argument,
-        .ecx = actor->resource_token,
-        .edx = request.entry_edx,
-    });
+    const
+
+        auto definition_result = load_legacy_battle_mon_definition(
+            actor->resource_bytes,
+            actor->resource_description,
+            mon_port,
+            {
+                .path = "mon.dat",
+                .output_token = actor->resource_token,
+                .definition_id = request.definition_argument,
+                .entry_eax = request.definition_argument,
+                .entry_ecx = actor->resource_token,
+                .entry_edx = request.entry_edx,
+            }
+        );
     ++result.port_calls;
-    publish_reply(*actor, reply);
-    if (reply.typed_stop) {
+    if (legacy_battle_mon_definition_load_stopped(definition_result.status)) {
         result.status = LegacyBattleGroupBActionReconfigurationStatus::
             resource_load_typed_stop;
-        result.return_eax = reply.eax;
-        result.return_ecx = reply.ecx;
-        result.return_edx = reply.edx;
+        result.return_eax = definition_result.return_eax;
+        result.return_ecx = definition_result.return_ecx;
+        result.return_edx = definition_result.return_edx;
         return result;
     }
 
     result.return_eax = actor->resource_token;
-    result.return_ecx = reply.ecx;
-    result.return_edx = reply.edx;
+    result.return_ecx = definition_result.return_ecx;
+    result.return_edx = definition_result.return_edx;
     if (actor->resource_token == 0U) {
         result.status = LegacyBattleGroupBActionReconfigurationStatus::
             resource_read_typed_stop;
@@ -96,7 +102,8 @@ reconfigure_legacy_battle_group_b_action(
     write_dword(resource, 0x4CU, signed_resource_bits);
     state.resource_mode = resource[0x90U];
 
-    const u32 profile_ecx = (reply.ecx & 0xFFFFFF00U) | state.resource_mode;
+    const u32 profile_ecx =
+        (definition_result.return_ecx & 0xFFFFFF00U) | state.resource_mode;
     const u32 profile_argument =
         (signed_resource_bits & 0xFFFF0000U) | read_word(resource, 0x60U);
     const auto profile_result = load_legacy_battle_mon_profile(
@@ -127,14 +134,16 @@ reconfigure_legacy_battle_group_b_action(
         return result;
     }
 
-    reply = port.invoke({
-        .call =
-            LegacyBattleGroupBActionConfigurationCall::release_resource_text,
-        .arguments = {actor->resource_token, 0U},
-        .eax = profile_result.return_eax,
-        .ecx = actor->resource_token,
-        .edx = profile_result.return_edx,
-    });
+    auto
+
+        reply = port.invoke({
+            .call = LegacyBattleGroupBActionConfigurationCall::
+                release_resource_text,
+            .arguments = {actor->resource_token, 0U},
+            .eax = profile_result.return_eax,
+            .ecx = actor->resource_token,
+            .edx = profile_result.return_edx,
+        });
     ++result.port_calls;
     publish_reply(*actor, reply);
     result.return_eax = reply.eax;

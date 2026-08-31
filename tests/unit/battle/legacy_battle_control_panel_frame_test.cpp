@@ -1,3 +1,4 @@
+#include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_control_panel_frame.hpp"
 
 #include <algorithm>
@@ -18,10 +19,15 @@ using openswd3::compat::u32;
 using Call = openswd3::battle::LegacyBattleControlPanelFrameCall;
 using Reply = openswd3::battle::LegacyBattleControlPanelFrameCallReply;
 using Request = openswd3::battle::LegacyBattleControlPanelFrameCallRequest;
-using DefinitionLoadReply =
-    openswd3::battle::LegacyBattleGroupBActionItemDefinitionLoadReply;
-using DefinitionLoadRequest =
-    openswd3::battle::LegacyBattleGroupBActionItemDefinitionLoadRequest;
+struct DefinitionLoadRequest {
+    u32 definition_argument{};
+};
+
+struct DefinitionLoadReply {
+    bool typed_stop{};
+    std::shared_ptr<const std::array<u8, 0xA4>> definition;
+};
+
 using NameCopyReply =
     openswd3::battle::LegacyBattleGroupBActionItemNameCopyReply;
 using NameCopyRequest =
@@ -68,7 +74,8 @@ public:
 };
 
 class ControlPort final
-    : public openswd3::battle::LegacyBattleControlPanelFramePort {
+    : public openswd3::battle::LegacyBattleControlPanelFramePort,
+      public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
     void reply(const Call call, const Reply& value) {
         replies[call].push_back(value);
@@ -102,18 +109,6 @@ public:
         definition_replies.push_back(value);
     }
 
-    [[nodiscard]] DefinitionLoadReply
-    load_action_item_definition(const DefinitionLoadRequest& request) override {
-        definition_requests.push_back(request);
-        if (on_definition_load) {
-            on_definition_load(request);
-        }
-        if (definition_reply_index >= definition_replies.size()) {
-            return {};
-        }
-        return definition_replies[definition_reply_index++];
-    }
-
     [[nodiscard]] NameCopyReply
     copy_action_item_name(const NameCopyRequest& request) override {
         copy_requests.push_back(request);
@@ -134,6 +129,46 @@ public:
     std::vector<NameCopyRequest> copy_requests;
     std::vector<NameCopyReply> copy_replies;
     std::size_t copy_reply_index{};
+
+    [[nodiscard]] openswd3::battle::LegacyBattleMonDatabaseCallReply
+    invoke_legacy_battle_mon_database(
+        const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
+        const std::span<u8> destination
+    ) override {
+        if (definition_reply_index < definition_replies.size() &&
+            definition_replies[definition_reply_index].typed_stop &&
+            request.call ==
+                openswd3::battle::LegacyBattleMonDatabaseCall::
+                    allocate_stream) {
+            allocation_succeeds = false;
+        }
+        return openswd3::test::LegacyBattleMonDatabaseFixture::
+            invoke_legacy_battle_mon_database(request, destination);
+    }
+
+protected:
+    [[nodiscard]] std::optional<bool> prepare_definition_record(
+        const std::span<u8> destination, const u32 record_id
+    ) noexcept override {
+        const DefinitionLoadRequest request{.definition_argument = record_id};
+        definition_requests.push_back(request);
+        if (on_definition_load) {
+            on_definition_load(request);
+        }
+        if (definition_reply_index >= definition_replies.size()) {
+            return false;
+        }
+        const auto& reply = definition_replies[definition_reply_index++];
+        if (reply.definition == nullptr) {
+            return false;
+        }
+        std::copy(
+            reply.definition->cbegin(),
+            reply.definition->cend(),
+            destination.begin()
+        );
+        return true;
+    }
 };
 
 void write_word(
@@ -367,18 +402,16 @@ void test_battle_control_panel_frame(openswd3::test::Context& test) {
         test.expect_true(
             fixture.transition_value_a == 200U &&
                 fixture.transition_value_b == 0U && primary.size() == 5U &&
-                primary[0U].destination_token ==
-                    primary[0U].actor_token + 0x10U &&
                 primary[0U].definition_argument == 100U &&
                 primary[1U].definition_argument == 1U &&
-                primary[2U].definition_argument == 0x73000001U &&
+                primary[2U].definition_argument == 1U &&
                 primary[3U].definition_argument == 2U &&
-                primary[4U].definition_argument == 0x73000003U &&
+                primary[4U].definition_argument == 3U &&
                 fixture.port.calls_of(Call::reserved_query_primary_option_slot)
                     .empty() &&
                 fixture.port.calls_of(Call::reserved_query_special_option_slot)
                     .empty(),
-            "control panel type-loads primary and special definitions while preserving their selector-specific high bits"
+            "control panel type-loads primary and special definitions through the low-word MON directory index"
         );
         test.expect_true(
             result.rows[4U].text_token ==
@@ -440,9 +473,6 @@ void test_battle_control_panel_frame(openswd3::test::Context& test) {
         fixture.port.reply(Call::draw_text, {});
         write_word(fixture.group_b_actors[1U].resource_bytes, 0x72U, 4U);
         fixture.port.reply_definition({
-            .eax = 0xAAAAAAAAU,
-            .ecx = 0xBBBBBBBBU,
-            .edx = 0xCCCCCCCCU,
             .typed_stop = true,
             .definition = definition('S'),
         });
@@ -456,10 +486,9 @@ void test_battle_control_panel_frame(openswd3::test::Context& test) {
                         special_option_typed_stop &&
                 result.primary_query_calls == 3U &&
                 result.special_query_calls == 1U &&
-                result.text_draw_calls == 2U &&
-                result.return_eax == 0xAAAAAAAAU &&
-                result.return_ecx == 0xBBBBBBBBU &&
-                result.return_edx == 0xCCCCCCCCU &&
+                result.text_draw_calls == 2U && result.return_eax == 0U &&
+                result.return_ecx == 0x100U &&
+                fixture.port.release_calls == 0U &&
                 fixture.port.calls_of(Call::reserved_query_special_option_slot)
                     .empty(),
             "control panel propagates the special loader stop after preserving its title and attack rows"

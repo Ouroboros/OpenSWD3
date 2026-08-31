@@ -1,3 +1,4 @@
+#include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_group_b_action_item_selection.hpp"
 #include "test.hpp"
 
@@ -40,22 +41,42 @@ public:
 };
 
 class DefinitionPort final
-    : public openswd3::battle::LegacyBattleGroupBActionItemSelectionPort {
+    : public openswd3::battle::LegacyBattleGroupBActionItemSelectionPort,
+      public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
-    [[nodiscard]] openswd3::battle::
-        LegacyBattleGroupBActionItemDefinitionLoadReply
-        load_action_item_definition(
-            const openswd3::battle::
-                LegacyBattleGroupBActionItemDefinitionLoadRequest& request
-        ) override {
-        requests.push_back(request);
-        return reply;
+    [[nodiscard]] openswd3::battle::LegacyBattleMonDatabaseCallReply
+    invoke_legacy_battle_mon_database(
+        const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
+        const std::span<u8> destination
+    ) override {
+        if (force_allocation_stop &&
+            request.call ==
+                openswd3::battle::LegacyBattleMonDatabaseCall::
+                    allocate_stream) {
+            allocation_succeeds = false;
+        }
+        return openswd3::test::LegacyBattleMonDatabaseFixture::
+            invoke_legacy_battle_mon_database(request, destination);
     }
 
-    std::vector<
-        openswd3::battle::LegacyBattleGroupBActionItemDefinitionLoadRequest>
-        requests;
-    openswd3::battle::LegacyBattleGroupBActionItemDefinitionLoadReply reply{};
+protected:
+    [[nodiscard]] std::optional<bool> prepare_definition_record(
+        const std::span<u8> destination, const u32
+    ) noexcept override {
+        if (prepared_definition == nullptr) {
+            return false;
+        }
+        std::copy(
+            prepared_definition->cbegin(),
+            prepared_definition->cend(),
+            destination.begin()
+        );
+        return true;
+    }
+
+public:
+    bool force_allocation_stop{};
+    std::shared_ptr<const std::array<u8, 0xA4>> prepared_definition;
 };
 
 void write_word(
@@ -119,8 +140,7 @@ void test_battle_group_b_action_item_selection(openswd3::test::Context& test) {
                     LegacyBattleGroupBActionItemSelectionStatus::
                         actor_state_typed_stop &&
                 result.return_eax == 1U && result.return_ecx == 0x00525508U &&
-                result.return_edx == 0xCCCCCCCCU && result.random_calls == 0U &&
-                port.requests.empty(),
+                result.return_edx == 0xCCCCCCCCU && result.random_calls == 0U,
             "action item selection stops at the first actor flag access"
         );
     }
@@ -141,8 +161,7 @@ void test_battle_group_b_action_item_selection(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGroupBActionItemSelectionStatus::completed &&
                 result.return_eax == 0U && result.return_ecx == 0x00525508U &&
-                result.return_edx == 0xCCCCCCCCU && result.random_calls == 0U &&
-                port.requests.empty(),
+                result.return_edx == 0xCCCCCCCCU && result.random_calls == 0U,
             "cleared action-item gate returns zero without consuming random"
         );
     }
@@ -172,8 +191,7 @@ void test_battle_group_b_action_item_selection(openswd3::test::Context& test) {
                 );
             matched = matched && result.initial_random_bound == bound &&
                 result.return_eax == 0U &&
-                random.bounds == std::vector<u32>{bound} &&
-                port.requests.empty();
+                random.bounds == std::vector<u32>{bound};
         }
         test.expect_true(
             matched,
@@ -193,8 +211,7 @@ void test_battle_group_b_action_item_selection(openswd3::test::Context& test) {
         test.expect_true(
             result.selection_value == 0xFFFFFFFFU &&
                 result.return_eax == 0xFFFF0000U &&
-                result.return_edx == 0xABCDFFFFU && !result.return_ecx_known &&
-                port.requests.empty(),
+                result.return_edx == 0xABCDFFFFU && !result.return_ecx_known,
             "low-word all-ones preserves the increment-mask-decrement underflow"
         );
     }
@@ -214,7 +231,7 @@ void test_battle_group_b_action_item_selection(openswd3::test::Context& test) {
                     LegacyBattleGroupBActionItemSelectionStatus::
                         resource_read_typed_stop &&
                 result.return_eax == 0U && result.return_edx == 0U &&
-                result.random_calls == 1U && port.requests.empty(),
+                result.random_calls == 1U,
             "first resource read happens after the selection draw"
         );
     }
@@ -231,7 +248,6 @@ void test_battle_group_b_action_item_selection(openswd3::test::Context& test) {
             );
         test.expect_true(
             result.return_eax == 0x73000000U && result.random_calls == 1U &&
-                port.requests.empty() &&
                 actor.action_execution.retreat_ready_flags == 0x00A0U,
             "zero selected definition preserves the resource-token high word"
         );
@@ -256,7 +272,6 @@ void test_battle_group_b_action_item_selection(openswd3::test::Context& test) {
         test.expect_true(
             result.decision_threshold == 60U &&
                 result.return_eax == 0xABCD0000U && result.random_calls == 2U &&
-                port.requests.empty() &&
                 actor.action_execution.retreat_ready_flags == 0x00A0U,
             "profile below the resource word uses sixty and rejects equality"
         );
@@ -269,12 +284,7 @@ void test_battle_group_b_action_item_selection(openswd3::test::Context& test) {
         random.push(0U);
         random.push(0xABCD0059U);
         DefinitionPort port;
-        port.reply = {
-            .eax = 0x11111111U,
-            .ecx = 0x22222222U,
-            .edx = 0x33333333U,
-            .definition = definition(0x89ABCDEFU, 0x4567U),
-        };
+        port.prepared_definition = definition(0x89ABCDEFU, 0x4567U);
         const auto result =
             openswd3::battle::select_legacy_battle_group_b_action_item(
                 &actor,
@@ -285,22 +295,17 @@ void test_battle_group_b_action_item_selection(openswd3::test::Context& test) {
                     .profile_argument = 0xFFFF007AU,
                 }
             );
-        const auto& request = port.requests.front();
         test.expect_true(
             result.status ==
                     LegacyBattleGroupBActionItemSelectionStatus::completed &&
                 result.decision_threshold == 90U && result.item_id == 0x4567U &&
                 result.return_eax == 0x89AB4567U &&
-                result.return_ecx == 0x22222222U &&
-                result.return_edx == 0x33333333U &&
                 actor.action_execution.retreat_ready_flags == 0x0080U,
             "selection zero loads its definition clears bit five and returns the item"
         );
         test.expect_true(
-            request.destination_token == 0x00525518U &&
-                request.definition_argument == 0xABCD1111U &&
-                request.eax == 0xABCD1111U && request.ecx == 0x00525518U &&
-                request.ecx_known && request.edx == 0x73001234U,
+            port.open_calls == 1U && port.seek_calls == 3U &&
+                port.read_calls == 3U && port.release_calls == 1U,
             "selection zero preserves the low-word definition loader ABI"
         );
     }
@@ -311,12 +316,7 @@ void test_battle_group_b_action_item_selection(openswd3::test::Context& test) {
         random.push(1U);
         random.push(0xDCBA003BU);
         DefinitionPort port;
-        port.reply = {
-            .eax = 0x11111111U,
-            .ecx = 0xCAFEBABEU,
-            .edx = 0x33333333U,
-            .definition = definition(0x08000000U, 0x5678U),
-        };
+        port.prepared_definition = definition(0x08000000U, 0x5678U);
         const auto result =
             openswd3::battle::select_legacy_battle_group_b_action_item(
                 &actor,
@@ -328,13 +328,11 @@ void test_battle_group_b_action_item_selection(openswd3::test::Context& test) {
                     .profile_argument = 0x7AU,
                 }
             );
-        const auto& request = port.requests.front();
         test.expect_true(
             result.item_id == 0x5678U && result.return_eax == 0x08005678U &&
-                static_cast<u16>(request.definition_argument) == 0x2222U &&
-                request.eax == 0x73001234U &&
-                static_cast<u16>(request.ecx) == 0x2222U &&
-                !request.ecx_known && request.edx == 0x00525518U &&
+                result.definition_argument == 0x2222U &&
+                result.definition_destination_token == 0x00525518U &&
+                port.requested_definition_ids == std::vector<u32>{0x2222U} &&
                 result.return_ecx_known,
             "selection one preserves its distinct resource and destination registers"
         );
@@ -350,7 +348,7 @@ void test_battle_group_b_action_item_selection(openswd3::test::Context& test) {
         random.replacement_resource_token = 0x74005678U;
         write_word(random.replacement_resource_bytes, 0x66U, 0x4444U);
         DefinitionPort port;
-        port.reply.definition = definition(0x08000000U, 0x4567U);
+        port.prepared_definition = definition(0x08000000U, 0x4567U);
         const auto result =
             openswd3::battle::select_legacy_battle_group_b_action_item(
                 &actor,
@@ -361,12 +359,11 @@ void test_battle_group_b_action_item_selection(openswd3::test::Context& test) {
                     .profile_argument = 0x7AU,
                 }
             );
-        const auto& request = port.requests.front();
         test.expect_true(
             result.item_id == 0x4567U &&
                 result.selected_definition == 0x4444U &&
-                request.definition_argument == 0xABCD4444U &&
-                request.edx == 0x74005678U,
+                result.definition_argument == 0xABCD4444U &&
+                port.requested_definition_ids == std::vector<u32>{0x4444U},
             "selection zero re-reads the resource token and definition after its decision draw"
         );
     }
@@ -377,13 +374,8 @@ void test_battle_group_b_action_item_selection(openswd3::test::Context& test) {
         random.push(2U);
         random.push(0U);
         DefinitionPort port;
-        port.reply = {
-            .eax = 0xA1A2A3A4U,
-            .ecx = 0xB1B2B3B4U,
-            .edx = 0xC1C2C3C4U,
-            .typed_stop = true,
-            .definition = definition(0x08000000U, 0x6789U),
-        };
+        port.force_allocation_stop = true;
+        port.prepared_definition = definition(0x08000000U, 0x6789U);
         const auto result =
             openswd3::battle::select_legacy_battle_group_b_action_item(
                 &actor,
@@ -400,12 +392,11 @@ void test_battle_group_b_action_item_selection(openswd3::test::Context& test) {
                     LegacyBattleGroupBActionItemSelectionStatus::
                         definition_load_typed_stop &&
                 result.definition_argument == 0x00003333U &&
-                result.return_eax == 0xA1A2A3A4U &&
-                result.return_ecx == 0xB1B2B3B4U &&
-                result.return_edx == 0xC1C2C3C4U &&
-                actor.action_composition.resource_definition[0x48U] == 0x89U &&
+                result.return_eax == 0U && result.return_ecx == 0x100U &&
+                result.return_edx == 0x11223344U &&
+                actor.action_composition.resource_definition[0x48U] == 0U &&
                 actor.action_execution.retreat_ready_flags == 0x00A0U,
-            "definition-loader stop publishes its bytes and blocks the flag clear"
+            "definition-loader allocation stop preserves the cleared output and blocks the flag clear"
         );
     }
 
@@ -433,8 +424,7 @@ void test_battle_group_b_action_item_selection(openswd3::test::Context& test) {
                     LegacyBattleGroupBActionItemSelectionStatus::
                         resource_reread_typed_stop &&
                 result.return_eax == 0U && result.return_ecx == 0U &&
-                result.return_edx == 0x00525518U && !result.return_ecx_known &&
-                port.requests.empty(),
+                result.return_edx == 0x00525518U && !result.return_ecx_known,
             "selection one stops at its post-random resource re-read"
         );
     }
@@ -445,7 +435,7 @@ void test_battle_group_b_action_item_selection(openswd3::test::Context& test) {
         random.push(0U);
         random.push(0U);
         DefinitionPort port;
-        port.reply.definition = definition(0x12345678U, 0x9999U);
+        port.prepared_definition = definition(0x12345678U, 0x9999U);
         const auto result =
             openswd3::battle::select_legacy_battle_group_b_action_item(
                 &actor, random, port, {.actor_token = 0x00525508U}

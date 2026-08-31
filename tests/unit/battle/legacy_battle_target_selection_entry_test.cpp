@@ -1,3 +1,4 @@
+#include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_entry.hpp"
 
 #include <algorithm>
@@ -14,10 +15,10 @@ using openswd3::battle::LegacyBattleInputDispatchCall;
 using openswd3::battle::LegacyBattleInputDispatchCallReply;
 using openswd3::battle::LegacyBattleInputDispatchCallRequest;
 using openswd3::battle::LegacyBattleTargetSelectionEntryBindings;
-using DefinitionLoadReply =
-    openswd3::battle::LegacyBattleGroupBActionItemDefinitionLoadReply;
-using DefinitionLoadRequest =
-    openswd3::battle::LegacyBattleGroupBActionItemDefinitionLoadRequest;
+struct DefinitionLoadReply {
+    std::shared_ptr<const std::array<openswd3::compat::u8, 0xA4>> definition;
+};
+
 using NameCopyReply =
     openswd3::battle::LegacyBattleGroupBActionItemNameCopyReply;
 using NameCopyRequest =
@@ -26,7 +27,8 @@ using openswd3::compat::i32;
 using openswd3::compat::u32;
 
 class TargetSelectionPort final
-    : public openswd3::battle::LegacyBattleInputDispatchPort {
+    : public openswd3::battle::LegacyBattleInputDispatchPort,
+      public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
     [[nodiscard]] LegacyBattleInputDispatchCallReply invoke_input_dispatch(
         const LegacyBattleInputDispatchCallRequest& request
@@ -51,15 +53,6 @@ public:
             .ecx = request.ecx,
             .edx = request.edx,
         };
-    }
-
-    [[nodiscard]] DefinitionLoadReply
-    load_action_item_definition(const DefinitionLoadRequest& request) override {
-        definition_requests.push_back(request);
-        if (definition_reply_index >= definition_replies.size()) {
-            return {};
-        }
-        return definition_replies[definition_reply_index++];
     }
 
     [[nodiscard]] NameCopyReply
@@ -93,7 +86,6 @@ public:
     std::vector<LegacyBattleInputDispatchCallRequest> calls;
     std::vector<std::optional<LegacyBattleInputDispatchCallReply>> replies;
     std::vector<std::array<u32, 5>> samples;
-    std::vector<DefinitionLoadRequest> definition_requests;
     std::vector<DefinitionLoadReply> definition_replies;
     std::size_t definition_reply_index{};
     std::vector<NameCopyRequest> copy_requests;
@@ -103,6 +95,25 @@ public:
     u32* sample_mode_flags{};
     u32 sample_mode_flags_value{};
     u32 next_text_message_token{0x75000000U};
+
+protected:
+    [[nodiscard]] std::optional<bool> prepare_definition_record(
+        const std::span<openswd3::compat::u8> destination, const u32
+    ) noexcept override {
+        if (definition_reply_index >= definition_replies.size()) {
+            return false;
+        }
+        const auto& reply = definition_replies[definition_reply_index++];
+        if (reply.definition == nullptr) {
+            return false;
+        }
+        std::copy(
+            reply.definition->cbegin(),
+            reply.definition->cend(),
+            destination.begin()
+        );
+        return true;
+    }
 };
 
 void write_word(
@@ -557,15 +568,11 @@ void test_battle_target_selection_entry(openswd3::test::Context& test) {
                 fixture.port.calls.size() == 2U && fixture.message == 7U &&
                 fixture.frame.alternate_selection_limit == 5U &&
                 fixture.frame.transition_value_a == 0U &&
-                fixture.port.definition_requests.size() == 3U &&
-                fixture.port.definition_requests[0U].destination_token ==
-                    0x00525518U &&
-                fixture.port.definition_requests[0U].definition_argument ==
-                    0x1111U &&
-                fixture.port.definition_requests[1U].definition_argument ==
-                    0x73003333U &&
-                fixture.port.definition_requests[2U].definition_argument ==
-                    0x4444U &&
+                fixture.port.requested_definition_ids ==
+                    std::vector<u32>{0x1111U, 0x3333U, 0x4444U} &&
+                fixture.port.open_calls == 1U &&
+                fixture.port.read_calls == 9U &&
+                fixture.port.release_calls == 3U &&
                 fixture.port.copy_requests.size() == 3U &&
                 std::ranges::none_of(
                     fixture.port.calls,
@@ -592,14 +599,9 @@ void test_battle_target_selection_entry(openswd3::test::Context& test) {
         input.selected_group_a_index = 0U;
         fixture.frame.transition_value_a = 9U;
         write_word(fixture.group_b_actors[0U].resource_bytes, 0x72U, 0x5555U);
+        fixture.port.allocation_succeeds = false;
         fixture.port.definition_replies = {
-            DefinitionLoadReply{
-                .eax = 0xAAAAAAAAU,
-                .ecx = 0xBBBBBBBBU,
-                .edx = 0xCCCCCCCCU,
-                .typed_stop = true,
-                .definition = definition('S'),
-            },
+            DefinitionLoadReply{.definition = definition('S')},
         };
         fixture.port.replies = {
             LegacyBattleInputDispatchCallReply{.eax = 0U},
@@ -617,11 +619,13 @@ void test_battle_target_selection_entry(openswd3::test::Context& test) {
                 fixture.port.calls.size() == 2U &&
                 fixture.frame.alternate_selection_limit == 2U &&
                 fixture.frame.transition_value_a == 9U &&
-                result.return_eax == 0xAAAAAAAAU &&
-                result.return_ecx == 0xBBBBBBBBU &&
-                result.return_edx == 0xCCCCCCCCU &&
+                result.return_eax == 0U && result.return_ecx == 0x100U &&
+                result.return_edx == fixture.port.file_handle &&
+                fixture.port.requested_definition_ids ==
+                    std::vector<u32>{0x5555U} &&
+                fixture.port.release_calls == 0U &&
                 fixture.group_b_actors[0U]
-                        .action_composition.resource_definition[0U] == 'S',
+                        .action_composition.resource_definition[0U] == 0U,
             "secondary loader stop preserves the setup and loaded definition while blocking the remaining scan"
         );
     }

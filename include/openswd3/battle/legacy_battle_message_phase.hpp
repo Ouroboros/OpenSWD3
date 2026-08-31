@@ -93,7 +93,8 @@ enum class LegacyBattleMessagePhaseCall : compat::u8 {
     reserved_advance_message_103_slot,
     summon_frame_play_sample,
     summon_frame_render,
-    load_action_item_definition,
+    reserved_load_action_item_definition,
+    load_action_item_definition = reserved_load_action_item_definition,
 };
 
 struct LegacyBattleMessagePhaseCallRequest {
@@ -147,7 +148,8 @@ struct LegacyBattleMessagePhaseCallReply {
 };
 
 class LegacyBattleMessagePhasePort
-    : public virtual LegacyBattleSummonFramePort,
+    : public virtual LegacyBattleMonDatabasePort,
+      public virtual LegacyBattleSummonFramePort,
       public virtual LegacyBattleActorMessagePercentRefreshPort,
       public virtual LegacyBattleMessagePhaseStatePort,
       public virtual LegacyBattleVictoryRewardPort,

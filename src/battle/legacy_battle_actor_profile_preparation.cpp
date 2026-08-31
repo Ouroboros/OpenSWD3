@@ -39,21 +39,57 @@ LegacyBattleActorProfilePreparationResult prepare_legacy_battle_actor_profile(
     result.return_eax = request.entry_eax;
     result.return_ecx = actor_token;
     result.return_edx = request.entry_edx;
-    auto reply = port.build_record(request.source_value);
+    LegacyBattleMonDefinitionOwner definition;
+    const auto definition_result = load_legacy_battle_mon_definition(
+        definition.bytes,
+        definition.description,
+        mon_port,
+        {
+            .path = "mon.dat",
+            .definition_id = request.source_value,
+            .entry_eax = request.entry_eax,
+            .entry_edx = request.entry_edx,
+        }
+    );
     ++result.build_calls;
+    if (legacy_battle_mon_definition_load_stopped(definition_result.status)) {
+        result.status = LegacyBattleActorProfilePreparationStatus::
+            definition_load_typed_stop;
+        result.return_eax = definition_result.return_eax;
+        result.return_ecx = definition_result.return_ecx;
+        result.return_edx = definition_result.return_edx;
+        return result;
+    }
     if (actor_token == 0U || final_state == nullptr) {
         result.status =
             LegacyBattleActorProfilePreparationStatus::actor_state_typed_stop;
-        result.return_eax = reply.eax;
-        result.return_ecx = reply.ecx;
-        result.return_edx = reply.edx;
+        result.return_eax = definition_result.return_eax;
+        result.return_ecx = definition_result.return_ecx;
+        result.return_edx = definition_result.return_edx;
         return result;
     }
-    reply = port.resolve_record(
-        request.context_token, reply.record, reply.eax, reply.ecx, reply.edx
+    const LegacyBattleActorProfilePreparationRecord record{
+        .output_value = static_cast<u16>(
+            static_cast<u16>(definition.bytes[0x50U]) |
+            static_cast<u16>(static_cast<u16>(definition.bytes[0x51U]) << 8U)
+        ),
+        .profile_id = static_cast<u16>(
+            static_cast<u16>(definition.bytes[0x3EU]) |
+            static_cast<u16>(static_cast<u16>(definition.bytes[0x3FU]) << 8U)
+        ),
+        .fallback_value = static_cast<u16>(
+            static_cast<u16>(definition.bytes[0x34U]) |
+            static_cast<u16>(static_cast<u16>(definition.bytes[0x35U]) << 8U)
+        ),
+    };
+    const auto reply = port.resolve_record(
+        request.context_token,
+        record,
+        definition_result.return_eax,
+        definition_result.return_ecx,
+        definition_result.return_edx
     );
     ++result.resolve_calls;
-    const LegacyBattleActorProfilePreparationRecord record = reply.record;
     result.output_value = record.output_value;
     ++result.output_writes;
 

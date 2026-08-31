@@ -191,6 +191,7 @@ void test_battle_group_b_action_composition_script_caller(
         actor.action_composition.resource_definition[0x51U] = 0x56U;
         actor.action_configuration.profile_buffer[0x0EU] = std::byte{0x02U};
         actor.action_composition.derived_words[0U] = 1U;
+        port.definition = actor.action_composition.resource_definition;
         port.set_profile_word(0x0EU, 2U);
         const auto result = run_legacy_battle_script_dispatch(
             fixture.workspace, fixture.bindings(), port
@@ -216,22 +217,15 @@ void test_battle_group_b_action_composition_script_caller(
             "case twenty three publishes all three shared operands and directly composes the selected group B actor"
         );
         test.expect_true(
-            port.calls.size() == 4U &&
+            port.calls.size() == 3U &&
                 port.calls[0U].call ==
                     LegacyBattleScriptDispatchCall::pending_47ce80 &&
                 port.calls[1U].call ==
-                    LegacyBattleScriptDispatchCall::pending_476db0 &&
-                port.calls[1U].object_token == 0x0052AB58U &&
-                port.calls[1U].arguments[0U] == 0x0052AB68U &&
-                port.calls[1U].arguments[1U] == 0x77U &&
-                port.calls[1U].eax == 0x77U &&
-                port.calls[1U].ecx == 0x0052AB58U &&
-                port.calls[1U].edx == 690U &&
-                port.calls[2U].call ==
                     LegacyBattleScriptDispatchCall::legacy_string_copy &&
-                port.calls[3U].call == LegacyBattleScriptDispatchCall::frame &&
-                port.open_calls == 1U && port.read_calls == 3U &&
-                port.release_calls == 1U &&
+                port.calls[2U].call == LegacyBattleScriptDispatchCall::frame &&
+                port.requested_definition_ids == std::vector<u32>{0x77U} &&
+                port.open_calls == 1U && port.read_calls == 6U &&
+                port.release_calls == 2U &&
                 port.count(
                     LegacyBattleScriptDispatchCall::
                         reserved_group_b_action_composition
@@ -256,6 +250,7 @@ void test_battle_group_b_action_composition_script_caller(
         actor.action_composition.resource_definition[1U] = 0U;
         actor.action_composition.resource_definition[0x50U] = 0x34U;
         actor.action_composition.resource_definition[0x51U] = 0x12U;
+        port.definition = actor.action_composition.resource_definition;
         port.typed_stop_enabled = true;
         port.typed_stop_call =
             LegacyBattleScriptDispatchCall::legacy_string_copy;
@@ -1256,6 +1251,7 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
         actor.resource_bytes[0x64U] = 0x80U;
         actor.resource_bytes[0x65U] = 0xFFU;
         actor.resource_bytes[0x90U] = 0x7AU;
+        port.definition = actor.resource_bytes;
         const auto result = run_legacy_battle_script_dispatch(
             fixture.workspace,
             fixture.bindings(),
@@ -1279,18 +1275,13 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
             "case eighty directly reconfigures the selected group B actor"
         );
         test.expect_true(
-            port.calls.size() == 2U &&
+            port.calls.size() == 1U &&
                 port.calls[0U].call ==
-                    LegacyBattleScriptDispatchCall::pending_476db0 &&
-                port.calls[0U].arguments[0U] == 0x73000148U &&
-                port.calls[0U].arguments[1U] == 0xFFFFFF80U &&
-                port.calls[0U].eax == 0xFFFFFF80U &&
-                port.calls[0U].ecx == 0x73000148U &&
-                port.calls[0U].edx == 0x000002B2U &&
-                port.calls[1U].call ==
                     LegacyBattleScriptDispatchCall::pending_478220 &&
-                port.calls[1U].argument_count == 1U && port.open_calls == 1U &&
-                port.read_calls == 3U && port.release_calls == 1U,
+                port.calls[0U].argument_count == 1U &&
+                port.requested_definition_ids == std::vector<u32>{0xFF80U} &&
+                port.open_calls == 1U && port.read_calls == 6U &&
+                port.release_calls == 2U,
             "case eighty preserves the three reconfiguration callee ABIs"
         );
     }
@@ -1317,7 +1308,7 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
                         closed_callee_typed_stop &&
                 result.return_eax == 0U && result.return_ecx == 0x100U &&
                 result.return_edx == port.file_handle &&
-                fixture.workspace.cursor == 0U && port.calls.size() == 1U &&
+                fixture.workspace.cursor == 0U && port.calls.empty() &&
                 port.allocation_calls == 1U && port.release_calls == 0U,
             "case eighty stops before the caller cursor advance when a reclaimed callee stops"
         );

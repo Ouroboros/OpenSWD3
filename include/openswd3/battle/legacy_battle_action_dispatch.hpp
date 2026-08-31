@@ -1299,6 +1299,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     group_b_status_action_typed_stop,
     group_b_action_seventeen_frame_typed_stop,
     group_b_opponent_wave_parameters_typed_stop,
+    mon_definition_load_typed_stop,
 };
 
 struct LegacyBattleActionDispatchResult {

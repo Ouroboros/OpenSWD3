@@ -2,6 +2,7 @@
 
 #include "openswd3/battle/legacy_battle_group_a_final_processing_state.hpp"
 #include "openswd3/battle/legacy_battle_group_a_item_effect_application.hpp"
+#include "openswd3/battle/legacy_battle_mon_definition.hpp"
 #include "openswd3/battle/legacy_battle_mon_profile.hpp"
 
 namespace openswd3::battle {
@@ -45,6 +46,7 @@ enum class LegacyBattleActorProfilePreparationStatus : compat::u8 {
     completed,
     actor_state_typed_stop,
     profile_load_typed_stop,
+    definition_load_typed_stop,
 };
 
 struct LegacyBattleActorProfilePreparationResult {

@@ -37,26 +37,32 @@ public:
     ) noexcept
         : port_(port) {}
 
-    [[nodiscard]] LegacyBattleGroupBActionItemDefinitionLoadReply
-    load_action_item_definition(
-        const LegacyBattleGroupBActionItemDefinitionLoadRequest& request
+    [[nodiscard]] LegacyBattleMonDatabaseState&
+    legacy_battle_mon_database_state() noexcept override {
+        return port_.legacy_battle_mon_database_state();
+    }
+
+    [[nodiscard]] LegacyBattleMonProfile&
+    legacy_battle_mon_profile_scratch() noexcept override {
+        return port_.legacy_battle_mon_profile_scratch();
+    }
+
+    [[nodiscard]] std::array<u8, kLegacyBattleMonDefinitionScratchBytes>&
+    legacy_battle_mon_definition_scratch() noexcept override {
+        return port_.legacy_battle_mon_definition_scratch();
+    }
+
+    [[nodiscard]] std::vector<u8>&
+    legacy_battle_mon_definition_scratch_description() noexcept override {
+        return port_.legacy_battle_mon_definition_scratch_description();
+    }
+
+    [[nodiscard]] LegacyBattleMonDatabaseCallReply
+    invoke_legacy_battle_mon_database(
+        const LegacyBattleMonDatabaseCallRequest& request,
+        const std::span<u8> destination
     ) override {
-        const auto reply = port_.invoke_message_phase({
-            .call = LegacyBattleMessagePhaseCall::load_action_item_definition,
-            .actor_token = request.actor_token,
-            .arguments =
-                {request.destination_token, request.definition_argument},
-            .eax = request.eax,
-            .ecx = request.ecx,
-            .edx = request.edx,
-        });
-        return {
-            .eax = reply.eax,
-            .ecx = reply.ecx,
-            .edx = reply.edx,
-            .typed_stop = reply.typed_stop,
-            .definition = reply.group_b_action_item_definition,
-        };
+        return port_.invoke_legacy_battle_mon_database(request, destination);
     }
 
 private:
@@ -562,12 +568,6 @@ private:
         ++result_.group_b_action_item_selection_calls;
         result_.port_calls +=
             result_.group_b_action_item_selection.definition_load_calls;
-        if (result_.group_b_action_item_selection.definition_load_calls != 0U) {
-            result_.call_trace.push_back(
-                LegacyBattleMessagePhaseCall::load_action_item_definition
-            );
-            ++result_.call_trace_count;
-        }
         eax_ = result_.group_b_action_item_selection.return_eax;
         ecx_ = result_.group_b_action_item_selection.return_ecx;
         edx_ = result_.group_b_action_item_selection.return_edx;

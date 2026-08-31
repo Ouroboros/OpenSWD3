@@ -1,6 +1,7 @@
 #include "openswd3/battle/legacy_battle_growth_item_result_selection.hpp"
 
 #include <algorithm>
+#include <array>
 #include <bit>
 #include <cstddef>
 
@@ -154,7 +155,9 @@ private:
 
         const u32 item_code = eax_;
         result_.selected_item_code = item_code;
-        load_item_definition(item_code);
+        if (!load_item_definition(item_code)) {
+            return ActorAdvance::stopped;
+        }
         release_item_description();
         bindings_.target_selection.transition_mode = 1U;
         if (!copy_caption()) {
@@ -167,31 +170,51 @@ private:
         return ActorAdvance::selected;
     }
 
-    void load_item_definition(const u32 item_code) {
-        scratch_.bytes.fill(0U);
-        scratch_.description.clear();
-        const auto reply = invoke(
-            LegacyBattleGrowthItemResultSelectionCall::load_item_definition,
-            0U,
-            kLegacyBattleGrowthItemScratchToken,
-            0U,
-            0U,
-            item_code,
-            {kLegacyBattleGrowthItemScratchToken, item_code, 0U, 0U}
+    [[nodiscard]] bool load_item_definition(const u32 item_code) {
+        std::array<u8, kLegacyBattleMonDefinitionBytes> definition{};
+        std::copy(
+            scratch_.bytes.cbegin(), scratch_.bytes.cend(), definition.begin()
         );
+        definition[0xA0U] = static_cast<u8>(scratch_.description_token);
+        definition[0xA1U] = static_cast<u8>(scratch_.description_token >> 8U);
+        definition[0xA2U] = static_cast<u8>(scratch_.description_token >> 16U);
+        definition[0xA3U] = static_cast<u8>(scratch_.description_token >> 24U);
+        const auto definition_result = load_legacy_battle_mon_definition(
+            definition,
+            scratch_.description,
+            port_,
+            {
+                .path = "mon.dat",
+                .output_token = kLegacyBattleGrowthItemScratchToken,
+                .definition_id = item_code,
+                .entry_eax = eax_,
+                .entry_ecx = ecx_,
+                .entry_edx = edx_,
+            }
+        );
+        ++result_.port_calls;
         ++result_.item_load_calls;
-        if (!reply.publish_definition) {
-            return;
-        }
+        eax_ = definition_result.return_eax;
+        ecx_ = definition_result.return_ecx;
+        edx_ = definition_result.return_edx;
+        std::copy_n(
+            definition.cbegin(),
 
-        scratch_.bytes = reply.definition;
-        const auto length = std::min<std::size_t>(
-            reply.description_length, reply.description.size()
+            scratch_.bytes.size(),
+            scratch_.bytes.begin()
         );
-        scratch_.description.assign(
-            reply.description.begin(),
-            reply.description.begin() + static_cast<std::ptrdiff_t>(length)
-        );
+        scratch_.description_token = static_cast<u32>(definition[0xA0U]) |
+            (static_cast<u32>(definition[0xA1U]) << 8U) |
+            (static_cast<u32>(definition[0xA2U]) << 16U) |
+            (static_cast<u32>(definition[0xA3U]) << 24U);
+        if (legacy_battle_mon_definition_load_stopped(
+                definition_result.status
+            )) {
+            result_.status = LegacyBattleGrowthItemResultSelectionStatus::
+                definition_load_typed_stop;
+            return false;
+        }
+        return true;
     }
 
     void release_item_description() {
@@ -206,6 +229,7 @@ private:
         ));
         ++result_.item_release_calls;
         scratch_.description.clear();
+        scratch_.description_token = 0U;
     }
 
     [[nodiscard]] bool copy_caption() {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
+#include "openswd3/battle/legacy_battle_mon_definition.hpp"
 #include "openswd3/battle/legacy_battle_mon_profile.hpp"
 
 #include <array>
@@ -9,14 +10,16 @@
 namespace openswd3::battle {
 
 enum class LegacyBattleGroupBActionCompositionCall : compat::u8 {
-    load_resource_definition,
+    reserved_load_resource_definition,
+    load_resource_definition = reserved_load_resource_definition,
     copy_action_text,
     reserved_load_action_profile,
 };
 
 struct LegacyBattleGroupBActionCompositionCallRequest {
     LegacyBattleGroupBActionCompositionCall call{
-        LegacyBattleGroupBActionCompositionCall::load_resource_definition
+        LegacyBattleGroupBActionCompositionCall::
+            reserved_load_resource_definition
     };
     std::array<compat::u32, 2> arguments{};
     compat::u32 eax{};

@@ -1,3 +1,4 @@
+#include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_outcome_finalization.hpp"
 #include "openswd3/battle/legacy_battle_reward_item_slot.hpp"
 #include "test.hpp"
@@ -13,7 +14,9 @@ using openswd3::battle::LegacyBattleActionCallRequest;
 using openswd3::battle::LegacyBattleOutcomeFinalizationPort;
 using openswd3::compat::u32;
 
-class FinalizationPort final : public LegacyBattleOutcomeFinalizationPort {
+class FinalizationPort final
+    : public LegacyBattleOutcomeFinalizationPort,
+      public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
     [[nodiscard]] LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) override {
@@ -35,8 +38,29 @@ public:
     std::vector<LegacyBattleActionCallRequest> calls;
     std::function<void(const LegacyBattleActionCallRequest&, std::size_t)>
         on_call;
+    std::function<void(u32, std::size_t)> on_definition_load;
+    std::size_t definition_load_count{};
     u32 next_allocation_token{0x71000000U};
     bool fail_allocation{};
+
+    [[nodiscard]] openswd3::battle::LegacyBattleMonDatabaseCallReply
+    invoke_legacy_battle_mon_database(
+        const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
+        const std::span<openswd3::compat::u8> destination
+    ) override {
+        auto reply = openswd3::test::LegacyBattleMonDatabaseFixture::
+            invoke_legacy_battle_mon_database(request, destination);
+        if (request.call ==
+            openswd3::battle::LegacyBattleMonDatabaseCall::allocate_stream) {
+            ++definition_load_count;
+            if (on_definition_load && !requested_definition_ids.empty()) {
+                on_definition_load(
+                    requested_definition_ids.back(), definition_load_count
+                );
+            }
+        }
+        return reply;
+    }
 };
 
 [[nodiscard]] const openswd3::world_map::LegacyWorldItemNode*
@@ -100,12 +124,6 @@ void test_battle_outcome_finalization(openswd3::test::Context& test) {
         const auto* const first = find_item(port, 0x0123U);
         const auto* const second = find_item(port, 0x0456U);
         const auto* const group = find_item(port, 0x0300U);
-        std::vector<u32> initialized_ids;
-        for (const auto& call : port.calls) {
-            if (call.callee_token == 0x00476DB0U) {
-                initialized_ids.push_back(call.arguments[1]);
-            }
-        }
 
         test.expect_true(
             result.status == LegacyBattleOutcomeFinalizationStatus::completed &&
@@ -113,8 +131,8 @@ void test_battle_outcome_finalization(openswd3::test::Context& test) {
                 result.player_reward_calls == 2U &&
                 result.group_reward_calls == 2U &&
                 result.group_iterations == 2U && result.cleanup_applied &&
-                initialized_ids ==
-                    std::vector<u32>{0xABCD0123U, 0x71000456U, 0x00000300U} &&
+                port.requested_definition_ids ==
+                    std::vector<u32>{0x0123U, 0x0456U, 0x0300U} &&
                 first != nullptr && first->quantity_a == 1U &&
                 second != nullptr && second->quantity_a == 1U &&
                 group != nullptr && group->quantity_a == 2U &&
@@ -135,17 +153,13 @@ void test_battle_outcome_finalization(openswd3::test::Context& test) {
 
         const auto result =
             finalize_legacy_battle_outcome(port, group_b_count, 0xCDEF1234U);
-        const auto initialize =
-            std::ranges::find_if(port.calls, [](const auto& call) {
-                return call.callee_token == 0x00476DB0U;
-            });
 
         test.expect_true(
             result.return_value == 0xFFFFFFFFU &&
                 result.player_reward_calls == 1U &&
                 result.group_reward_calls == 0U &&
-                initialize != port.calls.end() &&
-                initialize->arguments[1] == 0xCDEF0042U && group_b_count == 0U,
+                port.requested_definition_ids == std::vector<u32>{0x0042U} &&
+                group_b_count == 0U,
             "a zero first word preserves stale EAX high bits while a signed-negative group count skips the group loop"
         );
     }
@@ -154,8 +168,8 @@ void test_battle_outcome_finalization(openswd3::test::Context& test) {
         FinalizationPort port;
         auto& state = port.outcome_finalization_state();
         state.player_reward_item_ids = {1U, 2U};
-        port.on_call = [&](const auto& request, const std::size_t call_count) {
-            if (request.callee_token == 0x00476DB0U && call_count == 2U) {
+        port.on_definition_load = [&](const u32, const std::size_t call_count) {
+            if (call_count == 1U) {
                 state.player_reward_item_ids[1] = 3U;
             }
         };
@@ -175,9 +189,9 @@ void test_battle_outcome_finalization(openswd3::test::Context& test) {
     {
         FinalizationPort port;
         u32 group_b_count = 1U;
-        port.on_call = [&](const auto& request, const std::size_t) {
-            if (request.callee_token == 0x00476DB0U &&
-                request.arguments[1] == 0x0300U) {
+        port.on_definition_load = [&](const u32 definition_id,
+                                      const std::size_t) {
+            if (definition_id == 0x0300U) {
                 group_b_count = 3U;
             }
         };

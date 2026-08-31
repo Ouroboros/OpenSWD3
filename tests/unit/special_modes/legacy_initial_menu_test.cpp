@@ -179,6 +179,34 @@ using openswd3::special_modes::LegacyStandardSpecialModeInitializationPorts;
 using openswd3::special_modes::LegacyStandardSpecialModePorts;
 using openswd3::special_modes::LegacyStandardSpecialModeState;
 
+class LegacyStandardModeDefinitionRecordFixture
+    : public openswd3::test::LegacyBattleMonDatabaseFixture {
+public:
+    [[nodiscard]] virtual bool
+    load_record(const std::span<u8> destination, u16 record_id) noexcept = 0;
+
+protected:
+    [[nodiscard]] std::optional<bool> prepare_definition_record(
+        const std::span<u8> destination, const u32 record_id
+    ) noexcept override {
+        definition.fill(0U);
+        definition_description.clear();
+        const bool loaded =
+            load_record(destination, static_cast<u16>(record_id));
+        if (loaded) {
+            const u32 description_token = static_cast<u32>(definition[0xA0U]) |
+                (static_cast<u32>(definition[0xA1U]) << 8U) |
+                (static_cast<u32>(definition[0xA2U]) << 16U) |
+                (static_cast<u32>(definition[0xA3U]) << 24U);
+            if (description_token != 0U) {
+                definition_description.push_back(0U);
+                definition_text_allocation_tokens.push_back(description_token);
+            }
+        }
+        return loaded;
+    }
+};
+
 struct DrawCall {
     i32 x{};
     i32 y{};
@@ -788,7 +816,8 @@ public:
 };
 
 class FakeQuantityPorts
-    : public virtual openswd3::special_modes::LegacyStandardModeQuantityPorts {
+    : public virtual openswd3::special_modes::LegacyStandardModeQuantityPorts,
+      public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
     LegacyStandardModeForwardNode*
     allocate_quantity_record() noexcept override {
@@ -827,6 +856,28 @@ public:
     std::vector<u32> loaded_ids;
     std::vector<u32> released_values;
     std::vector<LegacyStandardModeForwardNode*> released_records;
+
+protected:
+    [[nodiscard]] std::optional<bool> prepare_definition_record(
+        const std::span<u8> destination, const u32 record_id
+    ) noexcept override {
+        const bool loaded =
+            load_quantity_record_name(allocated_record, record_id);
+        const std::size_t count = std::min(
+            destination.size() - 1U, allocated_record.display_name.size()
+        );
+        std::copy_n(
+            allocated_record.display_name.begin(), count, destination.begin()
+        );
+        destination[count] = 0U;
+        if (loaded && allocated_record.release_token != 0U) {
+            definition_description.assign(1U, 0U);
+            definition_text_allocation_tokens.push_back(
+                allocated_record.release_token
+            );
+        }
+        return loaded;
+    }
 };
 
 class FakeEquipmentContributionPorts final
@@ -3660,7 +3711,8 @@ void test_standard_mode_page_refresh(openswd3::test::Context& test) {
 }
 
 void test_standard_mode_entry_initialization(openswd3::test::Context& test) {
-    class EntryPorts final : public LegacyStandardModeEntryInitializationPorts {
+    class EntryPorts final : public LegacyStandardModeEntryInitializationPorts,
+                             public LegacyStandardModeDefinitionRecordFixture {
     public:
         enum class Scenario : u8 {
             normal,
@@ -3805,16 +3857,13 @@ void test_standard_mode_entry_initialization(openswd3::test::Context& test) {
                 ports.status_call_counts[4U] == 1U &&
                 ports.status_call_counts[500U] == 2U &&
                 ports.load_ids == std::vector<u16>{2U, 4U, 500U} &&
-                ports.load_first_bytes ==
-                    std::vector<u8>{
-                        0U, static_cast<u8>('t'), static_cast<u8>('t')
-                    } &&
+                ports.load_first_bytes == std::vector<u8>{0U, 0U, 0U} &&
                 ports.load_token_was_zero ==
                     std::vector<bool>{true, true, true} &&
                 ports.released_tokens ==
                     std::vector<u32>{
                         0x11223344U,
-                        0x55667788U,
+                        0U,
                         0xAABBCCDDU,
                     } &&
                 state.visible_count == 3,
@@ -9916,7 +9965,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
 void test_standard_mode_database_initialization(openswd3::test::Context& test) {
     class DatabasePorts final
         : public openswd3::special_modes::
-              LegacyStandardModeDatabaseInitializationPorts {
+              LegacyStandardModeDatabaseInitializationPorts,
+          public LegacyStandardModeDefinitionRecordFixture {
     public:
         [[nodiscard]] bool load_record(
             const std::span<u8> destination, const u16 record_id
@@ -10233,7 +10283,8 @@ void test_standard_mode_database_advance(openswd3::test::Context& test) {
 
 void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
     class CyclePorts final
-        : public openswd3::special_modes::LegacyStandardModeDatabaseCyclePorts {
+        : public openswd3::special_modes::LegacyStandardModeDatabaseCyclePorts,
+          public openswd3::test::LegacyBattleMonDatabaseFixture {
     public:
         void release_value(u32 value) noexcept override {
             released_forward_values.push_back(value);
@@ -10805,9 +10856,10 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
                 get_u16(fallback_state.second_runtime_record, 4U) == 201U &&
                 fallback_ports.relation_queries ==
                     std::vector<std::pair<u8, u8>>{{2U, 1U}, {1U, 2U}} &&
-                fallback_ports.runtime_text_keys ==
-                    std::vector<u32>{0x004F0065U, 0x004F00C9U} &&
-                fallback.legacy_return_value == 302,
+                fallback_ports.runtime_text_keys.empty() &&
+                fallback_ports.requested_definition_ids ==
+                    std::vector<u32>{0x0065U, 0x00C9U} &&
+                fallback.legacy_return_value == 1,
             "0x43F1E0 fallback preserves parity, bit800, a7 and legacy text-key gates"
         );
     }
@@ -13179,7 +13231,8 @@ void test_standard_mode_database_cleanup(openswd3::test::Context& test) {
 
 void test_standard_mode_runtime_initialization(openswd3::test::Context& test) {
     class RuntimePorts final
-        : public LegacyStandardModeRuntimeInitializationPorts {
+        : public LegacyStandardModeRuntimeInitializationPorts,
+          public LegacyStandardModeDefinitionRecordFixture {
     public:
         [[nodiscard]] bool load_record(
             const std::span<u8> destination, const u16 record_id
@@ -13364,8 +13417,10 @@ void test_standard_mode_runtime_initialization(openswd3::test::Context& test) {
 }
 
 void test_standard_mode_entry_consumption(openswd3::test::Context& test) {
-    class ConsumptionPorts final : public openswd3::special_modes::
-                                       LegacyStandardModeEntryConsumptionPorts {
+    class ConsumptionPorts final
+        : public openswd3::special_modes::
+              LegacyStandardModeEntryConsumptionPorts,
+          public LegacyStandardModeDefinitionRecordFixture {
     public:
         [[nodiscard]] i8
         query_entry_classification(const u16) noexcept override {
@@ -13384,12 +13439,12 @@ void test_standard_mode_entry_consumption(openswd3::test::Context& test) {
         [[nodiscard]] bool load_selected_record(
             const std::span<u8> destination, const u32 record_id
         ) noexcept override {
-            selected_record_ids.push_back(record_id);
             const auto override_record = std::ranges::find_if(
                 selected_record_overrides, [record_id](const auto& item) {
-                    return item.first == record_id;
+                    return (item.first & 0xFFFFU) == record_id;
                 }
             );
+            selected_record_ids.push_back(record_id);
             const auto& source =
                 override_record == selected_record_overrides.end()
                 ? selected_record_data
@@ -13443,6 +13498,24 @@ void test_standard_mode_entry_consumption(openswd3::test::Context& test) {
         bool temporary_release_was_zero{};
         u32 temporary_release_count{};
         i32 dispatch_return{-777};
+
+    protected:
+        [[nodiscard]] std::optional<bool> prepare_definition_record(
+            const std::span<u8> destination, const u32 record_id
+        ) noexcept override {
+            definition.fill(0U);
+            definition_description.clear();
+            const bool loaded = load_selected_record(destination, record_id);
+            const u32 description_token = static_cast<u32>(definition[0xA0U]) |
+                (static_cast<u32>(definition[0xA1U]) << 8U) |
+                (static_cast<u32>(definition[0xA2U]) << 16U) |
+                (static_cast<u32>(definition[0xA3U]) << 24U);
+            if (loaded && description_token != 0U) {
+                definition_description.assign(1U, 0U);
+                definition_text_allocation_tokens.push_back(description_token);
+            }
+            return loaded;
+        }
     };
     const auto write_record_u16 =
         [](auto& record, const std::size_t scratch_offset, const u16 value) {
@@ -13508,7 +13581,7 @@ void test_standard_mode_entry_consumption(openswd3::test::Context& test) {
                 result.selected_record_loaded &&
                 result.selected_record_dispatched &&
                 ports.released_tokens == std::vector<u32>{0xAABBCCDDU} &&
-                ports.selected_record_ids == std::vector<u32>{0xA1B2C3D4U} &&
+                ports.selected_record_ids == std::vector<u32>{0xC3D4U} &&
                 state.scratch_record[0x04U] == 0xD4U &&
                 state.scratch_record[0x05U] == 0xC3U &&
                 state.scratch_record[0x06U] == 0U &&
@@ -13516,7 +13589,7 @@ void test_standard_mode_entry_consumption(openswd3::test::Context& test) {
                 state.scratch_record[0x0AU] == 0U &&
                 state.first_record_offset == 56 &&
                 state.second_record_offset == 112,
-            "0x43CEF0 keeps full loader ID, low-word header, seven flags and wrapping D050 index"
+            "0x43CEF0 keeps the logical low-word header, low-word MON index, seven flags and wrapping D050 index"
         );
     }
 
@@ -13617,7 +13690,7 @@ void test_standard_mode_entry_consumption(openswd3::test::Context& test) {
                 result.related_release_count == 3U &&
                 ports.category_entries == std::vector<u32>{0x55667788U} &&
                 ports.selected_record_ids ==
-                    std::vector<u32>{0x1111U, 0x2222U, 0xABCD3333U} &&
+                    std::vector<u32>{0x1111U, 0x2222U, 0x3333U} &&
                 ports.released_tokens ==
                     std::vector<u32>{
                         0x11111111U,
@@ -13626,7 +13699,7 @@ void test_standard_mode_entry_consumption(openswd3::test::Context& test) {
                     } &&
                 ports.temporary_release_count == 1U &&
                 !ports.temporary_release_was_zero,
-            "0x43D050 preserves category, six D370 calls, three releases and high-word third ID"
+            "0x43D050 preserves category, six D370 calls, three releases and low-word MON indexes"
         );
         test.expect_true(
             text(state.display_text_slots[0U]) ==
@@ -13921,7 +13994,9 @@ void test_standard_mode_entry_consumption(openswd3::test::Context& test) {
 }
 
 void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
-    class DispatchPorts final : public LegacyStandardModeInputDispatchPorts {
+    class DispatchPorts final
+        : public LegacyStandardModeInputDispatchPorts,
+          public LegacyStandardModeDefinitionRecordFixture {
     public:
         enum class Event : u8 {
             entry_consume,
@@ -13936,8 +14011,9 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
         [[nodiscard]] i8
         query_entry_classification(const u16 record_id) noexcept override {
             ++classification_query_count;
-            return record_id <= entry_match_count ? classification_value
-                                                  : static_cast<i8>(0x7F);
+            pending_entry_definition = record_id <= entry_match_count;
+            return pending_entry_definition ? classification_value
+                                            : static_cast<i8>(0x7F);
         }
         [[nodiscard]] u8 query_entry_status(const u16) noexcept override {
             ++entry_status_query_count;
@@ -14013,6 +14089,29 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
         u32 played_sample_handle{};
         std::vector<u16> played_sample_ids;
         std::vector<u32> played_sample_handles;
+        bool pending_entry_definition{};
+
+    protected:
+        [[nodiscard]] std::optional<bool> prepare_definition_record(
+            const std::span<u8> destination, const u32 record_id
+        ) noexcept override {
+            definition.fill(0U);
+            definition_description.clear();
+            if (pending_entry_definition) {
+                pending_entry_definition = false;
+                return load_record(destination, static_cast<u16>(record_id));
+            }
+            const bool loaded = load_selected_record(destination, record_id);
+            const u32 description_token = static_cast<u32>(definition[0xA0U]) |
+                (static_cast<u32>(definition[0xA1U]) << 8U) |
+                (static_cast<u32>(definition[0xA2U]) << 16U) |
+                (static_cast<u32>(definition[0xA3U]) << 24U);
+            if (loaded && description_token != 0U) {
+                definition_description.assign(1U, 0U);
+                definition_text_allocation_tokens.push_back(description_token);
+            }
+            return loaded;
+        }
     };
 
     std::array<LegacyStandardModeAvailabilityRecord, 16U> available_records{};
@@ -14039,7 +14138,7 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                 result.legacy_return_value == 222 && state.window_offset == 1 &&
                 state.local_cursor == 4 && state.entry_alias_index == 1 &&
                 static_cast<u32>(state.mode_flags) == 0x31U &&
-                ports.consumed_entry == 0xA1B2C3D4U &&
+                ports.consumed_entry == 0xC3D4U &&
                 ports.played_sample_id == 0x2EU &&
                 ports.played_sample_handle == 0x13572468U &&
                 ports.events ==
@@ -14089,7 +14188,7 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                 result.legacy_return_value == 222 && state.window_offset == 1 &&
                 state.local_cursor == 0 && state.entry_alias_index == 1 &&
                 static_cast<u32>(state.mode_flags) == 0xABCD0033U &&
-                ports.consumed_entry == 0x0A0B0C0DU &&
+                ports.consumed_entry == 0x0C0DU &&
                 ports.played_sample_id == 0x2EU &&
                 ports.played_sample_handle == 0x31415926U &&
                 ports.events ==
@@ -14137,7 +14236,7 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                 result.legacy_return_value == 222 &&
                 state.window_offset == 30 && state.local_cursor == 0 &&
                 state.entry_alias_index == 30 && state.mode_flags == 0x33 &&
-                ports.consumed_entry == 0xABCDEF01U &&
+                ports.consumed_entry == 0xEF01U &&
                 ports.played_sample_id == 0x2EU &&
                 ports.played_sample_handle == 0x16180339U &&
                 ports.events ==
@@ -14162,7 +14261,7 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
             result.status ==
                     LegacyStandardModeRuntimePageRetreatStatus::completed &&
                 state.window_offset == 5 && state.local_cursor == 0 &&
-                ports.consumed_entry == 0x10293847U,
+                ports.consumed_entry == 0x3847U,
             "0x43C670 retreats a zero-cursor page by exactly fifteen"
         );
     }
@@ -14298,7 +14397,7 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                 result.legacy_return_value == 222 && state.local_cursor == 4 &&
                 state.entry_alias_index == 0 &&
                 static_cast<u32>(state.mode_flags) == 0x30U &&
-                ports.consumed_entry == 0x01020304U &&
+                ports.consumed_entry == 0x0304U &&
                 ports.played_sample_id == 0x2EU &&
                 ports.played_sample_handle == 0x10203040U &&
                 ports.events ==
@@ -14406,8 +14505,7 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                 state.window_offset == 15 && state.local_cursor == 0 &&
                 state.visible_count == 0 && state.entry_alias_index == 15 &&
                 static_cast<u32>(state.mode_flags) == 0xABCD0033U &&
-                ports.consumed_entries ==
-                    std::vector<u32>{0x11223344U, 0x55667788U} &&
+                ports.consumed_entries == std::vector<u32>{0x3344U, 0x7788U} &&
                 ports.played_sample_id == 0x2EU &&
                 ports.played_sample_handle == 0x87654321U &&
                 ports.events ==
@@ -14449,8 +14547,7 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                         bottom_control_dispatched &&
                 result.legacy_return_value == 453 &&
                 result.bottom_control_dispatched && state.window_offset == 1 &&
-                state.local_cursor == 4 &&
-                ports.consumed_entry == 0x55667788U &&
+                state.local_cursor == 4 && ports.consumed_entry == 0x7788U &&
                 ports.events ==
                     std::vector{
                         DispatchPorts::Event::entry_consume,
@@ -16897,8 +16994,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             quantity_create_ports.allocated_record.text_index == 5U &&
             quantity_create_ports.allocated_record.first_value == 4U &&
             quantity_create_ports.allocated_record.filter_flags == 0x8000U &&
-            quantity_create_ports.loaded_ids == std::vector<u32>{0x12340005U},
-        "0x44D0F0 loads a new flagged record with the full id, stores its low word, and prepends it"
+            quantity_create_ports.loaded_ids == std::vector<u32>{5U},
+        "0x44D0F0 loads a new flagged record through the low-word MON index and prepends it"
     );
 
     quantity_head = nullptr;
@@ -16942,8 +17039,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     test.expect_true(
         quantity_load_stop.path == QuantityPath::load_failed &&
             quantity_load_stop.release_count == 2U &&
-            quantity_load_stop_ports.released_values ==
-                std::vector<u32>{0x9988U} &&
+            quantity_load_stop_ports.released_values == std::vector<u32>{0U} &&
             quantity_load_stop_ports.released_records ==
                 std::vector<LegacyStandardModeForwardNode*>{
                     &quantity_load_stop_ports.allocated_record
@@ -27982,7 +28078,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     };
 
     class GameMenuRuntimeInputPorts final
-        : public LegacyStandardModeInputDispatchPorts {
+        : public LegacyStandardModeInputDispatchPorts,
+          public LegacyStandardModeDefinitionRecordFixture {
     public:
         i8 query_entry_classification(const u16) noexcept override {
             return 0x7F;

@@ -51,6 +51,11 @@ void test_battle_actor_profile_preparation(openswd3::test::Context& test) {
         LegacyBattleGroupAFinalProcessingState final_state;
         LegacyBattleGroupAItemEffectApplicationState item_effect;
         ProfilePort port;
+        port.definition[0x50U] = 0x34U;
+        port.definition[0x51U] = 0x12U;
+        port.definition[0x3EU] = 7U;
+        port.definition[0x34U] = 0x78U;
+        port.definition[0x35U] = 0x56U;
         const auto result = prepare_legacy_battle_actor_profile(
             &final_state,
             &item_effect,
@@ -65,9 +70,14 @@ void test_battle_actor_profile_preparation(openswd3::test::Context& test) {
                 result.output_value == 0x1234U &&
                 result.fallback_writes == 1U &&
                 (final_state.profile_buffer[3U] >> 16U) == 0x5678U &&
-                (item_effect.mode_flags & 0x80U) != 0U && port.source == 9U &&
-                port.context == 0x71000000U &&
-                result.profile_load_calls == 1U && port.read_calls == 3U,
+                (item_effect.mode_flags & 0x80U) != 0U &&
+                port.context == 0x71000000U && result.build_calls == 1U &&
+                port.build_calls == 0U && result.profile_load_calls == 1U &&
+                port.read_calls == 6U &&
+                port.requested_definition_ids ==
+                    std::vector<openswd3::compat::u32>{9U} &&
+                port.requested_profile_ids ==
+                    std::vector<openswd3::compat::u16>{7U},
             "profile preparation builds, resolves, loads, publishes fallback and sets mode bit"
         );
     }
@@ -101,7 +111,10 @@ void test_battle_actor_profile_preparation(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActorProfilePreparationStatus::
                         actor_state_typed_stop &&
-                port.build_calls == 1U && port.resolve_calls == 0U,
+                port.build_calls == 0U && port.resolve_calls == 0U &&
+                port.read_calls == 3U &&
+                port.requested_definition_ids ==
+                    std::vector<openswd3::compat::u32>{0U},
             "missing actor profile owner preserves the local-build prefix then stops at the first actor read"
         );
     }

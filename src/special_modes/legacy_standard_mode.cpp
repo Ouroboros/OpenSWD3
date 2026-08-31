@@ -4867,14 +4867,40 @@ LegacyStandardModeQuantityResult update_legacy_standard_mode_quantity(
     *record = {};
     if (stored_id == 0xFFDCU) {
         ports.initialize_missing_quantity_name(*record);
-    } else if (!ports.load_quantity_record_name(*record, record_id)) {
-        ports.release_quantity_value(record->release_token);
-        ++result.release_count;
-        ports.release_quantity_record(*record);
-        ++result.release_count;
-        result.path = LegacyStandardModeQuantityPath::load_failed;
-        result.residual_quantity = residual;
-        return result;
+    } else {
+        std::vector<compat::u8> record_description;
+        const auto definition_result =
+            battle::load_legacy_battle_mon_definition(
+                std::span<compat::u8>{record->record_bytes}.subspan(0x0CU),
+                record_description,
+                ports,
+                {
+                    .path = "mon.dat",
+                    .definition_id = record_id,
+                }
+            );
+        record->release_token = read_u32_le(record->record_bytes, 0xACU);
+        if (battle::legacy_battle_mon_definition_load_stopped(
+                definition_result.status
+            )) {
+            result.status =
+                LegacyStandardModeQuantityStatus::definition_load_typed_stop;
+            result.residual_quantity = residual;
+            return result;
+        }
+        if (!definition_result.definition_found) {
+            ports.release_quantity_value(record->release_token);
+            ++result.release_count;
+            ports.release_quantity_record(*record);
+            ++result.release_count;
+            result.path = LegacyStandardModeQuantityPath::load_failed;
+            result.residual_quantity = residual;
+            return result;
+        }
+        const auto name_begin = record->record_bytes.cbegin() + 0x0C;
+        const auto name_end =
+            std::find(name_begin, record->record_bytes.cend(), compat::u8{0U});
+        record->display_name.assign(name_begin, name_end);
     }
     record->text_index = stored_id;
     if (category == 1) {
@@ -5015,13 +5041,38 @@ LegacyPlayerItemQuantityResult update_legacy_player_item_quantities(
         initial_quantity = 1;
         result.sentinel_forced_to_one = true;
         ports.initialize_missing_quantity_name(*record);
-    } else if (!ports.load_quantity_record_name(*record, record_id)) {
-        ports.release_quantity_value(record->release_token);
-        ++result.release_count;
-        ports.release_quantity_record(*record);
-        ++result.release_count;
-        result.path = LegacyPlayerItemQuantityPath::load_failed;
-        return result;
+    } else {
+        std::vector<compat::u8> record_description;
+        const auto definition_result =
+            battle::load_legacy_battle_mon_definition(
+                std::span<compat::u8>{record->record_bytes}.subspan(0x0CU),
+                record_description,
+                ports,
+                {
+                    .path = "mon.dat",
+                    .definition_id = record_id,
+                }
+            );
+        record->release_token = read_u32_le(record->record_bytes, 0xACU);
+        if (battle::legacy_battle_mon_definition_load_stopped(
+                definition_result.status
+            )) {
+            result.status =
+                LegacyPlayerItemQuantityStatus::definition_load_typed_stop;
+            return result;
+        }
+        if (!definition_result.definition_found) {
+            ports.release_quantity_value(record->release_token);
+            ++result.release_count;
+            ports.release_quantity_record(*record);
+            ++result.release_count;
+            result.path = LegacyPlayerItemQuantityPath::load_failed;
+            return result;
+        }
+        const auto name_begin = record->record_bytes.cbegin() + 0x0C;
+        const auto name_end =
+            std::find(name_begin, record->record_bytes.cend(), compat::u8{0U});
+        record->display_name.assign(name_begin, name_end);
     }
     record->text_index = stored_id;
     if (operation == 0U || operation == 2U) {
@@ -13830,7 +13881,24 @@ initialize_legacy_standard_mode_entries(
             }
             std::span<compat::u8> destination{scratch};
             destination = destination.subspan(0x0CU);
-            if (ports.load_record(destination, narrowed_record_id)) {
+            const auto definition_result =
+                battle::load_legacy_battle_mon_definition(
+                    destination,
+                    state.scratch_record_description,
+                    ports,
+                    {
+                        .path = "mon.dat",
+                        .definition_id = narrowed_record_id,
+                    }
+                );
+            if (battle::legacy_battle_mon_definition_load_stopped(
+                    definition_result.status
+                )) {
+                result.status = LegacyStandardModeEntryInitializationStatus::
+                    definition_load_typed_stop;
+                return result;
+            }
+            if (definition_result.definition_found) {
                 ++result.loaded_record_count;
                 const auto text_begin = scratch.cbegin() + 0x0C;
                 const auto text_end =
@@ -13866,6 +13934,7 @@ initialize_legacy_standard_mode_entries(
             scratch[0xADU] = 0U;
             scratch[0xAEU] = 0U;
             scratch[0xAFU] = 0U;
+            state.scratch_record_description.clear();
             ++result.released_record_count;
         }
     }
@@ -14197,6 +14266,7 @@ dispatch_legacy_standard_mode_selected_record(
     }
 
     std::array<compat::u8, 0xB0U> temporary{};
+    std::vector<compat::u8> temporary_description;
     const std::array<compat::u16, 3U> related_ids{
         read_u16_le(std::span<const compat::u8>{state.scratch_record}, 0x72U),
         read_u16_le(std::span<const compat::u8>{state.scratch_record}, 0x76U),
@@ -14212,9 +14282,24 @@ dispatch_legacy_standard_mode_selected_record(
         }
         if (related_ids[index] != 0U) {
             ++result.related_load_count;
-            if (ports.load_selected_record(
-                    std::span<compat::u8>{temporary}.subspan(0x0CU), loader_id
+            const auto definition_result =
+                battle::load_legacy_battle_mon_definition(
+                    std::span<compat::u8>{temporary}.subspan(0x0CU),
+                    temporary_description,
+                    ports,
+                    {
+                        .path = "mon.dat",
+                        .definition_id = loader_id,
+                    }
+                );
+            if (battle::legacy_battle_mon_definition_load_stopped(
+                    definition_result.status
                 )) {
+                result.status = LegacyStandardModeSelectedRecordDispatchStatus::
+                    definition_load_typed_stop;
+                return result;
+            }
+            if (definition_result.definition_found) {
                 std::span<const compat::u8> related_name;
                 if (!terminated_text(
                         std::span<const compat::u8>{temporary}.subspan(0x0CU),
@@ -14247,6 +14332,7 @@ dispatch_legacy_standard_mode_selected_record(
         const compat::u32 token =
             read_u32_le(std::span<const compat::u8>{temporary}, 0xACU);
         ports.release_record(token);
+        temporary_description.clear();
         ++result.related_release_count;
     }
     result.legacy_return_kind =
@@ -14284,9 +14370,24 @@ LegacyStandardModeEntryConsumptionResult consume_legacy_standard_mode_entry(
     write_u16_le(std::span<compat::u8>{state.scratch_record}, 0x0AU, 0U);
     write_u16_le(std::span<compat::u8>{state.scratch_record}, 0x06U, 0U);
     result.selected_record_load_attempted = true;
-    result.selected_record_loaded = ports.load_selected_record(
-        std::span<compat::u8>{state.scratch_record}.subspan(0x0CU), entry
+    const auto definition_result = battle::load_legacy_battle_mon_definition(
+        std::span<compat::u8>{state.scratch_record}.subspan(0x0CU),
+        state.scratch_record_description,
+        ports,
+        {
+            .path = "mon.dat",
+            .definition_id = entry,
+        }
     );
+    if (battle::legacy_battle_mon_definition_load_stopped(
+            definition_result.status
+        )) {
+        result.dispatch_status =
+            LegacyStandardModeSelectedRecordDispatchStatus::
+                definition_load_typed_stop;
+        return result;
+    }
+    result.selected_record_loaded = definition_result.definition_found;
 
     compat::u32 second_offset = 0U;
     compat::u32 first_base_offset = 0U;
@@ -14351,9 +14452,24 @@ initialize_legacy_standard_mode_runtime(
         state.scratch_record.fill(0U);
         std::span<compat::u8> destination{state.scratch_record};
         destination = destination.subspan(0x0CU);
-        if (ports.load_record(
-                destination, static_cast<compat::u16>(record_id)
+        const auto definition_result =
+            battle::load_legacy_battle_mon_definition(
+                destination,
+                state.scratch_record_description,
+                ports,
+                {
+                    .path = "mon.dat",
+                    .definition_id = static_cast<compat::u16>(record_id),
+                }
+            );
+        if (battle::legacy_battle_mon_definition_load_stopped(
+                definition_result.status
             )) {
+            result.status = LegacyStandardModeRuntimeInitializationStatus::
+                definition_load_typed_stop;
+            return result;
+        }
+        if (definition_result.definition_found) {
             state.loaded_status[record_id] = state.scratch_record[0x5EU];
             const compat::u32 token = read_u32_le(
                 std::span<const compat::u8>{state.scratch_record}, 0xACU
@@ -14363,6 +14479,7 @@ initialize_legacy_standard_mode_runtime(
             state.scratch_record[0xADU] = 0U;
             state.scratch_record[0xAEU] = 0U;
             state.scratch_record[0xAFU] = 0U;
+            state.scratch_record_description.clear();
             ++result.loaded_record_count;
             ++result.released_record_count;
         }
@@ -15537,18 +15654,25 @@ refresh_legacy_standard_mode_database_runtime_records(
         write_u16(record, 8U, 0U);
         write_u16(record, 0x0AU, 0U);
     };
-    const auto release_and_clear =
-        [&ports, &result](std::array<compat::u8, 0xB0U>& record) {
-            const compat::u32 token = read_u32_le(record, 0xACU);
-            if (token != 0U) {
-                ports.release_runtime_value(token);
-                ++result.released_token_count;
-            }
-            record.fill(0U);
-        };
+    const auto release_and_clear = [&ports, &result](
+                                       std::array<compat::u8, 0xB0U>& record,
+                                       std::vector<compat::u8>& description
+                                   ) {
+        const compat::u32 token = read_u32_le(record, 0xACU);
+        if (token != 0U) {
+            ports.release_runtime_value(token);
+            ++result.released_token_count;
+        }
+        record.fill(0U);
+        description.clear();
+    };
 
-    release_and_clear(state.first_runtime_record);
-    release_and_clear(state.second_runtime_record);
+    release_and_clear(
+        state.first_runtime_record, state.first_runtime_record_description
+    );
+    release_and_clear(
+        state.second_runtime_record, state.second_runtime_record_description
+    );
     write_u16(state.first_runtime_record, 4U, 0xFFDCU);
     write_u16(state.second_runtime_record, 4U, 0xFFDCU);
 
@@ -15657,12 +15781,29 @@ refresh_legacy_standard_mode_database_runtime_records(
     initialize_output(
         state.first_runtime_record, first_id == 0U ? 0x0065U : first_id
     );
-    result.legacy_return_value = ports.load_database_runtime_text(
-        std::span<compat::u8>(state.first_runtime_record).subspan(0x0CU),
+    const compat::u32 first_definition_id =
         state.first_runtime_record_legacy_address_high_word |
-            read_u16_le(state.first_runtime_record, 4U)
-    );
+        read_u16_le(state.first_runtime_record, 4U);
+    const auto first_definition_result =
+        battle::load_legacy_battle_mon_definition(
+            std::span<compat::u8>(state.first_runtime_record).subspan(0x0CU),
+            state.first_runtime_record_description,
+            ports,
+            {
+                .path = "mon.dat",
+                .definition_id = first_definition_id,
+            }
+        );
     ++result.text_load_count;
+    if (battle::legacy_battle_mon_definition_load_stopped(
+            first_definition_result.status
+        )) {
+        result.status = LegacyStandardModeDatabaseRecordRefreshStatus::
+            definition_load_typed_stop;
+        return result;
+    }
+    result.legacy_return_value =
+        first_definition_result.definition_found ? 1 : 0;
 
     const compat::u16 second_relation = ports.lookup_database_relation(
         mapped(second_category), mapped(first_category)
@@ -15677,12 +15818,29 @@ refresh_legacy_standard_mode_database_runtime_records(
     initialize_output(
         state.second_runtime_record, second_id == 0U ? 0x0065U : second_id
     );
-    result.legacy_return_value = ports.load_database_runtime_text(
-        std::span<compat::u8>(state.second_runtime_record).subspan(0x0CU),
+    const compat::u32 second_definition_id =
         state.second_runtime_record_legacy_address_high_word |
-            read_u16_le(state.second_runtime_record, 4U)
-    );
+        read_u16_le(state.second_runtime_record, 4U);
+    const auto second_definition_result =
+        battle::load_legacy_battle_mon_definition(
+            std::span<compat::u8>(state.second_runtime_record).subspan(0x0CU),
+            state.second_runtime_record_description,
+            ports,
+            {
+                .path = "mon.dat",
+                .definition_id = second_definition_id,
+            }
+        );
     ++result.text_load_count;
+    if (battle::legacy_battle_mon_definition_load_stopped(
+            second_definition_result.status
+        )) {
+        result.status = LegacyStandardModeDatabaseRecordRefreshStatus::
+            definition_load_typed_stop;
+        return result;
+    }
+    result.legacy_return_value =
+        second_definition_result.definition_found ? 1 : 0;
     return result;
 }
 
@@ -20691,11 +20849,24 @@ initialize_legacy_standard_mode_database(
          record_id < kLegacyStandardModeDatabaseRecordCount;
          ++record_id) {
         state.scan_record.fill(0U);
-        const bool loaded = ports.load_record(
-            std::span<compat::u8>{state.scan_record}.subspan(0x0CU),
-            static_cast<compat::u16>(record_id)
-        );
-        if (loaded) {
+        const auto definition_result =
+            battle::load_legacy_battle_mon_definition(
+                std::span<compat::u8>{state.scan_record}.subspan(0x0CU),
+                state.scan_record_description,
+                ports,
+                {
+                    .path = "mon.dat",
+                    .definition_id = static_cast<compat::u16>(record_id),
+                }
+            );
+        if (battle::legacy_battle_mon_definition_load_stopped(
+                definition_result.status
+            )) {
+            result.status = LegacyStandardModeDatabaseInitializationStatus::
+                definition_load_typed_stop;
+            return result;
+        }
+        if (definition_result.definition_found) {
             state.field_5e_table[record_id] =
                 static_cast<compat::i32>(read_u16_le(state.scan_record, 0x5EU));
             state.field_60_table[record_id] =
@@ -20709,6 +20880,7 @@ initialize_legacy_standard_mode_database(
             ++result.loaded_record_count;
         }
         ports.release_record(read_u32_le(state.scan_record, 0xACU));
+        state.scan_record_description.clear();
         ++result.released_record_count;
         state.scan_index = record_id + 1U;
     }

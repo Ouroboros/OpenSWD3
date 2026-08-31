@@ -74,6 +74,16 @@ public:
     u32 definition_edx{0x33333333U};
     u32 copy_ecx{0xCAFE1234U};
     u32 copy_edx{0x44444444U};
+
+protected:
+    [[nodiscard]] std::optional<bool> prepare_definition_record(
+        const std::span<u8> destination, const u32
+    ) noexcept override {
+        std::copy(
+            definition->cbegin(), definition->cend(), destination.begin()
+        );
+        return true;
+    }
 };
 
 }  // namespace
@@ -105,9 +115,8 @@ void test_battle_group_b_action_composition(openswd3::test::Context& test) {
                     LegacyBattleGroupBActionCompositionStatus::
                         actor_state_typed_stop &&
                 result.port_calls == 1U && output == 0U &&
-                result.return_eax == 0x11111111U &&
-                result.return_ecx == 0x22222222U &&
-                result.return_edx == 0x33333333U,
+                port.requested_definition_ids == std::vector<u32>{7U} &&
+                port.release_calls == 1U,
             "action composition stops at the first actor read after preserving the definition call"
         );
     }
@@ -116,8 +125,7 @@ void test_battle_group_b_action_composition(openswd3::test::Context& test) {
         LegacyBattleActorGroupBElementState actor;
         Port port;
         (*port.definition)[0U] = 'R';
-        port.typed_stop_call =
-            LegacyBattleGroupBActionCompositionCall::load_resource_definition;
+        port.allocation_succeeds = false;
         u32 output{};
         const auto result = compose_legacy_battle_group_b_action(
             &actor,
@@ -136,7 +144,8 @@ void test_battle_group_b_action_composition(openswd3::test::Context& test) {
                     LegacyBattleGroupBActionCompositionStatus::
                         resource_load_typed_stop &&
                 result.port_calls == 1U && output == 0U &&
-                actor.action_composition.resource_definition[0U] == 'R',
+                actor.action_composition.resource_definition[0U] == 0U &&
+                port.release_calls == 0U,
             "definition typed stop preserves loader side effects and blocks the output text profile and mode suffixes"
         );
     }
@@ -188,7 +197,7 @@ void test_battle_group_b_action_composition(openswd3::test::Context& test) {
         write_word(*port.definition, 0x3EU, 0x1357U);
         write_word(*port.definition, 0x50U, 0x6688U);
         port.set_profile_word(0x0EU, 5U);
-        port.allocation_succeeds = false;
+        port.allocation_results = {true, false};
         u32 output{};
         const auto result = compose_legacy_battle_group_b_action(
             actor.get(),
@@ -317,12 +326,11 @@ void test_battle_group_b_action_composition(openswd3::test::Context& test) {
             "action composition copies text loads the profile wraps the derived word and applies fixed mode two"
         );
         test.expect_true(
-            port.calls.size() == 2U &&
-                port.calls[0U].arguments[0U] == 0x00525518U &&
-                port.calls[0U].arguments[1U] == 0x77U &&
-                port.calls[1U].arguments[0U] == 0x00527B38U &&
-                port.calls[1U].arguments[1U] == 0x00525518U &&
-                port.read_calls == 3U,
+            port.calls.size() == 1U &&
+                port.calls[0U].arguments[0U] == 0x00527B38U &&
+                port.calls[0U].arguments[1U] == 0x00525518U &&
+                port.requested_definition_ids == std::vector<u32>{0x77U} &&
+                port.read_calls == 6U,
             "action composition preserves the opaque definition and text ABIs plus the typed MON boundary"
         );
     }

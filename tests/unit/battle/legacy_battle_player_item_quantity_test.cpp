@@ -1,3 +1,4 @@
+#include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_player_item_quantity.hpp"
 
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
@@ -15,7 +16,9 @@ using openswd3::battle::LegacyBattleActionDispatchPort;
 using openswd3::battle::LegacyBattlePlayerItemQuantityStatus;
 using openswd3::compat::u32;
 
-class PlayerItemPort final : public LegacyBattleActionDispatchPort {
+class PlayerItemPort final
+    : public LegacyBattleActionDispatchPort,
+      public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
     [[nodiscard]] LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) override {
@@ -82,12 +85,10 @@ void test_battle_player_item_quantity(openswd3::test::Context& test) {
                 node.legacy_token == 0x00600000U &&
                 node.legacy_next_token == 0U && node.item_id == 0x21U &&
                 node.quantity_a == 1U && node.quantity_b == 0U &&
-                port.requests.size() == 2U &&
+                port.requests.size() == 1U &&
                 port.requests[0].callee_token == 0x00487C10U &&
                 port.requests[0].arguments[0] == 0xB0U &&
-                port.requests[1].callee_token == 0x00476DB0U &&
-                port.requests[1].arguments[0] == 0x0060000CU &&
-                port.requests[1].arguments[1] == 0x12340021U,
+                port.requested_definition_ids == std::vector<u32>{0x21U},
             "missing item allocates and zero-initializes a head node before the initializer call"
         );
     }

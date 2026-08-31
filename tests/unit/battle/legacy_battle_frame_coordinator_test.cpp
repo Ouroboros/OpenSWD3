@@ -1,3 +1,4 @@
+#include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_frame_coordinator.hpp"
 #include "openswd3/rendering/legacy_image_command_stream.hpp"
 
@@ -32,7 +33,8 @@ using openswd3::compat::u16;
 using openswd3::compat::u32;
 
 class CoordinatorPort final
-    : public openswd3::battle::LegacyBattleFrameCoordinatorPort {
+    : public openswd3::battle::LegacyBattleFrameCoordinatorPort,
+      public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
     [[nodiscard]] LegacyBattleFrameCoordinatorCallReply
     invoke(const LegacyBattleFrameCoordinatorCallRequest& request) override {
@@ -207,6 +209,44 @@ public:
     u32 temporary_surface_token{0x70000000U};
     u32 music_return{0x12345678U};
     u32 surface_operation_return{0x87654321U};
+
+    [[nodiscard]] openswd3::battle::LegacyBattleMonDatabaseCallReply
+    invoke_legacy_battle_mon_database(
+        const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
+        const std::span<u8> destination
+    ) override {
+        const auto call = LegacyBattleFrameCoordinatorCall::
+            reserved_group_b_action_item_load_definition;
+        const auto found = replies.find(call);
+        if (found != replies.end() &&
+            found->second.message_phase_action_item_typed_stop &&
+            request.call ==
+                openswd3::battle::LegacyBattleMonDatabaseCall::
+                    allocate_stream) {
+            allocation_succeeds = false;
+        }
+        return openswd3::test::LegacyBattleMonDatabaseFixture::
+            invoke_legacy_battle_mon_database(request, destination);
+    }
+
+protected:
+    [[nodiscard]] std::optional<bool> prepare_definition_record(
+        const std::span<u8> destination, const u32
+    ) noexcept override {
+        const auto call = LegacyBattleFrameCoordinatorCall::
+            reserved_group_b_action_item_load_definition;
+        const auto found = replies.find(call);
+        if (found == replies.end() ||
+            found->second.message_phase_action_item_definition == nullptr) {
+            return false;
+        }
+        std::copy(
+            found->second.message_phase_action_item_definition->cbegin(),
+            found->second.message_phase_action_item_definition->cend(),
+            destination.begin()
+        );
+        return true;
+    }
 };
 
 class FrameEffectPort final

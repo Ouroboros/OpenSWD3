@@ -121,18 +121,29 @@ materialize_legacy_battle_group_a_summon(
         return result;
     }
     const u16 role_id = source->role_id;
-    reply = invoke(
+    const auto definition_result = load_legacy_battle_mon_definition(
+        std::span<u8>{
+            reinterpret_cast<u8*>(state->profile_record.data()),
+            state->profile_record.size(),
+        },
+        state->profile_description,
         port,
-        result,
         {
-            .call = LegacyBattleGroupASummonMaterializationCall::load_profile,
-            .profile_token = state->profile_token,
-            .role_id = role_id,
-            .profile_record = state->profile_record,
+            .path = "mon.dat",
+            .output_token = state->profile_token,
+            .definition_id = role_id,
         }
     );
+    ++result.port_calls;
     ++result.load_calls;
-    state->profile_record = reply.profile_record;
+    if (legacy_battle_mon_definition_load_stopped(definition_result.status)) {
+        result.status = LegacyBattleGroupASummonMaterializationStatus::
+            profile_load_typed_stop;
+        result.return_eax = definition_result.return_eax;
+        result.return_ecx = definition_result.return_ecx;
+        result.return_edx = definition_result.return_edx;
+        return result;
+    }
     reply = invoke(
         port,
         result,

@@ -29,7 +29,8 @@ struct LegacyBattleGrowthItemResultSelectionBindings {
 enum class LegacyBattleGrowthItemResultSelectionCall : compat::u8 {
     query_actor_completion,
     reserved_select_growth_item,
-    load_item_definition,
+    reserved_load_item_definition,
+    load_item_definition = reserved_load_item_definition,
     release_item_description,
     copy_caption,
 };
@@ -66,7 +67,8 @@ struct LegacyBattleGrowthItemResultSelectionCallReply {
 };
 
 class LegacyBattleGrowthItemResultSelectionPort
-    : public virtual LegacyBattleGrowthActorSelectionStatePort,
+    : public virtual LegacyBattleMonDatabasePort,
+      public virtual LegacyBattleGrowthActorSelectionStatePort,
       public virtual LegacyBattleGroupARewardProfileStatePort {
 public:
     virtual ~LegacyBattleGrowthItemResultSelectionPort() = default;
@@ -99,6 +101,7 @@ enum class LegacyBattleGrowthItemResultSelectionStatus : compat::u8 {
     group_a_actor_typed_stop,
     caption_destination_typed_stop,
     growth_reward_typed_stop,
+    definition_load_typed_stop,
 };
 
 struct LegacyBattleGrowthItemResultSelectionResult {

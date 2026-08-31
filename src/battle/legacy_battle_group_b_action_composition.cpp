@@ -27,20 +27,6 @@ template <std::size_t Size>
         static_cast<u16>(static_cast<u16>(bytes[offset + 1U]) << 8U);
 }
 
-void publish_reply(
-    LegacyBattleActorGroupBElementState& actor,
-    const LegacyBattleGroupBActionCompositionCallReply& reply
-) {
-    if (reply.resource_definition != nullptr) {
-        actor.action_composition.resource_definition =
-            *reply.resource_definition;
-    }
-
-    if (reply.profile_buffer != nullptr) {
-        actor.action_configuration.profile_buffer = *reply.profile_buffer;
-    }
-}
-
 }  // namespace
 
 LegacyBattleGroupBActionCompositionResult compose_legacy_battle_group_b_action(
@@ -55,27 +41,31 @@ LegacyBattleGroupBActionCompositionResult compose_legacy_battle_group_b_action(
         .return_ecx = request.entry_ecx,
         .return_edx = request.entry_edx,
     };
-    auto reply = port.invoke({
-        .call =
-            LegacyBattleGroupBActionCompositionCall::load_resource_definition,
-        .arguments =
-            {
-                request.actor_token + 0x10U,
-                request.definition_argument,
-            },
-        .eax = request.definition_argument,
-        .ecx = request.entry_ecx,
-        .edx = request.entry_edx,
-    });
+    LegacyBattleMonDefinitionOwner detached_owner;
+    auto& definition = actor == nullptr
+        ? detached_owner.bytes
+        : actor->action_composition.resource_definition;
+    auto& description = actor == nullptr
+        ? detached_owner.description
+        : actor->action_composition.resource_definition_description;
+    const auto definition_result = load_legacy_battle_mon_definition(
+        definition,
+        description,
+        mon_port,
+        {
+            .path = "mon.dat",
+            .output_token = request.actor_token + 0x10U,
+            .definition_id = request.definition_argument,
+            .entry_eax = request.definition_argument,
+            .entry_ecx = request.entry_ecx,
+            .entry_edx = request.entry_edx,
+        }
+    );
     ++result.port_calls;
-    result.return_eax = reply.eax;
-    result.return_ecx = reply.ecx;
-    result.return_edx = reply.edx;
-    if (actor != nullptr) {
-        publish_reply(*actor, reply);
-    }
-
-    if (reply.typed_stop) {
+    result.return_eax = definition_result.return_eax;
+    result.return_ecx = definition_result.return_ecx;
+    result.return_edx = definition_result.return_edx;
+    if (legacy_battle_mon_definition_load_stopped(definition_result.status)) {
         result.status =
             LegacyBattleGroupBActionCompositionStatus::resource_load_typed_stop;
         return result;
@@ -100,17 +90,19 @@ LegacyBattleGroupBActionCompositionResult compose_legacy_battle_group_b_action(
 
     *output = result.published_word;
 
-    reply = port.invoke({
-        .call = LegacyBattleGroupBActionCompositionCall::copy_action_text,
-        .arguments =
-            {
-                request.actor_token + 0x2630U,
-                request.actor_token + 0x10U,
-            },
-        .eax = result.return_eax,
-        .ecx = result.return_ecx,
-        .edx = result.return_edx,
-    });
+    auto
+
+        reply = port.invoke({
+            .call = LegacyBattleGroupBActionCompositionCall::copy_action_text,
+            .arguments =
+                {
+                    request.actor_token + 0x2630U,
+                    request.actor_token + 0x10U,
+                },
+            .eax = result.return_eax,
+            .ecx = result.return_ecx,
+            .edx = result.return_edx,
+        });
     ++result.port_calls;
     result.return_eax = request.actor_token + 0x2630U;
     result.return_ecx = reply.ecx;

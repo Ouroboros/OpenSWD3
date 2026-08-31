@@ -361,14 +361,9 @@ private:
     invoke_group_b_action_reconfiguration_callee(
         const LegacyBattleGroupBActionConfigurationCallRequest& request
     ) {
-        LegacyBattleScriptDispatchCall call_kind =
-            LegacyBattleScriptDispatchCall::pending_476db0;
-        u32 argument_count = 2U;
         switch (request.call) {
         case LegacyBattleGroupBActionConfigurationCall::
-            load_resource_definition:
-            call_kind = LegacyBattleScriptDispatchCall::pending_476db0;
-            break;
+            reserved_load_resource_definition:
         case LegacyBattleGroupBActionConfigurationCall::
             reserved_load_action_profile:
             return {
@@ -380,23 +375,23 @@ private:
                 .profile_buffer = nullptr,
             };
         case LegacyBattleGroupBActionConfigurationCall::release_resource_text:
-            call_kind = LegacyBattleScriptDispatchCall::pending_478220;
-            argument_count = 1U;
             break;
         }
+
+        constexpr auto call_kind =
+            LegacyBattleScriptDispatchCall::pending_478220;
 
         LegacyBattleScriptDispatchCallRequest call{
             .call = call_kind,
             .object_token = request.ecx,
             .arguments = {},
-            .argument_count = argument_count,
+            .argument_count = 1U,
             .eax = request.eax,
             .ecx = request.ecx,
             .edx = request.edx,
             .cursor = workspace_.cursor,
         };
         call.arguments[0U] = request.arguments[0U];
-        call.arguments[1U] = request.arguments[1U];
         result_.call_trace.push_back(call_kind);
         ++result_.port_calls;
         const auto reply =
@@ -438,16 +433,9 @@ private:
     invoke_group_b_action_composition_callee(
         const LegacyBattleGroupBActionCompositionCallRequest& request
     ) {
-        LegacyBattleScriptDispatchCall call_kind =
-            LegacyBattleScriptDispatchCall::pending_476db0;
         switch (request.call) {
-        case LegacyBattleGroupBActionCompositionCall::load_resource_definition:
-            call_kind = LegacyBattleScriptDispatchCall::pending_476db0;
-            break;
-
-        case LegacyBattleGroupBActionCompositionCall::copy_action_text:
-            call_kind = LegacyBattleScriptDispatchCall::legacy_string_copy;
-            break;
+        case LegacyBattleGroupBActionCompositionCall::
+            reserved_load_resource_definition:
 
         case LegacyBattleGroupBActionCompositionCall::
             reserved_load_action_profile:
@@ -459,7 +447,13 @@ private:
                 .resource_definition = nullptr,
                 .profile_buffer = nullptr,
             };
+
+        case LegacyBattleGroupBActionCompositionCall::copy_action_text:
+            break;
         }
+
+        constexpr auto call_kind =
+            LegacyBattleScriptDispatchCall::legacy_string_copy;
 
         LegacyBattleScriptDispatchCallRequest call{
             .call = call_kind,

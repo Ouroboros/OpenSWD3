@@ -2,6 +2,7 @@
 
 #include "openswd3/asset_runtime/legacy_action_draw_bridge.hpp"
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
+#include "openswd3/battle/legacy_battle_mon_definition.hpp"
 #include "openswd3/battle/legacy_battle_mon_profile.hpp"
 #include "openswd3/compat/types.hpp"
 #include "openswd3/input_time_rng/legacy_input.hpp"
@@ -2243,7 +2244,8 @@ struct LegacyStandardModeForwardNode {
     std::string animated_text{};
 };
 
-class LegacyStandardModeQuantityPorts {
+class LegacyStandardModeQuantityPorts
+    : public virtual battle::LegacyBattleMonDatabasePort {
 public:
     virtual ~LegacyStandardModeQuantityPorts() = default;
     [[nodiscard]] virtual LegacyStandardModeForwardNode*
@@ -2264,6 +2266,7 @@ enum class LegacyStandardModeQuantityStatus : compat::u8 {
     allocation_stopped,
     first_chain_cycle_stopped,
     second_chain_cycle_stopped,
+    definition_load_typed_stop,
 };
 
 enum class LegacyStandardModeQuantityPath : compat::u8 {
@@ -2303,6 +2306,7 @@ enum class LegacyPlayerItemQuantityStatus : compat::u8 {
     completed,
     allocation_stopped,
     chain_cycle_stopped,
+    definition_load_typed_stop,
 };
 
 enum class LegacyPlayerItemQuantityPath : compat::u8 {
@@ -5269,8 +5273,11 @@ struct LegacyStandardModeDatabaseInitializationState {
     std::array<compat::i32, kLegacyStandardModeDatabaseRecordCount>
         field_a7_table{};
     std::array<compat::u8, 0xB0U> scan_record{};
+    std::vector<compat::u8> scan_record_description;
     std::array<compat::u8, 0xB0U> first_runtime_record{};
+    std::vector<compat::u8> first_runtime_record_description;
     std::array<compat::u8, 0xB0U> second_runtime_record{};
+    std::vector<compat::u8> second_runtime_record_description;
     compat::u32 first_runtime_record_legacy_address_high_word{0x004F0000U};
     compat::u32 second_runtime_record_legacy_address_high_word{0x004F0000U};
     LegacyStandardModeForwardNode* adjustment_head{};
@@ -5779,7 +5786,8 @@ struct LegacyStandardModeDatabaseRecordPair {
     compat::u16 second_record_id{};
 };
 
-class LegacyStandardModeDatabaseRecordRefreshPorts {
+class LegacyStandardModeDatabaseRecordRefreshPorts
+    : public virtual battle::LegacyBattleMonDatabasePort {
 public:
     virtual ~LegacyStandardModeDatabaseRecordRefreshPorts() = default;
     virtual void release_runtime_value(compat::u32) noexcept {}
@@ -5800,6 +5808,7 @@ public:
 enum class LegacyStandardModeDatabaseRecordRefreshStatus : compat::u8 {
     completed,
     category_index_out_of_range,
+    definition_load_typed_stop,
 };
 
 enum class LegacyStandardModeDatabaseRecordRefreshPath : compat::u8 {
@@ -6287,6 +6296,7 @@ public:
 enum class LegacyStandardModeDatabaseInitializationStatus : compat::u8 {
     completed,
     mirror_source_out_of_range,
+    definition_load_typed_stop,
 };
 
 struct LegacyStandardModeDatabaseInitializationResult {
@@ -6337,7 +6347,8 @@ public:
 };
 
 class LegacyStandardModeDatabaseInitializationPorts
-    : public LegacyStandardModeDatabaseForwardRefreshPorts {
+    : public LegacyStandardModeDatabaseForwardRefreshPorts,
+      public virtual battle::LegacyBattleMonDatabasePort {
 public:
     virtual ~LegacyStandardModeDatabaseInitializationPorts() = default;
     [[nodiscard]] virtual bool load_record(
@@ -6353,6 +6364,7 @@ public:
 
 struct LegacyStandardModeRuntimeInitializationState {
     std::array<compat::u8, 0xB0U> scratch_record{};
+    std::vector<compat::u8> scratch_record_description;
     std::array<compat::u8, 0x200U> loaded_status{};
     std::array<compat::u8, 0x200U> queried_status{};
     std::array<std::array<compat::u8, 0x20U>, 0x10U> long_text_slots{};
@@ -6388,6 +6400,7 @@ enum class LegacyStandardModeEntryInitializationStatus : compat::u8 {
     entry_terminator_out_of_range,
     loaded_text_not_terminated,
     loaded_text_out_of_range,
+    definition_load_typed_stop,
 };
 
 struct LegacyStandardModeEntryAliasResult {
@@ -6418,7 +6431,8 @@ struct LegacyStandardModeEntryInitializationResult {
     compat::u32 released_record_count{};
 };
 
-class LegacyStandardModeEntryInitializationPorts {
+class LegacyStandardModeEntryInitializationPorts
+    : public virtual battle::LegacyBattleMonDatabasePort {
 public:
     virtual ~LegacyStandardModeEntryInitializationPorts() = default;
     [[nodiscard]] virtual compat::i8
@@ -6473,6 +6487,7 @@ enum class LegacyStandardModeSelectedRecordDispatchStatus : compat::u8 {
     derived_text_stopped,
     related_name_not_terminated,
     related_name_out_of_range,
+    definition_load_typed_stop,
 };
 
 enum class LegacyStandardModeSelectedRecordDispatchReturnKind : compat::u8 {
@@ -6541,6 +6556,7 @@ struct LegacyStandardModeEntryConsumptionResult {
 enum class LegacyStandardModeRuntimeInitializationStatus : compat::u8 {
     completed,
     entry_initialization_stopped,
+    definition_load_typed_stop,
 };
 
 struct LegacyStandardModeRuntimeInitializationResult {

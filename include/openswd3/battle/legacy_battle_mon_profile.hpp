@@ -6,12 +6,14 @@
 #include <cstddef>
 #include <filesystem>
 #include <span>
+#include <vector>
 
 namespace openswd3::battle {
 
 inline constexpr compat::u32 kLegacyBattleMonProfileBytes = 0x28U;
 inline constexpr compat::u32 kLegacyBattleMonStreamBytes = 0x400U;
 inline constexpr compat::u32 kLegacyBattleMonPathBufferToken = 0x004AAED0U;
+inline constexpr compat::u32 kLegacyBattleMonDefinitionScratchBytes = 0xA4U;
 
 using LegacyBattleMonProfile =
     std::array<std::byte, kLegacyBattleMonProfileBytes>;
@@ -19,6 +21,12 @@ using LegacyBattleMonProfile =
 struct LegacyBattleMonDatabaseState {
     bool open{};
     compat::u32 handle{0xFFFFFFFFU};
+    compat::u32 definition_text_allocation_bytes{};
+};
+
+enum class LegacyBattleMonDatabaseStreamKind : compat::u8 {
+    profile,
+    definition,
 };
 
 enum class LegacyBattleMonDatabaseCall : compat::u8 {
@@ -27,10 +35,16 @@ enum class LegacyBattleMonDatabaseCall : compat::u8 {
     read_file,
     allocate_stream,
     release_stream,
+    query_definition_text_size,
+    allocate_definition_text,
+    release_definition_text,
 };
 
 struct LegacyBattleMonDatabaseCallRequest {
     LegacyBattleMonDatabaseCall call{LegacyBattleMonDatabaseCall::open_file};
+    LegacyBattleMonDatabaseStreamKind stream_kind{
+        LegacyBattleMonDatabaseStreamKind::profile
+    };
     const std::filesystem::path* path{};
     compat::u32 handle{};
     compat::u32 destination_token{};
@@ -68,6 +82,13 @@ public:
     [[nodiscard]] virtual LegacyBattleMonProfile&
     legacy_battle_mon_profile_scratch() noexcept;
 
+    [[nodiscard]] virtual std::
+        array<compat::u8, kLegacyBattleMonDefinitionScratchBytes>&
+        legacy_battle_mon_definition_scratch() noexcept;
+
+    [[nodiscard]] virtual std::vector<compat::u8>&
+    legacy_battle_mon_definition_scratch_description() noexcept;
+
     [[nodiscard]] virtual LegacyBattleMonDatabaseCallReply
     invoke_legacy_battle_mon_database(
         const LegacyBattleMonDatabaseCallRequest& request,
@@ -77,6 +98,9 @@ public:
 private:
     LegacyBattleMonDatabaseState mon_database_state_{};
     LegacyBattleMonProfile mon_profile_scratch_{};
+    std::array<compat::u8, kLegacyBattleMonDefinitionScratchBytes>
+        mon_definition_scratch_{};
+    std::vector<compat::u8> mon_definition_scratch_description_;
 };
 
 struct LegacyBattleMonProfileLoadRequest {

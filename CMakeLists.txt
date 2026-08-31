@@ -70,6 +70,7 @@ add_subdirectory(src/world_map)
 add_library(
     openswd3_battle_mon
     STATIC
+        src/battle/legacy_battle_mon_definition.cpp
         src/battle/legacy_battle_mon_profile.cpp
 )
 target_include_directories(

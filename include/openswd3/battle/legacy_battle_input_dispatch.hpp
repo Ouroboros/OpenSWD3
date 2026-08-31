@@ -163,14 +163,6 @@ public:
         return {};
     }
 
-    [[nodiscard]] LegacyBattleGroupBActionItemDefinitionLoadReply
-    load_action_item_definition(
-        const LegacyBattleGroupBActionItemDefinitionLoadRequest& request
-    ) override {
-        static_cast<void>(request);
-        return {};
-    }
-
     [[nodiscard]] LegacyBattleGroupBActionItemNameCopyReply
     copy_action_item_name(
         const LegacyBattleGroupBActionItemNameCopyRequest& request

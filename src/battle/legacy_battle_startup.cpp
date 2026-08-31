@@ -13,6 +13,7 @@ namespace {
 
 using compat::i32;
 using i64 = std::int64_t;
+using compat::u8;
 using compat::u16;
 using compat::u32;
 
@@ -50,10 +51,8 @@ public:
             call.arguments[0U] = kLegacyBattleGroupASummonProfileSize;
             break;
 
-        case LegacyBattleGroupASummonMaterializationCall::load_profile:
-            call.call = LegacyBattleStartupCall::group_a_profile_load;
-            call.arguments[1U] = request.role_id;
-            break;
+        case LegacyBattleGroupASummonMaterializationCall::reserved_load_profile:
+            return {.profile_record = request.profile_record};
 
         case LegacyBattleGroupASummonMaterializationCall::release_profile_text:
             call.call = LegacyBattleStartupCall::group_a_profile_release;
@@ -79,6 +78,34 @@ public:
                 ? reply.group_a_profile_record
                 : request.profile_record,
         };
+    }
+
+    [[nodiscard]] LegacyBattleMonDatabaseState&
+    legacy_battle_mon_database_state() noexcept override {
+        return port_.legacy_battle_mon_database_state();
+    }
+
+    [[nodiscard]] LegacyBattleMonProfile&
+    legacy_battle_mon_profile_scratch() noexcept override {
+        return port_.legacy_battle_mon_profile_scratch();
+    }
+
+    [[nodiscard]] std::array<u8, kLegacyBattleMonDefinitionScratchBytes>&
+    legacy_battle_mon_definition_scratch() noexcept override {
+        return port_.legacy_battle_mon_definition_scratch();
+    }
+
+    [[nodiscard]] std::vector<u8>&
+    legacy_battle_mon_definition_scratch_description() noexcept override {
+        return port_.legacy_battle_mon_definition_scratch_description();
+    }
+
+    [[nodiscard]] LegacyBattleMonDatabaseCallReply
+    invoke_legacy_battle_mon_database(
+        const LegacyBattleMonDatabaseCallRequest& request,
+        const std::span<u8> destination
+    ) override {
+        return port_.invoke_legacy_battle_mon_database(request, destination);
     }
 
 private:
@@ -172,10 +199,7 @@ public:
         };
         switch (request.call) {
         case LegacyBattleGroupBActionConfigurationCall::
-            load_resource_definition:
-            call.call =
-                LegacyBattleStartupCall::group_b_load_resource_definition;
-            break;
+            reserved_load_resource_definition:
 
         case LegacyBattleGroupBActionConfigurationCall::
             reserved_load_action_profile:
@@ -199,10 +223,7 @@ public:
             .edx = reply.edx_snapshot,
             .typed_stop =
                 port_.group_b_action_configuration_typed_stop(call.call),
-            .resource_bytes = call.call ==
-                    LegacyBattleStartupCall::group_b_load_resource_definition
-                ? port_.group_b_action_resource_bytes()
-                : nullptr,
+            .resource_bytes = nullptr,
             .profile_buffer = nullptr,
         };
     }

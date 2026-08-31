@@ -1,3 +1,4 @@
+#include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_group_b_action_item_special_option.hpp"
 
 #include <algorithm>
@@ -10,8 +11,6 @@
 namespace {
 
 using openswd3::battle::LegacyBattleActorGroupBElementState;
-using openswd3::battle::LegacyBattleGroupBActionItemDefinitionLoadReply;
-using openswd3::battle::LegacyBattleGroupBActionItemDefinitionLoadRequest;
 using openswd3::battle::LegacyBattleGroupBActionItemNameCopyReply;
 using openswd3::battle::LegacyBattleGroupBActionItemNameCopyRequest;
 using openswd3::battle::LegacyBattleGroupBActionItemOptionPort;
@@ -20,18 +19,13 @@ using openswd3::compat::u8;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
 
-class OptionPort final : public LegacyBattleGroupBActionItemOptionPort {
+class OptionPort final : public LegacyBattleGroupBActionItemOptionPort,
+                         public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
-    [[nodiscard]] LegacyBattleGroupBActionItemDefinitionLoadReply
-    load_action_item_definition(
-        const LegacyBattleGroupBActionItemDefinitionLoadRequest& request
-    ) override {
-        definition_requests.push_back(request);
-        if (definition_reply_index >= definition_replies.size()) {
-            return {};
-        }
-        return definition_replies[definition_reply_index++];
-    }
+    struct DefinitionConfig {
+        bool typed_stop{};
+        std::shared_ptr<const std::array<u8, 0xA4>> definition;
+    };
 
     [[nodiscard]] LegacyBattleGroupBActionItemNameCopyReply
     copy_action_item_name(
@@ -44,14 +38,46 @@ public:
         return copy_replies[copy_reply_index++];
     }
 
-    std::vector<LegacyBattleGroupBActionItemDefinitionLoadRequest>
-        definition_requests;
-    std::vector<LegacyBattleGroupBActionItemDefinitionLoadReply>
-        definition_replies;
+    std::vector<DefinitionConfig> definition_replies;
     std::size_t definition_reply_index{};
     std::vector<LegacyBattleGroupBActionItemNameCopyRequest> copy_requests;
     std::vector<LegacyBattleGroupBActionItemNameCopyReply> copy_replies;
     std::size_t copy_reply_index{};
+
+    [[nodiscard]] openswd3::battle::LegacyBattleMonDatabaseCallReply
+    invoke_legacy_battle_mon_database(
+        const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
+        const std::span<u8> destination
+    ) override {
+        if (definition_reply_index < definition_replies.size() &&
+            definition_replies[definition_reply_index].typed_stop &&
+            request.call ==
+                openswd3::battle::LegacyBattleMonDatabaseCall::
+                    allocate_stream) {
+            allocation_succeeds = false;
+        }
+        return openswd3::test::LegacyBattleMonDatabaseFixture::
+            invoke_legacy_battle_mon_database(request, destination);
+    }
+
+protected:
+    [[nodiscard]] std::optional<bool> prepare_definition_record(
+        const std::span<u8> destination, const u32
+    ) noexcept override {
+        if (definition_reply_index >= definition_replies.size()) {
+            return false;
+        }
+        const auto& reply = definition_replies[definition_reply_index++];
+        if (reply.definition == nullptr) {
+            return false;
+        }
+        std::copy(
+            reply.definition->cbegin(),
+            reply.definition->cend(),
+            destination.begin()
+        );
+        return true;
+    }
 };
 
 void write_word(
@@ -102,8 +128,7 @@ void test_battle_group_b_action_item_special_option(
                     LegacyBattleGroupBActionItemSpecialOptionStatus::
                         completed &&
                 result.return_eax == 0U && result.return_ecx == 0x00525508U &&
-                result.return_edx == 0x33333333U &&
-                port.definition_requests.empty() && port.copy_requests.empty(),
+                result.return_edx == 0x33333333U && port.copy_requests.empty(),
             "selectors outside zero and one take the shared full-EAX failure return"
         );
     }
@@ -181,8 +206,7 @@ void test_battle_group_b_action_item_special_option(
             result.status ==
                     LegacyBattleGroupBActionItemSpecialOptionStatus::
                         completed &&
-                result.return_eax == 0U && port.definition_requests.empty() &&
-                port.copy_requests.empty(),
+                result.return_eax == 0U && port.copy_requests.empty(),
             "zero dynamic definitions return full zero without loading or copying"
         );
     }
@@ -190,12 +214,9 @@ void test_battle_group_b_action_item_special_option(
     {
         auto actor = prepared_actor();
         OptionPort port;
-        port.definition_replies.push_back({
-            .eax = 0xAAAAAAAAU,
-            .ecx = 0xBBBBBBBBU,
-            .edx = 0xCCCCCCCCU,
-            .definition = named_definition({'A', 0U}),
-        });
+        port.definition_replies.push_back(
+            {.definition = named_definition({'A', 0U})}
+        );
         port.copy_replies.push_back({.ecx = 0xDDDDDDDDU, .edx = 0xEEEEEEEEU});
         std::array<u8, 24> text{};
         const auto result = openswd3::battle::
@@ -210,7 +231,6 @@ void test_battle_group_b_action_item_special_option(
                     .entry_edx = 0x33333333U,
                 }
             );
-        const auto& load = port.definition_requests[0U];
         const auto& copy = port.copy_requests[0U];
         test.expect_true(
             result.status ==
@@ -218,11 +238,12 @@ void test_battle_group_b_action_item_special_option(
                         completed &&
                 result.selected_definition == 0x1111U &&
                 result.definition_argument == 0x1111U &&
-                load.destination_token == 0x00525518U && load.eax == 0x1111U &&
-                load.ecx == 0x00525508U && load.edx == 0x73001234U &&
-                copy.eax == 0x0053C16CU && copy.ecx == 0xBBBBBBBBU &&
-                copy.edx == 0xCCCCCCCCU && result.return_eax == 1U &&
-                result.return_ecx == 0xDDDDDDDDU &&
+                result.definition_destination_token == 0x00525518U &&
+
+                port.requested_definition_ids == std::vector<u32>{0x1111U} &&
+                copy.destination_token == 0x0053C16CU &&
+                copy.source_token == 0x00525518U && copy.eax == 0x0053C16CU &&
+                result.return_eax == 1U && result.return_ecx == 0xDDDDDDDDU &&
                 result.return_edx == 0xEEEEEEEEU &&
                 result.text_bytes_written == 2U && text[0U] == 'A' &&
                 text[1U] == 0U,
@@ -233,12 +254,9 @@ void test_battle_group_b_action_item_special_option(
     {
         auto actor = prepared_actor();
         OptionPort port;
-        port.definition_replies.push_back({
-            .eax = 0xAAAAAAAAU,
-            .ecx = 0xBBBBBBBBU,
-            .edx = 0xCCCCCCCCU,
-            .definition = named_definition({'B', 0U}),
-        });
+        port.definition_replies.push_back(
+            {.definition = named_definition({'B', 0U})}
+        );
         port.copy_replies.push_back({.ecx = 0xDDDDDDDDU, .edx = 0xEEEEEEEEU});
         std::array<u8, 24> text{};
         const auto result = openswd3::battle::
@@ -253,7 +271,6 @@ void test_battle_group_b_action_item_special_option(
                     .entry_edx = 0x33333333U,
                 }
             );
-        const auto& load = port.definition_requests[0U];
         const auto& copy = port.copy_requests[0U];
         test.expect_true(
             result.status ==
@@ -261,9 +278,11 @@ void test_battle_group_b_action_item_special_option(
                         completed &&
                 result.selected_definition == 0x2222U &&
                 result.definition_argument == 0x73002222U &&
-                load.eax == 0x73002222U && load.ecx == 0x00525508U &&
-                load.edx == 0x33333333U && copy.eax == 0xAAAAAAAAU &&
-                copy.ecx == 0x0053C16CU && copy.edx == 0xCCCCCCCCU &&
+                result.definition_destination_token == 0x00525518U &&
+
+                port.requested_definition_ids == std::vector<u32>{0x2222U} &&
+                copy.destination_token == 0x0053C16CU &&
+                copy.source_token == 0x00525518U && copy.ecx == 0x0053C16CU &&
                 result.return_eax == 1U && result.return_ecx == 0xDDDDDDDDU &&
                 result.return_edx == 0xEEEEEEEEU && text[0U] == 'B',
             "selector one preserves the resource high word and loader EAX around the destination ECX write"
@@ -274,9 +293,6 @@ void test_battle_group_b_action_item_special_option(
         auto actor = prepared_actor();
         OptionPort port;
         port.definition_replies.push_back({
-            .eax = 0xAAAAAAAAU,
-            .ecx = 0xBBBBBBBBU,
-            .edx = 0xCCCCCCCCU,
             .typed_stop = true,
             .definition = named_definition({'L', 0U}),
         });
@@ -296,12 +312,11 @@ void test_battle_group_b_action_item_special_option(
             result.status ==
                     LegacyBattleGroupBActionItemSpecialOptionStatus::
                         definition_load_typed_stop &&
-                result.return_eax == 0xAAAAAAAAU &&
-                result.return_ecx == 0xBBBBBBBBU &&
-                result.return_edx == 0xCCCCCCCCU &&
-                actor.action_composition.resource_definition[0U] == 'L' &&
+                result.return_eax == 0U && result.return_ecx == 0x100U &&
+                result.return_edx == 0x11223344U &&
+                actor.action_composition.resource_definition[0U] == 0U &&
                 port.copy_requests.empty(),
-            "loader typed-stop preserves its published definition and return registers before the copy"
+            "loader allocation stop preserves the cleared definition and blocks the copy"
         );
     }
 

@@ -113,6 +113,7 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -2106,16 +2107,23 @@ public:
             };
         }
 
-        case Call::seek_file:
+        case Call::seek_file: {
             mon_file_.clear();
+            std::ios_base::seekdir direction = std::ios::beg;
+            if (request.move_method == 1U) {
+                direction = std::ios::cur;
+            } else if (request.move_method == 2U) {
+                direction = std::ios::end;
+            }
             mon_file_.seekg(
-                static_cast<std::streamoff>(request.distance), std::ios::beg
+                static_cast<std::streamoff>(request.distance), direction
             );
             return {
                 .eax = request.distance,
                 .ecx = request.ecx,
                 .edx = request.edx,
             };
+        }
 
         case Call::read_file:
             if (mon_file_.is_open() && !destination.empty()) {
@@ -2134,6 +2142,29 @@ public:
             };
 
         case Call::release_stream:
+            return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
+
+        case Call::query_definition_text_size: {
+            const auto found =
+                mon_definition_text_sizes_.find(request.block_token);
+            return {
+                .eax = found == mon_definition_text_sizes_.end()
+                    ? 0U
+                    : found->second,
+                .ecx = request.ecx,
+                .edx = request.edx,
+            };
+        }
+
+        case Call::allocate_definition_text: {
+            const auto token = next_mon_definition_text_token_;
+            next_mon_definition_text_token_ += 0x100U;
+            mon_definition_text_sizes_[token] = request.allocation_size;
+            return {.eax = token, .ecx = request.ecx, .edx = request.edx};
+        }
+
+        case Call::release_definition_text:
+            mon_definition_text_sizes_.erase(request.block_token);
             return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
         }
         return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
@@ -7084,6 +7115,9 @@ private:
     static constexpr openswd3::compat::u32 kMonFileHandleToken = 1U;
     static constexpr openswd3::compat::u32 kMonStreamToken = 0x0053B810U;
     std::ifstream mon_file_;
+    openswd3::compat::u32 next_mon_definition_text_token_{0x73000000U};
+    std::unordered_map<openswd3::compat::u32, openswd3::compat::u32>
+        mon_definition_text_sizes_;
     std::filesystem::path data_directory_;
     std::filesystem::path launch_directory_;
     std::filesystem::path world_cache_directory_;

@@ -42,7 +42,6 @@ constexpr u32 kCallQueryCoordinates = 0x00478600U;
 constexpr u32 kCallPublishCoordinates = 0x004785C0U;
 constexpr u32 kCallResetOpponent = 0x0047D350U;
 constexpr u32 kCallMirrorOpponent = 0x0047F900U;
-constexpr u32 kCallPrepareOpponentScratch = 0x00476DB0U;
 constexpr u32 kCallUpdateOpponentScratch = 0x00478220U;
 constexpr u32 kCallQueryOpponentCondition = 0x0047CE80U;
 constexpr u32 kCallActionTwoHundred = 0x00482310U;
@@ -154,11 +153,10 @@ public:
     [[nodiscard]] LegacyBattleGroupBActionConfigurationCallReply invoke(
         const LegacyBattleGroupBActionConfigurationCallRequest& request
     ) override {
-        u32 callee = kCallPrepareOpponentScratch;
+        u32 callee = kCallUpdateOpponentScratch;
         switch (request.call) {
         case LegacyBattleGroupBActionConfigurationCall::
-            load_resource_definition:
-            break;
+            reserved_load_resource_definition:
 
         case LegacyBattleGroupBActionConfigurationCall::
             reserved_load_action_profile:
@@ -190,9 +188,7 @@ public:
             .ecx = reply.ecx,
             .edx = reply.edx,
             .typed_stop = port_.group_b_action_configuration_typed_stop(callee),
-            .resource_bytes = callee == kCallPrepareOpponentScratch
-                ? port_.group_b_action_resource_bytes()
-                : nullptr,
+            .resource_bytes = nullptr,
             .profile_buffer = nullptr,
         };
     }
@@ -823,13 +819,26 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                 }
                 const u32 stale_edx = ((record_index * 0x20U) & 0xFFFF0000U) |
                     state.opponent_special_action;
-                static_cast<void>(invoke(
-                    state,
-                    port,
-                    result,
-                    kCallPrepareOpponentScratch,
-                    {kOpponentScratchToken, stale_edx}
-                ));
+                const auto definition_result =
+                    load_legacy_battle_mon_definition(
+                        port.legacy_battle_mon_definition_scratch(),
+                        port.legacy_battle_mon_definition_scratch_description(),
+                        port,
+                        {
+                            .path = "mon.dat",
+                            .output_token = kOpponentScratchToken,
+                            .definition_id = stale_edx,
+                            .entry_edx = stale_edx,
+                        }
+                    );
+                ++result.port_calls;
+                if (legacy_battle_mon_definition_load_stopped(
+                        definition_result.status
+                    )) {
+                    result.status = LegacyBattleActionDispatchStatus::
+                        mon_definition_load_typed_stop;
+                    return result;
+                }
                 const auto update = invoke(
                     state,
                     port,

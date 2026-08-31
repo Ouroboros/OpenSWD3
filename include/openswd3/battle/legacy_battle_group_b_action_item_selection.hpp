@@ -1,39 +1,15 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
+#include "openswd3/battle/legacy_battle_mon_definition.hpp"
 #include "openswd3/battle/legacy_battle_status_indicator.hpp"
-
-#include <array>
-#include <memory>
 
 namespace openswd3::battle {
 
-struct LegacyBattleGroupBActionItemDefinitionLoadRequest {
-    compat::u32 actor_token{};
-    compat::u32 destination_token{};
-    compat::u32 definition_argument{};
-    compat::u32 eax{};
-    compat::u32 ecx{};
-    compat::u32 edx{};
-    bool ecx_known{true};
-};
-
-struct LegacyBattleGroupBActionItemDefinitionLoadReply {
-    compat::u32 eax{};
-    compat::u32 ecx{};
-    compat::u32 edx{};
-    bool typed_stop{};
-    std::shared_ptr<const std::array<compat::u8, 0xA4>> definition{};
-};
-
-class LegacyBattleGroupBActionItemSelectionPort {
+class LegacyBattleGroupBActionItemSelectionPort
+    : public virtual LegacyBattleMonDatabasePort {
 public:
     virtual ~LegacyBattleGroupBActionItemSelectionPort() = default;
-
-    [[nodiscard]] virtual LegacyBattleGroupBActionItemDefinitionLoadReply
-    load_action_item_definition(
-        const LegacyBattleGroupBActionItemDefinitionLoadRequest& request
-    ) = 0;
 };
 
 enum class LegacyBattleGroupBActionItemSelectionStatus : compat::u8 {
@@ -76,7 +52,7 @@ struct LegacyBattleGroupBActionItemSelectionResult {
 
 // Typed closure of legacy 0x00476600. One bounded draw chooses one of three
 // dynamic-resource definition words. A second draw applies the original
-// probability gate before the still-pending definition loader is called.
+// probability gate before the shared typed MON definition loader is called.
 [[nodiscard]] LegacyBattleGroupBActionItemSelectionResult
 select_legacy_battle_group_b_action_item(
     LegacyBattleActorGroupBElementState* actor,

@@ -1,3 +1,4 @@
+#include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_group_a_summon_materialization.hpp"
 #include "test.hpp"
 
@@ -52,7 +53,8 @@ void set_profile_word(
 }
 
 class MaterializationPort final
-    : public LegacyBattleGroupASummonMaterializationPort {
+    : public LegacyBattleGroupASummonMaterializationPort,
+      public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
     [[nodiscard]] LegacyBattleGroupASummonMaterializationCallReply
     invoke_group_a_summon_materialization(
@@ -74,6 +76,19 @@ public:
     u32 load_eax{1U};
     LegacyBattleGroupASummonProfileRecord loaded_profile{};
     std::vector<LegacyBattleGroupASummonMaterializationCallRequest> calls;
+
+protected:
+    [[nodiscard]] std::optional<bool> prepare_definition_record(
+        const std::span<u8> destination, const u32
+    ) noexcept override {
+        std::transform(
+            loaded_profile.cbegin(),
+            loaded_profile.cend(),
+            destination.begin(),
+            [](const std::byte value) { return std::to_integer<u8>(value); }
+        );
+        return load_eax != 0U;
+    }
 };
 
 }  // namespace
@@ -133,14 +148,12 @@ void test_battle_group_a_summon_materialization(openswd3::test::Context& test) {
                 result.profile_dwords_zeroed == 0x29U &&
                 result.placement_dwords_copied == 16U &&
                 result.profile_name_bytes_copied == 9U &&
-                port.calls.size() == 3U &&
+                port.calls.size() == 2U &&
                 port.calls[0U].call ==
                     LegacyBattleGroupASummonMaterializationCall::
                         allocate_profile &&
+                port.requested_definition_ids == std::vector<u32>{0x123U} &&
                 port.calls[1U].call ==
-                    LegacyBattleGroupASummonMaterializationCall::load_profile &&
-                port.calls[1U].role_id == 0x123U &&
-                port.calls[2U].call ==
                     LegacyBattleGroupASummonMaterializationCall::
                         release_profile_text &&
                 state.profile_token == 0x71000000U &&
@@ -159,8 +172,8 @@ void test_battle_group_a_summon_materialization(openswd3::test::Context& test) {
                 state.source_record_token == state.actor_record_token &&
                 state.profile_field_f2 == 0x5566U &&
                 result.return_eax == 0x71000000U &&
-                result.return_ecx == 0x11105566U &&
-                result.return_edx == 0x72000000U,
+                result.return_edx == 0x72000000U && port.open_calls == 1U &&
+                port.read_calls == 3U && port.release_calls == 1U,
             "summon materialization preserves allocation, profile projection, duplicate source copies, and final register shape"
         );
     }
@@ -178,10 +191,10 @@ void test_battle_group_a_summon_materialization(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGroupASummonMaterializationStatus::completed &&
                 result.diagnostic_calls == 1U && result.port_calls == 4U &&
-                port.calls[3U].call ==
+                port.calls[2U].call ==
                     LegacyBattleGroupASummonMaterializationCall::
                         report_missing_role &&
-                port.calls[3U].window_token == 0x76543210U,
+                port.calls[2U].window_token == 0x76543210U,
             "zero summon role reports only after load, release, and duplicate source publication"
         );
     }

@@ -57,6 +57,7 @@ construct_legacy_battle_actor_group_b_element(
     }
 
     state.resource_bytes.fill(0U);
+    state.resource_description.clear();
     result.resource_bytes_written =
         static_cast<compat::u32>(state.resource_bytes.size());
     result.return_eax = state.object_token;

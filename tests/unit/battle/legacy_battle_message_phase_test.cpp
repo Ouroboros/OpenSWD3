@@ -1,3 +1,4 @@
+#include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_message_phase.hpp"
 
 #include <algorithm>
@@ -94,7 +95,8 @@ public:
 };
 
 class MessagePort final
-    : public openswd3::battle::LegacyBattleMessagePhasePort {
+    : public openswd3::battle::LegacyBattleMessagePhasePort,
+      public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
     [[nodiscard]] LegacyBattleMessagePhaseCallReply invoke_message_phase(
         const LegacyBattleMessagePhaseCallRequest& request
@@ -418,6 +420,68 @@ public:
     u32 victory_item_list_query_eax{};
     u32 defeat_panel_reserved_transition_stage_advance_slot_eax{};
     u32 talisman_result_panel_query_eax{};
+
+    [[nodiscard]] openswd3::battle::LegacyBattleMonDatabaseCallReply
+    invoke_legacy_battle_mon_database(
+        const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
+        const std::span<u8> destination
+    ) override {
+        const auto call =
+            LegacyBattleMessagePhaseCall::reserved_load_action_item_definition;
+        const auto found = message_replies.find(call);
+        const auto index = message_reply_indices[call];
+        if (found != message_replies.end() && index < found->second.size() &&
+            found->second[index].typed_stop &&
+            request.call ==
+                openswd3::battle::LegacyBattleMonDatabaseCall::
+                    allocate_stream) {
+            allocation_succeeds = false;
+        }
+        return openswd3::test::LegacyBattleMonDatabaseFixture::
+            invoke_legacy_battle_mon_database(request, destination);
+    }
+
+protected:
+    [[nodiscard]] std::optional<bool> prepare_definition_record(
+        const std::span<u8> destination, const u32 definition_id
+    ) noexcept override {
+        const u16 item_id = static_cast<u16>(definition_id);
+        const auto growth_result = growth_item_result_definitions.find(item_id);
+        if (growth_result != growth_item_result_definitions.end()) {
+            std::copy(
+                growth_result->second.cbegin(),
+                growth_result->second.cend(),
+                destination.begin()
+            );
+            return true;
+        }
+        const auto growth_actor = growth_actor_definitions.find(item_id);
+        if (growth_actor != growth_actor_definitions.end()) {
+            std::copy(
+                growth_actor->second.cbegin(),
+                growth_actor->second.cend(),
+                destination.begin()
+            );
+            return true;
+        }
+        const auto call =
+            LegacyBattleMessagePhaseCall::reserved_load_action_item_definition;
+        auto& index = message_reply_indices[call];
+        const auto found = message_replies.find(call);
+        if (found == message_replies.end() || index >= found->second.size()) {
+            return false;
+        }
+        const auto& reply = found->second[index++];
+        if (reply.group_b_action_item_definition == nullptr) {
+            return false;
+        }
+        std::copy(
+            reply.group_b_action_item_definition->cbegin(),
+            reply.group_b_action_item_definition->cend(),
+            destination.begin()
+        );
+        return true;
+    }
 };
 
 struct Fixture {
@@ -756,7 +820,6 @@ void test_battle_message_phase(openswd3::test::Context& test) {
             {.eax = 0x11111111U},
         };
         const auto result = run(fixture);
-        const auto resolved = fixture.port.message_calls.back();
         const auto committed = fixture.port.message_calls[7U];
         const auto configured = fixture.port.message_calls[8U];
         const auto resource = fixture.port.message_calls[9U];
@@ -793,16 +856,15 @@ void test_battle_message_phase(openswd3::test::Context& test) {
             "message 99 rebuilds records, publishes actor one and consumes one resolved player item"
         );
         test.expect_true(
-            resolved.call ==
-                    LegacyBattleMessagePhaseCall::load_action_item_definition &&
-                resolved.actor_token ==
+            result.group_b_action_item_selection.definition_destination_token ==
                     openswd3::battle::kLegacyBattleMessagePhaseGroupBBaseToken +
                         openswd3::battle::
-                            kLegacyBattleMessagePhaseGroupBElementSize &&
-                resolved.arguments[0U] == resolved.actor_token + 0x10U &&
-                resolved.arguments[1U] == 0x3344U && resolved.eax == 0x3344U &&
-                resolved.ecx == resolved.actor_token + 0x10U &&
-                resolved.edx == 0x73001234U &&
+                            kLegacyBattleMessagePhaseGroupBElementSize +
+                        0x10U &&
+                result.group_b_action_item_selection.definition_argument ==
+                    0x3344U &&
+                fixture.port.requested_definition_ids ==
+                    std::vector<u32>{0x3344U, 0x1234U} &&
                 result.group_b_action_item_selection.initial_random_bound ==
                     3U &&
                 result.group_b_action_item_selection.decision_threshold ==
@@ -881,9 +943,8 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                     openswd3::battle::
                         LegacyBattleGroupBActionItemSelectionStatus::
                             definition_load_typed_stop &&
-                result.return_eax == 0xA1A2A3A4U &&
-                result.return_ecx == 0xB1B2B3B4U &&
-                result.return_edx == 0xC1C2C3C4U &&
+                result.return_eax == 0U && result.return_ecx == 0x100U &&
+                fixture.port.release_calls == 0U &&
                 fixture.target_selection.transition_aux_byte == 0U &&
                 fixture.target_selection.special_action_count == 5U &&
                 result.player_item_quantity_calls == 0U &&
@@ -894,7 +955,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                 ) == 0U &&
                 fixture.port.count(
                     LegacyBattleMessagePhaseCall::load_action_item_definition
-                ) == 1U,
+                ) == 0U,
             "message 99 propagates the definition-loader stop before item publication and count consumption"
         );
     }
@@ -945,8 +1006,8 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleMessagePhaseStatus::
                         completed &&
                 result.return_eax == 0x12340000U &&
-                result.return_ecx == 0xBBBBBBBBU &&
-                result.return_edx == 0xCCCCCCCCU &&
+                fixture.port.requested_definition_ids ==
+                    std::vector<u32>{0x3344U} &&
                 fixture.target_selection.transition_aux_byte == 2U &&
                 fixture.target_selection.special_action_count == 5U &&
                 result.player_item_quantity_calls == 0U &&

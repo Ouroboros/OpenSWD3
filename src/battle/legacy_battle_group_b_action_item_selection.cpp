@@ -178,24 +178,25 @@ select_legacy_battle_group_b_action_item(
         result.definition_argument = eax;
     }
 
-    const auto reply = port.load_action_item_definition({
-        .actor_token = request.actor_token,
-        .destination_token = result.definition_destination_token,
-        .definition_argument = result.definition_argument,
-        .eax = eax,
-        .ecx = ecx,
-        .edx = edx,
-        .ecx_known = result.return_ecx_known,
-    });
+    const auto definition_result = load_legacy_battle_mon_definition(
+        actor->action_composition.resource_definition,
+        actor->action_composition.resource_definition_description,
+        port,
+        {
+            .path = "mon.dat",
+            .output_token = result.definition_destination_token,
+            .definition_id = result.definition_argument,
+            .entry_eax = eax,
+            .entry_ecx = ecx,
+            .entry_edx = edx,
+        }
+    );
     ++result.definition_load_calls;
-    if (reply.definition != nullptr) {
-        actor->action_composition.resource_definition = *reply.definition;
-    }
-    result.return_eax = reply.eax;
-    result.return_ecx = reply.ecx;
-    result.return_edx = reply.edx;
+    result.return_eax = definition_result.return_eax;
+    result.return_ecx = definition_result.return_ecx;
+    result.return_edx = definition_result.return_edx;
     result.return_ecx_known = true;
-    if (reply.typed_stop) {
+    if (legacy_battle_mon_definition_load_stopped(definition_result.status)) {
         result.status = LegacyBattleGroupBActionItemSelectionStatus::
             definition_load_typed_stop;
         return result;

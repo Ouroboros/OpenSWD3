@@ -1,3 +1,4 @@
+#include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_growth_item_result_selection.hpp"
 
 #include <algorithm>
@@ -19,7 +20,8 @@ using openswd3::compat::u16;
 using openswd3::compat::u32;
 
 class Port final
-    : public openswd3::battle::LegacyBattleGrowthItemResultSelectionPort {
+    : public openswd3::battle::LegacyBattleGrowthItemResultSelectionPort,
+      public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
     [[nodiscard]] LegacyBattleGrowthItemResultSelectionCallReply
     invoke_growth_item_result_selection(
@@ -69,6 +71,33 @@ public:
         replies;
     std::map<LegacyBattleGrowthItemResultSelectionCall, std::size_t>
         reply_indices;
+
+protected:
+    [[nodiscard]] std::optional<bool> prepare_definition_record(
+        const std::span<u8> destination, const u32
+    ) noexcept override {
+        const auto call =
+            LegacyBattleGrowthItemResultSelectionCall::load_item_definition;
+        auto& index = reply_indices[call];
+        const auto found = replies.find(call);
+        if (found == replies.end() || index >= found->second.size()) {
+            return false;
+        }
+        const auto& reply = found->second[index++];
+        if (!reply.publish_definition) {
+            return false;
+        }
+        std::copy(
+            reply.definition.cbegin(),
+            reply.definition.cend(),
+            destination.begin()
+        );
+        definition_description.assign(
+            reply.description.cbegin(),
+            reply.description.cbegin() + reply.description_length
+        );
+        return true;
+    }
 };
 
 struct Fixture {
@@ -280,19 +309,16 @@ void test_battle_growth_item_result_selection(openswd3::test::Context& test) {
                 result.growth_reward.return_eax == 0x0665U &&
                 fixture.port.group_a_reward_profile_state()
                         .head.blocking_flag == 1U &&
-                fixture.port.calls[1U].destination_token ==
+                fixture.port.requested_definition_ids ==
+                    std::vector<u32>{0x0665U} &&
+                fixture.port.calls[1U].source_token ==
                     kLegacyBattleGrowthItemScratchToken &&
-                fixture.port.calls[1U].item_code == 0x0665U &&
-                fixture.port.calls[1U].eax == 0x0665U &&
+                fixture.port.calls[2U].destination_token ==
+                    kLegacyBattleGrowthItemResultCaptionToken &&
                 fixture.port.calls[2U].source_token ==
                     kLegacyBattleGrowthItemScratchToken &&
-                fixture.port.calls[2U].eax == 0x31313131U &&
-                fixture.port.calls[3U].destination_token ==
-                    kLegacyBattleGrowthItemResultCaptionToken &&
-                fixture.port.calls[3U].source_token ==
-                    kLegacyBattleGrowthItemScratchToken &&
-                fixture.port.calls[3U].eax == 0x41414141U &&
-                fixture.port.calls[3U].text_length == 2U &&
+                fixture.port.calls[2U].eax == 0x41414141U &&
+                fixture.port.calls[2U].text_length == 2U &&
                 fixture.port.count(
                     LegacyBattleGrowthItemResultSelectionCall::
                         reserved_select_growth_item

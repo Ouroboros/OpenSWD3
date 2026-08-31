@@ -15,6 +15,7 @@ enum class LegacyBattlePlayerItemQuantityStatus : compat::u8 {
     item_node_typed_stop,
     allocation_typed_stop,
     host_allocation_typed_stop,
+    mon_definition_load_typed_stop,
 };
 
 struct LegacyBattlePlayerItemQuantityResult {

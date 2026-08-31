@@ -97,24 +97,26 @@ load_legacy_battle_group_b_action_item_option(
 
     result.definition_argument = eax;
     result.definition_destination_token = request.actor_token + 0x10U;
-    const auto load = port.load_action_item_definition({
-        .actor_token = request.actor_token,
-        .destination_token = result.definition_destination_token,
-        .definition_argument = result.definition_argument,
-        .eax = eax,
-        .ecx = ecx,
-        .edx = edx,
-    });
+    const auto definition_result = load_legacy_battle_mon_definition(
+        actor->action_composition.resource_definition,
+        actor->action_composition.resource_definition_description,
+        port,
+        {
+            .path = "mon.dat",
+            .output_token = result.definition_destination_token,
+            .definition_id = result.definition_argument,
+            .entry_eax = eax,
+            .entry_ecx = ecx,
+            .entry_edx = edx,
+        }
+    );
     ++result.definition_load_calls;
-    if (load.definition != nullptr) {
-        actor->action_composition.resource_definition = *load.definition;
-    }
-    if (load.typed_stop) {
+    if (legacy_battle_mon_definition_load_stopped(definition_result.status)) {
         result.status = LegacyBattleGroupBActionItemOptionStatus::
             definition_load_typed_stop;
-        eax = load.eax;
-        ecx = load.ecx;
-        edx = load.edx;
+        eax = definition_result.return_eax;
+        ecx = definition_result.return_ecx;
+        edx = definition_result.return_edx;
         return finish();
     }
 
