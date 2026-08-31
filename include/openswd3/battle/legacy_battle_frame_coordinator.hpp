@@ -154,7 +154,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     control_panel_configure_font_reset,
     control_panel_configure_font_style,
     control_panel_draw_text,
-    control_panel_query_primary_option,
+    reserved_control_panel_query_primary_option_slot,
     control_panel_query_special_option,
     reserved_message_phase_resolve_group_a_position_slot,
     reserved_message_phase_prepare_message_98_slot,
@@ -236,7 +236,8 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     talisman_result_draw_failure_detail,
     text_message_frame_draw_text,
     text_message_frame_release_node,
-    message_phase_load_action_item_definition,
+    group_b_action_item_load_definition,
+    group_b_action_item_copy_name,
 };
 
 struct LegacyBattleFrameCoordinatorCallRequest {
@@ -427,6 +428,51 @@ public:
 
     [[nodiscard]] virtual LegacyBattleFrameCoordinatorCallReply
     invoke(const LegacyBattleFrameCoordinatorCallRequest& request) = 0;
+
+    [[nodiscard]] LegacyBattleGroupBActionItemDefinitionLoadReply
+    load_action_item_definition(
+        const LegacyBattleGroupBActionItemDefinitionLoadRequest& request
+    ) override {
+        const auto reply = invoke({
+            .call = LegacyBattleFrameCoordinatorCall::
+                group_b_action_item_load_definition,
+            .object_token = request.actor_token,
+            .arguments =
+                {request.destination_token, request.definition_argument},
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        });
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .typed_stop = reply.message_phase_action_item_typed_stop,
+            .definition = reply.message_phase_action_item_definition,
+        };
+    }
+
+    [[nodiscard]] LegacyBattleGroupBActionItemNameCopyReply
+    copy_action_item_name(
+        const LegacyBattleGroupBActionItemNameCopyRequest& request
+    ) override {
+        const auto reply = invoke({
+            .call =
+                LegacyBattleFrameCoordinatorCall::group_b_action_item_copy_name,
+            .object_token = request.source_token,
+            .arguments = {request.destination_token, request.source_token},
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        });
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .typed_stop = reply.message_phase_action_item_typed_stop,
+        };
+    }
+
     [[nodiscard]] LegacyBattleSelectionFrameCallReply invoke_selection_frame(
         const LegacyBattleSelectionFrameCallRequest& request
     ) override {
@@ -843,9 +889,10 @@ public:
         case LegacyBattleControlPanelFrameCall::draw_text:
             call = LegacyBattleFrameCoordinatorCall::control_panel_draw_text;
             break;
-        case LegacyBattleControlPanelFrameCall::query_primary_option:
+        case LegacyBattleControlPanelFrameCall::
+            reserved_query_primary_option_slot:
             call = LegacyBattleFrameCoordinatorCall::
-                control_panel_query_primary_option;
+                reserved_control_panel_query_primary_option_slot;
             break;
         case LegacyBattleControlPanelFrameCall::query_special_option:
             call = LegacyBattleFrameCoordinatorCall::
@@ -988,7 +1035,7 @@ public:
             break;
         case LegacyBattleMessagePhaseCall::load_action_item_definition:
             call = LegacyBattleFrameCoordinatorCall::
-                message_phase_load_action_item_definition;
+                group_b_action_item_load_definition;
             break;
         }
         std::array<compat::u32, 8> arguments{};

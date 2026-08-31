@@ -319,6 +319,7 @@ add_executable(
     unit/battle/legacy_battle_group_a_target_cycle_test.cpp
     unit/battle/legacy_battle_group_b_action_composition_test.cpp
     unit/battle/legacy_battle_group_b_action_configuration_test.cpp
+    unit/battle/legacy_battle_group_b_action_item_option_test.cpp
     unit/battle/legacy_battle_group_b_action_item_selection_test.cpp
     unit/battle/legacy_battle_group_b_action_profile_flag_test.cpp
     unit/battle/legacy_battle_group_b_action_profile_mode_test.cpp

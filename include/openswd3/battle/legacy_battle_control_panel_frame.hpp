@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_border_panel.hpp"
+#include "openswd3/battle/legacy_battle_group_b_action_item_option.hpp"
 #include "openswd3/battle/legacy_battle_selection_hint_frame.hpp"
 #include "openswd3/compat/types.hpp"
 
@@ -32,7 +33,7 @@ enum class LegacyBattleControlPanelFrameCall : compat::u8 {
     configure_font_reset,
     configure_font_style,
     draw_text,
-    query_primary_option,
+    reserved_query_primary_option_slot,
     query_special_option,
 };
 
@@ -60,14 +61,31 @@ struct LegacyBattleControlPanelFrameCallReply {
     compat::u32 primary_value{};
 };
 
-class LegacyBattleControlPanelFramePort {
+class LegacyBattleControlPanelFramePort
+    : public virtual LegacyBattleGroupBActionItemOptionPort {
 public:
-    virtual ~LegacyBattleControlPanelFramePort() = default;
+    ~LegacyBattleControlPanelFramePort() override = default;
 
     [[nodiscard]] virtual LegacyBattleControlPanelFrameCallReply
     invoke_control_panel_frame(
         const LegacyBattleControlPanelFrameCallRequest& request
     ) = 0;
+
+    [[nodiscard]] LegacyBattleGroupBActionItemDefinitionLoadReply
+    load_action_item_definition(
+        const LegacyBattleGroupBActionItemDefinitionLoadRequest& request
+    ) override {
+        static_cast<void>(request);
+        return {};
+    }
+
+    [[nodiscard]] LegacyBattleGroupBActionItemNameCopyReply
+    copy_action_item_name(
+        const LegacyBattleGroupBActionItemNameCopyRequest& request
+    ) override {
+        static_cast<void>(request);
+        return {};
+    }
 };
 
 struct LegacyBattleControlPanelFrameBindings {
@@ -75,6 +93,7 @@ struct LegacyBattleControlPanelFrameBindings {
     LegacyBattleColorFadeState& shared_color_fade;
     compat::u32 alternate_selection_limit{};
     compat::u16 selected_group_b_index{};
+    std::span<LegacyBattleActorGroupBElementState> group_b_actors;
     compat::u32& transition_value_a;
     compat::u32& transition_value_b;
     std::span<compat::u32, 6> selection_text_workspace;
@@ -109,6 +128,7 @@ enum class LegacyBattleControlPanelFrameStatus : compat::u8 {
     title_border_typed_stop,
     body_border_typed_stop,
     group_b_actor_typed_stop,
+    primary_option_typed_stop,
 };
 
 struct LegacyBattleControlPanelRowTrace {
@@ -135,6 +155,7 @@ struct LegacyBattleControlPanelFrameResult {
     compat::u32 font_style_calls{};
     compat::u32 text_draw_calls{};
     compat::u32 primary_query_calls{};
+    std::array<LegacyBattleGroupBActionItemOptionResult, 3> primary_options{};
     compat::u32 special_query_calls{};
     compat::u32 primary_rows{};
     compat::u32 special_rows{};

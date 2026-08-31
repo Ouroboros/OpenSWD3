@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_group_b_action_item_option.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_refresh.hpp"
 
 namespace openswd3::battle {
@@ -19,6 +20,7 @@ struct LegacyBattleTargetSelectionEntryBindings {
     LegacyBattleActorMetricState& metrics;
     LegacyBattleDebugHotkeyState& debug_hotkeys;
     LegacyBattleInputDispatchState& input_dispatch;
+    std::span<LegacyBattleActorGroupBElementState> group_b_actors;
     std::span<input_time_rng::LegacyInputRecord> input_records;
     LegacyBattleTargetSelectionRuntimeState& target_selection_runtime;
     story_scene::LegacyDialogRuntimeState& dialogs;
@@ -40,6 +42,7 @@ enum class LegacyBattleTargetSelectionEntryStatus : compat::u8 {
     selected_group_b_actor_typed_stop,
     action_mode_refresh_typed_stop,
     target_selection_refresh_typed_stop,
+    primary_option_typed_stop,
 };
 
 struct LegacyBattleTargetSelectionEntryResult {
@@ -52,6 +55,7 @@ struct LegacyBattleTargetSelectionEntryResult {
     compat::u32 port_calls{};
     compat::u32 sample_calls{};
     compat::u32 primary_scan_calls{};
+    std::array<LegacyBattleGroupBActionItemOptionResult, 3> primary_options{};
     compat::u32 secondary_scan_calls{};
     compat::u32 action_mode_refresh_calls{};
     compat::u32 target_selection_refresh_calls{};

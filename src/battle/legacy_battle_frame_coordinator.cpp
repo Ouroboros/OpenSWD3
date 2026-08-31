@@ -152,6 +152,11 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             .action = context.action_dispatch,
             .metrics = port.actor_metric_state(),
             .debug_hotkeys = port.battle_debug_hotkey_state(),
+            .group_b_actors = context.startup.group_b_lifecycle == nullptr
+                ? std::span<LegacyBattleActorGroupBElementState>{}
+                : std::span<
+                      LegacyBattleActorGroupBElementState>{*context.startup
+                                                                .group_b_lifecycle},
             .context_prompt = state.context_prompt,
             .message_state = port.battle_message_state(),
             .terminal_latch = port.battle_terminal_latch(),

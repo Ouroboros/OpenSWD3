@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <memory>
 #include <functional>
 #include <map>
 #include <span>
@@ -1163,6 +1164,10 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
         seven.frame.panel_origin_y = 50U;
         seven.frame.alternate_selection = 2U;
         seven.input.selected_group_b_index = 0U;
+        seven.startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            8>>();
+        (*seven.startup.group_b_lifecycle)[0U].resource_token = 0x73000000U;
         const auto seven_result =
             openswd3::battle::draw_legacy_battle_selection_frame(
                 seven.bindings(), seven.port

@@ -113,6 +113,15 @@ private:
         }
     }
 
+    [[nodiscard]] std::span<compat::u8> text_bytes() const noexcept {
+        return {
+            reinterpret_cast<compat::u8*>(
+                bindings_.selection_text_workspace.data()
+            ),
+            sizeof(compat::u32) * bindings_.selection_text_workspace.size()
+        };
+    }
+
     void clear_text() noexcept {
         std::ranges::fill(bindings_.selection_text_workspace, 0U);
     }
@@ -302,7 +311,7 @@ private:
         current_y_ = request_.origin_y;
     }
 
-    [[nodiscard]] bool prepare_group_b_query(const u32 source_index) {
+    void prepare_group_b_registers(const u32 source_index) noexcept {
         const i32 signed_index = static_cast<i32>(
             std::bit_cast<i16>(bindings_.selected_group_b_index)
         );
@@ -310,6 +319,27 @@ private:
         eax_ = group_b_scaled_345(index_bits);
         ecx_ = group_b_actor_token(index_bits);
         edx_ = source_index;
+    }
+
+    [[nodiscard]] LegacyBattleActorGroupBElementState*
+    primary_actor() const noexcept {
+        const i32 signed_index = static_cast<i32>(
+            std::bit_cast<i16>(bindings_.selected_group_b_index)
+        );
+        if (signed_index < 0 ||
+            static_cast<std::size_t>(signed_index) >=
+                bindings_.group_b_actors.size()) {
+            return nullptr;
+        }
+        return &bindings_
+                    .group_b_actors[static_cast<std::size_t>(signed_index)];
+    }
+
+    [[nodiscard]] bool prepare_group_b_query(const u32 source_index) {
+        prepare_group_b_registers(source_index);
+        const i32 signed_index = static_cast<i32>(
+            std::bit_cast<i16>(bindings_.selected_group_b_index)
+        );
         if (signed_index < 0 ||
             static_cast<u32>(signed_index) >= kGroupBCount) {
             result_.status = Status::group_b_actor_typed_stop;
@@ -321,27 +351,45 @@ private:
     [[nodiscard]] bool draw_primary_rows() {
         for (u32 source_index = 0U; source_index < 3U; ++source_index) {
             clear_text();
-            if (!prepare_group_b_query(source_index)) {
+            prepare_group_b_registers(source_index);
+            u32 primary_value{};
+            result_.primary_options[source_index] =
+                load_legacy_battle_group_b_action_item_option(
+                    primary_actor(),
+                    text_bytes(),
+                    &primary_value,
+                    port_,
+                    {
+                        .selector = source_index,
+                        .actor_token = ecx_,
+                        .text_destination_token =
+                            kLegacyBattleControlPanelSharedTextToken,
+                        .output_token = request_.local_primary_value_token,
+                        .entry_eax = eax_,
+                        .entry_ecx = ecx_,
+                        .entry_edx = edx_,
+                    }
+                );
+            ++result_.primary_query_calls;
+            result_.port_calls +=
+                result_.primary_options[source_index].definition_load_calls +
+                result_.primary_options[source_index].name_copy_calls;
+            eax_ = result_.primary_options[source_index].return_eax;
+            ecx_ = result_.primary_options[source_index].return_ecx;
+            edx_ = result_.primary_options[source_index].return_edx;
+            if (result_.primary_options[source_index].status !=
+                LegacyBattleGroupBActionItemOptionStatus::completed) {
+                result_.status = result_.primary_options[source_index].status ==
+                            LegacyBattleGroupBActionItemOptionStatus::
+                                actor_state_typed_stop ||
+                        result_.primary_options[source_index].status ==
+                            LegacyBattleGroupBActionItemOptionStatus::
+                                resource_read_typed_stop
+                    ? Status::group_b_actor_typed_stop
+                    : Status::primary_option_typed_stop;
                 return false;
             }
-            const auto reply = invoke({
-                .call = Call::query_primary_option,
-                .object_token = ecx_,
-                .arguments =
-                    {
-                        source_index,
-                        kLegacyBattleControlPanelSharedTextToken,
-                        request_.local_primary_value_token,
-                    },
-                .eax = eax_,
-                .ecx = ecx_,
-                .edx = edx_,
-            });
-            ++result_.primary_query_calls;
-            if (reply.publish_text) {
-                store_text(reply.text);
-            }
-            if (reply.eax != 1U) {
+            if (eax_ != 1U) {
                 continue;
             }
 
@@ -363,7 +411,7 @@ private:
             const bool selected = request_.selected_index == visible_index_;
             if (selected) {
                 bindings_.transition_value_b = 0U;
-                bindings_.transition_value_a = reply.primary_value;
+                bindings_.transition_value_a = primary_value;
                 configure_style(kSelectedStyle);
                 draw_text(
                     request_.origin_x,

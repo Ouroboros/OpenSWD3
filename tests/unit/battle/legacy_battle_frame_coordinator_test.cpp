@@ -657,7 +657,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         auto definition = std::make_shared<std::array<u8, 0xA4>>();
         (*definition)[0x48U] = 0x34U;
         port.replies[LegacyBattleFrameCoordinatorCall::
-                         message_phase_load_action_item_definition] = {
+                         group_b_action_item_load_definition] = {
             .eax = 0x11112222U,
             .ecx = 0x33334444U,
             .edx = 0x55556666U,
@@ -677,7 +677,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         test.expect_true(
             request.call ==
                     LegacyBattleFrameCoordinatorCall::
-                        message_phase_load_action_item_definition &&
+                        group_b_action_item_load_definition &&
                 request.object_token == 0x00528030U &&
                 request.arguments[0U] == 0x00528040U &&
                 request.arguments[1U] == 0xABCD1234U &&

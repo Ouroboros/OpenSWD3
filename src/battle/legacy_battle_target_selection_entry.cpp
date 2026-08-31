@@ -50,6 +50,14 @@ replace_low_word(const u32 value, const u16 low) noexcept {
     return kGroupBBaseToken + index_bits * kGroupBStride;
 }
 
+[[nodiscard]] std::span<compat::u8>
+selection_text_bytes(LegacyBattleInputDispatchState& input) noexcept {
+    return {
+        reinterpret_cast<compat::u8*>(input.selection_text_workspace.data()),
+        sizeof(input.selection_text_workspace)
+    };
+}
+
 }  // namespace
 
 LegacyBattleTargetSelectionEntryResult enter_legacy_battle_target_selection(
@@ -284,16 +292,50 @@ LegacyBattleTargetSelectionEntryResult enter_legacy_battle_target_selection(
     frame.alternate_selection_limit = 2U;
     for (u32 scan = 0U; scan < 3U; ++scan) {
         const i32 selected = compute_group_b_primary();
-        if (!valid_group_b(selected)) {
-            result.status = LegacyBattleTargetSelectionEntryStatus::
-                selected_group_b_actor_typed_stop;
+        LegacyBattleActorGroupBElementState* actor = nullptr;
+        if (selected >= 0 &&
+            static_cast<std::size_t>(selected) <
+                bindings.group_b_actors.size()) {
+            actor =
+                &bindings.group_b_actors[static_cast<std::size_t>(selected)];
+        }
+        result.primary_options[scan] =
+            load_legacy_battle_group_b_action_item_option(
+                actor,
+                selection_text_bytes(input),
+                &frame.transition_value_a,
+                port,
+                {
+                    .selector = scan,
+                    .actor_token = ecx,
+                    .text_destination_token = kSelectionTextToken,
+                    .output_token = kSelectionPrimaryOutputToken,
+                    .entry_eax = eax,
+                    .entry_ecx = ecx,
+                    .entry_edx = edx,
+                }
+            );
+        ++result.primary_scan_calls;
+        result.port_calls +=
+            result.primary_options[scan].definition_load_calls +
+            result.primary_options[scan].name_copy_calls;
+        eax = result.primary_options[scan].return_eax;
+        ecx = result.primary_options[scan].return_ecx;
+        edx = result.primary_options[scan].return_edx;
+        if (result.primary_options[scan].status !=
+            LegacyBattleGroupBActionItemOptionStatus::completed) {
+            result.status = result.primary_options[scan].status ==
+                        LegacyBattleGroupBActionItemOptionStatus::
+                            actor_state_typed_stop ||
+                    result.primary_options[scan].status ==
+                        LegacyBattleGroupBActionItemOptionStatus::
+                            resource_read_typed_stop
+                ? LegacyBattleTargetSelectionEntryStatus::
+                      selected_group_b_actor_typed_stop
+                : LegacyBattleTargetSelectionEntryStatus::
+                      primary_option_typed_stop;
             return finish();
         }
-        invoke(
-            LegacyBattleInputDispatchCall::target_selection_scan_primary,
-            {scan, kSelectionTextToken, kSelectionPrimaryOutputToken}
-        );
-        ++result.primary_scan_calls;
         if (eax == 1U) {
             ++frame.alternate_selection_limit;
         }

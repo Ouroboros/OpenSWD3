@@ -103,6 +103,8 @@ struct Fixture {
     std::array<openswd3::battle::LegacyBattlePartyStartupRecord, 10> party;
     openswd3::battle::LegacyBattleActorMetricState metrics;
     openswd3::battle::LegacyBattleDebugHotkeyState debug;
+    std::array<openswd3::battle::LegacyBattleActorGroupBElementState, 8>
+        group_b_actors;
     openswd3::battle::LegacyBattleContextPromptState prompt;
     u32 message{};
     u32 terminal{};
@@ -132,6 +134,7 @@ struct Fixture {
             .action = action,
             .metrics = metrics,
             .debug_hotkeys = debug,
+            .group_b_actors = group_b_actors,
             .context_prompt = prompt,
             .message_state = message,
             .terminal_latch = terminal,

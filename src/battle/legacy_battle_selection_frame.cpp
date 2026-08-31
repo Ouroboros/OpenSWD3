@@ -832,6 +832,12 @@ private:
                     bindings_.frame_input.alternate_selection_limit,
                 .selected_group_b_index =
                     bindings_.input_dispatch.selected_group_b_index,
+                .group_b_actors = bindings_.startup.group_b_lifecycle == nullptr
+                    ? std::span<LegacyBattleActorGroupBElementState>{}
+                    : std::span<
+                          LegacyBattleActorGroupBElementState>{*bindings_
+                                                                    .startup
+                                                                    .group_b_lifecycle},
                 .transition_value_a = bindings_.frame_input.transition_value_a,
                 .transition_value_b = bindings_.frame_input.transition_value_b,
                 .selection_text_workspace =

@@ -6,6 +6,7 @@
 #include "openswd3/battle/legacy_battle_context_prompt.hpp"
 #include "openswd3/battle/legacy_battle_debug_state.hpp"
 #include "openswd3/battle/legacy_battle_final_actor_step.hpp"
+#include "openswd3/battle/legacy_battle_group_b_action_item_option.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_runtime.hpp"
 #include "openswd3/input_time_rng/legacy_input.hpp"
@@ -118,7 +119,7 @@ enum class LegacyBattleInputDispatchCall : compat::u8 {
     reserved_menu_finalize_reset_active_group_a_actor_slot,
     menu_finalize_reset_actor,
     target_selection_configure_actor,
-    target_selection_scan_primary,
+    reserved_target_selection_scan_primary_slot,
     target_selection_scan_secondary,
     reserved_target_selection_refresh_state_slot,
     reserved_available_actor_cycle_slot,
@@ -149,7 +150,8 @@ struct LegacyBattleInputDispatchCallReply {
 
 class LegacyBattleInputDispatchPort
     : public virtual LegacyBattleInputDispatchStatePort,
-      public virtual LegacyBattleTargetSelectionRuntimePort {
+      public virtual LegacyBattleTargetSelectionRuntimePort,
+      public virtual LegacyBattleGroupBActionItemOptionPort {
 public:
     virtual ~LegacyBattleInputDispatchPort() = default;
 
@@ -158,6 +160,23 @@ public:
         static_cast<void>(request);
         return {};
     }
+
+    [[nodiscard]] LegacyBattleGroupBActionItemDefinitionLoadReply
+    load_action_item_definition(
+        const LegacyBattleGroupBActionItemDefinitionLoadRequest& request
+    ) override {
+        static_cast<void>(request);
+        return {};
+    }
+
+    [[nodiscard]] LegacyBattleGroupBActionItemNameCopyReply
+    copy_action_item_name(
+        const LegacyBattleGroupBActionItemNameCopyRequest& request
+    ) override {
+        static_cast<void>(request);
+        return {};
+    }
+
     virtual void delay_input_milliseconds(compat::u32 milliseconds) {
         static_cast<void>(milliseconds);
     }
@@ -189,6 +208,7 @@ struct LegacyBattleInputDispatchBindings {
     LegacyBattleActionDispatchState& action;
     LegacyBattleActorMetricState& metrics;
     LegacyBattleDebugHotkeyState& debug_hotkeys;
+    std::span<LegacyBattleActorGroupBElementState> group_b_actors;
     LegacyBattleContextPromptState& context_prompt;
     compat::u32& message_state;
     compat::u32& terminal_latch;

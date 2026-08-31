@@ -4,6 +4,7 @@
 #include <array>
 #include <functional>
 #include <map>
+#include <memory>
 #include <ranges>
 #include <vector>
 
@@ -17,6 +18,14 @@ using openswd3::compat::u32;
 using Call = openswd3::battle::LegacyBattleControlPanelFrameCall;
 using Reply = openswd3::battle::LegacyBattleControlPanelFrameCallReply;
 using Request = openswd3::battle::LegacyBattleControlPanelFrameCallRequest;
+using DefinitionLoadReply =
+    openswd3::battle::LegacyBattleGroupBActionItemDefinitionLoadReply;
+using DefinitionLoadRequest =
+    openswd3::battle::LegacyBattleGroupBActionItemDefinitionLoadRequest;
+using NameCopyReply =
+    openswd3::battle::LegacyBattleGroupBActionItemNameCopyReply;
+using NameCopyRequest =
+    openswd3::battle::LegacyBattleGroupBActionItemNameCopyRequest;
 
 class FrameProvider final
     : public openswd3::rendering::LegacyFramePieceProvider {
@@ -89,15 +98,63 @@ public:
         return selected;
     }
 
+    void reply_definition(const DefinitionLoadReply& value) {
+        definition_replies.push_back(value);
+    }
+
+    [[nodiscard]] DefinitionLoadReply
+    load_action_item_definition(const DefinitionLoadRequest& request) override {
+        definition_requests.push_back(request);
+        if (on_definition_load) {
+            on_definition_load(request);
+        }
+        if (definition_reply_index >= definition_replies.size()) {
+            return {};
+        }
+        return definition_replies[definition_reply_index++];
+    }
+
+    [[nodiscard]] NameCopyReply
+    copy_action_item_name(const NameCopyRequest& request) override {
+        copy_requests.push_back(request);
+        if (copy_reply_index >= copy_replies.size()) {
+            return {};
+        }
+        return copy_replies[copy_reply_index++];
+    }
+
     std::vector<Request> calls;
     std::map<Call, std::vector<Reply>> replies;
     std::map<Call, std::size_t> reply_indices;
     std::function<void(const Request&)> on_call;
+    std::vector<DefinitionLoadRequest> definition_requests;
+    std::vector<DefinitionLoadReply> definition_replies;
+    std::size_t definition_reply_index{};
+    std::function<void(const DefinitionLoadRequest&)> on_definition_load;
+    std::vector<NameCopyRequest> copy_requests;
+    std::vector<NameCopyReply> copy_replies;
+    std::size_t copy_reply_index{};
 };
+
+void write_word(
+    std::array<u8, 0xA4>& bytes, const std::size_t offset, const u16 value
+) {
+    bytes[offset] = static_cast<u8>(value);
+    bytes[offset + 1U] = static_cast<u8>(value >> 8U);
+}
+
+[[nodiscard]] std::shared_ptr<const std::array<u8, 0xA4>>
+definition(const char marker) {
+    auto bytes = std::make_shared<std::array<u8, 0xA4>>();
+    (*bytes)[0U] = static_cast<u8>(marker);
+    (*bytes)[1U] = static_cast<u8>('0');
+    return bytes;
+}
 
 struct Fixture {
     Fixture() : raster(framebuffer.geometry()) {
         selection_text.fill(0xA5A5A5A5U);
+        group_b_actors[1U].resource_token = 0x73001234U;
         shared_request.target_height = 3;
         shared_request.opacity_step = 15;
     }
@@ -109,6 +166,7 @@ struct Fixture {
             .shared_color_fade = color_fade,
             .alternate_selection_limit = alternate_selection_limit,
             .selected_group_b_index = selected_group_b_index,
+            .group_b_actors = group_b_actors,
             .transition_value_a = transition_value_a,
             .transition_value_b = transition_value_b,
             .selection_text_workspace = selection_text,
@@ -125,6 +183,8 @@ struct Fixture {
     openswd3::battle::LegacyBattleColorFadeState color_fade;
     u32 alternate_selection_limit{2U};
     u16 selected_group_b_index{1U};
+    std::array<openswd3::battle::LegacyBattleActorGroupBElementState, 8>
+        group_b_actors;
     u32 transition_value_a{0xAAAAAAAAU};
     u32 transition_value_b{0xBBBBBBBBU};
     std::array<u32, 6> selection_text{};
@@ -166,13 +226,6 @@ request(const u32 selected = 1U) {
     return value;
 }
 
-[[nodiscard]] std::array<u8, 24> text_bytes(const char marker) {
-    std::array<u8, 24> value{};
-    value[0U] = static_cast<u8>(marker);
-    value[1U] = static_cast<u8>('0');
-    return value;
-}
-
 void prepare_no_options(Fixture& fixture) {
     fixture.port.reply(Call::draw_text, {});
     fixture.port.reply(Call::configure_font_reset, {});
@@ -180,9 +233,6 @@ void prepare_no_options(Fixture& fixture) {
     fixture.port.reply(Call::draw_text, {});
     fixture.port.reply(Call::configure_font_style, {});
     fixture.port.reply(Call::draw_text, {});
-    for (u32 index = 0U; index < 3U; ++index) {
-        fixture.port.reply(Call::query_primary_option, {.eax = 0U});
-    }
     for (u32 index = 0U; index < 2U; ++index) {
         fixture.port.reply(Call::query_special_option, {.eax = 0U});
     }
@@ -257,41 +307,29 @@ void test_battle_control_panel_frame(openswd3::test::Context& test) {
         fixture.port.reply(Call::configure_font_reset, {});
         fixture.port.reply(Call::configure_font_style, {});
         fixture.port.reply(Call::draw_text, {});
-        fixture.port.reply(
-            Call::query_primary_option,
-            {
-                .eax = 1U,
-                .publish_text = true,
-                .text = text_bytes('A'),
-                .publish_primary_value = true,
-                .primary_value = 100U,
-            }
-        );
+        auto& resource = fixture.group_b_actors[1U].resource_bytes;
+        write_word(resource, 0x66U, 100U);
+        write_word(resource, 0x6AU, 1U);
+        write_word(resource, 0x6EU, 1U);
+        fixture.port.reply_definition({.definition = definition('A')});
         fixture.port.reply(Call::configure_font_style, {});
         fixture.port.reply(Call::draw_text, {});
-        fixture.port.reply(
-            Call::query_primary_option,
-            {
-                .eax = 1U,
-                .publish_text = true,
-                .text = text_bytes('B'),
-                .publish_primary_value = true,
-                .primary_value = 200U,
-            }
-        );
+        fixture.port.reply_definition({.definition = definition('B')});
         fixture.port.reply(Call::configure_font_style, {});
         fixture.port.reply(Call::draw_text, {});
         fixture.port.reply(Call::configure_font_style, {});
         fixture.port.reply(Call::draw_text, {});
-        fixture.port.reply(
-            Call::query_primary_option,
-            {
-                .eax = 1U,
-                .publish_text = true,
-                .text = text_bytes('C'),
-                .primary_value = 300U,
-            }
-        );
+        fixture.port.reply_definition({.definition = definition('C')});
+        std::size_t load_index = 0U;
+        fixture.port.on_definition_load =
+            [&fixture, &load_index](const DefinitionLoadRequest&) {
+                constexpr std::array<u16, 3> values{100U, 200U, 300U};
+                write_word(
+                    fixture.group_b_actors[1U].resource_bytes,
+                    0x66U,
+                    values[load_index++]
+                );
+            };
         fixture.port.reply(Call::configure_font_style, {});
         fixture.port.reply(Call::draw_text, {});
         for (u32 index = 0U; index < 2U; ++index) {
@@ -306,7 +344,7 @@ void test_battle_control_panel_frame(openswd3::test::Context& test) {
             openswd3::battle::draw_legacy_battle_control_panel_frame(
                 fixture.bindings(), fixture.port, request(3U)
             );
-        const auto primary = fixture.port.calls_of(Call::query_primary_option);
+        const auto& primary = fixture.port.definition_requests;
         test.expect_true(
             result.status ==
                     openswd3::battle::LegacyBattleControlPanelFrameStatus::
@@ -326,13 +364,14 @@ void test_battle_control_panel_frame(openswd3::test::Context& test) {
         test.expect_true(
             fixture.transition_value_a == 200U &&
                 fixture.transition_value_b == 0U && primary.size() == 3U &&
-                primary[0U].eax == 345U && primary[0U].edx == 0U &&
-                primary[1U].edx == 1U && primary[2U].edx == 2U &&
-                primary[0U].arguments[1U] ==
-                    openswd3::battle::
-                        kLegacyBattleControlPanelSharedTextToken &&
-                primary[0U].arguments[2U] == 0x70002000U,
-            "control panel publishes the selected primary value and preserves group-B query registers"
+                primary[0U].destination_token ==
+                    primary[0U].actor_token + 0x10U &&
+                primary[0U].definition_argument == 100U &&
+                primary[1U].definition_argument == 1U &&
+                primary[2U].definition_argument == 0x73000001U &&
+                fixture.port.calls_of(Call::reserved_query_primary_option_slot)
+                    .empty(),
+            "control panel publishes the selected primary value through the closed loader and preserves selector-two high bits"
         );
         test.expect_true(
             result.rows[4U].text_token ==
@@ -353,14 +392,10 @@ void test_battle_control_panel_frame(openswd3::test::Context& test) {
         fixture.port.reply(Call::configure_font_reset, {});
         fixture.port.reply(Call::configure_font_style, {});
         fixture.port.reply(Call::draw_text, {});
-        fixture.port.reply(
-            Call::query_primary_option,
-            {.eax = 1U, .publish_text = true, .text = text_bytes('P')}
-        );
+        write_word(fixture.group_b_actors[1U].resource_bytes, 0x66U, 1U);
+        fixture.port.reply_definition({.definition = definition('P')});
         fixture.port.reply(Call::configure_font_style, {});
         fixture.port.reply(Call::draw_text, {});
-        fixture.port.reply(Call::query_primary_option, {.eax = 0U});
-        fixture.port.reply(Call::query_primary_option, {.eax = 0U});
         fixture.port.reply(Call::query_special_option, {.eax = 1U});
         fixture.port.reply(Call::configure_font_style, {});
         fixture.port.reply(Call::draw_text, {});
@@ -403,10 +438,10 @@ void test_battle_control_panel_frame(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleControlPanelFrameStatus::
                         group_b_actor_typed_stop &&
-                result.primary_query_calls == 0U &&
-                result.text_draw_calls == 2U &&
-                result.return_eax == 0xFFFFFEA7U && result.return_edx == 0U,
-            "control panel sign-extends selected group-B index and stops at the first primary actor call"
+                result.primary_query_calls == 1U &&
+                result.text_draw_calls == 2U && result.return_eax == 0U &&
+                result.return_ecx == 0x005229E0U && result.return_edx == 0U,
+            "control panel sign-extends selected group-B index and stops at the callee's first actor-resource access"
         );
     }
 

@@ -1,6 +1,9 @@
 #include "openswd3/battle/legacy_battle_target_selection_entry.hpp"
 
+#include <algorithm>
+#include <memory>
 #include <optional>
+#include <ranges>
 #include <vector>
 
 #include "test.hpp"
@@ -11,6 +14,14 @@ using openswd3::battle::LegacyBattleInputDispatchCall;
 using openswd3::battle::LegacyBattleInputDispatchCallReply;
 using openswd3::battle::LegacyBattleInputDispatchCallRequest;
 using openswd3::battle::LegacyBattleTargetSelectionEntryBindings;
+using DefinitionLoadReply =
+    openswd3::battle::LegacyBattleGroupBActionItemDefinitionLoadReply;
+using DefinitionLoadRequest =
+    openswd3::battle::LegacyBattleGroupBActionItemDefinitionLoadRequest;
+using NameCopyReply =
+    openswd3::battle::LegacyBattleGroupBActionItemNameCopyReply;
+using NameCopyRequest =
+    openswd3::battle::LegacyBattleGroupBActionItemNameCopyRequest;
 using openswd3::compat::i32;
 using openswd3::compat::u32;
 
@@ -42,6 +53,24 @@ public:
         };
     }
 
+    [[nodiscard]] DefinitionLoadReply
+    load_action_item_definition(const DefinitionLoadRequest& request) override {
+        definition_requests.push_back(request);
+        if (definition_reply_index >= definition_replies.size()) {
+            return {};
+        }
+        return definition_replies[definition_reply_index++];
+    }
+
+    [[nodiscard]] NameCopyReply
+    copy_action_item_name(const NameCopyRequest& request) override {
+        copy_requests.push_back(request);
+        if (copy_reply_index >= copy_replies.size()) {
+            return {};
+        }
+        return copy_replies[copy_reply_index++];
+    }
+
     [[nodiscard]] LegacyBattleInputDispatchCallReply play_input_sample(
         const u32 sound_id,
         const i32 mix_level,
@@ -64,11 +93,34 @@ public:
     std::vector<LegacyBattleInputDispatchCallRequest> calls;
     std::vector<std::optional<LegacyBattleInputDispatchCallReply>> replies;
     std::vector<std::array<u32, 5>> samples;
+    std::vector<DefinitionLoadRequest> definition_requests;
+    std::vector<DefinitionLoadReply> definition_replies;
+    std::size_t definition_reply_index{};
+    std::vector<NameCopyRequest> copy_requests;
+    std::vector<NameCopyReply> copy_replies;
+    std::size_t copy_reply_index{};
     std::optional<LegacyBattleInputDispatchCallReply> sample_reply;
     u32* sample_mode_flags{};
     u32 sample_mode_flags_value{};
     u32 next_text_message_token{0x75000000U};
 };
+
+void write_word(
+    std::array<openswd3::compat::u8, 0xA4>& bytes,
+    const std::size_t offset,
+    const openswd3::compat::u16 value
+) {
+    bytes[offset] = static_cast<openswd3::compat::u8>(value);
+    bytes[offset + 1U] = static_cast<openswd3::compat::u8>(value >> 8U);
+}
+
+[[nodiscard]] std::shared_ptr<const std::array<openswd3::compat::u8, 0xA4>>
+definition(const char marker) {
+    auto bytes = std::make_shared<std::array<openswd3::compat::u8, 0xA4>>();
+    (*bytes)[0U] = static_cast<openswd3::compat::u8>(marker);
+    (*bytes)[1U] = 0U;
+    return bytes;
+}
 
 struct Fixture {
     Fixture() {
@@ -78,6 +130,9 @@ struct Fixture {
                 source.object_token = token;
                 token += 0x100U;
             }
+        }
+        for (auto& actor : group_b_actors) {
+            actor.resource_token = 0x73000000U;
         }
     }
 
@@ -93,6 +148,8 @@ struct Fixture {
     openswd3::battle::LegacyBattleActionDispatchState action;
     openswd3::battle::LegacyBattleActorMetricState metrics;
     openswd3::battle::LegacyBattleDebugHotkeyState debug;
+    std::array<openswd3::battle::LegacyBattleActorGroupBElementState, 8>
+        group_b_actors;
     std::array<
         openswd3::input_time_rng::LegacyInputRecord,
         openswd3::input_time_rng::kLegacyInputRecordCount>
@@ -119,6 +176,7 @@ struct Fixture {
             .metrics = metrics,
             .debug_hotkeys = debug,
             .input_dispatch = port.battle_input_dispatch_state(),
+            .group_b_actors = group_b_actors,
             .input_records = input_records,
             .target_selection_runtime =
                 port.battle_target_selection_runtime_state(),
@@ -472,12 +530,17 @@ void test_battle_target_selection_entry(openswd3::test::Context& test) {
         input.selected_group_b_index = 0U;
         input.selected_group_a_index = 0U;
         fixture.frame.transition_value_a = 9U;
+        auto& actor = fixture.group_b_actors[0U];
+        write_word(actor.resource_bytes, 0x66U, 0x1111U);
+        write_word(actor.resource_bytes, 0x6AU, 0U);
+        write_word(actor.resource_bytes, 0x6EU, 0x3333U);
+        fixture.port.definition_replies = {
+            DefinitionLoadReply{.definition = definition('A')},
+            DefinitionLoadReply{.definition = definition('C')},
+        };
         fixture.port.replies = {
             LegacyBattleInputDispatchCallReply{.eax = 0U},
             std::nullopt,
-            LegacyBattleInputDispatchCallReply{.eax = 1U},
-            LegacyBattleInputDispatchCallReply{.eax = 0U},
-            LegacyBattleInputDispatchCallReply{.eax = 1U},
             LegacyBattleInputDispatchCallReply{.eax = 1U},
             LegacyBattleInputDispatchCallReply{.eax = 0U},
         };
@@ -487,26 +550,34 @@ void test_battle_target_selection_entry(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleTargetSelectionEntryStatus::completed &&
-                result.port_calls == 8U && result.sample_calls == 1U &&
+                result.port_calls == 9U && result.sample_calls == 1U &&
                 result.primary_scan_calls == 3U &&
                 result.secondary_scan_calls == 2U &&
-                fixture.port.calls.size() == 7U && fixture.message == 7U &&
+                fixture.port.calls.size() == 4U && fixture.message == 7U &&
                 fixture.frame.alternate_selection_limit == 5U &&
                 fixture.frame.transition_value_a == 0U &&
+                fixture.port.definition_requests.size() == 2U &&
+                fixture.port.definition_requests[0U].destination_token ==
+                    0x00525518U &&
+                fixture.port.definition_requests[0U].definition_argument ==
+                    0x1111U &&
+                fixture.port.definition_requests[1U].definition_argument ==
+                    0x73003333U &&
+                fixture.port.copy_requests.size() == 2U &&
+                std::ranges::none_of(
+                    fixture.port.calls,
+                    [](const LegacyBattleInputDispatchCallRequest& call) {
+                        return call.call ==
+                            LegacyBattleInputDispatchCall::
+                                reserved_target_selection_scan_primary_slot;
+                    }
+                ) &&
                 fixture.port.calls[2U].call ==
                     LegacyBattleInputDispatchCall::
-                        target_selection_scan_primary &&
-                fixture.port.calls[2U].arguments[0U] == 0U &&
-                fixture.port.calls[2U].arguments[1U] == 0x0053C16CU &&
-                fixture.port.calls[2U].arguments[2U] == 0x0053BD44U &&
+                        target_selection_scan_secondary &&
                 fixture.port.calls[2U].eax == 0U &&
                 fixture.port.calls[2U].ecx == 0x00525508U &&
-                fixture.port.calls[5U].call ==
-                    LegacyBattleInputDispatchCall::
-                        target_selection_scan_secondary &&
-                fixture.port.calls[5U].eax == 0U &&
-                fixture.port.calls[5U].ecx == 0x00525508U &&
-                fixture.port.calls[5U].edx == 0U,
+                fixture.port.calls[2U].edx == 0U,
             "matching selected actors scan three primary and two secondary entries and publish the exact visible count"
         );
     }
@@ -531,9 +602,9 @@ void test_battle_target_selection_entry(openswd3::test::Context& test) {
                 fixture.port.calls.size() == 2U && fixture.message == 7U &&
                 fixture.frame.alternate_selection_limit == 2U &&
                 fixture.frame.transition_value_a == 9U &&
-                result.return_eax == 0xAC8U &&
+                result.primary_scan_calls == 1U && result.return_eax == 0U &&
                 result.return_ecx == 0x0053AE48U && result.return_edx == 0U,
-            "selected group-B index eight stops on the first scan after preserving setup and list-prefix writes"
+            "selected group-B index eight stops at the callee's first actor-resource access after preserving setup"
         );
     }
 }

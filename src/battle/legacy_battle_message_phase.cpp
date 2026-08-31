@@ -621,6 +621,12 @@ private:
                 .metrics = bindings_.metrics,
                 .debug_hotkeys = bindings_.debug_hotkeys,
                 .input_dispatch = bindings_.input_dispatch,
+                .group_b_actors = bindings_.startup.group_b_lifecycle == nullptr
+                    ? std::span<LegacyBattleActorGroupBElementState>{}
+                    : std::span<
+                          LegacyBattleActorGroupBElementState>{*bindings_
+                                                                    .startup
+                                                                    .group_b_lifecycle},
                 .input_records = bindings_.input_records,
                 .target_selection_runtime = bindings_.target_selection,
                 .dialogs = bindings_.dialogs,

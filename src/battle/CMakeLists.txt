@@ -78,6 +78,7 @@ add_library(
         legacy_battle_group_a_target_cycle.cpp
         legacy_battle_group_b_action_composition.cpp
         legacy_battle_group_b_action_configuration.cpp
+        legacy_battle_group_b_action_item_option.cpp
         legacy_battle_group_b_action_item_selection.cpp
         legacy_battle_group_b_action_profile_mode.cpp
         legacy_battle_group_b_action_profile_selection.cpp
