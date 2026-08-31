@@ -4,6 +4,7 @@
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_group_a_reward_profile_application.hpp"
+#include "openswd3/battle/legacy_battle_group_b_reward_item_selection.hpp"
 #include "openswd3/battle/legacy_battle_input_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_player_item_quantity.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
@@ -70,7 +71,7 @@ private:
 };
 
 enum class LegacyBattleVictoryRewardCall : compat::u8 {
-    query_group_b_item,
+    reserved_query_group_b_item,
     query_group_a_reward_block,
     reserved_apply_group_a_reward,
     prepare_group_a_actor,
@@ -82,7 +83,7 @@ enum class LegacyBattleVictoryRewardCall : compat::u8 {
 
 struct LegacyBattleVictoryRewardCallRequest {
     LegacyBattleVictoryRewardCall call{
-        LegacyBattleVictoryRewardCall::query_group_b_item
+        LegacyBattleVictoryRewardCall::reserved_query_group_b_item
     };
     compat::u32 actor_token{};
     std::array<compat::u32, 6> arguments{};
@@ -162,6 +163,7 @@ struct LegacyBattleVictoryRewardBindings {
     rendering::LegacyRleRowJitterState& jitter;
     asset_runtime::LegacyActionUpdater& action_updater;
     rendering::LegacyFramePieceProvider& frame_provider;
+    LegacyBattleBoundedRandomPort& bounded_random;
 };
 
 struct LegacyBattleVictoryRewardRequest {
@@ -190,6 +192,7 @@ enum class LegacyBattleVictoryRewardStatus : compat::u8 {
     transition_stage_typed_stop,
     format_buffer_typed_stop,
     group_a_reward_profile_typed_stop,
+    group_b_reward_item_typed_stop,
 };
 
 struct LegacyBattleVictoryRewardResult {
@@ -220,6 +223,8 @@ struct LegacyBattleVictoryRewardResult {
     LegacyBattlePlayerItemQuantityResult player_item_quantity{};
     std::array<LegacyBattleGroupARewardProfileApplicationResult, 10>
         group_a_reward_profiles{};
+    std::array<LegacyBattleGroupBRewardItemSelectionResult, 8>
+        group_b_reward_items{};
     std::vector<LegacyBattleVictoryRewardCall> call_trace;
 };
 

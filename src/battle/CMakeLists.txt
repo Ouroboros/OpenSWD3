@@ -87,6 +87,7 @@ add_library(
         legacy_battle_group_b_frame.cpp
         legacy_battle_group_b_opponent_mode.cpp
         legacy_battle_group_b_order.cpp
+        legacy_battle_group_b_reward_item_selection.cpp
         legacy_battle_group_b_target_cycle.cpp
         legacy_battle_global_reset.cpp
         legacy_battle_group_effect_frame.cpp

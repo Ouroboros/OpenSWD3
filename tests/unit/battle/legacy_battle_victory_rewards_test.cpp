@@ -4,6 +4,7 @@
 #include <bit>
 #include <deque>
 #include <map>
+#include <memory>
 #include <vector>
 
 #include "test.hpp"
@@ -88,6 +89,43 @@ public:
     std::vector<u32> resource_ids;
     std::vector<u32> piece_indices;
     bool fail{};
+};
+
+class RandomPort final
+    : public openswd3::battle::LegacyBattleBoundedRandomPort {
+public:
+    [[nodiscard]] u32 random_bounded(const u32 bound) override {
+        bounds.push_back(bound);
+        if (publish_group_b_count) {
+            metric_state->group_b_count = published_group_b_count;
+            publish_group_b_count = false;
+        }
+
+        if (values.empty()) {
+            return 0U;
+        }
+        const u32 value = values.front();
+        values.pop_front();
+        return value;
+    }
+
+    void push(const u32 value) {
+        values.push_back(value);
+    }
+
+    void publish_count_on_next_call(
+        openswd3::battle::LegacyBattleActorMetricState& state, const u32 count
+    ) noexcept {
+        metric_state = &state;
+        published_group_b_count = count;
+        publish_group_b_count = true;
+    }
+
+    std::deque<u32> values;
+    std::vector<u32> bounds;
+    openswd3::battle::LegacyBattleActorMetricState* metric_state{};
+    u32 published_group_b_count{};
+    bool publish_group_b_count{};
 };
 
 class VictoryPort final
@@ -193,6 +231,16 @@ struct Fixture {
         input.sample_mix_level = -4;
         target.transition_stage = 72U;
         script_variables[0U] = 100U;
+        startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            8>>();
+        for (std::size_t index = 0U; index < startup.group_b_lifecycle->size();
+             ++index) {
+            (*startup.group_b_lifecycle)[index].resource_token =
+                openswd3::battle::
+                    kLegacyBattleActorGroupBResourceStateBaseToken +
+                static_cast<u32>(index * 0x100U);
+        }
     }
 
     [[nodiscard]] openswd3::battle::LegacyBattleVictoryRewardBindings
@@ -212,6 +260,7 @@ struct Fixture {
             .jitter = jitter,
             .action_updater = action_updater,
             .frame_provider = frame_provider,
+            .bounded_random = random,
         };
     }
 
@@ -235,6 +284,7 @@ struct Fixture {
     openswd3::rendering::LegacyBlitEffectState effects;
     openswd3::rendering::LegacyRleRowJitterState jitter;
     FrameProvider frame_provider;
+    RandomPort random;
     VictoryPort port;
 };
 
@@ -261,6 +311,20 @@ void set_profile_word(
 ) {
     profile[offset] = static_cast<std::byte>(static_cast<u8>(value));
     profile[offset + 1U] = static_cast<std::byte>(static_cast<u8>(value >> 8U));
+}
+
+void set_group_b_reward(
+    Fixture& fixture,
+    const std::size_t actor_index,
+    const u16 item_id,
+    const u16 threshold
+) {
+    auto& bytes =
+        (*fixture.startup.group_b_lifecycle)[actor_index].resource_bytes;
+    bytes[0x82U] = static_cast<u8>(item_id);
+    bytes[0x83U] = static_cast<u8>(item_id >> 8U);
+    bytes[0x84U] = static_cast<u8>(threshold);
+    bytes[0x85U] = static_cast<u8>(threshold >> 8U);
 }
 
 }  // namespace
@@ -318,12 +382,10 @@ void test_battle_victory_rewards(openswd3::test::Context& test) {
         auto& alias =
             fixture.port.world_item_list_state().player_inventory_head_alias;
         alias.item_id = 7U;
-        fixture.port.reply(
-            LegacyBattleVictoryRewardCall::query_group_b_item, {.eax = 7U}
-        );
-        fixture.port.reply(
-            LegacyBattleVictoryRewardCall::query_group_b_item, {.eax = 7U}
-        );
+        set_group_b_reward(fixture, 0U, 7U, 20U);
+        set_group_b_reward(fixture, 1U, 7U, 20U);
+        fixture.random.push(0U);
+        fixture.random.push(19U);
         fixture.port.reply(
             LegacyBattleVictoryRewardCall::query_group_a_reward_block,
             {.eax = 0U}
@@ -353,6 +415,10 @@ void test_battle_victory_rewards(openswd3::test::Context& test) {
                 fixture.port.sample_entry_eax ==
                     std::vector<u32>{0xFFFFFFFCU} &&
                 result.group_b_query_calls == 2U &&
+                fixture.random.bounds == std::vector<u32>{20U, 20U} &&
+                fixture.port.count(
+                    LegacyBattleVictoryRewardCall::reserved_query_group_b_item
+                ) == 0U &&
                 result.group_a_query_calls == 2U &&
                 result.player_item_quantity_calls == 2U &&
                 fixture.target.transition_sample_word == 1U &&
@@ -391,14 +457,14 @@ void test_battle_victory_rewards(openswd3::test::Context& test) {
             fixture.port.count(
                 LegacyBattleVictoryRewardCall::reserved_apply_group_a_reward
             ) == 0U &&
-                fixture.port.calls[4U].call ==
+                fixture.port.calls[2U].call ==
                     LegacyBattleVictoryRewardCall::prepare_group_a_actor &&
-                fixture.port.calls[4U].eax == 0x004ACF54U &&
-                fixture.port.calls[4U].edx == 2U,
+                fixture.port.calls[2U].eax == 0x004ACF54U &&
+                fixture.port.calls[2U].edx == 2U,
             "victory party caller directly applies reward profiles before preserving the counter-address register snapshot"
         );
         test.expect_true(
-            result.text_draw_calls == 4U && fixture.port.calls.size() >= 12U &&
+            result.text_draw_calls == 4U && fixture.port.calls.size() >= 10U &&
                 text_bytes(
                     fixture.port.calls[fixture.port.calls.size() - 3U]
                 ) ==
@@ -498,11 +564,6 @@ void test_battle_victory_rewards(openswd3::test::Context& test) {
         fixture.metrics.group_b_count = 3U;
         fixture.metrics.group_a_count = 1U;
         fixture.startup.action_mode_source.actor_label_indices[0U] = 0U;
-        for (u32 index = 0U; index < 3U; ++index) {
-            fixture.port.reply(
-                LegacyBattleVictoryRewardCall::query_group_b_item, {.eax = 0U}
-            );
-        }
         fixture.port.reply(
             LegacyBattleVictoryRewardCall::query_group_a_reward_block,
             {.eax = 0U}
@@ -522,9 +583,8 @@ void test_battle_victory_rewards(openswd3::test::Context& test) {
         auto& alias =
             fixture.port.world_item_list_state().player_inventory_head_alias;
         alias.item_id = 7U;
-        fixture.port.reply(
-            LegacyBattleVictoryRewardCall::query_group_b_item, {.eax = 7U}
-        );
+        set_group_b_reward(fixture, 0U, 7U, 20U);
+        fixture.random.push(0U);
         const auto result = run(fixture);
         test.expect_true(
             result.status ==
@@ -541,21 +601,41 @@ void test_battle_victory_rewards(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.metrics.group_b_count = 1U;
-        fixture.port.reply(
-            LegacyBattleVictoryRewardCall::query_group_b_item,
-            {.publish_group_b_count = true, .group_b_count = 9U}
-        );
-        for (u32 index = 1U; index < 8U; ++index) {
-            fixture.port.reply(
-                LegacyBattleVictoryRewardCall::query_group_b_item, {.eax = 0U}
-            );
-        }
+        set_group_b_reward(fixture, 0U, 1U, 0U);
+        fixture.random.push(0U);
+        fixture.random.publish_count_on_next_call(fixture.metrics, 9U);
         const auto result = run(fixture);
         test.expect_true(
             result.status ==
                     LegacyBattleVictoryRewardStatus::group_b_actor_typed_stop &&
-                result.group_b_query_calls == 8U,
+                result.group_b_query_calls == 8U &&
+                fixture.random.bounds == std::vector<u32>{20U} &&
+                fixture.port.count(
+                    LegacyBattleVictoryRewardCall::reserved_query_group_b_item
+                ) == 0U,
             "group-B reward traversal reloads its live signed bound until the ninth actor reaches the first query"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.metrics.group_b_count = 1U;
+        fixture.startup.group_b_lifecycle.reset();
+        const auto result = run(fixture);
+        test.expect_true(
+            result.status ==
+                    LegacyBattleVictoryRewardStatus::
+                        group_b_reward_item_typed_stop &&
+                result.group_b_query_calls == 1U &&
+                result.group_b_reward_items[0U].status ==
+                    openswd3::battle::
+                        LegacyBattleGroupBRewardItemSelectionStatus::
+                            actor_state_typed_stop &&
+                fixture.random.bounds.empty() &&
+                fixture.port.count(
+                    LegacyBattleVictoryRewardCall::reserved_query_group_b_item
+                ) == 0U,
+            "victory reward propagation stops at the reclaimed actor resource-pointer access without invoking the old query"
         );
     }
 

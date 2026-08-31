@@ -21,6 +21,14 @@ using openswd3::compat::u8;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
 
+class RandomPort final
+    : public openswd3::battle::LegacyBattleBoundedRandomPort {
+public:
+    [[nodiscard]] u32 random_bounded(const u32) override {
+        return 0U;
+    }
+};
+
 class ActionStreamProvider final
     : public openswd3::asset_runtime::LegacyActionStreamProvider {
 public:
@@ -175,6 +183,7 @@ struct Fixture {
                 .jitter = jitter,
                 .action_updater = action_updater,
                 .frame_provider = frame_provider,
+                .bounded_random = random,
             },
         };
     }
@@ -199,6 +208,7 @@ struct Fixture {
     openswd3::rendering::LegacyBlitEffectState effects;
     openswd3::rendering::LegacyRleRowJitterState jitter;
     FrameProvider frame_provider;
+    RandomPort random;
     Port port;
 };
 

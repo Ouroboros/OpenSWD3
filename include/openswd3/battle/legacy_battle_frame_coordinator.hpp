@@ -171,7 +171,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     reserved_message_phase_victory_reward_slot,
     victory_begin_music_fade,
     victory_stop_all_samples,
-    victory_query_group_b_item,
+    reserved_victory_query_group_b_item,
     victory_query_group_a_reward_block,
     reserved_victory_apply_group_a_reward,
     victory_prepare_group_a_actor,
@@ -1043,9 +1043,10 @@ public:
         const LegacyBattleVictoryRewardCallRequest& request
     ) override {
         LegacyBattleFrameCoordinatorCall call =
-            LegacyBattleFrameCoordinatorCall::victory_query_group_b_item;
+            LegacyBattleFrameCoordinatorCall::
+                reserved_victory_query_group_b_item;
         switch (request.call) {
-        case LegacyBattleVictoryRewardCall::query_group_b_item:
+        case LegacyBattleVictoryRewardCall::reserved_query_group_b_item:
             break;
         case LegacyBattleVictoryRewardCall::query_group_a_reward_block:
             call = LegacyBattleFrameCoordinatorCall::

@@ -672,6 +672,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
                     .jitter = context.frame_zero.jitter,
                     .action_updater = context.action_updater,
                     .frame_provider = context.frame_provider,
+                    .bounded_random = selection_random,
                 },
         },
         port,

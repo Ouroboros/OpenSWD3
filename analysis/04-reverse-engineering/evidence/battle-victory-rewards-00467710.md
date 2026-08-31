@@ -6,7 +6,7 @@
 
 权威LST主体为`0x00467710..0x00467AB9`，从proc到endp共418行、249条带机器码和真实助记符的实际指令、22个静态call、18个跳转、15个局部标签和1个返回点，没有外部`FUNCTION CHUNK`。唯一静态caller是已关闭消息阶段分派的消息100路径；原caller先压入两个未被本函数读取的零参数，返回后才发布目标选择准备门和递增timer。
 
-22个callsite包括动作更新1次、矩形效果1次、九宫格2次、音乐渐隐1次、全部sample停止1次、sample播放1次、组B掉落查询1个静态位置、玩家道具数量2个静态位置、组A六类业务call各1次、`wsprintfA`3次和文字绘制4次。动作、画面、音频、玩家道具和格式化已直接组合typed实现或typed平台接口；六类未审组内业务callee继续由窄端口保留。
+22个callsite包括动作更新1次、矩形效果1次、九宫格2次、音乐渐隐1次、全部sample停止1次、sample播放1次、组B掉落选择1个静态位置、玩家道具数量2个静态位置、组A六类业务call各1次、`wsprintfA`3次和文字绘制4次。动作、画面、音频、玩家道具、组B掉落选择和格式化已直接组合typed实现或typed平台接口；其余未审组内业务callee继续由窄端口保留。
 
 ## 2. 固定面板前缀
 
@@ -26,9 +26,11 @@ sample调用前EAX是mix level的完整32位bit pattern，不沿用全部停止�
 
 ## 4. 组B掉落合并
 
-组B循环从索引0开始，以live数量按i32 signed比较；每次迭代尾重读数量，不增加现代上限。对象地址使用基址`0x00525508`、步长`0x2B28`；第九对象在首次真实掉落查询typed-stop。
+组B循环从索引0开始，以live数量按i32 signed比较；每次迭代尾重读数量，不增加现代上限。对象地址使用基址`0x00525508`、步长`0x2B28`；第九对象在首次真实actor访问前typed-stop。
 
-查询返回只使用DI低word；零跳过。非零道具先线性扫描`0x004FF2F0`起十个u16槽：
+原`0x004762F0`查询已回收为typed直连。它从actor `+0x0C`动态资源读取`+0x82`道具编号；编号为零时不消费RNG。编号非零时从同一secondary RNG以固定上界20取值一次，并以无符号u16严格小于资源`+0x84`阈值作为发布条件；相等与更大均只清`AX`。actor与资源缺失只在原首次真实访问点停止，返回寄存器的低word写、高word陈旧、ECX资源token和EDX随机值均保留。旧opaque query槽改为reserved且生产零调用。
+
+caller只使用返回DI低word；零跳过。非零道具先线性扫描`0x004FF2F0`起十个u16槽：
 
 - 命中既有槽：以数量选择1直连玩家道具数量，再对对应u16结算数量加一并回绕；不增加唯一道具计数，也不重写payload或道具编号。
 - 未命中：以共享u16唯一道具计数作为目标槽，先直连玩家道具数量，再增加目标u16数量，然后增加共享计数，最后依次保存payload token和道具编号。
@@ -64,10 +66,10 @@ profile、计数或动作标签只在原首次真实访问停止；此前callee�
 
 ## 7. owner、caller回收与验证
 
-共享双方数量、动作标签、sample mix、transition stage/timer/item count、玩家道具链、世界角色资源和银币均复用既有唯一owner。新增state只承接胜利面板动作记录、十项道具编号/数量/payload、四项稀疏奖励计数、两组角色跳过字段、三项奖励word、profile阈值和奖励完成门。后续已关闭战利品清单直接消费同一item count、十项payload和u16数量，不复制展示数组；战败提示继续复用同一面板动作记录。全局重置按原写集合只清编号/数量前两项、全部十项payload和三项奖励word；未写的其余槽、稀疏计数、阈值、奖励门及角色字段保持原值。
+共享双方数量、动作标签、sample mix、transition stage/timer/item count、玩家道具链、世界角色资源、组B actor/resource、secondary RNG和银币均复用既有唯一owner。新增state只承接胜利面板动作记录、十项道具编号/数量/payload、四项稀疏奖励计数、两组角色跳过字段、三项奖励word、profile阈值和奖励完成门。后续已关闭战利品清单直接消费同一item count、十项payload和u16数量，不复制展示数组；战败提示继续复用同一面板动作记录。全局重置按原写集合只清编号/数量前两项、全部十项payload和三项奖励word；未写的其余槽、稀疏计数、阈值、奖励门及角色字段保持原值。
 
 消息100现先直连本实现，再直连已关闭升级提示面板；旧消息100 opaque枚举槽改为reserved且生产零调用。本函数子typed-stop阻断升级面板和caller全部写入；升级面板子stop则保留已完成胜利奖励与自身画面前缀，再阻断actor-retarget、双cache、target-ready、queued和timer写入。
 
-定向测试覆盖双面板几何与画面停止前缀、固定CP950标题、奖励位15幂等门、音乐渐隐→sample全停→播放顺序、mix level预调用EAX、组B signed live循环和第九对象、十槽命中/新增/第十一槽停止顺序、玩家道具子stop、组A两字段精确1门、第十一对象、profile阈值、奖励/准备寄存器、组B数量3双计数、共享银币owner、三行CP950格式、全局重置物理范围、消息100正常直连与子stop传播。验证：定向测试、AddressSanitizer、Linux core `188/188`、Linux app `194/194`全部通过。源码构建零warning；app仅保留既有ALSA开发库CMake warning。
+定向测试覆盖双面板几何与画面停止前缀、固定CP950标题、奖励位15幂等门、音乐渐隐→sample全停→播放顺序、mix level预调用EAX、组B资源道具零值不消费RNG、固定上界20、无符号阈值与相等拒绝、signed live循环和第九对象、旧query零调用、十槽命中/新增/第十一槽停止顺序、玩家道具子stop、组A两字段精确1门、第十一对象、profile阈值、奖励/准备寄存器、组B数量3双计数、共享银币owner、三行CP950格式、全局重置物理范围、消息100正常直连与子stop传播。验证：战斗聚合定向测试、完整core AddressSanitizer `188/188`、Linux core `188/188`、Linux app `194/194`全部通过。源码构建零warning；app仅保留既有ALSA开发库环境提示。
 
-当前缺少原版两组角色对象、六类未审业务callee联合状态、动作/画面/字体surface、动态栈地址、音频对象及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版两组角色对象、组B动态资源与secondary RNG游标、其余未审业务callee联合状态、动作/画面/字体surface、动态栈地址、音频对象及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

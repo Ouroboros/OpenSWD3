@@ -300,12 +300,38 @@ private:
                     LegacyBattleVictoryRewardStatus::group_b_actor_typed_stop;
                 return false;
             }
-            call(LegacyBattleVictoryRewardCall::query_group_b_item, ecx_);
+
+            LegacyBattleActorGroupBElementState* actor = nullptr;
+            if (bindings_.startup.group_b_lifecycle != nullptr) {
+                actor = &(*bindings_.startup.group_b_lifecycle)[group_b_index];
+            }
+
+            auto& reward_item = result_.group_b_reward_items[group_b_index];
+            reward_item = select_legacy_battle_group_b_reward_item(
+                actor,
+                bindings_.bounded_random,
+                {
+                    .actor_token = ecx_,
+                    .entry_eax = eax_,
+                    .entry_edx = edx_,
+                }
+            );
             ++result_.group_b_query_calls;
+            eax_ = reward_item.return_eax;
+            ecx_ = reward_item.return_ecx;
+            edx_ = reward_item.return_edx;
+            if (reward_item.status !=
+                LegacyBattleGroupBRewardItemSelectionStatus::completed) {
+                result_.status = LegacyBattleVictoryRewardStatus::
+                    group_b_reward_item_typed_stop;
+                return false;
+            }
+
             const u16 item_id = static_cast<u16>(eax_);
             if (item_id != 0U && !store_item(item_id)) {
                 return false;
             }
+
             ++group_b_index;
             eax_ = bindings_.metrics.group_b_count;
         }

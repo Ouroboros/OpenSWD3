@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v836
+版本：v837
 
 最后更新：2026-08-31
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗函数 `0x004762F0`
+当前步骤：模块10 · 审计战斗函数 `0x00476330`
 
 ## 0. 执行约定
 
@@ -4290,4 +4290,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=247`的`0x00476250`战斗组B行动profile选择函数。完整权威LST主体`0x00476250..0x004762E1`共73行、45条实际指令、3个call、3个跳转、3个局部标签和2个返回点且无外部chunk。实现40-byte profile与首个派生word清零、完整32位selector对资源`+0x72/+0x76`的选择、profile loader、profile bit1分流、固定mode 1/2、selector低word存储、profile word零扩展dword输出及返回寄存器线程；脚本状态word输出保留对相邻word清零的重叠32位写。profile、资源、派生word、selector与mode均复用组B生命周期既有唯一owner，待审profile loader保持窄port。动作25和脚本opcode54两个caller均删除整函数opaque调用并typed直连，纠正opcode54的value-B actor/value-A selector映射；typed-stop保留caller与callee真实前缀并阻断攻击顺序、frame、清理和cursor后缀。验证：定向测试、完整core AddressSanitizer`188/188`、Linux core`188/188`、Linux app`194/194`全部通过且源码零warning。工作包为`247/422 = 238 platform_adapted + 9 assembly_exact + 175 pending_audit`；生成器连续双跑逐字节一致，SHA256为`ab7d35841c7e125acaea17efacaebf0c0aebd14233b9a0360547dc4d9efa6095`。动态差分因原版八个组B actor、动态资源、40-byte profile、profile loader、重叠dword输出与两个caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=248`的`0x004762F0`组B资源随机阈值查询。
+本轮再完成`audit_order=248`的`0x004762F0`战斗组B胜利奖励道具随机选择函数。完整权威LST主体`0x004762F0..0x00476323`共27行、17条实际指令、1个call、2个跳转、1个局部标签和2个返回点且无外部chunk。实现actor `+0x0C`动态资源、`+0x82`零道具不消费随机、固定bound 20、RNG后资源token重读、`AX`与`+0x84`无符号严格小于阈值、成功重读道具，以及只清/覆盖`AX`和`ECX/EDX`寄存器线程；初次资源访问与RNG后第二次资源访问的typed-stop都位于原故障点并保留此前副作用。资源复用组B生命周期八槽唯一owner，随机复用frame coordinator既有secondary RNG adapter。胜利奖励唯一caller删除整函数opaque查询并typed直连，旧枚举槽保留reserved；live signed上界、八槽物理边界、十槽归并、玩家道具副作用及后续组A顺序不变。验证：战斗聚合定向测试、完整core AddressSanitizer`188/188`、Linux core`188/188`、Linux app`194/194`全部通过，零OpenSWD3源码warning和sanitizer finding；app仅有既有ALSA开发库环境提示。工作包为`248/422 = 239 platform_adapted + 9 assembly_exact + 174 pending_audit`；生成器连续双跑逐字节一致，SHA256为`1011219b57c1a5536dc36e394441d73feb593191c3c9347405e019295b6c14ae`。动态差分因原版八个组B actor、动态资源`+0x82/+0x84`、secondary RNG游标及胜利奖励caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=249`的`0x00476330`组B行动随机决策函数。
