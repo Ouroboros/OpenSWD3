@@ -10,6 +10,7 @@
 #include <limits>
 #include <memory>
 #include <optional>
+#include <span>
 #include <utility>
 
 namespace openswd3::battle {
@@ -3660,22 +3661,46 @@ private:
             return finish();
         }
         set_high_word(workspace_.packed_actor_state, actor);
-        const auto token = group_b_token(static_cast<i32>(actor));
-        if (!token.has_value()) {
+
+        const u32 actor_index = actor;
+        const u32 actor_token = kLegacyBattleScriptGroupBBaseToken +
+            actor_index * kLegacyBattleScriptGroupBElementSize;
+        LegacyBattleActorGroupBElementState* actor_state = nullptr;
+        if (bindings_.startup.group_b_lifecycle != nullptr &&
+            actor_index < bindings_.startup.group_b_lifecycle->size()) {
+            actor_state = &(*bindings_.startup.group_b_lifecycle)[actor_index];
+        }
+
+        const u32 source_offset = wrapping_add(workspace_.cursor, 4U);
+        const u32 caller_ecx = ecx_;
+        result_.group_b_script_resource_parameters =
+            write_legacy_battle_group_b_script_resource_parameters(
+                actor_state,
+                {
+                    .script_bytes =
+                        std::span<const u8>{bindings_.assets.script},
+                    .script_capacity = bindings_.assets.script_capacity,
+                    .source_offset = source_offset,
+                    .source_token = source_offset,
+                    .actor_token = actor_token,
+                    .entry_edx = actor_index * 345U,
+                }
+            );
+        ++result_.group_b_script_resource_parameters_calls;
+        eax_ = result_.group_b_script_resource_parameters.return_eax;
+        ecx_ = result_.group_b_script_resource_parameters.return_ecx;
+        edx_ = result_.group_b_script_resource_parameters.return_edx;
+        if (result_.group_b_script_resource_parameters.status !=
+            LegacyBattleGroupBScriptResourceParametersStatus::completed) {
+            result_.status = LegacyBattleScriptDispatchStatus::
+                group_b_script_resource_parameters_typed_stop;
+            result_.stopped_offset =
+                result_.group_b_script_resource_parameters.stopped_offset;
             return finish(eax_);
         }
-        for (u32 offset = 4U; offset < 22U; ++offset) {
-            u8 ignored{};
-            if (!read_u8(wrapping_add(workspace_.cursor, offset), ignored)) {
-                return finish();
-            }
-        }
-        invoke(
-            LegacyBattleScriptDispatchCall::pending_476920,
-            *token,
-            {wrapping_add(workspace_.cursor, 4U)}
-        );
+
         workspace_.cursor = wrapping_add(workspace_.cursor, 22U);
+        ecx_ = caller_ecx;
         return finish(1U);
     }
 

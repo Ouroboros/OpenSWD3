@@ -329,6 +329,7 @@ add_executable(
     unit/battle/legacy_battle_group_b_action_six_target_availability_test.cpp
     unit/battle/legacy_battle_group_b_action_seventeen_frame_test.cpp
     unit/battle/legacy_battle_group_b_opponent_wave_parameters_test.cpp
+    unit/battle/legacy_battle_group_b_script_resource_parameters_test.cpp
     unit/battle/legacy_battle_group_b_coordinate_offsets_test.cpp
     unit/battle/legacy_battle_group_b_frame_test.cpp
     unit/battle/legacy_battle_group_b_opponent_mode_test.cpp

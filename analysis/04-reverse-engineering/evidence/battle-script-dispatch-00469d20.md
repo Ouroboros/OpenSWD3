@@ -394,7 +394,9 @@ cursor前进2，设置独立脚本门为1，发布cursor后调用完整战斗帧
 
 ### case `74`
 
-把`script+2`按u16直接寻址组B对象，以`script+4`地址作为内嵌18-byte参数块调用服务；最终始终按原cursor前进22并返回1。对象code和整段参数在首次真实访问点分别typed-stop。
+把`script+2`按u16直接形成组B对象地址，并把actor code写入共享packed状态高word。已关闭的typed函数以`script+4`为18-byte载荷首地址，只读取九个偶数byte，并按“重读动态资源token→读取一个脚本byte→写入一个连续资源参数byte”的原顺序更新资源`+0x92..+0x9A`；奇数byte不读取。前八项以EDX承接资源token，末项改由ECX承接资源token并只用DL覆盖EDX低byte；caller传入的初始EDX按原地址算式为`345 * actor`。
+
+只有typed函数完整返回后，cursor才前进22、EAX返回1并由caller epilogue恢复入口ECX。actor、任一偶数脚本byte或资源写入typed-stop都保留packed actor及此前完成的参数写入，并阻断cursor后缀；旧整函数opaque地址生产调用为零。
 
 ### case `75`
 

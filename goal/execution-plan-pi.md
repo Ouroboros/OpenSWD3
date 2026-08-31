@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v844
+版本：v845
 
 最后更新：2026-08-31
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗函数 `0x00476920`
+当前步骤：模块10 · 审计战斗函数 `0x004769A0`
 
 ## 0. 执行约定
 
@@ -4306,4 +4306,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=255`的`0x00476900`战斗组B对手wave参数读取函数。完整权威LST主体`0x00476900..0x0047691D`共15行、7条实际指令、0个call、0个跳转、0个局部标签和1个返回点且无外部chunk。实现actor `+0x0DB0` word到special-action输出、`+0x0DB4` byte经`MOVZX AX`到spawn-count输出的精确有序读取与写入，保留第一次输出后第二次故障的部分提交、EAX高word、ECX第二输出token及EDX第一输出token。两个源字段直接复用组B生命周期既有40-byte action-configuration profile唯一owner，caller继续写既有两个u16共享槽。对手动作15唯一caller删除旧整函数opaque调用并typed直连；phase低word `0x8019`前缀先于首次actor访问，actor typed-stop保留phase与旧输出并阻断wave循环，正常结果继续驱动记录动作号、wave数量和组B行动配置。验证：战斗聚合测试、完整core AddressSanitizer`188/188`、Linux core`188/188`、Linux app`194/194`全部通过，最终日志零OpenSWD3源码warning、测试失败和sanitizer finding；新增文件全量及历史文件触碰行通过clang-format Werror门。工作包为`255/422 = 246 platform_adapted + 9 assembly_exact + 167 pending_audit`；生成器连续双跑逐字节一致，SHA256为`14a5f4d2614a836decbf9971b14f43d51ec04e590d0f058c94276425021646ed`。动态差分因原版组Bactor、40-byte profile尾字段、两个真实共享输出及唯一caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=256`的`0x00476920`战斗函数。
+本轮再完成`audit_order=256`的`0x00476920`战斗组B脚本资源参数写入函数。完整权威LST主体`0x00476920..0x00476993`共45行、31条实际指令、0个call、0个跳转、0个局部标签和1个返回点且无外部chunk。实现脚本18-byte载荷九个偶数byte到动态资源`+0x92..+0x9A`九个连续byte的逐项复制，严格保留每项资源token重读、奇数byte不访问、后续脚本或资源故障不回滚此前写入，以及末项ECX资源token、DL覆盖EDX低byte和EBX恢复。资源继续复用组B生命周期既有164-byte唯一owner，脚本容量只在原始byte读取点形成typed边界。脚本case 74唯一caller删除旧整函数opaque调用并typed直连，保留packed actor高word、组Bactor地址步长、callee入口EDX的`345 * actor`、成功cursor加22/EAX一/入口ECX恢复，以及actor、脚本或资源typed-stop时的真实寄存器和部分写入前缀。验证：战斗聚合定向测试、完整core AddressSanitizer`188/188`、Linux core`188/188`、Linux app`194/194`全部通过，最终日志零OpenSWD3源码warning、测试失败和sanitizer finding；新增文件全量及历史文件触碰行通过clang-format Werror门。工作包为`256/422 = 247 platform_adapted + 9 assembly_exact + 166 pending_audit`；生成器连续双跑逐字节一致，SHA256为`12c970fd4b99e5b3ae8d7e51d7bbb3fddf5c041fb1263db0ca00873eff798745`。动态差分因原版组Bactor、动态资源token、资源九个参数byte、原始脚本载荷地址及唯一caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=257`的`0x004769A0`战斗函数。
