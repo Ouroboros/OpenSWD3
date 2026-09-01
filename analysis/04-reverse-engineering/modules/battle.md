@@ -2,7 +2,7 @@
 
 状态：`module_in_progress`
 
-当前关闭进度：`269/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
+当前关闭进度：`270/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
 
 ## 1. 唯一真值与模块目标
 
@@ -51,10 +51,10 @@ code_origin == game
 - 尾地址：`0x00484500`；
 - `confirmed_boundary`：`61`；
 - `medium`导航候选：`361`；
-- `pending_audit`：`156`；
+- `pending_audit`：`152`；
 - `assembly_exact`：`10`；
-- `platform_adapted`：`256`；
-- 已关闭：`266`。
+- `platform_adapted`：`260`；
+- 已关闭：`270`。
 
 六个稳定导航分组为：
 
@@ -749,6 +749,8 @@ I5最终必须锁定：
 
 本轮再完成`audit_order=269`的`0x00477830`战斗固定键曲线计数推进函数。完整权威LST主体`0x00477830..0x0047791A`从proc到endp共103个物理行、72条实际指令、5个call、4个跳转、4个局部标签和2个返回点，没有外部chunk；五个call为20字节allocator一次及x87截零helper四次。固定根先参与word键匹配，随后按next扫描；命中记录先word递增count并在`count >= maximum`时写maximum，缺键则先链接、按清零与`1/maximum`除法交错顺序初始化新节点、写键/count/百分比并递增根word。两条路径都以x87比值先生成截零百分比word，再生成截零乘数结果；maximum零保留NaN/无穷到integer-indefinite的EDX:EAX，不新增零值早退。实现复用固定链唯一owner和allocator端口，保留计数回绕、scale高word、清零/x87副作用顺序及原访问点typed-stop。唯一caller`0x00474FC0`已在原`0x00474FF3`位置删除opaque调用并直接组合typed helper，故障保留行动者与共享motion清零且阻断共享motion发布、后续目标callee和最终latch；动作4与特殊动作400继续向上传播独立fixed-curve stop。验证：battle聚合定向及连续10次、Linux core`194/194`、AddressSanitizer`194/194`、Linux app`200/200`和changed-range clang-format全部通过，最终日志零源码warning、测试失败、sanitizer finding或runtime error；未启动原版或OpenSWD3游戏程序。工作包为`269/422 = 259 platform_adapted + 10 assembly_exact + 153 pending_audit`；生成器连续双跑逐字节一致，SHA256为`95514d8b21ac60676fb2395a4deffbff78803f691dfce0d7661cf44c06a0a9e5`。动态差分因原版固定曲线链、allocator/x87状态、行动者字段及caller联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=270`的`0x00477920`战斗相邻固定键数值辅助函数。
+本轮再完成`audit_order=270`的`0x00477920`战斗固定键曲线计数设置函数。完整权威LST主体`0x00477920..0x004779EF`从proc到endp共97个物理行、67条实际指令、3个call、5个跳转、5个局部标签和2个返回点，没有外部chunk；三个call为20字节allocator一次及x87截零helper两次。固定根先参与word键匹配，随后按next扫描；命中记录先写输入count word并在无符号`count >= maximum`时再次写maximum，缺键则先链接、按五个dword清零新节点、写键/count、计算百分比并递增根word。两条路径均保持word截断、scale高word、根`0xFFFF→0`回绕、maximum零integer-indefinite及原访问点typed-stop。两个物理caller均位于已关闭Dialog `0x0040F890`，第一分类旧opaque端口已删除并在原位置typed直连，curve故障保留库存修改且阻断后续分类、刷新、编辑框清理和scratch释放。最终Linux core`194/194`、AddressSanitizer`194/194`、Linux app`200/200`、连续10轮完整core、changed-range clang-format和release审计全部通过，最终日志零OpenSWD3源码warning、测试失败、sanitizer finding或runtime error；未启动原版或OpenSWD3游戏程序。工作包为`270/422 = 260 platform_adapted + 10 assembly_exact + 152 pending_audit`；生成器连续双跑逐字节一致，SHA256为`88a400c9d95a1a8d9a92776068221bccb87eec36b8ace592b09950a3ce4b918f`。动态差分因原版固定曲线链、allocator/x87状态、Dialog记录/局部槽及两个callsite联合寄存器捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=271`的`0x004779F0`战斗相邻固定键辅助函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

@@ -67,6 +67,6 @@ Dialog第一分类条件先以记录flags和mask完成`and`及bit15清除；命�
 
 叶函数UT覆盖已有根、动态节点二次命中、先写后inclusive夹限、缺键五dword清零、根word回绕、百分比截零、scale高word、maximum零integer indefinite、已有count/scale访问stop及分配清零时allocator ECX高字。Dialog回归覆盖新增与直接修改两个物理caller、真实共享owner上的curve/count双链、完整masked EDX高字、curve stop与后续fixed-count stop的不同前缀。
 
-当前Linux core`194/194`与battle/special_modes两项聚合定向通过，inventory已连续双生成并逐字节稳定。最终AddressSanitizer、Linux app、连续复跑及release审计将在Goal最终收尾前补齐。
+最终Linux core`194/194`、AddressSanitizer`194/194`与Linux app`200/200`全部通过，battle/special_modes两项聚合测试随完整core连续复跑10轮均通过；最终日志无OpenSWD3源码warning、测试失败、sanitizer finding或runtime error。`99471b16`代码范围通过changed-range clang-format与diff检查，inventory连续双生成逐字节稳定；验证期间未启动原版或OpenSWD3游戏程序。
 
 当前缺少原版固定曲线链、allocator堆、x87 control/status word、Dialog记录/局部槽及两个callsite联合寄存器捕获后端，动态差分登记为`blocked_runtime_oracle`；这不阻止完整LST静态闭合、原位置typed-stop和Linux门禁。
