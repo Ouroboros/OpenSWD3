@@ -2,6 +2,7 @@
 
 #include "openswd3/asset_runtime/legacy_action_draw_bridge.hpp"
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
+#include "openswd3/battle/legacy_battle_fixed_count_chain.hpp"
 #include "openswd3/battle/legacy_battle_mon_definition.hpp"
 #include "openswd3/battle/legacy_battle_mon_profile.hpp"
 #include "openswd3/compat/types.hpp"
@@ -3853,6 +3854,8 @@ class LegacyPartyDialogPorts
     : public virtual LegacyPartyDialogPagePorts,
       public virtual LegacyPartyDialogColumnPorts,
       public virtual LegacyStandardModeQuantityPorts,
+      public virtual battle::LegacyBattleFixedObjectStatePort,
+      public virtual battle::LegacyBattleFixedCountAllocationPort,
       public virtual world_map::LegacyPartyMemberFieldWritePorts {
 public:
     ~LegacyPartyDialogPorts() override = default;
@@ -3878,9 +3881,6 @@ public:
     virtual void update_second_item_category(
         compat::u16 item_id, compat::i32 added_value
     ) noexcept = 0;
-    virtual void update_third_item_category(
-        compat::u16 item_id, compat::i32 added_value
-    ) noexcept = 0;
 };
 
 enum class LegacyPartyDialogStatus : compat::u8 {
@@ -3892,6 +3892,7 @@ enum class LegacyPartyDialogStatus : compat::u8 {
     item_record_stopped,
     member_source_stopped,
     global_index_stopped,
+    fixed_count_typed_stop,
     member_level_requirement_typed_stop,
 };
 
@@ -3916,6 +3917,7 @@ struct LegacyPartyDialogResult {
     LegacyPartyDialogPageResult page{};
     LegacyPartyDialogRowResult row{};
     LegacyPlayerItemQuantityResult quantity{};
+    battle::LegacyBattleFixedCountSetResult fixed_count{};
     world_map::LegacyPartyMemberFieldWriteResult member_write{};
     bool message_handled{};
     bool scratch_allocated{};

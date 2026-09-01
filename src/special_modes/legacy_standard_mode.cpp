@@ -9317,12 +9317,15 @@ static bool party_dialog_item_matches(
     return value == mask;
 }
 
-static void update_party_dialog_item_categories(
+static bool update_party_dialog_item_categories(
     const LegacyPartyDialogPageState& state,
     const LegacyStandardModeForwardNode& record,
+    const compat::u32 item_key,
     const compat::i32 added_value,
+    LegacyPartyDialogResult& result,
     LegacyPartyDialogPorts& ports
 ) noexcept {
+    const compat::u16 item_key_word = static_cast<compat::u16>(item_key);
     const compat::u32 flags = load_party_dialog_item_flags(record);
     if (party_dialog_item_matches(flags, state.item_category_masks[0U])) {
         const compat::u16 category_value = static_cast<compat::u16>(
@@ -9330,18 +9333,54 @@ static void update_party_dialog_item_categories(
             (static_cast<compat::u16>(record.record_bytes[0x45U]) << 8U)
         );
         ports.update_first_item_category(
-            record.text_index, category_value, added_value
+            item_key_word, category_value, added_value
         );
     }
     if (party_dialog_item_matches(flags, state.item_category_masks[1U])) {
-        ports.update_second_item_category(record.text_index, added_value);
+        ports.update_second_item_category(item_key_word, added_value);
     }
-    if (party_dialog_item_matches(flags, state.item_category_masks[2U])) {
-        ports.update_third_item_category(record.text_index, added_value);
+
+    const compat::u32 added_bits = std::bit_cast<compat::u32>(added_value);
+    const compat::u32 third_mask = state.item_category_masks[2U];
+    compat::u32 third_entry_ecx = third_mask;
+    compat::u32 masked_flags = flags & third_mask;
+    masked_flags &= 0xFFFF7FFFU;
+    if (masked_flags == third_mask) {
+        result.fixed_count = battle::set_legacy_battle_fixed_count(
+            ports.legacy_battle_fixed_object_state(),
+            ports,
+            {
+                .key = item_key,
+                .count = added_bits,
+                .entry_eax = added_bits,
+                .entry_ecx = item_key,
+                .entry_edx = masked_flags,
+            }
+        );
+        if (result.fixed_count.status !=
+            battle::LegacyBattleFixedCountStatus::completed) {
+            return false;
+        }
+        third_entry_ecx = result.fixed_count.return_ecx;
     }
     if (record.text_index != 0U && record.text_index <= 0x01F4U) {
-        ports.update_third_item_category(record.text_index, added_value);
+        result.fixed_count = battle::set_legacy_battle_fixed_count(
+            ports.legacy_battle_fixed_object_state(),
+            ports,
+            {
+                .key = item_key,
+                .count = added_bits,
+                .entry_eax = item_key,
+                .entry_ecx = third_entry_ecx,
+                .entry_edx = added_bits,
+            }
+        );
+        if (result.fixed_count.status !=
+            battle::LegacyBattleFixedCountStatus::completed) {
+            return false;
+        }
     }
+    return true;
 }
 
 static void clear_party_dialog_edits(
@@ -9596,9 +9635,17 @@ LegacyPartyDialogResult run_legacy_party_dialog(
                 result.status = LegacyPartyDialogStatus::item_record_stopped;
                 return result;
             }
-            update_party_dialog_item_categories(
-                state.page_state, *record, added_value, ports
-            );
+            if (!update_party_dialog_item_categories(
+                    state.page_state,
+                    *record,
+                    std::bit_cast<compat::u32>(item_id),
+                    added_value,
+                    result,
+                    ports
+                )) {
+                result.status = LegacyPartyDialogStatus::fixed_count_typed_stop;
+                return result;
+            }
         }
         refresh_clear_release();
         if (record != nullptr) {
@@ -9726,9 +9773,18 @@ LegacyPartyDialogResult run_legacy_party_dialog(
                 ));
             }
             if (state.page_state.page == 0) {
-                update_party_dialog_item_categories(
-                    state.page_state, *record, added_value, ports
-                );
+                if (!update_party_dialog_item_categories(
+                        state.page_state,
+                        *record,
+                        std::bit_cast<compat::u32>(item_id),
+                        added_value,
+                        result,
+                        ports
+                    )) {
+                    result.status =
+                        LegacyPartyDialogStatus::fixed_count_typed_stop;
+                    return result;
+                }
             }
             release_refresh_clear();
             result.action = LegacyPartyDialogAction::item_updated;

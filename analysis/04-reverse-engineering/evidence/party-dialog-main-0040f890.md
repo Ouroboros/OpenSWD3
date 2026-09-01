@@ -24,9 +24,9 @@
 
 - `0x3E8`：先写关闭latch，再结束对话并隐藏cursor。
 - `0x3EB`：只允许page0；按列表索引取节点。signed数量和小于90时先把second写90，只有新signed总和大于90才把first写为`90-second`，因此negative first可保留并使最终总和仍小于90；随后直接填当前四cell。
-- `0x3EC`：page<5先申请32字节scratch。page1..4只接受ID 1501..1999并强制数量1、附加值0；page0读取输入。调用玩家数量helper后，page0按第一、第二、第三mask及低ID<=500顺序发布分类更新，低ID第三类可重复。最后严格为填页→清三编辑框→释放scratch。
+- `0x3EC`：page<5先申请32字节scratch。page1..4只接受ID 1501..1999并强制数量1、附加值0；page0读取输入。调用玩家数量helper后，page0按第一、第二、第三mask及记录ID<=500顺序发布分类更新，第三类直接组合共享固定键计数链设置helper，两个条件同时成立时可对同一命令键重复设置。最后严格为填页→清三编辑框→释放scratch。
 - `0x3EE`：page0..4按列表索引取节点；目标ID高16来自原`sub_43B9A0`输出指针返回值，低16来自节点ID，现代由`output_pointer_high_word`显式snapshot；数量delta固定`-1024`。helper返回非null才报告删除错误，然后填页。
-- `0x3F6`：先申请32字节scratch。page9写64个全局i32；page0..4始终在玩家总库存链按低14位找ID，数量存在时先清first并把signed值仅按`>=90`上夹，page0再发布分类更新；page5..8直接调用17字段setter。成功路径严格为释放scratch→填页→清三编辑框。
+- `0x3F6`：先申请32字节scratch。page9写64个全局i32；page0..4始终在玩家总库存链按低14位找ID，数量存在时先清first并把signed值仅按`>=90`上夹，page0再发布分类更新；第三类链键仍来自解析后的命令参数，低ID重复门读取记录自身ID，两者不得因低14位查找而合并。page5..8直接调用17字段setter。成功路径严格为释放scratch→填页→清三编辑框。
 
 ## 4. 数字解析与残值
 
@@ -45,8 +45,9 @@
 - 新增page0的数量helper返回null时先报告插入错误，再在首个记录字段读取点typed-stop，scratch不释放。
 - 负页的item head、缺失selected record、无界masked lookup链环、page>=10成员访问和负/大于63全局索引均在原始读取/写入点typed-stop。
 - page9索引越界、成员page>=10、成员selector 17以上均保留已申请且未释放的scratch；selector 17以上原版直接返回，不伪造错误状态。
+- 第三类固定计数helper typed-stop时，保留已完成的库存修改和第一、第二分类副作用，并阻断填页、清框和scratch释放。
 - 新增与直接修改的释放时机不同，不得统一清理。
 
 ## 6. 验证
 
-`special_modes.legacy_initial_menu`覆盖初始化10个原Big5页名、四列与三长度；有效/无效页签通知；关闭顺序；negative first补足残值；page0四次分类更新；page1强制数量；删除打包高字；直接修改的negative u16与`lParam`残值；队员setter；全局stale值；越界、记录缺失、selector 17和scratch申请失败前缀。
+`special_modes.legacy_initial_menu`覆盖初始化10个原Big5页名、四列与三长度；有效/无效页签通知；关闭顺序；negative first补足残值；page0第一、第二分类端口与第三类共享fixed-count节点；mask和低ID重复命中；命令键与记录高位ID分离；fixed-count分配失败前缀；page1强制数量；删除打包高字；直接修改的negative u16与`lParam`残值；队员setter；全局stale值；越界、记录缺失、selector 17和scratch申请失败前缀。

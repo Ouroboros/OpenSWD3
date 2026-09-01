@@ -1396,13 +1396,36 @@ public:
         main_events.push_back("category-2");
         category_updates.push_back({2U, item_id, 0U, added_value});
     }
-    void update_third_item_category(
-        const u16 item_id, const i32 added_value
-    ) noexcept override {
-        main_events.push_back("category-3");
-        category_updates.push_back({3U, item_id, 0U, added_value});
+    [[nodiscard]] openswd3::battle::LegacyBattleFixedCountAllocationReply
+    allocate_legacy_battle_fixed_count_node(
+        const openswd3::battle::LegacyBattleFixedCountAllocationRequest& request
+    ) override {
+        fixed_count_allocation_requests.push_back(request);
+        if (!fixed_count_allocation_succeeds) {
+            return {
+                .ecx = request.ecx,
+                .edx = request.edx,
+            };
+        }
+        const u32 token = next_fixed_count_token;
+        next_fixed_count_token +=
+            openswd3::battle::kLegacyBattleFixedObjectSize;
+        return {
+            .eax = token,
+            .ecx = request.ecx,
+            .edx = request.edx,
+            .initial_words = fixed_count_initial_words,
+            .accessible_bytes = fixed_count_accessible_bytes,
+        };
     }
     bool command_allocation_available{true};
+    bool fixed_count_allocation_succeeds{true};
+    u32 next_fixed_count_token{0x76000000U};
+    u32 fixed_count_accessible_bytes{
+        openswd3::battle::kLegacyBattleFixedObjectSize
+    };
+    std::array<u32, openswd3::battle::kLegacyBattleFixedObjectDwordCount>
+        fixed_count_initial_words{};
     u32 command_release_count{};
     u32 insertion_error_count{};
     u32 deletion_error_count{};
@@ -1420,6 +1443,8 @@ public:
     std::vector<i32> ended_results;
     std::vector<bool> cursor_values;
     std::vector<PartyDialogCategoryUpdate> category_updates;
+    std::vector<openswd3::battle::LegacyBattleFixedCountAllocationRequest>
+        fixed_count_allocation_requests;
 };
 
 struct ObjectLabelDraw {
@@ -22852,6 +22877,9 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         party_dialog_add_ports.main_events.end(),
         "release-command"
     );
+    const auto& add_fixed_state =
+        party_dialog_add_ports.legacy_battle_fixed_object_state();
+    const auto& add_fixed_node = add_fixed_state.fixed_count_nodes.front();
     test.expect_true(
         party_dialog_added.action == PartyDialogAction::item_added &&
             party_dialog_added.scratch_allocated &&
@@ -22861,11 +22889,16 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             party_dialog_add_record.second_value == 5U &&
             party_dialog_add_ports.category_updates ==
                 std::vector<PartyDialogCategoryUpdate>{
-                    {1U, 100U, 0x1234U, 7},
-                    {2U, 100U, 0U, 7},
-                    {3U, 100U, 0U, 7},
-                    {3U, 100U, 0U, 7}
+                    {1U, 100U, 0x1234U, 7}, {2U, 100U, 0U, 7}
                 } &&
+            party_dialog_added.fixed_count.path ==
+                openswd3::battle::LegacyBattleFixedCountPath::existing_node &&
+            party_dialog_add_ports.fixed_count_allocation_requests.size() ==
+                1U &&
+            static_cast<u16>(add_fixed_state.object_words[0U][1U]) == 1U &&
+            add_fixed_node.legacy_token == 0x76000000U &&
+            static_cast<u16>(add_fixed_node.words[1U]) == 100U &&
+            static_cast<u16>(add_fixed_node.words[1U] >> 16U) == 7U &&
             add_refresh < add_release &&
             party_dialog_add_ports.cleared_edits ==
                 std::vector<PartyDialogEdit>{
@@ -22873,7 +22906,50 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
                     PartyDialogEdit::quantity,
                     PartyDialogEdit::added_value
                 },
-        "0x40F890 adds a page-zero item through the closed quantity helper, applies all matching category updates including the low-ID duplicate, then refreshes, clears, and releases"
+        "0x40F890 adds a page-zero item, publishes the first two categories, and applies duplicate third-category writes to one shared fixed-count node before refreshing"
+    );
+
+    LegacyStandardModeForwardNode party_dialog_fixed_stop_record;
+    party_dialog_fixed_stop_record.text_index = 101U;
+    party_dialog_fixed_stop_record.first_value = 1U;
+    party_dialog_fixed_stop_record.second_value = 2U;
+    party_dialog_fixed_stop_record.record_bytes[0x20U] = 7U;
+    openswd3::special_modes::LegacyPartyDialogState
+        party_dialog_fixed_stop_state;
+    party_dialog_fixed_stop_state.page_state.item_heads[0U] =
+        &party_dialog_fixed_stop_record;
+    party_dialog_fixed_stop_state.page_state.item_category_masks = {1U, 2U, 4U};
+    FakePartyDialogPorts party_dialog_fixed_stop_ports;
+    party_dialog_fixed_stop_ports.fixed_count_allocation_succeeds = false;
+    const auto party_dialog_fixed_stopped =
+        openswd3::special_modes::run_legacy_party_dialog(
+            party_dialog_fixed_stop_state,
+            openswd3::special_modes::LegacyPartyDialogEvent{
+                .message = PartyDialogMessage::command,
+                .command_parameter =
+                    static_cast<u32>(PartyDialogCommand::add_item),
+                .identifier_text = "101",
+                .quantity_text = "3",
+                .added_value_text = "7",
+            },
+            party_dialog_fixed_stop_ports
+        );
+    test.expect_true(
+        party_dialog_fixed_stopped.status ==
+                openswd3::special_modes::LegacyPartyDialogStatus::
+                    fixed_count_typed_stop &&
+            party_dialog_fixed_stopped.action == PartyDialogAction::none &&
+            party_dialog_fixed_stopped.scratch_allocated &&
+            !party_dialog_fixed_stopped.scratch_released &&
+            !party_dialog_fixed_stopped.edits_cleared &&
+            party_dialog_fixed_stop_record.second_value == 5U &&
+            party_dialog_fixed_stop_ports.category_updates ==
+                std::vector<PartyDialogCategoryUpdate>{
+                    {1U, 101U, 0U, 7}, {2U, 101U, 0U, 7}
+                } &&
+            party_dialog_fixed_stop_ports.legacy_battle_fixed_object_state()
+                    .object_words[0U][0U] == 0U,
+        "0x40F890 preserves the inventory and earlier category prefix when the shared fixed-count allocation faults before refresh or scratch release"
     );
 
     openswd3::special_modes::LegacyPartyDialogState
@@ -22974,16 +23050,59 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         party_dialog_update_ports.main_events.end(),
         "clear-rows"
     );
+    const auto& update_fixed_state =
+        party_dialog_update_ports.legacy_battle_fixed_object_state();
+    const auto& update_fixed_node =
+        update_fixed_state.fixed_count_nodes.front();
     test.expect_true(
         party_dialog_updated.action == PartyDialogAction::item_updated &&
             party_dialog_update_record.first_value == 0U &&
             party_dialog_update_record.second_value == 0xFFFBU &&
             party_dialog_update_ports.category_updates ==
-                std::vector<PartyDialogCategoryUpdate>{
-                    {1U, 100U, 0U, 77}, {3U, 100U, 0U, 77}
-                } &&
+                std::vector<PartyDialogCategoryUpdate>{{1U, 100U, 0U, 77}} &&
+            party_dialog_updated.fixed_count.path ==
+                openswd3::battle::LegacyBattleFixedCountPath::allocated_node &&
+            party_dialog_updated.fixed_count.clamp_writes == 1U &&
+            static_cast<u16>(update_fixed_state.object_words[0U][1U]) == 1U &&
+            static_cast<u16>(update_fixed_node.words[1U]) == 100U &&
+            static_cast<u16>(update_fixed_node.words[1U] >> 16U) == 20U &&
             update_release < update_refresh,
-        "0x40F890 directly updates a found player item, preserves a negative signed quantity as raw u16 and the command-lParam added-value residue, then releases before refresh"
+        "0x40F890 directly updates a found player item, preserves a negative signed quantity, clamps the low-ID fixed count to twenty, then releases before refresh"
+    );
+
+    LegacyStandardModeForwardNode party_dialog_masked_key_record;
+    party_dialog_masked_key_record.text_index = 0x4064U;
+    party_dialog_masked_key_record.first_value = 1U;
+    party_dialog_masked_key_record.second_value = 1U;
+    party_dialog_masked_key_record.record_bytes[0x20U] = 4U;
+    openswd3::special_modes::LegacyPartyDialogState
+        party_dialog_masked_key_state;
+    party_dialog_masked_key_state.page_state.item_heads[0U] =
+        &party_dialog_masked_key_record;
+    party_dialog_masked_key_state.page_state.item_category_masks = {1U, 2U, 4U};
+    FakePartyDialogPorts party_dialog_masked_key_ports;
+    const auto party_dialog_masked_key_updated =
+        openswd3::special_modes::run_legacy_party_dialog(
+            party_dialog_masked_key_state,
+            openswd3::special_modes::LegacyPartyDialogEvent{
+                .message = PartyDialogMessage::command,
+                .command_parameter =
+                    static_cast<u32>(PartyDialogCommand::update_value),
+                .identifier_text = "100",
+                .added_value_text = "7",
+            },
+            party_dialog_masked_key_ports
+        );
+    const auto& masked_key_node =
+        party_dialog_masked_key_ports.legacy_battle_fixed_object_state()
+            .fixed_count_nodes.front();
+    test.expect_true(
+        party_dialog_masked_key_updated.action ==
+                PartyDialogAction::item_updated &&
+            party_dialog_masked_key_ports.category_updates.empty() &&
+            static_cast<u16>(masked_key_node.words[1U]) == 100U &&
+            static_cast<u16>(masked_key_node.words[1U] >> 16U) == 7U,
+        "0x40F890 uses the parsed command argument as the fixed-count key while the low-ID duplicate gate reads the record ID"
     );
 
     openswd3::special_modes::LegacyPartyDialogState party_dialog_member_state;

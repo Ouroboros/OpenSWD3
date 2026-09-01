@@ -83,12 +83,54 @@ struct LegacyBattleFixedCountResult {
     compat::u32 return_edx{};
 };
 
+struct LegacyBattleFixedCountSetRequest {
+    compat::u32 owner_token{kLegacyBattleFixedCountOwnerToken};
+    compat::u32 key{};
+    compat::u32 count{};
+    compat::u32 entry_eax{};
+    compat::u32 entry_ecx{};
+    compat::u32 entry_edx{};
+};
+
+struct LegacyBattleFixedCountSetResult {
+    LegacyBattleFixedCountStatus status{
+        LegacyBattleFixedCountStatus::completed
+    };
+    LegacyBattleFixedCountPath path{LegacyBattleFixedCountPath::none};
+    compat::u32 owner_token{};
+    compat::u32 matched_token{};
+    compat::u32 allocation_token{};
+    compat::u32 stopped_token{};
+    compat::u32 stopped_offset{};
+    compat::u32 chain_link_reads{};
+    compat::u32 key_reads{};
+    compat::u32 allocation_calls{};
+    compat::u32 link_writes{};
+    compat::u32 dword_zero_writes{};
+    compat::u32 key_writes{};
+    compat::u32 count_writes{};
+    compat::u32 clamp_writes{};
+    compat::u32 root_key_increments{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
 // Typed closure of legacy 0x00477710. Legacy tokens select records owned by
 // LegacyBattleFixedObjectState; they are never interpreted as host pointers.
 [[nodiscard]] LegacyBattleFixedCountResult accumulate_legacy_battle_fixed_count(
     LegacyBattleFixedObjectState& state,
     LegacyBattleFixedCountAllocationPort& allocation_port,
     const LegacyBattleFixedCountRequest& request
+);
+
+// Typed closure of legacy 0x00477780. Existing records receive the input low
+// word before values above twenty are overwritten with twenty. Missing keys
+// use the same physical owner and allocation boundary as the accumulating path.
+[[nodiscard]] LegacyBattleFixedCountSetResult set_legacy_battle_fixed_count(
+    LegacyBattleFixedObjectState& state,
+    LegacyBattleFixedCountAllocationPort& allocation_port,
+    const LegacyBattleFixedCountSetRequest& request
 );
 
 }  // namespace openswd3::battle
