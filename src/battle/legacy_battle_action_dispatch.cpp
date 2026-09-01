@@ -143,10 +143,8 @@ constexpr u32 kCallActionFourOhTwoCompletion = 0x0047FC40U;
 constexpr u32 kCallSpecialFourOhNineCoordinateUpdate = 0x00484230U;
 constexpr u32 kCallSpecialFourHundredWorkspace = 0x004820A0U;
 constexpr u32 kCallSpecialFourHundredEffect = 0x004838D0U;
-constexpr u32 kCallTargetEffectCurve = 0x00477830U;
 constexpr u32 kCallTargetEffectSkipGate = 0x0047CD60U;
 constexpr u32 kCallTargetEffectApply = 0x0047D640U;
-constexpr u32 kLegacyBattleTargetEffectCurveTableToken = 0x004ACBA8U;
 constexpr u32 kCallActorSuspended = 0x0047D930U;
 constexpr u32 kCallClearPendingAction = 0x00482DA0U;
 constexpr u32 kCallTargetEffectProperty = 0x0047CEC0U;
@@ -4023,6 +4021,12 @@ advance_legacy_battle_action_four_effect(
                 LegacyBattleActionFourEffectStatus::shared_state_typed_stop;
             return false;
         }
+        if (event.status ==
+            LegacyBattleTargetEffectStatus::fixed_curve_typed_stop) {
+            result.status =
+                LegacyBattleActionFourEffectStatus::fixed_curve_typed_stop;
+            return false;
+        }
         return true;
     };
 
@@ -4413,15 +4417,28 @@ LegacyBattleTargetEffectResult apply_legacy_battle_target_effect(
     replace_low_word(registers.ecx, actor->effect_curve_value_b);
     replace_low_word(registers.edx, actor->effect_curve_index);
     ++result.curve_query_calls;
-    static_cast<void>(invoke_action(
-        kCallTargetEffectCurve,
+    result.fixed_curve = advance_legacy_battle_fixed_curve(
+        port.legacy_battle_fixed_object_state(),
+        port,
         {
-            kLegacyBattleTargetEffectCurveTableToken,
-            registers.edx,
-            registers.ecx,
-            registers.eax,
+            .key = registers.edx,
+            .maximum = registers.ecx,
+            .multiplier = registers.eax,
+            .entry_eax = registers.eax,
+            .entry_ecx = registers.ecx,
+            .entry_edx = registers.edx,
         }
-    ));
+    );
+    registers.eax = result.fixed_curve.return_eax;
+    registers.ecx = result.fixed_curve.return_ecx;
+    registers.edx = result.fixed_curve.return_edx;
+    if (result.fixed_curve.status != LegacyBattleFixedCountStatus::completed) {
+        result.status = LegacyBattleTargetEffectStatus::fixed_curve_typed_stop;
+        result.return_eax = registers.eax;
+        result.return_ecx = registers.ecx;
+        result.return_edx = registers.edx;
+        return result;
+    }
     shared->shared_motion_word = low_word(registers.eax);
     registers.eax = (registers.eax & 0xFFFFFF00U) |
         static_cast<u32>(actor->effect_direction_flags);
@@ -4641,6 +4658,12 @@ advance_legacy_battle_special_four_hundred(
         if (event.status == LegacyBattleTargetEffectStatus::shared_state_typed_stop) {
             result.status = LegacyBattleSpecialFourHundredStatus::
                 shared_state_typed_stop;
+            return false;
+        }
+        if (event.status ==
+            LegacyBattleTargetEffectStatus::fixed_curve_typed_stop) {
+            result.status =
+                LegacyBattleSpecialFourHundredStatus::fixed_curve_typed_stop;
             return false;
         }
         return true;

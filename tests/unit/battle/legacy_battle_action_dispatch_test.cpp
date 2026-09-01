@@ -2870,7 +2870,7 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 effect.effect_update_calls == 1U &&
                 effect.frame_lookup_calls == 1U && effect.render_calls == 1U &&
                 effect_port.count(0x00474FC0U) == 0U &&
-                effect_port.count(0x00477830U) == 1U &&
+                effect_port.count(0x00477830U) == 0U &&
                 effect_port.count(0x00478780U) == 1U &&
                 effect_port.count(0x00481010U) == 1U &&
                 (effect_actor.action_runtime_gate & 0x8000U) != 0U &&
@@ -3106,6 +3106,8 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         direct_actor.action_runtime_gate = 0x8000U;
         direct_actor.special_effect_direct_mode = 1U;
         direct_actor.special_action_record.field_8c = 1U;
+        direct_actor.effect_curve_value_a = 1U;
+        direct_actor.effect_curve_value_b = 1U;
         direct_actor.position_x = 100U;
         direct_actor.position_y = 50U;
         direct_actor.turn_target_x_offset = 4U;
@@ -3133,7 +3135,7 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 direct.target_event_calls == 1U &&
                 direct.frame_lookup_calls == 1U && direct.render_calls == 1U &&
                 direct_port.count(0x00474FC0U) == 0U &&
-                direct_port.count(0x00477830U) == 1U &&
+                direct_port.count(0x00477830U) == 0U &&
                 direct_port.count(0x00478780U) == 1U &&
                 direct_port.count(0x00481010U) == 1U &&
                 direct_actor.motion_word == 0xFFF8U &&
@@ -3431,19 +3433,66 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
             "target effect stops at the first shared motion write after clearing actor motion"
         );
 
+        static auto curve_stop_actor_owner =
+            std::make_unique<LegacyBattleGroupAActionExecutionState>();
+        auto& curve_stop_actor = *curve_stop_actor_owner;
+        curve_stop_actor.effect_curve_value_a = 3U;
+        curve_stop_actor.effect_curve_value_b = 2U;
+        curve_stop_actor.effect_curve_index = 9U;
+        static LegacyBattleGroupAActionExecutionSharedState curve_stop_shared;
+        static DispatchPort curve_stop_port;
+        auto& curve_stop_state =
+            curve_stop_port.legacy_battle_fixed_object_state();
+        curve_stop_state.object_words[1U][0U] = 0x7A000000U;
+        curve_stop_state.object_words[1U][1U] = 8U;
+        curve_stop_state.fixed_count_nodes.push_back({
+            .legacy_token = 0x7A000000U,
+            .words = {0U, 9U, 0U, 0U, 0U},
+            .accessible_bytes = 7U,
+        });
+        static const auto curve_stop =
+            openswd3::battle::apply_legacy_battle_target_effect(
+                &curve_stop_actor,
+                &curve_stop_shared,
+                curve_stop_port,
+                {
+                    .actor_token = 0x12340000U,
+                    .target_token = 0x56780000U,
+                    .entry_eax = 0xAAAA0000U,
+                    .entry_ecx = 0xBBBB0000U,
+                    .entry_edx = 0xCCCC0000U,
+                }
+            );
+        test.expect_true(
+            curve_stop.status ==
+                    openswd3::battle::LegacyBattleTargetEffectStatus::
+                        fixed_curve_typed_stop &&
+                curve_stop.fixed_curve.status ==
+                    openswd3::battle::LegacyBattleFixedCountStatus::
+                        record_access_typed_stop &&
+                curve_stop.fixed_curve.stopped_token == 0x7A000000U &&
+                curve_stop.fixed_curve.stopped_offset == 6U &&
+                curve_stop.return_eax == 0x7A000000U &&
+                curve_stop.return_ecx == 0xBBBB0002U &&
+                curve_stop.return_edx == 0xCCCC0009U &&
+                curve_stop_actor.motion_word == 0U &&
+                curve_stop_shared.shared_motion_word == 0U &&
+                curve_stop_actor.effect_application_latch == 0U &&
+                curve_stop_port.count(0x00477830U) == 0U,
+            "target effect stops at the fixed curve count access after preserving the caller prefix"
+        );
+
         static auto skip_actor_owner =
             std::make_unique<LegacyBattleGroupAActionExecutionState>();
         auto& skip_actor = *skip_actor_owner;
-        skip_actor.effect_curve_value_a = 0x1111U;
-        skip_actor.effect_curve_value_b = 0x2222U;
+        skip_actor.effect_curve_value_a = 0xFFFFU;
+        skip_actor.effect_curve_value_b = 0xFFFFU;
         skip_actor.effect_curve_index = 0x3333U;
         skip_actor.effect_direction_flags = 0x80U;
         static LegacyBattleGroupAActionExecutionSharedState skip_shared;
         static DispatchPort skip_port;
-        skip_port.push(
-            0x00477830U,
-            {.eax = 0x12348001U, .ecx = 0x44444444U, .edx = 0x55555555U}
-        );
+        skip_port.legacy_battle_fixed_object_state().object_words[1U][1U] =
+            (0x8000U << 16U) | 0x3333U;
         skip_port.push(
             0x0047CD60U,
             {.eax = 0xAAAAAAAAU, .ecx = 0xBBBBBBBBU, .edx = 0xCCCCCCCCU}
@@ -3472,21 +3521,24 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 skip_shared.shared_motion_word == 0x8001U &&
                 skip_actor.motion_word == 0U &&
                 skip_actor.effect_application_latch == 1U &&
-                has_call_argument(skip_port, 0x00477830U, 0U, 0x004ACBA8U) &&
-                has_call_argument(skip_port, 0x00477830U, 1U, 0xCCCC3333U) &&
-                has_call_argument(skip_port, 0x00477830U, 2U, 0xBBBB2222U) &&
-                has_call_argument(skip_port, 0x00477830U, 3U, 0xAAAA1111U) &&
+                skipped.fixed_curve.path ==
+                    openswd3::battle::LegacyBattleFixedCountPath::
+                        existing_root &&
+                skipped.fixed_curve.count == 0x8001U &&
+                skipped.fixed_curve.scale == 50U &&
+                skip_port.count(0x00477830U) == 0U &&
                 has_call_argument(skip_port, 0x0047CD60U, 0U, 8U),
-            "target effect samples four full register arguments and honors the mode-one direction skip gate"
+            "target effect directly advances the fixed curve and honors the mode-one direction skip gate"
         );
 
         static auto full_actor_owner =
             std::make_unique<LegacyBattleGroupAActionExecutionState>();
         auto& full_actor = *full_actor_owner;
+        full_actor.effect_curve_value_a = 0xFFFCU;
+        full_actor.effect_curve_value_b = 1U;
         static LegacyBattleGroupAActionExecutionSharedState full_shared;
         static DispatchPort full_port;
         full_port.battle_pair_primary_value() = 10U;
-        full_port.push(0x00477830U, {.eax = 0xFFFCU});
         full_port.push(0x00478780U, {.eax = 0x10U, .ecx = 0x20U, .edx = 0x30U});
         full_port.push(0x00481010U, {.eax = 10U, .ecx = 0x40U, .edx = 0x50U});
         full_port.push(0x0047D640U, {.eax = 0x60U, .ecx = 0x70U, .edx = 0x80U});
@@ -3507,6 +3559,9 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 full.return_edx == 0xB0U && full.effect_value == 6 &&
                 full_shared.last_effect_value == 6 &&
                 full_port.battle_pair_primary_value() == 16U &&
+                full.fixed_curve.return_eax == 0xFFFCU &&
+                full.fixed_curve.scale == 100U &&
+                full_port.count(0x00477830U) == 0U &&
                 full.effect_apply_calls == 1U &&
                 full.effect_property_calls == 1U &&
                 has_call_argument(full_port, 0x0047D640U, 0U, 6U) &&
@@ -3519,7 +3574,6 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         auto& clamp_actor = *clamp_actor_owner;
         static LegacyBattleGroupAActionExecutionSharedState clamp_shared;
         static DispatchPort clamp_port;
-        clamp_port.push(0x00477830U, {.eax = 0U});
         clamp_port.push(0x00481010U, {.eax = 0x2710U});
         static const auto clamped =
             openswd3::battle::apply_legacy_battle_target_effect(
@@ -3545,7 +3599,6 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         static LegacyBattleGroupAActionExecutionSharedState sentinel_shared;
         static DispatchPort sentinel_port;
         sentinel_port.battle_pair_primary_value() = 10U;
-        sentinel_port.push(0x00477830U, {.eax = 0U});
         sentinel_port.push(0x00481010U, {.eax = 0xFFFFU});
         static const auto sentinel =
             openswd3::battle::apply_legacy_battle_target_effect(

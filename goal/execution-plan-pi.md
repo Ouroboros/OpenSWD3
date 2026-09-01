@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v852
+版本：v853
 
 最后更新：2026-08-31
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗函数 `0x00477830`
+当前步骤：模块10 · 审计战斗函数 `0x00477920`
 
 ## 0. 执行约定
 
@@ -4332,4 +4332,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=268`的`0x00477800`战斗固定键计数链查询函数。完整权威LST主体`0x00477800..0x00477821`共26个物理行、12条实际指令、0个call、3个跳转、3个局部/返回标签和1个返回点，没有外部chunk。函数先清完整EAX，只替换EDX低word为查询键并保留高word；固定根先参与word键匹配，随后按next扫描，命中从`+0x06`读取计数word并保留ECX记录token，缺失返回EAX/ECX零。函数无分配、无写入，不增加环检测或夹限；全部访问复用固定链唯一owner并保留原位置typed-stop。七个callsite中Fame载入保持`pending_audit`，其余六个物理站点所在五个已关闭caller全部删除旧opaque查询并typed直连，覆盖Dialog两次覆盖、标准模式1..500表初始化、guardian附加值、战斗动作阈值和选择提示指标阈值。四项定向集合、battle聚合连续10次、Linux core`194/194`、AddressSanitizer`194/194`、Linux app`200/200`全部通过，最终日志零源码warning、测试失败、sanitizer finding或runtime error；未启动原版或OpenSWD3游戏程序。工作包为`268/422 = 258 platform_adapted + 10 assembly_exact + 154 pending_audit`，生成器连续双跑逐字节一致，SHA256为`4d06be1043b4b95887327ec6e0e7282336923f651d6370c509f0f818b18896c0`。动态差分因原版固定键链、Fame载入状态及七个caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=269`的`0x00477830`战斗相邻辅助函数。
+本轮再完成`audit_order=269`的`0x00477830`战斗固定键曲线计数推进函数。完整权威LST主体`0x00477830..0x0047791A`共103个物理行、72条实际指令、5个call、4个跳转、4个局部标签和2个返回点，没有外部chunk；五个call为20字节allocator一次及x87截零helper四次。固定根先参与word键匹配，命中记录word递增count并在`count >= maximum`时写maximum；缺键保留先链接、清零与`1/maximum`除法交错、新节点键/count/百分比及根word递增顺序。两条路径都以x87比值先生成截零百分比word，再生成截零乘数结果；maximum零保留integer-indefinite，未增加防护。实现复用固定链唯一owner和allocator端口，保留word回绕、scale高word及全部typed-stop前缀。唯一caller`0x00474FC0`删除`0x00477830`opaque调用并typed直连，故障阻断共享motion发布、目标后缀和最终latch。battle定向及连续10次、Linux core`194/194`、AddressSanitizer`194/194`、Linux app`200/200`全部通过，最终日志零源码warning、测试失败、sanitizer finding或runtime error；未启动游戏程序。工作包为`269/422 = 259 platform_adapted + 10 assembly_exact + 153 pending_audit`，生成器连续双跑逐字节一致，SHA256为`95514d8b21ac60676fb2395a4deffbff78803f691dfce0d7661cf44c06a0a9e5`。动态差分因原版固定曲线链、allocator/x87状态、行动者字段及caller联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=270`的`0x00477920`战斗相邻固定键数值辅助函数。

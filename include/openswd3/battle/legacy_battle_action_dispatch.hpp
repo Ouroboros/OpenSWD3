@@ -848,12 +848,14 @@ enum class LegacyBattleTargetEffectStatus : compat::u8 {
     completed,
     actor_state_typed_stop,
     shared_state_typed_stop,
+    fixed_curve_typed_stop,
 };
 
 struct LegacyBattleTargetEffectResult {
     LegacyBattleTargetEffectStatus status{
         LegacyBattleTargetEffectStatus::completed
     };
+    LegacyBattleFixedCurveAdvanceResult fixed_curve{};
     compat::u32 curve_query_calls{};
     compat::u32 skip_gate_calls{};
     compat::u32 target_refresh_calls{};
@@ -881,6 +883,7 @@ enum class LegacyBattleSpecialFourHundredStatus : compat::u8 {
     progress_state_typed_stop,
     frame_owner_typed_stop,
     shared_state_typed_stop,
+    fixed_curve_typed_stop,
 };
 
 struct LegacyBattleSpecialFourHundredResult {
@@ -919,6 +922,7 @@ enum class LegacyBattleActionFourEffectStatus : compat::u8 {
     progress_state_typed_stop,
     frame_owner_typed_stop,
     shared_state_typed_stop,
+    fixed_curve_typed_stop,
 };
 
 struct LegacyBattleActionFourEffectResult {
