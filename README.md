@@ -166,7 +166,7 @@ openswd3.exe --data-dir "E:\Game\swd3"
 
 ### 日志
 
-程序从最早启动阶段开始写入 EXE 同目录的 `logs/openswd3.log`。日志以追加方式保存，每条记录包含 UTC 毫秒时间、级别、线程 ID、源码文件与行号和消息：
+程序从最早启动阶段开始写入 EXE 同目录的 `logs/`。每次游戏进程启动都创建独立文件，文件名使用可读UTC年月日、时间和进程ID，例如`openswd3-2026-08-04_12-34-56-1234.log`；不同启动不会追加到同一个日志。每条记录包含 UTC 毫秒时间、级别、线程 ID、源码文件与行号和消息：
 
 ```text
 2026-08-04T12:34:56.789Z [INFO] [thread=1234] [main.cpp:541] OpenSWD3 process started

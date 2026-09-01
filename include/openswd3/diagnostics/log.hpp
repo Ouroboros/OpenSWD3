@@ -21,6 +21,9 @@ enum class LoggingInitializationStatus {
     file_open_failed,
 };
 
+[[nodiscard]] std::filesystem::path
+make_process_log_path(const std::filesystem::path& log_directory);
+
 [[nodiscard]] LoggingInitializationStatus initialize_logging(
     const std::filesystem::path& file_path,
     LogLevel minimum_level = LogLevel::debug,

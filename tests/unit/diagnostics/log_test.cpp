@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <regex>
 #include <sstream>
 #include <string>
 #include <system_error>
@@ -25,6 +26,7 @@ using openswd3::diagnostics::log_debug;
 using openswd3::diagnostics::log_info;
 using openswd3::diagnostics::log_warning;
 using openswd3::diagnostics::logging_to_file;
+using openswd3::diagnostics::make_process_log_path;
 using openswd3::diagnostics::set_minimum_log_level;
 using openswd3::diagnostics::shutdown_logging;
 
@@ -59,6 +61,32 @@ public:
 private:
     std::filesystem::path root_;
 };
+
+void test_process_log_path(openswd3::test::Context& test) {
+    const TestTree tree;
+    const std::filesystem::path log_directory = tree.path("logs");
+    const std::filesystem::path first = make_process_log_path(log_directory);
+    const std::regex readable_name{
+        R"(^openswd3-[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]+(-[0-9]+)?\.log$)"
+    };
+    test.expect_true(
+        first.parent_path() == log_directory &&
+            std::regex_match(first.filename().string(), readable_name),
+        "process log path uses separated UTC date and time fields plus the process id"
+    );
+
+    std::filesystem::create_directories(log_directory);
+    {
+        std::ofstream existing{first, std::ios::binary};
+        existing << "existing launch";
+    }
+    const std::filesystem::path second = make_process_log_path(log_directory);
+    test.expect_true(
+        second != first &&
+            std::regex_match(second.filename().string(), readable_name),
+        "a later launch never reuses an existing process log file"
+    );
+}
 
 void test_metadata_and_immediate_flush(openswd3::test::Context& test) {
     const TestTree tree;
@@ -196,6 +224,7 @@ void test_concurrent_records_are_atomic(openswd3::test::Context& test) {
 
 int main() {
     openswd3::test::Context test;
+    test_process_log_path(test);
     test_metadata_and_immediate_flush(test);
     test_level_filter(test);
     test_initialization_failure_and_recovery(test);

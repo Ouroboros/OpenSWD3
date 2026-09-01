@@ -7359,7 +7359,9 @@ int main(const int argument_count, char** arguments) {
     const std::filesystem::path executable_directory =
         openswd3::resource_io::path_from_utf8(base_path);
     static_cast<void>(openswd3::diagnostics::initialize_logging(
-        executable_directory / "logs" / "openswd3.log"
+        openswd3::diagnostics::make_process_log_path(
+            executable_directory / "logs"
+        )
     ));
     LoggingShutdownGuard logging_shutdown_guard;
     openswd3::diagnostics::log_info("OpenSWD3 process started");

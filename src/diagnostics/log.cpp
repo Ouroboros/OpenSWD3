@@ -1,6 +1,7 @@
 #include "openswd3/diagnostics/log.hpp"
 
 #include <chrono>
+#include <cstdint>
 #include <cstdio>
 #include <ctime>
 #include <fstream>
@@ -14,6 +15,8 @@
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
+#else
+#include <unistd.h>
 #endif
 
 namespace openswd3::diagnostics {
@@ -40,6 +43,45 @@ source_filename(const std::string_view path) noexcept {
     const std::size_t separator = path.find_last_of("/\\");
     return separator == std::string_view::npos ? path
                                                : path.substr(separator + 1U);
+}
+
+[[nodiscard]] std::uint64_t current_process_id() noexcept {
+#if defined(_WIN32)
+    return static_cast<std::uint64_t>(GetCurrentProcessId());
+#else
+    return static_cast<std::uint64_t>(getpid());
+#endif
+}
+
+[[nodiscard]] std::string process_log_stem() {
+    const auto now = std::chrono::system_clock::now();
+    const std::time_t seconds = std::chrono::system_clock::to_time_t(now);
+
+    std::tm utc{};
+#if defined(_WIN32)
+    const bool converted = gmtime_s(&utc, &seconds) == 0;
+#else
+    const bool converted = gmtime_r(&seconds, &utc) != nullptr;
+#endif
+    if (!converted) {
+        return "openswd3-0000-00-00_00-00-00-" +
+            std::to_string(current_process_id());
+    }
+
+    char stem[96]{};
+    static_cast<void>(std::snprintf(
+        stem,
+        sizeof(stem),
+        "openswd3-%04d-%02d-%02d_%02d-%02d-%02d-%llu",
+        utc.tm_year + 1900,
+        utc.tm_mon + 1,
+        utc.tm_mday,
+        utc.tm_hour,
+        utc.tm_min,
+        utc.tm_sec,
+        static_cast<unsigned long long>(current_process_id())
+    ));
+    return stem;
 }
 
 [[nodiscard]] std::string utc_timestamp() {
@@ -184,6 +226,22 @@ void write_log_line(
 }
 
 }  // namespace
+
+std::filesystem::path
+make_process_log_path(const std::filesystem::path& log_directory) {
+    const std::string stem = process_log_stem();
+    std::filesystem::path candidate = log_directory / (stem + ".log");
+    std::error_code error;
+    for (std::uint64_t suffix = 2U; std::filesystem::exists(candidate, error);
+         ++suffix) {
+        if (error) {
+            return candidate;
+        }
+        candidate =
+            log_directory / (stem + "-" + std::to_string(suffix) + ".log");
+    }
+    return candidate;
+}
 
 LoggingInitializationStatus initialize_logging(
     const std::filesystem::path& file_path,
