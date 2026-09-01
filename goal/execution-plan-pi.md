@@ -6,7 +6,7 @@
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗函数 `0x00477400`
+当前步骤：模块10 · 审计战斗函数 `0x004776A0`
 
 ## 0. 执行约定
 
@@ -4320,4 +4320,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=262`的`0x00477290`战斗LEVEL.DAT等级需求读取函数。完整权威LST主体`0x00477290..0x004773F7`共186个物理行、123条实际指令、10个call、9个跳转、7个局部标签、3个返回点且无外部chunk。实现共享LEVEL文件惰性会话、`0x70 + 4 * (group * 100 + level)`的u32回绕目录、相对偏移加`0x200`、固定`0x400`字节分配/清零/读取、首word非零返回、tag 1跳word、tag 0按六dword加末word复制并发布`+0x16`值、tag 5终止及未知非零tag原循环；短读陈旧dword、多个tag 0覆盖、分配零、部分复制、流/输出真实访问typed-stop、live寄存器和无伪释放全部保留。队伍成员setter、四入口菜单动画、角色属性渲染和战斗升级四个caller删除旧opaque查询并直连唯一typed owner；角色属性`calculate_value`和battle frame查询槽仅保留reserved alias且生产零调用。SDL持有唯一文件、handle/stream token与共享会话，并向剧情VM、转场及战斗嵌套端口转发。真实8206字节`LEVEL.DAT`锁定group 1/level 2输出20、group 2/level 50输出63950及连续查询一次open。验证：独立loader与四caller故障前缀测试、完整core AddressSanitizer`190/190`、Linux core`190/190`、Linux app`196/196`全部通过，最终日志零OpenSWD3源码warning、测试失败、sanitizer finding或runtime error；新增及触碰C++文件通过clang-format Werror和diff检查。工作包推进到`262/422 = 253 platform_adapted + 9 assembly_exact + 160 pending_audit`；生成器连续双跑逐字节一致，SHA256为`8c4f0d4aa39562f76f313ca9023206cb8bce026910f1afc8c16f29e25608ba50`。动态差分因原版共享文件对象、短读陈旧缓冲、堆token、四caller输入及EAX/ECX/EDX联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=263`的`0x00477400`战斗MON定义派生记录读取函数。
+本轮再完成`audit_order=263`的`0x00477400`战斗LEVEL.DAT等级资料与队伍物品读取函数。完整权威LST主体`0x00477400..0x00477698`共298个物理行、196条实际指令、14个call、15个跳转、11个局部标签和3个返回点且无外部chunk。实现共享LEVEL会话、原32位目录回绕、固定`0x400`流、首word门、tag 0/1/5及未知tag循环；tag 0按原顺序复制26-byte资料、镜像三个word并写等级byte，tag 1按一基队伍选择临时推进/恢复唯一物品链头，复用既有节点，保留`0x8000`跳过、零ID模态诊断、`0xB0`尾插、MON定义加载、模式写入和标题逐字节复制。所有流、输出、队伍、链节点、分配、MON、模式与标题故障均只在原真实访问点typed-stop并保留前缀及live寄存器。LEVEL/MON会话和四条队伍链继续复用唯一typed owner；profile port不持有独立状态，SDL显式转发到唯一世界物品owner。战斗升级caller的旧/新等级两处调用删除旧opaque边界并typed直连，子stop阻断全部后缀。真实8206字节`LEVEL.DAT`与163731字节`MON.DAT`联合验证固定party 1/level 5资料、物品1501目录与CP950名称。独立profile和升级聚合定向测试、完整AddressSanitizer`191/191`、Linux core`191/191`、Linux app`197/197`全部通过，最终日志零OpenSWD3源码warning、测试失败、sanitizer finding或runtime error；ASan聚合测试的历史近8 MiB单函数栈帧仅在测试侧最小堆化首个fixture/port，未禁用sanitizer。工作包为`263/422 = 254 platform_adapted + 9 assembly_exact + 159 pending_audit`；生成器连续双跑逐字节一致，SHA256为`164b20599ba5046ee1a87a13b145ed06907342e3d0814bb88dce4787a620f0e7`。动态差分因原版共享LEVEL/MON文件对象、短读陈旧缓冲、堆token、四条物理队伍链、模态诊断、真实caller输入和联合寄存器捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=264`的`0x004776A0`战斗全局重置调用的辅助函数。

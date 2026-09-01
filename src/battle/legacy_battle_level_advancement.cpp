@@ -202,35 +202,85 @@ private:
 
         eax_ = label + 1U;
         ecx_ = old_level;
-        const auto baseline_reply = invoke(
-            LegacyBattleLevelAdvancementCall::build_level_profile,
+        result_.baseline_profile_load = load_legacy_battle_level_profile(
+            bindings_.state.baseline_scratch,
+            bindings_.state.growth_caption_text,
+            bindings_.target_selection.transition_mode,
+            port_,
             {
-                request_.baseline_scratch_token,
-                label + 1U,
-                old_level,
-                request_.transition_mode_token,
+                .party_number_one_based = label + 1U,
+                .level = old_level,
+                .output_token = request_.baseline_scratch_token,
+                .caption_token = request_.caption_token,
+                .transition_mode_token = request_.transition_mode_token,
+                .stale_directory_offset =
+                    request_.profile_stale_directory_offset,
+                .number_of_bytes_read_token =
+                    request_.profile_number_of_bytes_read_token,
+                .entry_eax = eax_,
+                .entry_ecx = ecx_,
+                .entry_edx = edx_,
+                .output_accessible_bytes =
+                    request_.baseline_output_accessible_bytes,
+                .caption_accessible_bytes = request_.caption_accessible_bytes,
+                .transition_mode_accessible =
+                    request_.transition_mode_accessible,
+                .host_item_node_allocation_succeeds =
+                    request_.host_item_node_allocation_succeeds,
             }
         );
         ++result_.profile_build_calls;
-        if (baseline_reply.publish_profile) {
-            bindings_.state.baseline_scratch = baseline_reply.profile;
+        eax_ = result_.baseline_profile_load.return_eax;
+        ecx_ = result_.baseline_profile_load.return_ecx;
+        edx_ = result_.baseline_profile_load.return_edx;
+        if (legacy_battle_level_profile_load_stopped(
+                result_.baseline_profile_load.status
+            )) {
+            result_.status =
+                LegacyBattleLevelAdvancementStatus::level_profile_typed_stop;
+            return false;
         }
 
         const u32 live_label = bindings_.startup.action_mode_source
                                    .actor_label_indices[actor_index_];
         edx_ = live_label + 1U;
-        const auto advanced_reply = invoke(
-            LegacyBattleLevelAdvancementCall::build_level_profile,
+        result_.advanced_profile_load = load_legacy_battle_level_profile(
+            bindings_.state.advanced_scratch,
+            bindings_.state.growth_caption_text,
+            bindings_.target_selection.transition_mode,
+            port_,
             {
-                request_.advanced_scratch_token,
-                live_label + 1U,
-                new_level,
-                request_.transition_mode_token,
+                .party_number_one_based = live_label + 1U,
+                .level = new_level,
+                .output_token = request_.advanced_scratch_token,
+                .caption_token = request_.caption_token,
+                .transition_mode_token = request_.transition_mode_token,
+                .stale_directory_offset =
+                    request_.profile_stale_directory_offset,
+                .number_of_bytes_read_token =
+                    request_.profile_number_of_bytes_read_token,
+                .entry_eax = eax_,
+                .entry_ecx = ecx_,
+                .entry_edx = edx_,
+                .output_accessible_bytes =
+                    request_.advanced_output_accessible_bytes,
+                .caption_accessible_bytes = request_.caption_accessible_bytes,
+                .transition_mode_accessible =
+                    request_.transition_mode_accessible,
+                .host_item_node_allocation_succeeds =
+                    request_.host_item_node_allocation_succeeds,
             }
         );
         ++result_.profile_build_calls;
-        if (advanced_reply.publish_profile) {
-            bindings_.state.advanced_scratch = advanced_reply.profile;
+        eax_ = result_.advanced_profile_load.return_eax;
+        ecx_ = result_.advanced_profile_load.return_ecx;
+        edx_ = result_.advanced_profile_load.return_edx;
+        if (legacy_battle_level_profile_load_stopped(
+                result_.advanced_profile_load.status
+            )) {
+            result_.status =
+                LegacyBattleLevelAdvancementStatus::level_profile_typed_stop;
+            return false;
         }
 
         label = bindings_.startup.action_mode_source

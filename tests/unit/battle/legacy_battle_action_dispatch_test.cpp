@@ -819,13 +819,13 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
 
     {
         LegacyBattleActionDispatchState state;
-        Fixture fixture;
-        DispatchPort port;
-        port.action = 1U;
-        port.terminal_return = 1U;
-        auto context = fixture.context();
+        auto fixture = std::make_unique<Fixture>();
+        auto port = std::make_unique<DispatchPort>();
+        port->action = 1U;
+        port->terminal_return = 1U;
+        auto context = fixture->context();
         const auto result = openswd3::battle::dispatch_legacy_battle_action(
-            state, port, context, 0U, 99U
+            state, *port, context, 0U, 99U
         );
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&

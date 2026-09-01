@@ -6,7 +6,7 @@
 
 权威LST主体为`0x00467C50..0x00467EF2`，从proc到endp共260行、153条带机器码和真实助记符的实际指令、5个静态call、8个跳转、5个局部标签和1个返回点，没有外部`FUNCTION CHUNK`。唯一静态caller是已关闭消息阶段分派的消息101；原caller只在过渡角色为`0xFF`时先调用本函数，返回后重读角色，仍为`0xFF`才进入既有选角。
 
-5个callsite包括升级需求查询1次、56-byte角色模板生成2次、停止sample `0x12C`一次和播放sample `0x12B`一次。升级需求查询已直连共享LEVEL loader；两个56-byte模板生成callee继续由窄typed端口保留。sample停止使用固定返回EAX 1的已关闭命令语义，sample播放按live signed mix level进入typed音频边界。
+5个callsite包括升级需求查询1次、56-byte等级资料读取2次、停止sample `0x12C`一次和播放sample `0x12B`一次。升级需求及两次等级资料读取现均直连共享LEVEL typed loader；后两次还按记录引用复用唯一队伍物品链与MON定义owner。sample停止使用固定返回EAX 1的已关闭命令语义，sample播放按live signed mix level进入typed音频边界。
 
 ## 2. live组A扫描与资格门
 
@@ -22,17 +22,17 @@
 
 正常返回后重新读取live动作标签，以`label*56`重建记录地址，读取记录首dword并与需求输出按i32 signed比较。首dword小于需求时把过渡角色写`0xFF`并走正常循环尾；相等或更大才提交升级。标签被后续callee改到已知四项owner外时，在首次真实记录首dword访问typed-stop，并保留EAX标签、ECX需求和EDX缩放偏移。
 
-## 4. 三份56-byte物理记录与双模板调用
+## 4. 三份56-byte物理记录与双LEVEL资料调用
 
 符合经验门后，函数严格执行：
 
-1. 清零`0x005028C0`起56-byte旧等级模板；
-2. 清零`0x00520F80`起56-byte新等级模板；
+1. 清零`0x005028C0`起56-byte旧等级资料；
+2. 清零`0x00520F80`起56-byte新等级资料；
 3. 从当前角色记录完整复制56 byte到`0x004FF108`快照，包括此前typed结构缺失的尾11 byte；
-4. 以旧等级、同一一基标签和共享过渡模式地址生成旧模板；
-5. 重新读取live动作标签，以新等级和同一过渡模式地址生成新模板。
+4. 以旧等级、同一一基标签和共享过渡模式地址直连 `0x00477400`，填充旧等级资料；
+5. 重新读取live动作标签，以新等级和同一过渡模式地址再次直连同一loader，填充新等级资料。
 
-第一次模板call前EAX是一基标签、ECX是旧等级、EDX是`label*56`；第二次call前EAX/ECX保留第一次callee返回，只有EDX重新装载为live一基标签。两个callee都可发布新的live组A数量和过渡模式。
+第一次profile call前EAX是一基标签、ECX是旧等级、EDX是`label*56`；第二次call前EAX/ECX保留第一次callee返回，只有EDX重新装载为live一基标签。loader复用同一LEVEL会话；记录中的tag 1还可命中或扩充对应队伍物品链、读取MON定义、设置共享过渡模式和成长标题。任一次callee在原内存/链/MON访问点typed-stop时，本函数立即传播 `level_profile_typed_stop`，不执行后续调用或差值提交。
 
 ## 5. 原逐字段差值提交
 
@@ -56,8 +56,8 @@ sample播放返回后只以当前actor索引替换AL，保留EAX高24位；索�
 
 组A数量、双跳过字段、阈值、动作标签、过渡actor/mode、sample mix和四项角色资源均复用既有owner。level state承接两份56-byte模板、一份56-byte角色快照和此前未命名的完成门；后续成长对照面板又在同一逻辑owner中承接非连续的三项primary与六项secondary成长差值，成长标题框再承接独立24-byte共享标题。完成门和成长差值都不在战斗全局重置的原写集合内，不新增伪清零。
 
-消息101现于actor为`0xFF`时先直连本实现；本函数成功发布actor后直接回到原完成查询/转场，仍无actor才调用旧选角边界。本函数typed-stop（包括共享LEVEL loader stop）阻断选角、完成查询、transition分配、message和timer写入。frame coordinator原`query_level_requirement`槽只保留reserved alias且生产零调用；SDL battle端口把LEVEL访问转发到全局唯一文件会话。
+消息101现于actor为`0xFF`时先直连本实现；本函数成功发布actor后直接回到原完成查询/转场，仍无actor才调用旧选角边界。本函数typed-stop（包括共享LEVEL需求或profile loader stop）阻断选角、完成查询、transition分配、message和timer写入。frame coordinator原`query_level_requirement`槽和本函数原`build_level_profile`槽都只保留reserved alias且生产零调用；SDL battle端口把LEVEL、MON及队伍物品链访问转发到全局唯一owner。
 
-定向测试覆盖非正数量、双字段精确1跳过、live数量尾重读、等级阈值、signed经验不足、真实需求输出、LEVEL零分配故障前缀、双模板寄存器、完整56-byte快照、三组current/limit、八个u16差值、等级/field20替换、尾11 byte保留、最终音频寄存器、首成功早退、初始标签越界、第十一对象以及消息101正常直连与子stop传播。最终完整门结果见本轮工作包总证据。
+定向测试覆盖非正数量、双字段精确1跳过、live数量尾重读、等级阈值、signed经验不足、真实需求输出、LEVEL零分配故障前缀、两次直接profile调用与共享一次open、第一profile部分复制stop传播、完整56-byte快照、三组current/limit、八个u16差值、等级/field20替换、尾11 byte保留、最终音频寄存器、首成功早退、初始标签越界、第十一对象以及消息101正常直连与子stop传播。最终完整门结果见本轮工作包总证据。
 
 当前缺少原版组A对象、需求查询与双模板callee联合状态、三份物理scratch动态内容、角色记录加载后端、sample对象及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

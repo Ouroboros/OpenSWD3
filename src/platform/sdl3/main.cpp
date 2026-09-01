@@ -1669,7 +1669,7 @@ class SdlSmokeIdlePorts final
       public openswd3::app::FramePreparationPorts,
       public openswd3::app::FrameRuntimePorts,
       public openswd3::battle::LegacyBattleScriptDispatchPort,
-      public openswd3::battle::LegacyBattleLevelDatabasePort,
+      public openswd3::battle::LegacyBattleLevelProfilePort,
       public openswd3::rendering::LegacyPresentationPorts,
       public openswd3::audio_video::LegacyVideoFramePorts,
       public openswd3::world_map::LegacyWorldLoadProgressPorts {
@@ -2169,6 +2169,11 @@ public:
             return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
         }
         return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
+    }
+
+    [[nodiscard]] openswd3::world_map::LegacyWorldItemListState*
+    battle_level_profile_item_list_state() noexcept override {
+        return &world_item_lists_;
     }
 
     [[nodiscard]] openswd3::battle::LegacyBattleLevelDatabaseCallReply

@@ -294,6 +294,34 @@ add_test(
 )
 
 add_executable(
+    openswd3_battle_legacy_battle_level_profile_tests
+    unit/battle/legacy_battle_level_profile_test.cpp
+)
+if(
+    EXISTS "${PROJECT_SOURCE_DIR}/../LEVEL.DAT" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../MON.DAT"
+)
+    target_compile_definitions(
+        openswd3_battle_legacy_battle_level_profile_tests
+        PRIVATE
+            OPENSWD3_LEVEL_DATA_PATH="${PROJECT_SOURCE_DIR}/../LEVEL.DAT"
+            OPENSWD3_MON_DATA_PATH="${PROJECT_SOURCE_DIR}/../MON.DAT"
+    )
+endif()
+target_include_directories(
+    openswd3_battle_legacy_battle_level_profile_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_battle_legacy_battle_level_profile_tests
+    PRIVATE openswd3_battle
+)
+add_test(
+    NAME battle.legacy_battle_level_profile
+    COMMAND openswd3_battle_legacy_battle_level_profile_tests
+)
+
+add_executable(
     openswd3_battle_legacy_battle_setup_tests
     unit/battle/legacy_battle_action_mode_refresh_test.cpp
     unit/battle/legacy_battle_action_summary_test.cpp

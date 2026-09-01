@@ -735,6 +735,8 @@ I5最终必须锁定：
 
 本轮再完成`audit_order=262`的`0x00477290`战斗LEVEL.DAT等级需求读取函数。完整权威LST主体`0x00477290..0x004773F7`从proc到endp共186个物理行、123条实际指令、10个call、9个跳转、7个局部标签和3个返回点，没有外部chunk。函数惰性建立共享LEVEL文件会话，以`0x70 + 4 * (group * 100 + level)`的u32回绕目录槽读取相对偏移，加`0x200`后固定分配、清零并读取`0x400`字节记录流；首word非零释放并返回0，tag 1跳过word，tag 0先推进26字节再按六dword加末word的`rep movsd`访问序复制，并把`+0x16` dword发布到caller输出，tag 5释放并返回1，其他非零tag不现代化跳过。目录短读沿用陈旧dword，多个tag 0最后值覆盖；分配零、流/复制越界和输出不可访问只在原真实访问点typed-stop，保留部分复制字节、live ECX、游标、此前输出和无伪释放。队伍成员setter、四入口菜单动画、角色属性渲染和战斗升级四个caller均删除旧opaque查询并直连唯一typed owner；角色属性旧`calculate_value`及战斗frame旧query槽只保留reserved alias且生产零调用。SDL持有唯一文件、handle/stream token与共享会话，并向剧情VM、转场和战斗嵌套端口转发。真实8206字节`LEVEL.DAT`锁定group 1/level 2输出20及group 2/level 50输出63950，连续查询只open一次。最终完整core和AddressSanitizer`190/190`、Linux app`196/196`全部通过，最终日志零OpenSWD3源码warning、测试失败、sanitizer finding或runtime error；新增及触碰C++文件通过clang-format Werror与diff检查。工作包推进到`262/422 = 253 platform_adapted + 9 assembly_exact + 160 pending_audit`，SHA256为`8c4f0d4aa39562f76f313ca9023206cb8bce026910f1afc8c16f29e25608ba50`。原版共享文件对象、短读陈旧缓冲、堆token、四caller输入及EAX/ECX/EDX联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=263`的`0x00477400`战斗MON定义派生记录读取函数。
+本轮再完成`audit_order=263`的`0x00477400`战斗LEVEL.DAT等级资料与队伍物品读取函数。完整权威LST主体`0x00477400..0x00477698`从proc到endp共298个物理行、196条实际指令、14个call、15个跳转、11个局部标签和3个返回点，没有外部chunk。函数复用唯一LEVEL会话，以`0x70 + 4 * (party * 100 + level)`的u32回绕目录读取相对记录，固定分配/清零/读取`0x400`字节；首word非零正常返回0，tag 0逐访问复制26-byte资料到56-byte输出`+0x0A`并镜像前三word和等级byte，tag 1维护一基四队伍物品链，tag 5释放返回1，未知tag保持原两字节扫描。物品链保留临时全局链头推进/恢复、零ID模态诊断、既有节点去重、尾部`0x8000`跳过、先发布next再清零的`0xB0`分配顺序、新节点MON定义加载、过渡模式和成长标题复制；所有流、输出、数组、链、分配、MON、模式和标题故障只在原访问点typed-stop并保留此前链头和副作用。战斗升级两处旧opaque profile槽已回收为直接loader调用；SDL转发唯一LEVEL、MON和世界物品链owner。真实8206字节LEVEL样本party 1/level 5固定目录、26-byte资料和物品1501，并与真实MON目录和CP950名称完成联合回归；同ID缓存不重复加载。最终门禁和inventory稳定值见本轮证据。
+
+下一项回收`audit_order=264`的`0x004776A0`战斗状态清理函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

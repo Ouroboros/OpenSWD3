@@ -129,9 +129,9 @@ run(Fixture& fixture,
 make_profile(const u16 base, const u8 level, const u32 field_20) {
     LegacyWorldStoryPartyMemberResources profile{
         .field_00 = 100U,
-        .current_first = 1U,
-        .current_second = 2U,
-        .current_third = 3U,
+        .current_first = static_cast<u16>(base + 1U),
+        .current_second = static_cast<u16>(base + 2U),
+        .current_third = static_cast<u16>(base + 3U),
         .limit_first = static_cast<u16>(base + 1U),
         .limit_second = static_cast<u16>(base + 2U),
         .limit_third = static_cast<u16>(base + 3U),
@@ -149,6 +149,27 @@ make_profile(const u16 base, const u8 level, const u32 field_20) {
         profile.tail_2d_to_37[index] = static_cast<u8>(0xA0U + index);
     }
     return profile;
+}
+
+[[nodiscard]] std::vector<u8> make_requirement_stream(const u32 value) {
+    std::vector<u8> stream;
+    openswd3::test::LegacyBattleLevelDatabaseFixture::append_word(stream, 0U);
+    stream.resize(stream.size() + 0x16U, 0U);
+    openswd3::test::LegacyBattleLevelDatabaseFixture::append_dword(
+        stream, value
+    );
+    openswd3::test::LegacyBattleLevelDatabaseFixture::append_word(stream, 5U);
+    return stream;
+}
+
+[[nodiscard]] std::vector<u8>
+make_profile_stream(const LegacyWorldStoryPartyMemberResources& profile) {
+    const auto* const bytes = reinterpret_cast<const u8*>(&profile);
+    std::vector<u8> stream;
+    openswd3::test::LegacyBattleLevelDatabaseFixture::append_word(stream, 0U);
+    stream.insert(stream.end(), bytes + 0x0AU, bytes + 0x24U);
+    openswd3::test::LegacyBattleLevelDatabaseFixture::append_word(stream, 5U);
+    return stream;
 }
 
 }  // namespace
@@ -232,28 +253,9 @@ void test_battle_level_advancement(openswd3::test::Context& test) {
 
         const auto baseline = make_profile(10U, 2U, 500U);
         const auto advanced = make_profile(12U, 3U, 700U);
-        fixture.port.record_available = true;
-        fixture.port.level_value = 50U;
-        fixture.port.reply(
-            LegacyBattleLevelAdvancementCall::build_level_profile,
-            {
-                .eax = 0xAAAA0001U,
-                .ecx = 0xBBBB0002U,
-                .edx = 0xCCCC0003U,
-                .publish_profile = true,
-                .profile = baseline,
-            }
-        );
-        fixture.port.reply(
-            LegacyBattleLevelAdvancementCall::build_level_profile,
-            {
-                .eax = 0xDDDD0004U,
-                .ecx = 0xEEEE0005U,
-                .edx = 0xFFFF0006U,
-                .publish_profile = true,
-                .profile = advanced,
-            }
-        );
+        fixture.port.custom_streams.push_back(make_requirement_stream(50U));
+        fixture.port.custom_streams.push_back(make_profile_stream(baseline));
+        fixture.port.custom_streams.push_back(make_profile_stream(advanced));
         const auto result =
             run(fixture,
                 {
@@ -301,18 +303,25 @@ void test_battle_level_advancement(openswd3::test::Context& test) {
                     original.tail_2d_to_37,
             "level advancement copies all 56 profile bytes and applies each derived u16 delta independently"
         );
-        const auto& baseline_call = fixture.port.calls[0U];
-        const auto& advanced_call = fixture.port.calls[1U];
         test.expect_true(
             result.level_load.group == 2U && result.level_load.level == 3U &&
                 result.level_load.output_value == 50U &&
                 result.level_load.record_found &&
+                result.baseline_profile_load.party_number_one_based == 2U &&
+                result.baseline_profile_load.level == 2U &&
+                result.baseline_profile_load.record_found &&
+                result.advanced_profile_load.party_number_one_based == 2U &&
+                result.advanced_profile_load.level == 3U &&
+                result.advanced_profile_load.record_found &&
                 fixture.port.requested_entries ==
-                    std::vector<std::pair<u32, u32>>{{2U, 3U}} &&
-                baseline_call.eax == 2U && baseline_call.ecx == 2U &&
-                baseline_call.edx == 56U && advanced_call.eax == 0xAAAA0001U &&
-                advanced_call.ecx == 0xBBBB0002U && advanced_call.edx == 2U,
-            "level advancement preserves requirement and both profile-build callsite register snapshots"
+                    std::vector<std::pair<u32, u32>>{
+                        {2U, 3U},
+                        {2U, 2U},
+                        {2U, 3U},
+                    } &&
+                fixture.port.open_calls == 1U &&
+                fixture.port.release_calls == 3U && fixture.port.calls.empty(),
+            "level advancement shares one LEVEL session across the requirement and both direct profile loads"
         );
         test.expect_true(
             fixture.port.stop_calls ==
@@ -359,6 +368,38 @@ void test_battle_level_advancement(openswd3::test::Context& test) {
                 fixture.state.completion_gate == 0U &&
                 fixture.port.release_calls == 0U,
             "level advancement propagates the LEVEL stream-clear fault before the experience comparison and completion tail"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.metrics.group_a_count = 1U;
+        fixture.party_resources[0U].field_00 = 100U;
+        fixture.party_resources[0U].field_2c = 2U;
+        fixture.port.custom_streams.push_back(make_requirement_stream(50U));
+        fixture.port.custom_streams.push_back(
+            make_profile_stream(make_profile(10U, 2U, 500U))
+        );
+        const auto result =
+            run(fixture,
+                {
+                    .requirement_output_token = 0x71000000U,
+                    .baseline_output_accessible_bytes = 0x12U,
+                });
+        test.expect_true(
+            result.status ==
+                    LegacyBattleLevelAdvancementStatus::
+                        level_profile_typed_stop &&
+                result.requirement_calls == 1U &&
+                result.profile_build_calls == 1U &&
+                result.baseline_profile_load.status ==
+                    openswd3::battle::LegacyBattleLevelProfileLoadStatus::
+                        output_access_typed_stop &&
+                result.baseline_profile_load.output_bytes_copied == 8U &&
+                result.advanced_profile_load.read_calls == 0U &&
+                fixture.state.completion_gate == 0U &&
+                fixture.target.transition_actor_index == 0U,
+            "level advancement propagates the first direct profile fault before the second profile and completion tail"
         );
     }
 

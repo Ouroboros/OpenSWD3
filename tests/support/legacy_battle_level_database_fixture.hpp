@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <deque>
 #include <span>
 #include <utility>
 #include <vector>
@@ -49,7 +50,12 @@ public:
             if ((read_calls % 2U) == 1U) {
                 write_dword(destination, 0U, relative_offset);
             } else {
-                const auto stream = make_stream();
+                auto stream = make_stream();
+                if (!custom_streams.empty()) {
+                    stream = std::move(custom_streams.front());
+                    custom_streams.pop_front();
+                    stream.resize(battle::kLegacyBattleLevelStreamBytes, 0U);
+                }
                 const std::size_t count =
                     std::min(destination.size(), stream.size());
                 std::copy_n(stream.begin(), count, destination.begin());
@@ -140,6 +146,7 @@ public:
     u32 release_calls{};
     std::filesystem::path opened_path;
     std::vector<u8> custom_stream;
+    std::deque<std::vector<u8>> custom_streams;
     std::vector<std::pair<u32, u32>> requested_entries;
     std::vector<battle::LegacyBattleLevelDatabaseCallRequest> calls;
 

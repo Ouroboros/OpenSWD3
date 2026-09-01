@@ -14,6 +14,8 @@ inline constexpr std::size_t kLegacyPartyItemListCount = 4U;
 inline constexpr std::size_t kLegacyRoleItemListCount = 64U;
 inline constexpr std::size_t kLegacyItemDefinitionSnapshotBytes = 0xA0U;
 inline constexpr compat::u16 kLegacyItemSentinelId = 0xFFDCU;
+inline constexpr compat::u32 kLegacyPartyItemSentinelTokenBase = 0x70000000U;
+inline constexpr compat::u32 kLegacyRoleItemSentinelTokenBase = 0x70100000U;
 inline constexpr std::array<compat::u8, 2U> kLegacyItemSentinelNameBytes{
     0xB5U,
     0x4CU,
@@ -42,11 +44,16 @@ struct LegacyWorldSentinelItemList {
 
     LegacyWorldItemNode sentinel;
     std::list<LegacyWorldItemNode> nodes;
+    // The raw global array stores a movable node pointer. Most callers leave
+    // it at the sentinel; level.dat traversal temporarily advances it and
+    // restores the saved token only on normal command completion.
+    compat::u32 legacy_head_token{};
 };
 
 struct LegacyWorldItemListState {
     LegacyWorldItemListState() noexcept;
 
+    compat::u32 next_battle_level_item_node_token{0x70020000U};
     compat::u32 player_inventory_head_token{};
     LegacyWorldItemNode player_inventory_head_alias{};
     std::list<LegacyWorldItemNode> player_inventory;

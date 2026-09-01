@@ -48,11 +48,17 @@ LegacyWorldSentinelItemList::LegacyWorldSentinelItemList() noexcept {
 }
 
 LegacyWorldItemListState::LegacyWorldItemListState() noexcept {
-    for (auto& list : party_item_lists) {
-        list.emplace();
+    for (std::size_t index = 0U; index < party_item_lists.size(); ++index) {
+        auto& list = party_item_lists[index].emplace();
+        list.sentinel.legacy_token = kLegacyPartyItemSentinelTokenBase +
+            static_cast<compat::u32>(index) * 0xB0U;
+        list.legacy_head_token = list.sentinel.legacy_token;
     }
-    for (auto& list : role_item_lists) {
-        list.emplace();
+    for (std::size_t index = 0U; index < role_item_lists.size(); ++index) {
+        auto& list = role_item_lists[index].emplace();
+        list.sentinel.legacy_token = kLegacyRoleItemSentinelTokenBase +
+            static_cast<compat::u32>(index) * 0xB0U;
+        list.legacy_head_token = list.sentinel.legacy_token;
     }
 }
 

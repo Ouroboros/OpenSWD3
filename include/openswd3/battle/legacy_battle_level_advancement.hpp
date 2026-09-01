@@ -6,6 +6,7 @@
 
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_input_dispatch.hpp"
+#include "openswd3/battle/legacy_battle_level_profile.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_runtime.hpp"
 #include "openswd3/battle/legacy_battle_victory_rewards.hpp"
@@ -54,7 +55,8 @@ private:
 enum class LegacyBattleLevelAdvancementCall : compat::u8 {
     reserved_query_level_requirement,
     query_level_requirement = reserved_query_level_requirement,
-    build_level_profile,
+    reserved_build_level_profile,
+    build_level_profile = reserved_build_level_profile,
 };
 
 struct LegacyBattleLevelAdvancementCallRequest {
@@ -87,7 +89,7 @@ struct LegacyBattleLevelAdvancementRegisters {
 
 class LegacyBattleLevelAdvancementPort
     : public virtual LegacyBattleLevelAdvancementStatePort,
-      public virtual LegacyBattleLevelDatabasePort {
+      public virtual LegacyBattleLevelProfilePort {
 public:
     ~LegacyBattleLevelAdvancementPort() override = default;
 
@@ -143,7 +145,19 @@ struct LegacyBattleLevelAdvancementRequest {
     compat::u32 baseline_scratch_token{0x005028C0U};
     compat::u32 advanced_scratch_token{0x00520F80U};
     compat::u32 profile_copy_scratch_token{0x004FF108U};
-    compat::u32 transition_mode_token{0x0053BFFCU};
+    compat::u32 profile_number_of_bytes_read_token{};
+    compat::u32 profile_stale_directory_offset{};
+    compat::u32 caption_token{kLegacyBattleLevelCaptionToken};
+    compat::u32 transition_mode_token{kLegacyBattleLevelTransitionModeToken};
+    compat::u32 baseline_output_accessible_bytes{
+        kLegacyBattleLevelProfileBytes
+    };
+    compat::u32 advanced_output_accessible_bytes{
+        kLegacyBattleLevelProfileBytes
+    };
+    compat::u32 caption_accessible_bytes{24U};
+    bool transition_mode_accessible{true};
+    bool host_item_node_allocation_succeeds{true};
 };
 
 enum class LegacyBattleLevelAdvancementStatus : compat::u8 {
@@ -152,6 +166,7 @@ enum class LegacyBattleLevelAdvancementStatus : compat::u8 {
     action_label_typed_stop,
     party_member_resource_typed_stop,
     level_requirement_typed_stop,
+    level_profile_typed_stop,
 };
 
 struct LegacyBattleLevelAdvancementResult {
@@ -169,6 +184,8 @@ struct LegacyBattleLevelAdvancementResult {
     compat::u32 visited_actors{};
     compat::u32 selected_actor_index{0xFFFFFFFFU};
     LegacyBattleLevelRequirementLoadResult level_load{};
+    LegacyBattleLevelProfileLoadResult baseline_profile_load{};
+    LegacyBattleLevelProfileLoadResult advanced_profile_load{};
     std::vector<LegacyBattleLevelAdvancementCall> call_trace;
 };
 

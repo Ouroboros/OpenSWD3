@@ -117,6 +117,7 @@ add_library(
         legacy_battle_list_frame.cpp
         legacy_battle_level_advancement.cpp
         legacy_battle_level_growth_panel.cpp
+        legacy_battle_level_profile.cpp
         legacy_battle_level_up_panel.cpp
     legacy_battle_list_contents.cpp
         legacy_battle_menu_context_advance.cpp
