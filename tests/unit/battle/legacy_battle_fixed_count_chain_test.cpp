@@ -920,6 +920,219 @@ void test_curve_access_stops(openswd3::test::Context& test) {
     );
 }
 
+void test_curve_set_existing_and_missing(openswd3::test::Context& test) {
+    LegacyBattleFixedObjectState state;
+    AllocationPort port;
+    auto& root = state.object_words[1U];
+    root[1U] = (4U << 16U) | 7U;
+    root[2U] = 0xABCD4321U;
+
+    const auto existing = openswd3::battle::set_legacy_battle_fixed_curve(
+        state,
+        port,
+        {
+            .key = 0xFFFF0007U,
+            .maximum = 0xAAAA0005U,
+            .count = 0xBBBB0005U,
+            .entry_eax = 0xAAAA0005U,
+            .entry_ecx = 0xCCCC0005U,
+            .entry_edx = 0xDDDD0007U,
+        }
+    );
+    test.expect_true(
+        existing.status == LegacyBattleFixedCountStatus::completed &&
+            existing.path == LegacyBattleFixedCountPath::existing_root &&
+            existing.matched_token == 0x004ACBA8U &&
+            existing.count_writes == 2U && existing.clamp_writes == 1U &&
+            existing.scale_writes == 1U && existing.truncate_calls == 1U &&
+            existing.count == 5U && existing.scale == 100U &&
+            existing.return_eax == 100U && existing.return_ecx == 5U &&
+            existing.return_edx == 0U && count(root[1U]) == 5U &&
+            root[2U] == 0xABCD0064U && port.requests.empty(),
+        "existing fixed curve set writes the requested word before the inclusive maximum clamp and percentage"
+    );
+
+    state = {};
+    state.object_words[1U][1U] = 0xFFFFU;
+    port.replies.push_back({
+        .eax = 0x7D001234U,
+        .ecx = 0xABCD1234U,
+        .edx = 0xEEEEEEEEU,
+        .initial_words =
+            {
+                0x11111111U,
+                0x22222222U,
+                0x33333333U,
+                0x44444444U,
+                0x55555555U,
+            },
+        .accessible_bytes = 0x14U,
+    });
+    const auto created = openswd3::battle::set_legacy_battle_fixed_curve(
+        state,
+        port,
+        {
+            .key = 0xEEEE0009U,
+            .maximum = 0xAAAA0003U,
+            .count = 0xBBBB0001U,
+            .entry_eax = 0xAAAA0003U,
+            .entry_ecx = 0xBBBB0001U,
+            .entry_edx = 0xEEEE0009U,
+        }
+    );
+    const auto& created_root = state.object_words[1U];
+    auto& node = state.fixed_count_nodes.front();
+    test.expect_true(
+        created.status == LegacyBattleFixedCountStatus::completed &&
+            created.path == LegacyBattleFixedCountPath::allocated_node &&
+            created.allocation_calls == 1U && created.link_writes == 1U &&
+            created.dword_zero_writes == 5U && created.key_writes == 1U &&
+            created.count_writes == 1U && created.clamp_writes == 0U &&
+            created.scale_writes == 1U && created.root_key_increments == 1U &&
+            created.truncate_calls == 1U && created.count == 1U &&
+            created.scale == 33U && created.return_eax == 33U &&
+            created.return_ecx == 1U && created.return_edx == 0U &&
+            created_root[0U] == 0x7D001234U && key(created_root[1U]) == 0U &&
+            key(node.words[1U]) == 9U && count(node.words[1U]) == 1U &&
+            key(node.words[2U]) == 33U && node.words[3U] == 0U &&
+            node.words[4U] == 0U && port.requests.back().eax == 0U &&
+            port.requests.back().ecx == 0xBBBB0001U &&
+            port.requests.back().edx == 0xEEEE0009U,
+        "missing fixed curve set links and clears one node before publishing key count percentage and the wrapped root total"
+    );
+
+    node.words[2U] = 0xABCD0021U;
+    const auto existing_node = openswd3::battle::set_legacy_battle_fixed_curve(
+        state, port, {.key = 9U, .maximum = 4U, .count = 2U}
+    );
+    test.expect_true(
+        existing_node.status == LegacyBattleFixedCountStatus::completed &&
+            existing_node.path == LegacyBattleFixedCountPath::existing_node &&
+            existing_node.chain_link_reads == 1U &&
+            existing_node.allocation_calls == 0U && existing_node.count == 2U &&
+            existing_node.scale == 50U && existing_node.return_eax == 50U &&
+            existing_node.return_ecx == 2U && existing_node.return_edx == 0U &&
+            key(created_root[1U]) == 0U && count(node.words[1U]) == 2U &&
+            node.words[2U] == 0xABCD0032U && port.requests.size() == 1U,
+        "existing dynamic fixed curve set follows one next link without allocating or incrementing the root"
+    );
+
+    state = {};
+    const auto zero_maximum = openswd3::battle::set_legacy_battle_fixed_curve(
+        state, port, {.key = 0U, .maximum = 0U, .count = 9U}
+    );
+    test.expect_true(
+        zero_maximum.status == LegacyBattleFixedCountStatus::completed &&
+            zero_maximum.path == LegacyBattleFixedCountPath::existing_root &&
+            zero_maximum.count == 0U && zero_maximum.scale == 0U &&
+            zero_maximum.count_writes == 2U &&
+            zero_maximum.clamp_writes == 1U && zero_maximum.return_eax == 0U &&
+            zero_maximum.return_ecx == 0U &&
+            zero_maximum.return_edx == 0x80000000U,
+        "zero maximum keeps the set then clamp and zero-over-zero x87 integer indefinite"
+    );
+}
+
+void test_curve_set_access_stops(openswd3::test::Context& test) {
+    LegacyBattleFixedObjectState state;
+    AllocationPort port;
+    state.fixed_count_nodes.push_back({
+        .legacy_token = 0x7D000000U,
+        .words = {0U, 7U, 0U, 0U, 0U},
+        .accessible_bytes = 7U,
+    });
+    auto& root = state.fixed_count_nodes.front();
+    const auto count_stop = openswd3::battle::set_legacy_battle_fixed_curve(
+        state,
+        port,
+        {
+            .owner_token = 0x7D000000U,
+            .key = 7U,
+            .maximum = 0xAAAA0002U,
+            .count = 0xBBBB0001U,
+            .entry_eax = 0xCCCC0002U,
+            .entry_ecx = 0xDDDD0001U,
+            .entry_edx = 0xEEEE0007U,
+        }
+    );
+    test.expect_true(
+        count_stop.status ==
+                LegacyBattleFixedCountStatus::record_access_typed_stop &&
+            count_stop.path == LegacyBattleFixedCountPath::existing_root &&
+            count_stop.stopped_token == 0x7D000000U &&
+            count_stop.stopped_offset == 6U &&
+            count_stop.return_eax == 0xAAAA0002U &&
+            count_stop.return_ecx == 0xDDDD0001U &&
+            count_stop.return_edx == 0xEEEE0007U && count(root.words[1U]) == 0U,
+        "fixed curve set stops at the existing count write after loading the argument words into EAX and CX"
+    );
+
+    root.accessible_bytes = 9U;
+    const auto scale_stop = openswd3::battle::set_legacy_battle_fixed_curve(
+        state,
+        port,
+        {
+            .owner_token = 0x7D000000U,
+            .key = 7U,
+            .maximum = 2U,
+            .count = 1U,
+        }
+    );
+    test.expect_true(
+        scale_stop.status ==
+                LegacyBattleFixedCountStatus::record_access_typed_stop &&
+            scale_stop.stopped_offset == 8U && scale_stop.count == 1U &&
+            scale_stop.truncate_calls == 1U && scale_stop.return_eax == 50U &&
+            scale_stop.return_ecx == 1U && scale_stop.return_edx == 0U &&
+            count(root.words[1U]) == 1U && root.words[2U] == 0U,
+        "fixed curve set preserves the count and completed x87 conversion before an inaccessible scale write"
+    );
+
+    state = {};
+    port.replies.push_back({
+        .eax = 0x7D002000U,
+        .ecx = 0xABCD1234U,
+        .edx = 0xFFFFFFFFU,
+        .initial_words =
+            {
+                0x11111111U,
+                0x22222222U,
+                0x33333333U,
+                0x44444444U,
+                0x55555555U,
+            },
+        .accessible_bytes = 4U,
+    });
+    const auto allocation_stop =
+        openswd3::battle::set_legacy_battle_fixed_curve(
+            state,
+            port,
+            {
+                .key = 9U,
+                .maximum = 5U,
+                .count = 7U,
+                .entry_ecx = 0xEEEE0007U,
+                .entry_edx = 0xFFFF0009U,
+            }
+        );
+    test.expect_true(
+        allocation_stop.status ==
+                LegacyBattleFixedCountStatus::
+                    allocation_record_access_typed_stop &&
+            allocation_stop.stopped_token == 0x7D002000U &&
+            allocation_stop.stopped_offset == 4U &&
+            allocation_stop.link_writes == 1U &&
+            allocation_stop.dword_zero_writes == 1U &&
+            allocation_stop.return_eax == 0x7D002000U &&
+            allocation_stop.return_ecx == 0xABCD0007U &&
+            allocation_stop.return_edx == 0U &&
+            state.object_words[1U][0U] == 0x7D002000U &&
+            state.fixed_count_nodes.front().words[0U] == 0U &&
+            state.fixed_count_nodes.front().words[1U] == 0x22222222U,
+        "fixed curve set preserves the allocator ECX high word and first clear before the inaccessible plus-four clear"
+    );
+}
+
 }  // namespace
 
 int main() {
@@ -936,5 +1149,7 @@ int main() {
     test_lookup_record_access_stops(test);
     test_curve_existing_and_missing(test);
     test_curve_access_stops(test);
+    test_curve_set_existing_and_missing(test);
+    test_curve_set_access_stops(test);
     return test.exit_code();
 }

@@ -1376,12 +1376,6 @@ public:
         main_events.push_back("delete-error");
         ++deletion_error_count;
     }
-    void update_first_item_category(
-        const u16 item_id, const u16 category_value, const i32 added_value
-    ) noexcept override {
-        main_events.push_back("category-1");
-        category_updates.push_back({1U, item_id, category_value, added_value});
-    }
     void update_second_item_category(
         const u16 item_id, const i32 added_value
     ) noexcept override {
@@ -22871,7 +22865,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     );
     const auto& add_fixed_state =
         party_dialog_add_ports.legacy_battle_fixed_object_state();
-    const auto& add_fixed_node = add_fixed_state.fixed_count_nodes.front();
+    const auto& add_curve_node = add_fixed_state.fixed_count_nodes.front();
+    const auto& add_fixed_node = add_fixed_state.fixed_count_nodes.back();
     test.expect_true(
         party_dialog_added.action == PartyDialogAction::item_added &&
             party_dialog_added.scratch_allocated &&
@@ -22880,15 +22875,23 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             party_dialog_add_record.first_value == 1U &&
             party_dialog_add_record.second_value == 5U &&
             party_dialog_add_ports.category_updates ==
-                std::vector<PartyDialogCategoryUpdate>{
-                    {1U, 100U, 0x1234U, 7}, {2U, 100U, 0U, 7}
-                } &&
+                std::vector<PartyDialogCategoryUpdate>{{2U, 100U, 0U, 7}} &&
+            party_dialog_added.fixed_curve.path ==
+                openswd3::battle::LegacyBattleFixedCountPath::allocated_node &&
+            party_dialog_added.fixed_curve.count == 7U &&
+            party_dialog_added.fixed_curve.scale == 7U &&
             party_dialog_added.fixed_count.path ==
                 openswd3::battle::LegacyBattleFixedCountPath::existing_node &&
             party_dialog_add_ports.fixed_count_allocation_requests.size() ==
-                1U &&
+                2U &&
+            add_fixed_state.fixed_count_nodes.size() == 2U &&
+            static_cast<u16>(add_fixed_state.object_words[1U][1U]) == 1U &&
             static_cast<u16>(add_fixed_state.object_words[0U][1U]) == 1U &&
-            add_fixed_node.legacy_token == 0x76000000U &&
+            add_curve_node.legacy_token == 0x76000000U &&
+            static_cast<u16>(add_curve_node.words[1U]) == 0x1234U &&
+            static_cast<u16>(add_curve_node.words[1U] >> 16U) == 7U &&
+            static_cast<u16>(add_curve_node.words[2U]) == 7U &&
+            add_fixed_node.legacy_token == 0x76000014U &&
             static_cast<u16>(add_fixed_node.words[1U]) == 100U &&
             static_cast<u16>(add_fixed_node.words[1U] >> 16U) == 7U &&
             add_refresh < add_release &&
@@ -22898,7 +22901,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
                     PartyDialogEdit::quantity,
                     PartyDialogEdit::added_value
                 },
-        "0x40F890 adds a page-zero item, publishes the first two categories, and applies duplicate third-category writes to one shared fixed-count node before refreshing"
+        "0x40F890 adds a page-zero item, directly sets the first fixed curve, publishes the second category, and applies duplicate third-category writes before refreshing"
     );
 
     LegacyStandardModeForwardNode party_dialog_fixed_stop_record;
@@ -22935,13 +22938,73 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             !party_dialog_fixed_stopped.scratch_released &&
             !party_dialog_fixed_stopped.edits_cleared &&
             party_dialog_fixed_stop_record.second_value == 5U &&
+            party_dialog_fixed_stopped.fixed_curve.path ==
+                openswd3::battle::LegacyBattleFixedCountPath::existing_root &&
+            party_dialog_fixed_stopped.fixed_curve.count == 7U &&
+            party_dialog_fixed_stopped.fixed_curve.scale == 6U &&
             party_dialog_fixed_stop_ports.category_updates ==
-                std::vector<PartyDialogCategoryUpdate>{
-                    {1U, 101U, 0U, 7}, {2U, 101U, 0U, 7}
-                } &&
+                std::vector<PartyDialogCategoryUpdate>{{2U, 101U, 0U, 7}} &&
             party_dialog_fixed_stop_ports.legacy_battle_fixed_object_state()
                     .object_words[0U][0U] == 0U,
-        "0x40F890 preserves the inventory and earlier category prefix when the shared fixed-count allocation faults before refresh or scratch release"
+        "0x40F890 preserves the inventory, first fixed curve, and second category when the shared fixed-count allocation faults before refresh or scratch release"
+    );
+
+    LegacyStandardModeForwardNode party_dialog_curve_stop_record;
+    party_dialog_curve_stop_record.text_index = 102U;
+    party_dialog_curve_stop_record.first_value = 1U;
+    party_dialog_curve_stop_record.second_value = 2U;
+    party_dialog_curve_stop_record.record_bytes[0x20U] = 1U;
+    party_dialog_curve_stop_record.record_bytes[0x22U] = 0x34U;
+    party_dialog_curve_stop_record.record_bytes[0x23U] = 0x12U;
+    party_dialog_curve_stop_record.record_bytes[0x44U] = 9U;
+    openswd3::special_modes::LegacyPartyDialogState
+        party_dialog_curve_stop_state;
+    party_dialog_curve_stop_state.page_state.item_heads[0U] =
+        &party_dialog_curve_stop_record;
+    party_dialog_curve_stop_state.page_state.item_category_masks = {
+        0x12340001U, 2U, 4U
+    };
+    FakePartyDialogPorts party_dialog_curve_stop_ports;
+    party_dialog_curve_stop_ports.fixed_count_allocation_succeeds = false;
+    const auto party_dialog_curve_stopped =
+        openswd3::special_modes::run_legacy_party_dialog(
+            party_dialog_curve_stop_state,
+            openswd3::special_modes::LegacyPartyDialogEvent{
+                .message = PartyDialogMessage::command,
+                .command_parameter =
+                    static_cast<u32>(PartyDialogCommand::add_item),
+                .identifier_text = "102",
+                .quantity_text = "3",
+                .added_value_text = "7",
+            },
+            party_dialog_curve_stop_ports
+        );
+    test.expect_true(
+        party_dialog_curve_stopped.status ==
+                openswd3::special_modes::LegacyPartyDialogStatus::
+                    fixed_curve_typed_stop &&
+            party_dialog_curve_stopped.action == PartyDialogAction::none &&
+            party_dialog_curve_stopped.scratch_allocated &&
+            !party_dialog_curve_stopped.scratch_released &&
+            !party_dialog_curve_stopped.edits_cleared &&
+            party_dialog_curve_stop_record.second_value == 5U &&
+            party_dialog_curve_stopped.fixed_curve.status ==
+                openswd3::battle::LegacyBattleFixedCountStatus::
+                    allocation_record_access_typed_stop &&
+            party_dialog_curve_stopped.fixed_curve.stopped_offset == 0U &&
+            party_dialog_curve_stopped.fixed_curve.return_eax == 0U &&
+            party_dialog_curve_stopped.fixed_curve.return_ecx == 7U &&
+            party_dialog_curve_stopped.fixed_curve.return_edx == 0U &&
+            party_dialog_curve_stop_ports.category_updates.empty() &&
+            party_dialog_curve_stop_ports.fixed_count_allocation_requests
+                    .size() == 1U &&
+            party_dialog_curve_stop_ports.fixed_count_allocation_requests[0U]
+                    .eax == 0U &&
+            party_dialog_curve_stop_ports.fixed_count_allocation_requests[0U]
+                    .ecx == 7U &&
+            party_dialog_curve_stop_ports.fixed_count_allocation_requests[0U]
+                    .edx == 0x12340009U,
+        "0x40F890 stops at the reclaimed first fixed-curve allocation after preserving the inventory and full-register prefix before later categories"
     );
 
     openswd3::special_modes::LegacyPartyDialogState
@@ -23050,8 +23113,14 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         party_dialog_updated.action == PartyDialogAction::item_updated &&
             party_dialog_update_record.first_value == 0U &&
             party_dialog_update_record.second_value == 0xFFFBU &&
-            party_dialog_update_ports.category_updates ==
-                std::vector<PartyDialogCategoryUpdate>{{1U, 100U, 0U, 77}} &&
+            party_dialog_update_ports.category_updates.empty() &&
+            party_dialog_updated.fixed_curve.path ==
+                openswd3::battle::LegacyBattleFixedCountPath::existing_root &&
+            party_dialog_updated.fixed_curve.count == 77U &&
+            party_dialog_updated.fixed_curve.scale == 77U &&
+            static_cast<u16>(update_fixed_state.object_words[1U][1U] >> 16U) ==
+                77U &&
+            static_cast<u16>(update_fixed_state.object_words[1U][2U]) == 77U &&
             party_dialog_updated.fixed_count.path ==
                 openswd3::battle::LegacyBattleFixedCountPath::allocated_node &&
             party_dialog_updated.fixed_count.clamp_writes == 1U &&
@@ -23059,7 +23128,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             static_cast<u16>(update_fixed_node.words[1U]) == 100U &&
             static_cast<u16>(update_fixed_node.words[1U] >> 16U) == 20U &&
             update_release < update_refresh,
-        "0x40F890 directly updates a found player item, preserves a negative signed quantity, clamps the low-ID fixed count to twenty, then releases before refresh"
+        "0x40F890 directly updates a found player item, preserves a negative signed quantity, sets the first fixed curve, clamps the low-ID fixed count to twenty, then releases before refresh"
     );
 
     LegacyStandardModeForwardNode party_dialog_masked_key_record;

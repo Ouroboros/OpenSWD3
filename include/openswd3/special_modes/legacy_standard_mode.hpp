@@ -3876,9 +3876,6 @@ public:
     virtual void show_cursor(bool visible) noexcept = 0;
     virtual void report_item_insertion_error() noexcept = 0;
     virtual void report_item_deletion_error() noexcept = 0;
-    virtual void update_first_item_category(
-        compat::u16 item_id, compat::u16 category_value, compat::i32 added_value
-    ) noexcept = 0;
     virtual void update_second_item_category(
         compat::u16 item_id, compat::i32 added_value
     ) noexcept = 0;
@@ -3893,6 +3890,7 @@ enum class LegacyPartyDialogStatus : compat::u8 {
     item_record_stopped,
     member_source_stopped,
     global_index_stopped,
+    fixed_curve_typed_stop,
     fixed_count_typed_stop,
     member_level_requirement_typed_stop,
 };
@@ -3918,6 +3916,7 @@ struct LegacyPartyDialogResult {
     LegacyPartyDialogPageResult page{};
     LegacyPartyDialogRowResult row{};
     LegacyPlayerItemQuantityResult quantity{};
+    battle::LegacyBattleFixedCurveSetResult fixed_curve{};
     battle::LegacyBattleFixedCountSetResult fixed_count{};
     world_map::LegacyPartyMemberFieldWriteResult member_write{};
     bool message_handled{};
