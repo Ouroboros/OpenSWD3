@@ -3,15 +3,24 @@
 #include "openswd3/compat/types.hpp"
 
 #include <array>
+#include <list>
 #include <span>
 
 namespace openswd3::battle {
 
 inline constexpr compat::u32 kLegacyBattleFixedObjectDwordCount = 5U;
+inline constexpr compat::u32 kLegacyBattleFixedObjectSize =
+    kLegacyBattleFixedObjectDwordCount * sizeof(compat::u32);
 inline constexpr std::array<compat::u32, 3> kLegacyBattleFixedResetObjectTokens{
     0x004B9F00U,
     0x004ACBA8U,
     0x004B8A00U,
+};
+
+struct LegacyBattleFixedCountNodeState {
+    compat::u32 legacy_token{};
+    std::array<compat::u32, kLegacyBattleFixedObjectDwordCount> words{};
+    compat::u32 accessible_bytes{kLegacyBattleFixedObjectSize};
 };
 
 struct LegacyBattleFixedObjectState {
@@ -19,6 +28,7 @@ struct LegacyBattleFixedObjectState {
         std::array<compat::u32, kLegacyBattleFixedObjectDwordCount>,
         kLegacyBattleFixedResetObjectTokens.size()>
         object_words{};
+    std::list<LegacyBattleFixedCountNodeState> fixed_count_nodes;
 };
 
 class LegacyBattleFixedObjectStatePort {

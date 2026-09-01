@@ -288,6 +288,23 @@ add_test(
 )
 
 add_executable(
+    openswd3_battle_legacy_battle_fixed_count_chain_tests
+    unit/battle/legacy_battle_fixed_count_chain_test.cpp
+)
+target_include_directories(
+    openswd3_battle_legacy_battle_fixed_count_chain_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_battle_legacy_battle_fixed_count_chain_tests
+    PRIVATE openswd3_battle
+)
+add_test(
+    NAME battle.legacy_battle_fixed_count_chain
+    COMMAND openswd3_battle_legacy_battle_fixed_count_chain_tests
+)
+
+add_executable(
     openswd3_battle_legacy_battle_fixed_object_reset_tests
     unit/battle/legacy_battle_fixed_object_reset_test.cpp
 )

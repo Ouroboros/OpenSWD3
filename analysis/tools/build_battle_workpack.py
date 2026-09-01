@@ -1096,6 +1096,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "assembly_exact",
         "evidence/battle-fixed-object-reset-004776f0.md",
     ),
+    "0x00477710": (
+        "platform_adapted",
+        "evidence/battle-fixed-count-chain-00477710.md",
+    ),
 }
 
 

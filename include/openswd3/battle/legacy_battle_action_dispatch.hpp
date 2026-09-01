@@ -12,6 +12,7 @@
 #include "openswd3/battle/legacy_battle_attack_order_insert.hpp"
 #include "openswd3/battle/legacy_battle_attack_order_remove.hpp"
 #include "openswd3/battle/legacy_battle_frame_effect.hpp"
+#include "openswd3/battle/legacy_battle_fixed_count_chain.hpp"
 #include "openswd3/battle/legacy_battle_pair_transition.hpp"
 #include "openswd3/battle/legacy_battle_frame_refresh.hpp"
 #include "openswd3/battle/legacy_battle_outcome_state.hpp"
@@ -109,6 +110,8 @@ public:
 
 class LegacyBattleActionDispatchPort
     : public virtual LegacyBattleMonDatabasePort,
+      public virtual LegacyBattleFixedObjectStatePort,
+      public virtual LegacyBattleFixedCountAllocationPort,
       public virtual LegacyBattleSummonFramePort,
       public virtual LegacyBattleRetreatCommitPort,
       public virtual LegacyBattleActorMetricStatePort,
@@ -124,6 +127,11 @@ public:
 
     [[nodiscard]] virtual LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) = 0;
+
+    [[nodiscard]] LegacyBattleFixedCountAllocationReply
+    allocate_legacy_battle_fixed_count_node(
+        const LegacyBattleFixedCountAllocationRequest& request
+    ) override;
 
     [[nodiscard]] virtual bool group_b_action_configuration_typed_stop(
         compat::u32 callee_token
@@ -1253,6 +1261,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     final_actor_record_typed_stop,
     group_b_coordinate_offset_typed_stop,
     final_actor_descriptor_typed_stop,
+    fixed_count_typed_stop,
     player_item_typed_stop,
     text_message_typed_stop,
     actor_target_preparation_typed_stop,
@@ -1318,6 +1327,8 @@ struct LegacyBattleActionDispatchResult {
     LegacyBattleScaleScanResult scale_scan{};
     compat::u32 scale_scan_calls{};
     compat::u32 action_record_clear_calls{};
+    LegacyBattleFixedCountResult fixed_count{};
+    compat::u32 fixed_count_calls{};
     LegacyBattlePlayerItemQuantityResult player_item{};
     compat::u32 player_item_calls{};
     std::vector<LegacyBattleTextMessageResult> text_messages;

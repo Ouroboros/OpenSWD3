@@ -28,6 +28,15 @@ public:
         }
         const auto found = replies.find(request.callee_token);
         if (found == replies.end() || found->second.empty()) {
+            if (request.callee_token == 0x00487C10U) {
+                const u32 token = next_fixed_count_token;
+                next_fixed_count_token += 0x20U;
+                return {
+                    .eax = token,
+                    .ecx = request.ecx,
+                    .edx = request.edx,
+                };
+            }
             if (request.callee_token == 0x004783B0U) {
                 return {
                     .publish_metric_word = true,
@@ -66,6 +75,7 @@ public:
     };
     LegacyBattleFinalActorStepState* state_to_mutate{};
     u32 configured_actor_code{};
+    u32 next_fixed_count_token{0x75000000U};
     std::unordered_map<u32, std::deque<LegacyBattleActionCallReply>> replies;
     std::vector<LegacyBattleActionCallRequest> calls;
     std::array<openswd3::battle::LegacyBattleStartupResetRecord, 18>
@@ -321,8 +331,15 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                 result.attack_order_remove.matched &&
                 port.attack_order_records[0].value_00 == 0xFFFFFFFFU &&
                 port.count(0x004783B0U) == 1U &&
-                port.calls[3].arguments[0] == 0x004B9F00U &&
-                port.calls[3].arguments[1] == 0x55U &&
+                result.fixed_count_calls == 1U &&
+                result.fixed_count.path ==
+                    openswd3::battle::LegacyBattleFixedCountPath::
+                        allocated_node &&
+                port.count(0x00477710U) == 0U &&
+                port.count(0x00487C10U) == 1U &&
+                port.legacy_battle_fixed_object_state()
+                        .fixed_count_nodes.front()
+                        .words[1U] == 0x00010055U &&
                 port.count(0x00475870U) == 0U,
             "every non-one selector reads group B coordinates before descriptor, action and reset suffix"
         );

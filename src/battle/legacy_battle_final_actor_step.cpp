@@ -18,9 +18,7 @@ constexpr u32 kCallQueryContinuation = 0x0047F340U;
 constexpr u32 kCallConfigureActor = 0x00478330U;
 constexpr u32 kCallQueryDescriptor = 0x00480AD0U;
 constexpr u32 kCallQueryAction = 0x0047F910U;
-constexpr u32 kCallPublishAction = 0x00477710U;
 constexpr u32 kCallQueryGroupBReset = 0x0047CE80U;
-constexpr u32 kPublishActionOwnerToken = 0x004B9F00U;
 
 [[nodiscard]] constexpr u32 to_bits(const i32 value) noexcept {
     return std::bit_cast<u32>(value);
@@ -377,12 +375,25 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
 
     const auto action_reply =
         invoke(port, result, kCallQueryAction, {actor_token, 1U});
-    static_cast<void>(invoke(
+    result.fixed_count = accumulate_legacy_battle_fixed_count(
+        port.legacy_battle_fixed_object_state(),
         port,
-        result,
-        kCallPublishAction,
-        {kPublishActionOwnerToken, action_reply.eax}
-    ));
+        {
+            .owner_token = kLegacyBattleFixedCountOwnerToken,
+            .key = action_reply.eax,
+            .delta = 1U,
+            .entry_eax = action_reply.eax,
+            .entry_ecx = action_reply.ecx,
+            .entry_edx = action_reply.edx,
+        }
+    );
+    ++result.fixed_count_calls;
+    result.port_calls += result.fixed_count.allocation_calls;
+    if (result.fixed_count.status != LegacyBattleFixedCountStatus::completed) {
+        result.status =
+            LegacyBattleActionDispatchStatus::fixed_count_typed_stop;
+        return result;
+    }
     if (!remove_attack_order_entry(attack_order, result, actor_index)) {
         return result;
     }

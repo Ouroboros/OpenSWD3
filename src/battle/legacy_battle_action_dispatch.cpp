@@ -10,6 +10,26 @@
 
 namespace openswd3::battle {
 
+LegacyBattleFixedCountAllocationReply
+LegacyBattleActionDispatchPort::allocate_legacy_battle_fixed_count_node(
+    const LegacyBattleFixedCountAllocationRequest& request
+) {
+    LegacyBattleActionCallRequest call{
+        .callee_token = kLegacyBattleFixedCountAllocateCallToken,
+        .eax = request.eax,
+        .ecx = request.ecx,
+        .edx = request.edx,
+    };
+    call.arguments[0U] = request.allocation_size;
+    const auto reply = invoke(call);
+    return {
+        .eax = reply.eax,
+        .ecx = reply.ecx,
+        .edx = reply.edx,
+        .accessible_bytes = reply.eax == 0U ? 0U : kLegacyBattleFixedObjectSize,
+    };
+}
+
 LegacyBattleGroupASummonMaterializationCallReply
 LegacyBattleActionDispatchPort::invoke_group_a_summon_materialization(
     const LegacyBattleGroupASummonMaterializationCallRequest& request
@@ -90,7 +110,6 @@ constexpr u32 kCallTargetPhaseCoordinates = 0x00478470U;
 constexpr u32 kCallTargetPhaseDecode = 0x004019A0U;
 constexpr u32 kCallTargetPhaseProperty = 0x0047CE70U;
 constexpr u32 kCallTargetPhaseRelease = 0x004885A0U;
-constexpr u32 kCallCommitTargetPhase = 0x00477710U;
 constexpr u32 kCallActionThirteenQueryOffsets = 0x00478400U;
 constexpr u32 kCallActionThirteenQueryCoordinates = 0x004783B0U;
 constexpr u32 kCallActionThirteenQueryBase = 0x00478470U;
@@ -6355,22 +6374,33 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
             static_cast<void>(
                 invoke(state, port, result, kCallEnablePresentation, {1U})
             );
-            const i16 target_code =
-                signed_low_word(invoke(
-                                    state,
-                                    port,
-                                    result,
-                                    kCallQueryTargetCode,
-                                    {group_b_token(group_b_index)}
-                )
-                                    .eax);
-            static_cast<void>(invoke(
+            const auto target_code = invoke(
                 state,
                 port,
                 result,
-                kCallCommitTargetPhase,
-                {0x004B9F00U, static_cast<u32>(target_code), 1U}
-            ));
+                kCallQueryTargetCode,
+                {group_b_token(group_b_index)}
+            );
+            result.fixed_count = accumulate_legacy_battle_fixed_count(
+                port.legacy_battle_fixed_object_state(),
+                port,
+                {
+                    .owner_token = kLegacyBattleFixedCountOwnerToken,
+                    .key = target_code.eax,
+                    .delta = 1U,
+                    .entry_eax = target_code.eax,
+                    .entry_ecx = target_code.ecx,
+                    .entry_edx = target_code.edx,
+                }
+            );
+            ++result.fixed_count_calls;
+            result.port_calls += result.fixed_count.allocation_calls;
+            if (result.fixed_count.status !=
+                LegacyBattleFixedCountStatus::completed) {
+                result.status =
+                    LegacyBattleActionDispatchStatus::fixed_count_typed_stop;
+                return result;
+            }
             state.packed_actor_counter =
                 (state.packed_actor_counter & 0xFFFFFF00U) |
                 static_cast<compat::u8>(state.packed_actor_counter + 1U);

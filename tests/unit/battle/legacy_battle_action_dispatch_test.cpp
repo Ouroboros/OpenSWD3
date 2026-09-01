@@ -1132,6 +1132,7 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         Fixture fixture;
         DispatchPort port;
         port.action = 6U;
+        port.push(0x00487C10U, {.eax = 0x76000000U});
         port.push(0x00487C10U, {.eax = 0x00630000U});
         auto context = fixture.context();
         const auto result = openswd3::battle::dispatch_legacy_battle_action(
@@ -1141,6 +1142,15 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
             port.world_item_list_state().player_inventory.front();
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.fixed_count_calls == 1U &&
+                result.fixed_count.path ==
+                    openswd3::battle::LegacyBattleFixedCountPath::
+                        allocated_node &&
+                port.count(0x00477710U) == 0U &&
+                port.count(0x00487C10U) == 2U &&
+                port.legacy_battle_fixed_object_state()
+                        .fixed_count_nodes.front()
+                        .words[1U] == 0x00010001U &&
                 result.player_item_calls == 1U &&
                 result.player_item.return_token == 0x0063000CU &&
                 item.item_id == 7U && item.quantity_b == 1U,

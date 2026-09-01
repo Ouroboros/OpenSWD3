@@ -199,6 +199,7 @@ bit75未置且message gate bit0为1时，播放固定消息、再次清动作rec
 
 已关闭callee直接复用：
 
+- case 6目标阶段完成后的固定键计数链累加；
 - mode 1五秒倒计时初始化；
 - 两次0x98动作record清零；
 - 状态指示器动画；
@@ -237,7 +238,7 @@ bit75未置且message gate bit0为1时，播放固定消息、再次清动作rec
 - case 2 deformation分配、构造、完成时析构与owner释放；
 - action404同调用0→1→2、双组push/pop顺序；
 - action409独有screen mode与scan push发布；
-- case 6减到2消息终态及完成时selector-one道具数量直连；
+- case 6减到2消息终态、完成时固定键计数链直连、缺键唯一分配及selector-one道具数量直连；
 - case 13事件槽；
 - case 23消息路径selector-one道具数量直连；
 - case 22已完成门与真实状态指示器完成路径；

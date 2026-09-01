@@ -2,7 +2,7 @@
 
 状态：`module_in_progress`
 
-当前关闭进度：`265/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
+当前关闭进度：`266/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
 
 ## 1. 唯一真值与模块目标
 
@@ -51,10 +51,10 @@ code_origin == game
 - 尾地址：`0x00484500`；
 - `confirmed_boundary`：`61`；
 - `medium`导航候选：`361`；
-- `pending_audit`：`157`；
+- `pending_audit`：`156`；
 - `assembly_exact`：`10`；
-- `platform_adapted`：`255`；
-- 已关闭：`265`。
+- `platform_adapted`：`256`；
+- 已关闭：`266`。
 
 六个稳定导航分组为：
 
@@ -76,7 +76,7 @@ code_origin == game
 - `legacy_battle_assets`：FIGTALK固定窗口和`battle.ffd`头、索引、记录读取；
 - `legacy_battle_setup`：初始队伍筛选、固定阵型、镜像坐标和敌方记录布局。
 
-它们覆盖了`0x0046E0B0`、`0x0045F130`、`0x0045F1B0`与`0x00451B10`的部分有效资产路径或部分指令区间，但尚未证明所属函数的完整LST函数体、全部外部chunk、全部错误/循环/异常域、caller回收和完整战斗生命周期。因此这些历史切片继续不计数；当前`265/422`只来自本文件逐项登记且完成全部关闭门的函数，不得把其他测试通过、局部有效路径或真实battle 98样本当作函数关闭。
+它们覆盖了`0x0046E0B0`、`0x0045F130`、`0x0045F1B0`与`0x00451B10`的部分有效资产路径或部分指令区间，但尚未证明所属函数的完整LST函数体、全部外部chunk、全部错误/循环/异常域、caller回收和完整战斗生命周期。因此这些历史切片继续不计数；当前`266/422`只来自本文件逐项登记且完成全部关闭门的函数，不得把其他测试通过、局部有效路径或真实battle 98样本当作函数关闭。
 
 `app::battle_transition`和`frame_runtime`只实现顶层请求与返回编排，不属于422项战斗内部函数关闭计数。
 
@@ -741,6 +741,8 @@ I5最终必须锁定：
 
 本轮再完成`audit_order=265`的`0x004776F0`战斗固定对象五字清零函数。完整权威LST主体`0x004776F0..0x00477704`从proc到endp共14个物理行、8条实际指令，无callee、跳转、局部标签或外部chunk。函数先把cdecl对象参数放入ECX并清零EAX，再严格按`+0x00`、`+0x04`、`+0x08`、`+0x0C`、`+0x10`顺序写五个dword，EDX全程保留；每个原写入点均以span前缀typed-stop保留此前副作用和三寄存器状态。三个20字节物理header由可虚继承的唯一typed owner统一持有，组A奖励资料端口复用同一owner。已关闭对象批量重置caller删除旧fixed opaque端口，按原token顺序直接组合helper；全局链清理EDX穿过三次helper和384字节表清零，再由18次角色reset reply逐次线程。验证：独立helper定向测试、战斗聚合caller测试、完整core AddressSanitizer`193/193`、Linux core`193/193`、Linux app`199/199`全部通过，最终日志零OpenSWD3源码warning、测试失败、sanitizer finding和runtime error。工作包为`265/422 = 255 platform_adapted + 10 assembly_exact + 157 pending_audit`；生成器连续双跑逐字节一致，SHA256为`cdeb76df6326b75619c7728eddd1a049f4dc1ce2b55a632dc0a1fa075ccefbed`。本叶函数全部可观察域由完整LST和穷举写入边界测试覆盖，不依赖原版动态oracle；caller其余全局链清理与角色callee联合动态差分继续登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=266`的`0x00477710`战斗相邻对象辅助函数。
+本轮再完成`audit_order=266`的`0x00477710`战斗固定键计数链累加函数。完整权威LST主体`0x00477710..0x0047777C`从proc到endp共65个物理行、43条实际指令、1个直接调用、4个跳转、4个局部标签和2个返回点，没有外部chunk。固定根既是链入口也是首个可匹配记录，链按`+0x00`顺序扫描、按word键匹配并从`+0x06`读取计数；现有记录只在加法前无符号计数低于20时把完整32位增量加入EAX并仅回写低word。缺键路径先把分配token写入前驱link，再按五个dword顺序清零新节点；随后只把增量低word写入新计数、写入word键并递增根`+0x04`低word。实现把根与动态节点统一收口到`LegacyBattleFixedObjectStatePort`唯一owner，并以窄allocator端口保留20字节分配、寄存器线程以及先链接后首次节点访问失败的原副作用顺序；两个真实caller均已删除旧的整函数opaque边界，直接组合typed helper并保持固定增量1，待审的相邻链函数没有提前修改。独立测试覆盖根与动态节点命中、加法前20上限、32/16位增量差异、allocator失败、未映射next以及五个清零写入点的全部typed-stop前缀；两个caller测试锁定旧边界零调用、仅缺键时分配及节点内容。最终定向2/2、Linux core 194/194、AddressSanitizer 194/194、Linux app 200/200、changed-range clang-format和零warning门禁全部通过。工作包为`266/422 = 256 platform_adapted + 10 assembly_exact + 156 pending_audit`；生成器连续双跑逐字节一致，SHA256为`e8968fb62d97079b3f52e9ec4af2baeeeed013c76255bb517462956d05418e58`。动态差分因原版20字节键链、allocator状态及两个caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=267`的`0x00477780`战斗相邻链辅助函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。
