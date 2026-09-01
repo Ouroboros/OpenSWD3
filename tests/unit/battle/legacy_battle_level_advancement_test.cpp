@@ -1,3 +1,4 @@
+#include "legacy_battle_level_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_level_advancement.hpp"
 
 #include <array>
@@ -18,7 +19,8 @@ using openswd3::compat::u16;
 using openswd3::compat::u32;
 using openswd3::world_map::LegacyWorldStoryPartyMemberResources;
 
-class Port final : public openswd3::battle::LegacyBattleLevelAdvancementPort {
+class Port final : public openswd3::battle::LegacyBattleLevelAdvancementPort,
+                   public openswd3::test::LegacyBattleLevelDatabaseFixture {
 public:
     [[nodiscard]] LegacyBattleLevelAdvancementCallReply
     invoke_level_advancement(
@@ -206,16 +208,8 @@ void test_battle_level_advancement(openswd3::test::Context& test) {
         fixture.metrics.group_a_count = 1U;
         fixture.party_resources[0U].field_00 = 49U;
         fixture.party_resources[0U].field_2c = 2U;
-        fixture.port.reply(
-            LegacyBattleLevelAdvancementCall::query_level_requirement,
-            {
-                .eax = 0x11111111U,
-                .ecx = 0x22222222U,
-                .edx = 0x33333333U,
-                .publish_requirement = true,
-                .requirement = 50U,
-            }
-        );
+        fixture.port.record_available = true;
+        fixture.port.level_value = 50U;
         const auto result = run(fixture);
         test.expect_true(
             result.status == LegacyBattleLevelAdvancementStatus::completed &&
@@ -238,16 +232,8 @@ void test_battle_level_advancement(openswd3::test::Context& test) {
 
         const auto baseline = make_profile(10U, 2U, 500U);
         const auto advanced = make_profile(12U, 3U, 700U);
-        fixture.port.reply(
-            LegacyBattleLevelAdvancementCall::query_level_requirement,
-            {
-                .eax = 0x10101010U,
-                .ecx = 0x20202020U,
-                .edx = 0x30303030U,
-                .publish_requirement = true,
-                .requirement = 50U,
-            }
-        );
+        fixture.port.record_available = true;
+        fixture.port.level_value = 50U;
         fixture.port.reply(
             LegacyBattleLevelAdvancementCall::build_level_profile,
             {
@@ -315,16 +301,16 @@ void test_battle_level_advancement(openswd3::test::Context& test) {
                     original.tail_2d_to_37,
             "level advancement copies all 56 profile bytes and applies each derived u16 delta independently"
         );
-        const auto& requirement = fixture.port.calls[0U];
-        const auto& baseline_call = fixture.port.calls[1U];
-        const auto& advanced_call = fixture.port.calls[2U];
+        const auto& baseline_call = fixture.port.calls[0U];
+        const auto& advanced_call = fixture.port.calls[1U];
         test.expect_true(
-            requirement.eax == 2U && requirement.ecx == 0x71000000U &&
-                requirement.edx == 0x12340002U &&
-                requirement.arguments[0U] == 2U &&
-                requirement.arguments[1U] == 3U && baseline_call.eax == 2U &&
-                baseline_call.ecx == 2U && baseline_call.edx == 56U &&
-                advanced_call.eax == 0xAAAA0001U &&
+            result.level_load.group == 2U && result.level_load.level == 3U &&
+                result.level_load.output_value == 50U &&
+                result.level_load.record_found &&
+                fixture.port.requested_entries ==
+                    std::vector<std::pair<u32, u32>>{{2U, 3U}} &&
+                baseline_call.eax == 2U && baseline_call.ecx == 2U &&
+                baseline_call.edx == 56U && advanced_call.eax == 0xAAAA0001U &&
                 advanced_call.ecx == 0xBBBB0002U && advanced_call.edx == 2U,
             "level advancement preserves requirement and both profile-build callsite register snapshots"
         );
@@ -346,6 +332,33 @@ void test_battle_level_advancement(openswd3::test::Context& test) {
                     }} &&
                 result.return_eax == 0xABCD1201U,
             "level advancement stops the old cue and plays the level cue with the stale delta registers"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.metrics.group_a_count = 1U;
+        fixture.party_resources[0U].field_00 = 100U;
+        fixture.party_resources[0U].field_2c = 2U;
+        fixture.port.allocation_succeeds = false;
+        const auto result =
+            run(fixture,
+                {
+                    .requirement_output_token = 0x71000000U,
+                    .requirement_number_of_bytes_read_token = 0x72000000U,
+                });
+        test.expect_true(
+            result.status ==
+                    LegacyBattleLevelAdvancementStatus::
+                        level_requirement_typed_stop &&
+                result.requirement_calls == 1U &&
+                result.profile_build_calls == 0U &&
+                result.level_load.return_eax == 0U &&
+                result.level_load.return_ecx == 0x100U &&
+                result.level_load.return_edx == 0x72000000U &&
+                fixture.state.completion_gate == 0U &&
+                fixture.port.release_calls == 0U,
+            "level advancement propagates the LEVEL stream-clear fault before the experience comparison and completion tail"
         );
     }
 

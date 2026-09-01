@@ -24,16 +24,16 @@
 
 ## 3. selector16与LEVEL顺序
 
-selector16先提交低byte，再以固定group 2和`u32(value)+1`请求LEVEL记录，输出初值为1：
+selector16先提交低byte，再以固定group 2和`u32(value)+1`直连`0x00477290`的共享LEVEL loader，输出初值为1：
 
-- LEVEL成功时，用输出完整覆盖同record field14（`+0x20`）。
-- LEVEL失败时，保留旧field14。
-- 两种路径都保留已经写入的低byte，并正常返回0。
+- tag 5正常成功时，用最后一个tag 0输出完整覆盖同record field14（`+0x20`）；
+- 文件打开失败或记录首word非零时，callee正常返回0，输出仍为1，caller仍把1写入field14；
+- loader在原内存访问点typed-stop时，保留已经写入的低byte，但不提交field14，也不伪造caller正常返回。
 
-该失败不是setter typed-stop，而是原文件/记录失败的非致命合同。当前最小`LegacyPartyMemberFieldWritePorts`从剧情VM大端口抽出；B10真实LEVEL loader后续只需实现这一接口。
+`LegacyPartyMemberFieldWriteResult`携带完整load结果与`level_requirement_stopped`。剧情VM opcodes 188–190在低byte已写后传播typed-stop，不推进instruction offset；队伍对话在scratch已释放后传播，不执行页面refresh。LEVEL文件会话由共享`LegacyBattleLevelDatabasePort`唯一持有。
 
 ## 4. owner回收与验证
 
 剧情VM此前已有同语义内部setter。当前提升公开typed入口，并把opcodes188–190改为直接调用；对话主过程关闭时也必须直接复用。
 
-`special_modes.legacy_initial_menu`覆盖0..13低字截断、14/15完整dword、selector16负值按完整u32加一、低byte先写、LEVEL成功/失败和default不写。既有VM测试继续覆盖set/add/sub回绕、固定第二项记录及LEVEL非致命失败。
+`special_modes.legacy_initial_menu`覆盖0..13低字截断、14/15完整dword、selector16负值按完整u32加一、低byte先写、真实LEVEL成功、正常打开失败、分配清零typed-stop和default不写。既有VM与对话测试继续覆盖set/add/sub回绕、固定第二项记录、低byte故障前缀和instruction/page副作用阻断。

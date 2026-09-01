@@ -3092,8 +3092,7 @@ void test_party_member_field_write_protocol(openswd3::test::Context& test) {
                 fixture.state.party_member_resources[0U].field_00 ==
                     0xAAAAAAAAU &&
                 fixture.ports.direct_audio_service_count == 0U &&
-                fixture.ports.party_member_level_load_count ==
-                    (selector == 16 ? 1U : 0U),
+                fixture.ports.allocation_calls == (selector == 16 ? 1U : 0U),
             "opcode 188 maps all seventeen setter selectors to the second party-member record and truncates only at the destination width"
         );
     }
@@ -3199,8 +3198,8 @@ void test_party_member_field_write_protocol(openswd3::test::Context& test) {
     Fixture level_success;
     level_success.state.party_member_resources[1U].field_2c = 0xFFU;
     level_success.state.party_member_resources[1U].field_20 = 0x11111111U;
-    level_success.ports.party_member_level_load_success = true;
-    level_success.ports.party_member_level_output = 0xCAFEBABEU;
+    level_success.ports.record_available = true;
+    level_success.ports.level_value = 0xCAFEBABEU;
     prime(level_success, OP_189_ADD_PARTY_MEMBER_FIELD, 16U, 1U);
     write_u16(level_success.state.window, 6U, kStoryVmTypedStop);
     const auto level_success_result = level_success.step();
@@ -3217,18 +3216,36 @@ void test_party_member_field_write_protocol(openswd3::test::Context& test) {
             level_success.state.party_member_resources[1U].field_2c == 0U &&
             level_success.state.party_member_resources[1U].field_20 ==
                 0xCAFEBABEU &&
-            level_success.ports.party_member_level_load_count == 1U &&
-            level_success.ports.last_party_member_level_group == 2U &&
-            level_success.ports.last_party_member_level == 257U &&
+            level_success.ports.allocation_calls == 1U &&
+            level_success.ports.requested_entries ==
+                std::vector<std::pair<u32, u32>>{{4U, 57U}} &&
             level_failure_result.status ==
                 LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             level_failure.state.party_member_resources[1U].field_2c == 0xFFU &&
-            level_failure.state.party_member_resources[1U].field_20 ==
-                0x22222222U &&
-            level_failure.ports.party_member_level_load_count == 1U &&
-            level_failure.ports.last_party_member_level_group == 2U &&
-            level_failure.ports.last_party_member_level == 0U,
-        "field sixteen writes its low byte before LEVEL group two lookup at wrapped result plus one, updating field fourteen only on helper success"
+            level_failure.state.party_member_resources[1U].field_20 == 1U &&
+            level_failure.ports.allocation_calls == 1U &&
+            level_failure.ports.requested_entries ==
+                std::vector<std::pair<u32, u32>>{{2U, 0U}},
+        "field sixteen writes its low byte before LEVEL group two lookup at wrapped result plus one, committing the initialized field-fourteen fallback after a normal no-record return"
+    );
+
+    Fixture level_stop;
+    level_stop.state.party_member_resources[1U].field_20 = 0x12345678U;
+    level_stop.ports.allocation_succeeds = false;
+    prime(level_stop, OP_188_SET_PARTY_MEMBER_FIELD, 16U, 5U);
+    const auto level_stop_result = level_stop.step();
+    test.expect_true(
+        level_stop_result.status ==
+                LegacyWorldStoryVmStatus::
+                    party_member_level_requirement_typed_stop &&
+            level_stop_result.executed_instruction_count == 1U &&
+            level_stop.context.instruction_offset == 0U &&
+            level_stop.state.party_member_resources[1U].field_2c == 5U &&
+            level_stop.state.party_member_resources[1U].field_20 ==
+                0x12345678U &&
+            level_stop.ports.allocation_calls == 1U &&
+            level_stop.ports.release_calls == 0U,
+        "opcodes 188-190 propagate the selector-sixteen LEVEL clear fault without advancing after the already-committed low byte"
     );
 
     for (const u16 opcode : {
@@ -3255,7 +3272,7 @@ void test_party_member_field_write_protocol(openswd3::test::Context& test) {
                 high_selector.context.instruction_offset == 0x7FFAU &&
                 high_selector.state.previous_opcode == opcode &&
                 high_selector.state.party_member_resources[1U].field_00 == 7U &&
-                high_selector.ports.party_member_level_load_count == 0U,
+                high_selector.ports.allocation_calls == 0U,
             "opcodes 188-190 selector above sixteen reads the value but does not write, advance, or call LEVEL before audio-yield retry"
         );
     }
@@ -3280,7 +3297,7 @@ void test_party_member_field_write_protocol(openswd3::test::Context& test) {
                 negative_selector.state.previous_opcode == opcode &&
                 negative_selector.state.party_member_resources[1U].field_00 ==
                     0x12345678U &&
-                negative_selector.ports.party_member_level_load_count == 0U,
+                negative_selector.ports.allocation_calls == 0U,
             "negative field selectors follow getter and setter defaults without touching the record"
         );
     }

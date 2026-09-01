@@ -1,3 +1,4 @@
+#include "legacy_battle_level_database_fixture.hpp"
 #include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_frame_coordinator.hpp"
 #include "openswd3/rendering/legacy_image_command_stream.hpp"
@@ -34,7 +35,8 @@ using openswd3::compat::u32;
 
 class CoordinatorPort final
     : public openswd3::battle::LegacyBattleFrameCoordinatorPort,
-      public openswd3::test::LegacyBattleMonDatabaseFixture {
+      public openswd3::test::LegacyBattleMonDatabaseFixture,
+      public openswd3::test::LegacyBattleLevelDatabaseFixture {
 public:
     [[nodiscard]] LegacyBattleFrameCoordinatorCallReply
     invoke(const LegacyBattleFrameCoordinatorCallRequest& request) override {
@@ -223,7 +225,8 @@ public:
             request.call ==
                 openswd3::battle::LegacyBattleMonDatabaseCall::
                     allocate_stream) {
-            allocation_succeeds = false;
+            openswd3::test::LegacyBattleMonDatabaseFixture::
+                allocation_succeeds = false;
         }
         return openswd3::test::LegacyBattleMonDatabaseFixture::
             invoke_legacy_battle_mon_database(request, destination);
@@ -1098,12 +1101,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     {
         CoordinatorPort port;
         configure_common_port(port);
-        port.replies[LegacyBattleFrameCoordinatorCall::
-                         level_advancement_query_requirement]
-            .publish_level_requirement = true;
-        port.replies[LegacyBattleFrameCoordinatorCall::
-                         level_advancement_query_requirement]
-            .level_requirement = 7U;
         port.replies
             [LegacyBattleFrameCoordinatorCall::level_advancement_build_profile]
                 .publish_level_profile = true;
@@ -1114,14 +1111,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             [LegacyBattleFrameCoordinatorCall::level_advancement_play_sample]
                 .eax = 0x12345678U;
 
-        const auto requirement = port.invoke_level_advancement({
-            .call = openswd3::battle::LegacyBattleLevelAdvancementCall::
-                query_level_requirement,
-            .arguments = {1U, 2U, 3U, 4U},
-            .eax = 5U,
-            .ecx = 6U,
-            .edx = 7U,
-        });
         const auto profile = port.invoke_level_advancement({
             .call = openswd3::battle::LegacyBattleLevelAdvancementCall::
                 build_level_profile,
@@ -1134,13 +1123,12 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         const auto played = port.play_level_sample(18U, 19U, 20U, 0x12BU, -4);
 
         test.expect_true(
-            requirement.publish_requirement && requirement.requirement == 7U &&
-                profile.publish_profile && profile.profile.field_2c == 3U &&
+            profile.publish_profile && profile.profile.field_2c == 3U &&
                 stopped.eax == 1U && played.eax == 0x12345678U &&
                 port.count(
                     LegacyBattleFrameCoordinatorCall::
-                        level_advancement_query_requirement
-                ) == 1U &&
+                        reserved_level_advancement_query_requirement
+                ) == 0U &&
                 port.count(
                     LegacyBattleFrameCoordinatorCall::
                         level_advancement_build_profile
@@ -1153,7 +1141,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                     LegacyBattleFrameCoordinatorCall::
                         level_advancement_play_sample
                 ) == 1U,
-            "frame coordinator maps level requirement, profile build and both audio adapters"
+            "frame coordinator leaves the retired level requirement slot unused while mapping profile build and both audio adapters"
         );
     }
 

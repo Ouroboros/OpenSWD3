@@ -199,7 +199,8 @@ LegacyPartyMemberFieldWriteResult write_party_member_field(
     LegacyWorldStoryPartyMemberResources& resources,
     const i32 selector,
     const i32 value,
-    LegacyPartyMemberFieldWritePorts& ports
+    LegacyPartyMemberFieldWritePorts& ports,
+    const LegacyPartyMemberFieldWriteRequest& request
 ) {
     LegacyPartyMemberFieldWriteResult result;
     if (selector < 0 || selector > 16) {
@@ -254,11 +255,30 @@ LegacyPartyMemberFieldWriteResult write_party_member_field(
     case 16: {
         resources.field_2c = static_cast<u8>(value);
         u32 level_output = 1U;
+        const u32 level = std::bit_cast<u32>(value) + 1U;
         result.level_requested = true;
-        result.level_loaded = ports.load_party_member_level_field(
-            2U, std::bit_cast<u32>(value) + 1U, level_output
+        result.level_load = battle::load_legacy_battle_level_requirement(
+            level_output,
+            ports,
+            {
+                .group = 2U,
+                .level = level,
+                .output_token = request.level_output_token,
+                .stale_directory_offset = request.stale_directory_offset,
+                .number_of_bytes_read_token =
+                    request.level_number_of_bytes_read_token,
+                .entry_eax = 2U,
+                .entry_ecx = level,
+                .entry_edx = request.level_output_token,
+                .output_accessible = request.level_output_accessible,
+            }
         );
-        if (result.level_loaded) {
+        result.level_loaded = result.level_load.record_found;
+        result.level_requirement_stopped =
+            battle::legacy_battle_level_requirement_load_stopped(
+                result.level_load.status
+            );
+        if (!result.level_requirement_stopped) {
             resources.field_20 = level_output;
         }
 
@@ -2025,9 +2045,10 @@ LegacyPartyMemberFieldWriteResult write_legacy_party_member_field(
     LegacyWorldStoryPartyMemberResources& resources,
     const compat::i32 selector,
     const compat::i32 value,
-    LegacyPartyMemberFieldWritePorts& ports
+    LegacyPartyMemberFieldWritePorts& ports,
+    const LegacyPartyMemberFieldWriteRequest& request
 ) {
-    return write_party_member_field(resources, selector, value, ports);
+    return write_party_member_field(resources, selector, value, ports, request);
 }
 
 void initialize_legacy_world_story_vm(LegacyWorldStoryVmState& state) noexcept {
@@ -7701,9 +7722,14 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 value = std::bit_cast<i32>(result_bits);
             }
 
-            static_cast<void>(write_legacy_party_member_field(
+            const auto field_write = write_legacy_party_member_field(
                 resources, selector, value, ports
-            ));
+            );
+            if (field_write.level_requirement_stopped) {
+                result.status = LegacyWorldStoryVmStatus::
+                    party_member_level_requirement_typed_stop;
+                return result;
+            }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 6U);
             state.previous_opcode = result.opcode;

@@ -148,13 +148,33 @@ private:
         u32 requirement = 0U;
         eax_ = label + 1U;
         ecx_ = request_.requirement_output_token;
-        const auto requirement_reply = invoke(
-            LegacyBattleLevelAdvancementCall::query_level_requirement,
-            {label + 1U, new_level, request_.requirement_output_token, 0U}
+        result_.level_load = load_legacy_battle_level_requirement(
+            requirement,
+            port_,
+            {
+                .group = label + 1U,
+                .level = new_level,
+                .output_token = request_.requirement_output_token,
+                .stale_directory_offset =
+                    request_.requirement_stale_directory_offset,
+                .number_of_bytes_read_token =
+                    request_.requirement_number_of_bytes_read_token,
+                .entry_eax = eax_,
+                .entry_ecx = ecx_,
+                .entry_edx = edx_,
+                .output_accessible = request_.requirement_output_accessible,
+            }
         );
         ++result_.requirement_calls;
-        if (requirement_reply.publish_requirement) {
-            requirement = requirement_reply.requirement;
+        eax_ = result_.level_load.return_eax;
+        ecx_ = result_.level_load.return_ecx;
+        edx_ = result_.level_load.return_edx;
+        if (legacy_battle_level_requirement_load_stopped(
+                result_.level_load.status
+            )) {
+            result_.status = LegacyBattleLevelAdvancementStatus::
+                level_requirement_typed_stop;
+            return false;
         }
 
         label = bindings_.startup.action_mode_source

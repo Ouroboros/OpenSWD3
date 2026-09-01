@@ -6,7 +6,7 @@
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗函数 `0x00477290`
+当前步骤：模块10 · 审计战斗函数 `0x00477400`
 
 ## 0. 执行约定
 
@@ -4318,4 +4318,6 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=261`的`0x00476DB0`战斗MON.DAT定义读取函数。完整权威LST主体`0x00476DB0..0x0047720F`共586个物理行、335条实际指令、15个call、52个跳转、42个局部标签和3个返回点且无外部chunk。实现旧说明释放、严格`0xA4`清零、共享MON.DAT惰性会话、低16位目录索引与相对seek、1024字节流、首tag 1000门、tag 1/6–22/25–30/100/1000/2000完整投影、名称/说明不同畸形推进、一字节分配寄存器、动态token计数和真实访问typed-stop；固定scratch、动态说明和文件会话均为唯一typed owner。25个已关闭过程的35个直接站点完成回收，五个待审过程的10个站点保持隔离；生产路径只走低层MON loader，旧枚举值仅保留reserved槽/别名。真实163731字节`MON.DAT`验证definition 1和`0x126`的目录、tag、名称、说明、游标、共享open及旧说明释放；未启动游戏程序。独立definition定向测试、完整core AddressSanitizer`189/189`、Linux core`189/189`、Linux app`195/195`全部通过，零源码warning、测试失败和sanitizer finding。工作包为`261/422 = 252 platform_adapted + 9 assembly_exact + 161 pending_audit`，SHA256为`7afe656e227c469785fd4438f67b87a9c8dcdd375befcbc78921f82198f0a520`；动态联合捕获后端缺失登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=262`的`0x00477290`战斗定义文字释放函数。
+本轮再完成`audit_order=262`的`0x00477290`战斗LEVEL.DAT等级需求读取函数。完整权威LST主体`0x00477290..0x004773F7`共186个物理行、123条实际指令、10个call、9个跳转、7个局部标签、3个返回点且无外部chunk。实现共享LEVEL文件惰性会话、`0x70 + 4 * (group * 100 + level)`的u32回绕目录、相对偏移加`0x200`、固定`0x400`字节分配/清零/读取、首word非零返回、tag 1跳word、tag 0按六dword加末word复制并发布`+0x16`值、tag 5终止及未知非零tag原循环；短读陈旧dword、多个tag 0覆盖、分配零、部分复制、流/输出真实访问typed-stop、live寄存器和无伪释放全部保留。队伍成员setter、四入口菜单动画、角色属性渲染和战斗升级四个caller删除旧opaque查询并直连唯一typed owner；角色属性`calculate_value`和battle frame查询槽仅保留reserved alias且生产零调用。SDL持有唯一文件、handle/stream token与共享会话，并向剧情VM、转场及战斗嵌套端口转发。真实8206字节`LEVEL.DAT`锁定group 1/level 2输出20、group 2/level 50输出63950及连续查询一次open。验证：独立loader与四caller故障前缀测试、完整core AddressSanitizer`190/190`、Linux core`190/190`、Linux app`196/196`全部通过，最终日志零OpenSWD3源码warning、测试失败、sanitizer finding或runtime error；新增及触碰C++文件通过clang-format Werror和diff检查。工作包推进到`262/422 = 253 platform_adapted + 9 assembly_exact + 160 pending_audit`；生成器连续双跑逐字节一致，SHA256为`8c4f0d4aa39562f76f313ca9023206cb8bce026910f1afc8c16f29e25608ba50`。动态差分因原版共享文件对象、短读陈旧缓冲、堆token、四caller输入及EAX/ECX/EDX联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=263`的`0x00477400`战斗MON定义派生记录读取函数。

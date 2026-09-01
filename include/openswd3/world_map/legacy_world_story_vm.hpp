@@ -4,6 +4,7 @@
 #include "openswd3/asset_runtime/legacy_ani_follower_effect.hpp"
 #include "openswd3/asset_runtime/legacy_ani_role_particle_effect.hpp"
 #include "openswd3/asset_runtime/legacy_frame_deformation.hpp"
+#include "openswd3/battle/legacy_battle_level_requirement.hpp"
 #include "openswd3/input_time_rng/legacy_crt_rng.hpp"
 #include "openswd3/input_time_rng/legacy_secondary_rng.hpp"
 #include "openswd3/resource_io/legacy_resource_databases.hpp"
@@ -248,12 +249,10 @@ enum class LegacyWorldStoryFileDirectory : compat::u8 {
     music,
 };
 
-class LegacyPartyMemberFieldWritePorts {
+class LegacyPartyMemberFieldWritePorts
+    : public virtual battle::LegacyBattleLevelDatabasePort {
 public:
-    virtual ~LegacyPartyMemberFieldWritePorts() = default;
-    [[nodiscard]] virtual bool load_party_member_level_field(
-        compat::u32 group, compat::u32 level, compat::u32& output
-    ) = 0;
+    ~LegacyPartyMemberFieldWritePorts() override = default;
 };
 
 struct LegacyWorldStoryPartyMemberResources {
@@ -278,18 +277,28 @@ static_assert(sizeof(LegacyWorldStoryPartyMemberResources) == 0x38U);
     const LegacyWorldStoryPartyMemberResources& resources, compat::i32 selector
 ) noexcept;
 
+struct LegacyPartyMemberFieldWriteRequest {
+    compat::u32 level_output_token{};
+    compat::u32 level_number_of_bytes_read_token{};
+    compat::u32 stale_directory_offset{};
+    bool level_output_accessible{true};
+};
+
 struct LegacyPartyMemberFieldWriteResult {
     compat::i32 legacy_return_value{};
+    battle::LegacyBattleLevelRequirementLoadResult level_load{};
     bool field_written{};
     bool level_requested{};
     bool level_loaded{};
+    bool level_requirement_stopped{};
 };
 
 [[nodiscard]] LegacyPartyMemberFieldWriteResult write_legacy_party_member_field(
     LegacyWorldStoryPartyMemberResources& resources,
     compat::i32 selector,
     compat::i32 value,
-    LegacyPartyMemberFieldWritePorts& ports
+    LegacyPartyMemberFieldWritePorts& ports,
+    const LegacyPartyMemberFieldWriteRequest& request = {}
 );
 
 struct LegacyWorldStoryModeText {
@@ -557,6 +566,7 @@ enum class LegacyWorldStoryVmStatus : compat::u8 {
     role_map_update_failed,
     camera_step_divide_by_zero,
     random_target_divide_by_zero,
+    party_member_level_requirement_typed_stop,
 };
 
 struct LegacyWorldStoryVmResult {

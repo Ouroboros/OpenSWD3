@@ -53,7 +53,7 @@ signed((79 * metric[2]) / metric[5]) + 100
 4. secondary owner第二对：同X、`anchor_y - 30`，显示`metric[1]/metric[4]`。
 5. secondary owner第三对：同X、`anchor_y - 8`，显示`metric[2]/metric[5]`。
 
-`0x00477290`的参数严格为`entry_index=item_index+1`、`count=level_count+1`。文字格式化与`0x00436AD0`内部仍需独立闭环；当前端口保留owner、种类、坐标、数值、token与style。
+`0x00477290`的参数严格为`group=item_index+1`、`level=level_count+1`。当前实现已删除旧`read_level_value` opaque端口并直连共享LEVEL loader；文件会话由SDL唯一owner转发。正常返回后显示`level_count - requirement`；原流访问typed-stop发生在label已经绘制之后，阻断level文字、三对指标文字、后续动作和后续项目。文字格式化与`0x00436AD0`内部仍需独立闭环；当前端口继续保留owner、种类、坐标、数值、token与style。
 
 ## 5. 全宽线与marked动作
 
@@ -67,7 +67,7 @@ signed((79 * metric[2]) / metric[5]) + 100
 
 ## 6. typed owner与验证
 
-`LegacyStandardModeTransitionState`保存4个stage和4组强类型指标。项目锚点显式锁定在`LegacyStandardModeItemRecord +0x06/+0x08`并保持整个记录`0x1C`布局。SDL marked动作复用既有`update_draw_legacy_action_with_flags()`；ghost、比例线、level读取和文字callee保持窄端口。
+`LegacyStandardModeTransitionState`保存4个stage和4组强类型指标。项目锚点显式锁定在`LegacyStandardModeItemRecord +0x06/+0x08`并保持整个记录`0x1C`布局。SDL marked动作复用既有`update_draw_legacy_action_with_flags()`；ghost、比例线和文字callee保持窄端口，LEVEL读取已归共享typed owner。
 
 `special_modes.legacy_initial_menu`覆盖：
 
@@ -76,9 +76,10 @@ signed((79 * metric[2]) / metric[5]) + 100
 - stage加3/减1、有符号6..16钳位和不可用项仍更新stage。
 - 三个`79*n/d+100`比例坐标。
 - 全部ghost、文字和marked坐标。
-- level读取`(1,3)`、level差值和三对指标值。
+- LEVEL读取`(1,3)`、level差值、共享open session和三对指标值。
+- 零分配在已完成label后typed-stop，且不伪造释放或level文字。
 - item count5对已访问stage强制16。
 - 零除typed-stop不继续后续项目。
 - active/ghost/line/text/marked计数。
 
-Linux core `186/186`与Linux app `192/192`通过。按阶段门禁，本单入口不重复执行Windows BUILD。workpack连续两轮生成均为`8/227`，SHA256均为`f4725f41ceba9417b1751f0dc8e5df121f4b56b1d1dd55bed41716e0b95e3c9d`，只新增关闭`0x0043AAA0`。
+本入口最初关闭时的历史workpack为`8/227`；本轮LEVEL caller回收后的最终完整门、inventory和哈希见`battle-level-requirement-load-00477290.md`及模块总账。

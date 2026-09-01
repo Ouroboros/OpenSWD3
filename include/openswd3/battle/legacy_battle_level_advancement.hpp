@@ -52,13 +52,14 @@ private:
 };
 
 enum class LegacyBattleLevelAdvancementCall : compat::u8 {
-    query_level_requirement,
+    reserved_query_level_requirement,
+    query_level_requirement = reserved_query_level_requirement,
     build_level_profile,
 };
 
 struct LegacyBattleLevelAdvancementCallRequest {
     LegacyBattleLevelAdvancementCall call{
-        LegacyBattleLevelAdvancementCall::query_level_requirement
+        LegacyBattleLevelAdvancementCall::reserved_query_level_requirement
     };
     std::array<compat::u32, 4> arguments{};
     compat::u32 eax{};
@@ -70,8 +71,6 @@ struct LegacyBattleLevelAdvancementCallReply {
     compat::u32 eax{};
     compat::u32 ecx{};
     compat::u32 edx{};
-    bool publish_requirement{};
-    compat::u32 requirement{};
     bool publish_profile{};
     world_map::LegacyWorldStoryPartyMemberResources profile{};
     bool publish_group_a_count{};
@@ -87,9 +86,10 @@ struct LegacyBattleLevelAdvancementRegisters {
 };
 
 class LegacyBattleLevelAdvancementPort
-    : public virtual LegacyBattleLevelAdvancementStatePort {
+    : public virtual LegacyBattleLevelAdvancementStatePort,
+      public virtual LegacyBattleLevelDatabasePort {
 public:
-    virtual ~LegacyBattleLevelAdvancementPort() = default;
+    ~LegacyBattleLevelAdvancementPort() override = default;
 
     [[nodiscard]] virtual LegacyBattleLevelAdvancementCallReply
     invoke_level_advancement(
@@ -137,6 +137,9 @@ struct LegacyBattleLevelAdvancementRequest {
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
     compat::u32 requirement_output_token{};
+    compat::u32 requirement_number_of_bytes_read_token{};
+    compat::u32 requirement_stale_directory_offset{};
+    bool requirement_output_accessible{true};
     compat::u32 baseline_scratch_token{0x005028C0U};
     compat::u32 advanced_scratch_token{0x00520F80U};
     compat::u32 profile_copy_scratch_token{0x004FF108U};
@@ -148,6 +151,7 @@ enum class LegacyBattleLevelAdvancementStatus : compat::u8 {
     group_a_actor_typed_stop,
     action_label_typed_stop,
     party_member_resource_typed_stop,
+    level_requirement_typed_stop,
 };
 
 struct LegacyBattleLevelAdvancementResult {
@@ -164,6 +168,7 @@ struct LegacyBattleLevelAdvancementResult {
     compat::u32 play_sample_calls{};
     compat::u32 visited_actors{};
     compat::u32 selected_actor_index{0xFFFFFFFFU};
+    LegacyBattleLevelRequirementLoadResult level_load{};
     std::vector<LegacyBattleLevelAdvancementCall> call_trace;
 };
 

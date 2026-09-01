@@ -2,6 +2,7 @@
 
 #include "test.hpp"
 
+#include "legacy_battle_level_database_fixture.hpp"
 #include "openswd3/asset_runtime/legacy_act_runtime.hpp"
 #include "openswd3/world_map/legacy_world_head_sign_actions.hpp"
 #include "openswd3/world_map/legacy_world_map_role_paths.hpp"
@@ -348,7 +349,9 @@ rgb565_conversion() {
     return conversion;
 }
 
-class RecordingPorts final : public LegacyWorldStoryVmPorts {
+class RecordingPorts final
+    : public LegacyWorldStoryVmPorts,
+      public openswd3::test::LegacyBattleLevelDatabaseFixture {
 public:
     LegacyTalkWindowLoadResult load_story_window(
         const i32 story_id,
@@ -629,20 +632,6 @@ public:
         return input_menu_reset_success;
     }
 
-    [[nodiscard]] bool load_party_member_level_field(
-        const u32 group, const u32 level, u32& output
-    ) override {
-        ++party_member_level_load_count;
-        last_party_member_level_group = group;
-        last_party_member_level = level;
-        if (!party_member_level_load_success) {
-            return false;
-        }
-
-        output = party_member_level_output;
-        return true;
-    }
-
     void beep() noexcept override {
         ++beep_count;
         default_protocol_events.push_back(1U);
@@ -722,10 +711,6 @@ public:
     u32 dialog_text_prepare_count{};
     u32 item_definition_load_count{};
     u32 input_menu_reset_count{};
-    u32 party_member_level_load_count{};
-    u32 last_party_member_level_group{};
-    u32 last_party_member_level{};
-    u32 party_member_level_output{};
     u32 role_path_payload_release_count{};
     u32 released_role_path_index{0xFFFFFFFFU};
     u32 world_session_reload_begin_count{};
@@ -738,7 +723,6 @@ public:
     bool item_definition_load_success{true};
     bool world_session_reload_success{true};
     bool input_menu_reset_success{true};
-    bool party_member_level_load_success{};
     bool story_file_operation_success{true};
     bool video_prepare_success{true};
     bool ani_prepare_success{true};
@@ -796,7 +780,9 @@ private:
     }
 };
 
-class RealPorts final : public LegacyWorldStoryVmPorts {
+class RealPorts final
+    : public LegacyWorldStoryVmPorts,
+      public openswd3::test::LegacyBattleLevelDatabaseFixture {
 public:
     explicit RealPorts(
         openswd3::resource_io::LegacyResourceDatabases& databases
@@ -965,11 +951,6 @@ public:
 
     [[nodiscard]] bool reset_input_menu_and_save_previews() override {
         return true;
-    }
-
-    [[nodiscard]] bool
-    load_party_member_level_field(const u32, const u32, u32&) override {
-        return false;
     }
 
     void beep() noexcept override {}

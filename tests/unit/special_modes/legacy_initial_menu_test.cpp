@@ -1,3 +1,4 @@
+#include "legacy_battle_level_database_fixture.hpp"
 #include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/special_modes/legacy_initial_menu.hpp"
 #include "openswd3/special_modes/legacy_standard_mode.hpp"
@@ -6,6 +7,7 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -166,6 +168,7 @@ using openswd3::special_modes::LegacyStandardModeRenderState;
 using openswd3::special_modes::LegacyStandardModeSelectorPorts;
 using openswd3::special_modes::LegacyGameMenuEntryAnimationPorts;
 using openswd3::special_modes::LegacyGameMenuEntryAnimationState;
+using openswd3::special_modes::LegacyGameMenuEntryAnimationStatus;
 using openswd3::special_modes::LegacyGameMenuEntryText;
 using openswd3::special_modes::LegacyGameMenuEntryTextOwner;
 using openswd3::special_modes::LegacyStandardModeTextResolutionStatus;
@@ -1189,23 +1192,8 @@ public:
 };
 
 class FakePartyMemberFieldWritePorts final
-    : public openswd3::world_map::LegacyPartyMemberFieldWritePorts {
-public:
-    bool load_party_member_level_field(
-        const u32 group, const u32 level, u32& output
-    ) override {
-        requests.push_back({group, level});
-        if (!available) {
-            return false;
-        }
-        output = loaded_output;
-        return true;
-    }
-
-    bool available{true};
-    u32 loaded_output{0xCAFEBABEU};
-    std::vector<std::array<u32, 2U>> requests;
-};
+    : public openswd3::world_map::LegacyPartyMemberFieldWritePorts,
+      public openswd3::test::LegacyBattleLevelDatabaseFixture {};
 
 class FakePartyDialogColumnPorts
     : public virtual openswd3::special_modes::LegacyPartyDialogColumnPorts {
@@ -1320,8 +1308,14 @@ class FakePartyDialogPorts final
     : public FakePartyDialogColumnPorts,
       public FakePartyDialogPagePorts,
       public FakeQuantityPorts,
-      public virtual openswd3::special_modes::LegacyPartyDialogPorts {
+      public virtual openswd3::special_modes::LegacyPartyDialogPorts,
+      public openswd3::test::LegacyBattleLevelDatabaseFixture {
 public:
+    FakePartyDialogPorts() {
+        record_available = true;
+        level_value = 0x12345678U;
+    }
+
     std::optional<i32> insert_column(
         const openswd3::special_modes::LegacyPartyDialogColumnRequest& request
     ) noexcept override {
@@ -1408,18 +1402,7 @@ public:
         main_events.push_back("category-3");
         category_updates.push_back({3U, item_id, 0U, added_value});
     }
-    bool load_party_member_level_field(
-        const u32 group, const u32 level, u32& output
-    ) override {
-        main_events.push_back("member-level");
-        member_level_queries.emplace_back(group, level);
-        output = member_level_value;
-        return member_level_available;
-    }
-
     bool command_allocation_available{true};
-    bool member_level_available{true};
-    u32 member_level_value{0x12345678U};
     u32 command_release_count{};
     u32 insertion_error_count{};
     u32 deletion_error_count{};
@@ -1437,7 +1420,6 @@ public:
     std::vector<i32> ended_results;
     std::vector<bool> cursor_values;
     std::vector<PartyDialogCategoryUpdate> category_updates;
-    std::vector<std::pair<u32, u32>> member_level_queries;
 };
 
 struct ObjectLabelDraw {
@@ -1586,8 +1568,14 @@ public:
 
 class FakeCharacterAttributesPorts final
     : public openswd3::special_modes::LegacyCharacterAttributesPorts,
-      public openswd3::test::LegacyBattleMonDatabaseFixture {
+      public openswd3::test::LegacyBattleMonDatabaseFixture,
+      public openswd3::test::LegacyBattleLevelDatabaseFixture {
 public:
+    FakeCharacterAttributesPorts() {
+        record_available = true;
+        level_value = static_cast<u32>(calculated_value);
+    }
+
     u32 allocate_character_attributes_buffer(const u32 size) noexcept override {
         if (size == 40U) {
             if ((accumulate_count % 16U) == 0U) {
@@ -1654,9 +1642,6 @@ public:
         if (command.type == CommandType::draw_panel) {
             ++panel_count;
             return panel_return;
-        }
-        if (command.type == CommandType::calculate_value) {
-            return calculated_value;
         }
         return render_default_return;
     }
@@ -1997,12 +1982,16 @@ struct TransitionTextRequest {
 };
 
 class FakeStandardModeTransitionPorts final
-    : public LegacyGameMenuEntryAnimationPorts {
+    : public LegacyGameMenuEntryAnimationPorts,
+      public openswd3::test::LegacyBattleLevelDatabaseFixture {
 public:
     explicit FakeStandardModeTransitionPorts(
         std::array<LegacyActionRecord, 18U>& actions
     ) noexcept
-        : actions_(actions) {}
+        : actions_(actions) {
+        record_available = true;
+        level_value = 100U;
+    }
 
     u32 create_text_token(
         const u32 first, const u32 second, const u32 third
@@ -2027,11 +2016,6 @@ public:
 
     void draw_vertical_line(const i32 x) override {
         vertical_lines.push_back(x);
-    }
-
-    i32 read_level_value(const u32 entry_index, const u32 count) override {
-        level_request = {entry_index, count};
-        return level_value;
     }
 
     void draw_text(
@@ -2068,13 +2052,11 @@ public:
 
     std::array<LegacyActionRecord, 18U>& actions_;
     std::array<u32, 3U> token_arguments{};
-    std::array<u32, 2U> level_request{};
     std::array<i32, 3U> marked_request{};
     std::vector<TransitionGhostRequest> ghost_requests;
     std::vector<i32> vertical_lines;
     std::vector<TransitionTextRequest> text_requests;
     u32 text_token{0x99U};
-    i32 level_value{100};
     std::size_t marked_action_index{static_cast<std::size_t>(-1)};
 };
 
@@ -22198,7 +22180,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             std::bit_cast<i32>(0x76543210U),
             party_member_field_write_ports
         );
-    party_member_field_write_ports.available = false;
+    party_member_field_write_ports.record_available = false;
     const auto failed_level_field_written =
         openswd3::world_map::write_legacy_party_member_field(
             party_member_field_write_record,
@@ -22206,9 +22188,10 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             -2,
             party_member_field_write_ports
         );
-    const u32 failed_level_preserved_field_20 =
+    const u32 failed_level_fallback_field_20 =
         party_member_field_write_record.field_20;
-    party_member_field_write_ports.available = true;
+    party_member_field_write_ports.record_available = true;
+    party_member_field_write_ports.level_value = 0xCAFEBABEU;
     const auto loaded_level_field_written =
         openswd3::world_map::write_legacy_party_member_field(
             party_member_field_write_record,
@@ -22242,7 +22225,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
                 std::array<u16, 8U>{6U, 7U, 8U, 9U, 10U, 11U, 12U, 13U} &&
             full_field_20_written.field_written &&
             full_field_00_written.field_written &&
-            failed_level_preserved_field_20 == 0x89ABCDEFU &&
+            failed_level_fallback_field_20 == 1U &&
             party_member_field_write_record.field_00 == 0x76543210U &&
             failed_level_field_written.field_written &&
             failed_level_field_written.level_requested &&
@@ -22252,12 +22235,39 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             loaded_level_field_written.level_loaded &&
             party_member_field_write_record.field_2c == 5U &&
             party_member_field_write_record.field_20 == 0xCAFEBABEU &&
-            party_member_field_write_ports.requests ==
-                std::vector<std::array<u32, 2U>>{{2U, 0xFFFFFFFFU}, {2U, 6U}} &&
+            party_member_field_write_ports.requested_entries ==
+                std::vector<std::pair<u32, u32>>{{1U, 99U}, {2U, 6U}} &&
             !invalid_low_field_write.field_written &&
             !invalid_high_field_write.field_written &&
-            party_member_field_write_ports.requests.size() == 2U,
-        "0x411030 writes selectors zero through thirteen at word width, fourteen and fifteen at full dword width, writes selector sixteen byte before optional LEVEL refresh, and ignores defaults"
+            party_member_field_write_ports.allocation_calls == 2U,
+        "0x411030 writes selectors zero through thirteen at word width, fourteen and fifteen at full dword width, commits selector sixteen byte before LEVEL and writes the initialized fallback after a normal no-record return, and ignores defaults"
+    );
+
+    party_member_field_write_ports.reset_level_session();
+    party_member_field_write_ports.allocation_succeeds = false;
+    party_member_field_write_record.field_20 = 0x11223344U;
+    const auto stopped_level_field_write =
+        openswd3::world_map::write_legacy_party_member_field(
+            party_member_field_write_record,
+            16,
+            4,
+            party_member_field_write_ports,
+            {
+                .level_output_token = 0x71000000U,
+                .level_number_of_bytes_read_token = 0x72000000U,
+            }
+        );
+    test.expect_true(
+        stopped_level_field_write.level_requirement_stopped &&
+            stopped_level_field_write.level_load.status ==
+                openswd3::battle::LegacyBattleLevelRequirementLoadStatus::
+                    stream_zero_typed_stop &&
+            stopped_level_field_write.level_load.return_eax == 0U &&
+            stopped_level_field_write.level_load.return_ecx == 0x100U &&
+            stopped_level_field_write.level_load.return_edx == 0x72000000U &&
+            party_member_field_write_record.field_2c == 4U &&
+            party_member_field_write_record.field_20 == 0x11223344U,
+        "0x411030 preserves its low-byte write and propagates the LEVEL clear fault before testing the missing callee return"
     );
 
     FakePartyDialogColumnPorts four_party_dialog_column_ports;
@@ -22999,6 +23009,38 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             party_dialog_member_updated.scratch_released &&
             party_dialog_member_updated.page.rendered_row_count == 17U,
         "0x40F890 writes selectors zero through sixteen into the selected party member through the closed setter before releasing, refilling, and clearing"
+    );
+
+    openswd3::special_modes::LegacyPartyDialogState
+        party_dialog_member_stop_state;
+    party_dialog_member_stop_state.page_state.page = 5;
+    FakePartyDialogPorts party_dialog_member_stop_ports;
+    party_dialog_member_stop_ports
+        .openswd3::test::LegacyBattleLevelDatabaseFixture::allocation_succeeds =
+        false;
+    const auto party_dialog_member_stopped =
+        openswd3::special_modes::run_legacy_party_dialog(
+            party_dialog_member_stop_state,
+            openswd3::special_modes::LegacyPartyDialogEvent{
+                .message = PartyDialogMessage::command,
+                .command_parameter =
+                    static_cast<u32>(PartyDialogCommand::update_value),
+                .identifier_text = "16",
+                .quantity_text = "5",
+            },
+            party_dialog_member_stop_ports
+        );
+    test.expect_true(
+        party_dialog_member_stopped.status ==
+                openswd3::special_modes::LegacyPartyDialogStatus::
+                    member_level_requirement_typed_stop &&
+            party_dialog_member_stopped.action == PartyDialogAction::none &&
+            party_dialog_member_stop_state.page_state.party_members[0U]
+                    .field_2c == 5U &&
+            !party_dialog_member_stopped.scratch_released &&
+            party_dialog_member_stop_ports.openswd3::test::
+                    LegacyBattleLevelDatabaseFixture::release_calls == 0U,
+        "0x40F890 propagates the selector-sixteen LEVEL fault before command scratch release and page refresh"
     );
 
     openswd3::special_modes::LegacyPartyDialogState party_dialog_global_state;
@@ -25941,10 +25983,10 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         character_attributes_render.status ==
                 openswd3::special_modes::LegacyCharacterAttributesRenderStatus::
                     completed &&
-            character_attributes_render.command_count == 84U &&
+            character_attributes_render.command_count == 83U &&
             character_attributes_render.helper_call_count == 88U &&
             character_attributes_render.legacy_return_value == 0x7A7A &&
-            pair_render_commands.size() == 84U &&
+            pair_render_commands.size() == 83U &&
             pair_render_commands[5U].type ==
                 PairRenderCommandType::draw_tiled_frame &&
             pair_render_commands[5U].arguments[0U] == 0x1357 &&
@@ -25957,34 +25999,69 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             pair_render_commands[13U].arguments[2U] == 0x212 &&
             pair_render_commands[14U].text == PairRenderText::decimal &&
             pair_render_commands[14U].arguments[0U] == 11 &&
-            pair_render_commands[22U].type ==
-                PairRenderCommandType::calculate_value &&
-            pair_render_commands[22U].arguments[0U] == 3 &&
-            pair_render_commands[22U].arguments[1U] == 6 &&
-            pair_render_commands[32U].text == PairRenderText::attribute_zero &&
-            pair_render_commands[33U].type ==
+            character_attributes_render.level_load.group == 3U &&
+            character_attributes_render.level_load.level == 6U &&
+            character_attributes_render.level_load.output_value == 0x2468U &&
+            character_attributes_render_ports.requested_entries ==
+                std::vector<std::pair<u32, u32>>{{3U, 6U}} &&
+            character_attributes_render_ports.openswd3::test::
+                    LegacyBattleLevelDatabaseFixture::allocation_calls == 1U &&
+            pair_render_commands[31U].text == PairRenderText::attribute_zero &&
+            pair_render_commands[32U].type ==
                 PairRenderCommandType::calculate_color &&
-            pair_render_commands[35U].text == PairRenderText::overlay_value &&
-            pair_render_commands[39U].type ==
+            pair_render_commands[34U].text == PairRenderText::overlay_value &&
+            pair_render_commands[38U].type ==
                 PairRenderCommandType::calculate_color &&
-            pair_render_commands[40U].arguments[0U] == 0x2D &&
-            pair_render_commands[40U].arguments[1U] == 1 &&
-            pair_render_commands[41U].arguments[6U] == 0x11113333 &&
-            pair_render_commands[52U].text == PairRenderText::mode_summary &&
-            pair_render_commands[53U].type ==
+            pair_render_commands[39U].arguments[0U] == 0x2D &&
+            pair_render_commands[39U].arguments[1U] == 1 &&
+            pair_render_commands[40U].arguments[6U] == 0x11113333 &&
+            pair_render_commands[51U].text == PairRenderText::mode_summary &&
+            pair_render_commands[52U].type ==
                 PairRenderCommandType::append_text &&
-            pair_render_commands[65U].text == PairRenderText::modifier_zero &&
-            pair_render_commands[66U].arguments[5U] == 0x5678 &&
-            pair_render_commands[68U].arguments[5U] == 0x4444 &&
-            pair_render_commands[70U].arguments[5U] == 0x2222 &&
-            pair_render_commands[74U].arguments[4U] == 0 &&
-            pair_render_commands[74U].arguments[5U] == 0x6666 &&
-            pair_render_commands[80U].arguments[4U] == 118 &&
-            pair_render_commands[82U].arguments[2U] == 0x13F &&
-            pair_render_commands[82U].arguments[3U] == 0x1A5 &&
-            pair_render_commands[83U].type ==
+            pair_render_commands[64U].text == PairRenderText::modifier_zero &&
+            pair_render_commands[65U].arguments[5U] == 0x5678 &&
+            pair_render_commands[67U].arguments[5U] == 0x4444 &&
+            pair_render_commands[69U].arguments[5U] == 0x2222 &&
+            pair_render_commands[73U].arguments[4U] == 0 &&
+            pair_render_commands[73U].arguments[5U] == 0x6666 &&
+            pair_render_commands[79U].arguments[4U] == 118 &&
+            pair_render_commands[81U].arguments[2U] == 0x13F &&
+            pair_render_commands[81U].arguments[3U] == 0x1A5 &&
+            pair_render_commands[82U].type ==
                 PairRenderCommandType::draw_final_panel,
         "0x44A280 preserves all 75 direct calls plus closed overlay callees, register snapshots, signed overlays, and four modifier formats"
+    );
+
+    auto character_attributes_render_stop_state =
+        character_attributes_render_state;
+    character_attributes_render_stop_state.level_output_token = 0x71000000U;
+    character_attributes_render_stop_state.level_number_of_bytes_read_token =
+        0x72000000U;
+    FakeCharacterAttributesPorts character_attributes_render_stop_ports;
+    character_attributes_render_stop_ports
+        .openswd3::test::LegacyBattleLevelDatabaseFixture::allocation_succeeds =
+        false;
+    const auto character_attributes_render_stopped =
+        openswd3::special_modes::render_legacy_character_attributes(
+            character_attributes_render_stop_state,
+            character_attributes_render_stop_ports
+        );
+    test.expect_true(
+        character_attributes_render_stopped.status ==
+                openswd3::special_modes::LegacyCharacterAttributesRenderStatus::
+                    level_requirement_typed_stop &&
+            character_attributes_render_stopped.command_count == 22U &&
+            character_attributes_render_stopped.helper_call_count == 22U &&
+            character_attributes_render_stop_ports.render_commands.size() ==
+                22U &&
+            character_attributes_render_stopped.legacy_return_value == 0x7A7A &&
+            character_attributes_render_stopped.level_load.return_ecx ==
+                0x100U &&
+            character_attributes_render_stopped.level_load.return_edx ==
+                0x72000000U &&
+            character_attributes_render_stop_ports.openswd3::test::
+                    LegacyBattleLevelDatabaseFixture::release_calls == 0U,
+        "0x44A280 propagates the LEVEL stream-clear fault after its first twenty-two completed commands and before formatting stale output"
     );
 
     auto character_attributes_render_bad_mode_state =
@@ -26026,7 +26103,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             character_attributes_render_no_second.status ==
                 openswd3::special_modes::LegacyCharacterAttributesRenderStatus::
                     second_record_unavailable_stopped &&
-            character_attributes_render_no_second.command_count == 33U,
+            character_attributes_render_no_second.command_count == 32U,
         "0x44A280 stops only at the original mode and paired-record read points after preserving prior commands"
     );
 
@@ -31570,7 +31647,9 @@ void test_standard_mode_transition_rendering(openswd3::test::Context& test) {
                     },
                 } &&
             ports.vertical_lines == std::vector<i32>{258, 258, 258, 640} &&
-            ports.level_request == std::array<u32, 2U>{1U, 3U} &&
+            result.status == LegacyGameMenuEntryAnimationStatus::completed &&
+            ports.requested_entries ==
+                std::vector<std::pair<u32, u32>>{{1U, 3U}} &&
             ports.text_requests ==
                 std::vector<TransitionTextRequest>{
                     TransitionTextRequest{
@@ -31631,6 +31710,32 @@ void test_standard_mode_transition_rendering(openswd3::test::Context& test) {
             result.marked_action_draw_count == 1U &&
             !result.stopped_on_zero_divisor,
         "0x43AAA0 preserves four ghost draws, three ratio lines, five text " "blocks, the full-width line and marked action order for one item"
+    );
+
+    LegacyGameMenuEntryAnimationState stop_state;
+    stop_state.stages = {14U, 1U, 2U, 3U};
+    stop_state.metrics[0U] = state.metrics[0U];
+    stop_state.level_output_token = 0x71000000U;
+    stop_state.level_number_of_bytes_read_token = 0x72000000U;
+    std::array<LegacyActionRecord, 18U> stop_actions{};
+    FakeStandardModeTransitionPorts stop_ports{stop_actions};
+    stop_ports.allocation_succeeds = false;
+    const auto stop_result = render_legacy_game_menu_entry_animation(
+        stop_state, 20U, 0U, 2U, items, stop_actions, stop_ports
+    );
+    test.expect_true(
+        stop_result.status ==
+                LegacyGameMenuEntryAnimationStatus::
+                    level_requirement_typed_stop &&
+            stop_result.active_item_count == 1U &&
+            stop_result.ghost_draw_count == 4U &&
+            stop_result.vertical_line_count == 3U &&
+            stop_result.text_draw_count == 1U &&
+            stop_result.marked_action_draw_count == 0U &&
+            stop_result.level_load.return_ecx == 0x100U &&
+            stop_result.level_load.return_edx == 0x72000000U &&
+            stop_ports.release_calls == 0U,
+        "0x43AAA0 propagates the LEVEL stream-clear fault after label draw and before level text or later item side effects"
     );
 
     LegacyGameMenuEntryAnimationState zero_state;

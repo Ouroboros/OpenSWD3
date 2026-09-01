@@ -179,7 +179,9 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     victory_reserved_transition_stage_advance_slot,
     victory_format_level_up_text,
     victory_draw_text,
-    level_advancement_query_requirement,
+    reserved_level_advancement_query_requirement,
+    level_advancement_query_requirement =
+        reserved_level_advancement_query_requirement,
     level_advancement_build_profile,
     level_advancement_stop_sample,
     level_advancement_play_sample,
@@ -355,8 +357,6 @@ struct LegacyBattleFrameCoordinatorCallReply {
     bool publish_victory_item_list_text{};
     std::array<compat::u8, 64> victory_item_list_text{};
     compat::u32 victory_item_list_text_length{};
-    bool publish_level_requirement{};
-    compat::u32 level_requirement{};
     bool publish_level_profile{};
     world_map::LegacyWorldStoryPartyMemberResources level_profile{};
     bool publish_level_transition_mode{};
@@ -1182,18 +1182,14 @@ public:
     invoke_level_advancement(
         const LegacyBattleLevelAdvancementCallRequest& request
     ) override {
-        const auto call = request.call ==
-                LegacyBattleLevelAdvancementCall::query_level_requirement
-            ? LegacyBattleFrameCoordinatorCall::
-                  level_advancement_query_requirement
-            : LegacyBattleFrameCoordinatorCall::level_advancement_build_profile;
         std::array<compat::u32, 8> arguments{};
         for (std::size_t index = 0U; index < request.arguments.size();
              ++index) {
             arguments[index] = request.arguments[index];
         }
         const auto reply = invoke({
-            .call = call,
+            .call = LegacyBattleFrameCoordinatorCall::
+                level_advancement_build_profile,
             .arguments = arguments,
             .eax = request.eax,
             .ecx = request.ecx,
@@ -1203,8 +1199,6 @@ public:
             .eax = reply.eax,
             .ecx = reply.ecx,
             .edx = reply.edx,
-            .publish_requirement = reply.publish_level_requirement,
-            .requirement = reply.level_requirement,
             .publish_profile = reply.publish_level_profile,
             .profile = reply.level_profile,
             .publish_group_a_count = reply.publish_group_a_count,

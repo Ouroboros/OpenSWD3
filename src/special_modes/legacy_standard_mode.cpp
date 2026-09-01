@@ -3203,11 +3203,36 @@ LegacyCharacterAttributesRenderResult render_legacy_character_attributes(
         0xB4,
         0x6A
     );
-    const compat::i32 calculated_value = emit_simple(
-        LegacyCharacterAttributesRenderCommandType::calculate_value,
-        {static_cast<compat::i32>(mode) + 1,
-         static_cast<compat::i32>(state.first_record.level) + 1}
+    compat::u32 calculated_value_bits = state.level_stale_output;
+    const compat::u32 level_group = mode + 1U;
+    const compat::u32 level =
+        static_cast<compat::u32>(state.first_record.level) + 1U;
+    result.level_load = battle::load_legacy_battle_level_requirement(
+        calculated_value_bits,
+        ports,
+        {
+            .group = level_group,
+            .level = level,
+            .output_token = state.level_output_token,
+            .stale_directory_offset = state.level_stale_directory_offset,
+            .number_of_bytes_read_token =
+                state.level_number_of_bytes_read_token,
+            .entry_eax = state.active_owner,
+            .entry_ecx = level_group,
+            .entry_edx = level,
+            .output_accessible = state.level_output_accessible,
+        }
     );
+    if (battle::legacy_battle_level_requirement_load_stopped(
+            result.level_load.status
+        )) {
+        result.status =
+            LegacyCharacterAttributesRenderStatus::level_requirement_typed_stop;
+        return result;
+    }
+    ++result.helper_call_count;
+    const compat::i32 calculated_value =
+        std::bit_cast<compat::i32>(calculated_value_bits);
     format_and_draw(
         LegacyCharacterAttributesRenderText::value_label, 0, 1, 0xB4, 0x83
     );
@@ -9744,6 +9769,11 @@ LegacyPartyDialogResult run_legacy_party_dialog(
             value,
             ports
         );
+        if (result.member_write.level_requirement_stopped) {
+            result.status =
+                LegacyPartyDialogStatus::member_level_requirement_typed_stop;
+            return result;
+        }
         release_refresh_clear();
         result.action = LegacyPartyDialogAction::member_field_updated;
         return result;
@@ -21785,10 +21815,33 @@ LegacyGameMenuEntryAnimationResult render_legacy_game_menu_entry_animation(
         );
         ++result.text_draw_count;
 
-        const compat::i32 level_value = ports.read_level_value(
-            static_cast<compat::u32>(item_index + 1U),
-            static_cast<compat::u32>(metrics.level_count) + 1U
+        compat::u32 level_value = 0U;
+        const compat::u32 level_group =
+            static_cast<compat::u32>(item_index + 1U);
+        const compat::u32 level =
+            static_cast<compat::u32>(metrics.level_count) + 1U;
+        result.level_load = battle::load_legacy_battle_level_requirement(
+            level_value,
+            ports,
+            {
+                .group = level_group,
+                .level = level,
+                .output_token = state.level_output_token,
+                .stale_directory_offset = state.level_stale_directory_offset,
+                .number_of_bytes_read_token =
+                    state.level_number_of_bytes_read_token,
+                .entry_eax = level_group,
+                .entry_ecx = level,
+                .output_accessible = state.level_output_accessible,
+            }
         );
+        if (battle::legacy_battle_level_requirement_load_stopped(
+                result.level_load.status
+            )) {
+            result.status = LegacyGameMenuEntryAnimationStatus::
+                level_requirement_typed_stop;
+            return result;
+        }
         ports.draw_text(
             LegacyGameMenuEntryTextOwner::primary,
             LegacyGameMenuEntryText::level,

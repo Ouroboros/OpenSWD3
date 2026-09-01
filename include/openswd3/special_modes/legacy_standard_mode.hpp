@@ -748,7 +748,8 @@ enum class LegacyCharacterAttributesRenderCommandType : compat::u8 {
     draw_panel,
     draw_action,
     format_text,
-    calculate_value,
+    reserved_calculate_value,
+    calculate_value = reserved_calculate_value,
     append_text,
     draw_final_panel,
 };
@@ -807,6 +808,11 @@ struct LegacyCharacterAttributesState {
     compat::u16 render_palette{};
     compat::u32 render_surface{};
     compat::u32 third_frame_register_snapshot{};
+    compat::u32 level_output_token{};
+    compat::u32 level_number_of_bytes_read_token{};
+    compat::u32 level_stale_directory_offset{};
+    compat::u32 level_stale_output{};
+    bool level_output_accessible{true};
     bool first_record_available{};
     bool second_record_available{};
     LegacyCharacterAttributesRecord first_record;
@@ -817,9 +823,10 @@ struct LegacyCharacterAttributesState {
 };
 
 class LegacyCharacterAttributesPorts
-    : public virtual battle::LegacyBattleMonDatabasePort {
+    : public virtual battle::LegacyBattleMonDatabasePort,
+      public virtual battle::LegacyBattleLevelDatabasePort {
 public:
-    virtual ~LegacyCharacterAttributesPorts() = default;
+    ~LegacyCharacterAttributesPorts() override = default;
     [[nodiscard]] virtual compat::u32
     allocate_character_attributes_buffer(compat::u32 size) noexcept = 0;
     [[nodiscard]] virtual compat::i32
@@ -872,6 +879,7 @@ enum class LegacyCharacterAttributesRenderStatus : compat::u8 {
     mode_out_of_range_stopped,
     first_record_unavailable_stopped,
     second_record_unavailable_stopped,
+    level_requirement_typed_stop,
 };
 
 struct LegacyCharacterAttributesOverlayResult {
@@ -887,6 +895,7 @@ struct LegacyCharacterAttributesRenderResult {
     compat::i32 legacy_return_value{};
     compat::u32 helper_call_count{};
     compat::u32 command_count{};
+    battle::LegacyBattleLevelRequirementLoadResult level_load{};
 };
 
 struct LegacyCharacterAttributesResult {
@@ -1242,11 +1251,16 @@ enum class LegacyGameMenuEntryTextOwner : compat::u8 {
 struct LegacyGameMenuEntryAnimationState {
     std::array<compat::u8, 4U> stages{};
     std::array<LegacyGameMenuEntryAnimationMetrics, 4U> metrics{};
+    compat::u32 level_output_token{};
+    compat::u32 level_number_of_bytes_read_token{};
+    compat::u32 level_stale_directory_offset{};
+    bool level_output_accessible{true};
 };
 
-class LegacyGameMenuEntryAnimationPorts {
+class LegacyGameMenuEntryAnimationPorts
+    : public virtual battle::LegacyBattleLevelDatabasePort {
 public:
-    virtual ~LegacyGameMenuEntryAnimationPorts() = default;
+    ~LegacyGameMenuEntryAnimationPorts() override = default;
 
     [[nodiscard]] virtual compat::u32 create_text_token(
         compat::u32 first, compat::u32 second, compat::u32 third
@@ -1258,8 +1272,6 @@ public:
         compat::i32 stage
     ) = 0;
     virtual void draw_vertical_line(compat::i32 x) = 0;
-    [[nodiscard]] virtual compat::i32
-    read_level_value(compat::u32 entry_index, compat::u32 count) = 0;
     virtual void draw_text(
         LegacyGameMenuEntryTextOwner owner,
         LegacyGameMenuEntryText text,
@@ -1278,7 +1290,16 @@ public:
     ) = 0;
 };
 
+enum class LegacyGameMenuEntryAnimationStatus : compat::u8 {
+    completed,
+    level_requirement_typed_stop,
+};
+
 struct LegacyGameMenuEntryAnimationResult {
+    LegacyGameMenuEntryAnimationStatus status{
+        LegacyGameMenuEntryAnimationStatus::completed
+    };
+    battle::LegacyBattleLevelRequirementLoadResult level_load{};
     compat::u32 active_item_count{};
     compat::u32 ghost_draw_count{};
     compat::u32 vertical_line_count{};
@@ -3871,6 +3892,7 @@ enum class LegacyPartyDialogStatus : compat::u8 {
     item_record_stopped,
     member_source_stopped,
     global_index_stopped,
+    member_level_requirement_typed_stop,
 };
 
 enum class LegacyPartyDialogAction : compat::u8 {

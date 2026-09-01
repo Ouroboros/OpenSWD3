@@ -1669,6 +1669,7 @@ class SdlSmokeIdlePorts final
       public openswd3::app::FramePreparationPorts,
       public openswd3::app::FrameRuntimePorts,
       public openswd3::battle::LegacyBattleScriptDispatchPort,
+      public openswd3::battle::LegacyBattleLevelDatabasePort,
       public openswd3::rendering::LegacyPresentationPorts,
       public openswd3::audio_video::LegacyVideoFramePorts,
       public openswd3::world_map::LegacyWorldLoadProgressPorts {
@@ -2170,6 +2171,73 @@ public:
         return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
     }
 
+    [[nodiscard]] openswd3::battle::LegacyBattleLevelDatabaseCallReply
+    invoke_legacy_battle_level_database(
+        const openswd3::battle::LegacyBattleLevelDatabaseCallRequest& request,
+        const std::span<openswd3::compat::u8> destination
+    ) override {
+        using Call = openswd3::battle::LegacyBattleLevelDatabaseCall;
+        switch (request.call) {
+        case Call::open_file:
+            level_file_.close();
+            level_file_.clear();
+            if (request.path != nullptr) {
+                level_file_.open(
+                    data_directory_ / *request.path, std::ios::binary
+                );
+            }
+            if (!level_file_.is_open()) {
+                level_file_.clear();
+                level_file_.open(
+                    data_directory_ / "LEVEL.DAT", std::ios::binary
+                );
+            }
+            return {
+                .eax =
+                    level_file_.is_open() ? kLevelFileHandleToken : 0xFFFFFFFFU,
+                .ecx = request.ecx,
+                .edx = request.edx,
+            };
+
+        case Call::seek_file:
+            level_file_.clear();
+            level_file_.seekg(
+                static_cast<std::streamoff>(request.distance), std::ios::beg
+            );
+            return {
+                .eax = request.distance,
+                .ecx = request.ecx,
+                .edx = request.edx,
+            };
+
+        case Call::read_file:
+            if (level_file_.is_open() && !destination.empty()) {
+                level_file_.read(
+                    reinterpret_cast<char*>(destination.data()),
+                    static_cast<std::streamsize>(destination.size())
+                );
+            }
+            return {
+                .eax = 1U,
+                .ecx = request.ecx,
+                .edx = request.edx,
+                .bytes_read =
+                    static_cast<openswd3::compat::u32>(level_file_.gcount()),
+            };
+
+        case Call::allocate_stream:
+            return {
+                .eax = kLevelStreamToken,
+                .ecx = request.ecx,
+                .edx = request.edx,
+            };
+
+        case Call::release_stream:
+            return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
+        }
+        return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
+    }
+
     [[nodiscard]] std::list<openswd3::rendering::LegacyPackedRowEffect>&
     packed_row_effects() noexcept {
         return world_frame_effects_.packed_rows;
@@ -2602,11 +2670,9 @@ public:
                     destination.position_y = source.screen_y;
                     destination.active = source.active ? 1U : 0U;
                 }
-                battle_runtime_.group_b_lifecycle =
-                    std::make_shared<std::array<
-                        openswd3::battle::LegacyBattleActorGroupBElementState,
-                        openswd3::battle::kLegacyBattleActorGroupBElementCount>>(
-                    );
+                battle_runtime_.group_b_lifecycle = std::make_shared<std::array<
+                    openswd3::battle::LegacyBattleActorGroupBElementState,
+                    openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
                 for (std::size_t index = 0U;
                      index < battle_setup_.enemies.size();
                      ++index) {
@@ -2618,7 +2684,8 @@ public:
                         static_cast<openswd3::compat::u32>(index) *
                             openswd3::battle::
                                 kLegacyBattleActorGroupBElementSize;
-                    destination.resource_token = openswd3::battle::
+                    destination.resource_token =
+                        openswd3::battle::
                             kLegacyBattleActorGroupBResourceStateBaseToken +
                         static_cast<openswd3::compat::u32>(index) * 0xA4U;
                     destination.action_record.action_id = source.resource_id;
@@ -2773,9 +2840,10 @@ public:
                     battle_runtime_.party[*index].position_y;
                 workspace.pair_x = battle_runtime_.party[*index].position_x;
                 workspace.pair_y = battle_runtime_.party[*index].position_y;
-            } else if (const auto index = group_b_index();
-                       index.has_value() &&
-                       battle_runtime_.group_b_lifecycle != nullptr) {
+            } else if (
+                const auto index = group_b_index(); index.has_value() &&
+                battle_runtime_.group_b_lifecycle != nullptr
+            ) {
                 const auto& record =
                     (*battle_runtime_.group_b_lifecycle)[*index].action_record;
                 workspace.coordinate_x = record.position_x;
@@ -2790,17 +2858,16 @@ public:
                     static_cast<openswd3::compat::u16>(request.arguments[0]);
                 battle_runtime_.party[*index].position_y =
                     static_cast<openswd3::compat::u16>(request.arguments[1]);
-            } else if (const auto index = group_b_index();
-                       index.has_value() &&
-                       battle_runtime_.group_b_lifecycle != nullptr) {
+            } else if (
+                const auto index = group_b_index(); index.has_value() &&
+                battle_runtime_.group_b_lifecycle != nullptr
+            ) {
                 auto& record =
                     (*battle_runtime_.group_b_lifecycle)[*index].action_record;
-                record.position_x = static_cast<openswd3::compat::u16>(
-                    request.arguments[0]
-                );
-                record.position_y = static_cast<openswd3::compat::u16>(
-                    request.arguments[1]
-                );
+                record.position_x =
+                    static_cast<openswd3::compat::u16>(request.arguments[0]);
+                record.position_y =
+                    static_cast<openswd3::compat::u16>(request.arguments[1]);
             }
             break;
         case LegacyBattleScriptDispatchCall::frame:
@@ -4361,14 +4428,20 @@ public:
                 return false;
             }
 
-            [[nodiscard]] bool load_party_member_level_field(
-                const openswd3::compat::u32,
-                const openswd3::compat::u32,
-                openswd3::compat::u32&
+            [[nodiscard]] openswd3::battle::LegacyBattleLevelDatabaseState&
+            legacy_battle_level_database_state() noexcept override {
+                return owner_.legacy_battle_level_database_state();
+            }
+
+            [[nodiscard]] openswd3::battle::LegacyBattleLevelDatabaseCallReply
+            invoke_legacy_battle_level_database(
+                const openswd3::battle::LegacyBattleLevelDatabaseCallRequest&
+                    request,
+                const std::span<openswd3::compat::u8> destination
             ) override {
-                // LEVEL.DAT field materialization belongs to the deferred B10
-                // battle database. Original open/record failure is nonfatal.
-                return false;
+                return owner_.invoke_legacy_battle_level_database(
+                    request, destination
+                );
             }
 
             void beep() noexcept override {}
@@ -5833,10 +5906,22 @@ public:
 
                     void draw_vertical_line(openswd3::compat::i32) override {}
 
-                    openswd3::compat::i32 read_level_value(
-                        openswd3::compat::u32, openswd3::compat::u32
-                    ) override {
-                        return 0;
+                    [[nodiscard]] openswd3::battle::
+                        LegacyBattleLevelDatabaseState&
+                        legacy_battle_level_database_state() noexcept override {
+                        return owner_.legacy_battle_level_database_state();
+                    }
+
+                    [[nodiscard]] openswd3::battle::
+                        LegacyBattleLevelDatabaseCallReply
+                        invoke_legacy_battle_level_database(
+                            const openswd3::battle::
+                                LegacyBattleLevelDatabaseCallRequest& request,
+                            const std::span<openswd3::compat::u8> destination
+                        ) override {
+                        return owner_.invoke_legacy_battle_level_database(
+                            request, destination
+                        );
                     }
 
                     void draw_text(
@@ -7114,7 +7199,10 @@ private:
     openswd3::battle::LegacyBattleStartupState& battle_runtime_;
     static constexpr openswd3::compat::u32 kMonFileHandleToken = 1U;
     static constexpr openswd3::compat::u32 kMonStreamToken = 0x0053B810U;
+    static constexpr openswd3::compat::u32 kLevelFileHandleToken = 2U;
+    static constexpr openswd3::compat::u32 kLevelStreamToken = 0x0053BC10U;
     std::ifstream mon_file_;
+    std::ifstream level_file_;
     openswd3::compat::u32 next_mon_definition_text_token_{0x73000000U};
     std::unordered_map<openswd3::compat::u32, openswd3::compat::u32>
         mon_definition_text_sizes_;

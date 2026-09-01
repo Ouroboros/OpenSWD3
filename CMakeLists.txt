@@ -60,16 +60,11 @@ endif()
 
 add_subdirectory(src/diagnostics)
 add_subdirectory(src/compat)
-add_subdirectory(src/resource_io)
-add_subdirectory(src/input_time_rng)
-add_subdirectory(src/asset_runtime)
-add_subdirectory(src/rendering)
-add_subdirectory(src/story_scene)
-add_subdirectory(src/world_map)
 
 add_library(
     openswd3_battle_mon
     STATIC
+        src/battle/legacy_battle_level_requirement.cpp
         src/battle/legacy_battle_mon_definition.cpp
         src/battle/legacy_battle_mon_profile.cpp
 )
@@ -87,6 +82,12 @@ target_link_libraries(
         openswd3_project_warnings
 )
 
+add_subdirectory(src/resource_io)
+add_subdirectory(src/input_time_rng)
+add_subdirectory(src/asset_runtime)
+add_subdirectory(src/rendering)
+add_subdirectory(src/story_scene)
+add_subdirectory(src/world_map)
 add_subdirectory(src/special_modes)
 add_subdirectory(src/audio_video)
 add_subdirectory(src/battle)
