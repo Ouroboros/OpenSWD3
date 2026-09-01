@@ -2,7 +2,7 @@
 
 状态：`module_in_progress`
 
-当前关闭进度：`251/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
+当前关闭进度：`265/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
 
 ## 1. 唯一真值与模块目标
 
@@ -51,10 +51,10 @@ code_origin == game
 - 尾地址：`0x00484500`；
 - `confirmed_boundary`：`61`；
 - `medium`导航候选：`361`；
-- `pending_audit`：`171`；
-- `assembly_exact`：`9`；
-- `platform_adapted`：`242`；
-- 已关闭：`251`。
+- `pending_audit`：`157`；
+- `assembly_exact`：`10`；
+- `platform_adapted`：`255`；
+- 已关闭：`265`。
 
 六个稳定导航分组为：
 
@@ -76,7 +76,7 @@ code_origin == game
 - `legacy_battle_assets`：FIGTALK固定窗口和`battle.ffd`头、索引、记录读取；
 - `legacy_battle_setup`：初始队伍筛选、固定阵型、镜像坐标和敌方记录布局。
 
-它们覆盖了`0x0046E0B0`、`0x0045F130`、`0x0045F1B0`与`0x00451B10`的部分有效资产路径或部分指令区间，但尚未证明所属函数的完整LST函数体、全部外部chunk、全部错误/循环/异常域、caller回收和完整战斗生命周期。因此这些历史切片继续不计数；当前`251/422`只来自本文件逐项登记且完成全部关闭门的函数，不得把其他测试通过、局部有效路径或真实battle 98样本当作函数关闭。
+它们覆盖了`0x0046E0B0`、`0x0045F130`、`0x0045F1B0`与`0x00451B10`的部分有效资产路径或部分指令区间，但尚未证明所属函数的完整LST函数体、全部外部chunk、全部错误/循环/异常域、caller回收和完整战斗生命周期。因此这些历史切片继续不计数；当前`265/422`只来自本文件逐项登记且完成全部关闭门的函数，不得把其他测试通过、局部有效路径或真实battle 98样本当作函数关闭。
 
 `app::battle_transition`和`frame_runtime`只实现顶层请求与返回编排，不属于422项战斗内部函数关闭计数。
 
@@ -739,6 +739,8 @@ I5最终必须锁定：
 
 本轮再完成`audit_order=264`的`0x004776A0`战斗MON/LEVEL数据库会话关闭函数。完整权威LST主体`0x004776A0..0x004776EE`从proc到endp共42个物理行、25条实际指令、2个call、4个跳转、2个局部标签和1个返回点，没有外部chunk。函数按MON再LEVEL顺序读取共享句柄，只对非零且非全1的句柄调用`CloseHandle`，调用正常返回后无条件把对应句柄写全1；平台返回零不改变该写入，零或全1哨兵跳过调用并保留句柄。两个分支结束后始终清两会话门；EAX被LEVEL句柄或其关闭reply覆盖，ECX/EDX线程最后一次关闭reply或入口值，ESI/EDI保持。MON与LEVEL继续复用既有唯一文件owner，不新增影子会话。已关闭战斗全局重置删除旧整函数opaque调用，在音频stream停用后直接组合typed关闭，并在线程其EDX后才清最终6个dword。验证：独立关闭测试、战斗聚合caller测试、完整core AddressSanitizer`192/192`、Linux core`192/192`、Linux app`198/198`全部通过，最终日志零OpenSWD3源码warning、测试失败、sanitizer finding和runtime error；新增文件全量及历史文件触碰行通过clang-format Werror与`git diff --check`门。工作包为`264/422 = 255 platform_adapted + 9 assembly_exact + 158 pending_audit`；生成器连续双跑逐字节一致，SHA256为`6bdb54e72e0a8753fe10311e642484477cf6db4e297fa710958c3117361c89d2`。动态差分因原版Win32句柄表、真实`CloseHandle`返回寄存器及全局重置其余尾部callee联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=265`的`0x004776F0`战斗对象重置辅助函数。
+本轮再完成`audit_order=265`的`0x004776F0`战斗固定对象五字清零函数。完整权威LST主体`0x004776F0..0x00477704`从proc到endp共14个物理行、8条实际指令，无callee、跳转、局部标签或外部chunk。函数先把cdecl对象参数放入ECX并清零EAX，再严格按`+0x00`、`+0x04`、`+0x08`、`+0x0C`、`+0x10`顺序写五个dword，EDX全程保留；每个原写入点均以span前缀typed-stop保留此前副作用和三寄存器状态。三个20字节物理header由可虚继承的唯一typed owner统一持有，组A奖励资料端口复用同一owner。已关闭对象批量重置caller删除旧fixed opaque端口，按原token顺序直接组合helper；全局链清理EDX穿过三次helper和384字节表清零，再由18次角色reset reply逐次线程。验证：独立helper定向测试、战斗聚合caller测试、完整core AddressSanitizer`193/193`、Linux core`193/193`、Linux app`199/199`全部通过，最终日志零OpenSWD3源码warning、测试失败、sanitizer finding和runtime error。工作包为`265/422 = 255 platform_adapted + 10 assembly_exact + 157 pending_audit`；生成器连续双跑逐字节一致，SHA256为`cdeb76df6326b75619c7728eddd1a049f4dc1ce2b55a632dc0a1fa075ccefbed`。本叶函数全部可观察域由完整LST和穷举写入边界测试覆盖，不依赖原版动态oracle；caller其余全局链清理与角色callee联合动态差分继续登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=266`的`0x00477710`战斗相邻对象辅助函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

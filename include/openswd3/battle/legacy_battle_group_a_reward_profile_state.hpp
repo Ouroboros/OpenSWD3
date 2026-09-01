@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_fixed_object_reset.hpp"
 #include "openswd3/compat/types.hpp"
 
 #include <list>
@@ -26,7 +27,8 @@ struct LegacyBattleGroupARewardProfileState {
     std::list<LegacyBattleGroupARewardProfileNode> nodes;
 };
 
-class LegacyBattleGroupARewardProfileStatePort {
+class LegacyBattleGroupARewardProfileStatePort
+    : public virtual LegacyBattleFixedObjectStatePort {
 public:
     [[nodiscard]] virtual LegacyBattleGroupARewardProfileState&
     group_a_reward_profile_state() noexcept {

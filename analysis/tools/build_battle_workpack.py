@@ -1092,6 +1092,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-database-shutdown-004776a0.md",
     ),
+    "0x004776F0": (
+        "assembly_exact",
+        "evidence/battle-fixed-object-reset-004776f0.md",
+    ),
 }
 
 

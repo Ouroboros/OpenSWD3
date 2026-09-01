@@ -16,12 +16,15 @@ namespace {
 LegacyBattleObjectResetResult reset_legacy_battle_objects(
     LegacyBattleObjectResetState& state,
     LegacyBattleGlobalResetPort& global_reset_port,
-    LegacyBattleFixedObjectResetPort& fixed_object_reset_port,
+    LegacyBattleFixedObjectStatePort& fixed_object_state_port,
     LegacyBattleActorObjectResetPort& actor_reset_port
 ) {
     LegacyBattleObjectResetResult result;
-    result.global_reset_return_snapshot =
+    LegacyBattleObjectResetCallReply registers =
         global_reset_port.reset_global_state();
+    auto& fixed_object_state =
+        fixed_object_state_port.legacy_battle_fixed_object_state();
+    result.global_reset_reply = registers;
     result.global_reset_calls = 1U;
 
     for (std::size_t index = 0U;
@@ -29,8 +32,15 @@ LegacyBattleObjectResetResult reset_legacy_battle_objects(
          ++index) {
         const compat::u32 token = kLegacyBattleFixedResetObjectTokens[index];
         result.fixed_object_tokens[index] = token;
-        result.fixed_object_return_snapshots[index] =
-            fixed_object_reset_port.reset_fixed_object(token);
+        auto& reset = result.fixed_object_resets[index];
+        reset = reset_legacy_battle_fixed_object(
+            fixed_object_state.object_words[index], token, registers.edx
+        );
+        registers = {
+            .eax = reset.return_eax,
+            .ecx = reset.return_ecx,
+            .edx = reset.return_edx,
+        };
         ++result.fixed_object_reset_calls;
     }
 
@@ -38,28 +48,43 @@ LegacyBattleObjectResetResult reset_legacy_battle_objects(
         word = 0U;
         ++result.table_dword_writes;
     }
+    registers.eax = 0U;
+    registers.ecx = 0U;
 
     for (compat::u32 index = 0U; index < kLegacyBattleActorGroupBElementCount;
          ++index) {
-        result.return_value =
-            actor_reset_port.reset_actor_object(wrapping_actor_token(
-                kLegacyBattleActorGroupBBaseToken,
-                kLegacyBattleActorGroupBElementSize,
-                index
-            ));
+        const compat::u32 token = wrapping_actor_token(
+            kLegacyBattleActorGroupBBaseToken,
+            kLegacyBattleActorGroupBElementSize,
+            index
+        );
+        registers = actor_reset_port.reset_actor_object({
+            .actor_token = token,
+            .eax = registers.eax,
+            .ecx = token,
+            .edx = registers.edx,
+        });
         ++result.group_b_reset_calls;
     }
 
     for (compat::u32 index = 0U; index < kLegacyBattleActorGroupAElementCount;
          ++index) {
-        result.return_value =
-            actor_reset_port.reset_actor_object(wrapping_actor_token(
-                kLegacyBattleActorGroupABaseToken,
-                kLegacyBattleActorGroupAElementSize,
-                index
-            ));
+        const compat::u32 token = wrapping_actor_token(
+            kLegacyBattleActorGroupABaseToken,
+            kLegacyBattleActorGroupAElementSize,
+            index
+        );
+        registers = actor_reset_port.reset_actor_object({
+            .actor_token = token,
+            .eax = registers.eax,
+            .ecx = token,
+            .edx = registers.edx,
+        });
         ++result.group_a_reset_calls;
     }
+    result.return_value = registers.eax;
+    result.return_ecx = registers.ecx;
+    result.return_edx = registers.edx;
     return result;
 }
 
