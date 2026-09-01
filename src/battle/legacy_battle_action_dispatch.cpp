@@ -103,7 +103,6 @@ constexpr u32 kCallComputeValue = 0x00481010U;
 constexpr u32 kCallPlayMessage = 0x00485610U;
 constexpr u32 kCallSetSamplePan = 0x00485650U;
 constexpr u32 kCallQueryTargetCode = 0x0047F910U;
-constexpr u32 kCallQueryTargetDistance = 0x00477800U;
 constexpr u32 kCallTargetPhaseValues = 0x00484500U;
 constexpr u32 kCallTargetPhaseResource = 0x00478620U;
 constexpr u32 kCallTargetPhaseCoordinates = 0x00478470U;
@@ -6232,24 +6231,31 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
             return result;
         }
         if (low_word(state.phase_counter) == 0U) {
-            const i16 target_code =
-                signed_low_word(invoke(
-                                    state,
-                                    port,
-                                    result,
-                                    kCallQueryTargetCode,
-                                    {group_b_token(group_b_index)}
-                )
-                                    .eax);
-            const u16 distance =
-                low_word(invoke(
-                             state,
-                             port,
-                             result,
-                             kCallQueryTargetDistance,
-                             {0x004B9F00U, static_cast<u32>(target_code)}
-                )
-                             .eax);
+            const auto target_code_reply = invoke(
+                state,
+                port,
+                result,
+                kCallQueryTargetCode,
+                {group_b_token(group_b_index)}
+            );
+            const i16 target_code = signed_low_word(target_code_reply.eax);
+            result.fixed_count_lookup = lookup_legacy_battle_fixed_count(
+                port.legacy_battle_fixed_object_state(),
+                {
+                    .key = static_cast<u32>(static_cast<u16>(target_code)),
+                    .entry_eax = target_code_reply.eax,
+                    .entry_ecx = target_code_reply.ecx,
+                    .entry_edx = target_code_reply.edx,
+                }
+            );
+            ++result.fixed_count_lookup_calls;
+            if (result.fixed_count_lookup.status !=
+                LegacyBattleFixedCountStatus::completed) {
+                result.status =
+                    LegacyBattleActionDispatchStatus::fixed_count_typed_stop;
+                return result;
+            }
+            const u16 distance = low_word(result.fixed_count_lookup.return_eax);
             if (distance >= 0x14U) {
                 state.phase_condition_aux = 1U;
             }

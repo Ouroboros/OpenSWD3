@@ -2,6 +2,7 @@
 
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
 #include "openswd3/battle/legacy_battle_color_fade.hpp"
+#include "openswd3/battle/legacy_battle_fixed_count_chain.hpp"
 #include "openswd3/compat/types.hpp"
 #include "openswd3/rendering/legacy_rectangle_effect.hpp"
 #include "openswd3/rendering/legacy_tiled_frame.hpp"
@@ -30,7 +31,6 @@ enum class LegacyBattleSelectionHintFrameCall : compat::u8 {
     configure_font_width,
     draw_text,
     query_metric_source,
-    resolve_metric_value,
     query_metric_pair,
     query_fade_width,
     query_fade_color,
@@ -60,7 +60,8 @@ struct LegacyBattleSelectionHintFrameCallReply {
     compat::u32 metric_limit{};
 };
 
-class LegacyBattleSelectionHintFramePort {
+class LegacyBattleSelectionHintFramePort
+    : public virtual LegacyBattleFixedObjectStatePort {
 public:
     virtual ~LegacyBattleSelectionHintFramePort() = default;
 
@@ -116,6 +117,7 @@ enum class LegacyBattleSelectionHintFrameStatus : compat::u8 {
     group_b_actor_typed_stop,
     panel_rectangle_typed_stop,
     tiled_frame_typed_stop,
+    fixed_count_typed_stop,
     format_buffer_typed_stop,
     color_fade_typed_stop,
 };
@@ -133,6 +135,7 @@ struct LegacyBattleSelectionHintFrameResult {
     compat::u32 text_draw_calls{};
     compat::u32 metric_source_calls{};
     compat::u32 metric_value_calls{};
+    LegacyBattleFixedCountLookupResult fixed_count_lookup{};
     compat::u32 metric_pair_calls{};
     compat::u32 fade_width_calls{};
     compat::u32 fade_color_calls{};

@@ -5231,12 +5231,24 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         Fixture fixture;
         DispatchPort port;
         port.action = 6U;
+        port.push(
+            0x0047F910U, {.eax = 7U, .ecx = 0xAABBCCDDU, .edx = 0x12340000U}
+        );
+        port.legacy_battle_fixed_object_state().object_words[0U][1U] =
+            (20U << 16U) | 7U;
         auto context = fixture.context();
         const auto result = openswd3::battle::dispatch_legacy_battle_action(
             state, port, context, 0U, 0U
         );
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.fixed_count_lookup_calls == 1U &&
+                result.fixed_count_lookup.path ==
+                    openswd3::battle::LegacyBattleFixedCountPath::
+                        existing_root &&
+                result.fixed_count_lookup.return_eax == 20U &&
+                state.phase_condition_aux == 1U &&
+                port.count(0x00477800U) == 0U &&
                 result.target_phase_check_calls == 1U &&
                 result.target_phase_check.return_eax == 1U &&
                 port.count(0x00472730U) == 0U &&
@@ -5253,7 +5265,37 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 port.count(0x00471270U) == 0U &&
                 state.group_a_target_phases[0U].decoded_resource_token ==
                     0x74000000U,
-            "action six production starts the typed target phase without the whole-function opaque call"
+            "action six directly looks up the target code count before starting the typed target phase without either opaque whole-function call"
+        );
+    }
+
+    {
+        auto state = std::make_unique<LegacyBattleActionDispatchState>();
+        state->group_a_count = 1;
+        state->group_b_count = 1;
+        auto fixture = std::make_unique<Fixture>();
+        auto port = std::make_unique<DispatchPort>();
+        port->action = 6U;
+        port->push(
+            0x0047F910U, {.eax = 7U, .ecx = 0xAABBCCDDU, .edx = 0x12340000U}
+        );
+        port->legacy_battle_fixed_object_state().object_words[0U][0U] =
+            0x7A001234U;
+        auto context = fixture->context();
+        const auto stopped = openswd3::battle::dispatch_legacy_battle_action(
+            *state, *port, context, 0U, 0U
+        );
+        test.expect_true(
+            stopped.status ==
+                    LegacyBattleActionDispatchStatus::fixed_count_typed_stop &&
+                stopped.fixed_count_lookup_calls == 1U &&
+                stopped.fixed_count_lookup.stopped_token == 0x7A001234U &&
+                stopped.fixed_count_lookup.return_eax == 0U &&
+                stopped.fixed_count_lookup.return_ecx == 0x7A001234U &&
+                stopped.fixed_count_lookup.return_edx == 0x12340007U &&
+                stopped.target_phase_check_calls == 0U &&
+                stopped.target_phase_start_calls == 0U,
+            "action six preserves the target-code lookup prefix and blocks every target-phase suffix at an unmapped fixed-count successor"
         );
     }
 

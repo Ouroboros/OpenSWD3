@@ -2,7 +2,7 @@
 
 状态：`module_in_progress`
 
-当前关闭进度：`267/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
+当前关闭进度：`268/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
 
 ## 1. 唯一真值与模块目标
 
@@ -745,6 +745,8 @@ I5最终必须锁定：
 
 本轮再完成`audit_order=267`的`0x00477780`战斗固定键计数链设置函数。完整权威LST主体`0x00477780..0x004777F9`从proc到endp共70个物理行、45条实际指令、1个直接调用、5个跳转、5个局部标签和2个返回点，没有外部chunk。函数复用前一项同一固定根和动态节点owner：根先参与word键比较，随后按next扫描；命中后先无条件写输入计数低word，再对无符号大于20执行第二次覆写20，返回EAX仍保留未夹输入。缺键路径保留allocator reply EDX并清ECX，先发布前驱link，再按五个dword清零，依次写键、原始计数、可选上限并递增根word；零分配、未知next、已有节点计数写和五个清零点都在原访问处typed-stop并保留此前副作用。固定计数实现下沉到完整战斗与特殊模式共同依赖的低层目标，未建立第二条链。已关闭Dialog的四个第三分类站点删除opaque更新接口并直接组合typed helper，保留命令参数键、记录ID低值重复门、两次调用寄存器线程及失败前的库存与前两类副作用；待审Fame载入caller保持原边界且SDL空载入未伪造。验证：两个定向可执行文件、Linux core`194/194`、AddressSanitizer`194/194`、Linux app`200/200`和changed-range clang-format全部通过，最终日志零源码warning、测试失败、sanitizer finding或runtime error。工作包为`267/422 = 257 platform_adapted + 10 assembly_exact + 155 pending_audit`；生成器连续双跑逐字节一致，SHA256为`97417e947ceaf3e4c55525095aef594ce95c22b501f313435356a4cad76c48ba`。动态差分因原版固定键链、Fame载入、Dialog参数、allocator状态及五个caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=268`的`0x00477800`战斗相邻链辅助函数。
+本轮再完成`audit_order=268`的`0x00477800`战斗固定键计数链查询函数。完整权威LST主体`0x00477800..0x00477821`从proc到endp共26个物理行、12条实际指令、0个call、3个跳转、3个局部/返回标签和1个返回点，没有外部chunk。函数先清完整EAX，只替换EDX低word为查询键并保留高word；固定根先参与word键匹配，随后严格按next扫描，命中从`+0x06`读取计数word到AX并保留ECX当前记录token，缺失返回EAX/ECX零。函数无分配、无写入，不增加环检测或数量夹限；根、动态节点及全部真实访问typed-stop继续复用`LegacyBattleFixedObjectStatePort`唯一owner。七个callsite中Fame载入保持`pending_audit`，其余六个物理站点所在五个已关闭caller全部删除旧opaque查询并typed直连，覆盖Dialog第三类两次覆盖、标准模式1..500表初始化、guardian slot9/10附加值、战斗动作6阈值门和选择提示指标阈值，均保留原调用位置故障前缀与后缀阻断。验证：四项定向集合、battle聚合连续10次、Linux core`194/194`、AddressSanitizer`194/194`、Linux app`200/200`和changed-range clang-format全部通过，最终日志零源码warning、测试失败、sanitizer finding或runtime error；未启动原版或OpenSWD3游戏程序。工作包为`268/422 = 258 platform_adapted + 10 assembly_exact + 154 pending_audit`；生成器连续双跑逐字节一致，SHA256为`4d06be1043b4b95887327ec6e0e7282336923f651d6370c509f0f818b18896c0`。动态差分因原版固定键链、Fame载入状态及七个caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=269`的`0x00477830`战斗相邻辅助函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

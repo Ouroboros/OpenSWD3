@@ -297,17 +297,25 @@ private:
             .edx = edx_,
         });
         ++result_.metric_source_calls;
-        const auto metric = invoke({
-            .call = Call::resolve_metric_value,
-            .object_token = kLegacyBattleSelectionHintMetricOwnerToken,
-            .arguments =
-                {kLegacyBattleSelectionHintMetricOwnerToken, source.eax},
-            .eax = eax_,
-            .ecx = ecx_,
-            .edx = edx_,
-        });
+        result_.fixed_count_lookup = lookup_legacy_battle_fixed_count(
+            port_.legacy_battle_fixed_object_state(),
+            {
+                .key = source.eax,
+                .entry_eax = eax_,
+                .entry_ecx = ecx_,
+                .entry_edx = edx_,
+            }
+        );
         ++result_.metric_value_calls;
-        result_.metric_value = static_cast<u16>(metric.eax);
+        eax_ = result_.fixed_count_lookup.return_eax;
+        ecx_ = result_.fixed_count_lookup.return_ecx;
+        edx_ = result_.fixed_count_lookup.return_edx;
+        if (result_.fixed_count_lookup.status !=
+            LegacyBattleFixedCountStatus::completed) {
+            result_.status = Status::fixed_count_typed_stop;
+            return;
+        }
+        result_.metric_value = static_cast<u16>(eax_);
         if (result_.metric_value < 0x0AU) {
             return;
         }

@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v851
+版本：v852
 
 最后更新：2026-08-31
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗函数 `0x00477800`
+当前步骤：模块10 · 审计战斗函数 `0x00477830`
 
 ## 0. 执行约定
 
@@ -4322,4 +4322,14 @@ B7 P0 有限收口完成。
 
 本轮再完成`audit_order=263`的`0x00477400`战斗LEVEL.DAT等级资料与队伍物品读取函数。完整权威LST主体`0x00477400..0x00477698`共298个物理行、196条实际指令、14个call、15个跳转、11个局部标签和3个返回点且无外部chunk。实现共享LEVEL会话、原32位目录回绕、固定`0x400`流、首word门、tag 0/1/5及未知tag循环；tag 0按原顺序复制26-byte资料、镜像三个word并写等级byte，tag 1按一基队伍选择临时推进/恢复唯一物品链头，复用既有节点，保留`0x8000`跳过、零ID模态诊断、`0xB0`尾插、MON定义加载、模式写入和标题逐字节复制。所有流、输出、队伍、链节点、分配、MON、模式与标题故障均只在原真实访问点typed-stop并保留前缀及live寄存器。LEVEL/MON会话和四条队伍链继续复用唯一typed owner；profile port不持有独立状态，SDL显式转发到唯一世界物品owner。战斗升级caller的旧/新等级两处调用删除旧opaque边界并typed直连，子stop阻断全部后缀。真实8206字节`LEVEL.DAT`与163731字节`MON.DAT`联合验证固定party 1/level 5资料、物品1501目录与CP950名称。独立profile和升级聚合定向测试、完整AddressSanitizer`191/191`、Linux core`191/191`、Linux app`197/197`全部通过，最终日志零OpenSWD3源码warning、测试失败、sanitizer finding或runtime error；ASan聚合测试的历史近8 MiB单函数栈帧仅在测试侧最小堆化首个fixture/port，未禁用sanitizer。工作包为`263/422 = 254 platform_adapted + 9 assembly_exact + 159 pending_audit`；生成器连续双跑逐字节一致，SHA256为`164b20599ba5046ee1a87a13b145ed06907342e3d0814bb88dce4787a620f0e7`。动态差分因原版共享LEVEL/MON文件对象、短读陈旧缓冲、堆token、四条物理队伍链、模态诊断、真实caller输入和联合寄存器捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=264`的`0x004776A0`战斗全局重置调用的辅助函数。
+本轮再完成`audit_order=264`的`0x004776A0`战斗MON/LEVEL数据库会话关闭函数。完整权威LST主体`0x004776A0..0x004776EE`共42个物理行、25条实际指令、2个call、4个跳转、2个局部标签和1个返回点，没有外部chunk。函数按MON再LEVEL顺序读取共享句柄，只对非零且非全1的句柄调用关闭端口，正常返回后无条件把对应句柄写全1；零或全1哨兵跳过调用并保留句柄，两个分支后始终清会话门。MON与LEVEL继续复用既有唯一文件owner；已关闭战斗全局重置删除旧整函数opaque调用并typed直连。完整core AddressSanitizer`192/192`、Linux core`192/192`、Linux app`198/198`全部通过。工作包为`264/422 = 255 platform_adapted + 9 assembly_exact + 158 pending_audit`，SHA256为`6bdb54e72e0a8753fe10311e642484477cf6db4e297fa710958c3117361c89d2`；动态联合捕获后端缺失登记为`blocked_runtime_oracle`。
+
+本轮再完成`audit_order=265`的`0x004776F0`战斗固定对象五字清零函数。完整权威LST主体`0x004776F0..0x00477704`共14个物理行、8条实际指令，无callee、跳转、局部标签或外部chunk。函数严格按五个dword顺序清零，全部原写入点保留typed-stop前缀和寄存器状态；三个20字节物理header由唯一typed owner持有。已关闭对象批量重置caller删除旧opaque端口并按原token顺序直连。完整core AddressSanitizer`193/193`、Linux core`193/193`、Linux app`199/199`全部通过。工作包为`265/422 = 255 platform_adapted + 10 assembly_exact + 157 pending_audit`，SHA256为`cdeb76df6326b75619c7728eddd1a049f4dc1ce2b55a632dc0a1fa075ccefbed`；叶函数可观察域无需原版动态oracle，caller联合差分仍登记为`blocked_runtime_oracle`。
+
+本轮再完成`audit_order=266`的`0x00477710`战斗固定键计数链累加函数。完整权威LST主体`0x00477710..0x0047777C`共65个物理行、43条实际指令、1个直接调用、4个跳转、4个局部标签和2个返回点，没有外部chunk。根先参与匹配，随后按next扫描；现有记录只在加法前计数低于20时把完整32位增量加入EAX并回写低word，缺键则先链接分配token、按五个dword清零、写增量低word和键并递增根word。根与动态节点统一收口到唯一owner，两个caller删除旧opaque边界并typed直连。定向2/2、Linux core`194/194`、AddressSanitizer`194/194`、Linux app`200/200`全部通过。工作包为`266/422 = 256 platform_adapted + 10 assembly_exact + 156 pending_audit`，SHA256为`e8968fb62d97079b3f52e9ec4af2baeeeed013c76255bb517462956d05418e58`；动态联合捕获后端缺失登记为`blocked_runtime_oracle`。
+
+本轮再完成`audit_order=267`的`0x00477780`战斗固定键计数链设置函数。完整权威LST主体`0x00477780..0x004777F9`共70个物理行、45条实际指令、1个直接调用、5个跳转、5个局部标签和2个返回点，没有外部chunk。函数复用同一固定根和动态节点owner；命中先写输入计数低word，再把无符号大于20覆写为20，返回EAX仍保留未夹输入；缺键保留先链接、五字清零、写键和原始计数、可选夹限及根word递增顺序。Dialog四个已关闭第三分类站点删除opaque更新接口并typed直连，Fame caller保持`pending_audit`。定向2/2、Linux core`194/194`、AddressSanitizer`194/194`、Linux app`200/200`全部通过。工作包为`267/422 = 257 platform_adapted + 10 assembly_exact + 155 pending_audit`，SHA256为`97417e947ceaf3e4c55525095aef594ce95c22b501f313435356a4cad76c48ba`；动态联合捕获后端缺失登记为`blocked_runtime_oracle`。
+
+本轮再完成`audit_order=268`的`0x00477800`战斗固定键计数链查询函数。完整权威LST主体`0x00477800..0x00477821`共26个物理行、12条实际指令、0个call、3个跳转、3个局部/返回标签和1个返回点，没有外部chunk。函数先清完整EAX，只替换EDX低word为查询键并保留高word；固定根先参与word键匹配，随后按next扫描，命中从`+0x06`读取计数word并保留ECX记录token，缺失返回EAX/ECX零。函数无分配、无写入，不增加环检测或夹限；全部访问复用固定链唯一owner并保留原位置typed-stop。七个callsite中Fame载入保持`pending_audit`，其余六个物理站点所在五个已关闭caller全部删除旧opaque查询并typed直连，覆盖Dialog两次覆盖、标准模式1..500表初始化、guardian附加值、战斗动作阈值和选择提示指标阈值。四项定向集合、battle聚合连续10次、Linux core`194/194`、AddressSanitizer`194/194`、Linux app`200/200`全部通过，最终日志零源码warning、测试失败、sanitizer finding或runtime error；未启动原版或OpenSWD3游戏程序。工作包为`268/422 = 258 platform_adapted + 10 assembly_exact + 154 pending_audit`，生成器连续双跑逐字节一致，SHA256为`4d06be1043b4b95887327ec6e0e7282336923f651d6370c509f0f818b18896c0`。动态差分因原版固定键链、Fame载入状态及七个caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=269`的`0x00477830`战斗相邻辅助函数。

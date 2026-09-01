@@ -116,6 +116,31 @@ struct LegacyBattleFixedCountSetResult {
     compat::u32 return_edx{};
 };
 
+struct LegacyBattleFixedCountLookupRequest {
+    compat::u32 owner_token{kLegacyBattleFixedCountOwnerToken};
+    compat::u32 key{};
+    compat::u32 entry_eax{};
+    compat::u32 entry_ecx{};
+    compat::u32 entry_edx{};
+};
+
+struct LegacyBattleFixedCountLookupResult {
+    LegacyBattleFixedCountStatus status{
+        LegacyBattleFixedCountStatus::completed
+    };
+    LegacyBattleFixedCountPath path{LegacyBattleFixedCountPath::none};
+    compat::u32 owner_token{};
+    compat::u32 matched_token{};
+    compat::u32 stopped_token{};
+    compat::u32 stopped_offset{};
+    compat::u32 chain_link_reads{};
+    compat::u32 key_reads{};
+    compat::u32 count_reads{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
 // Typed closure of legacy 0x00477710. Legacy tokens select records owned by
 // LegacyBattleFixedObjectState; they are never interpreted as host pointers.
 [[nodiscard]] LegacyBattleFixedCountResult accumulate_legacy_battle_fixed_count(
@@ -132,5 +157,13 @@ struct LegacyBattleFixedCountSetResult {
     LegacyBattleFixedCountAllocationPort& allocation_port,
     const LegacyBattleFixedCountSetRequest& request
 );
+
+// Typed closure of legacy 0x00477800. The root participates in the first key
+// comparison; missing keys return zero after scanning the existing chain.
+[[nodiscard]] LegacyBattleFixedCountLookupResult
+lookup_legacy_battle_fixed_count(
+    LegacyBattleFixedObjectState& state,
+    const LegacyBattleFixedCountLookupRequest& request
+) noexcept;
 
 }  // namespace openswd3::battle

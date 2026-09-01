@@ -3771,7 +3771,8 @@ struct LegacyPartyDialogPageState {
 };
 
 class LegacyPartyDialogPagePorts
-    : public virtual LegacyPartyDialogReplaceRowPorts {
+    : public virtual LegacyPartyDialogReplaceRowPorts,
+      public virtual battle::LegacyBattleFixedObjectStatePort {
 public:
     ~LegacyPartyDialogPagePorts() override = default;
     [[nodiscard]] virtual std::optional<compat::i32> clear_rows() noexcept = 0;
@@ -3779,8 +3780,6 @@ public:
     query_first_added_value(compat::u16 item_id) noexcept = 0;
     [[nodiscard]] virtual std::optional<std::pair<compat::u16, compat::u16>>
     query_pair_added_value(compat::u16 item_id) noexcept = 0;
-    [[nodiscard]] virtual std::optional<compat::u16>
-    query_third_added_value(compat::u16 item_id) noexcept = 0;
 };
 
 enum class LegacyPartyDialogPageStatus : compat::u8 {
@@ -3789,6 +3788,7 @@ enum class LegacyPartyDialogPageStatus : compat::u8 {
     page_source_stopped,
     item_chain_cycle_stopped,
     added_value_query_stopped,
+    fixed_count_typed_stop,
     row_replacement_stopped,
 };
 
@@ -3797,6 +3797,8 @@ struct LegacyPartyDialogPageResult {
     compat::i32 legacy_return_value{1};
     compat::u32 rendered_row_count{};
     compat::u32 added_value_query_count{};
+    battle::LegacyBattleFixedCountLookupResult fixed_count{};
+    compat::u32 fixed_count_query_count{};
     bool rows_cleared{};
 };
 
@@ -3854,7 +3856,6 @@ class LegacyPartyDialogPorts
     : public virtual LegacyPartyDialogPagePorts,
       public virtual LegacyPartyDialogColumnPorts,
       public virtual LegacyStandardModeQuantityPorts,
-      public virtual battle::LegacyBattleFixedObjectStatePort,
       public virtual battle::LegacyBattleFixedCountAllocationPort,
       public virtual world_map::LegacyPartyMemberFieldWritePorts {
 public:
@@ -4801,7 +4802,8 @@ struct LegacyStandardModeGuardianListDrainResult {
 struct LegacyStandardModeGuardianInitializationState;
 
 class LegacyStandardModeGuardianAttributeCachePorts
-    : public virtual LegacyGuardianAttributeApplicationPorts {
+    : public virtual LegacyGuardianAttributeApplicationPorts,
+      public virtual battle::LegacyBattleFixedObjectStatePort {
 public:
     virtual ~LegacyStandardModeGuardianAttributeCachePorts() = default;
     [[nodiscard]] virtual std::optional<std::array<compat::u8, 0x38U>>
@@ -4826,8 +4828,6 @@ public:
     query_guardian_slot_zero_attribute(compat::u16 text_index) noexcept = 0;
     [[nodiscard]] virtual std::optional<std::pair<compat::u16, compat::u16>>
     query_guardian_slot_pair_attributes(compat::u16 text_index) noexcept = 0;
-    [[nodiscard]] virtual std::optional<compat::u16>
-    query_guardian_slot_bonus_attribute(compat::u16 text_index) noexcept = 0;
 };
 
 class LegacyStandardModeGuardianListRefreshPorts
@@ -6555,11 +6555,10 @@ public:
 };
 
 class LegacyStandardModeRuntimeInitializationPorts
-    : public LegacyStandardModeEntryConsumptionPorts {
+    : public LegacyStandardModeEntryConsumptionPorts,
+      public virtual battle::LegacyBattleFixedObjectStatePort {
 public:
     ~LegacyStandardModeRuntimeInitializationPorts() override = default;
-    [[nodiscard]] virtual compat::u8
-    query_record(compat::u16 record_id) noexcept = 0;
 };
 
 struct LegacyStandardModeEntryConsumptionResult {
@@ -6581,6 +6580,7 @@ enum class LegacyStandardModeRuntimeInitializationStatus : compat::u8 {
     completed,
     entry_initialization_stopped,
     definition_load_typed_stop,
+    fixed_count_typed_stop,
 };
 
 struct LegacyStandardModeRuntimeInitializationResult {
@@ -6593,6 +6593,8 @@ struct LegacyStandardModeRuntimeInitializationResult {
     compat::i32 legacy_return_value{};
     compat::u32 loaded_record_count{};
     compat::u32 released_record_count{};
+    battle::LegacyBattleFixedCountLookupResult fixed_count{};
+    compat::u32 fixed_count_query_count{};
 };
 
 enum class LegacyStandardModeRuntimeStorageKind : compat::u8 {
@@ -7556,6 +7558,7 @@ enum class LegacyStandardModeGuardianAttributeSummaryStatus : compat::u8 {
     destination_out_of_range,
     seed_missing,
     query_stopped,
+    fixed_count_typed_stop,
 };
 
 struct LegacyStandardModeGuardianAttributeSummaryResult {
@@ -7563,6 +7566,8 @@ struct LegacyStandardModeGuardianAttributeSummaryResult {
         LegacyStandardModeGuardianAttributeSummaryStatus::completed
     };
     compat::i32 legacy_return_value{};
+    battle::LegacyBattleFixedCountLookupResult fixed_count{};
+    compat::u32 fixed_count_query_count{};
 };
 
 [[nodiscard]] LegacyStandardModeGuardianAttributeSummaryResult

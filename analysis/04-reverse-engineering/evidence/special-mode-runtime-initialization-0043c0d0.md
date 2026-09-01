@@ -18,7 +18,7 @@
 
 第一张`0x200`表入口先全部填`FF`，索引0保持`FF`。
 
-第二轮同样扫描1..500，把query port返回u8逐项写入第二张`0x200`表；该表入口先全部清0，索引0保持0。
+第二轮同样扫描1..500，在原call位置直接组合已关闭固定键计数查询`0x00477800`，把返回EAX低byte逐项写入第二张`0x200`表；该表入口先全部清0，索引0保持0。固定链typed-stop保留已写前缀并阻断全部初始化后缀。
 
 ## 3. 字符串槽、entry与action
 
@@ -32,17 +32,17 @@
 - 把entry[0]传给`0x0043CEF0`消费port，保留其EAX为函数返回。
 - 最后把mode flags清0；该mov不改变返回EAX。
 
-已关闭entry初始化`0x0043C9C0`直接复用typed helper；未关闭的记录加载、两类数据库查询、page刷新和entry消费callee继续由共享typed port隔离，不提前计入。
+已关闭entry初始化`0x0043C9C0`直接复用typed helper；第二张表的旧query槽已删除。未关闭的记录加载、classification数据库查询、page刷新和entry消费callee继续由共享typed port隔离，不提前计入。
 
 ## 4. 验证
 
-`special_modes.legacy_initial_menu`使用500次load与500次query的synthetic port覆盖：
+`special_modes.legacy_initial_menu`使用500次load和共享固定计数链覆盖：
 
-- 两轮ID精确为1..500且顺序不交错。
+- 两轮ID精确为1..500且顺序不交错，第二轮根/动态节点命中及缺失均读取真实typed owner。
 - scratch每轮进入load前完整清零，destination尺寸为`0xA4`。
 - 仅ID 1与500成功时，`+0x5E`状态和两个u32 token精确发布/释放。
 - token字段在成功后清0。
-- 两张512字节表的`FF/00`初始化与边界索引500。
+- 两张512字节表的`FF/00`初始化与边界索引500，并覆盖固定链typed-stop时已写表前缀及后缀阻断。
 - 16×32与64×16槽只清首字节，其余预存字节保持。
 - entry alias写typed index 0，五个LST owner清0，随后C9C0的classification/status各500次查询与page刷新。
 - 共享action record0只改ID/base variant，cached字段保持，record6等其余记录保持。

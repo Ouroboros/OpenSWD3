@@ -1126,10 +1126,8 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
             .selection_hint_replies
                 [LegacyBattleSelectionHintFrameCall::query_metric_source]
             .push_back({.eax = 0x900U});
-        fixture.port
-            .selection_hint_replies
-                [LegacyBattleSelectionHintFrameCall::resolve_metric_value]
-            .push_back({.eax = 9U});
+        fixture.port.legacy_battle_fixed_object_state().object_words[0U][1U] =
+            (9U << 16U) | 0x900U;
         const auto result =
             openswd3::battle::draw_legacy_battle_selection_frame(
                 fixture.bindings(), fixture.port

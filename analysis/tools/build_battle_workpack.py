@@ -1104,6 +1104,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-fixed-count-set-00477780.md",
     ),
+    "0x00477800": (
+        "platform_adapted",
+        "evidence/battle-fixed-count-lookup-00477800.md",
+    ),
 }
 
 

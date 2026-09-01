@@ -9190,29 +9190,34 @@ LegacyPartyDialogPageResult populate_legacy_party_dialog_page(
                 denominator = queried->first;
                 added_value = queried->second;
             }
-            if (matches(state.item_category_masks[2U])) {
-                const std::optional<compat::u16> queried =
-                    ports.query_third_added_value(record->text_index);
+            const auto query_fixed_count = [&]() {
+                result.fixed_count = battle::lookup_legacy_battle_fixed_count(
+                    ports.legacy_battle_fixed_object_state(),
+                    {
+                        .key = record->text_index,
+                        .entry_edx = state.item_category_masks[2U],
+                    }
+                );
+                ++result.fixed_count_query_count;
                 ++result.added_value_query_count;
-                if (!queried.has_value()) {
+                if (result.fixed_count.status !=
+                    battle::LegacyBattleFixedCountStatus::completed) {
                     result.status =
-                        LegacyPartyDialogPageStatus::added_value_query_stopped;
-                    return result;
+                        LegacyPartyDialogPageStatus::fixed_count_typed_stop;
+                    return false;
                 }
-                added_value = *queried;
+                added_value =
+                    static_cast<compat::u16>(result.fixed_count.return_eax);
                 denominator = -1;
+                return true;
+            };
+            if (matches(state.item_category_masks[2U]) &&
+                !query_fixed_count()) {
+                return result;
             }
-            if (record->text_index != 0U && record->text_index <= 0x1F4U) {
-                const std::optional<compat::u16> queried =
-                    ports.query_third_added_value(record->text_index);
-                ++result.added_value_query_count;
-                if (!queried.has_value()) {
-                    result.status =
-                        LegacyPartyDialogPageStatus::added_value_query_stopped;
-                    return result;
-                }
-                added_value = *queried;
-                denominator = -1;
+            if (record->text_index != 0U && record->text_index <= 0x1F4U &&
+                !query_fixed_count()) {
+                return result;
             }
         }
         const compat::i32 quantity =
@@ -14573,8 +14578,18 @@ initialize_legacy_standard_mode_runtime(
 
     state.queried_status.fill(0U);
     for (compat::u32 record_id = 1U; record_id <= 0x1F4U; ++record_id) {
+        result.fixed_count = battle::lookup_legacy_battle_fixed_count(
+            ports.legacy_battle_fixed_object_state(), {.key = record_id}
+        );
+        ++result.fixed_count_query_count;
+        if (result.fixed_count.status !=
+            battle::LegacyBattleFixedCountStatus::completed) {
+            result.status = LegacyStandardModeRuntimeInitializationStatus::
+                fixed_count_typed_stop;
+            return result;
+        }
         state.queried_status[record_id] =
-            ports.query_record(static_cast<compat::u16>(record_id));
+            static_cast<compat::u8>(result.fixed_count.return_eax);
     }
     for (auto& slot : state.long_text_slots) {
         slot[0U] = 0U;
@@ -18461,16 +18476,23 @@ finalize_legacy_standard_mode_guardian_attribute_summary(
         }
         result.legacy_return_value = seed->text_index;
         if (seed->text_index != 0xFFDCU) {
-            const std::optional<compat::u16> value =
-                ports.query_guardian_slot_bonus_attribute(seed->text_index);
-            if (!value.has_value()) {
+            result.fixed_count = battle::lookup_legacy_battle_fixed_count(
+                ports.legacy_battle_fixed_object_state(),
+                {.key = seed->text_index}
+            );
+            ++result.fixed_count_query_count;
+            if (result.fixed_count.status !=
+                battle::LegacyBattleFixedCountStatus::completed) {
                 result.status =
                     LegacyStandardModeGuardianAttributeSummaryStatus::
-                        query_stopped;
+                        fixed_count_typed_stop;
                 return result;
             }
-            result.legacy_return_value = *value;
-            write_dword(0x4CU, *value);
+            result.legacy_return_value =
+                static_cast<compat::u16>(result.fixed_count.return_eax);
+            write_dword(
+                0x4CU, static_cast<compat::u16>(result.fixed_count.return_eax)
+            );
         }
     }
     return result;
