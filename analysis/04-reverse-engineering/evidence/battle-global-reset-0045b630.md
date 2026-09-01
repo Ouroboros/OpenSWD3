@@ -68,11 +68,11 @@
 2. `0x00433010`；
 3. 已关闭`0x00485740`停止全部sample；
 4. `0x00485710`提交固定音频stream停用；
-5. `0x004776A0`执行后置初始化。
+5. 已关闭`0x004776A0`按MON、LEVEL顺序条件关闭两个共享数据库句柄，并无条件清两会话门。
 
-两个资源释放、stream停用与后置初始化仍保留窄typed端口，等待各自工作包关闭。停止全部sample直接组合已关闭sample命令。
+两个资源释放与stream停用仍保留窄typed端口，等待各自工作包关闭。停止全部sample直接组合已关闭sample命令；数据库关闭已删除旧整函数opaque调用，并复用MON/LEVEL唯一文件owner。
 
-五个callee返回后，函数把ECX设为6、EAX清零、重复清零一个全局dword，再以`rep stosd`清零最终6 dword。该最终区域现同步到成长标题框唯一24-byte typed owner，不能在尾部callee前提前清零。正常返回固定EAX为0，不泄漏任何尾部callee返回值。
+五个callee返回后，函数把ECX设为6、EAX清零、重复清零一个全局dword，再以`rep stosd`清零最终6 dword。该最终区域现同步到成长标题框唯一24-byte typed owner，不能在数据库关闭前提前清零。正常返回固定EAX为0、ECX为0；EDX保留数据库关闭尾部的寄存器值。
 
 ## 6. 测试与动态差分
 

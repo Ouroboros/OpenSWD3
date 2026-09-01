@@ -66,7 +66,7 @@ slot  = 0x70 + 4 * index
 
 ## 6. owner与caller回收
 
-LEVEL文件会话继续由唯一 `LegacyBattleLevelDatabaseState` owner持有；MON定义、动态说明和文件会话继续由 `LegacyBattleMonDatabasePort` owner持有；四条队伍物品链继续使用世界物品生命周期的唯一 `LegacyWorldItemListState`。profile port本身不持有独立状态，默认从已有 `LegacyWorldItemListStatePort` 定位物品owner；SDL显式继承profile port并把访问转发到唯一 `world_item_lists_`，不建立影子链或第二文件会话。
+LEVEL文件会话继续由唯一 `LegacyBattleLevelDatabaseState` owner持有；MON定义、动态说明和文件会话继续由 `LegacyBattleMonDatabasePort` owner持有；四条队伍物品链继续使用世界物品生命周期的唯一 `LegacyWorldItemListState`。profile port本身不持有独立状态，默认从已有 `LegacyWorldItemListStatePort` 定位物品owner；SDL显式继承profile port并把访问转发到唯一 `world_item_lists_`，不建立影子链或第二文件会话。后续已关闭的`0x004776A0`在战斗全局重置尾部借用这两个文件owner，按MON再LEVEL顺序关闭有效句柄并清两会话门。
 
 `0x00467C50`的两处旧 `build_level_profile` opaque槽已删除生产调用，分别直连本实现，并在结果中保存基准/升级两次loader证据。任一次profile typed-stop都传播为 `level_profile_typed_stop`，阻断第二次profile、属性差值提交、音频和完成门；旧枚举数值只保留reserved身份且生产零调用。消息101既有caller继续传播升级函数的子stop。
 

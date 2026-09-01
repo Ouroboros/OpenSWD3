@@ -64,7 +64,7 @@ slot  = 0x70 + 4 * index
 
 ## 5. owner 与 caller 回收
 
-`LegacyBattleLevelDatabasePort`及其 `LegacyBattleLevelDatabaseState`是唯一 typed 文件 owner。SDL 层持有唯一 `LEVEL.DAT` 文件、handle/stream token和共享 state；剧情 VM、菜单转场、角色属性渲染及战斗升级端口都转发到该 owner，不各自打开文件。
+`LegacyBattleLevelDatabasePort`及其 `LegacyBattleLevelDatabaseState`是唯一 typed 文件 owner。SDL 层持有唯一 `LEVEL.DAT` 文件、handle/stream token和共享 state；剧情 VM、菜单转场、角色属性渲染及战斗升级端口都转发到该 owner，不各自打开文件。后续已关闭的`0x004776A0`在战斗全局重置尾部按句柄双哨兵规则关闭该同一owner并清会话门。
 
 四个已关闭 caller 均删除旧 opaque LEVEL 查询：
 

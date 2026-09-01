@@ -2,6 +2,7 @@
 
 #include "openswd3/audio_video/legacy_sample_manager.hpp"
 #include "openswd3/battle/legacy_battle_color_accumulation.hpp"
+#include "openswd3/battle/legacy_battle_database_shutdown.hpp"
 #include "openswd3/battle/legacy_battle_debug_hotkeys.hpp"
 #include "openswd3/battle/legacy_battle_debug_overlay.hpp"
 #include "openswd3/battle/legacy_battle_effect_coordinator.hpp"
@@ -26,15 +27,18 @@ enum class LegacyBattleGlobalResetCall : compat::u8 {
     release_pre_battle_resource_431960,
     release_pre_battle_resource_433010,
     suspend_audio_stream_485710,
-    initialize_post_reset_4776a0,
+    reserved_database_shutdown_4776a0,
 };
 
 struct LegacyBattleGlobalResetCallReply {
     compat::u32 eax{};
+    compat::u32 ecx{};
+    compat::u32 edx{};
 };
 
 class LegacyBattleGlobalResetRuntimePort
-    : public LegacyBattleStartupPort,
+    : public LegacyBattleDatabaseShutdownPort,
+      public LegacyBattleStartupPort,
       public virtual LegacyBattleRetreatCommitStatePort,
       public virtual LegacyBattleColorAccumulationStatePort,
       public virtual LegacyBattlePairTransitionStatePort,
@@ -84,13 +88,14 @@ enum class LegacyBattleGlobalResetCallStage : compat::u8 {
     pre_battle_resource_433010,
     all_samples,
     audio_stream,
-    post_reset_initialization,
+    database_shutdown,
 };
 
 struct LegacyBattleGlobalResetResult {
     LegacyBattleDisplaySurfaceReleaseResult display_surfaces{};
     LegacyBattleActionRotationReleaseResult rotation_cache{};
     LegacyBattleRenderCleanupResult render_resources{};
+    LegacyBattleDatabaseShutdownResult database_shutdown{};
     compat::u32 conditional_allocation_token{};
     bool conditional_allocation_released{};
     std::array<LegacyBattleGlobalResetCallStage, 9> call_order{};
@@ -99,6 +104,8 @@ struct LegacyBattleGlobalResetResult {
     compat::u32 physical_writes{};
     compat::u32 bytes_written{};
     compat::u32 return_value{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
 };
 
 // sub_45B630.

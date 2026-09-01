@@ -100,6 +100,7 @@ add_library(
         legacy_battle_group_b_reward_item_selection.cpp
         legacy_battle_group_b_status_action.cpp
         legacy_battle_group_b_target_cycle.cpp
+        legacy_battle_database_shutdown.cpp
         legacy_battle_global_reset.cpp
         legacy_battle_group_effect_frame.cpp
         legacy_battle_grid_frame.cpp

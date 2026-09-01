@@ -737,6 +737,8 @@ I5最终必须锁定：
 
 本轮再完成`audit_order=263`的`0x00477400`战斗LEVEL.DAT等级资料与队伍物品读取函数。完整权威LST主体`0x00477400..0x00477698`从proc到endp共298个物理行、196条实际指令、14个call、15个跳转、11个局部标签和3个返回点，没有外部chunk。函数复用唯一LEVEL会话，以`0x70 + 4 * (party * 100 + level)`的u32回绕目录读取相对记录，固定分配/清零/读取`0x400`字节；首word非零正常返回0，tag 0逐访问复制26-byte资料到56-byte输出`+0x0A`并镜像前三word和等级byte，tag 1维护一基四队伍物品链，tag 5释放返回1，未知tag保持原两字节扫描。物品链保留临时全局链头推进/恢复、零ID模态诊断、既有节点去重、尾部`0x8000`跳过、先发布next再清零的`0xB0`分配顺序、新节点MON定义加载、过渡模式和成长标题复制；所有流、输出、数组、链、分配、MON、模式和标题故障只在原访问点typed-stop并保留此前链头和副作用。战斗升级两处旧opaque profile槽已回收为直接loader调用；SDL转发唯一LEVEL、MON和世界物品链owner。真实8206字节LEVEL样本party 1/level 5固定目录、26-byte资料和物品1501，并与真实MON目录和CP950名称完成联合回归；同ID缓存不重复加载。最终门禁和inventory稳定值见本轮证据。
 
-下一项回收`audit_order=264`的`0x004776A0`战斗状态清理函数。
+本轮再完成`audit_order=264`的`0x004776A0`战斗MON/LEVEL数据库会话关闭函数。完整权威LST主体`0x004776A0..0x004776EE`从proc到endp共42个物理行、25条实际指令、2个call、4个跳转、2个局部标签和1个返回点，没有外部chunk。函数按MON再LEVEL顺序读取共享句柄，只对非零且非全1的句柄调用`CloseHandle`，调用正常返回后无条件把对应句柄写全1；平台返回零不改变该写入，零或全1哨兵跳过调用并保留句柄。两个分支结束后始终清两会话门；EAX被LEVEL句柄或其关闭reply覆盖，ECX/EDX线程最后一次关闭reply或入口值，ESI/EDI保持。MON与LEVEL继续复用既有唯一文件owner，不新增影子会话。已关闭战斗全局重置删除旧整函数opaque调用，在音频stream停用后直接组合typed关闭，并在线程其EDX后才清最终6个dword。验证：独立关闭测试、战斗聚合caller测试、完整core AddressSanitizer`192/192`、Linux core`192/192`、Linux app`198/198`全部通过，最终日志零OpenSWD3源码warning、测试失败、sanitizer finding和runtime error；新增文件全量及历史文件触碰行通过clang-format Werror与`git diff --check`门。工作包为`264/422 = 255 platform_adapted + 9 assembly_exact + 158 pending_audit`；生成器连续双跑逐字节一致，SHA256为`6bdb54e72e0a8753fe10311e642484477cf6db4e297fa710958c3117361c89d2`。动态差分因原版Win32句柄表、真实`CloseHandle`返回寄存器及全局重置其余尾部callee联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=265`的`0x004776F0`战斗对象重置辅助函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

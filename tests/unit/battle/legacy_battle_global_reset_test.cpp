@@ -15,6 +15,8 @@ using openswd3::audio_video::LegacySampleBackend;
 using openswd3::audio_video::LegacySampleHandle;
 using openswd3::audio_video::LegacySampleManager;
 using openswd3::audio_video::LegacySndArchive;
+using openswd3::battle::LegacyBattleDatabaseHandleCloseReply;
+using openswd3::battle::LegacyBattleDatabaseHandleCloseRequest;
 using openswd3::battle::LegacyBattleGlobalResetCall;
 using openswd3::battle::LegacyBattleGlobalResetCallReply;
 using openswd3::battle::LegacyBattleGlobalResetCallStage;
@@ -97,7 +99,19 @@ public:
     ) override {
         reset_calls.push_back(call);
         reset_arguments.push_back(argument);
-        return {.eax = reset_return};
+        return {
+            .eax = reset_return,
+            .ecx = reset_return_ecx,
+            .edx = reset_return_edx,
+        };
+    }
+
+    [[nodiscard]] LegacyBattleDatabaseHandleCloseReply
+    close_legacy_battle_database_handle(
+        const LegacyBattleDatabaseHandleCloseRequest& request
+    ) override {
+        database_close_requests.push_back(request);
+        return database_close_replies[database_close_requests.size() - 1U];
     }
 
     [[nodiscard]] LegacySampleManager& sample_manager() noexcept override {
@@ -115,9 +129,13 @@ public:
 
     u32 startup_return{0xAABBCCDDU};
     u32 reset_return{0x11223344U};
+    u32 reset_return_ecx{0x55667788U};
+    u32 reset_return_edx{0x99AABBCCU};
     std::vector<LegacyBattleStartupCallRequest> startup_calls;
     std::vector<LegacyBattleGlobalResetCall> reset_calls;
     std::vector<u32> reset_arguments;
+    std::vector<LegacyBattleDatabaseHandleCloseRequest> database_close_requests;
+    std::vector<LegacyBattleDatabaseHandleCloseReply> database_close_replies;
     std::vector<u32> released_images;
     std::vector<u32> released_owners;
     std::vector<u32> released_render_tokens;
@@ -171,6 +189,12 @@ void seed_state(
     state.unmapped_bytes[0x0053BD5CU] = 0x5AU;
     state.unmapped_bytes[0x0053C000U] = 0x5AU;
     state.unmapped_bytes[0x0053C4A0U] = 0x5AU;
+    port.legacy_battle_mon_database_state() = {true, 0x11112222U, 9U};
+    port.legacy_battle_level_database_state() = {true, 0x33334444U};
+    port.database_close_replies = {
+        {.eax = 0U, .ecx = 0xAAAA0001U, .edx = 0xBBBB0002U},
+        {.eax = 1U, .ecx = 0xCCCC0003U, .edx = 0xDDDD0004U},
+    };
     startup.display_surfaces = {11U, 22U};
     startup.background_rotation_cache.frame_owner_tokens[0] = 101U;
     startup.background_rotation_cache.cached_image_tokens[0] = 202U;
@@ -482,7 +506,7 @@ void test_battle_global_reset(openswd3::test::Context& test) {
             LegacyBattleGlobalResetCallStage::pre_battle_resource_433010,
             LegacyBattleGlobalResetCallStage::all_samples,
             LegacyBattleGlobalResetCallStage::audio_stream,
-            LegacyBattleGlobalResetCallStage::post_reset_initialization,
+            LegacyBattleGlobalResetCallStage::database_shutdown,
         };
         test.expect_true(
             result.call_count == expected_order.size() &&
@@ -491,7 +515,8 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 result.conditional_allocation_released &&
                 result.write_operations == 234U &&
                 result.physical_writes == 3300U &&
-                result.bytes_written == 13106U && result.return_value == 0U,
+                result.bytes_written == 13106U && result.return_value == 0U &&
+                result.return_ecx == 0U && result.return_edx == 0xDDDD0004U,
             "global reset preserves all nine call stages and the complete fixed write program"
         );
         test.expect_true(
@@ -528,11 +553,22 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                             release_pre_battle_resource_433010,
                         LegacyBattleGlobalResetCall::
                             suspend_audio_stream_485710,
-                        LegacyBattleGlobalResetCall::
-                            initialize_post_reset_4776a0,
                     } &&
-                port.reset_arguments.front() == 404U,
-            "only pending callees remain behind the narrow reset port in original order"
+                port.reset_arguments.front() == 404U &&
+                port.database_close_requests.size() == 2U &&
+                port.database_close_requests[0].handle == 0x11112222U &&
+                port.database_close_requests[0].ecx == port.reset_return_ecx &&
+                port.database_close_requests[0].edx == port.reset_return_edx &&
+                port.database_close_requests[1].handle == 0x33334444U &&
+                port.database_close_requests[1].ecx == 0xAAAA0001U &&
+                port.database_close_requests[1].edx == 0xBBBB0002U &&
+                result.database_shutdown.close_calls == 2U &&
+                result.database_shutdown.return_eax == 1U &&
+                !port.legacy_battle_mon_database_state().open &&
+                !port.legacy_battle_level_database_state().open &&
+                port.legacy_battle_mon_database_state().handle == 0xFFFFFFFFU &&
+                port.legacy_battle_level_database_state().handle == 0xFFFFFFFFU,
+            "the closed database shutdown replaces the old reset callback and threads the stream reply into both handle closes"
         );
 
         const auto& metrics = port.actor_metric_state();

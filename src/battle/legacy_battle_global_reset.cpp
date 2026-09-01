@@ -664,22 +664,27 @@ LegacyBattleGlobalResetResult reset_legacy_battle_globals(
     );
 
     record_call(result, LegacyBattleGlobalResetCallStage::audio_stream);
-    static_cast<void>(port.invoke_reset(
+    const auto audio_stream_reply = port.invoke_reset(
         LegacyBattleGlobalResetCall::suspend_audio_stream_485710, 0U
-    ));
-
-    record_call(
-        result, LegacyBattleGlobalResetCallStage::post_reset_initialization
     );
-    static_cast<void>(port.invoke_reset(
-        LegacyBattleGlobalResetCall::initialize_post_reset_4776a0, 0U
-    ));
+
+    record_call(result, LegacyBattleGlobalResetCallStage::database_shutdown);
+    result.database_shutdown = shutdown_legacy_battle_databases(
+        port,
+        {
+            .entry_eax = audio_stream_reply.eax,
+            .entry_ecx = audio_stream_reply.ecx,
+            .entry_edx = audio_stream_reply.edx,
+        }
+    );
 
     for (u32 index = 232U; index < kResetWrites.size(); ++index) {
         apply_write(state, kResetWrites[index], result);
     }
     port.battle_level_advancement_state().growth_caption_text.fill(0U);
     result.return_value = 0U;
+    result.return_ecx = 0U;
+    result.return_edx = result.database_shutdown.return_edx;
     return result;
 }
 
