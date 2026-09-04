@@ -140,7 +140,6 @@ public:
         case LegacyBattleScriptDispatchCall::random_bounded_secondary:
         case LegacyBattleScriptDispatchCall::pending_478ab0:
         case LegacyBattleScriptDispatchCall::pending_482ec0:
-        case LegacyBattleScriptDispatchCall::pending_477bd0:
             reply.eax = query_result;
             break;
         default:
@@ -1544,6 +1543,157 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
                 ) == 1U &&
                 fixture.target_selection.transition_sample_word == 10U,
             "case fifty-three preserves the quantity call before its array stop"
+        );
+    }
+
+    {
+        Fixture fixture;
+        Port port;
+        fixture.opcode(55);
+        fixture.write_u16(2U, 8U);
+        fixture.write_u16(4U, 77U);
+        port.definition[0U] = 0x49U;
+        port.definition[1U] = 0x54U;
+        port.definition[2U] = 0U;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        const auto& item_state = port.world_item_list_state();
+        const auto& list = *item_state.party_item_lists[0U];
+        const auto& caption =
+            port.battle_level_advancement_state().growth_caption_text;
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.party_item_definition_calls == 1U &&
+                result.party_item_definition.status ==
+                    openswd3::battle::LegacyBattlePartyItemDefinitionStatus::
+                        completed &&
+                result.party_item_definition.path ==
+                    openswd3::battle::LegacyBattlePartyItemDefinitionPath::
+                        appended &&
+                result.return_eax == 1U && result.return_ecx == 0U &&
+                result.return_edx == 0x100CU &&
+                fixture.workspace.cursor == 6U &&
+                fixture.workspace.value_a == 0 &&
+                fixture.workspace.value_b == 0 &&
+                fixture.target_selection.transition_mode == 1U &&
+                list.legacy_head_token == list.sentinel.legacy_token &&
+                list.sentinel.legacy_next_token == 0x1000U &&
+                list.nodes.size() == 1U && list.nodes.back().item_id == 77U &&
+                caption[0U] == 0x49U && caption[1U] == 0x54U &&
+                caption[2U] == 0U &&
+                port.requested_definition_ids == std::vector<u32>{77U} &&
+                port.count(LegacyBattleScriptDispatchCall::allocate) == 1U &&
+                port.count(
+                    LegacyBattleScriptDispatchCall::legacy_string_copy
+                ) == 1U &&
+                port.count(
+                    LegacyBattleScriptDispatchCall::
+                        reserved_party_item_definition
+                ) == 0U,
+            "case fifty-five directly appends and loads a party item before publishing transition mode and advancing"
+        );
+    }
+
+    {
+        Fixture fixture;
+        Port port;
+        fixture.opcode(55);
+        fixture.write_u16(2U, 8U);
+        fixture.write_u16(4U, 0U);
+        fixture.startup.window_token = 0x44556677U;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.party_item_definition.diagnostic_calls == 1U &&
+                result.party_item_definition.path ==
+                    openswd3::battle::LegacyBattlePartyItemDefinitionPath::
+                        appended &&
+                port.calls.size() == 3U &&
+                port.calls[0U].call ==
+                    LegacyBattleScriptDispatchCall::message_box &&
+                port.calls[0U].object_token == 0x44556677U &&
+                port.calls[0U].arguments[0U] == 0x004A7D38U &&
+                port.calls[0U].arguments[2U] == 0x004A7D18U &&
+                port.calls[0U].arguments[3U] == 0x50AU &&
+                fixture.target_selection.transition_mode == 1U &&
+                fixture.workspace.cursor == 6U,
+            "case fifty-five zero item diagnostics use the shared battle window and continue into the normal append path"
+        );
+    }
+
+    {
+        Fixture fixture;
+        Port port;
+        fixture.opcode(55);
+        fixture.write_u16(2U, 8U);
+        fixture.write_u16(4U, 77U);
+        port.world_item_list_state().party_item_lists[0U]->sentinel.item_id =
+            77U;
+        fixture.target_selection.transition_mode = 9U;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.party_item_definition.path ==
+                    openswd3::battle::LegacyBattlePartyItemDefinitionPath::
+                        existing_head &&
+                fixture.target_selection.transition_mode == 9U &&
+                fixture.workspace.cursor == 6U && port.calls.empty(),
+            "case fifty-five leaves transition mode unchanged when the current party head already matches"
+        );
+    }
+
+    {
+        Fixture fixture;
+        Port port;
+        fixture.opcode(55);
+        fixture.write_u16(2U, 8U);
+        fixture.write_u16(4U, 88U);
+        port.allocation_token = 0U;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::
+                        party_item_definition_typed_stop &&
+                result.party_item_definition.status ==
+                    openswd3::battle::LegacyBattlePartyItemDefinitionStatus::
+                        allocation_node_access_typed_stop &&
+                result.party_item_definition.return_ecx == 44U &&
+                fixture.workspace.cursor == 0U &&
+                fixture.workspace.value_a == 8 &&
+                fixture.workspace.value_b == 88 &&
+                fixture.target_selection.transition_mode == 0U &&
+                port.count(LegacyBattleScriptDispatchCall::allocate) == 1U &&
+                port.count(
+                    LegacyBattleScriptDispatchCall::legacy_string_copy
+                ) == 0U,
+            "case fifty-five preserves both published operands when the leaf stops at its first allocation clear"
+        );
+    }
+
+    {
+        Fixture fixture;
+        Port port;
+        fixture.opcode(55);
+        fixture.write_u16(2U, 8U);
+        fixture.assets.script_capacity = 5U;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::script_typed_stop &&
+                result.return_eax == 0U && fixture.workspace.value_a == 8 &&
+                fixture.workspace.value_b == 0 &&
+                fixture.workspace.cursor == 0U &&
+                result.party_item_definition_calls == 0U && port.calls.empty(),
+            "case fifty-five publishes the first operand before the second operand access stop"
         );
     }
 

@@ -304,7 +304,7 @@ case51先只改入口ECX低byte为`script+4`并把完整陈旧ECX压栈，再以
 
 ### case `55`、`56`
 
-case55把`script+2`按signed值减8，与`script+4`的signed值调用服务；仅返回精确1时设置成长过渡门，随后清临时值并cursor前进6。
+case55把`script+2`按signed值发布到`value_a`并减8形成零基队伍索引，再把`script+4`按signed值发布到`value_b`，随后直接组合已关闭`0x00477BD0` typed队伍物品定义准备函数。叶函数共享唯一四链物品owner、MON定义owner和成长caption owner；仅返回精确1时设置成长过渡门，随后清两个临时值、cursor前进6、恢复caller入口ECX并返回1。叶函数typed-stop保留链头移动、尾link、分配清零、MON或caption已到达前缀，并阻断transition、清理和cursor后缀；第二操作数读取typed-stop则只保留已发布的`value_a`。旧`pending_477bd0`生产调用已删除，枚举数值位置只保留`reserved_party_item_definition`。
 
 case56把`script+2`作为组Bactor u16并写入packed状态高word。caller按`script+0x0E/+0x0C/+0x0A/+0x08/+0x06/+0x04`逆序读取六个word，形成原EAX/EDX局部覆盖、actor地址和`1381 * actor`寄存器前缀后直连已关闭typed函数。六个word分别对应资源`+0x66..+0x70`三组主行动道具选项参数：零值跳过actor和资源访问并保留旧word，非零才重读资源token并写入；前五项使用EDX，末项使用ECX。全零参数不得因actor越界提前停止。只有typed函数完成后cursor才前进16、EAX返回1并恢复入口ECX；脚本、actor或资源typed-stop保留真实前缀并阻断成功后缀，旧整函数opaque地址生产调用为零。
 

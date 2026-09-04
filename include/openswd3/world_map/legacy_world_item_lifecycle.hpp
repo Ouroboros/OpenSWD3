@@ -13,6 +13,7 @@ namespace openswd3::world_map {
 inline constexpr std::size_t kLegacyPartyItemListCount = 4U;
 inline constexpr std::size_t kLegacyRoleItemListCount = 64U;
 inline constexpr std::size_t kLegacyItemDefinitionSnapshotBytes = 0xA0U;
+inline constexpr compat::u32 kLegacyWorldItemNodeBytes = 0xB0U;
 inline constexpr compat::u16 kLegacyItemSentinelId = 0xFFDCU;
 inline constexpr compat::u32 kLegacyPartyItemSentinelTokenBase = 0x70000000U;
 inline constexpr compat::u32 kLegacyRoleItemSentinelTokenBase = 0x70100000U;
@@ -37,6 +38,7 @@ struct LegacyWorldItemNode {
     compat::u32 legacy_token{};
     compat::u32 legacy_next_token{};
     compat::u32 legacy_description_token{};
+    compat::u32 legacy_accessible_bytes{kLegacyWorldItemNodeBytes};
 };
 
 struct LegacyWorldSentinelItemList {

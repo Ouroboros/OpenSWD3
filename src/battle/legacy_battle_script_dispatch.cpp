@@ -3,6 +3,7 @@
 #include "openswd3/battle/legacy_battle_group_b_action_reconfiguration.hpp"
 #include "openswd3/battle/legacy_battle_script_curve.hpp"
 
+#include <algorithm>
 #include <bit>
 #include <cstddef>
 #include <cstdint>
@@ -60,7 +61,7 @@ public:
     )
         : workspace_(workspace), bindings_(bindings), port_(port),
           eax_(request.entry_eax), ecx_(request.entry_ecx),
-          edx_(request.entry_edx) {
+          edx_(request.entry_edx), entry_ecx_(request.entry_ecx) {
         result_.cursor_before = workspace_.cursor;
     }
 
@@ -495,6 +496,84 @@ private:
             const LegacyBattleGroupBActionCompositionCallRequest& request
         ) override {
             return runner_.invoke_group_b_action_composition_callee(request);
+        }
+
+    private:
+        ScriptRunner& runner_;
+    };
+
+    [[nodiscard]] LegacyBattlePartyItemDefinitionCallReply
+    invoke_party_item_definition_callee(
+        const LegacyBattlePartyItemDefinitionCallRequest& request
+    ) {
+        LegacyBattleScriptDispatchCall call_kind{};
+        u32 object_token{};
+        std::array<u32, 4U> arguments{};
+        u32 argument_count{};
+        switch (request.call) {
+        case LegacyBattlePartyItemDefinitionCall::report_zero_item:
+            call_kind = LegacyBattleScriptDispatchCall::message_box;
+            object_token = request.window_token;
+            arguments = {
+                request.text_token,
+                request.flags,
+                request.source_file_token,
+                request.source_line,
+            };
+            argument_count = 4U;
+            break;
+
+        case LegacyBattlePartyItemDefinitionCall::allocate_item_node:
+            call_kind = LegacyBattleScriptDispatchCall::allocate;
+            arguments[0U] = request.allocation_size;
+            argument_count = 1U;
+            break;
+
+        case LegacyBattlePartyItemDefinitionCall::copy_caption:
+            call_kind = LegacyBattleScriptDispatchCall::legacy_string_copy;
+            object_token = request.destination_token;
+            arguments[0U] = request.destination_token;
+            arguments[1U] = request.source_token;
+            argument_count = 2U;
+            break;
+        }
+
+        LegacyBattleScriptDispatchCallRequest call{
+            .call = call_kind,
+            .object_token = object_token,
+            .argument_count = argument_count,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+            .cursor = workspace_.cursor,
+        };
+        std::copy_n(arguments.begin(), argument_count, call.arguments.begin());
+        result_.call_trace.push_back(call_kind);
+        ++result_.port_calls;
+        const auto reply =
+            port_.invoke_battle_script(workspace_, bindings_, call);
+        eax_ = reply.eax;
+        ecx_ = reply.ecx;
+        edx_ = reply.edx;
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .allocation_accessible_bytes = world_map::kLegacyWorldItemNodeBytes,
+            .typed_stop = reply.typed_stop,
+        };
+    }
+
+    class ScriptPartyItemDefinitionPort final
+        : public LegacyBattlePartyItemDefinitionPort {
+    public:
+        explicit ScriptPartyItemDefinitionPort(ScriptRunner& runner) noexcept
+            : runner_(runner) {}
+
+        [[nodiscard]] LegacyBattlePartyItemDefinitionCallReply invoke(
+            const LegacyBattlePartyItemDefinitionCallRequest& request
+        ) override {
+            return runner_.invoke_party_item_definition_callee(request);
         }
 
     private:
@@ -2966,25 +3045,53 @@ private:
 
     [[nodiscard]] LegacyBattleScriptDispatchResult case_fifty_five() {
         u16 actor{};
-        u16 argument{};
-        if (!read_u16(wrapping_add(workspace_.cursor, 2U), actor) ||
-            !read_u16(wrapping_add(workspace_.cursor, 4U), argument)) {
+        if (!read_u16(wrapping_add(workspace_.cursor, 2U), actor)) {
             return finish();
         }
         workspace_.value_a = signed_word(actor);
+        eax_ = std::bit_cast<u32>(workspace_.value_a) - 8U;
+
+        u16 argument{};
+        if (!read_u16(wrapping_add(workspace_.cursor, 4U), argument)) {
+            return finish(eax_);
+        }
         workspace_.value_b = signed_word(argument);
-        invoke(
-            LegacyBattleScriptDispatchCall::pending_477bd0,
-            0U,
-            {std::bit_cast<u32>(workspace_.value_a - 8),
-             std::bit_cast<u32>(workspace_.value_b)}
-        );
+        ecx_ = std::bit_cast<u32>(workspace_.value_b);
+
+        ScriptPartyItemDefinitionPort item_port(*this);
+        result_.party_item_definition =
+            prepare_legacy_battle_party_item_definition(
+                port_.world_item_list_state(),
+                port_.battle_level_advancement_state().growth_caption_text,
+                item_port,
+                port_,
+                {
+                    .party_index = eax_,
+                    .item_id = ecx_,
+                    .window_token = bindings_.startup.window_token,
+                    .entry_eax = eax_,
+                    .entry_ecx = ecx_,
+                    .entry_edx = edx_,
+                }
+            );
+        ++result_.party_item_definition_calls;
+        eax_ = result_.party_item_definition.return_eax;
+        ecx_ = result_.party_item_definition.return_ecx;
+        edx_ = result_.party_item_definition.return_edx;
+        if (result_.party_item_definition.status !=
+            LegacyBattlePartyItemDefinitionStatus::completed) {
+            result_.status = LegacyBattleScriptDispatchStatus::
+                party_item_definition_typed_stop;
+            return finish(eax_);
+        }
         if (eax_ == 1U) {
             bindings_.target_selection.transition_mode = 1U;
         }
+        eax_ = 0U;
         workspace_.value_a = 0;
         workspace_.value_b = 0;
         workspace_.cursor = wrapping_add(workspace_.cursor, 6U);
+        ecx_ = entry_ecx_;
         return finish(1U);
     }
 
@@ -4048,6 +4155,7 @@ private:
     u32 eax_{};
     u32 ecx_{};
     u32 edx_{};
+    u32 entry_ecx_{};
 };
 
 }  // namespace

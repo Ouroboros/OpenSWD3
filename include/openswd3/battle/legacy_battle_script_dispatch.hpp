@@ -11,7 +11,9 @@
 #include "openswd3/battle/legacy_battle_group_b_script_resource_parameters.hpp"
 #include "openswd3/battle/legacy_battle_group_b_script_special_action_item_parameters.hpp"
 #include "openswd3/battle/legacy_battle_input_dispatch.hpp"
+#include "openswd3/battle/legacy_battle_level_advancement.hpp"
 #include "openswd3/battle/legacy_battle_message_phase.hpp"
+#include "openswd3/battle/legacy_battle_party_item_definition.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_runtime.hpp"
 #include "openswd3/battle/legacy_battle_victory_rewards.hpp"
@@ -200,7 +202,7 @@ enum class LegacyBattleScriptDispatchCall : compat::u32 {
     reserved_group_b_script_special_action_item_parameters = 0x00476A10U,
     pending_476a80 = 0x00476A80U,
     pending_476db0 = 0x00476DB0U,
-    pending_477bd0 = 0x00477BD0U,
+    reserved_party_item_definition = 0x00477BD0U,
     pending_478220 = 0x00478220U,
     pending_478330 = 0x00478330U,
     pending_4783b0 = 0x004783B0U,
@@ -268,7 +270,9 @@ struct LegacyBattleScriptDispatchCallReply {
 };
 
 class LegacyBattleScriptDispatchPort
-    : public virtual LegacyBattleMonDatabasePort {
+    : public virtual LegacyBattleMonDatabasePort,
+      public virtual LegacyBattleLevelAdvancementStatePort,
+      public virtual world_map::LegacyWorldItemListStatePort {
 public:
     virtual ~LegacyBattleScriptDispatchPort() = default;
 
@@ -305,6 +309,7 @@ enum class LegacyBattleScriptDispatchStatus : compat::u8 {
     group_b_script_resource_parameters_typed_stop,
     group_b_script_action_item_parameters_typed_stop,
     group_b_script_special_action_item_parameters_typed_stop,
+    party_item_definition_typed_stop,
 };
 
 struct LegacyBattleScriptDispatchRequest {
@@ -339,6 +344,8 @@ struct LegacyBattleScriptDispatchResult {
     LegacyBattleGroupBScriptSpecialActionItemParametersResult
         group_b_script_special_action_item_parameters{};
     compat::u32 group_b_script_special_action_item_parameters_calls{};
+    LegacyBattlePartyItemDefinitionResult party_item_definition{};
+    compat::u32 party_item_definition_calls{};
     std::vector<LegacyBattleScriptDispatchCall> call_trace;
 };
 

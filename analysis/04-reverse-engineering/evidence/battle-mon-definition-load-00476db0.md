@@ -53,7 +53,7 @@ tag 30找到终止符后以`length+1`请求说明块，把返回token先写入�
 
 适用的战斗、物品数量、growth、group A/B、message/startup/frame和特殊模式路径全部只调用低层MON typed loader。旧whole-function虚函数和生产兼容桥已删除；测试流转换只存在于`tests/support/legacy_battle_mon_database_fixture.hpp`。`0x00402F80`对应原版隐藏调试物品遍历仍维持其既有、已记录的SDL debug-only平台跳过，不伪造不存在的旧物品链。
 
-`0x00477400`现于LEVEL记录要求新增队伍物品时，以新节点 `+0x0C` 和物品ID直连本loader；MON typed-stop保留已经链接并清零的新节点，正常返回后才写过渡模式与成长标题。`0x00477A20`现以命令ID读取MON定义，并在定义说明清理后更新固定根`0x004B8A00`；新增与直接修改两个Dialog站点均已直连loader及共享MON port。`0x00477B40`先扫描同一固定根，再于命中和缺键分支各自调用本loader并清理说明；队伍对话页、护驾摘要和角色属性重算三个caller均已直连。其余两个尚未审计过程的5个站点继续隔离：`0x00477BD0`、`0x00480220`；reserved枚举槽不构成提前回收。
+`0x00477400`现于LEVEL记录要求新增队伍物品时，以新节点 `+0x0C` 和物品ID直连本loader；MON typed-stop保留已经链接并清零的新节点，正常返回后才写过渡模式与成长标题。`0x00477A20`现以命令ID读取MON定义，并在定义说明清理后更新固定根`0x004B8A00`；新增与直接修改两个Dialog站点均已直连loader及共享MON port。`0x00477B40`先扫描同一固定根，再于命中和缺键分支各自调用本loader并清理说明；队伍对话页、护驾摘要和角色属性重算三个caller均已直连。`0x00477BD0`现于脚本case 55缺少队伍物品时，以已链接并清零的新节点`+0x0C`和ID直连本loader；MON typed-stop保留链头与节点前缀，正常返回后才复制成长caption和恢复原头。剩余一个尚未审计过程的3个站点继续隔离：`0x00480220`；reserved枚举槽不构成提前回收。
 
 连续物理定义必须重建完整`0xA4`镜像。物品节点、growth actor和growth item result因此在调用内组合固定字节与`+0xA0`说明token，再分别回写；special-mode数量记录使用调用内说明owner并保留记录中的释放token。共享actor/profile scratch和动态说明各只有一个typed owner。
 
