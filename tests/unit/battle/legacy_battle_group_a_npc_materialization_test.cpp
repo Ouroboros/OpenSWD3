@@ -141,6 +141,7 @@ void test_battle_group_a_npc_materialization(openswd3::test::Context& test) {
         set_profile_word(port.loaded_profile, 0x2CU, 2U);
         set_profile_word(port.loaded_profile, 0x60U, 0x5566U);
         set_profile_byte(port.loaded_profile, 0x90U, 0xABU);
+        port.definition_description = {0x41U};
         for (std::size_t index = 0U; index < 9U; ++index) {
             set_profile_byte(
                 port.loaded_profile,
@@ -176,8 +177,9 @@ void test_battle_group_a_npc_materialization(openswd3::test::Context& test) {
                 result.adjusted_word_writes == 5U &&
                 result.adjusted_byte_writes == 1U &&
                 result.profile_name_bytes_copied == 9U &&
-                port.calls.size() == 2U &&
+                port.calls.size() == 1U &&
                 port.requested_definition_ids == std::vector<u32>{0x123U} &&
+                port.definition_text_release_calls == 1U &&
                 state.profile_token == 0x71000000U &&
                 state.placement_primary == state.placement_secondary &&
                 state.placement_primary[5U] == 0x23450123U &&
@@ -220,13 +222,13 @@ void test_battle_group_a_npc_materialization(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGroupANpcMaterializationStatus::completed &&
                 result.diagnostic_calls == 1U && result.port_calls == 4U &&
-                port.calls[2U].call ==
+                port.calls[1U].call ==
                     LegacyBattleGroupASummonMaterializationCall::
                         report_missing_role &&
-                port.calls[2U].window_token == 0x76543210U &&
-                port.calls[2U].diagnostic_text_token == 0x004A7C7CU &&
-                port.calls[2U].diagnostic_source_token == 0x004A7C44U &&
-                port.calls[2U].diagnostic_source_line == 0x14EU,
+                port.calls[1U].window_token == 0x76543210U &&
+                port.calls[1U].diagnostic_text_token == 0x004A7C7CU &&
+                port.calls[1U].diagnostic_source_token == 0x004A7C44U &&
+                port.calls[1U].diagnostic_source_line == 0x14EU,
             "zero NPC role reports fixed NPC diagnostic arguments after profile release and source copies"
         );
     }

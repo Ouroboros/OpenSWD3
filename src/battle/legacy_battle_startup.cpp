@@ -52,11 +52,10 @@ public:
             break;
 
         case LegacyBattleGroupASummonMaterializationCall::reserved_load_profile:
-            return {.profile_record = request.profile_record};
 
-        case LegacyBattleGroupASummonMaterializationCall::release_profile_text:
-            call.call = LegacyBattleStartupCall::group_a_profile_release;
-            break;
+        case LegacyBattleGroupASummonMaterializationCall::
+            reserved_release_profile_text:
+            return {.profile_record = request.profile_record};
 
         case LegacyBattleGroupASummonMaterializationCall::report_missing_role:
             call.call =
@@ -172,58 +171,6 @@ public:
     [[nodiscard]] LegacyBattleFixedObjectState&
     legacy_battle_fixed_object_state() noexcept override {
         return port_.legacy_battle_fixed_object_state();
-    }
-
-private:
-    LegacyBattleStartupPort& port_;
-};
-
-class StartupGroupBActionConfigurationPort final
-    : public LegacyBattleGroupBActionConfigurationPort {
-public:
-    explicit StartupGroupBActionConfigurationPort(
-        LegacyBattleStartupPort& port
-    ) noexcept
-        : port_(port) {}
-
-    [[nodiscard]] LegacyBattleGroupBActionConfigurationCallReply invoke(
-        const LegacyBattleGroupBActionConfigurationCallRequest& request
-    ) override {
-        LegacyBattleStartupCallRequest call{
-            .arguments = {request.arguments[0U], request.arguments[1U], 0U, 0U},
-            .eax = request.eax,
-            .ecx = request.ecx,
-            .edx = request.edx,
-        };
-        switch (request.call) {
-        case LegacyBattleGroupBActionConfigurationCall::
-            reserved_load_resource_definition:
-
-        case LegacyBattleGroupBActionConfigurationCall::
-            reserved_load_action_profile:
-            return {
-                .eax = 0U,
-                .ecx = 0U,
-                .edx = 0U,
-                .typed_stop = true,
-                .resource_bytes = nullptr,
-                .profile_buffer = nullptr,
-            };
-
-        case LegacyBattleGroupBActionConfigurationCall::release_resource_text:
-            call.call = LegacyBattleStartupCall::group_b_release_resource_text;
-            break;
-        }
-        const auto reply = port_.invoke(call);
-        return {
-            .eax = reply.return_value,
-            .ecx = reply.ecx_snapshot,
-            .edx = reply.edx_snapshot,
-            .typed_stop =
-                port_.group_b_action_configuration_typed_stop(call.call),
-            .resource_bytes = nullptr,
-            .profile_buffer = nullptr,
-        };
     }
 
 private:
@@ -776,8 +723,6 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         return result;
     }
     state.reset.block_525470.fill(0U);
-
-    StartupGroupBActionConfigurationPort group_b_configuration(port);
     for (u32 index = 0U; index < state.enemy_count; ++index) {
         if (index >= kLegacyBattleActorGroupBElementCount ||
             index >= result.definition.enemies.size()) {
@@ -822,7 +767,6 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         const auto configuration = configure_legacy_battle_group_b_action(
             &element,
             &record,
-            group_b_configuration,
             port,
             role_argument,
             actor_token,

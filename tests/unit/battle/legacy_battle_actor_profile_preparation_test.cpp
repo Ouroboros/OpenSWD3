@@ -48,6 +48,13 @@ void test_battle_actor_profile_preparation(openswd3::test::Context& test) {
     using namespace openswd3::battle;
 
     {
+        LegacyBattleGroupAConfigurationState configuration;
+        configuration.profile_token = 0x71001000U;
+        configuration.profile_record[0xA0U] = std::byte{0x00U};
+        configuration.profile_record[0xA1U] = std::byte{0x10U};
+        configuration.profile_record[0xA2U] = std::byte{0x00U};
+        configuration.profile_record[0xA3U] = std::byte{0x72U};
+        configuration.profile_description = {0x61U};
         LegacyBattleGroupAFinalProcessingState final_state;
         LegacyBattleGroupAItemEffectApplicationState item_effect;
         ProfilePort port;
@@ -57,6 +64,7 @@ void test_battle_actor_profile_preparation(openswd3::test::Context& test) {
         port.definition[0x34U] = 0x78U;
         port.definition[0x35U] = 0x56U;
         const auto result = prepare_legacy_battle_actor_profile(
+            &configuration,
             &final_state,
             &item_effect,
             0x005029D0U,
@@ -77,12 +85,20 @@ void test_battle_actor_profile_preparation(openswd3::test::Context& test) {
                 port.requested_definition_ids ==
                     std::vector<openswd3::compat::u32>{9U} &&
                 port.requested_profile_ids ==
-                    std::vector<openswd3::compat::u16>{7U},
+                    std::vector<openswd3::compat::u16>{7U} &&
+                port.definition_text_release_calls == 1U &&
+                configuration.profile_description.empty() &&
+                configuration.profile_record[0xA0U] == std::byte{0U} &&
+                configuration.profile_record[0xA1U] == std::byte{0U} &&
+                configuration.profile_record[0xA2U] == std::byte{0U} &&
+                configuration.profile_record[0xA3U] == std::byte{0U},
             "profile preparation builds, resolves, loads, publishes fallback and sets mode bit"
         );
     }
 
     {
+        LegacyBattleGroupAConfigurationState configuration;
+        configuration.profile_token = 0x71002000U;
         LegacyBattleGroupAFinalProcessingState final_state;
         final_state.profile_buffer[4U] = 1U;
         final_state.profile_buffer[3U] = 0xABCD0000U;
@@ -91,7 +107,13 @@ void test_battle_actor_profile_preparation(openswd3::test::Context& test) {
         port.set_profile_dword(0x0CU, 0xABCD0000U);
         port.set_profile_dword(0x10U, 1U);
         const auto result = prepare_legacy_battle_actor_profile(
-            &final_state, &item_effect, 0x005029D0U, port, port, {}
+            &configuration,
+            &final_state,
+            &item_effect,
+            0x005029D0U,
+            port,
+            port,
+            {}
         );
         test.expect_true(
             result.fallback_writes == 0U &&
@@ -102,10 +124,12 @@ void test_battle_actor_profile_preparation(openswd3::test::Context& test) {
     }
 
     {
+        LegacyBattleGroupAConfigurationState configuration;
+        configuration.profile_token = 0x71003000U;
         ProfilePort port;
         LegacyBattleGroupAItemEffectApplicationState item_effect;
         const auto result = prepare_legacy_battle_actor_profile(
-            nullptr, &item_effect, 0x005029D0U, port, port, {}
+            &configuration, nullptr, &item_effect, 0x005029D0U, port, port, {}
         );
         test.expect_true(
             result.status ==

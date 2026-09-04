@@ -67,6 +67,7 @@ add_library(
         src/battle/legacy_battle_fixed_count_chain.cpp
         src/battle/legacy_battle_level_requirement.cpp
         src/battle/legacy_battle_mon_definition.cpp
+        src/battle/legacy_battle_mon_definition_text_release.cpp
         src/battle/legacy_battle_mon_profile.cpp
 )
 target_include_directories(

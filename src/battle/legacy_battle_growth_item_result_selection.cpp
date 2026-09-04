@@ -1,5 +1,7 @@
 #include "openswd3/battle/legacy_battle_growth_item_result_selection.hpp"
 
+#include "openswd3/battle/legacy_battle_mon_definition_text_release.hpp"
+
 #include <algorithm>
 #include <array>
 #include <bit>
@@ -158,7 +160,9 @@ private:
         if (!load_item_definition(item_code)) {
             return ActorAdvance::stopped;
         }
-        release_item_description();
+        if (!release_item_description()) {
+            return ActorAdvance::stopped;
+        }
         bindings_.target_selection.transition_mode = 1U;
         if (!copy_caption()) {
             return ActorAdvance::stopped;
@@ -198,10 +202,7 @@ private:
         ecx_ = definition_result.return_ecx;
         edx_ = definition_result.return_edx;
         std::copy_n(
-            definition.cbegin(),
-
-            scratch_.bytes.size(),
-            scratch_.bytes.begin()
+            definition.cbegin(), scratch_.bytes.size(), scratch_.bytes.begin()
         );
         scratch_.description_token = static_cast<u32>(definition[0xA0U]) |
             (static_cast<u32>(definition[0xA1U]) << 8U) |
@@ -217,19 +218,43 @@ private:
         return true;
     }
 
-    void release_item_description() {
-        static_cast<void>(invoke(
-            LegacyBattleGrowthItemResultSelectionCall::release_item_description,
-            0U,
-            0U,
-            kLegacyBattleGrowthItemScratchToken,
-            0U,
-            0U,
-            {kLegacyBattleGrowthItemScratchToken, 0U, 0U, 0U}
-        ));
+    [[nodiscard]] bool release_item_description() {
+        std::array<u8, kLegacyBattleMonDefinitionBytes> definition{};
+        std::copy(
+            scratch_.bytes.cbegin(), scratch_.bytes.cend(), definition.begin()
+        );
+        definition[0xA0U] = static_cast<u8>(scratch_.description_token);
+        definition[0xA1U] = static_cast<u8>(scratch_.description_token >> 8U);
+        definition[0xA2U] = static_cast<u8>(scratch_.description_token >> 16U);
+        definition[0xA3U] = static_cast<u8>(scratch_.description_token >> 24U);
+        const auto release_result = release_legacy_battle_mon_definition_text(
+            definition,
+            scratch_.description,
+            port_,
+            {
+                .object_token = kLegacyBattleGrowthItemScratchToken,
+                .entry_eax = eax_,
+                .entry_ecx = ecx_,
+                .entry_edx = edx_,
+            }
+        );
+        ++result_.port_calls;
         ++result_.item_release_calls;
-        scratch_.description.clear();
-        scratch_.description_token = 0U;
+        eax_ = release_result.return_eax;
+        ecx_ = release_result.return_ecx;
+        edx_ = release_result.return_edx;
+        scratch_.description_token = static_cast<u32>(definition[0xA0U]) |
+            (static_cast<u32>(definition[0xA1U]) << 8U) |
+            (static_cast<u32>(definition[0xA2U]) << 16U) |
+            (static_cast<u32>(definition[0xA3U]) << 24U);
+        if (legacy_battle_mon_definition_text_release_stopped(
+                release_result.status
+            )) {
+            result_.status = LegacyBattleGrowthItemResultSelectionStatus::
+                definition_release_typed_stop;
+            return false;
+        }
+        return true;
     }
 
     [[nodiscard]] bool copy_caption() {

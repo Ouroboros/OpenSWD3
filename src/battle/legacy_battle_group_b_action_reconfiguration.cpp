@@ -1,5 +1,7 @@
 #include "openswd3/battle/legacy_battle_group_b_action_reconfiguration.hpp"
 
+#include "openswd3/battle/legacy_battle_mon_definition_text_release.hpp"
+
 #include <bit>
 #include <cstddef>
 
@@ -28,26 +30,14 @@ void write_dword(
     bytes[offset + 3U] = static_cast<u8>(value >> 24U);
 }
 
-void publish_reply(
-    LegacyBattleActorGroupBElementState& actor,
-    const LegacyBattleGroupBActionConfigurationCallReply& reply
-) {
-    if (reply.resource_bytes != nullptr) {
-        actor.resource_bytes = *reply.resource_bytes;
-    }
-    if (reply.profile_buffer != nullptr) {
-        actor.action_configuration.profile_buffer = *reply.profile_buffer;
-    }
-}
-
 }  // namespace
 
 LegacyBattleGroupBActionReconfigurationResult
 reconfigure_legacy_battle_group_b_action(
     LegacyBattleActorGroupBElementState* const actor,
-    LegacyBattleGroupBActionConfigurationPort& port,
     LegacyBattleMonDatabasePort& mon_port,
-    const LegacyBattleGroupBActionReconfigurationRequest& request
+    const LegacyBattleGroupBActionReconfigurationRequest& request,
+    LegacyBattleGroupBActionReconfigurationReleasePort* const release_port
 ) {
     LegacyBattleGroupBActionReconfigurationResult result{
         .return_eax = request.definition_argument,
@@ -60,21 +50,19 @@ reconfigure_legacy_battle_group_b_action(
         return result;
     }
 
-    const
-
-        auto definition_result = load_legacy_battle_mon_definition(
-            actor->resource_bytes,
-            actor->resource_description,
-            mon_port,
-            {
-                .path = "mon.dat",
-                .output_token = actor->resource_token,
-                .definition_id = request.definition_argument,
-                .entry_eax = request.definition_argument,
-                .entry_ecx = actor->resource_token,
-                .entry_edx = request.entry_edx,
-            }
-        );
+    const auto definition_result = load_legacy_battle_mon_definition(
+        actor->resource_bytes,
+        actor->resource_description,
+        mon_port,
+        {
+            .path = "mon.dat",
+            .output_token = actor->resource_token,
+            .definition_id = request.definition_argument,
+            .entry_eax = request.definition_argument,
+            .entry_ecx = actor->resource_token,
+            .entry_edx = request.entry_edx,
+        }
+    );
     ++result.port_calls;
     if (legacy_battle_mon_definition_load_stopped(definition_result.status)) {
         result.status = LegacyBattleGroupBActionReconfigurationStatus::
@@ -134,22 +122,32 @@ reconfigure_legacy_battle_group_b_action(
         return result;
     }
 
-    auto
-
-        reply = port.invoke({
-            .call = LegacyBattleGroupBActionConfigurationCall::
-                release_resource_text,
-            .arguments = {actor->resource_token, 0U},
-            .eax = profile_result.return_eax,
-            .ecx = actor->resource_token,
-            .edx = profile_result.return_edx,
-        });
+    const LegacyBattleMonDefinitionTextReleaseRequest release_request{
+        .object_token = actor->resource_token,
+        .entry_eax = profile_result.return_eax,
+        .entry_ecx = actor->resource_token,
+        .entry_edx = profile_result.return_edx,
+    };
+    const auto release_result = release_port == nullptr
+        ? release_legacy_battle_mon_definition_text(
+              actor->resource_bytes,
+              actor->resource_description,
+              mon_port,
+              release_request
+          )
+        : release_port->release_group_b_action_resource_text(
+              actor->resource_bytes,
+              actor->resource_description,
+              mon_port,
+              release_request
+          );
     ++result.port_calls;
-    publish_reply(*actor, reply);
-    result.return_eax = reply.eax;
-    result.return_ecx = reply.ecx;
-    result.return_edx = reply.edx;
-    if (reply.typed_stop) {
+    result.return_eax = release_result.return_eax;
+    result.return_ecx = release_result.return_ecx;
+    result.return_edx = release_result.return_edx;
+    if (legacy_battle_mon_definition_text_release_stopped(
+            release_result.status
+        )) {
         result.status = LegacyBattleGroupBActionReconfigurationStatus::
             resource_release_typed_stop;
     }

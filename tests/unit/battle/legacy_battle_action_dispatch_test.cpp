@@ -1451,6 +1451,7 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         Fixture fixture;
         DispatchPort port;
         port.action = 23U;
+        port.definition_description = {0x61U};
         port.push(0x00487C10U, {.eax = 0x00640000U});
         auto context = fixture.context();
         const auto result = openswd3::battle::dispatch_legacy_battle_action(
@@ -1480,6 +1481,9 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 result.action_twenty_three_message.message_code_clears == 1U &&
                 state.group_b_message_profiles[0U].message_code == 0U &&
                 port.count(0x00472430U) == 0U &&
+                port.definition_text_release_calls == 1U &&
+                port.legacy_battle_mon_definition_scratch_description()
+                    .empty() &&
                 result.player_item_calls == 1U &&
                 result.player_item.return_token == 0x0064000CU &&
                 item.item_id == 0x22U && item.quantity_b == 1U,
@@ -4201,6 +4205,7 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
         set_summon_profile_word(port.summon_profile, 0x56U, 0x1111U);
         set_summon_profile_word(port.summon_profile, 0x60U, 0x2222U);
         set_summon_profile_word(port.summon_profile, 0x64U, 0x3333U);
+        port.definition_description = {0x41U};
         auto context = fixture.context();
 
         const auto result = openswd3::battle::dispatch_legacy_battle_action(
@@ -4218,11 +4223,12 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
                 result.summon_materialization.return_eax == 0x71000000U &&
                 result.summon_materialization.return_edx ==
                     summon.configuration.actor_record_token &&
-                port.summon_materialization_calls.size() == 2U &&
+                port.summon_materialization_calls.size() == 1U &&
                 port.count(0x0046E890U) == 0U &&
                 port.count(0x00487C10U) == 1U &&
                 port.count(0x00476DB0U) == 0U &&
-                port.count(0x00478220U) == 1U &&
+                port.count(0x00478220U) == 0U &&
+                port.definition_text_release_calls == 1U &&
                 port.requested_definition_ids == std::vector<u32>{7U} &&
                 summon.configuration.profile_token == 0x71000000U &&
                 summon.configuration.placement_primary[5U] == 0x23450007U &&

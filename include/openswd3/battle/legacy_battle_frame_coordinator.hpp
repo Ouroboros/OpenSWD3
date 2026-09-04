@@ -200,7 +200,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     reserved_growth_item_result_load_definition,
     growth_item_result_load_definition =
         reserved_growth_item_result_load_definition,
-    growth_item_result_release_description,
+    reserved_growth_item_result_release_description,
     growth_item_result_copy_caption,
     growth_item_completion_format_text,
     growth_item_completion_measure_text,
@@ -1392,10 +1392,12 @@ public:
             break;
 
         case LegacyBattleGrowthItemResultSelectionCall::
-            release_item_description:
-            call = LegacyBattleFrameCoordinatorCall::
-                growth_item_result_release_description;
-            break;
+            reserved_release_item_description:
+            return {
+                .eax = request.eax,
+                .ecx = request.ecx,
+                .edx = request.edx,
+            };
 
         case LegacyBattleGrowthItemResultSelectionCall::copy_caption:
             call = LegacyBattleFrameCoordinatorCall::

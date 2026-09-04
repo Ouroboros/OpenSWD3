@@ -4,38 +4,38 @@
 
 #include <array>
 #include <cstddef>
-#include <deque>
 #include <memory>
-#include <vector>
+#include <optional>
 
 namespace {
 
 using openswd3::battle::LegacyBattleActorGroupBElementState;
-using openswd3::battle::LegacyBattleGroupBActionConfigurationCallReply;
-using openswd3::battle::LegacyBattleGroupBActionConfigurationCallRequest;
-using openswd3::battle::LegacyBattleGroupBActionConfigurationPort;
 using openswd3::battle::LegacyBattleGroupBActionReconfigurationStatus;
+using openswd3::battle::LegacyBattleMonDatabasePort;
+using openswd3::battle::LegacyBattleMonDefinitionTextReleaseCallReply;
+using openswd3::battle::LegacyBattleMonDefinitionTextReleaseCallRequest;
 using openswd3::compat::u8;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
 
-class Port final : public LegacyBattleGroupBActionConfigurationPort,
-                   public openswd3::test::LegacyBattleMonDatabaseFixture {
+class Port final : public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
-    [[nodiscard]] LegacyBattleGroupBActionConfigurationCallReply invoke(
-        const LegacyBattleGroupBActionConfigurationCallRequest& request
+    [[nodiscard]] LegacyBattleMonDefinitionTextReleaseCallReply
+    release_legacy_battle_mon_definition_text(
+        const LegacyBattleMonDefinitionTextReleaseCallRequest& request
     ) override {
-        requests.push_back(request);
-        if (replies.empty()) {
-            return {};
+        release_request = request;
+        ++definition_release_calls;
+        if (release_reply.has_value()) {
+            return *release_reply;
         }
-        const auto reply = replies.front();
-        replies.pop_front();
-        return reply;
+        return LegacyBattleMonDatabasePort::
+            release_legacy_battle_mon_definition_text(request);
     }
 
-    std::deque<LegacyBattleGroupBActionConfigurationCallReply> replies;
-    std::vector<LegacyBattleGroupBActionConfigurationCallRequest> requests;
+    std::optional<LegacyBattleMonDefinitionTextReleaseCallReply> release_reply;
+    LegacyBattleMonDefinitionTextReleaseCallRequest release_request{};
+    u32 definition_release_calls{};
 };
 
 void write_word(
@@ -71,7 +71,6 @@ void test_battle_group_b_action_reconfiguration(openswd3::test::Context& test) {
         const auto result = reconfigure_legacy_battle_group_b_action(
             nullptr,
             port,
-            port,
             {.definition_argument = 0xFFFFFF80U,
              .actor_token = 0x0052AB58U,
              .entry_edx = 0x000002B2U}
@@ -96,18 +95,16 @@ void test_battle_group_b_action_reconfiguration(openswd3::test::Context& test) {
         actor.action_configuration.source_runtime_value = 0x2468ACE0U;
         Port port;
         port.definition = *resource_snapshot();
+        port.definition_description = {0x41U, 0x42U};
         port.set_profile_word(0x14U, 0x1122U);
-        port.replies = {
-            {.eax = 0x66666666U,
-             .ecx = 0x77777777U,
-             .edx = 0x88888888U,
-             .typed_stop = false,
-             .resource_bytes = nullptr,
-             .profile_buffer = nullptr},
+        port.release_reply = {
+            .eax = 0x66666666U,
+            .ecx = 0x77777777U,
+            .edx = 0x88888888U,
+            .typed_stop = false,
         };
         const auto result = reconfigure_legacy_battle_group_b_action(
             &actor,
-            port,
             port,
             {.definition_argument = 0xFFFFFF80U,
              .actor_token = actor.object_token,
@@ -124,6 +121,10 @@ void test_battle_group_b_action_reconfiguration(openswd3::test::Context& test) {
                 actor.action_configuration.source_runtime_value ==
                     0x2468ACE0U &&
                 read_dword(actor.resource_bytes, 0x4CU) == 0xFFFFFF80U &&
+                read_dword(actor.resource_bytes, 0xA0U) == 0U &&
+                actor.resource_description.empty() &&
+                port.definition_release_calls == 1U &&
+                port.release_request.block_token == 0x72000000U &&
                 result.return_eax == 0x66666666U &&
                 result.return_ecx == 0x77777777U &&
                 result.return_edx == 0x88888888U,
@@ -141,7 +142,6 @@ void test_battle_group_b_action_reconfiguration(openswd3::test::Context& test) {
         port.allocation_succeeds = false;
         const auto result = reconfigure_legacy_battle_group_b_action(
             &actor,
-            port,
             port,
             {.definition_argument = 7U, .actor_token = actor.object_token}
         );
@@ -164,7 +164,6 @@ void test_battle_group_b_action_reconfiguration(openswd3::test::Context& test) {
         port.allocation_results = {true, false};
         const auto result = reconfigure_legacy_battle_group_b_action(
             &actor,
-            port,
             port,
             {.definition_argument = 7U, .actor_token = actor.object_token}
         );

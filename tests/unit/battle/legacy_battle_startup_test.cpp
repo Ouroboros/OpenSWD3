@@ -75,7 +75,7 @@ public:
             break;
         case LegacyBattleStartupCall::group_b_load_resource_definition:
         case LegacyBattleStartupCall::reserved_group_b_load_action_profile:
-        case LegacyBattleStartupCall::group_b_release_resource_text:
+        case LegacyBattleStartupCall::reserved_group_b_release_resource_text:
             break;
         case LegacyBattleStartupCall::apply_actor_mode:
             reply.ecx_snapshot = 0xBEEF0000U;
@@ -740,8 +740,9 @@ void test_battle_startup(openswd3::test::Context& test) {
                         reserved_group_b_load_action_profile
                 ) == 0U &&
                 ports.call_count(
-                    LegacyBattleStartupCall::group_b_release_resource_text
-                ) == 2U &&
+                    LegacyBattleStartupCall::
+                        reserved_group_b_release_resource_text
+                ) == 0U &&
                 result.initial_party_actor_count == 2U &&
                 result.party_configuration_calls == 2U &&
                 result.party_configurations[0U].status ==
@@ -915,8 +916,8 @@ void test_battle_startup(openswd3::test::Context& test) {
                     LegacyBattleStartupCall::group_a_profile_load
                 ) == 0U &&
                 ports.call_count(
-                    LegacyBattleStartupCall::group_a_profile_release
-                ) == 2U &&
+                    LegacyBattleStartupCall::reserved_group_a_profile_release
+                ) == 0U &&
                 state.party_count == 4U && state.party[2].role_id == 3U &&
                 state.party[3].role_id == 4U &&
                 state.party[2].position_x == 0xFF92U &&
@@ -1005,8 +1006,8 @@ void test_battle_startup(openswd3::test::Context& test) {
                     LegacyBattleStartupCall::group_a_profile_load
                 ) == 0U &&
                 ports.call_count(
-                    LegacyBattleStartupCall::group_a_profile_release
-                ) == 2U &&
+                    LegacyBattleStartupCall::reserved_group_a_profile_release
+                ) == 0U &&
                 ports.call_count(LegacyBattleStartupCall::apply_actor_mode) ==
                     2U &&
                 result.return_value == 0U && result.message_state_published &&

@@ -1,5 +1,7 @@
 #include "openswd3/battle/legacy_battle_fixed_count_chain.hpp"
 
+#include "openswd3/battle/legacy_battle_mon_definition_text_release.hpp"
+
 #include <algorithm>
 #include <bit>
 #include <cmath>
@@ -211,12 +213,6 @@ void stop_at_record_access(
         (static_cast<u32>(bytes[offset + 1U]) << 8U) |
         (static_cast<u32>(bytes[offset + 2U]) << 16U) |
         (static_cast<u32>(bytes[offset + 3U]) << 24U);
-}
-
-void clear_little_dword(
-    const std::span<u8> bytes, const std::size_t offset
-) noexcept {
-    std::fill_n(bytes.begin() + static_cast<std::ptrdiff_t>(offset), 4U, 0U);
 }
 
 struct X87TruncateResult {
@@ -1418,28 +1414,29 @@ set_legacy_battle_fixed_definition_curve(
         return result;
     }
 
-    const u32 description_token = read_little_dword(definition, 0xA0U);
+    const auto cleanup = release_legacy_battle_mon_definition_text(
+        definition,
+        description,
+        mon_port,
+        {
+            .object_token = request.definition_output_token,
+            .entry_eax = eax,
+            .entry_ecx = ecx,
+            .entry_edx = edx,
+        }
+    );
     ++result.definition_cleanup_calls;
-    if (description_token != 0U) {
-        const auto release = mon_port.invoke_legacy_battle_mon_database(
-            {
-                .call = LegacyBattleMonDatabaseCall::release_definition_text,
-                .stream_kind = LegacyBattleMonDatabaseStreamKind::definition,
-                .block_token = description_token,
-                .eax = description_token,
-                .ecx = ecx,
-                .edx = edx,
-            },
-            {}
-        );
-        ++result.definition_text_release_calls;
-        eax = release.eax;
-        ecx = release.ecx;
-        edx = release.edx;
-        clear_little_dword(definition, 0xA0U);
-        description.clear();
-    } else {
-        eax = 0U;
+    result.definition_text_release_calls += cleanup.release_calls;
+    eax = cleanup.return_eax;
+    ecx = cleanup.return_ecx;
+    edx = cleanup.return_edx;
+    if (legacy_battle_mon_definition_text_release_stopped(cleanup.status)) {
+        result.status = LegacyBattleFixedDefinitionCurveSetStatus::
+            definition_cleanup_typed_stop;
+        result.return_eax = eax;
+        result.return_ecx = ecx;
+        result.return_edx = edx;
+        return result;
     }
 
     RecordReference current_storage;
@@ -1832,28 +1829,29 @@ lookup_legacy_battle_fixed_definition_curve(
         return result;
     }
 
-    const u32 description_token = read_little_dword(definition, 0xA0U);
+    const auto cleanup = release_legacy_battle_mon_definition_text(
+        definition,
+        description,
+        mon_port,
+        {
+            .object_token = request.definition_output_token,
+            .entry_eax = eax,
+            .entry_ecx = ecx,
+            .entry_edx = edx,
+        }
+    );
     ++result.definition_cleanup_calls;
-    if (description_token != 0U) {
-        const auto release = mon_port.invoke_legacy_battle_mon_database(
-            {
-                .call = LegacyBattleMonDatabaseCall::release_definition_text,
-                .stream_kind = LegacyBattleMonDatabaseStreamKind::definition,
-                .block_token = description_token,
-                .eax = description_token,
-                .ecx = ecx,
-                .edx = edx,
-            },
-            {}
-        );
-        ++result.definition_text_release_calls;
-        eax = release.eax;
-        ecx = release.ecx;
-        edx = release.edx;
-        clear_little_dword(definition, 0xA0U);
-        description.clear();
-    } else {
-        eax = 0U;
+    result.definition_text_release_calls += cleanup.release_calls;
+    eax = cleanup.return_eax;
+    ecx = cleanup.return_ecx;
+    edx = cleanup.return_edx;
+    if (legacy_battle_mon_definition_text_release_stopped(cleanup.status)) {
+        result.status = LegacyBattleFixedDefinitionCurveLookupStatus::
+            definition_cleanup_typed_stop;
+        result.return_eax = eax;
+        result.return_ecx = ecx;
+        result.return_edx = edx;
+        return result;
     }
 
     const u16 maximum = read_little_word(definition, 0x44U);

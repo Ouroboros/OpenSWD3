@@ -327,6 +327,7 @@ struct LegacyBattleFixedDefinitionCurveSetRequest {
 enum class LegacyBattleFixedDefinitionCurveSetStatus : compat::u8 {
     completed,
     definition_load_typed_stop,
+    definition_cleanup_typed_stop,
     record_access_typed_stop,
     allocation_record_access_typed_stop,
 };
@@ -399,6 +400,7 @@ enum class LegacyBattleFixedDefinitionCurveLookupStatus : compat::u8 {
     completed,
     record_access_typed_stop,
     definition_load_typed_stop,
+    definition_cleanup_typed_stop,
     maximum_output_typed_stop,
     count_output_typed_stop,
 };

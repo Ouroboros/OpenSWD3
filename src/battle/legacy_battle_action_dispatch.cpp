@@ -1,6 +1,7 @@
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 
 #include "openswd3/battle/legacy_battle_action_frame_draw.hpp"
+#include "openswd3/battle/legacy_battle_mon_definition_text_release.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 
 #include <algorithm>
@@ -43,11 +44,10 @@ LegacyBattleActionDispatchPort::invoke_group_a_summon_materialization(
         break;
 
     case LegacyBattleGroupASummonMaterializationCall::reserved_load_profile:
-        return {.profile_record = request.profile_record};
 
-    case LegacyBattleGroupASummonMaterializationCall::release_profile_text:
-        call.callee_token = kLegacyBattleGroupASummonReleaseCallToken;
-        break;
+    case LegacyBattleGroupASummonMaterializationCall::
+        reserved_release_profile_text:
+        return {.profile_record = request.profile_record};
 
     case LegacyBattleGroupASummonMaterializationCall::report_missing_role:
         call.callee_token = kLegacyBattleGroupASummonDiagnosticCallToken;
@@ -119,7 +119,6 @@ constexpr u32 kCallPrepareOpponent = 0x00478AE0U;
 constexpr u32 kCallSelectOpponent = 0x00478A70U;
 constexpr u32 kCallPublishScene = 0x004707B0U;
 constexpr u32 kCallFinalizeSelection = 0x00478B30U;
-constexpr u32 kCallPrepareMessageToken = 0x00478220U;
 constexpr u32 kCallLegacyStringCopy = 0x00499168U;
 constexpr u32 kCallSetGlobalMode = 0x0047F900U;
 constexpr u32 kCallPrepareTarget = 0x00478850U;
@@ -6969,7 +6968,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                 port,
                 {
                     .path = "mon.dat",
-                    .output_token = 0x00453BC28U,
+                    .output_token = 0x0053BC28U,
                     .definition_id = message_code,
                 }
             );
@@ -6981,9 +6980,26 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                     mon_definition_load_typed_stop;
                 return result;
             }
-            static_cast<void>(invoke(
-                state, port, result, kCallPrepareMessageToken, {0x00453BC28U}
-            ));
+            const auto release_result =
+                release_legacy_battle_mon_definition_text(
+                    port.legacy_battle_mon_definition_scratch(),
+                    port.legacy_battle_mon_definition_scratch_description(),
+                    port,
+                    {
+                        .object_token = 0x0053BC28U,
+                        .entry_eax = definition_result.return_eax,
+                        .entry_ecx = definition_result.return_ecx,
+                        .entry_edx = definition_result.return_edx,
+                    }
+                );
+            ++result.port_calls;
+            if (legacy_battle_mon_definition_text_release_stopped(
+                    release_result.status
+                )) {
+                result.status = LegacyBattleActionDispatchStatus::
+                    mon_definition_release_typed_stop;
+                return result;
+            }
             static_cast<void>(invoke(
                 state, port, result, kCallPlayMessage, {0x117U, 0x004AB784U}
             ));

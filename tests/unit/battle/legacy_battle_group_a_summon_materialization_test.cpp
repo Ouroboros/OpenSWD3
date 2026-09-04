@@ -122,6 +122,7 @@ void test_battle_group_a_summon_materialization(openswd3::test::Context& test) {
         set_profile_word(port.loaded_profile, 0x60U, 0x5566U);
         set_profile_word(port.loaded_profile, 0x64U, 0x7788U);
         set_profile_byte(port.loaded_profile, 0x90U, 0xABU);
+        port.definition_description = {0x41U};
         for (std::size_t index = 0U; index < 9U; ++index) {
             set_profile_byte(
                 port.loaded_profile,
@@ -148,14 +149,12 @@ void test_battle_group_a_summon_materialization(openswd3::test::Context& test) {
                 result.profile_dwords_zeroed == 0x29U &&
                 result.placement_dwords_copied == 16U &&
                 result.profile_name_bytes_copied == 9U &&
-                port.calls.size() == 2U &&
+                port.calls.size() == 1U &&
                 port.calls[0U].call ==
                     LegacyBattleGroupASummonMaterializationCall::
                         allocate_profile &&
                 port.requested_definition_ids == std::vector<u32>{0x123U} &&
-                port.calls[1U].call ==
-                    LegacyBattleGroupASummonMaterializationCall::
-                        release_profile_text &&
+                port.definition_text_release_calls == 1U &&
                 state.profile_token == 0x71000000U &&
                 state.placement_primary == state.placement_secondary &&
                 state.placement_primary[5U] == 0x23450123U &&
@@ -191,10 +190,10 @@ void test_battle_group_a_summon_materialization(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGroupASummonMaterializationStatus::completed &&
                 result.diagnostic_calls == 1U && result.port_calls == 4U &&
-                port.calls[2U].call ==
+                port.calls[1U].call ==
                     LegacyBattleGroupASummonMaterializationCall::
                         report_missing_role &&
-                port.calls[2U].window_token == 0x76543210U,
+                port.calls[1U].window_token == 0x76543210U,
             "zero summon role reports only after load, release, and duplicate source publication"
         );
     }

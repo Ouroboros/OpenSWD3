@@ -480,6 +480,29 @@ LegacyBattleMonDatabasePort::invoke_legacy_battle_mon_database(
     return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
 }
 
+LegacyBattleMonDefinitionTextReleaseCallReply
+LegacyBattleMonDatabasePort::release_legacy_battle_mon_definition_text(
+    const LegacyBattleMonDefinitionTextReleaseCallRequest& request
+) {
+    const auto reply = invoke_legacy_battle_mon_database(
+        {
+            .call = LegacyBattleMonDatabaseCall::release_definition_text,
+            .stream_kind = LegacyBattleMonDatabaseStreamKind::definition,
+            .block_token = request.block_token,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        },
+        {}
+    );
+    return {
+        .eax = reply.eax,
+        .ecx = reply.ecx,
+        .edx = reply.edx,
+        .typed_stop = false,
+    };
+}
+
 LegacyBattleMonProfileLoadResult load_legacy_battle_mon_profile(
     const std::span<std::byte> output,
     LegacyBattleMonDatabasePort& port,

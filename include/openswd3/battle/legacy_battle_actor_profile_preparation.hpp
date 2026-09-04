@@ -1,5 +1,7 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_group_a_configuration.hpp"
+
 #include "openswd3/battle/legacy_battle_group_a_final_processing_state.hpp"
 #include "openswd3/battle/legacy_battle_group_a_item_effect_application.hpp"
 #include "openswd3/battle/legacy_battle_mon_definition.hpp"
@@ -47,6 +49,7 @@ enum class LegacyBattleActorProfilePreparationStatus : compat::u8 {
     actor_state_typed_stop,
     profile_load_typed_stop,
     definition_load_typed_stop,
+    definition_release_typed_stop,
 };
 
 struct LegacyBattleActorProfilePreparationResult {
@@ -54,6 +57,7 @@ struct LegacyBattleActorProfilePreparationResult {
         LegacyBattleActorProfilePreparationStatus::completed
     };
     compat::u32 build_calls{};
+    compat::u32 release_calls{};
     compat::u32 resolve_calls{};
     compat::u32 profile_load_calls{};
     compat::u32 output_writes{};
@@ -68,6 +72,7 @@ struct LegacyBattleActorProfilePreparationResult {
 // sub_4707B0.
 [[nodiscard]] LegacyBattleActorProfilePreparationResult
 prepare_legacy_battle_actor_profile(
+    LegacyBattleGroupAConfigurationState* configuration,
     LegacyBattleGroupAFinalProcessingState* final_state,
     LegacyBattleGroupAItemEffectApplicationState* item_effect,
     compat::u32 actor_token,

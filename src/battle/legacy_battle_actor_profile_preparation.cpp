@@ -1,5 +1,7 @@
 #include "openswd3/battle/legacy_battle_actor_profile_preparation.hpp"
 
+#include "openswd3/battle/legacy_battle_mon_definition_text_release.hpp"
+
 namespace openswd3::battle {
 namespace {
 
@@ -28,6 +30,7 @@ void write_profile_word(
 }  // namespace
 
 LegacyBattleActorProfilePreparationResult prepare_legacy_battle_actor_profile(
+    LegacyBattleGroupAConfigurationState* configuration,
     LegacyBattleGroupAFinalProcessingState* final_state,
     LegacyBattleGroupAItemEffectApplicationState* item_effect,
     const u32 actor_token,
@@ -60,12 +63,45 @@ LegacyBattleActorProfilePreparationResult prepare_legacy_battle_actor_profile(
         result.return_edx = definition_result.return_edx;
         return result;
     }
-    if (actor_token == 0U || final_state == nullptr) {
+    if (actor_token == 0U || configuration == nullptr) {
         result.status =
             LegacyBattleActorProfilePreparationStatus::actor_state_typed_stop;
         result.return_eax = definition_result.return_eax;
         result.return_ecx = definition_result.return_ecx;
         result.return_edx = definition_result.return_edx;
+        return result;
+    }
+    const auto release_result = release_legacy_battle_mon_definition_text(
+        std::span<compat::u8>{
+            reinterpret_cast<compat::u8*>(configuration->profile_record.data()),
+            configuration->profile_record.size(),
+        },
+        configuration->profile_description,
+        mon_port,
+        {
+            .object_token = configuration->profile_token,
+            .entry_eax = definition_result.return_eax,
+            .entry_ecx = definition_result.return_ecx,
+            .entry_edx = configuration->profile_token,
+        }
+    );
+    ++result.release_calls;
+    if (legacy_battle_mon_definition_text_release_stopped(
+            release_result.status
+        )) {
+        result.status = LegacyBattleActorProfilePreparationStatus::
+            definition_release_typed_stop;
+        result.return_eax = release_result.return_eax;
+        result.return_ecx = release_result.return_ecx;
+        result.return_edx = release_result.return_edx;
+        return result;
+    }
+    if (final_state == nullptr) {
+        result.status =
+            LegacyBattleActorProfilePreparationStatus::actor_state_typed_stop;
+        result.return_eax = release_result.return_eax;
+        result.return_ecx = release_result.return_ecx;
+        result.return_edx = release_result.return_edx;
         return result;
     }
     const LegacyBattleActorProfilePreparationRecord record{

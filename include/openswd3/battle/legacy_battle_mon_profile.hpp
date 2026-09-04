@@ -72,6 +72,20 @@ struct LegacyBattleMonDatabaseCallReply {
     compat::u32 bytes_read{};
 };
 
+struct LegacyBattleMonDefinitionTextReleaseCallRequest {
+    compat::u32 block_token{};
+    compat::u32 eax{};
+    compat::u32 ecx{};
+    compat::u32 edx{};
+};
+
+struct LegacyBattleMonDefinitionTextReleaseCallReply {
+    compat::u32 eax{};
+    compat::u32 ecx{};
+    compat::u32 edx{};
+    bool typed_stop{};
+};
+
 class LegacyBattleMonDatabasePort {
 public:
     virtual ~LegacyBattleMonDatabasePort() = default;
@@ -93,6 +107,11 @@ public:
     invoke_legacy_battle_mon_database(
         const LegacyBattleMonDatabaseCallRequest& request,
         std::span<compat::u8> destination
+    );
+
+    [[nodiscard]] virtual LegacyBattleMonDefinitionTextReleaseCallReply
+    release_legacy_battle_mon_definition_text(
+        const LegacyBattleMonDefinitionTextReleaseCallRequest& request
     );
 
 private:

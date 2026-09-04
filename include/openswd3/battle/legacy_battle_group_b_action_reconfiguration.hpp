@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_group_b_action_configuration.hpp"
+#include "openswd3/battle/legacy_battle_mon_definition_text_release.hpp"
 
 namespace openswd3::battle {
 
@@ -8,6 +9,19 @@ struct LegacyBattleGroupBActionReconfigurationRequest {
     compat::u32 definition_argument{};
     compat::u32 actor_token{};
     compat::u32 entry_edx{};
+};
+
+class LegacyBattleGroupBActionReconfigurationReleasePort {
+public:
+    virtual ~LegacyBattleGroupBActionReconfigurationReleasePort() = default;
+
+    [[nodiscard]] virtual LegacyBattleMonDefinitionTextReleaseResult
+    release_group_b_action_resource_text(
+        std::span<compat::u8> definition,
+        std::vector<compat::u8>& owned_text,
+        LegacyBattleMonDatabasePort& mon_port,
+        const LegacyBattleMonDefinitionTextReleaseRequest& request
+    ) = 0;
 };
 
 enum class LegacyBattleGroupBActionReconfigurationStatus : compat::u8 {
@@ -33,9 +47,9 @@ struct LegacyBattleGroupBActionReconfigurationResult {
 [[nodiscard]] LegacyBattleGroupBActionReconfigurationResult
 reconfigure_legacy_battle_group_b_action(
     LegacyBattleActorGroupBElementState* actor,
-    LegacyBattleGroupBActionConfigurationPort& port,
     LegacyBattleMonDatabasePort& mon_port,
-    const LegacyBattleGroupBActionReconfigurationRequest& request
+    const LegacyBattleGroupBActionReconfigurationRequest& request,
+    LegacyBattleGroupBActionReconfigurationReleasePort* release_port = nullptr
 );
 
 }  // namespace openswd3::battle

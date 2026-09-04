@@ -5,39 +5,39 @@
 #include <array>
 #include <cstddef>
 #include <cstring>
-#include <deque>
 #include <memory>
-#include <vector>
+#include <optional>
 
 namespace {
 
 using openswd3::battle::LegacyBattleActorGroupBElementState;
-using openswd3::battle::LegacyBattleGroupBActionConfigurationCallReply;
-using openswd3::battle::LegacyBattleGroupBActionConfigurationCallRequest;
-using openswd3::battle::LegacyBattleGroupBActionConfigurationPort;
 using openswd3::battle::LegacyBattleGroupBActionConfigurationStatus;
+using openswd3::battle::LegacyBattleMonDatabasePort;
+using openswd3::battle::LegacyBattleMonDefinitionTextReleaseCallReply;
+using openswd3::battle::LegacyBattleMonDefinitionTextReleaseCallRequest;
 using openswd3::battle::LegacyBattleGroupBActionRecord;
 using openswd3::compat::u8;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
 
-class Port final : public LegacyBattleGroupBActionConfigurationPort,
-                   public openswd3::test::LegacyBattleMonDatabaseFixture {
+class Port final : public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
-    [[nodiscard]] LegacyBattleGroupBActionConfigurationCallReply invoke(
-        const LegacyBattleGroupBActionConfigurationCallRequest& request
+    [[nodiscard]] LegacyBattleMonDefinitionTextReleaseCallReply
+    release_legacy_battle_mon_definition_text(
+        const LegacyBattleMonDefinitionTextReleaseCallRequest& request
     ) override {
-        requests.push_back(request);
-        if (replies.empty()) {
-            return {};
+        release_request = request;
+        ++definition_release_calls;
+        if (release_reply.has_value()) {
+            return *release_reply;
         }
-        const auto reply = replies.front();
-        replies.pop_front();
-        return reply;
+        return LegacyBattleMonDatabasePort::
+            release_legacy_battle_mon_definition_text(request);
     }
 
-    std::deque<LegacyBattleGroupBActionConfigurationCallReply> replies;
-    std::vector<LegacyBattleGroupBActionConfigurationCallRequest> requests;
+    std::optional<LegacyBattleMonDefinitionTextReleaseCallReply> release_reply;
+    LegacyBattleMonDefinitionTextReleaseCallRequest release_request{};
+    u32 definition_release_calls{};
 };
 
 void write_word(
@@ -89,7 +89,7 @@ void test_battle_group_b_action_configuration(openswd3::test::Context& test) {
         LegacyBattleActorGroupBElementState actor{};
         Port port;
         const auto result = configure_legacy_battle_group_b_action(
-            &actor, nullptr, port, port, 0xBEEF0011U, 0x00525508U, 0x005213A0U
+            &actor, nullptr, port, 0xBEEF0011U, 0x00525508U, 0x005213A0U
         );
         test.expect_true(
             result.status ==
@@ -109,22 +109,15 @@ void test_battle_group_b_action_configuration(openswd3::test::Context& test) {
         Port port;
         port.profile.fill(std::byte{0x6AU});
         port.definition = *resource_snapshot();
-        port.replies = {
-            {.eax = 0x77777777U,
-             .ecx = 0x88888888U,
-             .edx = 0x99999999U,
-             .typed_stop = false,
-             .resource_bytes = nullptr,
-             .profile_buffer = nullptr},
+        port.definition_description = {0x41U, 0x42U};
+        port.release_reply = {
+            .eax = 0x77777777U,
+            .ecx = 0x88888888U,
+            .edx = 0x99999999U,
+            .typed_stop = false,
         };
         const auto result = configure_legacy_battle_group_b_action(
-            &actor,
-            &source,
-            port,
-            port,
-            0xBEEF0011U,
-            actor.object_token,
-            0x005213A0U
+            &actor, &source, port, 0xBEEF0011U, actor.object_token, 0x005213A0U
         );
         const auto& state = actor.action_configuration;
         test.expect_true(
@@ -133,6 +126,8 @@ void test_battle_group_b_action_configuration(openswd3::test::Context& test) {
                 result.port_calls == 3U && result.copied_dwords == 16U &&
                 port.open_calls == 1U && port.seek_calls == 6U &&
                 port.read_calls == 6U && port.release_calls == 2U &&
+                port.definition_release_calls == 1U &&
+                port.release_request.block_token == 0x72000000U &&
                 std::memcmp(
                     state.source_record.data(), &source, sizeof(source)
                 ) == 0 &&
@@ -145,6 +140,8 @@ void test_battle_group_b_action_configuration(openswd3::test::Context& test) {
         );
         test.expect_true(
             read_dword(actor.resource_bytes, 0x4CU) == 0xFFFFFF80U &&
+                read_dword(actor.resource_bytes, 0xA0U) == 0U &&
+                actor.resource_description.empty() &&
                 result.return_eax == 0x77777777U &&
                 result.return_ecx == 0x88888888U &&
                 result.return_edx == 0x99999999U,
@@ -161,7 +158,7 @@ void test_battle_group_b_action_configuration(openswd3::test::Context& test) {
         Port port;
         port.allocation_succeeds = false;
         const auto result = configure_legacy_battle_group_b_action(
-            &actor, &source, port, port, 7U, actor.object_token, 0x005213A0U
+            &actor, &source, port, 7U, actor.object_token, 0x005213A0U
         );
         test.expect_true(
             result.status ==
@@ -181,7 +178,7 @@ void test_battle_group_b_action_configuration(openswd3::test::Context& test) {
         port.definition = *resource_snapshot();
         port.allocation_results = {true, false};
         const auto result = configure_legacy_battle_group_b_action(
-            &actor, &source, port, port, 7U, actor.object_token, 0x005213A0U
+            &actor, &source, port, 7U, actor.object_token, 0x005213A0U
         );
         test.expect_true(
             result.status ==

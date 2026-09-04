@@ -1,5 +1,7 @@
 #include "openswd3/battle/legacy_battle_group_b_action_configuration.hpp"
 
+#include "openswd3/battle/legacy_battle_mon_definition_text_release.hpp"
+
 #include <bit>
 #include <cstring>
 
@@ -38,25 +40,12 @@ void write_dword(
     bytes[offset + 3U] = static_cast<compat::u8>(value >> 24U);
 }
 
-void publish_reply(
-    LegacyBattleActorGroupBElementState& actor,
-    const LegacyBattleGroupBActionConfigurationCallReply& reply
-) {
-    if (reply.resource_bytes != nullptr) {
-        actor.resource_bytes = *reply.resource_bytes;
-    }
-    if (reply.profile_buffer != nullptr) {
-        actor.action_configuration.profile_buffer = *reply.profile_buffer;
-    }
-}
-
 }  // namespace
 
 LegacyBattleGroupBActionConfigurationResult
 configure_legacy_battle_group_b_action(
     LegacyBattleActorGroupBElementState* const actor,
     const LegacyBattleGroupBActionRecord* const source,
-    LegacyBattleGroupBActionConfigurationPort& port,
     LegacyBattleMonDatabasePort& mon_port,
     const u32 definition_argument,
     const u32 actor_token,
@@ -84,21 +73,19 @@ configure_legacy_battle_group_b_action(
     result.copied_dwords = 16U;
     state.timing_value = 0U;
 
-    const
-
-        auto definition_result = load_legacy_battle_mon_definition(
-            actor->resource_bytes,
-            actor->resource_description,
-            mon_port,
-            {
-                .path = "mon.dat",
-                .output_token = actor->resource_token,
-                .definition_id = definition_argument,
-                .entry_eax = definition_argument,
-                .entry_ecx = actor->resource_token,
-                .entry_edx = source_token,
-            }
-        );
+    const auto definition_result = load_legacy_battle_mon_definition(
+        actor->resource_bytes,
+        actor->resource_description,
+        mon_port,
+        {
+            .path = "mon.dat",
+            .output_token = actor->resource_token,
+            .definition_id = definition_argument,
+            .entry_eax = definition_argument,
+            .entry_ecx = actor->resource_token,
+            .entry_edx = source_token,
+        }
+    );
     ++result.port_calls;
     if (legacy_battle_mon_definition_load_stopped(definition_result.status)) {
         result.status = LegacyBattleGroupBActionConfigurationStatus::
@@ -171,30 +158,32 @@ configure_legacy_battle_group_b_action(
         return result;
     }
 
-    auto
-
-        reply = port.invoke({
-            .call = LegacyBattleGroupBActionConfigurationCall::
-                release_resource_text,
-            .arguments = {actor->resource_token, 0U},
-            .eax = profile_result.return_eax,
-            .ecx = actor->resource_token,
-            .edx = profile_result.return_edx,
-        });
+    const auto release_result = release_legacy_battle_mon_definition_text(
+        actor->resource_bytes,
+        actor->resource_description,
+        mon_port,
+        {
+            .object_token = actor->resource_token,
+            .entry_eax = profile_result.return_eax,
+            .entry_ecx = actor->resource_token,
+            .entry_edx = profile_result.return_edx,
+        }
+    );
     ++result.port_calls;
-    publish_reply(*actor, reply);
-    if (reply.typed_stop) {
+    if (legacy_battle_mon_definition_text_release_stopped(
+            release_result.status
+        )) {
         result.status = LegacyBattleGroupBActionConfigurationStatus::
             resource_release_typed_stop;
-        result.return_eax = reply.eax;
-        result.return_ecx = reply.ecx;
-        result.return_edx = reply.edx;
+        result.return_eax = release_result.return_eax;
+        result.return_ecx = release_result.return_ecx;
+        result.return_edx = release_result.return_edx;
         return result;
     }
 
-    result.return_eax = reply.eax;
-    result.return_ecx = reply.ecx;
-    result.return_edx = reply.edx;
+    result.return_eax = release_result.return_eax;
+    result.return_ecx = release_result.return_ecx;
+    result.return_edx = release_result.return_edx;
     if (actor->action_execution.profile_value == 0x001CU) {
         state.timing_value = 0x0000A028U;
         write_dword(resource, 0x4CU, state.timing_value);

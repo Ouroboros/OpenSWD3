@@ -213,6 +213,7 @@ void test_battle_growth_actor_selection(openswd3::test::Context& test) {
             definition({0xA4U, 0x40U}, 0x1234U, 2U);
         fixture.port.definitions[0x1234U] =
             definition({0xA4U, 0x40U}, 0x1234U, 2U);
+        fixture.port.definition_description = {0x61U};
         fixture.victory.party_reward_counters[0U] = 2U;
 
         const auto result = run(fixture);
@@ -221,9 +222,9 @@ void test_battle_growth_actor_selection(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleGrowthActorSelectionStatus::completed &&
-                result.port_calls == 6U && result.actor_query_calls == 1U &&
+                result.port_calls == 9U && result.actor_query_calls == 1U &&
                 result.item_load_calls == 3U &&
-                result.item_release_calls == 2U &&
+                result.item_release_calls == 3U &&
                 result.item_presence_calls == 1U &&
                 result.allocation_calls == 1U &&
                 result.matching_item_count == 1U &&
@@ -241,7 +242,9 @@ void test_battle_growth_actor_selection(openswd3::test::Context& test) {
                 fixture.advancement.growth_caption_text[3U] == 0xCCU &&
                 list.nodes.size() == 2U &&
                 list.nodes.back().item_id == 0x1234U &&
-                list.nodes.back().legacy_token == 0x70010000U,
+                list.nodes.back().legacy_token == 0x70010000U &&
+                list.nodes.back().legacy_description_token == 0U &&
+                list.nodes.back().description.empty(),
             "growth actor selection appends a zeroed typed item, copies its caption and publishes the transition"
         );
         test.expect_true(
@@ -259,7 +262,8 @@ void test_battle_growth_actor_selection(openswd3::test::Context& test) {
                 fixture.port.requested_definition_ids ==
                     std::vector<u32>{0x0700U, 0x1234U, 0x1234U} &&
                 fixture.port.read_calls == 9U &&
-                fixture.port.release_calls == 3U,
+                fixture.port.release_calls == 3U &&
+                fixture.port.definition_text_release_calls == 3U,
             "growth actor selection preserves the actor query, scratch load, presence query and allocated-record register layouts"
         );
     }

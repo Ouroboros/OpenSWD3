@@ -21,6 +21,7 @@ enum class LegacyBattleGroupANpcMaterializationStatus : compat::u8 {
     modifier_record_typed_stop,
     actor_record_typed_stop,
     profile_load_typed_stop,
+    profile_release_typed_stop,
 };
 
 struct LegacyBattleGroupANpcMaterializationResult {

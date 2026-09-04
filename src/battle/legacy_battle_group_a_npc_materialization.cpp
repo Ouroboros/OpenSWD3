@@ -1,5 +1,7 @@
 #include "openswd3/battle/legacy_battle_group_a_npc_materialization.hpp"
 
+#include "openswd3/battle/legacy_battle_mon_definition_text_release.hpp"
+
 #include <bit>
 #include <cstddef>
 
@@ -175,19 +177,32 @@ materialize_legacy_battle_group_a_npc(
         result.return_edx = definition_result.return_edx;
         return result;
     }
-    reply = invoke(
+    const auto release_result = release_legacy_battle_mon_definition_text(
+        std::span<u8>{
+            reinterpret_cast<u8*>(state->profile_record.data()),
+            state->profile_record.size(),
+        },
+        state->profile_description,
         port,
-        result,
         {
-            .call = LegacyBattleGroupASummonMaterializationCall::
-                release_profile_text,
-            .profile_token = state->profile_token,
-            .role_id = role_id,
-            .profile_record = state->profile_record,
+            .object_token = state->profile_token,
+            .entry_eax = definition_result.return_eax,
+            .entry_ecx = definition_result.return_ecx,
+            .entry_edx = state->profile_token,
         }
     );
+    ++result.port_calls;
     ++result.release_calls;
-    state->profile_record = reply.profile_record;
+    if (legacy_battle_mon_definition_text_release_stopped(
+            release_result.status
+        )) {
+        result.status = LegacyBattleGroupANpcMaterializationStatus::
+            profile_release_typed_stop;
+        result.return_eax = release_result.return_eax;
+        result.return_ecx = release_result.return_ecx;
+        result.return_edx = release_result.return_edx;
+        return result;
+    }
 
     const auto packed_source = pack_source(*source);
     state->placement_primary = packed_source;

@@ -1334,7 +1334,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                          growth_item_result_load_definition]
             .growth_item_description_length = 1U;
         port.replies[LegacyBattleFrameCoordinatorCall::
-                         growth_item_result_release_description]
+                         reserved_growth_item_result_release_description]
             .eax = 47U;
         port.replies
             [LegacyBattleFrameCoordinatorCall::growth_item_result_copy_caption]
@@ -1503,7 +1503,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             port.invoke_growth_item_result_selection({
                 .call = openswd3::battle::
                     LegacyBattleGrowthItemResultSelectionCall::
-                        release_item_description,
+                        reserved_release_item_description,
                 .source_token = 0x0053BC28U,
                 .arguments = {0x0053BC28U},
                 .eax = 37U,
@@ -1773,16 +1773,15 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 item_result_load.definition[0U] == 0x81U &&
                 item_result_load.description[0U] == 0x82U &&
                 item_result_load.description_length == 1U &&
-                item_result_release.eax == 47U && item_result_copy.eax == 48U &&
+                item_result_release.eax == 37U && item_result_copy.eax == 48U &&
                 port.calls[9U].object_token == 0x005029D0U &&
                 port.calls[10U].object_token == 0x00505904U &&
                 port.calls[10U].arguments[0U] == 0x004B8A00U &&
                 port.calls[11U].arguments[0U] == 0x0053BC28U &&
                 port.calls[11U].arguments[1U] == 0x0665U &&
-                port.calls[12U].arguments[0U] == 0x0053BC28U &&
-                port.calls[13U].arguments[0U] == 0x0053C154U &&
-                port.calls[13U].arguments[1U] == 0x0053BC28U &&
-                port.calls[13U].caption_text_length == 2U &&
+                port.calls[12U].arguments[0U] == 0x0053C154U &&
+                port.calls[12U].arguments[1U] == 0x0053BC28U &&
+                port.calls[12U].caption_text_length == 2U &&
                 port.count(
                     LegacyBattleFrameCoordinatorCall::
                         growth_item_result_query_actor_completion
@@ -1797,8 +1796,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 ) == 1U &&
                 port.count(
                     LegacyBattleFrameCoordinatorCall::
-                        growth_item_result_release_description
-                ) == 1U &&
+                        reserved_growth_item_result_release_description
+                ) == 0U &&
                 port.count(
                     LegacyBattleFrameCoordinatorCall::
                         growth_item_result_copy_caption
@@ -1813,18 +1812,18 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 reward_list_format.formatted_text[1U] == 0x92U &&
                 reward_list_format.formatted_text_length == 2U &&
                 reward_list_draw.eax == 53U &&
-                port.calls[14U].object_token == 0x004C9A28U &&
-                port.calls[14U].arguments[1U] == 0x12U &&
-                port.calls[15U].arguments[0U] == 0x004CD76CU &&
-                port.calls[15U].victory_text_length == 6U &&
-                port.calls[16U].arguments[0U] == 0xD4U &&
-                port.calls[16U].arguments[1U] == 0xFCU &&
-                port.calls[16U].arguments[2U] == 3U &&
-                port.calls[17U].arguments[1U] == 0x004A7AE8U &&
-                port.calls[17U].arguments[2U] == 0x71000000U &&
-                port.calls[17U].arguments[3U] == 7U &&
-                port.calls[18U].arguments[2U] == 0xD4U &&
-                port.calls[18U].victory_text_length == 5U &&
+                port.calls[13U].object_token == 0x004C9A28U &&
+                port.calls[13U].arguments[1U] == 0x12U &&
+                port.calls[14U].arguments[0U] == 0x004CD76CU &&
+                port.calls[14U].victory_text_length == 6U &&
+                port.calls[15U].arguments[0U] == 0xD4U &&
+                port.calls[15U].arguments[1U] == 0xFCU &&
+                port.calls[15U].arguments[2U] == 3U &&
+                port.calls[16U].arguments[1U] == 0x004A7AE8U &&
+                port.calls[16U].arguments[2U] == 0x71000000U &&
+                port.calls[16U].arguments[3U] == 7U &&
+                port.calls[17U].arguments[2U] == 0xD4U &&
+                port.calls[17U].victory_text_length == 5U &&
                 port.count(
                     LegacyBattleFrameCoordinatorCall::
                         victory_item_list_set_font_size
@@ -1847,16 +1846,16 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 defeat_title.eax == 54U && defeat_query.eax == 55U &&
                 defeat_query.publish_stage && defeat_query.stage == 9U &&
                 defeat_font.eax == 56U && defeat_detail.eax == 57U &&
-                port.calls[19U].object_token == 0x004C9A28U &&
-                port.calls[19U].arguments[1U] == 0x104U &&
-                port.calls[19U].victory_text_length == 8U &&
-                port.calls[20U].arguments[0U] == 0xD4U &&
-                port.calls[20U].arguments[1U] == 0xF4U &&
-                port.calls[20U].arguments[2U] == 3U &&
-                port.calls[21U].arguments[1U] == 0x11U &&
-                port.calls[22U].arguments[1U] == 0xFEU &&
-                port.calls[22U].arguments[2U] == 0xD8U &&
-                port.calls[22U].victory_text_length == 10U &&
+                port.calls[18U].object_token == 0x004C9A28U &&
+                port.calls[18U].arguments[1U] == 0x104U &&
+                port.calls[18U].victory_text_length == 8U &&
+                port.calls[19U].arguments[0U] == 0xD4U &&
+                port.calls[19U].arguments[1U] == 0xF4U &&
+                port.calls[19U].arguments[2U] == 3U &&
+                port.calls[20U].arguments[1U] == 0x11U &&
+                port.calls[21U].arguments[1U] == 0xFEU &&
+                port.calls[21U].arguments[2U] == 0xD8U &&
+                port.calls[21U].victory_text_length == 10U &&
                 port.count(
                     LegacyBattleFrameCoordinatorCall::defeat_panel_draw_title
                 ) == 1U &&

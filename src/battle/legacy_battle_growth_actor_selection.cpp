@@ -1,5 +1,7 @@
 #include "openswd3/battle/legacy_battle_growth_actor_selection.hpp"
 
+#include "openswd3/battle/legacy_battle_mon_definition_text_release.hpp"
+
 #include <algorithm>
 #include <array>
 #include <bit>
@@ -214,10 +216,94 @@ private:
         return true;
     }
 
-    void release_scratch_description() noexcept {
-        state_.scratch.description.clear();
+    [[nodiscard]] bool release_scratch_description() {
+        std::array<u8, kLegacyBattleMonDefinitionBytes> definition{};
+        std::copy(
+            state_.scratch.bytes.cbegin(),
+            state_.scratch.bytes.cend(),
+            definition.begin()
+        );
+        definition[0xA0U] = static_cast<u8>(state_.scratch.description_token);
+        definition[0xA1U] =
+            static_cast<u8>(state_.scratch.description_token >> 8U);
+        definition[0xA2U] =
+            static_cast<u8>(state_.scratch.description_token >> 16U);
+        definition[0xA3U] =
+            static_cast<u8>(state_.scratch.description_token >> 24U);
+        const auto release_result = release_legacy_battle_mon_definition_text(
+            definition,
+            state_.scratch.description,
+            port_,
+            {
+                .object_token = kLegacyBattleGrowthItemScratchToken,
+                .entry_eax = eax_,
+                .entry_ecx = ecx_,
+                .entry_edx = edx_,
+            }
+        );
+        ++result_.port_calls;
         ++result_.item_release_calls;
-        eax_ = 0U;
+        eax_ = release_result.return_eax;
+        ecx_ = release_result.return_ecx;
+        edx_ = release_result.return_edx;
+        state_.scratch.description_token = static_cast<u32>(definition[0xA0U]) |
+            (static_cast<u32>(definition[0xA1U]) << 8U) |
+            (static_cast<u32>(definition[0xA2U]) << 16U) |
+            (static_cast<u32>(definition[0xA3U]) << 24U);
+        if (legacy_battle_mon_definition_text_release_stopped(
+                release_result.status
+            )) {
+            result_.status = LegacyBattleGrowthActorSelectionStatus::
+                definition_release_typed_stop;
+            return false;
+        }
+        return true;
+    }
+
+    [[nodiscard]] bool release_item_description(
+        world_map::LegacyWorldItemNode& item, const u32 definition_token
+    ) {
+        std::array<u8, kLegacyBattleMonDefinitionBytes> definition{};
+        std::copy(
+            item.definition_snapshot.cbegin(),
+            item.definition_snapshot.cend(),
+            definition.begin()
+        );
+        definition[0xA0U] = static_cast<u8>(item.legacy_description_token);
+        definition[0xA1U] =
+            static_cast<u8>(item.legacy_description_token >> 8U);
+        definition[0xA2U] =
+            static_cast<u8>(item.legacy_description_token >> 16U);
+        definition[0xA3U] =
+            static_cast<u8>(item.legacy_description_token >> 24U);
+        const auto release_result = release_legacy_battle_mon_definition_text(
+            definition,
+            item.description,
+            port_,
+            {
+                .object_token = definition_token,
+                .entry_eax = eax_,
+                .entry_ecx = ecx_,
+                .entry_edx = edx_,
+            }
+        );
+        ++result_.port_calls;
+        ++result_.item_release_calls;
+        eax_ = release_result.return_eax;
+        ecx_ = release_result.return_ecx;
+        edx_ = release_result.return_edx;
+        item.legacy_description_token = static_cast<u32>(definition[0xA0U]) |
+            (static_cast<u32>(definition[0xA1U]) << 8U) |
+            (static_cast<u32>(definition[0xA2U]) << 16U) |
+            (static_cast<u32>(definition[0xA3U]) << 24U);
+        if (legacy_battle_mon_definition_text_release_stopped(
+                release_result.status
+            )) {
+            result_.status = LegacyBattleGrowthActorSelectionStatus::
+                definition_release_typed_stop;
+            return false;
+        }
+        return true;
     }
 
     [[nodiscard]] bool advance_actor(const u32 actor_index) {
@@ -292,7 +378,9 @@ private:
                 )) {
                 return false;
             }
-            release_scratch_description();
+            if (!release_scratch_description()) {
+                return false;
+            }
 
             eax_ = static_cast<u32>(node.item_id);
             if (as_i32(eax_) > as_i32(maximum_item_id_)) {
@@ -351,7 +439,9 @@ private:
             )) {
             return false;
         }
-        release_scratch_description();
+        if (!release_scratch_description()) {
+            return false;
+        }
 
         eax_ = 0U;
         const auto allocation = call(
@@ -390,11 +480,14 @@ private:
         ecx_ = profile_offset(label);
         ecx_ = (ecx_ & 0xFFFF0000U) | static_cast<u32>(item_id);
         appended.item_id = item_id;
+        const u32 appended_definition_token =
+            allocation_token + kLegacyBattleGrowthItemDefinitionTokenOffset;
         if (!load_item_definition(
-                appended,
-                allocation_token + kLegacyBattleGrowthItemDefinitionTokenOffset,
-                item_id
+                appended, appended_definition_token, item_id
             )) {
+            return false;
+        }
+        if (!release_item_description(appended, appended_definition_token)) {
             return false;
         }
 

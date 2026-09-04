@@ -358,78 +358,6 @@ private:
         return true;
     }
 
-    [[nodiscard]] LegacyBattleGroupBActionConfigurationCallReply
-    invoke_group_b_action_reconfiguration_callee(
-        const LegacyBattleGroupBActionConfigurationCallRequest& request
-    ) {
-        switch (request.call) {
-        case LegacyBattleGroupBActionConfigurationCall::
-            reserved_load_resource_definition:
-        case LegacyBattleGroupBActionConfigurationCall::
-            reserved_load_action_profile:
-            return {
-                .eax = 0U,
-                .ecx = 0U,
-                .edx = 0U,
-                .typed_stop = true,
-                .resource_bytes = nullptr,
-                .profile_buffer = nullptr,
-            };
-        case LegacyBattleGroupBActionConfigurationCall::release_resource_text:
-            break;
-        }
-
-        constexpr auto call_kind =
-            LegacyBattleScriptDispatchCall::pending_478220;
-
-        LegacyBattleScriptDispatchCallRequest call{
-            .call = call_kind,
-            .object_token = request.ecx,
-            .arguments = {},
-            .argument_count = 1U,
-            .eax = request.eax,
-            .ecx = request.ecx,
-            .edx = request.edx,
-            .cursor = workspace_.cursor,
-        };
-        call.arguments[0U] = request.arguments[0U];
-        result_.call_trace.push_back(call_kind);
-        ++result_.port_calls;
-        const auto reply =
-            port_.invoke_battle_script(workspace_, bindings_, call);
-        eax_ = reply.eax;
-        ecx_ = reply.ecx;
-        edx_ = reply.edx;
-        return {
-            .eax = reply.eax,
-            .ecx = reply.ecx,
-            .edx = reply.edx,
-            .typed_stop = reply.typed_stop,
-            .resource_bytes = nullptr,
-            .profile_buffer = nullptr,
-        };
-    }
-
-    class ScriptGroupBActionReconfigurationPort final
-        : public LegacyBattleGroupBActionConfigurationPort {
-    public:
-        explicit ScriptGroupBActionReconfigurationPort(
-            ScriptRunner& runner
-        ) noexcept
-            : runner_(runner) {}
-
-        [[nodiscard]] LegacyBattleGroupBActionConfigurationCallReply invoke(
-            const LegacyBattleGroupBActionConfigurationCallRequest& request
-        ) override {
-            return runner_.invoke_group_b_action_reconfiguration_callee(
-                request
-            );
-        }
-
-    private:
-        ScriptRunner& runner_;
-    };
-
     [[nodiscard]] LegacyBattleGroupBActionCompositionCallReply
     invoke_group_b_action_composition_callee(
         const LegacyBattleGroupBActionCompositionCallRequest& request
@@ -496,6 +424,106 @@ private:
             const LegacyBattleGroupBActionCompositionCallRequest& request
         ) override {
             return runner_.invoke_group_b_action_composition_callee(request);
+        }
+
+    private:
+        ScriptRunner& runner_;
+    };
+
+    [[nodiscard]] LegacyBattleMonDefinitionTextReleaseCallReply
+    invoke_pending_definition_text_release(
+        const LegacyBattleMonDefinitionTextReleaseCallRequest& request
+    ) {
+        constexpr auto call_kind =
+            LegacyBattleScriptDispatchCall::pending_478220;
+        LegacyBattleScriptDispatchCallRequest call{
+            .call = call_kind,
+            .object_token = request.block_token,
+            .argument_count = 1U,
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+            .cursor = workspace_.cursor,
+        };
+        call.arguments[0U] = request.block_token;
+        result_.call_trace.push_back(call_kind);
+        ++result_.port_calls;
+        const auto reply =
+            port_.invoke_battle_script(workspace_, bindings_, call);
+        eax_ = reply.eax;
+        ecx_ = reply.ecx;
+        edx_ = reply.edx;
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .typed_stop = reply.typed_stop,
+        };
+    }
+
+    class ScriptGroupBActionReconfigurationPort final
+        : public LegacyBattleMonDatabasePort,
+          public LegacyBattleGroupBActionReconfigurationReleasePort {
+    public:
+        explicit ScriptGroupBActionReconfigurationPort(
+            ScriptRunner& runner
+        ) noexcept
+            : runner_(runner) {}
+
+        [[nodiscard]] LegacyBattleMonDatabaseState&
+        legacy_battle_mon_database_state() noexcept override {
+            return runner_.port_.legacy_battle_mon_database_state();
+        }
+
+        [[nodiscard]] LegacyBattleMonProfile&
+        legacy_battle_mon_profile_scratch() noexcept override {
+            return runner_.port_.legacy_battle_mon_profile_scratch();
+        }
+
+        [[nodiscard]] std::array<u8, kLegacyBattleMonDefinitionScratchBytes>&
+        legacy_battle_mon_definition_scratch() noexcept override {
+            return runner_.port_.legacy_battle_mon_definition_scratch();
+        }
+
+        [[nodiscard]] std::vector<u8>&
+        legacy_battle_mon_definition_scratch_description() noexcept override {
+            return runner_.port_
+                .legacy_battle_mon_definition_scratch_description();
+        }
+
+        [[nodiscard]] LegacyBattleMonDatabaseCallReply
+        invoke_legacy_battle_mon_database(
+            const LegacyBattleMonDatabaseCallRequest& request,
+            const std::span<u8> destination
+        ) override {
+            return runner_.port_.invoke_legacy_battle_mon_database(
+                request, destination
+            );
+        }
+
+        [[nodiscard]] LegacyBattleMonDefinitionTextReleaseResult
+        release_group_b_action_resource_text(
+            const std::span<u8>,
+            std::vector<u8>&,
+            LegacyBattleMonDatabasePort&,
+            const LegacyBattleMonDefinitionTextReleaseRequest& request
+        ) override {
+            const auto reply = runner_.invoke_pending_definition_text_release({
+                .block_token = request.object_token,
+                .eax = request.entry_eax,
+                .ecx = request.entry_ecx,
+                .edx = request.entry_edx,
+            });
+            return {
+                .status = reply.typed_stop
+                    ? LegacyBattleMonDefinitionTextReleaseStatus::
+                          release_call_typed_stop
+                    : LegacyBattleMonDefinitionTextReleaseStatus::completed,
+                .stopped_token = reply.typed_stop ? request.object_token : 0U,
+                .return_eax = reply.eax,
+                .return_ecx = reply.ecx,
+                .return_edx = reply.edx,
+            };
         }
 
     private:
@@ -4075,12 +4103,12 @@ private:
         const auto reconfiguration = reconfigure_legacy_battle_group_b_action(
             &element,
             reconfiguration_port,
-            port_,
             {
                 .definition_argument = std::bit_cast<u32>(workspace_.value_a),
                 .actor_token = *token,
                 .entry_edx = static_cast<u32>(actor) * 345U,
-            }
+            },
+            &reconfiguration_port
         );
         eax_ = reconfiguration.return_eax;
         ecx_ = reconfiguration.return_ecx;

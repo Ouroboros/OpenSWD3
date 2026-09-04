@@ -12,8 +12,6 @@ namespace openswd3::battle {
 inline constexpr compat::u32 kLegacyBattleGroupASummonProfileSize = 0xA4U;
 inline constexpr compat::u32 kLegacyBattleGroupASummonAllocateCallToken =
     0x00487C10U;
-inline constexpr compat::u32 kLegacyBattleGroupASummonReleaseCallToken =
-    0x00478220U;
 inline constexpr compat::u32 kLegacyBattleGroupASummonDiagnosticCallToken =
     0x00431150U;
 inline constexpr compat::u32 kLegacyBattleGroupASummonDiagnosticTextToken =
@@ -30,7 +28,7 @@ enum class LegacyBattleGroupASummonMaterializationCall : compat::u8 {
     allocate_profile,
     reserved_load_profile,
     load_profile = reserved_load_profile,
-    release_profile_text,
+    reserved_release_profile_text,
     report_missing_role,
 };
 
@@ -72,6 +70,7 @@ enum class LegacyBattleGroupASummonMaterializationStatus : compat::u8 {
     source_record_typed_stop,
     actor_record_typed_stop,
     profile_load_typed_stop,
+    profile_release_typed_stop,
 };
 
 struct LegacyBattleGroupASummonMaterializationResult {

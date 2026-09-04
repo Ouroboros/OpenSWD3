@@ -139,6 +139,7 @@ enum class LegacyBattleGrowthActorSelectionStatus : compat::u8 {
     caption_source_typed_stop,
     caption_destination_typed_stop,
     definition_load_typed_stop,
+    definition_release_typed_stop,
 };
 
 struct LegacyBattleGrowthActorSelectionResult {

@@ -31,7 +31,7 @@ enum class LegacyBattleGrowthItemResultSelectionCall : compat::u8 {
     reserved_select_growth_item,
     reserved_load_item_definition,
     load_item_definition = reserved_load_item_definition,
-    release_item_description,
+    reserved_release_item_description,
     copy_caption,
 };
 
@@ -102,6 +102,7 @@ enum class LegacyBattleGrowthItemResultSelectionStatus : compat::u8 {
     caption_destination_typed_stop,
     growth_reward_typed_stop,
     definition_load_typed_stop,
+    definition_release_typed_stop,
 };
 
 struct LegacyBattleGrowthItemResultSelectionResult {

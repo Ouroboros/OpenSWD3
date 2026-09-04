@@ -271,6 +271,23 @@ add_test(
 )
 
 add_executable(
+    openswd3_battle_legacy_battle_mon_definition_text_release_tests
+    unit/battle/legacy_battle_mon_definition_text_release_test.cpp
+)
+target_include_directories(
+    openswd3_battle_legacy_battle_mon_definition_text_release_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_battle_legacy_battle_mon_definition_text_release_tests
+    PRIVATE openswd3_battle_mon
+)
+add_test(
+    NAME battle.legacy_battle_mon_definition_text_release
+    COMMAND openswd3_battle_legacy_battle_mon_definition_text_release_tests
+)
+
+add_executable(
     openswd3_battle_legacy_battle_database_shutdown_tests
     unit/battle/legacy_battle_database_shutdown_test.cpp
 )
