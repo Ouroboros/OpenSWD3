@@ -197,6 +197,13 @@ void stop_at_record_access(
     result.return_edx = edx;
 }
 
+[[nodiscard]] u16 read_little_word(
+    const std::span<const u8> bytes, const std::size_t offset
+) noexcept {
+    return static_cast<u16>(bytes[offset]) |
+        static_cast<u16>(static_cast<u16>(bytes[offset + 1U]) << 8U);
+}
+
 [[nodiscard]] u32 read_little_dword(
     const std::span<const u8> bytes, const std::size_t offset
 ) noexcept {
@@ -1711,6 +1718,220 @@ set_legacy_battle_fixed_definition_curve(
     }
 
     result.return_eax = 1U;
+    result.return_ecx = ecx;
+    result.return_edx = edx;
+    return result;
+}
+
+LegacyBattleFixedDefinitionCurveLookupResult
+lookup_legacy_battle_fixed_definition_curve(
+    LegacyBattleFixedObjectState& state,
+    LegacyBattleMonDatabasePort& mon_port,
+    u16* const maximum_output,
+    u16* const count_output,
+    const LegacyBattleFixedDefinitionCurveLookupRequest& request
+) {
+    LegacyBattleFixedDefinitionCurveLookupResult result{
+        .owner_token = request.owner_token,
+        .return_eax = request.key,
+        .return_ecx = request.entry_ecx,
+        .return_edx = request.entry_edx,
+    };
+    u32 eax = request.key;
+    u32 ecx = request.entry_ecx;
+    u32 edx = request.entry_edx;
+    const u16 key = low_word(eax);
+
+    RecordReference current_storage;
+    RecordReference* current =
+        find_record(state, request.owner_token, current_storage);
+    while (true) {
+        if (current == nullptr || !has_access(*current, 4U, sizeof(u16))) {
+            result.status = LegacyBattleFixedDefinitionCurveLookupStatus::
+                record_access_typed_stop;
+            result.stopped_token =
+                current == nullptr ? request.owner_token : current->token;
+            result.stopped_offset = 4U;
+            result.return_eax = eax;
+            result.return_ecx = ecx;
+            result.return_edx = edx;
+            return result;
+        }
+
+        ++result.key_reads;
+        if (low_word(current->words[1U]) == key) {
+            result.path = current->token == request.owner_token
+                ? LegacyBattleFixedCountPath::existing_root
+                : LegacyBattleFixedCountPath::existing_node;
+            result.matched_token = current->token;
+            break;
+        }
+
+        if (!has_access(*current, 0U, sizeof(u32))) {
+            result.status = LegacyBattleFixedDefinitionCurveLookupStatus::
+                record_access_typed_stop;
+            result.stopped_token = current->token;
+            result.stopped_offset = 0U;
+            result.return_eax = eax;
+            result.return_ecx = ecx;
+            result.return_edx = edx;
+            return result;
+        }
+        const u32 next_token = current->words[0U];
+        ++result.chain_link_reads;
+        if (next_token == 0U) {
+            current = nullptr;
+            break;
+        }
+
+        RecordReference next_storage;
+        RecordReference* const next =
+            find_record(state, next_token, next_storage);
+        if (next == nullptr) {
+            result.status = LegacyBattleFixedDefinitionCurveLookupStatus::
+                record_access_typed_stop;
+            result.stopped_token = next_token;
+            result.stopped_offset = 4U;
+            result.return_eax = eax;
+            result.return_ecx = ecx;
+            result.return_edx = edx;
+            return result;
+        }
+        current_storage = *next;
+        current = &current_storage;
+    }
+
+    auto& definition = mon_port.legacy_battle_mon_definition_scratch();
+    auto& description =
+        mon_port.legacy_battle_mon_definition_scratch_description();
+    result.definition_load = load_legacy_battle_mon_definition(
+        definition,
+        description,
+        mon_port,
+        {
+            .path = request.definition_path,
+            .output_token = request.definition_output_token,
+            .definition_id = request.key,
+            .entry_eax = eax,
+            .entry_ecx = ecx,
+            .entry_edx = edx,
+        }
+    );
+    ++result.definition_load_calls;
+    eax = result.definition_load.return_eax;
+    ecx = result.definition_load.return_ecx;
+    edx = result.definition_load.return_edx;
+    if (legacy_battle_mon_definition_load_stopped(
+            result.definition_load.status
+        )) {
+        result.status = LegacyBattleFixedDefinitionCurveLookupStatus::
+            definition_load_typed_stop;
+        result.return_eax = eax;
+        result.return_ecx = ecx;
+        result.return_edx = edx;
+        return result;
+    }
+
+    const u32 description_token = read_little_dword(definition, 0xA0U);
+    ++result.definition_cleanup_calls;
+    if (description_token != 0U) {
+        const auto release = mon_port.invoke_legacy_battle_mon_database(
+            {
+                .call = LegacyBattleMonDatabaseCall::release_definition_text,
+                .stream_kind = LegacyBattleMonDatabaseStreamKind::definition,
+                .block_token = description_token,
+                .eax = description_token,
+                .ecx = ecx,
+                .edx = edx,
+            },
+            {}
+        );
+        ++result.definition_text_release_calls;
+        eax = release.eax;
+        ecx = release.ecx;
+        edx = release.edx;
+        clear_little_dword(definition, 0xA0U);
+        description.clear();
+    } else {
+        eax = 0U;
+    }
+
+    const u16 maximum = read_little_word(definition, 0x44U);
+    ++result.maximum_reads;
+    result.maximum = maximum;
+    if (current != nullptr) {
+        eax = request.maximum_output_token;
+        replace_low_word(ecx, maximum);
+        if (maximum_output == nullptr) {
+            result.status = LegacyBattleFixedDefinitionCurveLookupStatus::
+                maximum_output_typed_stop;
+            result.stopped_token = request.maximum_output_token;
+            result.return_eax = eax;
+            result.return_ecx = ecx;
+            result.return_edx = edx;
+            return result;
+        }
+        *maximum_output = maximum;
+        ++result.maximum_output_writes;
+
+        eax = request.count_output_token;
+        if (!has_access(*current, 6U, sizeof(u16))) {
+            result.status = LegacyBattleFixedDefinitionCurveLookupStatus::
+                record_access_typed_stop;
+            result.stopped_token = current->token;
+            result.stopped_offset = 6U;
+            result.return_eax = eax;
+            result.return_ecx = ecx;
+            result.return_edx = edx;
+            return result;
+        }
+        const u16 count = high_word(current->words[1U]);
+        ++result.count_reads;
+        result.count = count;
+        replace_low_word(edx, count);
+        if (count_output == nullptr) {
+            result.status = LegacyBattleFixedDefinitionCurveLookupStatus::
+                count_output_typed_stop;
+            result.stopped_token = request.count_output_token;
+            result.return_eax = eax;
+            result.return_ecx = ecx;
+            result.return_edx = edx;
+            return result;
+        }
+        *count_output = count;
+        ++result.count_output_writes;
+        result.return_eax = 1U;
+        result.return_ecx = ecx;
+        result.return_edx = edx;
+        return result;
+    }
+
+    ecx = request.maximum_output_token;
+    replace_low_word(edx, maximum);
+    eax = request.count_output_token;
+    if (maximum_output == nullptr) {
+        result.status = LegacyBattleFixedDefinitionCurveLookupStatus::
+            maximum_output_typed_stop;
+        result.stopped_token = request.maximum_output_token;
+        result.return_eax = eax;
+        result.return_ecx = ecx;
+        result.return_edx = edx;
+        return result;
+    }
+    *maximum_output = maximum;
+    ++result.maximum_output_writes;
+    if (count_output == nullptr) {
+        result.status = LegacyBattleFixedDefinitionCurveLookupStatus::
+            count_output_typed_stop;
+        result.stopped_token = request.count_output_token;
+        result.return_eax = eax;
+        result.return_ecx = ecx;
+        result.return_edx = edx;
+        return result;
+    }
+    *count_output = 0U;
+    ++result.count_output_writes;
+    result.return_eax = 0U;
     result.return_ecx = ecx;
     result.return_edx = edx;
     return result;

@@ -376,11 +376,6 @@ struct LegacyCharacterAttributesContribution {
     std::array<compat::i8, 9U> modifiers{};
 };
 
-struct LegacyCharacterAttributesScale {
-    compat::u16 divisor{};
-    compat::u16 value{};
-};
-
 struct LegacySystemMenuWorkspaceRequest {
     compat::u32 page_kind{};
     compat::u32 primary_enabled{};
@@ -813,6 +808,8 @@ struct LegacyCharacterAttributesState {
     compat::u32 level_number_of_bytes_read_token{};
     compat::u32 level_stale_directory_offset{};
     compat::u32 level_stale_output{};
+    compat::u32 fixed_definition_maximum_output_token{};
+    compat::u32 fixed_definition_count_output_token{};
     bool level_output_accessible{true};
     bool first_record_available{};
     bool second_record_available{};
@@ -825,15 +822,14 @@ struct LegacyCharacterAttributesState {
 
 class LegacyCharacterAttributesPorts
     : public virtual battle::LegacyBattleMonDatabasePort,
-      public virtual battle::LegacyBattleLevelDatabasePort {
+      public virtual battle::LegacyBattleLevelDatabasePort,
+      public virtual battle::LegacyBattleFixedObjectStatePort {
 public:
     ~LegacyCharacterAttributesPorts() override = default;
     [[nodiscard]] virtual compat::u32
     allocate_character_attributes_buffer(compat::u32 size) noexcept = 0;
     [[nodiscard]] virtual compat::i32
     release_temporary_attributes() noexcept = 0;
-    [[nodiscard]] virtual LegacyCharacterAttributesScale
-    query_character_attributes_scale(compat::u16 lookup_key) noexcept = 0;
     [[nodiscard]] virtual compat::i32
     release_character_attributes_buffer(compat::u32 owner) noexcept = 0;
     [[nodiscard]] virtual compat::i32
@@ -864,15 +860,19 @@ enum class LegacyCharacterAttributesRebuildStatus : compat::u8 {
     attribute_application_stopped,
     contribution_unavailable_stopped,
     scale_divisor_zero_stopped,
+    fixed_definition_curve_typed_stop,
 };
 
 struct LegacyCharacterAttributesRebuildResult {
     LegacyCharacterAttributesRebuildStatus status{
         LegacyCharacterAttributesRebuildStatus::completed
     };
+    battle::LegacyBattleFixedDefinitionCurveLookupResult
+        fixed_definition_curve{};
     compat::i32 legacy_return_value{};
     compat::u32 helper_call_count{};
     compat::u32 contribution_count{};
+    compat::u32 fixed_definition_curve_query_count{};
 };
 
 enum class LegacyCharacterAttributesRenderStatus : compat::u8 {
@@ -3768,16 +3768,17 @@ struct LegacyPartyDialogPageState {
     std::array<compat::i32, 64U> global_values{};
     compat::u8 global_value_label{};
     std::array<compat::u32, 3U> item_category_masks{};
+    compat::u32 fixed_definition_maximum_output_token{};
+    compat::u32 fixed_definition_count_output_token{};
 };
 
 class LegacyPartyDialogPagePorts
     : public virtual LegacyPartyDialogReplaceRowPorts,
-      public virtual battle::LegacyBattleFixedObjectStatePort {
+      public virtual battle::LegacyBattleFixedObjectStatePort,
+      public virtual battle::LegacyBattleMonDatabasePort {
 public:
     ~LegacyPartyDialogPagePorts() override = default;
     [[nodiscard]] virtual std::optional<compat::i32> clear_rows() noexcept = 0;
-    [[nodiscard]] virtual std::optional<std::pair<compat::u16, compat::u16>>
-    query_pair_added_value(compat::u16 item_id) noexcept = 0;
 };
 
 enum class LegacyPartyDialogPageStatus : compat::u8 {
@@ -3785,10 +3786,11 @@ enum class LegacyPartyDialogPageStatus : compat::u8 {
     clear_rows_stopped,
     page_source_stopped,
     item_chain_cycle_stopped,
-    added_value_query_stopped,
+    reserved_added_value_query_stopped,
     fixed_count_typed_stop,
     fixed_curve_typed_stop,
     row_replacement_stopped,
+    fixed_definition_curve_typed_stop,
 };
 
 struct LegacyPartyDialogPageResult {
@@ -3798,8 +3800,11 @@ struct LegacyPartyDialogPageResult {
     compat::u32 added_value_query_count{};
     battle::LegacyBattleFixedCountLookupResult fixed_count{};
     battle::LegacyBattleFixedCurveLookupResult fixed_curve{};
+    battle::LegacyBattleFixedDefinitionCurveLookupResult
+        fixed_definition_curve{};
     compat::u32 fixed_count_query_count{};
     compat::u32 fixed_curve_query_count{};
+    compat::u32 fixed_definition_curve_query_count{};
     bool rows_cleared{};
 };
 
@@ -3858,7 +3863,6 @@ class LegacyPartyDialogPorts
       public virtual LegacyPartyDialogColumnPorts,
       public virtual LegacyStandardModeQuantityPorts,
       public virtual battle::LegacyBattleFixedCountAllocationPort,
-      public virtual battle::LegacyBattleMonDatabasePort,
       public virtual world_map::LegacyPartyMemberFieldWritePorts {
 public:
     ~LegacyPartyDialogPorts() override = default;
@@ -4824,8 +4828,6 @@ public:
         compat::u16 party_index,
         compat::u32 guardian_slot
     ) noexcept = 0;
-    [[nodiscard]] virtual std::optional<std::pair<compat::u16, compat::u16>>
-    query_guardian_slot_pair_attributes(compat::u16 text_index) noexcept = 0;
 };
 
 class LegacyStandardModeGuardianListRefreshPorts
@@ -5383,6 +5385,8 @@ struct LegacyStandardModeGuardianInitializationState {
     compat::u32 first_work_storage_token{};
     compat::u32 second_work_storage_token{};
     compat::u32 attribute_cache_token{};
+    compat::u32 fixed_definition_maximum_output_token{};
+    compat::u32 fixed_definition_count_output_token{};
     compat::u16 attribute_text_color_word{};
     std::array<compat::u8, 0x190U> attribute_cache{};
     std::array<std::array<compat::u16, 3U>, 4U>
@@ -7555,9 +7559,10 @@ enum class LegacyStandardModeGuardianAttributeSummaryStatus : compat::u8 {
     completed,
     destination_out_of_range,
     seed_missing,
-    query_stopped,
+    reserved_query_stopped,
     fixed_count_typed_stop,
     fixed_curve_typed_stop,
+    fixed_definition_curve_typed_stop,
 };
 
 struct LegacyStandardModeGuardianAttributeSummaryResult {
@@ -7567,8 +7572,11 @@ struct LegacyStandardModeGuardianAttributeSummaryResult {
     compat::i32 legacy_return_value{};
     battle::LegacyBattleFixedCountLookupResult fixed_count{};
     battle::LegacyBattleFixedCurveLookupResult fixed_curve{};
+    battle::LegacyBattleFixedDefinitionCurveLookupResult
+        fixed_definition_curve{};
     compat::u32 fixed_count_query_count{};
     compat::u32 fixed_curve_query_count{};
+    compat::u32 fixed_definition_curve_query_count{};
 };
 
 [[nodiscard]] LegacyStandardModeGuardianAttributeSummaryResult

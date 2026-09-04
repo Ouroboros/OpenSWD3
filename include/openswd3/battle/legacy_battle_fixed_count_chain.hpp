@@ -382,4 +382,63 @@ set_legacy_battle_fixed_definition_curve(
     const LegacyBattleFixedDefinitionCurveSetRequest& request
 );
 
+struct LegacyBattleFixedDefinitionCurveLookupRequest {
+    std::filesystem::path definition_path{"mon.dat"};
+    compat::u32 owner_token{kLegacyBattleFixedDefinitionCurveOwnerToken};
+    compat::u32 definition_output_token{
+        kLegacyBattleFixedDefinitionScratchToken
+    };
+    compat::u32 maximum_output_token{};
+    compat::u32 count_output_token{};
+    compat::u32 key{};
+    compat::u32 entry_ecx{};
+    compat::u32 entry_edx{};
+};
+
+enum class LegacyBattleFixedDefinitionCurveLookupStatus : compat::u8 {
+    completed,
+    record_access_typed_stop,
+    definition_load_typed_stop,
+    maximum_output_typed_stop,
+    count_output_typed_stop,
+};
+
+struct LegacyBattleFixedDefinitionCurveLookupResult {
+    LegacyBattleFixedDefinitionCurveLookupStatus status{
+        LegacyBattleFixedDefinitionCurveLookupStatus::completed
+    };
+    LegacyBattleFixedCountPath path{LegacyBattleFixedCountPath::none};
+    LegacyBattleMonDefinitionLoadResult definition_load{};
+    compat::u32 owner_token{};
+    compat::u32 matched_token{};
+    compat::u32 stopped_token{};
+    compat::u32 stopped_offset{};
+    compat::u32 definition_load_calls{};
+    compat::u32 definition_cleanup_calls{};
+    compat::u32 definition_text_release_calls{};
+    compat::u32 key_reads{};
+    compat::u32 chain_link_reads{};
+    compat::u32 maximum_reads{};
+    compat::u32 count_reads{};
+    compat::u32 maximum_output_writes{};
+    compat::u32 count_output_writes{};
+    compat::u16 maximum{};
+    compat::u16 count{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
+// Typed closure of legacy 0x00477B40. The third fixed chain is searched before
+// the MON definition is loaded and cleaned. The definition maximum is written
+// first; a hit then reads and writes the stored count, while a miss writes zero.
+[[nodiscard]] LegacyBattleFixedDefinitionCurveLookupResult
+lookup_legacy_battle_fixed_definition_curve(
+    LegacyBattleFixedObjectState& state,
+    LegacyBattleMonDatabasePort& mon_port,
+    compat::u16* maximum_output,
+    compat::u16* count_output,
+    const LegacyBattleFixedDefinitionCurveLookupRequest& request
+);
+
 }  // namespace openswd3::battle

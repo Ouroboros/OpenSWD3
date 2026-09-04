@@ -2798,17 +2798,39 @@ LegacyCharacterAttributesRebuildResult rebuild_legacy_character_attributes(
         if (contribution.kind != 0x33U) {
             continue;
         }
-        const auto scale =
-            ports.query_character_attributes_scale(contribution.lookup_key);
+        compat::u16 maximum{};
+        compat::u16 count{};
+        result.fixed_definition_curve =
+            battle::lookup_legacy_battle_fixed_definition_curve(
+                ports.legacy_battle_fixed_object_state(),
+                ports,
+                &maximum,
+                &count,
+                {
+                    .maximum_output_token =
+                        state.fixed_definition_maximum_output_token,
+                    .count_output_token =
+                        state.fixed_definition_count_output_token,
+                    .key = contribution.lookup_key,
+                    .entry_ecx = contribution.lookup_key,
+                    .entry_edx = state.fixed_definition_count_output_token,
+                }
+            );
         ++result.helper_call_count;
-        if (scale.divisor == 0U) {
+        ++result.fixed_definition_curve_query_count;
+        if (result.fixed_definition_curve.status !=
+            battle::LegacyBattleFixedDefinitionCurveLookupStatus::completed) {
+            result.status = LegacyCharacterAttributesRebuildStatus::
+                fixed_definition_curve_typed_stop;
+            return result;
+        }
+        if (maximum == 0U) {
             result.status = LegacyCharacterAttributesRebuildStatus::
                 scale_divisor_zero_stopped;
             return result;
         }
-        const compat::i32 factor =
-            ((-1000 * static_cast<compat::i32>(scale.value)) /
-             static_cast<compat::i32>(scale.divisor)) /
+        const compat::i32 factor = ((-1000 * static_cast<compat::i32>(count)) /
+                                    static_cast<compat::i32>(maximum)) /
             100;
         for (std::size_t index = 0U;
              index < state.first_record.modifiers.size();
@@ -9192,16 +9214,38 @@ LegacyPartyDialogPageResult populate_legacy_party_dialog_page(
                 denominator = 0;
             }
             if (matches(state.item_category_masks[1U])) {
-                const std::optional<std::pair<compat::u16, compat::u16>>
-                    queried = ports.query_pair_added_value(record->text_index);
+                compat::u16 maximum{};
+                compat::u16 count{};
+                result.fixed_definition_curve =
+                    battle::lookup_legacy_battle_fixed_definition_curve(
+                        ports.legacy_battle_fixed_object_state(),
+                        ports,
+                        &maximum,
+                        &count,
+                        {
+                            .maximum_output_token =
+                                state.fixed_definition_maximum_output_token,
+                            .count_output_token =
+                                state.fixed_definition_count_output_token,
+                            .key = record->text_index,
+                            .entry_ecx =
+                                state.fixed_definition_maximum_output_token,
+                            .entry_edx =
+                                (state.item_category_masks[1U] & 0xFFFF0000U) |
+                                record->text_index,
+                        }
+                    );
+                ++result.fixed_definition_curve_query_count;
                 ++result.added_value_query_count;
-                if (!queried.has_value()) {
-                    result.status =
-                        LegacyPartyDialogPageStatus::added_value_query_stopped;
+                if (result.fixed_definition_curve.status !=
+                    battle::LegacyBattleFixedDefinitionCurveLookupStatus::
+                        completed) {
+                    result.status = LegacyPartyDialogPageStatus::
+                        fixed_definition_curve_typed_stop;
                     return result;
                 }
-                denominator = queried->first;
-                added_value = queried->second;
+                denominator = maximum;
+                added_value = count;
             }
             const auto query_fixed_count = [&]() {
                 result.fixed_count = battle::lookup_legacy_battle_fixed_count(
@@ -18530,18 +18574,38 @@ finalize_legacy_standard_mode_guardian_attribute_summary(
             return result;
         }
         if (seed->text_index != 0xFFDCU) {
-            const std::optional<std::pair<compat::u16, compat::u16>> values =
-                ports.query_guardian_slot_pair_attributes(seed->text_index);
-            if (!values.has_value()) {
+            compat::u16 maximum{};
+            compat::u16 count{};
+            result.fixed_definition_curve =
+                battle::lookup_legacy_battle_fixed_definition_curve(
+                    ports.legacy_battle_fixed_object_state(),
+                    ports,
+                    &maximum,
+                    &count,
+                    {
+                        .maximum_output_token =
+                            state.fixed_definition_maximum_output_token,
+                        .count_output_token =
+                            state.fixed_definition_count_output_token,
+                        .key = seed->text_index,
+                        .entry_ecx = state.fixed_definition_count_output_token,
+                        .entry_edx =
+                            state.fixed_definition_maximum_output_token,
+                    }
+                );
+            ++result.fixed_definition_curve_query_count;
+            if (result.fixed_definition_curve.status !=
+                battle::LegacyBattleFixedDefinitionCurveLookupStatus::
+                    completed) {
                 result.status =
                     LegacyStandardModeGuardianAttributeSummaryStatus::
-                        query_stopped;
+                        fixed_definition_curve_typed_stop;
                 return result;
             }
             write_dword(
                 0x48U,
-                static_cast<compat::u32>(values->first) |
-                    (static_cast<compat::u32>(values->second) << 16U)
+                static_cast<compat::u32>(count) |
+                    (static_cast<compat::u32>(maximum) << 16U)
             );
         }
     }

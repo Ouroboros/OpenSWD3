@@ -2,7 +2,7 @@
 
 状态：`module_in_progress`
 
-当前关闭进度：`272/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
+当前关闭进度：`273/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
 
 ## 1. 唯一真值与模块目标
 
@@ -755,6 +755,8 @@ I5最终必须锁定：
 
 本轮再完成`audit_order=272`的`0x00477A20`战斗定义驱动固定曲线设置函数。完整权威LST主体`0x00477A20..0x00477B30`从proc到endp共127个物理行、82条实际指令、5个call、7个跳转、7个局部标签和2个返回点，没有外部chunk；五个call依次为MON定义读取、定义说明清理、已有记录x87截零、20字节allocator和缺键记录x87截零。入口按根count决定根参与或从首节点扫描，MON正常打开失败仍完成清理并继续；命中锁位非零直接成功，否则先写原count、对`count >= maximum`含相等边界二次夹限，再按toward-zero写百分比word，maximum零保留integer-indefinite。缺键路径严格保留先发布allocation token、五个dword清零、键/count/scale写入及最后递增根count的顺序，所有根、链、锁、count、scale与分配记录故障均停在原访问点并保留已到达前缀。固定根`0x004B8A00`、动态节点与MON scratch继续复用既有唯一typed owner。Dialog新增与直接修改两个物理caller均删除第二分类旧opaque端口并在原位置typed直连；故障保留库存与第一分类副作用并阻断第三分类、低ID重复设置、刷新、编辑框清理和scratch释放。验证：定向测试`2/2`、Linux core`194/194`、AddressSanitizer`194/194`、Linux app`200/200`、连续10轮完整core、changed-range clang-format和release审计全部通过，最终日志零OpenSWD3源码warning、测试失败、sanitizer finding或runtime error；未启动原版或OpenSWD3游戏程序。工作包为`272/422 = 262 platform_adapted + 10 assembly_exact + 150 pending_audit`；生成器连续双跑逐字节一致，SHA256为`9065cdef0726c810d287228c25a22635f06eab4db80d96dd105b62db667e0c46`。动态差分因原版MON文件/说明堆、固定定义曲线链、allocator、x87 control/status word、Dialog记录/局部槽及两个callsite联合寄存器捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=273`的`0x00477B40`战斗相邻固定键辅助函数。
+本轮再完成`audit_order=273`的`0x00477B40`战斗定义上限与固定数量查询函数。完整权威LST主体`0x00477B40..0x00477BC5`从proc到endp共67个物理行、39条实际指令、4个call、3个跳转、3个局部标签和2个返回点，没有外部chunk；命中与缺键分支各调用一次MON定义读取和定义说明清理。入口无条件以根记录参与low16键比较，未命中才沿`+0x00`link逐项扫描；两条分支都先读取并清理定义，再严格按原顺序发布scratch `+0x44` maximum和命中记录`+0x06` count，缺键发布零count。typed helper保留两条分支不同的输出token装载时机、低word寄存器替换、MON正常open失败及每个根、后继、count、loader和输出访问点的已到达前缀。队伍对话页、护驾属性摘要和角色属性重算三个已关闭caller均删除旧opaque pair/scale端口，在原位置共享唯一固定对象及MON owner并传播专用typed-stop。验证：定向测试`2/2`、Linux core`194/194`、AddressSanitizer`194/194`、Linux app`200/200`、连续10轮完整core、changed-range clang-format和release审计全部通过，最终日志零OpenSWD3源码warning、测试失败、sanitizer finding或runtime error；未启动原版或OpenSWD3游戏程序。工作包为`273/422 = 263 platform_adapted + 10 assembly_exact + 149 pending_audit`；生成器连续双跑逐字节一致，SHA256为`0dc0635f89b2702353f3c66632074833f77e09cbb1e8e217d5015eb2e8492521`。动态差分因原版固定定义链、MON scratch/说明所有权、输出pointer fault oracle及三个callsite联合寄存器捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=274`的`0x00477BD0`战斗相邻固定键辅助函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

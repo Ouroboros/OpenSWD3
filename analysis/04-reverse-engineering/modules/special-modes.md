@@ -71,3 +71,7 @@ B9拥有菜单、商店、模式内输入/绘制/状态机、模式专用资源�
 - SDL主帧不再用mode2和mode1/4/5/6纯呈现占位替代handler。
 - VM的商店、特殊模式和MON物品请求接入真实B9 owner。
 - Linux core、Linux app和Windows LLVM app完整门通过；原版动态差分缺口单独登记。
+
+## 6. B10 typed边界同步
+
+B9函数关闭计数保持`227/227`。B10 `audit_order=273`关闭`0x00477B40`后，既有队伍对话页`0x00410730`、护驾属性摘要`0x00442CA0`和角色属性重算`0x0044AB00`已经删除旧pair/scale opaque端口，直接借用B10唯一固定对象与MON definition owner。三处typed-stop均停在原调用位置并保留此前B9副作用，不改变B9的函数归属或关闭计数。
