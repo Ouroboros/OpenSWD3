@@ -2,7 +2,7 @@
 
 状态：`module_in_progress`
 
-当前关闭进度：`271/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
+当前关闭进度：`272/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
 
 ## 1. 唯一真值与模块目标
 
@@ -51,10 +51,10 @@ code_origin == game
 - 尾地址：`0x00484500`；
 - `confirmed_boundary`：`61`；
 - `medium`导航候选：`361`；
-- `pending_audit`：`151`；
+- `pending_audit`：`150`；
 - `assembly_exact`：`10`；
-- `platform_adapted`：`261`；
-- 已关闭：`271`。
+- `platform_adapted`：`262`；
+- 已关闭：`272`。
 
 六个稳定导航分组为：
 
@@ -76,7 +76,7 @@ code_origin == game
 - `legacy_battle_assets`：FIGTALK固定窗口和`battle.ffd`头、索引、记录读取；
 - `legacy_battle_setup`：初始队伍筛选、固定阵型、镜像坐标和敌方记录布局。
 
-它们覆盖了`0x0046E0B0`、`0x0045F130`、`0x0045F1B0`与`0x00451B10`的部分有效资产路径或部分指令区间，但尚未证明所属函数的完整LST函数体、全部外部chunk、全部错误/循环/异常域、caller回收和完整战斗生命周期。因此这些历史切片继续不计数；当前`271/422`只来自本文件逐项登记且完成全部关闭门的函数，不得把其他测试通过、局部有效路径或真实battle 98样本当作函数关闭。
+它们覆盖了`0x0046E0B0`、`0x0045F130`、`0x0045F1B0`与`0x00451B10`的部分有效资产路径或部分指令区间，但尚未证明所属函数的完整LST函数体、全部外部chunk、全部错误/循环/异常域、caller回收和完整战斗生命周期。因此这些历史切片继续不计数；当前`272/422`只来自本文件逐项登记且完成全部关闭门的函数，不得把其他测试通过、局部有效路径或真实battle 98样本当作函数关闭。
 
 `app::battle_transition`和`frame_runtime`只实现顶层请求与返回编排，不属于422项战斗内部函数关闭计数。
 
@@ -753,6 +753,8 @@ I5最终必须锁定：
 
 本轮再完成`audit_order=271`的`0x004779F0`战斗固定键曲线值查询函数。完整权威LST主体`0x004779F0..0x00477A13`从proc到endp共28个物理行、13条实际指令、0个call、3个跳转、3个局部/返回标签和2个返回点，没有外部chunk。固定根先参与`+0x04`键比较，未命中后按`+0x00` next严格扫描；命中只以`word [token+8]`替换AX并保留命中token高word，缺失只在读到null link后返回EAX零，ECX仅替换低word为查询键，EDX保持入口。根键、动态键、next、命中值及未映射next均在原访问点typed-stop，不增加环检测、分配、写入或替代缺失值。三个固定根及动态节点继续复用`LegacyBattleFixedObjectStatePort`唯一owner。队伍对话页、护驾属性摘要和组A内嵌资料应用的四个已关闭物理站点均删除旧opaque查询并typed直连；护驾保留`attribute_cache_token+0x140`的ECX高字及`0x004FCD4C`的EDX，`audit_order=403`的`0x00482F10`待审caller保持不动。验证：定向测试`3/3`、Linux core`194/194`、AddressSanitizer`194/194`、Linux app`200/200`、连续10轮完整core、changed-range clang-format和release审计全部通过，最终日志零OpenSWD3源码warning、测试失败、sanitizer finding或runtime error；未启动原版或OpenSWD3游戏程序。工作包为`271/422 = 261 platform_adapted + 10 assembly_exact + 151 pending_audit`；生成器连续双跑逐字节一致，SHA256为`99b262602b207b3d06147d9f8d0cc7b46f3143de6c6c519f03cb2c1154868102`。动态差分因原版固定曲线链、三个已关闭caller状态及五个callsite EAX/ECX/EDX联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=272`的`0x00477A20`战斗相邻固定键辅助函数。
+本轮再完成`audit_order=272`的`0x00477A20`战斗定义驱动固定曲线设置函数。完整权威LST主体`0x00477A20..0x00477B30`从proc到endp共127个物理行、82条实际指令、5个call、7个跳转、7个局部标签和2个返回点，没有外部chunk；五个call依次为MON定义读取、定义说明清理、已有记录x87截零、20字节allocator和缺键记录x87截零。入口按根count决定根参与或从首节点扫描，MON正常打开失败仍完成清理并继续；命中锁位非零直接成功，否则先写原count、对`count >= maximum`含相等边界二次夹限，再按toward-zero写百分比word，maximum零保留integer-indefinite。缺键路径严格保留先发布allocation token、五个dword清零、键/count/scale写入及最后递增根count的顺序，所有根、链、锁、count、scale与分配记录故障均停在原访问点并保留已到达前缀。固定根`0x004B8A00`、动态节点与MON scratch继续复用既有唯一typed owner。Dialog新增与直接修改两个物理caller均删除第二分类旧opaque端口并在原位置typed直连；故障保留库存与第一分类副作用并阻断第三分类、低ID重复设置、刷新、编辑框清理和scratch释放。验证：定向测试`2/2`、Linux core`194/194`、AddressSanitizer`194/194`、Linux app`200/200`、连续10轮完整core、changed-range clang-format和release审计全部通过，最终日志零OpenSWD3源码warning、测试失败、sanitizer finding或runtime error；未启动原版或OpenSWD3游戏程序。工作包为`272/422 = 262 platform_adapted + 10 assembly_exact + 150 pending_audit`；生成器连续双跑逐字节一致，SHA256为`9065cdef0726c810d287228c25a22635f06eab4db80d96dd105b62db667e0c46`。动态差分因原版MON文件/说明堆、固定定义曲线链、allocator、x87 control/status word、Dialog记录/局部槽及两个callsite联合寄存器捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=273`的`0x00477B40`战斗相邻固定键辅助函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

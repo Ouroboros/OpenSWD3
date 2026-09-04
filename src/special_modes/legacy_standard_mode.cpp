@@ -9327,14 +9327,6 @@ static compat::u32 load_party_dialog_item_flags(
     );
 }
 
-static bool party_dialog_item_matches(
-    const compat::u32 flags, const compat::u32 mask
-) noexcept {
-    compat::u32 value = flags & mask;
-    value &= 0xFFFF7FFFU;
-    return value == mask;
-}
-
 static bool update_party_dialog_item_categories(
     const LegacyPartyDialogPageState& state,
     const LegacyStandardModeForwardNode& record,
@@ -9343,7 +9335,6 @@ static bool update_party_dialog_item_categories(
     LegacyPartyDialogResult& result,
     LegacyPartyDialogPorts& ports
 ) noexcept {
-    const compat::u16 item_key_word = static_cast<compat::u16>(item_key);
     const compat::u32 flags = load_party_dialog_item_flags(record);
     const compat::u32 added_bits = std::bit_cast<compat::u32>(added_value);
     const compat::u32 first_mask = state.item_category_masks[0U];
@@ -9372,8 +9363,27 @@ static bool update_party_dialog_item_categories(
             return false;
         }
     }
-    if (party_dialog_item_matches(flags, state.item_category_masks[1U])) {
-        ports.update_second_item_category(item_key_word, added_value);
+    const compat::u32 second_mask = state.item_category_masks[1U];
+    compat::u32 second_entry_edx = flags & second_mask;
+    second_entry_edx &= 0xFFFF7FFFU;
+    if (second_entry_edx == second_mask) {
+        result.fixed_definition_curve =
+            battle::set_legacy_battle_fixed_definition_curve(
+                ports.legacy_battle_fixed_object_state(),
+                ports,
+                ports,
+                {
+                    .key = item_key,
+                    .count = added_bits,
+                    .entry_eax = added_bits,
+                    .entry_ecx = item_key,
+                    .entry_edx = second_entry_edx,
+                }
+            );
+        if (result.fixed_definition_curve.status !=
+            battle::LegacyBattleFixedDefinitionCurveSetStatus::completed) {
+            return false;
+        }
     }
 
     const compat::u32 third_mask = state.item_category_masks[2U];
@@ -9678,10 +9688,20 @@ LegacyPartyDialogResult run_legacy_party_dialog(
                     result,
                     ports
                 )) {
-                result.status = result.fixed_curve.status !=
-                        battle::LegacyBattleFixedCountStatus::completed
-                    ? LegacyPartyDialogStatus::fixed_curve_typed_stop
-                    : LegacyPartyDialogStatus::fixed_count_typed_stop;
+                if (result.fixed_curve.status !=
+                    battle::LegacyBattleFixedCountStatus::completed) {
+                    result.status =
+                        LegacyPartyDialogStatus::fixed_curve_typed_stop;
+                } else if (
+                    result.fixed_definition_curve.status !=
+                    battle::LegacyBattleFixedDefinitionCurveSetStatus::completed
+                ) {
+                    result.status = LegacyPartyDialogStatus::
+                        fixed_definition_curve_typed_stop;
+                } else {
+                    result.status =
+                        LegacyPartyDialogStatus::fixed_count_typed_stop;
+                }
                 return result;
             }
         }
@@ -9819,10 +9839,21 @@ LegacyPartyDialogResult run_legacy_party_dialog(
                         result,
                         ports
                     )) {
-                    result.status = result.fixed_curve.status !=
-                            battle::LegacyBattleFixedCountStatus::completed
-                        ? LegacyPartyDialogStatus::fixed_curve_typed_stop
-                        : LegacyPartyDialogStatus::fixed_count_typed_stop;
+                    if (result.fixed_curve.status !=
+                        battle::LegacyBattleFixedCountStatus::completed) {
+                        result.status =
+                            LegacyPartyDialogStatus::fixed_curve_typed_stop;
+                    } else if (
+                        result.fixed_definition_curve.status !=
+                        battle::LegacyBattleFixedDefinitionCurveSetStatus::
+                            completed
+                    ) {
+                        result.status = LegacyPartyDialogStatus::
+                            fixed_definition_curve_typed_stop;
+                    } else {
+                        result.status =
+                            LegacyPartyDialogStatus::fixed_count_typed_stop;
+                    }
                     return result;
                 }
             }

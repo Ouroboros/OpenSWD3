@@ -61,7 +61,7 @@ maximum为零时不早退。由于unsigned `count >= 0`恒成立，记录先按�
 
 Dialog第一分类条件先以记录flags和mask完成`and`及bit15清除；命中后用记录`+0x50`word替换EDX低word，同时保留masked flags高word。typed组合把记录word作为键、解析后的命令ID作为maximum、附加值作为count，并把原callsite的EAX/ECX/EDX完整前缀传给helper。
 
-原`update_first_item_category`opaque端口已从接口、实现与测试fixture删除。新增与直接修改两条命令都直接组合typed helper；curve stop保留此前库存修改，阻断第二、第三分类、页面刷新、编辑框清理和scratch释放，并以独立`fixed_curve_typed_stop`区别后续固定数量链故障。第二分类`0x00477A20`仍为后续待审边界，不提前修改。
+原`update_first_item_category`opaque端口已从接口、实现与测试fixture删除。新增与直接修改两条命令都直接组合typed helper；curve stop保留此前库存修改，阻断第二、第三分类、页面刷新、编辑框清理和scratch释放，并以独立`fixed_curve_typed_stop`区别后续typed链故障。第二分类`0x00477A20`现已由`battle-fixed-definition-curve-set-00477a20.md`关闭，并严格位于本helper成功之后。
 
 ## 7. 验证与动态差分
 

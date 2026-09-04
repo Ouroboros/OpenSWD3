@@ -1120,6 +1120,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-fixed-curve-lookup-004779f0.md",
     ),
+    "0x00477A20": (
+        "platform_adapted",
+        "evidence/battle-fixed-definition-curve-set-00477a20.md",
+    ),
 }
 
 

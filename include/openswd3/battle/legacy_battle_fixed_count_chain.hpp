@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_fixed_object_reset.hpp"
+#include "openswd3/battle/legacy_battle_mon_definition.hpp"
 #include "openswd3/compat/types.hpp"
 
 #include <array>
@@ -9,6 +10,10 @@ namespace openswd3::battle {
 
 inline constexpr compat::u32 kLegacyBattleFixedCountOwnerToken = 0x004B9F00U;
 inline constexpr compat::u32 kLegacyBattleFixedCurveOwnerToken = 0x004ACBA8U;
+inline constexpr compat::u32 kLegacyBattleFixedDefinitionCurveOwnerToken =
+    0x004B8A00U;
+inline constexpr compat::u32 kLegacyBattleFixedDefinitionScratchToken =
+    0x0053CF50U;
 inline constexpr compat::u32 kLegacyBattleFixedCountAllocateCallToken =
     0x00487C10U;
 inline constexpr compat::u32 kLegacyBattleFixedCountLimit = 0x14U;
@@ -305,5 +310,76 @@ lookup_legacy_battle_fixed_curve(
     LegacyBattleFixedObjectState& state,
     const LegacyBattleFixedCurveLookupRequest& request
 ) noexcept;
+
+struct LegacyBattleFixedDefinitionCurveSetRequest {
+    std::filesystem::path definition_path{"mon.dat"};
+    compat::u32 owner_token{kLegacyBattleFixedDefinitionCurveOwnerToken};
+    compat::u32 definition_output_token{
+        kLegacyBattleFixedDefinitionScratchToken
+    };
+    compat::u32 key{};
+    compat::u32 count{};
+    compat::u32 entry_eax{};
+    compat::u32 entry_ecx{};
+    compat::u32 entry_edx{};
+};
+
+enum class LegacyBattleFixedDefinitionCurveSetStatus : compat::u8 {
+    completed,
+    definition_load_typed_stop,
+    record_access_typed_stop,
+    allocation_record_access_typed_stop,
+};
+
+struct LegacyBattleFixedDefinitionCurveSetResult {
+    LegacyBattleFixedDefinitionCurveSetStatus status{
+        LegacyBattleFixedDefinitionCurveSetStatus::completed
+    };
+    LegacyBattleFixedCountPath path{LegacyBattleFixedCountPath::none};
+    LegacyBattleFixedCurveX87StackState x87_stack{
+        LegacyBattleFixedCurveX87StackState::empty
+    };
+    LegacyBattleMonDefinitionLoadResult definition_load{};
+    compat::u32 owner_token{};
+    compat::u32 matched_token{};
+    compat::u32 allocation_token{};
+    compat::u32 stopped_token{};
+    compat::u32 stopped_offset{};
+    compat::u32 definition_load_calls{};
+    compat::u32 definition_cleanup_calls{};
+    compat::u32 definition_text_release_calls{};
+    compat::u32 root_count_reads{};
+    compat::u32 chain_link_reads{};
+    compat::u32 key_reads{};
+    compat::u32 lock_reads{};
+    compat::u32 allocation_calls{};
+    compat::u32 link_writes{};
+    compat::u32 dword_zero_writes{};
+    compat::u32 key_writes{};
+    compat::u32 count_writes{};
+    compat::u32 clamp_writes{};
+    compat::u32 scale_writes{};
+    compat::u32 root_count_increments{};
+    compat::u32 truncate_calls{};
+    compat::u16 maximum{};
+    compat::u16 count{};
+    compat::u16 scale{};
+    bool locked{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
+// Typed closure of legacy 0x00477A20. A MON definition is loaded and its
+// transient text is released before the third fixed chain is searched. An
+// existing nonzero word at plus ten locks the record; otherwise the input
+// count is clamped to the definition word at plus 0x44 and scaled to percent.
+[[nodiscard]] LegacyBattleFixedDefinitionCurveSetResult
+set_legacy_battle_fixed_definition_curve(
+    LegacyBattleFixedObjectState& state,
+    LegacyBattleFixedCountAllocationPort& allocation_port,
+    LegacyBattleMonDatabasePort& mon_port,
+    const LegacyBattleFixedDefinitionCurveSetRequest& request
+);
 
 }  // namespace openswd3::battle

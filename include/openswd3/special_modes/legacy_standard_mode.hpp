@@ -3858,6 +3858,7 @@ class LegacyPartyDialogPorts
       public virtual LegacyPartyDialogColumnPorts,
       public virtual LegacyStandardModeQuantityPorts,
       public virtual battle::LegacyBattleFixedCountAllocationPort,
+      public virtual battle::LegacyBattleMonDatabasePort,
       public virtual world_map::LegacyPartyMemberFieldWritePorts {
 public:
     ~LegacyPartyDialogPorts() override = default;
@@ -3877,9 +3878,6 @@ public:
     virtual void show_cursor(bool visible) noexcept = 0;
     virtual void report_item_insertion_error() noexcept = 0;
     virtual void report_item_deletion_error() noexcept = 0;
-    virtual void update_second_item_category(
-        compat::u16 item_id, compat::i32 added_value
-    ) noexcept = 0;
 };
 
 enum class LegacyPartyDialogStatus : compat::u8 {
@@ -3894,6 +3892,7 @@ enum class LegacyPartyDialogStatus : compat::u8 {
     fixed_curve_typed_stop,
     fixed_count_typed_stop,
     member_level_requirement_typed_stop,
+    fixed_definition_curve_typed_stop,
 };
 
 enum class LegacyPartyDialogAction : compat::u8 {
@@ -3918,6 +3917,7 @@ struct LegacyPartyDialogResult {
     LegacyPartyDialogRowResult row{};
     LegacyPlayerItemQuantityResult quantity{};
     battle::LegacyBattleFixedCurveSetResult fixed_curve{};
+    battle::LegacyBattleFixedDefinitionCurveSetResult fixed_definition_curve{};
     battle::LegacyBattleFixedCountSetResult fixed_count{};
     world_map::LegacyPartyMemberFieldWriteResult member_write{};
     bool message_handled{};
