@@ -120,7 +120,6 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     selection_frame_query_actor_origin,
     selection_frame_query_target_action_available,
     reserved_selection_frame_draw_selection_hint_slot,
-    actor_target_prepare_group_a_actor,
     actor_target_query_group_b_completion,
     action_summary_configure_font_reset,
     action_summary_configure_font_style,
@@ -1726,12 +1725,8 @@ public:
     invoke_actor_target_preparation(
         const LegacyBattleActorTargetPreparationCallRequest& request
     ) override {
-        const auto call = request.call ==
-                LegacyBattleActorTargetPreparationCall::prepare_group_a_actor
-            ? LegacyBattleFrameCoordinatorCall::
-                  actor_target_prepare_group_a_actor
-            : LegacyBattleFrameCoordinatorCall::
-                  actor_target_query_group_b_completion;
+        const auto call = LegacyBattleFrameCoordinatorCall::
+            actor_target_query_group_b_completion;
         std::array<compat::u32, 8> arguments{};
         for (std::size_t index = 0U; index < request.arguments.size();
              ++index) {

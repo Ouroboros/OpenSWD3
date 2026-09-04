@@ -12,13 +12,12 @@
 namespace openswd3::battle {
 
 enum class LegacyBattleActorTargetPreparationCall : compat::u8 {
-    prepare_group_a_actor,
     query_group_b_completion,
 };
 
 struct LegacyBattleActorTargetPreparationCallRequest {
     LegacyBattleActorTargetPreparationCall call{
-        LegacyBattleActorTargetPreparationCall::prepare_group_a_actor
+        LegacyBattleActorTargetPreparationCall::query_group_b_completion
     };
     compat::u32 object_token{};
     std::array<compat::u32, 4> arguments{};
@@ -65,6 +64,7 @@ enum class LegacyBattleActorTargetPreparationStatus : compat::u8 {
     completed,
     action_workspace_typed_stop,
     group_a_actor_typed_stop,
+    actor_availability_block_typed_stop,
     group_b_actor_typed_stop,
 };
 
@@ -76,6 +76,8 @@ struct LegacyBattleActorTargetPreparationResult {
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
     compat::u32 port_calls{};
+    LegacyBattleActorAvailabilityBlockResult actor_availability_block{};
+    compat::u32 actor_availability_block_calls{};
     compat::u32 random_calls{};
     compat::u32 group_b_queries{};
     compat::u32 scanned_completed_targets{};

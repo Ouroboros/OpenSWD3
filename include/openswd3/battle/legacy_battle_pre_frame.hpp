@@ -10,7 +10,6 @@
 namespace openswd3::battle {
 
 enum class LegacyBattlePreFrameCall : compat::u8 {
-    configure_group_a_actor,
     query_group_a_actor,
     notify_group_a_actor,
     query_group_b_actor,
@@ -47,6 +46,7 @@ public:
 enum class LegacyBattlePreFrameStatus : compat::u8 {
     completed,
     opponent_workspace_typed_stop,
+    actor_availability_block_typed_stop,
     actor_runtime_record_typed_stop,
 };
 
@@ -56,6 +56,8 @@ struct LegacyBattlePreFrameResult {
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
     compat::u32 port_calls{};
+    LegacyBattleActorAvailabilityBlockResult actor_availability_block{};
+    compat::u32 actor_availability_block_calls{};
     compat::u32 group_b_iterations{};
 };
 

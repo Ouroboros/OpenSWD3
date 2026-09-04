@@ -53,9 +53,9 @@ actor code不在本函数夹到`8..17`。token算术只保留32位，callee负�
 - action execution active写5；
 - 以重读值的`secondary+2`事件工作区槽写5；该store可在action execution发布后typed-stop；
 - 依次调用通知callee与配置callee参数1；两者仍可继续改写secondary；
-- 末次配置后再次重读secondary，以`actor*5-40`的32位回绕索引把五dword角色记录的首项写1。
+- 第二次typed availability写入后再次重读secondary，以`actor*5-40`的32位回绕索引把五dword角色记录的首项写1。
 
-最后记录store是本路径第二个typed-stop。越界时保留两个配置callee、通知callee、工作区5及全部前序发布。成功返回EAX为secondary actor，EDX为线性记录索引，ECX保留末次配置callee结果。
+最后记录store是本路径第二个typed-stop。越界时保留两次availability写入、通知callee、工作区5及全部前序发布。成功返回EAX为secondary actor，EDX为线性记录索引，ECX保留第二次typed写入的角色token。
 
 ## 5. 组B资格扫描
 
@@ -82,7 +82,7 @@ actor code不在本函数夹到`8..17`。token算术只保留32位，callee负�
 6. 以重读secondary的`+2`槽写0；该实际工作区store可typed-stop，保留前五项而不清terminal latch；
 7. terminal latch清零。
 
-返回EAX/EDX保留末次配置callee，ECX为secondary actor。pre-frame gate A/B和secondary本身不清。
+返回EAX为末次完整参数0，ECX与EDX都为重新读取的secondary actor code。pre-frame gate A/B和secondary本身不清。
 
 ## 7. 单一typed存储与全局重置
 
@@ -96,4 +96,8 @@ D490涉及的active、secondary、published、action execution、auxiliary、事
 
 定向测试覆盖三道入口门、工作区首次store时序、全1source短路、active全1索引回绕、callee改写source/secondary后的动态重读与后续store停点、组A成功、末记录typed-stop、1-based组B预查询、零基动态扫描、首个不可用发布、动态数量收缩、全部可用收束、尾寄存器、全局重置分段别名及caller typed-stop传播。
 
-当前缺少原版角色对象、四类callee、完整共享全局、动态数量修改和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+## 9. `0x00478330`三处预处理写入
+
+工作包278关闭`0x0045D51C`、`0x0045D5BB`、`0x0045D647`三处物理call，参数依次为完整dword `1`、`1`、`0`。三处均在按actor code定位组A对象后直连共享availability owner；第一处EDX保留入口流程刚读取的source actor code，第二处保留组A通知callee返回EDX，第三处EDX是重新读取的secondary actor code。写停止时EAX已装参数、ECX为实际组Atoken，并阻断各自后续配置、记录、workspace及terminal尾部。
+
+当前缺少原版角色对象、三类剩余callee、完整共享全局、动态数量修改和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

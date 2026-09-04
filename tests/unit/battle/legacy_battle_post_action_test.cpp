@@ -135,7 +135,11 @@ void test_battle_post_action(openswd3::test::Context& test) {
                 port.count(0x00478B20U) == 1U &&
                 port.count(0x00478AE0U) == 1U &&
                 port.count(0x00478710U) == 1U &&
-                port.count(0x00478330U) == 1U &&
+                port.count(0x00478330U) == 0U &&
+                result.actor_availability_block_calls == 1U &&
+                result.actor_availability_block.actor_writes == 1U &&
+                result.actor_availability_block.return_ecx == 0x00505904U &&
+                final_actor.group_a_availability_blocks[1U].value == 0U &&
                 port.count(0x00478850U) == 2U &&
                 std::ranges::all_of(
                     final_actor.actor_order,
@@ -150,6 +154,49 @@ void test_battle_post_action(openswd3::test::Context& test) {
                     [](const u32 value) { return value == 0U; }
                 ),
             "all terminal alternates and packed completion clear both fixed workspaces"
+        );
+    }
+
+    {
+        LegacyBattlePostActionState state;
+        LegacyBattleFinalActorStepState final_actor;
+        LegacyBattleActionDispatchState action;
+        action.selected_target_index = 1U;
+        action.group_a_count = 2;
+        action.group_b_count = 2;
+        action.packed_actor_counter = 1U;
+        final_actor.actor_order.fill(7U);
+        final_actor.secondary_actor_code = 8U;
+        final_actor.queued_actor_code = 9U;
+        final_actor.active_actor_code = 10U;
+        final_actor.group_a_availability_blocks[1U].value = 0xAABBCCDDU;
+        final_actor.group_a_availability_blocks[1U].write_accessible = false;
+        state.selection_workspace.fill(0xFFFFFFFFU);
+        state.published_target_token = 0x1234U;
+        PostActionPort port;
+        port.push(0x004786E0U, {.eax = 1U});
+        port.push(0x0047CE80U, {.eax = 1U});
+        const auto result = advance_legacy_battle_post_action(
+            state, final_actor, action, port, 0U, 1U
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleActionDispatchStatus::
+                        actor_availability_block_typed_stop &&
+                result.actor_availability_block_calls == 1U &&
+                result.actor_availability_block.actor_writes == 0U &&
+                result.return_value == 0U &&
+                result.actor_availability_block.return_ecx == 0x00505904U &&
+                final_actor.group_a_availability_blocks[1U].value ==
+                    0xAABBCCDDU &&
+                port.count(0x00478850U) == 1U &&
+                final_actor.actor_order[0U] == 7U &&
+                final_actor.secondary_actor_code == 8U &&
+                final_actor.queued_actor_code == 9U &&
+                final_actor.active_actor_code == 10U &&
+                state.published_target_token == 0x1234U &&
+                state.selection_workspace[0U] == 0xFFFFFFFFU,
+            "terminal typed write stop preserves the reached calls and suppresses every cleanup suffix"
         );
     }
 }

@@ -347,8 +347,7 @@ private:
         const u32 index = actor_code - 8U;
         const u32 prior_edx = edx_;
         ecx_ = kGroupABaseToken + index * kGroupAStride;
-        if (call == Call::refresh_actor_selection ||
-            call == Call::apply_special_actor_action ||
+        if (call == Call::apply_special_actor_action ||
             call == Call::set_actor_mode) {
             shape = GroupARegisterShape::eax_3ef_edx_bcd;
         } else if (
@@ -376,6 +375,41 @@ private:
         invoke(call, token, arguments);
         ++result_.group_a_calls;
         return true;
+    }
+
+    [[nodiscard]] bool set_actor_availability_block(
+        const u32 actor_code, const u32 value, const bool publish_bcd_edx
+    ) {
+        const u32 index = actor_code - 8U;
+        ecx_ = kGroupABaseToken + index * kGroupAStride;
+        if (publish_bcd_edx) {
+            edx_ = index * 0xBCDU;
+        }
+        auto* const actor =
+            index < final_actor_.group_a_availability_blocks.size()
+            ? &final_actor_.group_a_availability_blocks[index]
+            : nullptr;
+        result_.actor_availability_block =
+            set_legacy_battle_actor_availability_block(
+                actor,
+                {
+                    .value = value,
+                    .actor_token = ecx_,
+                    .entry_eax = eax_,
+                    .entry_edx = edx_,
+                }
+            );
+        ++result_.actor_availability_block_calls;
+        ++result_.group_a_calls;
+        eax_ = result_.actor_availability_block.return_eax;
+        ecx_ = result_.actor_availability_block.return_ecx;
+        edx_ = result_.actor_availability_block.return_edx;
+        if (result_.actor_availability_block.status ==
+            LegacyBattleActorAvailabilityBlockStatus::completed) {
+            return true;
+        }
+        typed_stop(Status::actor_availability_block_typed_stop);
+        return false;
     }
 
     [[nodiscard]] bool invoke_group_a_one_based(
@@ -934,7 +968,7 @@ private:
         }
         final_actor_.queued_actor_code = 0U;
         runtime_.actor_commit_gate = 1U;
-        if (!invoke_group_a(Call::refresh_actor_selection, actor_code, {1U})) {
+        if (!set_actor_availability_block(actor_code, 1U, true)) {
             return false;
         }
         eax_ = actor_code;
@@ -1079,10 +1113,8 @@ private:
                 runtime_.selected_action_kind = selected_action;
                 if (!write_actor_action(actor_code, selected_action) ||
                     !invoke_group_a(Call::apply_actor_action, actor_code) ||
-                    !invoke_group_a(
-                        Call::refresh_actor_selection,
-                        final_actor_.queued_actor_code,
-                        {1U}
+                    !set_actor_availability_block(
+                        final_actor_.queued_actor_code, 1U, true
                     )) {
                     return;
                 }
@@ -1117,9 +1149,7 @@ private:
                 bindings_.message_state = 0U;
                 runtime_.selection_input_gate = 1U;
                 if (!write_actor_action(actor_code, selected_action) ||
-                    !invoke_group_a(
-                        Call::refresh_actor_selection, actor_code, {1U}
-                    )) {
+                    !set_actor_availability_block(actor_code, 1U, true)) {
                     return;
                 }
                 eax_ = final_actor_.queued_actor_code;
@@ -1173,9 +1203,7 @@ private:
                 ecx_ = actor_code - 8U;
                 runtime_.selected_action_kind = selected_action;
                 if (!write_actor_action(actor_code, selected_action) ||
-                    !invoke_group_a(
-                        Call::refresh_actor_selection, actor_code, {1U}
-                    )) {
+                    !set_actor_availability_block(actor_code, 1U, true)) {
                     return;
                 }
                 eax_ = final_actor_.queued_actor_code;
@@ -1325,7 +1353,7 @@ private:
         bindings_.debug_hotkeys.committed_actor_code = actor_code;
         final_actor_.queued_actor_code = 0U;
         runtime_.actor_commit_gate = 1U;
-        if (!invoke_group_a(Call::refresh_actor_selection, actor_code, {1U})) {
+        if (!set_actor_availability_block(actor_code, 1U, true)) {
             return;
         }
         bindings_.message_state = 0U;
@@ -1483,9 +1511,7 @@ private:
                 runtime_.selected_action_kind = eax_;
                 if (!write_actor_action(committed, eax_) ||
                     !invoke_group_a(Call::apply_actor_action, committed) ||
-                    !invoke_group_a(
-                        Call::refresh_actor_selection, committed, {1U}
-                    )) {
+                    !set_actor_availability_block(committed, 1U, false)) {
                     return;
                 }
                 eax_ = committed * 5U - 40U;
@@ -1514,7 +1540,7 @@ private:
         }
         final_actor_.queued_actor_code = 0U;
         runtime_.actor_commit_gate = 1U;
-        if (!invoke_group_a(Call::refresh_actor_selection, actor_code, {1U})) {
+        if (!set_actor_availability_block(actor_code, 1U, false)) {
             return false;
         }
         eax_ = actor_code;
@@ -1829,9 +1855,7 @@ private:
                 return;
             }
             const u32 actor_code = final_actor_.queued_actor_code;
-            if (!invoke_group_a(
-                    Call::refresh_actor_selection, actor_code, {1U}
-                )) {
+            if (!set_actor_availability_block(actor_code, 1U, true)) {
                 return;
             }
             eax_ = final_actor_.queued_actor_code;

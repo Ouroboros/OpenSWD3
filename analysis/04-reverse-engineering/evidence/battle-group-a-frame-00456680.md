@@ -202,4 +202,8 @@ Typed-stop只位于：
 - queue code小于8的派生对象停点；
 - 46个唯一callee全部存在，其中3个typed直连、43个端口边界。
 
+## 13. `0x00478330`六处直接写入
+
+相邻工作包278进一步关闭本函数内`0x004567EA`、`0x00456BC0`、`0x00456C1C`、`0x00456CF4`、`0x00456D88`、`0x00456E69`六处物理call。第一处把完整dword `1`写入当前组A角色`+0x2AE4`，其余五处写`0`；全部直接复用`LegacyBattleFinalActorStepState::group_a_availability_blocks`，旧callee token生产零调用。第一处保留末次组B完成查询EDX，后五处分别线程化最终处理、发布选择、选择完成或清展示callee的真实EDX；leaf在写失败时已把参数装入EAX，并保留角色token ECX与该EDX，父函数立即返回，不执行随机选择、门复位、最终处理或UI尾部。queue mode路径直连`0x00464CC0`时也通过同一owner完成其第七种组A帧到达方式。
+
 当前缺少原版组A/B对象、43类剩余callee共享副作用、攻击顺序/队员暂存动态轨迹、AI/选择/队列表、text/sample、resolved target内存与回合状态联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

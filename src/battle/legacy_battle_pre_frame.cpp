@@ -71,6 +71,35 @@ LegacyBattlePreFrameResult advance_legacy_battle_pre_frame(
         edx = reply.edx;
         return reply;
     };
+    const auto set_availability_block = [&](const u32 actor_code,
+                                            const u32 value) {
+        const u32 actor_index = actor_code - 8U;
+        auto* const actor =
+            actor_index < final_actor.group_a_availability_blocks.size()
+            ? &final_actor.group_a_availability_blocks[actor_index]
+            : nullptr;
+        result.actor_availability_block =
+            set_legacy_battle_actor_availability_block(
+                actor,
+                {
+                    .value = value,
+                    .actor_token = group_a_token(actor_code),
+                    .entry_eax = eax,
+                    .entry_edx = edx,
+                }
+            );
+        ++result.actor_availability_block_calls;
+        eax = result.actor_availability_block.return_eax;
+        ecx = result.actor_availability_block.return_ecx;
+        edx = result.actor_availability_block.return_edx;
+        if (result.actor_availability_block.status ==
+            LegacyBattleActorAvailabilityBlockStatus::completed) {
+            return true;
+        }
+        result.status =
+            LegacyBattlePreFrameStatus::actor_availability_block_typed_stop;
+        return false;
+    };
 
     if (eax != 1U) {
         return finish();
@@ -108,11 +137,9 @@ LegacyBattlePreFrameResult advance_legacy_battle_pre_frame(
     final_actor.secondary_actor_code = actor_code;
     final_actor.active_actor_code = 0U;
     final_actor.auxiliary_gate = 1U;
-    static_cast<void>(invoke(
-        LegacyBattlePreFrameCall::configure_group_a_actor,
-        group_a_token(actor_code),
-        1U
-    ));
+    if (!set_availability_block(actor_code, 1U)) {
+        return finish();
+    }
 
     ecx = final_actor.source_actor_code;
     edx = final_actor.secondary_actor_code;
@@ -137,11 +164,9 @@ LegacyBattlePreFrameResult advance_legacy_battle_pre_frame(
             LegacyBattlePreFrameCall::notify_group_a_actor,
             group_a_token(current_actor)
         ));
-        static_cast<void>(invoke(
-            LegacyBattlePreFrameCall::configure_group_a_actor,
-            group_a_token(final_actor.secondary_actor_code),
-            1U
-        ));
+        if (!set_availability_block(final_actor.secondary_actor_code, 1U)) {
+            return finish();
+        }
         eax = final_actor.secondary_actor_code;
         edx = eax * 5U - 40U;
         if (edx >= final_actor.actor_runtime_records.size() * 5U) {
@@ -183,11 +208,10 @@ LegacyBattlePreFrameResult advance_legacy_battle_pre_frame(
         }
     }
 
-    static_cast<void>(invoke(
-        LegacyBattlePreFrameCall::configure_group_a_actor,
-        group_a_token(final_actor.secondary_actor_code),
-        0U
-    ));
+    edx = final_actor.secondary_actor_code;
+    if (!set_availability_block(final_actor.secondary_actor_code, 0U)) {
+        return finish();
+    }
     ecx = final_actor.secondary_actor_code;
     final_actor.action_execution_active = 0U;
     final_actor.published_actor_code = 1U;

@@ -15,7 +15,6 @@ using compat::u8;
 constexpr u32 kCallValidateActor = 0x00479850U;
 constexpr u32 kCallResetActor = 0x0047C660U;
 constexpr u32 kCallQueryContinuation = 0x0047F340U;
-constexpr u32 kCallConfigureActor = 0x00478330U;
 constexpr u32 kCallQueryDescriptor = 0x00480AD0U;
 constexpr u32 kCallQueryAction = 0x0047F910U;
 constexpr u32 kCallQueryGroupBReset = 0x0047CE80U;
@@ -296,9 +295,23 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
     if (invoke(port, result, kCallQueryContinuation, {actor_token}).eax == 1U) {
         state.published_actor_code = state.active_actor_code + 1U;
         state.secondary_actor_code = actor_code;
-        static_cast<void>(
-            invoke(port, result, kCallConfigureActor, {actor_token, 1U})
-        );
+        result.actor_availability_block =
+            set_legacy_battle_actor_availability_block(
+                &state.group_a_availability_blocks[actor_index],
+                {
+                    .value = 1U,
+                    .actor_token = actor_token,
+                    .entry_edx = state.published_actor_code,
+                }
+            );
+        ++result.actor_availability_block_calls;
+        if (result.actor_availability_block.status !=
+            LegacyBattleActorAvailabilityBlockStatus::completed) {
+            result.status = LegacyBattleActionDispatchStatus::
+                actor_availability_block_typed_stop;
+            result.return_value = result.actor_availability_block.return_eax;
+            return result;
+        }
         state.action_execution_active = 1U;
         action.opponent_workspace[2U + actor_index] = 1U;
         state.auxiliary_gate = 1U;

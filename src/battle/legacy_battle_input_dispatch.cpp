@@ -747,11 +747,34 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
                     return finish();
                 }
                 bindings.action.opponent_workspace[workspace_index] = 0x11U;
+                const u32 actor_index = actor_code - 8U;
+                edx = actor_index * 0xBCDU;
                 ecx = group_a_token(actor_code);
-                static_cast<void>(call(
-                    LegacyBattleInputDispatchCall::configure_retreat_actor,
-                    {ecx, 1U, actor_code}
-                ));
+                auto* const availability_block = actor_index <
+                        bindings.final_actor.group_a_availability_blocks.size()
+                    ? &bindings.final_actor
+                           .group_a_availability_blocks[actor_index]
+                    : nullptr;
+                result.actor_availability_block =
+                    set_legacy_battle_actor_availability_block(
+                        availability_block,
+                        {
+                            .value = 1U,
+                            .actor_token = ecx,
+                            .entry_eax = eax,
+                            .entry_edx = edx,
+                        }
+                    );
+                ++result.actor_availability_block_calls;
+                eax = result.actor_availability_block.return_eax;
+                ecx = result.actor_availability_block.return_ecx;
+                edx = result.actor_availability_block.return_edx;
+                if (result.actor_availability_block.status !=
+                    LegacyBattleActorAvailabilityBlockStatus::completed) {
+                    result.status = LegacyBattleInputDispatchStatus::
+                        actor_availability_block_typed_stop;
+                    return finish();
+                }
                 const u32 live_actor = bindings.final_actor.queued_actor_code;
                 eax = live_actor;
                 bindings.final_actor.auxiliary_gate = 1U;

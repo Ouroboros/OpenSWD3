@@ -146,17 +146,17 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
     {
         openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
         actor.action_override_flags = 0x2000U;
-        const auto set = openswd3::battle::
-            query_legacy_battle_actor_action_thirty_override(
+        const auto set =
+            openswd3::battle::query_legacy_battle_actor_action_thirty_override(
                 &actor, 0xAAAA5555U, 0xBBBB6666U, 0xCCCC7777U
             );
         actor.action_override_flags = 0xDFFFU;
-        const auto clear = openswd3::battle::
-            query_legacy_battle_actor_action_thirty_override(
+        const auto clear =
+            openswd3::battle::query_legacy_battle_actor_action_thirty_override(
                 &actor, 0x11112222U, 0x33334444U, 0x55556666U
             );
-        const auto stopped = openswd3::battle::
-            query_legacy_battle_actor_action_thirty_override(
+        const auto stopped =
+            openswd3::battle::query_legacy_battle_actor_action_thirty_override(
                 nullptr, 0x77778888U, 0x9999AAAAU, 0xBBBBCCCCU
             );
         test.expect_true(
@@ -175,17 +175,17 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
     {
         openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
         actor.action_override_flags = 0x1000U;
-        const auto set = openswd3::battle::
-            query_legacy_battle_actor_action_four_override(
+        const auto set =
+            openswd3::battle::query_legacy_battle_actor_action_four_override(
                 &actor, 0xAAAA5555U, 0xBBBB6666U, 0xCCCC7777U
             );
         actor.action_override_flags = 0xEFFFU;
-        const auto clear = openswd3::battle::
-            query_legacy_battle_actor_action_four_override(
+        const auto clear =
+            openswd3::battle::query_legacy_battle_actor_action_four_override(
                 &actor, 0x11112222U, 0x33334444U, 0x55556666U
             );
-        const auto stopped = openswd3::battle::
-            query_legacy_battle_actor_action_four_override(
+        const auto stopped =
+            openswd3::battle::query_legacy_battle_actor_action_four_override(
                 nullptr, 0x77778888U, 0x9999AAAAU, 0xBBBBCCCCU
             );
         test.expect_true(
@@ -622,11 +622,49 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleTargetSelectionRefreshStatus::
                         group_b_actor_typed_stop &&
-                result.group_b_calls == 8U && result.port_calls == 9U &&
+                result.group_b_calls == 8U && result.port_calls == 8U &&
+                result.actor_availability_block_calls == 1U &&
+                result.actor_availability_block.actor_writes == 1U &&
+                fixture.final_actor.group_a_availability_blocks[0U].value ==
+                    1U &&
                 fixture.final_actor.queued_actor_code == 0U &&
                 fixture.debug.committed_actor_code == 8U &&
                 fixture.action.opponent_workspace[10U] == 1U,
             "message three commits the actor then stops at the ninth real group-B reset without adding a loop cap"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.target_ready = 1U;
+        fixture.message = 3U;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.final_actor.group_a_availability_blocks[0U].write_accessible =
+            false;
+        fixture.port.battle_input_dispatch_state().action_kind = 1U;
+        fixture.port.battle_target_selection_runtime_state()
+            .selection_input_gate = 1U;
+        const auto result = refresh_legacy_battle_target_selection(
+            fixture.bindings(), fixture.port, {.entry_edx = 0x55667788U}
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleTargetSelectionRefreshStatus::
+                        actor_availability_block_typed_stop &&
+                result.actor_availability_block_calls == 1U &&
+                result.actor_availability_block.actor_writes == 0U &&
+                result.group_a_calls == 1U && result.group_b_calls == 0U &&
+                result.port_calls == 0U && result.return_eax == 1U &&
+                result.return_ecx == 0x005029D0U && result.return_edx == 0U &&
+                fixture.final_actor.queued_actor_code == 0U &&
+                fixture.message == 3U &&
+                fixture.debug.committed_actor_code == 8U &&
+                fixture.action.opponent_workspace[10U] == 1U &&
+                fixture.port.battle_target_selection_runtime_state()
+                        .actor_commit_gate == 1U &&
+                fixture.port.battle_target_selection_runtime_state()
+                        .selection_input_gate == 1U,
+            "message three typed write stop preserves the commit prefix and suppresses all selection and group-B suffixes"
         );
     }
 
@@ -725,7 +763,11 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                 workspace_word(fixture.action, 0x78U) == 0x10EU &&
                 runtime.actor_result_words[8U] == 1U &&
                 result.input_record_prime_calls == 1U &&
-                result.input_record_writes == 4U && result.port_calls == 3U &&
+                result.input_record_writes == 4U && result.port_calls == 2U &&
+                result.actor_availability_block_calls == 1U &&
+                result.actor_availability_block.actor_writes == 1U &&
+                fixture.final_actor.group_a_availability_blocks[0U].value ==
+                    1U &&
                 result.mode_four_finalization_calls == 1U &&
                 fixture.party[0U].item_effect_application.mode_flags == 0x02U &&
                 fixture.party[0U].final_processing.completion_latch == 1U,

@@ -56,7 +56,7 @@ low_byte(packed_actor_counter) + 1 == observed_group_b_count
 1. 清当前组A动作；
 2. 重置原selected组B对象；
 3. 以参数0设置组A模式；
-4. 以参数0配置组A对象；
+4. 把完整dword参数0直接写入组A对象共享availability owner；
 5. 再次重置组A对象；
 6. 固定清零十项角色顺序表；
 7. 发布零target token；
@@ -74,5 +74,9 @@ caller源码不再包含`0x0045ADF0` token。回归测试实际进入typed后缀
 ## 7. 测试与动态差分
 
 定向测试覆盖：完整入口不等、匹配后group A零数量、source跳过、负目标跳过、首个非terminal候选重排、动态候选发布、packed完成全局清理、十项队列物理别名、126 dword固定清零，以及组A caller直连。
+
+## 8. `0x00478330`清可用门直连
+
+工作包278关闭`0x0045AEEF`唯一物理call。目标重排完成后，caller以组A角色code 9定位第二个组A对象，把完整dword `0`写入其`+0x2AE4`，再执行重置与全局尾清理。实现直接复用最终角色状态中的第二个availability owner，leaf入口ECX固定映射为`0x00505904`，EDX保留前一目标发布callee残值；写停止时EAX已为0、owner未改，后续重置、队列、target、角色码与126 dword清理均不执行。
 
 当前缺少原版两组角色对象、8类callee共享副作用、动态数量修改、十项角色顺序表、126 dword选择工作区和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

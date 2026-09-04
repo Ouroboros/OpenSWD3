@@ -1236,6 +1236,37 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
     {
         Fixture fixture;
         Port port;
+        fixture.opcode(23);
+        fixture.write_u16(2U, 0x77U);
+        fixture.write_u16(4U, 8U);
+        fixture.write_u16(6U, 0U);
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace,
+            fixture.bindings(),
+            port,
+            {.entry_edx = 0x778899AAU}
+        );
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.actor_availability_block_calls == 1U &&
+                result.actor_availability_block.actor_writes == 1U &&
+                result.actor_availability_block.return_eax == 1U &&
+                result.actor_availability_block.return_ecx == 0x005029D0U &&
+                result.actor_availability_block.return_edx == 0x778899AAU &&
+                fixture.final_actor.group_a_availability_blocks[0U].value ==
+                    1U &&
+                fixture.final_actor.queued_actor_code == 8U &&
+                fixture.final_actor.published_actor_code == 1U &&
+                fixture.shared.action_state == 2U &&
+                fixture.shared.actor_state_words[0U] == 2U &&
+                fixture.workspace.cursor == 8U && port.calls.size() == 5U,
+            "case twenty-three writes the typed group-A owner before its remaining actor and frame calls"
+        );
+    }
+
+    {
+        Fixture fixture;
+        Port port;
         fixture.opcode(80);
         fixture.write_u16(2U, 2U);
         fixture.write_u16(4U, 0xFF80U);
@@ -1392,6 +1423,74 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
                     LegacyBattleScriptDispatchCall::attack_order_insert
                 ) == 0U,
             "case nine directly inserts the group-B attack-order record"
+        );
+    }
+
+    {
+        Fixture fixture;
+        Port port;
+        fixture.opcode(9);
+        fixture.write_u16(2U, 8U);
+        fixture.write_u16(4U, 0U);
+        for (auto& record : fixture.startup.reset.records_524788) {
+            record.value_00 = 0xFFFFFFFFU;
+        }
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace,
+            fixture.bindings(),
+            port,
+            {.entry_eax = 0x11112222U,
+             .entry_ecx = 0x33334444U,
+             .entry_edx = 0x55556666U}
+        );
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.actor_availability_block_calls == 1U &&
+                result.actor_availability_block.actor_writes == 1U &&
+                result.actor_availability_block.return_eax == 1U &&
+                result.actor_availability_block.return_ecx == 0x005029D0U &&
+                result.actor_availability_block.return_edx == 0x55556666U &&
+                fixture.final_actor.group_a_availability_blocks[0U].value ==
+                    1U &&
+                fixture.final_actor.queued_actor_code == 8U &&
+                fixture.shared.action_state == 1U &&
+                fixture.workspace.cursor == 6U &&
+                port.count(LegacyBattleScriptDispatchCall::frame) == 1U,
+            "case nine writes the typed group-A owner before its attack-order and frame suffix"
+        );
+    }
+
+    {
+        Fixture fixture;
+        Port port;
+        fixture.opcode(9);
+        fixture.write_u16(2U, 8U);
+        fixture.write_u16(4U, 8U);
+        fixture.final_actor.group_a_availability_blocks[0U].write_accessible =
+            false;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace,
+            fixture.bindings(),
+            port,
+            {.entry_eax = 0x11112222U,
+             .entry_ecx = 0x33334444U,
+             .entry_edx = 0x55556666U}
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::
+                        actor_availability_block_typed_stop &&
+                result.actor_availability_block_calls == 1U &&
+                result.actor_availability_block.actor_writes == 0U &&
+                result.return_eax == 1U && result.return_ecx == 0x005029D0U &&
+                result.return_edx == 0U &&
+                fixture.final_actor.queued_actor_code == 8U &&
+                fixture.final_actor.published_actor_code == 1U &&
+                fixture.startup.reset.value_53bfd0 == 1U &&
+                fixture.final_actor.group_a_slot_values[0U] == 1U &&
+                fixture.shared.action_state == 0U &&
+                fixture.workspace.cursor == 0U && port.calls.empty(),
+            "case nine typed write stop preserves the reached publications and suppresses the complete caller suffix"
         );
     }
 
@@ -1712,6 +1811,36 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
                 fixture.workspace.cursor == 4U && port.calls.empty() &&
                 fixture.startup.reset.records_524788[0].value_00 == 0x12345678U,
             "case fifty-eight preserves the first fixed getter token while keeping both blocks dead"
+        );
+    }
+
+    {
+        Fixture fixture;
+        Port port;
+        fixture.opcode(58);
+        fixture.write_u16(2U, 8U);
+        fixture.write_u16(4U, 9U);
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace,
+            fixture.bindings(),
+            port,
+            {.entry_edx = 0xAABBCCDDU}
+        );
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.actor_availability_block_calls == 1U &&
+                result.actor_availability_block.actor_writes == 1U &&
+                result.actor_availability_block.return_eax == 1U &&
+                result.actor_availability_block.return_ecx == 0x005029D0U &&
+                result.actor_availability_block.return_edx == 0U &&
+                fixture.final_actor.group_a_availability_blocks[0U].value ==
+                    1U &&
+                fixture.final_actor.queued_actor_code == 8U &&
+                fixture.final_actor.published_actor_code == 2U &&
+                fixture.target_selection.selected_action_kind == 6U &&
+                fixture.shared.actor_state_words[0U] == 1U &&
+                fixture.workspace.cursor == 4U && port.calls.empty(),
+            "case fifty-eight writes the typed group-A owner before publishing action six"
         );
     }
 

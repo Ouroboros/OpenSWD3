@@ -54,4 +54,8 @@ active actor非零时再次查询对象。查询零或battle mode bit`0x200`置�
 
 定向测试覆盖渲染中止、八键顺序与刷新后live permission、动作刷新普通/typed-stop传播、按键6特殊复位、记录合成、signed重复节拍、陈旧ESI、撤退20/50ms双路径、警告与signed混音、workspace停点、记录17立即返回、selected option、鼠标开区间、热点清理与左右回绕、mode bit局部清除、输入span停点、全局重置别名及逐帧caller阻断。
 
+## 8. `0x00478330`撤退角色写入
+
+工作包278关闭`0x0045F765`唯一物理call。撤退确认路径在发布角色code后，以`(actor_code-8)*0xBCD`形成EDX并把完整dword `1`写入对应组A角色`+0x2AE4`；typed实现复用最终角色状态中的单一availability owner。写停止时EAX已为1，ECX为角色token，EDX为原乘法结果，随后的消息、选择门和动作状态提交全部被阻断。
+
 当前缺少原版20条输入记录与DIK联合轨迹、其余战斗callee共享副作用、两组角色对象、对话/热点链、Sleep墙钟、样本后端、全部输入全局及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

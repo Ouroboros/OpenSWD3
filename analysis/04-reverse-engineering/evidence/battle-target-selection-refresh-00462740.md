@@ -65,4 +65,8 @@ message 200先发布完整重置前缀，再按live group-B/group-A count清对�
 
 定向测试覆盖主跳表默认域、message 1阈值与物理重映射、live共享message门、组A/组B轮转及子typed-stop、动作5前缀停点、hovered 2/4、message 3提交与第九个group-B对象、message 5效果物理视图、message 7完整轮转/发布/记录尾部与第九项target map、message 8/27/30、98/101的AL行为、100/102–104、111–113的阈值差异、110符号扩展、200重置前缀、global reset字节范围以及唯一caller传播。
 
+## 8. `0x00478330`八处目标选择写入
+
+工作包278关闭`0x0046292B`、`0x004629F3`、`0x00462B02`、`0x00462ED5`、`0x00463108`、`0x00463335`、`0x00463A50`、`0x00463CF0`八处物理call。各分支都把完整dword `1`写入当前组A角色`+0x2AE4`，并直接复用最终角色状态中的availability owner。caller按原路径把目标码、角色索引或相邻callee残值线程化为leaf入口EDX；任何写停止都保留已到达的message、选择与缓存前缀，EAX为1、ECX为角色token，且阻断相应动作提交、轮转、动画与输入尾部。
+
 当前缺少原版两组角色对象、22类callee共享副作用、动态栈scratch地址、target map/效果workspace完整动态内容、transition动画后端及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

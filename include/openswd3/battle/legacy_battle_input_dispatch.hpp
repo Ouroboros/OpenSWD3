@@ -107,7 +107,6 @@ enum class LegacyBattleInputDispatchCall : compat::u8 {
     reserved_menu_input_finalize_slot,
     query_active_actor,
     reserved_query_retreat_actor_slot,
-    configure_retreat_actor,
     reserved_display_retreat_warning_slot,
     menu_retreat_query_group_b_candidate,
     menu_retreat_prepare_actor_origin,
@@ -228,6 +227,7 @@ enum class LegacyBattleInputDispatchStatus : compat::u8 {
     completed,
     input_record_typed_stop,
     workspace_typed_stop,
+    actor_availability_block_typed_stop,
     text_message_typed_stop,
     menu_selection_retreat_typed_stop,
     menu_selection_advance_typed_stop,
@@ -256,6 +256,8 @@ struct LegacyBattleInputDispatchResult {
     compat::u32 input_record_writes{};
     compat::u32 port_calls{};
     compat::u32 delay_calls{};
+    LegacyBattleActorAvailabilityBlockResult actor_availability_block{};
+    compat::u32 actor_availability_block_calls{};
     std::vector<LegacyBattleTextMessageResult> text_messages;
     compat::u32 text_message_calls{};
     LegacyBattleActorRetreatReadyResult actor_retreat_ready{};

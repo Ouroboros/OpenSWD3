@@ -87,18 +87,36 @@ LegacyBattleActorTargetPreparationResult prepare_legacy_battle_actor_target(
     }
     bindings.action.opponent_workspace[workspace_index] = 1U;
 
-    eax = ecx * 0xBCDU;
-    const u32 group_a_token = kGroupABaseToken + ecx * kGroupAStride;
-    if (ecx >= kGroupACount) {
+    const u32 group_a_index = ecx;
+    eax = group_a_index * 0xBCDU;
+    const u32 group_a_token = kGroupABaseToken + group_a_index * kGroupAStride;
+    if (group_a_index >= kGroupACount) {
         ecx = group_a_token;
         result.status =
             LegacyBattleActorTargetPreparationStatus::group_a_actor_typed_stop;
         return finish();
     }
     ecx = group_a_token;
-    invoke(
-        LegacyBattleActorTargetPreparationCall::prepare_group_a_actor, ecx, {1U}
-    );
+    result.actor_availability_block =
+        set_legacy_battle_actor_availability_block(
+            &bindings.final_actor.group_a_availability_blocks[group_a_index],
+            {
+                .value = 1U,
+                .actor_token = ecx,
+                .entry_eax = eax,
+                .entry_edx = edx,
+            }
+        );
+    ++result.actor_availability_block_calls;
+    eax = result.actor_availability_block.return_eax;
+    ecx = result.actor_availability_block.return_ecx;
+    edx = result.actor_availability_block.return_edx;
+    if (result.actor_availability_block.status !=
+        LegacyBattleActorAvailabilityBlockStatus::completed) {
+        result.status = LegacyBattleActorTargetPreparationStatus::
+            actor_availability_block_typed_stop;
+        return finish();
+    }
 
     eax = bindings.metrics.group_b_count;
     ecx = static_cast<u8>(bindings.action.opponent_processed_counter);

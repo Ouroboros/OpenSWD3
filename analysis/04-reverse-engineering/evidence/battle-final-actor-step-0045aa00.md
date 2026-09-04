@@ -94,4 +94,8 @@ removed byte以zero-extended dword与remaining做unsigned比较。达到或超�
 
 定向测试覆盖：初始有效性失败、组A完成阈值和32字节逆向清零、三刷新、双组重置、攻击顺序移除与旧token清零、相邻效果记录stop前缀、角色顺序左移、removed unsigned终止、工作区typed-stop、配置后记录typed-stop、组B全1早退、共享资源坐标读取、坐标回绕、坐标owner typed-stop、描述符bit5、动作查询后的固定键计数链直连、缺键唯一分配、闭区间低byte递增、signed完成比较、共享message 1/0x63/0x67、组B重置、零描述符停点，以及组A/组B caller直连和组B父级typed-stop传播。
 
+## 10. `0x00478330`继续路径直连
+
+工作包278关闭本函数`0x0045AC54`唯一物理call。组A continuation查询精确返回1后，caller先发布`active+1`与secondary角色，再把完整dword `1`写入当前组A角色`+0x2AE4`；typed实现直接复用`LegacyBattleFinalActorStepState::group_a_availability_blocks`。leaf入口EDX是刚发布的actor code，ECX是组A角色token；写停止时EAX已为1，action-execution、workspace及五dword运行记录均不写。正常完成才继续原零写与门发布。旧`0x00478330`端口调用已删除。
+
 当前缺少原版两组角色对象、组B动态坐标资源、12类剩余callee共享副作用、攻击顺序与相邻强度效果记录、角色工作区、描述符对象和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

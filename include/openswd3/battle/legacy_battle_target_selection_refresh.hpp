@@ -40,6 +40,7 @@ enum class LegacyBattleTargetSelectionRefreshStatus : compat::u8 {
     action_remap_typed_stop,
     target_actor_index_typed_stop,
     group_a_actor_typed_stop,
+    actor_availability_block_typed_stop,
     group_b_actor_typed_stop,
     actor_runtime_record_typed_stop,
     action_workspace_typed_stop,
@@ -108,6 +109,8 @@ struct LegacyBattleTargetSelectionRefreshResult {
     compat::u32 port_calls{};
     compat::u32 sample_calls{};
     compat::u32 group_a_calls{};
+    LegacyBattleActorAvailabilityBlockResult actor_availability_block{};
+    compat::u32 actor_availability_block_calls{};
     compat::u32 group_b_calls{};
     compat::u32 actor_runtime_reads{};
     compat::u32 actor_runtime_writes{};

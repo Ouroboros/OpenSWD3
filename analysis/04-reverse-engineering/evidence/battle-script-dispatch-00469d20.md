@@ -467,4 +467,8 @@ cursor前进2，设置独立脚本门为1，发布cursor后调用完整战斗帧
 
 定向`battle.legacy_battle_setup`、独立AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过；新源码与SDL app目标零warning编译。inventory生成器连续双跑逐字节一致，正式计数为`161/422 = 154 platform_adapted + 7 assembly_exact + 261 pending_audit`，SHA256为`1ab13a95a22a4175d6663b6a2c0e5c185632078aed386bcd51c1763d664373ce`。
 
+## 17. `0x00478330`三条脚本分支直连
+
+工作包278关闭opcode 9的`0x0046AA6C`、opcode 23的`0x0046AC80`和opcode 58的`0x0046D221`三处物理call，三者均把完整dword `1`写入按actor code定位的组A对象`+0x2AE4`，直接复用最终角色状态中的availability owner。caller保留目标码大于7时先计算`EDX=actor_code*5-40`、减8重发布及写共享槽的原前缀；未进入该分支时EDX沿用入口残值。leaf写停止时EAX已为1、ECX为角色token，opcode 9不提交action/frame尾，opcode 23不调用后续角色与帧callee，opcode 58不发布动作6或推进cursor。旧`pending_478330`枚举及端口调用全部删除。
+
 原版138项共享状态、动态对象地址、CRT随机序列、69个callee副作用、framebuffer/音频/文件服务及EAX/ECX/EDX联合捕获后端尚不可同时获得，因此`original_diff_verified`登记为`blocked_runtime_oracle`；这不改变完整LST静态审计、typed实现和现代侧门禁结论。

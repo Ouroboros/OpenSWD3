@@ -363,24 +363,59 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
             openswd3::battle::kLegacyBattleActionGroupABaseToken +
             (9U - 8U) * openswd3::battle::kLegacyBattleActionGroupAStride;
         test.expect_true(
-            fixture.port.calls.size() == 2U,
-            "successful retreat performs exactly two remaining opaque battle calls"
+            fixture.port.calls.size() == 1U,
+            "successful retreat performs only the remaining active-actor query"
         );
         test.expect_true(
-            fixture.port.calls.size() >= 2U &&
+            fixture.port.calls.size() == 1U &&
                 fixture.port.calls[0U].arguments[0U] == expected_actor_token,
             "active-actor query receives the exact group-A object token"
         );
         test.expect_true(
-            fixture.port.calls.size() >= 2U &&
-                fixture.port.calls[1U].arguments[0U] == expected_actor_token,
-            "retreat configuration receives the exact group-A object token"
+            result.actor_availability_block_calls == 1U &&
+                result.actor_availability_block.actor_writes == 1U &&
+                result.actor_availability_block.return_eax == 1U &&
+                result.actor_availability_block.return_ecx ==
+                    expected_actor_token &&
+                result.actor_availability_block.return_edx == 0xBCDU &&
+                fixture.final_actor.group_a_availability_blocks[1U].value == 1U,
+            "retreat configuration writes the typed actor owner with the exact leaf registers"
         );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 9U;
+        fixture.final_actor.group_a_availability_blocks[1U].write_accessible =
+            false;
+        fixture.metrics.group_b_count = 4U;
+        fixture.input.records[18U].rapid_press_multiplicity = 1U;
+        fixture.input.records[18U].held_sample_count = 1U;
+        fixture.port
+            .replies[LegacyBattleInputDispatchCall::query_active_actor] = {
+            .eax = 0U
+        };
+        fixture.action.group_a_action_execution[9U].retreat_ready_flags = 0U;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_input_dispatch(
+                fixture.bindings(), fixture.port, {}
+            );
         test.expect_true(
-            fixture.port.calls.size() >= 2U &&
-                fixture.port.calls[1U].arguments[1U] == 1U &&
-                fixture.port.calls[1U].arguments[2U] == 9U,
-            "retreat configuration preserves the original stack arguments"
+            result.status ==
+                    openswd3::battle::LegacyBattleInputDispatchStatus::
+                        actor_availability_block_typed_stop &&
+                result.actor_availability_block_calls == 1U &&
+                result.actor_availability_block.actor_writes == 0U &&
+                result.return_eax == 1U && result.return_ecx == 0x00505904U &&
+                result.return_edx == 0xBCDU &&
+                fixture.action.opponent_workspace[11U] == 0x11U &&
+                fixture.final_actor.queued_actor_code == 9U &&
+                fixture.final_actor.secondary_actor_code == 0U &&
+                fixture.final_actor.auxiliary_gate == 0U &&
+                fixture.port.battle_input_dispatch_state().retreat_block_word ==
+                    0U &&
+                fixture.port.calls.size() == 1U,
+            "retreat typed write stop preserves the delayed workspace prefix and suppresses all transition publications"
         );
     }
 

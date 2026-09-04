@@ -304,6 +304,39 @@ private:
             static_cast<u32>(index) * kLegacyBattleScriptGroupAElementSize;
     }
 
+    [[nodiscard]] bool set_actor_availability_block(
+        const i32 code, const u32 actor_token, const u32 value
+    ) {
+        const i32 signed_index = code - 8;
+        auto* actor = signed_index >= 0 && signed_index < 10
+            ? &bindings_.final_actor.group_a_availability_blocks
+                   [static_cast<std::size_t>(signed_index)]
+            : nullptr;
+        ecx_ = actor_token;
+        result_.actor_availability_block =
+            set_legacy_battle_actor_availability_block(
+                actor,
+                {
+                    .value = value,
+                    .actor_token = ecx_,
+                    .entry_eax = eax_,
+                    .entry_edx = edx_,
+                }
+            );
+        ++result_.actor_availability_block_calls;
+        eax_ = result_.actor_availability_block.return_eax;
+        ecx_ = result_.actor_availability_block.return_ecx;
+        edx_ = result_.actor_availability_block.return_edx;
+        if (result_.actor_availability_block.status ==
+            LegacyBattleActorAvailabilityBlockStatus::completed) {
+            return true;
+        }
+        result_.status = LegacyBattleScriptDispatchStatus::
+            actor_availability_block_typed_stop;
+        result_.stopped_offset = workspace_.cursor;
+        return false;
+    }
+
     [[nodiscard]] std::optional<u32> group_b_token(const i32 code) {
         if (code < 0 || code >= 8) {
             result_.status =
@@ -1060,6 +1093,10 @@ private:
             bindings_.final_actor.published_actor_code =
                 static_cast<u32>(target_code);
             if (target_code > 7) {
+                edx_ = static_cast<u32>(source_code * 5 - 40);
+                target_code -= 8;
+                bindings_.final_actor.published_actor_code =
+                    static_cast<u32>(target_code);
                 bindings_.startup.reset.value_53bfd0 = 1U;
                 const i32 slot = source_code - 8;
                 if (slot < 0 || slot >= 10) {
@@ -1076,11 +1113,9 @@ private:
             if (!source_token.has_value()) {
                 return finish(eax_);
             }
-            invoke(
-                LegacyBattleScriptDispatchCall::pending_478330,
-                *source_token,
-                {1U}
-            );
+            if (!set_actor_availability_block(source_code, *source_token, 1U)) {
+                return finish(eax_);
+            }
             bindings_.shared.action_state = 1U;
         } else {
             if (source_code < 0 || source_code >= 18) {
@@ -1698,7 +1733,10 @@ private:
             bindings_.shared.selected_target =
                 bindings_.final_actor.queued_actor_code;
             bindings_.final_actor.queued_actor_code = static_cast<u32>(actor);
+            i32 published = candidate;
             if (candidate > 7) {
+                edx_ = static_cast<u32>(actor * 5 - 40);
+                published -= 8;
                 bindings_.startup.reset.value_53bfd0 = 1U;
                 const i32 index = actor - 8;
                 if (index < 0 || index >= 10) {
@@ -1711,13 +1749,16 @@ private:
                 bindings_.startup.reset
                     .block_520e90[static_cast<std::size_t>(index)] = 1U;
             }
+            ++published;
+            bindings_.final_actor.published_actor_code =
+                static_cast<u32>(published);
             const auto token = group_a_token(actor);
             if (!token.has_value()) {
                 return finish(eax_);
             }
-            invoke(
-                LegacyBattleScriptDispatchCall::pending_478330, *token, {1U}
-            );
+            if (!set_actor_availability_block(actor, *token, 1U)) {
+                return finish(eax_);
+            }
             invoke(
                 LegacyBattleScriptDispatchCall::pending_4707b0,
                 *token,
@@ -3226,6 +3267,7 @@ private:
             bindings_.final_actor.published_actor_code =
                 static_cast<u32>(published);
             if (published > 7) {
+                edx_ = static_cast<u32>(actor_code * 5 - 40);
                 bindings_.startup.reset.value_53bfd0 = 1U;
                 published -= 8;
                 bindings_.final_actor.published_actor_code =
@@ -3245,9 +3287,9 @@ private:
             if (!token.has_value()) {
                 return finish(eax_);
             }
-            invoke(
-                LegacyBattleScriptDispatchCall::pending_478330, *token, {1U}
-            );
+            if (!set_actor_availability_block(actor_code, *token, 1U)) {
+                return finish(eax_);
+            }
             bindings_.target_selection.selected_action_kind = 6U;
             const i32 index = actor_code - 8;
             bindings_.shared

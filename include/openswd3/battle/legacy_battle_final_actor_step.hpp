@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
+#include "openswd3/battle/legacy_battle_actor_availability_block.hpp"
 #include "openswd3/battle/legacy_battle_group_b_coordinate_offsets.hpp"
 
 #include <array>
@@ -10,6 +11,8 @@ namespace openswd3::battle {
 struct LegacyBattleFinalActorStepState {
     std::array<compat::u32, 10> group_a_completion_flags{};
     std::array<compat::u32, 10> group_a_slot_values{};
+    std::array<LegacyBattleActorAvailabilityBlockState, 10>
+        group_a_availability_blocks{};
     std::array<compat::u32, 10> actor_order{};
     std::array<std::array<compat::u32, 5>, 10> actor_runtime_records{};
 

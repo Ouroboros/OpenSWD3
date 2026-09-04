@@ -441,6 +441,23 @@ add_test(
 )
 
 add_executable(
+    openswd3_battle_legacy_battle_actor_availability_block_tests
+    unit/battle/legacy_battle_actor_availability_block_test.cpp
+)
+target_include_directories(
+    openswd3_battle_legacy_battle_actor_availability_block_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_battle_legacy_battle_actor_availability_block_tests
+    PRIVATE openswd3_battle
+)
+add_test(
+    NAME battle.legacy_battle_actor_availability_block
+    COMMAND openswd3_battle_legacy_battle_actor_availability_block_tests
+)
+
+add_executable(
     openswd3_battle_legacy_battle_setup_tests
     unit/battle/legacy_battle_action_mode_refresh_test.cpp
     unit/battle/legacy_battle_action_summary_test.cpp

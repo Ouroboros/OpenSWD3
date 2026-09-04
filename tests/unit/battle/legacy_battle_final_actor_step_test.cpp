@@ -23,9 +23,6 @@ public:
     [[nodiscard]] LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) override {
         calls.push_back(request);
-        if (request.callee_token == 0x00478330U && state_to_mutate != nullptr) {
-            state_to_mutate->secondary_actor_code = configured_actor_code;
-        }
         const auto found = replies.find(request.callee_token);
         if (found == replies.end() || found->second.empty()) {
             if (request.callee_token == 0x00487C10U) {
@@ -73,8 +70,6 @@ public:
     std::unique_ptr<openswd3::battle::LegacyBattleStartupState> startup{
         std::make_unique<openswd3::battle::LegacyBattleStartupState>()
     };
-    LegacyBattleFinalActorStepState* state_to_mutate{};
-    u32 configured_actor_code{};
     u32 next_fixed_count_token{0x75000000U};
     std::unordered_map<u32, std::deque<LegacyBattleActionCallReply>> replies;
     std::vector<LegacyBattleActionCallRequest> calls;
@@ -152,6 +147,9 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                 action.opponent_workspace[15] == 0xFFFFFFFFU &&
                 state.queued_actor_code == 0U &&
                 state.active_actor_code == 0xFFFFFFFFU &&
+                result.actor_availability_block_calls == 1U &&
+                result.actor_availability_block.actor_writes == 1U &&
+                state.group_a_availability_blocks[1U].value == 1U &&
                 port.battle_message_state() == 1U &&
                 state.actor_order[0] == 77U && state.actor_order[9] == 0U &&
                 action.opponent_workspace[3] == 1U &&
@@ -247,9 +245,8 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
         LegacyBattleActionDispatchState action;
         action.group_a_count = 2;
         state.removed_group_a_count = 0U;
+        state.group_a_availability_blocks[0U].write_accessible = false;
         FinalStepPort port;
-        port.state_to_mutate = &state;
-        port.configured_actor_code = 7U;
         port.push(0x00479850U, {.eax = 1U});
         port.push(0x0047F340U, {.eax = 1U});
         const auto result = advance_legacy_battle_final_actor_step(
@@ -258,10 +255,14 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleActionDispatchStatus::
-                        final_actor_record_typed_stop &&
-                state.action_execution_active == 1U &&
-                action.opponent_workspace[2] == 1U,
-            "group A record stop follows configuration and preserves earlier publications"
+                        actor_availability_block_typed_stop &&
+                result.actor_availability_block_calls == 1U &&
+                result.actor_availability_block.return_eax == 1U &&
+                result.actor_availability_block.return_ecx == 0x005029D0U &&
+                result.actor_availability_block.return_edx == 0U &&
+                state.action_execution_active == 0U &&
+                action.opponent_workspace[2] == 0U,
+            "group A typed write stop preserves the completed prefix and suppresses the caller suffix"
         );
     }
 

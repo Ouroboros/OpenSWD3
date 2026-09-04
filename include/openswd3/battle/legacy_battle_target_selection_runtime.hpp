@@ -65,7 +65,6 @@ enum class LegacyBattleTargetSelectionRuntimeCall : compat::u8 {
     set_cursor_position,
     draw_target_panel,
     commit_actor_action,
-    refresh_actor_selection,
     reserved_input_record_priming_slot,
     reserved_group_b_target_cycle_slot,
     reserved_group_a_target_cycle_slot,

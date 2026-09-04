@@ -204,7 +204,6 @@ enum class LegacyBattleScriptDispatchCall : compat::u32 {
     pending_476db0 = 0x00476DB0U,
     reserved_party_item_definition = 0x00477BD0U,
     pending_478220 = 0x00478220U,
-    pending_478330 = 0x00478330U,
     pending_4783b0 = 0x004783B0U,
     pending_478470 = 0x00478470U,
     pending_4785c0 = 0x004785C0U,
@@ -296,6 +295,7 @@ enum class LegacyBattleScriptDispatchStatus : compat::u8 {
     group_a_actor_typed_stop,
     group_b_actor_typed_stop,
     shared_state_typed_stop,
+    actor_availability_block_typed_stop,
     allocation_typed_stop,
     player_item_typed_stop,
     attack_order_typed_stop,
@@ -330,6 +330,8 @@ struct LegacyBattleScriptDispatchResult {
     compat::u32 return_edx{};
     compat::u32 port_calls{};
     compat::u32 stopped_offset{};
+    LegacyBattleActorAvailabilityBlockResult actor_availability_block{};
+    compat::u32 actor_availability_block_calls{};
     LegacyBattleGroupBActionCompositionResult group_b_action_composition{};
     compat::u32 group_b_action_composition_calls{};
     LegacyBattleGroupBActionProfileSelectionResult

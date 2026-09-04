@@ -26,6 +26,7 @@ add_library(
         legacy_battle_animation_collision.cpp
         legacy_battle_actor_base_initialization.cpp
         legacy_battle_actor_base_release.cpp
+        legacy_battle_actor_availability_block.cpp
         legacy_battle_actor_lifecycle.cpp
         legacy_battle_actor_list_index_commit.cpp
         legacy_battle_actor_list_query.cpp

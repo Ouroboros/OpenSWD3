@@ -16,7 +16,6 @@ constexpr u32 kCallQueryTerminal = 0x0047CE80U;
 constexpr u32 kCallClearActorAction = 0x00478B20U;
 constexpr u32 kCallResetTarget = 0x00478AE0U;
 constexpr u32 kCallSetActorMode = 0x00478710U;
-constexpr u32 kCallConfigureActor = 0x00478330U;
 constexpr u32 kCallPublishTarget = 0x00478A70U;
 
 [[nodiscard]] constexpr u32 to_bits(const i32 value) noexcept {
@@ -139,12 +138,29 @@ LegacyBattleActionDispatchResult advance_legacy_battle_post_action(
                         kCallResetTarget,
                         {group_b_token(to_bits(queried))}
                     ));
-                    static_cast<void>(invoke(
+                    const auto mode = invoke(
                         port, result, kCallSetActorMode, {actor_token, 0U}
-                    ));
-                    static_cast<void>(invoke(
-                        port, result, kCallConfigureActor, {actor_token, 0U}
-                    ));
+                    );
+                    result.actor_availability_block =
+                        set_legacy_battle_actor_availability_block(
+                            &final_actor
+                                 .group_a_availability_blocks[group_a_index],
+                            {
+                                .value = 0U,
+                                .actor_token = actor_token,
+                                .entry_eax = mode.eax,
+                                .entry_edx = mode.edx,
+                            }
+                        );
+                    ++result.actor_availability_block_calls;
+                    if (result.actor_availability_block.status !=
+                        LegacyBattleActorAvailabilityBlockStatus::completed) {
+                        result.status = LegacyBattleActionDispatchStatus::
+                            actor_availability_block_typed_stop;
+                        result.return_value =
+                            result.actor_availability_block.return_eax;
+                        return result;
+                    }
                     static_cast<void>(
                         invoke(port, result, kCallResetActor, {actor_token})
                     );
