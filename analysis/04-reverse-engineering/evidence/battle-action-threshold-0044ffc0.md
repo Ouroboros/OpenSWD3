@@ -48,7 +48,7 @@ value = value << 2
 - `0x00478370`：把阈值低16位写入对象`+0x2A12`；
 - `0x0047DB06`：把对象u16计时值与阈值比较。
 
-这里共有五处读取指令、四类消费方式。它们尚未进入现代实现；关闭各caller时必须直接读取`LegacyBattleTimingState::action_threshold`，不得重新推导、夹值或改成无符号合同。
+这里共有五处读取指令、四类消费方式。`0x00478352`的宽度计算和`0x00478370`的角色进度低word同步现已直接读取`LegacyBattleTimingState::action_threshold`唯一owner；其余读取在关闭各caller时也必须直接读取该owner，不得重新推导、夹值或改成无符号合同。
 
 ## 4. 双向追溯
 

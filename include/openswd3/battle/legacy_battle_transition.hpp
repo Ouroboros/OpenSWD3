@@ -100,6 +100,8 @@ struct LegacyBattleTransitionCallRequest {
 
 struct LegacyBattleTransitionCallReply {
     compat::u32 return_value{};
+    compat::u32 ecx{};
+    compat::u32 edx{};
 };
 
 class LegacyBattleTransitionPort
@@ -146,8 +148,6 @@ struct LegacyBattleTransitionState {
     compat::i32 transform_offset_b{};
     compat::i32 transform_right{};
     std::array<compat::u32, 10> rare_actor_slots{};
-    std::array<compat::u32, 10> party_special_fields{};
-    compat::i32 actor_progress_threshold{};
     std::array<compat::u32, 3> staged_surface_tokens{};
     LegacyBattleFrameEffectState frame_effect{};
     LegacyBattleHudFrameState hud{};
@@ -179,6 +179,7 @@ enum class LegacyBattleTransitionStatus : compat::u8 {
     actor_order_typed_stop,
     actor_frame_typed_stop,
     attack_order_typed_stop,
+    actor_progress_threshold_sync_typed_stop,
 };
 
 struct LegacyBattleTransitionResult {
@@ -215,6 +216,9 @@ struct LegacyBattleTransitionResult {
     compat::u32 music_commit_calls{};
     LegacyBattleAttackOrderEntryResult attack_order{};
     compat::u32 attack_order_calls{};
+    LegacyBattleActorProgressThresholdSyncResult
+        actor_progress_threshold_sync{};
+    compat::u32 actor_progress_threshold_sync_calls{};
     compat::u32 prepared_party_actors{};
     compat::u32 rare_slot_writes{};
     compat::u32 refreshed_enemy_actors{};

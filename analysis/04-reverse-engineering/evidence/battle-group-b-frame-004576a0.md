@@ -117,12 +117,12 @@ side为1时把随机索引解释为组B；side为0时解释为组A。两条路�
 
 1. 再次查询target低word；
 2. selection clear；
-3. selection complete等于1时遍历全部组A，先reset target；queue completion等于1且对应completion word非0时，清word、defeated低word和间隔五dword槽，再依次reset completion slot、reset actor、query completion value，并把高word保留、低word覆盖后的完整item参数直连selector-zero玩家道具数量步进；
+3. selection complete等于1时遍历全部组A，先reset target；queue completion等于1且对应completion word非0时，清word、defeated低word和间隔五dword槽，再依次reset completion slot、reset actor、直接把共享行动阈值低word同步到startup组A角色进度，并把高word保留、低word覆盖后的完整item参数直连selector-zero玩家道具数量步进；
 4. selection complete不等于1且side非0，只按组Btarget reset；
-5. side为0时按组Atarget执行单槽完成逻辑，使用同一selector-zero玩家道具数量直连，再reset target；
+5. side为0时按组Atarget执行单槽完成逻辑，使用同一阈值同步和selector-zero玩家道具数量直连，再reset target；
 6. reset当前组B source。
 
-全组A完成值调用保留`query completion value`完整EAX高word，只用固定表word覆盖低word。单组A分支保留callee后陈旧ECX高word，再覆盖CX。固定表索引为：
+全组A分支中`0x00478370`入口EAX/EDX继承前一个reset actor返回；函数只替换AX，固定表word随后再次覆盖AX，所以完整item参数保留reset返回EAX高word。单组A分支中同步函数恢复角色ECX；caller随后完整覆盖EAX/EDX但只覆盖CX，所以item参数保留角色token的ECX高word。阈值读取或角色进度写入typed-stop保留完成状态清理与reset前缀，阻断表读取、玩家道具步进及对应后缀。固定表索引为：
 
 ```text
 16 * u32(group_a_count - defeated highword)
@@ -165,7 +165,7 @@ pending effect ID非全1时调用pending step `(source,shared_argument,index)`�
 
 ## 12. callee、测试与动态差分
 
-46个唯一callee中，已关闭对手动作分派`0x00455D60`、玩家道具双数量步进`0x0045D180`、攻击顺序登记`0x0045EDF0`、文字消息入链`0x004698E0`、组B行动进度`0x004755E0`、组B对手模式`0x00476080`、组B行动资料标记`0x00476140`和组B行动profile/mode组合`0x004761D0`直接typed组合；文字消息的两处调用复用启动状态唯一链头和动态节点owner，行动进度与三个组B判定/组合复用startup的八槽actor/resource/profile owner。`0x004761D0`内部待审profile loader替代原整函数token进入窄端口，其余38个角色、AI、状态、文本、完成资源和效果callee继续使用共享typed token端口。
+46个唯一callee中，已关闭对手动作分派`0x00455D60`、玩家道具双数量步进`0x0045D180`、攻击顺序登记`0x0045EDF0`、文字消息入链`0x004698E0`、组B行动进度`0x004755E0`、组B对手模式`0x00476080`、组B行动资料标记`0x00476140`、组B行动profile/mode组合`0x004761D0`和角色进度阈值同步`0x00478370`直接typed组合；文字消息的两处调用复用启动状态唯一链头和动态节点owner，行动进度、三个组B判定/组合与阈值同步复用startup的actor/resource/profile/timing owner。`0x004761D0`内部待审profile loader替代原整函数token进入窄端口，其余37个角色、AI、状态、文本、完成资源和效果callee继续使用共享typed token端口。
 
 定向测试覆盖：
 
@@ -180,9 +180,9 @@ pending effect ID非全1时调用pending step `(source,shared_argument,index)`�
 - signed status直接组合profile/mode、旧整函数零调用、actor/loader typed-stop前缀、双mode、文本、phase与目标；
 - 普通status直接读取组B profile双bit、陈旧EAX/EDX与actor typed-stop前缀；
 - 对手动作分派直连、未完成返回陈旧EBX写入及完整cleanup；
-- completion值保留EAX高word，并直接写共享玩家道具链数量A；
+- 两处completion阈值同步直接写startup组A进度、旧`0x00478370`零调用、全目标分支保留reset EAX高word、单目标分支保留角色ECX高word，以及读取/写入停点的表/道具/目标reset后缀阻断；
 - completion surface零token首字节停点、状态前缀与越界停点；
 - pending effect及final actor成功尾；
 - profile真实访问typed-stop。
 
-当前缺少原版组A/B对象、39类剩余callee（含profile loader）共享副作用、攻击顺序动态记录、随机状态、AI/packed-status表、completion表、文本、资源surface及陈旧寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版组A/B对象、38类剩余callee（含profile loader）共享副作用、攻击顺序动态记录、随机状态、AI/packed-status表、completion表、文本、资源surface及陈旧寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

@@ -73,6 +73,8 @@ public:
             reply.return_value = found == actor_mode_returns.end()
                 ? default_actor_mode_return
                 : found->second;
+            const auto edx = actor_mode_edx_returns.find(request.arguments[0]);
+            reply.edx = edx == actor_mode_edx_returns.end() ? 0U : edx->second;
             break;
         }
         default:
@@ -218,6 +220,7 @@ public:
     std::vector<LegacyBattleHudCallRequest> hud_requests;
     std::deque<u32> random_values;
     std::unordered_map<u32, u32> actor_mode_returns;
+    std::unordered_map<u32, u32> actor_mode_edx_returns;
     std::vector<u32> allocation_requests;
     std::vector<u32> converted_allocations;
     std::vector<u32> converted_sizes;
@@ -571,8 +574,12 @@ void test_battle_transition(openswd3::test::Context& test) {
                     LegacyBattleTransitionCall::reserved_enemy_rare_event_slot
                 ) == 0U &&
                 result.prepared_party_actors == 2U &&
-                startup.party[0].progress.update_ready == 1U &&
-                startup.party[1].progress.update_ready == 1U &&
+                ports.call_count(
+                    LegacyBattleTransitionCall::prepare_actor_message
+                ) == 2U &&
+                ports.call_count(
+                    LegacyBattleTransitionCall::reset_actor_message
+                ) == 2U &&
                 ports.call_count(
                     LegacyBattleTransitionCall::reserved_actor_progress_update
                 ) == 0U &&
@@ -600,7 +607,10 @@ void test_battle_transition(openswd3::test::Context& test) {
         ports.actor_metric_state().values[8] = 3;
         ports.actor_metric_state().values[9] = 4;
         ports.random_values = {99U, 1U, 27U};
-        state.party_special_fields[1] = 1U;
+        startup.party[0].progress.progress = 0xFACE0001U;
+        startup.party[1].progress.scene_identity = 1U;
+        ports.actor_mode_returns[0x005029D0U] = 0xABCD0000U;
+        ports.actor_mode_edx_returns[0x005029D0U] = 0xA5A55A5AU;
         FrameFixture frame;
         ActorFrameFixture actor_frames(ports, frame, startup);
         auto transition_request = request(0U);
@@ -644,9 +654,22 @@ void test_battle_transition(openswd3::test::Context& test) {
                 result.surface_operation_calls == 39U &&
                 result.rare_slot_writes == 1U &&
                 state.rare_actor_slots[0] == 8U &&
+                result.actor_progress_threshold_sync_calls == 1U &&
+                result.actor_progress_threshold_sync.return_eax ==
+                    0xABCD0384U &&
+                result.actor_progress_threshold_sync.return_ecx ==
+                    0x005029D0U &&
+                result.actor_progress_threshold_sync.return_edx ==
+                    0xA5A55A5AU &&
+                startup.party[0].progress.progress == 0xFACE0384U &&
+                startup.party[0].progress.action_complete == 1U &&
                 state.current_source_from_frame &&
-                startup.enemies[0].progress.update_ready == 1U &&
-                startup.enemies[1].progress.update_ready == 1U &&
+                ports.call_count(
+                    LegacyBattleTransitionCall::prepare_actor_message
+                ) == 2U &&
+                ports.call_count(
+                    LegacyBattleTransitionCall::reset_actor_message
+                ) == 2U &&
                 ports.call_count(
                     LegacyBattleTransitionCall::reserved_actor_progress_update
                 ) == 0U &&
@@ -664,6 +687,66 @@ void test_battle_transition(openswd3::test::Context& test) {
                 frame.provider.resource_ids ==
                     std::vector<u32>{0x234DU, 0x234DU},
             "mode zero redraw blend and second rare branch preserve actor slot and enemy refresh paths"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleTransitionState state;
+        auto startup = startup_state();
+        startup.party_count = 1U;
+        startup.timing.action_threshold_read_accessible = false;
+        startup.party[0].progress.progress = 0xFACE0011U;
+        TransitionPorts ports;
+        add_default_surfaces(ports);
+        ports.random_values = {1U, 27U};
+        ports.actor_mode_returns[0x005029D0U] = 0xABCD0000U;
+        ports.actor_mode_edx_returns[0x005029D0U] = 0xA5A55A5AU;
+        ports.actor_metric_state().values[8] = 1;
+        FrameFixture frame;
+        ActorFrameFixture actor_frames(ports, frame, startup);
+        auto transition_request = request(2U);
+        transition_request.actor_frames = &actor_frames.context;
+
+        const auto result = openswd3::battle::run_legacy_battle_transition(
+            state,
+            startup,
+            ports,
+            ports,
+            ports,
+            ports,
+            frame.context,
+            transition_request
+        );
+
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleTransitionStatus::
+                        actor_progress_threshold_sync_typed_stop &&
+                result.actor_progress_threshold_sync_calls == 1U &&
+                result.actor_progress_threshold_sync.status ==
+                    openswd3::battle::
+                        LegacyBattleActorProgressThresholdSyncStatus::
+                            action_threshold_read_typed_stop,
+            "transition propagates the threshold read stop from one direct synchronization"
+        );
+        test.expect_true(
+            result.actor_progress_threshold_sync.return_eax == 0xABCD0000U &&
+                result.actor_progress_threshold_sync.return_ecx ==
+                    0x005029D0U &&
+                result.actor_progress_threshold_sync.return_edx ==
+                    0xA5A55A5AU &&
+                result.return_value == 0xABCD0000U,
+            "transition threshold read stop preserves actor-query EAX EDX and actor ECX residues"
+        );
+        test.expect_true(
+            startup.party[0].progress.progress == 0xFACE0011U &&
+                result.rare_slot_writes == 0U,
+            "transition threshold read stop leaves actor progress and rare slots untouched"
+        );
+        test.expect_true(
+            !result.message_emitted && startup.mode_flags == 0U &&
+                ports.random_values.empty(),
+            "transition threshold read stop blocks enemy message and event-latch suffixes"
         );
     }
 

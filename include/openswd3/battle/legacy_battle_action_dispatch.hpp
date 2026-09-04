@@ -4,6 +4,7 @@
 #include "openswd3/asset_runtime/legacy_frame_deformation.hpp"
 #include "openswd3/battle/legacy_battle_retreat_commit.hpp"
 #include "openswd3/battle/legacy_battle_actor_availability_block.hpp"
+#include "openswd3/battle/legacy_battle_actor_progress.hpp"
 #include "openswd3/battle/legacy_battle_color_accumulation.hpp"
 #include "openswd3/battle/legacy_battle_reward_scale.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
@@ -1265,6 +1266,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     final_actor_workspace_typed_stop,
     final_actor_record_typed_stop,
     actor_availability_block_typed_stop,
+    actor_progress_threshold_sync_typed_stop,
     group_b_coordinate_offset_typed_stop,
     final_actor_descriptor_typed_stop,
     fixed_count_typed_stop,
@@ -1345,6 +1347,9 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 actor_target_preparation_calls{};
     LegacyBattleActorAvailabilityBlockResult actor_availability_block{};
     compat::u32 actor_availability_block_calls{};
+    LegacyBattleActorProgressThresholdSyncResult
+        actor_progress_threshold_sync{};
+    compat::u32 actor_progress_threshold_sync_calls{};
     LegacyBattlePairTransitionResult pair_transition{};
     compat::u32 pair_transition_calls{};
     LegacyBattleRetreatCommitResult retreat_commit{};

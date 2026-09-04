@@ -23,6 +23,31 @@ struct LegacyBattleActorProgressState {
     compat::u16 base_speed{};           // actor[0] + 0x16
     compat::u16 progress_multiplier{};  // actor + 0x26DC
     bool progress_read_accessible{true};
+    bool progress_write_accessible{true};
+};
+
+enum class LegacyBattleActorProgressThresholdSyncStatus : compat::u8 {
+    completed,
+    action_threshold_read_typed_stop,
+    actor_progress_write_typed_stop,
+};
+
+struct LegacyBattleActorProgressThresholdSyncRequest {
+    compat::u32 actor_token{};
+    compat::u32 entry_eax{};
+    compat::u32 entry_edx{};
+};
+
+struct LegacyBattleActorProgressThresholdSyncResult {
+    LegacyBattleActorProgressThresholdSyncStatus status{
+        LegacyBattleActorProgressThresholdSyncStatus::completed
+    };
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+    compat::u16 threshold_word{};
+    compat::u32 threshold_reads{};
+    compat::u32 progress_writes{};
 };
 
 enum class LegacyBattleActorProgressWidthStatus : compat::u8 {
@@ -73,6 +98,15 @@ struct LegacyBattleActorGroupBProgressResult {
     compat::u32 positive_adjustment{};
     compat::u32 negative_adjustment{};
 };
+
+// Typed closure of legacy 0x00478370. Copies the shared action threshold low
+// word to actor + 0x2A12 while preserving the entry register residues.
+[[nodiscard]] LegacyBattleActorProgressThresholdSyncResult
+synchronize_legacy_battle_actor_progress_threshold(
+    LegacyBattleActorProgressState* actor,
+    const LegacyBattleTimingState* timing,
+    const LegacyBattleActorProgressThresholdSyncRequest& request
+) noexcept;
 
 // Typed closure of legacy 0x00478340. The actor progress word is zero-
 // extended, divided by the shared action threshold, multiplied by 62.0, and

@@ -30,10 +30,10 @@ progress小于阈值时，从对象首token指向记录的`+0x16`读取u16基值
 
 `LegacyBattleActorProgressState`统一承接两类角色对象中本函数触及的状态、基值和multiplier。组A逐帧状态直接使用该结构；startup的组A/组B记录各持有对应物理角色progress视图，供转场caller复用，不通过旧函数地址。第279项角色进度宽度`0x00478340`继续读取同一结构的`progress`低word，并以显式读取可达性在原访问点建模typed-stop，没有建立平行进度owner。
 
-组A帧caller在AI准备后直接调用typed进度更新，只有返回1才进入后续AI协调；旧callee token生产零调用。战斗转场的一个静态callsite服务party/enemy两条循环，typed实现分别更新startup对应角色状态；原`refresh_actor_message`槽改为reserved且两条循环均零调用。转场忽略本函数返回，保持后续消息准备和计数顺序。
+组A帧caller在AI准备后直接调用typed进度更新，只有返回1才进入后续AI协调；旧callee token生产零调用。战斗转场的唯一静态callsite只位于随机值`27..32`分支的组A循环：caller先通过`0x00478370`把共享阈值低word同步到startup角色进度，再以固定参数1调用本函数，并忽略返回进入十槽扫描。第280项复核完整caller后，已纠正早期把两条其他party/enemy循环误接到本函数的实现；这些循环按LST调用`0x00483FF0`和`0x00478850`，不推进进度。
 
 ## 5. 验证状态
 
-纯函数测试覆盖入口bit早退、阈值完成尾、bit29正向30%、bit31 multiplier负向调整、固定4点扣除和进度dword高16位保留。组A帧回归验证达到阈值后update-ready置位、继续AI且旧token零调用；转场两条罕见分支分别验证party/enemy状态直接更新及reserved槽零调用。定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过，源码零warning。
+纯函数测试覆盖入口bit早退、阈值完成尾、bit29正向30%、bit31 multiplier负向调整、固定4点扣除和进度dword高16位保留。组A帧回归验证达到阈值后update-ready置位、继续AI且旧token零调用；转场回归验证阈值同步后的组A调用、固定参数1、十槽后缀及两条非进度循环的原调用序列。初始关闭时定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过；第280项复核后的完整release门另见`battle-actor-progress-threshold-sync-00478370.md`。
 
 inventory生成器连续双跑逐字节一致，正式计数为`170/422 = 161 platform_adapted + 9 assembly_exact + 252 pending_audit`，SHA256为`308250c723c812ae5b277abb1241c514893dc3c6a9c3a25b9836f7134527b894`。原版完整角色对象、首记录指针、全局阈值、caller寄存器和转场/逐帧共享对象后端缺少联合捕获，`original_diff_verified`登记为`blocked_runtime_oracle`。

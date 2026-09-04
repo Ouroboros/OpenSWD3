@@ -755,13 +755,12 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
                              {actor, 1U, 0U, 0U, 0U, 0U}
             )
                              .return_value;
-            latest_eax = advance_legacy_battle_actor_progress(
-                             startup.party[index].progress,
-                             0,
-                             state.actor_progress_threshold,
-                             actor
+            latest_eax = invoke(
+                             port,
+                             LegacyBattleTransitionCall::reset_actor_message,
+                             {actor, 0U, 0U, 0U, 0U, 0U}
             )
-                             .return_eax;
+                             .return_value;
             ++result.prepared_party_actors;
         }
         static_cast<void>(latest_eax);
@@ -780,27 +779,40 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
                 return result;
             }
             const u32 actor = group_a_actor_token(index);
-            latest_eax = invoke(
-                             port,
-                             LegacyBattleTransitionCall::query_actor_mode,
-                             {actor, 0U, 0U, 0U, 0U, 0U}
-            )
-                             .return_value;
-            if (latest_eax == 1U || state.party_special_fields[index] == 1U) {
+            const auto query_reply = invoke(
+                port,
+                LegacyBattleTransitionCall::query_actor_mode,
+                {actor, 0U, 0U, 0U, 0U, 0U}
+            );
+            latest_eax = query_reply.return_value;
+            auto& actor_progress = startup.party[index].progress;
+            if (latest_eax == 1U || actor_progress.scene_identity == 1U) {
                 continue;
             }
-            latest_eax = invoke(
-                             port,
-                             LegacyBattleTransitionCall::prepare_actor_message,
-                             {actor, 0U, 0U, 0U, 0U, 0U}
-            )
-                             .return_value;
-            latest_eax = invoke(
-                             port,
-                             LegacyBattleTransitionCall::reset_actor_message,
-                             {actor, 1U, 0U, 0U, 0U, 0U}
-            )
-                             .return_value;
+            result.actor_progress_threshold_sync =
+                synchronize_legacy_battle_actor_progress_threshold(
+                    &actor_progress,
+                    &startup.timing,
+                    {
+                        .actor_token = actor,
+                        .entry_eax = latest_eax,
+                        .entry_edx = query_reply.edx,
+                    }
+                );
+            ++result.actor_progress_threshold_sync_calls;
+            latest_eax = result.actor_progress_threshold_sync.return_eax;
+            if (result.actor_progress_threshold_sync.status !=
+                LegacyBattleActorProgressThresholdSyncStatus::completed) {
+                result.status = LegacyBattleTransitionStatus::
+                    actor_progress_threshold_sync_typed_stop;
+                result.return_value = latest_eax;
+                return result;
+            }
+            latest_eax =
+                advance_legacy_battle_actor_progress(
+                    actor_progress, 1, startup.timing.action_threshold, actor
+                )
+                    .return_eax;
             const auto empty = std::ranges::find(state.rare_actor_slots, 0U);
             if (empty != state.rare_actor_slots.end()) {
                 *empty = index + 8U;
@@ -820,13 +832,12 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
                              {actor, 1U, 0U, 0U, 0U, 0U}
             )
                              .return_value;
-            latest_eax = advance_legacy_battle_actor_progress(
-                             startup.enemies[index].progress,
-                             0,
-                             state.actor_progress_threshold,
-                             actor
+            latest_eax = invoke(
+                             port,
+                             LegacyBattleTransitionCall::reset_actor_message,
+                             {actor, 0U, 0U, 0U, 0U, 0U}
             )
-                             .return_eax;
+                             .return_value;
             ++result.refreshed_enemy_actors;
         }
         static_cast<void>(latest_eax);

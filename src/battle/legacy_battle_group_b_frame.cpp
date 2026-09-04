@@ -44,7 +44,6 @@ constexpr u32 kCallPublishActionStart = 0x0047C690U;
 constexpr u32 kCallSelectionClear = 0x00478B20U;
 constexpr u32 kCallSelectionComplete = 0x00478B40U;
 constexpr u32 kCallResetTarget = 0x00478AE0U;
-constexpr u32 kCallQueryCompletionValue = 0x00478370U;
 constexpr u32 kCallPublishBattleBit = 0x00483FF0U;
 constexpr u32 kCallQueryCompletionEffect = 0x0047F360U;
 constexpr u32 kCallPublishCompletionId = 0x004787D0U;
@@ -1172,15 +1171,35 @@ action_decision_done:
                                             group_a_actor_cleanup_typed_stop;
                                     return result;
                                 }
-                                static_cast<void>(invoke(
+                                const auto reset_reply = invoke(
                                     port, result, kCallResetActor, {target}
-                                ));
-                                const auto stale = invoke(
-                                    port,
-                                    result,
-                                    kCallQueryCompletionValue,
-                                    {target}
                                 );
+                                result.actor_progress_threshold_sync =
+                                    synchronize_legacy_battle_actor_progress_threshold(
+                                        party != nullptr ? &party->progress
+                                                         : nullptr,
+                                        context.startup != nullptr
+                                            ? &context.startup->timing
+                                            : nullptr,
+                                        {
+                                            .actor_token = target,
+                                            .entry_eax = reset_reply.eax,
+                                            .entry_edx = reset_reply.edx,
+                                        }
+                                    );
+                                ++result.actor_progress_threshold_sync_calls;
+                                if (result.actor_progress_threshold_sync
+                                        .status !=
+                                    LegacyBattleActorProgressThresholdSyncStatus::
+                                        completed) {
+                                    result
+                                        .status = LegacyBattleActionDispatchStatus::
+                                        actor_progress_threshold_sync_typed_stop;
+                                    result.return_value =
+                                        result.actor_progress_threshold_sync
+                                            .return_eax;
+                                    return result;
+                                }
                                 u16 table_value{};
                                 if (!read_completion_value(
                                         state,
@@ -1191,7 +1210,10 @@ action_decision_done:
                                     return result;
                                 }
                                 const u32 argument =
-                                    (stale.eax & 0xFFFF0000U) | table_value;
+                                    (result.actor_progress_threshold_sync
+                                         .return_eax &
+                                     0xFFFF0000U) |
+                                    table_value;
                                 if (!publish_player_item_quantity(
                                         port, result, argument, 0U
                                     )) {
@@ -1225,12 +1247,31 @@ action_decision_done:
                         state.group_a_completion_words[completed_target] = 0U;
                         replace_low_word(shared.defeated_actor_packed, 0U);
                         state.group_a_completion_slots[completed_target] = 0U;
-                        static_cast<void>(
-                            invoke(port, result, kCallResetActor, {target})
-                        );
-                        const auto stale = invoke(
-                            port, result, kCallQueryCompletionValue, {target}
-                        );
+                        const auto reset_reply =
+                            invoke(port, result, kCallResetActor, {target});
+                        auto* const startup = context.startup;
+                        result.actor_progress_threshold_sync =
+                            synchronize_legacy_battle_actor_progress_threshold(
+                                startup != nullptr
+                                    ? &startup->party[completed_target].progress
+                                    : nullptr,
+                                startup != nullptr ? &startup->timing : nullptr,
+                                {
+                                    .actor_token = target,
+                                    .entry_eax = reset_reply.eax,
+                                    .entry_edx = reset_reply.edx,
+                                }
+                            );
+                        ++result.actor_progress_threshold_sync_calls;
+                        if (result.actor_progress_threshold_sync.status !=
+                            LegacyBattleActorProgressThresholdSyncStatus::
+                                completed) {
+                            result.status = LegacyBattleActionDispatchStatus::
+                                actor_progress_threshold_sync_typed_stop;
+                            result.return_value =
+                                result.actor_progress_threshold_sync.return_eax;
+                            return result;
+                        }
                         u16 table_value{};
                         if (!read_completion_value(
                                 state,
@@ -1241,7 +1282,9 @@ action_decision_done:
                             return result;
                         }
                         const u32 argument =
-                            (stale.ecx & 0xFFFF0000U) | table_value;
+                            (result.actor_progress_threshold_sync.return_ecx &
+                             0xFFFF0000U) |
+                            table_value;
                         if (!publish_player_item_quantity(
                                 port, result, argument, 0U
                             )) {

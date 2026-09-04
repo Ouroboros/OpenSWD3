@@ -4,10 +4,93 @@
 
 void test_battle_actor_progress(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleActorProgressState;
+    using openswd3::battle::LegacyBattleActorProgressThresholdSyncStatus;
     using openswd3::battle::LegacyBattleActorProgressWidthStatus;
     using openswd3::battle::LegacyBattleTimingState;
     using openswd3::battle::advance_legacy_battle_actor_progress;
     using openswd3::battle::query_legacy_battle_actor_progress_width;
+    using openswd3::battle::synchronize_legacy_battle_actor_progress_threshold;
+
+    {
+        LegacyBattleActorProgressState actor{.progress = 0xFACE0011U};
+        LegacyBattleTimingState timing{.action_threshold = -100};
+        const auto result = synchronize_legacy_battle_actor_progress_threshold(
+            &actor,
+            &timing,
+            {
+                .actor_token = 0x005029D0U,
+                .entry_eax = 0xABCD1234U,
+                .entry_edx = 0xA5A55A5AU,
+            }
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActorProgressThresholdSyncStatus::completed &&
+                actor.progress == 0xFACEFF9CU &&
+                result.return_eax == 0xABCDFF9CU &&
+                result.return_ecx == 0x005029D0U &&
+                result.return_edx == 0xA5A55A5AU &&
+                result.threshold_word == 0xFF9CU &&
+                result.threshold_reads == 1U && result.progress_writes == 1U,
+            "actor progress threshold sync copies only the signed threshold low word and preserves register residues"
+        );
+    }
+
+    {
+        LegacyBattleActorProgressState actor{.progress = 0xFACE0011U};
+        LegacyBattleTimingState timing{
+            .action_threshold = 0x5678,
+            .action_threshold_read_accessible = false,
+        };
+        const auto result = synchronize_legacy_battle_actor_progress_threshold(
+            &actor,
+            &timing,
+            {
+                .actor_token = 0x005029D0U,
+                .entry_eax = 0xABCD1234U,
+                .entry_edx = 0x11223344U,
+            }
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActorProgressThresholdSyncStatus::
+                        action_threshold_read_typed_stop &&
+                actor.progress == 0xFACE0011U &&
+                result.return_eax == 0xABCD1234U &&
+                result.return_ecx == 0x005029D0U &&
+                result.return_edx == 0x11223344U &&
+                result.threshold_reads == 0U && result.progress_writes == 0U,
+            "actor progress threshold sync stops at the first threshold read without a suffix write"
+        );
+    }
+
+    {
+        LegacyBattleActorProgressState actor{
+            .progress = 0xFACE0011U,
+            .progress_write_accessible = false,
+        };
+        LegacyBattleTimingState timing{.action_threshold = 0x5678};
+        const auto result = synchronize_legacy_battle_actor_progress_threshold(
+            &actor,
+            &timing,
+            {
+                .actor_token = 0x00525508U,
+                .entry_eax = 0xABCD1234U,
+                .entry_edx = 0x55667788U,
+            }
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActorProgressThresholdSyncStatus::
+                        actor_progress_write_typed_stop &&
+                actor.progress == 0xFACE0011U &&
+                result.return_eax == 0xABCD5678U &&
+                result.return_ecx == 0x00525508U &&
+                result.return_edx == 0x55667788U &&
+                result.threshold_reads == 1U && result.progress_writes == 0U,
+            "actor progress threshold sync keeps the completed threshold-read prefix at the actor write stop"
+        );
+    }
 
     {
         LegacyBattleActorProgressState actor{.progress = 0xABCD003CU};

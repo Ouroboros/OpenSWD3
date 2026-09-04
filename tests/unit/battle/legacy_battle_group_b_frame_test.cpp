@@ -199,18 +199,14 @@ struct Fixture {
 };
 
 void write_group_b_resource_word(
-    std::array<u8, 0xA4>& resource,
-    const std::size_t offset,
-    const u16 value
+    std::array<u8, 0xA4>& resource, const std::size_t offset, const u16 value
 ) {
     resource[offset] = static_cast<u8>(value);
     resource[offset + 1U] = static_cast<u8>(value >> 8U);
 }
 
 void write_group_b_resource_dword(
-    std::array<u8, 0xA4>& resource,
-    const std::size_t offset,
-    const u32 value
+    std::array<u8, 0xA4>& resource, const std::size_t offset, const u32 value
 ) {
     resource[offset] = static_cast<u8>(value);
     resource[offset + 1U] = static_cast<u8>(value >> 8U);
@@ -544,8 +540,9 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 state, port, context, 0U
             );
         test.expect_true(
-            result.status == LegacyBattleActionDispatchStatus::
-                    group_b_opponent_mode_typed_stop &&
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        group_b_opponent_mode_typed_stop &&
                 result.return_value == 0xCAFEBABEU &&
                 result.group_b_opponent_mode_calls == 1U &&
                 state.selection_initialized == 0U &&
@@ -568,9 +565,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         bind_group_b_coordinate_resource(fixture, 0U);
         auto& actor = (*fixture.startup->group_b_lifecycle)[0U];
         write_group_b_profile_dword(
-            actor.action_configuration.profile_buffer,
-            0x08U,
-            0x10000000U
+            actor.action_configuration.profile_buffer, 0x08U, 0x10000000U
         );
         DispatchPort port;
         port.push(0x00480220U, {.eax = 0x89ABCDEFU, .edx = 0x55667788U});
@@ -606,8 +601,9 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 state, port, context, 0U
             );
         test.expect_true(
-            result.status == LegacyBattleActionDispatchStatus::
-                    group_b_status_action_typed_stop &&
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        group_b_status_action_typed_stop &&
                 result.return_value == 0U &&
                 result.group_b_status_action.status ==
                     openswd3::battle::LegacyBattleGroupBStatusActionStatus::
@@ -619,8 +615,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 state.selection_initialized == 1U &&
                 port.count(0x00476330U) == 0U &&
                 port.count(0x00480220U) == 0U &&
-                port.count(0x00476140U) == 0U &&
-                port.count(0x0047D8D0U) == 0U,
+                port.count(0x00476140U) == 0U && port.count(0x0047D8D0U) == 0U,
             "status action actor stop now precedes the profile flag sequence"
         );
     }
@@ -644,8 +639,9 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 state, port, context, 0U
             );
         test.expect_true(
-            result.status == LegacyBattleActionDispatchStatus::
-                    group_b_status_action_typed_stop &&
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        group_b_status_action_typed_stop &&
                 result.return_value == 0U &&
                 result.group_b_status_action.status ==
                     openswd3::battle::LegacyBattleGroupBStatusActionStatus::
@@ -657,8 +653,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 state.shared.action_side == 0U &&
                 port.count(0x00476330U) == 0U &&
                 port.count(0x00480220U) == 0U &&
-                port.count(0x0047D880U) == 0U &&
-                port.count(0x00476140U) == 0U,
+                port.count(0x0047D880U) == 0U && port.count(0x00476140U) == 0U,
             "status action actor stop blocks the former profile flag status prefix"
         );
     }
@@ -774,8 +769,9 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 state, port, context, 0U
             );
         test.expect_true(
-            result.status == LegacyBattleActionDispatchStatus::
-                    group_b_status_action_typed_stop &&
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        group_b_status_action_typed_stop &&
                 result.return_value == 0U &&
                 result.group_b_status_action.status ==
                     openswd3::battle::LegacyBattleGroupBStatusActionStatus::
@@ -816,8 +812,9 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 state, port, context, 0U
             );
         test.expect_true(
-            result.status == LegacyBattleActionDispatchStatus::
-                    group_b_status_action_typed_stop &&
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        group_b_status_action_typed_stop &&
                 result.group_b_status_action.status ==
                     openswd3::battle::LegacyBattleGroupBStatusActionStatus::
                         resource_read_typed_stop &&
@@ -825,8 +822,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 result.group_b_status_action.return_eax == 0U &&
                 result.group_b_status_action.return_edx == 0xCAFE000BU &&
                 fixture.random.bounds == std::vector<u32>{12U} &&
-                port.count(0x00476330U) == 0U &&
-                port.count(0x00478710U) == 0U,
+                port.count(0x00476330U) == 0U && port.count(0x00478710U) == 0U,
             "status action resource stop preserves its initial random and blocks the caller suffix"
         );
     }
@@ -946,6 +942,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         state.group_a_completion_slots[0] = 9U;
         state.completion_value_table[16] = 0x1234U;
         Fixture fixture;
+        fixture.startup->timing.action_threshold = 0x5678;
+        fixture.startup->party[0].progress.progress = 0xFACE0011U;
         DispatchPort port;
         port.action = 100U;
         port.action_target = 0U;
@@ -954,7 +952,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         port.push(0x004786A0U, {.eax = 1U});
         port.push(0x004786A0U, {.eax = 1U});
         port.push(0x00478B40U, {.eax = 1U});
-        port.push(0x00478370U, {.eax = 0xABCD0000U});
+        port.push(0x00478850U, {.eax = 0xABCD1111U, .edx = 0xA5A55A5AU});
         port.push(0x00487C10U, {.eax = 0x00620000U});
         auto context = fixture.context();
         const auto result =
@@ -974,8 +972,17 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             "all-target completion clears the completed group-A slot"
         );
         test.expect_true(
-            result.player_item_calls == 1U,
-            "all-target completion performs one player-item update"
+            result.player_item_calls == 1U &&
+                result.actor_progress_threshold_sync_calls == 1U &&
+                result.actor_progress_threshold_sync.return_eax ==
+                    0xABCD5678U &&
+                result.actor_progress_threshold_sync.return_ecx ==
+                    0x005029D0U &&
+                result.actor_progress_threshold_sync.return_edx ==
+                    0xA5A55A5AU &&
+                fixture.startup->party[0].progress.progress == 0xFACE5678U &&
+                port.count(0x00478370U) == 0U,
+            "all-target completion directly synchronizes the startup actor progress with reset-call residues"
         );
         test.expect_true(
             result.player_item.return_token == 0x0062000CU,
@@ -998,6 +1005,119 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         test.expect_true(
             port.count(0x004750C0U) == 0U,
             "all-target completion emits no opaque group-A cleanup call"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState state;
+        state.frame_enabled = 1U;
+        state.shared.action.active_effect_target = 0U;
+        state.selection_initialized = 1U;
+        state.action_profile_bytes = {0U};
+        state.shared.action.group_a_count = 1;
+        state.group_a_completion_words[0] = 1U;
+        state.group_a_completion_slots[0] = 9U;
+        state.completion_value_table[16] = 0x1234U;
+        Fixture fixture;
+        fixture.startup->timing.action_threshold = 0x9ABCU;
+        fixture.startup->party[0].progress.progress = 0xFACE0011U;
+        DispatchPort port;
+        port.action = 100U;
+        port.action_target = 0U;
+        port.push(0x0047F920U, {.eax = 0U});
+        port.push(0x0047F920U, {.eax = 1U});
+        port.push(0x004786A0U, {.eax = 1U});
+        port.push(0x004786A0U, {.eax = 1U});
+        port.push(0x00478B40U, {.eax = 0U});
+        port.push(0x00478850U, {.eax = 0xDEAD1111U, .edx = 0x55667788U});
+        port.push(0x00487C10U, {.eax = 0x00630000U});
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed,
+            "single-target completion retains completed status"
+        );
+        test.expect_true(
+            result.actor_progress_threshold_sync_calls == 1U,
+            "single-target completion directly synchronizes progress once"
+        );
+        test.expect_true(
+            result.actor_progress_threshold_sync.return_eax == 0xDEAD9ABCU &&
+                result.actor_progress_threshold_sync.return_ecx ==
+                    0x005029D0U &&
+                result.actor_progress_threshold_sync.return_edx == 0x55667788U,
+            "single-target completion preserves reset EAX EDX and actor ECX residues"
+        );
+        test.expect_true(
+            fixture.startup->party[0].progress.progress == 0xFACE9ABCU,
+            "single-target completion writes the startup party progress owner"
+        );
+        test.expect_true(
+            result.player_item_calls == 1U &&
+                !port.world_item_list_state().player_inventory.empty() &&
+                port.world_item_list_state().player_inventory.front().item_id ==
+                    0x1234U,
+            "single-target completion preserves the table low word item update"
+        );
+        test.expect_true(
+            port.count(0x00478370U) == 0U,
+            "single-target completion emits no old progress-sync port call"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState state;
+        state.frame_enabled = 1U;
+        state.shared.action.active_effect_target = 0U;
+        state.selection_initialized = 1U;
+        state.action_profile_bytes = {0U};
+        state.shared.action.group_a_count = 1;
+        state.group_a_completion_words[0] = 1U;
+        state.group_a_completion_slots[0] = 9U;
+        state.completion_value_table[16] = 0x1234U;
+        Fixture fixture;
+        fixture.startup->timing.action_threshold = 0x5678;
+        fixture.startup->party[0].progress.progress = 0xFACE0011U;
+        fixture.startup->party[0].progress.progress_write_accessible = false;
+        DispatchPort port;
+        port.action = 100U;
+        port.action_target = 0U;
+        port.push(0x0047F920U, {.eax = 0U});
+        port.push(0x0047F920U, {.eax = 1U});
+        port.push(0x004786A0U, {.eax = 1U});
+        port.push(0x004786A0U, {.eax = 1U});
+        port.push(0x00478B40U, {.eax = 0U});
+        port.push(0x00478850U, {.eax = 0xABCD1111U, .edx = 0xA5A55A5AU});
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_progress_threshold_sync_typed_stop &&
+                result.actor_progress_threshold_sync.status ==
+                    openswd3::battle::
+                        LegacyBattleActorProgressThresholdSyncStatus::
+                            actor_progress_write_typed_stop &&
+                result.actor_progress_threshold_sync.return_eax ==
+                    0xABCD5678U &&
+                result.actor_progress_threshold_sync.return_ecx ==
+                    0x005029D0U &&
+                result.actor_progress_threshold_sync.return_edx ==
+                    0xA5A55A5AU &&
+                fixture.startup->party[0].progress.progress == 0xFACE0011U &&
+                state.group_a_completion_words[0] == 0U &&
+                state.group_a_completion_slots[0] == 0U &&
+                result.player_item_calls == 0U &&
+                port.count(0x00478AE0U) == 0U &&
+                port.count(0x00478370U) == 0U &&
+                result.return_value == 0xABCD5678U,
+            "single-target actor write stop preserves the reset prefix and blocks table item and target-reset suffixes"
         );
     }
 
