@@ -1266,11 +1266,6 @@ public:
         events.push_back(0U);
         return clear_available ? std::optional<i32>{1} : std::nullopt;
     }
-    std::optional<u16>
-    query_first_added_value(const u16 item_id) noexcept override {
-        queried_first_ids.push_back(item_id);
-        return first_available ? std::optional<u16>{first_value} : std::nullopt;
-    }
     std::optional<std::pair<u16, u16>>
     query_pair_added_value(const u16 item_id) noexcept override {
         queried_pair_ids.push_back(item_id);
@@ -1279,11 +1274,8 @@ public:
     }
 
     bool clear_available{true};
-    bool first_available{true};
     bool pair_available{true};
-    u16 first_value{20U};
     std::pair<u16, u16> pair_value{3U, 30U};
-    std::vector<u16> queried_first_ids;
     std::vector<u16> queried_pair_ids;
 };
 
@@ -4064,14 +4056,6 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 : std::nullopt;
         }
 
-        std::optional<u16> query_guardian_slot_zero_attribute(
-            const u16 text_index
-        ) noexcept override {
-            events.push_back(0x400U);
-            cache_finalize_arguments = {0U, text_index};
-            return 2U;
-        }
-
         std::optional<std::pair<u16, u16>> query_guardian_slot_pair_attributes(
             const u16 text_index
         ) noexcept override {
@@ -4106,6 +4090,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
     state.visible_record_count = 9U;
     state.viewport_extent = 9U;
     GuardianPorts ports;
+    ports.legacy_battle_fixed_object_state().object_words[1U][1U] = 7U;
+    ports.legacy_battle_fixed_object_state().object_words[1U][2U] = 2U;
     const auto initialized =
         sm::initialize_legacy_standard_mode_guardian_system(
             state, records, {}, ports
@@ -4151,10 +4137,9 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                     0x102U,
                     0x103U,
                     0x200U,
-                    0x104U,
-                    0x400U
+                    0x104U
                 } &&
-            ports.cache_finalize_arguments == std::array<u32, 2U>{0U, 7U},
+            state.attribute_cache[0x184U] == 2U,
         "0x440630 initializes guardian owners and publishes selected missing text in exact order"
     );
 
@@ -7145,6 +7130,11 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         : public sm::LegacyStandardModeGuardianCommitPorts,
           public openswd3::test::LegacyBattleMonDatabaseFixture {
     public:
+        SelectionPorts() {
+            legacy_battle_fixed_object_state().object_words[1U][1U] = 7U;
+            legacy_battle_fixed_object_state().object_words[1U][2U] = 400U;
+        }
+
         i32 invoke_guardian_selection(
             const sm::LegacyStandardModeGuardianSelectionTarget target,
             sm::LegacyStandardModeGuardianInitializationState&
@@ -7228,15 +7218,6 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 ? std::optional<
                       const sm::
                           LegacyStandardModeForwardNode*>{&cache_seed_record}
-                : std::nullopt;
-        }
-
-        std::optional<u16> query_guardian_slot_zero_attribute(
-            const u16 text_index
-        ) noexcept override {
-            cache_steps.push_back({3, 0, text_index});
-            return cache_steps_available && cache_failure_stage != 3
-                ? std::optional<u16>{400U}
                 : std::nullopt;
         }
 
@@ -7607,11 +7588,13 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
 
         sm::LegacyStandardModeForwardNode summary_seed{nullptr, 7U};
         party_state.guardian_slot = 0U;
+        party_state.attribute_cache_token = 0xAABB1000U;
         SelectionPorts zero_ports;
         const auto zero_summary =
             sm::finalize_legacy_standard_mode_guardian_attribute_summary(
                 party_state, &summary_seed, 0x140U, zero_ports
             );
+        party_state.attribute_cache_token = 0x1000U;
         const bool zero_values = cache_dword(0x184U) == 400U &&
             cache_dword(0x188U) == 0xFFFFFFFFU &&
             cache_dword(0x18CU) == 0xFFFFFFFFU;
@@ -7654,8 +7637,11 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                     sm::LegacyStandardModeGuardianAttributeSummaryStatus::
                         completed &&
                 zero_summary.legacy_return_value == 0 && zero_values &&
-                zero_ports.cache_steps ==
-                    std::vector<std::array<i32, 5U>>{{3, 0, 7, 0, 0}} &&
+                zero_summary.fixed_curve_query_count == 1U &&
+                zero_summary.fixed_curve.return_eax == 0x004A0190U &&
+                zero_summary.fixed_curve.return_ecx == 0xAABB0007U &&
+                zero_summary.fixed_curve.return_edx == 0x004FCD4CU &&
+                zero_ports.cache_steps.empty() &&
                 pair_summary.legacy_return_value == 7 && pair_values &&
                 pair_ports.cache_steps ==
                     std::vector<std::array<i32, 5U>>{{3, 1, 7, 0, 0}} &&
@@ -7701,6 +7687,19 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             sm::finalize_legacy_standard_mode_guardian_attribute_summary(
                 party_state, nullptr, 0x140U, ignored_ports
             );
+        party_state.guardian_slot = 0U;
+        party_state.attribute_cache_token = 0xCCDD1000U;
+        SelectionPorts fixed_curve_stopped_ports;
+        auto& fixed_curve_stop_root =
+            fixed_curve_stopped_ports.legacy_battle_fixed_object_state()
+                .object_words[1U];
+        fixed_curve_stop_root[0U] = 0x78001234U;
+        fixed_curve_stop_root[1U] = 1U;
+        const auto fixed_curve_stopped =
+            sm::finalize_legacy_standard_mode_guardian_attribute_summary(
+                party_state, &summary_seed, 0x140U, fixed_curve_stopped_ports
+            );
+        party_state.guardian_slot = 9U;
         SelectionPorts fixed_count_stopped_ports;
         fixed_count_stopped_ports.legacy_battle_fixed_object_state()
             .object_words[0U][0U] = 0x77001234U;
@@ -7727,10 +7726,19 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 cache_dword(0x184U) == 0xFFFFFFFFU &&
                 cache_dword(0x188U) == 0xFFFFFFFFU &&
                 cache_dword(0x18CU) == 0xFFFFFFFFU &&
+                fixed_curve_stopped.status ==
+                    sm::LegacyStandardModeGuardianAttributeSummaryStatus::
+                        fixed_curve_typed_stop &&
+                fixed_curve_stopped.fixed_curve.stopped_token == 0x78001234U &&
+                fixed_curve_stopped.fixed_curve.stopped_offset == 4U &&
+                fixed_curve_stopped.fixed_curve.return_eax == 0x78001234U &&
+                fixed_curve_stopped.fixed_curve.return_ecx == 0xCCDD0007U &&
+                fixed_curve_stopped.fixed_curve.return_edx == 0x004FCD4CU &&
                 fixed_count_stopped.status ==
                     sm::LegacyStandardModeGuardianAttributeSummaryStatus::
                         fixed_count_typed_stop &&
                 fixed_count_stopped.fixed_count.stopped_token == 0x77001234U &&
+                fixed_count_stopped.fixed_count.return_edx == 0x004F0007U &&
                 summary_range.status ==
                     sm::LegacyStandardModeGuardianAttributeSummaryStatus::
                         destination_out_of_range,
@@ -8975,7 +8983,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 guardian.shared_text[2U] == 0U &&
                 guardian.mode_flags == 0x80U &&
                 selection_ports.targets.empty() &&
-                selection_ports.cache_steps.size() == 7U &&
+                selection_ports.cache_steps.size() == 6U &&
                 selection_ports.commands ==
                     std::vector<std::array<u32, 2U>>{{0x2EU, 0x12345678U}},
             "0x440B20 mode0 wraps slot11, publishes its record and plays command46"
@@ -9526,6 +9534,11 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         : public sm::LegacyStandardModeGuardianInputPorts,
           public openswd3::test::LegacyBattleMonDatabaseFixture {
     public:
+        InputPorts() {
+            legacy_battle_fixed_object_state().object_words[1U][1U] = 7U;
+            legacy_battle_fixed_object_state().object_words[1U][2U] = 400U;
+        }
+
         i32 invoke_guardian_input(
             const sm::LegacyStandardModeGuardianInputTarget target,
             sm::LegacyStandardModeGuardianInitializationState& state,
@@ -9605,14 +9618,6 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                       const sm::
                           LegacyStandardModeForwardNode*>{&cache_seed_record}
                 : std::nullopt;
-        }
-
-        std::optional<u16> query_guardian_slot_zero_attribute(
-            const u16 text_index
-        ) noexcept override {
-            cache_steps.push_back({3, 0, text_index});
-            return cache_steps_available ? std::optional<u16>{400U}
-                                         : std::nullopt;
         }
 
         std::optional<std::pair<u16, u16>> query_guardian_slot_pair_attributes(
@@ -9764,7 +9769,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 result.last_target == Target::select_guardian_slot &&
                 input_ports.targets.empty() &&
                 input_ports.selection_targets.empty() &&
-                input_ports.cache_steps.size() == 13U,
+                input_ports.cache_steps.size() == 12U,
             "0x4407F0 guardian-slot rectangle commits then directly reuses 0x440B20"
         );
     }
@@ -22585,6 +22590,10 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     FakePartyDialogPagePorts item_party_dialog_page_ports;
     item_party_dialog_page_ports.legacy_battle_fixed_object_state()
         .object_words[0U][1U] = (40U << 16U) | 100U;
+    item_party_dialog_page_ports.legacy_battle_fixed_object_state()
+        .object_words[1U][1U] = 100U;
+    item_party_dialog_page_ports.legacy_battle_fixed_object_state()
+        .object_words[1U][2U] = 20U;
     const auto populated_item_party_dialog_page =
         openswd3::special_modes::populate_legacy_party_dialog_page(
             item_party_dialog_page, item_party_dialog_page_ports
@@ -22600,8 +22609,14 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     test.expect_true(
         populated_item_party_dialog_page.rendered_row_count == 2U &&
             populated_item_party_dialog_page.added_value_query_count == 5U &&
-            item_party_dialog_page_ports.queried_first_ids ==
-                std::vector<u16>{100U} &&
+            populated_item_party_dialog_page.fixed_curve_query_count == 1U &&
+            populated_item_party_dialog_page.fixed_curve.matched_token ==
+                openswd3::battle::kLegacyBattleFixedCurveOwnerToken &&
+            populated_item_party_dialog_page.fixed_curve.return_eax ==
+                0x004A0014U &&
+            populated_item_party_dialog_page.fixed_curve.return_ecx ==
+                0xFFFF0064U &&
+            populated_item_party_dialog_page.fixed_curve.return_edx == 100U &&
             item_party_dialog_page_ports.queried_pair_ids ==
                 std::vector<u16>{100U, 600U} &&
             populated_item_party_dialog_page.fixed_count_query_count == 2U &&
@@ -22617,7 +22632,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             populated_stored_item_party_dialog_page.rendered_row_count == 2U &&
             populated_stored_item_party_dialog_page.added_value_query_count ==
                 0U &&
-            stored_item_party_dialog_page_ports.queried_first_ids.empty() &&
+            populated_stored_item_party_dialog_page.fixed_curve_query_count ==
+                0U &&
             stored_item_party_dialog_page_ports.requests[3U].text.empty() &&
             stored_item_party_dialog_page_ports.requests[7U].text.empty(),
         "0x410730 walks the selected item chain, sums two signed quantities, applies page-zero category queries in overwrite order with the low-id final override, and leaves added values blank on pages one through four"
@@ -22646,7 +22662,11 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     openswd3::special_modes::LegacyPartyDialogPageState
         stopped_query_party_dialog_page = item_party_dialog_page;
     FakePartyDialogPagePorts stopped_query_party_dialog_page_ports;
-    stopped_query_party_dialog_page_ports.first_available = false;
+    auto& stopped_curve_root =
+        stopped_query_party_dialog_page_ports.legacy_battle_fixed_object_state()
+            .object_words[1U];
+    stopped_curve_root[0U] = 0x7F00ABCDU;
+    stopped_curve_root[1U] = 0U;
     const auto stopped_query_party_dialog_page_result =
         openswd3::special_modes::populate_legacy_party_dialog_page(
             stopped_query_party_dialog_page,
@@ -22670,7 +22690,17 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             cycle_party_dialog_page_result.rendered_row_count == 1U &&
             stopped_query_party_dialog_page_result.status ==
                 openswd3::special_modes::LegacyPartyDialogPageStatus::
-                    added_value_query_stopped &&
+                    fixed_curve_typed_stop &&
+            stopped_query_party_dialog_page_result.fixed_curve.stopped_token ==
+                0x7F00ABCDU &&
+            stopped_query_party_dialog_page_result.fixed_curve.stopped_offset ==
+                4U &&
+            stopped_query_party_dialog_page_result.fixed_curve.return_eax ==
+                0x7F00ABCDU &&
+            stopped_query_party_dialog_page_result.fixed_curve.return_ecx ==
+                0xFFFF0064U &&
+            stopped_query_party_dialog_page_result.fixed_curve.return_edx ==
+                100U &&
             stopped_query_party_dialog_page_result.rows_cleared &&
             stopped_query_party_dialog_page_result.rendered_row_count == 0U &&
             uncleared_party_dialog_page.status ==

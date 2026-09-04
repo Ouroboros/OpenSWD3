@@ -38,7 +38,7 @@ struct LegacyBattleGroupAAttributeAggregationState {
 enum class LegacyBattleGroupAAttributeAggregationCall : compat::u8 {
     report_missing_primary_attribute,
     reserved_apply_embedded_profile,
-    lookup_embedded_profile_item_quantity,
+    reserved_lookup_embedded_profile_item_quantity,
 };
 
 struct LegacyBattleGroupAAttributeAggregationCallRequest {
@@ -67,9 +67,10 @@ struct LegacyBattleGroupAAttributeAggregationCallReply {
     compat::u32 edx{};
 };
 
-class LegacyBattleGroupAAttributeAggregationPort {
+class LegacyBattleGroupAAttributeAggregationPort
+    : public virtual LegacyBattleFixedObjectStatePort {
 public:
-    virtual ~LegacyBattleGroupAAttributeAggregationPort() = default;
+    ~LegacyBattleGroupAAttributeAggregationPort() override = default;
 
     [[nodiscard]] virtual LegacyBattleGroupAAttributeAggregationCallReply
     invoke_group_a_attribute_aggregation(

@@ -3776,8 +3776,6 @@ class LegacyPartyDialogPagePorts
 public:
     ~LegacyPartyDialogPagePorts() override = default;
     [[nodiscard]] virtual std::optional<compat::i32> clear_rows() noexcept = 0;
-    [[nodiscard]] virtual std::optional<compat::u16>
-    query_first_added_value(compat::u16 item_id) noexcept = 0;
     [[nodiscard]] virtual std::optional<std::pair<compat::u16, compat::u16>>
     query_pair_added_value(compat::u16 item_id) noexcept = 0;
 };
@@ -3789,6 +3787,7 @@ enum class LegacyPartyDialogPageStatus : compat::u8 {
     item_chain_cycle_stopped,
     added_value_query_stopped,
     fixed_count_typed_stop,
+    fixed_curve_typed_stop,
     row_replacement_stopped,
 };
 
@@ -3798,7 +3797,9 @@ struct LegacyPartyDialogPageResult {
     compat::u32 rendered_row_count{};
     compat::u32 added_value_query_count{};
     battle::LegacyBattleFixedCountLookupResult fixed_count{};
+    battle::LegacyBattleFixedCurveLookupResult fixed_curve{};
     compat::u32 fixed_count_query_count{};
+    compat::u32 fixed_curve_query_count{};
     bool rows_cleared{};
 };
 
@@ -4823,8 +4824,6 @@ public:
         compat::u16 party_index,
         compat::u32 guardian_slot
     ) noexcept = 0;
-    [[nodiscard]] virtual std::optional<compat::u16>
-    query_guardian_slot_zero_attribute(compat::u16 text_index) noexcept = 0;
     [[nodiscard]] virtual std::optional<std::pair<compat::u16, compat::u16>>
     query_guardian_slot_pair_attributes(compat::u16 text_index) noexcept = 0;
 };
@@ -7558,6 +7557,7 @@ enum class LegacyStandardModeGuardianAttributeSummaryStatus : compat::u8 {
     seed_missing,
     query_stopped,
     fixed_count_typed_stop,
+    fixed_curve_typed_stop,
 };
 
 struct LegacyStandardModeGuardianAttributeSummaryResult {
@@ -7566,7 +7566,9 @@ struct LegacyStandardModeGuardianAttributeSummaryResult {
     };
     compat::i32 legacy_return_value{};
     battle::LegacyBattleFixedCountLookupResult fixed_count{};
+    battle::LegacyBattleFixedCurveLookupResult fixed_curve{};
     compat::u32 fixed_count_query_count{};
+    compat::u32 fixed_curve_query_count{};
 };
 
 [[nodiscard]] LegacyStandardModeGuardianAttributeSummaryResult

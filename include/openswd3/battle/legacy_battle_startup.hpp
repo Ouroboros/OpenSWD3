@@ -104,7 +104,7 @@ enum class LegacyBattleStartupCall : compat::u16 {
     group_a_npc_missing_role_diagnostic,
     group_a_attribute_missing_primary_diagnostic,
     reserved_group_a_embedded_profile_apply,
-    group_a_embedded_profile_item_quantity,
+    reserved_group_a_embedded_profile_item_quantity,
     group_b_load_resource_definition,
     reserved_group_b_load_action_profile,
     group_b_release_resource_text,
@@ -140,6 +140,7 @@ class LegacyBattleStartupPort
     : public virtual LegacyBattleMonDatabasePort,
       public virtual LegacyBattleActorMetricStatePort,
       public virtual LegacyBattleActorPublicationStatePort,
+      public virtual LegacyBattleFixedObjectStatePort,
       public virtual LegacyBattleSharedPhaseStatePort,
       public virtual world_map::LegacyWorldItemListStatePort {
 public:

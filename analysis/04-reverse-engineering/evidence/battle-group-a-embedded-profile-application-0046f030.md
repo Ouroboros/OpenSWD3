@@ -16,13 +16,13 @@
 
 ## 3. 类型52的word调整
 
-类型52读取资料u16 `+0x50`，以固定玩家物品链调用待审数量查询callee。查询返回AX先逻辑右移1；非零时以角色基础记录u16 `+0x26`乘该比例并向零除100得到附加值。随后再次读取live `+0x26`，固定计算10%，把`原值 + 10% + 附加值`的低word写回。
+类型52读取资料u16 `+0x50`，以固定根`0x004B8A00`在原位置直接组合已关闭固定键曲线查询`0x004779F0`。查询返回AX先逻辑右移1；非零时以角色基础记录u16 `+0x26`乘该比例并向零除100得到附加值。随后再次读取live `+0x26`，固定计算10%，把`原值 + 10% + 附加值`的低word写回。
 
 全部乘法保持原32位范围和magic除100结果。正常返回EAX是第二次magic乘法低dword，ECX是符号修正临时值，EDX从内嵌资料token高word与旧角色word低word拼接后再累加10%及附加值。不能把EDX简化为新word或角色token。
 
 ## 4. 类型51的首个非零byte调整
 
-类型51先以资料u16 `+0x50`查询玩家物品数量，再从资料byte `+0x92..+0x9A`顺序扫描九项。九项全零时不访问角色基础记录，返回EAX 8、ECX 9，EDX只把查询返回EDX低byte替换为最终零。
+类型51先以资料u16 `+0x50`直查固定根`0x004B8A00`，再从资料byte `+0x92..+0x9A`顺序扫描九项。九项全零时不访问角色基础记录，返回EAX 8、ECX 9，EDX只把查询返回EDX低byte替换为最终零。
 
 遇到首个非零byte后立即停止扫描。原指令先对源byte取八位二补数，与signed byte 10相乘，再只取乘积低byte作signed扩展；乘物品数量并向零除100后，又只保留商低word。该u16与signed magic常量相乘并向零修正，等价于对该低word取负十分之一。最终只把delta低byte回绕加到角色基础记录`+0x2D+index`，然后返回；后续byte绝不处理。
 
@@ -34,16 +34,16 @@
 
 基础记录token缺失的停止点依分支保持原顺序：类型52比例非零时先把EAX收窄为比例、ECX发布零token并清EDX；比例为零时在后续word读取处保留查询返回ECX/EDX与右移后的EAX。类型51九byte全零不停止；首个非零byte完成全部算术后才在对应角色byte读取处停止。
 
-`sub_4779F0`本身位于后续`audit_order=271`，当前只收窄为固定玩家物品链与item id的数量查询port，不提前关闭其链扫描行为。
+`0x004779F0`已按完整LST关闭。固定根参与第一次键比较，未命中时按`+0x00`next扫描；成功只以`word [token+8]`替换AX并保留token高word，缺失返回EAX零，ECX只替换低word为item id，EDX不变。根键、动态键、next、值和未映射next均在原访问点typed-stop。
 
 ## 6. caller回收
 
 全程序唯一静态caller位于上一项16槽物品属性汇总的槽7/8公共分支；同一callsite在固定16轮中实际执行两次。调用前EAX为对应内嵌资料token，ECX/EDX均为角色token。typed汇总在复制0xA4资料并执行可选item id覆盖后直接调用本实现，子stop保留此前七或八槽的复制、累加、诊断与副作用。
 
-旧整函数opaque枚举槽保留为reserved且生产零调用；startup只继续转发待审数量查询这一窄边界。两个typed结果随属性汇总结果发布，后续槽和最终寄存器仍由上一函数按原循环覆盖。
+旧整函数opaque枚举槽及数量查询转发槽均保留为reserved且生产零调用；startup与属性汇总通过虚继承暴露同一个`LegacyBattleFixedObjectStatePort`，内嵌资料应用直接消费唯一fixed-object owner。两个typed结果随属性汇总结果发布，后续槽和最终寄存器仍由上一函数按原循环覆盖。
 
 ## 7. 验证状态
 
-纯函数测试覆盖范围外类型、六种状态mask、类型52数量奇数右移、固定10%、附加百分比、资料token高word返回、类型51首个非零扫描、两次低位截断、九项全零、回绕byte、全部真实访问typed-stop和寄存器。属性汇总回归覆盖槽7/8两次直连及共享状态累积；startup回归覆盖角色重置清零、窄数量查询参数与旧opaque零调用。独立位级脚本对类型51执行102,816组向量、对类型52执行524,288组向量，均与x86高低乘积及符号修正逐项一致。
+纯函数测试覆盖范围外类型、六种状态mask、类型52数量奇数右移、固定10%、附加百分比、资料token高word返回、类型51首个非零扫描、两次低位截断、九项全零、回绕byte、全部真实访问typed-stop和寄存器。属性汇总回归覆盖槽7/8两次直连及共享fixed-object状态；startup回归覆盖角色重置清零、真实固定根/链查询及reserved转发零调用。独立位级脚本对类型51执行102,816组向量、对类型52执行524,288组向量，均与x86高低乘积及符号修正逐项一致。
 
-验证结果：定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning，app仅有既有ALSA提示。inventory连续双生成逐字节一致，稳定为`179/422 = 170 platform_adapted + 9 assembly_exact + 243 pending_audit`，SHA256为`c0013b8f0767ddb8f6d379c478c0eade88fd17dbe537000054268d6835ca7304`。原版组A角色对象、动态内嵌资料、玩家物品链、数量查询callee与caller寄存器联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
+本轮caller迁移后的定向测试`3/3`、Linux core`194/194`、AddressSanitizer`194/194`、Linux app`200/200`、连续10轮完整core、格式、inventory稳定性和release审计全部通过。原版组A角色对象、动态内嵌资料、固定曲线链与caller寄存器联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。

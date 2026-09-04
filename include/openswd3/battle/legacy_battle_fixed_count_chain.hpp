@@ -273,4 +273,37 @@ advance_legacy_battle_fixed_curve(
     const LegacyBattleFixedCurveSetRequest& request
 );
 
+struct LegacyBattleFixedCurveLookupRequest {
+    compat::u32 owner_token{kLegacyBattleFixedCurveOwnerToken};
+    compat::u32 key{};
+    compat::u32 entry_eax{};
+    compat::u32 entry_ecx{};
+    compat::u32 entry_edx{};
+};
+
+struct LegacyBattleFixedCurveLookupResult {
+    LegacyBattleFixedCountStatus status{
+        LegacyBattleFixedCountStatus::completed
+    };
+    compat::u16 value{};
+    compat::u32 matched_token{};
+    compat::u32 stopped_token{};
+    compat::u32 stopped_offset{};
+    compat::u32 key_reads{};
+    compat::u32 chain_link_reads{};
+    compat::u32 value_reads{};
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+};
+
+// Typed closure of legacy 0x004779F0. The root participates in the first key
+// comparison; a hit replaces only AX with the value word at plus eight, while
+// a missing key returns zero after scanning the existing chain.
+[[nodiscard]] LegacyBattleFixedCurveLookupResult
+lookup_legacy_battle_fixed_curve(
+    LegacyBattleFixedObjectState& state,
+    const LegacyBattleFixedCurveLookupRequest& request
+) noexcept;
+
 }  // namespace openswd3::battle

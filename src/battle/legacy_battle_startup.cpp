@@ -154,19 +154,12 @@ public:
             break;
 
         case LegacyBattleGroupAAttributeAggregationCall::
-            lookup_embedded_profile_item_quantity:
-            call.call =
-                LegacyBattleStartupCall::group_a_embedded_profile_item_quantity;
-            call.arguments = {
-                kLegacyBattleEmbeddedProfileItemListToken,
-                request.item_id,
-                0U,
-                0U,
+            reserved_lookup_embedded_profile_item_quantity:
+            return {
+                .eax = request.eax,
+                .ecx = request.ecx,
+                .edx = request.edx,
             };
-            call.eax = request.eax;
-            call.ecx = request.ecx;
-            call.edx = request.edx;
-            break;
         }
         const auto reply = port_.invoke(call);
         return {
@@ -174,6 +167,11 @@ public:
             .ecx = reply.ecx_snapshot,
             .edx = reply.edx_snapshot,
         };
+    }
+
+    [[nodiscard]] LegacyBattleFixedObjectState&
+    legacy_battle_fixed_object_state() noexcept override {
+        return port_.legacy_battle_fixed_object_state();
     }
 
 private:

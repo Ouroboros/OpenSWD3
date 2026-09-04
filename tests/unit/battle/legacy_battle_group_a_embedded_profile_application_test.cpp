@@ -10,26 +10,24 @@
 namespace {
 
 using openswd3::battle::LegacyBattleGroupAEmbeddedProfileApplicationPort;
-using openswd3::battle::LegacyBattleGroupAEmbeddedProfileItemQuantityReply;
-using openswd3::battle::LegacyBattleGroupAEmbeddedProfileItemQuantityRequest;
 using openswd3::battle::LegacyBattleGroupASummonProfileRecord;
+using openswd3::battle::kLegacyBattleEmbeddedProfileItemListToken;
 using openswd3::compat::u8;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
 
 struct ItemQuantityPort final
-    : LegacyBattleGroupAEmbeddedProfileApplicationPort {
-    [[nodiscard]] LegacyBattleGroupAEmbeddedProfileItemQuantityReply
-    lookup_embedded_profile_item_quantity(
-        const LegacyBattleGroupAEmbeddedProfileItemQuantityRequest& request
-    ) override {
-        requests.push_back(request);
-        return reply;
-    }
+    : LegacyBattleGroupAEmbeddedProfileApplicationPort {};
 
-    LegacyBattleGroupAEmbeddedProfileItemQuantityReply reply{};
-    std::vector<LegacyBattleGroupAEmbeddedProfileItemQuantityRequest> requests;
-};
+void publish_item_quantity(
+    ItemQuantityPort& port, const u16 item_id, const u16 quantity
+) {
+    auto& roots = port.legacy_battle_fixed_object_state().object_words;
+    auto& root = roots[2U];
+    root[0U] = 0U;
+    root[1U] = item_id;
+    root[2U] = quantity;
+}
 
 void set_profile_byte(
     LegacyBattleGroupASummonProfileRecord& profile,
@@ -149,7 +147,8 @@ void test_battle_group_a_embedded_profile_application(
                 default_result.return_ecx == 0U &&
                 default_result.return_edx == 0x87654321U &&
                 flag_results_match && state.status_bits == 0xA5B6C7FDU &&
-                port.requests.empty(),
+                port.legacy_battle_fixed_object_state().object_words[2U][1U] ==
+                    0U,
             "default kind leaves the actor untouched while six fixed kinds OR only their original low-byte status masks"
         );
     }
@@ -164,11 +163,7 @@ void test_battle_group_a_embedded_profile_application(
         set_profile_word(profile, 0x48U, 52U);
         set_profile_word(profile, 0x50U, 0x1234U);
         ItemQuantityPort port;
-        port.reply = {
-            .eax = 0x7100000BU,
-            .ecx = 0xDEADBEEFU,
-            .edx = 0xCAFEBABEU,
-        };
+        publish_item_quantity(port, 0x1234U, 11U);
 
         const auto result = apply_legacy_battle_group_a_embedded_profile(
             &state,
@@ -184,15 +179,14 @@ void test_battle_group_a_embedded_profile_application(
             result.status ==
                     LegacyBattleGroupAEmbeddedProfileApplicationStatus::
                         completed &&
-                result.port_calls == 1U && result.actor_word_writes == 1U &&
-                actor_word(configuration.actor_record, 0x26U) == 1150U &&
-                port.requests.size() == 1U &&
-                port.requests[0U].item_list_token ==
+                result.fixed_curve_query_count == 1U &&
+                result.fixed_curve.matched_token ==
                     kLegacyBattleEmbeddedProfileItemListToken &&
-                port.requests[0U].item_id == 0x1234U &&
-                port.requests[0U].eax == 0x1234U &&
-                port.requests[0U].ecx == 0x005029D0U &&
-                port.requests[0U].edx == 0x87654321U &&
+                result.fixed_curve.return_eax == 0x004B000BU &&
+                result.fixed_curve.return_ecx == 0x00501234U &&
+                result.fixed_curve.return_edx == 0x87654321U &&
+                result.actor_word_writes == 1U &&
+                actor_word(configuration.actor_record, 0x26U) == 1150U &&
                 result.return_eax == 0x00000AF0U && result.return_ecx == 0U &&
                 result.return_edx == 0x0050047EU,
             "word kind adds ten percent plus half the queried quantity percentage and preserves the profile-token high word in edx"
@@ -210,11 +204,7 @@ void test_battle_group_a_embedded_profile_application(
         set_profile_word(profile, 0x50U, 0x2222U);
         set_profile_byte(profile, 0x94U, 3U);
         ItemQuantityPort port;
-        port.reply = {
-            .eax = 0x71000032U,
-            .ecx = 0x11223344U,
-            .edx = 0x55667788U,
-        };
+        publish_item_quantity(port, 0x2222U, 50U);
 
         const auto result = apply_legacy_battle_group_a_embedded_profile(
             &state,
@@ -234,9 +224,10 @@ void test_battle_group_a_embedded_profile_application(
                 result.modified_byte_index == 2U &&
                 result.actor_byte_writes == 1U &&
                 actor_byte(configuration.actor_record, 0x2FU) == 114U &&
-                port.requests.size() == 1U && port.requests[0U].eax == 1U &&
-                port.requests[0U].ecx == 0x005029D0U &&
-                port.requests[0U].edx == 0xAABB2222U &&
+                result.fixed_curve_query_count == 1U &&
+                result.fixed_curve.return_eax == 0x004B0032U &&
+                result.fixed_curve.return_ecx == 0x00502222U &&
+                result.fixed_curve.return_edx == 0xAABB2222U &&
                 result.return_eax == 0x99990072U && result.return_ecx == 2U &&
                 result.return_edx == 0xFFFFE668U,
             "byte kind stops at the first nonzero byte and preserves both low-byte product truncations and wrapped negative delta"
@@ -249,11 +240,7 @@ void test_battle_group_a_embedded_profile_application(
         set_profile_word(profile, 0x48U, 51U);
         set_profile_word(profile, 0x50U, 0x3333U);
         ItemQuantityPort port;
-        port.reply = {
-            .eax = 0xAABB0014U,
-            .ecx = 0x11223344U,
-            .edx = 0x55667788U,
-        };
+        publish_item_quantity(port, 0x3333U, 20U);
 
         const auto result = apply_legacy_battle_group_a_embedded_profile(
             nullptr, configuration, &profile, 0x005029D0U, 0x00502B28U, port
@@ -263,9 +250,13 @@ void test_battle_group_a_embedded_profile_application(
             result.status ==
                     LegacyBattleGroupAEmbeddedProfileApplicationStatus::
                         completed &&
+                result.fixed_curve_query_count == 1U &&
+                result.fixed_curve.return_eax == 0x004B0014U &&
+                result.fixed_curve.return_ecx == 0x00503333U &&
+                result.fixed_curve.return_edx == 0x00003333U &&
                 result.bytes_scanned == 9U && result.actor_byte_writes == 0U &&
                 result.return_eax == 8U && result.return_ecx == 9U &&
-                result.return_edx == 0x55667700U,
+                result.return_edx == 0x00003300U,
             "nine zero bytes return without dereferencing the missing actor record and retain the query edx upper bytes"
         );
     }
@@ -300,11 +291,7 @@ void test_battle_group_a_embedded_profile_application(
         set_profile_word(profile, 0x48U, 52U);
         set_profile_word(profile, 0x50U, 0x1234U);
         ItemQuantityPort nonzero_record_port;
-        nonzero_record_port.reply = {
-            .eax = 0x7100000BU,
-            .ecx = 0x11223344U,
-            .edx = 0x55667788U,
-        };
+        publish_item_quantity(nonzero_record_port, 0x1234U, 11U);
         const auto nonzero_record_stop =
             apply_legacy_battle_group_a_embedded_profile(
                 &state,
@@ -316,11 +303,7 @@ void test_battle_group_a_embedded_profile_application(
             );
 
         ItemQuantityPort zero_record_port;
-        zero_record_port.reply = {
-            .eax = 0x71000001U,
-            .ecx = 0x11223344U,
-            .edx = 0x55667788U,
-        };
+        publish_item_quantity(zero_record_port, 0x1234U, 1U);
         const auto zero_record_stop =
             apply_legacy_battle_group_a_embedded_profile(
                 &state,
@@ -351,10 +334,51 @@ void test_battle_group_a_embedded_profile_application(
                 zero_record_stop.status ==
                     LegacyBattleGroupAEmbeddedProfileApplicationStatus::
                         actor_record_typed_stop &&
-                zero_record_stop.return_eax == 0x71000000U &&
-                zero_record_stop.return_ecx == 0x11223344U &&
-                zero_record_stop.return_edx == 0x55667788U,
+                zero_record_stop.return_eax == 0x004B0000U &&
+                zero_record_stop.return_ecx == 0x00501234U &&
+                zero_record_stop.return_edx == 0U,
             "typed stops occur only at the original profile, actor, and rate-dependent actor-record accesses"
+        );
+    }
+
+    {
+        LegacyBattleGroupAEmbeddedProfileApplicationState state;
+        LegacyBattleGroupAConfigurationState configuration{
+            .actor_record_token = 0x72000000U,
+        };
+        LegacyBattleGroupASummonProfileRecord profile{};
+        set_profile_word(profile, 0x48U, 51U);
+        set_profile_word(profile, 0x50U, 0x4444U);
+        ItemQuantityPort port;
+        auto& root = port.legacy_battle_fixed_object_state().object_words[2U];
+        root[0U] = 0x7F00ABCDU;
+        root[1U] = 1U;
+
+        const auto result = apply_legacy_battle_group_a_embedded_profile(
+            &state,
+            configuration,
+            &profile,
+            0x005029D0U,
+            0x00502B28U,
+            port,
+            {.entry_edx = 0xAABBCCDDU}
+        );
+
+        test.expect_true(
+            result.status ==
+                    LegacyBattleGroupAEmbeddedProfileApplicationStatus::
+                        fixed_curve_typed_stop &&
+                result.fixed_curve_query_count == 1U &&
+                result.fixed_curve.stopped_token == 0x7F00ABCDU &&
+                result.fixed_curve.stopped_offset == 4U &&
+                result.fixed_curve.key_reads == 1U &&
+                result.fixed_curve.chain_link_reads == 1U &&
+                result.return_eax == 0x7F00ABCDU &&
+                result.return_ecx == 0x00504444U &&
+                result.return_edx == 0xAABB4444U &&
+                result.actor_word_writes == 0U &&
+                result.actor_byte_writes == 0U,
+            "embedded profile propagation stops at the original linked key read with the complete legacy register prefix"
         );
     }
 }

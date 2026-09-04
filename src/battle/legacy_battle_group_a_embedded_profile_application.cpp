@@ -159,18 +159,33 @@ apply_legacy_battle_group_a_embedded_profile(
     const u16 item_id = profile_word(*profile, 0x50U);
     result.item_id = item_id;
     if (switch_index == 2U) {
-        const auto reply = port.lookup_embedded_profile_item_quantity({
-            .item_list_token = kLegacyBattleEmbeddedProfileItemListToken,
-            .item_id = item_id,
-            .eax = item_id,
-            .ecx = actor_token,
-            .edx = request.entry_edx,
-        });
-        ++result.port_calls;
-        u32 eax =
-            replace_low_word(reply.eax, static_cast<u16>(reply.eax) >> 1U);
-        u32 ecx = reply.ecx;
-        u32 edx = reply.edx;
+        result.fixed_curve = lookup_legacy_battle_fixed_curve(
+            port.legacy_battle_fixed_object_state(),
+            {
+                .owner_token = kLegacyBattleEmbeddedProfileItemListToken,
+                .key = item_id,
+                .entry_eax = item_id,
+                .entry_ecx = actor_token,
+                .entry_edx = request.entry_edx,
+            }
+        );
+        ++result.fixed_curve_query_count;
+        if (result.fixed_curve.status !=
+            LegacyBattleFixedCountStatus::completed) {
+            result.status = LegacyBattleGroupAEmbeddedProfileApplicationStatus::
+                fixed_curve_typed_stop;
+            result.return_eax = result.fixed_curve.return_eax;
+            result.return_ecx = result.fixed_curve.return_ecx;
+            result.return_edx = result.fixed_curve.return_edx;
+            return result;
+        }
+
+        u32 eax = replace_low_word(
+            result.fixed_curve.return_eax,
+            static_cast<u16>(result.fixed_curve.return_eax) >> 1U
+        );
+        u32 ecx = result.fixed_curve.return_ecx;
+        u32 edx = result.fixed_curve.return_edx;
         const u16 quantity_rate = static_cast<u16>(eax);
         u32 extra = 0U;
         if (quantity_rate != 0U) {
@@ -235,25 +250,37 @@ apply_legacy_battle_group_a_embedded_profile(
         return result;
     }
 
-    const auto reply = port.lookup_embedded_profile_item_quantity({
-        .item_list_token = kLegacyBattleEmbeddedProfileItemListToken,
-        .item_id = item_id,
-        .eax = 1U,
-        .ecx = actor_token,
-        .edx = replace_low_word(request.entry_edx, item_id),
-    });
-    ++result.port_calls;
-    if (actor_token == 0U) {
+    result.fixed_curve = lookup_legacy_battle_fixed_curve(
+        port.legacy_battle_fixed_object_state(),
+        {
+            .owner_token = kLegacyBattleEmbeddedProfileItemListToken,
+            .key = item_id,
+            .entry_eax = 1U,
+            .entry_ecx = actor_token,
+            .entry_edx = replace_low_word(request.entry_edx, item_id),
+        }
+    );
+    ++result.fixed_curve_query_count;
+    if (result.fixed_curve.status != LegacyBattleFixedCountStatus::completed) {
         result.status = LegacyBattleGroupAEmbeddedProfileApplicationStatus::
-            actor_state_typed_stop;
-        result.return_eax = reply.eax;
-        result.return_ecx = reply.ecx;
-        result.return_edx = reply.edx;
+            fixed_curve_typed_stop;
+        result.return_eax = result.fixed_curve.return_eax;
+        result.return_ecx = result.fixed_curve.return_ecx;
+        result.return_edx = result.fixed_curve.return_edx;
         return result;
     }
 
-    const u16 item_quantity = static_cast<u16>(reply.eax);
-    u32 scan_edx = reply.edx;
+    if (actor_token == 0U) {
+        result.status = LegacyBattleGroupAEmbeddedProfileApplicationStatus::
+            actor_state_typed_stop;
+        result.return_eax = result.fixed_curve.return_eax;
+        result.return_ecx = result.fixed_curve.return_ecx;
+        result.return_edx = result.fixed_curve.return_edx;
+        return result;
+    }
+
+    const u16 item_quantity = static_cast<u16>(result.fixed_curve.return_eax);
+    u32 scan_edx = result.fixed_curve.return_edx;
     for (u32 byte_index = 0U; byte_index < 9U; ++byte_index) {
         const u8 source_byte = profile_byte(*profile, 0x92U + byte_index);
         ++result.bytes_scanned;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_fixed_count_chain.hpp"
 #include "openswd3/battle/legacy_battle_group_a_configuration.hpp"
 #include "openswd3/battle/legacy_battle_group_a_summon_materialization.hpp"
 #include "openswd3/compat/types.hpp"
@@ -14,28 +15,10 @@ struct LegacyBattleGroupAEmbeddedProfileApplicationState {
     compat::u32 status_bits{};
 };
 
-struct LegacyBattleGroupAEmbeddedProfileItemQuantityRequest {
-    compat::u32 item_list_token{};
-    compat::u16 item_id{};
-    compat::u32 eax{};
-    compat::u32 ecx{};
-    compat::u32 edx{};
-};
-
-struct LegacyBattleGroupAEmbeddedProfileItemQuantityReply {
-    compat::u32 eax{};
-    compat::u32 ecx{};
-    compat::u32 edx{};
-};
-
-class LegacyBattleGroupAEmbeddedProfileApplicationPort {
+class LegacyBattleGroupAEmbeddedProfileApplicationPort
+    : public virtual LegacyBattleFixedObjectStatePort {
 public:
-    virtual ~LegacyBattleGroupAEmbeddedProfileApplicationPort() = default;
-
-    [[nodiscard]] virtual LegacyBattleGroupAEmbeddedProfileItemQuantityReply
-    lookup_embedded_profile_item_quantity(
-        const LegacyBattleGroupAEmbeddedProfileItemQuantityRequest& request
-    ) = 0;
+    ~LegacyBattleGroupAEmbeddedProfileApplicationPort() override = default;
 };
 
 struct LegacyBattleGroupAEmbeddedProfileApplicationRequest {
@@ -46,6 +29,7 @@ struct LegacyBattleGroupAEmbeddedProfileApplicationRequest {
 enum class LegacyBattleGroupAEmbeddedProfileApplicationStatus : compat::u8 {
     completed,
     profile_typed_stop,
+    fixed_curve_typed_stop,
     actor_state_typed_stop,
     actor_record_typed_stop,
 };
@@ -56,7 +40,8 @@ struct LegacyBattleGroupAEmbeddedProfileApplicationResult {
     };
     compat::u16 profile_kind{};
     compat::u16 item_id{};
-    compat::u32 port_calls{};
+    LegacyBattleFixedCurveLookupResult fixed_curve{};
+    compat::u32 fixed_curve_query_count{};
     compat::u32 status_writes{};
     compat::u32 actor_word_writes{};
     compat::u32 actor_byte_writes{};

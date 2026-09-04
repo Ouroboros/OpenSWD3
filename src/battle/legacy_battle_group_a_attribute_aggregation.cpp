@@ -156,24 +156,9 @@ public:
     ) noexcept
         : port_(port) {}
 
-    [[nodiscard]] LegacyBattleGroupAEmbeddedProfileItemQuantityReply
-    lookup_embedded_profile_item_quantity(
-        const LegacyBattleGroupAEmbeddedProfileItemQuantityRequest& request
-    ) override {
-        const auto reply = port_.invoke_group_a_attribute_aggregation({
-            .call = LegacyBattleGroupAAttributeAggregationCall::
-                lookup_embedded_profile_item_quantity,
-            .actor_token = request.ecx,
-            .item_id = request.item_id,
-            .eax = request.eax,
-            .ecx = request.ecx,
-            .edx = request.edx,
-        });
-        return {
-            .eax = reply.eax,
-            .ecx = reply.ecx,
-            .edx = reply.edx,
-        };
+    [[nodiscard]] LegacyBattleFixedObjectState&
+    legacy_battle_fixed_object_state() noexcept override {
+        return port_.legacy_battle_fixed_object_state();
     }
 
 private:
@@ -318,7 +303,6 @@ aggregate_legacy_battle_group_a_attributes(
                 }
             );
             ++result.embedded_profile_apply_calls;
-            result.port_calls += application.port_calls;
             result.return_eax = application.return_eax;
             result.return_ecx = application.return_ecx;
             result.return_edx = application.return_edx;

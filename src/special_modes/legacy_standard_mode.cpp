@@ -17,6 +17,7 @@ namespace {
 constexpr compat::u16 kEntrySoundId = 0x00BBU;
 constexpr compat::u32 kMonProfileScratchToken = 0x004BAB74U;
 constexpr compat::u32 kMonFileNameToken = 0x004AAED0U;
+constexpr compat::u32 kGuardianAttributeScratchToken = 0x004FCD4CU;
 
 [[nodiscard]] constexpr compat::u16 read_mon_profile_word(
     const battle::LegacyBattleMonProfile& profile, const std::size_t offset
@@ -9167,15 +9168,27 @@ LegacyPartyDialogPageResult populate_legacy_party_dialog_page(
                 return value == mask;
             };
             if (matches(state.item_category_masks[0U])) {
-                const std::optional<compat::u16> queried =
-                    ports.query_first_added_value(record->text_index);
+                result.fixed_curve = battle::lookup_legacy_battle_fixed_curve(
+                    ports.legacy_battle_fixed_object_state(),
+                    {
+                        .key = record->text_index,
+                        .entry_eax = 0xFFFFFFFFU,
+                        .entry_ecx = 0xFFFFFFFFU,
+                        .entry_edx =
+                            (state.item_category_masks[0U] & 0xFFFF0000U) |
+                            record->text_index,
+                    }
+                );
+                ++result.fixed_curve_query_count;
                 ++result.added_value_query_count;
-                if (!queried.has_value()) {
+                if (result.fixed_curve.status !=
+                    battle::LegacyBattleFixedCountStatus::completed) {
                     result.status =
-                        LegacyPartyDialogPageStatus::added_value_query_stopped;
+                        LegacyPartyDialogPageStatus::fixed_curve_typed_stop;
                     return result;
                 }
-                added_value = *queried;
+                added_value =
+                    static_cast<compat::u16>(result.fixed_curve.return_eax);
                 denominator = 0;
             }
             if (matches(state.item_category_masks[1U])) {
@@ -18454,17 +18467,30 @@ finalize_legacy_standard_mode_guardian_attribute_summary(
             return result;
         }
         if (seed->text_index != 0xFFDCU) {
-            const std::optional<compat::u16> value =
-                ports.query_guardian_slot_zero_attribute(seed->text_index);
-            if (!value.has_value()) {
+            result.fixed_curve = battle::lookup_legacy_battle_fixed_curve(
+                ports.legacy_battle_fixed_object_state(),
+                {
+                    .key = seed->text_index,
+                    .entry_eax = seed->text_index,
+                    .entry_ecx = state.attribute_cache_token +
+                        static_cast<compat::u32>(destination_offset),
+                    .entry_edx = kGuardianAttributeScratchToken,
+                }
+            );
+            ++result.fixed_curve_query_count;
+            if (result.fixed_curve.status !=
+                battle::LegacyBattleFixedCountStatus::completed) {
                 result.status =
                     LegacyStandardModeGuardianAttributeSummaryStatus::
-                        query_stopped;
+                        fixed_curve_typed_stop;
                 return result;
             }
-            write_dword(0x44U, *value);
+            write_dword(
+                0x44U, static_cast<compat::u16>(result.fixed_curve.return_eax)
+            );
         }
     }
+
     write_dword(0x48U, 0xFFFFFFFFU);
     if (guardian_slot == 7U || guardian_slot == 8U) {
         if (seed == nullptr) {
@@ -18488,6 +18514,7 @@ finalize_legacy_standard_mode_guardian_attribute_summary(
             );
         }
     }
+
     write_dword(0x4CU, 0xFFFFFFFFU);
     result.legacy_return_value = std::bit_cast<compat::i32>(guardian_slot);
     if (guardian_slot == 9U || guardian_slot == 0x0AU) {
@@ -18500,7 +18527,10 @@ finalize_legacy_standard_mode_guardian_attribute_summary(
         if (seed->text_index != 0xFFDCU) {
             result.fixed_count = battle::lookup_legacy_battle_fixed_count(
                 ports.legacy_battle_fixed_object_state(),
-                {.key = seed->text_index}
+                {
+                    .key = seed->text_index,
+                    .entry_edx = kGuardianAttributeScratchToken,
+                }
             );
             ++result.fixed_count_query_count;
             if (result.fixed_count.status !=
@@ -18517,6 +18547,7 @@ finalize_legacy_standard_mode_guardian_attribute_summary(
             );
         }
     }
+
     return result;
 }
 
