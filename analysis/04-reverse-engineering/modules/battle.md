@@ -2,7 +2,7 @@
 
 状态：`module_in_progress`
 
-当前关闭进度：`276/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
+当前关闭进度：`277/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
 
 ## 1. 唯一真值与模块目标
 
@@ -763,6 +763,8 @@ I5最终必须锁定：
 
 本轮再完成`audit_order=276`的`0x00478250`战斗角色公共前部初始化函数。完整权威LST主体`0x00478250..0x004782FF`从proc到endp共63个物理行、35条实际指令、0个call、0个跳转、0个局部标签和1个返回点，没有外部chunk。函数保存this到EDX并严格按原顺序执行53次dword、10次word和1次byte写：先把四目标槽写全一，再写回合/动作/高偏移控制字段、四个动作文本dword，最后以41-dword `rep stosd`清零`+0x10..+0xB3` definition；正常返回`EAX=this,ECX=0,EDX=this`。实现以公共typed视图复用组B现有definition、动作文本、动作种类及执行状态唯一owner，组A和固定单例补齐同一物理前部owner；对象前缀、动作文本和definition的每个可达原写访问均typed-stop，保留已完成写入、EAX/ECX/EDX及未到达说明owner，不增加短对象继续路径。`0x00451875`单例尾跳、`0x0046E494`组A调用和`0x00475564`组B调用三处物理xref均删除本函数opaque边界并直接组合；公共前部停止分别阻断`_atexit`注册、组A尾字段/分配和组B分配。验证：定向测试`2/2`、AddressSanitizer`197/197`、Linux core`197/197`、Linux app`203/203`、连续10轮完整core、clang-format和release审计全部通过，最终日志零OpenSWD3源码warning、测试失败、sanitizer finding或runtime error；未启动原版或OpenSWD3游戏程序。工作包为`276/422 = 266 platform_adapted + 10 assembly_exact + 146 pending_audit`；生成器连续双跑逐字节一致，SHA256为`6ef0923452f60cf13342d07e9bd6ef861b3b5100602169723c1ee53b61679cd0`。动态差分因原版组A/组B/单例完整对象、异常写访问、definition说明堆及三caller联合寄存器捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=277`的`0x00478300`战斗函数。
+本轮再完成`audit_order=277`的`0x00478300`战斗角色公共前部析构函数。完整权威LST主体`0x00478300..0x00478321`从proc到endp共21个物理行、11条实际指令、1个call、1个条件跳转、1个局部标签和1个返回点，没有外部chunk；唯一callee为固定CRT释放包装`0x004885A0`。函数无条件读取`actor+0xB0`说明token，零值直接返回EAX零并保留ECX/EDX；非零值先释放，只有callee正常返回后才把token清零，最终EAX/ECX/EDX保留callee残值。typed实现复用公共构造建立的同一definition与说明owner，把对象读、callee和对象写分为三个原访问点，释放后写停止保留已完成说明失效副作用和未清token，不增加短对象继续路径。组A/组B元素析构正常call、两个SEH cleanup chunk尾跳及固定单例wrapper尾跳共五处物理到达点均删除公共析构opaque边界并直接组合；正常元素epilogue只在基础析构完整返回后恢复旧SEH链，单例wrapper保持固定ECX和入口EAX/EDX线程。验证：定向测试`2/2`、Linux core`198/198`、AddressSanitizer`198/198`、Linux app`204/204`、连续10轮完整core、clang-format和release审计全部通过，日志零OpenSWD3源码warning、测试失败、sanitizer finding或runtime error；未启动原版或OpenSWD3游戏程序。工作包为`277/422 = 267 platform_adapted + 10 assembly_exact + 145 pending_audit`；生成器连续双跑逐字节一致，SHA256为`1c69ea1c505789e9aca8f17d3312c303745d05abaf767ba4189b04a372e043c9`。动态差分因原版组A/组B/单例完整对象、说明堆、CRT释放边界、异常访问及五caller联合寄存器/SEH捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=278`的`0x00478330`战斗函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

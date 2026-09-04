@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_actor_base_initialization.hpp"
+#include "openswd3/battle/legacy_battle_actor_base_release.hpp"
 #include "openswd3/battle/legacy_battle_group_a_resource_cleanup.hpp"
 #include "openswd3/battle/legacy_battle_group_b_resource_cleanup.hpp"
 #include "openswd3/compat/types.hpp"
@@ -78,6 +79,7 @@ public:
 
 struct LegacyBattleActorGroupAElementState {
     compat::u32 object_token{};
+    compat::u32 object_readable_bytes{kLegacyBattleActorGroupAElementSize};
     compat::u32 object_writable_bytes{kLegacyBattleActorGroupAElementSize};
     LegacyBattleActorBaseInitializationOwner base_initialization{};
     LegacyBattleGroupAResourceCleanupState resource_cleanup{};
@@ -95,6 +97,13 @@ struct LegacyBattleActorGroupAElementCallReply {
 struct LegacyBattleActorElementDestructionRequest {
     compat::u32 seh_chain_token{};
     compat::u32 entry_edx{};
+    compat::u32 unwind_eax{};
+    compat::u32 unwind_edx{};
+};
+
+struct LegacyBattleActorSingletonReleaseRequest {
+    compat::u32 entry_eax{};
+    compat::u32 entry_edx{};
 };
 
 class LegacyBattleActorGroupAElementConstructionPort {
@@ -106,12 +115,10 @@ public:
 };
 
 class LegacyBattleActorGroupAElementDestructionPort
-    : public virtual LegacyBattleGroupAResourceReleasePort {
+    : public virtual LegacyBattleGroupAResourceReleasePort,
+      public virtual LegacyBattleActorBaseReleasePort {
 public:
     virtual ~LegacyBattleActorGroupAElementDestructionPort() = default;
-
-    [[nodiscard]] virtual LegacyBattleActorGroupAElementCallReply
-    destroy_base(LegacyBattleActorGroupAElementState& state) = 0;
 };
 
 struct LegacyBattleGroupBActionRecord {
@@ -151,6 +158,7 @@ struct LegacyBattleGroupBActionCompositionState {
 
 struct LegacyBattleActorGroupBElementState {
     compat::u32 object_token{};
+    compat::u32 object_readable_bytes{kLegacyBattleActorGroupBElementSize};
     compat::u32 object_writable_bytes{kLegacyBattleActorGroupBElementSize};
     LegacyBattleActorBaseInitializationFields base_initialization{};
     compat::u32 resource_token{};
@@ -177,23 +185,16 @@ public:
 };
 
 class LegacyBattleActorGroupBElementDestructionPort
-    : public virtual LegacyBattleGroupBResourceReleasePort {
+    : public virtual LegacyBattleGroupBResourceReleasePort,
+      public virtual LegacyBattleActorBaseReleasePort {
 public:
     virtual ~LegacyBattleActorGroupBElementDestructionPort() = default;
-
-    [[nodiscard]] virtual LegacyBattleActorGroupBElementCallReply
-    destroy_base(LegacyBattleActorGroupBElementState& state) = 0;
-};
-
-class LegacyBattleActorObjectLifecyclePort {
-public:
-    virtual ~LegacyBattleActorObjectLifecyclePort() = default;
-
-    [[nodiscard]] virtual compat::u32
-    destroy_object(compat::u32 object_token) = 0;
 };
 
 struct LegacyBattleActorSingletonState {
+    compat::u32 object_readable_bytes{
+        kLegacyBattleActorBaseMinimumWritableBytes
+    };
     compat::u32 object_writable_bytes{
         kLegacyBattleActorBaseMinimumWritableBytes
     };
@@ -241,6 +242,7 @@ struct LegacyBattleActorGroupBElementConstructionResult {
 enum class LegacyBattleActorGroupBElementDestructionStatus : compat::u8 {
     completed,
     resource_cleanup_typed_stop,
+    base_release_typed_stop,
 };
 
 struct LegacyBattleActorGroupBElementDestructionResult {
@@ -248,6 +250,7 @@ struct LegacyBattleActorGroupBElementDestructionResult {
         LegacyBattleActorGroupBElementDestructionStatus::completed
     };
     LegacyBattleGroupBResourceCleanupResult resource_cleanup{};
+    LegacyBattleActorBaseReleaseResult base_release{};
     compat::u32 extension_destructor_calls{};
     compat::u32 base_destructor_calls{};
     compat::u32 return_eax{};
@@ -258,6 +261,7 @@ struct LegacyBattleActorGroupBElementDestructionResult {
 enum class LegacyBattleActorGroupAElementDestructionStatus : compat::u8 {
     completed,
     resource_cleanup_typed_stop,
+    base_release_typed_stop,
 };
 
 struct LegacyBattleActorGroupAElementDestructionResult {
@@ -265,6 +269,7 @@ struct LegacyBattleActorGroupAElementDestructionResult {
         LegacyBattleActorGroupAElementDestructionStatus::completed
     };
     LegacyBattleGroupAResourceCleanupResult resource_cleanup{};
+    LegacyBattleActorBaseReleaseResult base_release{};
     compat::u32 resource_cleanup_calls{};
     compat::u32 base_destructor_calls{};
     compat::u32 return_eax{};
@@ -313,6 +318,7 @@ struct LegacyBattleActorGroupBStaticInitializationResult {
 struct LegacyBattleActorSingletonOperationResult {
     compat::u32 object_token{};
     LegacyBattleActorBaseInitializationResult base_initialization{};
+    LegacyBattleActorBaseReleaseResult base_release{};
     compat::u32 object_operation_calls{};
     compat::u32 return_value{};
 };
@@ -370,7 +376,9 @@ construct_legacy_battle_actor_singleton(LegacyBattleActorSingletonState& state);
 // sub_451890: load the singleton token and tail-call its destructor.
 [[nodiscard]] LegacyBattleActorSingletonOperationResult
 release_legacy_battle_actor_singleton(
-    LegacyBattleActorObjectLifecyclePort& object_lifecycle_port
+    LegacyBattleActorSingletonState& state,
+    LegacyBattleActorBaseReleasePort& release_port,
+    LegacyBattleActorSingletonReleaseRequest request = {}
 );
 
 // sub_4517B0: wrap the compiler vector-construction iterator for group A.
