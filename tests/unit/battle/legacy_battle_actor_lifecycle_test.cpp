@@ -16,23 +16,14 @@ class TrackingGroupAElementPort final
     : public openswd3::battle::LegacyBattleActorGroupAElementConstructionPort {
 public:
     [[nodiscard]] openswd3::battle::LegacyBattleActorGroupAElementCallReply
-    construct_base(const u32 object_token) override {
-        events.push_back(1U);
-        base_object_token = object_token;
-        return base_reply;
-    }
-
-    [[nodiscard]] openswd3::battle::LegacyBattleActorGroupAElementCallReply
     allocate(const u32 size) override {
         events.push_back(2U);
         allocation_size = size;
         return allocation_reply;
     }
 
-    openswd3::battle::LegacyBattleActorGroupAElementCallReply base_reply{};
     openswd3::battle::LegacyBattleActorGroupAElementCallReply
         allocation_reply{};
-    u32 base_object_token{};
     u32 allocation_size{};
     std::vector<u32> events;
 };
@@ -41,23 +32,14 @@ class TrackingGroupBElementPort final
     : public openswd3::battle::LegacyBattleActorGroupBElementConstructionPort {
 public:
     [[nodiscard]] openswd3::battle::LegacyBattleActorGroupBElementCallReply
-    construct_base(const u32 object_token) override {
-        events.push_back(1U);
-        base_object_token = object_token;
-        return base_reply;
-    }
-
-    [[nodiscard]] openswd3::battle::LegacyBattleActorGroupBElementCallReply
     allocate(const u32 size) override {
         events.push_back(2U);
         allocation_size = size;
         return allocation_reply;
     }
 
-    openswd3::battle::LegacyBattleActorGroupBElementCallReply base_reply{};
     openswd3::battle::LegacyBattleActorGroupBElementCallReply
         allocation_reply{};
-    u32 base_object_token{};
     u32 allocation_size{};
     std::vector<u32> events;
 };
@@ -265,12 +247,6 @@ class TrackingActorSingletonStaticLifecyclePort final
     : public openswd3::battle::LegacyBattleActorObjectLifecyclePort,
       public openswd3::battle::LegacyBattleActorExitRegistrationPort {
 public:
-    [[nodiscard]] u32 construct_object(const u32 object_token) override {
-        events.push_back(7U);
-        constructed_object_token = object_token;
-        return construction_result;
-    }
-
     [[nodiscard]] u32 destroy_object(const u32 object_token) override {
         events.push_back(9U);
         destroyed_object_token = object_token;
@@ -280,15 +256,19 @@ public:
     [[nodiscard]] u32 register_exit_cleanup(const u32 cleanup_token) override {
         events.push_back(8U);
         registered_cleanup_token = cleanup_token;
+        construction_observed_at_registration = observed_state != nullptr &&
+            observed_state->base_initialization.fields.field_29a2 == 0xFFFFU &&
+            observed_state->base_initialization.action_execution
+                    .target_indices[0U] == 0xFFFFFFFFU;
         return registration_result;
     }
 
-    u32 construction_result{};
+    const openswd3::battle::LegacyBattleActorSingletonState* observed_state{};
     u32 destruction_result{};
     u32 registration_result{};
-    u32 constructed_object_token{};
     u32 destroyed_object_token{};
     u32 registered_cleanup_token{};
+    bool construction_observed_at_registration{};
     std::vector<u32> events;
 };
 
@@ -357,9 +337,11 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
             .field_2f18 = 0x1111U,
             .field_2f26 = 0x2222U,
         };
+        state.base_initialization.resource_definition.fill(0xB5U);
+        state.base_initialization.action_text.fill(0xC5U);
+        state.base_initialization.action_execution.target_indices.fill(0U);
         state.description_bytes.fill(0xA5U);
         TrackingGroupAElementPort port;
-        port.base_reply = {.eax = 0x10U, .ecx = 0x20U, .edx = 0x30U};
         port.allocation_reply = {
             .eax = 0x70000000U,
             .ecx = 0x55667788U,
@@ -370,8 +352,7 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                 state, port
             );
         test.expect_true(
-            port.events == std::vector<u32>{1U, 2U} &&
-                port.base_object_token == state.object_token &&
+            port.events == std::vector<u32>{2U} &&
                 port.allocation_size == 0x38U && state.field_2f18 == 0U &&
                 state.field_2f26 == 0U &&
                 state.resource_cleanup.primary_resource_token == 0x70000000U &&
@@ -379,10 +360,21 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                     state.description_bytes,
                     [](const auto value) { return value == 0U; }
                 ) &&
+                std::ranges::all_of(
+                    state.base_initialization.resource_definition,
+                    [](const auto value) { return value == 0U; }
+                ) &&
+                std::ranges::all_of(
+                    state.base_initialization.action_execution.target_indices,
+                    [](const auto value) { return value == 0xFFFFFFFFU; }
+                ) &&
                 result.status ==
                     openswd3::battle::
                         LegacyBattleActorGroupAElementConstructionStatus::
                             completed &&
+                result.base_initialization.status ==
+                    openswd3::battle::
+                        LegacyBattleActorBaseInitializationStatus::completed &&
                 result.base_constructor_calls == 1U &&
                 result.allocation_calls == 1U &&
                 result.description_bytes_written == 0x38U &&
@@ -428,9 +420,11 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
             .object_token = 0x00525508U,
             .resource_token = 0x11111111U,
         };
+        state.action_composition.resource_definition.fill(0xB5U);
+        state.action_composition.action_text.fill(0xC5U);
+        state.action_execution.target_indices.fill(0U);
         state.resource_bytes.fill(0xA5U);
         TrackingGroupBElementPort port;
-        port.base_reply = {.eax = 0x10U, .ecx = 0x20U, .edx = 0x30U};
         port.allocation_reply = {
             .eax = 0x71000000U,
             .ecx = 0x55667788U,
@@ -441,18 +435,28 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                 state, port
             );
         test.expect_true(
-            port.events == std::vector<u32>{1U, 2U} &&
-                port.base_object_token == state.object_token &&
+            port.events == std::vector<u32>{2U} &&
                 port.allocation_size == 0xA4U &&
                 state.resource_token == 0x71000000U &&
                 std::ranges::all_of(
                     state.resource_bytes,
                     [](const auto value) { return value == 0U; }
                 ) &&
+                std::ranges::all_of(
+                    state.action_composition.resource_definition,
+                    [](const auto value) { return value == 0U; }
+                ) &&
+                std::ranges::all_of(
+                    state.action_execution.target_indices,
+                    [](const auto value) { return value == 0xFFFFFFFFU; }
+                ) &&
                 result.status ==
                     openswd3::battle::
                         LegacyBattleActorGroupBElementConstructionStatus::
                             completed &&
+                result.base_initialization.status ==
+                    openswd3::battle::
+                        LegacyBattleActorBaseInitializationStatus::completed &&
                 result.base_constructor_calls == 1U &&
                 result.allocation_calls == 1U &&
                 result.resource_bytes_written == 0xA4U &&
@@ -475,8 +479,7 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                 state, port
             );
         test.expect_true(
-            port.events == std::vector<u32>{1U, 2U} &&
-                port.base_object_token == state.object_token &&
+            port.events == std::vector<u32>{2U} &&
                 port.allocation_size == 0xA4U && state.resource_token == 0U &&
                 std::ranges::all_of(
                     state.resource_bytes,
@@ -492,6 +495,72 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                 result.return_eax == 0U && result.return_ecx == 0x29U &&
                 result.return_edx == 8U,
             "zero group-B allocation stops at the first resource write after publishing the null token"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleActorGroupAElementState state{
+            .object_token = 0x005029D0U,
+            .object_writable_bytes = 0x2A56U,
+            .field_2f18 = 0x1111U,
+            .field_2f26 = 0x2222U,
+        };
+        state.base_initialization.action_execution.target_indices.fill(
+            0x12345678U
+        );
+        state.description_bytes.fill(0xA5U);
+        TrackingGroupAElementPort port;
+        port.allocation_reply = {.eax = 0x70000000U};
+        const auto result =
+            openswd3::battle::construct_legacy_battle_actor_group_a_element(
+                state, port
+            );
+        test.expect_true(
+            port.events.empty() && state.field_2f18 == 0x1111U &&
+                state.field_2f26 == 0x2222U &&
+                state.resource_cleanup.primary_resource_token == 0U &&
+                state.base_initialization.action_execution.target_indices[0U] ==
+                    0x12345678U &&
+                result.status ==
+                    openswd3::battle::
+                        LegacyBattleActorGroupAElementConstructionStatus::
+                            base_construction_typed_stop &&
+                result.base_constructor_calls == 1U &&
+                result.allocation_calls == 0U &&
+                result.return_eax == 0xFFFFFFFFU &&
+                result.return_ecx == 0x00505426U &&
+                result.return_edx == state.object_token,
+            "group-A construction stops before tail fields and allocation when the common prefix is inaccessible"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleActorGroupBElementState state{
+            .object_token = 0x00525508U,
+            .object_writable_bytes = 0x2A56U,
+            .resource_token = 0x71000000U,
+        };
+        state.action_execution.target_indices.fill(0x12345678U);
+        state.resource_bytes.fill(0xA5U);
+        TrackingGroupBElementPort port;
+        port.allocation_reply = {.eax = 0x72000000U};
+        const auto result =
+            openswd3::battle::construct_legacy_battle_actor_group_b_element(
+                state, port
+            );
+        test.expect_true(
+            port.events.empty() && state.resource_token == 0x71000000U &&
+                state.action_execution.target_indices[0U] == 0x12345678U &&
+                result.status ==
+                    openswd3::battle::
+                        LegacyBattleActorGroupBElementConstructionStatus::
+                            base_construction_typed_stop &&
+                result.base_constructor_calls == 1U &&
+                result.allocation_calls == 0U &&
+                result.return_eax == 0xFFFFFFFFU &&
+                result.return_ecx == 0x00527F5EU &&
+                result.return_edx == state.object_token,
+            "group-B construction stops before allocation when the common prefix is inaccessible"
         );
     }
 
@@ -789,36 +858,47 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
     }
 
     for (const u32 registration_result : {0U, 0xFFFFFFFFU}) {
+        openswd3::battle::LegacyBattleActorSingletonState singleton_state;
+        singleton_state.base_initialization.resource_definition.fill(0xA5U);
+        singleton_state.base_initialization.action_execution.target_indices
+            .fill(0U);
         TrackingActorSingletonStaticLifecyclePort lifecycle_port;
-        lifecycle_port.construction_result = 0xCAFEBABEU;
+        lifecycle_port.observed_state = &singleton_state;
         lifecycle_port.registration_result = registration_result;
         const auto result = openswd3::battle::
             initialize_legacy_battle_actor_singleton_static_lifecycle(
-                lifecycle_port, lifecycle_port
+                singleton_state, lifecycle_port
             );
         test.expect_true(
-            lifecycle_port.events == std::vector<u32>{7U, 8U} &&
-                lifecycle_port.constructed_object_token ==
-                    openswd3::battle::kLegacyBattleActorSingletonToken &&
+            lifecycle_port.events == std::vector<u32>{8U} &&
+                lifecycle_port.construction_observed_at_registration &&
                 lifecycle_port.registered_cleanup_token ==
                     openswd3::battle::
                         kLegacyBattleActorSingletonExitCleanupToken &&
+                result.status ==
+                    openswd3::battle::
+                        LegacyBattleActorSingletonStaticInitializationStatus::
+                            completed &&
+                result.construction.status ==
+                    openswd3::battle::
+                        LegacyBattleActorBaseInitializationStatus::completed &&
                 result.construct_calls == 1U &&
-                result.construction_return_value == 0xCAFEBABEU &&
+                result.construction_return_value ==
+                    openswd3::battle::kLegacyBattleActorSingletonToken &&
                 result.exit_registration_calls == 1U &&
                 result.return_value == registration_result,
-            "actor singleton construction precedes its typed exit registration"
+            "actor singleton typed construction precedes its exit registration"
         );
     }
 
     {
+        openswd3::battle::LegacyBattleActorSingletonState singleton_state;
+        singleton_state.base_initialization.resource_definition.fill(0xA5U);
         TrackingActorSingletonStaticLifecyclePort object_lifecycle_port;
-        object_lifecycle_port.construction_result = 0x10203040U;
         const auto construction =
             openswd3::battle::construct_legacy_battle_actor_singleton(
-                object_lifecycle_port
+                singleton_state
             );
-        object_lifecycle_port.events.clear();
         object_lifecycle_port.destruction_result = 0x90807060U;
         const auto destruction =
             openswd3::battle::release_legacy_battle_actor_singleton(
@@ -827,10 +907,16 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
         test.expect_true(
             construction.object_token ==
                     openswd3::battle::kLegacyBattleActorSingletonToken &&
+                construction.base_initialization.status ==
+                    openswd3::battle::
+                        LegacyBattleActorBaseInitializationStatus::completed &&
                 construction.object_operation_calls == 1U &&
-                construction.return_value == 0x10203040U &&
-                object_lifecycle_port.constructed_object_token ==
+                construction.return_value ==
                     openswd3::battle::kLegacyBattleActorSingletonToken &&
+                std::ranges::all_of(
+                    singleton_state.base_initialization.resource_definition,
+                    [](const auto value) { return value == 0U; }
+                ) &&
                 object_lifecycle_port.events == std::vector<u32>{9U} &&
                 destruction.object_token ==
                     openswd3::battle::kLegacyBattleActorSingletonToken &&
@@ -838,7 +924,36 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                 destruction.return_value == 0x90807060U &&
                 object_lifecycle_port.destroyed_object_token ==
                     openswd3::battle::kLegacyBattleActorSingletonToken,
-            "actor singleton wrappers tail-call constructor and destructor on one token"
+            "actor singleton typed constructor and opaque destructor share one token"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleActorSingletonState singleton_state;
+        singleton_state.object_writable_bytes = 0x2A56U;
+        singleton_state.base_initialization.action_execution.target_indices
+            .fill(0x12345678U);
+        TrackingActorSingletonStaticLifecyclePort lifecycle_port;
+        lifecycle_port.observed_state = &singleton_state;
+        lifecycle_port.registration_result = 0xFFFFFFFFU;
+        const auto result = openswd3::battle::
+            initialize_legacy_battle_actor_singleton_static_lifecycle(
+                singleton_state, lifecycle_port
+            );
+        test.expect_true(
+            lifecycle_port.events.empty() &&
+                !lifecycle_port.construction_observed_at_registration &&
+                singleton_state.base_initialization.action_execution
+                        .target_indices[0U] == 0x12345678U &&
+                result.status ==
+                    openswd3::battle::
+                        LegacyBattleActorSingletonStaticInitializationStatus::
+                            construction_typed_stop &&
+                result.construct_calls == 1U &&
+                result.exit_registration_calls == 0U &&
+                result.construction_return_value == 0xFFFFFFFFU &&
+                result.return_value == 0xFFFFFFFFU,
+            "singleton static construction stops before exit registration when the common prefix is inaccessible"
         );
     }
 

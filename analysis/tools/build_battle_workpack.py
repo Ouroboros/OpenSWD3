@@ -1136,6 +1136,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-mon-definition-text-release-00478220.md",
     ),
+    "0x00478250": (
+        "platform_adapted",
+        "evidence/battle-actor-base-initialization-00478250.md",
+    ),
 }
 
 

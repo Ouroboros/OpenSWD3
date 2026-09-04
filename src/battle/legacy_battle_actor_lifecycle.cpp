@@ -8,8 +8,24 @@ construct_legacy_battle_actor_group_a_element(
     LegacyBattleActorGroupAElementConstructionPort& port
 ) {
     LegacyBattleActorGroupAElementConstructionResult result;
-    static_cast<void>(port.construct_base(state.object_token));
+    result.base_initialization = initialize_legacy_battle_actor_base(
+        state.base_initialization,
+        {
+            .object_token = state.object_token,
+            .writable_bytes = state.object_writable_bytes,
+        }
+    );
     ++result.base_constructor_calls;
+    if (result.base_initialization.status !=
+        LegacyBattleActorBaseInitializationStatus::completed) {
+        result.status = LegacyBattleActorGroupAElementConstructionStatus::
+            base_construction_typed_stop;
+        result.return_eax = result.base_initialization.return_eax;
+        result.return_ecx = result.base_initialization.return_ecx;
+        result.return_edx = result.base_initialization.return_edx;
+        return result;
+    }
+
     state.field_2f26 = 0U;
     state.field_2f18 = 0U;
 
@@ -40,8 +56,28 @@ construct_legacy_battle_actor_group_b_element(
     LegacyBattleActorGroupBElementConstructionPort& port
 ) {
     LegacyBattleActorGroupBElementConstructionResult result;
-    static_cast<void>(port.construct_base(state.object_token));
+    result.base_initialization = initialize_legacy_battle_actor_base(
+        state.base_initialization,
+        state.action_execution,
+        state.action_composition.resource_definition,
+        state.action_composition.resource_definition_description,
+        state.action_composition.action_text,
+        state.action_composition.action_kind,
+        {
+            .object_token = state.object_token,
+            .writable_bytes = state.object_writable_bytes,
+        }
+    );
     ++result.base_constructor_calls;
+    if (result.base_initialization.status !=
+        LegacyBattleActorBaseInitializationStatus::completed) {
+        result.status = LegacyBattleActorGroupBElementConstructionStatus::
+            base_construction_typed_stop;
+        result.return_eax = result.base_initialization.return_eax;
+        result.return_ecx = result.base_initialization.return_ecx;
+        result.return_edx = result.base_initialization.return_edx;
+        return result;
+    }
 
     const auto allocation = port.allocate(0xA4U);
     ++result.allocation_calls;
@@ -251,14 +287,20 @@ initialize_legacy_battle_actor_group_b_static_lifecycle(
 
 LegacyBattleActorSingletonOperationResult
 construct_legacy_battle_actor_singleton(
-    LegacyBattleActorObjectLifecyclePort& object_lifecycle_port
+    LegacyBattleActorSingletonState& state
 ) {
     LegacyBattleActorSingletonOperationResult result{
         .object_token = kLegacyBattleActorSingletonToken,
     };
-    result.return_value =
-        object_lifecycle_port.construct_object(result.object_token);
+    result.base_initialization = initialize_legacy_battle_actor_base(
+        state.base_initialization,
+        {
+            .object_token = result.object_token,
+            .writable_bytes = state.object_writable_bytes,
+        }
+    );
     result.object_operation_calls = 1U;
+    result.return_value = result.base_initialization.return_eax;
     return result;
 }
 
@@ -276,14 +318,22 @@ LegacyBattleActorSingletonOperationResult release_legacy_battle_actor_singleton(
 
 LegacyBattleActorSingletonStaticInitializationResult
 initialize_legacy_battle_actor_singleton_static_lifecycle(
-    LegacyBattleActorObjectLifecyclePort& object_lifecycle_port,
+    LegacyBattleActorSingletonState& state,
     LegacyBattleActorExitRegistrationPort& exit_registration_port
 ) {
     LegacyBattleActorSingletonStaticInitializationResult result;
-    const auto construction =
-        construct_legacy_battle_actor_singleton(object_lifecycle_port);
+    const auto construction = construct_legacy_battle_actor_singleton(state);
+    result.construction = construction.base_initialization;
     result.construction_return_value = construction.return_value;
     result.construct_calls = 1U;
+    if (construction.base_initialization.status !=
+        LegacyBattleActorBaseInitializationStatus::completed) {
+        result.status = LegacyBattleActorSingletonStaticInitializationStatus::
+            construction_typed_stop;
+        result.return_value = construction.return_value;
+        return result;
+    }
+
     result.return_value = exit_registration_port.register_exit_cleanup(
         kLegacyBattleActorSingletonExitCleanupToken
     );

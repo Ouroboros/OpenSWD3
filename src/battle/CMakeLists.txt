@@ -24,6 +24,7 @@ add_library(
         legacy_battle_reward_scale.cpp
         legacy_battle_actor_frame_sequence.cpp
         legacy_battle_animation_collision.cpp
+        legacy_battle_actor_base_initialization.cpp
         legacy_battle_actor_lifecycle.cpp
         legacy_battle_actor_list_index_commit.cpp
         legacy_battle_actor_list_query.cpp

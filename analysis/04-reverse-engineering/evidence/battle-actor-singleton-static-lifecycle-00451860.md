@@ -14,7 +14,7 @@
 
 主体调用`0x00451870`单例构造包装器。工作包不把`0x00451870`与`0x00451890`列为独立候选；两者各9行，均把固定对象token `0x00521598`装入ECX后分别尾跳元素构造`0x00478250`与析构`0x00478300`。因此本项同步审计并typed闭合两个附件wrapper，但只为主函数计一次工作包关闭。
 
-构造返回不参与控制流；typed结果仅保存snapshot，最终返回由注册覆盖。元素构造/析构本体仍按其独立工作包顺序关闭。
+构造返回不参与正常控制流；typed结果仅保存snapshot，最终返回由注册覆盖。公共元素构造`0x00478250`现已独立关闭并直接组合；析构本体`0x00478300`仍按其独立工作包顺序关闭。若构造在原写访问处typed-stop，静态入口保留已完成公共前缀并阻断`_atexit`注册。
 
 ## 3. 外部chunk与退出注册
 
@@ -31,11 +31,11 @@ chunk执行：
 
 ## 4. 附件尾跳包装器
 
-`0x00451870`完整9行：`mov ecx,0x00521598`后`jmp 0x00478250`，没有返回层；typed constructor helper向object lifecycle port传入固定token并原样传播尾调用EAX。
+`0x00451870`完整9行：`mov ecx,0x00521598`后`jmp 0x00478250`，没有返回层；typed constructor helper直接对固定token的单例公共前部owner执行64次原始写入，正常原样返回该token，不再经过opaque object lifecycle port。
 
-`0x00451890`完整9行：同样装入`0x00521598`后`jmp 0x00478300`；typed destructor helper使用相同token并原样传播EAX。
+`0x00451890`完整9行：同样装入`0x00521598`后`jmp 0x00478300`；typed destructor helper继续使用相同token并原样传播尚未审计的析构EAX。
 
-静态初始化器已删除临时singleton construction entry，直接调用typed constructor。CRT registration port注册的token对应typed destructor。不能把本单例误作组A/组B向量中的元素或复用向量参数。
+静态初始化器直接调用typed constructor，只有完整成功后才通过CRT registration port注册typed destructor token。不能把本单例误作组A/组B向量中的元素或复用向量参数。
 
 ## 5. 双向追溯
 
@@ -51,11 +51,11 @@ C++到LST反向追溯覆盖主函数23行、两个各9行附件尾跳包装器�
 
 定向测试覆盖：
 
-- 单例构造严格先于退出注册；
-- 构造与析构helper均向端口传入固定对象token；
-- 两个尾跳callee EAX完整传播；
-- 两个入口各调用一次；
-- 构造EAX只记录且不成为最终返回；
+- 单例公共前部64次typed写严格先于退出注册；
+- 注册时可观察已完成公共owner；
+- 构造正常返回固定对象token，析构helper向剩余端口传入同一token；
+- 构造typed-stop阻断退出注册并保留精确寄存器；
+- 构造EAX只记录且不成为正常最终返回；
 - 注册收到精确单例退出token；
 - 注册EAX 0与全1均原样返回；
 - 组A/组B静态生命周期未回归。

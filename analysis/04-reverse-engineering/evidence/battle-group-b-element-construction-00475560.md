@@ -24,9 +24,9 @@
 
 `LegacyBattleActorGroupBElementState`唯一承接对象token、对象`+0x0C`资源token和精确164-byte资源记录。物理地址继续只作为`compat::u32` token；资源内容由单一typed数组承接，不复制到动作dispatch或startup摘要状态。
 
-公共基础构造和分配器尚未独立审计，分别保留只接收对象token与固定大小的窄typed端口；没有重新引入整个构造函数opaque调用。
+公共基础构造`0x00478250`已经独立审计并由caller直接组合。它复用组B现有`action_composition.resource_definition/action_text/action_kind`和`action_execution`唯一owner，只为此前未命名字段补充公共typed owner；没有复制第二份动作或definition状态。元素端口只保留固定大小分配器。公共前部typed-stop会阻断分配、`+0x0C` token发布和164-byte资源写入。
 
-分配EAX为零时，原版已经完成基础构造、参数回收和对象`+0x0C`零token发布，随后在第一次`rep stosd`访问地址零时故障。modern在同一访问点发布`resource_write_typed_stop`：保留旧资源bytes不变，返回诊断寄存器`EAX=0`、`ECX=0x29`及分配callee的EDX。正常路径清满164 bytes并返回`EAX=this`、`ECX=0`和同一EDX。
+分配EAX为零时，原版已经完成公共前部构造、参数回收和对象`+0x0C`零token发布，随后在第一次`rep stosd`访问地址零时故障。modern在同一访问点发布`resource_write_typed_stop`：保留旧资源bytes不变，返回诊断寄存器`EAX=0`、`ECX=0x29`及分配callee的EDX。正常路径清满164 bytes并返回`EAX=this`、`ECX=0`和同一EDX。
 
 同轮也修正了同型组A构造`0x0046E490`的零分配停止寄存器：其首次`rep stosd`故障点ECX为14，而不是分配callee的旧ECX；此前字段清零、零token与旧记录bytes仍保持不变。
 
@@ -50,7 +50,7 @@ C++到LST反向追溯覆盖全部16条实际指令、两个callee、资源token�
 
 ## 6. 验证与动态差分
 
-定向回归覆盖基础构造到分配的调用顺序、对象token、固定大小`0xA4`、资源token发布、164-byte全清零、完整this返回、ECX归零和EDX保留。零分配回归覆盖基础构造仍发生、对象token清零、旧bytes保持、首次真实写入点停止及`ECX=0x29`；同时锁定组A同型停止点`ECX=0x0E`。
+定向回归覆盖公共前部64次typed写到分配的调用顺序、对象token、固定大小`0xA4`、资源token发布、164-byte全清零、完整this返回、ECX归零和EDX保留。公共前部typed-stop回归验证分配及全部后缀均未发生；零分配回归覆盖公共前部仍完成、对象token清零、旧bytes保持、首次真实写入点停止及`ECX=0x29`；同时锁定组A同型停止点`ECX=0x0E`。
 
 定向测试、AddressSanitizer、Linux core `188/188`与Linux app `194/194`全部通过，源码零warning。
 

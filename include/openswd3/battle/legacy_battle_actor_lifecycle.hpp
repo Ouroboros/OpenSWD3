@@ -1,6 +1,6 @@
 #pragma once
 
-#include "openswd3/battle/legacy_battle_group_a_action_execution_state.hpp"
+#include "openswd3/battle/legacy_battle_actor_base_initialization.hpp"
 #include "openswd3/battle/legacy_battle_group_a_resource_cleanup.hpp"
 #include "openswd3/battle/legacy_battle_group_b_resource_cleanup.hpp"
 #include "openswd3/compat/types.hpp"
@@ -78,6 +78,8 @@ public:
 
 struct LegacyBattleActorGroupAElementState {
     compat::u32 object_token{};
+    compat::u32 object_writable_bytes{kLegacyBattleActorGroupAElementSize};
+    LegacyBattleActorBaseInitializationOwner base_initialization{};
     LegacyBattleGroupAResourceCleanupState resource_cleanup{};
     std::array<compat::u8, 0x38> description_bytes{};
     compat::u16 field_2f18{};
@@ -99,8 +101,6 @@ class LegacyBattleActorGroupAElementConstructionPort {
 public:
     virtual ~LegacyBattleActorGroupAElementConstructionPort() = default;
 
-    [[nodiscard]] virtual LegacyBattleActorGroupAElementCallReply
-    construct_base(compat::u32 object_token) = 0;
     [[nodiscard]] virtual LegacyBattleActorGroupAElementCallReply
     allocate(compat::u32 size) = 0;
 };
@@ -151,6 +151,8 @@ struct LegacyBattleGroupBActionCompositionState {
 
 struct LegacyBattleActorGroupBElementState {
     compat::u32 object_token{};
+    compat::u32 object_writable_bytes{kLegacyBattleActorGroupBElementSize};
+    LegacyBattleActorBaseInitializationFields base_initialization{};
     compat::u32 resource_token{};
     std::array<compat::u8, 0xA4> resource_bytes{};
     std::vector<compat::u8> resource_description{};
@@ -171,8 +173,6 @@ public:
     virtual ~LegacyBattleActorGroupBElementConstructionPort() = default;
 
     [[nodiscard]] virtual LegacyBattleActorGroupBElementCallReply
-    construct_base(compat::u32 object_token) = 0;
-    [[nodiscard]] virtual LegacyBattleActorGroupBElementCallReply
     allocate(compat::u32 size) = 0;
 };
 
@@ -190,13 +190,19 @@ public:
     virtual ~LegacyBattleActorObjectLifecyclePort() = default;
 
     [[nodiscard]] virtual compat::u32
-    construct_object(compat::u32 object_token) = 0;
-    [[nodiscard]] virtual compat::u32
     destroy_object(compat::u32 object_token) = 0;
+};
+
+struct LegacyBattleActorSingletonState {
+    compat::u32 object_writable_bytes{
+        kLegacyBattleActorBaseMinimumWritableBytes
+    };
+    LegacyBattleActorBaseInitializationOwner base_initialization{};
 };
 
 enum class LegacyBattleActorGroupAElementConstructionStatus : compat::u8 {
     completed,
+    base_construction_typed_stop,
     description_write_typed_stop,
 };
 
@@ -204,6 +210,7 @@ struct LegacyBattleActorGroupAElementConstructionResult {
     LegacyBattleActorGroupAElementConstructionStatus status{
         LegacyBattleActorGroupAElementConstructionStatus::completed
     };
+    LegacyBattleActorBaseInitializationResult base_initialization{};
     compat::u32 base_constructor_calls{};
     compat::u32 allocation_calls{};
     compat::u32 description_bytes_written{};
@@ -214,6 +221,7 @@ struct LegacyBattleActorGroupAElementConstructionResult {
 
 enum class LegacyBattleActorGroupBElementConstructionStatus : compat::u8 {
     completed,
+    base_construction_typed_stop,
     resource_write_typed_stop,
 };
 
@@ -221,6 +229,7 @@ struct LegacyBattleActorGroupBElementConstructionResult {
     LegacyBattleActorGroupBElementConstructionStatus status{
         LegacyBattleActorGroupBElementConstructionStatus::completed
     };
+    LegacyBattleActorBaseInitializationResult base_initialization{};
     compat::u32 base_constructor_calls{};
     compat::u32 allocation_calls{};
     compat::u32 resource_bytes_written{};
@@ -303,11 +312,21 @@ struct LegacyBattleActorGroupBStaticInitializationResult {
 
 struct LegacyBattleActorSingletonOperationResult {
     compat::u32 object_token{};
+    LegacyBattleActorBaseInitializationResult base_initialization{};
     compat::u32 object_operation_calls{};
     compat::u32 return_value{};
 };
 
+enum class LegacyBattleActorSingletonStaticInitializationStatus : compat::u8 {
+    completed,
+    construction_typed_stop,
+};
+
 struct LegacyBattleActorSingletonStaticInitializationResult {
+    LegacyBattleActorSingletonStaticInitializationStatus status{
+        LegacyBattleActorSingletonStaticInitializationStatus::completed
+    };
+    LegacyBattleActorBaseInitializationResult construction{};
     compat::u32 construct_calls{};
     compat::u32 construction_return_value{};
     compat::u32 exit_registration_calls{};
@@ -346,9 +365,7 @@ release_legacy_battle_actor_group_a_element(
 
 // sub_451870: load the singleton token and tail-call its constructor.
 [[nodiscard]] LegacyBattleActorSingletonOperationResult
-construct_legacy_battle_actor_singleton(
-    LegacyBattleActorObjectLifecyclePort& object_lifecycle_port
-);
+construct_legacy_battle_actor_singleton(LegacyBattleActorSingletonState& state);
 
 // sub_451890: load the singleton token and tail-call its destructor.
 [[nodiscard]] LegacyBattleActorSingletonOperationResult
@@ -397,7 +414,7 @@ initialize_legacy_battle_actor_group_b_static_lifecycle(
 // sub_451860 plus its external function chunk at loc_451880.
 [[nodiscard]] LegacyBattleActorSingletonStaticInitializationResult
 initialize_legacy_battle_actor_singleton_static_lifecycle(
-    LegacyBattleActorObjectLifecyclePort& object_lifecycle_port,
+    LegacyBattleActorSingletonState& state,
     LegacyBattleActorExitRegistrationPort& exit_registration_port
 );
 
