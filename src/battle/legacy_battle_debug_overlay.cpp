@@ -355,13 +355,25 @@ LegacyBattleDebugOverlayResult draw_legacy_battle_debug_overlay(
                 signed_bits(static_cast<i32>(state.marker_row)),
                 raster_right_bits
             );
+            const LegacyBattleActorProgressState* actor_progress =
+                index < bindings.startup.enemies.size()
+                ? &bindings.startup.enemies[index].progress
+                : nullptr;
+            result.actor_progress_width =
+                query_legacy_battle_actor_progress_width(
+                    actor_progress,
+                    &bindings.startup.timing,
+                    {.actor_token = actor, .entry_edx = position.edx}
+                );
+            ++result.actor_progress_width_calls;
+            if (result.actor_progress_width.status !=
+                LegacyBattleActorProgressWidthStatus::completed) {
+                result.status = LegacyBattleDebugOverlayStatus::
+                    actor_progress_width_typed_stop;
+                return result;
+            }
             const u32 width =
-                runner
-                    .call(
-                        LegacyBattleDebugOverlayCall::query_marker_width, actor
-                    )
-                    .eax &
-                0xFFFFU;
+                static_cast<u16>(result.actor_progress_width.return_eax);
             u32 column = 0U;
             while (column < width) {
                 const u32 top = row_offset +

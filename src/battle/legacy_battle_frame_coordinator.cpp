@@ -620,7 +620,8 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
 
     result.gameplay_word_argument =
         (stale_ecx & 0xFFFF0000U) | request.gameplay_word;
-    result.hud_frame = advance_legacy_battle_hud_frame(state.hud, port);
+    result.hud_frame =
+        advance_legacy_battle_hud_frame(state.hud, context.startup, port);
     ++result.hud_frame_calls;
     result.port_calls += result.hud_frame.port_calls;
     if (result.hud_frame.status != LegacyBattleHudFrameStatus::completed) {

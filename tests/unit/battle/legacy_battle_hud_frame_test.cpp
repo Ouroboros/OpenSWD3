@@ -1,4 +1,5 @@
 #include "openswd3/battle/legacy_battle_hud_frame.hpp"
+#include "openswd3/battle/legacy_battle_startup.hpp"
 #include "test.hpp"
 
 #include <algorithm>
@@ -71,13 +72,16 @@ pair_reply(const u32 first, const u32 second) {
 void test_battle_hud_frame(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleHudFrameState;
     using openswd3::battle::LegacyBattleHudFrameStatus;
+    using openswd3::battle::LegacyBattleStartupState;
 
     {
         LegacyBattleHudFrameState state;
+        LegacyBattleStartupState startup;
         HudPort port;
         port.push(0x00435660U, {.eax = 0x12345678U});
-        const auto result =
-            openswd3::battle::advance_legacy_battle_hud_frame(state, port);
+        const auto result = openswd3::battle::advance_legacy_battle_hud_frame(
+            state, startup, port
+        );
         test.expect_true(
             result.status == LegacyBattleHudFrameStatus::completed &&
                 result.return_value == 0x12345678U && result.port_calls == 2U &&
@@ -90,11 +94,13 @@ void test_battle_hud_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleHudFrameState state;
+        LegacyBattleStartupState startup;
         state.active_actor_count = 11;
         state.actor_skip_primary.fill(1U);
         HudPort port;
-        const auto result =
-            openswd3::battle::advance_legacy_battle_hud_frame(state, port);
+        const auto result = openswd3::battle::advance_legacy_battle_hud_frame(
+            state, startup, port
+        );
         test.expect_true(
             result.status ==
                     LegacyBattleHudFrameStatus::actor_index_typed_stop &&
@@ -105,18 +111,20 @@ void test_battle_hud_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleHudFrameState state;
+        LegacyBattleStartupState startup;
         state.active_actor_count = 1;
         state.side_mode = 1U;
         state.actor_active[0] = 1U;
         state.actor_skip_primary[0] = 1U;
         state.top_pulse = -2;
+        startup.party[0].progress.progress = 73U;
         HudPort port;
         port.push(0x00480AD0U, {.eax = 0x7000U});
         port.push(0x00484500U, pair_reply(50U, 100U));
-        port.push(0x00478340U, {.eax = 5U});
         port.push(0x004239D0U, {.eax = 0x99U});
-        const auto result =
-            openswd3::battle::advance_legacy_battle_hud_frame(state, port);
+        const auto result = openswd3::battle::advance_legacy_battle_hud_frame(
+            state, startup, port
+        );
         test.expect_true(
             result.status == LegacyBattleHudFrameStatus::completed &&
                 result.top_actor_rows == 1U && state.top_pulse == 1 &&
@@ -133,6 +141,8 @@ void test_battle_hud_frame(openswd3::test::Context& test) {
                 has_argument(port, 0x00436AD0U, 2U, 15U) &&
                 has_argument(port, 0x00450490U, 2U, 110U) &&
                 has_argument(port, 0x00450490U, 4U, 28U) &&
+                result.actor_progress_width_calls == 1U &&
+                result.actor_progress_width.return_eax == 5U &&
                 has_argument(port, 0x00450A50U, 4U, 0x99U) &&
                 has_argument(port, 0x0043B110U, 4U, 1U),
             "top actor row uses side position, x87 width, status fade and wrapped pulse"
@@ -141,6 +151,7 @@ void test_battle_hud_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleHudFrameState state;
+        LegacyBattleStartupState startup;
         state.active_actor_count = 1;
         state.display_order[0] = 2U;
         state.status_x[2] = 100;
@@ -158,17 +169,18 @@ void test_battle_hud_frame(openswd3::test::Context& test) {
         state.tertiary_value_snapshot[0] = 20;
         state.tertiary_display[0] = 10;
         state.tertiary_display_target[0] = 0;
+        startup.party[0].progress.progress = 102U;
         HudPort port;
         port.push(0x0047D930U, {.eax = 0U});
         port.push(0x0047CE80U, {.eax = 0U});
         port.push(0x0047CE80U, {.eax = 1U});
         port.push(0x0047CE80U, {.eax = 0U});
-        port.push(0x00478340U, {.eax = 7U});
         port.push(0x00484500U, pair_reply(30U, 90U));
         port.push(0x004838A0U, pair_reply(2U, 4U));
         port.push(0x00483870U, pair_reply(12U, 24U));
-        const auto result =
-            openswd3::battle::advance_legacy_battle_hud_frame(state, port);
+        const auto result = openswd3::battle::advance_legacy_battle_hud_frame(
+            state, startup, port
+        );
         test.expect_true(
             result.status == LegacyBattleHudFrameStatus::completed &&
                 result.actor_rows == 1U && state.selected_pulse == 0x89U &&
@@ -181,7 +193,10 @@ void test_battle_hud_frame(openswd3::test::Context& test) {
                 state.secondary_display_target[0] == 28 &&
                 state.tertiary_delta[0] == 7 &&
                 state.tertiary_display[0] == 9 &&
-                result.x87_conversions == 2U && port.count(0x0047CE80U) == 3U &&
+                result.x87_conversions == 2U &&
+                result.actor_progress_width_calls == 1U &&
+                result.actor_progress_width.return_eax == 7U &&
+                port.count(0x0047CE80U) == 3U &&
                 port.count(0x00436AD0U) == 3U &&
                 has_argument(port, 0x0043B110U, 0U, 116U) &&
                 has_argument(port, 0x004502B0U, 3U, 0U) &&
@@ -195,6 +210,7 @@ void test_battle_hud_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleHudFrameState state;
+        LegacyBattleStartupState startup;
         state.active_actor_count = 1;
         state.actor_value_tokens[0] = 0U;
         state.actor_value_display[0] = 0;
@@ -204,8 +220,9 @@ void test_battle_hud_frame(openswd3::test::Context& test) {
         port.push(0x0047CE80U, {.eax = 0U});
         port.push(0x0047CE80U, {.eax = 0U});
         port.push(0x0047CE80U, {.eax = 0U});
-        const auto result =
-            openswd3::battle::advance_legacy_battle_hud_frame(state, port);
+        const auto result = openswd3::battle::advance_legacy_battle_hud_frame(
+            state, startup, port
+        );
         test.expect_true(
             result.status ==
                     LegacyBattleHudFrameStatus::actor_value_typed_stop &&
@@ -217,6 +234,7 @@ void test_battle_hud_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleHudFrameState state;
+        LegacyBattleStartupState startup;
         state.active_actor_count = 1;
         state.primary_value_snapshot[0] = 0x08000000;
         state.actor_skip_primary[0] = 0U;
@@ -228,8 +246,9 @@ void test_battle_hud_frame(openswd3::test::Context& test) {
         port.push(0x00484500U, pair_reply(0U, 0U));
         port.push(0x004838A0U, pair_reply(0U, 0U));
         port.push(0x00483870U, pair_reply(0U, 0U));
-        const auto result =
-            openswd3::battle::advance_legacy_battle_hud_frame(state, port);
+        const auto result = openswd3::battle::advance_legacy_battle_hud_frame(
+            state, startup, port
+        );
         test.expect_true(
             result.status == LegacyBattleHudFrameStatus::completed &&
                 state.primary_step[0] == -13421771 &&
@@ -243,11 +262,44 @@ void test_battle_hud_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleHudFrameState state;
+        LegacyBattleStartupState startup;
+        state.active_actor_count = 1;
+        state.actor_active[0U] = 1U;
+        state.actor_skip_primary[0U] = 1U;
+        startup.party[0U].progress.progress = 60U;
+        startup.party[0U].progress.progress_read_accessible = false;
+        HudPort port;
+        port.push(0x00480AD0U, {.eax = 0x7000U});
+        port.push(0x00484500U, pair_reply(50U, 100U));
+        port.push(0x00450490U, {.edx = 0x778899AAU});
+
+        const auto result = openswd3::battle::advance_legacy_battle_hud_frame(
+            state, startup, port
+        );
+
+        test.expect_true(
+            result.status ==
+                    LegacyBattleHudFrameStatus::
+                        actor_progress_width_typed_stop &&
+                result.actor_progress_width_calls == 1U &&
+                result.actor_progress_width.return_eax == 0U &&
+                result.actor_progress_width.return_ecx == 0x005029D0U &&
+                result.actor_progress_width.return_edx == 0x778899AAU &&
+                result.top_actor_rows == 0U && port.count(0x00450490U) == 1U &&
+                port.count(0x004239D0U) == 0U,
+            "HUD stops at the typed top-row progress read after the explicit bar prefix"
+        );
+    }
+
+    {
+        LegacyBattleHudFrameState state;
+        LegacyBattleStartupState startup;
         state.footer_mode = 1U;
         HudPort port;
         port.push(0x00436AD0U, {.eax = 0xCAFEBABEU});
-        const auto result =
-            openswd3::battle::advance_legacy_battle_hud_frame(state, port);
+        const auto result = openswd3::battle::advance_legacy_battle_hud_frame(
+            state, startup, port
+        );
         test.expect_true(
             result.return_value == 0xCAFEBABEU && state.footer_delta == 22 &&
                 state.footer_position == 22 && result.text_panel_calls == 1U &&

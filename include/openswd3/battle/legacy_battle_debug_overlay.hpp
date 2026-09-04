@@ -24,7 +24,7 @@ enum class LegacyBattleDebugOverlayCall : compat::u8 {
     query_actor_command,
     query_actor_lock,
     query_marker_position,
-    query_marker_width,
+    reserved_query_marker_width,
 };
 
 struct LegacyBattleDebugOverlayCallRequest {
@@ -116,6 +116,7 @@ enum class LegacyBattleDebugOverlayStatus : compat::u8 {
     startup_record_typed_stop,
     actor_order_typed_stop,
     selection_order_typed_stop,
+    actor_progress_width_typed_stop,
     framebuffer_typed_stop,
     frame_divisor_zero,
 };
@@ -137,6 +138,8 @@ struct LegacyBattleDebugOverlayResult {
     compat::u32 selection_order_rows{};
     compat::u32 marker_actors{};
     compat::u32 marker_pixels{};
+    compat::u32 actor_progress_width_calls{};
+    LegacyBattleActorProgressWidthResult actor_progress_width{};
 };
 
 // The typed battle debug overlay preserves the fixed font prologue/tail,

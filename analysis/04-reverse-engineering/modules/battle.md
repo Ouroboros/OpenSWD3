@@ -2,7 +2,7 @@
 
 状态：`module_in_progress`
 
-当前关闭进度：`278/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
+当前关闭进度：`279/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
 
 ## 1. 唯一真值与模块目标
 
@@ -767,6 +767,8 @@ I5最终必须锁定：
 
 本轮再完成`audit_order=278`的`0x00478330`战斗角色availability完整dword写入函数。完整权威LST主体`0x00478330..0x0047833A`从proc到endp共10个物理行、3条实际指令、0个call、0个跳转、0个局部标签和1个返回点，没有外部chunk；函数先以栈参数完整替换EAX，再写`actor+0x2AE4`并`retn 4`，ECX/EDX保持。typed实现直接复用最终角色状态中的十个组A availability owner，保留参数先装EAX、唯一写访问、写失败零提交及caller suffix抑制。八个已关闭caller类的24处物理call全部在原位置直接组合，覆盖组A逐角色帧6处、最终角色1处、战后处理1处、pre-frame 3处、输入1处、目标选择刷新8处、角色目标准备1处和脚本opcode 9/23/58三处；相邻`0x0047C670`查询与`0x0047D350`重置保持独立待审。caller严格线程各自EDX残值，其中pre-frame依次为source actor、通知callee reply与secondary actor，角色目标准备保留函数入口EDX，脚本高目标分支保留`actor*5-40`。验证：最终定向`2/2`、Linux core`199/199`、AddressSanitizer`199/199`、Linux app`205/205`、连续10轮完整core、clang-format和release审计全部通过，日志零OpenSWD3源码warning、测试失败、sanitizer finding或runtime error；未启动原版或OpenSWD3游戏程序。工作包为`278/422 = 268 platform_adapted + 10 assembly_exact + 144 pending_audit`；生成器连续双跑逐字节一致，SHA256为`aae441118631359298b010f4aa01755551f3851c0942b406f228807cfa0e16d9`。动态差分因原版组A完整对象、24处caller联合输入、异常写访问及EAX/ECX/EDX捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=279`的`0x00478340`战斗函数。
+本轮再完成`audit_order=279`的`0x00478340`战斗角色进度宽度函数。完整权威LST主体`0x00478340..0x00478364`从proc到endp共25个物理行、10条实际指令、1个call、0个跳转、0个局部标签和1个返回点，没有外部chunk；唯一callee为已核定的x87向零signed-qword转换`0x00489654`。函数先清EAX并读取`actor+0x2A12`低word，按`u16 progress / i32 action_threshold * 62.0`的x87顺序计算，再返回signed qword的`EDX:EAX`并由栈恢复ECX角色token。typed实现直接复用startup party/enemies进度与timing阈值唯一owner，保留角色读取前的EAX清零、阈值读取前已完成的`fild`、零阈值integer-indefinite、转换计数、x87栈深度和两个原访问点停机。完整4处物理call均直接组合：HUD `0x00459D10`两处分别在线条前缀或blocked查询后读取组A宽度，调试叠加层`0x0045DEE0`在位置/行偏移前缀后读取零基组B宽度，选择提示`0x00466950`以`0x004A754C`一基code映射startup `enemies[code-1]`。caller严格线程EDX残值，依次为显式frame回复、blocked回复、位置回复及`345*code`地址中间值；旧HUD地址常量、marker-width和fade-width端口均删除或保留为生产零调用reserved槽。验证：最终定向`2/2`、Linux core`199/199`、AddressSanitizer`199/199`、Linux app`205/205`、连续10轮完整core、clang-format和release审计全部通过，日志零OpenSWD3源码warning、测试失败、sanitizer finding或runtime error；未启动原版或OpenSWD3游戏程序。工作包为`279/422 = 269 platform_adapted + 10 assembly_exact + 143 pending_audit`；生成器连续双跑逐字节一致，SHA256为`058b0772782200e0bd28d4d11c2c3f3296fae781f7de8031647d2c6cdfac39dd`。动态差分因原版组A/组B完整对象、动态阈值、x87控制字异常域及四caller联合寄存器捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=280`的`0x00478370`战斗函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

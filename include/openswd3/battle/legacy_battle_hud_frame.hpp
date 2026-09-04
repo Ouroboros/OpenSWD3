@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_actor_progress.hpp"
 #include "openswd3/battle/legacy_battle_text_panel.hpp"
 #include "openswd3/compat/types.hpp"
 
@@ -8,6 +9,8 @@
 #include <initializer_list>
 
 namespace openswd3::battle {
+
+struct LegacyBattleStartupState;
 
 inline constexpr compat::u32 kLegacyBattleHudReservedTextPanelSlot =
     0x00469550U;
@@ -126,6 +129,7 @@ enum class LegacyBattleHudFrameStatus : compat::u8 {
     display_order_typed_stop,
     display_table_typed_stop,
     actor_value_typed_stop,
+    actor_progress_width_typed_stop,
 };
 
 struct LegacyBattleHudFrameResult {
@@ -135,6 +139,8 @@ struct LegacyBattleHudFrameResult {
     compat::u32 top_actor_rows{};
     compat::u32 actor_rows{};
     compat::u32 x87_conversions{};
+    compat::u32 actor_progress_width_calls{};
+    LegacyBattleActorProgressWidthResult actor_progress_width{};
     compat::u32 text_panel_calls{};
     std::vector<LegacyBattleTextPanelResult> text_panels;
 };
@@ -143,7 +149,9 @@ struct LegacyBattleHudFrameResult {
 // HUD while preserving fixed ten-actor storage, low-32-bit arithmetic, signed
 // byte pulses, bit-27 delta handling, and the original x87 conversion domain.
 [[nodiscard]] LegacyBattleHudFrameResult advance_legacy_battle_hud_frame(
-    LegacyBattleHudFrameState& state, LegacyBattleHudCallPort& port
+    LegacyBattleHudFrameState& state,
+    const LegacyBattleStartupState& startup,
+    LegacyBattleHudCallPort& port
 );
 
 }  // namespace openswd3::battle

@@ -77,7 +77,7 @@ public:
             return {.eax = 4U};
         case LegacyBattleDebugOverlayCall::query_marker_position:
             return {.output_mask = 3U, .output_0 = 1U, .output_1 = 0U};
-        case LegacyBattleDebugOverlayCall::query_marker_width:
+        case LegacyBattleDebugOverlayCall::reserved_query_marker_width:
             return {.eax = 2U};
         case LegacyBattleDebugOverlayCall::font_reset:
             return {};
@@ -186,6 +186,8 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
         fixture.hotkeys.toggle_53af68 = 1U;
         fixture.metrics.group_b_count = 2U;
         fixture.metrics.group_a_count = 2U;
+        fixture.startup.enemies[0U].progress.progress = 30U;
+        fixture.startup.enemies[1U].progress.progress = 30U;
         fixture.metrics.priority_actor_index = 8U;
         fixture.startup.reset.records_524788[0].value_00 = 10U;
         fixture.startup.reset.records_524788[1].value_00 = 11U;
@@ -226,7 +228,7 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
             result.status == LegacyBattleDebugOverlayStatus::completed &&
                 result.return_value == 0xAABBCCDDU &&
                 result.return_ecx == 0x12345678U &&
-                result.return_edx == 0x87654321U && result.port_calls == 47U &&
+                result.return_edx == 0x87654321U && result.port_calls == 45U &&
                 result.text_draws == 27U && result.formatted_texts == 24U &&
                 result.group_b_rows == 2U && result.group_a_rows == 2U &&
                 result.startup_order_rows == 4U &&
@@ -276,6 +278,11 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
                 port.count(
                     LegacyBattleDebugOverlayCall::query_marker_position
                 ) == 2U &&
+                port.count(
+                    LegacyBattleDebugOverlayCall::reserved_query_marker_width
+                ) == 0U &&
+                result.actor_progress_width_calls == 2U &&
+                result.actor_progress_width.return_eax == 2U &&
                 fixture.framebuffer.physical_pixels()[1] == 0xEEEEU &&
                 fixture.framebuffer.physical_pixels()[2] == 0xEEEEU &&
                 fixture.framebuffer.physical_pixels()[9] == 0xEEEEU &&
@@ -372,9 +379,40 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
     }
 
     {
+        Fixture fixture;
+        fixture.hotkeys.toggle_5244e0 = 1U;
+        fixture.metrics.group_b_count = 1U;
+        fixture.startup.enemies[0U].progress.progress_read_accessible = false;
+        OverlayPort port;
+
+        const auto result =
+            draw_legacy_battle_debug_overlay(fixture.bindings(), port);
+
+        test.expect_true(
+            result.status ==
+                    LegacyBattleDebugOverlayStatus::
+                        actor_progress_width_typed_stop &&
+                result.port_calls == 14U && result.text_draws == 7U &&
+                result.actor_progress_width_calls == 1U &&
+                result.actor_progress_width.return_eax == 0U &&
+                result.actor_progress_width.return_ecx == 0x00525508U &&
+                result.actor_progress_width.return_edx == 0U &&
+                result.marker_actors == 0U && result.marker_pixels == 0U &&
+                port.count(
+                    LegacyBattleDebugOverlayCall::query_marker_position
+                ) == 1U &&
+                port.count(
+                    LegacyBattleDebugOverlayCall::reserved_query_marker_width
+                ) == 0U,
+            "debug markers stop at the typed progress read after the position and row prefix"
+        );
+    }
+
+    {
         Fixture fixture({.pitch_bytes = 16, .width = 8, .height = 1});
         fixture.hotkeys.toggle_5244e0 = 1U;
         fixture.metrics.group_b_count = 1U;
+        fixture.startup.enemies[0U].progress.progress = 30U;
         OverlayPort port;
 
         const auto result =

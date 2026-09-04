@@ -24,7 +24,7 @@
 2. 查询actor数据后直连已关闭文字面板，以170×20背景和显式`X+5,Y+2`文字坐标绘制姓名；
 3. 查询primary current/max，以x87扩展精度计算`current/max*56`，通过已闭合向零qword转换取低dword；
 4. 在`X+100,Y+8`绘制显式宽度条；
-5. status低16非0时查询颜色并在`X+100,Y+12`绘制三高颜色条；
+5. 直接读取startup party唯一owner的`actor+0x2A12`低word，以共享行动阈值计算`trunc(progress/threshold*62)`；结果低16非0时查询颜色并在`X+100,Y+12`绘制三高颜色条；
 6. 当前物理index等于`actor_count-1`且top pulse为负时，pulse在u8域加3，低7位大于28则整byte清0，再绘制170×28脉冲框。
 
 x87除零、无穷、NaN或qword越界产生整数不定值，低dword固定为0，不增加modern错误分支。
@@ -47,7 +47,7 @@ x87除零、无穷、NaN或qword越界产生整数不定值，低dword固定为0
 
 blocked状态不缓存，机器码在不同用途前重复查询：
 
-1. 第一次为0时查询status低16；actor status mode为0才绘制固定宽度条；
+1. 第一次为0时直接读取同一party progress owner并按共享阈值计算宽度低16；actor status mode为0才绘制固定宽度条；
 2. 第二次为1时以颜色`0xF000`绘制名字；
 3. actor status mode为1时无条件以`0xFFFF`绘制名字；选中角色再按计数模4以`0xF3F0/0xFFFF`叠绘并递增计数；
 4. 第三次决定动作框末参数；
@@ -113,10 +113,11 @@ position += delta
 - 逐帧协调器在固定框和可选角色面板之后直连一次；HUD内部port call计入父port call总数。
 - 任一HUD typed-stop立即映射caller专用HUD stop，阻止surface操作或后续渲染阶段。
 - HUD顶部与footer两个旧文字面板边界均已直连typed helper；共享动作记录复用胜利结算唯一owner，旧地址仅保留reserved常量且生产零调用。helper展开的动作更新、矩形、九宫格和文字四次服务调用计入父HUD及主帧port总数。
+- 两个`0x00478340`宽度调用均直连角色进度宽度typed叶子，复用startup party进度和timing阈值唯一owner；旧HUD地址常量生产零调用。进度或阈值读取stop分别保留已绘制primary条或blocked查询前缀，并由视觉转场/逐帧协调器继续映射为既有HUD stop。
 - 转场旧`publish_status_word`伪边界和逐帧旧`post_render_stage_0`伪边界均删除；三个caller源码不再包含本函数token。
 
 ## 11. 测试与动态差分
 
-定向测试覆盖：空HUD返回、十槽边界、顶部左右位置、x87宽度、status颜色、top pulse、选中pulse、三次blocked与名字叠绘、actor value typed-stop时机、三组不同平滑、bit27 BUG、零分母x87低dword、footer signed步进、文字面板两种坐标分支与旧槽零调用，以及转场两调用点、逐帧直连和父级typed-stop传播。
+定向测试覆盖：空HUD返回、十槽边界、顶部左右位置、x87宽度、typed角色进度owner、进度读取stop前缀、status颜色、top pulse、选中pulse、三次blocked与名字叠绘、actor value typed-stop时机、三组不同平滑、bit27 BUG、零分母x87低dword、footer signed步进、文字面板两种坐标分支与旧槽零调用，以及转场两调用点、逐帧直连和父级typed-stop传播。
 
 当前缺少原版组A十对象、端口callee共享副作用、字体/文本、framebuffer、三组实时数值、映射表、actor内部value指针、x87控制字和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

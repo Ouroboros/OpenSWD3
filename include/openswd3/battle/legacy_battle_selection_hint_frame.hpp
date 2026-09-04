@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
+#include "openswd3/battle/legacy_battle_actor_progress.hpp"
 #include "openswd3/battle/legacy_battle_color_fade.hpp"
 #include "openswd3/battle/legacy_battle_fixed_count_chain.hpp"
 #include "openswd3/compat/types.hpp"
@@ -11,6 +12,8 @@
 #include <span>
 
 namespace openswd3::battle {
+
+struct LegacyBattleStartupState;
 
 inline constexpr compat::u32 kLegacyBattleSelectionHintGroupBBaseToken =
     0x005229E0U;
@@ -32,7 +35,7 @@ enum class LegacyBattleSelectionHintFrameCall : compat::u8 {
     draw_text,
     query_metric_source,
     query_metric_pair,
-    query_fade_width,
+    reserved_query_fade_width,
     query_fade_color,
 };
 
@@ -73,6 +76,7 @@ public:
 
 struct LegacyBattleSelectionHintFrameBindings {
     LegacyBattleSelectionHintFrameState& state;
+    const LegacyBattleStartupState& startup;
     compat::u32 queued_actor_code{};
     std::span<const compat::u32> party_source_words;
     compat::u32 target_selection_block{};
@@ -119,6 +123,7 @@ enum class LegacyBattleSelectionHintFrameStatus : compat::u8 {
     tiled_frame_typed_stop,
     fixed_count_typed_stop,
     format_buffer_typed_stop,
+    actor_progress_width_typed_stop,
     color_fade_typed_stop,
 };
 
@@ -138,6 +143,7 @@ struct LegacyBattleSelectionHintFrameResult {
     LegacyBattleFixedCountLookupResult fixed_count_lookup{};
     compat::u32 metric_pair_calls{};
     compat::u32 fade_width_calls{};
+    LegacyBattleActorProgressWidthResult actor_progress_width{};
     compat::u32 fade_color_calls{};
     compat::u32 panel_action_update_calls{};
     asset_runtime::LegacyActionUpdateResult panel_action_update{};

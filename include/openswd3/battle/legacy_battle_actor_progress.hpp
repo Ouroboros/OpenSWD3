@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_timing.hpp"
 #include "openswd3/compat/types.hpp"
 
 namespace openswd3::battle {
@@ -21,6 +22,30 @@ struct LegacyBattleActorProgressState {
     compat::u32 update_ready{};         // actor + 0x045C
     compat::u16 base_speed{};           // actor[0] + 0x16
     compat::u16 progress_multiplier{};  // actor + 0x26DC
+    bool progress_read_accessible{true};
+};
+
+enum class LegacyBattleActorProgressWidthStatus : compat::u8 {
+    completed,
+    actor_progress_read_typed_stop,
+    action_threshold_read_typed_stop,
+};
+
+struct LegacyBattleActorProgressWidthRequest {
+    compat::u32 actor_token{};
+    compat::u32 entry_edx{};
+};
+
+struct LegacyBattleActorProgressWidthResult {
+    LegacyBattleActorProgressWidthStatus status{
+        LegacyBattleActorProgressWidthStatus::completed
+    };
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+    compat::u32 progress_value{};
+    compat::u32 truncate_calls{};
+    compat::u32 x87_stack_depth{};
 };
 
 struct LegacyBattleActorProgressResult {
@@ -48,6 +73,16 @@ struct LegacyBattleActorGroupBProgressResult {
     compat::u32 positive_adjustment{};
     compat::u32 negative_adjustment{};
 };
+
+// Typed closure of legacy 0x00478340. The actor progress word is zero-
+// extended, divided by the shared action threshold, multiplied by 62.0, and
+// converted to a signed qword with x87 round-toward-zero semantics.
+[[nodiscard]] LegacyBattleActorProgressWidthResult
+query_legacy_battle_actor_progress_width(
+    const LegacyBattleActorProgressState* actor,
+    const LegacyBattleTimingState* timing,
+    const LegacyBattleActorProgressWidthRequest& request
+) noexcept;
 
 // sub_46E520.
 [[nodiscard]] LegacyBattleActorProgressResult

@@ -1,5 +1,7 @@
 #include "openswd3/battle/legacy_battle_selection_hint_frame.hpp"
 
+#include "openswd3/battle/legacy_battle_startup.hpp"
+
 #include <bit>
 #include <charconv>
 #include <cstddef>
@@ -417,15 +419,25 @@ private:
         eax_ = group_b_scaled_3349(code);
         edx_ = group_b_scaled_837(code);
         ecx_ = group_b_actor_token(code);
-        const auto width = invoke({
-            .call = Call::query_fade_width,
-            .object_token = ecx_,
-            .eax = eax_,
-            .ecx = ecx_,
-            .edx = edx_,
-        });
+        const LegacyBattleActorProgressState* actor_progress =
+            code != 0U && code <= bindings_.startup.enemies.size()
+            ? &bindings_.startup.enemies[code - 1U].progress
+            : nullptr;
+        result_.actor_progress_width = query_legacy_battle_actor_progress_width(
+            actor_progress,
+            &bindings_.startup.timing,
+            {.actor_token = ecx_, .entry_edx = edx_}
+        );
         ++result_.fade_width_calls;
-        result_.fade_width = static_cast<u16>(width.eax);
+        eax_ = result_.actor_progress_width.return_eax;
+        ecx_ = result_.actor_progress_width.return_ecx;
+        edx_ = result_.actor_progress_width.return_edx;
+        if (result_.actor_progress_width.status !=
+            LegacyBattleActorProgressWidthStatus::completed) {
+            result_.status = Status::actor_progress_width_typed_stop;
+            return;
+        }
+        result_.fade_width = static_cast<u16>(eax_);
         if (result_.fade_width == 0U) {
             return;
         }

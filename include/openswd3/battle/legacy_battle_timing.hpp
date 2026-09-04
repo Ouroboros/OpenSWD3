@@ -6,6 +6,7 @@ namespace openswd3::battle {
 
 struct LegacyBattleTimingState {
     compat::i32 action_threshold{900};
+    bool action_threshold_read_accessible{true};
 };
 
 // sub_44FFC0. Returns the same value published to action_threshold.

@@ -79,7 +79,7 @@
 每个动态组B对象先调用位置查询，把两项输出写入共享i16 X/row；未写输出保持上一对象值。随后：
 
 1. callee后重读唯一framebuffer几何的signed `Rect.right`，再与signed row执行低32位乘法；
-2. 查询标记宽度，只保留返回低word；
+2. 直接读取startup enemies对应唯一progress owner的`actor+0x2A12`低word，以startup timing唯一阈值计算`trunc(progress/threshold*62)`，只保留返回低word；
 3. 宽度非零时按列递增；
 4. 每列先写`row*width + X + column`，再写加一个完整raster width的下一行；
 5. 两个像素均固定写u16 `0xEEEE`。
@@ -99,16 +99,16 @@
 - 调试快捷键的显示总门和无敌切换值；
 - 逐帧唯一owned framebuffer。
 
-仅新增此前未建模的18项选择顺序、255字节共享文字缓冲、战斗选择/模式、选择低word、锁计数、缓存、世界等级、初始模式、战斗帧、帧率除数及两项标记坐标；当前角色、fMenu、mMove、MsD低byte和MS不建立副本，分别读取最终角色当前值、共享message state、最终角色预帧门、动作packed actor counter和最终角色已发布值。标记行宽直接读取唯一framebuffer几何，不复制平行字段。叠加调用门由独立虚共享gate port持有，撤退提交、逐帧协调器和全局重置使用同一存储。全局重置按原固定写集合清叠加调用门、选择顺序、战斗选择、初始模式和战斗帧；当前角色、fMenu、mMove、MsD低byte和MS由既有owner按同一reset program同步；未写的显示总门、文字缓冲、战斗模式、选择低word、锁计数、缓存、世界等级、帧率除数与标记坐标保持入口值。
+仅新增此前未建模的18项选择顺序、255字节共享文字缓冲、战斗选择/模式、选择低word、锁计数、缓存、世界等级、初始模式、战斗帧、帧率除数及两项标记坐标；当前角色、fMenu、mMove、MsD低byte和MS不建立副本，分别读取最终角色当前值、共享message state、最终角色预帧门、动作packed actor counter和最终角色已发布值。标记行宽直接读取唯一framebuffer几何，不复制平行字段；标记宽度直接复用startup enemies进度和timing阈值，不复制角色字段或保留旧`query_marker_width`调用。叠加调用门由独立虚共享gate port持有，撤退提交、逐帧协调器和全局重置使用同一存储。全局重置按原固定写集合清叠加调用门、选择顺序、战斗选择、初始模式和战斗帧；当前角色、fMenu、mMove、MsD低byte和MS由既有owner按同一reset program同步；未写的显示总门、文字缓冲、战斗模式、选择低word、锁计数、缓存、世界等级、帧率除数与标记坐标保持入口值。
 
 ## 8. caller回收
 
 逐帧协调器在内部bit17检查之后读取叠加门。该门归独立虚共享gate port唯一持有，撤退提交可在成功时清零，全局重置也同步清零。机器码只有门完整等于1时调用本函数；旧实现把条件反向并保留opaque调用，现已纠正为精确等于1时直接组合typed叠加层。
 
-子typed-stop保留音乐、角色预处理、metric、角色顺序、surface绘制、HUD、对话、双倒计时和叠加正文前缀，随后阻断结果判定、上下文提示、颜色累加、临时surface与截图。正常返回寄存器按原caller保持未消费。
+子typed-stop保留音乐、角色预处理、metric、角色顺序、surface绘制、HUD、对话、双倒计时和叠加正文前缀，随后阻断结果判定、上下文提示、颜色累加、临时surface与截图。组B进度或阈值读取stop发生在位置查询与row-offset计算之后、任何标记像素之前；旧宽度端口槽仅保留reserved兼容编号且生产零调用。正常返回寄存器按原caller保持未消费。
 
 ## 9. 测试与动态差分
 
-定向测试覆盖总门关闭字体尾、两组完整文字、CP950字节、固定坐标与格式、生命局部跨角色陈旧继承、低byte/word和signed参数、完整EAX/ECX/EDX尾、解析token发布、`+0x54`读取停点、三类动态顺序、第19/11/19项读取停点、callee后数量增长、双行标记、第二行越界前缀、signed缓存除法、frame divisor零点、全局重置别名及逐帧caller阻断。
+定向测试覆盖总门关闭字体尾、两组完整文字、CP950字节、固定坐标与格式、生命局部跨角色陈旧继承、低byte/word和signed参数、完整EAX/ECX/EDX尾、解析token发布、`+0x54`读取停点、三类动态顺序、第19/11/19项读取停点、callee后数量增长、typed进度宽度与旧端口零调用、进度读取停点、双行标记、第二行越界前缀、signed缓存除法、frame divisor零点、全局重置别名及逐帧caller阻断。
 
 当前缺少原版字体/文字callee、两组角色对象及查询副作用、共享255字节缓冲、TSW缓存计数、完整叠加全局、framebuffer和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

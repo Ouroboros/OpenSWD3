@@ -3,7 +3,9 @@
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
 
 #include <bit>
+#include <cmath>
 #include <cstdint>
+#include <limits>
 
 namespace openswd3::battle {
 namespace {
@@ -47,7 +49,70 @@ void replace_low_word(u32& destination, const u16 value) noexcept {
         static_cast<u16>(static_cast<u16>(element.resource_bytes[0x5BU]) << 8U);
 }
 
+struct X87TruncateResult {
+    u32 eax{};
+    u32 edx{};
+};
+
+[[nodiscard]] X87TruncateResult
+truncate_x87_integer(const long double value) noexcept {
+    constexpr u32 kIndefiniteHighDword = 0x80000000U;
+    if (!std::isfinite(value)) {
+        return {.eax = 0U, .edx = kIndefiniteHighDword};
+    }
+    const long double truncated = std::trunc(value);
+    constexpr long double minimum =
+        static_cast<long double>(std::numeric_limits<std::int64_t>::min());
+    constexpr long double maximum_exclusive = -minimum;
+    if (truncated < minimum || truncated >= maximum_exclusive) {
+        return {.eax = 0U, .edx = kIndefiniteHighDword};
+    }
+    const auto converted = static_cast<std::int64_t>(truncated);
+    const auto bits = std::bit_cast<std::uint64_t>(converted);
+    return {
+        .eax = static_cast<u32>(bits),
+        .edx = static_cast<u32>(bits >> 32U),
+    };
+}
+
 }  // namespace
+
+LegacyBattleActorProgressWidthResult query_legacy_battle_actor_progress_width(
+    const LegacyBattleActorProgressState* const actor,
+    const LegacyBattleTimingState* const timing,
+    const LegacyBattleActorProgressWidthRequest& request
+) noexcept {
+    LegacyBattleActorProgressWidthResult result{
+        .return_ecx = request.actor_token,
+        .return_edx = request.entry_edx,
+    };
+    result.return_eax = 0U;
+    if (actor == nullptr || !actor->progress_read_accessible) {
+        result.status = LegacyBattleActorProgressWidthStatus::
+            actor_progress_read_typed_stop;
+        return result;
+    }
+
+    result.progress_value = static_cast<u16>(actor->progress);
+    result.return_eax = result.progress_value;
+    result.x87_stack_depth = 1U;
+    if (timing == nullptr || !timing->action_threshold_read_accessible) {
+        result.status = LegacyBattleActorProgressWidthStatus::
+            action_threshold_read_typed_stop;
+        return result;
+    }
+
+    const volatile long double ratio =
+        static_cast<long double>(result.progress_value) /
+        static_cast<long double>(timing->action_threshold);
+    const volatile long double scaled = ratio * 62.0L;
+    const X87TruncateResult converted = truncate_x87_integer(scaled);
+    result.return_eax = converted.eax;
+    result.return_edx = converted.edx;
+    result.truncate_calls = 1U;
+    result.x87_stack_depth = 0U;
+    return result;
+}
 
 LegacyBattleActorProgressResult advance_legacy_battle_actor_progress(
     LegacyBattleActorProgressState& state,

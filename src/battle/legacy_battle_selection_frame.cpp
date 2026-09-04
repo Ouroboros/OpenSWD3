@@ -390,8 +390,7 @@ private:
             return false;
         }
 
-        const u32 cleanup_index =
-            bindings_.final_actor.queued_actor_code - 8U;
+        const u32 cleanup_index = bindings_.final_actor.queued_actor_code - 8U;
         if (cleanup_index >= kGroupACount) {
             typed_stop(Status::group_a_actor_typed_stop);
             return false;
@@ -399,9 +398,8 @@ private:
         auto& party = bindings_.startup.party[cleanup_index];
         result_.group_a_actor_cleanup = cleanup_legacy_battle_group_a_actor(
             {
-                .actor = &bindings_.action.group_a_action_execution[
-                    cleanup_index
-                ],
+                .actor =
+                    &bindings_.action.group_a_action_execution[cleanup_index],
                 .workspace = &party.workspace,
                 .final_processing = &party.final_processing,
                 .item_effect = &party.item_effect_application,
@@ -1505,6 +1503,7 @@ private:
         result_.selection_hint_frame = draw_legacy_battle_selection_hint_frame(
             {
                 .state = state_.selection_hint_frame,
+                .startup = bindings_.startup,
                 .queued_actor_code = bindings_.final_actor.queued_actor_code,
                 .party_source_words = bindings_.startup.reset.block_520e90,
                 .target_selection_block =

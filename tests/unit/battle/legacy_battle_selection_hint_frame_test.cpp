@@ -1,4 +1,5 @@
 #include "openswd3/battle/legacy_battle_selection_hint_frame.hpp"
+#include "openswd3/battle/legacy_battle_startup.hpp"
 
 #include <algorithm>
 #include <array>
@@ -128,6 +129,7 @@ struct Fixture {
     openswd3::battle::LegacyBattleSelectionHintFrameBindings bindings() {
         return {
             .state = state,
+            .startup = startup,
             .queued_actor_code = queued_actor_code,
             .party_source_words = party_source,
             .target_selection_block = target_selection_block,
@@ -153,6 +155,7 @@ struct Fixture {
     u32 group_b_count{8U};
     u32 mirror_mode{};
     openswd3::battle::LegacyBattleSelectionHintFrameState state;
+    openswd3::battle::LegacyBattleStartupState startup;
     openswd3::asset_runtime::LegacyActionRecord panel_action_record;
     openswd3::rendering::LegacyFramebuffer framebuffer{{
         .pitch_bytes = 1280,
@@ -436,13 +439,15 @@ void test_battle_selection_hint_frame(openswd3::test::Context& test) {
             {.metric_current = 12U, .metric_limit = 34U}
         );
         fixture.port.reply(Call::draw_text, {});
-        fixture.port.reply(Call::query_fade_width, {.eax = 20U});
+        fixture.startup.enemies[1U].progress.progress = 291U;
         fixture.port.reply(Call::query_fade_color, {.eax = 0xA5A51234U});
         const auto result =
             openswd3::battle::draw_legacy_battle_selection_hint_frame(
                 fixture.bindings(), fixture.port, request()
             );
         const auto colors = fixture.port.calls_of(Call::query_fade_color);
+        const auto reserved_widths =
+            fixture.port.calls_of(Call::reserved_query_fade_width);
         test.expect_true(
             result.status ==
                     openswd3::battle::LegacyBattleSelectionHintFrameStatus::
@@ -450,6 +455,8 @@ void test_battle_selection_hint_frame(openswd3::test::Context& test) {
                 result.metric_text_drawn && result.fade_drawn &&
                 result.fade_width == 20U && result.fade_color == 0xA5A51234U &&
                 result.color_fade_calls == 1U && colors.size() == 1U &&
+                reserved_widths.empty() &&
+                result.actor_progress_width.return_eax == 20U &&
                 colors[0U].arguments[0U] == 0U &&
                 colors[0U].arguments[1U] == 0U &&
                 colors[0U].arguments[2U] == 24U &&
@@ -469,19 +476,46 @@ void test_battle_selection_hint_frame(openswd3::test::Context& test) {
             Call::query_metric_pair, {.metric_current = 1U, .metric_limit = 2U}
         );
         fixture.port.reply(Call::draw_text, {});
-        fixture.port.reply(
-            Call::query_fade_width,
-            {.eax = 0U, .ecx = 0x91000002U, .edx = 0x91000003U}
-        );
         const auto result =
             openswd3::battle::draw_legacy_battle_selection_hint_frame(
                 fixture.bindings(), fixture.port, request()
             );
         test.expect_true(
             !result.fade_drawn && result.fade_color_calls == 0U &&
-                result.return_eax == 0U && result.return_ecx == 0x91000002U &&
-                result.return_edx == 0x91000003U,
+                result.return_eax == 0U && result.return_ecx == 0x00528030U &&
+                result.return_edx == 0U &&
+                result.actor_progress_width.truncate_calls == 1U,
             "selection hint zero fade width skips color and fade while retaining width-query registers"
+        );
+    }
+
+    {
+        Fixture fixture;
+        prepare_label_and_metric(fixture, 15U);
+        fixture.port.reply(
+            Call::query_metric_pair, {.metric_current = 1U, .metric_limit = 2U}
+        );
+        fixture.port.reply(Call::draw_text, {});
+        fixture.startup.enemies[1U].progress.progress = 60U;
+        fixture.startup.enemies[1U].progress.progress_read_accessible = false;
+
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_hint_frame(
+                fixture.bindings(), fixture.port, request()
+            );
+
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSelectionHintFrameStatus::
+                        actor_progress_width_typed_stop &&
+                result.metric_text_drawn && !result.fade_drawn &&
+                result.fade_width_calls == 1U &&
+                result.fade_color_calls == 0U &&
+                result.actor_progress_width.return_eax == 0U &&
+                result.actor_progress_width.return_ecx == 0x00528030U &&
+                result.actor_progress_width.return_edx == 690U &&
+                fixture.port.calls_of(Call::reserved_query_fade_width).empty(),
+            "selection hint stops at the typed group-B progress read after metric text"
         );
     }
 
@@ -596,7 +630,7 @@ void test_battle_selection_hint_frame(openswd3::test::Context& test) {
             Call::query_metric_pair, {.metric_current = 1U, .metric_limit = 2U}
         );
         fixture.port.reply(Call::draw_text, {});
-        fixture.port.reply(Call::query_fade_width, {.eax = 20U});
+        fixture.startup.enemies[1U].progress.progress = 291U;
         fixture.port.reply(Call::query_fade_color, {.eax = 0x0000FFFFU});
         const auto result =
             openswd3::battle::draw_legacy_battle_selection_hint_frame(

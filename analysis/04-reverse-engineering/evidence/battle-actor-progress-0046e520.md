@@ -28,7 +28,7 @@ progress小于阈值时，从对象首token指向记录的`+0x16`读取u16基值
 
 ## 4. typed owner与caller回收
 
-`LegacyBattleActorProgressState`统一承接两类角色对象中本函数触及的状态、基值和multiplier。组A逐帧状态直接使用该结构；startup的组A/组B记录各持有对应物理角色progress视图，供转场caller复用，不通过旧函数地址。
+`LegacyBattleActorProgressState`统一承接两类角色对象中本函数触及的状态、基值和multiplier。组A逐帧状态直接使用该结构；startup的组A/组B记录各持有对应物理角色progress视图，供转场caller复用，不通过旧函数地址。第279项角色进度宽度`0x00478340`继续读取同一结构的`progress`低word，并以显式读取可达性在原访问点建模typed-stop，没有建立平行进度owner。
 
 组A帧caller在AI准备后直接调用typed进度更新，只有返回1才进入后续AI协调；旧callee token生产零调用。战斗转场的一个静态callsite服务party/enemy两条循环，typed实现分别更新startup对应角色状态；原`refresh_actor_message`槽改为reserved且两条循环均零调用。转场忽略本函数返回，保持后续消息准备和计数顺序。
 
