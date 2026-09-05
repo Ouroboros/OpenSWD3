@@ -604,6 +604,10 @@ void test_battle_startup(openswd3::test::Context& test) {
         state.group_a_configuration_sources[0U].dwords[1U] = 12000U;
         state.group_a_configuration_sources[0U].dwords[4U] = 0x56781234U;
         state.group_a_configuration_sources[1U].dwords[1U] = 9000U;
+        state.party[0U].progress.progress = 0xAAAA0000U;
+        state.party[1U].progress.progress = 0xBBBB0000U;
+        state.party[2U].progress.progress = 0xCCCC0000U;
+        state.party[3U].progress.progress = 0xDDDD0000U;
         state.party[0U]
             .attribute_aggregation.embedded_profile_application.status_bits =
             0xFFFFFFFFU;
@@ -635,7 +639,7 @@ void test_battle_startup(openswd3::test::Context& test) {
             {34U, 1U},
             {35U, 1U},
         };
-        ports.random_values = {1U, 2U, 0U};
+        ports.random_values = {1U, 2U, 0U, 0U, 1U, 2U, 8U};
         ports.definition.rotation_divisor = 4U;
         ports.definition.enemy_count = 2U;
         ports.definition.enemies[0] = {
@@ -942,7 +946,19 @@ void test_battle_startup(openswd3::test::Context& test) {
                 state.group_b_lifecycle != nullptr &&
                 (*state.group_b_lifecycle)[0U].resource_token == 0x73000000U &&
                 state.enemies[0U].progress.progress == 200U &&
-                result.finalized_party_actor_count == 4U &&
+                result.party_progress_initialization_calls == 4U &&
+                state.party[0U].progress.progress == 0xAAAA01C2U &&
+                state.party[1U].progress.progress == 0xBBBB0177U &&
+                state.party[2U].progress.progress == 0xCCCC015EU &&
+                state.party[3U].progress.progress == 0xDDDD013CU &&
+                result.party_progress_initializations[3U].return_eax == 316U &&
+                result.party_progress_initializations[3U].return_ecx == 9U &&
+                result.party_progress_initializations[3U].return_edx == 6U &&
+                ports.call_count(LegacyBattleStartupCall::random_below) == 7U &&
+                ports.call_count(
+                    LegacyBattleStartupCall::
+                        reserved_initialize_party_actor_progress
+                ) == 0U &&
                 state.party_actor_mode_count == 2U &&
                 result.return_value == 1U && result.message_state_published &&
                 ports.battle_message_state() == 0x67U &&
@@ -994,7 +1010,10 @@ void test_battle_startup(openswd3::test::Context& test) {
                 state.party[1].role_id == 3U &&
                 state.supplemental_used[1] == 1U &&
                 state.supplemental_used[0] == 1U &&
-                ports.call_count(LegacyBattleStartupCall::random_below) == 5U &&
+                ports.call_count(LegacyBattleStartupCall::random_below) == 7U &&
+                result.party_progress_initialization_calls == 2U &&
+                state.party[0U].progress.progress == 450U &&
+                state.party[1U].progress.progress == 450U &&
                 ports.call_count(
                     LegacyBattleStartupCall::
                         reserved_configure_supplemental_actor
@@ -1126,11 +1145,51 @@ void test_battle_startup(openswd3::test::Context& test) {
 
     {
         LegacyBattleStartupState state;
+        state.party[0U].progress.progress = 0xFACE0011U;
+        state.party[0U].progress.progress_write_accessible = false;
+        StartupPorts ports;
+        ports.query_values[30U] = 1U;
+        ports.random_values = {0U, 0U, 8U};
+        ports.definition.enemy_count = 1U;
+        const auto result = openswd3::battle::initialize_legacy_battle_startup(
+            state, ports, ports, ports, ports, ports, ports, request(14U)
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleStartupStatus::
+                        party_progress_initialization_typed_stop &&
+                result.party_progress_initialization_calls == 1U &&
+                result.party_progress_initializations[0U].status ==
+                    openswd3::battle::
+                        LegacyBattleActorProgressInitializationStatus::
+                            actor_progress_write_typed_stop &&
+                result.party_progress_initializations[0U].random_value == 8U &&
+                result.party_progress_initializations[0U].return_eax == 316U &&
+                result.party_progress_initializations[0U].return_ecx == 9U &&
+                result.party_progress_initializations[0U].return_edx == 6U &&
+                result.party_progress_initializations[0U].progress_writes ==
+                    0U &&
+                result.party_progress_typed_stop.return_eax == 316U &&
+                result.party_progress_typed_stop.return_ecx == 9U &&
+                result.party_progress_typed_stop.return_edx == 6U &&
+                state.party[0U].progress.progress == 0xFACE0011U &&
+                ports.call_count(LegacyBattleStartupCall::random_below) == 3U &&
+                ports.call_count(
+                    LegacyBattleStartupCall::
+                        reserved_initialize_party_actor_progress
+                ) == 0U &&
+                !result.message_state_published && result.return_value == 0U,
+            "party progress write stop preserves the RNG and division prefix and suppresses the startup suffix"
+        );
+    }
+
+    {
+        LegacyBattleStartupState state;
         StartupPorts ports;
         ports.query_values[30U] = 1U;
         ports.random_values = {0U, 0U};
         ports.definition.enemy_count = 1U;
-        auto startup_request = request(14U);
+        auto startup_request = request(15U);
         startup_request.party_role_ids[0U] = 0U;
         startup_request.window_token = 0x76543210U;
         const auto result = openswd3::battle::initialize_legacy_battle_startup(

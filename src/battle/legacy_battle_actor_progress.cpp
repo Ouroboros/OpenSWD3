@@ -77,6 +77,29 @@ truncate_x87_integer(const long double value) noexcept {
 
 }  // namespace
 
+LegacyBattleActorProgressInitializationResult
+initialize_legacy_battle_actor_progress(
+    LegacyBattleActorProgressState* const actor,
+    LegacyBattleBoundedRandomPort& random
+) {
+    LegacyBattleActorProgressInitializationResult result{};
+    result.random_value = random.random_bounded(9U);
+    result.random_calls = 1U;
+    result.return_ecx = result.random_value + 1U;
+    result.return_eax = 150U / result.return_ecx;
+    result.return_edx = 150U % result.return_ecx;
+    result.return_eax += 300U;
+    if (actor == nullptr || !actor->progress_write_accessible) {
+        result.status = LegacyBattleActorProgressInitializationStatus::
+            actor_progress_write_typed_stop;
+        return result;
+    }
+
+    replace_low_word(actor->progress, static_cast<u16>(result.return_eax));
+    result.progress_writes = 1U;
+    return result;
+}
+
 LegacyBattleActorProgressThresholdSyncResult
 synchronize_legacy_battle_actor_progress_threshold(
     LegacyBattleActorProgressState* const actor,

@@ -2,14 +2,88 @@
 #include "openswd3/battle/legacy_battle_actor_progress.hpp"
 #include "test.hpp"
 
+#include <array>
+
+namespace {
+
+class ActorProgressRandomPort final
+    : public openswd3::battle::LegacyBattleBoundedRandomPort {
+public:
+    [[nodiscard]] openswd3::compat::u32
+    random_bounded(const openswd3::compat::u32 bound) override {
+        ++calls;
+        last_bound = bound;
+        return next_value;
+    }
+
+    openswd3::compat::u32 next_value{};
+    openswd3::compat::u32 calls{};
+    openswd3::compat::u32 last_bound{};
+};
+
+}  // namespace
+
 void test_battle_actor_progress(openswd3::test::Context& test) {
+    using openswd3::battle::LegacyBattleActorProgressInitializationStatus;
     using openswd3::battle::LegacyBattleActorProgressState;
     using openswd3::battle::LegacyBattleActorProgressThresholdSyncStatus;
     using openswd3::battle::LegacyBattleActorProgressWidthStatus;
     using openswd3::battle::LegacyBattleTimingState;
     using openswd3::battle::advance_legacy_battle_actor_progress;
+    using openswd3::battle::initialize_legacy_battle_actor_progress;
     using openswd3::battle::query_legacy_battle_actor_progress_width;
     using openswd3::battle::synchronize_legacy_battle_actor_progress_threshold;
+    using openswd3::compat::u32;
+
+    {
+        constexpr std::array<u32, 4> random_values{0U, 1U, 2U, 8U};
+        constexpr std::array<u32, 4> expected_values{450U, 375U, 350U, 316U};
+        constexpr std::array<u32, 4> expected_remainders{0U, 0U, 0U, 6U};
+        ActorProgressRandomPort random;
+        LegacyBattleActorProgressState actor{.progress = 0xFACE0011U};
+        bool matches = true;
+        for (u32 index = 0U; index < random_values.size(); ++index) {
+            random.next_value = random_values[index];
+            const auto result =
+                initialize_legacy_battle_actor_progress(&actor, random);
+            matches = matches &&
+                result.status ==
+                    LegacyBattleActorProgressInitializationStatus::completed &&
+                result.random_value == random_values[index] &&
+                result.random_calls == 1U && result.progress_writes == 1U &&
+                result.return_eax == expected_values[index] &&
+                result.return_ecx == random_values[index] + 1U &&
+                result.return_edx == expected_remainders[index] &&
+                actor.progress == (0xFACE0000U | expected_values[index]);
+        }
+        test.expect_true(
+            matches && random.calls == random_values.size() &&
+                random.last_bound == 9U,
+            "actor progress initialization preserves all bounded RNG quotients remainders and the actor high word"
+        );
+    }
+
+    {
+        ActorProgressRandomPort random;
+        random.next_value = 4U;
+        LegacyBattleActorProgressState actor{
+            .progress = 0xFACE0011U,
+            .progress_write_accessible = false,
+        };
+        const auto result =
+            initialize_legacy_battle_actor_progress(&actor, random);
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActorProgressInitializationStatus::
+                        actor_progress_write_typed_stop &&
+                actor.progress == 0xFACE0011U && result.return_eax == 330U &&
+                result.return_ecx == 5U && result.return_edx == 0U &&
+                result.random_value == 4U && result.random_calls == 1U &&
+                result.progress_writes == 0U && random.calls == 1U &&
+                random.last_bound == 9U,
+            "actor progress initialization retains the completed RNG and division prefix at the actor write stop"
+        );
+    }
 
     {
         LegacyBattleActorProgressState actor{.progress = 0xFACE0011U};

@@ -31,6 +31,27 @@ constexpr u32 kPartySourceCount = 4U;
     );
 }
 
+class StartupActorProgressRandomPort final
+    : public LegacyBattleBoundedRandomPort {
+public:
+    explicit StartupActorProgressRandomPort(
+        LegacyBattleStartupPort& port
+    ) noexcept
+        : port_(port) {}
+
+    [[nodiscard]] u32 random_bounded(const u32 bound) override {
+        return invoke(
+                   port_,
+                   LegacyBattleStartupCall::random_below,
+                   {bound, 0U, 0U, 0U}
+        )
+            .return_value;
+    }
+
+private:
+    LegacyBattleStartupPort& port_;
+};
+
 class StartupGroupANpcMaterializationPort final
     : public LegacyBattleGroupASummonMaterializationPort {
 public:
@@ -1188,18 +1209,25 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         }
     }
 
+    StartupActorProgressRandomPort progress_random(port);
     for (u32 index = 0U; index < state.party_count; ++index) {
-        if (index >= kLegacyBattleActorGroupAElementCount) {
-            result.status =
-                LegacyBattleStartupStatus::party_actor_index_out_of_range;
+        LegacyBattleActorProgressState* const actor =
+            index < kLegacyBattleActorGroupAElementCount
+            ? &state.party[index].progress
+            : nullptr;
+        const auto initialization =
+            initialize_legacy_battle_actor_progress(actor, progress_random);
+        ++result.party_progress_initialization_calls;
+        if (index < result.party_progress_initializations.size()) {
+            result.party_progress_initializations[index] = initialization;
+        }
+        if (initialization.status !=
+            LegacyBattleActorProgressInitializationStatus::completed) {
+            result.party_progress_typed_stop = initialization;
+            result.status = LegacyBattleStartupStatus::
+                party_progress_initialization_typed_stop;
             return result;
         }
-        static_cast<void>(invoke(
-            port,
-            LegacyBattleStartupCall::finalize_party_actor,
-            {group_a_actor_token(index), 0U, 0U, 0U}
-        ));
-        ++result.finalized_party_actor_count;
     }
 
     result.return_value = state.party_count;

@@ -96,7 +96,7 @@ enum class LegacyBattleStartupCall : compat::u16 {
     activate_supplemental_actor,
     query_actor_metric,
     reserved_advance_enemy_action,
-    finalize_party_actor,
+    reserved_initialize_party_actor_progress,
     group_a_missing_placement_diagnostic,
     group_a_profile_allocate,
     group_a_profile_load,
@@ -356,6 +356,7 @@ enum class LegacyBattleStartupStatus : compat::u8 {
     party_attribute_aggregation_typed_stop,
     enemy_action_configuration_typed_stop,
     enemy_progress_typed_stop,
+    party_progress_initialization_typed_stop,
 };
 
 struct LegacyBattleDisplaySurfaceReleaseResult {
@@ -397,7 +398,10 @@ struct LegacyBattleStartupResult {
         supplemental_materializations{};
     compat::u32 supplemental_materialization_calls{};
     compat::u32 enemy_action_advance_calls{};
-    compat::u32 finalized_party_actor_count{};
+    std::array<LegacyBattleActorProgressInitializationResult, 10>
+        party_progress_initializations{};
+    LegacyBattleActorProgressInitializationResult party_progress_typed_stop{};
+    compat::u32 party_progress_initialization_calls{};
     compat::u32 actor_metric_calls{};
     compat::u32 actor_order_selections{};
     compat::u32 group_b_order_copies{};

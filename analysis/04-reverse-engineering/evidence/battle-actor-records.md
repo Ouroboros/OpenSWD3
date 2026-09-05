@@ -123,9 +123,9 @@
 
 ## 公共行动进度word `+0x2A12`
 
-`0x00478370`证明组A记录的`+0x2A12`是一个独立word写入目标：它先读取共享行动阈值`0x004A74CC`低word，再只写该字段低16位。`0x00478340`从同一偏移执行u16零扩展并参与进度条宽度计算；`0x0046E520`和`0x004755E0`也按u16读取并推进该值。现有typed owner用`LegacyBattleActorProgressState::progress`承载该物理字段，并通过低word替换保留未触及的内存高word。
+`0x00478370`证明组A记录的`+0x2A12`是一个独立word写入目标：它先读取共享行动阈值`0x004A74CC`低word，再只写该字段低16位。`0x00478380`在战斗启动末尾为每个补位后组A角色调用`sub_439070(9)`，计算`300 + 150 / (random + 1)`并同样只替换该word；`0x00478340`从同一偏移执行u16零扩展并参与进度条宽度计算；`0x0046E520`和`0x004755E0`也按u16读取并推进该值。现有typed owner用`LegacyBattleActorProgressState::progress`承载该物理字段，并通过低word替换保留未触及的内存高word。
 
-已关闭三个`0x00478370`到达点都指向startup的组A角色记录：画面转场一次，组B完成处理两次。阈值直接来自`LegacyBattleStartupState::timing.action_threshold`唯一owner；不得复制为caller私有阈值或用完成阈值重新推导。
+已关闭三个`0x00478370`到达点都指向startup的组A角色记录：画面转场一次，组B完成处理两次；`0x00478380`的唯一到达点也直接遍历同一startup owner。阈值直接来自`LegacyBattleStartupState::timing.action_threshold`唯一owner，随机初始化直接复用第二套RNG；不得复制caller私有进度、用完成阈值重新推导或另建随机状态。
 
 ## 下一步
 

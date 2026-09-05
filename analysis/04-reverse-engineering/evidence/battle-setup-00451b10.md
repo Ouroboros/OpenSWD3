@@ -228,7 +228,7 @@ slots  = 10
 随后：
 
 - 为每个敌方对象执行 `sub_439070(6)` 次的附加初始化循环。
-- 为每个玩家侧对象调用 `0x00478380`。
+- 为每个玩家侧对象调用`0x00478380`：固定执行`sub_439070(9)`，计算`300 + 150 / (random + 1)`，并只写角色`+0x2A12`低word；完整证据见[`battle-actor-progress-initialization-00478380.md`](battle-actor-progress-initialization-00478380.md)。
 - 根据玩家侧总数、额外成员数和两个战斗计数计算一个边界条件；满足时向唯一共享message owner写`[0x0053BCEC] = 0x67`。
 
 三个收尾函数仍留给后续独立工作包；`0x67`按原bit pattern保留为启动期message，并发生在战斗建立返回前。
@@ -254,6 +254,6 @@ P2 语义名：按战斗编号重置战斗状态、加载 figtalk/battle.ffd、�
 `resource=400, x=175, y=303`。
 
 实现完成后已再次从上述两个切片的入口核对到全部分支出口；复核据
-`cmp eax, 1` 把队伍选择收紧为只接受查询结果一。Linux/Windows LLVM 完整应用
-182/182 CTest 通过，未启动原版或重写版 EXE。战斗对象构造、背景资源、额外成员和
-收尾初始化仍按本文件后续边界继续恢复，不在当前切片内伪造。
+`cmp eax, 1` 把队伍选择收紧为只接受查询结果一。本节保留早期有限切片的历史验证；
+完整启动协调器当前闭合状态见[`battle-startup-coordinator-00451b10.md`](battle-startup-coordinator-00451b10.md)，
+随机行动进度收尾见[`battle-actor-progress-initialization-00478380.md`](battle-actor-progress-initialization-00478380.md)。未启动原版或OpenSWD3游戏程序。

@@ -2,7 +2,7 @@
 
 状态：`module_in_progress`
 
-当前关闭进度：`280/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
+当前关闭进度：`281/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
 
 ## 1. 唯一真值与模块目标
 
@@ -771,6 +771,8 @@ I5最终必须锁定：
 
 本轮再完成`audit_order=280`的`0x00478370`战斗角色行动进度阈值同步函数。完整权威LST主体`0x00478370..0x0047837D`只有3条指令、0个call、0个跳转和1个返回点，没有外部chunk；它把共享`0x004A74CC`低word读入AX，再只写角色`+0x2A12`低word，因此保留入口EAX高word、角色ECX、EDX、标志位和角色内存高word。typed实现直接复用startup timing与组A角色进度唯一owner，严格区分阈值读取前停点和AX已替换后的角色写入停点。完整3处物理call均直接组合：转场`0x00452FF6`在角色查询与scene identity门后同步，再以固定参数1推进进度并扫描十槽；组B帧`0x00457F2A`保留前置reset的EAX高word形成完成item参数，`0x00457FD7`保留角色ECX高word形成单目标item参数。三个旧地址端口调用全部删除；相邻转场分支也按LST恢复为`0x00483FF0→0x00478850`，不再误用行动进度推进。定向测试覆盖低word截断、内存高word、EAX/ECX/EDX、两个访问停点、三个caller owner/寄存器来源与后缀阻断。验证：最终定向`2/2`、Linux core`199/199`、AddressSanitizer`199/199`、Linux app`205/205`、连续10轮完整core、clang-format和release审计全部通过，日志零OpenSWD3源码warning、测试失败、sanitizer finding或runtime error；未启动原版或OpenSWD3游戏程序。工作包为`280/422 = 270 platform_adapted + 10 assembly_exact + 142 pending_audit`；生成器连续双跑逐字节一致，SHA256为`58939437e3c68894af7f7942c5e173224f0e50e1be849699f4187c4898b39b3e`。动态差分因原版动态阈值、组A完整对象、异常内存页及三callsite联合寄存器/SEH捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一项回收`audit_order=281`的`0x00478380`战斗函数。
+本轮再完成`audit_order=281`的`0x00478380`战斗角色行动进度随机初始化函数。完整权威LST主体`0x00478380..0x004783A5`共14条指令、1个call、0个跳转和1个返回点，没有外部chunk；唯一callee为已关闭第二套有界RNG`0x00439070`。函数固定调用`random(9)`，以signed `idiv`计算`300 + 150 / (random + 1)`，返回完整EAX结果、ECX除数和EDX余数，只把AX写入角色`+0x2A12`并恢复入口ESI。typed实现复用同一组A进度owner和现有有界随机端口，保留角色内存高word；角色写不可达或固定owner越界时均在一次RNG与除法完成后停止，不增加提前范围门、重抽、夹值或失败继续。唯一物理caller`0x0045278E`已在启动协调器中直接组合，按补位后的组A总数逐项调用；旧`finalize_party_actor` opaque边界删除，对应reserved枚举槽生产零调用，停止时阻断后续角色、尾部减法与共享消息`0x67`发布。定向测试覆盖随机值`0/1/2/8`对应`450/375/350/316`、固定上界、商余数、内存高word、写停点、四角色与补位后角色循环、旧opaque零调用和后缀阻断。验证：最终定向`1/1`、Linux core`199/199`、AddressSanitizer`199/199`、Linux app`205/205`、连续10轮完整core、clang-format和release审计全部通过；未启动原版或OpenSWD3游戏程序。工作包为`281/422 = 271 platform_adapted + 10 assembly_exact + 141 pending_audit`；生成器连续双跑逐字节一致，SHA256为`6918e1b86d99ebfea59e35699905b8de8ab5ef785d2c2bcd0cb3b43727319f5b`。动态差分因原版第二套RNG状态、组A完整对象、异常内存页及唯一callsite寄存器/SEH联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一项回收`audit_order=282`的`0x004783B0`战斗函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。
