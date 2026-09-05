@@ -1,6 +1,6 @@
 # `0x004763D0` 战斗组B行动十七逐帧演出
 
-状态：`platform_adapted`、`blocked_runtime_oracle`
+历史状态：`platform_adapted`、`blocked_runtime_oracle`。工作包282的sample记录修正见第9节；第8节全量门为历史证据。
 
 来源：`swd3.exe.lst`完整函数体、唯一caller `0x00455D60`、已关闭动作记录更新`0x004321E0`、帧查询`0x004315D0`、软件blitter `0x004170E0`及音频命令证据。完整LST是唯一行为真值；IDA名称、反编译输出、旧证据和测试只用于导航。
 
@@ -70,7 +70,7 @@ caller只在调用前执行`mov ecx, esi`，因此入口只有组B source actor�
 1. actor `+0x04C0` word写`0x2F`。
 2. 播放sample `0x2F`。
 3. 读取actor `+0x2B08`完整镜像mode。
-4. mode等于一时，只把播放返回`ECX`低word改为`0x2F`并以声像`+16`调用；否则只把播放返回`EDX`低word改为`0x2F`并以声像`-16`调用。
+4. mode等于一时，重新读取actor `+0x04C0` WORD覆盖播放返回`ECX`低word，并以声像`+16`调用；否则用该WORD覆盖播放返回`EDX`低word，并以声像`-16`调用。不能把这次内存读取替换为常量`0x2F`。
 5. 声像调用返回后把actor `+0x04C0`低word清零。
 
 低word覆盖必须保留播放callee返回寄存器的陈旧高word；不能把sample参数重新零扩展。声像callee入口`EAX`是完整镜像mode，而不是播放返回值。
@@ -142,7 +142,7 @@ caller严格比较typed结果完整`return_eax`：
 
 专门UT覆盖actor首访问、signed倒计时完成门、精确`0x98`清零、动作更新失败早退、首个sample、倒计时十五sample与陈旧高word声像参数、帧查询键、镜像双bit切换、完整draw-offset门、u16宽度回绕、两处不同frame故障点、坐标副作用顺序、索引色板辅助参数、16位实际像素写入、共享owner stop、blitter路径和倒计时递减。caller UT覆盖逐帧返回零、typed-stop传播、返回一收尾及旧整函数地址零调用。
 
-最终验证：战斗聚合定向测试、完整core AddressSanitizer `188/188`、Linux core `188/188`、Linux app `194/194`全部通过；三份最终日志零OpenSWD3源码warning、零sanitizer finding。
+历史工作包250最终验证：战斗聚合定向测试、完整core AddressSanitizer `188/188`、Linux core `188/188`、Linux app `194/194`全部通过；三份最终日志零OpenSWD3源码warning、零sanitizer finding。
 
 原版组B actor、动作记录流、帧描述符、音频返回寄存器、坐标callee、软件blitter共享状态及唯一caller后缀的联合捕获后端仍缺失，因此动态差分为`blocked_runtime_oracle`。所需最小回放记录为：
 
@@ -175,4 +175,12 @@ return_edx
 caller_suffix_calls
 ```
 
-该阻塞不影响完整静态闭环、typed owner收敛和Linux验证。
+该动态阻塞与现代侧实现验收分开登记，不能代替本轮所有权修正及新门禁。
+
+## 9. 工作包282的sample记录修正
+
+`0x00476498/0x004764BB/0x004764C7/0x004764D9`访问同一actor `+0x04C0` WORD，属于`+0x0468` turn记录的`.field_58`。现删除独立sample成员，直接读写该字段；完整记录清零也自然作用于同一WORD。
+
+测试观察发布`0x2F`、播放callee改为`0x8001`、声像读取该新值、声像callee再改写后清零的顺序，并检查相邻`.field_5a`不变。保留组B mode为一的正十六声像，不与组A负十六合并。
+
+core24/ASan15定向`1/1`通过（2.59/4.27秒），日志无匹配编译/sanitizer诊断，`git diff --check`通过。此结果不是工作包282全量放行。

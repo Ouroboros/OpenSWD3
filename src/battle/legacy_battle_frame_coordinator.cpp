@@ -91,6 +91,25 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
     const LegacyBattleFrameCoordinatorRequest& request
 ) {
     LegacyBattleFrameCoordinatorResult result;
+    auto& coordinate_bindings = port.actor_coordinate_bindings();
+    coordinate_bindings = {};
+    for (u32 index = 0U;
+         index < context.action_dispatch.group_a_action_execution.size();
+         ++index) {
+        coordinate_bindings.group_a[index] =
+            view_legacy_battle_actor_coordinates(
+                context.action_dispatch.group_a_action_execution[index]
+            );
+    }
+    if (context.startup.group_b_lifecycle != nullptr) {
+        for (u32 index = 0U; index < context.startup.group_b_lifecycle->size();
+             ++index) {
+            coordinate_bindings.group_b[index] =
+                view_legacy_battle_actor_coordinates(
+                    (*context.startup.group_b_lifecycle)[index].action_execution
+                );
+        }
+    }
     state.active = 1U;
 
     LegacyBattleFrameCoordinatorCallReply reply = invoke(

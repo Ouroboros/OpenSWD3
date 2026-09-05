@@ -1,4 +1,6 @@
 #include "legacy_battle_mon_database_fixture.hpp"
+#include "openswd3/battle/legacy_battle_action_dispatch.hpp"
+#include "openswd3/battle/legacy_battle_debug_hotkeys.hpp"
 #include "openswd3/battle/legacy_battle_script_curve.hpp"
 #include "openswd3/battle/legacy_battle_script_dispatch.hpp"
 #include "test.hpp"
@@ -6,6 +8,7 @@
 #include <algorithm>
 #include <bit>
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -48,6 +51,9 @@ struct Fixture {
     LegacyBattleScriptSharedState shared;
     LegacyBattleScriptWorkspace workspace;
     u32 message_state{};
+    using ActionState = openswd3::battle::LegacyBattleActionDispatchState;
+    std::unique_ptr<ActionState> action;
+    bool has_group_a_view{true};
 
     Fixture() {
         assets.script_capacity =
@@ -66,6 +72,13 @@ struct Fixture {
             .victory = victory,
             .shared = shared,
             .message_state = message_state,
+            .group_a_actors = action && has_group_a_view
+                ? std::span{action->group_a_action_execution}
+                : std::span<openswd3::battle::
+                                LegacyBattleGroupAActionExecutionState>{},
+            .actor_control_words = action
+                ? std::span{action->opponent_workspace}
+                : std::span<u32>{},
         };
     }
 
@@ -84,6 +97,26 @@ struct Fixture {
 class Port final : public LegacyBattleScriptDispatchPort,
                    public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
+    Port() {
+        auto& bindings = actor_coordinate_bindings();
+        for (std::size_t index = 0U; index < coordinate_actors.size();
+             ++index) {
+            coordinate_actors[index].position_x = 100U;
+            coordinate_actors[index].position_y = 40U;
+            const auto view =
+                openswd3::battle::view_legacy_battle_actor_coordinates(
+                    coordinate_actors[index]
+                );
+            if (index < 8U) {
+                bindings.group_b[index] = view;
+            } else {
+                bindings.group_a[index - 8U] = view;
+            }
+        }
+    }
+
+    std::array<openswd3::battle::LegacyBattleActorCoordinatesState, 18>
+        coordinate_actors{};
     std::vector<LegacyBattleScriptDispatchCallRequest> calls;
     std::vector<u32> frame_results;
     std::size_t frame_index{};
@@ -92,6 +125,30 @@ public:
     u32 item_token{};
     bool script_page_stop{};
     bool typed_stop_enabled{};
+    std::function<void(
+        const LegacyBattleScriptDispatchCallRequest&,
+        LegacyBattleScriptDispatchCallReply&
+    )>
+        call_hook;
+    std::function<
+        void(const openswd3::battle::LegacyBattleMonDatabaseCallRequest&)>
+        mon_hook;
+
+    openswd3::battle::LegacyBattleMonDatabaseCallReply
+    invoke_legacy_battle_mon_database(
+        const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
+        const std::span<openswd3::compat::u8> destination
+    ) override {
+        auto reply =
+            LegacyBattleMonDatabaseFixture::invoke_legacy_battle_mon_database(
+                request, destination
+            );
+        if (mon_hook) {
+            mon_hook(request);
+        }
+
+        return reply;
+    }
     LegacyBattleScriptDispatchCall typed_stop_call{
         LegacyBattleScriptDispatchCall::noop_service
     };
@@ -130,7 +187,6 @@ public:
             );
             break;
         case LegacyBattleScriptDispatchCall::pending_478600:
-        case LegacyBattleScriptDispatchCall::pending_4783b0:
         case LegacyBattleScriptDispatchCall::pending_484500:
             workspace.coordinate_x = 100;
             workspace.coordinate_y = 40;
@@ -145,6 +201,10 @@ public:
         default:
             break;
         }
+        if (call_hook) {
+            call_hook(request, reply);
+        }
+
         if (typed_stop_enabled && request.call == typed_stop_call) {
             reply.typed_stop = true;
         }
@@ -164,6 +224,922 @@ public:
 };
 
 }  // namespace
+
+void seed_script_profile(
+    Fixture& fixture,
+    Port& port,
+    const u32 index,
+    const u16 source,
+    const u16 candidate
+) {
+    fixture.opcode(23);
+    fixture.write_u16(2U, source);
+    fixture.write_u16(4U, static_cast<u16>(index + 8U));
+    fixture.write_u16(6U, candidate);
+    fixture.workspace.value_b = -111;
+    fixture.workspace.value_c = -222;
+    fixture.final_actor.queued_actor_code = 0x87654321U;
+    fixture.shared.selected_target = 0x33334444U;
+    fixture.action = std::make_unique<Fixture::ActionState>();
+    auto& party = fixture.startup.party[index];
+    party.configuration.profile_token = 0x71001000U;
+    party.configuration.profile_record[0xA1U] = std::byte{0x10U};
+    party.configuration.profile_record[0xA3U] = std::byte{0x72U};
+    party.configuration.profile_description = {0x61U};
+    party.item_effect_application.mode_flags = 0x25U;
+    fixture.startup.reset.block_4fe5d4.fill(0xA5AA5A55U);
+    fixture.startup.reset.block_520e90.fill(0xCCDDCCDDU);
+    fixture.action->opponent_workspace.fill(0xAABBCCDDU);
+    port.definition[0x50U] = 0x34U;
+    port.definition[0x51U] = 0x12U;
+    port.definition[0x3EU] = 7U;
+    port.definition[0x40U] = 0xEFU;
+    port.definition[0x41U] = 0xBEU;
+    port.definition[0x34U] = 1U;
+    port.definition[0x35U] = 0x80U;
+    port.set_profile_dword(0x0CU, 0xABCD0028U);
+    port.set_profile_dword(0x10U, 0U);
+}
+
+void test_script_profile_preparation(openswd3::test::Context& test) {
+    using namespace openswd3::battle;
+    const LegacyBattleScriptDispatchRequest request{
+        .entry_ecx = 0xABCD1357U,
+        .entry_edx = 0xDEADBEEFU,
+        .profile_preparation_definition_token = 0xFACEB400U,
+    };
+    for (const u32 index : {0U, 1U, 4U, 9U}) {
+        for (const u16 candidate : {u16{7U}, u16{8U}, u16{0xFFFFU}}) {
+            for (const u32 gate : {0U, 1U, 2U}) {
+                for (const u16 source : {u16{0x77U}, u16{0x8123U}}) {
+                    auto fixture = std::make_unique<Fixture>();
+                    Port port;
+                    seed_script_profile(
+                        *fixture, port, index, source, candidate
+                    );
+                    port.call_hook = [gate](const auto& call, auto& reply) {
+                        if (call.call ==
+                            LegacyBattleScriptDispatchCall::pending_47d8b0) {
+                            reply.eax = 0xCAFE8001U;
+                        } else if (
+                            call.call ==
+                                LegacyBattleScriptDispatchCall::
+                                    pending_47d880 ||
+                            call.call ==
+                                LegacyBattleScriptDispatchCall::pending_47d8d0
+                        ) {
+                            reply.eax = gate;
+                        } else if (
+                            call.call == LegacyBattleScriptDispatchCall::frame
+                        ) {
+                            reply.ecx = 0xDEAD1234U;
+                            reply.edx = 0x24681357U;
+                        }
+                    };
+                    const auto result = run_legacy_battle_script_dispatch(
+                        fixture->workspace, fixture->bindings(), port, request
+                    );
+                    const auto& mon = static_cast<
+                        const openswd3::test::LegacyBattleMonDatabaseFixture&>(
+                        port
+                    );
+                    const u32 output_token = 0x004FE5D4U + index * 4U;
+                    const u32 actor_token = 0x005029D0U + index * 0x2F34U;
+                    test.expect_true(
+                        result.status ==
+                                LegacyBattleScriptDispatchStatus::completed &&
+                            result.profile_preparation_calls == 1U &&
+                            port.requested_definition_ids ==
+                                std::vector<u32>{source} &&
+                            port.requested_profile_ids ==
+                                std::vector<u16>{7U} &&
+                            result.profile_preparation.profile_argument ==
+                                0xBEEF0007U &&
+                            !mon.calls.empty() &&
+                            mon.calls.front().edx == output_token &&
+                            fixture->startup.reset.block_4fe5d4[index] ==
+                                0x1234U &&
+                            fixture->action->group_a_action_execution[index]
+                                    .profile_buffer[3U] == 0x80010028U &&
+                            fixture->startup.party[index]
+                                    .item_effect_application.mode_flags ==
+                                0xA5U &&
+                            fixture->startup.party[index]
+                                .configuration.profile_description.empty() &&
+                            fixture->workspace.value_a ==
+                                static_cast<i32>(
+                                    std::bit_cast<openswd3::compat::i16>(source)
+                                ) &&
+                            fixture->workspace.value_b == -111 &&
+                            fixture->workspace.value_c == -222 &&
+                            fixture->final_actor.queued_actor_code ==
+                                0x87654321U &&
+                            port.battle_debug_hotkey_state()
+                                    .committed_actor_code == index + 8U &&
+                            std::bit_cast<u32>(
+                                fixture->workspace.coordinate_x
+                            ) == 0x87654321U &&
+                            fixture->shared.selected_target == 0x33334444U &&
+                            fixture->final_actor.published_actor_code ==
+                                (candidate == 8U       ? 1U
+                                     : candidate == 7U ? 8U
+                                                       : 0U) &&
+                            fixture->input_dispatch.selection_target_cache ==
+                                (gate == 1U ? 1U : 0U) &&
+                            fixture->shared.target_selection_block ==
+                                (gate == 1U ? 1U : 0U) &&
+                            result.return_ecx == request.entry_ecx &&
+                            result.return_edx == 0x24681357U &&
+                            fixture->workspace.cursor == 8U,
+                        "script twenty three uses the first operand, shared committed actor and real profile/output owners while retaining saved ECX"
+                    );
+                    bool exact_writes = true;
+                    for (u32 slot = 0U; slot < 50U; ++slot) {
+                        const u32 expected =
+                            slot == index * 5U && candidate == 8U ? 1U
+                            : slot == index * 5U + 3U             ? 0x8001U
+                            : slot == index * 5U + 2U && gate == 1U
+                            ? 1U
+                            : 0xCCDDCCDDU;
+                        exact_writes = exact_writes &&
+                            fixture->startup.reset.block_520e90[slot] ==
+                                expected;
+                    }
+
+                    for (u32 slot = 0U;
+                         slot < fixture->action->opponent_workspace.size();
+                         ++slot) {
+                        exact_writes = exact_writes &&
+                            fixture->action->opponent_workspace[slot] ==
+                                (slot == index + 10U ? 2U : 0xAABBCCDDU);
+                        if (slot < 10U && slot != index) {
+                            exact_writes = exact_writes &&
+                                fixture->startup.reset.block_4fe5d4[slot] ==
+                                    0xA5AA5A55U;
+                        }
+                    }
+
+                    test.expect_true(
+                        exact_writes,
+                        "script twenty three preserves five-DWORD record stride, raw actor-code index and untouched neighbors"
+                    );
+                    test.expect_true(
+                        port.calls.size() == 4U &&
+                            port.calls[0U].object_token == actor_token &&
+                            port.calls[0U].eax == index * 0x3EFU &&
+                            port.calls[0U].ecx == actor_token &&
+                            port.calls[0U].edx == index * 0xBCDU &&
+                            port.count(
+                                LegacyBattleScriptDispatchCall::
+                                    reserved_actor_profile_preparation
+                            ) == 0U &&
+                            result.actor_availability_block_calls == 1U,
+                        "script twenty three has no opaque profile call and passes the original post-profile pointer arithmetic registers"
+                    );
+                }
+            }
+        }
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        Port port;
+        seed_script_profile(*fixture, port, 0U, 0x77U, 7U);
+        port.mon_hook = [&](const auto& call) {
+            if (call.stream_kind ==
+                    LegacyBattleMonDatabaseStreamKind::profile &&
+                call.call == LegacyBattleMonDatabaseCall::release_stream) {
+                port.battle_debug_hotkey_state().committed_actor_code =
+                    0x40000009U;
+            }
+        };
+        port.call_hook = [&](const auto& call, auto& reply) {
+            if (call.call == LegacyBattleScriptDispatchCall::pending_47d8b0) {
+                port.battle_debug_hotkey_state().committed_actor_code = 11U;
+                reply.eax = 0xCAFE8002U;
+            } else if (
+                call.call == LegacyBattleScriptDispatchCall::pending_47d880
+            ) {
+                port.battle_debug_hotkey_state().committed_actor_code = 10U;
+                reply.eax = 1U;
+            } else if (
+                call.call == LegacyBattleScriptDispatchCall::pending_47d8d0
+            ) {
+                port.battle_debug_hotkey_state().committed_actor_code =
+                    0x40000011U;
+                reply.eax = 2U;
+            } else if (call.call == LegacyBattleScriptDispatchCall::frame) {
+                fixture->workspace.cursor = 16U;
+            }
+        };
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture->workspace, fixture->bindings(), port, request
+        );
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                port.calls.size() == 4U &&
+                port.calls[0U].object_token == 0x00505904U &&
+                port.calls[0U].eax == 0xC00003EFU &&
+                port.calls[0U].edx == 0x40000BCDU &&
+                port.calls[1U].object_token == 0x00505904U &&
+                port.calls[2U].object_token == 0x00508838U &&
+                port.calls[3U].eax == 0x40000011U &&
+                fixture->startup.reset.block_4fe5d4[0U] == 0x1234U &&
+                fixture->startup.reset.block_520e90[8U] == 0x8002U &&
+                fixture->startup.reset.block_520e90[12U] == 1U &&
+                fixture->action->opponent_workspace[19U] == 2U &&
+                fixture->shared.target_selection_block == 0U &&
+                fixture->workspace.cursor == 24U,
+            "script twenty three reloads committed actor between callees, retains the saved record index and resolves wrapped physical addresses"
+        );
+    }
+
+    for (const u32 fault : {1U, 2U, 3U, 4U, 5U, 6U, 7U}) {
+        auto fixture = std::make_unique<Fixture>();
+        Port port;
+        seed_script_profile(*fixture, port, 1U, 0x77U, 8U);
+        if (fault == 1U) {
+            fixture->assets.script_capacity = 6U;
+        } else if (fault == 2U) {
+            fixture->has_group_a_view = false;
+        } else if (fault == 3U) {
+            fixture->startup.party[1U].configuration.profile_token = 0U;
+        } else {
+            port.typed_stop_enabled = true;
+            port.typed_stop_call = fault == 4U
+                ? LegacyBattleScriptDispatchCall::pending_47d8b0
+                : fault == 5U ? LegacyBattleScriptDispatchCall::pending_47d880
+                : fault == 6U ? LegacyBattleScriptDispatchCall::pending_47d8d0
+                              : LegacyBattleScriptDispatchCall::frame;
+        }
+
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture->workspace, fixture->bindings(), port, request
+        );
+        test.expect_true(
+            result.status != LegacyBattleScriptDispatchStatus::completed &&
+                fixture->workspace.cursor == 0U &&
+                fixture->final_actor.queued_actor_code == 0x87654321U &&
+                port.battle_debug_hotkey_state().committed_actor_code == 9U &&
+                std::bit_cast<u32>(fixture->workspace.coordinate_x) ==
+                    0x87654321U &&
+                fixture->workspace.value_a == 0x77 &&
+                fixture->workspace.value_b == -111 &&
+                fixture->workspace.value_c == -222,
+            "script twenty three failure preserves only the physically reached operand and shared-state prefix"
+        );
+        if (fault == 1U) {
+            test.expect_true(
+                result.stopped_offset == 6U && result.return_eax == 24U &&
+                    result.return_ecx == 9U &&
+                    result.return_edx == 0x87654321U &&
+                    result.actor_availability_block_calls == 0U &&
+                    result.profile_preparation_calls == 0U,
+                "candidate read fault occurs after committed-actor publication and before availability/profile work"
+            );
+        } else if (fault <= 3U) {
+            test.expect_true(
+                result.status ==
+                        LegacyBattleScriptDispatchStatus::
+                            actor_profile_preparation_typed_stop &&
+                    result.profile_preparation_calls == 1U &&
+                    port.calls.empty() &&
+                    fixture->startup.reset.block_4fe5d4[1U] ==
+                        (fault == 2U ? 0x1234U : 0xA5AA5A55U) &&
+                    result.profile_preparation.output_writes ==
+                        (fault == 2U ? 1U : 0U) &&
+                    fixture->startup.party[1U]
+                            .item_effect_application.mode_flags == 0x25U &&
+                    result.return_ecx ==
+                        result.profile_preparation.return_ecx &&
+                    result.return_edx == result.profile_preparation.return_edx,
+                "profile owner and actor-record faults retain distinct output prefixes and suppress every actor/frame suffix"
+            );
+        } else {
+            test.expect_true(
+                port.calls.size() == fault - 3U &&
+                    fixture->startup.reset.block_4fe5d4[1U] == 0x1234U &&
+                    fixture->shared.frame_gate == (fault == 7U ? 0U : 1U),
+                "pending callee faults suppress later calls and a frame fault does not restore the frame gate"
+            );
+        }
+    }
+}
+
+void test_script_control_owners(openswd3::test::Context& test) {
+    using namespace openswd3::battle;
+    {
+        auto fixture = std::make_unique<Fixture>();
+        Port port;
+        seed_script_profile(*fixture, port, 4U, 0x77U, 7U);
+        port.actor_publication_state().slots.fill(0xFFFFFFFFU);
+        const auto script = run_legacy_battle_script_dispatch(
+            fixture->workspace, fixture->bindings(), port
+        );
+        fixture->workspace.cursor = 0U;
+        auto missing_control = fixture->bindings();
+        missing_control.actor_control_words = {};
+        const auto stopped = run_legacy_battle_script_dispatch(
+            fixture->workspace, missing_control, port
+        );
+        test.expect_true(
+            stopped.status ==
+                    LegacyBattleScriptDispatchStatus::shared_state_typed_stop &&
+                stopped.stopped_offset == 0x0053AF68U &&
+                stopped.return_eax == 12U &&
+                fixture->shared.action_state == 2U &&
+                fixture->workspace.cursor == 0U &&
+                port.count(LegacyBattleScriptDispatchCall::frame) == 1U,
+            "script twenty three missing control view stops at the actual final store after the profile and actor-query prefix"
+        );
+        auto& hotkeys = port.battle_debug_hotkey_state();
+        hotkeys.developer_tools_enabled = 1U;
+        LegacyBattleDebugHotkeyPort debug_port;
+        LegacyBattleEffectCoordinatorState effects;
+        LegacyBattleEffectShiftState shift;
+        openswd3::world_map::LegacyWorldPlayerControlState player;
+        const LegacyBattleDebugHotkeyBindings bindings{
+            .startup = fixture->startup,
+            .final_actor = fixture->final_actor,
+            .action = *fixture->action,
+            .actor_metrics = fixture->metrics,
+            .actor_publication = port.actor_publication_state(),
+            .effect_coordinator = effects,
+            .effect_shift = shift,
+            .actor_frames = nullptr,
+            .player_control = player,
+            .message_state = fixture->message_state,
+        };
+        openswd3::input_time_rng::LegacyKeyboardSnapshot keyboard{};
+        keyboard[0x1DU] = 0x80U;
+        keyboard[0x2DU] = 0x80U;
+        test.expect_true(
+            script.status == LegacyBattleScriptDispatchStatus::completed &&
+                fixture->action->opponent_workspace[14U] == 2U,
+            "actor twelve script writes the physical DWORD subsequently read by control X"
+        );
+        const auto first = coordinate_legacy_battle_debug_hotkeys(
+            keyboard, hotkeys, bindings, debug_port
+        );
+        test.expect_true(
+            first.status == LegacyBattleDebugHotkeyStatus::completed &&
+                fixture->action->opponent_workspace[14U] == 0U,
+            "control X reads the script value two as nonzero and clears the same control DWORD"
+        );
+        const auto second = coordinate_legacy_battle_debug_hotkeys(
+            keyboard, hotkeys, bindings, debug_port
+        );
+        test.expect_true(
+            second.status == LegacyBattleDebugHotkeyStatus::completed &&
+                fixture->action->opponent_workspace[14U] == 1U &&
+                fixture->action->opponent_workspace[13U] == 0xAABBCCDDU &&
+                fixture->action->opponent_workspace[15U] == 0xAABBCCDDU,
+            "the next control X toggles the shared zero to one without touching neighbors"
+        );
+        fixture->opcode(12);
+        fixture->startup.enemy_count = 3U;
+        const std::size_t frames_before =
+            port.count(LegacyBattleScriptDispatchCall::frame);
+        const auto empty = run_legacy_battle_script_dispatch(
+            fixture->workspace, fixture->bindings(), port
+        );
+        test.expect_true(
+            empty.status == LegacyBattleScriptDispatchStatus::completed &&
+                port.count(LegacyBattleScriptDispatchCall::frame) ==
+                    frames_before &&
+                fixture->workspace.cursor == 2U,
+            "script twelve reads publication sentinels rather than the unrelated nonzero action control area"
+        );
+        fixture->opcode(10);
+        fixture->write_u16(2U, 2U);
+        fixture->workspace.packed_actor_state = 0U;
+        const auto publish = run_legacy_battle_script_dispatch(
+            fixture->workspace, fixture->bindings(), port
+        );
+        test.expect_true(
+            publish.status == LegacyBattleScriptDispatchStatus::completed &&
+                port.actor_publication_state().slots[2U] == 2U &&
+                fixture->action->opponent_workspace[14U] == 1U,
+            "script ten publishes into the existing group B publication owner without overwriting actor controls"
+        );
+        fixture->opcode(12);
+        const auto occupied = run_legacy_battle_script_dispatch(
+            fixture->workspace, fixture->bindings(), port
+        );
+        test.expect_true(
+            occupied.status == LegacyBattleScriptDispatchStatus::completed &&
+                port.count(LegacyBattleScriptDispatchCall::frame) ==
+                    frames_before + 2U &&
+                fixture->workspace.cursor == 0U,
+            "script twelve observes script ten publication and waits on the same live slot"
+        );
+    }
+
+    for (const u16 actor : {u16{0U}, u16{7U}, u16{0x8000U}, u16{0xFFFFU}}) {
+        auto fixture = std::make_unique<Fixture>();
+        Port port;
+        fixture->opcode(58);
+        fixture->write_u16(2U, actor);
+        fixture->assets.script_capacity = 4U;
+        fixture->workspace.coordinate_y = std::bit_cast<i32>(0xDEADBEEFU);
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture->workspace,
+            fixture->bindings(),
+            port,
+            {.entry_ecx = 0x12345678U}
+        );
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.return_eax == 1U && result.return_ecx == 0x12345678U &&
+                result.return_edx == 0x0046E0A0U &&
+                fixture->workspace.cursor == 4U &&
+                std::bit_cast<u32>(fixture->workspace.value_a) == 0xDEADBEEFU &&
+                result.actor_availability_block_calls == 0U &&
+                port.calls.empty(),
+            "script fifty eight signed group B branch copies coordinate Y without reading a target or entering the fixed-address dead blocks"
+        );
+    }
+
+    for (const u32 index : {0U, 4U, 9U}) {
+        for (const u16 target : {u16{6U}, u16{7U}, u16{0xFFFFU}}) {
+            for (const u32 fault : {0U, 1U, 2U}) {
+                auto fixture = std::make_unique<Fixture>();
+                Port port;
+                seed_script_profile(*fixture, port, index, 0U, 0U);
+                fixture->opcode(58);
+                fixture->write_u16(2U, static_cast<u16>(index + 8U));
+                fixture->write_u16(4U, target);
+                fixture->target_selection.selected_action_kind = 42U;
+                if (fault == 1U) {
+                    fixture->assets.script_capacity = 4U;
+                }
+
+                auto bindings = fixture->bindings();
+                if (fault == 2U) {
+                    bindings.actor_control_words = {};
+                }
+
+                const auto result = run_legacy_battle_script_dispatch(
+                    fixture->workspace,
+                    bindings,
+                    port,
+                    {.entry_ecx = 0x55556666U, .entry_edx = 0xDEADBEEFU}
+                );
+                test.expect_true(
+                    fixture->final_actor.queued_actor_code == 0x87654321U &&
+                        std::bit_cast<u32>(fixture->workspace.coordinate_x) ==
+                            0x87654321U &&
+                        port.battle_debug_hotkey_state().committed_actor_code ==
+                            index + 8U &&
+                        fixture->target_selection.selected_action_kind == 42U &&
+                        port.calls.empty(),
+                    "script fifty eight keeps queued and selected-action owners distinct from committed actor and action state"
+                );
+                if (fault == 1U) {
+                    test.expect_true(
+                        result.stopped_offset == 4U &&
+                            result.return_eax == 59U &&
+                            result.return_ecx == index + 8U &&
+                            result.return_edx == 0xDEADBEEFU &&
+                            result.actor_availability_block_calls == 0U &&
+                            fixture->workspace.cursor == 0U,
+                        "script fifty eight target truncation retains the preceding shared writes but no availability or control write"
+                    );
+                } else {
+                    const u32 expected_edx =
+                        target == 7U ? index * 5U : 0xDEADBEEFU;
+                    test.expect_true(
+                        result.actor_availability_block_calls == 1U &&
+                            result.return_edx == expected_edx &&
+                            fixture->shared.action_state == 1U &&
+                            fixture->final_actor.published_actor_code ==
+                                (target == 6U ? 7U : 0U) &&
+                            fixture->startup.reset.block_520e90[index * 5U] ==
+                                (target == 7U ? 1U : 0xCCDDCCDDU),
+                        "script fifty eight preserves the target branch register and five-DWORD record prefix"
+                    );
+                    test.expect_true(
+                        fault == 0U ? result.status ==
+                                    LegacyBattleScriptDispatchStatus::
+                                        completed &&
+                                result.return_ecx == 0x55556666U &&
+                                fixture->workspace.cursor == 4U &&
+                                fixture->action
+                                        ->opponent_workspace[index + 10U] == 1U
+                                    : result.status ==
+                                    LegacyBattleScriptDispatchStatus::
+                                        shared_state_typed_stop &&
+                                result.stopped_offset ==
+                                    0x0053AF58U + index * 4U &&
+                                result.return_ecx == index + 8U &&
+                                fixture->workspace.cursor == 0U &&
+                                fixture->action
+                                        ->opponent_workspace[index + 10U] ==
+                                    0xAABBCCDDU,
+                        "script fifty eight stores through the borrowed control owner and only restores ECX and cursor after a successful store"
+                    );
+                }
+            }
+        }
+    }
+}
+
+void test_script_seventy_eight_control(openswd3::test::Context& test) {
+    using namespace openswd3::battle;
+    using Call = LegacyBattleScriptDispatchCall;
+    for (const u32 index : {0U, 4U, 9U}) {
+        for (const u32 query_reply : {0U, 1U, 2U}) {
+            for (const u32 fault : {0U, 1U, 2U, 3U}) {
+                auto fixture = std::make_unique<Fixture>();
+                Port port;
+                fixture->action = std::make_unique<Fixture::ActionState>();
+                fixture->action->opponent_workspace.fill(0xAABBCCDDU);
+                fixture->opcode(78);
+                fixture->write_u16(2U, static_cast<u16>(index + 8U));
+                fixture->write_u16(4U, 0U);
+                fixture->workspace.packed_value_a = 0xDEAD5678U;
+                fixture->final_actor.actor_order.fill(0x12345678U);
+                fixture->final_actor.queued_actor_code = 0xCAFEBABEU;
+                fixture->shared.script_aux_gate = 0xF00DBAAFU;
+                fixture->target_selection.selected_action_kind = 0x71U;
+                port.battle_selection_frame_state().secondary_actor_gate =
+                    0xDEADBEEFU;
+                for (auto& record : fixture->startup.reset.records_524788) {
+                    record = {
+                        0xA1A2A3A4U,
+                        0xB1B2B3B4U,
+                        0xC1C2U,
+                        0xD1D2U,
+                        0xE1E2E3E4U,
+                        0xF1F2F3F4U,
+                        0x11112222U,
+                        0x33334444U
+                    };
+                }
+
+                bool call_registers = true;
+                const auto set_actor = [&](const u32 code) {
+                    fixture->workspace.packed_value_a = (code << 16U) | 0x5678U;
+                };
+                port.call_hook = [&](const auto& call, auto& reply) {
+                    reply.eax = 0x10203040U;
+                    reply.ecx = 0x55667788U;
+                    reply.edx = 0x99AABBCCU;
+                    switch (call.call) {
+                    case Call::pending_47ce80:
+                        call_registers &= call.eax == index * 0xBCDU &&
+                            call.ecx == 0x005029D0U + index * 0x2F34U &&
+                            call.edx == 1U;
+                        reply.eax = query_reply;
+                        set_actor(9U);
+                        fixture->final_actor.published_actor_code = 3U;
+                        break;
+
+                    case Call::pending_47e880:
+                        call_registers &= call.eax == 0x3EFU &&
+                            call.ecx == 0x00505904U &&
+                            call.edx == 0x99AABBCCU &&
+                            call.arguments[0] == 0x8000U;
+                        set_actor(10U);
+                        break;
+
+                    case Call::pending_47f150:
+                        call_registers &= call.eax == 2U * 0x3EFU &&
+                            call.ecx == 0x00508838U &&
+                            call.edx == 2U * 0xBCDU &&
+                            call.arguments[0] == 0xFFFFD8F1U &&
+                            call.arguments[1] == 9999U &&
+                            call.arguments[2] == 9999U;
+                        set_actor(11U);
+                        fixture->final_actor.published_actor_code = 5U;
+                        break;
+
+                    case Call::pending_478a70: {
+                        const u32 live_index = query_reply == 1U ? 3U : 1U;
+                        call_registers &= call.eax == live_index * 0x3EFU &&
+                            call.ecx == 0x005029D0U + live_index * 0x2F34U &&
+                            call.edx == 0x99AABBCCU &&
+                            call.arguments[0] ==
+                                (query_reply == 1U ? 4U : 2U) &&
+                            fixture->final_actor.queued_actor_code == 0U;
+                        set_actor(17U);
+                        fixture->final_actor.published_actor_code = 2U;
+                        break;
+                    }
+
+                    case Call::pending_478710:
+                        call_registers &= call.eax == 9U * 0x3EFU &&
+                            call.ecx == 0x005029D0U + 9U * 0x2F34U &&
+                            call.edx == 9U * 0xBCDU && call.arguments[0] == 6U;
+                        set_actor(12U);
+                        break;
+
+                    case Call::pending_478ac0:
+                        call_registers &= call.eax == 2U * 0x159U &&
+                            call.ecx == 0x00528030U && call.edx == 12U &&
+                            call.argument_count == 0U &&
+                            fixture->final_actor.selection_gate == 1U &&
+                            fixture->final_actor.active_actor_code == 12U &&
+                            port.battle_selection_frame_state()
+                                    .secondary_actor_gate == 0U;
+                        break;
+
+                    case Call::frame:
+                        call_registers &= fixture->workspace.word_a == 1U &&
+                            fixture->shared.frame_gate == 1U;
+                        fixture->workspace.cursor = 12U;
+                        fixture->input_dispatch.selected_actor_reset_gate = 0U;
+                        break;
+
+                    default:
+                        call_registers = false;
+                        break;
+                    }
+                };
+                if (fault == 2U || fault == 3U) {
+                    port.typed_stop_enabled = true;
+                    port.typed_stop_call =
+                        fault == 2U ? Call::pending_478710 : Call::frame;
+                }
+
+                auto bindings = fixture->bindings();
+                if (fault == 1U) {
+                    bindings.actor_control_words = {};
+                }
+
+                const auto result = run_legacy_battle_script_dispatch(
+                    fixture->workspace,
+                    bindings,
+                    port,
+                    {.entry_eax = 0xDEADC0DEU,
+                     .entry_ecx = 0x13572468U,
+                     .entry_edx = 0x24681357U}
+                );
+                bool records_exact = true;
+                for (const auto& record :
+                     fixture->startup.reset.records_524788) {
+                    if (fault == 2U) {
+                        records_exact &= record.value_00 == 0xA1A2A3A4U &&
+                            record.value_04 == 0xB1B2B3B4U &&
+                            record.value_08 == 0xC1C2U &&
+                            record.value_0a == 0xD1D2U &&
+                            record.value_0c == 0xE1E2E3E4U &&
+                            record.value_10 == 0xF1F2F3F4U &&
+                            record.value_14 == 0x11112222U &&
+                            record.value_18 == 0x33334444U;
+                    } else {
+                        records_exact &= record.value_00 ==
+                                (fault == 1U ? 0U : 0xFFFFFFFFU) &&
+                            record.value_04 == 0U && record.value_08 == 0U &&
+                            record.value_0a == 0U && record.value_0c == 0U &&
+                            record.value_10 == 0U && record.value_14 == 0U &&
+                            record.value_18 == 0U;
+                    }
+                }
+
+                const bool order_exact = std::all_of(
+                    fixture->final_actor.actor_order.begin(),
+                    fixture->final_actor.actor_order.end(),
+                    [&](u32 value) {
+                        return value == (fault == 2U ? 0x12345678U : 0U);
+                    }
+                );
+                bool controls_exact = true;
+                for (std::size_t slot = 0U;
+                     slot < fixture->action->opponent_workspace.size();
+                     ++slot) {
+                    controls_exact &=
+                        fixture->action->opponent_workspace[slot] ==
+                        ((slot == 14U && fault != 1U && fault != 2U)
+                             ? 6U
+                             : 0xAABBCCDDU);
+                }
+
+                test.expect_true(
+                    call_registers && records_exact && order_exact &&
+                        controls_exact &&
+                        fixture->shared.script_aux_gate == 0xF00DBAAFU &&
+                        fixture->target_selection.selected_action_kind == 0x71U,
+                    "script seventy eight reloads actor and target per callee and clears only the real order/record owners before its control store"
+                );
+                test.expect_true(
+                    port.count(Call::pending_47e880) ==
+                            (query_reply == 1U ? 1U : 0U) &&
+                        port.count(Call::pending_47f150) ==
+                            (query_reply == 1U ? 1U : 0U),
+                    "script seventy eight optional actor preparation requires exactly EAX one"
+                );
+                if (fault == 1U) {
+                    test.expect_true(
+                        result.status ==
+                                LegacyBattleScriptDispatchStatus::
+                                    shared_state_typed_stop &&
+                            result.stopped_offset == 0x0053AF68U &&
+                            result.return_eax == 0U &&
+                            result.return_ecx == 0U &&
+                            result.return_edx == 12U &&
+                            fixture->shared.action_state == 6U &&
+                            fixture->workspace.word_a == 0U &&
+                            fixture->workspace.cursor == 0U &&
+                            port.count(Call::pending_478ac0) == 0U &&
+                            port.count(Call::frame) == 0U,
+                        "script seventy eight missing control retains both zeroed arrays but no sentinels or later gate writes"
+                    );
+                } else if (fault == 2U || fault == 3U) {
+                    test.expect_true(
+                        result.status !=
+                                LegacyBattleScriptDispatchStatus::completed &&
+                            result.return_eax == 0x10203040U &&
+                            result.return_ecx == 0x55667788U &&
+                            result.return_edx == 0x99AABBCCU &&
+                            fixture->workspace.cursor ==
+                                (fault == 2U ? 0U : 12U) &&
+                            fixture->workspace.word_a ==
+                                (fault == 2U ? 0U : 1U),
+                        "script seventy eight callee and frame faults keep their exact partial prefix without caller pop or cleanup"
+                    );
+                } else {
+                    test.expect_true(
+                        result.status ==
+                                LegacyBattleScriptDispatchStatus::completed &&
+                            result.return_eax == 1U &&
+                            result.return_ecx == 0x13572468U &&
+                            result.return_edx == 0x99AABBCCU &&
+                            fixture->workspace.cursor == 18U &&
+                            fixture->workspace.word_a == 0U &&
+                            fixture->workspace.packed_value_a == 0x5678U,
+                        "script seventy eight completed frame reloads cursor and clears only the two WORDs before restoring caller ECX"
+                    );
+                }
+            }
+        }
+    }
+}
+
+void test_script_nine_group_a_control(openswd3::test::Context& test) {
+    using namespace openswd3::battle;
+    for (const u32 index : {0U, 4U, 9U}) {
+        for (const u16 target : {u16{6U}, u16{7U}, u16{0xFFFFU}}) {
+            for (const u32 fault : {0U, 1U, 2U, 3U, 4U, 5U}) {
+                auto fixture = std::make_unique<Fixture>();
+                Port port;
+                seed_script_profile(*fixture, port, index, 0U, 0U);
+                fixture->opcode(9);
+                fixture->write_u16(2U, static_cast<u16>(index + 8U));
+                fixture->write_u16(4U, target);
+                fixture->shared.actor_target_words.fill(0x4321U);
+                fixture->final_actor.group_a_slot_values.fill(0xABCDEF01U);
+                for (auto& record : fixture->startup.reset.records_524788) {
+                    record = {};
+                    record.value_00 = 0xFFFFFFFFU;
+                }
+
+                port.battle_debug_hotkey_state().committed_actor_code =
+                    0xC0DEC0DEU;
+                bool frame_prefix = false;
+                const u32 expected_edx =
+                    target == 7U ? index * 5U : 0xDEADBEEFU;
+                port.call_hook = [&](const auto& call, auto& reply) {
+                    if (call.call == LegacyBattleScriptDispatchCall::frame) {
+                        frame_prefix = call.eax == 1U &&
+                            call.ecx == index + 8U &&
+                            call.edx == expected_edx &&
+                            fixture->shared.frame_gate == 0U &&
+                            fixture->shared.action_state == 1U &&
+                            fixture->action->opponent_workspace[index + 10U] ==
+                                1U;
+                        fixture->workspace.cursor = 12U;
+                        reply.eax = 0x10203040U;
+                        reply.ecx = 0x55667788U;
+                        reply.edx = 0x99AABBCCU;
+                    }
+                };
+                if (fault == 1U || fault == 2U) {
+                    fixture->assets.script_capacity = fault == 1U ? 2U : 4U;
+                } else if (fault == 3U) {
+                    fixture->final_actor.group_a_availability_blocks[index]
+                        .write_accessible = false;
+                } else if (fault == 5U) {
+                    port.typed_stop_enabled = true;
+                    port.typed_stop_call =
+                        LegacyBattleScriptDispatchCall::frame;
+                }
+
+                auto bindings = fixture->bindings();
+                if (fault == 4U) {
+                    bindings.actor_control_words = {};
+                }
+
+                const auto result = run_legacy_battle_script_dispatch(
+                    fixture->workspace,
+                    bindings,
+                    port,
+                    {.entry_eax = 0x11112222U,
+                     .entry_ecx = 0x33334444U,
+                     .entry_edx = 0xDEADBEEFU}
+                );
+                const bool no_group_b_effects =
+                    std::all_of(
+                        fixture->shared.actor_target_words.begin(),
+                        fixture->shared.actor_target_words.end(),
+                        [](const u16 value) { return value == 0x4321U; }
+                    ) &&
+                    std::all_of(
+                        fixture->startup.reset.records_524788.begin(),
+                        fixture->startup.reset.records_524788.end(),
+                        [](const auto& record) {
+                            return record.value_00 == 0xFFFFFFFFU &&
+                                record.value_08 == 0U;
+                        }
+                    );
+                test.expect_true(
+                    no_group_b_effects &&
+                        fixture->shared.script_aux_gate == 0U &&
+                        fixture->shared.selected_target == 0x33334444U &&
+                        fixture->final_actor.group_a_slot_values[index] ==
+                            0xABCDEF01U &&
+                        fixture->final_actor.queued_actor_code == 0x87654321U,
+                    "script nine group A never touches group B target/order slots or unrelated queued/selection projections"
+                );
+                test.expect_true(
+                    port.battle_debug_hotkey_state().committed_actor_code ==
+                            (fault == 1U ? 0xC0DEC0DEU : index + 8U) &&
+                        std::bit_cast<u32>(fixture->workspace.coordinate_x) ==
+                            (fault == 1U ? 0U : 0x87654321U),
+                    "script nine commits the actor only after the first WORD and before reading the target WORD"
+                );
+                if (fault == 1U || fault == 2U) {
+                    test.expect_true(
+                        result.status !=
+                                LegacyBattleScriptDispatchStatus::completed &&
+                            result.stopped_offset == (fault == 1U ? 2U : 4U) &&
+                            result.return_eax ==
+                                (fault == 1U ? 10U : index + 8U) &&
+                            result.return_ecx ==
+                                (fault == 1U ? 0x33334444U : index + 8U) &&
+                            result.return_edx == 0xDEADBEEFU &&
+                            result.actor_availability_block_calls == 0U &&
+                            fixture->workspace.cursor == 0U &&
+                            port.calls.empty(),
+                        "script nine input faults retain opcode-index or actor AX and the reached shared-state prefix"
+                    );
+                } else {
+                    test.expect_true(
+                        result.actor_availability_block_calls == 1U &&
+                            fixture->final_actor.published_actor_code ==
+                                (target == 6U ? 7U : 0U) &&
+                            fixture->startup.reset.block_520e90[index * 5U] ==
+                                (target == 7U ? 1U : 0xCCDDCCDDU),
+                        "script nine target branches keep the five-DWORD stride and signed plus-one conversion"
+                    );
+                    if (fault == 3U || fault == 4U) {
+                        test.expect_true(
+                            result.status !=
+                                    LegacyBattleScriptDispatchStatus::
+                                        completed &&
+                                result.return_eax == 1U &&
+                                result.return_ecx ==
+                                    (fault == 3U ? 0x005029D0U + index * 0x2F34U
+                                                 : index + 8U) &&
+                                result.return_edx == expected_edx &&
+                                fixture->shared.action_state ==
+                                    (fault == 3U ? 0U : 1U) &&
+                                fixture->workspace.cursor == 0U &&
+                                port.calls.empty() &&
+                                fixture->action
+                                        ->opponent_workspace[index + 10U] ==
+                                    0xAABBCCDDU,
+                            "script nine availability and control-store faults preserve distinct prefixes and suppress the frame"
+                        );
+                    } else {
+                        test.expect_true(
+                            frame_prefix && port.calls.size() == 1U &&
+                                fixture->action
+                                        ->opponent_workspace[index + 10U] ==
+                                    1U &&
+                                result.return_edx == 0x99AABBCCU &&
+                                (fault == 5U ? result.status !=
+                                             LegacyBattleScriptDispatchStatus::
+                                                 completed &&
+                                         result.return_eax == 0x10203040U &&
+                                         result.return_ecx == 0x55667788U &&
+                                         fixture->workspace.cursor == 12U &&
+                                         fixture->shared.frame_gate == 0U
+                                             : result.status ==
+                                             LegacyBattleScriptDispatchStatus::
+                                                 completed &&
+                                         result.return_eax == 1U &&
+                                         result.return_ecx == 0x33334444U &&
+                                         fixture->workspace.cursor == 18U &&
+                                         fixture->shared.frame_gate == 1U),
+                            "script nine frame faults retain callback registers/cursor while normal returns reread cursor and restore saved ECX"
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
 
 void test_battle_group_b_action_composition_script_caller(
     openswd3::test::Context& test
@@ -1216,7 +2192,58 @@ void test_battle_group_b_script_special_action_item_parameters_script_caller(
 }
 
 void test_battle_script_dispatch(openswd3::test::Context& test) {
+    test_script_profile_preparation(test);
+    test_script_control_owners(test);
+    test_script_nine_group_a_control(test);
+    test_script_seventy_eight_control(test);
     using openswd3::battle::run_legacy_battle_script_dispatch;
+
+    for (const u16 opcode : std::array<u16, 3>{2U, 44U, 59U}) {
+        for (const u16 actor_code : std::array<u16, 2>{10U, 3U}) {
+            auto fixture = std::make_unique<Fixture>();
+            Port port;
+            fixture->opcode(opcode);
+            fixture->write_u16(2U, actor_code);
+            fixture->workspace.pair_x = 0x3333U;
+            fixture->workspace.pair_y = 0x4444U;
+            port.coordinate_actors[actor_code]
+                .coordinate_mode_gate_read_accessible = false;
+            const auto result = run_legacy_battle_script_dispatch(
+                fixture->workspace,
+                fixture->bindings(),
+                port,
+                {.entry_eax = 0xCAFE1234U, .entry_edx = 0xBEEF5678U}
+            );
+            const bool group_a = actor_code == 10U;
+            const u32 expected_eax =
+                group_a ? 0x179AU : (opcode == 59U ? 3U : 0x102FU);
+            const u32 expected_edx =
+                group_a ? 10U : (opcode == 59U ? 0x102FU : 0x40BU);
+            const u32 expected_ecx = group_a ? 0x005029D0U + 2U * 0x2F34U
+                                             : 0x00525508U + 3U * 0x2B28U;
+            test.expect_true(
+                result.actor_coordinate_query_calls == 1U &&
+                    result.actor_coordinate_query.status ==
+                        openswd3::battle::
+                            LegacyBattleActorCoordinateQueryStatus::
+                                actor_gate_read_typed_stop &&
+                    result.actor_coordinate_query.return_eax == expected_eax &&
+                    result.actor_coordinate_query.return_ecx == expected_ecx &&
+                    result.actor_coordinate_query.return_edx == expected_edx &&
+                    result.actor_coordinate_query.output_writes == 0U &&
+                    fixture->workspace.pair_x == 0x3333U &&
+                    fixture->workspace.pair_y == 0x4444U &&
+                    port.count(
+                        LegacyBattleScriptDispatchCall::
+                            reserved_actor_coordinate_query
+                    ) == 0U &&
+                    port.count(
+                        LegacyBattleScriptDispatchCall::pending_47c660
+                    ) == 0U,
+                "all six script coordinate sites preserve their index-expression registers and stop before cleanup"
+            );
+        }
+    }
 
     {
         Fixture fixture;
@@ -1240,6 +2267,9 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
         fixture.write_u16(2U, 0x77U);
         fixture.write_u16(4U, 8U);
         fixture.write_u16(6U, 0U);
+        fixture.action = std::make_unique<Fixture::ActionState>();
+        fixture.startup.party[0U].configuration.profile_token = 0x71001000U;
+        fixture.final_actor.queued_actor_code = 0x778899AAU;
         const auto result = run_legacy_battle_script_dispatch(
             fixture.workspace,
             fixture.bindings(),
@@ -1255,11 +2285,12 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
                 result.actor_availability_block.return_edx == 0x778899AAU &&
                 fixture.final_actor.group_a_availability_blocks[0U].value ==
                     1U &&
-                fixture.final_actor.queued_actor_code == 8U &&
+                fixture.final_actor.queued_actor_code == 0x778899AAU &&
+                port.battle_debug_hotkey_state().committed_actor_code == 8U &&
                 fixture.final_actor.published_actor_code == 1U &&
                 fixture.shared.action_state == 2U &&
-                fixture.shared.actor_state_words[0U] == 2U &&
-                fixture.workspace.cursor == 8U && port.calls.size() == 5U,
+                fixture.action->opponent_workspace[10U] == 2U &&
+                fixture.workspace.cursor == 8U && port.calls.size() == 4U,
             "case twenty-three writes the typed group-A owner before its remaining actor and frame calls"
         );
     }
@@ -1430,6 +2461,7 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
         Fixture fixture;
         Port port;
         fixture.opcode(9);
+        fixture.action = std::make_unique<Fixture::ActionState>();
         fixture.write_u16(2U, 8U);
         fixture.write_u16(4U, 0U);
         for (auto& record : fixture.startup.reset.records_524788) {
@@ -1452,11 +2484,13 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
                 result.actor_availability_block.return_edx == 0x55556666U &&
                 fixture.final_actor.group_a_availability_blocks[0U].value ==
                     1U &&
-                fixture.final_actor.queued_actor_code == 8U &&
+                fixture.final_actor.queued_actor_code == 0U &&
+                port.battle_debug_hotkey_state().committed_actor_code == 8U &&
+                fixture.action->opponent_workspace[10U] == 1U &&
                 fixture.shared.action_state == 1U &&
                 fixture.workspace.cursor == 6U &&
                 port.count(LegacyBattleScriptDispatchCall::frame) == 1U,
-            "case nine writes the typed group-A owner before its attack-order and frame suffix"
+            "case nine writes group-A availability and control before its frame suffix without inserting a group-B attack"
         );
     }
 
@@ -1484,10 +2518,11 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
                 result.actor_availability_block.actor_writes == 0U &&
                 result.return_eax == 1U && result.return_ecx == 0x005029D0U &&
                 result.return_edx == 0U &&
-                fixture.final_actor.queued_actor_code == 8U &&
+                fixture.final_actor.queued_actor_code == 0U &&
+                port.battle_debug_hotkey_state().committed_actor_code == 8U &&
                 fixture.final_actor.published_actor_code == 1U &&
                 fixture.startup.reset.value_53bfd0 == 1U &&
-                fixture.final_actor.group_a_slot_values[0U] == 1U &&
+                fixture.startup.reset.block_520e90[0U] == 1U &&
                 fixture.shared.action_state == 0U &&
                 fixture.workspace.cursor == 0U && port.calls.empty(),
             "case nine typed write stop preserves the reached publications and suppresses the complete caller suffix"
@@ -1818,6 +2853,7 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
         Fixture fixture;
         Port port;
         fixture.opcode(58);
+        fixture.action = std::make_unique<Fixture::ActionState>();
         fixture.write_u16(2U, 8U);
         fixture.write_u16(4U, 9U);
         const auto result = run_legacy_battle_script_dispatch(
@@ -1835,12 +2871,14 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
                 result.actor_availability_block.return_edx == 0U &&
                 fixture.final_actor.group_a_availability_blocks[0U].value ==
                     1U &&
-                fixture.final_actor.queued_actor_code == 8U &&
+                fixture.final_actor.queued_actor_code == 0U &&
+                port.battle_debug_hotkey_state().committed_actor_code == 8U &&
                 fixture.final_actor.published_actor_code == 2U &&
-                fixture.target_selection.selected_action_kind == 6U &&
-                fixture.shared.actor_state_words[0U] == 1U &&
+                fixture.shared.action_state == 1U &&
+                fixture.action->opponent_workspace[10U] == 1U &&
+                fixture.startup.reset.block_520e90[0U] == 1U &&
                 fixture.workspace.cursor == 4U && port.calls.empty(),
-            "case fifty-eight writes the typed group-A owner before publishing action six"
+            "case fifty-eight writes availability and the shared control slot without overwriting the queued actor"
         );
     }
 
@@ -1958,6 +2996,7 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
         Fixture fixture;
         Port port;
         fixture.opcode(78);
+        fixture.action = std::make_unique<Fixture::ActionState>();
         fixture.write_u16(2U, 8U);
         fixture.write_u16(4U, 0U);
         static_cast<void>(run_legacy_battle_script_dispatch(
@@ -1965,10 +3004,11 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
         ));
         test.expect_true(
             fixture.workspace.cursor == 0U &&
-                fixture.input_dispatch.selected_actor_reset_gate == 1U,
+                fixture.input_dispatch.selected_actor_reset_gate == 1U &&
+                fixture.workspace.word_a == 1U,
             "case seventy-eight waits in place while its asynchronous gate is set"
         );
-        fixture.workspace.word_a = 1U;
+        fixture.assets.script_capacity = 2U;
         fixture.input_dispatch.selected_actor_reset_gate = 0U;
         static_cast<void>(run_legacy_battle_script_dispatch(
             fixture.workspace, fixture.bindings(), port

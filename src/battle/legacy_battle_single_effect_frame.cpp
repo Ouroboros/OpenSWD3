@@ -14,7 +14,6 @@ using compat::u32;
 constexpr u32 kCallInitializeRecord = 0x004321E0U;
 constexpr u32 kCallLookupResource = 0x00431760U;
 constexpr u32 kCallQueryOffsets = 0x00478400U;
-constexpr u32 kCallQueryCoordinates = 0x004783B0U;
 constexpr u32 kCallQueryBaseCoordinates = 0x00478470U;
 constexpr u32 kCallPlaySample = 0x00485610U;
 constexpr u32 kCallSetSamplePan = 0x00485650U;
@@ -122,10 +121,26 @@ LegacyBattleSingleEffectFrameResult advance_legacy_battle_single_effect_frame(
             x += base.outputs[0];
             y += base.outputs[1];
         } else {
-            const auto coordinates =
-                invoke(kCallQueryCoordinates, {actor_token});
-            x = coordinates.outputs[0];
-            y = coordinates.outputs[1];
+            u16 coordinate_x{};
+            u16 coordinate_y{};
+            result.coordinate_query = query_legacy_battle_actor_coordinates(
+                resolve_legacy_battle_actor_coordinates(
+                    port.actor_coordinate_bindings(), actor_token
+                ),
+                &coordinate_x,
+                &coordinate_y,
+                {.actor_token = actor_token}
+            );
+            ++result.coordinate_query_calls;
+            if (result.coordinate_query.status !=
+                LegacyBattleActorCoordinateQueryStatus::completed) {
+                result.status = LegacyBattleSingleEffectFrameStatus::
+                    actor_coordinate_typed_stop;
+                result.return_value = result.coordinate_query.return_eax;
+                return result;
+            }
+            x = coordinate_x;
+            y = coordinate_y;
         }
         replace_low_word(
             y, static_cast<u16>(low_word(y) - primary.base_y_offset)

@@ -121,6 +121,16 @@ public:
 class RecordingPort final
     : public openswd3::battle::LegacyBattleActionDispatchPort {
 public:
+    RecordingPort() {
+        actor_coordinate_bindings().group_b[2U] =
+            openswd3::battle::view_legacy_battle_actor_coordinates(target);
+    }
+
+    openswd3::battle::LegacyBattleActorCoordinatesState target{
+        .position_x = 400U,
+        .position_y = 60U,
+    };
+
     [[nodiscard]] LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) override {
         calls.push_back(request);
@@ -172,14 +182,6 @@ public:
             const auto reply = found->second.front();
             found->second.pop_front();
             return reply;
-        }
-        if (callee == 0x004783B0U) {
-            return {
-                .eax = request.eax,
-                .ecx = request.ecx,
-                .edx = request.edx,
-                .outputs = {400U, 60U},
-            };
         }
         return {.eax = 1U, .ecx = request.ecx, .edx = request.edx};
     }
@@ -250,7 +252,7 @@ void prepare_actor(LegacyBattleGroupAActionExecutionState& actor) {
     actor.primary_action_record.field_4c = 8U;
     actor.primary_action_record.field_58 = 0x44U;
     actor.primary_action_record.field_5a = 9U;
-    actor.secondary_auxiliary_word = 5U;
+    actor.primary_action_record.field_76 = 5U;
     actor.position_x = 200U;
     actor.position_y = 300U;
     actor.special_draw_mirror_mode = 1U;
@@ -275,6 +277,51 @@ void prepare_actor(LegacyBattleGroupAActionExecutionState& actor) {
 }  // namespace
 
 void test_battle_target_ready(openswd3::test::Context& test) {
+    for (const u16 gate : std::array<u16, 2>{0U, 0x8000U}) {
+        auto fixture = std::make_unique<Fixture>();
+        auto actor = std::make_unique<LegacyBattleGroupAActionExecutionState>();
+        auto shared =
+            std::make_unique<LegacyBattleGroupAActionExecutionSharedState>();
+        prepare_actor(*actor);
+        RecordingPort port;
+        port.target.coordinate_mode_gate = gate;
+        port.target.position_x = 0x8123U;
+        port.target.alternate_position_x = 0xFEDCU;
+        port.target.position_y_read_accessible = false;
+        port.target.alternate_position_y_read_accessible = false;
+        auto context = fixture->context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_target_ready(
+                actor.get(),
+                shared.get(),
+                port,
+                context,
+                {
+                    .actor_token = 0x005029D0U,
+                    .target_token = 0x0052AB58U,
+                    .local_x_token = 0xCAFE1002U,
+                    .local_y_token = 0xCAFE1000U,
+                }
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleTargetReadyStatus::
+                        target_coordinate_typed_stop &&
+                result.render_calls == 2U &&
+                result.coordinate_query.output_writes == 1U &&
+                result.target_x == (gate == 0U ? 0x8123U : 0xFEDCU) &&
+                result.target_y == 0U &&
+                result.return_eax == (gate == 0U ? 0xCAFE1002U : 0xCAFEFEDCU) &&
+                result.return_ecx == 0x0052AB58U &&
+                result.return_edx == (gate == 0U ? 0xCAFE1000U : 0xCAFE1002U) &&
+                actor->effect_action_record.action_id == 0x1BF3U &&
+                actor->effect_action_record.base_variant == 0U &&
+                port.particles.empty() && port.completions.empty() &&
+                port.count(0x004783B0U) == 0U,
+            "target coordinate read stop retains the two renders, effect-record writes, first WORD and exact callsite registers"
+        );
+    }
+
     {
         auto fixture = std::make_unique<Fixture>();
         auto actor = std::make_unique<LegacyBattleGroupAActionExecutionState>();
@@ -290,7 +337,8 @@ void test_battle_target_ready(openswd3::test::Context& test) {
             0x00485610U,
             {.eax = 0x11111111U, .ecx = 0xABCD1111U, .edx = 0xBCDE2222U}
         );
-        port.push(0x004783B0U, {.outputs = {0x0000FF00U, 0x00008001U}});
+        port.target.position_x = 0xFF00U;
+        port.target.position_y = 0x8001U;
         port.push(
             0x0047FC40U, {.eax = 1U, .ecx = 0x11112222U, .edx = 0x33334444U}
         );
@@ -312,6 +360,8 @@ void test_battle_target_ready(openswd3::test::Context& test) {
                     .entry_eax = 0x01020304U,
                     .entry_ecx = 0xAABBCCDDU,
                     .entry_edx = 0x11223344U,
+                    .local_x_token = 0xCAFE1002U,
+                    .local_y_token = 0xCAFE1000U,
                 }
             );
 
@@ -329,6 +379,10 @@ void test_battle_target_ready(openswd3::test::Context& test) {
                 result.sample_play_calls == 2U &&
                 result.sample_pan_calls == 1U && result.render_calls == 2U &&
                 result.coordinate_query_calls == 1U &&
+                result.coordinate_query.return_eax == 0xCAFE1002U &&
+                result.coordinate_query.return_ecx == 0x00528001U &&
+                result.coordinate_query.return_edx == 0xCAFE1000U &&
+                port.count(0x004783B0U) == 0U &&
                 result.particle_spawn_calls == 2U &&
                 result.particle_commit_calls == 2U &&
                 result.completion_calls == 2U &&

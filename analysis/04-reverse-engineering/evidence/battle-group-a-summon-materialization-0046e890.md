@@ -1,6 +1,6 @@
 # 战斗组A召唤角色资料物化 `0x0046E890`
 
-状态：`platform_adapted`。完整LST、typed资料物化、action15唯一caller、完整验证和inventory双生成均已收敛。
+历史状态：`platform_adapted`。工作包282正在回收坐标写入链并修正下述分配前缀；当前改动尚未完成发布门，本文历史通过结果不得替代新验证。
 
 ## 1. 完整权威范围与ABI
 
@@ -10,9 +10,13 @@
 
 ## 2. 分配、callee与停止顺序
 
-函数先以固定0xA4调用旧分配边界，立即对返回记录执行41个dword清零，然后才把token写入角色`+0x0C`。随后首次读取源记录`+0x14`的角色编号，依次调用资料加载和资料内动态文字释放边界。两个callee对0xA4记录的变更由窄typed port回传，函数不伪造其文件、动态内存或寄存器副作用。
+函数先以固定0xA4调用旧分配边界。`0x0046E8AD`先把返回token写入角色`+0x0C`，
+`0x0046E8B0`再对返回记录执行41个dword清零。旧实现及旧证据把这两步倒置，工作包282已按机器指令修正。
+随后首次读取源记录`+0x14`的角色编号，依次调用资料加载和资料内动态文字释放边界。
 
-分配token为零时，typed-stop放在原始第一次清零写；缺少角色typed owner时，保留成功分配和41-dword清零后在角色`+0x0C`首次写停止；缺少源记录时，保留资料token发布后在源`+0x14`首次读停止。
+分配token为零时，先保留角色`+0x0C=0`，再在第一次清零写停止；缺少角色typed owner时，
+保留成功分配并在角色`+0x0C`首次写停止，未发生资料清零。两种停点EAX为0、ECX为41，EDX保留分配callee结果。
+缺少源记录时，保留资料token发布和完整清零后在源`+0x14`首次读停止，此时ECX为0。
 
 ## 3. 源记录复制、诊断与资料投影
 
@@ -26,7 +30,11 @@
 
 0xA4资料记录、token和投影字段并入`LegacyBattleGroupAConfigurationState`，继续复用startup `party[index]`的唯一角色owner。32-byte召唤源直接取同一party placement状态，只构造调用期只读值视图，不复制第二份物理全局数组。
 
-action15首帧从共享状态取得召唤索引，以对应组A角色token和`0x0053AF70 + index * 0x20`源token直连typed物化器；窗口token由startup入口保存并沿同一owner传播。旧`0x0046E890` opaque调用生产零次，成功后才进入原phase、坐标和逐帧召唤路径；缺少shared owner时保留分配/清零前缀并阻断后续phase发布。
+action15首帧从共享状态取得召唤索引，以对应组A角色token和`0x0053AF70 + index * 0x20`源token直连typed物化器；窗口token由startup入口保存并沿同一owner传播。旧`0x0046E890` opaque调用生产零次，成功后才进入原phase、坐标和逐帧召唤路径；缺少shared owner时只保留分配前缀，在资料清零前停止并阻断后续phase发布。
+
+工作包282把唯一action15调用方的同索引`group_a_action_execution`显式传给物化器。
+`0x0046E8D9/0x0046E8E8`两次复制分别写入其主、备用坐标；输入源与复制快照均不是运行期坐标owner。
+新增断言覆盖两组坐标、未触及的完整门WORD、诊断回调所见值以及复制前后typed-stop前缀。
 
 ## 5. 验证状态
 

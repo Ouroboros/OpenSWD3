@@ -1,6 +1,9 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_actor_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
+#include "openswd3/battle/legacy_battle_actor_profile_preparation.hpp"
+#include "openswd3/battle/legacy_battle_debug_state.hpp"
 #include "openswd3/battle/legacy_battle_assets.hpp"
 #include "openswd3/battle/legacy_battle_attack_order_insert.hpp"
 #include "openswd3/battle/legacy_battle_final_actor_step.hpp"
@@ -15,6 +18,7 @@
 #include "openswd3/battle/legacy_battle_message_phase.hpp"
 #include "openswd3/battle/legacy_battle_party_item_definition.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
+#include "openswd3/battle/legacy_battle_selection_frame.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_runtime.hpp"
 #include "openswd3/battle/legacy_battle_victory_rewards.hpp"
 #include "openswd3/compat/types.hpp"
@@ -139,16 +143,13 @@ struct LegacyBattleScriptSharedState {
     compat::u32 attack_order_secondary_gate{};
     std::array<compat::u32, 4> shutdown_values{};      // 0x0053CE5C..0x0053CE68
     std::array<compat::u16, 18> actor_target_words{};  // 0x005028AC
-    std::array<compat::u32, 18> actor_state_words{};
-    std::array<compat::u32, 10> group_a_mirror_x{};          // 0x004FF558
+    std::array<compat::u32, 10> group_a_mirror_x{};    // 0x004FF558
     std::array<compat::u32, 10> group_a_coordinate_table{};  // 0x0052027C
     std::array<compat::u32, 10> group_a_field_2b00{};
     std::array<compat::u32, 10> group_a_field_2b04{};
     std::array<float, 3> movement_start{};
     std::array<float, 3> movement_target{};
     std::array<float, 3> movement_step{};
-    std::array<compat::u32, 10> actor_order_workspace{};  // 0x00520DD0
-    std::array<compat::u32, 126> attack_order_workspace{};
     std::array<compat::u8, 260> music_path{};  // 0x0053C198
     std::vector<LegacyBattleScriptPlayerItemQuantity> player_items;
 };
@@ -164,6 +165,10 @@ struct LegacyBattleScriptDispatchBindings {
     LegacyBattleVictoryRewardState& victory;
     LegacyBattleScriptSharedState& shared;
     compat::u32& message_state;
+    // Borrow the runtime actors; an absent view stops at its first access.
+    std::span<LegacyBattleGroupAActionExecutionState> group_a_actors{};
+    // Borrow the existing action control area rooted at 0x0053AF30.
+    std::span<compat::u32> actor_control_words{};
 };
 
 enum class LegacyBattleScriptDispatchCall : compat::u32 {
@@ -193,7 +198,7 @@ enum class LegacyBattleScriptDispatchCall : compat::u32 {
     script_page_load = 0x0046E1E0U,
     reserved_script_shutdown = 0x0046E260U,
     reserved_script_curve_sample = 0x0046E290U,
-    pending_4707b0 = 0x004707B0U,
+    reserved_actor_profile_preparation = 0x004707B0U,
     reserved_group_b_action_reconfiguration = 0x00475820U,
     reserved_group_b_action_composition = 0x00476160U,
     reserved_group_b_action_profile_selection = 0x00476250U,
@@ -204,7 +209,7 @@ enum class LegacyBattleScriptDispatchCall : compat::u32 {
     pending_476db0 = 0x00476DB0U,
     reserved_party_item_definition = 0x00477BD0U,
     pending_478220 = 0x00478220U,
-    pending_4783b0 = 0x004783B0U,
+    reserved_actor_coordinate_query = 0x004783B0U,
     pending_478470 = 0x00478470U,
     pending_4785c0 = 0x004785C0U,
     pending_478600 = 0x00478600U,
@@ -269,7 +274,11 @@ struct LegacyBattleScriptDispatchCallReply {
 };
 
 class LegacyBattleScriptDispatchPort
-    : public virtual LegacyBattleMonDatabasePort,
+    : public virtual LegacyBattleActorCoordinateBindingsStatePort,
+      public virtual LegacyBattleDebugHotkeyStatePort,
+      public virtual LegacyBattleActorPublicationStatePort,
+      public virtual LegacyBattleSelectionFrameStatePort,
+      public virtual LegacyBattleMonDatabasePort,
       public virtual LegacyBattleLevelAdvancementStatePort,
       public virtual world_map::LegacyWorldItemListStatePort {
 public:
@@ -310,12 +319,16 @@ enum class LegacyBattleScriptDispatchStatus : compat::u8 {
     group_b_script_action_item_parameters_typed_stop,
     group_b_script_special_action_item_parameters_typed_stop,
     party_item_definition_typed_stop,
+    actor_profile_preparation_typed_stop,
 };
 
 struct LegacyBattleScriptDispatchRequest {
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
+    // Original sub_4707B0 local capture. Default zeros are not oracle evidence.
+    compat::u32 profile_preparation_definition_token{};
+    LegacyBattleMonDefinitionBytes profile_preparation_initial_definition{};
 };
 
 struct LegacyBattleScriptDispatchResult {
@@ -332,6 +345,8 @@ struct LegacyBattleScriptDispatchResult {
     compat::u32 stopped_offset{};
     LegacyBattleActorAvailabilityBlockResult actor_availability_block{};
     compat::u32 actor_availability_block_calls{};
+    LegacyBattleActorCoordinateQueryResult actor_coordinate_query{};
+    compat::u32 actor_coordinate_query_calls{};
     LegacyBattleGroupBActionCompositionResult group_b_action_composition{};
     compat::u32 group_b_action_composition_calls{};
     LegacyBattleGroupBActionProfileSelectionResult
@@ -349,6 +364,8 @@ struct LegacyBattleScriptDispatchResult {
     LegacyBattlePartyItemDefinitionResult party_item_definition{};
     compat::u32 party_item_definition_calls{};
     std::vector<LegacyBattleScriptDispatchCall> call_trace;
+    LegacyBattleActorProfilePreparationResult profile_preparation{};
+    compat::u32 profile_preparation_calls{};
 };
 
 [[nodiscard]] LegacyBattleScriptDispatchResult

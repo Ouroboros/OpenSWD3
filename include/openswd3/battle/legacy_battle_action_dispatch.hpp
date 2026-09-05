@@ -4,6 +4,8 @@
 #include "openswd3/asset_runtime/legacy_frame_deformation.hpp"
 #include "openswd3/battle/legacy_battle_retreat_commit.hpp"
 #include "openswd3/battle/legacy_battle_actor_availability_block.hpp"
+#include "openswd3/battle/legacy_battle_actor_coordinates.hpp"
+#include "openswd3/battle/legacy_battle_actor_profile_preparation.hpp"
 #include "openswd3/battle/legacy_battle_actor_progress.hpp"
 #include "openswd3/battle/legacy_battle_color_accumulation.hpp"
 #include "openswd3/battle/legacy_battle_reward_scale.hpp"
@@ -112,6 +114,7 @@ public:
 
 class LegacyBattleActionDispatchPort
     : public virtual LegacyBattleMonDatabasePort,
+      public virtual LegacyBattleActorCoordinateBindingsStatePort,
       public virtual LegacyBattleFixedObjectStatePort,
       public virtual LegacyBattleFixedCountAllocationPort,
       public virtual LegacyBattleSummonFramePort,
@@ -501,6 +504,7 @@ enum class LegacyBattleActionThirteenStatus : compat::u8 {
     actor_state_typed_stop,
     frame_owner_typed_stop,
     shared_state_typed_stop,
+    target_coordinate_typed_stop,
 };
 
 struct LegacyBattleActionThirteenResult {
@@ -510,6 +514,7 @@ struct LegacyBattleActionThirteenResult {
     compat::u32 action_update_calls{};
     compat::u32 frame_lookup_calls{};
     compat::u32 coordinate_query_calls{};
+    LegacyBattleActorCoordinateQueryResult coordinate_query{};
     compat::u32 line_raster_calls{};
     compat::u32 sample_calls{};
     compat::u32 render_calls{};
@@ -568,15 +573,19 @@ enum class LegacyBattleActionTwentyThreeStatus : compat::u8 {
     phase_state_typed_stop,
     frame_owner_typed_stop,
     shared_state_typed_stop,
+    target_coordinate_typed_stop,
 };
 
 struct LegacyBattleActionTwentyThreeResult {
     LegacyBattleActionTwentyThreeStatus status{
         LegacyBattleActionTwentyThreeStatus::completed
     };
+    // Observation of the entry push ecx, overwritten by X/Y WORD stores.
+    compat::u32 coordinate_stack_word{};
     compat::u32 action_update_calls{};
     compat::u32 frame_lookup_calls{};
     compat::u32 coordinate_query_calls{};
+    LegacyBattleActorCoordinateQueryResult coordinate_query{};
     compat::u32 sample_play_calls{};
     compat::u32 sample_pan_calls{};
     compat::u32 render_calls{};
@@ -671,6 +680,7 @@ enum class LegacyBattleActionTwentySevenStatus : compat::u8 {
     phase_state_typed_stop,
     frame_owner_typed_stop,
     shared_state_typed_stop,
+    target_coordinate_typed_stop,
 };
 
 struct LegacyBattleActionTwentySevenResult {
@@ -680,6 +690,7 @@ struct LegacyBattleActionTwentySevenResult {
     compat::u32 action_update_calls{};
     compat::u32 frame_lookup_calls{};
     compat::u32 coordinate_query_calls{};
+    LegacyBattleActorCoordinateQueryResult coordinate_query{};
     compat::u32 sample_play_calls{};
     compat::u32 sample_pan_calls{};
     compat::u32 render_calls{};
@@ -710,6 +721,7 @@ enum class LegacyBattleDualRecordActionStatus : compat::u8 {
     phase_state_typed_stop,
     frame_owner_typed_stop,
     shared_state_typed_stop,
+    target_coordinate_typed_stop,
 };
 
 struct LegacyBattleDualRecordActionResult {
@@ -719,6 +731,7 @@ struct LegacyBattleDualRecordActionResult {
     compat::u32 action_update_calls{};
     compat::u32 frame_lookup_calls{};
     compat::u32 coordinate_query_calls{};
+    LegacyBattleActorCoordinateQueryResult coordinate_query{};
     compat::u32 sample_play_calls{};
     compat::u32 sample_pan_calls{};
     compat::u32 render_calls{};
@@ -727,6 +740,8 @@ struct LegacyBattleDualRecordActionResult {
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
+    // Observation of var_C, not another persistent coordinate owner.
+    compat::u32 coordinate_x_stack_word{};
 };
 
 struct LegacyBattleSpecialFiveHundredRequest {
@@ -772,6 +787,7 @@ enum class LegacyBattleSpecialFourOhFiveStatus : compat::u8 {
     frame_owner_typed_stop,
     shared_state_typed_stop,
     phase_state_typed_stop,
+    target_coordinate_typed_stop,
 };
 
 struct LegacyBattleSpecialFourOhFiveResult {
@@ -786,6 +802,7 @@ struct LegacyBattleSpecialFourOhFiveResult {
     LegacyBattleFrameRefreshResult frame_refresh{};
     compat::u32 frame_refresh_calls{};
     compat::u32 coordinate_query_calls{};
+    LegacyBattleActorCoordinateQueryResult coordinate_query{};
     compat::u32 effect_update_calls{};
     compat::u32 target_refresh_calls{};
     compat::u32 effect_compute_calls{};
@@ -886,6 +903,7 @@ enum class LegacyBattleSpecialFourHundredStatus : compat::u8 {
     frame_owner_typed_stop,
     shared_state_typed_stop,
     fixed_curve_typed_stop,
+    target_coordinate_typed_stop,
 };
 
 struct LegacyBattleSpecialFourHundredResult {
@@ -896,6 +914,7 @@ struct LegacyBattleSpecialFourHundredResult {
     compat::u32 action_update_calls{};
     compat::u32 frame_lookup_calls{};
     compat::u32 coordinate_query_calls{};
+    LegacyBattleActorCoordinateQueryResult coordinate_query{};
     compat::u32 workspace_update_calls{};
     compat::u32 effect_update_calls{};
     compat::u32 sample_play_calls{};
@@ -975,6 +994,7 @@ struct LegacyBattleActionFourOhTwoRequest {
 enum class LegacyBattleActionFourOhTwoStatus : compat::u8 {
     completed,
     actor_state_typed_stop,
+    target_coordinate_typed_stop,
 };
 
 struct LegacyBattleActionFourOhTwoResult {
@@ -984,6 +1004,7 @@ struct LegacyBattleActionFourOhTwoResult {
     compat::u32 special_update_calls{};
     compat::u32 turn_frame_calls{};
     compat::u32 coordinate_query_calls{};
+    LegacyBattleActorCoordinateQueryResult coordinate_query{};
     compat::u32 coordinate_update_calls{};
     compat::u32 particle_spawn_calls{};
     compat::u32 particle_commit_calls{};
@@ -1008,6 +1029,7 @@ enum class LegacyBattleSpecialFourOhNineStatus : compat::u8 {
     completed,
     actor_state_typed_stop,
     shared_state_typed_stop,
+    target_coordinate_typed_stop,
 };
 
 struct LegacyBattleSpecialFourOhNineResult {
@@ -1016,6 +1038,7 @@ struct LegacyBattleSpecialFourOhNineResult {
     };
     compat::u32 special_update_calls{};
     compat::u32 coordinate_query_calls{};
+    LegacyBattleActorCoordinateQueryResult coordinate_query{};
     compat::u32 coordinate_update_calls{};
     compat::u32 stage_two_calls{};
     compat::u32 action_record_clears{};
@@ -1075,6 +1098,10 @@ struct LegacyBattleTurnAdvanceRequest {
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
+    // Captured original addresses of arg_0 (X) and saved-ECX var_4 (Y).
+    // Zero means uncaptured; it does not establish an original address.
+    compat::u32 output_x_token{};
+    compat::u32 output_y_token{};
 };
 
 enum class LegacyBattleTurnAdvanceStatus : compat::u8 {
@@ -1101,6 +1128,8 @@ struct LegacyBattleTurnAdvanceResult {
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
+    compat::u32 coordinate_x_stack_word{};
+    compat::u32 coordinate_y_stack_word{};
 };
 
 struct LegacyBattleActionDispatchState {
@@ -1146,6 +1175,8 @@ struct LegacyBattleActionDispatchState {
     compat::u32 battle_submode{};
 
     compat::u32 message_gate{};
+    compat::u16 message_x{};  // 0x0053BF50
+    compat::u16 message_y{};  // 0x0053BF52
     compat::u32 message_aux{};
     compat::u32 choice_state{};
     compat::u32 choice_cursor{};
@@ -1244,6 +1275,35 @@ struct LegacyBattleActionDispatchContext {
     compat::u32 target_phase_time_seed{};
     LegacyBattleImageParticleStackSnapshot target_phase_spawn_stack_snapshot{};
     bool scripted_resource_release_test_compat{};
+    // Captured compatibility addresses of sub_4717F0 var_14 and var_10.
+    compat::u32 action_thirteen_output_x_token{};
+    compat::u32 action_thirteen_output_y_token{};
+    // Captured compatibility addresses of sub_471AD0 var_14 and var_10.
+    compat::u32 action_fourteen_output_x_token{};
+    compat::u32 action_fourteen_output_y_token{};
+    // sub_4721F0 var_4/var_2 and sub_4315D0's returned EDX.
+    // Uncaptured zero tokens/residues are not original-register evidence.
+    compat::u32 action_twenty_three_output_x_token{};
+    compat::u32 action_twenty_three_output_y_token{};
+    compat::u32 action_twenty_three_frame_edx_snapshot{};
+    // sub_4728E0 var_8 (X), var_C (Y), and original frame-pointer EAX.
+    compat::u32 action_twenty_seven_output_x_token{};
+    compat::u32 action_twenty_seven_output_y_token{};
+    compat::u32 action_twenty_seven_frame_eax_snapshot{};
+    // sub_472CE0 var_C (X), var_E (Y), second frame registers and stale X DWORD.
+    compat::u32 dual_record_output_x_token{};
+    compat::u32 dual_record_output_y_token{};
+    compat::u32 dual_record_secondary_frame_eax_snapshot{};
+    compat::u32 dual_record_secondary_frame_edx_snapshot{};
+    compat::u32 dual_record_coordinate_x_stack_snapshot{};
+    // Independent sub_471540 stack captures for its two group-A frame callers.
+    compat::u32 turn_zero_output_x_token{};
+    compat::u32 turn_zero_output_y_token{};
+    compat::u32 turn_one_output_x_token{};
+    compat::u32 turn_one_output_y_token{};
+    // 0x00454BA7: original callee local address and pre-call local bytes.
+    compat::u32 profile_preparation_definition_token{};
+    LegacyBattleMonDefinitionBytes profile_preparation_initial_definition{};
 };
 
 enum class LegacyBattleActionDispatchStatus : compat::u8 {
@@ -1305,6 +1365,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     summon_frame_typed_stop,
     turn_commit_chance_typed_stop,
     turn_advance_typed_stop,
+    turn_control_typed_stop,
     group_b_progress_typed_stop,
     group_b_action_composition_typed_stop,
     group_b_action_configuration_typed_stop,
@@ -1318,6 +1379,8 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     group_b_opponent_wave_parameters_typed_stop,
     mon_definition_load_typed_stop,
     mon_definition_release_typed_stop,
+    actor_coordinate_typed_stop,
+    actor_profile_preparation_typed_stop,
 };
 
 struct LegacyBattleActionDispatchResult {
@@ -1333,9 +1396,13 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 terminal_resets{};
     LegacyBattleStatusIndicatorResult status_indicator{};
     compat::u32 status_indicator_calls{};
+    LegacyBattleActorProfilePreparationResult profile_preparation{};
+    compat::u32 profile_preparation_calls{};
     LegacyBattleScaleScanResult scale_scan{};
     compat::u32 scale_scan_calls{};
     compat::u32 action_record_clear_calls{};
+    LegacyBattleActorCoordinateQueryResult actor_coordinate_query{};
+    compat::u32 actor_coordinate_query_calls{};
     LegacyBattleFixedCountResult fixed_count{};
     compat::u32 fixed_count_calls{};
     LegacyBattleFixedCountLookupResult fixed_count_lookup{};
@@ -1441,6 +1508,10 @@ struct LegacyBattleActionDispatchResult {
     LegacyBattleGroupBOpponentWaveParametersResult
         group_b_opponent_wave_parameters{};
     compat::u32 group_b_opponent_wave_parameters_calls{};
+    // Captured on action 22's profile path. Other paths remain unobserved.
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+    bool has_return_registers{};
 };
 
 // sub_4731A0.

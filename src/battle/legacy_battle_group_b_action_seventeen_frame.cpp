@@ -193,7 +193,7 @@ advance_legacy_battle_group_b_action_seventeen_frame(
 
     registers.eax = to_bits(actor->turn_countdown);
     if (actor->turn_countdown == 0x0F) {
-        actor->turn_sample_word = kCompletionSampleId;
+        record.field_58 = kCompletionSampleId;
         registers.eax = request.sample_handle_token;
         ++result.sample_play_calls;
         const auto played = invoke(
@@ -203,7 +203,7 @@ advance_legacy_battle_group_b_action_seventeen_frame(
         registers.eax = actor->special_draw_mirror_mode;
         u32 sample_argument =
             actor->special_draw_mirror_mode == 1U ? played.ecx : played.edx;
-        replace_low_word(sample_argument, actor->turn_sample_word);
+        replace_low_word(sample_argument, record.field_58);
         if (actor->special_draw_mirror_mode == 1U) {
             registers.ecx = sample_argument;
         } else {
@@ -216,7 +216,7 @@ advance_legacy_battle_group_b_action_seventeen_frame(
             {sample_argument,
              actor->special_draw_mirror_mode == 1U ? 0x10U : 0xFFFFFFF0U}
         ));
-        actor->turn_sample_word = 0U;
+        record.field_58 = 0U;
     }
 
     registers.eax = actor->turn_render_flags;

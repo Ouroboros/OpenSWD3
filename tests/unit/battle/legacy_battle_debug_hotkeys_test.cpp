@@ -195,7 +195,7 @@ void test_battle_debug_hotkeys(openswd3::test::Context& test) {
         LegacyBattleDebugHotkeyState state;
         state.developer_tools_enabled = 1U;
         state.toggle_5244e0 = 0U;
-        state.toggle_53af68 = 4U;
+        fixture.action.opponent_workspace[14U] = 4U;
         state.battle_mode_flags_53bc24 = 0xABCD0000U;
         DebugPort port;
         openswd3::input_time_rng::LegacyKeyboardSnapshot keyboard{};
@@ -208,7 +208,8 @@ void test_battle_debug_hotkeys(openswd3::test::Context& test) {
             );
         test.expect_true(
             result.return_value == 1U && state.toggle_5244e0 == 1U &&
-                state.toggle_53af68 == 0U && state.message_latch_53ceb8 == 1U &&
+                fixture.action.opponent_workspace[14U] == 0U &&
+                state.message_latch_53ceb8 == 1U &&
                 fixture.player_control.speed_mode == 0U &&
                 state.text_mode_toggle_53c02c == 1U &&
                 state.battle_mode_flags_53bc24 == 0xABCD0002U &&

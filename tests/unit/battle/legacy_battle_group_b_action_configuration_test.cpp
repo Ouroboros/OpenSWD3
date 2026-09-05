@@ -135,6 +135,10 @@ void test_battle_group_b_action_configuration(openswd3::test::Context& test) {
                 state.source_runtime_value == 0xABCD5678U &&
                 state.resource_mode == 0x7AU &&
                 actor.action_execution.profile_value == 0x1234U &&
+                actor.action_execution.position_x == 0x4567U &&
+                actor.action_execution.position_y == 0x2345U &&
+                actor.action_execution.alternate_position_x == 0x4567U &&
+                actor.action_execution.alternate_position_y == 0x2345U &&
                 state.timing_value == 0U,
             "group B action configuration copies state and loads the typed MON profile"
         );
@@ -162,9 +166,32 @@ void test_battle_group_b_action_configuration(openswd3::test::Context& test) {
         );
         test.expect_true(
             result.status ==
-                LegacyBattleGroupBActionConfigurationStatus::
-                    resource_load_typed_stop,
-            "group B action configuration preserves the opaque resource-loader stop"
+                    LegacyBattleGroupBActionConfigurationStatus::
+                        resource_load_typed_stop &&
+                actor.action_execution.position_x == 0x4567U &&
+                actor.action_execution.position_y == 0x2345U &&
+                actor.action_execution.alternate_position_x == 0x4567U &&
+                actor.action_execution.alternate_position_y == 0x2345U,
+            "resource load stop retains both coordinate pairs copied from source offsets 0x16 and 0x18"
+        );
+        actor.action_execution.coordinate_mode_gate = 0x8000U;
+        u16 x{};
+        u16 y{};
+        const auto coordinates =
+            openswd3::battle::query_legacy_battle_actor_coordinates(
+                openswd3::battle::view_legacy_battle_actor_coordinates(
+                    actor.action_execution
+                ),
+                &x,
+                &y,
+                {.actor_token = actor.object_token}
+            );
+        test.expect_true(
+            coordinates.status ==
+                    openswd3::battle::LegacyBattleActorCoordinateQueryStatus::
+                        completed &&
+                x == 0x4567U && y == 0x2345U,
+            "coordinate query reads the copied runtime pair even after a later configuration stop"
         );
     }
 

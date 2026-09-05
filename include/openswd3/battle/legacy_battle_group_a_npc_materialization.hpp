@@ -54,7 +54,8 @@ materialize_legacy_battle_group_a_npc(
     compat::u32 source_token,
     compat::u32 modifier_record_token,
     compat::u32 window_token,
-    LegacyBattleGroupASummonMaterializationPort& port
+    LegacyBattleGroupASummonMaterializationPort& port,
+    LegacyBattleGroupAActionExecutionState& action_execution
 );
 
 }  // namespace openswd3::battle

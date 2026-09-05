@@ -118,7 +118,8 @@ LegacyBattleGroupAFinalProcessingResult process_legacy_battle_group_a_final(
             item_effect->action_kind = static_cast<u16>(eax);
             ++result.action_kind_writes;
         }
-        if ((static_cast<compat::u8>(state->actor_flags) & 0x28U) == 0U) {
+        if ((static_cast<compat::u8>(action->profile_word(0x0CU)) & 0x28U) ==
+            0U) {
             return finish(0U);
         }
         eax = replace_low_word(eax, item_effect->action_kind);
@@ -195,12 +196,12 @@ LegacyBattleGroupAFinalProcessingResult process_legacy_battle_group_a_final(
         return finish(eax);
     }
 
-    state->profile_buffer.fill(0U);
+    action->profile_buffer.fill(0U);
     result.profile_buffer_dwords_zeroed =
-        static_cast<u32>(state->profile_buffer.size());
+        static_cast<u32>(action->profile_buffer.size());
     const u32 buffer_token = actor_token + 0x0D90U;
     auto profile_result = load_legacy_battle_mon_profile(
-        std::as_writable_bytes(std::span{state->profile_buffer}),
+        std::as_writable_bytes(std::span{action->profile_buffer}),
         mon_port,
         {
             .path = "mon.dat",
@@ -223,15 +224,15 @@ LegacyBattleGroupAFinalProcessingResult process_legacy_battle_group_a_final(
     }
 
     if ((aggregation.embedded_profile_application.status_bits & 0x20U) != 0U) {
-        state->profile_buffer[1] |= 0x00000100U;
+        action->profile_buffer[1] |= 0x00000100U;
         ++result.profile_buffer_flag_writes;
-        eax = state->profile_buffer[1];
+        eax = action->profile_buffer[1];
     }
 
     eax = replace_low_word(eax, state->profile_record_id);
     if (static_cast<u16>(eax) != 0U) {
         profile_result = load_legacy_battle_mon_profile(
-            std::as_writable_bytes(std::span{state->profile_buffer}),
+            std::as_writable_bytes(std::span{action->profile_buffer}),
             mon_port,
             {
                 .path = "mon.dat",
@@ -253,7 +254,7 @@ LegacyBattleGroupAFinalProcessingResult process_legacy_battle_group_a_final(
             return finish(eax);
         }
 
-        eax = replace_low_word(eax, state->actor_flags);
+        eax = replace_low_word(eax, action->profile_word(0x0CU));
         if ((static_cast<compat::u8>(eax) & 0x28U) == 0U &&
             item_effect->action_kind != 23U) {
             return finish(1U);
@@ -271,7 +272,7 @@ LegacyBattleGroupAFinalProcessingResult process_legacy_battle_group_a_final(
         return finish(1U);
     }
 
-    if ((static_cast<compat::u8>(state->actor_flags) & 0x28U) != 0U) {
+    if ((static_cast<compat::u8>(action->profile_word(0x0CU)) & 0x28U) != 0U) {
         const u16 action_kind = item_effect->action_kind;
         if (transition_action(action_kind)) {
             ecx = state->transition_gate_a;

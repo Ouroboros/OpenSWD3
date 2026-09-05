@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_actor_progress.hpp"
+#include "openswd3/battle/legacy_battle_group_a_action_execution_state.hpp"
 #include "openswd3/battle/legacy_battle_group_a_workspace_reset.hpp"
 #include "openswd3/compat/types.hpp"
 
@@ -33,6 +34,8 @@ struct LegacyBattleGroupAPlacementRecord {
 struct LegacyBattleGroupAConfigurationState {
     compat::u32 actor_record_token{};
     std::array<compat::u32, 14> actor_record{};
+    // Copy snapshots, not live coordinates. The action-execution state owns
+    // actor + 0x0D66/0x0D68 and + 0x0D86/0x0D88.
     std::array<compat::u32, 8> placement_primary{};
     std::array<compat::u32, 8> placement_secondary{};
     compat::u32 source_record_token{};
@@ -103,7 +106,8 @@ configure_legacy_battle_group_a_actor(
     compat::u32 auxiliary_record_token,
     compat::u32 placement_token,
     compat::u32 window_token,
-    LegacyBattleGroupAConfigurationDiagnosticPort& diagnostic_port
+    LegacyBattleGroupAConfigurationDiagnosticPort& diagnostic_port,
+    LegacyBattleGroupAActionExecutionState& action_execution
 );
 
 }  // namespace openswd3::battle

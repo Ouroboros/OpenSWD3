@@ -14,6 +14,16 @@ using openswd3::compat::u32;
 
 class EffectPort final : public openswd3::battle::LegacyBattleEffectCallPort {
 public:
+    EffectPort() {
+        actor_coordinate_bindings().group_a[0U] =
+            openswd3::battle::view_legacy_battle_actor_coordinates(actor);
+        actor_coordinate_bindings().group_b[0U] =
+            openswd3::battle::view_legacy_battle_actor_coordinates(target);
+    }
+
+    openswd3::battle::LegacyBattleActorCoordinatesState actor{};
+    openswd3::battle::LegacyBattleActorCoordinatesState target{};
+
     [[nodiscard]] LegacyBattleEffectCallReply
     invoke(const LegacyBattleEffectCallRequest& request) override {
         calls.push_back(request);
@@ -177,13 +187,14 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
             resource_reply(0x11110000U, 0x2222U, 200U, 30U, 0x3333U)
         );
         port.push(0x00478400U, pair_reply(0U, 0U));
-        port.push(0x004783B0U, pair_reply(100U, 200U));
+        port.actor.position_x = 100U;
+        port.actor.position_y = 200U;
         port.push(0x00485610U, {.eax = 0xAAAA0000U, .ecx = 0xBBBB0000U});
         port.push(0x00481FD0U, pair_reply(10U, 20U));
         port.push(0x00483840U, {.eax = 0U});
         const auto result =
             openswd3::battle::advance_legacy_battle_effect_frame(
-                state, port, 1U, 0xABCD1000U, 0U, 0x55U, 0U
+                state, port, 0x005029D0U, 0xABCD1000U, 0U, 0x55U, 0U
             );
         test.expect_true(
             result.status == LegacyBattleEffectFrameStatus::completed &&
@@ -207,17 +218,21 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
         LegacyBattleEffectCallReply mode{.eax = 1U};
         mode.outputs[0] = 5U;
         port.push(0x00483840U, mode);
-        port.push(0x004783B0U, pair_reply(120U, 240U));
-        port.push(0x004783B0U, pair_reply(115U, 240U));
+        port.actor.position_x = 120U;
+        port.actor.position_y = 240U;
+        port.target.position_x = 115U;
+        port.target.position_y = 240U;
         const auto result =
             openswd3::battle::advance_legacy_battle_effect_frame(
-                state, port, 2U, 0x1000U, 0U, 0U, 0U
+                state, port, 0x005029D0U, 0x00525508U, 0U, 0U, 0U
             );
         test.expect_true(
             result.return_value == 0U && state.animation_counter[0] == 1001U &&
                 state.shared_x == 100 && state.shared_y == 240 &&
                 state.primary[0].status_flags == 0U &&
-                result.primary_animation_steps == 1U,
+                result.primary_animation_steps == 1U &&
+                result.coordinate_query_calls == 2U &&
+                port.count(0x004783B0U) == 0U,
             "mode-one collision completion jumps the animation counter and runs the common suffix"
         );
         test.expect_true(
@@ -243,11 +258,13 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
         LegacyBattleEffectCallReply mode{.eax = 1U};
         mode.outputs[0] = 5U;
         port.push(0x00483840U, mode);
-        port.push(0x004783B0U, pair_reply(120U, 240U));
-        port.push(0x004783B0U, pair_reply(115U, 30U));
+        port.actor.position_x = 120U;
+        port.actor.position_y = 240U;
+        port.target.position_x = 115U;
+        port.target.position_y = 30U;
         const auto result =
             openswd3::battle::advance_legacy_battle_effect_frame(
-                state, port, 2U, 0x1000U, 0U, 0U, 8U
+                state, port, 0x005029D0U, 0x00525508U, 0U, 0U, 8U
             );
         test.expect_true(
             result.status ==
@@ -266,12 +283,13 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
         state.animation_mode = 1U;
         EffectPort port;
         port.push(0x00483840U, {.eax = 0U});
-        port.push(0x004783B0U, pair_reply(100U, 200U));
+        port.actor.position_x = 100U;
+        port.actor.position_y = 200U;
         port.push(0x00439070U, {.eax = 7U});
         port.push(0x00439070U, {.eax = 8U});
         const auto result =
             openswd3::battle::advance_legacy_battle_effect_frame(
-                state, port, 0U, 0x1000U, 0U, 0U, 0U
+                state, port, 0x005029D0U, 0x00525508U, 0U, 0U, 0U
             );
         test.expect_true(
             result.return_value == 0U && state.animation_counter[0] == 1U &&

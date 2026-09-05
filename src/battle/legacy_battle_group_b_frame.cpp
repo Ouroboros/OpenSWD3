@@ -184,6 +184,16 @@ public:
     explicit SingleEffectPortAdapter(LegacyBattleActionDispatchPort& port)
         : port_(port) {}
 
+    [[nodiscard]] LegacyBattleActorCoordinateBindings&
+    actor_coordinate_bindings() noexcept override {
+        return port_.actor_coordinate_bindings();
+    }
+
+    [[nodiscard]] const LegacyBattleActorCoordinateBindings&
+    actor_coordinate_bindings() const noexcept override {
+        return port_.actor_coordinate_bindings();
+    }
+
     [[nodiscard]] LegacyBattleEffectCallReply
     invoke(const LegacyBattleEffectCallRequest& request) override {
         LegacyBattleActionCallRequest action_request{};

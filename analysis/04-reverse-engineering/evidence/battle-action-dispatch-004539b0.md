@@ -182,7 +182,13 @@ bit15已置时，bit0仍为0则返回0；bit0为1则置fade active并返回1。
 
 首次进入：message gate写`0x80000000`，直接初始化mode 1的5秒倒计时，即secondary ticks 150；调用坐标callee并直接清已关闭0x98动作record。
 
-随后直接读取内部bit 75。置位时按原callee清bit75、清message gate/aux、current actor写全1并返回1；第二参数仍不访问。
+随后直接读取内部bit 75。置位时按原callee清bit75、清message gate/aux、current actor写全1并返回1。
+第二参数对应角色已在前面的坐标查询中访问；此处只跳过后续目标值计算，不能把无效角色的访问延后到Escape处理之后。
+
+工作包282已回收`0x004543B9`：根据第二参数计算组B this，两个WORD直接写`0x0053BF50/0x0053BF52`。
+入口EAX为`index*0x159`；mode 1倒计时先使EDX=5，再由`0x0040DC8C`读取`0x004994EE=4`覆盖DL，故查询入口EDX=4。
+新状态字段`message_x/message_y`是这两个全局WORD的唯一运行owner。查询失败保留倒计时、message gate和已经写入的WORD，
+不清动作record，也不读取或清除bit75。定向测试覆盖两条坐标分支、第二次读取失败和索引99的原访问前缀；完整发布门仍待工作包282统一执行。
 
 bit75未置且message gate bit0为1时，播放固定消息、再次清动作record，重建gate/aux，计算并发布目标值。视觉commit成功才清内部bit74、发布目标、清屏、清gate/current actor并返回1；失败清accumulator后返回0。内部bit span缺失只在对应byte真实访问点typed-stop。
 
@@ -243,7 +249,7 @@ bit75未置且message gate bit0为1时，播放固定消息、再次清动作rec
 - case 23消息路径selector-one道具数量直连；
 - case 22已完成门与真实状态指示器完成路径；
 - case 24全组扫描；
-- case 31倒计时、bit75清除及目标访问延后；
+- case 31倒计时、坐标读取与WORD写入、失败前缀，以及成功查询后才处理bit75；
 - case 33目标动作就绪直接typed组合、双阶段/陈旧sequence及零target真实解引用停点；
 - case 34–36三分量尾；
 - 超尺寸清屏已写满前缀与refresh时机；

@@ -5,6 +5,7 @@
 #include <array>
 #include <cstddef>
 #include <deque>
+#include <functional>
 #include <span>
 #include <vector>
 
@@ -98,6 +99,10 @@ public:
         const LegacyBattleGroupBActionSeventeenFrameCallRequest& request
     ) override {
         calls.push_back(request);
+        if (before_reply) {
+            before_reply(request);
+        }
+
         if (request.call ==
             LegacyBattleGroupBActionSeventeenFrameCall::play_sample) {
             if (!sample_replies.empty()) {
@@ -151,6 +156,9 @@ public:
         return nullptr;
     }
 
+    std::function<
+        void(const LegacyBattleGroupBActionSeventeenFrameCallRequest&)>
+        before_reply;
     std::deque<LegacyBattleGroupBActionSeventeenFrameCallReply> sample_replies;
     std::vector<LegacyBattleGroupBActionSeventeenFrameCallRequest> calls;
     u32 coordinate_x{100U};
@@ -395,6 +403,37 @@ void test_battle_group_b_action_seventeen_frame(openswd3::test::Context& test) {
         fixture.actor.position_y = 10U;
         fixture.port.coordinate_x = 50U;
         fixture.port.coordinate_y = 60U;
+        fixture.actor.turn_action_record.field_58 = 0xA55AU;
+        fixture.actor.turn_action_record.field_5a = 0xC33CU;
+        std::vector<u16> sample_observations;
+        fixture.port.before_reply =
+            [&](const LegacyBattleGroupBActionSeventeenFrameCallRequest& call) {
+                if (call.call ==
+                        LegacyBattleGroupBActionSeventeenFrameCall::
+                            play_sample &&
+                    call.arguments[0U] == 0x2FU) {
+                    sample_observations.push_back(
+                        fixture.actor.turn_action_record.field_58
+                    );
+                    fixture.actor.turn_action_record.field_58 = 0x8001U;
+                } else if (
+                    call.call ==
+                    LegacyBattleGroupBActionSeventeenFrameCall::set_sample_pan
+                ) {
+                    sample_observations.push_back(
+                        fixture.actor.turn_action_record.field_58
+                    );
+                    fixture.actor.turn_action_record.field_58 = 0xFFFFU;
+                } else if (
+                    call.call ==
+                    LegacyBattleGroupBActionSeventeenFrameCall::
+                        query_coordinates
+                ) {
+                    sample_observations.push_back(
+                        fixture.actor.turn_action_record.field_58
+                    );
+                }
+            };
         fixture.port.sample_replies.push_back({
             .eax = 0x11110000U,
             .ecx = 0xAAAA1111U,
@@ -425,9 +464,12 @@ void test_battle_group_b_action_seventeen_frame(openswd3::test::Context& test) {
                 first_sample->arguments[0U] == 0x10FU &&
                 second_sample != nullptr &&
                 second_sample->arguments[0U] == 0x2FU && pan != nullptr &&
-                pan->eax == 1U && pan->arguments[0U] == 0xABCD002FU &&
+                pan->eax == 1U && pan->arguments[0U] == 0xABCD8001U &&
+                pan->ecx == 0xABCD8001U && pan->edx == 0xDCBA5678U &&
                 pan->arguments[1U] == 0x10U &&
-                fixture.actor.turn_sample_word == 0U,
+                fixture.actor.turn_action_record.field_58 == 0U &&
+                fixture.actor.turn_action_record.field_5a == 0xC33CU &&
+                sample_observations == std::vector<u16>{0x2FU, 0x8001U, 0U},
             "countdown fifteen preserves both sample calls and stale pan registers"
         );
         test.expect_true(

@@ -30,18 +30,21 @@ void test_battle_group_a_actor_cleanup(openswd3::test::Context& test) {
     {
         LegacyBattleGroupAActionExecutionState actor;
         actor.action_override_flags = 0xFFFFU;
-        const auto result = cleanup_legacy_battle_group_a_actor(
-            {.actor = &actor}, 0x005029D0U
-        );
+        actor.profile_buffer.fill(0xFFFFFFFFU);
+        const auto result =
+            cleanup_legacy_battle_group_a_actor({.actor = &actor}, 0x005029D0U);
         test.expect_true(
             result.status ==
                     LegacyBattleGroupAActorCleanupStatus::
-                        profile_state_typed_stop &&
+                        pre_effect_state_typed_stop &&
                 actor.action_override_flags == 0U &&
-                result.return_eax == 0U && result.return_ecx == 10U &&
+                result.profile_dwords_zeroed == 10U &&
+                actor.profile_buffer[0U] == 0U &&
+                actor.profile_buffer[9U] == 0U && result.return_eax == 0U &&
+                result.return_ecx == 0x00505000U &&
                 result.return_edx == 0x005029D0U &&
                 result.explicit_words_zeroed == 1U,
-            "group-A actor cleanup preserves the first word clear before a missing profile view stop"
+            "group-A actor cleanup clears the live profile before the missing pre-effect view stop"
         );
     }
 
@@ -53,17 +56,16 @@ void test_battle_group_a_actor_cleanup(openswd3::test::Context& test) {
         LegacyBattleGroupAAttributeEffectState attribute_effect;
         LegacyBattleActorListQueryState actor_list;
         actor.action_override_flags = 0xFFFFU;
-        actor.special_particle_coordinate_suppression = 0xFFU;
-        actor.special_effect_direct_mode = 0xFFU;
-        actor.copied_runtime_word = 0xFFFFU;
-        actor.source_y = 0xFFFFU;
+        actor.profile_buffer[1U] = 0xFFU;
+        actor.profile_buffer[3U] = 0xFFU;
+        actor.write_profile_word(0x14U, 0xFFFFU);
+        actor.write_profile_word(0x22U, 0xFFFFU);
         actor.special_profile_variant = 0xFFFFU;
         actor.summon_action_id = 0xFFFFU;
         actor.effect_curve_index = 0xBEEFU;
         workspace.tail_words.fill(0xFFFFU);
-        final_processing.profile_buffer.fill(0xFFFFFFFFU);
+        actor.profile_buffer.fill(0xFFFFFFFFU);
         final_processing.pre_effect_words.fill(0xFFFFFFFFU);
-        final_processing.actor_flags = 0xFFFFU;
         final_processing.applied_mode_value = 0xFFFFU;
         final_processing.applied_output_value = 0xFFFFU;
         final_processing.replacement_action_kind = 0xFFFFU;
@@ -90,15 +92,15 @@ void test_battle_group_a_actor_cleanup(openswd3::test::Context& test) {
                 result.pre_effect_dwords_zeroed == 4U &&
                 result.explicit_words_zeroed == 11U &&
                 actor.action_override_flags == 0U &&
-                actor.special_particle_coordinate_suppression == 0U &&
-                actor.special_effect_direct_mode == 0U &&
-                actor.copied_runtime_word == 0U && actor.source_y == 0U &&
+                actor.special_particle_coordinate_suppression() == 0U &&
+                actor.special_effect_direct_mode() == 0U &&
+                actor.copied_runtime_word() == 0U && actor.source_y() == 0U &&
                 actor.special_profile_variant == 0U &&
                 actor.summon_action_id == 0U &&
                 actor.effect_curve_index == 0xBEEFU &&
                 workspace.tail_words[5U] == 0xFFFFU &&
                 std::ranges::all_of(
-                    final_processing.profile_buffer,
+                    actor.profile_buffer,
                     [](const auto value) { return value == 0U; }
                 ) &&
                 std::ranges::all_of(

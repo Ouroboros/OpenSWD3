@@ -1,6 +1,6 @@
 # 战斗角色资源选择与资料应用 `0x00470AC0`
 
-状态：`platform_adapted`。完整LST、typed实现、三处production caller回收、定向测试、AddressSanitizer、Linux完整门与inventory双生成均已关闭。
+历史状态：`platform_adapted`。工作包282修正资料缓冲别名；下述旧callee与全量验证记录不构成本轮发布验收。
 
 ## 1. 完整权威范围
 
@@ -20,9 +20,13 @@
 
 函数输出actor `+0x0DA4`runtime word，零值触发诊断port。node category bit11发布mode bit4和`+0x2F14`；category 3/0发布输出mode 1；category 5发布mode 2，resource id非0x300时改为3并撤销mode bit5。最终除category 3及特定category flag组合外，对node `+0x06`做16位回绕递增。
 
-## 4. owner、caller与验证
+## 4. 工作包282资料与停止点
 
-profile/pre-effect/latch复用final owner；mode与derived words复用item owner；required与selected复用链表owner；`+0x2F14`复用workspace owner；runtime word复用action execution owner；live容量复用configuration owner。第198项曾将word `+0x4C` bit13另建byte字段，本项已立即消除该重复并统一使用word owner。
+入口先要求profile写入视图，缺失时在`rep stosd`处停止，EAX=0、ECX=10、EDX保留输入；存在时先清十个DWORD。随后若pre-effect视图缺失，保留资料清理，EAX=0、ECX=`actor+0x2630`、EDX=0，不继续修改workspace或执行occurrence零返回。两种停止点均已独立测试。core29/ASan19定向`1/1`通过（2.91/4.76秒），无匹配诊断、diff check通过；不等同于全量门禁及全部caller所有权验收。
+
+## 5. owner、caller与历史验证
+
+profile现在唯一属于组A执行状态；`+0x0DA4`runtime WORD直接从该缓冲相对`+0x14`读取，不再保留同步副本。pre-effect/latch仍借用final-processing；mode与derived words借用item状态；required与selected借用链表状态；`+0x2F14`借用workspace；live容量借用configuration。第198项曾将word `+0x4C` bit13另建byte字段，本项已立即消除该重复并统一使用word owner。
 
 三处静态caller均在已关闭目标选择刷新`0x00462740`：动作提交分支使用动态category，message 27固定category4，message 30固定category5。production party/action/startup输出均typed直连；脚本化单测compat开关默认关闭。本轮审计相邻释放函数时按权威地址重新核对caller，纠正了固定category两处先前误接到动作枚举槽的集成位置，并补充message 27 production caller测试。
 

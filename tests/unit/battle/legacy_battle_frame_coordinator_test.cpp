@@ -969,10 +969,11 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         CoordinatorPort port;
         configure_common_port(port);
         port.actor_metric_state().group_b_count = 1U;
-        port.replies[LegacyBattleFrameCoordinatorCall::query_actor_metric]
-            .publish_metric_word = true;
-        port.replies[LegacyBattleFrameCoordinatorCall::query_actor_metric]
-            .metric_word = 1U;
+        fixture->startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            8>>();
+        (*fixture->startup.group_b_lifecycle)[0U].action_execution.position_y =
+            1U;
         auto context = fixture->context();
 
         const auto result =
@@ -2021,10 +2022,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         CoordinatorPort port;
         configure_common_port(port);
         port.actor_metric_state().group_a_count = 1U;
-        port.replies[LegacyBattleFrameCoordinatorCall::query_actor_metric]
-            .publish_metric_word = true;
-        port.replies[LegacyBattleFrameCoordinatorCall::query_actor_metric]
-            .metric_word = 1U;
+        fixture->action_dispatch.group_a_action_execution[0U].position_y = 1U;
         port.completion_group_a_count_after_query = 11U;
         auto dispatch_context = fixture->action_context();
         dispatch_context.attack_order_adjacent_record =

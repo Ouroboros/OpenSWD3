@@ -14,18 +14,6 @@ using compat::u32;
     return actor_token + 0x2630U;
 }
 
-void clear_profile_overlap(
-    LegacyBattleGroupAActionExecutionState& actor,
-    LegacyBattleGroupAFinalProcessingState& final_processing
-) noexcept {
-    final_processing.profile_buffer.fill(0U);
-    actor.special_particle_coordinate_suppression = 0U;
-    actor.special_effect_direct_mode = 0U;
-    actor.copied_runtime_word = 0U;
-    actor.source_y = 0U;
-    final_processing.actor_flags = 0U;
-}
-
 }  // namespace
 
 LegacyBattleGroupAActorCleanupResult cleanup_legacy_battle_group_a_actor(
@@ -46,16 +34,17 @@ LegacyBattleGroupAActorCleanupResult cleanup_legacy_battle_group_a_actor(
     actor.action_override_flags = 0U;
     result.explicit_words_zeroed = 1U;
 
-    if (bindings.final_processing == nullptr) {
-        result.status =
-            LegacyBattleGroupAActorCleanupStatus::profile_state_typed_stop;
-        return result;
-    }
-    auto& final_processing = *bindings.final_processing;
-    clear_profile_overlap(actor, final_processing);
+    actor.profile_buffer.fill(0U);
     result.profile_dwords_zeroed = 10U;
 
     result.return_ecx = actor_pre_effect_token(actor_token);
+    if (bindings.final_processing == nullptr) {
+        result.status =
+            LegacyBattleGroupAActorCleanupStatus::pre_effect_state_typed_stop;
+        return result;
+    }
+
+    auto& final_processing = *bindings.final_processing;
     final_processing.pre_effect_words.fill(0U);
     result.pre_effect_dwords_zeroed = 4U;
 

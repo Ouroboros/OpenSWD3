@@ -17,7 +17,7 @@ struct LegacyBattleGroupAActorCleanupBindings {
 enum class LegacyBattleGroupAActorCleanupStatus : compat::u8 {
     completed,
     actor_state_typed_stop,
-    profile_state_typed_stop,
+    pre_effect_state_typed_stop,
     actor_list_state_typed_stop,
     workspace_state_typed_stop,
     item_effect_state_typed_stop,

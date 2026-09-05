@@ -15,6 +15,8 @@ struct LegacyBattleTargetReadyRequest {
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
+    compat::u32 local_x_token{};  // var_6, loaded into EAX at 0x00475407.
+    compat::u32 local_y_token{};  // var_8, loaded into EDX at 0x004753FD.
 };
 
 enum class LegacyBattleTargetReadyStatus : compat::u8 {
@@ -22,6 +24,7 @@ enum class LegacyBattleTargetReadyStatus : compat::u8 {
     actor_state_typed_stop,
     frame_owner_typed_stop,
     shared_state_typed_stop,
+    target_coordinate_typed_stop,
 };
 
 struct LegacyBattleTargetReadyResult {
@@ -34,6 +37,7 @@ struct LegacyBattleTargetReadyResult {
     compat::u32 sample_pan_calls{};
     compat::u32 render_calls{};
     compat::u32 coordinate_query_calls{};
+    LegacyBattleActorCoordinateQueryResult coordinate_query{};
     compat::u32 particle_spawn_calls{};
     compat::u32 particle_commit_calls{};
     compat::u32 completion_calls{};

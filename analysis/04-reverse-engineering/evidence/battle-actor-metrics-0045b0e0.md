@@ -1,70 +1,100 @@
 # 战斗角色metric重建 `0x0045B0E0`
 
-状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`。
+既有关闭状态为`platform_adapted`。工作包282正在回收坐标callee并修正栈别名合同；本轮改动尚未完成发布验证。
 
 ## 1. 完整LST范围
 
-权威函数为`0x0045B0E0..0x0045B18B`，从proc到endp完整92行、2个静态call站点、4个`loc_`标签，无外部FUNCTION CHUNK。两个call站点都调用同一角色metric callee。
+权威函数为`0x0045B0E0..0x0045B18B`，2个静态call站点、4个`loc_`标签，无外部FUNCTION CHUNK。
+两个站点`0x0045B11F/0x0045B164`都调用坐标查询`0x004783B0`。
 
-共有14个静态caller站点。七个已关闭站点位于战斗启动、逐帧协调、角色动作分派、对手动作分派两处和最终角色步进两处；它们全部回收。其余七处位于尚未关闭的后续战斗函数，不提前修改。
+共有14个静态caller站点。七个已关闭站点位于战斗启动、逐帧协调、角色动作分派、对手动作分派两处和最终角色步进两处；它们使用统一typed实现。
+其余七处属于尚未关闭的后续战斗函数，不提前修改。
 
 ## 2. 双18 dword清零
 
-入口固定把第一张18 dword角色metric表清零，再把第二张18 dword角色顺序表清零。两次都是`ECX=0x12`、`EAX=0`与正向`rep stosd`；角色数量为零也不跳过清零。后一相邻函数直接覆盖顺序表前缀。
+入口固定先清零18 dword角色metric表，再清零18 dword角色顺序表。
+两次都是`ECX=0x12`、`EAX=0`与正向`rep stosd`；角色数量为零也不跳过。
 
-两张物理表只保存在动作、启动与帧协调端口共同虚继承的单一typed状态中。同一组合端口跨多类caller只有一份存储。角色优先索引也与逐帧选择值、启动初始化和调试C/W键共用该owner；已关闭攻击顺序出队证明它还是`0x0053AE70`起七dword输出记录的首项，因此后六dword一并归本state。后续优先阶段只覆盖首项并保留记录尾，全局重置则按原写集合清完整七dword，不再维护独立副本。
+两张表保存在动作、启动与帧协调端口共同虚继承的单一typed状态中。
+角色优先索引与逐帧选择值、启动初始化、调试C/W键共用该owner；攻击顺序出队证明它还是`0x0053AE70`起七dword输出记录的首项，后六dword也由同一state保存。
 
-## 3. 栈局部初值
+## 3. 两个WORD覆盖保存的ECX
 
-函数的首条`push ecx`同时保存callee-saved ECX并提供4字节栈局部：
+`0x0045B0E0`的`push ecx`提供4字节栈局部：
 
-- `var_4`是保存的caller ECX低word；
-- `var_2`是同一保存值的第三byte。
+- `var_4`对应入口ECX低WORD，是坐标Y输出。
+- `var_2`对应入口ECX高WORD，是坐标X输出。
 
-两个局部不预清零。首个角色callee若不写输出，group B存入caller ECX低word的i16符号扩展；后续角色继续复用前一次callee留下的同一byte与word。typed状态显式保存入口ECX、两个局部值及其32位兼容token。
+IDA把`var_2`命名为byte不能改变callee的写宽度。
+`0x004783C5/0x004783E4`均在第一个输出地址写完整WORD，包含第四个栈byte。
+两个局部不预清零；每次成功查询必定先写X再写Y。
+查询异常停止时只保留已经执行的输出写入，不伪造callee返回。
+
+typed状态的`local_word`和历史命名`local_byte`现在都为u16，分别承载同一保存dword的低、高WORD。
+无角色时它们保持入口ECX；有角色时正常函数尾`pop ecx`得到最后一次完整输出`X << 16 | Y`。
+旧文档所说的“恢复入口完整ECX”和“第一输出只覆盖byte”均被机器指令否定。
 
 ## 4. group B循环
 
-先读取group B完整u32数量；只有零跳过。循环从索引0开始：
+先读取组B完整u32数量；零才跳过。循环从索引0开始：
 
-1. EAX载入word局部token；
-2. ECX载入组B角色token，基址固定、步长固定；
-3. 栈参数依次表示byte局部token与word局部token；
-4. callee返回后把word局部按i16符号扩展到EDX；
-5. 重新读取共享group B数量到EAX；
-6. 把EDX写入第一张表当前槽；
-7. 索引加1，并与刚重新读取的数量作unsigned比较。
+1. EAX加载Y输出token，ECX先加载X输出token。
+2. 先push Y，再push X，随后ECX加载组B角色token。
+3. 调用坐标查询；角色token从`0x00525508`起按`0x2B28`步长计算。
+4. Y按i16符号扩展到EDX。
+5. 重新读取组B数量到EAX。
+6. 把EDX写入metric表当前槽。
+7. 索引加1，与刚读取的数量作unsigned比较。
 
-数量可由callee在同一次调用中修改，下一轮边界立即使用新值。角色token按u32回绕，不增加modern上限。
+已审计的坐标callee不修改共享数量。
+保留原数量重载指令，但不能继续用opaque测试回调虚构callee修改数量的行为。
+异常角色token不提前截断；typed视图不可达时在callee的原角色门读取处停止。
 
 ## 5. group A循环
 
-组A表从索引8开始。入口先计算`group_a_count + 8`的u32结果，并以unsigned `<= 8`决定是否跳过；因此零跳过，接近全1的数量保留原始回绕域。
+组A从表索引8开始。入口计算`group_a_count + 8`的u32结果，以unsigned `<= 8`决定是否跳过。
+零和高值回绕域都按原指令保留。
 
-每轮使用组A固定基址与步长调用同一callee。callee后把word局部按i16符号扩展到EAX，重新读取group A数量到ECX，再写第一张表。索引加1后才计算新的`group_a_count + 8`边界，所以callee修改数量会立即缩短或扩展当前循环。
+每轮ECX加载Y输出token、EDX加载X输出token；先push Y，再push X，然后ECX加载角色token。
+EAX在该调用前没有被LEA覆盖：首次是`group_a_count + 8`，后续为上一轮符号扩展的Y。
+角色token从`0x005029D0`起按`0x2F34`步长计算。
 
-组A从表索引8开始，按原物理布局覆盖该区；不为异常组B数量建立隔离副本。
+查询后把Y按i16符号扩展到EAX，读取组A数量到ECX，再写metric表。
+索引加1后计算新的`group_a_count + 8`比较边界。
+组A按原布局写表索引8起的区域，不另建隔离副本。
 
 ## 6. 返回与typed-stop
 
-正常返回保留路径相关完整EAX：
+正常EAX：
 
-- 无组A迭代时返回`group_a_count + 8`的u32结果；
-- 有组A迭代时返回最后一次word局部的i16符号扩展。
+- 无组A迭代时为`group_a_count + 8`的u32结果。
+- 有组A迭代时为最后一次Y的i16符号扩展。
 
-ECX由函数尾`pop ecx`恢复为caller入口完整值。EDX不保存：group B尾为最后metric符号扩展，group A尾为最后callee EDX，无角色时保留caller入口EDX。
+`0x0045B18A`的ECX pop消费被两个WORD写入改写的保存dword，不是入口ECX。
+EDX在组B尾为最后Y的符号扩展；组A尾保留最后一次坐标查询的分支相关EDX；无角色时保留入口EDX。
 
-第一张typed表只有18槽。异常数量导致第19次写时，callee、局部输出、数量重载和寄存器覆盖已经发生；实现只在该首次真实store处typed-stop，保留此前36 dword清零与18次完整写入。
+坐标callee发生typed-stop时，保留双表清零、已完成的前序metric写入、当前查询的部分WORD输出和寄存器前缀。
+不执行当前metric store、后续角色、组A循环或尾部pop。
 
-## 7. caller回收与测试
+metric数组仍只有18槽，原store越界检查仍位于实际store点。
+对于当前固定组B视图，第九个角色已经超出8元素owner，因此先停在第九次callee角色门读取，而不会到达第十九次metric store。
+原先依靠任意成功opaque回调继续到第十九次store的测试不再代表已审计callee的行为。
 
-已关闭caller删除`0x0045B0E0` opaque边界并直接组合统一实现：
+## 7. caller与本轮测试
 
-- 战斗启动以敌方与队伍数量发布共享计数，随后保留后两阶段；
-- 逐帧协调使用同一端口共享计数，随后保留下一阶段与完成门；
-- 角色动作分派、对手动作分派和最终角色步进在原调用点发布各自当前计数，并传播callee动态修改后的数量；
-- 子函数typed-stop立即阻止caller后续阶段。
+七个已关闭caller继续在原调用点组合统一metric实现，子函数typed-stop阻止后续阶段。
+本轮删除metric实现内部`0x004783B0` opaque回调，三种端口重载共用直接查询。
+坐标查询次数单独计数，不再伪装成外部port调用。
 
-定向测试覆盖双表固定清零、caller ECX局部别名、两组token与步长、i16符号扩展、byte/word跨角色保留、动态数量增长与缩短、组A加8回绕、路径相关EAX/EDX、ECX恢复、第19次store时机、跨动作/启动端口的单一物理状态及七处已关闭caller回收。
+从LST推导的测试覆盖：
 
-当前缺少原版两组角色对象、metric callee、动态数量修改、metric与角色顺序两张物理表、栈地址和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+- 双表固定清零、零数量与完整入口ECX保留。
+- 两组固定token、主/备用坐标和Y的i16符号扩展。
+- X的高byte也写入保存dword，正常ECX为`X << 16 | Y`。
+- 第二次坐标读取失败，第一WORD已提交但metric表未写、ECX未pop。
+- 绑定后访问可达性改变，查询不使用陈旧可达性快照。
+- 第九个组B角色门读取停止，保留前八次完整store并阻断组A。
+- 组A加8回绕、跨动作/启动端口的单一metric状态。
+
+当前本轮定向门尚未通过。ASan已将首次段错误定位到动作测试的栈溢出；绑定数组改为堆存储后仍需重新验证。
+原版两组完整对象、异常内存页、栈地址和寄存器联合捕获缺失，动态差分仍为`blocked_runtime_oracle`，不替代现代侧测试。

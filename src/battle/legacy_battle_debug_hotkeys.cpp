@@ -217,7 +217,9 @@ LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
 
             if (runner.key(keyboard, 0x2DU) != 0U) {
                 runner.delay(200U);
-                state.toggle_53af68 = toggle_zero_nonzero(state.toggle_53af68);
+                // 0x0045D98A/96: the same DWORD as control slot 14.
+                auto& toggle = bindings.action.opponent_workspace[14U];
+                toggle = toggle_zero_nonzero(toggle);
             }
 
             if (runner.key(keyboard, 0x25U) != 0U) {

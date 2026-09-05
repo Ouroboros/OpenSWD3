@@ -39,12 +39,6 @@ public:
         if (request.callee_token == 0x00489E90U) {
             return {.eax = 0x90000000U};
         }
-        if (request.callee_token == 0x004783B0U) {
-            auto reply = default_reply;
-            reply.publish_metric_word = true;
-            reply.metric_word = 1U;
-            return reply;
-        }
         return default_reply;
     }
 
@@ -664,7 +658,9 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 port.definition_text_release_requests.size() == 4U &&
                 port.count(0x00478220U) == 0U &&
                 port.count(0x0045B0E0U) == 0U &&
-                port.count(0x004783B0U) == 3U &&
+                port.count(0x004783B0U) == 0U &&
+                port.actor_metric_state().values[0U] == 400 &&
+                port.actor_metric_state().values[1U] == 400 &&
                 port.count(0x0045B190U) == 0U && port.count(0x0045B5A0U) == 0U,
             "opponent action fifteen builds two mirrored records with callee stale EAX high words"
         );
@@ -826,6 +822,8 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         state.opponent_special_action = 0x55U;
         state.post_battle_counter = 7U;
         Fixture fixture;
+        (*fixture.startup->group_b_lifecycle)[0U].action_execution.position_y =
+            1U;
         DispatchPort port;
         port.action = 17U;
         port.push(0x0047CE80U, {.eax = 0U});
@@ -840,7 +838,8 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 state.opponent_special_action == 0U &&
                 state.post_battle_counter == 0U &&
                 port.count(0x0045B0E0U) == 0U &&
-                port.count(0x004783B0U) == 1U &&
+                port.count(0x004783B0U) == 0U &&
+                port.actor_metric_state().values[0U] == 1 &&
                 port.count(0x0045B190U) == 0U && port.count(0x0045B5A0U) == 0U,
             "opponent action seventeen collapses final special opponent and reruns three stages"
         );

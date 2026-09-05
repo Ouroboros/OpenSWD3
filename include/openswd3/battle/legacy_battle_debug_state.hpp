@@ -9,7 +9,6 @@ namespace openswd3::battle {
 struct LegacyBattleDebugHotkeyState {
     compat::u32 developer_tools_enabled{};
     compat::u32 toggle_5244e0{};
-    compat::u32 toggle_53af68{};
     compat::u32 message_latch_53ceb8{};
     compat::u32 selection_status_word_53c050{};
     compat::u32 actor_retarget_gate_53bf64{};

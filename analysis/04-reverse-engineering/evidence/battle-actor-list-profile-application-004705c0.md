@@ -1,6 +1,6 @@
 # 战斗角色链表资料应用 `0x004705C0`
 
-状态：`platform_adapted`。完整LST、typed实现、定向测试、AddressSanitizer、Linux完整门与inventory双生成均已关闭。
+历史状态：`platform_adapted`。工作包282修正profile所有权与停止点；旧callee统计与全量门不作为当前发布验收。
 
 ## 1. 完整权威范围
 
@@ -22,8 +22,14 @@ actor mode byte bit1命中时复制节点`+0x54`、`+0x5C`和`+0x4C`到三个act
 
 ## 4. owner、stop与caller
 
-主链复用第188项唯一owner；profile与16字节块复用第187项final owner；mode byte和派生word复用第180项物品效果owner。新增三个应用字段仍属于同一final owner。缺失owner、节点或字符串目标时在首次访问处typed-stop。唯一caller位于已关闭目标选择刷新函数，现有边界尚未暴露节点物化owner，本包不复制第二份状态；生产源码无旧地址调用。
+主链复用既有链表状态；profile直接借用组A执行状态的唯一缓冲，16字节前置块仍属于final-processing；mode byte和派生word仍借用物品效果状态。新增三个应用字段仍属于同一final owner。缺失owner、节点或字符串目标时在首次访问处typed-stop。唯一caller位于已关闭目标选择刷新函数，现有边界尚未暴露节点物化owner，本包不复制第二份状态；生产源码无旧地址调用。
 
-## 5. 验证状态
+## 5. 工作包282资料停止点
+
+profile视图缺失时，不要求final-processing提前存在：先保留已执行的mode BYTE写入，在十DWORD清理处停止，EAX=0、ECX=10、EDX保留输入。profile存在而pre-effect视图缺失时，保留profile清零、索引提交和实际MON加载；`0x004706B3..0x004706C0`已令EAX/EDX=`actor+0x2630`、ECX=0，随后才在第一个pre-effect DWORD写入处停止。
+
+新增测试独立检查这两个前缀及寄存器，不把缺失视图静默替换为零缓冲。core29/ASan19定向`1/1`通过（2.91/4.76秒），无匹配诊断，diff check通过。其他actor投影、跨入口绑定和本包全量发布仍未完成。
+
+## 6. 历史验证状态
 
 测试覆盖零occurrence无副作用、type0 mode flag、双缓冲清零、profile加载、字符串复制、三项派生word和mask bit4返回。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`191/422 = 182 platform_adapted + 9 assembly_exact + 231 pending_audit`，SHA256为`935fb2f925e84d3ec110a903f76519d1105ea2e46df0a9b71598c3cae630ab1c`。动态差分因原版链表、资料加载、字符串目标、actor模式字段与caller联合捕获后端缺失而登记为`blocked_runtime_oracle`。

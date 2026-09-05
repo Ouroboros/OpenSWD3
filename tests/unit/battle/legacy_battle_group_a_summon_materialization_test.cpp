@@ -62,6 +62,16 @@ public:
     ) override {
         calls.push_back(request);
         if (request.call ==
+            LegacyBattleGroupASummonMaterializationCall::report_missing_role) {
+            observed_coordinates = {
+                action_execution.position_x,
+                action_execution.position_y,
+                action_execution.alternate_position_x,
+                action_execution.alternate_position_y,
+            };
+        }
+
+        if (request.call ==
             LegacyBattleGroupASummonMaterializationCall::allocate_profile) {
             return {.eax = allocation_token};
         }
@@ -72,6 +82,17 @@ public:
         return {.profile_record = request.profile_record};
     }
 
+    openswd3::battle::LegacyBattleGroupAActionExecutionState action_execution{
+        .position_x = 0xAAAAU,
+        .position_y = 0xBBBBU,
+        .alternate_position_x = 0xCCCCU,
+        .alternate_position_y = 0xDDDDU,
+        .coordinate_mode_gate = 0x0100U,
+        .resource = {},
+        .special_four_hundred_workspace = {},
+        .intermediate_action_records = {},
+    };
+    std::array<u16, 4> observed_coordinates{};
     u32 allocation_token{0x71000000U};
     u32 load_eax{1U};
     LegacyBattleGroupASummonProfileRecord loaded_profile{};
@@ -132,7 +153,13 @@ void test_battle_group_a_summon_materialization(openswd3::test::Context& test) {
         }
 
         const auto result = materialize_legacy_battle_group_a_summon(
-            &state, &source, 0x005029D0U, 0x0053AF70U, 0x12340000U, port
+            &state,
+            &source,
+            0x005029D0U,
+            0x0053AF70U,
+            0x12340000U,
+            port,
+            port.action_execution
         );
 
         bool name_matches = true;
@@ -159,6 +186,11 @@ void test_battle_group_a_summon_materialization(openswd3::test::Context& test) {
                 state.placement_primary == state.placement_secondary &&
                 state.placement_primary[5U] == 0x23450123U &&
                 state.placement_primary[6U] == 0x45673456U &&
+                port.action_execution.position_x == 0x2345U &&
+                port.action_execution.position_y == 0x3456U &&
+                port.action_execution.alternate_position_x == 0x2345U &&
+                port.action_execution.alternate_position_y == 0x3456U &&
+                port.action_execution.coordinate_mode_gate == 0x0100U &&
                 state.placement_tail == 1U && state.placement_word == 0x123U &&
                 actor_word(state.actor_record, 0x26U) == 0x1111U &&
                 actor_word(state.actor_record, 0x28U) == 0x2222U &&
@@ -181,10 +213,20 @@ void test_battle_group_a_summon_materialization(openswd3::test::Context& test) {
         LegacyBattleGroupAConfigurationState state{
             .actor_record_token = 0x73000000U,
         };
-        LegacyBattleGroupAPlacementRecord source{.role_id = 0U};
+        LegacyBattleGroupAPlacementRecord source{
+            .role_id = 0U,
+            .position_x = 0xFEDCU,
+            .position_y = 0x8000U,
+        };
         MaterializationPort port;
         const auto result = materialize_legacy_battle_group_a_summon(
-            &state, &source, 0x00505904U, 0x0053AF90U, 0x76543210U, port
+            &state,
+            &source,
+            0x00505904U,
+            0x0053AF90U,
+            0x76543210U,
+            port,
+            port.action_execution
         );
         test.expect_true(
             result.status ==
@@ -193,7 +235,9 @@ void test_battle_group_a_summon_materialization(openswd3::test::Context& test) {
                 port.calls[1U].call ==
                     LegacyBattleGroupASummonMaterializationCall::
                         report_missing_role &&
-                port.calls[1U].window_token == 0x76543210U,
+                port.calls[1U].window_token == 0x76543210U &&
+                port.observed_coordinates ==
+                    std::array<u16, 4>{0xFEDCU, 0x8000U, 0xFEDCU, 0x8000U},
             "zero summon role reports only after load, release, and duplicate source publication"
         );
     }
@@ -206,15 +250,24 @@ void test_battle_group_a_summon_materialization(openswd3::test::Context& test) {
         MaterializationPort port;
         port.allocation_token = 0U;
         const auto result = materialize_legacy_battle_group_a_summon(
-            &state, &source, 0x005029D0U, 0x0053AF70U, 0U, port
+            &state,
+            &source,
+            0x005029D0U,
+            0x0053AF70U,
+            0U,
+            port,
+            port.action_execution
         );
         test.expect_true(
             result.status ==
                     LegacyBattleGroupASummonMaterializationStatus::
                         allocation_typed_stop &&
                 result.port_calls == 1U && result.profile_dwords_zeroed == 0U &&
-                state.profile_token == 0xAAAAAAAAU,
-            "zero allocation stops at the first profile clear without attaching the record"
+                state.profile_token == 0U && result.return_eax == 0U &&
+                result.return_ecx == 0x29U &&
+                port.action_execution.position_x == 0xAAAAU &&
+                port.action_execution.alternate_position_y == 0xDDDDU,
+            "zero allocation publishes the null profile before stopping at the first clear"
         );
     }
 
@@ -225,7 +278,7 @@ void test_battle_group_a_summon_materialization(openswd3::test::Context& test) {
         LegacyBattleGroupAPlacementRecord source{.role_id = 2U};
         MaterializationPort port;
         const auto actor_stop = materialize_legacy_battle_group_a_summon(
-            &state, &source, 0U, 0x0053AF70U, 0U, port
+            &state, &source, 0U, 0x0053AF70U, 0U, port, port.action_execution
         );
 
         LegacyBattleGroupAConfigurationState source_state{
@@ -233,7 +286,13 @@ void test_battle_group_a_summon_materialization(openswd3::test::Context& test) {
         };
         MaterializationPort source_port;
         const auto source_stop = materialize_legacy_battle_group_a_summon(
-            &source_state, &source, 0x005029D0U, 0U, 0U, source_port
+            &source_state,
+            &source,
+            0x005029D0U,
+            0U,
+            0U,
+            source_port,
+            source_port.action_execution
         );
 
         test.expect_true(
@@ -241,13 +300,19 @@ void test_battle_group_a_summon_materialization(openswd3::test::Context& test) {
                     LegacyBattleGroupASummonMaterializationStatus::
                         actor_state_typed_stop &&
                 actor_stop.port_calls == 1U &&
-                actor_stop.profile_dwords_zeroed == 0x29U &&
+                actor_stop.profile_dwords_zeroed == 0U &&
+                actor_stop.return_eax == 0U && actor_stop.return_ecx == 0x29U &&
                 state.profile_token == 0xBBBBBBBBU &&
                 source_stop.status ==
                     LegacyBattleGroupASummonMaterializationStatus::
                         source_record_typed_stop &&
                 source_stop.port_calls == 1U &&
-                source_state.profile_token == 0x71000000U,
+                source_state.profile_token == 0x71000000U &&
+                source_stop.return_ecx == 0U &&
+                source_port.action_execution.position_x == 0xAAAAU &&
+                source_port.action_execution.position_y == 0xBBBBU &&
+                source_port.action_execution.alternate_position_x == 0xCCCCU &&
+                source_port.action_execution.alternate_position_y == 0xDDDDU,
             "actor and source stops preserve the exact allocation, clear, and attachment prefixes"
         );
     }
@@ -263,7 +328,13 @@ void test_battle_group_a_summon_materialization(openswd3::test::Context& test) {
         };
         MaterializationPort port;
         const auto result = materialize_legacy_battle_group_a_summon(
-            &state, &source, 0x005029D0U, 0x0053AF70U, 0x11110000U, port
+            &state,
+            &source,
+            0x005029D0U,
+            0x0053AF70U,
+            0x11110000U,
+            port,
+            port.action_execution
         );
         test.expect_true(
             result.status ==
@@ -272,6 +343,10 @@ void test_battle_group_a_summon_materialization(openswd3::test::Context& test) {
                 result.port_calls == 4U && result.diagnostic_calls == 1U &&
                 result.placement_dwords_copied == 16U &&
                 state.placement_tail == 7U &&
+                port.action_execution.position_x == 0U &&
+                port.action_execution.position_y == 0U &&
+                port.action_execution.alternate_position_x == 0U &&
+                port.action_execution.alternate_position_y == 0U &&
                 std::ranges::all_of(
                     state.actor_record,
                     [](const u32 value) { return value == 0xDDDDDDDDU; }

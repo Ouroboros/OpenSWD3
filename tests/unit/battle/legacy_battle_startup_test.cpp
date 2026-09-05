@@ -5,6 +5,7 @@
 #include <array>
 #include <bit>
 #include <deque>
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
@@ -34,6 +35,13 @@ class StartupPorts final
       public openswd3::battle::LegacyBattleMutableFrameImagePort,
       public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
+    using GroupAActors = std::array<
+        openswd3::battle::LegacyBattleGroupAActionExecutionState,
+        openswd3::battle::kLegacyBattleActorGroupAElementCount>;
+    std::unique_ptr<GroupAActors> group_a_actors{
+        std::make_unique<GroupAActors>()
+    };
+
     [[nodiscard]] LegacyBattleStartupCallReply
     invoke(const LegacyBattleStartupCallRequest& request) override {
         requests.push_back(request);
@@ -110,10 +118,6 @@ public:
         case LegacyBattleStartupCall::group_a_profile_load:
             reply.publish_group_a_profile_record = true;
             reply.group_a_profile_record = supplemental_profile;
-            break;
-        case LegacyBattleStartupCall::query_actor_metric:
-            reply.publish_metric_word = true;
-            reply.metric_word = 1U;
             break;
         default:
             break;
@@ -486,7 +490,15 @@ void test_battle_startup(openswd3::test::Context& test) {
         startup_request.definition_record_entry_edx_snapshot = 0x77778888U;
 
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
-            state, ports, ports, ports, ports, ports, ports, startup_request
+            state,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            startup_request,
+            *ports.group_a_actors
         );
 
         test.expect_true(
@@ -615,7 +627,6 @@ void test_battle_startup(openswd3::test::Context& test) {
         state.party[0U].actor_list.secondary_required = 0xFFFFU;
         state.party[0U].actor_list.selected_resource_token = 0xFFFFFFFFU;
         state.party[0U].final_processing.completion_latch = 0xFFFFFFFFU;
-        state.party[0U].final_processing.profile_buffer.fill(0xFFFFFFFFU);
         state.party[0U].item_effect_application = {
             .cached_profile_item_id = 0x1111U,
             .effect_flags = 0xFFFFFFFFU,
@@ -626,6 +637,7 @@ void test_battle_startup(openswd3::test::Context& test) {
             .derived_words = {0xFFFFU, 0x3333U, 0x4444U, 0x5555U},
         };
         StartupPorts ports;
+        (*ports.group_a_actors)[0U].profile_buffer.fill(0xFFFFFFFFU);
         ports.supplemental_modifier_token = 0x004AB790U;
         ports.archive_open_replies.push_back({
             .eax = 0xFFFFFFFFU,
@@ -693,7 +705,15 @@ void test_battle_startup(openswd3::test::Context& test) {
         low_party_item.item_id = 2U;
 
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
-            state, ports, ports, ports, ports, ports, ports, request(7U)
+            state,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            request(7U),
+            *ports.group_a_actors
         );
         const auto attribute_diagnostic = std::ranges::find_if(
             ports.requests, [](const LegacyBattleStartupCallRequest& call) {
@@ -794,6 +814,17 @@ void test_battle_startup(openswd3::test::Context& test) {
                 state.party[1].role_id == 102U &&
                 state.party[1].position_x == 85U &&
                 state.party[1].position_y == 370U &&
+                (*ports.group_a_actors)[0U].position_x == 150U &&
+                (*ports.group_a_actors)[0U].position_y == 275U &&
+                (*ports.group_a_actors)[1U].alternate_position_y == 370U &&
+                ports.actor_coordinate_bindings().group_a[0U].position_y ==
+                    &(*ports.group_a_actors)[0U].position_y &&
+                ports.actor_metric_state().values[0U] == 540 &&
+                ports.actor_metric_state().values[1U] == 340 &&
+                ports.actor_metric_state().values[8U] == 275 &&
+                ports.actor_metric_state().values[9U] == 370 &&
+                ports.actor_metric_state().values[10U] == 310 &&
+                ports.actor_metric_state().values[11U] == 310 &&
                 state.party[0].workspace.object_token == 0x005029D0U &&
                 state.party[1].workspace.object_token == 0x00505904U &&
                 state.group_a_profiles.profile_tokens[0U] ==
@@ -820,7 +851,7 @@ void test_battle_startup(openswd3::test::Context& test) {
                 state.party[0U].actor_list.secondary_required == 0U &&
                 state.party[0U].actor_list.selected_resource_token == 0U &&
                 state.party[0U].final_processing.completion_latch == 0U &&
-                state.party[0U].final_processing.profile_buffer[0U] == 0U &&
+                (*ports.group_a_actors)[0U].profile_buffer[0U] == 0U &&
                 state.party[0U].item_effect_application.effect_flags == 0U &&
                 state.party[0U].item_effect_application.action_kind == 0U &&
                 state.party[0U].item_effect_application.derived_words[0U] ==
@@ -926,6 +957,10 @@ void test_battle_startup(openswd3::test::Context& test) {
                 state.party[3].role_id == 4U &&
                 state.party[2].position_x == 0xFF92U &&
                 state.party[3].position_x == 0xFF92U &&
+                (*ports.group_a_actors)[2U].position_x == 0xFF92U &&
+                (*ports.group_a_actors)[2U].position_y == 310U &&
+                (*ports.group_a_actors)[3U].alternate_position_x == 0xFF92U &&
+                (*ports.group_a_actors)[3U].alternate_position_y == 310U &&
                 state.party[2].configuration.profile_token == 0x71000000U &&
                 state.party[3].configuration.profile_token == 0x710000A4U &&
                 state.party[2].configuration.source_record_token ==
@@ -969,12 +1004,12 @@ void test_battle_startup(openswd3::test::Context& test) {
                 ports.call_count(LegacyBattleStartupCall::apply_actor_mode) ==
                     4U &&
                 ports.call_count(LegacyBattleStartupCall::query_actor_metric) ==
-                    6U &&
+                    0U &&
                 result.actor_metric_calls == 6U &&
                 result.actor_order_selections == 6U &&
                 result.group_b_order_copies == 2U &&
-                ports.actor_metric_state().group_b_order[0] == 0U &&
-                ports.actor_metric_state().group_b_order[1] == 1U,
+                ports.actor_metric_state().group_b_order[0] == 1U &&
+                ports.actor_metric_state().group_b_order[1] == 0U,
             "battle startup continues after background load zero and preserves enemy party ratio supplement and final unsigned state"
         );
     }
@@ -989,9 +1024,18 @@ void test_battle_startup(openswd3::test::Context& test) {
         ports.query_values = {{34U, 1U}, {35U, 1U}};
         ports.random_values = {0U, 1U, 1U, 0U, 0U};
         ports.definition.enemy_count = 1U;
+        ports.definition.enemies[0U].position_x = 100U;
 
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
-            state, ports, ports, ports, ports, ports, ports, request(8U)
+            state,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            request(8U),
+            *ports.group_a_actors
         );
 
         test.expect_true(
@@ -1045,7 +1089,15 @@ void test_battle_startup(openswd3::test::Context& test) {
         ports.definition.enemy_count = 1U;
 
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
-            state, ports, ports, ports, ports, ports, ports, request(8U)
+            state,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            request(8U),
+            *ports.group_a_actors
         );
 
         test.expect_true(
@@ -1110,11 +1162,14 @@ void test_battle_startup(openswd3::test::Context& test) {
         for (u32 count = 1U; count <= 4U; ++count) {
             LegacyBattleStartupState state;
             StartupPorts ports;
+            (*ports.group_a_actors)[9U].position_x = 0xAAAAU;
+            (*ports.group_a_actors)[9U].alternate_position_y = 0xBBBBU;
             for (u32 index = 0U; index < count; ++index) {
                 ports.query_values[30U + index] = 1U;
             }
             ports.random_values = {0U, 0U};
             ports.definition.enemy_count = 1U;
+            ports.definition.enemies[0U].position_x = 100U;
             const auto result =
                 openswd3::battle::initialize_legacy_battle_startup(
                     state,
@@ -1124,11 +1179,25 @@ void test_battle_startup(openswd3::test::Context& test) {
                     ports,
                     ports,
                     ports,
-                    request(9U + count)
+                    request(9U + count),
+                    *ports.group_a_actors
                 );
             positions_match = positions_match &&
                 result.status ==
-                    openswd3::battle::LegacyBattleStartupStatus::completed;
+                    openswd3::battle::LegacyBattleStartupStatus::completed &&
+                (*ports.group_a_actors)[9U].position_x == 0xAAAAU &&
+                (*ports.group_a_actors)[9U].alternate_position_y == 0xBBBBU;
+            for (u32 index = 0U; index < count; ++index) {
+                const auto& actor = (*ports.group_a_actors)[index];
+                positions_match = positions_match &&
+                    actor.position_x ==
+                        expected_positions[count - 1U][index * 2U] &&
+                    actor.position_y ==
+                        expected_positions[count - 1U][index * 2U + 1U] &&
+                    actor.alternate_position_x == actor.position_x &&
+                    actor.alternate_position_y == actor.position_y;
+            }
+
             for (u32 index = 0U; index < 4U; ++index) {
                 positions_match = positions_match &&
                     state.party[index].position_x ==
@@ -1145,14 +1214,56 @@ void test_battle_startup(openswd3::test::Context& test) {
 
     {
         LegacyBattleStartupState state;
+        StartupPorts ports;
+        ports.query_values[30U] = 1U;
+        ports.random_values = {0U, 0U};
+        ports.definition.enemy_count = 1U;
+        // Source +0x18 is zero, so the enemy's actual metric is zero.
+        const auto result = openswd3::battle::initialize_legacy_battle_startup(
+            state,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            request(14U),
+            *ports.group_a_actors
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleStartupStatus::
+                        actor_order_typed_stop &&
+                result.actor_metric_calls == 2U &&
+                ports.actor_metric_state().values[0U] == 0 &&
+                ports.actor_metric_state().values[8U] != 0 &&
+                result.party_progress_initialization_calls == 0U &&
+                !result.message_state_published &&
+                ports.call_count(LegacyBattleStartupCall::query_actor_metric) ==
+                    0U,
+            "startup retains the original zero-metric order stop instead of publishing a fake nonzero metric"
+        );
+    }
+
+    {
+        LegacyBattleStartupState state;
         state.party[0U].progress.progress = 0xFACE0011U;
         state.party[0U].progress.progress_write_accessible = false;
         StartupPorts ports;
         ports.query_values[30U] = 1U;
         ports.random_values = {0U, 0U, 8U};
         ports.definition.enemy_count = 1U;
+        ports.definition.enemies[0U].position_x = 100U;
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
-            state, ports, ports, ports, ports, ports, ports, request(14U)
+            state,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            request(14U),
+            *ports.group_a_actors
         );
         test.expect_true(
             result.status ==
@@ -1189,11 +1300,20 @@ void test_battle_startup(openswd3::test::Context& test) {
         ports.query_values[30U] = 1U;
         ports.random_values = {0U, 0U};
         ports.definition.enemy_count = 1U;
+        ports.definition.enemies[0U].position_x = 100U;
         auto startup_request = request(15U);
         startup_request.party_role_ids[0U] = 0U;
         startup_request.window_token = 0x76543210U;
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
-            state, ports, ports, ports, ports, ports, ports, startup_request
+            state,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            startup_request,
+            *ports.group_a_actors
         );
         const auto diagnostic = std::ranges::find_if(
             ports.requests, [](const LegacyBattleStartupCallRequest& call) {
@@ -1227,7 +1347,15 @@ void test_battle_startup(openswd3::test::Context& test) {
         ports.random_values = {0U};
         ports.world_item_list_state().player_inventory_head_token = 0x00700000U;
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
-            state, ports, ports, ports, ports, ports, ports, request(20U)
+            state,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            request(20U),
+            *ports.group_a_actors
         );
         test.expect_true(
             result.status ==
@@ -1250,7 +1378,15 @@ void test_battle_startup(openswd3::test::Context& test) {
         ports.random_values = {0U};
         ports.world_item_list_state().party_item_lists[0U].reset();
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
-            state, ports, ports, ports, ports, ports, ports, request(21U)
+            state,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            request(21U),
+            *ports.group_a_actors
         );
         test.expect_true(
             result.status ==
@@ -1277,7 +1413,15 @@ void test_battle_startup(openswd3::test::Context& test) {
         ports.random_values = {0U};
         ports.world_item_list_state().role_item_lists[0U].reset();
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
-            state, ports, ports, ports, ports, ports, ports, request(22U)
+            state,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            request(22U),
+            *ports.group_a_actors
         );
         test.expect_true(
             result.status ==
@@ -1317,7 +1461,15 @@ void test_battle_startup(openswd3::test::Context& test) {
         ports.definition.enemy_count = 1U;
         ports.random_values = {0U, 1U};
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
-            state, ports, ports, ports, ports, ports, ports, request(20U)
+            state,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            request(20U),
+            *ports.group_a_actors
         );
         test.expect_true(
             result.status ==
@@ -1344,7 +1496,15 @@ void test_battle_startup(openswd3::test::Context& test) {
         ports.definition.enemy_count = 9U;
         ports.random_values = {0U};
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
-            state, ports, ports, ports, ports, ports, ports, request(20U)
+            state,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            request(20U),
+            *ports.group_a_actors
         );
         test.expect_true(
             result.status ==
@@ -1371,7 +1531,15 @@ void test_battle_startup(openswd3::test::Context& test) {
         StartupPorts ports;
         ports.force_definition_offset_stop = true;
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
-            state, ports, ports, ports, ports, ports, ports, request(20U)
+            state,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            request(20U),
+            *ports.group_a_actors
         );
         test.expect_true(
             result.status ==

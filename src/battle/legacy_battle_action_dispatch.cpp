@@ -117,7 +117,6 @@ constexpr u32 kCallCommitMessageRecord = 0x0047DBD0U;
 constexpr u32 kCallQueryLiveIndex = 0x004786E0U;
 constexpr u32 kCallPrepareOpponent = 0x00478AE0U;
 constexpr u32 kCallSelectOpponent = 0x00478A70U;
-constexpr u32 kCallPublishScene = 0x004707B0U;
 constexpr u32 kCallFinalizeSelection = 0x00478B30U;
 constexpr u32 kCallLegacyStringCopy = 0x00499168U;
 constexpr u32 kCallSetGlobalMode = 0x0047F900U;
@@ -186,11 +185,19 @@ void replace_high_word(u32& destination, const u16 value) noexcept {
     LegacyBattleActionDispatchPort& port,
     LegacyBattleActionDispatchResult& result,
     const u32 callee,
-    const std::array<u32, 8>& arguments = {}
+    const std::array<u32, 8>& arguments = {},
+    const u32 eax = 0U,
+    const u32 ecx = 0U,
+    const u32 edx = 0U
 ) {
     ++result.port_calls;
-    LegacyBattleActionCallReply reply =
-        port.invoke({.callee_token = callee, .arguments = arguments});
+    LegacyBattleActionCallReply reply = port.invoke({
+        .callee_token = callee,
+        .arguments = arguments,
+        .eax = eax,
+        .ecx = ecx,
+        .edx = edx,
+    });
     if (reply.publish_accumulator) {
         port.battle_pair_primary_value() = reply.accumulator;
     }
@@ -1212,15 +1219,41 @@ LegacyBattleActionThirteenResult advance_legacy_battle_action_thirteen(
     if (low_word(offsets.outputs[0U]) == 0U ||
         low_word(offsets.outputs[1U]) == 0U) {
         ++result.coordinate_query_calls;
-        const auto coordinates = invoke_action(
-            kCallActionThirteenQueryCoordinates, {request.opponent_token}
+        u16 coordinate_x = low_word(offsets.outputs[0U]);
+        u16 coordinate_y = low_word(offsets.outputs[1U]);
+        // 0x004718E2 loads the Y address into EAX; EDX retains the
+        // preceding offset-query result until the coordinate leaf.
+        result.coordinate_query = query_legacy_battle_actor_coordinates(
+            resolve_legacy_battle_actor_coordinates(
+                port.actor_coordinate_bindings(), request.opponent_token
+            ),
+            &coordinate_x,
+            &coordinate_y,
+            {
+                .actor_token = request.opponent_token,
+                .output_x_token = context.action_thirteen_output_x_token,
+                .output_y_token = context.action_thirteen_output_y_token,
+                .entry_eax = context.action_thirteen_output_y_token,
+                .entry_edx = registers.edx,
+            }
         );
-        endpoint_x = static_cast<u16>(
-            low_word(coordinates.outputs[0U]) - actor->turn_target_x_offset
-        );
+        registers.eax = result.coordinate_query.return_eax;
+        registers.ecx = result.coordinate_query.return_ecx;
+        registers.edx = result.coordinate_query.return_edx;
+        if (result.coordinate_query.status !=
+            LegacyBattleActorCoordinateQueryStatus::completed) {
+            result.status =
+                LegacyBattleActionThirteenStatus::target_coordinate_typed_stop;
+            result.return_eax = registers.eax;
+            result.return_ecx = registers.ecx;
+            result.return_edx = registers.edx;
+            return result;
+        }
+
+        endpoint_x =
+            static_cast<u16>(coordinate_x - actor->turn_target_x_offset);
         endpoint_y = static_cast<u16>(
-            low_word(coordinates.outputs[1U]) -
-            static_cast<u16>(phase->action_record.draw_offset_y)
+            coordinate_y - static_cast<u16>(phase->action_record.draw_offset_y)
         );
     } else {
         ++result.coordinate_query_calls;
@@ -1295,7 +1328,7 @@ LegacyBattleActionThirteenResult advance_legacy_battle_action_thirteen(
         phase->block_0df4.fill(0U);
         phase->action_record = {};
         result.return_eax = 1U;
-        result.return_ecx = registers.ecx;
+        result.return_ecx = 0U;
         result.return_edx = registers.edx;
         return result;
     }
@@ -1409,16 +1442,41 @@ LegacyBattleActionFourteenResult advance_legacy_battle_action_fourteen(
     if (low_word(offsets.outputs[0U]) == 0U ||
         low_word(offsets.outputs[1U]) == 0U) {
         ++result.coordinate_query_calls;
-        const auto coordinates = invoke_action(
-            kCallActionThirteenQueryCoordinates, {request.opponent_token}
+        u16 coordinate_x = low_word(offsets.outputs[0U]);
+        u16 coordinate_y = low_word(offsets.outputs[1U]);
+        // 0x00471B76/0x00471B7A load Y into EDX and X into EAX.
+        result.coordinate_query = query_legacy_battle_actor_coordinates(
+            resolve_legacy_battle_actor_coordinates(
+                port.actor_coordinate_bindings(), request.opponent_token
+            ),
+            &coordinate_x,
+            &coordinate_y,
+            {
+                .actor_token = request.opponent_token,
+                .output_x_token = context.action_fourteen_output_x_token,
+                .output_y_token = context.action_fourteen_output_y_token,
+                .entry_eax = context.action_fourteen_output_x_token,
+                .entry_edx = context.action_fourteen_output_y_token,
+            }
         );
+        registers.eax = result.coordinate_query.return_eax;
+        registers.ecx = result.coordinate_query.return_ecx;
+        registers.edx = result.coordinate_query.return_edx;
+        if (result.coordinate_query.status !=
+            LegacyBattleActorCoordinateQueryStatus::completed) {
+            result.status =
+                LegacyBattleActionFourteenStatus::target_coordinate_typed_stop;
+            result.return_eax = registers.eax;
+            result.return_ecx = registers.ecx;
+            result.return_edx = registers.edx;
+            return result;
+        }
+
         endpoint_x = static_cast<u16>(
-            low_word(coordinates.outputs[0U]) -
-            static_cast<u16>(phase->action_record.draw_offset_x)
+            coordinate_x - static_cast<u16>(phase->action_record.draw_offset_x)
         );
         endpoint_y = static_cast<u16>(
-            low_word(coordinates.outputs[1U]) -
-            static_cast<u16>(phase->action_record.draw_offset_y)
+            coordinate_y - static_cast<u16>(phase->action_record.draw_offset_y)
         );
     } else {
         ++result.coordinate_query_calls;
@@ -1495,7 +1553,7 @@ LegacyBattleActionFourteenResult advance_legacy_battle_action_fourteen(
         phase->block_0df4.fill(0U);
         phase->action_record = {};
         result.return_eax = 1U;
-        result.return_ecx = registers.ecx;
+        result.return_ecx = 0U;
         result.return_edx = registers.edx;
         return result;
     }
@@ -1527,6 +1585,7 @@ advance_legacy_battle_action_twenty_three(
     const LegacyBattleActionTwentyThreeRequest& request
 ) {
     LegacyBattleActionTwentyThreeResult result{
+        .coordinate_stack_word = request.entry_ecx,
         .return_eax = request.entry_eax,
         .return_ecx = request.entry_ecx,
         .return_edx = request.entry_edx,
@@ -1575,9 +1634,12 @@ advance_legacy_battle_action_twenty_three(
 
     rendering::LegacyFramePiece frame{};
     ++result.frame_lookup_calls;
-    if (!context.frame_provider.load_frame_piece(
-            record.field_4a, record.field_4c, frame
-        )) {
+    const bool frame_loaded = context.frame_provider.load_frame_piece(
+        record.field_4a, record.field_4c, frame
+    );
+    registers.edx = context.action_twenty_three_frame_edx_snapshot;
+    result.return_edx = registers.edx;
+    if (!frame_loaded) {
         actor->turn_frame_token = 0U;
         result.status =
             LegacyBattleActionTwentyThreeStatus::frame_owner_typed_stop;
@@ -1616,21 +1678,47 @@ advance_legacy_battle_action_twenty_three(
         record.mode_flags = flags;
         record.field_1c = flags | 0x00008000U;
         record.draw_offset_x = static_cast<u32>(frame.width) - old_x;
+        registers.edx = record.draw_offset_x;
     }
 
-    registers.ecx = request.opponent_token;
+    u16 coordinate_x = low_word(request.entry_ecx);
+    u16 coordinate_y = static_cast<u16>(request.entry_ecx >> 16U);
     ++result.coordinate_query_calls;
-    const auto coordinates = invoke_action(
-        kCallActionThirteenQueryCoordinates, {request.opponent_token}
+    result.coordinate_query = query_legacy_battle_actor_coordinates(
+        resolve_legacy_battle_actor_coordinates(
+            port.actor_coordinate_bindings(), request.opponent_token
+        ),
+        &coordinate_x,
+        &coordinate_y,
+        {
+            .actor_token = request.opponent_token,
+            .output_x_token = context.action_twenty_three_output_x_token,
+            .output_y_token = context.action_twenty_three_output_y_token,
+            .entry_eax = context.action_twenty_three_output_y_token,
+            .entry_edx = registers.edx,
+        }
     );
-    const i16 relative_x = std::bit_cast<i16>(static_cast<u16>(
-        low_word(coordinates.outputs[0U]) -
-        static_cast<u16>(record.draw_offset_x)
-    ));
-    const i16 relative_y = std::bit_cast<i16>(static_cast<u16>(
-        low_word(coordinates.outputs[1U]) -
-        static_cast<u16>(record.draw_offset_y)
-    ));
+    result.coordinate_stack_word = static_cast<u32>(coordinate_x) |
+        (static_cast<u32>(coordinate_y) << 16U);
+    registers.eax = result.coordinate_query.return_eax;
+    registers.ecx = result.coordinate_query.return_ecx;
+    registers.edx = result.coordinate_query.return_edx;
+    if (result.coordinate_query.status !=
+        LegacyBattleActorCoordinateQueryStatus::completed) {
+        result.status =
+            LegacyBattleActionTwentyThreeStatus::target_coordinate_typed_stop;
+        result.return_eax = registers.eax;
+        result.return_ecx = registers.ecx;
+        result.return_edx = registers.edx;
+        return result;
+    }
+
+    const i16 relative_x = std::bit_cast<i16>(
+        static_cast<u16>(coordinate_x - static_cast<u16>(record.draw_offset_x))
+    );
+    const i16 relative_y = std::bit_cast<i16>(
+        static_cast<u16>(coordinate_y - static_cast<u16>(record.draw_offset_y))
+    );
 
     shared->draw_height_third = static_cast<u32>(frame.height) / 3U;
     shared->draw_height_quarter = static_cast<u32>(frame.height) >> 2U;
@@ -1690,7 +1778,8 @@ advance_legacy_battle_action_twenty_three(
     ));
 
     result.return_eax = 0U;
-    result.return_ecx = registers.ecx;
+    // 0x00472415 pops the two coordinate WORDs, not the render reply.
+    result.return_ecx = result.coordinate_stack_word;
     result.return_edx = registers.edx;
     return result;
 }
@@ -1879,7 +1968,7 @@ LegacyBattleActionTwentyFourResult advance_legacy_battle_action_twenty_four(
 
     actor->turn_target_x_offset = static_cast<u16>(record.draw_offset_x);
     actor->turn_render_flags = record.mode_flags;
-    actor->source_x_offset = actor->secondary_auxiliary_word;
+    actor->source_x_offset = actor->primary_action_record.field_76;
     if (phase->render_toggle_gate == 1U) {
         if ((actor->turn_render_flags & 1U) != 0U) {
             actor->turn_render_flags =
@@ -1894,9 +1983,9 @@ LegacyBattleActionTwentyFourResult advance_legacy_battle_action_twenty_four(
         actor->turn_target_x_offset = static_cast<u16>(
             frame.width - static_cast<u16>(record.draw_offset_x)
         );
-        if (actor->secondary_auxiliary_word != 0U) {
+        if (actor->primary_action_record.field_76 != 0U) {
             actor->source_x_offset = static_cast<u16>(
-                frame.width - actor->secondary_auxiliary_word
+                frame.width - actor->primary_action_record.field_76
             );
         }
     }
@@ -1949,10 +2038,10 @@ LegacyBattleActionTwentyFourResult advance_legacy_battle_action_twenty_four(
         }
     ));
 
-    if ((actor->action_flags & 9U) != 0U) {
+    if ((actor->primary_action_record.field_5a & 9U) != 0U) {
         const u16 special_return =
-            static_cast<u16>(actor->copied_runtime_word | 0x8000U);
-        actor->action_flags = 0U;
+            static_cast<u16>(actor->copied_runtime_word() | 0x8000U);
+        actor->primary_action_record.field_5a = 0U;
         replace_low_word(registers.eax, special_return);
         result.return_eax = registers.eax;
         result.return_ecx = registers.ecx;
@@ -2061,9 +2150,10 @@ advance_legacy_battle_action_twenty_seven(
         return result;
     }
 
+    registers.eax = record.mode_flags;
     actor->turn_target_x_offset = static_cast<u16>(record.draw_offset_x);
     actor->turn_render_flags = record.mode_flags;
-    actor->source_x_offset = actor->secondary_auxiliary_word;
+    actor->source_x_offset = actor->primary_action_record.field_76;
     if (phase->render_toggle_gate == 1U) {
         if ((actor->turn_render_flags & 1U) != 0U) {
             actor->turn_render_flags =
@@ -2078,22 +2168,48 @@ advance_legacy_battle_action_twenty_seven(
         actor->turn_target_x_offset = static_cast<u16>(
             frame.width - static_cast<u16>(record.draw_offset_x)
         );
-        if (actor->secondary_auxiliary_word != 0U) {
+        registers.eax = context.action_twenty_seven_frame_eax_snapshot;
+        if (actor->primary_action_record.field_76 != 0U) {
             actor->source_x_offset = static_cast<u16>(
-                frame.width - actor->secondary_auxiliary_word
+                frame.width - actor->primary_action_record.field_76
             );
+            replace_low_word(registers.eax, actor->source_x_offset);
         }
     }
 
-    registers.ecx = request.target_token;
+    u16 coordinate_x{};
+    u16 coordinate_y{};
     ++result.coordinate_query_calls;
-    const auto coordinates = invoke_action(
-        kCallActionThirteenQueryCoordinates, {request.target_token}
+    result.coordinate_query = query_legacy_battle_actor_coordinates(
+        resolve_legacy_battle_actor_coordinates(
+            port.actor_coordinate_bindings(), request.target_token
+        ),
+        &coordinate_x,
+        &coordinate_y,
+        {
+            .actor_token = request.target_token,
+            .output_x_token = context.action_twenty_seven_output_x_token,
+            .output_y_token = context.action_twenty_seven_output_y_token,
+            .entry_eax = registers.eax,
+            .entry_edx = context.action_twenty_seven_output_x_token,
+        }
     );
-    const i16 relative_y = std::bit_cast<i16>(static_cast<u16>(
-        low_word(coordinates.outputs[1U]) -
-        static_cast<u16>(record.draw_offset_y)
-    ));
+    registers.eax = result.coordinate_query.return_eax;
+    registers.ecx = result.coordinate_query.return_ecx;
+    registers.edx = result.coordinate_query.return_edx;
+    if (result.coordinate_query.status !=
+        LegacyBattleActorCoordinateQueryStatus::completed) {
+        result.status =
+            LegacyBattleActionTwentySevenStatus::target_coordinate_typed_stop;
+        result.return_eax = registers.eax;
+        result.return_ecx = registers.ecx;
+        result.return_edx = registers.edx;
+        return result;
+    }
+
+    const i16 relative_y = std::bit_cast<i16>(
+        static_cast<u16>(coordinate_y - static_cast<u16>(record.draw_offset_y))
+    );
 
     shared->draw_height_third = static_cast<u32>(frame.height) / 3U;
     shared->draw_height_quarter = static_cast<u32>(frame.height) >> 2U;
@@ -2158,8 +2274,8 @@ advance_legacy_battle_action_twenty_seven(
         }
     ));
 
-    if ((actor->action_flags & 9U) != 0U) {
-        actor->action_flags = 0U;
+    if ((actor->primary_action_record.field_5a & 9U) != 0U) {
+        actor->primary_action_record.field_5a = 0U;
         actor->action_runtime_gate = 0x8000U;
         registers.ecx = request.target_token;
         ++result.target_refresh_calls;
@@ -2172,8 +2288,8 @@ advance_legacy_battle_action_twenty_seven(
             kCallComputeValue,
             {
                 request.target_token,
-                coordinates.outputs[0U],
-                coordinates.outputs[1U],
+                coordinate_x,
+                coordinate_y,
             }
         );
         i32 effect = static_cast<i32>(std::bit_cast<i16>(low_word(computed.eax)));
@@ -2205,7 +2321,7 @@ advance_legacy_battle_action_twenty_seven(
     }
 
     auto& secondary = actor->effect_action_record;
-    secondary.action_id = actor->copied_runtime_word;
+    secondary.action_id = actor->copied_runtime_word();
     secondary.base_variant = 0U;
     registers.ecx = request.actor_token;
     ++result.secondary_record_calls;
@@ -2244,7 +2360,8 @@ advance_legacy_battle_action_twenty_seven(
     record = {};
     result.action_record_clears += 2U;
     result.return_eax = 1U;
-    result.return_ecx = registers.ecx;
+    // 0x00472C46 rep stosd exhausts ECX before the completed return.
+    result.return_ecx = 0U;
     result.return_edx = registers.edx;
     return result;
 }
@@ -2262,6 +2379,8 @@ advance_legacy_battle_dual_record_action(
         .return_eax = request.entry_eax,
         .return_ecx = request.entry_ecx,
         .return_edx = request.entry_edx,
+        .coordinate_x_stack_word =
+            context.dual_record_coordinate_x_stack_snapshot,
     };
     if (actor == nullptr || request.actor_token == 0U) {
         result.status =
@@ -2439,9 +2558,11 @@ advance_legacy_battle_dual_record_action(
 
     rendering::LegacyFramePiece secondary_frame{};
     ++result.frame_lookup_calls;
-    if (!context.frame_provider.load_frame_piece(
-            secondary.field_4a, secondary.field_4c, secondary_frame
-        )) {
+    const bool secondary_frame_loaded = context.frame_provider.load_frame_piece(
+        secondary.field_4a, secondary.field_4c, secondary_frame
+    );
+    registers.edx = context.dual_record_secondary_frame_edx_snapshot;
+    if (!secondary_frame_loaded) {
         actor->turn_frame_token = 0U;
         result.status =
             LegacyBattleDualRecordActionStatus::frame_owner_typed_stop;
@@ -2457,6 +2578,7 @@ advance_legacy_battle_dual_record_action(
     actor->turn_render_flags = secondary.mode_flags;
     actor->turn_target_x_offset = static_cast<u16>(secondary.draw_offset_x);
     if (phase->render_toggle_gate == 1U) {
+        registers.edx = context.dual_record_secondary_frame_eax_snapshot;
         if ((actor->turn_render_flags & 1U) != 0U) {
             actor->turn_render_flags =
                 (actor->turn_render_flags & 0xFFFFFF00U) |
@@ -2478,18 +2600,45 @@ advance_legacy_battle_dual_record_action(
         }
     }
 
-    registers.ecx = request.coordinate_token;
+    u16 coordinate_x = low_word(result.coordinate_x_stack_word);
+    u16 coordinate_y{};
     ++result.coordinate_query_calls;
-    const auto coordinates = invoke_action(
-        kCallActionThirteenQueryCoordinates, {request.coordinate_token}
+    result.coordinate_query = query_legacy_battle_actor_coordinates(
+        resolve_legacy_battle_actor_coordinates(
+            port.actor_coordinate_bindings(), request.coordinate_token
+        ),
+        &coordinate_x,
+        &coordinate_y,
+        {
+            .actor_token = request.coordinate_token,
+            .output_x_token = context.dual_record_output_x_token,
+            .output_y_token = context.dual_record_output_y_token,
+            .entry_eax = context.dual_record_output_y_token,
+            .entry_edx = registers.edx,
+        }
     );
-    const u16 draw_x_word = static_cast<u16>(
-        low_word(coordinates.outputs[0U]) - actor->turn_target_x_offset
-    );
+    replace_low_word(result.coordinate_x_stack_word, coordinate_x);
+    registers.eax = result.coordinate_query.return_eax;
+    registers.ecx = result.coordinate_query.return_ecx;
+    registers.edx = result.coordinate_query.return_edx;
+    if (result.coordinate_query.status !=
+        LegacyBattleActorCoordinateQueryStatus::completed) {
+        result.status =
+            LegacyBattleDualRecordActionStatus::target_coordinate_typed_stop;
+        result.return_eax = registers.eax;
+        result.return_ecx = registers.ecx;
+        result.return_edx = registers.edx;
+        return result;
+    }
+
+    registers.ecx =
+        result.coordinate_x_stack_word - actor->turn_target_x_offset;
+    const u16 draw_x_word = low_word(registers.ecx);
     const u16 draw_y_word = static_cast<u16>(
-        low_word(coordinates.outputs[1U]) -
-        static_cast<u16>(secondary.draw_offset_y)
+        coordinate_y - static_cast<u16>(secondary.draw_offset_y)
     );
+    registers.eax = signed_word_bits(draw_y_word);
+    registers.edx = signed_word_bits(draw_x_word);
     ++result.render_calls;
     static_cast<void>(invoke_action(
         kCallActionThirteenRender,
@@ -2514,7 +2663,7 @@ advance_legacy_battle_dual_record_action(
     primary = {};
     result.action_record_clears = 2U;
     result.return_eax = 1U;
-    result.return_ecx = registers.ecx;
+    result.return_ecx = 0U;  // 0x00472FED rep stosd exhausts ECX.
     result.return_edx = registers.edx;
     return result;
 }
@@ -2894,16 +3043,17 @@ advance_legacy_battle_special_four_oh_five(
     auto reply = port.invoke_special_four_oh_five_update(
         {
             .callee_token = 0x0047F940U,
-            .arguments = {
-                request.target_token,
-                request.actor_token + 0x0630U,
-                0U,
-                actor->copied_runtime_word,
-                effect_x,
-                effect_y,
-                signed_word_bits(actor->source_y),
-                1U,
-            },
+            .arguments =
+                {
+                    request.target_token,
+                    request.actor_token + 0x0630U,
+                    0U,
+                    actor->copied_runtime_word(),
+                    effect_x,
+                    effect_y,
+                    signed_word_bits(actor->source_y()),
+                    1U,
+                },
             .eax = registers.eax,
             .ecx = request.actor_token,
             .edx = registers.edx,
@@ -3556,7 +3706,7 @@ advance_legacy_battle_special_four_oh_nine(
     registers.eax = 2U;
     if (actor->action_runtime_gate == 2U) {
         registers.ecx = special.base_variant;
-        actor->special_effect_direct_mode |= 8U;
+        actor->profile_buffer[3U] |= 8U;
         special.base_variant = registers.ecx + registers.eax;
         registers.eax = special.base_variant;
         registers.ecx = request.actor_token;
@@ -3674,7 +3824,7 @@ advance_legacy_battle_action_four_oh_two(
         );
         coordinate_x = queried.outputs[0U];
         coordinate_y = queried.outputs[1U];
-        if ((actor->special_particle_coordinate_suppression & 2U) != 0U) {
+        if ((actor->special_particle_coordinate_suppression() & 2U) != 0U) {
             coordinate_x = 0U;
             coordinate_y = 0U;
         }
@@ -3807,17 +3957,18 @@ advance_legacy_battle_action_four_oh_two(
         const auto spawned = port.invoke_action_four_oh_two_particle(
             {
                 .callee_token = kCallActionFourOhTwoParticle,
-                .arguments = {
-                    actor->copied_runtime_word,
-                    actor->special_particle_sequence_index,
-                    particle_x,
-                    particle_y,
-                    target_x,
-                    target_y,
-                    1U,
-                    0x34U,
-                    0U,
-                },
+                .arguments =
+                    {
+                        actor->copied_runtime_word(),
+                        actor->special_particle_sequence_index,
+                        particle_x,
+                        particle_y,
+                        target_x,
+                        target_y,
+                        1U,
+                        0x34U,
+                        0U,
+                    },
                 .eax = registers.eax,
                 .ecx = request.actor_token,
                 .edx = registers.edx,
@@ -4181,16 +4332,18 @@ advance_legacy_battle_action_four_effect(
     }
 
     auto& effect = actor->effect_action_record;
-    effect.action_id = actor->copied_runtime_word;
+    effect.action_id = actor->copied_runtime_word();
     effect.base_variant = 0U;
     if (special.field_24 != 0U) {
         effect.action_id = special.field_24;
         effect.base_variant = special.field_28;
     }
-    if ((actor->special_effect_direct_mode & 1U) != 0U) {
+    if ((actor->special_effect_direct_mode() & 1U) != 0U) {
         const i32 effect_y =
             static_cast<i32>(std::bit_cast<i16>(actor->position_y)) +
-            static_cast<i32>(std::bit_cast<i16>(actor->auxiliary_word)) -
+            static_cast<i32>(
+                std::bit_cast<i16>(actor->primary_action_record.field_78)
+            ) -
             std::bit_cast<i32>(actor->primary_action_record.draw_offset_y);
         const i32 effect_x =
             static_cast<i32>(std::bit_cast<i16>(actor->position_x)) -
@@ -4203,16 +4356,17 @@ advance_legacy_battle_action_four_effect(
         const auto direct_reply = port.invoke_action_four_direct_effect_update(
             {
                 .callee_token = kCallActionFourDirectEffect,
-                .arguments = {
-                    request.target_token,
-                    request.actor_token + 0x0630U,
-                    0U,
-                    effect.action_id,
-                    std::bit_cast<u32>(effect_x),
-                    std::bit_cast<u32>(effect_y),
-                    signed_word_bits(actor->source_y),
-                    0U,
-                },
+                .arguments =
+                    {
+                        request.target_token,
+                        request.actor_token + 0x0630U,
+                        0U,
+                        effect.action_id,
+                        std::bit_cast<u32>(effect_x),
+                        std::bit_cast<u32>(effect_y),
+                        signed_word_bits(actor->source_y()),
+                        0U,
+                    },
                 .eax = registers.eax,
                 .ecx = request.actor_token,
                 .edx = registers.edx,
@@ -4308,7 +4462,7 @@ advance_legacy_battle_action_four_effect(
 
     special.field_24 = 0U;
     actor->special_target_action_record.field_24 = 0U;
-    if ((actor->special_effect_direct_mode & 1U) != 0U) {
+    if ((actor->special_effect_direct_mode() & 1U) != 0U) {
         if (std::bit_cast<i16>(actor->motion_word) > -32) {
             const u32 motion = signed_word_bits(actor->motion_word);
             shared->draw_motion_a = motion;
@@ -4914,7 +5068,7 @@ advance_legacy_battle_special_four_hundred(
             }
             if ((actor->action_runtime_gate & 0x800U) != 0U) {
                 auto& secondary = actor->effect_secondary_action_record;
-                secondary.action_id = actor->copied_runtime_word;
+                secondary.action_id = actor->copied_runtime_word();
                 secondary.base_variant = 0U;
                 if (target_record.field_24 != 0U) {
                     secondary.action_id = target_record.field_24;
@@ -5032,7 +5186,7 @@ advance_legacy_battle_special_four_hundred(
     }
 
     auto& effect = actor->effect_action_record;
-    effect.action_id = actor->copied_runtime_word;
+    effect.action_id = actor->copied_runtime_word();
     effect.external_mode = 0U;
     ++result.effect_update_calls;
     ++result.port_calls;
@@ -5201,10 +5355,10 @@ LegacyBattleSummonFrameResult advance_legacy_battle_summon_frame(
 
     replace_low_word(registers.ecx, phase->action_record.field_58);
     ++result.sample_calls;
-    static_cast<void>(invoke_frame(
-        kCallPlayMessage, {registers.ecx, 0x004AB784U}
-    ));
-    actor->turn_sample_word = 0U;
+    static_cast<void>(
+        invoke_frame(kCallPlayMessage, {registers.ecx, 0x004AB784U})
+    );
+    actor->turn_action_record.field_58 = 0U;
     actor->summon_render_flags = phase->action_record.mode_flags;
     actor->summon_x_offset = phase->action_record.draw_offset_x;
     if (phase->render_toggle_gate == 0U) {
@@ -5312,6 +5466,25 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
     const u32 group_b_index
 ) {
     LegacyBattleActionDispatchResult result;
+    auto& coordinate_bindings = port.actor_coordinate_bindings();
+    coordinate_bindings = {};
+    for (u32 index = 0U; index < state.group_a_action_execution.size();
+         ++index) {
+        coordinate_bindings.group_a[index] =
+            view_legacy_battle_actor_coordinates(
+                state.group_a_action_execution[index]
+            );
+    }
+    if (context.startup != nullptr &&
+        context.startup->group_b_lifecycle != nullptr) {
+        for (u32 index = 0U; index < context.startup->group_b_lifecycle->size();
+             ++index) {
+            coordinate_bindings
+                .group_b[index] = view_legacy_battle_actor_coordinates(
+                (*context.startup->group_b_lifecycle)[index].action_execution
+            );
+        }
+    }
     if (group_a_index >= 10U) {
         result.status =
             LegacyBattleActionDispatchStatus::group_a_index_typed_stop;
@@ -6670,7 +6843,8 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                     group_a_token(summon_index),
                     0x0053AF70U + summon_index * 0x20U,
                     summon_window_token,
-                    port
+                    port,
+                    state.group_a_action_execution[summon_index]
                 );
             ++result.summon_materialization_calls;
             result.port_calls += result.summon_materialization.port_calls;
@@ -6788,13 +6962,17 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                     LegacyBattleActionDispatchStatus::group_b_index_typed_stop;
                 return result;
             }
-            static_cast<void>(invoke(
+            const auto prepared = invoke(
                 state,
                 port,
                 result,
                 kCallPrepareOpponent,
-                {group_b_token(selected)}
-            ));
+                {group_b_token(selected)},
+                static_cast<u32>(selected) * 0x565U,
+                group_b_token(selected),
+                static_cast<u32>(selected) * 0x159U
+            );
+            u32 preparation_edx = prepared.edx;
             state.available_actor_count = 0;
             if (group_a_side) {
                 state.side_mode = 1U;
@@ -6810,11 +6988,17 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                             port,
                             result,
                             kCallActorTerminal,
-                            {group_a_token(static_cast<u32>(index))}
+                            {group_a_token(static_cast<u32>(index))},
+                            static_cast<u32>(state.group_a_count),
+                            group_a_token(static_cast<u32>(index)),
+                            preparation_edx
                         )
                             .eax != 1U) {
                         ++state.available_actor_count;
                     }
+
+                    preparation_edx =
+                        group_a_token(static_cast<u32>(index) + 1U);
                 }
                 i32 first = 0;
                 while (first < state.group_a_count) {
@@ -6823,21 +7007,29 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                             group_a_index_typed_stop;
                         return result;
                     }
-                    if (invoke(
-                            state,
-                            port,
-                            result,
-                            kCallActorTerminal,
-                            {group_a_token(static_cast<u32>(first))}
+                    const auto terminal = invoke(
+                        state,
+                        port,
+                        result,
+                        kCallActorTerminal,
+                        {group_a_token(static_cast<u32>(first))},
+                        static_cast<u32>(state.group_a_count),
+                        group_a_token(static_cast<u32>(first)),
+                        preparation_edx
+                    );
+                    preparation_edx = terminal.edx;
+                    if (terminal.eax == 0U) {
+                        preparation_edx = invoke(
+                                              state,
+                                              port,
+                                              result,
+                                              kCallSelectOpponent,
+                                              {static_cast<u32>(first)},
+                                              terminal.eax,
+                                              actor_token,
+                                              preparation_edx
                         )
-                            .eax == 0U) {
-                        static_cast<void>(invoke(
-                            state,
-                            port,
-                            result,
-                            kCallSelectOpponent,
-                            {static_cast<u32>(first)}
-                        ));
+                                              .edx;
                         break;
                     }
                     ++first;
@@ -6855,11 +7047,17 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                             port,
                             result,
                             kCallActorTerminal,
-                            {group_b_token(static_cast<u32>(index))}
+                            {group_b_token(static_cast<u32>(index))},
+                            static_cast<u32>(state.group_b_count),
+                            group_b_token(static_cast<u32>(index)),
+                            preparation_edx
                         )
                             .eax != 1U) {
                         ++state.available_actor_count;
                     }
+
+                    preparation_edx =
+                        group_b_token(static_cast<u32>(index) + 1U);
                 }
                 i32 first = 0;
                 while (first < state.group_b_count) {
@@ -6868,37 +7066,83 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                             group_b_index_typed_stop;
                         return result;
                     }
-                    if (invoke(
-                            state,
-                            port,
-                            result,
-                            kCallActorTerminal,
-                            {group_b_token(static_cast<u32>(first))}
+                    const auto terminal = invoke(
+                        state,
+                        port,
+                        result,
+                        kCallActorTerminal,
+                        {group_b_token(static_cast<u32>(first))},
+                        static_cast<u32>(state.group_b_count),
+                        group_b_token(static_cast<u32>(first)),
+                        preparation_edx
+                    );
+                    preparation_edx = terminal.edx;
+                    if (terminal.eax == 0U) {
+                        preparation_edx = invoke(
+                                              state,
+                                              port,
+                                              result,
+                                              kCallSelectOpponent,
+                                              {static_cast<u32>(first)},
+                                              terminal.eax,
+                                              actor_token,
+                                              preparation_edx
                         )
-                            .eax == 0U) {
-                        static_cast<void>(invoke(
-                            state,
-                            port,
-                            result,
-                            kCallSelectOpponent,
-                            {static_cast<u32>(first)}
-                        ));
+                                              .edx;
                         break;
                     }
                     ++first;
                 }
             }
             state.scene_value = 1U;
-            static_cast<void>(invoke(
+            auto* party = context.startup == nullptr
+                ? nullptr
+                : &context.startup->party[group_a_index];
+            u32* output = context.startup_reset == nullptr
+                ? nullptr
+                : &context.startup_reset->block_4fe5d4[group_a_index];
+            result.profile_preparation = prepare_legacy_battle_actor_profile(
+                party == nullptr ? nullptr : &party->configuration,
+                &state.group_a_action_execution[group_a_index],
+                party == nullptr ? nullptr : &party->item_effect_application,
+                output,
+                actor_token,
+                port,
+                {
+                    .source_value = 0x5FDU,
+                    .entry_edx = preparation_edx,
+                    .definition_output_token =
+                        context.profile_preparation_definition_token,
+                    .output_token = 0x004FE5D4U + 4U * group_a_index,
+                    .initial_definition_bytes =
+                        context.profile_preparation_initial_definition,
+                }
+            );
+            ++result.profile_preparation_calls;
+            if (result.profile_preparation.status !=
+                LegacyBattleActorProfilePreparationStatus::completed) {
+                result.status = LegacyBattleActionDispatchStatus::
+                    actor_profile_preparation_typed_stop;
+                result.return_value = result.profile_preparation.return_eax;
+                result.return_ecx = result.profile_preparation.return_ecx;
+                result.return_edx = result.profile_preparation.return_edx;
+                result.has_return_registers = true;
+                return result;
+            }
+
+            const auto finalized = invoke(
                 state,
                 port,
                 result,
-                kCallPublishScene,
-                {0x5FDU, 0x004FE5D4U + 4U * group_a_index}
-            ));
-            static_cast<void>(invoke(
-                state, port, result, kCallFinalizeSelection, {actor_token}
-            ));
+                kCallFinalizeSelection,
+                {actor_token},
+                result.profile_preparation.return_eax,
+                actor_token,
+                result.profile_preparation.return_edx
+            );
+            result.return_ecx = finalized.ecx;
+            result.return_edx = finalized.edx;
+            result.has_return_registers = true;
             state.action_runtime_flags |= 0x8000U;
             return result;
         }
@@ -6917,19 +7161,19 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
             group_a_index < context.group_a_skip_primary.size()
             ? context.group_a_skip_primary[group_a_index]
             : 0U;
-        result.action_twenty_three =
-            advance_legacy_battle_action_twenty_three(
-                &state.group_a_target_phases[group_a_index],
-                &state.group_a_action_execution[group_a_index],
-                &state.group_a_action_shared,
-                port,
-                context,
-                {
-                    .actor_token = actor_token,
-                    .opponent_token = group_b_token(group_b_index),
-                    .skip_primary = skip_primary,
-                }
-            );
+        result.action_twenty_three = advance_legacy_battle_action_twenty_three(
+            &state.group_a_target_phases[group_a_index],
+            &state.group_a_action_execution[group_a_index],
+            &state.group_a_action_shared,
+            port,
+            context,
+            {
+                .actor_token = actor_token,
+                .opponent_token = group_b_token(group_b_index),
+                .skip_primary = skip_primary,
+                .entry_ecx = actor_token,
+            }
+        );
         ++result.action_twenty_three_calls;
         result.port_calls += result.action_twenty_three.port_calls;
         if (result.action_twenty_three.status !=
@@ -7549,9 +7793,32 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                     .mode = 1,
                 }
             );
-            static_cast<void>(invoke(
-                state, port, result, 0x004783B0U, {0x0053BF50U, 0x0053BF52U}
-            ));
+            // 0x004543B9: EAX is index * 345; countdown mode 1 leaves
+            // EDX=4 after sub_40DC80 sets internal flag 0x4A.
+            const u32 target_token = group_b_token(group_b_index);
+            result.actor_coordinate_query =
+                query_legacy_battle_actor_coordinates(
+                    resolve_legacy_battle_actor_coordinates(
+                        coordinate_bindings, target_token
+                    ),
+                    &state.message_x,
+                    &state.message_y,
+                    {
+                        .actor_token = target_token,
+                        .output_x_token = 0x0053BF50U,
+                        .output_y_token = 0x0053BF52U,
+                        .entry_eax = group_b_index * 0x159U,
+                        .entry_edx = 4U,
+                    }
+                );
+            ++result.actor_coordinate_query_calls;
+            if (result.actor_coordinate_query.status !=
+                LegacyBattleActorCoordinateQueryStatus::completed) {
+                result.status = LegacyBattleActionDispatchStatus::
+                    actor_coordinate_typed_stop;
+                return result;
+            }
+
             static_cast<void>(clear_legacy_battle_action_record(
                 state.persistent_action_record
             ));

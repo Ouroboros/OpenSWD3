@@ -463,6 +463,25 @@ LegacyBattleActionDispatchResult advance_legacy_battle_final_actor_step(
     const compat::u32 actor_group,
     LegacyBattleStartupState* const startup
 ) {
+    auto& coordinate_bindings = port.actor_coordinate_bindings();
+    for (u32 index = 0U; index < action.group_a_action_execution.size();
+         ++index) {
+        coordinate_bindings.group_a[index] =
+            view_legacy_battle_actor_coordinates(
+                action.group_a_action_execution[index]
+            );
+    }
+
+    if (startup != nullptr && startup->group_b_lifecycle != nullptr) {
+        for (u32 index = 0U; index < startup->group_b_lifecycle->size();
+             ++index) {
+            coordinate_bindings.group_b[index] =
+                view_legacy_battle_actor_coordinates(
+                    (*startup->group_b_lifecycle)[index].action_execution
+                );
+        }
+    }
+
     return actor_group == 1U
         ? advance_group_a(
               state, action, port, attack_order, startup, actor_index

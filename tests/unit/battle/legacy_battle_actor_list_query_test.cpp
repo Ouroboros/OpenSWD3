@@ -333,12 +333,12 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         LegacyBattleGroupAConfigurationState configuration;
         configuration.actor_record_token = 0x00600000U;
         configuration.actor_record[1U] = 5U << 16U;
+        LegacyBattleGroupAActionExecutionState action;
+        action.profile_buffer.fill(0xFFFFFFFFU);
         LegacyBattleGroupAFinalProcessingState final_state;
-        final_state.profile_buffer.fill(0xFFFFFFFFU);
         LegacyBattleGroupAItemEffectApplicationState item;
         LegacyBattleGroupAWorkspaceState workspace;
         workspace.tail_words[2U] = 0xFFFFU;
-        LegacyBattleGroupAActionExecutionState action;
         list.next_resource_head_token = 0x76000000U;
         list.resources = {
             {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
@@ -419,8 +419,9 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
     }
 
     {
+        LegacyBattleGroupAActionExecutionState action;
+        action.profile_buffer.fill(0xFFFFFFFFU);
         LegacyBattleGroupAFinalProcessingState final_state;
-        final_state.profile_buffer.fill(0xFFFFFFFFU);
         final_state.pre_effect_words.fill(0xFFFFFFFFU);
         LegacyBattleGroupAWorkspaceState workspace;
         workspace.tail_words[2U] = 0xFFFFU;
@@ -431,14 +432,14 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
             &final_state,
             nullptr,
             &workspace,
-            nullptr,
+            &action,
             0x005029D0U,
             port,
             port,
             {.occurrence = 0U}
         );
         test.expect_true(
-            result.return_eax == 0U && final_state.profile_buffer[0U] == 0U &&
+            result.return_eax == 0U && action.profile_buffer[0U] == 0U &&
                 final_state.pre_effect_words[0U] == 0U &&
                 workspace.tail_words[2U] == 0U,
             "zero occurrence preserves the mandatory clearing prefix before failure"
@@ -946,7 +947,7 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         list.nodes[1U].copy_flags = 0U;
         list.nodes[1U].output_value = 77U;
         LegacyBattleGroupAFinalProcessingState final_state;
-        final_state.profile_buffer.fill(0xFFFFFFFFU);
+        actor.profile_buffer.fill(0xFFFFFFFFU);
         final_state.pre_effect_words.fill(0xFFFFFFFFU);
         LegacyBattleGroupAItemEffectApplicationState item_effect;
         QueryPort port;
@@ -978,7 +979,7 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
     {
         actor.next_list_index = list.owner_token;
         LegacyBattleGroupAFinalProcessingState final_state;
-        final_state.profile_buffer[0U] = 0xAABBCCDDU;
+        actor.profile_buffer[0U] = 0xAABBCCDDU;
         LegacyBattleGroupAItemEffectApplicationState item_effect;
         item_effect.mode_flags = 0x40U;
         QueryPort port;
@@ -993,9 +994,102 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         );
         test.expect_true(
             result.return_eax == 0xFFFFU && result.index_commit_calls == 0U &&
-                final_state.profile_buffer[0U] == 0xAABBCCDDU &&
+                actor.profile_buffer[0U] == 0xAABBCCDDU &&
                 item_effect.mode_flags == 0x40U,
             "zero occurrence returns minus one before mode flags, clear, and index commit"
+        );
+    }
+
+    {
+        LegacyBattleGroupAActionExecutionState local_actor;
+        local_actor.next_list_index = list.owner_token;
+        LegacyBattleGroupAItemEffectApplicationState item_effect;
+        QueryPort port;
+        port.set_profile_dword(0x0CU, 0xAABB0008U);
+        const auto result = apply_legacy_battle_actor_list(
+            &local_actor,
+            &list,
+            nullptr,
+            &item_effect,
+            0x005029D0U,
+            port,
+            {.category_selector = 0U, .type_selector = 0U, .occurrence = 1U}
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActorListQueryStatus::actor_state_typed_stop &&
+                result.profile_buffer_dwords_zeroed == 10U &&
+                result.profile_load_calls == 1U &&
+                result.pre_effect_dwords_zeroed == 0U &&
+                local_actor.profile_buffer[3U] == 0xAABB0008U &&
+                result.return_eax == 0x00505000U && result.return_ecx == 0U &&
+                result.return_edx == 0x00505000U,
+            "list apply retains the loaded profile and stops with pre-effect store registers"
+        );
+    }
+
+    {
+        LegacyBattleGroupAItemEffectApplicationState item_effect;
+        item_effect.mode_flags = 0x40U;
+        QueryPort port;
+        const auto result = apply_legacy_battle_actor_list(
+            nullptr,
+            nullptr,
+            nullptr,
+            &item_effect,
+            0x005029D0U,
+            port,
+            {.category_selector = 0U,
+             .type_selector = 0U,
+             .occurrence = 1U,
+             .entry_edx = 0x12345678U}
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActorListQueryStatus::actor_state_typed_stop &&
+                item_effect.mode_flags == 0xC0U &&
+                result.mode_field_writes == 1U &&
+                result.profile_buffer_dwords_zeroed == 0U &&
+                result.index_commit_calls == 0U && result.return_eax == 0U &&
+                result.return_ecx == 10U && result.return_edx == 0x12345678U,
+            "missing live profile stops at rep stosd after the mode BYTE prefix"
+        );
+    }
+
+    for (const bool missing_profile : {false, true}) {
+        LegacyBattleGroupAActionExecutionState local_actor;
+        local_actor.profile_buffer.fill(0xFFFFFFFFU);
+        LegacyBattleGroupAFinalProcessingState final_state;
+        final_state.pre_effect_words.fill(0xAABBCCDDU);
+        LegacyBattleGroupAWorkspaceState workspace;
+        workspace.tail_words[2U] = 0xFFFFU;
+        SelectionPort port;
+        const auto result = select_legacy_battle_actor_resource(
+            nullptr,
+            nullptr,
+            missing_profile ? &final_state : nullptr,
+            nullptr,
+            &workspace,
+            missing_profile ? nullptr : &local_actor,
+            0x005029D0U,
+            port,
+            port,
+            {.occurrence = 0U, .entry_edx = 0x12345678U}
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActorListQueryStatus::actor_state_typed_stop &&
+                result.profile_buffer_dwords_zeroed ==
+                    (missing_profile ? 0U : 10U) &&
+                local_actor.profile_buffer[0U] ==
+                    (missing_profile ? 0xFFFFFFFFU : 0U) &&
+                result.pre_effect_dwords_zeroed == 0U &&
+                final_state.pre_effect_words[0U] == 0xAABBCCDDU &&
+                workspace.tail_words[2U] == 0xFFFFU &&
+                result.return_eax == 0U &&
+                result.return_ecx == (missing_profile ? 10U : 0x00505000U) &&
+                result.return_edx == (missing_profile ? 0x12345678U : 0U),
+            "resource selection distinguishes profile and following pre-effect store stops"
         );
     }
 
