@@ -69,16 +69,7 @@ configure_legacy_battle_group_b_action(
 
     auto& state = actor->action_configuration;
     std::memcpy(state.source_record.data(), source, state.source_record.size());
-    // 0x00475739 copies source +0x16/+0x18 to actor +0xD66/+0xD68.
-    // The source member names do not define the destination field offsets.
-    actor->action_execution.position_x = source->reserved_16;
-    actor->action_execution.position_y = source->position_x;
     state.copied_record = state.source_record;
-    // 0x0047574C copies the first placement into actor +0xD70.
-    actor->action_execution.alternate_position_x =
-        actor->action_execution.position_x;
-    actor->action_execution.alternate_position_y =
-        actor->action_execution.position_y;
     result.copied_dwords = 16U;
     state.timing_value = 0U;
 

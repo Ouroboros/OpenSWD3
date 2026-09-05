@@ -395,7 +395,7 @@ LegacyBattleDebugOverlayResult draw_legacy_battle_debug_overlay(
             state,
             result,
             kBattleSummaryFormat,
-            signed_bits(bindings.action.opponent_workspace[14U]),
+            signed_bits(bindings.hotkeys.toggle_53af68),
             static_cast<int>(state.battle_selector),
             signed_bits(state.battle_mode)
         );

@@ -18,6 +18,7 @@ constexpr u32 kCallPlaySample = 0x00485610U;
 constexpr u32 kCallQueryOffsets = 0x00478400U;
 constexpr u32 kCallQueryBaseCoordinates = 0x00478470U;
 constexpr u32 kCallQueryAnimationMode = 0x00483840U;
+constexpr u32 kCallQueryCoordinates = 0x004783B0U;
 constexpr u32 kCallRenderResource = 0x004170E0U;
 constexpr u32 kCallReleaseResource = 0x004885A0U;
 constexpr u32 kCallPublishStatusMode = 0x00482080U;
@@ -313,29 +314,9 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
             kCallQueryAnimationMode, {argument_object_token, 0x0053BDF8U}
         );
         if (animation.eax == 1U) {
-            u16 coordinate_x{};
-            u16 coordinate_y{};
-            result.coordinate_query = query_legacy_battle_actor_coordinates(
-                resolve_legacy_battle_actor_coordinates(
-                    port.actor_coordinate_bindings(), argument_object_token
-                ),
-                &coordinate_x,
-                &coordinate_y,
-                {.actor_token = argument_object_token}
-            );
-            ++result.coordinate_query_calls;
-            if (result.coordinate_query.status !=
-                LegacyBattleActorCoordinateQueryStatus::completed) {
-                result.status = argument_object_token >=
-                        kLegacyBattleActorCoordinatesGroupBBaseToken
-                    ? LegacyBattleGroupEffectFrameStatus::
-                          group_b_actor_typed_stop
-                    : LegacyBattleGroupEffectFrameStatus::
-                          group_a_actor_typed_stop;
-                result.return_value = result.coordinate_query.return_eax;
-                return result;
-            }
-            u32 collision_x = static_cast<u32>(coordinate_x) - base_offset;
+            const auto coordinates =
+                invoke(kCallQueryCoordinates, {argument_object_token});
+            u32 collision_x = coordinates.outputs[0] - base_offset;
             u32 current_x = x;
             if (low_word(x) == 0U) {
                 current_x = 0U - base_offset;

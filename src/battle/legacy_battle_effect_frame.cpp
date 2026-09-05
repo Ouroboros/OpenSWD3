@@ -13,6 +13,7 @@ using compat::u16;
 using compat::u32;
 
 constexpr u32 kCallQueryAnimationMode = 0x00483840U;
+constexpr u32 kCallQueryCoordinates = 0x004783B0U;
 constexpr u32 kCallPlaySample = 0x00485610U;
 constexpr u32 kCallBindEffectSurface = 0x00430D50U;
 constexpr u32 kCallSetEffectPosition = 0x00430D10U;
@@ -193,36 +194,6 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
     u32 aux_y = 0U;
     u32 mode_value = 0U;
     u32 base_offset = 0U;
-    const auto query_coordinates =
-        [&](const u32 actor_token, u32& output_x, u32& output_y) {
-            u16 word_x = low_word(output_x);
-            u16 word_y = low_word(output_y);
-            result.coordinate_query = query_legacy_battle_actor_coordinates(
-                resolve_legacy_battle_actor_coordinates(
-                    port.actor_coordinate_bindings(), actor_token
-                ),
-                &word_x,
-                &word_y,
-                {.actor_token = actor_token}
-            );
-            ++result.coordinate_query_calls;
-            if (result.coordinate_query.output_writes >= 1U) {
-                replace_low_word(output_x, word_x);
-            }
-            if (result.coordinate_query.output_writes >= 2U) {
-                replace_low_word(output_y, word_y);
-            }
-            if (result.coordinate_query.status ==
-                LegacyBattleActorCoordinateQueryStatus::completed) {
-                return true;
-            }
-            result.status =
-                actor_token >= kLegacyBattleActorCoordinatesGroupBBaseToken
-                ? LegacyBattleEffectFrameStatus::group_b_actor_typed_stop
-                : LegacyBattleEffectFrameStatus::group_a_actor_typed_stop;
-            result.return_value = result.coordinate_query.return_eax;
-            return false;
-        };
 
     if (primary.complete == 0U) {
         if (state.animation_mode == 1U) {
@@ -234,10 +205,21 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
             );
             mode_value = mode.outputs[0];
             if (mode.eax == 1U) {
-                if (!query_coordinates(actor_index, x, y) ||
-                    !query_coordinates(argument_object_token, aux_x, aux_y)) {
-                    return result;
-                }
+                load_pair(
+                    invoke(port, result, kCallQueryCoordinates, {actor_index}),
+                    x,
+                    y
+                );
+                load_pair(
+                    invoke(
+                        port,
+                        result,
+                        kCallQueryCoordinates,
+                        {argument_object_token}
+                    ),
+                    aux_x,
+                    aux_y
+                );
                 if (signed_dword(state.animation_counter[slot_index]) < 1000) {
                     result.animation_collision =
                         advance_legacy_battle_animation_collision(
@@ -329,9 +311,11 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
                     state.animation_counter[slot_index] = 0U;
                 }
             } else {
-                if (!query_coordinates(actor_index, x, y)) {
-                    return result;
-                }
+                load_pair(
+                    invoke(port, result, kCallQueryCoordinates, {actor_index}),
+                    x,
+                    y
+                );
                 static_cast<void>(invoke(
                     port,
                     result,
@@ -495,9 +479,11 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
             } else {
                 aux_x = 0U;
                 aux_y = 0U;
-                if (!query_coordinates(actor_index, x, y)) {
-                    return result;
-                }
+                load_pair(
+                    invoke(port, result, kCallQueryCoordinates, {actor_index}),
+                    x,
+                    y
+                );
                 pan_register = x - base_offset;
                 replace_low_word(
                     y, static_cast<u16>(low_word(y) - primary.base_y_offset)
@@ -545,9 +531,16 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
             );
             mode_value = check.outputs[0];
             if (check.eax == 1U) {
-                if (!query_coordinates(argument_object_token, aux_x, aux_y)) {
-                    return result;
-                }
+                load_pair(
+                    invoke(
+                        port,
+                        result,
+                        kCallQueryCoordinates,
+                        {argument_object_token}
+                    ),
+                    aux_x,
+                    aux_y
+                );
                 aux_x -= base_offset;
                 replace_low_word(
                     aux_y,

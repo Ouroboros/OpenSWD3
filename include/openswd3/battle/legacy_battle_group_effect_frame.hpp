@@ -54,8 +54,6 @@ struct LegacyBattleGroupEffectFrameResult {
     compat::u32 alternate_renders{};
     compat::u32 status_iterations{};
     compat::u32 reward_iterations{};
-    LegacyBattleActorCoordinateQueryResult coordinate_query{};
-    compat::u32 coordinate_query_calls{};
     LegacyBattleAnimationCollisionResult animation_collision{};
     compat::u32 animation_collision_calls{};
 };

@@ -207,13 +207,3 @@ Typed-stop只位于：
 相邻工作包278进一步关闭本函数内`0x004567EA`、`0x00456BC0`、`0x00456C1C`、`0x00456CF4`、`0x00456D88`、`0x00456E69`六处物理call。第一处把完整dword `1`写入当前组A角色`+0x2AE4`，其余五处写`0`；全部直接复用`LegacyBattleFinalActorStepState::group_a_availability_blocks`，旧callee token生产零调用。第一处保留末次组B完成查询EDX，后五处分别线程化最终处理、发布选择、选择完成或清展示callee的真实EDX；leaf在写失败时已把参数装入EAX，并保留角色token ECX与该EDX，父函数立即返回，不执行随机选择、门复位、最终处理或UI尾部。queue mode路径直连`0x00464CC0`时也通过同一owner完成其第七种组A帧到达方式。
 
 当前缺少原版组A/B对象、43类剩余callee共享副作用、攻击顺序/队员暂存动态轨迹、AI/选择/队列表、text/sample、resolved target内存与回合状态联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
-
-## 14. 工作包282的回合门调用寄存器
-
-上述端口数量保留为历史切片，不代表后续所有callee回收状态。本轮进一步修正两处`0x00471540`直连的原始输入和栈输出传播：
-
-- `0x004573BA`：`0x00457398`读取`0x0053BF1C` DWORD，低WORD为turn，高WORD来自目标选择runtime的`transition_control_words`低WORD。入口EAX保留该完整值，EDX沿用`0x0045736D`末次terminal查询回复，ECX为actor token。缺少相邻WORD所有者时，在两个pending门写入之前typed-stop，不伪造高WORD零值。
-- `0x004575C5`：入口EAX由`turn & 0x7FFF`得到，EDX为`1 << actor_index`，ECX为actor token。原参数为一，与模式零的零参数区分。
-- 两处独立传递helper中`arg_0/var_4`的原始栈地址捕获。查询只覆盖WORD；正常返回ECX为覆盖低WORD后的保存栈DWORD，子typed-stop不执行正常pop，父函数阻断结算后缀。
-
-core26/ASan17定向`battle.legacy_battle_setup`均`1/1`通过（2.92/4.76秒），覆盖两处root的真实入口寄存器组合、地址传递、正常/故障返回和相邻全局所有者缺失；无匹配编译/sanitizer诊断，diff check通过。原始栈地址未捕获时仍登记oracle缺口，本轮不是全量发布验收。

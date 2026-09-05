@@ -86,7 +86,7 @@ void test_battle_actor_metrics(openswd3::test::Context& test) {
                 result.port_calls == 0U && result.return_value == 8U &&
                 result.final_ecx == 0xA1B2C3D4U &&
                 result.final_edx == 0x55667788U &&
-                state.local_word == 0xC3D4U && state.local_byte == 0xA1B2U &&
+                state.local_word == 0xC3D4U && state.local_byte == 0xB2U &&
                 std::ranges::all_of(
                     state.values, [](const auto value) { return value == 0; }
                 ) &&
@@ -105,106 +105,96 @@ void test_battle_actor_metrics(openswd3::test::Context& test) {
         state.local_byte_token = 0x1002U;
         state.entry_ecx = 0xCAFE0001U;
         state.entry_edx = 0x12345678U;
-        using openswd3::battle::LegacyBattleActorCoordinatesState;
-        using openswd3::battle::view_legacy_battle_actor_coordinates;
-        std::array<LegacyBattleActorCoordinatesState, 2> group_b{{
-            {.position_x = 0xAB11U, .position_y = 0xFFFFU},
-            {.alternate_position_x = 0xCD22U,
-             .alternate_position_y = 0xFFFFU,
-             .coordinate_mode_gate = 0x8000U},
-        }};
-        std::array<LegacyBattleActorCoordinatesState, 2> group_a{{
-            {.position_x = 0xEF33U, .position_y = 0x7FFFU},
-            {.alternate_position_x = 0x9144U,
-             .alternate_position_y = 0x8000U,
-             .coordinate_mode_gate = 1U},
-        }};
-        auto& bindings = port.actor_coordinate_bindings();
-        for (std::size_t index = 0U; index < group_a.size(); ++index) {
-            bindings.group_a[index] =
-                view_legacy_battle_actor_coordinates(group_a[index]);
-            bindings.group_b[index] =
-                view_legacy_battle_actor_coordinates(group_b[index]);
-        }
-
+        port.push({
+            .eax = 0x10U,
+            .ecx = 0x20U,
+            .edx = 0x30U,
+            .publish_metric_byte = true,
+            .metric_byte = 0x11U,
+            .publish_metric_word = true,
+            .metric_word = 0xFFFFU,
+        });
+        port.push({.eax = 0x40U, .ecx = 0x50U, .edx = 0x60U});
+        port.push({
+            .eax = 0x70U,
+            .ecx = 0x80U,
+            .edx = 0x90U,
+            .publish_metric_word = true,
+            .metric_word = 0x7FFFU,
+        });
+        port.push({
+            .eax = 0xA0U,
+            .ecx = 0xB0U,
+            .edx = 0xD00DU,
+            .publish_metric_word = true,
+            .metric_word = 0x8000U,
+        });
         const auto result = rebuild_legacy_battle_actor_metrics(port, 2U, 2U);
         test.expect_true(
             result.status == LegacyBattleActorMetricStatus::completed &&
-                result.port_calls == 0U && result.group_b_iterations == 2U &&
+                result.port_calls == 4U && result.group_b_iterations == 2U &&
                 result.group_a_iterations == 2U &&
-                result.coordinate_query_calls == 4U &&
                 result.return_value == 0xFFFF8000U &&
-                result.final_ecx == 0x91448000U &&
-                result.final_edx == 0x1002U && state.values[0] == -1 &&
+                result.final_ecx == 0xCAFE0001U &&
+                result.final_edx == 0xD00DU && state.values[0] == -1 &&
                 state.values[1] == -1 && state.values[8] == 0x7FFF &&
-                state.values[9] == -0x8000 && state.local_byte == 0x9144U &&
-                result.coordinate_query.return_eax == 0x8000U &&
-                result.coordinate_query.return_ecx == 0x1000U &&
-                result.coordinate_query.return_edx == 0x1002U &&
-                port.calls.empty(),
-            "direct coordinates populate signed metrics and replace both words of the popped ECX"
+                state.values[9] == -0x8000 && state.local_byte == 0x11U &&
+                port.calls.size() == 4U &&
+                port.calls[0].callee_token == 0x004783B0U &&
+                port.calls[0].arguments[0] == 0x1002U &&
+                port.calls[0].arguments[1] == 0x1000U &&
+                port.calls[0].eax == 0x1000U &&
+                port.calls[0].ecx == 0x00525508U &&
+                port.calls[0].edx == 0x12345678U &&
+                port.calls[1].ecx == 0x00528030U &&
+                port.calls[1].edx == 0xFFFFFFFFU && port.calls[2].eax == 10U &&
+                port.calls[2].ecx == 0x005029D0U &&
+                port.calls[2].edx == 0x1002U && port.calls[3].eax == 0x7FFFU &&
+                port.calls[3].ecx == 0x00505904U &&
+                port.calls[3].edx == 0x1002U,
+            "group B then group A retain shared stack outputs, actor strides, registers, and signed words"
         );
     }
 
     {
         ActorMetricPort port;
-        using openswd3::battle::LegacyBattleActorCoordinatesState;
-        using openswd3::battle::view_legacy_battle_actor_coordinates;
-        LegacyBattleActorCoordinatesState actor{
-            .position_x = 0xFEDCU,
-            .position_y = 0x1234U,
-        };
-        port.actor_coordinate_bindings().group_b[0U] =
-            view_legacy_battle_actor_coordinates(actor);
-        auto& state = port.actor_metric_state();
-        state.entry_ecx = 0xCAFE5678U;
-        state.local_word_token = 0x12340000U;
-        state.local_byte_token = 0x12340002U;
-        // Change accessibility after binding: views must not cache it.
-        actor.position_y_read_accessible = false;
+        port.push({
+            .publish_metric_word = true,
+            .metric_word = 1U,
+            .publish_group_b_count = true,
+            .group_b_count = 3U,
+        });
+        port.push({});
+        port.push({});
+        port.push({
+            .publish_group_a_count = true,
+            .group_a_count = 0U,
+        });
         const auto result = rebuild_legacy_battle_actor_metrics(port, 1U, 1U);
         test.expect_true(
-            result.status ==
-                    LegacyBattleActorMetricStatus::
-                        actor_coordinate_typed_stop &&
-                result.group_b_iterations == 0U &&
-                result.group_a_iterations == 0U && result.port_calls == 0U &&
-                result.coordinate_query_calls == 1U &&
-                state.local_byte == 0xFEDCU && state.local_word == 0x5678U &&
-                result.final_ecx == 0x00525508U &&
-                result.return_value == 0x12340002U &&
-                result.final_edx == 0x12340000U && state.values[0U] == 0 &&
-                port.calls.empty(),
-            "second coordinate read stop commits the full first word without storing metrics or popping ECX"
+            result.status == LegacyBattleActorMetricStatus::completed &&
+                result.group_b_iterations == 3U &&
+                result.group_a_iterations == 1U && result.port_calls == 4U &&
+                port.actor_metric_state().group_b_count == 3U &&
+                port.actor_metric_state().group_a_count == 0U,
+            "each loop reloads dynamically published group counts after the callee"
         );
     }
 
     {
         ActorMetricPort port;
-        using openswd3::battle::LegacyBattleActorCoordinatesState;
-        using openswd3::battle::view_legacy_battle_actor_coordinates;
-        LegacyBattleActorCoordinatesState actor{
-            .position_x = 0x9876U,
-            .position_y = 0x1234U,
-        };
-        port.actor_coordinate_bindings().group_b.fill(
-            view_legacy_battle_actor_coordinates(actor)
-        );
-        auto& state = port.actor_metric_state();
-        state.entry_ecx = 0x00005678U;
-        const auto result = rebuild_legacy_battle_actor_metrics(port, 19U, 1U);
+        port.actor_metric_state().entry_ecx = 0x00001234U;
+        const auto result = rebuild_legacy_battle_actor_metrics(port, 19U, 0U);
         test.expect_true(
             result.status ==
-                    LegacyBattleActorMetricStatus::
-                        actor_coordinate_typed_stop &&
-                result.port_calls == 0U && result.group_b_iterations == 8U &&
-                result.coordinate_query_calls == 9U &&
-                result.group_a_iterations == 0U &&
-                result.final_ecx == 0x00525508U + 8U * 0x2B28U &&
-                state.values[7U] == 0x1234 && state.values[8U] == 0 &&
-                state.local_byte == 0x9876U && state.local_word == 0x1234U &&
-                port.calls.empty(),
-            "ninth group-B token stops at its original actor gate read after eight complete stores"
+                    LegacyBattleActorMetricStatus::value_store_typed_stop &&
+                result.port_calls == 19U && result.group_b_iterations == 18U &&
+                port.calls.back().ecx == 0x00525508U + 18U * 0x2B28U &&
+                std::ranges::all_of(
+                    port.actor_metric_state().values,
+                    [](const auto value) { return value == 0x1234; }
+                ),
+            "nineteenth group-B store stops only after the original callee side effects"
         );
     }
 

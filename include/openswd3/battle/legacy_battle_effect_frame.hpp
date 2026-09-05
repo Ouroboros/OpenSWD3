@@ -1,6 +1,5 @@
 #pragma once
 
-#include "openswd3/battle/legacy_battle_actor_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_animation_collision.hpp"
 #include "openswd3/battle/legacy_battle_color_accumulation.hpp"
 #include "openswd3/battle/legacy_battle_frame_refresh.hpp"
@@ -37,8 +36,7 @@ struct LegacyBattleEffectCallReply {
 };
 
 class LegacyBattleEffectCallPort
-    : public virtual LegacyBattleActorCoordinateBindingsStatePort,
-      public virtual LegacyBattleActorMetricStatePort,
+    : public virtual LegacyBattleActorMetricStatePort,
       public virtual LegacyBattleActorPublicationStatePort,
       public virtual LegacyBattleColorAccumulationStatePort,
       public virtual LegacyBattlePairTransitionPort,
@@ -101,7 +99,6 @@ struct LegacyBattleEffectRecord {
 enum class LegacyBattleIntensityEffectFrameStatus : compat::u8 {
     completed,
     slot_index_typed_stop,
-    actor_coordinate_typed_stop,
     resource_owner_typed_stop,
 };
 
@@ -112,8 +109,6 @@ struct LegacyBattleIntensityEffectFrameResult {
     compat::u32 return_value{};
     compat::u32 final_edx{};
     compat::u32 port_calls{};
-    LegacyBattleActorCoordinateQueryResult coordinate_query{};
-    compat::u32 coordinate_query_calls{};
 };
 
 inline constexpr std::size_t kLegacyBattleEffectActorSlotCount = 18U;
@@ -188,8 +183,6 @@ struct LegacyBattleEffectFrameResult {
     compat::u32 color_initialization_calls{};
     compat::u32 primary_animation_steps{};
     compat::u32 alternate_animation_steps{};
-    LegacyBattleActorCoordinateQueryResult coordinate_query{};
-    compat::u32 coordinate_query_calls{};
     LegacyBattleAnimationCollisionResult animation_collision{};
     compat::u32 animation_collision_calls{};
 };

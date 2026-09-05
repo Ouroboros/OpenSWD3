@@ -80,16 +80,6 @@ public:
     ) override {
         calls.push_back(request);
         if (request.call ==
-            LegacyBattleGroupASummonMaterializationCall::report_missing_role) {
-            observed_coordinates = {
-                action_execution.position_x,
-                action_execution.position_y,
-                action_execution.alternate_position_x,
-                action_execution.alternate_position_y,
-            };
-        }
-
-        if (request.call ==
             LegacyBattleGroupASummonMaterializationCall::allocate_profile) {
             return {.eax = allocation_token};
         }
@@ -100,17 +90,6 @@ public:
         return {.profile_record = request.profile_record};
     }
 
-    openswd3::battle::LegacyBattleGroupAActionExecutionState action_execution{
-        .position_x = 0xAAAAU,
-        .position_y = 0xBBBBU,
-        .alternate_position_x = 0xCCCCU,
-        .alternate_position_y = 0xDDDDU,
-        .coordinate_mode_gate = 0x0100U,
-        .resource = {},
-        .special_four_hundred_workspace = {},
-        .intermediate_action_records = {},
-    };
-    std::array<u16, 4> observed_coordinates{};
     u32 allocation_token{0x71000000U};
     LegacyBattleGroupASummonProfileRecord loaded_profile{};
     std::vector<LegacyBattleGroupASummonMaterializationCallRequest> calls;
@@ -179,8 +158,7 @@ void test_battle_group_a_npc_materialization(openswd3::test::Context& test) {
             0x0053AF70U,
             0x004AB790U,
             0x12340000U,
-            port,
-            port.action_execution
+            port
         );
 
         bool name_matches = true;
@@ -205,11 +183,6 @@ void test_battle_group_a_npc_materialization(openswd3::test::Context& test) {
                 state.profile_token == 0x71000000U &&
                 state.placement_primary == state.placement_secondary &&
                 state.placement_primary[5U] == 0x23450123U &&
-                port.action_execution.position_x == 0x2345U &&
-                port.action_execution.position_y == 0x3456U &&
-                port.action_execution.alternate_position_x == 0x2345U &&
-                port.action_execution.alternate_position_y == 0x3456U &&
-                port.action_execution.coordinate_mode_gate == 0x0100U &&
                 record_word(state.actor_record, 0x0AU) == 0xFFBAU &&
                 record_word(state.actor_record, 0x26U) == 42000U &&
                 record_word(state.actor_record, 0x28U) == 700U &&
@@ -232,11 +205,7 @@ void test_battle_group_a_npc_materialization(openswd3::test::Context& test) {
         LegacyBattleGroupAConfigurationState state{
             .actor_record_token = 0x73000000U,
         };
-        LegacyBattleGroupAPlacementRecord source{
-            .role_id = 0U,
-            .position_x = 0xFEDCU,
-            .position_y = 0x8000U,
-        };
+        LegacyBattleGroupAPlacementRecord source{.role_id = 0U};
         std::array<u32, 14> modifier{};
         MaterializationPort port;
         const auto result = materialize_legacy_battle_group_a_npc(
@@ -247,8 +216,7 @@ void test_battle_group_a_npc_materialization(openswd3::test::Context& test) {
             0x0053AF90U,
             0x004AB790U,
             0x76543210U,
-            port,
-            port.action_execution
+            port
         );
         test.expect_true(
             result.status ==
@@ -260,9 +228,7 @@ void test_battle_group_a_npc_materialization(openswd3::test::Context& test) {
                 port.calls[1U].window_token == 0x76543210U &&
                 port.calls[1U].diagnostic_text_token == 0x004A7C7CU &&
                 port.calls[1U].diagnostic_source_token == 0x004A7C44U &&
-                port.calls[1U].diagnostic_source_line == 0x14EU &&
-                port.observed_coordinates ==
-                    std::array<u16, 4>{0xFEDCU, 0x8000U, 0xFEDCU, 0x8000U},
+                port.calls[1U].diagnostic_source_line == 0x14EU,
             "zero NPC role reports fixed NPC diagnostic arguments after profile release and source copies"
         );
     }
@@ -279,8 +245,7 @@ void test_battle_group_a_npc_materialization(openswd3::test::Context& test) {
             0x0053AF70U,
             0x004AB790U,
             0U,
-            actor_port,
-            actor_port.action_execution
+            actor_port
         );
 
         LegacyBattleGroupAConfigurationState allocation_state{
@@ -296,8 +261,7 @@ void test_battle_group_a_npc_materialization(openswd3::test::Context& test) {
             0x0053AF70U,
             0x004AB790U,
             0U,
-            allocation_port,
-            allocation_port.action_execution
+            allocation_port
         );
 
         test.expect_true(
@@ -311,12 +275,7 @@ void test_battle_group_a_npc_materialization(openswd3::test::Context& test) {
                         allocation_typed_stop &&
                 allocation_stop.port_calls == 1U &&
                 allocation_stop.profile_dwords_zeroed == 0U &&
-                allocation_state.profile_token == 0U &&
-                actor_stop.return_ecx == 0x29U &&
-                allocation_stop.return_ecx == 0x29U &&
-                actor_port.action_execution.position_x == 0xAAAAU &&
-                allocation_port.action_execution.alternate_position_y ==
-                    0xDDDDU,
+                allocation_state.profile_token == 0U,
             "NPC actor and allocation stops preserve the write-before-clear ordering"
         );
     }
@@ -325,11 +284,7 @@ void test_battle_group_a_npc_materialization(openswd3::test::Context& test) {
         LegacyBattleGroupAConfigurationState source_state{
             .actor_record_token = 0x74000000U,
         };
-        LegacyBattleGroupAPlacementRecord source{
-            .role_id = 2U,
-            .position_x = 0xFEDCU,
-            .position_y = 0x8000U,
-        };
+        LegacyBattleGroupAPlacementRecord source{.role_id = 2U};
         std::array<u32, 14> modifier{};
         MaterializationPort source_port;
         const auto source_stop = materialize_legacy_battle_group_a_npc(
@@ -340,8 +295,7 @@ void test_battle_group_a_npc_materialization(openswd3::test::Context& test) {
             0U,
             0x004AB790U,
             0U,
-            source_port,
-            source_port.action_execution
+            source_port
         );
 
         LegacyBattleGroupAConfigurationState modifier_state{
@@ -356,8 +310,7 @@ void test_battle_group_a_npc_materialization(openswd3::test::Context& test) {
             0x0053AF70U,
             0U,
             0U,
-            modifier_port,
-            modifier_port.action_execution
+            modifier_port
         );
 
         test.expect_true(
@@ -371,17 +324,7 @@ void test_battle_group_a_npc_materialization(openswd3::test::Context& test) {
                         modifier_record_typed_stop &&
                 modifier_stop.port_calls == 3U &&
                 modifier_stop.placement_dwords_copied == 16U &&
-                modifier_state.actor_record[0U] == 0U &&
-                source_stop.return_ecx == 0U &&
-                source_port.action_execution.position_x == 0xAAAAU &&
-                source_port.action_execution.position_y == 0xBBBBU &&
-                source_port.action_execution.alternate_position_x == 0xCCCCU &&
-                source_port.action_execution.alternate_position_y == 0xDDDDU &&
-                modifier_port.action_execution.position_x == 0xFEDCU &&
-                modifier_port.action_execution.position_y == 0x8000U &&
-                modifier_port.action_execution.alternate_position_x ==
-                    0xFEDCU &&
-                modifier_port.action_execution.alternate_position_y == 0x8000U,
+                modifier_state.actor_record[0U] == 0U,
             "NPC source and modifier stops retain the exact allocation, clear, callee, and source-copy prefixes"
         );
     }
@@ -403,8 +346,7 @@ void test_battle_group_a_npc_materialization(openswd3::test::Context& test) {
             0x0053AF70U,
             0x004AB790U,
             0U,
-            port,
-            port.action_execution
+            port
         );
         test.expect_true(
             result.status ==

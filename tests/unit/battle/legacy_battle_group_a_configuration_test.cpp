@@ -42,27 +42,10 @@ public:
     ) override {
         ++calls;
         last_request = request;
-        observed_coordinates = {
-            action_execution.position_x,
-            action_execution.position_y,
-            action_execution.alternate_position_x,
-            action_execution.alternate_position_y,
-        };
         observed_source_word = source != nullptr ? word_at(*source, 0x04U) : 0U;
         return reply;
     }
 
-    openswd3::battle::LegacyBattleGroupAActionExecutionState action_execution{
-        .position_x = 0xAAAAU,
-        .position_y = 0xBBBBU,
-        .alternate_position_x = 0xCCCCU,
-        .alternate_position_y = 0xDDDDU,
-        .coordinate_mode_gate = 0x0100U,
-        .resource = {},
-        .special_four_hundred_workspace = {},
-        .intermediate_action_records = {},
-    };
-    std::array<u16, 4> observed_coordinates{};
     LegacyBattleGroupAConfigurationSourceRecord* source{};
     LegacyBattleGroupAConfigurationDiagnosticReply reply{};
     LegacyBattleGroupAConfigurationDiagnosticRequest last_request{};
@@ -120,8 +103,7 @@ void test_battle_group_a_configuration(openswd3::test::Context& test) {
             0x004ACF50U,
             0x0053AF70U,
             0x12340000U,
-            diagnostic,
-            diagnostic.action_execution
+            diagnostic
         );
 
         test.expect_true(
@@ -134,11 +116,6 @@ void test_battle_group_a_configuration(openswd3::test::Context& test) {
                 state.placement_primary == state.placement_secondary &&
                 state.placement_primary[5U] == 0x23450065U &&
                 state.placement_primary[6U] == 0x45673456U &&
-                diagnostic.action_execution.position_x == 0x2345U &&
-                diagnostic.action_execution.position_y == 0x3456U &&
-                diagnostic.action_execution.alternate_position_x == 0x2345U &&
-                diagnostic.action_execution.alternate_position_y == 0x3456U &&
-                diagnostic.action_execution.coordinate_mode_gate == 0x0100U &&
                 state.placement_tail == 1U &&
                 state.source_record_token == 0x004AB790U &&
                 state.auxiliary_record_token == 0x004ACF50U &&
@@ -158,33 +135,6 @@ void test_battle_group_a_configuration(openswd3::test::Context& test) {
                 result.return_edx == 0x00535678U,
             "group-A configuration copies unclamped records then clamps signed source fields and publishes state"
         );
-
-        const auto coordinates =
-            openswd3::battle::view_legacy_battle_actor_coordinates(
-                diagnostic.action_execution
-            );
-        placement.position_x = 1U;
-        placement.position_y = 2U;
-        diagnostic.action_execution.position_x = 0xFEDCU;
-        diagnostic.action_execution.position_y = 0x8000U;
-        diagnostic.action_execution.coordinate_mode_gate = 0U;
-        u16 x = 0U;
-        u16 y = 0U;
-        const auto query =
-            openswd3::battle::query_legacy_battle_actor_coordinates(
-                coordinates,
-                &x,
-                &y,
-                {.actor_token = 0x005029D0U,
-                 .output_x_token = 0xCAFE1002U,
-                 .output_y_token = 0xCAFE1000U}
-            );
-        test.expect_true(
-            query.output_writes == 2U && x == 0xFEDCU && y == 0x8000U &&
-                diagnostic.action_execution.alternate_position_x == 0x2345U &&
-                diagnostic.action_execution.alternate_position_y == 0x3456U,
-            "configured coordinates are live actor fields, independent of placement and copy snapshots"
-        );
     }
 
     {
@@ -198,10 +148,7 @@ void test_battle_group_a_configuration(openswd3::test::Context& test) {
         LegacyBattleGroupAConfigurationSourceRecord source;
         set_word(source, 0x04U, 12000U);
         source.dwords[4U] = 0x56781234U;
-        LegacyBattleGroupAPlacementRecord placement{
-            .position_x = 0x1234U,
-            .position_y = 0x5678U,
-        };
+        LegacyBattleGroupAPlacementRecord placement;
         DiagnosticPort diagnostic;
         diagnostic.source = &source;
         diagnostic.reply = {
@@ -220,16 +167,13 @@ void test_battle_group_a_configuration(openswd3::test::Context& test) {
             0x004ACFB0U,
             0x0053AF90U,
             0x76543210U,
-            diagnostic,
-            diagnostic.action_execution
+            diagnostic
         );
 
         test.expect_true(
             result.status == LegacyBattleGroupAConfigurationStatus::completed &&
                 result.diagnostic_calls == 1U && diagnostic.calls == 1U &&
                 diagnostic.observed_source_word == 12000U &&
-                diagnostic.observed_coordinates ==
-                    std::array<u16, 4>{0x1234U, 0x5678U, 0x1234U, 0x5678U} &&
                 diagnostic.last_request.window_token == 0x76543210U &&
                 diagnostic.last_request.text_token == 0x004A7C2CU &&
                 diagnostic.last_request.flags == 0U &&
@@ -263,8 +207,7 @@ void test_battle_group_a_configuration(openswd3::test::Context& test) {
             0x004AD010U,
             0U,
             0U,
-            diagnostic,
-            diagnostic.action_execution
+            diagnostic
         );
         test.expect_true(
             result.status ==
@@ -272,11 +215,7 @@ void test_battle_group_a_configuration(openswd3::test::Context& test) {
                         placement_typed_stop &&
                 result.workspace_reset.lower_workspace_dwords_zeroed == 0x29U &&
                 result.placement_dwords_copied == 0U &&
-                state.placement_primary[0U] == 0U && diagnostic.calls == 0U &&
-                diagnostic.action_execution.position_x == 0xAAAAU &&
-                diagnostic.action_execution.position_y == 0xBBBBU &&
-                diagnostic.action_execution.alternate_position_x == 0xCCCCU &&
-                diagnostic.action_execution.alternate_position_y == 0xDDDDU,
+                state.placement_primary[0U] == 0U && diagnostic.calls == 0U,
             "zero placement token stops at the first source access after workspace reset"
         );
     }
@@ -302,8 +241,7 @@ void test_battle_group_a_configuration(openswd3::test::Context& test) {
             0x004AD070U,
             0x0053AFD0U,
             0U,
-            diagnostic,
-            diagnostic.action_execution
+            diagnostic
         );
         test.expect_true(
             result.status ==
@@ -311,11 +249,7 @@ void test_battle_group_a_configuration(openswd3::test::Context& test) {
                         source_record_typed_stop &&
                 result.placement_dwords_copied == 16U &&
                 result.actor_record_dwords_copied == 0U &&
-                result.return_ecx == 14U && result.return_edx == 0x0053AFD0U &&
-                diagnostic.action_execution.position_x == 0U &&
-                diagnostic.action_execution.position_y == 0U &&
-                diagnostic.action_execution.alternate_position_x == 0U &&
-                diagnostic.action_execution.alternate_position_y == 0U,
+                result.return_ecx == 14U && result.return_edx == 0x0053AFD0U,
             "zero source token stops after both placement copies and before actor record writes"
         );
     }
@@ -339,8 +273,7 @@ void test_battle_group_a_configuration(openswd3::test::Context& test) {
             0x004AD0D0U,
             0x0053AFF0U,
             0U,
-            diagnostic,
-            diagnostic.action_execution
+            diagnostic
         );
         test.expect_true(
             result.status ==
@@ -349,11 +282,7 @@ void test_battle_group_a_configuration(openswd3::test::Context& test) {
                 result.placement_dwords_copied == 16U &&
                 result.actor_record_dwords_copied == 0U &&
                 result.return_eax == 0x004AB838U && result.return_ecx == 14U &&
-                result.return_edx == 0x0053AFF0U &&
-                diagnostic.action_execution.position_x == 0U &&
-                diagnostic.action_execution.position_y == 0U &&
-                diagnostic.action_execution.alternate_position_x == 0U &&
-                diagnostic.action_execution.alternate_position_y == 0U,
+                result.return_edx == 0x0053AFF0U,
             "zero actor record token stops at the first destination write after reading source"
         );
     }

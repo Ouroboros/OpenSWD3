@@ -3,11 +3,7 @@
 
 #include "test.hpp"
 
-#include <type_traits>
 #include <vector>
-
-static_assert(std::is_aggregate_v<
-              openswd3::battle::LegacyBattleGroupAActionExecutionState>);
 
 namespace {
 
@@ -111,8 +107,8 @@ void test_battle_group_a_final_processing(openswd3::test::Context& test) {
     {
         LegacyBattleGroupAFinalProcessingState state;
         state.replacement_action_kind = 26U;
+        state.actor_flags = 0x28U;
         LegacyBattleGroupAActionExecutionState action;
-        action.profile_buffer[3U] = 0x28U;
         LegacyBattleGroupAItemEffectApplicationState item;
         item.action_kind = 7U;
         item.mode_flags = 0x02U;
@@ -143,8 +139,8 @@ void test_battle_group_a_final_processing(openswd3::test::Context& test) {
     {
         LegacyBattleGroupAFinalProcessingState state;
         state.pre_effect_words.fill(0xFFFFFFFFU);
+        state.profile_buffer.fill(0xFFFFFFFFU);
         LegacyBattleGroupAActionExecutionState action;
-        action.profile_buffer.fill(0xFFFFFFFFU);
         LegacyBattleGroupAItemEffectApplicationState item;
         item.action_kind = 5U;
         item.cached_profile_item_id = 1U;
@@ -178,6 +174,7 @@ void test_battle_group_a_final_processing(openswd3::test::Context& test) {
     {
         LegacyBattleGroupAFinalProcessingState state;
         state.profile_record_id = 9U;
+        state.actor_flags = 0x28U;
         LegacyBattleGroupAActionExecutionState action;
         LegacyBattleGroupAItemEffectApplicationState item;
         item.action_kind = 23U;
@@ -201,59 +198,9 @@ void test_battle_group_a_final_processing(openswd3::test::Context& test) {
         test.expect_true(
             result.return_eax == 1U && result.profile_load_calls == 2U &&
                 port.open_calls == 1U && port.read_calls == 6U &&
-                action.profile_buffer[1] == 0x00000100U &&
+                state.profile_buffer[1] == 0x00000100U &&
                 item.display_kind == 23U && item.action_kind == 200U,
             "nonzero profile performs the second load and publishes an unblocked transition"
-        );
-    }
-
-    for (const u32 flags : {0U, 8U, 0x0800U}) {
-        LegacyBattleGroupAFinalProcessingState state;
-        state.profile_record_id = 9U;
-        LegacyBattleGroupAActionExecutionState action;
-        action.profile_buffer.fill(0xFFFFFFFFU);
-        LegacyBattleGroupAItemEffectApplicationState item;
-        item.action_kind = 26U;
-        item.cached_profile_item_id = 1U;
-        FinalPort port;
-        port.set_profile_dword(0x0CU, 0xCAFE0000U | flags);
-        port.set_profile_dword(0x04U, 2U);
-        port.set_profile_word(0x14U, 0x1234U);
-        port.set_profile_word(0x16U, 0xABCDU);
-        port.set_profile_word(0x22U, 0x8001U);
-        const auto result = process_legacy_battle_group_a_final(
-            &state,
-            &action,
-            progress,
-            &configuration,
-            aggregation,
-            &item,
-            shared,
-            0x005029D0U,
-            1U,
-            0U,
-            port,
-            port
-        );
-        test.expect_true(
-            result.status ==
-                    LegacyBattleGroupAFinalProcessingStatus::completed &&
-                result.profile_load_calls == 2U &&
-                action.profile_buffer[3U] == (0xCAFE0000U | flags) &&
-                action.special_effect_direct_mode() ==
-                    static_cast<openswd3::compat::u8>(flags) &&
-                (action.special_particle_coordinate_suppression() & 2U) != 0U &&
-                action.copied_runtime_word() == 0x1234U &&
-                action.source_y() == 0x8001U &&
-                item.action_kind == (flags == 8U ? 200U : 26U) &&
-                item.display_kind == (flags == 8U ? 26U : 0U),
-            "loaded MON bytes immediately drive finalization flags and all overlapping action views"
-        );
-        action.write_profile_word(0x14U, 0x9876U);
-        test.expect_true(
-            action.profile_buffer[5U] == 0xABCD9876U &&
-                action.profile_buffer[3U] == (0xCAFE0000U | flags),
-            "profile action WORD writes preserve the adjacent loaded WORD and flag DWORD"
         );
     }
 

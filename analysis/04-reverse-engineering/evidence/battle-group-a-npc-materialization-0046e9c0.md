@@ -1,6 +1,6 @@
 # 战斗组A护援角色资料物化 `0x0046E9C0`
 
-历史状态：`platform_adapted`。工作包282正在回收坐标写入与早停寄存器前缀；当前改动尚未完成发布门，本文历史通过结果不得替代新验证。
+状态：`platform_adapted`。完整LST、typed资料物化、startup两处caller、定向测试、AddressSanitizer、Linux完整门与inventory双生成均已关闭。
 
 ## 1. 完整权威范围与ABI
 
@@ -10,7 +10,7 @@ this是组A角色；参数0是`0x0053AF70 + index * 0x20`的32-byte护援源记�
 
 ## 2. 分配、清零和资料callee
 
-函数以固定0xA4调用旧分配边界，先把返回token写入角色`+0x0C`，再以41个dword清零该资料记录。这个顺序与`0x0046E890`一致；旧证据对上一项的相反描述已修正。缺少角色typed owner时在资料清零前停止；分配token为零但角色owner存在时先发布零token，再在第一次清零写停止。两种停点EAX为0、ECX为41、EDX保留分配callee结果；完整清零后ECX为0，不能把EDX伪写为分配token。
+函数以固定0xA4调用旧分配边界，先把返回token写入角色`+0x0C`，再以41个dword清零该资料记录。这个顺序与上一项不同：缺少角色typed owner时在资料清零前停止；分配token为零但角色owner存在时先发布零token，再在第一次清零写停止。
 
 资料清零后首次读取护援源`+0x14`角色号，依次调用资料加载和资料内动态文字释放边界。callee完成后，源记录8个dword分别复制到角色`+0x0D50`和`+0x0D70`，源`+0x1C`另写角色`+0x2AA0`，角色号另写`+0x2A0C`。零角色号以窗口token、固定`Npc`文字token、flags零、固定源文件token和行号`0x14E`调用公共诊断，随后继续。
 
@@ -36,10 +36,6 @@ this是组A角色；参数0是`0x0053AF70 + index * 0x20`的32-byte护援源记�
 startup两处caller分别位于随机护援分支和顺序护援分支。两者都先从首组A角色查询live `+4` token，再把新角色placement、该token和对应角色this传入本函数。现在两个callsite统一经`add_supplemental_actor`直连typed物化器，旧配置槽改为reserved且生产零调用；typed-stop阻断角色激活、镜像mode、party count、使用标记和后续护援。
 
 首角色`+4`的owner具有原始动态别名：普通启动中它指向四份startup配置源之一；若第一个stale护援占据角色0，物化尾会把它改为角色0基础记录token，第二个护援随即读取该角色基础记录。typed caller按live token在配置源数组和首角色基础记录间解析，不复制第二份物理调整源。
-
-工作包282由startup显式借用既有组A action-execution数组，再把对应槽引用传给本函数。
-`0x0046EA09/0x0046EA18`在诊断及调整源读取前写主、备用坐标，查询端借用同一运行状态，不读取placement快照。
-新增断言覆盖完整坐标门保持、诊断所见双坐标、源读取失败前的旧坐标与调整源失败后的新坐标。
 
 ## 6. 验证状态
 

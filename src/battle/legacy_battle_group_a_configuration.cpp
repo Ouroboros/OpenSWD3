@@ -76,8 +76,7 @@ LegacyBattleGroupAConfigurationResult configure_legacy_battle_group_a_actor(
     const u32 auxiliary_record_token,
     const u32 placement_token,
     const u32 window_token,
-    LegacyBattleGroupAConfigurationDiagnosticPort& diagnostic_port,
-    LegacyBattleGroupAActionExecutionState& action_execution
+    LegacyBattleGroupAConfigurationDiagnosticPort& diagnostic_port
 ) {
     LegacyBattleGroupAConfigurationResult result;
     result.workspace_reset = reset_legacy_battle_group_a_workspace(workspace);
@@ -91,14 +90,8 @@ LegacyBattleGroupAConfigurationResult configure_legacy_battle_group_a_actor(
     }
 
     state.placement_primary = pack_placement(placement);
-    // 0x0046E74D: the first record copy publishes the primary pair.
-    action_execution.position_x = placement.position_x;
-    action_execution.position_y = placement.position_y;
     state.placement_secondary = state.placement_primary;
-    // 0x0046E75C: the second copy publishes the alternate pair.
-    action_execution.alternate_position_x = action_execution.position_x;
-    action_execution.alternate_position_y = action_execution.position_y;
-    state.placement_tail = placement.active;
+    state.placement_tail = state.placement_primary[7U];
     result.placement_dwords_copied = 16U;
 
     if (source_record_token == 0U) {

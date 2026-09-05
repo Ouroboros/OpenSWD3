@@ -15,13 +15,6 @@ using openswd3::compat::u32;
 class GroupEffectPort final
     : public openswd3::battle::LegacyBattleEffectCallPort {
 public:
-    GroupEffectPort() {
-        actor_coordinate_bindings().group_b[0U] =
-            openswd3::battle::view_legacy_battle_actor_coordinates(target);
-    }
-
-    openswd3::battle::LegacyBattleActorCoordinatesState target{};
-
     [[nodiscard]] LegacyBattleEffectCallReply
     invoke(const LegacyBattleEffectCallRequest& request) override {
         calls.push_back(request);
@@ -228,16 +221,13 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
         LegacyBattleEffectCallReply animation{.eax = 1U};
         animation.outputs[0] = 5U;
         port.push(0x00483840U, animation);
-        port.target.position_x = 155U;
-        port.target.position_y = 99U;
+        port.push(0x004783B0U, pair_reply(155U, 99U));
         const auto result =
             openswd3::battle::advance_legacy_battle_group_effect_frame(
-                state, port, 0x005029D0U, 0x00525508U, 1U, 0U, 0U, 0U
+                state, port, 0U, 0x1000U, 1U, 0U, 0U, 0U
             );
         test.expect_true(
-            result.return_value == 1U && state.primary[0].complete == 1U &&
-                result.coordinate_query_calls == 1U &&
-                port.count(0x004783B0U) == 0U,
+            result.return_value == 1U && state.primary[0].complete == 1U,
             "collision completion publishes the primary completion state"
         );
         test.expect_true(

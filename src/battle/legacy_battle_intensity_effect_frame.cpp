@@ -13,6 +13,7 @@ using compat::u16;
 using compat::u32;
 using compat::u8;
 
+constexpr u32 kCallQueryCoordinates = 0x004783B0U;
 constexpr u32 kCallInitializeRecord = 0x004321E0U;
 constexpr u32 kCallLookupResource = 0x004315D0U;
 constexpr u32 kCallRenderResource = 0x004170E0U;
@@ -74,28 +75,9 @@ advance_legacy_battle_intensity_effect_frame(
         return port.invoke(request);
     };
 
-    u16 x{};
-    u16 y{};
-    result.coordinate_query = query_legacy_battle_actor_coordinates(
-        resolve_legacy_battle_actor_coordinates(
-            port.actor_coordinate_bindings(), actor_token
-        ),
-        &x,
-        &y,
-        {
-            .actor_token = actor_token,
-            .entry_edx = result.final_edx,
-        }
-    );
-    ++result.coordinate_query_calls;
-    result.final_edx = result.coordinate_query.return_edx;
-    if (result.coordinate_query.status !=
-        LegacyBattleActorCoordinateQueryStatus::completed) {
-        result.status =
-            LegacyBattleIntensityEffectFrameStatus::actor_coordinate_typed_stop;
-        result.return_value = result.coordinate_query.return_eax;
-        return result;
-    }
+    const auto coordinates = invoke(kCallQueryCoordinates, {actor_token});
+    u32 x = coordinates.outputs[0];
+    u32 y = coordinates.outputs[1];
 
     auto& record = state.intensity_records[slot_index];
     record.source_value = source_value;

@@ -183,7 +183,7 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
     {
         Fixture fixture({.pitch_bytes = 16, .width = 8, .height = 2});
         fixture.hotkeys.toggle_5244e0 = 1U;
-        fixture.action.opponent_workspace[14U] = 1U;
+        fixture.hotkeys.toggle_53af68 = 1U;
         fixture.metrics.group_b_count = 2U;
         fixture.metrics.group_a_count = 2U;
         fixture.startup.enemies[0U].progress.progress = 30U;

@@ -16,6 +16,7 @@ using compat::u32;
 constexpr u32 kCallPlaySample = 0x00485610U;
 constexpr u32 kCallSetSamplePan = 0x00485650U;
 constexpr u32 kCallRenderResource = 0x004170E0U;
+constexpr u32 kCallQueryCoordinates = 0x004783B0U;
 constexpr u32 kCallSpawnParticle = 0x004800F0U;
 constexpr u32 kCallCommitParticle = 0x004801A0U;
 constexpr u32 kCallAdvanceTarget = 0x0047FC40U;
@@ -127,7 +128,7 @@ LegacyBattleTargetReadyResult advance_legacy_battle_target_ready(
 
     actor->turn_target_x_offset = low_word(record.draw_offset_x);
     actor->turn_render_flags = record.mode_flags;
-    actor->source_x_offset = actor->primary_action_record.field_76;
+    actor->source_x_offset = actor->secondary_auxiliary_word;
     if (actor->special_draw_mirror_mode == 1U) {
         if ((actor->turn_render_flags & 1U) != 0U) {
             actor->turn_render_flags &= 0xFFFFFFFEU;
@@ -224,37 +225,13 @@ LegacyBattleTargetReadyResult advance_legacy_battle_target_ready(
 
     auto& effect = actor->effect_action_record;
     effect.base_variant = 0U;
-    registers.edx = request.local_y_token;
-    registers.eax = request.local_x_token;
-    registers.ecx = request.target_token;
     effect.action_id = kEffectActionId;
-    result.coordinate_query = query_legacy_battle_actor_coordinates(
-        resolve_legacy_battle_actor_coordinates(
-            port.actor_coordinate_bindings(), request.target_token
-        ),
-        &result.target_x,
-        &result.target_y,
-        {
-            .actor_token = request.target_token,
-            .output_x_token = request.local_x_token,
-            .output_y_token = request.local_y_token,
-            .entry_eax = registers.eax,
-            .entry_edx = registers.edx,
-        }
-    );
+    registers.ecx = request.target_token;
     ++result.coordinate_query_calls;
-    registers.eax = result.coordinate_query.return_eax;
-    registers.ecx = result.coordinate_query.return_ecx;
-    registers.edx = result.coordinate_query.return_edx;
-    if (result.coordinate_query.status !=
-        LegacyBattleActorCoordinateQueryStatus::completed) {
-        result.status =
-            LegacyBattleTargetReadyStatus::target_coordinate_typed_stop;
-        result.return_eax = registers.eax;
-        result.return_ecx = registers.ecx;
-        result.return_edx = registers.edx;
-        return result;
-    }
+    const auto coordinates =
+        invoke(kCallQueryCoordinates, {request.target_token});
+    result.target_x = low_word(coordinates.outputs[0U]);
+    result.target_y = low_word(coordinates.outputs[1U]);
     const u32 signed_target_x_bits = to_bits(signed_word(result.target_x));
     const u32 signed_target_y_bits = to_bits(signed_word(result.target_y));
 

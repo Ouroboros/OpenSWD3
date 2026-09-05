@@ -1,6 +1,5 @@
 #pragma once
 
-#include "openswd3/battle/legacy_battle_actor_coordinates.hpp"
 #include "openswd3/compat/types.hpp"
 
 #include <array>
@@ -21,9 +20,8 @@ struct LegacyBattleActorMetricState {
     compat::u32 group_a_count{};
     compat::u32 local_word_token{};
     compat::u32 local_byte_token{};
-    compat::u16 local_word{};  // Saved ECX low word, var_4 / output Y.
-    // IDA calls var_2 a byte, but 0x004783B0 writes a WORD here.
-    compat::u16 local_byte{};  // Saved ECX high word / output X.
+    compat::u16 local_word{};
+    compat::u8 local_byte{};
 
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
@@ -88,7 +86,6 @@ private:
 
 enum class LegacyBattleActorMetricStatus : compat::u8 {
     completed,
-    actor_coordinate_typed_stop,
     value_store_typed_stop,
 };
 
@@ -107,8 +104,6 @@ struct LegacyBattleActorMetricResult {
     compat::u32 final_ecx{};
     compat::u32 final_edx{};
     compat::u32 port_calls{};
-    LegacyBattleActorCoordinateQueryResult coordinate_query{};
-    compat::u32 coordinate_query_calls{};
     compat::u32 group_b_iterations{};
     compat::u32 group_a_iterations{};
 };

@@ -2,7 +2,7 @@
 
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 
-#include <array>
+#include <algorithm>
 #include <bit>
 #include <cstddef>
 
@@ -19,8 +19,37 @@ using compat::u32;
     return std::bit_cast<i16>(value);
 }
 
-void clear_record(asset_runtime::LegacyActionRecord& record) noexcept {
-    record = {};
+void clear_record(LegacyBattleGroupAActionExecutionRecord& record) noexcept {
+    record.dwords.fill(0U);
+}
+
+[[nodiscard]] u16 record_word(
+    const LegacyBattleGroupAActionExecutionRecord& record,
+    const std::size_t offset
+) noexcept {
+    const auto byte = [&](const std::size_t index) {
+        return static_cast<u8>(
+            record.dwords[index / 4U] >> static_cast<u32>((index & 3U) * 8U)
+        );
+    };
+    return static_cast<u16>(byte(offset)) |
+        static_cast<u16>(static_cast<u16>(byte(offset + 1U)) << 8U);
+}
+
+void set_record_word(
+    LegacyBattleGroupAActionExecutionRecord& record,
+    const std::size_t offset,
+    const u16 value
+) noexcept {
+    const auto set_byte = [&](const std::size_t index, const u8 byte) {
+        const std::size_t word_index = index / 4U;
+        const u32 shift = static_cast<u32>((index & 3U) * 8U);
+        record.dwords[word_index] =
+            (record.dwords[word_index] & ~(0xFFU << shift)) |
+            (static_cast<u32>(byte) << shift);
+    };
+    set_byte(offset, static_cast<u8>(value));
+    set_byte(offset + 1U, static_cast<u8>(value >> 8U));
 }
 
 }  // namespace
@@ -49,23 +78,6 @@ advance_legacy_battle_group_a_action_execution(
             LegacyBattleGroupAActionExecutionStatus::actor_state_typed_stop;
         return result;
     }
-
-    // Borrow the physical +0x0630 + index*0x98 records. No second owner.
-    const std::array<
-        asset_runtime::LegacyActionRecord*,
-        kLegacyBattleGroupAActionSlotCount>
-        slots{
-            &state->effect_action_record,
-            &state->effect_secondary_action_record,
-            &state->intermediate_action_records[0U],
-            &state->intermediate_action_records[1U],
-            &state->intermediate_action_records[2U],
-            &state->intermediate_action_records[3U],
-            &state->intermediate_action_records[4U],
-            &state->intermediate_action_records[5U],
-            &state->special_action_record,
-            &state->special_secondary_action_record,
-        };
 
     u32 eax = request.entry_eax;
     u32 ecx = actor_token;
@@ -96,8 +108,7 @@ advance_legacy_battle_group_a_action_execution(
     if (state->start_gate != 0U || state->execution_complete == 1U) {
         return return_zero();
     }
-    if (skip_primary == 1U &&
-        (state->special_effect_direct_mode() & 0x18U) != 0U &&
+    if (skip_primary == 1U && (state->render_flags & 0x18U) != 0U &&
         state->early_latch == 0U) {
         const auto reply = invoke(
             0x0047C950U,
@@ -124,8 +135,7 @@ advance_legacy_battle_group_a_action_execution(
     }
     dispatch.action_pending = 1U;
     state->primary_action_record.external_mode = 0U;
-    if (state->special_mode == 1U ||
-        (state->primary_action_record.field_5a & 0x0200U) != 0U) {
+    if (state->special_mode == 1U || (state->record_mode_flags & 2U) != 0U) {
         state->primary_action_record.external_mode = 1U;
     }
 
@@ -137,7 +147,7 @@ advance_legacy_battle_group_a_action_execution(
         if (skip_primary == 1U || skip_secondary == 1U) {
             state->primary_action_record.base_variant = 0x28U;
         } else {
-            state->write_profile_word(0x14U, state->copied_word);
+            state->copied_runtime_word = state->copied_word;
         }
     } else if (
         (skip_primary == 1U || skip_secondary == 1U) &&
@@ -158,28 +168,25 @@ advance_legacy_battle_group_a_action_execution(
     ecx = reply.ecx;
     edx = reply.edx;
 
-    if ((state->primary_action_record.field_5a & 0x0002U) != 0U) {
-        if (state->primary_action_record.field_24 != 0U) {
-            state->turn_action_record.action_id =
-                state->primary_action_record.field_24;
-            state->turn_action_record.base_variant =
-                state->primary_action_record.field_28;
+    if ((state->action_flags & 0x0002U) != 0U) {
+        if (state->primary_value != 0U) {
+            state->secondary_record.dwords[0U] = state->primary_value;
+            state->secondary_record.dwords[2U] = state->secondary_value;
             dispatch.action_runtime_flags |= 0x00004000U;
         }
-        if ((state->primary_action_record.field_5a & 0x0200U) != 0U) {
+        if ((state->action_flags & 0x0200U) != 0U) {
             state->primary_action_record.external_mode = 1U;
         }
-        state->primary_action_record.field_5a =
-            static_cast<u16>(state->primary_action_record.field_5a & ~0x0002U);
-        state->primary_action_record.field_24 = 0U;
-        state->primary_action_record.field_28 = 0U;
+        state->action_flags = static_cast<u16>(state->action_flags & ~0x0002U);
+        state->primary_value = 0U;
+        state->secondary_value = 0U;
     }
 
     if ((dispatch.action_runtime_flags & 0x00004000U) != 0U) {
         reply = invoke(
             0x00483B30U,
             {actor_token + 0x468U,
-             state->primary_action_record.field_78,
+             state->auxiliary_word,
              0U,
              0U,
              0U,
@@ -194,53 +201,43 @@ advance_legacy_battle_group_a_action_execution(
         ecx = reply.ecx;
         edx = reply.edx;
         if (eax == 1U) {
-            state->primary_action_record.field_5a = static_cast<u16>(
-                state->primary_action_record.field_5a & ~0x0200U
-            );
+            state->action_flags =
+                static_cast<u16>(state->action_flags & ~0x0200U);
             state->primary_action_record.external_mode = 0U;
             dispatch.action_runtime_flags &= ~0x00004000U;
         }
     }
 
-    if ((state->primary_action_record.field_5a & 0x8000U) != 0U) {
+    if ((state->action_flags & 0x8000U) != 0U) {
         shared.negative_flag = 1U;
         shared.negative_reset = 0U;
     }
 
-    if ((state->primary_action_record.field_5a & 0x0008U) != 0U) {
-        if ((state->primary_action_record.field_5a & 0x0400U) != 0U) {
+    if ((state->action_flags & 0x0008U) != 0U) {
+        if ((state->action_flags & 0x0400U) != 0U) {
             port.battle_color_initialization_gate() = 1U;
             const auto color = initialize_legacy_battle_color_accumulation(
                 port.battle_color_accumulation_state(),
                 {
-                    .current_red =
-                        signed_word(state->primary_action_record.field_7a),
-                    .current_green =
-                        signed_word(state->primary_action_record.field_7c),
-                    .current_blue =
-                        signed_word(state->primary_action_record.field_7e),
-                    .target_red =
-                        signed_word(state->primary_action_record.field_80),
-                    .target_green =
-                        signed_word(state->primary_action_record.field_82),
-                    .target_blue =
-                        signed_word(state->primary_action_record.field_84),
-                    .countdown =
-                        signed_word(state->primary_action_record.field_86),
+                    .current_red = state->color_values[0U],
+                    .current_green = state->color_values[1U],
+                    .current_blue = state->color_values[2U],
+                    .target_red = state->color_values[3U],
+                    .target_green = state->color_values[4U],
+                    .target_blue = state->color_values[5U],
+                    .countdown = state->color_values[6U],
                 }
             );
             eax = color.return_eax;
             ecx = color.return_ecx;
             edx = color.return_edx;
             ++result.color_calls;
-            state->primary_action_record.field_5a = static_cast<u16>(
-                state->primary_action_record.field_5a & ~0x0400U
-            );
+            state->action_flags =
+                static_cast<u16>(state->action_flags & ~0x0400U);
         }
-        state->primary_action_record.field_5a =
-            static_cast<u16>(state->primary_action_record.field_5a & ~0x0008U);
+        state->action_flags = static_cast<u16>(state->action_flags & ~0x0008U);
         dispatch.action_runtime_flags |= 0x00008000U;
-        if (slot_index >= slots.size()) {
+        if (slot_index >= state->slot_records.size()) {
             result.status =
                 LegacyBattleGroupAActionExecutionStatus::slot_typed_stop;
             result.return_eax = 0U;
@@ -248,11 +245,11 @@ advance_legacy_battle_group_a_action_execution(
             result.return_edx = edx;
             return result;
         }
-        clear_record(*slots[slot_index]);
+        clear_record(state->slot_records[slot_index]);
         ++result.record_clears;
     }
 
-    if ((state->primary_action_record.field_5a & 0x0004U) != 0U) {
+    if ((state->action_flags & 0x0004U) != 0U) {
         reply = invoke(
             0x00478780U,
             {target_token, 0U, 0U, 0U, 0U, 0U, 0U, 0U},
@@ -264,11 +261,11 @@ advance_legacy_battle_group_a_action_execution(
         ecx = reply.ecx;
         edx = reply.edx;
         dispatch.action_runtime_flags |= 0x00008000U;
-        state->primary_action_record.field_5a = 0U;
+        state->action_flags = 0U;
     }
 
-    if ((state->primary_action_record.field_5a & 0x0001U) != 0U) {
-        if (slot_index >= slots.size()) {
+    if ((state->action_flags & 0x0001U) != 0U) {
+        if (slot_index >= state->slot_records.size()) {
             result.status =
                 LegacyBattleGroupAActionExecutionStatus::slot_typed_stop;
             result.return_eax = 0U;
@@ -279,7 +276,7 @@ advance_legacy_battle_group_a_action_execution(
         dispatch.action_runtime_flags |= 0x00008000U;
         state->motion_word = 0U;
         shared.shared_motion_word = 0U;
-        clear_record(*slots[slot_index]);
+        clear_record(state->slot_records[slot_index]);
         ++result.record_clears;
         const auto target_effect = apply_legacy_battle_target_effect(
             state,
@@ -304,13 +301,13 @@ advance_legacy_battle_group_a_action_execution(
                 LegacyBattleGroupAActionExecutionStatus::actor_state_typed_stop;
             return result;
         }
-        state->primary_action_record.field_5a = 0U;
+        state->action_flags = 0U;
     }
 
     if ((dispatch.action_runtime_flags & 0x00008000U) == 0U) {
         return return_zero();
     }
-    if (slot_index >= slots.size()) {
+    if (slot_index >= state->slot_records.size()) {
         result.status =
             LegacyBattleGroupAActionExecutionStatus::slot_typed_stop;
         result.return_eax = 0U;
@@ -319,21 +316,19 @@ advance_legacy_battle_group_a_action_execution(
         return result;
     }
 
-    auto& slot = *slots[slot_index];
-    slot.action_id = state->copied_runtime_word();
-    slot.base_variant = 0U;
-    if (state->primary_action_record.field_24 != 0U) {
-        slot.action_id = state->primary_action_record.field_24;
+    auto& slot = state->slot_records[slot_index];
+    slot.dwords[0U] = state->copied_runtime_word;
+    slot.dwords[2U] = 0U;
+    if (state->primary_value != 0U) {
+        slot.dwords[0U] = state->primary_value;
     }
 
-    if (slot.action_id != 0U) {
-        if ((state->special_effect_direct_mode() & 1U) != 0U) {
+    if (slot.dwords[0U] != 0U) {
+        if ((state->render_flags & 1U) != 0U) {
             const i32 x = static_cast<i32>(signed_word(state->position_x)) +
                 static_cast<i32>(signed_word(state->source_x_offset)) -
                 static_cast<i32>(signed_word(state->turn_target_x_offset));
-            const i32 y = static_cast<i32>(
-                              signed_word(state->primary_action_record.field_78)
-                          ) +
+            const i32 y = static_cast<i32>(signed_word(state->auxiliary_word)) +
                 static_cast<i32>(signed_word(state->position_y)) -
                 std::bit_cast<i32>(state->primary_action_record.draw_offset_y);
             reply = invoke(
@@ -341,12 +336,12 @@ advance_legacy_battle_group_a_action_execution(
                 {target_token,
                  actor_token + 0x6C8U,
                  0U,
-                 slot.action_id,
+                 slot.dwords[0U],
                  std::bit_cast<u32>(x),
                  std::bit_cast<u32>(y),
-                 static_cast<u32>(signed_word(state->source_y())),
+                 static_cast<u32>(signed_word(state->source_y)),
                  0U},
-                slot.action_id,
+                slot.dwords[0U],
                 actor_token,
                 edx
             );
@@ -357,15 +352,17 @@ advance_legacy_battle_group_a_action_execution(
                 return return_zero();
             }
             state->primary_action_record.field_8c = 1U;
-            slot.field_8c = 1U;
-            slot.field_5a |= 1U;
+            slot.dwords[0x8CU / 4U] = 1U;
+            set_record_word(
+                slot, 0x5AU, static_cast<u16>(record_word(slot, 0x5AU) | 1U)
+            );
         } else {
             reply = invoke(
                 0x004838D0U,
                 {target_token,
                  actor_token + 0x630U + slot_index * 0x98U,
-                 state->primary_action_record.field_76,
-                 state->primary_action_record.field_78,
+                 state->secondary_auxiliary_word,
+                 state->auxiliary_word,
                  0U,
                  0U,
                  0U,
@@ -378,7 +375,7 @@ advance_legacy_battle_group_a_action_execution(
             ecx = reply.ecx;
             edx = reply.edx;
         }
-        if ((slot.field_5a & 1U) != 0U) {
+        if ((record_word(slot, 0x5AU) & 1U) != 0U) {
             const auto target_effect = apply_legacy_battle_target_effect(
                 state,
                 &shared,
@@ -403,13 +400,13 @@ advance_legacy_battle_group_a_action_execution(
                     actor_state_typed_stop;
                 return result;
             }
-            slot.field_5a = 0U;
+            set_record_word(slot, 0x5AU, 0U);
         }
     } else {
-        slot.field_8c = 1U;
+        slot.dwords[0x8CU / 4U] = 1U;
     }
 
-    if (slot.field_8c != 1U) {
+    if (slot.dwords[0x8CU / 4U] != 1U) {
         reply = invoke(
             0x004170E0U,
             {std::bit_cast<u32>(static_cast<i32>(signed_word(state->draw_x))),
@@ -431,8 +428,7 @@ advance_legacy_battle_group_a_action_execution(
         return return_zero();
     }
 
-    if (slot.action_id != 0U &&
-        (state->special_effect_direct_mode() & 1U) == 0U &&
+    if (slot.dwords[0U] != 0U && (state->render_flags & 1U) == 0U &&
         signed_word(state->motion_word) > -32) {
         shared.draw_motion_a = std::bit_cast<u32>(
             static_cast<i32>(signed_word(state->motion_word))
@@ -483,10 +479,10 @@ advance_legacy_battle_group_a_action_execution(
     }
 
     state->primary_action_record = {};
-    clear_record(state->turn_action_record);
+    clear_record(state->secondary_record);
     clear_record(slot);
-    clear_record(state->effect_secondary_action_record);
-    clear_record(state->intermediate_action_records[0U]);
+    clear_record(state->tertiary_record);
+    clear_record(state->quaternary_record);
     result.record_clears += 5U;
     state->target_indices.fill(0xFFFFFFFFU);
     state->motion_word = 0U;

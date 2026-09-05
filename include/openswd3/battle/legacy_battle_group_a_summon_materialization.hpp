@@ -99,8 +99,7 @@ materialize_legacy_battle_group_a_summon(
     compat::u32 actor_token,
     compat::u32 source_token,
     compat::u32 window_token,
-    LegacyBattleGroupASummonMaterializationPort& port,
-    LegacyBattleGroupAActionExecutionState& action_execution
+    LegacyBattleGroupASummonMaterializationPort& port
 );
 
 }  // namespace openswd3::battle

@@ -120,8 +120,7 @@ materialize_legacy_battle_group_a_npc(
     const u32 source_token,
     const u32 modifier_record_token,
     const u32 window_token,
-    LegacyBattleGroupASummonMaterializationPort& port,
-    LegacyBattleGroupAActionExecutionState& action_execution
+    LegacyBattleGroupASummonMaterializationPort& port
 ) {
     LegacyBattleGroupANpcMaterializationResult result;
     auto reply = invoke(
@@ -134,15 +133,13 @@ materialize_legacy_battle_group_a_npc(
     );
     ++result.allocation_calls;
     result.allocated_profile_token = reply.eax;
-    result.return_eax = 0U;
-    result.return_ecx = 0x29U;
-    result.return_edx = reply.edx;
     if (actor_token == 0U || state == nullptr) {
         result.status =
             LegacyBattleGroupANpcMaterializationStatus::actor_state_typed_stop;
         return result;
     }
     state->profile_token = reply.eax;
+    result.return_edx = reply.eax;
     if (reply.eax == 0U) {
         result.status =
             LegacyBattleGroupANpcMaterializationStatus::allocation_typed_stop;
@@ -150,7 +147,6 @@ materialize_legacy_battle_group_a_npc(
     }
     state->profile_record.fill(std::byte{0});
     result.profile_dwords_zeroed = 0x29U;
-    result.return_ecx = 0U;
 
     if (source_token == 0U || source == nullptr) {
         result.status = LegacyBattleGroupANpcMaterializationStatus::
@@ -210,13 +206,7 @@ materialize_legacy_battle_group_a_npc(
 
     const auto packed_source = pack_source(*source);
     state->placement_primary = packed_source;
-    // 0x0046EA09, before the second copy and any diagnostic callback.
-    action_execution.position_x = source->position_x;
-    action_execution.position_y = source->position_y;
     state->placement_secondary = packed_source;
-    // 0x0046EA18.
-    action_execution.alternate_position_x = source->position_x;
-    action_execution.alternate_position_y = source->position_y;
     result.placement_dwords_copied = 16U;
     state->placement_tail = source->active;
     state->placement_word = role_id;

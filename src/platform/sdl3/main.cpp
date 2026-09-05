@@ -2834,6 +2834,7 @@ public:
             reply.eax = std::bit_cast<openswd3::compat::u32>(integer);
             break;
         }
+        case LegacyBattleScriptDispatchCall::pending_4783b0:
         case LegacyBattleScriptDispatchCall::pending_478470:
         case LegacyBattleScriptDispatchCall::pending_478600:
         case LegacyBattleScriptDispatchCall::pending_484500:

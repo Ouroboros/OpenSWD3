@@ -73,7 +73,7 @@ void test_battle_group_b_action_profile_flag(
 
     {
         LegacyBattleActorGroupBElementState actor;
-        actor.action_execution.profile_buffer[1U] = 0xFFU;
+        actor.action_execution.special_particle_coordinate_suppression = 0xFFU;
         write_dword(
             actor.action_configuration.profile_buffer, 0x04U, 0x00001000U
         );

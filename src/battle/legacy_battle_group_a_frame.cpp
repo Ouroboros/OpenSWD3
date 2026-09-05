@@ -611,8 +611,6 @@ LegacyBattleTurnAdvanceResult advance_legacy_battle_turn_gate(
     result.return_eax = request.entry_eax;
     result.return_ecx = request.entry_ecx;
     result.return_edx = request.entry_edx;
-    result.coordinate_x_stack_word = request.argument;
-    result.coordinate_y_stack_word = request.entry_ecx;
     if (progress == nullptr) {
         result.status = LegacyBattleTurnAdvanceStatus::actor_state_typed_stop;
         return result;
@@ -664,7 +662,7 @@ LegacyBattleTurnAdvanceResult advance_legacy_battle_turn_gate(
             actor->turn_countdown = 0x0F;
             result.return_eax = 1U;
         }
-        result.return_ecx = request.entry_ecx;
+        result.return_ecx = ecx;
         result.return_edx = edx;
         return result;
     }
@@ -680,7 +678,7 @@ LegacyBattleTurnAdvanceResult advance_legacy_battle_turn_gate(
             actor->turn_completion_latch = 1U;
         }
         result.return_eax = 1U;
-        result.return_ecx = request.entry_ecx;
+        result.return_ecx = 0U;
         result.return_edx = edx;
         return result;
     }
@@ -696,13 +694,13 @@ LegacyBattleTurnAdvanceResult advance_legacy_battle_turn_gate(
     const auto updated = invoke_turn(kCallUpdateTurnAction, {eax});
     if (updated.eax == 0U) {
         result.return_eax = 1U;
-        result.return_ecx = request.entry_ecx;
+        result.return_ecx = ecx;
         result.return_edx = edx;
         return result;
     }
 
-    replace_low_word(edx, actor->turn_action_record.field_4c);
     replace_low_word(eax, actor->turn_action_record.field_4a);
+    replace_low_word(edx, actor->turn_action_record.field_4c);
     ++result.frame_lookup_calls;
     const auto frame = invoke_turn(kCallLookupTurnFrame, {eax, edx});
     actor->turn_target_x_offset =
@@ -714,14 +712,12 @@ LegacyBattleTurnAdvanceResult advance_legacy_battle_turn_gate(
     } else {
         actor->turn_render_flags |= 1U;
     }
-    ecx = progress->post_action_value;
-    if (ecx == 1U) {
+    if (progress->post_action_value == 1U) {
         if ((actor->turn_render_flags & 1U) != 0U) {
             actor->turn_render_flags &= 0xFFFFFFFEU;
         } else {
             actor->turn_render_flags |= 1U;
         }
-        ecx = actor->turn_render_flags;
         if (actor->turn_frame_token == 0U) {
             result.status =
                 LegacyBattleTurnAdvanceStatus::frame_owner_typed_stop;
@@ -730,64 +726,42 @@ LegacyBattleTurnAdvanceResult advance_legacy_battle_turn_gate(
             result.return_edx = edx;
             return result;
         }
-        replace_low_word(edx, static_cast<u16>(frame.outputs[1U]));
-        replace_low_word(
-            edx,
-            static_cast<u16>(
-                static_cast<u16>(edx) -
-                static_cast<u16>(actor->turn_action_record.draw_offset_x)
-            )
+        actor->turn_target_x_offset = static_cast<u16>(
+            static_cast<u16>(frame.outputs[1U]) -
+            static_cast<u16>(actor->turn_action_record.draw_offset_x)
         );
-        actor->turn_target_x_offset = static_cast<u16>(edx);
     }
 
     if (actor->turn_countdown == 0x0F && argument == 1U) {
-        actor->turn_action_record.field_58 = 0x2FU;
+        actor->turn_sample_word = 0x2FU;
         eax = request.sample_handle;
         ++result.sample_play_calls;
-        static_cast<void>(
-            invoke_turn(kCallPlaySample, {0x2FU, request.sample_handle})
-        );
-        eax = progress->post_action_value;
-        u32 sample_argument;
-        if (eax == 1U) {
-            replace_low_word(ecx, actor->turn_action_record.field_58);
-            sample_argument = ecx;
-        } else {
-            replace_low_word(edx, actor->turn_action_record.field_58);
-            sample_argument = edx;
-        }
-
+        const auto played =
+            invoke_turn(kCallPlaySample, {0x2FU, request.sample_handle});
+        u32 sample_argument =
+            progress->post_action_value == 1U ? played.edx : played.ecx;
+        replace_low_word(sample_argument, actor->turn_sample_word);
         ++result.sample_pan_calls;
         static_cast<void>(invoke_turn(
             kCallSetSamplePan,
-            {sample_argument, eax == 1U ? 0xFFFFFFF0U : 0x10U}
+            {sample_argument,
+             progress->post_action_value == 1U ? 0xFFFFFFF0U : 0x10U}
         ));
-        actor->turn_action_record.field_58 = 0U;
+        actor->turn_sample_word = 0U;
     }
 
-    eax = request.output_y_token;
     ecx = request.actor_token;
     ++result.coordinate_query_calls;
-    const auto coordinates = invoke_turn(
-        kCallQueryTurnCoordinates,
-        {request.output_x_token, request.output_y_token}
-    );
-    auto& x = result.coordinate_x_stack_word;
-    auto& y = result.coordinate_y_stack_word;
-    replace_low_word(x, static_cast<u16>(coordinates.outputs[0U]));
-    replace_low_word(y, static_cast<u16>(coordinates.outputs[1U]));
+    const auto coordinates = invoke_turn(kCallQueryTurnCoordinates);
+    u32 x = coordinates.outputs[0U];
+    const u32 y = coordinates.outputs[1U];
     if (argument == 1U) {
         x = progress->post_action_value == 1U ? x - 0x10U : x + 0x10U;
     }
-
-    eax = x;
-    edx = y;
     ecx = request.actor_token;
     ++result.coordinate_publish_calls;
     static_cast<void>(invoke_turn(kCallPublishTurnCoordinates, {x, y}));
 
-    ecx = actor->turn_frame_token;
     if (actor->turn_frame_token == 0U) {
         result.status = LegacyBattleTurnAdvanceStatus::frame_owner_typed_stop;
         result.return_eax = eax;
@@ -795,7 +769,6 @@ LegacyBattleTurnAdvanceResult advance_legacy_battle_turn_gate(
         result.return_edx = edx;
         return result;
     }
-    edx = frame.outputs[0U];
     if (shared == nullptr) {
         result.status = LegacyBattleTurnAdvanceStatus::shared_state_typed_stop;
         result.return_eax = eax;
@@ -812,11 +785,6 @@ LegacyBattleTurnAdvanceResult advance_legacy_battle_turn_gate(
     const u32 render_y =
         to_bits(static_cast<i32>(static_cast<i16>(actor->position_y))) -
         actor->turn_action_record.draw_offset_y;
-    eax = render_y;
-    ecx = render_x;
-    edx = to_bits(
-        static_cast<i32>(static_cast<i16>(actor->turn_target_x_offset))
-    );
     ++result.render_calls;
     static_cast<void>(invoke_turn(
         kCallRenderTurnFrame,
@@ -829,7 +797,7 @@ LegacyBattleTurnAdvanceResult advance_legacy_battle_turn_gate(
     ));
     actor->turn_countdown = from_bits(to_bits(actor->turn_countdown) - 1U);
     result.return_eax = 0U;
-    result.return_ecx = result.coordinate_y_stack_word;
+    result.return_ecx = ecx;
     result.return_edx = edx;
     return result;
 }
@@ -1831,26 +1799,12 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
         }
     }
 
-    LegacyBattleActionCallReply terminal_reply{};
     if (state.action_block_gate == 0U &&
-        (terminal_reply =
-             invoke(port, result, kCallQueryTerminal, {actor_token}))
-                .eax == 0U &&
+        invoke(port, result, kCallQueryTerminal, {actor_token}).eax == 0U &&
         state.actor_ai_secondary[group_a_index] == 0U &&
         state.actor_ai_primary[group_a_index] == 0U) {
         u16 turn = state.turn_resolution_bits;
         if ((turn & 0x4000U) != 0U) {
-            // The original DWORD load at 0x00457398 also reads the adjacent
-            // WORD at 0x0053BF1E, owned by the target-selection runtime.
-            if (context.target_selection_runtime == nullptr) {
-                result.status =
-                    LegacyBattleActionDispatchStatus::turn_control_typed_stop;
-                return result;
-            }
-
-            const u32 turn_entry_eax = static_cast<u32>(turn) |
-                (context.target_selection_runtime->transition_control_words
-                 << 16U);
             state.action.action_pending_aux = 1U;
             port.outcome_resolution_state().resolution_latch = 1U;
             result.turn_advance = advance_legacy_battle_turn_gate(
@@ -1862,11 +1816,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     .actor_token = actor_token,
                     .argument = 0U,
                     .sample_handle = state.sample_handle_value,
-                    .entry_eax = turn_entry_eax,
                     .entry_ecx = actor_token,
-                    .entry_edx = terminal_reply.edx,
-                    .output_x_token = context.turn_zero_output_x_token,
-                    .output_y_token = context.turn_zero_output_y_token,
                 }
             );
             ++result.turn_advance_calls;
@@ -2042,11 +1992,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         .actor_token = actor_token,
                         .argument = 1U,
                         .sample_handle = state.sample_handle_value,
-                        .entry_eax = static_cast<u32>(turn & 0x7FFFU),
                         .entry_ecx = actor_token,
-                        .entry_edx = static_cast<u32>(actor_bit),
-                        .output_x_token = context.turn_one_output_x_token,
-                        .output_y_token = context.turn_one_output_y_token,
                     }
                 );
                 ++result.turn_advance_calls;

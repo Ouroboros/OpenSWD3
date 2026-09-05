@@ -87,8 +87,7 @@ materialize_legacy_battle_group_a_summon(
     const u32 actor_token,
     const u32 source_token,
     const u32 window_token,
-    LegacyBattleGroupASummonMaterializationPort& port,
-    LegacyBattleGroupAActionExecutionState& action_execution
+    LegacyBattleGroupASummonMaterializationPort& port
 ) {
     LegacyBattleGroupASummonMaterializationResult result;
     auto reply = invoke(
@@ -101,25 +100,22 @@ materialize_legacy_battle_group_a_summon(
     );
     ++result.allocation_calls;
     result.allocated_profile_token = reply.eax;
-    // 0x0046E8A6..0x0046E8B0: attach before the first profile clear.
-    result.return_eax = 0U;
-    result.return_ecx = 0x29U;
-    result.return_edx = reply.edx;
-    if (actor_token == 0U || state == nullptr) {
-        result.status = LegacyBattleGroupASummonMaterializationStatus::
-            actor_state_typed_stop;
-        return result;
-    }
-    state->profile_token = reply.eax;
+    result.return_eax = reply.eax;
     if (reply.eax == 0U) {
         result.status = LegacyBattleGroupASummonMaterializationStatus::
             allocation_typed_stop;
         return result;
     }
 
-    state->profile_record.fill(std::byte{0});
+    LegacyBattleGroupASummonProfileRecord profile{};
     result.profile_dwords_zeroed = 0x29U;
-    result.return_ecx = 0U;
+    if (actor_token == 0U || state == nullptr) {
+        result.status = LegacyBattleGroupASummonMaterializationStatus::
+            actor_state_typed_stop;
+        return result;
+    }
+    state->profile_token = reply.eax;
+    state->profile_record = profile;
 
     if (source_token == 0U || source == nullptr) {
         result.status = LegacyBattleGroupASummonMaterializationStatus::
@@ -179,13 +175,7 @@ materialize_legacy_battle_group_a_summon(
 
     const auto packed_source = pack_source(*source);
     state->placement_primary = packed_source;
-    // 0x0046E8D9, before the second copy and any diagnostic callback.
-    action_execution.position_x = source->position_x;
-    action_execution.position_y = source->position_y;
     state->placement_secondary = packed_source;
-    // 0x0046E8E8.
-    action_execution.alternate_position_x = source->position_x;
-    action_execution.alternate_position_y = source->position_y;
     result.placement_dwords_copied = 16U;
     state->placement_tail = source->active;
     state->placement_word = role_id;

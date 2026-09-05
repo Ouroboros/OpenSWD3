@@ -34,6 +34,12 @@ public:
                     .edx = request.edx,
                 };
             }
+            if (request.callee_token == 0x004783B0U) {
+                return {
+                    .publish_metric_word = true,
+                    .metric_word = 1U,
+                };
+            }
             return {};
         }
         const auto reply = found->second.front();
@@ -127,9 +133,6 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
         action.opponent_workspace.fill(0xFFFFFFFFU);
         state.actor_runtime_records[1].fill(0xFFFFFFFFU);
         FinalStepPort port;
-        action.group_a_action_execution[0U].position_y = 1U;
-        bind_group_b_coordinate_resource(port, 0U, 0U, 0U);
-        (*port.startup->group_b_lifecycle)[0U].action_execution.position_y = 1U;
         port.push(0x00479850U, {.eax = 1U});
         port.push(0x0047F340U, {.eax = 1U});
         port.attack_order_records[0].value_00 = 9U;
@@ -157,10 +160,7 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                 port.count(0x0045EFB0U) == 0U &&
                 result.attack_order_remove.matched &&
                 port.attack_order_records[0].value_00 == 0xFFFFFFFFU &&
-                port.count(0x004783B0U) == 0U &&
-                port.actor_metric_state().values[0U] == 1 &&
-                port.actor_metric_state().values[8U] == 1 &&
-                port.count(0x0047C660U) == 2U,
+                port.count(0x004783B0U) == 2U && port.count(0x0047C660U) == 2U,
             "group A completion clears the counted workspace and runs common actor cleanup"
         );
     }
@@ -306,7 +306,6 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
         state.group_b_reset_word = 9U;
         FinalStepPort port;
         bind_group_b_coordinate_resource(port, 2U, 5U, 6U);
-        (*port.startup->group_b_lifecycle)[0U].action_execution.position_y = 1U;
         port.push(0x00479850U, {.eax = 1U});
         port.push(0x00480AD0U, {.eax = 0x12345678U, .object_flags = 0x20U});
         port.push(0x0047F910U, {.eax = 0x55U});
@@ -332,8 +331,7 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                 port.count(0x0045EFB0U) == 0U &&
                 result.attack_order_remove.matched &&
                 port.attack_order_records[0].value_00 == 0xFFFFFFFFU &&
-                port.count(0x004783B0U) == 0U &&
-                port.actor_metric_state().values[0U] == 1 &&
+                port.count(0x004783B0U) == 1U &&
                 result.fixed_count_calls == 1U &&
                 result.fixed_count.path ==
                     openswd3::battle::LegacyBattleFixedCountPath::

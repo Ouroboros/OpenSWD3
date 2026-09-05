@@ -209,7 +209,7 @@ LegacyBattleActorListApplyResult apply_legacy_battle_actor_list(
         result.return_eax = 0xFFFFU;
         return result;
     }
-    if (item_effect == nullptr) {
+    if (final_state == nullptr || item_effect == nullptr) {
         result.status =
             LegacyBattleActorListQueryStatus::actor_state_typed_stop;
         return result;
@@ -228,17 +228,9 @@ LegacyBattleActorListApplyResult apply_legacy_battle_actor_list(
         ++result.mode_field_writes;
         type = 0x1FU;
     }
-    if (actor == nullptr) {
-        result.status =
-            LegacyBattleActorListQueryStatus::actor_state_typed_stop;
-        result.return_eax = 0U;
-        result.return_ecx = 10U;
-        return result;
-    }
-
-    actor->profile_buffer.fill(0U);
+    final_state->profile_buffer.fill(0U);
     result.profile_buffer_dwords_zeroed =
-        static_cast<u32>(actor->profile_buffer.size());
+        static_cast<u32>(final_state->profile_buffer.size());
 
     result.index_commit = commit_legacy_battle_actor_list_index(
         actor,
@@ -295,7 +287,7 @@ LegacyBattleActorListApplyResult apply_legacy_battle_actor_list(
 
     result.output_value = matched->output_value;
     const auto profile_result = load_legacy_battle_mon_profile(
-        profile_bytes(actor->profile_buffer),
+        profile_bytes(final_state->profile_buffer),
         mon_port,
         {
             .path = "mon.dat",
@@ -314,15 +306,6 @@ LegacyBattleActorListApplyResult apply_legacy_battle_actor_list(
     if (legacy_battle_mon_profile_load_stopped(profile_result.status)) {
         result.status =
             LegacyBattleActorListQueryStatus::profile_load_typed_stop;
-        return result;
-    }
-
-    if (final_state == nullptr) {
-        result.status =
-            LegacyBattleActorListQueryStatus::actor_state_typed_stop;
-        result.return_eax = actor_token + 0x2630U;
-        result.return_ecx = 0U;
-        result.return_edx = actor_token + 0x2630U;
         return result;
     }
 
@@ -1232,26 +1215,14 @@ LegacyBattleActorResourceSelectionResult select_legacy_battle_actor_resource(
     result.return_eax = request.entry_eax;
     result.return_ecx = actor_token;
     result.return_edx = request.entry_edx;
-    if (actor_token == 0U || action == nullptr) {
+    if (actor_token == 0U || final_state == nullptr) {
         result.status =
             LegacyBattleActorListQueryStatus::actor_state_typed_stop;
-        result.return_eax = 0U;
-        result.return_ecx = 10U;
         return result;
     }
-
-    action->profile_buffer.fill(0U);
+    final_state->profile_buffer.fill(0U);
     result.profile_buffer_dwords_zeroed =
-        static_cast<u32>(action->profile_buffer.size());
-    if (final_state == nullptr) {
-        result.status =
-            LegacyBattleActorListQueryStatus::actor_state_typed_stop;
-        result.return_eax = 0U;
-        result.return_ecx = actor_token + 0x2630U;
-        result.return_edx = 0U;
-        return result;
-    }
-
+        static_cast<u32>(final_state->profile_buffer.size());
     final_state->pre_effect_words.fill(0U);
     result.pre_effect_dwords_zeroed =
         static_cast<u32>(final_state->pre_effect_words.size());
@@ -1348,7 +1319,7 @@ LegacyBattleActorResourceSelectionResult select_legacy_battle_actor_resource(
     result.output_mode = 0U;
     const auto load_profile = [&](const u16 profile_id) {
         const auto profile_result = load_legacy_battle_mon_profile(
-            profile_bytes(action->profile_buffer),
+            profile_bytes(final_state->profile_buffer),
             mon_port,
             {
                 .path = "mon.dat",
@@ -1438,7 +1409,7 @@ LegacyBattleActorResourceSelectionResult select_legacy_battle_actor_resource(
         item_effect->derived_words[3U] = selected->derived_words_40[2U];
     }
 
-    result.output_runtime_word = action->copied_runtime_word();
+    result.output_runtime_word = action->copied_runtime_word;
     if (result.output_runtime_word == 0U) {
         port.report_missing_runtime_word(selected->resource_id);
         ++result.diagnostic_calls;

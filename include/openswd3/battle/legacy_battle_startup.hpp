@@ -138,7 +138,6 @@ struct LegacyBattleStartupCallReply {
 
 class LegacyBattleStartupPort
     : public virtual LegacyBattleMonDatabasePort,
-      public virtual LegacyBattleActorCoordinateBindingsStatePort,
       public virtual LegacyBattleActorMetricStatePort,
       public virtual LegacyBattleActorPublicationStatePort,
       public virtual LegacyBattleFixedObjectStatePort,
@@ -425,10 +424,7 @@ release_legacy_battle_display_surfaces(
     LegacyBattleActionRotationReleasePort& rotation_release_port,
     LegacyBattleActionRotationUpdatePort& action_update_port,
     LegacyBattleMutableFrameImagePort& frame_image_port,
-    const LegacyBattleStartupRequest& request,
-    std::array<
-        LegacyBattleGroupAActionExecutionState,
-        kLegacyBattleActorGroupAElementCount>& group_a_actors
+    const LegacyBattleStartupRequest& request
 );
 
 }  // namespace openswd3::battle

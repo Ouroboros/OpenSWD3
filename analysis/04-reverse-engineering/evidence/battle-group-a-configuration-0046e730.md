@@ -1,6 +1,6 @@
 # 战斗组A角色配置 `0x0046E730`
 
-历史状态：`platform_adapted`。工作包282正在回收运行期坐标写入；当前改动尚未完成发布门，本文历史通过结果不得替代新验证。
+状态：`platform_adapted`。完整LST、typed配置状态、两类callee、startup唯一caller、验证和inventory双生成均已收敛。
 
 ## 1. 完整权威范围与ABI
 
@@ -29,11 +29,6 @@ placement `+0x14`的u16同时写入角色`+0x2A0C`；值为零时，以窗口tok
 placement token、源记录token或角色基础记录token为零时，typed-stop分别放在原始首次placement读、源读或目标写位置。工作区零化和此前完成的placement复制保持不回滚。
 
 `0x0046E6A0`已直接组合，旧地址不再经过端口。`0x00431150`是尚无通用typed实现的公共诊断边界，仅保留窄诊断port，并完整传播其EDX到后续寄存器链。
-
-工作包282要求调用方另传既有`LegacyBattleGroupAActionExecutionState`引用。
-两次原始复制分别把源`+0x16/+0x18`写入该运行状态的主、备用坐标；`placement_primary/secondary`仅保存复制快照，
-查询及后续动作不把快照或源placement当作运行期坐标owner。startup显式借用外部同一组A运行状态数组，未新增持久坐标副本。
-新增测试检查两次复制、门值保持、诊断回调所见值、复制前后停止点，并在修改源与运行坐标后查询验证双方互不替代。
 
 ## 5. startup caller回收与验证状态
 

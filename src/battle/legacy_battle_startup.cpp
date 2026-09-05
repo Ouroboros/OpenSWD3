@@ -389,10 +389,7 @@ struct SupplementalAddResult {
 [[nodiscard]] SupplementalAddResult add_supplemental_actor(
     LegacyBattleStartupState& state,
     LegacyBattleStartupPort& port,
-    const u32 candidate_index,
-    std::array<
-        LegacyBattleGroupAActionExecutionState,
-        kLegacyBattleActorGroupAElementCount>& group_a_actors
+    const u32 candidate_index
 ) {
     if (candidate_index >= kLegacyBattleSupplementalRoleIds.size()) {
         return {
@@ -463,8 +460,7 @@ struct SupplementalAddResult {
         party_placement_token(actor_index),
         modifier_token,
         state.window_token,
-        materialization_port,
-        group_a_actors[actor_index]
+        materialization_port
     );
     if (materialization.status !=
         LegacyBattleGroupANpcMaterializationStatus::completed) {
@@ -524,10 +520,7 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
     LegacyBattleActionRotationReleasePort& rotation_release_port,
     LegacyBattleActionRotationUpdatePort& action_update_port,
     LegacyBattleMutableFrameImagePort& frame_image_port,
-    const LegacyBattleStartupRequest& request,
-    std::array<
-        LegacyBattleGroupAActionExecutionState,
-        kLegacyBattleActorGroupAElementCount>& group_a_actors
+    const LegacyBattleStartupRequest& request
 ) {
     LegacyBattleStartupResult result;
     state.window_token = request.window_token;
@@ -862,7 +855,6 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         ));
         party.actor_list = {};
         party.final_processing = {};
-        group_a_actors[index].profile_buffer.fill(0U);
         party.attribute_aggregation.embedded_profile_application.status_bits =
             0U;
         party.item_effect_application.derived_words[0U] = 0U;
@@ -900,8 +892,7 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
                 0x004ACF50U + source * 0x60U,
                 party_placement_token(index),
                 request.window_token,
-                configuration_diagnostic,
-                group_a_actors[index]
+                configuration_diagnostic
             );
         ++result.party_configuration_calls;
         if (result.party_configurations[index].status !=
@@ -1110,9 +1101,7 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
                 state.supplemental_used[candidate] == 1U) {
                 continue;
             }
-
-            const auto add =
-                add_supplemental_actor(state, port, candidate, group_a_actors);
+            const auto add = add_supplemental_actor(state, port, candidate);
             result.supplemental_materializations
                 [result.supplemental_materialization_calls++] =
                 add.materialization;
@@ -1135,9 +1124,7 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
                     .return_value == 0U) {
                 continue;
             }
-
-            const auto add =
-                add_supplemental_actor(state, port, candidate, group_a_actors);
+            const auto add = add_supplemental_actor(state, port, candidate);
             result.supplemental_materializations
                 [result.supplemental_materialization_calls++] =
                 add.materialization;
@@ -1152,24 +1139,10 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         }
     }
 
-    auto& coordinate_bindings = port.actor_coordinate_bindings();
-    for (u32 index = 0U; index < group_a_actors.size(); ++index) {
-        coordinate_bindings.group_a[index] =
-            view_legacy_battle_actor_coordinates(group_a_actors[index]);
-    }
-
-    if (state.group_b_lifecycle != nullptr) {
-        for (u32 index = 0U; index < state.group_b_lifecycle->size(); ++index) {
-            coordinate_bindings.group_b[index] =
-                view_legacy_battle_actor_coordinates(
-                    (*state.group_b_lifecycle)[index].action_execution
-                );
-        }
-    }
     const auto metrics = rebuild_legacy_battle_actor_metrics(
         port, state.enemy_count, state.party_count
     );
-    result.actor_metric_calls += metrics.coordinate_query_calls;
+    result.actor_metric_calls += metrics.port_calls;
     state.enemy_count = port.actor_metric_state().group_b_count;
     state.party_count = port.actor_metric_state().group_a_count;
     if (metrics.status != LegacyBattleActorMetricStatus::completed) {

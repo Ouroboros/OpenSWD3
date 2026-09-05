@@ -15,13 +15,6 @@ using openswd3::compat::u32;
 class SingleEffectPort final
     : public openswd3::battle::LegacyBattleEffectCallPort {
 public:
-    SingleEffectPort() {
-        actor_coordinate_bindings().group_a[0U] =
-            openswd3::battle::view_legacy_battle_actor_coordinates(actor);
-    }
-
-    openswd3::battle::LegacyBattleActorCoordinatesState actor{};
-
     [[nodiscard]] LegacyBattleEffectCallReply
     invoke(const LegacyBattleEffectCallRequest& request) override {
         calls.push_back(request);
@@ -182,12 +175,11 @@ void test_battle_single_effect_frame(openswd3::test::Context& test) {
             0x00431760U, resource_reply(0x1111U, 0x2222U, 200U, 30U, 0x3333U)
         );
         port.push(0x00478400U, pair_reply(9U, 0U));
-        port.actor.position_x = 100U;
-        port.actor.position_y = 200U;
+        port.push(0x004783B0U, pair_reply(100U, 200U));
         port.push(0x00485610U, {.ecx = 0xAAAA0000U, .edx = 0xBBBB0000U});
         const auto result =
             openswd3::battle::advance_legacy_battle_single_effect_frame(
-                state, port, 0x005029D0U, 0U, 0U
+                state, port, 0x1000U, 0U, 0U
             );
         test.expect_true(
             result.return_value == 0U && record.pan_value == 0U &&
@@ -200,8 +192,7 @@ void test_battle_single_effect_frame(openswd3::test::Context& test) {
                 has_argument(port, 0x004170E0U, 1U, 190U) &&
                 has_argument(port, 0x004170E0U, 4U, 3U) &&
                 has_argument(port, 0x004170E0U, 5U, 0x3333U) &&
-                result.coordinate_query_calls == 1U &&
-                port.count(0x004783B0U) == 0U && port.count(0x004885A0U) == 2U,
+                port.count(0x004885A0U) == 2U,
             "left edge preserves coordinate and play-ECX high words with data render"
         );
     }

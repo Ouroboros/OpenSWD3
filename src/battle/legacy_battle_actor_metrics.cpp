@@ -15,11 +15,13 @@ using compat::i16;
 using compat::i32;
 using compat::u16;
 using compat::u32;
+using compat::u8;
 
-constexpr u32 kGroupBBaseToken = kLegacyBattleActorCoordinatesGroupBBaseToken;
-constexpr u32 kGroupBStride = kLegacyBattleActorCoordinatesGroupBStride;
-constexpr u32 kGroupABaseToken = kLegacyBattleActorCoordinatesGroupABaseToken;
-constexpr u32 kGroupAStride = kLegacyBattleActorCoordinatesGroupAStride;
+constexpr u32 kCallQueryActorMetric = 0x004783B0U;
+constexpr u32 kGroupBBaseToken = 0x00525508U;
+constexpr u32 kGroupBStride = 0x00002B28U;
+constexpr u32 kGroupABaseToken = 0x005029D0U;
+constexpr u32 kGroupAStride = 0x00002F34U;
 
 struct Registers {
     u32 eax{};
@@ -29,12 +31,38 @@ struct Registers {
 
 struct InvocationReply {
     Registers registers{};
-    LegacyBattleActorCoordinateQueryResult coordinate_query{};
-    bool coordinate_typed_stop{};
+    bool publish_metric_byte{};
+    u8 metric_byte{};
+    bool publish_metric_word{};
+    u16 metric_word{};
+    bool publish_group_b_count{};
+    u32 group_b_count{};
+    bool publish_group_a_count{};
+    u32 group_a_count{};
 };
 
 [[nodiscard]] constexpr u32 sign_extended_word(const u16 value) noexcept {
     return std::bit_cast<u32>(static_cast<i32>(std::bit_cast<i16>(value)));
+}
+
+void apply_reply(
+    LegacyBattleActorMetricState& state,
+    Registers& registers,
+    const InvocationReply& reply
+) noexcept {
+    registers = reply.registers;
+    if (reply.publish_metric_byte) {
+        state.local_byte = reply.metric_byte;
+    }
+    if (reply.publish_metric_word) {
+        state.local_word = reply.metric_word;
+    }
+    if (reply.publish_group_b_count) {
+        state.group_b_count = reply.group_b_count;
+    }
+    if (reply.publish_group_a_count) {
+        state.group_a_count = reply.group_a_count;
+    }
 }
 
 template <typename Call>
@@ -44,7 +72,7 @@ rebuild_impl(LegacyBattleActorMetricState& state, Call&& call) {
     std::ranges::fill(state.values, 0);
     std::ranges::fill(state.actor_order, 0U);
     state.local_word = static_cast<u16>(state.entry_ecx);
-    state.local_byte = static_cast<u16>(state.entry_ecx >> 16U);
+    state.local_byte = static_cast<u8>(state.entry_ecx >> 16U);
 
     Registers registers{
         .eax = state.group_b_count,
@@ -56,39 +84,29 @@ rebuild_impl(LegacyBattleActorMetricState& state, Call&& call) {
         while (true) {
             registers.eax = state.local_word_token;
             registers.ecx = kGroupBBaseToken + index * kGroupBStride;
-            const auto reply = call(
-                registers.ecx,
-                state.local_byte_token,
-                state.local_word_token,
-                registers
+            ++result.port_calls;
+            apply_reply(
+                state,
+                registers,
+                call(
+                    registers.ecx,
+                    state.local_byte_token,
+                    state.local_word_token,
+                    registers
+                )
             );
-            registers = reply.registers;
-            result.coordinate_query = reply.coordinate_query;
-            ++result.coordinate_query_calls;
-            if (reply.coordinate_typed_stop) {
-                result.status =
-                    LegacyBattleActorMetricStatus::actor_coordinate_typed_stop;
-                result.return_value = registers.eax;
-                result.final_ecx = registers.ecx;
-                result.final_edx = registers.edx;
-                state.entry_eax = result.return_value;
-                state.entry_edx = result.final_edx;
-                return result;
-            }
-
             registers.edx = sign_extended_word(state.local_word);
             registers.eax = state.group_b_count;
             if (index >= state.values.size()) {
                 result.status =
                     LegacyBattleActorMetricStatus::value_store_typed_stop;
                 result.return_value = registers.eax;
-                result.final_ecx = registers.ecx;
+                result.final_ecx = state.entry_ecx;
                 result.final_edx = registers.edx;
                 state.entry_eax = result.return_value;
                 state.entry_edx = result.final_edx;
                 return result;
             }
-
             state.values[index] = std::bit_cast<i32>(registers.edx);
             ++index;
             ++result.group_b_iterations;
@@ -104,39 +122,29 @@ rebuild_impl(LegacyBattleActorMetricState& state, Call&& call) {
         while (true) {
             registers.edx = state.local_byte_token;
             registers.ecx = kGroupABaseToken + (index - 8U) * kGroupAStride;
-            const auto reply = call(
-                registers.ecx,
-                state.local_byte_token,
-                state.local_word_token,
-                registers
+            ++result.port_calls;
+            apply_reply(
+                state,
+                registers,
+                call(
+                    registers.ecx,
+                    state.local_byte_token,
+                    state.local_word_token,
+                    registers
+                )
             );
-            registers = reply.registers;
-            result.coordinate_query = reply.coordinate_query;
-            ++result.coordinate_query_calls;
-            if (reply.coordinate_typed_stop) {
-                result.status =
-                    LegacyBattleActorMetricStatus::actor_coordinate_typed_stop;
-                result.return_value = registers.eax;
-                result.final_ecx = registers.ecx;
-                result.final_edx = registers.edx;
-                state.entry_eax = result.return_value;
-                state.entry_edx = result.final_edx;
-                return result;
-            }
-
             registers.eax = sign_extended_word(state.local_word);
             registers.ecx = state.group_a_count;
             if (index >= state.values.size()) {
                 result.status =
                     LegacyBattleActorMetricStatus::value_store_typed_stop;
                 result.return_value = registers.eax;
-                result.final_ecx = registers.ecx;
+                result.final_ecx = state.entry_ecx;
                 result.final_edx = registers.edx;
                 state.entry_eax = result.return_value;
                 state.entry_edx = result.final_edx;
                 return result;
             }
-
             state.values[index] = std::bit_cast<i32>(registers.eax);
             ++index;
             ++result.group_a_iterations;
@@ -148,54 +156,19 @@ rebuild_impl(LegacyBattleActorMetricState& state, Call&& call) {
     }
 
     result.return_value = registers.eax;
-    // 0x0045B18A pops the dword overwritten by both WORD outputs.
-    result.final_ecx =
-        (static_cast<u32>(state.local_byte) << 16U) | state.local_word;
+    result.final_ecx = state.entry_ecx;
     result.final_edx = registers.edx;
     state.entry_eax = result.return_value;
     state.entry_edx = result.final_edx;
     return result;
 }
 
-[[nodiscard]] InvocationReply query_actor_metric(
-    LegacyBattleActorMetricState& state,
-    const LegacyBattleActorCoordinateBindings& bindings,
-    const u32 actor_token,
-    const u32 byte_token,
-    const u32 word_token,
-    const Registers registers
-) noexcept {
-    u16 first_output = state.local_byte;
-    u16 second_output = state.local_word;
-    const auto query = query_legacy_battle_actor_coordinates(
-        resolve_legacy_battle_actor_coordinates(bindings, actor_token),
-        &first_output,
-        &second_output,
-        {
-            .actor_token = actor_token,
-            .output_x_token = byte_token,
-            .output_y_token = word_token,
-            .entry_eax = registers.eax,
-            .entry_edx = registers.edx,
-        }
-    );
-    if (query.output_writes >= 1U) {
-        state.local_byte = first_output;
-    }
-    if (query.output_writes >= 2U) {
-        state.local_word = second_output;
-    }
-    return {
-        .registers =
-            {
-                .eax = query.return_eax,
-                .ecx = query.return_ecx,
-                .edx = query.return_edx,
-            },
-        .coordinate_query = query,
-        .coordinate_typed_stop =
-            query.status != LegacyBattleActorCoordinateQueryStatus::completed,
-    };
+[[nodiscard]] std::array<u32, 8>
+action_arguments(const u32 byte_token, const u32 word_token) noexcept {
+    std::array<u32, 8> result{};
+    result[0] = byte_token;
+    result[1] = word_token;
+    return result;
 }
 
 }  // namespace
@@ -208,15 +181,30 @@ LegacyBattleActorMetricResult rebuild_legacy_battle_actor_metrics(
     auto& state = port.actor_metric_state();
     state.group_b_count = group_b_count;
     state.group_a_count = group_a_count;
-    auto call = [&state, &bindings = port.actor_coordinate_bindings()](
+    auto call = [&port](
                     const u32 actor_token,
                     const u32 byte_token,
                     const u32 word_token,
                     const Registers registers
                 ) {
-        return query_actor_metric(
-            state, bindings, actor_token, byte_token, word_token, registers
-        );
+        const auto reply = port.invoke({
+            .callee_token = kCallQueryActorMetric,
+            .arguments = action_arguments(byte_token, word_token),
+            .eax = registers.eax,
+            .ecx = actor_token,
+            .edx = registers.edx,
+        });
+        return InvocationReply{
+            .registers = {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx},
+            .publish_metric_byte = reply.publish_metric_byte,
+            .metric_byte = reply.metric_byte,
+            .publish_metric_word = reply.publish_metric_word,
+            .metric_word = reply.metric_word,
+            .publish_group_b_count = reply.publish_group_b_count,
+            .group_b_count = reply.group_b_count,
+            .publish_group_a_count = reply.publish_group_a_count,
+            .group_a_count = reply.group_a_count,
+        };
     };
     return rebuild_impl(state, call);
 }
@@ -229,15 +217,33 @@ LegacyBattleActorMetricResult rebuild_legacy_battle_actor_metrics(
     auto& state = port.actor_metric_state();
     state.group_b_count = group_b_count;
     state.group_a_count = group_a_count;
-    auto call = [&state, &bindings = port.actor_coordinate_bindings()](
+    auto call = [&port](
                     const u32 actor_token,
                     const u32 byte_token,
                     const u32 word_token,
                     const Registers registers
                 ) {
-        return query_actor_metric(
-            state, bindings, actor_token, byte_token, word_token, registers
-        );
+        const auto reply = port.invoke({
+            .call = LegacyBattleStartupCall::query_actor_metric,
+            .arguments = {byte_token, word_token, 0U, 0U},
+            .eax = registers.eax,
+            .ecx = actor_token,
+            .edx = registers.edx,
+        });
+        return InvocationReply{
+            .registers =
+                {.eax = reply.return_value,
+                 .ecx = reply.ecx_snapshot,
+                 .edx = reply.edx_snapshot},
+            .publish_metric_byte = reply.publish_metric_byte,
+            .metric_byte = reply.metric_byte,
+            .publish_metric_word = reply.publish_metric_word,
+            .metric_word = reply.metric_word,
+            .publish_group_b_count = reply.publish_group_b_count,
+            .group_b_count = reply.group_b_count,
+            .publish_group_a_count = reply.publish_group_a_count,
+            .group_a_count = reply.group_a_count,
+        };
     };
     return rebuild_impl(state, call);
 }
@@ -245,15 +251,30 @@ LegacyBattleActorMetricResult rebuild_legacy_battle_actor_metrics(
 LegacyBattleActorMetricResult
 rebuild_legacy_battle_actor_metrics(LegacyBattleFrameCoordinatorPort& port) {
     auto& state = port.actor_metric_state();
-    auto call = [&state, &bindings = port.actor_coordinate_bindings()](
+    auto call = [&port](
                     const u32 actor_token,
                     const u32 byte_token,
                     const u32 word_token,
                     const Registers registers
                 ) {
-        return query_actor_metric(
-            state, bindings, actor_token, byte_token, word_token, registers
-        );
+        const auto reply = port.invoke({
+            .call = LegacyBattleFrameCoordinatorCall::query_actor_metric,
+            .arguments = {byte_token, word_token, 0U, 0U, 0U, 0U, 0U, 0U},
+            .eax = registers.eax,
+            .ecx = actor_token,
+            .edx = registers.edx,
+        });
+        return InvocationReply{
+            .registers = {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx},
+            .publish_metric_byte = reply.publish_metric_byte,
+            .metric_byte = reply.metric_byte,
+            .publish_metric_word = reply.publish_metric_word,
+            .metric_word = reply.metric_word,
+            .publish_group_b_count = reply.publish_group_b_count,
+            .group_b_count = reply.group_b_count,
+            .publish_group_a_count = reply.publish_group_a_count,
+            .group_a_count = reply.group_a_count,
+        };
     };
     return rebuild_impl(state, call);
 }
