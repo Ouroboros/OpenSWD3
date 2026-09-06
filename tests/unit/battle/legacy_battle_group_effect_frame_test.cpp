@@ -1,8 +1,10 @@
 #include "openswd3/battle/legacy_battle_group_effect_frame.hpp"
+#include "openswd3/battle/legacy_battle_startup.hpp"
 #include "test.hpp"
 
 #include <algorithm>
 #include <deque>
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
@@ -213,6 +215,10 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
     {
         LegacyBattleGroupEffectFrameState state;
         state.primary[0].base_offset = 10U;
+        auto startup =
+            std::make_unique<openswd3::battle::LegacyBattleStartupState>();
+        startup->party[0].position_x = 155U;
+        startup->party[0].position_y = 99U;
         GroupEffectPort port;
         port.push(0x004321E0U, {.eax = 1U});
         port.push(0x00431760U, resource_reply(0x1000U, 0U, 100U, 20U));
@@ -221,13 +227,22 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
         LegacyBattleEffectCallReply animation{.eax = 1U};
         animation.outputs[0] = 5U;
         port.push(0x00483840U, animation);
-        port.push(0x004783B0U, pair_reply(155U, 99U));
         const auto result =
             openswd3::battle::advance_legacy_battle_group_effect_frame(
-                state, port, 0U, 0x1000U, 1U, 0U, 0U, 0U
+                state,
+                port,
+                0U,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken,
+                1U,
+                0U,
+                0U,
+                0U,
+                {.startup = startup.get()}
             );
         test.expect_true(
-            result.return_value == 1U && state.primary[0].complete == 1U,
+            result.return_value == 1U && state.primary[0].complete == 1U &&
+                result.coordinate_query_calls == 1U &&
+                port.count(0x004783B0U) == 0U,
             "collision completion publishes the primary completion state"
         );
         test.expect_true(
@@ -504,6 +519,52 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
                 port.effect_shift_state().completion_latch == 1U &&
                 port.count(0x0045BD90U) == 0U,
             "first final gate zero returns before completion cleanup"
+        );
+    }
+
+    {
+        LegacyBattleGroupEffectFrameState state;
+        state.primary[0].base_offset = 10U;
+        state.coordinate_output_x_token = 0xAAAA1111U;
+        state.coordinate_output_y_token = 0xBBBB2222U;
+        auto startup =
+            std::make_unique<openswd3::battle::LegacyBattleStartupState>();
+        startup->party[0].coordinate_mode_gate_read_accessible = false;
+        GroupEffectPort port;
+        port.push(0x004321E0U, {.eax = 1U});
+        port.push(0x00431760U, resource_reply(0x1000U, 0U, 100U, 20U));
+        port.push(0x00478400U, pair_reply(2U, 3U));
+        port.push(0x00478470U, pair_reply(30U, 40U));
+        LegacyBattleEffectCallReply animation{.eax = 1U};
+        animation.outputs[0] = 5U;
+        port.push(0x00483840U, animation);
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_effect_frame(
+                state,
+                port,
+                0U,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken,
+                1U,
+                0U,
+                0U,
+                0U,
+                {.startup = startup.get()}
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleGroupEffectFrameStatus::
+                        actor_coordinate_typed_stop &&
+                result.coordinate_query_calls == 1U &&
+                result.coordinate_query.status ==
+                    openswd3::battle::LegacyBattleActorCoordinateQueryStatus::
+                        actor_gate_read_typed_stop &&
+                result.coordinate_query.return_eax == 0xAAAA1111U &&
+                result.coordinate_query.return_edx == 0xBBBB2222U &&
+                result.coordinate_query.flags.zero && state.shared_x == 150 &&
+                state.shared_y == 235 && result.primary_renders == 0U &&
+                port.count(0x004170E0U) == 0U &&
+                port.count(0x004885A0U) == 0U && port.count(0x004783B0U) == 0U,
+            "group coordinate gate stop preserves setup and animation-mode prefixes and suppresses render cleanup"
         );
     }
 }

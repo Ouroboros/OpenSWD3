@@ -29,6 +29,9 @@ struct LegacyBattleGroupEffectFrameState
     compat::u32 group_a_special_mode{};
     compat::u32 group_a_reward_mode{};
     compat::u32 reward_summary_gate{};
+
+    compat::u32 coordinate_output_x_token{};
+    compat::u32 coordinate_output_y_token{};
 };
 
 enum class LegacyBattleGroupEffectFrameStatus : compat::u8 {
@@ -36,6 +39,7 @@ enum class LegacyBattleGroupEffectFrameStatus : compat::u8 {
     slot_index_typed_stop,
     argument_object_typed_stop,
     resource_owner_typed_stop,
+    actor_coordinate_typed_stop,
     group_a_actor_typed_stop,
     group_b_actor_typed_stop,
     effect_shift_group_a_typed_stop,
@@ -54,6 +58,8 @@ struct LegacyBattleGroupEffectFrameResult {
     compat::u32 alternate_renders{};
     compat::u32 status_iterations{};
     compat::u32 reward_iterations{};
+    LegacyBattleActorCoordinateQueryResult coordinate_query{};
+    compat::u32 coordinate_query_calls{};
     LegacyBattleAnimationCollisionResult animation_collision{};
     compat::u32 animation_collision_calls{};
 };
@@ -70,7 +76,8 @@ advance_legacy_battle_group_effect_frame(
     compat::u32 argument_mode_gate,
     compat::u32 source_value,
     compat::u32 slot_index,
-    compat::u32 group_wide_mode
+    compat::u32 group_wide_mode,
+    const LegacyBattleActorCoordinateOwners& coordinate_owners = {}
 );
 
 }  // namespace openswd3::battle

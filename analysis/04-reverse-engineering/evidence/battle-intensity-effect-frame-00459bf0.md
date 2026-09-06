@@ -4,7 +4,7 @@
 
 ## 1. 完整LST范围
 
-权威函数为`0x00459BF0..0x00459D04`，从proc到endp完整130行、4个静态call站点、4个`loc_`标签，无外部FUNCTION CHUNK。4个唯一callee为角色坐标查询、效果record初始化、resource owner查询和resource绘制。
+权威函数为`0x00459BF0..0x00459D04`，从proc到endp完整130行、4个静态call站点、4个`loc_`标签，无外部FUNCTION CHUNK。4个唯一callee为角色坐标查询、效果record初始化、resource owner查询和resource绘制；其中角色坐标查询已直连，余下3类继续走效果端口。
 
 唯一caller是已关闭八槽效果记录帧协调器`0x004582B0`中的`0x00458D49`。该caller关闭时曾暂留单一opaque调用；本工作包将其删除，直接组合typed子状态。
 
@@ -24,11 +24,11 @@ source-zero和阈值返回都保留caller进入时的EDX；唯一caller在call�
 
 ## 3. 坐标与record初始化
 
-强度大于-32时先调用actor坐标查询。原始调用把arg-C地址作为第一个输出指针、arg-4地址作为第二个输出指针，因此第一输出是X，第二输出是Y。
+强度大于-32时在`0x00459C1E`直接组合已关闭的`0x004783B0`。原始调用把arg-C地址作为第一个输出指针、arg-4地址作为第二个输出指针，因此第一输出X覆盖slot参数低word，第二输出Y覆盖source参数低word；两项参数原高word不变。入口EAX为arg-4/Y输出token，EDX保留caller装入的secondary完整dword，flags保留signed 8-bit `cmp intensity,0xE0`的大于路径。actor gate typed-stop原样返回这些入口残值；第二坐标读取typed-stop保留arg-C的第一项16-bit写入，并在任何opaque callee、record写、强度发布或递减之前停止。
 
 坐标callee返回后才写当前槽152字节record：
 
-- `+0x00`写原始source；
+- `+0x00`写Y低字已覆盖后的arg-4完整dword，而不是未修改的入口source；
 - `+0x08`写secondary value；
 - `+0x90`先清0，global mode完整值等于1时再写1。
 
@@ -73,7 +73,7 @@ resource绘制参数固定为：
 - 子最终EDX替代父函数后续final-gate陈旧EDX；
 - 子返回1才清主status并清pending step；
 - 子返回0保留pending；
-- slot或owner typed-stop立即映射到父对应typed-stop，不执行final gate；
+- slot、坐标或owner typed-stop立即映射到父对应typed-stop，不执行final gate；
 - 端口中不再出现`0x00459BF0`函数token。
 
 caller回归以source为0、secondary含非零高word，证明子函数零调用返回1且final gate继续消费secondary高word。
@@ -85,7 +85,8 @@ caller回归以source为0、secondary含非零高word，证明子函数零调用
 - source-zero先于非法slot并保留secondary EDX；
 - source非零时slot首次访问typed-stop；
 - i8阈值-32清byte且不写record；
-- 坐标先于record初始化；
+- 坐标先于record初始化、arg-C/arg-4低字别名与高字保留；
+- gate typed-stop保留signed强度CMP flags和caller EDX，Y读取typed-stop保留第一项16-bit写入并抑制全部opaque callee；
 - 初始化失败完整EAX/EDX；
 - 双lookup参数分别保留初始化EAX/EDX高word；
 - owner首次解引用typed-stop；
@@ -93,4 +94,4 @@ caller回归以source为0、secondary含非零高word，证明子函数零调用
 - 三项signed强度发布、u8减4、render EDX返回和零resource释放；
 - 唯一caller直连及final gate陈旧高word。
 
-当前缺少原版八槽强度record、强度byte数组、4类callee共享副作用、resource owner、framebuffer和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版八槽强度record、强度byte数组、3类剩余callee共享副作用、resource owner、framebuffer和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

@@ -1435,7 +1435,8 @@ action_decision_done:
             effect_port,
             source_token,
             state.pending_effect_argument,
-            group_b_index
+            group_b_index,
+            {.action = &action, .startup = context.startup}
         );
         result.port_calls += effect.port_calls;
         if (effect.status != LegacyBattleSingleEffectFrameStatus::completed) {

@@ -18,7 +18,6 @@ constexpr u32 kCallPlaySample = 0x00485610U;
 constexpr u32 kCallQueryOffsets = 0x00478400U;
 constexpr u32 kCallQueryBaseCoordinates = 0x00478470U;
 constexpr u32 kCallQueryAnimationMode = 0x00483840U;
-constexpr u32 kCallQueryCoordinates = 0x004783B0U;
 constexpr u32 kCallRenderResource = 0x004170E0U;
 constexpr u32 kCallReleaseResource = 0x004885A0U;
 constexpr u32 kCallPublishStatusMode = 0x00482080U;
@@ -78,6 +77,28 @@ void replace_high_word(u32& destination, const u16 value) noexcept {
         (destination & 0x0000FFFFU) | (static_cast<u32>(value) << 16U);
 }
 
+[[nodiscard]] constexpr bool has_even_parity(u32 value) noexcept {
+    value &= 0xFFU;
+    value ^= value >> 4U;
+    value ^= value >> 2U;
+    value ^= value >> 1U;
+    return (value & 1U) == 0U;
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+subtract_flags(const u32 left, const u32 right) noexcept {
+    const u32 difference = left - right;
+    return {
+        .carry = left < right,
+        .parity = has_even_parity(difference),
+        .auxiliary_carry = ((left ^ right ^ difference) & 0x10U) != 0U,
+        .auxiliary_carry_defined = true,
+        .zero = difference == 0U,
+        .sign = (difference & 0x80000000U) != 0U,
+        .overflow = ((left ^ right) & (left ^ difference) & 0x80000000U) != 0U,
+    };
+}
+
 [[nodiscard]] constexpr u32 primary_token(const u32 slot) noexcept {
     return kLegacyBattleEffectPrimaryBaseToken +
         slot * kLegacyBattleEffectRecordStride;
@@ -119,7 +140,8 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
     const u32 argument_mode_gate,
     const u32 source_value,
     const u32 slot_index,
-    const u32 group_wide_mode
+    const u32 group_wide_mode,
+    const LegacyBattleActorCoordinateOwners& coordinate_owners
 ) {
     LegacyBattleGroupEffectFrameResult result{};
     if (slot_index >= state.primary.size()) {
@@ -314,9 +336,42 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
             kCallQueryAnimationMode, {argument_object_token, 0x0053BDF8U}
         );
         if (animation.eax == 1U) {
-            const auto coordinates =
-                invoke(kCallQueryCoordinates, {argument_object_token});
-            u32 collision_x = coordinates.outputs[0] - base_offset;
+            u32 coordinate_x = 0U;
+            u32 coordinate_y = 0U;
+            u16 coordinate_x_word = low_word(coordinate_x);
+            u16 coordinate_y_word = low_word(coordinate_y);
+            result.coordinate_query = query_legacy_battle_actor_coordinates(
+                resolve_legacy_battle_actor_coordinates(
+                    coordinate_owners, argument_object_token
+                ),
+                &coordinate_x_word,
+                &coordinate_y_word,
+                {
+                    .actor_token = argument_object_token,
+                    .output_x_token = state.coordinate_output_x_token,
+                    .output_y_token = state.coordinate_output_y_token,
+                    .entry_eax = state.coordinate_output_x_token,
+                    .entry_edx = state.coordinate_output_y_token,
+                    .entry_flags = subtract_flags(animation.eax, 1U),
+                }
+            );
+            ++result.coordinate_query_calls;
+            registers.eax = result.coordinate_query.return_eax;
+            registers.ecx = result.coordinate_query.return_ecx;
+            registers.edx = result.coordinate_query.return_edx;
+            if (result.coordinate_query.output_writes >= 1U) {
+                replace_low_word(coordinate_x, coordinate_x_word);
+            }
+            if (result.coordinate_query.output_writes >= 2U) {
+                replace_low_word(coordinate_y, coordinate_y_word);
+            }
+            if (result.coordinate_query.status !=
+                LegacyBattleActorCoordinateQueryStatus::completed) {
+                result.status = LegacyBattleGroupEffectFrameStatus::
+                    actor_coordinate_typed_stop;
+                return result;
+            }
+            u32 collision_x = coordinate_x - base_offset;
             u32 current_x = x;
             if (low_word(x) == 0U) {
                 current_x = 0U - base_offset;

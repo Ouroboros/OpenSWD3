@@ -25,7 +25,7 @@ slot越界只在首次主记录complete读取处typed-stop。参数对象和reso
 
 mode完整EAX等于1时：
 
-1. 分别查询actor与argument对象两组坐标；
+1. `0x00458320`与`0x00458333`按原顺序直接组合已关闭的`0x004783B0`：第一处从startup-owned actor读取坐标，第二处从argument对象读取坐标；第二处入口EAX和flags严格继承第一处返回残值，EDX改为第二组X输出token；任一typed-stop只保留已执行前缀并抑制collision与全部效果后缀；
 2. animation counter按signed小于1000时，直接组合已关闭的动画沿线横向命中函数；其返回1时播放固定sample、只OR status低byte的bit0，并把counter写1000；八槽沿线计数与群体效果共用唯一状态，第九槽在子函数首次计数访问处typed-stop并阻断后续sample与surface；
 3. 绑定effect surface；counter原值为0时发布初始位置与固定particle；
 4. counter低32位加1；signed达到1000时把共享X写`actor_x-20`、共享Y写actor_y；
@@ -36,7 +36,7 @@ mode完整EAX等于1时：
 
 mode不等于1时：
 
-- 查询actor坐标并绑定surface；
+- `0x00458498`直接组合startup-owned actor坐标；入口EAX保留animation-mode返回，EDX为X输出token，flags保留`cmp eax,1`非等路径；typed-stop发生时不绑定surface；
 - counter按signed执行`idiv 9`；余数为0且counter不大于30时发布位置，counter为0时播放固定sample，再按原顺序调用`random(100)+50`与`random(80)+60`构造particle；
 - counter加1后固定发布位置、present与advance；
 - signed达到100时counter清零、status OR 1、complete写1。
@@ -68,7 +68,7 @@ mode不等于1时：
 先查询argument offsets；任一低word非0才查询base coordinates并以完整dword相加。
 
 - width value低word或record Y adjustment任一非0：只有坐标任一低word非0时，X做完整dword减width value，Y只减低word；
-- 两者都为0：清两项offset local，重新查询actor坐标，X做完整dword减base offset，Y只减record base-Y低word。
+- 两者都为0：清两项offset local，在`0x00458730`直接组合startup-owned actor坐标，X/Y只覆盖各自现有dword低word；入口EAX为Y输出token，EDX保留offset callee残值或已执行相加路径的辅助Y，flags来自清零EAX的XOR。成功后X做完整dword减base offset，Y只减record base-Y低word；坐标typed-stop阻止sample、finalize、render、release与公共尾。
 
 sample参数先保留上述路径形成的ECX高word，再用record pan覆盖CX。play sample之后：
 
@@ -81,7 +81,7 @@ sample参数先保留上述路径形成的ECX高word，再用record pan覆盖CX�
 
 ## 5. 二次collision与resource释放
 
-再次查询animation mode。完整EAX等于1时查询argument坐标，X完整减base offset、Y只减base-Y低word；若当前X低word为0，则collision X与本地X都写完整`0-base_offset`。随后第二处直接组合动画沿线横向命中；子返回1时status OR 1并把complete写1，子typed-stop阻断本次完成写入、resource render与后续帧。
+再次查询animation mode。完整EAX等于1时在`0x0045880F`直接组合argument对象坐标；入口EAX保留mode返回，EDX为辅助X输出token，flags来自`cmp eax,1`等值路径。两次16-bit写入按X后Y提交，第二项读取失败保留第一项写入；坐标typed-stop保留已发布的共享finalize坐标并阻断collision、resource render、release与公共尾。成功时X完整减base offset、Y只减base-Y低word；若当前X低word为0，则collision X与本地X都写完整`0-base_offset`。随后第二处直接组合动画沿线横向命中；子返回1时status OR 1并把complete写1，子typed-stop阻断本次完成写入、resource render与后续帧。
 
 resource render严格传共享X/Y、u16宽高、本地render flags与resource data。resource value非0才释放value；owner在成功读取后总是释放。释放顺序固定value后owner。
 
@@ -152,7 +152,7 @@ final gate word按i16大于0时：
 
 ## 10. callee、测试与动态差分
 
-原32个唯一直接callee中的`0x0045BD90`、`0x0045D3E0`与`0x0045D810`已关闭并直连；其余29个资源、动画、角色、奖励、音频或owner边界继续使用专用typed token端口。全角色步进内部两个尚未关闭actor callee也复用同一端口。第八十二项进一步把本函数与群体效果函数的主记录、备用记录、活动槽、公共渲染字段和奖励数组收敛为同一18槽虚共享状态。相邻双对象数值转场关闭后，辅助奖励word进一步与效果协调器次反馈及该转场收敛为唯一共享port；动画横向命中的八槽u16计数与共享XY也由两类效果帧共用，旧记录状态副本已删除。
+原32个唯一直接callee中的`0x0045BD90`、`0x0045D3E0`、`0x0045D810`与五处物理站点共用的`0x004783B0`已关闭并直连；其余28个资源、动画、角色、奖励、音频或owner边界继续使用专用typed token端口。五处坐标调用复用effect coordinator持有的startup actor owner，不建立平行角色数组。全角色步进内部两个尚未关闭actor callee也复用同一端口。第八十二项进一步把本函数与群体效果函数的主记录、备用记录、活动槽、公共渲染字段和奖励数组收敛为同一18槽虚共享状态。相邻双对象数值转场关闭后，辅助奖励word进一步与效果协调器次反馈及该转场收敛为唯一共享port；动画横向命中的八槽u16计数与共享XY也由两类效果帧共用，旧记录状态副本已删除。
 
 定向测试覆盖：
 
@@ -160,14 +160,15 @@ final gate word按i16大于0时：
 - 主记录初始化失败清备用记录并直接返回1；
 - 主resource owner零token；
 - 参数对象在resource字段发布后的真实访问停点；
-- 主记录镜像、sample EAX/ECX高word、render flags与双release；
-- mode-one横向命中五步直连、同调用穿透奖励尾、共享计数清零及第九槽父级typed-stop；
-- alternate动画的cadence、双随机与sample；
+- 主记录镜像、第四处坐标低字写入、sample EAX/ECX高word、render flags与双release；
+- mode-one两次坐标直连、第二次入口寄存器与flags继承、首/次调用gate typed-stop、横向命中五步直连、同调用穿透奖励尾、共享计数清零及第九槽父级typed-stop；
+- alternate动画单次坐标直连、非等CMP flags、cadence、双随机与sample；
 - 备用owner在play/set-pan之后停点；
 - 备用完成的owner高word、AL翻转、双release和槽地址陈旧EDX；
 - signed status、三mode、七项i16颜色初始化、共享门、蓝转换EDX与actor清word；
 - reward 9999夹值、负auxiliary、packed highword与三行顺序；
+- finalize后第五处坐标Y读取停止保留首个16-bit写入，并抑制collision、render、release与公共尾；
 - pending callee EDX进入已关闭全角色步进；
 - 子返回0早退、角色越界typed-stop与共享状态直连。
 
-当前缺少原版双记录内存、29类剩余直接callee与效果步进内部两类actor callee共享副作用、resource owner、参数对象字段、随机状态、sample manager、奖励输出和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版双记录内存、28类剩余直接callee与效果步进内部两类actor callee共享副作用、resource owner、参数对象字段、随机状态、sample manager、奖励输出和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

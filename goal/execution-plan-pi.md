@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v867
+版本：v868
 
 最后更新：2026-09-04
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 审计战斗函数 `0x00478380`
+当前步骤：模块10 · 工作包282 REVIEW 3战斗效果坐标
 
 ## 0. 执行约定
 
@@ -286,7 +286,7 @@ B7以后已经完成的详细执行记录已机械搬到[`execution-progress-his
 
 当前工作包：`audit_order=282`、`0x004783B0`。目标是实现状态选择坐标查询，并回收17个已关闭caller中的28个作用域内callsite；其余7个待审计caller不属于本工作包。
 
-当前断点：REVIEW 1已完成、提交并推送；REVIEW 2进行中，当前只回收`0x00469D20`内六处坐标调用，inventory继续保持`pending_audit`。
+当前断点：REVIEW 1与REVIEW 2已完成、提交并推送；REVIEW 3进行中，当前只回收四个战斗效果caller内八处坐标调用，inventory继续保持`pending_audit`。
 
 #### REVIEW 1：坐标查询与角色指标
 

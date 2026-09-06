@@ -17,12 +17,15 @@ struct LegacyBattleSingleEffectFrameState {
     compat::u32 current_resource_value_token{};
     compat::u32 released_owner_value_clears{};
     compat::u32 battle_gate{};
+    compat::u32 coordinate_output_x_token{};
+    compat::u32 coordinate_output_y_token{};
 };
 
 enum class LegacyBattleSingleEffectFrameStatus : compat::u8 {
     completed,
     slot_index_typed_stop,
     resource_owner_typed_stop,
+    actor_coordinate_typed_stop,
 };
 
 struct LegacyBattleSingleEffectFrameResult {
@@ -30,6 +33,8 @@ struct LegacyBattleSingleEffectFrameResult {
         LegacyBattleSingleEffectFrameStatus::completed
     };
     compat::u32 return_value{};
+    LegacyBattleActorCoordinateQueryResult coordinate_query{};
+    compat::u32 coordinate_query_calls{};
     compat::u32 port_calls{};
 };
 
@@ -42,7 +47,8 @@ advance_legacy_battle_single_effect_frame(
     LegacyBattleEffectCallPort& port,
     compat::u32 actor_token,
     compat::u32 source_value,
-    compat::u32 slot_index
+    compat::u32 slot_index,
+    const LegacyBattleActorCoordinateOwners& coordinate_owners = {}
 );
 
 }  // namespace openswd3::battle

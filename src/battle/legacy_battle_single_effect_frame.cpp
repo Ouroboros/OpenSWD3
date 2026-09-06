@@ -14,7 +14,6 @@ using compat::u32;
 constexpr u32 kCallInitializeRecord = 0x004321E0U;
 constexpr u32 kCallLookupResource = 0x00431760U;
 constexpr u32 kCallQueryOffsets = 0x00478400U;
-constexpr u32 kCallQueryCoordinates = 0x004783B0U;
 constexpr u32 kCallQueryBaseCoordinates = 0x00478470U;
 constexpr u32 kCallPlaySample = 0x00485610U;
 constexpr u32 kCallSetSamplePan = 0x00485650U;
@@ -41,6 +40,18 @@ void replace_low_word(u32& destination, const u16 value) noexcept {
     destination = (destination & 0xFFFF0000U) | value;
 }
 
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags zero_flags() noexcept {
+    return {
+        .carry = false,
+        .parity = true,
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = true,
+        .zero = true,
+        .sign = false,
+        .overflow = false,
+    };
+}
+
 [[nodiscard]] constexpr u32 primary_token(const u32 slot) noexcept {
     return kLegacyBattleEffectPrimaryBaseToken +
         slot * kLegacyBattleEffectRecordStride;
@@ -53,7 +64,8 @@ LegacyBattleSingleEffectFrameResult advance_legacy_battle_single_effect_frame(
     LegacyBattleEffectCallPort& port,
     const u32 actor_token,
     const u32 source_value,
-    const u32 slot_index
+    const u32 slot_index,
+    const LegacyBattleActorCoordinateOwners& coordinate_owners
 ) {
     LegacyBattleSingleEffectFrameResult result{};
     if (slot_index >= state.primary.size()) {
@@ -122,10 +134,36 @@ LegacyBattleSingleEffectFrameResult advance_legacy_battle_single_effect_frame(
             x += base.outputs[0];
             y += base.outputs[1];
         } else {
-            const auto coordinates =
-                invoke(kCallQueryCoordinates, {actor_token});
-            x = coordinates.outputs[0];
-            y = coordinates.outputs[1];
+            u16 output_x = low_word(x);
+            u16 output_y = low_word(y);
+            result.coordinate_query = query_legacy_battle_actor_coordinates(
+                resolve_legacy_battle_actor_coordinates(
+                    coordinate_owners, actor_token
+                ),
+                &output_x,
+                &output_y,
+                {
+                    .actor_token = actor_token,
+                    .output_x_token = state.coordinate_output_x_token,
+                    .output_y_token = state.coordinate_output_y_token,
+                    .entry_eax = state.coordinate_output_y_token,
+                    .entry_edx = offsets.edx,
+                    .entry_flags = zero_flags(),
+                }
+            );
+            ++result.coordinate_query_calls;
+            if (result.coordinate_query.output_writes >= 1U) {
+                replace_low_word(x, output_x);
+            }
+            if (result.coordinate_query.output_writes >= 2U) {
+                replace_low_word(y, output_y);
+            }
+            if (result.coordinate_query.status !=
+                LegacyBattleActorCoordinateQueryStatus::completed) {
+                result.status = LegacyBattleSingleEffectFrameStatus::
+                    actor_coordinate_typed_stop;
+                return result;
+            }
         }
         replace_low_word(
             y, static_cast<u16>(low_word(y) - primary.base_y_offset)

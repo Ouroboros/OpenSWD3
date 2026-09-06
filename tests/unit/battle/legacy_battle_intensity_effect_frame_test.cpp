@@ -1,8 +1,10 @@
 #include "openswd3/battle/legacy_battle_effect_frame.hpp"
+#include "openswd3/battle/legacy_battle_startup.hpp"
 #include "test.hpp"
 
 #include <algorithm>
 #include <deque>
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
@@ -43,14 +45,6 @@ public:
     std::unordered_map<u32, std::deque<LegacyBattleEffectCallReply>> replies;
     std::vector<LegacyBattleEffectCallRequest> calls;
 };
-
-[[nodiscard]] LegacyBattleEffectCallReply
-coordinate_reply(const u32 x, const u32 y) {
-    LegacyBattleEffectCallReply reply{};
-    reply.outputs[0] = x;
-    reply.outputs[1] = y;
-    return reply;
-}
 
 [[nodiscard]] LegacyBattleEffectCallReply resource_reply(
     const u32 owner,
@@ -141,20 +135,36 @@ void test_battle_intensity_effect_frame(openswd3::test::Context& test) {
         LegacyBattleEffectFrameState state;
         state.global_mode = 1U;
         state.intensity_values[1] = -31;
+        state.intensity_coordinate_output_x_token = 0xAAAA1111U;
+        state.intensity_coordinate_output_y_token = 0xBBBB2222U;
+        auto startup =
+            std::make_unique<openswd3::battle::LegacyBattleStartupState>();
+        startup->party[0].position_x = 0x1111U;
+        startup->party[0].position_y = 0x2222U;
         IntensityEffectPort port;
-        port.push(0x004783B0U, coordinate_reply(0x1111U, 0x2222U));
         port.push(0x004321E0U, {.eax = 0U, .edx = 0xAABBCCDDU});
         const auto result =
             openswd3::battle::advance_legacy_battle_intensity_effect_frame(
-                state, port, 0x1000U, 0x66U, 0x77U, 1U
+                state,
+                port,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken,
+                0x66U,
+                0x77U,
+                1U,
+                {.startup = startup.get()}
             );
         test.expect_true(
             result.return_value == 0U && result.final_edx == 0xAABBCCDDU &&
-                state.intensity_records[1].source_value == 0x66U &&
+                state.intensity_records[1].source_value == 0x2222U &&
                 state.intensity_records[1].secondary_value == 0x77U &&
                 state.intensity_records[1].mode_snapshot == 1U &&
+                result.coordinate_query_calls == 1U &&
+                result.coordinate_query.return_eax == 0xAAAA1111U &&
+                result.coordinate_query.return_ecx == 0x00502222U &&
+                result.coordinate_query.return_edx == 0xBBBB2222U &&
+                result.coordinate_query.flags.zero &&
                 has_argument(port, 0x004321E0U, 0U, 0x00524A18U) &&
-                port.count(0x004315D0U) == 0U,
+                port.count(0x004783B0U) == 0U && port.count(0x004315D0U) == 0U,
             "coordinate query precedes record initialization and zero EAX returns intact"
         );
     }
@@ -164,13 +174,20 @@ void test_battle_intensity_effect_frame(openswd3::test::Context& test) {
         state.intensity_values[0] = -31;
         state.intensity_records[0].lookup_key_a = 0x3344U;
         state.intensity_records[0].lookup_key_b = 0x5566U;
+        auto startup =
+            std::make_unique<openswd3::battle::LegacyBattleStartupState>();
         IntensityEffectPort port;
-        port.push(0x004783B0U, coordinate_reply(0U, 0U));
         port.push(0x004321E0U, {.eax = 0x12340001U, .edx = 0xABCD0002U});
         port.push(0x004315D0U, {.eax = 0U, .edx = 0xDEADBEEFU});
         const auto result =
             openswd3::battle::advance_legacy_battle_intensity_effect_frame(
-                state, port, 0U, 1U, 2U, 0U
+                state,
+                port,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken,
+                1U,
+                2U,
+                0U,
+                {.startup = startup.get()}
             );
         test.expect_true(
             result.status ==
@@ -194,8 +211,12 @@ void test_battle_intensity_effect_frame(openswd3::test::Context& test) {
         record.lookup_key_a = 0x1122U;
         record.lookup_key_b = 0x3344U;
         state.intensity_values[0] = -31;
+        auto startup =
+            std::make_unique<openswd3::battle::LegacyBattleStartupState>();
+        startup->party[0].coordinate_mode_gate = 1U;
+        startup->party[0].alternate_position_x = 0xFFF0U;
+        startup->party[0].alternate_position_y = 0x0008U;
         IntensityEffectPort port;
-        port.push(0x004783B0U, coordinate_reply(0x1234FFF0U, 0x56780008U));
         port.push(0x004321E0U, {.eax = 0xAAAA0001U, .edx = 0xBBBB0002U});
         port.push(
             0x004315D0U,
@@ -204,11 +225,18 @@ void test_battle_intensity_effect_frame(openswd3::test::Context& test) {
         port.push(0x004170E0U, {.edx = 0xCAFEBABEU});
         const auto result =
             openswd3::battle::advance_legacy_battle_intensity_effect_frame(
-                state, port, 0x4000U, 0x5000U, 0x6000U, 0U
+                state,
+                port,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken,
+                0x56785000U,
+                0x6000U,
+                0U,
+                {.startup = startup.get()}
             );
         test.expect_true(
             result.return_value == 0U && result.final_edx == 0xCAFEBABEU &&
                 state.current_resource_value_token == 0x2000U &&
+                state.intensity_records[0].source_value == 0x56780008U &&
                 state.render_intensity_a == -31 &&
                 state.render_intensity_b == -31 &&
                 state.render_intensity_c == -31 &&
@@ -221,8 +249,94 @@ void test_battle_intensity_effect_frame(openswd3::test::Context& test) {
                 has_argument(port, 0x004170E0U, 3U, 0x30U) &&
                 has_argument(port, 0x004170E0U, 4U, 0x55U) &&
                 has_argument(port, 0x004170E0U, 5U, 0x3000U) &&
-                port.calls.size() == 4U,
+                result.coordinate_query_calls == 1U &&
+                result.coordinate_query.alternate_coordinates &&
+                port.count(0x004783B0U) == 0U && port.calls.size() == 3U,
             "render uses signed coordinate lows, full offsets, low dimensions and no release"
+        );
+    }
+
+    {
+        LegacyBattleEffectFrameState state;
+        state.intensity_values[0] = -31;
+        state.intensity_coordinate_output_x_token = 0xAAAA1111U;
+        state.intensity_coordinate_output_y_token = 0xBBBB2222U;
+        auto startup =
+            std::make_unique<openswd3::battle::LegacyBattleStartupState>();
+        startup->party[0].coordinate_mode_gate_read_accessible = false;
+        IntensityEffectPort port;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_intensity_effect_frame(
+                state,
+                port,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken,
+                0xCCCC0066U,
+                0xDDDD7777U,
+                0U,
+                {.startup = startup.get()}
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleIntensityEffectFrameStatus::
+                        actor_coordinate_typed_stop &&
+                result.coordinate_query_calls == 1U &&
+                result.coordinate_query.status ==
+                    openswd3::battle::LegacyBattleActorCoordinateQueryStatus::
+                        actor_gate_read_typed_stop &&
+                result.coordinate_query.return_eax == 0xBBBB2222U &&
+                result.coordinate_query.return_ecx ==
+                    openswd3::battle::
+                        kLegacyBattleActorCoordinatesGroupABaseToken &&
+                result.coordinate_query.return_edx == 0xDDDD7777U &&
+                !result.coordinate_query.flags.zero &&
+                !result.coordinate_query.flags.parity &&
+                result.final_edx == 0xDDDD7777U &&
+                state.intensity_values[0] == -31 &&
+                state.intensity_records[0].source_value == 0U &&
+                port.calls.empty(),
+            "intensity coordinate gate stop preserves the signed-threshold flags and caller EDX before every opaque callee"
+        );
+    }
+
+    {
+        LegacyBattleEffectFrameState state;
+        state.intensity_values[0] = -31;
+        state.intensity_coordinate_output_x_token = 0xAAAA1111U;
+        state.intensity_coordinate_output_y_token = 0xBBBB2222U;
+        auto startup =
+            std::make_unique<openswd3::battle::LegacyBattleStartupState>();
+        startup->party[0].position_x = 0x1234U;
+        startup->party[0].position_y_read_accessible = false;
+        IntensityEffectPort port;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_intensity_effect_frame(
+                state,
+                port,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken,
+                0xCCCC0066U,
+                0xDDDD7777U,
+                0U,
+                {.startup = startup.get()}
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleIntensityEffectFrameStatus::
+                        actor_coordinate_typed_stop &&
+                result.coordinate_query.status ==
+                    openswd3::battle::LegacyBattleActorCoordinateQueryStatus::
+                        primary_y_read_typed_stop &&
+                result.coordinate_query.output_writes == 1U &&
+                result.coordinate_query.output_x == 0x1234U &&
+                result.coordinate_query.return_eax == 0xAAAA1111U &&
+                result.coordinate_query.return_ecx ==
+                    openswd3::battle::
+                        kLegacyBattleActorCoordinatesGroupABaseToken &&
+                result.coordinate_query.return_edx == 0xBBBB2222U &&
+                result.final_edx == 0xBBBB2222U &&
+                state.intensity_values[0] == -31 &&
+                state.intensity_records[0].source_value == 0U &&
+                port.calls.empty(),
+            "intensity coordinate Y stop preserves one aliased low-word write and suppresses initialization lookup render and decrement"
         );
     }
 }

@@ -150,7 +150,8 @@ public:
             argument_object_token,
             argument_mode_gate,
             source_value,
-            slot
+            slot,
+            {.startup = &startup_}
         );
         result.port_calls += child.port_calls;
         if (child.status != LegacyBattleEffectFrameStatus::completed) {
@@ -180,7 +181,8 @@ public:
             argument_mode_gate,
             source_value,
             slot,
-            group_wide_mode
+            group_wide_mode,
+            {.startup = &startup_}
         );
         result.port_calls += child.port_calls;
         if (child.status != LegacyBattleGroupEffectFrameStatus::completed) {

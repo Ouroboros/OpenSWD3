@@ -13,7 +13,6 @@ using compat::u16;
 using compat::u32;
 using compat::u8;
 
-constexpr u32 kCallQueryCoordinates = 0x004783B0U;
 constexpr u32 kCallInitializeRecord = 0x004321E0U;
 constexpr u32 kCallLookupResource = 0x004315D0U;
 constexpr u32 kCallRenderResource = 0x004170E0U;
@@ -31,6 +30,29 @@ void replace_low_word(u32& destination, const u16 value) noexcept {
     destination = (destination & 0xFFFF0000U) | value;
 }
 
+[[nodiscard]] constexpr bool has_even_parity(u8 value) noexcept {
+    value ^= static_cast<u8>(value >> 4U);
+    value ^= static_cast<u8>(value >> 2U);
+    value ^= static_cast<u8>(value >> 1U);
+    return (value & 1U) == 0U;
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+intensity_flags(const i8 intensity) noexcept {
+    const u8 left = std::bit_cast<u8>(intensity);
+    constexpr u8 right = 0xE0U;
+    const u8 difference = static_cast<u8>(left - right);
+    return {
+        .carry = left < right,
+        .parity = has_even_parity(difference),
+        .auxiliary_carry = ((left ^ right ^ difference) & 0x10U) != 0U,
+        .auxiliary_carry_defined = true,
+        .zero = difference == 0U,
+        .sign = (difference & 0x80U) != 0U,
+        .overflow = ((left ^ right) & (left ^ difference) & 0x80U) != 0U,
+    };
+}
+
 [[nodiscard]] constexpr u32 record_token(const u32 slot) noexcept {
     return kRecordBaseToken + slot * kLegacyBattleEffectRecordStride;
 }
@@ -44,7 +66,8 @@ advance_legacy_battle_intensity_effect_frame(
     const u32 actor_token,
     const u32 source_value,
     const u32 secondary_value,
-    const u32 slot_index
+    const u32 slot_index,
+    const LegacyBattleActorCoordinateOwners& coordinate_owners
 ) {
     LegacyBattleIntensityEffectFrameResult result{};
     result.final_edx = secondary_value;
@@ -75,12 +98,40 @@ advance_legacy_battle_intensity_effect_frame(
         return port.invoke(request);
     };
 
-    const auto coordinates = invoke(kCallQueryCoordinates, {actor_token});
-    u32 x = coordinates.outputs[0];
-    u32 y = coordinates.outputs[1];
+    u32 x = slot_index;
+    u32 y = source_value;
+    u16 output_x = static_cast<u16>(x);
+    u16 output_y = static_cast<u16>(y);
+    result.coordinate_query = query_legacy_battle_actor_coordinates(
+        resolve_legacy_battle_actor_coordinates(coordinate_owners, actor_token),
+        &output_x,
+        &output_y,
+        {
+            .actor_token = actor_token,
+            .output_x_token = state.intensity_coordinate_output_x_token,
+            .output_y_token = state.intensity_coordinate_output_y_token,
+            .entry_eax = state.intensity_coordinate_output_y_token,
+            .entry_edx = secondary_value,
+            .entry_flags = intensity_flags(intensity),
+        }
+    );
+    ++result.coordinate_query_calls;
+    if (result.coordinate_query.output_writes >= 1U) {
+        replace_low_word(x, output_x);
+    }
+    if (result.coordinate_query.output_writes >= 2U) {
+        replace_low_word(y, output_y);
+    }
+    if (result.coordinate_query.status !=
+        LegacyBattleActorCoordinateQueryStatus::completed) {
+        result.status =
+            LegacyBattleIntensityEffectFrameStatus::actor_coordinate_typed_stop;
+        result.final_edx = result.coordinate_query.return_edx;
+        return result;
+    }
 
     auto& record = state.intensity_records[slot_index];
-    record.source_value = source_value;
+    record.source_value = y;
     record.secondary_value = secondary_value;
     record.mode_snapshot = state.global_mode == 1U ? 1U : 0U;
     const auto initialized =

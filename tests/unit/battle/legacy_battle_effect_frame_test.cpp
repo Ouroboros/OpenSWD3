@@ -1,8 +1,10 @@
 #include "openswd3/battle/legacy_battle_effect_frame.hpp"
+#include "openswd3/battle/legacy_battle_startup.hpp"
 #include "test.hpp"
 
 #include <algorithm>
 #include <deque>
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
@@ -170,6 +172,10 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
         record.lookup_key_b = 3U;
         record.pan_value = 0x44U;
         state.sample_handle_value = 0x88U;
+        auto startup =
+            std::make_unique<openswd3::battle::LegacyBattleStartupState>();
+        startup->party[0].position_x = 100U;
+        startup->party[0].position_y = 200U;
         EffectPort port;
         port.push(0x004321E0U, {.eax = 1U});
         port.push(
@@ -177,13 +183,19 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
             resource_reply(0x11110000U, 0x2222U, 200U, 30U, 0x3333U)
         );
         port.push(0x00478400U, pair_reply(0U, 0U));
-        port.push(0x004783B0U, pair_reply(100U, 200U));
         port.push(0x00485610U, {.eax = 0xAAAA0000U, .ecx = 0xBBBB0000U});
         port.push(0x00481FD0U, pair_reply(10U, 20U));
         port.push(0x00483840U, {.eax = 0U});
         const auto result =
             openswd3::battle::advance_legacy_battle_effect_frame(
-                state, port, 1U, 0xABCD1000U, 0U, 0x55U, 0U
+                state,
+                port,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken,
+                0xABCD1000U,
+                0U,
+                0x55U,
+                0U,
+                {.startup = startup.get()}
             );
         test.expect_true(
             result.status == LegacyBattleEffectFrameStatus::completed &&
@@ -193,7 +205,8 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
                 has_argument(port, 0x00485650U, 0U, 0xAAAA0044U) &&
                 has_argument(port, 0x00485650U, 1U, 0xFFFFFFF0U) &&
                 has_argument(port, 0x004170E0U, 4U, 0x12340001U) &&
-                port.count(0x004885A0U) == 2U,
+                result.coordinate_query_calls == 1U &&
+                port.count(0x004783B0U) == 0U && port.count(0x004885A0U) == 2U,
             "primary setup preserves pan return high word and mirrored render parity"
         );
     }
@@ -203,21 +216,35 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
         state.animation_mode = 1U;
         state.animation_counter[0] = 999U;
         state.sample_handle_value = 4U;
+        auto startup =
+            std::make_unique<openswd3::battle::LegacyBattleStartupState>();
+        startup->party[0].position_x = 120U;
+        startup->party[0].position_y = 240U;
+        startup->party[1].position_x = 115U;
+        startup->party[1].position_y = 240U;
         EffectPort port;
         LegacyBattleEffectCallReply mode{.eax = 1U};
         mode.outputs[0] = 5U;
         port.push(0x00483840U, mode);
-        port.push(0x004783B0U, pair_reply(120U, 240U));
-        port.push(0x004783B0U, pair_reply(115U, 240U));
         const auto result =
             openswd3::battle::advance_legacy_battle_effect_frame(
-                state, port, 2U, 0x1000U, 0U, 0U, 0U
+                state,
+                port,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken +
+                    openswd3::battle::kLegacyBattleActorCoordinatesGroupAStride,
+                0U,
+                0U,
+                0U,
+                {.startup = startup.get()}
             );
         test.expect_true(
             result.return_value == 0U && state.animation_counter[0] == 1001U &&
                 state.shared_x == 100 && state.shared_y == 240 &&
                 state.primary[0].status_flags == 0U &&
-                result.primary_animation_steps == 1U,
+                result.primary_animation_steps == 1U &&
+                result.coordinate_query_calls == 2U &&
+                port.count(0x004783B0U) == 0U,
             "mode-one collision completion jumps the animation counter and runs the common suffix"
         );
         test.expect_true(
@@ -239,15 +266,27 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
         state.animation_mode = 1U;
         state.shared_x = 77;
         state.shared_y = 88;
+        auto startup =
+            std::make_unique<openswd3::battle::LegacyBattleStartupState>();
+        startup->party[0].position_x = 120U;
+        startup->party[0].position_y = 240U;
+        startup->party[1].position_x = 115U;
+        startup->party[1].position_y = 30U;
         EffectPort port;
         LegacyBattleEffectCallReply mode{.eax = 1U};
         mode.outputs[0] = 5U;
         port.push(0x00483840U, mode);
-        port.push(0x004783B0U, pair_reply(120U, 240U));
-        port.push(0x004783B0U, pair_reply(115U, 30U));
         const auto result =
             openswd3::battle::advance_legacy_battle_effect_frame(
-                state, port, 2U, 0x1000U, 0U, 0U, 8U
+                state,
+                port,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken +
+                    openswd3::battle::kLegacyBattleActorCoordinatesGroupAStride,
+                0U,
+                0U,
+                8U,
+                {.startup = startup.get()}
             );
         test.expect_true(
             result.status ==
@@ -264,21 +303,32 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
     {
         LegacyBattleEffectFrameState state;
         state.animation_mode = 1U;
+        auto startup =
+            std::make_unique<openswd3::battle::LegacyBattleStartupState>();
+        startup->party[0].position_x = 100U;
+        startup->party[0].position_y = 200U;
         EffectPort port;
         port.push(0x00483840U, {.eax = 0U});
-        port.push(0x004783B0U, pair_reply(100U, 200U));
         port.push(0x00439070U, {.eax = 7U});
         port.push(0x00439070U, {.eax = 8U});
         const auto result =
             openswd3::battle::advance_legacy_battle_effect_frame(
-                state, port, 0U, 0x1000U, 0U, 0U, 0U
+                state,
+                port,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken,
+                0x1000U,
+                0U,
+                0U,
+                0U,
+                {.startup = startup.get()}
             );
         test.expect_true(
             result.return_value == 0U && state.animation_counter[0] == 1U &&
                 port.count(0x00439070U) == 2U &&
                 has_argument(port, 0x00430FF0U, 1U, 68U) &&
                 has_argument(port, 0x00430FF0U, 2U, 57U) &&
-                port.count(0x00485610U) == 1U,
+                result.coordinate_query_calls == 1U &&
+                port.count(0x004783B0U) == 0U && port.count(0x00485610U) == 1U,
             "alternate animation mode emits cadence-zero sound and two random particle values"
         );
     }
@@ -447,6 +497,149 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.return_value == 0U && state.primary[0].complete == 1U,
             "final gate zero returns before successful slot cleanup"
+        );
+    }
+
+    {
+        LegacyBattleEffectFrameState state;
+        state.animation_mode = 1U;
+        state.coordinate_output_x_token = 0xAAAA1111U;
+        state.coordinate_output_y_token = 0xBBBB2222U;
+        auto startup =
+            std::make_unique<openswd3::battle::LegacyBattleStartupState>();
+        startup->party[0].coordinate_mode_gate_read_accessible = false;
+        EffectPort port;
+        port.push(0x00483840U, {.eax = 1U});
+        const auto result =
+            openswd3::battle::advance_legacy_battle_effect_frame(
+                state,
+                port,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken +
+                    openswd3::battle::kLegacyBattleActorCoordinatesGroupAStride,
+                0U,
+                0U,
+                0U,
+                {.startup = startup.get()}
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleEffectFrameStatus::
+                        actor_coordinate_typed_stop &&
+                result.coordinate_query_calls == 1U &&
+                result.coordinate_queries[0].status ==
+                    openswd3::battle::LegacyBattleActorCoordinateQueryStatus::
+                        actor_gate_read_typed_stop &&
+                result.coordinate_queries[0].return_eax == 0xAAAA1111U &&
+                result.coordinate_queries[0].return_ecx ==
+                    openswd3::battle::
+                        kLegacyBattleActorCoordinatesGroupABaseToken &&
+                result.coordinate_queries[0].return_edx == 0xBBBB2222U &&
+                result.coordinate_queries[0].flags.zero &&
+                port.count(0x00483840U) == 1U &&
+                port.count(0x00430D50U) == 0U && port.count(0x004783B0U) == 0U,
+            "first animation coordinate gate stop preserves the mode prefix and suppresses every effect suffix"
+        );
+    }
+
+    {
+        LegacyBattleEffectFrameState state;
+        state.animation_mode = 1U;
+        state.coordinate_output_x_token = 0xAAAA0001U;
+        state.coordinate_output_y_token = 0xBBBB0002U;
+        state.auxiliary_coordinate_output_x_token = 0xCCCC0003U;
+        state.auxiliary_coordinate_output_y_token = 0xDDDD0004U;
+        auto startup =
+            std::make_unique<openswd3::battle::LegacyBattleStartupState>();
+        startup->party[0].coordinate_mode_gate = 1U;
+        startup->party[0].alternate_position_x = 0x1122U;
+        startup->party[0].alternate_position_y = 0x3344U;
+        startup->party[1].coordinate_mode_gate_read_accessible = false;
+        EffectPort port;
+        port.push(0x00483840U, {.eax = 1U});
+        const auto result =
+            openswd3::battle::advance_legacy_battle_effect_frame(
+                state,
+                port,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken +
+                    openswd3::battle::kLegacyBattleActorCoordinatesGroupAStride,
+                0U,
+                0U,
+                0U,
+                {.startup = startup.get()}
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleEffectFrameStatus::
+                        actor_coordinate_typed_stop &&
+                result.coordinate_query_calls == 2U &&
+                result.coordinate_queries[0].status ==
+                    openswd3::battle::LegacyBattleActorCoordinateQueryStatus::
+                        completed &&
+                result.coordinate_queries[1].status ==
+                    openswd3::battle::LegacyBattleActorCoordinateQueryStatus::
+                        actor_gate_read_typed_stop &&
+                result.coordinate_queries[1].return_eax == 0xAAAA3344U &&
+                result.coordinate_queries[1].return_edx == 0xCCCC0003U &&
+                !result.coordinate_queries[1].flags.zero &&
+                !result.coordinate_queries[1].flags.parity &&
+                result.animation_collision_calls == 0U &&
+                port.count(0x00485610U) == 0U && port.count(0x004783B0U) == 0U,
+            "second animation coordinate gate stop inherits the first query residue and suppresses collision"
+        );
+    }
+
+    {
+        LegacyBattleEffectFrameState state;
+        state.coordinate_output_x_token = 0xAAAA0010U;
+        state.coordinate_output_y_token = 0xBBBB0020U;
+        state.auxiliary_coordinate_output_x_token = 0xCCCC0030U;
+        state.auxiliary_coordinate_output_y_token = 0xDDDD0040U;
+        auto startup =
+            std::make_unique<openswd3::battle::LegacyBattleStartupState>();
+        startup->party[0].position_x = 100U;
+        startup->party[0].position_y = 200U;
+        startup->party[1].position_x = 55U;
+        startup->party[1].position_y_read_accessible = false;
+        EffectPort port;
+        port.push(0x004321E0U, {.eax = 1U});
+        port.push(
+            0x00431760U, resource_reply(0x1111U, 0x2222U, 100U, 20U, 0x3333U)
+        );
+        port.push(0x00478400U, pair_reply(0U, 0U));
+        port.push(0x00481FD0U, pair_reply(10U, 20U));
+        port.push(0x00483840U, {.eax = 1U});
+        const auto result =
+            openswd3::battle::advance_legacy_battle_effect_frame(
+                state,
+                port,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken +
+                    openswd3::battle::kLegacyBattleActorCoordinatesGroupAStride,
+                1U,
+                0x55U,
+                0U,
+                {.startup = startup.get()}
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleEffectFrameStatus::
+                        actor_coordinate_typed_stop &&
+                result.coordinate_query_calls == 2U &&
+                result.coordinate_queries[0].status ==
+                    openswd3::battle::LegacyBattleActorCoordinateQueryStatus::
+                        completed &&
+                result.coordinate_queries[1].status ==
+                    openswd3::battle::LegacyBattleActorCoordinateQueryStatus::
+                        primary_y_read_typed_stop &&
+                result.coordinate_queries[1].output_writes == 1U &&
+                result.coordinate_queries[1].output_x == 55U &&
+                state.shared_x == 10 && state.shared_y == 20 &&
+                port.count(0x00485610U) == 1U &&
+                port.count(0x004170E0U) == 0U &&
+                port.count(0x004885A0U) == 0U && port.count(0x004783B0U) == 0U,
+            "post-finalize coordinate Y stop keeps one word write and suppresses render release and common tail"
         );
     }
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_actor_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_animation_collision.hpp"
 #include "openswd3/battle/legacy_battle_color_accumulation.hpp"
 #include "openswd3/battle/legacy_battle_frame_refresh.hpp"
@@ -99,6 +100,7 @@ struct LegacyBattleEffectRecord {
 enum class LegacyBattleIntensityEffectFrameStatus : compat::u8 {
     completed,
     slot_index_typed_stop,
+    actor_coordinate_typed_stop,
     resource_owner_typed_stop,
 };
 
@@ -108,6 +110,8 @@ struct LegacyBattleIntensityEffectFrameResult {
     };
     compat::u32 return_value{};
     compat::u32 final_edx{};
+    LegacyBattleActorCoordinateQueryResult coordinate_query{};
+    compat::u32 coordinate_query_calls{};
     compat::u32 port_calls{};
 };
 
@@ -155,6 +159,13 @@ struct LegacyBattleEffectFrameState
     compat::u32 battle_byte_flags{};
     compat::u32 resolved_actor_value{};
 
+    compat::u32 coordinate_output_x_token{};
+    compat::u32 coordinate_output_y_token{};
+    compat::u32 auxiliary_coordinate_output_x_token{};
+    compat::u32 auxiliary_coordinate_output_y_token{};
+    compat::u32 intensity_coordinate_output_x_token{};
+    compat::u32 intensity_coordinate_output_y_token{};
+
     std::array<compat::u32, kLegacyBattleEffectActorSlotCount> pending_step{};
 
     std::array<LegacyBattleIntensityEffectRecord, 8> intensity_records{};
@@ -169,6 +180,7 @@ enum class LegacyBattleEffectFrameStatus : compat::u8 {
     slot_index_typed_stop,
     argument_object_typed_stop,
     resource_owner_typed_stop,
+    actor_coordinate_typed_stop,
     group_a_actor_typed_stop,
     group_b_actor_typed_stop,
     animation_collision_counter_typed_stop,
@@ -183,6 +195,8 @@ struct LegacyBattleEffectFrameResult {
     compat::u32 color_initialization_calls{};
     compat::u32 primary_animation_steps{};
     compat::u32 alternate_animation_steps{};
+    std::array<LegacyBattleActorCoordinateQueryResult, 5> coordinate_queries{};
+    compat::u32 coordinate_query_calls{};
     LegacyBattleAnimationCollisionResult animation_collision{};
     compat::u32 animation_collision_calls{};
 };
@@ -197,7 +211,8 @@ advance_legacy_battle_intensity_effect_frame(
     compat::u32 actor_token,
     compat::u32 source_value,
     compat::u32 secondary_value,
-    compat::u32 slot_index
+    compat::u32 slot_index,
+    const LegacyBattleActorCoordinateOwners& coordinate_owners = {}
 );
 
 // Typed closure of legacy 0x004582B0. Physical addresses are published only
@@ -210,7 +225,8 @@ advance_legacy_battle_intensity_effect_frame(
     compat::u32 argument_object_token,
     compat::u32 argument_mode_gate,
     compat::u32 source_value,
-    compat::u32 slot_index
+    compat::u32 slot_index,
+    const LegacyBattleActorCoordinateOwners& coordinate_owners = {}
 );
 
 }  // namespace openswd3::battle

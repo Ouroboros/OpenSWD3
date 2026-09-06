@@ -46,7 +46,7 @@ slot越界只在首次主status/complete访问typed-stop。
 
 ## 5. 坐标选择
 
-先以actor token查询两项offset。两个低word必须同时非零才查询base coordinates并做完整u32相加；任一为0时丢弃两项offset，改为直接查询actor coordinates。
+先以actor token查询两项offset。两个低word必须同时非零才查询base coordinates并做完整u32相加；任一为0时在`0x00459ADA`直接组合已关闭的`0x004783B0`。组B帧caller把现有action/startup owner一并传入，坐标解析复用startup-owned组B lifecycle，不建立副本。入口EAX为Y输出token，EDX保留offset callee残值，flags为到达fallback的零比较结果；X/Y各只覆盖当前offset dword低word。任一坐标typed-stop保留初始化、owner发布、flip与offset前缀，第二项读取失败保留第一项16-bit写入，并抑制sample、render、release与完成尾。
 
 随后：
 
@@ -96,7 +96,7 @@ owner内部value非0时先释放value；为0时跳过该call。随后无条件�
 - 子函数返回1才把pending ID写全1；
 - 返回0保持pending ID；
 - 子函数typed-stop立即传播，不执行后续最终actor step；
-- 子函数所有9类callee通过adapter进入caller既有typed端口，计数累加一次，不再发布已关闭函数token。
+- 除已直连的坐标查询外，其余8类callee通过adapter进入caller既有typed端口，计数累加一次，不再发布已关闭函数token。
 
 调用端测试把子record预置complete=1，证明同调用清主record、清pending ID，且port中不存在`0x004599B0`调用。
 
@@ -108,11 +108,12 @@ owner内部value非0时先释放value；为0时跳过该call。随后无条件�
 - signed status在complete record清零前发布；
 - 初始化失败清备用record与active但保留主前缀；
 - owner零token在任何坐标/sample前停；
-- global flip、offset AND门、fallback坐标、signed X/Y和data token；
+- global flip、offset AND门、fallback坐标直连、输出token、offset EDX与零flags、signed X/Y和data token；
+- fallback坐标Y读取typed-stop保留第一项低字写入并抑制sample、render、release与完成尾；
 - 左侧sample使用坐标高word、pan使用play ECX高word；
 - 右侧pan使用play EDX高word；
 - value非0时value→owner释放，value为0时只释放owner；
 - owner内部value清零计数；
 - caller直连、嵌套状态与pending/final公共尾。
 
-当前缺少原版主/备用record、9类callee共享副作用、resource owner内部槽、actor坐标、sample manager、framebuffer和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版主/备用record、8类剩余callee共享副作用、resource owner内部槽、actor坐标、sample manager、framebuffer和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
