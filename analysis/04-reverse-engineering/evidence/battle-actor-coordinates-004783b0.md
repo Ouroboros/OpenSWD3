@@ -1,12 +1,12 @@
 # 战斗角色状态选择坐标查询 `0x004783B0`
 
-状态：目标本体`platform_adapted`、`unit_tested`；REVIEW 1已回收角色metric内部两个物理callsite，其余caller按当前workpack计划继续迁移。
+状态：`platform_adapted`、`unit_tested`。REVIEW 1至4已完成本体与全部28个已有modern caller物理callsite的typed组合；7个尚无modern caller实现的外部workpack站点继续由其各自工作包隔离，不保留本函数opaque生产边界。
 
 ## 1. 完整范围与调用关系
 
 权威LST函数为`0x004783B0..0x004783F7`，有效指令从`0x004783B0`到`0x004783F5`，共16条指令、72字节。函数只有一个内部条件分支、两个`retn 8`，没有callee、外部`FUNCTION CHUNK`、间接入口或跳入中段。
 
-LST静态交叉引用记录24个物理caller、35个callsite。REVIEW 1关闭`0x0045B0E0`内部两个callsite，并让启动、逐帧协调、角色动作分派、对手动作分派两处和最终角色步进两处共七个上游站点通过同一typed metric实现到达本函数；其余26个workpack内callsite与7个workpack外callsite不提前记为已回收。
+LST静态交叉引用记录24个物理caller、35个callsite。REVIEW 1关闭`0x0045B0E0`内部两个callsite；REVIEW 2关闭`0x00469D20`脚本分派六处；REVIEW 3关闭四个效果caller八处；REVIEW 4关闭动作、特殊动作和目标就绪十一caller十二处，共28个已有modern caller物理站点。剩余7处位于尚未实现的外部workpack caller，没有modern生产opaque调用可保留，继续由对应caller workpack承担。
 
 ## 2. 精确语义与ABI
 
@@ -52,8 +52,8 @@ LST到C++：
 
 C++到LST：helper没有额外callee、分配、日志、验证、坐标变换、浮点运算或高word输出写入；每个状态字段、访问顺序和寄存器结果都有唯一指令依据。
 
-## 6. 当前验证边界
+## 6. 验证边界
 
-定向聚合目标`openswd3_battle_legacy_battle_setup_tests`已成功构建并直接运行，退出码为0。新增测试覆盖两条完成路径、CMP标志及AF有效性、selector停止的入口flags与未定义AF标记，以及每个后续可失败访问的EAX/ECX/EDX残值、第一次写入后的部分提交、源/输出别名、相同输出指针、固定token解析、Group-B记录复制别名和七个已关闭上游站点的真实owner集成。生产与测试静态扫描均无`query_actor_metric`、`publish_metric_byte`、`publish_metric_word`或对应伪造值接口。
+定向聚合目标覆盖两条完成路径、CMP标志及AF有效性、selector停止的入口flags与未定义AF标记，以及每个后续可失败访问的EAX/ECX/EDX残值、第一次写入后的部分提交、源/输出别名、相同输出指针、固定token解析、Group-B记录复制别名和28个已关闭caller物理站点的真实owner集成。REVIEW 4额外覆盖caller既有word/dword/参数槽的低16位别名、高word保留、两次查询共享槽、Y读取失败时X部分写入及各caller后缀阻断。生产`src/`静态扫描无`0x004783B0` opaque调用；兼容枚举只保留reserved地址槽，测试中的地址匹配只用于断言调用次数为零。
 
-REVIEW 1不宣称workpack 282关闭：当前只关闭35个物理callsite中的2个；其余26个workpack内callsite继续由REVIEW 2至4按调用方替换并验证，7个workpack外callsite保留给后续workpack。原版异常页和全部caller寄存器/SEH联合动态捕获尚无运行时oracle，最终证据将按实际可用性登记，不以静态结果冒充动态差分。
+原版异常页和全部caller寄存器/SEH联合动态捕获尚无运行时oracle；该限制按`blocked_runtime_oracle`登记，不以静态结果冒充动态差分。

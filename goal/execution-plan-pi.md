@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v868
+版本：v870
 
 最后更新：2026-09-04
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 工作包282 REVIEW 3战斗效果坐标
+当前步骤：模块10 · 工作包282 REVIEW 4关闭与发布
 
 ## 0. 执行约定
 
@@ -271,14 +271,14 @@ REVIEW通过后必须立即按`AGENTS.md`完成commit、push和TG，再重新完
 13. `[x]` B7：地图、世界、角色、碰撞与寻路已按模块移交条件有限收口；当前状态、阻塞和证据见[`world-map.md`](../analysis/04-reverse-engineering/modules/world-map.md)及相关inventory/evidence。
 14. `[x]` B8：剧情VM、场景调度与异步action的P1–P3已经完成；[`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md)不再覆盖当前队列。
 15. `[x]` B9：菜单、商店和其他特殊模式的227/227工作项已经关闭；当前状态和阻塞见[`special-modes.md`](../analysis/04-reverse-engineering/modules/special-modes.md)。
-16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前只执行`audit_order=282`的`0x004783B0`。
+16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=282`，本阶段只执行REVIEW 4发布。
 17. `[ ]` B11：存档、配置与持久化语义；等待B10满足移交条件后开始。
 
 B7以后已经完成的详细执行记录已机械搬到[`execution-progress-history-pi.md`](execution-progress-history-pi.md)。该文件只保存历史，不定义当前执行顺序、状态或断点。
 
 当前只执行B10，不并行展开B11。
 
-下一项回收`audit_order=282`的`0x004783B0`战斗函数。
+工作包282发布后，下一项为`audit_order=283`的`0x00478400`战斗函数。
 
 ### B10 当前WORKPACK REVIEW计划
 
@@ -286,33 +286,33 @@ B7以后已经完成的详细执行记录已机械搬到[`execution-progress-his
 
 当前工作包：`audit_order=282`、`0x004783B0`。目标是实现状态选择坐标查询，并回收17个已关闭caller中的28个作用域内callsite；其余7个待审计caller不属于本工作包。
 
-当前断点：REVIEW 1与REVIEW 2已完成、提交并推送；REVIEW 3进行中，当前只回收四个战斗效果caller内八处坐标调用，inventory继续保持`pending_audit`。
+当前断点：REVIEW 1至REVIEW 4已完成，工作包282已关闭为`282/422`；定向、core、AddressSanitizer、app、格式、十次core、inventory双生成和TMP分类均通过，当前只执行发布审计、提交、推送、TG与提交后重读。
 
-#### REVIEW 1：坐标查询与角色指标
+#### REVIEW 1（已完成）：坐标查询与角色指标
 
 - 实现并验证`0x004783B0`的状态选择、访问顺序、16位部分写入、寄存器残留、CMP flags、别名和typed-stop语义。
 - 回收`0x0045B0E0`的2个callsite，并完成现有metrics生产入口所需的owner接线。
 - 同步目标与metrics测试、构建注册和坐标证据；证据必须准确写明本REVIEW完成范围及剩余caller。
 - REVIEW通过后立即commit、push、TG并重读`AGENTS.md`和本文件；inventory TSV继续保持`pending_audit`。
 
-#### REVIEW 2：战斗脚本坐标
+#### REVIEW 2（已完成）：战斗脚本坐标
 
 - 回收`0x00469D20`的6个callsite。
 - 验证各脚本分支的输出别名、部分写入、寄存器残留、typed-stop前缀保留和后缀抑制。
 - 同步脚本测试及相关证据；REVIEW通过后立即commit、push、TG并重读规定文件。
 - inventory TSV继续保持`pending_audit`，不得宣称工作包完成。
 
-#### REVIEW 3：战斗效果坐标
+#### REVIEW 3（已完成）：战斗效果坐标
 
 - 回收`0x004582B0:5`、`0x00458DE0:1`、`0x004599B0:1`和`0x00459BF0:1`，合计4个caller、8个callsite。
 - 验证各效果路径的坐标选择、调用顺序、停止前缀和不可达后缀副作用抑制。
 - 同步对应测试及证据；REVIEW通过后立即commit、push、TG并重读规定文件。
 - inventory TSV继续保持`pending_audit`，不得宣称工作包完成。
 
-#### REVIEW 4：动作、目标与工作包关闭
+#### REVIEW 4（已完成）：动作、目标与工作包关闭
 
 - 回收其余11个已关闭caller中的12个作用域内callsite，包括action dispatch及target-ready路径。
 - 验证全部作用域内caller不再调用opaque `0x004783B0` token，并覆盖主/备用坐标、寄存器残留、别名、typed-stop及后缀抑制。
 - 完成目标和caller证据、`battle-function-workpack.tsv`、`modules/battle.md`及主PLAN同步。
 - 执行定向测试、AddressSanitizer、Linux core、Linux app、格式、零诊断、十次core重复、inventory双次稳定生成、TMP分类及staged/unstaged发布审计。
-- 只有完整REVIEW通过后才能把工作包282标记为关闭，并立即commit、push、TG及重读规定文件；随后用下一工作包计划整体替换本节。
+- 完整REVIEW已通过并把工作包282标记为关闭；当前立即执行release audit、commit、push、TG及重读规定文件，随后用下一工作包计划整体替换本节。

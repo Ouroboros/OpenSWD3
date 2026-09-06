@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_actor_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_group_a_action_execution_state.hpp"
 #include "openswd3/compat/types.hpp"
 
@@ -12,6 +13,8 @@ struct LegacyBattleTargetReadyRequest {
     compat::u32 actor_token{};
     compat::u32 target_token{};
     compat::u32 unused_argument{};
+    compat::u32 coordinate_output_x_token{};
+    compat::u32 coordinate_output_y_token{};
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
@@ -22,6 +25,7 @@ enum class LegacyBattleTargetReadyStatus : compat::u8 {
     actor_state_typed_stop,
     frame_owner_typed_stop,
     shared_state_typed_stop,
+    actor_coordinate_typed_stop,
 };
 
 struct LegacyBattleTargetReadyResult {
@@ -33,6 +37,7 @@ struct LegacyBattleTargetReadyResult {
     compat::u32 sample_play_calls{};
     compat::u32 sample_pan_calls{};
     compat::u32 render_calls{};
+    LegacyBattleActorCoordinateQueryResult coordinate_query{};
     compat::u32 coordinate_query_calls{};
     compat::u32 particle_spawn_calls{};
     compat::u32 particle_commit_calls{};

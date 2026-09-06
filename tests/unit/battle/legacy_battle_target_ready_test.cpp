@@ -173,14 +173,6 @@ public:
             found->second.pop_front();
             return reply;
         }
-        if (callee == 0x004783B0U) {
-            return {
-                .eax = request.eax,
-                .ecx = request.ecx,
-                .edx = request.edx,
-                .outputs = {400U, 60U},
-            };
-        }
         return {.eax = 1U, .ecx = request.ecx, .edx = request.edx};
     }
 
@@ -193,6 +185,16 @@ public:
 };
 
 struct Fixture {
+    Fixture() {
+        startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            8>>();
+        auto& coordinate_actor =
+            (*startup.group_b_lifecycle)[2U].action_execution;
+        coordinate_actor.position_x = 400U;
+        coordinate_actor.position_y = 60U;
+    }
+
     openswd3::rendering::LegacyFramebuffer framebuffer;
     openswd3::rendering::LegacyRasterGeometryState raster;
     openswd3::rendering::LegacyBlitRequest request;
@@ -205,6 +207,7 @@ struct Fixture {
     SoundPort sound;
     CountdownFlags countdown_flags;
     std::array<u8, 16> internal_flags{};
+    openswd3::battle::LegacyBattleStartupState startup;
 
     [[nodiscard]] openswd3::battle::LegacyBattleActionDispatchContext
     context() {
@@ -220,7 +223,7 @@ struct Fixture {
             .indicator_sound = sound,
             .countdown_flags = countdown_flags,
             .internal_flags = internal_flags,
-            .startup = nullptr,
+            .startup = &startup,
             .startup_reset = nullptr,
             .text_messages = nullptr,
             .attack_order_records = {},
@@ -290,7 +293,10 @@ void test_battle_target_ready(openswd3::test::Context& test) {
             0x00485610U,
             {.eax = 0x11111111U, .ecx = 0xABCD1111U, .edx = 0xBCDE2222U}
         );
-        port.push(0x004783B0U, {.outputs = {0x0000FF00U, 0x00008001U}});
+        auto& coordinate_actor =
+            (*fixture->startup.group_b_lifecycle)[2U].action_execution;
+        coordinate_actor.position_x = 0xFF00U;
+        coordinate_actor.position_y = 0x8001U;
         port.push(
             0x0047FC40U, {.eax = 1U, .ecx = 0x11112222U, .edx = 0x33334444U}
         );
@@ -329,6 +335,7 @@ void test_battle_target_ready(openswd3::test::Context& test) {
                 result.sample_play_calls == 2U &&
                 result.sample_pan_calls == 1U && result.render_calls == 2U &&
                 result.coordinate_query_calls == 1U &&
+                port.count(0x004783B0U) == 0U &&
                 result.particle_spawn_calls == 2U &&
                 result.particle_commit_calls == 2U &&
                 result.completion_calls == 2U &&
@@ -592,6 +599,52 @@ void test_battle_target_ready(openswd3::test::Context& test) {
                 result.action_record_clears == 2U &&
                 actor.action_runtime_gate == 0U,
             "entry phase two bypasses both pending particle phases and clears both records with terminal registers"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        LegacyBattleGroupAActionExecutionState actor;
+        LegacyBattleGroupAActionExecutionSharedState shared;
+        prepare_actor(actor);
+        auto& coordinate_actor =
+            (*fixture->startup.group_b_lifecycle)[2U].action_execution;
+        coordinate_actor.position_y_read_accessible = false;
+        RecordingPort port;
+        auto context = fixture->context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_target_ready(
+                &actor,
+                &shared,
+                port,
+                context,
+                {
+                    .actor_token = 0x005029D0U,
+                    .target_token = 0x0052AB58U,
+                    .coordinate_output_x_token = 0x11112222U,
+                    .coordinate_output_y_token = 0x33334444U,
+                }
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleTargetReadyStatus::
+                        actor_coordinate_typed_stop &&
+                result.coordinate_query.status ==
+                    openswd3::battle::LegacyBattleActorCoordinateQueryStatus::
+                        primary_y_read_typed_stop &&
+                result.coordinate_query.output_writes == 1U &&
+                result.target_x == 400U && result.target_y == 0U &&
+                result.coordinate_query.flags.zero &&
+                result.return_eax == 0x11112222U &&
+                result.return_ecx == 0x0052AB58U &&
+                result.return_edx == 0x33334444U &&
+                result.particle_spawn_calls == 0U &&
+                result.completion_calls == 0U &&
+                result.target_refresh_calls == 0U &&
+                result.action_record_clears == 0U &&
+                actor.effect_action_record.action_id == 0x1BF3U &&
+                port.count(0x004783B0U) == 0U,
+            "target ready preserves the X write and suppresses all particle suffixes when target Y faults"
         );
     }
 

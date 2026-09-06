@@ -8,7 +8,7 @@
 
 主记录field5A bit1处理可选转身记录：field24非零时发布runtime gate bit14，并把field24与field28复制到`+0x468`记录action ID和base variant；field5A bit9存在时把主记录external mode写一。随后只清bit1，并破坏性清field24与field28。gate bit14存在时以转身记录和主field78调用待审逐帧更新；只有返回一才整word清主field5A、清external mode并清gate bit14。
 
-主field5A低字节bit0或bit3任一置位时，函数发布runtime gate bit15并整word清field5A。随后先调用目标坐标callee写两个dword局部；行动者`+0xD94` bit1置位时在坐标callee之后把两个完整dword清零。待审坐标更新callee通过两个dword引用接收并可原地修改。事件末尾把当前`+0x2F24` word零扩展写入`+0x2F0C` dword，再令原word按十六位回绕加一。
+主field5A低字节bit0或bit3任一置位时，函数发布runtime gate bit15并整word清field5A。随后在`0x00474CB6`按X后Y顺序把canonical目标坐标写入两个入口已清零的dword局部槽低word；行动者`+0xD94` bit1置位时在查询之后把两个完整dword清零。待审坐标更新callee通过两个dword引用接收并可原地修改。事件末尾把当前`+0x2F24` word零扩展写入`+0x2F0C` dword，再令原word按十六位回绕加一。
 
 gate bit15未置直接返回零。置位时先令`+0x2958` word回绕加一，再把其按signed i16除三并比较余数是否精确为一；负值保持x86向零截断余数。只有余数一且`+0x2A80` unsigned word小于八才生成粒子。生成前再次独立执行目标坐标与可选归零，再调用同一坐标更新callee。
 
@@ -16,6 +16,6 @@ gate bit15未置直接返回零。置位时先令`+0x2958` word回绕加一，�
 
 粒子callee后固定调用待审提交callee参数零、零、十二，再播放sample六十二。无论本帧是否生成粒子，gate bit15路径最后都以目标token和当前sequence dword调用待审完成callee，并携带主记录引用承接完成位副作用。返回非一直接返回零；返回一先整dword清runtime gate，再检查主记录field8C是否精确为一。未完成时保留计数与记录返回零。
 
-双完成门满足时，按原顺序清tick word、sequence dword、sequence count word，整记录清`+0x630`效果记录和`+0xAF0`主记录，并返回一；spawn count不在本函数清理。实现只新增`+0xD94`坐标抑制、`+0x2A80`spawn count、`+0x2F0C`sequence dword与`+0x2F24`sequence word唯一owner。主更新、转身更新、坐标查询、坐标更新、九参数粒子、粒子提交、sample与完成更新保留窄port。特殊动作402唯一production caller已删除整函数opaque调用。
+双完成门满足时，按原顺序清tick word、sequence dword、sequence count word，整记录清`+0x630`效果记录和`+0xAF0`主记录，并返回一；spawn count不在本函数清理。实现只新增`+0xD94`坐标抑制、`+0x2A80`spawn count、`+0x2F0C`sequence dword与`+0x2F24`sequence word唯一owner。两次坐标查询直接复用同一canonical owner与同一对dword槽；`0x00474D44`观察第一次查询和中间坐标更新留下的完整槽值，若第二次Y读取失败则保留第二次X写入与既有Y槽并阻断粒子/完成后缀。主更新、转身更新、坐标更新、九参数粒子、粒子提交、sample与完成更新保留窄port。特殊动作402唯一production caller已删除整函数opaque调用。
 
-测试覆盖field24/28转身转移、bit9 external mode、bit14完成门、bit0/bit3事件门、事件与生成两次独立坐标查询、坐标callee后抑制归零、sequence发布与word回绕、signed三帧节拍、spawn count小于八门、八向第一组偏移、九个参数全部顺序、粒子提交、sample、完成callee非一保留、双完成门、双记录清理，以及production动作402的frame effect前缀与旧地址零调用。定向测试与独立AddressSanitizer均通过且findings为零；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`229/422 = 220 platform_adapted + 9 assembly_exact + 193 pending_audit`，SHA256为`89762014c855c7bfb77ca3bbfe5719f90ae3b4233fb8b328f3d794cfaf3f7bdc`。动态差分因原版主/转身/效果记录、坐标更新、八向粒子、sample、完成callee和唯一caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+测试覆盖field24/28转身转移、bit9 external mode、bit14完成门、bit0/bit3事件门、事件与生成两次canonical坐标查询、共享dword槽、第二次Y故障的X部分写入与后缀阻断、坐标更新后抑制归零、sequence发布与word回绕、signed三帧节拍、spawn count小于八门、八向第一组偏移、九个参数全部顺序、粒子提交、sample、完成callee非一保留、双完成门、双记录清理，以及production动作402的frame effect前缀与旧地址零调用。定向测试与独立AddressSanitizer均通过且findings为零；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`229/422 = 220 platform_adapted + 9 assembly_exact + 193 pending_audit`，SHA256为`89762014c855c7bfb77ca3bbfe5719f90ae3b4233fb8b328f3d794cfaf3f7bdc`。动态差分因原版主/转身/效果记录、坐标更新、八向粒子、sample、完成callee和唯一caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。

@@ -4,6 +4,7 @@
 #include "openswd3/asset_runtime/legacy_frame_deformation.hpp"
 #include "openswd3/battle/legacy_battle_retreat_commit.hpp"
 #include "openswd3/battle/legacy_battle_actor_availability_block.hpp"
+#include "openswd3/battle/legacy_battle_actor_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_actor_progress.hpp"
 #include "openswd3/battle/legacy_battle_color_accumulation.hpp"
 #include "openswd3/battle/legacy_battle_reward_scale.hpp"
@@ -487,6 +488,8 @@ enum class LegacyBattleTargetPhaseAdvanceStatus : compat::u8 {
 struct LegacyBattleActionThirteenRequest {
     compat::u32 actor_token{};
     compat::u32 opponent_token{};
+    compat::u32 coordinate_output_x_token{};
+    compat::u32 coordinate_output_y_token{};
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
@@ -497,6 +500,7 @@ enum class LegacyBattleActionThirteenStatus : compat::u8 {
     actor_state_typed_stop,
     frame_owner_typed_stop,
     shared_state_typed_stop,
+    actor_coordinate_typed_stop,
 };
 
 struct LegacyBattleActionThirteenResult {
@@ -505,7 +509,10 @@ struct LegacyBattleActionThirteenResult {
     };
     compat::u32 action_update_calls{};
     compat::u32 frame_lookup_calls{};
+    LegacyBattleActorCoordinateQueryResult coordinate_query{};
     compat::u32 coordinate_query_calls{};
+    compat::u32 coordinate_output_x{};
+    compat::u32 coordinate_output_y{};
     compat::u32 line_raster_calls{};
     compat::u32 sample_calls{};
     compat::u32 render_calls{};
@@ -553,6 +560,8 @@ struct LegacyBattleActionTwentyThreeRequest {
     compat::u32 actor_token{};
     compat::u32 opponent_token{};
     compat::u32 skip_primary{};
+    compat::u32 coordinate_output_x_token{};
+    compat::u32 coordinate_output_y_token{};
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
@@ -564,6 +573,7 @@ enum class LegacyBattleActionTwentyThreeStatus : compat::u8 {
     phase_state_typed_stop,
     frame_owner_typed_stop,
     shared_state_typed_stop,
+    actor_coordinate_typed_stop,
 };
 
 struct LegacyBattleActionTwentyThreeResult {
@@ -572,6 +582,7 @@ struct LegacyBattleActionTwentyThreeResult {
     };
     compat::u32 action_update_calls{};
     compat::u32 frame_lookup_calls{};
+    LegacyBattleActorCoordinateQueryResult coordinate_query{};
     compat::u32 coordinate_query_calls{};
     compat::u32 sample_play_calls{};
     compat::u32 sample_pan_calls{};
@@ -656,6 +667,8 @@ struct LegacyBattleActionTwentyFourResult {
 struct LegacyBattleActionTwentySevenRequest {
     compat::u32 actor_token{};
     compat::u32 target_token{};
+    compat::u32 coordinate_output_x_token{};
+    compat::u32 coordinate_output_y_token{};
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
@@ -667,6 +680,7 @@ enum class LegacyBattleActionTwentySevenStatus : compat::u8 {
     phase_state_typed_stop,
     frame_owner_typed_stop,
     shared_state_typed_stop,
+    actor_coordinate_typed_stop,
 };
 
 struct LegacyBattleActionTwentySevenResult {
@@ -675,6 +689,7 @@ struct LegacyBattleActionTwentySevenResult {
     };
     compat::u32 action_update_calls{};
     compat::u32 frame_lookup_calls{};
+    LegacyBattleActorCoordinateQueryResult coordinate_query{};
     compat::u32 coordinate_query_calls{};
     compat::u32 sample_play_calls{};
     compat::u32 sample_pan_calls{};
@@ -695,6 +710,10 @@ struct LegacyBattleDualRecordActionRequest {
     compat::u32 actor_token{};
     compat::u32 coordinate_token{};
     compat::u32 secondary_action_id{};
+    compat::u32 coordinate_output_x_token{};
+    compat::u32 coordinate_output_y_token{};
+    compat::u32 coordinate_output_x_initial{};
+    compat::u32 coordinate_frame_header_residue{};
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
@@ -706,6 +725,7 @@ enum class LegacyBattleDualRecordActionStatus : compat::u8 {
     phase_state_typed_stop,
     frame_owner_typed_stop,
     shared_state_typed_stop,
+    actor_coordinate_typed_stop,
 };
 
 struct LegacyBattleDualRecordActionResult {
@@ -714,6 +734,7 @@ struct LegacyBattleDualRecordActionResult {
     };
     compat::u32 action_update_calls{};
     compat::u32 frame_lookup_calls{};
+    LegacyBattleActorCoordinateQueryResult coordinate_query{};
     compat::u32 coordinate_query_calls{};
     compat::u32 sample_play_calls{};
     compat::u32 sample_pan_calls{};
@@ -757,6 +778,8 @@ struct LegacyBattleSpecialFiveHundredResult {
 struct LegacyBattleSpecialFourOhFiveRequest {
     compat::u32 actor_token{};
     compat::u32 target_token{};
+    compat::u32 coordinate_output_x_token{};
+    compat::u32 coordinate_output_y_token{};
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
@@ -768,6 +791,7 @@ enum class LegacyBattleSpecialFourOhFiveStatus : compat::u8 {
     frame_owner_typed_stop,
     shared_state_typed_stop,
     phase_state_typed_stop,
+    actor_coordinate_typed_stop,
 };
 
 struct LegacyBattleSpecialFourOhFiveResult {
@@ -781,6 +805,7 @@ struct LegacyBattleSpecialFourOhFiveResult {
     compat::u32 render_calls{};
     LegacyBattleFrameRefreshResult frame_refresh{};
     compat::u32 frame_refresh_calls{};
+    LegacyBattleActorCoordinateQueryResult coordinate_query{};
     compat::u32 coordinate_query_calls{};
     compat::u32 effect_update_calls{};
     compat::u32 target_refresh_calls{};
@@ -870,6 +895,10 @@ struct LegacyBattleTargetEffectResult {
 struct LegacyBattleSpecialFourHundredRequest {
     compat::u32 actor_token{};
     compat::u32 target_token{};
+    compat::u32 coordinate_output_x_token{};
+    compat::u32 coordinate_output_y_token{};
+    compat::u32 coordinate_output_x_initial{};
+    compat::u32 coordinate_output_y_initial{};
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
@@ -882,6 +911,7 @@ enum class LegacyBattleSpecialFourHundredStatus : compat::u8 {
     frame_owner_typed_stop,
     shared_state_typed_stop,
     fixed_curve_typed_stop,
+    actor_coordinate_typed_stop,
 };
 
 struct LegacyBattleSpecialFourHundredResult {
@@ -891,7 +921,10 @@ struct LegacyBattleSpecialFourHundredResult {
     compat::u32 special_update_calls{};
     compat::u32 action_update_calls{};
     compat::u32 frame_lookup_calls{};
+    LegacyBattleActorCoordinateQueryResult coordinate_query{};
     compat::u32 coordinate_query_calls{};
+    compat::u32 coordinate_output_x{};
+    compat::u32 coordinate_output_y{};
     compat::u32 workspace_update_calls{};
     compat::u32 effect_update_calls{};
     compat::u32 sample_play_calls{};
@@ -963,6 +996,8 @@ struct LegacyBattleTargetPropertyChanceResult {
 struct LegacyBattleActionFourOhTwoRequest {
     compat::u32 actor_token{};
     compat::u32 target_token{};
+    compat::u32 coordinate_output_x_token{};
+    compat::u32 coordinate_output_y_token{};
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
@@ -971,6 +1006,7 @@ struct LegacyBattleActionFourOhTwoRequest {
 enum class LegacyBattleActionFourOhTwoStatus : compat::u8 {
     completed,
     actor_state_typed_stop,
+    actor_coordinate_typed_stop,
 };
 
 struct LegacyBattleActionFourOhTwoResult {
@@ -979,7 +1015,10 @@ struct LegacyBattleActionFourOhTwoResult {
     };
     compat::u32 special_update_calls{};
     compat::u32 turn_frame_calls{};
+    std::array<LegacyBattleActorCoordinateQueryResult, 2> coordinate_queries{};
     compat::u32 coordinate_query_calls{};
+    compat::u32 coordinate_output_x{};
+    compat::u32 coordinate_output_y{};
     compat::u32 coordinate_update_calls{};
     compat::u32 particle_spawn_calls{};
     compat::u32 particle_commit_calls{};
@@ -995,6 +1034,8 @@ struct LegacyBattleActionFourOhTwoResult {
 struct LegacyBattleSpecialFourOhNineRequest {
     compat::u32 actor_token{};
     compat::u32 target_token{};
+    compat::u32 coordinate_output_x_token{};
+    compat::u32 coordinate_output_y_token{};
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
@@ -1004,6 +1045,7 @@ enum class LegacyBattleSpecialFourOhNineStatus : compat::u8 {
     completed,
     actor_state_typed_stop,
     shared_state_typed_stop,
+    actor_coordinate_typed_stop,
 };
 
 struct LegacyBattleSpecialFourOhNineResult {
@@ -1011,6 +1053,7 @@ struct LegacyBattleSpecialFourOhNineResult {
         LegacyBattleSpecialFourOhNineStatus::completed
     };
     compat::u32 special_update_calls{};
+    LegacyBattleActorCoordinateQueryResult coordinate_query{};
     compat::u32 coordinate_query_calls{};
     compat::u32 coordinate_update_calls{};
     compat::u32 stage_two_calls{};
@@ -1142,6 +1185,12 @@ struct LegacyBattleActionDispatchState {
     compat::u32 battle_submode{};
 
     compat::u32 message_gate{};
+    compat::u16 message_coordinate_x{};
+    compat::u16 message_coordinate_y{};
+    compat::u32 coordinate_output_x_token{};
+    compat::u32 coordinate_output_y_token{};
+    compat::u32 dual_record_coordinate_x_initial{};
+    compat::u32 dual_record_coordinate_frame_header_residue{};
     compat::u32 message_aux{};
     compat::u32 choice_state{};
     compat::u32 choice_cursor{};
@@ -1255,6 +1304,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     status_indicator_typed_stop,
     scale_scan_typed_stop,
     internal_flag_typed_stop,
+    actor_coordinate_typed_stop,
     effect_record_typed_stop,
     actor_metric_typed_stop,
     actor_order_typed_stop,
@@ -1332,6 +1382,8 @@ struct LegacyBattleActionDispatchResult {
     LegacyBattleScaleScanResult scale_scan{};
     compat::u32 scale_scan_calls{};
     compat::u32 action_record_clear_calls{};
+    LegacyBattleActorCoordinateQueryResult coordinate_query{};
+    compat::u32 coordinate_query_calls{};
     LegacyBattleFixedCountResult fixed_count{};
     compat::u32 fixed_count_calls{};
     LegacyBattleFixedCountLookupResult fixed_count_lookup{};
@@ -1457,7 +1509,8 @@ advance_legacy_battle_special_four_oh_nine(
     LegacyBattleGroupAActionExecutionState* actor,
     LegacyBattleGroupAActionExecutionSharedState* shared,
     LegacyBattleActionDispatchPort& port,
-    const LegacyBattleSpecialFourOhNineRequest& request
+    const LegacyBattleSpecialFourOhNineRequest& request,
+    const LegacyBattleActorCoordinateOwners& coordinate_owners = {}
 );
 
 // sub_474BA0.
@@ -1465,7 +1518,8 @@ advance_legacy_battle_special_four_oh_nine(
 advance_legacy_battle_action_four_oh_two(
     LegacyBattleGroupAActionExecutionState* actor,
     LegacyBattleActionDispatchPort& port,
-    const LegacyBattleActionFourOhTwoRequest& request
+    const LegacyBattleActionFourOhTwoRequest& request,
+    const LegacyBattleActorCoordinateOwners& coordinate_owners = {}
 );
 
 // sub_474B60.

@@ -180,7 +180,7 @@ bit15已置时，bit0仍为0则返回0；bit0为1则置fade active并返回1。
 
 ## 14. case 31：倒计时与内部bit
 
-首次进入：message gate写`0x80000000`，直接初始化mode 1的5秒倒计时，即secondary ticks 150；调用坐标callee并直接清已关闭0x98动作record。
+首次进入：message gate写`0x80000000`，直接初始化mode 1的5秒倒计时，即secondary ticks 150；按当前Group-B行动者token直连typed坐标查询，再直接清已关闭0x98动作record。坐标owner缺失或X/Y真实访问失败时停在查询点，保留倒计时与message gate，阻断动作record清理和Escape后缀。
 
 随后直接读取内部bit 75。置位时按原callee清bit75、清message gate/aux、current actor写全1并返回1；第二参数仍不访问。
 
@@ -224,7 +224,8 @@ bit75未置且message gate bit0为1时，播放固定消息、再次清动作rec
 - 玩家道具链：未知token在首次节点访问停止，零分配先发布零head再停止；
 - 攻击顺序登记：在case25已写目标status后，于首个实际记录读取处停止，阻断current actor清理与成功尾；
 - 攻击顺序移除：四处均在原call位置直连；相邻强度效果记录缺失时保留对象/延迟/计数前缀，阻断call后的目标、状态或成功发布；
-- case 33目标动作就绪：行动者、frame返回记录和共享source owner分别在原始首次访问点停止，并阻断current actor清理与后续目标解析。
+- case 31坐标查询：按Group-B索引解析canonical lifecycle owner；任一真实访问typed-stop保留SUB flags与查询前缀，并阻断动作record清理和Escape后缀；
+- case 33目标动作就绪：行动者、frame返回记录、共享source owner和目标坐标分别在原始首次访问点停止，并阻断current actor清理与后续目标解析。
 
 不对callee约定外普通返回值、百分比、action code或计数增加现代范围预验。
 
