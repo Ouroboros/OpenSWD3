@@ -34,12 +34,6 @@ public:
                     .edx = request.edx,
                 };
             }
-            if (request.callee_token == 0x004783B0U) {
-                return {
-                    .publish_metric_word = true,
-                    .metric_word = 1U,
-                };
-            }
             return {};
         }
         const auto reply = found->second.front();
@@ -79,15 +73,28 @@ public:
         attack_order_adjacent_record{};
 };
 
-void bind_group_b_coordinate_resource(
-    FinalStepPort& port, const u32 actor_index, const u16 x, const u16 y
-) {
+[[nodiscard]] openswd3::battle::LegacyBattleActorGroupBElementState&
+group_b_actor(FinalStepPort& port, const u32 actor_index) {
     if (port.startup->group_b_lifecycle == nullptr) {
         port.startup->group_b_lifecycle = std::make_shared<std::array<
             openswd3::battle::LegacyBattleActorGroupBElementState,
             openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
     }
-    auto& actor = (*port.startup->group_b_lifecycle)[actor_index];
+    return (*port.startup->group_b_lifecycle)[actor_index];
+}
+
+void bind_group_b_actor_coordinates(
+    FinalStepPort& port, const u32 actor_index, const u16 x, const u16 y
+) {
+    auto& actor = group_b_actor(port, actor_index);
+    actor.action_execution.position_x = x;
+    actor.action_execution.position_y = y;
+}
+
+void bind_group_b_coordinate_resource(
+    FinalStepPort& port, const u32 actor_index, const u16 x, const u16 y
+) {
+    auto& actor = group_b_actor(port, actor_index);
     actor.object_token = openswd3::battle::kLegacyBattleActorGroupBBaseToken +
         actor_index * openswd3::battle::kLegacyBattleActorGroupBElementSize;
     actor.resource_token =
@@ -133,6 +140,9 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
         action.opponent_workspace.fill(0xFFFFFFFFU);
         state.actor_runtime_records[1].fill(0xFFFFFFFFU);
         FinalStepPort port;
+        action.group_a_action_execution[0U].position_x = 1U;
+        action.group_a_action_execution[0U].position_y = 1U;
+        bind_group_b_actor_coordinates(port, 0U, 2U, 2U);
         port.push(0x00479850U, {.eax = 1U});
         port.push(0x0047F340U, {.eax = 1U});
         port.attack_order_records[0].value_00 = 9U;
@@ -160,7 +170,7 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                 port.count(0x0045EFB0U) == 0U &&
                 result.attack_order_remove.matched &&
                 port.attack_order_records[0].value_00 == 0xFFFFFFFFU &&
-                port.count(0x004783B0U) == 2U && port.count(0x0047C660U) == 2U,
+                port.count(0x004783B0U) == 0U && port.count(0x0047C660U) == 2U,
             "group A completion clears the counted workspace and runs common actor cleanup"
         );
     }
@@ -305,6 +315,7 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
         state.coordinate_y = 3U;
         state.group_b_reset_word = 9U;
         FinalStepPort port;
+        bind_group_b_actor_coordinates(port, 0U, 1U, 1U);
         bind_group_b_coordinate_resource(port, 2U, 5U, 6U);
         port.push(0x00479850U, {.eax = 1U});
         port.push(0x00480AD0U, {.eax = 0x12345678U, .object_flags = 0x20U});
@@ -331,12 +342,12 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                 port.count(0x0045EFB0U) == 0U &&
                 result.attack_order_remove.matched &&
                 port.attack_order_records[0].value_00 == 0xFFFFFFFFU &&
-                port.count(0x004783B0U) == 1U &&
                 result.fixed_count_calls == 1U &&
                 result.fixed_count.path ==
                     openswd3::battle::LegacyBattleFixedCountPath::
                         allocated_node &&
                 port.count(0x00477710U) == 0U &&
+                port.count(0x004783B0U) == 0U &&
                 port.count(0x00487C10U) == 1U &&
                 port.legacy_battle_fixed_object_state()
                         .fixed_count_nodes.front()

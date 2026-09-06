@@ -70,7 +70,6 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     frame_input_query_actor_mirror,
     reserved_frame_input_query_group_b_action_six_availability_slot,
     frame_input_query_group_a_candidate,
-    query_actor_metric,
     lock_target_surface,
     unlock_target_surface,
     reserved_refresh_selection_slot,
@@ -278,10 +277,6 @@ struct LegacyBattleFrameCoordinatorCallReply {
     compat::u32 ecx{};
     compat::u32 edx{};
     compat::u32 published_value{};
-    bool publish_metric_byte{};
-    compat::u8 metric_byte{};
-    bool publish_metric_word{};
-    compat::u16 metric_word{};
     bool publish_group_b_count{};
     compat::u32 group_b_count{};
     bool publish_group_a_count{};

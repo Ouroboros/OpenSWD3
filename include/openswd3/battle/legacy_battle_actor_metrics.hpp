@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_actor_coordinates.hpp"
 #include "openswd3/compat/types.hpp"
 
 #include <array>
@@ -21,11 +22,12 @@ struct LegacyBattleActorMetricState {
     compat::u32 local_word_token{};
     compat::u32 local_byte_token{};
     compat::u16 local_word{};
-    compat::u8 local_byte{};
+    compat::u16 local_byte{};
 
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
+    LegacyBattleActorCoordinateFlags entry_flags{};
 
     compat::u8 priority_update_gate{};
     compat::u32 group_a_mode{};
@@ -86,6 +88,7 @@ private:
 
 enum class LegacyBattleActorMetricStatus : compat::u8 {
     completed,
+    actor_coordinate_typed_stop,
     value_store_typed_stop,
 };
 
@@ -103,6 +106,9 @@ struct LegacyBattleActorMetricResult {
     compat::u32 return_value{};
     compat::u32 final_ecx{};
     compat::u32 final_edx{};
+    LegacyBattleActorCoordinateFlags final_flags{};
+    LegacyBattleActorCoordinateQueryResult coordinate_query{};
+    compat::u32 coordinate_query_calls{};
     compat::u32 port_calls{};
     compat::u32 group_b_iterations{};
     compat::u32 group_a_iterations{};
@@ -124,17 +130,21 @@ struct LegacyBattleActorOrderResult {
 [[nodiscard]] LegacyBattleActorMetricResult rebuild_legacy_battle_actor_metrics(
     LegacyBattleActionDispatchPort& port,
     compat::u32 group_b_count,
-    compat::u32 group_a_count
+    compat::u32 group_a_count,
+    const LegacyBattleActorCoordinateOwners& owners
 );
 
 [[nodiscard]] LegacyBattleActorMetricResult rebuild_legacy_battle_actor_metrics(
     LegacyBattleStartupPort& port,
     compat::u32 group_b_count,
-    compat::u32 group_a_count
+    compat::u32 group_a_count,
+    const LegacyBattleActorCoordinateOwners& owners
 );
 
-[[nodiscard]] LegacyBattleActorMetricResult
-rebuild_legacy_battle_actor_metrics(LegacyBattleFrameCoordinatorPort& port);
+[[nodiscard]] LegacyBattleActorMetricResult rebuild_legacy_battle_actor_metrics(
+    LegacyBattleFrameCoordinatorPort& port,
+    const LegacyBattleActorCoordinateOwners& owners
+);
 
 [[nodiscard]] LegacyBattleActorOrderResult rebuild_legacy_battle_actor_order(
     LegacyBattleActorMetricState& state,

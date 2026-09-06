@@ -1140,9 +1140,9 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
     }
 
     const auto metrics = rebuild_legacy_battle_actor_metrics(
-        port, state.enemy_count, state.party_count
+        port, state.enemy_count, state.party_count, {.startup = &state}
     );
-    result.actor_metric_calls += metrics.port_calls;
+    result.actor_metric_calls += metrics.coordinate_query_calls;
     state.enemy_count = port.actor_metric_state().group_b_count;
     state.party_count = port.actor_metric_state().group_a_count;
     if (metrics.status != LegacyBattleActorMetricStatus::completed) {

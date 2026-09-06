@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_actor_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
 #include "openswd3/battle/legacy_battle_actor_list_query.hpp"
@@ -94,7 +95,6 @@ enum class LegacyBattleStartupCall : compat::u16 {
     supplemental_seed,
     reserved_configure_supplemental_actor,
     activate_supplemental_actor,
-    query_actor_metric,
     reserved_advance_enemy_action,
     reserved_initialize_party_actor_progress,
     group_a_missing_placement_diagnostic,
@@ -124,10 +124,6 @@ struct LegacyBattleStartupCallReply {
     compat::u32 ecx_snapshot{};
     compat::u32 edx_snapshot{};
     std::array<compat::i32, 4> outputs{};
-    bool publish_metric_byte{};
-    compat::u8 metric_byte{};
-    bool publish_metric_word{};
-    compat::u16 metric_word{};
     bool publish_group_b_count{};
     compat::u32 group_b_count{};
     bool publish_group_a_count{};
@@ -211,11 +207,10 @@ struct LegacyBattleEnemyStartupRecord {
     LegacyBattleActorProgressState progress;
 };
 
-struct LegacyBattlePartyStartupRecord {
+struct LegacyBattlePartyStartupRecord
+    : public LegacyBattleActorCoordinatesState {
     std::array<compat::u32, 5> placement_prefix{};
     compat::u16 role_id{};
-    compat::u16 position_x{};
-    compat::u16 position_y{};
     compat::u16 placement_field_1a{};
     compat::u32 active{};
     LegacyBattleGroupAResourceCleanupState resource_cleanup;

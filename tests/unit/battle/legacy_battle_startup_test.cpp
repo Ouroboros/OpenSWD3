@@ -34,6 +34,13 @@ class StartupPorts final
       public openswd3::battle::LegacyBattleMutableFrameImagePort,
       public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
+    StartupPorts() {
+        for (auto& enemy : definition.enemies) {
+            enemy.position_x = 1U;
+            enemy.position_y = 1U;
+        }
+    }
+
     [[nodiscard]] LegacyBattleStartupCallReply
     invoke(const LegacyBattleStartupCallRequest& request) override {
         requests.push_back(request);
@@ -110,10 +117,6 @@ public:
         case LegacyBattleStartupCall::group_a_profile_load:
             reply.publish_group_a_profile_record = true;
             reply.group_a_profile_record = supplemental_profile;
-            break;
-        case LegacyBattleStartupCall::query_actor_metric:
-            reply.publish_metric_word = true;
-            reply.metric_word = 1U;
             break;
         default:
             break;
@@ -968,8 +971,6 @@ void test_battle_startup(openswd3::test::Context& test) {
                     std::vector<u32>{0x000BU, 0x000CU, 0x0003U, 0x0004U} &&
                 ports.call_count(LegacyBattleStartupCall::apply_actor_mode) ==
                     4U &&
-                ports.call_count(LegacyBattleStartupCall::query_actor_metric) ==
-                    6U &&
                 result.actor_metric_calls == 6U &&
                 result.actor_order_selections == 6U &&
                 result.group_b_order_copies == 2U &&

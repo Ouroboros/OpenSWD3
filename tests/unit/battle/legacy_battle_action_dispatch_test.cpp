@@ -63,12 +63,6 @@ public:
         if (request.callee_token == 0x004019A0U) {
             return {.eax = 0x74000000U, .resource_words = decoded_pixels};
         }
-        if (request.callee_token == 0x004783B0U) {
-            auto reply = default_reply;
-            reply.publish_metric_word = true;
-            reply.metric_word = 1U;
-            return reply;
-        }
         return default_reply;
     }
 
@@ -813,7 +807,7 @@ void test_battle_action_dispatch_invalid_group_a(
     );
 }
 
-void test_battle_action_dispatch(openswd3::test::Context& test) {
+void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleActionDispatchState;
     using openswd3::battle::LegacyBattleActionDispatchStatus;
 
@@ -1984,6 +1978,11 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
             "action twenty-nine owns and advances the selected group-B dual-record state"
         );
     }
+}
+
+void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
+    using openswd3::battle::LegacyBattleActionDispatchState;
+    using openswd3::battle::LegacyBattleActionDispatchStatus;
 
     {
         LegacyBattleGroupAActionExecutionState actor;
@@ -3249,6 +3248,11 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
             "action four effect stops at the original effect-frame dereference after preserving all prior calls"
         );
     }
+}
+
+void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
+    using openswd3::battle::LegacyBattleActionDispatchState;
+    using openswd3::battle::LegacyBattleActionDispatchStatus;
 
     {
         static LegacyBattleActionDispatchState state;
@@ -4413,6 +4417,11 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
             "target phase resource stop preserves both callee calls and the emitter clear prefix"
         );
     }
+}
+
+void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
+    using openswd3::battle::LegacyBattleActionDispatchState;
+    using openswd3::battle::LegacyBattleActionDispatchStatus;
 
     {
         openswd3::battle::LegacyBattleTargetPhaseState phase;
@@ -5564,4 +5573,11 @@ void test_battle_action_dispatch(openswd3::test::Context& test) {
             "actions thirty four through thirty six preserve separate signed component presentation tails"
         );
     }
+}
+
+void test_battle_action_dispatch(openswd3::test::Context& test) {
+    test_battle_action_dispatch_part_one(test);
+    test_battle_action_dispatch_part_two(test);
+    test_battle_action_dispatch_part_three(test);
+    test_battle_action_dispatch_part_four(test);
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
+#include "openswd3/battle/legacy_battle_actor_coordinates.hpp"
 #include "openswd3/compat/types.hpp"
 
 #include <array>
@@ -23,7 +24,8 @@ struct LegacyBattleGroupAActionResourceRecord {
     compat::u16 value_0e{};
 };
 
-struct LegacyBattleGroupAActionExecutionState {
+struct LegacyBattleGroupAActionExecutionState
+    : public LegacyBattleActorCoordinatesState {
     compat::u16 start_gate{};                   // actor + 0x2A74
     compat::u32 execution_complete{};           // actor + 0x2AD8
     compat::u32 early_latch{};                  // actor + 0x2B1C
@@ -77,8 +79,6 @@ struct LegacyBattleGroupAActionExecutionState {
     compat::u16 auxiliary_word{};               // actor + 0x03B0
     compat::u16 secondary_auxiliary_word{};     // actor + 0x03AE
     std::array<compat::i16, 7> color_values{};  // actor + 0x03B2
-    compat::u16 position_x{};                   // actor + 0x0D66
-    compat::u16 position_y{};                   // actor + 0x0D68
     compat::u8 special_particle_coordinate_suppression{};  // actor + 0x0D94
     compat::u8 special_effect_direct_mode{};    // actor + 0x0D9C
     compat::u8 effect_direction_flags{};        // actor + 0x26C0

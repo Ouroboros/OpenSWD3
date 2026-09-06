@@ -75,7 +75,7 @@ read_dword(const std::array<u8, 0xA4U>& bytes, const std::size_t offset) {
     source.action_id = 0x1234U;
     source.position_x = 0x2345U;
     source.position_y = 0x3456U;
-    source.reserved_16 = 0x4567U;
+    source.reserved_1a = 0x4567U;
     source.runtime_value = 0xABCD5678U;
     return source;
 }
@@ -134,6 +134,10 @@ void test_battle_group_b_action_configuration(openswd3::test::Context& test) {
                 state.copied_record == state.source_record &&
                 state.source_runtime_value == 0xABCD5678U &&
                 state.resource_mode == 0x7AU &&
+                actor.action_execution.position_x == 0x2345U &&
+                actor.action_execution.position_y == 0x3456U &&
+                actor.action_execution.alternate_position_x == 0x2345U &&
+                actor.action_execution.alternate_position_y == 0x3456U &&
                 actor.action_execution.profile_value == 0x1234U &&
                 state.timing_value == 0U,
             "group B action configuration copies state and loads the typed MON profile"
@@ -162,9 +166,13 @@ void test_battle_group_b_action_configuration(openswd3::test::Context& test) {
         );
         test.expect_true(
             result.status ==
-                LegacyBattleGroupBActionConfigurationStatus::
-                    resource_load_typed_stop,
-            "group B action configuration preserves the opaque resource-loader stop"
+                    LegacyBattleGroupBActionConfigurationStatus::
+                        resource_load_typed_stop &&
+                actor.action_execution.position_x == 0x2345U &&
+                actor.action_execution.position_y == 0x3456U &&
+                actor.action_execution.alternate_position_x == 0x2345U &&
+                actor.action_execution.alternate_position_y == 0x3456U,
+            "group B action configuration keeps both copied coordinate pairs before a later stop"
         );
     }
 

@@ -370,10 +370,14 @@ void refresh_shared_frame(
 [[nodiscard]] bool rebuild_shared_actor_metrics(
     LegacyBattleActionDispatchState& state,
     LegacyBattleActionDispatchPort& port,
+    LegacyBattleStartupState* const startup,
     LegacyBattleActionDispatchResult& result
 ) {
     const auto metrics = rebuild_legacy_battle_actor_metrics(
-        port, to_bits(state.group_b_count), to_bits(state.group_a_count)
+        port,
+        to_bits(state.group_b_count),
+        to_bits(state.group_a_count),
+        {.action = &state, .startup = startup}
     );
     result.port_calls += metrics.port_calls;
     state.group_b_count =
@@ -6731,7 +6735,9 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
         state.message_aux = 0U;
         state.current_actor_index = 0xFFFFU;
         replace_low_word(state.phase_counter, 0U);
-        if (!rebuild_shared_actor_metrics(state, port, result) ||
+        if (!rebuild_shared_actor_metrics(
+                state, port, context.startup, result
+            ) ||
             !rebuild_shared_actor_order(port, result)) {
             return result;
         }

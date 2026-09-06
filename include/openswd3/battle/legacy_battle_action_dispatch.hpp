@@ -91,10 +91,6 @@ struct LegacyBattleActionCallReply {
     bool publish_opponent_spawn_count{};
     compat::u16 opponent_spawn_count{};
     compat::u32 object_flags{};
-    bool publish_metric_byte{};
-    compat::u8 metric_byte{};
-    bool publish_metric_word{};
-    compat::u16 metric_word{};
     bool publish_group_b_count{};
     compat::u32 group_b_count{};
     bool publish_group_a_count{};

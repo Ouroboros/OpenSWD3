@@ -243,12 +243,14 @@ void clear_selection_state(
 [[nodiscard]] bool advance_battle_stages(
     LegacyBattleActionDispatchState& state,
     LegacyBattleActionDispatchPort& port,
+    LegacyBattleStartupState* const startup,
     LegacyBattleActionDispatchResult& result
 ) {
     const auto metrics = rebuild_legacy_battle_actor_metrics(
         port,
         std::bit_cast<u32>(state.group_b_count),
-        std::bit_cast<u32>(state.group_a_count)
+        std::bit_cast<u32>(state.group_a_count),
+        {.action = &state, .startup = startup}
     );
     result.port_calls += metrics.port_calls;
     state.group_b_count =
@@ -818,7 +820,9 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                 ));
                 ++state.group_b_count;
                 ++result.group_b_iterations;
-                if (!advance_battle_stages(state, port, result)) {
+                if (!advance_battle_stages(
+                        state, port, context.startup, result
+                    )) {
                     return result;
                 }
                 ++wave;
@@ -917,7 +921,9 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                 );
                 state.opponent_special_action = 0U;
                 state.post_battle_counter = 0U;
-                if (!advance_battle_stages(state, port, result)) {
+                if (!advance_battle_stages(
+                        state, port, context.startup, result
+                    )) {
                     return result;
                 }
             }

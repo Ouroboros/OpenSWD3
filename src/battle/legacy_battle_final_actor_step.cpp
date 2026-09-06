@@ -64,10 +64,14 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
 [[nodiscard]] bool rebuild_actor_metrics(
     LegacyBattleActionDispatchState& action,
     LegacyBattleActionDispatchPort& port,
+    LegacyBattleStartupState* const startup,
     LegacyBattleActionDispatchResult& result
 ) {
     const auto metrics = rebuild_legacy_battle_actor_metrics(
-        port, to_bits(action.group_b_count), to_bits(action.group_a_count)
+        port,
+        to_bits(action.group_b_count),
+        to_bits(action.group_a_count),
+        {.action = &action, .startup = startup}
     );
     result.port_calls += metrics.port_calls;
     action.group_b_count =
@@ -181,7 +185,7 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
                 to_bits(action.group_a_count) - static_cast<u32>(threshold)
             );
         }
-        if (!rebuild_actor_metrics(action, port, result) ||
+        if (!rebuild_actor_metrics(action, port, startup, result) ||
             !rebuild_actor_order(port, result)) {
             return result;
         }
@@ -442,7 +446,7 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
         action.group_b_count = 1;
         replace_low_byte(action.packed_actor_counter, 0U);
         state.group_b_reset_word = 0U;
-        if (!rebuild_actor_metrics(action, port, result) ||
+        if (!rebuild_actor_metrics(action, port, startup, result) ||
             !rebuild_actor_order(port, result)) {
             return result;
         }

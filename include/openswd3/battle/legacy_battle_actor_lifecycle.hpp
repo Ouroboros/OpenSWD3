@@ -124,16 +124,16 @@ public:
 struct LegacyBattleGroupBActionRecord {
     std::array<std::byte, 0x14> prefix{};
     compat::u16 action_id{};
-    compat::u16 reserved_16{};
     compat::u16 position_x{};
     compat::u16 position_y{};
+    compat::u16 reserved_1a{};
     compat::u32 runtime_value{};
 };
 
 static_assert(sizeof(LegacyBattleGroupBActionRecord) == 0x20U);
 static_assert(offsetof(LegacyBattleGroupBActionRecord, action_id) == 0x14U);
-static_assert(offsetof(LegacyBattleGroupBActionRecord, position_x) == 0x18U);
-static_assert(offsetof(LegacyBattleGroupBActionRecord, position_y) == 0x1AU);
+static_assert(offsetof(LegacyBattleGroupBActionRecord, position_x) == 0x16U);
+static_assert(offsetof(LegacyBattleGroupBActionRecord, position_y) == 0x18U);
 static_assert(offsetof(LegacyBattleGroupBActionRecord, runtime_value) == 0x1CU);
 
 struct LegacyBattleGroupBActionConfigurationState {

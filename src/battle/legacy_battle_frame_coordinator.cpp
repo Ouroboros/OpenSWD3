@@ -202,7 +202,9 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             LegacyBattleFrameCoordinatorStatus::pre_frame_typed_stop;
         return result;
     }
-    const auto actor_metrics = rebuild_legacy_battle_actor_metrics(port);
+    const auto actor_metrics = rebuild_legacy_battle_actor_metrics(
+        port, {.action = &context.action_dispatch, .startup = &context.startup}
+    );
     result.port_calls += actor_metrics.port_calls;
     if (actor_metrics.status != LegacyBattleActorMetricStatus::completed) {
         result.status =

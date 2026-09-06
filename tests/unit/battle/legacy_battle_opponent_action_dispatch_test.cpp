@@ -39,12 +39,6 @@ public:
         if (request.callee_token == 0x00489E90U) {
             return {.eax = 0x90000000U};
         }
-        if (request.callee_token == 0x004783B0U) {
-            auto reply = default_reply;
-            reply.publish_metric_word = true;
-            reply.metric_word = 1U;
-            return reply;
-        }
         return default_reply;
     }
 
@@ -229,8 +223,10 @@ struct Fixture {
         for (std::size_t index = 0U;
              index < startup->group_b_lifecycle->size(); ++index) {
             auto& actor = (*startup->group_b_lifecycle)[index];
-            actor.object_token = 0x00525508U +
-                static_cast<u32>(index) * 0x2B28U;
+            actor.object_token =
+                0x00525508U + static_cast<u32>(index) * 0x2B28U;
+            actor.action_execution.position_x = 1U;
+            actor.action_execution.position_y = 1U;
             actor.action_execution.turn_frame_token =
                 0x70000000U + static_cast<u32>(index) * 0x100U;
             actor.action_execution.resource.token =
@@ -664,7 +660,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 port.definition_text_release_requests.size() == 4U &&
                 port.count(0x00478220U) == 0U &&
                 port.count(0x0045B0E0U) == 0U &&
-                port.count(0x004783B0U) == 3U &&
+                port.count(0x004783B0U) == 0U &&
                 port.count(0x0045B190U) == 0U && port.count(0x0045B5A0U) == 0U,
             "opponent action fifteen builds two mirrored records with callee stale EAX high words"
         );
@@ -840,7 +836,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 state.opponent_special_action == 0U &&
                 state.post_battle_counter == 0U &&
                 port.count(0x0045B0E0U) == 0U &&
-                port.count(0x004783B0U) == 1U &&
+                port.count(0x004783B0U) == 0U &&
                 port.count(0x0045B190U) == 0U && port.count(0x0045B5A0U) == 0U,
             "opponent action seventeen collapses final special opponent and reruns three stages"
         );
