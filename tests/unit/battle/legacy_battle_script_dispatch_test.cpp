@@ -130,7 +130,6 @@ public:
             );
             break;
         case LegacyBattleScriptDispatchCall::pending_478600:
-        case LegacyBattleScriptDispatchCall::pending_4783b0:
         case LegacyBattleScriptDispatchCall::pending_484500:
             workspace.coordinate_x = 100;
             workspace.coordinate_y = 40;
@@ -1215,8 +1214,443 @@ void test_battle_group_b_script_special_action_item_parameters_script_caller(
     }
 }
 
+void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
+    using openswd3::battle::LegacyBattleActorCoordinateQueryStatus;
+    using openswd3::battle::run_legacy_battle_script_dispatch;
+
+    constexpr u32 group_a_base = 0x005029D0U;
+    constexpr u32 group_a_stride = 0x00002F34U;
+    constexpr u32 group_b_base = 0x00525508U;
+    constexpr u32 group_b_stride = 0x00002B28U;
+    constexpr u32 pair_x_token = 0x0053CE78U;
+    constexpr u32 pair_y_token = 0x0053CE7AU;
+
+    const auto prepare_script =
+        [](Fixture& fixture, const i32 opcode, const u16 actor) {
+            fixture.opcode(opcode);
+            fixture.write_u16(2U, actor);
+            fixture.assets.script[4U] = 0x25U;
+            fixture.assets.script[5U] = 0x51U;
+        };
+    const auto prepare_group_b = [](Fixture& fixture) {
+        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+    };
+    const auto command_word = [](const Fixture& fixture,
+                                 const std::size_t offset) {
+        const auto& bytes = fixture.workspace.dynamic_commands.back().bytes;
+        return static_cast<u16>(bytes[offset]) |
+            static_cast<u16>(static_cast<u16>(bytes[offset + 1U]) << 8U);
+    };
+
+    {
+        Fixture fixture;
+        Port port;
+        prepare_script(fixture, 2, 8U);
+        auto& actor = fixture.startup.party[0U];
+        actor.position_x = 0x1234U;
+        actor.position_y = 0x5678U;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.coordinate_query_calls == 1U &&
+                result.coordinate_query.status ==
+                    LegacyBattleActorCoordinateQueryStatus::completed &&
+                result.coordinate_query.return_eax == pair_x_token &&
+                result.coordinate_query.return_ecx == 0x00505678U &&
+                result.coordinate_query.return_edx == pair_y_token &&
+                result.coordinate_query.gate_reads == 1U &&
+                result.coordinate_query.coordinate_reads == 2U &&
+                result.coordinate_query.output_writes == 2U &&
+                result.coordinate_query.flags.zero &&
+                result.coordinate_query.flags.parity &&
+                result.coordinate_query.output_x == 0x1234U &&
+                result.coordinate_query.output_y == 0x5678U &&
+                command_word(fixture, 0x1EU) == 0x1234U &&
+                command_word(fixture, 0x20U) == 0x5678U &&
+                fixture.workspace.pair_x == 0U &&
+                fixture.workspace.pair_y == 0U && result.port_calls == 44U &&
+                port.count(
+                    LegacyBattleScriptDispatchCall::reserved_actor_coordinates
+                ) == 0U &&
+                port.count(LegacyBattleScriptDispatchCall::pending_47c660) ==
+                    30U &&
+                port.count(LegacyBattleScriptDispatchCall::pending_47d900) ==
+                    11U &&
+                port.calls[0U].call ==
+                    LegacyBattleScriptDispatchCall::allocate &&
+                port.calls[1U].call ==
+                    LegacyBattleScriptDispatchCall::pending_47c660 &&
+                port.calls[1U].object_token == group_a_base &&
+                port.calls[1U].ecx == group_a_base &&
+                port.calls[11U].call ==
+                    LegacyBattleScriptDispatchCall::pending_47d900 &&
+                port.calls[11U].object_token == group_a_base &&
+                port.calls[11U].eax == 0U &&
+                port.calls[11U].ecx == group_a_base &&
+                port.calls[11U].edx == pair_y_token &&
+                port.calls[11U].arguments[0U] == 0x24U &&
+                port.calls[12U].call ==
+                    LegacyBattleScriptDispatchCall::format_dynamic_text &&
+                port.calls[13U].call ==
+                    LegacyBattleScriptDispatchCall::finalize_dynamic_text,
+            "case two group A directly queries primary coordinates before its ten-actor and selected-actor cleanup"
+        );
+    }
+
+    {
+        Fixture fixture;
+        Port port;
+        prepare_script(fixture, 2, 2U);
+        prepare_group_b(fixture);
+        auto& actor = (*fixture.startup.group_b_lifecycle)[2U].action_execution;
+        actor.coordinate_mode_gate = 1U;
+        actor.alternate_position_x = 0x3456U;
+        actor.alternate_position_y = 0x789AU;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.coordinate_query_calls == 1U &&
+                result.coordinate_query.status ==
+                    LegacyBattleActorCoordinateQueryStatus::completed &&
+                result.coordinate_query.alternate_coordinates &&
+                result.coordinate_query.return_eax == 0x0000789AU &&
+                result.coordinate_query.return_ecx == pair_y_token &&
+                result.coordinate_query.return_edx == pair_x_token &&
+                !result.coordinate_query.flags.zero &&
+                !result.coordinate_query.flags.parity &&
+                result.coordinate_query.output_x == 0x3456U &&
+                result.coordinate_query.output_y == 0x789AU &&
+                command_word(fixture, 0x1EU) == 0x3456U &&
+                command_word(fixture, 0x20U) == 0x789AU &&
+                fixture.workspace.pair_x == 0U &&
+                fixture.workspace.pair_y == 0U && result.port_calls == 41U &&
+                port.count(LegacyBattleScriptDispatchCall::pending_47c660) ==
+                    28U &&
+                port.count(LegacyBattleScriptDispatchCall::pending_47d900) ==
+                    10U &&
+                port.calls[1U].object_token == group_b_base &&
+                port.calls[1U].ecx == group_b_base &&
+                port.calls[1U].eax == 0x789AU &&
+                port.calls[1U].edx == pair_x_token &&
+                port.calls[8U].object_token ==
+                    group_b_base + 7U * group_b_stride &&
+                port.calls[9U].call ==
+                    LegacyBattleScriptDispatchCall::format_dynamic_text &&
+                port.calls[10U].call ==
+                    LegacyBattleScriptDispatchCall::finalize_dynamic_text,
+            "case two group B directly queries alternate coordinates then cleans exactly eight actors"
+        );
+    }
+
+    {
+        Fixture fixture;
+        Port port;
+        prepare_script(fixture, 44, 8U);
+        fixture.startup.party[0U].position_x = 20U;
+        fixture.startup.party[0U].position_y = 30U;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.coordinate_query_calls == 1U &&
+                result.coordinate_query.output_x == 20U &&
+                result.coordinate_query.output_y == 30U &&
+                command_word(fixture, 0x1EU) == 20U &&
+                command_word(fixture, 0x20U) == 30U &&
+                fixture.workspace.pair_x == 0U &&
+                fixture.workspace.pair_y == 0U && result.port_calls == 34U &&
+                port.calls[1U].call ==
+                    LegacyBattleScriptDispatchCall::format_dynamic_text &&
+                port.calls[2U].call ==
+                    LegacyBattleScriptDispatchCall::finalize_dynamic_text &&
+                port.calls[3U].call ==
+                    LegacyBattleScriptDispatchCall::pending_47c660 &&
+                port.calls[13U].call ==
+                    LegacyBattleScriptDispatchCall::pending_47d900 &&
+                port.calls[13U].eax == 0U &&
+                port.calls[13U].ecx == group_a_base &&
+                port.calls[13U].edx == pair_y_token &&
+                port.calls[13U].arguments[0U] == 0x24U,
+            "case forty four group A commits text before the coordinate query and group cleanup"
+        );
+    }
+
+    {
+        Fixture fixture;
+        Port port;
+        prepare_script(fixture, 44, 2U);
+        prepare_group_b(fixture);
+        auto& actor = (*fixture.startup.group_b_lifecycle)[2U].action_execution;
+        actor.position_x = 40U;
+        actor.position_y = 50U;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.coordinate_query_calls == 1U &&
+                result.coordinate_query.output_x == 40U &&
+                result.coordinate_query.output_y == 50U &&
+                command_word(fixture, 0x1EU) == 40U &&
+                command_word(fixture, 0x20U) == 50U &&
+                fixture.workspace.pair_x == 0U &&
+                fixture.workspace.pair_y == 0U && result.port_calls == 32U &&
+                port.count(LegacyBattleScriptDispatchCall::pending_47c660) ==
+                    29U &&
+                port.calls[3U].call ==
+                    LegacyBattleScriptDispatchCall::pending_47c660 &&
+                port.calls[3U].object_token ==
+                    group_b_base + 2U * group_b_stride &&
+                port.calls[3U].arguments[0U] == 1U &&
+                port.calls[3U].eax == 2U && port.calls[3U].edx == 2U * 1381U &&
+                port.calls[4U].object_token == group_b_base &&
+                port.calls[4U].arguments[0U] == 0U,
+            "case forty four group B cleans the selected actor with one before the eight zero-argument calls"
+        );
+    }
+
+    {
+        Fixture fixture;
+        Port port;
+        prepare_script(fixture, 59, 9U);
+        fixture.startup.party[1U].position_x = 0xFFFEU;
+        fixture.startup.party[1U].position_y = 0x8001U;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.coordinate_query_calls == 1U &&
+                result.coordinate_query.output_x == 0xFFFEU &&
+                result.coordinate_query.output_y == 0x8001U &&
+                command_word(fixture, 0x1EU) == 0xFFFEU &&
+                command_word(fixture, 0x20U) == 0x8001U &&
+                fixture.workspace.pair_x == 0U &&
+                fixture.workspace.pair_y == 0U && result.port_calls == 35U &&
+                port.calls[1U].call ==
+                    LegacyBattleScriptDispatchCall::pending_478470 &&
+                port.calls[1U].object_token == group_a_base + group_a_stride &&
+                port.calls[1U].eax == 1007U &&
+                port.calls[1U].ecx == group_a_base + group_a_stride &&
+                port.calls[1U].edx == 3021U &&
+                port.calls[1U].arguments[0U] == 0x0053CE74U &&
+                port.calls[1U].arguments[1U] == pair_y_token &&
+                port.calls[12U].call ==
+                    LegacyBattleScriptDispatchCall::pending_47d900 &&
+                port.calls[12U].arguments[0U] == 0x24U &&
+                port.calls[13U].call ==
+                    LegacyBattleScriptDispatchCall::format_dynamic_text &&
+                port.calls[13U].argument_count == 4U &&
+                port.calls[13U].arguments[1U] == 0x00010000U &&
+                port.calls[13U].arguments[2U] == 0xFFFFFFFEU &&
+                port.calls[13U].arguments[3U] == 0xFFFF8001U &&
+                port.calls[14U].call ==
+                    LegacyBattleScriptDispatchCall::finalize_dynamic_text,
+            "case fifty nine group A queries coordinates before its pointer-token anchor call and cleanup"
+        );
+    }
+
+    {
+        Fixture fixture;
+        Port port;
+        prepare_script(fixture, 59, 2U);
+        prepare_group_b(fixture);
+        auto& actor = (*fixture.startup.group_b_lifecycle)[2U].action_execution;
+        actor.position_x = 80U;
+        actor.position_y = 90U;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.coordinate_query_calls == 1U &&
+                result.coordinate_query.output_x == 80U &&
+                result.coordinate_query.output_y == 90U &&
+                command_word(fixture, 0x1EU) == 80U &&
+                command_word(fixture, 0x20U) == 90U &&
+                fixture.workspace.pair_x == 0U &&
+                fixture.workspace.pair_y == 0U && result.port_calls == 32U &&
+                port.calls[1U].call ==
+                    LegacyBattleScriptDispatchCall::pending_478470 &&
+                port.calls[1U].object_token ==
+                    group_b_base + 2U * group_b_stride &&
+                port.calls[1U].eax == 2U &&
+                port.calls[1U].ecx == group_b_base + 2U * group_b_stride &&
+                port.calls[1U].edx == 2U * 1381U &&
+                port.calls[1U].arguments[0U] == 0x0053CE74U &&
+                port.calls[1U].arguments[1U] == pair_y_token &&
+                port.calls[2U].object_token == group_b_base &&
+                port.calls[9U].object_token ==
+                    group_b_base + 7U * group_b_stride &&
+                port.calls[10U].call ==
+                    LegacyBattleScriptDispatchCall::format_dynamic_text &&
+                port.calls[10U].argument_count == 4U &&
+                port.calls[10U].arguments[1U] == 0x00010000U &&
+                port.calls[10U].arguments[2U] == 80U &&
+                port.calls[10U].arguments[3U] == 90U &&
+                port.calls[11U].call ==
+                    LegacyBattleScriptDispatchCall::finalize_dynamic_text,
+            "case fifty nine group B preserves address residues for the anchor then cleans exactly eight actors"
+        );
+    }
+
+    {
+        Fixture fixture;
+        Port port;
+        prepare_script(fixture, 2, 9U);
+        fixture.startup.party[1U].coordinate_mode_gate_read_accessible = false;
+        fixture.workspace.pair_x = 0xAAAAU;
+        fixture.workspace.pair_y = 0xBBBBU;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        const auto& flags = result.coordinate_query.flags;
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::
+                        actor_coordinate_typed_stop &&
+                result.coordinate_query.status ==
+                    LegacyBattleActorCoordinateQueryStatus::
+                        actor_gate_read_typed_stop &&
+                result.coordinate_query_calls == 1U &&
+                result.coordinate_query.return_eax == 3021U &&
+                result.coordinate_query.return_ecx ==
+                    group_a_base + group_a_stride &&
+                result.coordinate_query.return_edx == 9U && !flags.carry &&
+                !flags.parity && flags.auxiliary_carry &&
+                flags.auxiliary_carry_defined && !flags.zero && !flags.sign &&
+                !flags.overflow && fixture.workspace.pair_x == 0xAAAAU &&
+                fixture.workspace.pair_y == 0xBBBBU &&
+                fixture.workspace.dynamic_commands.size() == 1U &&
+                port.calls.size() == 1U &&
+                port.calls[0U].call == LegacyBattleScriptDispatchCall::allocate,
+            "case two gate stop preserves group A address arithmetic flags and suppresses every coordinate suffix"
+        );
+    }
+
+    {
+        Fixture fixture;
+        Port port;
+        prepare_script(fixture, 44, 8U);
+        fixture.startup.party[0U].position_x_read_accessible = false;
+        fixture.workspace.pair_x = 0xAAAAU;
+        fixture.workspace.pair_y = 0xBBBBU;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::
+                        actor_coordinate_typed_stop &&
+                result.coordinate_query.status ==
+                    LegacyBattleActorCoordinateQueryStatus::
+                        primary_x_read_typed_stop &&
+                result.coordinate_query.return_eax == pair_x_token &&
+                result.coordinate_query.return_ecx == group_a_base &&
+                result.coordinate_query.return_edx == 8U &&
+                result.coordinate_query.gate_reads == 1U &&
+                result.coordinate_query.coordinate_reads == 0U &&
+                result.coordinate_query.output_writes == 0U &&
+                fixture.workspace.pair_x == 0xAAAAU &&
+                fixture.workspace.pair_y == 0xBBBBU &&
+                port.calls.size() == 3U &&
+                port.calls[0U].call ==
+                    LegacyBattleScriptDispatchCall::allocate &&
+                port.calls[1U].call ==
+                    LegacyBattleScriptDispatchCall::format_dynamic_text &&
+                port.calls[2U].call ==
+                    LegacyBattleScriptDispatchCall::finalize_dynamic_text,
+            "case forty four first-coordinate stop retains its committed text prefix and blocks actor cleanup"
+        );
+    }
+
+    {
+        Fixture fixture;
+        Port port;
+        prepare_script(fixture, 44, 2U);
+        fixture.workspace.pair_x = 0xAAAAU;
+        fixture.workspace.pair_y = 0xBBBBU;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        const auto& flags = result.coordinate_query.flags;
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::
+                        actor_coordinate_typed_stop &&
+                result.coordinate_query.status ==
+                    LegacyBattleActorCoordinateQueryStatus::
+                        actor_gate_read_typed_stop &&
+                result.coordinate_query.return_eax == 2U * 1381U &&
+                result.coordinate_query.return_ecx ==
+                    group_b_base + 2U * group_b_stride &&
+                result.coordinate_query.return_edx == 2U * 345U &&
+                result.coordinate_query.gate_reads == 0U && !flags.carry &&
+                flags.parity && flags.auxiliary_carry &&
+                flags.auxiliary_carry_defined && !flags.zero && !flags.sign &&
+                !flags.overflow && fixture.workspace.pair_x == 0xAAAAU &&
+                fixture.workspace.pair_y == 0xBBBBU &&
+                fixture.workspace.dynamic_commands.size() == 1U &&
+                port.calls.size() == 3U &&
+                port.calls[1U].call ==
+                    LegacyBattleScriptDispatchCall::format_dynamic_text &&
+                port.calls[2U].call ==
+                    LegacyBattleScriptDispatchCall::finalize_dynamic_text,
+            "case forty four missing group B owner stops at the reached gate read after the committed text prefix"
+        );
+    }
+
+    {
+        Fixture fixture;
+        Port port;
+        prepare_script(fixture, 59, 2U);
+        prepare_group_b(fixture);
+        auto& actor = (*fixture.startup.group_b_lifecycle)[2U].action_execution;
+        actor.coordinate_mode_gate = 1U;
+        actor.alternate_position_x = 0x2468U;
+        actor.alternate_position_y = 0x1357U;
+        actor.alternate_position_y_read_accessible = false;
+        fixture.workspace.pair_x = 0xAAAAU;
+        fixture.workspace.pair_y = 0xBBBBU;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::
+                        actor_coordinate_typed_stop &&
+                result.coordinate_query.status ==
+                    LegacyBattleActorCoordinateQueryStatus::
+                        alternate_y_read_typed_stop &&
+                result.coordinate_query.return_eax == 0x2468U &&
+                result.coordinate_query.return_ecx ==
+                    group_b_base + 2U * group_b_stride &&
+                result.coordinate_query.return_edx == pair_x_token &&
+                result.coordinate_query.coordinate_reads == 1U &&
+                result.coordinate_query.output_writes == 1U &&
+                fixture.workspace.pair_x == 0x2468U &&
+                fixture.workspace.pair_y == 0xBBBBU &&
+                port.calls.size() == 1U &&
+                port.calls[0U].call ==
+                    LegacyBattleScriptDispatchCall::allocate &&
+                port.count(LegacyBattleScriptDispatchCall::pending_478470) ==
+                    0U,
+            "case fifty nine second-coordinate stop keeps the first word write and suppresses anchor formatting and cleanup"
+        );
+    }
+}
+
 void test_battle_script_dispatch(openswd3::test::Context& test) {
     using openswd3::battle::run_legacy_battle_script_dispatch;
+
+    test_battle_script_actor_coordinate_calls(test);
 
     {
         Fixture fixture;

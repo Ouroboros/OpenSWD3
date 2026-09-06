@@ -286,7 +286,7 @@ B7以后已经完成的详细执行记录已机械搬到[`execution-progress-his
 
 当前工作包：`audit_order=282`、`0x004783B0`。目标是实现状态选择坐标查询，并回收17个已关闭caller中的28个作用域内callsite；其余7个待审计caller不属于本工作包。
 
-当前断点：REVIEW 1进行中。现有目标本体、owner、注册、测试和证据改动尚未通过新规REVIEW；`legacy_battle_actor_metrics`改动仍是WIP，当前不得提交。
+当前断点：REVIEW 1已完成、提交并推送；REVIEW 2进行中，当前只回收`0x00469D20`内六处坐标调用，inventory继续保持`pending_audit`。
 
 #### REVIEW 1：坐标查询与角色指标
 

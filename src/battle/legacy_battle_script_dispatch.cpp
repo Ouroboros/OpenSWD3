@@ -24,9 +24,22 @@ using compat::u16;
 using compat::u32;
 
 constexpr u32 kLegacyBattleGroupASecondarySkipQueryToken = 0x0046E0A0U;
+constexpr u32 kLegacyBattleScriptPositionXToken = 0x0053CE74U;
+constexpr u32 kLegacyBattleScriptPairXToken = 0x0053CE78U;
+constexpr u32 kLegacyBattleScriptPairYToken = 0x0053CE7AU;
+constexpr i32 kLegacyBattleScriptExtendedGroupBCleanupCount = 10;
 
 [[nodiscard]] constexpr u16 low_word(const u32 value) noexcept {
     return static_cast<u16>(value & 0xFFFFU);
+}
+
+void store_word(
+    std::array<compat::u8, kLegacyBattleScriptDynamicCommandSize>& bytes,
+    const std::size_t offset,
+    const u16 value
+) noexcept {
+    bytes[offset] = static_cast<compat::u8>(value & 0x00FFU);
+    bytes[offset + 1U] = static_cast<compat::u8>(value >> 8U);
 }
 
 [[nodiscard]] constexpr u16 high_word(const u32 value) noexcept {
@@ -49,6 +62,75 @@ constexpr void set_high_word(u32& destination, const u16 value) noexcept {
 [[nodiscard]] constexpr u32
 wrapping_add(const u32 left, const u32 right) noexcept {
     return left + right;
+}
+
+[[nodiscard]] constexpr bool has_even_parity(u32 value) noexcept {
+    value &= 0xFFU;
+    value ^= value >> 4U;
+    value ^= value >> 2U;
+    value ^= value >> 1U;
+    return (value & 1U) == 0U;
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+subtract_flags(const u32 left, const u32 right) noexcept {
+    const u32 difference = left - right;
+    return {
+        .carry = left < right,
+        .parity = has_even_parity(difference),
+        .auxiliary_carry = ((left ^ right ^ difference) & 0x10U) != 0U,
+        .auxiliary_carry_defined = true,
+        .zero = difference == 0U,
+        .sign = (difference & 0x80000000U) != 0U,
+        .overflow =
+            (((left ^ right) & (left ^ difference)) & 0x80000000U) != 0U,
+    };
+}
+
+struct ScriptActorAddress {
+    u32 token{};
+    u32 coordinate_eax{};
+    u32 selected_call_eax{};
+    u32 coordinate_edx{};
+    LegacyBattleActorCoordinateFlags coordinate_flags{};
+};
+
+[[nodiscard]] constexpr ScriptActorAddress
+script_actor_address(const u16 actor) noexcept {
+    if (actor > 7U) {
+        const u32 index = static_cast<u32>(actor) - 8U;
+        const u32 times_sixty_three = (index << 6U) - index;
+        const u32 times_one_thousand_eight = times_sixty_three << 4U;
+        const u32 times_one_thousand_seven = times_one_thousand_eight - index;
+        const u32 times_three_thousand_twenty_one =
+            times_one_thousand_seven + times_one_thousand_seven * 2U;
+        return {
+            .token = kLegacyBattleScriptGroupABaseToken +
+                times_three_thousand_twenty_one * 4U,
+            .coordinate_eax = times_three_thousand_twenty_one,
+            .selected_call_eax = times_one_thousand_seven,
+            .coordinate_edx = actor,
+            .coordinate_flags = subtract_flags(times_one_thousand_eight, index),
+        };
+    }
+
+    const u32 index = actor;
+    const u32 times_three = index + index * 2U;
+    const u32 times_twenty_four = times_three << 3U;
+    const u32 times_twenty_three = times_twenty_four - index;
+    const u32 times_sixty_nine = times_twenty_three + times_twenty_three * 2U;
+    const u32 times_three_hundred_forty_five =
+        times_sixty_nine + times_sixty_nine * 4U;
+    const u32 times_one_thousand_three_hundred_eighty_one =
+        index + times_three_hundred_forty_five * 4U;
+    return {
+        .token = kLegacyBattleScriptGroupBBaseToken +
+            times_one_thousand_three_hundred_eighty_one * 8U,
+        .coordinate_eax = times_one_thousand_three_hundred_eighty_one,
+        .selected_call_eax = actor,
+        .coordinate_edx = times_three_hundred_forty_five,
+        .coordinate_flags = subtract_flags(times_twenty_four, index),
+    };
 }
 
 class ScriptRunner {
@@ -350,6 +432,116 @@ private:
 
     [[nodiscard]] std::optional<u32> actor_token(const i32 code) {
         return code > 7 ? group_a_token(code) : group_b_token(code);
+    }
+
+    void publish_dynamic_text_coordinates() noexcept {
+        auto& bytes = workspace_.dynamic_commands.back().bytes;
+        store_word(bytes, 0x1EU, workspace_.pair_x);
+        store_word(bytes, 0x20U, workspace_.pair_y);
+    }
+
+    [[nodiscard]] bool query_actor_coordinates(const u16 actor) {
+        const auto address = script_actor_address(actor);
+        eax_ = address.coordinate_eax;
+        ecx_ = address.token;
+        edx_ = address.coordinate_edx;
+        result_.coordinate_query = query_legacy_battle_actor_coordinates(
+            resolve_legacy_battle_actor_coordinates(
+                {.startup = &bindings_.startup}, address.token
+            ),
+            &workspace_.pair_x,
+            &workspace_.pair_y,
+            {
+                .actor_token = address.token,
+                .output_x_token = kLegacyBattleScriptPairXToken,
+                .output_y_token = kLegacyBattleScriptPairYToken,
+                .entry_eax = eax_,
+                .entry_edx = edx_,
+                .entry_flags = address.coordinate_flags,
+            }
+        );
+        ++result_.coordinate_query_calls;
+        eax_ = result_.coordinate_query.return_eax;
+        ecx_ = result_.coordinate_query.return_ecx;
+        edx_ = result_.coordinate_query.return_edx;
+        if (result_.coordinate_query.status ==
+            LegacyBattleActorCoordinateQueryStatus::completed) {
+            return true;
+        }
+        result_.status =
+            LegacyBattleScriptDispatchStatus::actor_coordinate_typed_stop;
+        result_.stopped_offset = workspace_.cursor;
+        return false;
+    }
+
+    void prepare_selected_actor_cleanup_call(const u16 actor) noexcept {
+        const auto address = script_actor_address(actor);
+        eax_ = address.selected_call_eax;
+        ecx_ = address.token;
+        if (actor <= 7U) {
+            edx_ = address.coordinate_eax;
+        }
+    }
+
+    void prepare_anchor_call(const u16 actor) noexcept {
+        const auto address = script_actor_address(actor);
+        eax_ = address.selected_call_eax;
+        ecx_ = address.token;
+        edx_ = address.coordinate_eax;
+    }
+
+    [[nodiscard]] bool initialize_dynamic_text_actor_group(
+        const u16 actor, const bool group_b_selected_cleanup
+    ) {
+        const auto address = script_actor_address(actor);
+        if (actor > 7U) {
+            for (i32 index = 0; index < 10; ++index) {
+                const auto current = group_a_token(index + 8);
+                if (!current.has_value()) {
+                    return false;
+                }
+                ecx_ = *current;
+                if (!invoke(
+                        LegacyBattleScriptDispatchCall::pending_47c660,
+                        *current,
+                        {0U}
+                    )) {
+                    return false;
+                }
+            }
+            prepare_selected_actor_cleanup_call(actor);
+            return invoke(
+                LegacyBattleScriptDispatchCall::pending_47d900,
+                address.token,
+                {0x24U}
+            );
+        }
+
+        if (group_b_selected_cleanup) {
+            prepare_selected_actor_cleanup_call(actor);
+            if (!invoke(
+                    LegacyBattleScriptDispatchCall::pending_47c660,
+                    address.token,
+                    {1U}
+                )) {
+                return false;
+            }
+        }
+        for (i32 index = 0; index < 8; ++index) {
+            const auto current = group_b_token(index);
+            if (!current.has_value()) {
+                return false;
+            }
+            ecx_ = *current;
+            if (!invoke(
+                    LegacyBattleScriptDispatchCall::pending_47c660,
+                    *current,
+                    {0U}
+                )) {
+                return false;
+            }
+        }
+        return true;
     }
 
     bool invoke(
@@ -836,27 +1028,11 @@ private:
             workspace_.dynamic_commands.push_back({
                 .token = workspace_.dynamic_command_token,
             });
-            const auto token = actor_token(static_cast<i32>(actor_word));
-            if (!token.has_value()) {
+            if (!query_actor_coordinates(actor_word)) {
                 return finish(eax_);
             }
-            invoke(
-                LegacyBattleScriptDispatchCall::pending_4783b0,
-                *token,
-                {workspace_.pair_x, workspace_.pair_y}
-            );
-            for (i32 index = 0; index < 10; ++index) {
-                const auto same_group = actor_word > 7U
-                    ? group_a_token(index + 8)
-                    : group_b_token(index < 8 ? index : 7);
-                if (!same_group.has_value()) {
-                    return finish(eax_);
-                }
-                invoke(
-                    LegacyBattleScriptDispatchCall::pending_47c660,
-                    *same_group,
-                    {0U}
-                );
+            if (!initialize_dynamic_text_actor_group(actor_word, false)) {
+                return finish(eax_);
             }
             invoke(
                 LegacyBattleScriptDispatchCall::format_dynamic_text,
@@ -867,6 +1043,7 @@ private:
                 LegacyBattleScriptDispatchCall::finalize_dynamic_text,
                 workspace_.dynamic_command_token
             );
+            publish_dynamic_text_coordinates();
             set_high_word(
                 workspace_.packed_actor_state,
                 static_cast<u16>(actor_word | 0x8000U)
@@ -893,14 +1070,12 @@ private:
                 LegacyBattleScriptDispatchCall::pending_47d900, *token, {0U}
             );
         }
-        for (i32 index = 0; index < 8; ++index) {
-            const auto token = group_b_token(index);
-            if (!token.has_value()) {
-                return finish(eax_);
-            }
-            invoke(
-                LegacyBattleScriptDispatchCall::pending_47c660, *token, {0U}
-            );
+        for (i32 index = 0;
+             index < kLegacyBattleScriptExtendedGroupBCleanupCount;
+             ++index) {
+            const u32 token = kLegacyBattleScriptGroupBBaseToken +
+                static_cast<u32>(index) * kLegacyBattleScriptGroupBElementSize;
+            invoke(LegacyBattleScriptDispatchCall::pending_47c660, token, {0U});
         }
 
         u32 offset = 0U;
@@ -2662,63 +2837,55 @@ private:
             );
         }
         workspace_.dynamic_commands.push_back({.token = eax_});
-        const auto token = actor_token(signed_word(actor));
-        if (!token.has_value()) {
-            return finish(eax_);
-        }
-        invoke(
-            LegacyBattleScriptDispatchCall::pending_4783b0,
-            *token,
-            {workspace_.pair_x, workspace_.pair_y}
-        );
-        if (anchored_variant) {
+
+        if (!anchored_variant) {
             invoke(
-                LegacyBattleScriptDispatchCall::pending_478470,
-                *token,
-                {workspace_.position_x, workspace_.position_y}
+                LegacyBattleScriptDispatchCall::format_dynamic_text,
+                workspace_.dynamic_command_token,
+                {workspace_.text_offset, bindings_.shared.frame_value, actor}
+            );
+            invoke(
+                LegacyBattleScriptDispatchCall::finalize_dynamic_text,
+                workspace_.dynamic_command_token
             );
         }
-        if (actor > 7U) {
-            for (i32 index = 0; index < 10; ++index) {
-                const auto current = group_a_token(index + 8);
-                if (!current.has_value()) {
-                    return finish(eax_);
-                }
-                invoke(
-                    LegacyBattleScriptDispatchCall::pending_47c660,
-                    *current,
-                    {0U}
-                );
-            }
-        } else {
-            for (i32 index = 0; index < 8; ++index) {
-                const auto current = group_b_token(index);
-                if (!current.has_value()) {
-                    return finish(eax_);
-                }
-                invoke(
-                    LegacyBattleScriptDispatchCall::pending_47c660,
-                    *current,
-                    {0U}
-                );
-            }
-            if (group_b_target_cleanup) {
-                invoke(
-                    LegacyBattleScriptDispatchCall::pending_47d900, *token, {1U}
-                );
+
+        if (!query_actor_coordinates(actor)) {
+            return finish(eax_);
+        }
+        const auto address = script_actor_address(actor);
+        if (anchored_variant) {
+            prepare_anchor_call(actor);
+            if (!invoke(
+                    LegacyBattleScriptDispatchCall::pending_478470,
+                    address.token,
+                    {kLegacyBattleScriptPositionXToken,
+                     kLegacyBattleScriptPairYToken}
+                )) {
+                return finish(eax_);
             }
         }
-        invoke(
-            LegacyBattleScriptDispatchCall::format_dynamic_text,
-            workspace_.dynamic_command_token,
-            {workspace_.text_offset,
-             anchored_variant ? 0x00010000U : bindings_.shared.frame_value,
-             actor}
-        );
-        invoke(
-            LegacyBattleScriptDispatchCall::finalize_dynamic_text,
-            workspace_.dynamic_command_token
-        );
+        if (!initialize_dynamic_text_actor_group(
+                actor, group_b_target_cleanup
+            )) {
+            return finish(eax_);
+        }
+
+        if (anchored_variant) {
+            invoke(
+                LegacyBattleScriptDispatchCall::format_dynamic_text,
+                workspace_.dynamic_command_token,
+                {workspace_.text_offset,
+                 0x00010000U,
+                 std::bit_cast<u32>(signed_word(workspace_.pair_x)),
+                 std::bit_cast<u32>(signed_word(workspace_.pair_y))}
+            );
+            invoke(
+                LegacyBattleScriptDispatchCall::finalize_dynamic_text,
+                workspace_.dynamic_command_token
+            );
+        }
+        publish_dynamic_text_coordinates();
         bindings_.message_state = 0U;
         return finish(1U);
     }
@@ -2733,14 +2900,12 @@ private:
                 LegacyBattleScriptDispatchCall::pending_47c660, *token, {0U}
             );
         }
-        for (i32 index = 0; index < 8; ++index) {
-            const auto token = group_b_token(index);
-            if (!token.has_value()) {
-                return finish(eax_);
-            }
-            invoke(
-                LegacyBattleScriptDispatchCall::pending_47c660, *token, {0U}
-            );
+        for (i32 index = 0;
+             index < kLegacyBattleScriptExtendedGroupBCleanupCount;
+             ++index) {
+            const u32 token = kLegacyBattleScriptGroupBBaseToken +
+                static_cast<u32>(index) * kLegacyBattleScriptGroupBElementSize;
+            invoke(LegacyBattleScriptDispatchCall::pending_47c660, token, {0U});
         }
         u32 length{};
         if (!scan_percent_q(

@@ -46,7 +46,7 @@
 
 这是带`%Q`终止标记的动态76-byte命令对象。
 
-首次进入由工作word的bit15判定。bit15为0时先读取`script+2`的actor code并发布文字起点`script+2`，随后申请76 bytes并立即以19个dword清零；零分配并不被原函数拦截，首次`rep stosd`访问点才是typed-stop。actor code按`<=7`组B、`>7`组A分别解析，先读取actor坐标，再对整组10个同类角色执行动作清理，并对目标actor执行初始化。随后按原顺序写动态对象的flags、文字参数、坐标与类型，把工作word bit15置位，清消息状态并设置选择缓存门。
+首次进入由工作word的bit15判定。bit15为0时先读取`script+2`的actor code并发布文字起点`script+2`，随后申请76 bytes并立即以19个dword清零；零分配并不被原函数拦截，首次`rep stosd`访问点才是typed-stop。actor code按`<=7`组B、`>7`组A分别解析，先在`0x00469F98/0x00469F30`读取actor坐标。组B分支随后对`0x00525508..0x0053AE48`前的8个角色调用动作清理；组A分支对10个角色调用动作清理，并对目标actor调用`0x0047D900(0x24)`。随后按原顺序写动态对象的flags、文字参数、坐标与类型，把工作word bit15置位，清消息状态并设置选择缓存门。
 
 活动阶段先检查共享列表门；非零时跳到公共帧出口，保留此前对象和工作位。门为零时依次清理组A十项动作、清理组A十项第二动作、清理组B十项动作。之后从已发布文字起点逐byte扫描`0x25,0x51`即`%Q`；最多检查offset `0..254`，即使没有标记也按offset255后的两个byte形成新cursor，不增加现代失败上限。cursor和文字起点均更新为标记后位置，32-byte临时文字缓冲按8个dword清零，帧门置1并进入与case44共享的动态命令逐帧路径。
 
@@ -266,7 +266,7 @@ cursor先前进2并把新位置发布为文字起点，32-byte临时缓冲按8�
 
 无条件读取`script+2`作为actor code和文字起点，申请76 bytes并立即按19个dword清零；零分配在首次清零访问点typed-stop。随后构造文字动作对象，固定flags包含`0x800`、bit3、bit10，并或入case4发布的帧参数及actor code低16位；类型word固定2。
 
-actor按`<=7`组B、`>7`组A解析。两路均读取坐标并清理整组10项动作；组B目标actor另以参数1调用一次清理。对象记录最终坐标，消息状态清0。随后再次清理组A十项与组B十项，从文字起点最多扫描255 bytes寻找`%Q`，无标记也使用offset255；cursor更新到标记/上限后2 bytes，32-byte缓冲清零，帧门写1，清选择缓存与坐标/工作word后返回1。本case不调用完整战斗帧。
+actor按`<=7`组B、`>7`组A解析。文字格式化与提交先于`0x0046A268/0x0046A200`坐标读取。组B分支先对目标actor调用`0x0047C660(1)`，再对8个组B角色调用`0x0047C660(0)`；组A分支对10个角色调用`0x0047C660(0)`，再对目标actor调用`0x0047D900(0x24)`。对象按X后Y顺序在`+0x1E/+0x20`记录坐标，消息状态清0。随后再次清理组A十项与组B十个物理地址，从文字起点最多扫描255 bytes寻找`%Q`，无标记也使用offset255；cursor更新到标记/上限后2 bytes，32-byte缓冲清零，帧门写1，清选择缓存与坐标/工作word后返回1。本case不调用完整战斗帧。
 
 ### case `45`
 
@@ -318,7 +318,7 @@ case56把`script+2`作为组Bactor u16并写入packed状态高word。caller按`s
 
 ### case `59`
 
-这是case2/44的第三种76-byte文字动作。工作word bit15控制首次构造；首次进入除读取坐标外还调用一项角色方向/锚点服务，固定对象参数使用`0x10000`并写入额外坐标。它按组A/组B清理动作、扫描最多255 bytes的`%Q`、更新cursor并清32-byte临时缓冲。活动阶段在共享列表门非零时只跑完整战斗帧；门为零时清理双方动作并完成文字扫描。完成尾清工作word、坐标、选择缓存并返回1。
+这是case2/44的第三种76-byte文字动作。工作word bit15控制首次构造；首次进入先在`0x0046A448/0x0046A3AF`读取actor坐标，再调用角色方向/锚点服务。锚点调用严格传入`0x0053CE74`与`0x0053CE7A`两个栈地址token，而不是坐标当前值；组B路径在调用前重新形成`EAX=actor`、`EDX=1381*actor`，组A路径形成`EAX=1007*index`、`EDX=3021*index`。随后按case2相同的8项组B或10项组A加目标actor清理顺序处理，格式化时使用查询得到的signed X/Y，并把坐标按X后Y写入命令`+0x1E/+0x20`。活动阶段在共享列表门非零时只跑完整战斗帧；门为零时清理双方动作并完成最多255 bytes的`%Q`扫描。完成尾清工作word、共享坐标和选择缓存并返回1。
 
 ### case `60`
 
@@ -470,5 +470,15 @@ cursor前进2，设置独立脚本门为1，发布cursor后调用完整战斗帧
 ## 17. `0x00478330`三条脚本分支直连
 
 工作包278关闭opcode 9的`0x0046AA6C`、opcode 23的`0x0046AC80`和opcode 58的`0x0046D221`三处物理call，三者均把完整dword `1`写入按actor code定位的组A对象`+0x2AE4`，直接复用最终角色状态中的availability owner。caller保留目标码大于7时先计算`EDX=actor_code*5-40`、减8重发布及写共享槽的原前缀；未进入该分支时EDX沿用入口残值。leaf写停止时EAX已为1、ECX为角色token，opcode 9不提交action/frame尾，opcode 23不调用后续角色与帧callee，opcode 58不发布动作6或推进cursor。旧`pending_478330`枚举及端口调用全部删除。
+
+## 18. `0x004783B0`六处脚本坐标直连
+
+工作包282 REVIEW 2关闭case 2的`0x00469F30/0x00469F98`、case 44的`0x0046A200/0x0046A268`和case 59的`0x0046A3AF/0x0046A448`。六处均把`0x0053CE7A`与`0x0053CE78`按原压栈顺序绑定为真实16-bit输出别名，直接组合`query_legacy_battle_actor_coordinates()`；枚举数值只以`reserved_actor_coordinates`保留给适配层，生产分派不再调用该端口。
+
+组A路径以`index=actor-8`计算`EAX=3021*index`、`ECX=0x005029D0+0x2F34*index`、`EDX=actor`，调用入口flags来自最后一次`1008*index-index`减法。组B路径计算`EAX=1381*actor`、`ECX=0x00525508+0x2B28*actor`、`EDX=345*actor`，flags来自`24*actor-actor`。坐标callee正常返回与全部typed-stop都把EAX/ECX/EDX和flags回传到脚本结果；selector不可读保留caller flags，第二坐标失败保留第一项16-bit写入。
+
+坐标owner直接复用startup的10个组A角色和8槽组B生命周期，不建立脚本平行角色数组。缺失组B owner在已完成case 44文字格式化/提交后停于selector首次读取；case 2停止会阻断首轮角色清理与文字格式化；case 59第二坐标停止保留首字写入并阻断锚点、清理、格式化和共同后缀。正常路径把成功坐标写入动态命令`+0x1E/+0x20`，再由共同后缀按原顺序清理并只清共享坐标。共同组B后缀恢复为10个物理地址，末项为`0x0053D970`，循环端点为`0x00540498`；坐标后的首轮组B清理仍为8项并以`0x0053AE48`为端点。
+
+本REVIEW的定向`battle.legacy_battle_setup`覆盖三类case的组A/组B正常路径、primary/alternate坐标、地址token、寄存器残值、flags、动态命令坐标消费、共同清零、各自调用顺序、缺失owner、gate/X/Y停止、首字部分写入与未到达后缀抑制。工作包282在REVIEW 4前继续保持`pending_audit`。
 
 原版138项共享状态、动态对象地址、CRT随机序列、69个callee副作用、framebuffer/音频/文件服务及EAX/ECX/EDX联合捕获后端尚不可同时获得，因此`original_diff_verified`登记为`blocked_runtime_oracle`；这不改变完整LST静态审计、typed实现和现代侧门禁结论。
