@@ -65,6 +65,20 @@
 
 每完成一轮逆向后，必须重新完整读取`AGENTS.md`和`APPEND_SYSTEM.md`，再开始下一轮。
 
+每次提交完成后，必须重新完整读取`AGENTS.md`和本文件`goal/execution-plan-pi.md`，再开始任何后续工作。
+
+### REVIEW 与提交粒度
+
+REVIEW单元是最小提交粒度。每个工作包开始修改前必须先确定它包含一个还是多个REVIEW单元：默认一个工作包对应一个REVIEW单元；只有存在多个能够独立实现、测试、审查和回退的生产行为切片时才允许预先拆分。小工作包不得为追求小提交而人为拆分；已经确定的划分不得在执行过程中为了临时提交而缩小，划分发生实质变化时必须重新REVIEW。
+
+每个REVIEW单元必须同时包含实际生产代码路径、对应caller接入、对应测试、对应证据更新、影响范围要求的验证，以及完整staged/unstaged差异审查。禁止把只有目标本体、单个helper、接口声明、部分未验证实现、单独测试、单独文档或WIP/checkpoint作为独立REVIEW单元提交。
+
+REVIEW通过后必须立即按`AGENTS.md`完成commit、push和TG，再重新完整读取`AGENTS.md`和本文件；不得继续叠加下一REVIEW单元。REVIEW通过后若代码、测试、文档、暂存内容或工作区相关差异发生变化，原REVIEW立即失效，必须重新执行。
+
+一个工作包可以由一个或多个REVIEW单元组成，但当前`audit_order`未关闭前不得开始下一工作包。中间REVIEW只更新对应证据，inventory TSV继续保持`pending_audit`，主PLAN不得前移，也不得宣称工作包完成。最终REVIEW必须完成该工作包作用域内全部caller回收、inventory TSV、模块文档、主PLAN同步及完整发布门禁，随后才能把工作包标记为关闭。
+
+每个工作包开始前，必须先把完整REVIEW划分写入本文件唯一的“当前WORKPACK REVIEW计划”节；未写入时不得开始生产代码修改。执行中只允许在该节原位更新当前REVIEW状态，不得追加历史计划。当前工作包关闭后，开始下一工作包前必须用下一工作包的完整计划替换该节全部内容；不得在本文件保留、累积或追加已经完成的WORKPACK REVIEW计划。
+
 每个还原函数必须采用“汇编—C++ 双向收敛验证”，核对次数不设上限，以结论收敛而非
 完成固定次数作为停止条件。验证前先锁定 LST 地址范围、ABI、结构偏移和相关全局状态；
 在不参考现有 C++ 的情况下，按基本块记录地址、输入、条件跳转、数据读写、调用顺序、
@@ -265,3 +279,40 @@ B7以后已经完成的详细执行记录已机械搬到[`execution-progress-his
 当前只执行B10，不并行展开B11。
 
 下一项回收`audit_order=282`的`0x004783B0`战斗函数。
+
+### B10 当前WORKPACK REVIEW计划
+
+本节始终只保存当前工作包计划。REVIEW完成状态在本节原位更新；工作包关闭后，本节全部内容由下一工作包计划整体替换，不追加历史。
+
+当前工作包：`audit_order=282`、`0x004783B0`。目标是实现状态选择坐标查询，并回收17个已关闭caller中的28个作用域内callsite；其余7个待审计caller不属于本工作包。
+
+当前断点：REVIEW 1进行中。现有目标本体、owner、注册、测试和证据改动尚未通过新规REVIEW；`legacy_battle_actor_metrics`改动仍是WIP，当前不得提交。
+
+#### REVIEW 1：坐标查询与角色指标
+
+- 实现并验证`0x004783B0`的状态选择、访问顺序、16位部分写入、寄存器残留、CMP flags、别名和typed-stop语义。
+- 回收`0x0045B0E0`的2个callsite，并完成现有metrics生产入口所需的owner接线。
+- 同步目标与metrics测试、构建注册和坐标证据；证据必须准确写明本REVIEW完成范围及剩余caller。
+- REVIEW通过后立即commit、push、TG并重读`AGENTS.md`和本文件；inventory TSV继续保持`pending_audit`。
+
+#### REVIEW 2：战斗脚本坐标
+
+- 回收`0x00469D20`的6个callsite。
+- 验证各脚本分支的输出别名、部分写入、寄存器残留、typed-stop前缀保留和后缀抑制。
+- 同步脚本测试及相关证据；REVIEW通过后立即commit、push、TG并重读规定文件。
+- inventory TSV继续保持`pending_audit`，不得宣称工作包完成。
+
+#### REVIEW 3：战斗效果坐标
+
+- 回收`0x004582B0:5`、`0x00458DE0:1`、`0x004599B0:1`和`0x00459BF0:1`，合计4个caller、8个callsite。
+- 验证各效果路径的坐标选择、调用顺序、停止前缀和不可达后缀副作用抑制。
+- 同步对应测试及证据；REVIEW通过后立即commit、push、TG并重读规定文件。
+- inventory TSV继续保持`pending_audit`，不得宣称工作包完成。
+
+#### REVIEW 4：动作、目标与工作包关闭
+
+- 回收其余11个已关闭caller中的12个作用域内callsite，包括action dispatch及target-ready路径。
+- 验证全部作用域内caller不再调用opaque `0x004783B0` token，并覆盖主/备用坐标、寄存器残留、别名、typed-stop及后缀抑制。
+- 完成目标和caller证据、`battle-function-workpack.tsv`、`modules/battle.md`及主PLAN同步。
+- 执行定向测试、AddressSanitizer、Linux core、Linux app、格式、零诊断、十次core重复、inventory双次稳定生成、TMP分类及staged/unstaged发布审计。
+- 只有完整REVIEW通过后才能把工作包282标记为关闭，并立即commit、push、TG及重读规定文件；随后用下一工作包计划整体替换本节。
