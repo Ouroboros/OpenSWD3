@@ -22,12 +22,16 @@ struct LegacyBattleActorCoordinatesState {
     compat::u16 alternate_position_x{};  // actor + 0x0D86
     compat::u16 alternate_position_y{};  // actor + 0x0D88
     compat::u16 coordinate_mode_gate{};  // actor + 0x26D8
+    compat::u16 source_y_offset{};       // actor + 0x29B2
+    compat::i32 target_phase_y_adjustment{};  // actor + 0x02B4
 
     bool coordinate_mode_gate_read_accessible{true};
     bool position_x_read_accessible{true};
     bool position_y_read_accessible{true};
     bool alternate_position_x_read_accessible{true};
     bool alternate_position_y_read_accessible{true};
+    bool source_y_offset_read_accessible{true};
+    bool target_phase_y_adjustment_read_accessible{true};
 };
 
 struct LegacyBattleActorCoordinatesView {
@@ -36,12 +40,16 @@ struct LegacyBattleActorCoordinatesView {
     compat::u16* alternate_position_x{};
     compat::u16* alternate_position_y{};
     compat::u16* coordinate_mode_gate{};
+    compat::u16* source_y_offset{};
+    compat::i32* target_phase_y_adjustment{};
 
     const bool* coordinate_mode_gate_read_accessible{};
     const bool* position_x_read_accessible{};
     const bool* position_y_read_accessible{};
     const bool* alternate_position_x_read_accessible{};
     const bool* alternate_position_y_read_accessible{};
+    const bool* source_y_offset_read_accessible{};
+    const bool* target_phase_y_adjustment_read_accessible{};
 };
 
 template <typename Actor>
@@ -53,6 +61,8 @@ view_legacy_battle_actor_coordinates(Actor& state) noexcept {
         .alternate_position_x = &state.alternate_position_x,
         .alternate_position_y = &state.alternate_position_y,
         .coordinate_mode_gate = &state.coordinate_mode_gate,
+        .source_y_offset = &state.source_y_offset,
+        .target_phase_y_adjustment = &state.target_phase_y_adjustment,
         .coordinate_mode_gate_read_accessible =
             &state.coordinate_mode_gate_read_accessible,
         .position_x_read_accessible = &state.position_x_read_accessible,
@@ -61,6 +71,10 @@ view_legacy_battle_actor_coordinates(Actor& state) noexcept {
             &state.alternate_position_x_read_accessible,
         .alternate_position_y_read_accessible =
             &state.alternate_position_y_read_accessible,
+        .source_y_offset_read_accessible =
+            &state.source_y_offset_read_accessible,
+        .target_phase_y_adjustment_read_accessible =
+            &state.target_phase_y_adjustment_read_accessible,
     };
 }
 

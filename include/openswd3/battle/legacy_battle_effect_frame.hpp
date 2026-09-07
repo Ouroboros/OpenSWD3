@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_actor_base_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_actor_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_actor_render_offsets.hpp"
 #include "openswd3/battle/legacy_battle_animation_collision.hpp"
@@ -182,6 +183,7 @@ enum class LegacyBattleEffectFrameStatus : compat::u8 {
     argument_object_typed_stop,
     resource_owner_typed_stop,
     actor_render_offset_typed_stop,
+    actor_base_coordinate_typed_stop,
     actor_coordinate_typed_stop,
     group_a_actor_typed_stop,
     group_b_actor_typed_stop,
@@ -199,6 +201,8 @@ struct LegacyBattleEffectFrameResult {
     compat::u32 alternate_animation_steps{};
     LegacyBattleActorRenderOffsetQueryResult render_offset_query{};
     compat::u32 render_offset_query_calls{};
+    LegacyBattleActorBaseCoordinateQueryResult base_coordinate_query{};
+    compat::u32 base_coordinate_query_calls{};
     std::array<LegacyBattleActorCoordinateQueryResult, 5> coordinate_queries{};
     compat::u32 coordinate_query_calls{};
     LegacyBattleAnimationCollisionResult animation_collision{};

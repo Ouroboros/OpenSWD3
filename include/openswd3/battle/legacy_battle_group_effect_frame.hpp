@@ -41,6 +41,7 @@ enum class LegacyBattleGroupEffectFrameStatus : compat::u8 {
     argument_object_typed_stop,
     resource_owner_typed_stop,
     actor_render_offset_typed_stop,
+    actor_base_coordinate_typed_stop,
     actor_coordinate_typed_stop,
     group_a_actor_typed_stop,
     group_b_actor_typed_stop,
@@ -62,6 +63,8 @@ struct LegacyBattleGroupEffectFrameResult {
     compat::u32 reward_iterations{};
     LegacyBattleActorRenderOffsetQueryResult render_offset_query{};
     compat::u32 render_offset_query_calls{};
+    LegacyBattleActorBaseCoordinateQueryResult base_coordinate_query{};
+    compat::u32 base_coordinate_query_calls{};
     LegacyBattleActorCoordinateQueryResult coordinate_query{};
     compat::u32 coordinate_query_calls{};
     LegacyBattleAnimationCollisionResult animation_collision{};

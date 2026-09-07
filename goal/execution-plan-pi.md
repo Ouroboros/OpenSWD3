@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v875
+版本：v876
 
 最后更新：2026-09-04
 
@@ -286,9 +286,11 @@ B7以后已经完成的详细执行记录已机械搬到[`execution-progress-his
 
 当前工作包：`audit_order=284`、`0x00478470`。目标是实现战斗角色基准坐标查询，并回收7个已关闭caller中的8个物理callsite。第9个物理callsite属于仍为`pending_audit`的`audit_order=419 / 0x00484020`，当前没有对应现代生产实现；关闭该caller时必须直接复用本工作包typed接口，不得恢复opaque边界。
 
-当前断点：已锁定目标完整LST、8个caller和9个物理callsite；目标与现有生产边界已独立审计，REVIEW划分如下，当前执行计划发布门，尚未开始生产代码修改。
+当前断点：REVIEW 1已完成typed leaf、三个效果caller、测试、证据与发布矩阵；inventory按计划保持`pending_audit`。下一步执行REVIEW 2，尚未开始脚本动态文字生产代码修改。
 
 #### REVIEW 1：基准坐标查询与战斗效果
+
+状态：已完成。typed leaf与三个效果caller已直接组合；定向`1/1`、AddressSanitizer `199/199`、Linux core `199/199`和Linux app `205/205`通过，最终stderr为空，inventory保持`pending_audit`。
 
 - 实现并验证`0x00478470..0x0047849C`共45字节、9条指令、0个call和0个分支的`word(actor+0x0D66)-word(actor+0x29B2)`与`word(actor+0x0D68)-word(actor+0x02B4)`两项有序查询。
 - 保留X源读取、首输出指针、X减数、X低16位写入、Y源读取、Y减数、次输出指针和Y低16位写入的真实顺序，以及X写入后Y故障的部分提交、输出/actor别名、EAX高word、ECX/EDX残值和两次SUB flags。

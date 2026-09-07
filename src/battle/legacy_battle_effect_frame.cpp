@@ -22,7 +22,6 @@ constexpr u32 kCallAdvanceEffect = 0x00430EB0U;
 constexpr u32 kCallRandomBounded = 0x00439070U;
 constexpr u32 kCallInitializeRecord = 0x004321E0U;
 constexpr u32 kCallLookupResource = 0x00431760U;
-constexpr u32 kCallQueryBaseCoordinates = 0x00478470U;
 constexpr u32 kCallSetSamplePan = 0x00485650U;
 constexpr u32 kCallFinalizeCoordinates = 0x00481FD0U;
 constexpr u32 kCallRenderResource = 0x004170E0U;
@@ -98,6 +97,19 @@ subtract_flags(const u32 left, const u32 right) noexcept {
         .zero = difference == 0U,
         .sign = (difference & 0x80000000U) != 0U,
         .overflow = ((left ^ right) & (left ^ difference) & 0x80000000U) != 0U,
+    };
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+compare_word_zero_flags(const u16 value) noexcept {
+    return {
+        .carry = false,
+        .parity = has_even_parity(value),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = true,
+        .zero = value == 0U,
+        .sign = (value & 0x8000U) != 0U,
+        .overflow = false,
     };
 }
 
@@ -600,16 +612,40 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
             }
             u32 coordinate_entry_edx = result.render_offset_query.return_edx;
             if (low_word(aux_x) != 0U || low_word(aux_y) != 0U) {
-                load_pair(
-                    invoke(
-                        port,
-                        result,
-                        kCallQueryBaseCoordinates,
-                        {argument_object_token}
-                    ),
-                    x,
-                    y
-                );
+                u16 base_x_word = low_word(x);
+                u16 base_y_word = low_word(y);
+                result.base_coordinate_query =
+                    query_legacy_battle_actor_base_coordinates(
+                        resolve_legacy_battle_actor_coordinates(
+                            coordinate_owners, argument_object_token
+                        ),
+                        &base_x_word,
+                        &base_y_word,
+                        {
+                            .actor_token = argument_object_token,
+                            .output_x_token = state.coordinate_output_x_token,
+                            .output_y_token = state.coordinate_output_y_token,
+                            .entry_eax = state.coordinate_output_x_token,
+                            .entry_edx = state.coordinate_output_y_token,
+                            .entry_flags = compare_word_zero_flags(
+                                low_word(aux_x) != 0U ? low_word(aux_x)
+                                                      : low_word(aux_y)
+                            ),
+                        }
+                    );
+                ++result.base_coordinate_query_calls;
+                if (result.base_coordinate_query.output_writes >= 1U) {
+                    replace_low_word(x, base_x_word);
+                }
+                if (result.base_coordinate_query.output_writes >= 2U) {
+                    replace_low_word(y, base_y_word);
+                }
+                if (result.base_coordinate_query.status !=
+                    LegacyBattleActorBaseCoordinateQueryStatus::completed) {
+                    result.status = LegacyBattleEffectFrameStatus::
+                        actor_base_coordinate_typed_stop;
+                    return result;
+                }
                 x += aux_x;
                 y += aux_y;
                 coordinate_entry_edx = aux_y;

@@ -654,12 +654,15 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
             std::make_unique<openswd3::battle::LegacyBattleStartupState>();
         startup->party[0].render_offsets.render_x_base = 2U;
         startup->party[0].render_offsets.render_y_base = 3U;
+        startup->party[0].position_x = 325U;
+        startup->party[0].source_y_offset = 2U;
+        startup->party[0].position_y = 205U;
+        startup->party[0].target_phase_y_adjustment = 5;
         EffectPort port;
         port.push(0x004321E0U, {.eax = 1U});
         port.push(
             0x00431760U, resource_reply(0x1111U, 0x2222U, 50U, 20U, 0x3333U)
         );
-        port.push(0x00478470U, pair_reply(323U, 200U));
         port.push(0x00485610U, {.eax = 0xAAAA0000U, .ecx = 0xBBBB0000U});
         const auto result =
             openswd3::battle::advance_legacy_battle_effect_frame(
@@ -677,12 +680,70 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
                 result.render_offset_query_calls == 1U &&
                 result.render_offset_query.output_x == 2U &&
                 result.render_offset_query.output_y == 3U &&
+                result.base_coordinate_query_calls == 1U &&
+                result.base_coordinate_query.output_x == 323U &&
+                result.base_coordinate_query.output_y == 200U &&
                 result.coordinate_query_calls == 0U &&
-                port.count(0x00478470U) == 1U &&
+                port.count(0x00478470U) == 0U &&
                 has_argument(port, 0x00485650U, 0U, 0xBBBB0000U) &&
                 has_argument(port, 0x00485650U, 1U, 16U) &&
                 port.count(0x00478400U) == 0U,
             "effect setup composes nonzero actor render offsets before width adjustments"
+        );
+    }
+
+    {
+        LegacyBattleEffectFrameState state;
+        auto& record = state.primary[0];
+        record.width_adjustment = 5U;
+        record.y_adjustment = 1U;
+        state.coordinate_output_x_token = 0xAAAA1111U;
+        state.coordinate_output_y_token = 0xBBBB2222U;
+        auto startup =
+            std::make_unique<openswd3::battle::LegacyBattleStartupState>();
+        startup->party[0].render_offsets.render_x_base = 2U;
+        startup->party[0].render_offsets.render_y_base = 3U;
+        startup->party[0].position_x = 100U;
+        startup->party[0].source_y_offset = 10U;
+        startup->party[0].position_y = 200U;
+        startup->party[0].target_phase_y_adjustment_read_accessible = false;
+        EffectPort port;
+        port.push(0x004321E0U, {.eax = 1U});
+        port.push(
+            0x00431760U, resource_reply(0x1111U, 0x2222U, 50U, 20U, 0x3333U)
+        );
+        const auto result =
+            openswd3::battle::advance_legacy_battle_effect_frame(
+                state,
+                port,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken,
+                1U,
+                0U,
+                0U,
+                {.startup = startup.get()}
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleEffectFrameStatus::
+                        actor_base_coordinate_typed_stop &&
+                result.base_coordinate_query_calls == 1U &&
+                result.base_coordinate_query.status ==
+                    openswd3::battle::
+                        LegacyBattleActorBaseCoordinateQueryStatus::
+                            y_adjustment_read_typed_stop &&
+                result.base_coordinate_query.output_writes == 1U &&
+                result.base_coordinate_query.output_x == 90U &&
+                result.base_coordinate_query.return_eax == 0xAAAA00C8U &&
+                result.base_coordinate_query.return_edx == 0xAAAA1111U &&
+                result.base_coordinate_query.flags.parity &&
+                result.base_coordinate_query.flags.auxiliary_carry &&
+                state.current_resource_value_token == 0x2222U &&
+                port.count(0x00478470U) == 0U &&
+                port.count(0x00485610U) == 0U &&
+                port.count(0x00481FD0U) == 0U &&
+                port.count(0x004170E0U) == 0U && port.count(0x004885A0U) == 0U,
+            "effect base-coordinate Y fault keeps X and suppresses the complete suffix"
         );
     }
 

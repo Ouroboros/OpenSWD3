@@ -61,14 +61,6 @@ public:
     return reply;
 }
 
-[[nodiscard]] LegacyBattleEffectCallReply
-pair_reply(const u32 first, const u32 second, const u32 edx = 0U) {
-    LegacyBattleEffectCallReply reply{.edx = edx};
-    reply.outputs[0] = first;
-    reply.outputs[1] = second;
-    return reply;
-}
-
 [[nodiscard]] bool has_argument(
     const SingleEffectPort& port,
     const u32 callee,
@@ -229,10 +221,13 @@ void test_battle_single_effect_frame(openswd3::test::Context& test) {
         auto& actor = (*startup->group_b_lifecycle)[0].action_execution;
         actor.render_x_base = 2U;
         actor.render_y_base = 3U;
+        actor.position_x = 410U;
+        actor.source_y_offset = 10U;
+        actor.position_y = 25U;
+        actor.target_phase_y_adjustment = 5;
         SingleEffectPort port;
         port.push(0x004321E0U, {.eax = 1U});
         port.push(0x00431760U, resource_reply(0x1000U, 0U, 10U, 11U, 0U));
-        port.push(0x00478470U, pair_reply(400U, 20U));
         port.push(0x00485610U, {.ecx = 0xAAAA0000U, .edx = 0xBBBB0000U});
         const auto result =
             openswd3::battle::advance_legacy_battle_single_effect_frame(
@@ -244,7 +239,11 @@ void test_battle_single_effect_frame(openswd3::test::Context& test) {
                 {.startup = startup.get()}
             );
         test.expect_true(
-            result.return_value == 0U && port.count(0x00478470U) == 1U &&
+            result.return_value == 0U &&
+                result.base_coordinate_query_calls == 1U &&
+                result.base_coordinate_query.output_x == 400U &&
+                result.base_coordinate_query.output_y == 20U &&
+                port.count(0x00478470U) == 0U &&
                 has_argument(port, 0x00485650U, 0U, 0xBBBB0055U) &&
                 has_argument(port, 0x00485650U, 1U, 16U) &&
                 port.count(0x004885A0U) == 1U &&
@@ -253,6 +252,59 @@ void test_battle_single_effect_frame(openswd3::test::Context& test) {
                 result.render_offset_query.output_y == 3U &&
                 state.released_owner_value_clears == 1U,
             "right edge uses play-EDX high word and skips zero nested value release"
+        );
+    }
+
+    {
+        LegacyBattleSingleEffectFrameState state;
+        state.primary[0].pan_value = 0x55U;
+        state.coordinate_output_x_token = 0xAAAA1111U;
+        state.coordinate_output_y_token = 0xBBBB2222U;
+        auto startup =
+            std::make_unique<openswd3::battle::LegacyBattleStartupState>();
+        startup->group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            8>>();
+        auto& actor = (*startup->group_b_lifecycle)[0].action_execution;
+        actor.render_x_base = 2U;
+        actor.render_y_base = 3U;
+        actor.position_x = 100U;
+        actor.source_y_offset = 10U;
+        actor.position_y = 200U;
+        actor.target_phase_y_adjustment_read_accessible = false;
+        SingleEffectPort port;
+        port.push(0x004321E0U, {.eax = 1U});
+        port.push(
+            0x00431760U, resource_reply(0x1111U, 0x2222U, 10U, 11U, 0x3333U)
+        );
+        const auto result =
+            openswd3::battle::advance_legacy_battle_single_effect_frame(
+                state,
+                port,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupBBaseToken,
+                0x66U,
+                0U,
+                {.startup = startup.get()}
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleSingleEffectFrameStatus::
+                        actor_base_coordinate_typed_stop &&
+                result.base_coordinate_query_calls == 1U &&
+                result.base_coordinate_query.status ==
+                    openswd3::battle::
+                        LegacyBattleActorBaseCoordinateQueryStatus::
+                            y_adjustment_read_typed_stop &&
+                result.base_coordinate_query.output_writes == 1U &&
+                result.base_coordinate_query.output_x == 90U &&
+                result.base_coordinate_query.return_eax == 0xAAAA00C8U &&
+                state.current_resource_value_token == 0x2222U &&
+                state.primary[0].pan_value == 0x55U &&
+                state.released_owner_value_clears == 0U &&
+                port.count(0x00478470U) == 0U &&
+                port.count(0x00485610U) == 0U &&
+                port.count(0x004170E0U) == 0U && port.count(0x004885A0U) == 0U,
+            "single-effect base-coordinate Y fault keeps X and suppresses sample rendering releases"
         );
     }
 

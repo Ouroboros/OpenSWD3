@@ -61,14 +61,6 @@ public:
 }
 
 [[nodiscard]] LegacyBattleEffectCallReply
-pair_reply(const u32 first, const u32 second, const u32 eax = 0U) {
-    LegacyBattleEffectCallReply reply{.eax = eax};
-    reply.outputs[0] = first;
-    reply.outputs[1] = second;
-    return reply;
-}
-
-[[nodiscard]] LegacyBattleEffectCallReply
 reward_reply(const u32 reward, const u32 auxiliary = 0U, const u32 high = 0U) {
     LegacyBattleEffectCallReply reply{.eax = reward};
     reply.outputs[0] = auxiliary;
@@ -234,12 +226,15 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
         state.primary[0].base_offset = 10U;
         auto startup =
             std::make_unique<openswd3::battle::LegacyBattleStartupState>();
+        startup->party[0].render_offsets.render_x_base = 1U;
+        startup->party[0].render_offsets.render_y_base = 1U;
         startup->party[0].position_x = 155U;
+        startup->party[0].source_y_offset = 125U;
         startup->party[0].position_y = 99U;
+        startup->party[0].target_phase_y_adjustment = 59;
         GroupEffectPort port;
         port.push(0x004321E0U, {.eax = 1U});
         port.push(0x00431760U, resource_reply(0x1000U, 0U, 100U, 20U));
-        port.push(0x00478470U, pair_reply(30U, 40U));
         LegacyBattleEffectCallReply animation{.eax = 1U};
         animation.outputs[0] = 5U;
         port.push(0x00483840U, animation);
@@ -257,8 +252,11 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
             );
         test.expect_true(
             result.return_value == 1U && state.primary[0].complete == 1U &&
+                result.base_coordinate_query_calls == 1U &&
+                result.base_coordinate_query.output_x == 30U &&
+                result.base_coordinate_query.output_y == 40U &&
                 result.coordinate_query_calls == 1U &&
-                port.count(0x004783B0U) == 0U,
+                port.count(0x00478470U) == 0U && port.count(0x004783B0U) == 0U,
             "collision completion publishes the primary completion state"
         );
         test.expect_true(
@@ -540,16 +538,72 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupEffectFrameState state;
+        state.primary[0].pan_value = 0x44U;
+        state.coordinate_output_x_token = 0xAAAA1111U;
+        state.coordinate_output_y_token = 0xBBBB2222U;
+        auto startup =
+            std::make_unique<openswd3::battle::LegacyBattleStartupState>();
+        startup->party[0].render_offsets.render_x_base = 2U;
+        startup->party[0].render_offsets.render_y_base = 3U;
+        startup->party[0].position_x_read_accessible = false;
+        GroupEffectPort port;
+        port.push(0x004321E0U, {.eax = 1U});
+        port.push(
+            0x00431760U,
+            resource_reply(0x1000U, 0x2222U, 100U, 20U, 0xCCCC0000U)
+        );
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_effect_frame(
+                state,
+                port,
+                0U,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken,
+                1U,
+                0U,
+                0U,
+                0U,
+                {.startup = startup.get()}
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleGroupEffectFrameStatus::
+                        actor_base_coordinate_typed_stop &&
+                result.base_coordinate_query_calls == 1U &&
+                result.base_coordinate_query.status ==
+                    openswd3::battle::
+                        LegacyBattleActorBaseCoordinateQueryStatus::
+                            position_x_read_typed_stop &&
+                result.base_coordinate_query.return_eax == 0xBBBB2222U &&
+                result.base_coordinate_query.return_ecx ==
+                    openswd3::battle::
+                        kLegacyBattleActorCoordinatesGroupABaseToken &&
+                result.base_coordinate_query.flags.parity &&
+                result.base_coordinate_query.flags.auxiliary_carry_defined &&
+                !result.base_coordinate_query.flags.zero &&
+                state.primary[0].pan_value == 0U &&
+                state.current_resource_value_token == 0x2222U &&
+                port.count(0x00485610U) == 1U &&
+                port.count(0x00478470U) == 0U &&
+                port.count(0x004170E0U) == 0U && port.count(0x004885A0U) == 0U,
+            "group base-coordinate X fault keeps sample and owner prefixes only"
+        );
+    }
+
+    {
+        LegacyBattleGroupEffectFrameState state;
         state.primary[0].base_offset = 10U;
         state.coordinate_output_x_token = 0xAAAA1111U;
         state.coordinate_output_y_token = 0xBBBB2222U;
         auto startup =
             std::make_unique<openswd3::battle::LegacyBattleStartupState>();
+        startup->party[0].render_offsets.render_x_base = 1U;
+        startup->party[0].render_offsets.render_y_base = 1U;
+        startup->party[0].position_x = 30U;
+        startup->party[0].position_y = 40U;
         startup->party[0].coordinate_mode_gate_read_accessible = false;
         GroupEffectPort port;
         port.push(0x004321E0U, {.eax = 1U});
         port.push(0x00431760U, resource_reply(0x1000U, 0U, 100U, 20U));
-        port.push(0x00478470U, pair_reply(30U, 40U));
         LegacyBattleEffectCallReply animation{.eax = 1U};
         animation.outputs[0] = 5U;
         port.push(0x00483840U, animation);
@@ -569,6 +623,9 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGroupEffectFrameStatus::
                         actor_coordinate_typed_stop &&
+                result.base_coordinate_query_calls == 1U &&
+                result.base_coordinate_query.output_x == 30U &&
+                result.base_coordinate_query.output_y == 40U &&
                 result.coordinate_query_calls == 1U &&
                 result.coordinate_query.status ==
                     openswd3::battle::LegacyBattleActorCoordinateQueryStatus::

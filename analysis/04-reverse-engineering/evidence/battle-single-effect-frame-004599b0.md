@@ -48,7 +48,7 @@ slot越界只在首次主status/complete访问typed-stop。
 
 `0x00459AB7`已直接组合角色绘制偏移查询`0x00478400`。组B帧caller把现有action/startup owner一并传入，解析复用startup-owned组B lifecycle的action-execution与action-composition状态，不建立副本。基础X/Y、特殊覆盖与镜像X严格按原顺序只写两个既有dword local的低16位；caller入口flags来自非flip路径的`CMP global_flip,1`或flip路径的32位SUB。
 
-两个offset低word必须同时非零才查询base coordinates并做完整u32相加；任一为0时在`0x00459ADA`直接组合已关闭的`0x004783B0`。该坐标查询入口EAX为Y输出token，EDX保留绘制偏移leaf残值，flags为到达fallback的零比较结果；X/Y各只覆盖当前offset dword低word。任一绘制偏移或坐标typed-stop保留初始化、owner发布与flip前缀；Y读取失败保留第一项16-bit写入，并抑制sample、render、release与完成尾。
+两个offset低word必须同时非零才在`0x00459AEF`直接组合已关闭的基准坐标查询`0x00478470`：owner按入口actor token从startup/action与Group-B lifecycle canonical状态解析，leaf按X后Y把`position_x-source_y_offset`与`position_y-low16(target_phase_y_adjustment)`写入两个独立零初始化dword local的低16位，再按完整u32分别加原绘制偏移。入口EAX/EDX为X/Y输出token，flags来自第二项低word `CMP offset_y,0`。任一offset为0时仍在`0x00459ADA`直接组合已关闭的`0x004783B0`；该fallback入口EAX为Y输出token，EDX保留绘制偏移leaf残值，flags为到达fallback的零比较结果，X/Y各只覆盖当前offset dword低word。任一绘制偏移、基准坐标或fallback坐标typed-stop都保留初始化、owner发布与flip前缀；X写入后的Y侧故障保留第一项16-bit写入，并抑制sample、render、release与完成尾。
 
 随后：
 
@@ -98,7 +98,7 @@ owner内部value非0时先释放value；为0时跳过该call。随后无条件�
 - 子函数返回1才把pending ID写全1；
 - 返回0保持pending ID；
 - 子函数typed-stop立即传播，不执行后续最终actor step；
-- 除已直连的绘制偏移和状态坐标查询外，其余7类callee通过adapter进入caller既有typed端口，计数累加一次，不再发布已关闭函数token。
+- 除已直连的绘制偏移、基准坐标和状态坐标查询外，其余6类callee通过adapter进入caller既有typed端口，计数累加一次，不再发布已关闭函数token。
 
 调用端测试把子record预置complete=1，证明同调用清主record、清pending ID，且port中不存在`0x004599B0`调用。
 
@@ -110,7 +110,7 @@ owner内部value非0时先释放value；为0时跳过该call。随后无条件�
 - signed status在complete record清零前发布；
 - 初始化失败清备用record与active但保留主前缀；
 - owner零token在任何坐标/sample前停；
-- global flip、绘制偏移的基础/覆盖/镜像owner、offset AND门、caller CMP/SUB flags、X后Y部分提交与故障后缀抑制；
+- global flip、绘制偏移的基础/覆盖/镜像owner、基准坐标`position-adjustment`、offset AND门、低字写入后完整u32相加、caller寄存器/flags、X后Y部分提交与故障后缀抑制；
 - fallback坐标直连、输出token、绘制偏移EDX残值与零flags、signed X/Y和data token；
 - fallback坐标Y读取typed-stop保留第一项低字写入并抑制sample、render、release与完成尾；
 - 左侧sample使用坐标高word、pan使用play ECX高word；

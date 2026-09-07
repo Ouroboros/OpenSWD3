@@ -84,12 +84,10 @@ struct LegacyBattleGroupAActionExecutionState
     compat::u8 effect_direction_flags{};        // actor + 0x26C0
     compat::u8 opponent_mode{};                 // actor + 0x2A9C
     compat::u16 source_y{};                     // actor + 0x0DB2
-    compat::i32 target_phase_y_adjustment{};    // actor + 0x02B4
     compat::u16 render_x_base{};                // actor + 0x0316
     compat::u16 render_y_base{};                // actor + 0x0318
     compat::u16 source_x_offset{};              // actor + 0x29AC
     compat::u16 secondary_source_x_offset{};    // actor + 0x29AE
-    compat::u16 source_y_offset{};              // actor + 0x29B2
     compat::u16 secondary_target_x_offset{};    // actor + 0x29B6
     compat::u16 draw_x{};                       // actor + 0x29BC
     compat::u16 draw_y{};                       // actor + 0x29BE
