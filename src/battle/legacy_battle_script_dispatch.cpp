@@ -483,11 +483,41 @@ private:
         }
     }
 
-    void prepare_anchor_call(const u16 actor) noexcept {
+    [[nodiscard]] bool query_actor_base_coordinates(const u16 actor) {
         const auto address = script_actor_address(actor);
         eax_ = address.selected_call_eax;
         ecx_ = address.token;
-        edx_ = address.coordinate_eax;
+        if (actor <= 7U) {
+            edx_ = address.coordinate_eax;
+        }
+        result_.base_coordinate_query =
+            query_legacy_battle_actor_base_coordinates(
+                resolve_legacy_battle_actor_coordinates(
+                    {.startup = &bindings_.startup}, address.token
+                ),
+                &workspace_.position_x,
+                &workspace_.pair_y,
+                {
+                    .actor_token = address.token,
+                    .output_x_token = kLegacyBattleScriptPositionXToken,
+                    .output_y_token = kLegacyBattleScriptPairYToken,
+                    .entry_eax = eax_,
+                    .entry_edx = edx_,
+                    .entry_flags = address.coordinate_flags,
+                }
+            );
+        ++result_.base_coordinate_query_calls;
+        eax_ = result_.base_coordinate_query.return_eax;
+        ecx_ = result_.base_coordinate_query.return_ecx;
+        edx_ = result_.base_coordinate_query.return_edx;
+        if (result_.base_coordinate_query.status ==
+            LegacyBattleActorBaseCoordinateQueryStatus::completed) {
+            return true;
+        }
+        result_.status =
+            LegacyBattleScriptDispatchStatus::actor_base_coordinate_typed_stop;
+        result_.stopped_offset = workspace_.cursor;
+        return false;
     }
 
     [[nodiscard]] bool initialize_dynamic_text_actor_group(
@@ -2853,17 +2883,8 @@ private:
         if (!query_actor_coordinates(actor)) {
             return finish(eax_);
         }
-        const auto address = script_actor_address(actor);
-        if (anchored_variant) {
-            prepare_anchor_call(actor);
-            if (!invoke(
-                    LegacyBattleScriptDispatchCall::pending_478470,
-                    address.token,
-                    {kLegacyBattleScriptPositionXToken,
-                     kLegacyBattleScriptPairYToken}
-                )) {
-                return finish(eax_);
-            }
+        if (anchored_variant && !query_actor_base_coordinates(actor)) {
+            return finish(eax_);
         }
         if (!initialize_dynamic_text_actor_group(
                 actor, group_b_target_cleanup

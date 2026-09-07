@@ -318,7 +318,7 @@ case56把`script+2`作为组Bactor u16并写入packed状态高word。caller按`s
 
 ### case `59`
 
-这是case2/44的第三种76-byte文字动作。工作word bit15控制首次构造；首次进入先在`0x0046A448/0x0046A3AF`读取actor坐标，再调用角色方向/锚点服务。锚点调用严格传入`0x0053CE74`与`0x0053CE7A`两个栈地址token，而不是坐标当前值；组B路径在调用前重新形成`EAX=actor`、`EDX=1381*actor`，组A路径形成`EAX=1007*index`、`EDX=3021*index`。随后按case2相同的8项组B或10项组A加目标actor清理顺序处理，格式化时使用查询得到的signed X/Y，并把坐标按X后Y写入命令`+0x1E/+0x20`。活动阶段在共享列表门非零时只跑完整战斗帧；门为零时清理双方动作并完成最多255 bytes的`%Q`扫描。完成尾清工作word、共享坐标和选择缓存并返回1。
+这是case2/44的第三种76-byte文字动作。工作word bit15控制首次构造；首次进入先在`0x0046A448/0x0046A3AF`查询actor当前坐标，再在`0x0046A477/0x0046A3E0`查询基准坐标。后一次调用严格传入共享`position_x`=`0x0053CE74`与共享`pair_y`=`0x0053CE7A`两个栈地址token，而不是坐标当前值。组B路径重新形成`EAX=actor`、`EDX=1381*actor`，组A路径形成`EAX=1007*index`且EDX保持前一坐标查询残值；两路ECX都是actor token，flags分别来自最后一次`24*actor-actor`或`1008*index-index`减法。随后按case2相同的8项组B或10项组A加目标actor清理顺序处理，格式化和命令`+0x1E/+0x20`使用当前X与基准Y；基准X只写共享`position_x`并在公共尾清零。任一查询typed-stop都抑制未到达的清理、格式化、finalize、坐标发布和message写入。活动阶段在共享列表门非零时只跑完整战斗帧；门为零时清理双方动作并完成最多255 bytes的`%Q`扫描。完成尾清工作word、共享坐标和选择缓存并返回1。
 
 ### case `60`
 
@@ -480,5 +480,15 @@ cursor前进2，设置独立脚本门为1，发布cursor后调用完整战斗帧
 坐标owner直接复用startup的10个组A角色和8槽组B生命周期，不建立脚本平行角色数组。缺失组B owner在已完成case 44文字格式化/提交后停于selector首次读取；case 2停止会阻断首轮角色清理与文字格式化；case 59第二坐标停止保留首字写入并阻断锚点、清理、格式化和共同后缀。正常路径把成功坐标写入动态命令`+0x1E/+0x20`，再由共同后缀按原顺序清理并只清共享坐标。共同组B后缀恢复为10个物理地址，末项为`0x0053D970`，循环端点为`0x00540498`；坐标后的首轮组B清理仍为8项并以`0x0053AE48`为端点。
 
 本REVIEW的定向`battle.legacy_battle_setup`覆盖三类case的组A/组B正常路径、primary/alternate坐标、地址token、寄存器残值、flags、动态命令坐标消费、共同清零、各自调用顺序、缺失owner、gate/X/Y停止、首字部分写入与未到达后缀抑制。工作包282在REVIEW 4前继续保持`pending_audit`。
+
+## 19. `0x00478470`两处脚本基准坐标直连
+
+工作包284 REVIEW 2关闭case 59的Group-A `0x0046A3E0`与Group-B `0x0046A477`。两处都直接组合`query_legacy_battle_actor_base_coordinates()`，把共享`position_x`与共享`pair_y`绑定为真实16-bit输出槽；原枚举地址值仅以`reserved_actor_base_coordinates`保留，脚本生产分派不再调用该端口。
+
+Group-A在当前坐标查询后形成`EAX=1007*(actor-8)`与actor ECX，保留前一查询留在EDX中的X/Y输出token，flags来自`1008*index-index`。Group-B在当前坐标查询后重新形成`EAX=actor`、actor ECX和`EDX=1381*actor`，flags来自`24*actor-actor`。typed leaf成功或停止都把真实EAX/ECX/EDX和最近一次SUB flags回传到脚本结果。
+
+成功路径保留原共享槽不对称：当前坐标X继续位于`pair_x`，基准X覆盖`position_x`，基准Y覆盖`pair_y`；文字格式化与动态命令只消费当前X和基准Y。base X读取停止分别证明Group-A沿用前一查询EDX而Group-B重算EDX；Y减数停止证明基准X已提交且当前坐标槽仍保持。所有typed-stop只保留分配和已完成查询前缀，阻断角色清理、格式化、finalize、动态命令坐标发布和message写入。
+
+定向`battle.legacy_battle_setup`为`1/1`，Linux core与AddressSanitizer为`199/199`，Linux app为`205/205`，四份stderr为空；changed-range格式及`git diff --check`通过。inventory按计划仍为`283/422 = 273 platform_adapted + 10 assembly_exact + 139 pending_audit`，待工作包284 REVIEW 3回收其余3个现代callsite后关闭。
 
 原版138项共享状态、动态对象地址、CRT随机序列、69个callee副作用、framebuffer/音频/文件服务及EAX/ECX/EDX联合捕获后端尚不可同时获得，因此`original_diff_verified`登记为`blocked_runtime_oracle`；这不改变完整LST静态审计、typed实现和现代侧门禁结论。

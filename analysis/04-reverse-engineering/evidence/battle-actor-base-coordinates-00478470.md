@@ -1,6 +1,6 @@
 # 战斗角色基准坐标查询 `0x00478470`
 
-状态：typed leaf `assembly_exact`、REVIEW 1 caller `caller_reclaimed`、工作包暂为`pending_audit`。
+状态：typed leaf `assembly_exact`、REVIEW 1–2 caller `caller_reclaimed`、工作包暂为`pending_audit`。
 
 ## 1. 完整LST范围
 
@@ -42,7 +42,7 @@ X写入发生在全部Y侧访问之前。Y源、Y减数、Y输出指针或Y写�
 
 `source_y_offset`与`target_phase_y_adjustment`归入既有`LegacyBattleActorCoordinatesState`，与`position_x/position_y`共用同一个actor coordinate view。Group-A按现有优先级解析startup party或action execution状态；Group-B解析startup持有的lifecycle action-execution状态。不新增平行角色数组，也不建立独立基准坐标dword。
 
-## 5. REVIEW 1 caller回收
+## 5. REVIEW 1–2 caller回收
 
 三个已关闭效果caller各删除1处opaque `0x00478470`调用，并在原callsite直接组合typed leaf：
 
@@ -50,7 +50,14 @@ X写入发生在全部Y侧访问之前。Y源、Y减数、Y输出指针或Y写�
 - `0x00458DE0 / 0x00458EDB`：绘制偏移X/Y两个低word都非零时查询argument actor。入口EAX为Y输出token，EDX继承绘制偏移leaf残值，flags来自`CMP offset_y,0`；成功后按完整u32分别加X/Y偏移。typed-stop保留此前sample、pan清零、owner发布与绘制偏移前缀。
 - `0x004599B0 / 0x00459AEF`：绘制偏移X/Y两个低word都非零时查询入口Group-B actor，两个基准输出使用独立零初始化dword local，再与偏移做完整u32相加。任一offset为0的`0x004783B0` fallback保持不变。typed-stop保留初始化、owner发布与flip前缀，抑制sample、render、release与完成尾。
 
-三处生产文件均无`0x00478470`常量或generic base-coordinate port调用；工作包其余5个现代callsite留给REVIEW 2和REVIEW 3。`0x00484020 / 0x00484046`属于`audit_order=419`，当前没有现代生产实现，待其自身工作包关闭时必须直接复用本typed接口。
+REVIEW 2又回收脚本case 59的两个物理站点：
+
+- `0x00469D20 / 0x0046A3E0`：Group-A先在`0x0046A3AF`查询当前坐标，再以`actor-8`形成`EAX=1007*index`和actor ECX；EDX保持前一坐标查询的真实残值，flags来自最后一次`1008*index-index`。基准X写共享`position_x`，基准Y写共享`pair_y`。
+- `0x00469D20 / 0x0046A477`：Group-B先在`0x0046A448`查询当前坐标，再重新形成`EAX=actor`、actor ECX和`EDX=1381*actor`，flags来自`24*actor-actor`；输出使用与Group-A相同的非对称共享槽。
+
+脚本格式化继续读取前一查询写入的`pair_x`和基准查询覆盖的`pair_y`，动态命令仍按X后Y写`+0x1E/+0x20`。任一base-coordinate typed-stop保留分配及当前坐标前缀，并抑制角色清理、文字格式化、finalize、坐标发布和message写入。脚本生产路径已删除`pending_478470`调用，枚举数值仅以reserved名称留给适配层。
+
+五个已回收现代callsite的生产文件均不再通过generic port调用`0x00478470`；工作包其余3个现代callsite留给REVIEW 3。`0x00484020 / 0x00484046`属于`audit_order=419`，当前没有现代生产实现，待其自身工作包关闭时必须直接复用本typed接口。
 
 ## 6. 测试与验证
 
@@ -61,7 +68,8 @@ X写入发生在全部Y侧访问之前。Y源、Y减数、Y输出指针或Y写�
 - X源、首输出指针、X减数、X写入、Y源、Y减数、次输出指针和Y写入八个逐访问typed-stop；
 - X写入后的四类Y侧故障保留已提交前缀；
 - startup Group-A与Group-B lifecycle canonical owner解析；
-- 三个效果caller的成功组合、无opaque port、caller入口寄存器/flags、部分提交及sample/render/release等后缀抑制。
+- 三个效果caller的成功组合、无opaque port、caller入口寄存器/flags、部分提交及sample/render/release等后缀抑制；
+- 脚本Group-A/Group-B两条动态文字路径的非对称共享槽、各自入口寄存器/flags、零reserved调用、X后Y部分提交与清理/格式化/finalize后缀抑制。
 
 REVIEW 1在格式化后的最新代码上通过：
 
@@ -72,4 +80,6 @@ REVIEW 1在格式化后的最新代码上通过：
 - 最终四份验证stderr均为空；
 - changed-range格式化、新文件全量clang-format和`git diff --check`通过。
 
-未启动原版游戏或OpenSWD3应用程序。当前缺少原版完整Group-A/Group-B actor对象、异常内存页以及9处物理callsite联合寄存器/SEH捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。inventory在REVIEW 1后仍保持`283/422 = 273 platform_adapted + 10 assembly_exact + 139 pending_audit`；只有REVIEW 3回收8个现代callsite并登记延期caller后才关闭row 284。
+REVIEW 2在最新代码上再次通过定向`1/1`、Linux core `199/199`、AddressSanitizer `199/199`和Linux app `205/205`，最终四份stderr为空；changed-range格式与`git diff --check`通过。
+
+未启动原版游戏或OpenSWD3应用程序。当前缺少原版完整Group-A/Group-B actor对象、异常内存页以及9处物理callsite联合寄存器/SEH捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。inventory在REVIEW 2后仍保持`283/422 = 273 platform_adapted + 10 assembly_exact + 139 pending_audit`；只有REVIEW 3回收8个现代callsite并登记延期caller后才关闭row 284。

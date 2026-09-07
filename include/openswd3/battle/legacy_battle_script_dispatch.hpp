@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_actor_base_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_assets.hpp"
 #include "openswd3/battle/legacy_battle_attack_order_insert.hpp"
@@ -205,7 +206,7 @@ enum class LegacyBattleScriptDispatchCall : compat::u32 {
     reserved_party_item_definition = 0x00477BD0U,
     pending_478220 = 0x00478220U,
     reserved_actor_coordinates = 0x004783B0U,
-    pending_478470 = 0x00478470U,
+    reserved_actor_base_coordinates = 0x00478470U,
     pending_4785c0 = 0x004785C0U,
     pending_478600 = 0x00478600U,
     pending_478710 = 0x00478710U,
@@ -297,6 +298,7 @@ enum class LegacyBattleScriptDispatchStatus : compat::u8 {
     shared_state_typed_stop,
     actor_availability_block_typed_stop,
     actor_coordinate_typed_stop,
+    actor_base_coordinate_typed_stop,
     allocation_typed_stop,
     player_item_typed_stop,
     attack_order_typed_stop,
@@ -335,6 +337,8 @@ struct LegacyBattleScriptDispatchResult {
     compat::u32 actor_availability_block_calls{};
     LegacyBattleActorCoordinateQueryResult coordinate_query{};
     compat::u32 coordinate_query_calls{};
+    LegacyBattleActorBaseCoordinateQueryResult base_coordinate_query{};
+    compat::u32 base_coordinate_query_calls{};
     LegacyBattleGroupBActionCompositionResult group_b_action_composition{};
     compat::u32 group_b_action_composition_calls{};
     LegacyBattleGroupBActionProfileSelectionResult

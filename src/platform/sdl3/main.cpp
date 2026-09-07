@@ -2835,7 +2835,7 @@ public:
             break;
         }
         case LegacyBattleScriptDispatchCall::reserved_actor_coordinates:
-        case LegacyBattleScriptDispatchCall::pending_478470:
+        case LegacyBattleScriptDispatchCall::reserved_actor_base_coordinates:
         case LegacyBattleScriptDispatchCall::pending_478600:
         case LegacyBattleScriptDispatchCall::pending_484500:
             if (const auto index = group_a_index(); index.has_value()) {

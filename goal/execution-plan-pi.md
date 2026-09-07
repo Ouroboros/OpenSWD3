@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v876
+版本：v877
 
 最后更新：2026-09-04
 
@@ -286,7 +286,7 @@ B7以后已经完成的详细执行记录已机械搬到[`execution-progress-his
 
 当前工作包：`audit_order=284`、`0x00478470`。目标是实现战斗角色基准坐标查询，并回收7个已关闭caller中的8个物理callsite。第9个物理callsite属于仍为`pending_audit`的`audit_order=419 / 0x00484020`，当前没有对应现代生产实现；关闭该caller时必须直接复用本工作包typed接口，不得恢复opaque边界。
 
-当前断点：REVIEW 1已完成typed leaf、三个效果caller、测试、证据与发布矩阵；inventory按计划保持`pending_audit`。下一步执行REVIEW 2，尚未开始脚本动态文字生产代码修改。
+当前断点：REVIEW 1–2已完成typed leaf、三个效果caller、脚本两处动态文字caller、测试、证据与发布矩阵；inventory按计划保持`pending_audit`。下一步执行REVIEW 3，尚未开始目标阶段与动作坐标生产代码修改。
 
 #### REVIEW 1：基准坐标查询与战斗效果
 
@@ -299,9 +299,11 @@ B7以后已经完成的详细执行记录已机械搬到[`execution-progress-his
 
 #### REVIEW 2：战斗脚本动态文字锚点
 
+状态：已完成。两个脚本动态文字caller已直接组合；定向`1/1`、AddressSanitizer `199/199`、Linux core `199/199`和Linux app `205/205`通过，最终stderr为空，inventory保持`pending_audit`。
+
 - 回收`0x00469D20`中Group-A与Group-B动态文字路径各1个物理callsite；现代共享路径必须按原actor编号分别恢复两套token算术，不把两个物理站点合并成无寄存器语义的generic调用。
 - 保留先查询角色当前坐标、再把基准X写入共享`position_x`且把基准Y写入共享`pair_y`的非对称槽位，保留低16位写入、Group-A/Group-B入口EAX/ECX、前一坐标查询留下的EDX、SUB flags及typed-stop对角色清理、文字格式化、finalize、坐标发布和message写入的后缀抑制。
-- 删除生产`pending_478470`调用并保留枚举ordinal为reserved；同步script dispatch测试和证据，执行定向测试、AddressSanitizer、Linux core、Linux app、changed-range格式和staged/unstaged发布审计。REVIEW通过后立即commit、push、TG并重读规定文件；inventory TSV继续保持`pending_audit`。
+- 删除生产`pending_478470`调用并保留枚举地址值为reserved；同步script dispatch测试和证据，执行定向测试、AddressSanitizer、Linux core、Linux app、changed-range格式和staged/unstaged发布审计。REVIEW通过后立即commit、push、TG并重读规定文件；inventory TSV继续保持`pending_audit`。
 
 #### REVIEW 3：目标阶段、动作坐标与工作包关闭
 
