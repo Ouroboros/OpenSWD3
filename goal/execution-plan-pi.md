@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v874
+版本：v875
 
 最后更新：2026-09-04
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 工作包283 REVIEW计划与执行
+当前步骤：模块10 · 工作包284 REVIEW计划与执行
 
 ## 0. 执行约定
 
@@ -271,39 +271,39 @@ REVIEW通过后必须立即按`AGENTS.md`完成commit、push和TG，再重新完
 13. `[x]` B7：地图、世界、角色、碰撞与寻路已按模块移交条件有限收口；当前状态、阻塞和证据见[`world-map.md`](../analysis/04-reverse-engineering/modules/world-map.md)及相关inventory/evidence。
 14. `[x]` B8：剧情VM、场景调度与异步action的P1–P3已经完成；[`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md)不再覆盖当前队列。
 15. `[x]` B9：菜单、商店和其他特殊模式的227/227工作项已经关闭；当前状态和阻塞见[`special-modes.md`](../analysis/04-reverse-engineering/modules/special-modes.md)。
-16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=283`，本阶段完成`audit_order=283`发布门。
+16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=283`，本阶段执行`audit_order=284`。
 17. `[ ]` B11：存档、配置与持久化语义；等待B10满足移交条件后开始。
 
 B7以后已经完成的详细执行记录已机械搬到[`execution-progress-history-pi.md`](execution-progress-history-pi.md)。该文件只保存历史，不定义当前执行顺序、状态或断点。
 
 当前只执行B10，不并行展开B11。
 
-当前执行`audit_order=283`的`0x00478400`战斗角色绘制偏移查询函数。
+当前执行`audit_order=284`的`0x00478470`战斗角色基准坐标查询函数。
 
 ### B10 当前WORKPACK REVIEW计划
 
 本节始终只保存当前工作包计划。REVIEW完成状态在本节原位更新；工作包关闭后，本节全部内容由下一工作包计划整体替换，不追加历史。
 
-当前工作包：`audit_order=283`、`0x00478400`。目标是实现战斗角色绘制偏移查询，并回收6个已关闭caller中的8个物理callsite。
+当前工作包：`audit_order=284`、`0x00478470`。目标是实现战斗角色基准坐标查询，并回收7个已关闭caller中的8个物理callsite。第9个物理callsite属于仍为`pending_audit`的`audit_order=419 / 0x00484020`，当前没有对应现代生产实现；关闭该caller时必须直接复用本工作包typed接口，不得恢复opaque边界。
 
-当前断点：REVIEW 1与REVIEW 2已完成、提交并推送；REVIEW 3生产集成、测试、证据、正式验证、十次core、TMP分类和inventory关闭映射均已完成，当前执行unstaged/staged发布审计，随后commit、push、TG并重读规定文件。
+当前断点：已锁定目标完整LST、8个caller和9个物理callsite；目标与现有生产边界已独立审计，REVIEW划分如下，当前执行计划发布门，尚未开始生产代码修改。
 
-#### REVIEW 1：绘制偏移查询与战斗效果
+#### REVIEW 1：基准坐标查询与战斗效果
 
-- 实现并验证`0x00478400..0x00478464`共101字节、25条指令的初始`+0x0316/+0x0318`写入、`+0x2A87` bit1覆盖、`+0x2B08`镜像门及`+0x2548 -> +0x0C`宽度读取语义。
-- 保留X后Y低16位写入、覆盖坐标重复写入、镜像X最终写入、每个真实访问点typed-stop、ESI保存、分支专有寄存器残值及TEST/CMP/SUB flags。
-- 回收`0x004582B0`、`0x00458DE0`和`0x004599B0`各1个callsite；验证非零偏移路径、零偏移回退现有坐标查询、既有槽高word与别名、部分写入及故障后缀抑制。
-- 同步目标与三个效果caller的测试和证据；REVIEW通过后立即commit、push、TG并重读`AGENTS.md`和本文件。inventory TSV继续保持`pending_audit`。
+- 实现并验证`0x00478470..0x0047849C`共45字节、9条指令、0个call和0个分支的`word(actor+0x0D66)-word(actor+0x29B2)`与`word(actor+0x0D68)-word(actor+0x02B4)`两项有序查询。
+- 保留X源读取、首输出指针、X减数、X低16位写入、Y源读取、Y减数、次输出指针和Y低16位写入的真实顺序，以及X写入后Y故障的部分提交、输出/actor别名、EAX高word、ECX/EDX残值和两次SUB flags。
+- 复用startup/action与Group-B lifecycle canonical owner，回收`0x004582B0`、`0x00458DE0`和`0x004599B0`各1个callsite；保留各caller既有非零偏移门、局部dword高word、基准坐标与偏移相加顺序、寄存器残值及typed-stop后缀抑制。
+- 同步目标与三个效果caller的测试和证据；执行定向测试、AddressSanitizer、Linux core、Linux app、changed-range格式和staged/unstaged发布审计。REVIEW通过后立即commit、push、TG并重读规定文件；inventory TSV继续保持`pending_audit`。
 
-#### REVIEW 2：战斗选择框角色偏移
+#### REVIEW 2：战斗脚本动态文字锚点
 
-- 回收`0x00464270`的3个callsite，分别覆盖全体Group-B标记、当前Group-A目标和当前Group-B目标路径。
-- 复用startup/action及Group-B lifecycle canonical owner；保留共享偏移槽的低16位写入、快照中心回退、角色重置/绘制顺序、寄存器残值和各访问故障后的后缀抑制。
-- 同步选择框测试和证据；REVIEW通过后立即commit、push、TG并重读规定文件。inventory TSV继续保持`pending_audit`。
+- 回收`0x00469D20`中Group-A与Group-B动态文字路径各1个物理callsite；现代共享路径必须按原actor编号分别恢复两套token算术，不把两个物理站点合并成无寄存器语义的generic调用。
+- 保留先查询角色当前坐标、再把基准X写入共享`position_x`且把基准Y写入共享`pair_y`的非对称槽位，保留低16位写入、Group-A/Group-B入口EAX/ECX、前一坐标查询留下的EDX、SUB flags及typed-stop对角色清理、文字格式化、finalize、坐标发布和message写入的后缀抑制。
+- 删除生产`pending_478470`调用并保留枚举ordinal为reserved；同步script dispatch测试和证据，执行定向测试、AddressSanitizer、Linux core、Linux app、changed-range格式和staged/unstaged发布审计。REVIEW通过后立即commit、push、TG并重读规定文件；inventory TSV继续保持`pending_audit`。
 
-#### REVIEW 3：动作偏移与工作包关闭
+#### REVIEW 3：目标阶段、动作坐标与工作包关闭
 
-- 回收`0x004717F0`和`0x00471AD0`各1个callsite；保留偏移低word判定、零偏移回退现有坐标查询、镜像变换、caller局部槽别名、寄存器/flags及故障后缀抑制。
-- 验证全部8个作用域内callsite不再调用opaque `0x00478400` token，并完成目标及caller证据、`battle-function-workpack.tsv`、`modules/battle.md`和主PLAN同步。
+- 回收`0x004710D0`、`0x004717F0`和`0x00471AD0`各1个callsite。目标阶段保留资源查询后的目标参数栈槽低word别名、局部Y槽和演出记录清零前的故障边界；动作十三/十四只在两个绘制偏移均非零时查询基准坐标，并保留零初始化局部dword、偏移合成、caller寄存器/flags和故障后缀抑制。
+- 验证7个已关闭caller中的8个物理callsite不再调用opaque `0x00478470` token；明确记录`0x00484020`待其自身工作包关闭时直连typed接口，并完成目标及caller证据、生成器关闭映射、`battle-function-workpack.tsv`、`modules/battle.md`和主PLAN同步。
 - 执行定向测试、AddressSanitizer、Linux core、Linux app、changed-range格式、零诊断、十次core重复、inventory双次稳定生成、TMP分类及staged/unstaged发布审计。
-- 完整REVIEW通过后把工作包283标记为关闭，立即commit、push、TG并重读规定文件，再用下一工作包计划整体替换本节。
+- 完整REVIEW通过后把工作包284标记为关闭，立即commit、push、TG并重读规定文件，再用下一工作包计划整体替换本节。
