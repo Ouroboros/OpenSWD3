@@ -186,7 +186,6 @@ void test_battle_single_effect_frame(openswd3::test::Context& test) {
         port.push(
             0x00431760U, resource_reply(0x1111U, 0x2222U, 200U, 30U, 0x3333U)
         );
-        port.push(0x00478400U, pair_reply(9U, 0U, 0xA5A50000U));
         port.push(0x00485610U, {.ecx = 0xAAAA0000U, .edx = 0xBBBB0000U});
         const auto result =
             openswd3::battle::advance_legacy_battle_single_effect_frame(
@@ -222,21 +221,36 @@ void test_battle_single_effect_frame(openswd3::test::Context& test) {
         LegacyBattleSingleEffectFrameState state;
         auto& record = state.primary[0];
         record.pan_value = 0x55U;
+        auto startup =
+            std::make_unique<openswd3::battle::LegacyBattleStartupState>();
+        startup->group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            8>>();
+        auto& actor = (*startup->group_b_lifecycle)[0].action_execution;
+        actor.render_x_base = 2U;
+        actor.render_y_base = 3U;
         SingleEffectPort port;
         port.push(0x004321E0U, {.eax = 1U});
         port.push(0x00431760U, resource_reply(0x1000U, 0U, 10U, 11U, 0U));
-        port.push(0x00478400U, pair_reply(2U, 3U));
         port.push(0x00478470U, pair_reply(400U, 20U));
         port.push(0x00485610U, {.ecx = 0xAAAA0000U, .edx = 0xBBBB0000U});
         const auto result =
             openswd3::battle::advance_legacy_battle_single_effect_frame(
-                state, port, 0x1000U, 0U, 0U
+                state,
+                port,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupBBaseToken,
+                0U,
+                0U,
+                {.startup = startup.get()}
             );
         test.expect_true(
             result.return_value == 0U && port.count(0x00478470U) == 1U &&
                 has_argument(port, 0x00485650U, 0U, 0xBBBB0055U) &&
                 has_argument(port, 0x00485650U, 1U, 16U) &&
                 port.count(0x004885A0U) == 1U &&
+                result.render_offset_query_calls == 1U &&
+                result.render_offset_query.output_x == 2U &&
+                result.render_offset_query.output_y == 3U &&
                 state.released_owner_value_clears == 1U,
             "right edge uses play-EDX high word and skips zero nested value release"
         );
@@ -259,9 +273,6 @@ void test_battle_single_effect_frame(openswd3::test::Context& test) {
         port.push(0x004321E0U, {.eax = 1U});
         port.push(
             0x00431760U, resource_reply(0x1111U, 0x2222U, 10U, 11U, 0x3333U)
-        );
-        port.push(
-            0x00478400U, pair_reply(0xAAAA0000U, 0xBBBB0000U, 0xCCCC0000U)
         );
         const auto result =
             openswd3::battle::advance_legacy_battle_single_effect_frame(
@@ -295,6 +306,56 @@ void test_battle_single_effect_frame(openswd3::test::Context& test) {
                 port.count(0x004170E0U) == 0U &&
                 port.count(0x004885A0U) == 0U && port.count(0x004783B0U) == 0U,
             "single-effect coordinate Y stop keeps the first low-word write and suppresses sample render and releases"
+        );
+    }
+
+    {
+        LegacyBattleSingleEffectFrameState state;
+        state.primary[0].pan_value = 0x44U;
+        auto startup =
+            std::make_unique<openswd3::battle::LegacyBattleStartupState>();
+        startup->group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            8>>();
+        auto& actor = (*startup->group_b_lifecycle)[0].action_execution;
+        actor.render_x_base = 0x1234U;
+        actor.render_y_base_read_accessible = false;
+        SingleEffectPort port;
+        port.push(0x004321E0U, {.eax = 1U});
+        port.push(
+            0x00431760U, resource_reply(0x1111U, 0x2222U, 50U, 20U, 0x3333U)
+        );
+        const auto result =
+            openswd3::battle::advance_legacy_battle_single_effect_frame(
+                state,
+                port,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupBBaseToken,
+                0U,
+                0U,
+                {.startup = startup.get()}
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleSingleEffectFrameStatus::
+                        actor_render_offset_typed_stop &&
+                result.render_offset_query_calls == 1U &&
+                result.render_offset_query.status ==
+                    openswd3::battle::LegacyBattleActorRenderOffsetQueryStatus::
+                        render_y_base_read_typed_stop &&
+                result.render_offset_query.output_writes == 1U &&
+                result.render_offset_query.output_x == 0x1234U &&
+                result.render_offset_query.flags.carry &&
+                result.render_offset_query.flags.parity &&
+                result.render_offset_query.flags.auxiliary_carry &&
+                result.render_offset_query.flags.auxiliary_carry_defined &&
+                !result.render_offset_query.flags.zero &&
+                result.render_offset_query.flags.sign &&
+                !result.render_offset_query.flags.overflow &&
+                state.current_resource_value_token == 0x2222U &&
+                state.primary[0].pan_value == 0x44U &&
+                port.count(0x00485610U) == 0U &&
+                port.count(0x004170E0U) == 0U && port.count(0x004885A0U) == 0U,
+            "single render-offset Y fault keeps X and suppresses sample render and release"
         );
     }
 }

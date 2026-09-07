@@ -100,6 +100,7 @@ struct LegacyBattleGroupAActionExecutionState
     compat::u32 render_flags{};                 // actor + 0x26A4
     compat::u32 render_source_token{};           // actor + 0x2548
     compat::u32 render_source_value_04{};        // *(actor + 0x2548) + 0x04
+    compat::u16 render_source_value_0c{};        // *(actor + 0x2548) + 0x0C
     compat::u16 completion_delay_word{};         // actor + 0x2A12
     compat::u16 completion_word{};               // actor + 0x26D6
     compat::u16 special_four_hundred_marker{};   // actor + 0x2A8E
@@ -109,6 +110,16 @@ struct LegacyBattleGroupAActionExecutionState
     compat::u32 special_draw_mirror_mode{};         // actor + 0x2B08
     compat::u32 effect_application_latch{};         // actor + 0x2B14
     compat::u16 effect_curve_index{};               // actor + 0x2F1A
+
+    bool render_x_base_read_accessible{true};
+    bool render_y_base_read_accessible{true};
+    bool render_offset_mode_flags_read_accessible{true};
+    bool render_offset_override_x_read_accessible{true};
+    bool render_offset_override_y_read_accessible{true};
+    bool special_draw_mirror_mode_read_accessible{true};
+    bool render_source_token_read_accessible{true};
+    bool render_source_value_0c_read_accessible{true};
+
     LegacyBattleGroupAActionResourceRecord resource;
     std::array<compat::u32, 4> target_indices{};  // actor + 0x2A56
     std::unique_ptr<std::array<compat::u8, 0x4C0>>

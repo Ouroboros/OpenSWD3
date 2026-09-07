@@ -25,13 +25,13 @@ slot越界在首次主记录complete读取typed-stop，且发生在本函数把�
 4. lookup callee EDX只覆写DX为主record pan，并立即播放sample；
 5. 主record pan清零；
 6. 此时才首次读取`[owner]`，零owner typed-stop保留sample和pan清零；
-7. 发布owner value token，再查询argument offsets。
+7. 发布owner value token，再在`0x00458EB0`直接组合角色绘制偏移查询`0x00478400`。
 
-因此本函数主资源与上一项不同：sample发生在resource owner首次解引用之前，pan高word来自lookup callee EDX，不来自owner token。
+因此本函数主资源与上一项不同：sample发生在resource owner首次解引用之前，pan高word来自lookup callee EDX，不来自owner token。绘制偏移typed-stop保留sample、pan清零与owner value发布，抑制argument-object mode、animation、render、release和公共尾；原`ADD ESP,0x10`形成的caller入口flags由状态显式传入并在早期故障时保留。
 
 ## 3. offset AND门与镜像坐标
 
-argument offsets两个低word必须**同时非零**才查询base coordinates并做完整u32相加。任一低word为0时，X/Y都保持0，不保留另一项非零offset。
+argument对象的基础X/Y、特殊覆盖与镜像X由typed绘制偏移查询按X后Y有序word store写入两个既有dword local；覆盖路径保留四次重复写入，镜像只最终覆盖X。两个低word必须**同时非零**才查询base coordinates并做完整u32相加。任一低word为0时，X/Y都保持0，不保留另一项非零offset。
 
 随后读取record base offset、render flags和由render高word+width adjustment低word拼成的width value，再首次直接读取参数对象mode。
 
@@ -145,7 +145,7 @@ final gate word仍大于0时执行第二次gate：
 
 ## 10. callee、测试与动态差分
 
-原24个唯一直接callee中的`0x0045BD90`、`0x0045D3E0`、`0x0045D810`与`0x004783B0`已关闭并直连；其余20个直接callee继续通过专用typed token端口发布完整EAX/ECX/EDX与输出。全角色步进内部两个尚未关闭actor callee复用同一端口。第八十二项已关闭唯一总协调器caller的五处调用并改为直接组合，同时把本函数与单体效果函数的公共记录、渲染字段和奖励数组收敛为同一18槽虚共享状态。相邻双对象数值转场关闭后，辅助奖励word进一步与效果协调器次反馈及该转场收敛为唯一共享port；动画横向命中的八槽u16计数与共享XY也由两类效果帧共用，旧记录状态副本已删除。
+原24个唯一直接callee中的`0x0045BD90`、`0x0045D3E0`、`0x0045D810`、`0x00478400`与`0x004783B0`已关闭并直连；其余19个直接callee继续通过专用typed token端口发布完整EAX/ECX/EDX与输出。全角色步进内部两个尚未关闭actor callee复用同一端口。第八十二项已关闭唯一总协调器caller的五处调用并改为直接组合，同时把本函数与单体效果函数的公共记录、渲染字段和奖励数组收敛为同一18槽虚共享状态。相邻双对象数值转场关闭后，辅助奖励word进一步与效果协调器次反馈及该转场收敛为唯一共享port；动画横向命中的八槽u16计数与共享XY也由两类效果帧共用，旧记录状态副本已删除。
 
 定向测试覆盖：
 
@@ -153,7 +153,8 @@ final gate word仍大于0时执行第二次gate：
 - 主初始化失败不清备用record；
 - 主owner零token在sample与主pan清零后停；
 - 参数对象在owner value和offset查询后的停点；
-- offset AND门、mode 0坐标非对称、EDX sample高word、无条件双release；
+- 绘制偏移owner、offset AND门、mode 0坐标非对称、caller入口flags、X后Y部分提交与故障后缀抑制；
+- EDX sample高word与无条件双release；
 - 坐标直连的X/Y输出token、等值CMP flags、gate typed-stop前缀与render/release后缀抑制；
 - 动画横向命中五步直连、固定双Y和计数槽零、共享计数清零；
 - 备用sample后清主pan但保留备用pan；

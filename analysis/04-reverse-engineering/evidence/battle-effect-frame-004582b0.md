@@ -65,7 +65,9 @@ mode不等于1时：
 
 ## 4. 坐标、sample与主声像
 
-先查询argument offsets；任一低word非0才查询base coordinates并以完整dword相加。
+`0x004586C2`已直接组合角色绘制偏移查询`0x00478400`，不再通过generic port读取argument offsets。owner按argument对象token从startup角色状态解析；基础X/Y、特殊覆盖和镜像X均按原顺序只写caller两个既有dword local的低16位。任一真实访问typed-stop保留resource、参数mode、render-flags和width计算前缀，抑制base coordinates、sample、finalize、render、release及公共尾。
+
+两项offset任一低word非0才查询base coordinates并以完整dword相加。
 
 - width value低word或record Y adjustment任一非0：只有坐标任一低word非0时，X做完整dword减width value，Y只减低word；
 - 两者都为0：清两项offset local，在`0x00458730`直接组合startup-owned actor坐标，X/Y只覆盖各自现有dword低word；入口EAX为Y输出token，EDX保留offset callee残值或已执行相加路径的辅助Y，flags来自清零EAX的XOR。成功后X做完整dword减base offset，Y只减record base-Y低word；坐标typed-stop阻止sample、finalize、render、release与公共尾。
@@ -152,7 +154,7 @@ final gate word按i16大于0时：
 
 ## 10. callee、测试与动态差分
 
-原32个唯一直接callee中的`0x0045BD90`、`0x0045D3E0`、`0x0045D810`与五处物理站点共用的`0x004783B0`已关闭并直连；其余28个资源、动画、角色、奖励、音频或owner边界继续使用专用typed token端口。五处坐标调用复用effect coordinator持有的startup actor owner，不建立平行角色数组。全角色步进内部两个尚未关闭actor callee也复用同一端口。第八十二项进一步把本函数与群体效果函数的主记录、备用记录、活动槽、公共渲染字段和奖励数组收敛为同一18槽虚共享状态。相邻双对象数值转场关闭后，辅助奖励word进一步与效果协调器次反馈及该转场收敛为唯一共享port；动画横向命中的八槽u16计数与共享XY也由两类效果帧共用，旧记录状态副本已删除。
+原32个唯一直接callee中的`0x0045BD90`、`0x0045D3E0`、`0x0045D810`、`0x00478400`与五处物理站点共用的`0x004783B0`已关闭并直连；其余27个资源、动画、角色、奖励、音频或owner边界继续使用专用typed token端口。五处坐标调用复用effect coordinator持有的startup actor owner，不建立平行角色数组。全角色步进内部两个尚未关闭actor callee也复用同一端口。第八十二项进一步把本函数与群体效果函数的主记录、备用记录、活动槽、公共渲染字段和奖励数组收敛为同一18槽虚共享状态。相邻双对象数值转场关闭后，辅助奖励word进一步与效果协调器次反馈及该转场收敛为唯一共享port；动画横向命中的八槽u16计数与共享XY也由两类效果帧共用，旧记录状态副本已删除。
 
 定向测试覆盖：
 
@@ -160,7 +162,8 @@ final gate word按i16大于0时：
 - 主记录初始化失败清备用记录并直接返回1；
 - 主resource owner零token；
 - 参数对象在resource字段发布后的真实访问停点；
-- 主记录镜像、第四处坐标低字写入、sample EAX/ECX高word、render flags与双release；
+- 主记录镜像、绘制偏移的非零/零回退、低字重复写入、TEST/CMP/SUB flags、X后Y部分提交与故障后缀抑制；
+- 第四处坐标低字写入、sample EAX/ECX高word、render flags与双release；
 - mode-one两次坐标直连、第二次入口寄存器与flags继承、首/次调用gate typed-stop、横向命中五步直连、同调用穿透奖励尾、共享计数清零及第九槽父级typed-stop；
 - alternate动画单次坐标直连、非等CMP flags、cadence、双随机与sample；
 - 备用owner在play/set-pan之后停点；

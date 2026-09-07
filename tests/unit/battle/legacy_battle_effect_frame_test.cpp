@@ -182,7 +182,6 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
             0x00431760U,
             resource_reply(0x11110000U, 0x2222U, 200U, 30U, 0x3333U)
         );
-        port.push(0x00478400U, pair_reply(0U, 0U));
         port.push(0x00485610U, {.eax = 0xAAAA0000U, .ecx = 0xBBBB0000U});
         port.push(0x00481FD0U, pair_reply(10U, 20U));
         port.push(0x00483840U, {.eax = 0U});
@@ -191,7 +190,7 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
                 state,
                 port,
                 openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken,
-                0xABCD1000U,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken,
                 0U,
                 0x55U,
                 0U,
@@ -205,6 +204,10 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
                 has_argument(port, 0x00485650U, 0U, 0xAAAA0044U) &&
                 has_argument(port, 0x00485650U, 1U, 0xFFFFFFF0U) &&
                 has_argument(port, 0x004170E0U, 4U, 0x12340001U) &&
+                result.render_offset_query_calls == 1U &&
+                result.render_offset_query.status ==
+                    openswd3::battle::LegacyBattleActorRenderOffsetQueryStatus::
+                        completed &&
                 result.coordinate_query_calls == 1U &&
                 port.count(0x004783B0U) == 0U && port.count(0x004885A0U) == 2U,
             "primary setup preserves pan return high word and mirrored render parity"
@@ -607,7 +610,6 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
         port.push(
             0x00431760U, resource_reply(0x1111U, 0x2222U, 100U, 20U, 0x3333U)
         );
-        port.push(0x00478400U, pair_reply(0U, 0U));
         port.push(0x00481FD0U, pair_reply(10U, 20U));
         port.push(0x00483840U, {.eax = 1U});
         const auto result =
@@ -640,6 +642,92 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
                 port.count(0x004170E0U) == 0U &&
                 port.count(0x004885A0U) == 0U && port.count(0x004783B0U) == 0U,
             "post-finalize coordinate Y stop keeps one word write and suppresses render release and common tail"
+        );
+    }
+
+    {
+        LegacyBattleEffectFrameState state;
+        auto& record = state.primary[0];
+        record.width_adjustment = 5U;
+        record.y_adjustment = 1U;
+        auto startup =
+            std::make_unique<openswd3::battle::LegacyBattleStartupState>();
+        startup->party[0].render_offsets.render_x_base = 2U;
+        startup->party[0].render_offsets.render_y_base = 3U;
+        EffectPort port;
+        port.push(0x004321E0U, {.eax = 1U});
+        port.push(
+            0x00431760U, resource_reply(0x1111U, 0x2222U, 50U, 20U, 0x3333U)
+        );
+        port.push(0x00478470U, pair_reply(323U, 200U));
+        port.push(0x00485610U, {.eax = 0xAAAA0000U, .ecx = 0xBBBB0000U});
+        const auto result =
+            openswd3::battle::advance_legacy_battle_effect_frame(
+                state,
+                port,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken,
+                1U,
+                0U,
+                0U,
+                {.startup = startup.get()}
+            );
+        test.expect_true(
+            result.status == LegacyBattleEffectFrameStatus::completed &&
+                result.render_offset_query_calls == 1U &&
+                result.render_offset_query.output_x == 2U &&
+                result.render_offset_query.output_y == 3U &&
+                result.coordinate_query_calls == 0U &&
+                port.count(0x00478470U) == 1U &&
+                has_argument(port, 0x00485650U, 0U, 0xBBBB0000U) &&
+                has_argument(port, 0x00485650U, 1U, 16U) &&
+                port.count(0x00478400U) == 0U,
+            "effect setup composes nonzero actor render offsets before width adjustments"
+        );
+    }
+
+    {
+        LegacyBattleEffectFrameState state;
+        auto startup =
+            std::make_unique<openswd3::battle::LegacyBattleStartupState>();
+        startup->party[0].render_offsets.render_x_base = 0x1234U;
+        startup->party[0].render_offsets.render_y_base_read_accessible = false;
+        EffectPort port;
+        port.push(0x004321E0U, {.eax = 1U});
+        port.push(
+            0x00431760U, resource_reply(0x1111U, 0x2222U, 50U, 20U, 0x3333U)
+        );
+        const auto result =
+            openswd3::battle::advance_legacy_battle_effect_frame(
+                state,
+                port,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken,
+                1U,
+                0U,
+                0U,
+                {.startup = startup.get()}
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleEffectFrameStatus::
+                        actor_render_offset_typed_stop &&
+                result.render_offset_query_calls == 1U &&
+                result.render_offset_query.status ==
+                    openswd3::battle::LegacyBattleActorRenderOffsetQueryStatus::
+                        render_y_base_read_typed_stop &&
+                result.render_offset_query.output_writes == 1U &&
+                result.render_offset_query.output_x == 0x1234U &&
+                !result.render_offset_query.flags.carry &&
+                result.render_offset_query.flags.parity &&
+                !result.render_offset_query.flags.auxiliary_carry_defined &&
+                result.render_offset_query.flags.zero &&
+                !result.render_offset_query.flags.sign &&
+                !result.render_offset_query.flags.overflow &&
+                state.current_resource_value_token == 0x2222U &&
+                port.count(0x00485610U) == 0U &&
+                port.count(0x004170E0U) == 0U && port.count(0x004885A0U) == 0U,
+            "effect render-offset Y fault keeps X and suppresses the complete suffix"
         );
     }
 }

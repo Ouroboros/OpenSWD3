@@ -25,6 +25,7 @@ enum class LegacyBattleSingleEffectFrameStatus : compat::u8 {
     completed,
     slot_index_typed_stop,
     resource_owner_typed_stop,
+    actor_render_offset_typed_stop,
     actor_coordinate_typed_stop,
 };
 
@@ -33,6 +34,8 @@ struct LegacyBattleSingleEffectFrameResult {
         LegacyBattleSingleEffectFrameStatus::completed
     };
     compat::u32 return_value{};
+    LegacyBattleActorRenderOffsetQueryResult render_offset_query{};
+    compat::u32 render_offset_query_calls{};
     LegacyBattleActorCoordinateQueryResult coordinate_query{};
     compat::u32 coordinate_query_calls{};
     compat::u32 port_calls{};

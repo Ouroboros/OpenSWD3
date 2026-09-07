@@ -15,7 +15,6 @@ using compat::u32;
 constexpr u32 kCallInitializeRecord = 0x004321E0U;
 constexpr u32 kCallLookupResource = 0x00431760U;
 constexpr u32 kCallPlaySample = 0x00485610U;
-constexpr u32 kCallQueryOffsets = 0x00478400U;
 constexpr u32 kCallQueryBaseCoordinates = 0x00478470U;
 constexpr u32 kCallQueryAnimationMode = 0x00483840U;
 constexpr u32 kCallRenderResource = 0x004170E0U;
@@ -250,9 +249,40 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
 
         u32 offset_x = 0U;
         u32 offset_y = 0U;
-        const auto offsets = invoke(kCallQueryOffsets, {argument_object_token});
-        offset_x = offsets.outputs[0];
-        offset_y = offsets.outputs[1];
+        u16 offset_x_word = low_word(offset_x);
+        u16 offset_y_word = low_word(offset_y);
+        result.render_offset_query = query_legacy_battle_actor_render_offsets(
+            resolve_legacy_battle_actor_render_offsets(
+                coordinate_owners, argument_object_token
+            ),
+            &offset_x_word,
+            &offset_y_word,
+            {
+                .actor_token = argument_object_token,
+                .output_x_token = state.coordinate_output_x_token,
+                .output_y_token = state.coordinate_output_y_token,
+                .entry_eax = resource.value_token,
+                .entry_edx = state.coordinate_output_x_token,
+                .entry_esi = argument_object_token,
+                .entry_flags = state.render_offset_entry_flags,
+            }
+        );
+        ++result.render_offset_query_calls;
+        registers.eax = result.render_offset_query.return_eax;
+        registers.ecx = result.render_offset_query.return_ecx;
+        registers.edx = result.render_offset_query.return_edx;
+        if (result.render_offset_query.output_writes >= 1U) {
+            replace_low_word(offset_x, offset_x_word);
+        }
+        if (result.render_offset_query.output_writes >= 2U) {
+            replace_low_word(offset_y, offset_y_word);
+        }
+        if (result.render_offset_query.status !=
+            LegacyBattleActorRenderOffsetQueryStatus::completed) {
+            result.status = LegacyBattleGroupEffectFrameStatus::
+                actor_render_offset_typed_stop;
+            return result;
+        }
         if (low_word(offset_x) != 0U && low_word(offset_y) != 0U) {
             const auto base =
                 invoke(kCallQueryBaseCoordinates, {argument_object_token});

@@ -2,6 +2,7 @@
 
 #include "openswd3/battle/legacy_battle_actor_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
+#include "openswd3/battle/legacy_battle_actor_render_offsets.hpp"
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
 #include "openswd3/battle/legacy_battle_actor_list_query.hpp"
 #include "openswd3/battle/legacy_battle_actor_progress.hpp"
@@ -209,6 +210,7 @@ struct LegacyBattleEnemyStartupRecord {
 
 struct LegacyBattlePartyStartupRecord
     : public LegacyBattleActorCoordinatesState {
+    LegacyBattleActorRenderOffsetState render_offsets;
     std::array<compat::u32, 5> placement_prefix{};
     compat::u16 role_id{};
     compat::u16 placement_field_1a{};

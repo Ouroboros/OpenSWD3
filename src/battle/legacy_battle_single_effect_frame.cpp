@@ -13,7 +13,6 @@ using compat::u32;
 
 constexpr u32 kCallInitializeRecord = 0x004321E0U;
 constexpr u32 kCallLookupResource = 0x00431760U;
-constexpr u32 kCallQueryOffsets = 0x00478400U;
 constexpr u32 kCallQueryBaseCoordinates = 0x00478470U;
 constexpr u32 kCallPlaySample = 0x00485610U;
 constexpr u32 kCallSetSamplePan = 0x00485650U;
@@ -49,6 +48,28 @@ void replace_low_word(u32& destination, const u16 value) noexcept {
         .zero = true,
         .sign = false,
         .overflow = false,
+    };
+}
+
+[[nodiscard]] constexpr bool has_even_parity(u32 value) noexcept {
+    value &= 0xFFU;
+    value ^= value >> 4U;
+    value ^= value >> 2U;
+    value ^= value >> 1U;
+    return (value & 1U) == 0U;
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+subtract_flags(const u32 left, const u32 right) noexcept {
+    const u32 difference = left - right;
+    return {
+        .carry = left < right,
+        .parity = has_even_parity(difference),
+        .auxiliary_carry = ((left ^ right ^ difference) & 0x10U) != 0U,
+        .auxiliary_carry_defined = true,
+        .zero = difference == 0U,
+        .sign = (difference & 0x80000000U) != 0U,
+        .overflow = ((left ^ right) & (left ^ difference) & 0x80000000U) != 0U,
     };
 }
 
@@ -119,16 +140,53 @@ LegacyBattleSingleEffectFrameResult advance_legacy_battle_single_effect_frame(
 
         u32 render_flags = primary.render_flags;
         u32 base_offset = primary.base_offset;
+        u32 render_offset_entry_eax = state.global_flip_mode;
+        auto render_offset_entry_flags =
+            subtract_flags(state.global_flip_mode, 1U);
         if (state.global_flip_mode == 1U) {
             render_flags = (render_flags & 1U) != 0U
                 ? render_flags & 0xFFFFFFFEU
                 : render_flags | 1U;
+            const u32 original_base_offset = base_offset;
             base_offset = static_cast<u32>(width) - base_offset;
+            render_offset_entry_eax = base_offset;
+            render_offset_entry_flags =
+                subtract_flags(static_cast<u32>(width), original_base_offset);
         }
 
-        const auto offsets = invoke(kCallQueryOffsets, {actor_token});
-        u32 x = offsets.outputs[0];
-        u32 y = offsets.outputs[1];
+        u32 x = 0U;
+        u32 y = 0U;
+        u16 offset_x_word = low_word(x);
+        u16 offset_y_word = low_word(y);
+        result.render_offset_query = query_legacy_battle_actor_render_offsets(
+            resolve_legacy_battle_actor_render_offsets(
+                coordinate_owners, actor_token
+            ),
+            &offset_x_word,
+            &offset_y_word,
+            {
+                .actor_token = actor_token,
+                .output_x_token = state.coordinate_output_x_token,
+                .output_y_token = state.coordinate_output_y_token,
+                .entry_eax = render_offset_entry_eax,
+                .entry_edx = state.coordinate_output_x_token,
+                .entry_esi = slot_index * kLegacyBattleEffectRecordStride,
+                .entry_flags = render_offset_entry_flags,
+            }
+        );
+        ++result.render_offset_query_calls;
+        if (result.render_offset_query.output_writes >= 1U) {
+            replace_low_word(x, offset_x_word);
+        }
+        if (result.render_offset_query.output_writes >= 2U) {
+            replace_low_word(y, offset_y_word);
+        }
+        if (result.render_offset_query.status !=
+            LegacyBattleActorRenderOffsetQueryStatus::completed) {
+            result.status = LegacyBattleSingleEffectFrameStatus::
+                actor_render_offset_typed_stop;
+            return result;
+        }
         if (low_word(x) != 0U && low_word(y) != 0U) {
             const auto base = invoke(kCallQueryBaseCoordinates, {actor_token});
             x += base.outputs[0];
@@ -147,7 +205,7 @@ LegacyBattleSingleEffectFrameResult advance_legacy_battle_single_effect_frame(
                     .output_x_token = state.coordinate_output_x_token,
                     .output_y_token = state.coordinate_output_y_token,
                     .entry_eax = state.coordinate_output_y_token,
-                    .entry_edx = offsets.edx,
+                    .entry_edx = result.render_offset_query.return_edx,
                     .entry_flags = zero_flags(),
                 }
             );
