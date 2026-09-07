@@ -2,6 +2,7 @@
 
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_actor_retreat_ready.hpp"
+#include "openswd3/battle/legacy_battle_actor_frame_snapshot.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_context_prompt.hpp"
 #include "openswd3/battle/legacy_battle_debug_state.hpp"
@@ -109,11 +110,11 @@ enum class LegacyBattleInputDispatchCall : compat::u8 {
     reserved_query_retreat_actor_slot,
     reserved_display_retreat_warning_slot,
     menu_retreat_query_group_b_candidate,
-    menu_retreat_prepare_actor_origin,
+    reserved_menu_retreat_prepare_actor_origin_slot,
     menu_retreat_configure_actor_selection,
     menu_retreat_query_group_a_candidate,
     menu_advance_query_group_b_candidate,
-    menu_advance_prepare_actor_origin,
+    reserved_menu_advance_prepare_actor_origin_slot,
     menu_advance_configure_actor_selection,
     menu_advance_query_group_a_candidate,
     reserved_menu_finalize_reset_active_group_a_actor_slot,
@@ -188,6 +189,7 @@ public:
 
 struct LegacyBattleInputDispatchBindings {
     compat::u32& render_abort_latch;
+    LegacyBattleStartupState& startup;
     LegacyBattleStartupResetBlocks& startup_reset;
     LegacyBattleTextMessageState& text_messages;
     const LegacyBattleActionModeSourceState& action_mode_source;
@@ -200,6 +202,8 @@ struct LegacyBattleInputDispatchBindings {
     LegacyBattleFinalActorStepState& final_actor;
     LegacyBattleActionDispatchState& action;
     LegacyBattleActorMetricState& metrics;
+    asset_runtime::LegacyActionUpdater& action_updater;
+    rendering::LegacyFramePieceProvider& frame_provider;
     LegacyBattleDebugHotkeyState& debug_hotkeys;
     std::span<LegacyBattleActorGroupBElementState> group_b_actors;
     LegacyBattleContextPromptState& context_prompt;
@@ -221,6 +225,7 @@ struct LegacyBattleInputDispatchRequest {
     compat::i32 mouse_y{};
     compat::u32 mouse_lower_bound{};
     compat::u32 mouse_upper_bound{480U};
+    LegacyBattleActorFrameSnapshotRequest menu_actor_frame_snapshot{};
 };
 
 enum class LegacyBattleInputDispatchStatus : compat::u8 {
@@ -264,6 +269,8 @@ struct LegacyBattleInputDispatchResult {
     compat::u32 actor_retreat_ready_calls{};
     compat::u32 menu_selection_retreat_calls{};
     compat::u32 menu_selection_advance_calls{};
+    compat::u32 menu_actor_frame_snapshot_queries{};
+    LegacyBattleActorFrameSnapshotResult menu_actor_frame_snapshot{};
     compat::u32 menu_page_retreat_calls{};
     compat::u32 menu_page_advance_calls{};
     compat::u32 menu_input_finalize_calls{};

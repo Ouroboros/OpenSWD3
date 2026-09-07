@@ -1,6 +1,6 @@
 # 战斗角色当前帧边界查询 `0x004784A0`
 
-状态：`platform_adapted`、`unit_tested`、`caller_reclaimed:3/15`、`pending_remaining_callers`。typed leaf与`0x0045FC60`三个物理callsite已落地；菜单、目标刷新和选择标记的12个callsite按REVIEW 2–3继续保持待回收。
+状态：`platform_adapted`、`unit_tested`、`caller_reclaimed:9/15`、`pending_remaining_callers`。typed leaf与`0x0045FC60`、`0x00460C40`、`0x00461240`共九个物理callsite已落地；目标刷新和选择标记的六个callsite按REVIEW 3继续保持待回收。
 
 ## 1. 完整LST范围与ABI
 
@@ -81,13 +81,13 @@ LST记录5个caller、15个物理callsite：
 - `0x00462740`：`0x00462E1A`、`0x00463623`；两条目标选择刷新路径共用局部输出块，成功后分别设置输入门，第二处再设置message 3并prime输入；
 - `0x00464270`：`0x00464840`、`0x00464905`、`0x00464A72`、`0x00464B1D`；Group-B遍历标记、Group-A遍历标记、当前Group-B目标和当前Group-A目标四处，实际消费原点与宽高绘制选择标记。
 
-现有generic槽为frame input的`prepare_actor_origin`、菜单前进/后退的两个同名槽、target runtime的`build_selection_snapshot`和selection frame的`build_actor_snapshot`。完成对应REVIEW后保留枚举ordinal但改为reserved，生产调用数必须为0。
+frame input原`prepare_actor_origin`以及菜单前进/后退两个原点准备槽均已保留枚举ordinal并改名为reserved，生产调用数为0。尚待REVIEW 3回收的generic槽只有target runtime的`build_selection_snapshot`和selection frame的`build_actor_snapshot`；完成后同样必须保留ordinal、改名reserved并实现生产零调用。
 
 ## 7. REVIEW计划
 
 REVIEW 1已实现typed leaf并回收`0x0045FC60`三处命中测试。它建立owner resolver、动作更新/frame查询组合、四dword共享局部块、显式provider EAX frame token提交、mirror、完整输出、寄存器/flags和逐访问typed-stop；frame coordinator把既有action、updater和provider注入frame-input路径。旧frame-input原点准备槽保留为reserved，生产零调用。
 
-REVIEW 2回收`0x00460C40`与`0x00461240`六处菜单选择路径。两函数复用input dispatch传入的canonical owners和callee，不消费输出值，但保留三类actor token算术、共享局部槽、callee副作用、返回寄存器/flags及typed-stop后缀抑制。
+REVIEW 2已回收`0x00460C40`与`0x00461240`六处菜单选择路径。两函数通过input dispatch直接复用startup/action canonical actor owner、action updater和frame provider；三类路径各保留原actor token算术和入口EAX/ECX/EDX，把四项结果写入各caller共享局部块。即使菜单后缀不消费结果，动作更新、frame lookup和actor frame-token提交仍执行。正常早退保留局部块原值；typed-stop保留已提交前缀与返回寄存器/flags，并抑制选择配置、gate及输入确认后缀。旧两个菜单原点准备槽已改为reserved且生产零调用。
 
 REVIEW 3回收`0x00462740`两处和`0x00464270`四处，关闭工作包。目标刷新保留两条success suffix差异；选择帧保留四处snapshot消费、中心/偏移计算、reset与render-offset调用顺序及caller寄存器/flags。最终同步五个caller证据、模块文档、生成器、inventory和主PLAN，并执行完整发布门禁。
 
@@ -95,6 +95,10 @@ REVIEW 3回收`0x00462740`两处和`0x00464270`四处，关闭工作包。目标
 
 REVIEW 1 typed leaf测试已覆盖：两条早退、mode非1、默认/actor/强制anchor、mirror完整值1与其他值、负位置符号扩展、四项dword结果、updater和provider调用、`+0x4C/+0x4A`重叠dword参数及两处独立local读取停点、显式frame token提交、成功寄存器/flags、每类真实读取/写入停点、X/Y/width部分提交、两次frame token重载及X/width输出与frame-token别名。
 
-frame-input caller测试已覆盖三个物理路径：Group-B逆序命中、Group-A大列表actor-order命中与Group-A小列表直接命中；并覆盖共享局部块早退保留、reserved槽零调用、frame provider失败、输出X写typed-stop、候选查询前缀保留及surface/像素/发布后缀抑制。REVIEW 2–3仍须补齐其余12处生产路径、菜单/目标/选择标记专属后缀、中心坐标、signed render offset和当前目标的Group-A/Group-B不同寄存器形状。
+frame-input caller测试已覆盖三个物理路径：Group-B逆序命中、Group-A大列表actor-order命中与Group-A小列表直接命中；并覆盖共享局部块早退保留、reserved槽零调用、frame provider失败、输出X写typed-stop、候选查询前缀保留及surface/像素/发布后缀抑制。
+
+菜单caller测试已覆盖前进/后退各自的Group-B、Group-A大列表与Group-A小列表六个物理路径；固定snapshot入口actor token与EAX/ECX/EDX、完整输出、updater/provider调用和frame-token提交，并覆盖两条正常早退、provider typed-stop、Y/width输出typed-stop、逐dword部分提交、reserved槽零调用、选择配置与gate后缀抑制。input dispatch测试另固定snapshot request/result透传及确认后缀抑制。
+
+REVIEW 3仍须补齐其余六处目标/选择标记生产路径、两条目标刷新后缀、中心坐标、signed render offset和当前目标的Group-A/Group-B不同寄存器形状。
 
 当前缺少原版完整Group-A/Group-B actor对象、动作资源、frame provider、异常内存页以及15处物理callsite联合寄存器/SEH捕获后端。原版动态差分预登记为`blocked_runtime_oracle`；该限制不阻止modern typed实现，也不能由静态测试冒充`original_diff_verified`。

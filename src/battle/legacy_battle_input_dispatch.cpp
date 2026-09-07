@@ -148,20 +148,34 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
     const auto retreat_menu_selection = [&]() {
         const auto nested = retreat_legacy_battle_menu_selection(
             {
+                .startup = bindings.startup,
                 .startup_reset = bindings.startup_reset,
                 .startup_supplemental_count_word =
                     bindings.startup_supplemental_count_word,
                 .frame_input_resolution = bindings.frame_input_resolution,
                 .final_actor = bindings.final_actor,
+                .action = bindings.action,
                 .metrics = bindings.metrics,
+                .action_updater = bindings.action_updater,
+                .frame_provider = bindings.frame_provider,
                 .input_dispatch = state,
                 .message_state = bindings.message_state,
             },
             port,
-            {.entry_eax = eax, .entry_ecx = ecx, .entry_edx = edx}
+            {
+                .entry_eax = eax,
+                .entry_ecx = ecx,
+                .entry_edx = edx,
+                .actor_frame_snapshot = request.menu_actor_frame_snapshot,
+            }
         );
         ++result.menu_selection_retreat_calls;
         result.port_calls += nested.port_calls;
+        result.menu_actor_frame_snapshot_queries +=
+            nested.actor_frame_snapshot_queries;
+        if (nested.actor_frame_snapshot_queries != 0U) {
+            result.menu_actor_frame_snapshot = nested.actor_frame_snapshot;
+        }
         eax = nested.return_eax;
         ecx = nested.return_ecx;
         edx = nested.return_edx;
@@ -176,20 +190,34 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
     const auto advance_menu_selection = [&]() {
         const auto nested = advance_legacy_battle_menu_selection(
             {
+                .startup = bindings.startup,
                 .startup_reset = bindings.startup_reset,
                 .startup_supplemental_count_word =
                     bindings.startup_supplemental_count_word,
                 .frame_input_resolution = bindings.frame_input_resolution,
                 .final_actor = bindings.final_actor,
+                .action = bindings.action,
                 .metrics = bindings.metrics,
+                .action_updater = bindings.action_updater,
+                .frame_provider = bindings.frame_provider,
                 .input_dispatch = state,
                 .message_state = bindings.message_state,
             },
             port,
-            {.entry_eax = eax, .entry_ecx = ecx, .entry_edx = edx}
+            {
+                .entry_eax = eax,
+                .entry_ecx = ecx,
+                .entry_edx = edx,
+                .actor_frame_snapshot = request.menu_actor_frame_snapshot,
+            }
         );
         ++result.menu_selection_advance_calls;
         result.port_calls += nested.port_calls;
+        result.menu_actor_frame_snapshot_queries +=
+            nested.actor_frame_snapshot_queries;
+        if (nested.actor_frame_snapshot_queries != 0U) {
+            result.menu_actor_frame_snapshot = nested.actor_frame_snapshot;
+        }
         eax = nested.return_eax;
         ecx = nested.return_ecx;
         edx = nested.return_edx;

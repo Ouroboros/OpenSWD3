@@ -8,7 +8,7 @@
 
 函数后的只读控制数据也已计入审计：`0x004618AC..0x004618D0`为十项跳转目标，`0x004618D4..0x004618F1`为30-byte间接索引。入口以u32回绕计算`message-1`并清pre-frame gate B；消息0或大于30在装表前返回，范围内默认消息把ECX装为9。有效消息与后退函数相同：1、2、3、4、5、7、8、27、30。
 
-19个callsite完整归类为：8次既有样本播放、2次组B候选查询、3次角色原点准备、4次角色选择配置和2次组A候选查询。四类角色callee继续复用战斗输入typed端口。
+19个callsite完整归类为：8次既有样本播放、2次组B候选查询、3次角色当前帧边界查询、4次角色选择配置和2次组A候选查询。候选查询与选择配置继续复用战斗输入窄typed端口；三次`0x004784A0`调用已直接组合`query_legacy_battle_actor_frame_snapshot`，不再经过opaque端口。
 
 ## 2. 消息1权限前进
 
@@ -47,7 +47,7 @@
 
 模式表为0时使用组B路径：target cursor加1，与live组Bcount作signed比较，超过时回绕1；随后以cursor直接读取八项组Border。组B候选callee完整EAX等于1时重新从live cursor前进，不增加循环上限。
 
-组B查询、原点和selected配置前严格恢复机器乘法落点：EAX为`index*0x565`、EDX为`index*0x159`、ECX为物理对象token。首个可用对象先调用原点准备，再把live组Bcount装入EAX，从0作i32 signed循环；每轮以递增物理token配置mode 0，callee后重装live count。count 9会在第九次真实配置thiscall停止，保留前八次配置，并返回EAX live count、ECX一过尾token、EDX前一callee值。最后对selected对象配置mode 1。普通完成置mouse action gate、target selection gate，并把`target+1`发布为action kind与返回ECX。order和对象域仅在首次真实访问typed-stop。
+组B查询、当前帧边界和selected配置前严格恢复机器乘法落点：EAX为`index*0x565`、EDX为`index*0x159`、ECX为物理对象token。首个可用对象在`0x00461469`直接查询当前帧边界；入口EAX为候选返回值，ECX为actor token，EDX为乘法残值，四项结果顺序写入caller共享`[esp+var_10]`局部块。普通早退保留旧块，typed-stop保留已写前缀并抑制所有选择配置和gate后缀。随后把live组Bcount装入EAX，从0作i32 signed循环；每轮以递增物理token配置mode 0，callee后重装live count。count 9会在第九次真实配置thiscall停止，保留前八次配置，并返回EAX live count、ECX一过尾token、EDX前一callee值。最后对selected对象配置mode 1。普通完成置mouse action gate、target selection gate，并把`target+1`发布为action kind与返回ECX。order和对象域仅在首次真实访问typed-stop。
 
 ## 6. 消息3组A正向选择
 
@@ -55,20 +55,20 @@
 
 remaining unsigned不小于4时，target cursor加1并与remaining作signed比较，超过时回绕1。以cursor读取actor order code，再按机器地址`0x0050259C+code*0x2F34`读取两项完成槽。typed owner只覆盖code 1..10并映射到物理角色0..9；code 0在首次完成槽读取停止。候选查询严格使用`0x004FFA9C+code*0x2F34`。拒绝后必须从共享target cursor重新装载EDX，再按live count和两个减数重算remaining；这保证callee破坏EDX后仍按原cursor推进。order首次越界typed-stop时保留原remaining EAX、supplemental ECX和cursor EDX。
 
-remaining小于4时，每次循环都从共享action kind重新装载ECX，再加1并与live组Acount作signed比较，超过时回绕1。完成槽和候选按同一一基code映射；候选callee拒绝后不能使用callee返回ECX继续加一。小组原点准备使用`0x004FFA9C+code*0x2F34`，映射物理角色`code-1`。
+remaining小于4时，每次循环都从共享action kind重新装载ECX，再加1并与live组Acount作signed比较，超过时回绕1。完成槽和候选按同一一基code映射；候选callee拒绝后不能使用callee返回ECX继续加一。`0x0046162C`的当前帧边界查询使用`0x004FFA9C+code*0x2F34`，映射物理角色`code-1`。
 
-大组首个可用code的原点准备保留另一条机器公式`0x005029D0+code*0x2F34`；code 10只在该真实一过尾thiscall停止，且返回EAX=`code*0x3EF`、EDX=`code*0xBCD`和ECX物理token。普通返回后清target actor，把EAX自增并把同一值写action kind，故首个reset callee也看到自增后的EAX。两条路径随后固定从`0x005029D0`开始对十个组A对象配置mode 0并逐byte清marker，再按`0x004FFA9C+action_kind*0x2F34`配置selected对象；一基code 10精确映射第十个物理对象，不是停止点。只有0或大于10才在真实selected thiscall隔离；普通完成再置两个选择gate。
+大组首个可用code在`0x004615A4`查询当前帧边界时保留另一条机器公式`0x005029D0+code*0x2F34`；code 10只在snapshot解析该真实一过尾actor token时停止，且返回EAX=`code*0x3EF`、EDX=`code*0xBCD`和ECX物理token。普通返回后清target actor，把EAX自增并把同一值写action kind，故首个reset callee也看到自增后的EAX。两条路径随后固定从`0x005029D0`开始对十个组A对象配置mode 0并逐byte清marker，再按`0x004FFA9C+action_kind*0x2F34`配置selected对象；一基code 10精确映射第十个物理对象，不是停止点。只有0或大于10才在真实selected thiscall隔离；普通完成再置两个选择gate。
 
 ## 7. caller回收与共享owner
 
 唯一caller是逐帧输入分派，三处原调用分别位于interaction mode 2、record6重复前进和record5右向分支。三处均已直连typed实现；稳定枚举原值保留reserved槽，不再发出opaque call。
 
-调用前完整EAX/ECX/EDX进入本函数；普通返回继续进入原确认/方向callee。typed-stop保留样本、cursor、角色callee、marker和数组写前缀，并阻断调用点后续输入。状态完全复用第110/111项建立的输入、帧输入、启动、最终角色和metric唯一owner，不新增第二份物理数组。
+调用前完整EAX/ECX/EDX进入本函数；普通返回继续进入原确认/方向callee。typed-stop保留样本、cursor、角色callee、snapshot局部块、marker和数组写前缀，并阻断调用点后续输入。状态完全复用第110/111项建立的输入、帧输入、启动、action、最终角色和metric唯一owner，不新增第二份物理数组。input dispatch继续向本函数传递frame coordinator既有的action updater与frame provider；旧`menu_advance_prepare_actor_origin`枚举值保留为reserved，生产零调用。
 
 第111项组A大小两条循环同时补强寄存器恢复：callee拒绝后从共享cursor重新装载，而不是误用callee返回ECX/EDX。定向测试固定前进与后退两侧的连续拒绝轨迹。
 
 ## 8. 验证与动态差分
 
-定向测试覆盖：消息0；权限上界与typed-stop；消息2 signed byte边界、有样本推进和无样本夹值；消息4写后置gate与equipment typed-stop；消息5/7/8/27/30；组B回绕、预调用乘法寄存器和第九次配置停止；组A大组回绕、live拒绝推进、actor order寄存器停止、候选/原点/配置预调用寄存器、code10原点一过尾停止、固定十对象重置和一基selected code10映射第十对象；组A小组callee拒绝后cursor重装；输入分派三处caller直连和typed-stop阻断；后退函数对应cursor与对象寄存器回归。
+定向测试覆盖：消息0；权限上界与typed-stop；消息2 signed byte边界、有样本推进和无样本夹值；消息4写后置gate与equipment typed-stop；消息5/7/8/27/30；组B回绕、预调用乘法寄存器、第九次配置停止及snapshot成功；组A大组回绕、live拒绝推进、actor order寄存器停止、候选/snapshot/配置预调用寄存器、code10 snapshot一过尾停止、固定十对象重置和一基selected code10映射第十对象；组A小组callee拒绝后cursor重装与snapshot成功；三处snapshot的动作更新、frame lookup、frame-token提交、共享四dword输出和reserved端口零调用；provider失败、width输出写停止及X/Y完整dword部分提交抑制选择配置和gate；输入分派三处caller直连、snapshot透传和typed-stop阻断；后退函数对应cursor与对象寄存器回归。
 
 当前缺少原版权限相邻内存、两组角色对象、四类角色callee、样本后端、菜单/目标全局及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

@@ -135,6 +135,41 @@ LegacyBattleMenuSelectionRetreatResult retreat_legacy_battle_menu_selection(
         eax = code * 0xBCDU;
         ecx = group_a_selection_token(code);
     };
+    auto actor_frame_output = request.actor_frame_snapshot.initial_output;
+    const auto query_actor_frame = [&](const u32 actor_token) {
+        result.actor_frame_snapshot_actor_token = actor_token;
+        result.actor_frame_snapshot_entry_eax = eax;
+        result.actor_frame_snapshot_entry_ecx = ecx;
+        result.actor_frame_snapshot_entry_edx = edx;
+        auto snapshot_request = request.actor_frame_snapshot;
+        snapshot_request.actor_token = actor_token;
+        snapshot_request.entry_edx = edx;
+        snapshot_request.initial_output = actor_frame_output;
+        result.actor_frame_snapshot = query_legacy_battle_actor_frame_snapshot(
+            resolve_legacy_battle_actor_frame_snapshot(
+                {
+                    .action = &bindings.action,
+                    .startup = &bindings.startup,
+                },
+                actor_token
+            ),
+            bindings.action_updater,
+            bindings.frame_provider,
+            snapshot_request
+        );
+        ++result.actor_frame_snapshot_queries;
+        actor_frame_output = result.actor_frame_snapshot.output;
+        eax = result.actor_frame_snapshot.return_eax;
+        ecx = result.actor_frame_snapshot.return_ecx;
+        edx = result.actor_frame_snapshot.return_edx;
+        if (result.actor_frame_snapshot.status !=
+            LegacyBattleActorFrameSnapshotStatus::completed) {
+            result.status = LegacyBattleMenuSelectionRetreatStatus::
+                actor_frame_snapshot_typed_stop;
+            return false;
+        }
+        return true;
+    };
 
     bindings.final_actor.pre_frame_gate_b = 0U;
     if (eax > 29U) {
@@ -256,11 +291,9 @@ LegacyBattleMenuSelectionRetreatResult retreat_legacy_battle_menu_selection(
             }
 
             load_group_b_object_registers(frame.target_actor_index);
-            static_cast<void>(call(
-                LegacyBattleInputDispatchCall::
-                    menu_retreat_prepare_actor_origin,
-                ecx
-            ));
+            if (!query_actor_frame(ecx)) {
+                return finish();
+            }
             eax = bindings.metrics.group_b_count;
             u32 actor_index = 0U;
             while (signed_bits(actor_index) < signed_bits(eax)) {
@@ -363,17 +396,9 @@ LegacyBattleMenuSelectionRetreatResult retreat_legacy_battle_menu_selection(
                 ++result.actor_iterations;
             }
             load_group_a_prepare_registers(frame.target_actor_index);
-            if (frame.target_actor_index >= 10U) {
-                return stop(
-                    LegacyBattleMenuSelectionRetreatStatus::
-                        group_a_actor_typed_stop
-                );
+            if (!query_actor_frame(ecx)) {
+                return finish();
             }
-            static_cast<void>(call(
-                LegacyBattleInputDispatchCall::
-                    menu_retreat_prepare_actor_origin,
-                ecx
-            ));
             eax = frame.target_actor_index;
             frame.target_actor_index = 0U;
             ++eax;
@@ -419,11 +444,9 @@ LegacyBattleMenuSelectionRetreatResult retreat_legacy_battle_menu_selection(
                 ++result.actor_iterations;
             }
             load_group_a_selection_registers(input.action_kind);
-            static_cast<void>(call(
-                LegacyBattleInputDispatchCall::
-                    menu_retreat_prepare_actor_origin,
-                ecx
-            ));
+            if (!query_actor_frame(ecx)) {
+                return finish();
+            }
         }
 
         for (u32 actor_index = 0U; actor_index < 10U; ++actor_index) {

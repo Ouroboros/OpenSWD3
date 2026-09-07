@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <map>
+#include <memory>
 #include <vector>
 
 #include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
@@ -14,6 +15,31 @@ using openswd3::battle::LegacyBattleInputDispatchCallReply;
 using openswd3::battle::LegacyBattleInputDispatchCallRequest;
 using openswd3::compat::i32;
 using openswd3::compat::u32;
+
+class StreamProvider final
+    : public openswd3::asset_runtime::LegacyActionStreamProvider {
+public:
+    [[nodiscard]] openswd3::asset_runtime::LegacyActionStreamLoadResult
+    load_action_stream(u32, u32, bool) override {
+        return {};
+    }
+};
+
+class FrameProvider final
+    : public openswd3::rendering::LegacyFramePieceProvider {
+public:
+    [[nodiscard]] bool load_frame_piece(
+        u32, u32, openswd3::rendering::LegacyFramePiece& piece
+    ) noexcept override {
+        piece.width = width;
+        piece.height = height;
+        return available;
+    }
+
+    bool available{true};
+    openswd3::compat::u16 width{20U};
+    openswd3::compat::u16 height{30U};
+};
 
 class InputPort final : public openswd3::battle::LegacyBattleInputDispatchPort {
 public:
@@ -87,9 +113,13 @@ struct Fixture {
                 token += 0x100U;
             }
         }
+        startup_state.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            8>>();
     }
 
     u32 render_abort{};
+    openswd3::battle::LegacyBattleStartupState startup_state;
     openswd3::battle::LegacyBattleStartupResetBlocks startup;
     openswd3::battle::LegacyBattleTextMessageState text_messages;
     openswd3::battle::LegacyBattleActionModeSourceState action_mode_source;
@@ -116,11 +146,17 @@ struct Fixture {
     openswd3::story_scene::LegacyDialogRuntimeState dialogs;
     std::vector<openswd3::world_map::LegacyWorldInteractionHotspot> hotspots;
     InputPort port;
+    StreamProvider stream_provider;
+    openswd3::asset_runtime::LegacyActionUpdater action_updater{
+        stream_provider
+    };
+    FrameProvider frame_provider;
 
     [[nodiscard]] openswd3::battle::LegacyBattleInputDispatchBindings
     bindings() {
         return {
             .render_abort_latch = render_abort,
+            .startup = startup_state,
             .startup_reset = startup,
             .text_messages = text_messages,
             .action_mode_source = action_mode_source,
@@ -133,6 +169,8 @@ struct Fixture {
             .final_actor = final_actor,
             .action = action,
             .metrics = metrics,
+            .action_updater = action_updater,
+            .frame_provider = frame_provider,
             .debug_hotkeys = debug,
             .group_b_actors = group_b_actors,
             .context_prompt = prompt,
@@ -767,6 +805,7 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleInputDispatchStatus::
                         completed &&
                 result.menu_selection_retreat_calls == 1U &&
+                result.menu_actor_frame_snapshot_queries == 1U &&
                 fixture.port.battle_input_dispatch_state().menu_action == 1U &&
                 fixture.frame_input.target_selection_gate == 1U &&
                 fixture.port.count(
@@ -789,8 +828,56 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
                 fixture.port.count(
                     LegacyBattleInputDispatchCall::
                         reserved_menu_selection_retreat_slot
+                ) == 0U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        reserved_menu_retreat_prepare_actor_origin_slot
                 ) == 0U,
-            "record four directly retreats the live menu selection before its existing confirmation call"
+            "record four directly snapshots and retreats the live menu selection before confirmation"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.message = 3U;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.metrics.group_a_count = 1U;
+        fixture.input.records[4U].rapid_press_multiplicity = 1U;
+        fixture.input.records[4U].held_sample_count = 1U;
+        auto& actor =
+            (*fixture.startup_state.group_b_lifecycle)[0U].action_execution;
+        actor.profile_value = 2U;
+        actor.position_x = 100U;
+        actor.position_y = 200U;
+        openswd3::battle::LegacyBattleInputDispatchRequest request;
+        request.menu_actor_frame_snapshot.output_token = 0x70005000U;
+        request.menu_actor_frame_snapshot.frame_provider_return_eax =
+            0x71006000U;
+        request.menu_actor_frame_snapshot.initial_output = {11U, 22U, 33U, 44U};
+        request.menu_actor_frame_snapshot.output_writable = {
+            true, false, true, true
+        };
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_input_dispatch(
+                fixture.bindings(), fixture.port, request
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleInputDispatchStatus::
+                        menu_selection_retreat_typed_stop &&
+                result.menu_selection_retreat_calls == 1U &&
+                result.menu_actor_frame_snapshot_queries == 1U &&
+                result.menu_actor_frame_snapshot.status ==
+                    openswd3::battle::LegacyBattleActorFrameSnapshotStatus::
+                        output_y_write_typed_stop &&
+                result.menu_actor_frame_snapshot.output ==
+                    std::array<u32, 4>{64U, 22U, 33U, 44U} &&
+                result.actor_action_cycle_calls == 0U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        menu_retreat_configure_actor_selection
+                ) == 0U,
+            "record-four snapshot stop preserves its local prefix and suppresses confirmation"
         );
     }
 
@@ -911,6 +998,7 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleInputDispatchStatus::
                         completed &&
                 result.menu_selection_advance_calls == 1U &&
+                result.menu_actor_frame_snapshot_queries == 1U &&
                 fixture.port.battle_input_dispatch_state().menu_action == 2U &&
                 fixture.frame_input.target_selection_gate == 1U &&
                 fixture.port.count(
@@ -933,8 +1021,12 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
                 fixture.port.count(
                     LegacyBattleInputDispatchCall::
                         reserved_menu_selection_advance_slot
+                ) == 0U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        reserved_menu_advance_prepare_actor_origin_slot
                 ) == 0U,
-            "record six directly advances the live menu selection before its existing confirmation call"
+            "record six directly snapshots and advances the live menu selection before confirmation"
         );
     }
 

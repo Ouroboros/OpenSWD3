@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <map>
+#include <memory>
 #include <vector>
 
 #include "test.hpp"
@@ -15,6 +16,35 @@ using openswd3::battle::LegacyBattleInputDispatchCallRequest;
 using openswd3::battle::LegacyBattleMenuSelectionAdvanceBindings;
 using openswd3::compat::i32;
 using openswd3::compat::u32;
+
+class StreamProvider final
+    : public openswd3::asset_runtime::LegacyActionStreamProvider {
+public:
+    [[nodiscard]] openswd3::asset_runtime::LegacyActionStreamLoadResult
+    load_action_stream(u32, u32, bool) override {
+        return {};
+    }
+};
+
+class FrameProvider final
+    : public openswd3::rendering::LegacyFramePieceProvider {
+public:
+    [[nodiscard]] bool load_frame_piece(
+        const u32 resource_id,
+        const u32 piece_index,
+        openswd3::rendering::LegacyFramePiece& piece
+    ) noexcept override {
+        requests.push_back({resource_id, piece_index});
+        piece.width = width;
+        piece.height = height;
+        return available;
+    }
+
+    bool available{true};
+    openswd3::compat::u16 width{20U};
+    openswd3::compat::u16 height{30U};
+    std::vector<std::array<u32, 2>> requests;
+};
 
 class MenuPort final : public openswd3::battle::LegacyBattleInputDispatchPort {
 public:
@@ -67,22 +97,39 @@ public:
 };
 
 struct Fixture {
+    Fixture() {
+        startup_state.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            8>>();
+    }
+
     openswd3::battle::LegacyBattleStartupResetBlocks startup;
+    openswd3::battle::LegacyBattleStartupState startup_state;
     openswd3::compat::u16 supplemental_count{};
     openswd3::battle::LegacyBattleFrameInputResolutionState frame;
     openswd3::battle::LegacyBattleFinalActorStepState final_actor;
+    openswd3::battle::LegacyBattleActionDispatchState action;
     openswd3::battle::LegacyBattleActorMetricState metrics;
     openswd3::battle::LegacyBattleInputDispatchState input;
     u32 message{};
     MenuPort port;
+    StreamProvider stream_provider;
+    openswd3::asset_runtime::LegacyActionUpdater action_updater{
+        stream_provider
+    };
+    FrameProvider frame_provider;
 
     [[nodiscard]] LegacyBattleMenuSelectionAdvanceBindings bindings() {
         return {
+            .startup = startup_state,
             .startup_reset = startup,
             .startup_supplemental_count_word = supplemental_count,
             .frame_input_resolution = frame,
             .final_actor = final_actor,
+            .action = action,
             .metrics = metrics,
+            .action_updater = action_updater,
+            .frame_provider = frame_provider,
             .input_dispatch = input,
             .message_state = message,
         };
@@ -318,8 +365,18 @@ void test_battle_menu_selection_advance(openswd3::test::Context& test) {
         fixture.metrics.group_b_count = 2U;
         fixture.frame.target_cursor = 2U;
         fixture.metrics.group_b_order[1U] = 1U;
+        auto& selected =
+            (*fixture.startup_state.group_b_lifecycle)[1U].action_execution;
+        selected.profile_value = 2U;
+        selected.position_x = 100U;
+        selected.position_y = 200U;
         const auto result = advance_legacy_battle_menu_selection(
-            fixture.bindings(), fixture.port, {}
+            fixture.bindings(),
+            fixture.port,
+            {.actor_frame_snapshot = {
+                 .output_token = 0x70002000U,
+                 .frame_provider_return_eax = 0x71003000U,
+             }}
         );
         test.expect_true(
             result.status ==
@@ -340,11 +397,55 @@ void test_battle_menu_selection_advance(openswd3::test::Context& test) {
                     openswd3::battle::kLegacyBattleActionGroupBBaseToken +
                         openswd3::battle::kLegacyBattleActionGroupBStride &&
                 fixture.port.calls[0U].edx == 0x159U &&
-                fixture.port.calls[2U].eax == 2U &&
-                fixture.port.calls[2U].ecx ==
+                result.actor_frame_snapshot_queries == 1U &&
+                result.actor_frame_snapshot_actor_token ==
+                    openswd3::battle::kLegacyBattleActionGroupBBaseToken +
+                        openswd3::battle::kLegacyBattleActionGroupBStride &&
+                result.actor_frame_snapshot.output ==
+                    std::array<u32, 4>{64U, 200U, 20U, 30U} &&
+                selected.turn_frame_token == 0x71003000U &&
+                fixture.port.calls[1U].eax == 2U &&
+                fixture.port.calls[1U].ecx ==
                     openswd3::battle::kLegacyBattleActionGroupBBaseToken &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        reserved_menu_advance_prepare_actor_origin_slot
+                ) == 0U &&
                 result.return_ecx == 2U,
-            "case three wraps the group-B cursor to one and configures the selected target"
+            "case three snapshots the wrapped group-B target before configuring it"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.message = 3U;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.metrics.group_b_count = 1U;
+        auto& selected =
+            (*fixture.startup_state.group_b_lifecycle)[0U].action_execution;
+        selected.profile_value = 0U;
+        const auto result = advance_legacy_battle_menu_selection(
+            fixture.bindings(),
+            fixture.port,
+            {.actor_frame_snapshot = {
+                 .initial_output = {11U, 22U, 33U, 44U},
+             }}
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleMenuSelectionAdvanceStatus::completed &&
+                result.actor_frame_snapshot.returned_early &&
+                result.actor_frame_snapshot.output ==
+                    std::array<u32, 4>{11U, 22U, 33U, 44U} &&
+                result.actor_frame_snapshot.action_update_calls == 0U &&
+                result.actor_frame_snapshot.frame_lookup_calls == 0U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        menu_advance_configure_actor_selection
+                ) == 2U &&
+                fixture.input.mouse_action_gate == 1U &&
+                fixture.frame.target_selection_gate == 1U,
+            "profile-zero early return preserves the shared frame block and continues the advance suffix"
         );
     }
 
@@ -427,14 +528,15 @@ void test_battle_menu_selection_advance(openswd3::test::Context& test) {
                     openswd3::battle::kLegacyBattleActionGroupABaseToken +
                         openswd3::battle::kLegacyBattleActionGroupAStride &&
                 fixture.port.calls[0U].edx == 1U &&
-                fixture.port.calls[1U].eax == 2U * 0x3EFU &&
-                fixture.port.calls[1U].ecx ==
+                result.actor_frame_snapshot_queries == 1U &&
+                result.actor_frame_snapshot_entry_eax == 2U * 0x3EFU &&
+                result.actor_frame_snapshot_entry_ecx ==
                     openswd3::battle::kLegacyBattleActionGroupABaseToken +
                         2U *
                             openswd3::battle::kLegacyBattleActionGroupAStride &&
-                fixture.port.calls[1U].edx == 2U * 0xBCDU &&
-                fixture.port.calls[2U].eax == 3U,
-            "large group-A selection preserves query and prepare address registers before clearing markers"
+                result.actor_frame_snapshot_entry_edx == 2U * 0xBCDU &&
+                fixture.port.calls[1U].eax == 3U,
+            "large group-A selection preserves query and snapshot address registers before clearing markers"
         );
     }
 
@@ -460,8 +562,12 @@ void test_battle_menu_selection_advance(openswd3::test::Context& test) {
                 fixture.port.count(
                     LegacyBattleInputDispatchCall::
                         menu_advance_query_group_a_candidate
-                ) == 2U,
-            "small group-A rejection reloads the one-based action cursor before the next advance"
+                ) == 2U &&
+                result.actor_frame_snapshot_queries == 1U &&
+                result.actor_frame_snapshot_actor_token ==
+                    openswd3::battle::kLegacyBattleActionGroupABaseToken +
+                        2U * openswd3::battle::kLegacyBattleActionGroupAStride,
+            "small group-A rejection reloads the cursor before snapshotting the next actor"
         );
     }
 
@@ -564,7 +670,11 @@ void test_battle_menu_selection_advance(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleMenuSelectionAdvanceStatus::
-                        group_a_actor_typed_stop &&
+                        actor_frame_snapshot_typed_stop &&
+                result.actor_frame_snapshot.status ==
+                    openswd3::battle::LegacyBattleActorFrameSnapshotStatus::
+                        special_ready_read_typed_stop &&
+                result.actor_frame_snapshot_queries == 1U &&
                 fixture.input.action_kind == 0U &&
                 std::ranges::all_of(
                     fixture.frame.target_markers,
@@ -574,13 +684,55 @@ void test_battle_menu_selection_advance(openswd3::test::Context& test) {
                     LegacyBattleInputDispatchCall::
                         menu_advance_configure_actor_selection
                 ) == 0U &&
-                result.return_eax == 10U * 0x3EFU &&
-                result.return_ecx ==
+                result.actor_frame_snapshot_entry_eax == 10U * 0x3EFU &&
+                result.actor_frame_snapshot_entry_ecx ==
                     openswd3::battle::kLegacyBattleActionGroupABaseToken +
                         10U *
                             openswd3::battle::kLegacyBattleActionGroupAStride &&
+                result.actor_frame_snapshot_entry_edx == 10U * 0xBCDU &&
+                result.return_eax == 0U && result.return_ecx == 0U &&
                 result.return_edx == 10U * 0xBCDU,
-            "large group-A code ten stops at the one-past prepare call after preserving its address registers"
+            "large group-A code ten stops on the one-past snapshot's first actor read"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.message = 3U;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.metrics.group_b_count = 1U;
+        auto& selected =
+            (*fixture.startup_state.group_b_lifecycle)[0U].action_execution;
+        selected.profile_value = 2U;
+        selected.position_x = 100U;
+        selected.position_y = 200U;
+        const auto result = advance_legacy_battle_menu_selection(
+            fixture.bindings(),
+            fixture.port,
+            {.actor_frame_snapshot = {
+                 .output_token = 0x70004000U,
+                 .frame_provider_return_eax = 0x71005000U,
+                 .initial_output = {11U, 22U, 33U, 44U},
+                 .output_writable = {true, true, false, true},
+             }}
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleMenuSelectionAdvanceStatus::
+                        actor_frame_snapshot_typed_stop &&
+                result.actor_frame_snapshot.status ==
+                    openswd3::battle::LegacyBattleActorFrameSnapshotStatus::
+                        output_width_write_typed_stop &&
+                result.actor_frame_snapshot.output ==
+                    std::array<u32, 4>{64U, 200U, 33U, 44U} &&
+                result.actor_frame_snapshot.output_writes == 2U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::
+                        menu_advance_configure_actor_selection
+                ) == 0U &&
+                fixture.input.mouse_action_gate == 0U &&
+                fixture.frame.target_selection_gate == 0U,
+            "group-B snapshot preserves X and Y while suppressing every advance suffix after a width-store stop"
         );
     }
 

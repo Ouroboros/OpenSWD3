@@ -8,7 +8,7 @@
 
 函数后的只读控制数据也已计入审计：`0x004611F8..0x0046121C`为十项跳转目标，`0x00461220..0x0046123D`为30-byte间接索引。入口先以u32回绕计算`message-1`并清pre-frame gate B；结果unsigned大于29时直接返回。范围内只有消息1、2、3、4、5、7、8、27、30进入有效case，其余消息映射到默认返回。范围内默认case把ECX装为9；消息0或大于30在装表前保留入口ECX。
 
-18个callsite完整归类为：7次既有样本播放、2次组B候选查询、3次角色原点准备、4次角色选择配置和2次组A候选查询。四类角色callee继续复用战斗输入typed端口；没有遗漏callsite。
+18个callsite完整归类为：7次既有样本播放、2次组B候选查询、3次角色当前帧边界查询、4次角色选择配置和2次组A候选查询。候选查询与选择配置继续复用战斗输入窄typed端口；三次`0x004784A0`调用已直接组合`query_legacy_battle_actor_frame_snapshot`，不再经过opaque端口；没有遗漏callsite。
 
 ## 2. 消息1权限后退
 
@@ -43,7 +43,7 @@
 1. target cursor先减1；signed小于1时回绕到live组B数量。
 2. 以cursor直接读取八项组Border，再发布target actor。order只在真实读取typed-stop。
 3. target actor在首次候选thiscall前验证八对象物理域；完整callee EAX等于1时重新从live cursor后退，不增加循环上限。
-4. 首个callee EAX不等于1的对象先调用原点准备。
+4. 首个callee EAX不等于1的对象在`0x00460E27`直接查询当前帧边界。actor token沿用候选调用前的组B物理token；入口EAX为候选返回值，ECX为actor token，EDX为`target*0x159`。四项结果顺序写入caller共享`[esp+var_10]`局部块；普通早退保留旧块，typed-stop保留已写前缀并抑制所有选择配置和gate后缀。
 5. 从0开始以i32 signed比较live组B数量，对每个物理对象配置mode 0；数量在每次callee后重读，首次对象8调用typed-stop。
 6. 对selected对象配置mode 1，然后置mouse action gate和target selection gate；ECX改为`target+1`并写共享action kind。
 
@@ -61,9 +61,9 @@ remaining -= startup_supplemental_count_u16
 
 remaining unsigned不小于4时，target cursor先减1；signed小于1时回绕到remaining。以cursor直接读取十项actor order code，再按机器地址`0x0050259C+code*0x2F34`读取两项完成槽。typed owner只覆盖code 1..10并映射到物理角色0..9；code 0在首次完成槽读取停止。完成槽任一精确为1或以`0x004FFA9C+code*0x2F34`调用组A候选后EAX精确为1时继续后退。callee拒绝后先从共享target cursor重装ECX，回绕时重新读取live count与两个减数，不能误用callee返回ECX。order和完成槽分别只在首次实际访问typed-stop，循环不设现代上限。
 
-首个可用code调用原点准备时保留另一条原始地址公式`0x005029D0+code*0x2F34`，因此code 10只在该真实一过尾thiscall停止，并保留查询前缀及预调用EAX/ECX/EDX乘法结果。普通返回后把target actor清0，并把action kind写为`code+1`；首个十对象reset call看到的EAX也是已经自增后的action kind。
+首个可用code在`0x00460F63`查询当前帧边界时保留另一条原始地址公式`0x005029D0+code*0x2F34`，因此code 10只在snapshot解析该真实一过尾actor token时停止，并保留查询前缀及预调用EAX/ECX/EDX乘法结果。普通返回后把target actor清0，并把action kind写为`code+1`；首个十对象reset call看到的EAX也是已经自增后的action kind。
 
-remaining小于4时每轮都先从共享action kind重装ECX再减1，signed小于1回绕到live组A数量；完成槽与候选查询仍按一基code映射，原点准备则使用`0x004FFA9C+code*0x2F34`，正好映射物理角色`code-1`。此路径不写target actor，原值保持。
+remaining小于4时每轮都先从共享action kind重装ECX再减1，signed小于1回绕到live组A数量；完成槽与候选查询仍按一基code映射，`0x00460FEA`的当前帧边界查询使用`0x004FFA9C+code*0x2F34`，正好映射物理角色`code-1`。此路径不写target actor，原值保持。
 
 两条路径汇合后固定从`0x005029D0`开始对全部十个组A对象配置mode 0，每次callee之后清对应marker byte。随后按机器公式`0x004FFA9C+action_kind*0x2F34`配置selected对象；一基值10精确映射第十个物理对象，不是停止点。只有0或大于10才在这次真实selected thiscall隔离。普通完成再置mouse action gate和target selection gate。四类对象call前的乘法中间值和物理token均作为端口入口寄存器固定，不用逻辑索引替代。
 
@@ -71,7 +71,7 @@ remaining小于4时每轮都先从共享action kind重装ECX再减1，signed小�
 
 唯一caller是逐帧输入分派，原有三处调用分别位于interaction mode 1、record4重复后退和record3左向分支。三处现均直连本typed实现；保留调用前EAX/ECX/EDX，本函数普通返回完整寄存器继续进入原相邻callee。typed-stop保留样本、cursor、callee、marker和数组写前缀，并阻断该调用点之后的确认、方向提交和本帧其余输入。
 
-状态复用：message、action kind、selection、mouse action gate和样本混音来自输入分派owner；active、actor order、完成槽和excluded count来自最终角色owner；两组数量和组Border来自metric owner；启动模式、权限dword、extra和equipment scroll来自启动owner；列表、网格、narrow selection、scroll、row limit、target cursor/actor/gate、marker、transition和equipment选择缓存来自相邻帧输入owner。
+状态复用：message、action kind、selection、mouse action gate和样本混音来自输入分派owner；active、actor order、完成槽和excluded count来自最终角色owner；两组数量和组Border来自metric owner；启动模式、权限dword、extra、equipment scroll与两组canonical actor来自启动/action owner；列表、网格、narrow selection、scroll、row limit、target cursor/actor/gate、marker、transition和equipment选择缓存来自相邻帧输入owner。input dispatch继续向本函数传递frame coordinator既有的action updater与frame provider；旧`menu_retreat_prepare_actor_origin`枚举值保留为reserved，生产零调用。
 
 相邻第110项同时修正一个由本LST交叉验证出的物理别名：入口坐标改变清的是独立pointer activity gate，不是右侧按钮与目标命中使用的mouse action gate。两者现保持独立typed存储。
 
@@ -79,6 +79,6 @@ remaining小于4时每轮都先从共享action kind重装ECX再减1，signed小�
 
 ## 7. 验证与动态差分
 
-定向测试覆盖：消息0寄存器；权限前缀wrap与EDX半字；权限typed-stop；列表scroll；equipment双数组写序与typed-stop；消息5/7/8/27/30；组B逆向选择；组A小组一基cursor；组A actor order typed-stop；组A大组order、候选/原点/配置预调用寄存器、code10原点一过尾停止、固定十对象重置、marker清零及一基selected code10映射第十对象；输入分派三处caller直连与typed-stop阻断；pointer activity/mouse action物理分离；全局reset别名。
+定向测试覆盖：消息0寄存器；权限前缀wrap与EDX半字；权限typed-stop；列表scroll；equipment双数组写序与typed-stop；消息5/7/8/27/30；组B逆向选择；组A小组一基cursor；组A actor order typed-stop；组A大组order、候选/snapshot/配置预调用寄存器、code10 snapshot一过尾停止、固定十对象重置、marker清零及一基selected code10映射第十对象；三处snapshot成功的动作更新、frame lookup、frame-token提交、共享四dword输出与reserved端口零调用；正常早退保留初始局部块；provider失败、Y输出写停止及X完整dword部分提交抑制选择配置和gate；输入分派三处caller直连、snapshot透传与typed-stop阻断；pointer activity/mouse action物理分离；全局reset别名。
 
 当前缺少原版权限相邻内存、两组角色对象、四类角色callee、样本后端、菜单/目标全局及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

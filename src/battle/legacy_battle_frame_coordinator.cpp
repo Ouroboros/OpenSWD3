@@ -140,6 +140,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
     result.input_dispatch = coordinate_legacy_battle_input_dispatch(
         {
             .render_abort_latch = state.render_abort_latch,
+            .startup = context.startup,
             .startup_reset = context.startup.reset,
             .text_messages = context.startup.text_messages,
             .action_mode_source = context.startup.action_mode_source,
@@ -154,6 +155,8 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             .final_actor = context.final_actor_step,
             .action = context.action_dispatch,
             .metrics = port.actor_metric_state(),
+            .action_updater = context.action_updater,
+            .frame_provider = context.frame_provider,
             .debug_hotkeys = port.battle_debug_hotkey_state(),
             .group_b_actors = context.startup.group_b_lifecycle == nullptr
                 ? std::span<LegacyBattleActorGroupBElementState>{}
