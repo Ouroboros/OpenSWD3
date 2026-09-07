@@ -1,6 +1,6 @@
 # 战斗角色绘制偏移查询 `0x00478400`
 
-状态：`platform_adapted`、`unit_tested`。REVIEW 1已完成typed本体和三个效果callsite，REVIEW 2已回收选择框的三个callsite；两个动作callsite继续由REVIEW 3隔离，因此工作包inventory仍为`pending_audit`。
+状态：`platform_adapted`、`unit_tested`。REVIEW 1–3已完成typed本体及6个caller中的8个物理callsite回收；inventory关闭映射由`analysis/tools/build_battle_workpack.py`生成。
 
 ## 1. 完整范围与调用关系
 
@@ -12,7 +12,7 @@ LST静态交叉引用记录6个caller、8个物理callsite：
 - `0x00464270`三处；
 - `0x004717F0`、`0x00471AD0`各一处。
 
-REVIEW 1关闭前三个效果callsite，REVIEW 2关闭`0x00464270`内三处选择框callsite。`0x004717F0`与`0x00471AD0`两个动作callsite仍由REVIEW 3处理；在八处全部回收前不更新`battle-function-workpack.tsv`关闭状态。
+REVIEW 1关闭前三个效果callsite，REVIEW 2关闭`0x00464270`内三处选择框callsite，REVIEW 3关闭`0x004717F0`与`0x00471AD0`两个动作callsite。八处均不再通过opaque端口调用本函数。
 
 ## 2. 精确ABI与基础写入
 
@@ -97,7 +97,16 @@ Group-A startup record新增的是同一角色对象的绘制偏移状态，不�
 
 当前目标路径在Group-A/B分流前严格按Y后X顺序清零两个共享word。三处查询都复用Group-A startup/action fallback与Group-B lifecycle/action-composition canonical owner；旧call枚举及frame-coordinator转发枚举保持原数值但改名为reserved，生产路径保持零调用。
 
-## 9. 测试与动态差分
+## 9. REVIEW 3 caller回收
+
+动作十三`0x004717F0`和动作十四`0x00471AD0`已删除最后两处generic `0x00478400`调用，并在原调用位置直接组合typed leaf。两条路径都把两个原局部dword槽先清零，leaf严格按X后Y只写低16位；任一低word为0时才继续调用既有`0x004783B0`坐标查询覆盖同一槽，任一偏移都非0时继续既有`0x00478470`基础坐标分支。
+
+- 动作十三在frame-source发布、render flags写入及可选bit0翻转/目标X镜像后调用leaf。非翻转路径传入完整dword CMP flags；翻转路径传入随后16位`SUB width,target_x`的flags，并保留该路径的EAX低word。typed-stop传播目标ECX、两个局部槽token、行动者ESI及部分X/Y提交，阻断fallback坐标、raster、sample、render、runtime gate推进和完成清理。
+- 动作十四在frame-source发布后调用leaf，EDX保留该frame-source token；caller可注入前置frame callee返回flags。typed-stop同样保留已到达前缀和部分word写入，阻断fallback坐标、反向raster、sample、render、runtime gate推进和完成清理。
+
+两处caller都复用Group-B lifecycle action-execution与action-composition canonical owner，不复制角色状态。生产实现已无`0x00478400`callee token；旧地址只保留在测试的零调用断言和证据文本中。
+
+## 10. 测试与动态差分
 
 定向聚合测试覆盖：
 
@@ -110,6 +119,7 @@ Group-A startup record新增的是同一角色对象的绘制偏移状态，不�
 - source token为0的真实宽度解引用停止；
 - 三个效果caller的非零偏移、零偏移既有坐标回退、caller入口flags、X后Y部分写入及后缀抑制；
 - 选择框Group-B遍历标记的signed偏移与重置callee flags，当前Group-B的canonical覆盖/镜像、`0x159` EDX系数、X后Y部分提交和动作6后缀抑制，当前Group-A的one-based token、快照EDX、SUB flags、Y加10及reset后缀抑制；
-- 生产三个效果实现和选择框实现不再调用对应opaque `0x00478400`边界。
+- 动作十三/十四的mixed-zero fallback、覆盖与镜像变换、frame-source EDX、行动者ESI、caller flags、X后Y部分提交及raster/audio/render后缀抑制；
+- 生产三个效果、选择框及动作实现均不再调用opaque `0x00478400`边界。
 
-当前缺少原版完整Group-A/Group-B对象、render source异常内存页、八处caller联合寄存器与SEH捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。该限制不以静态实现或modern单元测试冒充动态差分。
+验证：定向测试、AddressSanitizer、Linux core 199/199、Linux app 205/205 全部通过；对应stderr为空，未发现sanitizer finding。当前缺少原版完整Group-A/Group-B对象、render source异常内存页、八处caller联合寄存器与SEH捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。该限制不以静态实现或modern单元测试冒充动态差分。

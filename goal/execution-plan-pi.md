@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v872
+版本：v874
 
 最后更新：2026-09-04
 
@@ -271,7 +271,7 @@ REVIEW通过后必须立即按`AGENTS.md`完成commit、push和TG，再重新完
 13. `[x]` B7：地图、世界、角色、碰撞与寻路已按模块移交条件有限收口；当前状态、阻塞和证据见[`world-map.md`](../analysis/04-reverse-engineering/modules/world-map.md)及相关inventory/evidence。
 14. `[x]` B8：剧情VM、场景调度与异步action的P1–P3已经完成；[`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md)不再覆盖当前队列。
 15. `[x]` B9：菜单、商店和其他特殊模式的227/227工作项已经关闭；当前状态和阻塞见[`special-modes.md`](../analysis/04-reverse-engineering/modules/special-modes.md)。
-16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=282`，本阶段执行`audit_order=283`。
+16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=283`，本阶段完成`audit_order=283`发布门。
 17. `[ ]` B11：存档、配置与持久化语义；等待B10满足移交条件后开始。
 
 B7以后已经完成的详细执行记录已机械搬到[`execution-progress-history-pi.md`](execution-progress-history-pi.md)。该文件只保存历史，不定义当前执行顺序、状态或断点。
@@ -286,7 +286,7 @@ B7以后已经完成的详细执行记录已机械搬到[`execution-progress-his
 
 当前工作包：`audit_order=283`、`0x00478400`。目标是实现战斗角色绘制偏移查询，并回收6个已关闭caller中的8个物理callsite。
 
-当前断点：REVIEW 1已完成、提交并推送；REVIEW 2进行中，当前只回收`0x00464270`内三处角色绘制偏移调用，inventory继续保持`pending_audit`。
+当前断点：REVIEW 1与REVIEW 2已完成、提交并推送；REVIEW 3生产集成、测试、证据、正式验证、十次core、TMP分类和inventory关闭映射均已完成，当前执行unstaged/staged发布审计，随后commit、push、TG并重读规定文件。
 
 #### REVIEW 1：绘制偏移查询与战斗效果
 

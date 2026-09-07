@@ -6,6 +6,7 @@
 #include "openswd3/battle/legacy_battle_actor_availability_block.hpp"
 #include "openswd3/battle/legacy_battle_actor_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_actor_progress.hpp"
+#include "openswd3/battle/legacy_battle_actor_render_offsets.hpp"
 #include "openswd3/battle/legacy_battle_color_accumulation.hpp"
 #include "openswd3/battle/legacy_battle_reward_scale.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
@@ -493,6 +494,7 @@ struct LegacyBattleActionThirteenRequest {
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
+    LegacyBattleActorCoordinateFlags render_offset_entry_flags{};
 };
 
 enum class LegacyBattleActionThirteenStatus : compat::u8 {
@@ -500,6 +502,7 @@ enum class LegacyBattleActionThirteenStatus : compat::u8 {
     actor_state_typed_stop,
     frame_owner_typed_stop,
     shared_state_typed_stop,
+    actor_render_offset_typed_stop,
     actor_coordinate_typed_stop,
 };
 
@@ -509,6 +512,8 @@ struct LegacyBattleActionThirteenResult {
     };
     compat::u32 action_update_calls{};
     compat::u32 frame_lookup_calls{};
+    LegacyBattleActorRenderOffsetQueryResult render_offset_query{};
+    compat::u32 render_offset_query_calls{};
     LegacyBattleActorCoordinateQueryResult coordinate_query{};
     compat::u32 coordinate_query_calls{};
     compat::u32 coordinate_output_x{};

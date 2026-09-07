@@ -1164,6 +1164,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-actor-coordinates-004783b0.md",
     ),
+    "0x00478400": (
+        "platform_adapted",
+        "evidence/battle-actor-render-offsets-00478400.md",
+    ),
 }
 
 

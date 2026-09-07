@@ -109,7 +109,6 @@ constexpr u32 kCallTargetPhaseCoordinates = 0x00478470U;
 constexpr u32 kCallTargetPhaseDecode = 0x004019A0U;
 constexpr u32 kCallTargetPhaseProperty = 0x0047CE70U;
 constexpr u32 kCallTargetPhaseRelease = 0x004885A0U;
-constexpr u32 kCallActionThirteenQueryOffsets = 0x00478400U;
 constexpr u32 kCallActionThirteenQueryBase = 0x00478470U;
 constexpr u32 kCallActionThirteenRender = 0x004170E0U;
 constexpr u32 kCallCommitMessageRecord = 0x0047DBD0U;
@@ -292,6 +291,43 @@ increment_flags(const u32 before, const bool carry) noexcept {
             .output_y_token = output_y_token,
             .entry_eax = entry_eax,
             .entry_edx = entry_edx,
+            .entry_flags = entry_flags,
+        }
+    );
+    if (result.output_writes >= 1U) {
+        replace_low_word(output_x, output_x_word);
+    }
+    if (result.output_writes >= 2U) {
+        replace_low_word(output_y, output_y_word);
+    }
+    return result;
+}
+
+[[nodiscard]] LegacyBattleActorRenderOffsetQueryResult query_render_offsets(
+    const LegacyBattleActorCoordinateOwners& owners,
+    const u32 actor_token,
+    u32& output_x,
+    u32& output_y,
+    const u32 output_x_token,
+    const u32 output_y_token,
+    const u32 entry_eax,
+    const u32 entry_edx,
+    const u32 entry_esi,
+    const LegacyBattleActorCoordinateFlags& entry_flags
+) noexcept {
+    u16 output_x_word = low_word(output_x);
+    u16 output_y_word = low_word(output_y);
+    auto result = query_legacy_battle_actor_render_offsets(
+        resolve_legacy_battle_actor_render_offsets(owners, actor_token),
+        &output_x_word,
+        &output_y_word,
+        {
+            .actor_token = actor_token,
+            .output_x_token = output_x_token,
+            .output_y_token = output_y_token,
+            .entry_eax = entry_eax,
+            .entry_edx = entry_edx,
+            .entry_esi = entry_esi,
             .entry_flags = entry_flags,
         }
     );
@@ -1314,32 +1350,69 @@ LegacyBattleActionThirteenResult advance_legacy_battle_action_thirteen(
         return result;
     }
     shared->turn_frame_source_token = actor->turn_frame_token;
-    actor->turn_target_x_offset =
+    const u16 original_target_x_offset =
         static_cast<u16>(phase->action_record.draw_offset_x);
+    actor->turn_target_x_offset = original_target_x_offset;
     actor->turn_render_flags = phase->action_record.mode_flags;
+    u32 render_offset_entry_eax = actor->turn_render_flags;
+    auto render_offset_entry_flags =
+        subtract_flags(phase->render_toggle_gate, 1U);
     if (phase->render_toggle_gate == 1U) {
         const compat::u8 low =
             static_cast<compat::u8>(actor->turn_render_flags);
-        actor->turn_render_flags =
-            (actor->turn_render_flags & 0xFFFFFF00U) |
+        actor->turn_render_flags = (actor->turn_render_flags & 0xFFFFFF00U) |
             static_cast<u32>((low & 1U) != 0U ? low & 0xFEU : low | 1U);
-        actor->turn_target_x_offset = static_cast<u16>(
-            frame.width -
-            static_cast<u16>(phase->action_record.draw_offset_x)
-        );
+        actor->turn_target_x_offset =
+            static_cast<u16>(frame.width - original_target_x_offset);
+        render_offset_entry_eax = actor->turn_render_flags;
+        replace_low_word(render_offset_entry_eax, actor->turn_target_x_offset);
+        render_offset_entry_flags =
+            subtract_word_flags(frame.width, original_target_x_offset);
     }
 
+    u32 offset_x{};
+    u32 offset_y{};
     registers.ecx = request.opponent_token;
     ++result.coordinate_query_calls;
-    const auto offsets = invoke_action(
-        kCallActionThirteenQueryOffsets, {request.opponent_token}
+    ++result.render_offset_query_calls;
+    result.render_offset_query = query_render_offsets(
+        {
+            .action = context.shared_action_dispatch,
+            .startup = context.startup,
+        },
+        request.opponent_token,
+        offset_x,
+        offset_y,
+        request.coordinate_output_x_token,
+        request.coordinate_output_y_token,
+        render_offset_entry_eax,
+        request.coordinate_output_x_token,
+        request.actor_token,
+        render_offset_entry_flags
     );
+    result.coordinate_output_x = offset_x;
+    result.coordinate_output_y = offset_y;
+    registers.eax = result.render_offset_query.return_eax;
+    registers.ecx = result.render_offset_query.return_ecx;
+    registers.edx = result.render_offset_query.return_edx;
+    if (result.render_offset_query.status !=
+        LegacyBattleActorRenderOffsetQueryStatus::completed) {
+        result.status =
+            LegacyBattleActionThirteenStatus::actor_render_offset_typed_stop;
+        result.return_eax = registers.eax;
+        result.return_ecx = registers.ecx;
+        result.return_edx = registers.edx;
+        return result;
+    }
+
     u32 endpoint_x{};
     u32 endpoint_y{};
-    if (low_word(offsets.outputs[0U]) == 0U ||
-        low_word(offsets.outputs[1U]) == 0U) {
-        u32 coordinate_x = offsets.outputs[0U];
-        u32 coordinate_y = offsets.outputs[1U];
+    if (low_word(offset_x) == 0U || low_word(offset_y) == 0U) {
+        u32 coordinate_x = offset_x;
+        u32 coordinate_y = offset_y;
+        const auto coordinate_entry_flags = low_word(offset_x) == 0U
+            ? subtract_word_flags(low_word(offset_x), 0U)
+            : subtract_word_flags(low_word(offset_y), 0U);
         ++result.coordinate_query_calls;
         result.coordinate_query = query_coordinates(
             {
@@ -1353,7 +1426,7 @@ LegacyBattleActionThirteenResult advance_legacy_battle_action_thirteen(
             request.coordinate_output_y_token,
             request.coordinate_output_y_token,
             registers.edx,
-            subtract_word_flags(0U, 0U)
+            coordinate_entry_flags
         );
         result.coordinate_output_x = coordinate_x;
         result.coordinate_output_y = coordinate_y;
@@ -1381,13 +1454,13 @@ LegacyBattleActionThirteenResult advance_legacy_battle_action_thirteen(
         const auto base = invoke_action(
             kCallActionThirteenQueryBase, {request.opponent_token}
         );
-        endpoint_x = base.outputs[0U] + static_cast<u16>(
-            low_word(offsets.outputs[0U]) - actor->turn_target_x_offset
-        );
-        endpoint_y = base.outputs[1U] + static_cast<u16>(
-            low_word(offsets.outputs[1U]) -
-            static_cast<u16>(phase->action_record.draw_offset_y)
-        );
+        endpoint_x = base.outputs[0U] +
+            static_cast<u16>(low_word(offset_x) - actor->turn_target_x_offset);
+        endpoint_y = base.outputs[1U] +
+            static_cast<u16>(
+                         low_word(offset_y) -
+                         static_cast<u16>(phase->action_record.draw_offset_y)
+            );
     }
 
     LegacyBattleLineRaster raster{};
@@ -1553,17 +1626,49 @@ LegacyBattleActionFourteenResult advance_legacy_battle_action_fourteen(
     }
     shared->turn_frame_source_token = actor->turn_frame_token;
 
+    u32 offset_x{};
+    u32 offset_y{};
     registers.ecx = request.opponent_token;
     ++result.coordinate_query_calls;
-    const auto offsets = invoke_action(
-        kCallActionThirteenQueryOffsets, {request.opponent_token}
+    ++result.render_offset_query_calls;
+    result.render_offset_query = query_render_offsets(
+        {
+            .action = context.shared_action_dispatch,
+            .startup = context.startup,
+        },
+        request.opponent_token,
+        offset_x,
+        offset_y,
+        request.coordinate_output_x_token,
+        request.coordinate_output_y_token,
+        request.coordinate_output_y_token,
+        shared->turn_frame_source_token,
+        request.actor_token,
+        request.render_offset_entry_flags
     );
+    result.coordinate_output_x = offset_x;
+    result.coordinate_output_y = offset_y;
+    registers.eax = result.render_offset_query.return_eax;
+    registers.ecx = result.render_offset_query.return_ecx;
+    registers.edx = result.render_offset_query.return_edx;
+    if (result.render_offset_query.status !=
+        LegacyBattleActorRenderOffsetQueryStatus::completed) {
+        result.status =
+            LegacyBattleActionFourteenStatus::actor_render_offset_typed_stop;
+        result.return_eax = registers.eax;
+        result.return_ecx = registers.ecx;
+        result.return_edx = registers.edx;
+        return result;
+    }
+
     u32 endpoint_x{};
     u32 endpoint_y{};
-    if (low_word(offsets.outputs[0U]) == 0U ||
-        low_word(offsets.outputs[1U]) == 0U) {
-        u32 coordinate_x = offsets.outputs[0U];
-        u32 coordinate_y = offsets.outputs[1U];
+    if (low_word(offset_x) == 0U || low_word(offset_y) == 0U) {
+        u32 coordinate_x = offset_x;
+        u32 coordinate_y = offset_y;
+        const auto coordinate_entry_flags = low_word(offset_x) == 0U
+            ? subtract_word_flags(low_word(offset_x), 0U)
+            : subtract_word_flags(low_word(offset_y), 0U);
         ++result.coordinate_query_calls;
         result.coordinate_query = query_coordinates(
             {
@@ -1577,7 +1682,7 @@ LegacyBattleActionFourteenResult advance_legacy_battle_action_fourteen(
             request.coordinate_output_y_token,
             request.coordinate_output_x_token,
             request.coordinate_output_y_token,
-            subtract_word_flags(0U, 0U)
+            coordinate_entry_flags
         );
         result.coordinate_output_x = coordinate_x;
         result.coordinate_output_y = coordinate_y;
@@ -1606,14 +1711,16 @@ LegacyBattleActionFourteenResult advance_legacy_battle_action_fourteen(
         const auto base = invoke_action(
             kCallActionThirteenQueryBase, {request.opponent_token}
         );
-        endpoint_x = base.outputs[0U] + static_cast<u16>(
-            low_word(offsets.outputs[0U]) -
-            static_cast<u16>(phase->action_record.draw_offset_x)
-        );
-        endpoint_y = base.outputs[1U] + static_cast<u16>(
-            low_word(offsets.outputs[1U]) -
-            static_cast<u16>(phase->action_record.draw_offset_y)
-        );
+        endpoint_x = base.outputs[0U] +
+            static_cast<u16>(
+                         low_word(offset_x) -
+                         static_cast<u16>(phase->action_record.draw_offset_x)
+            );
+        endpoint_y = base.outputs[1U] +
+            static_cast<u16>(
+                         low_word(offset_y) -
+                         static_cast<u16>(phase->action_record.draw_offset_y)
+            );
     }
 
     LegacyBattleLineRaster raster{};
