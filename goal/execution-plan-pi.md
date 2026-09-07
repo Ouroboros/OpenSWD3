@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v879
+版本：v880
 
 最后更新：2026-09-04
 
@@ -271,7 +271,7 @@ REVIEW通过后必须立即按`AGENTS.md`完成commit、push和TG，再重新完
 13. `[x]` B7：地图、世界、角色、碰撞与寻路已按模块移交条件有限收口；当前状态、阻塞和证据见[`world-map.md`](../analysis/04-reverse-engineering/modules/world-map.md)及相关inventory/evidence。
 14. `[x]` B8：剧情VM、场景调度与异步action的P1–P3已经完成；[`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md)不再覆盖当前队列。
 15. `[x]` B9：菜单、商店和其他特殊模式的227/227工作项已经关闭；当前状态和阻塞见[`special-modes.md`](../analysis/04-reverse-engineering/modules/special-modes.md)。
-16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=284`，本阶段执行工作包285 REVIEW 1。
+16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=284`，本阶段执行工作包285 REVIEW 2。
 17. `[ ]` B11：存档、配置与持久化语义；等待B10满足移交条件后开始。
 
 B7以后已经完成的详细执行记录已机械搬到[`execution-progress-history-pi.md`](execution-progress-history-pi.md)。该文件只保存历史，不定义当前执行顺序、状态或断点。
@@ -286,11 +286,11 @@ B7以后已经完成的详细执行记录已机械搬到[`execution-progress-his
 
 当前工作包：`audit_order=285`、`0x004784A0`。目标是实现角色当前动作帧的原点、宽度和高度查询，直接组合已关闭的动作记录更新与frame piece provider，并回收`0x0045FC60`、`0x00460C40`、`0x00461240`、`0x00462740`和`0x00464270`五个已关闭caller中的15个物理callsite。
 
-当前断点：完整leaf LST、两个callee和15个callsite已完成独立审计，typed owner、访问顺序、寄存器/flags、部分提交与三个REVIEW边界已锁定；下一步执行REVIEW 1生产实现。
+当前断点：REVIEW 1已实现`0x004784A0` typed leaf并回收`0x0045FC60`三个物理callsite；定向测试、AddressSanitizer、Linux core与Linux app全部通过。inventory在三个REVIEW全部完成前继续保持`pending_audit`；下一步执行REVIEW 2菜单后退/前进六处callsite。
 
 #### REVIEW 1：角色当前帧边界与鼠标命中
 
-状态：待执行。
+状态：已完成。
 
 - 实现`0x004784A0..0x0047859B`共252字节、68条指令、2个call、6个条件分支、1个无条件跳转和1个`retn 4`的typed leaf；无范围外chunk。保留完整`0x98`动作记录清零、`+0x2AB8/+0x2AA0/+0x2A0C`前置门、`0x24/+0x02A8/0x33`三段X anchor选择，以及无条件调用`LegacyActionUpdater`且不按其返回值新增早退。
 - 依原顺序读取临时动作记录`+0x4C` dword和unaligned `+0x4A` dword，调用`LegacyFramePieceProvider`时只消费两者低word但保留重叠物理读取。mirror完整dword必须先读并与1比较，再把frame token写actor `+0x254C`；后续width/height输出前分别从actor重载token。
@@ -301,7 +301,7 @@ B7以后已经完成的详细执行记录已机械搬到[`execution-progress-his
 
 #### REVIEW 2：菜单选择后的角色帧缓存
 
-状态：待执行，依赖REVIEW 1。
+状态：待执行，REVIEW 1依赖已满足。
 
 - 回收`0x00460C40`的`0x00460E27/0x00460F63/0x00460FEA`和`0x00461240`的`0x00461469/0x004615A4/0x0046162C`六处callsite，分别覆盖Group-B、Group-A大列表与Group-A小列表的后退/前进选择路径。
 - 两个caller继续复用input dispatch传入的startup/action actor owner、action updater和frame provider。三类路径共用各自函数的四dword局部块；虽然后缀不消费四项输出，动作更新、frame lookup和actor `+0x254C`提交仍必须执行，不能删除为无用查询。

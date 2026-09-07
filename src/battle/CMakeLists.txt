@@ -32,6 +32,7 @@ add_library(
         legacy_battle_actor_list_query.cpp
         legacy_battle_actor_base_coordinates.cpp
         legacy_battle_actor_coordinates.cpp
+        legacy_battle_actor_frame_snapshot.cpp
         legacy_battle_actor_render_offsets.cpp
         legacy_battle_actor_metrics.cpp
         legacy_battle_actor_priority.cpp

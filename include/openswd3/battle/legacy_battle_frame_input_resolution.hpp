@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_actor_frame_snapshot.hpp"
 #include "openswd3/battle/legacy_battle_final_actor_step.hpp"
 #include "openswd3/battle/legacy_battle_group_b_action_six_target_availability.hpp"
 #include "openswd3/battle/legacy_battle_input_dispatch.hpp"
@@ -82,7 +83,7 @@ enum class LegacyBattleFrameInputResolutionCall : compat::u8 {
     validate_option_actor,
     configure_actor_selection,
     query_group_b_candidate,
-    prepare_actor_origin,
+    reserved_prepare_actor_origin_slot,
     resolve_actor_surface,
     query_actor_mirror,
     reserved_query_group_b_action_six_target_availability_slot,
@@ -132,7 +133,10 @@ public:
 struct LegacyBattleFrameInputResolutionBindings {
     LegacyBattleStartupState& startup;
     LegacyBattleFinalActorStepState& final_actor;
+    LegacyBattleActionDispatchState& action;
     LegacyBattleActorMetricState& metrics;
+    asset_runtime::LegacyActionUpdater& action_updater;
+    rendering::LegacyFramePieceProvider& frame_provider;
     LegacyBattleInputDispatchState& input_dispatch;
     input_time_rng::LegacyInputNormalizationState& input;
     compat::u32& message_state;
@@ -143,6 +147,25 @@ struct LegacyBattleFrameInputResolutionRequest {
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
+    compat::u32 actor_frame_output_token{};
+    compat::u32 action_updater_return_ecx{};
+    compat::u32 action_updater_return_edx{};
+    LegacyBattleActorCoordinateFlags action_updater_flags{};
+    compat::u32 frame_provider_return_eax{1U};
+    compat::u32 frame_provider_return_ecx{};
+    compat::u32 frame_provider_return_edx{};
+    LegacyBattleActorCoordinateFlags frame_provider_flags{};
+    std::array<compat::u32, 4> actor_frame_initial_output{};
+    bool action_updater_flags_known{};
+    bool frame_provider_flags_known{};
+    bool actor_frame_overlapping_frame_dword_readable{true};
+    bool actor_frame_overlapping_resource_dword_readable{true};
+    bool actor_frame_output_pointer_readable{true};
+    std::array<bool, 4> actor_frame_output_writable{true, true, true, true};
+    bool actor_frame_first_token_readable{true};
+    bool actor_frame_second_token_readable{true};
+    bool actor_frame_width_readable{true};
+    bool actor_frame_height_readable{true};
 };
 
 enum class LegacyBattleFrameInputResolutionStatus : compat::u8 {
@@ -156,6 +179,7 @@ enum class LegacyBattleFrameInputResolutionStatus : compat::u8 {
     group_a_actor_typed_stop,
     group_b_actor_typed_stop,
     target_marker_typed_stop,
+    actor_frame_snapshot_typed_stop,
     image_source_typed_stop,
 };
 
@@ -171,7 +195,9 @@ struct LegacyBattleFrameInputResolutionResult {
     compat::u32 hotspot_queries{};
     compat::u32 image_queries{};
     compat::u32 actor_iterations{};
+    compat::u32 actor_frame_snapshot_queries{};
     compat::u32 action_six_availability_queries{};
+    LegacyBattleActorFrameSnapshotResult actor_frame_snapshot{};
     LegacyBattleGroupBActionSixTargetAvailabilityResult
         action_six_availability{};
     bool returned_early{};

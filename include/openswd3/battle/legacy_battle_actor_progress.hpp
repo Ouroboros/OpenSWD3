@@ -25,6 +25,7 @@ struct LegacyBattleActorProgressState {
     compat::u16 progress_multiplier{};  // actor + 0x26DC
     bool progress_read_accessible{true};
     bool progress_write_accessible{true};
+    bool special_ready_read_accessible{true};
 };
 
 enum class LegacyBattleActorProgressInitializationStatus : compat::u8 {

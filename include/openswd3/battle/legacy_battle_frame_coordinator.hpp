@@ -65,7 +65,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     frame_input_validate_option_actor,
     frame_input_configure_actor_selection,
     frame_input_query_group_b_candidate,
-    frame_input_prepare_actor_origin,
+    reserved_frame_input_prepare_actor_origin_slot,
     frame_input_resolve_actor_surface,
     frame_input_query_actor_mirror,
     reserved_frame_input_query_group_b_action_six_availability_slot,
@@ -1761,9 +1761,10 @@ public:
             call = LegacyBattleFrameCoordinatorCall::
                 frame_input_query_group_b_candidate;
             break;
-        case LegacyBattleFrameInputResolutionCall::prepare_actor_origin:
+        case LegacyBattleFrameInputResolutionCall::
+            reserved_prepare_actor_origin_slot:
             call = LegacyBattleFrameCoordinatorCall::
-                frame_input_prepare_actor_origin;
+                reserved_frame_input_prepare_actor_origin_slot;
             break;
         case LegacyBattleFrameInputResolutionCall::resolve_actor_surface:
             call = LegacyBattleFrameCoordinatorCall::

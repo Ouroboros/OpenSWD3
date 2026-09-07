@@ -44,6 +44,8 @@ struct LegacyBattleGroupAConfigurationState {
     std::array<std::byte, 0xA4> profile_record{};
     std::vector<compat::u8> profile_description{};
     compat::u16 profile_field_f2{};
+    compat::u32 source_runtime_value{};  // actor + 0x2AA0
+    bool source_runtime_value_read_accessible{true};
 };
 
 struct LegacyBattleGroupAConfigurationDiagnosticRequest {

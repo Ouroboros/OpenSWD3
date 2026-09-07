@@ -1,12 +1,12 @@
 # 战斗帧鼠标输入与目标解析 `0x0045FC60`
 
-状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`。
+状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`、`actor_frame_snapshot_reclaimed`。
 
 ## 1. 完整范围
 
 权威LST主体为`0x0045FC60..0x00460BF7`，从proc到endp共1917行、1165条实际指令、31个call、189个跳转、118个局部标签、27个`retn`，没有外部`FUNCTION CHUNK`。
 
-31个callsite完整归类为：1次已关闭热点命中查询、6次既有样本播放窄边界、3次已关闭TSW命令流像素命中、1次选项角色资格查询、6次角色选择配置、1次组B候选查询、3次角色原点准备、3次角色surface解析、3次角色镜像查询、1次组B模式查询和3次组A候选查询。前三类直接复用已关闭typed语义；其余八类尚未关闭callee统一归单一帧输入typed端口。
+31个callsite完整归类为：1次已关闭热点命中查询、6次既有样本播放窄边界、3次已关闭TSW命令流像素命中、1次选项角色资格查询、6次角色选择配置、1次组B候选查询、3次已关闭typed角色当前帧边界查询、3次角色surface解析、3次角色镜像查询、1次组B模式查询和3次组A候选查询。热点、样本、像素与角色当前帧边界直接复用已关闭typed语义；其余七类尚未关闭callee继续归单一帧输入typed端口。
 
 函数没有参数。唯一caller是战斗逐帧协调器。入口EAX/ECX/EDX只在若干早退路径保留；函数按路径返回0或1，完整ECX/EDX会直接成为相邻逐帧输入分派的入口寄存器。
 
@@ -50,7 +50,7 @@ case 3先检查目标阻断dword、目标抑制byte和阻断word。随后按`act
 
 1. 以i32 signed动态组Bcount正向遍历，每个对象调用配置mode 0；callee后重新读取count，不增加modern上限。
 2. 从`count-1`按i32 signed逆向扫描对象token。
-3. 候选查询完整EAX不等于1时，依次准备两项原点、解析surface；只有旧surface数据指针非零才把目标动作可用写1并进入像素扫描。
+3. 候选查询完整EAX不等于1时，直接组合`0x004784A0` typed角色当前帧边界查询并解析surface；只有旧surface数据指针非零才把目标动作可用写1并进入像素扫描。typed leaf的两条正常早退继续使用共享四dword局部块旧值，不能误当作caller早退。
 4. 外层与内层都按`0,2,4,6`。每个点先动态查询镜像；普通点为`mouse+(inner,outer)`，镜像X为`width+2*origin_x-mouse_x-inner`。
 5. 每点直接调用已关闭TSW命令流像素命中；短源只在该helper真实读取点typed-stop。零命中当点清mouse action gate，非零命中立即发布`candidate+1`、selected target、配置mode 1和双gate。
 6. selection等于6时再查组B模式；完整EAX为0把目标动作可用清零，但不撤销目标发布。
@@ -81,12 +81,14 @@ marker、source、offset、actor order和组A完成槽分别只在首次原始�
 
 唯一逐帧caller删除最后一个前置opaque stage并直连本typed实现。音乐查询/提交留下的完整EAX/ECX/EDX进入本函数；普通返回的ECX/EDX直接进入相邻逐帧输入分派。typed-stop保留音乐与本函数前缀，阻断输入分派、角色预处理、metric、surface和全部后续帧。
 
+case 3的三处原点准备现直接组合`query_legacy_battle_actor_frame_snapshot`。三处共享同一个四dword局部块；leaf正常早退不清槽，leaf typed-stop则保留候选查询、动作更新、frame lookup、actor frame-token提交和已完成的X/Y/width前缀，阻断surface解析、镜像查询、像素扫描、目标发布和余下后缀。旧`prepare_actor_origin`枚举ordinal重命名为reserved，生产调用数为0；frame coordinator复用既有action dispatch、action updater和frame provider注入，不创建平行actor owner。
+
 状态复用：当前鼠标来自输入归一化owner；party source与offset来自启动owner；permission、extra、启动模式表和两个减数来自启动/reset owner；组A数量与组B数量来自metric owner；active、published、actor order与组A完成槽来自最终角色owner；selection、interaction、mouse action、selected option、热点token与样本混音来自输入分派owner；热点链只保留vector owner。
 
 新增状态只承载此前未命名的战斗前帧鼠标、独立pointer activity、菜单几何/行选择、阻断值、目标索引、十byte marker及边界。全局重置只同步权威LST实际写入的前帧鼠标、列表初值、当前equipment、scroll、origin和三项阻断值；未在reset写集合中的hover、行限制、边界、marker和其他选择保持入口值。
 
 ## 8. 验证与动态差分
 
-定向测试覆盖：同鼠标早退寄存器；热点首命中；case 0 party映射；case 1 permission与样本；case 2按钮；case 4 signed负held；case 5/8行高与signed byte；case 27独有按钮边界；case 30网格；组B逆向像素命中和selection 6模式；组A直接命中及首marker dword清零；同active不可选时完整64点调用；actor order、启动模式和图像短源typed-stop；全局重置别名；逐帧caller阻断。
+定向测试覆盖：同鼠标早退寄存器；热点首命中；case 0 party映射；case 1 permission与样本；case 2按钮；case 4 signed负held；case 5/8行高与signed byte；case 27独有按钮边界；case 30网格；组B逆向像素命中和selection 6模式；组A大列表actor-order命中、组A小列表直接命中及首marker dword清零；同active不可选时完整64点调用；三处typed frame snapshot、共享局部块正常早退、reserved槽零调用、重叠local参数读取停点、provider失败与输出X写typed-stop后缀抑制；actor order、启动模式和图像短源typed-stop；全局重置别名；逐帧caller阻断。
 
 当前缺少原版鼠标/菜单全局、八类未关闭角色callee、两组角色对象、surface记录、TSW命令流、热点链、样本及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

@@ -24,6 +24,7 @@ struct LegacyBattleActorCoordinatesState {
     compat::u16 coordinate_mode_gate{};  // actor + 0x26D8
     compat::u16 source_y_offset{};       // actor + 0x29B2
     compat::i32 target_phase_y_adjustment{};  // actor + 0x02B4
+    compat::u32 frame_anchor_x{};             // actor + 0x02A8
 
     bool coordinate_mode_gate_read_accessible{true};
     bool position_x_read_accessible{true};
@@ -32,6 +33,7 @@ struct LegacyBattleActorCoordinatesState {
     bool alternate_position_y_read_accessible{true};
     bool source_y_offset_read_accessible{true};
     bool target_phase_y_adjustment_read_accessible{true};
+    bool frame_anchor_x_read_accessible{true};
 };
 
 struct LegacyBattleActorCoordinatesView {

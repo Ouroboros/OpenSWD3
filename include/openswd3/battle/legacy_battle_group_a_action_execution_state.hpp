@@ -115,6 +115,9 @@ struct LegacyBattleGroupAActionExecutionState
     bool render_offset_override_x_read_accessible{true};
     bool render_offset_override_y_read_accessible{true};
     bool special_draw_mirror_mode_read_accessible{true};
+    bool profile_value_read_accessible{true};
+    bool turn_frame_token_read_accessible{true};
+    bool turn_frame_token_write_accessible{true};
     bool render_source_token_read_accessible{true};
     bool render_source_value_0c_read_accessible{true};
 

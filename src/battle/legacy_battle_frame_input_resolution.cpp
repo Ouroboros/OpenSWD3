@@ -215,18 +215,68 @@ coordinate_legacy_battle_frame_input_resolution(
         input_state.mouse_action_gate = 1U;
     };
 
+    auto actor_frame_output = request.actor_frame_initial_output;
     const auto actor_surface_hit = [&](const u32 actor_token,
                                        const u32 outer_step,
                                        const bool require_present,
                                        const bool accept_visible,
                                        bool& typed_stop) {
         typed_stop = false;
-        const auto origin = call(
-            LegacyBattleFrameInputResolutionCall::prepare_actor_origin,
-            actor_token
+        result.actor_frame_snapshot = query_legacy_battle_actor_frame_snapshot(
+            resolve_legacy_battle_actor_frame_snapshot(
+                {
+                    .action = &bindings.action,
+                    .startup = &bindings.startup,
+                },
+                actor_token
+            ),
+            bindings.action_updater,
+            bindings.frame_provider,
+            {
+                .actor_token = actor_token,
+                .output_token = request.actor_frame_output_token,
+                .entry_edx = edx,
+                .action_updater_return_ecx = request.action_updater_return_ecx,
+                .action_updater_return_edx = request.action_updater_return_edx,
+                .action_updater_flags = request.action_updater_flags,
+                .frame_provider_return_eax = request.frame_provider_return_eax,
+                .frame_provider_return_ecx = request.frame_provider_return_ecx,
+                .frame_provider_return_edx = request.frame_provider_return_edx,
+                .frame_provider_flags = request.frame_provider_flags,
+                .initial_output = actor_frame_output,
+                .action_updater_flags_known =
+                    request.action_updater_flags_known,
+                .frame_provider_flags_known =
+                    request.frame_provider_flags_known,
+                .overlapping_frame_dword_readable =
+                    request.actor_frame_overlapping_frame_dword_readable,
+                .overlapping_resource_dword_readable =
+                    request.actor_frame_overlapping_resource_dword_readable,
+                .output_pointer_readable =
+                    request.actor_frame_output_pointer_readable,
+                .output_writable = request.actor_frame_output_writable,
+                .first_frame_token_readable =
+                    request.actor_frame_first_token_readable,
+                .second_frame_token_readable =
+                    request.actor_frame_second_token_readable,
+                .frame_width_readable = request.actor_frame_width_readable,
+                .frame_height_readable = request.actor_frame_height_readable,
+            }
         );
-        const i32 origin_x = origin.origin_x;
-        const i32 origin_y = origin.origin_y;
+        ++result.actor_frame_snapshot_queries;
+        actor_frame_output = result.actor_frame_snapshot.output;
+        eax = result.actor_frame_snapshot.return_eax;
+        ecx = result.actor_frame_snapshot.return_ecx;
+        edx = result.actor_frame_snapshot.return_edx;
+        if (result.actor_frame_snapshot.status !=
+            LegacyBattleActorFrameSnapshotStatus::completed) {
+            typed_stop = true;
+            result.status = LegacyBattleFrameInputResolutionStatus::
+                actor_frame_snapshot_typed_stop;
+            return false;
+        }
+        const i32 origin_x = signed_bits(actor_frame_output[0U]);
+        const i32 origin_y = signed_bits(actor_frame_output[1U]);
         const auto resolved = call(
             LegacyBattleFrameInputResolutionCall::resolve_actor_surface,
             actor_token

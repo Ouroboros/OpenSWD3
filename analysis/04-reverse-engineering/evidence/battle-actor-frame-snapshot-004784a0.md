@@ -1,6 +1,6 @@
 # 战斗角色当前帧边界查询 `0x004784A0`
 
-状态：`spec_locked`、`pending_implementation`。完整LST、15个物理callsite、两个已关闭callee、canonical owner与三个REVIEW边界已锁定；生产typed实现尚未开始。
+状态：`platform_adapted`、`unit_tested`、`caller_reclaimed:3/15`、`pending_remaining_callers`。typed leaf与`0x0045FC60`三个物理callsite已落地；菜单、目标刷新和选择标记的12个callsite按REVIEW 2–3继续保持待回收。
 
 ## 1. 完整LST范围与ABI
 
@@ -69,6 +69,8 @@ X写入先于Y源读取；Y写入先于第一次从actor `+0x254C`重载frame to
 
 调用方统一借用frame coordinator既有`LegacyActionUpdater`与`LegacyFramePieceProvider`。缺失owner、无效token或字段不可访问时，只在对应真实读取/写入点typed-stop，不提前做整体对象有效性判断。
 
+生产实现位于`legacy_battle_actor_frame_snapshot.hpp/.cpp`。action updater与frame provider的现代接口不携带全部寄存器/flags，因此调用方另行提供两段callee的原ABI残值；provider EAX token按原时点提交到actor `+0x254C`，不再伪造成actor字段地址。typed request分别控制`+0x4C/+0x4A`两次重叠local dword读取、输出指针、四次输出写、两次frame-token重载和frame宽高访问；已提交输出通过32位地址token与actor frame-token字段发生别名。
+
 ## 6. 15个物理callsite
 
 LST记录5个caller、15个物理callsite：
@@ -83,7 +85,7 @@ LST记录5个caller、15个物理callsite：
 
 ## 7. REVIEW计划
 
-REVIEW 1实现typed leaf并回收`0x0045FC60`三处命中测试。它同时建立owner resolver、动作更新/frame查询组合、四dword局部块、frame token提交、mirror、完整输出、寄存器/flags和逐访问typed-stop；frame coordinator把既有action、updater和provider注入frame-input路径。
+REVIEW 1已实现typed leaf并回收`0x0045FC60`三处命中测试。它建立owner resolver、动作更新/frame查询组合、四dword共享局部块、显式provider EAX frame token提交、mirror、完整输出、寄存器/flags和逐访问typed-stop；frame coordinator把既有action、updater和provider注入frame-input路径。旧frame-input原点准备槽保留为reserved，生产零调用。
 
 REVIEW 2回收`0x00460C40`与`0x00461240`六处菜单选择路径。两函数复用input dispatch传入的canonical owners和callee，不消费输出值，但保留三类actor token算术、共享局部槽、callee副作用、返回寄存器/flags及typed-stop后缀抑制。
 
@@ -91,8 +93,8 @@ REVIEW 3回收`0x00462740`两处和`0x00464270`四处，关闭工作包。目标
 
 ## 8. 测试与动态差分点
 
-typed leaf测试必须覆盖：两条早退、mode非1、默认/actor/强制anchor、mirror完整值1与其他值、负位置符号扩展、四项dword结果、updater和provider调用、重叠dword参数、frame token提交、成功寄存器/flags、每个真实读取/写入停点、X/Y/width部分提交、两次frame token重载及输出/frame-token别名。
+REVIEW 1 typed leaf测试已覆盖：两条早退、mode非1、默认/actor/强制anchor、mirror完整值1与其他值、负位置符号扩展、四项dword结果、updater和provider调用、`+0x4C/+0x4A`重叠dword参数及两处独立local读取停点、显式frame token提交、成功寄存器/flags、每类真实读取/写入停点、X/Y/width部分提交、两次frame token重载及X/width输出与frame-token别名。
 
-caller测试必须覆盖15处生产路径、共享局部槽、各自actor token算术、port计数减少、generic reserved槽零调用、frame provider失败、actor字段/输出typed-stop和每条后缀抑制。选择帧另覆盖中心坐标、signed render offset和当前目标的Group-A/Group-B不同寄存器形状。
+frame-input caller测试已覆盖三个物理路径：Group-B逆序命中、Group-A大列表actor-order命中与Group-A小列表直接命中；并覆盖共享局部块早退保留、reserved槽零调用、frame provider失败、输出X写typed-stop、候选查询前缀保留及surface/像素/发布后缀抑制。REVIEW 2–3仍须补齐其余12处生产路径、菜单/目标/选择标记专属后缀、中心坐标、signed render offset和当前目标的Group-A/Group-B不同寄存器形状。
 
 当前缺少原版完整Group-A/Group-B actor对象、动作资源、frame provider、异常内存页以及15处物理callsite联合寄存器/SEH捕获后端。原版动态差分预登记为`blocked_runtime_oracle`；该限制不阻止modern typed实现，也不能由静态测试冒充`original_diff_verified`。

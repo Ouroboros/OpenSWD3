@@ -143,6 +143,9 @@ struct LegacyBattleGroupBActionConfigurationState {
     compat::u32 timing_value{};                    // actor + 0x26B4
     compat::u8 resource_mode{};                    // actor + 0x2A93
     compat::u32 source_runtime_value{};            // actor + 0x2AA0
+    compat::u32 special_ready{};                   // actor + 0x2AB8
+    bool source_runtime_value_read_accessible{true};
+    bool special_ready_read_accessible{true};
 };
 
 struct LegacyBattleGroupBActionCompositionState {
