@@ -4,6 +4,7 @@
 #include "openswd3/asset_runtime/legacy_frame_deformation.hpp"
 #include "openswd3/battle/legacy_battle_retreat_commit.hpp"
 #include "openswd3/battle/legacy_battle_actor_availability_block.hpp"
+#include "openswd3/battle/legacy_battle_actor_base_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_actor_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_actor_progress.hpp"
 #include "openswd3/battle/legacy_battle_actor_render_offsets.hpp"
@@ -80,6 +81,7 @@ struct LegacyBattleActionCallReply {
     compat::u32 eax{};
     compat::u32 ecx{};
     compat::u32 edx{};
+    LegacyBattleActorCoordinateFlags flags{};
     std::array<compat::u32, 8> outputs{};
     compat::u32 output_write_mask{};
     bool publish_accumulator{};
@@ -440,6 +442,8 @@ struct LegacyBattleTargetPhaseStartRequest {
     compat::u32 target_token{};
     compat::i32 surface_width{};
     compat::i32 surface_height{};
+    compat::u32 coordinate_output_x_token{};
+    compat::u32 coordinate_output_y_token{};
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
@@ -448,6 +452,7 @@ struct LegacyBattleTargetPhaseStartRequest {
 enum class LegacyBattleTargetPhaseStartStatus : compat::u8 {
     completed,
     target_object_typed_stop,
+    actor_base_coordinate_typed_stop,
     resource_object_typed_stop,
     host_surface_typed_stop,
 };
@@ -458,7 +463,10 @@ struct LegacyBattleTargetPhaseStartResult {
     };
     compat::u32 port_calls{};
     compat::u32 resource_query_calls{};
+    LegacyBattleActorBaseCoordinateQueryResult base_coordinate_query{};
     compat::u32 coordinate_query_calls{};
+    compat::u32 coordinate_output_x{};
+    compat::u32 coordinate_output_y{};
     compat::u32 decode_calls{};
     compat::u32 property_query_calls{};
     compat::u32 presentation_dwords_zeroed{};
@@ -491,6 +499,8 @@ struct LegacyBattleActionThirteenRequest {
     compat::u32 opponent_token{};
     compat::u32 coordinate_output_x_token{};
     compat::u32 coordinate_output_y_token{};
+    compat::u32 base_coordinate_output_x_token{};
+    compat::u32 base_coordinate_output_y_token{};
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
@@ -504,6 +514,7 @@ enum class LegacyBattleActionThirteenStatus : compat::u8 {
     shared_state_typed_stop,
     actor_render_offset_typed_stop,
     actor_coordinate_typed_stop,
+    actor_base_coordinate_typed_stop,
 };
 
 struct LegacyBattleActionThirteenResult {
@@ -515,9 +526,15 @@ struct LegacyBattleActionThirteenResult {
     LegacyBattleActorRenderOffsetQueryResult render_offset_query{};
     compat::u32 render_offset_query_calls{};
     LegacyBattleActorCoordinateQueryResult coordinate_query{};
+    LegacyBattleActorBaseCoordinateQueryResult base_coordinate_query{};
     compat::u32 coordinate_query_calls{};
+    compat::u32 base_coordinate_query_calls{};
     compat::u32 coordinate_output_x{};
     compat::u32 coordinate_output_y{};
+    compat::u32 base_coordinate_output_x{};
+    compat::u32 base_coordinate_output_y{};
+    compat::u32 endpoint_x{};
+    compat::u32 endpoint_y{};
     compat::u32 line_raster_calls{};
     compat::u32 sample_calls{};
     compat::u32 render_calls{};
@@ -1194,6 +1211,8 @@ struct LegacyBattleActionDispatchState {
     compat::u16 message_coordinate_y{};
     compat::u32 coordinate_output_x_token{};
     compat::u32 coordinate_output_y_token{};
+    compat::u32 base_coordinate_output_x_token{};
+    compat::u32 base_coordinate_output_y_token{};
     compat::u32 dual_record_coordinate_x_initial{};
     compat::u32 dual_record_coordinate_frame_header_residue{};
     compat::u32 message_aux{};
@@ -1590,6 +1609,7 @@ start_legacy_battle_target_phase(
     const LegacyBattleGroupAActionExecutionState* actor,
     LegacyBattleRenderGeometry* render_geometry,
     LegacyBattleActionDispatchPort& port,
+    LegacyBattleActionDispatchContext& context,
     const LegacyBattleTargetPhaseStartRequest& request
 );
 

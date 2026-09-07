@@ -54,11 +54,19 @@ public:
         if (request.callee_token == 0x00478620U) {
             return {
                 .eax = 0x72000000U,
+                .edx = 0x89ABCDEFU,
+                .flags =
+                    {
+                        .carry = false,
+                        .parity = true,
+                        .auxiliary_carry = true,
+                        .auxiliary_carry_defined = true,
+                        .zero = false,
+                        .sign = false,
+                        .overflow = false,
+                    },
                 .outputs = {0x73000000U, 0x20U, 0x50U},
             };
-        }
-        if (request.callee_token == 0x00478470U) {
-            return {.outputs = {0x30U, 0x40U}};
         }
         if (request.callee_token == 0x004019A0U) {
             return {.eax = 0x74000000U, .resource_words = decoded_pixels};
@@ -4571,16 +4579,26 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         phase.action_record.action_id = 2U;
         phase.spawn_action_records[0U].action_id = 3U;
         Fixture fixture;
+        auto& target =
+            (*fixture.startup.group_b_lifecycle)[0U].action_execution;
+        target.position_x = 0x40U;
+        target.source_y_offset = 0x10U;
+        target.position_y = 0x60U;
+        target.target_phase_y_adjustment = 0x20;
         DispatchPort port;
+        auto context = fixture.context();
         const auto result = openswd3::battle::start_legacy_battle_target_phase(
             &phase,
             &actor,
             &fixture.startup.render_geometry,
             port,
+            context,
             {
                 .target_token = 0x00525508U,
                 .surface_width = 640,
                 .surface_height = 480,
+                .coordinate_output_x_token = 0xAAAA1111U,
+                .coordinate_output_y_token = 0xBBBB2222U,
                 .entry_eax = 0xAAAAAAAAU,
                 .entry_ecx = 0xBBBBBBBBU,
                 .entry_edx = 0xCCCCCCCCU,
@@ -4591,8 +4609,17 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleTargetPhaseStartStatus::
                         completed &&
-                result.port_calls == 4U && result.resource_query_calls == 1U &&
+                result.port_calls == 3U && result.resource_query_calls == 1U &&
                 result.coordinate_query_calls == 1U &&
+                result.base_coordinate_query.status ==
+                    openswd3::battle::
+                        LegacyBattleActorBaseCoordinateQueryStatus::completed &&
+                result.base_coordinate_query.output_writes == 2U &&
+                result.base_coordinate_query.return_eax == 0xBBBB0040U &&
+                result.base_coordinate_query.return_ecx == 0xBBBB2222U &&
+                result.base_coordinate_query.return_edx == 0xAAAA1111U &&
+                result.coordinate_output_x == 0x00520030U &&
+                result.coordinate_output_y == 0x40U &&
                 result.decode_calls == 1U &&
                 result.property_query_calls == 1U &&
                 result.presentation_dwords_zeroed == 0x16U &&
@@ -4617,7 +4644,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 emitter.published_value_30 == 5 &&
                 emitter.published_value_34 == 5 &&
                 phase.group_a_mode_flags == 0x88U &&
-                phase.runtime_gate == 0U &&
+                port.count(0x00478470U) == 0U && phase.runtime_gate == 0U &&
                 std::ranges::all_of(
                     phase.block_0df4,
                     [](const u32 value) { return value == 0U; }
@@ -4636,11 +4663,13 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         Fixture fixture;
         DispatchPort port;
         port.push(0x00478620U, {.eax = 0U});
+        auto context = fixture.context();
         const auto result = openswd3::battle::start_legacy_battle_target_phase(
             &phase,
             &actor,
             &fixture.startup.render_geometry,
             port,
+            context,
             {.target_token = 0x00525508U,
              .surface_width = 640,
              .surface_height = 480}
@@ -4653,8 +4682,128 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 result.coordinate_query_calls == 1U &&
                 result.decode_calls == 0U &&
                 result.presentation_dwords_zeroed == 0x16U &&
-                phase.emitter.flags == 0U && phase.block_0df4[0U] == 9U,
-            "target phase resource stop preserves both callee calls and the emitter clear prefix"
+                phase.emitter.flags == 0U && phase.block_0df4[0U] == 9U &&
+                port.count(0x00478470U) == 0U,
+            "target phase resource stop preserves the typed coordinate query and emitter clear prefix"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleTargetPhaseState phase;
+        phase.emitter.flags = 0xCAFEU;
+        phase.block_0df4.fill(9U);
+        phase.action_record.action_id = 7U;
+        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+        Fixture fixture;
+        auto& target =
+            (*fixture.startup.group_b_lifecycle)[0U].action_execution;
+        target.position_x = 0x1234U;
+        target.source_y_offset = 0x34U;
+        target.position_y = 0x5678U;
+        target.target_phase_y_adjustment_read_accessible = false;
+        DispatchPort port;
+        auto context = fixture.context();
+        const auto result = openswd3::battle::start_legacy_battle_target_phase(
+            &phase,
+            &actor,
+            &fixture.startup.render_geometry,
+            port,
+            context,
+            {
+                .target_token = 0x00525508U,
+                .surface_width = 640,
+                .surface_height = 480,
+                .coordinate_output_x_token = 0xAAAA1111U,
+                .coordinate_output_y_token = 0xBBBB2222U,
+            }
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleTargetPhaseStartStatus::
+                        actor_base_coordinate_typed_stop &&
+                result.port_calls == 1U && result.resource_query_calls == 1U &&
+                result.coordinate_query_calls == 1U &&
+                result.base_coordinate_query.status ==
+                    openswd3::battle::
+                        LegacyBattleActorBaseCoordinateQueryStatus::
+                            y_adjustment_read_typed_stop &&
+                result.base_coordinate_query.output_writes == 1U &&
+                result.coordinate_output_x == 0x00521200U &&
+                result.coordinate_output_y == 0U &&
+                result.return_eax == 0xBBBB5678U &&
+                result.return_ecx == 0x00525508U &&
+                result.return_edx == 0xAAAA1111U &&
+                result.presentation_dwords_zeroed == 0U &&
+                result.decode_calls == 0U &&
+                result.property_query_calls == 0U &&
+                phase.resource_token == 0x72000000U &&
+                phase.emitter.flags == 0xCAFEU && phase.block_0df4[0U] == 9U &&
+                phase.action_record.action_id == 7U &&
+                port.count(0x00478470U) == 0U,
+            "target phase keeps the resource and aliased stack-slot X prefix when base-coordinate Y faults before presentation clear"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleTargetPhaseState phase;
+        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+        Fixture fixture;
+        auto& target =
+            (*fixture.startup.group_b_lifecycle)[0U].action_execution;
+        target.position_x_read_accessible = false;
+        DispatchPort port;
+        port.push(
+            0x00478620U,
+            {
+                .eax = 0x72000000U,
+                .edx = 0x89ABCDEFU,
+                .flags =
+                    {
+                        .carry = true,
+                        .parity = false,
+                        .auxiliary_carry = true,
+                        .auxiliary_carry_defined = true,
+                        .zero = false,
+                        .sign = true,
+                        .overflow = true,
+                    },
+                .outputs = {0x73000000U, 0x20U, 0x50U},
+            }
+        );
+        auto context = fixture.context();
+        const auto result = openswd3::battle::start_legacy_battle_target_phase(
+            &phase,
+            &actor,
+            &fixture.startup.render_geometry,
+            port,
+            context,
+            {
+                .target_token = 0x00525508U,
+                .coordinate_output_x_token = 0xAAAA1111U,
+                .coordinate_output_y_token = 0xBBBB2222U,
+            }
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleTargetPhaseStartStatus::
+                        actor_base_coordinate_typed_stop &&
+                result.base_coordinate_query.status ==
+                    openswd3::battle::
+                        LegacyBattleActorBaseCoordinateQueryStatus::
+                            position_x_read_typed_stop &&
+                result.return_eax == 0xBBBB2222U &&
+                result.return_ecx == 0x00525508U &&
+                result.return_edx == 0x89ABCDEFU &&
+                result.base_coordinate_query.flags.carry &&
+                !result.base_coordinate_query.flags.parity &&
+                result.base_coordinate_query.flags.auxiliary_carry &&
+                result.base_coordinate_query.flags.auxiliary_carry_defined &&
+                !result.base_coordinate_query.flags.zero &&
+                result.base_coordinate_query.flags.sign &&
+                result.base_coordinate_query.flags.overflow &&
+                result.presentation_dwords_zeroed == 0U &&
+                port.count(0x00478470U) == 0U,
+            "target phase forwards resource-query EDX and flags into the base-coordinate entry stop"
         );
     }
 }
@@ -5170,6 +5319,126 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
 
     {
         openswd3::battle::LegacyBattleTargetPhaseState phase;
+        phase.runtime_gate = 7U;
+        phase.block_0df4.fill(9U);
+        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+        openswd3::battle::LegacyBattleGroupAActionExecutionSharedState shared;
+        Fixture fixture;
+        auto& opponent =
+            (*fixture.startup.group_b_lifecycle)[0U].action_execution;
+        opponent.render_x_base = 5U;
+        opponent.render_y_base = 6U;
+        opponent.position_x = 0x1234U;
+        opponent.source_y_offset = 0x34U;
+        opponent.position_y = 0x5678U;
+        opponent.target_phase_y_adjustment_read_accessible = false;
+        DispatchPort port;
+        auto context = fixture.context();
+        const auto stopped =
+            openswd3::battle::advance_legacy_battle_action_thirteen(
+                &phase,
+                &actor,
+                &shared,
+                port,
+                context,
+                {
+                    .actor_token = 0x005029D0U,
+                    .opponent_token = 0x00525508U,
+                    .coordinate_output_x_token = 0x11112222U,
+                    .coordinate_output_y_token = 0x33334444U,
+                    .base_coordinate_output_x_token = 0xAAAA1111U,
+                    .base_coordinate_output_y_token = 0xBBBB2222U,
+                }
+            );
+        test.expect_true(
+            stopped.status ==
+                    openswd3::battle::LegacyBattleActionThirteenStatus::
+                        actor_base_coordinate_typed_stop &&
+                stopped.render_offset_query.status ==
+                    openswd3::battle::LegacyBattleActorRenderOffsetQueryStatus::
+                        completed &&
+                stopped.coordinate_output_x == 5U &&
+                stopped.coordinate_output_y == 6U &&
+                stopped.base_coordinate_query_calls == 1U &&
+                stopped.base_coordinate_query.status ==
+                    openswd3::battle::
+                        LegacyBattleActorBaseCoordinateQueryStatus::
+                            y_adjustment_read_typed_stop &&
+                stopped.base_coordinate_query.output_writes == 1U &&
+                stopped.base_coordinate_output_x == 0x1200U &&
+                stopped.base_coordinate_output_y == 0U &&
+                stopped.return_eax == 0xAAAA5678U &&
+                stopped.return_ecx == 0x00525508U &&
+                stopped.return_edx == 0xAAAA1111U &&
+                !stopped.base_coordinate_query.flags.carry &&
+                stopped.base_coordinate_query.flags.parity &&
+                !stopped.base_coordinate_query.flags.auxiliary_carry &&
+                stopped.base_coordinate_query.flags.auxiliary_carry_defined &&
+                !stopped.base_coordinate_query.flags.zero &&
+                !stopped.base_coordinate_query.flags.sign &&
+                !stopped.base_coordinate_query.flags.overflow &&
+                stopped.line_raster_calls == 0U && stopped.sample_calls == 0U &&
+                stopped.render_calls == 0U && stopped.port_calls == 0U &&
+                phase.runtime_gate == 7U && phase.block_0df4[0U] == 9U &&
+                phase.action_record.action_id == 0x186BU &&
+                port.count(0x00478470U) == 0U,
+            "action thirteen keeps the base X low-word commit and blocks the action-record clear when base Y faults"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleTargetPhaseState phase;
+        phase.block_0df4.fill(9U);
+        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+        openswd3::battle::LegacyBattleGroupAActionExecutionSharedState shared;
+        Fixture fixture;
+        auto& opponent =
+            (*fixture.startup.group_b_lifecycle)[0U].action_execution;
+        opponent.render_x_base = 5U;
+        opponent.render_y_base = 0x8001U;
+        opponent.position_x_read_accessible = false;
+        DispatchPort port;
+        auto context = fixture.context();
+        const auto stopped =
+            openswd3::battle::advance_legacy_battle_action_thirteen(
+                &phase,
+                &actor,
+                &shared,
+                port,
+                context,
+                {
+                    .actor_token = 0x005029D0U,
+                    .opponent_token = 0x00525508U,
+                    .base_coordinate_output_x_token = 0xAAAA1111U,
+                    .base_coordinate_output_y_token = 0xBBBB2222U,
+                }
+            );
+        test.expect_true(
+            stopped.status ==
+                    openswd3::battle::LegacyBattleActionThirteenStatus::
+                        actor_base_coordinate_typed_stop &&
+                stopped.base_coordinate_query.status ==
+                    openswd3::battle::
+                        LegacyBattleActorBaseCoordinateQueryStatus::
+                            position_x_read_typed_stop &&
+                stopped.return_eax == 0xAAAA1111U &&
+                stopped.return_ecx == 0x00525508U &&
+                stopped.return_edx == 0xBBBB2222U &&
+                !stopped.base_coordinate_query.flags.carry &&
+                !stopped.base_coordinate_query.flags.parity &&
+                !stopped.base_coordinate_query.flags.auxiliary_carry &&
+                stopped.base_coordinate_query.flags.auxiliary_carry_defined &&
+                !stopped.base_coordinate_query.flags.zero &&
+                stopped.base_coordinate_query.flags.sign &&
+                !stopped.base_coordinate_query.flags.overflow &&
+                stopped.line_raster_calls == 0U && stopped.port_calls == 0U &&
+                phase.block_0df4[0U] == 9U && port.count(0x00478470U) == 0U,
+            "action thirteen forwards the both-nonzero Y CMP flags and pre-pointer EDX residue into the base query"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleTargetPhaseState phase;
         openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
         openswd3::battle::LegacyBattleGroupAActionExecutionSharedState shared;
         actor.position_x = 100U;
@@ -5177,6 +5446,10 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
         Fixture fixture;
         auto& opponent =
             (*fixture.startup.group_b_lifecycle)[0U].action_execution;
+        opponent.position_x = 15U;
+        opponent.source_y_offset = 5U;
+        opponent.position_y = 30U;
+        opponent.target_phase_y_adjustment = 10;
         opponent.render_x_base = 4U;
         opponent.render_y_base = 6U;
         opponent.special_action_record.field_76 = 9U;
@@ -5187,7 +5460,6 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
         (*fixture.startup.group_b_lifecycle)[0U].action_composition.mode_flags =
             2U;
         DispatchPort port;
-        port.push(0x00478470U, {.outputs = {10U, 20U}});
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_action_thirteen(
@@ -5197,7 +5469,9 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                 port,
                 context,
                 {.actor_token = 0x005029D0U,
-                 .opponent_token = 0x00525508U}
+                 .opponent_token = 0x00525508U,
+                 .base_coordinate_output_x_token = 0xAAAA1111U,
+                 .base_coordinate_output_y_token = 0xBBBB2222U}
             );
         test.expect_true(
             result.status ==
@@ -5213,12 +5487,23 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                 result.coordinate_output_x == 36U &&
                 result.coordinate_output_y == 11U &&
                 result.coordinate_query_calls == 2U &&
+                result.base_coordinate_query_calls == 1U &&
+                result.base_coordinate_query.status ==
+                    openswd3::battle::
+                        LegacyBattleActorBaseCoordinateQueryStatus::completed &&
+                result.base_coordinate_output_x == 10U &&
+                result.base_coordinate_output_y == 20U &&
+                result.base_coordinate_query.return_eax == 0xAAAA0014U &&
+                result.base_coordinate_query.return_ecx == 0xBBBB2222U &&
+                result.base_coordinate_query.return_edx == 0xAAAA1111U &&
+                result.endpoint_x == 0xBBBB002EU &&
+                result.endpoint_y == 0xAAAA001FU &&
                 result.line_raster_calls == 0U && phase.runtime_gate == 1U &&
                 phase.action_record.action_id == 0x186BU &&
-                port.count(0x00478400U) == 0U &&
-                port.count(0x00478470U) == 1U &&
+                result.port_calls == 2U && port.count(0x00478400U) == 0U &&
+                port.count(0x00478470U) == 0U &&
                 port.count(0x004783B0U) == 0U && port.count(0x004170E0U) == 1U,
-            "action thirteen applies the override and mirror transform, keeps the nonzero offset branch and renders the start point before the next raster frame"
+            "action thirteen composes canonical base coordinates with the Y-pointer and X-pointer high-word residues before rendering"
         );
     }
 
@@ -5335,6 +5620,121 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
 
     {
         openswd3::battle::LegacyBattleTargetPhaseState phase;
+        phase.runtime_gate = 7U;
+        phase.block_0df4.fill(9U);
+        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+        openswd3::battle::LegacyBattleGroupAActionExecutionSharedState shared;
+        Fixture fixture;
+        auto& opponent =
+            (*fixture.startup.group_b_lifecycle)[0U].action_execution;
+        opponent.render_x_base = 2U;
+        opponent.render_y_base = 3U;
+        opponent.position_x = 12U;
+        opponent.source_y_offset = 2U;
+        opponent.position_y = 0x5678U;
+        opponent.target_phase_y_adjustment_read_accessible = false;
+        DispatchPort port;
+        auto context = fixture.context();
+        const auto stopped =
+            openswd3::battle::advance_legacy_battle_action_fourteen(
+                &phase,
+                &actor,
+                &shared,
+                port,
+                context,
+                {
+                    .actor_token = 0x005029D0U,
+                    .opponent_token = 0x00525508U,
+                    .coordinate_output_x_token = 0xCCCC3333U,
+                    .coordinate_output_y_token = 0xEEEE4444U,
+                    .base_coordinate_output_x_token = 0xAAAA1111U,
+                    .base_coordinate_output_y_token = 0xDDDD2222U,
+                }
+            );
+        test.expect_true(
+            stopped.status ==
+                    openswd3::battle::LegacyBattleActionFourteenStatus::
+                        actor_base_coordinate_typed_stop &&
+                stopped.render_offset_query.status ==
+                    openswd3::battle::LegacyBattleActorRenderOffsetQueryStatus::
+                        completed &&
+                stopped.coordinate_output_x == 2U &&
+                stopped.coordinate_output_y == 3U &&
+                stopped.base_coordinate_query_calls == 1U &&
+                stopped.base_coordinate_query.status ==
+                    openswd3::battle::
+                        LegacyBattleActorBaseCoordinateQueryStatus::
+                            y_adjustment_read_typed_stop &&
+                stopped.base_coordinate_query.output_writes == 1U &&
+                stopped.base_coordinate_output_x == 10U &&
+                stopped.base_coordinate_output_y == 0U &&
+                stopped.return_eax == 0xCCCC5678U &&
+                stopped.return_ecx == 0x00525508U &&
+                stopped.return_edx == 0xAAAA1111U &&
+                stopped.line_raster_calls == 0U && stopped.sample_calls == 0U &&
+                stopped.render_calls == 0U && stopped.port_calls == 0U &&
+                phase.runtime_gate == 7U && phase.block_0df4[0U] == 9U &&
+                phase.action_record.action_id == 0x186BU &&
+                port.count(0x00478470U) == 0U,
+            "action fourteen preserves the render-query EAX high word and base X commit when base Y faults"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleTargetPhaseState phase;
+        phase.block_0df4.fill(9U);
+        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+        openswd3::battle::LegacyBattleGroupAActionExecutionSharedState shared;
+        Fixture fixture;
+        auto& opponent =
+            (*fixture.startup.group_b_lifecycle)[0U].action_execution;
+        opponent.render_x_base = 2U;
+        opponent.render_y_base = 0x8001U;
+        opponent.position_x_read_accessible = false;
+        DispatchPort port;
+        auto context = fixture.context();
+        const auto stopped =
+            openswd3::battle::advance_legacy_battle_action_fourteen(
+                &phase,
+                &actor,
+                &shared,
+                port,
+                context,
+                {
+                    .actor_token = 0x005029D0U,
+                    .opponent_token = 0x00525508U,
+                    .coordinate_output_x_token = 0xCCCC3333U,
+                    .coordinate_output_y_token = 0xEEEE4444U,
+                    .base_coordinate_output_x_token = 0xAAAA1111U,
+                    .base_coordinate_output_y_token = 0xDDDD2222U,
+                }
+            );
+        test.expect_true(
+            stopped.status ==
+                    openswd3::battle::LegacyBattleActionFourteenStatus::
+                        actor_base_coordinate_typed_stop &&
+                stopped.base_coordinate_query.status ==
+                    openswd3::battle::
+                        LegacyBattleActorBaseCoordinateQueryStatus::
+                            position_x_read_typed_stop &&
+                stopped.return_eax == 0xCCCC3333U &&
+                stopped.return_ecx == 0x00525508U &&
+                stopped.return_edx == 0xAAAA1111U &&
+                !stopped.base_coordinate_query.flags.carry &&
+                !stopped.base_coordinate_query.flags.parity &&
+                !stopped.base_coordinate_query.flags.auxiliary_carry &&
+                stopped.base_coordinate_query.flags.auxiliary_carry_defined &&
+                !stopped.base_coordinate_query.flags.zero &&
+                stopped.base_coordinate_query.flags.sign &&
+                !stopped.base_coordinate_query.flags.overflow &&
+                stopped.line_raster_calls == 0U && stopped.port_calls == 0U &&
+                phase.block_0df4[0U] == 9U && port.count(0x00478470U) == 0U,
+            "action fourteen forwards the Y CMP flags while retaining the render-query EAX and X-output EDX entry residues"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleTargetPhaseState phase;
         openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
         openswd3::battle::LegacyBattleGroupAActionExecutionSharedState shared;
         phase.runtime_gate = 1U;
@@ -5389,10 +5789,13 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
         Fixture fixture;
         auto& opponent =
             (*fixture.startup.group_b_lifecycle)[0U].action_execution;
+        opponent.position_x = 12U;
+        opponent.source_y_offset = 2U;
+        opponent.position_y = 25U;
+        opponent.target_phase_y_adjustment = 5;
         opponent.render_x_base = 2U;
         opponent.render_y_base = 3U;
         DispatchPort port;
-        port.push(0x00478470U, {.outputs = {10U, 20U}});
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_action_fourteen(
@@ -5402,7 +5805,11 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                 port,
                 context,
                 {.actor_token = 0x005029D0U,
-                 .opponent_token = 0x00525508U}
+                 .opponent_token = 0x00525508U,
+                 .coordinate_output_x_token = 0xCCCC3333U,
+                 .coordinate_output_y_token = 0xEEEE4444U,
+                 .base_coordinate_output_x_token = 0xAAAA1111U,
+                 .base_coordinate_output_y_token = 0xDDDD2222U}
             );
         const auto raster = std::bit_cast<
             openswd3::battle::LegacyBattleLineRaster>(phase.block_0df4);
@@ -5416,13 +5823,24 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleActorRenderOffsetQueryStatus::
                         completed &&
                 result.coordinate_query_calls == 2U &&
+                result.base_coordinate_query_calls == 1U &&
+                result.base_coordinate_query.status ==
+                    openswd3::battle::
+                        LegacyBattleActorBaseCoordinateQueryStatus::completed &&
+                result.base_coordinate_output_x == 10U &&
+                result.base_coordinate_output_y == 20U &&
+                result.base_coordinate_query.return_eax == 0xCCCC0014U &&
+                result.base_coordinate_query.return_ecx == 0xDDDD2222U &&
+                result.base_coordinate_query.return_edx == 0xAAAA1111U &&
+                result.endpoint_x == 0xCCCC000CU &&
+                result.endpoint_y == 0xDDDD0017U &&
                 result.line_raster_calls == 0U && phase.runtime_gate == 1U &&
                 raster.start_x == 12 && raster.start_y == 23 &&
                 raster.end_x == 103 && raster.end_y == 86 &&
-                port.count(0x00478400U) == 0U &&
-                port.count(0x00478470U) == 1U &&
+                result.port_calls == 2U && port.count(0x00478400U) == 0U &&
+                port.count(0x00478470U) == 0U &&
                 port.count(0x004783B0U) == 0U && port.count(0x004170E0U) == 1U,
-            "action fourteen preserves the nonzero offset branch and reverses the raster from target to actor"
+            "action fourteen keeps the render-query EAX high word distinct while composing canonical target coordinates"
         );
     }
 
@@ -5764,10 +6182,14 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                 port.count(0x00472730U) == 0U &&
                 port.count(0x00484500U) == 1U &&
                 result.target_phase_start_calls == 1U &&
-                result.target_phase_start.port_calls == 4U &&
+                result.target_phase_start.port_calls == 3U &&
+                result.target_phase_start.coordinate_query_calls == 1U &&
+                result.target_phase_start.base_coordinate_query.status ==
+                    openswd3::battle::
+                        LegacyBattleActorBaseCoordinateQueryStatus::completed &&
                 port.count(0x004710D0U) == 0U &&
                 port.count(0x00478620U) == 1U &&
-                port.count(0x00478470U) == 1U &&
+                port.count(0x00478470U) == 0U &&
                 port.count(0x004019A0U) == 1U &&
                 port.count(0x0047CE70U) == 1U && state.phase_condition == 1U &&
                 static_cast<u16>(state.phase_counter) == 1U &&

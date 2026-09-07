@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v877
+版本：v878
 
 最后更新：2026-09-04
 
@@ -271,14 +271,14 @@ REVIEW通过后必须立即按`AGENTS.md`完成commit、push和TG，再重新完
 13. `[x]` B7：地图、世界、角色、碰撞与寻路已按模块移交条件有限收口；当前状态、阻塞和证据见[`world-map.md`](../analysis/04-reverse-engineering/modules/world-map.md)及相关inventory/evidence。
 14. `[x]` B8：剧情VM、场景调度与异步action的P1–P3已经完成；[`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md)不再覆盖当前队列。
 15. `[x]` B9：菜单、商店和其他特殊模式的227/227工作项已经关闭；当前状态和阻塞见[`special-modes.md`](../analysis/04-reverse-engineering/modules/special-modes.md)。
-16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=283`，本阶段执行`audit_order=284`。
+16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=284`，本阶段发布工作包284 REVIEW 3。
 17. `[ ]` B11：存档、配置与持久化语义；等待B10满足移交条件后开始。
 
 B7以后已经完成的详细执行记录已机械搬到[`execution-progress-history-pi.md`](execution-progress-history-pi.md)。该文件只保存历史，不定义当前执行顺序、状态或断点。
 
 当前只执行B10，不并行展开B11。
 
-当前执行`audit_order=284`的`0x00478470`战斗角色基准坐标查询函数。
+当前发布`audit_order=284`的`0x00478470`战斗角色基准坐标查询函数；发布后切换到`audit_order=285 / 0x004784A0`。
 
 ### B10 当前WORKPACK REVIEW计划
 
@@ -286,7 +286,7 @@ B7以后已经完成的详细执行记录已机械搬到[`execution-progress-his
 
 当前工作包：`audit_order=284`、`0x00478470`。目标是实现战斗角色基准坐标查询，并回收7个已关闭caller中的8个物理callsite。第9个物理callsite属于仍为`pending_audit`的`audit_order=419 / 0x00484020`，当前没有对应现代生产实现；关闭该caller时必须直接复用本工作包typed接口，不得恢复opaque边界。
 
-当前断点：REVIEW 1–2已完成typed leaf、三个效果caller、脚本两处动态文字caller、测试、证据与发布矩阵；inventory按计划保持`pending_audit`。下一步执行REVIEW 3，尚未开始目标阶段与动作坐标生产代码修改。
+当前断点：REVIEW 1–3已完成typed leaf、8个现代物理callsite、测试、证据、发布矩阵、十次core、TMP分类与inventory双生成；row 284已关闭为`platform_adapted`。下一步完成staged/unstaged审计、commit、push、TG与规定文件重读。
 
 #### REVIEW 1：基准坐标查询与战斗效果
 
@@ -307,7 +307,9 @@ B7以后已经完成的详细执行记录已机械搬到[`execution-progress-his
 
 #### REVIEW 3：目标阶段、动作坐标与工作包关闭
 
-- 回收`0x004710D0`、`0x004717F0`和`0x00471AD0`各1个callsite。目标阶段保留资源查询后的目标参数栈槽低word别名、局部Y槽和演出记录清零前的故障边界；动作十三/十四只在两个绘制偏移均非零时查询基准坐标，并保留零初始化局部dword、偏移合成、caller寄存器/flags和故障后缀抑制。
-- 验证7个已关闭caller中的8个物理callsite不再调用opaque `0x00478470` token；明确记录`0x00484020`待其自身工作包关闭时直连typed接口，并完成目标及caller证据、生成器关闭映射、`battle-function-workpack.tsv`、`modules/battle.md`和主PLAN同步。
-- 执行定向测试、AddressSanitizer、Linux core、Linux app、changed-range格式、零诊断、十次core重复、inventory双次稳定生成、TMP分类及staged/unstaged发布审计。
-- 完整REVIEW通过后把工作包284标记为关闭，立即commit、push、TG并重读规定文件，再用下一工作包计划整体替换本节。
+状态：实现与验证已完成。`0x004710D0`、`0x004717F0`和`0x00471AD0`三个caller已直接组合，row 284已关闭；待完成发布动作。
+
+- 已回收`0x004710D0`、`0x004717F0`和`0x00471AD0`各1个callsite。目标阶段保留资源查询后的目标参数栈槽低word别名、局部Y槽和演出记录清零前的故障边界；动作十三/十四只在两个绘制偏移均非零时查询基准坐标，并保留零初始化局部dword、偏移合成、caller寄存器/flags和故障后缀抑制。
+- 7个已关闭caller中的8个物理callsite已对opaque `0x00478470`零调用；`0x00484020`已明确登记为其自身工作包关闭时直连typed接口。目标及caller证据、生成器关闭映射、`battle-function-workpack.tsv`、`modules/battle.md`和主PLAN已同步。
+- 定向`1/1`、AddressSanitizer `199/199`、Linux core `199/199`、Linux app `205/205`、changed-range格式、零诊断、连续十次core、inventory双次稳定生成和TMP分类均已通过。inventory为`284/422 = 274 platform_adapted + 10 assembly_exact + 138 pending_audit`，SHA-256为`e945ecc6cf0c24204114f7eff9006d5d8ddbf4d0822403e40a426e459af38601`。
+- 下一步完成staged/unstaged发布审计，立即commit、push、TG并重读规定文件，再用下一工作包计划整体替换本节。

@@ -105,11 +105,9 @@ constexpr u32 kCallSetSamplePan = 0x00485650U;
 constexpr u32 kCallQueryTargetCode = 0x0047F910U;
 constexpr u32 kCallTargetPhaseValues = 0x00484500U;
 constexpr u32 kCallTargetPhaseResource = 0x00478620U;
-constexpr u32 kCallTargetPhaseCoordinates = 0x00478470U;
 constexpr u32 kCallTargetPhaseDecode = 0x004019A0U;
 constexpr u32 kCallTargetPhaseProperty = 0x0047CE70U;
 constexpr u32 kCallTargetPhaseRelease = 0x004885A0U;
-constexpr u32 kCallActionThirteenQueryBase = 0x00478470U;
 constexpr u32 kCallActionThirteenRender = 0x004170E0U;
 constexpr u32 kCallCommitMessageRecord = 0x0047DBD0U;
 constexpr u32 kCallQueryLiveIndex = 0x004786E0U;
@@ -282,6 +280,41 @@ increment_flags(const u32 before, const bool carry) noexcept {
     u16 output_x_word = low_word(output_x);
     u16 output_y_word = low_word(output_y);
     auto result = query_legacy_battle_actor_coordinates(
+        resolve_legacy_battle_actor_coordinates(owners, actor_token),
+        &output_x_word,
+        &output_y_word,
+        {
+            .actor_token = actor_token,
+            .output_x_token = output_x_token,
+            .output_y_token = output_y_token,
+            .entry_eax = entry_eax,
+            .entry_edx = entry_edx,
+            .entry_flags = entry_flags,
+        }
+    );
+    if (result.output_writes >= 1U) {
+        replace_low_word(output_x, output_x_word);
+    }
+    if (result.output_writes >= 2U) {
+        replace_low_word(output_y, output_y_word);
+    }
+    return result;
+}
+
+[[nodiscard]] LegacyBattleActorBaseCoordinateQueryResult query_base_coordinates(
+    const LegacyBattleActorCoordinateOwners& owners,
+    const u32 actor_token,
+    u32& output_x,
+    u32& output_y,
+    const u32 output_x_token,
+    const u32 output_y_token,
+    const u32 entry_eax,
+    const u32 entry_edx,
+    const LegacyBattleActorCoordinateFlags& entry_flags
+) noexcept {
+    u16 output_x_word = low_word(output_x);
+    u16 output_y_word = low_word(output_y);
+    auto result = query_legacy_battle_actor_base_coordinates(
         resolve_legacy_battle_actor_coordinates(owners, actor_token),
         &output_x_word,
         &output_y_word,
@@ -790,6 +823,7 @@ LegacyBattleTargetPhaseStartResult start_legacy_battle_target_phase(
     const LegacyBattleGroupAActionExecutionState* actor,
     LegacyBattleRenderGeometry* render_geometry,
     LegacyBattleActionDispatchPort& port,
+    LegacyBattleActionDispatchContext& context,
     const LegacyBattleTargetPhaseStartRequest& request
 ) {
     LegacyBattleTargetPhaseStartResult result;
@@ -823,9 +857,35 @@ LegacyBattleTargetPhaseStartResult start_legacy_battle_target_phase(
     ++result.resource_query_calls;
     phase->resource_token = resource.eax;
 
-    const auto coordinates =
-        invoke_phase(kCallTargetPhaseCoordinates, {request.target_token});
+    u32 coordinate_x = request.target_token;
+    u32 coordinate_y{};
     ++result.coordinate_query_calls;
+    result.base_coordinate_query = query_base_coordinates(
+        {
+            .action = context.shared_action_dispatch,
+            .startup = context.startup,
+        },
+        request.target_token,
+        coordinate_x,
+        coordinate_y,
+        request.coordinate_output_x_token,
+        request.coordinate_output_y_token,
+        request.coordinate_output_y_token,
+        resource.edx,
+        resource.flags
+    );
+    result.coordinate_output_x = coordinate_x;
+    result.coordinate_output_y = coordinate_y;
+    result.return_eax = result.base_coordinate_query.return_eax;
+    result.return_ecx = result.base_coordinate_query.return_ecx;
+    result.return_edx = result.base_coordinate_query.return_edx;
+    if (result.base_coordinate_query.status !=
+        LegacyBattleActorBaseCoordinateQueryStatus::completed) {
+        result.status = LegacyBattleTargetPhaseStartStatus::
+            actor_base_coordinate_typed_stop;
+        return result;
+    }
+
     phase->decoded_resource_token = 0U;
     phase->emitter = {};
     result.presentation_dwords_zeroed = 0x16U;
@@ -845,13 +905,11 @@ LegacyBattleTargetPhaseStartResult start_legacy_battle_target_phase(
     emitter.source_width = static_cast<u16>(resource.outputs[1U]);
     emitter.source_height = static_cast<u16>(resource.outputs[2U]);
 
-    const i32 horizontal_delta = static_cast<i32>(
-        std::bit_cast<i16>(static_cast<u16>(coordinates.outputs[0U]))
-    );
+    const i32 horizontal_delta =
+        static_cast<i32>(std::bit_cast<i16>(low_word(coordinate_x)));
     emitter.source_origin_x = horizontal_delta - 1;
-    emitter.source_origin_y = static_cast<i32>(
-        std::bit_cast<i16>(static_cast<u16>(coordinates.outputs[1U]))
-    );
+    emitter.source_origin_y =
+        static_cast<i32>(std::bit_cast<i16>(low_word(coordinate_y)));
 
     const u32 source_x = static_cast<u32>(
         static_cast<i32>(std::bit_cast<i16>(actor->source_x_offset))
@@ -1450,18 +1508,58 @@ LegacyBattleActionThirteenResult advance_legacy_battle_action_thirteen(
             static_cast<u16>(phase->action_record.draw_offset_y)
         );
     } else {
+        u32 base_x{};
+        u32 base_y{};
         ++result.coordinate_query_calls;
-        const auto base = invoke_action(
-            kCallActionThirteenQueryBase, {request.opponent_token}
+        ++result.base_coordinate_query_calls;
+        result.base_coordinate_query = query_base_coordinates(
+            {
+                .action = context.shared_action_dispatch,
+                .startup = context.startup,
+            },
+            request.opponent_token,
+            base_x,
+            base_y,
+            request.base_coordinate_output_x_token,
+            request.base_coordinate_output_y_token,
+            request.base_coordinate_output_x_token,
+            request.base_coordinate_output_y_token,
+            subtract_word_flags(low_word(offset_y), 0U)
         );
-        endpoint_x = base.outputs[0U] +
-            static_cast<u16>(low_word(offset_x) - actor->turn_target_x_offset);
-        endpoint_y = base.outputs[1U] +
+        result.base_coordinate_output_x = base_x;
+        result.base_coordinate_output_y = base_y;
+        registers.eax = result.base_coordinate_query.return_eax;
+        registers.ecx = result.base_coordinate_query.return_ecx;
+        registers.edx = result.base_coordinate_query.return_edx;
+        if (result.base_coordinate_query.status !=
+            LegacyBattleActorBaseCoordinateQueryStatus::completed) {
+            result.status = LegacyBattleActionThirteenStatus::
+                actor_base_coordinate_typed_stop;
+            result.return_eax = registers.eax;
+            result.return_ecx = registers.ecx;
+            result.return_edx = registers.edx;
+            return result;
+        }
+        replace_low_word(registers.ecx, low_word(offset_x));
+        replace_low_word(
+            registers.ecx,
             static_cast<u16>(
-                         low_word(offset_y) -
-                         static_cast<u16>(phase->action_record.draw_offset_y)
-            );
+                low_word(registers.ecx) - actor->turn_target_x_offset
+            )
+        );
+        replace_low_word(registers.eax, low_word(offset_y));
+        replace_low_word(
+            registers.eax,
+            static_cast<u16>(
+                low_word(registers.eax) -
+                static_cast<u16>(phase->action_record.draw_offset_y)
+            )
+        );
+        endpoint_x = base_x + registers.ecx;
+        endpoint_y = base_y + registers.eax;
     }
+    result.endpoint_x = endpoint_x;
+    result.endpoint_y = endpoint_y;
 
     LegacyBattleLineRaster raster{};
     const u32 start_x =
@@ -1707,21 +1805,59 @@ LegacyBattleActionFourteenResult advance_legacy_battle_action_fourteen(
             static_cast<u16>(phase->action_record.draw_offset_y)
         );
     } else {
+        u32 base_x{};
+        u32 base_y{};
         ++result.coordinate_query_calls;
-        const auto base = invoke_action(
-            kCallActionThirteenQueryBase, {request.opponent_token}
+        ++result.base_coordinate_query_calls;
+        result.base_coordinate_query = query_base_coordinates(
+            {
+                .action = context.shared_action_dispatch,
+                .startup = context.startup,
+            },
+            request.opponent_token,
+            base_x,
+            base_y,
+            request.base_coordinate_output_x_token,
+            request.base_coordinate_output_y_token,
+            registers.eax,
+            request.base_coordinate_output_x_token,
+            subtract_word_flags(low_word(offset_y), 0U)
         );
-        endpoint_x = base.outputs[0U] +
+        result.base_coordinate_output_x = base_x;
+        result.base_coordinate_output_y = base_y;
+        registers.eax = result.base_coordinate_query.return_eax;
+        registers.ecx = result.base_coordinate_query.return_ecx;
+        registers.edx = result.base_coordinate_query.return_edx;
+        if (result.base_coordinate_query.status !=
+            LegacyBattleActorBaseCoordinateQueryStatus::completed) {
+            result.status = LegacyBattleActionFourteenStatus::
+                actor_base_coordinate_typed_stop;
+            result.return_eax = registers.eax;
+            result.return_ecx = registers.ecx;
+            result.return_edx = registers.edx;
+            return result;
+        }
+        replace_low_word(registers.eax, low_word(offset_x));
+        replace_low_word(registers.ecx, low_word(offset_y));
+        replace_low_word(
+            registers.eax,
             static_cast<u16>(
-                         low_word(offset_x) -
-                         static_cast<u16>(phase->action_record.draw_offset_x)
-            );
-        endpoint_y = base.outputs[1U] +
+                low_word(registers.eax) -
+                static_cast<u16>(phase->action_record.draw_offset_x)
+            )
+        );
+        replace_low_word(
+            registers.ecx,
             static_cast<u16>(
-                         low_word(offset_y) -
-                         static_cast<u16>(phase->action_record.draw_offset_y)
-            );
+                low_word(registers.ecx) -
+                static_cast<u16>(phase->action_record.draw_offset_y)
+            )
+        );
+        endpoint_x = base_x + registers.eax;
+        endpoint_y = base_y + registers.ecx;
     }
+    result.endpoint_x = endpoint_x;
+    result.endpoint_y = endpoint_y;
 
     LegacyBattleLineRaster raster{};
     raster.start_x = static_cast<i32>(signed_low_word(endpoint_x));
@@ -6860,10 +6996,15 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                 &state.group_a_action_execution[group_a_index],
                 &context.startup->render_geometry,
                 port,
+                context,
                 {
                     .target_token = group_b_token(group_b_index),
                     .surface_width = context.raster.surface.width,
                     .surface_height = context.raster.surface.height,
+                    .coordinate_output_x_token =
+                        state.base_coordinate_output_x_token,
+                    .coordinate_output_y_token =
+                        state.base_coordinate_output_y_token,
                 }
             );
             ++result.target_phase_start_calls;
@@ -7059,6 +7200,10 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                 .opponent_token = group_b_token(group_b_index),
                 .coordinate_output_x_token = state.coordinate_output_x_token,
                 .coordinate_output_y_token = state.coordinate_output_y_token,
+                .base_coordinate_output_x_token =
+                    state.base_coordinate_output_x_token,
+                .base_coordinate_output_y_token =
+                    state.base_coordinate_output_y_token,
             }
         );
         ++result.action_thirteen_calls;
@@ -7127,6 +7272,10 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                 .opponent_token = group_b_token(group_b_index),
                 .coordinate_output_x_token = state.coordinate_output_x_token,
                 .coordinate_output_y_token = state.coordinate_output_y_token,
+                .base_coordinate_output_x_token =
+                    state.base_coordinate_output_x_token,
+                .base_coordinate_output_y_token =
+                    state.base_coordinate_output_y_token,
             }
         );
         ++result.action_fourteen_calls;
