@@ -116,7 +116,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     selection_frame_query_group_b_completion,
     selection_frame_query_group_a_completion,
     selection_frame_build_actor_snapshot,
-    selection_frame_query_actor_origin,
+    reserved_selection_frame_query_actor_origin_slot,
     selection_frame_query_target_action_available,
     reserved_selection_frame_draw_selection_hint_slot,
     actor_target_query_group_b_completion,
@@ -287,8 +287,9 @@ struct LegacyBattleFrameCoordinatorCallReply {
     compat::i32 selection_snapshot_y{};
     compat::i32 selection_snapshot_width{};
     compat::i32 selection_snapshot_height{};
-    compat::u16 selection_origin_x{};
-    compat::u16 selection_origin_y{};
+    compat::u16 reserved_selection_origin_x{};
+    compat::u16 reserved_selection_origin_y{};
+    LegacyBattleActorCoordinateFlags selection_flags{};
     bool publish_list_panel_row_limit{};
     compat::u8 list_panel_row_limit{};
     bool publish_list_row_value{};
@@ -547,9 +548,9 @@ public:
             call = LegacyBattleFrameCoordinatorCall::
                 selection_frame_build_actor_snapshot;
             break;
-        case LegacyBattleSelectionFrameCall::query_actor_origin:
+        case LegacyBattleSelectionFrameCall::reserved_query_actor_origin_slot:
             call = LegacyBattleFrameCoordinatorCall::
-                selection_frame_query_actor_origin;
+                reserved_selection_frame_query_actor_origin_slot;
             break;
         case LegacyBattleSelectionFrameCall::query_target_action_available:
             call = LegacyBattleFrameCoordinatorCall::
@@ -576,8 +577,9 @@ public:
             .snapshot_y = reply.selection_snapshot_y,
             .snapshot_width = reply.selection_snapshot_width,
             .snapshot_height = reply.selection_snapshot_height,
-            .origin_x = reply.selection_origin_x,
-            .origin_y = reply.selection_origin_y,
+            .reserved_origin_x = reply.reserved_selection_origin_x,
+            .reserved_origin_y = reply.reserved_selection_origin_y,
+            .flags = reply.selection_flags,
             .text_length = reply.eax,
         };
     }

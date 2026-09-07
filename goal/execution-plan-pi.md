@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v871
+版本：v872
 
 最后更新：2026-09-04
 
@@ -286,7 +286,7 @@ B7以后已经完成的详细执行记录已机械搬到[`execution-progress-his
 
 当前工作包：`audit_order=283`、`0x00478400`。目标是实现战斗角色绘制偏移查询，并回收6个已关闭caller中的8个物理callsite。
 
-当前断点：完整权威LST主体与6份caller LST已经锁定；REVIEW划分已写入，尚未修改生产代码。当前只执行REVIEW 1。
+当前断点：REVIEW 1已完成、提交并推送；REVIEW 2进行中，当前只回收`0x00464270`内三处角色绘制偏移调用，inventory继续保持`pending_audit`。
 
 #### REVIEW 1：绘制偏移查询与战斗效果
 

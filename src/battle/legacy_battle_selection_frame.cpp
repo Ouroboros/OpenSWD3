@@ -31,6 +31,28 @@ inline constexpr u32 kLabelStringBaseToken = 0x0049E148U;
     return std::bit_cast<i32>(value);
 }
 
+[[nodiscard]] constexpr bool has_even_parity(u32 value) noexcept {
+    value &= 0xFFU;
+    value ^= value >> 4U;
+    value ^= value >> 2U;
+    value ^= value >> 1U;
+    return (value & 1U) == 0U;
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+subtract_flags(const u32 left, const u32 right) noexcept {
+    const u32 difference = left - right;
+    return {
+        .carry = left < right,
+        .parity = has_even_parity(difference),
+        .auxiliary_carry = ((left ^ right ^ difference) & 0x10U) != 0U,
+        .auxiliary_carry_defined = true,
+        .zero = difference == 0U,
+        .sign = (difference & 0x80000000U) != 0U,
+        .overflow = ((left ^ right) & (left ^ difference) & 0x80000000U) != 0U,
+    };
+}
+
 [[nodiscard]] constexpr u32
 arithmetic_shift_right_one(const u32 value) noexcept {
     return std::bit_cast<u32>(signed_dword(value) >> 1);
@@ -163,7 +185,7 @@ private:
 
     enum class GroupBRegisterShape : compat::u8 {
         preserve,
-        eax_565_edx_345,
+        eax_565_edx_159,
         eax_index_edx_565,
     };
 
@@ -284,9 +306,9 @@ private:
         const std::array<u32, 8>& arguments = {},
         const GroupBRegisterShape shape = GroupBRegisterShape::preserve
     ) {
-        if (shape == GroupBRegisterShape::eax_565_edx_345) {
+        if (shape == GroupBRegisterShape::eax_565_edx_159) {
             eax_ = index * 0x565U;
-            edx_ = index * 0x345U;
+            edx_ = index * 0x159U;
         } else if (shape == GroupBRegisterShape::eax_index_edx_565) {
             eax_ = index;
             edx_ = index * 0x565U;
@@ -298,6 +320,43 @@ private:
         }
         invoke(call, ecx_, arguments);
         ++result_.group_b_calls;
+        return true;
+    }
+
+    [[nodiscard]] bool query_actor_render_offsets(
+        const u32 actor_token,
+        const LegacyBattleActorCoordinateFlags entry_flags
+    ) {
+        result_.render_offset_query = query_legacy_battle_actor_render_offsets(
+            resolve_legacy_battle_actor_render_offsets(
+                {
+                    .action = &bindings_.action,
+                    .startup = &bindings_.startup,
+                },
+                actor_token
+            ),
+            &state_input().selection_actor_origin_x,
+            &state_input().selection_actor_origin_y,
+            {
+                .actor_token = actor_token,
+                .output_x_token = kActorOriginXToken,
+                .output_y_token = kActorOriginYToken,
+                .entry_eax = eax_,
+                .entry_edx = edx_,
+                .entry_esi = esi_,
+                .entry_flags = entry_flags,
+            }
+        );
+        ++result_.render_offset_query_calls;
+        eax_ = result_.render_offset_query.return_eax;
+        ecx_ = result_.render_offset_query.return_ecx;
+        edx_ = result_.render_offset_query.return_edx;
+        esi_ = result_.render_offset_query.return_esi;
+        if (result_.render_offset_query.status !=
+            LegacyBattleActorRenderOffsetQueryStatus::completed) {
+            typed_stop(Status::actor_render_offset_typed_stop);
+            return false;
+        }
         return true;
     }
 
@@ -1281,15 +1340,11 @@ private:
         if (!invoke_group_b(Call::reset_actor_selection, index, {1U})) {
             return false;
         }
-        if (!invoke_group_b(
-                Call::query_actor_origin,
-                index,
-                {kActorOriginXToken, kActorOriginYToken}
+        if (!query_actor_render_offsets(
+                kGroupBBaseToken + index * kGroupBStride, last_reply_.flags
             )) {
             return false;
         }
-        state_input().selection_actor_origin_x = last_reply_.origin_x;
-        state_input().selection_actor_origin_y = last_reply_.origin_y;
         u32 x = snapshot_x_ + arithmetic_shift_right_one(snapshot_width_);
         u32 y = snapshot_y_ + arithmetic_shift_right_one(snapshot_height_);
         if (state_input().selection_actor_origin_x != 0U ||
@@ -1417,16 +1472,13 @@ private:
                 return false;
             }
             publish_snapshot(last_reply_);
-            if (!invoke_group_a_one_based(
-                    Call::query_actor_origin,
-                    code,
-                    {kActorOriginXToken, kActorOriginYToken},
-                    GroupAOneBasedRegisterShape::eax_3ef
+            eax_ = code * 0x3EFU;
+            if (!query_actor_render_offsets(
+                    kGroupAOneBasedToken + code * kGroupAStride,
+                    subtract_flags(code * 0x3F0U, code)
                 )) {
                 return false;
             }
-            state_input().selection_actor_origin_x = last_reply_.origin_x;
-            state_input().selection_actor_origin_y = last_reply_.origin_y;
             if (!invoke_group_a_one_based(
                     Call::reset_actor_selection,
                     code,
@@ -1451,21 +1503,19 @@ private:
                     Call::build_actor_snapshot,
                     index,
                     {},
-                    GroupBRegisterShape::eax_565_edx_345
+                    GroupBRegisterShape::eax_565_edx_159
                 )) {
                 return false;
             }
             publish_snapshot(last_reply_);
-            if (!invoke_group_b(
-                    Call::query_actor_origin,
-                    index,
-                    {kActorOriginXToken, kActorOriginYToken},
-                    GroupBRegisterShape::eax_565_edx_345
+            eax_ = index * 0x565U;
+            edx_ = index * 0x159U;
+            if (!query_actor_render_offsets(
+                    kGroupBBaseToken + index * kGroupBStride,
+                    subtract_flags(index * 0x18U, index)
                 )) {
                 return false;
             }
-            state_input().selection_actor_origin_x = last_reply_.origin_x;
-            state_input().selection_actor_origin_y = last_reply_.origin_y;
             bindings_.final_actor.published_actor_code = index + 1U;
             if (state_input().action_kind == 6U) {
                 bindings_.frame_input.target_action_available = 1U;
@@ -1473,7 +1523,7 @@ private:
                         Call::query_target_action_available,
                         index,
                         {},
-                        GroupBRegisterShape::eax_565_edx_345
+                        GroupBRegisterShape::eax_565_edx_159
                     )) {
                     return false;
                 }
@@ -1560,7 +1610,7 @@ private:
                     Call::query_group_b_completion,
                     current,
                     {},
-                    GroupBRegisterShape::eax_565_edx_345
+                    GroupBRegisterShape::eax_565_edx_159
                 )) {
                 return;
             }

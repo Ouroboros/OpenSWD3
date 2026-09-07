@@ -5,6 +5,7 @@
 #include "openswd3/battle/legacy_battle_action_frame_draw.hpp"
 #include "openswd3/battle/legacy_battle_action_summary.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
+#include "openswd3/battle/legacy_battle_actor_render_offsets.hpp"
 #include "openswd3/battle/legacy_battle_alternate_grid_frame.hpp"
 #include "openswd3/battle/legacy_battle_actor_target_preparation.hpp"
 #include "openswd3/battle/legacy_battle_control_panel_frame.hpp"
@@ -94,7 +95,7 @@ enum class LegacyBattleSelectionFrameCall : compat::u8 {
     query_group_b_completion,
     query_group_a_completion,
     build_actor_snapshot,
-    query_actor_origin,
+    reserved_query_actor_origin_slot,
     query_target_action_available,
     reserved_draw_selection_hint_slot,
 };
@@ -118,8 +119,9 @@ struct LegacyBattleSelectionFrameCallReply {
     compat::i32 snapshot_y{};
     compat::i32 snapshot_width{};
     compat::i32 snapshot_height{};
-    compat::u16 origin_x{};
-    compat::u16 origin_y{};
+    compat::u16 reserved_origin_x{};
+    compat::u16 reserved_origin_y{};
+    LegacyBattleActorCoordinateFlags flags{};
     compat::u32 text_length{};
 };
 
@@ -201,6 +203,7 @@ enum class LegacyBattleSelectionFrameStatus : compat::u8 {
     actor_target_preparation_typed_stop,
     scale_fill_panel_typed_stop,
     vertical_panel_typed_stop,
+    actor_render_offset_typed_stop,
     prepared_action_frame_typed_stop,
     action_summary_typed_stop,
     list_frame_typed_stop,
@@ -235,6 +238,7 @@ struct LegacyBattleSelectionFrameResult {
     compat::u32 guard_panel_frame_calls{};
     compat::u32 selection_hint_frame_calls{};
     compat::u32 control_panel_frame_calls{};
+    compat::u32 render_offset_query_calls{};
     LegacyBattleActionSummaryResult action_summary{};
     LegacyBattleListFrameResult list_frame{};
     LegacyBattleListContentsResult list_contents{};
@@ -245,6 +249,7 @@ struct LegacyBattleSelectionFrameResult {
     LegacyBattleGuardPanelFrameResult guard_panel_frame{};
     LegacyBattleSelectionHintFrameResult selection_hint_frame{};
     LegacyBattleControlPanelFrameResult control_panel_frame{};
+    LegacyBattleActorRenderOffsetQueryResult render_offset_query{};
     LegacyBattleActorTargetPreparationResult actor_target_preparation{};
     LegacyBattleGroupAActorCleanupResult group_a_actor_cleanup{};
     compat::u32 group_a_actor_cleanup_calls{};

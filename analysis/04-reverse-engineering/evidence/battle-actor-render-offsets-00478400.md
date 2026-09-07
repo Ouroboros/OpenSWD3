@@ -1,6 +1,6 @@
 # 战斗角色绘制偏移查询 `0x00478400`
 
-状态：`platform_adapted`、`unit_tested`。REVIEW 1已完成typed本体，并回收三个效果caller的三个物理callsite；选择框与动作caller继续由REVIEW 2–3隔离，因此工作包inventory仍为`pending_audit`。
+状态：`platform_adapted`、`unit_tested`。REVIEW 1已完成typed本体和三个效果callsite，REVIEW 2已回收选择框的三个callsite；两个动作callsite继续由REVIEW 3隔离，因此工作包inventory仍为`pending_audit`。
 
 ## 1. 完整范围与调用关系
 
@@ -12,7 +12,7 @@ LST静态交叉引用记录6个caller、8个物理callsite：
 - `0x00464270`三处；
 - `0x004717F0`、`0x00471AD0`各一处。
 
-REVIEW 1只关闭前三个效果callsite。`0x00464270`及两个动作caller仍保留原opaque地址，分别由REVIEW 2与REVIEW 3处理；在八处全部回收前不更新`battle-function-workpack.tsv`关闭状态。
+REVIEW 1关闭前三个效果callsite，REVIEW 2关闭`0x00464270`内三处选择框callsite。`0x004717F0`与`0x00471AD0`两个动作callsite仍由REVIEW 3处理；在八处全部回收前不更新`battle-function-workpack.tsv`关闭状态。
 
 ## 2. 精确ABI与基础写入
 
@@ -87,7 +87,17 @@ Group-A startup record新增的是同一角色对象的绘制偏移状态，不�
 
 三处caller继续把局部坐标建模为原有dword槽，typed leaf只覆盖低16位；已有高word不被主动清除。三个caller均在typed-stop后立即返回，不通过opaque port伪造尚未到达的副作用。
 
-## 8. 测试与动态差分
+## 8. REVIEW 2 caller回收
+
+选择框`0x00464270`已删除三处generic角色原点查询并直接组合typed结果，两个输出固定复用输入分派owner中的`0x0053BF4A/0x0053BF4E`共享word：
+
+- 遍历Group-B标记：完成查询、快照和模式1重置后查询绘制偏移；入口EAX/EDX与flags来自重置callee真实返回。双偏移为0时继续使用快照中心，任一非0时分别按i16偏移加快照原点；typed-stop保留此前前缀，阻断输出读取、动作绘制、循环递增及余下suffix；
+- 当前Group-B目标：重置和快照后，以`EAX=0x565*index`、`EDX=0x159*index`及`24*index-index`最终32位SUB flags进入typed leaf；typed-stop阻断one-based actor code发布、动作6可用性查询、prepared动作帧及余下message 3 suffix；
+- 当前Group-A目标：快照后，以`EAX=0x3EF*code`、快照callee残留EDX及`0x3F0*code-code`最终32位SUB flags进入typed leaf；成功后才执行模式1重置并把共享Y word加10，typed-stop阻断这些后缀和prepared动作帧。
+
+当前目标路径在Group-A/B分流前严格按Y后X顺序清零两个共享word。三处查询都复用Group-A startup/action fallback与Group-B lifecycle/action-composition canonical owner；旧call枚举及frame-coordinator转发枚举保持原数值但改名为reserved，生产路径保持零调用。
+
+## 9. 测试与动态差分
 
 定向聚合测试覆盖：
 
@@ -99,6 +109,7 @@ Group-A startup record新增的是同一角色对象的绘制偏移状态，不�
 - 16个真实可失败访问点的精确读取/store计数与部分提交；
 - source token为0的真实宽度解引用停止；
 - 三个效果caller的非零偏移、零偏移既有坐标回退、caller入口flags、X后Y部分写入及后缀抑制；
-- 生产三个效果实现不再调用opaque `0x00478400`。
+- 选择框Group-B遍历标记的signed偏移与重置callee flags，当前Group-B的canonical覆盖/镜像、`0x159` EDX系数、X后Y部分提交和动作6后缀抑制，当前Group-A的one-based token、快照EDX、SUB flags、Y加10及reset后缀抑制；
+- 生产三个效果实现和选择框实现不再调用对应opaque `0x00478400`边界。
 
 当前缺少原版完整Group-A/Group-B对象、render source异常内存页、八处caller联合寄存器与SEH捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。该限制不以静态实现或modern单元测试冒充动态差分。
