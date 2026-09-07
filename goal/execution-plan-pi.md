@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v878
+版本：v879
 
 最后更新：2026-09-04
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 工作包284 REVIEW计划与执行
+当前步骤：模块10 · 工作包285 REVIEW计划与执行
 
 ## 0. 执行约定
 
@@ -271,45 +271,48 @@ REVIEW通过后必须立即按`AGENTS.md`完成commit、push和TG，再重新完
 13. `[x]` B7：地图、世界、角色、碰撞与寻路已按模块移交条件有限收口；当前状态、阻塞和证据见[`world-map.md`](../analysis/04-reverse-engineering/modules/world-map.md)及相关inventory/evidence。
 14. `[x]` B8：剧情VM、场景调度与异步action的P1–P3已经完成；[`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md)不再覆盖当前队列。
 15. `[x]` B9：菜单、商店和其他特殊模式的227/227工作项已经关闭；当前状态和阻塞见[`special-modes.md`](../analysis/04-reverse-engineering/modules/special-modes.md)。
-16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=284`，本阶段发布工作包284 REVIEW 3。
+16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=284`，本阶段执行工作包285 REVIEW 1。
 17. `[ ]` B11：存档、配置与持久化语义；等待B10满足移交条件后开始。
 
 B7以后已经完成的详细执行记录已机械搬到[`execution-progress-history-pi.md`](execution-progress-history-pi.md)。该文件只保存历史，不定义当前执行顺序、状态或断点。
 
 当前只执行B10，不并行展开B11。
 
-当前发布`audit_order=284`的`0x00478470`战斗角色基准坐标查询函数；发布后切换到`audit_order=285 / 0x004784A0`。
+当前执行`audit_order=285 / 0x004784A0`战斗角色当前帧边界查询函数。
 
 ### B10 当前WORKPACK REVIEW计划
 
 本节始终只保存当前工作包计划。REVIEW完成状态在本节原位更新；工作包关闭后，本节全部内容由下一工作包计划整体替换，不追加历史。
 
-当前工作包：`audit_order=284`、`0x00478470`。目标是实现战斗角色基准坐标查询，并回收7个已关闭caller中的8个物理callsite。第9个物理callsite属于仍为`pending_audit`的`audit_order=419 / 0x00484020`，当前没有对应现代生产实现；关闭该caller时必须直接复用本工作包typed接口，不得恢复opaque边界。
+当前工作包：`audit_order=285`、`0x004784A0`。目标是实现角色当前动作帧的原点、宽度和高度查询，直接组合已关闭的动作记录更新与frame piece provider，并回收`0x0045FC60`、`0x00460C40`、`0x00461240`、`0x00462740`和`0x00464270`五个已关闭caller中的15个物理callsite。
 
-当前断点：REVIEW 1–3已完成typed leaf、8个现代物理callsite、测试、证据、发布矩阵、十次core、TMP分类与inventory双生成；row 284已关闭为`platform_adapted`。下一步完成staged/unstaged审计、commit、push、TG与规定文件重读。
+当前断点：完整leaf LST、两个callee和15个callsite已完成独立审计，typed owner、访问顺序、寄存器/flags、部分提交与三个REVIEW边界已锁定；下一步执行REVIEW 1生产实现。
 
-#### REVIEW 1：基准坐标查询与战斗效果
+#### REVIEW 1：角色当前帧边界与鼠标命中
 
-状态：已完成。typed leaf与三个效果caller已直接组合；定向`1/1`、AddressSanitizer `199/199`、Linux core `199/199`和Linux app `205/205`通过，最终stderr为空，inventory保持`pending_audit`。
+状态：待执行。
 
-- 实现并验证`0x00478470..0x0047849C`共45字节、9条指令、0个call和0个分支的`word(actor+0x0D66)-word(actor+0x29B2)`与`word(actor+0x0D68)-word(actor+0x02B4)`两项有序查询。
-- 保留X源读取、首输出指针、X减数、X低16位写入、Y源读取、Y减数、次输出指针和Y低16位写入的真实顺序，以及X写入后Y故障的部分提交、输出/actor别名、EAX高word、ECX/EDX残值和两次SUB flags。
-- 复用startup/action与Group-B lifecycle canonical owner，回收`0x004582B0`、`0x00458DE0`和`0x004599B0`各1个callsite；保留各caller既有非零偏移门、局部dword高word、基准坐标与偏移相加顺序、寄存器残值及typed-stop后缀抑制。
-- 同步目标与三个效果caller的测试和证据；执行定向测试、AddressSanitizer、Linux core、Linux app、changed-range格式和staged/unstaged发布审计。REVIEW通过后立即commit、push、TG并重读规定文件；inventory TSV继续保持`pending_audit`。
+- 实现`0x004784A0..0x0047859B`共252字节、68条指令、2个call、6个条件分支、1个无条件跳转和1个`retn 4`的typed leaf；无范围外chunk。保留完整`0x98`动作记录清零、`+0x2AB8/+0x2AA0/+0x2A0C`前置门、`0x24/+0x02A8/0x33`三段X anchor选择，以及无条件调用`LegacyActionUpdater`且不按其返回值新增早退。
+- 依原顺序读取临时动作记录`+0x4C` dword和unaligned `+0x4A` dword，调用`LegacyFramePieceProvider`时只消费两者低word但保留重叠物理读取。mirror完整dword必须先读并与1比较，再把frame token写actor `+0x254C`；后续width/height输出前分别从actor重载token。
+- 四项结果按X、Y、width、height顺序完整写dword，保留输出首指针延迟读取、signed位置扩展、mirror宽度调整、两次frame-token重载、输出与frame-token别名、X/Y/width部分提交、全部真实访问typed-stop、两条早退及成功EAX/ECX/EDX和flags。
+- 复用startup party、action Group-A execution与Group-B lifecycle/configuration canonical owner；frame coordinator把既有action、`LegacyActionUpdater`和`LegacyFramePieceProvider`注入frame-input路径，不新增平行actor数组。
+- 回收`0x0045FC60`的`0x004605D2`、`0x004607D9`和`0x00460A03`三处callsite。三处共用一个四dword局部块；成功后继续既有`0x00478620`表面解析与像素命中，typed-stop保留已到达的候选查询和部分输出，抑制表面解析、镜像查询、像素扫描、目标发布及余下后缀。
+- 同步leaf、frame-input、frame-coordinator测试和目标/caller证据；执行定向测试、AddressSanitizer、Linux core、Linux app、changed-range格式与完整staged/unstaged审计。REVIEW通过后立即commit、push、TG并重读规定文件；inventory TSV保持`pending_audit`。
 
-#### REVIEW 2：战斗脚本动态文字锚点
+#### REVIEW 2：菜单选择后的角色帧缓存
 
-状态：已完成。两个脚本动态文字caller已直接组合；定向`1/1`、AddressSanitizer `199/199`、Linux core `199/199`和Linux app `205/205`通过，最终stderr为空，inventory保持`pending_audit`。
+状态：待执行，依赖REVIEW 1。
 
-- 回收`0x00469D20`中Group-A与Group-B动态文字路径各1个物理callsite；现代共享路径必须按原actor编号分别恢复两套token算术，不把两个物理站点合并成无寄存器语义的generic调用。
-- 保留先查询角色当前坐标、再把基准X写入共享`position_x`且把基准Y写入共享`pair_y`的非对称槽位，保留低16位写入、Group-A/Group-B入口EAX/ECX、前一坐标查询留下的EDX、SUB flags及typed-stop对角色清理、文字格式化、finalize、坐标发布和message写入的后缀抑制。
-- 删除生产`pending_478470`调用并保留枚举地址值为reserved；同步script dispatch测试和证据，执行定向测试、AddressSanitizer、Linux core、Linux app、changed-range格式和staged/unstaged发布审计。REVIEW通过后立即commit、push、TG并重读规定文件；inventory TSV继续保持`pending_audit`。
+- 回收`0x00460C40`的`0x00460E27/0x00460F63/0x00460FEA`和`0x00461240`的`0x00461469/0x004615A4/0x0046162C`六处callsite，分别覆盖Group-B、Group-A大列表与Group-A小列表的后退/前进选择路径。
+- 两个caller继续复用input dispatch传入的startup/action actor owner、action updater和frame provider。三类路径共用各自函数的四dword局部块；虽然后缀不消费四项输出，动作更新、frame lookup和actor `+0x254C`提交仍必须执行，不能删除为无用查询。
+- 保留三类actor token算术、入口EAX/EDX和flags、选择状态更新顺序及typed-stop后缀抑制。旧`menu_retreat_prepare_actor_origin`与`menu_advance_prepare_actor_origin`枚举ordinal改为reserved，生产零调用；其他候选查询与选择配置继续走既有窄port。
+- 同步菜单前进/后退、input dispatch和frame coordinator测试与caller证据；执行定向测试、AddressSanitizer、Linux core、Linux app、changed-range格式与完整staged/unstaged审计。REVIEW通过后立即commit、push、TG并重读规定文件；inventory TSV保持`pending_audit`。
 
-#### REVIEW 3：目标阶段、动作坐标与工作包关闭
+#### REVIEW 3：目标选择标记与工作包关闭
 
-状态：实现与验证已完成。`0x004710D0`、`0x004717F0`和`0x00471AD0`三个caller已直接组合，row 284已关闭；待完成发布动作。
+状态：待执行，依赖REVIEW 2。
 
-- 已回收`0x004710D0`、`0x004717F0`和`0x00471AD0`各1个callsite。目标阶段保留资源查询后的目标参数栈槽低word别名、局部Y槽和演出记录清零前的故障边界；动作十三/十四只在两个绘制偏移均非零时查询基准坐标，并保留零初始化局部dword、偏移合成、caller寄存器/flags和故障后缀抑制。
-- 7个已关闭caller中的8个物理callsite已对opaque `0x00478470`零调用；`0x00484020`已明确登记为其自身工作包关闭时直连typed接口。目标及caller证据、生成器关闭映射、`battle-function-workpack.tsv`、`modules/battle.md`和主PLAN已同步。
-- 定向`1/1`、AddressSanitizer `199/199`、Linux core `199/199`、Linux app `205/205`、changed-range格式、零诊断、连续十次core、inventory双次稳定生成和TMP分类均已通过。inventory为`284/422 = 274 platform_adapted + 10 assembly_exact + 138 pending_audit`，SHA-256为`e945ecc6cf0c24204114f7eff9006d5d8ddbf4d0822403e40a426e459af38601`。
-- 下一步完成staged/unstaged发布审计，立即commit、push、TG并重读规定文件，再用下一工作包计划整体替换本节。
+- 回收`0x00462740`的`0x00462E1A/0x00463623`两处目标刷新callsite。两处共用局部输出块且不消费结果；第一处成功后只发布输入门，第二处还写message 3并prime输入。typed-stop必须分别抑制对应success suffix。
+- 回收`0x00464270`的`0x00464840/0x00464905/0x00464A72/0x00464B1D`四处选择标记callsite。保留Group-B和Group-A遍历标记、当前Group-B和当前Group-A目标四条不同寄存器形状，以及snapshot中心、signed绘制偏移、reset、动作6可用性与prepared action绘制的原顺序。
+- 五个caller中的15个物理callsite全部对opaque `0x004784A0`零调用；frame input、菜单、target runtime和selection frame旧槽只保留reserved ordinal。同步全部caller证据、`modules/battle.md`、生成器关闭映射、inventory TSV与主PLAN。
+- 最终执行定向测试、AddressSanitizer、Linux core、Linux app、changed-range格式、零诊断、连续十次core、inventory双次稳定生成、TMP分类与完整staged/unstaged审计。原版动态差分因缺少完整Group-A/Group-B actor、动作资源、frame provider、异常内存页和15处联合寄存器/SEH捕获后端登记为`blocked_runtime_oracle`。REVIEW通过后关闭row 285，立即commit、push、TG并重读规定文件，再切换下一工作包。
