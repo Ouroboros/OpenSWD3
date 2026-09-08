@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v883
+版本：v884
 
 最后更新：2026-09-08
 
@@ -286,26 +286,20 @@ B7以后已经完成的详细执行记录已机械搬到[`execution-progress-his
 
 当前工作包：`audit_order=286`、`0x004785A0`。目标是实现角色当前坐标的有序word增量调整，并回收`0x0045D8F0`调试热键H/J尾部的四个物理callsite。
 
-当前断点：完整LST与caller审计已完成，REVIEW划分已写入；下一步先独立发布本规划提交，再开始REVIEW 1生产代码修改。
+当前断点：完整LST与caller审计已完成；工作包按最小可独立生产路径收敛为单一REVIEW。下一步先独立发布本规划修正提交，再开始生产代码修改。
 
-#### REVIEW 1：角色坐标word增量typed leaf
+#### REVIEW 1：角色坐标word增量与H/J caller回收
 
 状态：待开始。
 
 - 实现`0x004785A0..0x004785BA`共27字节、5条指令和1个`retn 8`的typed leaf；无call、分支或范围外chunk。先按`[esp+4]`、`[esp+8]`顺序读取两个word参数到AX、DX，再按actor `+0x0D66`、`+0x0D68`顺序执行两个16-bit read-modify-write ADD。
 - 保留word环绕、X后Y提交、X/Y别名、第二次ADD观察第一次提交、参数读取和内存访问typed-stop。第一项坐标访问失败时不得提交X或ADD flags；第二项失败时保留已提交X和第一次ADD flags；成功时保留第二次ADD的CF/PF/AF/ZF/SF/OF。
 - 保留全部寄存器残值：参数读取前沿用入口EAX/EDX，首个word读取只替换AX，第二个只替换DX，ECX始终为actor token，ADD不改EAX/ECX/EDX。为canonical `LegacyBattleActorCoordinatesState/View`补充X/Y写可达性，不新增平行actor数组。
-- 新增leaf单元测试，覆盖正负增量、word环绕、X/Y别名、四个typed-stop阶段、X部分提交、入口flags与最终ADD flags、EAX/ECX/EDX残值和访问计数；同步CMake注册及初始目标证据。
-- 执行定向测试、AddressSanitizer、Linux core、Linux app、changed-range格式、零诊断与完整staged/unstaged审计。REVIEW通过后立即commit、push、TG并重读规定文件；inventory TSV保持`pending_audit`。
-
-#### REVIEW 2：H/J caller回收与工作包关闭
-
-状态：待开始。
-
 - 回收`0x0045D8F0`的`0x0045DDF3/0x0045DE1D/0x0045DE61/0x0045DE8B`四个callsite。H与J都严格按Group-A后Group-B顺序遍历当前无符号count，分别使用`0x005029D0 + index * 0x2F34`和`0x00525508 + index * 0x2B28`actor token；X增量依次为`+10/-10`的低word，Y增量始终为0。
 - 修正当前caller门控偏差：原版`developer_tools_enabled != 1`从函数入口直接跳到P，只查询P且不得执行H/J；开发工具启用后，H/J位于Ctrl调试块之后，Ctrl+E早退仍抑制H/J/P。P继续在共享尾部执行。
 - 复用startup party与Group-B lifecycle action-execution的canonical坐标owner。caller逐次构造原ABI：EAX为当前group count，ECX为actor token，EDX沿用H/J尾部入口残值并在成功调用后保留DX被Y增量清零的结果；首轮flags来自`count - 0`，后续轮flags来自`index - count`的32-bit CMP。
 - leaf typed-stop立即映射为caller `actor_coordinate_adjustment_typed_stop`，公开精确leaf结果，抑制当前迭代的count重载、index/token推进、余下actor与group、对应`actor_delta`提交及后续热键。Y访问失败必须保留当前actor已提交的X及此前actor前缀。
 - H完整遍历后才提交`actor_delta=+10`；J完整遍历后才提交`actor_delta=-10`。H/J同时按下时先全部加10再全部减10，角色word坐标按模65536恢复，最终共享delta为-10。
-- 将旧`adjust_actor`枚举地址改为reserved名称并保留ordinal，生产路径对opaque `0x004785A0`零调用。同步caller与leaf测试、最终目标/caller证据、`modules/battle.md`、生成器关闭映射、inventory TSV与主PLAN。
-- 最终执行定向测试、AddressSanitizer、Linux core、Linux app、changed-range格式、零诊断、连续十次core、inventory双次稳定生成、TMP分类与完整staged/unstaged审计。原版动态差分若仍缺少完整Group-A/Group-B actor、可写/异常页和四处caller联合寄存器/SEH捕获后端，则登记为`blocked_runtime_oracle`。REVIEW通过后关闭row 286，立即commit、push、TG并重读规定文件，再切换下一工作包。
+- 将旧`adjust_actor`枚举地址改为reserved名称并保留ordinal，生产路径对opaque `0x004785A0`零调用。新增leaf与caller单元测试，覆盖正负增量、word环绕、X/Y别名、四个typed-stop阶段、X部分提交、入口与最终flags、寄存器残值、开发工具门控、Group-A/Group-B顺序、双键恢复及后缀抑制。
+- 同步CMake、最终目标/caller证据、`modules/battle.md`、生成器关闭映射、inventory TSV与主PLAN。最终执行定向测试、AddressSanitizer、Linux core、Linux app、changed-range格式、零诊断、连续十次core、inventory双次稳定生成、TMP分类与完整staged/unstaged审计。
+- 原版动态差分若仍缺少完整Group-A/Group-B actor、可写/异常页和四处caller联合寄存器/SEH捕获后端，则登记为`blocked_runtime_oracle`。REVIEW通过后关闭row 286，立即commit、push、TG并重读规定文件，再切换下一工作包。
