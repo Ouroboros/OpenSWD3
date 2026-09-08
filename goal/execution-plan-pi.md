@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v888
+版本：v889
 
 最后更新：2026-09-08
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 工作包287 REVIEW 2
+当前步骤：模块10 · 工作包287 REVIEW 3
 
 ## 0. 执行约定
 
@@ -271,7 +271,7 @@ REVIEW通过后必须立即按`AGENTS.md`完成commit、push和TG，再重新完
 13. `[x]` B7：地图、世界、角色、碰撞与寻路已按模块移交条件有限收口；当前状态、阻塞和证据见[`world-map.md`](../analysis/04-reverse-engineering/modules/world-map.md)及相关inventory/evidence。
 14. `[x]` B8：剧情VM、场景调度与异步action的P1–P3已经完成；[`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md)不再覆盖当前队列。
 15. `[x]` B9：菜单、商店和其他特殊模式的227/227工作项已经关闭；当前状态和阻塞见[`special-modes.md`](../analysis/04-reverse-engineering/modules/special-modes.md)。
-16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=286`，工作包287 REVIEW 1已完成并通过定向`1/1`、Linux core `199/199`、ASan/UBSan `199/199`、Linux app `205/205`，正在执行REVIEW 2。
+16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=286`，工作包287 REVIEW 1与REVIEW 2已完成，十三处脚本caller已回收，正在执行REVIEW 3。
 17. `[ ]` B11：存档、配置与持久化语义；等待B10满足移交条件后开始。
 
 B7以后已经完成的详细执行记录已机械搬到[`execution-progress-history-pi.md`](execution-progress-history-pi.md)。该文件只保存历史，不定义当前执行顺序、状态或断点。
@@ -286,7 +286,7 @@ B7以后已经完成的详细执行记录已机械搬到[`execution-progress-his
 
 当前工作包：`audit_order=287`、`0x004785C0`。目标是完整实现当前坐标写入后把actor `+0x0D50..+0x0D6F`按八个dword复制到`+0x0D70..+0x0D8F`，并回收四个caller中的十九个物理callsite。
 
-当前断点：REVIEW 1已发布，typed leaf、两份精确0x20字节canonical记录与效果步进四处caller已经关闭；inventory继续保持row 287 `pending_audit`。当前执行REVIEW 2，回收脚本分派十三处物理caller。
+当前断点：REVIEW 1与REVIEW 2已完成，typed leaf、两份精确0x20字节canonical记录、效果步进四处caller与脚本分派十三处caller已经关闭，`caller_reclaimed:17/19`；inventory继续保持row 287 `pending_audit`。当前执行REVIEW 3，回收turn gate与Group-B action17两处caller并关闭工作包。
 
 #### REVIEW 1：typed坐标发布、记录唯一owner与效果步进四处caller
 
@@ -303,7 +303,7 @@ B7以后已经完成的详细执行记录已机械搬到[`execution-progress-his
 
 #### REVIEW 2：脚本分派十三处caller回收
 
-状态：待执行。
+状态：已完成。
 
 - 回收`0x00469D20`十三处物理callsite：case 5 `0x0046A70A`、case 13 `0x0046A82E`、case 45 `0x0046BA65/0x0046BAD8`、case 22 `0x0046BB66/0x0046BBBF`、case 39 `0x0046C7C7`、case 40 `0x0046C94C/0x0046C9A0`、case 73 `0x0046CA9A/0x0046CAEE`、case 50 `0x0046CDA8`与case 68 `0x0046D8B4`。
 - 所有站点直接解析startup party或Group-B lifecycle action-execution的canonical记录并组合typed leaf；按原站点构造X/Y参数、EAX/EDX高word、actor ECX、ESI/EDI与最近一次flags。成功后使用leaf真实`EAX/ECX/EDX`，不得沿用opaque reply；删除生产`pending_4785c0`调用并将枚举地址改为reserved名称、保留ordinal。

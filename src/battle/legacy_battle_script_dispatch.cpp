@@ -24,9 +24,11 @@ using compat::u16;
 using compat::u32;
 
 constexpr u32 kLegacyBattleGroupASecondarySkipQueryToken = 0x0046E0A0U;
+constexpr u32 kLegacyBattleScriptCoordinateXToken = 0x0053CCE8U;
 constexpr u32 kLegacyBattleScriptPositionXToken = 0x0053CE74U;
 constexpr u32 kLegacyBattleScriptPairXToken = 0x0053CE78U;
 constexpr u32 kLegacyBattleScriptPairYToken = 0x0053CE7AU;
+constexpr u32 kLegacyBattleScriptGroupAMirrorBaseToken = 0x004FF558U;
 constexpr i32 kLegacyBattleScriptExtendedGroupBCleanupCount = 10;
 
 [[nodiscard]] constexpr u16 low_word(const u32 value) noexcept {
@@ -55,6 +57,11 @@ constexpr void set_high_word(u32& destination, const u16 value) noexcept {
         (destination & 0x0000FFFFU) | (static_cast<u32>(value) << 16U);
 }
 
+[[nodiscard]] constexpr u32
+with_low_word(const u32 value, const u16 low) noexcept {
+    return (value & 0xFFFF0000U) | static_cast<u32>(low);
+}
+
 [[nodiscard]] constexpr i32 signed_word(const u16 value) noexcept {
     return static_cast<i32>(std::bit_cast<i16>(value));
 }
@@ -70,6 +77,32 @@ wrapping_add(const u32 left, const u32 right) noexcept {
     value ^= value >> 2U;
     value ^= value >> 1U;
     return (value & 1U) == 0U;
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+add_flags(const u32 left, const u32 right, const u32 sum) noexcept {
+    return {
+        .carry = sum < left,
+        .parity = has_even_parity(sum),
+        .auxiliary_carry = ((left ^ right ^ sum) & 0x10U) != 0U,
+        .auxiliary_carry_defined = true,
+        .zero = sum == 0U,
+        .sign = (sum & 0x80000000U) != 0U,
+        .overflow = ((~(left ^ right) & (left ^ sum)) & 0x80000000U) != 0U,
+    };
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+add_word_flags(const u16 left, const u16 right, const u16 sum) noexcept {
+    return {
+        .carry = sum < left,
+        .parity = has_even_parity(sum),
+        .auxiliary_carry = ((left ^ right ^ sum) & 0x10U) != 0U,
+        .auxiliary_carry_defined = true,
+        .zero = sum == 0U,
+        .sign = (sum & 0x8000U) != 0U,
+        .overflow = ((~(left ^ right) & (left ^ sum)) & 0x8000U) != 0U,
+    };
 }
 
 [[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
@@ -143,7 +176,8 @@ public:
     )
         : workspace_(workspace), bindings_(bindings), port_(port),
           eax_(request.entry_eax), ecx_(request.entry_ecx),
-          edx_(request.entry_edx), entry_ecx_(request.entry_ecx) {
+          edx_(request.entry_edx), entry_ecx_(request.entry_ecx),
+          entry_esi_(request.entry_esi), entry_edi_(request.entry_edi) {
         result_.cursor_before = workspace_.cursor;
     }
 
@@ -470,6 +504,47 @@ private:
         }
         result_.status =
             LegacyBattleScriptDispatchStatus::actor_coordinate_typed_stop;
+        result_.stopped_offset = workspace_.cursor;
+        return false;
+    }
+
+    [[nodiscard]] bool publish_actor_coordinates(
+        const u32 actor_token,
+        const u32 x_argument,
+        const u32 y_argument,
+        const u32 entry_eax,
+        const u32 entry_edx,
+        const u32 entry_esi,
+        const u32 entry_edi,
+        const LegacyBattleActorCoordinateFlags entry_flags
+    ) {
+        result_.coordinate_publication =
+            publish_legacy_battle_actor_coordinates(
+                resolve_legacy_battle_actor_coordinates(
+                    {.startup = &bindings_.startup}, actor_token
+                ),
+                x_argument,
+                y_argument,
+                {
+                    .actor_token = actor_token,
+                    .entry_eax = entry_eax,
+                    .entry_ecx = actor_token,
+                    .entry_edx = entry_edx,
+                    .entry_esi = entry_esi,
+                    .entry_edi = entry_edi,
+                    .entry_flags = entry_flags,
+                }
+            );
+        ++result_.coordinate_publication_calls;
+        eax_ = result_.coordinate_publication.return_eax;
+        ecx_ = result_.coordinate_publication.return_ecx;
+        edx_ = result_.coordinate_publication.return_edx;
+        if (result_.coordinate_publication.status ==
+            LegacyBattleActorCoordinatePublicationStatus::completed) {
+            return true;
+        }
+        result_.status = LegacyBattleScriptDispatchStatus::
+            actor_coordinate_publication_typed_stop;
         result_.stopped_offset = workspace_.cursor;
         return false;
     }
@@ -1186,12 +1261,21 @@ private:
             std::bit_cast<u32>(workspace_.coordinate_y) +
             std::bit_cast<u32>(signed_word(delta_y))
         );
-        invoke(
-            LegacyBattleScriptDispatchCall::pending_4785c0,
-            *token,
-            {static_cast<u32>(workspace_.coordinate_x),
-             static_cast<u32>(workspace_.coordinate_y)}
-        );
+        const auto address = script_actor_address(actor);
+        const bool group_a = actor > 7U;
+        if (!publish_actor_coordinates(
+                *token,
+                std::bit_cast<u32>(workspace_.coordinate_x),
+                std::bit_cast<u32>(workspace_.coordinate_y),
+                group_a ? address.selected_call_eax : address.coordinate_eax,
+                group_a ? std::bit_cast<u32>(workspace_.coordinate_y)
+                        : address.coordinate_edx,
+                with_low_word(entry_esi_, actor),
+                0U,
+                address.coordinate_flags
+            )) {
+            return finish(eax_);
+        }
         workspace_.cursor = wrapping_add(workspace_.cursor, 8U);
         workspace_.pair_x = 0U;
         workspace_.pair_y = 0U;
@@ -1530,12 +1614,20 @@ private:
             std::bit_cast<u32>(workspace_.coordinate_y) +
             std::bit_cast<u32>(signed_word(delta_y))
         );
-        invoke(
-            LegacyBattleScriptDispatchCall::pending_4785c0,
-            *token,
-            {static_cast<u32>(workspace_.coordinate_x),
-             static_cast<u32>(workspace_.coordinate_y)}
-        );
+        const auto address = script_actor_address(actor);
+        const bool group_a = actor > 7U;
+        if (!publish_actor_coordinates(
+                *token,
+                std::bit_cast<u32>(workspace_.coordinate_x),
+                std::bit_cast<u32>(workspace_.coordinate_y),
+                group_a ? address.selected_call_eax : address.coordinate_eax,
+                group_a ? address.coordinate_eax : address.coordinate_edx,
+                with_low_word(entry_esi_, actor),
+                entry_edi_,
+                address.coordinate_flags
+            )) {
+            return finish(eax_);
+        }
         workspace_.cursor = wrapping_add(workspace_.cursor, 6U);
         workspace_.pair_x = 0U;
         workspace_.pair_y = 0U;
@@ -1881,15 +1973,24 @@ private:
                 {std::bit_cast<u32>(workspace_.coordinate_x),
                  std::bit_cast<u32>(workspace_.coordinate_y)}
             );
-            workspace_.coordinate_x = std::bit_cast<i32>(
-                std::bit_cast<u32>(workspace_.coordinate_x) + delta
-            );
-            invoke(
-                LegacyBattleScriptDispatchCall::pending_4785c0,
-                *token,
-                {std::bit_cast<u32>(workspace_.coordinate_x),
-                 std::bit_cast<u32>(workspace_.coordinate_y)}
-            );
+            const u32 add_left = std::bit_cast<u32>(workspace_.coordinate_x);
+            const u32 add_sum = add_left + delta;
+            workspace_.coordinate_x = std::bit_cast<i32>(add_sum);
+            if (!publish_actor_coordinates(
+                    *token,
+                    add_sum,
+                    std::bit_cast<u32>(workspace_.coordinate_y),
+                    add_sum,
+                    with_low_word(
+                        kLegacyBattleScriptCoordinateXToken,
+                        static_cast<u16>(workspace_.coordinate_y)
+                    ),
+                    *token,
+                    std::bit_cast<u32>(index),
+                    add_flags(add_left, delta, add_sum)
+                )) {
+                return finish(eax_);
+            }
             ++index;
         }
         index = 0;
@@ -1904,15 +2005,21 @@ private:
                 {std::bit_cast<u32>(workspace_.coordinate_x),
                  std::bit_cast<u32>(workspace_.coordinate_y)}
             );
-            workspace_.coordinate_x = std::bit_cast<i32>(
-                std::bit_cast<u32>(workspace_.coordinate_x) + delta
-            );
-            invoke(
-                LegacyBattleScriptDispatchCall::pending_4785c0,
-                *token,
-                {std::bit_cast<u32>(workspace_.coordinate_x),
-                 std::bit_cast<u32>(workspace_.coordinate_y)}
-            );
+            const u32 add_left = std::bit_cast<u32>(workspace_.coordinate_x);
+            const u32 add_sum = add_left + delta;
+            workspace_.coordinate_x = std::bit_cast<i32>(add_sum);
+            if (!publish_actor_coordinates(
+                    *token,
+                    add_sum,
+                    std::bit_cast<u32>(workspace_.coordinate_y),
+                    add_sum,
+                    kLegacyBattleScriptCoordinateXToken,
+                    *token,
+                    std::bit_cast<u32>(index),
+                    add_flags(add_left, delta, add_sum)
+                )) {
+                return finish(eax_);
+            }
             ++index;
         }
         workspace_.cursor = wrapping_add(workspace_.cursor, 4U);
@@ -2557,6 +2664,7 @@ private:
     }
 
     [[nodiscard]] LegacyBattleScriptDispatchResult case_thirty_nine() {
+        u32 publication_esi = entry_esi_;
         u16 state = high_word(workspace_.packed_actor_state);
         if ((state & 0x8000U) == 0U) {
             u16 actor{};
@@ -2601,6 +2709,7 @@ private:
                     )) {
                     return finish();
                 }
+                publication_esi = with_low_word(publication_esi, delta_x);
                 workspace_.list_words[4U + point * 2U] =
                     static_cast<u16>(base_x + delta_x);
                 workspace_.list_words[5U + point * 2U] =
@@ -2653,12 +2762,19 @@ private:
         if (!token.has_value()) {
             return finish(eax_);
         }
-        invoke(
-            LegacyBattleScriptDispatchCall::pending_4785c0,
-            *token,
-            {std::bit_cast<u32>(workspace_.coordinate_x),
-             std::bit_cast<u32>(workspace_.coordinate_y)}
-        );
+        const auto address = script_actor_address(static_cast<u16>(actor));
+        if (!publish_actor_coordinates(
+                *token,
+                std::bit_cast<u32>(workspace_.coordinate_x),
+                std::bit_cast<u32>(workspace_.coordinate_y),
+                address.selected_call_eax,
+                address.coordinate_eax,
+                publication_esi,
+                entry_edi_,
+                address.coordinate_flags
+            )) {
+            return finish(eax_);
+        }
         ++workspace_.position_x;
         if (workspace_.position_x > 20U) {
             ++workspace_.position_y;
@@ -2718,18 +2834,28 @@ private:
             if (!token.has_value()) {
                 return finish(eax_);
             }
+            const u32 count_eax = bindings_.startup.party_count;
             invoke(
                 LegacyBattleScriptDispatchCall::pending_478600,
                 *token,
                 {workspace_.pair_x, workspace_.pair_y}
             );
-            workspace_.pair_x =
-                static_cast<u16>(workspace_.pair_x + static_cast<u16>(delta));
-            invoke(
-                LegacyBattleScriptDispatchCall::pending_4785c0,
-                *token,
-                {workspace_.pair_x, workspace_.pair_y}
-            );
+            const u16 add_left = workspace_.pair_x;
+            const u16 add_right = static_cast<u16>(delta);
+            const u16 add_sum = static_cast<u16>(add_left + add_right);
+            workspace_.pair_x = add_sum;
+            if (!publish_actor_coordinates(
+                    *token,
+                    workspace_.pair_x,
+                    workspace_.pair_y,
+                    with_low_word(count_eax, add_sum),
+                    kLegacyBattleScriptPairXToken,
+                    *token,
+                    std::bit_cast<u32>(index),
+                    add_word_flags(add_left, add_right, add_sum)
+                )) {
+                return finish(eax_);
+            }
             ++index;
         }
         index = 0;
@@ -2738,18 +2864,30 @@ private:
             if (!token.has_value()) {
                 return finish(eax_);
             }
+            const u32 count_eax = bindings_.startup.enemy_count;
             invoke(
                 LegacyBattleScriptDispatchCall::pending_478600,
                 *token,
                 {workspace_.pair_x, workspace_.pair_y}
             );
-            workspace_.pair_x =
-                static_cast<u16>(workspace_.pair_x + static_cast<u16>(delta));
-            invoke(
-                LegacyBattleScriptDispatchCall::pending_4785c0,
-                *token,
-                {workspace_.pair_x, workspace_.pair_y}
-            );
+            const u16 add_left = workspace_.pair_x;
+            const u16 add_right = static_cast<u16>(delta);
+            const u16 add_sum = static_cast<u16>(add_left + add_right);
+            workspace_.pair_x = add_sum;
+            if (!publish_actor_coordinates(
+                    *token,
+                    workspace_.pair_x,
+                    workspace_.pair_y,
+                    with_low_word(count_eax, add_sum),
+                    with_low_word(
+                        kLegacyBattleScriptPairXToken, workspace_.pair_y
+                    ),
+                    *token,
+                    std::bit_cast<u32>(index),
+                    add_word_flags(add_left, add_right, add_sum)
+                )) {
+                return finish(eax_);
+            }
             ++index;
         }
         invoke(LegacyBattleScriptDispatchCall::actor_metrics);
@@ -2977,13 +3115,22 @@ private:
                 {std::bit_cast<u32>(workspace_.coordinate_x),
                  std::bit_cast<u32>(workspace_.coordinate_y)}
             );
-            workspace_.coordinate_x = 640 - workspace_.coordinate_x;
-            invoke(
-                LegacyBattleScriptDispatchCall::pending_4785c0,
-                *token,
-                {std::bit_cast<u32>(workspace_.coordinate_x),
-                 std::bit_cast<u32>(workspace_.coordinate_y)}
-            );
+            const u32 packed_pair = static_cast<u32>(workspace_.pair_x) |
+                (static_cast<u32>(workspace_.pair_y) << 16U);
+            const u32 mirrored = 640U - packed_pair;
+            workspace_.pair_x = low_word(mirrored);
+            if (!publish_actor_coordinates(
+                    *token,
+                    workspace_.pair_x,
+                    workspace_.pair_y,
+                    mirrored,
+                    kLegacyBattleScriptPairXToken,
+                    *token,
+                    std::bit_cast<u32>(index),
+                    subtract_flags(640U, packed_pair)
+                )) {
+                return finish(eax_);
+            }
             ++index;
         }
         index = 0;
@@ -3007,13 +3154,23 @@ private:
                 {std::bit_cast<u32>(workspace_.coordinate_x),
                  std::bit_cast<u32>(workspace_.coordinate_y)}
             );
-            workspace_.coordinate_x = 640 - workspace_.coordinate_x;
-            invoke(
-                LegacyBattleScriptDispatchCall::pending_4785c0,
-                *token,
-                {std::bit_cast<u32>(workspace_.coordinate_x),
-                 std::bit_cast<u32>(workspace_.coordinate_y)}
-            );
+            const u32 packed_pair = static_cast<u32>(workspace_.pair_x) |
+                (static_cast<u32>(workspace_.pair_y) << 16U);
+            const u32 mirrored = 640U - packed_pair;
+            workspace_.pair_x = low_word(mirrored);
+            if (!publish_actor_coordinates(
+                    *token,
+                    workspace_.pair_x,
+                    workspace_.pair_y,
+                    mirrored,
+                    with_low_word(packed_pair, workspace_.pair_y),
+                    *token,
+                    kLegacyBattleScriptGroupAMirrorBaseToken +
+                        std::bit_cast<u32>(index) * 8U,
+                    subtract_flags(640U, packed_pair)
+                )) {
+                return finish(eax_);
+            }
             bindings_.shared.group_a_mirror_x[static_cast<std::size_t>(index)] =
                 624U -
                 bindings_.shared
@@ -3111,12 +3268,19 @@ private:
             {std::bit_cast<u32>(workspace_.coordinate_x),
              std::bit_cast<u32>(workspace_.coordinate_y)}
         );
-        invoke(
-            LegacyBattleScriptDispatchCall::pending_4785c0,
-            *token,
-            {std::bit_cast<u32>(workspace_.coordinate_x),
-             std::bit_cast<u32>(workspace_.coordinate_y)}
-        );
+        const auto address = script_actor_address(actor);
+        if (!publish_actor_coordinates(
+                *token,
+                std::bit_cast<u32>(workspace_.coordinate_x),
+                std::bit_cast<u32>(workspace_.coordinate_y),
+                address.coordinate_eax,
+                address.coordinate_edx,
+                entry_esi_,
+                entry_edi_,
+                address.coordinate_flags
+            )) {
+            return finish(eax_);
+        }
         workspace_.cursor = wrapping_add(workspace_.cursor, 4U);
         workspace_.word_a = 0U;
         return finish(1U);
@@ -3850,11 +4014,19 @@ private:
         if (!token.has_value()) {
             return finish(eax_);
         }
-        invoke(
-            LegacyBattleScriptDispatchCall::pending_4785c0,
-            *token,
-            {first, second}
-        );
+        const auto address = script_actor_address(actor);
+        if (!publish_actor_coordinates(
+                *token,
+                first,
+                second,
+                actor > 7U ? address.coordinate_eax : address.selected_call_eax,
+                actor > 7U ? edx_ : address.coordinate_eax,
+                with_low_word(entry_esi_, second),
+                entry_edi_,
+                address.coordinate_flags
+            )) {
+            return finish(eax_);
+        }
         workspace_.value_a = 0;
         workspace_.word_a = 0U;
         workspace_.word_b = 0U;
@@ -3976,18 +4148,30 @@ private:
             if (!token.has_value()) {
                 return finish(eax_);
             }
+            const u32 count_eax = bindings_.startup.party_count;
             invoke(
                 LegacyBattleScriptDispatchCall::pending_478600,
                 *token,
                 {workspace_.pair_x, workspace_.pair_y}
             );
-            workspace_.pair_x =
-                static_cast<u16>(workspace_.pair_x + static_cast<u16>(step));
-            invoke(
-                LegacyBattleScriptDispatchCall::pending_4785c0,
-                *token,
-                {workspace_.pair_x, workspace_.pair_y}
-            );
+            const u16 add_left = workspace_.pair_x;
+            const u16 add_right = static_cast<u16>(step);
+            const u16 add_sum = static_cast<u16>(add_left + add_right);
+            workspace_.pair_x = add_sum;
+            if (!publish_actor_coordinates(
+                    *token,
+                    workspace_.pair_x,
+                    workspace_.pair_y,
+                    with_low_word(count_eax, add_sum),
+                    with_low_word(
+                        kLegacyBattleScriptPairXToken, workspace_.pair_y
+                    ),
+                    *token,
+                    std::bit_cast<u32>(index),
+                    add_word_flags(add_left, add_right, add_sum)
+                )) {
+                return finish(eax_);
+            }
             ++index;
         }
         index = 0;
@@ -3996,18 +4180,28 @@ private:
             if (!token.has_value()) {
                 return finish(eax_);
             }
+            const u32 count_eax = bindings_.startup.enemy_count;
             invoke(
                 LegacyBattleScriptDispatchCall::pending_478600,
                 *token,
                 {workspace_.pair_x, workspace_.pair_y}
             );
-            workspace_.pair_x =
-                static_cast<u16>(workspace_.pair_x + static_cast<u16>(step));
-            invoke(
-                LegacyBattleScriptDispatchCall::pending_4785c0,
-                *token,
-                {workspace_.pair_x, workspace_.pair_y}
-            );
+            const u16 add_left = workspace_.pair_x;
+            const u16 add_right = static_cast<u16>(step);
+            const u16 add_sum = static_cast<u16>(add_left + add_right);
+            workspace_.pair_x = add_sum;
+            if (!publish_actor_coordinates(
+                    *token,
+                    workspace_.pair_x,
+                    workspace_.pair_y,
+                    with_low_word(count_eax, add_sum),
+                    kLegacyBattleScriptPairXToken,
+                    *token,
+                    std::bit_cast<u32>(index),
+                    add_word_flags(add_left, add_right, add_sum)
+                )) {
+                return finish(eax_);
+            }
             ++index;
         }
         invoke(LegacyBattleScriptDispatchCall::actor_metrics);
@@ -4412,6 +4606,8 @@ private:
     u32 ecx_{};
     u32 edx_{};
     u32 entry_ecx_{};
+    u32 entry_esi_{};
+    u32 entry_edi_{};
 };
 
 }  // namespace

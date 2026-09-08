@@ -2696,6 +2696,8 @@ public:
                     destination.action_record.action_id = source.resource_id;
                     destination.action_record.position_x = source.screen_x;
                     destination.action_record.position_y = source.screen_y;
+                    destination.action_execution.position_x = source.screen_x;
+                    destination.action_execution.position_y = source.screen_y;
                     destination.action_record.runtime_value =
                         source.active ? 1U : 0U;
                 }
@@ -2834,9 +2836,29 @@ public:
             reply.eax = std::bit_cast<openswd3::compat::u32>(integer);
             break;
         }
+        case LegacyBattleScriptDispatchCall::pending_478600:
+            if (const auto index = group_a_index(); index.has_value()) {
+                workspace.coordinate_x =
+                    battle_runtime_.party[*index].position_x;
+                workspace.coordinate_y =
+                    battle_runtime_.party[*index].position_y;
+                workspace.pair_x = battle_runtime_.party[*index].position_x;
+                workspace.pair_y = battle_runtime_.party[*index].position_y;
+            } else if (
+                const auto index = group_b_index(); index.has_value() &&
+                battle_runtime_.group_b_lifecycle != nullptr
+            ) {
+                const auto& coordinates =
+                    (*battle_runtime_.group_b_lifecycle)[*index]
+                        .action_execution;
+                workspace.coordinate_x = coordinates.position_x;
+                workspace.coordinate_y = coordinates.position_y;
+                workspace.pair_x = coordinates.position_x;
+                workspace.pair_y = coordinates.position_y;
+            }
+            break;
         case LegacyBattleScriptDispatchCall::reserved_actor_coordinates:
         case LegacyBattleScriptDispatchCall::reserved_actor_base_coordinates:
-        case LegacyBattleScriptDispatchCall::pending_478600:
         case LegacyBattleScriptDispatchCall::pending_484500:
             if (const auto index = group_a_index(); index.has_value()) {
                 workspace.coordinate_x =
@@ -2857,7 +2879,8 @@ public:
                 workspace.pair_y = record.position_y;
             }
             break;
-        case LegacyBattleScriptDispatchCall::pending_4785c0:
+        case LegacyBattleScriptDispatchCall::
+            reserved_actor_coordinate_publication:
             if (const auto index = group_a_index(); index.has_value()) {
                 battle_runtime_.party[*index].position_x =
                     static_cast<openswd3::compat::u16>(request.arguments[0]);
@@ -2867,11 +2890,11 @@ public:
                 const auto index = group_b_index(); index.has_value() &&
                 battle_runtime_.group_b_lifecycle != nullptr
             ) {
-                auto& record =
-                    (*battle_runtime_.group_b_lifecycle)[*index].action_record;
-                record.position_x =
+                auto& coordinates = (*battle_runtime_.group_b_lifecycle)[*index]
+                                        .action_execution;
+                coordinates.position_x =
                     static_cast<openswd3::compat::u16>(request.arguments[0]);
-                record.position_y =
+                coordinates.position_y =
                     static_cast<openswd3::compat::u16>(request.arguments[1]);
             }
             break;

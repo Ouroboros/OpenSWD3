@@ -492,3 +492,13 @@ Group-A在当前坐标查询后形成`EAX=1007*(actor-8)`与actor ECX，保留�
 定向`battle.legacy_battle_setup`为`1/1`，Linux core与AddressSanitizer为`199/199`，Linux app为`205/205`，四份stderr为空；changed-range格式及`git diff --check`通过。inventory按计划仍为`283/422 = 273 platform_adapted + 10 assembly_exact + 139 pending_audit`，待工作包284 REVIEW 3回收其余3个现代callsite后关闭。
 
 原版138项共享状态、动态对象地址、CRT随机序列、69个callee副作用、framebuffer/音频/文件服务及EAX/ECX/EDX联合捕获后端尚不可同时获得，因此`original_diff_verified`登记为`blocked_runtime_oracle`；这不改变完整LST静态审计、typed实现和现代侧门禁结论。
+
+## 20. `0x004785C0`十三处脚本坐标发布直连
+
+工作包287 REVIEW 2关闭case 5 `0x0046A70A`、case 13 `0x0046A82E`、case 45 `0x0046BA65/0x0046BAD8`、case 22 `0x0046BB66/0x0046BBBF`、case 39 `0x0046C7C7`、case 40 `0x0046C94C/0x0046C9A0`、case 73 `0x0046CA9A/0x0046CAEE`、case 50 `0x0046CDA8`和case 68 `0x0046D8B4`。十三处均从startup party或Group-B lifecycle action-execution解析canonical坐标记录，并直接组合`publish_legacy_battle_actor_coordinates()`；SDL初始化与保留的`0x00478600`生产getter也改用同一Group-B action-execution记录，避免publication后从平行action-record读回陈旧坐标。`0x004785C0`枚举值只以`reserved_actor_coordinate_publication`保留，脚本生产分派零opaque调用。
+
+每个站点按LST独立构造caller ABI。case 5/13/39/50/68保留actor地址算式产生的EAX/EDX、脚本指针高word下的SI低word覆盖、入口EDI及最后一次地址SUB flags。case 22使用完整32-bit X ADD及其flags；Group-A EDX由`0x0053CCE8`高word和Y低word组成，Group-B保留完整token。case 40与73使用16-bit X ADD flags，并保留getter前live count已经装入EAX的高word；两处Group-A/Group-B分别按原`mov cx`或`mov dx`形成不同pair-token残值。case 45按Group-B后Group-A顺序对完整packed X/Y执行`640-packed`，保留32-bit SUB flags、各自EDX/SI/EDI及Group-A mirror表后缀。
+
+正常路径保存最后一次完整publication结果与累计调用数；leaf成功返回的ECX为0，EAX/EDX来自低word替换后的真实caller寄存器。两组循环均只在publication成功后推进index并重读live count。typed-stop映射为独立`actor_coordinate_publication_typed_stop`，保留当前坐标写、当前source read和此前复制前缀，同时阻断当前index推进、剩余actor/group、cursor、共享坐标与临时值清零、Group-A mirror提交、actor metrics、frame和frame-gate后缀；此前成功actor不回滚。
+
+定向`battle.legacy_battle_setup`覆盖十三个物理站点的成功路径、canonical source/destination记录、两组次序、动态count重载、EAX/EDX/ESI/EDI高低word、32-bit/16-bit ADD与SUB flags及各case代表性source/destination fault，并验证Group-B publication后的下一次getter读取canonical新坐标而非平行action-record。REVIEW 2通过定向`1/1`、Linux core `199/199`、ASan/UBSan `199/199`与Linux app `205/205`，日志无warning、失败或sanitizer诊断且stderr为空。Workpack 287的caller回收达到`17/19`，inventory继续保持row 287 `pending_audit`，等待REVIEW 3回收turn gate与Group-B action17两处caller。原版联合动态差分继续登记为`blocked_runtime_oracle`。
