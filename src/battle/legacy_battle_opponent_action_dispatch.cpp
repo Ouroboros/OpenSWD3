@@ -39,7 +39,6 @@ constexpr u32 kCallPopMode = 0x0047D810U;
 constexpr u32 kCallFinalizeMode = 0x0047D860U;
 constexpr u32 kCallPlaySample = 0x00485610U;
 constexpr u32 kCallSetSamplePan = 0x00485650U;
-constexpr u32 kCallQueryCoordinates = 0x00478600U;
 constexpr u32 kCallResetOpponent = 0x0047D350U;
 constexpr u32 kCallMirrorOpponent = 0x0047F900U;
 constexpr u32 kCallQueryOpponentCondition = 0x0047CE80U;
@@ -150,37 +149,9 @@ public:
     [[nodiscard]] LegacyBattleGroupBActionSeventeenFrameCallReply invoke(
         const LegacyBattleGroupBActionSeventeenFrameCallRequest& request
     ) override {
-        u32 callee = kCallPlaySample;
-        switch (request.call) {
-        case LegacyBattleGroupBActionSeventeenFrameCall::play_sample:
-            break;
-
-        case LegacyBattleGroupBActionSeventeenFrameCall::set_sample_pan:
-            callee = kCallSetSamplePan;
-            break;
-
-        case LegacyBattleGroupBActionSeventeenFrameCall::query_coordinates:
-            callee = kCallQueryCoordinates;
-            break;
-
-        case LegacyBattleGroupBActionSeventeenFrameCall::
-            reserved_actor_coordinate_publication:
-            return {};
-        }
-
-        const auto reply = port_.invoke({
-            .callee_token = callee,
-            .arguments = {request.arguments[0U], request.arguments[1U]},
-            .eax = request.eax,
-            .ecx = request.ecx,
-            .edx = request.edx,
-        });
-        return {
-            .eax = reply.eax,
-            .ecx = reply.ecx,
-            .edx = reply.edx,
-            .outputs = {reply.outputs[0U], reply.outputs[1U]},
-        };
+        return invoke_legacy_battle_opponent_action_seventeen_frame_call(
+            port_, request
+        );
     }
 
 private:
@@ -290,6 +261,42 @@ completed(LegacyBattleActionDispatchResult result, const u32 value) noexcept {
 }
 
 }  // namespace
+
+LegacyBattleGroupBActionSeventeenFrameCallReply
+invoke_legacy_battle_opponent_action_seventeen_frame_call(
+    LegacyBattleActionDispatchPort& port,
+    const LegacyBattleGroupBActionSeventeenFrameCallRequest& request
+) {
+    u32 callee = kCallPlaySample;
+    switch (request.call) {
+    case LegacyBattleGroupBActionSeventeenFrameCall::play_sample:
+        break;
+
+    case LegacyBattleGroupBActionSeventeenFrameCall::set_sample_pan:
+        callee = kCallSetSamplePan;
+        break;
+
+    case LegacyBattleGroupBActionSeventeenFrameCall::
+        reserved_actor_current_coordinate_query:
+    case LegacyBattleGroupBActionSeventeenFrameCall::
+        reserved_actor_coordinate_publication:
+        return {};
+    }
+
+    const auto reply = port.invoke({
+        .callee_token = callee,
+        .arguments = {request.arguments[0U], request.arguments[1U]},
+        .eax = request.eax,
+        .ecx = request.ecx,
+        .edx = request.edx,
+    });
+    return {
+        .eax = reply.eax,
+        .ecx = reply.ecx,
+        .edx = reply.edx,
+        .outputs = {reply.outputs[0U], reply.outputs[1U]},
+    };
+}
 
 LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
     LegacyBattleActionDispatchState& state,
@@ -861,6 +868,16 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                 context.jitter,
                 {
                     .actor_token = source_token,
+                    .coordinate_output_x_token =
+                        state.coordinate_output_x_token,
+                    .coordinate_output_y_token =
+                        state.coordinate_output_y_token,
+                    .coordinate_x_initial =
+                        state
+                            .group_b_action_seventeen_coordinate_x_stack_initial,
+                    .coordinate_y_initial =
+                        state
+                            .group_b_action_seventeen_coordinate_y_stack_initial,
                     .entry_eax = action_reply.eax,
                     .entry_ecx = source_token,
                     .entry_edx = action_reply.edx,

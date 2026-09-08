@@ -106,16 +106,6 @@ public:
                 return reply;
             }
         }
-        if (request.call ==
-            LegacyBattleGroupBActionSeventeenFrameCall::query_coordinates) {
-            return {
-                .eax = request.eax,
-                .ecx = request.ecx,
-                .edx = request.edx,
-                .outputs = {coordinate_x, coordinate_y},
-            };
-        }
-
         return {
             .eax = request.eax,
             .ecx = request.ecx,
@@ -153,8 +143,6 @@ public:
 
     std::deque<LegacyBattleGroupBActionSeventeenFrameCallReply> sample_replies;
     std::vector<LegacyBattleGroupBActionSeventeenFrameCallRequest> calls;
-    u32 coordinate_x{100U};
-    u32 coordinate_y{200U};
 };
 
 struct Fixture {
@@ -169,6 +157,15 @@ struct Fixture {
     FramePort port;
     openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
     openswd3::battle::LegacyBattleGroupAActionExecutionSharedState shared;
+    openswd3::battle::LegacyBattleGroupBActionSeventeenFrameRequest
+        frame_request{
+            .actor_token = 0x00525508U,
+            .coordinate_output_x_token = 0x11110002U,
+            .coordinate_output_y_token = 0x33330004U,
+            .entry_eax = 0x11112222U,
+            .entry_ecx = 0x00525508U,
+            .entry_edx = 0x33334444U,
+        };
 
     Fixture() {
         static_cast<void>(
@@ -176,6 +173,8 @@ struct Fixture {
                 raster, framebuffer.geometry().surface
             )
         );
+        actor.position_x = 100U;
+        actor.position_y = 200U;
     }
 
     void prepare_unchanged_record() {
@@ -209,12 +208,7 @@ struct Fixture {
                 request,
                 effects,
                 jitter,
-                {
-                    .actor_token = 0x00525508U,
-                    .entry_eax = 0x11112222U,
-                    .entry_ecx = 0x00525508U,
-                    .entry_edx = 0x33334444U,
-                }
+                frame_request
             );
     }
 };
@@ -352,19 +346,26 @@ void test_battle_group_b_action_seventeen_frame(openswd3::test::Context& test) {
         fixture.stream_provider.ready = true;
         fixture.actor.turn_countdown = 7;
         const auto result = fixture.run(&fixture.actor, &fixture.shared);
-        const auto* query = fixture.port.find(
-            LegacyBattleGroupBActionSeventeenFrameCall::query_coordinates
-        );
         test.expect_true(
             result.status ==
                     LegacyBattleGroupBActionSeventeenFrameStatus::
                         frame_owner_typed_stop &&
-                result.port_calls == 1U &&
+                result.port_calls == 0U &&
                 result.coordinate_query_calls == 1U &&
-                result.coordinate_publish_calls == 1U && query != nullptr &&
-                query->eax == 0U && query->ecx == 0x00525508U &&
-                query->edx == 1U && query->arguments[0U] == 0U &&
-                query->arguments[1U] == 1U &&
+                result.current_coordinate_query.status ==
+                    openswd3::battle::
+                        LegacyBattleActorCurrentCoordinateQueryStatus::
+                            completed &&
+                result.current_coordinate_query.return_eax == 0x111100C8U &&
+                result.current_coordinate_query.return_ecx == 0x33330004U &&
+                result.current_coordinate_query.return_edx == 0x11110002U &&
+                result.current_coordinate_query.flags.carry &&
+                result.current_coordinate_query.flags.parity &&
+                result.current_coordinate_query.flags.auxiliary_carry &&
+                !result.current_coordinate_query.flags.zero &&
+                result.current_coordinate_query.flags.sign &&
+                !result.current_coordinate_query.flags.overflow &&
+                result.coordinate_publish_calls == 1U &&
                 result.adjusted_coordinate_x == 75U &&
                 result.coordinate_publication.status ==
                     openswd3::battle::
@@ -384,11 +385,99 @@ void test_battle_group_b_action_seventeen_frame(openswd3::test::Context& test) {
                 fixture.actor.alternate_position_y == 200U &&
                 fixture.port.count(
                     LegacyBattleGroupBActionSeventeenFrameCall::
+                        reserved_actor_current_coordinate_query
+                ) == 0U &&
+                fixture.port.count(
+                    LegacyBattleGroupBActionSeventeenFrameCall::
                         reserved_actor_coordinate_publication
                 ) == 0U &&
                 fixture.actor.turn_countdown == 7 && result.render_calls == 0U,
             "nonmirrored missing frame preserves typed publication before stopping"
         );
+    }
+
+    {
+        using QueryStatus =
+            openswd3::battle::LegacyBattleActorCurrentCoordinateQueryStatus;
+        const std::array expected_statuses{
+            QueryStatus::first_output_pointer_read_typed_stop,
+            QueryStatus::position_x_read_typed_stop,
+            QueryStatus::first_output_write_typed_stop,
+            QueryStatus::position_y_read_typed_stop,
+            QueryStatus::second_output_pointer_read_typed_stop,
+            QueryStatus::second_output_write_typed_stop,
+        };
+        for (std::size_t stage = 0U; stage < expected_statuses.size();
+             ++stage) {
+            Fixture fixture;
+            fixture.prepare_unchanged_record();
+            fixture.stream_provider.ready = true;
+            fixture.frame_provider.available = true;
+            fixture.actor.turn_countdown = 7;
+            fixture.frame_request.coordinate_x_initial = 0xAAAA0000U;
+            fixture.frame_request.coordinate_y_initial = 0xBBBB0000U;
+            if (stage == 0U) {
+                fixture.frame_request.current_coordinate_access
+                    .first_output_pointer_readable = false;
+            } else if (stage == 1U) {
+                fixture.actor.position_x_read_accessible = false;
+            } else if (stage == 2U) {
+                fixture.frame_request.current_coordinate_access
+                    .first_output_writable = false;
+            } else if (stage == 3U) {
+                fixture.actor.position_y_read_accessible = false;
+            } else if (stage == 4U) {
+                fixture.frame_request.current_coordinate_access
+                    .second_output_pointer_readable = false;
+            } else if (stage == 5U) {
+                fixture.frame_request.current_coordinate_access
+                    .second_output_writable = false;
+            }
+            const auto result = fixture.run(&fixture.actor, &fixture.shared);
+            const u32 expected_eax = stage < 2U
+                ? 0x11110002U
+                : (stage < 4U ? 0x11110064U : 0x111100C8U);
+            const u32 expected_ecx = stage < 5U ? 0x00525508U : 0x33330004U;
+            const u32 expected_edx = stage == 0U ? 0x33330004U : 0x11110002U;
+            test.expect_true(
+                result.status ==
+                        LegacyBattleGroupBActionSeventeenFrameStatus::
+                            actor_current_coordinate_typed_stop &&
+                    result.current_coordinate_query.status ==
+                        expected_statuses[stage] &&
+                    result.current_coordinate_query.output_writes ==
+                        (stage >= 3U ? 1U : 0U) &&
+                    result.current_coordinate_query.return_eax ==
+                        expected_eax &&
+                    result.current_coordinate_query.return_ecx ==
+                        expected_ecx &&
+                    result.current_coordinate_query.return_edx ==
+                        expected_edx &&
+                    result.current_coordinate_query.flags.carry &&
+                    result.current_coordinate_query.flags.parity &&
+                    result.current_coordinate_query.flags.auxiliary_carry &&
+                    !result.current_coordinate_query.flags.zero &&
+                    result.current_coordinate_query.flags.sign &&
+                    !result.current_coordinate_query.flags.overflow &&
+                    result.coordinate_x ==
+                        (stage >= 3U ? 0xAAAA0064U : 0xAAAA0000U) &&
+                    result.coordinate_y == 0xBBBB0000U &&
+                    result.coordinate_publish_calls == 0U &&
+                    result.render_calls == 0U &&
+                    fixture.shared.turn_frame_source_token == 0U &&
+                    fixture.actor.turn_countdown == 7 &&
+                    fixture.port.count(
+                        LegacyBattleGroupBActionSeventeenFrameCall::
+                            reserved_actor_current_coordinate_query
+                    ) == 0U &&
+                    fixture.port.count(
+                        LegacyBattleGroupBActionSeventeenFrameCall::
+                            reserved_actor_coordinate_publication
+                    ) == 0U &&
+                    result.port_calls == 0U,
+                "action seventeen current-coordinate stop preserves exact registers, flags and stack-local prefix"
+            );
+        }
     }
 
     {
@@ -406,7 +495,7 @@ void test_battle_group_b_action_seventeen_frame(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGroupBActionSeventeenFrameStatus::
                         actor_coordinate_publication_typed_stop &&
-                result.port_calls == 1U &&
+                result.port_calls == 0U &&
                 result.coordinate_query_calls == 1U &&
                 result.coordinate_publish_calls == 1U &&
                 result.coordinate_publication.status ==
@@ -457,7 +546,7 @@ void test_battle_group_b_action_seventeen_frame(openswd3::test::Context& test) {
                 result.coordinate_publication.coordinate_writes == 1U &&
                 result.coordinate_publication.source_dword_reads == 0U &&
                 result.coordinate_publication.destination_dword_writes == 0U &&
-                fixture.actor.position_x == 75U &&
+                fixture.actor.position_x == 0x10F8U &&
                 fixture.actor.position_y == 0x2222U &&
                 fixture.actor.alternate_position_x == 0x3333U &&
                 fixture.actor.alternate_position_y == 0x4444U &&
@@ -483,10 +572,10 @@ void test_battle_group_b_action_seventeen_frame(openswd3::test::Context& test) {
         fixture.actor.turn_action_record.mode_flags = 0U;
         fixture.actor.turn_countdown = 0x0F;
         fixture.actor.special_draw_mirror_mode = 1U;
-        fixture.actor.position_x = 20U;
-        fixture.actor.position_y = 10U;
-        fixture.port.coordinate_x = 0x12340032U;
-        fixture.port.coordinate_y = 0xAABB003CU;
+        fixture.actor.position_x = 0x32U;
+        fixture.actor.position_y = 0x3CU;
+        fixture.frame_request.coordinate_x_initial = 0x12340000U;
+        fixture.frame_request.coordinate_y_initial = 0xAABB0000U;
         fixture.port.sample_replies.push_back({
             .eax = 0x11110000U,
             .ecx = 0xAAAA1111U,
@@ -512,7 +601,7 @@ void test_battle_group_b_action_seventeen_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleGroupBActionSeventeenFrameStatus::completed &&
-                result.return_eax == 0U && result.port_calls == 4U &&
+                result.return_eax == 0U && result.port_calls == 3U &&
                 result.sample_play_calls == 2U &&
                 result.sample_pan_calls == 1U && first_sample != nullptr &&
                 first_sample->arguments[0U] == 0x10FU &&
@@ -526,6 +615,17 @@ void test_battle_group_b_action_seventeen_frame(openswd3::test::Context& test) {
         test.expect_true(
             fixture.actor.turn_render_flags == 0U &&
                 fixture.actor.turn_target_x_offset == 7U &&
+                result.coordinate_x == 0x12340032U &&
+                result.coordinate_y == 0xAABB003CU &&
+                result.current_coordinate_query.return_eax == 0x1111003CU &&
+                result.current_coordinate_query.return_ecx == 0x33330004U &&
+                result.current_coordinate_query.return_edx == 0x11110002U &&
+                !result.current_coordinate_query.flags.carry &&
+                !result.current_coordinate_query.flags.parity &&
+                !result.current_coordinate_query.flags.auxiliary_carry &&
+                !result.current_coordinate_query.flags.zero &&
+                !result.current_coordinate_query.flags.sign &&
+                !result.current_coordinate_query.flags.overflow &&
                 result.adjusted_coordinate_x == 0x1234004BU &&
                 result.coordinate_publication.status ==
                     openswd3::battle::

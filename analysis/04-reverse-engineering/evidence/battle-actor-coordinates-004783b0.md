@@ -58,10 +58,6 @@ C++到LST：helper没有额外callee、分配、日志、验证、坐标变换�
 
 原版异常页和全部caller寄存器/SEH联合动态捕获尚无运行时oracle；该限制按`blocked_runtime_oracle`登记，不以静态结果冒充动态差分。
 
-## 7. 当前坐标查询 `0x00478600`
+## 7. 独立当前坐标查询 `0x00478600`
 
-Workpack 288 REVIEW 1新增独立`query_legacy_battle_actor_current_coordinates`，不复用本页`0x004783B0`的selector门。权威范围`0x00478600..0x0047861E`只有7条指令：依次读取第一输出指针、`actor+0x0D66`、写X word、读取`actor+0x0D68`、读取第二输出指针、写Y word并`retn 8`。六个访问点分别映射typed-stop；X已写后发生的Y读取、第二指针读取或Y写入停止均保留X，输出互相别名及输出覆盖actor Y字段时继续按物理顺序观察已提交值。
-
-正常返回保留入口EAX高word并令`AX=Y`，`EDX=out_x`、`ECX=out_y`；MOV与RET不改flags，因此完成及任一typed-stop均保留caller入口flags。Group-A继续优先解析startup party、无startup时回退action execution；Group-B解析startup lifecycle action execution，没有建立平行坐标数组。REVIEW 1已回收效果步进四处、调试标记一处和目标选择入口一处，共`6/21`个物理callsite；这六处生产路径对`0x00478600`的generic/opaque调用为零。
-
-REVIEW 2继续回收脚本分派十三处caller：`0x0046A694`、`0x0046A7C6`、`0x0046BA42`、`0x0046BAB5`、`0x0046BB44`、`0x0046BB9D`、`0x0046C610`、`0x0046C8AA`、`0x0046C929`、`0x0046C97D`、`0x0046CA77`、`0x0046CACB`和`0x0046CD72`。每处保存独立caller地址、actor token、输出token、入口寄存器/flags与leaf结果；两套固定scratch分别按dword低字或word pair承接X后Y写入。十三乘六停止矩阵逐阶段验证leaf及dispatcher的ECX/EDX残值，并证明任一停止都抑制当前首后缀及剩余脚本路径，同时保留前置callee、先前循环轮和当前X部分提交；正常矩阵验证token 7/8、case 40的0/16、case 39高位掩码、循环回边、live count首轮后缩短/扩展及caller-specific寄存器/flags。脚本和SDL的reserved `0x00478600`槽均为空，累计`caller_reclaimed:19/21`，row 288仍为`pending_audit`。
+`0x00478600`不是本页mode-gated selector query的别名。其完整LST、六步访问顺序、寄存器/flags、alias、二十一个caller及工作包关闭证据独立记录在[`battle-actor-current-coordinates-00478600.md`](battle-actor-current-coordinates-00478600.md)。Workpack 288已回收效果、调试、目标选择、脚本、turn gate与Group-B action17全部`21/21`物理callsite，生产raw地址零调用。

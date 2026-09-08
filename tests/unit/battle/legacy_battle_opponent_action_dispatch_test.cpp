@@ -294,6 +294,38 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleActionDispatchStatus;
 
     {
+        using Call =
+            openswd3::battle::LegacyBattleGroupBActionSeventeenFrameCall;
+        static_assert(
+            static_cast<u8>(Call::reserved_actor_current_coordinate_query) == 2U
+        );
+        const std::array reserved_calls{
+            Call::reserved_actor_current_coordinate_query,
+            Call::reserved_actor_coordinate_publication,
+        };
+        DispatchPort port;
+        bool empty_replies = true;
+        for (const auto call : reserved_calls) {
+            const auto reply = openswd3::battle::
+                invoke_legacy_battle_opponent_action_seventeen_frame_call(
+                    port,
+                    {.call = call,
+                     .arguments = {0x11111111U, 0x22222222U},
+                     .eax = 0x33333333U,
+                     .ecx = 0x44444444U,
+                     .edx = 0x55555555U}
+                );
+            empty_replies = empty_replies && reply.eax == 0U &&
+                reply.ecx == 0U && reply.edx == 0U &&
+                reply.outputs == std::array<u32, 2>{};
+        }
+        test.expect_true(
+            empty_replies && port.calls.empty(),
+            "opponent action seventeen keeps reserved coordinate ordinals as empty adapter slots"
+        );
+    }
+
+    {
         LegacyBattleActionDispatchState state;
         Fixture fixture;
         DispatchPort port;
@@ -726,6 +758,8 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
     {
         LegacyBattleActionDispatchState state;
         state.group_b_count = 1;
+        state.group_b_action_seventeen_coordinate_x_stack_initial = 0xCAFE0000U;
+        state.group_b_action_seventeen_coordinate_y_stack_initial = 0xBABE0000U;
         Fixture fixture;
         auto& actor =
             (*fixture.startup->group_b_lifecycle)[0U].action_execution;
@@ -756,18 +790,104 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 result.group_b_action_seventeen_frame.return_eax == 0U &&
                 result.group_b_action_seventeen_frame
                         .coordinate_publish_calls == 1U &&
+                result.group_b_action_seventeen_frame.coordinate_x ==
+                    0xCAFE0064U &&
+                result.group_b_action_seventeen_frame.coordinate_y ==
+                    0xBABE0064U &&
+                result.group_b_action_seventeen_frame.adjusted_coordinate_x ==
+                    0xCAFE004BU &&
                 result.group_b_action_seventeen_frame.coordinate_publication
                         .status ==
                     openswd3::battle::
                         LegacyBattleActorCoordinatePublicationStatus::
                             completed &&
+                result.group_b_action_seventeen_frame.coordinate_publication
+                        .argument_x == 0x004BU &&
+                result.group_b_action_seventeen_frame.coordinate_publication
+                        .argument_y == 0x0064U &&
+                !result.group_b_action_seventeen_frame.coordinate_publication
+                     .flags.carry &&
+                result.group_b_action_seventeen_frame.coordinate_publication
+                    .flags.parity &&
+                result.group_b_action_seventeen_frame.coordinate_publication
+                    .flags.auxiliary_carry &&
+                !result.group_b_action_seventeen_frame.coordinate_publication
+                     .flags.zero &&
+                result.group_b_action_seventeen_frame.coordinate_publication
+                    .flags.sign &&
+                !result.group_b_action_seventeen_frame.coordinate_publication
+                     .flags.overflow &&
                 openswd3::compat::u8(state.opponent_processed_counter) == 0U &&
                 state.overlay_gate == 0U && port.count(0x004763D0U) == 0U &&
                 port.count(0x0047D870U) == 0U &&
                 port.count(0x0047D860U) == 0U &&
                 port.count(0x004787F0U) == 0U &&
-                port.count(0x00478600U) == 1U && port.count(0x004785C0U) == 0U,
-            "opponent action seventeen directly composes coordinate publication"
+                port.count(0x00478600U) == 0U && port.count(0x004785C0U) == 0U,
+            "opponent action seventeen preserves both stack-local residues through full-width adjustment and publication flags"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        state.group_b_count = 1;
+        state.group_b_action_seventeen_coordinate_x_stack_initial = 0xD00D0000U;
+        state.group_b_action_seventeen_coordinate_y_stack_initial = 0xBEEF0000U;
+        Fixture fixture;
+        auto& actor =
+            (*fixture.startup->group_b_lifecycle)[0U].action_execution;
+        actor.turn_countdown = 7;
+        actor.profile_value = 0x1234U;
+        actor.position_x = 100U;
+        actor.position_y = 200U;
+        actor.position_y_read_accessible = false;
+        auto& record = actor.turn_action_record;
+        record.action_id = actor.profile_value;
+        record.cached_action_id = actor.profile_value;
+        record.base_variant = 0x24U;
+        record.cached_base_variant = 0x24U;
+        record.field_4a = 2U;
+        record.field_4c = 2U;
+        fixture.stream_provider.ready = true;
+        fixture.frame_provider.available = true;
+        DispatchPort port;
+        port.action = 17U;
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::dispatch_legacy_battle_opponent_action(
+                state, port, context, 0U, 99U
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        group_b_action_seventeen_frame_typed_stop &&
+                result.group_b_action_seventeen_frame.status ==
+                    openswd3::battle::
+                        LegacyBattleGroupBActionSeventeenFrameStatus::
+                            actor_current_coordinate_typed_stop &&
+                result.group_b_action_seventeen_frame.current_coordinate_query
+                        .status ==
+                    openswd3::battle::
+                        LegacyBattleActorCurrentCoordinateQueryStatus::
+                            position_y_read_typed_stop &&
+                result.group_b_action_seventeen_frame.coordinate_query_calls ==
+                    1U &&
+                result.group_b_action_seventeen_frame.coordinate_x ==
+                    0xD00D0064U &&
+                result.group_b_action_seventeen_frame.coordinate_y ==
+                    0xBEEF0000U &&
+                result.group_b_action_seventeen_frame.adjusted_coordinate_x ==
+                    0U &&
+                result.group_b_action_seventeen_frame
+                        .coordinate_publish_calls == 0U &&
+                result.group_b_action_seventeen_frame.render_calls == 0U &&
+                actor.turn_countdown == 7 &&
+                state.group_a_action_shared.turn_frame_source_token == 0U &&
+                openswd3::compat::u8(state.opponent_processed_counter) == 0U &&
+                state.overlay_gate == 0U && port.count(0x00478600U) == 0U &&
+                port.count(0x004785C0U) == 0U &&
+                port.count(0x0047D870U) == 0U &&
+                port.count(0x0047D860U) == 0U && port.count(0x004787F0U) == 0U,
+            "opponent action seventeen preserves the X stack-local prefix and both high words before its suffix"
         );
     }
 
@@ -779,6 +899,8 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
             (*fixture.startup->group_b_lifecycle)[0U].action_execution;
         actor.turn_countdown = 7;
         actor.profile_value = 0x1234U;
+        actor.position_x = 0U;
+        actor.position_y = 0U;
         actor.alternate_position_y = 0x2222U;
         actor.publication_destination_dword_write_accessible[6U] = false;
         auto& record = actor.turn_action_record;
@@ -814,7 +936,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 result.group_b_action_seventeen_frame.render_calls == 0U &&
                 state.group_a_action_shared.turn_frame_source_token == 0U &&
                 openswd3::compat::u8(state.opponent_processed_counter) == 0U &&
-                state.overlay_gate == 0U && port.count(0x00478600U) == 1U &&
+                state.overlay_gate == 0U && port.count(0x00478600U) == 0U &&
                 port.count(0x004785C0U) == 0U &&
                 port.count(0x0047D870U) == 0U &&
                 port.count(0x0047D860U) == 0U && port.count(0x004787F0U) == 0U,

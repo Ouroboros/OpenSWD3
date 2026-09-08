@@ -23,12 +23,12 @@ caller只在调用前执行`mov ecx, esi`，因此入口只有组B source actor�
 0x004315D0  1 call  已关闭帧查询
 0x004321E0  1 call  已关闭动作记录更新
 0x004785C0  1 call  已关闭typed坐标发布
-0x00478600  1 call  待审坐标查询
+0x00478600  1 call  已关闭typed当前坐标查询
 0x00485610  2 call  已有窄音频播放命令
 0x00485650  1 call  已有窄音频声像命令
 ```
 
-已关闭callee直接使用typed接口；坐标查询和音频保留窄端口，`0x004785C0`坐标publication已直接组合typed leaf，不重新引入整函数opaque边界。
+已关闭callee直接使用typed接口；`0x00478600` current-coordinate query与`0x004785C0` coordinate publication均直接组合typed leaf，音频继续使用窄端口，不重新引入两个坐标整函数opaque边界。
 
 ## 2. 倒计时完成门
 
@@ -85,7 +85,9 @@ target_x_offset = (frame_width - draw_offset_low_word) mod 2^16
 
 ## 5. 坐标副作用、绘制参数与正常收尾
 
-宽度调整后调用坐标查询。原版用两个栈局部地址接收X/Y；typed窄端口以稳定slot token `0/1`表示这两个输出位置，并以actor token作为`ECX`。查询返回的坐标按完整u32回绕调整：
+宽度调整后的`0x00476544`直接组合current-coordinate typed leaf。原版以未初始化的`var_8`承接X、`var_4`承接Y；唯一opponent父级通过action dispatch状态中的两个独立字段透传两项完整dword residue，禁止用输出token替代。caller严格传入`EAX=var_8`地址token、`ECX=actor token`、`EDX=var_4`地址token，并只替换两个完整局部的低word。入口flags来自此前最后到达的`cmp mirror_mode,1`、`cmp draw_offset,0`或16-bit width SUB。六类typed-stop公开leaf EAX/ECX/EDX与flags；Y侧停止保留X局部部分提交及两项高word，并从`0x00476549`开始阻断镜像判断、调整、publication、frame source、blit、倒计时及opponent caller后缀。父级成功测试以非零高word验证完整32-bit `-0x19`及publication flags；Y读取停止测试验证X低word前缀和全部父级后缀抑制。
+
+查询完成后按完整u32回绕调整X：
 
 - 镜像mode等于一：X加`0x19`。
 - 其他mode：X减`0x19`。
@@ -121,6 +123,7 @@ X/Y减法按u32回绕后解释为i32。宽高只零扩展u16。第六参数是�
 
 - actor缺失：入口首次`[actor+0x2668]`读取。
 - 帧缺失：镜像宽度首次读取，或坐标发布后的source首次读取。
+- current-coordinate query：首输出指针、X读写、Y读取、第二输出指针或Y写入的任一真实访问点；保存精确leaf寄存器、入口flags、两个栈局部及X部分提交，并阻断调整、publication与全部后缀。
 - 坐标publication：X/Y写入或八次source/destination复制的任一真实访问点；保存精确leaf寄存器、flags和当前部分提交，并阻断frame token、共享source、blit、倒计时与外层action17后缀。
 - 共享owner缺失：有效frame source向共享owner发布的位置。
 - blitter失败：typed软件blitter返回的位置。
@@ -137,13 +140,13 @@ caller严格比较typed结果完整`return_eax`：
 - `EAX=1`：依次执行原三项mode收尾，再推进overlay、处理计数及后续公共状态。
 - typed-stop：保留helper此前副作用并阻断上述收尾与后续case后缀。
 
-旧`0x004763D0`地址在生产调用和caller测试中保持零调用。坐标publication枚举槽保留原ordinal并重命名为`reserved_actor_coordinate_publication`；opponent adapter对该槽直接返回空回复，生产路径raw `0x004785C0`零调用。
+旧`0x004763D0`地址在生产调用和caller测试中保持零调用。current-coordinate与coordinate-publication两个枚举槽均保留原ordinal并重命名为reserved名称；opponent adapter对两槽直接返回空回复，生产路径raw `0x00478600`与`0x004785C0`均零调用。
 
 ## 8. 测试与动态oracle缺口
 
-专门UT覆盖actor首访问、signed倒计时完成门、精确`0x98`清零、动作更新失败早退、首个sample、倒计时十五sample与陈旧高word声像参数、帧查询键、镜像双bit切换、完整draw-offset门、u16宽度回绕、两处不同frame故障点、publication正负25、完整ADD/SUB flags、EAX/EDX高低word、canonical坐标与destination记录、Y写停止、destination dword部分复制、索引色板辅助参数、16位实际像素写入、共享owner stop、blitter路径和倒计时递减。caller UT覆盖逐帧返回零、publication typed-stop后缀抑制、返回一收尾及两个旧整函数/raw publication地址零调用。
+专门UT覆盖actor首访问、signed倒计时完成门、精确`0x98`清零、动作更新失败早退、首个sample、倒计时十五sample与陈旧高word声像参数、帧查询键、镜像双bit切换、完整draw-offset门、u16宽度回绕、两处不同frame故障点、current-coordinate正常与六类停止、两个栈局部高word、EAX/ECX/EDX、入口flags与X部分提交、publication正负25、完整ADD/SUB flags、canonical坐标与destination记录、destination dword部分复制、索引色板辅助参数、16位实际像素写入、共享owner stop、blitter路径和倒计时递减。caller UT覆盖query与publication typed-stop的全部后缀抑制、逐帧返回零、返回一收尾及旧整函数/raw current-coordinate/publication地址零调用。
 
-历史验证为战斗聚合定向测试、完整core AddressSanitizer `188/188`、Linux core `188/188`、Linux app `194/194`全部通过。Workpack 287 REVIEW 3回收本函数坐标publication caller后，再通过定向`1/1`、Linux core `199/199`、ASan/UBSan `199/199`、Linux app `205/205`及连续十轮core。
+历史验证为战斗聚合定向测试、完整core AddressSanitizer `188/188`、Linux core `188/188`、Linux app `194/194`全部通过。Workpack 287 REVIEW 3回收本函数坐标publication caller；Workpack 288 REVIEW 3再回收`0x00476544` current-coordinate caller，使目标工作包达到`caller_reclaimed:21/21`，并通过定向`1/1`、Linux core `199/199`、ASan/UBSan `199/199`、Linux app `205/205`与连续十轮core。
 
 原版组B actor、动作记录流、帧描述符、音频返回寄存器、坐标callee、软件blitter共享状态及唯一caller后缀的联合捕获后端仍缺失，因此动态差分为`blocked_runtime_oracle`。所需最小回放记录为：
 

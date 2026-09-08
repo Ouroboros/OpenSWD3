@@ -1130,10 +1130,21 @@ struct LegacyBattleTurnCommitChanceResult {
     compat::u32 return_edx{};
 };
 
+struct LegacyBattleTurnCurrentCoordinateAccess {
+    bool first_output_pointer_readable{true};
+    bool second_output_pointer_readable{true};
+    bool first_output_writable{true};
+    bool second_output_writable{true};
+};
+
 struct LegacyBattleTurnAdvanceRequest {
     compat::u32 actor_token{};
     compat::u32 argument{};
     compat::u32 sample_handle{};
+    compat::u32 coordinate_output_x_token{};
+    compat::u32 coordinate_output_y_token{};
+    compat::u32 coordinate_y_initial{};
+    LegacyBattleTurnCurrentCoordinateAccess current_coordinate_access{};
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
@@ -1143,6 +1154,7 @@ enum class LegacyBattleTurnAdvanceStatus : compat::u8 {
     completed,
     actor_state_typed_stop,
     frame_owner_typed_stop,
+    actor_current_coordinate_typed_stop,
     shared_state_typed_stop,
     actor_coordinate_publication_typed_stop,
 };
@@ -1159,7 +1171,10 @@ struct LegacyBattleTurnAdvanceResult {
     compat::u32 sample_pan_calls{};
     compat::u32 coordinate_query_calls{};
     compat::u32 coordinate_publish_calls{};
+    LegacyBattleActorCurrentCoordinateQueryResult current_coordinate_query{};
     LegacyBattleActorCoordinatePublicationResult coordinate_publication{};
+    compat::u32 coordinate_x{};
+    compat::u32 coordinate_y{};
     compat::u32 render_calls{};
     compat::u32 action_record_clears{};
     compat::u32 return_eax{};
@@ -1214,6 +1229,9 @@ struct LegacyBattleActionDispatchState {
     compat::u16 message_coordinate_y{};
     compat::u32 coordinate_output_x_token{};
     compat::u32 coordinate_output_y_token{};
+    compat::u32 turn_coordinate_y_stack_initial{};
+    compat::u32 group_b_action_seventeen_coordinate_x_stack_initial{};
+    compat::u32 group_b_action_seventeen_coordinate_y_stack_initial{};
     compat::u32 base_coordinate_output_x_token{};
     compat::u32 base_coordinate_output_y_token{};
     compat::u32 dual_record_coordinate_x_initial{};

@@ -64,6 +64,20 @@ subtract_flags(const u32 left, const u32 right) noexcept {
     };
 }
 
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+subtract_word_flags(const u16 left, const u16 right) noexcept {
+    const u16 difference = static_cast<u16>(left - right);
+    return {
+        .carry = left < right,
+        .parity = has_even_parity(difference),
+        .auxiliary_carry = ((left ^ right ^ difference) & 0x10U) != 0U,
+        .auxiliary_carry_defined = true,
+        .zero = difference == 0U,
+        .sign = (difference & 0x8000U) != 0U,
+        .overflow = (((left ^ right) & (left ^ difference)) & 0x8000U) != 0U,
+    };
+}
+
 constexpr void replace_low_word(u32& target, const u16 value) noexcept {
     target = (target & 0xFFFF0000U) | static_cast<u32>(value);
 }
@@ -258,10 +272,13 @@ advance_legacy_battle_group_b_action_seventeen_frame(
     registers.eax = actor->turn_render_flags;
     toggle_low_bit(actor->turn_render_flags);
     registers.eax = actor->special_draw_mirror_mode;
+    LegacyBattleActorCoordinateFlags current_coordinate_flags =
+        subtract_flags(actor->special_draw_mirror_mode, 1U);
     if (actor->special_draw_mirror_mode == 1U) {
         registers.eax = actor->turn_render_flags;
         toggle_low_bit(actor->turn_render_flags);
         registers.eax = record.draw_offset_x;
+        current_coordinate_flags = subtract_flags(record.draw_offset_x, 0U);
         if (record.draw_offset_x != 0U) {
             registers.eax = actor->turn_frame_token;
             if (!frame_available) {
@@ -275,18 +292,63 @@ advance_legacy_battle_group_b_action_seventeen_frame(
                 frame.width - static_cast<u16>(record.draw_offset_x)
             );
             replace_low_word(registers.ecx, actor->turn_target_x_offset);
+            current_coordinate_flags = subtract_word_flags(
+                frame.width, static_cast<u16>(record.draw_offset_x)
+            );
         }
     }
 
-    registers.eax = 0U;
+    result.coordinate_x = request.coordinate_x_initial;
+    result.coordinate_y = request.coordinate_y_initial;
+    u16 output_x = static_cast<u16>(result.coordinate_x);
+    u16 output_y = static_cast<u16>(result.coordinate_y);
+    registers.eax = request.coordinate_output_x_token;
     registers.ecx = request.actor_token;
-    registers.edx = 1U;
+    registers.edx = request.coordinate_output_y_token;
     ++result.coordinate_query_calls;
-    const auto coordinates = invoke(
-        LegacyBattleGroupBActionSeventeenFrameCall::query_coordinates, {0U, 1U}
-    );
-    result.coordinate_x = coordinates.outputs[0U];
-    result.coordinate_y = coordinates.outputs[1U];
+    result.current_coordinate_query =
+        query_legacy_battle_actor_current_coordinates(
+            view_legacy_battle_actor_coordinates(*actor),
+            &output_x,
+            &output_y,
+            {
+                .actor_token = request.actor_token,
+                .output_x_token = request.coordinate_output_x_token,
+                .output_y_token = request.coordinate_output_y_token,
+                .entry_eax = registers.eax,
+                .entry_edx = registers.edx,
+                .entry_flags = current_coordinate_flags,
+                .first_output_pointer_readable =
+                    request.current_coordinate_access
+                        .first_output_pointer_readable,
+                .second_output_pointer_readable =
+                    request.current_coordinate_access
+                        .second_output_pointer_readable,
+                .first_output_writable =
+                    request.current_coordinate_access.first_output_writable,
+                .second_output_writable =
+                    request.current_coordinate_access.second_output_writable,
+            }
+        );
+    if (result.current_coordinate_query.output_writes >= 1U) {
+        replace_low_word(result.coordinate_x, output_x);
+    }
+    if (result.current_coordinate_query.output_writes >= 2U) {
+        replace_low_word(result.coordinate_y, output_y);
+    }
+    registers.eax = result.current_coordinate_query.return_eax;
+    registers.ecx = result.current_coordinate_query.return_ecx;
+    registers.edx = result.current_coordinate_query.return_edx;
+    registers.ecx_known = true;
+    registers.edx_known = true;
+    if (result.current_coordinate_query.status !=
+        LegacyBattleActorCurrentCoordinateQueryStatus::completed) {
+        result.status = LegacyBattleGroupBActionSeventeenFrameStatus::
+            actor_current_coordinate_typed_stop;
+        publish_registers();
+        return result;
+    }
+
     const bool mirrored = actor->special_draw_mirror_mode == 1U;
     result.adjusted_coordinate_x = mirrored
         ? result.coordinate_x + kCoordinateDisplacement

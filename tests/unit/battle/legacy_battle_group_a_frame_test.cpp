@@ -828,8 +828,8 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
         openswd3::battle::LegacyBattleActorProgressState progress;
         actor.profile_value = 0x55AAU;
         actor.turn_countdown = 15;
-        actor.position_x = 100U;
-        actor.position_y = 80U;
+        actor.position_x = 200U;
+        actor.position_y = 300U;
         actor.turn_action_record.draw_offset_x = 3U;
         actor.turn_action_record.draw_offset_y = 5U;
         actor.turn_action_record.mode_flags = 4U;
@@ -856,9 +856,6 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             0x00485650U,
             {.eax = 0x44440000U, .ecx = 0x55550000U, .edx = 0x66660000U}
         );
-        LegacyBattleActionCallReply coordinates{};
-        coordinates.outputs = {200U, 300U};
-        port.push(0x00478600U, coordinates);
         port.push(0x004170E0U, {.edx = 0x88880000U});
         const auto result = openswd3::battle::advance_legacy_battle_turn_gate(
             &actor,
@@ -868,6 +865,8 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             {.actor_token = 0x005029D0U,
              .argument = 1U,
              .sample_handle = 0x12345678U,
+             .coordinate_output_x_token = 0xABCD0100U,
+             .coordinate_output_y_token = 0xDCBA0200U,
              .entry_ecx = 0x005029D0U}
         );
         test.expect_true(
@@ -884,6 +883,21 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 actor.position_x == 216U && actor.position_y == 300U &&
                 actor.alternate_position_x == 216U &&
                 actor.alternate_position_y == 300U &&
+                result.coordinate_query_calls == 1U &&
+                result.current_coordinate_query.status ==
+                    openswd3::battle::
+                        LegacyBattleActorCurrentCoordinateQueryStatus::
+                            completed &&
+                result.current_coordinate_query.return_eax == 0xDCBA012CU &&
+                result.current_coordinate_query.return_ecx == 0xDCBA0200U &&
+                result.current_coordinate_query.return_edx == 0xABCD0100U &&
+                !result.current_coordinate_query.flags.carry &&
+                result.current_coordinate_query.flags.parity &&
+                result.current_coordinate_query.flags.auxiliary_carry &&
+                result.current_coordinate_query.flags.auxiliary_carry_defined &&
+                !result.current_coordinate_query.flags.zero &&
+                result.current_coordinate_query.flags.sign &&
+                !result.current_coordinate_query.flags.overflow &&
                 result.coordinate_publish_calls == 1U &&
                 result.coordinate_publication.status ==
                     openswd3::battle::
@@ -909,7 +923,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 has_call_argument(port, 0x004170E0U, 3U, 20U) &&
                 has_call_argument(port, 0x004170E0U, 4U, 5U) &&
                 has_call_argument(port, 0x004170E0U, 5U, 0x72000000U) &&
-                result.port_calls == 7U,
+                port.count(0x00478600U) == 0U && result.port_calls == 6U,
             "turn gate directly publishes shifted coordinates before rendering"
         );
     }
@@ -930,9 +944,8 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
         port.push(0x0047F920U, {.eax = 0U});
         port.push(0x004321E0U, {.eax = 1U});
         port.push(0x004315D0U, {.eax = 0x70000000U});
-        LegacyBattleActionCallReply coordinates{};
-        coordinates.outputs = {8U, 0xAABBCCDDU};
-        port.push(0x00478600U, coordinates);
+        actor.position_x = 8U;
+        actor.position_y = 0xCCDDU;
         const auto result = openswd3::battle::advance_legacy_battle_turn_gate(
             &actor,
             &shared,
@@ -940,6 +953,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             port,
             {.actor_token = 0x005029D0U,
              .argument = 1U,
+             .coordinate_y_initial = 0xAABB0000U,
              .entry_ecx = 0x005029D0U}
         );
         test.expect_true(
@@ -989,9 +1003,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
         port.push(0x0047F920U, {.eax = 0U});
         port.push(0x004321E0U, {.eax = 1U});
         port.push(0x004315D0U, {.eax = 0x70000000U});
-        LegacyBattleActionCallReply coordinates{};
-        coordinates.outputs = {100U, 200U};
-        port.push(0x00478600U, coordinates);
+
         const auto result = openswd3::battle::advance_legacy_battle_turn_gate(
             &actor,
             &shared,
@@ -1033,9 +1045,8 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
         port.push(0x0047F920U, {.eax = 0U});
         port.push(0x004321E0U, {.eax = 1U});
         port.push(0x004315D0U, {.eax = 0x70000000U});
-        LegacyBattleActionCallReply coordinates{};
-        coordinates.outputs = {0x12345678U, 0x87654321U};
-        port.push(0x00478600U, coordinates);
+        actor.position_x = 0x5678U;
+        actor.position_y = 0x4321U;
         const auto result = openswd3::battle::advance_legacy_battle_turn_gate(
             &actor,
             nullptr,
@@ -1043,6 +1054,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             port,
             {.actor_token = 0x005029D0U,
              .argument = 0U,
+             .coordinate_y_initial = 0x87650000U,
              .entry_ecx = 0x005029D0U}
         );
         test.expect_true(
@@ -1065,6 +1077,104 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 port.count(0x004785C0U) == 0U,
             "turn gate no-adjust branch preserves the secondary-index compare flags"
         );
+    }
+
+    {
+        using QueryStatus =
+            openswd3::battle::LegacyBattleActorCurrentCoordinateQueryStatus;
+        const std::array expected_statuses{
+            QueryStatus::first_output_pointer_read_typed_stop,
+            QueryStatus::position_x_read_typed_stop,
+            QueryStatus::first_output_write_typed_stop,
+            QueryStatus::position_y_read_typed_stop,
+            QueryStatus::second_output_pointer_read_typed_stop,
+            QueryStatus::second_output_write_typed_stop,
+        };
+        for (std::size_t stage = 0U; stage < expected_statuses.size();
+             ++stage) {
+            openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+            openswd3::battle::LegacyBattleGroupAActionExecutionSharedState
+                shared;
+            openswd3::battle::LegacyBattleActorProgressState progress;
+            actor.profile_value = 0x55AAU;
+            actor.turn_countdown = 7;
+            actor.turn_action_record.field_4a = 1U;
+            actor.turn_action_record.field_4c = 2U;
+            actor.position_x = 100U;
+            actor.position_y = 200U;
+            if (stage == 1U) {
+                actor.position_x_read_accessible = false;
+            }
+            if (stage == 3U) {
+                actor.position_y_read_accessible = false;
+            }
+            DispatchPort port;
+            port.push(0x0047F920U, {.eax = 0U});
+            port.push(0x004321E0U, {.eax = 1U});
+            port.push(
+                0x004315D0U,
+                {.eax = 0x70000000U, .ecx = 0xBBBB0002U, .edx = 0xCCCC0003U}
+            );
+            openswd3::battle::LegacyBattleTurnAdvanceRequest request{
+                .actor_token = 0x005029D0U,
+                .argument = 0U,
+                .coordinate_output_x_token = 0xAAAA0100U,
+                .coordinate_output_y_token = 0xBBBB0200U,
+                .coordinate_y_initial = 0xAABB0000U,
+                .entry_ecx = 0x005029D0U,
+            };
+            if (stage == 0U) {
+                request.current_coordinate_access
+                    .first_output_pointer_readable = false;
+            } else if (stage == 2U) {
+                request.current_coordinate_access.first_output_writable = false;
+            } else if (stage == 4U) {
+                request.current_coordinate_access
+                    .second_output_pointer_readable = false;
+            } else if (stage == 5U) {
+                request.current_coordinate_access.second_output_writable =
+                    false;
+            }
+            const auto result =
+                openswd3::battle::advance_legacy_battle_turn_gate(
+                    &actor, &shared, &progress, port, request
+                );
+            const u32 expected_eax = stage < 2U
+                ? 0xBBBB0200U
+                : (stage < 4U ? 0xBBBB0064U : 0xBBBB00C8U);
+            const u32 expected_ecx = stage < 5U ? 0x005029D0U : 0xBBBB0200U;
+            const u32 expected_edx = stage == 0U ? 0xCCCC0003U : 0xAAAA0100U;
+            test.expect_true(
+                result.status ==
+                        LegacyBattleTurnAdvanceStatus::
+                            actor_current_coordinate_typed_stop &&
+                    result.current_coordinate_query.status ==
+                        expected_statuses[stage] &&
+                    result.current_coordinate_query.output_writes ==
+                        (stage >= 3U ? 1U : 0U) &&
+                    result.current_coordinate_query.return_eax ==
+                        expected_eax &&
+                    result.current_coordinate_query.return_ecx ==
+                        expected_ecx &&
+                    result.current_coordinate_query.return_edx ==
+                        expected_edx &&
+                    result.current_coordinate_query.flags.carry &&
+                    !result.current_coordinate_query.flags.parity &&
+                    result.current_coordinate_query.flags.auxiliary_carry &&
+                    !result.current_coordinate_query.flags.zero &&
+                    result.current_coordinate_query.flags.sign &&
+                    !result.current_coordinate_query.flags.overflow &&
+                    result.coordinate_x == (stage >= 3U ? 100U : 0U) &&
+                    result.coordinate_y == 0xAABB0000U &&
+                    result.coordinate_publish_calls == 0U &&
+                    result.render_calls == 0U && actor.turn_countdown == 7 &&
+                    shared.turn_frame_source_token == 0U &&
+                    port.count(0x00478600U) == 0U &&
+                    port.count(0x004785C0U) == 0U &&
+                    port.count(0x004170E0U) == 0U && result.port_calls == 3U,
+                "turn gate current-coordinate stop preserves exact registers, flags and stack-local prefix"
+            );
+        }
     }
 
     {
@@ -1094,6 +1204,129 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 actor.turn_render_flags == 5U &&
                 port.count(0x00485610U) == 0U && port.count(0x00478600U) == 0U,
             "turn gate stops at the first mirrored frame dereference after preserving the updater prefix"
+        );
+    }
+
+    {
+        LegacyBattleGroupAFrameState state;
+        state.turn_resolution_bits = 0x4000U;
+        state.action.group_a_count = 1;
+        state.action.group_b_count = 0;
+        state.action.coordinate_output_x_token = 0xABCD0100U;
+        state.action.coordinate_output_y_token = 0xDCBA0200U;
+        state.action.turn_coordinate_y_stack_initial = 0xAABB0000U;
+        auto& action_actor = state.action.group_a_action_execution[0U];
+        action_actor.profile_value = 0x55AAU;
+        action_actor.turn_countdown = 7;
+        action_actor.position_x = 0xAAAAU;
+        action_actor.position_y = 0xBBBBU;
+        action_actor.turn_action_record.field_4a = 1U;
+        action_actor.turn_action_record.field_4c = 2U;
+        Fixture fixture;
+        fixture.startup.party[0U].position_x = 0x1234U;
+        fixture.startup.party[0U].position_y = 0x5678U;
+        DispatchPort port;
+        port.push(0x0047F920U, {.eax = 1U});
+        port.push(0x0047F920U, {.eax = 0U});
+        port.push(0x0047CE80U, {.eax = 0U});
+        port.push(0x004321E0U, {.eax = 1U});
+        LegacyBattleActionCallReply frame{.eax = 0x70000000U};
+        frame.outputs = {0x71000000U, 1U, 1U, 0x72000000U};
+        port.push(0x004315D0U, frame);
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_a_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.turn_advance_calls == 1U &&
+                result.turn_advance.status ==
+                    LegacyBattleTurnAdvanceStatus::completed &&
+                result.turn_advance.current_coordinate_query.status ==
+                    openswd3::battle::
+                        LegacyBattleActorCurrentCoordinateQueryStatus::
+                            completed &&
+                result.turn_advance.current_coordinate_query.return_eax ==
+                    0xDCBA5678U &&
+                result.turn_advance.current_coordinate_query.return_ecx ==
+                    0xDCBA0200U &&
+                result.turn_advance.current_coordinate_query.return_edx ==
+                    0xABCD0100U &&
+                result.turn_advance.coordinate_x == 0x00001234U &&
+                result.turn_advance.coordinate_y == 0xAABB5678U &&
+                result.turn_advance.coordinate_publication.argument_x ==
+                    0x00001234U &&
+                result.turn_advance.coordinate_publication.argument_y ==
+                    0x00005678U &&
+                action_actor.position_x == 0x1234U &&
+                action_actor.position_y == 0x5678U &&
+                fixture.startup.party[0U].position_x == 0x1234U &&
+                fixture.startup.party[0U].position_y == 0x5678U &&
+                port.count(0x00478600U) == 0U,
+            "group A frame turn gate reads startup-party current coordinates and preserves its Y stack high word"
+        );
+    }
+
+    {
+        LegacyBattleGroupAFrameState state;
+        state.turn_resolution_bits = 0x4000U;
+        state.action.group_a_count = 1;
+        state.action.group_b_count = 0;
+        state.action.coordinate_output_x_token = 0xABCD0100U;
+        state.action.coordinate_output_y_token = 0xDCBA0200U;
+        state.action.turn_coordinate_y_stack_initial = 0xAABB0000U;
+        auto& action_actor = state.action.group_a_action_execution[0U];
+        action_actor.profile_value = 0x55AAU;
+        action_actor.turn_countdown = 7;
+        action_actor.position_x = 0xAAAAU;
+        action_actor.position_y = 0xBBBBU;
+        action_actor.turn_action_record.field_4a = 1U;
+        action_actor.turn_action_record.field_4c = 2U;
+        Fixture fixture;
+        fixture.startup.party[0U].position_x = 0x1234U;
+        fixture.startup.party[0U].position_y = 0x5678U;
+        fixture.startup.party[0U].position_y_read_accessible = false;
+        DispatchPort port;
+        port.push(0x0047F920U, {.eax = 1U});
+        port.push(0x0047F920U, {.eax = 0U});
+        port.push(0x0047CE80U, {.eax = 0U});
+        port.push(0x004321E0U, {.eax = 1U});
+        LegacyBattleActionCallReply frame{.eax = 0x70000000U};
+        frame.outputs = {0x71000000U, 1U, 1U, 0x72000000U};
+        port.push(0x004315D0U, frame);
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_a_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::turn_advance_typed_stop &&
+                result.turn_advance.status ==
+                    LegacyBattleTurnAdvanceStatus::
+                        actor_current_coordinate_typed_stop &&
+                result.turn_advance.current_coordinate_query.status ==
+                    openswd3::battle::
+                        LegacyBattleActorCurrentCoordinateQueryStatus::
+                            position_y_read_typed_stop &&
+                result.turn_advance.current_coordinate_query.output_writes ==
+                    1U &&
+                result.turn_advance.current_coordinate_query.return_eax ==
+                    0xDCBA1234U &&
+                result.turn_advance.coordinate_x == 0x00001234U &&
+                result.turn_advance.coordinate_y == 0xAABB0000U &&
+                result.turn_advance.coordinate_publish_calls == 0U &&
+                result.turn_advance.render_calls == 0U &&
+                action_actor.position_x == 0xAAAAU &&
+                action_actor.position_y == 0xBBBBU &&
+                state.action.group_a_action_shared.turn_frame_source_token ==
+                    0U &&
+                state.action.action_pending_aux == 1U &&
+                port.outcome_resolution_state().resolution_latch == 1U &&
+                port.count(0x00478600U) == 0U &&
+                port.count(0x004785C0U) == 0U && port.count(0x004170E0U) == 0U,
+            "group A frame propagates startup-party query stops after the X stack prefix and blocks the parent suffix"
         );
     }
 

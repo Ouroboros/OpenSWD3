@@ -1,6 +1,6 @@
 # 战斗回合角色推进门 `0x00471540`
 
-状态：`platform_adapted`。完整LST、typed实现、两处group-A frame caller回收、定向测试、AddressSanitizer、Linux完整门与inventory双生成均已关闭。
+状态：`platform_adapted`。完整LST、typed实现、两处group-A frame caller回收以及current-coordinate与coordinate-publication两个叶调用均已关闭。
 
 ## 1. 完整权威范围
 
@@ -22,14 +22,16 @@
 
 更新成功后以EAX和EDX的陈旧高半word分别拼接动作记录帧键，查询帧记录。渲染flags先翻转bit0；角色post-action值为一时再翻转一次，并以`frame width - draw offset`的16位回绕结果替换水平偏移。帧owner为空时只在原始第一次帧解引用位置typed-stop，保留此前写入与窄callee副作用。
 
-倒计时等于十五且参数为一时播放固定sample，再按post-action值选择播放返回ECX或EDX的陈旧高半word拼接sample低word，分别提交正十六或负十六声像，最后清sample word。坐标查询完成后，参数不等于一时保持查询结果且最终flags来自`cmp argument,1`；参数等于一时按post-action值对完整X执行正十六或负十六调整，最终flags来自32-bit ADD或SUB。
+倒计时等于十五且参数为一时播放固定sample，再按post-action值选择播放返回ECX或EDX的陈旧高半word拼接sample低word，分别提交正十六或负十六声像，最后清sample word。声像callee返回后的`add esp,8`flags由Y局部地址反推真实栈恢复前后值，不由测试或端口注入；其他路径到达坐标查询的flags分别来自`cmp countdown,15`或`cmp argument,1`。
 
-`0x0047172C`不再向port发送`0x004785C0`，而在canonical action-execution坐标owner上直接组合typed publication。入口固定承接完整`EAX=X`、`ECX=actor token`、`EDX=Y`、`ESI=actor token`、`EDI=0`。leaf先写X/Y低word，再复制八个source dword；任一写入或复制typed-stop保存精确leaf寄存器、flags与部分提交，并阻断frame token读取、共享source发布、绘制、countdown递减及外层turn/action后缀。
+`0x004716FD`不再向port发送`0x00478600`。caller以`EAX=var_4`地址、`ECX=actor token`、EDX live residue直接组合current-coordinate typed leaf；`arg_0`和`var_4`两个完整栈局部仅被X/Y低word替换。group-A frame父级有startup时读取`startup.party[index]`的canonical记录；独立helper没有显式view时才回退到action-execution owner。六类查询typed-stop保存leaf寄存器、flags与X部分提交，并从`0x00471702`开始阻断比较、坐标调整、publication、frame source、绘制、倒计时和父级后缀。
+
+查询成功后，参数不等于一时保持查询结果且publication flags来自`cmp argument,1`；参数等于一时按post-action值对完整X执行正十六或负十六调整，最终flags来自32-bit ADD或SUB。`0x0047172C`继续在canonical action-execution坐标owner上直接组合typed publication。入口固定承接完整`EAX=X`、`ECX=actor token`、`EDX=Y`、`ESI=actor token`、`EDI=0`。leaf先写X/Y低word，再复制八个source dword；任一写入或复制typed-stop保存精确leaf寄存器、flags与部分提交，并阻断frame token读取、共享source发布、绘制、countdown递减及外层turn/action后缀。
 
 publication完成后才发布帧源token。X使用signed已发布角色坐标减signed水平偏移，Y使用signed已发布角色坐标减完整32位动作Y偏移；宽高取帧记录低word，flags和数据token原样提交。绘制后倒计时按32位回绕递减并返回零。
 
 ## 4. caller回收与验证
 
-模式零caller继续控制回合候选累计与概率门；模式一caller继续标记当前角色bit、累计低byte计数并触发完成消息。测试覆盖special-ready早退、两档inclusive阈值、signed倒计时递减、152字节清零、模式一独占latch、动作更新零返回、查帧键陈旧高半word、双次bit0翻转、sample声像陈旧寄存器、publication无调整与正负十六、完整CMP/ADD/SUB flags、canonical绘制坐标、X写停止、destination dword部分复制和全部后缀抑制，以及两处production caller不再调用整函数地址、raw `0x004785C0`零调用。
+模式零caller继续控制回合候选累计与概率门；模式一caller继续标记当前角色bit、累计低byte计数并触发完成消息。测试覆盖special-ready早退、两档inclusive阈值、signed倒计时递减、152字节清零、模式一独占latch、动作更新零返回、查帧键陈旧高半word、双次bit0翻转、sample声像陈旧寄存器、current-coordinate正常与六类停止、栈局部高word、EAX/ECX/EDX、真实入口flags、X部分提交、startup party owner、publication无调整与正负十六、canonical绘制坐标、destination dword部分复制和全部后缀抑制。两处production caller不再调用整函数地址，raw `0x00478600`与`0x004785C0`均零调用。
 
-原Workpack 207门禁为定向测试与独立AddressSanitizer通过、Linux core `188/188`、Linux app `194/194`。Workpack 287 REVIEW 3进一步回收本函数唯一坐标publication caller，并通过定向`1/1`、Linux core `199/199`、ASan/UBSan `199/199`、Linux app `205/205`及连续十轮core。动态差分因原版角色动作记录、队列callee、帧记录、sample寄存器、异常坐标页、寄存器与软件绘制联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+原Workpack 207门禁为定向测试与独立AddressSanitizer通过、Linux core `188/188`、Linux app `194/194`。Workpack 287 REVIEW 3进一步回收本函数唯一坐标publication caller；Workpack 288 REVIEW 3再回收`0x004716FD` current-coordinate caller，使目标工作包累计达到`caller_reclaimed:21/21`，并通过定向`1/1`、Linux core `199/199`、ASan/UBSan `199/199`、Linux app `205/205`与连续十轮core。动态差分因原版角色动作记录、队列callee、帧记录、sample寄存器、异常栈与坐标页、寄存器/flags及软件绘制联合捕获后端缺失而登记为`blocked_runtime_oracle`。

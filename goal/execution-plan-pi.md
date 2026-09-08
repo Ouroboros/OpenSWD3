@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v894
+版本：v895
 
 最后更新：2026-09-08
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 工作包288 REVIEW 3待实现
+当前步骤：模块10 · 工作包288 REVIEW 3发布审计
 
 ## 0. 执行约定
 
@@ -271,14 +271,14 @@ REVIEW通过后必须立即按`AGENTS.md`完成commit、push和TG，再重新完
 13. `[x]` B7：地图、世界、角色、碰撞与寻路已按模块移交条件有限收口；当前状态、阻塞和证据见[`world-map.md`](../analysis/04-reverse-engineering/modules/world-map.md)及相关inventory/evidence。
 14. `[x]` B8：剧情VM、场景调度与异步action的P1–P3已经完成；[`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md)不再覆盖当前队列。
 15. `[x]` B9：菜单、商店和其他特殊模式的227/227工作项已经关闭；当前状态和阻塞见[`special-modes.md`](../analysis/04-reverse-engineering/modules/special-modes.md)。
-16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=287`；工作包288 REVIEW 1–2已完成并累计回收十九个物理caller，当前执行REVIEW 3。
+16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=288`；工作包288已回收全部二十一个物理caller，正在执行REVIEW 3发布审计，下一项为`audit_order=289 / 0x00478620`。
 17. `[ ]` B11：存档、配置与持久化语义；等待B10满足移交条件后开始。
 
 B7以后已经完成的详细执行记录已机械搬到[`execution-progress-history-pi.md`](execution-progress-history-pi.md)。该文件只保存历史，不定义当前执行顺序、状态或断点。
 
 当前只执行B10，不并行展开B11。
 
-当前执行`audit_order=288 / 0x00478600`战斗角色当前坐标查询函数。
+当前执行`audit_order=288 / 0x00478600`战斗角色当前坐标查询函数的最终发布审计；下一项为`audit_order=289 / 0x00478620`。
 
 ### B10 当前WORKPACK REVIEW计划
 
@@ -286,7 +286,7 @@ B7以后已经完成的详细执行记录已机械搬到[`execution-progress-his
 
 当前工作包：`audit_order=288`、`0x00478600`。目标是完整实现从actor `+0x0D66/+0x0D68`向两个输出指针有序发布当前X/Y word的typed查询，并回收六个caller函数中的二十一个物理callsite。
 
-当前断点：完整LST已锁定`0x00478600..0x0047861E`共31字节、7条指令与1个`retn 8`，无call、分支或范围外chunk；二十一个物理caller已逐项枚举。REVIEW 1–2已实现独立current-coordinate typed leaf，并回收效果步进、debug overlay、target-selection entry与script dispatch共十九处caller，`caller_reclaimed:19/21`；当前执行REVIEW 3，inventory row 288保持`pending_audit`直至`caller_reclaimed:21/21`。
+当前断点：完整LST已锁定`0x00478600..0x0047861E`共31字节、7条指令与1个`retn 8`，无call、分支或范围外chunk；六个caller函数中的二十一个物理callsite已全部回收，`caller_reclaimed:21/21`。权威生成器已把inventory row 288更新为`platform_adapted`；当前执行REVIEW 3最终发布审计。
 
 #### REVIEW 1：typed当前坐标查询与效果、调试、目标选择六处caller
 
@@ -317,7 +317,9 @@ B7以后已经完成的详细执行记录已机械搬到[`execution-progress-his
 
 #### REVIEW 3：turn gate、Group-B action17与工作包关闭
 
-状态：待实现，依赖REVIEW 2。
+状态：已完成。
+
+结果：turn gate `0x004716FD`与Group-B action17 `0x00476544`已直接组合current-coordinate typed leaf，生产raw地址零调用，累计`caller_reclaimed:21/21`。Group-A父级startup party owner、turn gate与opponent action17各自两个栈局部完整位形、六类typed-stop、reserved ordinal/空adapter槽与全部后缀抑制已补测；fresh reviewer两轮提出的测试、文档及Group-B父级residue接线P1/P2均已修复，最终复审返回PASS。changed-range格式、定向`1/1`、Linux core `199/199`、ASan/UBSan `199/199`、Linux app `205/205`、连续十轮core、inventory双生成、TMP分类及完整unstaged/staged发布审计均已通过；inventory为`288/422 = 278 platform_adapted + 10 assembly_exact + 134 pending_audit`，SHA-256为`23c9d965fd4b9c964bc2803605411e7d9a7b50dbfbc94dc2993d603d7bc65ed7`。
 
 - 回收turn gate `0x00471540:0x004716FD`。直接查询当前Group-A canonical记录到原两个栈局部，保留调用前`EAX=var_4`地址残值、`ECX=ESI actor`、EDX live residue与入口flags；成功后继续原`EBP/EBX`比较、X `-0x10/+0x10`调整和已关闭`0x004785C0` typed publication。
 - 回收Group-B action17 `0x004763D0:0x00476544`。直接查询当前canonical action-execution记录，保持`var_8/var_4`输出次序、`EAX=var_8`地址残值、`ECX=ESI actor`、`EDX=var_4`地址残值与入口flags；成功后继续mirror分支的X `+0x19/-0x19`调整和typed publication。

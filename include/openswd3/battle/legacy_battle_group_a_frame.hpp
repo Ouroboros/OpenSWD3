@@ -84,7 +84,8 @@ evaluate_legacy_battle_turn_commit_chance(
     LegacyBattleGroupAActionExecutionSharedState* shared,
     LegacyBattleActorProgressState* progress,
     LegacyBattleActionDispatchPort& port,
-    const LegacyBattleTurnAdvanceRequest& request
+    const LegacyBattleTurnAdvanceRequest& request,
+    const LegacyBattleActorCoordinatesView* current_coordinate_actor = nullptr
 );
 
 // Typed closure of legacy 0x00456680. One call advances the selected group-A
