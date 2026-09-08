@@ -606,6 +606,7 @@ private:
     [[nodiscard]] bool enter_target_selection() {
         result_.target_selection_entry = enter_legacy_battle_target_selection(
             {
+                .startup = bindings_.startup,
                 .startup_reset = bindings_.startup.reset,
                 .text_messages = bindings_.startup.text_messages,
                 .action_mode_source = bindings_.startup.action_mode_source,
@@ -618,6 +619,8 @@ private:
                 .frame_input_resolution = bindings_.frame_input_resolution,
                 .final_actor = bindings_.final_actor,
                 .action = bindings_.action,
+                .action_updater = bindings_.action_updater,
+                .frame_provider = bindings_.frame_provider,
                 .metrics = bindings_.metrics,
                 .debug_hotkeys = bindings_.debug_hotkeys,
                 .input_dispatch = bindings_.input_dispatch,

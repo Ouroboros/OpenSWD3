@@ -333,6 +333,7 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
     const auto enter_target_selection = [&]() {
         const auto nested = enter_legacy_battle_target_selection(
             {
+                .startup = bindings.startup,
                 .startup_reset = bindings.startup_reset,
                 .text_messages = bindings.text_messages,
                 .action_mode_source = bindings.action_mode_source,
@@ -345,6 +346,8 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
                 .frame_input_resolution = bindings.frame_input_resolution,
                 .final_actor = bindings.final_actor,
                 .action = bindings.action,
+                .action_updater = bindings.action_updater,
+                .frame_provider = bindings.frame_provider,
                 .metrics = bindings.metrics,
                 .debug_hotkeys = bindings.debug_hotkeys,
                 .input_dispatch = state,

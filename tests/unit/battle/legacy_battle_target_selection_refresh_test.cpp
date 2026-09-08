@@ -15,6 +15,31 @@ using openswd3::compat::i32;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
 
+class StreamProvider final
+    : public openswd3::asset_runtime::LegacyActionStreamProvider {
+public:
+    [[nodiscard]] openswd3::asset_runtime::LegacyActionStreamLoadResult
+    load_action_stream(u32, u32, bool) override {
+        return {};
+    }
+};
+
+class FrameProvider final
+    : public openswd3::rendering::LegacyFramePieceProvider {
+public:
+    [[nodiscard]] bool load_frame_piece(
+        u32, u32, openswd3::rendering::LegacyFramePiece& piece
+    ) noexcept override {
+        piece.width = width;
+        piece.height = height;
+        return available;
+    }
+
+    bool available{true};
+    u16 width{20U};
+    u16 height{30U};
+};
+
 class TargetRefreshPort final
     : public openswd3::battle::LegacyBattleInputDispatchPort {
 public:
@@ -80,6 +105,7 @@ public:
 };
 
 struct Fixture {
+    openswd3::battle::LegacyBattleStartupState startup_state;
     openswd3::battle::LegacyBattleStartupResetBlocks startup;
     std::array<openswd3::battle::LegacyBattlePartyStartupRecord, 4> party{};
     openswd3::battle::LegacyBattleTextMessageState text_messages;
@@ -97,10 +123,16 @@ struct Fixture {
     u32 target_ready{};
     u32 message{};
     TargetRefreshPort port;
+    StreamProvider stream_provider;
+    openswd3::asset_runtime::LegacyActionUpdater action_updater{
+        stream_provider
+    };
+    FrameProvider frame_provider;
 
     [[nodiscard]] openswd3::battle::LegacyBattleTargetSelectionRefreshBindings
     bindings() {
         return {
+            .startup = startup_state,
             .startup_reset = startup,
             .text_messages = text_messages,
             .startup_supplemental_count_word = supplemental_count,
@@ -108,6 +140,8 @@ struct Fixture {
             .frame_input_resolution = frame,
             .final_actor = final_actor,
             .action = action,
+            .action_updater = action_updater,
+            .frame_provider = frame_provider,
             .metrics = metrics,
             .debug_hotkeys = debug,
             .input_dispatch = port.battle_input_dispatch_state(),
@@ -140,6 +174,7 @@ struct Fixture {
 void test_battle_target_selection_refresh(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleActorActionFourOverrideStatus;
     using openswd3::battle::LegacyBattleActorActionThirtyOverrideStatus;
+    using openswd3::battle::LegacyBattleActorFrameSnapshotStatus;
     using openswd3::battle::LegacyBattleTargetSelectionRefreshStatus;
     using openswd3::battle::refresh_legacy_battle_target_selection;
 
@@ -433,6 +468,188 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                 runtime.selection_input_gate == 1U && fixture.message == 3U &&
                 result.return_eax == 2U && result.return_ecx == 1U,
             "category fallback directly cycles the shared group-A target order then primes selection input"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.target_ready = 1U;
+        fixture.message = 2U;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.metrics.group_a_count = 3U;
+        auto& input = fixture.port.battle_input_dispatch_state();
+        auto& runtime = fixture.port.battle_target_selection_runtime_state();
+        input.action_category_index = 1U;
+        runtime.selection_input_gate = 1U;
+        runtime.candidate_argument = 9U;
+        fixture.port.replies
+            [LegacyBattleTargetSelectionRuntimeCall::validate_primary_action] =
+            {.eax = 1U};
+        fixture.port.replies
+            [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_a] = {
+            .eax = 0U
+        };
+        fixture.port.replies
+            [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_b] = {
+            .eax = 0U
+        };
+        fixture.port.replies
+            [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_c] = {
+            .eax = 0U
+        };
+        openswd3::battle::LegacyBattleTargetSelectionRefreshRequest request;
+        request.primary_actor_frame_snapshot.output_token = 0x70001000U;
+        request.primary_actor_frame_snapshot.initial_output = {
+            11U, 22U, 33U, 44U
+        };
+        const auto result = refresh_legacy_battle_target_selection(
+            fixture.bindings(), fixture.port, request
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleTargetSelectionRefreshStatus::completed &&
+                result.actor_frame_snapshot_queries == 1U &&
+                result.actor_frame_snapshot.returned_early &&
+                result.actor_frame_snapshot.output ==
+                    std::array<u32, 4>{11U, 22U, 33U, 44U} &&
+                result.actor_frame_snapshot_actor_token == 0x005029D0U &&
+                result.actor_frame_snapshot_entry_eax == 0xBCDU &&
+                result.actor_frame_snapshot_entry_ecx == 0x005029D0U &&
+                result.actor_frame_snapshot_entry_edx == 0x70001000U &&
+                result.group_a_calls == 7U && result.port_calls == 6U &&
+                runtime.selection_input_gate == 1U && fixture.message == 3U &&
+                result.input_record_prime_calls == 1U &&
+                std::ranges::none_of(
+                    fixture.port.calls,
+                    [](const auto& call) {
+                        return call.call ==
+                            LegacyBattleTargetSelectionRuntimeCall::
+                                reserved_build_selection_snapshot_slot;
+                    }
+                ),
+            "primary property fallback composes the typed snapshot with site-one registers, preserves early-return output, and runs the suffix without the reserved port"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.target_ready = 1U;
+        fixture.message = 2U;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.metrics.group_a_count = 3U;
+        auto& input = fixture.port.battle_input_dispatch_state();
+        auto& runtime = fixture.port.battle_target_selection_runtime_state();
+        input.action_category_index = 1U;
+        runtime.selection_input_gate = 1U;
+        runtime.candidate_argument = 9U;
+        fixture.action.group_a_action_execution[0U]
+            .profile_value_read_accessible = false;
+        fixture.port.replies
+            [LegacyBattleTargetSelectionRuntimeCall::validate_primary_action] =
+            {.eax = 1U};
+        fixture.port.replies
+            [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_a] = {
+            .eax = 0U
+        };
+        fixture.port.replies
+            [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_b] = {
+            .eax = 0U
+        };
+        fixture.port.replies
+            [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_c] = {
+            .eax = 0U
+        };
+        openswd3::battle::LegacyBattleTargetSelectionRefreshRequest request;
+        request.primary_actor_frame_snapshot.output_token = 0x70001000U;
+        request.primary_actor_frame_snapshot.initial_output = {
+            11U, 22U, 33U, 44U
+        };
+        const auto result = refresh_legacy_battle_target_selection(
+            fixture.bindings(), fixture.port, request
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleTargetSelectionRefreshStatus::
+                        actor_frame_snapshot_typed_stop &&
+                result.actor_frame_snapshot.status ==
+                    LegacyBattleActorFrameSnapshotStatus::
+                        profile_value_read_typed_stop &&
+                result.actor_frame_snapshot.output ==
+                    std::array<u32, 4>{11U, 22U, 33U, 44U} &&
+                result.actor_frame_snapshot.return_eax == 0U &&
+                result.actor_frame_snapshot.return_ecx == 0U &&
+                result.actor_frame_snapshot.return_edx == 0x70001000U &&
+                result.actor_frame_snapshot.flags_known &&
+                result.actor_frame_snapshot.flags.carry &&
+                result.actor_frame_snapshot.flags.parity &&
+                result.actor_frame_snapshot.flags.auxiliary_carry &&
+                result.actor_frame_snapshot.flags.auxiliary_carry_defined &&
+                !result.actor_frame_snapshot.flags.zero &&
+                result.actor_frame_snapshot.flags.sign &&
+                !result.actor_frame_snapshot.flags.overflow &&
+                runtime.selection_input_gate == 0U && fixture.message == 2U &&
+                result.input_record_prime_calls == 0U,
+            "primary property snapshot typed-stop preserves the shared output and blocks the gate, message, and input-record suffix"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.target_ready = 1U;
+        fixture.message = 4U;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.metrics.group_a_count = 3U;
+        fixture.frame.current_equipment_selection = 1U;
+        auto& runtime = fixture.port.battle_target_selection_runtime_state();
+        runtime.selection_input_gate = 1U;
+        runtime.target_argument = 9U;
+        fixture.port.replies
+            [LegacyBattleTargetSelectionRuntimeCall::resolve_action_target] = {
+            .eax = 1U
+        };
+        fixture.port.replies
+            [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_a] = {
+            .eax = 0U
+        };
+        fixture.port.replies
+            [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_b] = {
+            .eax = 0U
+        };
+        fixture.port.replies
+            [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_c] = {
+            .eax = 0U
+        };
+        openswd3::battle::LegacyBattleTargetSelectionRefreshRequest request;
+        request.equipment_actor_frame_snapshot.output_token = 0x70002000U;
+        request.equipment_actor_frame_snapshot.initial_output = {
+            55U, 66U, 77U, 88U
+        };
+        const auto result = refresh_legacy_battle_target_selection(
+            fixture.bindings(), fixture.port, request
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleTargetSelectionRefreshStatus::completed &&
+                result.actor_frame_snapshot_queries == 1U &&
+                result.actor_frame_snapshot.returned_early &&
+                result.actor_frame_snapshot.output ==
+                    std::array<u32, 4>{55U, 66U, 77U, 88U} &&
+                result.actor_frame_snapshot_actor_token == 0x005029D0U &&
+                result.actor_frame_snapshot_entry_eax == 0x3EFU &&
+                result.actor_frame_snapshot_entry_ecx == 0x005029D0U &&
+                result.actor_frame_snapshot_entry_edx == 0xBCDU &&
+                result.group_a_calls == 6U && result.port_calls == 5U &&
+                runtime.selection_input_gate == 1U && fixture.message == 3U &&
+                result.input_record_prime_calls == 1U &&
+                std::ranges::none_of(
+                    fixture.port.calls,
+                    [](const auto& call) {
+                        return call.call ==
+                            LegacyBattleTargetSelectionRuntimeCall::
+                                reserved_build_selection_snapshot_slot;
+                    }
+                ),
+            "equipment property fallback composes the typed snapshot with site-two affine residues and runs the suffix without the reserved port"
         );
     }
 

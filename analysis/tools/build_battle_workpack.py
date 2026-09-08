@@ -1172,6 +1172,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-actor-base-coordinates-00478470.md",
     ),
+    "0x004784A0": (
+        "platform_adapted",
+        "evidence/battle-actor-frame-snapshot-004784a0.md",
+    ),
 }
 
 

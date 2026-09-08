@@ -185,7 +185,7 @@ LegacyBattleActorFrameSnapshotResult query_legacy_battle_actor_frame_snapshot(
     LegacyBattleActorFrameSnapshotResult result{
         .output = request.initial_output,
         .return_eax = 0U,
-        .return_ecx = 0U,
+        .return_ecx = 0x26U,
         .return_edx = request.entry_edx,
         .flags = logic_flags(0U, 0x80000000U),
     };

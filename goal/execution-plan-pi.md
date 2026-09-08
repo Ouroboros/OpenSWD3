@@ -1,8 +1,8 @@
 # OpenSWD3 执行 GOAL
 
-版本：v881
+版本：v882
 
-最后更新：2026-09-04
+最后更新：2026-09-08
 
 当前阶段：B · 按模块逆向、实现与验证
 
@@ -271,7 +271,7 @@ REVIEW通过后必须立即按`AGENTS.md`完成commit、push和TG，再重新完
 13. `[x]` B7：地图、世界、角色、碰撞与寻路已按模块移交条件有限收口；当前状态、阻塞和证据见[`world-map.md`](../analysis/04-reverse-engineering/modules/world-map.md)及相关inventory/evidence。
 14. `[x]` B8：剧情VM、场景调度与异步action的P1–P3已经完成；[`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md)不再覆盖当前队列。
 15. `[x]` B9：菜单、商店和其他特殊模式的227/227工作项已经关闭；当前状态和阻塞见[`special-modes.md`](../analysis/04-reverse-engineering/modules/special-modes.md)。
-16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=284`，本阶段执行工作包285 REVIEW 3。
+16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=285`，本阶段收尾工作包285 REVIEW 3。
 17. `[ ]` B11：存档、配置与持久化语义；等待B10满足移交条件后开始。
 
 B7以后已经完成的详细执行记录已机械搬到[`execution-progress-history-pi.md`](execution-progress-history-pi.md)。该文件只保存历史，不定义当前执行顺序、状态或断点。
@@ -286,7 +286,7 @@ B7以后已经完成的详细执行记录已机械搬到[`execution-progress-his
 
 当前工作包：`audit_order=285`、`0x004784A0`。目标是实现角色当前动作帧的原点、宽度和高度查询，直接组合已关闭的动作记录更新与frame piece provider，并回收`0x0045FC60`、`0x00460C40`、`0x00461240`、`0x00462740`和`0x00464270`五个已关闭caller中的15个物理callsite。
 
-当前断点：REVIEW 1已实现typed leaf并回收`0x0045FC60`三个物理callsite；REVIEW 2已回收`0x00460C40`与`0x00461240`六个菜单物理callsite，累计`caller_reclaimed:9/15`。定向测试、AddressSanitizer、Linux core与Linux app全部通过；inventory继续保持`pending_audit`。下一步执行REVIEW 3目标刷新与选择标记六处callsite并关闭工作包。
+当前断点：REVIEW 1、REVIEW 2与REVIEW 3均已完成，五个caller中的15个物理callsite全部回收，`caller_reclaimed:15/15`。inventory已关闭为`platform_adapted`，定向测试、AddressSanitizer、Linux core、Linux app与连续十轮core全部通过；下一步执行最终发布审计。通过后立即commit、push、TG并重读规定文件，再以独立规划提交切换工作包286。
 
 #### REVIEW 1：角色当前帧边界与鼠标命中
 
@@ -310,7 +310,7 @@ B7以后已经完成的详细执行记录已机械搬到[`execution-progress-his
 
 #### REVIEW 3：目标选择标记与工作包关闭
 
-状态：待执行，REVIEW 2依赖已满足。
+状态：已完成。
 
 - 回收`0x00462740`的`0x00462E1A/0x00463623`两处目标刷新callsite。两处共用局部输出块且不消费结果；第一处成功后只发布输入门，第二处还写message 3并prime输入。typed-stop必须分别抑制对应success suffix。
 - 回收`0x00464270`的`0x00464840/0x00464905/0x00464A72/0x00464B1D`四处选择标记callsite。保留Group-B和Group-A遍历标记、当前Group-B和当前Group-A目标四条不同寄存器形状，以及snapshot中心、signed绘制偏移、reset、动作6可用性与prepared action绘制的原顺序。

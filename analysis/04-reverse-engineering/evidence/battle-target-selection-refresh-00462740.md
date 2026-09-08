@@ -63,7 +63,9 @@ message 200先发布完整重置前缀，再按live group-B/group-A count清对�
 
 目标选择进入函数原刷新槽保留相同枚举数值并改为reserved，ready不足或queued短路时直接调用本实现。默认组B目标和alternate组A目标两个原opaque槽也各自保留reserved数值；全部reserved槽生产代码零调用。两处提示文字已在原调用位置直连共享文字消息入链，并复用启动状态唯一链头与动态节点owner；原文字槽只保留reserved数值。各类子typed-stop均按原caller返回并阻断各自输入、message或动画尾路径。
 
-定向测试覆盖主跳表默认域、message 1阈值与物理重映射、live共享message门、组A/组B轮转及子typed-stop、动作5前缀停点、hovered 2/4、message 3提交与第九个group-B对象、message 5效果物理视图、message 7完整轮转/发布/记录尾部与第九项target map、message 8/27/30、98/101的AL行为、100/102–104、111–113的阈值差异、110符号扩展、200重置前缀、global reset字节范围以及唯一caller传播。
+工作包285进一步在`0x00462E1A`与`0x00463623`原位置直接组合角色当前帧边界typed leaf。两处复用同一个四dword输出块、startup/action canonical actor owner、`LegacyActionUpdater`和`LegacyFramePieceProvider`；第一处入口固定EAX为`0xBCD*code`、ECX为actor token、EDX为输出token，第二处固定EAX为`0x3EF*code`、ECX为actor token、EDX为`0xBCD*code`。leaf正常早退保留旧输出并继续caller后缀；任一typed-stop保留动作更新、frame-token及逐槽部分提交，第一处阻断输入门发布，第二处阻断message 3与输入预置。原`build_selection_snapshot`槽保留枚举ordinal并改名为reserved，生产零调用。
+
+定向测试覆盖主跳表默认域、message 1阈值与物理重映射、live共享message门、组A/组B轮转及子typed-stop、动作5前缀停点、hovered 2/4、message 3提交与第九个group-B对象、message 5效果物理视图、message 7完整轮转/发布/记录尾部与第九项target map、message 8/27/30、98/101的AL行为、100/102–104、111–113的阈值差异、110符号扩展、200重置前缀、global reset字节范围、两处snapshot入口寄存器/正常早退/typed-stop后缀抑制、reserved snapshot槽零调用以及唯一caller传播。
 
 ## 8. `0x00478330`八处目标选择写入
 

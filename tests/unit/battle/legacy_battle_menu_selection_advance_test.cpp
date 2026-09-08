@@ -690,7 +690,7 @@ void test_battle_menu_selection_advance(openswd3::test::Context& test) {
                         10U *
                             openswd3::battle::kLegacyBattleActionGroupAStride &&
                 result.actor_frame_snapshot_entry_edx == 10U * 0xBCDU &&
-                result.return_eax == 0U && result.return_ecx == 0U &&
+                result.return_eax == 0U && result.return_ecx == 0x26U &&
                 result.return_edx == 10U * 0xBCDU,
             "large group-A code ten stops on the one-past snapshot's first actor read"
         );

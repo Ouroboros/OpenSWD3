@@ -4,6 +4,7 @@
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_action_frame_draw.hpp"
 #include "openswd3/battle/legacy_battle_action_summary.hpp"
+#include "openswd3/battle/legacy_battle_actor_frame_snapshot.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_actor_render_offsets.hpp"
 #include "openswd3/battle/legacy_battle_alternate_grid_frame.hpp"
@@ -94,7 +95,7 @@ enum class LegacyBattleSelectionFrameCall : compat::u8 {
     configure_text_font,
     query_group_b_completion,
     query_group_a_completion,
-    build_actor_snapshot,
+    reserved_build_actor_snapshot_slot,
     reserved_query_actor_origin_slot,
     query_target_action_available,
     reserved_draw_selection_hint_slot,
@@ -189,6 +190,10 @@ struct LegacyBattleSelectionFrameRequest {
     LegacyBattleGuardPanelFrameRequest guard_panel_frame{};
     LegacyBattleSelectionHintFrameRequest selection_hint_frame{};
     LegacyBattleControlPanelFrameRequest control_panel_frame{};
+    LegacyBattleActorFrameSnapshotRequest group_b_marker_snapshot{};
+    LegacyBattleActorFrameSnapshotRequest group_a_marker_snapshot{};
+    LegacyBattleActorFrameSnapshotRequest current_group_b_snapshot{};
+    LegacyBattleActorFrameSnapshotRequest current_group_a_snapshot{};
 };
 
 enum class LegacyBattleSelectionFrameStatus : compat::u8 {
@@ -200,6 +205,7 @@ enum class LegacyBattleSelectionFrameStatus : compat::u8 {
     action_workspace_typed_stop,
     actor_label_typed_stop,
     actor_frame_context_typed_stop,
+    actor_frame_snapshot_typed_stop,
     actor_target_preparation_typed_stop,
     scale_fill_panel_typed_stop,
     vertical_panel_typed_stop,
@@ -256,6 +262,12 @@ struct LegacyBattleSelectionFrameResult {
     LegacyBattleScaleFillPanelResult scale_fill_panel{};
     LegacyBattleVerticalPanelResult vertical_panel{};
     LegacyBattlePreparedActionFrameDrawResult prepared_action_frame{};
+    LegacyBattleActorFrameSnapshotResult actor_frame_snapshot{};
+    compat::u32 actor_frame_snapshot_queries{};
+    compat::u32 actor_frame_snapshot_actor_token{};
+    compat::u32 actor_frame_snapshot_entry_eax{};
+    compat::u32 actor_frame_snapshot_entry_ecx{};
+    compat::u32 actor_frame_snapshot_entry_edx{};
     compat::u32 action_six_availability_queries{};
     LegacyBattleGroupBActionSixTargetAvailabilityResult
         action_six_availability{};

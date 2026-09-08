@@ -26,6 +26,25 @@ using NameCopyRequest =
 using openswd3::compat::i32;
 using openswd3::compat::u32;
 
+class StreamProvider final
+    : public openswd3::asset_runtime::LegacyActionStreamProvider {
+public:
+    [[nodiscard]] openswd3::asset_runtime::LegacyActionStreamLoadResult
+    load_action_stream(u32, u32, bool) override {
+        return {};
+    }
+};
+
+class FrameProvider final
+    : public openswd3::rendering::LegacyFramePieceProvider {
+public:
+    [[nodiscard]] bool load_frame_piece(
+        u32, u32, openswd3::rendering::LegacyFramePiece&
+    ) noexcept override {
+        return false;
+    }
+};
+
 class TargetSelectionPort final
     : public openswd3::battle::LegacyBattleInputDispatchPort,
       public openswd3::test::LegacyBattleMonDatabaseFixture {
@@ -147,6 +166,7 @@ struct Fixture {
         }
     }
 
+    openswd3::battle::LegacyBattleStartupState startup_state;
     openswd3::battle::LegacyBattleStartupResetBlocks startup;
     openswd3::battle::LegacyBattleTextMessageState text_messages;
     openswd3::battle::LegacyBattleActionModeSourceState action_mode_source;
@@ -171,9 +191,15 @@ struct Fixture {
     u32 outcome_darkening_gate{};
     u32 message{};
     TargetSelectionPort port;
+    StreamProvider stream_provider;
+    openswd3::asset_runtime::LegacyActionUpdater action_updater{
+        stream_provider
+    };
+    FrameProvider frame_provider;
 
     [[nodiscard]] LegacyBattleTargetSelectionEntryBindings bindings() {
         return {
+            .startup = startup_state,
             .startup_reset = startup,
             .text_messages = text_messages,
             .action_mode_source = action_mode_source,
@@ -184,6 +210,8 @@ struct Fixture {
             .frame_input_resolution = frame,
             .final_actor = final_actor,
             .action = action,
+            .action_updater = action_updater,
+            .frame_provider = frame_provider,
             .metrics = metrics,
             .debug_hotkeys = debug,
             .input_dispatch = port.battle_input_dispatch_state(),

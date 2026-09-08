@@ -579,12 +579,18 @@ void test_battle_actor_frame_snapshot(openswd3::test::Context& test) {
             first.status ==
                     LegacyBattleActorFrameSnapshotStatus::
                         special_ready_read_typed_stop &&
-                first.return_eax == 0U && first.return_ecx == 0U &&
-                first.return_edx == 0x12345678U && first.flags.zero &&
+                first.return_eax == 0U && first.return_ecx == 0x26U &&
+                first.return_edx == 0x12345678U && !first.flags.carry &&
+                first.flags.parity && first.flags.zero && !first.flags.sign &&
+                !first.flags.overflow &&
                 profile.status ==
                     LegacyBattleActorFrameSnapshotStatus::
                         profile_value_read_typed_stop &&
-                profile.return_ecx == 0U &&
+                profile.return_eax == 0U && profile.return_ecx == 0U &&
+                profile.return_edx == 0x12345678U && profile.flags.carry &&
+                profile.flags.parity && profile.flags.auxiliary_carry &&
+                profile.flags.auxiliary_carry_defined && !profile.flags.zero &&
+                profile.flags.sign && !profile.flags.overflow &&
                 commit.status ==
                     LegacyBattleActorFrameSnapshotStatus::
                         frame_token_write_typed_stop &&

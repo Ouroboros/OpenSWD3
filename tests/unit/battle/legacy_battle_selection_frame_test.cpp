@@ -30,6 +30,7 @@ using openswd3::battle::LegacyBattleListFrameCallRequest;
 using openswd3::battle::LegacyBattleSelectionFrameCall;
 using openswd3::battle::LegacyBattleSelectionFrameCallReply;
 using openswd3::battle::LegacyBattleSelectionFrameCallRequest;
+using openswd3::battle::LegacyBattleSelectionFrameRequest;
 using openswd3::battle::LegacyBattleSelectionHintFrameCall;
 using openswd3::battle::LegacyBattleSelectionHintFrameCallReply;
 using openswd3::battle::LegacyBattleSelectionHintFrameCallRequest;
@@ -932,18 +933,13 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
             LegacyBattleSelectionFrameCall::query_group_b_completion,
             {.eax = 0U}
         );
-        fixture.port.reply(
-            LegacyBattleSelectionFrameCall::build_actor_snapshot,
-            {
-                .snapshot_x = 100,
-                .snapshot_y = 50,
-                .snapshot_width = 20,
-                .snapshot_height = 10,
-            }
-        );
+        LegacyBattleSelectionFrameRequest frame_request;
+        frame_request.group_b_marker_snapshot.initial_output = {
+            100U, 50U, 20U, 10U
+        };
         const auto result =
             openswd3::battle::draw_legacy_battle_selection_frame(
-                fixture.bindings(), fixture.port
+                fixture.bindings(), fixture.port, frame_request
             );
         test.expect_true(
             result.status ==
@@ -985,15 +981,6 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
             {.eax = 0U}
         );
         fixture.port.reply(
-            LegacyBattleSelectionFrameCall::build_actor_snapshot,
-            {
-                .snapshot_x = 100,
-                .snapshot_y = 50,
-                .snapshot_width = 20,
-                .snapshot_height = 10,
-            }
-        );
-        fixture.port.reply(
             LegacyBattleSelectionFrameCall::reset_actor_selection,
             {
                 .eax = 0x11111111U,
@@ -1009,9 +996,13 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                 },
             }
         );
+        LegacyBattleSelectionFrameRequest frame_request;
+        frame_request.group_b_marker_snapshot.initial_output = {
+            100U, 50U, 20U, 10U
+        };
         const auto result =
             openswd3::battle::draw_legacy_battle_selection_frame(
-                fixture.bindings(), fixture.port
+                fixture.bindings(), fixture.port, frame_request
             );
         test.expect_true(
             result.status ==
@@ -1041,6 +1032,104 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                         reserved_query_actor_origin_slot
                 ) == 0U,
             "group-B marker preserves reset residues and blocks coordinate reads, drawing and loop suffix on the actor-X stop"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.message = 3U;
+        fixture.frame.target_selection_block = 1U;
+        fixture.metrics.group_b_count = 1U;
+        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            8>>();
+        auto& actor = (*fixture.startup.group_b_lifecycle)[0U];
+        actor.action_execution.profile_value = 2U;
+        actor.action_execution.position_x = 100U;
+        actor.action_execution.position_y = 200U;
+        fixture.action_streams.fail = false;
+        fixture.port.reply(
+            LegacyBattleSelectionFrameCall::query_group_b_completion,
+            {.eax = 0U, .edx = 0xCAFEBABEU}
+        );
+        LegacyBattleSelectionFrameRequest frame_request;
+        frame_request.group_b_marker_snapshot.output_token = 0x70001000U;
+        frame_request.group_b_marker_snapshot.initial_output = {1U, 2U, 3U, 4U};
+        frame_request.group_b_marker_snapshot.output_writable = {
+            true, false, true, true
+        };
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port, frame_request
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        actor_frame_snapshot_typed_stop &&
+                result.actor_frame_snapshot.status ==
+                    openswd3::battle::LegacyBattleActorFrameSnapshotStatus::
+                        output_y_write_typed_stop &&
+                result.actor_frame_snapshot.output_writes == 1U &&
+                result.actor_frame_snapshot.output[1U] == 2U &&
+                result.actor_frame_snapshot.output[2U] == 3U &&
+                result.actor_frame_snapshot.output[3U] == 4U &&
+                result.actor_frame_snapshot_entry_eax == 0U &&
+                result.actor_frame_snapshot_entry_ecx == 0x00525508U &&
+                result.actor_frame_snapshot_entry_edx == 0xCAFEBABEU &&
+                count_call(
+                    fixture.port,
+                    LegacyBattleSelectionFrameCall::reset_actor_selection
+                ) == 0U &&
+                count_call(
+                    fixture.port,
+                    LegacyBattleSelectionFrameCall::
+                        reserved_build_actor_snapshot_slot
+                ) == 0U &&
+                result.render_offset_query_calls == 0U &&
+                result.action_frame_draw_calls == 0U,
+            "group-B marker snapshot preserves the committed X slot and suppresses reset, render-offset, and draw suffixes on the Y write stop"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.message = 3U;
+        fixture.frame.target_selection_block = 1U;
+        fixture.action.opponent_workspace[0U] = 1U;
+        fixture.metrics.group_a_count = 1U;
+        fixture.port.reply(
+            LegacyBattleSelectionFrameCall::query_group_a_completion,
+            {.eax = 0U, .edx = 0xCAFEBABEU}
+        );
+        LegacyBattleSelectionFrameRequest frame_request;
+        frame_request.group_a_marker_snapshot.output_token = 0x70002000U;
+        frame_request.group_a_marker_snapshot.initial_output = {
+            100U, 50U, 20U, 10U
+        };
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port, frame_request
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleSelectionFrameStatus::
+                        prepared_action_frame_typed_stop &&
+                result.actor_frame_snapshot_queries == 1U &&
+                result.actor_frame_snapshot.returned_early &&
+                result.actor_frame_snapshot_actor_token == 0x005029D0U &&
+                result.actor_frame_snapshot_entry_eax == 0x70002000U &&
+                result.actor_frame_snapshot_entry_ecx == 0x005029D0U &&
+                result.actor_frame_snapshot_entry_edx == 0xCAFEBABEU &&
+                count_call(
+                    fixture.port,
+                    LegacyBattleSelectionFrameCall::
+                        reserved_build_actor_snapshot_slot
+                ) == 0U &&
+                result.prepared_action_frame.draw_x == 110 &&
+                result.prepared_action_frame.draw_y == 55,
+            "group-A marker snapshot loads the shared output pointer in EAX and draws from preserved early-return output without the reserved port"
         );
     }
 
@@ -1343,18 +1432,13 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
             LegacyBattleSelectionFrameCall::query_group_b_completion,
             {.eax = 0U}
         );
-        fixture.port.reply(
-            LegacyBattleSelectionFrameCall::build_actor_snapshot,
-            {
-                .snapshot_x = 100,
-                .snapshot_y = 50,
-                .snapshot_width = 20,
-                .snapshot_height = 10,
-            }
-        );
+        LegacyBattleSelectionFrameRequest frame_request;
+        frame_request.current_group_b_snapshot.initial_output = {
+            100U, 50U, 20U, 10U
+        };
         const auto result =
             openswd3::battle::draw_legacy_battle_selection_frame(
-                fixture.bindings(), fixture.port
+                fixture.bindings(), fixture.port, frame_request
             );
         test.expect_true(
             result.status ==
@@ -1383,16 +1467,16 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                     LegacyBattleSelectionFrameCall::
                         reserved_query_actor_origin_slot
                 ) == 0U &&
-                std::ranges::any_of(
-                    fixture.port.calls,
-                    [](const auto& request) {
-                        return request.call ==
-                            LegacyBattleSelectionFrameCall::
-                                build_actor_snapshot &&
-                            request.object_token == 0x00528030U &&
-                            request.eax == 0x565U && request.edx == 0x159U;
-                    }
-                ),
+                count_call(
+                    fixture.port,
+                    LegacyBattleSelectionFrameCall::
+                        reserved_build_actor_snapshot_slot
+                ) == 0U &&
+                result.actor_frame_snapshot_queries == 1U &&
+                result.actor_frame_snapshot_actor_token == 0x00528030U &&
+                result.actor_frame_snapshot_entry_eax == 0x565U &&
+                result.actor_frame_snapshot_entry_ecx == 0x00528030U &&
+                result.actor_frame_snapshot_entry_edx == 0x159U,
             "current group-B target applies canonical override and mirror offsets after the exact snapshot register shape and then draws from the snapshot center"
         );
     }
@@ -1417,18 +1501,13 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
             LegacyBattleSelectionFrameCall::query_group_b_completion,
             {.eax = 0U}
         );
-        fixture.port.reply(
-            LegacyBattleSelectionFrameCall::build_actor_snapshot,
-            {
-                .snapshot_x = 100,
-                .snapshot_y = 50,
-                .snapshot_width = 20,
-                .snapshot_height = 10,
-            }
-        );
+        LegacyBattleSelectionFrameRequest frame_request;
+        frame_request.current_group_b_snapshot.initial_output = {
+            100U, 50U, 20U, 10U
+        };
         const auto result =
             openswd3::battle::draw_legacy_battle_selection_frame(
-                fixture.bindings(), fixture.port
+                fixture.bindings(), fixture.port, frame_request
             );
         test.expect_true(
             result.status ==
@@ -1472,18 +1551,14 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
         fixture.action.opponent_workspace[0U] = 1U;
         fixture.startup.party[0U].render_offsets.render_x_base = 3U;
         fixture.startup.party[0U].render_offsets.render_y_base = 4U;
-        fixture.port.reply(
-            LegacyBattleSelectionFrameCall::build_actor_snapshot,
-            {
-                .snapshot_x = 100,
-                .snapshot_y = 50,
-                .snapshot_width = 20,
-                .snapshot_height = 10,
-            }
-        );
+        LegacyBattleSelectionFrameRequest frame_request;
+        frame_request.current_group_a_snapshot.output_token = 0x70004000U;
+        frame_request.current_group_a_snapshot.initial_output = {
+            100U, 50U, 20U, 10U
+        };
         const auto result =
             openswd3::battle::draw_legacy_battle_selection_frame(
-                fixture.bindings(), fixture.port
+                fixture.bindings(), fixture.port, frame_request
             );
         test.expect_true(
             result.status ==
@@ -1506,8 +1581,17 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                     fixture.port,
                     LegacyBattleSelectionFrameCall::
                         reserved_query_actor_origin_slot
-                ) == 0U,
-            "current group-A target publishes typed offsets, applies the post-reset Y increment and draws from the snapshot center"
+                ) == 0U &&
+                count_call(
+                    fixture.port,
+                    LegacyBattleSelectionFrameCall::
+                        reserved_build_actor_snapshot_slot
+                ) == 0U &&
+                result.actor_frame_snapshot_queries == 1U &&
+                result.actor_frame_snapshot_entry_eax == 0xBCDU &&
+                result.actor_frame_snapshot_entry_ecx == 0x005029D0U &&
+                result.actor_frame_snapshot_entry_edx == 0x70004000U,
+            "current group-A target publishes typed offsets, preserves the output-token snapshot entry, applies the post-reset Y increment and draws from the snapshot center"
         );
     }
 
@@ -1521,19 +1605,14 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
         fixture.input.selection_actor_origin_y = 0xBBBBU;
         fixture.startup.party[0U].render_offsets.render_x_base_read_accessible =
             false;
-        fixture.port.reply(
-            LegacyBattleSelectionFrameCall::build_actor_snapshot,
-            {
-                .edx = 0xCAFEBABEU,
-                .snapshot_x = 100,
-                .snapshot_y = 50,
-                .snapshot_width = 20,
-                .snapshot_height = 10,
-            }
-        );
+        LegacyBattleSelectionFrameRequest frame_request;
+        frame_request.current_group_a_snapshot.output_token = 0x70004000U;
+        frame_request.current_group_a_snapshot.initial_output = {
+            100U, 50U, 20U, 10U
+        };
         const auto result =
             openswd3::battle::draw_legacy_battle_selection_frame(
-                fixture.bindings(), fixture.port
+                fixture.bindings(), fixture.port, frame_request
             );
         test.expect_true(
             result.status ==
@@ -1541,25 +1620,44 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                         actor_render_offset_typed_stop &&
                 result.render_offset_query.status ==
                     openswd3::battle::LegacyBattleActorRenderOffsetQueryStatus::
-                        render_x_base_read_typed_stop &&
-                result.render_offset_query.return_eax == 0x0053BF4AU &&
+                        render_x_base_read_typed_stop,
+            "current group-A target propagates the actor-X typed stop"
+        );
+        test.expect_true(
+            result.render_offset_query.return_eax == 0x0053BF4AU &&
                 result.render_offset_query.return_ecx == 0x005029D0U &&
-                result.render_offset_query.return_edx == 0xCAFEBABEU &&
-                !result.render_offset_query.flags.carry &&
+                result.render_offset_query.return_edx == 0x70004000U &&
+                result.render_offset_query.return_esi == 0U,
+            "current group-A target preserves the exact snapshot and actor-X stop residues"
+        );
+        test.expect_true(
+            !result.render_offset_query.flags.carry &&
                 !result.render_offset_query.flags.parity &&
                 result.render_offset_query.flags.auxiliary_carry &&
                 result.render_offset_query.flags.auxiliary_carry_defined &&
                 !result.render_offset_query.flags.zero &&
                 !result.render_offset_query.flags.sign &&
-                !result.render_offset_query.flags.overflow &&
-                fixture.input.selection_actor_origin_x == 0U &&
+                !result.render_offset_query.flags.overflow,
+            "current group-A target preserves the final affine SUB flags"
+        );
+        test.expect_true(
+            fixture.input.selection_actor_origin_x == 0U &&
                 fixture.input.selection_actor_origin_y == 0U &&
                 count_call(
                     fixture.port,
                     LegacyBattleSelectionFrameCall::reset_actor_selection
                 ) == 0U &&
+                count_call(
+                    fixture.port,
+                    LegacyBattleSelectionFrameCall::
+                        reserved_build_actor_snapshot_slot
+                ) == 0U &&
+                result.actor_frame_snapshot_queries == 1U &&
+                result.actor_frame_snapshot_entry_eax == 0xBCDU &&
+                result.actor_frame_snapshot_entry_ecx == 0x005029D0U &&
+                result.actor_frame_snapshot_entry_edx == 0x70004000U &&
                 result.action_frame_draw_calls == 0U,
-            "current group-A target preserves the snapshot EDX and final SUB flags while keeping the cleared slots and blocking reset, Y increment and drawing on the actor-X stop"
+            "current group-A target keeps the cleared slots and suppresses reset, reserved snapshot, Y increment, and drawing"
         );
     }
 

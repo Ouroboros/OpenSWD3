@@ -47,13 +47,13 @@ frame达到6后配置文字行与颜色。角色标签索引来自入口/完成�
 
 target-selection block等于1时扫描整组：
 
-- group-B对象完成查询返回0时，依次构造快照、模式1重置，再以重置callee返回的EAX/EDX/flags和既有ESI直连角色绘制偏移`0x00478400` typed leaf；输出固定复用`0x0053BF4A/0x0053BF4E`共享word，双word全零用矩形中心，否则分别按i16偏移加快照原点；typed-stop保留完成查询、快照和重置前缀，并阻断坐标读取、prepared动作帧、循环递增及余下suffix；
-- group-A先读取对象内两项门，任一等于1跳过；完成查询返回0时构造快照、模式1重置并按中心绘制；
-- live signed count不加现代上限，第九个group-B或第十一个group-A真实对象访问停止。
+- group-B对象完成查询返回0时，先以完成查询留下的EAX/EDX和ECX actor token直接组合当前帧边界typed leaf，再模式1重置；随后以重置callee返回的EAX/EDX/flags和既有ESI直连角色绘制偏移`0x00478400` typed leaf。输出固定复用`0x0053BF4A/0x0053BF4E`共享word，双word全零用矩形中心，否则分别按i16偏移加快照原点；snapshot typed-stop保留完成查询和逐槽部分提交但阻断reset及全部绘制后缀，render-offset typed-stop保留snapshot和reset前缀；
+- group-A先读取对象内两项门，任一等于1跳过；完成查询返回0时把共享四dword输出token装入EAX，以ECX actor token和完成查询留下的EDX直接组合snapshot，再模式1重置并按中心绘制；snapshot typed-stop同样阻断reset与绘制；
+- 两条遍历路径在同一次frame执行中复用同一个四dword snapshot，正常leaf早退保留当前共享值并继续caller后缀；live signed count不加现代上限，第九个group-B或第十一个group-A真实对象访问停止。
 
 block不等于1且当前group-B完成时，target cursor递增并按live signed count回绕1，再从九项target map读取新对象。每次发布target index与one-based actor code；遍历次数达到count则把message写1。target map index 9在真实读取点停止。
 
-published actor不是全1且共享pre-frame gate B为0时构造当前标记。路径先按Y后X顺序清零两个共享偏移word：group-B顺序为模式1重置、快照，再以`EAX=0x565*index`、`EDX=0x159*index`和`24*index-index`最终32位SUB flags直连角色绘制偏移typed leaf；成功后才发布one-based actor code，动作6再查询目标可用性。group-A one-based顺序为快照，再以`EAX=0x3EF*code`、快照callee残留EDX和`0x3F0*code-code`最终32位SUB flags直连同一leaf；成功后才模式1重置并把Y偏移低word加10。任一leaf typed-stop保留X后Y的部分word写入和当时寄存器/flags，并阻断各自后缀。最终动作号按target-action available选择，按循环索引直连prepared动作帧。原记录步长为`0x98`，第8项恰从`0x004FDC58`开始；因此只持久化前8项独立记录，第8项前16字节每次与lower-panel bottom/top/aux/aux-index四个typed dword互相装载写回，余下`0x120`字节保存第8项尾部和第9项，严格保留物理重叠而不建立副本。selection input gate等于1时，标记之后以固定`12/14`直连当前目标提示帧；该帧按组B名称绘制动态宽度框，指标至少10时显示signed生命值，至少15时再绘制渐变条，并保留镜像值`==1`与`!=0`两套不对称分支；子stop直接传播。
+published actor不是全1且共享pre-frame gate B为0时构造当前标记。路径先按Y后X顺序清零两个共享偏移word：group-B顺序为模式1重置、以`EAX=0x565*index/ECX=actor token/EDX=0x159*index`和`24*index-index`最终32位SUB flags直接组合snapshot，再以同一组入口寄存器直连角色绘制偏移typed leaf；成功后才发布one-based actor code，动作6再查询目标可用性。group-A one-based顺序为以`EAX=0xBCD*code/ECX=actor token/EDX=共享输出token`和`0x3F0*code-code`最终32位SUB flags直接组合snapshot，再以`EAX=0x3EF*code`、snapshot残留EDX和同一SUB flags直连render-offset leaf；成功后才模式1重置并把Y偏移低word加10。任一snapshot typed-stop保留共享四dword逐槽部分提交及当时寄存器/flags，并阻断reset、render-offset和目标发布；任一render-offset typed-stop保留X后Y的部分word写入并阻断各自后缀。最终动作号按target-action available选择，按循环索引直连prepared动作帧。原记录步长为`0x98`，第8项恰从`0x004FDC58`开始；因此只持久化前8项独立记录，第8项前16字节每次与lower-panel bottom/top/aux/aux-index四个typed dword互相装载写回，余下`0x120`字节保存第8项尾部和第9项，严格保留物理重叠而不建立副本。selection input gate等于1时，标记之后以固定`12/14`直连当前目标提示帧；该帧按组B名称绘制动态宽度框，指标至少10时显示signed生命值，至少15时再绘制渐变条，并保留镜像值`==1`与`!=0`两套不对称分支；子stop直接传播。
 
 ## 6. message 5、6、7与默认路径
 
@@ -67,8 +67,8 @@ message 0、大于30、103、以及9–26/28/29均保持权威默认返回，不
 
 global reset通过输入分派owner同步原234项写程序覆盖的控制word，并只同步选择帧owner内的display gate和secondary gate；同址pre-frame gate B只通过final-actor owner清零；五项选择指针、启动映射中的标签视图、pointer origin与输入owner中的actor origin未被原写程序覆盖，保持原值。
 
-主帧协调器原frame-stage槽保留相同枚举数值并改为reserved，交互可用发布后直连本实现。完成角色路径原目标准备callee槽也保留相同枚举数值并改为reserved，五项指针及message/cache/runtime清理后直连已关闭角色目标准备。任一子typed-stop保留此前副作用，并阻断本帧余下选择流程、画面效果和全部后续帧阶段；原动作摘要、列表框、列表内容、网格列表帧、替代网格列表帧、模式网格帧、窄网格帧、护驾面板帧、当前目标提示帧和控制面板帧opaque槽也分别保留相同枚举数值并改为reserved。三处角色绘制偏移generic调用同样改为直接typed组合，其原call槽和frame-coordinator转发槽保留枚举数值但改名为reserved；所有对应reserved槽均保持零调用。
+主帧协调器原frame-stage槽保留相同枚举数值并改为reserved，交互可用发布后直连本实现。完成角色路径原目标准备callee槽也保留相同枚举数值并改为reserved，五项指针及message/cache/runtime清理后直连已关闭角色目标准备。任一子typed-stop保留此前副作用，并阻断本帧余下选择流程、画面效果和全部后续帧阶段；原动作摘要、列表框、列表内容、网格列表帧、替代网格列表帧、模式网格帧、窄网格帧、护驾面板帧、当前目标提示帧和控制面板帧opaque槽也分别保留相同枚举数值并改为reserved。三处角色绘制偏移generic调用和四处角色snapshot调用均改为直接typed组合；其原call槽及frame-coordinator转发槽保留枚举数值但改名为reserved，所有对应reserved槽均保持零调用。
 
-定向测试覆盖：message 103和queued零早退、group-A一过前、完成角色替换及actor-order交换、message 1比例动画、文字居中、完整动作摘要及profile子stop、message 2完整列表框/列表内容、资源/矩形/共享文字子stop、signed动画夹值、七行上限与i8低byte、message 4完整网格列表帧、隐藏行无上限扫描、双矩形/共享文字子stop及纵向面板stop、message 27完整替代网格列表帧、第八次查询、单矩形与子stop，message 30完整模式网格帧、两列五行、页组修正、“無”复制与子stop，message 8完整窄网格帧、稀疏扫描、工作区文字重叠、显示行选中与子stop，message 5完整护驾面板、尾段列名、单项“無”和子stop，message 7完整控制面板、压缩选项、双transition、文字工作区和子stop，message 6物理byte OR、message 3第九个group-B对象、target map index 9、遍历标记signed偏移与重置flags、当前Group-B canonical覆盖/镜像、`0x159` EDX、X后Y部分提交和动作6后缀抑制、当前Group-A one-based token、快照EDX、SUB flags、Y加10与reset后缀抑制、完整当前目标提示帧、生命阈值、镜像不对称、格式缓冲与渐变子stop、prepared动作帧stop、动作记录第8项四dword物理重叠与第9项尾区、global reset覆盖范围及主帧caller传播。
+定向测试覆盖：message 103和queued零早退、group-A一过前、完成角色替换及actor-order交换、message 1比例动画、文字居中、完整动作摘要及profile子stop、message 2完整列表框/列表内容、资源/矩形/共享文字子stop、signed动画夹值、七行上限与i8低byte、message 4完整网格列表帧、隐藏行无上限扫描、双矩形/共享文字子stop及纵向面板stop、message 27完整替代网格列表帧、第八次查询、单矩形与子stop，message 30完整模式网格列表帧、两列五行、页组修正、“無”复制与子stop，message 8完整窄网格帧、稀疏扫描、工作区文字重叠、显示行选中与子stop，message 5完整护驾面板、尾段列名、单项“無”和子stop，message 7完整控制面板、压缩选项、双transition、文字工作区和子stop，message 6物理byte OR、message 3第九个group-B对象、target map index 9、Group-B遍历snapshot Y故障单槽部分提交、Group-A遍历输出token装入EAX、共享四dword早退保留、当前Group-B `0x565/0x159`与当前Group-A `0xBCD/共享输出token`入口形状、signed偏移与重置flags、render-offset canonical覆盖/镜像、X后Y部分提交和动作6后缀抑制、当前Group-A one-based token、snapshot残留EDX、SUB flags、Y加10与reset后缀抑制、完整当前目标提示帧、生命阈值、镜像不对称、格式缓冲与渐变子stop、prepared动作帧stop、reserved snapshot槽零调用、动作记录第8项四dword物理重叠与第9项尾区、global reset覆盖范围及主帧caller传播。
 
 当前缺少原版两组角色对象、未关闭callee共享副作用、文字表内容、五项动态指针目标、动作记录/帧资源联合状态、动态栈scratch地址、battle侧MAPS/共享文字owner实装及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

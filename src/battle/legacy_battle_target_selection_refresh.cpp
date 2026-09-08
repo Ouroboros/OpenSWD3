@@ -100,7 +100,7 @@ public:
         LegacyBattleInputDispatchPort& port,
         const LegacyBattleTargetSelectionRefreshRequest& request
     )
-        : bindings_(bindings), port_(port),
+        : bindings_(bindings), port_(port), request_(request),
           frame_(bindings.frame_input_resolution),
           final_actor_(bindings.final_actor), action_(bindings.action),
           metrics_(bindings.metrics), debug_(bindings.debug_hotkeys),
@@ -426,6 +426,51 @@ private:
         const u32 token = ecx_;
         invoke(call, token, arguments);
         ++result_.group_a_calls;
+        return true;
+    }
+
+    [[nodiscard]] bool
+    query_actor_frame_snapshot(const u32 code, const bool equipment_site) {
+        const u32 actor_token = kGroupAOneBasedToken + code * kGroupAStride;
+        auto snapshot_request = equipment_site
+            ? request_.equipment_actor_frame_snapshot
+            : request_.primary_actor_frame_snapshot;
+        const u32 first_shift = code << 6U;
+        const u32 first_difference = first_shift - code;
+        const u32 second_shift = first_difference << 4U;
+        const u32 second_difference = second_shift - code;
+        eax_ = equipment_site ? second_difference : second_difference * 3U;
+        ecx_ = actor_token;
+        edx_ = equipment_site ? second_difference * 3U
+                              : snapshot_request.output_token;
+        snapshot_request.actor_token = actor_token;
+        snapshot_request.entry_edx = edx_;
+        result_.actor_frame_snapshot_actor_token = actor_token;
+        result_.actor_frame_snapshot_entry_eax = eax_;
+        result_.actor_frame_snapshot_entry_ecx = ecx_;
+        result_.actor_frame_snapshot_entry_edx = edx_;
+        result_.actor_frame_snapshot = query_legacy_battle_actor_frame_snapshot(
+            resolve_legacy_battle_actor_frame_snapshot(
+                {
+                    .action = &bindings_.action,
+                    .startup = &bindings_.startup,
+                },
+                actor_token
+            ),
+            bindings_.action_updater,
+            bindings_.frame_provider,
+            snapshot_request
+        );
+        ++result_.actor_frame_snapshot_queries;
+        ++result_.group_a_calls;
+        eax_ = result_.actor_frame_snapshot.return_eax;
+        ecx_ = result_.actor_frame_snapshot.return_ecx;
+        edx_ = result_.actor_frame_snapshot.return_edx;
+        if (result_.actor_frame_snapshot.status !=
+            LegacyBattleActorFrameSnapshotStatus::completed) {
+            typed_stop(Status::actor_frame_snapshot_typed_stop);
+            return false;
+        }
         return true;
     }
 
@@ -900,10 +945,9 @@ private:
                         )) {
                         return false;
                     }
-                    edx_ = 0U;
-                    if (!invoke_group_a_one_based(
-                            Call::build_selection_snapshot,
-                            final_actor_.published_actor_code
+                    if (!query_actor_frame_snapshot(
+                            final_actor_.published_actor_code,
+                            clear_before_output
                         )) {
                         return false;
                     }
@@ -2210,6 +2254,7 @@ private:
 
     LegacyBattleTargetSelectionRefreshBindings bindings_;
     LegacyBattleInputDispatchPort& port_;
+    const LegacyBattleTargetSelectionRefreshRequest& request_;
     LegacyBattleFrameInputResolutionState& frame_;
     LegacyBattleFinalActorStepState& final_actor_;
     LegacyBattleActionDispatchState& action_;

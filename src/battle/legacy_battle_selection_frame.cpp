@@ -1316,11 +1316,49 @@ private:
         return true;
     }
 
-    void publish_snapshot(const LegacyBattleSelectionFrameCallReply& reply) {
-        snapshot_x_ = static_cast<u32>(reply.snapshot_x);
-        snapshot_y_ = static_cast<u32>(reply.snapshot_y);
-        snapshot_width_ = static_cast<u32>(reply.snapshot_width);
-        snapshot_height_ = static_cast<u32>(reply.snapshot_height);
+    [[nodiscard]] bool query_actor_frame_snapshot(
+        const u32 actor_token,
+        const LegacyBattleActorFrameSnapshotRequest& template_request
+    ) {
+        auto snapshot_request = template_request;
+        if (!actor_frame_output_initialized_) {
+            actor_frame_output_ = snapshot_request.initial_output;
+            actor_frame_output_initialized_ = true;
+        }
+        snapshot_request.actor_token = actor_token;
+        snapshot_request.entry_edx = edx_;
+        snapshot_request.initial_output = actor_frame_output_;
+        result_.actor_frame_snapshot_actor_token = actor_token;
+        result_.actor_frame_snapshot_entry_eax = eax_;
+        result_.actor_frame_snapshot_entry_ecx = ecx_;
+        result_.actor_frame_snapshot_entry_edx = edx_;
+        result_.actor_frame_snapshot = query_legacy_battle_actor_frame_snapshot(
+            resolve_legacy_battle_actor_frame_snapshot(
+                {
+                    .action = &bindings_.action,
+                    .startup = &bindings_.startup,
+                },
+                actor_token
+            ),
+            bindings_.action_updater,
+            bindings_.frame_provider,
+            snapshot_request
+        );
+        ++result_.actor_frame_snapshot_queries;
+        actor_frame_output_ = result_.actor_frame_snapshot.output;
+        eax_ = result_.actor_frame_snapshot.return_eax;
+        ecx_ = result_.actor_frame_snapshot.return_ecx;
+        edx_ = result_.actor_frame_snapshot.return_edx;
+        if (result_.actor_frame_snapshot.status !=
+            LegacyBattleActorFrameSnapshotStatus::completed) {
+            typed_stop(Status::actor_frame_snapshot_typed_stop);
+            return false;
+        }
+        snapshot_x_ = actor_frame_output_[0U];
+        snapshot_y_ = actor_frame_output_[1U];
+        snapshot_width_ = actor_frame_output_[2U];
+        snapshot_height_ = actor_frame_output_[3U];
+        return true;
     }
 
     [[nodiscard]] bool
@@ -1331,12 +1369,13 @@ private:
         if (eax_ != 0U) {
             return true;
         }
-        invoke(
-            Call::build_actor_snapshot,
-            kGroupBBaseToken + index * kGroupBStride,
-            {}
-        );
-        publish_snapshot(last_reply_);
+        const u32 actor_token = kGroupBBaseToken + index * kGroupBStride;
+        ecx_ = actor_token;
+        if (!query_actor_frame_snapshot(
+                actor_token, request_.group_b_marker_snapshot
+            )) {
+            return false;
+        }
         if (!invoke_group_b(Call::reset_actor_selection, index, {1U})) {
             return false;
         }
@@ -1381,12 +1420,14 @@ private:
         if (eax_ != 0U) {
             return true;
         }
-        invoke(
-            Call::build_actor_snapshot,
-            kGroupABaseToken + index * kGroupAStride,
-            {}
-        );
-        publish_snapshot(last_reply_);
+        const u32 actor_token = kGroupABaseToken + index * kGroupAStride;
+        eax_ = request_.group_a_marker_snapshot.output_token;
+        ecx_ = actor_token;
+        if (!query_actor_frame_snapshot(
+                actor_token, request_.group_a_marker_snapshot
+            )) {
+            return false;
+        }
         if (!invoke_group_a_direct(Call::reset_actor_selection, index, {1U})) {
             return false;
         }
@@ -1463,15 +1504,20 @@ private:
         state_input().selection_actor_origin_y = 0U;
         if (group_a) {
             const u32 code = bindings_.final_actor.published_actor_code;
-            if (!invoke_group_a_one_based(
-                    Call::build_actor_snapshot,
-                    code,
-                    {},
-                    GroupAOneBasedRegisterShape::eax_bcd
+            if (code == 0U || code > kGroupACount) {
+                typed_stop(Status::group_a_actor_typed_stop);
+                return false;
+            }
+            const u32 actor_token = kGroupAOneBasedToken + code * kGroupAStride;
+            edx_ = request_.current_group_a_snapshot.output_token;
+            eax_ = code * 0xBCDU;
+            ecx_ = actor_token;
+            ++result_.group_a_calls;
+            if (!query_actor_frame_snapshot(
+                    actor_token, request_.current_group_a_snapshot
                 )) {
                 return false;
             }
-            publish_snapshot(last_reply_);
             eax_ = code * 0x3EFU;
             if (!query_actor_render_offsets(
                     kGroupAOneBasedToken + code * kGroupAStride,
@@ -1499,15 +1545,16 @@ private:
                 )) {
                 return false;
             }
-            if (!invoke_group_b(
-                    Call::build_actor_snapshot,
-                    index,
-                    {},
-                    GroupBRegisterShape::eax_565_edx_159
+            eax_ = index * 0x565U;
+            edx_ = index * 0x159U;
+            const u32 actor_token = kGroupBBaseToken + index * kGroupBStride;
+            ecx_ = actor_token;
+            ++result_.group_b_calls;
+            if (!query_actor_frame_snapshot(
+                    actor_token, request_.current_group_b_snapshot
                 )) {
                 return false;
             }
-            publish_snapshot(last_reply_);
             eax_ = index * 0x565U;
             edx_ = index * 0x159U;
             if (!query_actor_render_offsets(
@@ -1646,6 +1693,8 @@ private:
     u32 ebp_{};
     u32 esi_{};
     u32 edi_{};
+    std::array<u32, 4> actor_frame_output_{};
+    bool actor_frame_output_initialized_{};
     u32 snapshot_x_{};
     u32 snapshot_y_{};
     u32 snapshot_width_{};

@@ -544,7 +544,7 @@ void test_battle_frame_input_resolution(openswd3::test::Context& test) {
                 fixture.port.count(
                     LegacyBattleFrameInputResolutionCall::resolve_actor_surface
                 ) == 0U &&
-                result.return_ecx == 0U,
+                result.return_ecx == 0x26U,
             "case three missing actor stops in the typed frame snapshot before surface resolution and target publication"
         );
     }

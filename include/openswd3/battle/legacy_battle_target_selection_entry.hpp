@@ -7,6 +7,7 @@
 namespace openswd3::battle {
 
 struct LegacyBattleTargetSelectionEntryBindings {
+    LegacyBattleStartupState& startup;
     LegacyBattleStartupResetBlocks& startup_reset;
     LegacyBattleTextMessageState& text_messages;
     const LegacyBattleActionModeSourceState& action_mode_source;
@@ -18,6 +19,8 @@ struct LegacyBattleTargetSelectionEntryBindings {
     LegacyBattleFrameInputResolutionState& frame_input_resolution;
     LegacyBattleFinalActorStepState& final_actor;
     LegacyBattleActionDispatchState& action;
+    asset_runtime::LegacyActionUpdater& action_updater;
+    rendering::LegacyFramePieceProvider& frame_provider;
     LegacyBattleActorMetricState& metrics;
     LegacyBattleDebugHotkeyState& debug_hotkeys;
     LegacyBattleInputDispatchState& input_dispatch;
@@ -35,6 +38,7 @@ struct LegacyBattleTargetSelectionEntryRequest {
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
+    LegacyBattleTargetSelectionRefreshRequest target_selection_refresh{};
 };
 
 enum class LegacyBattleTargetSelectionEntryStatus : compat::u8 {

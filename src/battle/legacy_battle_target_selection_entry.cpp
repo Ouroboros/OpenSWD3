@@ -123,8 +123,13 @@ LegacyBattleTargetSelectionEntryResult enter_legacy_battle_target_selection(
         return true;
     };
     const auto refresh_state = [&]() {
+        auto refresh_request = request.target_selection_refresh;
+        refresh_request.entry_eax = eax;
+        refresh_request.entry_ecx = ecx;
+        refresh_request.entry_edx = edx;
         const auto nested = refresh_legacy_battle_target_selection(
             {
+                .startup = bindings.startup,
                 .startup_reset = bindings.startup_reset,
                 .text_messages = bindings.text_messages,
                 .startup_supplemental_count_word =
@@ -133,6 +138,8 @@ LegacyBattleTargetSelectionEntryResult enter_legacy_battle_target_selection(
                 .frame_input_resolution = frame,
                 .final_actor = final_actor,
                 .action = action,
+                .action_updater = bindings.action_updater,
+                .frame_provider = bindings.frame_provider,
                 .metrics = bindings.metrics,
                 .debug_hotkeys = bindings.debug_hotkeys,
                 .input_dispatch = input,
@@ -143,7 +150,7 @@ LegacyBattleTargetSelectionEntryResult enter_legacy_battle_target_selection(
                 .party = bindings.party,
             },
             port,
-            {.entry_eax = eax, .entry_ecx = ecx, .entry_edx = edx}
+            refresh_request
         );
         ++result.target_selection_refresh_calls;
         result.port_calls += nested.port_calls;

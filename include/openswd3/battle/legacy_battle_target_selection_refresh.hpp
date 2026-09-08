@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_actor_frame_snapshot.hpp"
 #include "openswd3/battle/legacy_battle_debug_hotkeys.hpp"
 #include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
 #include "openswd3/battle/legacy_battle_group_a_final_processing.hpp"
@@ -10,6 +11,7 @@
 namespace openswd3::battle {
 
 struct LegacyBattleTargetSelectionRefreshBindings {
+    LegacyBattleStartupState& startup;
     LegacyBattleStartupResetBlocks& startup_reset;
     LegacyBattleTextMessageState& text_messages;
     compat::u16& startup_supplemental_count_word;
@@ -17,6 +19,8 @@ struct LegacyBattleTargetSelectionRefreshBindings {
     LegacyBattleFrameInputResolutionState& frame_input_resolution;
     LegacyBattleFinalActorStepState& final_actor;
     LegacyBattleActionDispatchState& action;
+    asset_runtime::LegacyActionUpdater& action_updater;
+    rendering::LegacyFramePieceProvider& frame_provider;
     LegacyBattleActorMetricState& metrics;
     LegacyBattleDebugHotkeyState& debug_hotkeys;
     LegacyBattleInputDispatchState& input_dispatch;
@@ -33,6 +37,8 @@ struct LegacyBattleTargetSelectionRefreshRequest {
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
+    LegacyBattleActorFrameSnapshotRequest primary_actor_frame_snapshot{};
+    LegacyBattleActorFrameSnapshotRequest equipment_actor_frame_snapshot{};
 };
 
 enum class LegacyBattleTargetSelectionRefreshStatus : compat::u8 {
@@ -51,6 +57,7 @@ enum class LegacyBattleTargetSelectionRefreshStatus : compat::u8 {
     group_a_target_order_typed_stop,
     actor_mode_four_finalization_typed_stop,
     actor_resource_release_typed_stop,
+    actor_frame_snapshot_typed_stop,
 };
 
 enum class LegacyBattleActorActionThirtyOverrideStatus : compat::u8 {
@@ -134,6 +141,12 @@ struct LegacyBattleTargetSelectionRefreshResult {
     compat::u32 action_thirty_override_calls{};
     LegacyBattleActorActionFourOverrideResult action_four_override{};
     compat::u32 action_four_override_calls{};
+    LegacyBattleActorFrameSnapshotResult actor_frame_snapshot{};
+    compat::u32 actor_frame_snapshot_queries{};
+    compat::u32 actor_frame_snapshot_actor_token{};
+    compat::u32 actor_frame_snapshot_entry_eax{};
+    compat::u32 actor_frame_snapshot_entry_ecx{};
+    compat::u32 actor_frame_snapshot_entry_edx{};
 };
 
 // Typed closure of legacy 0x00462740.

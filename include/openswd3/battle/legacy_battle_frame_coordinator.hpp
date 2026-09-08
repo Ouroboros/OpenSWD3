@@ -115,7 +115,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     selection_frame_configure_text_font,
     selection_frame_query_group_b_completion,
     selection_frame_query_group_a_completion,
-    selection_frame_build_actor_snapshot,
+    reserved_selection_frame_build_actor_snapshot_slot,
     reserved_selection_frame_query_actor_origin_slot,
     selection_frame_query_target_action_available,
     reserved_selection_frame_draw_selection_hint_slot,
@@ -544,9 +544,9 @@ public:
             call = LegacyBattleFrameCoordinatorCall::
                 selection_frame_query_group_a_completion;
             break;
-        case LegacyBattleSelectionFrameCall::build_actor_snapshot:
+        case LegacyBattleSelectionFrameCall::reserved_build_actor_snapshot_slot:
             call = LegacyBattleFrameCoordinatorCall::
-                selection_frame_build_actor_snapshot;
+                reserved_selection_frame_build_actor_snapshot_slot;
             break;
         case LegacyBattleSelectionFrameCall::reserved_query_actor_origin_slot:
             call = LegacyBattleFrameCoordinatorCall::
