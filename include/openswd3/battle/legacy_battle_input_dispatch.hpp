@@ -119,7 +119,7 @@ enum class LegacyBattleInputDispatchCall : compat::u8 {
     menu_advance_query_group_a_candidate,
     reserved_menu_finalize_reset_active_group_a_actor_slot,
     menu_finalize_reset_actor,
-    target_selection_configure_actor,
+    reserved_target_selection_current_coordinates_slot,
     reserved_target_selection_scan_primary_slot,
     reserved_target_selection_scan_secondary_slot,
     reserved_target_selection_refresh_state_slot,

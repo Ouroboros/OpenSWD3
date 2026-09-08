@@ -57,3 +57,9 @@ C++到LST：helper没有额外callee、分配、日志、验证、坐标变换�
 定向聚合目标覆盖两条完成路径、CMP标志及AF有效性、selector停止的入口flags与未定义AF标记，以及每个后续可失败访问的EAX/ECX/EDX残值、第一次写入后的部分提交、源/输出别名、相同输出指针、固定token解析、Group-B记录复制别名和28个已关闭caller物理站点的真实owner集成。REVIEW 4额外覆盖caller既有word/dword/参数槽的低16位别名、高word保留、两次查询共享槽、Y读取失败时X部分写入及各caller后缀阻断。生产`src/`静态扫描无`0x004783B0` opaque调用；兼容枚举只保留reserved地址槽，测试中的地址匹配只用于断言调用次数为零。
 
 原版异常页和全部caller寄存器/SEH联合动态捕获尚无运行时oracle；该限制按`blocked_runtime_oracle`登记，不以静态结果冒充动态差分。
+
+## 7. 当前坐标查询 `0x00478600`
+
+Workpack 288 REVIEW 1新增独立`query_legacy_battle_actor_current_coordinates`，不复用本页`0x004783B0`的selector门。权威范围`0x00478600..0x0047861E`只有7条指令：依次读取第一输出指针、`actor+0x0D66`、写X word、读取`actor+0x0D68`、读取第二输出指针、写Y word并`retn 8`。六个访问点分别映射typed-stop；X已写后发生的Y读取、第二指针读取或Y写入停止均保留X，输出互相别名及输出覆盖actor Y字段时继续按物理顺序观察已提交值。
+
+正常返回保留入口EAX高word并令`AX=Y`，`EDX=out_x`、`ECX=out_y`；MOV与RET不改flags，因此完成及任一typed-stop均保留caller入口flags。Group-A继续优先解析startup party、无startup时回退action execution；Group-B解析startup lifecycle action execution，没有建立平行坐标数组。REVIEW 1已回收效果步进四处、调试标记一处和目标选择入口一处，共`6/21`个物理callsite；这六处生产路径对`0x00478600`的generic/opaque调用为零。

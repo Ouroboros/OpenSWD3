@@ -165,6 +165,7 @@ final gate word仍大于0时执行第二次gate：
 - 组B`-1`基础reward下跨角色累计offset；
 - 单体普通reward和旧辅助/高位行消费；
 - 第11个组A角色保留前10角色前缀后typed-stop；
-- 两次全角色步进的EAX/恢复ECX来源、第一次0返回早退、第二次普通返回忽略与角色typed-stop传播。
+- 两次全角色步进的EAX/恢复ECX来源、第一次0返回早退、第二次普通返回忽略与角色typed-stop传播；
+- Workpack 288 REVIEW 1把两次效果步进的Group-A/Group-B current-coordinate停止映射为独立父级状态，两处调用都从frame state显式传入`arg_0/var_4`语义局部token并公开leaf真实EAX/ECX/EDX和X低字前缀；第一次停止阻断第二次步进、render与cleanup，第二次停止阻断alternate cleanup后缀，四处`0x00478600`生产端口调用为零。
 
 当前缺少原版双记录、18角色对象、20类剩余直接callee与效果步进内部两类actor callee共享副作用、resource owner、参数对象、sample、eligibility/reward表、奖励行对象和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

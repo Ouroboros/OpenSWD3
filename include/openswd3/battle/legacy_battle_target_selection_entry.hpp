@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_actor_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_group_b_action_item_option.hpp"
 #include "openswd3/battle/legacy_battle_group_b_action_item_special_option.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_refresh.hpp"
@@ -38,6 +39,7 @@ struct LegacyBattleTargetSelectionEntryRequest {
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
+    LegacyBattleActorCurrentCoordinateQueryRequest current_coordinate_query{};
     LegacyBattleTargetSelectionRefreshRequest target_selection_refresh{};
 };
 
@@ -46,6 +48,7 @@ enum class LegacyBattleTargetSelectionEntryStatus : compat::u8 {
     active_group_a_actor_typed_stop,
     selected_group_b_actor_typed_stop,
     action_mode_refresh_typed_stop,
+    current_coordinate_typed_stop,
     target_selection_refresh_typed_stop,
     primary_option_typed_stop,
     secondary_option_typed_stop,
@@ -66,6 +69,8 @@ struct LegacyBattleTargetSelectionEntryResult {
     std::array<LegacyBattleGroupBActionItemSpecialOptionResult, 2>
         secondary_options{};
     compat::u32 action_mode_refresh_calls{};
+    LegacyBattleActorCurrentCoordinateQueryResult current_coordinate_query{};
+    compat::u32 current_coordinate_query_calls{};
     compat::u32 target_selection_refresh_calls{};
 };
 

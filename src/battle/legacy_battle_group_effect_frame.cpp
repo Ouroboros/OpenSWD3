@@ -881,7 +881,11 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
             primary.complete,
             registers.ecx,
             primary.complete,
-            coordinate_owners
+            coordinate_owners,
+            {
+                .output_x_token = state.coordinate_output_x_token,
+                .output_y_token = state.coordinate_output_y_token,
+            }
         );
         const auto& shift = result.effect_shift;
         result.port_calls += shift.port_calls;
@@ -889,6 +893,9 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
         registers.ecx = shift.final_ecx;
         registers.edx = shift.final_edx;
         if (shift.status != LegacyBattleEffectShiftStatus::completed) {
+            result.return_value = registers.eax;
+            result.return_ecx = registers.ecx;
+            result.return_edx = registers.edx;
             switch (shift.status) {
             case LegacyBattleEffectShiftStatus::group_a_actor_typed_stop:
                 result.status = LegacyBattleGroupEffectFrameStatus::
@@ -897,6 +904,16 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
             case LegacyBattleEffectShiftStatus::group_b_actor_typed_stop:
                 result.status = LegacyBattleGroupEffectFrameStatus::
                     effect_shift_group_b_typed_stop;
+                break;
+            case LegacyBattleEffectShiftStatus::
+                group_a_current_coordinate_typed_stop:
+                result.status = LegacyBattleGroupEffectFrameStatus::
+                    effect_shift_group_a_current_coordinate_typed_stop;
+                break;
+            case LegacyBattleEffectShiftStatus::
+                group_b_current_coordinate_typed_stop:
+                result.status = LegacyBattleGroupEffectFrameStatus::
+                    effect_shift_group_b_current_coordinate_typed_stop;
                 break;
             case LegacyBattleEffectShiftStatus::
                 group_a_coordinate_publication_typed_stop:
@@ -932,7 +949,11 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
             1U,
             second_argument,
             registers.edx,
-            coordinate_owners
+            coordinate_owners,
+            {
+                .output_x_token = state.coordinate_output_x_token,
+                .output_y_token = state.coordinate_output_y_token,
+            }
         );
         const auto& shift = result.effect_shift;
         result.port_calls += shift.port_calls;
@@ -940,6 +961,9 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
         registers.ecx = shift.final_ecx;
         registers.edx = shift.final_edx;
         if (shift.status != LegacyBattleEffectShiftStatus::completed) {
+            result.return_value = registers.eax;
+            result.return_ecx = registers.ecx;
+            result.return_edx = registers.edx;
             switch (shift.status) {
             case LegacyBattleEffectShiftStatus::group_a_actor_typed_stop:
                 result.status = LegacyBattleGroupEffectFrameStatus::
@@ -948,6 +972,16 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
             case LegacyBattleEffectShiftStatus::group_b_actor_typed_stop:
                 result.status = LegacyBattleGroupEffectFrameStatus::
                     effect_shift_group_b_typed_stop;
+                break;
+            case LegacyBattleEffectShiftStatus::
+                group_a_current_coordinate_typed_stop:
+                result.status = LegacyBattleGroupEffectFrameStatus::
+                    effect_shift_group_a_current_coordinate_typed_stop;
+                break;
+            case LegacyBattleEffectShiftStatus::
+                group_b_current_coordinate_typed_stop:
+                result.status = LegacyBattleGroupEffectFrameStatus::
+                    effect_shift_group_b_current_coordinate_typed_stop;
                 break;
             case LegacyBattleEffectShiftStatus::
                 group_a_coordinate_publication_typed_stop:

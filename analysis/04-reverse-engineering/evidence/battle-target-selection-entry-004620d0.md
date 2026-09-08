@@ -48,10 +48,10 @@ target-ready gate不等于1、当前queued角色code为0，或message非零且�
 - group-B index、group-A index与逐帧option cache保持三个独立u16；
 - target-ready复用actor-frame shared owner；outcome门复用outcome state；message高bit复用action state；group-B count和packed低byte复用既有metric/action owner；one-shot interaction复用世界player-control owner。
 
-逐帧输入分派旧`commit_selection`槽保留稳定reserved值，五个typed调用点覆盖原十个静态callsite。普通返回寄存器继续原caller路径；active/group-B typed-stop立即阻断caller随后option清理或帧阶段。未关闭AI/action caller三处不提前改写。
+逐帧输入分派旧`commit_selection`槽保留稳定reserved值，五个typed调用点覆盖原十个静态callsite。Workpack 288 REVIEW 1进一步把`0x00462234` current-coordinate站点从input-dispatch端口移除，直接把Group-A canonical当前X/Y按低word顺序写入`0x0053BF4A/0x0053BF4E`对应scratch；旧枚举ordinal改为reserved且生产零调用。查询完成后的EAX高字、EDX/ECX输出token和SUB flags继续进入后续比较与动作刷新；任一查询stop保留已提交X并阻断比较、动作刷新、扫描和其余选择后缀。普通返回寄存器继续原caller路径；active/group-B typed-stop立即阻断caller随后option清理或帧阶段。未关闭AI/action caller三处不提前改写。
 
 ## 7. 验证与动态差分
 
-定向测试覆盖：四个入口门、group-B差值清message、message 110两种边界、dialog非空、ready刷新、active query完成、group-A一过前停止、sample/configure/动作刷新普通与typed-stop、五项扫描与可见数、group-B index 8前缀停止、逐帧输入普通直连和typed-stop传播，以及物理owner/reset交叉回归。
+定向测试覆盖：四个入口门、group-B差值清message、message 110两种边界、dialog非空、ready刷新、active query完成、group-A一过前停止、sample、current-coordinate完成与Y读取停止后的X scratch前缀、旧input-dispatch坐标槽零调用、输出token高字进入动作刷新、动作刷新普通与typed-stop、五项扫描与可见数、group-B index 8前缀停止、逐帧输入普通直连和typed-stop传播，以及物理owner/reset交叉回归。
 
 当前缺少原版两组角色对象、动作刷新内三个角色查询及其余未关闭callee共享副作用、动态dialog head token、三处AI caller输入、两处输出word、已关闭刷新函数的动态状态/callee轨迹及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

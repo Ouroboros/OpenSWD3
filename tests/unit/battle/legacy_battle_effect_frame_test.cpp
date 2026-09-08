@@ -470,6 +470,8 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
         LegacyBattleEffectFrameState state;
         state.primary[0].complete = 1U;
         state.primary[0].lookup_key_b = 2U;
+        state.coordinate_output_x_token = 0xAAAA1111U;
+        state.coordinate_output_y_token = 0xBBBB2222U;
         EffectPort port;
         LegacyBattleStartupState startup{};
         port.effect_shift_state().threshold_word = 1U;
@@ -482,11 +484,53 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleEffectFrameStatus::group_a_actor_typed_stop &&
-                result.return_value == 0U && port.count(0x00478600U) == 10U &&
+                result.return_value == 0U && port.count(0x00478600U) == 0U &&
                 port.count(0x004785C0U) == 0U &&
+                result.effect_shift.current_coordinate_query_calls == 10U &&
+                result.effect_shift.current_coordinate_query.return_ecx ==
+                    0xBBBB2222U &&
+                result.effect_shift.current_coordinate_query.return_edx ==
+                    0xAAAA1111U &&
                 result.effect_shift.coordinate_publication_calls == 10U &&
                 state.primary[0].complete == 1U,
             "direct final shift propagates the eleventh group-A actor stop after ten typed coordinate publications"
+        );
+    }
+
+    {
+        LegacyBattleEffectFrameState state;
+        LegacyBattleStartupState startup{};
+        state.primary[0].complete = 1U;
+        state.primary[0].lookup_key_b = 2U;
+        state.animation_counter[0] = 9U;
+        state.coordinate_output_x_token = 0xAAAA1111U;
+        state.coordinate_output_y_token = 0xBBBB2222U;
+        EffectPort port;
+        port.effect_shift_state().threshold_word = 1U;
+        port.effect_shift_state().actor_delta = 1;
+        port.actor_metric_state().group_a_count = 1U;
+        startup.party[0].position_x = 0x1234U;
+        startup.party[0].position_y_read_accessible = false;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_effect_frame(
+                state, port, 0U, 0x1000U, 0U, 0U, 0U, {.startup = &startup}
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleEffectFrameStatus::
+                        effect_shift_group_a_current_coordinate_typed_stop &&
+                result.effect_shift.current_coordinate_query.status ==
+                    openswd3::battle::
+                        LegacyBattleActorCurrentCoordinateQueryStatus::
+                            position_y_read_typed_stop &&
+                result.effect_shift.argument_value == 0x1234U &&
+                result.effect_shift.coordinate_publication_calls == 0U &&
+                result.return_value == 0x1234U &&
+                result.return_ecx == 0x005029D0U &&
+                result.return_edx == 0xAAAA1111U &&
+                state.primary[0].complete == 1U &&
+                state.animation_counter[0] == 9U,
+            "single effect frame propagates current-coordinate registers and X prefix while suppressing cleanup"
         );
     }
 
@@ -514,8 +558,9 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
                             source_dword_read_typed_stop &&
                 result.effect_shift.coordinate_publication
                         .stopped_dword_index == 1U &&
-                port.count(0x00478600U) == 1U &&
+                port.count(0x00478600U) == 0U &&
                 port.count(0x004785C0U) == 0U &&
+                result.effect_shift.current_coordinate_query_calls == 1U &&
                 state.primary[0].complete == 1U,
             "direct final shift preserves the exact typed publication stop and suppresses effect cleanup"
         );

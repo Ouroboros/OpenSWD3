@@ -12,8 +12,6 @@ using compat::i32;
 using compat::u16;
 using compat::u32;
 
-constexpr u32 kCallReadActorValue = 0x00478600U;
-
 [[nodiscard]] constexpr i16 signed_word(const u16 value) noexcept {
     return std::bit_cast<i16>(value);
 }
@@ -47,6 +45,19 @@ add_flags(const u32 left, const u32 right, const u32 value) noexcept {
     };
 }
 
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+subtract_flags(const u32 left, const u32 right, const u32 value) noexcept {
+    return {
+        .carry = left < right,
+        .parity = has_even_parity(value),
+        .auxiliary_carry = ((left ^ right ^ value) & 0x10U) != 0U,
+        .auxiliary_carry_defined = true,
+        .zero = value == 0U,
+        .sign = (value & 0x80000000U) != 0U,
+        .overflow = (((left ^ right) & (left ^ value)) & 0x80000000U) != 0U,
+    };
+}
+
 [[nodiscard]] constexpr i32
 arithmetic_shift_right_one(const i32 value) noexcept {
     const std::int64_t wide = value;
@@ -58,29 +69,6 @@ actor_token(const u32 base, const u32 stride, const i32 index) noexcept {
     return base + static_cast<u32>(index) * stride;
 }
 
-[[nodiscard]] LegacyBattleEffectCallReply invoke(
-    LegacyBattleEffectCallPort& port,
-    LegacyBattleEffectShiftResult& result,
-    const u32 callee,
-    const u32 actor,
-    const u32 argument_value,
-    const u32 scratch_value,
-    const u32 eax,
-    const u32 ecx,
-    const u32 edx
-) {
-    LegacyBattleEffectCallRequest request{};
-    request.callee_token = callee;
-    request.arguments[0] = actor;
-    request.arguments[1] = argument_value;
-    request.arguments[2] = scratch_value;
-    request.eax = eax;
-    request.ecx = ecx;
-    request.edx = edx;
-    ++result.port_calls;
-    return port.invoke(request);
-}
-
 [[nodiscard]] bool apply_group(
     LegacyBattleEffectCallPort& port,
     LegacyBattleEffectShiftResult& result,
@@ -88,7 +76,9 @@ actor_token(const u32 base, const u32 stride, const i32 index) noexcept {
     u32& argument_value,
     u32& scratch_value,
     u32& final_edx,
-    const LegacyBattleActorCoordinateOwners& coordinate_owners
+    const LegacyBattleActorCoordinateOwners& coordinate_owners,
+    const LegacyBattleEffectShiftCurrentCoordinateAccess&
+        current_coordinate_access
 ) {
     auto& shift = port.effect_shift_state();
     auto& metrics = port.actor_metric_state();
@@ -117,22 +107,62 @@ actor_token(const u32 base, const u32 stride, const i32 index) noexcept {
             return false;
         }
         const u32 actor = actor_token(base, stride, signed_index);
-        const auto read = invoke(
-            port,
-            result,
-            kCallReadActorValue,
-            actor,
-            argument_value,
-            scratch_value,
-            argument_value,
-            actor,
-            final_edx
-        );
-        if ((read.output_write_mask & 1U) != 0U) {
-            argument_value = read.outputs[0];
+        const u32 index_bits = static_cast<u32>(signed_index);
+        const u32 flag_left = group_a ? index_bits * 0x3F0U : index_bits * 24U;
+        const u32 flag_value = flag_left - index_bits;
+        const u32 query_entry_eax =
+            group_a ? flag_value * 3U : index_bits + flag_value * 60U;
+        u16 output_x = static_cast<u16>(argument_value);
+        u16 output_y = static_cast<u16>(scratch_value);
+        result.current_coordinate_query =
+            query_legacy_battle_actor_current_coordinates(
+                resolve_legacy_battle_actor_coordinates(
+                    coordinate_owners, actor
+                ),
+                &output_x,
+                &output_y,
+                {
+                    .actor_token = actor,
+                    .output_x_token = current_coordinate_access.output_x_token,
+                    .output_y_token = current_coordinate_access.output_y_token,
+                    .entry_eax = query_entry_eax,
+                    .entry_edx = group_a
+                        ? final_edx
+                        : current_coordinate_access.output_y_token,
+                    .entry_flags =
+                        subtract_flags(flag_left, index_bits, flag_value),
+                    .first_output_pointer_readable =
+                        current_coordinate_access.first_output_pointer_readable,
+                    .second_output_pointer_readable =
+                        current_coordinate_access
+                            .second_output_pointer_readable,
+                    .first_output_writable =
+                        current_coordinate_access.first_output_writable,
+                    .second_output_writable =
+                        current_coordinate_access.second_output_writable,
+                }
+            );
+        ++result.current_coordinate_query_calls;
+        const auto& current = result.current_coordinate_query;
+        if (current.output_writes >= 1U) {
+            argument_value =
+                (argument_value & 0xFFFF0000U) | static_cast<u32>(output_x);
         }
-        if ((read.output_write_mask & 2U) != 0U) {
-            scratch_value = read.outputs[1];
+        if (current.output_writes >= 2U) {
+            scratch_value =
+                (scratch_value & 0xFFFF0000U) | static_cast<u32>(output_y);
+        }
+        if (current.status !=
+            LegacyBattleActorCurrentCoordinateQueryStatus::completed) {
+            result.status = group_a ? LegacyBattleEffectShiftStatus::
+                                          group_a_current_coordinate_typed_stop
+                                    : LegacyBattleEffectShiftStatus::
+                                          group_b_current_coordinate_typed_stop;
+            result.return_value = current.return_eax;
+            result.final_ecx = current.return_ecx;
+            result.final_edx = current.return_edx;
+            final_edx = current.return_edx;
+            return false;
         }
 
         const u32 add_left = argument_value;
@@ -146,7 +176,7 @@ actor_token(const u32 base, const u32 stride, const i32 index) noexcept {
                 .actor_token = actor,
                 .entry_eax = argument_value,
                 .entry_ecx = actor,
-                .entry_edx = group_a ? scratch_value : read.edx,
+                .entry_edx = group_a ? scratch_value : current.return_edx,
                 .entry_esi = actor,
                 .entry_edi = std::bit_cast<u32>(signed_index),
                 .entry_flags = add_flags(add_left, add_right, argument_value),
@@ -185,7 +215,9 @@ actor_token(const u32 base, const u32 stride, const i32 index) noexcept {
     u32& argument_value,
     u32& scratch_value,
     u32& final_edx,
-    const LegacyBattleActorCoordinateOwners& coordinate_owners
+    const LegacyBattleActorCoordinateOwners& coordinate_owners,
+    const LegacyBattleEffectShiftCurrentCoordinateAccess&
+        current_coordinate_access
 ) {
     return apply_group(
                port,
@@ -194,7 +226,8 @@ actor_token(const u32 base, const u32 stride, const i32 index) noexcept {
                argument_value,
                scratch_value,
                final_edx,
-               coordinate_owners
+               coordinate_owners,
+               current_coordinate_access
            ) &&
         apply_group(
                port,
@@ -203,7 +236,8 @@ actor_token(const u32 base, const u32 stride, const i32 index) noexcept {
                argument_value,
                scratch_value,
                final_edx,
-               coordinate_owners
+               coordinate_owners,
+               current_coordinate_access
         );
 }
 
@@ -215,7 +249,9 @@ LegacyBattleEffectShiftResult advance_legacy_battle_effect_shift(
     const u32 completion_mode,
     const u32 entry_ecx,
     const u32 entry_edx,
-    const LegacyBattleActorCoordinateOwners& coordinate_owners
+    const LegacyBattleActorCoordinateOwners& coordinate_owners,
+    const LegacyBattleEffectShiftCurrentCoordinateAccess&
+        current_coordinate_access
 ) {
     LegacyBattleEffectShiftResult result{};
     auto& shift = port.effect_shift_state();
@@ -244,11 +280,18 @@ LegacyBattleEffectShiftResult advance_legacy_battle_effect_shift(
                 argument_value,
                 scratch_value,
                 final_edx,
-                coordinate_owners
+                coordinate_owners,
+                current_coordinate_access
             )) {
             result.argument_value = argument_value;
             result.scratch_value = scratch_value;
             if (result.status !=
+                    LegacyBattleEffectShiftStatus::
+                        group_a_current_coordinate_typed_stop &&
+                result.status !=
+                    LegacyBattleEffectShiftStatus::
+                        group_b_current_coordinate_typed_stop &&
+                result.status !=
                     LegacyBattleEffectShiftStatus::
                         group_a_coordinate_publication_typed_stop &&
                 result.status !=
@@ -291,11 +334,18 @@ LegacyBattleEffectShiftResult advance_legacy_battle_effect_shift(
                     argument_value,
                     scratch_value,
                     final_edx,
-                    coordinate_owners
+                    coordinate_owners,
+                    current_coordinate_access
                 )) {
                 result.argument_value = argument_value;
                 result.scratch_value = scratch_value;
                 if (result.status !=
+                        LegacyBattleEffectShiftStatus::
+                            group_a_current_coordinate_typed_stop &&
+                    result.status !=
+                        LegacyBattleEffectShiftStatus::
+                            group_b_current_coordinate_typed_stop &&
+                    result.status !=
                         LegacyBattleEffectShiftStatus::
                             group_a_coordinate_publication_typed_stop &&
                     result.status !=

@@ -1149,11 +1149,18 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
             primary.complete,
             primary.complete,
             final_argument,
-            coordinate_owners
+            coordinate_owners,
+            {
+                .output_x_token = state.coordinate_output_x_token,
+                .output_y_token = state.coordinate_output_y_token,
+            }
         );
         const auto& shift = result.effect_shift;
         result.port_calls += shift.port_calls;
         if (shift.status != LegacyBattleEffectShiftStatus::completed) {
+            result.return_value = shift.return_value;
+            result.return_ecx = shift.final_ecx;
+            result.return_edx = shift.final_edx;
             switch (shift.status) {
             case LegacyBattleEffectShiftStatus::group_a_actor_typed_stop:
                 result.status =
@@ -1162,6 +1169,16 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
             case LegacyBattleEffectShiftStatus::group_b_actor_typed_stop:
                 result.status =
                     LegacyBattleEffectFrameStatus::group_b_actor_typed_stop;
+                break;
+            case LegacyBattleEffectShiftStatus::
+                group_a_current_coordinate_typed_stop:
+                result.status = LegacyBattleEffectFrameStatus::
+                    effect_shift_group_a_current_coordinate_typed_stop;
+                break;
+            case LegacyBattleEffectShiftStatus::
+                group_b_current_coordinate_typed_stop:
+                result.status = LegacyBattleEffectFrameStatus::
+                    effect_shift_group_b_current_coordinate_typed_stop;
                 break;
             case LegacyBattleEffectShiftStatus::
                 group_a_coordinate_publication_typed_stop:

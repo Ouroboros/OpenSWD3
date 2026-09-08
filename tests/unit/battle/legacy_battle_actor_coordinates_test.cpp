@@ -9,8 +9,10 @@
 void test_battle_actor_coordinates(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleActorCoordinateOwners;
     using openswd3::battle::LegacyBattleActorCoordinateQueryStatus;
+    using openswd3::battle::LegacyBattleActorCurrentCoordinateQueryStatus;
     using openswd3::battle::LegacyBattleActorCoordinatesState;
     using openswd3::battle::query_legacy_battle_actor_coordinates;
+    using openswd3::battle::query_legacy_battle_actor_current_coordinates;
     using openswd3::battle::resolve_legacy_battle_actor_coordinates;
     using openswd3::battle::view_legacy_battle_actor_coordinates;
     using openswd3::compat::u16;
@@ -291,6 +293,199 @@ void test_battle_actor_coordinates(openswd3::test::Context& test) {
         test.expect_true(
             result.output_writes == 2U && output == 0x2468U,
             "identical output pointers receive X then Y without deduplication"
+        );
+    }
+
+    {
+        LegacyBattleActorCoordinatesState actor{};
+        actor.position_x = 0x1234U;
+        actor.position_y = 0xFEDCU;
+        u16 x = 0xAAAAU;
+        u16 y = 0xBBBBU;
+        const openswd3::battle::LegacyBattleActorCoordinateFlags entry_flags{
+            .carry = true,
+            .parity = false,
+            .auxiliary_carry = true,
+            .auxiliary_carry_defined = false,
+            .zero = false,
+            .sign = true,
+            .overflow = true,
+        };
+        const auto result = query_legacy_battle_actor_current_coordinates(
+            view_legacy_battle_actor_coordinates(actor),
+            &x,
+            &y,
+            {
+                .actor_token = 0x005029D0U,
+                .output_x_token = 0xAABBCCDDU,
+                .output_y_token = 0x11223344U,
+                .entry_eax = 0xCAFE5678U,
+                .entry_edx = 0xDEADBEEFU,
+                .entry_flags = entry_flags,
+            }
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActorCurrentCoordinateQueryStatus::completed &&
+                x == 0x1234U && y == 0xFEDCU &&
+                result.return_eax == 0xCAFEFEDCU &&
+                result.return_ecx == 0x11223344U &&
+                result.return_edx == 0xAABBCCDDU && result.actor_reads == 2U &&
+                result.output_pointer_reads == 2U &&
+                result.output_writes == 2U && result.flags.carry &&
+                !result.flags.parity && result.flags.auxiliary_carry &&
+                !result.flags.auxiliary_carry_defined && !result.flags.zero &&
+                result.flags.sign && result.flags.overflow,
+            "current-coordinate query preserves EAX high word, pointer residues, and entry flags"
+        );
+    }
+
+    {
+        using Status = LegacyBattleActorCurrentCoordinateQueryStatus;
+        struct FaultCase {
+            Status expected;
+        };
+        constexpr std::array cases{
+            FaultCase{Status::first_output_pointer_read_typed_stop},
+            FaultCase{Status::position_x_read_typed_stop},
+            FaultCase{Status::first_output_write_typed_stop},
+            FaultCase{Status::position_y_read_typed_stop},
+            FaultCase{Status::second_output_pointer_read_typed_stop},
+            FaultCase{Status::second_output_write_typed_stop},
+        };
+        for (const auto& fault : cases) {
+            LegacyBattleActorCoordinatesState actor{};
+            actor.position_x = 0x1111U;
+            actor.position_y = 0x2222U;
+            auto request = openswd3::battle::
+                LegacyBattleActorCurrentCoordinateQueryRequest{
+                    .actor_token = 0x005029D0U,
+                    .output_x_token = 0x10001000U,
+                    .output_y_token = 0x20002000U,
+                    .entry_eax = 0xCAFE1234U,
+                    .entry_edx = 0xDEADBEEFU,
+                    .entry_flags = {.carry = true, .overflow = true},
+                };
+            u16 x = 0xAAAAU;
+            u16 y = 0xBBBBU;
+            u32 expected_eax = request.entry_eax;
+            u32 expected_ecx = request.actor_token;
+            u32 expected_edx = request.entry_edx;
+            u32 expected_actor_reads{};
+            u32 expected_pointer_reads{};
+            u32 expected_writes{};
+            switch (fault.expected) {
+            case Status::first_output_pointer_read_typed_stop:
+                request.first_output_pointer_readable = false;
+                break;
+
+            case Status::position_x_read_typed_stop:
+                actor.position_x_read_accessible = false;
+                expected_edx = request.output_x_token;
+                expected_pointer_reads = 1U;
+                break;
+
+            case Status::first_output_write_typed_stop:
+                request.first_output_writable = false;
+                expected_eax = 0xCAFE1111U;
+                expected_edx = request.output_x_token;
+                expected_actor_reads = 1U;
+                expected_pointer_reads = 1U;
+                break;
+
+            case Status::position_y_read_typed_stop:
+                actor.position_y_read_accessible = false;
+                expected_eax = 0xCAFE1111U;
+                expected_edx = request.output_x_token;
+                expected_actor_reads = 1U;
+                expected_pointer_reads = 1U;
+                expected_writes = 1U;
+                break;
+
+            case Status::second_output_pointer_read_typed_stop:
+                request.second_output_pointer_readable = false;
+                expected_eax = 0xCAFE2222U;
+                expected_edx = request.output_x_token;
+                expected_actor_reads = 2U;
+                expected_pointer_reads = 1U;
+                expected_writes = 1U;
+                break;
+
+            case Status::second_output_write_typed_stop:
+                request.second_output_writable = false;
+                expected_eax = 0xCAFE2222U;
+                expected_ecx = request.output_y_token;
+                expected_edx = request.output_x_token;
+                expected_actor_reads = 2U;
+                expected_pointer_reads = 2U;
+                expected_writes = 1U;
+                break;
+
+            case Status::completed:
+                break;
+            }
+            const auto result = query_legacy_battle_actor_current_coordinates(
+                view_legacy_battle_actor_coordinates(actor), &x, &y, request
+            );
+            test.expect_true(
+                result.status == fault.expected &&
+                    result.return_eax == expected_eax &&
+                    result.return_ecx == expected_ecx &&
+                    result.return_edx == expected_edx &&
+                    result.actor_reads == expected_actor_reads &&
+                    result.output_pointer_reads == expected_pointer_reads &&
+                    result.output_writes == expected_writes &&
+                    x == (expected_writes == 0U ? 0xAAAAU : 0x1111U) &&
+                    y == 0xBBBBU && result.flags.carry && result.flags.overflow,
+                "each current-coordinate access stops with exact registers, flags, and partial writes"
+            );
+        }
+    }
+
+    {
+        LegacyBattleActorCoordinatesState actor{};
+        actor.position_x = 0x1357U;
+        actor.position_y = 0x2468U;
+        u16 output = 0xAAAAU;
+        const auto same_output = query_legacy_battle_actor_current_coordinates(
+            view_legacy_battle_actor_coordinates(actor), &output, &output
+        );
+        test.expect_true(
+            same_output.status ==
+                    LegacyBattleActorCurrentCoordinateQueryStatus::completed &&
+                output == 0x2468U,
+            "current-coordinate output aliases receive X then Y"
+        );
+
+        actor.position_x = 0x1111U;
+        actor.position_y = 0x2222U;
+        u16 observed_y{};
+        const auto source_alias = query_legacy_battle_actor_current_coordinates(
+            view_legacy_battle_actor_coordinates(actor),
+            &actor.position_y,
+            &observed_y
+        );
+        test.expect_true(
+            source_alias.status ==
+                    LegacyBattleActorCurrentCoordinateQueryStatus::completed &&
+                actor.position_y == 0x1111U && observed_y == 0x1111U,
+            "current-coordinate Y read observes the preceding X store alias"
+        );
+
+        actor.position_x = 0x3333U;
+        actor.position_y = 0x4444U;
+        u16 observed_x{};
+        const auto destination_alias =
+            query_legacy_battle_actor_current_coordinates(
+                view_legacy_battle_actor_coordinates(actor),
+                &observed_x,
+                &actor.position_x
+            );
+        test.expect_true(
+            destination_alias.status ==
+                    LegacyBattleActorCurrentCoordinateQueryStatus::completed &&
+                observed_x == 0x3333U && actor.position_x == 0x4444U,
+            "current-coordinate second output may alias the actor X field"
         );
     }
 

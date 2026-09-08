@@ -31,6 +31,29 @@ inline constexpr u32 kSelectionSample = 0x2DU;
     return static_cast<i32>(std::bit_cast<i16>(value));
 }
 
+[[nodiscard]] constexpr bool has_even_parity(u32 value) noexcept {
+    value &= 0xFFU;
+    value ^= value >> 4U;
+    value ^= value >> 2U;
+    value ^= value >> 1U;
+    return (value & 1U) == 0U;
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+coordinate_entry_flags(const u32 index) noexcept {
+    const u32 left = index * 0x3F0U;
+    const u32 value = left - index;
+    return {
+        .carry = left < index,
+        .parity = has_even_parity(value),
+        .auxiliary_carry = ((left ^ index ^ value) & 0x10U) != 0U,
+        .auxiliary_carry_defined = true,
+        .zero = value == 0U,
+        .sign = (value & 0x80000000U) != 0U,
+        .overflow = (((left ^ index) & (left ^ value)) & 0x80000000U) != 0U,
+    };
+}
+
 [[nodiscard]] constexpr u32
 replace_low_byte(const u32 value, const u32 low) noexcept {
     return (value & 0xFFFFFF00U) | (low & 0xFFU);
@@ -271,12 +294,32 @@ LegacyBattleTargetSelectionEntryResult enter_legacy_battle_target_selection(
             active_group_a_actor_typed_stop;
         return finish();
     }
-    const auto configured = invoke(
-        LegacyBattleInputDispatchCall::target_selection_configure_actor,
-        {kSelectionActorOutputAToken, kSelectionActorOutputBToken}
-    );
-    input.selection_actor_origin_x = configured.output_word_a;
-    input.selection_actor_origin_y = configured.output_word_b;
+    auto coordinate_request = request.current_coordinate_query;
+    coordinate_request.actor_token = ecx;
+    coordinate_request.output_x_token = kSelectionActorOutputAToken;
+    coordinate_request.output_y_token = kSelectionActorOutputBToken;
+    coordinate_request.entry_eax = eax;
+    coordinate_request.entry_edx = edx;
+    coordinate_request.entry_flags = coordinate_entry_flags(group_a_index);
+    result.current_coordinate_query =
+        query_legacy_battle_actor_current_coordinates(
+            resolve_legacy_battle_actor_coordinates(
+                {.action = &action, .startup = &bindings.startup}, ecx
+            ),
+            &input.selection_actor_origin_x,
+            &input.selection_actor_origin_y,
+            coordinate_request
+        );
+    ++result.current_coordinate_query_calls;
+    eax = result.current_coordinate_query.return_eax;
+    ecx = result.current_coordinate_query.return_ecx;
+    edx = result.current_coordinate_query.return_edx;
+    if (result.current_coordinate_query.status !=
+        LegacyBattleActorCurrentCoordinateQueryStatus::completed) {
+        result.status = LegacyBattleTargetSelectionEntryStatus::
+            current_coordinate_typed_stop;
+        return finish();
+    }
 
     if (input.selected_group_b_index == 0xFFFFU) {
         static_cast<void>(refresh_action());

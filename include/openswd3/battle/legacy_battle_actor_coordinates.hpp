@@ -10,6 +10,8 @@ namespace openswd3::battle {
 struct LegacyBattleActionDispatchState;
 struct LegacyBattleStartupState;
 
+inline constexpr compat::u32 kLegacyBattleActorCurrentCoordinateQueryAddress =
+    0x00478600U;
 inline constexpr compat::u32 kLegacyBattleActorCoordinatesGroupABaseToken =
     0x005029D0U;
 inline constexpr compat::u32 kLegacyBattleActorCoordinatesGroupAStride =
@@ -218,6 +220,56 @@ query_legacy_battle_actor_coordinates(
     compat::u16* output_x,
     compat::u16* output_y,
     const LegacyBattleActorCoordinateQueryRequest& request = {}
+) noexcept;
+
+enum class LegacyBattleActorCurrentCoordinateQueryStatus : compat::u8 {
+    completed,
+    first_output_pointer_read_typed_stop,
+    position_x_read_typed_stop,
+    first_output_write_typed_stop,
+    position_y_read_typed_stop,
+    second_output_pointer_read_typed_stop,
+    second_output_write_typed_stop,
+};
+
+struct LegacyBattleActorCurrentCoordinateQueryRequest {
+    compat::u32 actor_token{};
+    compat::u32 output_x_token{};
+    compat::u32 output_y_token{};
+    compat::u32 entry_eax{};
+    compat::u32 entry_edx{};
+    LegacyBattleActorCoordinateFlags entry_flags{};
+    bool first_output_pointer_readable{true};
+    bool second_output_pointer_readable{true};
+    bool first_output_writable{true};
+    bool second_output_writable{true};
+};
+
+struct LegacyBattleActorCurrentCoordinateQueryResult {
+    LegacyBattleActorCurrentCoordinateQueryStatus status{
+        LegacyBattleActorCurrentCoordinateQueryStatus::completed
+    };
+    compat::u32 return_eax{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
+    compat::u16 output_x{};
+    compat::u16 output_y{};
+    compat::u32 actor_reads{};
+    compat::u32 output_pointer_reads{};
+    compat::u32 output_writes{};
+    LegacyBattleActorCoordinateFlags flags{};
+};
+
+// Typed closure of legacy 0x00478600. It reads the first output pointer,
+// actor +0x0D66, commits X, then reads actor +0x0D68 and the second output
+// pointer before committing Y. MOV/RET preserve entry flags, and every alias,
+// register residue, typed stop, and partial word store observes that order.
+[[nodiscard]] LegacyBattleActorCurrentCoordinateQueryResult
+query_legacy_battle_actor_current_coordinates(
+    const LegacyBattleActorCoordinatesView& actor,
+    compat::u16* output_x,
+    compat::u16* output_y,
+    const LegacyBattleActorCurrentCoordinateQueryRequest& request = {}
 ) noexcept;
 
 }  // namespace openswd3::battle

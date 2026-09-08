@@ -500,6 +500,8 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
         state.primary[0].complete = 1U;
         state.primary[0].lookup_key_b = 2U;
         state.rendered_primary_count = 8U;
+        state.coordinate_output_x_token = 0xCCCC3333U;
+        state.coordinate_output_y_token = 0xEEEE4444U;
         GroupEffectPort port;
         LegacyBattleStartupState startup{};
         auto group_b = std::make_shared<
@@ -518,11 +520,58 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
                         effect_shift_group_b_typed_stop &&
                 result.return_value == 0U &&
                 port.effect_shift_state().completion_latch == 1U &&
-                port.count(0x00478600U) == 8U &&
+                port.count(0x00478600U) == 0U &&
                 port.count(0x004785C0U) == 0U &&
+                result.effect_shift.current_coordinate_query_calls == 8U &&
+                result.effect_shift.current_coordinate_query.return_ecx ==
+                    0xEEEE4444U &&
+                result.effect_shift.current_coordinate_query.return_edx ==
+                    0xCCCC3333U &&
                 result.effect_shift.coordinate_publication_calls == 8U &&
                 state.rendered_primary_count == 8U,
             "direct group final shift propagates the ninth group-B actor stop after eight typed coordinate publications"
+        );
+    }
+
+    {
+        LegacyBattleGroupEffectFrameState state;
+        LegacyBattleStartupState startup{};
+        state.primary[0].complete = 1U;
+        state.primary[0].lookup_key_b = 2U;
+        state.rendered_primary_count = 8U;
+        state.alternate[0].source_value = 9U;
+        state.coordinate_output_x_token = 0xCCCC3333U;
+        state.coordinate_output_y_token = 0xEEEE4444U;
+        GroupEffectPort port;
+        auto group_b = std::make_shared<
+            std::array<LegacyBattleActorGroupBElementState, 8>>();
+        startup.group_b_lifecycle = group_b;
+        port.effect_shift_state().threshold_word = 1U;
+        port.effect_shift_state().actor_delta = 1;
+        port.actor_metric_state().group_b_count = 1U;
+        (*group_b)[0].action_execution.position_x = 0x5678U;
+        (*group_b)[0].action_execution.position_y_read_accessible = false;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_effect_frame(
+                state, port, 0U, 0x1000U, 0U, 0U, 0U, 0U, {.startup = &startup}
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleGroupEffectFrameStatus::
+                        effect_shift_group_b_current_coordinate_typed_stop &&
+                result.effect_shift.current_coordinate_query.status ==
+                    openswd3::battle::
+                        LegacyBattleActorCurrentCoordinateQueryStatus::
+                            position_y_read_typed_stop &&
+                result.effect_shift.argument_value == 0x5678U &&
+                result.effect_shift.current_coordinate_query_calls == 1U &&
+                result.effect_shift.coordinate_publication_calls == 0U &&
+                result.return_value == 0x5678U &&
+                result.return_ecx == 0x00525508U &&
+                result.return_edx == 0xCCCC3333U &&
+                state.rendered_primary_count == 8U &&
+                state.alternate[0].source_value == 9U,
+            "group effect frame propagates current-coordinate registers and blocks the second shift and cleanup"
         );
     }
 
@@ -556,8 +605,9 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
                             destination_dword_write_typed_stop &&
                 result.effect_shift.coordinate_publication
                         .stopped_dword_index == 4U &&
-                port.count(0x00478600U) == 1U &&
+                port.count(0x00478600U) == 0U &&
                 port.count(0x004785C0U) == 0U &&
+                result.effect_shift.current_coordinate_query_calls == 1U &&
                 state.rendered_primary_count == 8U,
             "direct group final shift preserves the exact typed publication stop and suppresses group cleanup"
         );

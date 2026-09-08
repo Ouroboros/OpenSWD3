@@ -218,4 +218,70 @@ LegacyBattleActorCoordinateQueryResult query_legacy_battle_actor_coordinates(
     return result;
 }
 
+LegacyBattleActorCurrentCoordinateQueryResult
+query_legacy_battle_actor_current_coordinates(
+    const LegacyBattleActorCoordinatesView& actor,
+    u16* const output_x,
+    u16* const output_y,
+    const LegacyBattleActorCurrentCoordinateQueryRequest& request
+) noexcept {
+    LegacyBattleActorCurrentCoordinateQueryResult result{
+        .return_eax = request.entry_eax,
+        .return_ecx = request.actor_token,
+        .return_edx = request.entry_edx,
+        .flags = request.entry_flags,
+    };
+
+    if (!request.first_output_pointer_readable) {
+        result.status = LegacyBattleActorCurrentCoordinateQueryStatus::
+            first_output_pointer_read_typed_stop;
+        return result;
+    }
+    result.return_edx = request.output_x_token;
+    ++result.output_pointer_reads;
+
+    if (!readable(actor.position_x, actor.position_x_read_accessible)) {
+        result.status = LegacyBattleActorCurrentCoordinateQueryStatus::
+            position_x_read_typed_stop;
+        return result;
+    }
+    result.output_x = *actor.position_x;
+    replace_low_word(result.return_eax, result.output_x);
+    ++result.actor_reads;
+
+    if (output_x == nullptr || !request.first_output_writable) {
+        result.status = LegacyBattleActorCurrentCoordinateQueryStatus::
+            first_output_write_typed_stop;
+        return result;
+    }
+    *output_x = result.output_x;
+    ++result.output_writes;
+
+    if (!readable(actor.position_y, actor.position_y_read_accessible)) {
+        result.status = LegacyBattleActorCurrentCoordinateQueryStatus::
+            position_y_read_typed_stop;
+        return result;
+    }
+    result.output_y = *actor.position_y;
+    replace_low_word(result.return_eax, result.output_y);
+    ++result.actor_reads;
+
+    if (!request.second_output_pointer_readable) {
+        result.status = LegacyBattleActorCurrentCoordinateQueryStatus::
+            second_output_pointer_read_typed_stop;
+        return result;
+    }
+    result.return_ecx = request.output_y_token;
+    ++result.output_pointer_reads;
+
+    if (output_y == nullptr || !request.second_output_writable) {
+        result.status = LegacyBattleActorCurrentCoordinateQueryStatus::
+            second_output_write_typed_stop;
+        return result;
+    }
+    *output_y = result.output_y;
+    ++result.output_writes;
+    return result;
+}
+
 }  // namespace openswd3::battle

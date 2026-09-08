@@ -29,15 +29,15 @@ phase非正时不改phase、累计word或计数清零，直接使用此前共享
 - 组B基址`0x00525508`、步长`0x2B28`、物理容量8；
 - 两组数量复用唯一`LegacyBattleActorMetricState`，每组入口按完整dword作signed非正门；
 - 索引是每轮末尾加1的i16，随后符号扩展并与动态重载的完整signed数量比较；
-- 每个角色先调用`0x00478600`，把当前可变arg0与入口ECX scratch的地址交给callee；
-- callee只在实际写回对应输出时更新这两个局部，未写时保留此前值；
-- getter返回后重新读取共享actor delta，按低32位模加到完整arg0；
+- 每个角色直接组合独立`0x00478600` current-coordinate typed leaf，把当前可变arg0与入口ECX scratch的地址按原顺序交给leaf；
+- leaf仅写两个局部的低word，高word与未到达写入的旧值均保留；X写入后发生的Y读取、第二指针读取或Y写入停止保留X前缀；
+- leaf完成后重新读取共享actor delta，按低32位模加到完整arg0；
 - 随后直接组合`0x004785C0`的typed坐标发布leaf：先写X/Y低word，再把更新后的`actor+0x0D50..+0x0D6F`按八个有序dword复制到`+0x0D70..+0x0D8F`；
 - publication成功后才重新读取当前组数量并推进索引；typed-stop保留当前leaf部分提交并抑制剩余actor、后续组及caller后缀。
 
-arg0与scratch跨组A、组B及所有角色持续携带，不按角色重置。异常数量不增加现代循环上限；第11个组A或第9个组B只在原getter首次真实角色解引用点typed-stop，保留此前所有getter、加法、typed publication与动态数量读取副作用。
+arg0与scratch跨组A、组B及所有角色持续携带，不按角色重置。异常数量不增加现代循环上限；第11个组A或第9个组B只在current-coordinate leaf首次真实角色解引用点typed-stop，保留此前所有查询、加法、typed publication与动态数量读取副作用。
 
-`0x00478600` getter继续通过统一效果call port的窄请求保留。请求记录actor token、arg0、scratch与调用点寄存器；reply用显式output写掩码区分“写零”和“未写”。四个`0x004785C0`物理callsite已从效果步进生产路径移除，publication直接解析startup/action的canonical角色owner，不再向port发送该callee token。
+四个`0x00478600`物理callsite `0x0045BE39/0x0045BE99/0x0045BF5A/0x0045BFBA`已从效果call port移除，直接解析startup/action/lifecycle canonical owner。两条循环体都保留`arg_0/var_4`局部地址、Group-A现有EDX与Group-B第二局部指针EDX入口位形、索引SUB flags、正常返回寄存器及六类停止前缀；单体父级一处与群体父级两处调用均从各自frame state显式传入这对语义局部token，不使用零默认值。四个`0x004785C0`物理callsite也继续直接组合typed publication，不向port发送两个callee token。
 
 ## 4. 完成路径
 
@@ -62,11 +62,11 @@ arg0与scratch跨组A、组B及所有角色持续携带，不按角色重置。�
 
 全局状态重置`0x0045B630`写到的actor delta、方向、threshold和completion latch地址已从未映射字节像回收，直接清零同一effect-shift状态；原234项写序不变。
 
-单体效果caller保留lookup低word覆盖caller EDX高word、完整完成值作为completion mode与入口ECX、子返回0提前结束及typed-stop阻止后续清理。群体效果第一个caller先发布completion latch，再用当前EAX构造arg0；子返回0提前结束。第二个caller使用第一个callee恢复的ECX构造arg0，完整mode固定1，且按原逻辑忽略普通0返回，但typed-stop仍阻止后续清理。两类父caller都保存完整`LegacyBattleEffectShiftResult`，并区分Group-A/Group-B容量停止与坐标publication停止。
+单体效果caller保留lookup低word覆盖caller EDX高word、完整完成值作为completion mode与入口ECX、子返回0提前结束及typed-stop阻止后续清理。群体效果第一个caller先发布completion latch，再用当前EAX构造arg0；子返回0提前结束。第二个caller使用第一个callee恢复的ECX构造arg0，完整mode固定1，且按原逻辑忽略普通0返回，但typed-stop仍阻止后续清理。两类父caller都保存完整`LegacyBattleEffectShiftResult`，并分别映射Group-A/Group-B容量、current-coordinate与coordinate-publication停止，同时公开真实EAX/ECX/EDX并阻断后续清理。
 
 ## 6. 测试与动态差分
 
-定向测试覆盖phase正/一/非正、u16调用计数回绕、两种方向非对称、累计word回绕与packed reward保留、组A后组B、固定token与步长、getter写掩码、跨角色arg/scratch、低32位加法回绕、完整ADD flags、Group-B EDX高word、typed publication真实owner写入、threshold signed域、每次最多30、completion latch时机、精确mode一重装、入口ECX恢复、路径相关EDX、第11个组A与第9个组B停点、publication部分提交与后缀抑制、三个父caller直连、普通0返回差异及全局重置物理别名。
+定向测试覆盖phase正/一/非正、u16调用计数回绕、两种方向非对称、累计word回绕与packed reward保留、组A后组B、固定token与步长、current-coordinate六类typed-stop、局部低word与高word保留、跨角色arg/scratch、低32位加法回绕、完整SUB/ADD flags、Group-A/Group-B EDX入口差异、typed publication真实owner写入、threshold signed域、每次最多30、completion latch时机、精确mode一重装、入口ECX恢复、路径相关EDX、第11个组A与第9个组B停点、查询及publication部分提交与后缀抑制、三个父caller直连、普通0返回差异及全局重置物理别名。四处current-coordinate generic端口调用断言为零。
 
 历史关闭门为定向`1/1`、独立AddressSanitizer`1/1`、Linux core`188/188`和Linux app`194/194`。Workpack 287 REVIEW 1接入typed publication并回收四处物理setter后，最终门为战斗定向`1/1`、Linux core `199/199`、ASan/UBSan `199/199`和Linux app `205/205`，日志零源码warning与sanitizer诊断且stderr为空。
 

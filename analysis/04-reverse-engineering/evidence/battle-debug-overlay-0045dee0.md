@@ -105,10 +105,10 @@
 
 逐帧协调器在内部bit17检查之后读取叠加门。该门归独立虚共享gate port唯一持有，撤退提交可在成功时清零，全局重置也同步清零。机器码只有门完整等于1时调用本函数；旧实现把条件反向并保留opaque调用，现已纠正为精确等于1时直接组合typed叠加层。
 
-子typed-stop保留音乐、角色预处理、metric、角色顺序、surface绘制、HUD、对话、双倒计时和叠加正文前缀，随后阻断结果判定、上下文提示、颜色累加、临时surface与截图。组B进度或阈值读取stop发生在位置查询与row-offset计算之后、任何标记像素之前；旧宽度端口槽仅保留reserved兼容编号且生产零调用。正常返回寄存器按原caller保持未消费。
+子typed-stop保留音乐、角色预处理、metric、角色顺序、surface绘制、HUD、对话、双倒计时和叠加正文前缀，随后阻断结果判定、上下文提示、颜色累加、临时surface与截图。Workpack 288 REVIEW 1把`0x0045E270`标记坐标站点改为直接读取Group-B lifecycle action-execution canonical坐标到固定`0x0053BF4A/0x0053BF4E` scratch；旧位置查询端口槽改为reserved并保持生产零调用。六类current-coordinate stop保留已完成正文及X scratch前缀，阻断进度宽度、row-offset与全部标记像素。组B进度或阈值读取stop发生在位置查询与row-offset计算之后、任何标记像素之前；旧宽度端口槽同样仅保留reserved兼容编号且生产零调用。正常返回寄存器按原caller保持未消费。
 
 ## 9. 测试与动态差分
 
-定向测试覆盖总门关闭字体尾、两组完整文字、CP950字节、固定坐标与格式、生命局部跨角色陈旧继承、低byte/word和signed参数、完整EAX/ECX/EDX尾、解析token发布、`+0x54`读取停点、三类动态顺序、第19/11/19项读取停点、callee后数量增长、typed进度宽度与旧端口零调用、进度读取停点、双行标记、第二行越界前缀、signed缓存除法、frame divisor零点、全局重置别名及逐帧caller阻断。
+定向测试覆盖总门关闭字体尾、两组完整文字、CP950字节、固定坐标与格式、生命局部跨角色陈旧继承、低byte/word和signed参数、完整EAX/ECX/EDX尾、解析token发布、`+0x54`读取停点、三类动态顺序、第19/11/19项读取停点、callee后数量增长、typed current-coordinate与进度宽度、两个旧端口零调用、Y读取停止后的X scratch部分提交、进度读取停点、双行标记、第二行越界前缀、signed缓存除法、frame divisor零点、全局重置别名及逐帧caller阻断。
 
 当前缺少原版字体/文字callee、两组角色对象及查询副作用、共享255字节缓冲、TSW缓存计数、完整叠加全局、framebuffer和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

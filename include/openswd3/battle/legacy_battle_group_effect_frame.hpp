@@ -47,6 +47,8 @@ enum class LegacyBattleGroupEffectFrameStatus : compat::u8 {
     group_b_actor_typed_stop,
     effect_shift_group_a_typed_stop,
     effect_shift_group_b_typed_stop,
+    effect_shift_group_a_current_coordinate_typed_stop,
+    effect_shift_group_b_current_coordinate_typed_stop,
     effect_shift_group_a_coordinate_publication_typed_stop,
     effect_shift_group_b_coordinate_publication_typed_stop,
     animation_collision_counter_typed_stop,
@@ -57,6 +59,8 @@ struct LegacyBattleGroupEffectFrameResult {
         LegacyBattleGroupEffectFrameStatus::completed
     };
     compat::u32 return_value{};
+    compat::u32 return_ecx{};
+    compat::u32 return_edx{};
     compat::u32 port_calls{};
     compat::u32 color_initialization_calls{};
     compat::u32 primary_renders{};

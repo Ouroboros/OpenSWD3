@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
+#include "openswd3/battle/legacy_battle_actor_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_debug_state.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_debug_hotkeys.hpp"
@@ -23,7 +24,7 @@ enum class LegacyBattleDebugOverlayCall : compat::u8 {
     query_group_b_vitality,
     query_actor_command,
     query_actor_lock,
-    query_marker_position,
+    reserved_query_marker_position,
     reserved_query_marker_width,
 };
 
@@ -108,6 +109,7 @@ struct LegacyBattleDebugOverlayBindings {
 
 struct LegacyBattleDebugOverlayRequest {
     compat::u32 vitality_stack_snapshot{};
+    LegacyBattleActorCurrentCoordinateQueryRequest current_coordinate_query{};
 };
 
 enum class LegacyBattleDebugOverlayStatus : compat::u8 {
@@ -116,6 +118,7 @@ enum class LegacyBattleDebugOverlayStatus : compat::u8 {
     startup_record_typed_stop,
     actor_order_typed_stop,
     selection_order_typed_stop,
+    current_coordinate_typed_stop,
     actor_progress_width_typed_stop,
     framebuffer_typed_stop,
     frame_divisor_zero,
@@ -138,6 +141,8 @@ struct LegacyBattleDebugOverlayResult {
     compat::u32 selection_order_rows{};
     compat::u32 marker_actors{};
     compat::u32 marker_pixels{};
+    LegacyBattleActorCurrentCoordinateQueryResult current_coordinate_query{};
+    compat::u32 current_coordinate_query_calls{};
     compat::u32 actor_progress_width_calls{};
     LegacyBattleActorProgressWidthResult actor_progress_width{};
 };

@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -75,7 +76,7 @@ public:
             return {.eax = 3U};
         case LegacyBattleDebugOverlayCall::query_actor_lock:
             return {.eax = 4U};
-        case LegacyBattleDebugOverlayCall::query_marker_position:
+        case LegacyBattleDebugOverlayCall::reserved_query_marker_position:
             return {.output_mask = 3U, .output_0 = 1U, .output_1 = 0U};
         case LegacyBattleDebugOverlayCall::reserved_query_marker_width:
             return {.eax = 2U};
@@ -126,7 +127,15 @@ struct Fixture {
     explicit Fixture(
         const LegacySurfaceGeometry& surface = LegacySurfaceGeometry{}
     )
-        : framebuffer(surface) {}
+        : framebuffer(surface) {
+        startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        for (auto& actor : *startup.group_b_lifecycle) {
+            actor.action_execution.position_x = 1U;
+            actor.action_execution.position_y = 0U;
+        }
+    }
 
     [[nodiscard]] LegacyBattleDebugOverlayBindings bindings() {
         return {
@@ -228,7 +237,7 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
             result.status == LegacyBattleDebugOverlayStatus::completed &&
                 result.return_value == 0xAABBCCDDU &&
                 result.return_ecx == 0x12345678U &&
-                result.return_edx == 0x87654321U && result.port_calls == 45U &&
+                result.return_edx == 0x87654321U && result.port_calls == 43U &&
                 result.text_draws == 27U && result.formatted_texts == 24U &&
                 result.group_b_rows == 2U && result.group_a_rows == 2U &&
                 result.startup_order_rows == 4U &&
@@ -276,11 +285,12 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
                     3U
                 ) &&
                 port.count(
-                    LegacyBattleDebugOverlayCall::query_marker_position
-                ) == 2U &&
+                    LegacyBattleDebugOverlayCall::reserved_query_marker_position
+                ) == 0U &&
                 port.count(
                     LegacyBattleDebugOverlayCall::reserved_query_marker_width
                 ) == 0U &&
+                result.current_coordinate_query_calls == 2U &&
                 result.actor_progress_width_calls == 2U &&
                 result.actor_progress_width.return_eax == 2U &&
                 fixture.framebuffer.physical_pixels()[1] == 0xEEEEU &&
@@ -382,6 +392,50 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
         Fixture fixture;
         fixture.hotkeys.toggle_5244e0 = 1U;
         fixture.metrics.group_b_count = 1U;
+        fixture.overlay.marker_x = 9;
+        fixture.overlay.marker_row = 10;
+        auto& actor = (*fixture.startup.group_b_lifecycle)[0U].action_execution;
+        actor.position_x = 7U;
+        actor.position_y_read_accessible = false;
+        OverlayPort port;
+
+        const auto result = draw_legacy_battle_debug_overlay(
+            fixture.bindings(),
+            port,
+            {.current_coordinate_query = {.entry_edx = 0xAABBCCDDU}}
+        );
+
+        test.expect_true(
+            result.status ==
+                    LegacyBattleDebugOverlayStatus::
+                        current_coordinate_typed_stop &&
+                result.current_coordinate_query.status ==
+                    openswd3::battle::
+                        LegacyBattleActorCurrentCoordinateQueryStatus::
+                            position_y_read_typed_stop &&
+                result.current_coordinate_query.return_eax == 7U &&
+                result.current_coordinate_query.return_ecx == 0x00525508U &&
+                result.current_coordinate_query.return_edx == 0x0053BF4AU &&
+                !result.current_coordinate_query.flags.parity &&
+                !result.current_coordinate_query.flags.zero &&
+                !result.current_coordinate_query.flags
+                     .auxiliary_carry_defined &&
+                fixture.overlay.marker_x == 7 &&
+                fixture.overlay.marker_row == 10 && result.port_calls == 13U &&
+                result.current_coordinate_query_calls == 1U &&
+                result.actor_progress_width_calls == 0U &&
+                result.marker_actors == 0U && result.marker_pixels == 0U &&
+                port.count(
+                    LegacyBattleDebugOverlayCall::reserved_query_marker_position
+                ) == 0U,
+            "debug marker query preserves its X prefix and blocks progress width and pixels on Y stop"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.hotkeys.toggle_5244e0 = 1U;
+        fixture.metrics.group_b_count = 1U;
         fixture.startup.enemies[0U].progress.progress_read_accessible = false;
         OverlayPort port;
 
@@ -392,15 +446,16 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleDebugOverlayStatus::
                         actor_progress_width_typed_stop &&
-                result.port_calls == 14U && result.text_draws == 7U &&
+                result.port_calls == 13U && result.text_draws == 7U &&
+                result.current_coordinate_query_calls == 1U &&
                 result.actor_progress_width_calls == 1U &&
                 result.actor_progress_width.return_eax == 0U &&
                 result.actor_progress_width.return_ecx == 0x00525508U &&
-                result.actor_progress_width.return_edx == 0U &&
+                result.actor_progress_width.return_edx == 0x0053BF4AU &&
                 result.marker_actors == 0U && result.marker_pixels == 0U &&
                 port.count(
-                    LegacyBattleDebugOverlayCall::query_marker_position
-                ) == 1U &&
+                    LegacyBattleDebugOverlayCall::reserved_query_marker_position
+                ) == 0U &&
                 port.count(
                     LegacyBattleDebugOverlayCall::reserved_query_marker_width
                 ) == 0U,

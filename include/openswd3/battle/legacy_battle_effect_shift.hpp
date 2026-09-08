@@ -8,6 +8,8 @@ namespace openswd3::battle {
 
 class LegacyBattleEffectCallPort;
 
+inline constexpr compat::u32
+    kLegacyBattleEffectShiftReservedCurrentCoordinateQuery = 0x00478600U;
 inline constexpr compat::u32 kLegacyBattleEffectShiftGroupABaseToken =
     0x005029D0U;
 inline constexpr compat::u32 kLegacyBattleEffectShiftGroupBBaseToken =
@@ -46,10 +48,21 @@ private:
     LegacyBattleEffectShiftState effect_shift_state_{};
 };
 
+struct LegacyBattleEffectShiftCurrentCoordinateAccess {
+    compat::u32 output_x_token{};
+    compat::u32 output_y_token{};
+    bool first_output_pointer_readable{true};
+    bool second_output_pointer_readable{true};
+    bool first_output_writable{true};
+    bool second_output_writable{true};
+};
+
 enum class LegacyBattleEffectShiftStatus : compat::u8 {
     completed,
     group_a_actor_typed_stop,
     group_b_actor_typed_stop,
+    group_a_current_coordinate_typed_stop,
+    group_b_current_coordinate_typed_stop,
     group_a_coordinate_publication_typed_stop,
     group_b_coordinate_publication_typed_stop,
 };
@@ -66,6 +79,8 @@ struct LegacyBattleEffectShiftResult {
     compat::u32 group_b_iterations{};
     compat::u32 argument_value{};
     compat::u32 scratch_value{};
+    LegacyBattleActorCurrentCoordinateQueryResult current_coordinate_query{};
+    compat::u32 current_coordinate_query_calls{};
     LegacyBattleActorCoordinatePublicationResult coordinate_publication{};
     compat::u32 coordinate_publication_calls{};
     bool phase_halved{};
@@ -79,7 +94,9 @@ struct LegacyBattleEffectShiftResult {
     compat::u32 completion_mode,
     compat::u32 entry_ecx,
     compat::u32 entry_edx,
-    const LegacyBattleActorCoordinateOwners& coordinate_owners = {}
+    const LegacyBattleActorCoordinateOwners& coordinate_owners = {},
+    const LegacyBattleEffectShiftCurrentCoordinateAccess&
+        current_coordinate_access = {}
 );
 
 }  // namespace openswd3::battle

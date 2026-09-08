@@ -6,7 +6,7 @@
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 工作包288 REVIEW 1待实现
+当前步骤：模块10 · 工作包288 REVIEW 2待实现
 
 ## 0. 执行约定
 
@@ -271,7 +271,7 @@ REVIEW通过后必须立即按`AGENTS.md`完成commit、push和TG，再重新完
 13. `[x]` B7：地图、世界、角色、碰撞与寻路已按模块移交条件有限收口；当前状态、阻塞和证据见[`world-map.md`](../analysis/04-reverse-engineering/modules/world-map.md)及相关inventory/evidence。
 14. `[x]` B8：剧情VM、场景调度与异步action的P1–P3已经完成；[`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md)不再覆盖当前队列。
 15. `[x]` B9：菜单、商店和其他特殊模式的227/227工作项已经关闭；当前状态和阻塞见[`special-modes.md`](../analysis/04-reverse-engineering/modules/special-modes.md)。
-16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=287`；工作包288的完整LST、二十一个物理caller与三段REVIEW计划已锁定，待执行REVIEW 1。
+16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=287`；工作包288 REVIEW 1已完成并回收六个物理caller，当前执行REVIEW 2。
 17. `[ ]` B11：存档、配置与持久化语义；等待B10满足移交条件后开始。
 
 B7以后已经完成的详细执行记录已机械搬到[`execution-progress-history-pi.md`](execution-progress-history-pi.md)。该文件只保存历史，不定义当前执行顺序、状态或断点。
@@ -286,11 +286,13 @@ B7以后已经完成的详细执行记录已机械搬到[`execution-progress-his
 
 当前工作包：`audit_order=288`、`0x00478600`。目标是完整实现从actor `+0x0D66/+0x0D68`向两个输出指针有序发布当前X/Y word的typed查询，并回收六个caller函数中的二十一个物理callsite。
 
-当前断点：完整LST已锁定`0x00478600..0x0047861E`共31字节、7条指令与1个`retn 8`，无call、分支或范围外chunk；二十一个物理caller已逐项枚举。当前执行REVIEW 1，实现独立current-coordinate typed leaf并回收效果步进四处、debug overlay一处与target-selection entry一处caller；inventory row 288保持`pending_audit`直至`caller_reclaimed:21/21`。
+当前断点：完整LST已锁定`0x00478600..0x0047861E`共31字节、7条指令与1个`retn 8`，无call、分支或范围外chunk；二十一个物理caller已逐项枚举。REVIEW 1已实现独立current-coordinate typed leaf，并回收效果步进四处、debug overlay一处与target-selection entry一处caller，`caller_reclaimed:6/21`；当前执行REVIEW 2，inventory row 288保持`pending_audit`直至`caller_reclaimed:21/21`。
 
 #### REVIEW 1：typed当前坐标查询与效果、调试、目标选择六处caller
 
-状态：待实现。
+状态：已完成。
+
+结果：独立typed leaf、六个可故障访问点、alias/部分提交、flags与返回寄存器已锁定；效果步进四处、debug overlay一处、target-selection entry一处及两个效果父级均已直连canonical owner，生产opaque调用为零，独立reviewer返回PASS。定向测试、Linux core 199/199、ASan/UBSan 199/199、Linux app 205/205与连续十轮core均通过；inventory row 288继续保持`pending_audit`。
 
 - 在既有`legacy_battle_actor_coordinates`边界新增不与`0x004783B0` selector查询混淆的current-coordinate typed API；复用`LegacyBattleActorCoordinatesView`、`LegacyBattleActorCoordinateOwners`、现有flags类型与startup/action/lifecycle canonical owner，不修改旧mode-gated查询语义，不新增caller-local或Group-B平行actor坐标存储。
 - 精确实现`mov edx,[esp+4]`、`mov ax,[ecx+0x0D66]`、`mov [edx],ax`、`mov ax,[ecx+0x0D68]`、`mov ecx,[esp+8]`、`mov [ecx],ax`、`retn 8`。正常返回`EAX=(entry_EAX & 0xFFFF0000)|Y`、`EDX=out_x token`、`ECX=out_y token`，全部MOV与RET保持入口flags。

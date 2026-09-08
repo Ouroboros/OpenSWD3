@@ -19,6 +19,8 @@ constexpr u32 kGroupABaseToken = 0x005029D0U;
 constexpr u32 kGroupAStride = 0x00002F34U;
 constexpr u32 kGroupBBaseToken = 0x00525508U;
 constexpr u32 kGroupBStride = 0x00002B28U;
+constexpr u32 kMarkerOutputXToken = 0x0053BF4AU;
+constexpr u32 kMarkerOutputYToken = 0x0053BF4EU;
 constexpr u32 kTextForeground = 0x0000FFFFU;
 constexpr u32 kTextHeight = 0x00000010U;
 constexpr u16 kMarkerPixel = 0xEEEEU;
@@ -44,6 +46,41 @@ constexpr char kBattleSummaryFormat[] =
 
 [[nodiscard]] constexpr u32 signed_bits(const i32 value) noexcept {
     return std::bit_cast<u32>(value);
+}
+
+[[nodiscard]] constexpr bool has_even_parity(u32 value) noexcept {
+    value &= 0xFFU;
+    value ^= value >> 4U;
+    value ^= value >> 2U;
+    value ^= value >> 1U;
+    return (value & 1U) == 0U;
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+logical_flags(const u32 value) noexcept {
+    return {
+        .carry = false,
+        .parity = has_even_parity(value),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = value == 0U,
+        .sign = (value & 0x80000000U) != 0U,
+        .overflow = false,
+    };
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+subtract_flags(const u32 left, const u32 right) noexcept {
+    const u32 value = left - right;
+    return {
+        .carry = left < right,
+        .parity = has_even_parity(value),
+        .auxiliary_carry = ((left ^ right ^ value) & 0x10U) != 0U,
+        .auxiliary_carry_defined = true,
+        .zero = value == 0U,
+        .sign = (value & 0x80000000U) != 0U,
+        .overflow = (((left ^ right) & (left ^ value)) & 0x80000000U) != 0U,
+    };
 }
 
 [[nodiscard]] constexpr u32
@@ -336,16 +373,47 @@ LegacyBattleDebugOverlayResult draw_legacy_battle_debug_overlay(
         runner.draw_buffer(240U, 70U);
 
         index = 0U;
+        u32 coordinate_entry_eax = bindings.metrics.group_b_count;
+        auto coordinate_entry_flags = logical_flags(coordinate_entry_eax);
         while (index < bindings.metrics.group_b_count) {
             const u32 actor = group_b_token(index);
-            const auto position = runner.call(
-                LegacyBattleDebugOverlayCall::query_marker_position, actor
-            );
-            if ((position.output_mask & 1U) != 0U) {
-                state.marker_x = static_cast<i16>(position.output_0);
+            u16 marker_x = std::bit_cast<u16>(state.marker_x);
+            u16 marker_row = std::bit_cast<u16>(state.marker_row);
+            auto coordinate_request = request.current_coordinate_query;
+            coordinate_request.actor_token = actor;
+            coordinate_request.output_x_token = kMarkerOutputXToken;
+            coordinate_request.output_y_token = kMarkerOutputYToken;
+            coordinate_request.entry_eax = coordinate_entry_eax;
+            coordinate_request.entry_flags = coordinate_entry_flags;
+            result.current_coordinate_query =
+                query_legacy_battle_actor_current_coordinates(
+                    resolve_legacy_battle_actor_coordinates(
+                        {
+                            .action = &bindings.action,
+                            .startup = &bindings.startup,
+                        },
+                        actor
+                    ),
+                    &marker_x,
+                    &marker_row,
+                    coordinate_request
+                );
+            ++result.current_coordinate_query_calls;
+            const auto& position = result.current_coordinate_query;
+            if (position.output_writes >= 1U) {
+                state.marker_x = std::bit_cast<i16>(marker_x);
             }
-            if ((position.output_mask & 2U) != 0U) {
-                state.marker_row = static_cast<i16>(position.output_1);
+            if (position.output_writes >= 2U) {
+                state.marker_row = std::bit_cast<i16>(marker_row);
+            }
+            if (position.status !=
+                LegacyBattleActorCurrentCoordinateQueryStatus::completed) {
+                result.status = LegacyBattleDebugOverlayStatus::
+                    current_coordinate_typed_stop;
+                result.return_value = position.return_eax;
+                result.return_ecx = position.return_ecx;
+                result.return_edx = position.return_edx;
+                return result;
             }
             const auto& geometry = bindings.framebuffer.geometry();
             const u32 raster_right_bits = signed_bits(geometry.clip_left) +
@@ -363,7 +431,7 @@ LegacyBattleDebugOverlayResult draw_legacy_battle_debug_overlay(
                 query_legacy_battle_actor_progress_width(
                     actor_progress,
                     &bindings.startup.timing,
-                    {.actor_token = actor, .entry_edx = position.edx}
+                    {.actor_token = actor, .entry_edx = position.return_edx}
                 );
             ++result.actor_progress_width_calls;
             if (result.actor_progress_width.status !=
@@ -389,6 +457,9 @@ LegacyBattleDebugOverlayResult draw_legacy_battle_debug_overlay(
             }
             ++result.marker_actors;
             ++index;
+            coordinate_entry_eax = index;
+            coordinate_entry_flags =
+                subtract_flags(index, bindings.metrics.group_b_count);
         }
 
         format_text(

@@ -172,6 +172,7 @@ final gate word按i16大于0时：
 - reward 9999夹值、负auxiliary、packed highword与三行顺序；
 - finalize后第五处坐标Y读取停止保留首个16-bit写入，并抑制collision、render、release与公共尾；
 - pending callee EDX进入已关闭全角色步进；
-- 子返回0早退、角色越界typed-stop与共享状态直连。
+- 子返回0早退、角色越界typed-stop与共享状态直连；
+- Workpack 288 REVIEW 1把效果步进的Group-A/Group-B current-coordinate停止映射为独立父级状态，从frame state显式传入`arg_0/var_4`语义局部token并公开leaf真实EAX/ECX/EDX与X低字部分提交，同时阻断cleanup、render和公共尾；四处`0x00478600`效果步进站点均为typed直连，父级生产端口零调用。
 
 当前缺少原版双记录内存、28类剩余直接callee与效果步进内部两类actor callee共享副作用、resource owner、参数对象字段、随机状态、sample manager、奖励输出和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
