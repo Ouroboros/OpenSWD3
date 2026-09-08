@@ -28,7 +28,9 @@ struct LegacyBattleActorCoordinatesState {
 
     bool coordinate_mode_gate_read_accessible{true};
     bool position_x_read_accessible{true};
+    bool position_x_write_accessible{true};
     bool position_y_read_accessible{true};
+    bool position_y_write_accessible{true};
     bool alternate_position_x_read_accessible{true};
     bool alternate_position_y_read_accessible{true};
     bool source_y_offset_read_accessible{true};
@@ -47,7 +49,9 @@ struct LegacyBattleActorCoordinatesView {
 
     const bool* coordinate_mode_gate_read_accessible{};
     const bool* position_x_read_accessible{};
+    const bool* position_x_write_accessible{};
     const bool* position_y_read_accessible{};
+    const bool* position_y_write_accessible{};
     const bool* alternate_position_x_read_accessible{};
     const bool* alternate_position_y_read_accessible{};
     const bool* source_y_offset_read_accessible{};
@@ -68,7 +72,9 @@ view_legacy_battle_actor_coordinates(Actor& state) noexcept {
         .coordinate_mode_gate_read_accessible =
             &state.coordinate_mode_gate_read_accessible,
         .position_x_read_accessible = &state.position_x_read_accessible,
+        .position_x_write_accessible = &state.position_x_write_accessible,
         .position_y_read_accessible = &state.position_y_read_accessible,
+        .position_y_write_accessible = &state.position_y_write_accessible,
         .alternate_position_x_read_accessible =
             &state.alternate_position_x_read_accessible,
         .alternate_position_y_read_accessible =

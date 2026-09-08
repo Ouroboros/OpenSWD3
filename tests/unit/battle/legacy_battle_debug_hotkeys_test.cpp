@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <deque>
+#include <memory>
 #include <span>
 #include <vector>
 
@@ -61,6 +62,12 @@ public:
 };
 
 struct Fixture {
+    Fixture() {
+        startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            8>>();
+    }
+
     openswd3::battle::LegacyBattleStartupState startup;
     openswd3::battle::LegacyBattleFinalActorStepState final_actor;
     openswd3::battle::LegacyBattleActionDispatchState action;
@@ -116,24 +123,8 @@ void press(
 void test_battle_debug_hotkeys(openswd3::test::Context& test) {
     {
         Fixture fixture;
-        LegacyBattleDebugHotkeyState state;
-        DebugPort port;
-        openswd3::input_time_rng::LegacyKeyboardSnapshot keyboard{};
-        const auto result =
-            openswd3::battle::coordinate_legacy_battle_debug_hotkeys(
-                keyboard, state, fixture.bindings(), port
-            );
-        test.expect_true(
-            result.return_value == 1U && result.raw_key_queries == 3U &&
-                result.port_calls == 0U && port.calls.empty(),
-            "disabled developer tools skip the control block but still query the H J P tail"
-        );
-    }
-
-    {
-        Fixture fixture;
-        fixture.actor_metrics.group_a_count = 2U;
-        fixture.actor_metrics.group_b_count = 1U;
+        fixture.actor_metrics.group_a_count = 1U;
+        fixture.startup.party[0].position_x = 9U;
         LegacyBattleDebugHotkeyState state;
         state.screenshot_request = 7U;
         DebugPort port;
@@ -145,26 +136,62 @@ void test_battle_debug_hotkeys(openswd3::test::Context& test) {
                 keyboard, state, fixture.bindings(), port
             );
         test.expect_true(
-            result.return_value == 1U && result.raw_key_queries == 3U &&
+            result.return_value == 1U && result.raw_key_queries == 1U &&
+                result.port_calls == 0U &&
+                result.actor_coordinate_adjustment_calls == 0U &&
+                fixture.startup.party[0].position_x == 9U &&
+                fixture.effect_shift.actor_delta == 0 &&
+                state.screenshot_request == 1U && port.calls.empty(),
+            "disabled developer tools skip control H and J while retaining the P tail"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.actor_metrics.group_a_count = 2U;
+        fixture.actor_metrics.group_b_count = 1U;
+        fixture.startup.party[0].position_x = 0xFFFBU;
+        fixture.startup.party[0].position_y = 101U;
+        fixture.startup.party[1].position_x = 20U;
+        fixture.startup.party[1].position_y = 202U;
+        auto& group_b =
+            (*fixture.startup.group_b_lifecycle)[0].action_execution;
+        group_b.position_x = 30U;
+        group_b.position_y = 303U;
+        LegacyBattleDebugHotkeyState state;
+        state.developer_tools_enabled = 1U;
+        state.screenshot_request = 7U;
+        DebugPort port;
+        openswd3::input_time_rng::LegacyKeyboardSnapshot keyboard{};
+        press(keyboard, 0x23U);
+        press(keyboard, 0x19U);
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_debug_hotkeys(
+                keyboard,
+                state,
+                fixture.bindings(),
+                port,
+                {.actor_adjustment_entry_edx = 0xABCD1234U}
+            );
+        test.expect_true(
+            result.status == LegacyBattleDebugHotkeyStatus::completed &&
+                result.return_value == 1U && result.raw_key_queries == 5U &&
                 result.actor_adjust_iterations == 3U &&
+                result.actor_coordinate_adjustment_calls == 3U &&
+                fixture.startup.party[0].position_x == 5U &&
+                fixture.startup.party[0].position_y == 101U &&
+                fixture.startup.party[1].position_x == 30U &&
+                fixture.startup.party[1].position_y == 202U &&
+                group_b.position_x == 40U && group_b.position_y == 303U &&
                 fixture.effect_shift.actor_delta == 10 &&
                 state.screenshot_request == 1U &&
-                port.count(LegacyBattleDebugHotkeyCall::adjust_actor) == 3U &&
-                has_call(
-                    port,
-                    LegacyBattleDebugHotkeyCall::adjust_actor,
-                    0x005029D0U,
-                    0U,
-                    10U
-                ) &&
-                has_call(
-                    port,
-                    LegacyBattleDebugHotkeyCall::adjust_actor,
-                    0x00525508U,
-                    0U,
-                    10U
-                ),
-            "H and P remain active without developer control and update both actor groups before exact-one screenshot toggle"
+                result.actor_coordinate_adjustment.return_eax == 10U &&
+                result.actor_coordinate_adjustment.return_ecx == 0x00525508U &&
+                result.actor_coordinate_adjustment.return_edx == 0xABCD0000U &&
+                port.count(
+                    LegacyBattleDebugHotkeyCall::reserved_adjust_actor_slot
+                ) == 0U,
+            "enabled H updates canonical group-A then group-B coordinates before P without an opaque call"
         );
     }
 
@@ -185,7 +212,7 @@ void test_battle_debug_hotkeys(openswd3::test::Context& test) {
             result.return_value == 0U && result.early_return_zero &&
                 result.control_chord_active && result.raw_key_queries == 11U &&
                 result.actor_adjust_iterations == 0U,
-            "control plus E returns zero before C and the unconditional H J P tail"
+            "control plus E returns zero before C and suppresses the H J P tail"
         );
     }
 
@@ -430,22 +457,193 @@ void test_battle_debug_hotkeys(openswd3::test::Context& test) {
 
     {
         Fixture fixture;
+        fixture.actor_metrics.group_a_count = 2U;
+        fixture.startup.party[0].position_x = 10U;
+        fixture.startup.party[1].position_x = 20U;
+        fixture.startup.party[1].position_x_write_accessible = false;
+        LegacyBattleDebugHotkeyState state;
+        state.developer_tools_enabled = 1U;
+        DebugPort port;
+        openswd3::input_time_rng::LegacyKeyboardSnapshot keyboard{};
+        press(keyboard, 0x23U);
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_debug_hotkeys(
+                keyboard,
+                state,
+                fixture.bindings(),
+                port,
+                {.actor_adjustment_entry_edx = 0x98765432U}
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleDebugHotkeyStatus::
+                        actor_coordinate_adjustment_typed_stop &&
+                result.actor_coordinate_adjustment_calls == 2U &&
+                result.actor_adjust_iterations == 1U &&
+                fixture.startup.party[0].position_x == 20U &&
+                fixture.startup.party[1].position_x == 20U &&
+                result.actor_coordinate_adjustment.status ==
+                    openswd3::battle::
+                        LegacyBattleActorCoordinateAdjustmentStatus::
+                            position_x_add_typed_stop &&
+                result.actor_coordinate_adjustment.return_eax == 10U &&
+                result.actor_coordinate_adjustment.return_ecx == 0x00505904U &&
+                result.actor_coordinate_adjustment.return_edx == 0x98760000U &&
+                result.actor_coordinate_adjustment.flags.carry &&
+                result.actor_coordinate_adjustment.flags.parity &&
+                result.actor_coordinate_adjustment.flags.auxiliary_carry &&
+                result.actor_coordinate_adjustment.flags
+                    .auxiliary_carry_defined &&
+                !result.actor_coordinate_adjustment.flags.zero &&
+                result.actor_coordinate_adjustment.flags.sign &&
+                !result.actor_coordinate_adjustment.flags.overflow,
+            "the second H actor enters with index-minus-count CMP flags and stops before its X write"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.actor_metrics.group_a_count = 1U;
+        fixture.startup.party[0].position_x = 20U;
+        fixture.effect_shift.actor_delta = 99;
+        LegacyBattleDebugHotkeyState state;
+        state.developer_tools_enabled = 1U;
+        state.screenshot_request = 7U;
+        DebugPort port;
+        openswd3::input_time_rng::LegacyKeyboardSnapshot keyboard{};
+        press(keyboard, 0x23U);
+        press(keyboard, 0x19U);
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_debug_hotkeys(
+                keyboard,
+                state,
+                fixture.bindings(),
+                port,
+                {
+                    .actor_adjustment_entry_edx = 0x12345678U,
+                    .actor_adjustment_x_argument_readable = false,
+                }
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleDebugHotkeyStatus::
+                        actor_coordinate_adjustment_typed_stop &&
+                result.raw_key_queries == 3U &&
+                result.actor_coordinate_adjustment_calls == 1U &&
+                result.actor_adjust_iterations == 0U &&
+                result.actor_coordinate_adjustment.status ==
+                    openswd3::battle::
+                        LegacyBattleActorCoordinateAdjustmentStatus::
+                            x_argument_read_typed_stop &&
+                result.actor_coordinate_adjustment.return_eax == 1U &&
+                result.actor_coordinate_adjustment.return_ecx == 0x005029D0U &&
+                result.actor_coordinate_adjustment.return_edx == 0x12345678U &&
+                !result.actor_coordinate_adjustment.flags.carry &&
+                !result.actor_coordinate_adjustment.flags.parity &&
+                !result.actor_coordinate_adjustment.flags.auxiliary_carry &&
+                result.actor_coordinate_adjustment.flags
+                    .auxiliary_carry_defined &&
+                !result.actor_coordinate_adjustment.flags.zero &&
+                !result.actor_coordinate_adjustment.flags.sign &&
+                !result.actor_coordinate_adjustment.flags.overflow &&
+                result.actor_coordinate_adjustment.argument_reads == 0U &&
+                fixture.startup.party[0].position_x == 20U &&
+                fixture.effect_shift.actor_delta == 99 &&
+                state.screenshot_request == 7U,
+            "H argument typed-stop exposes the exact leaf result and suppresses delta J and P"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.actor_metrics.group_a_count = 2U;
+        fixture.actor_metrics.group_b_count = 1U;
+        fixture.startup.party[0].position_x = 1U;
+        fixture.startup.party[1].position_x = 2U;
+        auto& group_b =
+            (*fixture.startup.group_b_lifecycle)[0].action_execution;
+        group_b.position_x = 3U;
+        group_b.position_y = 13U;
+        group_b.position_y_write_accessible = false;
+        fixture.effect_shift.actor_delta = 77;
+        LegacyBattleDebugHotkeyState state;
+        state.developer_tools_enabled = 1U;
+        state.screenshot_request = 7U;
+        DebugPort port;
+        openswd3::input_time_rng::LegacyKeyboardSnapshot keyboard{};
+        press(keyboard, 0x23U);
+        press(keyboard, 0x19U);
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_debug_hotkeys(
+                keyboard,
+                state,
+                fixture.bindings(),
+                port,
+                {.actor_adjustment_entry_edx = 0xA5A51234U}
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleDebugHotkeyStatus::
+                        actor_coordinate_adjustment_typed_stop &&
+                result.raw_key_queries == 3U &&
+                result.actor_coordinate_adjustment_calls == 3U &&
+                result.actor_adjust_iterations == 2U &&
+                fixture.startup.party[0].position_x == 11U &&
+                fixture.startup.party[1].position_x == 12U &&
+                group_b.position_x == 13U && group_b.position_y == 13U &&
+                result.actor_coordinate_adjustment.status ==
+                    openswd3::battle::
+                        LegacyBattleActorCoordinateAdjustmentStatus::
+                            position_y_add_typed_stop &&
+                result.actor_coordinate_adjustment.return_eax == 10U &&
+                result.actor_coordinate_adjustment.return_ecx == 0x00525508U &&
+                result.actor_coordinate_adjustment.return_edx == 0xA5A50000U &&
+                result.actor_coordinate_adjustment.coordinate_adds == 1U &&
+                fixture.effect_shift.actor_delta == 77 &&
+                state.screenshot_request == 7U,
+            "H completes group-A before group-B and a Y fault keeps the current X prefix without committing the tail"
+        );
+    }
+
+    {
+        Fixture fixture;
         fixture.actor_metrics.group_a_count = 1U;
         fixture.actor_metrics.group_b_count = 1U;
+        fixture.startup.party[0].position_x = 2U;
+        fixture.startup.party[0].position_y = 3U;
+        auto& group_b =
+            (*fixture.startup.group_b_lifecycle)[0].action_execution;
+        group_b.position_x = 0xFFFCU;
+        group_b.position_y = 5U;
         LegacyBattleDebugHotkeyState state;
+        state.developer_tools_enabled = 1U;
         DebugPort port;
         openswd3::input_time_rng::LegacyKeyboardSnapshot keyboard{};
         press(keyboard, 0x23U);
         press(keyboard, 0x24U);
         const auto result =
             openswd3::battle::coordinate_legacy_battle_debug_hotkeys(
-                keyboard, state, fixture.bindings(), port
+                keyboard,
+                state,
+                fixture.bindings(),
+                port,
+                {.actor_adjustment_entry_edx = 0xCAFE9876U}
             );
         test.expect_true(
-            result.actor_adjust_iterations == 4U &&
+            result.status == LegacyBattleDebugHotkeyStatus::completed &&
+                result.actor_adjust_iterations == 4U &&
+                result.actor_coordinate_adjustment_calls == 4U &&
+                fixture.startup.party[0].position_x == 2U &&
+                fixture.startup.party[0].position_y == 3U &&
+                group_b.position_x == 0xFFFCU && group_b.position_y == 5U &&
                 fixture.effect_shift.actor_delta == -10 &&
-                port.count(LegacyBattleDebugHotkeyCall::adjust_actor) == 4U,
-            "J runs after H and overwrites the shared actor delta with negative ten"
+                result.actor_coordinate_adjustment.return_eax == 0xFFF6U &&
+                result.actor_coordinate_adjustment.return_ecx == 0x00525508U &&
+                result.actor_coordinate_adjustment.return_edx == 0xCAFE0000U &&
+                port.count(
+                    LegacyBattleDebugHotkeyCall::reserved_adjust_actor_slot
+                ) == 0U,
+            "J runs after H restores every actor word modulo 65536 and commits negative ten"
         );
     }
 

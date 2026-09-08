@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_actor_coordinate_adjustment.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_debug_state.hpp"
 #include "openswd3/battle/legacy_battle_effect_coordinator.hpp"
@@ -26,7 +27,7 @@ enum class LegacyBattleDebugHotkeyCall : compat::u8 {
     reset_actor,
     restart_battle_music,
     query_actor_status,
-    adjust_actor,
+    reserved_adjust_actor_slot,
     text_message_allocate,
     text_message_measure,
 };
@@ -87,6 +88,13 @@ enum class LegacyBattleDebugHotkeyStatus : compat::u8 {
     group_b_publication_typed_stop,
     actor_frame_state_typed_stop,
     text_message_typed_stop,
+    actor_coordinate_adjustment_typed_stop,
+};
+
+struct LegacyBattleDebugHotkeyRequest {
+    compat::u32 actor_adjustment_entry_edx{};
+    bool actor_adjustment_x_argument_readable{true};
+    bool actor_adjustment_y_argument_readable{true};
 };
 
 struct LegacyBattleDebugHotkeyResult {
@@ -100,6 +108,8 @@ struct LegacyBattleDebugHotkeyResult {
     compat::u32 group_a_iterations{};
     compat::u32 group_b_iterations{};
     compat::u32 actor_adjust_iterations{};
+    compat::u32 actor_coordinate_adjustment_calls{};
+    LegacyBattleActorCoordinateAdjustmentResult actor_coordinate_adjustment{};
     std::vector<LegacyBattleTextMessageResult> text_messages;
     compat::u32 text_message_calls{};
     bool control_chord_active{};
@@ -112,7 +122,8 @@ coordinate_legacy_battle_debug_hotkeys(
     const input_time_rng::LegacyKeyboardSnapshot& keyboard,
     LegacyBattleDebugHotkeyState& state,
     LegacyBattleDebugHotkeyBindings bindings,
-    LegacyBattleDebugHotkeyPort& port
+    LegacyBattleDebugHotkeyPort& port,
+    const LegacyBattleDebugHotkeyRequest& request = {}
 );
 
 }  // namespace openswd3::battle

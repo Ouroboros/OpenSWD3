@@ -186,13 +186,90 @@ private:
     LegacyBattleDebugHotkeyResult& result_;
 };
 
+[[nodiscard]] constexpr bool has_even_parity(u32 value) noexcept {
+    value &= 0xFFU;
+    value ^= value >> 4U;
+    value ^= value >> 2U;
+    value ^= value >> 1U;
+    return (value & 1U) == 0U;
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+subtract_flags(const u32 left, const u32 right) noexcept {
+    const u32 difference = left - right;
+    return {
+        .carry = left < right,
+        .parity = has_even_parity(difference),
+        .auxiliary_carry = ((left ^ right ^ difference) & 0x10U) != 0U,
+        .auxiliary_carry_defined = true,
+        .zero = difference == 0U,
+        .sign = (difference & 0x80000000U) != 0U,
+        .overflow = ((left ^ right) & (left ^ difference) & 0x80000000U) != 0U,
+    };
+}
+
+[[nodiscard]] bool adjust_actor_group(
+    const LegacyBattleDebugHotkeyBindings& bindings,
+    LegacyBattleDebugHotkeyResult& result,
+    const LegacyBattleDebugHotkeyRequest& request,
+    const u32& count_source,
+    const u32 base_token,
+    const u32 stride,
+    const u32 x_delta,
+    u32& edx
+) noexcept {
+    u32 count = count_source;
+    u32 index{};
+    u32 actor_token = base_token;
+    LegacyBattleActorCoordinateFlags flags = subtract_flags(count, 0U);
+    while (index < count) {
+        result.actor_coordinate_adjustment =
+            adjust_legacy_battle_actor_coordinates(
+                resolve_legacy_battle_actor_coordinates(
+                    {
+                        .action = &bindings.action,
+                        .startup = &bindings.startup,
+                    },
+                    actor_token
+                ),
+                {
+                    .actor_token = actor_token,
+                    .x_delta = x_delta,
+                    .y_delta = 0U,
+                    .entry_eax = count,
+                    .entry_edx = edx,
+                    .entry_flags = flags,
+                    .x_argument_readable =
+                        request.actor_adjustment_x_argument_readable,
+                    .y_argument_readable =
+                        request.actor_adjustment_y_argument_readable,
+                }
+            );
+        ++result.actor_coordinate_adjustment_calls;
+        if (result.actor_coordinate_adjustment.status !=
+            LegacyBattleActorCoordinateAdjustmentStatus::completed) {
+            result.status = LegacyBattleDebugHotkeyStatus::
+                actor_coordinate_adjustment_typed_stop;
+            return false;
+        }
+        edx = result.actor_coordinate_adjustment.return_edx;
+        ++result.actor_adjust_iterations;
+        count = count_source;
+        ++index;
+        actor_token += stride;
+        flags = subtract_flags(index, count);
+    }
+    return true;
+}
+
 }  // namespace
 
 LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
     const input_time_rng::LegacyKeyboardSnapshot& keyboard,
     LegacyBattleDebugHotkeyState& state,
     LegacyBattleDebugHotkeyBindings bindings,
-    LegacyBattleDebugHotkeyPort& port
+    LegacyBattleDebugHotkeyPort& port,
+    const LegacyBattleDebugHotkeyRequest& request
 ) {
     LegacyBattleDebugHotkeyResult result;
     Runner runner(bindings, port, result);
@@ -490,58 +567,59 @@ LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
                 result.full_reset_applied = true;
             }
         }
-    }
 
-    if (runner.key(keyboard, 0x23U) != 0U) {
-        u32 index = 0U;
-        while (index <
-               std::bit_cast<u32>(bindings.actor_metrics.group_a_count)) {
-            static_cast<void>(runner.invoke(
-                LegacyBattleDebugHotkeyCall::adjust_actor,
-                group_a_token(index),
-                {10U, 0U}
-            ));
-            ++index;
-            ++result.actor_adjust_iterations;
+        u32 actor_adjustment_edx = request.actor_adjustment_entry_edx;
+        if (runner.key(keyboard, 0x23U) != 0U) {
+            if (!adjust_actor_group(
+                    bindings,
+                    result,
+                    request,
+                    bindings.actor_metrics.group_a_count,
+                    kGroupABaseToken,
+                    kGroupAStride,
+                    10U,
+                    actor_adjustment_edx
+                ) ||
+                !adjust_actor_group(
+                    bindings,
+                    result,
+                    request,
+                    bindings.actor_metrics.group_b_count,
+                    kGroupBBaseToken,
+                    kGroupBStride,
+                    10U,
+                    actor_adjustment_edx
+                )) {
+                return result;
+            }
+            bindings.effect_shift.actor_delta = 10;
         }
-        index = 0U;
-        while (index <
-               std::bit_cast<u32>(bindings.actor_metrics.group_b_count)) {
-            static_cast<void>(runner.invoke(
-                LegacyBattleDebugHotkeyCall::adjust_actor,
-                group_b_token(index),
-                {10U, 0U}
-            ));
-            ++index;
-            ++result.actor_adjust_iterations;
-        }
-        bindings.effect_shift.actor_delta = 10;
-    }
 
-    if (runner.key(keyboard, 0x24U) != 0U) {
-        u32 index = 0U;
-        while (index <
-               std::bit_cast<u32>(bindings.actor_metrics.group_a_count)) {
-            static_cast<void>(runner.invoke(
-                LegacyBattleDebugHotkeyCall::adjust_actor,
-                group_a_token(index),
-                {0xFFFFFFF6U, 0U}
-            ));
-            ++index;
-            ++result.actor_adjust_iterations;
+        if (runner.key(keyboard, 0x24U) != 0U) {
+            if (!adjust_actor_group(
+                    bindings,
+                    result,
+                    request,
+                    bindings.actor_metrics.group_a_count,
+                    kGroupABaseToken,
+                    kGroupAStride,
+                    0xFFFFFFF6U,
+                    actor_adjustment_edx
+                ) ||
+                !adjust_actor_group(
+                    bindings,
+                    result,
+                    request,
+                    bindings.actor_metrics.group_b_count,
+                    kGroupBBaseToken,
+                    kGroupBStride,
+                    0xFFFFFFF6U,
+                    actor_adjustment_edx
+                )) {
+                return result;
+            }
+            bindings.effect_shift.actor_delta = -10;
         }
-        index = 0U;
-        while (index <
-               std::bit_cast<u32>(bindings.actor_metrics.group_b_count)) {
-            static_cast<void>(runner.invoke(
-                LegacyBattleDebugHotkeyCall::adjust_actor,
-                group_b_token(index),
-                {0xFFFFFFF6U, 0U}
-            ));
-            ++index;
-            ++result.actor_adjust_iterations;
-        }
-        bindings.effect_shift.actor_delta = -10;
     }
 
     if (runner.key(keyboard, 0x19U) != 0U) {

@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v884
+版本：v885
 
 最后更新：2026-09-08
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 工作包286 REVIEW计划与执行
+当前步骤：模块10 · 工作包286 REVIEW收尾
 
 ## 0. 执行约定
 
@@ -271,7 +271,7 @@ REVIEW通过后必须立即按`AGENTS.md`完成commit、push和TG，再重新完
 13. `[x]` B7：地图、世界、角色、碰撞与寻路已按模块移交条件有限收口；当前状态、阻塞和证据见[`world-map.md`](../analysis/04-reverse-engineering/modules/world-map.md)及相关inventory/evidence。
 14. `[x]` B8：剧情VM、场景调度与异步action的P1–P3已经完成；[`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md)不再覆盖当前队列。
 15. `[x]` B9：菜单、商店和其他特殊模式的227/227工作项已经关闭；当前状态和阻塞见[`special-modes.md`](../analysis/04-reverse-engineering/modules/special-modes.md)。
-16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=285`，本阶段规划并执行工作包286。
+16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=286`，本阶段收尾工作包286 REVIEW 1。
 17. `[ ]` B11：存档、配置与持久化语义；等待B10满足移交条件后开始。
 
 B7以后已经完成的详细执行记录已机械搬到[`execution-progress-history-pi.md`](execution-progress-history-pi.md)。该文件只保存历史，不定义当前执行顺序、状态或断点。
@@ -286,11 +286,11 @@ B7以后已经完成的详细执行记录已机械搬到[`execution-progress-his
 
 当前工作包：`audit_order=286`、`0x004785A0`。目标是实现角色当前坐标的有序word增量调整，并回收`0x0045D8F0`调试热键H/J尾部的四个物理callsite。
 
-当前断点：完整LST与caller审计已完成；工作包按最小可独立生产路径收敛为单一REVIEW。下一步先独立发布本规划修正提交，再开始生产代码修改。
+当前断点：单一REVIEW生产路径、四处caller回收、测试、证据与inventory关闭均已完成；定向、AddressSanitizer、Linux core、Linux app、连续十轮core、changed-range格式、inventory双生成与TMP审计全部通过。下一步执行最终unstaged/staged发布审计；通过后立即commit、push、TG并重读规定文件，再以独立规划提交切换工作包287。
 
 #### REVIEW 1：角色坐标word增量与H/J caller回收
 
-状态：待开始。
+状态：已完成。
 
 - 实现`0x004785A0..0x004785BA`共27字节、5条指令和1个`retn 8`的typed leaf；无call、分支或范围外chunk。先按`[esp+4]`、`[esp+8]`顺序读取两个word参数到AX、DX，再按actor `+0x0D66`、`+0x0D68`顺序执行两个16-bit read-modify-write ADD。
 - 保留word环绕、X后Y提交、X/Y别名、第二次ADD观察第一次提交、参数读取和内存访问typed-stop。第一项坐标访问失败时不得提交X或ADD flags；第二项失败时保留已提交X和第一次ADD flags；成功时保留第二次ADD的CF/PF/AF/ZF/SF/OF。
