@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v890
+版本：v892
 
 最后更新：2026-09-08
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 工作包287 REVIEW 3 发布验收
+当前步骤：模块10 · 工作包288 REVIEW 1待实现
 
 ## 0. 执行约定
 
@@ -271,56 +271,54 @@ REVIEW通过后必须立即按`AGENTS.md`完成commit、push和TG，再重新完
 13. `[x]` B7：地图、世界、角色、碰撞与寻路已按模块移交条件有限收口；当前状态、阻塞和证据见[`world-map.md`](../analysis/04-reverse-engineering/modules/world-map.md)及相关inventory/evidence。
 14. `[x]` B8：剧情VM、场景调度与异步action的P1–P3已经完成；[`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md)不再覆盖当前队列。
 15. `[x]` B9：菜单、商店和其他特殊模式的227/227工作项已经关闭；当前状态和阻塞见[`special-modes.md`](../analysis/04-reverse-engineering/modules/special-modes.md)。
-16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=287`；工作包287三个REVIEW的十九处caller均已回收，正在执行最终发布验收。
+16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=287`；工作包288的完整LST、二十一个物理caller与三段REVIEW计划已锁定，待执行REVIEW 1。
 17. `[ ]` B11：存档、配置与持久化语义；等待B10满足移交条件后开始。
 
 B7以后已经完成的详细执行记录已机械搬到[`execution-progress-history-pi.md`](execution-progress-history-pi.md)。该文件只保存历史，不定义当前执行顺序、状态或断点。
 
 当前只执行B10，不并行展开B11。
 
-当前执行`audit_order=287 / 0x004785C0`战斗角色坐标发布与32字节记录复制函数。
+当前执行`audit_order=288 / 0x00478600`战斗角色当前坐标查询函数。
 
 ### B10 当前WORKPACK REVIEW计划
 
 本节始终只保存当前工作包计划。REVIEW完成状态在本节原位更新；工作包关闭后，本节全部内容由下一工作包计划整体替换，不追加历史。
 
-当前工作包：`audit_order=287`、`0x004785C0`。目标是完整实现当前坐标写入后把actor `+0x0D50..+0x0D6F`按八个dword复制到`+0x0D70..+0x0D8F`，并回收四个caller中的十九个物理callsite。
+当前工作包：`audit_order=288`、`0x00478600`。目标是完整实现从actor `+0x0D66/+0x0D68`向两个输出指针有序发布当前X/Y word的typed查询，并回收六个caller函数中的二十一个物理callsite。
 
-当前断点：REVIEW 1、REVIEW 2与REVIEW 3实现、测试、证据和生成器映射已完成；typed leaf、两份精确0x20字节canonical记录、效果步进四处、脚本分派十三处、turn gate一处与Group-B action17一处caller全部关闭，`caller_reclaimed:19/19`。inventory row 287已由权威生成器更新为`platform_adapted`；完整正式门、十轮core、格式与TMP均已通过，当前执行最终复审、release audit与发布。
+当前断点：完整LST已锁定`0x00478600..0x0047861E`共31字节、7条指令与1个`retn 8`，无call、分支或范围外chunk；二十一个物理caller已逐项枚举。当前执行REVIEW 1，实现独立current-coordinate typed leaf并回收效果步进四处、debug overlay一处与target-selection entry一处caller；inventory row 288保持`pending_audit`直至`caller_reclaimed:21/21`。
 
-#### REVIEW 1：typed坐标发布、记录唯一owner与效果步进四处caller
+#### REVIEW 1：typed当前坐标查询与效果、调试、目标选择六处caller
 
-状态：已完成。
+状态：待实现。
 
-- 实现`0x004785C0..0x004785F1`共50字节、13条指令和1个`retn 8`的typed leaf；无call、分支或范围外chunk。严格执行：读取`[esp+4]`低word到AX、读取`[esp+8]`低word到DX、保存ESI/EDI、写actor `+0x0D66`、写`+0x0D68`、设置`ESI=actor+0x0D50`与`EDI=actor+0x0D70`、设置`ECX=8`、按八次`movsd`读后写、恢复EDI/ESI。
-- 将`+0x0D50..+0x0D6F`与`+0x0D70..+0x0D8F`收敛为`LegacyBattleActorCoordinatesState`继承的两个精确0x20字节记录。源记录显式包含`+0x0D64 identity_word`、`+0x0D66 position_x`、`+0x0D68 position_y`；目标记录显式包含`+0x0D86 alternate_position_x`与`+0x0D88 alternate_position_y`。从Group-B action-configuration移除重复`source_record/copied_record`，配置路径改写同一action-execution记录；不新增平行actor存储。
-- 保留参数读取、两次栈保存、X/Y写入、每个source dword读取、每个destination dword写入及两次栈恢复的精确typed-stop。Y写或任一复制访问失败必须保留此前写入和此前完整dword；destination写失败记录本次source读取但不提交目标dword；恢复阶段失败保留已完成的全部内存复制及当时ESI/EDI。
-- 保留寄存器和flags：首个参数只替换AX，第二个只替换DX；首轮复制入口为`ESI=actor+0x0D50`、`EDI=actor+0x0D70`、`ECX=8`，每次成功后按4前进并递减ECX；正常返回ECX为0且ESI/EDI恢复入口值。全函数不修改算术flags。十九个caller及程序内所有`std`路径均在返回前`cld`，生产合同固定DF为0并执行正向复制。
-- 回收效果步进`0x0045BD90`的`0x0045BE56/0x0045BEB6/0x0045BF77/0x0045BFD7`四处物理call。两个分支均严格Group-A后Group-B；每个actor继续先调用未关闭getter `0x00478600`，再把当前完整arg0加共享delta，并以低wordX和scratch低wordY直接组合typed leaf。
-- 保留四处caller各自的EAX/EDX高word、32-bit ADD flags、actor token、跨actor arg0/scratch、成功后动态count重载与index推进。leaf typed-stop公开精确结果，阻断当前count重载、余下actor/group、普通0返回或completion latch/phase尾；此前actor与当前leaf部分提交保留。
-- 为effect-shift及单体/群体父caller线程化canonical `LegacyBattleActorCoordinateOwners`、精确publication结果与调用计数；保留未关闭`0x00478600`窄端口。生产效果端口对`0x004785C0`零opaque调用，`caller_reclaimed`达到`4/19`。
-- 新增leaf、Group-B configuration迁移与effect-shift测试，覆盖完整32字节复制、坐标覆盖后进入复制源、八个dword顺序、部分复制、参数/栈/内存/恢复停止、寄存器/flags、两组token、两条效果分支、动态count和父级后缀抑制。同步本REVIEW涉及证据并执行影响范围门禁；通过后立即commit、push、TG并重读规定文件，inventory继续保持row 287 `pending_audit`。
+- 在既有`legacy_battle_actor_coordinates`边界新增不与`0x004783B0` selector查询混淆的current-coordinate typed API；复用`LegacyBattleActorCoordinatesView`、`LegacyBattleActorCoordinateOwners`、现有flags类型与startup/action/lifecycle canonical owner，不修改旧mode-gated查询语义，不新增caller-local或Group-B平行actor坐标存储。
+- 精确实现`mov edx,[esp+4]`、`mov ax,[ecx+0x0D66]`、`mov [edx],ax`、`mov ax,[ecx+0x0D68]`、`mov ecx,[esp+8]`、`mov [ecx],ax`、`retn 8`。正常返回`EAX=(entry_EAX & 0xFFFF0000)|Y`、`EDX=out_x token`、`ECX=out_y token`，全部MOV与RET保持入口flags。
+- 为第一个输出指针栈读、X读、X写、Y读、第二个输出指针栈读、Y写建立六个独立typed-stop。严格保留访问顺序、输出别名、输出与actor字段别名及部分提交：X写成功后任何后续停止均保留X；`out_x==out_y`最终为Y；若X写覆盖actor `+0x0D68`，随后Y读必须观察刚写入的X，禁止预先snapshot坐标或提前读取第二输出指针。
+- 回收效果步进`0x0045BD90`的`0x0045BE39/0x0045BE99/0x0045BF5A/0x0045BFBA`四处caller。保留Group-A/Group-B循环、两个栈局部输出的压参次序、EAX高word、EDX live residue、actor ECX、查询后的32-bit增量、随后typed publication、动态count重载、index推进和父级后缀；query typed-stop阻断当前增量、publication及剩余actor/group，同时保留此前actor提交。
+- 回收debug overlay `0x0045DEE0:0x0045E270`与target-selection entry `0x004620D0:0x00462234`。前者直接查询Group-B canonical action-execution坐标并在停止时阻断Y符号扩展、进度宽度与首个marker像素；后者直接查询选定Group-A canonical记录到`0x0053BF4A/0x0053BF4E`语义scratch，并在停止时阻断后续比较、origin提交与目标选择后缀。
+- 各caller result公开精确current-coordinate leaf结果、调用数和返回寄存器。删除上述六处生产raw/opaque getter调用；effect raw地址常量、debug `query_marker_position`和input `target_selection_configure_actor`旧槽改为reserved语义并保留地址或ordinal，生产调用计数为零。
+- 将`legacy_battle_effect_frame.hpp/.cpp`与`legacy_battle_group_effect_frame.hpp/.cpp`纳入本REVIEW。两个父级必须把Group-A/Group-B current-coordinate query stop分别映射为独立非completed状态，保留effect-shift真实返回寄存器和leaf部分提交，并立即阻断单体cleanup或群体第二次shift、render-count清零与alternate清理等父级后缀；不得由旧switch遗漏新状态而落回`completed`。
+- 扩展actor-coordinate、effect-shift、effect-frame、group-effect-frame、debug-overlay与target-selection-entry测试，覆盖六个停止点、EAX高字/ECX/EDX、flags、三类alias、部分提交、四个效果站点的两种局部地址位形、两个效果父级的状态/寄存器传播与cleanup/render后缀抑制、debug与target首后缀抑制及reserved端口零调用，使`caller_reclaimed`达到`6/21`。同步目标与五个caller/父级证据并执行影响范围门禁；通过后立即commit、push、TG并重读规定文件，inventory row 288继续保持`pending_audit`。
 
 #### REVIEW 2：脚本分派十三处caller回收
 
-状态：已完成。
+状态：待实现，依赖REVIEW 1。
 
-- 回收`0x00469D20`十三处物理callsite：case 5 `0x0046A70A`、case 13 `0x0046A82E`、case 45 `0x0046BA65/0x0046BAD8`、case 22 `0x0046BB66/0x0046BBBF`、case 39 `0x0046C7C7`、case 40 `0x0046C94C/0x0046C9A0`、case 73 `0x0046CA9A/0x0046CAEE`、case 50 `0x0046CDA8`与case 68 `0x0046D8B4`。
-- 所有站点直接解析startup party或Group-B lifecycle action-execution的canonical记录并组合typed leaf；按原站点构造X/Y参数、EAX/EDX高word、actor ECX、ESI/EDI与最近一次flags。成功后使用leaf真实`EAX/ECX/EDX`，不得沿用opaque reply；删除生产`pending_4785c0`调用并将枚举地址改为reserved名称、保留ordinal。
-- 保留case 5/13单actor增量，case 22与40的Group-A后Group-B遍历，case 45的Group-B后Group-A镜像遍历，case 39曲线坐标，case 50从Group-B零号查询后向目标actor发布，case 68直接脚本word发布，以及case 73按除法步长遍历两组。未关闭getter/曲线/帧等callee仍保留原窄边界。
-- leaf typed-stop映射为独立脚本publication状态并公开精确leaf结果、调用数和寄存器。停止必须抑制当前index推进、剩余actor/group及各case后缀：cursor推进、共享坐标清零、mirror_x提交、actor metrics、frame、frame-gate切换和临时word清零均不得越过原callsite。
-- 扩展脚本定向测试覆盖十三处物理语义：两组顺序与固定token、低word参数和高word残值、成功ECX归零、flags保持、源/目标复制、各case代表性source/destination fault、当前leaf部分提交、此前actor前缀与全部后缀抑制；断言reserved端口零调用，`caller_reclaimed`达到`17/19`。
-- 同步脚本与目标证据并执行影响范围门禁；通过后立即commit、push、TG并重读规定文件，inventory继续保持row 287 `pending_audit`。
+- 回收`0x00469D20`十三处物理callsite：`0x0046A694`、`0x0046A7C6`、`0x0046BA42`、`0x0046BAB5`、`0x0046BB44`、`0x0046BB9D`、`0x0046C610`、`0x0046C8AA`、`0x0046C929`、`0x0046C97D`、`0x0046CA77`、`0x0046CACB`与`0x0046CD72`。
+- 每处直接通过startup party或Group-B lifecycle action-execution的canonical view组合current-coordinate typed leaf；保留两个固定scratch pair `0x0053CCE8/0x0053CCEC`与`0x0053CE78/0x0053CE7A`、分支汇合前压参、actor token、caller-specific EAX高word、ECX/EDX残值和入口flags。成功后必须消费leaf真实寄存器，不沿用opaque reply。
+- 按完整caller LST逐站点保留查询后的X/Y读取、packed pair、符号扩展、`640-X`镜像、脚本delta、序列全局复制、中心换算与后续参数构造。每个typed-stop均阻断该站点第一条后缀及其后的cursor/index/count、剩余actor/group、frame、mirror或共享scratch提交；此前完成站点和当前X部分写入保持。
+- 将`LegacyBattleScriptDispatchCall::pending_478600`改为reserved current-coordinate query名称并保留`0x00478600`枚举值；删除十三处生产调用及SDL adapter的可达坐标转发，reserved槽返回空reply，生产`0x00478600` opaque调用归零。
+- 扩展script-dispatch测试，对十三个地址分别验证Group-A/B token、两套scratch、非零EAX高字、ECX/EDX、flags、正常后缀、六类leaf stop、alias/部分提交、此前站点保留与全部后缀抑制，使`caller_reclaimed`达到`19/21`。同步脚本与目标证据并执行影响范围门禁；通过后立即commit、push、TG并重读规定文件，inventory row 288继续保持`pending_audit`。
 
 #### REVIEW 3：turn gate、Group-B action17与工作包关闭
 
-状态：已完成。
+状态：待实现，依赖REVIEW 2。
 
-验证：战斗定向`1/1`、Linux core `199/199`、ASan/UBSan `199/199`、Linux app `205/205`、连续十轮core `199/199`、changed-range格式、inventory双生成与TMP分类全部通过；最终日志零源码warning、失败或sanitizer诊断。
-
-- 回收`0x00471540`的`0x0047172C`：先保留`0x00478600`坐标查询；argument为1时按mirror状态对X执行`-0x10/+0x10`，随后对当前actor直接组合typed发布。入口EAX/X、EDX/Y和分支flags保持原样；成功返回ECX为0。typed-stop阻断frame token读取、共享frame source发布与后续blit。
-- 回收`0x004763D0`的`0x0047656D`：先保留坐标查询，再按mirror状态对X执行`+0x19/-0x19`；调用入口EAX与EDX高字来自调整后的X，DX由Y参数替换，flags来自最终ADD/SUB。typed-stop阻断frame token读取、共享frame source发布与后续blit。
-- 两个caller在自身canonical `LegacyBattleGroupAActionExecutionState`上直接组合leaf，结果公开精确publication、调用数与寄存器。删除Group-A turn raw地址调用；将action17 `publish_coordinates`枚举槽改为reserved名称并保留ordinal，删除opponent adapter对`0x004785C0`的生产转发。
-- 扩展turn gate、action17与opponent dispatch测试，覆盖普通与mirror参数、坐标与32字节目标记录、成功寄存器/flags、X/Y和复制阶段typed-stop、部分提交、frame/blit后缀抑制及reserved端口零调用，使`caller_reclaimed`达到`19/19`。
-- 完成目标/caller/effect/script/action证据、`modules/battle.md`、生成器关闭映射、inventory TSV与主PLAN同步。最终执行定向测试、AddressSanitizer、Linux core、Linux app、changed-range格式、零诊断、连续十次core、inventory双次稳定生成、TMP分类与完整staged/unstaged发布审计。
-- 原版动态差分若仍缺少完整Group-A/Group-B actor、异常栈与内存页、DF/寄存器/SEH及十九处caller联合捕获后端，则登记为`blocked_runtime_oracle`。REVIEW通过后关闭row 287，立即commit、push、TG并重读规定文件，再切换下一工作包。
+- 回收turn gate `0x00471540:0x004716FD`。直接查询当前Group-A canonical记录到原两个栈局部，保留调用前`EAX=var_4`地址残值、`ECX=ESI actor`、EDX live residue与入口flags；成功后继续原`EBP/EBX`比较、X `-0x10/+0x10`调整和已关闭`0x004785C0` typed publication。
+- 回收Group-B action17 `0x004763D0:0x00476544`。直接查询当前canonical action-execution记录，保持`var_8/var_4`输出次序、`EAX=var_8`地址残值、`ECX=ESI actor`、`EDX=var_4`地址残值与入口flags；成功后继续mirror分支的X `+0x19/-0x19`调整和typed publication。
+- 两个caller公开精确current-coordinate leaf结果、调用数和返回寄存器。query typed-stop必须阻断各自`0x00471702/0x00476549`起的调整、publication、frame token、共享frame source、blit、倒计时及父级后缀，同时保留leaf对局部输出的部分提交。
+- 删除Group-A frame的`0x00478600` raw常量调用；将action17 `query_coordinates`枚举槽改为reserved current-coordinate query名称并保留ordinal，删除opponent adapter的`0x00478600`映射，生产路径零调用。
+- 扩展turn gate、action17与opponent-dispatch测试，覆盖正常与mirror路径、两个栈局部位形、非零EAX高字、ECX/EDX、flags、六类query stop、X部分提交、调整/publication/frame/blit/countdown后缀抑制及reserved端口零调用，使`caller_reclaimed`达到`21/21`。
+- 完成新目标证据、六个caller证据、`modules/battle.md`、`analysis/tools/build_battle_workpack.py`关闭映射、inventory TSV与主PLAN同步。最终执行战斗定向测试、AddressSanitizer、Linux core、Linux app、changed-range格式、零源码warning、连续十次core、inventory双次稳定生成、TMP分类及完整staged/unstaged发布审计；row 288通过权威生成器更新为`platform_adapted`。
+- 原版动态差分若仍缺少完整Group-A/Group-B actor、异常栈与输出内存页、寄存器/flags/SEH及二十一处caller联合捕获后端，则登记为`blocked_runtime_oracle`。REVIEW通过后关闭row 288，立即commit、push、TG并重读规定文件，再切换下一工作包。
