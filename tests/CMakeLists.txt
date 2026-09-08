@@ -567,6 +567,7 @@ add_executable(
     unit/battle/legacy_battle_hud_frame_test.cpp
     unit/battle/legacy_battle_input_dispatch_test.cpp
     unit/battle/legacy_battle_input_record_priming_test.cpp
+    unit/battle/legacy_battle_actor_frame_resource_test.cpp
     unit/battle/legacy_battle_actor_frame_snapshot_test.cpp
     unit/battle/legacy_battle_frame_input_resolution_test.cpp
     unit/battle/legacy_battle_list_frame_test.cpp

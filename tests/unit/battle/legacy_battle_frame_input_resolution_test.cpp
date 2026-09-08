@@ -413,10 +413,37 @@ void test_battle_frame_input_resolution(openswd3::test::Context& test) {
             8>>();
         (*fixture.startup.group_b_lifecycle)[0U].resource_token = 1U;
         fixture.prepare_visible_surface(10, 10);
+        auto& surface_reply =
+            fixture.port.replies
+                [LegacyBattleFrameInputResolutionCall::resolve_actor_surface];
+        surface_reply.eax = 0xDEADBEEFU;
+        surface_reply.ecx = 0xCAFEBABEU;
+        surface_reply.edx = 0x0BADF00DU;
+        auto request =
+            openswd3::battle::LegacyBattleFrameInputResolutionRequest{};
+        auto& frame_resource_request =
+            request.actor_frame_resource_requests[0U];
+        frame_resource_request.frame_provider_return_eax = 0x1234ABCDU;
+        frame_resource_request.frame_provider_return_edx = 0x89ABCDEFU;
+        frame_resource_request.entry_esp = 0x71001000U;
         const auto result =
             openswd3::battle::coordinate_legacy_battle_frame_input_resolution(
-                fixture.bindings(), fixture.port
+                fixture.bindings(), fixture.port, request
             );
+        const auto surface_call = std::ranges::find_if(
+            fixture.port.calls,
+            [](const LegacyBattleFrameInputResolutionCallRequest& call) {
+                return call.call ==
+                    LegacyBattleFrameInputResolutionCall::resolve_actor_surface;
+            }
+        );
+        const auto mirror_call = std::ranges::find_if(
+            fixture.port.calls,
+            [](const LegacyBattleFrameInputResolutionCallRequest& call) {
+                return call.call ==
+                    LegacyBattleFrameInputResolutionCall::query_actor_mirror;
+            }
+        );
         test.expect_true(
             result.return_eax == 1U &&
                 fixture.final_actor.published_actor_code == 1U &&
@@ -440,15 +467,227 @@ void test_battle_frame_input_resolution(openswd3::test::Context& test) {
                 result.actor_frame_snapshot_queries == 1U &&
                 result.actor_frame_snapshot.output[0U] == 10U &&
                 result.actor_frame_snapshot.output[1U] == 10U &&
-                fixture.frame_provider.requests.size() == 1U &&
+                result.actor_frame_resource_queries == 1U &&
+                result.actor_frame_resource_caller == 0U &&
+                result.actor_frame_resource.return_eip == 0x004605DEU &&
+                result.actor_frame_resource.return_ebx == 0U &&
+                result.actor_frame_resource.return_esi == 0x00525508U &&
+                result.actor_frame_resource.return_edi == 0U &&
+                result.actor_frame_resource.return_esp == 0x71001004U &&
+                result.actor_frame_resource.copied_dwords == 0x26U &&
+                result.actor_frame_snapshot.action_update_calls == 1U &&
+                result.actor_frame_snapshot.frame_lookup_calls == 1U &&
+                result.actor_frame_resource.action_update_calls == 1U &&
+                result.actor_frame_resource.frame_lookup_calls == 1U &&
+                fixture.frame_provider.requests.size() == 2U &&
                 (*fixture.startup.group_b_lifecycle)[0U]
-                        .action_execution.turn_frame_token == 1U &&
+                        .action_execution.turn_frame_token == 0x1234ABCDU &&
+                surface_call != fixture.port.calls.end() &&
+                surface_call->actor_token == 0x1234ABCDU &&
+                mirror_call != fixture.port.calls.end() &&
+                mirror_call->eax == 0x1234ABCDU &&
+                mirror_call->edx == 0x89ABCDEFU &&
                 result.action_six_availability_queries == 1U &&
                 result.action_six_availability.resource_flags == 0U &&
                 fixture.port.battle_frame_input_resolution_state()
                         .target_action_available == 0U &&
                 result.image_queries == 1U,
-            "case three type-checks action six availability after committing the first visible group-B target"
+            "case three keeps surface resolution transparent to the Group-B leaf registers before the first mirror call"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.set_mouse(10, 10);
+        fixture.message = 3U;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.metrics.group_b_count = 1U;
+        fixture.prepare_visible_surface(10, 10);
+        auto request =
+            openswd3::battle::LegacyBattleFrameInputResolutionRequest{};
+        request.actor_frame_resource_requests[0U].frame_provider_return_eax =
+            0U;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_frame_input_resolution(
+                fixture.bindings(), fixture.port, request
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameInputResolutionStatus::
+                        actor_frame_resource_object_typed_stop &&
+                result.actor_frame_resource.status ==
+                    openswd3::battle::LegacyBattleActorFrameResourceStatus::
+                        completed &&
+                result.actor_frame_resource.frame_token_committed &&
+                (*fixture.startup.group_b_lifecycle)[0U]
+                        .action_execution.turn_frame_token == 0U &&
+                fixture.port.count(
+                    LegacyBattleFrameInputResolutionCall::resolve_actor_surface
+                ) == 0U &&
+                fixture.final_actor.published_actor_code == 0U &&
+                result.image_queries == 0U,
+            "null Group-B frame token stops at the caller object read after committing the actor prefix"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.set_mouse(10, 10);
+        fixture.message = 3U;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.metrics.group_b_count = 1U;
+        fixture.port.battle_input_dispatch_state().action_kind = 6U;
+        fixture.prepare_visible_surface(10, 10);
+        auto request =
+            openswd3::battle::LegacyBattleFrameInputResolutionRequest{};
+        request.actor_frame_resource_requests[0U].frame_provider_return_eax =
+            0x1234ABCDU;
+        request.actor_frame_resource_object_readable[0U] = false;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_frame_input_resolution(
+                fixture.bindings(), fixture.port, request
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameInputResolutionStatus::
+                        actor_frame_resource_object_typed_stop &&
+                result.actor_frame_resource_caller == 0U &&
+                result.actor_frame_resource.status ==
+                    openswd3::battle::LegacyBattleActorFrameResourceStatus::
+                        completed &&
+                result.actor_frame_resource.frame_token_committed &&
+                (*fixture.startup.group_b_lifecycle)[0U]
+                        .action_execution.turn_frame_token == 0x1234ABCDU &&
+                fixture.port.count(
+                    LegacyBattleFrameInputResolutionCall::
+                        query_group_b_candidate
+                ) == 1U &&
+                fixture.port.count(
+                    LegacyBattleFrameInputResolutionCall::query_actor_mirror
+                ) == 0U &&
+                fixture.port.count(
+                    LegacyBattleFrameInputResolutionCall::resolve_actor_surface
+                ) == 0U &&
+                fixture.port.count(
+                    LegacyBattleFrameInputResolutionCall::
+                        configure_actor_selection
+                ) == 1U &&
+                result.action_six_availability_queries == 0U &&
+                result.image_queries == 0U &&
+                fixture.final_actor.published_actor_code == 0U,
+            "unreadable nonnull Group-B frame object stops before mirror, surface, image, action-six, and publication suffixes"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.set_mouse(10, 10);
+        fixture.message = 3U;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.metrics.group_b_count = 1U;
+        fixture.prepare_visible_surface(10, 10);
+        fixture.port
+            .replies
+                [LegacyBattleFrameInputResolutionCall::resolve_actor_surface]
+            .surface.command_stream_present = false;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_frame_input_resolution(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameInputResolutionStatus::
+                        completed &&
+                result.return_eax == 0U &&
+                result.actor_frame_resource.return_eax == 1U &&
+                fixture.port.count(
+                    LegacyBattleFrameInputResolutionCall::resolve_actor_surface
+                ) == 1U &&
+                result.image_queries == 0U &&
+                fixture.final_actor.published_actor_code == 0U,
+            "nonzero frame token with a null first object dword follows the ordinary Group-B miss path"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.set_mouse(10, 10);
+        fixture.message = 3U;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.metrics.group_b_count = 2U;
+        fixture.prepare_visible_surface(10, 10);
+        auto& actor = (*fixture.startup.group_b_lifecycle)[1U].action_execution;
+        actor.frame_source_action_record.action_id = 0x11111111U;
+        actor.frame_source_action_record.cached_action_id = 0x22222222U;
+        auto request =
+            openswd3::battle::LegacyBattleFrameInputResolutionRequest{};
+        request.actor_frame_resource_requests[0U].source_dword_readable[1U] =
+            false;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_frame_input_resolution(
+                fixture.bindings(), fixture.port, request
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameInputResolutionStatus::
+                        actor_frame_resource_typed_stop &&
+                result.actor_frame_resource.status ==
+                    openswd3::battle::LegacyBattleActorFrameResourceStatus::
+                        source_dword_read_typed_stop &&
+                result.actor_frame_resource.copied_dwords == 1U &&
+                actor.frame_prepared_action_record.action_id == 0x11111111U &&
+                actor.frame_prepared_action_record.cached_action_id == 0U &&
+                fixture.port.count(
+                    LegacyBattleFrameInputResolutionCall::resolve_actor_surface
+                ) == 0U &&
+                fixture.port.count(
+                    LegacyBattleFrameInputResolutionCall::
+                        query_group_b_candidate
+                ) == 1U &&
+                fixture.port.count(
+                    LegacyBattleFrameInputResolutionCall::
+                        configure_actor_selection
+                ) == 2U &&
+                fixture.final_actor.published_actor_code == 0U,
+            "Group-B REP source fault preserves the first copied dword and suppresses the current and remaining actor suffixes"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.set_mouse(10, 10);
+        fixture.message = 3U;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.metrics.group_b_count = 1U;
+        fixture.prepare_visible_surface(10, 10);
+        auto& actor = (*fixture.startup.group_b_lifecycle)[0U].action_execution;
+        (*fixture.startup.group_b_lifecycle)[0U]
+            .action_configuration.special_ready = 1U;
+        (*fixture.startup.group_b_lifecycle)[0U]
+            .action_configuration.source_runtime_value = 0U;
+        actor.turn_frame_token_write_accessible = false;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_frame_input_resolution(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameInputResolutionStatus::
+                        actor_frame_resource_typed_stop &&
+                result.actor_frame_snapshot.returned_early &&
+                result.actor_frame_resource.status ==
+                    openswd3::battle::LegacyBattleActorFrameResourceStatus::
+                        frame_token_write_typed_stop &&
+                result.actor_frame_resource.copied_dwords == 0x26U &&
+                result.actor_frame_resource.action_update_calls == 1U &&
+                result.actor_frame_resource.frame_lookup_calls == 1U &&
+                !result.actor_frame_resource.frame_token_committed &&
+                fixture.port.count(
+                    LegacyBattleFrameInputResolutionCall::resolve_actor_surface
+                ) == 0U &&
+                result.image_queries == 0U &&
+                fixture.final_actor.published_actor_code == 0U,
+            "frame-token write fault preserves the completed resource lookup and suppresses every caller suffix"
         );
     }
 
@@ -669,9 +908,12 @@ void test_battle_frame_input_resolution(openswd3::test::Context& test) {
             9U
         );
         fixture.prepare_visible_surface(10, 10);
+        auto request =
+            openswd3::battle::LegacyBattleFrameInputResolutionRequest{};
+        request.actor_frame_resource_requests[2U].entry_esp = 0x72001000U;
         const auto result =
             openswd3::battle::coordinate_legacy_battle_frame_input_resolution(
-                fixture.bindings(), fixture.port
+                fixture.bindings(), fixture.port, request
             );
         const auto& markers =
             fixture.port.battle_frame_input_resolution_state().target_markers;
@@ -685,6 +927,13 @@ void test_battle_frame_input_resolution(openswd3::test::Context& test) {
                         query_group_a_candidate
                 ) == 1U &&
                 result.actor_frame_snapshot_queries == 1U &&
+                result.actor_frame_resource_queries == 1U &&
+                result.actor_frame_resource_caller == 2U &&
+                result.actor_frame_resource.return_eip == 0x00460A0FU &&
+                result.actor_frame_resource.return_ebx == 0U &&
+                result.actor_frame_resource.return_esi == 0x005029D0U &&
+                result.actor_frame_resource.return_edi == 0U &&
+                result.actor_frame_resource.return_esp == 0x72001004U &&
                 fixture.port.count(
                     LegacyBattleFrameInputResolutionCall::
                         reserved_prepare_actor_origin_slot
@@ -700,13 +949,107 @@ void test_battle_frame_input_resolution(openswd3::test::Context& test) {
         fixture.set_mouse(10, 10);
         fixture.message = 3U;
         fixture.final_actor.queued_actor_code = 9U;
+        fixture.metrics.group_a_count = 1U;
+        fixture.startup.reset.block_520e90[5U] = 1U;
+        fixture.prepare_visible_surface(10, 10);
+        auto request =
+            openswd3::battle::LegacyBattleFrameInputResolutionRequest{};
+        request.actor_frame_resource_requests[2U].frame_provider_return_eax =
+            0U;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_frame_input_resolution(
+                fixture.bindings(), fixture.port, request
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameInputResolutionStatus::
+                        actor_frame_resource_object_typed_stop &&
+                result.actor_frame_resource_caller == 2U &&
+                result.actor_frame_resource.frame_token_committed &&
+                fixture.action.group_a_action_execution[0U].turn_frame_token ==
+                    0U &&
+                fixture.port.count(
+                    LegacyBattleFrameInputResolutionCall::query_actor_mirror
+                ) == 1U &&
+                fixture.port.count(
+                    LegacyBattleFrameInputResolutionCall::resolve_actor_surface
+                ) == 0U &&
+                result.image_queries == 0U &&
+                fixture.final_actor.published_actor_code == 0U,
+            "null Group-A frame token stops at the first pixel resource access after preserving the preceding mirror query"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.set_mouse(10, 10);
+        fixture.message = 3U;
+        fixture.final_actor.queued_actor_code = 9U;
+        fixture.metrics.group_a_count = 2U;
+        fixture.startup.reset.block_520e90[5U] = 1U;
+        fixture.prepare_visible_surface(10, 10);
+        auto request =
+            openswd3::battle::LegacyBattleFrameInputResolutionRequest{};
+        request.actor_frame_resource_requests[2U].frame_provider_return_eax =
+            0x89ABCDEFU;
+        request.actor_frame_resource_object_readable[2U] = false;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_frame_input_resolution(
+                fixture.bindings(), fixture.port, request
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameInputResolutionStatus::
+                        actor_frame_resource_object_typed_stop &&
+                result.actor_frame_resource_caller == 2U,
+            "unreadable nonnull Group-A frame object reports the caller object-read typed stop"
+        );
+        test.expect_true(
+            result.actor_frame_resource.status ==
+                    openswd3::battle::LegacyBattleActorFrameResourceStatus::
+                        completed &&
+                result.actor_frame_resource.frame_token_committed &&
+                fixture.action.group_a_action_execution[1U].turn_frame_token ==
+                    0x89ABCDEFU,
+            "unreadable nonnull Group-A frame object preserves the completed leaf token commit"
+        );
+        test.expect_true(
+            fixture.port.count(
+                LegacyBattleFrameInputResolutionCall::query_group_a_candidate
+            ) == 1U &&
+                fixture.port.count(
+                    LegacyBattleFrameInputResolutionCall::query_actor_mirror
+                ) == 1U &&
+                fixture.port.count(
+                    LegacyBattleFrameInputResolutionCall::resolve_actor_surface
+                ) == 0U,
+            "unreadable nonnull Group-A frame object preserves one mirror before suppressing surface resolution"
+        );
+        test.expect_true(
+            fixture.port.count(
+                LegacyBattleFrameInputResolutionCall::configure_actor_selection
+            ) == 3U &&
+                result.actor_iterations == 2U && result.image_queries == 0U &&
+                fixture.final_actor.published_actor_code == 0U,
+            "unreadable nonnull Group-A frame object preserves the two-actor reset and selected-actor configuration prefix while suppressing image, remaining-candidate, and publication suffixes"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.set_mouse(10, 10);
+        fixture.message = 3U;
+        fixture.final_actor.queued_actor_code = 9U;
         fixture.metrics.group_a_count = 4U;
         fixture.startup.reset.block_520e90[5U] = 1U;
         fixture.final_actor.actor_order[3U] = 0U;
         fixture.prepare_visible_surface(10, 10);
+        auto request =
+            openswd3::battle::LegacyBattleFrameInputResolutionRequest{};
+        request.actor_frame_resource_requests[1U].entry_esp = 0x73001000U;
         const auto result =
             openswd3::battle::coordinate_legacy_battle_frame_input_resolution(
-                fixture.bindings(), fixture.port
+                fixture.bindings(), fixture.port, request
             );
         test.expect_true(
             result.status ==
@@ -714,6 +1057,13 @@ void test_battle_frame_input_resolution(openswd3::test::Context& test) {
                         completed &&
                 result.return_eax == 1U &&
                 result.actor_frame_snapshot_queries == 1U &&
+                result.actor_frame_resource_queries == 1U &&
+                result.actor_frame_resource_caller == 1U &&
+                result.actor_frame_resource.return_eip == 0x004607FBU &&
+                result.actor_frame_resource.return_ebx == 0x004A797CU &&
+                result.actor_frame_resource.return_esi == 1U &&
+                result.actor_frame_resource.return_edi == 0U &&
+                result.actor_frame_resource.return_esp == 0x73001004U &&
                 result.actor_frame_snapshot.output[0U] == 10U &&
                 fixture.action.group_a_action_execution[0U].turn_frame_token ==
                     1U &&
@@ -732,17 +1082,167 @@ void test_battle_frame_input_resolution(openswd3::test::Context& test) {
         fixture.set_mouse(10, 10);
         fixture.message = 3U;
         fixture.final_actor.queued_actor_code = 8U;
-        fixture.metrics.group_a_count = 1U;
+        fixture.metrics.group_a_count = 4U;
         fixture.startup.reset.block_520e90[0U] = 1U;
+        fixture.final_actor.actor_order[3U] = 2U;
+        fixture.final_actor.actor_order[2U] = 1U;
         fixture.prepare_visible_surface(10, 10);
+        fixture.startup.party[2U].position_x = 1000U;
         const auto result =
             openswd3::battle::coordinate_legacy_battle_frame_input_resolution(
                 fixture.bindings(), fixture.port
             );
         test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameInputResolutionStatus::
+                        completed &&
+                result.return_eax == 1U,
+            "actor-order continues from the full-scan miss to a later visible candidate"
+        );
+        test.expect_true(
+            result.actor_frame_snapshot_queries == 2U &&
+                result.actor_frame_resource_queries == 2U &&
+                result.actor_frame_resource_caller == 1U,
+            "actor-order invokes both typed frame leaves for the missed and visible candidates"
+        );
+        test.expect_true(
+            result.actor_frame_resource.return_ebx == 0x004A7978U &&
+                result.actor_frame_resource.return_esi == 1U &&
+                result.actor_frame_resource.return_edi == 8U,
+            "actor-order full-scan miss carries EDI eight with the next slot and ESI residues"
+        );
+        test.expect_true(
+            result.image_queries == 65U,
+            "actor-order performs sixty-four miss probes before the next candidate hit"
+        );
+    }
+
+    {
+        constexpr u32 actor_index = 2U;
+        constexpr u32 actor_token =
+            openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken +
+            actor_index *
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupAStride;
+        Fixture fixture;
+        fixture.set_mouse(10, 10);
+        fixture.message = 3U;
+        fixture.final_actor.queued_actor_code = 9U;
+        fixture.metrics.group_a_count = 4U;
+        fixture.startup.reset.block_520e90[5U] = 1U;
+        fixture.final_actor.actor_order[3U] = actor_index;
+        fixture.prepare_visible_surface(10, 10);
+        auto request =
+            openswd3::battle::LegacyBattleFrameInputResolutionRequest{};
+        auto& leaf_request = request.actor_frame_resource_requests[1U];
+        leaf_request.entry_esp = 0x74001000U;
+        leaf_request.stack_access.push_ebx_writable = false;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_frame_input_resolution(
+                fixture.bindings(), fixture.port, request
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameInputResolutionStatus::
+                        actor_frame_resource_typed_stop &&
+                result.actor_frame_resource.status ==
+                    openswd3::battle::LegacyBattleActorFrameResourceStatus::
+                        push_ebx_write_typed_stop &&
+                result.actor_frame_resource.return_eax ==
+                    actor_index * 0xBCDU &&
+                result.actor_frame_resource.return_ebx == 0x004A797CU &&
+                result.actor_frame_resource.return_esi == 1U &&
+                result.actor_frame_resource.return_edi == 0U &&
+                result.actor_frame_resource.return_esp == 0x74001000U &&
+                result.actor_frame_resource.flags_known &&
+                !result.actor_frame_resource.flags.carry &&
+                result.actor_frame_resource.flags.parity &&
+                result.actor_frame_resource.flags.auxiliary_carry_defined &&
+                result.actor_frame_resource.flags.auxiliary_carry &&
+                !result.actor_frame_resource.flags.zero &&
+                !result.actor_frame_resource.flags.sign &&
+                !result.actor_frame_resource.flags.overflow &&
+                fixture.port.count(
+                    LegacyBattleFrameInputResolutionCall::resolve_actor_surface
+                ) == 0U,
+            "actor-order caller reconstructs its post-SUB EAX, flags, slot token, and callee-saved values before the leaf push"
+        );
+
+        Fixture rep_fixture;
+        rep_fixture.set_mouse(10, 10);
+        rep_fixture.message = 3U;
+        rep_fixture.final_actor.queued_actor_code = 9U;
+        rep_fixture.metrics.group_a_count = 4U;
+        rep_fixture.startup.reset.block_520e90[5U] = 1U;
+        rep_fixture.final_actor.actor_order[3U] = actor_index;
+        rep_fixture.prepare_visible_surface(10, 10);
+        request = openswd3::battle::LegacyBattleFrameInputResolutionRequest{};
+        request.actor_frame_resource_requests[1U].source_dword_readable[5U] =
+            false;
+        const auto rep =
+            openswd3::battle::coordinate_legacy_battle_frame_input_resolution(
+                rep_fixture.bindings(), rep_fixture.port, request
+            );
+        test.expect_true(
+            rep.status ==
+                    openswd3::battle::LegacyBattleFrameInputResolutionStatus::
+                        actor_frame_resource_typed_stop &&
+                rep.actor_frame_resource.status ==
+                    openswd3::battle::LegacyBattleActorFrameResourceStatus::
+                        source_dword_read_typed_stop &&
+                rep.actor_frame_resource.stack_write_count == 3U &&
+                rep.actor_frame_resource.stack_writes[0U] == 0x004A797CU &&
+                rep.actor_frame_resource.return_eax == actor_token + 0x0CB8U &&
+                rep.actor_frame_resource.return_ebx == actor_token &&
+                rep.actor_frame_resource.return_esi ==
+                    actor_token + 0x02A0U + 5U * sizeof(u32) &&
+                rep.actor_frame_resource.return_edi ==
+                    actor_token + 0x0CB8U + 5U * sizeof(u32) &&
+                rep.actor_frame_resource.return_ecx == 0x21U &&
+                rep.actor_frame_resource.flags.parity &&
+                rep.actor_frame_resource.flags.auxiliary_carry &&
+                rep_fixture.port.count(
+                    LegacyBattleFrameInputResolutionCall::resolve_actor_surface
+                ) == 0U,
+            "actor-order REP fault preserves the physical caller stack and post-SUB flags with the copied prefix"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.set_mouse(10, 10);
+        fixture.message = 3U;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.metrics.group_a_count = 1U;
+        fixture.startup.reset.block_520e90[0U] = 1U;
+        fixture.prepare_visible_surface(10, 10);
+        fixture.port
+            .replies[LegacyBattleFrameInputResolutionCall::query_actor_mirror]
+            .edx = 0x13579BDFU;
+        fixture.port
+            .replies
+                [LegacyBattleFrameInputResolutionCall::resolve_actor_surface]
+            .edx = 0x0BADF00DU;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_frame_input_resolution(
+                fixture.bindings(), fixture.port
+            );
+        std::size_t mirror_calls{};
+        u32 second_mirror_edx{};
+        for (const auto& call : fixture.port.calls) {
+            if (call.call !=
+                LegacyBattleFrameInputResolutionCall::query_actor_mirror) {
+                continue;
+            }
+            ++mirror_calls;
+            if (mirror_calls == 2U) {
+                second_mirror_edx = call.edx;
+            }
+        }
+        test.expect_true(
             result.return_eax == 0U && result.image_queries == 64U &&
+                mirror_calls == 64U && second_mirror_edx == 0x13579BDFU &&
                 fixture.final_actor.published_actor_code == 0U,
-            "same active group-A target with a nonoverride selection preserves all sixty-four visible pixel calls without publishing"
+            "same active group-A target keeps surface resolution transparent to mirror residue across all sixty-four pixel calls"
         );
     }
 

@@ -17,6 +17,11 @@ inline constexpr u32 kGroupAStride = 0x2F34U;
 inline constexpr u32 kGroupBBase = 0x00525508U;
 inline constexpr u32 kGroupBStride = 0x2B28U;
 inline constexpr u32 kSelectionSample = 0x2EU;
+inline constexpr std::array<u32, 3> kFrameResourceCallerReturnAddresses{
+    0x004605DEU,
+    0x004607FBU,
+    0x00460A0FU,
+};
 
 [[nodiscard]] constexpr i32 signed_bits(const u32 value) noexcept {
     return std::bit_cast<i32>(value);
@@ -24,6 +29,27 @@ inline constexpr u32 kSelectionSample = 0x2EU;
 
 [[nodiscard]] constexpr u32 unsigned_bits(const i32 value) noexcept {
     return std::bit_cast<u32>(value);
+}
+
+[[nodiscard]] constexpr bool even_parity(const u32 value) noexcept {
+    u32 byte = value & 0xFFU;
+    byte ^= byte >> 4U;
+    byte &= 0x0FU;
+    return ((0x6996U >> byte) & 1U) == 0U;
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+subtract_flags(const u32 left, const u32 right) noexcept {
+    const u32 value = left - right;
+    return {
+        .carry = left < right,
+        .parity = even_parity(value),
+        .auxiliary_carry = ((left ^ right ^ value) & 0x10U) != 0U,
+        .auxiliary_carry_defined = true,
+        .zero = value == 0U,
+        .sign = (value & 0x80000000U) != 0U,
+        .overflow = ((left ^ right) & (left ^ value) & 0x80000000U) != 0U,
+    };
 }
 
 [[nodiscard]] constexpr u32 group_a_token(const u32 index) noexcept {
@@ -97,6 +123,17 @@ coordinate_legacy_battle_frame_input_resolution(
         eax = reply.eax;
         ecx = reply.ecx;
         edx = reply.edx;
+        return reply;
+    };
+    const auto resolve_actor_surface = [&](const u32 frame_resource_token) {
+        const auto reply = port.invoke_frame_input_resolution({
+            .call = LegacyBattleFrameInputResolutionCall::resolve_actor_surface,
+            .actor_token = frame_resource_token,
+            .eax = eax,
+            .ecx = ecx,
+            .edx = edx,
+        });
+        ++result.port_calls;
         return reply;
     };
     const auto play_selection_sample = [&]() {
@@ -217,6 +254,12 @@ coordinate_legacy_battle_frame_input_resolution(
 
     auto actor_frame_output = request.actor_frame_initial_output;
     const auto actor_surface_hit = [&](const u32 actor_token,
+                                       const u32 actor_index,
+                                       const u32 caller_ebx,
+                                       const u32 caller_esi,
+                                       const u32 caller_edi,
+                                       u32* const next_caller_edi,
+                                       const std::size_t resource_caller,
                                        const u32 outer_step,
                                        const bool require_present,
                                        const bool accept_visible,
@@ -275,15 +318,73 @@ coordinate_legacy_battle_frame_input_resolution(
                 actor_frame_snapshot_typed_stop;
             return false;
         }
+
+        auto resource_request =
+            request.actor_frame_resource_requests[resource_caller];
+        resource_request.actor_token = actor_token;
+        resource_request.entry_eax = result.actor_frame_snapshot.return_eax;
+        resource_request.entry_ecx = actor_token;
+        resource_request.entry_edx = result.actor_frame_snapshot.return_edx;
+        resource_request.entry_ebx = caller_ebx;
+        resource_request.entry_esi = caller_esi;
+        resource_request.entry_edi = caller_edi;
+        resource_request.entry_return_address =
+            kFrameResourceCallerReturnAddresses[resource_caller];
+        resource_request.entry_flags = result.actor_frame_snapshot.flags;
+        resource_request.entry_flags_known =
+            result.actor_frame_snapshot.flags_known;
+        if (resource_caller == 1U) {
+            resource_request.entry_eax = actor_index * 0xBCDU;
+            resource_request.entry_flags =
+                subtract_flags(actor_index * 0x3F0U, actor_index);
+            resource_request.entry_flags_known = true;
+        }
+        result.actor_frame_resource =
+            prepare_legacy_battle_actor_frame_resource(
+                resolve_legacy_battle_actor_frame_resource(
+                    {
+                        .action = &bindings.action,
+                        .startup = &bindings.startup,
+                    },
+                    actor_token
+                ),
+                bindings.action_updater,
+                bindings.frame_provider,
+                resource_request
+            );
+        ++result.actor_frame_resource_queries;
+        result.actor_frame_resource_caller = static_cast<u32>(resource_caller);
+        eax = result.actor_frame_resource.return_eax;
+        ecx = result.actor_frame_resource.return_ecx;
+        edx = result.actor_frame_resource.return_edx;
+        if (result.actor_frame_resource.status !=
+            LegacyBattleActorFrameResourceStatus::completed) {
+            typed_stop = true;
+            result.status = LegacyBattleFrameInputResolutionStatus::
+                actor_frame_resource_typed_stop;
+            return false;
+        }
+
+        if (next_caller_edi != nullptr) {
+            *next_caller_edi = 0U;
+        }
         const i32 origin_x = signed_bits(actor_frame_output[0U]);
         const i32 origin_y = signed_bits(actor_frame_output[1U]);
-        const auto resolved = call(
-            LegacyBattleFrameInputResolutionCall::resolve_actor_surface,
-            actor_token
-        );
-        const auto& surface = resolved.surface;
+        const u32 frame_resource_token = eax;
+        LegacyBattleFrameInputResolutionCallReply resolved{};
+        bool surface_resolved{};
         if (require_present) {
-            if (!surface.command_stream_present) {
+            if (frame_resource_token == 0U ||
+                !request
+                     .actor_frame_resource_object_readable[resource_caller]) {
+                typed_stop = true;
+                result.status = LegacyBattleFrameInputResolutionStatus::
+                    actor_frame_resource_object_typed_stop;
+                return false;
+            }
+            resolved = resolve_actor_surface(frame_resource_token);
+            surface_resolved = true;
+            if (!resolved.surface.command_stream_present) {
                 return false;
             }
             state.target_action_available = 1U;
@@ -294,6 +395,19 @@ coordinate_legacy_battle_frame_input_resolution(
                     LegacyBattleFrameInputResolutionCall::query_actor_mirror,
                     actor_token
                 );
+                if (!require_present && !surface_resolved) {
+                    if (frame_resource_token == 0U ||
+                        !request.actor_frame_resource_object_readable
+                             [resource_caller]) {
+                        typed_stop = true;
+                        result.status = LegacyBattleFrameInputResolutionStatus::
+                            actor_frame_resource_object_typed_stop;
+                        return false;
+                    }
+                    resolved = resolve_actor_surface(frame_resource_token);
+                    surface_resolved = true;
+                }
+                const auto& surface = resolved.surface;
                 u32 point_x = mouse_x + inner;
                 if (mirror.eax == 1U) {
                     point_x = static_cast<u32>(surface.width) +
@@ -327,6 +441,9 @@ coordinate_legacy_battle_frame_input_resolution(
                 }
                 input_state.mouse_action_gate = 0U;
             }
+        }
+        if (next_caller_edi != nullptr) {
+            *next_caller_edi = 8U;
         }
         return false;
     };
@@ -769,7 +886,17 @@ coordinate_legacy_battle_frame_input_resolution(
             if (blocked.eax != 1U) {
                 bool typed_stop = false;
                 if (actor_surface_hit(
-                        actor_token, 2U, true, true, typed_stop
+                        actor_token,
+                        actor_index,
+                        actor_index,
+                        actor_token,
+                        0U,
+                        nullptr,
+                        0U,
+                        2U,
+                        true,
+                        true,
+                        typed_stop
                     )) {
                     publish_target(actor_index + 1U, actor_index, actor_token);
                     if (input_state.action_kind == 6U) {
@@ -840,6 +967,7 @@ coordinate_legacy_battle_frame_input_resolution(
     remaining -= bindings.startup.supplemental_count_word;
     if (remaining >= 4U) {
         u32 order_index = remaining - 1U;
+        u32 actor_order_caller_edi = 0U;
         while (signed_bits(order_index) >= 0) {
             if (order_index >= bindings.final_actor.actor_order.size()) {
                 return stop(
@@ -873,7 +1001,17 @@ coordinate_legacy_battle_frame_input_resolution(
                         input_state.selection_index == 2U ||
                         input_state.selection_index == 3U;
                     if (actor_surface_hit(
-                            actor_token, 1U, false, allowed, typed_stop
+                            actor_token,
+                            actor_index,
+                            0x004A7970U + order_index * sizeof(u32),
+                            1U,
+                            actor_order_caller_edi,
+                            &actor_order_caller_edi,
+                            1U,
+                            1U,
+                            false,
+                            allowed,
+                            typed_stop
                         )) {
                         publish_target(
                             actor_index + 1U, actor_index, actor_token
@@ -948,7 +1086,17 @@ coordinate_legacy_battle_frame_input_resolution(
                     input_state.selection_index == 2U ||
                     input_state.selection_index == 3U;
                 if (actor_surface_hit(
-                        actor_token, 1U, false, allowed, typed_stop
+                        actor_token,
+                        actor_index,
+                        actor_index,
+                        actor_token,
+                        0U,
+                        nullptr,
+                        2U,
+                        1U,
+                        false,
+                        allowed,
+                        typed_stop
                     )) {
                     publish_target(actor_index + 1U, actor_index, actor_token);
                     for (std::size_t index = 0U; index < 4U; ++index) {

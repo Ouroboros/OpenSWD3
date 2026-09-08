@@ -24,65 +24,85 @@ struct LegacyBattleGroupAActionResourceRecord {
     compat::u16 value_0e{};
 };
 
+struct LegacyBattleActorActionRecordSlots {
+    asset_runtime::LegacyActionRecord
+        frame_source_action_record{};  // actor + 0x02A0, slot 0
+    asset_runtime::LegacyActionRecord
+        primary_action_record{};  // actor + 0x0338, slot 1
+    asset_runtime::LegacyActionRecord reserved_action_record_02{};
+    asset_runtime::LegacyActionRecord
+        turn_action_record{};  // actor + 0x0468, slot 3
+    asset_runtime::LegacyActionRecord
+        special_target_action_record{};  // actor + 0x0500, slot 4
+    asset_runtime::LegacyActionRecord reserved_action_record_05{};
+    asset_runtime::LegacyActionRecord
+        effect_action_record{};  // actor + 0x0630, slot 6
+    asset_runtime::LegacyActionRecord
+        effect_secondary_action_record{};  // actor + 0x06C8, slot 7
+    std::array<asset_runtime::LegacyActionRecord, 6>
+        reserved_action_records_08_13{};
+    asset_runtime::LegacyActionRecord
+        special_action_record{};  // actor + 0x0AF0, slot 14
+    asset_runtime::LegacyActionRecord
+        special_secondary_action_record{};  // actor + 0x0B88, slot 15
+    asset_runtime::LegacyActionRecord reserved_action_record_16{};
+    asset_runtime::LegacyActionRecord
+        frame_prepared_action_record{};  // actor + 0x0CB8, slot 17
+};
+
+static_assert(
+    sizeof(LegacyBattleActorActionRecordSlots) ==
+    18U * asset_runtime::kLegacyActionRecordSize
+);
+
 struct LegacyBattleGroupAActionExecutionState
-    : public LegacyBattleActorCoordinatesState {
-    compat::u16 start_gate{};                   // actor + 0x2A74
-    compat::u32 execution_complete{};           // actor + 0x2AD8
-    compat::u32 early_latch{};                  // actor + 0x2B1C
-    compat::u32 special_mode{};                 // actor + 0x2AD0
-    compat::u8 record_mode_flags{};             // actor + 0x0393
-    compat::u8 profile_mode{};                  // actor + 0x2F30
-    compat::u16 profile_value{};                // actor + 0x2A0C
-    compat::u16 profile_variant_override{};     // actor + 0x2A0E
-    compat::u16 special_profile_variant{};      // actor + 0x2A8A
-    compat::u16 summon_action_id{};             // actor + 0x2F14
-    compat::u16 action_override_flags{};        // actor + 0x2A86
-    compat::u8 profile_level{};                 // *(actor + 0x0000) + 0x002C
-    compat::u32 current_list_index{};           // actor + 0x2EC0
-    compat::u32 next_list_index{};              // actor + 0x2EC4
-    compat::u16 alternate_mode{};               // actor + 0x2A8C
-    compat::u16 copied_word{};                  // actor + 0x00FC
-    compat::u16 effect_curve_value_a{};         // actor + 0x00F6
-    compat::u16 effect_curve_value_b{};         // actor + 0x00F8
-    compat::u16 copied_runtime_word{};          // actor + 0x0DA4
-    compat::u16 action_flags{};                 // actor + 0x0392
-    compat::u32 primary_value{};                // actor + 0x035C
-    compat::u32 secondary_value{};              // actor + 0x0360
-    asset_runtime::LegacyActionRecord
-        primary_action_record{};                             // actor + 0x0338
-    asset_runtime::LegacyActionRecord turn_action_record{};  // actor + 0x0468
-    asset_runtime::LegacyActionRecord
-        special_target_action_record{};                        // actor + 0x0500
-    asset_runtime::LegacyActionRecord effect_action_record{};  // actor + 0x0630
-    asset_runtime::LegacyActionRecord
-        effect_secondary_action_record{};  // actor + 0x06C8
-    asset_runtime::LegacyActionRecord
-        special_action_record{};  // actor + 0x0AF0
-    asset_runtime::LegacyActionRecord
-        special_secondary_action_record{};                 // actor + 0x0B88
-    compat::u32 turn_frame_token{};                        // actor + 0x254C
-    compat::i32 turn_countdown{};                          // actor + 0x2668
-    compat::u32 turn_render_flags{};                       // actor + 0x26A0
-    compat::u32 summon_render_flags{};                     // actor + 0x2688
-    compat::u16 retreat_ready_flags{};                     // actor + 0x26D0
-    compat::u32 summon_x_offset{};                         // actor + 0x268C
-    compat::u32 spawn_completion_offset{};                 // actor + 0x2674
-    compat::u32 special_four_hundred_counter{};            // actor + 0x2678
-    compat::u32 action_runtime_gate{};                     // actor + 0x267C
-    compat::u16 turn_threshold{};                          // actor + 0x2958
-    compat::u16 message_percent{};                         // actor + 0x26DC
-    compat::u16 summon_phase{};                            // actor + 0x2A66
-    compat::u16 summon_completion_word{};                  // actor + 0x2A78
-    compat::u16 special_particle_spawn_count{};            // actor + 0x2A80
-    compat::u16 turn_target_x_offset{};                    // actor + 0x29B4
-    compat::u16 special_primary_draw_x{};                  // actor + 0x29B8
-    compat::u16 special_primary_draw_y{};                  // actor + 0x29BA
-    compat::u32 turn_completion_latch{};                   // actor + 0x2AAC
-    compat::u32 turn_completion_aux{};                     // actor + 0x2AB0
-    compat::u16 turn_sample_word{};                        // actor + 0x04C0
-    compat::u16 auxiliary_word{};                          // actor + 0x03B0
-    compat::u16 secondary_auxiliary_word{};                // actor + 0x03AE
-    std::array<compat::i16, 7> color_values{};             // actor + 0x03B2
+    : public LegacyBattleActorCoordinatesState,
+      public LegacyBattleActorActionRecordSlots {
+    compat::u16 start_gate{};                    // actor + 0x2A74
+    compat::u32 execution_complete{};            // actor + 0x2AD8
+    compat::u32 early_latch{};                   // actor + 0x2B1C
+    compat::u32 special_mode{};                  // actor + 0x2AD0
+    compat::u8 record_mode_flags{};              // actor + 0x0393
+    compat::u8 profile_mode{};                   // actor + 0x2F30
+    compat::u16 profile_value{};                 // actor + 0x2A0C
+    compat::u16 profile_variant_override{};      // actor + 0x2A0E
+    compat::u16 special_profile_variant{};       // actor + 0x2A8A
+    compat::u16 summon_action_id{};              // actor + 0x2F14
+    compat::u16 action_override_flags{};         // actor + 0x2A86
+    compat::u8 profile_level{};                  // *(actor + 0x0000) + 0x002C
+    compat::u32 current_list_index{};            // actor + 0x2EC0
+    compat::u32 next_list_index{};               // actor + 0x2EC4
+    compat::u16 alternate_mode{};                // actor + 0x2A8C
+    compat::u16 copied_word{};                   // actor + 0x00FC
+    compat::u16 effect_curve_value_a{};          // actor + 0x00F6
+    compat::u16 effect_curve_value_b{};          // actor + 0x00F8
+    compat::u16 copied_runtime_word{};           // actor + 0x0DA4
+    compat::u16 action_flags{};                  // actor + 0x0392
+    compat::u32 primary_value{};                 // actor + 0x035C
+    compat::u32 secondary_value{};               // actor + 0x0360
+    compat::u32 turn_frame_token{};              // actor + 0x254C
+    compat::i32 turn_countdown{};                // actor + 0x2668
+    compat::u32 turn_render_flags{};             // actor + 0x26A0
+    compat::u32 summon_render_flags{};           // actor + 0x2688
+    compat::u16 retreat_ready_flags{};           // actor + 0x26D0
+    compat::u32 summon_x_offset{};               // actor + 0x268C
+    compat::u32 spawn_completion_offset{};       // actor + 0x2674
+    compat::u32 special_four_hundred_counter{};  // actor + 0x2678
+    compat::u32 action_runtime_gate{};           // actor + 0x267C
+    compat::u16 turn_threshold{};                // actor + 0x2958
+    compat::u16 message_percent{};               // actor + 0x26DC
+    compat::u16 summon_phase{};                  // actor + 0x2A66
+    compat::u16 summon_completion_word{};        // actor + 0x2A78
+    compat::u16 special_particle_spawn_count{};  // actor + 0x2A80
+    compat::u16 turn_target_x_offset{};          // actor + 0x29B4
+    compat::u16 special_primary_draw_x{};        // actor + 0x29B8
+    compat::u16 special_primary_draw_y{};        // actor + 0x29BA
+    compat::u32 turn_completion_latch{};         // actor + 0x2AAC
+    compat::u32 turn_completion_aux{};           // actor + 0x2AB0
+    compat::u16 turn_sample_word{};              // actor + 0x04C0
+    compat::u16 auxiliary_word{};                // actor + 0x03B0
+    compat::u16 secondary_auxiliary_word{};      // actor + 0x03AE
+    std::array<compat::i16, 7> color_values{};   // actor + 0x03B2
     compat::u8 special_particle_coordinate_suppression{};  // actor + 0x0D94
     compat::u8 special_effect_direct_mode{};               // actor + 0x0D9C
     compat::u8 effect_direction_flags{};                   // actor + 0x26C0
