@@ -4,6 +4,7 @@
 #include "test.hpp"
 
 #include <algorithm>
+#include <array>
 #include <bit>
 #include <cstddef>
 #include <memory>
@@ -11,6 +12,8 @@
 
 namespace {
 
+using openswd3::battle::LegacyBattleActorCoordinatesState;
+using openswd3::battle::LegacyBattleActorCurrentCoordinateQueryStatus;
 using openswd3::battle::LegacyBattleActorMetricState;
 using openswd3::battle::LegacyBattleAssets;
 using openswd3::battle::LegacyBattleFinalActorStepState;
@@ -90,9 +93,12 @@ public:
     u32 allocation_token{0x1000U};
     u32 query_result{};
     u32 item_token{};
-    u32 coordinate_getter_calls{};
-    u32 party_count_after_first_coordinate_getter{};
-    bool read_canonical_coordinates{};
+    bool override_pending_coordinate_callee_reply{};
+    u32 pending_coordinate_callee_eax{};
+    u32 pending_coordinate_callee_ecx{};
+    u32 pending_coordinate_callee_edx{};
+    openswd3::battle::LegacyBattleActorCoordinateFlags
+        pending_coordinate_callee_flags{};
     bool script_page_stop{};
     bool typed_stop_enabled{};
     LegacyBattleScriptDispatchCall typed_stop_call{
@@ -101,7 +107,7 @@ public:
 
     LegacyBattleScriptDispatchCallReply invoke_battle_script(
         LegacyBattleScriptWorkspace& workspace,
-        LegacyBattleScriptDispatchBindings& bindings,
+        LegacyBattleScriptDispatchBindings&,
         const LegacyBattleScriptDispatchCallRequest& request
     ) override {
         calls.push_back(request);
@@ -109,6 +115,7 @@ public:
             .eax = request.eax,
             .ecx = request.ecx,
             .edx = request.edx,
+            .flags = request.flags,
         };
         switch (request.call) {
         case LegacyBattleScriptDispatchCall::frame:
@@ -132,33 +139,8 @@ public:
                 static_cast<i32>(std::bit_cast<float>(request.arguments[0]))
             );
             break;
-        case LegacyBattleScriptDispatchCall::pending_478600:
-            if (read_canonical_coordinates) {
-                const auto coordinates =
-                    openswd3::battle::resolve_legacy_battle_actor_coordinates(
-                        {.startup = &bindings.startup}, request.object_token
-                    );
-                if (coordinates.position_x == nullptr ||
-                    coordinates.position_y == nullptr) {
-                    reply.typed_stop = true;
-                    break;
-                }
-                workspace.coordinate_x = *coordinates.position_x;
-                workspace.coordinate_y = *coordinates.position_y;
-                workspace.pair_x = *coordinates.position_x;
-                workspace.pair_y = *coordinates.position_y;
-            } else {
-                workspace.coordinate_x = 100;
-                workspace.coordinate_y = 40;
-                workspace.pair_x = 100U;
-                workspace.pair_y = 40U;
-            }
-            ++coordinate_getter_calls;
-            if (coordinate_getter_calls == 1U &&
-                party_count_after_first_coordinate_getter != 0U) {
-                bindings.startup.party_count =
-                    party_count_after_first_coordinate_getter;
-            }
+        case LegacyBattleScriptDispatchCall::
+            reserved_actor_current_coordinate_query:
             break;
         case LegacyBattleScriptDispatchCall::pending_484500:
             workspace.coordinate_x = 100;
@@ -166,8 +148,23 @@ public:
             workspace.pair_x = 100U;
             workspace.pair_y = 40U;
             break;
+        case LegacyBattleScriptDispatchCall::pending_47f900:
+            if (override_pending_coordinate_callee_reply) {
+                reply.eax = pending_coordinate_callee_eax;
+                reply.ecx = pending_coordinate_callee_ecx;
+                reply.edx = pending_coordinate_callee_edx;
+                reply.flags = pending_coordinate_callee_flags;
+            }
+            break;
         case LegacyBattleScriptDispatchCall::pending_47f910:
-            reply.eax = query_result;
+            if (override_pending_coordinate_callee_reply) {
+                reply.eax = pending_coordinate_callee_eax;
+                reply.ecx = pending_coordinate_callee_ecx;
+                reply.edx = pending_coordinate_callee_edx;
+                reply.flags = pending_coordinate_callee_flags;
+            } else {
+                reply.eax = query_result;
+            }
             break;
         case LegacyBattleScriptDispatchCall::random_bounded_secondary:
         case LegacyBattleScriptDispatchCall::pending_478ab0:
@@ -1273,6 +1270,19 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
             openswd3::battle::LegacyBattleActorGroupBElementState,
             openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
     };
+    const auto seed_current_coordinates =
+        [](Fixture& fixture, const u16 x = 100U, const u16 y = 40U) {
+            for (auto& actor : fixture.startup.party) {
+                actor.position_x = x;
+                actor.position_y = y;
+            }
+            if (fixture.startup.group_b_lifecycle != nullptr) {
+                for (auto& actor : *fixture.startup.group_b_lifecycle) {
+                    actor.action_execution.position_x = x;
+                    actor.action_execution.position_y = y;
+                }
+            }
+        };
     const auto command_word = [](const Fixture& fixture,
                                  const std::size_t offset) {
         const auto& bytes = fixture.workspace.dynamic_commands.back().bytes;
@@ -1859,6 +1869,7 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         fixture.startup.enemy_count = 1U;
         fixture.metrics.values[0U] = 1;
         prepare_group_b(fixture);
+        seed_current_coordinates(fixture);
         auto& actor = fixture.startup.party[0U];
         actor.identity_word = 0xA55AU;
         const auto result = run_legacy_battle_script_dispatch(
@@ -1870,6 +1881,10 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         const auto& publication = result.coordinate_publication;
         test.expect_true(
             result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.current_coordinate_query_calls == 1U &&
+                result.current_coordinate_trace.size() == 1U &&
+                result.current_coordinate_trace[0U].caller_address ==
+                    0x0046A694U &&
                 result.coordinate_publication_calls == 1U &&
                 publication.status ==
                     LegacyBattleActorCoordinatePublicationStatus::completed &&
@@ -1902,6 +1917,7 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         fixture.write_u16(2U, 2U);
         fixture.write_u16(4U, 5U);
         prepare_group_b(fixture);
+        seed_current_coordinates(fixture);
         auto& actor = (*fixture.startup.group_b_lifecycle)[2U].action_execution;
         const auto result = run_legacy_battle_script_dispatch(
             fixture.workspace,
@@ -1912,6 +1928,10 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         const auto& publication = result.coordinate_publication;
         test.expect_true(
             result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.current_coordinate_query_calls == 1U &&
+                result.current_coordinate_trace.size() == 1U &&
+                result.current_coordinate_trace[0U].caller_address ==
+                    0x0046A7C6U &&
                 result.coordinate_publication_calls == 1U &&
                 publication.argument_x == 100U &&
                 publication.argument_y == 45U &&
@@ -1946,14 +1966,13 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         fixture.opcode(13);
         fixture.write_u16(2U, 0U);
         fixture.write_u16(4U, 5U);
-        port.read_canonical_coordinates = true;
         const auto second = run_legacy_battle_script_dispatch(
             fixture.workspace, fixture.bindings(), port
         );
         test.expect_true(
             first.status == LegacyBattleScriptDispatchStatus::completed &&
                 second.status == LegacyBattleScriptDispatchStatus::completed &&
-                port.coordinate_getter_calls == 1U &&
+                second.current_coordinate_query_calls == 1U &&
                 actor.action_execution.position_x == 150U &&
                 actor.action_execution.position_y == 65U &&
                 actor.action_execution.alternate_position_x == 150U &&
@@ -1969,10 +1988,10 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         Port port;
         fixture.opcode(22);
         fixture.write_u16(2U, static_cast<u16>(-1));
-        fixture.startup.party_count = 1U;
+        fixture.startup.party_count = 2U;
         fixture.startup.enemy_count = 1U;
-        port.party_count_after_first_coordinate_getter = 2U;
         prepare_group_b(fixture);
+        seed_current_coordinates(fixture);
         const auto result = run_legacy_battle_script_dispatch(
             fixture.workspace, fixture.bindings(), port
         );
@@ -1983,6 +2002,14 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         const auto& flags = result.coordinate_publication.flags;
         test.expect_true(
             result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.current_coordinate_query_calls == 3U &&
+                result.current_coordinate_trace.size() == 3U &&
+                result.current_coordinate_trace[0U].caller_address ==
+                    0x0046BB44U &&
+                result.current_coordinate_trace[1U].caller_address ==
+                    0x0046BB44U &&
+                result.current_coordinate_trace[2U].caller_address ==
+                    0x0046BB9DU &&
                 result.coordinate_publication_calls == 3U &&
                 group_a.position_x == 99U && group_a.position_y == 40U &&
                 group_a_reloaded.position_x == 99U &&
@@ -1998,8 +2025,10 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                 result.coordinate_publication.return_edi == 0U && flags.carry &&
                 flags.parity && flags.auxiliary_carry && !flags.zero &&
                 !flags.sign && !flags.overflow &&
-                port.count(LegacyBattleScriptDispatchCall::pending_478600) ==
-                    3U &&
+                port.count(
+                    LegacyBattleScriptDispatchCall::
+                        reserved_actor_current_coordinate_query
+                ) == 0U &&
                 fixture.workspace.cursor == 4U,
             "case twenty two reloads the dynamic party count after each successful publication before traversing group B"
         );
@@ -2013,6 +2042,7 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         fixture.startup.party_count = 1U;
         fixture.startup.enemy_count = 1U;
         prepare_group_b(fixture);
+        seed_current_coordinates(fixture);
         const auto result = run_legacy_battle_script_dispatch(
             fixture.workspace, fixture.bindings(), port
         );
@@ -2022,6 +2052,14 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         const auto& flags = result.coordinate_publication.flags;
         test.expect_true(
             result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.current_coordinate_query_calls == 3U &&
+                result.current_coordinate_trace.size() == 3U &&
+                result.current_coordinate_trace[0U].caller_address ==
+                    0x0046C8AAU &&
+                result.current_coordinate_trace[1U].caller_address ==
+                    0x0046C929U &&
+                result.current_coordinate_trace[2U].caller_address ==
+                    0x0046C97DU &&
                 result.coordinate_publication_calls == 2U &&
                 group_a.position_x == 210U && group_a.position_y == 40U &&
                 group_b.position_x == 210U && group_b.position_y == 40U &&
@@ -2044,6 +2082,20 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         fixture.startup.party_count = 1U;
         fixture.startup.enemy_count = 1U;
         prepare_group_b(fixture);
+        seed_current_coordinates(fixture);
+        port.override_pending_coordinate_callee_reply = true;
+        port.pending_coordinate_callee_eax = 0xABCD1234U;
+        port.pending_coordinate_callee_ecx = 0x24681357U;
+        port.pending_coordinate_callee_edx = 0x56789ABCU;
+        port.pending_coordinate_callee_flags = {
+            .carry = true,
+            .parity = false,
+            .auxiliary_carry = true,
+            .auxiliary_carry_defined = false,
+            .zero = false,
+            .sign = true,
+            .overflow = true,
+        };
         const auto result = run_legacy_battle_script_dispatch(
             fixture.workspace, fixture.bindings(), port
         );
@@ -2055,19 +2107,57 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         const auto& flags = result.coordinate_publication.flags;
         test.expect_true(
             result.status == LegacyBattleScriptDispatchStatus::completed &&
-                result.coordinate_publication_calls == 2U &&
-                group_a.position_x == 540U && group_a.position_y == 40U &&
-                group_b.position_x == 540U && group_b.position_y == 40U &&
-                result.coordinate_publication.return_eax == mirrored &&
-                result.coordinate_publication.return_ecx == 0U &&
-                result.coordinate_publication.return_edx ==
-                    (40U << 16U | 40U) &&
-                result.coordinate_publication.return_esi == group_a_base &&
-                result.coordinate_publication.return_edi == 0x004FF558U &&
-                flags.carry && !flags.zero && flags.sign && !flags.overflow &&
-                fixture.shared.group_a_mirror_x[0U] == 624U &&
+                result.current_coordinate_query_calls == 2U &&
+                result.current_coordinate_trace.size() == 2U &&
+                result.current_coordinate_trace[0U].caller_address ==
+                    0x0046BA42U &&
+                result.current_coordinate_trace[1U].caller_address ==
+                    0x0046BAB5U &&
+                result.coordinate_publication_calls == 2U,
+            "case forty five completes both current-coordinate sites and publications"
+        );
+        test.expect_true(
+            result.current_coordinate_trace[0U].request.entry_eax ==
+                    0xABCD1234U &&
+                result.current_coordinate_trace[1U].request.entry_eax ==
+                    0xABCD1234U &&
+                result.current_coordinate_trace[0U].request.entry_edx ==
+                    0x56789ABCU &&
+                result.current_coordinate_trace[1U].request.entry_edx ==
+                    0x56789ABCU &&
+                result.current_coordinate_trace[0U].result.flags.carry &&
+                !result.current_coordinate_trace[0U]
+                     .result.flags.auxiliary_carry_defined &&
+                result.current_coordinate_trace[1U].result.flags.overflow,
+            "case forty five forwards both callee register and flag residues into the typed getter"
+        );
+        test.expect_true(
+            group_a.position_x == 540U && group_a.position_y == 40U &&
+                group_b.position_x == 540U && group_b.position_y == 40U,
+            "case forty five mirrors both canonical actor positions"
+        );
+        test.expect_true(
+            fixture.shared.group_a_mirror_x[0U] == 624U &&
                 fixture.workspace.cursor == 2U,
-            "case forty five mirrors both physical caller sites with packed subtraction residues"
+            "case forty five completes mirror and cursor suffixes"
+        );
+        test.expect_true(
+            result.coordinate_publication.return_eax == mirrored &&
+                result.coordinate_publication.return_ecx == 0U,
+            "case forty five preserves final publication EAX and ECX"
+        );
+        test.expect_true(
+            result.coordinate_publication.return_edx == (40U << 16U | 40U),
+            "case forty five preserves final packed publication EDX"
+        );
+        test.expect_true(
+            result.coordinate_publication.return_esi == group_a_base &&
+                result.coordinate_publication.return_edi == 0x004FF558U,
+            "case forty five restores final publication ESI and EDI"
+        );
+        test.expect_true(
+            flags.carry && !flags.zero && flags.sign && !flags.overflow,
+            "case forty five preserves final packed subtraction flags"
         );
     }
 
@@ -2077,6 +2167,20 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         fixture.opcode(50);
         fixture.write_u16(2U, 2U);
         prepare_group_b(fixture);
+        seed_current_coordinates(fixture);
+        port.override_pending_coordinate_callee_reply = true;
+        port.pending_coordinate_callee_eax = 0x1234BEEFU;
+        port.pending_coordinate_callee_ecx = 0xCAFEBABEU;
+        port.pending_coordinate_callee_edx = 0x56789ABCU;
+        port.pending_coordinate_callee_flags = {
+            .carry = true,
+            .parity = true,
+            .auxiliary_carry = false,
+            .auxiliary_carry_defined = false,
+            .zero = false,
+            .sign = true,
+            .overflow = false,
+        };
         const auto result = run_legacy_battle_script_dispatch(
             fixture.workspace,
             fixture.bindings(),
@@ -2087,6 +2191,19 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
             (*fixture.startup.group_b_lifecycle)[2U].action_execution;
         test.expect_true(
             result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.current_coordinate_query_calls == 1U &&
+                result.current_coordinate_trace.size() == 1U &&
+                result.current_coordinate_trace[0U].caller_address ==
+                    0x0046CD72U &&
+                result.current_coordinate_trace[0U].request.entry_eax ==
+                    0x1234BEEFU &&
+                result.current_coordinate_trace[0U].request.entry_edx ==
+                    0x56789ABCU &&
+                result.current_coordinate_trace[0U].result.return_eax ==
+                    0x12340028U &&
+                result.current_coordinate_trace[0U].result.flags.carry &&
+                !result.current_coordinate_trace[0U]
+                     .result.flags.auxiliary_carry_defined &&
                 result.coordinate_publication_calls == 1U &&
                 actor.position_x == 100U && actor.position_y == 40U &&
                 actor.alternate_position_x == 100U &&
@@ -2142,6 +2259,7 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         fixture.startup.party_count = 1U;
         fixture.startup.enemy_count = 1U;
         prepare_group_b(fixture);
+        seed_current_coordinates(fixture);
         const auto result = run_legacy_battle_script_dispatch(
             fixture.workspace, fixture.bindings(), port
         );
@@ -2150,6 +2268,12 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
             (*fixture.startup.group_b_lifecycle)[0U].action_execution;
         test.expect_true(
             result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.current_coordinate_query_calls == 2U &&
+                result.current_coordinate_trace.size() == 2U &&
+                result.current_coordinate_trace[0U].caller_address ==
+                    0x0046CA77U &&
+                result.current_coordinate_trace[1U].caller_address ==
+                    0x0046CACBU &&
                 result.coordinate_publication_calls == 2U &&
                 group_a.position_x == 140U && group_a.position_y == 40U &&
                 group_b.position_x == 140U && group_b.position_y == 40U &&
@@ -2168,6 +2292,7 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         fixture.opcode(22);
         fixture.write_u16(2U, static_cast<u16>(-1));
         fixture.startup.party_count = 2U;
+        seed_current_coordinates(fixture);
         auto& previous_actor = fixture.startup.party[0U];
         auto& actor = fixture.startup.party[1U];
         actor.LegacyBattleActorCoordinateSourceRecord::prefix[0U] =
@@ -2191,8 +2316,11 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                 publication.stopped_dword_index == 2U &&
                 publication.coordinate_writes == 2U &&
                 publication.source_dword_reads == 3U &&
-                publication.destination_dword_writes == 2U &&
-                publication.return_ecx == 6U &&
+                publication.destination_dword_writes == 2U,
+            "case twenty two reports the second publication destination stop"
+        );
+        test.expect_true(
+            publication.return_ecx == 6U &&
                 publication.return_esi ==
                     group_a_base + group_a_stride + 0x0D58U &&
                 publication.return_edi ==
@@ -2201,17 +2329,20 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                 previous_actor.position_y == 40U &&
                 previous_actor.alternate_position_x == 99U &&
                 previous_actor.alternate_position_y == 40U &&
-                actor.position_x == 99U && actor.position_y == 40U &&
-                actor.LegacyBattleActorCoordinateDestinationRecord::prefix
-                        [0U] == std::byte{0x11U} &&
+                actor.position_x == 99U && actor.position_y == 40U,
+            "case twenty two keeps prior-loop coordinates and current partial publication registers"
+        );
+        test.expect_true(
+            actor.LegacyBattleActorCoordinateDestinationRecord::prefix[0U] ==
+                    std::byte{0x11U} &&
                 actor.LegacyBattleActorCoordinateDestinationRecord::prefix
                         [4U] == std::byte{0x22U} &&
                 fixture.workspace.cursor == 0U &&
-                fixture.workspace.position_x == 0x7777U &&
+                fixture.workspace.position_x == 0xFFFFU &&
                 port.count(LegacyBattleScriptDispatchCall::actor_metrics) ==
                     0U &&
                 port.count(LegacyBattleScriptDispatchCall::frame) == 0U,
-            "case twenty two publication stop keeps the copied prefix and blocks loop and caller suffixes"
+            "case twenty two keeps the copied prefix and blocks loop and caller suffixes"
         );
     }
 
@@ -2222,6 +2353,7 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         fixture.write_u16(2U, 8U);
         fixture.write_u16(4U, 10U);
         fixture.write_u16(6U, 5U);
+        seed_current_coordinates(fixture);
         auto& actor = fixture.startup.party[0U];
         actor.publication_source_dword_read_accessible[0U] = false;
         const auto result = run_legacy_battle_script_dispatch(
@@ -2256,6 +2388,7 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         fixture.write_u16(2U, 2U);
         fixture.write_u16(4U, 5U);
         prepare_group_b(fixture);
+        seed_current_coordinates(fixture);
         auto& actor = (*fixture.startup.group_b_lifecycle)[2U].action_execution;
         actor.publication_destination_dword_write_accessible[0U] = false;
         const auto result = run_legacy_battle_script_dispatch(
@@ -2270,14 +2403,20 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                         destination_dword_write_typed_stop &&
                 result.coordinate_publication_calls == 1U &&
                 result.coordinate_publication.source_dword_reads == 1U &&
-                result.coordinate_publication.destination_dword_writes == 0U &&
-                actor.position_x == 100U && actor.position_y == 45U &&
-                fixture.workspace.cursor == 0U &&
-                fixture.workspace.position_x == 0U &&
+                result.coordinate_publication.destination_dword_writes == 0U,
+            "case thirteen reports its publication destination stop"
+        );
+        test.expect_true(
+            actor.position_x == 100U && actor.position_y == 45U,
+            "case thirteen preserves typed getter coordinates through publication"
+        );
+        test.expect_true(
+            fixture.workspace.cursor == 0U &&
+                fixture.workspace.position_x == 5U &&
                 port.count(LegacyBattleScriptDispatchCall::actor_metrics) ==
                     0U &&
                 port.count(LegacyBattleScriptDispatchCall::frame) == 0U,
-            "case thirteen destination fault blocks cursor clears metrics and frame after the current source read"
+            "case thirteen blocks cursor clears metrics and frame after the current source read"
         );
     }
 
@@ -2287,6 +2426,7 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         fixture.opcode(39);
         fixture.write_u16(2U, 0U);
         prepare_group_b(fixture);
+        seed_current_coordinates(fixture);
         auto& actor = (*fixture.startup.group_b_lifecycle)[0U].action_execution;
         actor.publication_source_dword_read_accessible[0U] = false;
         const auto result = run_legacy_battle_script_dispatch(
@@ -2299,6 +2439,10 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                 result.coordinate_publication.status ==
                     LegacyBattleActorCoordinatePublicationStatus::
                         source_dword_read_typed_stop &&
+                result.current_coordinate_query_calls == 1U &&
+                result.current_coordinate_trace.size() == 1U &&
+                result.current_coordinate_trace[0U].caller_address ==
+                    0x0046C610U &&
                 result.coordinate_publication_calls == 1U &&
                 actor.position_x ==
                     static_cast<u16>(fixture.workspace.coordinate_x) &&
@@ -2322,6 +2466,7 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         fixture.startup.party_count = 0x12340001U;
         fixture.startup.enemy_count = 1U;
         prepare_group_b(fixture);
+        seed_current_coordinates(fixture);
         auto& actor = fixture.startup.party[0U];
         actor.publication_destination_dword_write_accessible[0U] = false;
         const auto result = run_legacy_battle_script_dispatch(
@@ -2338,7 +2483,7 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                 result.coordinate_publication.return_eax == 0x123400D2U &&
                 actor.position_x == 210U && actor.position_y == 40U &&
                 (*fixture.startup.group_b_lifecycle)[0U]
-                        .action_execution.position_x == 0U &&
+                        .action_execution.position_x == 100U &&
                 fixture.workspace.position_x == 210U &&
                 fixture.workspace.cursor == 0U &&
                 fixture.shared.frame_gate == 0U &&
@@ -2356,6 +2501,7 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         fixture.startup.party_count = 1U;
         fixture.startup.enemy_count = 1U;
         prepare_group_b(fixture);
+        seed_current_coordinates(fixture);
         auto& actor = (*fixture.startup.group_b_lifecycle)[0U].action_execution;
         actor.publication_source_dword_read_accessible[0U] = false;
         const auto result = run_legacy_battle_script_dispatch(
@@ -2370,7 +2516,7 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                         source_dword_read_typed_stop &&
                 result.coordinate_publication_calls == 1U &&
                 actor.position_x == 540U && actor.position_y == 40U &&
-                fixture.startup.party[0U].position_x == 0U &&
+                fixture.startup.party[0U].position_x == 100U &&
                 fixture.shared.group_a_mirror_x[0U] == 0U &&
                 fixture.startup.mirror_mode == 1U &&
                 fixture.workspace.cursor == 0U,
@@ -2384,6 +2530,7 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         fixture.opcode(50);
         fixture.write_u16(2U, 2U);
         prepare_group_b(fixture);
+        seed_current_coordinates(fixture);
         port.query_result = 0x1234BEEFU;
         auto& actor = (*fixture.startup.group_b_lifecycle)[2U].action_execution;
         actor.publication_destination_dword_write_accessible[0U] = false;
@@ -2399,12 +2546,17 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                         destination_dword_write_typed_stop &&
                 result.coordinate_publication_calls == 1U &&
                 actor.position_x == 100U && actor.position_y == 40U &&
-                fixture.workspace.word_a == 0xBEEFU &&
+                openswd3::compat::u16(
+                    fixture.workspace.packed_value_a >> 16U
+                ) == 0xBEEFU &&
+                fixture.workspace.word_a == 0U &&
                 fixture.workspace.cursor == 0U &&
                 port.count(LegacyBattleScriptDispatchCall::pending_47f910) ==
                     1U &&
-                port.count(LegacyBattleScriptDispatchCall::pending_478600) ==
-                    1U,
+                port.count(
+                    LegacyBattleScriptDispatchCall::
+                        reserved_actor_current_coordinate_query
+                ) == 0U,
             "case fifty destination fault preserves the query word and blocks its clear and cursor suffix"
         );
     }
@@ -2449,6 +2601,7 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         fixture.startup.party_count = 0x12340001U;
         fixture.startup.enemy_count = 1U;
         prepare_group_b(fixture);
+        seed_current_coordinates(fixture);
         auto& actor = fixture.startup.party[0U];
         actor.publication_destination_dword_write_accessible[0U] = false;
         const auto result = run_legacy_battle_script_dispatch(
@@ -2465,7 +2618,7 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                 result.coordinate_publication.return_eax == 0x1234008CU &&
                 actor.position_x == 140U && actor.position_y == 40U &&
                 (*fixture.startup.group_b_lifecycle)[0U]
-                        .action_execution.position_x == 0U &&
+                        .action_execution.position_x == 100U &&
                 fixture.workspace.value_a == 40 &&
                 fixture.workspace.position_x == 60U &&
                 fixture.workspace.cursor == 0U &&
@@ -2477,10 +2630,713 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     }
 }
 
+void test_battle_script_current_coordinate_stops(
+    openswd3::test::Context& test
+) {
+    using openswd3::battle::LegacyBattleActorCoordinateFlags;
+    using openswd3::battle::LegacyBattleScriptDispatchRequest;
+    using openswd3::battle::run_legacy_battle_script_dispatch;
+
+    struct Site {
+        u32 address{};
+        u32 query_call{1U};
+        bool dword_scratch{};
+    };
+    constexpr std::array sites{
+        Site{0x0046A694U, 1U, true},
+        Site{0x0046A7C6U, 1U, true},
+        Site{0x0046BA42U, 1U, false},
+        Site{0x0046BAB5U, 1U, false},
+        Site{0x0046BB44U, 1U, true},
+        Site{0x0046BB9DU, 1U, true},
+        Site{0x0046C610U, 1U, true},
+        Site{0x0046C8AAU, 1U, false},
+        Site{0x0046C929U, 2U, false},
+        Site{0x0046C97DU, 2U, false},
+        Site{0x0046CA77U, 1U, false},
+        Site{0x0046CACBU, 1U, false},
+        Site{0x0046CD72U, 1U, true},
+    };
+    constexpr std::array statuses{
+        LegacyBattleActorCurrentCoordinateQueryStatus::
+            first_output_pointer_read_typed_stop,
+        LegacyBattleActorCurrentCoordinateQueryStatus::
+            position_x_read_typed_stop,
+        LegacyBattleActorCurrentCoordinateQueryStatus::
+            first_output_write_typed_stop,
+        LegacyBattleActorCurrentCoordinateQueryStatus::
+            position_y_read_typed_stop,
+        LegacyBattleActorCurrentCoordinateQueryStatus::
+            second_output_pointer_read_typed_stop,
+        LegacyBattleActorCurrentCoordinateQueryStatus::
+            second_output_write_typed_stop,
+    };
+    const auto same_flags = [](const LegacyBattleActorCoordinateFlags& left,
+                               const LegacyBattleActorCoordinateFlags& right) {
+        return left.carry == right.carry && left.parity == right.parity &&
+            left.auxiliary_carry == right.auxiliary_carry &&
+            left.auxiliary_carry_defined == right.auxiliary_carry_defined &&
+            left.zero == right.zero && left.sign == right.sign &&
+            left.overflow == right.overflow;
+    };
+
+    for (const auto& site : sites) {
+        for (std::size_t fault = 0U; fault < statuses.size(); ++fault) {
+            Fixture fixture;
+            Port port;
+            fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+                openswd3::battle::LegacyBattleActorGroupBElementState,
+                openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+            for (auto& actor : fixture.startup.party) {
+                actor.position_x = 100U;
+                actor.position_y = 40U;
+            }
+            for (auto& actor : *fixture.startup.group_b_lifecycle) {
+                actor.action_execution.position_x = 100U;
+                actor.action_execution.position_y = 40U;
+            }
+            fixture.workspace.value_a = std::bit_cast<i32>(0x11112222U);
+            fixture.workspace.value_b = std::bit_cast<i32>(0x33334444U);
+            fixture.workspace.pair_x = 0x2222U;
+            fixture.workspace.pair_y = 0x4444U;
+
+            const auto mark_target = [fault](auto& actor) {
+                actor.position_x = 0xA1B2U;
+                actor.position_y = 0xC3D4U;
+                if (fault == 1U) {
+                    actor.position_x_read_accessible = false;
+                }
+                if (fault == 3U) {
+                    actor.position_y_read_accessible = false;
+                }
+            };
+
+            switch (site.address) {
+            case 0x0046A694U:
+                fixture.opcode(5);
+                fixture.write_u16(2U, 8U);
+                fixture.write_u16(4U, 1U);
+                fixture.write_u16(6U, 2U);
+                mark_target(fixture.startup.party[0U]);
+                break;
+            case 0x0046A7C6U:
+                fixture.opcode(13);
+                fixture.write_u16(2U, 0U);
+                fixture.write_u16(4U, 2U);
+                mark_target(
+                    (*fixture.startup.group_b_lifecycle)[0U].action_execution
+                );
+                break;
+            case 0x0046BA42U:
+                fixture.opcode(45);
+                fixture.startup.enemy_count = 1U;
+                mark_target(
+                    (*fixture.startup.group_b_lifecycle)[0U].action_execution
+                );
+                break;
+            case 0x0046BAB5U:
+                fixture.opcode(45);
+                fixture.startup.party_count = 1U;
+                mark_target(fixture.startup.party[0U]);
+                break;
+            case 0x0046BB44U:
+                fixture.opcode(22);
+                fixture.write_u16(2U, 1U);
+                fixture.startup.party_count = 1U;
+                mark_target(fixture.startup.party[0U]);
+                break;
+            case 0x0046BB9DU:
+                fixture.opcode(22);
+                fixture.write_u16(2U, 1U);
+                fixture.startup.enemy_count = 1U;
+                mark_target(
+                    (*fixture.startup.group_b_lifecycle)[0U].action_execution
+                );
+                break;
+            case 0x0046C610U:
+                fixture.opcode(39);
+                fixture.write_u16(2U, 0U);
+                mark_target(
+                    (*fixture.startup.group_b_lifecycle)[0U].action_execution
+                );
+                break;
+            case 0x0046C8AAU:
+                fixture.opcode(40);
+                fixture.write_u16(2U, 0U);
+                mark_target(
+                    (*fixture.startup.group_b_lifecycle)[0U].action_execution
+                );
+                break;
+            case 0x0046C929U:
+                fixture.opcode(40);
+                fixture.write_u16(2U, 1U);
+                fixture.startup.party_count = 1U;
+                mark_target(fixture.startup.party[0U]);
+                break;
+            case 0x0046C97DU:
+                fixture.opcode(40);
+                fixture.write_u16(2U, 1U);
+                fixture.startup.enemy_count = 1U;
+                mark_target(
+                    (*fixture.startup.group_b_lifecycle)[0U].action_execution
+                );
+                break;
+            case 0x0046CA77U:
+                fixture.opcode(73);
+                fixture.write_u16(2U, 0x2222U);
+                fixture.write_u16(4U, 2U);
+                fixture.startup.party_count = 1U;
+                mark_target(fixture.startup.party[0U]);
+                break;
+            case 0x0046CACBU:
+                fixture.opcode(73);
+                fixture.write_u16(2U, 0x2222U);
+                fixture.write_u16(4U, 2U);
+                fixture.startup.enemy_count = 1U;
+                mark_target(
+                    (*fixture.startup.group_b_lifecycle)[0U].action_execution
+                );
+                break;
+            case 0x0046CD72U:
+                fixture.opcode(50);
+                fixture.write_u16(2U, 2U);
+                port.query_result = 0x1234BEEFU;
+                mark_target(
+                    (*fixture.startup.group_b_lifecycle)[0U].action_execution
+                );
+                break;
+            default:
+                break;
+            }
+
+            LegacyBattleScriptDispatchRequest request{
+                .entry_eax = 0xABCD1234U,
+                .entry_ecx = 0x13572468U,
+                .entry_edx = 0x56789ABCU,
+                .entry_esi = 0x24681357U,
+                .entry_edi = 0x89ABCDEFU,
+                .entry_flags = {
+                    .carry = true,
+                    .parity = false,
+                    .auxiliary_carry = true,
+                    .auxiliary_carry_defined = true,
+                    .zero = false,
+                    .sign = true,
+                    .overflow = false,
+                },
+            };
+            request.current_coordinate_access.query_call = site.query_call;
+            if (fault == 0U) {
+                request.current_coordinate_access
+                    .first_output_pointer_readable = false;
+            } else if (fault == 2U) {
+                request.current_coordinate_access.first_output_writable = false;
+            } else if (fault == 4U) {
+                request.current_coordinate_access
+                    .second_output_pointer_readable = false;
+            } else if (fault == 5U) {
+                request.current_coordinate_access.second_output_writable =
+                    false;
+            }
+
+            const auto result = run_legacy_battle_script_dispatch(
+                fixture.workspace, fixture.bindings(), port, request
+            );
+            const auto& trace = result.current_coordinate_trace.back();
+            const u32 expected_writes = fault >= 3U ? 1U : 0U;
+            const u16 expected_before_x =
+                site.address == 0x0046C929U || site.address == 0x0046C97DU
+                ? 100U
+                : 0x2222U;
+            const u16 expected_before_y =
+                site.address == 0x0046C929U || site.address == 0x0046C97DU
+                ? 40U
+                : 0x4444U;
+            const u16 actual_x = site.dword_scratch
+                ? static_cast<u16>(
+                      std::bit_cast<u32>(fixture.workspace.value_a)
+                  )
+                : fixture.workspace.pair_x;
+            const u16 actual_y = site.dword_scratch
+                ? static_cast<u16>(
+                      std::bit_cast<u32>(fixture.workspace.value_b)
+                  )
+                : fixture.workspace.pair_y;
+            const bool dword_high_words_preserved = !site.dword_scratch ||
+                ((std::bit_cast<u32>(fixture.workspace.value_a) &
+                  0xFFFF0000U) == 0x11110000U &&
+                 (std::bit_cast<u32>(fixture.workspace.value_b) &
+                  0xFFFF0000U) == 0x33330000U);
+            const u32 expected_return_ecx = fault == 5U
+                ? trace.request.output_y_token
+                : trace.request.actor_token;
+            const u32 expected_return_edx = fault == 0U
+                ? trace.request.entry_edx
+                : trace.request.output_x_token;
+            const bool predecessor_preserved =
+                (site.address != 0x0046BA42U && site.address != 0x0046BAB5U &&
+                 site.address != 0x0046CD72U) ||
+                ((site.address == 0x0046BA42U || site.address == 0x0046BAB5U) &&
+                 port.count(LegacyBattleScriptDispatchCall::pending_47f900) ==
+                     1U) ||
+                (site.address == 0x0046CD72U &&
+                 port.count(LegacyBattleScriptDispatchCall::pending_47f910) ==
+                     1U &&
+                 openswd3::compat::u16(
+                     fixture.workspace.packed_value_a >> 16U
+                 ) == 0xBEEFU);
+            test.expect_true(
+                result.status ==
+                        LegacyBattleScriptDispatchStatus::
+                            actor_current_coordinate_typed_stop &&
+                    result.current_coordinate_query_calls == site.query_call &&
+                    result.current_coordinate_trace.size() == site.query_call &&
+                    trace.caller_address == site.address &&
+                    trace.result.status == statuses[fault] &&
+                    trace.result.output_writes == expected_writes &&
+                    same_flags(trace.request.entry_flags, trace.result.flags) &&
+                    (trace.result.return_eax & 0xFFFF0000U) ==
+                        (trace.request.entry_eax & 0xFFFF0000U) &&
+                    trace.result.return_ecx == expected_return_ecx &&
+                    trace.result.return_edx == expected_return_edx &&
+                    result.return_eax == trace.result.return_eax &&
+                    result.return_ecx == expected_return_ecx &&
+                    result.return_edx == expected_return_edx &&
+                    trace.request.output_x_token ==
+                        (site.dword_scratch ? 0x0053CCE8U : 0x0053CE78U) &&
+                    trace.request.output_y_token ==
+                        (site.dword_scratch ? 0x0053CCECU : 0x0053CE7AU) &&
+                    actual_x ==
+                        (expected_writes == 0U ? expected_before_x : 0xA1B2U) &&
+                    actual_y == expected_before_y &&
+                    dword_high_words_preserved && predecessor_preserved &&
+                    result.coordinate_publication_calls == 0U &&
+                    fixture.workspace.cursor == 0U &&
+                    port.count(
+                        LegacyBattleScriptDispatchCall::
+                            reserved_actor_current_coordinate_query
+                    ) == 0U &&
+                    port.count(LegacyBattleScriptDispatchCall::actor_metrics) ==
+                        0U &&
+                    port.count(LegacyBattleScriptDispatchCall::frame) == 0U,
+                "all thirteen script current-coordinate sites preserve six typed stops and suppress every caller suffix"
+            );
+        }
+    }
+
+    {
+        Fixture fixture;
+        Port port;
+        fixture.opcode(22);
+        fixture.write_u16(2U, 10U);
+        fixture.startup.party_count = 2U;
+        fixture.startup.party[0U].position_x = 100U;
+        fixture.startup.party[0U].position_y = 40U;
+        fixture.startup.party[1U].position_x = 200U;
+        fixture.startup.party[1U].position_y = 50U;
+        fixture.startup.party[1U].position_y_read_accessible = false;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::
+                        actor_current_coordinate_typed_stop &&
+                result.current_coordinate_query_calls == 2U &&
+                result.current_coordinate_trace.size() == 2U &&
+                result.current_coordinate_trace[0U].caller_address ==
+                    0x0046BB44U &&
+                result.current_coordinate_trace[1U].caller_address ==
+                    0x0046BB44U &&
+                result.current_coordinate_trace[1U].result.status ==
+                    LegacyBattleActorCurrentCoordinateQueryStatus::
+                        position_y_read_typed_stop &&
+                result.coordinate_publication_calls == 1U &&
+                fixture.startup.party[0U].position_x == 110U &&
+                fixture.startup.party[0U].position_y == 40U &&
+                fixture.startup.party[1U].position_x == 200U &&
+                fixture.startup.party[1U].position_y == 50U &&
+                static_cast<u16>(
+                    std::bit_cast<u32>(fixture.workspace.value_a)
+                ) == 200U &&
+                static_cast<u16>(
+                    std::bit_cast<u32>(fixture.workspace.value_b)
+                ) == 40U &&
+                fixture.workspace.cursor == 0U &&
+                port.count(LegacyBattleScriptDispatchCall::actor_metrics) ==
+                    0U &&
+                port.count(LegacyBattleScriptDispatchCall::frame) == 0U,
+            "a later loop query stop preserves every prior publication and the current X-only scratch commit"
+        );
+    }
+}
+
+void test_battle_script_current_coordinate_boundaries(
+    openswd3::test::Context& test
+) {
+    using openswd3::battle::run_legacy_battle_script_dispatch;
+
+    struct Scenario {
+        u16 opcode{};
+        u16 token{};
+        u32 caller_address{};
+        const char* label{};
+    };
+    constexpr std::array scenarios{
+        Scenario{5U, 7U, 0x0046A694U, "case five token seven boundary"},
+        Scenario{5U, 8U, 0x0046A694U, "case five token eight boundary"},
+        Scenario{13U, 7U, 0x0046A7C6U, "case thirteen token seven boundary"},
+        Scenario{13U, 8U, 0x0046A7C6U, "case thirteen token eight boundary"},
+        Scenario{40U, 0U, 0x0046C8AAU, "case forty token zero reachability"},
+        Scenario{40U, 7U, 0x0046C8AAU, "case forty token seven boundary"},
+        Scenario{40U, 8U, 0x0046C8AAU, "case forty token eight boundary"},
+        Scenario{
+            40U, 16U, 0x0046C8AAU, "case forty token sixteen reachability"
+        },
+    };
+    for (const auto& scenario : scenarios) {
+        Fixture fixture;
+        Port port;
+        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        for (u32 index = 0U;
+             index < openswd3::battle::kLegacyBattleActorGroupBElementCount;
+             ++index) {
+            auto& actor =
+                (*fixture.startup.group_b_lifecycle)[index].action_execution;
+            actor.position_x = static_cast<u16>(300U + index);
+            actor.position_y = static_cast<u16>(400U + index);
+        }
+        for (u32 index = 0U; index < fixture.startup.party.size(); ++index) {
+            fixture.startup.party[index].position_x =
+                static_cast<u16>(308U + index);
+            fixture.startup.party[index].position_y =
+                static_cast<u16>(408U + index);
+        }
+        fixture.opcode(scenario.opcode);
+        fixture.write_u16(2U, scenario.token);
+        if (scenario.opcode == 5U) {
+            fixture.write_u16(4U, 0U);
+            fixture.write_u16(6U, 0U);
+            fixture.startup.enemy_count = 1U;
+            fixture.metrics.values[0U] = 1;
+        } else if (scenario.opcode == 13U) {
+            fixture.write_u16(4U, 0U);
+        }
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace,
+            fixture.bindings(),
+            port,
+            {.entry_eax = 0xABCD1234U,
+             .entry_ecx = 0x13572468U,
+             .entry_edx = 0x56789ABCU,
+             .entry_flags = {
+                 .carry = true,
+                 .parity = false,
+                 .auxiliary_carry = true,
+                 .auxiliary_carry_defined = true,
+                 .zero = false,
+                 .sign = true,
+                 .overflow = false,
+             }}
+        );
+        const auto& trace = result.current_coordinate_trace[0U];
+        const u32 expected_actor = scenario.token <= 7U
+            ? 0x00525508U + static_cast<u32>(scenario.token) * 0x2B28U
+            : 0x005029D0U + static_cast<u32>(scenario.token - 8U) * 0x2F34U;
+        const u16 expected_x = static_cast<u16>(300U + scenario.token);
+        const u16 expected_y = static_cast<u16>(400U + scenario.token);
+        const u32 actor_index = scenario.token > 7U
+            ? static_cast<u32>(scenario.token - 8U)
+            : static_cast<u32>(scenario.token);
+        const u32 expected_entry_eax = scenario.token <= 7U
+            ? actor_index * 1381U
+            : (scenario.opcode == 40U ? actor_index * 3021U
+                                      : actor_index * 1007U);
+        const u32 expected_entry_edx = scenario.token <= 7U
+            ? (scenario.opcode == 13U ? 0x56789ABCU : actor_index * 345U)
+            : (scenario.opcode == 5U
+                   ? 0x56780000U
+                   : (scenario.opcode == 13U ? actor_index * 3021U
+                                             : 0x56789ABCU));
+        const bool flags_preserved =
+            trace.request.entry_flags.carry == trace.result.flags.carry &&
+            trace.request.entry_flags.parity == trace.result.flags.parity &&
+            trace.request.entry_flags.auxiliary_carry ==
+                trace.result.flags.auxiliary_carry &&
+            trace.request.entry_flags.auxiliary_carry_defined ==
+                trace.result.flags.auxiliary_carry_defined &&
+            trace.request.entry_flags.zero == trace.result.flags.zero &&
+            trace.request.entry_flags.sign == trace.result.flags.sign &&
+            trace.request.entry_flags.overflow == trace.result.flags.overflow;
+        const bool suffix_completed = scenario.opcode == 5U
+            ? fixture.workspace.cursor == 8U
+            : (scenario.opcode == 13U
+                   ? fixture.workspace.cursor == 6U
+                   : port.count(
+                         LegacyBattleScriptDispatchCall::actor_metrics
+                     ) == 1U &&
+                       port.count(LegacyBattleScriptDispatchCall::frame) == 1U);
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.current_coordinate_query_calls == 1U &&
+                result.current_coordinate_trace.size() == 1U &&
+                trace.caller_address == scenario.caller_address &&
+                trace.request.actor_token == expected_actor &&
+                trace.result.output_x == expected_x &&
+                trace.result.output_y == expected_y,
+            scenario.label
+        );
+        test.expect_true(
+            trace.request.entry_eax == expected_entry_eax &&
+                trace.request.entry_edx == expected_entry_edx &&
+                (trace.result.return_eax & 0xFFFF0000U) ==
+                    (trace.request.entry_eax & 0xFFFF0000U) &&
+                static_cast<u16>(trace.result.return_eax) == expected_y &&
+                trace.result.return_ecx == trace.request.output_y_token &&
+                trace.result.return_edx == trace.request.output_x_token &&
+                flags_preserved,
+            "direct current-coordinate boundary register and flag contract"
+        );
+        test.expect_true(
+            suffix_completed &&
+                port.count(
+                    LegacyBattleScriptDispatchCall::
+                        reserved_actor_current_coordinate_query
+                ) == 0U,
+            "direct current-coordinate boundary normal suffix and reserved-slot contract"
+        );
+    }
+
+    {
+        Fixture fixture;
+        Port port;
+        fixture.opcode(39);
+        fixture.write_u16(2U, 0x8008U);
+        for (u32 point = 0U; point < 5U; ++point) {
+            fixture.write_u16(4U + point * 4U, 0U);
+            fixture.write_u16(6U + point * 4U, 0U);
+        }
+        fixture.startup.party[0U].position_x = 308U;
+        fixture.startup.party[0U].position_y = 408U;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.current_coordinate_query_calls == 1U &&
+                result.current_coordinate_trace.size() == 1U &&
+                result.current_coordinate_trace[0U].caller_address ==
+                    0x0046C610U &&
+                result.current_coordinate_trace[0U].request.actor_token ==
+                    0x005029D0U &&
+                result.current_coordinate_trace[0U].result.output_x == 308U &&
+                result.current_coordinate_trace[0U].result.output_y == 408U &&
+                static_cast<u16>(fixture.workspace.packed_actor_state >> 16U) ==
+                    0x8008U,
+            "case thirty nine masks the high actor marker before selecting its canonical coordinate owner"
+        );
+    }
+}
+
+void test_battle_script_current_coordinate_loops(
+    openswd3::test::Context& test
+) {
+    using openswd3::battle::LegacyBattleScriptDispatchRequest;
+    using openswd3::battle::run_legacy_battle_script_dispatch;
+
+    struct Scenario {
+        u16 opcode{};
+        u32 caller_address{};
+        bool party_domain{};
+        u16 expected_x{};
+        const char* label{};
+    };
+    constexpr std::array scenarios{
+        Scenario{45U, 0x0046BA42U, false, 540U, "case45 first loop"},
+        Scenario{45U, 0x0046BAB5U, true, 540U, "case45 second loop"},
+        Scenario{22U, 0x0046BB44U, true, 101U, "case22 first loop"},
+        Scenario{22U, 0x0046BB9DU, false, 101U, "case22 second loop"},
+        Scenario{40U, 0x0046C929U, true, 210U, "case40 first loop"},
+        Scenario{40U, 0x0046C97DU, false, 210U, "case40 second loop"},
+        Scenario{73U, 0x0046CA77U, true, 140U, "case73 first loop"},
+        Scenario{73U, 0x0046CACBU, false, 140U, "case73 second loop"},
+    };
+    for (const auto& scenario : scenarios) {
+        Fixture fixture;
+        Port port;
+        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        for (auto& actor : fixture.startup.party) {
+            actor.position_x = 100U;
+            actor.position_y = 40U;
+        }
+        for (auto& actor : *fixture.startup.group_b_lifecycle) {
+            actor.action_execution.position_x = 100U;
+            actor.action_execution.position_y = 40U;
+        }
+        fixture.opcode(scenario.opcode);
+        if (scenario.party_domain) {
+            fixture.startup.party_count = 2U;
+        } else {
+            fixture.startup.enemy_count = 2U;
+        }
+        if (scenario.opcode == 22U) {
+            fixture.write_u16(2U, 1U);
+        } else if (scenario.opcode == 40U) {
+            fixture.write_u16(2U, 1U);
+        } else if (scenario.opcode == 73U) {
+            fixture.write_u16(2U, 100U);
+            fixture.write_u16(4U, 2U);
+            fixture.workspace.position_x = 20U;
+            fixture.workspace.position_y = 20U;
+        }
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        const std::size_t trace_offset = scenario.opcode == 40U ? 1U : 0U;
+        const auto& first_trace = result.current_coordinate_trace[trace_offset];
+        const auto& second_trace =
+            result.current_coordinate_trace[trace_offset + 1U];
+        const auto& first_actor = scenario.party_domain
+            ? static_cast<const LegacyBattleActorCoordinatesState&>(
+                  fixture.startup.party[0U]
+              )
+            : static_cast<const LegacyBattleActorCoordinatesState&>(
+                  (*fixture.startup.group_b_lifecycle)[0U].action_execution
+              );
+        const auto& second_actor = scenario.party_domain
+            ? static_cast<const LegacyBattleActorCoordinatesState&>(
+                  fixture.startup.party[1U]
+              )
+            : static_cast<const LegacyBattleActorCoordinatesState&>(
+                  (*fixture.startup.group_b_lifecycle)[1U].action_execution
+              );
+        const bool backedge_flags_match = scenario.opcode == 45U ||
+            (second_trace.request.entry_flags.carry &&
+             second_trace.request.entry_flags.parity &&
+             !second_trace.request.entry_flags.zero &&
+             second_trace.request.entry_flags.sign &&
+             !second_trace.request.entry_flags.overflow);
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.current_coordinate_query_calls == trace_offset + 2U &&
+                result.current_coordinate_trace.size() == trace_offset + 2U &&
+                first_trace.caller_address == scenario.caller_address &&
+                second_trace.caller_address == scenario.caller_address &&
+                result.coordinate_publication_calls == 2U &&
+                first_actor.position_x == scenario.expected_x &&
+                first_actor.position_y == 40U &&
+                second_actor.position_x == scenario.expected_x &&
+                second_actor.position_y == 40U && backedge_flags_match &&
+                port.count(
+                    LegacyBattleScriptDispatchCall::
+                        reserved_actor_current_coordinate_query
+                ) == 0U,
+            scenario.label
+        );
+    }
+
+    struct CountScenario {
+        u32 initial_count{};
+        u32 updated_count{};
+        u32 expected_queries{};
+        const char* label{};
+    };
+    constexpr std::array count_scenarios{
+        CountScenario{
+            2U, 1U, 1U, "live count shrink stops the second loop round"
+        },
+        CountScenario{
+            1U, 2U, 2U, "live count growth admits the second loop round"
+        },
+    };
+    for (const auto& scenario : count_scenarios) {
+        Fixture fixture;
+        Port port;
+        fixture.opcode(22);
+        fixture.write_u16(2U, 1U);
+        fixture.startup.party_count = scenario.initial_count;
+        fixture.startup.party[0U].position_x = 100U;
+        fixture.startup.party[0U].position_y = 40U;
+        fixture.startup.party[1U].position_x = 100U;
+        fixture.startup.party[1U].position_y = 40U;
+        LegacyBattleScriptDispatchRequest request{};
+        request.live_count_control.publication_call = 1U;
+        request.live_count_control.party_count_after_publication =
+            scenario.updated_count;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port, request
+        );
+        const bool second_round_matches = scenario.expected_queries == 1U
+            ? fixture.startup.party[1U].position_x == 100U
+            : fixture.startup.party[1U].position_x == 101U;
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.current_coordinate_query_calls ==
+                    scenario.expected_queries &&
+                result.current_coordinate_trace.size() ==
+                    scenario.expected_queries &&
+                result.coordinate_publication_calls ==
+                    scenario.expected_queries &&
+                result.current_coordinate_trace[0U].caller_address ==
+                    0x0046BB44U &&
+                fixture.startup.party[0U].position_x == 101U &&
+                second_round_matches && fixture.workspace.cursor == 4U,
+            scenario.label
+        );
+    }
+
+    for (const u16 opcode : std::array<u16, 4U>{45U, 22U, 40U, 73U}) {
+        Fixture fixture;
+        Port port;
+        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        fixture.opcode(opcode);
+        if (opcode == 22U) {
+            fixture.write_u16(2U, 1U);
+        } else if (opcode == 40U) {
+            fixture.write_u16(2U, 1U);
+            (*fixture.startup.group_b_lifecycle)[1U]
+                .action_execution.position_x = 100U;
+            (*fixture.startup.group_b_lifecycle)[1U]
+                .action_execution.position_y = 40U;
+        } else if (opcode == 73U) {
+            fixture.write_u16(2U, 100U);
+            fixture.write_u16(4U, 2U);
+            fixture.workspace.position_x = 20U;
+        }
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        const u32 expected_queries = opcode == 40U ? 1U : 0U;
+        const bool suffix_completed = opcode == 45U
+            ? fixture.workspace.cursor == 2U &&
+                fixture.startup.mirror_mode == 1U
+            : (opcode == 22U ? fixture.workspace.cursor == 4U
+                             : port.count(
+                                   LegacyBattleScriptDispatchCall::actor_metrics
+                               ) == 1U &&
+                       port.count(LegacyBattleScriptDispatchCall::frame) == 1U);
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.current_coordinate_query_calls == expected_queries &&
+                result.coordinate_publication_calls == 0U && suffix_completed,
+            "zero-count current-coordinate loops skip all physical loop sites and preserve their normal suffix"
+        );
+    }
+}
+
 void test_battle_script_dispatch(openswd3::test::Context& test) {
     using openswd3::battle::run_legacy_battle_script_dispatch;
 
     test_battle_script_actor_coordinate_calls(test);
+    test_battle_script_current_coordinate_stops(test);
+    test_battle_script_current_coordinate_boundaries(test);
+    test_battle_script_current_coordinate_loops(test);
 
     {
         Fixture fixture;
@@ -2808,6 +3664,10 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
         fixture.startup.group_b_lifecycle = std::make_shared<std::array<
             openswd3::battle::LegacyBattleActorGroupBElementState,
             openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        (*fixture.startup.group_b_lifecycle)[0U].action_execution.position_x =
+            100U;
+        (*fixture.startup.group_b_lifecycle)[0U].action_execution.position_y =
+            40U;
         const auto result = run_legacy_battle_script_dispatch(
             fixture.workspace, fixture.bindings(), port
         );

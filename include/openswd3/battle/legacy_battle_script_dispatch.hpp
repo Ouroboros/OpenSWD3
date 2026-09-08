@@ -2,6 +2,7 @@
 
 #include "openswd3/battle/legacy_battle_actor_base_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_actor_coordinate_publication.hpp"
+#include "openswd3/battle/legacy_battle_actor_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_assets.hpp"
 #include "openswd3/battle/legacy_battle_attack_order_insert.hpp"
@@ -209,7 +210,7 @@ enum class LegacyBattleScriptDispatchCall : compat::u32 {
     reserved_actor_coordinates = 0x004783B0U,
     reserved_actor_base_coordinates = 0x00478470U,
     reserved_actor_coordinate_publication = 0x004785C0U,
-    pending_478600 = 0x00478600U,
+    reserved_actor_current_coordinate_query = 0x00478600U,
     pending_478710 = 0x00478710U,
     pending_478780 = 0x00478780U,
     pending_4787d0 = 0x004787D0U,
@@ -260,6 +261,7 @@ struct LegacyBattleScriptDispatchCallRequest {
     compat::u32 eax{};
     compat::u32 ecx{};
     compat::u32 edx{};
+    LegacyBattleActorCoordinateFlags flags{};
     compat::u32 cursor{};
 };
 
@@ -267,6 +269,7 @@ struct LegacyBattleScriptDispatchCallReply {
     compat::u32 eax{};
     compat::u32 ecx{};
     compat::u32 edx{};
+    LegacyBattleActorCoordinateFlags flags{};
     bool typed_stop{};
 };
 
@@ -287,6 +290,7 @@ public:
             .eax = request.eax,
             .ecx = request.ecx,
             .edx = request.edx,
+            .flags = request.flags,
         };
     }
 };
@@ -299,6 +303,7 @@ enum class LegacyBattleScriptDispatchStatus : compat::u8 {
     shared_state_typed_stop,
     actor_availability_block_typed_stop,
     actor_coordinate_typed_stop,
+    actor_current_coordinate_typed_stop,
     actor_base_coordinate_typed_stop,
     actor_coordinate_publication_typed_stop,
     allocation_typed_stop,
@@ -317,12 +322,35 @@ enum class LegacyBattleScriptDispatchStatus : compat::u8 {
     party_item_definition_typed_stop,
 };
 
+struct LegacyBattleScriptCurrentCoordinateAccess {
+    compat::u32 query_call{};
+    bool first_output_pointer_readable{true};
+    bool second_output_pointer_readable{true};
+    bool first_output_writable{true};
+    bool second_output_writable{true};
+};
+
+struct LegacyBattleScriptLiveCountControl {
+    compat::u32 publication_call{};
+    compat::u32 party_count_after_publication{};
+    compat::u32 enemy_count_after_publication{};
+};
+
 struct LegacyBattleScriptDispatchRequest {
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
     compat::u32 entry_esi{};
     compat::u32 entry_edi{};
+    LegacyBattleActorCoordinateFlags entry_flags{};
+    LegacyBattleScriptCurrentCoordinateAccess current_coordinate_access{};
+    LegacyBattleScriptLiveCountControl live_count_control{};
+};
+
+struct LegacyBattleScriptCurrentCoordinateCallRecord {
+    compat::u32 caller_address{};
+    LegacyBattleActorCurrentCoordinateQueryRequest request{};
+    LegacyBattleActorCurrentCoordinateQueryResult result{};
 };
 
 struct LegacyBattleScriptDispatchResult {
@@ -341,6 +369,10 @@ struct LegacyBattleScriptDispatchResult {
     compat::u32 actor_availability_block_calls{};
     LegacyBattleActorCoordinateQueryResult coordinate_query{};
     compat::u32 coordinate_query_calls{};
+    LegacyBattleActorCurrentCoordinateQueryResult current_coordinate_query{};
+    compat::u32 current_coordinate_query_calls{};
+    std::vector<LegacyBattleScriptCurrentCoordinateCallRecord>
+        current_coordinate_trace;
     LegacyBattleActorBaseCoordinateQueryResult base_coordinate_query{};
     compat::u32 base_coordinate_query_calls{};
     LegacyBattleActorCoordinatePublicationResult coordinate_publication{};

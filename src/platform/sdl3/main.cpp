@@ -2745,6 +2745,7 @@ public:
             .eax = request.eax,
             .ecx = request.ecx,
             .edx = request.edx,
+            .flags = request.flags,
         };
         const auto group_a_index = [&]() -> std::optional<std::size_t> {
             if (request.object_token <
@@ -2836,26 +2837,8 @@ public:
             reply.eax = std::bit_cast<openswd3::compat::u32>(integer);
             break;
         }
-        case LegacyBattleScriptDispatchCall::pending_478600:
-            if (const auto index = group_a_index(); index.has_value()) {
-                workspace.coordinate_x =
-                    battle_runtime_.party[*index].position_x;
-                workspace.coordinate_y =
-                    battle_runtime_.party[*index].position_y;
-                workspace.pair_x = battle_runtime_.party[*index].position_x;
-                workspace.pair_y = battle_runtime_.party[*index].position_y;
-            } else if (
-                const auto index = group_b_index(); index.has_value() &&
-                battle_runtime_.group_b_lifecycle != nullptr
-            ) {
-                const auto& coordinates =
-                    (*battle_runtime_.group_b_lifecycle)[*index]
-                        .action_execution;
-                workspace.coordinate_x = coordinates.position_x;
-                workspace.coordinate_y = coordinates.position_y;
-                workspace.pair_x = coordinates.position_x;
-                workspace.pair_y = coordinates.position_y;
-            }
+        case LegacyBattleScriptDispatchCall::
+            reserved_actor_current_coordinate_query:
             break;
         case LegacyBattleScriptDispatchCall::reserved_actor_coordinates:
         case LegacyBattleScriptDispatchCall::reserved_actor_base_coordinates:

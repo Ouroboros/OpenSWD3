@@ -502,3 +502,15 @@ Group-A在当前坐标查询后形成`EAX=1007*(actor-8)`与actor ECX，保留�
 正常路径保存最后一次完整publication结果与累计调用数；leaf成功返回的ECX为0，EAX/EDX来自低word替换后的真实caller寄存器。两组循环均只在publication成功后推进index并重读live count。typed-stop映射为独立`actor_coordinate_publication_typed_stop`，保留当前坐标写、当前source read和此前复制前缀，同时阻断当前index推进、剩余actor/group、cursor、共享坐标与临时值清零、Group-A mirror提交、actor metrics、frame和frame-gate后缀；此前成功actor不回滚。
 
 定向`battle.legacy_battle_setup`覆盖十三个物理站点的成功路径、canonical source/destination记录、两组次序、动态count重载、EAX/EDX/ESI/EDI高低word、32-bit/16-bit ADD与SUB flags及各case代表性source/destination fault，并验证Group-B publication后的下一次getter读取canonical新坐标而非平行action-record。REVIEW 2通过定向`1/1`、Linux core `199/199`、ASan/UBSan `199/199`与Linux app `205/205`，日志无warning、失败或sanitizer诊断且stderr为空。Workpack 287的caller回收达到`17/19`，inventory继续保持row 287 `pending_audit`，等待REVIEW 3回收turn gate与Group-B action17两处caller。原版联合动态差分继续登记为`blocked_runtime_oracle`。
+
+## 21. `0x00478600`十三处脚本当前坐标查询直连
+
+工作包288 REVIEW 2关闭case 5 `0x0046A694`、case 13 `0x0046A7C6`、case 45 `0x0046BA42/0x0046BAB5`、case 22 `0x0046BB44/0x0046BB9D`、case 39 `0x0046C610`、case 40 `0x0046C8AA/0x0046C929/0x0046C97D`、case 73 `0x0046CA77/0x0046CACB`与case 50 `0x0046CD72`。十三处均从startup party或Group-B lifecycle action-execution解析canonical view并直接组合`query_legacy_battle_actor_current_coordinates()`；`reserved_actor_current_coordinate_query`保留`0x00478600`枚举值，但脚本生产分派和SDL adapter都不再转发该调用，reserved槽为空reply。
+
+case 5、13与40入口按脚本token的`<=7/>7`分支分别保留`0x00525508 + t*0x2B28`或`0x005029D0 + (t-8)*0x2F34`的物理地址公式；case 39先提交`actor|0x8000`再以`actor&0x7FFF`选址；case 50先完成脚本actor的`0x0047F910`调用与返回AX提交，但current-coordinate actor固定为`0x00525508`。两套输出scratch严格保持`0x0053CCE8/0x0053CCEC`的dword低字写入与`0x0053CE78/0x0053CE7A`的word pair写入，dword高字不被leaf修改。
+
+每个站点保存caller地址、typed leaf request/result与累计调用数。正常返回保留caller-specific EAX高word并令`AX=Y`、`EDX=out_x token`、`ECX=out_y token`，MOV/RET使入口flags原样返回；case 45与50把前置`0x0047F900/0x0047F910`可注入的真实EAX/EDX/flags直接送入leaf，不以常量替代。成功后才执行各自首后缀：case 45按完整packed dword做`640-X`并为第二站保留Y低字覆盖后的EDX，case 22做32-bit X ADD，case 40/73做16-bit X ADD，case 39构造序列表，case 50继续向脚本选定actor发布。
+
+六类停止分别覆盖第一输出指针读取、X读取、X写入、Y读取、第二输出指针读取与Y写入。任一停止都映射为`actor_current_coordinate_typed_stop`并阻断当前站点第一条后缀、publication、index/count推进、剩余轮次、cursor、mirror、frame与共享清理；Y读取及其后的停止保留X低字提交，dword高字和未写Y保持。第一参数读取前EDX保留caller入口值、读取后变为out-X；第二参数读取前ECX保留actor token、读取后变为out-Y，dispatcher最终返回与leaf停止点一致。case 45/50的前置callee副作用、case 39的高位actor标记、case 40/73的前置步长状态以及循环中此前完成的查询和publication均不回滚。
+
+定向`battle.legacy_battle_setup`覆盖十三个地址的正常trace、token 7/8边界、case 40的0/16可达边界、case 39高位掩码、两套scratch、callee残值、EAX高word、ECX/EDX、flags、zero/first/multi-round、八个物理循环站点回边、首轮后live count缩短与扩展、十三乘六typed-stop、X部分提交、前轮保留、正常后缀和reserved零调用。current-coordinate leaf自身的输出互相alias、输出覆盖actor字段及第二访问观察首写语义继续由actor-coordinate定向测试覆盖。工作包288的caller回收达到`19/21`，inventory row 288继续保持`pending_audit`，等待REVIEW 3回收turn gate与Group-B action17。原版联合动态差分继续登记为`blocked_runtime_oracle`。

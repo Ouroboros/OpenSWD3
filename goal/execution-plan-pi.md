@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v893
+版本：v894
 
 最后更新：2026-09-08
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 工作包288 REVIEW 2待实现
+当前步骤：模块10 · 工作包288 REVIEW 3待实现
 
 ## 0. 执行约定
 
@@ -271,7 +271,7 @@ REVIEW通过后必须立即按`AGENTS.md`完成commit、push和TG，再重新完
 13. `[x]` B7：地图、世界、角色、碰撞与寻路已按模块移交条件有限收口；当前状态、阻塞和证据见[`world-map.md`](../analysis/04-reverse-engineering/modules/world-map.md)及相关inventory/evidence。
 14. `[x]` B8：剧情VM、场景调度与异步action的P1–P3已经完成；[`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md)不再覆盖当前队列。
 15. `[x]` B9：菜单、商店和其他特殊模式的227/227工作项已经关闭；当前状态和阻塞见[`special-modes.md`](../analysis/04-reverse-engineering/modules/special-modes.md)。
-16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=287`；工作包288 REVIEW 1已完成并回收六个物理caller，当前执行REVIEW 2。
+16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=287`；工作包288 REVIEW 1–2已完成并累计回收十九个物理caller，当前执行REVIEW 3。
 17. `[ ]` B11：存档、配置与持久化语义；等待B10满足移交条件后开始。
 
 B7以后已经完成的详细执行记录已机械搬到[`execution-progress-history-pi.md`](execution-progress-history-pi.md)。该文件只保存历史，不定义当前执行顺序、状态或断点。
@@ -286,7 +286,7 @@ B7以后已经完成的详细执行记录已机械搬到[`execution-progress-his
 
 当前工作包：`audit_order=288`、`0x00478600`。目标是完整实现从actor `+0x0D66/+0x0D68`向两个输出指针有序发布当前X/Y word的typed查询，并回收六个caller函数中的二十一个物理callsite。
 
-当前断点：完整LST已锁定`0x00478600..0x0047861E`共31字节、7条指令与1个`retn 8`，无call、分支或范围外chunk；二十一个物理caller已逐项枚举。REVIEW 1已实现独立current-coordinate typed leaf，并回收效果步进四处、debug overlay一处与target-selection entry一处caller，`caller_reclaimed:6/21`；当前执行REVIEW 2，inventory row 288保持`pending_audit`直至`caller_reclaimed:21/21`。
+当前断点：完整LST已锁定`0x00478600..0x0047861E`共31字节、7条指令与1个`retn 8`，无call、分支或范围外chunk；二十一个物理caller已逐项枚举。REVIEW 1–2已实现独立current-coordinate typed leaf，并回收效果步进、debug overlay、target-selection entry与script dispatch共十九处caller，`caller_reclaimed:19/21`；当前执行REVIEW 3，inventory row 288保持`pending_audit`直至`caller_reclaimed:21/21`。
 
 #### REVIEW 1：typed当前坐标查询与效果、调试、目标选择六处caller
 
@@ -305,7 +305,9 @@ B7以后已经完成的详细执行记录已机械搬到[`execution-progress-his
 
 #### REVIEW 2：脚本分派十三处caller回收
 
-状态：待实现，依赖REVIEW 1。
+状态：已完成。
+
+结果：script dispatch十三处物理caller已按逐站LST直连current-coordinate typed leaf，canonical owner、两套scratch、caller寄存器/flags、六类typed-stop、X部分提交、动态count回边与reserved零调用均已锁定，`caller_reclaimed:19/21`。fresh reviewer在两项P1补测后返回PASS；定向测试、Linux core 199/199、ASan/UBSan 199/199、Linux app 205/205与连续十轮core均通过，inventory row 288继续保持`pending_audit`。
 
 - 回收`0x00469D20`十三处物理callsite：`0x0046A694`、`0x0046A7C6`、`0x0046BA42`、`0x0046BAB5`、`0x0046BB44`、`0x0046BB9D`、`0x0046C610`、`0x0046C8AA`、`0x0046C929`、`0x0046C97D`、`0x0046CA77`、`0x0046CACB`与`0x0046CD72`。
 - 每处直接通过startup party或Group-B lifecycle action-execution的canonical view组合current-coordinate typed leaf；保留两个固定scratch pair `0x0053CCE8/0x0053CCEC`与`0x0053CE78/0x0053CE7A`、分支汇合前压参、actor token、caller-specific EAX高word、ECX/EDX残值和入口flags。成功后必须消费leaf真实寄存器，不沿用opaque reply。
