@@ -5,6 +5,7 @@
 #include "openswd3/battle/legacy_battle_retreat_commit.hpp"
 #include "openswd3/battle/legacy_battle_actor_availability_block.hpp"
 #include "openswd3/battle/legacy_battle_actor_base_coordinates.hpp"
+#include "openswd3/battle/legacy_battle_actor_coordinate_publication.hpp"
 #include "openswd3/battle/legacy_battle_actor_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_actor_progress.hpp"
 #include "openswd3/battle/legacy_battle_actor_render_offsets.hpp"
@@ -1143,6 +1144,7 @@ enum class LegacyBattleTurnAdvanceStatus : compat::u8 {
     actor_state_typed_stop,
     frame_owner_typed_stop,
     shared_state_typed_stop,
+    actor_coordinate_publication_typed_stop,
 };
 
 struct LegacyBattleTurnAdvanceResult {
@@ -1157,6 +1159,7 @@ struct LegacyBattleTurnAdvanceResult {
     compat::u32 sample_pan_calls{};
     compat::u32 coordinate_query_calls{};
     compat::u32 coordinate_publish_calls{};
+    LegacyBattleActorCoordinatePublicationResult coordinate_publication{};
     compat::u32 render_calls{};
     compat::u32 action_record_clears{};
     compat::u32 return_eax{};

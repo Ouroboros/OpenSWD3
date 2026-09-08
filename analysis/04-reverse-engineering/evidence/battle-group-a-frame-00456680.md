@@ -158,6 +158,8 @@ bit`0x4000`阶段结束后会在同一次调用重读turn word，因此成功写
 
 达到阈值时显示最终文本、清十槽队列、message state写104、turn word清零、active effect target写全1并清504字节workspace。
 
+两处turn advance都直连已关闭的回合门；其内部`0x0047172C`坐标publication现进一步直接组合typed leaf。publication fault由回合门完整传播到本函数，并在候选累计、bit标记、defeated计数、完成消息、最终尾与其他父级后缀之前返回；旧raw `0x004785C0`生产调用为零。
+
 ## 10. 最终尾
 
 无论普通路径如何，最后调用固定`final actor step(group_a_index,1)`。完整EAX等于1时清待执行动作提交与本函数共用的唯一activation latch，并把final selected word写`0xFFFF`。函数正常返回固定1。
@@ -200,7 +202,7 @@ Typed-stop只位于：
 - turn `0x4000→0x8000→0`同调用穿透；
 - resolved word54最大值、stale turn参数与失败尾；
 - queue code小于8的派生对象停点；
-- 46个唯一callee全部存在，其中3个typed直连、43个端口边界。
+- 46个唯一callee全部存在，其中3个整函数typed直连、43个端口边界；turn gate内部坐标publication另为typed leaf直连并覆盖fault后缀抑制。
 
 ## 13. `0x00478330`六处直接写入
 

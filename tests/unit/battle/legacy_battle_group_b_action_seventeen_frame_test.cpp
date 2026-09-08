@@ -355,23 +355,115 @@ void test_battle_group_b_action_seventeen_frame(openswd3::test::Context& test) {
         const auto* query = fixture.port.find(
             LegacyBattleGroupBActionSeventeenFrameCall::query_coordinates
         );
-        const auto* publish = fixture.port.find(
-            LegacyBattleGroupBActionSeventeenFrameCall::publish_coordinates
-        );
         test.expect_true(
             result.status ==
                     LegacyBattleGroupBActionSeventeenFrameStatus::
                         frame_owner_typed_stop &&
+                result.port_calls == 1U &&
                 result.coordinate_query_calls == 1U &&
                 result.coordinate_publish_calls == 1U && query != nullptr &&
                 query->eax == 0U && query->ecx == 0x00525508U &&
                 query->edx == 1U && query->arguments[0U] == 0U &&
                 query->arguments[1U] == 1U &&
-                result.adjusted_coordinate_x == 75U && publish != nullptr &&
-                publish->arguments[0U] == 75U &&
-                publish->arguments[1U] == 200U &&
+                result.adjusted_coordinate_x == 75U &&
+                result.coordinate_publication.status ==
+                    openswd3::battle::
+                        LegacyBattleActorCoordinatePublicationStatus::
+                            completed &&
+                result.coordinate_publication.argument_x == 75U &&
+                result.coordinate_publication.argument_y == 200U &&
+                !result.coordinate_publication.flags.carry &&
+                result.coordinate_publication.flags.parity &&
+                result.coordinate_publication.flags.auxiliary_carry &&
+                !result.coordinate_publication.flags.zero &&
+                !result.coordinate_publication.flags.sign &&
+                !result.coordinate_publication.flags.overflow &&
+                fixture.actor.position_x == 75U &&
+                fixture.actor.position_y == 200U &&
+                fixture.actor.alternate_position_x == 75U &&
+                fixture.actor.alternate_position_y == 200U &&
+                fixture.port.count(
+                    LegacyBattleGroupBActionSeventeenFrameCall::
+                        reserved_actor_coordinate_publication
+                ) == 0U &&
                 fixture.actor.turn_countdown == 7 && result.render_calls == 0U,
-            "nonmirrored missing frame preserves both coordinate side effects before stopping"
+            "nonmirrored missing frame preserves typed publication before stopping"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.prepare_unchanged_record();
+        fixture.stream_provider.ready = true;
+        fixture.frame_provider.available = true;
+        fixture.actor.turn_countdown = 7;
+        fixture.actor.alternate_position_x = 0x1111U;
+        fixture.actor.alternate_position_y = 0x2222U;
+        fixture.actor.publication_destination_dword_write_accessible[6U] =
+            false;
+        const auto result = fixture.run(&fixture.actor, &fixture.shared);
+        test.expect_true(
+            result.status ==
+                    LegacyBattleGroupBActionSeventeenFrameStatus::
+                        actor_coordinate_publication_typed_stop &&
+                result.port_calls == 1U &&
+                result.coordinate_query_calls == 1U &&
+                result.coordinate_publish_calls == 1U &&
+                result.coordinate_publication.status ==
+                    openswd3::battle::
+                        LegacyBattleActorCoordinatePublicationStatus::
+                            destination_dword_write_typed_stop &&
+                result.coordinate_publication.stopped_dword_index == 6U &&
+                result.coordinate_publication.source_dword_reads == 7U &&
+                result.coordinate_publication.destination_dword_writes == 6U &&
+                result.coordinate_publication.return_eax == 75U &&
+                result.coordinate_publication.return_ecx == 2U &&
+                result.coordinate_publication.return_edx == 200U &&
+                fixture.actor.position_x == 75U &&
+                fixture.actor.position_y == 200U &&
+                fixture.actor.alternate_position_x == 75U &&
+                fixture.actor.alternate_position_y == 0x2222U &&
+                fixture.shared.turn_frame_source_token == 0U &&
+                result.render_calls == 0U &&
+                fixture.actor.turn_countdown == 7 &&
+                fixture.port.count(
+                    LegacyBattleGroupBActionSeventeenFrameCall::
+                        reserved_actor_coordinate_publication
+                ) == 0U,
+            "action seventeen publication fault preserves the copied prefix and suppresses rendering"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.prepare_unchanged_record();
+        fixture.stream_provider.ready = true;
+        fixture.frame_provider.available = true;
+        fixture.actor.turn_countdown = 7;
+        fixture.actor.position_x = 0x1111U;
+        fixture.actor.position_y = 0x2222U;
+        fixture.actor.alternate_position_x = 0x3333U;
+        fixture.actor.alternate_position_y = 0x4444U;
+        fixture.actor.position_y_write_accessible = false;
+        const auto result = fixture.run(&fixture.actor, &fixture.shared);
+        test.expect_true(
+            result.status ==
+                    LegacyBattleGroupBActionSeventeenFrameStatus::
+                        actor_coordinate_publication_typed_stop &&
+                result.coordinate_publication.status ==
+                    openswd3::battle::
+                        LegacyBattleActorCoordinatePublicationStatus::
+                            position_y_write_typed_stop &&
+                result.coordinate_publication.coordinate_writes == 1U &&
+                result.coordinate_publication.source_dword_reads == 0U &&
+                result.coordinate_publication.destination_dword_writes == 0U &&
+                fixture.actor.position_x == 75U &&
+                fixture.actor.position_y == 0x2222U &&
+                fixture.actor.alternate_position_x == 0x3333U &&
+                fixture.actor.alternate_position_y == 0x4444U &&
+                fixture.shared.turn_frame_source_token == 0U &&
+                result.render_calls == 0U && fixture.actor.turn_countdown == 7,
+            "action seventeen Y publication stop preserves the X prefix and suppresses rendering"
         );
     }
 
@@ -393,8 +485,8 @@ void test_battle_group_b_action_seventeen_frame(openswd3::test::Context& test) {
         fixture.actor.special_draw_mirror_mode = 1U;
         fixture.actor.position_x = 20U;
         fixture.actor.position_y = 10U;
-        fixture.port.coordinate_x = 50U;
-        fixture.port.coordinate_y = 60U;
+        fixture.port.coordinate_x = 0x12340032U;
+        fixture.port.coordinate_y = 0xAABB003CU;
         fixture.port.sample_replies.push_back({
             .eax = 0x11110000U,
             .ecx = 0xAAAA1111U,
@@ -416,11 +508,12 @@ void test_battle_group_b_action_seventeen_frame(openswd3::test::Context& test) {
             LegacyBattleGroupBActionSeventeenFrameCall::set_sample_pan
         );
         const auto pixels = fixture.framebuffer.physical_pixels();
-        const std::size_t rendered_index = 6U * 640U + 13U;
+        const std::size_t rendered_index = 56U * 640U + 68U;
         test.expect_true(
             result.status ==
                     LegacyBattleGroupBActionSeventeenFrameStatus::completed &&
-                result.return_eax == 0U && result.sample_play_calls == 2U &&
+                result.return_eax == 0U && result.port_calls == 4U &&
+                result.sample_play_calls == 2U &&
                 result.sample_pan_calls == 1U && first_sample != nullptr &&
                 first_sample->arguments[0U] == 0x10FU &&
                 second_sample != nullptr &&
@@ -433,11 +526,36 @@ void test_battle_group_b_action_seventeen_frame(openswd3::test::Context& test) {
         test.expect_true(
             fixture.actor.turn_render_flags == 0U &&
                 fixture.actor.turn_target_x_offset == 7U &&
-                result.adjusted_coordinate_x == 75U &&
+                result.adjusted_coordinate_x == 0x1234004BU &&
+                result.coordinate_publication.status ==
+                    openswd3::battle::
+                        LegacyBattleActorCoordinatePublicationStatus::
+                            completed &&
+                result.coordinate_publication.argument_x == 75U &&
+                result.coordinate_publication.argument_y == 60U &&
+                result.coordinate_publication.return_eax == 0x1234004BU &&
+                result.coordinate_publication.return_ecx == 0U &&
+                result.coordinate_publication.return_edx == 0x1234003CU &&
+                result.coordinate_publication.return_esi == 0x00525508U &&
+                result.coordinate_publication.return_edi == 0U &&
+                !result.coordinate_publication.flags.carry &&
+                result.coordinate_publication.flags.parity &&
+                !result.coordinate_publication.flags.auxiliary_carry &&
+                !result.coordinate_publication.flags.zero &&
+                !result.coordinate_publication.flags.sign &&
+                !result.coordinate_publication.flags.overflow &&
+                fixture.actor.position_x == 75U &&
+                fixture.actor.position_y == 60U &&
+                fixture.actor.alternate_position_x == 75U &&
+                fixture.actor.alternate_position_y == 60U &&
+                fixture.port.count(
+                    LegacyBattleGroupBActionSeventeenFrameCall::
+                        reserved_actor_coordinate_publication
+                ) == 0U &&
                 fixture.shared.turn_frame_source_token == 0x00527A54U &&
                 fixture.frame_provider.last_resource_id == 2U &&
                 fixture.frame_provider.last_piece_index == 1U,
-            "countdown fifteen preserves mirror, coordinate, and frame lookup state"
+            "countdown fifteen preserves typed publication and frame lookup state"
         );
         test.expect_true(
             result.render_calls == 1U &&

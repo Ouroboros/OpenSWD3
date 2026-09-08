@@ -22,13 +22,13 @@ caller只在调用前执行`mov ecx, esi`，因此入口只有组B source actor�
 0x004170E0  1 call  已关闭软件blitter
 0x004315D0  1 call  已关闭帧查询
 0x004321E0  1 call  已关闭动作记录更新
-0x004785C0  1 call  待审坐标发布
+0x004785C0  1 call  已关闭typed坐标发布
 0x00478600  1 call  待审坐标查询
 0x00485610  2 call  已有窄音频播放命令
 0x00485650  1 call  已有窄音频声像命令
 ```
 
-已关闭callee直接使用typed接口；坐标和音频只保留上述窄端口，不重新引入整函数opaque边界。
+已关闭callee直接使用typed接口；坐标查询和音频保留窄端口，`0x004785C0`坐标publication已直接组合typed leaf，不重新引入整函数opaque边界。
 
 ## 2. 倒计时完成门
 
@@ -90,7 +90,7 @@ target_x_offset = (frame_width - draw_offset_low_word) mod 2^16
 - 镜像mode等于一：X加`0x19`。
 - 其他mode：X减`0x19`。
 
-调整后的X和原Y立即传给坐标发布callee。即使帧描述符为空，查询与发布副作用也必须先发生；随后才在`mov ecx, [frame]`首次source读取点typed-stop。
+调整后的X先同时形成完整EAX和EDX，再只把Y低word写入DX，因此publication入口EDX保留调整后X的高word；ECX和ESI为actor token，EDI为零，最终flags来自上述32-bit ADD或SUB。`0x0047656D`在canonical action-execution坐标owner上直接组合typed publication，依次写X/Y低word并复制八个source dword。即使帧描述符为空，查询与publication副作用也必须先发生；随后才在`mov ecx, [frame]`首次source读取点typed-stop。
 
 帧有效时，`[frame+0]`对应的source身份发布到共享`0x004CD730` owner；typed核心沿用稳定描述符token，同时实际绘制读取同一`LegacyFramePiece::source`。绘制六个物理参数按原顺序为：
 
@@ -121,6 +121,7 @@ X/Y减法按u32回绕后解释为i32。宽高只零扩展u16。第六参数是�
 
 - actor缺失：入口首次`[actor+0x2668]`读取。
 - 帧缺失：镜像宽度首次读取，或坐标发布后的source首次读取。
+- 坐标publication：X/Y写入或八次source/destination复制的任一真实访问点；保存精确leaf寄存器、flags和当前部分提交，并阻断frame token、共享source、blit、倒计时与外层action17后缀。
 - 共享owner缺失：有效frame source向共享owner发布的位置。
 - blitter失败：typed软件blitter返回的位置。
 
@@ -136,13 +137,13 @@ caller严格比较typed结果完整`return_eax`：
 - `EAX=1`：依次执行原三项mode收尾，再推进overlay、处理计数及后续公共状态。
 - typed-stop：保留helper此前副作用并阻断上述收尾与后续case后缀。
 
-旧地址在生产调用和caller测试中保持零调用；音频与坐标只通过四个窄callee token适配。
+旧`0x004763D0`地址在生产调用和caller测试中保持零调用。坐标publication枚举槽保留原ordinal并重命名为`reserved_actor_coordinate_publication`；opponent adapter对该槽直接返回空回复，生产路径raw `0x004785C0`零调用。
 
 ## 8. 测试与动态oracle缺口
 
-专门UT覆盖actor首访问、signed倒计时完成门、精确`0x98`清零、动作更新失败早退、首个sample、倒计时十五sample与陈旧高word声像参数、帧查询键、镜像双bit切换、完整draw-offset门、u16宽度回绕、两处不同frame故障点、坐标副作用顺序、索引色板辅助参数、16位实际像素写入、共享owner stop、blitter路径和倒计时递减。caller UT覆盖逐帧返回零、typed-stop传播、返回一收尾及旧整函数地址零调用。
+专门UT覆盖actor首访问、signed倒计时完成门、精确`0x98`清零、动作更新失败早退、首个sample、倒计时十五sample与陈旧高word声像参数、帧查询键、镜像双bit切换、完整draw-offset门、u16宽度回绕、两处不同frame故障点、publication正负25、完整ADD/SUB flags、EAX/EDX高低word、canonical坐标与destination记录、Y写停止、destination dword部分复制、索引色板辅助参数、16位实际像素写入、共享owner stop、blitter路径和倒计时递减。caller UT覆盖逐帧返回零、publication typed-stop后缀抑制、返回一收尾及两个旧整函数/raw publication地址零调用。
 
-最终验证：战斗聚合定向测试、完整core AddressSanitizer `188/188`、Linux core `188/188`、Linux app `194/194`全部通过；三份最终日志零OpenSWD3源码warning、零sanitizer finding。
+历史验证为战斗聚合定向测试、完整core AddressSanitizer `188/188`、Linux core `188/188`、Linux app `194/194`全部通过。Workpack 287 REVIEW 3回收本函数坐标publication caller后，再通过定向`1/1`、Linux core `199/199`、ASan/UBSan `199/199`、Linux app `205/205`及连续十轮core。
 
 原版组B actor、动作记录流、帧描述符、音频返回寄存器、坐标callee、软件blitter共享状态及唯一caller后缀的联合捕获后端仍缺失，因此动态差分为`blocked_runtime_oracle`。所需最小回放记录为：
 

@@ -22,12 +22,14 @@
 
 更新成功后以EAX和EDX的陈旧高半word分别拼接动作记录帧键，查询帧记录。渲染flags先翻转bit0；角色post-action值为一时再翻转一次，并以`frame width - draw offset`的16位回绕结果替换水平偏移。帧owner为空时只在原始第一次帧解引用位置typed-stop，保留此前写入与窄callee副作用。
 
-倒计时等于十五且参数为一时播放固定sample，再按post-action值选择播放返回ECX或EDX的陈旧高半word拼接sample低word，分别提交正十六或负十六声像，最后清sample word。坐标查询完成后，模式一按post-action值对X做正十六或负十六偏移，再发布坐标。
+倒计时等于十五且参数为一时播放固定sample，再按post-action值选择播放返回ECX或EDX的陈旧高半word拼接sample低word，分别提交正十六或负十六声像，最后清sample word。坐标查询完成后，参数不等于一时保持查询结果且最终flags来自`cmp argument,1`；参数等于一时按post-action值对完整X执行正十六或负十六调整，最终flags来自32-bit ADD或SUB。
 
-绘制前发布帧源token，X使用signed角色坐标减signed水平偏移，Y使用signed角色坐标减完整32位动作Y偏移；宽高取帧记录低word，flags和数据token原样提交。绘制后倒计时按32位回绕递减并返回零。
+`0x0047172C`不再向port发送`0x004785C0`，而在canonical action-execution坐标owner上直接组合typed publication。入口固定承接完整`EAX=X`、`ECX=actor token`、`EDX=Y`、`ESI=actor token`、`EDI=0`。leaf先写X/Y低word，再复制八个source dword；任一写入或复制typed-stop保存精确leaf寄存器、flags与部分提交，并阻断frame token读取、共享source发布、绘制、countdown递减及外层turn/action后缀。
+
+publication完成后才发布帧源token。X使用signed已发布角色坐标减signed水平偏移，Y使用signed已发布角色坐标减完整32位动作Y偏移；宽高取帧记录低word，flags和数据token原样提交。绘制后倒计时按32位回绕递减并返回零。
 
 ## 4. caller回收与验证
 
-模式零caller继续控制回合候选累计与概率门；模式一caller继续标记当前角色bit、累计低byte计数并触发完成消息。测试覆盖special-ready早退、两档inclusive阈值、signed倒计时递减、152字节清零、模式一独占latch、动作更新零返回、查帧键陈旧高半word、双次bit0翻转、sample声像陈旧寄存器、坐标正负偏移、绘制参数、实际帧解引用typed-stop，以及两处production caller不再调用整函数地址。
+模式零caller继续控制回合候选累计与概率门；模式一caller继续标记当前角色bit、累计低byte计数并触发完成消息。测试覆盖special-ready早退、两档inclusive阈值、signed倒计时递减、152字节清零、模式一独占latch、动作更新零返回、查帧键陈旧高半word、双次bit0翻转、sample声像陈旧寄存器、publication无调整与正负十六、完整CMP/ADD/SUB flags、canonical绘制坐标、X写停止、destination dword部分复制和全部后缀抑制，以及两处production caller不再调用整函数地址、raw `0x004785C0`零调用。
 
-定向测试与独立AddressSanitizer均通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`207/422 = 198 platform_adapted + 9 assembly_exact + 215 pending_audit`，SHA256为`b3fa2ddef9b48fff1971a1aa58e912425f6f701c491dd14d4d70b520473c216c`。动态差分因原版角色动作记录、队列callee、帧记录、sample寄存器、坐标与软件绘制联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+原Workpack 207门禁为定向测试与独立AddressSanitizer通过、Linux core `188/188`、Linux app `194/194`。Workpack 287 REVIEW 3进一步回收本函数唯一坐标publication caller，并通过定向`1/1`、Linux core `199/199`、ASan/UBSan `199/199`、Linux app `205/205`及连续十轮core。动态差分因原版角色动作记录、队列callee、帧记录、sample寄存器、异常坐标页、寄存器与软件绘制联合捕获后端缺失而登记为`blocked_runtime_oracle`。

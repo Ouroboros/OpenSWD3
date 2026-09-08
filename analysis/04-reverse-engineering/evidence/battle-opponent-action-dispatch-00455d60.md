@@ -157,6 +157,8 @@ special action非零时继续查询固定组B base。返回0且`group-B count - 
 
 返回1。
 
+case 17逐帧入口内部原`0x0047656D`坐标publication已由typed action17直接组合。opponent adapter保留`reserved_actor_coordinate_publication`原ordinal但不再转发raw `0x004785C0`；publication typed-stop携带完整leaf结果返回，并在本case第一次mode收尾之前阻断clear/finalize/target、overlay、processed计数与后续公共状态。正常路径继续使用publication后canonical坐标绘制。
+
 ## 10. closed callee与窄端口
 
 直接复用已关闭：
@@ -191,7 +193,7 @@ special action非零时继续查询固定组B base。返回0且`group-B count - 
 - case 7攻击顺序移除直连、旧地址调用清零、低byte回绕与两个active target清理；
 - case 15 wave参数profile尾字段、两项有序输出、AX零扩展与EAX高word保留、源actor停止前缀、双wave镜像、共享记录前缀保留、220/350坐标、行动配置typed直连、profile stop、两个旧opaque地址零调用、三个stage与完成位形；
 - case 15第9项在8条完整副作用后typed-stop；
-- case 17 workspace零后18个间隔全1头与special collapse；
+- case 17 workspace零后18个间隔全1头、special collapse、坐标publication typed直连、部分复制传播和后缀抑制；
 - 9个有效case逐项smoke；
 - 动作0与8个稀疏槽只执行入口callee；
 - framebuffer越界前refresh与完整owned前缀；

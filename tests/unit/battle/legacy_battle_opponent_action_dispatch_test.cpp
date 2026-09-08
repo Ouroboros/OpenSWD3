@@ -754,13 +754,71 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 result.return_value == 0U &&
                 result.group_b_action_seventeen_frame_calls == 1U &&
                 result.group_b_action_seventeen_frame.return_eax == 0U &&
+                result.group_b_action_seventeen_frame
+                        .coordinate_publish_calls == 1U &&
+                result.group_b_action_seventeen_frame.coordinate_publication
+                        .status ==
+                    openswd3::battle::
+                        LegacyBattleActorCoordinatePublicationStatus::
+                            completed &&
                 openswd3::compat::u8(state.opponent_processed_counter) == 0U &&
                 state.overlay_gate == 0U && port.count(0x004763D0U) == 0U &&
                 port.count(0x0047D870U) == 0U &&
                 port.count(0x0047D860U) == 0U &&
                 port.count(0x004787F0U) == 0U &&
-                port.count(0x00478600U) == 1U && port.count(0x004785C0U) == 1U,
-            "opponent action seventeen frame zero preserves the public per-frame path"
+                port.count(0x00478600U) == 1U && port.count(0x004785C0U) == 0U,
+            "opponent action seventeen directly composes coordinate publication"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        state.group_b_count = 1;
+        Fixture fixture;
+        auto& actor =
+            (*fixture.startup->group_b_lifecycle)[0U].action_execution;
+        actor.turn_countdown = 7;
+        actor.profile_value = 0x1234U;
+        actor.alternate_position_y = 0x2222U;
+        actor.publication_destination_dword_write_accessible[6U] = false;
+        auto& record = actor.turn_action_record;
+        record.action_id = actor.profile_value;
+        record.cached_action_id = actor.profile_value;
+        record.base_variant = 0x24U;
+        record.cached_base_variant = 0x24U;
+        record.field_4a = 2U;
+        record.field_4c = 2U;
+        fixture.stream_provider.ready = true;
+        fixture.frame_provider.available = true;
+        DispatchPort port;
+        port.action = 17U;
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::dispatch_legacy_battle_opponent_action(
+                state, port, context, 0U, 99U
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        group_b_action_seventeen_frame_typed_stop &&
+                result.return_value == 0xFFFFFFE7U &&
+                result.group_b_action_seventeen_frame.status ==
+                    openswd3::battle::
+                        LegacyBattleGroupBActionSeventeenFrameStatus::
+                            actor_coordinate_publication_typed_stop &&
+                result.group_b_action_seventeen_frame.coordinate_publication
+                        .status ==
+                    openswd3::battle::
+                        LegacyBattleActorCoordinatePublicationStatus::
+                            destination_dword_write_typed_stop &&
+                result.group_b_action_seventeen_frame.render_calls == 0U &&
+                state.group_a_action_shared.turn_frame_source_token == 0U &&
+                openswd3::compat::u8(state.opponent_processed_counter) == 0U &&
+                state.overlay_gate == 0U && port.count(0x00478600U) == 1U &&
+                port.count(0x004785C0U) == 0U &&
+                port.count(0x0047D870U) == 0U &&
+                port.count(0x0047D860U) == 0U && port.count(0x004787F0U) == 0U,
+            "opponent action seventeen propagates publication faults before its suffix"
         );
     }
 

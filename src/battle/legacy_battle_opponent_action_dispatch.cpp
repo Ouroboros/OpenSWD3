@@ -40,7 +40,6 @@ constexpr u32 kCallFinalizeMode = 0x0047D860U;
 constexpr u32 kCallPlaySample = 0x00485610U;
 constexpr u32 kCallSetSamplePan = 0x00485650U;
 constexpr u32 kCallQueryCoordinates = 0x00478600U;
-constexpr u32 kCallPublishCoordinates = 0x004785C0U;
 constexpr u32 kCallResetOpponent = 0x0047D350U;
 constexpr u32 kCallMirrorOpponent = 0x0047F900U;
 constexpr u32 kCallQueryOpponentCondition = 0x0047CE80U;
@@ -164,9 +163,9 @@ public:
             callee = kCallQueryCoordinates;
             break;
 
-        case LegacyBattleGroupBActionSeventeenFrameCall::publish_coordinates:
-            callee = kCallPublishCoordinates;
-            break;
+        case LegacyBattleGroupBActionSeventeenFrameCall::
+            reserved_actor_coordinate_publication:
+            return {};
         }
 
         const auto reply = port_.invoke({

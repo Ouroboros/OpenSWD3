@@ -1,6 +1,6 @@
 # 战斗角色坐标发布与记录复制 `0x004785C0`
 
-状态：`typed_implemented`、`unit_tested`、`caller_reclaimed:17/19`。Workpack 287完整关闭仍需REVIEW 3回收turn gate与Group-B action17两处caller，inventory继续保持`pending_audit`。
+状态：`platform_adapted`、`unit_tested`、`caller_reclaimed:19/19`。Workpack 287的四个caller与十九个物理callsite已全部回收；inventory由权威生成器关闭。
 
 ## 1. 完整LST边界
 
@@ -65,9 +65,17 @@ REVIEW 1完成时caller回收计数为`caller_reclaimed:4/19`。Workpack 287仍�
 - case 45按Group-B后Group-A遍历，对完整packed X/Y dword执行`640-packed`，保留32-bit SUB flags；只有Group-A publication成功后才提交对应`624-mirror_x`后缀；
 - case 50保留首个Group-B actor查询、目标actor地址寄存器和入口ESI/EDI；case 68保留直接脚本X/Y、Group-A入口EDX高word或Group-B地址EDX及SI第二参数残值。
 
-publication typed-stop保存精确leaf结果与累计调用数，保留当前leaf的坐标和复制前缀，并阻断当前index推进、剩余actor/group、cursor、临时值清零、mirror提交、actor metrics、frame及frame-gate后缀。此前成功actor保持已提交。caller回收计数现为`caller_reclaimed:17/19`；row 287继续保持`pending_audit`。
+publication typed-stop保存精确leaf结果与累计调用数，保留当前leaf的坐标和复制前缀，并阻断当前index推进、剩余actor/group、cursor、临时值清零、mirror提交、actor metrics、frame及frame-gate后缀。此前成功actor保持已提交。REVIEW 2完成时caller回收计数为`caller_reclaimed:17/19`，row 287继续保持`pending_audit`。
 
-## 6. 测试与动态差分
+## 6. REVIEW 3回合门与行动十七caller回收
+
+回合角色推进门`0x00471540`的`0x0047172C`已删除`0x004785C0` raw地址调用。caller保留`0x00478600`坐标查询；模式参数不等于一时直接发布查询结果，入口flags来自`cmp argument,1`。参数等于一时按角色post-action状态对完整X执行`-0x10`或`+0x10`，入口flags分别来自最终32-bit SUB或ADD。publication入口固定为`EAX=X`、`ECX=actor token`、`EDX=Y`、`ESI=actor token`、`EDI=0`，成功后ECX为零。
+
+Group-B行动十七`0x004763D0`的`0x0047656D`同样保留坐标查询并直接组合typed leaf。mirror mode精确等于一时对完整X加`0x19`，其他值减`0x19`；入口EAX与EDX均先承接调整后的X，leaf第二条参数读取只替换DX为Y低word，因此保留EDX中来自X的高word。入口flags来自最终32-bit ADD/SUB，ECX与ESI为Group-B actor token，EDI为零。旧`publish_coordinates`枚举槽改名为`reserved_actor_coordinate_publication`并保留ordinal；opponent adapter不再把该槽转发到raw地址。
+
+两个caller都在自身canonical action-execution坐标owner上直接发布。X/Y写入或八次复制任一阶段typed-stop时，caller保存完整leaf结果、当前坐标与复制前缀，并立即阻断frame token读取、共享frame source发布、blit、倒计时递减及父级action17 mode收尾。turn gate、action17与opponent dispatch生产路径对`0x004785C0`均为零opaque调用。十九处caller全部回收后达到`caller_reclaimed:19/19`。
+
+## 7. 测试与动态差分
 
 新增leaf测试覆盖正常X/Y写入与八dword复制、刚写坐标的源可见性、AX/DX低word替换、正常ECX/ESI/EDI、flags保持、参数与push停止、X/Y写部分提交、source/destination中段fault、当前source read保留、复制前缀及两次pop停止。
 
@@ -75,6 +83,8 @@ publication typed-stop保存精确leaf结果与累计调用数，保留当前lea
 
 脚本分派测试覆盖十三个物理站点的成功语义、两组遍历次序、动态count重载、X/Y与alternate X/Y、EAX/EDX/ESI/EDI高低word、32-bit与16-bit ADD/SUB flags、曲线与查询前缀、source/destination fault部分复制、此前actor保留及cursor、mirror、metrics、frame、frame-gate和临时值后缀抑制；另覆盖Group-B publication后下一条getter从canonical action-execution观察新坐标且忽略平行action-record。reserved publication端口保持零调用。
 
-REVIEW 1最终门禁为战斗定向`1/1`、Linux core `199/199`、ASan/UBSan `199/199`和Linux app `205/205`。REVIEW 2同样通过定向`1/1`、Linux core `199/199`、ASan/UBSan `199/199`和Linux app `205/205`；四份日志均无源码warning、失败或runtime sanitizer诊断，stderr为空。
+REVIEW 3测试覆盖turn gate的无调整、正十六与负十六分支，action17的正二十五与负二十五分支，canonical X/Y与完整destination记录，成功EAX/ECX/EDX/ESI/EDI和32-bit CMP/ADD/SUB flags；caller级X写、Y写与destination dword fault分别锁定零提交、X前缀和部分复制，并断言frame source、blit、倒计时及opponent action后缀均被抑制。两个caller与opponent adapter对reserved/raw publication保持零调用。
+
+三个REVIEW最终门禁均为战斗定向`1/1`、Linux core `199/199`、ASan/UBSan `199/199`和Linux app `205/205`。REVIEW 3另通过连续十轮core `199/199`、changed-range格式、inventory双生成、TMP分类与发布审计；最终构建与测试日志无源码warning、失败或runtime sanitizer诊断，stderr为空。
 
 原版动态差分仍为`blocked_runtime_oracle`：缺少完整Group-A/Group-B actor、异常栈与内存页、DF/寄存器/SEH及十九处caller的联合捕获后端。该阻塞不削弱当前静态LST边界、typed实现或单元测试结论。

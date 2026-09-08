@@ -15,6 +15,42 @@ using compat::u8;
 using compat::u16;
 using compat::u32;
 
+[[nodiscard]] constexpr bool has_even_parity(u32 value) noexcept {
+    value &= 0xFFU;
+    value ^= value >> 4U;
+    value ^= value >> 2U;
+    value ^= value >> 1U;
+    return (value & 1U) == 0U;
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+add_flags(const u32 left, const u32 right, const u32 sum) noexcept {
+    return {
+        .carry = sum < left,
+        .parity = has_even_parity(sum),
+        .auxiliary_carry = ((left ^ right ^ sum) & 0x10U) != 0U,
+        .auxiliary_carry_defined = true,
+        .zero = sum == 0U,
+        .sign = (sum & 0x80000000U) != 0U,
+        .overflow = ((~(left ^ right) & (left ^ sum)) & 0x80000000U) != 0U,
+    };
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+subtract_flags(const u32 left, const u32 right) noexcept {
+    const u32 difference = left - right;
+    return {
+        .carry = left < right,
+        .parity = has_even_parity(difference),
+        .auxiliary_carry = ((left ^ right ^ difference) & 0x10U) != 0U,
+        .auxiliary_carry_defined = true,
+        .zero = difference == 0U,
+        .sign = (difference & 0x80000000U) != 0U,
+        .overflow =
+            (((left ^ right) & (left ^ difference)) & 0x80000000U) != 0U,
+    };
+}
+
 constexpr u32 kCallQueryEffect = 0x004786D0U;
 constexpr u32 kCallPublishEffectMode = 0x00478B60U;
 constexpr u32 kCallPrepareAi = 0x0047DAD0U;
@@ -57,7 +93,6 @@ constexpr u32 kCallPrepareTarget = 0x00478AC0U;
 constexpr u32 kCallUpdateTurnAction = 0x004321E0U;
 constexpr u32 kCallLookupTurnFrame = 0x004315D0U;
 constexpr u32 kCallQueryTurnCoordinates = 0x00478600U;
-constexpr u32 kCallPublishTurnCoordinates = 0x004785C0U;
 constexpr u32 kCallSetSamplePan = 0x00485650U;
 constexpr u32 kCallRenderTurnFrame = 0x004170E0U;
 constexpr u32 kCallResolveTarget = 0x00480AD0U;
@@ -755,12 +790,48 @@ LegacyBattleTurnAdvanceResult advance_legacy_battle_turn_gate(
     const auto coordinates = invoke_turn(kCallQueryTurnCoordinates);
     u32 x = coordinates.outputs[0U];
     const u32 y = coordinates.outputs[1U];
+    LegacyBattleActorCoordinateFlags publication_flags =
+        subtract_flags(argument, 1U);
     if (argument == 1U) {
-        x = progress->post_action_value == 1U ? x - 0x10U : x + 0x10U;
+        const u32 original_x = x;
+        if (progress->post_action_value == 1U) {
+            x -= 0x10U;
+            publication_flags = subtract_flags(original_x, 0x10U);
+        } else {
+            x += 0x10U;
+            publication_flags = add_flags(original_x, 0x10U, x);
+        }
     }
+    eax = x;
     ecx = request.actor_token;
+    edx = y;
     ++result.coordinate_publish_calls;
-    static_cast<void>(invoke_turn(kCallPublishTurnCoordinates, {x, y}));
+    result.coordinate_publication = publish_legacy_battle_actor_coordinates(
+        view_legacy_battle_actor_coordinates(*actor),
+        x,
+        y,
+        {
+            .actor_token = request.actor_token,
+            .entry_eax = eax,
+            .entry_ecx = ecx,
+            .entry_edx = edx,
+            .entry_esi = request.actor_token,
+            .entry_edi = 0U,
+            .entry_flags = publication_flags,
+        }
+    );
+    eax = result.coordinate_publication.return_eax;
+    ecx = result.coordinate_publication.return_ecx;
+    edx = result.coordinate_publication.return_edx;
+    if (result.coordinate_publication.status !=
+        LegacyBattleActorCoordinatePublicationStatus::completed) {
+        result.status = LegacyBattleTurnAdvanceStatus::
+            actor_coordinate_publication_typed_stop;
+        result.return_eax = eax;
+        result.return_ecx = ecx;
+        result.return_edx = edx;
+        return result;
+    }
 
     if (actor->turn_frame_token == 0U) {
         result.status = LegacyBattleTurnAdvanceStatus::frame_owner_typed_stop;

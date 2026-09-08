@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v889
+版本：v890
 
 最后更新：2026-09-08
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 工作包287 REVIEW 3
+当前步骤：模块10 · 工作包287 REVIEW 3 发布验收
 
 ## 0. 执行约定
 
@@ -271,7 +271,7 @@ REVIEW通过后必须立即按`AGENTS.md`完成commit、push和TG，再重新完
 13. `[x]` B7：地图、世界、角色、碰撞与寻路已按模块移交条件有限收口；当前状态、阻塞和证据见[`world-map.md`](../analysis/04-reverse-engineering/modules/world-map.md)及相关inventory/evidence。
 14. `[x]` B8：剧情VM、场景调度与异步action的P1–P3已经完成；[`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md)不再覆盖当前队列。
 15. `[x]` B9：菜单、商店和其他特殊模式的227/227工作项已经关闭；当前状态和阻塞见[`special-modes.md`](../analysis/04-reverse-engineering/modules/special-modes.md)。
-16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=286`，工作包287 REVIEW 1与REVIEW 2已完成，十三处脚本caller已回收，正在执行REVIEW 3。
+16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=287`；工作包287三个REVIEW的十九处caller均已回收，正在执行最终发布验收。
 17. `[ ]` B11：存档、配置与持久化语义；等待B10满足移交条件后开始。
 
 B7以后已经完成的详细执行记录已机械搬到[`execution-progress-history-pi.md`](execution-progress-history-pi.md)。该文件只保存历史，不定义当前执行顺序、状态或断点。
@@ -286,7 +286,7 @@ B7以后已经完成的详细执行记录已机械搬到[`execution-progress-his
 
 当前工作包：`audit_order=287`、`0x004785C0`。目标是完整实现当前坐标写入后把actor `+0x0D50..+0x0D6F`按八个dword复制到`+0x0D70..+0x0D8F`，并回收四个caller中的十九个物理callsite。
 
-当前断点：REVIEW 1与REVIEW 2已完成，typed leaf、两份精确0x20字节canonical记录、效果步进四处caller与脚本分派十三处caller已经关闭，`caller_reclaimed:17/19`；inventory继续保持row 287 `pending_audit`。当前执行REVIEW 3，回收turn gate与Group-B action17两处caller并关闭工作包。
+当前断点：REVIEW 1、REVIEW 2与REVIEW 3实现、测试、证据和生成器映射已完成；typed leaf、两份精确0x20字节canonical记录、效果步进四处、脚本分派十三处、turn gate一处与Group-B action17一处caller全部关闭，`caller_reclaimed:19/19`。inventory row 287已由权威生成器更新为`platform_adapted`；完整正式门、十轮core、格式与TMP均已通过，当前执行最终复审、release audit与发布。
 
 #### REVIEW 1：typed坐标发布、记录唯一owner与效果步进四处caller
 
@@ -314,7 +314,9 @@ B7以后已经完成的详细执行记录已机械搬到[`execution-progress-his
 
 #### REVIEW 3：turn gate、Group-B action17与工作包关闭
 
-状态：待执行。
+状态：已完成。
+
+验证：战斗定向`1/1`、Linux core `199/199`、ASan/UBSan `199/199`、Linux app `205/205`、连续十轮core `199/199`、changed-range格式、inventory双生成与TMP分类全部通过；最终日志零源码warning、失败或sanitizer诊断。
 
 - 回收`0x00471540`的`0x0047172C`：先保留`0x00478600`坐标查询；argument为1时按mirror状态对X执行`-0x10/+0x10`，随后对当前actor直接组合typed发布。入口EAX/X、EDX/Y和分支flags保持原样；成功返回ECX为0。typed-stop阻断frame token读取、共享frame source发布与后续blit。
 - 回收`0x004763D0`的`0x0047656D`：先保留坐标查询，再按mirror状态对X执行`+0x19/-0x19`；调用入口EAX与EDX高字来自调整后的X，DX由Y参数替换，flags来自最终ADD/SUB。typed-stop阻断frame token读取、共享frame source发布与后续blit。

@@ -28,6 +28,42 @@ constexpr u32 kCoordinateDisplacement = 0x19U;
     return static_cast<i32>(std::bit_cast<i16>(value));
 }
 
+[[nodiscard]] constexpr bool has_even_parity(u32 value) noexcept {
+    value &= 0xFFU;
+    value ^= value >> 4U;
+    value ^= value >> 2U;
+    value ^= value >> 1U;
+    return (value & 1U) == 0U;
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+add_flags(const u32 left, const u32 right, const u32 sum) noexcept {
+    return {
+        .carry = sum < left,
+        .parity = has_even_parity(sum),
+        .auxiliary_carry = ((left ^ right ^ sum) & 0x10U) != 0U,
+        .auxiliary_carry_defined = true,
+        .zero = sum == 0U,
+        .sign = (sum & 0x80000000U) != 0U,
+        .overflow = ((~(left ^ right) & (left ^ sum)) & 0x80000000U) != 0U,
+    };
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+subtract_flags(const u32 left, const u32 right) noexcept {
+    const u32 difference = left - right;
+    return {
+        .carry = left < right,
+        .parity = has_even_parity(difference),
+        .auxiliary_carry = ((left ^ right ^ difference) & 0x10U) != 0U,
+        .auxiliary_carry_defined = true,
+        .zero = difference == 0U,
+        .sign = (difference & 0x80000000U) != 0U,
+        .overflow =
+            (((left ^ right) & (left ^ difference)) & 0x80000000U) != 0U,
+    };
+}
+
 constexpr void replace_low_word(u32& target, const u16 value) noexcept {
     target = (target & 0xFFFF0000U) | static_cast<u32>(value);
 }
@@ -251,17 +287,47 @@ advance_legacy_battle_group_b_action_seventeen_frame(
     );
     result.coordinate_x = coordinates.outputs[0U];
     result.coordinate_y = coordinates.outputs[1U];
-    result.adjusted_coordinate_x = actor->special_draw_mirror_mode == 1U
+    const bool mirrored = actor->special_draw_mirror_mode == 1U;
+    result.adjusted_coordinate_x = mirrored
         ? result.coordinate_x + kCoordinateDisplacement
         : result.coordinate_x - kCoordinateDisplacement;
+    const LegacyBattleActorCoordinateFlags publication_flags = mirrored
+        ? add_flags(
+              result.coordinate_x,
+              kCoordinateDisplacement,
+              result.adjusted_coordinate_x
+          )
+        : subtract_flags(result.coordinate_x, kCoordinateDisplacement);
     registers.eax = result.adjusted_coordinate_x;
     registers.ecx = request.actor_token;
     registers.edx = result.adjusted_coordinate_x;
     ++result.coordinate_publish_calls;
-    static_cast<void>(invoke(
-        LegacyBattleGroupBActionSeventeenFrameCall::publish_coordinates,
-        {result.adjusted_coordinate_x, result.coordinate_y}
-    ));
+    result.coordinate_publication = publish_legacy_battle_actor_coordinates(
+        view_legacy_battle_actor_coordinates(*actor),
+        result.adjusted_coordinate_x,
+        result.coordinate_y,
+        {
+            .actor_token = request.actor_token,
+            .entry_eax = registers.eax,
+            .entry_ecx = registers.ecx,
+            .entry_edx = registers.edx,
+            .entry_esi = request.actor_token,
+            .entry_edi = 0U,
+            .entry_flags = publication_flags,
+        }
+    );
+    registers.eax = result.coordinate_publication.return_eax;
+    registers.ecx = result.coordinate_publication.return_ecx;
+    registers.edx = result.coordinate_publication.return_edx;
+    registers.ecx_known = true;
+    registers.edx_known = true;
+    if (result.coordinate_publication.status !=
+        LegacyBattleActorCoordinatePublicationStatus::completed) {
+        result.status = LegacyBattleGroupBActionSeventeenFrameStatus::
+            actor_coordinate_publication_typed_stop;
+        publish_registers();
+        return result;
+    }
 
     registers.eax = actor->turn_frame_token;
     if (!frame_available) {

@@ -859,7 +859,6 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
         LegacyBattleActionCallReply coordinates{};
         coordinates.outputs = {200U, 300U};
         port.push(0x00478600U, coordinates);
-        port.push(0x004785C0U, {.eax = 0x77770000U});
         port.push(0x004170E0U, {.edx = 0x88880000U});
         const auto result = openswd3::battle::advance_legacy_battle_turn_gate(
             &actor,
@@ -882,16 +881,189 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 has_call_argument(port, 0x004315D0U, 1U, 0xCCCC3344U) &&
                 has_call_argument(port, 0x00485650U, 0U, 0x2222002FU) &&
                 has_call_argument(port, 0x00485650U, 1U, 0x10U) &&
-                has_call_argument(port, 0x004785C0U, 0U, 216U) &&
-                has_call_argument(port, 0x004785C0U, 1U, 300U) &&
-                has_call_argument(port, 0x004170E0U, 0U, 97U) &&
-                has_call_argument(port, 0x004170E0U, 1U, 75U) &&
+                actor.position_x == 216U && actor.position_y == 300U &&
+                actor.alternate_position_x == 216U &&
+                actor.alternate_position_y == 300U &&
+                result.coordinate_publish_calls == 1U &&
+                result.coordinate_publication.status ==
+                    openswd3::battle::
+                        LegacyBattleActorCoordinatePublicationStatus::
+                            completed &&
+                result.coordinate_publication.argument_x == 216U &&
+                result.coordinate_publication.argument_y == 300U &&
+                result.coordinate_publication.return_eax == 216U &&
+                result.coordinate_publication.return_ecx == 0U &&
+                result.coordinate_publication.return_edx == 300U &&
+                result.coordinate_publication.return_esi == 0x005029D0U &&
+                result.coordinate_publication.return_edi == 0U &&
+                !result.coordinate_publication.flags.carry &&
+                result.coordinate_publication.flags.parity &&
+                !result.coordinate_publication.flags.auxiliary_carry &&
+                !result.coordinate_publication.flags.zero &&
+                !result.coordinate_publication.flags.sign &&
+                !result.coordinate_publication.flags.overflow &&
+                port.count(0x004785C0U) == 0U &&
+                has_call_argument(port, 0x004170E0U, 0U, 213U) &&
+                has_call_argument(port, 0x004170E0U, 1U, 295U) &&
                 has_call_argument(port, 0x004170E0U, 2U, 40U) &&
                 has_call_argument(port, 0x004170E0U, 3U, 20U) &&
                 has_call_argument(port, 0x004170E0U, 4U, 5U) &&
                 has_call_argument(port, 0x004170E0U, 5U, 0x72000000U) &&
-                result.port_calls == 8U,
-            "turn gate preserves lookup high halves, sound pan, shifted coordinates and final render arguments"
+                result.port_calls == 7U,
+            "turn gate directly publishes shifted coordinates before rendering"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+        openswd3::battle::LegacyBattleGroupAActionExecutionSharedState shared;
+        openswd3::battle::LegacyBattleActorProgressState progress;
+        actor.profile_value = 0x55AAU;
+        actor.turn_countdown = 7;
+        actor.turn_action_record.field_4a = 1U;
+        actor.turn_action_record.field_4c = 2U;
+        actor.alternate_position_x = 0x1111U;
+        actor.alternate_position_y = 0x2222U;
+        actor.publication_destination_dword_write_accessible[6U] = false;
+        progress.post_action_value = 1U;
+        DispatchPort port;
+        port.push(0x0047F920U, {.eax = 0U});
+        port.push(0x004321E0U, {.eax = 1U});
+        port.push(0x004315D0U, {.eax = 0x70000000U});
+        LegacyBattleActionCallReply coordinates{};
+        coordinates.outputs = {8U, 0xAABBCCDDU};
+        port.push(0x00478600U, coordinates);
+        const auto result = openswd3::battle::advance_legacy_battle_turn_gate(
+            &actor,
+            &shared,
+            &progress,
+            port,
+            {.actor_token = 0x005029D0U,
+             .argument = 1U,
+             .entry_ecx = 0x005029D0U}
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleTurnAdvanceStatus::
+                        actor_coordinate_publication_typed_stop &&
+                result.coordinate_publication.status ==
+                    openswd3::battle::
+                        LegacyBattleActorCoordinatePublicationStatus::
+                            destination_dword_write_typed_stop &&
+                result.coordinate_publication.stopped_dword_index == 6U &&
+                result.coordinate_publication.source_dword_reads == 7U &&
+                result.coordinate_publication.destination_dword_writes == 6U &&
+                result.coordinate_publication.return_eax == 0xFFFFFFF8U &&
+                result.coordinate_publication.return_ecx == 2U &&
+                result.coordinate_publication.return_edx == 0xAABBCCDDU &&
+                result.coordinate_publication.flags.carry &&
+                !result.coordinate_publication.flags.parity &&
+                !result.coordinate_publication.flags.auxiliary_carry &&
+                !result.coordinate_publication.flags.zero &&
+                result.coordinate_publication.flags.sign &&
+                !result.coordinate_publication.flags.overflow &&
+                actor.position_x == 0xFFF8U && actor.position_y == 0xCCDDU &&
+                actor.alternate_position_x == 0xFFF8U &&
+                actor.alternate_position_y == 0x2222U &&
+                result.render_calls == 0U && actor.turn_countdown == 7 &&
+                shared.turn_frame_source_token == 0U &&
+                port.count(0x004785C0U) == 0U && port.count(0x004170E0U) == 0U,
+            "turn gate publication fault preserves the copied prefix and suppresses the frame suffix"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+        openswd3::battle::LegacyBattleGroupAActionExecutionSharedState shared;
+        openswd3::battle::LegacyBattleActorProgressState progress;
+        actor.profile_value = 0x55AAU;
+        actor.turn_countdown = 7;
+        actor.turn_action_record.field_4a = 1U;
+        actor.turn_action_record.field_4c = 2U;
+        actor.position_x = 0x1111U;
+        actor.position_y = 0x2222U;
+        actor.alternate_position_x = 0x3333U;
+        actor.alternate_position_y = 0x4444U;
+        actor.position_x_write_accessible = false;
+        DispatchPort port;
+        port.push(0x0047F920U, {.eax = 0U});
+        port.push(0x004321E0U, {.eax = 1U});
+        port.push(0x004315D0U, {.eax = 0x70000000U});
+        LegacyBattleActionCallReply coordinates{};
+        coordinates.outputs = {100U, 200U};
+        port.push(0x00478600U, coordinates);
+        const auto result = openswd3::battle::advance_legacy_battle_turn_gate(
+            &actor,
+            &shared,
+            &progress,
+            port,
+            {.actor_token = 0x005029D0U,
+             .argument = 1U,
+             .entry_ecx = 0x005029D0U}
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleTurnAdvanceStatus::
+                        actor_coordinate_publication_typed_stop &&
+                result.coordinate_publication.status ==
+                    openswd3::battle::
+                        LegacyBattleActorCoordinatePublicationStatus::
+                            position_x_write_typed_stop &&
+                result.coordinate_publication.coordinate_writes == 0U &&
+                result.coordinate_publication.source_dword_reads == 0U &&
+                result.coordinate_publication.destination_dword_writes == 0U &&
+                actor.position_x == 0x1111U && actor.position_y == 0x2222U &&
+                actor.alternate_position_x == 0x3333U &&
+                actor.alternate_position_y == 0x4444U &&
+                result.render_calls == 0U && actor.turn_countdown == 7 &&
+                shared.turn_frame_source_token == 0U &&
+                port.count(0x004170E0U) == 0U,
+            "turn gate X publication stop preserves all actor coordinates and suppresses rendering"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+        openswd3::battle::LegacyBattleActorProgressState progress;
+        actor.profile_value = 0x55AAU;
+        actor.turn_countdown = 7;
+        actor.turn_action_record.field_4a = 1U;
+        actor.turn_action_record.field_4c = 2U;
+        DispatchPort port;
+        port.push(0x0047F920U, {.eax = 0U});
+        port.push(0x004321E0U, {.eax = 1U});
+        port.push(0x004315D0U, {.eax = 0x70000000U});
+        LegacyBattleActionCallReply coordinates{};
+        coordinates.outputs = {0x12345678U, 0x87654321U};
+        port.push(0x00478600U, coordinates);
+        const auto result = openswd3::battle::advance_legacy_battle_turn_gate(
+            &actor,
+            nullptr,
+            &progress,
+            port,
+            {.actor_token = 0x005029D0U,
+             .argument = 0U,
+             .entry_ecx = 0x005029D0U}
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleTurnAdvanceStatus::shared_state_typed_stop &&
+                result.coordinate_publication.status ==
+                    openswd3::battle::
+                        LegacyBattleActorCoordinatePublicationStatus::
+                            completed &&
+                result.coordinate_publication.argument_x == 0x5678U &&
+                result.coordinate_publication.argument_y == 0x4321U &&
+                result.coordinate_publication.flags.carry &&
+                result.coordinate_publication.flags.parity &&
+                result.coordinate_publication.flags.auxiliary_carry &&
+                !result.coordinate_publication.flags.zero &&
+                result.coordinate_publication.flags.sign &&
+                !result.coordinate_publication.flags.overflow &&
+                actor.position_x == 0x5678U && actor.position_y == 0x4321U &&
+                result.render_calls == 0U && actor.turn_countdown == 7 &&
+                port.count(0x004785C0U) == 0U,
+            "turn gate no-adjust branch preserves the secondary-index compare flags"
         );
     }
 
