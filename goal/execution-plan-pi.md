@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v882
+版本：v883
 
 最后更新：2026-09-08
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 工作包285 REVIEW计划与执行
+当前步骤：模块10 · 工作包286 REVIEW计划与执行
 
 ## 0. 执行约定
 
@@ -271,48 +271,41 @@ REVIEW通过后必须立即按`AGENTS.md`完成commit、push和TG，再重新完
 13. `[x]` B7：地图、世界、角色、碰撞与寻路已按模块移交条件有限收口；当前状态、阻塞和证据见[`world-map.md`](../analysis/04-reverse-engineering/modules/world-map.md)及相关inventory/evidence。
 14. `[x]` B8：剧情VM、场景调度与异步action的P1–P3已经完成；[`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md)不再覆盖当前队列。
 15. `[x]` B9：菜单、商店和其他特殊模式的227/227工作项已经关闭；当前状态和阻塞见[`special-modes.md`](../analysis/04-reverse-engineering/modules/special-modes.md)。
-16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=285`，本阶段收尾工作包285 REVIEW 3。
+16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=285`，本阶段规划并执行工作包286。
 17. `[ ]` B11：存档、配置与持久化语义；等待B10满足移交条件后开始。
 
 B7以后已经完成的详细执行记录已机械搬到[`execution-progress-history-pi.md`](execution-progress-history-pi.md)。该文件只保存历史，不定义当前执行顺序、状态或断点。
 
 当前只执行B10，不并行展开B11。
 
-当前执行`audit_order=285 / 0x004784A0`战斗角色当前帧边界查询函数。
+当前执行`audit_order=286 / 0x004785A0`战斗角色坐标增量调整函数。
 
 ### B10 当前WORKPACK REVIEW计划
 
 本节始终只保存当前工作包计划。REVIEW完成状态在本节原位更新；工作包关闭后，本节全部内容由下一工作包计划整体替换，不追加历史。
 
-当前工作包：`audit_order=285`、`0x004784A0`。目标是实现角色当前动作帧的原点、宽度和高度查询，直接组合已关闭的动作记录更新与frame piece provider，并回收`0x0045FC60`、`0x00460C40`、`0x00461240`、`0x00462740`和`0x00464270`五个已关闭caller中的15个物理callsite。
+当前工作包：`audit_order=286`、`0x004785A0`。目标是实现角色当前坐标的有序word增量调整，并回收`0x0045D8F0`调试热键H/J尾部的四个物理callsite。
 
-当前断点：REVIEW 1、REVIEW 2与REVIEW 3均已完成，五个caller中的15个物理callsite全部回收，`caller_reclaimed:15/15`。inventory已关闭为`platform_adapted`，定向测试、AddressSanitizer、Linux core、Linux app与连续十轮core全部通过；下一步执行最终发布审计。通过后立即commit、push、TG并重读规定文件，再以独立规划提交切换工作包286。
+当前断点：完整LST与caller审计已完成，REVIEW划分已写入；下一步先独立发布本规划提交，再开始REVIEW 1生产代码修改。
 
-#### REVIEW 1：角色当前帧边界与鼠标命中
+#### REVIEW 1：角色坐标word增量typed leaf
 
-状态：已完成。
+状态：待开始。
 
-- 实现`0x004784A0..0x0047859B`共252字节、68条指令、2个call、6个条件分支、1个无条件跳转和1个`retn 4`的typed leaf；无范围外chunk。保留完整`0x98`动作记录清零、`+0x2AB8/+0x2AA0/+0x2A0C`前置门、`0x24/+0x02A8/0x33`三段X anchor选择，以及无条件调用`LegacyActionUpdater`且不按其返回值新增早退。
-- 依原顺序读取临时动作记录`+0x4C` dword和unaligned `+0x4A` dword，调用`LegacyFramePieceProvider`时只消费两者低word但保留重叠物理读取。mirror完整dword必须先读并与1比较，再把frame token写actor `+0x254C`；后续width/height输出前分别从actor重载token。
-- 四项结果按X、Y、width、height顺序完整写dword，保留输出首指针延迟读取、signed位置扩展、mirror宽度调整、两次frame-token重载、输出与frame-token别名、X/Y/width部分提交、全部真实访问typed-stop、两条早退及成功EAX/ECX/EDX和flags。
-- 复用startup party、action Group-A execution与Group-B lifecycle/configuration canonical owner；frame coordinator把既有action、`LegacyActionUpdater`和`LegacyFramePieceProvider`注入frame-input路径，不新增平行actor数组。
-- 回收`0x0045FC60`的`0x004605D2`、`0x004607D9`和`0x00460A03`三处callsite。三处共用一个四dword局部块；成功后继续既有`0x00478620`表面解析与像素命中，typed-stop保留已到达的候选查询和部分输出，抑制表面解析、镜像查询、像素扫描、目标发布及余下后缀。
-- 同步leaf、frame-input、frame-coordinator测试和目标/caller证据；执行定向测试、AddressSanitizer、Linux core、Linux app、changed-range格式与完整staged/unstaged审计。REVIEW通过后立即commit、push、TG并重读规定文件；inventory TSV保持`pending_audit`。
+- 实现`0x004785A0..0x004785BA`共27字节、5条指令和1个`retn 8`的typed leaf；无call、分支或范围外chunk。先按`[esp+4]`、`[esp+8]`顺序读取两个word参数到AX、DX，再按actor `+0x0D66`、`+0x0D68`顺序执行两个16-bit read-modify-write ADD。
+- 保留word环绕、X后Y提交、X/Y别名、第二次ADD观察第一次提交、参数读取和内存访问typed-stop。第一项坐标访问失败时不得提交X或ADD flags；第二项失败时保留已提交X和第一次ADD flags；成功时保留第二次ADD的CF/PF/AF/ZF/SF/OF。
+- 保留全部寄存器残值：参数读取前沿用入口EAX/EDX，首个word读取只替换AX，第二个只替换DX，ECX始终为actor token，ADD不改EAX/ECX/EDX。为canonical `LegacyBattleActorCoordinatesState/View`补充X/Y写可达性，不新增平行actor数组。
+- 新增leaf单元测试，覆盖正负增量、word环绕、X/Y别名、四个typed-stop阶段、X部分提交、入口flags与最终ADD flags、EAX/ECX/EDX残值和访问计数；同步CMake注册及初始目标证据。
+- 执行定向测试、AddressSanitizer、Linux core、Linux app、changed-range格式、零诊断与完整staged/unstaged审计。REVIEW通过后立即commit、push、TG并重读规定文件；inventory TSV保持`pending_audit`。
 
-#### REVIEW 2：菜单选择后的角色帧缓存
+#### REVIEW 2：H/J caller回收与工作包关闭
 
-状态：已完成。
+状态：待开始。
 
-- 回收`0x00460C40`的`0x00460E27/0x00460F63/0x00460FEA`和`0x00461240`的`0x00461469/0x004615A4/0x0046162C`六处callsite，分别覆盖Group-B、Group-A大列表与Group-A小列表的后退/前进选择路径。
-- 两个caller继续复用input dispatch传入的startup/action actor owner、action updater和frame provider。三类路径共用各自函数的四dword局部块；虽然后缀不消费四项输出，动作更新、frame lookup和actor `+0x254C`提交仍必须执行，不能删除为无用查询。
-- 保留三类actor token算术、入口EAX/EDX和flags、选择状态更新顺序及typed-stop后缀抑制。旧`menu_retreat_prepare_actor_origin`与`menu_advance_prepare_actor_origin`枚举ordinal改为reserved，生产零调用；其他候选查询与选择配置继续走既有窄port。
-- 同步菜单前进/后退、input dispatch和frame coordinator测试与caller证据；执行定向测试、AddressSanitizer、Linux core、Linux app、changed-range格式与完整staged/unstaged审计。REVIEW通过后立即commit、push、TG并重读规定文件；inventory TSV保持`pending_audit`。
-
-#### REVIEW 3：目标选择标记与工作包关闭
-
-状态：已完成。
-
-- 回收`0x00462740`的`0x00462E1A/0x00463623`两处目标刷新callsite。两处共用局部输出块且不消费结果；第一处成功后只发布输入门，第二处还写message 3并prime输入。typed-stop必须分别抑制对应success suffix。
-- 回收`0x00464270`的`0x00464840/0x00464905/0x00464A72/0x00464B1D`四处选择标记callsite。保留Group-B和Group-A遍历标记、当前Group-B和当前Group-A目标四条不同寄存器形状，以及snapshot中心、signed绘制偏移、reset、动作6可用性与prepared action绘制的原顺序。
-- 五个caller中的15个物理callsite全部对opaque `0x004784A0`零调用；frame input、菜单、target runtime和selection frame旧槽只保留reserved ordinal。同步全部caller证据、`modules/battle.md`、生成器关闭映射、inventory TSV与主PLAN。
-- 最终执行定向测试、AddressSanitizer、Linux core、Linux app、changed-range格式、零诊断、连续十次core、inventory双次稳定生成、TMP分类与完整staged/unstaged审计。原版动态差分因缺少完整Group-A/Group-B actor、动作资源、frame provider、异常内存页和15处联合寄存器/SEH捕获后端登记为`blocked_runtime_oracle`。REVIEW通过后关闭row 285，立即commit、push、TG并重读规定文件，再切换下一工作包。
+- 回收`0x0045D8F0`的`0x0045DDF3/0x0045DE1D/0x0045DE61/0x0045DE8B`四个callsite。H与J都严格按Group-A后Group-B顺序遍历当前无符号count，分别使用`0x005029D0 + index * 0x2F34`和`0x00525508 + index * 0x2B28`actor token；X增量依次为`+10/-10`的低word，Y增量始终为0。
+- 修正当前caller门控偏差：原版`developer_tools_enabled != 1`从函数入口直接跳到P，只查询P且不得执行H/J；开发工具启用后，H/J位于Ctrl调试块之后，Ctrl+E早退仍抑制H/J/P。P继续在共享尾部执行。
+- 复用startup party与Group-B lifecycle action-execution的canonical坐标owner。caller逐次构造原ABI：EAX为当前group count，ECX为actor token，EDX沿用H/J尾部入口残值并在成功调用后保留DX被Y增量清零的结果；首轮flags来自`count - 0`，后续轮flags来自`index - count`的32-bit CMP。
+- leaf typed-stop立即映射为caller `actor_coordinate_adjustment_typed_stop`，公开精确leaf结果，抑制当前迭代的count重载、index/token推进、余下actor与group、对应`actor_delta`提交及后续热键。Y访问失败必须保留当前actor已提交的X及此前actor前缀。
+- H完整遍历后才提交`actor_delta=+10`；J完整遍历后才提交`actor_delta=-10`。H/J同时按下时先全部加10再全部减10，角色word坐标按模65536恢复，最终共享delta为-10。
+- 将旧`adjust_actor`枚举地址改为reserved名称并保留ordinal，生产路径对opaque `0x004785A0`零调用。同步caller与leaf测试、最终目标/caller证据、`modules/battle.md`、生成器关闭映射、inventory TSV与主PLAN。
+- 最终执行定向测试、AddressSanitizer、Linux core、Linux app、changed-range格式、零诊断、连续十次core、inventory双次稳定生成、TMP分类与完整staged/unstaged审计。原版动态差分若仍缺少完整Group-A/Group-B actor、可写/异常页和四处caller联合寄存器/SEH捕获后端，则登记为`blocked_runtime_oracle`。REVIEW通过后关闭row 286，立即commit、push、TG并重读规定文件，再切换下一工作包。
