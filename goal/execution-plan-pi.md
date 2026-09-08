@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v887
+版本：v888
 
 最后更新：2026-09-08
 
@@ -286,7 +286,7 @@ B7以后已经完成的详细执行记录已机械搬到[`execution-progress-his
 
 当前工作包：`audit_order=287`、`0x004785C0`。目标是完整实现当前坐标写入后把actor `+0x0D50..+0x0D6F`按八个dword复制到`+0x0D70..+0x0D8F`，并回收四个caller中的十九个物理callsite。
 
-当前断点：完整LST、十九处caller、canonical owner与fault/寄存器合同已审计；工作包预先拆为三个能够独立实现、测试、审查和回退的生产REVIEW。下一步先发布本规划提交，再执行REVIEW 1。
+当前断点：REVIEW 1已发布，typed leaf、两份精确0x20字节canonical记录与效果步进四处caller已经关闭；inventory继续保持row 287 `pending_audit`。当前执行REVIEW 2，回收脚本分派十三处物理caller。
 
 #### REVIEW 1：typed坐标发布、记录唯一owner与效果步进四处caller
 
