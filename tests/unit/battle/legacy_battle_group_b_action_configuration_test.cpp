@@ -10,6 +10,8 @@
 
 namespace {
 
+using openswd3::battle::LegacyBattleActorCoordinateDestinationRecord;
+using openswd3::battle::LegacyBattleActorCoordinateSourceRecord;
 using openswd3::battle::LegacyBattleActorGroupBElementState;
 using openswd3::battle::LegacyBattleGroupBActionConfigurationStatus;
 using openswd3::battle::LegacyBattleMonDatabasePort;
@@ -129,9 +131,20 @@ void test_battle_group_b_action_configuration(openswd3::test::Context& test) {
                 port.definition_release_calls == 1U &&
                 port.release_request.block_token == 0x72000000U &&
                 std::memcmp(
-                    state.source_record.data(), &source, sizeof(source)
+                    static_cast<const LegacyBattleActorCoordinateSourceRecord*>(
+                        &actor.action_execution
+                    ),
+                    &source,
+                    sizeof(source)
                 ) == 0 &&
-                state.copied_record == state.source_record &&
+                std::memcmp(
+                    static_cast<
+                        const LegacyBattleActorCoordinateDestinationRecord*>(
+                        &actor.action_execution
+                    ),
+                    &source,
+                    sizeof(source)
+                ) == 0 &&
                 state.source_runtime_value == 0xABCD5678U &&
                 state.resource_mode == 0x7AU &&
                 actor.action_execution.position_x == 0x2345U &&

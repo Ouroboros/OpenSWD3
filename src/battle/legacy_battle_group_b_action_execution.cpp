@@ -47,20 +47,11 @@ struct Registers {
 }
 
 [[nodiscard]] u16 read_word(
-    const std::array<std::byte, 0x20>& bytes, const std::size_t offset
-) noexcept {
-    return static_cast<u16>(std::to_integer<u8>(bytes[offset])) |
-        static_cast<u16>(
-            static_cast<u16>(std::to_integer<u8>(bytes[offset + 1U])) << 8U
-        );
-}
-
-[[nodiscard]] u16 read_word(
     const std::array<std::byte, 0x28>& bytes, const std::size_t offset
 ) noexcept {
     return static_cast<u16>(std::to_integer<u8>(bytes[offset])) |
         static_cast<u16>(
-            static_cast<u16>(std::to_integer<u8>(bytes[offset + 1U])) << 8U
+               static_cast<u16>(std::to_integer<u8>(bytes[offset + 1U])) << 8U
         );
 }
 
@@ -466,24 +457,18 @@ advance_legacy_battle_group_b_action_execution(
         secondary_completion(secondary) = 1U;
     } else if ((profile_mode & 1U) != 0U) {
         const i32 effect_x =
-            static_cast<i32>(std::bit_cast<i16>(read_word(
-                actor->action_configuration.source_record, 0x16U
-            ))) +
+            static_cast<i32>(std::bit_cast<i16>(state.position_x)) +
             static_cast<i32>(std::bit_cast<i16>(state.source_x_offset)) -
             static_cast<i32>(std::bit_cast<i16>(state.turn_target_x_offset));
         const i32 effect_y =
-            static_cast<i32>(std::bit_cast<i16>(read_word(
-                actor->action_configuration.source_record, 0x18U
-            ))) +
+            static_cast<i32>(std::bit_cast<i16>(state.position_y)) +
             static_cast<i32>(std::bit_cast<i16>(primary.field_78)) -
             std::bit_cast<i32>(primary.draw_offset_y);
-        const i32 profile_y = static_cast<i32>(std::bit_cast<i16>(read_word(
-            actor->action_configuration.profile_buffer, 0x22U
-        )));
-        registers.eax = request.actor_token + 0x06C8U;
-        registers.edx = signed_word_bits(read_word(
-            actor->action_configuration.source_record, 0x16U
+        const i32 profile_y = static_cast<i32>(std::bit_cast<i16>(
+            read_word(actor->action_configuration.profile_buffer, 0x22U)
         ));
+        registers.eax = request.actor_token + 0x06C8U;
+        registers.edx = signed_word_bits(state.position_x);
         if (invoke_actor(
                 kCallPrepareDirectEffect,
                 {

@@ -48,7 +48,7 @@ profile返回后以资源token覆盖ECX并调用`0x00478220`；EAX和EDX继承pr
 
 ## 5. typed owner与两个caller回收
 
-固定全局记录表`0x005213A0 + index*0x20`不再在startup与动作分派各保留副本；它由惰性堆分配的八槽`LegacyBattleActorGroupBElementState::action_record`唯一持有。相同槽同时唯一持有actor token、资源token、164-byte资源块、两份配置记录、40-byte profile和配置字段。全局reset只清行动记录与配置状态，不误释放静态actor资源owner；两次记录复制按物理重叠关系同步同一element的primary/alternate坐标视图。
+固定全局记录表`0x005213A0 + index*0x20`不再在startup与动作分派各保留副本；它由惰性堆分配的八槽`LegacyBattleActorGroupBElementState::action_record`唯一持有。相同槽同时唯一持有actor token、资源token、164-byte资源块、40-byte profile和配置字段；actor `+0x0D50..+0x0D8F`的source/destination记录则只由同一element的`action_execution`坐标owner保存，配置状态不再保留平行数组。全局reset只清行动记录与配置状态，不误释放静态actor资源owner；两次记录复制按物理重叠关系直接初始化同一canonical source/destination记录及primary/alternate坐标视图。
 
 startup按LST先reset actor、清41 dword scratch，再只写记录`+0x14/+0x16/+0x18/+0x1C`，保留未知20-byte前缀与`+0x1A`。mirror严格等于一时先调用mode callee，再以u16执行`640-X`并写回`+0x16`，定义参数只用`mov cx`覆盖低word并保留callee ECX高word。随后直接调用typed实现；旧整函数opaque枚举槽保留为reserved且零调用。
 
@@ -58,6 +58,6 @@ startup按LST先reset actor、清41 dword scratch，再只写记录`+0x14/+0x16/
 
 ## 6. 验证与动态阻塞
 
-纯函数回归覆盖source与资源首次访问stop、两次32-byte复制、`+0x16/+0x18`坐标布局、两份坐标视图同步、后续资源typed-stop前的复制前缀保留、未知前缀、u16加法回绕、i16符号扩展、资源action与source fallback、三callee完整ABI、profile/释放typed-stop、普通终端寄存器及action `0x001C/0x002E`非对称终端。startup回归覆盖共享记录、mirror低word、定义参数陈旧高word、三callee直连、旧opaque零调用与资源加载stop；对手动作15回归覆盖共享前缀、双wave坐标、callee EAX高word、profile stop、旧opaque零调用和第九项停止。历史关闭时定向CTest `1/1`、AddressSanitizer/UndefinedBehaviorSanitizer定向CTest `1/1`、Linux core `188/188`和Linux app `194/194`全部通过；REVIEW 1修正物理别名后，当前战斗定向聚合目标再次构建并直接运行通过。
+纯函数回归覆盖source与资源首次访问stop、两次32-byte复制、`+0x16/+0x18`坐标布局、两份坐标视图同步、后续资源typed-stop前的复制前缀保留、未知前缀、u16加法回绕、i16符号扩展、资源action与source fallback、三callee完整ABI、profile/释放typed-stop、普通终端寄存器及action `0x001C/0x002E`非对称终端。startup回归覆盖共享记录、mirror低word、定义参数陈旧高word、三callee直连、旧opaque零调用与资源加载stop；对手动作15回归覆盖共享前缀、双wave坐标、callee EAX高word、profile stop、旧opaque零调用和第九项停止。历史关闭时定向CTest `1/1`、AddressSanitizer/UndefinedBehaviorSanitizer定向CTest `1/1`、Linux core `188/188`和Linux app `194/194`全部通过；Workpack 287 REVIEW 1迁移canonical record owner后，战斗定向`1/1`、Linux core `199/199`、ASan/UBSan `199/199`和Linux app `205/205`全部通过，日志零源码warning与sanitizer诊断且stderr为空。
 
 原版八个组B完整对象、记录表、动态资源字节、profile buffer、三个callee副作用、startup与动作15的scratch及两个caller寄存器缺少联合捕获后端，因此`original_diff_verified`登记为`blocked_runtime_oracle`。

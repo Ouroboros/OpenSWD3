@@ -875,24 +875,42 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
         u32 first_argument = registers.eax;
         replace_low_word(first_argument, primary.lookup_key_b);
         shift_state.completion_latch = 1U;
-        const auto shift = advance_legacy_battle_effect_shift(
+        result.effect_shift = advance_legacy_battle_effect_shift(
             port,
             first_argument,
             primary.complete,
             registers.ecx,
-            primary.complete
+            primary.complete,
+            coordinate_owners
         );
+        const auto& shift = result.effect_shift;
         result.port_calls += shift.port_calls;
         registers.eax = shift.return_value;
         registers.ecx = shift.final_ecx;
         registers.edx = shift.final_edx;
         if (shift.status != LegacyBattleEffectShiftStatus::completed) {
-            result.status = shift.status ==
-                    LegacyBattleEffectShiftStatus::group_a_actor_typed_stop
-                ? LegacyBattleGroupEffectFrameStatus::
-                      effect_shift_group_a_typed_stop
-                : LegacyBattleGroupEffectFrameStatus::
-                      effect_shift_group_b_typed_stop;
+            switch (shift.status) {
+            case LegacyBattleEffectShiftStatus::group_a_actor_typed_stop:
+                result.status = LegacyBattleGroupEffectFrameStatus::
+                    effect_shift_group_a_typed_stop;
+                break;
+            case LegacyBattleEffectShiftStatus::group_b_actor_typed_stop:
+                result.status = LegacyBattleGroupEffectFrameStatus::
+                    effect_shift_group_b_typed_stop;
+                break;
+            case LegacyBattleEffectShiftStatus::
+                group_a_coordinate_publication_typed_stop:
+                result.status = LegacyBattleGroupEffectFrameStatus::
+                    effect_shift_group_a_coordinate_publication_typed_stop;
+                break;
+            case LegacyBattleEffectShiftStatus::
+                group_b_coordinate_publication_typed_stop:
+                result.status = LegacyBattleGroupEffectFrameStatus::
+                    effect_shift_group_b_coordinate_publication_typed_stop;
+                break;
+            case LegacyBattleEffectShiftStatus::completed:
+                break;
+            }
             return result;
         }
         if (shift.return_value == 0U) {
@@ -908,20 +926,42 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
     if (std::bit_cast<i16>(shift_state.threshold_word) > 0) {
         u32 second_argument = registers.ecx;
         replace_low_word(second_argument, primary.lookup_key_b);
-        const auto shift = advance_legacy_battle_effect_shift(
-            port, second_argument, 1U, second_argument, registers.edx
+        result.effect_shift = advance_legacy_battle_effect_shift(
+            port,
+            second_argument,
+            1U,
+            second_argument,
+            registers.edx,
+            coordinate_owners
         );
+        const auto& shift = result.effect_shift;
         result.port_calls += shift.port_calls;
         registers.eax = shift.return_value;
         registers.ecx = shift.final_ecx;
         registers.edx = shift.final_edx;
         if (shift.status != LegacyBattleEffectShiftStatus::completed) {
-            result.status = shift.status ==
-                    LegacyBattleEffectShiftStatus::group_a_actor_typed_stop
-                ? LegacyBattleGroupEffectFrameStatus::
-                      effect_shift_group_a_typed_stop
-                : LegacyBattleGroupEffectFrameStatus::
-                      effect_shift_group_b_typed_stop;
+            switch (shift.status) {
+            case LegacyBattleEffectShiftStatus::group_a_actor_typed_stop:
+                result.status = LegacyBattleGroupEffectFrameStatus::
+                    effect_shift_group_a_typed_stop;
+                break;
+            case LegacyBattleEffectShiftStatus::group_b_actor_typed_stop:
+                result.status = LegacyBattleGroupEffectFrameStatus::
+                    effect_shift_group_b_typed_stop;
+                break;
+            case LegacyBattleEffectShiftStatus::
+                group_a_coordinate_publication_typed_stop:
+                result.status = LegacyBattleGroupEffectFrameStatus::
+                    effect_shift_group_a_coordinate_publication_typed_stop;
+                break;
+            case LegacyBattleEffectShiftStatus::
+                group_b_coordinate_publication_typed_stop:
+                result.status = LegacyBattleGroupEffectFrameStatus::
+                    effect_shift_group_b_coordinate_publication_typed_stop;
+                break;
+            case LegacyBattleEffectShiftStatus::completed:
+                break;
+            }
             return result;
         }
     }

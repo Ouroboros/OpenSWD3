@@ -137,8 +137,6 @@ static_assert(offsetof(LegacyBattleGroupBActionRecord, position_y) == 0x18U);
 static_assert(offsetof(LegacyBattleGroupBActionRecord, runtime_value) == 0x1CU);
 
 struct LegacyBattleGroupBActionConfigurationState {
-    std::array<std::byte, 0x20> source_record{};   // actor + 0x0D50
-    std::array<std::byte, 0x20> copied_record{};   // actor + 0x0D70
     std::array<std::byte, 0x28> profile_buffer{};  // actor + 0x0D90
     compat::u32 timing_value{};                    // actor + 0x26B4
     compat::u8 resource_mode{};                    // actor + 0x2A93

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_actor_coordinate_publication.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/compat/types.hpp"
 
@@ -49,6 +50,8 @@ enum class LegacyBattleEffectShiftStatus : compat::u8 {
     completed,
     group_a_actor_typed_stop,
     group_b_actor_typed_stop,
+    group_a_coordinate_publication_typed_stop,
+    group_b_coordinate_publication_typed_stop,
 };
 
 struct LegacyBattleEffectShiftResult {
@@ -63,6 +66,8 @@ struct LegacyBattleEffectShiftResult {
     compat::u32 group_b_iterations{};
     compat::u32 argument_value{};
     compat::u32 scratch_value{};
+    LegacyBattleActorCoordinatePublicationResult coordinate_publication{};
+    compat::u32 coordinate_publication_calls{};
     bool phase_halved{};
     bool completion_latch_published{};
 };
@@ -73,7 +78,8 @@ struct LegacyBattleEffectShiftResult {
     compat::u32 argument_value,
     compat::u32 completion_mode,
     compat::u32 entry_ecx,
-    compat::u32 entry_edx
+    compat::u32 entry_edx,
+    const LegacyBattleActorCoordinateOwners& coordinate_owners = {}
 );
 
 }  // namespace openswd3::battle

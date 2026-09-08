@@ -2,6 +2,9 @@
 
 #include "openswd3/compat/types.hpp"
 
+#include <array>
+#include <cstddef>
+
 namespace openswd3::battle {
 
 struct LegacyBattleActionDispatchState;
@@ -16,13 +19,49 @@ inline constexpr compat::u32 kLegacyBattleActorCoordinatesGroupBBaseToken =
 inline constexpr compat::u32 kLegacyBattleActorCoordinatesGroupBStride =
     0x00002B28U;
 
-struct LegacyBattleActorCoordinatesState {
-    compat::u16 position_x{};            // actor + 0x0D66
-    compat::u16 position_y{};            // actor + 0x0D68
-    compat::u16 alternate_position_x{};  // actor + 0x0D86
-    compat::u16 alternate_position_y{};  // actor + 0x0D88
-    compat::u16 coordinate_mode_gate{};  // actor + 0x26D8
-    compat::u16 source_y_offset{};       // actor + 0x29B2
+struct LegacyBattleActorCoordinateSourceRecord {
+    std::array<std::byte, 0x14> prefix{};  // actor + 0x0D50
+    compat::u16 identity_word{};           // actor + 0x0D64
+    compat::u16 position_x{};              // actor + 0x0D66
+    compat::u16 position_y{};              // actor + 0x0D68
+    std::array<std::byte, 0x06> suffix{};  // actor + 0x0D6A
+};
+
+static_assert(sizeof(LegacyBattleActorCoordinateSourceRecord) == 0x20U);
+static_assert(
+    offsetof(LegacyBattleActorCoordinateSourceRecord, identity_word) == 0x14U
+);
+static_assert(
+    offsetof(LegacyBattleActorCoordinateSourceRecord, position_x) == 0x16U
+);
+static_assert(
+    offsetof(LegacyBattleActorCoordinateSourceRecord, position_y) == 0x18U
+);
+
+struct LegacyBattleActorCoordinateDestinationRecord {
+    std::array<std::byte, 0x16> prefix{};  // actor + 0x0D70
+    compat::u16 alternate_position_x{};    // actor + 0x0D86
+    compat::u16 alternate_position_y{};    // actor + 0x0D88
+    std::array<std::byte, 0x06> suffix{};  // actor + 0x0D8A
+};
+
+static_assert(sizeof(LegacyBattleActorCoordinateDestinationRecord) == 0x20U);
+static_assert(
+    offsetof(
+        LegacyBattleActorCoordinateDestinationRecord, alternate_position_x
+    ) == 0x16U
+);
+static_assert(
+    offsetof(
+        LegacyBattleActorCoordinateDestinationRecord, alternate_position_y
+    ) == 0x18U
+);
+
+struct LegacyBattleActorCoordinatesState
+    : public LegacyBattleActorCoordinateSourceRecord,
+      public LegacyBattleActorCoordinateDestinationRecord {
+    compat::u16 coordinate_mode_gate{};       // actor + 0x26D8
+    compat::u16 source_y_offset{};            // actor + 0x29B2
     compat::i32 target_phase_y_adjustment{};  // actor + 0x02B4
     compat::u32 frame_anchor_x{};             // actor + 0x02A8
 
@@ -36,6 +75,12 @@ struct LegacyBattleActorCoordinatesState {
     bool source_y_offset_read_accessible{true};
     bool target_phase_y_adjustment_read_accessible{true};
     bool frame_anchor_x_read_accessible{true};
+    std::array<bool, 8> publication_source_dword_read_accessible{
+        true, true, true, true, true, true, true, true
+    };
+    std::array<bool, 8> publication_destination_dword_write_accessible{
+        true, true, true, true, true, true, true, true
+    };
 };
 
 struct LegacyBattleActorCoordinatesView {
@@ -46,6 +91,8 @@ struct LegacyBattleActorCoordinatesView {
     compat::u16* coordinate_mode_gate{};
     compat::u16* source_y_offset{};
     compat::i32* target_phase_y_adjustment{};
+    std::byte* coordinate_source_record{};
+    std::byte* coordinate_destination_record{};
 
     const bool* coordinate_mode_gate_read_accessible{};
     const bool* position_x_read_accessible{};
@@ -56,6 +103,8 @@ struct LegacyBattleActorCoordinatesView {
     const bool* alternate_position_y_read_accessible{};
     const bool* source_y_offset_read_accessible{};
     const bool* target_phase_y_adjustment_read_accessible{};
+    const std::array<bool, 8>* publication_source_dword_read_accessible{};
+    const std::array<bool, 8>* publication_destination_dword_write_accessible{};
 };
 
 template <typename Actor>
@@ -69,6 +118,12 @@ view_legacy_battle_actor_coordinates(Actor& state) noexcept {
         .coordinate_mode_gate = &state.coordinate_mode_gate,
         .source_y_offset = &state.source_y_offset,
         .target_phase_y_adjustment = &state.target_phase_y_adjustment,
+        .coordinate_source_record = reinterpret_cast<std::byte*>(
+            static_cast<LegacyBattleActorCoordinateSourceRecord*>(&state)
+        ),
+        .coordinate_destination_record = reinterpret_cast<std::byte*>(
+            static_cast<LegacyBattleActorCoordinateDestinationRecord*>(&state)
+        ),
         .coordinate_mode_gate_read_accessible =
             &state.coordinate_mode_gate_read_accessible,
         .position_x_read_accessible = &state.position_x_read_accessible,
@@ -83,6 +138,10 @@ view_legacy_battle_actor_coordinates(Actor& state) noexcept {
             &state.source_y_offset_read_accessible,
         .target_phase_y_adjustment_read_accessible =
             &state.target_phase_y_adjustment_read_accessible,
+        .publication_source_dword_read_accessible =
+            &state.publication_source_dword_read_accessible,
+        .publication_destination_dword_write_accessible =
+            &state.publication_destination_dword_write_accessible,
     };
 }
 

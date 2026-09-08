@@ -68,12 +68,19 @@ configure_legacy_battle_group_b_action(
     }
 
     auto& state = actor->action_configuration;
-    std::memcpy(state.source_record.data(), source, state.source_record.size());
-    actor->action_execution.position_x = source->position_x;
-    actor->action_execution.position_y = source->position_y;
-    state.copied_record = state.source_record;
-    actor->action_execution.alternate_position_x = source->position_x;
-    actor->action_execution.alternate_position_y = source->position_y;
+    auto& coordinates = actor->action_execution;
+    std::memcpy(
+        static_cast<LegacyBattleActorCoordinateSourceRecord*>(&coordinates),
+        source,
+        sizeof(*source)
+    );
+    std::memcpy(
+        static_cast<LegacyBattleActorCoordinateDestinationRecord*>(
+            &coordinates
+        ),
+        source,
+        sizeof(*source)
+    );
     result.copied_dwords = 16U;
     state.timing_value = 0U;
 

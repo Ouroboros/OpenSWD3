@@ -5,6 +5,7 @@
 #include "openswd3/battle/legacy_battle_actor_render_offsets.hpp"
 #include "openswd3/battle/legacy_battle_animation_collision.hpp"
 #include "openswd3/battle/legacy_battle_color_accumulation.hpp"
+#include "openswd3/battle/legacy_battle_effect_shift.hpp"
 #include "openswd3/battle/legacy_battle_frame_refresh.hpp"
 #include "openswd3/battle/legacy_battle_group_a_reward_profile_state.hpp"
 #include "openswd3/battle/legacy_battle_pair_transition.hpp"
@@ -187,6 +188,8 @@ enum class LegacyBattleEffectFrameStatus : compat::u8 {
     actor_coordinate_typed_stop,
     group_a_actor_typed_stop,
     group_b_actor_typed_stop,
+    effect_shift_group_a_coordinate_publication_typed_stop,
+    effect_shift_group_b_coordinate_publication_typed_stop,
     animation_collision_counter_typed_stop,
 };
 
@@ -205,6 +208,7 @@ struct LegacyBattleEffectFrameResult {
     compat::u32 base_coordinate_query_calls{};
     std::array<LegacyBattleActorCoordinateQueryResult, 5> coordinate_queries{};
     compat::u32 coordinate_query_calls{};
+    LegacyBattleEffectShiftResult effect_shift{};
     LegacyBattleAnimationCollisionResult animation_collision{};
     compat::u32 animation_collision_calls{};
 };

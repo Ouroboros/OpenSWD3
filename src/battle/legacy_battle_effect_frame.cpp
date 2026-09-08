@@ -1143,19 +1143,39 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
     if (std::bit_cast<i16>(port.effect_shift_state().threshold_word) > 0) {
         u32 final_argument = stale_final_edx;
         replace_low_word(final_argument, primary.lookup_key_b);
-        const auto shift = advance_legacy_battle_effect_shift(
+        result.effect_shift = advance_legacy_battle_effect_shift(
             port,
             final_argument,
             primary.complete,
             primary.complete,
-            final_argument
+            final_argument,
+            coordinate_owners
         );
+        const auto& shift = result.effect_shift;
         result.port_calls += shift.port_calls;
         if (shift.status != LegacyBattleEffectShiftStatus::completed) {
-            result.status = shift.status ==
-                    LegacyBattleEffectShiftStatus::group_a_actor_typed_stop
-                ? LegacyBattleEffectFrameStatus::group_a_actor_typed_stop
-                : LegacyBattleEffectFrameStatus::group_b_actor_typed_stop;
+            switch (shift.status) {
+            case LegacyBattleEffectShiftStatus::group_a_actor_typed_stop:
+                result.status =
+                    LegacyBattleEffectFrameStatus::group_a_actor_typed_stop;
+                break;
+            case LegacyBattleEffectShiftStatus::group_b_actor_typed_stop:
+                result.status =
+                    LegacyBattleEffectFrameStatus::group_b_actor_typed_stop;
+                break;
+            case LegacyBattleEffectShiftStatus::
+                group_a_coordinate_publication_typed_stop:
+                result.status = LegacyBattleEffectFrameStatus::
+                    effect_shift_group_a_coordinate_publication_typed_stop;
+                break;
+            case LegacyBattleEffectShiftStatus::
+                group_b_coordinate_publication_typed_stop:
+                result.status = LegacyBattleEffectFrameStatus::
+                    effect_shift_group_b_coordinate_publication_typed_stop;
+                break;
+            case LegacyBattleEffectShiftStatus::completed:
+                break;
+            }
             return result;
         }
         if (shift.return_value == 0U) {

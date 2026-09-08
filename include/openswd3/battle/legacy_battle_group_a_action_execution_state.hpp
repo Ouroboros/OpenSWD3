@@ -33,11 +33,10 @@ struct LegacyBattleGroupAActionExecutionState
     compat::u8 record_mode_flags{};             // actor + 0x0393
     compat::u8 profile_mode{};                  // actor + 0x2F30
     compat::u16 profile_value{};                // actor + 0x2A0C
-    compat::u16 profile_variant_override{};      // actor + 0x2A0E
-    compat::u16 special_profile_variant{};       // actor + 0x2A8A
+    compat::u16 profile_variant_override{};     // actor + 0x2A0E
+    compat::u16 special_profile_variant{};      // actor + 0x2A8A
     compat::u16 summon_action_id{};             // actor + 0x2F14
     compat::u16 action_override_flags{};        // actor + 0x2A86
-    compat::u16 identity_word{};                // actor + 0x0D64
     compat::u8 profile_level{};                 // *(actor + 0x0000) + 0x002C
     compat::u32 current_list_index{};           // actor + 0x2EC0
     compat::u32 next_list_index{};              // actor + 0x2EC4
@@ -49,61 +48,66 @@ struct LegacyBattleGroupAActionExecutionState
     compat::u16 action_flags{};                 // actor + 0x0392
     compat::u32 primary_value{};                // actor + 0x035C
     compat::u32 secondary_value{};              // actor + 0x0360
-    asset_runtime::LegacyActionRecord primary_action_record{};  // actor + 0x0338
-    asset_runtime::LegacyActionRecord turn_action_record{};     // actor + 0x0468
-    asset_runtime::LegacyActionRecord special_target_action_record{};  // actor + 0x0500
+    asset_runtime::LegacyActionRecord
+        primary_action_record{};                             // actor + 0x0338
+    asset_runtime::LegacyActionRecord turn_action_record{};  // actor + 0x0468
+    asset_runtime::LegacyActionRecord
+        special_target_action_record{};                        // actor + 0x0500
     asset_runtime::LegacyActionRecord effect_action_record{};  // actor + 0x0630
-    asset_runtime::LegacyActionRecord effect_secondary_action_record{};  // actor + 0x06C8
-    asset_runtime::LegacyActionRecord special_action_record{};  // actor + 0x0AF0
-    asset_runtime::LegacyActionRecord special_secondary_action_record{};  // actor + 0x0B88
-    compat::u32 turn_frame_token{};              // actor + 0x254C
-    compat::i32 turn_countdown{};                // actor + 0x2668
-    compat::u32 turn_render_flags{};             // actor + 0x26A0
-    compat::u32 summon_render_flags{};           // actor + 0x2688
-    compat::u16 retreat_ready_flags{};            // actor + 0x26D0
-    compat::u32 summon_x_offset{};               // actor + 0x268C
-    compat::u32 spawn_completion_offset{};       // actor + 0x2674
-    compat::u32 special_four_hundred_counter{};  // actor + 0x2678
-    compat::u32 action_runtime_gate{};          // actor + 0x267C
-    compat::u16 turn_threshold{};                // actor + 0x2958
-    compat::u16 message_percent{};               // actor + 0x26DC
-    compat::u16 summon_phase{};                  // actor + 0x2A66
-    compat::u16 summon_completion_word{};        // actor + 0x2A78
-    compat::u16 special_particle_spawn_count{};  // actor + 0x2A80
-    compat::u16 turn_target_x_offset{};          // actor + 0x29B4
-    compat::u16 special_primary_draw_x{};        // actor + 0x29B8
-    compat::u16 special_primary_draw_y{};        // actor + 0x29BA
-    compat::u32 turn_completion_latch{};         // actor + 0x2AAC
-    compat::u32 turn_completion_aux{};           // actor + 0x2AB0
-    compat::u16 turn_sample_word{};              // actor + 0x04C0
-    compat::u16 auxiliary_word{};               // actor + 0x03B0
-    compat::u16 secondary_auxiliary_word{};     // actor + 0x03AE
-    std::array<compat::i16, 7> color_values{};  // actor + 0x03B2
+    asset_runtime::LegacyActionRecord
+        effect_secondary_action_record{};  // actor + 0x06C8
+    asset_runtime::LegacyActionRecord
+        special_action_record{};  // actor + 0x0AF0
+    asset_runtime::LegacyActionRecord
+        special_secondary_action_record{};                 // actor + 0x0B88
+    compat::u32 turn_frame_token{};                        // actor + 0x254C
+    compat::i32 turn_countdown{};                          // actor + 0x2668
+    compat::u32 turn_render_flags{};                       // actor + 0x26A0
+    compat::u32 summon_render_flags{};                     // actor + 0x2688
+    compat::u16 retreat_ready_flags{};                     // actor + 0x26D0
+    compat::u32 summon_x_offset{};                         // actor + 0x268C
+    compat::u32 spawn_completion_offset{};                 // actor + 0x2674
+    compat::u32 special_four_hundred_counter{};            // actor + 0x2678
+    compat::u32 action_runtime_gate{};                     // actor + 0x267C
+    compat::u16 turn_threshold{};                          // actor + 0x2958
+    compat::u16 message_percent{};                         // actor + 0x26DC
+    compat::u16 summon_phase{};                            // actor + 0x2A66
+    compat::u16 summon_completion_word{};                  // actor + 0x2A78
+    compat::u16 special_particle_spawn_count{};            // actor + 0x2A80
+    compat::u16 turn_target_x_offset{};                    // actor + 0x29B4
+    compat::u16 special_primary_draw_x{};                  // actor + 0x29B8
+    compat::u16 special_primary_draw_y{};                  // actor + 0x29BA
+    compat::u32 turn_completion_latch{};                   // actor + 0x2AAC
+    compat::u32 turn_completion_aux{};                     // actor + 0x2AB0
+    compat::u16 turn_sample_word{};                        // actor + 0x04C0
+    compat::u16 auxiliary_word{};                          // actor + 0x03B0
+    compat::u16 secondary_auxiliary_word{};                // actor + 0x03AE
+    std::array<compat::i16, 7> color_values{};             // actor + 0x03B2
     compat::u8 special_particle_coordinate_suppression{};  // actor + 0x0D94
-    compat::u8 special_effect_direct_mode{};    // actor + 0x0D9C
-    compat::u8 effect_direction_flags{};        // actor + 0x26C0
-    compat::u8 opponent_mode{};                 // actor + 0x2A9C
-    compat::u16 source_y{};                     // actor + 0x0DB2
-    compat::u16 render_x_base{};                // actor + 0x0316
-    compat::u16 render_y_base{};                // actor + 0x0318
-    compat::u16 source_x_offset{};              // actor + 0x29AC
-    compat::u16 secondary_source_x_offset{};    // actor + 0x29AE
-    compat::u16 secondary_target_x_offset{};    // actor + 0x29B6
-    compat::u16 draw_x{};                       // actor + 0x29BC
-    compat::u16 draw_y{};                       // actor + 0x29BE
-    compat::u16 motion_word{};                  // actor + 0x2954
-    compat::u16 motion_aux_word{};              // actor + 0x2956
-    compat::u32 special_particle_sequence_index{};  // actor + 0x2F0C
-    compat::u16 special_particle_sequence_count{};  // actor + 0x2F24
-    compat::u32 render_flags{};                 // actor + 0x26A4
-    compat::u32 render_source_token{};           // actor + 0x2548
-    compat::u32 render_source_value_04{};        // *(actor + 0x2548) + 0x04
-    compat::u16 render_source_value_0c{};        // *(actor + 0x2548) + 0x0C
-    compat::u16 completion_delay_word{};         // actor + 0x2A12
-    compat::u16 completion_word{};               // actor + 0x26D6
-    compat::u16 special_four_hundred_marker{};   // actor + 0x2A8E
-    compat::u32 special_four_hundred_phase{};    // actor + 0x2AC4
-    compat::u16 special_four_hundred_tail_word{};  // actor + 0x26D4
+    compat::u8 special_effect_direct_mode{};               // actor + 0x0D9C
+    compat::u8 effect_direction_flags{};                   // actor + 0x26C0
+    compat::u8 opponent_mode{};                            // actor + 0x2A9C
+    compat::u16 source_y{};                                // actor + 0x0DB2
+    compat::u16 render_x_base{};                           // actor + 0x0316
+    compat::u16 render_y_base{};                           // actor + 0x0318
+    compat::u16 source_x_offset{};                         // actor + 0x29AC
+    compat::u16 secondary_source_x_offset{};               // actor + 0x29AE
+    compat::u16 secondary_target_x_offset{};               // actor + 0x29B6
+    compat::u16 draw_x{};                                  // actor + 0x29BC
+    compat::u16 draw_y{};                                  // actor + 0x29BE
+    compat::u16 motion_word{};                             // actor + 0x2954
+    compat::u16 motion_aux_word{};                         // actor + 0x2956
+    compat::u32 special_particle_sequence_index{};         // actor + 0x2F0C
+    compat::u16 special_particle_sequence_count{};         // actor + 0x2F24
+    compat::u32 render_flags{};                            // actor + 0x26A4
+    compat::u32 render_source_token{};                     // actor + 0x2548
+    compat::u32 render_source_value_04{};           // *(actor + 0x2548) + 0x04
+    compat::u16 render_source_value_0c{};           // *(actor + 0x2548) + 0x0C
+    compat::u16 completion_delay_word{};            // actor + 0x2A12
+    compat::u16 completion_word{};                  // actor + 0x26D6
+    compat::u16 special_four_hundred_marker{};      // actor + 0x2A8E
+    compat::u32 special_four_hundred_phase{};       // actor + 0x2AC4
+    compat::u16 special_four_hundred_tail_word{};   // actor + 0x26D4
     compat::u32 action_twenty_seven_motion_mode{};  // actor + 0x2B00
     compat::u32 special_draw_mirror_mode{};         // actor + 0x2B08
     compat::u32 effect_application_latch{};         // actor + 0x2B14

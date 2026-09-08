@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v886
+版本：v887
 
 最后更新：2026-09-08
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 工作包287 REVIEW 1
+当前步骤：模块10 · 工作包287 REVIEW 2
 
 ## 0. 执行约定
 
@@ -271,7 +271,7 @@ REVIEW通过后必须立即按`AGENTS.md`完成commit、push和TG，再重新完
 13. `[x]` B7：地图、世界、角色、碰撞与寻路已按模块移交条件有限收口；当前状态、阻塞和证据见[`world-map.md`](../analysis/04-reverse-engineering/modules/world-map.md)及相关inventory/evidence。
 14. `[x]` B8：剧情VM、场景调度与异步action的P1–P3已经完成；[`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md)不再覆盖当前队列。
 15. `[x]` B9：菜单、商店和其他特殊模式的227/227工作项已经关闭；当前状态和阻塞见[`special-modes.md`](../analysis/04-reverse-engineering/modules/special-modes.md)。
-16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=286`，正在执行工作包287 REVIEW 1。
+16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=286`，工作包287 REVIEW 1已完成并通过定向`1/1`、Linux core `199/199`、ASan/UBSan `199/199`、Linux app `205/205`，正在执行REVIEW 2。
 17. `[ ]` B11：存档、配置与持久化语义；等待B10满足移交条件后开始。
 
 B7以后已经完成的详细执行记录已机械搬到[`execution-progress-history-pi.md`](execution-progress-history-pi.md)。该文件只保存历史，不定义当前执行顺序、状态或断点。
@@ -290,7 +290,7 @@ B7以后已经完成的详细执行记录已机械搬到[`execution-progress-his
 
 #### REVIEW 1：typed坐标发布、记录唯一owner与效果步进四处caller
 
-状态：待执行。
+状态：已完成。
 
 - 实现`0x004785C0..0x004785F1`共50字节、13条指令和1个`retn 8`的typed leaf；无call、分支或范围外chunk。严格执行：读取`[esp+4]`低word到AX、读取`[esp+8]`低word到DX、保存ESI/EDI、写actor `+0x0D66`、写`+0x0D68`、设置`ESI=actor+0x0D50`与`EDI=actor+0x0D70`、设置`ECX=8`、按八次`movsd`读后写、恢复EDI/ESI。
 - 将`+0x0D50..+0x0D6F`与`+0x0D70..+0x0D8F`收敛为`LegacyBattleActorCoordinatesState`继承的两个精确0x20字节记录。源记录显式包含`+0x0D64 identity_word`、`+0x0D66 position_x`、`+0x0D68 position_y`；目标记录显式包含`+0x0D86 alternate_position_x`与`+0x0D88 alternate_position_y`。从Group-B action-configuration移除重复`source_record/copied_record`，配置路径改写同一action-execution记录；不新增平行actor存储。

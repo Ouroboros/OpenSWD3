@@ -17,10 +17,9 @@ void test_battle_actor_coordinates(openswd3::test::Context& test) {
     using openswd3::compat::u32;
 
     {
-        LegacyBattleActorCoordinatesState actor{
-            .position_x = 0xFEDCU,
-            .position_y = 0x8123U,
-        };
+        LegacyBattleActorCoordinatesState actor{};
+        actor.position_x = 0xFEDCU;
+        actor.position_y = 0x8123U;
         u16 x{};
         u16 y{};
         const auto result = query_legacy_battle_actor_coordinates(
@@ -52,11 +51,10 @@ void test_battle_actor_coordinates(openswd3::test::Context& test) {
     }
 
     {
-        LegacyBattleActorCoordinatesState actor{
-            .alternate_position_x = 0x1234U,
-            .alternate_position_y = 0xFEDCU,
-            .coordinate_mode_gate = 0x8001U,
-        };
+        LegacyBattleActorCoordinatesState actor{};
+        actor.alternate_position_x = 0x1234U;
+        actor.alternate_position_y = 0xFEDCU;
+        actor.coordinate_mode_gate = 0x8001U;
         u16 x{};
         u16 y{};
         const auto result = query_legacy_battle_actor_coordinates(
@@ -106,13 +104,12 @@ void test_battle_actor_coordinates(openswd3::test::Context& test) {
             FaultCase{true, Status::second_output_write_typed_stop},
         };
         for (const auto& fault : cases) {
-            LegacyBattleActorCoordinatesState actor{
-                .position_x = 0x1111U,
-                .position_y = 0x2222U,
-                .alternate_position_x = 0x3333U,
-                .alternate_position_y = 0x4444U,
-                .coordinate_mode_gate = static_cast<u16>(fault.alternate),
-            };
+            LegacyBattleActorCoordinatesState actor{};
+            actor.position_x = 0x1111U;
+            actor.position_y = 0x2222U;
+            actor.alternate_position_x = 0x3333U;
+            actor.alternate_position_y = 0x4444U;
+            actor.coordinate_mode_gate = static_cast<u16>(fault.alternate);
             auto request =
                 openswd3::battle::LegacyBattleActorCoordinateQueryRequest{
                     .actor_token = 0x005029D0U,
@@ -259,13 +256,12 @@ void test_battle_actor_coordinates(openswd3::test::Context& test) {
     {
         for (const u16 selector :
              std::array<u16, 5>{0U, 1U, 0x100U, 0x8000U, 0xFFFFU}) {
-            LegacyBattleActorCoordinatesState actor{
-                .position_x = 0x1234U,
-                .position_y = 0x5678U,
-                .alternate_position_x = 0x9ABCU,
-                .alternate_position_y = 0xDEF0U,
-                .coordinate_mode_gate = selector,
-            };
+            LegacyBattleActorCoordinatesState actor{};
+            actor.position_x = 0x1234U;
+            actor.position_y = 0x5678U;
+            actor.alternate_position_x = 0x9ABCU;
+            actor.alternate_position_y = 0xDEF0U;
+            actor.coordinate_mode_gate = selector;
             u16* selected_y = selector == 0U ? &actor.position_y
                                              : &actor.alternate_position_y;
             u16 output_y{};
@@ -285,10 +281,9 @@ void test_battle_actor_coordinates(openswd3::test::Context& test) {
     }
 
     {
-        LegacyBattleActorCoordinatesState actor{
-            .position_x = 0x1357U,
-            .position_y = 0x2468U,
-        };
+        LegacyBattleActorCoordinatesState actor{};
+        actor.position_x = 0x1357U;
+        actor.position_y = 0x2468U;
         u16 output{};
         const auto result = query_legacy_battle_actor_coordinates(
             view_legacy_battle_actor_coordinates(actor), &output, &output

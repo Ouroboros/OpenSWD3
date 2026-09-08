@@ -13,7 +13,6 @@ using compat::u16;
 using compat::u32;
 
 constexpr u32 kCallReadActorValue = 0x00478600U;
-constexpr u32 kCallWriteActorValue = 0x004785C0U;
 
 [[nodiscard]] constexpr i16 signed_word(const u16 value) noexcept {
     return std::bit_cast<i16>(value);
@@ -25,6 +24,27 @@ constexpr u32 kCallWriteActorValue = 0x004785C0U;
 
 [[nodiscard]] constexpr u32 to_bits(const i32 value) noexcept {
     return std::bit_cast<u32>(value);
+}
+
+[[nodiscard]] constexpr bool has_even_parity(u32 value) noexcept {
+    value &= 0xFFU;
+    value ^= value >> 4U;
+    value ^= value >> 2U;
+    value ^= value >> 1U;
+    return (value & 1U) == 0U;
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+add_flags(const u32 left, const u32 right, const u32 value) noexcept {
+    return {
+        .carry = value < left,
+        .parity = has_even_parity(value),
+        .auxiliary_carry = ((left ^ right ^ value) & 0x10U) != 0U,
+        .auxiliary_carry_defined = true,
+        .zero = value == 0U,
+        .sign = (value & 0x80000000U) != 0U,
+        .overflow = ((~(left ^ right) & (left ^ value)) & 0x80000000U) != 0U,
+    };
 }
 
 [[nodiscard]] constexpr i32
@@ -67,7 +87,8 @@ actor_token(const u32 base, const u32 stride, const i32 index) noexcept {
     const bool group_a,
     u32& argument_value,
     u32& scratch_value,
-    u32& final_edx
+    u32& final_edx,
+    const LegacyBattleActorCoordinateOwners& coordinate_owners
 ) {
     auto& shift = port.effect_shift_state();
     auto& metrics = port.actor_metric_state();
@@ -114,19 +135,36 @@ actor_token(const u32 base, const u32 stride, const i32 index) noexcept {
             scratch_value = read.outputs[1];
         }
 
-        argument_value += to_bits(shift.actor_delta);
-        const auto write = invoke(
-            port,
-            result,
-            kCallWriteActorValue,
-            actor,
+        const u32 add_left = argument_value;
+        const u32 add_right = to_bits(shift.actor_delta);
+        argument_value += add_right;
+        result.coordinate_publication = publish_legacy_battle_actor_coordinates(
+            resolve_legacy_battle_actor_coordinates(coordinate_owners, actor),
             argument_value,
             scratch_value,
-            argument_value,
-            actor,
-            scratch_value
+            {
+                .actor_token = actor,
+                .entry_eax = argument_value,
+                .entry_ecx = actor,
+                .entry_edx = group_a ? scratch_value : read.edx,
+                .entry_esi = actor,
+                .entry_edi = std::bit_cast<u32>(signed_index),
+                .entry_flags = add_flags(add_left, add_right, argument_value),
+            }
         );
-        final_edx = write.edx;
+        ++result.coordinate_publication_calls;
+        final_edx = result.coordinate_publication.return_edx;
+        if (result.coordinate_publication.status !=
+            LegacyBattleActorCoordinatePublicationStatus::completed) {
+            result.status = group_a
+                ? LegacyBattleEffectShiftStatus::
+                      group_a_coordinate_publication_typed_stop
+                : LegacyBattleEffectShiftStatus::
+                      group_b_coordinate_publication_typed_stop;
+            result.return_value = result.coordinate_publication.return_eax;
+            result.final_ecx = result.coordinate_publication.return_ecx;
+            return false;
+        }
         if (group_a) {
             ++result.group_a_iterations;
         } else {
@@ -146,13 +184,26 @@ actor_token(const u32 base, const u32 stride, const i32 index) noexcept {
     LegacyBattleEffectShiftResult& result,
     u32& argument_value,
     u32& scratch_value,
-    u32& final_edx
+    u32& final_edx,
+    const LegacyBattleActorCoordinateOwners& coordinate_owners
 ) {
     return apply_group(
-               port, result, true, argument_value, scratch_value, final_edx
+               port,
+               result,
+               true,
+               argument_value,
+               scratch_value,
+               final_edx,
+               coordinate_owners
            ) &&
         apply_group(
-               port, result, false, argument_value, scratch_value, final_edx
+               port,
+               result,
+               false,
+               argument_value,
+               scratch_value,
+               final_edx,
+               coordinate_owners
         );
 }
 
@@ -163,7 +214,8 @@ LegacyBattleEffectShiftResult advance_legacy_battle_effect_shift(
     u32 argument_value,
     const u32 completion_mode,
     const u32 entry_ecx,
-    const u32 entry_edx
+    const u32 entry_edx,
+    const LegacyBattleActorCoordinateOwners& coordinate_owners
 ) {
     LegacyBattleEffectShiftResult result{};
     auto& shift = port.effect_shift_state();
@@ -187,11 +239,23 @@ LegacyBattleEffectShiftResult advance_legacy_battle_effect_shift(
 
     if (shift.actor_delta != 0) {
         if (!apply_all_groups(
-                port, result, argument_value, scratch_value, final_edx
+                port,
+                result,
+                argument_value,
+                scratch_value,
+                final_edx,
+                coordinate_owners
             )) {
             result.argument_value = argument_value;
             result.scratch_value = scratch_value;
-            result.final_ecx = entry_ecx;
+            if (result.status !=
+                    LegacyBattleEffectShiftStatus::
+                        group_a_coordinate_publication_typed_stop &&
+                result.status !=
+                    LegacyBattleEffectShiftStatus::
+                        group_b_coordinate_publication_typed_stop) {
+                result.final_ecx = entry_ecx;
+            }
             result.final_edx = final_edx;
             return result;
         }
@@ -222,11 +286,23 @@ LegacyBattleEffectShiftResult advance_legacy_battle_effect_shift(
                 final_edx = to_bits(shift.actor_delta);
             }
             if (!apply_all_groups(
-                    port, result, argument_value, scratch_value, final_edx
+                    port,
+                    result,
+                    argument_value,
+                    scratch_value,
+                    final_edx,
+                    coordinate_owners
                 )) {
                 result.argument_value = argument_value;
                 result.scratch_value = scratch_value;
-                result.final_ecx = entry_ecx;
+                if (result.status !=
+                        LegacyBattleEffectShiftStatus::
+                            group_a_coordinate_publication_typed_stop &&
+                    result.status !=
+                        LegacyBattleEffectShiftStatus::
+                            group_b_coordinate_publication_typed_stop) {
+                    result.final_ecx = entry_ecx;
+                }
                 result.final_edx = final_edx;
                 return result;
             }
