@@ -8,6 +8,7 @@ namespace openswd3::rendering {
 
 struct LegacyFramePiece {
     LegacyBlitSource source{};
+    compat::u32 legacy_source_token{};
     compat::u16 width{};
     compat::u16 height{};
 };

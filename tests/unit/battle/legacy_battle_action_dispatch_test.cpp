@@ -51,23 +51,6 @@ public:
         if (request.callee_token == 0x00480AD0U) {
             return {.eax = 0xA0000000U};
         }
-        if (request.callee_token == 0x00478620U) {
-            return {
-                .eax = 0x72000000U,
-                .edx = 0x89ABCDEFU,
-                .flags =
-                    {
-                        .carry = false,
-                        .parity = true,
-                        .auxiliary_carry = true,
-                        .auxiliary_carry_defined = true,
-                        .zero = false,
-                        .sign = false,
-                        .overflow = false,
-                    },
-                .outputs = {0x73000000U, 0x20U, 0x50U},
-            };
-        }
         if (request.callee_token == 0x004019A0U) {
             return {.eax = 0x74000000U, .resource_words = decoded_pixels};
         }
@@ -439,13 +422,17 @@ public:
                     .layout =
                         openswd3::rendering::LegacyBlitSourceLayout::direct_16,
                 },
-            .width = 32U,
-            .height = 32U,
+            .legacy_source_token = legacy_source_token,
+            .width = width,
+            .height = height,
         };
         return true;
     }
 
     std::vector<u8> bytes;
+    u32 legacy_source_token{0x73000000U};
+    u16 width{32U};
+    u16 height{32U};
     bool available{true};
 };
 
@@ -529,6 +516,12 @@ struct Fixture {
         );
     }
 
+    void prepare_target_phase_frame_resource(const std::size_t index = 0U) {
+        auto& target = (*startup.group_b_lifecycle)[index].action_execution;
+        target.frame_source_action_record.action_id = 1U;
+        frame_provider.height = 0x50U;
+    }
+
     [[nodiscard]] openswd3::battle::LegacyBattleActionDispatchContext
     context() {
         return {
@@ -554,6 +547,26 @@ struct Fixture {
             .status_indicator_action_eax_snapshot = 0U,
             .group_a_skip_primary = {},
             .group_a_skip_secondary = {},
+            .target_phase_start_request =
+                {
+                    .entry_edx = 0x10203040U,
+                    .actor_frame_resource =
+                        {
+                            .frame_provider_return_eax = 0x72000000U,
+                            .frame_provider_return_edx = 0x89ABCDEFU,
+                            .frame_provider_flags =
+                                {
+                                    .carry = false,
+                                    .parity = true,
+                                    .auxiliary_carry = true,
+                                    .auxiliary_carry_defined = true,
+                                    .zero = false,
+                                    .sign = false,
+                                    .overflow = false,
+                                },
+                            .frame_provider_flags_known = true,
+                        },
+                },
             .scripted_resource_release_test_compat = true,
         };
     }
@@ -4579,6 +4592,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         phase.action_record.action_id = 2U;
         phase.spawn_action_records[0U].action_id = 3U;
         Fixture fixture;
+        fixture.prepare_target_phase_frame_resource();
         auto& target =
             (*fixture.startup.group_b_lifecycle)[0U].action_execution;
         target.position_x = 0x40U;
@@ -4587,29 +4601,49 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         target.target_phase_y_adjustment = 0x20;
         DispatchPort port;
         auto context = fixture.context();
+        auto request = context.target_phase_start_request;
+        request.target_token = 0x00525508U;
+        request.surface_width = 640;
+        request.surface_height = 480;
+        request.coordinate_output_x_token = 0xAAAA1111U;
+        request.coordinate_output_y_token = 0xBBBB2222U;
+        request.entry_eax = 0xAAAAAAAAU;
+        request.entry_ecx = 0xBBBBBBBBU;
+        request.entry_edx = 0xCCCCCCCCU;
+        request.entry_ebx = 0x11111111U;
+        request.entry_ebp = 0x22222222U;
+        request.entry_esi = 0x33333333U;
+        request.entry_edi = 0x44444444U;
+        request.entry_return_address = 0x004546ACU;
         const auto result = openswd3::battle::start_legacy_battle_target_phase(
             &phase,
             &actor,
             &fixture.startup.render_geometry,
             port,
             context,
-            {
-                .target_token = 0x00525508U,
-                .surface_width = 640,
-                .surface_height = 480,
-                .coordinate_output_x_token = 0xAAAA1111U,
-                .coordinate_output_y_token = 0xBBBB2222U,
-                .entry_eax = 0xAAAAAAAAU,
-                .entry_ecx = 0xBBBBBBBBU,
-                .entry_edx = 0xCCCCCCCCU,
-            }
+            request
         );
         const auto& emitter = phase.emitter;
         test.expect_true(
             result.status ==
                     openswd3::battle::LegacyBattleTargetPhaseStartStatus::
                         completed &&
-                result.port_calls == 3U && result.resource_query_calls == 1U &&
+                result.port_calls == 2U && result.resource_query_calls == 1U &&
+                result.actor_frame_resource_calls == 1U &&
+                result.actor_frame_resource.status ==
+                    openswd3::battle::LegacyBattleActorFrameResourceStatus::
+                        completed &&
+                result.actor_frame_resource.return_eax == 0x72000000U &&
+                result.actor_frame_resource.return_edx == 0x89ABCDEFU &&
+                result.parent_stack_write_count == 5U &&
+                result.parent_stack_writes ==
+                    std::array<u32, 5>{
+                        0x11111111U,
+                        0x22222222U,
+                        0x33333333U,
+                        0x44444444U,
+                        0x004710E4U,
+                    } &&
                 result.coordinate_query_calls == 1U &&
                 result.base_coordinate_query.status ==
                     openswd3::battle::
@@ -4625,7 +4659,13 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 result.presentation_dwords_zeroed == 0x16U &&
                 result.tail_dwords_zeroed == 0xECU &&
                 result.host_surface_calls == 1U && result.return_eax == 0U &&
-                result.return_ecx == 0U &&
+                result.return_ecx == 0U && result.return_edx == 0U &&
+                result.return_ebx == 0x11111111U &&
+                result.return_ebp == 0x22222222U &&
+                result.return_esi == 0x33333333U &&
+                result.return_edi == 0x44444444U &&
+                result.return_esp == 0x70002008U &&
+                result.return_eip == 0x004546ACU &&
                 phase.resource_token == 0x72000000U &&
                 phase.decoded_resource_token == 0x74000000U &&
                 emitter.source_pixels.size() == 0x20U * 0x50U &&
@@ -4644,6 +4684,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 emitter.published_value_30 == 5 &&
                 emitter.published_value_34 == 5 &&
                 phase.group_a_mode_flags == 0x88U &&
+                port.count(0x00478620U) == 0U &&
                 port.count(0x00478470U) == 0U && phase.runtime_gate == 0U &&
                 std::ranges::all_of(
                     phase.block_0df4,
@@ -4661,30 +4702,115 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         phase.emitter.flags = 0xFFFFU;
         phase.block_0df4.fill(9U);
         Fixture fixture;
+        fixture.prepare_target_phase_frame_resource();
         DispatchPort port;
-        port.push(0x00478620U, {.eax = 0U});
         auto context = fixture.context();
+        auto request = context.target_phase_start_request;
+        request.target_token = 0x00525508U;
+        request.surface_width = 640;
+        request.surface_height = 480;
+        request.entry_ecx = 0x005029D0U;
+        request.entry_ebx = 0x11111111U;
+        request.entry_ebp = 0x22222222U;
+        request.entry_esi = 0x33333333U;
+        request.entry_edi = 0x44444444U;
+        request.actor_frame_resource.frame_provider_return_eax = 0U;
         const auto result = openswd3::battle::start_legacy_battle_target_phase(
             &phase,
             &actor,
             &fixture.startup.render_geometry,
             port,
             context,
-            {.target_token = 0x00525508U,
-             .surface_width = 640,
-             .surface_height = 480}
+            request
         );
         test.expect_true(
             result.status ==
                     openswd3::battle::LegacyBattleTargetPhaseStartStatus::
                         resource_object_typed_stop &&
                 result.resource_query_calls == 1U &&
+                result.actor_frame_resource_calls == 1U &&
+                result.actor_frame_resource.status ==
+                    openswd3::battle::LegacyBattleActorFrameResourceStatus::
+                        completed &&
+                result.actor_frame_resource.frame_lookup_calls == 1U &&
+                result.actor_frame_resource.frame_token_committed &&
+                result.actor_frame_resource.return_eax == 0U &&
                 result.coordinate_query_calls == 1U &&
                 result.decode_calls == 0U &&
                 result.presentation_dwords_zeroed == 0x16U &&
-                phase.emitter.flags == 0U && phase.block_0df4[0U] == 9U &&
+                result.return_eax == 0x70001FF8U &&
+                result.return_ecx == 0x70001FFCU && result.return_edx == 0U &&
+                result.return_ebx == 0x005037E4U &&
+                result.return_ebp == 0x00525508U &&
+                result.return_esi == 0x005029D0U &&
+                result.return_edi == 0x0050383CU &&
+                result.return_esp == 0x70001FD8U &&
+                result.return_eip == 0x00471120U && result.flags_known &&
+                !result.flags.carry && result.flags.parity &&
+                !result.flags.auxiliary_carry &&
+                !result.flags.auxiliary_carry_defined && result.flags.zero &&
+                !result.flags.sign && !result.flags.overflow &&
+                phase.resource_token == 0U && phase.emitter.flags == 0U &&
+                phase.block_0df4[0U] == 9U && port.count(0x00478620U) == 0U &&
                 port.count(0x00478470U) == 0U,
-            "target phase resource stop preserves the typed coordinate query and emitter clear prefix"
+            "target phase zero token stops at the object read after both prior pushes with XOR flags and no suffix"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleTargetPhaseState phase;
+        phase.emitter.flags = 0xFFFFU;
+        phase.block_0df4.fill(9U);
+        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+        Fixture fixture;
+        fixture.prepare_target_phase_frame_resource();
+        auto& target =
+            (*fixture.startup.group_b_lifecycle)[0U].action_execution;
+        DispatchPort port;
+        auto context = fixture.context();
+        auto request = context.target_phase_start_request;
+        request.target_token = 0x00525508U;
+        request.entry_ecx = 0x005029D0U;
+        request.resource_object_readable = false;
+        const auto result = openswd3::battle::start_legacy_battle_target_phase(
+            &phase,
+            &actor,
+            &fixture.startup.render_geometry,
+            port,
+            context,
+            request
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleTargetPhaseStartStatus::
+                        resource_object_typed_stop &&
+                result.actor_frame_resource.status ==
+                    openswd3::battle::LegacyBattleActorFrameResourceStatus::
+                        completed &&
+                result.actor_frame_resource.frame_token_committed &&
+                result.actor_frame_resource.return_eax == 0x72000000U &&
+                target.turn_frame_token == 0x72000000U &&
+                result.coordinate_query_calls == 1U &&
+                result.presentation_dwords_zeroed == 0x16U &&
+                result.decode_calls == 0U &&
+                result.property_query_calls == 0U &&
+                result.return_eax == 0x70001FF8U &&
+                result.return_ecx == 0x70001FFCU &&
+                result.return_edx == 0x72000000U &&
+                result.return_ebx == 0x005037E4U &&
+                result.return_ebp == 0x00525508U &&
+                result.return_esi == 0x005029D0U &&
+                result.return_edi == 0x0050383CU &&
+                result.return_esp == 0x70001FD8U &&
+                result.return_eip == 0x00471120U && result.flags_known &&
+                !result.flags.carry && result.flags.parity &&
+                !result.flags.auxiliary_carry &&
+                !result.flags.auxiliary_carry_defined && result.flags.zero &&
+                !result.flags.sign && !result.flags.overflow &&
+                phase.resource_token == 0x72000000U &&
+                phase.emitter.flags == 0U && phase.block_0df4[0U] == 9U &&
+                port.count(0x00478620U) == 0U && port.count(0x004019A0U) == 0U,
+            "target phase nonzero token with unreadable object stops at the same exact object read state and suppresses every suffix"
         );
     }
 
@@ -4695,6 +4821,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         phase.action_record.action_id = 7U;
         openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
         Fixture fixture;
+        fixture.prepare_target_phase_frame_resource();
         auto& target =
             (*fixture.startup.group_b_lifecycle)[0U].action_execution;
         target.position_x = 0x1234U;
@@ -4703,25 +4830,26 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         target.target_phase_y_adjustment_read_accessible = false;
         DispatchPort port;
         auto context = fixture.context();
+        auto request = context.target_phase_start_request;
+        request.target_token = 0x00525508U;
+        request.surface_width = 640;
+        request.surface_height = 480;
+        request.coordinate_output_x_token = 0xAAAA1111U;
+        request.coordinate_output_y_token = 0xBBBB2222U;
         const auto result = openswd3::battle::start_legacy_battle_target_phase(
             &phase,
             &actor,
             &fixture.startup.render_geometry,
             port,
             context,
-            {
-                .target_token = 0x00525508U,
-                .surface_width = 640,
-                .surface_height = 480,
-                .coordinate_output_x_token = 0xAAAA1111U,
-                .coordinate_output_y_token = 0xBBBB2222U,
-            }
+            request
         );
         test.expect_true(
             result.status ==
                     openswd3::battle::LegacyBattleTargetPhaseStartStatus::
                         actor_base_coordinate_typed_stop &&
-                result.port_calls == 1U && result.resource_query_calls == 1U &&
+                result.port_calls == 0U && result.resource_query_calls == 1U &&
+                result.actor_frame_resource_calls == 1U &&
                 result.coordinate_query_calls == 1U &&
                 result.base_coordinate_query.status ==
                     openswd3::battle::
@@ -4748,40 +4876,32 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         openswd3::battle::LegacyBattleTargetPhaseState phase;
         openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
         Fixture fixture;
+        fixture.prepare_target_phase_frame_resource();
         auto& target =
             (*fixture.startup.group_b_lifecycle)[0U].action_execution;
         target.position_x_read_accessible = false;
         DispatchPort port;
-        port.push(
-            0x00478620U,
-            {
-                .eax = 0x72000000U,
-                .edx = 0x89ABCDEFU,
-                .flags =
-                    {
-                        .carry = true,
-                        .parity = false,
-                        .auxiliary_carry = true,
-                        .auxiliary_carry_defined = true,
-                        .zero = false,
-                        .sign = true,
-                        .overflow = true,
-                    },
-                .outputs = {0x73000000U, 0x20U, 0x50U},
-            }
-        );
         auto context = fixture.context();
+        auto request = context.target_phase_start_request;
+        request.target_token = 0x00525508U;
+        request.coordinate_output_x_token = 0xAAAA1111U;
+        request.coordinate_output_y_token = 0xBBBB2222U;
+        request.actor_frame_resource.frame_provider_flags = {
+            .carry = true,
+            .parity = false,
+            .auxiliary_carry = true,
+            .auxiliary_carry_defined = true,
+            .zero = false,
+            .sign = true,
+            .overflow = true,
+        };
         const auto result = openswd3::battle::start_legacy_battle_target_phase(
             &phase,
             &actor,
             &fixture.startup.render_geometry,
             port,
             context,
-            {
-                .target_token = 0x00525508U,
-                .coordinate_output_x_token = 0xAAAA1111U,
-                .coordinate_output_y_token = 0xBBBB2222U,
-            }
+            request
         );
         test.expect_true(
             result.status ==
@@ -4794,16 +4914,148 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 result.return_eax == 0xBBBB2222U &&
                 result.return_ecx == 0x00525508U &&
                 result.return_edx == 0x89ABCDEFU &&
-                result.base_coordinate_query.flags.carry &&
+                !result.base_coordinate_query.flags.carry &&
                 !result.base_coordinate_query.flags.parity &&
                 result.base_coordinate_query.flags.auxiliary_carry &&
                 result.base_coordinate_query.flags.auxiliary_carry_defined &&
                 !result.base_coordinate_query.flags.zero &&
-                result.base_coordinate_query.flags.sign &&
-                result.base_coordinate_query.flags.overflow &&
+                !result.base_coordinate_query.flags.sign &&
+                !result.base_coordinate_query.flags.overflow &&
                 result.presentation_dwords_zeroed == 0U &&
-                port.count(0x00478470U) == 0U,
-            "target phase forwards resource-query EDX and flags into the base-coordinate entry stop"
+                result.actor_frame_resource.return_edx == 0x89ABCDEFU &&
+                port.count(0x00478620U) == 0U && port.count(0x00478470U) == 0U,
+            "target phase forwards typed frame-resource EDX and flags into the base-coordinate entry stop"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleTargetPhaseState phase;
+        phase.resource_token = 0xDEADBEEFU;
+        phase.emitter.flags = 0x1234U;
+        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+        Fixture fixture;
+        fixture.prepare_target_phase_frame_resource();
+        auto& target =
+            (*fixture.startup.group_b_lifecycle)[0U].action_execution;
+        DispatchPort port;
+        auto context = fixture.context();
+        auto request = context.target_phase_start_request;
+        request.target_token = 0x00525508U;
+        request.actor_frame_resource.source_dword_readable[3U] = false;
+        const auto result = openswd3::battle::start_legacy_battle_target_phase(
+            &phase,
+            &actor,
+            &fixture.startup.render_geometry,
+            port,
+            context,
+            request
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleTargetPhaseStartStatus::
+                        actor_frame_resource_typed_stop &&
+                result.actor_frame_resource.status ==
+                    openswd3::battle::LegacyBattleActorFrameResourceStatus::
+                        source_dword_read_typed_stop &&
+                result.actor_frame_resource.copied_dwords == 3U &&
+                result.return_eip == 0x00478638U &&
+                result.return_esp == 0x70001FD0U &&
+                result.parent_stack_write_count == 5U &&
+                target.frame_prepared_action_record.action_id == 1U &&
+                phase.resource_token == 0xDEADBEEFU &&
+                phase.emitter.flags == 0x1234U &&
+                result.coordinate_query_calls == 0U &&
+                result.presentation_dwords_zeroed == 0U &&
+                result.decode_calls == 0U &&
+                result.property_query_calls == 0U &&
+                port.count(0x00478620U) == 0U,
+            "target phase preserves the Group-B REP partial commit and suppresses every caller suffix at the typed leaf stop"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleTargetPhaseState phase;
+        phase.resource_token = 0xDEADBEEFU;
+        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+        Fixture fixture;
+        fixture.prepare_target_phase_frame_resource();
+        auto& target =
+            (*fixture.startup.group_b_lifecycle)[0U].action_execution;
+        target.turn_frame_token = 0xCAFEBABEU;
+        target.turn_frame_token_write_accessible = false;
+        DispatchPort port;
+        auto context = fixture.context();
+        auto request = context.target_phase_start_request;
+        request.target_token = 0x00525508U;
+        const auto result = openswd3::battle::start_legacy_battle_target_phase(
+            &phase,
+            &actor,
+            &fixture.startup.render_geometry,
+            port,
+            context,
+            request
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleTargetPhaseStartStatus::
+                        actor_frame_resource_typed_stop &&
+                result.actor_frame_resource.status ==
+                    openswd3::battle::LegacyBattleActorFrameResourceStatus::
+                        frame_token_write_typed_stop &&
+                result.actor_frame_resource.frame_lookup_calls == 1U &&
+                !result.actor_frame_resource.frame_token_committed &&
+                result.return_eip == 0x00478663U &&
+                result.return_esp == 0x70001FD0U &&
+                target.turn_frame_token == 0xCAFEBABEU &&
+                phase.resource_token == 0xDEADBEEFU &&
+                result.coordinate_query_calls == 0U &&
+                result.presentation_dwords_zeroed == 0U &&
+                result.decode_calls == 0U &&
+                result.property_query_calls == 0U &&
+                port.count(0x00478620U) == 0U,
+            "target phase suppresses token publication and all later effects when the Group-B leaf frame-token write faults"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleTargetPhaseState phase;
+        phase.resource_token = 0xDEADBEEFU;
+        phase.block_0df4.fill(9U);
+        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+        Fixture fixture;
+        DispatchPort port;
+        auto context = fixture.context();
+        auto request = context.target_phase_start_request;
+        request.target_token = 0x00525508U;
+        request.actor_frame_resource.action_updater_return_eax = 0U;
+        request.actor_frame_resource.override_action_updater_return_eax = true;
+        const auto result = openswd3::battle::start_legacy_battle_target_phase(
+            &phase,
+            &actor,
+            &fixture.startup.render_geometry,
+            port,
+            context,
+            request
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleTargetPhaseStartStatus::
+                        resource_object_typed_stop &&
+                result.actor_frame_resource.status ==
+                    openswd3::battle::LegacyBattleActorFrameResourceStatus::
+                        completed &&
+                result.actor_frame_resource.returned_early &&
+                result.actor_frame_resource.returned &&
+                result.actor_frame_resource.frame_lookup_calls == 0U &&
+                result.actor_frame_resource.return_eax == 0U &&
+                phase.resource_token == 0U &&
+                result.coordinate_query_calls == 1U &&
+                result.presentation_dwords_zeroed == 0x16U &&
+                phase.emitter.flags == 0U && phase.block_0df4[0U] == 9U &&
+                result.return_eip == 0x00471120U && result.decode_calls == 0U &&
+                result.property_query_calls == 0U &&
+                port.count(0x00478620U) == 0U,
+            "target phase carries the typed leaf early RET through token publication, coordinates and presentation clear before the real object read stops"
         );
     }
 }
@@ -6157,6 +6409,7 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
         state.group_a_action_execution[0U].source_x_offset = 40U;
         state.group_a_action_execution[0U].source_y_offset = 10U;
         Fixture fixture;
+        fixture.prepare_target_phase_frame_resource();
         DispatchPort port;
         port.action = 6U;
         port.push(
@@ -6182,13 +6435,30 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                 port.count(0x00472730U) == 0U &&
                 port.count(0x00484500U) == 1U &&
                 result.target_phase_start_calls == 1U &&
-                result.target_phase_start.port_calls == 3U &&
+                result.target_phase_start.port_calls == 2U &&
+                result.target_phase_start.actor_frame_resource_calls == 1U &&
+                result.target_phase_start.actor_frame_resource.status ==
+                    openswd3::battle::LegacyBattleActorFrameResourceStatus::
+                        completed &&
+                result.target_phase_start.actor_frame_resource.return_eax ==
+                    0x72000000U &&
+                result.target_phase_start.actor_frame_resource.return_edx ==
+                    0x89ABCDEFU &&
+                result.target_phase_start.parent_stack_writes ==
+                    std::array<u32, 5>{
+                        0U,
+                        0x00525508U,
+                        0x005029D0U,
+                        0U,
+                        0x004710E4U,
+                    } &&
+                result.target_phase_start.return_eip == 0x004546ACU &&
                 result.target_phase_start.coordinate_query_calls == 1U &&
                 result.target_phase_start.base_coordinate_query.status ==
                     openswd3::battle::
                         LegacyBattleActorBaseCoordinateQueryStatus::completed &&
                 port.count(0x004710D0U) == 0U &&
-                port.count(0x00478620U) == 1U &&
+                port.count(0x00478620U) == 0U &&
                 port.count(0x00478470U) == 0U &&
                 port.count(0x004019A0U) == 1U &&
                 port.count(0x0047CE70U) == 1U && state.phase_condition == 1U &&
@@ -6196,8 +6466,13 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                 result.target_phase_advance_calls == 1U &&
                 port.count(0x00471270U) == 0U &&
                 state.group_a_target_phases[0U].decoded_resource_token ==
-                    0x74000000U,
-            "action six directly looks up the target code count before starting the typed target phase without either opaque whole-function call"
+                    0x74000000U &&
+                (*fixture.startup.group_b_lifecycle)[0U]
+                        .action_execution.frame_prepared_action_record
+                        .action_id == 1U &&
+                state.group_a_action_execution[0U]
+                        .frame_prepared_action_record.action_id == 0U,
+            "action six composes the Group-B target frame-resource leaf before the unchanged target-phase suffix without opaque whole-function calls"
         );
     }
 

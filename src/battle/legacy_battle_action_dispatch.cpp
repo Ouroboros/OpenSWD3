@@ -104,7 +104,6 @@ constexpr u32 kCallPlayMessage = 0x00485610U;
 constexpr u32 kCallSetSamplePan = 0x00485650U;
 constexpr u32 kCallQueryTargetCode = 0x0047F910U;
 constexpr u32 kCallTargetPhaseValues = 0x00484500U;
-constexpr u32 kCallTargetPhaseResource = 0x00478620U;
 constexpr u32 kCallTargetPhaseDecode = 0x004019A0U;
 constexpr u32 kCallTargetPhaseProperty = 0x0047CE70U;
 constexpr u32 kCallTargetPhaseRelease = 0x004885A0U;
@@ -145,6 +144,9 @@ constexpr u32 kCallClearPendingAction = 0x00482DA0U;
 constexpr u32 kCallTargetEffectProperty = 0x0047CEC0U;
 constexpr u32 kCallActorEffectMode = 0x0047CF00U;
 constexpr u32 kCallActorEffectAction = 0x004787D0U;
+constexpr u32 kTargetPhaseFrameResourceReturnAddress = 0x004710E4U;
+constexpr u32 kTargetPhaseResourceObjectReadInstruction = 0x00471120U;
+constexpr u32 kActionDispatchTargetPhaseStartReturnAddress = 0x004546ACU;
 
 [[nodiscard]] constexpr u32 group_a_token(const u32 index) noexcept {
     return kLegacyBattleActionGroupABaseToken +
@@ -196,6 +198,20 @@ subtract_flags(const u32 left, const u32 right) noexcept {
         .zero = difference == 0U,
         .sign = (difference & 0x80000000U) != 0U,
         .overflow = ((left ^ right) & (left ^ difference) & 0x80000000U) != 0U,
+    };
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+add_flags(const u32 left, const u32 right) noexcept {
+    const u32 sum = left + right;
+    return {
+        .carry = sum < left,
+        .parity = has_even_parity(sum),
+        .auxiliary_carry = ((left ^ right ^ sum) & 0x10U) != 0U,
+        .auxiliary_carry_defined = true,
+        .zero = sum == 0U,
+        .sign = (sum & 0x80000000U) != 0U,
+        .overflow = ((~(left ^ right) & (left ^ sum)) & 0x80000000U) != 0U,
     };
 }
 
@@ -826,15 +842,84 @@ LegacyBattleTargetPhaseStartResult start_legacy_battle_target_phase(
     LegacyBattleActionDispatchContext& context,
     const LegacyBattleTargetPhaseStartRequest& request
 ) {
-    LegacyBattleTargetPhaseStartResult result;
-    result.return_eax = request.entry_eax;
-    result.return_ecx = request.entry_ecx;
-    result.return_edx = request.entry_edx;
-    if (phase == nullptr || actor == nullptr || request.target_token == 0U) {
+    LegacyBattleTargetPhaseStartResult result{
+        .return_eax = request.entry_eax,
+        .return_ecx = request.entry_ecx,
+        .return_edx = request.entry_edx,
+        .return_ebx = request.entry_ebx,
+        .return_ebp = request.entry_ebp,
+        .return_esi = request.entry_esi,
+        .return_edi = request.entry_edi,
+        .return_esp = request.entry_esp,
+        .flags_known = request.entry_flags_known,
+        .flags = request.entry_flags,
+    };
+    result.return_esp -= 0x10U;
+    result.flags = subtract_flags(request.entry_esp, 0x10U);
+    result.flags_known = true;
+    const auto push_parent = [&](const u32 value) {
+        result.return_esp -= 4U;
+        result.parent_stack_writes[result.parent_stack_write_count] = value;
+        ++result.parent_stack_write_count;
+    };
+    push_parent(request.entry_ebx);
+    push_parent(request.entry_ebp);
+    result.return_ebp = request.target_token;
+    push_parent(request.entry_esi);
+    result.return_esi = request.entry_ecx;
+    push_parent(request.entry_edi);
+    result.return_ecx = request.target_token;
+    push_parent(kTargetPhaseFrameResourceReturnAddress);
+
+    auto resource_request = request.actor_frame_resource;
+    resource_request.actor_token = request.target_token;
+    resource_request.entry_eax = result.return_eax;
+    resource_request.entry_ecx = result.return_ecx;
+    resource_request.entry_edx = result.return_edx;
+    resource_request.entry_ebx = result.return_ebx;
+    resource_request.entry_esi = result.return_esi;
+    resource_request.entry_edi = result.return_edi;
+    resource_request.entry_esp = result.return_esp;
+    resource_request.entry_return_address =
+        kTargetPhaseFrameResourceReturnAddress;
+    resource_request.entry_flags = result.flags;
+    resource_request.entry_flags_known = result.flags_known;
+    result.actor_frame_resource = prepare_legacy_battle_actor_frame_resource(
+        resolve_legacy_battle_actor_frame_resource(
+            {
+                .action = context.shared_action_dispatch,
+                .startup = context.startup,
+            },
+            request.target_token
+        ),
+        context.action_updater,
+        context.frame_provider,
+        resource_request
+    );
+    ++result.actor_frame_resource_calls;
+    ++result.resource_query_calls;
+    result.return_eax = result.actor_frame_resource.return_eax;
+    result.return_ecx = result.actor_frame_resource.return_ecx;
+    result.return_edx = result.actor_frame_resource.return_edx;
+    result.return_ebx = result.actor_frame_resource.return_ebx;
+    result.return_esi = result.actor_frame_resource.return_esi;
+    result.return_edi = result.actor_frame_resource.return_edi;
+    result.return_esp = result.actor_frame_resource.return_esp;
+    result.return_eip = result.actor_frame_resource.return_eip;
+    result.flags_known = result.actor_frame_resource.flags_known;
+    result.flags = result.actor_frame_resource.flags;
+    if (result.actor_frame_resource.status !=
+        LegacyBattleActorFrameResourceStatus::completed) {
+        result.status =
+            LegacyBattleTargetPhaseStartStatus::actor_frame_resource_typed_stop;
+        return result;
+    }
+    if (phase == nullptr || actor == nullptr) {
         result.status =
             LegacyBattleTargetPhaseStartStatus::target_object_typed_stop;
         return result;
     }
+    phase->resource_token = result.actor_frame_resource.return_eax;
 
     const auto invoke_phase = [&](const u32 callee,
                                   const std::array<u32, 8>& arguments = {}) {
@@ -852,11 +937,6 @@ LegacyBattleTargetPhaseStartResult start_legacy_battle_target_phase(
         return reply;
     };
 
-    const auto resource =
-        invoke_phase(kCallTargetPhaseResource, {request.target_token});
-    ++result.resource_query_calls;
-    phase->resource_token = resource.eax;
-
     u32 coordinate_x = request.target_token;
     u32 coordinate_y{};
     ++result.coordinate_query_calls;
@@ -871,14 +951,15 @@ LegacyBattleTargetPhaseStartResult start_legacy_battle_target_phase(
         request.coordinate_output_x_token,
         request.coordinate_output_y_token,
         request.coordinate_output_y_token,
-        resource.edx,
-        resource.flags
+        result.actor_frame_resource.return_edx,
+        result.actor_frame_resource.flags
     );
     result.coordinate_output_x = coordinate_x;
     result.coordinate_output_y = coordinate_y;
     result.return_eax = result.base_coordinate_query.return_eax;
     result.return_ecx = result.base_coordinate_query.return_ecx;
     result.return_edx = result.base_coordinate_query.return_edx;
+    result.flags = result.base_coordinate_query.flags;
     if (result.base_coordinate_query.status !=
         LegacyBattleActorBaseCoordinateQueryStatus::completed) {
         result.status = LegacyBattleTargetPhaseStartStatus::
@@ -889,21 +970,35 @@ LegacyBattleTargetPhaseStartResult start_legacy_battle_target_phase(
     phase->decoded_resource_token = 0U;
     phase->emitter = {};
     result.presentation_dwords_zeroed = 0x16U;
-    if (phase->resource_token == 0U || resource.outputs[0U] == 0U) {
+    result.return_ebx = result.return_esi + 0x0E14U;
+    result.return_eax = 0U;
+    result.return_ecx = 0U;
+    result.return_edi = result.return_ebx + 0x58U;
+    result.flags = logical_flags(0U);
+    result.flags_known = true;
+    result.return_esp -= 4U;
+    result.return_edx = phase->resource_token;
+    result.return_eax = request.entry_esp - 8U;
+    result.return_ecx = request.entry_esp - 4U;
+    result.return_esp -= 4U;
+    if (phase->resource_token == 0U || !request.resource_object_readable) {
+        result.return_eip = kTargetPhaseResourceObjectReadInstruction;
         result.status =
             LegacyBattleTargetPhaseStartStatus::resource_object_typed_stop;
         return result;
     }
 
-    const auto decoded = invoke_phase(
-        kCallTargetPhaseDecode, {resource.outputs[0U], 0U, 0U, 0U}
-    );
+    result.return_eax = result.actor_frame_resource.frame.legacy_source_token;
+    result.return_esp -= 8U;
+    const auto decoded =
+        invoke_phase(kCallTargetPhaseDecode, {result.return_eax, 0U, 0U, 0U});
+    result.return_esp += 16U;
     ++result.decode_calls;
     auto& emitter = phase->emitter;
     phase->decoded_resource_token = decoded.eax;
     emitter.source_pixels = decoded.resource_words;
-    emitter.source_width = static_cast<u16>(resource.outputs[1U]);
-    emitter.source_height = static_cast<u16>(resource.outputs[2U]);
+    emitter.source_width = result.actor_frame_resource.frame.width;
+    emitter.source_height = result.actor_frame_resource.frame.height;
 
     const i32 horizontal_delta =
         static_cast<i32>(std::bit_cast<i16>(low_word(coordinate_x)));
@@ -973,6 +1068,15 @@ LegacyBattleTargetPhaseStartResult start_legacy_battle_target_phase(
     result.tail_dwords_zeroed = 8U + 0x26U + 0xBEU;
     result.return_eax = 0U;
     result.return_ecx = 0U;
+    result.return_edi = request.entry_edi;
+    result.return_esi = request.entry_esi;
+    result.return_ebp = request.entry_ebp;
+    result.return_ebx = request.entry_ebx;
+    result.return_esp += 16U;
+    result.flags = add_flags(result.return_esp, 0x10U);
+    result.flags_known = true;
+    result.return_esp += 0x18U;
+    result.return_eip = request.entry_return_address;
     return result;
 }
 
@@ -6991,21 +7095,34 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                     target_phase_start_typed_stop;
                 return result;
             }
+            auto target_phase_start_request =
+                context.target_phase_start_request;
+            target_phase_start_request.target_token =
+                group_b_token(group_b_index);
+            target_phase_start_request.surface_width =
+                context.raster.surface.width;
+            target_phase_start_request.surface_height =
+                context.raster.surface.height;
+            target_phase_start_request.coordinate_output_x_token =
+                state.base_coordinate_output_x_token;
+            target_phase_start_request.coordinate_output_y_token =
+                state.base_coordinate_output_y_token;
+            target_phase_start_request.entry_eax =
+                result.target_phase_check.return_eax;
+            target_phase_start_request.entry_ecx = actor_token;
+            target_phase_start_request.entry_ebp =
+                target_phase_start_request.target_token;
+            target_phase_start_request.entry_esi = actor_token;
+            target_phase_start_request.entry_edi = group_b_index;
+            target_phase_start_request.entry_return_address =
+                kActionDispatchTargetPhaseStartReturnAddress;
             result.target_phase_start = start_legacy_battle_target_phase(
                 &state.group_a_target_phases[group_a_index],
                 &state.group_a_action_execution[group_a_index],
                 &context.startup->render_geometry,
                 port,
                 context,
-                {
-                    .target_token = group_b_token(group_b_index),
-                    .surface_width = context.raster.surface.width,
-                    .surface_height = context.raster.surface.height,
-                    .coordinate_output_x_token =
-                        state.base_coordinate_output_x_token,
-                    .coordinate_output_y_token =
-                        state.base_coordinate_output_y_token,
-                }
+                target_phase_start_request
             );
             ++result.target_phase_start_calls;
             result.port_calls += result.target_phase_start.port_calls;

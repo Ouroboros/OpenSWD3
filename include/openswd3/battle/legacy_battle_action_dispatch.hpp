@@ -6,6 +6,7 @@
 #include "openswd3/battle/legacy_battle_actor_availability_block.hpp"
 #include "openswd3/battle/legacy_battle_actor_base_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_actor_coordinate_publication.hpp"
+#include "openswd3/battle/legacy_battle_actor_frame_resource.hpp"
 #include "openswd3/battle/legacy_battle_actor_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_actor_progress.hpp"
 #include "openswd3/battle/legacy_battle_actor_render_offsets.hpp"
@@ -448,11 +449,22 @@ struct LegacyBattleTargetPhaseStartRequest {
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
+    compat::u32 entry_ebx{};
+    compat::u32 entry_ebp{};
+    compat::u32 entry_esi{};
+    compat::u32 entry_edi{};
+    compat::u32 entry_esp{0x70002000U};
+    compat::u32 entry_return_address{};
+    LegacyBattleActorCoordinateFlags entry_flags{};
+    bool entry_flags_known{true};
+    bool resource_object_readable{true};
+    LegacyBattleActorFrameResourceRequest actor_frame_resource{};
 };
 
 enum class LegacyBattleTargetPhaseStartStatus : compat::u8 {
     completed,
     target_object_typed_stop,
+    actor_frame_resource_typed_stop,
     actor_base_coordinate_typed_stop,
     resource_object_typed_stop,
     host_surface_typed_stop,
@@ -464,6 +476,10 @@ struct LegacyBattleTargetPhaseStartResult {
     };
     compat::u32 port_calls{};
     compat::u32 resource_query_calls{};
+    LegacyBattleActorFrameResourceResult actor_frame_resource{};
+    compat::u32 actor_frame_resource_calls{};
+    std::array<compat::u32, 5> parent_stack_writes{};
+    compat::u32 parent_stack_write_count{};
     LegacyBattleActorBaseCoordinateQueryResult base_coordinate_query{};
     compat::u32 coordinate_query_calls{};
     compat::u32 coordinate_output_x{};
@@ -477,6 +493,14 @@ struct LegacyBattleTargetPhaseStartResult {
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
+    compat::u32 return_ebx{};
+    compat::u32 return_ebp{};
+    compat::u32 return_esi{};
+    compat::u32 return_edi{};
+    compat::u32 return_esp{};
+    compat::u32 return_eip{};
+    bool flags_known{true};
+    LegacyBattleActorCoordinateFlags flags{};
 };
 
 struct LegacyBattleTargetPhaseAdvanceRequest {
@@ -1332,6 +1356,7 @@ struct LegacyBattleActionDispatchContext {
     std::span<const compat::u32> group_a_skip_primary;
     std::span<const compat::u32> group_a_skip_secondary;
     compat::u32 target_phase_time_seed{};
+    LegacyBattleTargetPhaseStartRequest target_phase_start_request{};
     LegacyBattleImageParticleStackSnapshot target_phase_spawn_stack_snapshot{};
     bool scripted_resource_release_test_compat{};
 };

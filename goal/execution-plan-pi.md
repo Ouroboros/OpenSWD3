@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v898
+版本：v899
 
 最后更新：2026-09-08
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 工作包289 REVIEW 2实施
+当前步骤：模块10 · 工作包289 REVIEW 3实施
 
 ## 0. 执行约定
 
@@ -286,7 +286,7 @@ B7以后已经完成的详细执行记录已机械搬到[`execution-progress-his
 
 当前工作包：`audit_order=289`、`0x00478620`。目标是完整实现actor动作记录复制、动作更新、帧资源查询与frame-token发布的typed函数，并回收三个caller函数中的五个物理callsite。
 
-当前断点：完整LST已锁定`0x00478620..0x0047866C`共77字节、29条指令、2个call、1个条件分支与2个普通`retn`，没有外部chunk或中段入口。两个callee依次为已关闭`0x004321E0`动作更新与`0x004315D0`帧查询；五个物理caller为`0x004605D9`、`0x004607F6`、`0x00460A0A`、`0x004710DF`与`0x0048402F`，当前`caller_reclaimed:3/5`。权威摘录为`build/workpack289/478620-full.lst`与`build/workpack289/478620-callers-context.lst`。
+当前断点：完整LST已锁定`0x00478620..0x0047866C`共77字节、29条指令、2个call、1个条件分支与2个普通`retn`，没有外部chunk或中段入口。两个callee依次为已关闭`0x004321E0`动作更新与`0x004315D0`帧查询；五个物理caller为`0x004605D9`、`0x004607F6`、`0x00460A0A`、`0x004710DF`与`0x0048402F`，当前`caller_reclaimed:4/5`。权威摘录为`build/workpack289/478620-full.lst`与`build/workpack289/478620-callers-context.lst`。
 
 #### REVIEW 1：typed帧资源准备与frame-input三处caller
 
@@ -304,7 +304,7 @@ B7以后已经完成的详细执行记录已机械搬到[`execution-progress-his
 
 #### REVIEW 2：Group-A目标演出初始化caller
 
-状态：实施中。
+状态：已完成。
 
 - 回收`0x004710D0:0x004710DF`。`start_legacy_battle_target_phase`以显式Group-B目标token解析canonical action-execution view并直接组合typed帧资源准备；leaf正常返回后才把EAX发布到Group-A source actor的`phase.resource_token`，再按原顺序执行已关闭基准坐标查询、`0x58`字节演出记录清零、资源对象访问、解码、宽高发布、属性查询、host surface与尾部清零。
 - 保留caller入口EAX/EDX与EBX/ESI/EDI、四次parent栈保存、typed leaf两出口、返回ECX/EDX及leaf最终flags。后续`0x00478470`入口EAX仍为Y输出地址、ECX为目标actor、EDX为leaf返回残值，flags改由leaf真实TEST或`add esp,8`结果传递，不再取generic reply。
@@ -314,7 +314,7 @@ B7以后已经完成的详细执行记录已机械搬到[`execution-progress-his
 
 #### REVIEW 3：Group-B目标演出caller与工作包关闭
 
-状态：待执行。
+状态：实施中。
 
 - 回收`0x00484020:0x0048402F`及外层`0x00455D60:0x00456458` action 6生产路径。`0x00456458`已锁定arg0为Group-A目标索引、arg4为`0x005029D0 + index*0x2F34`的显式Group-A目标token；隐藏this为Group-B source actor，禁止把arg4误识别为Group-B actor。
 - 复用REVIEW 2的target-phase typed初始化，但owner按`Group-B source index × Group-A target index`选择原`source+0x0E6C+index*0x58`物理演出槽。扩展现有`group_b_target_phases`为明确的每目标canonical槽并迁移其既有借用者，不增加第二套Group-B phase数组；source actor字段与mode byte继续来自同一lifecycle element，target帧准备与坐标查询来自显式Group-A action/startup owner。
