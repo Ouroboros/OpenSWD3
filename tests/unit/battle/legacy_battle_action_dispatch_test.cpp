@@ -4623,7 +4623,26 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
             context,
             request
         );
+        const auto decode_call = std::ranges::find_if(
+            port.calls, [](const LegacyBattleActionCallRequest& call) {
+                return call.callee_token == 0x004019A0U;
+            }
+        );
+        const auto property_call = std::ranges::find_if(
+            port.calls, [](const LegacyBattleActionCallRequest& call) {
+                return call.callee_token == 0x0047CE70U;
+            }
+        );
         const auto& emitter = phase.emitter;
+        test.expect_true(
+            decode_call != port.calls.end() &&
+                decode_call->eax == 0x73000000U &&
+                decode_call->ecx == 0x70001FFCU &&
+                decode_call->edx == 0x72000000U &&
+                property_call != port.calls.end() && property_call->eax == 5U &&
+                property_call->ecx == 0x00525508U && property_call->edx == 220U,
+            "target phase preserves decode and property call register residue"
+        );
         test.expect_true(
             result.status ==
                     openswd3::battle::LegacyBattleTargetPhaseStartStatus::
@@ -4666,7 +4685,9 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 result.return_edi == 0x44444444U &&
                 result.return_esp == 0x70002008U &&
                 result.return_eip == 0x004546ACU &&
-                phase.resource_token == 0x72000000U &&
+                actor.target_phase_resource_token == 0x72000000U &&
+                phase.borrowed_resource_token ==
+                    &actor.target_phase_resource_token &&
                 phase.decoded_resource_token == 0x74000000U &&
                 emitter.source_pixels.size() == 0x20U * 0x50U &&
                 emitter.source_width == 0x20U &&
@@ -4750,9 +4771,11 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 !result.flags.auxiliary_carry &&
                 !result.flags.auxiliary_carry_defined && result.flags.zero &&
                 !result.flags.sign && !result.flags.overflow &&
-                phase.resource_token == 0U && phase.emitter.flags == 0U &&
-                phase.block_0df4[0U] == 9U && port.count(0x00478620U) == 0U &&
-                port.count(0x00478470U) == 0U,
+                actor.target_phase_resource_token == 0U &&
+                phase.borrowed_resource_token ==
+                    &actor.target_phase_resource_token &&
+                phase.emitter.flags == 0U && phase.block_0df4[0U] == 9U &&
+                port.count(0x00478620U) == 0U && port.count(0x00478470U) == 0U,
             "target phase zero token stops at the object read after both prior pushes with XOR flags and no suffix"
         );
     }
@@ -4807,7 +4830,9 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 !result.flags.auxiliary_carry &&
                 !result.flags.auxiliary_carry_defined && result.flags.zero &&
                 !result.flags.sign && !result.flags.overflow &&
-                phase.resource_token == 0x72000000U &&
+                actor.target_phase_resource_token == 0x72000000U &&
+                phase.borrowed_resource_token ==
+                    &actor.target_phase_resource_token &&
                 phase.emitter.flags == 0U && phase.block_0df4[0U] == 9U &&
                 port.count(0x00478620U) == 0U && port.count(0x004019A0U) == 0U,
             "target phase nonzero token with unreadable object stops at the same exact object read state and suppresses every suffix"
@@ -4864,7 +4889,9 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 result.presentation_dwords_zeroed == 0U &&
                 result.decode_calls == 0U &&
                 result.property_query_calls == 0U &&
-                phase.resource_token == 0x72000000U &&
+                actor.target_phase_resource_token == 0x72000000U &&
+                phase.borrowed_resource_token ==
+                    &actor.target_phase_resource_token &&
                 phase.emitter.flags == 0xCAFEU && phase.block_0df4[0U] == 9U &&
                 phase.action_record.action_id == 7U &&
                 port.count(0x00478470U) == 0U,
@@ -4930,9 +4957,9 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
 
     {
         openswd3::battle::LegacyBattleTargetPhaseState phase;
-        phase.resource_token = 0xDEADBEEFU;
         phase.emitter.flags = 0x1234U;
         openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+        actor.target_phase_resource_token = 0xDEADBEEFU;
         Fixture fixture;
         fixture.prepare_target_phase_frame_resource();
         auto& target =
@@ -4962,7 +4989,8 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 result.return_esp == 0x70001FD0U &&
                 result.parent_stack_write_count == 5U &&
                 target.frame_prepared_action_record.action_id == 1U &&
-                phase.resource_token == 0xDEADBEEFU &&
+                actor.target_phase_resource_token == 0xDEADBEEFU &&
+                phase.borrowed_resource_token == nullptr &&
                 phase.emitter.flags == 0x1234U &&
                 result.coordinate_query_calls == 0U &&
                 result.presentation_dwords_zeroed == 0U &&
@@ -4975,8 +5003,8 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
 
     {
         openswd3::battle::LegacyBattleTargetPhaseState phase;
-        phase.resource_token = 0xDEADBEEFU;
         openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+        actor.target_phase_resource_token = 0xDEADBEEFU;
         Fixture fixture;
         fixture.prepare_target_phase_frame_resource();
         auto& target =
@@ -5007,7 +5035,8 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 result.return_eip == 0x00478663U &&
                 result.return_esp == 0x70001FD0U &&
                 target.turn_frame_token == 0xCAFEBABEU &&
-                phase.resource_token == 0xDEADBEEFU &&
+                actor.target_phase_resource_token == 0xDEADBEEFU &&
+                phase.borrowed_resource_token == nullptr &&
                 result.coordinate_query_calls == 0U &&
                 result.presentation_dwords_zeroed == 0U &&
                 result.decode_calls == 0U &&
@@ -5019,9 +5048,9 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
 
     {
         openswd3::battle::LegacyBattleTargetPhaseState phase;
-        phase.resource_token = 0xDEADBEEFU;
         phase.block_0df4.fill(9U);
         openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+        actor.target_phase_resource_token = 0xDEADBEEFU;
         Fixture fixture;
         DispatchPort port;
         auto context = fixture.context();
@@ -5048,7 +5077,9 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 result.actor_frame_resource.returned &&
                 result.actor_frame_resource.frame_lookup_calls == 0U &&
                 result.actor_frame_resource.return_eax == 0U &&
-                phase.resource_token == 0U &&
+                actor.target_phase_resource_token == 0U &&
+                phase.borrowed_resource_token ==
+                    &actor.target_phase_resource_token &&
                 result.coordinate_query_calls == 1U &&
                 result.presentation_dwords_zeroed == 0x16U &&
                 phase.emitter.flags == 0U && phase.block_0df4[0U] == 9U &&

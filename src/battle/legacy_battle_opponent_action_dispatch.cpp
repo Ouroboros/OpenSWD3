@@ -26,7 +26,6 @@ constexpr u32 kCallQuerySelection = 0x0047C680U;
 constexpr u32 kCallQuerySpecial = 0x0047D8E0U;
 constexpr u32 kCallAllocate = 0x00489E90U;
 constexpr u32 kCallDelete = 0x00489D00U;
-constexpr u32 kCallPrepareTargetPhase = 0x00484020U;
 constexpr u32 kCallFinishTargetPhase = 0x004841B0U;
 constexpr u32 kCallSetTargetMode = 0x004787F0U;
 constexpr u32 kCallClearMode = 0x0047D870U;
@@ -46,6 +45,8 @@ constexpr u32 kCallActionTwoHundred = 0x00482310U;
 constexpr u32 kCallActionThreeHundred = 0x00482840U;
 
 constexpr u32 kOpponentScratchToken = 0x005246E0U;
+constexpr u32 kBattleRenderGeometryToken = 0x0051DF80U;
+constexpr u32 kOpponentTargetPhaseReturnAddress = 0x0045645DU;
 constexpr u32 kOpponentRecordBaseToken = 0x005213A0U;
 constexpr u32 kOpponentRecordStride = 0x20U;
 [[nodiscard]] constexpr u32 to_bits(const i32 value) noexcept {
@@ -556,19 +557,79 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                 return result;
             }
             const u32 target_token = group_a_token(target_index);
+            auto& owned_phase =
+                state.group_b_target_phases[group_b_index][target_index];
+            if (owned_phase == nullptr) {
+                owned_phase = std::make_unique<LegacyBattleTargetPhaseState>();
+            }
+            LegacyBattleActorGroupBElementState* source_actor =
+                context.startup == nullptr ||
+                    context.startup->group_b_lifecycle == nullptr
+                ? nullptr
+                : &(*context.startup->group_b_lifecycle)[group_b_index];
+            owned_phase->borrowed_mode_flags = source_actor == nullptr
+                ? nullptr
+                : &source_actor->action_composition.mode_flags;
+            owned_phase->borrowed_resource_token = source_actor == nullptr
+                ? nullptr
+                : &source_actor->action_execution.target_phase_resource_token;
+
+            auto target_context = context;
+            target_context.shared_action_dispatch = &state;
+            auto target_request = context.opponent_target_phase_start_request;
+            target_request.variant =
+                LegacyBattleTargetPhaseStartVariant::group_b_source_00484020;
+            target_request.source_token = source_token;
+            target_request.target_token = target_token;
+            target_request.target_index = target_index;
+            target_request.entry_eax = target_index * 0x0BCDU;
+            target_request.entry_ecx = source_token;
+            target_request.entry_edx = action_reply.edx;
+            target_request.entry_ebx = 1U;
+            target_request.entry_ebp = target_token;
+            target_request.entry_esi = source_token;
+            target_request.entry_edi = target_index;
+            target_request.entry_return_address =
+                kOpponentTargetPhaseReturnAddress;
+            target_request.render_geometry_token = kBattleRenderGeometryToken;
+            result.target_phase_start = start_legacy_battle_target_phase(
+                owned_phase.get(),
+                source_actor == nullptr ? nullptr
+                                        : &source_actor->action_execution,
+                context.startup == nullptr ? nullptr
+                                           : &context.startup->render_geometry,
+                port,
+                target_context,
+                target_request
+            );
+            ++result.target_phase_start_calls;
+            result.port_calls += result.target_phase_start.port_calls;
+            if (result.target_phase_start.status !=
+                LegacyBattleTargetPhaseStartStatus::completed) {
+                result.status = LegacyBattleActionDispatchStatus::
+                    target_phase_start_typed_stop;
+                return result;
+            }
+            const auto target_mode = invoke(
+                state,
+                port,
+                result,
+                kCallSetTargetMode,
+                {target_token, 1U},
+                result.target_phase_start.return_eax,
+                target_token,
+                result.target_phase_start.return_edx
+            );
             static_cast<void>(invoke(
                 state,
                 port,
                 result,
-                kCallPrepareTargetPhase,
-                {source_token, target_index, target_token}
+                kCallClearMode,
+                {target_token, 1U},
+                target_mode.eax,
+                target_token,
+                target_mode.edx
             ));
-            static_cast<void>(invoke(
-                state, port, result, kCallSetTargetMode, {target_token, 1U}
-            ));
-            static_cast<void>(
-                invoke(state, port, result, kCallClearMode, {target_token, 1U})
-            );
             if (!remove_attack_order_entry(
                     context, result, target_index + 8U
                 )) {

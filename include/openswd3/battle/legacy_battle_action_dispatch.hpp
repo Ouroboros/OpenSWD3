@@ -384,7 +384,7 @@ public:
 };
 
 struct LegacyBattleTargetPhaseState {
-    compat::u32 resource_token{};              // actor + 0x255C
+    compat::u32* borrowed_resource_token{};    // source action-execution owner
     compat::u32 decoded_resource_token{};      // actor + 0x0E14 token view
     LegacyBattleImageParticleEmitter emitter;  // actor + 0x0E14 physical owner
     compat::u16 tick{};                        // actor + 0x2F26
@@ -398,6 +398,11 @@ struct LegacyBattleTargetPhaseState {
     asset_runtime::LegacyActionRecord action_record{};  // actor + 0x0500
     std::array<asset_runtime::LegacyActionRecord, 5>
         spawn_action_records{};  // actor + 0x2BC8
+
+    [[nodiscard]] compat::u32 frame_resource_token() const noexcept {
+        return borrowed_resource_token == nullptr ? 0U
+                                                  : *borrowed_resource_token;
+    }
 
     [[nodiscard]] compat::u8& mode_flags() noexcept {
         return borrowed_mode_flags == nullptr ? group_a_mode_flags
@@ -440,6 +445,11 @@ struct LegacyBattleTargetPhaseCheckResult {
     compat::u32 return_eax{};
 };
 
+enum class LegacyBattleTargetPhaseStartVariant : compat::u8 {
+    group_a_source_004710d0,
+    group_b_source_00484020,
+};
+
 struct LegacyBattleTargetPhaseStartRequest {
     compat::u32 target_token{};
     compat::i32 surface_width{};
@@ -459,6 +469,14 @@ struct LegacyBattleTargetPhaseStartRequest {
     bool entry_flags_known{true};
     bool resource_object_readable{true};
     LegacyBattleActorFrameResourceRequest actor_frame_resource{};
+    LegacyBattleTargetPhaseStartVariant variant{
+        LegacyBattleTargetPhaseStartVariant::group_a_source_004710d0
+    };
+    compat::u32 source_token{};
+    compat::u32 target_index{};
+    compat::u32 coordinate_output_x_initial{};
+    compat::u32 coordinate_output_y_initial{};
+    compat::u32 render_geometry_token{};
 };
 
 enum class LegacyBattleTargetPhaseStartStatus : compat::u8 {
@@ -1275,7 +1293,7 @@ struct LegacyBattleActionDispatchState {
     compat::u32 mirror_group_b_spawn{};
     std::array<LegacyBattleActionMessageProfile, 8> group_b_message_profiles{};
     std::array<LegacyBattleRewardScaleActorState, 8> group_b_reward_scale{};
-    std::array<std::unique_ptr<LegacyBattleTargetPhaseState>, 8>
+    std::array<std::array<std::unique_ptr<LegacyBattleTargetPhaseState>, 10>, 8>
         group_b_target_phases{};
     LegacyBattleImageParticleNodePool target_phase_particle_nodes;
     LegacyBattleImageParticleSharedState target_phase_particle_shared;
@@ -1357,6 +1375,7 @@ struct LegacyBattleActionDispatchContext {
     std::span<const compat::u32> group_a_skip_secondary;
     compat::u32 target_phase_time_seed{};
     LegacyBattleTargetPhaseStartRequest target_phase_start_request{};
+    LegacyBattleTargetPhaseStartRequest opponent_target_phase_start_request{};
     LegacyBattleImageParticleStackSnapshot target_phase_spawn_stack_snapshot{};
     bool scripted_resource_release_test_compat{};
 };
@@ -1648,11 +1667,11 @@ check_legacy_battle_target_phase(
     const LegacyBattleTargetPhaseCheckRequest& request
 );
 
-// sub_4710D0.
+// sub_4710D0 and the shared target-phase body of sub_484020.
 [[nodiscard]] LegacyBattleTargetPhaseStartResult
 start_legacy_battle_target_phase(
     LegacyBattleTargetPhaseState* phase,
-    const LegacyBattleGroupAActionExecutionState* actor,
+    LegacyBattleGroupAActionExecutionState* actor,
     LegacyBattleRenderGeometry* render_geometry,
     LegacyBattleActionDispatchPort& port,
     LegacyBattleActionDispatchContext& context,

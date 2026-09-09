@@ -1,6 +1,6 @@
 # 战斗角色帧资源准备 `0x00478620`
 
-状态：`platform_adapted`、`unit_tested`、`caller_reclaimed:4/5`、`inventory_pending_audit`。Workpack 289 REVIEW 1已回收frame-input中的三个物理callsite，REVIEW 2已回收Group-A目标演出初始化caller；最后一处Group-B目标演出caller留给REVIEW 3。
+状态：`platform_adapted`、`unit_tested`、`caller_reclaimed:5/5`。Workpack 289三个REVIEW已回收frame-input三处、Group-A目标演出一处及Group-B目标演出一处物理callsite；inventory row 289已由权威生成器关闭。
 
 ## 1. 完整LST边界与ABI
 
@@ -56,14 +56,24 @@ surface adapter只接收本leaf返回的frame token，不再以actor token替代
 
 `0x004710D0`在`0x004710DF`以显式Group-B目标token为ECX直接组合本typed leaf，返回地址固定为`0x004710E4`。leaf通过startup `group_b_lifecycle[].action_execution` canonical owner读写目标的第0/17动作槽与`turn_frame_token`；Group-A source的target-phase owner保持独立。parent先执行`sub esp,10h`并保存入口EBX、EBP、ESI、EDI，再压入CALL返回地址。leaf typed-stop保留这五项parent栈前缀、目标动作记录部分提交、callee副作用与可能完成的frame-token写，且阻断source phase token、坐标、`0x58`记录清零及全部后缀。
 
-leaf成功或早退完成后才把返回EAX写入source phase资源token。provider返回零仍完成leaf并提交零`turn_frame_token`，caller随后执行基准坐标和`0x58`清零，直到`0x00471120`资源对象首dword读取停止。`0x00478470`入口EAX仍为Y输出地址、ECX为Group-B目标、EDX为leaf残值；flags来自leaf真实`test eax,eax`或`add esp,8`。解码`0x004019A0`与属性`0x0047CE70`继续保留为窄port，生产路径不再调用generic `0x00478620`。第四物理caller关闭后累计`caller_reclaimed:4/5`，inventory row 289继续为`pending_audit`。
+leaf成功或早退完成后才把返回EAX写入Group-A source action-execution唯一owner的`target_phase_resource_token`。phase只借用该共享字段，不再复制`actor+0x255C`。provider返回零仍完成leaf并提交零`turn_frame_token`，caller随后执行基准坐标和`0x58`清零，直到`0x00471120`资源对象首dword读取停止。`0x00478470`入口EAX仍为Y输出地址、ECX为Group-B目标、EDX为leaf残值；flags来自leaf真实`test eax,eax`或`add esp,8`。解码`0x004019A0`与属性`0x0047CE70`继续保留为窄port，生产路径不再调用generic `0x00478620`。
 
-## 8. 测试与当前门禁
+## 8. Group-B目标演出caller回收
+
+`0x00484020`前缀在`0x0048402F`以隐藏this的Group-B source、显式Group-A target token及目标索引直接组合本typed leaf，返回地址为`0x00484034`。outer caller为`0x00455D60` action 6的`0x00456458`；入口保持`EAX=target_index*0xBCD`、`ECX/ESI=source token`、`EDX=action-query residue`、`EBX=1`、`EBP=target token`、`EDI=target index`。
+
+每个Group-B source按Group-A target索引持有唯一`0x58` phase槽；相邻source和target严格隔离。source `actor+0x255C`由lifecycle `action_execution.target_phase_resource_token`唯一持有，phase只借用；target的动作记录与`turn_frame_token`来自startup Group-A canonical owner。坐标查询后先清零对应`0x58` phase，再读取资源对象；可用时按Group-B常量发布emitter：lifetime divisor `0x28`、spawn divisor `0x3C`、remaining batches=`height/2`。解码`0x004019A0`入口保持`EAX=local_4`、`ECX=source共享资源token`、`EDX=资源对象首dword`；属性`0x0047CE70`入口保持`EAX=5`、`ECX=Group-A target token`，EDX高word继承source垂直调整值且低word为`height/2`。host-surface后直接恢复EDI/ESI/EBP/EBX、执行`add esp,10h`并`retn 8`，不执行Group-A尾部清零；正常残值为`EAX=surface_height`、`ECX=0x0051DF80`、`EDX=surface_width`。外层`0x0045645D`随后以这三项残值和target ECX调用真实`0x004787F0`，再以该callee返回残值和同一target ECX调用`0x0047D870`。
+
+leaf或parent typed-stop保留已完成的target动作记录、target `turn_frame_token`、source共享token、坐标低word及phase清零前缀，并阻断set-target-mode、clear-mode、attack-order移除、暗化、刷新、phase/input word和`0x004841B0`完成阶段。生产路径对`0x00478620`与`0x00484020`均为零opaque调用；后者自身inventory row 419仍保持`pending_audit`，本轮只回收其前缀中的callee caller。
+
+## 9. 测试与当前门禁
 
 leaf测试覆盖38组source fault、38组destination fault、重叠正向复制、三次push、三次pop、两组参数push、两组CALL返回地址push、两个leaf RET读取、动作更新零/非零、两个word fault、provider零/非零、frame-token fault、DF合同、两个出口、updater高字与EDX、provider残值、ESP和TEST/ADD flags。所有故障均断言LST对应的当前EIP；十二类正常路径栈停止逐项锁定完整栈内容、寄存器、flags、callee副作用与复制前缀；updater零值早退另行覆盖三类POP fault和早退RET fault。
 
-frame-input测试覆盖三个物理caller、caller-specific EBX/ESI/EDI、actor-order重算EAX与SUB flags、完整扫描后EDI=8的下一候选残值、两次动作更新与两次provider调用、typed token传给surface adapter、surface reply哨兵不污染Group-B首mirror和Group-A次mirror寄存器、Group-B首dword普通未命中、Group-B非零token/object-unreadable在action kind 6可达场景的mirror与action-six前停止、Group-A零token及非零token/object-unreadable保留reset/configure与一次mirror前缀后停止、REP中段fault对当前/剩余actor后缀的抑制、frame-token fault，以及reserved旧槽零调用。target-phase与action-dispatch测试另覆盖Group-B目标owner、source/target双token、五项parent栈写、leaf两出口、provider零token、REP中段fault、frame-token fault、基准坐标入口寄存器/flags、零token与非零token/object-unreadable在对象读取处的两次既有push、局部地址寄存器与XOR flags、演出后缀抑制和raw地址零调用。REVIEW 2通过注入式定向`1/1`、Linux core `199/199`、AddressSanitizer/UBSan `199/199`、Linux app `205/205`及连续十轮core `10/10`；全部正式stderr为空且无源码warning，发布审计随本次独立提交记录。
+frame-input测试覆盖三个物理caller、caller-specific EBX/ESI/EDI、actor-order重算EAX与SUB flags、完整扫描后EDI=8的下一候选残值、两次动作更新与两次provider调用、typed token传给surface adapter、surface reply哨兵不污染Group-B首mirror和Group-A次mirror寄存器、Group-B首dword普通未命中、Group-B非零token/object-unreadable在action kind 6可达场景的mirror与action-six前停止、Group-A零token及非零token/object-unreadable保留reset/configure与一次mirror前缀后停止、REP中段fault对当前/剩余actor后缀的抑制、frame-token fault，以及reserved旧槽零调用。target-phase与action-dispatch测试另覆盖Group-B目标owner、source/target双token、五项parent栈写、leaf两出口、provider零token、REP中段fault、frame-token fault、基准坐标入口寄存器/flags、零token与非零token/object-unreadable在对象读取处的既有push、局部地址寄存器与XOR flags、演出后缀抑制和raw地址零调用。REVIEW 3再覆盖两个Group-B source与两个Group-A target的二维phase隔离、显式Group-A token、source共享token借用、正常emitter常量、parent栈与最终寄存器/flags、REP部分提交、零token、非零token/object-unreadable、canonical坐标停止、host-surface行表停止、完整外层后缀抑制，以及`0x004841B0`仅在正常完成检查路径保留。
 
-## 9. 动态oracle缺口
+Workpack 289最终注入式定向`1/1`、Linux core `199/199`、AddressSanitizer/UBSan `199/199`、Linux app `205/205`及连续十轮core `10/10`均通过；全部正式stderr为空，changed-range格式检查通过。inventory双生成、TMP分类和完整unstaged/staged发布审计在发布冻结阶段完成。
+
+## 10. 动态oracle缺口
 
 原版动态差分仍为`blocked_runtime_oracle`：缺少完整Group-A/Group-B actor十八槽动作记录、重叠与异常source/destination/resource/栈内存页、两个callee寄存器与flags、DF、SEH及五处caller联合捕获后端。该缺口不影响完整LST、静态访问顺序、typed部分提交或固定状态测试结论。

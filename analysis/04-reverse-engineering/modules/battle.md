@@ -2,7 +2,7 @@
 
 状态：`module_in_progress`
 
-当前关闭进度：`287/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
+当前关闭进度：`289/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
 
 ## 1. 唯一真值与模块目标
 
@@ -51,10 +51,10 @@ code_origin == game
 - 尾地址：`0x00484500`；
 - `confirmed_boundary`：`61`；
 - `medium`导航候选：`361`；
-- `pending_audit`：`135`；
+- `pending_audit`：`133`；
 - `assembly_exact`：`10`；
-- `platform_adapted`：`277`；
-- 已关闭：`287`。
+- `platform_adapted`：`279`；
+- 已关闭：`289`。
 
 六个稳定导航分组为：
 
@@ -76,7 +76,7 @@ code_origin == game
 - `legacy_battle_assets`：FIGTALK固定窗口和`battle.ffd`头、索引、记录读取；
 - `legacy_battle_setup`：初始队伍筛选、固定阵型、镜像坐标和敌方记录布局。
 
-它们覆盖了`0x0046E0B0`、`0x0045F130`、`0x0045F1B0`与`0x00451B10`的部分有效资产路径或部分指令区间，但尚未证明所属函数的完整LST函数体、全部外部chunk、全部错误/循环/异常域、caller回收和完整战斗生命周期。因此这些历史切片继续不计数；当前`287/422`只来自本文件逐项登记且完成全部关闭门的函数，不得把其他测试通过、局部有效路径或真实battle 98样本当作函数关闭。
+它们覆盖了`0x0046E0B0`、`0x0045F130`、`0x0045F1B0`与`0x00451B10`的部分有效资产路径或部分指令区间，但尚未证明所属函数的完整LST函数体、全部外部chunk、全部错误/循环/异常域、caller回收和完整战斗生命周期。因此这些历史切片继续不计数；当前`289/422`只来自本文件逐项登记且完成全部关闭门的函数，不得把其他测试通过、局部有效路径或真实battle 98样本当作函数关闭。
 
 `app::battle_transition`和`frame_runtime`只实现顶层请求与返回编排，不属于422项战斗内部函数关闭计数。
 
@@ -787,6 +787,8 @@ I5最终必须锁定：
 
 本轮再完成`audit_order=288`的`0x00478600`战斗角色当前坐标查询函数。完整权威LST主体`0x00478600..0x0047861E`共31字节、7条实际指令、0个call、0个分支和1个`retn 8`，没有外部chunk；函数严格按第一输出指针读取、actor X读取、X低word写入、actor Y读取、第二输出指针读取、Y低word写入执行，正常返回保留入口EAX高word并令`AX=Y`、`EDX=out_x token`、`ECX=out_y token`，全部MOV与RET保持入口flags。typed实现保留六个真实访问停点、输出互相及输出/actor别名、Y侧故障时X部分提交，并与`0x004783B0` mode-gated selector query保持独立。三个REVIEW回收六个caller函数中的二十一个物理callsite：效果步进4处、debug overlay 1处、target-selection entry 1处、script dispatch 13处、turn gate 1处与Group-B action17 1处；Group-A复用startup party并在独立helper无startup时回退action owner，Group-B复用lifecycle action-execution owner。最后两处caller保留栈局部位形、EAX/ECX/EDX、到达call前flags、`-0x10/+0x10`与`+0x19/-0x19`调整、typed publication及query stop后的frame source、blit、倒计时和父级后缀抑制；reserved枚举ordinal保持，脚本SDL和opponent adapter空槽生产零raw调用。验证：最终定向`1/1`、Linux core`199/199`、AddressSanitizer/UBSan`199/199`、Linux app`205/205`、连续10轮完整core、changed-range clang-format、inventory双生成、TMP分类及完整unstaged/staged发布审计均通过，fresh reviewer最终返回PASS；最终日志零OpenSWD3源码warning、测试失败、sanitizer finding或runtime error，未启动原版或OpenSWD3应用程序。工作包为`288/422 = 278 platform_adapted + 10 assembly_exact + 134 pending_audit`；inventory SHA-256为`23c9d965fd4b9c964bc2803605411e7d9a7b50dbfbc94dc2993d603d7bc65ed7`。动态差分因原版完整Group-A/Group-B actor、异常栈与输出内存页、寄存器/flags/SEH及二十一处caller联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一步完成工作包288最终发布审计、commit、push、TG与规定文件重读，再为`audit_order=289 / 0x00478620`建立完整REVIEW计划。
+本轮再完成`audit_order=289`的`0x00478620`战斗角色帧资源准备函数。完整权威LST主体`0x00478620..0x0047866C`共77字节、29条实际指令、2个call、1个条件分支和2个普通`retn`，没有外部chunk；函数保存EBX/ESI/EDI后以DF=0执行38次正向`REP MOVSD`，直接组合已关闭动作更新与帧查询，完整EAX零早退，非零路径只替换EAX/ECX低word并无条件发布provider token。typed实现复用Group-A action dispatch与Group-B lifecycle内十八槽物理动作记录及canonical frame-token owner，保留重叠传播、source/destination部分提交、两次CALL隐式返回地址、两个RET、寄存器、ESP和TEST/ADD flags。三个REVIEW回收五个物理caller：frame input三处、Group-A目标演出一处与`0x00484020`前缀中的Group-B目标演出一处；最后一处复用source×target二维phase、source共享`+0x255C`、target动作owner、坐标/phase清零/资源/解码/属性/host-surface顺序，并校正外层真实`0x004787F0` mode调用及其EAX/ECX/EDX残值。生产`0x00478620`零raw调用；`audit_order=419 / 0x00484020`自身继续`pending_audit`。验证：定向测试、AddressSanitizer、Linux core 199/199、Linux app 205/205 全部通过。连续10轮完整core、changed-range clang-format、零源码warning/测试失败/sanitizer finding、inventory双生成、TMP分类及完整release审计全部通过；未启动原版或OpenSWD3游戏程序。工作包为`289/422 = 279 platform_adapted + 10 assembly_exact + 133 pending_audit`；inventory SHA-256为`ad09b8c14fa5660fcda7a0a5f5b02ec7528f1c3dd042f7af4c10c07b1c2324d7`。动态差分因原版完整Group-A/Group-B actor十八槽动作记录、重叠与异常内存页、callee寄存器/flags、DF/SEH及五处caller联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一步执行`audit_order=290 / 0x00478670`战斗角色资料token选择函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

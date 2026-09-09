@@ -89,13 +89,17 @@ runtime低wordbit0未置位时返回0。置位后清accumulator与两个selectio
 
 phase低word为0时：
 
-- 以组B source、目标索引和组A target启动目标phase；
-- 对组A target依序发布mode 1和clear mode 1；
+- 以组B source、目标索引和组A target直接组合typed目标phase；
+- phase owner按`group_b_source_index × group_a_target_index`选择唯一二维槽，target帧动作与`turn_frame_token`来自startup Group-A owner，source共享`target_phase_resource_token`来自同一Group-B lifecycle action-execution owner；
+- parent保持`sub esp,10h`、EBX/EBP/ESI/EDI保存、leaf参数和隐式返回地址；Group-B按坐标查询、对应`0x58` phase清零、资源对象读取执行，host-surface后不执行Group-A尾清零；
+- 以target ECX和typed phase返回的EAX/EDX残值调用真实`0x004787F0`发布mode 1，再以该callee残值和同一target ECX调用`0x0047D870`清mode 1；
 - 发布stage `target+8`；
 - 三个颜色factor写-12；
 - primary suppression写1；
 - effect stage以参数0启动；
 - phase低word与input mode低word写1。
+
+任一leaf、坐标、资源对象或host-surface typed-stop保留已提交target动作记录、target `turn_frame_token`、source共享token、坐标与phase前缀，并阻断mode、clear、stage、暗化、刷新、phase/input word及完成查询。生产不再调用`0x00484020`或其内部`0x00478620` opaque地址；`0x004841B0`完成查询仍保留为后续窄port。
 
 随后每帧查询目标phase完成。完成时input mode保持1，phase与suppression清零，current actor写`0xFFFF`，fade active写1并返回1；未完成返回0。
 
@@ -189,7 +193,7 @@ case 17逐帧入口内部原`0x0047656D`坐标publication已由typed action17直
 - 动作200/300及200的首次组A target停点；
 - case 1双side的组B行动执行typed直连、组A/组B target、返回0后缀阻断、typed-stop传播、旧整函数零调用、不同pair、selection清理和延迟；
 - case 2 deformation分配、构造、析构与owner释放；
-- case 6完整初始化/完成；
+- case 6完整typed初始化/完成、两个Group-B source与两个Group-A target的二维phase隔离、显式Group-A token、source共享token借用、五项parent栈、Group-B emitter常量、最终寄存器/flags、REP部分提交、provider零token、非零token/object-unreadable、canonical坐标与host-surface停止、全部外层后缀抑制，以及`0x00478620/0x00484020`零opaque调用和`0x004841B0`正常路径保留；
 - case 7攻击顺序移除直连、旧地址调用清零、低byte回绕与两个active target清理；
 - case 15 wave参数profile尾字段、两项有序输出、AX零扩展与EAX高word保留、源actor停止前缀、双wave镜像、共享记录前缀保留、220/350坐标、行动配置typed直连、profile stop、两个旧opaque地址零调用、三个stage与完成位形；
 - case 15第9项在8条完整副作用后typed-stop；
@@ -198,5 +202,7 @@ case 17逐帧入口内部原`0x0047656D`坐标publication已由typed action17直
 - 动作0与8个稀疏槽只执行入口callee；
 - framebuffer越界前refresh与完整owned前缀；
 - 全部原caller站点均有typed直连、已关闭callee复用或窄端口；组B行动配置的三个未审内部callee分别保留单一边界。
+
+Workpack 289 REVIEW 3最终定向`1/1`、Linux core `199/199`、AddressSanitizer/UBSan `199/199`、Linux app `205/205`及连续十轮core `10/10`均通过；全部正式stderr为空，changed-range格式检查通过。
 
 当前缺少原版组A/B对象、33类剩余callee共享副作用、攻击顺序与相邻强度效果记录、wave scratch与记录、AI表、DirectDraw framebuffer、allocator和SEH联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
