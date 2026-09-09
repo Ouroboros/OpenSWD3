@@ -142,13 +142,14 @@
   CMake选项时，设置`OPENSWD3_RECONFIGURE=1`强制重配。
 - 所有构建和测试必须使用仓库已有构建脚本；禁止直接调用`cmake`、`cmake --build`、`ctest`或
   `ninja`，不得自行拆解、重组或发明替代命令。
-- Linux configure、build与CTest流程只在`build.sh`维护一份；包装脚本只能选择配置并调用公共流程，
-  不得复制构建命令。
-- Linux core/app构建与测试分别强制使用`./build.sh core`和`./build.sh app`。
-- Linux AddressSanitizer完整core构建与测试强制使用`./build-asan.sh`；该包装器设置ASan配置后调用
-  `./build.sh core`。
-- `build.sh`、`build-asan.sh`与`build.bat`的编译和CTest默认都使用当前在线CPU数量的并发job。不得移除
-  同测试二进制调用锁或真实资产全局锁来换取虚假提速。
+- configure、build与CTest流程只在`build.py`维护一份；`build.sh`、`build-asan.sh`与`build.bat`只能
+  设置平台环境、选择配置并把参数转发给Python公共入口，不得复制构建或测试命令。
+- `build.py`、`build.sh`与`build.bat`默认只configure/build，不运行UT；只有显式传入`--test`时才运行
+  CTest。Linux core/app完整构建与测试分别强制使用`./build.sh core --test`和`./build.sh app --test`。
+- Linux AddressSanitizer完整core构建与测试强制使用`./build-asan.sh --test`；该包装器只设置ASan环境后
+  调用Python公共流程。
+- `build.py`的编译和显式CTest默认都使用当前在线CPU数量的并发job。不得移除同测试二进制调用锁或
+  真实资产全局锁来换取虚假提速。
 - 修改后运行仓库现有的定向测试和适用的 Linux/Windows 完整门禁。命令没有实际执行时，
   不得声称已构建、已测试或已通过。
 - 构建成功不等于运行验证成功，测试枚举数量也不等于测试实际通过。

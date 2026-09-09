@@ -5,4 +5,4 @@ set -euo pipefail
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 
 export OPENSWD3_SANITIZER=address
-exec ./build.sh core
+exec "${OPENSWD3_PYTHON:-python3}" build.py core "$@"

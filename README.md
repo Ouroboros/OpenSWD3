@@ -54,20 +54,18 @@ OpenSWD3 是对《轩辕剑叁》旧版 Windows 可执行程序的现代 C++ 重
 
 ### Windows + LLVM
 
-确保 `cmake`、`ninja`、`clang` 和 `clang++` 位于 `PATH`：
+根目录`build.py`是configure、build与CTest的唯一实现。`build.bat`只设置作者开发环境的工具路径并把参数转发给Python入口。默认只构建，不运行UT：
 
 ```console
-cmake --preset core -DCMAKE_CXX_COMPILER=clang++
-cmake --build --preset core-debug
-ctest --test-dir build/core -C Debug --output-on-failure
+build.bat core
+build.bat app
 ```
 
-构建 SDL3 应用：
+需要运行UT时显式传入`--test`：
 
 ```console
-cmake --preset app -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
-cmake --build --preset app-debug
-ctest --test-dir build/app -C Debug --output-on-failure
+build.bat core --test
+build.bat app --test
 ```
 
 生成的程序位于：
@@ -76,14 +74,7 @@ ctest --test-dir build/app -C Debug --output-on-failure
 build/app/src/platform/sdl3/Debug/openswd3.exe
 ```
 
-仓库还提供作者开发环境使用的快捷脚本：
-
-```console
-build.bat core
-build.bat app
-```
-
-该脚本顶部保存了本机工具路径；其他环境应修改这些变量，或直接使用上面的标准 CMake 命令。
+其他Windows环境可在调用前通过`OPENSWD3_PYTHON`、`OPENSWD3_CMAKE`、`OPENSWD3_CTEST`、`OPENSWD3_NINJA`、`CC`和`CXX`覆盖工具路径。
 
 ### FFmpeg 9.0媒体依赖
 
@@ -98,14 +89,22 @@ build.bat app
 
 ### Linux + LLVM
 
-确保 `cmake`、`ctest`、`make`、`clang` 和 `clang++` 位于 `PATH`，然后使用仓库配套脚本：
+确保Python 3、`cmake`、`ctest`、`ninja`、`clang`和`clang++`位于`PATH`。`build.sh`只把参数转发给统一Python入口；默认只构建，不运行UT：
 
 ```console
 ./build.sh core
 ./build.sh app
 ```
 
-脚本使用独立的 `build/linux-core` 和 `build/linux-app`，不会覆盖 Windows 构建目录。也可以通过 `CC`、`CXX`、`OPENSWD3_CMAKE` 和 `OPENSWD3_CTEST` 指定工具。
+需要运行UT时显式传入`--test`；AddressSanitizer包装器遵循相同规则：
+
+```console
+./build.sh core --test
+./build.sh app --test
+./build-asan.sh --test
+```
+
+脚本使用独立的`build/linux-core`、`build/linux-app`和`build/linux-asan`，不会覆盖Windows构建目录。也可以通过`OPENSWD3_PYTHON`、`CC`、`CXX`、`OPENSWD3_CMAKE`、`OPENSWD3_CTEST`和`OPENSWD3_NINJA`指定工具。
 
 Linux 脚本保留基本 X11 后端，并关闭当前工程不依赖的 Xcursor、Xfixes、XInput、XRandR 和 XTest 可选扩展，因此仅编译和运行现有启动骨架不要求安装这些开发包。
 
