@@ -285,6 +285,109 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
+        state.frame_enabled = 1U;
+        state.post_update_gate[0U] = 1U;
+        state.shared.action.active_effect_target = 0U;
+        state.phase_mode = 1U;
+        state.shared.action.group_a_count = 1;
+        Fixture fixture;
+        DispatchPort port;
+        port.push(0x00478B50U, {.eax = 0U, .edx = 0xA5A55A5AU});
+        auto context = fixture.context();
+        context.actor_turn_completion_request.access.latch_readable = false;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_turn_completion_typed_stop &&
+                result.actor_turn_completion_calls == 1U &&
+                result.actor_turn_completion.status ==
+                    openswd3::battle::LegacyBattleActorTurnCompletionStatus::
+                        latch_read_typed_stop &&
+                result.actor_turn_completion.return_eax == 0U &&
+                result.actor_turn_completion.return_ecx ==
+                    openswd3::battle::kLegacyBattleActionGroupABaseToken &&
+                result.actor_turn_completion.return_edx == 0xA5A55A5AU &&
+                result.actor_turn_completion.return_eip == 0x00478690U &&
+                result.actor_turn_completion.field_token ==
+                    openswd3::battle::kLegacyBattleActionGroupABaseToken +
+                        0x2AACU &&
+                result.actor_turn_completion.flags_known &&
+                result.actor_turn_completion.flags.carry &&
+                result.actor_turn_completion.flags.parity &&
+                result.actor_turn_completion.flags.auxiliary_carry_defined &&
+                result.actor_turn_completion.flags.auxiliary_carry &&
+                !result.actor_turn_completion.flags.zero &&
+                result.actor_turn_completion.flags.sign &&
+                !result.actor_turn_completion.flags.overflow &&
+                result.actor_turn_completion.return_esp ==
+                    context.actor_turn_completion_request.entry_esp &&
+                result.group_a_iterations == 0U && state.phase_progress == 0U &&
+                port.count(0x00478690U) == 0U &&
+                port.count(0x004786A0U) == 0U &&
+                port.count(0x0047C660U) == 0U && port.count(0x00478AC0U) == 0U,
+            "Group-B target scan preserves the excluded-query residue and stops before its post-call branch"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState zero_state;
+        zero_state.frame_enabled = 1U;
+        zero_state.post_update_gate[0U] = 1U;
+        zero_state.shared.action.active_effect_target = 0U;
+        zero_state.phase_mode = 1U;
+        zero_state.shared.action.group_a_count = 1;
+        zero_state.shared.action.group_a_action_execution[0U]
+            .turn_completion_latch = 0U;
+        Fixture zero_fixture;
+        DispatchPort zero_port;
+        auto zero_context = zero_fixture.context();
+        const auto zero = openswd3::battle::advance_legacy_battle_group_b_frame(
+            zero_state, zero_port, zero_context, 0U
+        );
+
+        LegacyBattleGroupBFrameState nonzero_state;
+        nonzero_state.frame_enabled = 1U;
+        nonzero_state.post_update_gate[0U] = 1U;
+        nonzero_state.shared.action.active_effect_target = 0U;
+        nonzero_state.phase_mode = 1U;
+        nonzero_state.shared.action.group_a_count = 1;
+        nonzero_state.shared.action.group_a_action_execution[0U]
+            .turn_completion_latch = 11U;
+        Fixture nonzero_fixture;
+        DispatchPort nonzero_port;
+        auto nonzero_context = nonzero_fixture.context();
+        const auto nonzero =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                nonzero_state, nonzero_port, nonzero_context, 0U
+            );
+
+        test.expect_true(
+            zero.actor_turn_completion_calls == 1U &&
+                zero.actor_turn_completion.returned &&
+                zero.actor_turn_completion.return_eax == 0U &&
+                zero.actor_turn_completion.return_eip == 0x00457852U &&
+                zero_port.count(0x004786A0U) == 2U &&
+                zero_port.count(0x0047C660U) == 1U &&
+                zero_port.count(0x00478AC0U) == 1U &&
+                nonzero.actor_turn_completion_calls == 1U &&
+                nonzero.actor_turn_completion.returned &&
+                nonzero.actor_turn_completion.return_eax == 11U &&
+                nonzero.actor_turn_completion.return_eip == 0x00457852U &&
+                nonzero_port.count(0x004786A0U) == 1U &&
+                nonzero_port.count(0x0047C660U) == 0U &&
+                nonzero_port.count(0x00478AC0U) == 0U &&
+                zero_port.count(0x00478690U) == 0U &&
+                nonzero_port.count(0x00478690U) == 0U,
+            "Group-B candidate TEST runs idle and preparation only for a zero Group-A latch"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState state;
         state.shared.action.frame_effect.primary_suppression = 1U;
         state.shared.action.group_a_to_actor[0] = 3U;
         Fixture fixture;

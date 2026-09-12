@@ -26,7 +26,6 @@ constexpr u32 kCallQueryQueueCompletion = 0x0047F920U;
 constexpr u32 kCallResetActor = 0x00478850U;
 constexpr u32 kCallQueryActorBlocked = 0x0047D930U;
 constexpr u32 kCallQueryActorExcluded = 0x00478B50U;
-constexpr u32 kCallQueryTargetBusy = 0x00478690U;
 constexpr u32 kCallQueryIdle = 0x004786A0U;
 constexpr u32 kCallClearControl = 0x0047C660U;
 constexpr u32 kCallPrepareTarget = 0x00478AC0U;
@@ -53,6 +52,29 @@ constexpr u32 kCallSetCompletionMode = 0x0047CEC0U;
 constexpr u32 kCallPrepareCompletionSurface = 0x0047F150U;
 constexpr u32 kCallQueryEffect = 0x004786D0U;
 constexpr u32 kCallPublishEffectMode = 0x00478B60U;
+
+[[nodiscard]] constexpr bool has_even_parity(u32 value) noexcept {
+    value &= 0xFFU;
+    value ^= value >> 4U;
+    value ^= value >> 2U;
+    value ^= value >> 1U;
+    return (value & 1U) == 0U;
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+subtract_flags(const u32 left, const u32 right) noexcept {
+    const u32 difference = left - right;
+    return {
+        .carry = left < right,
+        .parity = has_even_parity(difference),
+        .auxiliary_carry = ((left ^ right ^ difference) & 0x10U) != 0U,
+        .auxiliary_carry_defined = true,
+        .zero = difference == 0U,
+        .sign = (difference & 0x80000000U) != 0U,
+        .overflow =
+            (((left ^ right) & (left ^ difference)) & 0x80000000U) != 0U,
+    };
+}
 
 [[nodiscard]] constexpr u32 to_bits(const i32 value) noexcept {
     return std::bit_cast<u32>(value);
@@ -123,6 +145,40 @@ void replace_low_byte(u32& destination, const u8 value) noexcept {
     std::copy(arguments.begin(), arguments.end(), request.arguments.begin());
     ++result.port_calls;
     return port.invoke(request);
+}
+
+[[nodiscard]] bool query_turn_completion(
+    LegacyBattleActionDispatchResult& result,
+    LegacyBattleActionDispatchContext& context,
+    const LegacyBattleActorTurnCompletionOwners& owners,
+    const u32 actor_token,
+    const u32 entry_eax,
+    const u32 entry_edx,
+    const LegacyBattleActorCoordinateFlags& entry_flags,
+    const u32 return_address,
+    u32& value
+) {
+    auto request = context.actor_turn_completion_request;
+    request.actor_token = actor_token;
+    request.entry_eax = entry_eax;
+    request.entry_edx = entry_edx;
+    request.entry_return_address = return_address;
+    request.entry_flags = entry_flags;
+    request.entry_flags_known = true;
+    result.actor_turn_completion = query_legacy_battle_actor_turn_completion(
+        resolve_legacy_battle_actor_turn_completion(owners, actor_token),
+        request
+    );
+    ++result.actor_turn_completion_calls;
+    if (result.actor_turn_completion.status !=
+        LegacyBattleActorTurnCompletionStatus::completed) {
+        result.status =
+            LegacyBattleActionDispatchStatus::actor_turn_completion_typed_stop;
+        result.return_value = result.actor_turn_completion.return_eax;
+        return false;
+    }
+    value = result.actor_turn_completion.return_eax;
+    return true;
 }
 
 [[nodiscard]] bool publish_text_message(
@@ -433,6 +489,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                     return result;
                                 }
                                 const u32 target = group_a_token(uindex);
+                                bool target_available = false;
                                 if (invoke(
                                         port,
                                         result,
@@ -447,28 +504,43 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                         kCallQueryActorBlocked,
                                         {target}
                                     )
-                                            .eax != 1U &&
-                                    invoke(
+                                            .eax != 1U) {
+                                    const auto excluded = invoke(
                                         port,
                                         result,
                                         kCallQueryActorExcluded,
                                         {target}
-                                    )
-                                            .eax != 1U &&
-                                    invoke(
-                                        port,
-                                        result,
-                                        kCallQueryTargetBusy,
-                                        {target}
-                                    )
-                                            .eax == 0U &&
-                                    invoke(
-                                        port,
-                                        result,
-                                        kCallQueryIdle,
-                                        {source_token}
-                                    )
-                                            .eax == 0U) {
+                                    );
+                                    if (excluded.eax != 1U) {
+                                        u32 target_turn_completion{};
+                                        if (!query_turn_completion(
+                                                result,
+                                                context,
+                                                {.action = &action,
+                                                 .startup = context.startup},
+                                                target,
+                                                excluded.eax,
+                                                excluded.edx,
+                                                subtract_flags(
+                                                    excluded.eax, stale_ebx
+                                                ),
+                                                0x00457852U,
+                                                target_turn_completion
+                                            )) {
+                                            return result;
+                                        }
+                                        target_available =
+                                            target_turn_completion == 0U &&
+                                            invoke(
+                                                port,
+                                                result,
+                                                kCallQueryIdle,
+                                                {source_token}
+                                            )
+                                                    .eax == 0U;
+                                    }
+                                }
+                                if (target_available) {
                                     static_cast<void>(invoke(
                                         port,
                                         result,

@@ -7,6 +7,7 @@
 #include "openswd3/battle/legacy_battle_actor_base_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_actor_coordinate_publication.hpp"
 #include "openswd3/battle/legacy_battle_actor_frame_resource.hpp"
+#include "openswd3/battle/legacy_battle_actor_turn_completion.hpp"
 #include "openswd3/battle/legacy_battle_actor_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_actor_progress.hpp"
 #include "openswd3/battle/legacy_battle_actor_render_offsets.hpp"
@@ -1376,6 +1377,7 @@ struct LegacyBattleActionDispatchContext {
     compat::u32 target_phase_time_seed{};
     LegacyBattleTargetPhaseStartRequest target_phase_start_request{};
     LegacyBattleTargetPhaseStartRequest opponent_target_phase_start_request{};
+    LegacyBattleActorTurnCompletionRequest actor_turn_completion_request{};
     LegacyBattleImageParticleStackSnapshot target_phase_spawn_stack_snapshot{};
     bool scripted_resource_release_test_compat{};
 };
@@ -1394,6 +1396,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     scale_scan_typed_stop,
     internal_flag_typed_stop,
     actor_coordinate_typed_stop,
+    actor_turn_completion_typed_stop,
     effect_record_typed_stop,
     actor_metric_typed_stop,
     actor_order_typed_stop,
@@ -1473,6 +1476,8 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 action_record_clear_calls{};
     LegacyBattleActorCoordinateQueryResult coordinate_query{};
     compat::u32 coordinate_query_calls{};
+    LegacyBattleActorTurnCompletionResult actor_turn_completion{};
+    compat::u32 actor_turn_completion_calls{};
     LegacyBattleFixedCountResult fixed_count{};
     compat::u32 fixed_count_calls{};
     LegacyBattleFixedCountLookupResult fixed_count_lookup{};

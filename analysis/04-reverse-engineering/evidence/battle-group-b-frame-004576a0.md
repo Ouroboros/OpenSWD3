@@ -47,8 +47,10 @@ phase progress = u32(group_b_count) - processed low byte
 - 固定actor AI dword不等于1；
 - blocked查询不等于1；
 - excluded查询不等于1；
-- target busy为0；
+- `0x0045784D`直接组合typed回合完成查询，从共享action state的`group_a_action_execution[]` canonical owner读取完整latch，且latch为0；
 - 当前组B对象idle为0。
+
+caller把excluded getter的完整EAX/EDX、紧随其后的`cmp eax,1` flags与真实返回地址传入leaf。getter停止发生在后续TEST前，保留terminal、blocked与excluded调用前缀，阻断source idle、clear control、prepare target、progress累加和剩余循环。生产路径不再通过generic端口调用`0x00478690`。
 
 进入正数循环前，原EBX被写1；`group_a_count<=0`则保留入口的`stride*index`陈旧EBX。
 
@@ -165,7 +167,7 @@ pending effect ID非全1时调用pending step `(source,shared_argument,index)`�
 
 ## 12. callee、测试与动态差分
 
-46个唯一callee中，已关闭对手动作分派`0x00455D60`、玩家道具双数量步进`0x0045D180`、攻击顺序登记`0x0045EDF0`、文字消息入链`0x004698E0`、组B行动进度`0x004755E0`、组B对手模式`0x00476080`、组B行动资料标记`0x00476140`、组B行动profile/mode组合`0x004761D0`和角色进度阈值同步`0x00478370`直接typed组合；文字消息的两处调用复用启动状态唯一链头和动态节点owner，行动进度、三个组B判定/组合与阈值同步复用startup的actor/resource/profile/timing owner。`0x004761D0`内部待审profile loader替代原整函数token进入窄端口，其余37个角色、AI、状态、文本、完成资源和效果callee继续使用共享typed token端口。
+46个唯一callee中，已关闭对手动作分派`0x00455D60`、玩家道具双数量步进`0x0045D180`、攻击顺序登记`0x0045EDF0`、文字消息入链`0x004698E0`、组B行动进度`0x004755E0`、组B对手模式`0x00476080`、组B行动资料标记`0x00476140`、组B行动profile/mode组合`0x004761D0`、角色进度阈值同步`0x00478370`和回合完成查询`0x00478690`直接typed组合；文字消息的两处调用复用启动状态唯一链头和动态节点owner，行动进度、三个组B判定/组合与阈值同步复用startup的actor/resource/profile/timing owner，回合完成查询复用共享Group-A action owner。`0x004761D0`内部待审profile loader替代原整函数token进入窄端口，其余36个角色、AI、状态、文本、完成资源和效果callee继续使用共享typed token端口。
 
 定向测试覆盖：
 
@@ -173,6 +175,7 @@ pending effect ID非全1时调用pending step `(source,shared_argument,index)`�
 - frame disabled仍执行公共尾及完整EAX；
 - live update、组B进度与攻击顺序共享记录直连、两个旧callback清零、资源typed-stop前缀、记录typed-stop前缀与陈旧stride EBX写block；
 - queue完成直接返回reset完整EAX；
+- phase Group-A扫描的回合完成caller保留excluded EAX/EDX与CMP flags，在字段停止时抑制source idle、目标准备和剩余循环，且旧callee token零调用；
 - phase side跳过随机/status；
 - 随机组B同伴；
 - profile覆盖EDX低byte；

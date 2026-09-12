@@ -70,7 +70,6 @@ constexpr u32 kCallQueryQueueMode = 0x00483820U;
 constexpr u32 kCallQueryQueueCompletion = 0x0047F920U;
 constexpr u32 kCallQueryActorIdle = 0x004786A0U;
 constexpr u32 kCallQueryActorAvailable = 0x0047C670U;
-constexpr u32 kCallQueryOneBasedTarget = 0x00478690U;
 constexpr u32 kCallClearControl = 0x0047C660U;
 constexpr u32 kCallClearPresentation = 0x0047CC50U;
 constexpr u32 kCallSetDelay = 0x00478710U;
@@ -88,7 +87,6 @@ constexpr u32 kCallClearActorAction = 0x00478B20U;
 constexpr u32 kCallResetTarget = 0x00478AE0U;
 constexpr u32 kCallPublishAllActors = 0x0047E950U;
 constexpr u32 kCallClearNonterminal = 0x00483FF0U;
-constexpr u32 kCallQueryTargetBusy = 0x00478690U;
 constexpr u32 kCallPrepareTarget = 0x00478AC0U;
 constexpr u32 kCallUpdateTurnAction = 0x004321E0U;
 constexpr u32 kCallLookupTurnFrame = 0x004315D0U;
@@ -377,6 +375,40 @@ one_based_group_b_token(const u32 one_based) noexcept {
 ) {
     ++result.port_calls;
     return port.invoke({.callee_token = callee, .arguments = arguments});
+}
+
+[[nodiscard]] bool query_turn_completion(
+    LegacyBattleActionDispatchResult& result,
+    LegacyBattleActionDispatchContext& context,
+    const LegacyBattleActorTurnCompletionOwners& owners,
+    const u32 actor_token,
+    const u32 entry_eax,
+    const u32 entry_edx,
+    const LegacyBattleActorCoordinateFlags& entry_flags,
+    const u32 return_address,
+    u32& value
+) {
+    auto request = context.actor_turn_completion_request;
+    request.actor_token = actor_token;
+    request.entry_eax = entry_eax;
+    request.entry_edx = entry_edx;
+    request.entry_return_address = return_address;
+    request.entry_flags = entry_flags;
+    request.entry_flags_known = true;
+    result.actor_turn_completion = query_legacy_battle_actor_turn_completion(
+        resolve_legacy_battle_actor_turn_completion(owners, actor_token),
+        request
+    );
+    ++result.actor_turn_completion_calls;
+    if (result.actor_turn_completion.status !=
+        LegacyBattleActorTurnCompletionStatus::completed) {
+        result.status =
+            LegacyBattleActionDispatchStatus::actor_turn_completion_typed_stop;
+        result.return_value = result.actor_turn_completion.return_eax;
+        return false;
+    }
+    value = result.actor_turn_completion.return_eax;
+    return true;
 }
 
 [[nodiscard]] bool process_group_a_final(
@@ -1270,10 +1302,25 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     )) {
                     return result;
                 }
-                const u32 selected =
-                    one_based_group_a_token(state.selected_actor_one_based);
-                if (invoke(port, result, kCallQueryOneBasedTarget, {selected})
-                            .eax == 0U &&
+                const u32 selected_ordinal = state.selected_actor_one_based;
+                const u32 selected = one_based_group_a_token(selected_ordinal);
+                u32 selected_turn_completion{};
+                if (!query_turn_completion(
+                        result,
+                        context,
+                        {.action = &state.action, .startup = context.startup},
+                        selected,
+                        selected_ordinal * 0x3EFU,
+                        selected_ordinal * 0xBCDU,
+                        subtract_flags(
+                            selected_ordinal * 0x3F0U, selected_ordinal
+                        ),
+                        0x00456DDBU,
+                        selected_turn_completion
+                    )) {
+                    return result;
+                }
+                if (selected_turn_completion == 0U &&
                     state.action.active_effect_target !=
                         state.selected_actor_one_based + 7U &&
                     invoke(port, result, kCallQueryActorIdle, {actor_token})
@@ -1795,15 +1842,31 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                 }
             }
         } else if (state.action_block_gate == 0U) {
-            const u16 queried_target = low_word(
-                invoke(port, result, kCallQueryActionTarget, {actor_token}).eax
-            );
+            const auto queried_target_reply =
+                invoke(port, result, kCallQueryActionTarget, {actor_token});
+            const u16 queried_target = low_word(queried_target_reply.eax);
             if (!validate_group_b(result, queried_target)) {
                 return result;
             }
             u32 target_token = group_b_token(queried_target);
-            if (invoke(port, result, kCallQueryTargetBusy, {target_token})
-                    .eax == 0U) {
+            u32 target_turn_completion{};
+            if (!query_turn_completion(
+                    result,
+                    context,
+                    {.action = &state.action, .startup = context.startup},
+                    target_token,
+                    static_cast<u32>(queried_target) *
+                        (kLegacyBattleActionGroupBStride / 8U),
+                    queried_target_reply.edx,
+                    subtract_flags(
+                        static_cast<u32>(queried_target) * 0x18U, queried_target
+                    ),
+                    0x00456EF0U,
+                    target_turn_completion
+                )) {
+                return result;
+            }
+            if (target_turn_completion == 0U) {
                 state.final_actor_step.action_execution_active = 1U;
                 state.action.current_actor_index =
                     static_cast<u16>(state.action.active_effect_target);
