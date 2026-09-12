@@ -98,6 +98,7 @@ struct LegacyBattleGroupAActionExecutionState
     compat::u16 turn_target_x_offset{};          // actor + 0x29B4
     compat::u16 special_primary_draw_x{};        // actor + 0x29B8
     compat::u16 special_primary_draw_y{};        // actor + 0x29BA
+    compat::u16 action_kind{};                   // actor + 0x2A6C
     compat::u32 turn_completion_latch{};         // actor + 0x2AAC
     compat::u32 turn_completion_aux{};           // actor + 0x2AB0
     compat::u32 idle_state_latch{};              // actor + 0x2AB4

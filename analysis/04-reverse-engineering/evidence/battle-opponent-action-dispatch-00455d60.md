@@ -26,7 +26,7 @@ loc_498370 + SEH_455D60
 0x00525508 + group_b_index * 0x2B28
 ```
 
-首次对象访问即查询动作号，结果只取AX。与`0x004539B0`不同，本函数没有terminal查询，也没有主0后的fallback动作号。
+首次对象访问直接组合已关闭的typed动作种类word查询，结果只取AX；旧`0x004786B0` opaque地址生产调用为零。与`0x004539B0`不同，本函数没有terminal查询，也没有主0后的fallback动作号。动作word或返回地址typed-stop保留入口部分寄存器与flags，并阻断动作switch和全部case后缀。
 
 动作域：
 
@@ -36,7 +36,7 @@ loc_498370 + SEH_455D60
 - 其他大于100值：返回0；
 - 1–17：进入固定稀疏jump table。
 
-组B入口索引只在动作号查询点检查。第二参数不做入口预验；仅case 1、6、7、200和300在首次对应组A/组B对象callee处检查。动作100、未识别大动作、case 10及switch default不访问第二参数。
+组B入口索引只在typed动作种类word查询点检查。第二参数不做入口预验；仅case 1、6、7、200和300在首次对应组A/组B对象callee处检查。动作100、未识别大动作、case 10及switch default不访问第二参数。
 
 ## 3. 17项稀疏jump table
 

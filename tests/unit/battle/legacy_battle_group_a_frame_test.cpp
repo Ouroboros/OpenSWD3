@@ -30,9 +30,6 @@ public:
             found->second.pop_front();
             return reply;
         }
-        if (request.callee_token == 0x004786B0U) {
-            return {.eax = action};
-        }
         if (request.callee_token == 0x004786E0U) {
             return {.eax = action_target};
         }
@@ -1031,7 +1028,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
         state.action.selected_target_index = 0U;
         Fixture fixture;
         DispatchPort port;
-        port.action = 5U;
+        state.action.group_a_action_execution[0U].action_kind = 5U;
         port.action_target = 0U;
         port.push(0x0047CE80U, {.eax = 0U});
         auto context = fixture.context();
@@ -1042,7 +1039,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
                 result.return_value == 1U && port.count(0x004539B0U) == 0U &&
-                port.count(0x004786B0U) == 1U &&
+                port.count(0x004786B0U) == 0U &&
                 has_call_argument(port, 0x00478850U, 0U, 0x00525508U) &&
                 state.final_actor_step.action_execution_active == 0U &&
                 state.action.active_effect_target == 0xFFFFFFFFU &&

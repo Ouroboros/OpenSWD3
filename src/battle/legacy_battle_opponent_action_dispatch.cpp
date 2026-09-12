@@ -19,7 +19,6 @@ using compat::u8;
 using compat::u16;
 using compat::u32;
 
-constexpr u32 kCallQueryAction = 0x004786B0U;
 constexpr u32 kCallCommitVisual = 0x0047F150U;
 constexpr u32 kCallSetDelay = 0x00478710U;
 constexpr u32 kCallQuerySelection = 0x0047C680U;
@@ -55,6 +54,28 @@ constexpr u32 kOpponentRecordStride = 0x20U;
 
 [[nodiscard]] constexpr u16 low_word(const u32 value) noexcept {
     return static_cast<u16>(value);
+}
+
+[[nodiscard]] constexpr bool has_even_parity(u32 value) noexcept {
+    value &= 0xFFU;
+    value ^= value >> 4U;
+    value ^= value >> 2U;
+    value ^= value >> 1U;
+    return (value & 1U) == 0U;
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+subtract_flags(const u32 left, const u32 right) noexcept {
+    const u32 value = left - right;
+    return {
+        .carry = left < right,
+        .parity = has_even_parity(value),
+        .auxiliary_carry = ((left ^ right ^ value) & 0x10U) != 0U,
+        .auxiliary_carry_defined = true,
+        .zero = value == 0U,
+        .sign = (value & 0x80000000U) != 0U,
+        .overflow = (((left ^ right) & (left ^ value)) & 0x80000000U) != 0U,
+    };
 }
 
 [[nodiscard]] constexpr u8 low_byte(const u32 value) noexcept {
@@ -311,8 +332,32 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
         return result;
     }
     const u32 source_token = group_b_token(group_b_index);
-    const auto action_reply =
-        invoke(state, port, result, kCallQueryAction, {source_token});
+    auto action_kind_request = context.actor_action_kind_request;
+    action_kind_request.actor_token = source_token;
+    action_kind_request.entry_eax = group_b_index * 0x565U;
+    action_kind_request.entry_return_address = 0x00455D9CU;
+    action_kind_request.entry_flags =
+        subtract_flags(group_b_index * 24U, group_b_index);
+    action_kind_request.entry_flags_known = true;
+    result.actor_action_kind = query_legacy_battle_actor_action_kind(
+        resolve_legacy_battle_actor_action_kind(
+            {.action = &state, .startup = context.startup}, source_token
+        ),
+        action_kind_request
+    );
+    ++result.actor_action_kind_calls;
+    if (result.actor_action_kind.status !=
+        LegacyBattleActorActionKindStatus::completed) {
+        result.status =
+            LegacyBattleActionDispatchStatus::actor_action_kind_typed_stop;
+        result.return_value = result.actor_action_kind.return_eax;
+        return result;
+    }
+    const LegacyBattleActionCallReply action_reply{
+        .eax = result.actor_action_kind.return_eax,
+        .ecx = result.actor_action_kind.return_ecx,
+        .edx = result.actor_action_kind.return_edx,
+    };
     const u16 action = low_word(action_reply.eax);
     result.action_code = action;
 

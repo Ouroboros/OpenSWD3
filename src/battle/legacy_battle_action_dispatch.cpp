@@ -78,7 +78,6 @@ using compat::u16;
 using compat::u32;
 
 constexpr u32 kCallLegacyRandom = 0x00439070U;
-constexpr u32 kCallQueryAction = 0x004786B0U;
 constexpr u32 kCallQueryFallbackAction = 0x004786C0U;
 constexpr u32 kCallActorTerminal = 0x0047CE80U;
 constexpr u32 kCallCommitVisual = 0x0047F150U;
@@ -6167,11 +6166,31 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
         return result;
     }
     const u32 actor_token = group_a_token(group_a_index);
-    LegacyBattleActionCallReply reply =
-        invoke(state, port, result, kCallQueryAction, {actor_token});
-    u16 action = low_word(reply.eax);
+    auto action_kind_request = context.actor_action_kind_request;
+    action_kind_request.actor_token = actor_token;
+    action_kind_request.entry_eax = group_a_index * 0xBCDU;
+    action_kind_request.entry_return_address = 0x004539EBU;
+    action_kind_request.entry_flags =
+        subtract_flags(group_a_index * 0x3F0U, group_a_index);
+    action_kind_request.entry_flags_known = true;
+    result.actor_action_kind = query_legacy_battle_actor_action_kind(
+        resolve_legacy_battle_actor_action_kind(
+            {.action = &state, .startup = context.startup}, actor_token
+        ),
+        action_kind_request
+    );
+    ++result.actor_action_kind_calls;
+    if (result.actor_action_kind.status !=
+        LegacyBattleActorActionKindStatus::completed) {
+        result.status =
+            LegacyBattleActionDispatchStatus::actor_action_kind_typed_stop;
+        result.return_value = result.actor_action_kind.return_eax;
+        return result;
+    }
+    u16 action = low_word(result.actor_action_kind.return_eax);
     result.action_code = action;
-    reply = invoke(state, port, result, kCallActorTerminal, {actor_token});
+    LegacyBattleActionCallReply reply =
+        invoke(state, port, result, kCallActorTerminal, {actor_token});
     if (reply.eax == 1U) {
         result.return_value = 1U;
         return result;

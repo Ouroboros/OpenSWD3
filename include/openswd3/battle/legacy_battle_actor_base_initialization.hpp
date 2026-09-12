@@ -33,7 +33,6 @@ struct LegacyBattleActorBaseInitializationOwner {
     std::array<compat::u8, kLegacyBattleActorBaseActionTextBytes>
         action_text{};  // actor + 0x2630
     LegacyBattleGroupAActionExecutionState action_execution{};
-    compat::u16 action_kind{};  // actor + 0x2A6C
 };
 
 struct LegacyBattleActorBaseInitializationRequest {

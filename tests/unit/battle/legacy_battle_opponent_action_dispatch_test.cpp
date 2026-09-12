@@ -33,9 +33,6 @@ public:
             found->second.pop_front();
             return reply;
         }
-        if (request.callee_token == 0x004786B0U) {
-            return {.eax = action};
-        }
         if (request.callee_token == 0x00489E90U) {
             return {.eax = 0x90000000U};
         }
@@ -47,8 +44,7 @@ public:
         openswd3::battle::LegacyBattleActorGroupBElementState& actor
     ) override {
         const auto reply = invoke(request);
-        if (complete_group_b_execution &&
-            request.callee_token == 0x0047C950U) {
+        if (complete_group_b_execution && request.callee_token == 0x0047C950U) {
             actor.action_execution.primary_action_record.field_8c = 1U;
         }
         return reply;
@@ -321,6 +317,24 @@ struct Fixture {
     }
 };
 
+[[nodiscard]] openswd3::battle::LegacyBattleActionDispatchResult dispatch(
+    openswd3::battle::LegacyBattleActionDispatchState& state,
+    DispatchPort& port,
+    openswd3::battle::LegacyBattleActionDispatchContext& context,
+    const u32 group_b_index,
+    const u32 caller_group_a_index
+) {
+    if (context.startup != nullptr &&
+        context.startup->group_b_lifecycle != nullptr &&
+        group_b_index < context.startup->group_b_lifecycle->size()) {
+        (*context.startup->group_b_lifecycle)[group_b_index]
+            .action_composition.action_kind = port.action;
+    }
+    return openswd3::battle::dispatch_legacy_battle_opponent_action(
+        state, port, context, group_b_index, caller_group_a_index
+    );
+}
+
 [[nodiscard]] bool has_call_argument(
     const DispatchPort& port,
     const u32 callee,
@@ -340,6 +354,68 @@ struct Fixture {
 void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleActionDispatchState;
     using openswd3::battle::LegacyBattleActionDispatchStatus;
+
+    {
+        LegacyBattleActionDispatchState state;
+        Fixture fixture;
+        DispatchPort port;
+        port.action = 300U;
+        auto context = fixture.context();
+        context.actor_action_kind_request.entry_edx = 0xAABBCCDDU;
+        context.actor_action_kind_request.entry_esp = 0x82003000U;
+        const auto result = dispatch(state, port, context, 2U, 0U);
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.action_code == 300U &&
+                result.actor_action_kind_calls == 1U &&
+                result.actor_action_kind.return_eax == 0x0000012CU &&
+                result.actor_action_kind.return_ecx == 0x0052AB58U &&
+                result.actor_action_kind.return_edx == 0xAABBCCDDU &&
+                result.actor_action_kind.return_esp == 0x82003004U &&
+                result.actor_action_kind.return_eip == 0x00455D9CU &&
+                result.actor_action_kind.flags.parity &&
+                result.actor_action_kind.flags.auxiliary_carry &&
+                !result.actor_action_kind.flags.carry &&
+                !result.actor_action_kind.flags.zero &&
+                port.count(0x004786B0U) == 0U && port.count(0x00482840U) == 1U,
+            "opponent dispatcher composes the action-kind getter with stride arithmetic residues and real return address"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        Fixture fixture;
+        DispatchPort port;
+        port.action = 0x1234U;
+        auto field_context = fixture.context();
+        field_context.actor_action_kind_request.entry_edx = 0x11223344U;
+        field_context.actor_action_kind_request.access.action_kind_readable =
+            false;
+        const auto field_stop = dispatch(state, port, field_context, 1U, 0U);
+
+        auto return_context = fixture.context();
+        return_context.actor_action_kind_request.entry_edx = 0x55667788U;
+        return_context.actor_action_kind_request.access
+            .return_address_readable = false;
+        const auto return_stop = dispatch(state, port, return_context, 1U, 0U);
+        test.expect_true(
+            field_stop.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_action_kind_typed_stop &&
+                field_stop.actor_action_kind.return_eax == 0x00000565U &&
+                field_stop.actor_action_kind.return_eip == 0x004786B0U &&
+                field_stop.actor_action_kind.action_kind_reads == 0U &&
+                return_stop.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_action_kind_typed_stop &&
+                return_stop.actor_action_kind.return_eax == 0x00001234U &&
+                return_stop.actor_action_kind.return_eip == 0x004786B7U &&
+                return_stop.actor_action_kind.action_kind_reads == 1U &&
+                return_stop.actor_action_kind.return_address_reads == 0U &&
+                port.calls.empty(),
+            "opponent dispatcher propagates action-kind field and RET stops before every switch side effect"
+        );
+    }
 
     {
         using Call =
@@ -379,10 +455,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         DispatchPort port;
         port.action = 1U;
         auto context = fixture.context();
-        const auto result =
-            openswd3::battle::dispatch_legacy_battle_opponent_action(
-                state, port, context, 8U, 0U
-            );
+        const auto result = dispatch(state, port, context, 8U, 0U);
         test.expect_true(
             result.status ==
                     LegacyBattleActionDispatchStatus::
@@ -398,12 +471,10 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         DispatchPort port;
         port.action = 100U;
         auto context = fixture.context();
-        const auto result =
-            openswd3::battle::dispatch_legacy_battle_opponent_action(
-                state, port, context, 0U, 0xFFFFFFFFU
-            );
+        const auto result = dispatch(state, port, context, 0U, 0xFFFFFFFFU);
         test.expect_true(
-            result.return_value == 1U && result.port_calls == 1U,
+            result.return_value == 1U && result.port_calls == 0U &&
+                result.actor_action_kind_calls == 1U,
             "opponent action one hundred returns one before target access"
         );
     }
@@ -414,12 +485,10 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         DispatchPort port;
         port.action = 500U;
         auto context = fixture.context();
-        const auto result =
-            openswd3::battle::dispatch_legacy_battle_opponent_action(
-                state, port, context, 0U, 0xFFFFFFFFU
-            );
+        const auto result = dispatch(state, port, context, 0U, 0xFFFFFFFFU);
         test.expect_true(
-            result.return_value == 0U && result.port_calls == 1U,
+            result.return_value == 0U && result.port_calls == 0U &&
+                result.actor_action_kind_calls == 1U,
             "unrecognized large opponent action returns before target access"
         );
     }
@@ -430,15 +499,12 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         DispatchPort port;
         port.action = 200U;
         auto context = fixture.context();
-        const auto result =
-            openswd3::battle::dispatch_legacy_battle_opponent_action(
-                state, port, context, 0U, 10U
-            );
+        const auto result = dispatch(state, port, context, 0U, 10U);
         test.expect_true(
             result.status ==
                     LegacyBattleActionDispatchStatus::
                         group_a_index_typed_stop &&
-                result.port_calls == 1U,
+                result.port_calls == 0U && result.actor_action_kind_calls == 1U,
             "opponent action two hundred stops at first group A target call"
         );
     }
@@ -451,10 +517,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
             DispatchPort port;
             port.action = action;
             auto context = fixture.context();
-            const auto result =
-                openswd3::battle::dispatch_legacy_battle_opponent_action(
-                    state, port, context, 1U, 2U
-                );
+            const auto result = dispatch(state, port, context, 1U, 2U);
             special_match = special_match &&
                 result.status == LegacyBattleActionDispatchStatus::completed;
             if (action == 200U) {
@@ -478,15 +541,13 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         state.selection_high_word = 5U;
         Fixture fixture;
         DispatchPort port;
+        port.action = 1U;
         port.battle_pair_primary_value() = 3U;
-        port.push(0x004786B0U, {.eax = 1U, .edx = 0x13572468U});
         (*fixture.startup->group_b_lifecycle)[1U]
             .action_configuration.profile_buffer[0x0CU] = std::byte{9U};
         auto context = fixture.context();
-        const auto result =
-            openswd3::battle::dispatch_legacy_battle_opponent_action(
-                state, port, context, 1U, 2U
-            );
+        context.actor_action_kind_request.entry_edx = 0x13572468U;
+        const auto result = dispatch(state, port, context, 1U, 2U);
         test.expect_true(
             result.return_value == 0U && state.action_pending == 1U &&
                 openswd3::compat::u16(state.packed_action_state) == 2U &&
@@ -503,8 +564,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                     port.calls,
                     [](const auto& call) {
                         return call.callee_token == 0x0047C6B0U &&
-                            call.eax == 0x0000179AU &&
-                            call.edx == 0x13572468U;
+                            call.eax == 0x0000179AU && call.edx == 0x13572468U;
                     }
                 ) != port.calls.end() &&
                 port.count(0x004758A0U) == 0U &&
@@ -520,15 +580,13 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         state.selection_high_word = 9U;
         Fixture fixture;
         DispatchPort port;
+        port.action = 1U;
         port.battle_pair_primary_value() = 7U;
-        port.push(0x004786B0U, {.eax = 1U, .edx = 0x24681357U});
         (*fixture.startup->group_b_lifecycle)[1U]
             .action_configuration.profile_buffer[0x0CU] = std::byte{9U};
         auto context = fixture.context();
-        const auto result =
-            openswd3::battle::dispatch_legacy_battle_opponent_action(
-                state, port, context, 1U, 3U
-            );
+        context.actor_action_kind_request.entry_edx = 0x24681357U;
+        const auto result = dispatch(state, port, context, 1U, 3U);
         test.expect_true(
             result.return_value == 1U && state.group_a_to_actor[3] == 3U &&
                 state.selected_target_index == 3U &&
@@ -541,12 +599,10 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                     port.calls,
                     [](const auto& call) {
                         return call.callee_token == 0x0047C6B0U &&
-                            call.eax == 0x0000102FU &&
-                            call.edx == 0x24681357U;
+                            call.eax == 0x0000102FU && call.edx == 0x24681357U;
                     }
                 ) != port.calls.end() &&
-                port.count(0x004758A0U) == 0U &&
-                port.count(0x00478710U) == 0U,
+                port.count(0x004758A0U) == 0U && port.count(0x00478710U) == 0U,
             "opponent action one side nonzero skips pair commit and preserves selection words"
         );
     }
@@ -557,15 +613,9 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         DispatchPort port;
         port.action = 2U;
         auto context = fixture.context();
-        const auto initialized =
-            openswd3::battle::dispatch_legacy_battle_opponent_action(
-                state, port, context, 0U, 99U
-            );
+        const auto initialized = dispatch(state, port, context, 0U, 99U);
         state.action_runtime_flags |= 1U;
-        const auto completed =
-            openswd3::battle::dispatch_legacy_battle_opponent_action(
-                state, port, context, 0U, 99U
-            );
+        const auto completed = dispatch(state, port, context, 0U, 99U);
         test.expect_true(
             initialized.return_value == 0U && completed.return_value == 1U &&
                 port.count(0x00489E90U) == 1U &&
@@ -612,10 +662,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         auto context = fixture.context();
         context.opponent_target_phase_start_request =
             fixture.opponent_target_phase_request();
-        const auto result =
-            openswd3::battle::dispatch_legacy_battle_opponent_action(
-                state, port, context, 2U, 4U
-            );
+        const auto result = dispatch(state, port, context, 2U, 4U);
         const auto decode_call = std::ranges::find_if(
             port.calls, [](const LegacyBattleActionCallRequest& call) {
                 return call.callee_token == 0x004019A0U;
@@ -816,10 +863,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
             fixture.opponent_target_phase_request();
         context.opponent_target_phase_start_request.actor_frame_resource
             .source_dword_readable[3U] = false;
-        const auto result =
-            openswd3::battle::dispatch_legacy_battle_opponent_action(
-                state, port, context, 1U, 2U
-            );
+        const auto result = dispatch(state, port, context, 1U, 2U);
         test.expect_true(
             result.status ==
                     LegacyBattleActionDispatchStatus::
@@ -864,7 +908,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 port.count(0x00478620U) == 0U &&
                 port.count(0x00478710U) == 0U &&
                 port.count(0x0047D870U) == 0U &&
-                port.count(0x004841B0U) == 0U && port.calls.size() == 1U,
+                port.count(0x004841B0U) == 0U && port.calls.empty(),
             "opponent action six preserves the typed REP partial commit and suppresses the complete outer suffix"
         );
     }
@@ -883,10 +927,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
             fixture.opponent_target_phase_request();
         context.opponent_target_phase_start_request.actor_frame_resource
             .frame_provider_return_eax = 0U;
-        const auto result =
-            openswd3::battle::dispatch_legacy_battle_opponent_action(
-                state, port, context, 0U, 3U
-            );
+        const auto result = dispatch(state, port, context, 0U, 3U);
         const auto& source =
             (*fixture.startup->group_b_lifecycle)[0U].action_execution;
         const auto& phase = *state.group_b_target_phases[0U][3U];
@@ -928,7 +969,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 port.count(0x004019A0U) == 0U &&
                 port.count(0x00478710U) == 0U &&
                 port.count(0x0047D870U) == 0U &&
-                port.count(0x004841B0U) == 0U && port.calls.size() == 1U,
+                port.count(0x004841B0U) == 0U && port.calls.empty(),
             "opponent action six zero frame token reaches the exact 48407E stop after three pushes and no outer suffix"
         );
     }
@@ -947,10 +988,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
             fixture.opponent_target_phase_request();
         context.opponent_target_phase_start_request.resource_object_readable =
             false;
-        const auto result =
-            openswd3::battle::dispatch_legacy_battle_opponent_action(
-                state, port, context, 0U, 3U
-            );
+        const auto result = dispatch(state, port, context, 0U, 3U);
         const auto& source =
             (*fixture.startup->group_b_lifecycle)[0U].action_execution;
         const auto& phase = *state.group_b_target_phases[0U][3U];
@@ -976,7 +1014,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 phase.emitter.flags == 0U && port.count(0x004019A0U) == 0U &&
                 port.count(0x00478710U) == 0U &&
                 port.count(0x0047D870U) == 0U &&
-                port.count(0x004841B0U) == 0U && port.calls.size() == 1U,
+                port.count(0x004841B0U) == 0U && port.calls.empty(),
             "opponent action six commits a nonzero source resource before the unreadable object stop and suppresses all later calls"
         );
     }
@@ -994,10 +1032,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         auto context = fixture.context();
         context.opponent_target_phase_start_request =
             fixture.opponent_target_phase_request();
-        const auto result =
-            openswd3::battle::dispatch_legacy_battle_opponent_action(
-                state, port, context, 0U, 1U
-            );
+        const auto result = dispatch(state, port, context, 0U, 1U);
         test.expect_true(
             result.status ==
                     LegacyBattleActionDispatchStatus::
@@ -1027,7 +1062,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 port.count(0x004019A0U) == 0U &&
                 port.count(0x00478710U) == 0U &&
                 port.count(0x0047D870U) == 0U &&
-                port.count(0x004841B0U) == 0U && port.calls.size() == 1U,
+                port.count(0x004841B0U) == 0U && port.calls.empty(),
             "opponent action six coordinate fault committed prefix and suffix suppression"
         );
         test.expect_true(
@@ -1053,7 +1088,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 port.count(0x004019A0U) == 0U &&
                 port.count(0x00478710U) == 0U &&
                 port.count(0x0047D870U) == 0U &&
-                port.count(0x004841B0U) == 0U && port.calls.size() == 1U,
+                port.count(0x004841B0U) == 0U && port.calls.empty(),
             "opponent action six keeps the source token commit and stops before the selected phase clear when target coordinates fault"
         );
     }
@@ -1068,10 +1103,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         context.opponent_target_phase_start_request =
             fixture.opponent_target_phase_request();
         context.opponent_target_phase_start_request.surface_height = 0x40000001;
-        const auto result =
-            openswd3::battle::dispatch_legacy_battle_opponent_action(
-                state, port, context, 0U, 1U
-            );
+        const auto result = dispatch(state, port, context, 0U, 1U);
         const auto& phase = *state.group_b_target_phases[0U][1U];
         test.expect_true(
             result.status ==
@@ -1098,7 +1130,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 port.count(0x0047CE70U) == 1U &&
                 port.count(0x00478710U) == 0U &&
                 port.count(0x0047D870U) == 0U &&
-                port.count(0x004841B0U) == 0U && port.calls.size() == 3U,
+                port.count(0x004841B0U) == 0U && port.calls.size() == 2U,
             "opponent action six preserves the selected phase prefix and suppresses the outer suffix at the host-surface write stop"
         );
     }
@@ -1114,10 +1146,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         DispatchPort port;
         port.action = 7U;
         auto context = fixture.context();
-        const auto result =
-            openswd3::battle::dispatch_legacy_battle_opponent_action(
-                state, port, context, 0U, 3U
-            );
+        const auto result = dispatch(state, port, context, 0U, 3U);
         test.expect_true(
             result.return_value == 1U &&
                 state.packed_actor_counter == 0xAABBCC00U &&
@@ -1142,31 +1171,23 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         port.action = 15U;
         auto context = fixture.context();
         context.startup = nullptr;
-        const auto result =
-            openswd3::battle::dispatch_legacy_battle_opponent_action(
-                state, port, context, 0U, 99U
-            );
+        const auto result = dispatch(state, port, context, 0U, 99U);
         test.expect_true(
             result.status ==
                     LegacyBattleActionDispatchStatus::
-                        group_b_opponent_wave_parameters_typed_stop &&
-                result.group_b_opponent_wave_parameters_calls == 1U &&
-                result.group_b_opponent_wave_parameters.status ==
-                    openswd3::battle::
-                        LegacyBattleGroupBOpponentWaveParametersStatus::
-                            actor_state_typed_stop &&
-                result.group_b_opponent_wave_parameters.return_eax ==
-                    0x12340000U &&
-                result.group_b_opponent_wave_parameters.return_ecx ==
-                    0x00525508U &&
-                result.group_b_opponent_wave_parameters.return_edx ==
-                    0x0053BF28U &&
-                state.phase_counter == 0x12348019U &&
+                        actor_action_kind_typed_stop &&
+                result.actor_action_kind_calls == 1U &&
+                result.actor_action_kind.status ==
+                    openswd3::battle::LegacyBattleActorActionKindStatus::
+                        action_kind_read_typed_stop &&
+                result.actor_action_kind.return_eip == 0x004786B0U &&
+                state.phase_counter == 0x12340000U &&
                 state.opponent_special_action == 0x1111U &&
                 state.opponent_spawn_count == 0x2222U &&
+                result.group_b_opponent_wave_parameters_calls == 0U &&
                 result.group_b_iterations == 0U &&
-                port.count(0x00476900U) == 0U && port.calls.size() == 1U,
-            "opponent action fifteen stops at the source actor read after committing the phase prefix"
+                port.count(0x00476900U) == 0U && port.calls.empty(),
+            "opponent action query stops before the action fifteen phase prefix when the source owner is missing"
         );
     }
 
@@ -1198,15 +1219,9 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
             {.eax = 0x22220000U, .ecx = 0x22222222U, .edx = 0x22223333U}
         );
         auto context = fixture.context();
-        const auto running =
-            openswd3::battle::dispatch_legacy_battle_opponent_action(
-                state, port, context, 0U, 99U
-            );
+        const auto running = dispatch(state, port, context, 0U, 99U);
         state.phase_counter = 0x8001U;
-        const auto completed =
-            openswd3::battle::dispatch_legacy_battle_opponent_action(
-                state, port, context, 0U, 99U
-            );
+        const auto completed = dispatch(state, port, context, 0U, 99U);
         test.expect_true(
             running.return_value == 0U && completed.return_value == 1U &&
                 running.group_b_iterations == 2U && state.group_b_count == 2 &&
@@ -1260,10 +1275,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         DispatchPort port;
         port.action = 15U;
         auto context = fixture.context();
-        const auto result =
-            openswd3::battle::dispatch_legacy_battle_opponent_action(
-                state, port, context, 0U, 99U
-            );
+        const auto result = dispatch(state, port, context, 0U, 99U);
         test.expect_true(
             result.status ==
                     LegacyBattleActionDispatchStatus::
@@ -1287,10 +1299,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         port.action = 15U;
         port.allocation_succeeds = false;
         auto context = fixture.context();
-        const auto result =
-            openswd3::battle::dispatch_legacy_battle_opponent_action(
-                state, port, context, 0U, 99U
-            );
+        const auto result = dispatch(state, port, context, 0U, 99U);
         test.expect_true(
             result.status ==
                     LegacyBattleActionDispatchStatus::
@@ -1332,10 +1341,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         DispatchPort port;
         port.action = 17U;
         auto context = fixture.context();
-        const auto result =
-            openswd3::battle::dispatch_legacy_battle_opponent_action(
-                state, port, context, 0U, 99U
-            );
+        const auto result = dispatch(state, port, context, 0U, 99U);
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
                 result.return_value == 0U &&
@@ -1405,10 +1411,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         DispatchPort port;
         port.action = 17U;
         auto context = fixture.context();
-        const auto result =
-            openswd3::battle::dispatch_legacy_battle_opponent_action(
-                state, port, context, 0U, 99U
-            );
+        const auto result = dispatch(state, port, context, 0U, 99U);
         test.expect_true(
             result.status ==
                     LegacyBattleActionDispatchStatus::
@@ -1468,10 +1471,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         DispatchPort port;
         port.action = 17U;
         auto context = fixture.context();
-        const auto result =
-            openswd3::battle::dispatch_legacy_battle_opponent_action(
-                state, port, context, 0U, 99U
-            );
+        const auto result = dispatch(state, port, context, 0U, 99U);
         test.expect_true(
             result.status ==
                     LegacyBattleActionDispatchStatus::
@@ -1505,20 +1505,21 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         port.action = 17U;
         auto context = fixture.context();
         context.startup = nullptr;
-        const auto result =
-            openswd3::battle::dispatch_legacy_battle_opponent_action(
-                state, port, context, 0U, 99U
-            );
+        const auto result = dispatch(state, port, context, 0U, 99U);
         test.expect_true(
             result.status ==
                     LegacyBattleActionDispatchStatus::
-                        group_b_action_seventeen_frame_typed_stop &&
-                result.return_value == 17U &&
-                result.group_b_action_seventeen_frame_calls == 1U &&
-                result.port_calls == 1U && state.overlay_gate == 0U &&
+                        actor_action_kind_typed_stop &&
+                result.actor_action_kind_calls == 1U &&
+                result.actor_action_kind.status ==
+                    openswd3::battle::LegacyBattleActorActionKindStatus::
+                        action_kind_read_typed_stop &&
+                result.actor_action_kind.return_eip == 0x004786B0U &&
+                result.group_b_action_seventeen_frame_calls == 0U &&
+                result.port_calls == 0U && state.overlay_gate == 0U &&
                 openswd3::compat::u8(state.opponent_processed_counter) == 0U &&
                 port.count(0x004763D0U) == 0U && port.count(0x0047D870U) == 0U,
-            "opponent action seventeen propagates the first actor typed stop"
+            "opponent action query stops before action seventeen when the source owner is missing"
         );
     }
 
@@ -1529,10 +1530,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         DispatchPort port;
         port.action = 17U;
         auto context = fixture.context();
-        const auto result =
-            openswd3::battle::dispatch_legacy_battle_opponent_action(
-                state, port, context, 0U, 99U
-            );
+        const auto result = dispatch(state, port, context, 0U, 99U);
         bool workspace_matches = true;
         for (std::size_t index = 0U; index < state.opponent_workspace.size();
              ++index) {
@@ -1559,10 +1557,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         port.action = 17U;
         port.push(0x0047CE80U, {.eax = 0U});
         auto context = fixture.context();
-        const auto result =
-            openswd3::battle::dispatch_legacy_battle_opponent_action(
-                state, port, context, 0U, 99U
-            );
+        const auto result = dispatch(state, port, context, 0U, 99U);
         test.expect_true(
             result.return_value == 1U && state.group_b_count == 1 &&
                 openswd3::compat::u8(state.opponent_processed_counter) == 0U &&
@@ -1595,10 +1590,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
             DispatchPort port;
             port.action = action;
             auto context = fixture.context();
-            const auto result =
-                openswd3::battle::dispatch_legacy_battle_opponent_action(
-                    state, port, context, 0U, 0U
-                );
+            const auto result = dispatch(state, port, context, 0U, 0U);
             valid_cases_complete = valid_cases_complete &&
                 result.status == LegacyBattleActionDispatchStatus::completed &&
                 result.action_code == action;
@@ -1628,12 +1620,10 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
             DispatchPort port;
             port.action = action;
             auto context = fixture.context();
-            const auto result =
-                openswd3::battle::dispatch_legacy_battle_opponent_action(
-                    state, port, context, 0U, 99U
-                );
+            const auto result = dispatch(state, port, context, 0U, 99U);
             sparse_cases_match = sparse_cases_match &&
-                result.return_value == 0U && result.port_calls == 1U;
+                result.return_value == 0U && result.port_calls == 0U &&
+                result.actor_action_kind_calls == 1U;
         }
         test.expect_true(
             sparse_cases_match,
@@ -1650,10 +1640,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         port.battle_pair_primary_value() = 9U;
         port.action = 1U;
         auto context = fixture.context();
-        const auto result =
-            openswd3::battle::dispatch_legacy_battle_opponent_action(
-                state, port, context, 0U, 1U
-            );
+        const auto result = dispatch(state, port, context, 0U, 1U);
         test.expect_true(
             result.status ==
                     LegacyBattleActionDispatchStatus::framebuffer_typed_stop &&

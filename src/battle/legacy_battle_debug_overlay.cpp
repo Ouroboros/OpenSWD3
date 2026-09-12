@@ -135,10 +135,11 @@ public:
         });
     }
 
-    void draw(const u32 x, const u32 y, const std::string_view text) {
+    LegacyBattleDebugOverlayCallReply
+    draw(const u32 x, const u32 y, const std::string_view text) {
         ++result_.port_calls;
         ++result_.text_draws;
-        static_cast<void>(port_.draw_debug_overlay_text({
+        return port_.draw_debug_overlay_text({
             .font_token = kFontToken,
             .surface_token = kSurfaceToken,
             .x = x,
@@ -146,11 +147,11 @@ public:
             .text = std::string{text},
             .foreground = kTextForeground,
             .height = kTextHeight,
-        }));
+        });
     }
 
-    void draw_buffer(const u32 x, const u32 y) {
-        draw(x, y, bindings_.overlay.text_buffer.data());
+    LegacyBattleDebugOverlayCallReply draw_buffer(const u32 x, const u32 y) {
+        return draw(x, y, bindings_.overlay.text_buffer.data());
     }
 
     [[nodiscard]] std::optional<u16> read_actor_word(const u32 token) {
@@ -162,6 +163,44 @@ private:
     LegacyBattleDebugOverlayPort& port_;
     LegacyBattleDebugOverlayResult& result_;
 };
+
+[[nodiscard]] bool read_action_kind(
+    LegacyBattleDebugOverlayBindings bindings,
+    LegacyBattleDebugOverlayResult& result,
+    LegacyBattleActorActionKindRequest request,
+    const u32 actor_token,
+    const u32 entry_eax,
+    const u32 entry_edx,
+    const u32 return_address,
+    const LegacyBattleActorCoordinateFlags& entry_flags,
+    u32& value
+) {
+    request.actor_token = actor_token;
+    request.entry_eax = entry_eax;
+    request.entry_edx = entry_edx;
+    request.entry_return_address = return_address;
+    request.entry_flags = entry_flags;
+    request.entry_flags_known = true;
+    result.actor_action_kind = query_legacy_battle_actor_action_kind(
+        resolve_legacy_battle_actor_action_kind(
+            {.action = &bindings.action, .startup = &bindings.startup},
+            actor_token
+        ),
+        request
+    );
+    ++result.actor_action_kind_calls;
+    if (result.actor_action_kind.status !=
+        LegacyBattleActorActionKindStatus::completed) {
+        result.status =
+            LegacyBattleDebugOverlayStatus::actor_action_kind_typed_stop;
+        result.return_value = result.actor_action_kind.return_eax;
+        result.return_ecx = result.actor_action_kind.return_ecx;
+        result.return_edx = result.actor_action_kind.return_edx;
+        return false;
+    }
+    value = result.actor_action_kind.return_eax & 0xFFFFU;
+    return true;
+}
 
 [[nodiscard]] bool write_marker_pixel(
     LegacyBattleDebugOverlayBindings bindings,
@@ -196,9 +235,10 @@ LegacyBattleDebugOverlayResult draw_legacy_battle_debug_overlay(
             {0x0000FFFEU},
             1U
         ));
-        static_cast<void>(runner.call(
+        const auto font_reset_reply = runner.call(
             LegacyBattleDebugOverlayCall::font_reset, kFontToken, {0U}, 1U
-        ));
+        );
+        u32 group_a_action_entry_edx = font_reset_reply.edx;
 
         u32 vitality = request.vitality_stack_snapshot;
         u32 index = 0U;
@@ -224,16 +264,20 @@ LegacyBattleDebugOverlayResult draw_legacy_battle_debug_overlay(
                     resolved_actor_word_typed_stop;
                 return result;
             }
-            const u32 command =
-                runner
-                    .call(
-                        LegacyBattleDebugOverlayCall::query_actor_command,
-                        actor,
-                        {*actor_level},
-                        1U
-                    )
-                    .eax &
-                0xFFFFU;
+            u32 command{};
+            if (!read_action_kind(
+                    bindings,
+                    result,
+                    request.group_b_action_kind_request,
+                    actor,
+                    state.resolved_actor_token,
+                    *actor_level,
+                    0x0045DF5FU,
+                    logical_flags(0U),
+                    command
+                )) {
+                return result;
+            }
             const u32 lock =
                 runner
                     .call(
@@ -253,7 +297,7 @@ LegacyBattleDebugOverlayResult draw_legacy_battle_debug_overlay(
                 static_cast<int>(command),
                 static_cast<int>(*actor_level)
             );
-            runner.draw_buffer(10U, y);
+            group_a_action_entry_edx = runner.draw_buffer(10U, y).edx;
             ++result.group_b_rows;
             ++index;
             y += 20U;
@@ -261,15 +305,25 @@ LegacyBattleDebugOverlayResult draw_legacy_battle_debug_overlay(
 
         index = 0U;
         y = 10U;
+        u32 group_a_action_entry_eax = bindings.metrics.group_b_count;
+        auto group_a_action_entry_flags =
+            logical_flags(bindings.metrics.group_a_count);
         while (index < bindings.metrics.group_a_count) {
             const u32 actor = group_a_token(index);
-            const u32 command =
-                runner
-                    .call(
-                        LegacyBattleDebugOverlayCall::query_actor_command, actor
-                    )
-                    .eax &
-                0xFFFFU;
+            u32 command{};
+            if (!read_action_kind(
+                    bindings,
+                    result,
+                    request.group_a_action_kind_request,
+                    actor,
+                    group_a_action_entry_eax,
+                    group_a_action_entry_edx,
+                    0x0045DFDAU,
+                    group_a_action_entry_flags,
+                    command
+                )) {
+                return result;
+            }
             const u32 lock =
                 runner
                     .call(
@@ -287,10 +341,13 @@ LegacyBattleDebugOverlayResult draw_legacy_battle_debug_overlay(
                 static_cast<int>(lock),
                 static_cast<int>(command)
             );
-            runner.draw_buffer(520U, y);
+            group_a_action_entry_edx = runner.draw_buffer(520U, y).edx;
             ++result.group_a_rows;
             ++index;
             y += 20U;
+            group_a_action_entry_eax = bindings.metrics.group_a_count;
+            group_a_action_entry_flags =
+                subtract_flags(index, group_a_action_entry_eax);
         }
 
         const u32 attack_y = bindings.metrics.group_b_count * 20U + 10U;

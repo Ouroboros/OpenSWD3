@@ -183,7 +183,7 @@ LegacyBattleActorBaseInitializationResult initialize_legacy_battle_actor_base(
         owner.resource_definition,
         owner.resource_definition_description,
         owner.action_text,
-        owner.action_kind,
+        owner.action_execution.action_kind,
         request
     );
 }

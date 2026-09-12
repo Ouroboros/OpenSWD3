@@ -31,9 +31,6 @@ public:
             found->second.pop_front();
             return reply;
         }
-        if (request.callee_token == 0x004786B0U) {
-            return {.eax = action};
-        }
         if (request.callee_token == 0x004786E0U) {
             return {.eax = action_target};
         }
@@ -1207,6 +1204,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             .action_execution.idle_state_latch = 1U;
         DispatchPort port;
         port.action = 100U;
+        (*fixture.startup->group_b_lifecycle)[0U]
+            .action_composition.action_kind = port.action;
         port.action_target = 0U;
         port.push(0x004786A0U, {.eax = 1U});
         port.push(0x004786A0U, {.eax = 1U});
@@ -1218,7 +1217,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
                 port.count(0x00455D60U) == 0U &&
-                port.count(0x004786B0U) == 1U &&
+                port.count(0x004786B0U) == 0U &&
                 state.selection_initialized == 0U &&
                 state.shared.action_block_gate == 0U &&
                 state.shared.action.active_effect_target == 0xFFFFFFFFU &&
@@ -1238,6 +1237,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             .action_execution.idle_state_latch = 1U;
         DispatchPort port;
         port.action = 0U;
+        (*fixture.startup->group_b_lifecycle)[0U]
+            .action_composition.action_kind = port.action;
         port.push(0x004786A0U, {.eax = 1U});
         port.push(0x004786A0U, {.eax = 1U});
         auto context = fixture.context();
@@ -1249,7 +1250,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             result.status == LegacyBattleActionDispatchStatus::completed &&
                 result.return_value == 0U &&
                 state.shared.action_block_gate == 1U &&
-                port.count(0x004786B0U) == 1U,
+                port.count(0x004786B0U) == 0U,
             "opponent dispatcher incomplete return publishes call-stage stale EBX one"
         );
     }
@@ -1271,6 +1272,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             .action_execution.idle_state_latch = 1U;
         DispatchPort port;
         port.action = 100U;
+        (*fixture.startup->group_b_lifecycle)[0U]
+            .action_composition.action_kind = port.action;
         port.action_target = 0U;
         port.push(0x0047F920U, {.eax = 0U});
         port.push(0x0047F920U, {.eax = 1U});
@@ -1350,6 +1353,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             .action_execution.idle_state_latch = 1U;
         DispatchPort port;
         port.action = 100U;
+        (*fixture.startup->group_b_lifecycle)[0U]
+            .action_composition.action_kind = port.action;
         port.action_target = 0U;
         port.push(0x0047F920U, {.eax = 0U});
         port.push(0x0047F920U, {.eax = 1U});
@@ -1413,6 +1418,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             .action_execution.idle_state_latch = 1U;
         DispatchPort port;
         port.action = 100U;
+        (*fixture.startup->group_b_lifecycle)[0U]
+            .action_composition.action_kind = port.action;
         port.action_target = 0U;
         port.push(0x0047F920U, {.eax = 0U});
         port.push(0x0047F920U, {.eax = 1U});
@@ -1467,6 +1474,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             .action_execution.idle_state_latch = 1U;
         DispatchPort port;
         port.action = 100U;
+        (*fixture.startup->group_b_lifecycle)[0U]
+            .action_composition.action_kind = port.action;
         port.action_target = 0U;
         port.push(0x004786A0U, {.eax = 1U});
         port.push(0x004786A0U, {.eax = 1U});
@@ -1503,6 +1512,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             .action_execution.idle_state_latch = 1U;
         DispatchPort port;
         port.action = 100U;
+        (*fixture.startup->group_b_lifecycle)[0U]
+            .action_composition.action_kind = port.action;
         port.action_target = 0U;
         port.push(0x004786A0U, {.eax = 1U});
         port.push(0x004786A0U, {.eax = 1U});

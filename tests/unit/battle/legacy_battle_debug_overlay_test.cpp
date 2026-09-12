@@ -38,6 +38,8 @@ public:
     bool skip_second_vitality_output{};
     u32 style_calls{};
     u32 vitality_queries{};
+    LegacyBattleDebugOverlayCallReply font_reset_reply{};
+    LegacyBattleDebugOverlayCallReply draw_reply{};
     std::vector<LegacyBattleDebugOverlayCallRequest> calls;
     std::vector<LegacyBattleDebugOverlayTextRequest> texts;
     std::unordered_map<u32, u16> actor_words;
@@ -72,7 +74,7 @@ public:
                 .output_0 =
                     12U + (request.object_token - 0x00525508U) / 0x00002B28U,
             };
-        case LegacyBattleDebugOverlayCall::query_actor_command:
+        case LegacyBattleDebugOverlayCall::reserved_query_actor_command:
             return {.eax = 3U};
         case LegacyBattleDebugOverlayCall::query_actor_lock:
             return {.eax = 4U};
@@ -81,7 +83,7 @@ public:
         case LegacyBattleDebugOverlayCall::reserved_query_marker_width:
             return {.eax = 2U};
         case LegacyBattleDebugOverlayCall::font_reset:
-            return {};
+            return font_reset_reply;
         }
         return {};
     }
@@ -103,7 +105,7 @@ public:
         if (on_draw) {
             on_draw(request);
         }
-        return {};
+        return draw_reply;
     }
 
     [[nodiscard]] u32 count(const LegacyBattleDebugOverlayCall call) const {
@@ -132,8 +134,12 @@ struct Fixture {
             openswd3::battle::LegacyBattleActorGroupBElementState,
             openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
         for (auto& actor : *startup.group_b_lifecycle) {
+            actor.action_composition.action_kind = 3U;
             actor.action_execution.position_x = 1U;
             actor.action_execution.position_y = 0U;
+        }
+        for (auto& actor : action.group_a_action_execution) {
+            actor.action_kind = 3U;
         }
     }
 
@@ -190,6 +196,156 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
     }
 
     {
+        Fixture fixture;
+        fixture.hotkeys.toggle_5244e0 = 1U;
+        fixture.metrics.group_b_count = 1U;
+        (*fixture.startup.group_b_lifecycle)[0U]
+            .action_composition.action_kind = 0x4567U;
+        OverlayPort port;
+        const auto result = draw_legacy_battle_debug_overlay(
+            fixture.bindings(),
+            port,
+            {
+                .group_b_action_kind_request = {.entry_esp = 0x83004000U},
+            }
+        );
+        test.expect_true(
+            result.status == LegacyBattleDebugOverlayStatus::completed &&
+                result.actor_action_kind_calls == 1U &&
+                result.actor_action_kind.return_eax == 0x10524567U &&
+                result.actor_action_kind.return_ecx == 0x00525508U &&
+                result.actor_action_kind.return_edx == 50U &&
+                result.actor_action_kind.return_esp == 0x83004004U &&
+                result.actor_action_kind.return_eip == 0x0045DF5FU &&
+                result.actor_action_kind.flags.parity &&
+                result.actor_action_kind.flags.zero &&
+                port.count(
+                    LegacyBattleDebugOverlayCall::reserved_query_actor_command
+                ) == 0U,
+            "Group-B overlay row preserves resolved-token EAX high word, level EDX, XOR flags, and real getter return address"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.hotkeys.toggle_5244e0 = 1U;
+        fixture.metrics.group_a_count = 1U;
+        fixture.action.group_a_action_execution[0U].action_kind = 0x6789U;
+        OverlayPort port;
+        port.font_reset_reply.edx = 0xAABBCCDDU;
+        const auto result = draw_legacy_battle_debug_overlay(
+            fixture.bindings(),
+            port,
+            {
+                .group_a_action_kind_request = {.entry_esp = 0x84005000U},
+            }
+        );
+        test.expect_true(
+            result.status == LegacyBattleDebugOverlayStatus::completed &&
+                result.actor_action_kind_calls == 1U &&
+                result.actor_action_kind.return_eax == 0x00006789U &&
+                result.actor_action_kind.return_ecx == 0x005029D0U &&
+                result.actor_action_kind.return_edx == 0xAABBCCDDU &&
+                result.actor_action_kind.return_esp == 0x84005004U &&
+                result.actor_action_kind.return_eip == 0x0045DFDAU &&
+                !result.actor_action_kind.flags.parity &&
+                !result.actor_action_kind.flags.zero,
+            "Group-A overlay row preserves stale EAX and EDX, count TEST flags, and its distinct real return address"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.hotkeys.toggle_5244e0 = 1U;
+        fixture.metrics.group_a_count = 2U;
+        fixture.action.group_a_action_execution[0U].action_kind = 0x1111U;
+        fixture.action.group_a_action_execution[1U].action_kind = 0x2222U;
+        OverlayPort port;
+        port.draw_reply.edx = 0xCAFEBABEU;
+
+        const auto result =
+            draw_legacy_battle_debug_overlay(fixture.bindings(), port);
+
+        test.expect_true(
+            result.status == LegacyBattleDebugOverlayStatus::completed &&
+                result.actor_action_kind_calls == 2U &&
+                result.actor_action_kind.return_eax == 0x00002222U &&
+                result.actor_action_kind.return_ecx == 0x00505904U &&
+                result.actor_action_kind.return_edx == 0xCAFEBABEU &&
+                result.actor_action_kind.flags.carry &&
+                result.actor_action_kind.flags.parity &&
+                result.actor_action_kind.flags.auxiliary_carry &&
+                result.actor_action_kind.flags.sign &&
+                !result.actor_action_kind.flags.zero &&
+                !result.actor_action_kind.flags.overflow,
+            "later Group-A overlay rows preserve the reloaded count EAX, prior draw EDX, and loop CMP flags"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.hotkeys.toggle_5244e0 = 1U;
+        fixture.metrics.group_b_count = 1U;
+        OverlayPort port;
+        const auto result = draw_legacy_battle_debug_overlay(
+            fixture.bindings(),
+            port,
+            {
+                .group_b_action_kind_request = {
+                    .entry_eax = 0xAAAAAAAAU,
+                    .access = {.action_kind_readable = false},
+                },
+            }
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleDebugOverlayStatus::
+                        actor_action_kind_typed_stop &&
+                result.actor_action_kind.return_eax == 0x10525508U &&
+                result.actor_action_kind.return_eip == 0x004786B0U &&
+                result.actor_action_kind.action_kind_reads == 0U &&
+                result.group_b_rows == 0U && result.formatted_texts == 0U &&
+                result.text_draws == 0U && result.port_calls == 4U &&
+                port.count(LegacyBattleDebugOverlayCall::query_actor_lock) ==
+                    0U,
+            "Group-B overlay field stop preserves resolve and vitality prefix while suppressing lock, formatting, and remaining rows"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.hotkeys.toggle_5244e0 = 1U;
+        fixture.metrics.group_a_count = 1U;
+        fixture.action.group_a_action_execution[0U].action_kind = 0x789AU;
+        OverlayPort port;
+        port.font_reset_reply.edx = 0x11223344U;
+        const auto result = draw_legacy_battle_debug_overlay(
+            fixture.bindings(),
+            port,
+            {
+                .group_a_action_kind_request = {
+                    .access = {.return_address_readable = false},
+                },
+            }
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleDebugOverlayStatus::
+                        actor_action_kind_typed_stop &&
+                result.actor_action_kind.return_eax == 0x0000789AU &&
+                result.actor_action_kind.return_edx == 0x11223344U &&
+                result.actor_action_kind.return_eip == 0x004786B7U &&
+                result.actor_action_kind.action_kind_reads == 1U &&
+                result.actor_action_kind.return_address_reads == 0U &&
+                result.group_a_rows == 0U && result.formatted_texts == 0U &&
+                result.text_draws == 0U && result.port_calls == 2U &&
+                port.count(LegacyBattleDebugOverlayCall::query_actor_lock) ==
+                    0U,
+            "Group-A overlay RET stop preserves replaced AX and loop entry residues while suppressing the row suffix"
+        );
+    }
+
+    {
         Fixture fixture({.pitch_bytes = 16, .width = 8, .height = 2});
         fixture.hotkeys.toggle_5244e0 = 1U;
         fixture.hotkeys.toggle_53af68 = 1U;
@@ -237,7 +393,7 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
             result.status == LegacyBattleDebugOverlayStatus::completed &&
                 result.return_value == 0xAABBCCDDU &&
                 result.return_ecx == 0x12345678U &&
-                result.return_edx == 0x87654321U && result.port_calls == 43U &&
+                result.return_edx == 0x87654321U && result.port_calls == 39U &&
                 result.text_draws == 27U && result.formatted_texts == 24U &&
                 result.group_b_rows == 2U && result.group_a_rows == 2U &&
                 result.startup_order_rows == 4U &&
@@ -270,13 +426,11 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
             "overlay preserves fixed coordinates tokens CP950-backed ordering and signed decimal formatting"
         );
         test.expect_true(
-            has_call(
-                port,
-                LegacyBattleDebugOverlayCall::query_actor_command,
-                0x00525508U,
-                1U,
-                50U
-            ) &&
+            result.actor_action_kind_calls == 4U &&
+                result.actor_action_kind.return_eip == 0x0045DFDAU &&
+                port.count(
+                    LegacyBattleDebugOverlayCall::reserved_query_actor_command
+                ) == 0U &&
                 has_call(
                     port,
                     LegacyBattleDebugOverlayCall::query_actor_lock,
@@ -335,29 +489,37 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
 
         test.expect_true(
             result.status ==
-                    LegacyBattleDebugOverlayStatus::startup_record_typed_stop &&
-                result.group_a_rows == 19U &&
-                result.startup_order_rows == 18U && result.text_draws == 38U &&
+                    LegacyBattleDebugOverlayStatus::
+                        actor_action_kind_typed_stop &&
+                result.actor_action_kind_calls == 11U &&
+                result.actor_action_kind.status ==
+                    openswd3::battle::LegacyBattleActorActionKindStatus::
+                        action_kind_read_typed_stop &&
+                result.actor_action_kind.return_eip == 0x004786B0U &&
+                result.group_a_rows == 10U && result.startup_order_rows == 0U &&
+                result.text_draws == 10U &&
                 port.count(LegacyBattleDebugOverlayCall::font_style) == 1U,
-            "the nineteenth startup-order read stops after all group-A rows the header and eighteen record draws"
+            "the eleventh group-A action query stops before the downstream dynamic order rows"
         );
     }
 
     {
         Fixture fixture;
         fixture.hotkeys.toggle_5244e0 = 1U;
-        fixture.metrics.group_a_count = 11U;
+        fixture.metrics.group_a_count = 10U;
         OverlayPort port;
 
         const auto result =
             draw_legacy_battle_debug_overlay(fixture.bindings(), port);
 
         test.expect_true(
-            result.status ==
-                    LegacyBattleDebugOverlayStatus::actor_order_typed_stop &&
-                result.startup_order_rows == 11U &&
-                result.actor_order_rows == 10U,
-            "the eleventh actor-order read stops after the waiting header and ten published values"
+            result.status == LegacyBattleDebugOverlayStatus::completed &&
+                result.group_a_rows == 10U &&
+                result.actor_action_kind_calls == 10U &&
+                result.startup_order_rows == 10U &&
+                result.actor_order_rows == 10U &&
+                result.selection_order_rows == 10U,
+            "all ten canonical group-A actors reach the complete downstream dynamic order rows"
         );
     }
 
@@ -421,7 +583,7 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
                 !result.current_coordinate_query.flags
                      .auxiliary_carry_defined &&
                 fixture.overlay.marker_x == 7 &&
-                fixture.overlay.marker_row == 10 && result.port_calls == 13U &&
+                fixture.overlay.marker_row == 10 && result.port_calls == 12U &&
                 result.current_coordinate_query_calls == 1U &&
                 result.actor_progress_width_calls == 0U &&
                 result.marker_actors == 0U && result.marker_pixels == 0U &&
@@ -446,7 +608,7 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleDebugOverlayStatus::
                         actor_progress_width_typed_stop &&
-                result.port_calls == 13U && result.text_draws == 7U &&
+                result.port_calls == 12U && result.text_draws == 7U &&
                 result.current_coordinate_query_calls == 1U &&
                 result.actor_progress_width_calls == 1U &&
                 result.actor_progress_width.return_eax == 0U &&

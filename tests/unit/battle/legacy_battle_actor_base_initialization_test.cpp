@@ -32,7 +32,7 @@ using openswd3::compat::u32;
     owner.action_execution.motion_aux_word = 0x3333U;
     owner.action_execution.summon_phase = 0x4444U;
     owner.action_execution.profile_variant_override = 0x5555U;
-    owner.action_kind = 0x6666U;
+    owner.action_execution.action_kind = 0x6666U;
     return owner;
 }
 
@@ -52,7 +52,8 @@ is_initialized(const LegacyBattleActorBaseInitializationOwner& owner) {
         owner.action_execution.motion_aux_word == 0U &&
         owner.action_execution.summon_phase == 0U &&
         owner.action_execution.profile_variant_override == 0U &&
-        owner.action_kind == 0U && owner.fields.field_2a94 == 0U &&
+        owner.action_execution.action_kind == 0U &&
+        owner.fields.field_2a94 == 0U &&
         owner.fields.field_26bc == 0x062B062BU &&
         owner.fields.linked_action_head_token == 0U &&
         std::ranges::all_of(
@@ -241,7 +242,7 @@ void test_action_text_write_stops(openswd3::test::Context& test) {
                 std::span<u8>{owner.action_text}.first(
                     accessible_dwords * sizeof(u32)
                 ),
-                owner.action_kind,
+                owner.action_execution.action_kind,
                 {
                     .object_token = 0x30000000U,
                     .writable_bytes = 0x2B28U,
@@ -286,7 +287,7 @@ void test_definition_write_stops(openswd3::test::Context& test) {
                 ),
                 owner.resource_definition_description,
                 owner.action_text,
-                owner.action_kind,
+                owner.action_execution.action_kind,
                 {
                     .object_token = 0x40000000U,
                     .writable_bytes = 0x2B28U,
