@@ -167,6 +167,7 @@ void test_battle_actor_turn_completion(openswd3::test::Context& test);
 void test_battle_actor_idle_state(openswd3::test::Context& test);
 void test_battle_actor_action_kind(openswd3::test::Context& test);
 void test_battle_actor_display_kind(openswd3::test::Context& test);
+void test_battle_actor_start_gate(openswd3::test::Context& test);
 void test_battle_actor_frame_snapshot(openswd3::test::Context& test);
 void test_battle_frame_input_resolution(openswd3::test::Context& test);
 void test_battle_list_frame(openswd3::test::Context& test);
@@ -7224,6 +7225,7 @@ int main() {
     test_battle_actor_idle_state(test);
     test_battle_actor_action_kind(test);
     test_battle_actor_display_kind(test);
+    test_battle_actor_start_gate(test);
     test_battle_actor_frame_snapshot(test);
     test_battle_frame_input_resolution(test);
     test_battle_list_frame(test);

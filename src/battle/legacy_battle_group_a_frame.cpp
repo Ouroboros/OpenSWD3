@@ -50,6 +50,14 @@ add_flags(const u32 left, const u32 right, const u32 sum) noexcept {
 }
 
 [[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+shift_left_two_flags(const u32 value) noexcept {
+    const u32 shifted = value << 2U;
+    auto flags = logical_flags(shifted);
+    flags.carry = (value & 0x40000000U) != 0U;
+    return flags;
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
 subtract_flags(const u32 left, const u32 right) noexcept {
     const u32 difference = left - right;
     return {
@@ -64,7 +72,6 @@ subtract_flags(const u32 left, const u32 right) noexcept {
     };
 }
 
-constexpr u32 kCallQueryEffect = 0x004786D0U;
 constexpr u32 kCallPublishEffectMode = 0x00478B60U;
 constexpr u32 kCallPrepareAi = 0x0047DAD0U;
 constexpr u32 kCallPublishAttributeEffect = 0x0047F150U;
@@ -442,6 +449,28 @@ one_based_group_b_token(const u32 one_based) noexcept {
         return false;
     }
     value = result.actor_idle_state.return_eax;
+    return true;
+}
+
+[[nodiscard]] bool query_start_gate(
+    LegacyBattleActionDispatchResult& result,
+    const LegacyBattleActorStartGateOwners& owners,
+    const LegacyBattleActorStartGateRequest& request,
+    u32& value
+) {
+    result.actor_start_gate = query_legacy_battle_actor_start_gate(
+        resolve_legacy_battle_actor_start_gate(owners, request.actor_token),
+        request
+    );
+    ++result.actor_start_gate_calls;
+    if (result.actor_start_gate.status !=
+        LegacyBattleActorStartGateStatus::completed) {
+        result.status =
+            LegacyBattleActionDispatchStatus::actor_start_gate_typed_stop;
+        result.return_value = result.actor_start_gate.return_eax;
+        return false;
+    }
+    value = result.actor_start_gate.return_eax;
     return true;
 }
 
@@ -1011,6 +1040,10 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
         .action = &state.action,
         .startup = context.startup,
     };
+    const LegacyBattleActorStartGateOwners start_gate_owners{
+        .action = &state.action,
+        .startup = context.startup,
+    };
     const auto current_coordinate_actor = context.startup == nullptr
         ? view_legacy_battle_actor_coordinates(
               state.action.group_a_action_execution[group_a_index]
@@ -1040,9 +1073,23 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
         result.return_value = result.actor_availability_block.return_eax;
         return false;
     };
+    auto start_gate_request = context.actor_start_gate_request;
+    start_gate_request.actor_token = actor_token;
+    start_gate_request.entry_eax =
+        group_a_index * kLegacyBattleActionGroupAStride;
+    start_gate_request.entry_return_address = 0x004566B2U;
+    start_gate_request.entry_flags = shift_left_two_flags(
+        group_a_index * (kLegacyBattleActionGroupAStride >> 2U)
+    );
+    start_gate_request.entry_flags_known = true;
+    u32 start_gate{};
+    if (!query_start_gate(
+            result, start_gate_owners, start_gate_request, start_gate
+        )) {
+        return result;
+    }
     const bool effect_mode =
-        (low_word(invoke(port, result, kCallQueryEffect, {actor_token}).eax) !=
-             0U &&
+        (low_word(start_gate) != 0U &&
          (state.action.frame_effect.primary_suppression == 1U ||
           state.action.frame_effect.split_suppression == 1U)) ||
         state.global_effect_override == 1U;

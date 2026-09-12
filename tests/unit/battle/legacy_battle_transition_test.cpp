@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <deque>
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
@@ -373,6 +374,7 @@ struct ActorFrameFixture {
               .indicator_sound = sound,
               .countdown_flags = countdown_flags,
               .internal_flags = internal_flags,
+              .startup = &startup,
               .attack_order_records = startup.reset.records_524788,
               .attack_order_party_sources = startup.reset.block_520e90,
               .attack_order_primary_gate = &startup.reset.value_53bf80,
@@ -406,6 +408,8 @@ void add_default_surfaces(TransitionPorts& ports) {
 
 [[nodiscard]] openswd3::battle::LegacyBattleStartupState startup_state() {
     openswd3::battle::LegacyBattleStartupState startup;
+    startup.group_b_lifecycle = std::make_shared<
+        std::array<openswd3::battle::LegacyBattleActorGroupBElementState, 8>>();
     startup.display_surfaces = {1U, 2U};
     startup.battle_id_word = 1U;
     return startup;

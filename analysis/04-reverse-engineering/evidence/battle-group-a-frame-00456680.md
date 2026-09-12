@@ -177,6 +177,7 @@ bit`0x4000`阶段结束后会在同一次调用重读turn word，因此成功写
 - `0x00478330`的六处调用已直接回收为typed角色可用性写入；
 - `0x00478690`的one-based Group-A目标与Group-B动作目标两处调用已直接回收为typed回合完成查询；
 - `0x004786A0`的actor启动、peer扫描、直接空闲门与selected-target四处调用已直接回收为typed空闲状态查询；
+- `0x004786D0`的公共效果模式启动门调用已直接回收为typed word查询；
 - 其余待审角色、AI、选择、文本、sample和数值callee继续使用单一typed token端口。
 
 所有对象地址、one-based目标、固定前一槽、scene与文本地址均为`compat::u32` token，不转主机指针。
@@ -189,6 +190,7 @@ Typed-stop只位于：
 - one-based随机/选择首次对象callee；
 - 两处回合完成getter的canonical字段或RET返回地址读取；
 - 四处空闲状态getter的canonical字段或RET返回地址读取；
+- 公共效果模式启动门getter的canonical字段或RET返回地址读取；
 - action target首次组B对象callee；
 - resolved target零token后的word54读取；
 - 已关闭动作分派自身真实访问点。
@@ -205,12 +207,13 @@ Typed-stop只位于：
 - completed actor组B扫描与首个live选择；
 - one-based Group-A目标及Group-B动作目标两处回合完成caller的canonical owner、调用前寄存器/flags、typed-stop后缀抑制和旧callee token零调用；
 - actor启动、peer扫描、直接空闲门与selected-target四处空闲状态caller的canonical owner、完整零/1/其他非零值、调用前EAX/EDX/flags、真实返回地址、typed-stop后缀抑制和旧callee token零调用；
+- 公共效果模式启动门caller的Group-A action-execution owner、最终SHL后的EAX/EDX/flags、真实返回地址、post-call TEST、typed-stop后缀抑制和旧callee token零调用；
 - active action直接调用已关闭主分派，确认端口不再出现旧callee token并完成全cleanup；
 - action target `0xFFFF`首次组B对象typed-stop；
 - turn `0x4000→0x8000→0`同调用穿透；
 - resolved word54最大值、stale turn参数与失败尾；
 - queue code小于8的派生对象停点；
-- 46个唯一callee全部存在，其中3个整函数typed直连、43个端口边界；turn gate内部坐标publication另为typed leaf直连并覆盖fault后缀抑制。
+- 46个唯一callee全部存在，其中4个整函数typed直连、42个端口边界；turn gate内部坐标publication另为typed leaf直连并覆盖fault后缀抑制。
 
 ## 13. `0x00478330`六处直接写入
 

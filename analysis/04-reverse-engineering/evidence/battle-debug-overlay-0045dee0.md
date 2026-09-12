@@ -10,7 +10,7 @@
 
 - 15次导入`wsprintfA`，现以固定255字节typed缓冲和等价十进制格式化直接实现；
 - 18次文字绘制，保留字体、surface、坐标、前景色`0xFFFF`和高度`0x10`的窄端口；
-- 4次字体style/reset；两处动作种类word查询改为直接组合typed leaf，其余角色对象查询继续按各自typed实现或窄端口处理。
+- 4次字体style/reset；两处动作种类word与紧随其后的两处启动门word查询均改为直接组合typed leaf，其余角色对象查询继续按各自typed实现或窄端口处理。
 
 角色对象和surface继续只以`compat::u32` token表达，不转宿主指针。
 
@@ -36,13 +36,13 @@
 2. 查询生命文字局部；该未初始化栈局部只在函数入口接收一次显式陈旧snapshot，callee写回后成为后续角色的陈旧值，后续callee未写时不会恢复入口snapshot；
 3. 从解析token的真实`+0x54`读取等级u16；缺失typed owner在此停止；
 4. 从Group-B startup lifecycle的`action_composition.action_kind`直接组合typed动作种类word查询，结果只保留低word；
-5. 以命令低word调用锁定查询，结果只保留低word；
+5. 从同一lifecycle的`action_execution.start_gate`直接组合typed启动门word查询，caller随后只保留低word；
 6. 以CP950格式`生命:%-3d 鎖定:%-1d 命令:%-1d lv:%-2d`格式化；
 7. 在`X=10`、`Y=10+index*20`绘制。
 
 组B每次文字绘制后重新读取动态数量。对象token为`0x00525508 + index*0x2B28`的低32位。
 
-组A循环按`0x005029D0 + index*0x2F34`生成token，从动作分派的十槽`group_a_action_execution[index].action_kind`直接组合同一typed查询，再执行锁定和CP950格式`鎖定:%d 命令:%-3d`，坐标为`X=520`、`Y=10+index*20`。首行getter保留前一Group-B count的EAX、最后一次文字绘制或字体reset的EDX及Group-A count TEST flags；后续行保留上轮末尾重载count的EAX、前一文字绘制callee的EDX及循环CMP flags。每次绘制后同样重读动态数量。
+组A循环按`0x005029D0 + index*0x2F34`生成token，先从动作分派的十槽`group_a_action_execution[index].action_kind`直接组合typed动作种类查询，再从同槽`start_gate`直接组合typed启动门查询，最后执行CP950格式`鎖定:%d 命令:%-3d`，坐标为`X=520`、`Y=10+index*20`。首行动作种类getter保留前一Group-B count的EAX、最后一次文字绘制或字体reset的EDX及Group-A count TEST flags；后续行动作种类getter保留上轮末尾重载count的EAX、前一文字绘制callee的EDX及循环CMP flags。启动门getter随后接收已mask命令的EAX与flags，并继续保留同一EDX。每次绘制后同样重读动态数量。
 
 不增加现代数量夹值或循环上限。
 
@@ -91,9 +91,9 @@
 函数直接复用：
 
 - 角色metric的两组数量和唯一角色优先索引；
-- 启动状态的18条完整`0x1C`记录和Group-B八槽动作种类word；
+- 启动状态的18条完整`0x1C`记录，以及Group-B八槽动作种类word和启动门word；
 - 最终角色的当前角色、已发布角色、十项顺序、预帧移动门与两项frame gate；
-- 动作状态的packed actor counter低byte、Group-A十槽动作种类word；
+- 动作状态的packed actor counter低byte，以及Group-A十槽动作种类word和启动门word；
 - 跨预帧与调试显示的唯一共享message state；
 - 效果协调器的组A反馈actor；
 - 调试快捷键的显示总门和无敌切换值；
@@ -105,10 +105,10 @@
 
 逐帧协调器在内部bit17检查之后读取叠加门。该门归独立虚共享gate port唯一持有，撤退提交可在成功时清零，全局重置也同步清零。机器码只有门完整等于1时调用本函数；旧实现把条件反向并保留opaque调用，现已纠正为精确等于1时直接组合typed叠加层。
 
-子typed-stop保留音乐、角色预处理、metric、角色顺序、surface绘制、HUD、对话、双倒计时和叠加正文前缀，随后阻断结果判定、上下文提示、颜色累加、临时surface与截图。两处动作种类word caller现直接组合`0x004786B0` typed leaf；Group-B真实返回地址为`0x0045DF5F`，Group-A为`0x0045DFDA`。字段或返回地址stop保留此前已完成行，抑制当前行lock、格式化、绘制与剩余循环；旧动作查询端口槽重命名为reserved并保持生产零调用。Workpack 288 REVIEW 1把`0x0045E270`标记坐标站点改为直接读取Group-B lifecycle action-execution canonical坐标到固定`0x0053BF4A/0x0053BF4E` scratch；旧位置查询端口槽改为reserved并保持生产零调用。六类current-coordinate stop保留已完成正文及X scratch前缀，阻断进度宽度、row-offset与全部标记像素。组B进度或阈值读取stop发生在位置查询与row-offset计算之后、任何标记像素之前；旧宽度端口槽同样仅保留reserved兼容编号且生产零调用。正常返回寄存器按原caller保持未消费。
+子typed-stop保留音乐、角色预处理、metric、角色顺序、surface绘制、HUD、对话、双倒计时和叠加正文前缀，随后阻断结果判定、上下文提示、颜色累加、临时surface与截图。两处动作种类word caller现直接组合`0x004786B0` typed leaf；Group-B真实返回地址为`0x0045DF5F`，Group-A为`0x0045DFDA`。其后的两处启动门word caller直接组合`0x004786D0` typed leaf，Group-B真实返回地址为`0x0045DF6C`，Group-A为`0x0045DFE7`；入口EAX与flags来自命令低wordAND，EDX分别保留level word或此前字体/绘制callee残值。任一字段或返回地址stop均保留已完成前缀，抑制当前行格式化、绘制与剩余循环；旧动作与启动门查询端口槽重命名为reserved并保持生产零调用。Workpack 288 REVIEW 1把`0x0045E270`标记坐标站点改为直接读取Group-B lifecycle action-execution canonical坐标到固定`0x0053BF4A/0x0053BF4E` scratch；旧位置查询端口槽改为reserved并保持生产零调用。六类current-coordinate stop保留已完成正文及X scratch前缀，阻断进度宽度、row-offset与全部标记像素。组B进度或阈值读取stop发生在位置查询与row-offset计算之后、任何标记像素之前；旧宽度端口槽同样仅保留reserved兼容编号且生产零调用。正常返回寄存器按原caller保持未消费。
 
 ## 9. 测试与动态差分
 
-定向测试覆盖总门关闭字体尾、两组完整文字、CP950字节、固定坐标与格式、生命局部跨角色陈旧继承、低byte/word和signed参数、完整EAX/ECX/EDX尾、解析token发布、`+0x54`读取停点、两处动作种类word typed组合与停止后缀、十槽Group-A边界、三类动态顺序、callee后数量增长、typed current-coordinate与进度宽度、三个旧端口零调用、Y读取停止后的X scratch部分提交、进度读取停点、双行标记、第二行越界前缀、signed缓存除法、frame divisor零点、全局重置别名及逐帧caller阻断。
+定向测试覆盖总门关闭字体尾、两组完整文字、CP950字节、固定坐标与格式、生命局部跨角色陈旧继承、低byte/word和signed参数、完整EAX/ECX/EDX尾、解析token发布、`+0x54`读取停点、两处动作种类word与两处启动门word typed组合、首行/后续行寄存器线程、字段/RET停止后缀、十槽Group-A边界、三类动态顺序、callee后数量增长、typed current-coordinate与进度宽度、四个旧端口零调用、Y读取停止后的X scratch部分提交、进度读取停点、双行标记、第二行越界前缀、signed缓存除法、frame divisor零点、全局重置别名及逐帧caller阻断。
 
 当前缺少原版字体/文字callee、两组角色对象及查询副作用、共享255字节缓冲、TSW缓存计数、完整叠加全局、framebuffer和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

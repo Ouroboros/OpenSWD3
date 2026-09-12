@@ -2,6 +2,7 @@
 
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_actor_action_kind.hpp"
+#include "openswd3/battle/legacy_battle_actor_start_gate.hpp"
 #include "openswd3/battle/legacy_battle_actor_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_debug_state.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
@@ -24,7 +25,7 @@ enum class LegacyBattleDebugOverlayCall : compat::u8 {
     resolve_group_b_actor,
     query_group_b_vitality,
     reserved_query_actor_command,
-    query_actor_lock,
+    reserved_query_actor_start_gate,
     reserved_query_marker_position,
     reserved_query_marker_width,
 };
@@ -112,6 +113,8 @@ struct LegacyBattleDebugOverlayRequest {
     compat::u32 vitality_stack_snapshot{};
     LegacyBattleActorActionKindRequest group_b_action_kind_request{};
     LegacyBattleActorActionKindRequest group_a_action_kind_request{};
+    LegacyBattleActorStartGateRequest group_b_start_gate_request{};
+    LegacyBattleActorStartGateRequest group_a_start_gate_request{};
     LegacyBattleActorCurrentCoordinateQueryRequest current_coordinate_query{};
 };
 
@@ -119,6 +122,7 @@ enum class LegacyBattleDebugOverlayStatus : compat::u8 {
     completed,
     resolved_actor_word_typed_stop,
     actor_action_kind_typed_stop,
+    actor_start_gate_typed_stop,
     startup_record_typed_stop,
     actor_order_typed_stop,
     selection_order_typed_stop,
@@ -147,6 +151,8 @@ struct LegacyBattleDebugOverlayResult {
     compat::u32 marker_pixels{};
     LegacyBattleActorActionKindResult actor_action_kind{};
     compat::u32 actor_action_kind_calls{};
+    LegacyBattleActorStartGateResult actor_start_gate{};
+    compat::u32 actor_start_gate_calls{};
     LegacyBattleActorCurrentCoordinateQueryResult current_coordinate_query{};
     compat::u32 current_coordinate_query_calls{};
     compat::u32 actor_progress_width_calls{};

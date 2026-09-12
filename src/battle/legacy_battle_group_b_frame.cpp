@@ -49,7 +49,6 @@ constexpr u32 kCallPublishCompletionSource = 0x00478780U;
 constexpr u32 kCallPublishCompletionResource = 0x0047D640U;
 constexpr u32 kCallSetCompletionMode = 0x0047CEC0U;
 constexpr u32 kCallPrepareCompletionSurface = 0x0047F150U;
-constexpr u32 kCallQueryEffect = 0x004786D0U;
 constexpr u32 kCallPublishEffectMode = 0x00478B60U;
 
 [[nodiscard]] constexpr bool has_even_parity(u32 value) noexcept {
@@ -212,6 +211,28 @@ void replace_low_byte(u32& destination, const u8 value) noexcept {
         return false;
     }
     value = result.actor_idle_state.return_eax;
+    return true;
+}
+
+[[nodiscard]] bool query_start_gate(
+    LegacyBattleActionDispatchResult& result,
+    const LegacyBattleActorStartGateOwners& owners,
+    const LegacyBattleActorStartGateRequest& request,
+    u32& value
+) {
+    result.actor_start_gate = query_legacy_battle_actor_start_gate(
+        resolve_legacy_battle_actor_start_gate(owners, request.actor_token),
+        request
+    );
+    ++result.actor_start_gate_calls;
+    if (result.actor_start_gate.status !=
+        LegacyBattleActorStartGateStatus::completed) {
+        result.status =
+            LegacyBattleActionDispatchStatus::actor_start_gate_typed_stop;
+        result.return_value = result.actor_start_gate.return_eax;
+        return false;
+    }
+    value = result.actor_start_gate.return_eax;
     return true;
 }
 
@@ -419,6 +440,10 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
     }
     const u32 source_token = group_b_token(group_b_index);
     const LegacyBattleActorIdleStateOwners idle_state_owners{
+        .action = &action,
+        .startup = context.startup,
+    };
+    const LegacyBattleActorStartGateOwners start_gate_owners{
         .action = &action,
         .startup = context.startup,
     };
@@ -1565,11 +1590,23 @@ action_decision_done:
         }
     }
 
-    const bool effect_mode =
-        (low_word(invoke(port, result, kCallQueryEffect, {source_token}).eax) !=
-             0U &&
-         (action.frame_effect.primary_suppression == 1U ||
-          action.frame_effect.split_suppression == 1U)) ||
+    auto start_gate_request = context.actor_start_gate_request;
+    start_gate_request.actor_token = source_token;
+    start_gate_request.entry_eax =
+        group_b_index * (kLegacyBattleActionGroupBStride >> 3U);
+    start_gate_request.entry_return_address = 0x00458203U;
+    start_gate_request.entry_flags =
+        subtract_flags(group_b_index * 24U, group_b_index);
+    start_gate_request.entry_flags_known = true;
+    u32 start_gate{};
+    if (!query_start_gate(
+            result, start_gate_owners, start_gate_request, start_gate
+        )) {
+        return result;
+    }
+    const bool effect_mode = (low_word(start_gate) != 0U &&
+                              (action.frame_effect.primary_suppression == 1U ||
+                               action.frame_effect.split_suppression == 1U)) ||
         shared.global_effect_override == 1U;
     static_cast<void>(invoke(
         port,
