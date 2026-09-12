@@ -78,7 +78,6 @@ using compat::u16;
 using compat::u32;
 
 constexpr u32 kCallLegacyRandom = 0x00439070U;
-constexpr u32 kCallQueryFallbackAction = 0x004786C0U;
 constexpr u32 kCallActorTerminal = 0x0047CE80U;
 constexpr u32 kCallCommitVisual = 0x0047F150U;
 constexpr u32 kCallSetDelay = 0x00478710U;
@@ -6196,10 +6195,28 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
         return result;
     }
     if (action == 0U) {
-        reply = invoke(
-            state, port, result, kCallQueryFallbackAction, {actor_token}
+        auto display_kind_request = context.actor_display_kind_request;
+        display_kind_request.actor_token = actor_token;
+        display_kind_request.entry_eax = reply.eax;
+        display_kind_request.entry_edx = reply.edx;
+        display_kind_request.entry_return_address = 0x00453A13U;
+        display_kind_request.entry_flags = logical_flags(action);
+        display_kind_request.entry_flags_known = true;
+        result.actor_display_kind = query_legacy_battle_actor_display_kind(
+            resolve_legacy_battle_actor_display_kind(
+                {.startup = context.startup}, actor_token
+            ),
+            display_kind_request
         );
-        action = low_word(reply.eax);
+        ++result.actor_display_kind_calls;
+        if (result.actor_display_kind.status !=
+            LegacyBattleActorDisplayKindStatus::completed) {
+            result.status =
+                LegacyBattleActionDispatchStatus::actor_display_kind_typed_stop;
+            result.return_value = result.actor_display_kind.return_eax;
+            return result;
+        }
+        action = low_word(result.actor_display_kind.return_eax);
         result.action_code = action;
         if (action == 0U) {
             result.return_value = 1U;

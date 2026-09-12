@@ -36,9 +36,6 @@ public:
             found->second.pop_front();
             return reply;
         }
-        if (request.callee_token == 0x004786C0U) {
-            return {.eax = fallback_action};
-        }
         if (request.callee_token == 0x0047CE80U) {
             return {.eax = terminal_return};
         }
@@ -578,6 +575,11 @@ struct Fixture {
 ) {
     if (group_a_index < state.group_a_action_execution.size()) {
         state.group_a_action_execution[group_a_index].action_kind = port.action;
+        if (port.action == 0U && context.startup != nullptr &&
+            group_a_index < context.startup->party.size()) {
+            context.startup->party[group_a_index]
+                .item_effect_application.display_kind = port.fallback_action;
+        }
     }
     return openswd3::battle::dispatch_legacy_battle_action(
         state, port, context, group_a_index, group_b_index
@@ -869,12 +871,23 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
         DispatchPort port;
         port.action = 0U;
         port.fallback_action = 5U;
+        port.push(0x0047CE80U, {.eax = 0xA5A50000U, .edx = 0x12345678U});
         auto context = fixture.context();
+        context.actor_display_kind_request.entry_esp = 0x82003000U;
         const auto result = dispatch(state, port, context, 0U, 0U);
         test.expect_true(
             result.action_code == 5U && result.return_value == 1U &&
-                port.count(0x004786C0U) == 1U,
-            "zero primary action dispatches the low word returned by fallback query"
+                result.actor_display_kind_calls == 1U &&
+                result.actor_display_kind.return_eax == 0xA5A50005U &&
+                result.actor_display_kind.return_ecx == 0x005029D0U &&
+                result.actor_display_kind.return_edx == 0x12345678U &&
+                result.actor_display_kind.return_esp == 0x82003004U &&
+                result.actor_display_kind.return_eip == 0x00453A13U &&
+                result.actor_display_kind.flags.zero &&
+                !result.actor_display_kind.flags.sign &&
+                !result.actor_display_kind.flags.carry &&
+                port.count(0x004786C0U) == 0U,
+            "zero primary action composes the display-kind word getter then masks its low word for switch dispatch"
         );
     }
 
@@ -6718,6 +6731,79 @@ void test_battle_action_kind_caller(openswd3::test::Context& test) {
                 return_stop.actor_action_kind.return_address_reads == 0U &&
                 port.count(0x0047CE80U) == 0U,
             "main action dispatcher propagates field and RET typed stops before terminal query and action switch suffixes"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleActionDispatchState state;
+        Fixture fixture;
+        DispatchPort port;
+        port.action = 0U;
+        port.fallback_action = 0U;
+        port.push(0x0047CE80U, {.eax = 0xCAFE0000U, .edx = 0x31415926U});
+        auto context = fixture.context();
+        const auto result = dispatch(state, port, context, 0U, 7U);
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.return_value == 1U && result.action_code == 0U &&
+                result.actor_action_kind_calls == 1U &&
+                result.actor_display_kind_calls == 1U &&
+                result.actor_display_kind.return_eax == 0xCAFE0000U &&
+                result.port_calls == 1U && port.count(0x0047CE80U) == 1U &&
+                port.count(0x004786C0U) == 0U,
+            "zero display kind returns one after the terminal prefix without entering the action switch or target access"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleActionDispatchState state;
+        Fixture fixture;
+        DispatchPort port;
+        port.action = 0U;
+        port.fallback_action = 0x1234U;
+        port.push(0x0047CE80U, {.eax = 0xA5A50000U, .edx = 0x11223344U});
+        port.push(0x0047CE80U, {.eax = 0x5A5A0000U, .edx = 0x55667788U});
+        auto field_context = fixture.context();
+        field_context.actor_display_kind_request.entry_esp = 0x83004000U;
+        field_context.actor_display_kind_request.access.display_kind_readable =
+            false;
+        const auto field_stop = dispatch(state, port, field_context, 1U, 0U);
+
+        auto return_context = fixture.context();
+        return_context.actor_display_kind_request.entry_esp = 0x84005000U;
+        return_context.actor_display_kind_request.access
+            .return_address_readable = false;
+        const auto return_stop = dispatch(state, port, return_context, 1U, 0U);
+        test.expect_true(
+            field_stop.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_display_kind_typed_stop &&
+                field_stop.return_value == 0xA5A50000U &&
+                field_stop.actor_action_kind_calls == 1U &&
+                field_stop.actor_display_kind_calls == 1U &&
+                field_stop.actor_display_kind.return_eax == 0xA5A50000U &&
+                field_stop.actor_display_kind.return_ecx == 0x00505904U &&
+                field_stop.actor_display_kind.return_edx == 0x11223344U &&
+                field_stop.actor_display_kind.return_esp == 0x83004000U &&
+                field_stop.actor_display_kind.return_eip == 0x004786C0U &&
+                field_stop.actor_display_kind.display_kind_reads == 0U &&
+                field_stop.port_calls == 1U &&
+                return_stop.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_display_kind_typed_stop &&
+                return_stop.return_value == 0x5A5A1234U &&
+                return_stop.actor_action_kind_calls == 1U &&
+                return_stop.actor_display_kind_calls == 1U &&
+                return_stop.actor_display_kind.return_eax == 0x5A5A1234U &&
+                return_stop.actor_display_kind.return_ecx == 0x00505904U &&
+                return_stop.actor_display_kind.return_edx == 0x55667788U &&
+                return_stop.actor_display_kind.return_esp == 0x84005000U &&
+                return_stop.actor_display_kind.return_eip == 0x004786C7U &&
+                return_stop.actor_display_kind.display_kind_reads == 1U &&
+                return_stop.actor_display_kind.return_address_reads == 0U &&
+                return_stop.port_calls == 1U && port.count(0x004786C0U) == 0U &&
+                port.count(0x0047CE80U) == 2U,
+            "main action dispatcher threads terminal registers into display-kind field and RET stops while suppressing local write and switch suffixes"
         );
     }
 }

@@ -39,6 +39,7 @@ add_library(
         legacy_battle_actor_turn_completion.cpp
         legacy_battle_actor_idle_state.cpp
         legacy_battle_actor_action_kind.cpp
+        legacy_battle_actor_display_kind.cpp
         legacy_battle_actor_frame_snapshot.cpp
         legacy_battle_actor_render_offsets.cpp
         legacy_battle_actor_metrics.cpp

@@ -2,7 +2,7 @@
 
 状态：`module_in_progress`
 
-当前关闭进度：`293/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
+当前关闭进度：`294/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
 
 ## 1. 唯一真值与模块目标
 
@@ -51,10 +51,10 @@ code_origin == game
 - 尾地址：`0x00484500`；
 - `confirmed_boundary`：`61`；
 - `medium`导航候选：`361`；
-- `pending_audit`：`129`；
+- `pending_audit`：`128`；
 - `assembly_exact`：`10`；
-- `platform_adapted`：`283`；
-- 已关闭：`293`。
+- `platform_adapted`：`284`；
+- 已关闭：`294`。
 
 六个稳定导航分组为：
 
@@ -797,6 +797,8 @@ I5最终必须锁定：
 
 本轮再完成`audit_order=293`的`0x004786B0`战斗角色动作种类word查询函数。完整权威LST主体`0x004786B0..0x004786B7`共8字节、2条实际指令、0个call、0个分支和1个普通`retn`，没有外部chunk或中段入口；函数只把actor `+0x2A6C`完整word读入AX，保留EAX高16位、ECX、EDX和全部flags后普通RET。typed实现直接复用Group-A action-execution十槽和startup Group-B lifecycle八槽中的canonical动作种类owner，保留字段与RET两个真实停点、完整寄存器、ESP/EIP、flags和访问计数，不增加平行actor数组、第二套word缓存或token槽。主动作分派、对手动作分派及调试叠加层Group-B/Group-A行循环四处物理caller全部直接组合typed leaf，保留各自前置地址算术、profile/level或循环状态形成的寄存器和flags、四个真实返回地址及post-call低word扩展；typed-stop抑制各caller后缀，保留调试端口ordinal但生产`0x004786B0`零raw调用。验证：定向测试、AddressSanitizer、Linux core 199/199、Linux app 205/205 全部通过。连续10轮完整core、全量/changed-range clang-format、零源码warning/测试失败/sanitizer finding、inventory双生成、TMP分类及完整release审计亦通过；未启动原版或OpenSWD3游戏程序。工作包为`293/422 = 283 platform_adapted + 10 assembly_exact + 129 pending_audit`；inventory SHA-256为`9dcf4c568504f28a0b31957e12cef09c3e98759a4d1436f5f02e01093b554d1d`。动态差分因原版完整Group-A/Group-B actor、异常字段/栈内存页及四处caller联合寄存器/flags/SEH捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一步执行`audit_order=294 / 0x004786C0`战斗角色显示种类word查询函数。
+本轮再完成`audit_order=294`的`0x004786C0`战斗角色显示种类word查询函数。完整权威LST主体`0x004786C0..0x004786C7`共8字节、2条实际指令、0个call、0个分支和1个普通`retn`，没有外部chunk或中段入口；函数只把actor `+0x2A70`完整word读入AX，保留EAX高16位、ECX、EDX和全部flags后普通RET。typed实现直接复用startup Group-A party item-effect与Group-B lifecycle action-composition中的canonical显示种类owner，保留字段与RET两个真实停点、完整寄存器、ESP/EIP、flags和访问计数，不增加平行word数组、第二套display缓存或token槽。主动作分派唯一物理caller直接组合typed leaf，只在动作种类为零且终止查询不等于1时执行，保留前序callee的EAX/EDX、`test edi,edi` flags、真实返回地址和post-call低word mask；typed-stop保留动作种类及终止查询前缀并抑制局部写入、switch与动作后缀，生产`0x004786C0`零raw调用。验证：定向测试、AddressSanitizer、Linux core 199/199、Linux app 205/205 全部通过。连续10轮完整core、全量/changed-range clang-format、零源码warning/测试失败/sanitizer finding、inventory双生成、TMP分类及完整release审计亦通过；未启动原版或OpenSWD3游戏程序。工作包为`294/422 = 284 platform_adapted + 10 assembly_exact + 128 pending_audit`；inventory SHA-256为`e00f466dcb78a138449331575c3a407740f3debf9828338fcddcc9c588c28b24`。动态差分因原版完整Group-A/Group-B actor、异常字段/栈内存页及唯一caller联合寄存器/flags/SEH捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一步执行`audit_order=295 / 0x004786D0`战斗角色启动门word查询函数。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。
