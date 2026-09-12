@@ -100,6 +100,7 @@ struct LegacyBattleGroupAActionExecutionState
     compat::u16 special_primary_draw_y{};        // actor + 0x29BA
     compat::u32 turn_completion_latch{};         // actor + 0x2AAC
     compat::u32 turn_completion_aux{};           // actor + 0x2AB0
+    compat::u32 idle_state_latch{};              // actor + 0x2AB4
     compat::u16 turn_sample_word{};              // actor + 0x04C0
     compat::u16 auxiliary_word{};                // actor + 0x03B0
     compat::u16 secondary_auxiliary_word{};      // actor + 0x03AE

@@ -176,7 +176,8 @@ bit`0x4000`阶段结束后会在同一次调用重读turn word，因此成功写
 - `0x004698E0`的三处调用已直接回收为typed文字消息入链；
 - `0x00478330`的六处调用已直接回收为typed角色可用性写入；
 - `0x00478690`的one-based Group-A目标与Group-B动作目标两处调用已直接回收为typed回合完成查询；
-- 其余41个角色、AI、选择、文本、sample和数值callee继续使用单一typed token端口。
+- `0x004786A0`的actor启动、peer扫描、直接空闲门与selected-target四处调用已直接回收为typed空闲状态查询；
+- 其余待审角色、AI、选择、文本、sample和数值callee继续使用单一typed token端口。
 
 所有对象地址、one-based目标、固定前一槽、scene与文本地址均为`compat::u32` token，不转主机指针。
 
@@ -187,6 +188,7 @@ Typed-stop只位于：
 - queue code派生对象首次查询；
 - one-based随机/选择首次对象callee；
 - 两处回合完成getter的canonical字段或RET返回地址读取；
+- 四处空闲状态getter的canonical字段或RET返回地址读取；
 - action target首次组B对象callee；
 - resolved target零token后的word54读取；
 - 已关闭动作分派自身真实访问点。
@@ -202,6 +204,7 @@ Typed-stop只位于：
 - idle actor启动后的攻击顺序记录、队员暂存源和双尾门真实访问点；
 - completed actor组B扫描与首个live选择；
 - one-based Group-A目标及Group-B动作目标两处回合完成caller的canonical owner、调用前寄存器/flags、typed-stop后缀抑制和旧callee token零调用；
+- actor启动、peer扫描、直接空闲门与selected-target四处空闲状态caller的canonical owner、完整零/1/其他非零值、调用前EAX/EDX/flags、真实返回地址、typed-stop后缀抑制和旧callee token零调用；
 - active action直接调用已关闭主分派，确认端口不再出现旧callee token并完成全cleanup；
 - action target `0xFFFF`首次组B对象typed-stop；
 - turn `0x4000→0x8000→0`同调用穿透；
@@ -213,4 +216,4 @@ Typed-stop只位于：
 
 相邻工作包278进一步关闭本函数内`0x004567EA`、`0x00456BC0`、`0x00456C1C`、`0x00456CF4`、`0x00456D88`、`0x00456E69`六处物理call。第一处把完整dword `1`写入当前组A角色`+0x2AE4`，其余五处写`0`；全部直接复用`LegacyBattleFinalActorStepState::group_a_availability_blocks`，旧callee token生产零调用。第一处保留末次组B完成查询EDX，后五处分别线程化最终处理、发布选择、选择完成或清展示callee的真实EDX；leaf在写失败时已把参数装入EAX，并保留角色token ECX与该EDX，父函数立即返回，不执行随机选择、门复位、最终处理或UI尾部。queue mode路径直连`0x00464CC0`时也通过同一owner完成其第七种组A帧到达方式。
 
-当前缺少原版组A/B对象、43类剩余callee共享副作用、攻击顺序/队员暂存动态轨迹、AI/选择/队列表、text/sample、resolved target内存与回合状态联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版组A/B对象、其余待审callee共享副作用、攻击顺序/队员暂存动态轨迹、AI/选择/队列表、text/sample、resolved target内存与回合/空闲状态联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

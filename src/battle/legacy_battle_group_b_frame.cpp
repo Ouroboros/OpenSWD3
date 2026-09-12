@@ -26,7 +26,6 @@ constexpr u32 kCallQueryQueueCompletion = 0x0047F920U;
 constexpr u32 kCallResetActor = 0x00478850U;
 constexpr u32 kCallQueryActorBlocked = 0x0047D930U;
 constexpr u32 kCallQueryActorExcluded = 0x00478B50U;
-constexpr u32 kCallQueryIdle = 0x004786A0U;
 constexpr u32 kCallClearControl = 0x0047C660U;
 constexpr u32 kCallPrepareTarget = 0x00478AC0U;
 constexpr u32 kCallPrepareSelection = 0x00478B30U;
@@ -59,6 +58,19 @@ constexpr u32 kCallPublishEffectMode = 0x00478B60U;
     value ^= value >> 2U;
     value ^= value >> 1U;
     return (value & 1U) == 0U;
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+logical_flags(const u32 value) noexcept {
+    return {
+        .carry = false,
+        .parity = has_even_parity(value),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = value == 0U,
+        .sign = (value & 0x80000000U) != 0U,
+        .overflow = false,
+    };
 }
 
 [[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
@@ -178,6 +190,28 @@ void replace_low_byte(u32& destination, const u8 value) noexcept {
         return false;
     }
     value = result.actor_turn_completion.return_eax;
+    return true;
+}
+
+[[nodiscard]] bool query_idle_state(
+    LegacyBattleActionDispatchResult& result,
+    const LegacyBattleActorIdleStateOwners& owners,
+    const LegacyBattleActorIdleStateRequest& request,
+    u32& value
+) {
+    result.actor_idle_state = query_legacy_battle_actor_idle_state(
+        resolve_legacy_battle_actor_idle_state(owners, request.actor_token),
+        request
+    );
+    ++result.actor_idle_state_calls;
+    if (result.actor_idle_state.status !=
+        LegacyBattleActorIdleStateStatus::completed) {
+        result.status =
+            LegacyBattleActionDispatchStatus::actor_idle_state_typed_stop;
+        result.return_value = result.actor_idle_state.return_eax;
+        return false;
+    }
+    value = result.actor_idle_state.return_eax;
     return true;
 }
 
@@ -384,6 +418,10 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
         return result;
     }
     const u32 source_token = group_b_token(group_b_index);
+    const LegacyBattleActorIdleStateOwners idle_state_owners{
+        .action = &action,
+        .startup = context.startup,
+    };
     u32 stale_ebx = group_b_index * kLegacyBattleActionGroupBStride;
 
     if (state.frame_enabled == 1U) {
@@ -529,15 +567,33 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                             )) {
                                             return result;
                                         }
-                                        target_available =
-                                            target_turn_completion == 0U &&
-                                            invoke(
-                                                port,
-                                                result,
-                                                kCallQueryIdle,
-                                                {source_token}
-                                            )
-                                                    .eax == 0U;
+                                        if (target_turn_completion == 0U) {
+                                            auto request =
+                                                context
+                                                    .actor_idle_state_request;
+                                            request.actor_token = source_token;
+                                            request.entry_eax =
+                                                target_turn_completion;
+                                            request.entry_edx =
+                                                result.actor_turn_completion
+                                                    .return_edx;
+                                            request.entry_return_address =
+                                                0x0045785DU;
+                                            request.entry_flags = logical_flags(
+                                                target_turn_completion
+                                            );
+                                            request.entry_flags_known = true;
+                                            u32 idle_state{};
+                                            if (!query_idle_state(
+                                                    result,
+                                                    idle_state_owners,
+                                                    request,
+                                                    idle_state
+                                                )) {
+                                                return result;
+                                            }
+                                            target_available = idle_state == 0U;
+                                        }
                                     }
                                 }
                                 if (target_available) {
@@ -721,8 +777,19 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                 state.selection_initialized = 1U;
             }
 
-            if (invoke(port, result, kCallQueryIdle, {source_token}).eax ==
-                0U) {
+            auto selection_idle_request = context.actor_idle_state_request;
+            selection_idle_request.actor_token = source_token;
+            selection_idle_request.entry_return_address = 0x00457AC2U;
+            u32 selection_idle_state{};
+            if (!query_idle_state(
+                    result,
+                    idle_state_owners,
+                    selection_idle_request,
+                    selection_idle_state
+                )) {
+                return result;
+            }
+            if (selection_idle_state == 0U) {
                 const u16 status = state.status_words[group_b_index];
                 state.phase_mode = 0U;
                 if (high_byte(status) != 0U) {
@@ -1149,8 +1216,19 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
 action_decision_done:
     if (state.frame_enabled == 1U && shared.action_aux_gate == 0U &&
         shared.turn_resolution_bits == 0U) {
-        const auto idle = invoke(port, result, kCallQueryIdle, {source_token});
-        if (idle.eax == 1U) {
+        auto decision_idle_request = context.actor_idle_state_request;
+        decision_idle_request.actor_token = source_token;
+        decision_idle_request.entry_return_address = 0x00457E44U;
+        u32 decision_idle_state{};
+        if (!query_idle_state(
+                result,
+                idle_state_owners,
+                decision_idle_request,
+                decision_idle_state
+            )) {
+            return result;
+        }
+        if (decision_idle_state == 1U) {
             stale_ebx = 1U;
             if (action.active_effect_target == group_b_index) {
                 shared.action_block_gate = 1U;

@@ -167,7 +167,7 @@ pending effect ID非全1时调用pending step `(source,shared_argument,index)`�
 
 ## 12. callee、测试与动态差分
 
-46个唯一callee中，已关闭对手动作分派`0x00455D60`、玩家道具双数量步进`0x0045D180`、攻击顺序登记`0x0045EDF0`、文字消息入链`0x004698E0`、组B行动进度`0x004755E0`、组B对手模式`0x00476080`、组B行动资料标记`0x00476140`、组B行动profile/mode组合`0x004761D0`、角色进度阈值同步`0x00478370`和回合完成查询`0x00478690`直接typed组合；文字消息的两处调用复用启动状态唯一链头和动态节点owner，行动进度、三个组B判定/组合与阈值同步复用startup的actor/resource/profile/timing owner，回合完成查询复用共享Group-A action owner。`0x004761D0`内部待审profile loader替代原整函数token进入窄端口，其余36个角色、AI、状态、文本、完成资源和效果callee继续使用共享typed token端口。
+46个唯一callee中，已关闭对手动作分派`0x00455D60`、玩家道具双数量步进`0x0045D180`、攻击顺序登记`0x0045EDF0`、文字消息入链`0x004698E0`、组B行动进度`0x004755E0`、组B对手模式`0x00476080`、组B行动资料标记`0x00476140`、组B行动profile/mode组合`0x004761D0`、角色进度阈值同步`0x00478370`和回合完成查询`0x00478690`、空闲状态查询`0x004786A0`直接typed组合；文字消息的两处调用复用启动状态唯一链头和动态节点owner，行动进度、三个组B判定/组合与阈值同步复用startup的actor/resource/profile/timing owner，回合完成查询复用共享Group-A action owner，三处空闲状态查询复用startup Group-B lifecycle action-execution owner。`0x004761D0`内部待审profile loader替代原整函数token进入窄端口，其余待审角色、AI、状态、文本、完成资源和效果callee继续使用共享typed token端口。
 
 定向测试覆盖：
 
@@ -176,6 +176,7 @@ pending effect ID非全1时调用pending step `(source,shared_argument,index)`�
 - live update、组B进度与攻击顺序共享记录直连、两个旧callback清零、资源typed-stop前缀、记录typed-stop前缀与陈旧stride EBX写block；
 - queue完成直接返回reset完整EAX；
 - phase Group-A扫描的回合完成caller保留excluded EAX/EDX与CMP flags，在字段停止时抑制source idle、目标准备和剩余循环，且旧callee token零调用；
+- target scan、selection与action-decision三处空闲状态caller复用Group-B lifecycle owner，覆盖完整零/1/其他非零值、继承EAX/EDX/flags、三个真实返回地址、字段typed-stop及clear/prepare、status/profile和opponent-dispatch后缀抑制，旧callee token生产零调用；
 - phase side跳过随机/status；
 - 随机组B同伴；
 - profile覆盖EDX低byte；
@@ -188,4 +189,4 @@ pending effect ID非全1时调用pending step `(source,shared_argument,index)`�
 - pending effect及final actor成功尾；
 - profile真实访问typed-stop。
 
-当前缺少原版组A/B对象、38类剩余callee（含profile loader）共享副作用、攻击顺序动态记录、随机状态、AI/packed-status表、completion表、文本、资源surface及陈旧寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版组A/B对象、其余待审callee（含profile loader）共享副作用、攻击顺序动态记录、随机状态、AI/packed-status表、completion表、文本、资源surface及空闲状态/陈旧寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

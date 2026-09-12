@@ -24,6 +24,19 @@ using compat::u32;
 }
 
 [[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+logical_flags(const u32 value) noexcept {
+    return {
+        .carry = false,
+        .parity = has_even_parity(value),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = value == 0U,
+        .sign = (value & 0x80000000U) != 0U,
+        .overflow = false,
+    };
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
 add_flags(const u32 left, const u32 right, const u32 sum) noexcept {
     return {
         .carry = sum < left,
@@ -68,7 +81,6 @@ constexpr u32 kCallResetActor = 0x00478850U;
 constexpr u32 kCallPlaySample = 0x00485610U;
 constexpr u32 kCallQueryQueueMode = 0x00483820U;
 constexpr u32 kCallQueryQueueCompletion = 0x0047F920U;
-constexpr u32 kCallQueryActorIdle = 0x004786A0U;
 constexpr u32 kCallQueryActorAvailable = 0x0047C670U;
 constexpr u32 kCallClearControl = 0x0047C660U;
 constexpr u32 kCallClearPresentation = 0x0047CC50U;
@@ -408,6 +420,28 @@ one_based_group_b_token(const u32 one_based) noexcept {
         return false;
     }
     value = result.actor_turn_completion.return_eax;
+    return true;
+}
+
+[[nodiscard]] bool query_idle_state(
+    LegacyBattleActionDispatchResult& result,
+    const LegacyBattleActorIdleStateOwners& owners,
+    const LegacyBattleActorIdleStateRequest& request,
+    u32& value
+) {
+    result.actor_idle_state = query_legacy_battle_actor_idle_state(
+        resolve_legacy_battle_actor_idle_state(owners, request.actor_token),
+        request
+    );
+    ++result.actor_idle_state_calls;
+    if (result.actor_idle_state.status !=
+        LegacyBattleActorIdleStateStatus::completed) {
+        result.status =
+            LegacyBattleActionDispatchStatus::actor_idle_state_typed_stop;
+        result.return_value = result.actor_idle_state.return_eax;
+        return false;
+    }
+    value = result.actor_idle_state.return_eax;
     return true;
 }
 
@@ -973,6 +1007,10 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
     }
     const u32 actor_token = group_a_token(group_a_index);
     auto& actor = state.actors[group_a_index];
+    const LegacyBattleActorIdleStateOwners idle_state_owners{
+        .action = &state.action,
+        .startup = context.startup,
+    };
     const auto current_coordinate_actor = context.startup == nullptr
         ? view_legacy_battle_actor_coordinates(
               state.action.group_a_action_execution[group_a_index]
@@ -1249,10 +1287,28 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
         }
     }
 
-    if (actor.frame_started == 0U &&
-        invoke(port, result, kCallQueryQueueCompletion, {actor_token}).eax ==
-            0U &&
-        invoke(port, result, kCallQueryActorIdle, {actor_token}).eax == 1U &&
+    bool start_idle{};
+    if (actor.frame_started == 0U) {
+        const auto queue_completion =
+            invoke(port, result, kCallQueryQueueCompletion, {actor_token});
+        if (queue_completion.eax == 0U) {
+            auto request = context.actor_idle_state_request;
+            request.actor_token = actor_token;
+            request.entry_eax = queue_completion.eax;
+            request.entry_edx = queue_completion.edx;
+            request.entry_return_address = 0x0045691CU;
+            request.entry_flags = logical_flags(queue_completion.eax);
+            request.entry_flags_known = true;
+            u32 idle_state{};
+            if (!query_idle_state(
+                    result, idle_state_owners, request, idle_state
+                )) {
+                return result;
+            }
+            start_idle = idle_state == 1U;
+        }
+    }
+    if (actor.frame_started == 0U && start_idle &&
         invoke(port, result, kCallQueryActorAvailable, {actor_token}).eax ==
             1U &&
         state.action_block_gate == 0U && state.action_aux_gate == 0U) {
@@ -1320,11 +1376,32 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     )) {
                     return result;
                 }
+                bool current_actor_idle{};
+                if (selected_turn_completion == 0U &&
+                    state.action.active_effect_target !=
+                        state.selected_actor_one_based + 7U) {
+                    auto request = context.actor_idle_state_request;
+                    request.actor_token = actor_token;
+                    request.entry_eax = state.selected_actor_one_based + 7U;
+                    request.entry_edx = result.actor_turn_completion.return_edx;
+                    request.entry_return_address = 0x00456E00U;
+                    request.entry_flags = subtract_flags(
+                        state.action.active_effect_target,
+                        state.selected_actor_one_based + 7U
+                    );
+                    request.entry_flags_known = true;
+                    u32 idle_state{};
+                    if (!query_idle_state(
+                            result, idle_state_owners, request, idle_state
+                        )) {
+                        return result;
+                    }
+                    current_actor_idle = idle_state == 0U;
+                }
                 if (selected_turn_completion == 0U &&
                     state.action.active_effect_target !=
                         state.selected_actor_one_based + 7U &&
-                    invoke(port, result, kCallQueryActorIdle, {actor_token})
-                            .eax == 0U) {
+                    current_actor_idle) {
                     static_cast<void>(
                         invoke(port, result, kCallClearControl, {0U})
                     );
@@ -1366,91 +1443,102 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         state.ui_gate_b = 1U;
                     }
                 }
-            } else if (
-                invoke(port, result, kCallQueryActorIdle, {actor_token}).eax ==
-                0U
-            ) {
-                static_cast<void>(
-                    invoke(port, result, kCallClearPresentation, {0U})
-                );
-                if (state.actor_ai_primary[group_a_index] != 0U ||
-                    state.actor_ai_secondary[group_a_index] != 0U) {
-                    if (!validate_one_based_group_b(
-                            result, state.selected_opponent_one_based
-                        )) {
-                        return result;
-                    }
+            } else {
+                auto request = context.actor_idle_state_request;
+                request.actor_token = actor_token;
+                request.entry_eax = 0U;
+                request.entry_return_address = 0x00456C4DU;
+                request.entry_flags = logical_flags(0U);
+                request.entry_flags_known = true;
+                u32 idle_state{};
+                if (!query_idle_state(
+                        result, idle_state_owners, request, idle_state
+                    )) {
+                    return result;
+                }
+                if (idle_state == 0U) {
                     static_cast<void>(
-                        invoke(port, result, kCallClearControl, {0U})
+                        invoke(port, result, kCallClearPresentation, {0U})
                     );
-                    static_cast<void>(invoke(
-                        port,
-                        result,
-                        kCallSelectOpponent,
-                        {one_based_group_b_token(
-                            state.selected_opponent_one_based
-                        )}
-                    ));
-                    const auto published = invoke(
-                        port,
-                        result,
-                        kCallPublishSelection,
-                        {state.selected_opponent_one_based - 1U}
-                    );
-                    if (!set_availability_block(0U, published.edx)) {
-                        return result;
-                    }
-                    reset_selection_gates(state, port);
-                    state.selected_opponent_one_based = 1U;
-                } else if (
-                    invoke(
-                        port,
-                        result,
-                        kCallSetDelay,
-                        {actor_token, actor.delay_mode}
-                    )
-                        .eax == 1U
-                ) {
-                    if (!validate_one_based_group_b(
-                            result, state.selected_actor_one_based
-                        )) {
-                        return result;
-                    }
-                    static_cast<void>(
-                        invoke(port, result, kCallClearControl, {0U})
-                    );
-                    static_cast<void>(invoke(
-                        port,
-                        result,
-                        kCallSelectOpponent,
-                        {one_based_group_b_token(
-                            state.selected_actor_one_based
-                        )}
-                    ));
-                    const auto published = invoke(
-                        port,
-                        result,
-                        kCallPublishSelection,
-                        {state.selected_actor_one_based - 1U}
-                    );
-                    if (!set_availability_block(0U, published.edx)) {
-                        return result;
-                    }
-                    if (!process_group_a_final(
-                            state,
+                    if (state.actor_ai_primary[group_a_index] != 0U ||
+                        state.actor_ai_secondary[group_a_index] != 0U) {
+                        if (!validate_one_based_group_b(
+                                result, state.selected_opponent_one_based
+                            )) {
+                            return result;
+                        }
+                        static_cast<void>(
+                            invoke(port, result, kCallClearControl, {0U})
+                        );
+                        static_cast<void>(invoke(
                             port,
-                            context,
                             result,
-                            group_a_index,
-                            actor_token
-                        )) {
-                        result.return_value =
-                            result.group_a_final_processing.return_eax;
-                        return result;
+                            kCallSelectOpponent,
+                            {one_based_group_b_token(
+                                state.selected_opponent_one_based
+                            )}
+                        ));
+                        const auto published = invoke(
+                            port,
+                            result,
+                            kCallPublishSelection,
+                            {state.selected_opponent_one_based - 1U}
+                        );
+                        if (!set_availability_block(0U, published.edx)) {
+                            return result;
+                        }
+                        reset_selection_gates(state, port);
+                        state.selected_opponent_one_based = 1U;
+                    } else if (
+                        invoke(
+                            port,
+                            result,
+                            kCallSetDelay,
+                            {actor_token, actor.delay_mode}
+                        )
+                            .eax == 1U
+                    ) {
+                        if (!validate_one_based_group_b(
+                                result, state.selected_actor_one_based
+                            )) {
+                            return result;
+                        }
+                        static_cast<void>(
+                            invoke(port, result, kCallClearControl, {0U})
+                        );
+                        static_cast<void>(invoke(
+                            port,
+                            result,
+                            kCallSelectOpponent,
+                            {one_based_group_b_token(
+                                state.selected_actor_one_based
+                            )}
+                        ));
+                        const auto published = invoke(
+                            port,
+                            result,
+                            kCallPublishSelection,
+                            {state.selected_actor_one_based - 1U}
+                        );
+                        if (!set_availability_block(0U, published.edx)) {
+                            return result;
+                        }
+                        if (!process_group_a_final(
+                                state,
+                                port,
+                                context,
+                                result,
+                                group_a_index,
+                                actor_token
+                            )) {
+                            result.return_value =
+                                result.group_a_final_processing.return_eax;
+                            return result;
+                        }
+                        reset_selection_gates(state, port);
+                        state.ui_gate_b = 1U;
+                        state.ui_gate_c = 1U;
                     }
-                    reset_selection_gates(state, port);
-                    state.ui_gate_b = 1U;
-                    state.ui_gate_c = 1U;
                 }
             }
         } else {
@@ -1463,20 +1551,38 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         return result;
                     }
                     if (state.actor_ai_primary[uindex] != 1U &&
-                        state.actor_ai_secondary[uindex] != 1U &&
-                        invoke(
+                        state.actor_ai_secondary[uindex] != 1U) {
+                        const auto other_actor = invoke(
                             port,
                             result,
                             kCallQueryOtherActor,
                             {group_a_token(uindex)}
-                        )
-                                .eax != 1U &&
-                        invoke(port, result, kCallQueryActorIdle, {actor_token})
-                                .eax == 0U) {
-                        static_cast<void>(
-                            invoke(port, result, kCallClearControl, {0U})
                         );
-                        ++actor.progress;
+                        if (other_actor.eax != 1U) {
+                            auto request = context.actor_idle_state_request;
+                            request.actor_token = actor_token;
+                            request.entry_eax = other_actor.eax;
+                            request.entry_edx = other_actor.edx;
+                            request.entry_return_address = 0x00456ABEU;
+                            request.entry_flags =
+                                subtract_flags(other_actor.eax, 1U);
+                            request.entry_flags_known = true;
+                            u32 idle_state{};
+                            if (!query_idle_state(
+                                    result,
+                                    idle_state_owners,
+                                    request,
+                                    idle_state
+                                )) {
+                                return result;
+                            }
+                            if (idle_state == 0U) {
+                                static_cast<void>(invoke(
+                                    port, result, kCallClearControl, {0U}
+                                ));
+                                ++actor.progress;
+                            }
+                        }
                     }
                     ++result.group_a_iterations;
                 }

@@ -167,6 +167,9 @@ struct Fixture {
                 raster, framebuffer.geometry().surface
             )
         );
+        startup->group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
     }
 
     [[nodiscard]] openswd3::battle::LegacyBattleActionDispatchContext
@@ -334,6 +337,155 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
     }
 
     {
+        LegacyBattleGroupBFrameState state;
+        state.frame_enabled = 1U;
+        state.post_update_gate[0U] = 1U;
+        state.shared.action.active_effect_target = 0U;
+        state.phase_mode = 1U;
+        state.shared.action.group_a_count = 1;
+        state.shared.action.group_a_action_execution[0U].turn_completion_latch =
+            0U;
+        Fixture fixture;
+        DispatchPort port;
+        port.push(0x00478B50U, {.eax = 0U, .edx = 0xA5A55A5AU});
+        auto context = fixture.context();
+        context.actor_idle_state_request.access.latch_readable = false;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_idle_state_typed_stop &&
+                result.actor_turn_completion_calls == 1U &&
+                result.actor_idle_state_calls == 1U &&
+                result.actor_idle_state.status ==
+                    openswd3::battle::LegacyBattleActorIdleStateStatus::
+                        latch_read_typed_stop &&
+                result.actor_idle_state.return_eax == 0U &&
+                result.actor_idle_state.return_ecx ==
+                    openswd3::battle::kLegacyBattleActionGroupBBaseToken &&
+                result.actor_idle_state.return_edx == 0xA5A55A5AU &&
+                result.actor_idle_state.return_esp ==
+                    context.actor_idle_state_request.entry_esp &&
+                result.actor_idle_state.return_eip == 0x004786A0U &&
+                result.actor_idle_state.field_token ==
+                    openswd3::battle::kLegacyBattleActionGroupBBaseToken +
+                        0x2AB4U &&
+                result.actor_idle_state.flags_known &&
+                !result.actor_idle_state.flags.carry &&
+                result.actor_idle_state.flags.parity &&
+                !result.actor_idle_state.flags.auxiliary_carry_defined &&
+                result.actor_idle_state.flags.zero &&
+                !result.actor_idle_state.flags.sign &&
+                !result.actor_idle_state.flags.overflow &&
+                result.group_a_iterations == 0U &&
+                port.count(0x004786A0U) == 0U &&
+                port.count(0x0047C660U) == 0U && port.count(0x00478AC0U) == 0U,
+            "Group-B target-scan caller preserves turn TEST state and stops before target preparation"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState state;
+        state.frame_enabled = 1U;
+        state.shared.action.active_effect_target = 1U;
+        Fixture fixture;
+        DispatchPort port;
+        port.push(0x0047CE80U, {.eax = 1U});
+        auto context = fixture.context();
+        context.actor_idle_state_request.entry_eax = 0x11223344U;
+        context.actor_idle_state_request.entry_edx = 0x55667788U;
+        context.actor_idle_state_request.entry_flags = {
+            .carry = true,
+            .parity = false,
+            .auxiliary_carry = true,
+            .auxiliary_carry_defined = true,
+            .zero = false,
+            .sign = true,
+            .overflow = true,
+        };
+        context.actor_idle_state_request.access.latch_readable = false;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_idle_state_typed_stop &&
+                result.actor_idle_state_calls == 1U &&
+                result.actor_idle_state.return_eax == 0x11223344U &&
+                result.actor_idle_state.return_ecx ==
+                    openswd3::battle::kLegacyBattleActionGroupBBaseToken &&
+                result.actor_idle_state.return_edx == 0x55667788U &&
+                result.actor_idle_state.return_eip == 0x004786A0U &&
+                result.actor_idle_state.flags_known &&
+                result.actor_idle_state.flags.carry &&
+                !result.actor_idle_state.flags.parity &&
+                result.actor_idle_state.flags.auxiliary_carry_defined &&
+                result.actor_idle_state.flags.auxiliary_carry &&
+                !result.actor_idle_state.flags.zero &&
+                result.actor_idle_state.flags.sign &&
+                result.actor_idle_state.flags.overflow &&
+                port.count(0x004786A0U) == 0U && port.count(0x004786B0U) == 0U,
+            "Group-B action-decision caller preserves inherited registers and flags before dispatch"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState state;
+        state.frame_enabled = 1U;
+        state.post_update_gate[0U] = 1U;
+        state.shared.action.active_effect_target = 0U;
+        state.phase_mode = 1U;
+        state.shared.action.group_a_count = 1;
+        state.shared.action.group_a_action_execution[0U].turn_completion_latch =
+            0U;
+        Fixture fixture;
+        (*fixture.startup->group_b_lifecycle)[0U]
+            .action_execution.idle_state_latch = 7U;
+        DispatchPort port;
+        port.push(0x00478B50U, {.eax = 0U});
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed,
+            "nonmatching Group-B idle-state value retains completed status"
+        );
+        test.expect_true(
+            result.actor_idle_state_calls == 2U,
+            "phase-mode nonmatching value reaches target-scan and action-decision callers"
+        );
+        test.expect_true(
+            result.actor_idle_state.returned &&
+                result.actor_idle_state.return_eax == 7U &&
+                result.actor_idle_state.return_eip == 0x00457E44U,
+            "last Group-B caller returns the complete value to its real address"
+        );
+        test.expect_true(
+            state.phase_progress == 0U,
+            "nonmatching target-scan value skips phase progress"
+        );
+        test.expect_true(
+            port.count(0x0047C660U) == 0U && port.count(0x00478AC0U) == 0U,
+            "nonmatching target-scan value skips clear and preparation"
+        );
+        test.expect_true(
+            port.count(0x004786B0U) == 0U,
+            "non-one decision value skips opponent dispatch"
+        );
+        test.expect_true(
+            port.count(0x004786A0U) == 0U,
+            "all Group-B callers avoid the generic idle-state address"
+        );
+    }
+
+    {
         LegacyBattleGroupBFrameState zero_state;
         zero_state.frame_enabled = 1U;
         zero_state.post_update_gate[0U] = 1U;
@@ -370,14 +522,17 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 zero.actor_turn_completion.returned &&
                 zero.actor_turn_completion.return_eax == 0U &&
                 zero.actor_turn_completion.return_eip == 0x00457852U &&
-                zero_port.count(0x004786A0U) == 2U &&
+                zero.actor_idle_state_calls == 2U &&
+                zero.actor_idle_state.returned &&
+                zero_port.count(0x004786A0U) == 0U &&
                 zero_port.count(0x0047C660U) == 1U &&
                 zero_port.count(0x00478AC0U) == 1U &&
                 nonzero.actor_turn_completion_calls == 1U &&
                 nonzero.actor_turn_completion.returned &&
                 nonzero.actor_turn_completion.return_eax == 11U &&
                 nonzero.actor_turn_completion.return_eip == 0x00457852U &&
-                nonzero_port.count(0x004786A0U) == 1U &&
+                nonzero.actor_idle_state_calls == 1U &&
+                nonzero_port.count(0x004786A0U) == 0U &&
                 nonzero_port.count(0x0047C660U) == 0U &&
                 nonzero_port.count(0x00478AC0U) == 0U &&
                 zero_port.count(0x00478690U) == 0U &&
@@ -469,6 +624,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         state.frame_enabled = 1U;
         state.shared.actor_progress_threshold = 100;
         Fixture fixture;
+        fixture.startup->group_b_lifecycle.reset();
         DispatchPort port;
         port.push(0x0047CE80U, {.eax = 0U});
         port.push(0x0047DAD0U, {.edx = 0xA5A55A5AU});
@@ -592,6 +748,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         state.post_update_gate[0U] = 1U;
         state.shared.action.active_effect_target = 0U;
         state.shared.action.group_a_count = 1;
+        state.action_profile_bytes = {0U};
         Fixture fixture;
         bind_group_b_coordinate_resource(fixture, 0U);
         auto& actor = (*fixture.startup->group_b_lifecycle)[0U];
@@ -609,15 +766,36 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 state, port, context, 0U
             );
         test.expect_true(
-            result.status == LegacyBattleActionDispatchStatus::completed &&
-                result.group_b_opponent_mode_calls == 1U &&
-                actor.action_execution.opponent_mode == 1U &&
-                state.shared.action_side == 1U &&
-                state.random_target_index == 0U &&
-                state.selection_initialized == 1U &&
-                fixture.random.bounds == std::vector<u32>{10U} &&
-                port.count(0x00476080U) == 0U,
-            "group A selection directly applies the typed opponent mode result"
+            result.status == LegacyBattleActionDispatchStatus::completed,
+            "group A selection retains completed status"
+        );
+        test.expect_true(
+            result.group_b_opponent_mode_calls == 1U,
+            "group A selection directly invokes typed opponent mode once"
+        );
+        test.expect_true(
+            actor.action_execution.opponent_mode == 1U,
+            "group A selection publishes typed opponent mode into its owner"
+        );
+        test.expect_true(
+            state.shared.action_side == 1U,
+            "group A selection publishes the opponent side"
+        );
+        test.expect_true(
+            state.random_target_index == 0U,
+            "group A selection keeps the selected opponent index"
+        );
+        test.expect_true(
+            state.selection_initialized == 1U,
+            "group A selection keeps selection initialization"
+        );
+        test.expect_true(
+            fixture.random.bounds == std::vector<u32>{10U, 12U},
+            "group A selection records opponent-mode and status random bounds"
+        );
+        test.expect_true(
+            port.count(0x00476080U) == 0U,
+            "group A selection emits no opaque opponent-mode call"
         );
     }
 
@@ -696,9 +874,21 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         state.action_profile_bytes = {0U};
         state.shared.action.current_actor_index = 0x1234U;
         Fixture fixture;
+        fixture.startup->group_b_lifecycle.reset();
         DispatchPort port;
         port.push(0x00480220U, {.eax = 0xA1B2C3D4U, .edx = 0x55667788U});
         auto context = fixture.context();
+        context.actor_idle_state_request.entry_eax = 0xCAFEBABEU;
+        context.actor_idle_state_request.entry_edx = 0x89ABCDEFU;
+        context.actor_idle_state_request.entry_flags = {
+            .carry = true,
+            .parity = true,
+            .auxiliary_carry = false,
+            .auxiliary_carry_defined = true,
+            .zero = false,
+            .sign = false,
+            .overflow = true,
+        };
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
                 state, port, context, 0U
@@ -706,20 +896,38 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleActionDispatchStatus::
-                        group_b_status_action_typed_stop &&
-                result.return_value == 0U &&
-                result.group_b_status_action.status ==
-                    openswd3::battle::LegacyBattleGroupBStatusActionStatus::
-                        actor_state_typed_stop &&
-                result.group_b_status_action_calls == 1U &&
+                        actor_idle_state_typed_stop &&
+                result.return_value == 0xCAFEBABEU &&
+                result.actor_idle_state.status ==
+                    openswd3::battle::LegacyBattleActorIdleStateStatus::
+                        latch_read_typed_stop &&
+                result.actor_idle_state_calls == 1U &&
+                result.actor_idle_state.return_eax == 0xCAFEBABEU &&
+                result.actor_idle_state.return_ecx ==
+                    openswd3::battle::kLegacyBattleActionGroupBBaseToken &&
+                result.actor_idle_state.return_edx == 0x89ABCDEFU &&
+                result.actor_idle_state.return_eip == 0x004786A0U &&
+                result.actor_idle_state.field_token ==
+                    openswd3::battle::kLegacyBattleActionGroupBBaseToken +
+                        0x2AB4U &&
+                result.actor_idle_state.flags_known &&
+                result.actor_idle_state.flags.carry &&
+                result.actor_idle_state.flags.parity &&
+                result.actor_idle_state.flags.auxiliary_carry_defined &&
+                !result.actor_idle_state.flags.auxiliary_carry &&
+                !result.actor_idle_state.flags.zero &&
+                !result.actor_idle_state.flags.sign &&
+                result.actor_idle_state.flags.overflow &&
+                result.group_b_status_action_calls == 0U &&
                 result.group_b_action_profile_flag_calls == 0U &&
                 state.shared.action.current_actor_index == 0x1234U &&
                 state.shared.action_side == 0U &&
                 state.selection_initialized == 1U &&
+                port.count(0x004786A0U) == 0U &&
                 port.count(0x00476330U) == 0U &&
                 port.count(0x00480220U) == 0U &&
                 port.count(0x00476140U) == 0U && port.count(0x0047D8D0U) == 0U,
-            "status action actor stop now precedes the profile flag sequence"
+            "selection-stage idle-state owner stop precedes the profile flag sequence"
         );
     }
 
@@ -733,6 +941,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         state.status_misc = 9U;
         state.shared.action.current_actor_index = 0x1234U;
         Fixture fixture;
+        fixture.startup->group_b_lifecycle.reset();
         DispatchPort port;
         port.push(0x00480220U, {.eax = 1U});
         port.push(0x0047D880U, {.eax = 1U, .edx = 0x55667788U});
@@ -744,20 +953,23 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleActionDispatchStatus::
-                        group_b_status_action_typed_stop &&
+                        actor_idle_state_typed_stop &&
                 result.return_value == 0U &&
-                result.group_b_status_action.status ==
-                    openswd3::battle::LegacyBattleGroupBStatusActionStatus::
-                        actor_state_typed_stop &&
-                result.group_b_status_action_calls == 1U &&
+                result.actor_idle_state.status ==
+                    openswd3::battle::LegacyBattleActorIdleStateStatus::
+                        latch_read_typed_stop &&
+                result.actor_idle_state_calls == 1U &&
+                result.actor_idle_state.return_eip == 0x004786A0U &&
+                result.group_b_status_action_calls == 0U &&
                 result.group_b_action_profile_flag_calls == 0U &&
                 state.shared.action.current_actor_index == 0x1234U &&
                 state.status_misc == 9U && state.special_action_latch == 0U &&
                 state.shared.action_side == 0U &&
+                port.count(0x004786A0U) == 0U &&
                 port.count(0x00476330U) == 0U &&
                 port.count(0x00480220U) == 0U &&
                 port.count(0x0047D880U) == 0U && port.count(0x00476140U) == 0U,
-            "status action actor stop blocks the former profile flag status prefix"
+            "selection-stage idle-state stop blocks the former profile status prefix"
         );
     }
 
@@ -864,6 +1076,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         state.status_action_value = 0x55667788U;
         state.shared.action.current_actor_index = 0x1234U;
         Fixture fixture;
+        fixture.startup->group_b_lifecycle.reset();
         DispatchPort port;
         port.push(0x004786A0U, {.eax = 0U});
         auto context = fixture.context();
@@ -874,25 +1087,28 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleActionDispatchStatus::
-                        group_b_status_action_typed_stop &&
+                        actor_idle_state_typed_stop &&
                 result.return_value == 0U &&
-                result.group_b_status_action.status ==
-                    openswd3::battle::LegacyBattleGroupBStatusActionStatus::
-                        actor_state_typed_stop &&
-                result.group_b_status_action_calls == 1U &&
+                result.actor_idle_state.status ==
+                    openswd3::battle::LegacyBattleActorIdleStateStatus::
+                        latch_read_typed_stop &&
+                result.actor_idle_state_calls == 1U &&
+                result.actor_idle_state.return_eip == 0x004786A0U &&
+                result.group_b_status_action_calls == 0U &&
                 result.group_b_action_profile_mode_calls == 0U &&
                 state.shared.action_side == 0U &&
                 state.special_selection_pending == 1U &&
                 state.status_action_value == 0x55667788U &&
                 state.shared.action.current_actor_index == 0x1234U &&
                 fixture.random.bounds.empty() &&
+                port.count(0x004786A0U) == 0U &&
                 port.count(0x00476330U) == 0U &&
                 port.count(0x004761D0U) == 0U &&
                 port.count(0x00476A80U) == 0U &&
                 port.count(0x00478710U) == 0U &&
                 port.count(0x0047D880U) == 0U &&
                 result.text_message_calls == 0U,
-            "status action actor stop precedes the formerly reachable profile mode boundary"
+            "selection-stage idle-state stop precedes the profile mode boundary"
         );
     }
 
@@ -987,6 +1203,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         state.action_profile_bytes = {0U};
         state.shared.action.group_a_count = 0;
         Fixture fixture;
+        (*fixture.startup->group_b_lifecycle)[0U]
+            .action_execution.idle_state_latch = 1U;
         DispatchPort port;
         port.action = 100U;
         port.action_target = 0U;
@@ -1016,6 +1234,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
         Fixture fixture;
+        (*fixture.startup->group_b_lifecycle)[0U]
+            .action_execution.idle_state_latch = 1U;
         DispatchPort port;
         port.action = 0U;
         port.push(0x004786A0U, {.eax = 1U});
@@ -1047,6 +1267,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         Fixture fixture;
         fixture.startup->timing.action_threshold = 0x5678;
         fixture.startup->party[0].progress.progress = 0xFACE0011U;
+        (*fixture.startup->group_b_lifecycle)[0U]
+            .action_execution.idle_state_latch = 1U;
         DispatchPort port;
         port.action = 100U;
         port.action_target = 0U;
@@ -1124,6 +1346,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         Fixture fixture;
         fixture.startup->timing.action_threshold = 0x9ABCU;
         fixture.startup->party[0].progress.progress = 0xFACE0011U;
+        (*fixture.startup->group_b_lifecycle)[0U]
+            .action_execution.idle_state_latch = 1U;
         DispatchPort port;
         port.action = 100U;
         port.action_target = 0U;
@@ -1185,6 +1409,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         fixture.startup->timing.action_threshold = 0x5678;
         fixture.startup->party[0].progress.progress = 0xFACE0011U;
         fixture.startup->party[0].progress.progress_write_accessible = false;
+        (*fixture.startup->group_b_lifecycle)[0U]
+            .action_execution.idle_state_latch = 1U;
         DispatchPort port;
         port.action = 100U;
         port.action_target = 0U;
@@ -1237,6 +1463,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         std::array<u16, 2> pixels{};
         state.completion_surface = pixels;
         Fixture fixture;
+        (*fixture.startup->group_b_lifecycle)[0U]
+            .action_execution.idle_state_latch = 1U;
         DispatchPort port;
         port.action = 100U;
         port.action_target = 0U;
@@ -1271,6 +1499,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         std::array<u16, 1> pixels{0x1234U};
         state.completion_surface = pixels;
         Fixture fixture;
+        (*fixture.startup->group_b_lifecycle)[0U]
+            .action_execution.idle_state_latch = 1U;
         DispatchPort port;
         port.action = 100U;
         port.action_target = 0U;
