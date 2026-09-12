@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v900
+版本：v902
 
-最后更新：2026-09-09
+最后更新：2026-09-12
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · 工作包290 LST与caller审计
+当前步骤：模块10 · 工作包291 LST与caller审计
 
 ## 0. 执行约定
 
@@ -271,33 +271,34 @@ REVIEW通过后必须立即按`AGENTS.md`完成commit、push和TG，再重新完
 13. `[x]` B7：地图、世界、角色、碰撞与寻路已按模块移交条件有限收口；当前状态、阻塞和证据见[`world-map.md`](../analysis/04-reverse-engineering/modules/world-map.md)及相关inventory/evidence。
 14. `[x]` B8：剧情VM、场景调度与异步action的P1–P3已经完成；[`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md)不再覆盖当前队列。
 15. `[x]` B9：菜单、商店和其他特殊模式的227/227工作项已经关闭；当前状态和阻塞见[`special-modes.md`](../analysis/04-reverse-engineering/modules/special-modes.md)。
-16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=289`；当前执行`audit_order=290 / 0x00478670`。
+16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=290`；当前执行`audit_order=291 / 0x00478690`。
 17. `[ ]` B11：存档、配置与持久化语义；等待B10满足移交条件后开始。
 
 B7以后已经完成的详细执行记录已机械搬到[`execution-progress-history-pi.md`](execution-progress-history-pi.md)。该文件只保存历史，不定义当前执行顺序、状态或断点。
 
 当前只执行B10，不并行展开B11。
 
-当前执行`audit_order=290 / 0x00478670`战斗角色资料token选择函数；下一项为`audit_order=291 / 0x00478690`。
+当前执行`audit_order=291 / 0x00478690`战斗角色回合完成latch查询函数；下一项为`audit_order=292 / 0x004786A0`。
 
 ### B10 当前WORKPACK REVIEW计划
 
 本节始终只保存当前工作包计划。REVIEW完成状态在本节原位更新；工作包关闭后，本节全部内容由下一工作包计划整体替换，不追加历史。
 
-当前工作包：`audit_order=290`、`0x00478670`。目标是完整实现按调用参数选择Group-A角色当前基础记录或live来源记录token的typed函数，并回收当前已实现startup中的两个物理caller。
+当前工作包：`audit_order=291`、`0x00478690`。目标是完整实现Group-A/Group-B角色`turn_completion_latch`的typed dword查询，并回收Group-A frame两处与Group-B frame一处物理caller。
 
-当前断点：完整LST已锁定`0x00478670..0x0047868A`共27字节、12条实际指令、0个call、3个条件分支与2个`retn 4`，没有外部chunk或中段入口。四个物理caller为startup `0x00452511/0x00452646`、`0x00481010:0x00481109`与`0x00481A40:0x00481ADD`；后两项caller函数仍在各自后续workpack，当前生产源码不存在对应opaque调用。
+当前断点：完整LST已锁定`0x00478690..0x00478696`共7字节、2条实际指令、0个call、0个分支与1个普通`retn`，没有外部chunk或中段入口。三个物理caller为Group-A frame `0x00456DD6/0x00456EEB`与Group-B frame `0x0045784D`；当前生产源码三处均仍通过`0x00478690` generic port调用。
 
-#### REVIEW 1：typed token选择与startup caller回收
+#### REVIEW 1：typed完成latch查询与三caller回收
 
-状态：实施中。
+状态：待实施。
 
-- 新增独立typed API，直接借用`LegacyBattleGroupAConfigurationState`的`actor_record_token`与`source_record_token`两个canonical owner，分别对应actor `+0x00/+0x04`；不得复制记录、引入平行token槽或根据token内容猜测记录类型。
-- 精确实现thiscall入口：先读取栈参数到EAX并执行完整32-bit TEST；参数非零才读取`[ECX+0]`，参数为零才读取`[ECX+4]`。选中token再执行第二次完整TEST；非零直接返回，零值执行`xor eax,eax`后返回。ECX/EDX保持，两个`retn 4`均读取真实caller返回地址并清理一个参数。
-- typed-stop覆盖参数栈读取、两项互斥actor字段读取和两个RET返回地址读取；保留当时EAX/ECX/EDX、ESP、已执行TEST或XOR flags及访问计数，不增加null替代、索引夹值或统一提前读取。
-- 回收startup `0x00452511/0x00452646`。两处经现有护援角色materialization公共路径直接组合typed选择器，从首个Group-A actor读取live `+4`来源token；保留该token在startup配置源与首角色自身基础记录之间的动态别名、后续参数push顺序及typed-stop对当前护援与剩余startup后缀的抑制。旧`LegacyBattleStartupCall::supplemental_seed`数值位置保留为reserved ordinal，生产零调用。
-- `0x00481109`参数0选择live来源记录，`0x00481ADD`参数1选择角色基础记录。两处尚未实现caller只登记精确后续复用合同，不伪造当前生产caller；其工作包实现时必须直接组合本typed接口。
-- 新增leaf与startup caller测试，覆盖参数零/非零、两项token零/非零、互斥读取、字段和RET typed-stop、TEST/XOR flags、ESP、寄存器保持、live别名、两个物理startup站点与旧opaque零调用。同步新证据、startup caller证据、`modules/battle.md`、生成器关闭映射、inventory TSV及本PLAN。
-- 最终执行战斗定向测试、AddressSanitizer/UBSan、Linux core、Linux app、changed-range格式、零源码warning、连续十次core、inventory双次稳定生成、TMP分类及完整staged/unstaged发布审计。原版动态差分若仍缺少完整Group-A actor首双token、异常栈/字段内存页、四处caller寄存器/flags与SEH联合捕获后端，则登记为`blocked_runtime_oracle`。
+- 新增独立typed API，直接读取`LegacyBattleGroupAActionExecutionState::turn_completion_latch`唯一owner，对应actor `+0x2AAC`完整dword；Group-A复用action/startup canonical owner，Group-B复用startup lifecycle中的action-execution owner，不新增平行角色或latch数组。
+- 精确实现thiscall：`0x00478690`读取`[ECX+0x2AAC]`完整dword到EAX，`0x00478696`从真实栈顶读取caller返回地址并普通RET。正常ESP增加4，ECX/EDX和全部flags保持；不得收窄为word、布尔化、提前null替代或附加TEST。
+- typed-stop分别覆盖actor字段读取和RET返回地址读取，保留字段读取前入口EAX或读取后完整latch、ECX/EDX、ESP、EIP、flags和访问计数；RET读取失败不推进ESP。
+- 回收Group-A frame `0x00456DD6`：按一基选择映射解析Group-A目标actor，返回地址`0x00456DDB`；leaf结果随后由caller在`0x00456DDB`执行完整TEST，非零跳至`0x00456E98`，零值才继续当前actor idle与清理/准备后缀。
+- 回收Group-A frame `0x00456EEB`：按当前source actor目标word解析Group-B目标actor，返回地址`0x00456EF0`；leaf结果随后完整TEST，非零跳至`0x0045735E`，零值才发布选择状态并进入后续门。两处Group-A caller必须保留到达call前的地址算术EAX/EDX与SUB flags，typed-stop阻断各自全部后缀。
+- 回收Group-B frame `0x0045784D`：遍历Group-A候选actor，返回地址`0x00457852`；leaf结果随后完整TEST，非零跳过当前候选，零值才查询source idle并清理/准备目标。保持candidate循环顺序、前四个门及到达call前CMP flags；typed-stop保留此前候选副作用并阻断当前与剩余候选及frame后缀。
+- 新增leaf与三caller测试，覆盖非零/零latch、字段/RET typed-stop、普通RET栈、EAX/ECX/EDX与flags、三种owner解析、caller TEST分支、循环前缀/后缀抑制及`0x00478690`生产raw调用归零。同步新证据、两个frame caller证据、`modules/battle.md`、生成器关闭映射、inventory TSV及本PLAN。
+- 最终执行战斗定向测试、AddressSanitizer/UBSan、Linux core、Linux app、全量/changed-range格式、零源码warning、连续十次core、inventory双次稳定生成、TMP分类及完整staged/unstaged发布审计。原版动态差分若仍缺少完整Group-A/Group-B actor、异常字段/栈内存页、三处caller寄存器/flags与SEH联合捕获后端，则登记为`blocked_runtime_oracle`。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

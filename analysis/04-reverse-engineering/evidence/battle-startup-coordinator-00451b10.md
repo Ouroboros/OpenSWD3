@@ -134,9 +134,9 @@ modern以80位`long double`执行同序计算，有限域向零转i64并取低32
 - 分支值大于2：反复`random(8)`，查询失败或used字节为1则无上限重试，直到成功加入两人；
 - 分支值不大于2：顺序再扫八项，加入命中者，达到两人即退出。
 
-每个补位记录写role、`X=750`、`Y=310`、active=1；mirror mode为1时X按低word变为`640-750`。随后以组A首对象取seed，配置当前组A槽、激活；mirror mode为0时才调用actor mode。最后递增队伍总数与补位word；随机分支还写used字节。
+每个补位记录写role、`X=750`、`Y=310`、active=1；mirror mode为1时X按低word变为`640-750`。随机分支`0x00452511`与顺序分支`0x00452646`都以固定参数1和首个Group-A actor直接组合已关闭`0x00478670` typed选择器，只读取首个actor `+0x00`的角色基础记录token；即使该token与live来源记录token相等，也不得按内容改选`+0x04`。selector返回后保持“先压入所选记录token、再压入当前新角色token”的materialization参数顺序；随后配置当前Group-A槽、激活，mirror mode为0时才调用actor mode。最后递增队伍总数与补位word；随机分支还写used字节。
 
-随机重试不加modern上限，保持原非终止域。端口若违背`random(bound)`合同返回越界值，则在首次候选数组访问处typed-stop。
+两处selector的真实返回地址分别为`0x00452516/0x0045264B`。selector typed-stop保留此前候选role、坐标、mirror及基础token发布，阻断当前护援materialization、激活、剩余候选和全部startup后缀。旧seed端口ordinal改为reserved且生产零调用。随机重试不加modern上限，保持原非终止域；端口若违背`random(bound)`合同返回越界值，则在首次候选数组访问处typed-stop。
 
 ## 11. 最终阶段与返回
 
@@ -183,8 +183,9 @@ C++到LST反向追溯覆盖1351行、全部48个标签、60个静态call站点�
 - 三组比率、负比率与零除integer-indefinite低dword零；
 - 玩家与四队伍道具升序、差异化selected count、陈旧EAX和双阶段排序停点；
 - 顺序补位、陈旧word触发随机补位、重复随机候选重试；
+- 两处补位caller固定参数1、首个Group-A actor基础记录、真实返回地址、token动态别名、selector末尾RET停止对当前materialization与剩余startup后缀的抑制，以及旧seed端口零调用；
 - 敌人随机动作次数、补位后组A固定上界9随机进度、完整商余数、进度高word保留、写入停点、旧opaque零调用、u32尾减法和`0x67`门；
 - 第九名敌人在前八名副作用后typed-stop；
 - battle聚合目标零warning，普通定向与独立ASan定向均`1/1`通过。
 
-`battle.ffd`头部与definition记录读取现分别由`audit_order=107/108`关闭并从caller直连，高层archive/definition加载端口已全部删除；角色、AI和其余全局阶段callee仍各有后续工作包。原版Windows文件handle、完整归档对象与raw记录、全部共享表、18个角色对象、窗口surface、随机状态与后续状态联合捕获后端缺失，`original_diff_verified`为`blocked_runtime_oracle`。
+`battle.ffd`头部与definition记录读取现分别由`audit_order=107/108`关闭并从caller直连，高层archive/definition加载端口已全部删除；角色、AI和其余全局阶段callee仍各有后续工作包。原版Windows文件handle、完整归档对象与raw记录、全部共享表、18个角色对象及其首双token、异常栈/字段页、窗口surface、随机状态与后续状态联合捕获后端缺失，`original_diff_verified`为`blocked_runtime_oracle`。

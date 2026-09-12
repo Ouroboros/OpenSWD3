@@ -2,6 +2,7 @@
 
 #include "openswd3/battle/legacy_battle_actor_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
+#include "openswd3/battle/legacy_battle_actor_record_selection.hpp"
 #include "openswd3/battle/legacy_battle_actor_render_offsets.hpp"
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
 #include "openswd3/battle/legacy_battle_actor_list_query.hpp"
@@ -93,7 +94,7 @@ enum class LegacyBattleStartupCall : compat::u16 {
     query_primary_ratio,
     query_secondary_ratio,
     query_tertiary_ratio,
-    supplemental_seed,
+    reserved_supplemental_seed,
     reserved_configure_supplemental_actor,
     activate_supplemental_actor,
     reserved_advance_enemy_action,
@@ -329,6 +330,7 @@ struct LegacyBattleStartupRequest {
     compat::u32 archive_entry_edx_snapshot{};
     compat::u32 definition_record_number_of_bytes_read_token{};
     compat::u32 definition_record_entry_edx_snapshot{};
+    LegacyBattleActorRecordSelectionRequest supplemental_record_selection{};
 };
 
 enum class LegacyBattleStartupStatus : compat::u8 {
@@ -349,6 +351,7 @@ enum class LegacyBattleStartupStatus : compat::u8 {
     party_configuration_typed_stop,
     party_resource_pair_typed_stop,
     party_value_pair_typed_stop,
+    supplemental_record_selection_typed_stop,
     supplemental_materialization_typed_stop,
     party_attribute_aggregation_typed_stop,
     enemy_action_configuration_typed_stop,
@@ -391,6 +394,9 @@ struct LegacyBattleStartupResult {
     std::array<LegacyBattleGroupAAttributeAggregationResult, 10>
         party_attribute_aggregations{};
     compat::u32 supplemental_actor_count{};
+    std::array<LegacyBattleActorRecordSelectionResult, 10>
+        supplemental_record_selections{};
+    compat::u32 supplemental_record_selection_calls{};
     std::array<LegacyBattleGroupANpcMaterializationResult, 10>
         supplemental_materializations{};
     compat::u32 supplemental_materialization_calls{};

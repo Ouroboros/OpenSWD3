@@ -382,13 +382,18 @@ void publish_party_offsets(LegacyBattleStartupState& state) noexcept {
 
 struct SupplementalAddResult {
     bool added{};
+    bool record_selection_attempted{};
+    bool materialization_attempted{};
     LegacyBattleStartupStatus status{LegacyBattleStartupStatus::completed};
+    LegacyBattleActorRecordSelectionResult record_selection{};
     LegacyBattleGroupANpcMaterializationResult materialization{};
 };
 
 [[nodiscard]] SupplementalAddResult add_supplemental_actor(
     LegacyBattleStartupState& state,
     LegacyBattleStartupPort& port,
+    const LegacyBattleActorRecordSelectionRequest& record_selection_options,
+    const u32 record_selection_return_address,
     const u32 candidate_index
 ) {
     if (candidate_index >= kLegacyBattleSupplementalRoleIds.size()) {
@@ -417,32 +422,30 @@ struct SupplementalAddResult {
     if (placement.configuration.actor_record_token == 0U) {
         placement.configuration.actor_record_token = actor_token;
     }
-    const u32 modifier_token =
-        invoke(
-            port,
-            LegacyBattleStartupCall::supplemental_seed,
-            {kLegacyBattleActorGroupABaseToken, 1U, 0U, 0U}
-        )
-            .return_value;
+
+    auto record_selection_request = record_selection_options;
+    record_selection_request.argument = 1U;
+    record_selection_request.actor_token = kLegacyBattleActorGroupABaseToken;
+    record_selection_request.entry_eax = actor_index * 0x20U;
+    record_selection_request.entry_return_address =
+        record_selection_return_address;
     const auto& modifier_owner = state.party[0U].configuration;
-    const std::array<u32, 14>* modifier_record = nullptr;
-    if (modifier_token != 0U &&
-        modifier_token == modifier_owner.actor_record_token) {
-        modifier_record = &modifier_owner.actor_record;
-    } else if (
-        modifier_token != 0U &&
-        modifier_token == modifier_owner.source_record_token
-    ) {
-        for (u32 source_index = 0U;
-             source_index < state.group_a_configuration_sources.size();
-             ++source_index) {
-            if (modifier_token == 0x004AB790U + source_index * 0x38U) {
-                modifier_record =
-                    &state.group_a_configuration_sources[source_index].dwords;
-                break;
-            }
-        }
+    const auto record_selection = select_legacy_battle_actor_record(
+        modifier_owner, record_selection_request
+    );
+    if (record_selection.status !=
+        LegacyBattleActorRecordSelectionStatus::completed) {
+        return {
+            .record_selection_attempted = true,
+            .status = LegacyBattleStartupStatus::
+                supplemental_record_selection_typed_stop,
+            .record_selection = record_selection,
+        };
     }
+
+    const u32 modifier_token = record_selection.return_eax;
+    const std::array<u32, 14>* modifier_record =
+        modifier_token == 0U ? nullptr : &modifier_owner.actor_record;
     const LegacyBattleGroupAPlacementRecord source{
         .prefix = placement.placement_prefix,
         .role_id = placement.role_id,
@@ -465,8 +468,11 @@ struct SupplementalAddResult {
     if (materialization.status !=
         LegacyBattleGroupANpcMaterializationStatus::completed) {
         return {
+            .record_selection_attempted = true,
+            .materialization_attempted = true,
             .status = LegacyBattleStartupStatus::
                 supplemental_materialization_typed_stop,
+            .record_selection = record_selection,
             .materialization = materialization,
         };
     }
@@ -486,7 +492,13 @@ struct SupplementalAddResult {
     state.party_count += 1U;
     state.supplemental_count_word =
         static_cast<u16>(state.supplemental_count_word + 1U);
-    return {.added = true, .materialization = materialization};
+    return {
+        .added = true,
+        .record_selection_attempted = true,
+        .materialization_attempted = true,
+        .record_selection = record_selection,
+        .materialization = materialization,
+    };
 }
 
 }  // namespace
@@ -1101,10 +1113,23 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
                 state.supplemental_used[candidate] == 1U) {
                 continue;
             }
-            const auto add = add_supplemental_actor(state, port, candidate);
-            result.supplemental_materializations
-                [result.supplemental_materialization_calls++] =
-                add.materialization;
+            const auto add = add_supplemental_actor(
+                state,
+                port,
+                request.supplemental_record_selection,
+                0x00452516U,
+                candidate
+            );
+            if (add.record_selection_attempted) {
+                result.supplemental_record_selections
+                    [result.supplemental_record_selection_calls++] =
+                    add.record_selection;
+            }
+            if (add.materialization_attempted) {
+                result.supplemental_materializations
+                    [result.supplemental_materialization_calls++] =
+                    add.materialization;
+            }
             if (!add.added) {
                 result.status = add.status;
                 return result;
@@ -1124,10 +1149,23 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
                     .return_value == 0U) {
                 continue;
             }
-            const auto add = add_supplemental_actor(state, port, candidate);
-            result.supplemental_materializations
-                [result.supplemental_materialization_calls++] =
-                add.materialization;
+            const auto add = add_supplemental_actor(
+                state,
+                port,
+                request.supplemental_record_selection,
+                0x0045264BU,
+                candidate
+            );
+            if (add.record_selection_attempted) {
+                result.supplemental_record_selections
+                    [result.supplemental_record_selection_calls++] =
+                    add.record_selection;
+            }
+            if (add.materialization_attempted) {
+                result.supplemental_materializations
+                    [result.supplemental_materialization_calls++] =
+                    add.materialization;
+            }
             if (!add.added) {
                 result.status = add.status;
                 return result;
