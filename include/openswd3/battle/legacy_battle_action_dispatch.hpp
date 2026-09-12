@@ -9,6 +9,7 @@
 #include "openswd3/battle/legacy_battle_actor_frame_resource.hpp"
 #include "openswd3/battle/legacy_battle_actor_idle_state.hpp"
 #include "openswd3/battle/legacy_battle_actor_action_kind.hpp"
+#include "openswd3/battle/legacy_battle_actor_action_target.hpp"
 #include "openswd3/battle/legacy_battle_actor_display_kind.hpp"
 #include "openswd3/battle/legacy_battle_actor_start_gate.hpp"
 #include "openswd3/battle/legacy_battle_actor_turn_completion.hpp"
@@ -1386,6 +1387,13 @@ struct LegacyBattleActionDispatchContext {
     LegacyBattleActorActionKindRequest actor_action_kind_request{};
     LegacyBattleActorDisplayKindRequest actor_display_kind_request{};
     LegacyBattleActorStartGateRequest actor_start_gate_request{};
+    std::array<LegacyBattleActorActionTargetRequest, 2>
+        action_dispatch_action_target_requests{};
+    std::array<LegacyBattleActorActionTargetRequest, 4>
+        group_a_frame_action_target_requests{};
+    std::array<LegacyBattleActorActionTargetRequest, 2>
+        group_b_frame_action_target_requests{};
+    LegacyBattleActorActionTargetRequest post_action_target_request{};
     LegacyBattleImageParticleStackSnapshot target_phase_spawn_stack_snapshot{};
     bool scripted_resource_release_test_compat{};
 };
@@ -1409,6 +1417,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     actor_action_kind_typed_stop,
     actor_display_kind_typed_stop,
     actor_start_gate_typed_stop,
+    actor_action_target_typed_stop,
     effect_record_typed_stop,
     actor_metric_typed_stop,
     actor_order_typed_stop,
@@ -1498,6 +1507,9 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 actor_display_kind_calls{};
     LegacyBattleActorStartGateResult actor_start_gate{};
     compat::u32 actor_start_gate_calls{};
+    LegacyBattleActorActionTargetResult actor_action_target{};
+    std::array<LegacyBattleActorActionTargetResult, 20> actor_action_targets{};
+    compat::u32 actor_action_target_calls{};
     LegacyBattleFixedCountResult fixed_count{};
     compat::u32 fixed_count_calls{};
     LegacyBattleFixedCountLookupResult fixed_count_lookup{};

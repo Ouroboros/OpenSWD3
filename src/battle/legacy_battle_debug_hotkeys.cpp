@@ -16,7 +16,6 @@ constexpr u32 kGroupABaseToken = 0x005029D0U;
 constexpr u32 kGroupAStride = 0x2F34U;
 constexpr u32 kGroupBBaseToken = 0x00525508U;
 constexpr u32 kGroupBStride = 0x2B28U;
-constexpr u32 kSpecialQueryToken = 0x004E80FCU;
 constexpr u32 kBattleMusicPathToken = 0x0053C198U;
 constexpr u32 kMessageTextToken = 0x004A7838U;
 constexpr u32 kTextModeEnabledToken = 0x004A7820U;
@@ -446,11 +445,36 @@ LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
                 u32 current_index = 0xFFFFFFFFU;
                 if (state.actor_retarget_gate_53bf64 == 1U) {
                     state.actor_retarget_gate_53bf64 = 0U;
-                    const auto query = runner.invoke(
-                        LegacyBattleDebugHotkeyCall::query_special_index,
-                        kSpecialQueryToken
-                    );
-                    current_index = sign_extend_word(query.eax);
+                    auto action_target_request =
+                        request.special_action_target_request;
+                    action_target_request.actor_token =
+                        kLegacyBattleDebugSpecialActorToken;
+                    action_target_request.entry_eax = 1U;
+                    action_target_request.entry_return_address = 0x0045DBE8U;
+                    action_target_request.entry_flags =
+                        subtract_flags(kGroupABaseToken, 0x0001A8D4U);
+                    action_target_request.entry_flags_known = true;
+                    result.actor_action_target =
+                        query_legacy_battle_actor_action_target(
+                            resolve_legacy_battle_actor_action_target(
+                                {.action = &bindings.action,
+                                 .startup = &bindings.startup,
+                                 .debug_hotkeys = &state},
+                                kLegacyBattleDebugSpecialActorToken
+                            ),
+                            action_target_request
+                        );
+                    ++result.actor_action_target_calls;
+                    if (result.actor_action_target.status !=
+                        LegacyBattleActorActionTargetStatus::completed) {
+                        result.status = LegacyBattleDebugHotkeyStatus::
+                            actor_action_target_typed_stop;
+                        result.return_value =
+                            result.actor_action_target.return_eax;
+                        return result;
+                    }
+                    current_index =
+                        sign_extend_word(result.actor_action_target.return_eax);
                     static_cast<void>(runner.invoke(
                         LegacyBattleDebugHotkeyCall::reset_special_group_b,
                         retarget_group_b_token(current_index)

@@ -22,7 +22,7 @@ enum class LegacyBattleDebugHotkeyCall : compat::u8 {
     reset_group_a_secondary,
     configure_group_a,
     publish_actor_value,
-    query_special_index,
+    reserved_query_special_action_target,
     reset_special_group_b,
     reset_actor,
     restart_battle_music,
@@ -89,9 +89,11 @@ enum class LegacyBattleDebugHotkeyStatus : compat::u8 {
     actor_frame_state_typed_stop,
     text_message_typed_stop,
     actor_coordinate_adjustment_typed_stop,
+    actor_action_target_typed_stop,
 };
 
 struct LegacyBattleDebugHotkeyRequest {
+    LegacyBattleActorActionTargetRequest special_action_target_request{};
     compat::u32 actor_adjustment_entry_edx{};
     bool actor_adjustment_x_argument_readable{true};
     bool actor_adjustment_y_argument_readable{true};
@@ -110,6 +112,8 @@ struct LegacyBattleDebugHotkeyResult {
     compat::u32 actor_adjust_iterations{};
     compat::u32 actor_coordinate_adjustment_calls{};
     LegacyBattleActorCoordinateAdjustmentResult actor_coordinate_adjustment{};
+    LegacyBattleActorActionTargetResult actor_action_target{};
+    compat::u32 actor_action_target_calls{};
     std::vector<LegacyBattleTextMessageResult> text_messages;
     compat::u32 text_message_calls{};
     bool control_chord_active{};

@@ -107,7 +107,6 @@ constexpr u32 kCallTargetPhaseProperty = 0x0047CE70U;
 constexpr u32 kCallTargetPhaseRelease = 0x004885A0U;
 constexpr u32 kCallActionThirteenRender = 0x004170E0U;
 constexpr u32 kCallCommitMessageRecord = 0x0047DBD0U;
-constexpr u32 kCallQueryLiveIndex = 0x004786E0U;
 constexpr u32 kCallPrepareOpponent = 0x00478AE0U;
 constexpr u32 kCallSelectOpponent = 0x00478A70U;
 constexpr u32 kCallPublishScene = 0x004707B0U;
@@ -7720,10 +7719,38 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
             state.active_actor_snapshot = 6U;
             const bool group_a_side = state.side_selection_word != 0U;
             const u32 live_base = kLegacyBattleActionGroupABaseToken;
-            const u16 selected = low_word(
-                invoke(state, port, result, kCallQueryLiveIndex, {live_base})
-                    .eax
-            );
+            const std::size_t action_target_caller = group_a_side ? 1U : 0U;
+            auto action_target_request =
+                context.action_dispatch_action_target_requests
+                    [action_target_caller];
+            action_target_request.actor_token = live_base;
+            action_target_request.entry_eax =
+                result.status_indicator.return_value;
+            action_target_request.entry_return_address =
+                group_a_side ? 0x00454AEBU : 0x00454A42U;
+            action_target_request.entry_flags =
+                subtract_word_flags(state.side_selection_word, 0U);
+            action_target_request.entry_flags_known = true;
+            result.actor_action_target =
+                query_legacy_battle_actor_action_target(
+                    resolve_legacy_battle_actor_action_target(
+                        {.action = &state, .startup = context.startup},
+                        live_base
+                    ),
+                    action_target_request
+                );
+            result.actor_action_targets[result.actor_action_target_calls] =
+                result.actor_action_target;
+            ++result.actor_action_target_calls;
+            if (result.actor_action_target.status !=
+                LegacyBattleActorActionTargetStatus::completed) {
+                result.status = LegacyBattleActionDispatchStatus::
+                    actor_action_target_typed_stop;
+                result.return_value = result.actor_action_target.return_eax;
+                return result;
+            }
+            const u16 selected =
+                low_word(result.actor_action_target.return_eax);
             if (selected >= 8U) {
                 result.status =
                     LegacyBattleActionDispatchStatus::group_b_index_typed_stop;
@@ -7779,6 +7806,8 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                             kCallSelectOpponent,
                             {static_cast<u32>(first)}
                         ));
+                        state.group_a_action_execution[0U].action_target =
+                            static_cast<u16>(first);
                         break;
                     }
                     ++first;
@@ -7824,6 +7853,8 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                             kCallSelectOpponent,
                             {static_cast<u32>(first)}
                         ));
+                        state.group_a_action_execution[0U].action_target =
+                            static_cast<u16>(first);
                         break;
                     }
                     ++first;

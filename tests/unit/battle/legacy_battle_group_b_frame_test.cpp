@@ -1274,6 +1274,13 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             );
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.actor_action_target_calls == 2U &&
+                result.actor_action_target.return_eip == 0x00457EB3U &&
+                result.actor_action_target.return_ecx == 0x00525508U &&
+                result.actor_action_target.flags_known &&
+                result.actor_action_target.flags.zero &&
+                (*fixture.startup->group_b_lifecycle)[0U]
+                        .action_execution.action_target == 0xFFFFU &&
                 port.count(0x00455D60U) == 0U &&
                 port.count(0x004786B0U) == 0U &&
                 state.selection_initialized == 0U &&
@@ -1307,9 +1314,46 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
                 result.return_value == 0U &&
+                result.actor_action_target_calls == 1U &&
+                result.actor_action_target.return_eax == 0U &&
+                result.actor_action_target.return_ecx == 0x00525508U &&
+                result.actor_action_target.return_eip == 0x00457E8FU &&
                 state.shared.action_block_gate == 1U &&
                 port.count(0x004786B0U) == 0U,
-            "opponent dispatcher incomplete return publishes call-stage stale EBX one"
+            "opponent dispatcher incomplete return preserves the first physical target caller and stale EBX one"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState state;
+        state.frame_enabled = 1U;
+        state.shared.action.active_effect_target = 0U;
+        state.selection_initialized = 1U;
+        state.action_profile_bytes = {0U};
+        Fixture fixture;
+        (*fixture.startup->group_b_lifecycle)[0U]
+            .action_execution.idle_state_latch = 1U;
+        DispatchPort port;
+        (*fixture.startup->group_b_lifecycle)[0U]
+            .action_composition.action_kind = 100U;
+        auto context = fixture.context();
+        context.group_b_frame_action_target_requests[0U]
+            .access.action_target_readable = false;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_action_target_typed_stop &&
+                result.actor_action_target_calls == 1U &&
+                result.actor_action_target.return_eip == 0x004786E0U &&
+                result.actor_action_target.action_target_reads == 0U &&
+                port.count(0x0047C690U) == 1U &&
+                port.count(0x00478B20U) == 0U &&
+                state.selection_initialized == 1U,
+            "Group-B target stop preserves action-start publication and suppresses opponent cleanup"
         );
     }
 

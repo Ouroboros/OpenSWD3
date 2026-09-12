@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
+#include "openswd3/battle/legacy_battle_actor_action_target.hpp"
 #include "openswd3/battle/legacy_battle_actor_coordinates.hpp"
 #include "openswd3/compat/types.hpp"
 
@@ -56,7 +57,8 @@ static_assert(
 );
 
 struct LegacyBattleGroupAActionExecutionState
-    : public LegacyBattleActorCoordinatesState,
+    : public LegacyBattleActorActionTargetState,
+      public LegacyBattleActorCoordinatesState,
       public LegacyBattleActorActionRecordSlots {
     compat::u16 start_gate{};                    // actor + 0x2A74
     compat::u32 execution_complete{};            // actor + 0x2AD8

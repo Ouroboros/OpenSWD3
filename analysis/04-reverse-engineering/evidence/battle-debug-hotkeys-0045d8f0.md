@@ -120,3 +120,11 @@ leaf停止立即映射为`actor_coordinate_adjustment_typed_stop`，保留此前
 发布验证执行定向、独立AddressSanitizer、Linux core、Linux app、连续十轮core、changed-range格式、inventory双生成及完整release审计；最终计数与日志摘要同步记录在模块文档。
 
 当前缺少原版完整键盘轨迹、剩余callee对象状态、Sleep墙钟、完整Group-A/Group-B actor、可写与异常内存页、音频/文字/角色副作用以及四处H/J caller联合寄存器/SEH捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+
+## 9. 特殊actor动作目标caller直连
+
+工作包296关闭C键重定向路径中的`0x0045DBE3`物理call，固定actor token为`0x004E80FC`，真实返回地址为`0x0045DBE8`。入口EAX、EDX和flags继承角色优先级更新后的caller状态；leaf只替换AX，返回后才符号扩展动作目标、定位Group-B角色并执行重置和action-block清理。
+
+调试状态保留专属特殊actor canonical动作目标；旧查询ordinal改名为`reserved_query_special_action_target`并保持生产零调用。字段或RET停止保留按键状态、C键重定向及优先级更新前缀，抑制目标重置、action-block和公共清理。测试覆盖固定token、字段token、真实返回地址、EAX高word、ECX/EDX、flags和typed-stop边界；生产`0x004786E0` raw调用为零。
+
+当前缺少原版特殊actor与完整Group-B对象、优先级callee共享副作用和该caller寄存器、flags与SEH联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

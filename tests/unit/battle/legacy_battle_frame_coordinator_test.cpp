@@ -602,6 +602,9 @@ struct Fixture {
             )
         );
         secondary_rng.seed(1U);
+        startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
     }
 
     [[nodiscard]] openswd3::battle::LegacyBattleActionDispatchContext
@@ -618,6 +621,7 @@ struct Fixture {
             .indicator_sound = battle_sound,
             .countdown_flags = countdown_flags,
             .internal_flags = internal_flags,
+            .startup = &startup,
             .startup_reset = &startup.reset,
             .attack_order_records = startup.reset.records_524788,
             .attack_order_party_sources = startup.reset.block_520e90,
@@ -954,10 +958,12 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 result.actor_priority_calls == 1U &&
                 result.actor_priority.status ==
                     openswd3::battle::LegacyBattleActorPriorityStatus::
-                        metric_typed_stop &&
+                        actor_action_target_typed_stop &&
+                result.actor_priority.actor_action_target_calls == 1U &&
                 port.count(
-                    LegacyBattleFrameCoordinatorCall::query_actor_pair
-                ) == 1U &&
+                    LegacyBattleFrameCoordinatorCall::
+                        reserved_query_actor_action_target
+                ) == 0U &&
                 result.actor_frame_sequence_calls == 0U &&
                 result.fixed_frame_calls == 0U,
             "actor-priority typed stop propagates before all frame followup stages"

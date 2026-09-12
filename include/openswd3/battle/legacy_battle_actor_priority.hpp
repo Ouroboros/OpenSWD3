@@ -1,6 +1,9 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_actor_action_target.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
+
+#include <array>
 
 namespace openswd3::battle {
 
@@ -12,6 +15,7 @@ enum class LegacyBattleActorPriorityStatus : compat::u8 {
     mask_typed_stop,
     order_typed_stop,
     nested_order_typed_stop,
+    actor_action_target_typed_stop,
 };
 
 struct LegacyBattleActorPriorityResult {
@@ -27,15 +31,24 @@ struct LegacyBattleActorPriorityResult {
     compat::u32 priority_prefix_selections{};
     compat::u32 paired_selections{};
     compat::u32 nested_order_calls{};
+    LegacyBattleActorActionTargetResult actor_action_target{};
+    compat::u32 actor_action_target_calls{};
     bool order_ready_published{};
+};
+
+struct LegacyBattleActorPriorityRequest {
+    compat::u32 caller_eax{};
+    compat::u32 caller_ecx{};
+    compat::u32 caller_edx{};
+    std::array<LegacyBattleActorActionTargetRequest, 2>
+        action_target_requests{};
 };
 
 [[nodiscard]] LegacyBattleActorPriorityResult
 update_legacy_battle_actor_priority(
     LegacyBattleFrameCoordinatorPort& port,
-    compat::u32 caller_eax = 0U,
-    compat::u32 caller_ecx = 0U,
-    compat::u32 caller_edx = 0U
+    LegacyBattleActorActionTargetOwners action_target_owners,
+    const LegacyBattleActorPriorityRequest& request = {}
 );
 
 }  // namespace openswd3::battle

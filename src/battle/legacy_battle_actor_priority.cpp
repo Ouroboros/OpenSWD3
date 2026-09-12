@@ -28,6 +28,25 @@ constexpr u32 kActorOrderEndToken = 0x005214F4U;
     );
 }
 
+[[nodiscard]] constexpr bool has_even_parity(const u32 value) noexcept {
+    return (std::popcount(value & 0xFFU) & 1) == 0;
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+subtract_flags(const u32 left, const u32 right) noexcept {
+    const u32 difference = left - right;
+    return {
+        .carry = left < right,
+        .parity = has_even_parity(difference),
+        .auxiliary_carry = ((left ^ right ^ difference) & 0x10U) != 0U,
+        .auxiliary_carry_defined = true,
+        .zero = difference == 0U,
+        .sign = (difference & 0x80000000U) != 0U,
+        .overflow =
+            (((left ^ right) & (left ^ difference)) & 0x80000000U) != 0U,
+    };
+}
+
 [[nodiscard]] bool read_metric(
     const LegacyBattleActorMetricState& state,
     const u32 index,
@@ -123,33 +142,40 @@ void publish_registers(
 
 LegacyBattleActorPriorityResult update_legacy_battle_actor_priority(
     LegacyBattleFrameCoordinatorPort& port,
-    const compat::u32 caller_eax,
-    const compat::u32 caller_ecx,
-    const compat::u32 caller_edx
+    const LegacyBattleActorActionTargetOwners action_target_owners,
+    const LegacyBattleActorPriorityRequest& request
 ) {
     LegacyBattleActorPriorityResult result;
     auto& state = port.actor_metric_state();
 
-    u32 eax = (caller_eax & 0xFFFFFF00U) | state.priority_update_gate;
+    u32 eax = (request.caller_eax & 0xFFFFFF00U) | state.priority_update_gate;
     if (state.priority_update_gate == 1U) {
-        publish_registers(state, result, eax, caller_ecx, caller_edx);
+        publish_registers(
+            state, result, eax, request.caller_ecx, request.caller_edx
+        );
         return result;
     }
 
     eax = state.group_a_mode;
     if (eax == 1U) {
-        publish_registers(state, result, eax, caller_ecx, caller_edx);
+        publish_registers(
+            state, result, eax, request.caller_ecx, request.caller_edx
+        );
         return result;
     }
     if (state.group_b_mode == 1U) {
-        publish_registers(state, result, eax, caller_ecx, caller_edx);
+        publish_registers(
+            state, result, eax, request.caller_ecx, request.caller_edx
+        );
         return result;
     }
 
     u32 current_actor = state.priority_actor_index;
     eax = current_actor;
     if (current_actor == 0xFFFFFFFFU) {
-        publish_registers(state, result, eax, caller_ecx, caller_edx);
+        publish_registers(
+            state, result, eax, request.caller_ecx, request.caller_edx
+        );
         return result;
     }
 
@@ -158,15 +184,36 @@ LegacyBattleActorPriorityResult update_legacy_battle_actor_priority(
         const u32 stale_eax = current_actor * 345U;
         const u32 actor_token =
             kGroupBBaseToken + current_actor * kGroupBStride;
-        const auto reply = port.invoke({
-            .call = LegacyBattleFrameCoordinatorCall::query_actor_pair,
-            .arguments = {actor_token, 0U, 0U, 0U, 0U, 0U, 0U, 0U},
-            .eax = stale_eax,
-            .ecx = actor_token,
-            .edx = caller_edx,
-        });
+        auto action_target_request = request.action_target_requests[0U];
+        action_target_request.actor_token = actor_token;
+        action_target_request.entry_eax = stale_eax;
+        action_target_request.entry_edx = request.caller_edx;
+        action_target_request.entry_return_address = 0x0045B2F2U;
+        action_target_request.entry_flags =
+            subtract_flags(current_actor * 24U, current_actor);
+        action_target_request.entry_flags_known = true;
+        result.actor_action_target = query_legacy_battle_actor_action_target(
+            resolve_legacy_battle_actor_action_target(
+                action_target_owners, actor_token
+            ),
+            action_target_request
+        );
+        ++result.actor_action_target_calls;
         ++result.pair_query_calls;
-        pair_actor = sign_extend_word(reply.eax);
+        if (result.actor_action_target.status !=
+            LegacyBattleActorActionTargetStatus::completed) {
+            result.status =
+                LegacyBattleActorPriorityStatus::actor_action_target_typed_stop;
+            publish_registers(
+                state,
+                result,
+                result.actor_action_target.return_eax,
+                result.actor_action_target.return_ecx,
+                result.actor_action_target.return_edx
+            );
+            return result;
+        }
+        pair_actor = sign_extend_word(result.actor_action_target.return_eax);
         eax = state.group_b_mode;
         if (eax == 0U) {
             pair_actor += 8U;
@@ -175,15 +222,36 @@ LegacyBattleActorPriorityResult update_legacy_battle_actor_priority(
         const u32 relative = current_actor - 8U;
         const u32 stale_eax = relative * 3021U;
         const u32 actor_token = kGroupABaseToken + relative * kGroupAStride;
-        const auto reply = port.invoke({
-            .call = LegacyBattleFrameCoordinatorCall::query_actor_pair,
-            .arguments = {actor_token, 0U, 0U, 0U, 0U, 0U, 0U, 0U},
-            .eax = stale_eax,
-            .ecx = actor_token,
-            .edx = caller_edx,
-        });
+        auto action_target_request = request.action_target_requests[1U];
+        action_target_request.actor_token = actor_token;
+        action_target_request.entry_eax = stale_eax;
+        action_target_request.entry_edx = request.caller_edx;
+        action_target_request.entry_return_address = 0x0045B322U;
+        action_target_request.entry_flags =
+            subtract_flags(relative * 1008U, relative);
+        action_target_request.entry_flags_known = true;
+        result.actor_action_target = query_legacy_battle_actor_action_target(
+            resolve_legacy_battle_actor_action_target(
+                action_target_owners, actor_token
+            ),
+            action_target_request
+        );
+        ++result.actor_action_target_calls;
         ++result.pair_query_calls;
-        pair_actor = sign_extend_word(reply.eax);
+        if (result.actor_action_target.status !=
+            LegacyBattleActorActionTargetStatus::completed) {
+            result.status =
+                LegacyBattleActorPriorityStatus::actor_action_target_typed_stop;
+            publish_registers(
+                state,
+                result,
+                result.actor_action_target.return_eax,
+                result.actor_action_target.return_ecx,
+                result.actor_action_target.return_edx
+            );
+            return result;
+        }
+        pair_actor = sign_extend_word(result.actor_action_target.return_eax);
         eax = state.group_a_mode;
         if (eax == 1U) {
             pair_actor += 8U;
@@ -194,7 +262,7 @@ LegacyBattleActorPriorityResult update_legacy_battle_actor_priority(
     const u32 group_end = signed_dword(current_actor) < 8 ? 8U : 18U;
     i32 current_metric = 0;
     if (!read_metric(state, current_actor, current_metric, result)) {
-        result.final_edx = caller_edx;
+        result.final_edx = request.caller_edx;
         return result;
     }
 

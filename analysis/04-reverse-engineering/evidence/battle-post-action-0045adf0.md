@@ -80,3 +80,11 @@ caller源码不再包含`0x0045ADF0` token。回归测试实际进入typed后缀
 工作包278关闭`0x0045AEEF`唯一物理call。目标重排完成后，caller以组A角色code 9定位第二个组A对象，把完整dword `0`写入其`+0x2AE4`，再执行重置与全局尾清理。实现直接复用最终角色状态中的第二个availability owner，leaf入口ECX固定映射为`0x00505904`，EDX保留前一目标发布callee残值；写停止时EAX已为0、owner未改，后续重置、队列、target、角色码与126 dword清理均不执行。
 
 当前缺少原版两组角色对象、8类callee共享副作用、动态数量修改、十项角色顺序表、126 dword选择工作区和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+
+## 9. 动作目标word查询caller直连
+
+工作包296关闭`0x0045AE4C`唯一物理call，真实返回地址为`0x0045AE51`。入口EAX为当前Group-A扫描索引，ECX为角色token，EDX保留前一reset或目标发布callee回复，flags来自当前索引与排除索引的比较；leaf只替换AX。返回后caller才符号扩展AX、测试符号位、比较独立全局选择值，并扫描Group-B候选。
+
+实现直接读取当前Group-A action-execution的canonical动作目标。待审`0x00478A70/0x00478B20`继续保持原调用顺序，同时把目标重建或动作清除效果同步到同一字段。typed-stop保留入口reset及此前循环/发布前缀，抑制当前caller后缀、剩余扫描和最终全局清理。测试覆盖真实返回地址、EAX高word、ECX/EDX、CMP flags、全局选择与actor字段独立、发布/清除写入及停止后缀；生产`0x004786E0` raw调用为零。
+
+当前缺少原版完整Group-A/Group-B actor、8类callee共享副作用和该caller寄存器、flags与SEH联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

@@ -17,7 +17,7 @@ using openswd3::compat::u32;
     owner.fields.linked_action_head_token = 0x11111111U;
     owner.fields.field_266c = 0x22222222U;
     owner.fields.field_26bc = 0x33333333U;
-    owner.fields.field_29a2 = 0x4444U;
+    owner.action_execution.action_target = 0x4444U;
     owner.fields.field_2a0a = 0x5555U;
     owner.fields.field_2a68 = 0x6666U;
     owner.fields.field_2a6a = 0x7777U;
@@ -42,7 +42,7 @@ is_initialized(const LegacyBattleActorBaseInitializationOwner& owner) {
                owner.action_execution.target_indices,
                [](const u32 value) { return value == 0xFFFFFFFFU; }
            ) &&
-        owner.fields.field_29a2 == 0xFFFFU &&
+        owner.action_execution.action_target == 0xFFFFU &&
         owner.action_execution.turn_countdown == 15 &&
         owner.fields.field_266c == 1U &&
         owner.action_execution.turn_threshold == 0U &&

@@ -611,14 +611,16 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
         auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
         auto& state = *state_storage;
         state.action.active_effect_target = 8U;
+        state.action.group_a_action_execution[0U].action_target = 2U;
         state.final_actor_step.action_execution_active = 0U;
         Fixture fixture;
         fixture.startup.group_b_lifecycle = std::make_shared<std::array<
             openswd3::battle::LegacyBattleActorGroupBElementState,
             openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
         DispatchPort port;
-        port.push(0x004786E0U, {.eax = 2U, .edx = 0xA5A55A5AU});
         auto context = fixture.context();
+        context.group_a_frame_action_target_requests[0U].entry_edx =
+            0xA5A55A5AU;
         context.actor_turn_completion_request.access.latch_readable = false;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_a_frame(
@@ -631,6 +633,13 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActionDispatchStatus::
                         actor_turn_completion_typed_stop &&
+                result.actor_action_target_calls == 1U &&
+                result.actor_action_target.return_eax == 2U &&
+                result.actor_action_target.return_ecx == 0x005029D0U &&
+                result.actor_action_target.return_edx == 0xA5A55A5AU &&
+                result.actor_action_target.return_eip == 0x00456ECEU &&
+                result.actor_action_target.flags_known &&
+                result.actor_action_target.flags.zero &&
                 result.actor_turn_completion_calls == 1U &&
                 result.actor_turn_completion.status ==
                     openswd3::battle::LegacyBattleActorTurnCompletionStatus::
@@ -652,7 +661,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     context.actor_turn_completion_request.entry_esp &&
                 result.return_value == 0xACAU &&
                 port.count(0x00478690U) == 0U && port.count(0x00478B40U) == 0U,
-            "active Group-A actor resolves the Group-B lifecycle latch and stops before action-start suffixes"
+            "inactive execution preserves the first physical action-target caller before the Group-B latch stop"
         );
     }
 
@@ -709,6 +718,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
     {
         LegacyBattleGroupAFrameState zero_state;
         zero_state.action.active_effect_target = 8U;
+        zero_state.action.group_a_action_execution[0U].action_target = 2U;
         zero_state.action_side = 1U;
         Fixture zero_fixture;
         zero_fixture.startup.group_b_lifecycle = std::make_shared<std::array<
@@ -717,7 +727,6 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
         (*zero_fixture.startup.group_b_lifecycle)[2U]
             .action_execution.turn_completion_latch = 0U;
         DispatchPort zero_port;
-        zero_port.push(0x004786E0U, {.eax = 2U});
         auto zero_context = zero_fixture.context();
         const auto zero = openswd3::battle::advance_legacy_battle_group_a_frame(
             zero_state, zero_port, zero_context, 0U
@@ -725,6 +734,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
 
         LegacyBattleGroupAFrameState nonzero_state;
         nonzero_state.action.active_effect_target = 8U;
+        nonzero_state.action.group_a_action_execution[0U].action_target = 2U;
         nonzero_state.action_side = 1U;
         Fixture nonzero_fixture;
         nonzero_fixture.startup.group_b_lifecycle = std::make_shared<std::array<
@@ -733,7 +743,6 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
         (*nonzero_fixture.startup.group_b_lifecycle)[2U]
             .action_execution.turn_completion_latch = 9U;
         DispatchPort nonzero_port;
-        nonzero_port.push(0x004786E0U, {.eax = 2U});
         auto nonzero_context = nonzero_fixture.context();
         const auto nonzero =
             openswd3::battle::advance_legacy_battle_group_a_frame(
@@ -1143,8 +1152,75 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
         state.final_actor_step.action_execution_active = 1U;
         state.action.group_a_count = 0;
         state.action.group_b_count = 0;
-        state.action.selected_target_index = 0U;
+        state.action.group_a_action_execution[0U].action_kind = 0U;
+        state.action.group_a_action_execution[0U].action_target = 0U;
         Fixture fixture;
+        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        DispatchPort port;
+        port.push(0x0047C690U, {.eax = 0xABCD1234U, .edx = 0x55667788U});
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_a_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.actor_action_target_calls >= 1U &&
+                result.actor_action_targets[0U].return_eax == 0xABCD0000U &&
+                result.actor_action_targets[0U].return_ecx == 0x005029D0U &&
+                result.actor_action_targets[0U].return_edx == 0x55667788U &&
+                result.actor_action_targets[0U].return_eip == 0x004570D1U,
+            "active Group-A actor preserves the first action-start target caller when nested dispatch remains incomplete"
+        );
+    }
+
+    {
+        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
+        auto& state = *state_storage;
+        state.action.active_effect_target = 8U;
+        state.final_actor_step.action_execution_active = 1U;
+        state.action.group_a_action_execution[0U].action_target = 0U;
+        Fixture fixture;
+        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        DispatchPort port;
+        auto context = fixture.context();
+        context.group_a_frame_action_target_requests[1U]
+            .access.action_target_readable = false;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_a_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_action_target_typed_stop &&
+                result.actor_action_target_calls == 1U &&
+                result.actor_action_target.return_eip == 0x004786E0U &&
+                result.actor_action_target.action_target_reads == 0U &&
+                port.count(0x0047C690U) == 1U &&
+                port.count(0x00478B20U) == 0U &&
+                state.final_actor_step.action_execution_active == 1U,
+            "Group-A target stop preserves action preparation and suppresses nested dispatch cleanup"
+        );
+    }
+
+    {
+        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
+        auto& state = *state_storage;
+        state.action.active_effect_target = 8U;
+        state.final_actor_step.action_execution_active = 1U;
+        state.action.group_a_count = 0;
+        state.action.group_b_count = 0;
+        state.action.selected_target_index = 0U;
+        state.action.group_a_action_execution[0U].action_target = 0U;
+        Fixture fixture;
+        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
         DispatchPort port;
         state.action.group_a_action_execution[0U].action_kind = 5U;
         port.action_target = 0U;
@@ -1167,16 +1243,87 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 state.shared_gate_4ff584 == 1U,
             "active actor directly composes action dispatch and post-action cleanup suffixes"
         );
+        test.expect_true(
+            result.actor_action_target_calls >= 2U,
+            "active actor reaches the first two physical action-target callers"
+        );
+        test.expect_true(
+            result.actor_action_targets[1U].return_eip == 0x004570F1U,
+            "active actor preserves the second physical action-target return address"
+        );
+        test.expect_true(
+            result.actor_action_targets[1U].return_ecx == 0x005029D0U,
+            "active actor preserves the source token at the second action-target caller"
+        );
+        test.expect_true(
+            result.actor_action_targets[1U].flags_known &&
+                result.actor_action_targets[1U].flags.zero,
+            "active actor preserves the successful nested-dispatch comparison flags"
+        );
     }
 
     {
         auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
         auto& state = *state_storage;
         state.action.active_effect_target = 8U;
+        state.final_actor_step.action_execution_active = 1U;
+        state.action.group_a_count = 0;
+        state.action.group_b_count = 1;
+        state.action.selected_target_index = 0U;
+        state.action.group_a_action_execution[0U].action_kind = 5U;
+        state.action.group_a_action_execution[0U].action_target = 0U;
+        Fixture fixture;
+        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        (*fixture.startup.group_b_lifecycle)[0U]
+            .action_execution.action_target = 0xFFFFU;
+        DispatchPort port;
+        port.default_reply.edx = 0xAABBCCDDU;
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_a_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed,
+            "completed Group-A action finishes the terminal target path"
+        );
+        test.expect_true(
+            result.actor_action_target_calls >= 3U,
+            "completed Group-A action reaches the fourth physical target caller"
+        );
+        test.expect_true(
+            result.actor_action_targets[2U].return_eax == 0x0000FFFFU,
+            "fourth Group-A frame target caller preserves the terminal EAX high word"
+        );
+        test.expect_true(
+            result.actor_action_targets[2U].return_ecx == 0x00525508U,
+            "fourth Group-A frame target caller preserves the completed target token"
+        );
+        test.expect_true(
+            result.actor_action_targets[2U].return_edx == 0xAABBCCDDU,
+            "fourth Group-A frame target caller preserves terminal EDX"
+        );
+        test.expect_true(
+            result.actor_action_targets[2U].return_eip == 0x004571EDU,
+            "fourth Group-A frame target caller preserves its physical return address"
+        );
+        test.expect_true(
+            result.actor_action_targets[2U].flags_known &&
+                result.actor_action_targets[2U].flags.zero,
+            "fourth Group-A frame target caller preserves terminal comparison flags"
+        );
+    }
+
+    {
+        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
+        auto& state = *state_storage;
+        state.action.active_effect_target = 8U;
+        state.action.group_a_action_execution[0U].action_target = 0xFFFFU;
         state.final_actor_step.action_execution_active = 0U;
         Fixture fixture;
         DispatchPort port;
-        port.action_target = 0xFFFFU;
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_a_frame(

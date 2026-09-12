@@ -220,3 +220,11 @@ Typed-stop只位于：
 相邻工作包278进一步关闭本函数内`0x004567EA`、`0x00456BC0`、`0x00456C1C`、`0x00456CF4`、`0x00456D88`、`0x00456E69`六处物理call。第一处把完整dword `1`写入当前组A角色`+0x2AE4`，其余五处写`0`；全部直接复用`LegacyBattleFinalActorStepState::group_a_availability_blocks`，旧callee token生产零调用。第一处保留末次组B完成查询EDX，后五处分别线程化最终处理、发布选择、选择完成或清展示callee的真实EDX；leaf在写失败时已把参数装入EAX，并保留角色token ECX与该EDX，父函数立即返回，不执行随机选择、门复位、最终处理或UI尾部。queue mode路径直连`0x00464CC0`时也通过同一owner完成其第七种组A帧到达方式。
 
 当前缺少原版组A/B对象、其余待审callee共享副作用、攻击顺序/队员暂存动态轨迹、AI/选择/队列表、text/sample、resolved target内存与回合/空闲状态联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+
+## 14. 动作目标word查询四处caller直连
+
+工作包296关闭`0x00456EC9`、`0x004570CC`、`0x004570EC`和`0x004571E8`四处物理call，真实返回地址分别为`0x00456ECE`、`0x004570D1`、`0x004570F1`和`0x004571ED`。第一处为空闲角色目标读取；第二处继承动作启动callee回复并把AX作为嵌套动作分派目标；第三处继承嵌套分派成功回复，返回后才保存完整EAX并清动作；第四处继承目标terminal回复，返回后才比较AX与`0xFFFF`并按非哨兵值重置Group-A角色。
+
+四处直接复用当前Group-A action-execution的canonical动作目标，不增加generic端口调用。嵌套结果按真实调用顺序合并逐次typed结果，保留首轮和后续轮EAX/EDX、ECX角色token、SUB/CMP flags及返回地址。待审`0x00478B20`清动作和`0x00478A70`目标重建均同步唯一canonical字段。typed-stop只保留当前物理caller之前的空闲查询、动作启动、嵌套分派或terminal前缀，并抑制对应符号扩展、清理、剩余循环和公共尾；生产`0x004786E0` raw调用为零。
+
+当前缺少原版完整Group-A/Group-B actor、动作启动与terminal等剩余callee共享副作用，以及四处caller联合寄存器、flags和SEH捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

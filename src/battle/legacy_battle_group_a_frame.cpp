@@ -100,7 +100,6 @@ constexpr u32 kCallSelectOpponent = 0x00478AA0U;
 constexpr u32 kCallQueryOtherActor = 0x0047CEA0U;
 constexpr u32 kCallPrepareSelection = 0x00478B30U;
 constexpr u32 kCallSelectionComplete = 0x00478B40U;
-constexpr u32 kCallQueryActionTarget = 0x004786E0U;
 constexpr u32 kCallPrepareAction = 0x0047C690U;
 constexpr u32 kCallClearActorAction = 0x00478B20U;
 constexpr u32 kCallResetTarget = 0x00478AE0U;
@@ -474,6 +473,30 @@ one_based_group_b_token(const u32 one_based) noexcept {
     return true;
 }
 
+[[nodiscard]] bool query_action_target(
+    LegacyBattleActionDispatchResult& result,
+    const LegacyBattleActorActionTargetOwners& owners,
+    const LegacyBattleActorActionTargetRequest& request,
+    u32& value
+) {
+    result.actor_action_target = query_legacy_battle_actor_action_target(
+        resolve_legacy_battle_actor_action_target(owners, request.actor_token),
+        request
+    );
+    result.actor_action_targets[result.actor_action_target_calls] =
+        result.actor_action_target;
+    ++result.actor_action_target_calls;
+    if (result.actor_action_target.status !=
+        LegacyBattleActorActionTargetStatus::completed) {
+        result.status =
+            LegacyBattleActionDispatchStatus::actor_action_target_typed_stop;
+        result.return_value = result.actor_action_target.return_eax;
+        return false;
+    }
+    value = result.actor_action_target.return_eax;
+    return true;
+}
+
 [[nodiscard]] bool process_group_a_final(
     LegacyBattleGroupAFrameState& state,
     LegacyBattleActionDispatchPort& port,
@@ -608,6 +631,14 @@ void merge_nested_result(
     outer.status_indicator_calls += nested.status_indicator_calls;
     outer.scale_scan_calls += nested.scale_scan_calls;
     outer.action_record_clear_calls += nested.action_record_clear_calls;
+    for (u32 index = 0U; index < nested.actor_action_target_calls; ++index) {
+        outer.actor_action_targets[outer.actor_action_target_calls + index] =
+            nested.actor_action_targets[index];
+    }
+    outer.actor_action_target_calls += nested.actor_action_target_calls;
+    if (nested.actor_action_target_calls != 0U) {
+        outer.actor_action_target = nested.actor_action_target;
+    }
     outer.group_a_actor_cleanup_calls += nested.group_a_actor_cleanup_calls;
     if (nested.group_a_actor_cleanup_calls != 0U) {
         outer.group_a_actor_cleanup = nested.group_a_actor_cleanup;
@@ -1468,6 +1499,10 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                             kCallPublishSelection,
                             {state.selected_actor_one_based - 1U}
                         ));
+                        state.action.group_a_action_execution[group_a_index]
+                            .action_target = static_cast<u16>(
+                            state.selected_actor_one_based - 1U
+                        );
                         if (!process_group_a_final(
                                 state,
                                 port,
@@ -1531,6 +1566,10 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                             kCallPublishSelection,
                             {state.selected_opponent_one_based - 1U}
                         );
+                        state.action.group_a_action_execution[group_a_index]
+                            .action_target = static_cast<u16>(
+                            state.selected_opponent_one_based - 1U
+                        );
                         if (!set_availability_block(0U, published.edx)) {
                             return result;
                         }
@@ -1566,6 +1605,10 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                             result,
                             kCallPublishSelection,
                             {state.selected_actor_one_based - 1U}
+                        );
+                        state.action.group_a_action_execution[group_a_index]
+                            .action_target = static_cast<u16>(
+                            state.selected_actor_one_based - 1U
                         );
                         if (!set_availability_block(0U, published.edx)) {
                             return result;
@@ -1723,6 +1766,8 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     kCallPublishSelection,
                     {to_bits(selected_index)}
                 ));
+                state.action.group_a_action_execution[group_a_index]
+                    .action_target = static_cast<u16>(selected_index);
             }
 
             const auto selection_complete =
@@ -1796,12 +1841,24 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
             state.action.action_pending_aux = 1U;
             state.action.current_actor_index =
                 static_cast<u16>(state.action.active_effect_target);
-            static_cast<void>(
-                invoke(port, result, kCallPrepareAction, {actor_token})
-            );
-            const u16 target_index = low_word(
-                invoke(port, result, kCallQueryActionTarget, {actor_token}).eax
-            );
+            const auto prepared_action =
+                invoke(port, result, kCallPrepareAction, {actor_token});
+            auto action_target_request =
+                context.group_a_frame_action_target_requests[1U];
+            action_target_request.actor_token = actor_token;
+            action_target_request.entry_eax = prepared_action.eax;
+            action_target_request.entry_edx = prepared_action.edx;
+            action_target_request.entry_return_address = 0x004570D1U;
+            u32 action_target_value{};
+            if (!query_action_target(
+                    result,
+                    {.action = &state.action, .startup = context.startup},
+                    action_target_request,
+                    action_target_value
+                )) {
+                return result;
+            }
+            const u16 target_index = low_word(action_target_value);
             const auto nested = dispatch_legacy_battle_action(
                 state.action, port, context, group_a_index, target_index
             );
@@ -1810,13 +1867,28 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                 return result;
             }
             if (nested.return_value == 1U) {
-                const u16 completed_target = low_word(
-                    invoke(port, result, kCallQueryActionTarget, {actor_token})
-                        .eax
-                );
+                action_target_request =
+                    context.group_a_frame_action_target_requests[2U];
+                action_target_request.actor_token = actor_token;
+                action_target_request.entry_eax = nested.return_value;
+                action_target_request.entry_return_address = 0x004570F1U;
+                action_target_request.entry_flags =
+                    subtract_flags(nested.return_value, 1U);
+                action_target_request.entry_flags_known = true;
+                if (!query_action_target(
+                        result,
+                        {.action = &state.action, .startup = context.startup},
+                        action_target_request,
+                        action_target_value
+                    )) {
+                    return result;
+                }
+                const u16 completed_target = low_word(action_target_value);
                 static_cast<void>(
                     invoke(port, result, kCallClearActorAction, {actor_token})
                 );
+                state.action.group_a_action_execution[group_a_index]
+                    .action_target = 0xFFFFU;
                 state.action_aux_gate = 0U;
                 state.action_runtime_word = 0U;
                 replace_high_byte_of_low_word(
@@ -1877,8 +1949,10 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         state.final_actor_step,
                         state.action,
                         port,
+                        context.startup,
                         group_a_index,
-                        completed_target
+                        completed_target,
+                        context.post_action_target_request
                     );
                     merge_nested_result(result, post_action);
                     if (post_action.status !=
@@ -1890,16 +1964,29 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         return result;
                     }
                     const u32 completed_b = group_b_token(completed_target);
-                    if (invoke(port, result, kCallQueryTerminal, {completed_b})
-                            .eax == 1U) {
-                        const u16 actor_target =
-                            low_word(invoke(
-                                         port,
-                                         result,
-                                         kCallQueryActionTarget,
-                                         {completed_b}
-                            )
-                                         .eax);
+                    const auto terminal =
+                        invoke(port, result, kCallQueryTerminal, {completed_b});
+                    if (terminal.eax == 1U) {
+                        action_target_request =
+                            context.group_a_frame_action_target_requests[3U];
+                        action_target_request.actor_token = completed_b;
+                        action_target_request.entry_eax = terminal.eax;
+                        action_target_request.entry_edx = terminal.edx;
+                        action_target_request.entry_return_address =
+                            0x004571EDU;
+                        action_target_request.entry_flags =
+                            subtract_flags(terminal.eax, 1U);
+                        action_target_request.entry_flags_known = true;
+                        if (!query_action_target(
+                                result,
+                                {.action = &state.action,
+                                 .startup = context.startup},
+                                action_target_request,
+                                action_target_value
+                            )) {
+                            return result;
+                        }
+                        const u16 actor_target = low_word(action_target_value);
                         if (actor_target != 0xFFFFU) {
                             if (!validate_group_a(result, actor_target)) {
                                 return result;
@@ -1995,9 +2082,25 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                 }
             }
         } else if (state.action_block_gate == 0U) {
-            const auto queried_target_reply =
-                invoke(port, result, kCallQueryActionTarget, {actor_token});
-            const u16 queried_target = low_word(queried_target_reply.eax);
+            auto action_target_request =
+                context.group_a_frame_action_target_requests[0U];
+            action_target_request.actor_token = actor_token;
+            action_target_request.entry_eax = state.action_aux_gate;
+            action_target_request.entry_return_address = 0x00456ECEU;
+            action_target_request.entry_flags =
+                logical_flags(state.action_aux_gate);
+            action_target_request.entry_flags_known = true;
+            u32 queried_target_value{};
+            if (!query_action_target(
+                    result,
+                    {.action = &state.action, .startup = context.startup},
+                    action_target_request,
+                    queried_target_value
+                )) {
+                return result;
+            }
+            const auto& queried_target_reply = result.actor_action_target;
+            const u16 queried_target = low_word(queried_target_value);
             if (!validate_group_b(result, queried_target)) {
                 return result;
             }
@@ -2010,7 +2113,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     target_token,
                     static_cast<u32>(queried_target) *
                         (kLegacyBattleActionGroupBStride / 8U),
-                    queried_target_reply.edx,
+                    queried_target_reply.return_edx,
                     subtract_flags(
                         static_cast<u32>(queried_target) * 0x18U, queried_target
                     ),
@@ -2093,6 +2196,8 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                                 kCallClearActorAction,
                                 {actor_token}
                             ));
+                            state.action.group_a_action_execution[group_a_index]
+                                .action_target = 0xFFFFU;
                             static_cast<void>(invoke(
                                 port,
                                 result,
@@ -2109,6 +2214,9 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                                     kCallPublishSelection,
                                     {to_bits(selected)}
                                 ));
+                                state.action
+                                    .group_a_action_execution[group_a_index]
+                                    .action_target = static_cast<u16>(selected);
                                 target_token = group_b_token(to_bits(selected));
                             }
                         }

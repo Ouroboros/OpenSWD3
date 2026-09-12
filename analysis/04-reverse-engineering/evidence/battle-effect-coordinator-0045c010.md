@@ -58,3 +58,13 @@
 定向测试覆盖双UI入口门、单体/群体18槽共享与第19槽停点、当前组A/B越界、组A单目标双side、组A staged与group-wide路径、组B单目标双side、组B群体固定组A不对称、组B staged与group-wide路径、动态组B第9项停点、三处双对象数值转场caller直连、完整framebuffer填充、组A发起计数、组B自目标不发布dirty、初始化actor发布槽物理别名、全局重置物理别名及主帧caller直连。
 
 定向`1/1`、独立AddressSanitizer `1/1`、Linux core `188/188`和Linux app `194/194`通过。当前缺少原版两组完整角色对象、九个剩余callee共享副作用、动态数量与scan limit修改、反馈数组、framebuffer地址、Rect与寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+
+## 7. 动作目标word八处物理caller直连
+
+工作包296关闭`0x0045C05F/0x0045C0CC/0x0045C18E/0x0045C1F9/0x0045C361/0x0045C453/0x0045CA75/0x0045CBC0`八处物理call，真实返回地址依次为`0x0045C064/0x0045C0D1/0x0045C193/0x0045C1FE/0x0045C366/0x0045C458/0x0045CA7A/0x0045CBC5`。前四处覆盖Group-A/Group-B当前角色首读及群体效果回读，后四处覆盖两侧单体效果的跨组目标回读。
+
+现代路径虽按单体/群体helper组织，八槽request和逐次结果仍分别保存真实物理caller身份、调用前EAX/ECX/EDX、flags和返回地址。首读保留索引地址算术状态；单体效果回读继承子效果返回寄存器和与1比较的flags；奖励复制后的两条路径继承typed奖励callee的EAX/EDX以及caller提供的flags。外层只增加action-target typed调用计数，不把这些读取记为generic端口调用。
+
+typed-stop保留当前首读、子效果或奖励复制前缀，阻断对应发布、反馈、framebuffer写、奖励后缀、剩余扫描和公共尾。测试逐项覆盖八个真实返回地址、三类owner别名、目标符号扩展/哨兵分支、EAX高word、EDX和flags线程，以及停止前缀/后缀；生产`0x004786E0` raw调用为零。
+
+当前缺少原版完整Group-A/Group-B actor、两类效果工作区和八处caller联合寄存器、flags与SEH捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

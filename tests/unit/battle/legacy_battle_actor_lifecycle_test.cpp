@@ -284,7 +284,8 @@ public:
         events.push_back(8U);
         registered_cleanup_token = cleanup_token;
         construction_observed_at_registration = observed_state != nullptr &&
-            observed_state->base_initialization.fields.field_29a2 == 0xFFFFU &&
+            observed_state->base_initialization.action_execution
+                    .action_target == 0xFFFFU &&
             observed_state->base_initialization.action_execution
                     .target_indices[0U] == 0xFFFFFFFFU;
         return registration_result;

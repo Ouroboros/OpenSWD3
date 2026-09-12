@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_actor_action_target.hpp"
 #include "openswd3/battle/legacy_battle_group_a_effect_reward_application.hpp"
 #include "openswd3/battle/legacy_battle_group_effect_frame.hpp"
 #include "openswd3/battle/legacy_battle_reward_scale.hpp"
@@ -98,6 +99,12 @@ enum class LegacyBattleEffectCoordinatorStatus : compat::u8 {
     framebuffer_typed_stop,
     group_a_effect_reward_typed_stop,
     reward_scale_typed_stop,
+    actor_action_target_typed_stop,
+};
+
+struct LegacyBattleEffectCoordinatorRequest {
+    std::array<LegacyBattleActorActionTargetRequest, 8>
+        action_target_requests{};
 };
 
 struct LegacyBattleEffectCoordinatorResult {
@@ -107,6 +114,9 @@ struct LegacyBattleEffectCoordinatorResult {
     compat::u32 return_value{};
     compat::u32 port_calls{};
     compat::u32 actor_query_calls{};
+    LegacyBattleActorActionTargetResult actor_action_target{};
+    std::array<LegacyBattleActorActionTargetResult, 8> actor_action_targets{};
+    compat::u32 actor_action_target_calls{};
     compat::u32 actor_status_calls{};
     compat::u32 effect_frame_calls{};
     compat::u32 group_effect_frame_calls{};
@@ -132,8 +142,10 @@ advance_legacy_battle_effect_coordinator(
     LegacyBattleStartupState& startup,
     LegacyBattleEffectCallPort& port,
     rendering::LegacyFramebuffer& framebuffer,
+    LegacyBattleActorActionTargetOwners action_target_owners,
     compat::u32 ui_state,
-    compat::u32 focus_actor
+    compat::u32 focus_actor,
+    const LegacyBattleEffectCoordinatorRequest& request = {}
 );
 
 }  // namespace openswd3::battle

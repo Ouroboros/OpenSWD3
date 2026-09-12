@@ -1,3 +1,4 @@
+#include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_effect_coordinator.hpp"
 #include "test.hpp"
 
@@ -6,6 +7,7 @@
 #include <cstddef>
 #include <deque>
 #include <map>
+#include <memory>
 #include <vector>
 
 namespace {
@@ -72,20 +74,31 @@ void set_profile_word(
     profile[offset + 1U] = static_cast<std::byte>(static_cast<u8>(value >> 8U));
 }
 
-[[nodiscard]] openswd3::battle::LegacyBattleEffectCoordinatorResult
-run(LegacyBattleEffectCoordinatorState& state,
+[[nodiscard]] openswd3::battle::LegacyBattleEffectCoordinatorResult run(
+    LegacyBattleEffectCoordinatorState& state,
     EffectCoordinatorPort& port,
     openswd3::rendering::LegacyFramebuffer& framebuffer,
     const u32 ui_state = 0x8000U,
     const u32 focus_actor = 0U,
     openswd3::battle::LegacyBattleStartupState* startup_state = nullptr,
     std::array<openswd3::battle::LegacyBattleRewardScaleActorState, 8>*
-        reward_state = nullptr) {
+        reward_state = nullptr,
+    openswd3::battle::LegacyBattleActionDispatchState* action_state = nullptr,
+    const openswd3::battle::LegacyBattleEffectCoordinatorRequest& request = {}
+) {
     openswd3::battle::LegacyBattleStartupState fallback_startup;
     std::array<openswd3::battle::LegacyBattleRewardScaleActorState, 8>
         fallback_reward{};
     auto& startup =
         startup_state == nullptr ? fallback_startup : *startup_state;
+    if (startup.group_b_lifecycle == nullptr) {
+        startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+    }
+    auto fallback_action =
+        std::make_unique<openswd3::battle::LegacyBattleActionDispatchState>();
+    auto& action = action_state == nullptr ? *fallback_action : *action_state;
     auto& reward = reward_state == nullptr ? fallback_reward : *reward_state;
     return openswd3::battle::advance_legacy_battle_effect_coordinator(
         state,
@@ -93,8 +106,10 @@ run(LegacyBattleEffectCoordinatorState& state,
         startup,
         port,
         framebuffer,
+        {.action = &action, .startup = &startup},
         ui_state,
-        focus_actor
+        focus_actor,
+        request
     );
 }
 
@@ -106,32 +121,20 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
         openswd3::battle::LegacyBattleRewardScaleActorState actor;
         u32 unchanged = 0xDEADBEEFU;
         const auto disabled = openswd3::battle::scale_legacy_battle_reward(
-            &actor,
-            &unchanged,
-            port,
-            {.actor_token = 0x00525508U}
+            &actor, &unchanged, port, {.actor_token = 0x00525508U}
         );
         actor.status_bits = 0x10U;
         actor.percent = 101U;
         u32 wrapped = 0xFFFFFFFFU;
         const auto scaled = openswd3::battle::scale_legacy_battle_reward(
-            &actor,
-            &wrapped,
-            port,
-            {.actor_token = 0x00525508U}
+            &actor, &wrapped, port, {.actor_token = 0x00525508U}
         );
         actor.percent = 3U;
         const auto stopped = openswd3::battle::scale_legacy_battle_reward(
-            &actor,
-            nullptr,
-            port,
-            {.actor_token = 0x00525508U}
+            &actor, nullptr, port, {.actor_token = 0x00525508U}
         );
         const auto missing = openswd3::battle::scale_legacy_battle_reward(
-            nullptr,
-            &wrapped,
-            port,
-            {.actor_token = 0x00525508U}
+            nullptr, &wrapped, port, {.actor_token = 0x00525508U}
         );
         test.expect_true(
             disabled.return_eax == 0U && unchanged == 0xDEADBEEFU &&
@@ -142,8 +145,7 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleRewardScaleStatus::
                         value_typed_stop &&
                 stopped.port_calls == 2U && missing.port_calls == 0U &&
-                port.count(0x00482F10U) == 2U &&
-                port.count(0x004830A0U) == 2U,
+                port.count(0x00482F10U) == 2U && port.count(0x004830A0U) == 2U,
             "reward scale preserves status gating signed wrapped multiply and the post-callee value access stop"
         );
     }
@@ -159,9 +161,8 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
             reward{};
         reward[0U].status_bits = 0x10U;
         reward[0U].percent = 200U;
-        const auto result = run(
-            state, port, framebuffer, 0x8000U, 0U, nullptr, &reward
-        );
+        const auto result =
+            run(state, port, framebuffer, 0x8000U, 0U, nullptr, &reward);
         test.expect_true(
             result.status == LegacyBattleEffectCoordinatorStatus::completed &&
                 result.return_value == 0U && result.reward_scale_calls == 1U &&
@@ -169,8 +170,7 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
                 reward[0U].percent == 100U &&
                 port.battle_pair_primary_value() == 201U &&
                 port.count(0x00472C70U) == 0U &&
-                port.count(0x00482F10U) == 1U &&
-                port.count(0x004830A0U) == 1U,
+                port.count(0x00482F10U) == 1U && port.count(0x004830A0U) == 1U,
             "group-B incomplete group effect scales the live pair value through the typed reward path"
         );
     }
@@ -246,6 +246,104 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
         LegacyBattleEffectCoordinatorState state;
         EffectCoordinatorPort port;
         openswd3::rendering::LegacyFramebuffer framebuffer;
+        openswd3::battle::LegacyBattleActionDispatchState action;
+        action.group_a_action_execution[0U].action_target = 0U;
+        auto& metrics = port.actor_metric_state();
+        metrics.priority_actor_index = 8U;
+        openswd3::battle::LegacyBattleEffectCoordinatorRequest request;
+        request.action_target_requests[0U].entry_edx = 0x11223344U;
+        const auto result =
+            run(state,
+                port,
+                framebuffer,
+                0x8000U,
+                0U,
+                nullptr,
+                nullptr,
+                &action,
+                request);
+        test.expect_true(
+            result.actor_action_target_calls >= 1U &&
+                result.actor_action_targets[0U].return_eax == 0U &&
+                result.actor_action_targets[0U].return_ecx == 0x005029D0U &&
+                result.actor_action_targets[0U].return_edx == 0x11223344U &&
+                result.actor_action_targets[0U].return_eip == 0x0045C064U &&
+                result.actor_action_targets[0U].flags_known &&
+                result.actor_action_targets[0U].flags.zero,
+            "current Group-A actor preserves the first physical target caller"
+        );
+    }
+
+    {
+        LegacyBattleEffectCoordinatorState state;
+        EffectCoordinatorPort port;
+        openswd3::rendering::LegacyFramebuffer framebuffer;
+        openswd3::battle::LegacyBattleActionDispatchState action;
+        auto& metrics = port.actor_metric_state();
+        metrics.priority_actor_index = 8U;
+        openswd3::battle::LegacyBattleEffectCoordinatorRequest request;
+        request.action_target_requests[0U].access.action_target_readable =
+            false;
+        const auto result =
+            run(state,
+                port,
+                framebuffer,
+                0x8000U,
+                0U,
+                nullptr,
+                nullptr,
+                &action,
+                request);
+        test.expect_true(
+            result.status ==
+                    LegacyBattleEffectCoordinatorStatus::
+                        actor_action_target_typed_stop &&
+                result.actor_action_target_calls == 1U &&
+                result.actor_action_target.return_eip == 0x004786E0U &&
+                result.effect_frame_calls == 0U &&
+                result.group_effect_frame_calls == 0U && port.calls.empty(),
+            "effect target stop suppresses every child effect and publication suffix"
+        );
+    }
+
+    {
+        LegacyBattleEffectCoordinatorState state;
+        openswd3::battle::LegacyBattleStartupState startup;
+        startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        EffectCoordinatorPort port;
+        openswd3::rendering::LegacyFramebuffer framebuffer;
+        auto& metrics = port.actor_metric_state();
+        metrics.priority_actor_index = 0U;
+        openswd3::battle::LegacyBattleEffectCoordinatorRequest request;
+        request.action_target_requests[2U].entry_edx = 0x55667788U;
+        const auto result =
+            run(state,
+                port,
+                framebuffer,
+                0x8000U,
+                0U,
+                &startup,
+                nullptr,
+                nullptr,
+                request);
+        test.expect_true(
+            result.actor_action_target_calls >= 1U &&
+                result.actor_action_targets[0U].return_eax == 0U &&
+                result.actor_action_targets[0U].return_ecx == 0x00525508U &&
+                result.actor_action_targets[0U].return_edx == 0x55667788U &&
+                result.actor_action_targets[0U].return_eip == 0x0045C193U &&
+                result.actor_action_targets[0U].flags_known &&
+                result.actor_action_targets[0U].flags.zero,
+            "current Group-B actor preserves the third physical target caller"
+        );
+    }
+
+    {
+        LegacyBattleEffectCoordinatorState state;
+        EffectCoordinatorPort port;
+        openswd3::rendering::LegacyFramebuffer framebuffer;
         auto& metrics = port.actor_metric_state();
         metrics.priority_actor_index = 8U;
         metrics.group_a_mode = 0U;
@@ -257,6 +355,13 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
                 result.return_value == 1U && result.effect_frame_calls == 1U &&
                 result.group_effect_frame_calls == 0U &&
                 result.actor_query_calls == 2U &&
+                result.actor_action_target_calls == 2U &&
+                result.actor_action_targets[1U].return_eax == 0U &&
+                result.actor_action_targets[1U].return_ecx == 0x005029D0U &&
+                result.actor_action_targets[1U].return_edx == 0U &&
+                result.actor_action_targets[1U].return_eip == 0x0045C366U &&
+                result.actor_action_targets[1U].flags_known &&
+                result.actor_action_targets[1U].flags.zero &&
                 state.processed_actor_slots[0] == 0U &&
                 std::ranges::all_of(
                     state.primary,
@@ -281,8 +386,45 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
             result.return_value == 1U &&
                 result.group_effect_frame_calls == 1U &&
                 result.effect_frame_calls == 0U &&
+                result.actor_action_target_calls == 2U &&
+                result.actor_action_targets[1U].return_eax == 0U &&
+                result.actor_action_targets[1U].return_ecx == 0x005029D0U &&
+                result.actor_action_targets[1U].return_edx == 0U &&
+                result.actor_action_targets[1U].return_eip == 0x0045C0D1U &&
+                result.actor_action_targets[1U].flags_known &&
+                result.actor_action_targets[1U].flags.zero &&
                 state.processed_actor_slots[0] == 0U,
-            "current group-A group-effect path targets group A and composes the closed group helper"
+            "current Group-A group effect preserves its second physical target caller"
+        );
+    }
+
+    {
+        LegacyBattleEffectCoordinatorState state;
+        EffectCoordinatorPort port;
+        openswd3::rendering::LegacyFramebuffer framebuffer;
+        openswd3::battle::LegacyBattleActionDispatchState action;
+        action.group_a_action_execution[0U].action_target = 0U;
+        auto& metrics = port.actor_metric_state();
+        metrics.priority_actor_index = 8U;
+        metrics.group_a_mode = 1U;
+        seed_completed_records(state);
+        state.group_a_effect_mode = 0U;
+        state.primary_suppression = 1U;
+        const auto result = run(
+            state, port, framebuffer, 0x8000U, 0U, nullptr, nullptr, &action
+        );
+        test.expect_true(
+            result.actor_action_target_calls == 2U,
+            "current Group-A single effect targeting Group A performs two target queries"
+        );
+        test.expect_true(
+            result.actor_action_targets[1U].return_eax == 0U &&
+                result.actor_action_targets[1U].return_ecx == 0x005029D0U &&
+                result.actor_action_targets[1U].return_edx == 0U &&
+                result.actor_action_targets[1U].return_eip == 0x0045C458U &&
+                result.actor_action_targets[1U].flags_known &&
+                result.actor_action_targets[1U].flags.zero,
+            "current Group-A single effect targeting Group A preserves the sixth physical target caller"
         );
     }
 
@@ -355,11 +497,32 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
         set_profile_word(profile, 0x10U, 7U);
         port.group_a_reward_profile_state().head.item_id = 7U;
         port.feedback_return = 1U;
+        openswd3::battle::LegacyBattleEffectCoordinatorRequest request;
+        request.action_target_requests[6U].entry_flags = {
+            .carry = false,
+            .parity = true,
+            .auxiliary_carry = false,
+            .auxiliary_carry_defined = true,
+            .zero = false,
+            .sign = true,
+            .overflow = true,
+        };
         const auto result =
-            run(state, port, framebuffer, 0x8000U, 8U, &startup);
+            run(state,
+                port,
+                framebuffer,
+                0x8000U,
+                8U,
+                &startup,
+                nullptr,
+                nullptr,
+                request);
         test.expect_true(
             result.return_value == 1U && result.effect_frame_calls == 1U &&
                 result.actor_query_calls == 2U &&
+                result.actor_action_target_calls == 2U &&
+                result.actor_action_targets[1U].return_ecx == 0x00525508U &&
+                result.actor_action_targets[1U].return_eip == 0x0045CA7AU &&
                 (state.selected_actor_pair & 0xFFFFU) == 0U &&
                 result.framebuffer_fill_calls == 1U &&
                 state.framebuffer_dirty_latch == 1U &&
@@ -372,6 +535,24 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
                 result.pair_transition_calls == 1U &&
                 result.pair_transition.port_calls == 0U,
             "current group-B single-target group-A path directly merges eligible reward profiles before pair finalization"
+        );
+        test.expect_true(
+            result.actor_action_targets[1U].return_eax ==
+                (result.group_a_effect_reward.return_eax & 0xFFFF0000U),
+            "current Group-B to Group-A caller preserves the reward EAX high word"
+        );
+        test.expect_true(
+            result.actor_action_targets[1U].return_edx ==
+                result.group_a_effect_reward.return_edx,
+            "current Group-B to Group-A caller preserves reward EDX"
+        );
+        test.expect_true(
+            result.actor_action_targets[1U].flags_known &&
+                result.actor_action_targets[1U].flags.parity &&
+                result.actor_action_targets[1U].flags.sign &&
+                result.actor_action_targets[1U].flags.overflow &&
+                !result.actor_action_targets[1U].flags.zero,
+            "current Group-B to Group-A caller preserves supplied reward flags"
         );
     }
 
@@ -423,6 +604,13 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
         const auto result = run(state, port, framebuffer);
         test.expect_true(
             result.return_value == 1U && result.effect_frame_calls == 1U &&
+                result.actor_action_target_calls == 2U &&
+                result.actor_action_targets[1U].return_eax == 0U &&
+                result.actor_action_targets[1U].return_ecx == 0x00525508U &&
+                result.actor_action_targets[1U].return_edx == 0U &&
+                result.actor_action_targets[1U].return_eip == 0x0045CBC5U &&
+                result.actor_action_targets[1U].flags_known &&
+                result.actor_action_targets[1U].flags.zero &&
                 result.framebuffer_fill_calls == 1U &&
                 state.group_b_feedback_actor == 0U &&
                 state.framebuffer_dirty_latch == 0U &&
@@ -443,7 +631,26 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
         state.group_b_effect_mode = 1U;
         port.feedback_return = 1U;
         state.selected_actor_pair = 0xAAAABBBBU;
-        const auto result = run(state, port, framebuffer);
+        openswd3::battle::LegacyBattleEffectCoordinatorRequest request;
+        request.action_target_requests[3U].entry_flags = {
+            .carry = true,
+            .parity = false,
+            .auxiliary_carry = true,
+            .auxiliary_carry_defined = true,
+            .zero = false,
+            .sign = true,
+            .overflow = false,
+        };
+        const auto result =
+            run(state,
+                port,
+                framebuffer,
+                0x8000U,
+                0U,
+                nullptr,
+                nullptr,
+                nullptr,
+                request);
         test.expect_true(
             result.return_value == 1U &&
                 result.group_effect_frame_calls == 1U &&
@@ -452,6 +659,30 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
                 result.group_a_effect_reward_calls == 1U &&
                 port.count(0x0046F6E0U) == 0U && port.count(0x00472C70U) == 0U,
             "current group-B group effect always targets group A regardless of the single-effect side mode"
+        );
+        test.expect_true(
+            result.actor_action_target_calls == 2U,
+            "current Group-B group effect performs two target queries"
+        );
+        test.expect_true(
+            result.actor_action_targets[1U].return_eax ==
+                    (result.group_a_effect_reward.return_eax & 0xFFFF0000U) &&
+                result.actor_action_targets[1U].return_edx ==
+                    result.group_a_effect_reward.return_edx &&
+                result.actor_action_targets[1U].return_eip == 0x0045C1FEU,
+            "current Group-B group effect preserves the fourth physical target return address and reward registers"
+        );
+        test.expect_true(
+            result.actor_action_targets[1U].return_ecx == 0x00525508U,
+            "current Group-B group effect preserves its source token"
+        );
+        test.expect_true(
+            result.actor_action_targets[1U].flags_known &&
+                result.actor_action_targets[1U].flags.carry &&
+                result.actor_action_targets[1U].flags.auxiliary_carry &&
+                result.actor_action_targets[1U].flags.sign &&
+                !result.actor_action_targets[1U].flags.zero,
+            "current Group-B group effect preserves reward-callee flags supplied at the physical caller"
         );
     }
 

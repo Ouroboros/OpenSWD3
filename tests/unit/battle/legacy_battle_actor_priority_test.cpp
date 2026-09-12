@@ -4,6 +4,7 @@
 
 #include <deque>
 #include <filesystem>
+#include <memory>
 #include <vector>
 
 namespace {
@@ -14,6 +15,22 @@ using openswd3::battle::LegacyBattleFrameCoordinatorCallReply;
 using openswd3::battle::LegacyBattleFrameCoordinatorCallRequest;
 using openswd3::battle::LegacyBattleFrameCoordinatorPort;
 using openswd3::compat::u32;
+
+struct PriorityOwners {
+    PriorityOwners() {
+        startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+    }
+
+    [[nodiscard]] openswd3::battle::LegacyBattleActorActionTargetOwners
+    views() noexcept {
+        return {.action = &action, .startup = &startup};
+    }
+
+    openswd3::battle::LegacyBattleActionDispatchState action{};
+    openswd3::battle::LegacyBattleStartupState startup{};
+};
 
 class PriorityPort final : public LegacyBattleFrameCoordinatorPort {
 public:
@@ -67,9 +84,31 @@ public:
         replies.push_back(reply);
     }
 
+    PriorityOwners owners{};
     std::deque<LegacyBattleFrameCoordinatorCallReply> replies;
     std::vector<LegacyBattleFrameCoordinatorCallRequest> calls;
 };
+
+[[nodiscard]] openswd3::battle::LegacyBattleActorPriorityResult
+update_legacy_battle_actor_priority(
+    PriorityPort& port,
+    const u32 eax = 0U,
+    const u32 ecx = 0U,
+    const u32 edx = 0U,
+    const std::array<openswd3::battle::LegacyBattleActorActionTargetRequest, 2>&
+        action_target_requests = {}
+) {
+    return openswd3::battle::update_legacy_battle_actor_priority(
+        port,
+        port.owners.views(),
+        {
+            .caller_eax = eax,
+            .caller_ecx = ecx,
+            .caller_edx = edx,
+            .action_target_requests = action_target_requests,
+        }
+    );
+}
 
 }  // namespace
 
@@ -138,9 +177,11 @@ void test_battle_actor_priority(openswd3::test::Context& test) {
         state.values[5] = 3;
         state.values[8] = 8;
         state.values[9] = 1;
-        port.push({.eax = 1U});
+        (*port.owners.startup.group_b_lifecycle)[2U]
+            .action_execution.action_target = 1U;
 
-        const auto result = update_legacy_battle_actor_priority(port);
+        const auto result =
+            update_legacy_battle_actor_priority(port, 0U, 0U, 0x55667788U);
         test.expect_true(
             result.status == LegacyBattleActorPriorityStatus::completed &&
                 result.pair_query_calls == 1U &&
@@ -151,12 +192,15 @@ void test_battle_actor_priority(openswd3::test::Context& test) {
                 state.actor_order[3] == 3U && state.actor_order[4] == 9U &&
                 state.actor_order[5] == 2U &&
                 state.priority_order_ready == 1U &&
-                result.return_value == 0x005214F4U && port.calls.size() == 1U &&
-                port.calls[0].call ==
-                    LegacyBattleFrameCoordinatorCall::query_actor_pair &&
-                port.calls[0].arguments[0] == 0x0052AB58U &&
-                port.calls[0].eax == 690U && port.calls[0].ecx == 0x0052AB58U,
-            "group-B actor sorts lower same-side metrics then publishes paired group-A actor before itself"
+                result.return_value == 0x005214F4U && port.calls.empty() &&
+                result.actor_action_target_calls == 1U &&
+                result.actor_action_target.return_eax == 1U &&
+                result.actor_action_target.return_ecx == 0x0052AB58U &&
+                result.actor_action_target.return_edx == 0x55667788U &&
+                result.actor_action_target.return_eip == 0x0045B2F2U &&
+                result.actor_action_target.flags_known &&
+                !result.actor_action_target.flags.zero,
+            "group-B actor preserves the first physical target caller before publishing paired Group-A order"
         );
     }
 
@@ -170,16 +214,22 @@ void test_battle_actor_priority(openswd3::test::Context& test) {
         state.values[1] = 1;
         state.values[8] = 10;
         state.values[9] = 3;
-        port.push({.eax = 1U});
+        port.owners.action.group_a_action_execution[0U].action_target = 1U;
 
-        const auto result = update_legacy_battle_actor_priority(port);
+        const auto result =
+            update_legacy_battle_actor_priority(port, 0U, 0U, 0xAABBCCDDU);
         test.expect_true(
             result.status == LegacyBattleActorPriorityStatus::completed &&
                 state.actor_order[0] == 9U && state.actor_order[1] == 1U &&
                 state.actor_order[2] == 8U && state.actor_order[3] == 0U &&
-                port.calls[0].arguments[0] == 0x005029D0U &&
-                port.calls[0].eax == 0U,
-            "group-A actor mirrors same-side prefix and opposite-side paired ordering"
+                port.calls.empty() && result.actor_action_target_calls == 1U &&
+                result.actor_action_target.return_eax == 1U &&
+                result.actor_action_target.return_ecx == 0x005029D0U &&
+                result.actor_action_target.return_edx == 0xAABBCCDDU &&
+                result.actor_action_target.return_eip == 0x0045B322U &&
+                result.actor_action_target.flags_known &&
+                result.actor_action_target.flags.zero,
+            "group-A actor preserves the second physical target caller before mirrored ordering"
         );
     }
 
@@ -211,15 +261,14 @@ void test_battle_actor_priority(openswd3::test::Context& test) {
         PriorityPort port;
         auto& state = port.actor_metric_state();
         state.priority_actor_index = 18U;
-        port.push({.eax = 0U});
         const auto result = update_legacy_battle_actor_priority(port);
         test.expect_true(
             result.status ==
-                    LegacyBattleActorPriorityStatus::metric_typed_stop &&
+                    LegacyBattleActorPriorityStatus::
+                        actor_action_target_typed_stop &&
                 result.pair_query_calls == 1U &&
-                port.calls[0].arguments[0] == 0x005201D8U &&
-                port.calls[0].eax == 30210U,
-            "out-of-range group-A actor performs its wrapped object query before first metric access stops"
+                result.actor_action_target_calls == 1U && port.calls.empty(),
+            "out-of-range group-A actor stops at the direct action-target owner before metric access"
         );
     }
 

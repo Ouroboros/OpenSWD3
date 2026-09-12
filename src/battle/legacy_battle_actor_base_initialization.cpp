@@ -106,7 +106,7 @@ LegacyBattleActorBaseInitializationResult initialize_legacy_battle_actor_base(
         return true;
     };
 
-    if (!write_word(fields.field_29a2, 0x29A2U, 0xFFFFU) ||
+    if (!write_word(action_execution.action_target, 0x29A2U, 0xFFFFU) ||
         !write_signed_dword(action_execution.turn_countdown, 0x2668U, 0x0F) ||
         !write_dword(fields.field_266c, 0x266CU, 1U) ||
         !write_word(action_execution.turn_threshold, 0x2958U, 0U) ||

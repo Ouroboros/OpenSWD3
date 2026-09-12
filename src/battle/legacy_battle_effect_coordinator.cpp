@@ -12,7 +12,6 @@ using compat::i32;
 using compat::u16;
 using compat::u32;
 
-constexpr u32 kCallQueryActor = 0x004786E0U;
 constexpr u32 kCallActorStatus = 0x0047CE80U;
 constexpr u32 kCallFeedback = 0x0047F150U;
 constexpr u32 kCallQueryFinalActor = 0x0047F920U;
@@ -26,6 +25,40 @@ constexpr u32 kCallPublishRewardMode = 0x0047CEC0U;
 
 [[nodiscard]] constexpr i16 signed_word(const u32 value) noexcept {
     return std::bit_cast<i16>(static_cast<u16>(value));
+}
+
+[[nodiscard]] constexpr bool has_even_parity(const u32 value) noexcept {
+    return (std::popcount(value & 0xFFU) & 1) == 0;
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+subtract_flags(const u32 left, const u32 right) noexcept {
+    const u32 difference = left - right;
+    return {
+        .carry = left < right,
+        .parity = has_even_parity(difference),
+        .auxiliary_carry = ((left ^ right ^ difference) & 0x10U) != 0U,
+        .auxiliary_carry_defined = true,
+        .zero = difference == 0U,
+        .sign = (difference & 0x80000000U) != 0U,
+        .overflow =
+            (((left ^ right) & (left ^ difference)) & 0x80000000U) != 0U,
+    };
+}
+
+[[nodiscard]] constexpr u32
+action_target_return_address(const std::size_t caller_index) noexcept {
+    constexpr std::array<u32, 8> addresses{
+        0x0045C064U,
+        0x0045C0D1U,
+        0x0045C193U,
+        0x0045C1FEU,
+        0x0045C366U,
+        0x0045C458U,
+        0x0045CA7AU,
+        0x0045CBC5U,
+    };
+    return addresses[caller_index];
 }
 
 [[nodiscard]] constexpr u32 group_a_token(const u32 index) noexcept {
@@ -53,11 +86,14 @@ public:
         std::span<LegacyBattleRewardScaleActorState> group_b_reward_scale,
         LegacyBattleStartupState& startup,
         LegacyBattleEffectCallPort& port,
-        rendering::LegacyFramebuffer& framebuffer
+        rendering::LegacyFramebuffer& framebuffer,
+        const LegacyBattleActorActionTargetOwners action_target_owners,
+        const LegacyBattleEffectCoordinatorRequest& request
     )
         : state_(state), group_b_reward_scale_(group_b_reward_scale),
-          startup_(startup), port_(port),
-          framebuffer_(framebuffer), metrics_(port.actor_metric_state()),
+          startup_(startup), port_(port), framebuffer_(framebuffer),
+          action_target_owners_(action_target_owners), request_(request),
+          metrics_(port.actor_metric_state()),
           publications_(port.actor_publication_state()),
           shift_(port.effect_shift_state()) {}
 
@@ -115,12 +151,45 @@ public:
         publications_.slots[actor_index] = actor_index;
     }
 
-    [[nodiscard]] bool query_actor(const u32 actor_token, i32& actor_index) {
-        ++result.actor_query_calls;
-        const auto reply = invoke(
-            kCallQueryActor, {actor_token}, actor_token, actor_token, 0U
+    [[nodiscard]] bool query_actor(
+        const u32 actor_token,
+        const std::size_t caller_index,
+        const u32 entry_eax,
+        const u32 entry_edx,
+        const bool override_flags,
+        const LegacyBattleActorCoordinateFlags entry_flags,
+        i32& actor_index
+    ) {
+        auto request = request_.action_target_requests[caller_index];
+        request.actor_token = actor_token;
+        request.entry_eax = entry_eax;
+        request.entry_edx = entry_edx;
+        request.entry_return_address =
+            action_target_return_address(caller_index);
+        if (override_flags) {
+            request.entry_flags = entry_flags;
+            request.entry_flags_known = true;
+        }
+        result.actor_action_target = query_legacy_battle_actor_action_target(
+            resolve_legacy_battle_actor_action_target(
+                action_target_owners_, actor_token
+            ),
+            request
         );
-        actor_index = static_cast<i32>(signed_word(reply.eax));
+        result.actor_action_targets[result.actor_action_target_calls] =
+            result.actor_action_target;
+        ++result.actor_query_calls;
+        ++result.actor_action_target_calls;
+        if (result.actor_action_target.status !=
+            LegacyBattleActorActionTargetStatus::completed) {
+            result.status = LegacyBattleEffectCoordinatorStatus::
+                actor_action_target_typed_stop;
+            result.return_value = result.actor_action_target.return_eax;
+            return false;
+        }
+        actor_index = static_cast<i32>(
+            signed_word(result.actor_action_target.return_eax)
+        );
         return true;
     }
 
@@ -154,6 +223,8 @@ public:
             {.startup = &startup_}
         );
         result.port_calls += child.port_calls;
+        last_child_eax_ = child.return_value;
+        last_child_edx_ = child.return_edx;
         if (child.status != LegacyBattleEffectFrameStatus::completed) {
             result.status =
                 LegacyBattleEffectCoordinatorStatus::effect_frame_typed_stop;
@@ -185,6 +256,8 @@ public:
             {.startup = &startup_}
         );
         result.port_calls += child.port_calls;
+        last_child_eax_ = child.return_value;
+        last_child_edx_ = child.return_edx;
         if (child.status != LegacyBattleGroupEffectFrameStatus::completed) {
             result.status = LegacyBattleEffectCoordinatorStatus::
                 group_effect_frame_typed_stop;
@@ -249,6 +322,14 @@ public:
         );
         ++result.pair_transition_calls;
         result.port_calls += result.pair_transition.port_calls;
+    }
+
+    [[nodiscard]] u32 last_child_eax() const noexcept {
+        return last_child_eax_;
+    }
+
+    [[nodiscard]] u32 last_child_edx() const noexcept {
+        return last_child_edx_;
     }
 
     [[nodiscard]] u32& pair_primary_value() noexcept {
@@ -372,6 +453,10 @@ public:
     LegacyBattleStartupState& startup_;
     LegacyBattleEffectCallPort& port_;
     rendering::LegacyFramebuffer& framebuffer_;
+    LegacyBattleActorActionTargetOwners action_target_owners_{};
+    const LegacyBattleEffectCoordinatorRequest& request_;
+    u32 last_child_eax_{};
+    u32 last_child_edx_{};
     LegacyBattleActorMetricState& metrics_;
     LegacyBattleActorPublicationState& publications_;
     LegacyBattleEffectShiftState& shift_;
@@ -393,10 +478,20 @@ LegacyBattleEffectCoordinatorResult advance_legacy_battle_effect_coordinator(
     LegacyBattleStartupState& startup,
     LegacyBattleEffectCallPort& port,
     rendering::LegacyFramebuffer& framebuffer,
+    const LegacyBattleActorActionTargetOwners action_target_owners,
     const u32 ui_state,
-    const u32 focus_actor
+    const u32 focus_actor,
+    const LegacyBattleEffectCoordinatorRequest& request
 ) {
-    Runner run(state, group_b_reward_scale, startup, port, framebuffer);
+    Runner run(
+        state,
+        group_b_reward_scale,
+        startup,
+        port,
+        framebuffer,
+        action_target_owners,
+        request
+    );
     auto& result = run.result;
     auto& metrics = port.actor_metric_state();
     auto& shift = port.effect_shift_state();
@@ -418,7 +513,15 @@ LegacyBattleEffectCoordinatorResult advance_legacy_battle_effect_coordinator(
         }
         const u32 current_token = group_a_token(current_index);
         i32 target_signed = 0;
-        if (!run.query_actor(current_token, target_signed)) {
+        if (!run.query_actor(
+                current_token,
+                0U,
+                current_index * 3021U,
+                request.action_target_requests[0U].entry_edx,
+                true,
+                subtract_flags(current_index * 1008U, current_index),
+                target_signed
+            )) {
             return result;
         }
         const u32 target_index = std::bit_cast<u32>(target_signed);
@@ -718,7 +821,17 @@ LegacyBattleEffectCoordinatorResult advance_legacy_battle_effect_coordinator(
         }
 
         i32 queried = 0;
-        if (!run.query_actor(current_token, queried)) {
+        const std::size_t action_target_caller =
+            state.group_a_effect_mode == 1U ? 1U : (target_group_b ? 4U : 5U);
+        if (!run.query_actor(
+                current_token,
+                action_target_caller,
+                run.last_child_eax(),
+                run.last_child_edx(),
+                true,
+                subtract_flags(run.last_child_eax(), 1U),
+                queried
+            )) {
             return result;
         }
         state.queried_actor_word = static_cast<u16>(queried);
@@ -799,7 +912,15 @@ LegacyBattleEffectCoordinatorResult advance_legacy_battle_effect_coordinator(
     }
     const u32 current_token = group_b_token(current_index);
     i32 target_signed = 0;
-    if (!run.query_actor(current_token, target_signed)) {
+    if (!run.query_actor(
+            current_token,
+            2U,
+            current_index * 345U,
+            request.action_target_requests[2U].entry_edx,
+            true,
+            subtract_flags(current_index * 24U, current_index),
+            target_signed
+        )) {
         return result;
     }
     const u32 target_index = std::bit_cast<u32>(target_signed);
@@ -854,7 +975,24 @@ LegacyBattleEffectCoordinatorResult advance_legacy_battle_effect_coordinator(
             return result;
         }
         i32 queried = 0;
-        if (!run.query_actor(current_token, queried)) {
+        const std::size_t action_target_caller =
+            group_effect_mode ? 3U : (target_group_b ? 7U : 6U);
+        const bool child_registers_reach_query = target_group_b;
+        const u32 query_eax = child_registers_reach_query
+            ? run.last_child_eax()
+            : result.group_a_effect_reward.return_eax;
+        const u32 query_edx = child_registers_reach_query
+            ? run.last_child_edx()
+            : result.group_a_effect_reward.return_edx;
+        if (!run.query_actor(
+                current_token,
+                action_target_caller,
+                query_eax,
+                query_edx,
+                child_registers_reach_query,
+                subtract_flags(run.last_child_eax(), 1U),
+                queried
+            )) {
             return result;
         }
         state.queried_actor_word = static_cast<u16>(queried);

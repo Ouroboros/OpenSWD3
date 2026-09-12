@@ -96,3 +96,11 @@ mask清零和ready发布发生在哨兵调用之前。嵌套重建typed-stop不�
 定向测试覆盖四项入口早退与陈旧寄存器、两组对象token与callee陈旧EAX、i16配对索引、同组signed稳定插入、陈旧尾额外复制、异组优先补齐、零metric比较、配对双发布、当前角色局部失效、callee先于当前metric越界、group B mask索引18停点、异常不清mask、正常ready、顺序表尾返回、值18哨兵直连重建，以及逐帧caller成功与typed-stop传播。
 
 当前缺少原版入口门、两项mode、当前角色、配对callee、两组动态数量、metric表、mask、顺序表、ready和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+
+## 9. 动作目标word查询两处分组caller直连
+
+工作包296关闭Group-B分支`0x0045B2ED`和Group-A分支`0x0045B31D`两处物理call，真实返回地址分别为`0x0045B2F2`和`0x0045B322`。前者ECX按`0x00525508 + index*0x2B28`形成，后者按`0x005029D0 + (index-8)*0x2F34`形成；两处均保留地址算术后的EAX、caller EDX和flags，返回后才符号扩展AX并参与metric与同组优先值计算。
+
+实现从startup Group-B lifecycle或action Group-A action-execution解析唯一canonical动作目标，不增加generic端口调用。typed-stop发生在相应metric读取、排序写入和ready发布前；既有异常索引顺序不变。测试分别覆盖两组真实返回地址、EAX高word、ECX/EDX、flags、符号扩展后的优先值及停止后缀；生产`0x004786E0` raw调用为零。
+
+当前缺少原版两组完整actor、metric/mask/顺序表和两处caller联合寄存器、flags与SEH捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

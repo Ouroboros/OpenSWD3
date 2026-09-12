@@ -37,7 +37,6 @@ constexpr u32 kCallPublishStatusMode = 0x0047D860U;
 constexpr u32 kCallQuerySpecialAction = 0x0047D880U;
 constexpr u32 kCallQueryPhaseMode = 0x0047D8D0U;
 constexpr u32 kCallQueryStatusSequence = 0x00480220U;
-constexpr u32 kCallQueryActionTarget = 0x004786E0U;
 constexpr u32 kCallPublishActionStart = 0x0047C690U;
 constexpr u32 kCallSelectionClear = 0x00478B20U;
 constexpr u32 kCallSelectionComplete = 0x00478B40U;
@@ -236,6 +235,30 @@ void replace_low_byte(u32& destination, const u8 value) noexcept {
     return true;
 }
 
+[[nodiscard]] bool query_action_target(
+    LegacyBattleActionDispatchResult& result,
+    const LegacyBattleActorActionTargetOwners& owners,
+    const LegacyBattleActorActionTargetRequest& request,
+    u32& value
+) {
+    result.actor_action_target = query_legacy_battle_actor_action_target(
+        resolve_legacy_battle_actor_action_target(owners, request.actor_token),
+        request
+    );
+    result.actor_action_targets[result.actor_action_target_calls] =
+        result.actor_action_target;
+    ++result.actor_action_target_calls;
+    if (result.actor_action_target.status !=
+        LegacyBattleActorActionTargetStatus::completed) {
+        result.status =
+            LegacyBattleActionDispatchStatus::actor_action_target_typed_stop;
+        result.return_value = result.actor_action_target.return_eax;
+        return false;
+    }
+    value = result.actor_action_target.return_eax;
+    return true;
+}
+
 [[nodiscard]] bool publish_text_message(
     LegacyBattleActionDispatchContext& context,
     LegacyBattleActionDispatchPort& port,
@@ -350,6 +373,14 @@ void merge_nested(
     result.status_indicator_calls += nested.status_indicator_calls;
     result.scale_scan_calls += nested.scale_scan_calls;
     result.action_record_clear_calls += nested.action_record_clear_calls;
+    for (u32 index = 0U; index < nested.actor_action_target_calls; ++index) {
+        result.actor_action_targets[result.actor_action_target_calls + index] =
+            nested.actor_action_targets[index];
+    }
+    result.actor_action_target_calls += nested.actor_action_target_calls;
+    if (nested.actor_action_target_calls != 0U) {
+        result.actor_action_target = nested.actor_action_target;
+    }
     result.group_a_actor_cleanup_calls += nested.group_a_actor_cleanup_calls;
     if (nested.group_a_actor_cleanup_calls != 0U) {
         result.group_a_actor_cleanup = nested.group_a_actor_cleanup;
@@ -439,6 +470,10 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
         return result;
     }
     const u32 source_token = group_b_token(group_b_index);
+    const auto publish_action_target = [&](const u32 value) noexcept {
+        (*context.startup->group_b_lifecycle)[group_b_index]
+            .action_execution.action_target = static_cast<u16>(value);
+    };
     const LegacyBattleActorIdleStateOwners idle_state_owners{
         .action = &action,
         .startup = context.startup,
@@ -539,6 +574,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                             kCallPublishSelection,
                             {source_token, 0U}
                         ));
+                        publish_action_target(0U);
                         state.phase_progress = to_bits(action.group_b_count) -
                             low_byte(action.opponent_processed_counter);
                     } else {
@@ -671,6 +707,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                         kCallPublishSelection,
                                         {source_token, selected}
                                     ));
+                                    publish_action_target(selected);
                                     break;
                                 }
                                 ++selected;
@@ -858,6 +895,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                     static_cast<void>(invoke(
                         port, result, kCallPublishSelection, {source_token, 0U}
                     ));
+                    publish_action_target(0U);
                     static_cast<void>(invoke(
                         port, result, kCallSetActionMode, {source_token, 0x11U}
                     ));
@@ -1021,6 +1059,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                 kCallPublishSelection,
                                 {source_token, state.random_target_index}
                             ));
+                            publish_action_target(state.random_target_index);
                         } else {
                             u32 selected = state.random_target_index;
                             if (!validate_group_a(result, selected)) {
@@ -1073,6 +1112,9 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                     kCallPublishSelection,
                                     {source_token, state.random_target_index}
                                 ));
+                                publish_action_target(
+                                    state.random_target_index
+                                );
                                 static_cast<void>(invoke(
                                     port,
                                     result,
@@ -1200,6 +1242,9 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                         {source_token,
                                          state.random_target_index}
                                     ));
+                                    publish_action_target(
+                                        state.random_target_index
+                                    );
                                 }
                             } else {
                                 if (!validate_group_a(
@@ -1223,6 +1268,9 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                         {source_token,
                                          state.random_target_index}
                                     ));
+                                    publish_action_target(
+                                        state.random_target_index
+                                    );
                                     static_cast<void>(invoke(
                                         port,
                                         result,
@@ -1255,17 +1303,42 @@ action_decision_done:
         }
         if (decision_idle_state == 1U) {
             stale_ebx = 1U;
-            if (action.active_effect_target == group_b_index) {
+            const bool active_actor =
+                action.active_effect_target == group_b_index;
+            LegacyBattleActionCallReply action_start_reply{};
+            if (active_actor) {
                 shared.action_block_gate = 1U;
                 action.action_pending_aux = 1U;
-                static_cast<void>(invoke(
+                action_start_reply = invoke(
                     port, result, kCallPublishActionStart, {source_token}
-                ));
+                );
             }
             action.current_actor_index = static_cast<u16>(group_b_index);
-            const u32 target_index = low_word(
-                invoke(port, result, kCallQueryActionTarget, {source_token}).eax
-            );
+            auto action_target_request =
+                context.group_b_frame_action_target_requests[0U];
+            action_target_request.actor_token = source_token;
+            action_target_request.entry_eax = active_actor
+                ? action_start_reply.eax
+                : action.active_effect_target;
+            action_target_request.entry_edx = active_actor
+                ? action_start_reply.edx
+                : result.actor_idle_state.return_edx;
+            action_target_request.entry_return_address = 0x00457E8FU;
+            if (!active_actor) {
+                action_target_request.entry_flags =
+                    subtract_flags(action.active_effect_target, group_b_index);
+                action_target_request.entry_flags_known = true;
+            }
+            u32 action_target_value{};
+            if (!query_action_target(
+                    result,
+                    {.action = &action, .startup = context.startup},
+                    action_target_request,
+                    action_target_value
+                )) {
+                return result;
+            }
+            const u32 target_index = low_word(action_target_value);
             auto nested = dispatch_legacy_battle_opponent_action(
                 action, port, context, group_b_index, target_index
             );
@@ -1274,13 +1347,26 @@ action_decision_done:
                 return result;
             }
             if (nested.return_value == 1U) {
-                u32 completed_target = low_word(
-                    invoke(port, result, kCallQueryActionTarget, {source_token})
-                        .eax
-                );
+                action_target_request =
+                    context.group_b_frame_action_target_requests[1U];
+                action_target_request.actor_token = source_token;
+                action_target_request.entry_eax = nested.return_value;
+                action_target_request.entry_return_address = 0x00457EB3U;
+                action_target_request.entry_flags = logical_flags(0U);
+                action_target_request.entry_flags_known = true;
+                if (!query_action_target(
+                        result,
+                        {.action = &action, .startup = context.startup},
+                        action_target_request,
+                        action_target_value
+                    )) {
+                    return result;
+                }
+                u32 completed_target = low_word(action_target_value);
                 static_cast<void>(
                     invoke(port, result, kCallSelectionClear, {source_token})
                 );
+                publish_action_target(0xFFFFU);
                 if (invoke(port, result, kCallSelectionComplete, {source_token})
                         .eax == 1U) {
                     if (action.group_a_count > 0) {

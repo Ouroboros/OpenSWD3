@@ -74,7 +74,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     unlock_target_surface,
     reserved_refresh_selection_slot,
     reserved_selection_frame_slot,
-    query_actor_pair,
+    reserved_query_actor_action_target,
     reserved_frame_completion_slot,
     reserved_pending_action_commit_slot,
     actor_ready_query,
@@ -1952,6 +1952,9 @@ struct LegacyBattleFrameCoordinatorRequest {
     compat::u32 actor_priority_eax_snapshot{};
     compat::u32 actor_priority_ecx_snapshot{};
     compat::u32 actor_priority_edx_snapshot{};
+    std::array<LegacyBattleActorActionTargetRequest, 2>
+        actor_priority_action_target_requests{};
+    LegacyBattleEffectCoordinatorRequest effect_coordinator_request{};
     compat::u32 attack_order_dequeue_edx_snapshot{};
     LegacyBattleSelectionFrameRequest selection_frame_request{};
     compat::u32 post_actor_frame_ecx_snapshot{};

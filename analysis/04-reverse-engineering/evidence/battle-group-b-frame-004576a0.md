@@ -191,3 +191,11 @@ pending effect ID非全1时调用pending step `(source,shared_argument,index)`�
 - profile真实访问typed-stop。
 
 当前缺少原版组A/B对象、其余待审callee（含profile loader）共享副作用、攻击顺序动态记录、随机状态、AI/packed-status表、completion表、文本、资源surface及空闲状态/陈旧寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+
+## 13. 动作目标word查询两处caller直连
+
+工作包296关闭`0x00457E8A`和`0x00457EAE`两处物理call，真实返回地址分别为`0x00457E8F`和`0x00457EB3`。第一处active actor分支继承动作启动callee的EAX/EDX，inactive actor分支继承此前寄存器并保留`index*24-index`的SUB flags；返回后才符号扩展AX并调用对手动作分派。第二处继承嵌套对手动作分派的EAX/EDX及其与成功值1比较的flags，返回后才保存目标并进入清动作和完成后缀。
+
+两处直接读取startup Group-B lifecycle action-execution的canonical动作目标，只增加typed调用计数。待审`0x00478A70`的选择发布和`0x00478B20`的动作清除均同步当前lifecycle actor字段。字段或RET停止保留动作启动或嵌套分派前缀，抑制post-call符号扩展、选择清理、完成扫描和公共尾；生产`0x004786E0` raw调用为零。
+
+当前缺少原版完整Group-A/Group-B actor、对手动作分派剩余callee共享副作用，以及两处caller联合寄存器、flags和SEH捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

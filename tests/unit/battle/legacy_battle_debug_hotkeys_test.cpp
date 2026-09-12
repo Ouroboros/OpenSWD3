@@ -303,8 +303,8 @@ void test_battle_debug_hotkeys(openswd3::test::Context& test) {
         state.developer_tools_enabled = 1U;
         state.actor_retarget_gate_53bf64 = 1U;
         state.selection_status_word_53c050 = 0xABCD0000U;
+        state.special_actor_action_target.action_target = 2U;
         DebugPort port;
-        port.replies.push_back({.eax = 0xFFFF0002U});
         port.replies.push_back({
             .publish_priority_actor = true,
             .priority_actor = 10U,
@@ -316,7 +316,11 @@ void test_battle_debug_hotkeys(openswd3::test::Context& test) {
         press(keyboard, 0x2EU);
         const auto result =
             openswd3::battle::coordinate_legacy_battle_debug_hotkeys(
-                keyboard, state, fixture.bindings(), port
+                keyboard,
+                state,
+                fixture.bindings(),
+                port,
+                {.special_action_target_request = {.entry_edx = 0x11223344U}}
             );
         test.expect_true(
             result.status == LegacyBattleDebugHotkeyStatus::completed &&
@@ -327,10 +331,52 @@ void test_battle_debug_hotkeys(openswd3::test::Context& test) {
                 fixture.final_actor.selection_gate == 0U &&
                 fixture.actor_frames.shared.action_block_gate == 0U &&
                 fixture.actor_metrics.priority_actor_index == 10U &&
-                port.count(LegacyBattleDebugHotkeyCall::query_special_index) ==
-                    1U &&
+                result.actor_action_target_calls == 1U &&
+                result.actor_action_target.return_eax == 2U &&
+                result.actor_action_target.return_ecx == 0x004E80FCU &&
+                result.actor_action_target.return_edx == 0x11223344U &&
+                result.actor_action_target.return_eip == 0x0045DBE8U &&
+                result.actor_action_target.field_token == 0x004EAA9EU &&
+                result.actor_action_target.flags_known &&
+                port.count(
+                    LegacyBattleDebugHotkeyCall::
+                        reserved_query_special_action_target
+                ) == 0U &&
                 port.count(LegacyBattleDebugHotkeyCall::reset_actor) == 2U,
             "C preserves low-word status update retarget ordering priority reload and action-block cleanup"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.actor_frames.shared.action_block_gate = 1U;
+        LegacyBattleDebugHotkeyState state;
+        state.developer_tools_enabled = 1U;
+        state.actor_retarget_gate_53bf64 = 1U;
+        DebugPort port;
+        openswd3::input_time_rng::LegacyKeyboardSnapshot keyboard{};
+        press(keyboard, 0x1DU);
+        press(keyboard, 0x2EU);
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_debug_hotkeys(
+                keyboard,
+                state,
+                fixture.bindings(),
+                port,
+                {.special_action_target_request = {
+                     .access = {.action_target_readable = false},
+                 }}
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleDebugHotkeyStatus::
+                        actor_action_target_typed_stop &&
+                result.actor_action_target_calls == 1U &&
+                result.actor_action_target.return_eip == 0x004786E0U &&
+                result.actor_action_target.action_target_reads == 0U &&
+                fixture.actor_frames.shared.action_block_gate == 1U &&
+                port.count(LegacyBattleDebugHotkeyCall::reset_actor) == 0U,
+            "debug target stop preserves the retarget prefix and suppresses reset and action-block suffixes"
         );
     }
 

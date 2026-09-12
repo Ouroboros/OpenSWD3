@@ -572,6 +572,7 @@ add_executable(
     unit/battle/legacy_battle_actor_turn_completion_test.cpp
     unit/battle/legacy_battle_actor_idle_state_test.cpp
     unit/battle/legacy_battle_actor_action_kind_test.cpp
+    unit/battle/legacy_battle_actor_action_target_test.cpp
     unit/battle/legacy_battle_actor_display_kind_test.cpp
     unit/battle/legacy_battle_actor_start_gate_test.cpp
     unit/battle/legacy_battle_actor_frame_snapshot_test.cpp

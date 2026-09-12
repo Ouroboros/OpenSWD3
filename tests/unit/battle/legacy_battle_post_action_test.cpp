@@ -49,16 +49,19 @@ void test_battle_post_action(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleActionDispatchState;
     using openswd3::battle::LegacyBattleFinalActorStepState;
     using openswd3::battle::LegacyBattlePostActionState;
+    using openswd3::battle::LegacyBattleStartupState;
     using openswd3::battle::advance_legacy_battle_post_action;
 
     {
         LegacyBattlePostActionState state;
         LegacyBattleFinalActorStepState final_actor;
         LegacyBattleActionDispatchState action;
+        LegacyBattleStartupState startup;
         action.selected_target_index = 2U;
+        action.group_a_action_execution[0U].action_target = 2U;
         PostActionPort port;
         const auto result = advance_legacy_battle_post_action(
-            state, final_actor, action, port, 0U, 3U
+            state, final_actor, action, port, &startup, 0U, 3U
         );
         test.expect_true(
             result.return_value == 2U && result.port_calls == 0U,
@@ -70,11 +73,13 @@ void test_battle_post_action(openswd3::test::Context& test) {
         LegacyBattlePostActionState state;
         LegacyBattleFinalActorStepState final_actor;
         LegacyBattleActionDispatchState action;
+        LegacyBattleStartupState startup;
         action.selected_target_index = 1U;
+        action.group_a_action_execution[0U].action_target = 1U;
         action.group_a_count = 0;
         PostActionPort port;
         const auto result = advance_legacy_battle_post_action(
-            state, final_actor, action, port, 0U, 1U
+            state, final_actor, action, port, &startup, 0U, 1U
         );
         test.expect_true(
             result.return_value == 0U && result.port_calls == 1U &&
@@ -88,25 +93,29 @@ void test_battle_post_action(openswd3::test::Context& test) {
         LegacyBattlePostActionState state;
         LegacyBattleFinalActorStepState final_actor;
         LegacyBattleActionDispatchState action;
-        action.selected_target_index = 2U;
-        action.group_a_count = 3;
-        action.group_b_count = 3;
+        LegacyBattleStartupState startup;
+        action.selected_target_index = 1U;
+        action.group_a_count = 2;
+        action.group_a_action_execution[1U].action_target = 1U;
         PostActionPort port;
-        port.push(0x004786E0U, {.eax = 0xFFFFU});
-        port.push(0x004786E0U, {.eax = 2U});
-        port.push(0x0047CE80U, {.eax = 0U});
+        port.push(0x00478850U, {.eax = 0xAABBCCDDU, .edx = 0x11223344U});
+        openswd3::battle::LegacyBattleActorActionTargetRequest request;
+        request.access.action_target_readable = false;
         const auto result = advance_legacy_battle_post_action(
-            state, final_actor, action, port, 1U, 2U
+            state, final_actor, action, port, &startup, 0U, 1U, request
         );
         test.expect_true(
-            result.return_value == 3U && result.group_a_iterations == 3U &&
-                state.selection_rebuild_pending == 1U &&
-                port.count(0x004786E0U) == 2U &&
-                port.count(0x00478B20U) == 1U &&
-                port.count(0x00478AE0U) == 1U &&
-                port.count(0x00478A70U) == 1U &&
-                port.calls.back().arguments[1] == 0U,
-            "first nonterminal alternate target rebuilds the matching actor relation"
+            result.status ==
+                    openswd3::battle::LegacyBattleActionDispatchStatus::
+                        actor_action_target_typed_stop &&
+                result.actor_action_target_calls == 1U &&
+                result.actor_action_target.return_eax == 1U &&
+                result.actor_action_target.return_ecx == 0x00505904U &&
+                result.actor_action_target.return_edx == 0x11223344U &&
+                result.actor_action_target.return_eip == 0x004786E0U &&
+                result.actor_action_target.action_target_reads == 0U &&
+                result.port_calls == 1U && port.count(0x00478B20U) == 0U,
+            "post-action target stop preserves the initial reset and suppresses relation cleanup"
         );
     }
 
@@ -114,7 +123,45 @@ void test_battle_post_action(openswd3::test::Context& test) {
         LegacyBattlePostActionState state;
         LegacyBattleFinalActorStepState final_actor;
         LegacyBattleActionDispatchState action;
+        LegacyBattleStartupState startup;
+        action.selected_target_index = 2U;
+        action.group_a_action_execution[1U].action_target = 2U;
+        action.group_a_action_execution[2U].action_target = 2U;
+        action.group_a_count = 3;
+        action.group_b_count = 3;
+        PostActionPort port;
+        port.push(0x0047CE80U, {.eax = 0U});
+        const auto result = advance_legacy_battle_post_action(
+            state, final_actor, action, port, &startup, 1U, 2U
+        );
+        test.expect_true(
+            result.return_value == 3U && result.group_a_iterations == 3U &&
+                state.selection_rebuild_pending == 1U &&
+                result.actor_action_target_calls == 2U &&
+                result.actor_action_target.return_eax == 2U &&
+                result.actor_action_target.return_ecx == 0x00508838U &&
+                result.actor_action_target.return_edx == 0U &&
+                result.actor_action_target.return_eip == 0x0045AE51U &&
+                result.actor_action_target.flags_known &&
+                !result.actor_action_target.flags.zero &&
+                action.group_a_action_execution[2U].action_target == 0U &&
+                port.count(0x004786E0U) == 0U &&
+                port.count(0x00478B20U) == 1U &&
+                port.count(0x00478AE0U) == 1U &&
+                port.count(0x00478A70U) == 1U &&
+                port.calls.back().arguments[1] == 0U,
+            "post-action preserves its physical target query and rebuilds the canonical actor relation"
+        );
+    }
+
+    {
+        LegacyBattlePostActionState state;
+        LegacyBattleFinalActorStepState final_actor;
+        LegacyBattleActionDispatchState action;
+        LegacyBattleStartupState startup;
         action.selected_target_index = 1U;
+        action.group_a_action_execution[0U].action_target = 1U;
+        action.group_a_action_execution[1U].action_target = 1U;
         action.group_a_count = 2;
         action.group_b_count = 2;
         action.packed_actor_counter = 1U;
@@ -125,10 +172,9 @@ void test_battle_post_action(openswd3::test::Context& test) {
         state.selection_workspace.fill(0xFFFFFFFFU);
         state.published_target_token = 0x1234U;
         PostActionPort port;
-        port.push(0x004786E0U, {.eax = 1U});
         port.push(0x0047CE80U, {.eax = 1U});
         const auto result = advance_legacy_battle_post_action(
-            state, final_actor, action, port, 0U, 1U
+            state, final_actor, action, port, &startup, 0U, 1U
         );
         test.expect_true(
             result.return_value == 2U && result.group_a_iterations == 2U &&
@@ -140,6 +186,7 @@ void test_battle_post_action(openswd3::test::Context& test) {
                 result.actor_availability_block.actor_writes == 1U &&
                 result.actor_availability_block.return_ecx == 0x00505904U &&
                 final_actor.group_a_availability_blocks[1U].value == 0U &&
+                action.group_a_action_execution[1U].action_target == 0xFFFFU &&
                 port.count(0x00478850U) == 2U &&
                 std::ranges::all_of(
                     final_actor.actor_order,
@@ -161,7 +208,10 @@ void test_battle_post_action(openswd3::test::Context& test) {
         LegacyBattlePostActionState state;
         LegacyBattleFinalActorStepState final_actor;
         LegacyBattleActionDispatchState action;
+        LegacyBattleStartupState startup;
         action.selected_target_index = 1U;
+        action.group_a_action_execution[0U].action_target = 1U;
+        action.group_a_action_execution[1U].action_target = 1U;
         action.group_a_count = 2;
         action.group_b_count = 2;
         action.packed_actor_counter = 1U;
@@ -174,10 +224,9 @@ void test_battle_post_action(openswd3::test::Context& test) {
         state.selection_workspace.fill(0xFFFFFFFFU);
         state.published_target_token = 0x1234U;
         PostActionPort port;
-        port.push(0x004786E0U, {.eax = 1U});
         port.push(0x0047CE80U, {.eax = 1U});
         const auto result = advance_legacy_battle_post_action(
-            state, final_actor, action, port, 0U, 1U
+            state, final_actor, action, port, &startup, 0U, 1U
         );
         test.expect_true(
             result.status ==

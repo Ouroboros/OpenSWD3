@@ -406,12 +406,16 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
     if (state.conditional_mode != 1U || state.conditional_submode == 1U) {
         result.actor_priority = update_legacy_battle_actor_priority(
             port,
-            request.actor_priority_eax_snapshot,
-            request.actor_priority_ecx_snapshot,
-            request.actor_priority_edx_snapshot
+            {.action = &context.action_dispatch, .startup = &context.startup},
+            {
+                .caller_eax = request.actor_priority_eax_snapshot,
+                .caller_ecx = request.actor_priority_ecx_snapshot,
+                .caller_edx = request.actor_priority_edx_snapshot,
+                .action_target_requests =
+                    request.actor_priority_action_target_requests,
+            }
         );
         ++result.actor_priority_calls;
-        result.port_calls += result.actor_priority.pair_query_calls;
         if (result.actor_priority.status !=
             LegacyBattleActorPriorityStatus::completed) {
             result.status =
@@ -492,8 +496,10 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         context.startup,
         port,
         context.frame_zero.framebuffer,
+        {.action = &context.action_dispatch, .startup = &context.startup},
         state.ui_state,
-        selection_source
+        selection_source,
+        request.effect_coordinator_request
     );
     ++result.effect_coordinator_calls;
     result.port_calls += result.effect_coordinator.port_calls;

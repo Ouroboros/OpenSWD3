@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_actor_action_target.hpp"
 #include "openswd3/compat/types.hpp"
 
 #include <array>
@@ -13,6 +14,7 @@ struct LegacyBattleDebugHotkeyState {
     compat::u32 message_latch_53ceb8{};
     compat::u32 selection_status_word_53c050{};
     compat::u32 actor_retarget_gate_53bf64{};
+    LegacyBattleActorActionTargetState special_actor_action_target{};
     std::array<compat::u32, 6> selection_workspace_tail{};
     compat::u32 text_mode_toggle_53c02c{};
     compat::u32 battle_mode_flags_53bc24{};
