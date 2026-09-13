@@ -7,6 +7,7 @@
 #include "openswd3/battle/legacy_battle_actor_base_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_actor_coordinate_publication.hpp"
 #include "openswd3/battle/legacy_battle_actor_frame_resource.hpp"
+#include "openswd3/battle/legacy_battle_actor_frame_snapshot_clear.hpp"
 #include "openswd3/battle/legacy_battle_actor_idle_state.hpp"
 #include "openswd3/battle/legacy_battle_actor_action_kind.hpp"
 #include "openswd3/battle/legacy_battle_actor_action_target.hpp"
@@ -1387,6 +1388,8 @@ struct LegacyBattleActionDispatchContext {
     LegacyBattleActorActionKindRequest actor_action_kind_request{};
     LegacyBattleActorDisplayKindRequest actor_display_kind_request{};
     LegacyBattleActorStartGateRequest actor_start_gate_request{};
+    LegacyBattleActorFrameSnapshotClearRequest
+        actor_frame_snapshot_clear_request{};
     std::array<LegacyBattleActorActionTargetRequest, 2>
         action_dispatch_action_target_requests{};
     std::array<LegacyBattleActorActionTargetRequest, 4>
@@ -1477,6 +1480,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     group_b_opponent_wave_parameters_typed_stop,
     mon_definition_load_typed_stop,
     mon_definition_release_typed_stop,
+    actor_frame_snapshot_clear_typed_stop,
 };
 
 struct LegacyBattleActionDispatchResult {
@@ -1510,6 +1514,8 @@ struct LegacyBattleActionDispatchResult {
     LegacyBattleActorActionTargetResult actor_action_target{};
     std::array<LegacyBattleActorActionTargetResult, 20> actor_action_targets{};
     compat::u32 actor_action_target_calls{};
+    LegacyBattleActorFrameSnapshotClearResult actor_frame_snapshot_clear{};
+    compat::u32 actor_frame_snapshot_clear_calls{};
     LegacyBattleFixedCountResult fixed_count{};
     compat::u32 fixed_count_calls{};
     LegacyBattleFixedCountLookupResult fixed_count_lookup{};

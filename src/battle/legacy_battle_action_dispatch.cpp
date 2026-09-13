@@ -119,7 +119,6 @@ constexpr u32 kCallPopState = 0x0047D830U;
 constexpr u32 kCallSetScreenMode = 0x0047CC40U;
 constexpr u32 kCallSelectSummon = 0x0047D350U;
 constexpr u32 kCallSummonMode = 0x0047DAB0U;
-constexpr u32 kCallPrepareSummon = 0x004786F0U;
 constexpr u32 kCallActionTwentySevenSecondary = 0x004838D0U;
 constexpr u32 kCallSpecialActionUpdate = 0x004831C0U;
 constexpr u32 kCallSpecialTurnFrame = 0x00483B30U;
@@ -7564,16 +7563,37 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                 kCallSelectSummon,
                 {group_a_token(summon_index)}
             ));
-            static_cast<void>(
-                invoke(state, port, result, kCallSummonMode, {1U})
+            const auto summon_mode_reply =
+                invoke(state, port, result, kCallSummonMode, {1U});
+            auto snapshot_clear_request =
+                context.actor_frame_snapshot_clear_request;
+            snapshot_clear_request.actor_token = group_a_token(summon_index);
+            snapshot_clear_request.entry_eax =
+                static_cast<u32>(summon_index) * 0xBCDU;
+            snapshot_clear_request.entry_edx = summon_mode_reply.edx;
+            snapshot_clear_request.entry_edi = 14U;
+            snapshot_clear_request.entry_return_address = 0x0045529FU;
+            snapshot_clear_request.entry_flags = subtract_flags(
+                static_cast<u32>(summon_index) * 0x3F0U,
+                static_cast<u32>(summon_index)
             );
-            static_cast<void>(invoke(
-                state,
-                port,
-                result,
-                kCallPrepareSummon,
-                {group_a_token(summon_index)}
-            ));
+            snapshot_clear_request.entry_flags_known = true;
+            result.actor_frame_snapshot_clear =
+                clear_legacy_battle_actor_frame_snapshot(
+                    resolve_legacy_battle_actor_frame_snapshot_clear(
+                        {.action = &state}, snapshot_clear_request.actor_token
+                    ),
+                    snapshot_clear_request
+                );
+            ++result.actor_frame_snapshot_clear_calls;
+            if (result.actor_frame_snapshot_clear.status !=
+                LegacyBattleActorFrameSnapshotClearStatus::completed) {
+                result.status = LegacyBattleActionDispatchStatus::
+                    actor_frame_snapshot_clear_typed_stop;
+                result.return_value =
+                    result.actor_frame_snapshot_clear.return_eax;
+                return result;
+            }
             static_cast<void>(
                 invoke(state, port, result, kCallClearMode, {1U})
             );

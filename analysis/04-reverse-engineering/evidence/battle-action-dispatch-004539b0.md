@@ -146,7 +146,7 @@ phase零时建立factor=-12、primary suppression和动画。目标动作完成�
 
 ### 10.3 case 15
 
-phase零时按battle flags bit2与packed high word<2决定是否增加召唤计数和组A数量；从每角色summon word取索引，依序执行选中、模式、构造、动画与召唤记录建立。每帧保持factor=-12和suppression；坐标完成后更新目标`index+8`、清battle bit2、summon runtime、packed lowword和角色summon word，发布终态并调用两个后续stage，返回1。
+phase零时按battle flags bit2与packed high word<2决定是否增加召唤计数和组A数量；从每角色summon word取索引，依序执行选中、模式、首条动作记录清零、构造、动画与召唤记录建立。`0x0045529A`以`ECX=0x005029D0+index*0x2F34`直接组合已关闭`0x004786F0` typed leaf，真实返回地址为`0x0045529F`；只清零Group-A canonical第0动作记录的38个dword，生产路径不再调用原raw地址。每帧保持factor=-12和suppression；坐标完成后更新目标`index+8`、清battle bit2、summon runtime、packed lowword和角色summon word，发布终态并调用两个后续stage，返回1。
 
 ## 11. case 22：状态指示器与对手选择
 
@@ -224,6 +224,7 @@ bit75未置且message gate bit0为1时，播放固定消息、再次清动作rec
 - 玩家道具链：未知token在首次节点访问停止，零分配先发布零head再停止；
 - 攻击顺序登记：在case25已写目标status后，于首个实际记录读取处停止，阻断current actor清理与成功尾；
 - 攻击顺序移除：四处均在原call位置直连；相邻强度效果记录缺失时保留对象/延迟/计数前缀，阻断call后的目标、状态或成功发布；
+- case 15首条动作记录清零：PUSH EDI、38次独立STOSD、POP EDI与RET均保留真实停止点；写fault保留此前已提交的零写入，阻断清模式、召唤构造、动画与全部后缀；
 - case 31坐标查询：按Group-B索引解析canonical lifecycle owner；任一真实访问typed-stop保留SUB flags与查询前缀，并阻断动作record清理和Escape后缀；
 - case 33目标动作就绪：行动者、frame返回记录、共享source owner和目标坐标分别在原始首次访问点停止，并阻断current actor清理与后续目标解析。
 

@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <array>
 #include <bit>
+#include <cstring>
 #include <deque>
 #include <memory>
 #include <unordered_map>
@@ -22,6 +23,9 @@ using openswd3::compat::i32;
 using openswd3::compat::u8;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
+
+using FrameSnapshotWords = std::
+    array<u32, openswd3::battle::kLegacyBattleActorFrameSnapshotClearDwords>;
 
 class DispatchPort final
     : public openswd3::battle::LegacyBattleActionDispatchPort,
@@ -593,6 +597,29 @@ void set_summon_profile_word(
 ) noexcept {
     record[offset] = static_cast<std::byte>(static_cast<u8>(value));
     record[offset + 1U] = static_cast<std::byte>(static_cast<u8>(value >> 8U));
+}
+
+[[nodiscard]] FrameSnapshotWords frame_snapshot_words(
+    const openswd3::asset_runtime::LegacyActionRecord& record
+) noexcept {
+    FrameSnapshotWords words{};
+    std::memcpy(words.data(), &record, sizeof(record));
+    return words;
+}
+
+void set_frame_snapshot_words(
+    openswd3::asset_runtime::LegacyActionRecord& record,
+    const FrameSnapshotWords& words
+) noexcept {
+    std::memcpy(&record, words.data(), sizeof(record));
+}
+
+[[nodiscard]] FrameSnapshotWords nonzero_frame_snapshot_words() noexcept {
+    FrameSnapshotWords words{};
+    for (std::size_t index = 0U; index < words.size(); ++index) {
+        words[index] = 0xB6000000U + static_cast<u32>(index);
+    }
+    return words;
 }
 
 [[nodiscard]] bool has_call_argument(
@@ -4471,6 +4498,10 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         summon.placement_field_1a = 0x4567U;
         summon.active = 1U;
         summon.configuration.actor_record_token = 0x005029D0U + 2U * 0x2F34U;
+        set_frame_snapshot_words(
+            state.group_a_action_execution[2U].frame_source_action_record,
+            nonzero_frame_snapshot_words()
+        );
         DispatchPort port;
         port.action = 15U;
         port.push(0x00487C10U, {.eax = 0x71000000U});
@@ -4485,6 +4516,22 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
                 result.return_value == 0U &&
+                result.actor_frame_snapshot_clear_calls == 1U &&
+                result.actor_frame_snapshot_clear.status ==
+                    openswd3::battle::
+                        LegacyBattleActorFrameSnapshotClearStatus::completed &&
+                result.actor_frame_snapshot_clear.return_eax == 0U &&
+                result.actor_frame_snapshot_clear.return_ecx == 0U &&
+                result.actor_frame_snapshot_clear.return_edx ==
+                    summon.configuration.actor_record_token &&
+                result.actor_frame_snapshot_clear.return_edi == 14U &&
+                result.actor_frame_snapshot_clear.return_esp == 0x70001004U &&
+                result.actor_frame_snapshot_clear.return_eip == 0x0045529FU &&
+                result.actor_frame_snapshot_clear.cleared_dwords == 0x26U &&
+                frame_snapshot_words(state.group_a_action_execution[2U]
+                                         .frame_source_action_record) ==
+                    FrameSnapshotWords{} &&
+                port.count(0x004786F0U) == 0U &&
                 result.summon_materialization_calls == 1U &&
                 result.summon_materialization.status ==
                     openswd3::battle::
@@ -4515,6 +4562,115 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 state.group_a_action_shared.draw_motion_a == 0xFFFFFFE1U &&
                 port.count(0x00471D60U) == 0U,
             "action fifteen materializes the selected summon from the shared startup record before beginning its frame phase"
+        );
+    }
+
+    {
+        const auto initial = nonzero_frame_snapshot_words();
+        LegacyBattleActionDispatchState state;
+        state.group_a_count = 1;
+        state.group_b_count = 1;
+        state.group_a_status_words[0U] = 2U;
+        auto& snapshot =
+            state.group_a_action_execution[2U].frame_source_action_record;
+        set_frame_snapshot_words(snapshot, initial);
+        Fixture fixture;
+        DispatchPort port;
+        port.action = 15U;
+        port.push(0x0047DAB0U, {.edx = 0x12345678U});
+        auto context = fixture.context();
+        context.actor_frame_snapshot_clear_request.entry_esp = 0x81002000U;
+        context.actor_frame_snapshot_clear_request
+            .destination_dword_writable[3U] = false;
+
+        const auto result = dispatch(state, port, context, 0U, 0U);
+        const auto actual = frame_snapshot_words(snapshot);
+        bool partial_clear_matches = true;
+        for (std::size_t index = 0U; index < actual.size(); ++index) {
+            partial_clear_matches = partial_clear_matches &&
+                actual[index] == (index < 3U ? 0U : initial[index]);
+        }
+
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_frame_snapshot_clear_typed_stop &&
+                result.return_value == 0U &&
+                result.actor_frame_snapshot_clear_calls == 1U &&
+                result.actor_frame_snapshot_clear.status ==
+                    openswd3::battle::
+                        LegacyBattleActorFrameSnapshotClearStatus::
+                            destination_dword_write_typed_stop &&
+                result.actor_frame_snapshot_clear.fault_dword_index == 3U &&
+                result.actor_frame_snapshot_clear.cleared_dwords == 3U &&
+                result.actor_frame_snapshot_clear.return_eax == 0U &&
+                result.actor_frame_snapshot_clear.return_ecx == 0x23U &&
+                result.actor_frame_snapshot_clear.return_edx == 0x00508838U &&
+                result.actor_frame_snapshot_clear.return_edi == 0x00508AE4U &&
+                result.actor_frame_snapshot_clear.return_esp == 0x81001FFCU &&
+                result.actor_frame_snapshot_clear.return_eip == 0x00478700U &&
+                result.actor_frame_snapshot_clear.stack_writes[0U] == 14U &&
+                result.actor_frame_snapshot_clear.flags_known &&
+                !result.actor_frame_snapshot_clear.flags.carry &&
+                result.actor_frame_snapshot_clear.flags.parity &&
+                !result.actor_frame_snapshot_clear.flags
+                     .auxiliary_carry_defined &&
+                result.actor_frame_snapshot_clear.flags.zero &&
+                partial_clear_matches &&
+                result.summon_materialization_calls == 0U &&
+                port.count(0x0047D870U) == 0U &&
+                port.count(0x004786F0U) == 0U &&
+                static_cast<u16>(state.phase_counter) == 0U,
+            "action fifteen preserves the three committed STOSD writes and suppresses the complete summon suffix on the fourth write fault"
+        );
+    }
+
+    {
+        const auto initial = nonzero_frame_snapshot_words();
+        LegacyBattleActionDispatchState state;
+        state.group_a_count = 1;
+        state.group_b_count = 1;
+        state.group_a_status_words[0U] = 2U;
+        auto& snapshot =
+            state.group_a_action_execution[2U].frame_source_action_record;
+        set_frame_snapshot_words(snapshot, initial);
+        Fixture fixture;
+        DispatchPort port;
+        port.action = 15U;
+        auto context = fixture.context();
+        context.actor_frame_snapshot_clear_request.entry_esp = 0x82003000U;
+        context.actor_frame_snapshot_clear_request.stack_access
+            .push_edi_writable = false;
+
+        const auto result = dispatch(state, port, context, 0U, 0U);
+
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_frame_snapshot_clear_typed_stop &&
+                result.return_value == 0x179AU &&
+                result.actor_frame_snapshot_clear.status ==
+                    openswd3::battle::
+                        LegacyBattleActorFrameSnapshotClearStatus::
+                            push_edi_write_typed_stop &&
+                result.actor_frame_snapshot_clear.return_eax == 0x179AU &&
+                result.actor_frame_snapshot_clear.return_ecx == 0x00508838U &&
+                result.actor_frame_snapshot_clear.return_edx == 0x00508838U &&
+                result.actor_frame_snapshot_clear.return_edi == 14U &&
+                result.actor_frame_snapshot_clear.return_esp == 0x82003000U &&
+                result.actor_frame_snapshot_clear.return_eip == 0x004786F2U &&
+                !result.actor_frame_snapshot_clear.flags.carry &&
+                result.actor_frame_snapshot_clear.flags.parity &&
+                result.actor_frame_snapshot_clear.flags.auxiliary_carry &&
+                result.actor_frame_snapshot_clear.flags
+                    .auxiliary_carry_defined &&
+                !result.actor_frame_snapshot_clear.flags.zero &&
+                !result.actor_frame_snapshot_clear.flags.sign &&
+                !result.actor_frame_snapshot_clear.flags.overflow &&
+                frame_snapshot_words(snapshot) == initial &&
+                result.summon_materialization_calls == 0U &&
+                port.count(0x0047D870U) == 0U && port.count(0x004786F0U) == 0U,
+            "action fifteen supplies the physical actor arithmetic, switch EDI, SUB flags, stack token, and return address before the leaf PUSH"
         );
     }
 

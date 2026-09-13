@@ -569,6 +569,7 @@ add_executable(
     unit/battle/legacy_battle_input_record_priming_test.cpp
     unit/battle/legacy_battle_actor_record_selection_test.cpp
     unit/battle/legacy_battle_actor_frame_resource_test.cpp
+    unit/battle/legacy_battle_actor_frame_snapshot_clear_test.cpp
     unit/battle/legacy_battle_actor_turn_completion_test.cpp
     unit/battle/legacy_battle_actor_idle_state_test.cpp
     unit/battle/legacy_battle_actor_action_kind_test.cpp
