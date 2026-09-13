@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_actor_coordinates.hpp"
+#include "openswd3/battle/legacy_battle_actor_field_26b8_high_bit_set.hpp"
 #include "openswd3/battle/legacy_battle_group_a_action_execution_state.hpp"
 #include "openswd3/compat/types.hpp"
 
@@ -18,6 +19,8 @@ struct LegacyBattleTargetReadyRequest {
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
+    LegacyBattleActorField26b8HighBitSetCallRequests
+        actor_field_26b8_high_bit_set_requests{};
 };
 
 enum class LegacyBattleTargetReadyStatus : compat::u8 {
@@ -26,6 +29,7 @@ enum class LegacyBattleTargetReadyStatus : compat::u8 {
     frame_owner_typed_stop,
     shared_state_typed_stop,
     actor_coordinate_typed_stop,
+    actor_field_26b8_high_bit_set_typed_stop,
 };
 
 struct LegacyBattleTargetReadyResult {
@@ -43,6 +47,8 @@ struct LegacyBattleTargetReadyResult {
     compat::u32 particle_commit_calls{};
     compat::u32 completion_calls{};
     compat::u32 target_refresh_calls{};
+    LegacyBattleActorField26b8HighBitSetCallTrace
+        actor_field_26b8_high_bit_set{};
     compat::u32 action_record_clears{};
     compat::u32 port_calls{};
     compat::u16 frame_width{};

@@ -43,6 +43,7 @@ add_library(
         legacy_battle_actor_action_mode.cpp
         legacy_battle_actor_action_target.cpp
         legacy_battle_actor_field_26b8_high_bit_clear.cpp
+        legacy_battle_actor_field_26b8_high_bit_set.cpp
         legacy_battle_actor_display_kind.cpp
         legacy_battle_actor_start_gate.cpp
         legacy_battle_actor_frame_snapshot.cpp

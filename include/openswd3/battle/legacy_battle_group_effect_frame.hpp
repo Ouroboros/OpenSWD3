@@ -52,6 +52,7 @@ enum class LegacyBattleGroupEffectFrameStatus : compat::u8 {
     effect_shift_group_a_coordinate_publication_typed_stop,
     effect_shift_group_b_coordinate_publication_typed_stop,
     animation_collision_counter_typed_stop,
+    actor_field_26b8_high_bit_set_typed_stop,
 };
 
 struct LegacyBattleGroupEffectFrameResult {
@@ -74,6 +75,8 @@ struct LegacyBattleGroupEffectFrameResult {
     LegacyBattleActorCoordinateQueryResult coordinate_query{};
     compat::u32 coordinate_query_calls{};
     LegacyBattleEffectShiftResult effect_shift{};
+    LegacyBattleActorField26b8HighBitSetCallTrace
+        actor_field_26b8_high_bit_set{};
     LegacyBattleAnimationCollisionResult animation_collision{};
     compat::u32 animation_collision_calls{};
 };
@@ -91,7 +94,9 @@ advance_legacy_battle_group_effect_frame(
     compat::u32 source_value,
     compat::u32 slot_index,
     compat::u32 group_wide_mode,
-    const LegacyBattleActorCoordinateOwners& coordinate_owners = {}
+    const LegacyBattleActorCoordinateOwners& coordinate_owners = {},
+    const LegacyBattleActorField26b8HighBitSetCallRequests&
+        actor_field_26b8_high_bit_set_requests = {}
 );
 
 }  // namespace openswd3::battle

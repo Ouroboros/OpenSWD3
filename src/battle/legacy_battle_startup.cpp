@@ -1226,6 +1226,11 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         const auto* const lifecycle = state.group_b_lifecycle == nullptr
             ? nullptr
             : &(*state.group_b_lifecycle)[index];
+        if (lifecycle != nullptr) {
+            enemy.progress.field_26c0.alias(
+                lifecycle->action_execution.field_26c0
+            );
+        }
         u32 stale_edx = random_reply.edx_snapshot;
         for (u32 count = 0U; count < repeats; ++count) {
             const auto progress = advance_legacy_battle_actor_group_b_progress(

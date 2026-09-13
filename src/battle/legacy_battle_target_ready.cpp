@@ -19,7 +19,6 @@ constexpr u32 kCallRenderResource = 0x004170E0U;
 constexpr u32 kCallSpawnParticle = 0x004800F0U;
 constexpr u32 kCallCommitParticle = 0x004801A0U;
 constexpr u32 kCallAdvanceTarget = 0x0047FC40U;
-constexpr u32 kCallRefreshTarget = 0x00478780U;
 constexpr u32 kLegacyBattleSampleLevelToken = 0x004AB784U;
 constexpr u32 kEffectActionId = 0x00001BF3U;
 
@@ -343,9 +342,37 @@ LegacyBattleTargetReadyResult advance_legacy_battle_target_ready(
             actor->action_runtime_gate = 1U;
             registers.ecx = request.target_token;
             ++result.target_refresh_calls;
-            static_cast<void>(
-                invoke(kCallRefreshTarget, {request.target_token})
-            );
+            if (!execute_legacy_battle_actor_field_26b8_high_bit_set_call(
+                    {
+                        .action = context.shared_action_dispatch,
+                        .startup = context.startup,
+                    },
+                    result.actor_field_26b8_high_bit_set,
+                    request.actor_field_26b8_high_bit_set_requests,
+                    request.target_token,
+                    registers.eax,
+                    registers.edx,
+                    0x00475494U,
+                    {},
+                    false
+                )) {
+                registers.eax =
+                    result.actor_field_26b8_high_bit_set.last.return_eax;
+                registers.ecx =
+                    result.actor_field_26b8_high_bit_set.last.return_ecx;
+                registers.edx =
+                    result.actor_field_26b8_high_bit_set.last.return_edx;
+                result.status = LegacyBattleTargetReadyStatus::
+                    actor_field_26b8_high_bit_set_typed_stop;
+                publish_registers();
+                return result;
+            }
+            registers.eax =
+                result.actor_field_26b8_high_bit_set.last.return_eax;
+            registers.ecx =
+                result.actor_field_26b8_high_bit_set.last.return_ecx;
+            registers.edx =
+                result.actor_field_26b8_high_bit_set.last.return_edx;
         }
     }
 

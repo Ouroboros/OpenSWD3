@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_actor_field_26b8_high_bit_set.hpp"
 #include "openswd3/compat/types.hpp"
 
 namespace openswd3::battle {
@@ -15,6 +16,7 @@ enum class LegacyBattleGroupBActionExecutionStatus : compat::u8 {
     actor_state_typed_stop,
     action_resource_typed_stop,
     render_source_typed_stop,
+    actor_field_26b8_high_bit_set_typed_stop,
 };
 
 struct LegacyBattleGroupBActionExecutionRequest {
@@ -22,6 +24,8 @@ struct LegacyBattleGroupBActionExecutionRequest {
     compat::u32 target_token{};
     compat::u32 entry_eax{};
     compat::u32 entry_edx{};
+    LegacyBattleActorField26b8HighBitSetCallRequests
+        actor_field_26b8_high_bit_set_requests{};
 };
 
 struct LegacyBattleGroupBActionExecutionResult {
@@ -35,6 +39,8 @@ struct LegacyBattleGroupBActionExecutionResult {
     compat::u32 color_initialization_calls{};
     compat::u32 frame_refresh_calls{};
     compat::u32 action_record_clears{};
+    LegacyBattleActorField26b8HighBitSetCallTrace
+        actor_field_26b8_high_bit_set{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};

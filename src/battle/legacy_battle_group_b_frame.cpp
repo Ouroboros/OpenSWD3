@@ -43,7 +43,6 @@ constexpr u32 kCallResetTarget = 0x00478AE0U;
 constexpr u32 kCallPublishBattleBit = 0x00483FF0U;
 constexpr u32 kCallQueryCompletionEffect = 0x0047F360U;
 constexpr u32 kCallPublishCompletionId = 0x004787D0U;
-constexpr u32 kCallPublishCompletionSource = 0x00478780U;
 constexpr u32 kCallPublishCompletionResource = 0x0047D640U;
 constexpr u32 kCallSetCompletionMode = 0x0047CEC0U;
 constexpr u32 kCallPrepareCompletionSurface = 0x0047F150U;
@@ -501,6 +500,11 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                     context.startup->group_b_lifecycle == nullptr
                     ? nullptr
                     : &(*context.startup->group_b_lifecycle)[group_b_index];
+                if (lifecycle != nullptr) {
+                    enemy.progress.field_26c0.alias(
+                        lifecycle->action_execution.field_26c0
+                    );
+                }
                 const auto progress =
                     advance_legacy_battle_actor_group_b_progress(
                         enemy.progress,
@@ -1709,12 +1713,23 @@ action_decision_done:
                         kCallPublishCompletionId,
                         {source_token, 0x235EU}
                     ));
-                    static_cast<void>(invoke(
-                        port,
-                        result,
-                        kCallPublishCompletionSource,
-                        {source_token}
-                    ));
+                    if (!execute_legacy_battle_actor_field_26b8_high_bit_set_call(
+                            {
+                                .action = &action,
+                                .startup = context.startup,
+                            },
+                            result.actor_field_26b8_high_bit_set,
+                            context.actor_field_26b8_high_bit_set_requests,
+                            source_token,
+                            0x00458166U
+                        )) {
+                        result.status = LegacyBattleActionDispatchStatus::
+                            actor_field_26b8_high_bit_set_typed_stop;
+                        result.return_value =
+                            result.actor_field_26b8_high_bit_set.last
+                                .return_eax;
+                        return result;
+                    }
                     static_cast<void>(invoke(
                         port,
                         result,
@@ -1774,6 +1789,16 @@ action_decision_done:
         kCallPublishEffectMode,
         {source_token, effect_mode ? 1U : 0U}
     );
+    if (!apply_legacy_battle_pending_actor_field_26b8_high_bit_set(
+            action,
+            context,
+            result,
+            source_token,
+            0x00478BDBU,
+            effect_mode_reply
+        )) {
+        return result;
+    }
     if (!apply_legacy_battle_pending_actor_field_26b8_high_bit_clear(
             action, context, result, source_token, effect_mode_reply
         )) {

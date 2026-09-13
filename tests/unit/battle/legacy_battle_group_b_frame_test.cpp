@@ -621,6 +621,57 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
     }
 
     {
+        const auto state_storage =
+            std::make_unique<LegacyBattleGroupBFrameState>();
+        auto& state = *state_storage;
+        state.shared.action.frame_effect.primary_suppression = 1U;
+        state.shared.action.group_a_to_actor[0] = 3U;
+        Fixture fixture;
+        auto& actor =
+            (*fixture.startup->group_b_lifecycle)[0U].action_execution;
+        actor.start_gate = 1U;
+        actor.field_26b8 = 9U;
+        actor.summon_completion_word = 0x1111U;
+        actor.special_target_action_record.command_cursor = 0x2222U;
+        DispatchPort port;
+        bind_group_b_coordinate_resource(fixture, 3U);
+        port.push(
+            0x00478B60U,
+            {
+                .pending_actor_field_26b8_high_bit_set = {
+                    .executed = true,
+                    .entry_eax = 0x12345678U,
+                    .entry_edx = 0x99AABBCCU,
+                },
+            }
+        );
+        port.push(0x00479850U, {.eax = 1U});
+        auto context = fixture.context();
+        context.actor_field_26b8_high_bit_set_requests.calls[0U].entry_esp =
+            0x8A10A000U;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.actor_field_26b8_high_bit_set.calls == 1U &&
+                result.actor_field_26b8_high_bit_set.return_addresses[0U] ==
+                    0x00478BDBU &&
+                result.actor_field_26b8_high_bit_set.last.return_eax ==
+                    0x80000009U &&
+                result.actor_field_26b8_high_bit_set.last.return_edx ==
+                    0x99AABBCCU &&
+                result.actor_field_26b8_high_bit_set.last.return_esp ==
+                    0x8A10A004U &&
+                actor.field_26b8 == 0x80000009U &&
+                actor.summon_completion_word == 0x1111U &&
+                actor.special_target_action_record.command_cursor == 0x2222U &&
+                port.count(0x00478780U) == 0U,
+            "Group-B frame composes only an executed Workpack-315 pending high-bit-set reply"
+        );
+    }
+
+    {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_effect.primary_suppression = 1U;
         state.shared.action.group_a_to_actor[0] = 3U;

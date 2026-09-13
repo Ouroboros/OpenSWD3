@@ -97,19 +97,13 @@ public:
         special_four_hundred_primary_records.push_back(&record);
         return LegacyBattleActionDispatchPort::
             invoke_special_four_hundred_primary_update(
-                request,
-                record,
-                frame_token,
-                render_flags,
-                draw_x,
-                draw_y
+                request, record, frame_token, render_flags, draw_x, draw_y
             );
     }
 
     [[nodiscard]] LegacyBattleActionCallReply
     invoke_special_four_hundred_workspace_update(
-        const LegacyBattleActionCallRequest& request,
-        std::span<u8> workspace
+        const LegacyBattleActionCallRequest& request, std::span<u8> workspace
     ) override {
         special_four_hundred_workspaces.push_back(workspace.data());
         return LegacyBattleActionDispatchPort::
@@ -183,12 +177,7 @@ public:
         action_four_direct_effect_records.push_back(&record);
         return LegacyBattleActionDispatchPort::
             invoke_action_four_direct_effect_update(
-                request,
-                record,
-                frame_token,
-                render_flags,
-                draw_x,
-                draw_y
+                request, record, frame_token, render_flags, draw_x, draw_y
             );
     }
 
@@ -204,12 +193,7 @@ public:
         special_four_hundred_effect_records.push_back(&record);
         return LegacyBattleActionDispatchPort::
             invoke_special_four_hundred_effect_update(
-                request,
-                record,
-                frame_token,
-                render_flags,
-                draw_x,
-                draw_y
+                request, record, frame_token, render_flags, draw_x, draw_y
             );
     }
 
@@ -881,6 +865,61 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleActionDispatchStatus;
 
     {
+        const auto state = std::make_unique<LegacyBattleActionDispatchState>();
+        const auto fixture = std::make_unique<Fixture>();
+        auto context = fixture->context();
+        const auto result = std::make_unique<
+            openswd3::battle::LegacyBattleActionDispatchResult>();
+        const u32 first_token =
+            openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken;
+        const u32 second_token = first_token +
+            openswd3::battle::kLegacyBattleActorCoordinatesGroupAStride;
+        state->group_a_action_execution[0U].field_26b8 = 5U;
+        state->group_a_action_execution[1U].field_26b8 = 7U;
+        LegacyBattleActionCallReply reply{
+            .pending_actor_field_26b8_high_bit_set =
+                {
+                    .executed = true,
+                    .actor_token = first_token,
+                    .entry_eax = 0x11111111U,
+                    .entry_edx = 0x22222222U,
+                },
+            .pending_actor_field_26b8_high_bit_set_second = {
+                .executed = true,
+                .actor_token = second_token,
+                .entry_eax = 0x33333333U,
+                .entry_edx = 0x44444444U,
+            },
+        };
+        const bool first = openswd3::battle::
+            apply_legacy_battle_pending_actor_field_26b8_high_bit_set(
+                *state, context, *result, first_token, 0x00478BDBU, reply
+            );
+        const bool second = openswd3::battle::
+            apply_legacy_battle_pending_actor_field_26b8_high_bit_set(
+                *state,
+                context,
+                *result,
+                first_token,
+                0x00481BC8U,
+                reply.pending_actor_field_26b8_high_bit_set_second
+            );
+        test.expect_true(
+            first && second &&
+                result->actor_field_26b8_high_bit_set.calls == 2U &&
+                result->actor_field_26b8_high_bit_set.return_addresses[0U] ==
+                    0x00478BDBU &&
+                result->actor_field_26b8_high_bit_set.return_addresses[1U] ==
+                    0x00481BC8U &&
+                state->group_a_action_execution[0U].field_26b8 == 0x80000005U &&
+                state->group_a_action_execution[1U].field_26b8 == 0x80000007U &&
+                result->actor_field_26b8_high_bit_set.last.return_edx ==
+                    0x44444444U,
+            "first and second pending replies retain independent actor and physical CALL identities"
+        );
+    }
+
+    {
         LegacyBattleActionDispatchState state;
         auto fixture = std::make_unique<Fixture>();
         auto port = std::make_unique<DispatchPort>();
@@ -1226,8 +1265,22 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
             );
         actor.primary_action_record = {};
         fixture.stream_provider.bytes = {
-            0x46U, 0x52U, 0x66U, 0x00U, 0x41U, 0x50U, 0x00U, 0x00U,
-            0x59U, 0x58U, 0x00U, 0x00U, 0x00U, 0x00U, 0x44U, 0x45U,
+            0x46U,
+            0x52U,
+            0x66U,
+            0x00U,
+            0x41U,
+            0x50U,
+            0x00U,
+            0x00U,
+            0x59U,
+            0x58U,
+            0x00U,
+            0x00U,
+            0x00U,
+            0x00U,
+            0x44U,
+            0x45U,
         };
         fixture.frame_provider.available = false;
         const auto no_frame =
@@ -1329,7 +1382,8 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleActionTwentyThreeStatus::
                         completed &&
-                result.return_eax == 0U && result.coordinate_query_calls == 1U &&
+                result.return_eax == 0U &&
+                result.coordinate_query_calls == 1U &&
                 result.sample_play_calls == 1U &&
                 result.sample_pan_calls == 1U && result.render_calls == 2U &&
                 actor.primary_action_record.draw_offset_x == 28U &&
@@ -1408,10 +1462,7 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
         DispatchPort port;
         const auto empty =
             openswd3::battle::consume_legacy_battle_action_twenty_three_message(
-                nullptr,
-                &empty_profile,
-                port,
-                {.profile_token = 0xABCD0000U}
+                nullptr, &empty_profile, port, {.profile_token = 0xABCD0000U}
             );
         LegacyBattleActionMessageProfile live_profile{
             .message_code = 0x22U,
@@ -1742,7 +1793,12 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
         LegacyBattleGroupAActionExecutionSharedState shared;
         Fixture fixture;
         fixture.stream_provider.bytes = {
-            0x46U, 0x52U, 0x66U, 0x00U, 0x44U, 0x45U,
+            0x46U,
+            0x52U,
+            0x66U,
+            0x00U,
+            0x44U,
+            0x45U,
         };
         DispatchPort port;
         port.push(0x00485610U, {.edx = 0xBBBB2222U});
@@ -1910,8 +1966,8 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
                 port.calls[2U].arguments[1U] == 50U &&
                 port.calls[3U].arguments[0U] == 72U &&
                 port.calls[3U].arguments[1U] == 44U &&
-                port.calls[9U].arguments[0U] == 7U &&
-                port.calls[9U].arguments[1U] == 8U &&
+                port.calls[8U].arguments[0U] == 7U &&
+                port.calls[8U].arguments[1U] == 8U &&
                 port.count(0x004783B0U) == 0U,
             "action twenty-seven preserves mirror offsets stale sample halves and all three draw formulas"
         );
@@ -1984,8 +2040,7 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
                 }
             );
         test.expect_true(
-            completed.return_eax == 1U &&
-                completed.action_update_calls == 2U &&
+            completed.return_eax == 1U && completed.action_update_calls == 2U &&
                 completed.frame_lookup_calls == 2U &&
                 completed.coordinate_query_calls == 1U &&
                 completed.sample_play_calls == 1U &&
@@ -2049,9 +2104,16 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
             state.group_a_action_execution[0U].profile_value = 0x123U;
             Fixture fixture;
             fixture.stream_provider.bytes = {
-                0x54U, 0x41U, 0x09U, 0x00U,
-                0x46U, 0x52U, 0x44U, 0x00U,
-                0x32U, 0x4FU,
+                0x54U,
+                0x41U,
+                0x09U,
+                0x00U,
+                0x46U,
+                0x52U,
+                0x44U,
+                0x00U,
+                0x32U,
+                0x4FU,
             };
             DispatchPort port;
             port.action = action;
@@ -2312,8 +2374,7 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 }
             );
         test.expect_true(
-            completed.return_eax == 1U &&
-                completed.action_update_calls == 1U &&
+            completed.return_eax == 1U && completed.action_update_calls == 1U &&
                 completed.frame_lookup_calls == 1U &&
                 completed.sample_play_calls == 1U &&
                 completed.sample_pan_calls == 1U &&
@@ -2408,12 +2469,12 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 context,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                 }
             );
         test.expect_true(
-            missing.status == openswd3::battle::
-                    LegacyBattleSpecialFourOhFiveStatus::
+            missing.status ==
+                    openswd3::battle::LegacyBattleSpecialFourOhFiveStatus::
                         frame_owner_typed_stop &&
                 stopped_actor.turn_completion_latch == 1U &&
                 stopped_actor.turn_frame_token == 0U,
@@ -2436,12 +2497,12 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 context,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                 }
             );
         test.expect_true(
-            shared_stop.status == openswd3::battle::
-                    LegacyBattleSpecialFourOhFiveStatus::
+            shared_stop.status ==
+                    openswd3::battle::LegacyBattleSpecialFourOhFiveStatus::
                         shared_state_typed_stop &&
                 shared_stop_actor.turn_frame_token == 0x1234254CU,
             "special four-oh-five stops at the first shared draw-state write after publishing the frame token"
@@ -2468,8 +2529,8 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 }
             );
         test.expect_true(
-            phase_stop.status == openswd3::battle::
-                    LegacyBattleSpecialFourOhFiveStatus::
+            phase_stop.status ==
+                    openswd3::battle::LegacyBattleSpecialFourOhFiveStatus::
                         phase_state_typed_stop &&
                 phase_stop.coordinate_query_calls == 1U &&
                 phase_stop.effect_update_calls == 0U,
@@ -2541,7 +2602,12 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
         LegacyBattleGroupAActionExecutionSharedState shared;
         Fixture fixture;
         fixture.stream_provider.bytes = {
-            0x46U, 0x52U, 0x66U, 0x00U, 0x44U, 0x45U,
+            0x46U,
+            0x52U,
+            0x66U,
+            0x00U,
+            0x44U,
+            0x45U,
         };
         auto context = fixture.context();
 
@@ -2555,14 +2621,14 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 context,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                 }
             );
         test.expect_true(
             base.return_eax == 0U && base.action_update_calls == 1U &&
-                base.frame_lookup_calls == 1U &&
-                base.sample_play_calls == 1U && base.sample_pan_calls == 1U &&
-                base.render_calls == 2U && base_actor.action_runtime_gate == 0U &&
+                base.frame_lookup_calls == 1U && base.sample_play_calls == 1U &&
+                base.sample_pan_calls == 1U && base.render_calls == 2U &&
+                base_actor.action_runtime_gate == 0U &&
                 base_actor.special_action_record.field_58 == 0U &&
                 base_port.calls[2U].arguments[0U] == 91U &&
                 base_port.calls[2U].arguments[1U] == 40U &&
@@ -2583,7 +2649,7 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 context,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                 }
             );
         test.expect_true(
@@ -2617,7 +2683,7 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 context,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                 }
             );
         test.expect_true(
@@ -2647,7 +2713,7 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 context,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                     .stale_stack_word_8 = 0x1234U,
                     .stale_stack_word_6 = 0x5678U,
                 }
@@ -2662,7 +2728,8 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 effect_actor.action_runtime_gate == 0x4000U &&
                 effect_actor.turn_threshold == 0xFFE1U &&
                 effect_port.battle_pair_primary_value() == 8U &&
-                effect_port.special_four_oh_six_secondary_records.size() == 1U &&
+                effect_port.special_four_oh_six_secondary_records.size() ==
+                    1U &&
                 has_call_argument(effect_port, 0x00481010U, 1U, 0x5678U) &&
                 has_call_argument(effect_port, 0x00481010U, 2U, 0x1234U),
             "special four-oh-six publishes the signed effect then waits at the fourth-record gate with stale stack words preserved"
@@ -2681,7 +2748,7 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 context,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                 }
             );
         test.expect_true(
@@ -2710,7 +2777,7 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 context,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                 }
             );
         test.expect_true(
@@ -2719,7 +2786,8 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 completed_actor.action_runtime_gate == 0U &&
                 completed_actor.turn_threshold == 0U &&
                 completed_actor.special_action_record.action_id == 0U &&
-                completed_actor.special_secondary_action_record.field_94 == 0U &&
+                completed_actor.special_secondary_action_record.field_94 ==
+                    0U &&
                 completed_actor.effect_action_record.field_94 == 0U &&
                 completed_actor.effect_secondary_action_record.field_94 == 0U,
             "special four-oh-six clears all four records only after the final threshold becomes positive"
@@ -2736,12 +2804,13 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 context,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                 }
             );
         test.expect_true(
-            missing.status == openswd3::battle::
-                    LegacyBattleSpecialFourOhSixStatus::frame_owner_typed_stop &&
+            missing.status ==
+                    openswd3::battle::LegacyBattleSpecialFourOhSixStatus::
+                        frame_owner_typed_stop &&
                 missing_actor.turn_completion_latch == 1U &&
                 missing_actor.turn_frame_token == 0U,
             "special four-oh-six stops at the original frame dereference after preserving initialization"
@@ -2757,12 +2826,13 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 context,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                 }
             );
         test.expect_true(
-            shared_stop.status == openswd3::battle::
-                    LegacyBattleSpecialFourOhSixStatus::shared_state_typed_stop &&
+            shared_stop.status ==
+                    openswd3::battle::LegacyBattleSpecialFourOhSixStatus::
+                        shared_state_typed_stop &&
                 shared_stop_actor.turn_frame_token == 0x1234254CU,
             "special four-oh-six stops at its first shared-frame publication after the frame token write"
         );
@@ -2781,7 +2851,12 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
         actor.turn_threshold = 1U;
         Fixture fixture;
         fixture.stream_provider.bytes = {
-            0x46U, 0x52U, 0x66U, 0x00U, 0x44U, 0x45U,
+            0x46U,
+            0x52U,
+            0x66U,
+            0x00U,
+            0x44U,
+            0x45U,
         };
         DispatchPort port;
         port.action = 406U;
@@ -2827,7 +2902,7 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 context,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                 }
             );
         test.expect_true(
@@ -2849,20 +2924,22 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 context,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                 }
             );
         test.expect_true(
-            outward.return_eax == 0U &&
-                outward.special_update_calls == 1U &&
+            outward.return_eax == 0U && outward.special_update_calls == 1U &&
                 outward.render_calls == 2U &&
                 outward_actor.turn_countdown == 10 &&
                 outward_actor.special_action_record.external_mode == 1U &&
-                outward_actor.special_target_action_record.external_mode == 1U &&
+                outward_actor.special_target_action_record.external_mode ==
+                    1U &&
                 outward_actor.special_four_hundred_workspace != nullptr &&
                 (*outward_actor.special_four_hundred_workspace)[0x92U] == 1U &&
-                (*outward_actor.special_four_hundred_workspace)[0x04U] == 0xFFU &&
-                (*outward_actor.special_four_hundred_workspace)[0x05U] == 0xFFU &&
+                (*outward_actor.special_four_hundred_workspace)[0x04U] ==
+                    0xFFU &&
+                (*outward_actor.special_four_hundred_workspace)[0x05U] ==
+                    0xFFU &&
                 shared.special_render_mode == 8U &&
                 shared.draw_motion_c == 10U &&
                 outward_port.special_four_hundred_primary_records.size() == 1U,
@@ -2884,7 +2961,7 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 context,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                 }
             );
         test.expect_true(
@@ -3010,8 +3087,7 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
             layered.return_eax == 0U && layered.action_update_calls == 2U &&
                 layered.frame_lookup_calls == 3U &&
                 layered.sample_play_calls == 2U &&
-                layered.sample_pan_calls == 1U &&
-                layered.render_calls == 2U &&
+                layered.sample_pan_calls == 1U && layered.render_calls == 2U &&
                 (layered_actor.action_runtime_gate & 0x800U) != 0U &&
                 layered_actor.effect_secondary_action_record.action_id ==
                     0x0777U &&
@@ -3038,7 +3114,7 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 context,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                 }
             );
         test.expect_true(
@@ -3047,7 +3123,7 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 effect.frame_lookup_calls == 1U && effect.render_calls == 1U &&
                 effect_port.count(0x00474FC0U) == 0U &&
                 effect_port.count(0x00477830U) == 0U &&
-                effect_port.count(0x00478780U) == 1U &&
+                effect_port.count(0x00478780U) == 0U &&
                 effect_port.count(0x00481010U) == 1U &&
                 (effect_actor.action_runtime_gate & 0x8000U) != 0U &&
                 effect_actor.special_action_record.field_5a == 0U &&
@@ -3057,6 +3133,12 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                     &effect_actor.effect_action_record &&
                 effect_port.calls.back().arguments[5U] == 0xCAFEBABEU,
             "special four hundred consumes the primary event and draws the pending effect record with its resource"
+        );
+        test.expect_true(
+            effect.actor_field_26b8_high_bit_set.calls == 1U &&
+                effect.actor_field_26b8_high_bit_set.return_addresses[0U] ==
+                    0x0047503AU,
+            "special four hundred records the nested target-effect physical high-bit-set CALL identity"
         );
 
         auto completed_actor = prepare_actor();
@@ -3085,7 +3167,7 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 context,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                 }
             );
         test.expect_true(
@@ -3123,12 +3205,13 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 context,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                 }
             );
         test.expect_true(
-            missing.status == openswd3::battle::
-                    LegacyBattleSpecialFourHundredStatus::frame_owner_typed_stop &&
+            missing.status ==
+                    openswd3::battle::LegacyBattleSpecialFourHundredStatus::
+                        frame_owner_typed_stop &&
                 missing_actor.turn_completion_latch == 1U &&
                 missing_actor.special_four_hundred_workspace != nullptr &&
                 (*missing_actor.special_four_hundred_workspace)[0x92U] == 1U &&
@@ -3195,7 +3278,7 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 context,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                 }
             );
         test.expect_true(
@@ -3220,7 +3303,7 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 context,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                 }
             );
         test.expect_true(
@@ -3255,7 +3338,7 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 context,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                 }
             );
         const auto& color_state = color_port.battle_color_accumulation_state();
@@ -3300,7 +3383,7 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 context,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                 }
             );
         test.expect_true(
@@ -3309,7 +3392,7 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 direct.frame_lookup_calls == 1U && direct.render_calls == 1U &&
                 direct_port.count(0x00474FC0U) == 0U &&
                 direct_port.count(0x00477830U) == 0U &&
-                direct_port.count(0x00478780U) == 1U &&
+                direct_port.count(0x00478780U) == 0U &&
                 direct_port.count(0x00481010U) == 1U &&
                 direct_actor.motion_word == 0xFFF8U &&
                 direct_actor.primary_action_record.field_8c == 1U &&
@@ -3319,6 +3402,12 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 has_call_argument(direct_port, 0x0047F940U, 4U, 99U) &&
                 has_call_argument(direct_port, 0x0047F940U, 5U, 46U),
             "action four direct effect preserves signed coordinates, consumes bit zero, and advances the minus-eight fade"
+        );
+        test.expect_true(
+            direct.actor_field_26b8_high_bit_set.calls == 1U &&
+                direct.actor_field_26b8_high_bit_set.return_addresses[0U] ==
+                    0x0047503AU,
+            "action four direct effect records the nested target-effect physical high-bit-set CALL identity"
         );
 
         static auto suppressed_actor_owner = prepare_actor();
@@ -3335,7 +3424,7 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 context,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                 }
             );
         test.expect_true(
@@ -3371,7 +3460,7 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 context,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                 }
             );
         test.expect_true(
@@ -3407,12 +3496,13 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 context,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                 }
             );
         test.expect_true(
-            missing.status == openswd3::battle::
-                    LegacyBattleActionFourEffectStatus::frame_owner_typed_stop &&
+            missing.status ==
+                    openswd3::battle::LegacyBattleActionFourEffectStatus::
+                        frame_owner_typed_stop &&
                 missing_actor.turn_completion_latch == 1U &&
                 missing_actor.turn_frame_token == 0U,
             "action four effect stops at the original effect-frame dereference after preserving all prior calls"
@@ -3527,7 +3617,9 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 port.count(0x004724D0U) == 0U &&
                 result.group_b_iterations == 2U && state.message_aux == 1U &&
                 openswd3::compat::u16(state.packed_action_state) == 0U &&
-                port.count(0x00481010U) == 2U && port.count(0x00478780U) == 2U,
+                port.count(0x00481010U) == 2U &&
+                port.count(0x00478780U) == 0U &&
+                result.actor_field_26b8_high_bit_set.calls == 2U,
             "action twenty four scans every live target accumulates signed values and clears nonterminal low word"
         );
     }
@@ -3599,7 +3691,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 actor_stop_port,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                     .mode = 1U,
                     .entry_eax = 0x11111111U,
                     .entry_ecx = 0x22222222U,
@@ -3607,8 +3699,9 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 }
             );
         test.expect_true(
-            actor_stop.status == openswd3::battle::
-                    LegacyBattleTargetEffectStatus::actor_state_typed_stop &&
+            actor_stop.status ==
+                    openswd3::battle::LegacyBattleTargetEffectStatus::
+                        actor_state_typed_stop &&
                 actor_stop.return_eax == 0x11111111U &&
                 actor_stop.return_ecx == 0x22222222U &&
                 actor_stop.return_edx == 0x33333333U &&
@@ -3628,15 +3721,16 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 shared_stop_port,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                     .entry_eax = 0x11111111U,
                     .entry_ecx = 0x22222222U,
                     .entry_edx = 0x33333333U,
                 }
             );
         test.expect_true(
-            shared_stop.status == openswd3::battle::
-                    LegacyBattleTargetEffectStatus::shared_state_typed_stop &&
+            shared_stop.status ==
+                    openswd3::battle::LegacyBattleTargetEffectStatus::
+                        shared_state_typed_stop &&
                 shared_stop_actor.motion_word == 0U &&
                 shared_stop.return_eax == 0x11111111U &&
                 shared_stop.return_ecx == 0x22222222U &&
@@ -3669,7 +3763,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 curve_stop_port,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                     .entry_eax = 0xAAAA0000U,
                     .entry_ecx = 0xBBBB0000U,
                     .entry_edx = 0xCCCC0000U,
@@ -3694,13 +3788,20 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
             "target effect stops at the fixed curve count access after preserving the caller prefix"
         );
 
+        static auto target_startup = [] {
+            openswd3::battle::LegacyBattleStartupState state;
+            state.group_b_lifecycle = std::make_shared<std::array<
+                openswd3::battle::LegacyBattleActorGroupBElementState,
+                openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+            return state;
+        }();
         static auto skip_actor_owner =
             std::make_unique<LegacyBattleGroupAActionExecutionState>();
         auto& skip_actor = *skip_actor_owner;
         skip_actor.effect_curve_value_a = 0xFFFFU;
         skip_actor.effect_curve_value_b = 0xFFFFU;
         skip_actor.effect_curve_index = 0x3333U;
-        skip_actor.effect_direction_flags = 0x80U;
+        skip_actor.field_26c0 = 0x80U;
         static LegacyBattleGroupAActionExecutionSharedState skip_shared;
         static DispatchPort skip_port;
         skip_port.legacy_battle_fixed_object_state().object_words[1U][1U] =
@@ -3716,7 +3817,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 skip_port,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                     .mode = 1U,
                     .entry_eax = 0xAAAA0000U,
                     .entry_ecx = 0xBBBB0000U,
@@ -3751,7 +3852,6 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         static LegacyBattleGroupAActionExecutionSharedState full_shared;
         static DispatchPort full_port;
         full_port.battle_pair_primary_value() = 10U;
-        full_port.push(0x00478780U, {.eax = 0x10U, .ecx = 0x20U, .edx = 0x30U});
         full_port.push(0x00481010U, {.eax = 10U, .ecx = 0x40U, .edx = 0x50U});
         full_port.push(0x0047D640U, {.eax = 0x60U, .ecx = 0x70U, .edx = 0x80U});
         full_port.push(0x0047CEC0U, {.eax = 0x90U, .ecx = 0xA0U, .edx = 0xB0U});
@@ -3761,8 +3861,9 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 &full_shared,
                 full_port,
                 {
+                    .startup = &target_startup,
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                     .mode = 0U,
                 }
             );
@@ -3793,8 +3894,9 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 &clamp_shared,
                 clamp_port,
                 {
+                    .startup = &target_startup,
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                 }
             );
         test.expect_true(
@@ -3818,8 +3920,9 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 &sentinel_shared,
                 sentinel_port,
                 {
+                    .startup = &target_startup,
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                 }
             );
         test.expect_true(
@@ -3862,15 +3965,16 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 actor_stop_port,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                     .entry_eax = 0x11111111U,
                     .entry_ecx = 0x22222222U,
                     .entry_edx = 0x33333333U,
                 }
             );
         test.expect_true(
-            actor_stop.status == openswd3::battle::
-                    LegacyBattleSpecialFourOhNineStatus::actor_state_typed_stop &&
+            actor_stop.status ==
+                    openswd3::battle::LegacyBattleSpecialFourOhNineStatus::
+                        actor_state_typed_stop &&
                 actor_stop.return_eax == 0U && actor_stop.return_ecx == 0U &&
                 actor_stop.return_edx == 0U && actor_stop.port_calls == 0U,
             "special four-oh-nine stops at the first actor read after clearing the legacy registers"
@@ -3887,7 +3991,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 stage_zero_port,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                 }
             );
         test.expect_true(
@@ -3985,7 +4089,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 stage_two_port,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                 }
             );
         test.expect_true(
@@ -3993,7 +4097,9 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 stage_two_actor.action_runtime_gate == 3U &&
                 (stage_two_actor.special_effect_direct_mode & 8U) != 0U &&
                 stage_two_actor.special_action_record.base_variant == 9U &&
-                has_call_argument(stage_two_port, 0x00482840U, 0U, 0x56780000U) &&
+                has_call_argument(
+                    stage_two_port, 0x00482840U, 0U, 0x00525508U
+                ) &&
                 has_call_argument(stage_two_port, 0x00482840U, 1U, 0x6FFU) &&
                 has_call_argument(stage_two_port, 0x00482840U, 2U, 9U),
             "special four-oh-nine gate two publishes mode bit three and advances to gate three only on callee completion"
@@ -4011,7 +4117,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 event_port,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                 }
             );
         test.expect_true(
@@ -4035,7 +4141,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 completed_port,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                 }
             );
         test.expect_true(
@@ -4063,10 +4169,10 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 coordinate_owners
             );
         test.expect_true(
-            shared_stop.status == openswd3::battle::
-                    LegacyBattleSpecialFourOhNineStatus::shared_state_typed_stop &&
-                shared_stop.return_eax == 2U &&
-                shared_stop.return_ecx == 1U &&
+            shared_stop.status ==
+                    openswd3::battle::LegacyBattleSpecialFourOhNineStatus::
+                        shared_state_typed_stop &&
+                shared_stop.return_eax == 2U && shared_stop.return_ecx == 1U &&
                 shared_stop.coordinate_update_calls == 1U &&
                 shared_stop_actor.special_action_record.base_variant == 8U,
             "special four-oh-nine stops at the original shared flag read after preserving gate-one side effects"
@@ -4108,7 +4214,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 transfer_port,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                 }
             );
         test.expect_true(
@@ -4264,7 +4370,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 completed_port,
                 {
                     .actor_token = 0x12340000U,
-                    .target_token = 0x56780000U,
+                    .target_token = 0x00525508U,
                 }
             );
         test.expect_true(
@@ -4351,8 +4457,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         test.expect_true(
             checked.return_eax == 1U && checked.scaled_value == -70 &&
                 checked.quotient == 0 && checked.threshold == 10U &&
-                checked.return_ecx == 0xFFFFFFBAU &&
-                checked.return_edx == 10U,
+                checked.return_ecx == 0xFFFFFFBAU && checked.return_edx == 10U,
             "target property chance preserves wrapped multiplication and signed truncation toward zero"
         );
     }
@@ -5341,22 +5446,19 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
             );
         test.expect_true(
             stopped.status ==
-                    openswd3::battle::
-                        LegacyBattleTargetPhaseSpawnFrameStatus::
-                            actor_state_typed_stop &&
+                    openswd3::battle::LegacyBattleTargetPhaseSpawnFrameStatus::
+                        actor_state_typed_stop &&
                 stopped.return_eax == 0x11U && stopped.return_ecx == 0x22U &&
                 stopped.return_edx == 0x33U &&
                 phase.spawn_action_records[0U].action_id == 0x186AU &&
                 missing.status ==
-                    openswd3::battle::
-                        LegacyBattleTargetPhaseSpawnFrameStatus::
-                            frame_owner_typed_stop &&
+                    openswd3::battle::LegacyBattleTargetPhaseSpawnFrameStatus::
+                        frame_owner_typed_stop &&
                 missing.action_update_calls == 1U &&
                 missing.frame_lookup_calls == 1U && missing.port_calls == 0U &&
                 no_shared.status ==
-                    openswd3::battle::
-                        LegacyBattleTargetPhaseSpawnFrameStatus::
-                            shared_state_typed_stop &&
+                    openswd3::battle::LegacyBattleTargetPhaseSpawnFrameStatus::
+                        shared_state_typed_stop &&
                 no_shared.action_update_calls == 1U &&
                 no_shared.frame_lookup_calls == 1U &&
                 phase.spawn_action_records[1U].action_id == 0x186AU &&
@@ -5392,8 +5494,8 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
             );
         test.expect_true(
             result.status ==
-                    openswd3::battle::
-                        LegacyBattleTargetPhaseSpawnFrameStatus::completed &&
+                    openswd3::battle::LegacyBattleTargetPhaseSpawnFrameStatus::
+                        completed &&
                 result.return_eax == 0U && result.line_raster_calls == 0U &&
                 result.sample_calls == 1U && result.render_calls == 1U,
             "target phase spawn keeps zero iterations noncomplete"
@@ -5437,8 +5539,8 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
             );
         test.expect_true(
             result.status ==
-                    openswd3::battle::
-                        LegacyBattleTargetPhaseSpawnFrameStatus::completed &&
+                    openswd3::battle::LegacyBattleTargetPhaseSpawnFrameStatus::
+                        completed &&
                 result.return_eax == 1U && phase.spawn_counters[0U] == 0U &&
                 phase.block_0df4[0U] == 0U &&
                 phase.spawn_action_records[0U].action_id == 0x186AU &&
@@ -5618,8 +5720,7 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                 &shared,
                 port,
                 context,
-                {.actor_token = 0x005029D0U,
-                 .opponent_token = 0x00525508U}
+                {.actor_token = 0x005029D0U, .opponent_token = 0x00525508U}
             );
         test.expect_true(
             stopped.status ==
@@ -5654,8 +5755,7 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                 &shared,
                 port,
                 context,
-                {.actor_token = 0x005029D0U,
-                 .opponent_token = 0x00525508U}
+                {.actor_token = 0x005029D0U, .opponent_token = 0x00525508U}
             );
         test.expect_true(
             completed.status ==
@@ -6012,8 +6112,7 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                 &shared,
                 port,
                 context,
-                {.actor_token = 0x005029D0U,
-                 .opponent_token = 0x00525508U}
+                {.actor_token = 0x005029D0U, .opponent_token = 0x00525508U}
             );
         test.expect_true(
             stopped.status ==
@@ -6225,8 +6324,7 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                 &shared,
                 port,
                 context,
-                {.actor_token = 0x005029D0U,
-                 .opponent_token = 0x00525508U}
+                {.actor_token = 0x005029D0U, .opponent_token = 0x00525508U}
             );
         test.expect_true(
             completed.status ==
@@ -6288,8 +6386,10 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                  .base_coordinate_output_x_token = 0xAAAA1111U,
                  .base_coordinate_output_y_token = 0xDDDD2222U}
             );
-        const auto raster = std::bit_cast<
-            openswd3::battle::LegacyBattleLineRaster>(phase.block_0df4);
+        const auto raster =
+            std::bit_cast<openswd3::battle::LegacyBattleLineRaster>(
+                phase.block_0df4
+            );
         test.expect_true(
             result.status ==
                     openswd3::battle::LegacyBattleActionFourteenStatus::
@@ -6393,8 +6493,8 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleSummonFrameStatus::
                         frame_owner_typed_stop &&
                 missing.action_update_calls == 1U &&
-                missing.frame_lookup_calls == 1U && missing.sample_calls == 1U &&
-                missing.port_calls == 1U &&
+                missing.frame_lookup_calls == 1U &&
+                missing.sample_calls == 1U && missing.port_calls == 1U &&
                 actor.summon_render_flags == 1U &&
                 actor.summon_x_offset == 0U && actor.turn_sample_word == 0U &&
                 phase.action_record.base_variant == 0x24U,
@@ -6433,12 +6533,10 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                 phase.tick == 1U && shared.draw_motion_a == 1U &&
                 shared.draw_motion_b == 1U && shared.draw_motion_c == 1U &&
                 actor.summon_render_flags == 1U &&
-                actor.summon_x_offset == 32U &&
-                actor.turn_sample_word == 0U &&
+                actor.summon_x_offset == 32U && actor.turn_sample_word == 0U &&
                 phase.action_record.action_id == 0x1234U &&
                 port.count(0x00471D60U) == 0U &&
-                port.count(0x004321E0U) == 0U &&
-                port.count(0x004315D0U) == 0U,
+                port.count(0x004321E0U) == 0U && port.count(0x004315D0U) == 0U,
             "summon frame preserves the zero-to-one same-frame phase transition and signed motion publication"
         );
     }
@@ -6575,19 +6673,13 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
         DispatchPort gated_port;
         gated_port.push(0x00484500U, {.outputs = {1U, 99U}});
         const auto gated = openswd3::battle::check_legacy_battle_target_phase(
-            nullptr,
-            &profile,
-            gated_port,
-            {.target_token = 0x00525508U}
+            nullptr, &profile, gated_port, {.target_token = 0x00525508U}
         );
         profile.phase_flags = 0x800U;
         DispatchPort stopped_port;
         stopped_port.push(0x00484500U, {.outputs = {1U, 99U}});
         const auto stopped = openswd3::battle::check_legacy_battle_target_phase(
-            nullptr,
-            &profile,
-            stopped_port,
-            {.target_token = 0x00525508U}
+            nullptr, &profile, stopped_port, {.target_token = 0x00525508U}
         );
         test.expect_true(
             result.return_eax == 0U && result.random_calls == 1U &&

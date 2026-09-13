@@ -1,3 +1,4 @@
+#include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_effect_frame.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 #include "test.hpp"
@@ -13,6 +14,16 @@ namespace {
 using openswd3::battle::LegacyBattleEffectCallReply;
 using openswd3::battle::LegacyBattleEffectCallRequest;
 using openswd3::compat::u32;
+
+[[nodiscard]] openswd3::battle::LegacyBattleActorCoordinateOwners
+owners(openswd3::battle::LegacyBattleStartupState* const startup) {
+    static const auto action =
+        std::make_unique<openswd3::battle::LegacyBattleActionDispatchState>();
+    return {
+        .action = action.get(),
+        .startup = startup,
+    };
+}
 
 class EffectPort final : public openswd3::battle::LegacyBattleEffectCallPort {
 public:
@@ -195,7 +206,7 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
                 0U,
                 0x55U,
                 0U,
-                {.startup = startup.get()}
+                owners(startup.get())
             );
         test.expect_true(
             result.status == LegacyBattleEffectFrameStatus::completed &&
@@ -240,7 +251,7 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
                 0U,
                 0U,
                 0U,
-                {.startup = startup.get()}
+                owners(startup.get())
             );
         test.expect_true(
             result.return_value == 0U && state.animation_counter[0] == 1001U &&
@@ -260,8 +271,17 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
         );
         test.expect_true(
             port.count(0x00485610U) == 1U && port.count(0x00430D10U) == 1U &&
-                port.count(0x00478780U) == 1U && port.count(0x00481A40U) == 1U,
+                port.count(0x00478780U) == 0U && port.count(0x00481A40U) == 1U,
             "mode-one collision removes the opaque call and preserves the surrounding effects"
+        );
+        test.expect_true(
+            result.actor_field_26b8_high_bit_set.calls == 1U,
+            "mode-one collision executes one physical high-bit-set CALL"
+        );
+        test.expect_true(
+            result.actor_field_26b8_high_bit_set.return_addresses[0U] ==
+                0x00458BDCU,
+            "mode-one collision records the second status-flag CALL identity"
         );
     }
 
@@ -290,7 +310,7 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
                 0U,
                 0U,
                 8U,
-                {.startup = startup.get()}
+                owners(startup.get())
             );
         test.expect_true(
             result.status ==
@@ -324,7 +344,7 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
                 0U,
                 0U,
                 0U,
-                {.startup = startup.get()}
+                owners(startup.get())
             );
         test.expect_true(
             result.return_value == 0U && state.animation_counter[0] == 1U &&
@@ -396,7 +416,14 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
         EffectPort port;
         const auto result =
             openswd3::battle::advance_legacy_battle_effect_frame(
-                state, port, 4U, 0x1000U, 0U, 0U, 0U
+                state,
+                port,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken,
+                0x1000U,
+                0U,
+                0U,
+                0U,
+                owners(nullptr)
             );
         test.expect_true(
             result.return_value == 1U && state.battle_gate == 0U &&
@@ -409,7 +436,10 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
                 port.battle_color_accumulation_state().current_blue == 3.0F &&
                 state.primary[0].status_flags == 0U &&
                 port.count(0x00482080U) == 3U &&
-                has_argument(port, 0x00478780U, 0U, 4U),
+                port.count(0x00478780U) == 0U &&
+                result.actor_field_26b8_high_bit_set.calls == 1U &&
+                result.actor_field_26b8_high_bit_set.return_addresses[0U] ==
+                    0x00458BAFU,
             "negative packed flags publish modes typed color initialization actor and clear word"
         );
     }
@@ -428,7 +458,17 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
         port.push(0x00481010U, reward);
         const auto result =
             openswd3::battle::advance_legacy_battle_effect_frame(
-                state, port, 6U, 0x22220000U, 1U, 0U, 0U
+                state,
+                port,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken +
+                    6U *
+                        openswd3::battle::
+                            kLegacyBattleActorCoordinatesGroupAStride,
+                0x22220000U,
+                1U,
+                0U,
+                0U,
+                owners(nullptr)
             );
         test.expect_true(
             result.return_value == 1U && state.reward_value == 9999 &&
@@ -438,6 +478,10 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
                 state.reward_total[0] == 9999U && state.reward_high[0] == 2U &&
                 state.reward_display_total == 9999U &&
                 state.pending_step[0] == 0U && port.count(0x004787D0U) == 2U &&
+                port.count(0x00478780U) == 0U &&
+                result.actor_field_26b8_high_bit_set.calls == 1U &&
+                result.actor_field_26b8_high_bit_set.return_addresses[0U] ==
+                    0x00458BDCU &&
                 port.count(0x0047D640U) == 3U && port.count(0x0047CEC0U) == 3U,
             "reward path caps base row, sign extends auxiliary and writes high-word row"
         );
@@ -602,7 +646,7 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
                 0U,
                 0U,
                 0U,
-                {.startup = startup.get()}
+                owners(startup.get())
             );
         test.expect_true(
             result.status ==
@@ -649,7 +693,7 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
                 0U,
                 0U,
                 0U,
-                {.startup = startup.get()}
+                owners(startup.get())
             );
         test.expect_true(
             result.status ==
@@ -701,7 +745,7 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
                 1U,
                 0x55U,
                 0U,
-                {.startup = startup.get()}
+                owners(startup.get())
             );
         test.expect_true(
             result.status ==
@@ -752,7 +796,7 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
                 1U,
                 0U,
                 0U,
-                {.startup = startup.get()}
+                owners(startup.get())
             );
         test.expect_true(
             result.status == LegacyBattleEffectFrameStatus::completed &&
@@ -800,7 +844,7 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
                 1U,
                 0U,
                 0U,
-                {.startup = startup.get()}
+                owners(startup.get())
             );
         test.expect_true(
             result.status ==
@@ -846,7 +890,7 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
                 1U,
                 0U,
                 0U,
-                {.startup = startup.get()}
+                owners(startup.get())
             );
         test.expect_true(
             result.status ==

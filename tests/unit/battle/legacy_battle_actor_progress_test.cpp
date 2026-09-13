@@ -292,7 +292,7 @@ void test_battle_actor_progress(openswd3::test::Context& test) {
     {
         LegacyBattleActorProgressState state{
             .progress = 0xABCD000AU,
-            .delay_mode = 0x20000000U,
+            .field_26c0 = 0x20000000U,
             .base_speed = 400U,
         };
         const auto result =
@@ -309,7 +309,7 @@ void test_battle_actor_progress(openswd3::test::Context& test) {
     {
         LegacyBattleActorProgressState state{
             .progress = 10U,
-            .delay_mode = 0x80000000U,
+            .field_26c0 = 0x80000000U,
             .base_speed = 400U,
             .progress_multiplier = 200U,
         };
@@ -385,7 +385,7 @@ void test_battle_actor_progress(openswd3::test::Context& test) {
         LegacyBattleActorProgressState state{
             .action_complete = 7U,
             .progress = 0xA5A51234U,
-            .delay_mode = 0xDEADBEEFU,
+            .field_26c0 = 0xDEADBEEFU,
         };
         const auto result = advance_legacy_battle_actor_group_b_progress(
             state, &element, 0, 0x2000, 0x00525508U, 0x12345678U
@@ -409,7 +409,7 @@ void test_battle_actor_progress(openswd3::test::Context& test) {
         element.resource_bytes[0x5BU] = 0x01U;
         LegacyBattleActorProgressState state{
             .progress = 0xCAFE000AU,
-            .delay_mode = 0x20000040U,
+            .field_26c0 = 0x20000040U,
         };
         const auto result = advance_legacy_battle_actor_group_b_progress(
             state, &element, 1, 1000, 0x00525508U
@@ -431,7 +431,7 @@ void test_battle_actor_progress(openswd3::test::Context& test) {
         element.resource_bytes[0x5BU] = 0x01U;
         LegacyBattleActorProgressState state{
             .progress = 0xBEEF000AU,
-            .delay_mode = 0x88000000U,
+            .field_26c0 = 0x88000000U,
         };
         const auto result = advance_legacy_battle_actor_group_b_progress(
             state, &element, 0, 1000, 0x00525508U

@@ -2,6 +2,7 @@
 
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
 #include "openswd3/battle/legacy_battle_actor_action_target.hpp"
+#include "openswd3/battle/legacy_battle_actor_field_26c0.hpp"
 #include "openswd3/battle/legacy_battle_actor_coordinates.hpp"
 #include "openswd3/compat/types.hpp"
 
@@ -111,7 +112,7 @@ struct LegacyBattleGroupAActionExecutionState
     std::array<compat::i16, 7> color_values{};   // actor + 0x03B2
     compat::u8 special_particle_coordinate_suppression{};  // actor + 0x0D94
     compat::u8 special_effect_direct_mode{};               // actor + 0x0D9C
-    compat::u8 effect_direction_flags{};                   // actor + 0x26C0
+    LegacyBattleActorField26c0 field_26c0{};               // actor + 0x26C0
     compat::u8 opponent_mode{};                            // actor + 0x2A9C
     compat::u16 source_y{};                                // actor + 0x0DB2
     compat::u16 render_x_base{};                           // actor + 0x0316

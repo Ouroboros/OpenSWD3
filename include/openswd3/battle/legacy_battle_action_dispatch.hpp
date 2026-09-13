@@ -13,6 +13,7 @@
 #include "openswd3/battle/legacy_battle_actor_action_mode.hpp"
 #include "openswd3/battle/legacy_battle_actor_action_target.hpp"
 #include "openswd3/battle/legacy_battle_actor_field_26b8_high_bit_clear.hpp"
+#include "openswd3/battle/legacy_battle_actor_field_26b8_high_bit_set.hpp"
 #include "openswd3/battle/legacy_battle_actor_display_kind.hpp"
 #include "openswd3/battle/legacy_battle_actor_start_gate.hpp"
 #include "openswd3/battle/legacy_battle_actor_turn_completion.hpp"
@@ -64,6 +65,7 @@
 namespace openswd3::battle {
 
 struct LegacyBattleActorGroupBElementState;
+struct LegacyBattleStartupState;
 
 inline constexpr compat::u32 kLegacyBattleActionGroupABaseToken = 0x005029D0U;
 inline constexpr compat::u32 kLegacyBattleActionGroupBBaseToken = 0x00525508U;
@@ -102,6 +104,15 @@ struct LegacyBattlePendingActorField26b8HighBitClearCall {
     compat::u32 entry_edx{};
 };
 
+struct LegacyBattlePendingActorField26b8HighBitSetCall {
+    bool executed{};
+    compat::u32 actor_token{};
+    compat::u32 entry_eax{};
+    compat::u32 entry_edx{};
+    LegacyBattleActorCoordinateFlags entry_flags{};
+    bool entry_flags_known{true};
+};
+
 struct LegacyBattleActionCallReply {
     compat::u32 eax{};
     compat::u32 ecx{};
@@ -129,6 +140,10 @@ struct LegacyBattleActionCallReply {
         pending_actor_ready_action_modes{};
     LegacyBattlePendingActorField26b8HighBitClearCall
         pending_actor_field_26b8_high_bit_clear{};
+    LegacyBattlePendingActorField26b8HighBitSetCall
+        pending_actor_field_26b8_high_bit_set{};
+    LegacyBattlePendingActorField26b8HighBitSetCall
+        pending_actor_field_26b8_high_bit_set_second{};
 };
 
 class LegacyBattleSummonFramePort {
@@ -764,6 +779,8 @@ struct LegacyBattleActionTwentySevenRequest {
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
+    LegacyBattleActorField26b8HighBitSetCallRequests
+        actor_field_26b8_high_bit_set_requests{};
 };
 
 enum class LegacyBattleActionTwentySevenStatus : compat::u8 {
@@ -773,6 +790,7 @@ enum class LegacyBattleActionTwentySevenStatus : compat::u8 {
     frame_owner_typed_stop,
     shared_state_typed_stop,
     actor_coordinate_typed_stop,
+    actor_field_26b8_high_bit_set_typed_stop,
 };
 
 struct LegacyBattleActionTwentySevenResult {
@@ -793,6 +811,8 @@ struct LegacyBattleActionTwentySevenResult {
     compat::u32 action_record_clears{};
     compat::u32 port_calls{};
     compat::i32 effect_value{};
+    LegacyBattleActorField26b8HighBitSetCallTrace
+        actor_field_26b8_high_bit_set{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
@@ -875,6 +895,8 @@ struct LegacyBattleSpecialFourOhFiveRequest {
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
+    LegacyBattleActorField26b8HighBitSetCallRequests
+        actor_field_26b8_high_bit_set_requests{};
 };
 
 enum class LegacyBattleSpecialFourOhFiveStatus : compat::u8 {
@@ -884,6 +906,7 @@ enum class LegacyBattleSpecialFourOhFiveStatus : compat::u8 {
     shared_state_typed_stop,
     phase_state_typed_stop,
     actor_coordinate_typed_stop,
+    actor_field_26b8_high_bit_set_typed_stop,
 };
 
 struct LegacyBattleSpecialFourOhFiveResult {
@@ -906,6 +929,8 @@ struct LegacyBattleSpecialFourOhFiveResult {
     compat::u32 action_record_clears{};
     compat::u32 port_calls{};
     compat::i32 effect_value{};
+    LegacyBattleActorField26b8HighBitSetCallTrace
+        actor_field_26b8_high_bit_set{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
@@ -919,6 +944,8 @@ struct LegacyBattleSpecialFourOhSixRequest {
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
+    LegacyBattleActorField26b8HighBitSetCallRequests
+        actor_field_26b8_high_bit_set_requests{};
 };
 
 enum class LegacyBattleSpecialFourOhSixStatus : compat::u8 {
@@ -926,6 +953,7 @@ enum class LegacyBattleSpecialFourOhSixStatus : compat::u8 {
     actor_state_typed_stop,
     frame_owner_typed_stop,
     shared_state_typed_stop,
+    actor_field_26b8_high_bit_set_typed_stop,
 };
 
 struct LegacyBattleSpecialFourOhSixResult {
@@ -945,18 +973,23 @@ struct LegacyBattleSpecialFourOhSixResult {
     compat::u32 action_record_clears{};
     compat::u32 port_calls{};
     compat::i32 effect_value{};
+    LegacyBattleActorField26b8HighBitSetCallTrace
+        actor_field_26b8_high_bit_set{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
 };
 
 struct LegacyBattleTargetEffectRequest {
+    LegacyBattleStartupState* startup{};
     compat::u32 actor_token{};
     compat::u32 target_token{};
     compat::u32 mode{};
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
+    LegacyBattleActorField26b8HighBitSetCallRequests
+        actor_field_26b8_high_bit_set_requests{};
 };
 
 enum class LegacyBattleTargetEffectStatus : compat::u8 {
@@ -964,6 +997,7 @@ enum class LegacyBattleTargetEffectStatus : compat::u8 {
     actor_state_typed_stop,
     shared_state_typed_stop,
     fixed_curve_typed_stop,
+    actor_field_26b8_high_bit_set_typed_stop,
 };
 
 struct LegacyBattleTargetEffectResult {
@@ -979,6 +1013,8 @@ struct LegacyBattleTargetEffectResult {
     compat::u32 effect_property_calls{};
     compat::u32 port_calls{};
     compat::i32 effect_value{};
+    LegacyBattleActorField26b8HighBitSetCallTrace
+        actor_field_26b8_high_bit_set{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
@@ -994,6 +1030,8 @@ struct LegacyBattleSpecialFourHundredRequest {
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
+    LegacyBattleActorField26b8HighBitSetCallRequests
+        actor_field_26b8_high_bit_set_requests{};
 };
 
 enum class LegacyBattleSpecialFourHundredStatus : compat::u8 {
@@ -1004,6 +1042,7 @@ enum class LegacyBattleSpecialFourHundredStatus : compat::u8 {
     shared_state_typed_stop,
     fixed_curve_typed_stop,
     actor_coordinate_typed_stop,
+    actor_field_26b8_high_bit_set_typed_stop,
 };
 
 struct LegacyBattleSpecialFourHundredResult {
@@ -1026,6 +1065,8 @@ struct LegacyBattleSpecialFourHundredResult {
     compat::u32 action_record_clears{};
     compat::u32 workspace_bytes_cleared{};
     compat::u32 port_calls{};
+    LegacyBattleActorField26b8HighBitSetCallTrace
+        actor_field_26b8_high_bit_set{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
@@ -1037,6 +1078,8 @@ struct LegacyBattleActionFourEffectRequest {
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
+    LegacyBattleActorField26b8HighBitSetCallRequests
+        actor_field_26b8_high_bit_set_requests{};
 };
 
 enum class LegacyBattleActionFourEffectStatus : compat::u8 {
@@ -1046,6 +1089,7 @@ enum class LegacyBattleActionFourEffectStatus : compat::u8 {
     frame_owner_typed_stop,
     shared_state_typed_stop,
     fixed_curve_typed_stop,
+    actor_field_26b8_high_bit_set_typed_stop,
 };
 
 struct LegacyBattleActionFourEffectResult {
@@ -1065,6 +1109,8 @@ struct LegacyBattleActionFourEffectResult {
     compat::u32 action_record_clears{};
     compat::u32 workspace_bytes_cleared{};
     compat::u32 port_calls{};
+    LegacyBattleActorField26b8HighBitSetCallTrace
+        actor_field_26b8_high_bit_set{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
@@ -1372,7 +1418,6 @@ struct LegacyBattleActionDispatchState {
 
 struct LegacyBattleTargetSelectionRuntimeState;
 struct LegacyBattleFinalActorStepState;
-struct LegacyBattleStartupState;
 
 struct LegacyBattleActionDispatchContext {
     rendering::LegacyFramebuffer& framebuffer;
@@ -1414,6 +1459,8 @@ struct LegacyBattleActionDispatchContext {
         actor_action_mode_requests{};
     LegacyBattleActorField26b8HighBitClearRequest
         actor_field_26b8_high_bit_clear_request{};
+    LegacyBattleActorField26b8HighBitSetCallRequests
+        actor_field_26b8_high_bit_set_requests{};
     std::array<LegacyBattleActorActionTargetRequest, 2>
         action_dispatch_action_target_requests{};
     std::array<LegacyBattleActorActionTargetRequest, 4>
@@ -1444,6 +1491,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     actor_action_kind_typed_stop,
     actor_action_mode_typed_stop,
     actor_field_26b8_high_bit_clear_typed_stop,
+    actor_field_26b8_high_bit_set_typed_stop,
     actor_display_kind_typed_stop,
     actor_start_gate_typed_stop,
     actor_action_target_typed_stop,
@@ -1539,6 +1587,8 @@ struct LegacyBattleActionDispatchResult {
     LegacyBattleActorField26b8HighBitClearResult
         actor_field_26b8_high_bit_clear{};
     compat::u32 actor_field_26b8_high_bit_clear_calls{};
+    LegacyBattleActorField26b8HighBitSetCallTrace
+        actor_field_26b8_high_bit_set{};
     LegacyBattleActorDisplayKindResult actor_display_kind{};
     compat::u32 actor_display_kind_calls{};
     LegacyBattleActorStartGateResult actor_start_gate{};
@@ -1910,6 +1960,24 @@ advance_legacy_battle_target_phase_spawn_frame(
     LegacyBattleActionDispatchContext& context,
     LegacyBattleActionDispatchResult& result,
     compat::u32 actor_token,
+    const LegacyBattleActionCallReply& reply
+) noexcept;
+
+[[nodiscard]] bool apply_legacy_battle_pending_actor_field_26b8_high_bit_set(
+    LegacyBattleActionDispatchState& state,
+    LegacyBattleActionDispatchContext& context,
+    LegacyBattleActionDispatchResult& result,
+    compat::u32 actor_token,
+    compat::u32 return_address,
+    const LegacyBattlePendingActorField26b8HighBitSetCall& pending
+) noexcept;
+
+[[nodiscard]] bool apply_legacy_battle_pending_actor_field_26b8_high_bit_set(
+    LegacyBattleActionDispatchState& state,
+    LegacyBattleActionDispatchContext& context,
+    LegacyBattleActionDispatchResult& result,
+    compat::u32 actor_token,
+    compat::u32 return_address,
     const LegacyBattleActionCallReply& reply
 ) noexcept;
 

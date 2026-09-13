@@ -20,7 +20,6 @@ constexpr u32 kCallRenderResource = 0x004170E0U;
 constexpr u32 kCallReleaseResource = 0x004885A0U;
 constexpr u32 kCallPublishStatusMode = 0x00482080U;
 constexpr u32 kCallEligibility = 0x0047CE80U;
-constexpr u32 kCallPublishActor = 0x00478780U;
 constexpr u32 kCallRewardGate = 0x0047CEA0U;
 constexpr u32 kCallComputeModeOneReward = 0x00481010U;
 constexpr u32 kCallComputeReward = 0x00481A40U;
@@ -152,7 +151,9 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
     const u32 source_value,
     const u32 slot_index,
     const u32 group_wide_mode,
-    const LegacyBattleActorCoordinateOwners& coordinate_owners
+    const LegacyBattleActorCoordinateOwners& coordinate_owners,
+    const LegacyBattleActorField26b8HighBitSetCallRequests&
+        actor_field_26b8_high_bit_set_requests
 ) {
     LegacyBattleGroupEffectFrameResult result{};
     if (slot_index >= state.primary.size()) {
@@ -188,6 +189,31 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
         registers.ecx = reply.ecx;
         registers.edx = reply.edx;
         return reply;
+    };
+    const auto publish_actor = [&](const u32 token, const u32 return_address) {
+        const bool completed =
+            execute_legacy_battle_actor_field_26b8_high_bit_set_call(
+                {
+                    .action = coordinate_owners.action,
+                    .startup = coordinate_owners.startup,
+                },
+                result.actor_field_26b8_high_bit_set,
+                actor_field_26b8_high_bit_set_requests,
+                token,
+                registers.eax,
+                registers.edx,
+                return_address,
+                {},
+                false
+            );
+        registers.eax = result.actor_field_26b8_high_bit_set.last.return_eax;
+        registers.ecx = result.actor_field_26b8_high_bit_set.last.return_ecx;
+        registers.edx = result.actor_field_26b8_high_bit_set.last.return_edx;
+        if (!completed) {
+            result.status = LegacyBattleGroupEffectFrameStatus::
+                actor_field_26b8_high_bit_set_typed_stop;
+        }
+        return completed;
     };
     auto read_argument_mode = [&](u32& mode) {
         if (argument_object_token == 0U) {
@@ -640,8 +666,9 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
                     const auto& actor = state.group_a[unsigned_index];
                     const u32 token = group_a_token(unsigned_index);
                     if (actor.guard_ac0 != 1U && actor.guard_ac1 != 1U &&
-                        invoke(kCallEligibility, {token}).eax == 0U) {
-                        static_cast<void>(invoke(kCallPublishActor, {token}));
+                        invoke(kCallEligibility, {token}).eax == 0U &&
+                        !publish_actor(token, 0x00459409U)) {
+                        return result;
                     }
                     ++result.status_iterations;
                     registers.eax = to_bits(group_a_count());
@@ -654,15 +681,16 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
                         return result;
                     }
                     const u32 token = group_b_token(unsigned_index);
-                    if (invoke(kCallEligibility, {token}).eax == 0U) {
-                        static_cast<void>(invoke(kCallPublishActor, {token}));
+                    if (invoke(kCallEligibility, {token}).eax == 0U &&
+                        !publish_actor(token, 0x0045943DU)) {
+                        return result;
                     }
                     ++result.status_iterations;
                     registers.eax = to_bits(group_b_count());
                 }
             }
-        } else {
-            static_cast<void>(invoke(kCallPublishActor, {actor_token}));
+        } else if (!publish_actor(actor_token, 0x00459456U)) {
+            return result;
         }
         primary.status_flags = 0U;
     }
@@ -822,10 +850,9 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
                         } else if (
                             invoke(kCallEligibility, {token}).eax != 1U
                         ) {
-                            if ((reward_flags & 1U) != 0U) {
-                                static_cast<void>(
-                                    invoke(kCallPublishActor, {token})
-                                );
+                            if ((reward_flags & 1U) != 0U &&
+                                !publish_actor(token, 0x00459518U)) {
+                                return result;
                             }
                             process_reward(
                                 token, false, unsigned_index, true, false, true
@@ -843,10 +870,9 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
                     }
                     const u32 token = group_b_token(unsigned_index);
                     if (invoke(kCallEligibility, {token}).eax == 0U) {
-                        if ((reward_flags & 1U) != 0U) {
-                            static_cast<void>(
-                                invoke(kCallPublishActor, {token})
-                            );
+                        if ((reward_flags & 1U) != 0U &&
+                            !publish_actor(token, 0x004596B5U)) {
+                            return result;
                         }
                         process_reward(
                             token, true, unsigned_index, true, false, false
@@ -857,7 +883,9 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
             }
         } else {
             if ((reward_flags & 1U) != 0U) {
-                static_cast<void>(invoke(kCallPublishActor, {actor_token}));
+                if (!publish_actor(actor_token, 0x004597F6U)) {
+                    return result;
+                }
                 state.battle_gate = 0U;
             }
             u32 object_mode{};

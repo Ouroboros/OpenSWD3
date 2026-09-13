@@ -848,6 +848,93 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
     {
         auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
         auto& state = *state_storage;
+        state.action.frame_effect.primary_suppression = 1U;
+        auto& actor = state.action.group_a_action_execution[0U];
+        actor.start_gate = 1U;
+        actor.field_26b8 = 5U;
+        actor.summon_completion_word = 0x1111U;
+        actor.special_target_action_record.command_cursor = 0x2222U;
+        Fixture fixture;
+        DispatchPort port;
+        port.push(
+            0x00478B60U,
+            {
+                .pending_actor_field_26b8_high_bit_set = {
+                    .executed = true,
+                    .entry_eax = 0x12345678U,
+                    .entry_edx = 0x87654321U,
+                },
+            }
+        );
+        port.push(0x00479850U, {.eax = 1U});
+        auto context = fixture.context();
+        context.actor_field_26b8_high_bit_set_requests.calls[0U].entry_esp =
+            0x88208000U;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_a_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.actor_field_26b8_high_bit_set.calls == 1U &&
+                result.actor_field_26b8_high_bit_set.return_addresses[0U] ==
+                    0x00478BDBU &&
+                result.actor_field_26b8_high_bit_set.last.return_eax ==
+                    0x80000005U &&
+                result.actor_field_26b8_high_bit_set.last.return_edx ==
+                    0x87654321U &&
+                result.actor_field_26b8_high_bit_set.last.return_esp ==
+                    0x88208004U &&
+                actor.field_26b8 == 0x80000005U &&
+                actor.summon_completion_word == 0x1111U &&
+                actor.special_target_action_record.command_cursor == 0x2222U &&
+                port.count(0x00478780U) == 0U,
+            "Group-A frame composes only an executed Workpack-315 pending high-bit-set reply"
+        );
+    }
+
+    {
+        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
+        auto& state = *state_storage;
+        state.action.frame_effect.primary_suppression = 1U;
+        auto& actor = state.action.group_a_action_execution[0U];
+        actor.start_gate = 1U;
+        actor.field_26b8 = 5U;
+        Fixture fixture;
+        DispatchPort port;
+        port.push(
+            0x00478B60U,
+            {
+                .pending_actor_field_26b8_high_bit_set = {
+                    .executed = true,
+                    .entry_eax = 0x12345678U,
+                    .entry_edx = 0x87654321U,
+                },
+            }
+        );
+        auto context = fixture.context();
+        context.actor_field_26b8_high_bit_set_requests.calls[0U]
+            .access.field_26b8_writable = false;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_a_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_field_26b8_high_bit_set_typed_stop &&
+                result.actor_field_26b8_high_bit_set.last.status ==
+                    openswd3::battle::
+                        LegacyBattleActorField26b8HighBitSetStatus::
+                            field_26b8_write_typed_stop &&
+                result.actor_field_26b8_high_bit_clear_calls == 0U &&
+                actor.field_26b8 == 5U && port.count(0x00479850U) == 0U,
+            "Group-A pending high-bit-set typed stop preserves the parent prefix and suppresses the clear and frame suffix"
+        );
+    }
+
+    {
+        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
+        auto& state = *state_storage;
         state.ai_coordination_enabled = 1U;
         state.actor_ai_primary[0] = 1U;
         state.action.group_b_count = 2;

@@ -4866,7 +4866,33 @@ private:
                 *token,
                 {std::bit_cast<u32>(signed_word(words[0])), words[1], words[2]}
             );
-            invoke(LegacyBattleScriptDispatchCall::pending_478780, *token);
+            if (!execute_legacy_battle_actor_field_26b8_high_bit_set_call(
+                    {
+                        .action = &bindings_.action,
+                        .startup = &bindings_.startup,
+                    },
+                    result_.actor_field_26b8_high_bit_set,
+                    request_.actor_field_26b8_high_bit_set_requests,
+                    *token,
+                    eax_,
+                    edx_,
+                    0x0046DADDU,
+                    flags_
+                )) {
+                eax_ = result_.actor_field_26b8_high_bit_set.last.return_eax;
+                ecx_ = result_.actor_field_26b8_high_bit_set.last.return_ecx;
+                edx_ = result_.actor_field_26b8_high_bit_set.last.return_edx;
+                if (result_.actor_field_26b8_high_bit_set.last.flags_known) {
+                    flags_ = result_.actor_field_26b8_high_bit_set.last.flags;
+                }
+                result_.status = LegacyBattleScriptDispatchStatus::
+                    actor_field_26b8_high_bit_set_typed_stop;
+                return finish();
+            }
+            eax_ = result_.actor_field_26b8_high_bit_set.last.return_eax;
+            ecx_ = result_.actor_field_26b8_high_bit_set.last.return_ecx;
+            edx_ = result_.actor_field_26b8_high_bit_set.last.return_edx;
+            flags_ = result_.actor_field_26b8_high_bit_set.last.flags;
             invoke(
                 LegacyBattleScriptDispatchCall::pending_4787d0,
                 *token,

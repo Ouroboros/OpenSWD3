@@ -203,7 +203,7 @@ LegacyBattleActorProgressResult advance_legacy_battle_actor_progress(
     }
 
     i32 increment = static_cast<i32>(state.base_speed >> 2U);
-    if ((state.delay_mode & 0x40U) != 0U) {
+    if ((static_cast<u32>(state.field_26c0) & 0x40U) != 0U) {
         increment >>= 1U;
     }
     if (argument == 1) {
@@ -213,13 +213,13 @@ LegacyBattleActorProgressResult advance_legacy_battle_actor_progress(
 
     i32 positive = 0;
     i32 negative = 0;
-    if ((state.delay_mode & 0x20000000U) != 0U) {
+    if ((static_cast<u32>(state.field_26c0) & 0x20000000U) != 0U) {
         positive = thirty_percent(increment);
     }
-    if ((state.delay_mode & 0x08000000U) != 0U) {
+    if ((static_cast<u32>(state.field_26c0) & 0x08000000U) != 0U) {
         negative = thirty_percent(increment);
     }
-    if (std::bit_cast<i32>(state.delay_mode) < 0) {
+    if (std::bit_cast<i32>(static_cast<u32>(state.field_26c0)) < 0) {
         const i32 product = std::bit_cast<i32>(
             static_cast<u32>(state.progress_multiplier) *
             std::bit_cast<u32>(increment)
@@ -274,7 +274,7 @@ advance_legacy_battle_actor_group_b_progress(
     const u32 resource_token =
         element == nullptr ? 0U : element->resource_token;
     result.return_eax = (static_cast<u32>(progress) & 0x0000FF00U) |
-        static_cast<compat::u8>(state.delay_mode);
+        static_cast<compat::u8>(static_cast<u32>(state.field_26c0));
     result.return_edx = resource_token;
     if (element == nullptr || resource_token == 0U) {
         result.status =
@@ -283,7 +283,7 @@ advance_legacy_battle_actor_group_b_progress(
     }
 
     i32 increment = static_cast<i32>(group_b_base_speed(*element) >> 2U);
-    if ((state.delay_mode & 0x40U) != 0U) {
+    if ((static_cast<u32>(state.field_26c0) & 0x40U) != 0U) {
         increment >>= 1U;
     }
     if (argument == 1) {
@@ -294,15 +294,15 @@ advance_legacy_battle_actor_group_b_progress(
 
     i32 positive = 0;
     i32 negative = 0;
-    if ((state.delay_mode & 0x20000000U) != 0U) {
+    if ((static_cast<u32>(state.field_26c0) & 0x20000000U) != 0U) {
         positive = thirty_percent(increment);
         result.return_edx = std::bit_cast<u32>(positive);
     }
-    if ((state.delay_mode & 0x08000000U) != 0U) {
+    if ((static_cast<u32>(state.field_26c0) & 0x08000000U) != 0U) {
         negative = thirty_percent(increment);
         result.return_edx = std::bit_cast<u32>(negative);
     }
-    if (std::bit_cast<i32>(state.delay_mode) < 0) {
+    if (std::bit_cast<i32>(static_cast<u32>(state.field_26c0)) < 0) {
         const i32 additional = percentage(increment, 10U);
         negative = wrapping_add(negative, additional);
         result.return_edx = std::bit_cast<u32>(additional);

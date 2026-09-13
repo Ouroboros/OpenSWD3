@@ -1074,6 +1074,9 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
     }
     const u32 actor_token = group_a_token(group_a_index);
     auto& actor = state.actors[group_a_index];
+    actor.field_26c0.alias(
+        state.action.group_a_action_execution[group_a_index].field_26c0
+    );
     const LegacyBattleActorIdleStateOwners idle_state_owners{
         .action = &state.action,
         .startup = context.startup,
@@ -1137,6 +1140,16 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
         kCallPublishEffectMode,
         {actor_token, effect_mode ? 1U : 0U}
     );
+    if (!apply_legacy_battle_pending_actor_field_26b8_high_bit_set(
+            state.action,
+            context,
+            result,
+            actor_token,
+            0x00478BDBU,
+            effect_mode_reply
+        )) {
+        return result;
+    }
     if (!apply_legacy_battle_pending_actor_field_26b8_high_bit_clear(
             state.action, context, result, actor_token, effect_mode_reply
         )) {
@@ -1507,8 +1520,8 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                             context,
                             result,
                             actor_token,
-                            actor.delay_mode,
-                            actor.delay_mode,
+                            actor.field_26c0,
+                            actor.field_26c0,
                             group_a_index,
                             0x00456E47U,
                             presentation.flags
@@ -1601,8 +1614,8 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                                 context,
                                 result,
                                 actor_token,
-                                actor.delay_mode,
-                                actor.delay_mode,
+                                actor.field_26c0,
+                                actor.field_26c0,
                                 group_a_index,
                                 0x00456C8EU,
                                 subtract_flags(
@@ -1815,7 +1828,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                             context,
                             result,
                             actor_token,
-                            actor.delay_mode,
+                            actor.field_26c0,
                             group_a_index,
                             selection_complete.edx,
                             0x00456BA6U,
@@ -1831,7 +1844,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     if (!set_availability_block(0U, presentation.edx)) {
                         return result;
                     }
-                    if (actor.delay_mode == 4U) {
+                    if (static_cast<u32>(actor.field_26c0) == 4U) {
                         if (context.startup == nullptr ||
                             group_a_index >= context.startup->party.size()) {
                             result.status = LegacyBattleActionDispatchStatus::

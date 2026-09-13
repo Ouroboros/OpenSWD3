@@ -1,3 +1,4 @@
+#include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_group_effect_frame.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 #include "test.hpp"
@@ -15,6 +16,24 @@ using openswd3::battle::LegacyBattleActorGroupBElementState;
 using openswd3::battle::LegacyBattleEffectCallReply;
 using openswd3::battle::LegacyBattleEffectCallRequest;
 using openswd3::compat::u32;
+
+[[nodiscard]] openswd3::battle::LegacyBattleActorCoordinateOwners
+actor_owners() {
+    static const auto action =
+        std::make_unique<openswd3::battle::LegacyBattleActionDispatchState>();
+    static const auto startup = [] {
+        auto state =
+            std::make_unique<openswd3::battle::LegacyBattleStartupState>();
+        state->group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        return state;
+    }();
+    return {
+        .action = action.get(),
+        .startup = startup.get(),
+    };
+}
 
 class GroupEffectPort final
     : public openswd3::battle::LegacyBattleEffectCallPort {
@@ -227,9 +246,12 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
     {
         LegacyBattleGroupEffectFrameState state;
         state.primary[0].base_offset = 10U;
+        auto action = std::make_unique<
+            openswd3::battle::LegacyBattleActionDispatchState>();
         auto startup =
             std::make_unique<openswd3::battle::LegacyBattleStartupState>();
         startup->party[0].render_offsets.render_x_base = 1U;
+        action->group_a_action_execution[0U].field_26b8 = 0U;
         startup->party[0].render_offsets.render_y_base = 1U;
         startup->party[0].position_x = 155U;
         startup->party[0].source_y_offset = 125U;
@@ -245,22 +267,31 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
             openswd3::battle::advance_legacy_battle_group_effect_frame(
                 state,
                 port,
-                0U,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken,
                 openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken,
                 1U,
                 0U,
                 0U,
                 0U,
-                {.startup = startup.get()}
+                {.action = action.get(), .startup = startup.get()}
             );
         test.expect_true(
-            result.return_value == 1U && state.primary[0].complete == 1U &&
-                result.base_coordinate_query_calls == 1U &&
-                result.base_coordinate_query.output_x == 30U &&
-                result.base_coordinate_query.output_y == 40U &&
-                result.coordinate_query_calls == 1U &&
-                port.count(0x00478470U) == 0U && port.count(0x004783B0U) == 0U,
+            result.return_value == 1U, "collision completion returns one"
+        );
+        test.expect_true(
+            state.primary[0].complete == 1U,
             "collision completion publishes the primary completion state"
+        );
+        test.expect_true(
+            result.base_coordinate_query_calls == 1U &&
+                result.base_coordinate_query.output_x == 30U &&
+                result.base_coordinate_query.output_y == 40U,
+            "collision completion preserves the base-coordinate query"
+        );
+        test.expect_true(
+            result.coordinate_query_calls == 1U &&
+                port.count(0x00478470U) == 0U && port.count(0x004783B0U) == 0U,
+            "collision completion composes both coordinate queries without opaque calls"
         );
         test.expect_true(
             result.animation_collision_calls == 1U &&
@@ -356,12 +387,14 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
         port.push(0x0047CE80U, {.eax = 0U});
         const auto result =
             openswd3::battle::advance_legacy_battle_group_effect_frame(
-                state, port, 0U, 0x1000U, 0U, 0U, 0U, 1U
+                state, port, 0U, 0x1000U, 0U, 0U, 0U, 1U, actor_owners()
             );
         test.expect_true(
             result.return_value == 1U && port.count(0x0047CE80U) == 1U &&
-                port.count(0x00478780U) == 1U &&
-                has_argument(port, 0x00478780U, 0U, 0x005029D0U) &&
+                port.count(0x00478780U) == 0U &&
+                result.actor_field_26b8_high_bit_set.calls == 1U &&
+                result.actor_field_26b8_high_bit_set.return_addresses[0U] ==
+                    0x00459409U &&
                 state.primary[0].status_flags == 0U,
             "group-A status publish honors both direct guard fields"
         );
@@ -434,15 +467,36 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
         port.push(0x00481A40U, reward_reply(5U));
         const auto result =
             openswd3::battle::advance_legacy_battle_group_effect_frame(
-                state, port, 0x3333U, 0x1000U, 0U, 0U, 0U, 0U
+                state,
+                port,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupBBaseToken,
+                0x1000U,
+                0U,
+                0U,
+                0U,
+                0U,
+                actor_owners()
             );
         test.expect_true(
             result.return_value == 1U && state.battle_gate == 0U &&
-                state.reward_display_total == 5U &&
-                port.battle_pair_secondary_value() == 0U &&
-                (port.effect_shift_state().packed_reward & 0xFFFF0000U) == 0U &&
-                port.count(0x00478780U) == 1U && port.count(0x00481A40U) == 1U,
-            "single actor reward publishes actor, clears gate and consumes stale rows"
+                state.reward_display_total == 5U,
+            "single actor reward publishes the reward and clears the battle gate"
+        );
+        test.expect_true(
+            port.battle_pair_secondary_value() == 0U &&
+                (port.effect_shift_state().packed_reward & 0xFFFF0000U) == 0U,
+            "single actor reward consumes stale reward rows"
+        );
+        test.expect_true(
+            port.count(0x00478780U) == 0U &&
+                result.actor_field_26b8_high_bit_set.calls == 1U &&
+                result.actor_field_26b8_high_bit_set.return_addresses[0U] ==
+                    0x004597F6U,
+            "single actor reward composes the physical high-bit-set CALL identity"
+        );
+        test.expect_true(
+            port.count(0x00481A40U) == 1U,
+            "single actor reward invokes the typed reward computation once"
         );
     }
 

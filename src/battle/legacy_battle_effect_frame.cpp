@@ -27,7 +27,6 @@ constexpr u32 kCallFinalizeCoordinates = 0x00481FD0U;
 constexpr u32 kCallRenderResource = 0x004170E0U;
 constexpr u32 kCallReleaseResource = 0x004885A0U;
 constexpr u32 kCallPublishStatusMode = 0x00482080U;
-constexpr u32 kCallPublishActor = 0x00478780U;
 constexpr u32 kCallQueryRewardGate = 0x0047D8F0U;
 constexpr u32 kCallResolveActor = 0x00480AD0U;
 constexpr u32 kCallComputeModeOneReward = 0x00481010U;
@@ -278,7 +277,9 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
     const u32 argument_mode_gate,
     const u32 source_value,
     const u32 slot_index,
-    const LegacyBattleActorCoordinateOwners& coordinate_owners
+    const LegacyBattleActorCoordinateOwners& coordinate_owners,
+    const LegacyBattleActorField26b8HighBitSetCallRequests&
+        actor_field_26b8_high_bit_set_requests
 ) {
     LegacyBattleEffectFrameResult result{};
     if (slot_index >= state.primary.size()) {
@@ -953,17 +954,68 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
     }
 
     if ((primary.status_flags & 4U) != 0U) {
-        stale_final_edx =
-            invoke(port, result, kCallPublishActor, {actor_index}).edx;
+        const auto& seeded =
+            actor_field_26b8_high_bit_set_requests
+                .calls[result.actor_field_26b8_high_bit_set.calls];
+        if (!execute_legacy_battle_actor_field_26b8_high_bit_set_call(
+                {
+                    .action = coordinate_owners.action,
+                    .startup = coordinate_owners.startup,
+                },
+                result.actor_field_26b8_high_bit_set,
+                actor_field_26b8_high_bit_set_requests,
+                actor_index,
+                seeded.entry_eax,
+                stale_final_edx,
+                0x00458BAFU,
+                seeded.entry_flags,
+                seeded.entry_flags_known
+            )) {
+            result.status = LegacyBattleEffectFrameStatus::
+                actor_field_26b8_high_bit_set_typed_stop;
+            result.return_value =
+                result.actor_field_26b8_high_bit_set.last.return_eax;
+            result.return_ecx =
+                result.actor_field_26b8_high_bit_set.last.return_ecx;
+            result.return_edx =
+                result.actor_field_26b8_high_bit_set.last.return_edx;
+            return result;
+        }
+        stale_final_edx = result.actor_field_26b8_high_bit_set.last.return_edx;
         primary.status_flags = 0U;
     }
 
     u16 flags = primary.status_flags;
     const bool publish_actor_before_reward = (flags & 1U) != 0U;
     if (publish_actor_before_reward) {
-        static_cast<void>(
-            invoke(port, result, kCallPublishActor, {actor_index})
-        );
+        const auto& seeded =
+            actor_field_26b8_high_bit_set_requests
+                .calls[result.actor_field_26b8_high_bit_set.calls];
+        if (!execute_legacy_battle_actor_field_26b8_high_bit_set_call(
+                {
+                    .action = coordinate_owners.action,
+                    .startup = coordinate_owners.startup,
+                },
+                result.actor_field_26b8_high_bit_set,
+                actor_field_26b8_high_bit_set_requests,
+                actor_index,
+                seeded.entry_eax,
+                stale_final_edx,
+                0x00458BDCU,
+                seeded.entry_flags,
+                seeded.entry_flags_known
+            )) {
+            result.status = LegacyBattleEffectFrameStatus::
+                actor_field_26b8_high_bit_set_typed_stop;
+            result.return_value =
+                result.actor_field_26b8_high_bit_set.last.return_eax;
+            result.return_ecx =
+                result.actor_field_26b8_high_bit_set.last.return_ecx;
+            result.return_edx =
+                result.actor_field_26b8_high_bit_set.last.return_edx;
+            return result;
+        }
+        stale_final_edx = result.actor_field_26b8_high_bit_set.last.return_edx;
     }
     if (publish_actor_before_reward || (flags & 0x10U) != 0U) {
         if (invoke(port, result, kCallQueryRewardGate, {argument_object_token})

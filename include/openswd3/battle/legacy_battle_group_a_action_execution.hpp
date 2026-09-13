@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_actor_field_26b8_high_bit_set.hpp"
 #include "openswd3/battle/legacy_battle_actor_progress.hpp"
 #include "openswd3/battle/legacy_battle_group_a_action_execution_state.hpp"
 #include "openswd3/battle/legacy_battle_group_a_item_effect_application.hpp"
@@ -11,10 +12,14 @@ namespace openswd3::battle {
 
 class LegacyBattleActionDispatchPort;
 struct LegacyBattleActionDispatchState;
+struct LegacyBattleStartupState;
 
 struct LegacyBattleGroupAActionExecutionRequest {
+    LegacyBattleStartupState* startup{};
     compat::u32 entry_eax{};
     compat::u32 entry_edx{};
+    LegacyBattleActorField26b8HighBitSetCallRequests
+        actor_field_26b8_high_bit_set_requests{};
 };
 
 enum class LegacyBattleGroupAActionExecutionStatus : compat::u8 {
@@ -22,6 +27,7 @@ enum class LegacyBattleGroupAActionExecutionStatus : compat::u8 {
     actor_state_typed_stop,
     slot_typed_stop,
     resource_typed_stop,
+    actor_field_26b8_high_bit_set_typed_stop,
 };
 
 struct LegacyBattleGroupAActionExecutionResult {
@@ -37,6 +43,8 @@ struct LegacyBattleGroupAActionExecutionResult {
     compat::u32 draw_calls{};
     compat::u32 target_calls{};
     compat::u32 completion_writes{};
+    LegacyBattleActorField26b8HighBitSetCallTrace
+        actor_field_26b8_high_bit_set{};
     std::vector<compat::u32> call_trace;
 };
 

@@ -419,10 +419,16 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                         .target_token = target_token,
                         .entry_eax = target_index * 0x0BCDU,
                         .entry_edx = action_reply.edx,
+                        .actor_field_26b8_high_bit_set_requests =
+                            context.actor_field_26b8_high_bit_set_requests,
                     }
                 );
             ++result.group_b_action_execution_calls;
             result.port_calls += execution.port_calls;
+            append_legacy_battle_actor_field_26b8_high_bit_set_trace(
+                result.actor_field_26b8_high_bit_set,
+                execution.actor_field_26b8_high_bit_set
+            );
             if (execution.status !=
                 LegacyBattleGroupBActionExecutionStatus::completed) {
                 result.status = LegacyBattleActionDispatchStatus::
@@ -507,10 +513,16 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                 .target_token = target_token,
                 .entry_eax = target_index * 0x0565U,
                 .entry_edx = action_reply.edx,
+                .actor_field_26b8_high_bit_set_requests =
+                    context.actor_field_26b8_high_bit_set_requests,
             }
         );
         ++result.group_b_action_execution_calls;
         result.port_calls += execution.port_calls;
+        append_legacy_battle_actor_field_26b8_high_bit_set_trace(
+            result.actor_field_26b8_high_bit_set,
+            execution.actor_field_26b8_high_bit_set
+        );
         if (execution.status !=
             LegacyBattleGroupBActionExecutionStatus::completed) {
             result.status = LegacyBattleActionDispatchStatus::

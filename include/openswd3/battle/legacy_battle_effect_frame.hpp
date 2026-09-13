@@ -2,6 +2,7 @@
 
 #include "openswd3/battle/legacy_battle_actor_base_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_actor_coordinates.hpp"
+#include "openswd3/battle/legacy_battle_actor_field_26b8_high_bit_set.hpp"
 #include "openswd3/battle/legacy_battle_actor_render_offsets.hpp"
 #include "openswd3/battle/legacy_battle_animation_collision.hpp"
 #include "openswd3/battle/legacy_battle_color_accumulation.hpp"
@@ -193,6 +194,7 @@ enum class LegacyBattleEffectFrameStatus : compat::u8 {
     effect_shift_group_a_coordinate_publication_typed_stop,
     effect_shift_group_b_coordinate_publication_typed_stop,
     animation_collision_counter_typed_stop,
+    actor_field_26b8_high_bit_set_typed_stop,
 };
 
 struct LegacyBattleEffectFrameResult {
@@ -213,6 +215,8 @@ struct LegacyBattleEffectFrameResult {
     std::array<LegacyBattleActorCoordinateQueryResult, 5> coordinate_queries{};
     compat::u32 coordinate_query_calls{};
     LegacyBattleEffectShiftResult effect_shift{};
+    LegacyBattleActorField26b8HighBitSetCallTrace
+        actor_field_26b8_high_bit_set{};
     LegacyBattleAnimationCollisionResult animation_collision{};
     compat::u32 animation_collision_calls{};
 };
@@ -242,7 +246,9 @@ advance_legacy_battle_intensity_effect_frame(
     compat::u32 argument_mode_gate,
     compat::u32 source_value,
     compat::u32 slot_index,
-    const LegacyBattleActorCoordinateOwners& coordinate_owners = {}
+    const LegacyBattleActorCoordinateOwners& coordinate_owners = {},
+    const LegacyBattleActorField26b8HighBitSetCallRequests&
+        actor_field_26b8_high_bit_set_requests = {}
 );
 
 }  // namespace openswd3::battle

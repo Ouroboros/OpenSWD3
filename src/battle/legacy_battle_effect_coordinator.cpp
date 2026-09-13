@@ -220,7 +220,10 @@ public:
             argument_mode_gate,
             source_value,
             slot,
-            {.startup = &startup_}
+            {
+                .action = action_target_owners_.action,
+                .startup = &startup_,
+            }
         );
         result.port_calls += child.port_calls;
         last_child_eax_ = child.return_value;
@@ -253,7 +256,10 @@ public:
             source_value,
             slot,
             group_wide_mode,
-            {.startup = &startup_}
+            {
+                .action = action_target_owners_.action,
+                .startup = &startup_,
+            }
         );
         result.port_calls += child.port_calls;
         last_child_eax_ = child.return_value;

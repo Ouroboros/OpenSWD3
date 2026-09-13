@@ -1,10 +1,13 @@
 #include "openswd3/battle/legacy_battle_group_a_action_execution.hpp"
 
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
+#include "openswd3/battle/legacy_battle_startup.hpp"
 #include "test.hpp"
 
+#include <array>
 #include <deque>
 #include <map>
+#include <memory>
 #include <vector>
 
 namespace {
@@ -58,6 +61,11 @@ void test_battle_group_a_action_execution(openswd3::test::Context& test) {
 
     constexpr u32 actor_token = 0x005029D0U;
     constexpr u32 target_token = 0x00525508U;
+    const auto startup =
+        std::make_unique<openswd3::battle::LegacyBattleStartupState>();
+    startup->group_b_lifecycle = std::make_shared<std::array<
+        openswd3::battle::LegacyBattleActorGroupBElementState,
+        openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
 
     {
         LegacyBattleGroupAActionExecutionSharedState shared;
@@ -313,14 +321,15 @@ void test_battle_group_a_action_execution(openswd3::test::Context& test) {
             0U,
             0U,
             0U,
-            port
+            port,
+            {.startup = startup.get()}
         );
         test.expect_true(
             result.return_eax == 1U && result.target_calls == 1U &&
                 port.count(0x00474FC0U) == 0U &&
                 port.count(0x00477830U) == 0U &&
                 port.count(0x0047CD60U) == 1U &&
-                port.count(0x00478780U) == 1U &&
+                port.count(0x00478780U) == 0U &&
                 port.count(0x00481010U) == 1U &&
                 port.count(0x0047D640U) == 1U &&
                 port.count(0x0047CEC0U) == 1U && result.record_clears == 6U &&
@@ -351,7 +360,8 @@ void test_battle_group_a_action_execution(openswd3::test::Context& test) {
             0U,
             0U,
             0U,
-            port
+            port,
+            {.startup = startup.get()}
         );
         test.expect_true(
             result.return_eax == 1U &&
@@ -360,7 +370,7 @@ void test_battle_group_a_action_execution(openswd3::test::Context& test) {
                 port.count(0x00474FC0U) == 0U &&
                 port.count(0x00477830U) == 0U &&
                 port.count(0x0047CD60U) == 1U &&
-                port.count(0x00478780U) == 1U &&
+                port.count(0x00478780U) == 0U &&
                 port.count(0x00481010U) == 1U &&
                 port.count(0x0047D640U) == 1U &&
                 port.count(0x0047CEC0U) == 1U && result.target_calls == 1U,
