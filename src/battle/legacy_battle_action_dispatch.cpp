@@ -845,6 +845,48 @@ bool apply_legacy_battle_pending_actor_ready_action_modes(
     return true;
 }
 
+bool apply_legacy_battle_pending_actor_field_26b8_high_bit_clear(
+    LegacyBattleActionDispatchState& state,
+    LegacyBattleActionDispatchContext& context,
+    LegacyBattleActionDispatchResult& result,
+    const u32 actor_token,
+    const LegacyBattleActionCallReply& reply
+) noexcept {
+    const auto& pending = reply.pending_actor_field_26b8_high_bit_clear;
+    if (!pending.executed) {
+        return true;
+    }
+
+    auto request = context.actor_field_26b8_high_bit_clear_request;
+    request.actor_token = actor_token;
+    request.entry_eax = 1U;
+    request.entry_edx = pending.entry_edx;
+    request.entry_return_address =
+        kLegacyBattleActorField26b8HighBitClearCallerReturnAddress;
+    request.entry_flags = subtract_flags(1U, 1U);
+    request.entry_flags_known = true;
+    result.actor_field_26b8_high_bit_clear =
+        clear_legacy_battle_actor_field_26b8_high_bit(
+            resolve_legacy_battle_actor_field_26b8_high_bit_clear(
+                {
+                    .action = &state,
+                    .startup = context.startup,
+                },
+                actor_token
+            ),
+            request
+        );
+    ++result.actor_field_26b8_high_bit_clear_calls;
+    if (result.actor_field_26b8_high_bit_clear.status !=
+        LegacyBattleActorField26b8HighBitClearStatus::completed) {
+        result.status = LegacyBattleActionDispatchStatus::
+            actor_field_26b8_high_bit_clear_typed_stop;
+        result.return_value = result.actor_field_26b8_high_bit_clear.return_eax;
+        return false;
+    }
+    return true;
+}
+
 LegacyBattleTargetPhaseCheckResult check_legacy_battle_target_phase(
     const LegacyBattleGroupAActionExecutionState* actor,
     const LegacyBattleActionMessageProfile* target_profile,

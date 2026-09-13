@@ -788,13 +788,24 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
         auto& state = *state_storage;
         state.action.frame_effect.primary_suppression = 1U;
         state.action.group_a_action_execution[0U].start_gate = 1U;
+        state.action.group_a_action_execution[0U].field_26b8 = 0x80000005U;
         Fixture fixture;
         DispatchPort port;
         port.actor_metric_state().pending_action_activation_latch = 9U;
+        port.push(
+            0x00478B60U,
+            {
+                .pending_actor_field_26b8_high_bit_clear = {
+                    .executed = true,
+                    .entry_edx = 0x55667788U,
+                },
+            }
+        );
         port.push(0x00479850U, {.eax = 1U});
         auto context = fixture.context();
         context.actor_start_gate_request.entry_edx = 0x11223344U;
         context.actor_start_gate_request.entry_esp = 0x88008000U;
+        context.actor_field_26b8_high_bit_clear_request.entry_esp = 0x88108000U;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_a_frame(
                 state, port, context, 0U
@@ -809,7 +820,22 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 result.actor_start_gate.return_eip == 0x004566B2U &&
                 result.actor_start_gate.flags.parity &&
                 result.actor_start_gate.flags.zero &&
+                result.actor_field_26b8_high_bit_clear_calls == 1U &&
+                result.actor_field_26b8_high_bit_clear.return_eax == 1U &&
+                result.actor_field_26b8_high_bit_clear.return_ecx ==
+                    openswd3::battle::kLegacyBattleActionGroupABaseToken &&
+                result.actor_field_26b8_high_bit_clear.return_edx ==
+                    0x55667788U &&
+                result.actor_field_26b8_high_bit_clear.return_esp ==
+                    0x88108004U &&
+                result.actor_field_26b8_high_bit_clear.return_eip ==
+                    0x00478CCDU &&
+                result.actor_field_26b8_high_bit_clear.flags_known &&
+                !result.actor_field_26b8_high_bit_clear.flags.sign &&
+                !result.actor_field_26b8_high_bit_clear.flags.zero &&
+                state.action.group_a_action_execution[0U].field_26b8 == 5U &&
                 port.count(0x004786D0U) == 0U &&
+                port.count(0x00478770U) == 0U &&
                 has_call_argument(port, 0x00478B60U, 1U, 1U) &&
                 has_call_argument(port, 0x00479850U, 0U, 0x005029D0U) &&
                 port.actor_metric_state().pending_action_activation_latch ==

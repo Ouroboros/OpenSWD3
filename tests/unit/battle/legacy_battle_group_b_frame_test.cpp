@@ -625,13 +625,26 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         state.shared.action.frame_effect.primary_suppression = 1U;
         state.shared.action.group_a_to_actor[0] = 3U;
         Fixture fixture;
-        (*fixture.startup->group_b_lifecycle)[0U].action_execution.start_gate =
-            1U;
+        auto& actor =
+            (*fixture.startup->group_b_lifecycle)[0U].action_execution;
+        actor.start_gate = 1U;
+        actor.field_26b8 = 0x80000009U;
         DispatchPort port;
         bind_group_b_coordinate_resource(fixture, 3U);
+        port.push(
+            0x00478B60U,
+            {
+                .pending_actor_field_26b8_high_bit_clear = {
+                    .executed = true,
+                    .entry_edx = 0x99AABBCCU,
+                },
+            }
+        );
         port.push(0x00479850U, {.eax = 1U});
-        port.push(0x00480AD0U, {.eax = 0U});
         auto context = fixture.context();
+        context.actor_field_26b8_high_bit_clear_request.entry_esp = 0x8A10A000U;
+        context.actor_field_26b8_high_bit_clear_request.access.field_writable =
+            false;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
                 state, port, context, 0U
@@ -639,10 +652,34 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleActionDispatchStatus::
-                        final_actor_descriptor_typed_stop &&
+                        actor_field_26b8_high_bit_clear_typed_stop &&
+                result.actor_field_26b8_high_bit_clear_calls == 1U &&
+                result.actor_field_26b8_high_bit_clear.status ==
+                    openswd3::battle::
+                        LegacyBattleActorField26b8HighBitClearStatus::
+                            field_write_typed_stop &&
+                result.actor_field_26b8_high_bit_clear.return_eax == 1U &&
+                result.actor_field_26b8_high_bit_clear.return_ecx ==
+                    openswd3::battle::kLegacyBattleActionGroupBBaseToken &&
+                result.actor_field_26b8_high_bit_clear.return_edx ==
+                    0x99AABBCCU &&
+                result.actor_field_26b8_high_bit_clear.return_esp ==
+                    0x8A10A000U &&
+                result.actor_field_26b8_high_bit_clear.return_eip ==
+                    0x00478770U &&
+                !result.actor_field_26b8_high_bit_clear.flags.carry &&
+                result.actor_field_26b8_high_bit_clear.flags.parity &&
+                !result.actor_field_26b8_high_bit_clear.flags.auxiliary_carry &&
+                result.actor_field_26b8_high_bit_clear.flags
+                    .auxiliary_carry_defined &&
+                result.actor_field_26b8_high_bit_clear.flags.zero &&
+                !result.actor_field_26b8_high_bit_clear.flags.sign &&
+                !result.actor_field_26b8_high_bit_clear.flags.overflow &&
+                actor.field_26b8 == 0x80000009U &&
                 state.shared.action.group_a_to_actor[0] == 3U &&
-                state.shared.action.overlay_gate == 0U,
-            "group B frame propagates final actor descriptor stop before cleanup"
+                state.shared.action.overlay_gate == 0U &&
+                port.count(0x00478770U) == 0U && port.count(0x00479850U) == 0U,
+            "Group-B field-26b8 write stop preserves the caller CMP flags and suppresses the frame suffix"
         );
     }
 

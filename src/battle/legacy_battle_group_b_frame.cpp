@@ -1768,12 +1768,17 @@ action_decision_done:
                               (action.frame_effect.primary_suppression == 1U ||
                                action.frame_effect.split_suppression == 1U)) ||
         shared.global_effect_override == 1U;
-    static_cast<void>(invoke(
+    const auto effect_mode_reply = invoke(
         port,
         result,
         kCallPublishEffectMode,
         {source_token, effect_mode ? 1U : 0U}
-    ));
+    );
+    if (!apply_legacy_battle_pending_actor_field_26b8_high_bit_clear(
+            action, context, result, source_token, effect_mode_reply
+        )) {
+        return result;
+    }
 
     if (state.pending_effect_ids[group_b_index] != 0xFFFFFFFFU) {
         SingleEffectPortAdapter effect_port(port);

@@ -86,6 +86,7 @@ struct LegacyBattleGroupAActionExecutionState
     compat::u32 target_phase_resource_token{};   // actor + 0x255C
     compat::i32 turn_countdown{};                // actor + 0x2668
     compat::u32 turn_render_flags{};             // actor + 0x26A0
+    compat::u32 field_26b8{};                    // actor + 0x26B8
     compat::u32 summon_render_flags{};           // actor + 0x2688
     compat::u16 retreat_ready_flags{};           // actor + 0x26D0
     compat::u32 summon_x_offset{};               // actor + 0x268C

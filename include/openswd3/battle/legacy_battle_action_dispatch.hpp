@@ -12,6 +12,7 @@
 #include "openswd3/battle/legacy_battle_actor_action_kind.hpp"
 #include "openswd3/battle/legacy_battle_actor_action_mode.hpp"
 #include "openswd3/battle/legacy_battle_actor_action_target.hpp"
+#include "openswd3/battle/legacy_battle_actor_field_26b8_high_bit_clear.hpp"
 #include "openswd3/battle/legacy_battle_actor_display_kind.hpp"
 #include "openswd3/battle/legacy_battle_actor_start_gate.hpp"
 #include "openswd3/battle/legacy_battle_actor_turn_completion.hpp"
@@ -96,6 +97,11 @@ struct LegacyBattlePendingActorReadyActionModeCall {
     bool entry_flags_known{true};
 };
 
+struct LegacyBattlePendingActorField26b8HighBitClearCall {
+    bool executed{};
+    compat::u32 entry_edx{};
+};
+
 struct LegacyBattleActionCallReply {
     compat::u32 eax{};
     compat::u32 ecx{};
@@ -121,6 +127,8 @@ struct LegacyBattleActionCallReply {
     std::span<compat::u16> resource_words{};
     std::array<LegacyBattlePendingActorReadyActionModeCall, 8>
         pending_actor_ready_action_modes{};
+    LegacyBattlePendingActorField26b8HighBitClearCall
+        pending_actor_field_26b8_high_bit_clear{};
 };
 
 class LegacyBattleSummonFramePort {
@@ -1404,6 +1412,8 @@ struct LegacyBattleActionDispatchContext {
         actor_frame_snapshot_clear_request{};
     std::array<LegacyBattleActorActionModeRequest, 41>
         actor_action_mode_requests{};
+    LegacyBattleActorField26b8HighBitClearRequest
+        actor_field_26b8_high_bit_clear_request{};
     std::array<LegacyBattleActorActionTargetRequest, 2>
         action_dispatch_action_target_requests{};
     std::array<LegacyBattleActorActionTargetRequest, 4>
@@ -1433,6 +1443,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     actor_idle_state_typed_stop,
     actor_action_kind_typed_stop,
     actor_action_mode_typed_stop,
+    actor_field_26b8_high_bit_clear_typed_stop,
     actor_display_kind_typed_stop,
     actor_start_gate_typed_stop,
     actor_action_target_typed_stop,
@@ -1525,6 +1536,9 @@ struct LegacyBattleActionDispatchResult {
     LegacyBattleActorActionModeResult actor_action_mode{};
     std::array<LegacyBattleActorActionModeResult, 41> actor_action_modes{};
     compat::u32 actor_action_mode_calls{};
+    LegacyBattleActorField26b8HighBitClearResult
+        actor_field_26b8_high_bit_clear{};
+    compat::u32 actor_field_26b8_high_bit_clear_calls{};
     LegacyBattleActorDisplayKindResult actor_display_kind{};
     compat::u32 actor_display_kind_calls{};
     LegacyBattleActorStartGateResult actor_start_gate{};
@@ -1884,6 +1898,14 @@ advance_legacy_battle_target_phase_spawn_frame(
 ) noexcept;
 
 [[nodiscard]] bool apply_legacy_battle_pending_actor_ready_action_modes(
+    LegacyBattleActionDispatchState& state,
+    LegacyBattleActionDispatchContext& context,
+    LegacyBattleActionDispatchResult& result,
+    compat::u32 actor_token,
+    const LegacyBattleActionCallReply& reply
+) noexcept;
+
+[[nodiscard]] bool apply_legacy_battle_pending_actor_field_26b8_high_bit_clear(
     LegacyBattleActionDispatchState& state,
     LegacyBattleActionDispatchContext& context,
     LegacyBattleActionDispatchResult& result,

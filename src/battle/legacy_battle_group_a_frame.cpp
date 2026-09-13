@@ -1131,12 +1131,17 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
          (state.action.frame_effect.primary_suppression == 1U ||
           state.action.frame_effect.split_suppression == 1U)) ||
         state.global_effect_override == 1U;
-    static_cast<void>(invoke(
+    const auto effect_mode_reply = invoke(
         port,
         result,
         kCallPublishEffectMode,
         {actor_token, effect_mode ? 1U : 0U}
-    ));
+    );
+    if (!apply_legacy_battle_pending_actor_field_26b8_high_bit_clear(
+            state.action, context, result, actor_token, effect_mode_reply
+        )) {
+        return result;
+    }
 
     if (state.ai_coordination_enabled == 1U &&
         state.action.action_pending_aux == 0U &&
