@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_actor_action_mode.hpp"
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
 #include "openswd3/battle/legacy_battle_mon_profile.hpp"
 
@@ -12,6 +13,7 @@ struct LegacyBattleGroupBActionProfileModeRequest {
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
+    std::array<LegacyBattleActorActionModeRequest, 2> action_mode_requests{};
 };
 
 enum class LegacyBattleGroupBActionProfileModeStatus : compat::u8 {
@@ -19,6 +21,7 @@ enum class LegacyBattleGroupBActionProfileModeStatus : compat::u8 {
     actor_state_typed_stop,
     resource_state_typed_stop,
     profile_load_typed_stop,
+    action_mode_typed_stop,
 };
 
 struct LegacyBattleGroupBActionProfileModeResult {
@@ -28,6 +31,8 @@ struct LegacyBattleGroupBActionProfileModeResult {
     compat::u32 profile_load_calls{};
     compat::u32 profile_dwords_cleared{};
     compat::u32 mode_update_calls{};
+    LegacyBattleActorActionModeResult actor_action_mode{};
+    std::array<LegacyBattleActorActionModeResult, 2> actor_action_modes{};
     compat::u16 profile_id{};
     compat::u16 resource_word{};
     compat::u32 return_eax{};

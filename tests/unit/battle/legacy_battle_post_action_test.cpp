@@ -180,7 +180,10 @@ void test_battle_post_action(openswd3::test::Context& test) {
             result.return_value == 2U && result.group_a_iterations == 2U &&
                 port.count(0x00478B20U) == 1U &&
                 port.count(0x00478AE0U) == 1U &&
-                port.count(0x00478710U) == 1U &&
+                port.count(0x00478710U) == 0U &&
+                result.actor_action_mode_calls == 1U &&
+                result.actor_action_mode.return_eip == 0x0045AEECU &&
+                action.group_a_action_execution[1U].action_kind == 0U &&
                 port.count(0x00478330U) == 0U &&
                 result.actor_availability_block_calls == 1U &&
                 result.actor_availability_block.actor_writes == 1U &&

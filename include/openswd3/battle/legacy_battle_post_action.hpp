@@ -24,7 +24,8 @@ advance_legacy_battle_post_action(
     LegacyBattleStartupState* startup,
     compat::u32 source_group_a_index,
     compat::u32 target_group_b_index,
-    const LegacyBattleActorActionTargetRequest& action_target_request = {}
+    const LegacyBattleActorActionTargetRequest& action_target_request = {},
+    const LegacyBattleActorActionModeRequest& action_mode_request = {}
 );
 
 }  // namespace openswd3::battle

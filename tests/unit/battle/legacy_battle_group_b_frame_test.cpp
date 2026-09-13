@@ -1060,7 +1060,10 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                     0xBBBB0007U &&
                 fixture.random.bounds == std::vector<u32>{12U, 10U} &&
                 port.count(0x00476330U) == 0U &&
-                has_call_argument(port, 0x00478710U, 1U, 0x11U) &&
+                port.count(0x00478710U) == 0U &&
+                result.actor_action_mode_calls == 1U &&
+                result.actor_action_mode.return_eip == 0x00457E34U &&
+                actor.action_composition.action_kind == 0x11U &&
                 has_call_argument(port, 0x0047D860U, 1U, 2U),
             "profile byte drives the typed status action and its true caller suffix"
         );
@@ -1104,18 +1107,27 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 state.random_target_index == 2U &&
                 state.shared.action_side == 1U &&
                 state.special_selection_pending == 0U &&
-                state.special_action_latch == 1U && state.phase_mode == 1U &&
-                result.group_b_action_profile_mode_calls == 1U &&
+                state.special_action_latch == 1U && state.phase_mode == 1U,
+            "negative packed status preserves frame control outcomes"
+        );
+        test.expect_true(
+            result.group_b_action_profile_mode_calls == 1U &&
                 result.group_b_action_profile_mode.return_eax == 0x77U &&
-                actor.action_composition.mode_flags == 0x80U &&
+                result.actor_action_mode_calls == 3U &&
+                result.actor_action_modes[0U].return_eip == 0x004761F4U &&
+                result.actor_action_modes[1U].return_eip == 0x00457C68U &&
+                result.actor_action_modes[2U].return_eip == 0x00457CA0U &&
+                actor.action_composition.mode_flags == 0x88U &&
                 actor.action_composition.action_kind == 0U &&
-                actor.action_composition.display_kind == 2U &&
-                port.count(0x00476140U) == 0U &&
-                port.count(0x004761D0U) == 0U &&
+                actor.action_composition.display_kind == 6U,
+            "negative packed status composes the typed profile and action modes"
+        );
+        test.expect_true(
+            port.count(0x00476140U) == 0U && port.count(0x004761D0U) == 0U &&
                 result.text_message_calls == 1U &&
                 fixture.startup_reset.block_5214f8[0U] == 0x73000000U &&
                 has_call_argument(port, 0x00478A70U, 1U, 2U),
-            "negative packed status directly composes profile mode, both suffix modes, text and side target"
+            "negative packed status preserves text and side-target suffixes"
         );
     }
 

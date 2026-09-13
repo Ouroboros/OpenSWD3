@@ -14,7 +14,6 @@ constexpr u32 kCallResetActor = 0x00478850U;
 constexpr u32 kCallQueryTerminal = 0x0047CE80U;
 constexpr u32 kCallClearActorAction = 0x00478B20U;
 constexpr u32 kCallResetTarget = 0x00478AE0U;
-constexpr u32 kCallSetActorMode = 0x00478710U;
 constexpr u32 kCallPublishTarget = 0x00478A70U;
 
 [[nodiscard]] constexpr u32 to_bits(const i32 value) noexcept {
@@ -73,7 +72,8 @@ LegacyBattleActionDispatchResult advance_legacy_battle_post_action(
     LegacyBattleStartupState* const startup,
     const compat::u32 source_group_a_index,
     const compat::u32 target_group_b_index,
-    const LegacyBattleActorActionTargetRequest& action_target_request
+    const LegacyBattleActorActionTargetRequest& action_target_request,
+    const LegacyBattleActorActionModeRequest& action_mode_request
 ) {
     LegacyBattleActionDispatchResult result;
     const u32 selected = action.selected_target_index;
@@ -184,15 +184,37 @@ LegacyBattleActionDispatchResult advance_legacy_battle_post_action(
                     ));
                     action.group_a_action_execution[group_a_index]
                         .action_target = 0xFFFFU;
-                    static_cast<void>(invoke(
+                    const auto target_reset = invoke(
                         port,
                         result,
                         kCallResetTarget,
                         {group_b_token(to_bits(queried))}
-                    ));
-                    const auto mode = invoke(
-                        port, result, kCallSetActorMode, {actor_token, 0U}
                     );
+                    auto mode_request = action_mode_request;
+                    mode_request.actor_token = actor_token;
+                    mode_request.mode = 0U;
+                    mode_request.entry_eax = target_reset.eax;
+                    mode_request.entry_edx = target_reset.edx;
+                    mode_request.entry_return_address = 0x0045AEECU;
+                    mode_request.entry_flags = target_reset.flags;
+                    result.actor_action_mode =
+                        set_legacy_battle_actor_action_mode(
+                            resolve_legacy_battle_actor_action_mode(
+                                {.action = &action, .startup = startup},
+                                actor_token
+                            ),
+                            mode_request
+                        );
+                    result.actor_action_modes[0U] = result.actor_action_mode;
+                    ++result.actor_action_mode_calls;
+                    if (result.actor_action_mode.status !=
+                        LegacyBattleActorActionModeStatus::completed) {
+                        result.status = LegacyBattleActionDispatchStatus::
+                            actor_action_mode_typed_stop;
+                        result.return_value =
+                            result.actor_action_mode.return_eax;
+                        return result;
+                    }
                     result.actor_availability_block =
                         set_legacy_battle_actor_availability_block(
                             &final_actor
@@ -200,8 +222,10 @@ LegacyBattleActionDispatchResult advance_legacy_battle_post_action(
                             {
                                 .value = 0U,
                                 .actor_token = actor_token,
-                                .entry_eax = mode.eax,
-                                .entry_edx = mode.edx,
+                                .entry_eax =
+                                    result.actor_action_mode.return_eax,
+                                .entry_edx =
+                                    result.actor_action_mode.return_edx,
                             }
                         );
                     ++result.actor_availability_block_calls;

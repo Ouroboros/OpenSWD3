@@ -189,6 +189,7 @@ public:
         const LegacyBattleScriptDispatchRequest& request
     )
         : workspace_(workspace), bindings_(bindings), port_(port),
+          request_(request),
           current_coordinate_access_(request.current_coordinate_access),
           live_count_control_(request.live_count_control),
           eax_(request.entry_eax), ecx_(request.entry_ecx),
@@ -765,6 +766,61 @@ private:
             }
         }
         return true;
+    }
+
+    bool set_actor_action_mode(
+        const u32 actor_token,
+        const u32 mode,
+        const u32 entry_eax,
+        const u32 entry_edx,
+        const u32 return_address,
+        const LegacyBattleActorCoordinateFlags& entry_flags
+    ) {
+        auto request =
+            request_
+                .actor_action_mode_requests[result_.actor_action_mode_calls];
+        request.actor_token = actor_token;
+        request.mode = mode;
+        request.entry_eax = entry_eax;
+        request.entry_edx = entry_edx;
+        request.entry_return_address = return_address;
+        request.entry_flags = entry_flags;
+        request.entry_flags_known = true;
+        result_.actor_action_modes[result_.actor_action_mode_calls] =
+            set_legacy_battle_actor_action_mode(
+                resolve_legacy_battle_actor_action_mode(
+                    {
+                        .action = &bindings_.action,
+                        .startup = &bindings_.startup,
+                    },
+                    actor_token
+                ),
+                request
+            );
+        const auto& mode_result =
+            result_.actor_action_modes[result_.actor_action_mode_calls];
+        result_.actor_action_mode = mode_result;
+        ++result_.actor_action_mode_calls;
+        eax_ = mode_result.return_eax;
+        ecx_ = mode_result.return_ecx;
+        edx_ = mode_result.return_edx;
+        flags_ = mode_result.flags;
+        if (mode_result.status !=
+            LegacyBattleActorActionModeStatus::completed) {
+            result_.status =
+                LegacyBattleScriptDispatchStatus::actor_action_mode_typed_stop;
+            return false;
+        }
+        return true;
+    }
+
+    void record_nested_actor_action_mode(
+        const LegacyBattleActorActionModeResult& nested
+    ) {
+        result_.actor_action_mode = nested;
+        result_.actor_action_modes[result_.actor_action_mode_calls] = nested;
+        ++result_.actor_action_mode_calls;
+        flags_ = nested.flags;
     }
 
     bool invoke(
@@ -1653,9 +1709,31 @@ private:
             invoke(
                 LegacyBattleScriptDispatchCall::pending_478a70, *token, {0U}
             );
-            invoke(
-                LegacyBattleScriptDispatchCall::pending_478710, *token, {17U}
-            );
+            if (code > 7) {
+                const u32 index = static_cast<u32>(code - 8);
+                if (!set_actor_action_mode(
+                        *token,
+                        17U,
+                        index * 3021U,
+                        edx_,
+                        0x0046B550U,
+                        subtract_flags(index * 1008U, index)
+                    )) {
+                    return finish(eax_);
+                }
+            } else {
+                const u32 index = static_cast<u32>(code);
+                if (!set_actor_action_mode(
+                        *token,
+                        17U,
+                        index,
+                        index * 1381U,
+                        0x0046B5E5U,
+                        subtract_flags(index * 24U, index)
+                    )) {
+                    return finish(eax_);
+                }
+            }
             invoke(
                 LegacyBattleScriptDispatchCall::pending_47d860,
                 *token,
@@ -2055,11 +2133,31 @@ private:
                     LegacyBattleScriptDispatchCall::pending_478a70, *token, {0U}
                 );
             }
-            invoke(
-                LegacyBattleScriptDispatchCall::pending_478710,
-                *token,
-                {action_code}
-            );
+            if (code > 7) {
+                const u32 index = static_cast<u32>(code - 8);
+                if (!set_actor_action_mode(
+                        *token,
+                        action_code,
+                        index * 3021U,
+                        static_cast<u32>(code - 7),
+                        action_code == 11U ? 0x0046B6B7U : 0x0046B87EU,
+                        subtract_flags(index * 1008U, index)
+                    )) {
+                    return finish(eax_);
+                }
+            } else {
+                const u32 index = static_cast<u32>(code);
+                if (!set_actor_action_mode(
+                        *token,
+                        action_code,
+                        index,
+                        index * 1381U,
+                        action_code == 11U ? 0x0046B75FU : 0x0046B900U,
+                        subtract_flags(index * 24U, index)
+                    )) {
+                    return finish(eax_);
+                }
+            }
             invoke(
                 LegacyBattleScriptDispatchCall::pending_47d860,
                 *token,
@@ -2315,9 +2413,17 @@ private:
                         .entry_eax = eax_,
                         .entry_ecx = *token,
                         .entry_edx = static_cast<u32>(345 * actor),
+                        .action_mode_request =
+                            request_.actor_action_mode_requests
+                                [result_.actor_action_mode_calls],
                     }
                 );
             ++result_.group_b_action_composition_calls;
+            if (result_.group_b_action_composition.mode_update_calls != 0U) {
+                record_nested_actor_action_mode(
+                    result_.group_b_action_composition.actor_action_mode
+                );
+            }
             eax_ = result_.group_b_action_composition.return_eax;
             ecx_ = result_.group_b_action_composition.return_ecx;
             edx_ = result_.group_b_action_composition.return_edx;
@@ -3684,9 +3790,20 @@ private:
                     .selector_argument = std::bit_cast<u32>(workspace_.value_a),
                     .output_token = 0x005028ACU + static_cast<u32>(slot) * 2U,
                     .actor_token = *actor_token,
+                    .action_mode_requests = {
+                        request_.actor_action_mode_requests
+                            [result_.actor_action_mode_calls],
+                        request_.actor_action_mode_requests
+                            [result_.actor_action_mode_calls],
+                    },
                 }
             );
         ++result_.group_b_action_profile_selection_calls;
+        if (result_.group_b_action_profile_selection.mode_update_calls != 0U) {
+            record_nested_actor_action_mode(
+                result_.group_b_action_profile_selection.actor_action_mode
+            );
+        }
         eax_ = result_.group_b_action_profile_selection.return_eax;
         ecx_ = result_.group_b_action_profile_selection.return_ecx;
         edx_ = result_.group_b_action_profile_selection.return_edx;
@@ -4676,11 +4793,17 @@ private:
                 *token,
                 {static_cast<u32>(signed_word(target))}
             );
-            invoke(
-                LegacyBattleScriptDispatchCall::pending_478710,
-                *token,
-                {advance}
-            );
+            const u32 actor_index = static_cast<u32>(code - 8);
+            if (!set_actor_action_mode(
+                    *token,
+                    advance,
+                    actor_index * 1007U,
+                    actor_index * 3021U,
+                    0x0046DCC9U,
+                    subtract_flags(actor_index * 1008U, actor_index)
+                )) {
+                return finish(eax_);
+            }
             bindings_.shared.actor_order_workspace.fill(0U);
             bindings_.shared.attack_order_workspace.fill(0U);
             for (std::size_t index = 0U;
@@ -4884,6 +5007,7 @@ private:
     LegacyBattleScriptWorkspace& workspace_;
     LegacyBattleScriptDispatchBindings bindings_;
     LegacyBattleScriptDispatchPort& port_;
+    LegacyBattleScriptDispatchRequest request_{};
     LegacyBattleScriptCurrentCoordinateAccess current_coordinate_access_{};
     LegacyBattleScriptLiveCountControl live_count_control_{};
     LegacyBattleScriptDispatchResult result_{};

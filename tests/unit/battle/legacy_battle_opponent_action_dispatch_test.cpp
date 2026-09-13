@@ -568,7 +568,11 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                     }
                 ) != port.calls.end() &&
                 port.count(0x004758A0U) == 0U &&
-                has_call_argument(port, 0x00478710U, 1U, 300U),
+                port.count(0x00478710U) == 0U &&
+                result.actor_action_mode_calls == 1U &&
+                result.actor_action_mode.return_eip == 0x00456080U &&
+                (*fixture.startup->group_b_lifecycle)[1U]
+                        .action_composition.action_kind == 300U,
             "opponent action one side zero commits pair then clears all three visual channels"
         );
     }

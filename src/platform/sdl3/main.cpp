@@ -2628,6 +2628,7 @@ public:
         battle_runtime_ = {};
         battle_script_workspace_ = {};
         battle_script_shared_ = {};
+        battle_action_dispatch_ = {};
         battle_actor_metrics_ = {};
         battle_final_actor_ = {};
         battle_input_dispatch_ = {};
@@ -2902,6 +2903,7 @@ public:
             {
                 .assets = battle_assets_,
                 .startup = battle_runtime_,
+                .action = battle_action_dispatch_,
                 .metrics = battle_actor_metrics_,
                 .final_actor = battle_final_actor_,
                 .input_dispatch = battle_input_dispatch_,
@@ -7250,6 +7252,7 @@ private:
     bool battle_setup_ready_{};
     openswd3::battle::LegacyBattleScriptWorkspace battle_script_workspace_;
     openswd3::battle::LegacyBattleScriptSharedState battle_script_shared_;
+    openswd3::battle::LegacyBattleActionDispatchState battle_action_dispatch_;
     openswd3::battle::LegacyBattleActorMetricState battle_actor_metrics_;
     openswd3::battle::LegacyBattleFinalActorStepState battle_final_actor_;
     openswd3::battle::LegacyBattleInputDispatchState battle_input_dispatch_;

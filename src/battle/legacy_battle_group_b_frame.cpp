@@ -32,7 +32,6 @@ constexpr u32 kCallPrepareSelection = 0x00478B30U;
 constexpr u32 kCallPublishSelection = 0x00478A70U;
 constexpr u32 kCallQuerySelectionMode = 0x00483820U;
 constexpr u32 kCallRandomBounded = 0x00439070U;
-constexpr u32 kCallSetActionMode = 0x00478710U;
 constexpr u32 kCallPublishStatusMode = 0x0047D860U;
 constexpr u32 kCallQuerySpecialAction = 0x0047D880U;
 constexpr u32 kCallQueryPhaseMode = 0x0047D8D0U;
@@ -892,13 +891,23 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                     return result;
                 }
                 if (result.group_b_status_action.return_eax != 0U) {
-                    static_cast<void>(invoke(
+                    const auto published = invoke(
                         port, result, kCallPublishSelection, {source_token, 0U}
-                    ));
+                    );
                     publish_action_target(0U);
-                    static_cast<void>(invoke(
-                        port, result, kCallSetActionMode, {source_token, 0x11U}
-                    ));
+                    if (!apply_legacy_battle_actor_action_mode_call(
+                            action,
+                            context,
+                            result,
+                            source_token,
+                            0x11U,
+                            published.eax,
+                            published.edx,
+                            0x00457E34U,
+                            published.flags
+                        )) {
+                        return result;
+                    }
                     static_cast<void>(invoke(
                         port, result, kCallPublishStatusMode, {source_token, 2U}
                     ));
@@ -906,6 +915,10 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                     const bool status_branch = std::bit_cast<i16>(status) < 0 ||
                         (status & 0x6000U) != 0U;
                     if (status_branch) {
+                        u32 action_mode_eax =
+                            result.group_b_status_action.return_eax;
+                        u32 action_mode_edx =
+                            result.group_b_status_action.return_edx;
                         const u32 stale_special_selection_pending =
                             state.special_selection_pending;
                         if (state.special_selection_pending == 1U) {
@@ -931,9 +944,27 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                         .entry_ecx = source_token,
                                         .entry_edx =
                                             stale_special_selection_pending,
+                                        .action_mode_requests = {
+                                            context.actor_action_mode_requests
+                                                [result
+                                                     .actor_action_mode_calls],
+                                            context.actor_action_mode_requests
+                                                [result
+                                                     .actor_action_mode_calls],
+                                        },
                                     }
                                 );
                             ++result.group_b_action_profile_mode_calls;
+                            if (result.group_b_action_profile_mode
+                                    .mode_update_calls != 0U) {
+                                result.actor_action_mode =
+                                    result.group_b_action_profile_mode
+                                        .actor_action_mode;
+                                result.actor_action_modes
+                                    [result.actor_action_mode_calls] =
+                                    result.actor_action_mode;
+                                ++result.actor_action_mode_calls;
+                            }
                             if (result.group_b_action_profile_mode.status !=
                                 LegacyBattleGroupBActionProfileModeStatus::
                                     completed) {
@@ -947,16 +978,33 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                             }
                             state.status_action_value =
                                 result.group_b_action_profile_mode.return_eax;
+                            action_mode_eax =
+                                result.group_b_action_profile_mode.return_eax;
+                            action_mode_edx =
+                                result.group_b_action_profile_mode.return_edx;
                             action.current_actor_index =
                                 static_cast<u16>(group_b_index);
                         }
                         if ((status & 0x4000U) != 0U) {
-                            static_cast<void>(invoke(
-                                port,
-                                result,
-                                kCallSetActionMode,
-                                {source_token, 2U}
-                            ));
+                            if (!apply_legacy_battle_actor_action_mode_call(
+                                    action,
+                                    context,
+                                    result,
+                                    source_token,
+                                    2U,
+                                    action_mode_eax,
+                                    action_mode_edx,
+                                    0x00457C68U,
+                                    logical_flags(
+                                        static_cast<u32>(status >> 8U) & 0x40U
+                                    )
+                                )) {
+                                return result;
+                            }
+                            action_mode_eax =
+                                result.actor_action_mode.return_eax;
+                            action_mode_edx =
+                                result.actor_action_mode.return_edx;
                             action.current_actor_index =
                                 static_cast<u16>(group_b_index);
                             if (state.opponent_text_present[group_b_index] !=
@@ -975,15 +1023,32 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                     )) {
                                     return result;
                                 }
+                                action_mode_eax = result.text_messages.back()
+                                                      .return_registers.eax;
+                                action_mode_edx = result.text_messages.back()
+                                                      .return_registers.edx;
                             }
                         }
                         if ((status & 0x2000U) != 0U) {
-                            static_cast<void>(invoke(
-                                port,
-                                result,
-                                kCallSetActionMode,
-                                {source_token, 6U}
-                            ));
+                            if (!apply_legacy_battle_actor_action_mode_call(
+                                    action,
+                                    context,
+                                    result,
+                                    source_token,
+                                    6U,
+                                    action_mode_eax,
+                                    action_mode_edx,
+                                    0x00457CA0U,
+                                    logical_flags(
+                                        static_cast<u32>(status >> 8U) & 0x20U
+                                    )
+                                )) {
+                                return result;
+                            }
+                            action_mode_eax =
+                                result.actor_action_mode.return_eax;
+                            action_mode_edx =
+                                result.actor_action_mode.return_edx;
                             action.current_actor_index =
                                 static_cast<u16>(group_b_index);
                         }
@@ -1130,6 +1195,15 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                             kCallQueryStatusSequence,
                             {source_token, 0x0053BD40U}
                         );
+                        if (!apply_legacy_battle_pending_actor_ready_action_modes(
+                                action,
+                                context,
+                                result,
+                                source_token,
+                                status_sequence
+                            )) {
+                            return result;
+                        }
                         u32 profile_flag_entry_eax = status_sequence.eax;
                         u32 profile_flag_entry_edx = status_sequence.edx;
                         if (status_sequence.eax == 1U) {

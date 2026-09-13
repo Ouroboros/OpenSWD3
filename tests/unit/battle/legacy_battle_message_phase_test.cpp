@@ -820,9 +820,19 @@ void test_battle_message_phase(openswd3::test::Context& test) {
             {.eax = 0x11111111U},
         };
         const auto result = run(fixture);
-        const auto committed = fixture.port.message_calls[7U];
-        const auto configured = fixture.port.message_calls[8U];
-        const auto resource = fixture.port.message_calls[9U];
+        const auto find_call = [&](const LegacyBattleMessagePhaseCall call) {
+            return *std::ranges::find_if(
+                fixture.port.message_calls,
+                [call](const auto& request) { return request.call == call; }
+            );
+        };
+        const auto committed =
+            find_call(LegacyBattleMessagePhaseCall::commit_active_actor);
+        const auto configured =
+            find_call(LegacyBattleMessagePhaseCall::configure_actor_action);
+        const auto resource = find_call(
+            LegacyBattleMessagePhaseCall::refresh_actor_message_percent
+        );
         bool records_reset = true;
         for (const auto& record : fixture.startup.reset.records_524788) {
             records_reset = records_reset && record.value_00 == 0xFFFFFFFFU &&
@@ -832,6 +842,9 @@ void test_battle_message_phase(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleMessagePhaseStatus::
                         completed &&
+                result.actor_action_mode_calls == 2U &&
+                result.actor_action_modes[0U].return_eip == 0x004671F9U &&
+                result.actor_action_modes[1U].return_eip == 0x004671F9U &&
                 result.actor_message_percent_refresh_calls == 1U &&
                 result.actor_message_percent_refresh.percent_refresh_calls ==
                     1U &&
@@ -878,7 +891,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         test.expect_true(
             committed.call ==
                     LegacyBattleMessagePhaseCall::commit_active_actor &&
-                committed.eax == 3021U && committed.edx == 0x00505904U,
+                committed.eax == 3021U && committed.edx == 3021U,
             "message 99 preserves the commit register snapshot after typed cleanup"
         );
         test.expect_true(

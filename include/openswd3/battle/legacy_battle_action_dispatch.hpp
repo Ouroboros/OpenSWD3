@@ -10,6 +10,7 @@
 #include "openswd3/battle/legacy_battle_actor_frame_snapshot_clear.hpp"
 #include "openswd3/battle/legacy_battle_actor_idle_state.hpp"
 #include "openswd3/battle/legacy_battle_actor_action_kind.hpp"
+#include "openswd3/battle/legacy_battle_actor_action_mode.hpp"
 #include "openswd3/battle/legacy_battle_actor_action_target.hpp"
 #include "openswd3/battle/legacy_battle_actor_display_kind.hpp"
 #include "openswd3/battle/legacy_battle_actor_start_gate.hpp"
@@ -86,6 +87,15 @@ struct LegacyBattleActionFourOhTwoParticleCallRequest {
     compat::u32 edx{};
 };
 
+struct LegacyBattlePendingActorReadyActionModeCall {
+    bool executed{};
+    compat::u32 mode{};
+    compat::u32 entry_eax{};
+    compat::u32 entry_edx{};
+    LegacyBattleActorCoordinateFlags entry_flags{};
+    bool entry_flags_known{true};
+};
+
 struct LegacyBattleActionCallReply {
     compat::u32 eax{};
     compat::u32 ecx{};
@@ -109,6 +119,8 @@ struct LegacyBattleActionCallReply {
     bool publish_group_a_count{};
     compat::u32 group_a_count{};
     std::span<compat::u16> resource_words{};
+    std::array<LegacyBattlePendingActorReadyActionModeCall, 8>
+        pending_actor_ready_action_modes{};
 };
 
 class LegacyBattleSummonFramePort {
@@ -1390,6 +1402,8 @@ struct LegacyBattleActionDispatchContext {
     LegacyBattleActorStartGateRequest actor_start_gate_request{};
     LegacyBattleActorFrameSnapshotClearRequest
         actor_frame_snapshot_clear_request{};
+    std::array<LegacyBattleActorActionModeRequest, 41>
+        actor_action_mode_requests{};
     std::array<LegacyBattleActorActionTargetRequest, 2>
         action_dispatch_action_target_requests{};
     std::array<LegacyBattleActorActionTargetRequest, 4>
@@ -1418,6 +1432,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     actor_turn_completion_typed_stop,
     actor_idle_state_typed_stop,
     actor_action_kind_typed_stop,
+    actor_action_mode_typed_stop,
     actor_display_kind_typed_stop,
     actor_start_gate_typed_stop,
     actor_action_target_typed_stop,
@@ -1507,6 +1522,9 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 actor_idle_state_calls{};
     LegacyBattleActorActionKindResult actor_action_kind{};
     compat::u32 actor_action_kind_calls{};
+    LegacyBattleActorActionModeResult actor_action_mode{};
+    std::array<LegacyBattleActorActionModeResult, 41> actor_action_modes{};
+    compat::u32 actor_action_mode_calls{};
     LegacyBattleActorDisplayKindResult actor_display_kind{};
     compat::u32 actor_display_kind_calls{};
     LegacyBattleActorStartGateResult actor_start_gate{};
@@ -1851,6 +1869,27 @@ advance_legacy_battle_target_phase_spawn_frame(
     rendering::LegacyFramePieceProvider& frame_provider,
     const LegacyBattleSummonFrameRequest& request
 );
+
+[[nodiscard]] bool apply_legacy_battle_actor_action_mode_call(
+    LegacyBattleActionDispatchState& state,
+    LegacyBattleActionDispatchContext& context,
+    LegacyBattleActionDispatchResult& result,
+    compat::u32 actor_token,
+    compat::u32 mode,
+    compat::u32 entry_eax,
+    compat::u32 entry_edx,
+    compat::u32 return_address,
+    const LegacyBattleActorCoordinateFlags& entry_flags,
+    bool entry_flags_known = true
+) noexcept;
+
+[[nodiscard]] bool apply_legacy_battle_pending_actor_ready_action_modes(
+    LegacyBattleActionDispatchState& state,
+    LegacyBattleActionDispatchContext& context,
+    LegacyBattleActionDispatchResult& result,
+    compat::u32 actor_token,
+    const LegacyBattleActionCallReply& reply
+) noexcept;
 
 // sub_4539B0: dispatch one action code for the selected group-A actor and
 // group-B target, preserving the original special-code predispatch and the

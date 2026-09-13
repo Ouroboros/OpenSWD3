@@ -5,6 +5,7 @@ namespace {
 
 using compat::u8;
 using compat::u16;
+using compat::u32;
 
 [[nodiscard]] constexpr u16 read_profile_word(
     const std::array<std::byte, 0x28>& bytes, const std::size_t offset
@@ -20,6 +21,27 @@ using compat::u16;
 ) noexcept {
     return static_cast<u16>(bytes[offset]) |
         static_cast<u16>(static_cast<u16>(bytes[offset + 1U]) << 8U);
+}
+
+[[nodiscard]] constexpr bool has_even_parity(u32 value) noexcept {
+    value &= 0xFFU;
+    value ^= value >> 4U;
+    value ^= value >> 2U;
+    value ^= value >> 1U;
+    return (value & 1U) == 0U;
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+logical_byte_flags(const u8 value) noexcept {
+    return {
+        .carry = false,
+        .parity = has_even_parity(value),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = value == 0U,
+        .sign = (value & 0x80U) != 0U,
+        .overflow = false,
+    };
 }
 
 }  // namespace
@@ -112,20 +134,69 @@ select_legacy_battle_group_b_action_profile(
         ++result.output_write_calls;
         composition.mode_flags =
             static_cast<u8>(composition.mode_flags | 0x80U);
-        composition.display_kind = 2U;
-        composition.action_kind = 0U;
+        auto action_mode_request = request.action_mode_requests[0U];
+        action_mode_request.actor_token = request.actor_token;
+        action_mode_request.mode = 2U;
+        action_mode_request.entry_eax = result.return_eax;
+        action_mode_request.entry_edx = result.return_edx;
+        action_mode_request.entry_return_address = 0x004762C3U;
+        action_mode_request.entry_flags =
+            logical_byte_flags(composition.mode_flags);
+        action_mode_request.entry_flags_known = true;
+        result.actor_action_modes[0U] = set_legacy_battle_actor_action_mode(
+            {
+                .action_kind = &composition.action_kind,
+                .display_kind = &composition.display_kind,
+                .mode_flags = &composition.mode_flags,
+            },
+            action_mode_request
+        );
+        result.actor_action_mode = result.actor_action_modes[0U];
         ++result.mode_update_calls;
+        result.return_eax = result.actor_action_modes[0U].return_eax;
+        result.return_ecx = result.actor_action_modes[0U].return_ecx;
+        result.return_edx = result.actor_action_modes[0U].return_edx;
+        if (result.actor_action_modes[0U].status !=
+            LegacyBattleActorActionModeStatus::completed) {
+            result.status = LegacyBattleGroupBActionProfileSelectionStatus::
+                action_mode_typed_stop;
+            return result;
+        }
         result.return_eax = 0U;
-        result.return_ecx = request.actor_token;
         return result;
     }
 
     composition.profile_mode_selector =
         static_cast<u16>(request.selector_argument);
-    composition.action_kind = 1U;
+    auto action_mode_request = request.action_mode_requests[1U];
+    action_mode_request.actor_token = request.actor_token;
+    action_mode_request.mode = 1U;
+    action_mode_request.entry_eax = result.return_eax;
+    action_mode_request.entry_edx = result.return_edx;
+    action_mode_request.entry_return_address = 0x004762DAU;
+    action_mode_request.entry_flags = logical_byte_flags(
+        static_cast<u8>(result.return_eax) & static_cast<u8>(0x02U)
+    );
+    action_mode_request.entry_flags_known = true;
+    result.actor_action_modes[1U] = set_legacy_battle_actor_action_mode(
+        {
+            .action_kind = &composition.action_kind,
+            .display_kind = &composition.display_kind,
+            .mode_flags = &composition.mode_flags,
+        },
+        action_mode_request
+    );
+    result.actor_action_mode = result.actor_action_modes[1U];
     ++result.mode_update_calls;
-    result.return_eax = 1U;
-    result.return_ecx = request.actor_token;
+    result.return_eax = result.actor_action_modes[1U].return_eax;
+    result.return_ecx = result.actor_action_modes[1U].return_ecx;
+    result.return_edx = result.actor_action_modes[1U].return_edx;
+    if (result.actor_action_modes[1U].status !=
+        LegacyBattleActorActionModeStatus::completed) {
+        result.status = LegacyBattleGroupBActionProfileSelectionStatus::
+            action_mode_typed_stop;
+        return result;
+    }
     return result;
 }
 

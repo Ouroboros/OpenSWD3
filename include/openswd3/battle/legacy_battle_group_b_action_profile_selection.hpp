@@ -14,6 +14,7 @@ struct LegacyBattleGroupBActionProfileSelectionRequest {
     compat::u32 selector_argument{};
     compat::u32 output_token{};
     compat::u32 actor_token{};
+    std::array<LegacyBattleActorActionModeRequest, 2> action_mode_requests{};
 };
 
 enum class LegacyBattleGroupBActionProfileSelectionStatus : compat::u8 {
@@ -22,6 +23,7 @@ enum class LegacyBattleGroupBActionProfileSelectionStatus : compat::u8 {
     resource_state_typed_stop,
     profile_load_typed_stop,
     output_state_typed_stop,
+    action_mode_typed_stop,
 };
 
 struct LegacyBattleGroupBActionProfileSelectionResult {
@@ -31,6 +33,8 @@ struct LegacyBattleGroupBActionProfileSelectionResult {
     compat::u32 profile_load_calls{};
     compat::u32 profile_dwords_cleared{};
     compat::u32 mode_update_calls{};
+    LegacyBattleActorActionModeResult actor_action_mode{};
+    std::array<LegacyBattleActorActionModeResult, 2> actor_action_modes{};
     compat::u32 output_write_calls{};
     compat::u16 profile_id{};
     compat::u16 derived_word{};

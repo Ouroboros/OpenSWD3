@@ -20,7 +20,6 @@ using compat::u16;
 using compat::u32;
 
 constexpr u32 kCallCommitVisual = 0x0047F150U;
-constexpr u32 kCallSetDelay = 0x00478710U;
 constexpr u32 kCallQuerySelection = 0x0047C680U;
 constexpr u32 kCallQuerySpecial = 0x0047D8E0U;
 constexpr u32 kCallAllocate = 0x00489E90U;
@@ -466,9 +465,26 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
             }
             clear_selection_state(state, port);
             state.current_actor_index = 0xFFFFU;
-            static_cast<void>(
-                invoke(state, port, result, kCallSetDelay, {source_token, 300U})
-            );
+            const auto& seeded_mode =
+                context
+                    .actor_action_mode_requests[result.actor_action_mode_calls];
+            const u32 mode_edx = result.framebuffer_clear_calls != 0U
+                ? static_cast<u32>(context.raster.surface.width) *
+                    static_cast<u32>(context.raster.surface.height) * 2U
+                : seeded_mode.entry_edx;
+            if (!apply_legacy_battle_actor_action_mode_call(
+                    state,
+                    context,
+                    result,
+                    source_token,
+                    300U,
+                    0U,
+                    mode_edx,
+                    0x00456080U,
+                    subtract_flags(0U, 0U)
+                )) {
+                return result;
+            }
             return result;
         }
 
@@ -717,13 +733,24 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
             return result;
         }
         const u32 target_token = group_a_token(target_index);
-        if (invoke(state, port, result, kCallTargetComplete, {target_token})
-                .eax != 1U) {
+        const auto target_complete =
+            invoke(state, port, result, kCallTargetComplete, {target_token});
+        if (target_complete.eax != 1U) {
             return result;
         }
-        static_cast<void>(
-            invoke(state, port, result, kCallSetDelay, {target_token, 0U})
-        );
+        if (!apply_legacy_battle_actor_action_mode_call(
+                state,
+                context,
+                result,
+                target_token,
+                0U,
+                target_complete.eax,
+                target_complete.edx,
+                0x0045652BU,
+                subtract_flags(0U, 0U)
+            )) {
+            return result;
+        }
         const u32 stage = target_index + 4U;
         if (!remove_attack_order_entry(context, result, stage)) {
             return result;

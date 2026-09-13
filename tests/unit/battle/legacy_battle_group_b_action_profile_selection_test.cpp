@@ -65,11 +65,33 @@ void test_battle_group_b_action_profile_selection(
                 result.profile_id == 0x1111U &&
                 result.derived_word == 0x3456U &&
                 result.profile_load_calls == 1U &&
+                result.mode_update_calls == 1U &&
+                result.actor_action_mode.return_eip == 0x004762DAU &&
+                result.actor_action_modes[1U].return_eip == 0x004762DAU &&
                 actor.action_composition.derived_words[0U] == 0x3456U &&
                 actor.action_composition.profile_mode_selector == 1U &&
                 actor.action_composition.action_kind == 1U &&
                 output == 0xFFFFFFFFU,
             "group B profile selection loads the selector-one MON record and chooses mode one"
+        );
+
+        openswd3::battle::LegacyBattleGroupBActionProfileSelectionRequest
+            request{
+                .selector_argument = 1U,
+                .output_token = 0x00600000U,
+                .actor_token = actor.object_token,
+            };
+        request.action_mode_requests[1U].access.return_address_readable = false;
+        const auto stopped = select_legacy_battle_group_b_action_profile(
+            &actor, {.dword = &output}, mon, request
+        );
+        test.expect_true(
+            stopped.status ==
+                    LegacyBattleGroupBActionProfileSelectionStatus::
+                        action_mode_typed_stop &&
+                stopped.mode_update_calls == 1U &&
+                stopped.actor_action_mode.return_eip == 0x0047873EU,
+            "group B profile selection RET stop suppresses its caller suffix"
         );
     }
 
@@ -96,6 +118,8 @@ void test_battle_group_b_action_profile_selection(
                     LegacyBattleGroupBActionProfileSelectionStatus::completed &&
                 result.profile_id == 0x2222U &&
                 result.derived_word == 0x4567U &&
+                result.mode_update_calls == 1U &&
+                result.actor_action_modes[0U].return_eip == 0x004762C3U &&
                 result.output_value == 0x1234U && output == 0x1234U &&
                 actor.action_composition.display_kind == 2U &&
                 actor.action_composition.action_kind == 0U,

@@ -14,6 +14,7 @@ namespace {
 
 using openswd3::battle::LegacyBattleActorCoordinatesState;
 using openswd3::battle::LegacyBattleActorCurrentCoordinateQueryStatus;
+using openswd3::battle::LegacyBattleActionDispatchState;
 using openswd3::battle::LegacyBattleActorMetricState;
 using openswd3::battle::LegacyBattleAssets;
 using openswd3::battle::LegacyBattleFinalActorStepState;
@@ -42,6 +43,7 @@ using openswd3::compat::u32;
 struct Fixture {
     LegacyBattleAssets assets;
     LegacyBattleStartupState startup;
+    LegacyBattleActionDispatchState action;
     LegacyBattleActorMetricState metrics;
     LegacyBattleFinalActorStepState final_actor;
     LegacyBattleInputDispatchState input_dispatch;
@@ -61,6 +63,7 @@ struct Fixture {
         return {
             .assets = assets,
             .startup = startup,
+            .action = action,
             .metrics = metrics,
             .final_actor = final_actor,
             .input_dispatch = input_dispatch,
@@ -228,6 +231,8 @@ void test_battle_group_b_action_composition_script_caller(
             result.status == LegacyBattleScriptDispatchStatus::completed &&
                 result.group_b_action_composition_calls == 1U &&
                 result.group_b_action_composition.port_calls == 3U &&
+                result.actor_action_mode_calls == 1U &&
+                result.actor_action_modes[0U].return_eip == 0x004761BAU &&
                 fixture.workspace.value_a == 0x77 &&
                 fixture.workspace.value_b == 2 &&
                 fixture.workspace.value_c == 0 &&
@@ -346,6 +351,8 @@ void test_battle_group_b_action_profile_selection_script_caller(
                 result.group_b_action_profile_selection.status ==
                     LegacyBattleGroupBActionProfileSelectionStatus::completed &&
                 result.group_b_action_profile_selection.return_eax == 1U &&
+                result.actor_action_mode_calls == 1U &&
+                result.actor_action_modes[0U].return_eip == 0x004762DAU &&
                 fixture.shared.actor_target_words[2U] == 0x8000U &&
                 fixture.shared.actor_target_words[3U] == 0xBEEFU &&
                 fixture.workspace.cursor == 8U &&
@@ -1291,7 +1298,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     };
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        Fixture& fixture = *fixture_owner;
         Port port;
         prepare_script(fixture, 2, 8U);
         auto& actor = fixture.startup.party[0U];
@@ -1348,7 +1356,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     }
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        Fixture& fixture = *fixture_owner;
         Port port;
         prepare_script(fixture, 2, 2U);
         prepare_group_b(fixture);
@@ -1395,7 +1404,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     }
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        Fixture& fixture = *fixture_owner;
         Port port;
         prepare_script(fixture, 44, 8U);
         fixture.startup.party[0U].position_x = 20U;
@@ -1429,7 +1439,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     }
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        Fixture& fixture = *fixture_owner;
         Port port;
         prepare_script(fixture, 44, 2U);
         prepare_group_b(fixture);
@@ -1463,7 +1474,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     }
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        Fixture& fixture = *fixture_owner;
         Port port;
         prepare_script(fixture, 59, 9U);
         fixture.startup.party[1U].position_x = 0xFFFEU;
@@ -1521,7 +1533,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     }
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        Fixture& fixture = *fixture_owner;
         Port port;
         prepare_script(fixture, 59, 2U);
         prepare_group_b(fixture);
@@ -1578,7 +1591,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     }
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        Fixture& fixture = *fixture_owner;
         Port port;
         prepare_script(fixture, 2, 9U);
         fixture.startup.party[1U].coordinate_mode_gate_read_accessible = false;
@@ -1612,7 +1626,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     }
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        Fixture& fixture = *fixture_owner;
         Port port;
         prepare_script(fixture, 44, 8U);
         fixture.startup.party[0U].position_x_read_accessible = false;
@@ -1648,7 +1663,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     }
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        Fixture& fixture = *fixture_owner;
         Port port;
         prepare_script(fixture, 44, 2U);
         fixture.workspace.pair_x = 0xAAAAU;
@@ -1684,7 +1700,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     }
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        Fixture& fixture = *fixture_owner;
         Port port;
         prepare_script(fixture, 59, 9U);
         auto& actor = fixture.startup.party[1U];
@@ -1729,7 +1746,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     }
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        Fixture& fixture = *fixture_owner;
         Port port;
         prepare_script(fixture, 59, 2U);
         prepare_group_b(fixture);
@@ -1775,7 +1793,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     }
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        Fixture& fixture = *fixture_owner;
         Port port;
         prepare_script(fixture, 59, 9U);
         auto& actor = fixture.startup.party[1U];
@@ -1819,7 +1838,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     }
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        Fixture& fixture = *fixture_owner;
         Port port;
         prepare_script(fixture, 59, 2U);
         prepare_group_b(fixture);
@@ -1860,7 +1880,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     }
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        Fixture& fixture = *fixture_owner;
         Port port;
         fixture.opcode(5);
         fixture.write_u16(2U, 8U);
@@ -1911,7 +1932,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     }
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        Fixture& fixture = *fixture_owner;
         Port port;
         fixture.opcode(13);
         fixture.write_u16(2U, 2U);
@@ -1948,7 +1970,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     }
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        Fixture& fixture = *fixture_owner;
         Port port;
         prepare_group_b(fixture);
         auto& actor = (*fixture.startup.group_b_lifecycle)[0U];
@@ -1984,7 +2007,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     }
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        Fixture& fixture = *fixture_owner;
         Port port;
         fixture.opcode(22);
         fixture.write_u16(2U, static_cast<u16>(-1));
@@ -2035,7 +2059,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     }
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        Fixture& fixture = *fixture_owner;
         Port port;
         fixture.opcode(40);
         fixture.write_u16(2U, 0U);
@@ -2076,7 +2101,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     }
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        Fixture& fixture = *fixture_owner;
         Port port;
         fixture.opcode(45);
         fixture.startup.party_count = 1U;
@@ -2162,7 +2188,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     }
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        Fixture& fixture = *fixture_owner;
         Port port;
         fixture.opcode(50);
         fixture.write_u16(2U, 2U);
@@ -2217,7 +2244,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     }
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        Fixture& fixture = *fixture_owner;
         Port port;
         fixture.opcode(68);
         fixture.write_u16(2U, 8U);
@@ -2249,7 +2277,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     }
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        Fixture& fixture = *fixture_owner;
         Port port;
         fixture.opcode(73);
         fixture.write_u16(2U, 100U);
@@ -2287,7 +2316,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     }
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        Fixture& fixture = *fixture_owner;
         Port port;
         fixture.opcode(22);
         fixture.write_u16(2U, static_cast<u16>(-1));
@@ -2347,7 +2377,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     }
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        Fixture& fixture = *fixture_owner;
         Port port;
         fixture.opcode(5);
         fixture.write_u16(2U, 8U);
@@ -2382,7 +2413,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     }
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        Fixture& fixture = *fixture_owner;
         Port port;
         fixture.opcode(13);
         fixture.write_u16(2U, 2U);
@@ -2421,7 +2453,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     }
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        Fixture& fixture = *fixture_owner;
         Port port;
         fixture.opcode(39);
         fixture.write_u16(2U, 0U);
@@ -2459,7 +2492,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     }
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        Fixture& fixture = *fixture_owner;
         Port port;
         fixture.opcode(40);
         fixture.write_u16(2U, 0U);
@@ -2495,7 +2529,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     }
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        Fixture& fixture = *fixture_owner;
         Port port;
         fixture.opcode(45);
         fixture.startup.party_count = 1U;
@@ -2525,7 +2560,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     }
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        Fixture& fixture = *fixture_owner;
         Port port;
         fixture.opcode(50);
         fixture.write_u16(2U, 2U);
@@ -2562,7 +2598,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     }
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        Fixture& fixture = *fixture_owner;
         Port port;
         fixture.opcode(68);
         fixture.write_u16(2U, 2U);
@@ -2591,7 +2628,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
     }
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        Fixture& fixture = *fixture_owner;
         Port port;
         fixture.opcode(73);
         fixture.write_u16(2U, 100U);
@@ -4092,13 +4130,20 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
         fixture.opcode(78);
         fixture.write_u16(2U, 8U);
         fixture.write_u16(4U, 0U);
-        static_cast<void>(run_legacy_battle_script_dispatch(
+        const auto first = run_legacy_battle_script_dispatch(
             fixture.workspace, fixture.bindings(), port
-        ));
+        );
         test.expect_true(
             fixture.workspace.cursor == 0U &&
-                fixture.input_dispatch.selected_actor_reset_gate == 1U,
-            "case seventy-eight waits in place while its asynchronous gate is set"
+                fixture.input_dispatch.selected_actor_reset_gate == 1U &&
+                first.actor_action_mode_calls == 1U &&
+                first.actor_action_modes[0U].return_eip == 0x0046DCC9U &&
+                fixture.action.group_a_action_execution[0U].action_kind == 0U &&
+                fixture.startup.party[0U]
+                        .item_effect_application.display_kind == 6U &&
+                fixture.startup.party[0U].item_effect_application.mode_flags ==
+                    0x08U,
+            "case seventy-eight waits in place after its typed physical action-mode caller"
         );
         fixture.workspace.word_a = 1U;
         fixture.input_dispatch.selected_actor_reset_gate = 0U;
@@ -4108,6 +4153,35 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
         test.expect_true(
             fixture.workspace.cursor == 6U,
             "case seventy-eight advances after the frame clears its gate"
+        );
+    }
+
+    {
+        Fixture fixture;
+        Port port;
+        fixture.opcode(78);
+        fixture.write_u16(2U, 8U);
+        fixture.write_u16(4U, 0U);
+        fixture.shared.actor_order_workspace.fill(0xAAAAAAAAU);
+        openswd3::battle::LegacyBattleScriptDispatchRequest request;
+        request.actor_action_mode_requests[0U].access.return_address_readable =
+            false;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port, request
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::
+                        actor_action_mode_typed_stop &&
+                result.actor_action_mode_calls == 1U &&
+                result.actor_action_modes[0U].return_eip == 0x0047876BU &&
+                fixture.workspace.cursor == 0U &&
+                fixture.input_dispatch.selected_actor_reset_gate == 0U &&
+                std::ranges::all_of(
+                    fixture.shared.actor_order_workspace,
+                    [](const u32 value) { return value == 0xAAAAAAAAU; }
+                ),
+            "case seventy-eight RET stop suppresses every caller suffix mutation"
         );
     }
 

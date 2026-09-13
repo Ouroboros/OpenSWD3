@@ -1,302 +1,179 @@
-# OpenSWD3 执行 GOAL
+# OpenSWD3 原生重实现执行计划（Pi / v913）
 
-版本：v912
+> 本文件是当前唯一执行入口。
+> 当前工作包：`audit_order=299 / 0x00478770 / sub_478770`。
+> Workpacks 1–298已关闭；模块10仍未完成，禁止提前进入模块11或最终验收。
 
-最后更新：2026-09-13
+## 1. 最终目标
 
-当前阶段：B · 按模块逆向、实现与验证
+完整执行战斗函数workpack，直至：
 
-当前步骤：模块10 · 工作包298 REVIEW 1静态边界与caller闭包
+1. `analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv`达到`422/422`；
+2. 每项均具有实现映射、不可达证明或合规阻塞说明；
+3. 战斗生命周期、跨模块集成和I5验收通过；
+4. B11及项目最终验收完成；
+5. 所有要求均由当前仓库、测试、日志、提交和远端状态证明后，才可结束Goal。
 
-## 0. 执行约定
+Workpack 299完成不等于Goal完成。关闭后必须把本文件整体前移到Workpack 300。
 
-阶段提交、推送、工作区保护和提交标题统一遵循[`AGENTS.md`](../AGENTS.md)第11节；阶段性进度与TG汇报统一遵循第12节。本文件不复制这些长期规则，只保存项目目标、阶段定义、完成条件和当前执行队列。
+## 2. 当前基线
 
-## 1. 目标
+- 分支：`main`。
+- 已关闭基线：Workpacks 1–298。
+- 当前inventory：`298/422 = 288 platform_adapted + 10 assembly_exact + 124 pending_audit`。
+- 当前inventory SHA-256：`8bf8a407bbf1781c98d2096019ff31a38a4fe7c17e1de2b00695457b94793b76`。
+- 当前目标：`audit_order=299 / 0x00478770 / sub_478770`。
+- 当前目标唯一直接caller：`sub_478B60`内`0x00478CC8 -> 0x00478CCD`。
+- `sub_478B60`自身为`audit_order=315`，当前仍是`pending_audit`。
+- 不启动原版或OpenSWD3游戏程序；只执行静态取证、构建和测试。
 
-以 `swd3.exe.lst` 的完整反汇编为唯一行为真值，用 C++20、CMake 和 SDL3 实现可独立运行的 OpenSWD3，并继续读取原始游戏资产和存档。
+## 3. 权威机器边界
 
-初步还原要求 bug-for-bug 的 1:1 行为兼容。游戏逻辑 BUG 不修复；只有阻断启动或新系统兼容的问题允许在平台层做隔离且可验证的最小修正。
-
-本文件是后续工作的唯一执行顺序与阶段判定依据。`../analysis/plan.md` 只保留既有调研历史；各证据文档和机器目录提供技术事实，不另行定义竞争性的执行流程。
-
-## 2. 固定技术决定
-
-- 语言：C++20。
-- 构建：CMake 命令行，默认 Ninja Multi-Config；不依赖 Visual Studio IDE。
-- 编译器：MSVC 或 LLVM，工程文件不硬编码本机编译器路径。
-- 平台边界：SDL3；业务核心不直接依赖 DirectDraw、DirectInput 或其他旧 Windows 图形输入接口。
-- 音视频解码：统一放入项目自有`openswd3_ffmpeg`动态库；五个FFmpeg n9.0最小LGPL静态归档只在该平台库边界内链接，主程序只依赖OpenSWD3的stream/video ABI，不直接散布FFmpeg API。运行目录不再分发拆分FFmpeg DLL/SO；二进制发行版必须同时提供精确源码、非FFmpeg目标文件和重链接脚本组成的LGPL合规包。
-- 诊断基础设施：在继续扩大业务模块前建立线程安全日志系统；每条日志至少含毫秒时间、级别、源文件与行号、消息，正常落盘，并在日志初始化失败时回退到控制台/调试输出。日志只观测行为，不改变原逻辑时序和返回合同。
-- 文本内核：剧情脚本仍按汇编以原始字节和字节偏移解析，文本载荷在边界按 EXE 同目录 `openswd3.toml` 的 `[scripts].encoding` 解码；`big5` 对应 CP950、`gbk` 对应 CP936，缺省为 `big5`，不自动猜测。解码后的内核公共接口统一使用 `char16_t`/UTF-16，不使用平台宽度不同的 `wchar_t`。
-- 显示尺寸：游戏内分辨率固定为 `640×480`；`[window].width/height` 只记录 SDL3 宿主的普通窗口尺寸，`maximized` 记录最大化状态，内容保持等比缩放，正常退出时保存窗口布局并在下次启动恢复。
-- 汇编优先级：完整 LST 中的机器码字节与指令是唯一汇编主证据，高于 IDA 伪码、符号名、字符串解释和主观推断；ASM 不提供 LST 缺失的行为信息，不作为范围判定前置输入。
-- IDA 辅助入口：可用 `D:\Dev\Crack\IDA\idat.exe` 以 headless 模式打开 `swd3.idb`，辅助提取函数边界、交叉引用、类型和控制流；该输出只用于导航与复核，发生歧义时仍以完整 `swd3.exe.lst` 的机器码字节与指令为唯一行为真值。
-- 文件位置：所有新增文档、源码、测试和生成结果统一放在 `OpenSWD3/` 下分类保存；执行 GOAL 位于 `goal/`，逆向分析材料位于 `analysis/`。
-
-### 当前事实基线
-
-- 进程入口、消息泵、单帧调度、世界/特殊模式/战斗分支和退出顶层流程已有汇编证据。
-- 十个既有子系统已达到顶层 ABI 覆盖，39 项关键 ABI 合同已经人工复核；这不等于内部业务逻辑全部恢复。
-- 公共解压、主要资源容器、16 位软件像素规则、输入和时间的静态规格已经形成；唯一 glyph-mask 基准已在正确的 Windows 11 台湾繁体中文、CP950 与经典 `mingliu.ttc` 环境取得，正式跨平台 atlas 已对 157 个三字号 mask 逐字节零差异；此前错误字体环境的输出已删除。
-- 剧情 VM 198个显式opcode、146个handler、17条runtime path及全部special/default/window/common路径均已完成实现和P3验收。
-- B7世界地图已有限收口，B8剧情VM已完成P1–P3验收，B9特殊模式227/227已关闭；当前执行B10战斗函数审计，存档业务字段由B11最终验收。
-
-## 3. 执行方法
-
-先恢复全局程序架构，再按依赖顺序逐模块闭环。不会先把所有业务细节无限调研完，也不会在模块边界未知时猜测实现。
-
-阶段 A 只恢复足以稳定模块分工的总体框架。阶段 A 完成后立即进入首个模块；不等待剧情、地图、战斗和存档全部逆向完成。
-
-每个模块先做一次接口级逆向，达到“单模块开始条件”后便建立该模块实现。随后以一个函数、一个 handler、一条格式规则或必须共同验证的紧密耦合小组为单元，重复以下循环：
+完整LST将目标锁定为`0x00478770..0x0047877A`共11字节：
 
 ```text
-一个可独立验证的行为单元逆向
-→ 不看 C++，按 LST 建立汇编语义与控制流记录
-→ 更新该模块当前规格
-→ 从汇编条件独立推导分支与边界测试向量
-→ C++20 实现
-→ 汇编到 C++、C++ 到汇编双向逐基本块追溯
-→ 修正实现、测试和文档；有差异则从入口重新验证
-→ 真实资产、存档或固定状态验证
-→ 可用时与原程序差分
-→ 零差异、零未决后并入模块
+00478770  and dword ptr [ecx+26B8h],7FFFFFFFh
+0047877A  retn
 ```
 
-每完成一轮逆向后，必须重新完整读取`AGENTS.md`和`APPEND_SYSTEM.md`，再开始下一轮。
-
-每次提交完成后，必须重新完整读取`AGENTS.md`和本文件`goal/execution-plan-pi.md`，再开始任何后续工作。
-
-### REVIEW 与提交粒度
-
-REVIEW单元是最小提交粒度。每个工作包开始修改前必须先确定它包含一个还是多个REVIEW单元：默认一个工作包对应一个REVIEW单元；只有存在多个能够独立实现、测试、审查和回退的生产行为切片时才允许预先拆分。小工作包不得为追求小提交而人为拆分；已经确定的划分不得在执行过程中为了临时提交而缩小，划分发生实质变化时必须重新REVIEW。
-
-每个REVIEW单元必须同时包含实际生产代码路径、对应caller接入、对应测试、对应证据更新、影响范围要求的验证，以及完整staged/unstaged差异审查。禁止把只有目标本体、单个helper、接口声明、部分未验证实现、单独测试、单独文档或WIP/checkpoint作为独立REVIEW单元提交。
-
-REVIEW通过后必须立即按`AGENTS.md`完成commit、push和TG，再重新完整读取`AGENTS.md`和本文件；不得继续叠加下一REVIEW单元。REVIEW通过后若代码、测试、文档、暂存内容或工作区相关差异发生变化，原REVIEW立即失效，必须重新执行。
-
-一个工作包可以由一个或多个REVIEW单元组成，但当前`audit_order`未关闭前不得开始下一工作包。中间REVIEW只更新对应证据，inventory TSV继续保持`pending_audit`，主PLAN不得前移，也不得宣称工作包完成。最终REVIEW必须完成该工作包作用域内全部caller回收、inventory TSV、模块文档、主PLAN同步及完整发布门禁，随后才能把工作包标记为关闭。
-
-每个工作包开始前，必须先把完整REVIEW划分写入本文件唯一的“当前WORKPACK REVIEW计划”节；未写入时不得开始生产代码修改。执行中只允许在该节原位更新当前REVIEW状态，不得追加历史计划。当前工作包关闭后，开始下一工作包前必须用下一工作包的完整计划替换该节全部内容；不得在本文件保留、累积或追加已经完成的WORKPACK REVIEW计划。
-
-每个还原函数必须采用“汇编—C++ 双向收敛验证”，核对次数不设上限，以结论收敛而非
-完成固定次数作为停止条件。验证前先锁定 LST 地址范围、ABI、结构偏移和相关全局状态；
-在不参考现有 C++ 的情况下，按基本块记录地址、输入、条件跳转、数据读写、调用顺序、
-副作用及全部返回和异常出口。实现后先从汇编逐块映射到 C++，再从每项 C++ 行为反查到
-具体汇编地址或已批准的平台兼容例外。测试向量只能从汇编比较、跳转和数据宽度独立推导，
-必须覆盖跳转两侧及相等、零、正负、哨兵、截断、符号扩展和回绕边界；不得用现有实现的
-假设反向构造测试数据。发现任何差异时，必须同步修正实现、测试、规格和证据，并从函数
-入口重新执行完整双向验证，不能只复查差异附近。
-
-只有同时满足以下条件，函数或 handler 才能标记为 `assembly_exact`：全部汇编基本块均有
-实现映射、不可达证据或兼容例外；全部 C++ 可观察行为均可反查到汇编；条件方向、数据
-宽度、符号与零扩展、位运算、整数回绕、调用和重复调用顺序、状态写入、副作用及出口均
-无未解释差异；汇编独立推导的分支测试和适用的真实资产验证通过；最后一轮完整正向与
-反向追溯不再产生新差异或未决项。UT 通过、文档自洽或固定次数复核均不能单独证明收敛。
-
-同一时间只允许一个阶段或一个模块处于执行状态。新发现先归入对应模块的待确认项，不能自动扩展成新阶段，也不能使已经满足停止线的总体架构调研重新无限展开。
-
-验证门禁分层如下：
-
-- 单个函数、handler 或紧密耦合小工作包闭环时，执行定向测试和 Linux `core`/`app` 门禁；
-- Windows LLVM `app` 不随每个函数、handler 或小工作包重复编译；
-- Windows LLVM `app` 只在大阶段或模块正式关闭边界统一执行；每个边界都必须取得独立完整
-  门禁结果，前一阶段的通过结果不得替代后一阶段；
-- 大阶段 Windows 门禁发现的问题统一收集、统一修复，再重跑该阶段 Windows 门禁直至通过；
-  未取得对应 Windows 通过证据时不得宣告该大阶段完成；
-- 未到大阶段边界的阶段性汇报只报告本轮实际执行的 Linux/定向验证，不得暗示 Windows 已运行。
-
-阶段提交、推送、工作区保护和提交标题遵循[`AGENTS.md`](../AGENTS.md)第11节，不在本文件重复定义。
-
-## 4. 阶段 A：原程序架构恢复
-
-本阶段不创建正式重写工程，不实现游戏逻辑。
-
-### A1 · 顶层执行路径与模块骨架
-
-- `[x]` 覆盖进程入口、初始化、消息泵、单帧主循环、普通世界、特殊模式、战斗、保存/读取和退出。
-- `[x]` 把每条顶层路径落到明确模块。
-- `[x]` 记录帧内调用顺序以及互斥、等待和提前返回关系。
-
-### A2 · 函数归属
-
-- `[x]` 为现有函数目录中的每个函数机械分配模块候选或 `unresolved`，本阶段不逐函数恢复语义。
-- `[x]` 区分游戏自有函数、编译器/CRT 代码和第三方库边界；后两类只恢复游戏实际依赖的调用合同，不冒充自有模块实现范围。
-- `[x]` 只人工复核 39 个已确认 ABI 合同、全部顶层直接调用和跨模块边界调用。
-- `[x]` `unresolved` 项必须记录调用者、被调者和以后负责处理的模块；当前 `unresolved = 0`。
-
-### A3 · 状态所有权
-
-- `[x]` 为已有所有权目录中的状态和会跨模块传递的候选结构记录创建、读取、写入及销毁方；不在本阶段恢复每个内部字段。
-- `[x]` 找出剧情、动作、世界、特殊模式、战斗和存档的交叉写入。
-- `[x]` 区分状态所有者与临时借用者，避免新工程复制成无所有权的全局变量集合。
-
-### A4 · 依赖、生命周期与平台边界
-
-- `[x]` 建立模块依赖方向和循环依赖清单。
-- `[x]` 恢复初始化、每帧更新、场景切换、战斗切换、失焦恢复和退出销毁顺序。
-- `[x]` 把 Win32、DirectDraw、DirectInput、Miles、Bink 和 GDI 字形来源与业务核心分开。
-
-### A5 · 原程序模块到重写模块的映射
-
-- `[x]` 确定模块职责、输入输出和允许的依赖方向。
-- `[x]` 确定首轮实现顺序和每个模块的验证入口。
-- `[x]` 固定正式源码/测试目录、CMake 入口和首个模块采用的测试框架，避免实现时临时决定工程骨架。
-- `[x]` 只固定接口和所有权，不提前设计不受汇编证据支持的复杂类层次。
-- `[x]` 冻结首版架构基线；满足阶段 A 完成条件后，下一项必须是首个模块的接口级逆向与工程建立，不得转去全量深挖其他业务模块。
-
-### 阶段 A 产物
-
-- `../analysis/04-reverse-engineering/program-architecture.md`
-- `../analysis/04-reverse-engineering/inventory/module-function-ownership.tsv`
-- `../analysis/04-reverse-engineering/inventory/module-state-ownership.tsv`
-- `../analysis/04-reverse-engineering/inventory/module-dependencies.tsv`
-
-### 阶段 A 完成条件
-
-- 顶层执行路径全部进入明确模块。
-- 函数目录每一项都有机械模块候选或有后续处理归属的 `unresolved` 状态；无需在本阶段人工理解全部函数。
-- 39 个已确认 ABI 合同、全部顶层直接调用和跨模块调用已经人工归属。
-- 已有所有权目录中的状态和会影响模块接口的共享状态都有所有者；无需在本阶段恢复模块私有字段。
-- 可以说明各模块的初始化、帧内执行、切换和销毁顺序。
-- 平台替换边界与 1:1 业务核心已经分开。
-- 没有仍会改变模块划分、主要依赖方向或首个模块公共接口的未决问题。
-
-满足以上条件立即结束架构阶段。函数业务命名、模块私有结构、具体 opcode、地图字段、战斗算法和存档字段都不得成为延长 A 的理由。
-
-## 5. 阶段 B：按模块逆向、实现与验证
-
-阶段 A 已完成，首轮模块顺序固定如下：
-
-1. 兼容基础、SDL3 平台生命周期与顶层帧调度。
-2. 文件、内存、资源容器与公共解压。
-3. 输入、时间、等待与随机数。
-4. 软件渲染、文字、画面效果与最终呈现。
-5. 音频与视频。
-6. TSW/ACT/ANI/SND 资产运行时与公共动作记录。
-7. 地图、世界、角色、碰撞与寻路。
-8. 剧情 VM、场景调度与异步 action。
-9. 菜单、商店和其他特殊模式。
-10. 战斗状态机、AI 与数值系统。
-11. 存档、配置与持久化语义。
-
-存档物理容器可在资源模块实现；字段语义随剧情、世界和战斗状态逐项闭环，最后由持久化模块统一验收。
-
-阶段 A 可以依据汇编证据合并、拆分或调整以上候选，但只能形成一套最终顺序，不保留并行方案，也不得新增新的全局调研阶段。
-
-每个模块只维护一个工作包，至少包含：范围与非范围、汇编/数据证据、接口和状态所有权、当前实现单元、测试与差分点、未决项。算法细节写入模块规格，不写回本执行计划。
-
-### 单模块开始条件
-
-- 已列出对应汇编函数、handler、全局状态、资源和主要调用点；内部 helper 可以在模块实施中继续补充。
-- 职责、输入输出、依赖方向、生命周期和状态所有者明确。
-- 会影响公共接口的整数宽度、错误行为、顺序和兼容例外已有汇编证据。
-- 在写实现前先列出 UT 边界向量、适用的真实数据或固定状态样本，以及差分捕获点。
-
-满足以上条件便开始该模块的工程与首个实现单元，不等待模块全部内部行为逆向完毕。
-
-### 单模块闭环与移交条件
-
-- 范围内每个函数、handler 和格式字段都有实现映射、不可达证据或明确阻塞。
-- UT 覆盖正常、边界、等待、错误路径、整数回绕和已知原始 BUG。
-- 真实资产、存档或固定状态样本验证通过。
-- 范围内实现均已完成汇编—C++ 双向收敛验证并达到 `assembly_exact`，不存在未解释映射或仅靠 UT 支撑的结论。
-- 可运行的原程序差分通过；缺少运行后端时标记为 `blocked_runtime_oracle`，允许继续下一个模块，但不能宣称最终 1:1 差分完成。
-- 没有擅自修复游戏逻辑、改变随机调用顺序或改变帧内时序。
-
-全部条件满足时状态为 `module_closed`。如果唯一缺口是已登记的原程序运行后端，状态为 `module_closed_pending_oracle`，可以继续下一个模块；存在其他规格、实现或测试缺口时不得移交。
-
-## 6. 集成里程碑
-
-- `I1`：程序启动，建立 SDL3 窗口、原始逻辑时钟和空 framebuffer 呈现。
-- `I2`：读取原始资源，解压并按原像素规则产生确定 framebuffer。
-- `I3`：输入驱动角色在一张真实地图中移动、碰撞和寻路。
-- `I4`：剧情 VM 驱动地图、对话、动作和音频，等待/让出时序一致。
-- `I5`：从世界进入战斗，完成一次完整战斗并按原返回路径恢复。
-- `I6`：读取旧存档、运行、重新保存，并完成原程序读取兼容验证。
-
-每个里程碑至少保存固定输入、关键状态快照和 framebuffer 哈希；涉及随机行为时同时保存种子及调用序列。
-
-## 7. 验证状态
-
-每项行为可以同时具有以下证据状态，禁止用笼统的“已完成”代替验证等级：
-
-- `assembly_exact`：已完成汇编—C++ 双向逐基本块追溯、汇编独立分支测试与零未决收敛；固定次数复核或 UT 通过不足以取得此状态。
-- `asset_verified`：已用真实资产或存档验证。
-- `original_diff_verified`：已与原程序输出或状态差分。
-- `platform_adapted`：存在已记录的平台兼容隔离。
-- `unreachable_current_assets`：当前资产不可达，但原分支仍保留。
-- `blocked_runtime_oracle`：缺少原程序运行/捕获环境。
-- `hypothesis_only`：尚不能作为实现依据。
-
-`hypothesis_only` 不能与 `assembly_exact` 同时成立，也不能作为兼容核心的实现依据。UT 通过不能自动升级为 `original_diff_verified`。
-
-## 8. 全项目完成条件
-
-- 原程序自有且影响可观察行为的函数、指令、状态机和数据格式全部有实现映射。
-- 原始资产和现有存档可以使用，不依赖原 EXE。
-- 启动、世界、剧情、特殊模式、战斗、音视频、保存和退出路径全部可运行。
-- MSVC 与 LLVM 的规定构建配置均通过构建和测试。
-- 原始 BUG、整数行为、随机顺序、帧内顺序、像素结果和存档语义按规格保留。
-- 所有平台兼容例外都有原行为、失败原因、最小改动和验证记录。
-- 全部模块与集成里程碑完成；剩余阻塞必须由用户明确决定是否接受，不能自动视为完成。
-
-## 9. 计划维护限制
-
-本文件只允许进行四类正文修改：
-
-1. 更新步骤状态；
-2. 记录实际阻塞；
-3. 根据新汇编证据修正模块边界或顺序；
-4. 修正已经被证据证明错误的完成条件。
-
-新想法、函数细节和研究日志不得继续追加到本文件；它们进入模块规格、证据文档或待确认清单。未经用户确认，不新增阶段，不扩大完成条件。
-
-每次正文修改必须递增页首版本号；纯状态更新也属于正文修改。文档不维护冗长变更日志。
-
-## 10. 当前唯一执行队列
-
-1. `[x]` A1：恢复顶层执行路径和首版模块骨架。
-2. `[x]` A2：函数归属。
-3. `[x]` A3：状态所有权。
-4. `[x]` A4：依赖、生命周期和平台边界。
-5. `[x]` A5：原程序模块到重写模块映射，并冻结首轮模块顺序。
-6. `[x]` B1：兼容基础、SDL3平台生命周期与顶层帧调度已关闭，仅保留登记的原程序动态差分阻塞；见[`runtime-platform.md`](../analysis/04-reverse-engineering/modules/runtime-platform.md)。
-7. `[x]` B2：文件、内存、资源容器与公共解压已关闭，仅保留登记的原程序动态差分阻塞；见[`resource-io.md`](../analysis/04-reverse-engineering/modules/resource-io.md)。
-8. `[x]` 日志基础设施：线程安全日志、文件输出和失败回退已经完成；详细完成记录见历史归档。
-9. `[x]` B3：输入、时间、等待与随机数已关闭，仅保留登记的原程序动态差分阻塞；见[`input-time-rng.md`](../analysis/04-reverse-engineering/modules/input-time-rng.md)。
-10. `[x]` B4：软件渲染、文字、画面效果与最终呈现已有限收口，剩余跨模块接线归B10；见[`rendering.md`](../analysis/04-reverse-engineering/modules/rendering.md)。
-11. `[x]` B5：音频与视频及FFmpeg n9.0平台后端已关闭，仅保留原版Miles/Bink动态差分阻塞；见[`audio-video.md`](../analysis/04-reverse-engineering/modules/audio-video.md)。
-12. `[x]` B6：TSW/ACT/ANI/SND资产运行时与公共动作记录已关闭，仅保留登记的原程序动态差分阻塞；见[`asset-runtime.md`](../analysis/04-reverse-engineering/modules/asset-runtime.md)。
-13. `[x]` B7：地图、世界、角色、碰撞与寻路已按模块移交条件有限收口；当前状态、阻塞和证据见[`world-map.md`](../analysis/04-reverse-engineering/modules/world-map.md)及相关inventory/evidence。
-14. `[x]` B8：剧情VM、场景调度与异步action的P1–P3已经完成；[`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md)不再覆盖当前队列。
-15. `[x]` B9：菜单、商店和其他特殊模式的227/227工作项已经关闭；当前状态和阻塞见[`special-modes.md`](../analysis/04-reverse-engineering/modules/special-modes.md)。
-16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至`audit_order=297`；当前执行`audit_order=298 / 0x00478710`。
-17. `[ ]` B11：存档、配置与持久化语义；等待B10满足移交条件后开始。
-
-B7以后已经完成的详细执行记录已机械搬到[`execution-progress-history-pi.md`](execution-progress-history-pi.md)。该文件只保存历史，不定义当前执行顺序、状态或断点。
-
-当前只执行B10，不并行展开B11。
-
-当前执行`audit_order=298 / 0x00478710`战斗角色动作与显示模式设置函数；下一项需按inventory的`audit_order=299`锁定。
-
-### B10 当前WORKPACK REVIEW计划
-
-本节始终只保存当前工作包计划。REVIEW完成状态在本节原位更新；工作包关闭后，本节全部内容由下一工作包计划整体替换，不追加历史。
-
-当前工作包：`audit_order=298`、`0x00478710`。目标是完整恢复战斗角色动作与显示模式设置语义，并回收全部41处物理caller。
-
-当前断点：已预取LST静态边界`0x00478710..0x0047876B`。主体读取栈参数后按模式`2/13/3/14/6/15`分支：普通值写`actor+0x2A6C`动作种类；前三类写`actor+0x2A70`显示种类并清动作种类；`14/15`先把`actor+0x2A87` OR `0x40`，`6`先OR `0x08`，再写显示种类并清动作种类；两出口均返回EAX=1并`retn 4`。完整LST共41处真实CALL，分布于11个caller函数；尚未修改工作包298生产代码。
-
-#### REVIEW 1：typed动作/显示模式设置与全部caller回收
-
-状态：进行中。先完成完整分支、三字段canonical owner、41处物理caller及调用前后机器状态取证，再开始生产修改。
-
-- 从完整LST锁定函数边界、六类特殊参数、默认分支、两个`retn 4`出口、全部41处CALL与真实返回地址，并核对外部chunk、中段入口、别名reader/writer及延迟caller；机器码与指令仍为唯一行为真值。
-- 逐指令恢复参数dword读取、六次有序CMP、word截断写、mode byte读改写、显示种类写、动作种类清零、EAX=1及callee-cleanup RET；精确保留ECX/EDX、每条分支最终flags、栈参数与返回地址访问，以及任一字段fault时此前写入的部分提交。
-- 复用Group-A/Group-B既有`+0x2A6C`动作种类、`+0x2A70`显示种类与`+0x2A87`mode flags canonical owner，收敛现有跨startup/action/lifecycle投影，不新增平行actor数组、第二套模式状态或token槽。
-- 11类caller中的41处物理调用必须直接组合typed实现，逐处保留参数形成、actor token、调用前EAX/ECX/EDX、flags、真实返回地址、`retn 4`栈效果及post-call语义；已关闭地址不得保留generic opaque生产调用，retired/reserved ordinal如需保留则生产调用计数为零。
-- 测试覆盖默认参数、`2/13/3/14/6/15`、word截断、mode OR保留旧bit、每个CMP方向、参数/字段/RET停止、部分写入、两个出口、寄存器/flags/ESP/EIP、41处caller身份和生产raw调用归零；同步独立证据、caller证据、模块文档、生成器、inventory和PLAN。
-- 最终执行定向测试、AddressSanitizer/UBSan、Linux core、Linux app、全量/changed-range格式、零源码warning、连续十次core、inventory双次稳定生成、TMP分类及完整staged/unstaged发布审计。原版动态差分缺少完整actor、异常字段/栈页、41处caller寄存器/flags与SEH联合捕获后端时登记为`blocked_runtime_oracle`。
-
-模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。
+边界事实：
+
+- 1条读改写AND和1条普通RET；
+- 无callee、无条件分支、无局部标签、无外部chunk、无栈参数；
+- ECX是actor token；
+- 唯一直接caller在`sub_478B60`：
+  - `0x00478CC0 mov ecx,ebp`
+  - `0x00478CC2 mov [ebp+2AC4h],edi`
+  - `0x00478CC8 call sub_478770`
+  - `0x00478CCD pop edi`
+- caller在调用前已通过`actor+0x26B8` bit31门、`sub_47BA80`返回零门，并把`actor+0x2AC4`写为EDI；返回后直接执行四次POP与`retn 4`。
+
+## 4. 必须恢复的精确语义
+
+### 4.1 字段读改写
+
+- 从`actor+0x26B8`读取完整dword；
+- 与`0x7FFFFFFF`执行32位AND；
+- 把结果写回同一dword；
+- 仅清bit31，低31位逐位保持；
+- 即使bit31原本为零，也仍执行真实读改写访问，不得变成提前返回。
+
+### 4.2 寄存器、flags与栈
+
+- EAX、ECX、EDX保持入口值；
+- AND成功后的flags来自32位逻辑结果：CF/OF清零，ZF/SF/PF按结果，AF未定义；
+- 普通RET最后读取`[ESP]`返回地址并使ESP增加4；
+- RET本身不改flags。
+
+### 4.3 fault与部分提交
+
+- 读改写必须区分字段读不可达和字段写不可达；
+- 同一AND指令写失败时不提交字段，也不伪造AND完成后的flags；
+- RET读取失败发生在字段写入和AND flags已经提交之后；
+- 不增加actor预验、nil继续、范围夹限、短对象容错或替代返回。
+
+## 5. canonical owner要求
+
+先从完整`sub_478B60`、字段xref和现有startup/action/lifecycle状态中确定`actor+0x26B8`的唯一owner：
+
+1. 优先扩展已经承载同一物理actor的canonical owner；
+2. Group-A与Group-B必须沿既有actor token解析规则找到同一物理字段语义；
+3. 禁止新增与startup/action/lifecycle平行的actor数组、影子状态或第二套token槽；
+4. 如果现有待审opaque reply已发布该字段效果，必须改为同步同一canonical owner，不得同时保留相互分叉的状态。
+
+字段在语义核定前使用中性命名；证据确认bit31含义后再采用业务名。
+
+## 6. 唯一caller合同
+
+`sub_478B60`为Workpack 315，当前不得借Workpack 299提前恢复其完整大函数。Workpack 299必须：
+
+1. 记录`0x00478CC8 -> 0x00478CCD`唯一物理CALL身份；
+2. 证明当前生产路径没有对`0x00478770`的generic opaque直调；
+3. 在Workpack 315合同中登记：该caller必须在写`actor+0x2AC4`之后直接组合本typed leaf，保留入口EAX/EDX、AND flags、RET fault，以及返回后四次POP和`retn 4`的后缀阻断；
+4. 若已关闭Group-A/Group-B frame通过`sub_478B60`窄reply消费该调用效果，则reply只投影真实执行信息，由外层在同一canonical owner上组合typed leaf；不得伪造未执行分支；
+5. 不得为了“回收caller”复制或部分现代化`sub_478B60`剩余逻辑。
+
+## 7. 实施清单
+
+1. 重新完整读取`AGENTS.md`、memory、本PLAN、inventory、相邻证据、目标LST、唯一caller上下文和相关源码测试。
+2. 取证目标完整边界、字段全xref、`sub_478B60`控制流前后缀及现有actor owner。
+3. 新增独立typed leaf接口与实现，保留RMW、flags、RET、寄存器、ESP/EIP和typed-stop。
+4. 接入唯一canonical owner；只在第6节条件满足时增加待审caller reply投影。
+5. 新增叶函数和必要的caller合同测试；不得移动reserved地址或ordinal。
+6. 新文件全量clang-format；旧文件仅格式化changed ranges；运行`git diff --check`。
+7. 运行定向构建与真实CTest测试名；Ninja Multi-Config使用`-C Debug`。
+8. 仅用`analysis/tools/build_battle_workpack.py`把`0x00478770`登记为核定状态并生成inventory；连续双跑验证逐字节稳定。
+9. 新增证据文档并更新`analysis/04-reverse-engineering/modules/battle.md`。
+10. 执行正式门、发布审计、精确暂存、commit、push和TG。
+11. 提交后重新完整读取`AGENTS.md`和本PLAN，再整体前移到Workpack 300。
+
+## 8. 测试要求
+
+叶函数测试至少覆盖：
+
+- `0xFFFFFFFF -> 0x7FFFFFFF`；
+- `0x80000000 -> 0`；
+- bit31原本为零时值保持但RMW访问仍发生；
+- PF/ZF/SF/CF/OF及AF未定义；
+- EAX/ECX/EDX保持；
+- 字段读typed-stop零提交；
+- 字段写typed-stop零提交并保留入口flags；
+- RET typed-stop保留字段写入和AND flags，但ESP不推进；
+- 成功RET返回真实caller地址并使ESP增加4；
+- Group-A/Group-B canonical owner解析与非法token停止；
+- 生产`0x00478770` generic raw调用为零；
+- `0x00478CCD`caller身份和Workpack 315延期合同被静态锁定。
+
+## 9. 正式门禁
+
+所有项目命令使用：
+
+```bash
+export TMPDIR="$PWD/build/tmp/runtime"
+export TMP="$PWD/build/tmp/runtime"
+export TEMP="$PWD/build/tmp/runtime"
+export OPENSWD3_BUILD_JOBS=16
+export OPENSWD3_TEST_JOBS=16
+```
+
+必须完成：
+
+1. 定向构建与目标测试；
+2. `./build-asan.sh --test`；
+3. `./build.sh core --test`；
+4. `./build.sh app --test`；
+5. 连续10轮`./build.sh core --test`；
+6. 日志扫描：零OpenSWD3源码warning、测试失败、sanitizer finding和runtime error；
+7. TMP审计；
+8. inventory连续双生成与SHA-256稳定；
+9. unstaged与staged release audit；
+10. 新文件staged mode为`100644`；
+11. `goal/HANDOFF.md`和仓库根`compile_commands.json`不存在；
+12. 父级`compile_commands.json` symlink指向`OpenSWD3/build/linux-core/compile_commands.json`。
+
+直接CMake/CTest只能作定向诊断，不能替代正式仓库脚本门禁。源码或测试语义变化后必须重跑受影响的正式门。
+
+## 10. 文档、提交与通知
+
+- 证据文档必须包含边界、指令语义、owner、RMW/flags/fault、caller合同、测试和动态差分状态。
+- `analysis/04-reverse-engineering/modules/battle.md`追加Workpack 299关闭记录。
+- PLAN状态变化时递增版本；关闭后整体替换为Workpack 300计划。
+- 一个workpack只做一个REVIEW和一个commit，不拆分leaf、owner、测试或文档。
+- 提交必须使用`$commit` Skill；主Agent精确暂存，只提交本工作包文件，不提交`build/`。
+- push成功后发送固定五段TG，段间使用真实空行，只写高层中文。
+- 模块10验证段固定为：`验证：定向测试、AddressSanitizer、Linux core 199/199、Linux app 205/205 全部通过。`
+
+## 11. 动态差分与阻塞
+
+当前缺少原版完整Group-A/Group-B actor、`actor+0x26B8`异常内存页、RET异常栈页及唯一caller联合寄存器、flags与SEH捕获后端。静态LST、typed fault测试和现代路径可继续闭环；原版动态差分按证据登记`blocked_runtime_oracle`，不得伪造`original_diff_verified`。
+
+## 12. 完成条件
+
+Workpack 299只在以下全部成立时关闭：
+
+- 11字节完整机器语义和canonical owner已恢复；
+- 唯一caller合同有静态证据且不存在generic target调用；
+- 测试、格式、inventory、正式门、审计、提交、push与TG全部通过；
+- PLAN已前移到Workpack 300。
+
+Goal只有在Workpacks 299–422、B11和最终项目验收全部完成并经逐项审计后才能调用`goal_complete`。

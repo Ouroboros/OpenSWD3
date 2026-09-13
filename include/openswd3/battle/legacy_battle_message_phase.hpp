@@ -249,6 +249,8 @@ struct LegacyBattleMessagePhaseRequest {
     LegacyBattleVictoryItemListPanelRequest victory_item_list_panel_request{};
     LegacyBattleDefeatPanelRequest defeat_panel_request{};
     LegacyBattleTalismanResultPanelRequest talisman_result_panel_request{};
+    std::array<LegacyBattleActorActionModeRequest, 10>
+        actor_action_mode_requests{};
 };
 
 enum class LegacyBattleMessagePhaseStatus : compat::u8 {
@@ -274,6 +276,7 @@ enum class LegacyBattleMessagePhaseStatus : compat::u8 {
     victory_item_list_panel_typed_stop,
     defeat_panel_typed_stop,
     talisman_result_panel_typed_stop,
+    actor_action_mode_typed_stop,
     target_selection_entry_typed_stop,
     summon_frame_typed_stop,
     group_b_action_item_selection_typed_stop,
@@ -293,6 +296,8 @@ struct LegacyBattleMessagePhaseResult {
     compat::u32 group_a_prepare_calls{};
     std::vector<LegacyBattleGroupAActorCleanupResult> group_a_actor_cleanups;
     compat::u32 group_a_actor_cleanup_calls{};
+    std::array<LegacyBattleActorActionModeResult, 10> actor_action_modes{};
+    compat::u32 actor_action_mode_calls{};
     compat::u32 sample_calls{};
     compat::u32 target_selection_entry_calls{};
     compat::u32 actor_message_percent_refresh_calls{};

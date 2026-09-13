@@ -29,6 +29,24 @@ using compat::u8;
     return std::bit_cast<i32>(value);
 }
 
+[[nodiscard]] constexpr bool even_parity(const u8 value) noexcept {
+    return (std::popcount(value) & 1) == 0;
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+subtract_flags(const u32 left, const u32 right) noexcept {
+    const u32 value = left - right;
+    return {
+        .carry = left < right,
+        .parity = even_parity(static_cast<u8>(value)),
+        .auxiliary_carry = ((left ^ right ^ value) & 0x10U) != 0U,
+        .auxiliary_carry_defined = true,
+        .zero = value == 0U,
+        .sign = (value & 0x80000000U) != 0U,
+        .overflow = ((left ^ right) & (left ^ value) & 0x80000000U) != 0U,
+    };
+}
+
 class MessagePhaseGroupBActionItemPort final
     : public LegacyBattleGroupBActionItemSelectionPort {
 public:
@@ -428,9 +446,36 @@ private:
                 );
             }
             ecx_ = group_a_token(index);
-            call(
-                LegacyBattleMessagePhaseCall::set_group_a_actor_mode, ecx_, {1U}
-            );
+            auto mode_request = request_.actor_action_mode_requests
+                                    [result_.actor_action_mode_calls];
+            mode_request.actor_token = ecx_;
+            mode_request.mode = 1U;
+            mode_request.entry_eax = index * 1007U;
+            mode_request.entry_edx = index * 3021U;
+            mode_request.entry_return_address = 0x004671F9U;
+            mode_request.entry_flags = subtract_flags(index * 1008U, index);
+            result_.actor_action_modes[result_.actor_action_mode_calls] =
+                set_legacy_battle_actor_action_mode(
+                    resolve_legacy_battle_actor_action_mode(
+                        {
+                            .action = &bindings_.action,
+                            .startup = &bindings_.startup,
+                        },
+                        ecx_
+                    ),
+                    mode_request
+                );
+            const auto& mode =
+                result_.actor_action_modes[result_.actor_action_mode_calls];
+            ++result_.actor_action_mode_calls;
+            eax_ = mode.return_eax;
+            ecx_ = mode.return_ecx;
+            edx_ = mode.return_edx;
+            if (mode.status != LegacyBattleActorActionModeStatus::completed) {
+                return stop(
+                    LegacyBattleMessagePhaseStatus::actor_action_mode_typed_stop
+                );
+            }
             eax_ = bindings_.metrics.group_a_count;
             ++index;
         }

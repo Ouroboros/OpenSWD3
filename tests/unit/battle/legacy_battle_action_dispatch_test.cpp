@@ -673,6 +673,8 @@ void test_battle_group_b_action_composition_action_caller(
             result.status == LegacyBattleActionDispatchStatus::completed &&
                 result.group_b_action_composition_calls == 1U &&
                 result.group_b_action_composition.port_calls == 3U &&
+                result.actor_action_mode_calls == 1U &&
+                result.actor_action_modes[0U].return_eip == 0x004761BAU &&
                 result.attack_order_calls == 1U && state->message_gate == 0U &&
                 port.battle_message_state() == 0x2468U &&
                 actor.action_composition.action_text[0U] == 'A' &&
@@ -785,6 +787,8 @@ void test_battle_group_b_action_profile_selection_action_caller(
                     LegacyBattleGroupBActionProfileSelectionStatus::completed &&
                 result.group_b_action_profile_selection.return_eax == 0U &&
                 result.group_b_action_profile_selection.output_value == 0x56U &&
+                result.actor_action_mode_calls == 1U &&
+                result.actor_action_modes[0U].return_eip == 0x004762C3U &&
                 result.attack_order_calls == 1U &&
                 state->group_b_status_words[0U] == 0x8002U &&
                 state->message_aux == 1U &&
@@ -4427,8 +4431,41 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 result.attack_order_remove.matched &&
                 fixture.attack_order_records[0].value_00 == 0xFFFFFFFFU &&
                 (state.packed_actor_counter & 0xFFU) == 1U &&
+                result.actor_action_mode_calls == 1U &&
+                result.actor_action_mode.return_eip == 0x0045550CU &&
+                state.group_a_action_execution[0U].action_kind == 0U &&
+                port.count(0x00478710U) == 0U &&
                 port.count(0x0045EFB0U) == 0U && result.return_value == 1U,
             "action seven removes the opponent directly from the shared attack order before publishing completion"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        state.group_a_count = 1;
+        state.group_b_count = 1;
+        state.group_a_to_actor[0] = 0U;
+        Fixture fixture;
+        fixture.attack_order_records[0].value_00 = 0U;
+        DispatchPort port;
+        port.action = 7U;
+        port.push(0x00479850U, {.eax = 1U});
+        auto context = fixture.context();
+        context.actor_action_mode_requests[0U].access.return_address_readable =
+            false;
+
+        const auto result = dispatch(state, port, context, 0U, 0U);
+
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_action_mode_typed_stop &&
+                result.actor_action_mode_calls == 1U &&
+                result.actor_action_mode.return_eip == 0x0047873EU &&
+                fixture.attack_order_records[0].value_00 == 0U &&
+                (state.packed_actor_counter & 0xFFU) == 0U &&
+                result.attack_order_remove_calls == 0U,
+            "action seven RET stop suppresses the physical caller suffix"
         );
     }
 
@@ -7026,6 +7063,73 @@ void test_battle_action_kind_caller(openswd3::test::Context& test) {
                 return_stop.port_calls == 1U && port.count(0x004786C0U) == 0U &&
                 port.count(0x0047CE80U) == 2U,
             "main action dispatcher threads terminal registers into display-kind field and RET stops while suppressing local write and switch suffixes"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleActionDispatchState state;
+        Fixture fixture;
+        auto context = fixture.context();
+        openswd3::battle::LegacyBattleActionDispatchResult result;
+        LegacyBattleActionCallReply reply;
+        constexpr std::array<u32, 8> modes{2U, 15U, 2U, 15U, 1U, 15U, 2U, 1U};
+        constexpr std::array<u32, 8> return_addresses{
+            0x004803FAU,
+            0x0048055AU,
+            0x0048058CU,
+            0x0048066BU,
+            0x00480691U,
+            0x004809F9U,
+            0x00480A16U,
+            0x00480A53U,
+        };
+        for (std::size_t index = 0U; index < modes.size(); ++index) {
+            reply.pending_actor_ready_action_modes[index] = {
+                .executed = true,
+                .mode = modes[index],
+                .entry_eax = static_cast<u32>(0x100U + index),
+                .entry_edx = static_cast<u32>(0x200U + index),
+                .entry_flags = {.zero = index == 0U},
+            };
+        }
+        const bool completed = openswd3::battle::
+            apply_legacy_battle_pending_actor_ready_action_modes(
+                state, context, result, 0x005029D0U, reply
+            );
+        bool identities_match = result.actor_action_mode_calls == modes.size();
+        for (std::size_t index = 0U; index < return_addresses.size(); ++index) {
+            identities_match = identities_match &&
+                result.actor_action_modes[index].return_eip ==
+                    return_addresses[index] &&
+                result.actor_action_modes[index].return_edx == 0x200U + index;
+        }
+        test.expect_true(
+            completed && identities_match &&
+                result.actor_action_mode.return_eip == 0x00480A53U &&
+                state.group_a_action_execution[0U].action_kind == 1U &&
+                fixture.startup.party[0U]
+                        .item_effect_application.display_kind == 2U &&
+                fixture.startup.party[0U].item_effect_application.mode_flags ==
+                    0x40U,
+            "actor-ready projection preserves all eight physical action-mode caller identities"
+        );
+
+        openswd3::battle::LegacyBattleActionDispatchResult stopped;
+        auto stop_context = fixture.context();
+        stop_context.actor_action_mode_requests[3U]
+            .access.return_address_readable = false;
+        const bool suffix_allowed = openswd3::battle::
+            apply_legacy_battle_pending_actor_ready_action_modes(
+                state, stop_context, stopped, 0x005029D0U, reply
+            );
+        test.expect_true(
+            !suffix_allowed && stopped.actor_action_mode_calls == 4U &&
+                stopped.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_action_mode_typed_stop &&
+                stopped.actor_action_mode.return_eip == 0x0047876BU &&
+                stopped.actor_action_modes[3U].return_address_reads == 0U,
+            "actor-ready projection suppresses the remaining physical callers after a typed RET stop"
         );
     }
 }

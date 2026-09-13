@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_actor_action_mode.hpp"
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
 #include "openswd3/battle/legacy_battle_mon_definition.hpp"
 #include "openswd3/battle/legacy_battle_mon_profile.hpp"
@@ -51,6 +52,7 @@ struct LegacyBattleGroupBActionCompositionRequest {
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
+    LegacyBattleActorActionModeRequest action_mode_request{};
 };
 
 enum class LegacyBattleGroupBActionCompositionStatus : compat::u8 {
@@ -60,6 +62,7 @@ enum class LegacyBattleGroupBActionCompositionStatus : compat::u8 {
     output_typed_stop,
     text_copy_typed_stop,
     profile_load_typed_stop,
+    action_mode_typed_stop,
 };
 
 struct LegacyBattleGroupBActionCompositionResult {
@@ -69,6 +72,7 @@ struct LegacyBattleGroupBActionCompositionResult {
     compat::u32 port_calls{};
     compat::u32 text_bytes_written{};
     compat::u32 mode_update_calls{};
+    LegacyBattleActorActionModeResult actor_action_mode{};
     compat::u16 published_word{};
     compat::u16 profile_word{};
     compat::u32 return_eax{};

@@ -159,6 +159,7 @@ struct LegacyBattleScriptSharedState {
 struct LegacyBattleScriptDispatchBindings {
     LegacyBattleAssets& assets;
     LegacyBattleStartupState& startup;
+    LegacyBattleActionDispatchState& action;
     LegacyBattleActorMetricState& metrics;
     LegacyBattleFinalActorStepState& final_actor;
     LegacyBattleInputDispatchState& input_dispatch;
@@ -211,7 +212,7 @@ enum class LegacyBattleScriptDispatchCall : compat::u32 {
     reserved_actor_base_coordinates = 0x00478470U,
     reserved_actor_coordinate_publication = 0x004785C0U,
     reserved_actor_current_coordinate_query = 0x00478600U,
-    pending_478710 = 0x00478710U,
+    reserved_actor_action_mode = 0x00478710U,
     pending_478780 = 0x00478780U,
     pending_4787d0 = 0x004787D0U,
     pending_4787f0 = 0x004787F0U,
@@ -320,6 +321,7 @@ enum class LegacyBattleScriptDispatchStatus : compat::u8 {
     group_b_script_action_item_parameters_typed_stop,
     group_b_script_special_action_item_parameters_typed_stop,
     party_item_definition_typed_stop,
+    actor_action_mode_typed_stop,
 };
 
 struct LegacyBattleScriptCurrentCoordinateAccess {
@@ -345,6 +347,8 @@ struct LegacyBattleScriptDispatchRequest {
     LegacyBattleActorCoordinateFlags entry_flags{};
     LegacyBattleScriptCurrentCoordinateAccess current_coordinate_access{};
     LegacyBattleScriptLiveCountControl live_count_control{};
+    std::array<LegacyBattleActorActionModeRequest, 7>
+        actor_action_mode_requests{};
 };
 
 struct LegacyBattleScriptCurrentCoordinateCallRecord {
@@ -367,6 +371,9 @@ struct LegacyBattleScriptDispatchResult {
     compat::u32 stopped_offset{};
     LegacyBattleActorAvailabilityBlockResult actor_availability_block{};
     compat::u32 actor_availability_block_calls{};
+    LegacyBattleActorActionModeResult actor_action_mode{};
+    std::array<LegacyBattleActorActionModeResult, 7> actor_action_modes{};
+    compat::u32 actor_action_mode_calls{};
     LegacyBattleActorCoordinateQueryResult coordinate_query{};
     compat::u32 coordinate_query_calls{};
     LegacyBattleActorCurrentCoordinateQueryResult current_coordinate_query{};
