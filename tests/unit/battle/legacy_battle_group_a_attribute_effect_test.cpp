@@ -1,5 +1,6 @@
 #include "openswd3/battle/legacy_battle_group_a_attribute_effect.hpp"
 
+#include "openswd3/battle/legacy_battle_group_a_action_execution_state.hpp"
 #include "test.hpp"
 
 #include <array>
@@ -75,6 +76,7 @@ void test_battle_group_a_attribute_effect(openswd3::test::Context& test) {
         set_record_word(source, 0x0CU, 300U);
         set_record_word(source, 0x0EU, std::bit_cast<u16>(i16{-300}));
         EffectPort port;
+        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
 
         const auto result = apply_legacy_battle_group_a_attribute_effects(
             &state,
@@ -83,44 +85,56 @@ void test_battle_group_a_attribute_effect(openswd3::test::Context& test) {
             0x005029D0U,
             0x004AB790U,
             port,
-            {.entry_eax = 0x12345678U, .entry_edx = 0x87654321U}
+            {
+                .entry_eax = 0x12345678U,
+                .entry_edx = 0x87654321U,
+                .actor = &actor,
+            }
         );
 
         test.expect_true(
             result.status ==
                     LegacyBattleGroupAAttributeEffectStatus::completed &&
-                result.port_calls == 15U && result.active_channels == 3U &&
+                result.port_calls == 12U && result.active_channels == 3U &&
                 result.forced_minimums == 0U && result.temporary_writes == 3U &&
                 result.temporary_clears == 3U &&
                 result.computed_words ==
                     std::array<u16, 3>{0xFFCEU, 0x04B0U, 0xFA24U} &&
                 state.temporary_values == std::array<u16, 3>{0U, 0U, 0U} &&
-                port.requests.size() == 15U &&
+                port.requests.size() == 12U &&
                 port.requests[0U].call ==
                     LegacyBattleGroupAAttributeEffectCall::
                         publish_channel_effect &&
                 port.requests[0U].arguments ==
                     std::array<u32, 3>{to_bits(-50), 0U, 0U} &&
-                port.requests[5U].arguments ==
+                port.requests[4U].arguments ==
                     std::array<u32, 3>{0U, 0x000104B0U, 0U} &&
-                port.requests[10U].arguments ==
+                port.requests[8U].arguments ==
                     std::array<u32, 3>{0U, 0U, 0xFFFDFA24U} &&
-                port.requests[1U].arguments[0U] == 0x246FU &&
-                port.requests[6U].arguments[0U] == 0x2367U &&
-                port.requests[11U].arguments[0U] == 0x2366U &&
-                port.requests[2U].arguments[0U] == to_bits(-50) &&
-                port.requests[7U].arguments[0U] == 1200U &&
-                port.requests[12U].arguments[0U] == to_bits(-1500) &&
-                port.requests[3U].arguments[0U] == 0U &&
-                port.requests[8U].arguments[0U] == 6U &&
-                port.requests[13U].arguments[0U] == 12U &&
-                port.requests[4U].arguments[0U] == 1U &&
-                port.requests[9U].arguments[0U] == 1U &&
-                port.requests[14U].arguments[0U] == 1U &&
-                result.return_eax == 0xA000000FU &&
-                result.return_ecx == 0xB000000FU &&
-                result.return_edx == 0xC000000FU,
-            "three active attribute channels preserve signed percentages, stale high words, fixed resources, offsets, and callee order"
+                port.requests[1U].arguments[0U] == to_bits(-50) &&
+                port.requests[5U].arguments[0U] == 1200U &&
+                port.requests[9U].arguments[0U] == to_bits(-1500) &&
+                port.requests[2U].arguments[0U] == 0U &&
+                port.requests[6U].arguments[0U] == 6U &&
+                port.requests[10U].arguments[0U] == 12U &&
+                port.requests[3U].arguments[0U] == 1U &&
+                port.requests[7U].arguments[0U] == 1U &&
+                port.requests[11U].arguments[0U] == 1U &&
+                result.effect_resource_slot_write.calls == 3U &&
+                result.effect_resource_slot_write.call_addresses[0U] ==
+                    0x0046EEDFU &&
+                result.effect_resource_slot_write.call_addresses[1U] ==
+                    0x0046EF72U &&
+                result.effect_resource_slot_write.call_addresses[2U] ==
+                    0x0046EFFEU &&
+                actor.effect_resource_slots[0U] == 0x246FU &&
+                actor.effect_resource_slots[1U] == 0x2367U &&
+                actor.effect_resource_slots[2U] == 0x2366U &&
+                actor.effect_resource_cursor == 3U &&
+                result.return_eax == 0xA000000CU &&
+                result.return_ecx == 0xB000000CU &&
+                result.return_edx == 0xC000000CU,
+            "three active attribute channels preserve signed percentages, typed resource slots, offsets, and callee order"
         );
     }
 
@@ -198,6 +212,7 @@ void test_battle_group_a_attribute_effect(openswd3::test::Context& test) {
         workspace.tail_words[7U] = 1U;
         std::array<u32, 14> source{};
         EffectPort port;
+        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
 
         const auto result = apply_legacy_battle_group_a_attribute_effects(
             &state,
@@ -206,7 +221,11 @@ void test_battle_group_a_attribute_effect(openswd3::test::Context& test) {
             0x005029D0U,
             0x004AB790U,
             port,
-            {.entry_eax = 0x12345678U, .entry_edx = 0x87654321U}
+            {
+                .entry_eax = 0x12345678U,
+                .entry_edx = 0x87654321U,
+                .actor = &actor,
+            }
         );
 
         test.expect_true(
@@ -216,12 +235,17 @@ void test_battle_group_a_attribute_effect(openswd3::test::Context& test) {
                 result.computed_words[0U] == 0xFFFFU &&
                 state.temporary_values ==
                     std::array<u16, 3>{0U, 0xBBBBU, 0xCCCCU} &&
-                port.requests.size() == 5U &&
+                port.requests.size() == 4U &&
                 port.requests[0U].arguments[0U] == to_bits(-1) &&
+                result.effect_resource_slot_write.calls == 1U &&
+                result.effect_resource_slot_write.call_addresses[0U] ==
+                    0x0046EEDFU &&
+                actor.effect_resource_slots[0U] == 0x246FU &&
+                actor.effect_resource_cursor == 1U &&
                 result.return_eax == 0xA0000000U &&
-                result.return_ecx == 0xB0000005U &&
-                result.return_edx == 0xC0000005U,
-            "zero percentage forces one, negates channel zero, clears only its temporary, and preserves final callee high eax"
+                result.return_ecx == 0xB0000004U &&
+                result.return_edx == 0xC0000004U,
+            "zero percentage forces one, negates channel zero, clears only its temporary, and commits one typed resource slot"
         );
     }
 

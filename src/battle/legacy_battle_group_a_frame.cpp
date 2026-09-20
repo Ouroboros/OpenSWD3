@@ -75,7 +75,6 @@ subtract_flags(const u32 left, const u32 right) noexcept {
 constexpr u32 kCallPublishEffectMode = 0x00478B60U;
 constexpr u32 kCallPrepareAi = 0x0047DAD0U;
 constexpr u32 kCallPublishAttributeEffect = 0x0047F150U;
-constexpr u32 kCallSelectAttributeResource = 0x004787D0U;
 constexpr u32 kCallApplyAttributeMagnitude = 0x0047D640U;
 constexpr u32 kCallSelectAttributeOffset = 0x0047CF00U;
 constexpr u32 kCallFinalizeAttributeEffect = 0x0047CEC0U;
@@ -238,10 +237,6 @@ public:
         u32 callee = kCallPublishAttributeEffect;
         switch (request.call) {
         case LegacyBattleGroupAAttributeEffectCall::publish_channel_effect:
-            break;
-
-        case LegacyBattleGroupAAttributeEffectCall::select_channel_resource:
-            callee = kCallSelectAttributeResource;
             break;
 
         case LegacyBattleGroupAAttributeEffectCall::apply_channel_magnitude:
@@ -1207,13 +1202,26 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     {
                         .entry_eax = progress.return_eax,
                         .entry_edx = progress.return_edx,
+                        .actor = &state.action
+                                      .group_a_action_execution[group_a_index],
+                        .effect_resource_slot_write_requests =
+                            context.effect_resource_slot_write_requests,
                     }
                 );
             ++result.group_a_attribute_effect_calls;
+            append_legacy_battle_actor_effect_resource_slot_write_trace(
+                result.effect_resource_slot_write,
+                result.group_a_attribute_effect.effect_resource_slot_write
+            );
             if (result.group_a_attribute_effect.status !=
                 LegacyBattleGroupAAttributeEffectStatus::completed) {
-                result.status = LegacyBattleActionDispatchStatus::
-                    group_a_attribute_effect_typed_stop;
+                result.status = result.group_a_attribute_effect.status ==
+                        LegacyBattleGroupAAttributeEffectStatus::
+                            effect_resource_slot_write_typed_stop
+                    ? LegacyBattleActionDispatchStatus::
+                          actor_effect_resource_slot_write_typed_stop
+                    : LegacyBattleActionDispatchStatus::
+                          group_a_attribute_effect_typed_stop;
                 result.return_value =
                     result.group_a_attribute_effect.return_eax;
                 return result;

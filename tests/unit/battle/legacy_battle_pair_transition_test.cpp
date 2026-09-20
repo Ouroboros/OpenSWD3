@@ -1,5 +1,7 @@
 #include "openswd3/battle/legacy_battle_pair_transition.hpp"
 
+#include "openswd3/battle/legacy_battle_action_dispatch.hpp"
+#include "openswd3/battle/legacy_battle_startup.hpp"
 #include "test.hpp"
 
 #include <deque>
@@ -34,6 +36,28 @@ public:
 [[nodiscard]] LegacyBattlePairTransitionCallReply reply(const u32 eax = 0U) {
     return {.eax = eax};
 }
+
+struct ActorResources {
+    openswd3::battle::LegacyBattleActionDispatchState action;
+    openswd3::battle::LegacyBattleStartupState startup;
+
+    ActorResources() {
+        startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+    }
+
+    [[nodiscard]] openswd3::battle::
+        LegacyBattleActorEffectResourceSlotWriteOwners
+        owners() noexcept {
+        return {.action = &action, .startup = &startup};
+    }
+};
+
+inline constexpr u32 kPrimaryActorToken =
+    openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken;
+inline constexpr u32 kSecondaryActorToken =
+    openswd3::battle::kLegacyBattleActorCoordinatesGroupBBaseToken;
 
 }  // namespace
 
@@ -97,6 +121,7 @@ void test_battle_pair_transition(openswd3::test::Context& test) {
 
     {
         PairPort port;
+        ActorResources resources;
         port.battle_pair_primary_value() = 5U;
         port.replies.push_back({
             .eax = 0xABCD0001U,
@@ -105,37 +130,41 @@ void test_battle_pair_transition(openswd3::test::Context& test) {
         });
         port.replies.push_back(reply());
         port.replies.push_back(reply());
-        port.replies.push_back(reply());
         port.replies.push_back({.eax = 7U, .ecx = 8U, .edx = 9U});
         const auto result =
             openswd3::battle::advance_legacy_battle_pair_transition(
                 port,
                 {
-                    .primary_object_token = 0x11111111U,
-                    .secondary_object_token = 0x22222222U,
+                    .primary_object_token = kPrimaryActorToken,
+                    .secondary_object_token = kSecondaryActorToken,
+                    .effect_resource_slot_write_owners = resources.owners(),
                 }
             );
         test.expect_true(
-            result.transition_kind == 1U && result.port_calls == 5U &&
-                port.calls[0].ecx == 0x11111111U &&
-                port.calls[1].call ==
-                    LegacyBattlePairTransitionCall::publish_action_id &&
-                port.calls[1].ecx == 0x11111111U &&
-                port.calls[1].arguments[0] == 0x246FU &&
-                port.calls[2].arguments[0] == 0xFFFFFFFBU &&
-                port.calls[3].arguments[0] == 1U &&
-                port.calls[4].arguments[0] == 0xFFFFFFFBU &&
-                port.calls[4].arguments[1] == 0U &&
-                port.calls[4].arguments[2] == 0U &&
+            result.transition_kind == 1U && result.port_calls == 4U &&
+                port.calls[0].ecx == kPrimaryActorToken &&
+                result.effect_resource_slot_write.calls == 1U &&
+                result.effect_resource_slot_write.call_addresses[0U] ==
+                    0x0045D6C7U &&
+                resources.action.group_a_action_execution[0U]
+                        .effect_resource_slots[0U] == 0x246FU &&
+                resources.action.group_a_action_execution[0U]
+                        .effect_resource_cursor == 1U &&
+                port.calls[1].arguments[0] == 0xFFFFFFFBU &&
+                port.calls[2].arguments[0] == 1U &&
+                port.calls[3].arguments[0] == 0xFFFFFFFBU &&
+                port.calls[3].arguments[1] == 0U &&
+                port.calls[3].arguments[2] == 0U &&
                 port.battle_pair_primary_value() == 123U &&
                 result.return_eax == 7U && result.return_ecx == 8U &&
                 result.return_edx == 9U,
-            "kind one negates the entry snapshot despite query side effects and returns commit registers"
+            "kind one writes the typed action resource, negates the entry snapshot, and returns commit registers"
         );
     }
 
     {
         PairPort port;
+        ActorResources resources;
         port.battle_pair_primary_value() = 10U;
         port.battle_pair_secondary_value() = 0x7777U;
         port.replies.push_back(reply(0xABCD0002U));
@@ -143,7 +172,7 @@ void test_battle_pair_transition(openswd3::test::Context& test) {
             .outputs = {0xAAAAU, 0xFFFDU},
             .output_write_mask = 3U,
         });
-        for (u32 index = 0U; index < 6U; ++index) {
+        for (u32 index = 0U; index < 4U; ++index) {
             port.replies.push_back(reply());
         }
         port.replies.push_back(
@@ -153,21 +182,34 @@ void test_battle_pair_transition(openswd3::test::Context& test) {
             openswd3::battle::advance_legacy_battle_pair_transition(
                 port,
                 {
-                    .primary_object_token = 0x11111111U,
-                    .secondary_object_token = 0x22222222U,
+                    .primary_object_token = kPrimaryActorToken,
+                    .secondary_object_token = kSecondaryActorToken,
+                    .effect_resource_slot_write_owners = resources.owners(),
                 }
             );
         test.expect_true(
-            result.mode_two_path && result.port_calls == 9U &&
+            result.mode_two_path && result.port_calls == 7U &&
                 port.calls[2].call ==
                     LegacyBattlePairTransitionCall::publish_value &&
-                port.calls[2].object_token == 0x22222222U &&
+                port.calls[2].object_token == kSecondaryActorToken &&
                 port.calls[2].arguments[0] == 0xFFFFFFFDU &&
-                port.calls[3].arguments[0] == 0x235EU &&
-                port.calls[5].arguments[0] == 0x2367U &&
-                port.calls[8].arguments[0] == 0U &&
-                port.calls[8].arguments[1] == 0xFFFFFFFDU &&
-                port.calls[8].arguments[2] == 0U &&
+                result.effect_resource_slot_write.calls == 2U &&
+                result.effect_resource_slot_write.call_addresses[0U] ==
+                    0x0045D72FU &&
+                result.effect_resource_slot_write.call_addresses[1U] ==
+                    0x0045D744U &&
+                (*resources.startup.group_b_lifecycle)[0U]
+                        .action_execution.effect_resource_slots[0U] ==
+                    0x235EU &&
+                (*resources.startup.group_b_lifecycle)[0U]
+                        .action_execution.effect_resource_cursor == 1U &&
+                resources.action.group_a_action_execution[0U]
+                        .effect_resource_slots[0U] == 0x2367U &&
+                resources.action.group_a_action_execution[0U]
+                        .effect_resource_cursor == 1U &&
+                port.calls[6].arguments[0] == 0U &&
+                port.calls[6].arguments[1] == 0xFFFFFFFDU &&
+                port.calls[6].arguments[2] == 0U &&
                 port.battle_pair_secondary_value() == 3U &&
                 port.battle_pair_primary_value() == 0U &&
                 result.secondary_value_published &&
@@ -175,45 +217,56 @@ void test_battle_pair_transition(openswd3::test::Context& test) {
                 result.return_eax == 0x11111111U &&
                 result.return_ecx == 0x22222222U &&
                 result.return_edx == 0x33333333U,
-            "kind two sign extends candidate publishes nonpositive replacement and stores negated auxiliary"
+            "kind two sign extends candidate, writes both typed resources, and stores the negated auxiliary"
         );
     }
 
     {
         PairPort port;
+        ActorResources resources;
         port.battle_pair_primary_value() = 10U;
         port.replies.push_back(reply(2U));
         port.replies.push_back({
             .outputs = {0xBBBBU, 20U},
             .output_write_mask = 3U,
         });
-        for (u32 index = 0U; index < 6U; ++index) {
+        for (u32 index = 0U; index < 4U; ++index) {
             port.replies.push_back(reply());
         }
         const auto result =
             openswd3::battle::advance_legacy_battle_pair_transition(
                 port,
                 {
-                    .primary_object_token = 0x11111111U,
-                    .secondary_object_token = 0x22222222U,
+                    .primary_object_token = kPrimaryActorToken,
+                    .secondary_object_token = kSecondaryActorToken,
+                    .effect_resource_slot_write_owners = resources.owners(),
                 }
             );
         test.expect_true(
-            result.port_calls == 8U &&
-                port.calls[2].call ==
-                    LegacyBattlePairTransitionCall::publish_action_id &&
-                port.calls[5].call ==
+            result.port_calls == 6U &&
+                result.effect_resource_slot_write.calls == 2U &&
+                result.effect_resource_slot_write.call_addresses[0U] ==
+                    0x0045D72FU &&
+                result.effect_resource_slot_write.call_addresses[1U] ==
+                    0x0045D744U &&
+                (*resources.startup.group_b_lifecycle)[0U]
+                        .action_execution.effect_resource_slots[0U] ==
+                    0x235EU &&
+                resources.action.group_a_action_execution[0U]
+                        .effect_resource_slots[0U] == 0x2367U &&
+                port.calls[3].call ==
                     LegacyBattlePairTransitionCall::publish_value &&
-                port.calls[5].arguments[0] == 10U &&
-                port.calls[7].arguments[1] == 10U &&
+                port.calls[3].arguments[0] == 10U &&
+                port.calls[5].arguments[1] == 10U &&
                 port.battle_pair_secondary_value() == 0xFFF6U &&
                 port.battle_pair_primary_value() == 0U,
-            "positive signed delta keeps entry value and skips secondary publish"
+            "positive signed delta keeps the entry value, writes both typed resources, and skips secondary publish"
         );
     }
 
     {
         PairPort port;
+        ActorResources resources;
         port.battle_pair_primary_value() = 7U;
         port.effect_shift_state().packed_reward = 0xAAAA1234U;
         port.replies.push_back(reply(0xABCD0004U));
@@ -221,7 +274,7 @@ void test_battle_pair_transition(openswd3::test::Context& test) {
             .outputs = {0xCCCCU, 2U},
             .output_write_mask = 3U,
         });
-        for (u32 index = 0U; index < 6U; ++index) {
+        for (u32 index = 0U; index < 4U; ++index) {
             port.replies.push_back(reply());
         }
         port.replies.push_back({.eax = 0x44U, .ecx = 0x55U, .edx = 0x66U});
@@ -229,32 +282,42 @@ void test_battle_pair_transition(openswd3::test::Context& test) {
             openswd3::battle::advance_legacy_battle_pair_transition(
                 port,
                 {
-                    .primary_object_token = 0x11111111U,
-                    .secondary_object_token = 0x22222222U,
+                    .primary_object_token = kPrimaryActorToken,
+                    .secondary_object_token = kSecondaryActorToken,
+                    .effect_resource_slot_write_owners = resources.owners(),
                 }
             );
         test.expect_true(
-            result.mode_four_path && result.port_calls == 9U &&
-                port.calls[3].arguments[0] == 0x235EU &&
-                port.calls[5].arguments[0] == 0x2366U &&
-                port.calls[8].arguments[0] == 0U &&
-                port.calls[8].arguments[1] == 0U &&
-                port.calls[8].arguments[2] == 2U &&
+            result.mode_four_path && result.port_calls == 7U &&
+                result.effect_resource_slot_write.calls == 2U &&
+                result.effect_resource_slot_write.call_addresses[0U] ==
+                    0x0045D7B5U &&
+                result.effect_resource_slot_write.call_addresses[1U] ==
+                    0x0045D7CAU &&
+                (*resources.startup.group_b_lifecycle)[0U]
+                        .action_execution.effect_resource_slots[0U] ==
+                    0x235EU &&
+                resources.action.group_a_action_execution[0U]
+                        .effect_resource_slots[0U] == 0x2366U &&
+                port.calls[6].arguments[0] == 0U &&
+                port.calls[6].arguments[1] == 0U &&
+                port.calls[6].arguments[2] == 2U &&
                 port.battle_pair_primary_value() == 0U &&
                 port.effect_shift_state().packed_reward == 0xFFFE1234U &&
                 result.packed_reward_high_published &&
                 result.return_eax == 0x44U && result.return_ecx == 0x55U &&
                 result.return_edx == 0x66U,
-            "kind four publishes third commit argument clears primary and replaces only packed high word"
+            "kind four writes both typed resources, clears primary, and replaces only the packed high word"
         );
     }
 
     {
         PairPort port;
+        ActorResources resources;
         port.battle_pair_primary_value() = 5U;
         port.replies.push_back(reply(4U));
         port.replies.push_back({});
-        for (u32 index = 0U; index < 6U; ++index) {
+        for (u32 index = 0U; index < 4U; ++index) {
             port.replies.push_back(reply());
         }
         port.replies.push_back(reply());
@@ -262,15 +325,23 @@ void test_battle_pair_transition(openswd3::test::Context& test) {
             openswd3::battle::advance_legacy_battle_pair_transition(
                 port,
                 {
-                    .primary_object_token = 0x11111111U,
-                    .secondary_object_token = 0x22222222U,
+                    .primary_object_token = kPrimaryActorToken,
+                    .secondary_object_token = kSecondaryActorToken,
+                    .effect_resource_slot_write_owners = resources.owners(),
                 }
             );
         test.expect_true(
-            result.port_calls == 9U && port.calls[2].arguments[0] == 0U &&
-                port.calls[8].arguments[2] == 0U &&
+            result.port_calls == 7U &&
+                result.effect_resource_slot_write.calls == 2U &&
+                (*resources.startup.group_b_lifecycle)[0U]
+                        .action_execution.effect_resource_slots[0U] ==
+                    0x235EU &&
+                resources.action.group_a_action_execution[0U]
+                        .effect_resource_slots[0U] == 0x2366U &&
+                port.calls[2].arguments[0] == 0U &&
+                port.calls[6].arguments[2] == 0U &&
                 port.effect_shift_state().packed_reward == 0U,
-            "unwritten query outputs preserve zero initialized locals"
+            "unwritten query outputs preserve zero initialized locals while typed resources still commit"
         );
     }
 }

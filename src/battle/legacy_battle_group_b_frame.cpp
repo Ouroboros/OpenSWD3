@@ -42,7 +42,6 @@ constexpr u32 kCallSelectionComplete = 0x00478B40U;
 constexpr u32 kCallResetTarget = 0x00478AE0U;
 constexpr u32 kCallPublishBattleBit = 0x00483FF0U;
 constexpr u32 kCallQueryCompletionEffect = 0x0047F360U;
-constexpr u32 kCallPublishCompletionId = 0x004787D0U;
 constexpr u32 kCallPublishCompletionResource = 0x0047D640U;
 constexpr u32 kCallSetCompletionMode = 0x0047CEC0U;
 constexpr u32 kCallPrepareCompletionSurface = 0x0047F150U;
@@ -1700,19 +1699,34 @@ action_decision_done:
                 if (!validate_group_a(result, completed_target)) {
                     return result;
                 }
-                if (invoke(
-                        port,
-                        result,
-                        kCallQueryCompletionEffect,
-                        {group_a_token(completed_target)}
-                    )
-                        .eax == 1U) {
-                    static_cast<void>(invoke(
-                        port,
-                        result,
-                        kCallPublishCompletionId,
-                        {source_token, 0x235EU}
-                    ));
+                const auto completion_effect = invoke(
+                    port,
+                    result,
+                    kCallQueryCompletionEffect,
+                    {group_a_token(completed_target)}
+                );
+                if (completion_effect.eax == 1U) {
+                    if (!execute_legacy_battle_actor_effect_resource_slot_write_call(
+                            {
+                                .action = &action,
+                                .startup = context.startup,
+                            },
+                            result.effect_resource_slot_write,
+                            context.effect_resource_slot_write_requests,
+                            source_token,
+                            0x235EU,
+                            completion_effect.eax,
+                            completion_effect.edx,
+                            0x0045815AU,
+                            0x0045815FU,
+                            subtract_flags(completion_effect.eax, 1U)
+                        )) {
+                        result.status = LegacyBattleActionDispatchStatus::
+                            actor_effect_resource_slot_write_typed_stop;
+                        result.return_value =
+                            result.effect_resource_slot_write.last.return_eax;
+                        return result;
+                    }
                     if (!execute_legacy_battle_actor_field_26b8_high_bit_set_call(
                             {
                                 .action = &action,
@@ -1721,7 +1735,10 @@ action_decision_done:
                             result.actor_field_26b8_high_bit_set,
                             context.actor_field_26b8_high_bit_set_requests,
                             source_token,
-                            0x00458166U
+                            result.effect_resource_slot_write.last.return_eax,
+                            result.effect_resource_slot_write.last.return_edx,
+                            0x00458166U,
+                            result.effect_resource_slot_write.last.flags
                         )) {
                         result.status = LegacyBattleActionDispatchStatus::
                             actor_field_26b8_high_bit_set_typed_stop;
@@ -1739,6 +1756,14 @@ action_decision_done:
                     static_cast<void>(invoke(
                         port, result, kCallSetCompletionMode, {source_token, 1U}
                     ));
+                    synchronize_legacy_battle_actor_effect_resource_cursor_update(
+                        {
+                            .action = &action,
+                            .startup = context.startup,
+                        },
+                        source_token,
+                        1U
+                    );
                     if (invoke(
                             port,
                             result,

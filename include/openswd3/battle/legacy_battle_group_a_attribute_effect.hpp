@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_actor_effect_resource_slot_write.hpp"
 #include "openswd3/battle/legacy_battle_group_a_workspace_reset.hpp"
 #include "openswd3/compat/types.hpp"
 
@@ -14,7 +15,6 @@ struct LegacyBattleGroupAAttributeEffectState {
 
 enum class LegacyBattleGroupAAttributeEffectCall : compat::u8 {
     publish_channel_effect,
-    select_channel_resource,
     apply_channel_magnitude,
     select_channel_offset,
     finalize_channel_effect,
@@ -51,12 +51,16 @@ public:
 struct LegacyBattleGroupAAttributeEffectRequest {
     compat::u32 entry_eax{};
     compat::u32 entry_edx{};
+    LegacyBattleGroupAActionExecutionState* actor{};
+    LegacyBattleActorEffectResourceSlotWriteCallRequests
+        effect_resource_slot_write_requests{};
 };
 
 enum class LegacyBattleGroupAAttributeEffectStatus : compat::u8 {
     completed,
     actor_state_typed_stop,
     source_record_typed_stop,
+    effect_resource_slot_write_typed_stop,
 };
 
 struct LegacyBattleGroupAAttributeEffectResult {
@@ -69,6 +73,8 @@ struct LegacyBattleGroupAAttributeEffectResult {
     compat::u32 temporary_writes{};
     compat::u32 temporary_clears{};
     std::array<compat::u16, 3> computed_words{};
+    LegacyBattleActorEffectResourceSlotWriteCallTrace
+        effect_resource_slot_write{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};

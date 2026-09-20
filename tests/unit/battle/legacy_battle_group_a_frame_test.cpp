@@ -1031,12 +1031,18 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                         .attribute_effect.temporary_values[0U] == 0U &&
                 port.count(0x0046EE60U) == 0U &&
                 port.count(0x0047F150U) == 1U &&
-                port.count(0x004787D0U) == 1U &&
+                port.count(0x004787D0U) == 0U &&
+                result.effect_resource_slot_write.calls == 1U &&
+                result.effect_resource_slot_write.call_addresses[0U] ==
+                    0x0046EEDFU &&
+                state.action.group_a_action_execution[0U]
+                        .effect_resource_slots[0U] == 0x246FU &&
+                state.action.group_a_action_execution[0U]
+                        .effect_resource_cursor == 1U &&
                 port.count(0x0047D640U) == 1U &&
                 port.count(0x0047CF00U) == 1U &&
                 port.count(0x0047CEC0U) == 1U &&
                 has_call_argument(port, 0x0047F150U, 0U, 0xFFFFFFCEU) &&
-                has_call_argument(port, 0x004787D0U, 0U, 0x246FU) &&
                 has_call_argument(port, 0x0047D640U, 0U, 0xFFFFFFCEU) &&
                 has_call_argument(port, 0x0047CF00U, 0U, 0U) &&
                 has_call_argument(port, 0x0047CEC0U, 0U, 1U),

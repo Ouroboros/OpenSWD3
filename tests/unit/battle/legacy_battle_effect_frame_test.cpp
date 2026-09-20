@@ -456,19 +456,32 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
         reward.outputs[0] = 0xFF80U;
         reward.outputs[1] = 2U;
         port.push(0x00481010U, reward);
+        const u32 actor_token =
+            openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken +
+            6U * openswd3::battle::kLegacyBattleActorCoordinatesGroupAStride;
+        const auto actor_owners = owners(nullptr);
+        openswd3::battle::reset_legacy_battle_actor_effect_resource_slots(
+            {.action = actor_owners.action, .startup = actor_owners.startup},
+            actor_token
+        );
         const auto result =
             openswd3::battle::advance_legacy_battle_effect_frame(
                 state,
                 port,
-                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken +
-                    6U *
-                        openswd3::battle::
-                            kLegacyBattleActorCoordinatesGroupAStride,
+                actor_token,
                 0x22220000U,
                 1U,
                 0U,
                 0U,
-                owners(nullptr)
+                actor_owners,
+                {},
+                {.action = actor_owners.action, .startup = actor_owners.startup}
+            );
+        const auto actor_resource = openswd3::battle::
+            resolve_legacy_battle_actor_effect_resource_slot_write(
+                {.action = actor_owners.action,
+                 .startup = actor_owners.startup},
+                actor_token
             );
         test.expect_true(
             result.return_value == 1U && state.reward_value == 9999 &&
@@ -477,13 +490,32 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
                 state.reward_auxiliary[0] == 0xFFFFFF80U &&
                 state.reward_total[0] == 9999U && state.reward_high[0] == 2U &&
                 state.reward_display_total == 9999U &&
-                state.pending_step[0] == 0U && port.count(0x004787D0U) == 2U &&
-                port.count(0x00478780U) == 0U &&
+                state.pending_step[0] == 0U,
+            "reward path caps base row and sign extends auxiliary and high-word rows"
+        );
+        test.expect_true(
+            result.effect_resource_slot_write.calls == 2U &&
+                result.effect_resource_slot_write.call_addresses[0U] ==
+                    0x00458C83U &&
+                result.effect_resource_slot_write.call_addresses[1U] ==
+                    0x00458CC1U,
+            "reward path preserves both typed resource call identities"
+        );
+        test.expect_true(
+            actor_resource.slots != nullptr &&
+                actor_resource.cursor != nullptr &&
+                (*actor_resource.slots)[1U] == 0x2367U &&
+                (*actor_resource.slots)[2U] == 0x2366U &&
+                *actor_resource.cursor == 3U,
+            "reward path writes both typed resources into the canonical actor backing"
+        );
+        test.expect_true(
+            port.count(0x004787D0U) == 0U && port.count(0x00478780U) == 0U &&
                 result.actor_field_26b8_high_bit_set.calls == 1U &&
                 result.actor_field_26b8_high_bit_set.return_addresses[0U] ==
                     0x00458BDCU &&
                 port.count(0x0047D640U) == 3U && port.count(0x0047CEC0U) == 3U,
-            "reward path caps base row, sign extends auxiliary and writes high-word row"
+            "reward path uses typed actor calls and preserves reward publication order"
         );
     }
 

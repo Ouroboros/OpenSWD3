@@ -528,6 +528,12 @@ void test_battle_group_b_action_execution(openswd3::test::Context& test) {
         test.expect_true(
             port.battle_pair_primary_value() == 5U &&
                 actor.action_execution.effect_application_latch == 1U &&
+                result.effect_resource_slot_write.calls == 1U &&
+                result.effect_resource_slot_write.call_addresses[0U] ==
+                    0x00475E25U &&
+                actor.action_execution.effect_resource_slots[0U] == 0x235EU &&
+                actor.action_execution.effect_resource_cursor == 1U &&
+                port.count(0x004787D0U) == 0U &&
                 std::ranges::find_if(
                     port.calls,
                     [](const auto& call) {

@@ -25,7 +25,6 @@ constexpr u32 kCallComputeModeOneReward = 0x00481010U;
 constexpr u32 kCallComputeReward = 0x00481A40U;
 constexpr u32 kCallPublishReward = 0x0047D640U;
 constexpr u32 kCallSetRewardMode = 0x0047CEC0U;
-constexpr u32 kCallPublishRewardId = 0x004787D0U;
 constexpr u32 kCallSetRewardOffset = 0x0047CF00U;
 constexpr u32 kCallPublishRewardSummary = 0x0047F150U;
 
@@ -43,6 +42,12 @@ struct ResourceView {
     u32 value_token{};
     u16 width{};
     u16 height{};
+};
+
+enum class RewardRegisterRoute {
+    group_a,
+    group_b,
+    single_actor,
 };
 
 [[nodiscard]] constexpr u16 low_word(const u32 value) noexcept {
@@ -109,6 +114,19 @@ compare_word_zero_flags(const u16 value) noexcept {
     };
 }
 
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+test_word_zero_flags(const u16 value) noexcept {
+    return {
+        .carry = false,
+        .parity = has_even_parity(value),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = value == 0U,
+        .sign = (value & 0x8000U) != 0U,
+        .overflow = false,
+    };
+}
+
 [[nodiscard]] constexpr u32 primary_token(const u32 slot) noexcept {
     return kLegacyBattleEffectPrimaryBaseToken +
         slot * kLegacyBattleEffectRecordStride;
@@ -153,7 +171,11 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
     const u32 group_wide_mode,
     const LegacyBattleActorCoordinateOwners& coordinate_owners,
     const LegacyBattleActorField26b8HighBitSetCallRequests&
-        actor_field_26b8_high_bit_set_requests
+        actor_field_26b8_high_bit_set_requests,
+    const LegacyBattleActorEffectResourceSlotWriteOwners&
+        effect_resource_slot_write_owners,
+    const LegacyBattleActorEffectResourceSlotWriteCallRequests&
+        effect_resource_slot_write_requests
 ) {
     LegacyBattleGroupEffectFrameResult result{};
     if (slot_index >= state.primary.size()) {
@@ -215,6 +237,37 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
         }
         return completed;
     };
+    const auto publish_reward_id =
+        [&](const u32 token,
+            const u16 value,
+            const u32 call_address,
+            const u32 return_address,
+            const LegacyBattleActorCoordinateFlags& entry_flags) {
+            const bool completed =
+                execute_legacy_battle_actor_effect_resource_slot_write_call(
+                    effect_resource_slot_write_owners,
+                    result.effect_resource_slot_write,
+                    effect_resource_slot_write_requests,
+                    token,
+                    value,
+                    registers.eax,
+                    registers.edx,
+                    call_address,
+                    return_address,
+                    entry_flags
+                );
+            registers.eax = result.effect_resource_slot_write.last.return_eax;
+            registers.ecx = result.effect_resource_slot_write.last.return_ecx;
+            registers.edx = result.effect_resource_slot_write.last.return_edx;
+            if (!completed) {
+                result.status = LegacyBattleGroupEffectFrameStatus::
+                    actor_effect_resource_slot_write_typed_stop;
+                result.return_value = registers.eax;
+                result.return_ecx = registers.ecx;
+                result.return_edx = registers.edx;
+            }
+            return completed;
+        };
     auto read_argument_mode = [&](u32& mode) {
         if (argument_object_token == 0U) {
             result.status =
@@ -703,7 +756,10 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
                                   const u32 reward_index,
                                   const bool store_per_actor,
                                   const bool publish_summary,
-                                  const bool reset_offset) {
+                                  const bool reset_offset,
+                                  const RewardRegisterRoute register_route,
+                                  const u32 auxiliary_call_address,
+                                  const u32 high_call_address) {
             if (reset_offset) {
                 reward_offset = 0U;
             }
@@ -741,54 +797,98 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
                 static_cast<void>(
                     invoke(kCallSetRewardMode, {reward_actor, 1U})
                 );
+                synchronize_legacy_battle_actor_effect_resource_cursor_update(
+                    effect_resource_slot_write_owners, reward_actor, 1U
+                );
                 reward_offset += 8U;
             }
-            replace_low_word(registers.ecx, port.battle_pair_secondary_value());
-            if (port.battle_pair_secondary_value() != 0U) {
-                static_cast<void>(
-                    invoke(kCallPublishRewardId, {reward_actor, 0x2367U})
+
+            const u16 auxiliary_value = port.battle_pair_secondary_value();
+            if (register_route == RewardRegisterRoute::group_a) {
+                replace_low_word(registers.ecx, auxiliary_value);
+            }
+            if (auxiliary_value != 0U) {
+                if (!publish_reward_id(
+                        reward_actor,
+                        0x2367U,
+                        auxiliary_call_address,
+                        auxiliary_call_address + 5U,
+                        compare_word_zero_flags(auxiliary_value)
+                    )) {
+                    return false;
+                }
+                const u32 extended_auxiliary = to_bits(
+                    static_cast<i32>(std::bit_cast<i16>(auxiliary_value))
                 );
+                if (register_route == RewardRegisterRoute::single_actor) {
+                    registers.edx = extended_auxiliary;
+                } else {
+                    registers.eax = extended_auxiliary;
+                }
                 static_cast<void>(invoke(
-                    kCallPublishReward,
-                    {reward_actor,
-                     to_bits(
-                         static_cast<i32>(std::bit_cast<i16>(
-                             port.battle_pair_secondary_value()
-                         ))
-                     )}
+                    kCallPublishReward, {reward_actor, extended_auxiliary}
                 ));
                 static_cast<void>(
                     invoke(kCallSetRewardOffset, {reward_actor, reward_offset})
                 );
                 static_cast<void>(
                     invoke(kCallSetRewardMode, {reward_actor, 1U})
+                );
+                synchronize_legacy_battle_actor_effect_resource_cursor_update(
+                    effect_resource_slot_write_owners, reward_actor, 1U
                 );
                 reward_offset += 8U;
                 registers.eax = reward_offset;
-                replace_low_word(registers.ecx, 0U);
+                if (register_route == RewardRegisterRoute::group_a) {
+                    replace_low_word(registers.ecx, 0U);
+                }
                 port.battle_pair_secondary_value() = 0U;
             }
+
             const i16 high_reward =
                 std::bit_cast<i16>(high_word(shift_state.packed_reward));
-            replace_low_word(registers.eax, static_cast<u16>(high_reward));
+            if (register_route != RewardRegisterRoute::single_actor) {
+                replace_low_word(registers.eax, static_cast<u16>(high_reward));
+            }
             if (high_reward != 0) {
+                const auto high_entry_flags =
+                    register_route == RewardRegisterRoute::group_b
+                    ? test_word_zero_flags(static_cast<u16>(high_reward))
+                    : compare_word_zero_flags(static_cast<u16>(high_reward));
+                if (!publish_reward_id(
+                        reward_actor,
+                        0x2366U,
+                        high_call_address,
+                        high_call_address + 5U,
+                        high_entry_flags
+                    )) {
+                    return false;
+                }
+                const u32 extended_high =
+                    to_bits(static_cast<i32>(high_reward));
+                if (register_route != RewardRegisterRoute::single_actor) {
+                    registers.edx = extended_high;
+                }
                 static_cast<void>(
-                    invoke(kCallPublishRewardId, {reward_actor, 0x2366U})
+                    invoke(kCallPublishReward, {reward_actor, extended_high})
                 );
-                static_cast<void>(invoke(
-                    kCallPublishReward,
-                    {reward_actor, to_bits(static_cast<i32>(high_reward))}
-                ));
                 static_cast<void>(
                     invoke(kCallSetRewardOffset, {reward_actor, reward_offset})
                 );
                 static_cast<void>(
                     invoke(kCallSetRewardMode, {reward_actor, 1U})
                 );
-                replace_low_word(
-                    registers.ecx, port.battle_pair_secondary_value()
+                synchronize_legacy_battle_actor_effect_resource_cursor_update(
+                    effect_resource_slot_write_owners, reward_actor, 1U
                 );
-                replace_low_word(registers.eax, 0U);
+                if (register_route == RewardRegisterRoute::group_a) {
+                    replace_low_word(
+                        registers.ecx, port.battle_pair_secondary_value()
+                    );
+                }
+                if (register_route != RewardRegisterRoute::single_actor) {
+                    replace_low_word(registers.eax, 0U);
+                }
                 replace_high_word(shift_state.packed_reward, 0U);
             }
 
@@ -820,6 +920,7 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
                 state.reward_display_total += to_bits(state.reward_value);
             }
             ++result.reward_iterations;
+            return true;
         };
 
         if (group_wide_mode == 1U) {
@@ -838,15 +939,20 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
                     if (actor.guard_ac0 != 1U && actor.guard_ac1 != 1U &&
                         invoke(kCallRewardGate, {token}).eax != 1U) {
                         if (state.group_a_special_mode != 1U) {
-                            process_reward(
-                                token,
-                                true,
-                                unsigned_index,
-                                true,
-                                state.group_a_reward_mode == 1U &&
-                                    state.reward_summary_gate == 1U,
-                                true
-                            );
+                            if (!process_reward(
+                                    token,
+                                    true,
+                                    unsigned_index,
+                                    true,
+                                    state.group_a_reward_mode == 1U &&
+                                        state.reward_summary_gate == 1U,
+                                    true,
+                                    RewardRegisterRoute::group_a,
+                                    0x0045958CU,
+                                    0x004595DBU
+                                )) {
+                                return result;
+                            }
                         } else if (
                             invoke(kCallEligibility, {token}).eax != 1U
                         ) {
@@ -854,9 +960,19 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
                                 !publish_actor(token, 0x00459518U)) {
                                 return result;
                             }
-                            process_reward(
-                                token, false, unsigned_index, true, false, true
-                            );
+                            if (!process_reward(
+                                    token,
+                                    false,
+                                    unsigned_index,
+                                    true,
+                                    false,
+                                    true,
+                                    RewardRegisterRoute::group_a,
+                                    0x0045958CU,
+                                    0x004595DBU
+                                )) {
+                                return result;
+                            }
                         }
                     }
                     registers.eax = to_bits(group_a_count());
@@ -874,9 +990,19 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
                             !publish_actor(token, 0x004596B5U)) {
                             return result;
                         }
-                        process_reward(
-                            token, true, unsigned_index, true, false, false
-                        );
+                        if (!process_reward(
+                                token,
+                                true,
+                                unsigned_index,
+                                true,
+                                false,
+                                false,
+                                RewardRegisterRoute::group_b,
+                                0x0045971AU,
+                                0x00459769U
+                            )) {
+                            return result;
+                        }
                     }
                     registers.eax = to_bits(group_b_count());
                 }
@@ -892,9 +1018,19 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
             if (!read_argument_mode(object_mode)) {
                 return result;
             }
-            process_reward(
-                actor_token, object_mode == 1U, 0U, false, false, true
-            );
+            if (!process_reward(
+                    actor_token,
+                    object_mode == 1U,
+                    0U,
+                    false,
+                    false,
+                    true,
+                    RewardRegisterRoute::single_actor,
+                    0x00459879U,
+                    0x004598C3U
+                )) {
+                return result;
+            }
         }
         primary.status_flags = 0U;
     }

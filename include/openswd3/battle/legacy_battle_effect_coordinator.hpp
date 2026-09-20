@@ -100,11 +100,14 @@ enum class LegacyBattleEffectCoordinatorStatus : compat::u8 {
     group_a_effect_reward_typed_stop,
     reward_scale_typed_stop,
     actor_action_target_typed_stop,
+    effect_resource_slot_write_typed_stop,
 };
 
 struct LegacyBattleEffectCoordinatorRequest {
     std::array<LegacyBattleActorActionTargetRequest, 8>
         action_target_requests{};
+    LegacyBattleActorEffectResourceSlotWriteCallRequests
+        effect_resource_slot_write_requests{};
 };
 
 struct LegacyBattleEffectCoordinatorResult {
@@ -129,6 +132,8 @@ struct LegacyBattleEffectCoordinatorResult {
     compat::u32 group_b_iterations{};
     LegacyBattlePairTransitionResult pair_transition{};
     compat::u32 pair_transition_calls{};
+    LegacyBattleActorEffectResourceSlotWriteCallTrace
+        effect_resource_slot_write{};
     LegacyBattleGroupAEffectRewardApplicationResult group_a_effect_reward{};
 };
 

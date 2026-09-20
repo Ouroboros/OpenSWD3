@@ -1215,6 +1215,13 @@ private:
                 return;
             }
             invoke(LegacyBattleScriptDispatchCall::pending_47d350, *token);
+            reset_legacy_battle_actor_effect_resource_slots(
+                {
+                    .action = &bindings_.action,
+                    .startup = &bindings_.startup,
+                },
+                *token
+            );
             ++index;
         }
         index = 0;
@@ -1224,6 +1231,13 @@ private:
                 return;
             }
             invoke(LegacyBattleScriptDispatchCall::pending_47d350, *token);
+            reset_legacy_battle_actor_effect_resource_slots(
+                {
+                    .action = &bindings_.action,
+                    .startup = &bindings_.startup,
+                },
+                *token
+            );
             ++index;
         }
     }
@@ -4893,11 +4907,35 @@ private:
             ecx_ = result_.actor_field_26b8_high_bit_set.last.return_ecx;
             edx_ = result_.actor_field_26b8_high_bit_set.last.return_edx;
             flags_ = result_.actor_field_26b8_high_bit_set.last.flags;
-            invoke(
-                LegacyBattleScriptDispatchCall::pending_4787d0,
-                *token,
-                {0x235EU}
-            );
+            if (!execute_legacy_battle_actor_effect_resource_slot_write_call(
+                    {
+                        .action = &bindings_.action,
+                        .startup = &bindings_.startup,
+                    },
+                    result_.effect_resource_slot_write,
+                    request_.effect_resource_slot_write_requests,
+                    *token,
+                    0x235EU,
+                    eax_,
+                    edx_,
+                    0x0046DB01U,
+                    0x0046DB06U,
+                    flags_
+                )) {
+                eax_ = result_.effect_resource_slot_write.last.return_eax;
+                ecx_ = result_.effect_resource_slot_write.last.return_ecx;
+                edx_ = result_.effect_resource_slot_write.last.return_edx;
+                if (result_.effect_resource_slot_write.last.flags_known) {
+                    flags_ = result_.effect_resource_slot_write.last.flags;
+                }
+                result_.status = LegacyBattleScriptDispatchStatus::
+                    actor_effect_resource_slot_write_typed_stop;
+                return finish();
+            }
+            eax_ = result_.effect_resource_slot_write.last.return_eax;
+            ecx_ = result_.effect_resource_slot_write.last.return_ecx;
+            edx_ = result_.effect_resource_slot_write.last.return_edx;
+            flags_ = result_.effect_resource_slot_write.last.flags;
             invoke(
                 LegacyBattleScriptDispatchCall::pending_47d640,
                 *token,
@@ -4905,6 +4943,14 @@ private:
             );
             invoke(
                 LegacyBattleScriptDispatchCall::pending_47cec0, *token, {1U}
+            );
+            synchronize_legacy_battle_actor_effect_resource_cursor_update(
+                {
+                    .action = &bindings_.action,
+                    .startup = &bindings_.startup,
+                },
+                *token,
+                1U
             );
         } else {
             const auto token = group_b_token(static_cast<i32>(actor));

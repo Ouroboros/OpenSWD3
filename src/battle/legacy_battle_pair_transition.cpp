@@ -84,6 +84,11 @@ public:
         registers_.edx = value;
     }
 
+    void
+    overwrite_registers(const u32 eax, const u32 ecx, const u32 edx) noexcept {
+        registers_ = {.eax = eax, .ecx = ecx, .edx = edx};
+    }
+
     [[nodiscard]] const Registers& registers() const noexcept {
         return registers_;
     }
@@ -106,6 +111,51 @@ LegacyBattlePairTransitionResult advance_legacy_battle_pair_transition(
         result,
         {.eax = request.eax, .ecx = request.ecx, .edx = request.edx}
     );
+    const auto finish = [&]() {
+        const auto& registers = runner.registers();
+        result.return_eax = registers.eax;
+        result.return_ecx = registers.ecx;
+        result.return_edx = registers.edx;
+        return result;
+    };
+    const auto write_resource = [&](const u32 actor_token,
+                                    const u16 value,
+                                    const u32 call_address,
+                                    const u32 return_address) {
+        const auto& registers = runner.registers();
+        const bool completed =
+            execute_legacy_battle_actor_effect_resource_slot_write_call(
+                request.effect_resource_slot_write_owners,
+                result.effect_resource_slot_write,
+                request.effect_resource_slot_write_requests,
+                actor_token,
+                value,
+                registers.eax,
+                registers.edx,
+                call_address,
+                return_address,
+                {},
+                false
+            );
+        runner.overwrite_registers(
+            result.effect_resource_slot_write.last.return_eax,
+            result.effect_resource_slot_write.last.return_ecx,
+            result.effect_resource_slot_write.last.return_edx
+        );
+        if (!completed) {
+            result.status = LegacyBattlePairTransitionStatus::
+                effect_resource_slot_write_typed_stop;
+        }
+        return completed;
+    };
+    const auto publish_mode = [&](const u32 actor_token) {
+        static_cast<void>(runner.invoke(
+            LegacyBattlePairTransitionCall::publish_mode, actor_token, {1U}
+        ));
+        synchronize_legacy_battle_actor_effect_resource_cursor_update(
+            request.effect_resource_slot_write_owners, actor_token, 1U
+        );
+    };
 
     u32 current_value = port.battle_pair_primary_value();
     if (current_value == 0U) {
@@ -122,22 +172,18 @@ LegacyBattlePairTransitionResult advance_legacy_battle_pair_transition(
     result.transition_kind = low_word(kind.eax);
 
     if (result.transition_kind == 1U) {
-        static_cast<void>(runner.invoke(
-            LegacyBattlePairTransitionCall::publish_action_id,
-            request.primary_object_token,
-            {0x246FU}
-        ));
+        if (!write_resource(
+                request.primary_object_token, 0x246FU, 0x0045D6C7U, 0x0045D6CCU
+            )) {
+            return finish();
+        }
         current_value = 0U - current_value;
         static_cast<void>(runner.invoke(
             LegacyBattlePairTransitionCall::publish_value,
             request.primary_object_token,
             {current_value}
         ));
-        static_cast<void>(runner.invoke(
-            LegacyBattlePairTransitionCall::publish_mode,
-            request.primary_object_token,
-            {1U}
-        ));
+        publish_mode(request.primary_object_token);
         static_cast<void>(runner.invoke(
             LegacyBattlePairTransitionCall::commit_visual,
             request.primary_object_token,
@@ -171,31 +217,26 @@ LegacyBattlePairTransitionResult advance_legacy_battle_pair_transition(
                 {current_value}
             ));
         }
-        static_cast<void>(runner.invoke(
-            LegacyBattlePairTransitionCall::publish_action_id,
-            request.secondary_object_token,
-            {0x235EU}
-        ));
-        static_cast<void>(runner.invoke(
-            LegacyBattlePairTransitionCall::publish_mode,
-            request.secondary_object_token,
-            {1U}
-        ));
-        static_cast<void>(runner.invoke(
-            LegacyBattlePairTransitionCall::publish_action_id,
-            request.primary_object_token,
-            {0x2367U}
-        ));
+        if (!write_resource(
+                request.secondary_object_token,
+                0x235EU,
+                0x0045D72FU,
+                0x0045D734U
+            )) {
+            return finish();
+        }
+        publish_mode(request.secondary_object_token);
+        if (!write_resource(
+                request.primary_object_token, 0x2367U, 0x0045D744U, 0x0045D749U
+            )) {
+            return finish();
+        }
         static_cast<void>(runner.invoke(
             LegacyBattlePairTransitionCall::publish_value,
             request.primary_object_token,
             {current_value}
         ));
-        static_cast<void>(runner.invoke(
-            LegacyBattlePairTransitionCall::publish_mode,
-            request.primary_object_token,
-            {1U}
-        ));
+        publish_mode(request.primary_object_token);
         static_cast<void>(runner.invoke(
             LegacyBattlePairTransitionCall::commit_visual,
             request.primary_object_token,
@@ -235,31 +276,26 @@ LegacyBattlePairTransitionResult advance_legacy_battle_pair_transition(
                 {current_value}
             ));
         }
-        static_cast<void>(runner.invoke(
-            LegacyBattlePairTransitionCall::publish_action_id,
-            request.secondary_object_token,
-            {0x235EU}
-        ));
-        static_cast<void>(runner.invoke(
-            LegacyBattlePairTransitionCall::publish_mode,
-            request.secondary_object_token,
-            {1U}
-        ));
-        static_cast<void>(runner.invoke(
-            LegacyBattlePairTransitionCall::publish_action_id,
-            request.primary_object_token,
-            {0x2366U}
-        ));
+        if (!write_resource(
+                request.secondary_object_token,
+                0x235EU,
+                0x0045D7B5U,
+                0x0045D7BAU
+            )) {
+            return finish();
+        }
+        publish_mode(request.secondary_object_token);
+        if (!write_resource(
+                request.primary_object_token, 0x2366U, 0x0045D7CAU, 0x0045D7CFU
+            )) {
+            return finish();
+        }
         static_cast<void>(runner.invoke(
             LegacyBattlePairTransitionCall::publish_value,
             request.primary_object_token,
             {current_value}
         ));
-        static_cast<void>(runner.invoke(
-            LegacyBattlePairTransitionCall::publish_mode,
-            request.primary_object_token,
-            {1U}
-        ));
+        publish_mode(request.primary_object_token);
         static_cast<void>(runner.invoke(
             LegacyBattlePairTransitionCall::commit_visual,
             request.primary_object_token,
@@ -275,11 +311,7 @@ LegacyBattlePairTransitionResult advance_legacy_battle_pair_transition(
         result.packed_reward_high_published = true;
     }
 
-    const auto& registers = runner.registers();
-    result.return_eax = registers.eax;
-    result.return_ecx = registers.ecx;
-    result.return_edx = registers.edx;
-    return result;
+    return finish();
 }
 
 }  // namespace openswd3::battle

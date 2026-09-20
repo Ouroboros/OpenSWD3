@@ -28,7 +28,6 @@ constexpr u32 kCallComputeEffect = 0x0047CD60U;
 constexpr u32 kCallPublishEffect = 0x0047D640U;
 constexpr u32 kCallFinalizeStep = 0x0047CEC0U;
 constexpr u32 kCallFinalizeActorFrame = 0x0047C950U;
-constexpr u32 kCallUpdateActorTail = 0x004787D0U;
 constexpr u32 kCallCommitEffect = 0x0047F360U;
 constexpr u32 kCallPrepareDirectEffect = 0x0047F940U;
 constexpr u32 kCallCalculateEffect = 0x00481A40U;
@@ -416,13 +415,67 @@ advance_legacy_battle_group_b_action_execution(
                     if (!update_actor_frame(request.actor_token, 0x00475BE7U)) {
                         return false;
                     }
-                    static_cast<void>(invoke_actor(
-                        kCallUpdateActorTail, {request.actor_token, 0x235EU}
-                    ));
+                    if (!execute_legacy_battle_actor_effect_resource_slot_write_call(
+                            &state,
+                            result.effect_resource_slot_write,
+                            request.effect_resource_slot_write_requests,
+                            request.actor_token,
+                            0x235EU,
+                            registers.eax,
+                            registers.edx,
+                            0x00475BEEU,
+                            0x00475BF3U,
+                            {},
+                            false
+                        )) {
+                        registers.eax =
+                            result.effect_resource_slot_write.last.return_eax;
+                        registers.ecx =
+                            result.effect_resource_slot_write.last.return_ecx;
+                        registers.edx =
+                            result.effect_resource_slot_write.last.return_edx;
+                        result.status =
+                            LegacyBattleGroupBActionExecutionStatus::
+                                actor_effect_resource_slot_write_typed_stop;
+                        return false;
+                    }
+                    registers.eax =
+                        result.effect_resource_slot_write.last.return_eax;
+                    registers.ecx =
+                        result.effect_resource_slot_write.last.return_ecx;
+                    registers.edx =
+                        result.effect_resource_slot_write.last.return_edx;
                 } else {
-                    static_cast<void>(invoke_actor(
-                        kCallUpdateActorTail, {request.actor_token, 0x235EU}
-                    ));
+                    if (!execute_legacy_battle_actor_effect_resource_slot_write_call(
+                            &state,
+                            result.effect_resource_slot_write,
+                            request.effect_resource_slot_write_requests,
+                            request.actor_token,
+                            0x235EU,
+                            registers.eax,
+                            registers.edx,
+                            0x00475E25U,
+                            0x00475E2AU,
+                            {},
+                            false
+                        )) {
+                        registers.eax =
+                            result.effect_resource_slot_write.last.return_eax;
+                        registers.ecx =
+                            result.effect_resource_slot_write.last.return_ecx;
+                        registers.edx =
+                            result.effect_resource_slot_write.last.return_edx;
+                        result.status =
+                            LegacyBattleGroupBActionExecutionStatus::
+                                actor_effect_resource_slot_write_typed_stop;
+                        return false;
+                    }
+                    registers.eax =
+                        result.effect_resource_slot_write.last.return_eax;
+                    registers.ecx =
+                        result.effect_resource_slot_write.last.return_ecx;
+                    registers.edx =
+                        result.effect_resource_slot_write.last.return_edx;
                     if (!update_actor_frame(request.actor_token, 0x00475E31U)) {
                         return false;
                     }
@@ -433,6 +486,9 @@ advance_legacy_battle_group_b_action_execution(
                 ));
                 static_cast<void>(
                     invoke_actor(kCallFinalizeStep, {request.actor_token, 1U})
+                );
+                synchronize_legacy_battle_actor_effect_resource_cursor_update(
+                    &state, 1U
                 );
             } else if (effect != -1) {
                 registers.eax = std::bit_cast<u32>(effect);
@@ -449,6 +505,14 @@ advance_legacy_battle_group_b_action_execution(
                     static_cast<void>(invoke_generic(
                         kCallFinalizeStep, {1U}, request.target_token
                     ));
+                    synchronize_legacy_battle_actor_effect_resource_cursor_update(
+                        {
+                            .action = &dispatch,
+                            .startup = context.startup,
+                        },
+                        request.target_token,
+                        1U
+                    );
                 }
             }
         }

@@ -33,7 +33,6 @@ constexpr u32 kCallComputeModeOneReward = 0x00481010U;
 constexpr u32 kCallComputeReward = 0x00481A40U;
 constexpr u32 kCallPublishReward = 0x0047D640U;
 constexpr u32 kCallSetRewardMode = 0x0047CEC0U;
-constexpr u32 kCallPublishRewardId = 0x004787D0U;
 constexpr u32 kCallSetRewardOffset = 0x0047CF00U;
 
 constexpr u32 kAlternateActiveBaseToken = 0x004FF0BCU;
@@ -279,7 +278,11 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
     const u32 slot_index,
     const LegacyBattleActorCoordinateOwners& coordinate_owners,
     const LegacyBattleActorField26b8HighBitSetCallRequests&
-        actor_field_26b8_high_bit_set_requests
+        actor_field_26b8_high_bit_set_requests,
+    const LegacyBattleActorEffectResourceSlotWriteOwners&
+        effect_resource_slot_write_owners,
+    const LegacyBattleActorEffectResourceSlotWriteCallRequests&
+        effect_resource_slot_write_requests
 ) {
     LegacyBattleEffectFrameResult result{};
     if (slot_index >= state.primary.size()) {
@@ -1059,6 +1062,7 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
                 {argument_object_token, actor_index}
             );
         }
+        LegacyBattleEffectCallReply registers = reward;
         i32 reward_value = static_cast<i32>(signed_word(reward.eax));
         state.reward_value = reward_value;
         if (reward_value >= 9999) {
@@ -1070,71 +1074,122 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
         if (reward_value == -1) {
             state.reward_value = 0;
         } else {
-            static_cast<void>(invoke(
+            registers = invoke(
                 port,
                 result,
                 kCallPublishReward,
                 {argument_object_token, to_bits(reward_value)}
-            ));
-            static_cast<void>(invoke(
+            );
+            registers = invoke(
                 port, result, kCallSetRewardMode, {argument_object_token, 1U}
-            ));
+            );
+            synchronize_legacy_battle_actor_effect_resource_cursor_update(
+                effect_resource_slot_write_owners, actor_index, 1U
+            );
             reward_offset += 8U;
         }
-        if (port.battle_pair_secondary_value() != 0U) {
-            static_cast<void>(invoke(
-                port,
-                result,
-                kCallPublishRewardId,
-                {argument_object_token, 0x2367U}
-            ));
-            static_cast<void>(invoke(
+        const u16 secondary_reward =
+            low_word(port.battle_pair_secondary_value());
+        if (secondary_reward != 0U) {
+            if (!execute_legacy_battle_actor_effect_resource_slot_write_call(
+                    effect_resource_slot_write_owners,
+                    result.effect_resource_slot_write,
+                    effect_resource_slot_write_requests,
+                    actor_index,
+                    0x2367U,
+                    registers.eax,
+                    registers.edx,
+                    0x00458C83U,
+                    0x00458C88U,
+                    compare_word_zero_flags(secondary_reward)
+                )) {
+                result.status = LegacyBattleEffectFrameStatus::
+                    actor_effect_resource_slot_write_typed_stop;
+                result.return_value =
+                    result.effect_resource_slot_write.last.return_eax;
+                result.return_ecx =
+                    result.effect_resource_slot_write.last.return_ecx;
+                result.return_edx =
+                    result.effect_resource_slot_write.last.return_edx;
+                return result;
+            }
+            registers = {
+                .eax = result.effect_resource_slot_write.last.return_eax,
+                .ecx = result.effect_resource_slot_write.last.return_ecx,
+                .edx = result.effect_resource_slot_write.last.return_edx,
+            };
+            registers = invoke(
                 port,
                 result,
                 kCallPublishReward,
                 {argument_object_token,
                  to_bits(
-                     static_cast<i32>(
-                         std::bit_cast<i16>(port.battle_pair_secondary_value())
-                     )
+                     static_cast<i32>(std::bit_cast<i16>(secondary_reward))
                  )}
-            ));
-            static_cast<void>(invoke(
+            );
+            registers = invoke(
                 port,
                 result,
                 kCallSetRewardOffset,
                 {argument_object_token, reward_offset}
-            ));
-            static_cast<void>(invoke(
+            );
+            registers = invoke(
                 port, result, kCallSetRewardMode, {argument_object_token, 1U}
-            ));
+            );
+            synchronize_legacy_battle_actor_effect_resource_cursor_update(
+                effect_resource_slot_write_owners, actor_index, 1U
+            );
             reward_offset += 8U;
         }
-        const i16 high_reward = std::bit_cast<i16>(
-            high_word(port.effect_shift_state().packed_reward)
-        );
+        const u16 high_reward_word =
+            high_word(port.effect_shift_state().packed_reward);
+        const i16 high_reward = std::bit_cast<i16>(high_reward_word);
         if (high_reward != 0) {
-            static_cast<void>(invoke(
-                port,
-                result,
-                kCallPublishRewardId,
-                {argument_object_token, 0x2366U}
-            ));
-            static_cast<void>(invoke(
+            if (!execute_legacy_battle_actor_effect_resource_slot_write_call(
+                    effect_resource_slot_write_owners,
+                    result.effect_resource_slot_write,
+                    effect_resource_slot_write_requests,
+                    actor_index,
+                    0x2366U,
+                    registers.eax,
+                    registers.edx,
+                    0x00458CC1U,
+                    0x00458CC6U,
+                    compare_word_zero_flags(high_reward_word)
+                )) {
+                result.status = LegacyBattleEffectFrameStatus::
+                    actor_effect_resource_slot_write_typed_stop;
+                result.return_value =
+                    result.effect_resource_slot_write.last.return_eax;
+                result.return_ecx =
+                    result.effect_resource_slot_write.last.return_ecx;
+                result.return_edx =
+                    result.effect_resource_slot_write.last.return_edx;
+                return result;
+            }
+            registers = {
+                .eax = result.effect_resource_slot_write.last.return_eax,
+                .ecx = result.effect_resource_slot_write.last.return_ecx,
+                .edx = result.effect_resource_slot_write.last.return_edx,
+            };
+            registers = invoke(
                 port,
                 result,
                 kCallPublishReward,
                 {argument_object_token, to_bits(static_cast<i32>(high_reward))}
-            ));
-            static_cast<void>(invoke(
+            );
+            registers = invoke(
                 port,
                 result,
                 kCallSetRewardOffset,
                 {argument_object_token, reward_offset}
-            ));
-            static_cast<void>(invoke(
+            );
+            registers = invoke(
                 port, result, kCallSetRewardMode, {argument_object_token, 1U}
-            ));
+            );
+            synchronize_legacy_battle_actor_effect_resource_cursor_update(
+                effect_resource_slot_write_owners, actor_index, 1U
+            );
         }
 
         state.reward_auxiliary[slot_index] = to_bits(

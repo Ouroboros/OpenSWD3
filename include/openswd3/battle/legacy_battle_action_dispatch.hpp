@@ -12,6 +12,7 @@
 #include "openswd3/battle/legacy_battle_actor_action_kind.hpp"
 #include "openswd3/battle/legacy_battle_actor_action_mode.hpp"
 #include "openswd3/battle/legacy_battle_actor_action_target.hpp"
+#include "openswd3/battle/legacy_battle_actor_effect_resource_slot_write.hpp"
 #include "openswd3/battle/legacy_battle_actor_field_26b8_high_bit_clear.hpp"
 #include "openswd3/battle/legacy_battle_actor_field_26b8_high_bit_set.hpp"
 #include "openswd3/battle/legacy_battle_actor_display_kind.hpp"
@@ -897,6 +898,8 @@ struct LegacyBattleSpecialFourOhFiveRequest {
     compat::u32 entry_edx{};
     LegacyBattleActorField26b8HighBitSetCallRequests
         actor_field_26b8_high_bit_set_requests{};
+    LegacyBattleActorEffectResourceSlotWriteCallRequests
+        effect_resource_slot_write_requests{};
 };
 
 enum class LegacyBattleSpecialFourOhFiveStatus : compat::u8 {
@@ -907,6 +910,7 @@ enum class LegacyBattleSpecialFourOhFiveStatus : compat::u8 {
     phase_state_typed_stop,
     actor_coordinate_typed_stop,
     actor_field_26b8_high_bit_set_typed_stop,
+    actor_effect_resource_slot_write_typed_stop,
 };
 
 struct LegacyBattleSpecialFourOhFiveResult {
@@ -931,6 +935,8 @@ struct LegacyBattleSpecialFourOhFiveResult {
     compat::i32 effect_value{};
     LegacyBattleActorField26b8HighBitSetCallTrace
         actor_field_26b8_high_bit_set{};
+    LegacyBattleActorEffectResourceSlotWriteCallTrace
+        effect_resource_slot_write{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
@@ -1461,6 +1467,8 @@ struct LegacyBattleActionDispatchContext {
         actor_field_26b8_high_bit_clear_request{};
     LegacyBattleActorField26b8HighBitSetCallRequests
         actor_field_26b8_high_bit_set_requests{};
+    LegacyBattleActorEffectResourceSlotWriteCallRequests
+        effect_resource_slot_write_requests{};
     std::array<LegacyBattleActorActionTargetRequest, 2>
         action_dispatch_action_target_requests{};
     std::array<LegacyBattleActorActionTargetRequest, 4>
@@ -1492,6 +1500,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     actor_action_mode_typed_stop,
     actor_field_26b8_high_bit_clear_typed_stop,
     actor_field_26b8_high_bit_set_typed_stop,
+    actor_effect_resource_slot_write_typed_stop,
     actor_display_kind_typed_stop,
     actor_start_gate_typed_stop,
     actor_action_target_typed_stop,
@@ -1589,6 +1598,8 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 actor_field_26b8_high_bit_clear_calls{};
     LegacyBattleActorField26b8HighBitSetCallTrace
         actor_field_26b8_high_bit_set{};
+    LegacyBattleActorEffectResourceSlotWriteCallTrace
+        effect_resource_slot_write{};
     LegacyBattleActorDisplayKindResult actor_display_kind{};
     compat::u32 actor_display_kind_calls{};
     LegacyBattleActorStartGateResult actor_start_gate{};

@@ -137,7 +137,6 @@ constexpr u32 kCallActorSuspended = 0x0047D930U;
 constexpr u32 kCallClearPendingAction = 0x00482DA0U;
 constexpr u32 kCallTargetEffectProperty = 0x0047CEC0U;
 constexpr u32 kCallActorEffectMode = 0x0047CF00U;
-constexpr u32 kCallActorEffectAction = 0x004787D0U;
 constexpr u32 kTargetPhaseFrameResourceReturnAddress = 0x004710E4U;
 constexpr u32 kTargetPhaseResourceObjectReadInstruction = 0x00471120U;
 constexpr u32 kOpponentTargetPhaseFrameResourceReturnAddress = 0x00484034U;
@@ -3953,12 +3952,35 @@ advance_legacy_battle_special_four_oh_five(
         invoke_action(kCallTargetEffectProperty, {request.target_token, 1U})
     );
 
+    const u32 effect_before_negation =
+        std::bit_cast<u32>(shared->last_effect_value);
     shared->last_effect_value = -shared->last_effect_value;
     registers.ecx = request.actor_token;
+    registers.edx = std::bit_cast<u32>(shared->last_effect_value);
     ++result.effect_publish_calls;
-    static_cast<void>(
-        invoke_action(kCallActorEffectAction, {request.actor_token, 0x246FU})
-    );
+    if (!execute_legacy_battle_actor_effect_resource_slot_write_call(
+            actor,
+            result.effect_resource_slot_write,
+            request.effect_resource_slot_write_requests,
+            request.actor_token,
+            0x246FU,
+            registers.eax,
+            registers.edx,
+            0x00473508U,
+            0x0047350DU,
+            increment_flags(~effect_before_negation, false),
+            false
+        )) {
+        result.status = LegacyBattleSpecialFourOhFiveStatus::
+            actor_effect_resource_slot_write_typed_stop;
+        result.return_eax = result.effect_resource_slot_write.last.return_eax;
+        result.return_ecx = result.effect_resource_slot_write.last.return_ecx;
+        result.return_edx = result.effect_resource_slot_write.last.return_edx;
+        return result;
+    }
+    registers.eax = result.effect_resource_slot_write.last.return_eax;
+    registers.ecx = result.effect_resource_slot_write.last.return_ecx;
+    registers.edx = result.effect_resource_slot_write.last.return_edx;
     ++result.effect_publish_calls;
     static_cast<void>(invoke_action(
         kCallPublishSignedValue,
@@ -3975,10 +3997,32 @@ advance_legacy_battle_special_four_oh_five(
     static_cast<void>(
         invoke_action(kCallTargetEffectProperty, {request.actor_token, 1U})
     );
+    synchronize_legacy_battle_actor_effect_resource_cursor_update(actor, 1U);
+    registers.ecx = request.actor_token;
     ++result.effect_publish_calls;
-    static_cast<void>(
-        invoke_action(kCallActorEffectAction, {request.actor_token, 0x2366U})
-    );
+    if (!execute_legacy_battle_actor_effect_resource_slot_write_call(
+            actor,
+            result.effect_resource_slot_write,
+            request.effect_resource_slot_write_requests,
+            request.actor_token,
+            0x2366U,
+            registers.eax,
+            registers.edx,
+            0x00473533U,
+            0x00473538U,
+            {},
+            false
+        )) {
+        result.status = LegacyBattleSpecialFourOhFiveStatus::
+            actor_effect_resource_slot_write_typed_stop;
+        result.return_eax = result.effect_resource_slot_write.last.return_eax;
+        result.return_ecx = result.effect_resource_slot_write.last.return_ecx;
+        result.return_edx = result.effect_resource_slot_write.last.return_edx;
+        return result;
+    }
+    registers.eax = result.effect_resource_slot_write.last.return_eax;
+    registers.ecx = result.effect_resource_slot_write.last.return_ecx;
+    registers.edx = result.effect_resource_slot_write.last.return_edx;
     ++result.effect_publish_calls;
     static_cast<void>(invoke_action(
         kCallPublishSignedValue,
@@ -3992,6 +4036,7 @@ advance_legacy_battle_special_four_oh_five(
     static_cast<void>(
         invoke_action(kCallTargetEffectProperty, {request.actor_token, 1U})
     );
+    synchronize_legacy_battle_actor_effect_resource_cursor_update(actor, 1U);
     u32 accumulator_word_register = registers.edx;
     replace_low_word(
         accumulator_word_register,
@@ -7084,6 +7129,8 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                             state.coordinate_output_y_token,
                         .actor_field_26b8_high_bit_set_requests =
                             context.actor_field_26b8_high_bit_set_requests,
+                        .effect_resource_slot_write_requests =
+                            context.effect_resource_slot_write_requests,
                     }
                 );
             ++result.special_four_oh_five_calls;
@@ -7092,10 +7139,19 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                 result.actor_field_26b8_high_bit_set,
                 result.special_four_oh_five.actor_field_26b8_high_bit_set
             );
+            append_legacy_battle_actor_effect_resource_slot_write_trace(
+                result.effect_resource_slot_write,
+                result.special_four_oh_five.effect_resource_slot_write
+            );
             if (result.special_four_oh_five.status !=
                 LegacyBattleSpecialFourOhFiveStatus::completed) {
-                result.status = LegacyBattleActionDispatchStatus::
-                    special_four_oh_five_typed_stop;
+                result.status = result.special_four_oh_five.status ==
+                        LegacyBattleSpecialFourOhFiveStatus::
+                            actor_effect_resource_slot_write_typed_stop
+                    ? LegacyBattleActionDispatchStatus::
+                          actor_effect_resource_slot_write_typed_stop
+                    : LegacyBattleActionDispatchStatus::
+                          special_four_oh_five_typed_stop;
                 return result;
             }
             if (result.special_four_oh_five.return_eax != 1U) {
@@ -7348,10 +7404,28 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                 {
                     .primary_object_token = actor_token,
                     .secondary_object_token = group_b_token(group_b_index),
+                    .effect_resource_slot_write_owners =
+                        {
+                            .action = &state,
+                            .startup = context.startup,
+                        },
+                    .effect_resource_slot_write_requests =
+                        context.effect_resource_slot_write_requests,
                 }
             );
             ++result.pair_transition_calls;
             result.port_calls += result.pair_transition.port_calls;
+            append_legacy_battle_actor_effect_resource_slot_write_trace(
+                result.effect_resource_slot_write,
+                result.pair_transition.effect_resource_slot_write
+            );
+            if (result.pair_transition.status !=
+                LegacyBattlePairTransitionStatus::completed) {
+                result.status = LegacyBattleActionDispatchStatus::
+                    actor_effect_resource_slot_write_typed_stop;
+                result.return_value = result.pair_transition.return_eax;
+                return result;
+            }
         }
         const u16 actor_class = low_word(
             invoke(state, port, result, kCallQueryActorClass, {actor_token}).eax
@@ -7368,13 +7442,32 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                      port.battle_pair_primary_value()) /
                         100U;
             } else {
-                port.battle_pair_primary_value() = base +
+                const u32 percentage_term =
                     (static_cast<u32>(percent) *
                      (port.battle_pair_primary_value() - base)) /
-                        100U;
-                static_cast<void>(
-                    invoke(state, port, result, 0x004787D0U, {0x246FU})
-                );
+                    100U;
+                port.battle_pair_primary_value() = base + percentage_term;
+                if (!execute_legacy_battle_actor_effect_resource_slot_write_call(
+                        {
+                            .action = &state,
+                            .startup = context.startup,
+                        },
+                        result.effect_resource_slot_write,
+                        context.effect_resource_slot_write_requests,
+                        actor_token,
+                        0x246FU,
+                        0x51EB851FU,
+                        port.battle_pair_primary_value(),
+                        0x00453B85U,
+                        0x00453B8AU,
+                        add_flags(percentage_term, base)
+                    )) {
+                    result.status = LegacyBattleActionDispatchStatus::
+                        actor_effect_resource_slot_write_typed_stop;
+                    result.return_value =
+                        result.effect_resource_slot_write.last.return_eax;
+                    return result;
+                }
                 port.battle_pair_primary_value() =
                     0U - port.battle_pair_primary_value();
                 static_cast<void>(invoke(
@@ -7397,6 +7490,14 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                 static_cast<void>(
                     invoke(state, port, result, 0x0047CEC0U, {1U})
                 );
+                synchronize_legacy_battle_actor_effect_resource_cursor_update(
+                    {
+                        .action = &state,
+                        .startup = context.startup,
+                    },
+                    actor_token,
+                    1U
+                );
             }
             static_cast<void>(invoke(
                 state,
@@ -7412,10 +7513,28 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                 {
                     .primary_object_token = actor_token,
                     .secondary_object_token = target_token,
+                    .effect_resource_slot_write_owners =
+                        {
+                            .action = &state,
+                            .startup = context.startup,
+                        },
+                    .effect_resource_slot_write_requests =
+                        context.effect_resource_slot_write_requests,
                 }
             );
             ++result.pair_transition_calls;
             result.port_calls += result.pair_transition.port_calls;
+            append_legacy_battle_actor_effect_resource_slot_write_trace(
+                result.effect_resource_slot_write,
+                result.pair_transition.effect_resource_slot_write
+            );
+            if (result.pair_transition.status !=
+                LegacyBattlePairTransitionStatus::completed) {
+                result.status = LegacyBattleActionDispatchStatus::
+                    actor_effect_resource_slot_write_typed_stop;
+                result.return_value = result.pair_transition.return_eax;
+                return result;
+            }
         }
         port.battle_pair_primary_value() = 0U;
         state.selection_high_word = 0U;

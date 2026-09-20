@@ -15,7 +15,6 @@ using compat::u32;
 constexpr u32 kCallActorStatus = 0x0047CE80U;
 constexpr u32 kCallFeedback = 0x0047F150U;
 constexpr u32 kCallQueryFinalActor = 0x0047F920U;
-constexpr u32 kCallPublishRewardId = 0x004787D0U;
 constexpr u32 kCallPublishRewardValue = 0x0047D640U;
 constexpr u32 kCallPublishRewardMode = 0x0047CEC0U;
 
@@ -43,6 +42,32 @@ subtract_flags(const u32 left, const u32 right) noexcept {
         .sign = (difference & 0x80000000U) != 0U,
         .overflow =
             (((left ^ right) & (left ^ difference)) & 0x80000000U) != 0U,
+    };
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+compare_dword_zero_flags(const u32 value) noexcept {
+    return {
+        .carry = false,
+        .parity = has_even_parity(value),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = true,
+        .zero = value == 0U,
+        .sign = (value & 0x80000000U) != 0U,
+        .overflow = false,
+    };
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+test_dword_zero_flags(const u32 value) noexcept {
+    return {
+        .carry = false,
+        .parity = has_even_parity(value),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = value == 0U,
+        .sign = (value & 0x80000000U) != 0U,
+        .overflow = false,
     };
 }
 
@@ -223,14 +248,27 @@ public:
             {
                 .action = action_target_owners_.action,
                 .startup = &startup_,
-            }
+            },
+            {},
+            {
+                .action = action_target_owners_.action,
+                .startup = &startup_,
+            },
+            request_.effect_resource_slot_write_requests
         );
         result.port_calls += child.port_calls;
+        append_legacy_battle_actor_effect_resource_slot_write_trace(
+            result.effect_resource_slot_write, child.effect_resource_slot_write
+        );
         last_child_eax_ = child.return_value;
         last_child_edx_ = child.return_edx;
         if (child.status != LegacyBattleEffectFrameStatus::completed) {
-            result.status =
-                LegacyBattleEffectCoordinatorStatus::effect_frame_typed_stop;
+            result.status = child.status ==
+                    LegacyBattleEffectFrameStatus::
+                        actor_effect_resource_slot_write_typed_stop
+                ? LegacyBattleEffectCoordinatorStatus::
+                      effect_resource_slot_write_typed_stop
+                : LegacyBattleEffectCoordinatorStatus::effect_frame_typed_stop;
             return false;
         }
         return_value = child.return_value;
@@ -259,14 +297,28 @@ public:
             {
                 .action = action_target_owners_.action,
                 .startup = &startup_,
-            }
+            },
+            {},
+            {
+                .action = action_target_owners_.action,
+                .startup = &startup_,
+            },
+            request_.effect_resource_slot_write_requests
         );
         result.port_calls += child.port_calls;
+        append_legacy_battle_actor_effect_resource_slot_write_trace(
+            result.effect_resource_slot_write, child.effect_resource_slot_write
+        );
         last_child_eax_ = child.return_value;
         last_child_edx_ = child.return_edx;
         if (child.status != LegacyBattleGroupEffectFrameStatus::completed) {
-            result.status = LegacyBattleEffectCoordinatorStatus::
-                group_effect_frame_typed_stop;
+            result.status = child.status ==
+                    LegacyBattleGroupEffectFrameStatus::
+                        actor_effect_resource_slot_write_typed_stop
+                ? LegacyBattleEffectCoordinatorStatus::
+                      effect_resource_slot_write_typed_stop
+                : LegacyBattleEffectCoordinatorStatus::
+                      group_effect_frame_typed_stop;
             return false;
         }
         return_value = child.return_value;
@@ -318,16 +370,35 @@ public:
         return true;
     }
 
-    void finalize_pair(const u32 first_actor, const u32 second_actor) {
+    [[nodiscard]] bool
+    finalize_pair(const u32 first_actor, const u32 second_actor) {
         result.pair_transition = advance_legacy_battle_pair_transition(
             port_,
             {
                 .primary_object_token = first_actor,
                 .secondary_object_token = second_actor,
+                .effect_resource_slot_write_owners =
+                    {
+                        .action = action_target_owners_.action,
+                        .startup = &startup_,
+                    },
+                .effect_resource_slot_write_requests =
+                    request_.effect_resource_slot_write_requests,
             }
         );
         ++result.pair_transition_calls;
         result.port_calls += result.pair_transition.port_calls;
+        append_legacy_battle_actor_effect_resource_slot_write_trace(
+            result.effect_resource_slot_write,
+            result.pair_transition.effect_resource_slot_write
+        );
+        if (result.pair_transition.status !=
+            LegacyBattlePairTransitionStatus::completed) {
+            result.status = LegacyBattleEffectCoordinatorStatus::
+                effect_resource_slot_write_typed_stop;
+            return false;
+        }
+        return true;
     }
 
     [[nodiscard]] u32 last_child_eax() const noexcept {
@@ -355,7 +426,9 @@ public:
         const u32 actor_index,
         const u32 actor_token,
         const u32 value_token,
-        u32& value
+        u32& value,
+        const u32 resource_call_address,
+        const bool value_loaded_to_eax
     ) {
         auto* actor = actor_index < group_b_reward_scale_.size()
             ? &group_b_reward_scale_[actor_index]
@@ -378,11 +451,44 @@ public:
             return false;
         }
         if (result.reward_scale.return_eax == 1U && signed_dword(value) > 0) {
-            static_cast<void>(invoke(
-                kCallPublishRewardId, {kLegacyBattleEffectCoordinatorRewardId}
-            ));
+            const auto entry_flags = value_loaded_to_eax
+                ? test_dword_zero_flags(value)
+                : compare_dword_zero_flags(value);
+            const u32 entry_eax =
+                value_loaded_to_eax ? value : result.reward_scale.return_eax;
+            const bool completed =
+                execute_legacy_battle_actor_effect_resource_slot_write_call(
+                    {
+                        .action = action_target_owners_.action,
+                        .startup = &startup_,
+                    },
+                    result.effect_resource_slot_write,
+                    request_.effect_resource_slot_write_requests,
+                    actor_token,
+                    kLegacyBattleEffectCoordinatorRewardId,
+                    entry_eax,
+                    result.reward_scale.return_edx,
+                    resource_call_address,
+                    resource_call_address + 5U,
+                    entry_flags
+                );
+            if (!completed) {
+                result.status = LegacyBattleEffectCoordinatorStatus::
+                    effect_resource_slot_write_typed_stop;
+                result.return_value =
+                    result.effect_resource_slot_write.last.return_eax;
+                return false;
+            }
             static_cast<void>(invoke(kCallPublishRewardValue, {value}));
             static_cast<void>(invoke(kCallPublishRewardMode, {1U}));
+            synchronize_legacy_battle_actor_effect_resource_cursor_update(
+                {
+                    .action = action_target_owners_.action,
+                    .startup = &startup_,
+                },
+                actor_token,
+                1U
+            );
             static_cast<void>(feedback(0U, value, 0U));
         }
         static_cast<void>(value_token);
@@ -850,8 +956,9 @@ LegacyBattleEffectCoordinatorResult advance_legacy_battle_effect_coordinator(
                 return result;
             }
             state.processed_actor_slots[target_index] = target_index;
-            if (state.group_a_effect_mode != 1U) {
-                run.finalize_pair(current_token, target_token);
+            if (state.group_a_effect_mode != 1U &&
+                !run.finalize_pair(current_token, target_token)) {
+                return result;
             }
             if (state.primary_suppression == 0U &&
                 run.feedback(
@@ -899,7 +1006,6 @@ LegacyBattleEffectCoordinatorResult advance_legacy_battle_effect_coordinator(
                         return result;
                     }
                 }
-                state.feedback_primary[0] = 0U;
             }
             run.clear_feedback();
         }
@@ -967,7 +1073,9 @@ LegacyBattleEffectCoordinatorResult advance_legacy_battle_effect_coordinator(
                         current_index,
                         current_token,
                         0x0052441CU,
-                        run.pair_primary_value()
+                        run.pair_primary_value(),
+                        0x0045C9E7U,
+                        true
                     )) {
                     return result;
                 }
@@ -1047,8 +1155,9 @@ LegacyBattleEffectCoordinatorResult advance_legacy_battle_effect_coordinator(
             }
         }
 
-        if (!group_effect_mode && !target_group_b) {
-            run.finalize_pair(current_token, target_token);
+        if (!group_effect_mode && !target_group_b &&
+            !run.finalize_pair(current_token, target_token)) {
+            return result;
         }
         if (!target_group_b && run.query_final_actor(target_token) == 1U &&
             target_index == focus_actor - 8U) {
@@ -1059,7 +1168,9 @@ LegacyBattleEffectCoordinatorResult advance_legacy_battle_effect_coordinator(
                     current_index,
                     current_token,
                     0x005242B0U,
-                    state.feedback_primary[0]
+                    state.feedback_primary[0],
+                    0x0045CB3BU,
+                    true
                 )) {
                 return result;
             }
@@ -1119,7 +1230,9 @@ LegacyBattleEffectCoordinatorResult advance_legacy_battle_effect_coordinator(
                 if (state.feedback_primary[index] > 0U) {
                     run.pair_primary_value() = state.feedback_primary[index];
                 }
-                run.finalize_pair(current_token, group_a_token(index));
+                if (!run.finalize_pair(current_token, group_a_token(index))) {
+                    return result;
+                }
                 state.processed_actor_slots[index] = index;
                 state.actor_activity_latch = 1U;
                 state.group_activity_latch = 1U;
@@ -1139,7 +1252,9 @@ LegacyBattleEffectCoordinatorResult advance_legacy_battle_effect_coordinator(
                         current_index,
                         current_token,
                         0x005242B0U + index * 4U,
-                        state.feedback_primary[index]
+                        state.feedback_primary[index],
+                        0x0045CD86U,
+                        false
                     )) {
                     return result;
                 }
@@ -1250,7 +1365,9 @@ LegacyBattleEffectCoordinatorResult advance_legacy_battle_effect_coordinator(
                             current_index,
                             current_token,
                             0x005242B0U + index * 4U,
-                            state.feedback_primary[index]
+                            state.feedback_primary[index],
+                            0x0045CF55U,
+                            false
                         )) {
                         return result;
                     }

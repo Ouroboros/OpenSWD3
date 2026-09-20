@@ -17,6 +17,16 @@ inline constexpr std::array<u32, 3> kChannelResources{
     0x2367U,
     0x2366U,
 };
+inline constexpr std::array<u32, 3> kResourceSlotWriteCallAddresses{
+    0x0046EEDFU,
+    0x0046EF72U,
+    0x0046EFFEU,
+};
+inline constexpr std::array<u32, 3> kResourceSlotWriteReturnAddresses{
+    0x0046EEE4U,
+    0x0046EF77U,
+    0x0046F003U,
+};
 
 [[nodiscard]] constexpr u8 record_byte(
     const std::array<u32, 14>& record, const std::size_t offset
@@ -149,11 +159,32 @@ apply_legacy_battle_group_a_attribute_effects(
             );
         }
 
-        invoke(
-            LegacyBattleGroupAAttributeEffectCall::select_channel_resource,
-            channel_index,
-            {kChannelResources[channel_index], 0U, 0U}
-        );
+        if (!execute_legacy_battle_actor_effect_resource_slot_write_call(
+                request.actor,
+                result.effect_resource_slot_write,
+                request.effect_resource_slot_write_requests,
+                actor_token,
+                static_cast<u16>(kChannelResources[channel_index]),
+                eax,
+                edx,
+                kResourceSlotWriteCallAddresses[channel_index],
+                kResourceSlotWriteReturnAddresses[channel_index],
+                {},
+                false
+            )) {
+            eax = result.effect_resource_slot_write.last.return_eax;
+            ecx = result.effect_resource_slot_write.last.return_ecx;
+            edx = result.effect_resource_slot_write.last.return_edx;
+            result.status = LegacyBattleGroupAAttributeEffectStatus::
+                effect_resource_slot_write_typed_stop;
+            result.return_eax = eax;
+            result.return_ecx = ecx;
+            result.return_edx = edx;
+            return result;
+        }
+        eax = result.effect_resource_slot_write.last.return_eax;
+        ecx = result.effect_resource_slot_write.last.return_ecx;
+        edx = result.effect_resource_slot_write.last.return_edx;
         if (channel_index == 0U) {
             eax = to_bits(signed_effect);
         } else {
@@ -173,6 +204,9 @@ apply_legacy_battle_group_a_attribute_effects(
             LegacyBattleGroupAAttributeEffectCall::finalize_channel_effect,
             channel_index,
             {1U, 0U, 0U}
+        );
+        synchronize_legacy_battle_actor_effect_resource_cursor_update(
+            request.actor, 1U
         );
 
         if (channel_index == 0U) {

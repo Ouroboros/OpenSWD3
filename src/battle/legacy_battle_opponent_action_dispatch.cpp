@@ -421,6 +421,8 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                         .entry_edx = action_reply.edx,
                         .actor_field_26b8_high_bit_set_requests =
                             context.actor_field_26b8_high_bit_set_requests,
+                        .effect_resource_slot_write_requests =
+                            context.effect_resource_slot_write_requests,
                     }
                 );
             ++result.group_b_action_execution_calls;
@@ -429,10 +431,19 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                 result.actor_field_26b8_high_bit_set,
                 execution.actor_field_26b8_high_bit_set
             );
+            append_legacy_battle_actor_effect_resource_slot_write_trace(
+                result.effect_resource_slot_write,
+                execution.effect_resource_slot_write
+            );
             if (execution.status !=
                 LegacyBattleGroupBActionExecutionStatus::completed) {
-                result.status = LegacyBattleActionDispatchStatus::
-                    group_b_action_execution_typed_stop;
+                result.status = execution.status ==
+                        LegacyBattleGroupBActionExecutionStatus::
+                            actor_effect_resource_slot_write_typed_stop
+                    ? LegacyBattleActionDispatchStatus::
+                          actor_effect_resource_slot_write_typed_stop
+                    : LegacyBattleActionDispatchStatus::
+                          group_b_action_execution_typed_stop;
                 return result;
             }
             if (execution.return_eax != 1U) {
@@ -515,6 +526,8 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                 .entry_edx = action_reply.edx,
                 .actor_field_26b8_high_bit_set_requests =
                     context.actor_field_26b8_high_bit_set_requests,
+                .effect_resource_slot_write_requests =
+                    context.effect_resource_slot_write_requests,
             }
         );
         ++result.group_b_action_execution_calls;
@@ -523,10 +536,19 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
             result.actor_field_26b8_high_bit_set,
             execution.actor_field_26b8_high_bit_set
         );
+        append_legacy_battle_actor_effect_resource_slot_write_trace(
+            result.effect_resource_slot_write,
+            execution.effect_resource_slot_write
+        );
         if (execution.status !=
             LegacyBattleGroupBActionExecutionStatus::completed) {
-            result.status = LegacyBattleActionDispatchStatus::
-                group_b_action_execution_typed_stop;
+            result.status = execution.status ==
+                    LegacyBattleGroupBActionExecutionStatus::
+                        actor_effect_resource_slot_write_typed_stop
+                ? LegacyBattleActionDispatchStatus::
+                      actor_effect_resource_slot_write_typed_stop
+                : LegacyBattleActionDispatchStatus::
+                      group_b_action_execution_typed_stop;
             return result;
         }
         if (execution.return_eax != 1U) {

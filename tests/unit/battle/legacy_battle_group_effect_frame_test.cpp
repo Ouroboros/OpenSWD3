@@ -35,6 +35,15 @@ actor_owners() {
     };
 }
 
+[[nodiscard]] openswd3::battle::LegacyBattleActorEffectResourceSlotWriteOwners
+effect_resource_owners() {
+    const auto owners = actor_owners();
+    return {
+        .action = owners.action,
+        .startup = owners.startup,
+    };
+}
+
 class GroupEffectPort final
     : public openswd3::battle::LegacyBattleEffectCallPort {
 public:
@@ -407,6 +416,18 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
         state.group_a_reward_mode = 1U;
         state.reward_summary_gate = 1U;
         GroupEffectPort port;
+        const auto coordinates = actor_owners();
+        const auto resources = effect_resource_owners();
+        const u32 first_actor =
+            openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken;
+        const u32 second_actor = first_actor +
+            openswd3::battle::kLegacyBattleActorCoordinatesGroupAStride;
+        openswd3::battle::reset_legacy_battle_actor_effect_resource_slots(
+            resources, first_actor
+        );
+        openswd3::battle::reset_legacy_battle_actor_effect_resource_slots(
+            resources, second_actor
+        );
         port.actor_metric_state().group_a_count = 2U;
         port.push(0x0047CEA0U, {.eax = 0U});
         port.push(0x0047CEA0U, {.eax = 0U});
@@ -418,11 +439,38 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
         port.push(0x0047CEC0U, {});
         const auto result =
             openswd3::battle::advance_legacy_battle_group_effect_frame(
-                state, port, 0U, 0x1000U, 0U, 0U, 0U, 1U
+                state,
+                port,
+                0U,
+                0x1000U,
+                0U,
+                0U,
+                0U,
+                1U,
+                coordinates,
+                {},
+                resources
+            );
+        const auto first_resource = openswd3::battle::
+            resolve_legacy_battle_actor_effect_resource_slot_write(
+                resources, first_actor
+            );
+        const auto second_resource = openswd3::battle::
+            resolve_legacy_battle_actor_effect_resource_slot_write(
+                resources, second_actor
             );
         test.expect_true(
             result.return_value == 1U && result.reward_iterations == 2U &&
-                state.reward_total[0] == 10U && state.reward_total[1] == 20U &&
+                result.effect_resource_slot_write.calls == 2U &&
+                result.effect_resource_slot_write.call_addresses[0U] ==
+                    0x0045958CU &&
+                result.effect_resource_slot_write.call_addresses[1U] ==
+                    0x004595DBU &&
+                (*first_resource.slots)[1U] == 0x2367U &&
+                (*first_resource.slots)[2U] == 0x2366U &&
+                *first_resource.cursor == 3U && *second_resource.cursor == 1U &&
+                port.count(0x004787D0U) == 0U && state.reward_total[0] == 10U &&
+                state.reward_total[1] == 20U &&
                 state.reward_auxiliary[0] == 0U && state.reward_high[0] == 0U &&
                 port.battle_pair_secondary_value() == 0U &&
                 (port.effect_shift_state().packed_reward & 0xFFFF0000U) == 0U &&
@@ -438,6 +486,18 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
         state.primary[0].complete = 1U;
         state.primary[0].status_flags = 0x10U;
         GroupEffectPort port;
+        const auto coordinates = actor_owners();
+        const auto resources = effect_resource_owners();
+        const u32 first_actor =
+            openswd3::battle::kLegacyBattleActorCoordinatesGroupBBaseToken;
+        const u32 second_actor = first_actor +
+            openswd3::battle::kLegacyBattleActorCoordinatesGroupBStride;
+        openswd3::battle::reset_legacy_battle_actor_effect_resource_slots(
+            resources, first_actor
+        );
+        openswd3::battle::reset_legacy_battle_actor_effect_resource_slots(
+            resources, second_actor
+        );
         port.actor_metric_state().group_b_count = 2U;
         port.push(0x0047CE80U, {.eax = 0U});
         port.push(0x0047CE80U, {.eax = 0U});
@@ -445,11 +505,45 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
         port.push(0x00481010U, reward_reply(0xFFFFFFFFU, 4U, 5U));
         const auto result =
             openswd3::battle::advance_legacy_battle_group_effect_frame(
-                state, port, 0U, 0x1000U, 0U, 0U, 0U, 1U
+                state,
+                port,
+                0U,
+                0x1000U,
+                0U,
+                0U,
+                0U,
+                1U,
+                coordinates,
+                {},
+                resources
             );
         const auto offsets = arguments_for(port, 0x0047CF00U, 1U);
+        const auto first_resource = openswd3::battle::
+            resolve_legacy_battle_actor_effect_resource_slot_write(
+                resources, first_actor
+            );
+        const auto second_resource = openswd3::battle::
+            resolve_legacy_battle_actor_effect_resource_slot_write(
+                resources, second_actor
+            );
         test.expect_true(
             result.return_value == 1U && result.reward_iterations == 2U &&
+                result.effect_resource_slot_write.calls == 4U &&
+                result.effect_resource_slot_write.call_addresses[0U] ==
+                    0x0045971AU &&
+                result.effect_resource_slot_write.call_addresses[1U] ==
+                    0x00459769U &&
+                result.effect_resource_slot_write.call_addresses[2U] ==
+                    0x0045971AU &&
+                result.effect_resource_slot_write.call_addresses[3U] ==
+                    0x00459769U &&
+                (*first_resource.slots)[0U] == 0x2367U &&
+                (*first_resource.slots)[1U] == 0x2366U &&
+                *first_resource.cursor == 2U &&
+                (*second_resource.slots)[0U] == 0x2367U &&
+                (*second_resource.slots)[1U] == 0x2366U &&
+                *second_resource.cursor == 2U &&
+                port.count(0x004787D0U) == 0U &&
                 offsets == std::vector<u32>({0U, 8U, 8U, 16U}) &&
                 state.reward_total[0] == 0U && state.reward_total[1] == 0U &&
                 port.count(0x0047F150U) == 0U,
@@ -462,6 +556,13 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
         state.primary[0].complete = 1U;
         state.primary[0].status_flags = 1U;
         GroupEffectPort port;
+        const auto coordinates = actor_owners();
+        const auto resources = effect_resource_owners();
+        const u32 actor_token =
+            openswd3::battle::kLegacyBattleActorCoordinatesGroupBBaseToken;
+        openswd3::battle::reset_legacy_battle_actor_effect_resource_slots(
+            resources, actor_token
+        );
         port.battle_pair_secondary_value() = 2U;
         port.effect_shift_state().packed_reward = 3U << 16U;
         port.push(0x00481A40U, reward_reply(5U));
@@ -475,10 +576,24 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
                 0U,
                 0U,
                 0U,
-                actor_owners()
+                coordinates,
+                {},
+                resources
+            );
+        const auto actor_resource = openswd3::battle::
+            resolve_legacy_battle_actor_effect_resource_slot_write(
+                resources, actor_token
             );
         test.expect_true(
             result.return_value == 1U && state.battle_gate == 0U &&
+                result.effect_resource_slot_write.calls == 2U &&
+                result.effect_resource_slot_write.call_addresses[0U] ==
+                    0x00459879U &&
+                result.effect_resource_slot_write.call_addresses[1U] ==
+                    0x004598C3U &&
+                (*actor_resource.slots)[1U] == 0x2367U &&
+                (*actor_resource.slots)[2U] == 0x2366U &&
+                *actor_resource.cursor == 3U && port.count(0x004787D0U) == 0U &&
                 state.reward_display_total == 5U,
             "single actor reward publishes the reward and clears the battle gate"
         );
@@ -497,6 +612,45 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
         test.expect_true(
             port.count(0x00481A40U) == 1U,
             "single actor reward invokes the typed reward computation once"
+        );
+    }
+
+    {
+        LegacyBattleGroupEffectFrameState state;
+        state.primary[0].complete = 1U;
+        state.primary[0].status_flags = 0x10U;
+        GroupEffectPort port;
+        port.battle_pair_secondary_value() = 2U;
+        port.push(0x00481A40U, reward_reply(0xFFFFFFFFU));
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_effect_frame(
+                state,
+                port,
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupBBaseToken,
+                0x1000U,
+                0U,
+                0U,
+                0U,
+                0U,
+                actor_owners()
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleGroupEffectFrameStatus::
+                        actor_effect_resource_slot_write_typed_stop &&
+                result.effect_resource_slot_write.calls == 1U &&
+                result.effect_resource_slot_write.call_addresses[0U] ==
+                    0x00459879U &&
+                result.effect_resource_slot_write.last.status ==
+                    openswd3::battle::
+                        LegacyBattleActorEffectResourceSlotWriteStatus::
+                            cursor_read_typed_stop &&
+                result.effect_resource_slot_write.last.return_eip ==
+                    0x004787D7U &&
+                result.reward_iterations == 0U &&
+                port.battle_pair_secondary_value() == 2U &&
+                port.count(0x0047D640U) == 0U && port.count(0x0047CEC0U) == 0U,
+            "single reward typed stop preserves the computed prefix before publication and cursor update"
         );
     }
 

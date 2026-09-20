@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_actor_effect_resource_slot_write.hpp"
 #include "openswd3/battle/legacy_battle_effect_shift.hpp"
 #include "openswd3/compat/types.hpp"
 
@@ -90,9 +91,21 @@ struct LegacyBattlePairTransitionRequest {
     compat::u32 eax{};
     compat::u32 ecx{};
     compat::u32 edx{};
+    LegacyBattleActorEffectResourceSlotWriteOwners
+        effect_resource_slot_write_owners{};
+    LegacyBattleActorEffectResourceSlotWriteCallRequests
+        effect_resource_slot_write_requests{};
+};
+
+enum class LegacyBattlePairTransitionStatus : compat::u8 {
+    completed,
+    effect_resource_slot_write_typed_stop,
 };
 
 struct LegacyBattlePairTransitionResult {
+    LegacyBattlePairTransitionStatus status{
+        LegacyBattlePairTransitionStatus::completed
+    };
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
@@ -104,6 +117,8 @@ struct LegacyBattlePairTransitionResult {
     bool secondary_value_published{};
     bool packed_reward_high_published{};
     bool primary_value_cleared{};
+    LegacyBattleActorEffectResourceSlotWriteCallTrace
+        effect_resource_slot_write{};
 };
 
 // Typed closure of the legacy pair transition. Object addresses remain

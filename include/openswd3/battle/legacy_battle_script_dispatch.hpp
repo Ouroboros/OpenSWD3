@@ -3,6 +3,7 @@
 #include "openswd3/battle/legacy_battle_actor_base_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_actor_coordinate_publication.hpp"
 #include "openswd3/battle/legacy_battle_actor_coordinates.hpp"
+#include "openswd3/battle/legacy_battle_actor_effect_resource_slot_write.hpp"
 #include "openswd3/battle/legacy_battle_actor_field_26b8_high_bit_set.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_assets.hpp"
@@ -215,7 +216,7 @@ enum class LegacyBattleScriptDispatchCall : compat::u32 {
     reserved_actor_current_coordinate_query = 0x00478600U,
     reserved_actor_action_mode = 0x00478710U,
     reserved_actor_field_26b8_high_bit_set = 0x00478780U,
-    pending_4787d0 = 0x004787D0U,
+    reserved_actor_effect_resource_slot_write = 0x004787D0U,
     pending_4787f0 = 0x004787F0U,
     pending_478830 = 0x00478830U,
     pending_478a70 = 0x00478A70U,
@@ -324,6 +325,7 @@ enum class LegacyBattleScriptDispatchStatus : compat::u8 {
     party_item_definition_typed_stop,
     actor_action_mode_typed_stop,
     actor_field_26b8_high_bit_set_typed_stop,
+    actor_effect_resource_slot_write_typed_stop,
 };
 
 struct LegacyBattleScriptCurrentCoordinateAccess {
@@ -353,6 +355,8 @@ struct LegacyBattleScriptDispatchRequest {
         actor_action_mode_requests{};
     LegacyBattleActorField26b8HighBitSetCallRequests
         actor_field_26b8_high_bit_set_requests{};
+    LegacyBattleActorEffectResourceSlotWriteCallRequests
+        effect_resource_slot_write_requests{};
 };
 
 struct LegacyBattleScriptCurrentCoordinateCallRecord {
@@ -406,6 +410,8 @@ struct LegacyBattleScriptDispatchResult {
     compat::u32 party_item_definition_calls{};
     LegacyBattleActorField26b8HighBitSetCallTrace
         actor_field_26b8_high_bit_set{};
+    LegacyBattleActorEffectResourceSlotWriteCallTrace
+        effect_resource_slot_write{};
     std::vector<LegacyBattleScriptDispatchCall> call_trace;
 };
 

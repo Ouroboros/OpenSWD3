@@ -154,6 +154,8 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
         LegacyBattleEffectCoordinatorState state;
         EffectCoordinatorPort port;
         openswd3::rendering::LegacyFramebuffer framebuffer;
+        openswd3::battle::LegacyBattleStartupState startup;
+        openswd3::battle::LegacyBattleActionDispatchState action;
         port.actor_metric_state().priority_actor_index = 0U;
         state.group_b_effect_mode = 1U;
         port.battle_pair_primary_value() = 200U;
@@ -161,17 +163,88 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
             reward{};
         reward[0U].status_bits = 0x10U;
         reward[0U].percent = 200U;
-        const auto result =
-            run(state, port, framebuffer, 0x8000U, 0U, nullptr, &reward);
+        const auto result = run(
+            state, port, framebuffer, 0x8000U, 0U, &startup, &reward, &action
+        );
+        const auto actor_resource = openswd3::battle::
+            resolve_legacy_battle_actor_effect_resource_slot_write(
+                {.action = &action, .startup = &startup},
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupBBaseToken
+            );
         test.expect_true(
             result.status == LegacyBattleEffectCoordinatorStatus::completed &&
                 result.return_value == 0U && result.reward_scale_calls == 1U &&
+                result.effect_resource_slot_write.calls == 1U &&
+                result.effect_resource_slot_write.call_addresses[0U] ==
+                    0x0045C9E7U &&
+                result.effect_resource_slot_write.return_addresses[0U] ==
+                    0x0045C9ECU &&
+                (*actor_resource.slots)[0U] == 0x2367U &&
+                *actor_resource.cursor == 1U && port.count(0x004787D0U) == 0U &&
                 result.reward_scale.return_eax == 1U &&
                 reward[0U].percent == 100U &&
                 port.battle_pair_primary_value() == 201U &&
                 port.count(0x00472C70U) == 0U &&
                 port.count(0x00482F10U) == 1U && port.count(0x004830A0U) == 1U,
             "group-B incomplete group effect scales the live pair value through the typed reward path"
+        );
+    }
+
+    {
+        LegacyBattleEffectCoordinatorState state;
+        EffectCoordinatorPort port;
+        openswd3::rendering::LegacyFramebuffer framebuffer;
+        openswd3::battle::LegacyBattleStartupState startup;
+        openswd3::battle::LegacyBattleActionDispatchState action;
+        port.actor_metric_state().priority_actor_index = 0U;
+        state.group_b_effect_mode = 1U;
+        port.battle_pair_primary_value() = 200U;
+        std::array<openswd3::battle::LegacyBattleRewardScaleActorState, 8>
+            reward{};
+        reward[0U].status_bits = 0x10U;
+        reward[0U].percent = 200U;
+        openswd3::battle::LegacyBattleEffectCoordinatorRequest request;
+        request.effect_resource_slot_write_requests.calls[0U]
+            .access.argument_readable = false;
+        const auto result =
+            run(state,
+                port,
+                framebuffer,
+                0x8000U,
+                0U,
+                &startup,
+                &reward,
+                &action,
+                request);
+        const auto actor_resource = openswd3::battle::
+            resolve_legacy_battle_actor_effect_resource_slot_write(
+                {.action = &action, .startup = &startup},
+                openswd3::battle::kLegacyBattleActorCoordinatesGroupBBaseToken
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleEffectCoordinatorStatus::
+                        effect_resource_slot_write_typed_stop &&
+                result.return_value == 201U &&
+                result.effect_resource_slot_write.calls == 1U &&
+                result.effect_resource_slot_write.call_addresses[0U] ==
+                    0x0045C9E7U &&
+                result.effect_resource_slot_write.last.status ==
+                    openswd3::battle::
+                        LegacyBattleActorEffectResourceSlotWriteStatus::
+                            argument_read_typed_stop &&
+                result.effect_resource_slot_write.last.return_eip ==
+                    0x004787D0U &&
+                result.effect_resource_slot_write.last.flags.parity &&
+                !result.effect_resource_slot_write.last.flags
+                     .auxiliary_carry_defined &&
+                !result.effect_resource_slot_write.last.flags.zero &&
+                reward[0U].percent == 100U &&
+                port.battle_pair_primary_value() == 201U &&
+                (*actor_resource.slots)[0U] == 0U &&
+                *actor_resource.cursor == 0U && port.count(0x0047D640U) == 0U &&
+                port.count(0x0047CEC0U) == 0U && port.count(kFeedback) == 0U,
+            "coordinator reward argument stop preserves scaling but suppresses slot write publication and cursor update"
         );
     }
 
@@ -483,13 +556,19 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
     {
         LegacyBattleEffectCoordinatorState state;
         openswd3::battle::LegacyBattleStartupState startup;
+        openswd3::battle::LegacyBattleActionDispatchState action;
+        std::array<openswd3::battle::LegacyBattleRewardScaleActorState, 8>
+            reward{};
         EffectCoordinatorPort port;
         openswd3::rendering::LegacyFramebuffer framebuffer;
         auto& metrics = port.actor_metric_state();
         metrics.priority_actor_index = 0U;
         metrics.group_b_mode = 0U;
         seed_completed_records(state);
+        state.feedback_primary[0U] = 200U;
         state.group_b_copy_argument_words[0U] = 1U;
+        reward[0U].status_bits = 0x10U;
+        reward[0U].percent = 200U;
         auto& profile =
             startup.party[0U].attribute_aggregation.embedded_profiles[0U];
         set_profile_word(profile, 0x04U, 100U);
@@ -514,8 +593,8 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
                 0x8000U,
                 8U,
                 &startup,
-                nullptr,
-                nullptr,
+                &reward,
+                &action,
                 request);
         test.expect_true(
             result.return_value == 1U && result.effect_frame_calls == 1U &&
@@ -533,7 +612,19 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
                 port.group_a_reward_profile_state().head.percentage == 12U &&
                 port.count(0x0046F6E0U) == 0U &&
                 result.pair_transition_calls == 1U &&
-                result.pair_transition.port_calls == 0U,
+                result.pair_transition.port_calls == 0U &&
+                result.reward_scale_calls == 1U &&
+                result.effect_resource_slot_write.calls == 1U &&
+                result.effect_resource_slot_write.call_addresses[0U] ==
+                    0x0045CB3BU &&
+                result.effect_resource_slot_write.return_addresses[0U] ==
+                    0x0045CB40U &&
+                (*startup.group_b_lifecycle)[0U]
+                        .action_execution.effect_resource_slots[0U] ==
+                    0x2367U &&
+                (*startup.group_b_lifecycle)[0U]
+                        .action_execution.effect_resource_cursor == 1U &&
+                port.count(0x004787D0U) == 0U,
             "current group-B single-target group-A path directly merges eligible reward profiles before pair finalization"
         );
         test.expect_true(
@@ -690,6 +781,10 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
         LegacyBattleEffectCoordinatorState state;
         EffectCoordinatorPort port;
         openswd3::rendering::LegacyFramebuffer framebuffer;
+        openswd3::battle::LegacyBattleStartupState startup;
+        openswd3::battle::LegacyBattleActionDispatchState action;
+        std::array<openswd3::battle::LegacyBattleRewardScaleActorState, 8>
+            reward{};
         auto& metrics = port.actor_metric_state();
         metrics.priority_actor_index = 0U;
         metrics.group_a_count = 1U;
@@ -698,14 +793,31 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
         state.group_b_effect_mode = 1U;
         state.completion_target_count = 1U;
         state.primary_suppression = 1U;
-        const auto result = run(state, port, framebuffer);
+        state.feedback_primary[0U] = 200U;
+        reward[0U].status_bits = 0x10U;
+        reward[0U].percent = 200U;
+        const auto result = run(
+            state, port, framebuffer, 0x8000U, 0U, &startup, &reward, &action
+        );
         test.expect_true(
             result.return_value == 1U &&
                 result.group_effect_frame_calls == 1U &&
                 result.group_a_iterations == 1U &&
                 result.actor_status_calls == 1U &&
                 result.pair_transition_calls == 1U &&
-                state.completed_count == 0U,
+                result.reward_scale_calls == 1U &&
+                result.effect_resource_slot_write.calls >= 1U &&
+                result.effect_resource_slot_write.call_addresses
+                        [result.effect_resource_slot_write.calls - 1U] ==
+                    0x0045CD86U &&
+                result.effect_resource_slot_write.return_addresses
+                        [result.effect_resource_slot_write.calls - 1U] ==
+                    0x0045CD8BU &&
+                result.effect_resource_slot_write.last.target_write_value ==
+                    0x2367U &&
+                (*startup.group_b_lifecycle)[0U]
+                        .action_execution.effect_resource_cursor >= 1U &&
+                port.count(0x004787D0U) == 0U && state.completed_count == 0U,
             "group-B group-wide mode drains one eligible group-A actor and resets the exact completion counter"
         );
     }
@@ -714,6 +826,10 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
         LegacyBattleEffectCoordinatorState state;
         EffectCoordinatorPort port;
         openswd3::rendering::LegacyFramebuffer framebuffer;
+        openswd3::battle::LegacyBattleStartupState startup;
+        openswd3::battle::LegacyBattleActionDispatchState action;
+        std::array<openswd3::battle::LegacyBattleRewardScaleActorState, 8>
+            reward{};
         auto& metrics = port.actor_metric_state();
         metrics.priority_actor_index = 0U;
         metrics.group_a_count = 1U;
@@ -723,11 +839,27 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
         state.scan_limit = 1U;
         state.completion_target_count = 1U;
         state.primary_suppression = 1U;
-        const auto result = run(state, port, framebuffer);
+        state.feedback_primary[0U] = 200U;
+        reward[0U].status_bits = 0x10U;
+        reward[0U].percent = 200U;
+        const auto result = run(
+            state, port, framebuffer, 0x8000U, 0U, &startup, &reward, &action
+        );
         test.expect_true(
             result.return_value == 1U && result.effect_frame_calls == 1U &&
                 result.group_a_iterations == 1U && state.scan_limit == 1U &&
-                state.completed_count == 0U,
+                result.reward_scale_calls == 1U &&
+                result.effect_resource_slot_write.calls == 1U &&
+                result.effect_resource_slot_write.call_addresses[0U] ==
+                    0x0045CF55U &&
+                result.effect_resource_slot_write.return_addresses[0U] ==
+                    0x0045CF5AU &&
+                (*startup.group_b_lifecycle)[0U]
+                        .action_execution.effect_resource_slots[0U] ==
+                    0x2367U &&
+                (*startup.group_b_lifecycle)[0U]
+                        .action_execution.effect_resource_cursor == 1U &&
+                port.count(0x004787D0U) == 0U && state.completed_count == 0U,
             "group-B staged single mode scans group A with the shared low-word limit and exact completion latch"
         );
     }
