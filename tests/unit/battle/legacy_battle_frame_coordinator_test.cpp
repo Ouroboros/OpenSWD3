@@ -679,6 +679,11 @@ base_request() {
         .gameplay_word = 0x1234U,
         .post_frame_zero_ecx_snapshot = 0xAAAA5678U,
         .post_tiled_frame_ecx_snapshot = 0xBBBB5678U,
+        .post_tiled_frame_edx_snapshot = 0xDDDD5678U,
+        .actor_field_26b8_high_bit_query_request =
+            {
+                .entry_esp = 0x80001000U,
+            },
         .standalone_action_update_ecx_snapshot = 0U,
         .standalone_action_update_edx_snapshot = 0U,
         .post_standalone_frame_ecx_snapshot = 0xCCCC5678U,
@@ -2814,15 +2819,12 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         state.special_panel_suppression = 0U;
         auto fixture = std::make_unique<Fixture>();
         fixture->final_actor_step.queued_actor_code = 8U;
+        fixture->action_dispatch.group_a_action_execution[0U].field_26b8 = 0U;
         fixture->internal_flags[0x11U >> 3U] =
             static_cast<u8>(1U << (0x11U & 7U));
         const auto port_storage = std::make_unique<CoordinatorPort>();
         auto& port = *port_storage;
         configure_common_port(port);
-        port.replies[LegacyBattleFrameCoordinatorCall::actor_ready_query] = {
-            .eax = 0U,
-            .ecx = 0xDDDD5678U,
-        };
         std::array<u32, 10> role_map{};
         role_map[8] = 9U;
         role_map[9] = 50U;
@@ -2863,21 +2865,198 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 result.standalone_frame.draw_x == 20 &&
                 result.standalone_frame.draw_y == 30 &&
                 result.gameplay_word_argument == 0xCCCC1234U &&
+                result.actor_field_26b8_high_bit_query_calls == 1U &&
+                result.actor_field_26b8_high_bit_query_call_addresses[0U] ==
+                    0x00453409U &&
+                result.actor_field_26b8_high_bit_query_return_addresses[0U] ==
+                    0x0045340EU &&
+                result.actor_field_26b8_high_bit_query_call_request
+                        .actor_token == 0x005029D0U &&
+                result.actor_field_26b8_high_bit_query_call_request.entry_eax ==
+                    0U &&
+                result.actor_field_26b8_high_bit_query_call_request.entry_edx ==
+                    0xDDDD5678U &&
+                result.actor_field_26b8_high_bit_query_call_request
+                        .entry_return_address == 0x0045340EU &&
+                result.actor_field_26b8_high_bit_query_call_request.entry_flags
+                    .zero &&
+                result.actor_field_26b8_high_bit_query_call_request.entry_flags
+                    .parity &&
+                !result.actor_field_26b8_high_bit_query_call_request.entry_flags
+                     .carry &&
+                !result.actor_field_26b8_high_bit_query_call_request.entry_flags
+                     .auxiliary_carry &&
+                result.actor_field_26b8_high_bit_query_call_request.entry_flags
+                    .auxiliary_carry_defined &&
+                result.actor_field_26b8_high_bit_query.status ==
+                    openswd3::battle::
+                        LegacyBattleActorField26b8HighBitQueryStatus::
+                            completed &&
+                result.actor_field_26b8_high_bit_query.return_eax == 0U &&
+                result.actor_field_26b8_high_bit_query.return_ecx ==
+                    0x005029D0U &&
+                result.actor_field_26b8_high_bit_query.return_edx ==
+                    0xDDDD5678U &&
+                result.actor_field_26b8_high_bit_query.return_esp ==
+                    0x80001004U &&
+                result.actor_field_26b8_high_bit_query.return_eip ==
+                    0x0045340EU &&
+                result.actor_field_26b8_high_bit_query.field_read_value == 0U &&
+                result.actor_field_26b8_high_bit_query.flags.zero &&
+                result.actor_field_26b8_high_bit_query.flags.parity &&
+                !result.actor_field_26b8_high_bit_query.flags.carry &&
+                !result.actor_field_26b8_high_bit_query.flags
+                     .auxiliary_carry_defined &&
+                !result.actor_field_26b8_high_bit_query.overflow_defined &&
+                result.actor_field_26b8_high_bit_query_post_test_executed &&
+                !result.actor_field_26b8_high_bit_query_post_test_jump_taken &&
+                result.actor_field_26b8_high_bit_query_post_test_flags.zero &&
+                result.actor_field_26b8_high_bit_query_post_test_flags.parity &&
                 port.count(
-                    LegacyBattleFrameCoordinatorCall::actor_ready_query
-                ) == 1U &&
-                std::ranges::any_of(
-                    port.calls,
-                    [](const LegacyBattleFrameCoordinatorCallRequest& call) {
-                        return call.call ==
-                            LegacyBattleFrameCoordinatorCall::
-                                actor_ready_query &&
-                            call.arguments[0] == 0x005029D0U;
-                    }
-                ),
-            "selected role path directly updates panel tiled frame actor query and standalone action while choosing post-callee stale ecx"
+                    LegacyBattleFrameCoordinatorCall::
+                        reserved_actor_field_26b8_high_bit_query_slot
+                ) == 0U,
+            "selected role directly queries the canonical actor high bit and draws the standalone action only after TEST returns zero"
         );
     }
+
+    {
+        const auto state_storage = std::make_unique<
+            openswd3::battle::LegacyBattleFrameCoordinatorState>();
+        auto& state = *state_storage;
+        state.special_panel_suppression = 0U;
+        auto fixture = std::make_unique<Fixture>();
+        fixture->final_actor_step.queued_actor_code = 9U;
+        fixture->action_dispatch.group_a_action_execution[1U].field_26b8 =
+            0xC0000000U;
+        fixture->internal_flags[0x11U >> 3U] =
+            static_cast<u8>(1U << (0x11U & 7U));
+        const auto port_storage = std::make_unique<CoordinatorPort>();
+        auto& port = *port_storage;
+        configure_common_port(port);
+        std::array<u32, 10> role_map{};
+        role_map[0U] = 50U;
+        role_map[9U] = 0U;
+        auto request = base_request();
+        request.role_index_map = role_map;
+        auto context = fixture->context();
+
+        const auto result_storage = std::unique_ptr<
+            openswd3::battle::LegacyBattleFrameCoordinatorResult>(
+            new openswd3::battle::LegacyBattleFrameCoordinatorResult(
+                openswd3::battle::run_legacy_battle_frame_coordinator(
+                    state, port, context, request
+                )
+            )
+        );
+        const auto& result = *result_storage;
+        const auto& call_request =
+            result.actor_field_26b8_high_bit_query_call_request;
+        const auto& query = result.actor_field_26b8_high_bit_query;
+        const auto& test_flags =
+            result.actor_field_26b8_high_bit_query_post_test_flags;
+
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameCoordinatorStatus::
+                        input_return_three &&
+                result.actor_field_26b8_high_bit_query_calls == 1U &&
+                call_request.actor_token == 0x00505904U &&
+                call_request.entry_eax == 0x000003EFU &&
+                call_request.entry_edx == 0xDDDD5678U &&
+                call_request.entry_return_address == 0x0045340EU &&
+                !call_request.entry_flags.carry &&
+                !call_request.entry_flags.parity &&
+                call_request.entry_flags.auxiliary_carry &&
+                call_request.entry_flags.auxiliary_carry_defined &&
+                !call_request.entry_flags.zero &&
+                !call_request.entry_flags.sign &&
+                !call_request.entry_flags.overflow &&
+                query.status ==
+                    openswd3::battle::
+                        LegacyBattleActorField26b8HighBitQueryStatus::
+                            completed &&
+                query.field_read_value == 0xC0000000U &&
+                query.return_eax == 1U && query.return_ecx == 0x00505904U &&
+                query.return_edx == 0xDDDD5678U && query.flags.carry &&
+                !query.flags.parity && !query.flags.zero && !query.flags.sign &&
+                !query.flags.auxiliary_carry_defined &&
+                !query.overflow_defined &&
+                result.actor_field_26b8_high_bit_query_post_test_executed &&
+                result.actor_field_26b8_high_bit_query_post_test_jump_taken &&
+                !test_flags.carry && !test_flags.parity &&
+                !test_flags.auxiliary_carry_defined && !test_flags.zero &&
+                !test_flags.sign && !test_flags.overflow &&
+                result.standalone_frame_calls == 0U &&
+                result.gameplay_word_argument == 0x00501234U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::
+                        reserved_actor_field_26b8_high_bit_query_slot
+                ) == 0U,
+            "bit-31 query preserves the physical CALL inputs and takes the post-call JNZ without drawing the standalone action"
+        );
+    }
+
+    {
+        const auto state_storage = std::make_unique<
+            openswd3::battle::LegacyBattleFrameCoordinatorState>();
+        auto& state = *state_storage;
+        state.special_panel_suppression = 0U;
+        auto fixture = std::make_unique<Fixture>();
+        fixture->final_actor_step.queued_actor_code = 8U;
+        fixture->action_dispatch.group_a_action_execution[0U].field_26b8 =
+            0x80000000U;
+        const auto port_storage = std::make_unique<CoordinatorPort>();
+        auto& port = *port_storage;
+        configure_common_port(port);
+        std::array<u32, 10> role_map{};
+        role_map[8U] = 9U;
+        role_map[9U] = 50U;
+        auto request = base_request();
+        request.role_index_map = role_map;
+        request.actor_field_26b8_high_bit_query_request.access.field_readable =
+            false;
+        auto context = fixture->context();
+
+        const auto result_storage = std::unique_ptr<
+            openswd3::battle::LegacyBattleFrameCoordinatorResult>(
+            new openswd3::battle::LegacyBattleFrameCoordinatorResult(
+                openswd3::battle::run_legacy_battle_frame_coordinator(
+                    state, port, context, request
+                )
+            )
+        );
+        const auto& result = *result_storage;
+
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameCoordinatorStatus::
+                        actor_field_26b8_high_bit_query_typed_stop &&
+                result.panel_action_update_calls == 1U &&
+                result.panel_frame_calls == 1U &&
+                result.actor_field_26b8_high_bit_query_calls == 1U &&
+                result.actor_field_26b8_high_bit_query.status ==
+                    openswd3::battle::
+                        LegacyBattleActorField26b8HighBitQueryStatus::
+                            field_read_typed_stop &&
+                result.actor_field_26b8_high_bit_query.return_eax == 0U &&
+                result.actor_field_26b8_high_bit_query.return_ecx ==
+                    0x005029D0U &&
+                result.actor_field_26b8_high_bit_query.return_edx ==
+                    0xDDDD5678U &&
+                result.actor_field_26b8_high_bit_query.return_esp ==
+                    0x80001000U &&
+                result.actor_field_26b8_high_bit_query.return_eip ==
+                    0x004787C0U &&
+                !result.actor_field_26b8_high_bit_query_post_test_executed &&
+                !result.actor_field_26b8_high_bit_query_post_test_jump_taken &&
+                result.standalone_frame_calls == 0U &&
+                result.hud_frame_calls == 0U &&
+                result.gameplay_word_argument == 0U,
+            "field-read typed-stop preserves the panel prefix and blocks TEST JNZ standalone drawing and the remaining frame suffix"
+        );
+    }
+
     {
         const auto state_storage = std::make_unique<
             openswd3::battle::LegacyBattleFrameCoordinatorState>();

@@ -2,6 +2,7 @@
 
 #include "openswd3/asset_runtime/legacy_action_draw_bridge.hpp"
 #include "openswd3/battle/legacy_battle_action_frame_draw.hpp"
+#include "openswd3/battle/legacy_battle_actor_field_26b8_high_bit_query.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_actor_priority.hpp"
 #include "openswd3/battle/legacy_battle_actor_frame_sequence.hpp"
@@ -77,7 +78,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     reserved_query_actor_action_target,
     reserved_frame_completion_slot,
     reserved_pending_action_commit_slot,
-    actor_ready_query,
+    reserved_actor_field_26b8_high_bit_query_slot,
     post_render_stage_1,
     reserved_message_phase_slot,
     reserved_text_message_frame_slot,
@@ -1961,6 +1962,9 @@ struct LegacyBattleFrameCoordinatorRequest {
     compat::u32 post_actor_frame_edx_snapshot{};
     compat::u32 post_frame_zero_ecx_snapshot{};
     compat::u32 post_tiled_frame_ecx_snapshot{};
+    compat::u32 post_tiled_frame_edx_snapshot{};
+    LegacyBattleActorField26b8HighBitQueryRequest
+        actor_field_26b8_high_bit_query_request{};
     compat::u32 standalone_action_update_ecx_snapshot{};
     compat::u32 standalone_action_update_edx_snapshot{};
     compat::u32 post_standalone_frame_ecx_snapshot{};
@@ -2030,6 +2034,7 @@ enum class LegacyBattleFrameCoordinatorStatus : compat::u8 {
     fixed_frame_typed_stop,
     role_map_typed_stop,
     role_actor_typed_stop,
+    actor_field_26b8_high_bit_query_typed_stop,
     tiled_frame_typed_stop,
     standalone_frame_typed_stop,
     dialog_typed_stop,
@@ -2107,6 +2112,18 @@ struct LegacyBattleFrameCoordinatorResult {
     compat::u32 panel_action_update_calls{};
     rendering::LegacyTiledFrameResult panel_frame{};
     compat::u32 panel_frame_calls{};
+    LegacyBattleActorField26b8HighBitQueryRequest
+        actor_field_26b8_high_bit_query_call_request{};
+    LegacyBattleActorField26b8HighBitQueryResult
+        actor_field_26b8_high_bit_query{};
+    std::array<compat::u32, 1> actor_field_26b8_high_bit_query_call_addresses{};
+    std::array<compat::u32, 1>
+        actor_field_26b8_high_bit_query_return_addresses{};
+    compat::u32 actor_field_26b8_high_bit_query_calls{};
+    LegacyBattleActorCoordinateFlags
+        actor_field_26b8_high_bit_query_post_test_flags{};
+    bool actor_field_26b8_high_bit_query_post_test_executed{};
+    bool actor_field_26b8_high_bit_query_post_test_jump_taken{};
     LegacyBattleStandaloneActionFrameDrawResult standalone_frame{};
     compat::u32 standalone_frame_calls{};
     rendering::LegacyPackedRowEffectResult packed_rows{};

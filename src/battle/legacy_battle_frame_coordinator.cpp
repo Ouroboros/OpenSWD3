@@ -36,6 +36,42 @@ private:
     return port.invoke({.call = call, .arguments = arguments});
 }
 
+[[nodiscard]] constexpr bool has_even_parity(u32 value) noexcept {
+    value &= 0xFFU;
+    value ^= value >> 4U;
+    value ^= value >> 2U;
+    value ^= value >> 1U;
+    return (value & 1U) == 0U;
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+logical_flags(const u32 value) noexcept {
+    return {
+        .carry = false,
+        .parity = has_even_parity(value),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = value == 0U,
+        .sign = (value & 0x80000000U) != 0U,
+        .overflow = false,
+    };
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+subtract_flags(const u32 left, const u32 right) noexcept {
+    const u32 difference = left - right;
+    return {
+        .carry = left < right,
+        .parity = has_even_parity(difference),
+        .auxiliary_carry = ((left ^ right ^ difference) & 0x10U) != 0U,
+        .auxiliary_carry_defined = true,
+        .zero = difference == 0U,
+        .sign = (difference & 0x80000000U) != 0U,
+        .overflow =
+            (((left ^ right) & (left ^ difference)) & 0x80000000U) != 0U,
+    };
+}
+
 [[nodiscard]] constexpr i32
 wrapping_add_i32(const i32 left, const i32 right) noexcept {
     return std::bit_cast<i32>(static_cast<u32>(left) + static_cast<u32>(right));
@@ -589,16 +625,63 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
                     LegacyBattleFrameCoordinatorStatus::role_actor_typed_stop;
                 return result;
             }
+            const u32 actor_index = selection_source - 8U;
             const u32 actor_token = kLegacyBattleActorGroupABaseToken +
-                (selection_source - 8U) * kLegacyBattleActorGroupAElementSize;
-            reply = invoke(
-                port,
-                result,
-                LegacyBattleFrameCoordinatorCall::actor_ready_query,
-                {actor_token}
-            );
-            stale_ecx = reply.ecx;
-            if (reply.eax == 0U) {
+                actor_index * kLegacyBattleActorGroupAElementSize;
+            u32 actor_query_eax = actor_index;
+            actor_query_eax <<= 6U;
+            actor_query_eax -= actor_index;
+            actor_query_eax <<= 4U;
+            const u32 final_subtract_left = actor_query_eax;
+            actor_query_eax -= actor_index;
+
+            auto actor_query_request =
+                request.actor_field_26b8_high_bit_query_request;
+            actor_query_request.actor_token = actor_token;
+            actor_query_request.entry_eax = actor_query_eax;
+            actor_query_request.entry_edx =
+                request.post_tiled_frame_edx_snapshot;
+            actor_query_request.entry_return_address =
+                kLegacyBattleActorField26b8HighBitQueryCallerReturnAddress;
+            actor_query_request.entry_flags =
+                subtract_flags(final_subtract_left, actor_index);
+            actor_query_request.entry_flags_known = true;
+            actor_query_request.entry_overflow_defined = true;
+            result.actor_field_26b8_high_bit_query_call_request =
+                actor_query_request;
+            result.actor_field_26b8_high_bit_query_call_addresses
+                [result.actor_field_26b8_high_bit_query_calls] =
+                kLegacyBattleActorField26b8HighBitQueryCallerAddress;
+            result.actor_field_26b8_high_bit_query_return_addresses
+                [result.actor_field_26b8_high_bit_query_calls] =
+                kLegacyBattleActorField26b8HighBitQueryCallerReturnAddress;
+            result.actor_field_26b8_high_bit_query =
+                query_legacy_battle_actor_field_26b8_high_bit(
+                    resolve_legacy_battle_actor_field_26b8_high_bit_query(
+                        {
+                            .action = &context.action_dispatch,
+                            .startup = &context.startup,
+                        },
+                        actor_token
+                    ),
+                    actor_query_request
+                );
+            ++result.actor_field_26b8_high_bit_query_calls;
+            if (result.actor_field_26b8_high_bit_query.status !=
+                LegacyBattleActorField26b8HighBitQueryStatus::completed) {
+                result.status = LegacyBattleFrameCoordinatorStatus::
+                    actor_field_26b8_high_bit_query_typed_stop;
+                return result;
+            }
+            stale_ecx = result.actor_field_26b8_high_bit_query.return_ecx;
+            result.actor_field_26b8_high_bit_query_post_test_flags =
+                logical_flags(
+                    result.actor_field_26b8_high_bit_query.return_eax
+                );
+            result.actor_field_26b8_high_bit_query_post_test_executed = true;
+            result.actor_field_26b8_high_bit_query_post_test_jump_taken =
+                result.actor_field_26b8_high_bit_query.return_eax != 0U;
+            if (!result.actor_field_26b8_high_bit_query_post_test_jump_taken) {
                 if (source_index >= request.role_positions.size()) {
                     result.status =
                         LegacyBattleFrameCoordinatorStatus::role_map_typed_stop;

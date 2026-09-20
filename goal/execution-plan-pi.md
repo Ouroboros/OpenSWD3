@@ -1,166 +1,249 @@
-# OpenSWD3 原生重实现执行计划（Pi / v915）
+# OpenSWD3 全项目逆向、实现与验证执行方案（Pi / v916）
 
-> 本文件是当前唯一执行入口。
-> 当前工作包：`audit_order=301 / 0x004787C0 / sub_4787C0`。
-> Workpacks 1–300已关闭；模块10仍未完成，禁止提前进入模块11或最终验收。
+> 状态：active
+>
+> 日期：2026-04-03
+>
+> 范围：全项目；当前只执行 Workpack 302，持续推进至 battle 422/422、完整战斗生命周期与 I5、模块 11、B11 和最终项目验收
+>
+> 当前目标：`audit_order=302 / 0x004787D0 / sub_4787D0`
+>
+> 串行游标：Workpack 301 已完成；本文件只授权当前 workpack，并在其唯一 REVIEW、提交、推送和 Telegram 汇报后由 inventory 推导下一目标
 
-## 1. 最终目标
+---
 
-完整执行战斗函数workpack，直至：
+## 0. 本版变更与当前基线
 
-1. `analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv`达到`422/422`；
-2. 每项均具有实现映射、不可达证明或合规阻塞说明；
-3. 战斗生命周期、跨模块集成和I5验收通过；
-4. B11及项目最终验收完成；
-5. 所有要求均由当前仓库、测试、日志、提交和远端状态证明后，才可结束Goal。
+Workpack 301 已关闭 `0x004787C0`：
 
-Workpack 301完成不等于Goal完成。关闭后必须把本文件整体前移到Workpack 302。
+- inventory 为 `301/422 = 291 platform_adapted + 10 assembly_exact + 121 pending_audit`；
+- SHA-256 为 `ed883a34c95dd0ca329382eb1c4941a62a26752ee7ced6bc73313efa8f15cbcd`；
+- `sub_4787C0` 已按完整 dword 读取、`SHR 31`、两类 fault、普通 RET、EAX/EDX/flags 与唯一 `0x00453409 -> 0x0045340E` 物理 CALL 直接 typed 化；
+- Group-A 与 Group-B 继续复用 Workpacks 299–300 建立的 `field_26b8` canonical owner；旧 opaque ordinal 只保留为 reserved；
+- 定向测试、AddressSanitizer、Linux core 199/199、Linux app 205/205、连续 10 轮完整 core、格式、TMP 与 release audit 全部通过；
+- 原版动态差分仍因 runtime oracle 缺失登记为 `blocked_runtime_oracle`，不得伪造 `original_diff_verified`。
 
-## 2. 当前基线
+本版把串行游标前移到 Workpack 302。Workpack 302完成不等于Goal完成。
 
-- 分支：`main`。
-- 已关闭基线：Workpacks 1–300。
-- 当前inventory：`300/422 = 290 platform_adapted + 10 assembly_exact + 122 pending_audit`。
-- 当前inventory SHA-256：`6b2a0955844e203c1cdec332519159fed4225d54e4b44f2408253fdd2f241306`。
-- 当前目标：`audit_order=301 / 0x004787C0 / sub_4787C0`。
-- 导航列列出唯一caller函数`0x00453200`和一处物理CALL；必须以完整机器码核验入口寄存器、flags、返回地址和后缀。
-- `actor+0x26B8`必须复用Workpacks 299–300建立的同一中性canonical owner。
-- 不启动原版或OpenSWD3游戏程序；只执行静态取证、构建和测试。
+---
 
-## 3. 权威机器边界
+## 1. 当前 Workpack 302 权威边界
 
-完整LST将目标锁定为`0x004787C0..0x004787C9`共10字节：
-
-```text
-004787C0  mov eax,[ecx+26B8h]
-004787C6  shr eax,1Fh
-004787C9  retn
-```
-
-边界事实：
-
-- 3条实际指令；
-- 0个callee；
-- 0个分支；
-- 1个普通RET；
-- 无显式栈参数、外部chunk或中段入口。
-
-## 4. 必须恢复的机器语义
-
-1. 从`actor+0x26B8`读取完整dword到EAX，不得先做布尔化字段访问或省略真实读取。
-2. 对EAX执行`SHR 31`，完整返回值严格为原bit31的零或一。
-3. ECX保持actor token，EDX保持入口值。
-4. SHR计数为31：CF取原bit30；ZF、SF、PF按零或一结果；OF对计数大于1未定义；AF未定义。
-5. 字段读取故障停在`0x004787C0`并保持入口寄存器、flags与ESP。
-6. 普通RET从`[ESP]`读取返回地址并令ESP增加4；RET故障停在`0x004787C9`，保留SHR后的EAX与flags但不推进ESP。
-
-## 5. Canonical owner要求
-
-1. `actor+0x26B8`直接复用`LegacyBattleGroupAActionExecutionState::field_26b8`及Group-B lifecycle同型action-execution owner；
-2. Group-A继续从action/startup唯一状态解析，Group-B继续从startup lifecycle唯一状态解析；
-3. 查询与Workpack 299高位清除、Workpack 300高位设置必须观察同一物理backing；
-4. 禁止新增布尔缓存、平行actor数组、第二套`field_26b8`或token槽；
-5. generic setter `0x00478A70/0x00478B20`在自身回收前仍须把已知写效果同步到同一canonical owner。
-
-## 6. caller闭包要求
-
-唯一物理CALL位于`sub_453200`：
+完整 LST 主体：`0x004787D0..0x004787E8`，共 25 字节、5 条实际指令、0 个 callee、0 个分支、1 个 `retn 4`，没有外部 chunk 或中段入口：
 
 ```text
-00453409  call sub_4787C0
-0045340E  test eax,eax
-00453410  jnz  loc_453434
+004787D0  mov dx,[esp+4]
+004787D5  xor eax,eax
+004787D7  mov ax,[ecx+2A7Ch]
+004787DE  mov [ecx+eax*2+29C4h],dx
+004787E6  retn 4
 ```
 
-必须：
+权威 inventory 导航显示 13 个 caller 函数、40 处物理 CALL：
 
-1. 取证caller完整函数及外部chunk，核验`0x00453409 -> 0x0045340E`身份；
-2. 恢复以`dword_53BD54`计算Group-A actor token的完整EAX/ECX线程、入口EDX和最后一次`SUB`产生的flags；
-3. 在原调用点直接组合typed leaf，不保留`0x004787C0` generic opaque生产调用；
-4. 正常返回后以完整EAX执行`TEST EAX,EAX`并保持原`JNZ`后缀；
-5. leaf typed-stop保留CALL前副作用，并抑制`TEST`、分支和其余frame后缀；
-6. 物理CALL身份、返回地址和trace不得因共享helper折叠；reserved地址和ordinal保留但生产零调用。
+- `0x004539B0` ×1；
+- `0x004576A0` ×1；
+- `0x004582B0` ×2；
+- `0x00458DE0` ×6；
+- `0x0045C010` ×4；
+- `0x0045D690` ×5；
+- `0x00469D20` ×1；
+- `0x0046EE60` ×3；
+- `0x004731A0` ×2；
+- `0x004758A0` ×2；
+- `0x0047E5C0` ×2；
+- `0x00481010` ×8；
+- `0x00481A40` ×3。
 
-## 7. 实施清单
+必须从完整 caller LST 重新核对每个 CALL 地址、返回地址、可达条件、入口寄存器、入口 flags、栈参数来源和后缀；inventory 只作导航，不能替代审计。
 
-1. 重新完整读取`AGENTS.md`、memory、本PLAN、inventory、相邻证据、目标LST、caller完整上下文和相关源码测试。
-2. 取证10字节完整边界、`+0x26B8`全部相关xref、唯一CALL及caller前后缀。
-3. 新增或复用独立typed query接口，保留字段访问、SHR flags、寄存器、ESP/EIP、RET与typed-stop。
-4. 复用Workpacks 299–300的canonical owner，不新增平行状态。
-5. 在`sub_453200`现代实现原位置直接组合typed leaf并恢复TEST/JNZ后缀。
-6. 新增叶函数、owner共享、故障、flags与caller后缀测试。
-7. 新文件全量clang-format；旧文件只格式化changed ranges；运行`git diff --check`。
-8. 运行定向构建与真实CTest测试名；Ninja Multi-Config使用`-C Debug`。
-9. 仅用`analysis/tools/build_battle_workpack.py`关闭`0x004787C0`并生成inventory；连续双跑验证逐字节稳定。
-10. 新增证据文档并更新`analysis/04-reverse-engineering/modules/battle.md`。
-11. 执行正式门、发布审计、精确暂存、commit、push和TG。
-12. 提交后重新完整读取`AGENTS.md`和本PLAN；下一工作包继续执行，不得结束Goal。
+全 LST 对 `actor+0x2A7C` 与 `actor+0x29C4` 家族当前命中 22 处，除目标函数外还涉及 `0x0047C222`、`0x0047C2C1`、`0x0047C2D9`、`0x0047C2E8`、`0x0047C606`、`0x0047C62A`、`0x0047C63A`、`0x0047CEC9`、`0x0047CED0`、`0x0047CEE0`、`0x0047CEEC`、`0x0047CF07`、`0x0047D3EF`、`0x0047D502`、`0x0047D657`、`0x0047D65E`、`0x0047D710`、`0x0047D72B`、`0x0047D769`和`0x0047D7A2`。必须完成字段语义、容量、读写者、初始化和 setter 同步审计，不得把当前索引视为已验证的安全数组下标。
 
-## 8. 测试要求
+---
 
-叶函数和caller测试至少覆盖：
+## 2. 必须恢复的精确机器语义
 
-- 原bit31清除返回0，原bit31置位返回1；
-- bit30分别为零/一时CF结果；
-- SHR后的PF/ZF/SF、CF，以及AF/OF definedness；
-- EAX完整覆盖、ECX/EDX保持、ESP/EIP；
-- 字段读取与RET独立typed-stop；
-- RET fault保留字段读取和SHR结果；
-- Group-A/Group-B canonical owner与Workpacks 299–300写端共享；
-- 唯一物理CALL的入口寄存器、flags、返回地址与post-call TEST/JNZ；
-- caller typed-stop后缀阻断；
-- 生产`0x004787C0` generic raw调用为零。
+typed leaf 必须保持以下顺序和部分提交：
 
-## 9. 正式门禁
+1. 从 `[ESP+4]` 读取参数低 word 到 DX，保留入口 EDX 高 16 位；
+2. `XOR EAX,EAX`，完整清零 EAX，并提交 XOR flags；
+3. 从 `actor+0x2A7C` 读取 word 到 AX，因此正常 EAX 为零扩展索引；
+4. 以完整 ECX actor token、零扩展 EAX 索引和 `actor+0x29C4` 基址计算目标 word，写入 DX 低 16 位；
+5. 从 `[ESP]` 读取返回地址并执行 `RET 4`，正常 ESP 增加 8。
 
-所有项目命令使用：
+正常返回必须保持：
+
+- EAX：零扩展的原 `actor+0x2A7C` word；
+- ECX：入口 actor token；
+- EDX：入口高 16 位与参数低 16 位拼接；
+- flags：来自 `XOR EAX,EAX`，即 CF=0、PF=1、ZF=1、SF=0、OF=0，AF 未定义；后续 MOV 与 RET 不改 flags；
+- EIP：调用者真实返回地址；
+- ESP：入口值加 8。
+
+至少建模以下真实停止点：
+
+- 参数 `[ESP+4]` 读取 fault：任何指令副作用尚未发生；
+- `actor+0x2A7C` 读取 fault：DX 参数与 XOR 后 EAX/flags 已提交；
+- 目标 word 写入 fault：EAX 索引、DX 参数和 XOR flags 已提交，但目标未改；
+- RET 返回地址读取 fault：目标 word 已写，ESP 未推进；
+- 正常 `RET 4`：返回地址弹出与参数清理一次完成。
+
+目标地址计算不得高层 clamp、取模、范围修正或改写索引。若现代 owner 需要有界容器，越界只能在原目标内存访问点形成 typed-stop，不能改变机器地址算术。
+
+---
+
+## 3. Canonical owner 与数据模型要求
+
+必须先完成 `+0x2A7C` 与 `+0x29C4` 22 处访问的完整 xref 审计，再决定 owner：
+
+- 优先复用 startup/action/lifecycle 中已有 actor canonical backing；
+- 若现有字段实际属于同一物理 word 流，必须建立中性共享 backing 或 alias view，而不是新增平行缓存；
+- `+0x29C4` 到 `+0x2A7B` 的连续区域与紧邻 `+0x2A7C` cursor 的关系必须由所有读写者和初始化路径证明；
+- copy construction、move、assignment 与 alias 规则必须保持物理 owner 语义；
+- generic setter `0x00478A70/0x00478B20` 及其他尚未回收的写端在其回收前必须同步 canonical owner；
+- Group-A、Group-B 与任何调试/特殊 actor 路径都必须映射到真实现有 owner，不得用静态全局替代每 actor 存储；
+- reserved 地址、枚举 ordinal 和未审 caller 位置可以保留，但生产路径不得调用已关闭 `0x004787D0` generic 边界。
+
+---
+
+## 4. 40 个物理 caller 的关闭规则
+
+每一处 CALL 必须单独登记：
+
+- CALL 地址与返回地址；
+- actor token 的来源与对象组；
+- 参数 word 的真实来源及 PUSH 前寄存器/flags；
+- 入口 EAX/ECX/EDX、ESP 和 flags；
+- 正常返回后 EAX 索引、ECX actor token、EDX 参数残值与 XOR flags 如何被后缀消费；
+- 当前 CALL 的条件可达性；
+- typed-stop 时已经提交的 caller 前缀与必须阻断的后缀；
+- 相邻多个 CALL 使用共享 helper 时仍保留每个物理 CALL 的身份和动态顺序。
+
+caller 必须在原现代控制流位置直接组合 typed leaf。不得：
+
+- 保留 `0x004787D0` 的 generic opaque 生产调用；
+- 把 40 个物理 CALL 折叠成一个无法追溯的逻辑事件；
+- 在内部 CALL 尚未到达时伪造外层 trace；
+- 用测试专用调用替代生产集成；
+- 因待审父函数过大而复制整个函数；允许建立窄 reply，但必须只投影真实已执行的当前 CALL，并为后续父工作包保留精确边界。
+
+Workpack 302只关闭经完整 caller LST 与现代路径双向证明的 CALL。无法在当前 parent 中安全直接组合的 CALL 必须保留原物理位置和明确延期目标，不能静默算作已关闭。
+
+---
+
+## 5. 测试要求
+
+新增 focused typed leaf 测试，至少覆盖：
+
+- 参数低 word 覆盖 DX、EDX 高 word保持；
+- 索引零、普通值、`0xFFFF`；
+- 目标 word 原值被准确替换；
+- EAX 零扩展索引；
+- XOR flags 与 AF definedness；
+- 参数、索引、目标写、RET 四类 fault；
+- 目标写后的 RET fault 部分提交；
+- 正常 `RET 4` 的 ESP/EIP；
+- owner alias 与所有写端同步；
+- 未执行访问计数为零。
+
+每个已关闭 caller 类型至少有 focused 测试，整体必须覆盖 40 个 CALL 的地址/返回地址集合、条件可达性、参数来源、入口寄存器/flags、动态 trace 顺序、正常后缀和 typed-stop 后缀抑制。多个相邻 CALL、相同 actor 不同参数、不同 actor 相同参数都要避免状态串槽。
+
+测试必须注册到 `battle.legacy_battle_setup`，正式定向命令使用真实名称和 `-C Debug`。
+
+---
+
+## 6. 证据与 inventory
+
+新增唯一 evidence，至少记录：
+
+- 25 字节完整 LST、5 条指令和 `RET 4`；
+- 无 callee、无分支、无外部 chunk；
+- 参数/索引/目标写/RET 的真实访问顺序与 fault 前缀；
+- EAX/ECX/EDX、ESP/EIP 与 XOR flags；
+- `+0x2A7C/+0x29C4` 22 处 xref 及 canonical owner；
+- 13 个 caller 函数、40 个物理 CALL 的完整分类；
+- 所有关闭与延期边界；
+- 生产 raw 地址零调用；
+- `blocked_runtime_oracle` 的具体缺失后端。
+
+只允许由 `analysis/tools/build_battle_workpack.py` 修改 `battle-function-workpack.tsv`。生成器必须连续运行两次并逐字节一致；记录新的 422 行计数和 SHA-256。PLAN、battle module 和 evidence 必须互相一致。
+
+---
+
+## 7. 实现与格式约束
+
+- 所有实现由主 Agent 完成；禁止调用 subagent。
+- LST 机器码是行为真值；保留访问/调用顺序、别名、寄存器、flags、fault、部分提交和 typed-stop。
+- 新 C++ 文件全量 clang-format；旧文件只格式化 changed ranges。
+- 不提交 `build/`。
+- 不启动原版或 OpenSWD3 游戏程序。
+- 项目命令设置 `TMPDIR/TMP/TEMP=$PWD/build/tmp/runtime`；构建和测试最多16并发。
+- 保持 `goal/HANDOFF.md` 和仓库根 `compile_commands.json` 不存在；父级 symlink 指向 `OpenSWD3/build/linux-core/compile_commands.json`。
+- 新文件 staged mode 必须为 `100644`。
+- 一个 workpack 只做一个最终 REVIEW 和一个 commit。
+- commit 必须使用 `$commit` Skill；主 Agent精确暂存。
+- 每次提交后重新完整读取 `AGENTS.md` 和本 PLAN。
+
+---
+
+## 8. 验证门
+
+定向门：
 
 ```bash
-export TMPDIR="$PWD/build/tmp/runtime"
-export TMP="$TMPDIR"
-export TEMP="$TMPDIR"
-export OPENSWD3_BUILD_JOBS=16
-export OPENSWD3_TEST_JOBS=16
+TMPDIR=$PWD/build/tmp/runtime TMP=$TMPDIR TEMP=$TMPDIR \
+OPENSWD3_BUILD_JOBS=16 OPENSWD3_TEST_JOBS=16 \
+./build.sh core --test
+
+ctest --test-dir build/linux-core -C Debug \
+  -R '^battle\.legacy_battle_setup$' --output-on-failure
 ```
 
-必须全部通过：
+正式门：
 
-1. 定向构建；
-2. 真实CTest名`battle.legacy_battle_setup`，Ninja Multi-Config带`-C Debug`；
-3. `./build-asan.sh --test`；
-4. `./build.sh core --test`；
-5. `./build.sh app --test`；
-6. 连续10轮`./build.sh core --test`；
-7. 全部正式日志零OpenSWD3源码warning、测试失败、sanitizer finding和runtime error；
-8. `git diff --check`；
-9. inventory连续双生成字节一致；
-10. TMP审计`confirmed_entries=0`；
-11. `goal/HANDOFF.md`和仓库根`compile_commands.json`不存在；
-12. 父级`compile_commands.json` symlink指向`OpenSWD3/build/linux-core/compile_commands.json`。
+```bash
+TMPDIR=$PWD/build/tmp/runtime TMP=$TMPDIR TEMP=$TMPDIR \
+OPENSWD3_BUILD_JOBS=16 OPENSWD3_TEST_JOBS=16 \
+./build-asan.sh --test
 
-直接CMake/CTest只能作定向诊断，不能替代正式仓库脚本门禁。源码或测试语义变化后必须重跑受影响的正式门。
+TMPDIR=$PWD/build/tmp/runtime TMP=$TMPDIR TEMP=$TMPDIR \
+OPENSWD3_BUILD_JOBS=16 OPENSWD3_TEST_JOBS=16 \
+./build.sh core --test
 
-## 10. 文档、提交与通知
+TMPDIR=$PWD/build/tmp/runtime TMP=$TMPDIR TEMP=$TMPDIR \
+OPENSWD3_BUILD_JOBS=16 OPENSWD3_TEST_JOBS=16 \
+./build.sh app --test
+```
 
-- 证据文档必须包含边界、MOV/SHR语义、owner、flags/fault、唯一caller合同、测试和动态差分状态。
-- `analysis/04-reverse-engineering/modules/battle.md`追加Workpack 301关闭记录。
-- PLAN状态变化时递增版本；关闭后整体替换为Workpack 302计划。
-- 一个workpack只做一个REVIEW和一个commit。
-- 提交必须使用`$commit` Skill；主Agent精确暂存，只提交本工作包文件，不提交`build/`。
-- push成功后发送固定五段TG，段间使用真实空行，只写高层中文。
-- 模块10验证段固定为：`验证：定向测试、AddressSanitizer、Linux core 199/199、Linux app 205/205 全部通过。`
+还必须完成：
 
-## 11. 动态差分与阻塞
+- Linux core 连续10轮完整测试；
+- 正式 stderr 为空；
+- app 若出现第三方 SDL 自动重配告警，可分类但必须在稳定缓存复跑至干净；
+- `git diff --check`；
+- 新文件全量与旧文件 changed-range clang-format Werror；
+- `/tmp` 审计 `confirmed_entries=0`；
+- unstaged 与 staged release audit；
+- 新文件 mode、暂存范围、无 tracked build artifact、symlink 与禁止文件检查。
 
-当前缺少原版完整Group-A actor、`actor+0x26B8`异常内存页、RET异常栈页及唯一caller联合寄存器、flags与SEH捕获后端。静态LST、typed fault测试和现代路径可继续闭环；原版动态差分按证据登记`blocked_runtime_oracle`，不得伪造`original_diff_verified`。
+模块10关闭记录固定验证句：
 
-## 12. 完成条件
+`验证：定向测试、AddressSanitizer、Linux core 199/199、Linux app 205/205 全部通过。`
 
-Workpack 301只在以下全部成立时关闭：
+---
 
-- 10字节完整机器语义与`+0x26B8`canonical owner已恢复；
-- 唯一物理CALL已直接组合，且不存在generic target调用；
-- 测试、格式、inventory、正式门、审计、提交、push与TG全部通过；
-- PLAN已前移到Workpack 302。
+## 9. REVIEW、提交与汇报
 
-Goal只有在Workpacks 301–422、B11和最终项目验收全部完成并经逐项审计后才能调用`goal_complete`。
+所有实现、证据、inventory、PLAN 和门禁完成后进行唯一最终 REVIEW：
+
+1. 复核完整差异与 staged 差异；
+2. 逐项核对 25 字节、22 处字段访问、40 个 CALL、owner alias、fault、寄存器/flags 与 typed-stop；
+3. 确认生产 `0x004787D0` raw 调用为零；
+4. 确认测试、格式、TMP、inventory 与 release audit；
+5. 精确暂存当前 workpack 文件；
+6. 使用 `$commit` Skill 生成并创建唯一提交；
+7. push 并确认上游 `0 0`；
+8. 发送固定五段 Telegram 汇报并关闭对应任务；
+9. 重新完整读取 `AGENTS.md` 和更新后的 PLAN，再继续 inventory 中下一 `pending_audit` workpack。
+
+Workpack 302提交、推送和汇报只代表当前 workpack 完成，不得调用 `goal_complete`。只有 Workpacks 302–422、战斗生命周期与I5、模块11、B11及最终验收全部完成并逐项复核后，才允许完成整个 Goal。

@@ -106,9 +106,9 @@ flags = 0x80000008
 
 ## 7. 角色对象与独立动作帧
 
-未抑制时，选择来源必须在`8..17`，并按已锁定角色组A基址和步长得到物理token。角色callee返回非零时跳过独立帧，后续ECX沿用该callee完整snapshot。
+未抑制时，选择来源必须在`8..17`。caller按原两次SHL和两次SUB从`selection_source-8`同时形成`1007*index`入口EAX与组A物理token；入口flags来自最后一次SUB，EDX显式复用九宫格callee后的残值。随后直接组合已关闭`0x004787C0`，从canonical`actor+0x26B8`完整dword返回原bit31。旧角色查询端口槽只保留reserved ordinal且生产零调用。字段或RET typed-stop保留面板动作与九宫格前缀，阻断post-call TEST及全部后缀。
 
-角色callee返回0时，首次读取选择来源对应的X/Y坐标，再直接调用已关闭`0x00450B60`：
+leaf正常返回后以完整EAX执行`TEST EAX,EAX`。非零时按原`JNZ`跳过独立帧，后续ECX沿用actor token；零时首次读取选择来源对应的X/Y坐标，再直接调用已关闭`0x00450B60`：
 
 ```text
 action = 0x2391
@@ -213,7 +213,7 @@ C++到LST反向追溯覆盖完整412行、44个静态call站点和18个标签。
 - 三通道颜色初始化、共享门与尾寄存器，以及同帧颜色累加、计数递减与`0x3C000`前缀；
 - 任意非零surface门、整surface零token typed-stop、纵向位移双矩形提交及子typed-stop截图阻断；
 - 截图计数word回绕、路径、writer调用与请求清零；
-- 面板动作更新、双映射、九宫格、角色组A token、独立动作帧和第三类ECX snapshot；
+- 面板动作更新、双映射、九宫格、角色组A token、`actor+0x26B8`高位查询的入口EAX/EDX/SUB flags与真实返回地址、post-call TEST/JNZ、独立动作帧和第三类ECX snapshot；
 - 映射缺失发生在面板动作更新副作用之后；
 - battle聚合目标零warning，普通定向通过。
 
