@@ -2,6 +2,7 @@
 
 #include "openswd3/battle/legacy_battle_actor_base_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_actor_coordinate_publication.hpp"
+#include "openswd3/battle/legacy_battle_actor_binary_state_toggle.hpp"
 #include "openswd3/battle/legacy_battle_actor_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_actor_effect_resource_slot_write.hpp"
 #include "openswd3/battle/legacy_battle_actor_presentation_activation.hpp"
@@ -219,7 +220,7 @@ enum class LegacyBattleScriptDispatchCall : compat::u32 {
     reserved_actor_field_26b8_high_bit_set = 0x00478780U,
     reserved_actor_effect_resource_slot_write = 0x004787D0U,
     reserved_actor_presentation_activation = 0x004787F0U,
-    pending_478830 = 0x00478830U,
+    reserved_actor_binary_state_toggle = 0x00478830U,
     pending_478a70 = 0x00478A70U,
     pending_478ab0 = 0x00478AB0U,
     pending_478ac0 = 0x00478AC0U,
@@ -327,6 +328,7 @@ enum class LegacyBattleScriptDispatchStatus : compat::u8 {
     actor_action_mode_typed_stop,
     actor_field_26b8_high_bit_set_typed_stop,
     actor_effect_resource_slot_write_typed_stop,
+    actor_binary_state_toggle_typed_stop,
     actor_presentation_activation_typed_stop,
 };
 
@@ -359,6 +361,8 @@ struct LegacyBattleScriptDispatchRequest {
         actor_field_26b8_high_bit_set_requests{};
     LegacyBattleActorEffectResourceSlotWriteCallRequests
         effect_resource_slot_write_requests{};
+    LegacyBattleActorBinaryStateToggleCallRequests
+        actor_binary_state_toggle_requests{};
     LegacyBattleActorPresentationActivationCallRequests
         actor_presentation_activation_requests{};
 };
@@ -416,6 +420,7 @@ struct LegacyBattleScriptDispatchResult {
         actor_field_26b8_high_bit_set{};
     LegacyBattleActorEffectResourceSlotWriteCallTrace
         effect_resource_slot_write{};
+    LegacyBattleActorBinaryStateToggleCallTrace actor_binary_state_toggle{};
     LegacyBattleActorPresentationActivationCallTrace
         actor_presentation_activation{};
     std::vector<LegacyBattleScriptDispatchCall> call_trace;

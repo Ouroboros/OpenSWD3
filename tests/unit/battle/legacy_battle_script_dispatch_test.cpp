@@ -3773,6 +3773,249 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
     }
 
     {
+        auto fixture = std::make_unique<Fixture>();
+        auto port = std::make_unique<Port>();
+        fixture->opcode(29);
+        fixture->write_u16(2U, 8U);
+        fixture->workspace.packed_actor_state = 0x1234BEEFU;
+        auto& actor = fixture->startup.party[0U];
+        actor.progress.script_binary_state = 0U;
+        const auto first = run_battle_script_dispatch_on_heap(
+            *fixture, *port, {.entry_edx = 0x55667788U}
+        );
+        fixture->opcode(29);
+        const auto second = run_battle_script_dispatch_on_heap(
+            *fixture, *port, {.entry_edx = 0xAABBCCDDU}
+        );
+        test.expect_true(
+            first->status == LegacyBattleScriptDispatchStatus::completed &&
+                first->actor_binary_state_toggle.calls == 1U &&
+                first->actor_binary_state_toggle.call_addresses[0U] ==
+                    0x0046B04EU &&
+                first->actor_binary_state_toggle.return_addresses[0U] ==
+                    0x0046B053U &&
+                first->actor_binary_state_toggle.arguments[0U] == 1U &&
+                first->actor_binary_state_toggle.last.old_value == 0U &&
+                first->actor_binary_state_toggle.last.return_eax == 1U &&
+                first->actor_binary_state_toggle.last.return_edx == 0U &&
+                first->actor_binary_state_toggle.last.flags.zero &&
+                second->status == LegacyBattleScriptDispatchStatus::completed &&
+                second->actor_binary_state_toggle.last.old_value == 1U &&
+                second->actor_binary_state_toggle.last.return_eax == 0U &&
+                second->actor_binary_state_toggle.last.return_edx == 1U &&
+                !second->actor_binary_state_toggle.last.flags.zero &&
+                actor.progress.script_binary_state == 0U &&
+                fixture->workspace.cursor == 4U &&
+                fixture->workspace.packed_actor_state == 0x0000BEEFU &&
+                fixture->shared.published_group_b_aux == 0U &&
+                port->count(
+                    LegacyBattleScriptDispatchCall::
+                        reserved_actor_binary_state_toggle
+                ) == 0U,
+            "case twenty-nine toggles the selected Group-A actor through physical caller 0046B04E"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        auto port = std::make_unique<Port>();
+        fixture->opcode(29);
+        fixture->write_u16(2U, 7U);
+        fixture->workspace.packed_actor_state = 0xCAFE2468U;
+        fixture->shared.published_group_b_aux = 0xFFU;
+        fixture->startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        auto& actor = (*fixture->startup.group_b_lifecycle)[7U];
+        actor.action_configuration.script_binary_state = 0x80000000U;
+        const auto result = run_battle_script_dispatch_on_heap(
+            *fixture, *port, {.entry_edx = 0x11112222U}
+        );
+        test.expect_true(
+            result->status == LegacyBattleScriptDispatchStatus::completed &&
+                result->actor_binary_state_toggle.calls == 1U &&
+                result->actor_binary_state_toggle.call_addresses[0U] ==
+                    0x0046B072U &&
+                result->actor_binary_state_toggle.return_addresses[0U] ==
+                    0x0046B077U &&
+                result->actor_binary_state_toggle.last.old_value ==
+                    0x80000000U &&
+                result->actor_binary_state_toggle.last.return_eax == 0U &&
+                result->actor_binary_state_toggle.last.return_edx ==
+                    0x80000000U &&
+                result->actor_binary_state_toggle.last.flags.sign &&
+                actor.action_configuration.script_binary_state == 0U &&
+                fixture->shared.published_group_b_aux == 0U &&
+                fixture->workspace.cursor == 4U &&
+                fixture->workspace.packed_actor_state == 0x00002468U &&
+                port->count(
+                    LegacyBattleScriptDispatchCall::
+                        reserved_actor_binary_state_toggle
+                ) == 0U,
+            "case twenty-nine toggles Group-B nonzero state and wraps its success byte through caller 0046B072"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        auto port = std::make_unique<Port>();
+        fixture->startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        fixture->opcode(29);
+        fixture->write_u16(2U, 0U);
+        const auto group_b =
+            run_battle_script_dispatch_on_heap(*fixture, *port);
+        fixture->opcode(29);
+        fixture->write_u16(2U, 17U);
+        const auto group_a =
+            run_battle_script_dispatch_on_heap(*fixture, *port);
+        test.expect_true(
+            group_b->status == LegacyBattleScriptDispatchStatus::completed &&
+                group_b->actor_binary_state_toggle.call_addresses[0U] ==
+                    0x0046B072U &&
+                group_b->actor_binary_state_toggle.last.return_ecx ==
+                    openswd3::battle::kLegacyBattleScriptGroupBBaseToken &&
+                (*fixture->startup.group_b_lifecycle)[0U]
+                        .action_configuration.script_binary_state == 1U &&
+                group_a->status ==
+                    LegacyBattleScriptDispatchStatus::completed &&
+                group_a->actor_binary_state_toggle.call_addresses[0U] ==
+                    0x0046B04EU &&
+                group_a->actor_binary_state_toggle.last.return_ecx ==
+                    openswd3::battle::kLegacyBattleScriptGroupABaseToken +
+                        9U *
+                            openswd3::battle::
+                                kLegacyBattleScriptGroupAElementSize &&
+                fixture->startup.party[9U].progress.script_binary_state == 1U &&
+                fixture->shared.published_group_b_aux == 1U &&
+                fixture->workspace.cursor == 4U,
+            "case twenty-nine reaches both legal actor-code endpoints and increments only the Group-B byte"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        auto port = std::make_unique<Port>();
+        fixture->opcode(29);
+        fixture->write_u16(2U, 18U);
+        fixture->workspace.packed_actor_state = 0xABCD1357U;
+        fixture->shared.published_group_b_aux = 9U;
+        const auto result = run_battle_script_dispatch_on_heap(
+            *fixture, *port, {.entry_edx = 0x55667788U}
+        );
+        test.expect_true(
+            result->status ==
+                    LegacyBattleScriptDispatchStatus::
+                        actor_binary_state_toggle_typed_stop &&
+                result->actor_binary_state_toggle.calls == 1U &&
+                result->actor_binary_state_toggle.call_addresses[0U] ==
+                    0x0046B04EU &&
+                result->actor_binary_state_toggle.last.status ==
+                    openswd3::battle::LegacyBattleActorBinaryStateToggleStatus::
+                        value_read_typed_stop &&
+                result->actor_binary_state_toggle.last.return_eip ==
+                    0x00478830U &&
+                result->actor_binary_state_toggle.last.return_eax == 10070U &&
+                result->actor_binary_state_toggle.last.return_edx ==
+                    0x55667788U &&
+                fixture->workspace.cursor == 0U &&
+                fixture->workspace.packed_actor_state == 0x00121357U &&
+                fixture->shared.published_group_b_aux == 9U &&
+                port->calls.empty(),
+            "case twenty-nine lets Group-A code eighteen stop at the original field read and suppresses its suffix"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        auto port = std::make_unique<Port>();
+        fixture->opcode(29);
+        fixture->write_u16(2U, 0xFFFFU);
+        fixture->workspace.packed_actor_state = 0x00001234U;
+        const auto result = run_battle_script_dispatch_on_heap(*fixture, *port);
+        constexpr u32 index = 0xFFFFU - 8U;
+        constexpr u32 token =
+            openswd3::battle::kLegacyBattleScriptGroupABaseToken +
+            index * openswd3::battle::kLegacyBattleScriptGroupAElementSize;
+        test.expect_true(
+            result->status ==
+                    LegacyBattleScriptDispatchStatus::
+                        actor_binary_state_toggle_typed_stop &&
+                result->actor_binary_state_toggle.call_addresses[0U] ==
+                    0x0046B04EU &&
+                result->actor_binary_state_toggle.last.return_ecx == token &&
+                fixture->workspace.packed_actor_state == 0xFFFF1234U &&
+                fixture->shared.published_group_b_aux == 0U &&
+                fixture->workspace.cursor == 0U,
+            "case twenty-nine zero-extends FFFF into the Group-A address path before its typed field stop"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        auto port = std::make_unique<Port>();
+        fixture->opcode(29);
+        fixture->write_u16(2U, 8U);
+        auto request = std::make_unique<
+            openswd3::battle::LegacyBattleScriptDispatchRequest>();
+        request->actor_binary_state_toggle_requests.count = 1U;
+        request->actor_binary_state_toggle_requests.access[0U].value_writable =
+            false;
+        const auto result =
+            run_battle_script_dispatch_on_heap(*fixture, *port, *request);
+        test.expect_true(
+            result->status ==
+                    LegacyBattleScriptDispatchStatus::
+                        actor_binary_state_toggle_typed_stop &&
+                result->actor_binary_state_toggle.last.status ==
+                    openswd3::battle::LegacyBattleActorBinaryStateToggleStatus::
+                        value_write_typed_stop &&
+                result->actor_binary_state_toggle.last.actor_access_count ==
+                    1U &&
+                result->actor_binary_state_toggle.last.return_eax == 1U &&
+                fixture->startup.party[0U].progress.script_binary_state == 0U &&
+                fixture->workspace.packed_actor_state == 0x00080000U &&
+                fixture->workspace.cursor == 0U && port->calls.empty(),
+            "case twenty-nine preserves its read prefix and suppresses the Group-A suffix after a typed write stop"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        auto port = std::make_unique<Port>();
+        fixture->opcode(29);
+        fixture->write_u16(2U, 2U);
+        fixture->shared.published_group_b_aux = 11U;
+        fixture->startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        auto request = std::make_unique<
+            openswd3::battle::LegacyBattleScriptDispatchRequest>();
+        request->actor_binary_state_toggle_requests.count = 1U;
+        request->actor_binary_state_toggle_requests.access[0U]
+            .return_address_readable = false;
+        const auto result =
+            run_battle_script_dispatch_on_heap(*fixture, *port, *request);
+        test.expect_true(
+            result->status ==
+                    LegacyBattleScriptDispatchStatus::
+                        actor_binary_state_toggle_typed_stop &&
+                result->actor_binary_state_toggle.last.status ==
+                    openswd3::battle::LegacyBattleActorBinaryStateToggleStatus::
+                        return_address_read_typed_stop &&
+                result->actor_binary_state_toggle.last.actor_access_count ==
+                    2U &&
+                (*fixture->startup.group_b_lifecycle)[2U]
+                        .action_configuration.script_binary_state == 1U &&
+                fixture->shared.published_group_b_aux == 11U &&
+                fixture->workspace.packed_actor_state == 0x00020000U &&
+                fixture->workspace.cursor == 0U && port->calls.empty(),
+            "case twenty-nine keeps the Group-B field write but suppresses its byte and common suffix after a typed return stop"
+        );
+    }
+
+    {
         Fixture fixture;
         Port port;
         fixture.opcode(6);

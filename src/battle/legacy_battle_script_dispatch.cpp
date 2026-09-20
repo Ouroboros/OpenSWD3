@@ -1118,6 +1118,45 @@ private:
         invoke(LegacyBattleScriptDispatchCall::frame);
     }
 
+    [[nodiscard]] bool toggle_actor_binary_state(
+        const u32 actor_token,
+        const u32 entry_eax,
+        const u32 entry_edx,
+        const u32 call_address,
+        const u32 return_address,
+        const LegacyBattleActorCoordinateFlags& entry_flags
+    ) {
+        if (!execute_legacy_battle_actor_binary_state_toggle_call(
+                {.startup = &bindings_.startup},
+                result_.actor_binary_state_toggle,
+                request_.actor_binary_state_toggle_requests,
+                actor_token,
+                1U,
+                entry_eax,
+                entry_edx,
+                call_address,
+                return_address,
+                entry_flags,
+                true
+            )) {
+            eax_ = result_.actor_binary_state_toggle.last.return_eax;
+            ecx_ = result_.actor_binary_state_toggle.last.return_ecx;
+            edx_ = result_.actor_binary_state_toggle.last.return_edx;
+            if (result_.actor_binary_state_toggle.last.flags_known) {
+                flags_ = result_.actor_binary_state_toggle.last.flags;
+            }
+            result_.status = LegacyBattleScriptDispatchStatus::
+                actor_binary_state_toggle_typed_stop;
+            return false;
+        }
+
+        eax_ = result_.actor_binary_state_toggle.last.return_eax;
+        ecx_ = result_.actor_binary_state_toggle.last.return_ecx;
+        edx_ = result_.actor_binary_state_toggle.last.return_edx;
+        flags_ = result_.actor_binary_state_toggle.last.flags;
+        return true;
+    }
+
     [[nodiscard]] bool activate_actor_presentation(
         const u32 actor_token,
         const u32 entry_eax,
@@ -2642,15 +2681,31 @@ private:
         if (!read_u16(wrapping_add(workspace_.cursor, 2U), actor)) {
             return finish();
         }
-        const i32 code = signed_word(actor);
-        const auto token = actor_token(code);
-        if (!token.has_value()) {
-            return finish(eax_);
+
+        set_high_word(workspace_.packed_actor_state, actor);
+        const auto address = script_actor_address(actor);
+        ecx_ = address.token;
+        if (actor > 7U) {
+            eax_ = address.selected_call_eax;
+            flags_ = address.coordinate_flags;
+            if (!toggle_actor_binary_state(
+                    address.token, eax_, edx_, 0x0046B04EU, 0x0046B053U, flags_
+                )) {
+                return finish();
+            }
+        } else {
+            eax_ = address.coordinate_eax;
+            edx_ = address.coordinate_edx;
+            flags_ = address.coordinate_flags;
+            if (!toggle_actor_binary_state(
+                    address.token, eax_, edx_, 0x0046B072U, 0x0046B077U, flags_
+                )) {
+                return finish();
+            }
+            bindings_.shared.published_group_b_aux =
+                static_cast<u8>(bindings_.shared.published_group_b_aux + 1U);
         }
-        invoke(LegacyBattleScriptDispatchCall::pending_478830, *token, {1U});
-        if (code <= 7) {
-            ++bindings_.shared.published_group_b_aux;
-        }
+
         workspace_.cursor = wrapping_add(workspace_.cursor, 4U);
         set_high_word(workspace_.packed_actor_state, 0U);
         return finish(1U);

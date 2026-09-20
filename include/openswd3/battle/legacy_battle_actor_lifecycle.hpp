@@ -143,6 +143,7 @@ struct LegacyBattleGroupBActionConfigurationState {
     compat::u32 source_runtime_value{};            // actor + 0x2AA0
     compat::u32 special_ready{};                   // actor + 0x2AB8
     compat::u32 presentation_enabled{};            // actor + 0x2ABC
+    compat::u32 script_binary_state{};             // actor + 0x2AF8
     bool source_runtime_value_read_accessible{true};
     bool special_ready_read_accessible{true};
 };
