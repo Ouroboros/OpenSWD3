@@ -2,7 +2,7 @@
 
 状态：`module_in_progress`
 
-当前关闭进度：`302/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
+当前关闭进度：`303/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
 
 ## 1. 唯一真值与模块目标
 
@@ -815,6 +815,8 @@ I5最终必须锁定：
 
 本轮再完成`audit_order=302`的`0x004787D0`战斗角色效果资源word槽写入函数及13个caller函数中的40处物理CALL。完整权威LST主体`0x004787D0..0x004787E8`共25字节、5条实际指令、0个callee、0个分支和1个`retn 4`，没有外部chunk或中段入口；函数先把栈参数低word读入DX，清EAX后读取actor `+0x2A7C` cursor到AX，再把DX写入`actor+0x29C4+cursor*2`。typed实现复用Group-A action/startup与Group-B lifecycle canonical owner中的35个word槽和cursor，保留参数、cursor、目标写与返回地址四个真实停点、EAX/ECX/EDX、ESP/EIP及`xor eax,eax` flags；cursor超出35槽时在原目标写点停止，故登记为`platform_adapted`。40处机器码CALL中，10个已关闭父函数内27处站点全部直接组合typed leaf，保留各自返回地址、actor、共享backing、寄存器、flags、部分提交和trace顺序；另外13处精确延期到`0x0047E5C0`、`0x00481010`与`0x00481A40`三个尚待审父函数。独立`0x0047CEC0` cursor更新继续保持参数1递增并夹34、其他参数按u16递减及下溢，奖励调用后同步canonical cursor。验证：定向测试、AddressSanitizer、Linux core 199/199、Linux app 205/205 全部通过。连续10轮完整core、新文件全量与旧文件changed-range clang-format、零OpenSWD3源码warning、测试失败、sanitizer finding、inventory双生成及TMP分类/迁移终检均通过；未启动原版或OpenSWD3游戏程序。工作包为`302/422 = 292 platform_adapted + 10 assembly_exact + 120 pending_audit`；inventory SHA-256为`adeeb9eba674ec671ec51253acfda91f35d43be15135826a004f574400fab93e`。动态差分因原版完整Group-A/Group-B actor、35槽效果资源区、cursor、异常栈/字段内存页及40处caller联合寄存器、flags与SEH捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一步执行`audit_order=303 / 0x004787F0 / sub_4787F0`。
+本轮再完成`audit_order=303`的`0x004787F0`战斗角色演出激活函数及三个已关闭父函数中的七处物理CALL。完整权威LST主体`0x004787F0..0x0047882D`共62字节、15条实际指令、0个callee、3个条件分支和1个`retn 4`，没有外部chunk或中段入口；函数按完整dword参数写`+0x2AB8`，以原`+0x2A94` marker覆盖DL并TEST，无条件写`+0x2ABC=1`，原marker为零时写6，随后只在完整`+0x2AA0==1`且`+0x04` live-record token非零时清`[token+4]`低word。typed实现复用Group-A startup party及Group-B lifecycle/action-configuration canonical owner，保留参数、四个actor字段、live token/value和返回地址共九个真实停点、原marker返回值、完整EAX/ECX/EDX、ESP/EIP、TEST/CMP flags与逐访问部分提交；固定actor或live-record token无法合法解析时只在对应原访问点停止，故登记为`platform_adapted`。动作分派三处、对手动作两处和脚本opcode 10两处物理CALL全部在原控制流位置直接组合typed leaf，保留七组CALL/返回地址、actor、入口寄存器、flags、canonical backing、分支可达性和父级后缀抑制；动作6的启动与完成CALL按不同phase分别到达，脚本Group-A/Group-B入口算术按LST恢复，生产generic `0x004787F0`调用归零。验证：Linux core`199/199`、AddressSanitizer/UBSan`199/199`、Linux app`205/205`及连续10轮core均通过；新文件全量与历史文件changed-range clang-format、零OpenSWD3源码warning、测试失败、sanitizer finding、inventory双生成逐字节一致及TMP/release审计均通过，未启动原版或OpenSWD3游戏程序。工作包为`303/422 = 293 platform_adapted + 10 assembly_exact + 119 pending_audit`；inventory SHA-256为`5f746280df63b04b8f04a04b139170ee47fb6fc9f25e5e46aa5f89c6dea699cd`。动态差分因原版完整Group-A/Group-B actor、九个异常内存访问及七处caller联合寄存器、flags与SEH捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一步执行`audit_order=304 / 0x00478830 / sub_478830`。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

@@ -217,6 +217,7 @@ struct LegacyBattlePartyStartupRecord
     compat::u16 placement_field_1a{};
     compat::u32 active{};
     LegacyBattleGroupAResourceCleanupState resource_cleanup;
+    LegacyBattleActorBaseInitializationFields base_initialization;
     LegacyBattleActorProgressState progress;
     LegacyBattleGroupAWorkspaceState workspace;
     LegacyBattleGroupAConfigurationState configuration;

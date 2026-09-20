@@ -13,6 +13,7 @@
 #include "openswd3/battle/legacy_battle_actor_action_mode.hpp"
 #include "openswd3/battle/legacy_battle_actor_action_target.hpp"
 #include "openswd3/battle/legacy_battle_actor_effect_resource_slot_write.hpp"
+#include "openswd3/battle/legacy_battle_actor_presentation_activation.hpp"
 #include "openswd3/battle/legacy_battle_actor_field_26b8_high_bit_clear.hpp"
 #include "openswd3/battle/legacy_battle_actor_field_26b8_high_bit_set.hpp"
 #include "openswd3/battle/legacy_battle_actor_display_kind.hpp"
@@ -1469,6 +1470,8 @@ struct LegacyBattleActionDispatchContext {
         actor_field_26b8_high_bit_set_requests{};
     LegacyBattleActorEffectResourceSlotWriteCallRequests
         effect_resource_slot_write_requests{};
+    LegacyBattleActorPresentationActivationCallRequests
+        actor_presentation_activation_requests{};
     std::array<LegacyBattleActorActionTargetRequest, 2>
         action_dispatch_action_target_requests{};
     std::array<LegacyBattleActorActionTargetRequest, 4>
@@ -1501,6 +1504,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     actor_field_26b8_high_bit_clear_typed_stop,
     actor_field_26b8_high_bit_set_typed_stop,
     actor_effect_resource_slot_write_typed_stop,
+    actor_presentation_activation_typed_stop,
     actor_display_kind_typed_stop,
     actor_start_gate_typed_stop,
     actor_action_target_typed_stop,
@@ -1600,6 +1604,8 @@ struct LegacyBattleActionDispatchResult {
         actor_field_26b8_high_bit_set{};
     LegacyBattleActorEffectResourceSlotWriteCallTrace
         effect_resource_slot_write{};
+    LegacyBattleActorPresentationActivationCallTrace
+        actor_presentation_activation{};
     LegacyBattleActorDisplayKindResult actor_display_kind{};
     compat::u32 actor_display_kind_calls{};
     LegacyBattleActorStartGateResult actor_start_gate{};

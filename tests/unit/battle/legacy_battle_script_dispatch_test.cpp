@@ -3368,6 +3368,20 @@ void test_battle_script_current_coordinate_loops(
     }
 }
 
+[[nodiscard]] std::unique_ptr<
+    openswd3::battle::LegacyBattleScriptDispatchResult>
+run_battle_script_dispatch_on_heap(
+    Fixture& fixture,
+    Port& port,
+    const openswd3::battle::LegacyBattleScriptDispatchRequest& request = {}
+) {
+    return std::make_unique<openswd3::battle::LegacyBattleScriptDispatchResult>(
+        openswd3::battle::run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port, request
+        )
+    );
+}
+
 void test_battle_script_dispatch(openswd3::test::Context& test) {
     using openswd3::battle::run_legacy_battle_script_dispatch;
 
@@ -3651,6 +3665,110 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
                 fixture.shared.action_state == 0U &&
                 fixture.workspace.cursor == 0U && port.calls.empty(),
             "case nine typed write stop preserves the reached publications and suppresses the complete caller suffix"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        auto port = std::make_unique<Port>();
+        fixture->opcode(10);
+        fixture->write_u16(2U, 8U);
+        auto& actor = fixture->startup.party[0U];
+        actor.configuration.source_runtime_value = 1U;
+        actor.configuration.actor_record_token = 0x70000000U;
+        actor.configuration.actor_record[2U] = 0xCAFE1234U;
+        const auto result = run_battle_script_dispatch_on_heap(*fixture, *port);
+        test.expect_true(
+            result->status == LegacyBattleScriptDispatchStatus::completed &&
+                result->actor_presentation_activation.calls == 1U &&
+                result->actor_presentation_activation.call_addresses[0U] ==
+                    0x0046AF55U &&
+                result->actor_presentation_activation.return_addresses[0U] ==
+                    0x0046AF5AU &&
+                actor.progress.special_ready == 1U &&
+                actor.progress.presentation_enabled == 1U &&
+                actor.base_initialization.field_2a94 == 6U &&
+                actor.configuration.actor_record[2U] == 0xCAFE0000U &&
+                fixture->shared.selection_gate_b == 1U &&
+                fixture->shared.selection_gate_a == 0U &&
+                fixture->shared.selected_target == 0U &&
+                fixture->workspace.cursor == 4U &&
+                port->count(LegacyBattleScriptDispatchCall::frame) == 1U &&
+                port->count(
+                    LegacyBattleScriptDispatchCall::
+                        reserved_actor_presentation_activation
+                ) == 0U,
+            "case ten activates the selected Group-A actor through physical caller 0046AF55"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        auto port = std::make_unique<Port>();
+        fixture->opcode(10);
+        fixture->write_u16(2U, 2U);
+        fixture->startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        auto& actor = (*fixture->startup.group_b_lifecycle)[2U];
+        actor.action_configuration.source_runtime_value = 1U;
+        actor.live_record_token = 0x71000000U;
+        actor.live_record_value_04 = 0xBEEF5678U;
+        const auto result = run_battle_script_dispatch_on_heap(*fixture, *port);
+        test.expect_true(
+            result->status == LegacyBattleScriptDispatchStatus::completed &&
+                result->actor_presentation_activation.calls == 1U &&
+                result->actor_presentation_activation.call_addresses[0U] ==
+                    0x0046AFA8U &&
+                result->actor_presentation_activation.return_addresses[0U] ==
+                    0x0046AFADU &&
+                actor.action_configuration.special_ready == 1U &&
+                actor.action_configuration.presentation_enabled == 1U &&
+                actor.base_initialization.field_2a94 == 6U &&
+                actor.live_record_value_04 == 0xBEEF0000U &&
+                fixture->shared.selection_gate_c == 1U &&
+                fixture->shared.selection_gate_a == 0U &&
+                fixture->shared.selected_target == 2U &&
+                fixture->workspace.cursor == 4U &&
+                port->count(LegacyBattleScriptDispatchCall::frame) == 1U &&
+                port->count(
+                    LegacyBattleScriptDispatchCall::
+                        reserved_actor_presentation_activation
+                ) == 0U,
+            "case ten activates the selected Group-B actor through physical caller 0046AFA8"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        auto port = std::make_unique<Port>();
+        fixture->opcode(10);
+        fixture->write_u16(2U, 8U);
+        auto request = std::make_unique<
+            openswd3::battle::LegacyBattleScriptDispatchRequest>();
+        request->actor_presentation_activation_requests.calls[0U]
+            .access.presentation_enabled_writable = false;
+        const auto result =
+            run_battle_script_dispatch_on_heap(*fixture, *port, *request);
+        test.expect_true(
+            result->status ==
+                    LegacyBattleScriptDispatchStatus::
+                        actor_presentation_activation_typed_stop &&
+                result->actor_presentation_activation.calls == 1U &&
+                result->actor_presentation_activation.last.status ==
+                    openswd3::battle::
+                        LegacyBattleActorPresentationActivationStatus::
+                            presentation_enabled_write_typed_stop &&
+                fixture->startup.party[0U].progress.special_ready == 1U &&
+                fixture->startup.party[0U].progress.presentation_enabled ==
+                    0U &&
+                fixture->startup.party[0U].base_initialization.field_2a94 ==
+                    0U &&
+                fixture->shared.selection_gate_b == 0U &&
+                fixture->shared.selection_gate_a == 0U &&
+                fixture->workspace.cursor == 0U &&
+                port->count(LegacyBattleScriptDispatchCall::frame) == 0U,
+            "case ten suppresses its complete suffix after the typed presentation write stop"
         );
     }
 

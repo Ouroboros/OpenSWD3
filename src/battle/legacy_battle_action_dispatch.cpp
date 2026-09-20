@@ -93,7 +93,6 @@ constexpr u32 kCallQuerySpecial = 0x0047D8E0U;
 constexpr u32 kCallComputeSelection = 0x00470E20U;
 constexpr u32 kCallResolveTarget = 0x00480AD0U;
 constexpr u32 kCallSetMode = 0x0047F380U;
-constexpr u32 kCallEnablePresentation = 0x004787F0U;
 constexpr u32 kCallCommitTemporaryRecord = 0x0047E070U;
 constexpr u32 kCallComputeValue = 0x00481010U;
 constexpr u32 kCallPlayMessage = 0x00485610U;
@@ -413,6 +412,42 @@ increment_flags(const u32 before, const bool carry) noexcept {
         state.opponent_spawn_count = reply.opponent_spawn_count;
     }
     return reply;
+}
+
+[[nodiscard]] bool activate_actor_presentation(
+    LegacyBattleActionDispatchState& state,
+    LegacyBattleActionDispatchContext& context,
+    LegacyBattleActionDispatchResult& result,
+    const u32 actor_token,
+    const u32 entry_eax,
+    const u32 entry_edx,
+    const u32 call_address,
+    const u32 return_address,
+    const LegacyBattleActorCoordinateFlags& entry_flags,
+    const bool entry_flags_known = true
+) noexcept {
+    if (execute_legacy_battle_actor_presentation_activation_call(
+            {
+                .action = &state,
+                .startup = context.startup,
+            },
+            result.actor_presentation_activation,
+            context.actor_presentation_activation_requests,
+            actor_token,
+            1U,
+            entry_eax,
+            entry_edx,
+            call_address,
+            return_address,
+            entry_flags,
+            entry_flags_known
+        )) {
+        return true;
+    }
+    result.status = LegacyBattleActionDispatchStatus::
+        actor_presentation_activation_typed_stop;
+    result.return_value = result.actor_presentation_activation.last.return_eax;
+    return false;
 }
 
 class ActionCompositionPortAdapter final
@@ -7936,9 +7971,21 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                 return result;
             }
             state.phase_condition = 1U;
-            static_cast<void>(
-                invoke(state, port, result, kCallEnablePresentation, {1U})
-            );
+            const auto presentation_mode =
+                invoke(state, port, result, kCallSetMode, {7U});
+            if (!activate_actor_presentation(
+                    state,
+                    context,
+                    result,
+                    actor_token,
+                    presentation_mode.eax,
+                    presentation_mode.edx,
+                    0x004540E4U,
+                    0x004540E9U,
+                    presentation_mode.flags
+                )) {
+                return result;
+            }
             state.frame_effect.red_factor = -12;
             state.frame_effect.green_factor = -12;
             state.frame_effect.blue_factor = -12;
@@ -8007,9 +8054,20 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
             return result;
         }
         if (result.target_phase_advance.return_eax == 1U) {
-            static_cast<void>(
-                invoke(state, port, result, kCallEnablePresentation, {1U})
-            );
+            if (!activate_actor_presentation(
+                    state,
+                    context,
+                    result,
+                    actor_token,
+                    result.target_phase_advance.return_eax,
+                    result.target_phase_advance.return_edx,
+                    0x004546B5U,
+                    0x004546BAU,
+                    {},
+                    false
+                )) {
+                return result;
+            }
             const auto target_code = invoke(
                 state,
                 port,
@@ -9525,10 +9583,22 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
             );
         ++result.target_property_chance_calls;
         if (result.target_property_chance.return_eax == 1U) {
-            static_cast<void>(invoke(state, port, result, kCallSetMode, {7U}));
-            static_cast<void>(
-                invoke(state, port, result, kCallEnablePresentation, {1U})
-            );
+            const auto presentation_mode =
+                invoke(state, port, result, kCallSetMode, {7U});
+            const u32 group_b_actor_token = group_b_token(group_b_index);
+            if (!activate_actor_presentation(
+                    state,
+                    context,
+                    result,
+                    group_b_actor_token,
+                    presentation_mode.eax,
+                    presentation_mode.edx,
+                    0x0045472EU,
+                    0x00454733U,
+                    presentation_mode.flags
+                )) {
+                return result;
+            }
             state.selected_target_index = static_cast<u16>(group_b_index);
             state.selected_group_b_identity[group_b_index] = group_b_index;
             state.frame_refresh_pending = 1U;

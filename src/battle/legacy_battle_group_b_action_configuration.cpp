@@ -69,6 +69,12 @@ configure_legacy_battle_group_b_action(
 
     auto& state = actor->action_configuration;
     auto& coordinates = actor->action_execution;
+    actor->live_record_token = source_token;
+    std::memcpy(
+        &actor->live_record_value_04,
+        source->prefix.data() + 4U,
+        sizeof(actor->live_record_value_04)
+    );
     std::memcpy(
         static_cast<LegacyBattleActorCoordinateSourceRecord*>(&coordinates),
         source,

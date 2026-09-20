@@ -1240,7 +1240,17 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
                         .words[1U] == 0x00010001U &&
                 result.player_item_calls == 1U &&
                 result.player_item.return_token == 0x0063000CU &&
-                item.item_id == 7U && item.quantity_b == 1U,
+                item.item_id == 7U && item.quantity_b == 1U &&
+                result.actor_presentation_activation.calls == 1U &&
+                result.actor_presentation_activation.call_addresses[0U] ==
+                    0x004546B5U &&
+                result.actor_presentation_activation.return_addresses[0U] ==
+                    0x004546BAU &&
+                fixture.startup.party[0U].progress.special_ready == 1U &&
+                fixture.startup.party[0U].progress.presentation_enabled == 1U &&
+                fixture.startup.party[0U].base_initialization.field_2a94 ==
+                    6U &&
+                port.count(0x004787F0U) == 0U,
             "phase six completion directly publishes the target status into the shared player inventory"
         );
     }
@@ -4509,8 +4519,20 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 result.target_property_chance.sampled_value == 10U &&
                 result.target_property_chance.threshold == 10U &&
                 result.target_property_chance.return_eax == 1U &&
+                result.actor_presentation_activation.calls == 1U &&
+                result.actor_presentation_activation.call_addresses[0U] ==
+                    0x0045472EU &&
+                result.actor_presentation_activation.return_addresses[0U] ==
+                    0x00454733U &&
+                (*fixture->startup.group_b_lifecycle)[1U]
+                        .action_configuration.special_ready == 1U &&
+                (*fixture->startup.group_b_lifecycle)[1U]
+                        .action_configuration.presentation_enabled == 1U &&
+                (*fixture->startup.group_b_lifecycle)[1U]
+                        .base_initialization.field_2a94 == 6U &&
                 state->selected_target_index == 1U &&
                 state->frame_refresh_pending == 1U &&
+                port.count(0x004787F0U) == 0U &&
                 port.count(0x004751C0U) == 0U && port.count(0x00474B60U) == 0U,
             "action thirty-three directly advances target ready and the inclusive target-property chance without either opaque call"
         );
@@ -6775,6 +6797,16 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                 port.count(0x00478470U) == 0U &&
                 port.count(0x004019A0U) == 1U &&
                 port.count(0x0047CE70U) == 1U && state.phase_condition == 1U &&
+                result.actor_presentation_activation.calls == 1U &&
+                result.actor_presentation_activation.call_addresses[0U] ==
+                    0x004540E4U &&
+                result.actor_presentation_activation.return_addresses[0U] ==
+                    0x004540E9U &&
+                fixture.startup.party[0U].progress.special_ready == 1U &&
+                fixture.startup.party[0U].progress.presentation_enabled == 1U &&
+                fixture.startup.party[0U].base_initialization.field_2a94 ==
+                    6U &&
+                port.count(0x004787F0U) == 0U &&
                 static_cast<u16>(state.phase_counter) == 1U &&
                 result.target_phase_advance_calls == 1U &&
                 port.count(0x00471270U) == 0U &&
@@ -7226,8 +7258,52 @@ void test_battle_action_kind_caller(openswd3::test::Context& test) {
     }
 }
 
+void test_battle_action_presentation_typed_stop(openswd3::test::Context& test) {
+    auto state =
+        std::make_unique<openswd3::battle::LegacyBattleActionDispatchState>();
+    auto& ready = state->group_a_action_execution[0U];
+    ready.profile_value = 1U;
+    ready.primary_action_record.cached_action_id = 1U;
+    ready.primary_action_record.cached_base_variant = 0x30U;
+    ready.primary_action_record.field_5a = 9U;
+    ready.action_runtime_gate = 2U;
+    auto fixture = std::make_unique<Fixture>();
+    fixture->random.value = 10U;
+    auto port = std::make_unique<DispatchPort>();
+    port->action = 33U;
+    port->push(0x00482F10U, {.eax = 0U});
+    auto context = fixture->context();
+    context.actor_presentation_activation_requests.calls[0U]
+        .access.presentation_enabled_writable = false;
+    const auto result = dispatch(*state, *port, context, 0U, 1U);
+    const auto& actor = (*fixture->startup.group_b_lifecycle)[1U];
+    test.expect_true(
+        result.status ==
+                openswd3::battle::LegacyBattleActionDispatchStatus::
+                    actor_presentation_activation_typed_stop &&
+            result.return_value == 1U &&
+            result.actor_presentation_activation.calls == 1U &&
+            result.actor_presentation_activation.call_addresses[0U] ==
+                0x0045472EU &&
+            result.actor_presentation_activation.return_addresses[0U] ==
+                0x00454733U &&
+            result.actor_presentation_activation.last.status ==
+                openswd3::battle::
+                    LegacyBattleActorPresentationActivationStatus::
+                        presentation_enabled_write_typed_stop &&
+            actor.action_configuration.special_ready == 1U &&
+            actor.action_configuration.presentation_enabled == 0U &&
+            actor.base_initialization.field_2a94 == 0U &&
+            state->current_actor_index == 0xFFFFU &&
+            state->frame_refresh_pending == 0U &&
+            port->count(0x004787F0U) == 0U,
+        "action thirty-three suppresses target publication after the typed presentation write stop"
+    );
+}
+
 void test_battle_action_dispatch(openswd3::test::Context& test) {
     test_battle_action_kind_caller(test);
+    test_battle_action_presentation_typed_stop(test);
     test_battle_action_dispatch_part_one(test);
     test_battle_action_dispatch_part_two(test);
     test_battle_action_dispatch_part_three(test);

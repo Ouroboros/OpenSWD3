@@ -349,11 +349,54 @@ struct Fixture {
     );
 }
 
+void test_opponent_action_presentation_typed_stop(
+    openswd3::test::Context& test
+) {
+    auto state =
+        std::make_unique<openswd3::battle::LegacyBattleActionDispatchState>();
+    state->group_b_count = 1;
+    auto fixture = std::make_unique<Fixture>();
+    auto port = std::make_unique<DispatchPort>();
+    port->action = 17U;
+    auto context = fixture->context();
+    context.actor_presentation_activation_requests.calls[0U]
+        .access.presentation_enabled_writable = false;
+    const auto result = dispatch(*state, *port, context, 0U, 99U);
+    const auto& actor = (*fixture->startup->group_b_lifecycle)[0U];
+    test.expect_true(
+        result.status ==
+                openswd3::battle::LegacyBattleActionDispatchStatus::
+                    actor_presentation_activation_typed_stop &&
+            result.return_value == 1U &&
+            result.actor_presentation_activation.calls == 1U &&
+            result.actor_presentation_activation.call_addresses[0U] ==
+                0x00456286U &&
+            result.actor_presentation_activation.return_addresses[0U] ==
+                0x0045628BU &&
+            result.actor_presentation_activation.last.status ==
+                openswd3::battle::
+                    LegacyBattleActorPresentationActivationStatus::
+                        presentation_enabled_write_typed_stop &&
+            actor.action_configuration.special_ready == 1U &&
+            actor.action_configuration.presentation_enabled == 0U &&
+            actor.base_initialization.field_2a94 == 0U &&
+            state->overlay_gate == 0U &&
+            openswd3::compat::u8(state->opponent_processed_counter) == 0U &&
+            state->action_pending_aux == 0U &&
+            port->battle_terminal_latch() == 0U &&
+            port->battle_message_state() == 0U &&
+            port->count(0x004787F0U) == 0U,
+        "opponent action seventeen suppresses workspace and terminal publication after the typed presentation write stop"
+    );
+}
+
 }  // namespace
 
 void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleActionDispatchState;
     using openswd3::battle::LegacyBattleActionDispatchStatus;
+
+    test_opponent_action_presentation_typed_stop(test);
 
     {
         LegacyBattleActionDispatchState state;
@@ -677,11 +720,6 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 return call.callee_token == 0x0047CE70U;
             }
         );
-        const auto target_mode_call = std::ranges::find_if(
-            port.calls, [](const LegacyBattleActionCallRequest& call) {
-                return call.callee_token == 0x004787F0U;
-            }
-        );
         const auto clear_call = std::ranges::find_if(
             port.calls, [](const LegacyBattleActionCallRequest& call) {
                 return call.callee_token == 0x0047D870U;
@@ -735,10 +773,15 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 property_call != port.calls.end() && property_call->eax == 5U &&
                 property_call->ecx == 0x0050E6A0U &&
                 property_call->edx == 0x28U &&
-                target_mode_call != port.calls.end() &&
-                target_mode_call->eax == 480U &&
-                target_mode_call->ecx == 0x0050E6A0U &&
-                target_mode_call->edx == 640U &&
+                result.actor_presentation_activation.calls == 1U &&
+                result.actor_presentation_activation.call_addresses[0U] ==
+                    0x00456460U &&
+                result.actor_presentation_activation.return_addresses[0U] ==
+                    0x00456465U &&
+                result.actor_presentation_activation.last.return_eax == 1U &&
+                result.actor_presentation_activation.last.return_ecx ==
+                    0x0050E6A0U &&
+                result.actor_presentation_activation.last.return_edx == 0U &&
                 clear_call != port.calls.end() && clear_call->eax == 1U &&
                 clear_call->ecx == 0x0050E6A0U && clear_call->edx == 0U,
             "opponent action six preserves nested and immediate suffix call register residue"
@@ -760,7 +803,11 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 emitter.lifetime_divisor == 0x28U &&
                 emitter.remaining_batches == 0x28U &&
                 emitter.spawn_divisor == 0x3CU && emitter.flags == 0x57U &&
-                source.action_composition.mode_flags == 0x88U,
+                source.action_composition.mode_flags == 0x88U &&
+                fixture.startup->party[4U].progress.special_ready == 1U &&
+                fixture.startup->party[4U].progress.presentation_enabled ==
+                    1U &&
+                fixture.startup->party[4U].base_initialization.field_2a94 == 6U,
             "opponent action six normal typed prefix owner and emitter"
         );
         test.expect_true(
@@ -777,7 +824,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 port.count(0x004019A0U) == 1U &&
                 port.count(0x0047CE70U) == 1U &&
                 port.count(0x00478710U) == 0U &&
-                port.count(0x004787F0U) == 1U &&
+                port.count(0x004787F0U) == 0U &&
                 port.count(0x0047D870U) == 1U && port.count(0x004841B0U) == 1U,
             "opponent action six normal typed prefix isolation and suffix"
         );
@@ -838,7 +885,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 port.count(0x004019A0U) == 1U &&
                 port.count(0x0047CE70U) == 1U &&
                 port.count(0x00478710U) == 0U &&
-                port.count(0x004787F0U) == 1U &&
+                port.count(0x004787F0U) == 0U &&
                 port.count(0x0047D870U) == 1U && port.count(0x004841B0U) == 1U,
             "opponent action six initializes one Group-B source-by-target phase through the typed 484020 prefix before the unchanged suffix"
         );
@@ -1544,9 +1591,21 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         }
         test.expect_true(
             result.return_value == 1U && workspace_matches &&
+                result.actor_presentation_activation.calls == 1U &&
+                result.actor_presentation_activation.call_addresses[0U] ==
+                    0x00456286U &&
+                result.actor_presentation_activation.return_addresses[0U] ==
+                    0x0045628BU &&
+                (*fixture.startup->group_b_lifecycle)[0U]
+                        .action_configuration.special_ready == 1U &&
+                (*fixture.startup->group_b_lifecycle)[0U]
+                        .action_configuration.presentation_enabled == 1U &&
+                (*fixture.startup->group_b_lifecycle)[0U]
+                        .base_initialization.field_2a94 == 6U &&
                 state.action_pending_aux == 1U &&
                 port.battle_terminal_latch() == 0U &&
-                port.battle_message_state() == 0x63U,
+                port.battle_message_state() == 0x63U &&
+                port.count(0x004787F0U) == 0U,
             "opponent action seventeen zeros workspace then writes eighteen spaced all one heads"
         );
     }

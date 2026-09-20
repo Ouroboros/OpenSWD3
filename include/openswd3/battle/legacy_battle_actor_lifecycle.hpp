@@ -142,6 +142,7 @@ struct LegacyBattleGroupBActionConfigurationState {
     compat::u8 resource_mode{};                    // actor + 0x2A93
     compat::u32 source_runtime_value{};            // actor + 0x2AA0
     compat::u32 special_ready{};                   // actor + 0x2AB8
+    compat::u32 presentation_enabled{};            // actor + 0x2ABC
     bool source_runtime_value_read_accessible{true};
     bool special_ready_read_accessible{true};
 };
@@ -162,6 +163,8 @@ struct LegacyBattleActorGroupBElementState {
     compat::u32 object_readable_bytes{kLegacyBattleActorGroupBElementSize};
     compat::u32 object_writable_bytes{kLegacyBattleActorGroupBElementSize};
     LegacyBattleActorBaseInitializationFields base_initialization{};
+    compat::u32 live_record_token{};     // actor + 0x04
+    compat::u32 live_record_value_04{};  // *(actor + 0x04) + 0x04
     compat::u32 resource_token{};
     std::array<compat::u8, 0xA4> resource_bytes{};
     std::vector<compat::u8> resource_description{};

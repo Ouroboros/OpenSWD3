@@ -1118,6 +1118,46 @@ private:
         invoke(LegacyBattleScriptDispatchCall::frame);
     }
 
+    [[nodiscard]] bool activate_actor_presentation(
+        const u32 actor_token,
+        const u32 entry_eax,
+        const u32 entry_edx,
+        const u32 call_address,
+        const u32 return_address,
+        const LegacyBattleActorCoordinateFlags& entry_flags
+    ) {
+        if (!execute_legacy_battle_actor_presentation_activation_call(
+                {
+                    .action = &bindings_.action,
+                    .startup = &bindings_.startup,
+                },
+                result_.actor_presentation_activation,
+                request_.actor_presentation_activation_requests,
+                actor_token,
+                1U,
+                entry_eax,
+                entry_edx,
+                call_address,
+                return_address,
+                entry_flags
+            )) {
+            eax_ = result_.actor_presentation_activation.last.return_eax;
+            ecx_ = result_.actor_presentation_activation.last.return_ecx;
+            edx_ = result_.actor_presentation_activation.last.return_edx;
+            if (result_.actor_presentation_activation.last.flags_known) {
+                flags_ = result_.actor_presentation_activation.last.flags;
+            }
+            result_.status = LegacyBattleScriptDispatchStatus::
+                actor_presentation_activation_typed_stop;
+            return false;
+        }
+        eax_ = result_.actor_presentation_activation.last.return_eax;
+        ecx_ = result_.actor_presentation_activation.last.return_ecx;
+        edx_ = result_.actor_presentation_activation.last.return_edx;
+        flags_ = result_.actor_presentation_activation.last.flags;
+        return true;
+    }
+
     [[nodiscard]] bool rebuild_actor_order_direct() {
         const auto order = rebuild_legacy_battle_actor_order(
             bindings_.metrics,
@@ -1670,12 +1710,33 @@ private:
             if (!token.has_value()) {
                 return finish(eax_);
             }
-            invoke(LegacyBattleScriptDispatchCall::pending_4787f0, *token);
             if (code > 7) {
+                const u32 actor_index = static_cast<u32>(code - 8);
+                if (!activate_actor_presentation(
+                        *token,
+                        actor_index * 1007U,
+                        actor_index * 3021U,
+                        0x0046AF55U,
+                        0x0046AF5AU,
+                        subtract_flags(actor_index * 1008U, actor_index)
+                    )) {
+                    return finish(eax_);
+                }
                 bindings_.shared.selection_gate_b = 1U;
                 bindings_.shared.selection_gate_a = 1U;
                 bindings_.shared.selected_target = static_cast<u32>(code - 8);
             } else {
+                const u32 actor_index = static_cast<u32>(code);
+                if (!activate_actor_presentation(
+                        *token,
+                        actor_index * 1381U,
+                        actor_index * 345U,
+                        0x0046AFA8U,
+                        0x0046AFADU,
+                        subtract_flags(actor_index * 24U, actor_index)
+                    )) {
+                    return finish(eax_);
+                }
                 bindings_.shared.selection_gate_c = 1U;
                 bindings_.shared.selection_gate_a = 1U;
                 bindings_.shared.selected_target = static_cast<u32>(code);

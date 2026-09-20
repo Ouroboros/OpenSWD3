@@ -174,6 +174,7 @@ void test_battle_actor_field_26b8_high_bit_query(openswd3::test::Context& test);
 void test_battle_actor_effect_resource_slot_write(
     openswd3::test::Context& test
 );
+void test_battle_actor_presentation_activation(openswd3::test::Context& test);
 void test_battle_actor_field_26b8_high_bit_set(openswd3::test::Context& test);
 void test_battle_actor_display_kind(openswd3::test::Context& test);
 void test_battle_actor_start_gate(openswd3::test::Context& test);
@@ -7239,6 +7240,7 @@ int main() {
     test_battle_actor_field_26b8_high_bit_clear(test);
     test_battle_actor_field_26b8_high_bit_query(test);
     test_battle_actor_effect_resource_slot_write(test);
+    test_battle_actor_presentation_activation(test);
     test_battle_actor_field_26b8_high_bit_set(test);
     test_battle_actor_display_kind(test);
     test_battle_actor_start_gate(test);

@@ -13,7 +13,8 @@ struct LegacyBattleActorProgressState {
     compat::u32 mode_gate{};        // actor + 0x26D0, low word observed
     compat::u32 action_complete{};  // actor + 0x2AB0
     compat::u32 special_ready{};    // actor + 0x2AB8
-    compat::u32 progress{};         // actor + 0x2A12, low word observed
+    compat::u32 presentation_enabled{};  // actor + 0x2ABC
+    compat::u32 progress{};              // actor + 0x2A12, low word observed
     LegacyBattleActorField26c0 field_26c0{};  // actor + 0x26C0
     compat::u32 frame_started{};              // actor + 0x2B20
     compat::u32 scene_identity{};             // actor + 0x2B04
