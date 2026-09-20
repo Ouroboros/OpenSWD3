@@ -360,6 +360,37 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
     const LegacyBattleTransitionRequest& request
 ) {
     LegacyBattleTransitionResult result;
+    const auto reset_actor = [&](const u32 actor_token,
+                                 const u32 entry_eax,
+                                 const u32 entry_edx,
+                                 const u32 call_address,
+                                 const u32 return_address) {
+        if (request.actor_frames == nullptr) {
+            result.status =
+                LegacyBattleTransitionStatus::actor_runtime_reset_typed_stop;
+            result.return_value = entry_eax;
+            return false;
+        }
+        auto& frames = *request.actor_frames;
+        if (execute_legacy_battle_actor_runtime_reset_call(
+                {.action = &frames.state.shared.action, .startup = &startup},
+                frames.dispatch.bounded_random,
+                result.actor_runtime_reset,
+                request.actor_runtime_reset_requests,
+                actor_token,
+                entry_eax,
+                entry_edx,
+                call_address,
+                return_address
+            )) {
+            return true;
+        }
+
+        result.status =
+            LegacyBattleTransitionStatus::actor_runtime_reset_typed_stop;
+        result.return_value = result.actor_runtime_reset.last.return_eax;
+        return false;
+    };
     result.mode = static_cast<u16>(request.mode);
     static_cast<void>(invoke(
         port,
@@ -749,18 +780,22 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
                 return result;
             }
             const u32 actor = group_a_actor_token(index);
-            latest_eax = invoke(
-                             port,
-                             LegacyBattleTransitionCall::prepare_actor_message,
-                             {actor, 1U, 0U, 0U, 0U, 0U}
-            )
-                             .return_value;
-            latest_eax = invoke(
-                             port,
-                             LegacyBattleTransitionCall::reset_actor_message,
-                             {actor, 0U, 0U, 0U, 0U, 0U}
-            )
-                             .return_value;
+            const auto prepare_reply = invoke(
+                port,
+                LegacyBattleTransitionCall::prepare_actor_message,
+                {actor, 1U, 0U, 0U, 0U, 0U}
+            );
+            latest_eax = prepare_reply.return_value;
+            if (!reset_actor(
+                    actor,
+                    prepare_reply.return_value,
+                    prepare_reply.edx,
+                    0x00452F93U,
+                    0x00452F98U
+                )) {
+                return result;
+            }
+            latest_eax = result.actor_runtime_reset.last.return_eax;
             ++result.prepared_party_actors;
         }
         static_cast<void>(latest_eax);
@@ -826,18 +861,22 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
                 return result;
             }
             const u32 actor = group_b_actor_token(index);
-            latest_eax = invoke(
-                             port,
-                             LegacyBattleTransitionCall::prepare_actor_message,
-                             {actor, 1U, 0U, 0U, 0U, 0U}
-            )
-                             .return_value;
-            latest_eax = invoke(
-                             port,
-                             LegacyBattleTransitionCall::reset_actor_message,
-                             {actor, 0U, 0U, 0U, 0U, 0U}
-            )
-                             .return_value;
+            const auto prepare_reply = invoke(
+                port,
+                LegacyBattleTransitionCall::prepare_actor_message,
+                {actor, 1U, 0U, 0U, 0U, 0U}
+            );
+            latest_eax = prepare_reply.return_value;
+            if (!reset_actor(
+                    actor,
+                    prepare_reply.return_value,
+                    prepare_reply.edx,
+                    0x00453050U,
+                    0x00453055U
+                )) {
+                return result;
+            }
+            latest_eax = result.actor_runtime_reset.last.return_eax;
             ++result.refreshed_enemy_actors;
         }
         static_cast<void>(latest_eax);

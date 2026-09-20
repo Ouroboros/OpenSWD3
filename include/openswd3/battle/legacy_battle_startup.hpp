@@ -7,6 +7,7 @@
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
 #include "openswd3/battle/legacy_battle_actor_list_query.hpp"
 #include "openswd3/battle/legacy_battle_actor_progress.hpp"
+#include "openswd3/battle/legacy_battle_actor_runtime_reset.hpp"
 #include "openswd3/battle/legacy_battle_background_initialization.hpp"
 #include "openswd3/battle/legacy_battle_definition_archive.hpp"
 #include "openswd3/battle/legacy_battle_group_a_attribute_aggregation.hpp"
@@ -299,6 +300,9 @@ struct LegacyBattleStartupState {
     std::shared_ptr<std::array<LegacyBattleActorGroupBElementState, 8>>
         group_b_lifecycle;
     std::array<LegacyBattlePartyStartupRecord, 10> party{};
+    std::shared_ptr<std::array<LegacyBattleActorRuntimeResetState, 10>>
+        group_a_runtime_reset{std::make_shared<
+            std::array<LegacyBattleActorRuntimeResetState, 10>>()};
     std::array<LegacyBattleGroupAConfigurationSourceRecord, 4>
         group_a_configuration_sources{};
     std::array<compat::u32, 4> group_a_auxiliary_profile_kinds{

@@ -73,6 +73,7 @@ struct LegacyBattleDebugHotkeyBindings {
     LegacyBattleStartupState& startup;
     LegacyBattleFinalActorStepState& final_actor;
     LegacyBattleActionDispatchState& action;
+    LegacyBattleBoundedRandomPort& bounded_random;
     LegacyBattleActorMetricState& actor_metrics;
     LegacyBattleActorPublicationState& actor_publication;
     LegacyBattleEffectCoordinatorState& effect_coordinator;
@@ -90,10 +91,12 @@ enum class LegacyBattleDebugHotkeyStatus : compat::u8 {
     text_message_typed_stop,
     actor_coordinate_adjustment_typed_stop,
     actor_action_target_typed_stop,
+    actor_runtime_reset_typed_stop,
 };
 
 struct LegacyBattleDebugHotkeyRequest {
     LegacyBattleActorActionTargetRequest special_action_target_request{};
+    LegacyBattleActorRuntimeResetCallRequests actor_runtime_reset_requests{};
     compat::u32 actor_adjustment_entry_edx{};
     bool actor_adjustment_x_argument_readable{true};
     bool actor_adjustment_y_argument_readable{true};
@@ -114,6 +117,7 @@ struct LegacyBattleDebugHotkeyResult {
     LegacyBattleActorCoordinateAdjustmentResult actor_coordinate_adjustment{};
     LegacyBattleActorActionTargetResult actor_action_target{};
     compat::u32 actor_action_target_calls{};
+    LegacyBattleActorRuntimeResetCallTrace actor_runtime_reset{};
     std::vector<LegacyBattleTextMessageResult> text_messages;
     compat::u32 text_message_calls{};
     bool control_chord_active{};

@@ -264,6 +264,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             LegacyBattleFrameCoordinatorStatus::actor_order_typed_stop;
         return result;
     }
+    SecondaryRngBoundedAdapter selection_random(context.secondary_rng);
     result.debug_hotkeys = coordinate_legacy_battle_debug_hotkeys(
         context.keyboard,
         port.battle_debug_hotkey_state(),
@@ -271,6 +272,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             .startup = context.startup,
             .final_actor = context.final_actor_step,
             .action = context.action_dispatch,
+            .bounded_random = selection_random,
             .actor_metrics = port.actor_metric_state(),
             .actor_publication = port.actor_publication_state(),
             .effect_coordinator = port.effect_coordinator_state(),
@@ -375,7 +377,6 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
     state.interaction_available =
         selection_value == 0xFFFFFFFFU && selection_source == 0U ? 1U : 0U;
 
-    SecondaryRngBoundedAdapter selection_random(context.secondary_rng);
     result.selection_frame = draw_legacy_battle_selection_frame(
         {
             .startup = context.startup,
@@ -741,6 +742,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             .startup = context.startup,
             .final_actor = context.final_actor_step,
             .action = context.action_dispatch,
+            .bounded_random = selection_random,
             .action_updater = context.action_updater,
             .frame_provider = context.frame_provider,
             .metrics = port.actor_metric_state(),

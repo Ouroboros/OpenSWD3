@@ -496,6 +496,7 @@ struct Fixture {
             .startup = startup,
             .final_actor = final_actor,
             .action = action,
+            .bounded_random = random,
             .action_updater = action_updater,
             .frame_provider = frame_provider,
             .metrics = metrics,
@@ -1058,11 +1059,43 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                 result.group_a_prepare_calls == 10U &&
                 result.group_a_actor_cleanup_calls == 10U &&
                 result.group_a_actor_cleanups.size() == 10U &&
-                result.call_trace_count > 30U &&
+                result.actor_runtime_reset.calls == 10U &&
+                result.actor_runtime_reset.call_addresses[0U] == 0x00467139U &&
+                result.call_trace_count + result.actor_runtime_reset.calls >
+                    30U &&
                 result.call_trace.size() == result.call_trace_count,
             "message 99 preserves unbounded dynamic call tracing across all eight and ten actor loops"
         );
     }
+    {
+        Fixture fixture;
+        fixture.message = 0x63U;
+        fixture.state.group_b_bypass_gate = 1U;
+        fixture.metrics.group_a_count = 1U;
+        openswd3::battle::LegacyBattleMessagePhaseRequest request;
+        request.actor_runtime_reset_requests.count = 1U;
+        request.actor_runtime_reset_requests.requests[0U].stop_before_access =
+            0U;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_message_phase(
+                fixture.bindings(), fixture.port, request
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleMessagePhaseStatus::
+                        actor_runtime_reset_typed_stop &&
+                result.actor_runtime_reset.calls == 1U &&
+                result.actor_runtime_reset.call_addresses[0U] == 0x00467139U &&
+                result.actor_runtime_reset.last.status ==
+                    openswd3::battle::LegacyBattleActorRuntimeResetStatus::
+                        stack_write_typed_stop &&
+                result.group_a_reset_calls == 0U &&
+                result.transition_control_selection_calls == 0U &&
+                fixture.message == 0x63U,
+            "message ninety-nine runtime-reset stop suppresses Group-A reset count and transition suffix"
+        );
+    }
+
     {
         Fixture fixture;
         fixture.message = 0x64U;

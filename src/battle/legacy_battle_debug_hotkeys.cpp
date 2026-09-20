@@ -272,6 +272,30 @@ LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
 ) {
     LegacyBattleDebugHotkeyResult result;
     Runner runner(bindings, port, result);
+    const auto reset_actor = [&](const u32 actor_token,
+                                 const u32 call_address,
+                                 const u32 return_address,
+                                 const u32 entry_eax = 0U,
+                                 const u32 entry_edx = 0U) {
+        if (execute_legacy_battle_actor_runtime_reset_call(
+                {.action = &bindings.action, .startup = &bindings.startup},
+                bindings.bounded_random,
+                result.actor_runtime_reset,
+                request.actor_runtime_reset_requests,
+                actor_token,
+                entry_eax,
+                entry_edx,
+                call_address,
+                return_address
+            )) {
+            return true;
+        }
+
+        result.status =
+            LegacyBattleDebugHotkeyStatus::actor_runtime_reset_typed_stop;
+        result.return_value = result.actor_runtime_reset.last.return_eax;
+        return false;
+    };
 
     if (state.developer_tools_enabled == 1U) {
         const bool left_control = runner.key(keyboard, 0x1DU) != 0U;
@@ -475,15 +499,20 @@ LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
                     }
                     current_index =
                         sign_extend_word(result.actor_action_target.return_eax);
-                    static_cast<void>(runner.invoke(
+                    const auto special_reply = runner.invoke(
                         LegacyBattleDebugHotkeyCall::reset_special_group_b,
                         retarget_group_b_token(current_index)
-                    ));
+                    );
                     current_index = bindings.actor_metrics.priority_actor_index;
-                    static_cast<void>(runner.invoke(
-                        LegacyBattleDebugHotkeyCall::reset_actor,
-                        retarget_group_a_token(current_index)
-                    ));
+                    if (!reset_actor(
+                            retarget_group_a_token(current_index),
+                            0x0045DC27U,
+                            0x0045DC2CU,
+                            special_reply.eax,
+                            special_reply.edx
+                        )) {
+                        return result;
+                    }
                     current_index = bindings.actor_metrics.priority_actor_index;
                 }
 
@@ -494,10 +523,13 @@ LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
                 }
                 if (bindings.actor_frames->shared.action_block_gate == 1U) {
                     bindings.actor_frames->shared.action_block_gate = 0U;
-                    static_cast<void>(runner.invoke(
-                        LegacyBattleDebugHotkeyCall::reset_actor,
-                        action_block_group_b_token(current_index)
-                    ));
+                    if (!reset_actor(
+                            action_block_group_b_token(current_index),
+                            0x0045DC58U,
+                            0x0045DC5DU
+                        )) {
+                        return result;
+                    }
                 }
             }
 

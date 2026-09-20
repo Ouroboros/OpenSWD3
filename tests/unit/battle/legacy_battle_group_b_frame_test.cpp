@@ -829,7 +829,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 state, port, context, 3U
             );
         test.expect_true(
-            result.return_value == 0xA5A55A5AU &&
+            result.return_value == 0U &&
+                result.actor_runtime_reset.calls == 1U &&
+                result.actor_runtime_reset.call_addresses[0U] == 0x00457791U &&
+                result.actor_runtime_reset.last.return_edx == 0x0052DCB0U &&
+                port.count(0x00478850U) == 0U &&
                 state.shared.final_actor_step.queued_actor_code == 4U &&
                 state.shared.action.active_effect_target == 0xFFFFFFFFU &&
                 port.count(0x004786D0U) == 0U,
@@ -1505,13 +1509,14 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             result.player_item_calls == 1U &&
                 result.actor_progress_threshold_sync_calls == 1U &&
                 result.actor_progress_threshold_sync.return_eax ==
-                    0xABCD5678U &&
+                    0x00005678U &&
                 result.actor_progress_threshold_sync.return_ecx ==
                     0x005029D0U &&
                 result.actor_progress_threshold_sync.return_edx ==
-                    0xA5A55A5AU &&
+                    0x00503000U &&
+                result.actor_runtime_reset.calls >= 1U &&
                 fixture.startup->party[0].progress.progress == 0xFACE5678U &&
-                port.count(0x00478370U) == 0U,
+                port.count(0x00478850U) == 0U && port.count(0x00478370U) == 0U,
             "all-target completion directly synchronizes the startup actor progress with reset-call residues"
         );
         test.expect_true(
@@ -1579,10 +1584,13 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             "single-target completion directly synchronizes progress once"
         );
         test.expect_true(
-            result.actor_progress_threshold_sync.return_eax == 0xDEAD9ABCU &&
+            result.actor_progress_threshold_sync.return_eax == 0x00009ABCU &&
                 result.actor_progress_threshold_sync.return_ecx ==
                     0x005029D0U &&
-                result.actor_progress_threshold_sync.return_edx == 0x55667788U,
+                result.actor_progress_threshold_sync.return_edx ==
+                    0x00503000U &&
+                result.actor_runtime_reset.calls >= 1U &&
+                port.count(0x00478850U) == 0U,
             "single-target completion preserves reset EAX EDX and actor ECX residues"
         );
         test.expect_true(
@@ -1643,18 +1651,20 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                         LegacyBattleActorProgressThresholdSyncStatus::
                             actor_progress_write_typed_stop &&
                 result.actor_progress_threshold_sync.return_eax ==
-                    0xABCD5678U &&
+                    0x00005678U &&
                 result.actor_progress_threshold_sync.return_ecx ==
                     0x005029D0U &&
                 result.actor_progress_threshold_sync.return_edx ==
-                    0xA5A55A5AU &&
-                fixture.startup->party[0].progress.progress == 0xFACE0011U &&
+                    0x00503000U &&
+                fixture.startup->party[0].progress.progress == 0xFACE0000U &&
                 state.group_a_completion_words[0] == 0U &&
                 state.group_a_completion_slots[0] == 0U &&
                 result.player_item_calls == 0U &&
                 port.count(0x00478AE0U) == 0U &&
                 port.count(0x00478370U) == 0U &&
-                result.return_value == 0xABCD5678U,
+                result.actor_runtime_reset.calls >= 1U &&
+                port.count(0x00478850U) == 0U &&
+                result.return_value == 0x00005678U,
             "single-target actor write stop preserves the reset prefix and blocks table item and target-reset suffixes"
         );
     }

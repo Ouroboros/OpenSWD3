@@ -160,6 +160,7 @@ struct LegacyBattleTransitionRequest {
     compat::u32 scene_value{};
     compat::u16 status_word{};
     LegacyBattleActorFrameAdvanceContext* actor_frames{};
+    LegacyBattleActorRuntimeResetCallRequests actor_runtime_reset_requests{};
 };
 
 enum class LegacyBattleTransitionStatus : compat::u8 {
@@ -180,6 +181,7 @@ enum class LegacyBattleTransitionStatus : compat::u8 {
     actor_frame_typed_stop,
     attack_order_typed_stop,
     actor_progress_threshold_sync_typed_stop,
+    actor_runtime_reset_typed_stop,
 };
 
 struct LegacyBattleTransitionResult {
@@ -219,6 +221,7 @@ struct LegacyBattleTransitionResult {
     LegacyBattleActorProgressThresholdSyncResult
         actor_progress_threshold_sync{};
     compat::u32 actor_progress_threshold_sync_calls{};
+    LegacyBattleActorRuntimeResetCallTrace actor_runtime_reset{};
     compat::u32 prepared_party_actors{};
     compat::u32 rare_slot_writes{};
     compat::u32 refreshed_enemy_actors{};

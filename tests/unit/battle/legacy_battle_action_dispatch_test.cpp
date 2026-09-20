@@ -6872,6 +6872,39 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
     }
 
     {
+        LegacyBattleActionDispatchState state;
+        state.group_a_count = 1;
+        state.group_b_count = 1;
+        state.group_a_to_actor[0U] = 0U;
+        state.battle_flags = 0x20U;
+        Fixture fixture;
+        DispatchPort port;
+        port.action = 25U;
+        auto context = fixture.context();
+        context.actor_runtime_reset_requests.count = 1U;
+        context.actor_runtime_reset_requests.requests[0U].stop_before_access =
+            0U;
+
+        const auto result = dispatch(state, port, context, 0U, 0U);
+
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_runtime_reset_typed_stop &&
+                result.actor_runtime_reset.calls == 1U &&
+                result.actor_runtime_reset.call_addresses[0U] == 0x00454FAFU &&
+                result.actor_runtime_reset.last.status ==
+                    openswd3::battle::LegacyBattleActorRuntimeResetStatus::
+                        stack_write_typed_stop &&
+                state.stored_group_b_index == 0U &&
+                state.stored_group_a_index == 0U &&
+                result.attack_order_calls == 0U &&
+                fixture.attack_order_records[0U].value_00 == 0xFFFFFFFFU,
+            "action twenty-five runtime-reset stop keeps CALL-prefix indices and suppresses attack-order removal"
+        );
+    }
+
+    {
         bool actions_complete = true;
         constexpr std::array<u16, 27> actions{
             1U,  2U,  3U,  4U,  5U,  6U,  7U,  11U, 12U,

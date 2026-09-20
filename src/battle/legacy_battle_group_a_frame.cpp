@@ -83,7 +83,6 @@ constexpr u32 kCallRandom = 0x00439070U;
 constexpr u32 kCallQueryActorReady = 0x00480220U;
 constexpr u32 kCallQueryPrimaryAi = 0x0047D880U;
 constexpr u32 kCallQuerySecondaryAi = 0x0047D8D0U;
-constexpr u32 kCallResetActor = 0x00478850U;
 constexpr u32 kCallPlaySample = 0x00485610U;
 constexpr u32 kCallQueryQueueMode = 0x00483820U;
 constexpr u32 kCallQueryQueueCompletion = 0x0047F920U;
@@ -389,6 +388,36 @@ one_based_group_b_token(const u32 one_based) noexcept {
     return port.invoke({.callee_token = callee, .arguments = arguments});
 }
 
+[[nodiscard]] bool reset_actor_runtime(
+    LegacyBattleGroupAFrameState& state,
+    LegacyBattleActionDispatchContext& context,
+    LegacyBattleActionDispatchResult& result,
+    const u32 actor_token,
+    const u32 call_address,
+    const u32 return_address,
+    const u32 entry_eax = 0U,
+    const u32 entry_edx = 0U
+) {
+    if (execute_legacy_battle_actor_runtime_reset_call(
+            {.action = &state.action, .startup = context.startup},
+            context.bounded_random,
+            result.actor_runtime_reset,
+            context.actor_runtime_reset_requests,
+            actor_token,
+            entry_eax,
+            entry_edx,
+            call_address,
+            return_address
+        )) {
+        return true;
+    }
+
+    result.status =
+        LegacyBattleActionDispatchStatus::actor_runtime_reset_typed_stop;
+    result.return_value = result.actor_runtime_reset.last.return_eax;
+    return false;
+}
+
 [[nodiscard]] bool query_turn_completion(
     LegacyBattleActionDispatchResult& result,
     LegacyBattleActionDispatchContext& context,
@@ -640,6 +669,22 @@ void merge_nested_result(
     outer.actor_action_mode_calls += nested.actor_action_mode_calls;
     if (nested.actor_action_mode_calls != 0U) {
         outer.actor_action_mode = nested.actor_action_mode;
+    }
+    for (std::size_t index = 0U; index < nested.actor_runtime_reset.calls;
+         ++index) {
+        const std::size_t destination = outer.actor_runtime_reset.calls + index;
+        if (destination < outer.actor_runtime_reset.call_addresses.size()) {
+            outer.actor_runtime_reset.call_addresses[destination] =
+                nested.actor_runtime_reset.call_addresses[index];
+            outer.actor_runtime_reset.return_addresses[destination] =
+                nested.actor_runtime_reset.return_addresses[index];
+            outer.actor_runtime_reset.actor_tokens[destination] =
+                nested.actor_runtime_reset.actor_tokens[index];
+        }
+    }
+    outer.actor_runtime_reset.calls += nested.actor_runtime_reset.calls;
+    if (nested.actor_runtime_reset.calls != 0U) {
+        outer.actor_runtime_reset.last = nested.actor_runtime_reset.last;
     }
     outer.group_a_actor_cleanup_calls += nested.group_a_actor_cleanup_calls;
     if (nested.group_a_actor_cleanup_calls != 0U) {
@@ -1295,10 +1340,15 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                             actor.action_complete = 1U;
                         }
                     }
-                } else {
-                    static_cast<void>(
-                        invoke(port, result, kCallResetActor, {actor_token})
-                    );
+                } else if (!reset_actor_runtime(
+                               state,
+                               context,
+                               result,
+                               actor_token,
+                               0x004567D8U,
+                               0x004567DDU
+                           )) {
+                    return result;
                 }
             } else {
                 static_cast<void>(invoke(
@@ -1434,15 +1484,29 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         low_byte(state.action.opponent_processed_counter)
                     ) <=
                 1) {
-            static_cast<void>(
-                invoke(port, result, kCallResetActor, {actor_token})
-            );
+            if (!reset_actor_runtime(
+                    state,
+                    context,
+                    result,
+                    actor_token,
+                    0x00456965U,
+                    0x0045696AU
+                )) {
+                return result;
+            }
         }
         if (port.battle_message_state() == 0x63U &&
             state.actor_start_guard_word == 0U) {
-            static_cast<void>(
-                invoke(port, result, kCallResetActor, {actor_token})
-            );
+            if (!reset_actor_runtime(
+                    state,
+                    context,
+                    result,
+                    actor_token,
+                    0x00456989U,
+                    0x0045698EU
+                )) {
+                return result;
+            }
         }
         actor.frame_started = 1U;
         state.final_actor_step.active_actor_code = group_a_index + 8U;
@@ -2004,12 +2068,15 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         state.final_actor_step,
                         state.action,
                         port,
+                        context.bounded_random,
                         context.startup,
+                        context.actor_runtime_reset_requests,
                         group_a_index,
                         completed_target,
                         context.post_action_target_request,
                         context.actor_action_mode_requests
-                            [result.actor_action_mode_calls]
+                            [result.actor_action_mode_calls],
+                        result.actor_runtime_reset.calls
                     );
                     merge_nested_result(result, post_action);
                     if (post_action.status !=
@@ -2105,9 +2172,16 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     }
                 }
 
-                static_cast<void>(
-                    invoke(port, result, kCallResetActor, {actor_token})
-                );
+                if (!reset_actor_runtime(
+                        state,
+                        context,
+                        result,
+                        actor_token,
+                        0x004572ABU,
+                        0x004572B0U
+                    )) {
+                    return result;
+                }
                 state.action.active_effect_target = 0U;
                 state.action_side = 0U;
                 state.active_effect_tail.fill(0U);

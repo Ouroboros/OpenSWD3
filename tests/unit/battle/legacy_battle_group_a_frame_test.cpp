@@ -1353,7 +1353,20 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             result.status == LegacyBattleActionDispatchStatus::completed &&
                 result.return_value == 1U && port.count(0x004539B0U) == 0U &&
                 port.count(0x004786B0U) == 0U &&
-                has_call_argument(port, 0x00478850U, 0U, 0x00525508U) &&
+                port.count(0x00478850U) == 0U &&
+                result.actor_runtime_reset.calls >= 1U &&
+                std::ranges::find(
+                    result.actor_runtime_reset.actor_tokens.begin(),
+                    result.actor_runtime_reset.actor_tokens.begin() +
+                        static_cast<std::ptrdiff_t>(
+                            result.actor_runtime_reset.calls
+                        ),
+                    0x00525508U
+                ) !=
+                    result.actor_runtime_reset.actor_tokens.begin() +
+                        static_cast<std::ptrdiff_t>(
+                            result.actor_runtime_reset.calls
+                        ) &&
                 state.final_actor_step.action_execution_active == 0U &&
                 state.action.active_effect_target == 0xFFFFFFFFU &&
                 state.shared_gate_4ff578 == 1U &&

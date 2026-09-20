@@ -23,7 +23,6 @@ using compat::u32;
 constexpr u32 kCallQueryTerminal = 0x0047CE80U;
 constexpr u32 kCallUpdateOpponent = 0x0047DAD0U;
 constexpr u32 kCallQueryQueueCompletion = 0x0047F920U;
-constexpr u32 kCallResetActor = 0x00478850U;
 constexpr u32 kCallQueryActorBlocked = 0x0047D930U;
 constexpr u32 kCallQueryActorExcluded = 0x00478B50U;
 constexpr u32 kCallClearControl = 0x0047C660U;
@@ -152,6 +151,36 @@ void replace_low_byte(u32& destination, const u8 value) noexcept {
     std::copy(arguments.begin(), arguments.end(), request.arguments.begin());
     ++result.port_calls;
     return port.invoke(request);
+}
+
+[[nodiscard]] bool reset_actor_runtime(
+    LegacyBattleGroupBFrameState& state,
+    LegacyBattleActionDispatchContext& context,
+    LegacyBattleActionDispatchResult& result,
+    const u32 actor_token,
+    const u32 call_address,
+    const u32 return_address,
+    const u32 entry_eax = 0U,
+    const u32 entry_edx = 0U
+) {
+    if (execute_legacy_battle_actor_runtime_reset_call(
+            {.action = &state.shared.action, .startup = context.startup},
+            context.bounded_random,
+            result.actor_runtime_reset,
+            context.actor_runtime_reset_requests,
+            actor_token,
+            entry_eax,
+            entry_edx,
+            call_address,
+            return_address
+        )) {
+        return true;
+    }
+
+    result.status =
+        LegacyBattleActionDispatchStatus::actor_runtime_reset_typed_stop;
+    result.return_value = result.actor_runtime_reset.last.return_eax;
+    return false;
 }
 
 [[nodiscard]] bool query_turn_completion(
@@ -547,9 +576,18 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                 action.action_pending_aux = 0U;
                 action.active_effect_target = 0xFFFFFFFFU;
                 shared.final_actor_step.queued_actor_code = group_b_index + 1U;
-                const auto reply =
-                    invoke(port, result, kCallResetActor, {source_token});
-                result.return_value = reply.eax;
+                if (!reset_actor_runtime(
+                        state,
+                        context,
+                        result,
+                        source_token,
+                        0x00457791U,
+                        0x00457796U
+                    )) {
+                    return result;
+                }
+                result.return_value =
+                    result.actor_runtime_reset.last.return_eax;
                 return result;
             }
             if (invoke(port, result, kCallQueryTerminal, {source_token}).eax ==
@@ -559,9 +597,18 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                 shared.action_block_gate = 0U;
                 action.action_pending_aux = 0U;
                 action.active_effect_target = 0xFFFFFFFFU;
-                const auto reply =
-                    invoke(port, result, kCallResetActor, {source_token});
-                result.return_value = reply.eax;
+                if (!reset_actor_runtime(
+                        state,
+                        context,
+                        result,
+                        source_token,
+                        0x004577CCU,
+                        0x004577D1U
+                    )) {
+                    return result;
+                }
+                result.return_value =
+                    result.actor_runtime_reset.last.return_eax;
                 return result;
             }
 
@@ -1509,9 +1556,18 @@ action_decision_done:
                                             group_a_actor_cleanup_typed_stop;
                                     return result;
                                 }
-                                const auto reset_reply = invoke(
-                                    port, result, kCallResetActor, {target}
-                                );
+                                if (!reset_actor_runtime(
+                                        state,
+                                        context,
+                                        result,
+                                        target,
+                                        0x00457F23U,
+                                        0x00457F28U
+                                    )) {
+                                    return result;
+                                }
+                                const auto& reset_reply =
+                                    result.actor_runtime_reset.last;
                                 result.actor_progress_threshold_sync =
                                     synchronize_legacy_battle_actor_progress_threshold(
                                         party != nullptr ? &party->progress
@@ -1521,8 +1577,8 @@ action_decision_done:
                                             : nullptr,
                                         {
                                             .actor_token = target,
-                                            .entry_eax = reset_reply.eax,
-                                            .entry_edx = reset_reply.edx,
+                                            .entry_eax = reset_reply.return_eax,
+                                            .entry_edx = reset_reply.return_edx,
                                         }
                                     );
                                 ++result.actor_progress_threshold_sync_calls;
@@ -1585,8 +1641,18 @@ action_decision_done:
                         state.group_a_completion_words[completed_target] = 0U;
                         replace_low_word(shared.defeated_actor_packed, 0U);
                         state.group_a_completion_slots[completed_target] = 0U;
-                        const auto reset_reply =
-                            invoke(port, result, kCallResetActor, {target});
+                        if (!reset_actor_runtime(
+                                state,
+                                context,
+                                result,
+                                target,
+                                0x00457FD0U,
+                                0x00457FD5U
+                            )) {
+                            return result;
+                        }
+                        const auto& reset_reply =
+                            result.actor_runtime_reset.last;
                         auto* const startup = context.startup;
                         result.actor_progress_threshold_sync =
                             synchronize_legacy_battle_actor_progress_threshold(
@@ -1596,8 +1662,8 @@ action_decision_done:
                                 startup != nullptr ? &startup->timing : nullptr,
                                 {
                                     .actor_token = target,
-                                    .entry_eax = reset_reply.eax,
-                                    .entry_edx = reset_reply.edx,
+                                    .entry_eax = reset_reply.return_eax,
+                                    .entry_edx = reset_reply.return_edx,
                                 }
                             );
                         ++result.actor_progress_threshold_sync_calls;
@@ -1634,9 +1700,16 @@ action_decision_done:
                     );
                 }
 
-                static_cast<void>(
-                    invoke(port, result, kCallResetActor, {source_token})
-                );
+                if (!reset_actor_runtime(
+                        state,
+                        context,
+                        result,
+                        source_token,
+                        0x0045802CU,
+                        0x00458031U
+                    )) {
+                    return result;
+                }
                 if ((shared.battle_byte_flags & 0x80U) != 0U) {
                     if (action.group_a_count > 0) {
                         for (i32 index = 0; index < action.group_a_count;

@@ -583,7 +583,9 @@ void test_battle_transition(openswd3::test::Context& test) {
                 ) == 2U &&
                 ports.call_count(
                     LegacyBattleTransitionCall::reset_actor_message
-                ) == 2U &&
+                ) == 0U &&
+                result.actor_runtime_reset.calls == 2U &&
+                result.actor_runtime_reset.call_addresses[0U] == 0x00452F93U &&
                 ports.call_count(
                     LegacyBattleTransitionCall::reserved_actor_progress_update
                 ) == 0U &&
@@ -673,7 +675,9 @@ void test_battle_transition(openswd3::test::Context& test) {
                 ) == 2U &&
                 ports.call_count(
                     LegacyBattleTransitionCall::reset_actor_message
-                ) == 2U &&
+                ) == 0U &&
+                result.actor_runtime_reset.calls == 2U &&
+                result.actor_runtime_reset.call_addresses[0U] == 0x00453050U &&
                 ports.call_count(
                     LegacyBattleTransitionCall::reserved_actor_progress_update
                 ) == 0U &&

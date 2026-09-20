@@ -2,6 +2,7 @@
 
 #include "openswd3/battle/legacy_battle_actor_base_initialization.hpp"
 #include "openswd3/battle/legacy_battle_actor_base_release.hpp"
+#include "openswd3/battle/legacy_battle_actor_runtime_reset.hpp"
 #include "openswd3/battle/legacy_battle_group_a_resource_cleanup.hpp"
 #include "openswd3/battle/legacy_battle_group_b_resource_cleanup.hpp"
 #include "openswd3/compat/types.hpp"
@@ -164,6 +165,7 @@ struct LegacyBattleActorGroupBElementState {
     compat::u32 object_readable_bytes{kLegacyBattleActorGroupBElementSize};
     compat::u32 object_writable_bytes{kLegacyBattleActorGroupBElementSize};
     LegacyBattleActorBaseInitializationFields base_initialization{};
+    LegacyBattleActorRuntimeResetState runtime_reset{};
     compat::u32 live_record_token{};     // actor + 0x04
     compat::u32 live_record_value_04{};  // *(actor + 0x04) + 0x04
     compat::u32 resource_token{};

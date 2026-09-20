@@ -233,6 +233,34 @@ private:
         }));
     }
 
+    [[nodiscard]] bool reset_actor_runtime(
+        const u32 actor_token, const u32 call_address, const u32 return_address
+    ) {
+        if (!execute_legacy_battle_actor_runtime_reset_call(
+                {.action = &bindings_.action, .startup = &bindings_.startup},
+                bindings_.bounded_random,
+                result_.actor_runtime_reset,
+                request_.actor_runtime_reset_requests,
+                actor_token,
+                eax_,
+                edx_,
+                call_address,
+                return_address
+            )) {
+            result_.status =
+                LegacyBattleMessagePhaseStatus::actor_runtime_reset_typed_stop;
+            eax_ = result_.actor_runtime_reset.last.return_eax;
+            ecx_ = result_.actor_runtime_reset.last.return_ecx;
+            edx_ = result_.actor_runtime_reset.last.return_edx;
+            return false;
+        }
+
+        eax_ = result_.actor_runtime_reset.last.return_eax;
+        ecx_ = result_.actor_runtime_reset.last.return_ecx;
+        edx_ = result_.actor_runtime_reset.last.return_edx;
+        return true;
+    }
+
     void set_group_a_registers(
         const u32 index_bits,
         const bool triple_eax,
@@ -362,7 +390,9 @@ private:
                     LegacyBattleMessagePhaseStatus::group_a_actor_typed_stop
                 );
             }
-            call(LegacyBattleMessagePhaseCall::reset_actor_state, ecx_, {0U});
+            if (!reset_actor_runtime(ecx_, 0x00467139U, 0x0046713EU)) {
+                return finish();
+            }
             ++result_.group_a_reset_calls;
             eax_ = bindings_.metrics.group_a_count;
             ++index;
@@ -422,9 +452,8 @@ private:
             result_.group_a_actor_cleanups.push_back(
                 cleanup_legacy_battle_group_a_actor(
                     {
-                        .actor = &bindings_.action.group_a_action_execution[
-                            index
-                        ],
+                        .actor =
+                            &bindings_.action.group_a_action_execution[index],
                         .workspace = &party.workspace,
                         .final_processing = &party.final_processing,
                         .item_effect = &party.item_effect_application,

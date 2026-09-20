@@ -3,6 +3,7 @@
 #include "openswd3/battle/legacy_battle_final_actor_step.hpp"
 
 #include <array>
+#include <cstddef>
 
 namespace openswd3::battle {
 
@@ -21,11 +22,14 @@ advance_legacy_battle_post_action(
     LegacyBattleFinalActorStepState& final_actor,
     LegacyBattleActionDispatchState& action,
     LegacyBattleActionDispatchPort& port,
+    LegacyBattleBoundedRandomPort& random,
     LegacyBattleStartupState* startup,
+    const LegacyBattleActorRuntimeResetCallRequests& runtime_reset_requests,
     compat::u32 source_group_a_index,
     compat::u32 target_group_b_index,
     const LegacyBattleActorActionTargetRequest& action_target_request = {},
-    const LegacyBattleActorActionModeRequest& action_mode_request = {}
+    const LegacyBattleActorActionModeRequest& action_mode_request = {},
+    std::size_t runtime_reset_request_offset = 0U
 );
 
 }  // namespace openswd3::battle

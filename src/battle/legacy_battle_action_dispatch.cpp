@@ -110,7 +110,6 @@ constexpr u32 kCallPublishScene = 0x004707B0U;
 constexpr u32 kCallFinalizeSelection = 0x00478B30U;
 constexpr u32 kCallLegacyStringCopy = 0x00499168U;
 constexpr u32 kCallSetGlobalMode = 0x0047F900U;
-constexpr u32 kCallPrepareTarget = 0x00478850U;
 constexpr u32 kCallPushState = 0x0047D810U;
 constexpr u32 kCallPopState = 0x0047D830U;
 constexpr u32 kCallSetScreenMode = 0x0047CC40U;
@@ -8941,18 +8940,27 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                     )) {
                     return result;
                 }
-                static_cast<void>(
-                    invoke(state, port, result, kCallSetGlobalMode, {1U})
-                );
+                const auto mode_reply =
+                    invoke(state, port, result, kCallSetGlobalMode, {1U});
                 state.stored_group_b_index = static_cast<u16>(group_b_index);
                 state.stored_group_a_index = static_cast<u16>(group_a_index);
-                static_cast<void>(invoke(
-                    state,
-                    port,
-                    result,
-                    kCallPrepareTarget,
-                    {group_b_token(group_b_index)}
-                ));
+                if (!execute_legacy_battle_actor_runtime_reset_call(
+                        {.action = &state, .startup = context.startup},
+                        context.bounded_random,
+                        result.actor_runtime_reset,
+                        context.actor_runtime_reset_requests,
+                        group_b_token(group_b_index),
+                        mode_reply.eax,
+                        mode_reply.edx,
+                        0x00454FAFU,
+                        0x00454FB4U
+                    )) {
+                    result.status = LegacyBattleActionDispatchStatus::
+                        actor_runtime_reset_typed_stop;
+                    result.return_value =
+                        result.actor_runtime_reset.last.return_eax;
+                    return result;
+                }
                 if (!remove_attack_order_entry(
                         context, result, group_b_index
                     )) {

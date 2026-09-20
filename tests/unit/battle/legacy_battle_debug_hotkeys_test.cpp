@@ -19,6 +19,18 @@ using openswd3::battle::LegacyBattleDebugHotkeyState;
 using openswd3::battle::LegacyBattleDebugHotkeyStatus;
 using openswd3::compat::u32;
 
+class Random final : public openswd3::battle::LegacyBattleBoundedRandomPort {
+public:
+    [[nodiscard]] u32 random_bounded(const u32 bound) override {
+        last_bound = bound;
+        ++calls;
+        return 0U;
+    }
+
+    u32 last_bound{};
+    u32 calls{};
+};
+
 class DebugPort final : public LegacyBattleDebugHotkeyPort {
 public:
     [[nodiscard]] LegacyBattleDebugHotkeyCallReply invoke_debug_hotkey(
@@ -71,6 +83,7 @@ struct Fixture {
     openswd3::battle::LegacyBattleStartupState startup;
     openswd3::battle::LegacyBattleFinalActorStepState final_actor;
     openswd3::battle::LegacyBattleActionDispatchState action;
+    Random random;
     openswd3::battle::LegacyBattleActorMetricState actor_metrics;
     openswd3::battle::LegacyBattleActorPublicationState actor_publication;
     openswd3::battle::LegacyBattleEffectCoordinatorState effect_coordinator;
@@ -85,6 +98,7 @@ struct Fixture {
             .startup = startup,
             .final_actor = final_actor,
             .action = action,
+            .bounded_random = random,
             .actor_metrics = actor_metrics,
             .actor_publication = actor_publication,
             .effect_coordinator = effect_coordinator,
@@ -323,7 +337,9 @@ void test_battle_debug_hotkeys(openswd3::test::Context& test) {
                 {.special_action_target_request = {.entry_edx = 0x11223344U}}
             );
         test.expect_true(
-            result.status == LegacyBattleDebugHotkeyStatus::completed &&
+            result.status ==
+                    LegacyBattleDebugHotkeyStatus::
+                        actor_runtime_reset_typed_stop &&
                 state.selection_status_word_53c050 == 0xABCD0001U &&
                 state.actor_retarget_gate_53bf64 == 0U &&
                 fixture.final_actor.frame_gate_a == 0U &&
@@ -342,7 +358,14 @@ void test_battle_debug_hotkeys(openswd3::test::Context& test) {
                     LegacyBattleDebugHotkeyCall::
                         reserved_query_special_action_target
                 ) == 0U &&
-                port.count(LegacyBattleDebugHotkeyCall::reset_actor) == 2U,
+                port.count(LegacyBattleDebugHotkeyCall::reset_actor) == 0U &&
+                result.actor_runtime_reset.calls == 2U &&
+                result.actor_runtime_reset.call_addresses[0U] == 0x0045DC27U &&
+                result.actor_runtime_reset.call_addresses[1U] == 0x0045DC58U &&
+                result.actor_runtime_reset.last.status ==
+                    openswd3::battle::LegacyBattleActorRuntimeResetStatus::
+                        actor_write_typed_stop &&
+                result.actor_runtime_reset.last.return_eip == 0x00478856U,
             "C preserves low-word status update retarget ordering priority reload and action-block cleanup"
         );
     }

@@ -2,7 +2,9 @@
 #include "test.hpp"
 
 #include <algorithm>
+#include <array>
 #include <deque>
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
@@ -13,7 +15,9 @@ using openswd3::battle::LegacyBattleActionCallRequest;
 using openswd3::battle::LegacyBattleActionDispatchPort;
 using openswd3::compat::u32;
 
-class PostActionPort final : public LegacyBattleActionDispatchPort {
+class PostActionPort final
+    : public LegacyBattleActionDispatchPort,
+      public openswd3::battle::LegacyBattleBoundedRandomPort {
 public:
     [[nodiscard]] LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) override {
@@ -39,9 +43,49 @@ public:
         );
     }
 
+    [[nodiscard]] u32 random_bounded(const u32 bound) override {
+        last_random_bound = bound;
+        ++random_calls;
+        return 0U;
+    }
+
+    u32 last_random_bound{};
+    u32 random_calls{};
     std::unordered_map<u32, std::deque<LegacyBattleActionCallReply>> replies;
     std::vector<LegacyBattleActionCallRequest> calls;
 };
+
+[[nodiscard]] openswd3::battle::LegacyBattleActionDispatchResult
+advance_legacy_battle_post_action(
+    openswd3::battle::LegacyBattlePostActionState& state,
+    openswd3::battle::LegacyBattleFinalActorStepState& final_actor,
+    openswd3::battle::LegacyBattleActionDispatchState& action,
+    PostActionPort& port,
+    openswd3::battle::LegacyBattleStartupState* const startup,
+    const u32 source_group_a_index,
+    const u32 target_group_b_index,
+    const openswd3::battle::LegacyBattleActorActionTargetRequest&
+        action_target_request = {},
+    const openswd3::battle::LegacyBattleActorActionModeRequest&
+        action_mode_request = {}
+) {
+    startup->group_b_lifecycle = std::make_shared<std::array<
+        openswd3::battle::LegacyBattleActorGroupBElementState,
+        openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+    return openswd3::battle::advance_legacy_battle_post_action(
+        state,
+        final_actor,
+        action,
+        port,
+        port,
+        startup,
+        {},
+        source_group_a_index,
+        target_group_b_index,
+        action_target_request,
+        action_mode_request
+    );
+}
 
 }  // namespace
 
@@ -50,7 +94,6 @@ void test_battle_post_action(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleFinalActorStepState;
     using openswd3::battle::LegacyBattlePostActionState;
     using openswd3::battle::LegacyBattleStartupState;
-    using openswd3::battle::advance_legacy_battle_post_action;
 
     {
         LegacyBattlePostActionState state;
@@ -74,6 +117,38 @@ void test_battle_post_action(openswd3::test::Context& test) {
         LegacyBattleFinalActorStepState final_actor;
         LegacyBattleActionDispatchState action;
         LegacyBattleStartupState startup;
+        startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        action.selected_target_index = 1U;
+        action.group_a_count = 2;
+        PostActionPort port;
+        openswd3::battle::LegacyBattleActorRuntimeResetCallRequests requests;
+        requests.count = 1U;
+        requests.requests[0U].stop_before_access = 0U;
+        const auto result = openswd3::battle::advance_legacy_battle_post_action(
+            state, final_actor, action, port, port, &startup, requests, 0U, 1U
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleActionDispatchStatus::
+                        actor_runtime_reset_typed_stop &&
+                result.actor_runtime_reset.calls == 1U &&
+                result.actor_runtime_reset.call_addresses[0U] == 0x0045AE1DU &&
+                result.actor_runtime_reset.last.status ==
+                    openswd3::battle::LegacyBattleActorRuntimeResetStatus::
+                        stack_write_typed_stop &&
+                result.group_a_iterations == 0U &&
+                result.actor_action_target_calls == 0U && port.calls.empty(),
+            "post-action runtime-reset stop suppresses group scan and relation cleanup suffixes"
+        );
+    }
+
+    {
+        LegacyBattlePostActionState state;
+        LegacyBattleFinalActorStepState final_actor;
+        LegacyBattleActionDispatchState action;
+        LegacyBattleStartupState startup;
         action.selected_target_index = 1U;
         action.group_a_action_execution[0U].action_target = 1U;
         action.group_a_count = 0;
@@ -82,9 +157,10 @@ void test_battle_post_action(openswd3::test::Context& test) {
             state, final_actor, action, port, &startup, 0U, 1U
         );
         test.expect_true(
-            result.return_value == 0U && result.port_calls == 1U &&
-                port.calls[0].callee_token == 0x00478850U &&
-                port.calls[0].arguments[0] == 0x00528030U,
+            result.return_value == 0U && result.port_calls == 0U &&
+                result.actor_runtime_reset.calls == 1U &&
+                result.actor_runtime_reset.call_addresses[0U] == 0x0045AE1DU &&
+                result.actor_runtime_reset.actor_tokens[0U] == 0x00528030U,
             "matching target resets group B before the unsigned zero actor-count exit"
         );
     }
@@ -111,10 +187,12 @@ void test_battle_post_action(openswd3::test::Context& test) {
                 result.actor_action_target_calls == 1U &&
                 result.actor_action_target.return_eax == 1U &&
                 result.actor_action_target.return_ecx == 0x00505904U &&
-                result.actor_action_target.return_edx == 0x11223344U &&
+                result.actor_action_target.return_edx == 0x00528660U &&
                 result.actor_action_target.return_eip == 0x004786E0U &&
                 result.actor_action_target.action_target_reads == 0U &&
-                result.port_calls == 1U && port.count(0x00478B20U) == 0U,
+                result.port_calls == 0U &&
+                result.actor_runtime_reset.calls == 1U &&
+                port.count(0x00478B20U) == 0U,
             "post-action target stop preserves the initial reset and suppresses relation cleanup"
         );
     }
@@ -140,7 +218,7 @@ void test_battle_post_action(openswd3::test::Context& test) {
                 result.actor_action_target_calls == 2U &&
                 result.actor_action_target.return_eax == 2U &&
                 result.actor_action_target.return_ecx == 0x00508838U &&
-                result.actor_action_target.return_edx == 0U &&
+                result.actor_action_target.return_edx == 0x0052B188U &&
                 result.actor_action_target.return_eip == 0x0045AE51U &&
                 result.actor_action_target.flags_known &&
                 !result.actor_action_target.flags.zero &&
@@ -185,12 +263,14 @@ void test_battle_post_action(openswd3::test::Context& test) {
                 result.actor_action_mode.return_eip == 0x0045AEECU &&
                 action.group_a_action_execution[1U].action_kind == 0U &&
                 port.count(0x00478330U) == 0U &&
+                result.actor_runtime_reset.calls == 2U &&
+                result.actor_runtime_reset.call_addresses[1U] == 0x0045AEF6U &&
                 result.actor_availability_block_calls == 1U &&
                 result.actor_availability_block.actor_writes == 1U &&
                 result.actor_availability_block.return_ecx == 0x00505904U &&
                 final_actor.group_a_availability_blocks[1U].value == 0U &&
                 action.group_a_action_execution[1U].action_target == 0xFFFFU &&
-                port.count(0x00478850U) == 2U &&
+                port.count(0x00478850U) == 0U &&
                 std::ranges::all_of(
                     final_actor.actor_order,
                     [](const u32 value) { return value == 0U; }
@@ -241,7 +321,8 @@ void test_battle_post_action(openswd3::test::Context& test) {
                 result.actor_availability_block.return_ecx == 0x00505904U &&
                 final_actor.group_a_availability_blocks[1U].value ==
                     0xAABBCCDDU &&
-                port.count(0x00478850U) == 1U &&
+                result.actor_runtime_reset.calls == 1U &&
+                port.count(0x00478850U) == 0U &&
                 final_actor.actor_order[0U] == 7U &&
                 final_actor.secondary_actor_code == 8U &&
                 final_actor.queued_actor_code == 9U &&

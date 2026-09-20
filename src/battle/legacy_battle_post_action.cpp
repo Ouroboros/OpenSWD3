@@ -10,7 +10,6 @@ using compat::i32;
 using compat::u16;
 using compat::u32;
 
-constexpr u32 kCallResetActor = 0x00478850U;
 constexpr u32 kCallQueryTerminal = 0x0047CE80U;
 constexpr u32 kCallClearActorAction = 0x00478B20U;
 constexpr u32 kCallResetTarget = 0x00478AE0U;
@@ -69,23 +68,55 @@ LegacyBattleActionDispatchResult advance_legacy_battle_post_action(
     LegacyBattleFinalActorStepState& final_actor,
     LegacyBattleActionDispatchState& action,
     LegacyBattleActionDispatchPort& port,
+    LegacyBattleBoundedRandomPort& random,
     LegacyBattleStartupState* const startup,
+    const LegacyBattleActorRuntimeResetCallRequests& runtime_reset_requests,
     const compat::u32 source_group_a_index,
     const compat::u32 target_group_b_index,
     const LegacyBattleActorActionTargetRequest& action_target_request,
-    const LegacyBattleActorActionModeRequest& action_mode_request
+    const LegacyBattleActorActionModeRequest& action_mode_request,
+    const std::size_t runtime_reset_request_offset
 ) {
     LegacyBattleActionDispatchResult result;
+    const auto reset_actor = [&](const u32 actor_token,
+                                 const u32 call_address,
+                                 const u32 return_address,
+                                 const u32 entry_eax = 0U,
+                                 const u32 entry_edx = 0U) {
+        if (execute_legacy_battle_actor_runtime_reset_call(
+                {.action = &action, .startup = startup},
+                random,
+                result.actor_runtime_reset,
+                runtime_reset_requests,
+                actor_token,
+                entry_eax,
+                entry_edx,
+                call_address,
+                return_address,
+                {},
+                false,
+                runtime_reset_request_offset
+            )) {
+            return true;
+        }
+
+        result.status =
+            LegacyBattleActionDispatchStatus::actor_runtime_reset_typed_stop;
+        result.return_value = result.actor_runtime_reset.last.return_eax;
+        return false;
+    };
     const u32 selected = action.selected_target_index;
     result.return_value = selected;
     if (selected != target_group_b_index) {
         return result;
     }
 
-    const auto initial_reset = invoke(
-        port, result, kCallResetActor, {group_b_token(target_group_b_index)}
-    );
-    u32 action_target_entry_edx = initial_reset.edx;
+    if (!reset_actor(
+            group_b_token(target_group_b_index), 0x0045AE1DU, 0x0045AE22U
+        )) {
+        return result;
+    }
+    u32 action_target_entry_edx = result.actor_runtime_reset.last.return_edx;
     u32 group_a_index = 0U;
     const u32 group_a_count = to_bits(action.group_a_count);
     if (group_a_count == 0U) {
@@ -237,9 +268,17 @@ LegacyBattleActionDispatchResult advance_legacy_battle_post_action(
                             result.actor_availability_block.return_eax;
                         return result;
                     }
-                    const auto final_reset =
-                        invoke(port, result, kCallResetActor, {actor_token});
-                    action_target_entry_edx = final_reset.edx;
+                    if (!reset_actor(
+                            actor_token,
+                            0x0045AEF6U,
+                            0x0045AEFBU,
+                            result.actor_availability_block.return_eax,
+                            result.actor_availability_block.return_edx
+                        )) {
+                        return result;
+                    }
+                    action_target_entry_edx =
+                        result.actor_runtime_reset.last.return_edx;
                     final_actor.actor_order.fill(0U);
                     state.published_target_token = 0U;
                     final_actor.secondary_actor_code = 0U;
