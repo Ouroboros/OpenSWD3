@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_actor_gate_decay.hpp"
 #include "openswd3/battle/legacy_battle_final_actor_step.hpp"
 
 #include <array>
@@ -32,7 +33,9 @@ advance_legacy_battle_post_action(
     std::size_t runtime_reset_request_offset = 0U,
     const LegacyBattleActorTargetSelectionRequestList&
         target_selection_requests = {},
-    std::size_t target_selection_request_offset = 0U
+    std::size_t target_selection_request_offset = 0U,
+    const LegacyBattleActorGateDecayCallRequests& gate_decay_requests = {},
+    std::size_t gate_decay_request_offset = 0U
 );
 
 }  // namespace openswd3::battle

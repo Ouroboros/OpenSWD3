@@ -56,6 +56,7 @@ struct LegacyBattleGroupAFrameState {
     compat::u32 shared_value_525450{};
     compat::u32 shared_value_525454{};
     compat::u32 shared_value_525458{};
+    compat::u32 shared_value_5254c0{};
 
     compat::u16 turn_resolution_bits{};
     compat::u16 actor_start_guard_word{};

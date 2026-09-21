@@ -118,7 +118,6 @@ constexpr u32 kCallPrepareSelection = 0x00478B30U;
 constexpr u32 kCallSelectionComplete = 0x00478B40U;
 constexpr u32 kCallPrepareAction = 0x0047C690U;
 constexpr u32 kCallClearActorAction = 0x00478B20U;
-constexpr u32 kCallResetTarget = 0x00478AE0U;
 constexpr u32 kCallPublishAllActors = 0x0047E950U;
 constexpr u32 kCallClearNonterminal = 0x00483FF0U;
 constexpr u32 kCallUpdateTurnAction = 0x004321E0U;
@@ -468,6 +467,45 @@ one_based_group_b_token(const u32 one_based) noexcept {
     return false;
 }
 
+[[nodiscard]] bool decay_actor_gates(
+    LegacyBattleGroupAFrameState& state,
+    LegacyBattleActionDispatchContext& context,
+    LegacyBattleActionDispatchResult& result,
+    const u32 actor_token,
+    const u32 call_address,
+    const u32 return_address,
+    const u32 entry_eax,
+    const u32 entry_edx,
+    const LegacyBattleActorCoordinateFlags& entry_flags
+) {
+    if (execute_legacy_battle_actor_gate_decay_call(
+            result.actor_gate_decay,
+            context.actor_gate_decay_requests,
+            {
+                .action = &state.action,
+                .startup = context.startup,
+                .fixed_pre_group_b_packed_counts = &state.shared_value_525454,
+                .fixed_pre_group_b_start_gate_latch =
+                    &state.shared_value_5254c0,
+            },
+            call_address,
+            return_address,
+            actor_token,
+            entry_eax,
+            entry_edx,
+            entry_flags,
+            true,
+            context.actor_gate_decay_request_offset
+        )) {
+        return true;
+    }
+
+    result.status =
+        LegacyBattleActionDispatchStatus::actor_gate_decay_typed_stop;
+    result.return_value = result.actor_gate_decay.last.return_eax;
+    return false;
+}
+
 [[nodiscard]] bool query_turn_completion(
     LegacyBattleActionDispatchResult& result,
     LegacyBattleActionDispatchContext& context,
@@ -735,6 +773,22 @@ void merge_nested_result(
     outer.actor_runtime_reset.calls += nested.actor_runtime_reset.calls;
     if (nested.actor_runtime_reset.calls != 0U) {
         outer.actor_runtime_reset.last = nested.actor_runtime_reset.last;
+    }
+    for (std::size_t index = 0U; index < nested.actor_gate_decay.calls;
+         ++index) {
+        const std::size_t destination = outer.actor_gate_decay.calls + index;
+        if (destination < outer.actor_gate_decay.call_addresses.size()) {
+            outer.actor_gate_decay.call_addresses[destination] =
+                nested.actor_gate_decay.call_addresses[index];
+            outer.actor_gate_decay.return_addresses[destination] =
+                nested.actor_gate_decay.return_addresses[index];
+            outer.actor_gate_decay.actor_tokens[destination] =
+                nested.actor_gate_decay.actor_tokens[index];
+        }
+    }
+    outer.actor_gate_decay.calls += nested.actor_gate_decay.calls;
+    if (nested.actor_gate_decay.calls != 0U) {
+        outer.actor_gate_decay.last = nested.actor_gate_decay.last;
     }
     for (std::size_t index = 0U; index < nested.actor_target_selection.calls;
          ++index) {
@@ -2167,6 +2221,8 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
             auto nested_context = context;
             nested_context.actor_target_selection_request_offset +=
                 result.actor_target_selection.calls;
+            nested_context.actor_gate_decay_request_offset +=
+                result.actor_gate_decay.calls;
             const auto nested = dispatch_legacy_battle_action(
                 state.action, port, nested_context, group_a_index, target_index
             );
@@ -2210,46 +2266,99 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                 state.final_actor_step.action_execution_active = 0U;
 
                 if (completed_target != 0xFFFFU) {
-                    if (invoke(
-                            port, result, kCallSelectionComplete, {actor_token}
-                        )
-                            .eax == 1U) {
+                    const auto selection_complete = invoke(
+                        port, result, kCallSelectionComplete, {actor_token}
+                    );
+                    if (selection_complete.eax == 1U) {
+                        u32 decay_entry_eax = selection_complete.eax;
+                        u32 decay_entry_edx = selection_complete.edx;
+                        auto decay_entry_flags = subtract_flags(
+                            to_bits(state.action.group_b_count), 0U
+                        );
                         for (i32 index = 0; index < state.action.group_b_count;
                              ++index) {
                             const u32 uindex = to_bits(index);
                             if (!validate_group_b(result, uindex)) {
                                 return result;
                             }
-                            static_cast<void>(invoke(
-                                port,
-                                result,
-                                kCallResetTarget,
-                                {group_b_token(uindex)}
-                            ));
+                            if (!decay_actor_gates(
+                                    state,
+                                    context,
+                                    result,
+                                    group_b_token(uindex),
+                                    0x0045715AU,
+                                    0x0045715FU,
+                                    decay_entry_eax,
+                                    decay_entry_edx,
+                                    decay_entry_flags
+                                )) {
+                                return result;
+                            }
                             ++result.group_b_iterations;
+                            decay_entry_eax =
+                                to_bits(state.action.group_b_count);
+                            decay_entry_edx =
+                                result.actor_gate_decay.last.return_edx;
+                            decay_entry_flags = subtract_flags(
+                                uindex + 1U, to_bits(state.action.group_b_count)
+                            );
                         }
                     } else {
-                        const u32 reset_index = completed_target;
+                        const u32 reset_index = to_bits(
+                            static_cast<i32>(
+                                std::bit_cast<i16>(completed_target)
+                            )
+                        );
+                        u32 reset_token{};
+                        u32 decay_entry_eax{};
+                        u32 decay_entry_edx = selection_complete.edx;
+                        LegacyBattleActorCoordinateFlags decay_entry_flags{};
                         if (state.action_side != 0U) {
-                            if (!validate_group_a(result, reset_index)) {
-                                return result;
-                            }
-                            static_cast<void>(invoke(
-                                port,
-                                result,
-                                kCallResetTarget,
-                                {group_a_token(reset_index)}
-                            ));
+                            const u32 times_sixty_four = reset_index << 6U;
+                            const u32 times_sixty_three =
+                                times_sixty_four - reset_index;
+                            const u32 times_one_thousand_eight =
+                                times_sixty_three << 4U;
+                            const u32 times_one_thousand_seven =
+                                times_one_thousand_eight - reset_index;
+                            reset_token = group_a_token(reset_index);
+                            decay_entry_eax = times_one_thousand_seven;
+                            decay_entry_flags = subtract_flags(
+                                times_one_thousand_eight, reset_index
+                            );
                         } else {
-                            if (!validate_group_b(result, reset_index)) {
-                                return result;
-                            }
-                            static_cast<void>(invoke(
-                                port,
+                            const u32 times_three =
+                                reset_index + reset_index * 2U;
+                            const u32 times_twenty_four = times_three << 3U;
+                            const u32 times_twenty_three =
+                                times_twenty_four - reset_index;
+                            const u32 times_sixty_nine =
+                                times_twenty_three + times_twenty_three * 2U;
+                            const u32 times_three_hundred_forty_five =
+                                times_sixty_nine + times_sixty_nine * 4U;
+                            const u32
+                                times_one_thousand_three_hundred_eighty_one =
+                                    reset_index +
+                                times_three_hundred_forty_five * 4U;
+                            reset_token = group_b_token(reset_index);
+                            decay_entry_eax =
+                                times_one_thousand_three_hundred_eighty_one;
+                            decay_entry_edx = times_three_hundred_forty_five;
+                            decay_entry_flags =
+                                subtract_flags(times_twenty_four, reset_index);
+                        }
+                        if (!decay_actor_gates(
+                                state,
+                                context,
                                 result,
-                                kCallResetTarget,
-                                {group_b_token(reset_index)}
-                            ));
+                                reset_token,
+                                0x004571ACU,
+                                0x004571B1U,
+                                decay_entry_eax,
+                                decay_entry_edx,
+                                decay_entry_flags
+                            )) {
+                            return result;
                         }
                     }
                     const auto post_action = advance_legacy_battle_post_action(
@@ -2268,7 +2377,10 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         result.actor_runtime_reset.calls,
                         context.actor_target_selection_requests,
                         context.actor_target_selection_request_offset +
-                            result.actor_target_selection.calls
+                            result.actor_target_selection.calls,
+                        context.actor_gate_decay_requests,
+                        context.actor_gate_decay_request_offset +
+                            result.actor_gate_decay.calls
                     );
                     merge_nested_result(result, post_action);
                     if (post_action.status !=
@@ -2304,15 +2416,35 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         }
                         const u16 actor_target = low_word(action_target_value);
                         if (actor_target != 0xFFFFU) {
-                            if (!validate_group_a(result, actor_target)) {
+                            const u32 actor_target_index = to_bits(
+                                static_cast<i32>(
+                                    std::bit_cast<i16>(actor_target)
+                                )
+                            );
+                            const u32 times_sixty_four = actor_target_index
+                                << 6U;
+                            const u32 times_sixty_three =
+                                times_sixty_four - actor_target_index;
+                            const u32 times_one_thousand_eight =
+                                times_sixty_three << 4U;
+                            const u32 times_one_thousand_seven =
+                                times_one_thousand_eight - actor_target_index;
+                            if (!decay_actor_gates(
+                                    state,
+                                    context,
+                                    result,
+                                    group_a_token(actor_target_index),
+                                    0x0045720CU,
+                                    0x00457211U,
+                                    times_one_thousand_seven,
+                                    result.actor_action_target.return_edx,
+                                    subtract_flags(
+                                        times_one_thousand_eight,
+                                        actor_target_index
+                                    )
+                                )) {
                                 return result;
                             }
-                            static_cast<void>(invoke(
-                                port,
-                                result,
-                                kCallResetTarget,
-                                {group_a_token(actor_target)}
-                            ));
                         }
                         const u32 remaining =
                             to_bits(state.action.group_b_count) +
@@ -2519,28 +2651,38 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         if (selected >= state.action.group_b_count) {
                             state.final_actor_step.action_execution_active = 0U;
                         } else {
-                            static_cast<void>(invoke(
+                            const auto cleared_actor_action = invoke(
                                 port,
                                 result,
                                 kCallClearActorAction,
                                 {actor_token}
-                            ));
+                            );
                             state.action.group_a_action_execution[group_a_index]
                                 .action_target = 0xFFFFU;
-                            const auto reset_target = invoke(
-                                port,
-                                result,
-                                kCallResetTarget,
-                                {kGroupBOneBeforeToken}
-                            );
+                            if (!decay_actor_gates(
+                                    state,
+                                    context,
+                                    result,
+                                    kGroupBOneBeforeToken,
+                                    0x00456FA4U,
+                                    0x00456FA9U,
+                                    cleared_actor_action.eax,
+                                    cleared_actor_action.edx,
+                                    subtract_flags(
+                                        kLegacyBattleActionGroupBBaseToken,
+                                        kLegacyBattleActionGroupBStride
+                                    )
+                                )) {
+                                return result;
+                            }
                             if (static_cast<u16>(selected) == 0xFFFFU) {
                                 state.final_actor_step.action_execution_active =
                                     0U;
                             } else {
                                 if (!select_actor_target(
                                         static_cast<u16>(selected),
-                                        reset_target.eax,
-                                        reset_target.edx,
+                                        result.actor_gate_decay.last.return_eax,
+                                        result.actor_gate_decay.last.return_edx,
                                         subtract_word_flags(
                                             static_cast<u16>(selected), 0xFFFFU
                                         ),

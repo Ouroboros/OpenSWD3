@@ -104,7 +104,6 @@ constexpr u32 kCallTargetPhaseProperty = 0x0047CE70U;
 constexpr u32 kCallTargetPhaseRelease = 0x004885A0U;
 constexpr u32 kCallActionThirteenRender = 0x004170E0U;
 constexpr u32 kCallCommitMessageRecord = 0x0047DBD0U;
-constexpr u32 kCallPrepareOpponent = 0x00478AE0U;
 constexpr u32 kCallPublishScene = 0x004707B0U;
 constexpr u32 kCallFinalizeSelection = 0x00478B30U;
 constexpr u32 kCallLegacyStringCopy = 0x00499168U;
@@ -8522,18 +8521,38 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
             }
             const u16 selected =
                 low_word(result.actor_action_target.return_eax);
-            if (selected >= 8U) {
-                result.status =
-                    LegacyBattleActionDispatchStatus::group_b_index_typed_stop;
+            const u32 selected_index =
+                to_bits(static_cast<i32>(signed_low_word(selected)));
+            const u32 times_three = selected_index + selected_index * 2U;
+            const u32 times_twenty_four = times_three << 3U;
+            const u32 times_twenty_three = times_twenty_four - selected_index;
+            const u32 times_sixty_nine =
+                times_twenty_three + times_twenty_three * 2U;
+            const u32 times_three_hundred_forty_five =
+                times_sixty_nine + times_sixty_nine * 4U;
+            const u32 times_one_thousand_three_hundred_eighty_one =
+                selected_index + times_three_hundred_forty_five * 4U;
+            const u32 selected_actor_token =
+                kLegacyBattleActionGroupBBaseToken +
+                times_one_thousand_three_hundred_eighty_one * 8U;
+            if (!execute_legacy_battle_actor_gate_decay_call(
+                    result.actor_gate_decay,
+                    context.actor_gate_decay_requests,
+                    {.action = &state, .startup = context.startup},
+                    group_a_side ? 0x00454B06U : 0x00454A5DU,
+                    group_a_side ? 0x00454B0BU : 0x00454A62U,
+                    selected_actor_token,
+                    times_one_thousand_three_hundred_eighty_one,
+                    times_three_hundred_forty_five,
+                    subtract_flags(times_twenty_four, selected_index),
+                    true,
+                    context.actor_gate_decay_request_offset
+                )) {
+                result.status = LegacyBattleActionDispatchStatus::
+                    actor_gate_decay_typed_stop;
+                result.return_value = result.actor_gate_decay.last.return_eax;
                 return result;
             }
-            static_cast<void>(invoke(
-                state,
-                port,
-                result,
-                kCallPrepareOpponent,
-                {group_b_token(selected)}
-            ));
             state.available_actor_count = 0;
             if (group_a_side) {
                 state.side_mode = 1U;

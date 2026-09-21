@@ -12,7 +12,6 @@ using compat::u32;
 
 constexpr u32 kCallQueryTerminal = 0x0047CE80U;
 constexpr u32 kCallClearActorAction = 0x00478B20U;
-constexpr u32 kCallResetTarget = 0x00478AE0U;
 
 [[nodiscard]] constexpr u32 to_bits(const i32 value) noexcept {
     return std::bit_cast<u32>(value);
@@ -77,7 +76,9 @@ LegacyBattleActionDispatchResult advance_legacy_battle_post_action(
     const std::size_t runtime_reset_request_offset,
     const LegacyBattleActorTargetSelectionRequestList&
         target_selection_requests,
-    const std::size_t target_selection_request_offset
+    const std::size_t target_selection_request_offset,
+    const LegacyBattleActorGateDecayCallRequests& gate_decay_requests,
+    const std::size_t gate_decay_request_offset
 ) {
     LegacyBattleActionDispatchResult result;
     const auto reset_actor = [&](const u32 actor_token,
@@ -133,6 +134,34 @@ LegacyBattleActionDispatchResult advance_legacy_battle_post_action(
         result.return_value = result.actor_target_selection.last.return_eax;
         return false;
     };
+    const auto decay_actor_gates =
+        [&](const u32 actor_token,
+            const u32 call_address,
+            const u32 return_address,
+            const u32 entry_eax,
+            const u32 entry_edx,
+            const LegacyBattleActorCoordinateFlags& entry_flags) {
+            if (execute_legacy_battle_actor_gate_decay_call(
+                    result.actor_gate_decay,
+                    gate_decay_requests,
+                    {.action = &action, .startup = startup},
+                    call_address,
+                    return_address,
+                    actor_token,
+                    entry_eax,
+                    entry_edx,
+                    entry_flags,
+                    true,
+                    gate_decay_request_offset
+                )) {
+                return true;
+            }
+
+            result.status =
+                LegacyBattleActionDispatchStatus::actor_gate_decay_typed_stop;
+            result.return_value = result.actor_gate_decay.last.return_eax;
+            return false;
+        };
     const u32 selected = action.selected_target_index;
     result.return_value = selected;
     if (selected != target_group_b_index) {
@@ -208,12 +237,42 @@ LegacyBattleActionDispatchResult advance_legacy_battle_post_action(
                                 ));
                                 action.group_a_action_execution[group_a_index]
                                     .action_target = 0xFFFFU;
-                                const auto target_reset = invoke(
-                                    port,
-                                    result,
-                                    kCallResetTarget,
-                                    {group_b_token(to_bits(queried))}
-                                );
+                                const u32 queried_index = to_bits(queried);
+                                const u32 times_three =
+                                    queried_index + queried_index * 2U;
+                                const u32 times_twenty_four = times_three << 3U;
+                                const u32 times_twenty_three =
+                                    times_twenty_four - queried_index;
+                                const u32 times_sixty_nine =
+                                    times_twenty_three +
+                                    times_twenty_three * 2U;
+                                const u32 times_three_hundred_forty_five =
+                                    times_sixty_nine + times_sixty_nine * 4U;
+                                const u32
+                                    times_one_thousand_three_hundred_eighty_one =
+                                        queried_index +
+                                    times_three_hundred_forty_five * 4U;
+                                if (!decay_actor_gates(
+                                        group_b_token(queried_index),
+                                        0x0045AEDFU,
+                                        0x0045AEE4U,
+                                        times_one_thousand_three_hundred_eighty_one,
+                                        times_three_hundred_forty_five,
+                                        subtract_flags(
+                                            times_twenty_four, queried_index
+                                        )
+                                    )) {
+                                    return result;
+                                }
+                                const LegacyBattleActionCallReply target_reset{
+                                    .eax =
+                                        result.actor_gate_decay.last.return_eax,
+                                    .ecx =
+                                        result.actor_gate_decay.last.return_ecx,
+                                    .edx =
+                                        result.actor_gate_decay.last.return_edx,
+                                    .flags = result.actor_gate_decay.last.flags,
+                                };
                                 if (!select_actor_target(
                                         actor_token,
                                         static_cast<u16>(candidate),
@@ -243,19 +302,37 @@ LegacyBattleActionDispatchResult advance_legacy_battle_post_action(
                     ));
                     action.group_a_action_execution[group_a_index]
                         .action_target = 0xFFFFU;
-                    const auto target_reset = invoke(
-                        port,
-                        result,
-                        kCallResetTarget,
-                        {group_b_token(to_bits(queried))}
-                    );
+                    const u32 queried_index = to_bits(queried);
+                    const u32 times_three = queried_index + queried_index * 2U;
+                    const u32 times_twenty_four = times_three << 3U;
+                    const u32 times_twenty_three =
+                        times_twenty_four - queried_index;
+                    const u32 times_sixty_nine =
+                        times_twenty_three + times_twenty_three * 2U;
+                    const u32 times_three_hundred_forty_five =
+                        times_sixty_nine + times_sixty_nine * 4U;
+                    const u32 times_one_thousand_three_hundred_eighty_one =
+                        queried_index + times_three_hundred_forty_five * 4U;
+                    if (!decay_actor_gates(
+                            group_b_token(queried_index),
+                            0x0045AF75U,
+                            0x0045AF7AU,
+                            times_one_thousand_three_hundred_eighty_one,
+                            times_three_hundred_forty_five,
+                            subtract_flags(times_twenty_four, queried_index)
+                        )) {
+                        return result;
+                    }
                     auto mode_request = action_mode_request;
                     mode_request.actor_token = actor_token;
                     mode_request.mode = 0U;
-                    mode_request.entry_eax = target_reset.eax;
-                    mode_request.entry_edx = target_reset.edx;
+                    mode_request.entry_eax =
+                        result.actor_gate_decay.last.return_eax;
+                    mode_request.entry_edx =
+                        result.actor_gate_decay.last.return_edx;
                     mode_request.entry_return_address = 0x0045AEECU;
-                    mode_request.entry_flags = target_reset.flags;
+                    mode_request.entry_flags =
+                        result.actor_gate_decay.last.flags;
                     result.actor_action_mode =
                         set_legacy_battle_actor_action_mode(
                             resolve_legacy_battle_actor_action_mode(

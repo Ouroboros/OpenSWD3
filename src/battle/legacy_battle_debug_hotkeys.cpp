@@ -499,17 +499,47 @@ LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
                     }
                     current_index =
                         sign_extend_word(result.actor_action_target.return_eax);
-                    const auto special_reply = runner.invoke(
-                        LegacyBattleDebugHotkeyCall::reset_special_group_b,
-                        retarget_group_b_token(current_index)
-                    );
+                    const u32 times_three = current_index + current_index * 2U;
+                    const u32 times_twenty_four = times_three << 3U;
+                    const u32 times_twenty_three =
+                        times_twenty_four - current_index;
+                    const u32 times_sixty_nine =
+                        times_twenty_three + times_twenty_three * 2U;
+                    const u32 times_three_hundred_forty_five =
+                        times_sixty_nine + times_sixty_nine * 4U;
+                    const u32 times_one_thousand_three_hundred_eighty_one =
+                        current_index + times_three_hundred_forty_five * 4U;
+                    if (!execute_legacy_battle_actor_gate_decay_call(
+                            result.actor_gate_decay,
+                            request.actor_gate_decay_requests,
+                            {.action = &bindings.action,
+                             .startup = &bindings.startup},
+                            0x0045DC03U,
+                            0x0045DC08U,
+                            retarget_group_b_token(current_index),
+                            times_one_thousand_three_hundred_eighty_one,
+                            times_three_hundred_forty_five,
+                            subtract_flags(times_twenty_four, current_index)
+                        )) {
+                        result.status = LegacyBattleDebugHotkeyStatus::
+                            actor_gate_decay_typed_stop;
+                        result.return_value =
+                            result.actor_gate_decay.last.return_eax;
+                        return result;
+                    }
                     current_index = bindings.actor_metrics.priority_actor_index;
+                    const u32 relative_index = current_index - 8U;
+                    u32 runtime_eax = relative_index << 6U;
+                    runtime_eax -= relative_index;
+                    runtime_eax <<= 4U;
+                    runtime_eax -= relative_index;
+                    runtime_eax += runtime_eax * 2U;
                     if (!reset_actor(
                             retarget_group_a_token(current_index),
                             0x0045DC27U,
                             0x0045DC2CU,
-                            special_reply.eax,
-                            special_reply.edx
+                            runtime_eax,
+                            current_index
                         )) {
                         return result;
                     }

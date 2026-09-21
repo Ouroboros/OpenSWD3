@@ -1683,6 +1683,11 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
                 result.actor_action_target.return_eip == 0x00454A42U &&
                 result.actor_action_target.flags_known &&
                 result.actor_action_target.flags.zero &&
+                result.actor_gate_decay.calls == 1U &&
+                result.actor_gate_decay.call_addresses[0U] == 0x00454A5DU &&
+                result.actor_gate_decay.return_addresses[0U] == 0x00454A62U &&
+                result.actor_gate_decay.actor_tokens[0U] == 0x00525508U &&
+                result.actor_gate_decay.last.returned &&
                 (state.action_runtime_flags & 0x8000U) != 0U &&
                 state.scene_value == 1U && state.available_actor_count == 1 &&
                 state.group_a_action_execution[0U].action_target == 0U,
@@ -1713,8 +1718,45 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
                 result.actor_action_target.return_eip == 0x00454AEBU &&
                 result.actor_action_target.flags_known &&
                 !result.actor_action_target.flags.zero &&
+                result.actor_gate_decay.calls == 1U &&
+                result.actor_gate_decay.call_addresses[0U] == 0x00454B06U &&
+                result.actor_gate_decay.return_addresses[0U] == 0x00454B0BU &&
+                result.actor_gate_decay.actor_tokens[0U] == 0x00525508U &&
+                result.actor_gate_decay.last.returned &&
                 port.count(0x004786E0U) == 0U,
             "action twenty two preserves the alternate branch return address and comparison flags"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        state.group_b_count = 1;
+        state.status_indicator.tick_counter = 24U;
+        state.status_indicator.intensity = 32U;
+        state.status_indicator.intensity_countdown = 32U;
+        Fixture fixture;
+        DispatchPort port;
+        port.action = 22U;
+        auto context = fixture.context();
+        context.actor_gate_decay_requests.count = 1U;
+        context.actor_gate_decay_requests.calls[0U].access.start_gate_readable =
+            false;
+        const auto result = dispatch(state, port, context, 0U, 0U);
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_gate_decay_typed_stop &&
+                result.status_indicator_calls == 1U &&
+                result.actor_action_target_calls == 1U &&
+                result.actor_gate_decay.calls == 1U &&
+                result.actor_gate_decay.call_addresses[0U] == 0x00454A5DU &&
+                result.actor_gate_decay.last.status ==
+                    openswd3::battle::LegacyBattleActorGateDecayStatus::
+                        start_gate_read_typed_stop &&
+                result.actor_gate_decay.last.start_gate_reads == 0U &&
+                state.available_actor_count == 0 &&
+                (state.action_runtime_flags & 0x8000U) == 0U,
+            "action-dispatch gate-decay read stop preserves the target-query prefix and suppresses opponent preparation"
         );
     }
 

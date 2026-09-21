@@ -1596,6 +1596,27 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 "active actor directly composes action dispatch and post-action cleanup suffixes"
             );
             test.expect_true(
+                result.actor_gate_decay.calls == 1U,
+                "active actor records one physical gate-decay call"
+            );
+            test.expect_true(
+                result.actor_gate_decay.call_addresses[0U] == 0x0045720CU,
+                "active actor records physical gate-decay caller 0045720C"
+            );
+            test.expect_true(
+                result.actor_gate_decay.return_addresses[0U] == 0x00457211U,
+                "active actor records physical gate-decay return 00457211"
+            );
+            test.expect_true(
+                result.actor_gate_decay.actor_tokens[0U] ==
+                    openswd3::battle::kLegacyBattleActionGroupABaseToken,
+                "active actor records the related Group-A actor token"
+            );
+            test.expect_true(
+                result.actor_gate_decay.last.returned,
+                "active actor completes physical gate decay"
+            );
+            test.expect_true(
                 result.actor_action_target_calls >= 2U,
                 "active actor reaches the first two physical action-target callers"
             );
@@ -1640,7 +1661,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 );
             test.expect_true(
                 result.status == LegacyBattleActionDispatchStatus::completed,
-                "completed Group-A action finishes the terminal target path"
+                "completed Group-A action retains completed terminal-target status"
             );
             test.expect_true(
                 result.actor_action_target_calls >= 3U,
@@ -1674,6 +1695,93 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 std::make_unique<LegacyBattleGroupAFrameState>();
             auto& state = *state_storage;
             state.action.active_effect_target = 8U;
+            state.final_actor_step.action_execution_active = 1U;
+            state.action.group_a_count = 0;
+            state.action.group_b_count = 1;
+            state.action.selected_target_index = 0U;
+            state.action.group_a_action_execution[0U].action_kind = 5U;
+            state.action.group_a_action_execution[0U].action_target = 0U;
+            Fixture fixture;
+            fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+                openswd3::battle::LegacyBattleActorGroupBElementState,
+                openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+            (*fixture.startup.group_b_lifecycle)[0U]
+                .action_execution.action_target = 0xFFFFU;
+            DispatchPort port;
+            port.push(0x00478B40U, {.eax = 1U});
+            auto context = fixture.context();
+            context.actor_gate_decay_requests.count = 1U;
+            context.actor_gate_decay_requests.calls[0U]
+                .access.start_gate_readable = false;
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActionDispatchStatus::
+                            actor_gate_decay_typed_stop &&
+                    result.actor_gate_decay.calls == 1U &&
+                    result.actor_gate_decay.call_addresses[0U] == 0x0045715AU &&
+                    result.actor_gate_decay.return_addresses[0U] ==
+                        0x0045715FU &&
+                    result.actor_gate_decay.last.status ==
+                        openswd3::battle::LegacyBattleActorGateDecayStatus::
+                            start_gate_read_typed_stop &&
+                    result.group_b_iterations == 0U,
+                "Group-A all-opponent gate-decay read stop suppresses loop progress and post-action cleanup"
+            );
+        }
+
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.action.active_effect_target = 8U;
+            state.final_actor_step.action_execution_active = 1U;
+            state.action.group_a_count = 0;
+            state.action.group_b_count = 1;
+            state.action.selected_target_index = 1U;
+            state.action.group_a_action_execution[0U].action_kind = 5U;
+            state.action.group_a_action_execution[0U].action_target = 0U;
+            Fixture fixture;
+            fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+                openswd3::battle::LegacyBattleActorGroupBElementState,
+                openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+            (*fixture.startup.group_b_lifecycle)[0U]
+                .action_execution.action_target = 0U;
+            DispatchPort port;
+            port.push(0x00478B40U, {.eax = 0U});
+            port.push(0x0047CE80U, {.eax = 1U});
+            auto context = fixture.context();
+            context.actor_gate_decay_requests.count = 2U;
+            context.actor_gate_decay_requests.calls[1U]
+                .access.start_gate_readable = false;
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActionDispatchStatus::
+                            actor_gate_decay_typed_stop &&
+                    result.actor_gate_decay.calls == 2U &&
+                    result.actor_gate_decay.call_addresses[0U] == 0x004571ACU &&
+                    result.actor_gate_decay.call_addresses[1U] == 0x0045720CU &&
+                    result.actor_gate_decay.return_addresses[1U] ==
+                        0x00457211U &&
+                    result.actor_gate_decay.last.status ==
+                        openswd3::battle::LegacyBattleActorGateDecayStatus::
+                            start_gate_read_typed_stop,
+                "Group-A related-actor gate-decay stop consumes the second global request and suppresses the publication suffix"
+            );
+        }
+
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.action.active_effect_target = 8U;
             state.final_actor_step.action_execution_active = 0U;
             state.action.group_a_count = 0;
             state.action.group_b_count = 1;
@@ -1693,7 +1801,15 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     state, port, context, 0U
                 );
             test.expect_true(
-                result.actor_start_gate_increment.calls == 1U &&
+                result.actor_gate_decay.calls == 1U &&
+                    result.actor_gate_decay.call_addresses[0U] == 0x00456FA4U &&
+                    result.actor_gate_decay.return_addresses[0U] ==
+                        0x00456FA9U &&
+                    result.actor_gate_decay.actor_tokens[0U] ==
+                        openswd3::battle::
+                            kLegacyBattleActorGateDecayFixedPreGroupBToken &&
+                    result.actor_gate_decay.last.returned &&
+                    result.actor_start_gate_increment.calls == 1U &&
                     result.actor_start_gate_increment.call_addresses[0U] ==
                         0x00456FE1U &&
                     result.actor_start_gate_increment.return_addresses[0U] ==

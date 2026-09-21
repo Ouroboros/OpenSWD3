@@ -1522,8 +1522,48 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 state.selection_initialized == 0U &&
                 state.shared.action_block_gate == 0U &&
                 state.shared.action.active_effect_target == 0xFFFFFFFFU &&
-                state.status_words[0] == 0U,
+                state.status_words[0] == 0U &&
+                result.actor_gate_decay.calls == 1U &&
+                result.actor_gate_decay.call_addresses[0U] == 0x00458002U &&
+                result.actor_gate_decay.return_addresses[0U] == 0x00458007U &&
+                result.actor_gate_decay.actor_tokens[0U] ==
+                    openswd3::battle::kLegacyBattleActionGroupABaseToken &&
+                result.actor_gate_decay.last.returned,
             "idle opponent directly calls closed opponent dispatcher and runs common cleanup"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState state;
+        state.frame_enabled = 1U;
+        state.shared.action.active_effect_target = 0U;
+        state.selection_initialized = 1U;
+        state.action_profile_bytes = {0U};
+        state.shared.action_side = 1U;
+        Fixture fixture;
+        (*fixture.startup->group_b_lifecycle)[0U]
+            .action_execution.idle_state_latch = 1U;
+        DispatchPort port;
+        port.action = 100U;
+        (*fixture.startup->group_b_lifecycle)[0U]
+            .action_composition.action_kind = port.action;
+        port.action_target = 0U;
+        port.push(0x004786A0U, {.eax = 1U});
+        port.push(0x004786A0U, {.eax = 1U});
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.actor_gate_decay.calls == 1U &&
+                result.actor_gate_decay.call_addresses[0U] == 0x00458025U &&
+                result.actor_gate_decay.return_addresses[0U] == 0x0045802AU &&
+                result.actor_gate_decay.actor_tokens[0U] ==
+                    openswd3::battle::kLegacyBattleActionGroupBBaseToken &&
+                result.actor_gate_decay.last.returned,
+            "opponent-side completion decays the selected Group-B actor through physical caller 00458025"
         );
     }
 
@@ -1600,6 +1640,49 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
         state.shared.action.group_a_count = 1;
+        Fixture fixture;
+        (*fixture.startup->group_b_lifecycle)[0U]
+            .action_execution.idle_state_latch = 1U;
+        DispatchPort port;
+        port.action = 100U;
+        (*fixture.startup->group_b_lifecycle)[0U]
+            .action_composition.action_kind = port.action;
+        port.action_target = 0U;
+        port.push(0x0047F920U, {.eax = 0U});
+        port.push(0x004786A0U, {.eax = 1U});
+        port.push(0x004786A0U, {.eax = 1U});
+        port.push(0x00478B40U, {.eax = 1U});
+        auto context = fixture.context();
+        context.actor_gate_decay_requests.count = 1U;
+        context.actor_gate_decay_requests.calls[0U].access.start_gate_readable =
+            false;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_gate_decay_typed_stop &&
+                result.actor_gate_decay.calls == 1U &&
+                result.actor_gate_decay.call_addresses[0U] == 0x00457EEEU &&
+                result.actor_gate_decay.return_addresses[0U] == 0x00457EF3U &&
+                result.actor_gate_decay.last.status ==
+                    openswd3::battle::LegacyBattleActorGateDecayStatus::
+                        start_gate_read_typed_stop &&
+                result.group_a_iterations == 0U &&
+                result.actor_runtime_reset.calls == 0U,
+            "Group-B all-party gate-decay read stop suppresses actor cleanup and common completion suffixes"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState state;
+        state.frame_enabled = 1U;
+        state.shared.action.active_effect_target = 0U;
+        state.selection_initialized = 1U;
+        state.action_profile_bytes = {0U};
+        state.shared.action.group_a_count = 1;
         state.group_a_completion_words[0] = 1U;
         state.group_a_completion_slots[0] = 9U;
         state.completion_value_table[16] = 0x1234U;
@@ -1626,8 +1709,14 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 state, port, context, 0U
             );
         test.expect_true(
-            result.status == LegacyBattleActionDispatchStatus::completed,
-            "all-target completion retains completed status"
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.actor_gate_decay.calls == 1U &&
+                result.actor_gate_decay.call_addresses[0U] == 0x00457EEEU &&
+                result.actor_gate_decay.return_addresses[0U] == 0x00457EF3U &&
+                result.actor_gate_decay.actor_tokens[0U] ==
+                    openswd3::battle::kLegacyBattleActionGroupABaseToken &&
+                result.actor_gate_decay.last.returned,
+            "all-target completion retains completed status after physical gate decay"
         );
         test.expect_true(
             state.group_a_completion_words[0] == 0U,
@@ -1708,8 +1797,14 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 state, port, context, 0U
             );
         test.expect_true(
-            result.status == LegacyBattleActionDispatchStatus::completed,
-            "single-target completion retains completed status"
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.actor_gate_decay.calls == 1U &&
+                result.actor_gate_decay.call_addresses[0U] == 0x00458002U &&
+                result.actor_gate_decay.return_addresses[0U] == 0x00458007U &&
+                result.actor_gate_decay.actor_tokens[0U] ==
+                    openswd3::battle::kLegacyBattleActionGroupABaseToken &&
+                result.actor_gate_decay.last.returned,
+            "single-target completion retains completed status after physical gate decay"
         );
         test.expect_true(
             result.actor_progress_threshold_sync_calls == 1U,

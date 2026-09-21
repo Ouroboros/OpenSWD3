@@ -67,7 +67,9 @@ advance_legacy_battle_post_action(
     const openswd3::battle::LegacyBattleActorActionTargetRequest&
         action_target_request = {},
     const openswd3::battle::LegacyBattleActorActionModeRequest&
-        action_mode_request = {}
+        action_mode_request = {},
+    const openswd3::battle::LegacyBattleActorGateDecayCallRequests&
+        gate_decay_requests = {}
 ) {
     startup->group_b_lifecycle = std::make_shared<std::array<
         openswd3::battle::LegacyBattleActorGroupBElementState,
@@ -83,7 +85,11 @@ advance_legacy_battle_post_action(
         source_group_a_index,
         target_group_b_index,
         action_target_request,
-        action_mode_request
+        action_mode_request,
+        0U,
+        {},
+        0U,
+        gate_decay_requests
     );
 }
 
@@ -209,6 +215,40 @@ void test_battle_post_action(openswd3::test::Context& test) {
         action.group_b_count = 3;
         PostActionPort port;
         port.push(0x0047CE80U, {.eax = 0U});
+        openswd3::battle::LegacyBattleActorGateDecayCallRequests requests;
+        requests.count = 1U;
+        requests.calls[0U].access.start_gate_readable = false;
+        const auto result = advance_legacy_battle_post_action(
+            state, final_actor, action, port, &startup, 1U, 2U, {}, {}, requests
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleActionDispatchStatus::
+                        actor_gate_decay_typed_stop &&
+                result.actor_gate_decay.calls == 1U &&
+                result.actor_gate_decay.call_addresses[0U] == 0x0045AEDFU &&
+                result.actor_gate_decay.last.status ==
+                    openswd3::battle::LegacyBattleActorGateDecayStatus::
+                        start_gate_read_typed_stop &&
+                action.group_a_action_execution[2U].action_target == 0xFFFFU &&
+                result.actor_target_selection.calls == 0U &&
+                state.selection_rebuild_pending == 0U,
+            "post-action gate-decay read stop preserves actor clearing and suppresses relation publication"
+        );
+    }
+
+    {
+        LegacyBattlePostActionState state;
+        LegacyBattleFinalActorStepState final_actor;
+        LegacyBattleActionDispatchState action;
+        LegacyBattleStartupState startup;
+        action.selected_target_index = 2U;
+        action.group_a_action_execution[1U].action_target = 2U;
+        action.group_a_action_execution[2U].action_target = 2U;
+        action.group_a_count = 3;
+        action.group_b_count = 3;
+        PostActionPort port;
+        port.push(0x0047CE80U, {.eax = 0U});
         const auto result = advance_legacy_battle_post_action(
             state, final_actor, action, port, &startup, 1U, 2U
         );
@@ -225,7 +265,12 @@ void test_battle_post_action(openswd3::test::Context& test) {
                 action.group_a_action_execution[2U].action_target == 0U &&
                 port.count(0x004786E0U) == 0U &&
                 port.count(0x00478B20U) == 1U &&
-                port.count(0x00478AE0U) == 1U &&
+                port.count(0x00478AE0U) == 0U &&
+                result.actor_gate_decay.calls == 1U &&
+                result.actor_gate_decay.call_addresses[0U] == 0x0045AEDFU &&
+                result.actor_gate_decay.return_addresses[0U] == 0x0045AEE4U &&
+                result.actor_gate_decay.actor_tokens[0U] == 0x0052AB58U &&
+                result.actor_gate_decay.last.returned &&
                 result.actor_target_selection.calls == 1U &&
                 result.actor_target_selection.call_addresses[0U] ==
                     0x0045AF7DU &&
@@ -260,7 +305,12 @@ void test_battle_post_action(openswd3::test::Context& test) {
         test.expect_true(
             result.return_value == 2U && result.group_a_iterations == 2U &&
                 port.count(0x00478B20U) == 1U &&
-                port.count(0x00478AE0U) == 1U &&
+                port.count(0x00478AE0U) == 0U &&
+                result.actor_gate_decay.calls == 1U &&
+                result.actor_gate_decay.call_addresses[0U] == 0x0045AF75U &&
+                result.actor_gate_decay.return_addresses[0U] == 0x0045AF7AU &&
+                result.actor_gate_decay.actor_tokens[0U] == 0x00528030U &&
+                result.actor_gate_decay.last.returned &&
                 port.count(0x00478710U) == 0U &&
                 result.actor_action_mode_calls == 1U &&
                 result.actor_action_mode.return_eip == 0x0045AEECU &&

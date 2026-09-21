@@ -319,12 +319,6 @@ void test_battle_debug_hotkeys(openswd3::test::Context& test) {
         state.selection_status_word_53c050 = 0xABCD0000U;
         state.special_actor_action_target.action_target = 2U;
         DebugPort port;
-        port.replies.push_back({
-            .publish_priority_actor = true,
-            .priority_actor = 10U,
-        });
-        port.replies.push_back({});
-        port.replies.push_back({});
         openswd3::input_time_rng::LegacyKeyboardSnapshot keyboard{};
         press(keyboard, 0x1DU);
         press(keyboard, 0x2EU);
@@ -345,8 +339,8 @@ void test_battle_debug_hotkeys(openswd3::test::Context& test) {
                 fixture.final_actor.frame_gate_a == 0U &&
                 fixture.final_actor.frame_gate_b == 0U &&
                 fixture.final_actor.selection_gate == 0U &&
-                fixture.actor_frames.shared.action_block_gate == 0U &&
-                fixture.actor_metrics.priority_actor_index == 10U &&
+                fixture.actor_frames.shared.action_block_gate == 1U &&
+                fixture.actor_metrics.priority_actor_index == 0xFFFFFFFFU &&
                 result.actor_action_target_calls == 1U &&
                 result.actor_action_target.return_eax == 2U &&
                 result.actor_action_target.return_ecx == 0x004E80FCU &&
@@ -354,19 +348,68 @@ void test_battle_debug_hotkeys(openswd3::test::Context& test) {
                 result.actor_action_target.return_eip == 0x0045DBE8U &&
                 result.actor_action_target.field_token == 0x004EAA9EU &&
                 result.actor_action_target.flags_known &&
+                result.actor_gate_decay.calls == 1U &&
+                result.actor_gate_decay.call_addresses[0U] == 0x0045DC03U &&
+                result.actor_gate_decay.return_addresses[0U] == 0x0045DC08U &&
+                result.actor_gate_decay.actor_tokens[0U] == 0x0052AB58U &&
+                result.actor_gate_decay.last.returned &&
                 port.count(
                     LegacyBattleDebugHotkeyCall::
                         reserved_query_special_action_target
                 ) == 0U &&
                 port.count(LegacyBattleDebugHotkeyCall::reset_actor) == 0U &&
-                result.actor_runtime_reset.calls == 2U &&
+                port.calls.empty() && result.actor_runtime_reset.calls == 1U &&
                 result.actor_runtime_reset.call_addresses[0U] == 0x0045DC27U &&
-                result.actor_runtime_reset.call_addresses[1U] == 0x0045DC58U &&
+                result.actor_runtime_reset.actor_tokens[0U] == 0x004E80FCU &&
                 result.actor_runtime_reset.last.status ==
                     openswd3::battle::LegacyBattleActorRuntimeResetStatus::
                         actor_write_typed_stop &&
                 result.actor_runtime_reset.last.return_eip == 0x00478856U,
-            "C preserves low-word status update retarget ordering priority reload and action-block cleanup"
+            "C preserves low-word status update typed gate decay and special-actor reset stop ordering"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.actor_metrics.priority_actor_index = 9U;
+        fixture.actor_frames.shared.action_block_gate = 1U;
+        LegacyBattleDebugHotkeyState state;
+        state.developer_tools_enabled = 1U;
+        state.actor_retarget_gate_53bf64 = 1U;
+        state.selection_status_word_53c050 = 0xABCD0000U;
+        state.special_actor_action_target.action_target = 2U;
+        DebugPort port;
+        openswd3::input_time_rng::LegacyKeyboardSnapshot keyboard{};
+        press(keyboard, 0x1DU);
+        press(keyboard, 0x2EU);
+        openswd3::battle::LegacyBattleDebugHotkeyRequest request;
+        request.special_action_target_request.entry_edx = 0x11223344U;
+        request.actor_gate_decay_requests.count = 1U;
+        request.actor_gate_decay_requests.calls[0U].access.start_gate_readable =
+            false;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_debug_hotkeys(
+                keyboard, state, fixture.bindings(), port, request
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleDebugHotkeyStatus::
+                        actor_gate_decay_typed_stop &&
+                state.selection_status_word_53c050 == 0xABCD0001U &&
+                state.actor_retarget_gate_53bf64 == 0U &&
+                fixture.final_actor.frame_gate_a == 0U &&
+                fixture.final_actor.frame_gate_b == 0U &&
+                fixture.final_actor.selection_gate == 0U &&
+                fixture.actor_frames.shared.action_block_gate == 1U &&
+                fixture.actor_metrics.priority_actor_index == 0xFFFFFFFFU &&
+                result.actor_action_target_calls == 1U &&
+                result.actor_gate_decay.calls == 1U &&
+                result.actor_gate_decay.call_addresses[0U] == 0x0045DC03U &&
+                result.actor_gate_decay.last.status ==
+                    openswd3::battle::LegacyBattleActorGateDecayStatus::
+                        start_gate_read_typed_stop &&
+                result.actor_runtime_reset.calls == 0U && port.calls.empty(),
+            "debug gate-decay read stop preserves the retarget prefix and suppresses actor reset and action-block suffixes"
         );
     }
 
