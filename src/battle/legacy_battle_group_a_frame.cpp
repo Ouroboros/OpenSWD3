@@ -113,7 +113,6 @@ constexpr u32 kCallClearPresentation = 0x0047CC50U;
 constexpr u32 kCallLookupProfileItem = 0x00482F70U;
 constexpr u32 kCallRefreshProgressMultiplier = 0x00482F10U;
 constexpr u32 kCallApplyProfileItemDelta = 0x004830A0U;
-constexpr u32 kCallSelectOpponent = 0x00478AA0U;
 constexpr u32 kCallQueryOtherActor = 0x0047CEA0U;
 constexpr u32 kCallPrepareSelection = 0x00478B30U;
 constexpr u32 kCallSelectionComplete = 0x00478B40U;
@@ -1168,6 +1167,11 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
         .action = &state.action,
         .startup = context.startup,
     };
+    const LegacyBattleActorTargetSelectionCountIncrementOwners
+        target_selection_count_increment_owners{
+            .action = &state.action,
+            .startup = context.startup,
+        };
     const auto current_coordinate_actor = context.startup == nullptr
         ? view_legacy_battle_actor_coordinates(
               state.action.group_a_action_execution[group_a_index]
@@ -1231,6 +1235,35 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
         result.return_value = result.actor_target_selection.last.return_eax;
         return false;
     };
+    const auto increment_actor_target_selection_count =
+        [&context, &result, &target_selection_count_increment_owners](
+            const u32 target_actor_token,
+            const u32 entry_eax,
+            const u32 entry_edx,
+            const LegacyBattleActorCoordinateFlags& entry_flags,
+            const u32 call_address,
+            const u32 return_address
+        ) {
+            if (execute_legacy_battle_actor_target_selection_count_increment_call(
+                    result.actor_target_selection_count_increment,
+                    context.actor_target_selection_count_increment_requests,
+                    target_selection_count_increment_owners,
+                    call_address,
+                    return_address,
+                    target_actor_token,
+                    entry_eax,
+                    entry_edx,
+                    entry_flags
+                )) {
+                return true;
+            }
+
+            result.status = LegacyBattleActionDispatchStatus::
+                actor_target_selection_count_increment_typed_stop;
+            result.return_value =
+                result.actor_target_selection_count_increment.last.return_eax;
+            return false;
+        };
     auto start_gate_request = context.actor_start_gate_request;
     start_gate_request.actor_token = actor_token;
     start_gate_request.entry_eax =
@@ -1742,23 +1775,30 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         static_cast<void>(
                             invoke(port, result, kCallClearControl, {0U})
                         );
-                        const auto selected_opponent = invoke(
-                            port,
-                            result,
-                            kCallSelectOpponent,
-                            {one_based_group_b_token(
-                                state.selected_opponent_one_based
-                            )}
-                        );
+                        const u32 selected = state.selected_opponent_one_based;
+                        const u32 address_eax = selected * 1381U;
+                        const u32 address_edx = selected * 345U;
+                        if (!increment_actor_target_selection_count(
+                                one_based_group_b_token(selected),
+                                address_eax,
+                                address_edx,
+                                subtract_flags(selected * 24U, selected),
+                                0x00456CDDU,
+                                0x00456CE2U
+                            )) {
+                            return result;
+                        }
                         if (!select_actor_target(
-                                static_cast<u16>(
-                                    state.selected_opponent_one_based - 1U
-                                ),
-                                selected_opponent.eax,
-                                selected_opponent.edx,
+                                static_cast<u16>(selected - 1U),
+                                result.actor_target_selection_count_increment
+                                    .last.return_eax,
+                                result.actor_target_selection_count_increment
+                                    .last.return_edx,
                                 decrement_flags(
-                                    state.selected_opponent_one_based,
-                                    selected_opponent.flags.carry
+                                    selected,
+                                    result
+                                        .actor_target_selection_count_increment
+                                        .last.flags.carry
                                 ),
                                 0x00456CECU,
                                 0x00456CF1U
@@ -1797,23 +1837,30 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         static_cast<void>(
                             invoke(port, result, kCallClearControl, {0U})
                         );
-                        const auto selected_opponent = invoke(
-                            port,
-                            result,
-                            kCallSelectOpponent,
-                            {one_based_group_b_token(
-                                state.selected_actor_one_based
-                            )}
-                        );
+                        const u32 selected = state.selected_actor_one_based;
+                        const u32 address_eax = selected * 1381U;
+                        const u32 address_edx = selected * 345U;
+                        if (!increment_actor_target_selection_count(
+                                one_based_group_b_token(selected),
+                                address_eax,
+                                address_edx,
+                                subtract_flags(selected * 24U, selected),
+                                0x00456D71U,
+                                0x00456D76U
+                            )) {
+                            return result;
+                        }
                         if (!select_actor_target(
-                                static_cast<u16>(
-                                    state.selected_actor_one_based - 1U
-                                ),
-                                selected_opponent.eax,
-                                selected_opponent.edx,
+                                static_cast<u16>(selected - 1U),
+                                result.actor_target_selection_count_increment
+                                    .last.return_eax,
+                                result.actor_target_selection_count_increment
+                                    .last.return_edx,
                                 decrement_flags(
-                                    state.selected_actor_one_based,
-                                    selected_opponent.flags.carry
+                                    selected,
+                                    result
+                                        .actor_target_selection_count_increment
+                                        .last.flags.carry
                                 ),
                                 0x00456D80U,
                                 0x00456D85U
@@ -1931,12 +1978,18 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     } else if (
                         state.action.group_a_to_actor[uindex] == 0xFFFFFFFFU
                     ) {
-                        static_cast<void>(
-                            invoke(port, result, kCallClearControl, {0U})
-                        );
-                        static_cast<void>(
-                            invoke(port, result, kCallSelectOpponent, {target})
-                        );
+                        const auto cleared =
+                            invoke(port, result, kCallClearControl, {0U});
+                        if (!increment_actor_target_selection_count(
+                                target,
+                                cleared.eax,
+                                cleared.edx,
+                                cleared.flags,
+                                0x00456A1FU,
+                                0x00456A24U
+                            )) {
+                            return result;
+                        }
                         ++actor.progress;
                     } else {
                         ++terminal_like;

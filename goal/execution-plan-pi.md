@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v923
+版本：v924
 
 最后更新：2026-09-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · Workpack 307 LST 审计与最终 REVIEW
+当前步骤：模块10 · Workpack 308 LST 审计与最终 REVIEW
 
 ## 0. 执行约定
 
@@ -40,7 +40,7 @@
 - 十个既有子系统已达到顶层 ABI 覆盖，39 项关键 ABI 合同已经人工复核；这不等于内部业务逻辑全部恢复。
 - 公共解压、主要资源容器、16 位软件像素规则、输入和时间的静态规格已经形成；唯一 glyph-mask 基准已在正确的 Windows 11 台湾繁体中文、CP950 与经典 `mingliu.ttc` 环境取得，正式跨平台 atlas 已对 157 个三字号 mask 逐字节零差异；此前错误字体环境的输出已删除。
 - 剧情 VM 198个显式opcode、146个handler、17条runtime path及全部special/default/window/common路径均已完成实现和P3验收。
-- B7世界地图已有限收口，B8剧情VM已完成P1–P3验收，B9特殊模式227/227已关闭；B10战斗函数 inventory 已关闭至 `306/422 = 296 platform_adapted + 10 assembly_exact + 116 pending_audit`，当前执行 Workpack 307，存档业务字段由B11最终验收。
+- B7世界地图已有限收口，B8剧情VM已完成P1–P3验收，B9特殊模式227/227已关闭；B10战斗函数 inventory 已关闭至 `307/422 = 297 platform_adapted + 10 assembly_exact + 115 pending_audit`，当前执行 Workpack 308，存档业务字段由B11最终验收。
 
 ## 3. 执行方法
 
@@ -271,26 +271,26 @@ REVIEW通过后必须立即按`AGENTS.md`完成commit、push和TG，再重新完
 13. `[x]` B7：地图、世界、角色、碰撞与寻路已按模块移交条件有限收口；当前状态、阻塞和证据见[`world-map.md`](../analysis/04-reverse-engineering/modules/world-map.md)及相关inventory/evidence。
 14. `[x]` B8：剧情VM、场景调度与异步action的P1–P3已经完成；[`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md)不再覆盖当前队列。
 15. `[x]` B9：菜单、商店和其他特殊模式的227/227工作项已经关闭；当前状态和阻塞见[`special-modes.md`](../analysis/04-reverse-engineering/modules/special-modes.md)。
-16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至 Workpack 306；当前只执行 `audit_order=307 / 0x00478AA0 / sub_478AA0`。
+16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至 Workpack 307；当前只执行 `audit_order=308 / 0x00478AB0 / sub_478AB0`。
 17. `[ ]` B11：存档、配置与持久化语义；等待B10满足移交条件后开始。
 
 B7以后已经完成的详细执行记录见[`execution-progress-history-pi.md`](execution-progress-history-pi.md)。该文件只保存历史，不定义当前执行顺序、状态或断点。
 
-当前只执行B10，不并行展开B11。当前只执行 `audit_order=307 / 0x00478AA0 / sub_478AA0`；该工作包关闭后，才允许从 inventory 重新读取下一条 `pending_audit`。
+当前只执行B10，不并行展开B11。当前只执行 `audit_order=308 / 0x00478AB0 / sub_478AB0`；该工作包关闭后，才允许从 inventory 重新读取下一条 `pending_audit`。
 
 ### B10 当前 WORKPACK REVIEW 计划
 
 本节始终只保存当前工作包的高层计划和状态。机器级分析、调用关系、字段交叉引用、寄存器、flags、fault 和测试向量全部写入当前 evidence；工作包关闭后，本节由下一工作包计划整体替换，不追加历史。
 
-当前工作包：`audit_order=307 / 0x00478AA0 / sub_478AA0`。
+当前工作包：`audit_order=308 / 0x00478AB0 / sub_478AB0`。
 
-当前断点：Workpack 306 已完成最终 REVIEW 并关闭；Workpack 307 尚未开始生产修改。必须先从完整 LST 锁定函数物理边界、ABI、全部 caller、callee、共享状态和测试向量，再审计现有实现边界，不得从名称或相邻工作包猜测行为。
+当前断点：Workpack 307 已完成最终 REVIEW 并关闭；Workpack 308 尚未开始生产修改。必须先从完整 LST 锁定函数物理边界、ABI、全部 caller、callee、共享状态和测试向量，再审计现有实现边界，不得从名称或相邻工作包猜测行为。
 
-#### Workpack 307 REVIEW 划分
+#### Workpack 308 REVIEW 划分
 
-Workpack 307 采用一个最终 REVIEW 单元。该单元必须同时覆盖目标函数完整 LST 语义、全部作用域内 caller 与 callee、typed owner、生产接入、测试、唯一 evidence、inventory、模块文档和发布门禁；在该 REVIEW 通过前不得提交部分实现或前移游标。若完整 LST 证明存在多个能够独立实现、验证和回退的生产切片，必须在生产修改前原位修正本节并重新 REVIEW。
+Workpack 308 采用一个最终 REVIEW 单元。该单元必须同时覆盖目标函数完整 LST 语义、全部作用域内 caller 与 callee、typed owner、生产接入、测试、唯一 evidence、inventory、模块文档和发布门禁；在该 REVIEW 通过前不得提交部分实现或前移游标。若完整 LST 证明存在多个能够独立实现、验证和回退的生产切片，必须在生产修改前原位修正本节并重新 REVIEW。
 
-#### Workpack 307 关闭条件
+#### Workpack 308 关闭条件
 
 - 唯一 evidence 已完成，并与权威 LST、实现、测试和 inventory 双向一致。
 - 当前目标及其作用域内生产调用已完成审计、接入和测试；延期边界明确写入 evidence，不得静默计为关闭。
@@ -304,7 +304,7 @@ Workpack 307 采用一个最终 REVIEW 单元。该单元必须同时覆盖目�
 
 #### 下一步
 
-1. 从完整 LST 独立锁定 Workpack 307 的函数边界、ABI、基本块、callee、caller、共享状态和全部出口。
+1. 从完整 LST 独立锁定 Workpack 308 的函数边界、ABI、基本块、callee、caller、共享状态和全部出口。
 2. 从汇编独立推导分支、位宽、回绕、fault 与寄存器/flags 测试向量，再审计现有 C++ 和测试。
 3. 完成最小实现、caller 回收、双向追溯、唯一 evidence 和 inventory 更新。
 4. 执行全部适用验证门和最终 REVIEW；通过后提交、push、TG并把游标前移到下一条 `pending_audit`。

@@ -580,6 +580,7 @@ add_executable(
     unit/battle/legacy_battle_actor_binary_state_toggle_test.cpp
     unit/battle/legacy_battle_actor_runtime_reset_test.cpp
     unit/battle/legacy_battle_actor_target_selection_test.cpp
+    unit/battle/legacy_battle_actor_target_selection_count_increment_test.cpp
     unit/battle/legacy_battle_actor_effect_resource_slot_write_test.cpp
     unit/battle/legacy_battle_actor_presentation_activation_test.cpp
     unit/battle/legacy_battle_actor_field_26b8_high_bit_set_test.cpp

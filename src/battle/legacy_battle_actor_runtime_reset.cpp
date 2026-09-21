@@ -262,7 +262,7 @@ void synchronize_actor_write(
     copy_overlap_to_owner(
         actor.residual->bytes_0174_029f.data(),
         0x0174U,
-        actor.residual->bytes_0174_029f.size(),
+        static_cast<u32>(actor.residual->bytes_0174_029f.size()),
         image,
         offset,
         size
@@ -270,7 +270,7 @@ void synchronize_actor_write(
     copy_overlap_to_owner(
         actor.residual->bytes_0d34_0d4f.data(),
         0x0D34U,
-        actor.residual->bytes_0d34_0d4f.size(),
+        static_cast<u32>(actor.residual->bytes_0d34_0d4f.size()),
         image,
         offset,
         size
@@ -351,7 +351,9 @@ void synchronize_actor_write(
         copy_overlap_to_owner(
             actor.group_b_configuration->profile_buffer.data(),
             kProfileBase,
-            actor.group_b_configuration->profile_buffer.size(),
+            static_cast<u32>(
+                actor.group_b_configuration->profile_buffer.size()
+            ),
             image,
             offset,
             size
@@ -361,7 +363,7 @@ void synchronize_actor_write(
                 actor.group_b_composition->action_text.data()
             ),
             kActionTextBase,
-            actor.group_b_composition->action_text.size(),
+            static_cast<u32>(actor.group_b_composition->action_text.size()),
             image,
             offset,
             size

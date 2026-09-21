@@ -23,6 +23,7 @@
 #include "openswd3/battle/legacy_battle_actor_progress.hpp"
 #include "openswd3/battle/legacy_battle_actor_runtime_reset.hpp"
 #include "openswd3/battle/legacy_battle_actor_target_selection.hpp"
+#include "openswd3/battle/legacy_battle_actor_target_selection_count_increment.hpp"
 #include "openswd3/battle/legacy_battle_actor_render_offsets.hpp"
 #include "openswd3/battle/legacy_battle_color_accumulation.hpp"
 #include "openswd3/battle/legacy_battle_reward_scale.hpp"
@@ -1478,6 +1479,8 @@ struct LegacyBattleActionDispatchContext {
     LegacyBattleActorTargetSelectionRequestList
         actor_target_selection_requests{};
     std::size_t actor_target_selection_request_offset{};
+    LegacyBattleActorTargetSelectionCountIncrementCallRequests
+        actor_target_selection_count_increment_requests{};
     std::array<LegacyBattleActorActionTargetRequest, 2>
         action_dispatch_action_target_requests{};
     std::array<LegacyBattleActorActionTargetRequest, 4>
@@ -1513,6 +1516,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     actor_presentation_activation_typed_stop,
     actor_runtime_reset_typed_stop,
     actor_target_selection_typed_stop,
+    actor_target_selection_count_increment_typed_stop,
     actor_display_kind_typed_stop,
     actor_start_gate_typed_stop,
     actor_action_target_typed_stop,
@@ -1616,6 +1620,8 @@ struct LegacyBattleActionDispatchResult {
         actor_presentation_activation{};
     LegacyBattleActorRuntimeResetCallTrace actor_runtime_reset{};
     LegacyBattleActorTargetSelectionTrace actor_target_selection{};
+    LegacyBattleActorTargetSelectionCountIncrementTrace
+        actor_target_selection_count_increment{};
     LegacyBattleActorDisplayKindResult actor_display_kind{};
     compat::u32 actor_display_kind_calls{};
     LegacyBattleActorStartGateResult actor_start_gate{};
