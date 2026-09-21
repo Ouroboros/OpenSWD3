@@ -1256,6 +1256,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-actor-runtime-reset-00478850.md",
     ),
+    "0x00478A70": (
+        "platform_adapted",
+        "evidence/battle-actor-target-selection-00478a70.md",
+    ),
 }
 
 

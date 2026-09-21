@@ -13,7 +13,6 @@ using compat::u32;
 constexpr u32 kCallQueryTerminal = 0x0047CE80U;
 constexpr u32 kCallClearActorAction = 0x00478B20U;
 constexpr u32 kCallResetTarget = 0x00478AE0U;
-constexpr u32 kCallPublishTarget = 0x00478A70U;
 
 [[nodiscard]] constexpr u32 to_bits(const i32 value) noexcept {
     return std::bit_cast<u32>(value);
@@ -75,7 +74,10 @@ LegacyBattleActionDispatchResult advance_legacy_battle_post_action(
     const compat::u32 target_group_b_index,
     const LegacyBattleActorActionTargetRequest& action_target_request,
     const LegacyBattleActorActionModeRequest& action_mode_request,
-    const std::size_t runtime_reset_request_offset
+    const std::size_t runtime_reset_request_offset,
+    const LegacyBattleActorTargetSelectionRequestList&
+        target_selection_requests,
+    const std::size_t target_selection_request_offset
 ) {
     LegacyBattleActionDispatchResult result;
     const auto reset_actor = [&](const u32 actor_token,
@@ -103,6 +105,32 @@ LegacyBattleActionDispatchResult advance_legacy_battle_post_action(
         result.status =
             LegacyBattleActionDispatchStatus::actor_runtime_reset_typed_stop;
         result.return_value = result.actor_runtime_reset.last.return_eax;
+        return false;
+    };
+    const auto select_actor_target = [&](const u32 actor_token,
+                                         const u16 target_index,
+                                         const LegacyBattleActionCallReply&
+                                             entry) {
+        if (execute_legacy_battle_actor_target_selection_call(
+                result.actor_target_selection,
+                target_selection_requests,
+                {.action = &action, .startup = startup},
+                0x0045AF7DU,
+                0x0045AF82U,
+                actor_token,
+                target_index,
+                entry.eax,
+                entry.edx,
+                entry.flags,
+                true,
+                target_selection_request_offset
+            )) {
+            return true;
+        }
+
+        result.status =
+            LegacyBattleActionDispatchStatus::actor_target_selection_typed_stop;
+        result.return_value = result.actor_target_selection.last.return_eax;
         return false;
     };
     const u32 selected = action.selected_target_index;
@@ -165,13 +193,13 @@ LegacyBattleActionDispatchResult advance_legacy_battle_post_action(
                         if (to_bits(candidate) != selected) {
                             const u32 candidate_token =
                                 group_b_token(to_bits(candidate));
-                            if (invoke(
-                                    port,
-                                    result,
-                                    kCallQueryTerminal,
-                                    {candidate_token}
-                                )
-                                    .eax == 0U) {
+                            const auto terminal = invoke(
+                                port,
+                                result,
+                                kCallQueryTerminal,
+                                {candidate_token}
+                            );
+                            if (terminal.eax == 0U) {
                                 static_cast<void>(invoke(
                                     port,
                                     result,
@@ -180,22 +208,22 @@ LegacyBattleActionDispatchResult advance_legacy_battle_post_action(
                                 ));
                                 action.group_a_action_execution[group_a_index]
                                     .action_target = 0xFFFFU;
-                                static_cast<void>(invoke(
+                                const auto target_reset = invoke(
                                     port,
                                     result,
                                     kCallResetTarget,
                                     {group_b_token(to_bits(queried))}
-                                ));
-                                const auto publication = invoke(
-                                    port,
-                                    result,
-                                    kCallPublishTarget,
-                                    {actor_token, to_bits(candidate)}
                                 );
-                                action.group_a_action_execution[group_a_index]
-                                    .action_target =
-                                    static_cast<u16>(candidate);
-                                action_target_entry_edx = publication.edx;
+                                if (!select_actor_target(
+                                        actor_token,
+                                        static_cast<u16>(candidate),
+                                        target_reset
+                                    )) {
+                                    return result;
+                                }
+                                action_target_entry_edx =
+                                    result.actor_target_selection.last
+                                        .return_edx;
                                 state.selection_rebuild_pending = 1U;
                                 published = true;
                                 break;

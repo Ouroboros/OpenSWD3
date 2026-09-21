@@ -213,1732 +213,1669 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleGroupAFrameState;
     using openswd3::battle::LegacyBattleTurnAdvanceStatus;
 
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        Fixture fixture;
-        DispatchPort port;
-        auto context = fixture.context();
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 10U
+    [&] {
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            Fixture fixture;
+            DispatchPort port;
+            auto context = fixture.context();
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 10U
+                );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActionDispatchStatus::
+                            group_a_index_typed_stop &&
+                    result.port_calls == 0U,
+                "group A frame stops at first actor object query"
             );
-        test.expect_true(
-            result.status ==
-                    LegacyBattleActionDispatchStatus::
-                        group_a_index_typed_stop &&
-                result.port_calls == 0U,
-            "group A frame stops at first actor object query"
-        );
-    }
+        }
 
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        Fixture fixture;
-        DispatchPort port;
-        auto context = fixture.context();
-        context.actor_start_gate_request.entry_edx = 0xA5A55A5AU;
-        context.actor_start_gate_request.entry_esp = 0x87007000U;
-        context.actor_start_gate_request.access.start_gate_readable = false;
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 0U
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            Fixture fixture;
+            DispatchPort port;
+            auto context = fixture.context();
+            context.actor_start_gate_request.entry_edx = 0xA5A55A5AU;
+            context.actor_start_gate_request.entry_esp = 0x87007000U;
+            context.actor_start_gate_request.access.start_gate_readable = false;
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActionDispatchStatus::
+                            actor_start_gate_typed_stop &&
+                    result.actor_start_gate_calls == 1U &&
+                    result.actor_start_gate.status ==
+                        openswd3::battle::LegacyBattleActorStartGateStatus::
+                            start_gate_read_typed_stop &&
+                    result.actor_start_gate.return_eax == 0U &&
+                    result.actor_start_gate.return_ecx ==
+                        openswd3::battle::kLegacyBattleActionGroupABaseToken &&
+                    result.actor_start_gate.return_edx == 0xA5A55A5AU &&
+                    result.actor_start_gate.return_esp == 0x87007000U &&
+                    result.actor_start_gate.return_eip == 0x004786D0U &&
+                    result.actor_start_gate.field_token ==
+                        openswd3::battle::kLegacyBattleActionGroupABaseToken +
+                            0x2A74U &&
+                    result.actor_start_gate.flags_known &&
+                    !result.actor_start_gate.flags.carry &&
+                    result.actor_start_gate.flags.parity &&
+                    !result.actor_start_gate.flags.auxiliary_carry_defined &&
+                    result.actor_start_gate.flags.zero &&
+                    !result.actor_start_gate.flags.sign &&
+                    !result.actor_start_gate.flags.overflow &&
+                    result.port_calls == 0U && port.count(0x004786D0U) == 0U &&
+                    port.count(0x00478B60U) == 0U,
+                "Group-A start-gate field stop preserves final SHL state and suppresses effect publication and the whole frame suffix"
             );
-        test.expect_true(
-            result.status ==
-                    LegacyBattleActionDispatchStatus::
-                        actor_start_gate_typed_stop &&
-                result.actor_start_gate_calls == 1U &&
-                result.actor_start_gate.status ==
-                    openswd3::battle::LegacyBattleActorStartGateStatus::
-                        start_gate_read_typed_stop &&
-                result.actor_start_gate.return_eax == 0U &&
-                result.actor_start_gate.return_ecx ==
-                    openswd3::battle::kLegacyBattleActionGroupABaseToken &&
-                result.actor_start_gate.return_edx == 0xA5A55A5AU &&
-                result.actor_start_gate.return_esp == 0x87007000U &&
-                result.actor_start_gate.return_eip == 0x004786D0U &&
-                result.actor_start_gate.field_token ==
-                    openswd3::battle::kLegacyBattleActionGroupABaseToken +
-                        0x2A74U &&
-                result.actor_start_gate.flags_known &&
-                !result.actor_start_gate.flags.carry &&
-                result.actor_start_gate.flags.parity &&
-                !result.actor_start_gate.flags.auxiliary_carry_defined &&
-                result.actor_start_gate.flags.zero &&
-                !result.actor_start_gate.flags.sign &&
-                !result.actor_start_gate.flags.overflow &&
-                result.port_calls == 0U && port.count(0x004786D0U) == 0U &&
-                port.count(0x00478B60U) == 0U,
-            "Group-A start-gate field stop preserves final SHL state and suppresses effect publication and the whole frame suffix"
-        );
-    }
+        }
 
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        state.action.group_a_action_execution[9U].start_gate = 0xBEEFU;
-        Fixture fixture;
-        DispatchPort port;
-        auto context = fixture.context();
-        context.actor_start_gate_request.entry_edx = 0x11223344U;
-        context.actor_start_gate_request.entry_esp = 0x87507000U;
-        context.actor_start_gate_request.access.return_address_readable = false;
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 9U
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.action.group_a_action_execution[9U].start_gate = 0xBEEFU;
+            Fixture fixture;
+            DispatchPort port;
+            auto context = fixture.context();
+            context.actor_start_gate_request.entry_edx = 0x11223344U;
+            context.actor_start_gate_request.entry_esp = 0x87507000U;
+            context.actor_start_gate_request.access.return_address_readable =
+                false;
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 9U
+                );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActionDispatchStatus::
+                            actor_start_gate_typed_stop &&
+                    result.actor_start_gate_calls == 1U &&
+                    result.actor_start_gate.status ==
+                        openswd3::battle::LegacyBattleActorStartGateStatus::
+                            return_address_read_typed_stop &&
+                    result.actor_start_gate.return_eax == 0x0001BEEFU &&
+                    result.actor_start_gate.return_ecx ==
+                        openswd3::battle::kLegacyBattleActionGroupABaseToken +
+                            9U *
+                                openswd3::battle::
+                                    kLegacyBattleActionGroupAStride &&
+                    result.actor_start_gate.return_edx == 0x11223344U &&
+                    result.actor_start_gate.return_esp == 0x87507000U &&
+                    result.actor_start_gate.return_eip == 0x004786D7U &&
+                    result.actor_start_gate.start_gate_reads == 1U &&
+                    result.actor_start_gate.return_address_reads == 0U &&
+                    !result.actor_start_gate.flags.carry &&
+                    result.actor_start_gate.flags.parity &&
+                    !result.actor_start_gate.flags.auxiliary_carry_defined &&
+                    !result.actor_start_gate.flags.zero &&
+                    !result.actor_start_gate.flags.sign &&
+                    !result.actor_start_gate.flags.overflow &&
+                    result.port_calls == 0U && port.count(0x004786D0U) == 0U &&
+                    port.count(0x00478B60U) == 0U,
+                "Group-A start-gate RET stop preserves the nonzero actor-offset EAX high word and blocks every caller suffix"
             );
-        test.expect_true(
-            result.status ==
-                    LegacyBattleActionDispatchStatus::
-                        actor_start_gate_typed_stop &&
-                result.actor_start_gate_calls == 1U &&
-                result.actor_start_gate.status ==
-                    openswd3::battle::LegacyBattleActorStartGateStatus::
-                        return_address_read_typed_stop &&
-                result.actor_start_gate.return_eax == 0x0001BEEFU &&
-                result.actor_start_gate.return_ecx ==
-                    openswd3::battle::kLegacyBattleActionGroupABaseToken +
-                        9U *
-                            openswd3::battle::kLegacyBattleActionGroupAStride &&
-                result.actor_start_gate.return_edx == 0x11223344U &&
-                result.actor_start_gate.return_esp == 0x87507000U &&
-                result.actor_start_gate.return_eip == 0x004786D7U &&
-                result.actor_start_gate.start_gate_reads == 1U &&
-                result.actor_start_gate.return_address_reads == 0U &&
-                !result.actor_start_gate.flags.carry &&
-                result.actor_start_gate.flags.parity &&
-                !result.actor_start_gate.flags.auxiliary_carry_defined &&
-                !result.actor_start_gate.flags.zero &&
-                !result.actor_start_gate.flags.sign &&
-                !result.actor_start_gate.flags.overflow &&
-                result.port_calls == 0U && port.count(0x004786D0U) == 0U &&
-                port.count(0x00478B60U) == 0U,
-            "Group-A start-gate RET stop preserves the nonzero actor-offset EAX high word and blocks every caller suffix"
-        );
-    }
+        }
 
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        Fixture fixture;
-        DispatchPort port;
-        port.push(0x0047F920U, {.eax = 0U, .edx = 0xA5A55A5AU});
-        auto context = fixture.context();
-        context.actor_idle_state_request.access.latch_readable = false;
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 0U
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            Fixture fixture;
+            DispatchPort port;
+            port.push(0x0047F920U, {.eax = 0U, .edx = 0xA5A55A5AU});
+            auto context = fixture.context();
+            context.actor_idle_state_request.access.latch_readable = false;
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActionDispatchStatus::
+                            actor_idle_state_typed_stop &&
+                    result.actor_idle_state_calls == 1U &&
+                    result.actor_idle_state.status ==
+                        openswd3::battle::LegacyBattleActorIdleStateStatus::
+                            latch_read_typed_stop &&
+                    result.actor_idle_state.return_eax == 0U &&
+                    result.actor_idle_state.return_ecx ==
+                        openswd3::battle::kLegacyBattleActionGroupABaseToken &&
+                    result.actor_idle_state.return_edx == 0xA5A55A5AU &&
+                    result.actor_idle_state.return_esp ==
+                        context.actor_idle_state_request.entry_esp &&
+                    result.actor_idle_state.return_eip == 0x004786A0U &&
+                    result.actor_idle_state.field_token ==
+                        openswd3::battle::kLegacyBattleActionGroupABaseToken +
+                            0x2AB4U &&
+                    result.actor_idle_state.flags_known &&
+                    !result.actor_idle_state.flags.carry &&
+                    result.actor_idle_state.flags.parity &&
+                    !result.actor_idle_state.flags.auxiliary_carry_defined &&
+                    result.actor_idle_state.flags.zero &&
+                    !result.actor_idle_state.flags.sign &&
+                    !result.actor_idle_state.flags.overflow &&
+                    port.count(0x004786A0U) == 0U &&
+                    port.count(0x0047C670U) == 0U,
+                "Group-A start caller preserves queue TEST state and stops before availability query"
             );
-        test.expect_true(
-            result.status ==
-                    LegacyBattleActionDispatchStatus::
-                        actor_idle_state_typed_stop &&
-                result.actor_idle_state_calls == 1U &&
-                result.actor_idle_state.status ==
-                    openswd3::battle::LegacyBattleActorIdleStateStatus::
-                        latch_read_typed_stop &&
-                result.actor_idle_state.return_eax == 0U &&
-                result.actor_idle_state.return_ecx ==
-                    openswd3::battle::kLegacyBattleActionGroupABaseToken &&
-                result.actor_idle_state.return_edx == 0xA5A55A5AU &&
-                result.actor_idle_state.return_esp ==
-                    context.actor_idle_state_request.entry_esp &&
-                result.actor_idle_state.return_eip == 0x004786A0U &&
-                result.actor_idle_state.field_token ==
-                    openswd3::battle::kLegacyBattleActionGroupABaseToken +
-                        0x2AB4U &&
-                result.actor_idle_state.flags_known &&
-                !result.actor_idle_state.flags.carry &&
-                result.actor_idle_state.flags.parity &&
-                !result.actor_idle_state.flags.auxiliary_carry_defined &&
-                result.actor_idle_state.flags.zero &&
-                !result.actor_idle_state.flags.sign &&
-                !result.actor_idle_state.flags.overflow &&
-                port.count(0x004786A0U) == 0U && port.count(0x0047C670U) == 0U,
-            "Group-A start caller preserves queue TEST state and stops before availability query"
-        );
-    }
+        }
 
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        state.actor_enabled[0U] = 1U;
-        state.actors[0U].action_complete = 1U;
-        state.actors[0U].frame_started = 1U;
-        state.selection_mode = 1U;
-        state.action.group_a_count = 1;
-        Fixture fixture;
-        DispatchPort port;
-        port.push(0x0047CEA0U, {.eax = 0U, .edx = 0x11223344U});
-        auto context = fixture.context();
-        context.actor_idle_state_request.access.latch_readable = false;
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 0U
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.actor_enabled[0U] = 1U;
+            state.actors[0U].action_complete = 1U;
+            state.actors[0U].frame_started = 1U;
+            state.selection_mode = 1U;
+            state.action.group_a_count = 1;
+            Fixture fixture;
+            DispatchPort port;
+            port.push(0x0047CEA0U, {.eax = 0U, .edx = 0x11223344U});
+            auto context = fixture.context();
+            context.actor_idle_state_request.access.latch_readable = false;
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActionDispatchStatus::
+                            actor_idle_state_typed_stop &&
+                    result.actor_idle_state_calls == 1U &&
+                    result.actor_idle_state.return_eax == 0U &&
+                    result.actor_idle_state.return_ecx ==
+                        openswd3::battle::kLegacyBattleActionGroupABaseToken &&
+                    result.actor_idle_state.return_edx == 0x11223344U &&
+                    result.actor_idle_state.return_eip == 0x004786A0U &&
+                    result.actor_idle_state.flags_known &&
+                    result.actor_idle_state.flags.carry &&
+                    result.actor_idle_state.flags.parity &&
+                    result.actor_idle_state.flags.auxiliary_carry_defined &&
+                    result.actor_idle_state.flags.auxiliary_carry &&
+                    !result.actor_idle_state.flags.zero &&
+                    result.actor_idle_state.flags.sign &&
+                    !result.actor_idle_state.flags.overflow &&
+                    result.group_a_iterations == 0U &&
+                    port.count(0x004786A0U) == 0U &&
+                    port.count(0x0047C660U) == 0U,
+                "Group-A peer-scan caller preserves comparison state and stops before progress publication"
             );
-        test.expect_true(
-            result.status ==
-                    LegacyBattleActionDispatchStatus::
-                        actor_idle_state_typed_stop &&
-                result.actor_idle_state_calls == 1U &&
-                result.actor_idle_state.return_eax == 0U &&
-                result.actor_idle_state.return_ecx ==
-                    openswd3::battle::kLegacyBattleActionGroupABaseToken &&
-                result.actor_idle_state.return_edx == 0x11223344U &&
-                result.actor_idle_state.return_eip == 0x004786A0U &&
-                result.actor_idle_state.flags_known &&
-                result.actor_idle_state.flags.carry &&
-                result.actor_idle_state.flags.parity &&
-                result.actor_idle_state.flags.auxiliary_carry_defined &&
-                result.actor_idle_state.flags.auxiliary_carry &&
-                !result.actor_idle_state.flags.zero &&
-                result.actor_idle_state.flags.sign &&
-                !result.actor_idle_state.flags.overflow &&
-                result.group_a_iterations == 0U &&
-                port.count(0x004786A0U) == 0U && port.count(0x0047C660U) == 0U,
-            "Group-A peer-scan caller preserves comparison state and stops before progress publication"
-        );
-    }
+        }
 
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        state.actor_enabled[0U] = 1U;
-        Fixture fixture;
-        DispatchPort port;
-        auto context = fixture.context();
-        context.actor_idle_state_request.entry_edx = 0x55667788U;
-        context.actor_idle_state_request.access.latch_readable = false;
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 0U
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.actor_enabled[0U] = 1U;
+            Fixture fixture;
+            DispatchPort port;
+            auto context = fixture.context();
+            context.actor_idle_state_request.entry_edx = 0x55667788U;
+            context.actor_idle_state_request.access.latch_readable = false;
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActionDispatchStatus::
+                            actor_idle_state_typed_stop &&
+                    result.actor_idle_state_calls == 1U &&
+                    result.actor_idle_state.return_eax == 0U &&
+                    result.actor_idle_state.return_ecx ==
+                        openswd3::battle::kLegacyBattleActionGroupABaseToken &&
+                    result.actor_idle_state.return_edx == 0x55667788U &&
+                    result.actor_idle_state.return_eip == 0x004786A0U &&
+                    result.actor_idle_state.flags_known &&
+                    !result.actor_idle_state.flags.carry &&
+                    result.actor_idle_state.flags.parity &&
+                    !result.actor_idle_state.flags.auxiliary_carry_defined &&
+                    result.actor_idle_state.flags.zero &&
+                    !result.actor_idle_state.flags.sign &&
+                    !result.actor_idle_state.flags.overflow &&
+                    port.count(0x004786A0U) == 0U &&
+                    port.count(0x0047CC50U) == 0U,
+                "Group-A direct idle caller preserves zero TEST state and suppresses its presentation suffix"
             );
-        test.expect_true(
-            result.status ==
-                    LegacyBattleActionDispatchStatus::
-                        actor_idle_state_typed_stop &&
-                result.actor_idle_state_calls == 1U &&
-                result.actor_idle_state.return_eax == 0U &&
-                result.actor_idle_state.return_ecx ==
-                    openswd3::battle::kLegacyBattleActionGroupABaseToken &&
-                result.actor_idle_state.return_edx == 0x55667788U &&
-                result.actor_idle_state.return_eip == 0x004786A0U &&
-                result.actor_idle_state.flags_known &&
-                !result.actor_idle_state.flags.carry &&
-                result.actor_idle_state.flags.parity &&
-                !result.actor_idle_state.flags.auxiliary_carry_defined &&
-                result.actor_idle_state.flags.zero &&
-                !result.actor_idle_state.flags.sign &&
-                !result.actor_idle_state.flags.overflow &&
-                port.count(0x004786A0U) == 0U && port.count(0x0047CC50U) == 0U,
-            "Group-A direct idle caller preserves zero TEST state and suppresses its presentation suffix"
-        );
-    }
+        }
 
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        state.actor_enabled[0U] = 1U;
-        state.actors[0U].mode_gate = 1U;
-        state.selected_actor_one_based = 2U;
-        state.action.group_a_action_execution[1U].turn_completion_latch = 0U;
-        Fixture fixture;
-        DispatchPort port;
-        auto context = fixture.context();
-        context.actor_idle_state_request.access.latch_readable = false;
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 0U
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.actor_enabled[0U] = 1U;
+            state.actors[0U].mode_gate = 1U;
+            state.selected_actor_one_based = 2U;
+            state.action.group_a_action_execution[1U].turn_completion_latch =
+                0U;
+            Fixture fixture;
+            DispatchPort port;
+            auto context = fixture.context();
+            context.actor_idle_state_request.access.latch_readable = false;
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActionDispatchStatus::
+                            actor_idle_state_typed_stop &&
+                    result.actor_turn_completion_calls == 1U &&
+                    result.actor_idle_state_calls == 1U &&
+                    result.actor_idle_state.return_eax == 9U &&
+                    result.actor_idle_state.return_ecx ==
+                        openswd3::battle::kLegacyBattleActionGroupABaseToken &&
+                    result.actor_idle_state.return_edx == 0x179AU &&
+                    result.actor_idle_state.return_eip == 0x004786A0U &&
+                    result.actor_idle_state.flags_known &&
+                    result.actor_idle_state.flags.carry &&
+                    !result.actor_idle_state.flags.parity &&
+                    result.actor_idle_state.flags.auxiliary_carry_defined &&
+                    result.actor_idle_state.flags.auxiliary_carry &&
+                    !result.actor_idle_state.flags.zero &&
+                    result.actor_idle_state.flags.sign &&
+                    !result.actor_idle_state.flags.overflow &&
+                    port.count(0x004786A0U) == 0U &&
+                    port.count(0x0047C660U) == 0U,
+                "Group-A selected-target caller preserves CMP and address residues before its idle suffix"
             );
-        test.expect_true(
-            result.status ==
-                    LegacyBattleActionDispatchStatus::
-                        actor_idle_state_typed_stop &&
-                result.actor_turn_completion_calls == 1U &&
-                result.actor_idle_state_calls == 1U &&
-                result.actor_idle_state.return_eax == 9U &&
-                result.actor_idle_state.return_ecx ==
-                    openswd3::battle::kLegacyBattleActionGroupABaseToken &&
-                result.actor_idle_state.return_edx == 0x179AU &&
-                result.actor_idle_state.return_eip == 0x004786A0U &&
-                result.actor_idle_state.flags_known &&
-                result.actor_idle_state.flags.carry &&
-                !result.actor_idle_state.flags.parity &&
-                result.actor_idle_state.flags.auxiliary_carry_defined &&
-                result.actor_idle_state.flags.auxiliary_carry &&
-                !result.actor_idle_state.flags.zero &&
-                result.actor_idle_state.flags.sign &&
-                !result.actor_idle_state.flags.overflow &&
-                port.count(0x004786A0U) == 0U && port.count(0x0047C660U) == 0U,
-            "Group-A selected-target caller preserves CMP and address residues before its idle suffix"
-        );
-    }
+        }
 
-    {
-        LegacyBattleGroupAFrameState start_state;
-        start_state.action.group_a_action_execution[0U].idle_state_latch = 2U;
-        Fixture start_fixture;
-        DispatchPort start_port;
-        start_port.push(0x0047F920U, {.eax = 0U});
-        auto start_context = start_fixture.context();
-        const auto start =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                start_state, start_port, start_context, 0U
+        {
+            LegacyBattleGroupAFrameState start_state;
+            start_state.action.group_a_action_execution[0U].idle_state_latch =
+                2U;
+            Fixture start_fixture;
+            DispatchPort start_port;
+            start_port.push(0x0047F920U, {.eax = 0U});
+            auto start_context = start_fixture.context();
+            const auto start =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    start_state, start_port, start_context, 0U
+                );
+
+            LegacyBattleGroupAFrameState peer_state;
+            peer_state.actor_enabled[0U] = 1U;
+            peer_state.actors[0U].action_complete = 1U;
+            peer_state.actors[0U].frame_started = 1U;
+            peer_state.selection_mode = 1U;
+            peer_state.action.group_a_count = 1;
+            peer_state.action.group_a_action_execution[0U].idle_state_latch =
+                7U;
+            Fixture peer_fixture;
+            DispatchPort peer_port;
+            peer_port.push(0x0047CEA0U, {.eax = 0U});
+            auto peer_context = peer_fixture.context();
+            const auto peer =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    peer_state, peer_port, peer_context, 0U
+                );
+
+            LegacyBattleGroupAFrameState direct_state;
+            direct_state.actor_enabled[0U] = 1U;
+            direct_state.action.group_a_action_execution[0U].idle_state_latch =
+                7U;
+            Fixture direct_fixture;
+            DispatchPort direct_port;
+            auto direct_context = direct_fixture.context();
+            const auto direct =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    direct_state, direct_port, direct_context, 0U
+                );
+
+            LegacyBattleGroupAFrameState target_state;
+            target_state.actor_enabled[0U] = 1U;
+            target_state.actors[0U].mode_gate = 1U;
+            target_state.selected_actor_one_based = 2U;
+            target_state.action.group_a_action_execution[1U]
+                .turn_completion_latch = 0U;
+            target_state.action.group_a_action_execution[0U].idle_state_latch =
+                7U;
+            Fixture target_fixture;
+            DispatchPort target_port;
+            auto target_context = target_fixture.context();
+            const auto target =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    target_state, target_port, target_context, 0U
+                );
+
+            test.expect_true(
+                start.actor_idle_state_calls == 1U &&
+                    start.actor_idle_state.returned &&
+                    start.actor_idle_state.return_eax == 2U &&
+                    start.actor_idle_state.return_eip == 0x0045691CU &&
+                    start_state.actors[0U].frame_started == 0U &&
+                    start_port.count(0x0047C670U) == 0U &&
+                    peer.actor_idle_state_calls == 1U &&
+                    peer.actor_idle_state.returned &&
+                    peer.actor_idle_state.return_eax == 7U &&
+                    peer.actor_idle_state.return_eip == 0x00456ABEU &&
+                    peer_state.actors[0U].progress == 0U &&
+                    peer_port.count(0x0047C660U) == 0U &&
+                    direct.actor_idle_state_calls == 1U &&
+                    direct.actor_idle_state.returned &&
+                    direct.actor_idle_state.return_eax == 7U &&
+                    direct.actor_idle_state.return_eip == 0x00456C4DU &&
+                    direct_port.count(0x0047CC50U) == 0U &&
+                    target.actor_idle_state_calls == 1U &&
+                    target.actor_idle_state.returned &&
+                    target.actor_idle_state.return_eax == 7U &&
+                    target.actor_idle_state.return_eip == 0x00456E00U &&
+                    target_port.count(0x0047C660U) == 0U &&
+                    start_port.count(0x004786A0U) == 0U &&
+                    peer_port.count(0x004786A0U) == 0U &&
+                    direct_port.count(0x004786A0U) == 0U &&
+                    target_port.count(0x004786A0U) == 0U,
+                "four Group-A idle-state callers retain full nonmatching values, real returns, and suppressed suffixes"
             );
+        }
 
-        LegacyBattleGroupAFrameState peer_state;
-        peer_state.actor_enabled[0U] = 1U;
-        peer_state.actors[0U].action_complete = 1U;
-        peer_state.actors[0U].frame_started = 1U;
-        peer_state.selection_mode = 1U;
-        peer_state.action.group_a_count = 1;
-        peer_state.action.group_a_action_execution[0U].idle_state_latch = 7U;
-        Fixture peer_fixture;
-        DispatchPort peer_port;
-        peer_port.push(0x0047CEA0U, {.eax = 0U});
-        auto peer_context = peer_fixture.context();
-        const auto peer = openswd3::battle::advance_legacy_battle_group_a_frame(
-            peer_state, peer_port, peer_context, 0U
-        );
-
-        LegacyBattleGroupAFrameState direct_state;
-        direct_state.actor_enabled[0U] = 1U;
-        direct_state.action.group_a_action_execution[0U].idle_state_latch = 7U;
-        Fixture direct_fixture;
-        DispatchPort direct_port;
-        auto direct_context = direct_fixture.context();
-        const auto direct =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                direct_state, direct_port, direct_context, 0U
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.actor_enabled[0U] = 1U;
+            state.actors[0U].mode_gate = 1U;
+            state.selected_actor_one_based = 2U;
+            Fixture fixture;
+            DispatchPort port;
+            auto context = fixture.context();
+            context.actor_turn_completion_request.access.latch_readable = false;
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            const u32 selected =
+                openswd3::battle::kLegacyBattleActionGroupABaseToken +
+                openswd3::battle::kLegacyBattleActionGroupAStride;
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActionDispatchStatus::
+                            actor_turn_completion_typed_stop &&
+                    result.actor_turn_completion_calls == 1U &&
+                    result.actor_turn_completion.status ==
+                        openswd3::battle::
+                            LegacyBattleActorTurnCompletionStatus::
+                                latch_read_typed_stop &&
+                    result.actor_turn_completion.return_eax == 0x7DEU &&
+                    result.actor_turn_completion.return_ecx == selected &&
+                    result.actor_turn_completion.return_edx == 0x179AU &&
+                    result.actor_turn_completion.return_eip == 0x00478690U &&
+                    result.actor_turn_completion.field_token ==
+                        selected + 0x2AACU &&
+                    result.actor_turn_completion.flags_known &&
+                    !result.actor_turn_completion.flags.carry &&
+                    result.actor_turn_completion.flags.parity &&
+                    result.actor_turn_completion.flags
+                        .auxiliary_carry_defined &&
+                    result.actor_turn_completion.flags.auxiliary_carry &&
+                    !result.actor_turn_completion.flags.zero &&
+                    !result.actor_turn_completion.flags.sign &&
+                    !result.actor_turn_completion.flags.overflow &&
+                    result.actor_turn_completion.return_esp ==
+                        context.actor_turn_completion_request.entry_esp &&
+                    result.return_value == 0x7DEU &&
+                    port.count(0x00478690U) == 0U &&
+                    port.count(0x004786A0U) == 0U,
+                "one-based Group-A target query propagates its typed field stop before the post-call branch"
             );
+        }
 
-        LegacyBattleGroupAFrameState target_state;
-        target_state.actor_enabled[0U] = 1U;
-        target_state.actors[0U].mode_gate = 1U;
-        target_state.selected_actor_one_based = 2U;
-        target_state.action.group_a_action_execution[1U].turn_completion_latch =
-            0U;
-        target_state.action.group_a_action_execution[0U].idle_state_latch = 7U;
-        Fixture target_fixture;
-        DispatchPort target_port;
-        auto target_context = target_fixture.context();
-        const auto target =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                target_state, target_port, target_context, 0U
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.action.active_effect_target = 8U;
+            state.action.group_a_action_execution[0U].action_target = 2U;
+            state.final_actor_step.action_execution_active = 0U;
+            Fixture fixture;
+            fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+                openswd3::battle::LegacyBattleActorGroupBElementState,
+                openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+            DispatchPort port;
+            auto context = fixture.context();
+            context.group_a_frame_action_target_requests[0U].entry_edx =
+                0xA5A55A5AU;
+            context.actor_turn_completion_request.access.latch_readable = false;
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            const u32 target =
+                openswd3::battle::kLegacyBattleActionGroupBBaseToken +
+                2U * openswd3::battle::kLegacyBattleActionGroupBStride;
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActionDispatchStatus::
+                            actor_turn_completion_typed_stop &&
+                    result.actor_action_target_calls == 1U &&
+                    result.actor_action_target.return_eax == 2U &&
+                    result.actor_action_target.return_ecx == 0x005029D0U &&
+                    result.actor_action_target.return_edx == 0xA5A55A5AU &&
+                    result.actor_action_target.return_eip == 0x00456ECEU &&
+                    result.actor_action_target.flags_known &&
+                    result.actor_action_target.flags.zero &&
+                    result.actor_turn_completion_calls == 1U &&
+                    result.actor_turn_completion.status ==
+                        openswd3::battle::
+                            LegacyBattleActorTurnCompletionStatus::
+                                latch_read_typed_stop &&
+                    result.actor_turn_completion.return_eax == 0xACAU &&
+                    result.actor_turn_completion.return_ecx == target &&
+                    result.actor_turn_completion.return_edx == 0xA5A55A5AU &&
+                    result.actor_turn_completion.return_eip == 0x00478690U &&
+                    result.actor_turn_completion.field_token ==
+                        target + 0x2AACU &&
+                    result.actor_turn_completion.flags_known &&
+                    !result.actor_turn_completion.flags.carry &&
+                    result.actor_turn_completion.flags.parity &&
+                    result.actor_turn_completion.flags
+                        .auxiliary_carry_defined &&
+                    result.actor_turn_completion.flags.auxiliary_carry &&
+                    !result.actor_turn_completion.flags.zero &&
+                    !result.actor_turn_completion.flags.sign &&
+                    !result.actor_turn_completion.flags.overflow &&
+                    result.actor_turn_completion.return_esp ==
+                        context.actor_turn_completion_request.entry_esp &&
+                    result.return_value == 0xACAU &&
+                    port.count(0x00478690U) == 0U &&
+                    port.count(0x00478B40U) == 0U,
+                "inactive execution preserves the first physical action-target caller before the Group-B latch stop"
             );
+        }
 
-        test.expect_true(
-            start.actor_idle_state_calls == 1U &&
-                start.actor_idle_state.returned &&
-                start.actor_idle_state.return_eax == 2U &&
-                start.actor_idle_state.return_eip == 0x0045691CU &&
-                start_state.actors[0U].frame_started == 0U &&
-                start_port.count(0x0047C670U) == 0U &&
-                peer.actor_idle_state_calls == 1U &&
-                peer.actor_idle_state.returned &&
-                peer.actor_idle_state.return_eax == 7U &&
-                peer.actor_idle_state.return_eip == 0x00456ABEU &&
-                peer_state.actors[0U].progress == 0U &&
-                peer_port.count(0x0047C660U) == 0U &&
-                direct.actor_idle_state_calls == 1U &&
-                direct.actor_idle_state.returned &&
-                direct.actor_idle_state.return_eax == 7U &&
-                direct.actor_idle_state.return_eip == 0x00456C4DU &&
-                direct_port.count(0x0047CC50U) == 0U &&
-                target.actor_idle_state_calls == 1U &&
-                target.actor_idle_state.returned &&
-                target.actor_idle_state.return_eax == 7U &&
-                target.actor_idle_state.return_eip == 0x00456E00U &&
-                target_port.count(0x0047C660U) == 0U &&
-                start_port.count(0x004786A0U) == 0U &&
-                peer_port.count(0x004786A0U) == 0U &&
-                direct_port.count(0x004786A0U) == 0U &&
-                target_port.count(0x004786A0U) == 0U,
-            "four Group-A idle-state callers retain full nonmatching values, real returns, and suppressed suffixes"
-        );
-    }
+        {
+            LegacyBattleGroupAFrameState zero_state;
+            zero_state.actor_enabled[0U] = 1U;
+            zero_state.actors[0U].mode_gate = 1U;
+            zero_state.selected_actor_one_based = 2U;
+            zero_state.action.group_a_action_execution[1U]
+                .turn_completion_latch = 0U;
+            Fixture zero_fixture;
+            DispatchPort zero_port;
+            auto zero_context = zero_fixture.context();
+            const auto zero =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    zero_state, zero_port, zero_context, 0U
+                );
 
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        state.actor_enabled[0U] = 1U;
-        state.actors[0U].mode_gate = 1U;
-        state.selected_actor_one_based = 2U;
-        Fixture fixture;
-        DispatchPort port;
-        auto context = fixture.context();
-        context.actor_turn_completion_request.access.latch_readable = false;
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 0U
+            LegacyBattleGroupAFrameState nonzero_state;
+            nonzero_state.actor_enabled[0U] = 1U;
+            nonzero_state.actors[0U].mode_gate = 1U;
+            nonzero_state.selected_actor_one_based = 2U;
+            nonzero_state.action.group_a_action_execution[1U]
+                .turn_completion_latch = 7U;
+            Fixture nonzero_fixture;
+            DispatchPort nonzero_port;
+            auto nonzero_context = nonzero_fixture.context();
+            const auto nonzero =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    nonzero_state, nonzero_port, nonzero_context, 0U
+                );
+
+            test.expect_true(
+                zero.actor_turn_completion_calls == 1U &&
+                    zero.actor_turn_completion.returned &&
+                    zero.actor_turn_completion.return_eax == 0U &&
+                    zero.actor_turn_completion.return_eip == 0x00456DDBU &&
+                    zero.actor_idle_state_calls == 1U &&
+                    zero.actor_idle_state.returned &&
+                    zero.actor_idle_state.return_eax == 0U &&
+                    zero.actor_idle_state.return_eip == 0x00456E00U &&
+                    zero_port.count(0x004786A0U) == 0U &&
+                    nonzero.actor_turn_completion_calls == 1U &&
+                    nonzero.actor_turn_completion.returned &&
+                    nonzero.actor_turn_completion.return_eax == 7U &&
+                    nonzero.actor_turn_completion.return_eip == 0x00456DDBU &&
+                    nonzero.actor_idle_state_calls == 0U &&
+                    nonzero_port.count(0x004786A0U) == 0U &&
+                    zero_port.count(0x00478690U) == 0U &&
+                    nonzero_port.count(0x00478690U) == 0U,
+                "one-based Group-A caller TEST enters the idle suffix only for a zero canonical latch"
             );
-        const u32 selected =
-            openswd3::battle::kLegacyBattleActionGroupABaseToken +
-            openswd3::battle::kLegacyBattleActionGroupAStride;
-        test.expect_true(
-            result.status ==
-                    LegacyBattleActionDispatchStatus::
-                        actor_turn_completion_typed_stop &&
-                result.actor_turn_completion_calls == 1U &&
-                result.actor_turn_completion.status ==
-                    openswd3::battle::LegacyBattleActorTurnCompletionStatus::
-                        latch_read_typed_stop &&
-                result.actor_turn_completion.return_eax == 0x7DEU &&
-                result.actor_turn_completion.return_ecx == selected &&
-                result.actor_turn_completion.return_edx == 0x179AU &&
-                result.actor_turn_completion.return_eip == 0x00478690U &&
-                result.actor_turn_completion.field_token ==
-                    selected + 0x2AACU &&
-                result.actor_turn_completion.flags_known &&
-                !result.actor_turn_completion.flags.carry &&
-                result.actor_turn_completion.flags.parity &&
-                result.actor_turn_completion.flags.auxiliary_carry_defined &&
-                result.actor_turn_completion.flags.auxiliary_carry &&
-                !result.actor_turn_completion.flags.zero &&
-                !result.actor_turn_completion.flags.sign &&
-                !result.actor_turn_completion.flags.overflow &&
-                result.actor_turn_completion.return_esp ==
-                    context.actor_turn_completion_request.entry_esp &&
-                result.return_value == 0x7DEU &&
-                port.count(0x00478690U) == 0U && port.count(0x004786A0U) == 0U,
-            "one-based Group-A target query propagates its typed field stop before the post-call branch"
-        );
-    }
+        }
 
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        state.action.active_effect_target = 8U;
-        state.action.group_a_action_execution[0U].action_target = 2U;
-        state.final_actor_step.action_execution_active = 0U;
-        Fixture fixture;
-        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
-            openswd3::battle::LegacyBattleActorGroupBElementState,
-            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
-        DispatchPort port;
-        auto context = fixture.context();
-        context.group_a_frame_action_target_requests[0U].entry_edx =
-            0xA5A55A5AU;
-        context.actor_turn_completion_request.access.latch_readable = false;
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 0U
+        {
+            LegacyBattleGroupAFrameState zero_state;
+            zero_state.action.active_effect_target = 8U;
+            zero_state.action.group_a_action_execution[0U].action_target = 2U;
+            zero_state.action_side = 1U;
+            Fixture zero_fixture;
+            zero_fixture.startup.group_b_lifecycle =
+                std::make_shared<std::array<
+                    openswd3::battle::LegacyBattleActorGroupBElementState,
+                    openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+            (*zero_fixture.startup.group_b_lifecycle)[2U]
+                .action_execution.turn_completion_latch = 0U;
+            DispatchPort zero_port;
+            auto zero_context = zero_fixture.context();
+            const auto zero =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    zero_state, zero_port, zero_context, 0U
+                );
+
+            LegacyBattleGroupAFrameState nonzero_state;
+            nonzero_state.action.active_effect_target = 8U;
+            nonzero_state.action.group_a_action_execution[0U].action_target =
+                2U;
+            nonzero_state.action_side = 1U;
+            Fixture nonzero_fixture;
+            nonzero_fixture.startup.group_b_lifecycle =
+                std::make_shared<std::array<
+                    openswd3::battle::LegacyBattleActorGroupBElementState,
+                    openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+            (*nonzero_fixture.startup.group_b_lifecycle)[2U]
+                .action_execution.turn_completion_latch = 9U;
+            DispatchPort nonzero_port;
+            auto nonzero_context = nonzero_fixture.context();
+            const auto nonzero =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    nonzero_state, nonzero_port, nonzero_context, 0U
+                );
+
+            test.expect_true(
+                zero.actor_turn_completion_calls == 1U &&
+                    zero.actor_turn_completion.returned &&
+                    zero.actor_turn_completion.return_eax == 0U &&
+                    zero.actor_turn_completion.return_eip == 0x00456EF0U,
+                "Group-B target caller returns the zero lifecycle latch"
             );
-        const u32 target =
-            openswd3::battle::kLegacyBattleActionGroupBBaseToken +
-            2U * openswd3::battle::kLegacyBattleActionGroupBStride;
-        test.expect_true(
-            result.status ==
-                    LegacyBattleActionDispatchStatus::
-                        actor_turn_completion_typed_stop &&
-                result.actor_action_target_calls == 1U &&
-                result.actor_action_target.return_eax == 2U &&
-                result.actor_action_target.return_ecx == 0x005029D0U &&
-                result.actor_action_target.return_edx == 0xA5A55A5AU &&
-                result.actor_action_target.return_eip == 0x00456ECEU &&
-                result.actor_action_target.flags_known &&
-                result.actor_action_target.flags.zero &&
-                result.actor_turn_completion_calls == 1U &&
-                result.actor_turn_completion.status ==
-                    openswd3::battle::LegacyBattleActorTurnCompletionStatus::
-                        latch_read_typed_stop &&
-                result.actor_turn_completion.return_eax == 0xACAU &&
-                result.actor_turn_completion.return_ecx == target &&
-                result.actor_turn_completion.return_edx == 0xA5A55A5AU &&
-                result.actor_turn_completion.return_eip == 0x00478690U &&
-                result.actor_turn_completion.field_token == target + 0x2AACU &&
-                result.actor_turn_completion.flags_known &&
-                !result.actor_turn_completion.flags.carry &&
-                result.actor_turn_completion.flags.parity &&
-                result.actor_turn_completion.flags.auxiliary_carry_defined &&
-                result.actor_turn_completion.flags.auxiliary_carry &&
-                !result.actor_turn_completion.flags.zero &&
-                !result.actor_turn_completion.flags.sign &&
-                !result.actor_turn_completion.flags.overflow &&
-                result.actor_turn_completion.return_esp ==
-                    context.actor_turn_completion_request.entry_esp &&
-                result.return_value == 0xACAU &&
-                port.count(0x00478690U) == 0U && port.count(0x00478B40U) == 0U,
-            "inactive execution preserves the first physical action-target caller before the Group-B latch stop"
-        );
-    }
-
-    {
-        LegacyBattleGroupAFrameState zero_state;
-        zero_state.actor_enabled[0U] = 1U;
-        zero_state.actors[0U].mode_gate = 1U;
-        zero_state.selected_actor_one_based = 2U;
-        zero_state.action.group_a_action_execution[1U].turn_completion_latch =
-            0U;
-        Fixture zero_fixture;
-        DispatchPort zero_port;
-        auto zero_context = zero_fixture.context();
-        const auto zero = openswd3::battle::advance_legacy_battle_group_a_frame(
-            zero_state, zero_port, zero_context, 0U
-        );
-
-        LegacyBattleGroupAFrameState nonzero_state;
-        nonzero_state.actor_enabled[0U] = 1U;
-        nonzero_state.actors[0U].mode_gate = 1U;
-        nonzero_state.selected_actor_one_based = 2U;
-        nonzero_state.action.group_a_action_execution[1U]
-            .turn_completion_latch = 7U;
-        Fixture nonzero_fixture;
-        DispatchPort nonzero_port;
-        auto nonzero_context = nonzero_fixture.context();
-        const auto nonzero =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                nonzero_state, nonzero_port, nonzero_context, 0U
+            test.expect_true(
+                zero_port.count(0x00478B40U) == 1U,
+                "zero lifecycle latch queries selection completion"
             );
-
-        test.expect_true(
-            zero.actor_turn_completion_calls == 1U &&
-                zero.actor_turn_completion.returned &&
-                zero.actor_turn_completion.return_eax == 0U &&
-                zero.actor_turn_completion.return_eip == 0x00456DDBU &&
-                zero.actor_idle_state_calls == 1U &&
-                zero.actor_idle_state.returned &&
-                zero.actor_idle_state.return_eax == 0U &&
-                zero.actor_idle_state.return_eip == 0x00456E00U &&
-                zero_port.count(0x004786A0U) == 0U &&
+            test.expect_true(
+                zero.group_a_actor_list_action_calls == 1U,
+                "zero lifecycle latch begins the typed current-actor list action"
+            );
+            test.expect_true(
                 nonzero.actor_turn_completion_calls == 1U &&
-                nonzero.actor_turn_completion.returned &&
-                nonzero.actor_turn_completion.return_eax == 7U &&
-                nonzero.actor_turn_completion.return_eip == 0x00456DDBU &&
-                nonzero.actor_idle_state_calls == 0U &&
-                nonzero_port.count(0x004786A0U) == 0U &&
+                    nonzero.actor_turn_completion.returned &&
+                    nonzero.actor_turn_completion.return_eax == 9U &&
+                    nonzero.actor_turn_completion.return_eip == 0x00456EF0U,
+                "Group-B target caller returns the nonzero lifecycle latch"
+            );
+            test.expect_true(
+                nonzero_port.count(0x00478B40U) == 0U &&
+                    nonzero.group_a_actor_list_action_calls == 0U,
+                "nonzero lifecycle latch skips the Group-B action preparation suffix"
+            );
+            test.expect_true(
                 zero_port.count(0x00478690U) == 0U &&
-                nonzero_port.count(0x00478690U) == 0U,
-            "one-based Group-A caller TEST enters the idle suffix only for a zero canonical latch"
-        );
-    }
-
-    {
-        LegacyBattleGroupAFrameState zero_state;
-        zero_state.action.active_effect_target = 8U;
-        zero_state.action.group_a_action_execution[0U].action_target = 2U;
-        zero_state.action_side = 1U;
-        Fixture zero_fixture;
-        zero_fixture.startup.group_b_lifecycle = std::make_shared<std::array<
-            openswd3::battle::LegacyBattleActorGroupBElementState,
-            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
-        (*zero_fixture.startup.group_b_lifecycle)[2U]
-            .action_execution.turn_completion_latch = 0U;
-        DispatchPort zero_port;
-        auto zero_context = zero_fixture.context();
-        const auto zero = openswd3::battle::advance_legacy_battle_group_a_frame(
-            zero_state, zero_port, zero_context, 0U
-        );
-
-        LegacyBattleGroupAFrameState nonzero_state;
-        nonzero_state.action.active_effect_target = 8U;
-        nonzero_state.action.group_a_action_execution[0U].action_target = 2U;
-        nonzero_state.action_side = 1U;
-        Fixture nonzero_fixture;
-        nonzero_fixture.startup.group_b_lifecycle = std::make_shared<std::array<
-            openswd3::battle::LegacyBattleActorGroupBElementState,
-            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
-        (*nonzero_fixture.startup.group_b_lifecycle)[2U]
-            .action_execution.turn_completion_latch = 9U;
-        DispatchPort nonzero_port;
-        auto nonzero_context = nonzero_fixture.context();
-        const auto nonzero =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                nonzero_state, nonzero_port, nonzero_context, 0U
+                    nonzero_port.count(0x00478690U) == 0U,
+                "Group-B target caller uses no generic turn-completion call"
             );
+        }
+    }();
 
-        test.expect_true(
-            zero.actor_turn_completion_calls == 1U &&
-                zero.actor_turn_completion.returned &&
-                zero.actor_turn_completion.return_eax == 0U &&
-                zero.actor_turn_completion.return_eip == 0x00456EF0U,
-            "Group-B target caller returns the zero lifecycle latch"
-        );
-        test.expect_true(
-            zero_port.count(0x00478B40U) == 1U,
-            "zero lifecycle latch queries selection completion"
-        );
-        test.expect_true(
-            zero.group_a_actor_list_action_calls == 1U,
-            "zero lifecycle latch begins the typed current-actor list action"
-        );
-        test.expect_true(
-            nonzero.actor_turn_completion_calls == 1U &&
-                nonzero.actor_turn_completion.returned &&
-                nonzero.actor_turn_completion.return_eax == 9U &&
-                nonzero.actor_turn_completion.return_eip == 0x00456EF0U,
-            "Group-B target caller returns the nonzero lifecycle latch"
-        );
-        test.expect_true(
-            nonzero_port.count(0x00478B40U) == 0U &&
-                nonzero.group_a_actor_list_action_calls == 0U,
-            "nonzero lifecycle latch skips the Group-B action preparation suffix"
-        );
-        test.expect_true(
-            zero_port.count(0x00478690U) == 0U &&
-                nonzero_port.count(0x00478690U) == 0U,
-            "Group-B target caller uses no generic turn-completion call"
-        );
-    }
-
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        state.action.frame_effect.primary_suppression = 1U;
-        state.action.group_a_action_execution[0U].start_gate = 1U;
-        state.action.group_a_action_execution[0U].field_26b8 = 0x80000005U;
-        Fixture fixture;
-        DispatchPort port;
-        port.actor_metric_state().pending_action_activation_latch = 9U;
-        port.push(
-            0x00478B60U,
-            {
-                .pending_actor_field_26b8_high_bit_clear = {
-                    .executed = true,
-                    .entry_edx = 0x55667788U,
-                },
-            }
-        );
-        port.push(0x00479850U, {.eax = 1U});
-        auto context = fixture.context();
-        context.actor_start_gate_request.entry_edx = 0x11223344U;
-        context.actor_start_gate_request.entry_esp = 0x88008000U;
-        context.actor_field_26b8_high_bit_clear_request.entry_esp = 0x88108000U;
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 0U
+    [&] {
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.action.frame_effect.primary_suppression = 1U;
+            state.action.group_a_action_execution[0U].start_gate = 1U;
+            state.action.group_a_action_execution[0U].field_26b8 = 0x80000005U;
+            Fixture fixture;
+            DispatchPort port;
+            port.actor_metric_state().pending_action_activation_latch = 9U;
+            port.push(
+                0x00478B60U,
+                {
+                    .pending_actor_field_26b8_high_bit_clear = {
+                        .executed = true,
+                        .entry_edx = 0x55667788U,
+                    },
+                }
             );
-        test.expect_true(
-            result.return_value == 1U && result.actor_start_gate_calls == 1U &&
-                result.actor_start_gate.return_eax == 1U &&
-                result.actor_start_gate.return_ecx ==
-                    openswd3::battle::kLegacyBattleActionGroupABaseToken &&
-                result.actor_start_gate.return_edx == 0x11223344U &&
-                result.actor_start_gate.return_esp == 0x88008004U &&
-                result.actor_start_gate.return_eip == 0x004566B2U &&
-                result.actor_start_gate.flags.parity &&
-                result.actor_start_gate.flags.zero &&
-                result.actor_field_26b8_high_bit_clear_calls == 1U &&
-                result.actor_field_26b8_high_bit_clear.return_eax == 1U &&
-                result.actor_field_26b8_high_bit_clear.return_ecx ==
-                    openswd3::battle::kLegacyBattleActionGroupABaseToken &&
-                result.actor_field_26b8_high_bit_clear.return_edx ==
-                    0x55667788U &&
-                result.actor_field_26b8_high_bit_clear.return_esp ==
-                    0x88108004U &&
-                result.actor_field_26b8_high_bit_clear.return_eip ==
-                    0x00478CCDU &&
-                result.actor_field_26b8_high_bit_clear.flags_known &&
-                !result.actor_field_26b8_high_bit_clear.flags.sign &&
-                !result.actor_field_26b8_high_bit_clear.flags.zero &&
-                state.action.group_a_action_execution[0U].field_26b8 == 5U &&
-                port.count(0x004786D0U) == 0U &&
-                port.count(0x00478770U) == 0U &&
-                has_call_argument(port, 0x00478B60U, 1U, 1U) &&
-                has_call_argument(port, 0x00479850U, 0U, 0x005029D0U) &&
-                port.actor_metric_state().pending_action_activation_latch ==
-                    0U &&
-                state.final_selected_word == 0xFFFFU,
-            "group A frame directly composes the final actor step"
-        );
-    }
-
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        state.action.frame_effect.primary_suppression = 1U;
-        auto& actor = state.action.group_a_action_execution[0U];
-        actor.start_gate = 1U;
-        actor.field_26b8 = 5U;
-        actor.summon_completion_word = 0x1111U;
-        actor.special_target_action_record.command_cursor = 0x2222U;
-        Fixture fixture;
-        DispatchPort port;
-        port.push(
-            0x00478B60U,
-            {
-                .pending_actor_field_26b8_high_bit_set = {
-                    .executed = true,
-                    .entry_eax = 0x12345678U,
-                    .entry_edx = 0x87654321U,
-                },
-            }
-        );
-        port.push(0x00479850U, {.eax = 1U});
-        auto context = fixture.context();
-        context.actor_field_26b8_high_bit_set_requests.calls[0U].entry_esp =
-            0x88208000U;
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 0U
-            );
-        test.expect_true(
-            result.actor_field_26b8_high_bit_set.calls == 1U &&
-                result.actor_field_26b8_high_bit_set.return_addresses[0U] ==
-                    0x00478BDBU &&
-                result.actor_field_26b8_high_bit_set.last.return_eax ==
-                    0x80000005U &&
-                result.actor_field_26b8_high_bit_set.last.return_edx ==
-                    0x87654321U &&
-                result.actor_field_26b8_high_bit_set.last.return_esp ==
-                    0x88208004U &&
-                actor.field_26b8 == 0x80000005U &&
-                actor.summon_completion_word == 0x1111U &&
-                actor.special_target_action_record.command_cursor == 0x2222U &&
-                port.count(0x00478780U) == 0U,
-            "Group-A frame composes only an executed Workpack-315 pending high-bit-set reply"
-        );
-    }
-
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        state.action.frame_effect.primary_suppression = 1U;
-        auto& actor = state.action.group_a_action_execution[0U];
-        actor.start_gate = 1U;
-        actor.field_26b8 = 5U;
-        Fixture fixture;
-        DispatchPort port;
-        port.push(
-            0x00478B60U,
-            {
-                .pending_actor_field_26b8_high_bit_set = {
-                    .executed = true,
-                    .entry_eax = 0x12345678U,
-                    .entry_edx = 0x87654321U,
-                },
-            }
-        );
-        auto context = fixture.context();
-        context.actor_field_26b8_high_bit_set_requests.calls[0U]
-            .access.field_26b8_writable = false;
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 0U
-            );
-        test.expect_true(
-            result.status ==
-                    LegacyBattleActionDispatchStatus::
-                        actor_field_26b8_high_bit_set_typed_stop &&
-                result.actor_field_26b8_high_bit_set.last.status ==
-                    openswd3::battle::
-                        LegacyBattleActorField26b8HighBitSetStatus::
-                            field_26b8_write_typed_stop &&
-                result.actor_field_26b8_high_bit_clear_calls == 0U &&
-                actor.field_26b8 == 5U && port.count(0x00479850U) == 0U,
-            "Group-A pending high-bit-set typed stop preserves the parent prefix and suppresses the clear and frame suffix"
-        );
-    }
-
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        state.ai_coordination_enabled = 1U;
-        state.actor_ai_primary[0] = 1U;
-        state.action.group_b_count = 2;
-        Fixture fixture;
-        DispatchPort port;
-        port.push(0x0047CE80U, {.eax = 1U, .edx = 0x11112222U});
-        port.push(0x0047CE80U, {.eax = 0U, .edx = 0x33334444U});
-        port.push(0x00439070U, {.eax = 0U});
-        port.push(0x0047CE80U, {.eax = 0U});
-        auto context = fixture.context();
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 0U
-            );
-        test.expect_true(
-            result.return_value == 1U &&
-                result.group_a_attribute_effect_calls == 1U &&
-                result.group_a_attribute_effect.status ==
-                    openswd3::battle::LegacyBattleGroupAAttributeEffectStatus::
-                        completed &&
-                port.count(0x0046EE60U) == 0U &&
-                state.selected_opponent_one_based == 1U &&
-                state.final_actor_step.selection_gate == 1U &&
-                state.actors[0].special_ready == 1U &&
-                state.actors[0].action_complete == 1U &&
-                state.actors[0].update_ready == 1U &&
-                port.count(0x0046E520U) == 0U &&
-                result.actor_availability_block_calls == 1U &&
-                result.actor_availability_block.actor_writes == 1U &&
-                result.actor_availability_block.return_edx == 0x33334444U &&
-                state.final_actor_step.group_a_availability_blocks[0U].value ==
-                    1U &&
-                port.count(0x00439070U) == 1U && port.count(0x0047CE80U) >= 3U,
-            "AI coordination counts terminals and retries one based target until live"
-        );
-    }
-
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        state.ai_coordination_enabled = 1U;
-        state.actor_ai_primary[0U] = 1U;
-        state.action.group_b_count = 1;
-        state.final_actor_step.group_a_availability_blocks[0U]
-            .write_accessible = false;
-        Fixture fixture;
-        DispatchPort port;
-        port.push(0x0047CE80U, {.eax = 0U, .edx = 0x55667788U});
-        auto context = fixture.context();
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 0U
-            );
-        test.expect_true(
-            result.status ==
-                    LegacyBattleActionDispatchStatus::
-                        actor_availability_block_typed_stop &&
-                result.actor_availability_block_calls == 1U &&
-                result.actor_availability_block.actor_writes == 0U &&
-                result.actor_availability_block.return_eax == 1U &&
-                result.actor_availability_block.return_ecx == 0x005029D0U &&
-                result.actor_availability_block.return_edx == 0x55667788U &&
-                result.return_value == 1U && port.count(0x0047CE80U) == 1U &&
-                port.count(0x00439070U) == 0U &&
-                state.selected_opponent_one_based == 1U &&
-                state.final_actor_step.selection_gate == 0U,
-            "AI typed write stop preserves the last terminal-query EDX and suppresses the random-selection suffix"
-        );
-    }
-
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        state.ai_coordination_enabled = 1U;
-        state.actor_ai_primary[0U] = 1U;
-        Fixture fixture;
-        fixture.startup.party[0U].workspace.tail_words[7U] = 200U;
-        fixture.startup.group_a_configuration_sources[0U].dwords[2U] = 25U
-            << 16U;
-        DispatchPort port;
-        auto context = fixture.context();
-
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 0U
-            );
-
-        test.expect_true(
-            result.status == LegacyBattleActionDispatchStatus::completed &&
-                result.group_a_attribute_effect_calls == 1U &&
-                result.group_a_attribute_effect.active_channels == 1U &&
-                result.group_a_attribute_effect.computed_words[0U] == 0xFFCEU &&
-                fixture.startup.party[0U]
-                        .attribute_effect.temporary_values[0U] == 0U &&
-                port.count(0x0046EE60U) == 0U &&
-                port.count(0x0047F150U) == 1U &&
-                port.count(0x004787D0U) == 0U &&
-                result.effect_resource_slot_write.calls == 1U &&
-                result.effect_resource_slot_write.call_addresses[0U] ==
-                    0x0046EEDFU &&
-                state.action.group_a_action_execution[0U]
-                        .effect_resource_slots[0U] == 0x246FU &&
-                state.action.group_a_action_execution[0U]
-                        .effect_resource_cursor == 1U &&
-                port.count(0x0047D640U) == 1U &&
-                port.count(0x0047CF00U) == 1U &&
-                port.count(0x0047CEC0U) == 1U &&
-                has_call_argument(port, 0x0047F150U, 0U, 0xFFFFFFCEU) &&
-                has_call_argument(port, 0x0047D640U, 0U, 0xFFFFFFCEU) &&
-                has_call_argument(port, 0x0047CF00U, 0U, 0U) &&
-                has_call_argument(port, 0x0047CEC0U, 0U, 1U),
-            "completed progress directly applies the shared group-A attribute channel before the AI suffix"
-        );
-    }
-
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        state.ai_coordination_enabled = 1U;
-        state.actor_ai_primary[0U] = 1U;
-        Fixture fixture;
-        DispatchPort port;
-        auto context = fixture.context();
-        context.startup = nullptr;
-
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 0U
-            );
-
-        test.expect_true(
-            result.status ==
-                    LegacyBattleActionDispatchStatus::
-                        group_a_attribute_effect_typed_stop &&
+            port.push(0x00479850U, {.eax = 1U});
+            auto context = fixture.context();
+            context.actor_start_gate_request.entry_edx = 0x11223344U;
+            context.actor_start_gate_request.entry_esp = 0x88008000U;
+            context.actor_field_26b8_high_bit_clear_request.entry_esp =
+                0x88108000U;
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
                 result.return_value == 1U &&
-                result.group_a_attribute_effect_calls == 0U &&
-                state.actors[0U].action_complete == 1U &&
-                state.actors[0U].update_ready == 1U &&
-                port.count(0x0046EE60U) == 0U && port.count(0x0047F150U) == 0U,
-            "missing startup actor owner stops after progress completion and before the reclaimed attribute call"
-        );
-    }
-
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        state.final_actor_step.actor_order[0] = 9U;
-        state.final_actor_step.actor_order[1] = 10U;
-        Fixture fixture;
-        DispatchPort port;
-        port.push(0x0047F920U, {.eax = 0U});
-        auto context = fixture.context();
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 0U
+                    result.actor_start_gate_calls == 1U &&
+                    result.actor_start_gate.return_eax == 1U &&
+                    result.actor_start_gate.return_ecx ==
+                        openswd3::battle::kLegacyBattleActionGroupABaseToken &&
+                    result.actor_start_gate.return_edx == 0x11223344U &&
+                    result.actor_start_gate.return_esp == 0x88008004U &&
+                    result.actor_start_gate.return_eip == 0x004566B2U &&
+                    result.actor_start_gate.flags.parity &&
+                    result.actor_start_gate.flags.zero &&
+                    result.actor_field_26b8_high_bit_clear_calls == 1U &&
+                    result.actor_field_26b8_high_bit_clear.return_eax == 1U &&
+                    result.actor_field_26b8_high_bit_clear.return_ecx ==
+                        openswd3::battle::kLegacyBattleActionGroupABaseToken &&
+                    result.actor_field_26b8_high_bit_clear.return_edx ==
+                        0x55667788U &&
+                    result.actor_field_26b8_high_bit_clear.return_esp ==
+                        0x88108004U &&
+                    result.actor_field_26b8_high_bit_clear.return_eip ==
+                        0x00478CCDU &&
+                    result.actor_field_26b8_high_bit_clear.flags_known &&
+                    !result.actor_field_26b8_high_bit_clear.flags.sign &&
+                    !result.actor_field_26b8_high_bit_clear.flags.zero &&
+                    state.action.group_a_action_execution[0U].field_26b8 ==
+                        5U &&
+                    port.count(0x004786D0U) == 0U &&
+                    port.count(0x00478770U) == 0U &&
+                    has_call_argument(port, 0x00478B60U, 1U, 1U) &&
+                    has_call_argument(port, 0x00479850U, 0U, 0x005029D0U) &&
+                    port.actor_metric_state().pending_action_activation_latch ==
+                        0U &&
+                    state.final_selected_word == 0xFFFFU,
+                "group A frame directly composes the final actor step"
             );
-        test.expect_true(
-            result.return_value == 1U &&
-                state.final_actor_step.queued_actor_code == 9U &&
-                state.final_actor_step.actor_order[0] == 10U &&
-                state.final_actor_step.actor_order[1] == 0U,
-            "actor queue publishes first unfinished entry then shifts fixed tail left"
-        );
-    }
+        }
 
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        state.action.group_a_action_execution[2U].idle_state_latch = 1U;
-        Fixture fixture;
-        DispatchPort port;
-        port.push(0x0047F920U, {.eax = 0U});
-        auto context = fixture.context();
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 2U
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.action.frame_effect.primary_suppression = 1U;
+            auto& actor = state.action.group_a_action_execution[0U];
+            actor.start_gate = 1U;
+            actor.field_26b8 = 5U;
+            actor.summon_completion_word = 0x1111U;
+            actor.special_target_action_record.command_cursor = 0x2222U;
+            Fixture fixture;
+            DispatchPort port;
+            port.push(
+                0x00478B60U,
+                {
+                    .pending_actor_field_26b8_high_bit_set = {
+                        .executed = true,
+                        .entry_eax = 0x12345678U,
+                        .entry_edx = 0x87654321U,
+                    },
+                }
             );
-        test.expect_true(
-            result.return_value == 1U && state.actors[2].frame_started == 1U &&
-                state.final_actor_step.active_actor_code == 0xFFFFFFFFU &&
-                result.attack_order_insert_calls == 1U &&
-                result.attack_order_insert.record_written &&
-                result.attack_order_remove_calls == 1U &&
-                result.attack_order_remove.matched &&
-                fixture.attack_order_records[0].value_00 == 0xFFFFFFFFU &&
-                fixture.attack_order_records[0].value_08 == 0U &&
-                port.count(0x0045EE70U) == 0U && port.count(0x0045EFB0U) == 0U,
-            "started actor is registered then removed directly by the composed final actor suffix"
-        );
-    }
+            port.push(0x00479850U, {.eax = 1U});
+            auto context = fixture.context();
+            context.actor_field_26b8_high_bit_set_requests.calls[0U].entry_esp =
+                0x88208000U;
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.actor_field_26b8_high_bit_set.calls == 1U &&
+                    result.actor_field_26b8_high_bit_set.return_addresses[0U] ==
+                        0x00478BDBU &&
+                    result.actor_field_26b8_high_bit_set.last.return_eax ==
+                        0x80000005U &&
+                    result.actor_field_26b8_high_bit_set.last.return_edx ==
+                        0x87654321U &&
+                    result.actor_field_26b8_high_bit_set.last.return_esp ==
+                        0x88208004U &&
+                    actor.field_26b8 == 0x80000005U &&
+                    actor.summon_completion_word == 0x1111U &&
+                    actor.special_target_action_record.command_cursor ==
+                        0x2222U &&
+                    port.count(0x00478780U) == 0U,
+                "Group-A frame composes only an executed Workpack-315 pending high-bit-set reply"
+            );
+        }
 
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        state.ai_coordination_enabled = 1U;
-        Fixture fixture;
-        DispatchPort port;
-        port.push(0x0047F920U, {.eax = 0U});
-        auto context = fixture.context();
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 2U
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.action.frame_effect.primary_suppression = 1U;
+            auto& actor = state.action.group_a_action_execution[0U];
+            actor.start_gate = 1U;
+            actor.field_26b8 = 5U;
+            Fixture fixture;
+            DispatchPort port;
+            port.push(
+                0x00478B60U,
+                {
+                    .pending_actor_field_26b8_high_bit_set = {
+                        .executed = true,
+                        .entry_eax = 0x12345678U,
+                        .entry_edx = 0x87654321U,
+                    },
+                }
             );
-        test.expect_true(
-            result.actor_target_preparation_calls == 1U &&
-                fixture.shared_action.opponent_workspace[12U] == 1U &&
-                fixture.shared_final_actor.published_actor_code == 0U &&
-                fixture.target_runtime.selected_action_kind == 1U &&
-                fixture.target_runtime.actor_commit_gate == 1U &&
-                port.battle_debug_hotkey_state().committed_actor_code == 10U &&
-                result.actor_availability_block_calls == 1U &&
-                result.actor_availability_block.actor_writes == 1U &&
-                fixture.shared_final_actor.group_a_availability_blocks[2U]
-                        .value == 1U &&
-                port.count(0x00478330U) == 0U && port.count(0x00464CC0U) == 0U,
-            "group-A queue caller directly prepares the shared actor target through the typed owner"
-        );
-    }
+            auto context = fixture.context();
+            context.actor_field_26b8_high_bit_set_requests.calls[0U]
+                .access.field_26b8_writable = false;
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActionDispatchStatus::
+                            actor_field_26b8_high_bit_set_typed_stop &&
+                    result.actor_field_26b8_high_bit_set.last.status ==
+                        openswd3::battle::
+                            LegacyBattleActorField26b8HighBitSetStatus::
+                                field_26b8_write_typed_stop &&
+                    result.actor_field_26b8_high_bit_clear_calls == 0U &&
+                    actor.field_26b8 == 5U && port.count(0x00479850U) == 0U,
+                "Group-A pending high-bit-set typed stop preserves the parent prefix and suppresses the clear and frame suffix"
+            );
+        }
 
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        state.ai_coordination_enabled = 1U;
-        Fixture fixture;
-        fixture.shared_final_actor.group_a_availability_blocks[2U]
-            .write_accessible = false;
-        DispatchPort port;
-        port.push(0x0047F920U, {.eax = 0U});
-        auto context = fixture.context();
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 2U
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.ai_coordination_enabled = 1U;
+            state.actor_ai_primary[0] = 1U;
+            state.action.group_b_count = 2;
+            Fixture fixture;
+            DispatchPort port;
+            port.push(0x0047CE80U, {.eax = 1U, .edx = 0x11112222U});
+            port.push(0x0047CE80U, {.eax = 0U, .edx = 0x33334444U});
+            port.push(0x00439070U, {.eax = 0U});
+            port.push(0x0047CE80U, {.eax = 0U});
+            auto context = fixture.context();
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.return_value == 1U &&
+                    result.group_a_attribute_effect_calls == 1U &&
+                    result.group_a_attribute_effect.status ==
+                        openswd3::battle::
+                            LegacyBattleGroupAAttributeEffectStatus::
+                                completed &&
+                    port.count(0x0046EE60U) == 0U &&
+                    state.selected_opponent_one_based == 1U &&
+                    state.final_actor_step.selection_gate == 1U &&
+                    state.actors[0].special_ready == 1U &&
+                    state.actors[0].action_complete == 1U &&
+                    state.actors[0].update_ready == 1U &&
+                    port.count(0x0046E520U) == 0U &&
+                    result.actor_availability_block_calls == 1U &&
+                    result.actor_availability_block.actor_writes == 1U &&
+                    result.actor_availability_block.return_edx == 0x33334444U &&
+                    state.final_actor_step.group_a_availability_blocks[0U]
+                            .value == 1U &&
+                    port.count(0x00439070U) == 1U &&
+                    port.count(0x0047CE80U) >= 3U,
+                "AI coordination counts terminals and retries one based target until live"
             );
-        test.expect_true(
-            result.status ==
-                    openswd3::battle::LegacyBattleActionDispatchStatus::
-                        actor_availability_block_typed_stop &&
+        }
+
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.ai_coordination_enabled = 1U;
+            state.actor_ai_primary[0U] = 1U;
+            state.action.group_b_count = 1;
+            state.final_actor_step.group_a_availability_blocks[0U]
+                .write_accessible = false;
+            Fixture fixture;
+            DispatchPort port;
+            port.push(0x0047CE80U, {.eax = 0U, .edx = 0x55667788U});
+            auto context = fixture.context();
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActionDispatchStatus::
+                            actor_availability_block_typed_stop &&
+                    result.actor_availability_block_calls == 1U &&
+                    result.actor_availability_block.actor_writes == 0U &&
+                    result.actor_availability_block.return_eax == 1U &&
+                    result.actor_availability_block.return_ecx == 0x005029D0U &&
+                    result.actor_availability_block.return_edx == 0x55667788U &&
+                    result.return_value == 1U &&
+                    port.count(0x0047CE80U) == 1U &&
+                    port.count(0x00439070U) == 0U &&
+                    state.selected_opponent_one_based == 1U &&
+                    state.final_actor_step.selection_gate == 0U,
+                "AI typed write stop preserves the last terminal-query EDX and suppresses the random-selection suffix"
+            );
+        }
+
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.ai_coordination_enabled = 1U;
+            state.actor_ai_primary[0U] = 1U;
+            Fixture fixture;
+            fixture.startup.party[0U].workspace.tail_words[7U] = 200U;
+            fixture.startup.group_a_configuration_sources[0U].dwords[2U] = 25U
+                << 16U;
+            DispatchPort port;
+            auto context = fixture.context();
+
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+
+            test.expect_true(
+                result.status == LegacyBattleActionDispatchStatus::completed &&
+                    result.group_a_attribute_effect_calls == 1U &&
+                    result.group_a_attribute_effect.active_channels == 1U &&
+                    result.group_a_attribute_effect.computed_words[0U] ==
+                        0xFFCEU &&
+                    fixture.startup.party[0U]
+                            .attribute_effect.temporary_values[0U] == 0U &&
+                    port.count(0x0046EE60U) == 0U &&
+                    port.count(0x0047F150U) == 1U &&
+                    port.count(0x004787D0U) == 0U &&
+                    result.effect_resource_slot_write.calls == 1U &&
+                    result.effect_resource_slot_write.call_addresses[0U] ==
+                        0x0046EEDFU &&
+                    state.action.group_a_action_execution[0U]
+                            .effect_resource_slots[0U] == 0x246FU &&
+                    state.action.group_a_action_execution[0U]
+                            .effect_resource_cursor == 1U &&
+                    port.count(0x0047D640U) == 1U &&
+                    port.count(0x0047CF00U) == 1U &&
+                    port.count(0x0047CEC0U) == 1U &&
+                    has_call_argument(port, 0x0047F150U, 0U, 0xFFFFFFCEU) &&
+                    has_call_argument(port, 0x0047D640U, 0U, 0xFFFFFFCEU) &&
+                    has_call_argument(port, 0x0047CF00U, 0U, 0U) &&
+                    has_call_argument(port, 0x0047CEC0U, 0U, 1U),
+                "completed progress directly applies the shared group-A attribute channel before the AI suffix"
+            );
+        }
+
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.ai_coordination_enabled = 1U;
+            state.actor_ai_primary[0U] = 1U;
+            Fixture fixture;
+            DispatchPort port;
+            auto context = fixture.context();
+            context.startup = nullptr;
+
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActionDispatchStatus::
+                            group_a_attribute_effect_typed_stop &&
+                    result.return_value == 1U &&
+                    result.group_a_attribute_effect_calls == 0U &&
+                    state.actors[0U].action_complete == 1U &&
+                    state.actors[0U].update_ready == 1U &&
+                    port.count(0x0046EE60U) == 0U &&
+                    port.count(0x0047F150U) == 0U,
+                "missing startup actor owner stops after progress completion and before the reclaimed attribute call"
+            );
+        }
+
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.final_actor_step.actor_order[0] = 9U;
+            state.final_actor_step.actor_order[1] = 10U;
+            Fixture fixture;
+            DispatchPort port;
+            port.push(0x0047F920U, {.eax = 0U});
+            auto context = fixture.context();
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.return_value == 1U &&
+                    state.final_actor_step.queued_actor_code == 9U &&
+                    state.final_actor_step.actor_order[0] == 10U &&
+                    state.final_actor_step.actor_order[1] == 0U,
+                "actor queue publishes first unfinished entry then shifts fixed tail left"
+            );
+        }
+
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.action.group_a_action_execution[2U].idle_state_latch = 1U;
+            Fixture fixture;
+            DispatchPort port;
+            port.push(0x0047F920U, {.eax = 0U});
+            auto context = fixture.context();
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 2U
+                );
+            test.expect_true(
+                result.return_value == 1U &&
+                    state.actors[2].frame_started == 1U &&
+                    state.final_actor_step.active_actor_code == 0xFFFFFFFFU &&
+                    result.attack_order_insert_calls == 1U &&
+                    result.attack_order_insert.record_written &&
+                    result.attack_order_remove_calls == 1U &&
+                    result.attack_order_remove.matched &&
+                    fixture.attack_order_records[0].value_00 == 0xFFFFFFFFU &&
+                    fixture.attack_order_records[0].value_08 == 0U &&
+                    port.count(0x0045EE70U) == 0U &&
+                    port.count(0x0045EFB0U) == 0U,
+                "started actor is registered then removed directly by the composed final actor suffix"
+            );
+        }
+
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.ai_coordination_enabled = 1U;
+            Fixture fixture;
+            DispatchPort port;
+            port.push(0x0047F920U, {.eax = 0U});
+            auto context = fixture.context();
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 2U
+                );
+            test.expect_true(
                 result.actor_target_preparation_calls == 1U &&
-                result.actor_availability_block_calls == 1U &&
-                result.actor_availability_block.actor_writes == 0U &&
-                result.return_value == 1U &&
-                result.actor_availability_block.return_ecx == 0x00508838U &&
-                result.actor_availability_block.return_edx == 10U &&
-                fixture.shared_action.opponent_workspace[12U] == 1U &&
-                port.battle_debug_hotkey_state().committed_actor_code == 10U &&
-                fixture.target_runtime.selected_action_kind == 1U &&
-                fixture.target_runtime.actor_commit_gate == 1U &&
-                fixture.shared_final_actor.published_actor_code == 0U,
-            "group-A queue typed write stop preserves target preparation and suppresses every nested suffix"
-        );
-    }
-
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        state.ai_coordination_enabled = 1U;
-        Fixture fixture;
-        DispatchPort port;
-        port.push(0x0047F920U, {.eax = 0U});
-        auto context = fixture.context();
-        context.target_selection_runtime = nullptr;
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 2U
+                    fixture.shared_action.opponent_workspace[12U] == 1U &&
+                    fixture.shared_final_actor.published_actor_code == 0U &&
+                    fixture.target_runtime.selected_action_kind == 1U &&
+                    fixture.target_runtime.actor_commit_gate == 1U &&
+                    port.battle_debug_hotkey_state().committed_actor_code ==
+                        10U &&
+                    result.actor_availability_block_calls == 1U &&
+                    result.actor_availability_block.actor_writes == 1U &&
+                    fixture.shared_final_actor.group_a_availability_blocks[2U]
+                            .value == 1U &&
+                    port.count(0x00478330U) == 0U &&
+                    port.count(0x00464CC0U) == 0U,
+                "group-A queue caller directly prepares the shared actor target through the typed owner"
             );
-        test.expect_true(
-            result.status ==
-                    LegacyBattleActionDispatchStatus::
-                        actor_target_preparation_typed_stop &&
-                result.actor_target_preparation_calls == 0U &&
-                port.count(0x00464CC0U) == 0U,
-            "group-A queue caller stops at the reclaimed boundary when the shared target owner is unavailable"
-        );
-    }
+        }
 
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        state.action.group_a_action_execution[2U].idle_state_latch = 1U;
-        Fixture fixture;
-        DispatchPort port;
-        port.push(0x0047F920U, {.eax = 0U});
-        auto context = fixture.context();
-        context.attack_order_party_sources = {};
-
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 2U
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.ai_coordination_enabled = 1U;
+            Fixture fixture;
+            fixture.shared_final_actor.group_a_availability_blocks[2U]
+                .write_accessible = false;
+            DispatchPort port;
+            port.push(0x0047F920U, {.eax = 0U});
+            auto context = fixture.context();
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 2U
+                );
+            test.expect_true(
+                result.status ==
+                        openswd3::battle::LegacyBattleActionDispatchStatus::
+                            actor_availability_block_typed_stop &&
+                    result.actor_target_preparation_calls == 1U &&
+                    result.actor_availability_block_calls == 1U &&
+                    result.actor_availability_block.actor_writes == 0U &&
+                    result.return_value == 1U &&
+                    result.actor_availability_block.return_ecx == 0x00508838U &&
+                    result.actor_availability_block.return_edx == 10U &&
+                    fixture.shared_action.opponent_workspace[12U] == 1U &&
+                    port.battle_debug_hotkey_state().committed_actor_code ==
+                        10U &&
+                    fixture.target_runtime.selected_action_kind == 1U &&
+                    fixture.target_runtime.actor_commit_gate == 1U &&
+                    fixture.shared_final_actor.published_actor_code == 0U,
+                "group-A queue typed write stop preserves target preparation and suppresses every nested suffix"
             );
+        }
+    }();
 
-        test.expect_true(
-            result.status ==
-                    LegacyBattleActionDispatchStatus::
-                        attack_order_insert_typed_stop &&
-                state.actors[2].frame_started == 1U &&
-                state.final_actor_step.active_actor_code == 10U &&
-                fixture.attack_order_records[0].value_00 == 10U &&
-                fixture.attack_order_records[0].value_08 == 1U &&
-                result.return_value == 0U,
-            "attack-order source stop preserves actor start and record prefix then blocks the final actor suffix"
-        );
-    }
-
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        state.actor_enabled[0] = 1U;
-        state.actors[0].action_complete = 1U;
-        state.action.group_b_count = 2;
-        state.action.group_a_to_actor[0] = 0xFFFFFFFFU;
-        state.action.group_a_to_actor[1] = 0xFFFFFFFFU;
-        Fixture fixture;
-        DispatchPort port;
-        port.push(0x0047CE80U, {.eax = 0U});
-        port.push(0x0047CE80U, {.eax = 0U});
-        port.push(0x0047CE80U, {.eax = 0U});
-        auto context = fixture.context();
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 0U
+    [&] {
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.ai_coordination_enabled = 1U;
+            Fixture fixture;
+            DispatchPort port;
+            port.push(0x0047F920U, {.eax = 0U});
+            auto context = fixture.context();
+            context.target_selection_runtime = nullptr;
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 2U
+                );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActionDispatchStatus::
+                            actor_target_preparation_typed_stop &&
+                    result.actor_target_preparation_calls == 0U &&
+                    port.count(0x00464CC0U) == 0U,
+                "group-A queue caller stops at the reclaimed boundary when the shared target owner is unavailable"
             );
-        test.expect_true(
-            result.return_value == 1U && state.actors[0].progress == 2U &&
-                port.count(0x00478B30U) == 1U &&
-                has_call_argument(port, 0x00478A70U, 0U, 0U),
-            "completed actor scans unmapped live opponents and selects first live index"
-        );
-    }
+        }
 
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        state.action.active_effect_target = 8U;
-        state.final_actor_step.action_execution_active = 1U;
-        state.action.group_a_count = 0;
-        state.action.group_b_count = 0;
-        state.action.group_a_action_execution[0U].action_kind = 0U;
-        state.action.group_a_action_execution[0U].action_target = 0U;
-        Fixture fixture;
-        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
-            openswd3::battle::LegacyBattleActorGroupBElementState,
-            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
-        DispatchPort port;
-        port.push(0x0047C690U, {.eax = 0xABCD1234U, .edx = 0x55667788U});
-        auto context = fixture.context();
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 0U
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.action.group_a_action_execution[2U].idle_state_latch = 1U;
+            Fixture fixture;
+            DispatchPort port;
+            port.push(0x0047F920U, {.eax = 0U});
+            auto context = fixture.context();
+            context.attack_order_party_sources = {};
+
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 2U
+                );
+
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActionDispatchStatus::
+                            attack_order_insert_typed_stop &&
+                    state.actors[2].frame_started == 1U &&
+                    state.final_actor_step.active_actor_code == 10U &&
+                    fixture.attack_order_records[0].value_00 == 10U &&
+                    fixture.attack_order_records[0].value_08 == 1U &&
+                    result.return_value == 0U,
+                "attack-order source stop preserves actor start and record prefix then blocks the final actor suffix"
             );
-        test.expect_true(
-            result.status == LegacyBattleActionDispatchStatus::completed &&
-                result.actor_action_target_calls >= 1U &&
-                result.actor_action_targets[0U].return_eax == 0xABCD0000U &&
-                result.actor_action_targets[0U].return_ecx == 0x005029D0U &&
-                result.actor_action_targets[0U].return_edx == 0x55667788U &&
-                result.actor_action_targets[0U].return_eip == 0x004570D1U,
-            "active Group-A actor preserves the first action-start target caller when nested dispatch remains incomplete"
-        );
-    }
+        }
 
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        state.action.active_effect_target = 8U;
-        state.final_actor_step.action_execution_active = 1U;
-        state.action.group_a_action_execution[0U].action_target = 0U;
-        Fixture fixture;
-        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
-            openswd3::battle::LegacyBattleActorGroupBElementState,
-            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
-        DispatchPort port;
-        auto context = fixture.context();
-        context.group_a_frame_action_target_requests[1U]
-            .access.action_target_readable = false;
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 0U
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.actor_enabled[0] = 1U;
+            state.actors[0].action_complete = 1U;
+            state.action.group_b_count = 2;
+            state.action.group_a_to_actor[0] = 0xFFFFFFFFU;
+            state.action.group_a_to_actor[1] = 0xFFFFFFFFU;
+            Fixture fixture;
+            DispatchPort port;
+            port.push(0x0047CE80U, {.eax = 0U});
+            port.push(0x0047CE80U, {.eax = 0U});
+            port.push(0x0047CE80U, {.eax = 0U});
+            auto context = fixture.context();
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.return_value == 1U && state.actors[0].progress == 2U &&
+                    port.count(0x00478B30U) == 1U &&
+                    result.actor_target_selection.calls == 1U &&
+                    result.actor_target_selection.call_addresses[0U] ==
+                        0x00456B59U &&
+                    result.actor_target_selection.argument_values[0U] == 0U,
+                "completed actor scans unmapped live opponents and selects first live index"
             );
-        test.expect_true(
-            result.status ==
-                    LegacyBattleActionDispatchStatus::
-                        actor_action_target_typed_stop &&
-                result.actor_action_target_calls == 1U &&
-                result.actor_action_target.return_eip == 0x004786E0U &&
-                result.actor_action_target.action_target_reads == 0U &&
-                port.count(0x0047C690U) == 1U &&
-                port.count(0x00478B20U) == 0U &&
-                state.final_actor_step.action_execution_active == 1U,
-            "Group-A target stop preserves action preparation and suppresses nested dispatch cleanup"
-        );
-    }
+        }
 
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        state.action.active_effect_target = 8U;
-        state.final_actor_step.action_execution_active = 1U;
-        state.action.group_a_count = 0;
-        state.action.group_b_count = 0;
-        state.action.selected_target_index = 0U;
-        state.action.group_a_action_execution[0U].action_target = 0U;
-        Fixture fixture;
-        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
-            openswd3::battle::LegacyBattleActorGroupBElementState,
-            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
-        DispatchPort port;
-        state.action.group_a_action_execution[0U].action_kind = 5U;
-        port.action_target = 0U;
-        port.push(0x0047CE80U, {.eax = 0U});
-        auto context = fixture.context();
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 0U
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.action.active_effect_target = 8U;
+            state.final_actor_step.action_execution_active = 1U;
+            state.action.group_a_count = 0;
+            state.action.group_b_count = 0;
+            state.action.group_a_action_execution[0U].action_kind = 0U;
+            state.action.group_a_action_execution[0U].action_target = 0U;
+            Fixture fixture;
+            fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+                openswd3::battle::LegacyBattleActorGroupBElementState,
+                openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+            DispatchPort port;
+            port.push(0x0047C690U, {.eax = 0xABCD1234U, .edx = 0x55667788U});
+            auto context = fixture.context();
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.status == LegacyBattleActionDispatchStatus::completed &&
+                    result.actor_action_target_calls >= 1U &&
+                    result.actor_action_targets[0U].return_eax == 0xABCD0000U &&
+                    result.actor_action_targets[0U].return_ecx == 0x005029D0U &&
+                    result.actor_action_targets[0U].return_edx == 0x55667788U &&
+                    result.actor_action_targets[0U].return_eip == 0x004570D1U,
+                "active Group-A actor preserves the first action-start target caller when nested dispatch remains incomplete"
             );
-        test.expect_true(
-            result.status == LegacyBattleActionDispatchStatus::completed &&
-                result.return_value == 1U && port.count(0x004539B0U) == 0U &&
-                port.count(0x004786B0U) == 0U &&
-                port.count(0x00478850U) == 0U &&
-                result.actor_runtime_reset.calls >= 1U &&
-                std::ranges::find(
-                    result.actor_runtime_reset.actor_tokens.begin(),
-                    result.actor_runtime_reset.actor_tokens.begin() +
-                        static_cast<std::ptrdiff_t>(
-                            result.actor_runtime_reset.calls
-                        ),
-                    0x00525508U
-                ) !=
-                    result.actor_runtime_reset.actor_tokens.begin() +
-                        static_cast<std::ptrdiff_t>(
-                            result.actor_runtime_reset.calls
-                        ) &&
-                state.final_actor_step.action_execution_active == 0U &&
-                state.action.active_effect_target == 0xFFFFFFFFU &&
-                state.shared_gate_4ff578 == 1U &&
-                state.shared_gate_4ff57c == 1U &&
-                state.shared_gate_4ff580 == 1U &&
-                state.shared_gate_4ff584 == 1U,
-            "active actor directly composes action dispatch and post-action cleanup suffixes"
-        );
-        test.expect_true(
-            result.actor_action_target_calls >= 2U,
-            "active actor reaches the first two physical action-target callers"
-        );
-        test.expect_true(
-            result.actor_action_targets[1U].return_eip == 0x004570F1U,
-            "active actor preserves the second physical action-target return address"
-        );
-        test.expect_true(
-            result.actor_action_targets[1U].return_ecx == 0x005029D0U,
-            "active actor preserves the source token at the second action-target caller"
-        );
-        test.expect_true(
-            result.actor_action_targets[1U].flags_known &&
-                result.actor_action_targets[1U].flags.zero,
-            "active actor preserves the successful nested-dispatch comparison flags"
-        );
-    }
+        }
 
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        state.action.active_effect_target = 8U;
-        state.final_actor_step.action_execution_active = 1U;
-        state.action.group_a_count = 0;
-        state.action.group_b_count = 1;
-        state.action.selected_target_index = 0U;
-        state.action.group_a_action_execution[0U].action_kind = 5U;
-        state.action.group_a_action_execution[0U].action_target = 0U;
-        Fixture fixture;
-        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
-            openswd3::battle::LegacyBattleActorGroupBElementState,
-            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
-        (*fixture.startup.group_b_lifecycle)[0U]
-            .action_execution.action_target = 0xFFFFU;
-        DispatchPort port;
-        port.default_reply.edx = 0xAABBCCDDU;
-        auto context = fixture.context();
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 0U
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.action.active_effect_target = 8U;
+            state.final_actor_step.action_execution_active = 1U;
+            state.action.group_a_action_execution[0U].action_target = 0U;
+            Fixture fixture;
+            fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+                openswd3::battle::LegacyBattleActorGroupBElementState,
+                openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+            DispatchPort port;
+            auto context = fixture.context();
+            context.group_a_frame_action_target_requests[1U]
+                .access.action_target_readable = false;
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActionDispatchStatus::
+                            actor_action_target_typed_stop &&
+                    result.actor_action_target_calls == 1U &&
+                    result.actor_action_target.return_eip == 0x004786E0U &&
+                    result.actor_action_target.action_target_reads == 0U &&
+                    port.count(0x0047C690U) == 1U &&
+                    port.count(0x00478B20U) == 0U &&
+                    state.final_actor_step.action_execution_active == 1U,
+                "Group-A target stop preserves action preparation and suppresses nested dispatch cleanup"
             );
-        test.expect_true(
-            result.status == LegacyBattleActionDispatchStatus::completed,
-            "completed Group-A action finishes the terminal target path"
-        );
-        test.expect_true(
-            result.actor_action_target_calls >= 3U,
-            "completed Group-A action reaches the fourth physical target caller"
-        );
-        test.expect_true(
-            result.actor_action_targets[2U].return_eax == 0x0000FFFFU,
-            "fourth Group-A frame target caller preserves the terminal EAX high word"
-        );
-        test.expect_true(
-            result.actor_action_targets[2U].return_ecx == 0x00525508U,
-            "fourth Group-A frame target caller preserves the completed target token"
-        );
-        test.expect_true(
-            result.actor_action_targets[2U].return_edx == 0xAABBCCDDU,
-            "fourth Group-A frame target caller preserves terminal EDX"
-        );
-        test.expect_true(
-            result.actor_action_targets[2U].return_eip == 0x004571EDU,
-            "fourth Group-A frame target caller preserves its physical return address"
-        );
-        test.expect_true(
-            result.actor_action_targets[2U].flags_known &&
-                result.actor_action_targets[2U].flags.zero,
-            "fourth Group-A frame target caller preserves terminal comparison flags"
-        );
-    }
+        }
 
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        state.action.active_effect_target = 8U;
-        state.action.group_a_action_execution[0U].action_target = 0xFFFFU;
-        state.final_actor_step.action_execution_active = 0U;
-        Fixture fixture;
-        DispatchPort port;
-        auto context = fixture.context();
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 0U
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.action.active_effect_target = 8U;
+            state.final_actor_step.action_execution_active = 1U;
+            state.action.group_a_count = 0;
+            state.action.group_b_count = 0;
+            state.action.selected_target_index = 0U;
+            state.action.group_a_action_execution[0U].action_target = 0U;
+            Fixture fixture;
+            fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+                openswd3::battle::LegacyBattleActorGroupBElementState,
+                openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+            DispatchPort port;
+            state.action.group_a_action_execution[0U].action_kind = 5U;
+            port.action_target = 0U;
+            port.push(0x0047CE80U, {.eax = 0U});
+            auto context = fixture.context();
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.status == LegacyBattleActionDispatchStatus::completed &&
+                    result.return_value == 1U &&
+                    port.count(0x004539B0U) == 0U &&
+                    port.count(0x004786B0U) == 0U &&
+                    port.count(0x00478850U) == 0U &&
+                    result.actor_runtime_reset.calls >= 1U &&
+                    std::ranges::find(
+                        result.actor_runtime_reset.actor_tokens.begin(),
+                        result.actor_runtime_reset.actor_tokens.begin() +
+                            static_cast<std::ptrdiff_t>(
+                                result.actor_runtime_reset.calls
+                            ),
+                        0x00525508U
+                    ) !=
+                        result.actor_runtime_reset.actor_tokens.begin() +
+                            static_cast<std::ptrdiff_t>(
+                                result.actor_runtime_reset.calls
+                            ) &&
+                    state.final_actor_step.action_execution_active == 0U &&
+                    state.action.active_effect_target == 0xFFFFFFFFU &&
+                    state.shared_gate_4ff578 == 1U &&
+                    state.shared_gate_4ff57c == 1U &&
+                    state.shared_gate_4ff580 == 1U &&
+                    state.shared_gate_4ff584 == 1U,
+                "active actor directly composes action dispatch and post-action cleanup suffixes"
             );
-        test.expect_true(
-            result.status ==
-                    LegacyBattleActionDispatchStatus::
-                        group_b_index_typed_stop &&
-                port.count(0x00478690U) == 0U,
-            "action preparation stops when queried target first forms invalid group B object"
-        );
-    }
-
-    {
-        openswd3::battle::LegacyBattleGroupAConfigurationState first_actor;
-        first_actor.actor_record_token = 0x005029D0U;
-        first_actor.actor_record[11U] = 20U;
-        RandomPort random;
-        const auto zero =
-            openswd3::battle::evaluate_legacy_battle_turn_commit_chance(
-                nullptr, random, {.candidate = 0U}
+            test.expect_true(
+                result.actor_action_target_calls >= 2U,
+                "active actor reaches the first two physical action-target callers"
             );
-        random.value = 35U;
-        const auto below_true =
-            openswd3::battle::evaluate_legacy_battle_turn_commit_chance(
-                &first_actor, random, {.candidate = 21U}
+            test.expect_true(
+                result.actor_action_targets[1U].return_eip == 0x004570F1U,
+                "active actor preserves the second physical action-target return address"
             );
-        random.value = 36U;
-        const auto below_false =
-            openswd3::battle::evaluate_legacy_battle_turn_commit_chance(
-                &first_actor, random, {.candidate = 21U}
+            test.expect_true(
+                result.actor_action_targets[1U].return_ecx == 0x005029D0U,
+                "active actor preserves the source token at the second action-target caller"
             );
-        const auto equal =
-            openswd3::battle::evaluate_legacy_battle_turn_commit_chance(
-                &first_actor, random, {.candidate = 20U}
+            test.expect_true(
+                result.actor_action_targets[1U].flags_known &&
+                    result.actor_action_targets[1U].flags.zero,
+                "active actor preserves the successful nested-dispatch comparison flags"
             );
-        random.value = 70U;
-        const auto near =
-            openswd3::battle::evaluate_legacy_battle_turn_commit_chance(
-                &first_actor, random, {.candidate = 19U}
+        }
+
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.action.active_effect_target = 8U;
+            state.final_actor_step.action_execution_active = 1U;
+            state.action.group_a_count = 0;
+            state.action.group_b_count = 1;
+            state.action.selected_target_index = 0U;
+            state.action.group_a_action_execution[0U].action_kind = 5U;
+            state.action.group_a_action_execution[0U].action_target = 0U;
+            Fixture fixture;
+            fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+                openswd3::battle::LegacyBattleActorGroupBElementState,
+                openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+            (*fixture.startup.group_b_lifecycle)[0U]
+                .action_execution.action_target = 0xFFFFU;
+            DispatchPort port;
+            port.default_reply.edx = 0xAABBCCDDU;
+            auto context = fixture.context();
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.status == LegacyBattleActionDispatchStatus::completed,
+                "completed Group-A action finishes the terminal target path"
             );
-        random.value = 90U;
-        const auto middle =
-            openswd3::battle::evaluate_legacy_battle_turn_commit_chance(
-                &first_actor, random, {.candidate = 12U}
+            test.expect_true(
+                result.actor_action_target_calls >= 3U,
+                "completed Group-A action reaches the fourth physical target caller"
             );
-        const auto far =
-            openswd3::battle::evaluate_legacy_battle_turn_commit_chance(
-                &first_actor, random, {.candidate = 7U}
+            test.expect_true(
+                result.actor_action_targets[2U].return_eax == 0x0000FFFFU,
+                "fourth Group-A frame target caller preserves the terminal EAX high word"
             );
-        test.expect_true(
-            zero.return_eax == 0U && zero.random_calls == 0U &&
-                below_true.return_eax == 1U && below_true.difference == -1 &&
-                below_false.return_eax == 0U && equal.return_eax == 0U &&
-                equal.random_calls == 0U && near.return_eax == 1U &&
-                near.difference == 1 && middle.return_eax == 1U &&
-                middle.difference == 8 && far.return_eax == 1U &&
-                far.difference == 13 && far.random_calls == 0U &&
-                random.bounds == std::vector<u32>({100U, 100U, 100U, 100U}),
-            "turn commit chance preserves zero, equal, three inclusive random bands and deterministic far success"
-        );
-    }
+            test.expect_true(
+                result.actor_action_targets[2U].return_ecx == 0x00525508U,
+                "fourth Group-A frame target caller preserves the completed target token"
+            );
+            test.expect_true(
+                result.actor_action_targets[2U].return_edx == 0xAABBCCDDU,
+                "fourth Group-A frame target caller preserves terminal EDX"
+            );
+            test.expect_true(
+                result.actor_action_targets[2U].return_eip == 0x004571EDU,
+                "fourth Group-A frame target caller preserves its physical return address"
+            );
+            test.expect_true(
+                result.actor_action_targets[2U].flags_known &&
+                    result.actor_action_targets[2U].flags.zero,
+                "fourth Group-A frame target caller preserves terminal comparison flags"
+            );
+        }
 
-    {
-        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
-        openswd3::battle::LegacyBattleGroupAActionExecutionSharedState shared;
-        openswd3::battle::LegacyBattleActorProgressState progress;
-        actor.turn_completion_latch = 9U;
-        progress.special_ready = 1U;
-        DispatchPort port;
-        const auto result = openswd3::battle::advance_legacy_battle_turn_gate(
-            &actor,
-            &shared,
-            &progress,
-            port,
-            {.actor_token = 0x005029D0U,
-             .entry_eax = 0x11111111U,
-             .entry_ecx = 0x005029D0U,
-             .entry_edx = 0x22222222U}
-        );
-        test.expect_true(
-            result.return_eax == 1U && result.return_ecx == 0x005029D0U &&
-                result.return_edx == 0x22222222U &&
-                actor.turn_completion_latch == 0U && result.port_calls == 0U,
-            "turn gate special-ready path clears the latch before returning without any call"
-        );
-    }
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.action.active_effect_target = 8U;
+            state.action.group_a_action_execution[0U].action_target = 0xFFFFU;
+            state.final_actor_step.action_execution_active = 0U;
+            Fixture fixture;
+            DispatchPort port;
+            auto context = fixture.context();
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActionDispatchStatus::
+                            group_b_index_typed_stop &&
+                    port.count(0x00478690U) == 0U,
+                "action preparation stops when queried target first forms invalid group B object"
+            );
+        }
 
-    {
-        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
-        openswd3::battle::LegacyBattleGroupAActionExecutionSharedState shared;
-        openswd3::battle::LegacyBattleActorProgressState progress;
-        actor.turn_countdown = 7;
-        DispatchPort port;
-        port.push(
-            0x0047F920U, {.eax = 1U, .ecx = 0x33333333U, .edx = 0x44444444U}
-        );
-        const auto result = openswd3::battle::advance_legacy_battle_turn_gate(
-            &actor,
-            &shared,
-            &progress,
-            port,
-            {.actor_token = 0x005029D0U, .entry_ecx = 0x005029D0U}
-        );
-        test.expect_true(
-            result.return_eax == 0U && result.return_ecx == 0x33333333U &&
-                result.return_edx == 0x44444444U &&
-                actor.turn_threshold == 2U && actor.turn_countdown == 6 &&
-                result.queue_completion_calls == 1U && result.port_calls == 1U,
-            "turn gate decrements the signed countdown while queue completion remains above the mode-zero threshold"
-        );
-    }
+        {
+            openswd3::battle::LegacyBattleGroupAConfigurationState first_actor;
+            first_actor.actor_record_token = 0x005029D0U;
+            first_actor.actor_record[11U] = 20U;
+            RandomPort random;
+            const auto zero =
+                openswd3::battle::evaluate_legacy_battle_turn_commit_chance(
+                    nullptr, random, {.candidate = 0U}
+                );
+            random.value = 35U;
+            const auto below_true =
+                openswd3::battle::evaluate_legacy_battle_turn_commit_chance(
+                    &first_actor, random, {.candidate = 21U}
+                );
+            random.value = 36U;
+            const auto below_false =
+                openswd3::battle::evaluate_legacy_battle_turn_commit_chance(
+                    &first_actor, random, {.candidate = 21U}
+                );
+            const auto equal =
+                openswd3::battle::evaluate_legacy_battle_turn_commit_chance(
+                    &first_actor, random, {.candidate = 20U}
+                );
+            random.value = 70U;
+            const auto near =
+                openswd3::battle::evaluate_legacy_battle_turn_commit_chance(
+                    &first_actor, random, {.candidate = 19U}
+                );
+            random.value = 90U;
+            const auto middle =
+                openswd3::battle::evaluate_legacy_battle_turn_commit_chance(
+                    &first_actor, random, {.candidate = 12U}
+                );
+            const auto far =
+                openswd3::battle::evaluate_legacy_battle_turn_commit_chance(
+                    &first_actor, random, {.candidate = 7U}
+                );
+            test.expect_true(
+                zero.return_eax == 0U && zero.random_calls == 0U &&
+                    below_true.return_eax == 1U &&
+                    below_true.difference == -1 &&
+                    below_false.return_eax == 0U && equal.return_eax == 0U &&
+                    equal.random_calls == 0U && near.return_eax == 1U &&
+                    near.difference == 1 && middle.return_eax == 1U &&
+                    middle.difference == 8 && far.return_eax == 1U &&
+                    far.difference == 13 && far.random_calls == 0U &&
+                    random.bounds == std::vector<u32>({100U, 100U, 100U, 100U}),
+                "turn commit chance preserves zero, equal, three inclusive random bands and deterministic far success"
+            );
+        }
+    }();
 
-    {
-        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
-        openswd3::battle::LegacyBattleGroupAActionExecutionSharedState shared;
-        openswd3::battle::LegacyBattleActorProgressState progress;
-        actor.turn_countdown = 6;
-        DispatchPort port;
-        port.push(0x0047F920U, {.eax = 1U});
-        const auto result = openswd3::battle::advance_legacy_battle_turn_gate(
-            &actor,
-            &shared,
-            &progress,
-            port,
-            {.actor_token = 0x005029D0U,
-             .argument = 1U,
-             .entry_ecx = 0x005029D0U}
-        );
-        test.expect_true(
-            result.return_eax == 1U && actor.turn_threshold == 6U &&
-                actor.turn_countdown == 15 && actor.turn_completion_latch == 0U,
-            "turn gate resets the countdown to fifteen at the inclusive mode-one completion threshold"
-        );
-    }
+    [&] {
+        {
+            openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+            openswd3::battle::LegacyBattleGroupAActionExecutionSharedState
+                shared;
+            openswd3::battle::LegacyBattleActorProgressState progress;
+            actor.turn_completion_latch = 9U;
+            progress.special_ready = 1U;
+            DispatchPort port;
+            const auto result =
+                openswd3::battle::advance_legacy_battle_turn_gate(
+                    &actor,
+                    &shared,
+                    &progress,
+                    port,
+                    {.actor_token = 0x005029D0U,
+                     .entry_eax = 0x11111111U,
+                     .entry_ecx = 0x005029D0U,
+                     .entry_edx = 0x22222222U}
+                );
+            test.expect_true(
+                result.return_eax == 1U && result.return_ecx == 0x005029D0U &&
+                    result.return_edx == 0x22222222U &&
+                    actor.turn_completion_latch == 0U &&
+                    result.port_calls == 0U,
+                "turn gate special-ready path clears the latch before returning without any call"
+            );
+        }
 
-    {
-        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
-        openswd3::battle::LegacyBattleGroupAActionExecutionSharedState shared;
-        openswd3::battle::LegacyBattleActorProgressState progress;
-        actor.turn_action_record.action_id = 0xFFFFFFFFU;
-        actor.turn_action_record.field_94 = 0xFFFFFFFFU;
-        actor.turn_completion_latch = 9U;
-        actor.turn_countdown = 2;
-        DispatchPort port;
-        port.push(0x0047F920U, {.eax = 0U});
-        const auto first = openswd3::battle::advance_legacy_battle_turn_gate(
-            &actor,
-            &shared,
-            &progress,
-            port,
-            {.actor_token = 0x005029D0U, .entry_ecx = 0x005029D0U}
-        );
-        const u32 first_latch = actor.turn_completion_latch;
-        actor.turn_countdown = 6;
-        actor.turn_completion_latch = 9U;
-        port.push(0x0047F920U, {.eax = 0U});
-        const auto second = openswd3::battle::advance_legacy_battle_turn_gate(
-            &actor,
-            &shared,
-            &progress,
-            port,
-            {.actor_token = 0x005029D0U,
-             .argument = 1U,
-             .entry_ecx = 0x005029D0U}
-        );
-        test.expect_true(
-            first.return_eax == 1U && first.action_record_clears == 1U &&
-                first_latch == 9U && actor.turn_action_record.action_id == 0U &&
-                actor.turn_action_record.field_94 == 0U &&
-                second.return_eax == 1U && second.action_record_clears == 1U &&
-                actor.turn_completion_latch == 1U && actor.turn_countdown == 15,
-            "turn gate clears exactly the action record and only mode one sets the completion latch"
-        );
-    }
+        {
+            openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+            openswd3::battle::LegacyBattleGroupAActionExecutionSharedState
+                shared;
+            openswd3::battle::LegacyBattleActorProgressState progress;
+            actor.turn_countdown = 7;
+            DispatchPort port;
+            port.push(
+                0x0047F920U, {.eax = 1U, .ecx = 0x33333333U, .edx = 0x44444444U}
+            );
+            const auto result =
+                openswd3::battle::advance_legacy_battle_turn_gate(
+                    &actor,
+                    &shared,
+                    &progress,
+                    port,
+                    {.actor_token = 0x005029D0U, .entry_ecx = 0x005029D0U}
+                );
+            test.expect_true(
+                result.return_eax == 0U && result.return_ecx == 0x33333333U &&
+                    result.return_edx == 0x44444444U &&
+                    actor.turn_threshold == 2U && actor.turn_countdown == 6 &&
+                    result.queue_completion_calls == 1U &&
+                    result.port_calls == 1U,
+                "turn gate decrements the signed countdown while queue completion remains above the mode-zero threshold"
+            );
+        }
 
-    {
-        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
-        openswd3::battle::LegacyBattleGroupAActionExecutionSharedState shared;
-        openswd3::battle::LegacyBattleActorProgressState progress;
-        actor.profile_value = 0x1234U;
-        actor.special_mode = 1U;
-        actor.turn_countdown = 7;
-        actor.turn_action_record.field_4a = 0x1122U;
-        actor.turn_action_record.field_4c = 0x3344U;
-        DispatchPort port;
-        port.push(0x0047F920U, {.eax = 0U});
-        port.push(
-            0x004321E0U, {.eax = 0U, .ecx = 0xABCDEF01U, .edx = 0x12345678U}
-        );
-        const auto result = openswd3::battle::advance_legacy_battle_turn_gate(
-            &actor,
-            &shared,
-            &progress,
-            port,
-            {.actor_token = 0x005029D0U,
-             .argument = 1U,
-             .entry_ecx = 0x005029D0U}
-        );
-        test.expect_true(
-            result.return_eax == 1U && result.return_ecx == 0xABCDEF01U &&
-                result.return_edx == 0x12345678U &&
-                actor.turn_completion_latch == 1U &&
-                actor.turn_action_record.action_id == 0x1234U &&
-                actor.turn_action_record.base_variant == 0x2AU &&
-                actor.turn_action_record.external_mode == 1U &&
-                has_call_argument(port, 0x004321E0U, 0U, 0x00502E38U) &&
-                port.count(0x004315D0U) == 0U,
-            "turn gate preserves the initialized prefix and returns one when the action updater returns zero"
-        );
-    }
+        {
+            openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+            openswd3::battle::LegacyBattleGroupAActionExecutionSharedState
+                shared;
+            openswd3::battle::LegacyBattleActorProgressState progress;
+            actor.turn_countdown = 6;
+            DispatchPort port;
+            port.push(0x0047F920U, {.eax = 1U});
+            const auto result =
+                openswd3::battle::advance_legacy_battle_turn_gate(
+                    &actor,
+                    &shared,
+                    &progress,
+                    port,
+                    {.actor_token = 0x005029D0U,
+                     .argument = 1U,
+                     .entry_ecx = 0x005029D0U}
+                );
+            test.expect_true(
+                result.return_eax == 1U && actor.turn_threshold == 6U &&
+                    actor.turn_countdown == 15 &&
+                    actor.turn_completion_latch == 0U,
+                "turn gate resets the countdown to fifteen at the inclusive mode-one completion threshold"
+            );
+        }
 
-    {
-        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
-        openswd3::battle::LegacyBattleGroupAActionExecutionSharedState shared;
-        openswd3::battle::LegacyBattleActorProgressState progress;
-        actor.profile_value = 0x55AAU;
-        actor.turn_countdown = 15;
-        actor.position_x = 200U;
-        actor.position_y = 300U;
-        actor.turn_action_record.draw_offset_x = 3U;
-        actor.turn_action_record.draw_offset_y = 5U;
-        actor.turn_action_record.mode_flags = 4U;
-        actor.turn_action_record.field_4a = 0x1122U;
-        actor.turn_action_record.field_4c = 0x3344U;
-        DispatchPort port;
-        port.push(0x0047F920U, {.eax = 0U});
-        port.push(
-            0x004321E0U,
-            {.eax = 0xAAAA0001U, .ecx = 0xBBBB0002U, .edx = 0xCCCC0003U}
-        );
-        LegacyBattleActionCallReply frame{
-            .eax = 0x70000000U,
-            .ecx = 0xDDDD0004U,
-            .edx = 0xEEEE0005U,
-        };
-        frame.outputs = {0x71000000U, 40U, 20U, 0x72000000U};
-        port.push(0x004315D0U, frame);
-        port.push(
-            0x00485610U,
-            {.eax = 0x11110000U, .ecx = 0x22220000U, .edx = 0x33330000U}
-        );
-        port.push(
-            0x00485650U,
-            {.eax = 0x44440000U, .ecx = 0x55550000U, .edx = 0x66660000U}
-        );
-        port.push(0x004170E0U, {.edx = 0x88880000U});
-        const auto result = openswd3::battle::advance_legacy_battle_turn_gate(
-            &actor,
-            &shared,
-            &progress,
-            port,
-            {.actor_token = 0x005029D0U,
-             .argument = 1U,
-             .sample_handle = 0x12345678U,
-             .coordinate_output_x_token = 0xABCD0100U,
-             .coordinate_output_y_token = 0xDCBA0200U,
-             .entry_ecx = 0x005029D0U}
-        );
-        test.expect_true(
-            result.status == LegacyBattleTurnAdvanceStatus::completed &&
-                result.return_eax == 0U && result.return_edx == 0x88880000U &&
-                actor.turn_countdown == 14 && actor.turn_render_flags == 5U &&
-                actor.turn_target_x_offset == 3U &&
-                actor.turn_sample_word == 0U &&
-                shared.turn_frame_source_token == 0x71000000U &&
-                has_call_argument(port, 0x004315D0U, 0U, 0xAAAA1122U) &&
-                has_call_argument(port, 0x004315D0U, 1U, 0xCCCC3344U) &&
-                has_call_argument(port, 0x00485650U, 0U, 0x2222002FU) &&
-                has_call_argument(port, 0x00485650U, 1U, 0x10U) &&
-                actor.position_x == 216U && actor.position_y == 300U &&
-                actor.alternate_position_x == 216U &&
-                actor.alternate_position_y == 300U &&
-                result.coordinate_query_calls == 1U &&
-                result.current_coordinate_query.status ==
-                    openswd3::battle::
-                        LegacyBattleActorCurrentCoordinateQueryStatus::
-                            completed &&
-                result.current_coordinate_query.return_eax == 0xDCBA012CU &&
-                result.current_coordinate_query.return_ecx == 0xDCBA0200U &&
-                result.current_coordinate_query.return_edx == 0xABCD0100U &&
-                !result.current_coordinate_query.flags.carry &&
-                result.current_coordinate_query.flags.parity &&
-                result.current_coordinate_query.flags.auxiliary_carry &&
-                result.current_coordinate_query.flags.auxiliary_carry_defined &&
-                !result.current_coordinate_query.flags.zero &&
-                result.current_coordinate_query.flags.sign &&
-                !result.current_coordinate_query.flags.overflow &&
-                result.coordinate_publish_calls == 1U &&
-                result.coordinate_publication.status ==
-                    openswd3::battle::
-                        LegacyBattleActorCoordinatePublicationStatus::
-                            completed &&
-                result.coordinate_publication.argument_x == 216U &&
-                result.coordinate_publication.argument_y == 300U &&
-                result.coordinate_publication.return_eax == 216U &&
-                result.coordinate_publication.return_ecx == 0U &&
-                result.coordinate_publication.return_edx == 300U &&
-                result.coordinate_publication.return_esi == 0x005029D0U &&
-                result.coordinate_publication.return_edi == 0U &&
-                !result.coordinate_publication.flags.carry &&
-                result.coordinate_publication.flags.parity &&
-                !result.coordinate_publication.flags.auxiliary_carry &&
-                !result.coordinate_publication.flags.zero &&
-                !result.coordinate_publication.flags.sign &&
-                !result.coordinate_publication.flags.overflow &&
-                port.count(0x004785C0U) == 0U &&
-                has_call_argument(port, 0x004170E0U, 0U, 213U) &&
-                has_call_argument(port, 0x004170E0U, 1U, 295U) &&
-                has_call_argument(port, 0x004170E0U, 2U, 40U) &&
-                has_call_argument(port, 0x004170E0U, 3U, 20U) &&
-                has_call_argument(port, 0x004170E0U, 4U, 5U) &&
-                has_call_argument(port, 0x004170E0U, 5U, 0x72000000U) &&
-                port.count(0x00478600U) == 0U && result.port_calls == 6U,
-            "turn gate directly publishes shifted coordinates before rendering"
-        );
-    }
+        {
+            openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+            openswd3::battle::LegacyBattleGroupAActionExecutionSharedState
+                shared;
+            openswd3::battle::LegacyBattleActorProgressState progress;
+            actor.turn_action_record.action_id = 0xFFFFFFFFU;
+            actor.turn_action_record.field_94 = 0xFFFFFFFFU;
+            actor.turn_completion_latch = 9U;
+            actor.turn_countdown = 2;
+            DispatchPort port;
+            port.push(0x0047F920U, {.eax = 0U});
+            const auto first =
+                openswd3::battle::advance_legacy_battle_turn_gate(
+                    &actor,
+                    &shared,
+                    &progress,
+                    port,
+                    {.actor_token = 0x005029D0U, .entry_ecx = 0x005029D0U}
+                );
+            const u32 first_latch = actor.turn_completion_latch;
+            actor.turn_countdown = 6;
+            actor.turn_completion_latch = 9U;
+            port.push(0x0047F920U, {.eax = 0U});
+            const auto second =
+                openswd3::battle::advance_legacy_battle_turn_gate(
+                    &actor,
+                    &shared,
+                    &progress,
+                    port,
+                    {.actor_token = 0x005029D0U,
+                     .argument = 1U,
+                     .entry_ecx = 0x005029D0U}
+                );
+            test.expect_true(
+                first.return_eax == 1U && first.action_record_clears == 1U &&
+                    first_latch == 9U &&
+                    actor.turn_action_record.action_id == 0U &&
+                    actor.turn_action_record.field_94 == 0U &&
+                    second.return_eax == 1U &&
+                    second.action_record_clears == 1U &&
+                    actor.turn_completion_latch == 1U &&
+                    actor.turn_countdown == 15,
+                "turn gate clears exactly the action record and only mode one sets the completion latch"
+            );
+        }
 
-    {
-        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
-        openswd3::battle::LegacyBattleGroupAActionExecutionSharedState shared;
-        openswd3::battle::LegacyBattleActorProgressState progress;
-        actor.profile_value = 0x55AAU;
-        actor.turn_countdown = 7;
-        actor.turn_action_record.field_4a = 1U;
-        actor.turn_action_record.field_4c = 2U;
-        actor.alternate_position_x = 0x1111U;
-        actor.alternate_position_y = 0x2222U;
-        actor.publication_destination_dword_write_accessible[6U] = false;
-        progress.post_action_value = 1U;
-        DispatchPort port;
-        port.push(0x0047F920U, {.eax = 0U});
-        port.push(0x004321E0U, {.eax = 1U});
-        port.push(0x004315D0U, {.eax = 0x70000000U});
-        actor.position_x = 8U;
-        actor.position_y = 0xCCDDU;
-        const auto result = openswd3::battle::advance_legacy_battle_turn_gate(
-            &actor,
-            &shared,
-            &progress,
-            port,
-            {.actor_token = 0x005029D0U,
-             .argument = 1U,
-             .coordinate_y_initial = 0xAABB0000U,
-             .entry_ecx = 0x005029D0U}
-        );
-        test.expect_true(
-            result.status ==
-                    LegacyBattleTurnAdvanceStatus::
-                        actor_coordinate_publication_typed_stop &&
-                result.coordinate_publication.status ==
-                    openswd3::battle::
-                        LegacyBattleActorCoordinatePublicationStatus::
-                            destination_dword_write_typed_stop &&
-                result.coordinate_publication.stopped_dword_index == 6U &&
-                result.coordinate_publication.source_dword_reads == 7U &&
-                result.coordinate_publication.destination_dword_writes == 6U &&
-                result.coordinate_publication.return_eax == 0xFFFFFFF8U &&
-                result.coordinate_publication.return_ecx == 2U &&
-                result.coordinate_publication.return_edx == 0xAABBCCDDU &&
-                result.coordinate_publication.flags.carry &&
-                !result.coordinate_publication.flags.parity &&
-                !result.coordinate_publication.flags.auxiliary_carry &&
-                !result.coordinate_publication.flags.zero &&
-                result.coordinate_publication.flags.sign &&
-                !result.coordinate_publication.flags.overflow &&
-                actor.position_x == 0xFFF8U && actor.position_y == 0xCCDDU &&
-                actor.alternate_position_x == 0xFFF8U &&
-                actor.alternate_position_y == 0x2222U &&
-                result.render_calls == 0U && actor.turn_countdown == 7 &&
-                shared.turn_frame_source_token == 0U &&
-                port.count(0x004785C0U) == 0U && port.count(0x004170E0U) == 0U,
-            "turn gate publication fault preserves the copied prefix and suppresses the frame suffix"
-        );
-    }
+        {
+            openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+            openswd3::battle::LegacyBattleGroupAActionExecutionSharedState
+                shared;
+            openswd3::battle::LegacyBattleActorProgressState progress;
+            actor.profile_value = 0x1234U;
+            actor.special_mode = 1U;
+            actor.turn_countdown = 7;
+            actor.turn_action_record.field_4a = 0x1122U;
+            actor.turn_action_record.field_4c = 0x3344U;
+            DispatchPort port;
+            port.push(0x0047F920U, {.eax = 0U});
+            port.push(
+                0x004321E0U, {.eax = 0U, .ecx = 0xABCDEF01U, .edx = 0x12345678U}
+            );
+            const auto result =
+                openswd3::battle::advance_legacy_battle_turn_gate(
+                    &actor,
+                    &shared,
+                    &progress,
+                    port,
+                    {.actor_token = 0x005029D0U,
+                     .argument = 1U,
+                     .entry_ecx = 0x005029D0U}
+                );
+            test.expect_true(
+                result.return_eax == 1U && result.return_ecx == 0xABCDEF01U &&
+                    result.return_edx == 0x12345678U &&
+                    actor.turn_completion_latch == 1U &&
+                    actor.turn_action_record.action_id == 0x1234U &&
+                    actor.turn_action_record.base_variant == 0x2AU &&
+                    actor.turn_action_record.external_mode == 1U &&
+                    has_call_argument(port, 0x004321E0U, 0U, 0x00502E38U) &&
+                    port.count(0x004315D0U) == 0U,
+                "turn gate preserves the initialized prefix and returns one when the action updater returns zero"
+            );
+        }
 
-    {
-        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
-        openswd3::battle::LegacyBattleGroupAActionExecutionSharedState shared;
-        openswd3::battle::LegacyBattleActorProgressState progress;
-        actor.profile_value = 0x55AAU;
-        actor.turn_countdown = 7;
-        actor.turn_action_record.field_4a = 1U;
-        actor.turn_action_record.field_4c = 2U;
-        actor.position_x = 0x1111U;
-        actor.position_y = 0x2222U;
-        actor.alternate_position_x = 0x3333U;
-        actor.alternate_position_y = 0x4444U;
-        actor.position_x_write_accessible = false;
-        DispatchPort port;
-        port.push(0x0047F920U, {.eax = 0U});
-        port.push(0x004321E0U, {.eax = 1U});
-        port.push(0x004315D0U, {.eax = 0x70000000U});
+        {
+            openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+            openswd3::battle::LegacyBattleGroupAActionExecutionSharedState
+                shared;
+            openswd3::battle::LegacyBattleActorProgressState progress;
+            actor.profile_value = 0x55AAU;
+            actor.turn_countdown = 15;
+            actor.position_x = 200U;
+            actor.position_y = 300U;
+            actor.turn_action_record.draw_offset_x = 3U;
+            actor.turn_action_record.draw_offset_y = 5U;
+            actor.turn_action_record.mode_flags = 4U;
+            actor.turn_action_record.field_4a = 0x1122U;
+            actor.turn_action_record.field_4c = 0x3344U;
+            DispatchPort port;
+            port.push(0x0047F920U, {.eax = 0U});
+            port.push(
+                0x004321E0U,
+                {.eax = 0xAAAA0001U, .ecx = 0xBBBB0002U, .edx = 0xCCCC0003U}
+            );
+            LegacyBattleActionCallReply frame{
+                .eax = 0x70000000U,
+                .ecx = 0xDDDD0004U,
+                .edx = 0xEEEE0005U,
+            };
+            frame.outputs = {0x71000000U, 40U, 20U, 0x72000000U};
+            port.push(0x004315D0U, frame);
+            port.push(
+                0x00485610U,
+                {.eax = 0x11110000U, .ecx = 0x22220000U, .edx = 0x33330000U}
+            );
+            port.push(
+                0x00485650U,
+                {.eax = 0x44440000U, .ecx = 0x55550000U, .edx = 0x66660000U}
+            );
+            port.push(0x004170E0U, {.edx = 0x88880000U});
+            const auto result =
+                openswd3::battle::advance_legacy_battle_turn_gate(
+                    &actor,
+                    &shared,
+                    &progress,
+                    port,
+                    {.actor_token = 0x005029D0U,
+                     .argument = 1U,
+                     .sample_handle = 0x12345678U,
+                     .coordinate_output_x_token = 0xABCD0100U,
+                     .coordinate_output_y_token = 0xDCBA0200U,
+                     .entry_ecx = 0x005029D0U}
+                );
+            test.expect_true(
+                result.status == LegacyBattleTurnAdvanceStatus::completed &&
+                    result.return_eax == 0U &&
+                    result.return_edx == 0x88880000U &&
+                    actor.turn_countdown == 14 &&
+                    actor.turn_render_flags == 5U &&
+                    actor.turn_target_x_offset == 3U &&
+                    actor.turn_sample_word == 0U &&
+                    shared.turn_frame_source_token == 0x71000000U &&
+                    has_call_argument(port, 0x004315D0U, 0U, 0xAAAA1122U) &&
+                    has_call_argument(port, 0x004315D0U, 1U, 0xCCCC3344U) &&
+                    has_call_argument(port, 0x00485650U, 0U, 0x2222002FU) &&
+                    has_call_argument(port, 0x00485650U, 1U, 0x10U) &&
+                    actor.position_x == 216U && actor.position_y == 300U &&
+                    actor.alternate_position_x == 216U &&
+                    actor.alternate_position_y == 300U &&
+                    result.coordinate_query_calls == 1U &&
+                    result.current_coordinate_query.status ==
+                        openswd3::battle::
+                            LegacyBattleActorCurrentCoordinateQueryStatus::
+                                completed &&
+                    result.current_coordinate_query.return_eax == 0xDCBA012CU &&
+                    result.current_coordinate_query.return_ecx == 0xDCBA0200U &&
+                    result.current_coordinate_query.return_edx == 0xABCD0100U &&
+                    !result.current_coordinate_query.flags.carry &&
+                    result.current_coordinate_query.flags.parity &&
+                    result.current_coordinate_query.flags.auxiliary_carry &&
+                    result.current_coordinate_query.flags
+                        .auxiliary_carry_defined &&
+                    !result.current_coordinate_query.flags.zero &&
+                    result.current_coordinate_query.flags.sign &&
+                    !result.current_coordinate_query.flags.overflow &&
+                    result.coordinate_publish_calls == 1U &&
+                    result.coordinate_publication.status ==
+                        openswd3::battle::
+                            LegacyBattleActorCoordinatePublicationStatus::
+                                completed &&
+                    result.coordinate_publication.argument_x == 216U &&
+                    result.coordinate_publication.argument_y == 300U &&
+                    result.coordinate_publication.return_eax == 216U &&
+                    result.coordinate_publication.return_ecx == 0U &&
+                    result.coordinate_publication.return_edx == 300U &&
+                    result.coordinate_publication.return_esi == 0x005029D0U &&
+                    result.coordinate_publication.return_edi == 0U &&
+                    !result.coordinate_publication.flags.carry &&
+                    result.coordinate_publication.flags.parity &&
+                    !result.coordinate_publication.flags.auxiliary_carry &&
+                    !result.coordinate_publication.flags.zero &&
+                    !result.coordinate_publication.flags.sign &&
+                    !result.coordinate_publication.flags.overflow &&
+                    port.count(0x004785C0U) == 0U &&
+                    has_call_argument(port, 0x004170E0U, 0U, 213U) &&
+                    has_call_argument(port, 0x004170E0U, 1U, 295U) &&
+                    has_call_argument(port, 0x004170E0U, 2U, 40U) &&
+                    has_call_argument(port, 0x004170E0U, 3U, 20U) &&
+                    has_call_argument(port, 0x004170E0U, 4U, 5U) &&
+                    has_call_argument(port, 0x004170E0U, 5U, 0x72000000U) &&
+                    port.count(0x00478600U) == 0U && result.port_calls == 6U,
+                "turn gate directly publishes shifted coordinates before rendering"
+            );
+        }
 
-        const auto result = openswd3::battle::advance_legacy_battle_turn_gate(
-            &actor,
-            &shared,
-            &progress,
-            port,
-            {.actor_token = 0x005029D0U,
-             .argument = 1U,
-             .entry_ecx = 0x005029D0U}
-        );
-        test.expect_true(
-            result.status ==
-                    LegacyBattleTurnAdvanceStatus::
-                        actor_coordinate_publication_typed_stop &&
-                result.coordinate_publication.status ==
-                    openswd3::battle::
-                        LegacyBattleActorCoordinatePublicationStatus::
-                            position_x_write_typed_stop &&
-                result.coordinate_publication.coordinate_writes == 0U &&
-                result.coordinate_publication.source_dword_reads == 0U &&
-                result.coordinate_publication.destination_dword_writes == 0U &&
-                actor.position_x == 0x1111U && actor.position_y == 0x2222U &&
-                actor.alternate_position_x == 0x3333U &&
-                actor.alternate_position_y == 0x4444U &&
-                result.render_calls == 0U && actor.turn_countdown == 7 &&
-                shared.turn_frame_source_token == 0U &&
-                port.count(0x004170E0U) == 0U,
-            "turn gate X publication stop preserves all actor coordinates and suppresses rendering"
-        );
-    }
-
-    {
-        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
-        openswd3::battle::LegacyBattleActorProgressState progress;
-        actor.profile_value = 0x55AAU;
-        actor.turn_countdown = 7;
-        actor.turn_action_record.field_4a = 1U;
-        actor.turn_action_record.field_4c = 2U;
-        DispatchPort port;
-        port.push(0x0047F920U, {.eax = 0U});
-        port.push(0x004321E0U, {.eax = 1U});
-        port.push(0x004315D0U, {.eax = 0x70000000U});
-        actor.position_x = 0x5678U;
-        actor.position_y = 0x4321U;
-        const auto result = openswd3::battle::advance_legacy_battle_turn_gate(
-            &actor,
-            nullptr,
-            &progress,
-            port,
-            {.actor_token = 0x005029D0U,
-             .argument = 0U,
-             .coordinate_y_initial = 0x87650000U,
-             .entry_ecx = 0x005029D0U}
-        );
-        test.expect_true(
-            result.status ==
-                    LegacyBattleTurnAdvanceStatus::shared_state_typed_stop &&
-                result.coordinate_publication.status ==
-                    openswd3::battle::
-                        LegacyBattleActorCoordinatePublicationStatus::
-                            completed &&
-                result.coordinate_publication.argument_x == 0x5678U &&
-                result.coordinate_publication.argument_y == 0x4321U &&
-                result.coordinate_publication.flags.carry &&
-                result.coordinate_publication.flags.parity &&
-                result.coordinate_publication.flags.auxiliary_carry &&
-                !result.coordinate_publication.flags.zero &&
-                result.coordinate_publication.flags.sign &&
-                !result.coordinate_publication.flags.overflow &&
-                actor.position_x == 0x5678U && actor.position_y == 0x4321U &&
-                result.render_calls == 0U && actor.turn_countdown == 7 &&
-                port.count(0x004785C0U) == 0U,
-            "turn gate no-adjust branch preserves the secondary-index compare flags"
-        );
-    }
-
-    {
-        using QueryStatus =
-            openswd3::battle::LegacyBattleActorCurrentCoordinateQueryStatus;
-        const std::array expected_statuses{
-            QueryStatus::first_output_pointer_read_typed_stop,
-            QueryStatus::position_x_read_typed_stop,
-            QueryStatus::first_output_write_typed_stop,
-            QueryStatus::position_y_read_typed_stop,
-            QueryStatus::second_output_pointer_read_typed_stop,
-            QueryStatus::second_output_write_typed_stop,
-        };
-        for (std::size_t stage = 0U; stage < expected_statuses.size();
-             ++stage) {
+        {
             openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
             openswd3::battle::LegacyBattleGroupAActionExecutionSharedState
                 shared;
@@ -1947,348 +1884,543 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             actor.turn_countdown = 7;
             actor.turn_action_record.field_4a = 1U;
             actor.turn_action_record.field_4c = 2U;
-            actor.position_x = 100U;
-            actor.position_y = 200U;
-            if (stage == 1U) {
-                actor.position_x_read_accessible = false;
-            }
-            if (stage == 3U) {
-                actor.position_y_read_accessible = false;
-            }
+            actor.alternate_position_x = 0x1111U;
+            actor.alternate_position_y = 0x2222U;
+            actor.publication_destination_dword_write_accessible[6U] = false;
+            progress.post_action_value = 1U;
             DispatchPort port;
             port.push(0x0047F920U, {.eax = 0U});
             port.push(0x004321E0U, {.eax = 1U});
-            port.push(
-                0x004315D0U,
-                {.eax = 0x70000000U, .ecx = 0xBBBB0002U, .edx = 0xCCCC0003U}
-            );
-            openswd3::battle::LegacyBattleTurnAdvanceRequest request{
-                .actor_token = 0x005029D0U,
-                .argument = 0U,
-                .coordinate_output_x_token = 0xAAAA0100U,
-                .coordinate_output_y_token = 0xBBBB0200U,
-                .coordinate_y_initial = 0xAABB0000U,
-                .entry_ecx = 0x005029D0U,
-            };
-            if (stage == 0U) {
-                request.current_coordinate_access
-                    .first_output_pointer_readable = false;
-            } else if (stage == 2U) {
-                request.current_coordinate_access.first_output_writable = false;
-            } else if (stage == 4U) {
-                request.current_coordinate_access
-                    .second_output_pointer_readable = false;
-            } else if (stage == 5U) {
-                request.current_coordinate_access.second_output_writable =
-                    false;
-            }
+            port.push(0x004315D0U, {.eax = 0x70000000U});
+            actor.position_x = 8U;
+            actor.position_y = 0xCCDDU;
             const auto result =
                 openswd3::battle::advance_legacy_battle_turn_gate(
-                    &actor, &shared, &progress, port, request
+                    &actor,
+                    &shared,
+                    &progress,
+                    port,
+                    {.actor_token = 0x005029D0U,
+                     .argument = 1U,
+                     .coordinate_y_initial = 0xAABB0000U,
+                     .entry_ecx = 0x005029D0U}
                 );
-            const u32 expected_eax = stage < 2U
-                ? 0xBBBB0200U
-                : (stage < 4U ? 0xBBBB0064U : 0xBBBB00C8U);
-            const u32 expected_ecx = stage < 5U ? 0x005029D0U : 0xBBBB0200U;
-            const u32 expected_edx = stage == 0U ? 0xCCCC0003U : 0xAAAA0100U;
             test.expect_true(
                 result.status ==
                         LegacyBattleTurnAdvanceStatus::
-                            actor_current_coordinate_typed_stop &&
-                    result.current_coordinate_query.status ==
-                        expected_statuses[stage] &&
-                    result.current_coordinate_query.output_writes ==
-                        (stage >= 3U ? 1U : 0U) &&
-                    result.current_coordinate_query.return_eax ==
-                        expected_eax &&
-                    result.current_coordinate_query.return_ecx ==
-                        expected_ecx &&
-                    result.current_coordinate_query.return_edx ==
-                        expected_edx &&
-                    result.current_coordinate_query.flags.carry &&
-                    !result.current_coordinate_query.flags.parity &&
-                    result.current_coordinate_query.flags.auxiliary_carry &&
-                    !result.current_coordinate_query.flags.zero &&
-                    result.current_coordinate_query.flags.sign &&
-                    !result.current_coordinate_query.flags.overflow &&
-                    result.coordinate_x == (stage >= 3U ? 100U : 0U) &&
-                    result.coordinate_y == 0xAABB0000U &&
-                    result.coordinate_publish_calls == 0U &&
+                            actor_coordinate_publication_typed_stop &&
+                    result.coordinate_publication.status ==
+                        openswd3::battle::
+                            LegacyBattleActorCoordinatePublicationStatus::
+                                destination_dword_write_typed_stop &&
+                    result.coordinate_publication.stopped_dword_index == 6U &&
+                    result.coordinate_publication.source_dword_reads == 7U &&
+                    result.coordinate_publication.destination_dword_writes ==
+                        6U &&
+                    result.coordinate_publication.return_eax == 0xFFFFFFF8U &&
+                    result.coordinate_publication.return_ecx == 2U &&
+                    result.coordinate_publication.return_edx == 0xAABBCCDDU &&
+                    result.coordinate_publication.flags.carry &&
+                    !result.coordinate_publication.flags.parity &&
+                    !result.coordinate_publication.flags.auxiliary_carry &&
+                    !result.coordinate_publication.flags.zero &&
+                    result.coordinate_publication.flags.sign &&
+                    !result.coordinate_publication.flags.overflow &&
+                    actor.position_x == 0xFFF8U &&
+                    actor.position_y == 0xCCDDU &&
+                    actor.alternate_position_x == 0xFFF8U &&
+                    actor.alternate_position_y == 0x2222U &&
                     result.render_calls == 0U && actor.turn_countdown == 7 &&
                     shared.turn_frame_source_token == 0U &&
-                    port.count(0x00478600U) == 0U &&
                     port.count(0x004785C0U) == 0U &&
-                    port.count(0x004170E0U) == 0U && result.port_calls == 3U,
-                "turn gate current-coordinate stop preserves exact registers, flags and stack-local prefix"
+                    port.count(0x004170E0U) == 0U,
+                "turn gate publication fault preserves the copied prefix and suppresses the frame suffix"
             );
         }
-    }
 
-    {
-        openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
-        openswd3::battle::LegacyBattleGroupAActionExecutionSharedState shared;
-        openswd3::battle::LegacyBattleActorProgressState progress;
-        actor.turn_countdown = 7;
-        actor.turn_action_record.draw_offset_x = 3U;
-        actor.turn_action_record.mode_flags = 5U;
-        actor.turn_action_record.field_4a = 1U;
-        actor.turn_action_record.field_4c = 2U;
-        progress.post_action_value = 1U;
-        DispatchPort port;
-        port.push(0x0047F920U, {.eax = 0U});
-        port.push(0x004321E0U, {.eax = 1U});
-        port.push(0x004315D0U, {.eax = 0U});
-        const auto result = openswd3::battle::advance_legacy_battle_turn_gate(
-            &actor,
-            &shared,
-            &progress,
-            port,
-            {.actor_token = 0x005029D0U, .entry_ecx = 0x005029D0U}
-        );
-        test.expect_true(
-            result.status ==
-                    LegacyBattleTurnAdvanceStatus::frame_owner_typed_stop &&
-                actor.turn_render_flags == 5U &&
-                port.count(0x00485610U) == 0U && port.count(0x00478600U) == 0U,
-            "turn gate stops at the first mirrored frame dereference after preserving the updater prefix"
-        );
-    }
+        {
+            openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+            openswd3::battle::LegacyBattleGroupAActionExecutionSharedState
+                shared;
+            openswd3::battle::LegacyBattleActorProgressState progress;
+            actor.profile_value = 0x55AAU;
+            actor.turn_countdown = 7;
+            actor.turn_action_record.field_4a = 1U;
+            actor.turn_action_record.field_4c = 2U;
+            actor.position_x = 0x1111U;
+            actor.position_y = 0x2222U;
+            actor.alternate_position_x = 0x3333U;
+            actor.alternate_position_y = 0x4444U;
+            actor.position_x_write_accessible = false;
+            DispatchPort port;
+            port.push(0x0047F920U, {.eax = 0U});
+            port.push(0x004321E0U, {.eax = 1U});
+            port.push(0x004315D0U, {.eax = 0x70000000U});
 
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        state.turn_resolution_bits = 0x4000U;
-        state.action.group_a_count = 1;
-        state.action.group_b_count = 0;
-        state.action.coordinate_output_x_token = 0xABCD0100U;
-        state.action.coordinate_output_y_token = 0xDCBA0200U;
-        state.action.turn_coordinate_y_stack_initial = 0xAABB0000U;
-        auto& action_actor = state.action.group_a_action_execution[0U];
-        action_actor.profile_value = 0x55AAU;
-        action_actor.turn_countdown = 7;
-        action_actor.position_x = 0xAAAAU;
-        action_actor.position_y = 0xBBBBU;
-        action_actor.turn_action_record.field_4a = 1U;
-        action_actor.turn_action_record.field_4c = 2U;
-        Fixture fixture;
-        fixture.startup.party[0U].position_x = 0x1234U;
-        fixture.startup.party[0U].position_y = 0x5678U;
-        DispatchPort port;
-        port.push(0x0047F920U, {.eax = 1U});
-        port.push(0x0047F920U, {.eax = 0U});
-        port.push(0x0047CE80U, {.eax = 0U});
-        port.push(0x004321E0U, {.eax = 1U});
-        LegacyBattleActionCallReply frame{.eax = 0x70000000U};
-        frame.outputs = {0x71000000U, 1U, 1U, 0x72000000U};
-        port.push(0x004315D0U, frame);
-        auto context = fixture.context();
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 0U
+            const auto result =
+                openswd3::battle::advance_legacy_battle_turn_gate(
+                    &actor,
+                    &shared,
+                    &progress,
+                    port,
+                    {.actor_token = 0x005029D0U,
+                     .argument = 1U,
+                     .entry_ecx = 0x005029D0U}
+                );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleTurnAdvanceStatus::
+                            actor_coordinate_publication_typed_stop &&
+                    result.coordinate_publication.status ==
+                        openswd3::battle::
+                            LegacyBattleActorCoordinatePublicationStatus::
+                                position_x_write_typed_stop &&
+                    result.coordinate_publication.coordinate_writes == 0U &&
+                    result.coordinate_publication.source_dword_reads == 0U &&
+                    result.coordinate_publication.destination_dword_writes ==
+                        0U &&
+                    actor.position_x == 0x1111U &&
+                    actor.position_y == 0x2222U &&
+                    actor.alternate_position_x == 0x3333U &&
+                    actor.alternate_position_y == 0x4444U &&
+                    result.render_calls == 0U && actor.turn_countdown == 7 &&
+                    shared.turn_frame_source_token == 0U &&
+                    port.count(0x004170E0U) == 0U,
+                "turn gate X publication stop preserves all actor coordinates and suppresses rendering"
             );
-        test.expect_true(
-            result.status == LegacyBattleActionDispatchStatus::completed &&
-                result.turn_advance_calls == 1U &&
-                result.turn_advance.status ==
-                    LegacyBattleTurnAdvanceStatus::completed &&
-                result.turn_advance.current_coordinate_query.status ==
-                    openswd3::battle::
-                        LegacyBattleActorCurrentCoordinateQueryStatus::
-                            completed &&
-                result.turn_advance.current_coordinate_query.return_eax ==
-                    0xDCBA5678U &&
-                result.turn_advance.current_coordinate_query.return_ecx ==
-                    0xDCBA0200U &&
-                result.turn_advance.current_coordinate_query.return_edx ==
-                    0xABCD0100U &&
-                result.turn_advance.coordinate_x == 0x00001234U &&
-                result.turn_advance.coordinate_y == 0xAABB5678U &&
-                result.turn_advance.coordinate_publication.argument_x ==
-                    0x00001234U &&
-                result.turn_advance.coordinate_publication.argument_y ==
-                    0x00005678U &&
-                action_actor.position_x == 0x1234U &&
-                action_actor.position_y == 0x5678U &&
-                fixture.startup.party[0U].position_x == 0x1234U &&
-                fixture.startup.party[0U].position_y == 0x5678U &&
-                port.count(0x00478600U) == 0U,
-            "group A frame turn gate reads startup-party current coordinates and preserves its Y stack high word"
-        );
-    }
+        }
 
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        state.turn_resolution_bits = 0x4000U;
-        state.action.group_a_count = 1;
-        state.action.group_b_count = 0;
-        state.action.coordinate_output_x_token = 0xABCD0100U;
-        state.action.coordinate_output_y_token = 0xDCBA0200U;
-        state.action.turn_coordinate_y_stack_initial = 0xAABB0000U;
-        auto& action_actor = state.action.group_a_action_execution[0U];
-        action_actor.profile_value = 0x55AAU;
-        action_actor.turn_countdown = 7;
-        action_actor.position_x = 0xAAAAU;
-        action_actor.position_y = 0xBBBBU;
-        action_actor.turn_action_record.field_4a = 1U;
-        action_actor.turn_action_record.field_4c = 2U;
-        Fixture fixture;
-        fixture.startup.party[0U].position_x = 0x1234U;
-        fixture.startup.party[0U].position_y = 0x5678U;
-        fixture.startup.party[0U].position_y_read_accessible = false;
-        DispatchPort port;
-        port.push(0x0047F920U, {.eax = 1U});
-        port.push(0x0047F920U, {.eax = 0U});
-        port.push(0x0047CE80U, {.eax = 0U});
-        port.push(0x004321E0U, {.eax = 1U});
-        LegacyBattleActionCallReply frame{.eax = 0x70000000U};
-        frame.outputs = {0x71000000U, 1U, 1U, 0x72000000U};
-        port.push(0x004315D0U, frame);
-        auto context = fixture.context();
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 0U
+        {
+            openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+            openswd3::battle::LegacyBattleActorProgressState progress;
+            actor.profile_value = 0x55AAU;
+            actor.turn_countdown = 7;
+            actor.turn_action_record.field_4a = 1U;
+            actor.turn_action_record.field_4c = 2U;
+            DispatchPort port;
+            port.push(0x0047F920U, {.eax = 0U});
+            port.push(0x004321E0U, {.eax = 1U});
+            port.push(0x004315D0U, {.eax = 0x70000000U});
+            actor.position_x = 0x5678U;
+            actor.position_y = 0x4321U;
+            const auto result =
+                openswd3::battle::advance_legacy_battle_turn_gate(
+                    &actor,
+                    nullptr,
+                    &progress,
+                    port,
+                    {.actor_token = 0x005029D0U,
+                     .argument = 0U,
+                     .coordinate_y_initial = 0x87650000U,
+                     .entry_ecx = 0x005029D0U}
+                );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleTurnAdvanceStatus::
+                            shared_state_typed_stop &&
+                    result.coordinate_publication.status ==
+                        openswd3::battle::
+                            LegacyBattleActorCoordinatePublicationStatus::
+                                completed &&
+                    result.coordinate_publication.argument_x == 0x5678U &&
+                    result.coordinate_publication.argument_y == 0x4321U &&
+                    result.coordinate_publication.flags.carry &&
+                    result.coordinate_publication.flags.parity &&
+                    result.coordinate_publication.flags.auxiliary_carry &&
+                    !result.coordinate_publication.flags.zero &&
+                    result.coordinate_publication.flags.sign &&
+                    !result.coordinate_publication.flags.overflow &&
+                    actor.position_x == 0x5678U &&
+                    actor.position_y == 0x4321U && result.render_calls == 0U &&
+                    actor.turn_countdown == 7 && port.count(0x004785C0U) == 0U,
+                "turn gate no-adjust branch preserves the secondary-index compare flags"
             );
-        test.expect_true(
-            result.status ==
-                    LegacyBattleActionDispatchStatus::turn_advance_typed_stop &&
-                result.turn_advance.status ==
-                    LegacyBattleTurnAdvanceStatus::
-                        actor_current_coordinate_typed_stop &&
-                result.turn_advance.current_coordinate_query.status ==
-                    openswd3::battle::
-                        LegacyBattleActorCurrentCoordinateQueryStatus::
-                            position_y_read_typed_stop &&
-                result.turn_advance.current_coordinate_query.output_writes ==
-                    1U &&
-                result.turn_advance.current_coordinate_query.return_eax ==
-                    0xDCBA1234U &&
-                result.turn_advance.coordinate_x == 0x00001234U &&
-                result.turn_advance.coordinate_y == 0xAABB0000U &&
-                result.turn_advance.coordinate_publish_calls == 0U &&
-                result.turn_advance.render_calls == 0U &&
-                action_actor.position_x == 0xAAAAU &&
-                action_actor.position_y == 0xBBBBU &&
-                state.action.group_a_action_shared.turn_frame_source_token ==
-                    0U &&
-                state.action.action_pending_aux == 1U &&
-                port.outcome_resolution_state().resolution_latch == 1U &&
-                port.count(0x00478600U) == 0U &&
-                port.count(0x004785C0U) == 0U && port.count(0x004170E0U) == 0U,
-            "group A frame propagates startup-party query stops after the X stack prefix and blocks the parent suffix"
-        );
-    }
+        }
 
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        state.turn_resolution_bits = 0x4000U;
-        state.action.group_a_count = 1;
-        state.action.group_b_count = 0;
-        Fixture fixture;
-        DispatchPort port;
-        port.push(0x0047CE80U, {.eax = 0U});
-        auto context = fixture.context();
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 0U
-            );
-        test.expect_true(
-            result.return_value == 1U && state.turn_resolution_bits == 0U &&
-                openswd3::compat::u8(state.action.packed_actor_counter) == 0U &&
-                port.count(0x00471540U) == 0U &&
-                port.count(0x0047F920U) == 2U &&
-                result.turn_advance_calls == 1U &&
-                result.turn_advance.queue_completion_calls == 1U &&
-                result.turn_advance.return_eax == 1U &&
-                port.count(0x004714B0U) == 0U &&
-                result.turn_commit_chance_calls == 1U &&
-                result.turn_commit_chance.return_eax == 0U &&
-                result.turn_commit_chance.random_calls == 0U &&
-                result.text_message_calls == 1U &&
-                fixture.startup_reset.block_5214f8[0U] == 0x72000000U &&
-                fixture.text_messages.allocations[0U].record.value_04 == 0x118U,
-            "zero turn candidate takes the deterministic failure reset without consuming random state"
-        );
-    }
+        {
+            using QueryStatus =
+                openswd3::battle::LegacyBattleActorCurrentCoordinateQueryStatus;
+            const std::array expected_statuses{
+                QueryStatus::first_output_pointer_read_typed_stop,
+                QueryStatus::position_x_read_typed_stop,
+                QueryStatus::first_output_write_typed_stop,
+                QueryStatus::position_y_read_typed_stop,
+                QueryStatus::second_output_pointer_read_typed_stop,
+                QueryStatus::second_output_write_typed_stop,
+            };
+            for (std::size_t stage = 0U; stage < expected_statuses.size();
+                 ++stage) {
+                openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+                openswd3::battle::LegacyBattleGroupAActionExecutionSharedState
+                    shared;
+                openswd3::battle::LegacyBattleActorProgressState progress;
+                actor.profile_value = 0x55AAU;
+                actor.turn_countdown = 7;
+                actor.turn_action_record.field_4a = 1U;
+                actor.turn_action_record.field_4c = 2U;
+                actor.position_x = 100U;
+                actor.position_y = 200U;
+                if (stage == 1U) {
+                    actor.position_x_read_accessible = false;
+                }
+                if (stage == 3U) {
+                    actor.position_y_read_accessible = false;
+                }
+                DispatchPort port;
+                port.push(0x0047F920U, {.eax = 0U});
+                port.push(0x004321E0U, {.eax = 1U});
+                port.push(
+                    0x004315D0U,
+                    {.eax = 0x70000000U, .ecx = 0xBBBB0002U, .edx = 0xCCCC0003U}
+                );
+                openswd3::battle::LegacyBattleTurnAdvanceRequest request{
+                    .actor_token = 0x005029D0U,
+                    .argument = 0U,
+                    .coordinate_output_x_token = 0xAAAA0100U,
+                    .coordinate_output_y_token = 0xBBBB0200U,
+                    .coordinate_y_initial = 0xAABB0000U,
+                    .entry_ecx = 0x005029D0U,
+                };
+                if (stage == 0U) {
+                    request.current_coordinate_access
+                        .first_output_pointer_readable = false;
+                } else if (stage == 2U) {
+                    request.current_coordinate_access.first_output_writable =
+                        false;
+                } else if (stage == 4U) {
+                    request.current_coordinate_access
+                        .second_output_pointer_readable = false;
+                } else if (stage == 5U) {
+                    request.current_coordinate_access.second_output_writable =
+                        false;
+                }
+                const auto result =
+                    openswd3::battle::advance_legacy_battle_turn_gate(
+                        &actor, &shared, &progress, port, request
+                    );
+                const u32 expected_eax = stage < 2U
+                    ? 0xBBBB0200U
+                    : (stage < 4U ? 0xBBBB0064U : 0xBBBB00C8U);
+                const u32 expected_ecx = stage < 5U ? 0x005029D0U : 0xBBBB0200U;
+                const u32 expected_edx =
+                    stage == 0U ? 0xCCCC0003U : 0xAAAA0100U;
+                test.expect_true(
+                    result.status ==
+                            LegacyBattleTurnAdvanceStatus::
+                                actor_current_coordinate_typed_stop &&
+                        result.current_coordinate_query.status ==
+                            expected_statuses[stage] &&
+                        result.current_coordinate_query.output_writes ==
+                            (stage >= 3U ? 1U : 0U) &&
+                        result.current_coordinate_query.return_eax ==
+                            expected_eax &&
+                        result.current_coordinate_query.return_ecx ==
+                            expected_ecx &&
+                        result.current_coordinate_query.return_edx ==
+                            expected_edx &&
+                        result.current_coordinate_query.flags.carry &&
+                        !result.current_coordinate_query.flags.parity &&
+                        result.current_coordinate_query.flags.auxiliary_carry &&
+                        !result.current_coordinate_query.flags.zero &&
+                        result.current_coordinate_query.flags.sign &&
+                        !result.current_coordinate_query.flags.overflow &&
+                        result.coordinate_x == (stage >= 3U ? 100U : 0U) &&
+                        result.coordinate_y == 0xAABB0000U &&
+                        result.coordinate_publish_calls == 0U &&
+                        result.render_calls == 0U &&
+                        actor.turn_countdown == 7 &&
+                        shared.turn_frame_source_token == 0U &&
+                        port.count(0x00478600U) == 0U &&
+                        port.count(0x004785C0U) == 0U &&
+                        port.count(0x004170E0U) == 0U &&
+                        result.port_calls == 3U,
+                    "turn gate current-coordinate stop preserves exact registers, flags and stack-local prefix"
+                );
+            }
+        }
 
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        state.turn_resolution_bits = 0x8000U;
-        state.action.group_a_count = 2;
-        Fixture fixture;
-        DispatchPort port;
-        port.push(0x0047CE80U, {.eax = 0U});
-        auto context = fixture.context();
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 0U
+        {
+            openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+            openswd3::battle::LegacyBattleGroupAActionExecutionSharedState
+                shared;
+            openswd3::battle::LegacyBattleActorProgressState progress;
+            actor.turn_countdown = 7;
+            actor.turn_action_record.draw_offset_x = 3U;
+            actor.turn_action_record.mode_flags = 5U;
+            actor.turn_action_record.field_4a = 1U;
+            actor.turn_action_record.field_4c = 2U;
+            progress.post_action_value = 1U;
+            DispatchPort port;
+            port.push(0x0047F920U, {.eax = 0U});
+            port.push(0x004321E0U, {.eax = 1U});
+            port.push(0x004315D0U, {.eax = 0U});
+            const auto result =
+                openswd3::battle::advance_legacy_battle_turn_gate(
+                    &actor,
+                    &shared,
+                    &progress,
+                    port,
+                    {.actor_token = 0x005029D0U, .entry_ecx = 0x005029D0U}
+                );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleTurnAdvanceStatus::frame_owner_typed_stop &&
+                    actor.turn_render_flags == 5U &&
+                    port.count(0x00485610U) == 0U &&
+                    port.count(0x00478600U) == 0U,
+                "turn gate stops at the first mirrored frame dereference after preserving the updater prefix"
             );
-        test.expect_true(
-            result.return_value == 1U && result.turn_advance_calls == 1U &&
-                result.turn_advance.return_eax == 1U &&
-                port.count(0x00471540U) == 0U &&
-                openswd3::compat::u8(state.action.packed_actor_counter) == 1U &&
-                state.action.overlay_gate == 1U &&
-                state.turn_resolution_bits == 0x8001U &&
-                result.text_message_calls == 0U,
-            "negative turn path advances through the typed mode-one gate and marks the current actor"
-        );
-    }
+        }
+    }();
 
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        state.turn_resolution_bits = 0x4000U;
-        state.action.group_a_count = 1;
-        state.action.group_b_count = 1;
-        state.action.group_a_to_actor[0] = 0xFFFFFFFFU;
-        Fixture fixture;
-        DispatchPort port;
-        port.push(0x0047CE80U, {.eax = 0U});
-        port.push(0x0047CE80U, {.eax = 0U});
-        port.push(0x00480AD0U, {.eax = 0xA0000000U, .object_flags = 50U});
-        fixture.random.value = 36U;
-        auto context = fixture.context();
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 0U
+    [&] {
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.turn_resolution_bits = 0x4000U;
+            state.action.group_a_count = 1;
+            state.action.group_b_count = 0;
+            state.action.coordinate_output_x_token = 0xABCD0100U;
+            state.action.coordinate_output_y_token = 0xDCBA0200U;
+            state.action.turn_coordinate_y_stack_initial = 0xAABB0000U;
+            auto& action_actor = state.action.group_a_action_execution[0U];
+            action_actor.profile_value = 0x55AAU;
+            action_actor.turn_countdown = 7;
+            action_actor.position_x = 0xAAAAU;
+            action_actor.position_y = 0xBBBBU;
+            action_actor.turn_action_record.field_4a = 1U;
+            action_actor.turn_action_record.field_4c = 2U;
+            Fixture fixture;
+            fixture.startup.party[0U].position_x = 0x1234U;
+            fixture.startup.party[0U].position_y = 0x5678U;
+            DispatchPort port;
+            port.push(0x0047F920U, {.eax = 1U});
+            port.push(0x0047F920U, {.eax = 0U});
+            port.push(0x0047CE80U, {.eax = 0U});
+            port.push(0x004321E0U, {.eax = 1U});
+            LegacyBattleActionCallReply frame{.eax = 0x70000000U};
+            frame.outputs = {0x71000000U, 1U, 1U, 0x72000000U};
+            port.push(0x004315D0U, frame);
+            auto context = fixture.context();
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.status == LegacyBattleActionDispatchStatus::completed &&
+                    result.turn_advance_calls == 1U &&
+                    result.turn_advance.status ==
+                        LegacyBattleTurnAdvanceStatus::completed &&
+                    result.turn_advance.current_coordinate_query.status ==
+                        openswd3::battle::
+                            LegacyBattleActorCurrentCoordinateQueryStatus::
+                                completed &&
+                    result.turn_advance.current_coordinate_query.return_eax ==
+                        0xDCBA5678U &&
+                    result.turn_advance.current_coordinate_query.return_ecx ==
+                        0xDCBA0200U &&
+                    result.turn_advance.current_coordinate_query.return_edx ==
+                        0xABCD0100U &&
+                    result.turn_advance.coordinate_x == 0x00001234U &&
+                    result.turn_advance.coordinate_y == 0xAABB5678U &&
+                    result.turn_advance.coordinate_publication.argument_x ==
+                        0x00001234U &&
+                    result.turn_advance.coordinate_publication.argument_y ==
+                        0x00005678U &&
+                    action_actor.position_x == 0x1234U &&
+                    action_actor.position_y == 0x5678U &&
+                    fixture.startup.party[0U].position_x == 0x1234U &&
+                    fixture.startup.party[0U].position_y == 0x5678U &&
+                    port.count(0x00478600U) == 0U,
+                "group A frame turn gate reads startup-party current coordinates and preserves its Y stack high word"
             );
-        test.expect_true(
-            result.return_value == 1U &&
-                result.turn_commit_chance_calls == 1U &&
-                result.turn_commit_chance.actor_level == 0U &&
-                result.turn_commit_chance.difference == -50 &&
-                result.turn_commit_chance.random_calls == 1U &&
-                result.turn_commit_chance.return_eax == 0U &&
-                fixture.random.bounds == std::vector<u32>{100U} &&
-                port.count(0x004714B0U) == 0U &&
-                port.count(0x00483FD0U) == 1U &&
-                port.count(0x00485610U) == 1U &&
-                state.action.action_pending_aux == 0U &&
-                port.outcome_resolution_state().resolution_latch == 0U,
-            "turn resolution preserves resolved maximum in stale low word and executes failure reset"
-        );
-    }
+        }
 
-    {
-        auto state_storage = std::make_unique<LegacyBattleGroupAFrameState>();
-        auto& state = *state_storage;
-        state.final_actor_step.actor_order[0] = 7U;
-        Fixture fixture;
-        DispatchPort port;
-        auto context = fixture.context();
-        const auto result =
-            openswd3::battle::advance_legacy_battle_group_a_frame(
-                state, port, context, 0U
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.turn_resolution_bits = 0x4000U;
+            state.action.group_a_count = 1;
+            state.action.group_b_count = 0;
+            state.action.coordinate_output_x_token = 0xABCD0100U;
+            state.action.coordinate_output_y_token = 0xDCBA0200U;
+            state.action.turn_coordinate_y_stack_initial = 0xAABB0000U;
+            auto& action_actor = state.action.group_a_action_execution[0U];
+            action_actor.profile_value = 0x55AAU;
+            action_actor.turn_countdown = 7;
+            action_actor.position_x = 0xAAAAU;
+            action_actor.position_y = 0xBBBBU;
+            action_actor.turn_action_record.field_4a = 1U;
+            action_actor.turn_action_record.field_4c = 2U;
+            Fixture fixture;
+            fixture.startup.party[0U].position_x = 0x1234U;
+            fixture.startup.party[0U].position_y = 0x5678U;
+            fixture.startup.party[0U].position_y_read_accessible = false;
+            DispatchPort port;
+            port.push(0x0047F920U, {.eax = 1U});
+            port.push(0x0047F920U, {.eax = 0U});
+            port.push(0x0047CE80U, {.eax = 0U});
+            port.push(0x004321E0U, {.eax = 1U});
+            LegacyBattleActionCallReply frame{.eax = 0x70000000U};
+            frame.outputs = {0x71000000U, 1U, 1U, 0x72000000U};
+            port.push(0x004315D0U, frame);
+            auto context = fixture.context();
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActionDispatchStatus::
+                            turn_advance_typed_stop &&
+                    result.turn_advance.status ==
+                        LegacyBattleTurnAdvanceStatus::
+                            actor_current_coordinate_typed_stop &&
+                    result.turn_advance.current_coordinate_query.status ==
+                        openswd3::battle::
+                            LegacyBattleActorCurrentCoordinateQueryStatus::
+                                position_y_read_typed_stop &&
+                    result.turn_advance.current_coordinate_query
+                            .output_writes == 1U &&
+                    result.turn_advance.current_coordinate_query.return_eax ==
+                        0xDCBA1234U &&
+                    result.turn_advance.coordinate_x == 0x00001234U &&
+                    result.turn_advance.coordinate_y == 0xAABB0000U &&
+                    result.turn_advance.coordinate_publish_calls == 0U &&
+                    result.turn_advance.render_calls == 0U &&
+                    action_actor.position_x == 0xAAAAU &&
+                    action_actor.position_y == 0xBBBBU &&
+                    state.action.group_a_action_shared
+                            .turn_frame_source_token == 0U &&
+                    state.action.action_pending_aux == 1U &&
+                    port.outcome_resolution_state().resolution_latch == 1U &&
+                    port.count(0x00478600U) == 0U &&
+                    port.count(0x004785C0U) == 0U &&
+                    port.count(0x004170E0U) == 0U,
+                "group A frame propagates startup-party query stops after the X stack prefix and blocks the parent suffix"
             );
-        test.expect_true(
-            result.status ==
-                    LegacyBattleActionDispatchStatus::
-                        group_a_index_typed_stop &&
-                port.count(0x0047F920U) == 0U,
-            "queued actor below eight stops at first derived group A object query"
-        );
-    }
+        }
+
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.turn_resolution_bits = 0x4000U;
+            state.action.group_a_count = 1;
+            state.action.group_b_count = 0;
+            Fixture fixture;
+            DispatchPort port;
+            port.push(0x0047CE80U, {.eax = 0U});
+            auto context = fixture.context();
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.return_value == 1U && state.turn_resolution_bits == 0U &&
+                    openswd3::compat::u8(state.action.packed_actor_counter) ==
+                        0U &&
+                    port.count(0x00471540U) == 0U &&
+                    port.count(0x0047F920U) == 2U &&
+                    result.turn_advance_calls == 1U &&
+                    result.turn_advance.queue_completion_calls == 1U &&
+                    result.turn_advance.return_eax == 1U &&
+                    port.count(0x004714B0U) == 0U &&
+                    result.turn_commit_chance_calls == 1U &&
+                    result.turn_commit_chance.return_eax == 0U &&
+                    result.turn_commit_chance.random_calls == 0U &&
+                    result.text_message_calls == 1U &&
+                    fixture.startup_reset.block_5214f8[0U] == 0x72000000U &&
+                    fixture.text_messages.allocations[0U].record.value_04 ==
+                        0x118U,
+                "zero turn candidate takes the deterministic failure reset without consuming random state"
+            );
+        }
+
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.turn_resolution_bits = 0x8000U;
+            state.action.group_a_count = 2;
+            Fixture fixture;
+            DispatchPort port;
+            port.push(0x0047CE80U, {.eax = 0U});
+            auto context = fixture.context();
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.return_value == 1U && result.turn_advance_calls == 1U &&
+                    result.turn_advance.return_eax == 1U &&
+                    port.count(0x00471540U) == 0U &&
+                    openswd3::compat::u8(state.action.packed_actor_counter) ==
+                        1U &&
+                    state.action.overlay_gate == 1U &&
+                    state.turn_resolution_bits == 0x8001U &&
+                    result.text_message_calls == 0U,
+                "negative turn path advances through the typed mode-one gate and marks the current actor"
+            );
+        }
+
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.turn_resolution_bits = 0x4000U;
+            state.action.group_a_count = 1;
+            state.action.group_b_count = 1;
+            state.action.group_a_to_actor[0] = 0xFFFFFFFFU;
+            Fixture fixture;
+            DispatchPort port;
+            port.push(0x0047CE80U, {.eax = 0U});
+            port.push(0x0047CE80U, {.eax = 0U});
+            port.push(0x00480AD0U, {.eax = 0xA0000000U, .object_flags = 50U});
+            fixture.random.value = 36U;
+            auto context = fixture.context();
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.return_value == 1U &&
+                    result.turn_commit_chance_calls == 1U &&
+                    result.turn_commit_chance.actor_level == 0U &&
+                    result.turn_commit_chance.difference == -50 &&
+                    result.turn_commit_chance.random_calls == 1U &&
+                    result.turn_commit_chance.return_eax == 0U &&
+                    fixture.random.bounds == std::vector<u32>{100U} &&
+                    port.count(0x004714B0U) == 0U &&
+                    port.count(0x00483FD0U) == 1U &&
+                    port.count(0x00485610U) == 1U &&
+                    state.action.action_pending_aux == 0U &&
+                    port.outcome_resolution_state().resolution_latch == 0U,
+                "turn resolution preserves resolved maximum in stale low word and executes failure reset"
+            );
+        }
+
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.final_actor_step.actor_order[0] = 7U;
+            Fixture fixture;
+            DispatchPort port;
+            auto context = fixture.context();
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActionDispatchStatus::
+                            group_a_index_typed_stop &&
+                    port.count(0x0047F920U) == 0U,
+                "queued actor below eight stops at first derived group A object query"
+            );
+        }
+    }();
 }

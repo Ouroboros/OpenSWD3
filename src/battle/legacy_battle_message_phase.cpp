@@ -261,6 +261,40 @@ private:
         return true;
     }
 
+    [[nodiscard]] bool select_actor_target(
+        const u32 actor_token,
+        const u16 target_index,
+        const u32 entry_eax,
+        const u32 entry_edx,
+        const LegacyBattleActorCoordinateFlags& entry_flags
+    ) {
+        if (!execute_legacy_battle_actor_target_selection_call(
+                result_.actor_target_selection,
+                request_.actor_target_selection_requests,
+                {.action = &bindings_.action, .startup = &bindings_.startup},
+                0x004671C9U,
+                0x004671CEU,
+                actor_token,
+                target_index,
+                entry_eax,
+                entry_edx,
+                entry_flags,
+                true
+            )) {
+            result_.status = LegacyBattleMessagePhaseStatus::
+                actor_target_selection_typed_stop;
+            eax_ = result_.actor_target_selection.last.return_eax;
+            ecx_ = result_.actor_target_selection.last.return_ecx;
+            edx_ = result_.actor_target_selection.last.return_edx;
+            return false;
+        }
+
+        eax_ = result_.actor_target_selection.last.return_eax;
+        ecx_ = result_.actor_target_selection.last.return_ecx;
+        edx_ = result_.actor_target_selection.last.return_edx;
+        return true;
+    }
+
     void set_group_a_registers(
         const u32 index_bits,
         const bool triple_eax,
@@ -529,6 +563,17 @@ private:
         set_group_a_registers(actor_index, true, false);
         edx_ = preserved_edx;
         call(LegacyBattleMessagePhaseCall::commit_active_actor, ecx_, {0U});
+        const u32 target_entry_edx = edx_;
+        set_group_a_registers(actor_index, true, false);
+        if (!select_actor_target(
+                ecx_,
+                0U,
+                eax_,
+                target_entry_edx,
+                subtract_flags(actor_index * 1008U, actor_index)
+            )) {
+            return finish();
+        }
         set_group_a_registers(actor_index, false, true);
         call(
             LegacyBattleMessagePhaseCall::configure_actor_action,

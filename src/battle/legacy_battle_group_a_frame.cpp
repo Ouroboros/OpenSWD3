@@ -72,6 +72,27 @@ subtract_flags(const u32 left, const u32 right) noexcept {
     };
 }
 
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+subtract_word_flags(const u16 left, const u16 right) noexcept {
+    const u16 difference = static_cast<u16>(left - right);
+    return {
+        .carry = left < right,
+        .parity = has_even_parity(difference),
+        .auxiliary_carry = ((left ^ right ^ difference) & 0x10U) != 0U,
+        .auxiliary_carry_defined = true,
+        .zero = difference == 0U,
+        .sign = (difference & 0x8000U) != 0U,
+        .overflow = (((left ^ right) & (left ^ difference)) & 0x8000U) != 0U,
+    };
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+decrement_flags(const u32 value, const bool preserved_carry) noexcept {
+    auto flags = subtract_flags(value, 1U);
+    flags.carry = preserved_carry;
+    return flags;
+}
+
 constexpr u32 kCallPublishEffectMode = 0x00478B60U;
 constexpr u32 kCallPrepareAi = 0x0047DAD0U;
 constexpr u32 kCallPublishAttributeEffect = 0x0047F150U;
@@ -89,7 +110,6 @@ constexpr u32 kCallQueryQueueCompletion = 0x0047F920U;
 constexpr u32 kCallQueryActorAvailable = 0x0047C670U;
 constexpr u32 kCallClearControl = 0x0047C660U;
 constexpr u32 kCallClearPresentation = 0x0047CC50U;
-constexpr u32 kCallPublishSelection = 0x00478A70U;
 constexpr u32 kCallLookupProfileItem = 0x00482F70U;
 constexpr u32 kCallRefreshProgressMultiplier = 0x00482F10U;
 constexpr u32 kCallApplyProfileItemDelta = 0x004830A0U;
@@ -686,6 +706,25 @@ void merge_nested_result(
     if (nested.actor_runtime_reset.calls != 0U) {
         outer.actor_runtime_reset.last = nested.actor_runtime_reset.last;
     }
+    for (std::size_t index = 0U; index < nested.actor_target_selection.calls;
+         ++index) {
+        const std::size_t destination =
+            outer.actor_target_selection.calls + index;
+        if (destination < outer.actor_target_selection.call_addresses.size()) {
+            outer.actor_target_selection.call_addresses[destination] =
+                nested.actor_target_selection.call_addresses[index];
+            outer.actor_target_selection.return_addresses[destination] =
+                nested.actor_target_selection.return_addresses[index];
+            outer.actor_target_selection.actor_tokens[destination] =
+                nested.actor_target_selection.actor_tokens[index];
+            outer.actor_target_selection.argument_values[destination] =
+                nested.actor_target_selection.argument_values[index];
+        }
+    }
+    outer.actor_target_selection.calls += nested.actor_target_selection.calls;
+    if (nested.actor_target_selection.calls != 0U) {
+        outer.actor_target_selection.last = nested.actor_target_selection.last;
+    }
     outer.group_a_actor_cleanup_calls += nested.group_a_actor_cleanup_calls;
     if (nested.group_a_actor_cleanup_calls != 0U) {
         outer.group_a_actor_cleanup = nested.group_a_actor_cleanup;
@@ -1125,6 +1164,10 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
         .action = &state.action,
         .startup = context.startup,
     };
+    const LegacyBattleActorTargetSelectionOwners target_selection_owners{
+        .action = &state.action,
+        .startup = context.startup,
+    };
     const auto current_coordinate_actor = context.startup == nullptr
         ? view_legacy_battle_actor_coordinates(
               state.action.group_a_action_execution[group_a_index]
@@ -1152,6 +1195,40 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
         result.status = LegacyBattleActionDispatchStatus::
             actor_availability_block_typed_stop;
         result.return_value = result.actor_availability_block.return_eax;
+        return false;
+    };
+    const auto select_actor_target = [&context,
+                                      &result,
+                                      &target_selection_owners,
+                                      actor_token](
+                                         const u16 argument_value,
+                                         const u32 entry_eax,
+                                         const u32 entry_edx,
+                                         const LegacyBattleActorCoordinateFlags&
+                                             entry_flags,
+                                         const u32 call_address,
+                                         const u32 return_address
+                                     ) {
+        if (execute_legacy_battle_actor_target_selection_call(
+                result.actor_target_selection,
+                context.actor_target_selection_requests,
+                target_selection_owners,
+                call_address,
+                return_address,
+                actor_token,
+                argument_value,
+                entry_eax,
+                entry_edx,
+                entry_flags,
+                true,
+                context.actor_target_selection_request_offset
+            )) {
+            return true;
+        }
+
+        result.status =
+            LegacyBattleActionDispatchStatus::actor_target_selection_typed_stop;
+        result.return_value = result.actor_target_selection.last.return_eax;
         return false;
     };
     auto start_gate_request = context.actor_start_gate_request;
@@ -1600,15 +1677,23 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         )) {
                         return result;
                     }
-                    static_cast<void>(invoke(
-                        port,
-                        result,
-                        kCallPublishSelection,
-                        {state.selected_actor_one_based - 1U}
-                    ));
-                    state.action.group_a_action_execution[group_a_index]
-                        .action_target =
-                        static_cast<u16>(state.selected_actor_one_based - 1U);
+                    const auto action_mode_flags =
+                        subtract_flags(result.actor_action_mode.return_eax, 1U);
+                    if (!select_actor_target(
+                            static_cast<u16>(
+                                state.selected_actor_one_based - 1U
+                            ),
+                            result.actor_action_mode.return_eax,
+                            result.actor_action_mode.return_edx,
+                            decrement_flags(
+                                state.selected_actor_one_based,
+                                action_mode_flags.carry
+                            ),
+                            0x00456E5AU,
+                            0x00456E5FU
+                        )) {
+                        return result;
+                    }
                     if (!process_group_a_final(
                             state,
                             port,
@@ -1657,25 +1742,33 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         static_cast<void>(
                             invoke(port, result, kCallClearControl, {0U})
                         );
-                        static_cast<void>(invoke(
+                        const auto selected_opponent = invoke(
                             port,
                             result,
                             kCallSelectOpponent,
                             {one_based_group_b_token(
                                 state.selected_opponent_one_based
                             )}
-                        ));
-                        const auto published = invoke(
-                            port,
-                            result,
-                            kCallPublishSelection,
-                            {state.selected_opponent_one_based - 1U}
                         );
-                        state.action.group_a_action_execution[group_a_index]
-                            .action_target = static_cast<u16>(
-                            state.selected_opponent_one_based - 1U
-                        );
-                        if (!set_availability_block(0U, published.edx)) {
+                        if (!select_actor_target(
+                                static_cast<u16>(
+                                    state.selected_opponent_one_based - 1U
+                                ),
+                                selected_opponent.eax,
+                                selected_opponent.edx,
+                                decrement_flags(
+                                    state.selected_opponent_one_based,
+                                    selected_opponent.flags.carry
+                                ),
+                                0x00456CECU,
+                                0x00456CF1U
+                            )) {
+                            return result;
+                        }
+                        if (!set_availability_block(
+                                0U,
+                                result.actor_target_selection.last.return_edx
+                            )) {
                             return result;
                         }
                         reset_selection_gates(state, port);
@@ -1704,25 +1797,33 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         static_cast<void>(
                             invoke(port, result, kCallClearControl, {0U})
                         );
-                        static_cast<void>(invoke(
+                        const auto selected_opponent = invoke(
                             port,
                             result,
                             kCallSelectOpponent,
                             {one_based_group_b_token(
                                 state.selected_actor_one_based
                             )}
-                        ));
-                        const auto published = invoke(
-                            port,
-                            result,
-                            kCallPublishSelection,
-                            {state.selected_actor_one_based - 1U}
                         );
-                        state.action.group_a_action_execution[group_a_index]
-                            .action_target = static_cast<u16>(
-                            state.selected_actor_one_based - 1U
-                        );
-                        if (!set_availability_block(0U, published.edx)) {
+                        if (!select_actor_target(
+                                static_cast<u16>(
+                                    state.selected_actor_one_based - 1U
+                                ),
+                                selected_opponent.eax,
+                                selected_opponent.edx,
+                                decrement_flags(
+                                    state.selected_actor_one_based,
+                                    selected_opponent.flags.carry
+                                ),
+                                0x00456D80U,
+                                0x00456D85U
+                            )) {
+                            return result;
+                        }
+                        if (!set_availability_block(
+                                0U,
+                                result.actor_target_selection.last.return_edx
+                            )) {
                             return result;
                         }
                         if (!process_group_a_final(
@@ -1869,17 +1970,18 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
             }
             if (selected_index >= 0) {
                 state.target_ready_gate = 1U;
-                static_cast<void>(
-                    invoke(port, result, kCallPrepareSelection, {actor_token})
-                );
-                static_cast<void>(invoke(
-                    port,
-                    result,
-                    kCallPublishSelection,
-                    {to_bits(selected_index)}
-                ));
-                state.action.group_a_action_execution[group_a_index]
-                    .action_target = static_cast<u16>(selected_index);
+                const auto prepared =
+                    invoke(port, result, kCallPrepareSelection, {actor_token});
+                if (!select_actor_target(
+                        static_cast<u16>(selected_index),
+                        prepared.eax,
+                        prepared.edx,
+                        prepared.flags,
+                        0x00456B59U,
+                        0x00456B5EU
+                    )) {
+                    return result;
+                }
             }
 
             const auto selection_complete =
@@ -1978,8 +2080,11 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                 return result;
             }
             const u16 target_index = low_word(action_target_value);
+            auto nested_context = context;
+            nested_context.actor_target_selection_request_offset +=
+                result.actor_target_selection.calls;
             const auto nested = dispatch_legacy_battle_action(
-                state.action, port, context, group_a_index, target_index
+                state.action, port, nested_context, group_a_index, target_index
             );
             merge_nested_result(result, nested);
             if (result.status != LegacyBattleActionDispatchStatus::completed) {
@@ -2076,7 +2181,10 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         context.post_action_target_request,
                         context.actor_action_mode_requests
                             [result.actor_action_mode_calls],
-                        result.actor_runtime_reset.calls
+                        result.actor_runtime_reset.calls,
+                        context.actor_target_selection_requests,
+                        context.actor_target_selection_request_offset +
+                            result.actor_target_selection.calls
                     );
                     merge_nested_result(result, post_action);
                     if (post_action.status !=
@@ -2329,25 +2437,28 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                             ));
                             state.action.group_a_action_execution[group_a_index]
                                 .action_target = 0xFFFFU;
-                            static_cast<void>(invoke(
+                            const auto reset_target = invoke(
                                 port,
                                 result,
                                 kCallResetTarget,
                                 {kGroupBOneBeforeToken}
-                            ));
+                            );
                             if (static_cast<u16>(selected) == 0xFFFFU) {
                                 state.final_actor_step.action_execution_active =
                                     0U;
                             } else {
-                                static_cast<void>(invoke(
-                                    port,
-                                    result,
-                                    kCallPublishSelection,
-                                    {to_bits(selected)}
-                                ));
-                                state.action
-                                    .group_a_action_execution[group_a_index]
-                                    .action_target = static_cast<u16>(selected);
+                                if (!select_actor_target(
+                                        static_cast<u16>(selected),
+                                        reset_target.eax,
+                                        reset_target.edx,
+                                        subtract_word_flags(
+                                            static_cast<u16>(selected), 0xFFFFU
+                                        ),
+                                        0x00456FC1U,
+                                        0x00456FC6U
+                                    )) {
+                                    return result;
+                                }
                                 target_token = group_b_token(to_bits(selected));
                             }
                         }

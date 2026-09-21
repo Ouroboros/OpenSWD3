@@ -29,7 +29,10 @@ advance_legacy_battle_post_action(
     compat::u32 target_group_b_index,
     const LegacyBattleActorActionTargetRequest& action_target_request = {},
     const LegacyBattleActorActionModeRequest& action_mode_request = {},
-    std::size_t runtime_reset_request_offset = 0U
+    std::size_t runtime_reset_request_offset = 0U,
+    const LegacyBattleActorTargetSelectionRequestList&
+        target_selection_requests = {},
+    std::size_t target_selection_request_offset = 0U
 );
 
 }  // namespace openswd3::battle

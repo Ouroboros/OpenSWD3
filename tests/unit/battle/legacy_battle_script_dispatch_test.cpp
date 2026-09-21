@@ -3382,10 +3382,190 @@ run_battle_script_dispatch_on_heap(
     );
 }
 
+void test_battle_script_actor_target_selection_calls(
+    openswd3::test::Context& test
+) {
+    {
+        auto fixture = std::make_unique<Fixture>();
+        auto port = std::make_unique<Port>();
+        fixture->opcode(11);
+        fixture->write_u16(2U, 8U);
+        fixture->write_u16(4U, 0x1234U);
+        fixture->startup.party[0U].progress.progress = 0xABCD1234U;
+        for (auto& record : fixture->startup.reset.records_524788) {
+            record.value_00 = 0xFFFFFFFFU;
+        }
+        const auto result = run_battle_script_dispatch_on_heap(*fixture, *port);
+        const auto& actor = fixture->action.group_a_action_execution[0U];
+        test.expect_true(
+            result->status == LegacyBattleScriptDispatchStatus::completed &&
+                result->actor_target_selection.calls == 1U &&
+                result->actor_target_selection.call_addresses[0U] ==
+                    0x0046B522U &&
+                result->actor_target_selection.return_addresses[0U] ==
+                    0x0046B527U &&
+                result->actor_target_selection.actor_tokens[0U] ==
+                    0x005029D0U &&
+                result->actor_target_selection.argument_values[0U] == 0U &&
+                actor.idle_state_latch == 1U && actor.action_target == 0U &&
+                fixture->startup.party[0U].progress.progress == 0xABCD0000U,
+            "case eleven selects the Group-A target through physical caller 0046B522"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        auto port = std::make_unique<Port>();
+        fixture->opcode(11);
+        fixture->write_u16(2U, 2U);
+        fixture->write_u16(4U, 0x5678U);
+        fixture->startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        fixture->startup.enemies[2U].progress.progress = 0x13572468U;
+        for (auto& record : fixture->startup.reset.records_524788) {
+            record.value_00 = 0xFFFFFFFFU;
+        }
+        const auto result = run_battle_script_dispatch_on_heap(*fixture, *port);
+        const auto& actor =
+            (*fixture->startup.group_b_lifecycle)[2U].action_execution;
+        test.expect_true(
+            result->status == LegacyBattleScriptDispatchStatus::completed &&
+                result->actor_target_selection.calls == 1U &&
+                result->actor_target_selection.call_addresses[0U] ==
+                    0x0046B5B9U &&
+                result->actor_target_selection.return_addresses[0U] ==
+                    0x0046B5BEU &&
+                result->actor_target_selection.actor_tokens[0U] ==
+                    0x0052AB58U &&
+                result->actor_target_selection.argument_values[0U] == 0U &&
+                actor.idle_state_latch == 1U && actor.action_target == 0U &&
+                fixture->startup.enemies[2U].progress.progress == 0x13570000U,
+            "case eleven selects the Group-B target through physical caller 0046B5B9"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        auto port = std::make_unique<Port>();
+        fixture->opcode(21);
+        fixture->write_u16(2U, 8U);
+        fixture->write_u16(4U, 0x1111U);
+        for (auto& record : fixture->startup.reset.records_524788) {
+            record.value_00 = 0xFFFFFFFFU;
+        }
+        const auto result = run_battle_script_dispatch_on_heap(*fixture, *port);
+        test.expect_true(
+            result->status == LegacyBattleScriptDispatchStatus::completed &&
+                result->actor_target_selection.calls == 0U &&
+                fixture->startup.reset.block_520e90[0U] == 0U,
+            "case twenty-one Group-A path skips target selection and clears the queued source block"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        auto port = std::make_unique<Port>();
+        fixture->opcode(21);
+        fixture->write_u16(2U, 2U);
+        fixture->write_u16(4U, 0x2222U);
+        fixture->startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        const auto result = run_battle_script_dispatch_on_heap(*fixture, *port);
+        const auto& actor =
+            (*fixture->startup.group_b_lifecycle)[2U].action_execution;
+        test.expect_true(
+            result->status == LegacyBattleScriptDispatchStatus::completed &&
+                result->actor_target_selection.calls == 1U &&
+                result->actor_target_selection.call_addresses[0U] ==
+                    0x0046B733U &&
+                result->actor_target_selection.return_addresses[0U] ==
+                    0x0046B738U &&
+                result->actor_target_selection.argument_values[0U] == 2U &&
+                actor.idle_state_latch == 1U && actor.action_target == 2U,
+            "case twenty-one selects the Group-B actor itself through physical caller 0046B733"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        auto port = std::make_unique<Port>();
+        fixture->opcode(26);
+        fixture->write_u16(2U, 8U);
+        fixture->write_u16(4U, 0x3333U);
+        const auto result = run_battle_script_dispatch_on_heap(*fixture, *port);
+        test.expect_true(
+            result->status == LegacyBattleScriptDispatchStatus::completed &&
+                result->actor_target_selection.calls == 1U &&
+                result->actor_target_selection.call_addresses[0U] ==
+                    0x0046B850U &&
+                result->actor_target_selection.return_addresses[0U] ==
+                    0x0046B855U &&
+                result->actor_target_selection.argument_values[0U] == 0U &&
+                fixture->startup.reset.block_520e90[0U] == 0U,
+            "case twenty-six selects the Group-A target through physical caller 0046B850"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        auto port = std::make_unique<Port>();
+        fixture->opcode(26);
+        fixture->write_u16(2U, 2U);
+        fixture->write_u16(4U, 0x4444U);
+        fixture->startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        const auto result = run_battle_script_dispatch_on_heap(*fixture, *port);
+        test.expect_true(
+            result->status == LegacyBattleScriptDispatchStatus::completed &&
+                result->actor_target_selection.calls == 1U &&
+                result->actor_target_selection.call_addresses[0U] ==
+                    0x0046B8D4U &&
+                result->actor_target_selection.return_addresses[0U] ==
+                    0x0046B8D9U &&
+                result->actor_target_selection.argument_values[0U] == 0U,
+            "case twenty-six selects the Group-B target through physical caller 0046B8D4"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        auto port = std::make_unique<Port>();
+        fixture->opcode(26);
+        fixture->write_u16(2U, 8U);
+        fixture->write_u16(4U, 0x5555U);
+        fixture->startup.party[0U].progress.progress = 0xCAFEBABEU;
+        auto request = std::make_unique<
+            openswd3::battle::LegacyBattleScriptDispatchRequest>();
+        request->actor_target_selection_requests.count = 1U;
+        request->actor_target_selection_requests.calls[0U]
+            .progress_write_accessible = false;
+        const auto result =
+            run_battle_script_dispatch_on_heap(*fixture, *port, *request);
+        const auto& actor = fixture->action.group_a_action_execution[0U];
+        test.expect_true(
+            result->status ==
+                    LegacyBattleScriptDispatchStatus::
+                        actor_target_selection_typed_stop &&
+                result->actor_target_selection.calls == 1U &&
+                result->actor_action_mode_calls == 0U &&
+                actor.idle_state_latch == 1U && actor.action_target == 0U &&
+                fixture->startup.party[0U].progress.progress == 0xCAFEBABEU &&
+                fixture->workspace.cursor == 0U &&
+                fixture->startup.reset.block_520e90[0U] == 0U &&
+                port->count(LegacyBattleScriptDispatchCall::frame) == 0U,
+            "case twenty-six target-selection stop preserves its committed prefix and suppresses the complete suffix"
+        );
+    }
+}
+
 void test_battle_script_dispatch(openswd3::test::Context& test) {
     using openswd3::battle::run_legacy_battle_script_dispatch;
 
     test_battle_script_actor_coordinate_calls(test);
+    test_battle_script_actor_target_selection_calls(test);
     test_battle_script_current_coordinate_stops(test);
     test_battle_script_current_coordinate_boundaries(test);
     test_battle_script_current_coordinate_loops(test);
@@ -4497,8 +4677,18 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
         test.expect_true(
             fixture.workspace.cursor == 0U &&
                 fixture.input_dispatch.selected_actor_reset_gate == 1U &&
+                first.actor_target_selection.calls == 1U &&
+                first.actor_target_selection.call_addresses[0U] ==
+                    0x0046DC9CU &&
+                first.actor_target_selection.return_addresses[0U] ==
+                    0x0046DCA1U &&
+                first.actor_target_selection.argument_values[0U] == 0U &&
                 first.actor_action_mode_calls == 1U &&
                 first.actor_action_modes[0U].return_eip == 0x0046DCC9U &&
+                fixture.action.group_a_action_execution[0U].idle_state_latch ==
+                    1U &&
+                fixture.action.group_a_action_execution[0U].action_target ==
+                    0U &&
                 fixture.action.group_a_action_execution[0U].action_kind == 0U &&
                 fixture.startup.party[0U]
                         .item_effect_application.display_kind == 6U &&

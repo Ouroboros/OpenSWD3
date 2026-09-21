@@ -105,7 +105,6 @@ constexpr u32 kCallTargetPhaseRelease = 0x004885A0U;
 constexpr u32 kCallActionThirteenRender = 0x004170E0U;
 constexpr u32 kCallCommitMessageRecord = 0x0047DBD0U;
 constexpr u32 kCallPrepareOpponent = 0x00478AE0U;
-constexpr u32 kCallSelectOpponent = 0x00478A70U;
 constexpr u32 kCallPublishScene = 0x004707B0U;
 constexpr u32 kCallFinalizeSelection = 0x00478B30U;
 constexpr u32 kCallLegacyStringCopy = 0x00499168U;
@@ -8563,23 +8562,34 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                             group_a_index_typed_stop;
                         return result;
                     }
-                    if (invoke(
-                            state,
-                            port,
-                            result,
-                            kCallActorTerminal,
-                            {group_a_token(static_cast<u32>(first))}
-                        )
-                            .eax == 0U) {
-                        static_cast<void>(invoke(
-                            state,
-                            port,
-                            result,
-                            kCallSelectOpponent,
-                            {static_cast<u32>(first)}
-                        ));
-                        state.group_a_action_execution[0U].action_target =
-                            static_cast<u16>(first);
+                    const auto terminal = invoke(
+                        state,
+                        port,
+                        result,
+                        kCallActorTerminal,
+                        {group_a_token(static_cast<u32>(first))}
+                    );
+                    if (terminal.eax == 0U) {
+                        if (!execute_legacy_battle_actor_target_selection_call(
+                                result.actor_target_selection,
+                                context.actor_target_selection_requests,
+                                {.action = &state, .startup = context.startup},
+                                0x00454B8DU,
+                                0x00454B92U,
+                                actor_token,
+                                static_cast<u16>(first),
+                                terminal.eax,
+                                terminal.edx,
+                                logical_flags(terminal.eax),
+                                true,
+                                context.actor_target_selection_request_offset
+                            )) {
+                            result.status = LegacyBattleActionDispatchStatus::
+                                actor_target_selection_typed_stop;
+                            result.return_value =
+                                result.actor_target_selection.last.return_eax;
+                            return result;
+                        }
                         break;
                     }
                     ++first;
@@ -8610,23 +8620,34 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                             group_b_index_typed_stop;
                         return result;
                     }
-                    if (invoke(
-                            state,
-                            port,
-                            result,
-                            kCallActorTerminal,
-                            {group_b_token(static_cast<u32>(first))}
-                        )
-                            .eax == 0U) {
-                        static_cast<void>(invoke(
-                            state,
-                            port,
-                            result,
-                            kCallSelectOpponent,
-                            {static_cast<u32>(first)}
-                        ));
-                        state.group_a_action_execution[0U].action_target =
-                            static_cast<u16>(first);
+                    const auto terminal = invoke(
+                        state,
+                        port,
+                        result,
+                        kCallActorTerminal,
+                        {group_b_token(static_cast<u32>(first))}
+                    );
+                    if (terminal.eax == 0U) {
+                        if (!execute_legacy_battle_actor_target_selection_call(
+                                result.actor_target_selection,
+                                context.actor_target_selection_requests,
+                                {.action = &state, .startup = context.startup},
+                                0x00454B8DU,
+                                0x00454B92U,
+                                actor_token,
+                                static_cast<u16>(first),
+                                terminal.eax,
+                                terminal.edx,
+                                logical_flags(terminal.eax),
+                                true,
+                                context.actor_target_selection_request_offset
+                            )) {
+                            result.status = LegacyBattleActionDispatchStatus::
+                                actor_target_selection_typed_stop;
+                            result.return_value =
+                                result.actor_target_selection.last.return_eax;
+                            return result;
+                        }
                         break;
                     }
                     ++first;

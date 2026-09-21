@@ -226,7 +226,10 @@ void test_battle_post_action(openswd3::test::Context& test) {
                 port.count(0x004786E0U) == 0U &&
                 port.count(0x00478B20U) == 1U &&
                 port.count(0x00478AE0U) == 1U &&
-                port.count(0x00478A70U) == 1U &&
+                result.actor_target_selection.calls == 1U &&
+                result.actor_target_selection.call_addresses[0U] ==
+                    0x0045AF7DU &&
+                result.actor_target_selection.argument_values[0U] == 0U &&
                 port.calls.back().arguments[1] == 0U,
             "post-action preserves its physical target query and rebuilds the canonical actor relation"
         );

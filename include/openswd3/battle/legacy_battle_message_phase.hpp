@@ -253,6 +253,8 @@ struct LegacyBattleMessagePhaseRequest {
     std::array<LegacyBattleActorActionModeRequest, 10>
         actor_action_mode_requests{};
     LegacyBattleActorRuntimeResetCallRequests actor_runtime_reset_requests{};
+    LegacyBattleActorTargetSelectionRequestList
+        actor_target_selection_requests{};
 };
 
 enum class LegacyBattleMessagePhaseStatus : compat::u8 {
@@ -280,6 +282,7 @@ enum class LegacyBattleMessagePhaseStatus : compat::u8 {
     talisman_result_panel_typed_stop,
     actor_action_mode_typed_stop,
     actor_runtime_reset_typed_stop,
+    actor_target_selection_typed_stop,
     target_selection_entry_typed_stop,
     summon_frame_typed_stop,
     group_b_action_item_selection_typed_stop,
@@ -302,6 +305,7 @@ struct LegacyBattleMessagePhaseResult {
     std::array<LegacyBattleActorActionModeResult, 10> actor_action_modes{};
     compat::u32 actor_action_mode_calls{};
     LegacyBattleActorRuntimeResetCallTrace actor_runtime_reset{};
+    LegacyBattleActorTargetSelectionTrace actor_target_selection{};
     compat::u32 sample_calls{};
     compat::u32 target_selection_entry_calls{};
     compat::u32 actor_message_percent_refresh_calls{};

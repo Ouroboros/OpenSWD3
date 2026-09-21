@@ -28,7 +28,6 @@ constexpr u32 kCallQueryActorExcluded = 0x00478B50U;
 constexpr u32 kCallClearControl = 0x0047C660U;
 constexpr u32 kCallPrepareTarget = 0x00478AC0U;
 constexpr u32 kCallPrepareSelection = 0x00478B30U;
-constexpr u32 kCallPublishSelection = 0x00478A70U;
 constexpr u32 kCallQuerySelectionMode = 0x00483820U;
 constexpr u32 kCallRandomBounded = 0x00439070U;
 constexpr u32 kCallPublishStatusMode = 0x0047D860U;
@@ -496,9 +495,34 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
         return result;
     }
     const u32 source_token = group_b_token(group_b_index);
-    const auto publish_action_target = [&](const u32 value) noexcept {
-        (*context.startup->group_b_lifecycle)[group_b_index]
-            .action_execution.action_target = static_cast<u16>(value);
+    const auto select_actor_target = [&](const u16 target_index,
+                                         const u32 entry_eax,
+                                         const u32 entry_edx,
+                                         const LegacyBattleActorCoordinateFlags&
+                                             entry_flags,
+                                         const u32 call_address,
+                                         const u32 return_address) {
+        if (execute_legacy_battle_actor_target_selection_call(
+                result.actor_target_selection,
+                context.actor_target_selection_requests,
+                {.action = &action, .startup = context.startup},
+                call_address,
+                return_address,
+                source_token,
+                target_index,
+                entry_eax,
+                entry_edx,
+                entry_flags,
+                true,
+                context.actor_target_selection_request_offset
+            )) {
+            return true;
+        }
+
+        result.status =
+            LegacyBattleActionDispatchStatus::actor_target_selection_typed_stop;
+        result.return_value = result.actor_target_selection.last.return_eax;
+        return false;
     };
     const LegacyBattleActorIdleStateOwners idle_state_owners{
         .action = &action,
@@ -590,8 +614,9 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                     result.actor_runtime_reset.last.return_eax;
                 return result;
             }
-            if (invoke(port, result, kCallQueryTerminal, {source_token}).eax ==
-                1U) {
+            const auto phase_terminal =
+                invoke(port, result, kCallQueryTerminal, {source_token});
+            if (phase_terminal.eax == 1U) {
                 shared.selection_mode = 0U;
                 action.active_effect_gate = 0U;
                 shared.action_block_gate = 0U;
@@ -617,13 +642,16 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                     shared.action_block_gate == 0U) {
                     if (shared.action_side != 0U) {
                         shared.target_ready_gate = 1U;
-                        static_cast<void>(invoke(
-                            port,
-                            result,
-                            kCallPublishSelection,
-                            {source_token, 0U}
-                        ));
-                        publish_action_target(0U);
+                        if (!select_actor_target(
+                                0U,
+                                shared.action_side,
+                                phase_terminal.edx,
+                                logical_flags(shared.action_side),
+                                0x00457925U,
+                                0x0045792AU
+                            )) {
+                            return result;
+                        }
                         state.phase_progress = to_bits(action.group_b_count) -
                             low_byte(action.opponent_processed_counter);
                     } else {
@@ -744,19 +772,22 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                     )
                                         .eax != 1U) {
                                     shared.target_ready_gate = 1U;
-                                    static_cast<void>(invoke(
+                                    const auto prepared_selection = invoke(
                                         port,
                                         result,
                                         kCallPrepareSelection,
                                         {source_token}
-                                    ));
-                                    static_cast<void>(invoke(
-                                        port,
-                                        result,
-                                        kCallPublishSelection,
-                                        {source_token, selected}
-                                    ));
-                                    publish_action_target(selected);
+                                    );
+                                    if (!select_actor_target(
+                                            static_cast<u16>(selected),
+                                            prepared_selection.eax,
+                                            prepared_selection.edx,
+                                            prepared_selection.flags,
+                                            0x00457903U,
+                                            0x00457908U
+                                        )) {
+                                        return result;
+                                    }
                                     break;
                                 }
                                 ++selected;
@@ -941,18 +972,27 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                     return result;
                 }
                 if (result.group_b_status_action.return_eax != 0U) {
-                    const auto published = invoke(
-                        port, result, kCallPublishSelection, {source_token, 0U}
-                    );
-                    publish_action_target(0U);
+                    if (!select_actor_target(
+                            0U,
+                            result.group_b_status_action.return_eax,
+                            result.group_b_status_action.return_edx,
+                            logical_flags(
+                                result.group_b_status_action.return_eax
+                            ),
+                            0x00457E26U,
+                            0x00457E2BU
+                        )) {
+                        return result;
+                    }
+                    const auto& published = result.actor_target_selection.last;
                     if (!apply_legacy_battle_actor_action_mode_call(
                             action,
                             context,
                             result,
                             source_token,
                             0x11U,
-                            published.eax,
-                            published.edx,
+                            published.return_eax,
+                            published.return_edx,
                             0x00457E34U,
                             published.flags
                         )) {
@@ -1159,22 +1199,25 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                 )) {
                                 return result;
                             }
-                            if (invoke(
-                                    port,
-                                    result,
-                                    kCallQueryTerminal,
-                                    {group_b_token(state.random_target_index)}
-                                )
-                                    .eax != 0U) {
-                                goto action_decision_done;
-                            }
-                            static_cast<void>(invoke(
+                            const auto target_terminal = invoke(
                                 port,
                                 result,
-                                kCallPublishSelection,
-                                {source_token, state.random_target_index}
-                            ));
-                            publish_action_target(state.random_target_index);
+                                kCallQueryTerminal,
+                                {group_b_token(state.random_target_index)}
+                            );
+                            if (target_terminal.eax != 0U) {
+                                goto action_decision_done;
+                            }
+                            if (!select_actor_target(
+                                    static_cast<u16>(state.random_target_index),
+                                    target_terminal.eax,
+                                    target_terminal.edx,
+                                    logical_flags(target_terminal.eax),
+                                    0x00457D72U,
+                                    0x00457D77U
+                                )) {
+                                return result;
+                            }
                         } else {
                             u32 selected = state.random_target_index;
                             if (!validate_group_a(result, selected)) {
@@ -1214,22 +1257,25 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                             }
                             const u32 selected_token =
                                 group_a_token(state.random_target_index);
-                            if (invoke(
-                                    port,
-                                    result,
-                                    kCallQueryTerminal,
-                                    {selected_token}
-                                )
-                                    .eax == 0U) {
-                                static_cast<void>(invoke(
-                                    port,
-                                    result,
-                                    kCallPublishSelection,
-                                    {source_token, state.random_target_index}
-                                ));
-                                publish_action_target(
-                                    state.random_target_index
-                                );
+                            const auto target_terminal = invoke(
+                                port,
+                                result,
+                                kCallQueryTerminal,
+                                {selected_token}
+                            );
+                            if (target_terminal.eax == 0U) {
+                                if (!select_actor_target(
+                                        static_cast<u16>(
+                                            state.random_target_index
+                                        ),
+                                        target_terminal.eax,
+                                        target_terminal.edx,
+                                        logical_flags(target_terminal.eax),
+                                        0x00457DFBU,
+                                        0x00457E00U
+                                    )) {
+                                    return result;
+                                }
                                 static_cast<void>(invoke(
                                     port,
                                     result,
@@ -1350,25 +1396,27 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                     )) {
                                     return result;
                                 }
-                                if (invoke(
-                                        port,
-                                        result,
-                                        kCallQueryTerminal,
-                                        {group_b_token(
+                                const auto target_terminal = invoke(
+                                    port,
+                                    result,
+                                    kCallQueryTerminal,
+                                    {group_b_token(state.random_target_index)}
+                                );
+                                if (target_terminal.eax == 0U &&
+                                    !select_actor_target(
+                                        static_cast<u16>(
                                             state.random_target_index
-                                        )}
-                                    )
-                                        .eax == 0U) {
-                                    static_cast<void>(invoke(
-                                        port,
-                                        result,
-                                        kCallPublishSelection,
-                                        {source_token,
-                                         state.random_target_index}
-                                    ));
-                                    publish_action_target(
-                                        state.random_target_index
-                                    );
+                                        ),
+                                        target_terminal.eax,
+                                        (target_terminal.edx & 0xFFFF0000U) |
+                                            static_cast<u16>(
+                                                state.random_target_index
+                                            ),
+                                        logical_flags(target_terminal.eax),
+                                        0x00457C18U,
+                                        0x00457C1DU
+                                    )) {
+                                    return result;
                                 }
                             } else {
                                 if (!validate_group_a(
@@ -1378,23 +1426,25 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                 }
                                 const u32 selected_token =
                                     group_a_token(state.random_target_index);
-                                if (invoke(
-                                        port,
-                                        result,
-                                        kCallQueryTerminal,
-                                        {selected_token}
-                                    )
-                                        .eax == 0U) {
-                                    static_cast<void>(invoke(
-                                        port,
-                                        result,
-                                        kCallPublishSelection,
-                                        {source_token,
-                                         state.random_target_index}
-                                    ));
-                                    publish_action_target(
-                                        state.random_target_index
-                                    );
+                                const auto target_terminal = invoke(
+                                    port,
+                                    result,
+                                    kCallQueryTerminal,
+                                    {selected_token}
+                                );
+                                if (target_terminal.eax == 0U) {
+                                    if (!select_actor_target(
+                                            static_cast<u16>(
+                                                state.random_target_index
+                                            ),
+                                            target_terminal.eax,
+                                            target_terminal.edx,
+                                            logical_flags(target_terminal.eax),
+                                            0x00457DFBU,
+                                            0x00457E00U
+                                        )) {
+                                        return result;
+                                    }
                                     static_cast<void>(invoke(
                                         port,
                                         result,
@@ -1490,7 +1540,8 @@ action_decision_done:
                 static_cast<void>(
                     invoke(port, result, kCallSelectionClear, {source_token})
                 );
-                publish_action_target(0xFFFFU);
+                (*context.startup->group_b_lifecycle)[group_b_index]
+                    .action_execution.action_target = 0xFFFFU;
                 if (invoke(port, result, kCallSelectionComplete, {source_token})
                         .eax == 1U) {
                     if (action.group_a_count > 0) {

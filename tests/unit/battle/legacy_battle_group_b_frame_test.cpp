@@ -860,7 +860,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.return_value == 0U && state.phase_progress == 3U &&
                 state.shared.target_ready_gate == 1U &&
-                port.count(0x00478A70U) == 1U && port.count(0x00483820U) == 0U,
+                result.actor_target_selection.calls == 1U &&
+                result.actor_target_selection.call_addresses[0U] ==
+                    0x00457925U &&
+                result.actor_target_selection.argument_values[0U] == 0U &&
+                port.count(0x00483820U) == 0U,
             "phase mode side path publishes zero and jumps directly to common action stage"
         );
     }
@@ -1150,14 +1154,41 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                     0xAAAA000BU &&
                 result.group_b_status_action.decision_random_value ==
                     0xBBBB0007U &&
-                fixture.random.bounds == std::vector<u32>{12U, 10U} &&
-                port.count(0x00476330U) == 0U &&
-                port.count(0x00478710U) == 0U &&
-                result.actor_action_mode_calls == 1U &&
-                result.actor_action_mode.return_eip == 0x00457E34U &&
-                actor.action_composition.action_kind == 0x11U &&
+                fixture.random.bounds == std::vector<u32>{12U, 10U},
+            "profile byte drives the typed status action random decisions"
+        );
+        test.expect_true(
+            result.actor_target_selection.calls == 1U &&
+                result.actor_target_selection.call_addresses[0U] ==
+                    0x00457E26U &&
+                result.actor_target_selection.argument_values[0U] == 0U,
+            "profile status action publishes its target through physical caller 00457E26"
+        );
+        test.expect_true(
+            result.actor_action_mode_calls == 1U,
+            "profile status action executes exactly one typed action-mode call"
+        );
+        test.expect_true(
+            result.actor_action_mode.return_eip == 0x00457E34U,
+            "profile status action returns from its physical action-mode caller"
+        );
+        test.expect_true(
+            result.actor_action_mode.action_kind_writes == 1U &&
+                result.actor_action_mode.stack_reads[0U] == 0x11U,
+            "profile status action commits action kind eleven before its completion suffix"
+        );
+        test.expect_true(
+            result.actor_runtime_reset.calls == 1U &&
+                result.actor_runtime_reset.call_addresses[0U] == 0x0045802CU &&
+                result.actor_runtime_reset.actor_tokens[0U] ==
+                    openswd3::battle::kLegacyBattleActionGroupBBaseToken &&
+                actor.action_composition.action_kind == 0U,
+            "profile status completion resets the canonical Group-B actor after action seventeen"
+        );
+        test.expect_true(
+            port.count(0x00476330U) == 0U && port.count(0x00478710U) == 0U &&
                 has_call_argument(port, 0x0047D860U, 1U, 2U),
-            "profile byte drives the typed status action and its true caller suffix"
+            "profile status action preserves its true caller suffix"
         );
     }
 
@@ -1218,7 +1249,10 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             port.count(0x00476140U) == 0U && port.count(0x004761D0U) == 0U &&
                 result.text_message_calls == 1U &&
                 fixture.startup_reset.block_5214f8[0U] == 0x73000000U &&
-                has_call_argument(port, 0x00478A70U, 1U, 2U),
+                result.actor_target_selection.calls == 1U &&
+                result.actor_target_selection.call_addresses[0U] ==
+                    0x00457D72U &&
+                result.actor_target_selection.argument_values[0U] == 2U,
             "negative packed status preserves text and side-target suffixes"
         );
     }
