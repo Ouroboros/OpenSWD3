@@ -1674,6 +1674,189 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 std::make_unique<LegacyBattleGroupAFrameState>();
             auto& state = *state_storage;
             state.action.active_effect_target = 8U;
+            state.final_actor_step.action_execution_active = 0U;
+            state.action.group_a_count = 0;
+            state.action.group_b_count = 1;
+            state.action.group_a_action_execution[0U].action_kind = 5U;
+            state.action.group_a_action_execution[0U].action_target = 0U;
+            Fixture fixture;
+            fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+                openswd3::battle::LegacyBattleActorGroupBElementState,
+                openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+            DispatchPort port;
+            port.push(0x00478B40U, {.eax = 0U});
+            port.push(0x0047CE80U, {.eax = 1U});
+            port.push(0x0047CE80U, {.eax = 0U});
+            auto context = fixture.context();
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.actor_start_gate_increment.calls == 1U &&
+                    result.actor_start_gate_increment.call_addresses[0U] ==
+                        0x00456FE1U &&
+                    result.actor_start_gate_increment.return_addresses[0U] ==
+                        0x00456FE6U &&
+                    result.actor_start_gate_increment.actor_tokens[0U] ==
+                        openswd3::battle::kLegacyBattleActionGroupBBaseToken &&
+                    result.actor_start_gate_increment.last
+                            .previous_start_gate == 0U &&
+                    result.actor_start_gate_increment.last
+                            .incremented_start_gate == 1U &&
+                    result.actor_start_gate_increment.last.returned &&
+                    port.count(0x00478AC0U) == 0U,
+                "Group-A selected-opponent path increments its target through physical caller 00456FE1"
+            );
+        }
+
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.action.active_effect_target = 8U;
+            state.final_actor_step.action_execution_active = 0U;
+            state.action.group_a_count = 0;
+            state.action.group_b_count = 1;
+            state.action.group_a_action_execution[0U].action_kind = 5U;
+            state.action.group_a_action_execution[0U].action_target = 0U;
+            Fixture fixture;
+            fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+                openswd3::battle::LegacyBattleActorGroupBElementState,
+                openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+            DispatchPort port;
+            port.default_reply.edx = 0x55667788U;
+            port.push(0x00478B40U, {.eax = 0U});
+            port.push(0x0047CE80U, {.eax = 1U});
+            port.push(0x0047CE80U, {.eax = 0U});
+            auto context = fixture.context();
+            context.actor_start_gate_increment_requests.count = 1U;
+            context.actor_start_gate_increment_requests.calls[0U]
+                .access.return_address_readable = false;
+            context.actor_start_gate_increment_requests.calls[0U].entry_esp =
+                0x81234000U;
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActionDispatchStatus::
+                            actor_start_gate_increment_typed_stop &&
+                    result.actor_start_gate_increment.calls == 1U &&
+                    result.actor_start_gate_increment.call_addresses[0U] ==
+                        0x00456FE1U &&
+                    result.actor_start_gate_increment.last.status ==
+                        openswd3::battle::
+                            LegacyBattleActorStartGateIncrementStatus::
+                                return_address_read_typed_stop &&
+                    result.actor_start_gate_increment.last.return_eip ==
+                        0x00478AD1U &&
+                    result.actor_start_gate_increment.last.return_esp ==
+                        0x81234000U &&
+                    result.actor_start_gate_increment.last.start_gate_writes ==
+                        1U &&
+                    result.actor_start_gate_increment.last
+                            .start_gate_latch_writes == 1U &&
+                    result.group_a_actor_list_action_calls == 0U,
+                "Group-A selected-opponent RET stop commits both fields and suppresses the actor-list suffix"
+            );
+        }
+
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.action.active_effect_target = 8U;
+            state.final_actor_step.action_execution_active = 0U;
+            state.action.group_a_count = 0;
+            state.action.group_b_count = 1;
+            state.action.group_a_action_execution[0U].action_kind = 5U;
+            state.action.group_a_action_execution[0U].action_target = 0U;
+            Fixture fixture;
+            fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+                openswd3::battle::LegacyBattleActorGroupBElementState,
+                openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+            DispatchPort port;
+            port.default_reply.edx = 0x55667788U;
+            port.push(0x00478B40U, {.eax = 1U});
+            port.push(0x0047CE80U, {.eax = 0U});
+            port.push(0x0047CE80U, {.eax = 0U, .edx = 0x55667788U});
+            auto context = fixture.context();
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.actor_start_gate_increment.calls == 1U &&
+                    result.actor_start_gate_increment.call_addresses[0U] ==
+                        0x0045707AU &&
+                    result.actor_start_gate_increment.return_addresses[0U] ==
+                        0x0045707FU &&
+                    result.actor_start_gate_increment.actor_tokens[0U] ==
+                        openswd3::battle::kLegacyBattleActionGroupBBaseToken &&
+                    result.actor_start_gate_increment.last.return_edx ==
+                        0x55667788U &&
+                    result.actor_start_gate_increment.last.returned &&
+                    result.actor_start_gate_increment.last.flags_known &&
+                    !result.actor_start_gate_increment.last.flags.carry &&
+                    !result.actor_start_gate_increment.last.flags.parity &&
+                    port.count(0x00478AC0U) == 0U,
+                "Group-A live-opponent scan increments the candidate through physical caller 0045707A"
+            );
+        }
+
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.action.active_effect_target = 8U;
+            state.final_actor_step.action_execution_active = 0U;
+            state.action.group_a_count = 0;
+            state.action.group_b_count = 1;
+            state.action.group_a_action_execution[0U].action_kind = 5U;
+            state.action.group_a_action_execution[0U].action_target = 0U;
+            Fixture fixture;
+            fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+                openswd3::battle::LegacyBattleActorGroupBElementState,
+                openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+            DispatchPort port;
+            port.push(0x00478B40U, {.eax = 1U});
+            port.push(0x0047CE80U, {.eax = 0U});
+            port.push(0x0047CE80U, {.eax = 0U});
+            auto context = fixture.context();
+            context.actor_start_gate_increment_requests.count = 1U;
+            context.actor_start_gate_increment_requests.calls[0U]
+                .access.start_gate_writable = false;
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActionDispatchStatus::
+                            actor_start_gate_increment_typed_stop &&
+                    result.actor_start_gate_increment.calls == 1U &&
+                    result.actor_start_gate_increment.call_addresses[0U] ==
+                        0x0045707AU &&
+                    result.actor_start_gate_increment.last.status ==
+                        openswd3::battle::
+                            LegacyBattleActorStartGateIncrementStatus::
+                                start_gate_write_typed_stop &&
+                    result.actor_start_gate_increment.last.start_gate_reads ==
+                        1U &&
+                    result.actor_start_gate_increment.last.start_gate_writes ==
+                        0U &&
+                    result.group_b_iterations == 0U,
+                "Group-A live-opponent write stop preserves the read and suppresses loop progress"
+            );
+        }
+
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.action.active_effect_target = 8U;
             state.action.group_a_action_execution[0U].action_target = 0xFFFFU;
             state.final_actor_step.action_execution_active = 0U;
             Fixture fixture;

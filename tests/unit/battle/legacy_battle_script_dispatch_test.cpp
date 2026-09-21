@@ -4871,6 +4871,9 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
         fixture.opcode(78);
         fixture.write_u16(2U, 8U);
         fixture.write_u16(4U, 0U);
+        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
         const auto first = run_legacy_battle_script_dispatch(
             fixture.workspace, fixture.bindings(), port
         );
@@ -4885,6 +4888,23 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
                 first.actor_target_selection.argument_values[0U] == 0U &&
                 first.actor_action_mode_calls == 1U &&
                 first.actor_action_modes[0U].return_eip == 0x0046DCC9U &&
+                first.actor_start_gate_increment.calls == 1U &&
+                first.actor_start_gate_increment.call_addresses[0U] ==
+                    0x0046DD4AU &&
+                first.actor_start_gate_increment.return_addresses[0U] ==
+                    0x0046DD4FU &&
+                first.actor_start_gate_increment.actor_tokens[0U] ==
+                    openswd3::battle::kLegacyBattleActionGroupBBaseToken &&
+                first.actor_start_gate_increment.last.return_eax == 1381U &&
+                first.actor_start_gate_increment.last.return_edx == 345U &&
+                first.actor_start_gate_increment.last.returned &&
+                first.actor_start_gate_increment.last.flags_known &&
+                !first.actor_start_gate_increment.last.flags.carry &&
+                !first.actor_start_gate_increment.last.flags.parity &&
+                (*fixture.startup.group_b_lifecycle)[0U]
+                        .action_execution.start_gate == 1U &&
+                (*fixture.startup.group_b_lifecycle)[0U]
+                        .action_execution.start_gate_latch == 1U &&
                 fixture.action.group_a_action_execution[0U].idle_state_latch ==
                     1U &&
                 fixture.action.group_a_action_execution[0U].action_target ==
@@ -4904,6 +4924,58 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
         test.expect_true(
             fixture.workspace.cursor == 6U,
             "case seventy-eight advances after the frame clears its gate"
+        );
+    }
+
+    {
+        Fixture fixture;
+        Port port;
+        fixture.opcode(78);
+        fixture.write_u16(2U, 8U);
+        fixture.write_u16(4U, 0U);
+        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        fixture.shared.actor_order_workspace.fill(0xAAAAAAAAU);
+        fixture.shared.attack_order_workspace.fill(0xBBBBBBBBU);
+        openswd3::battle::LegacyBattleScriptDispatchRequest request;
+        request.actor_start_gate_increment_requests.count = 1U;
+        request.actor_start_gate_increment_requests.calls[0U]
+            .access.start_gate_latch_writable = false;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port, request
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::
+                        actor_start_gate_increment_typed_stop &&
+                result.actor_start_gate_increment.calls == 1U &&
+                result.actor_start_gate_increment.call_addresses[0U] ==
+                    0x0046DD4AU &&
+                result.actor_start_gate_increment.last.status ==
+                    openswd3::battle::
+                        LegacyBattleActorStartGateIncrementStatus::
+                            start_gate_latch_write_typed_stop &&
+                result.actor_start_gate_increment.last.start_gate_writes ==
+                    1U &&
+                result.actor_start_gate_increment.last
+                        .start_gate_latch_writes == 0U &&
+                (*fixture.startup.group_b_lifecycle)[0U]
+                        .action_execution.start_gate == 1U &&
+                (*fixture.startup.group_b_lifecycle)[0U]
+                        .action_execution.start_gate_latch == 0U &&
+                fixture.input_dispatch.selected_actor_reset_gate == 0U &&
+                fixture.shared.frame_gate == 1U &&
+                fixture.workspace.cursor == 0U &&
+                std::ranges::all_of(
+                    fixture.shared.actor_order_workspace,
+                    [](const u32 value) { return value == 0U; }
+                ) &&
+                std::ranges::all_of(
+                    fixture.shared.attack_order_workspace,
+                    [](const u32 value) { return value == 0U; }
+                ),
+            "case seventy-eight latch stop preserves the preparation prefix and suppresses reset publication and cursor progress"
         );
     }
 

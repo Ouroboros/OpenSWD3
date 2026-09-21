@@ -26,7 +26,6 @@ constexpr u32 kCallQueryQueueCompletion = 0x0047F920U;
 constexpr u32 kCallQueryActorBlocked = 0x0047D930U;
 constexpr u32 kCallQueryActorExcluded = 0x00478B50U;
 constexpr u32 kCallClearControl = 0x0047C660U;
-constexpr u32 kCallPrepareTarget = 0x00478AC0U;
 constexpr u32 kCallPrepareSelection = 0x00478B30U;
 constexpr u32 kCallQuerySelectionMode = 0x00483820U;
 constexpr u32 kCallRandomBounded = 0x00439070U;
@@ -180,6 +179,63 @@ void replace_low_byte(u32& destination, const u8 value) noexcept {
         LegacyBattleActionDispatchStatus::actor_runtime_reset_typed_stop;
     result.return_value = result.actor_runtime_reset.last.return_eax;
     return false;
+}
+
+[[nodiscard]] bool increment_actor_start_gate(
+    LegacyBattleActionDispatchState& action,
+    LegacyBattleActionDispatchContext& context,
+    LegacyBattleActionDispatchResult& result,
+    const u32 actor_token,
+    const u32 call_address,
+    const u32 return_address,
+    const u32 entry_eax,
+    const u32 entry_edx,
+    const LegacyBattleActorCoordinateFlags& entry_flags
+) {
+    if (execute_legacy_battle_actor_start_gate_increment_call(
+            result.actor_start_gate_increment,
+            context.actor_start_gate_increment_requests,
+            {.action = &action, .startup = context.startup},
+            call_address,
+            return_address,
+            actor_token,
+            entry_eax,
+            entry_edx,
+            entry_flags,
+            true
+        )) {
+        return true;
+    }
+
+    result.status =
+        LegacyBattleActionDispatchStatus::actor_start_gate_increment_typed_stop;
+    result.return_value = result.actor_start_gate_increment.last.return_eax;
+    return false;
+}
+
+[[nodiscard]] bool increment_selected_group_a_start_gate(
+    LegacyBattleActionDispatchState& action,
+    LegacyBattleActionDispatchContext& context,
+    LegacyBattleActionDispatchResult& result,
+    const u32 actor_index,
+    const u32 actor_token
+) {
+    const u32 times_sixty_three = (actor_index << 6U) - actor_index;
+    const u32 times_one_thousand_eight = times_sixty_three << 4U;
+    const u32 times_one_thousand_seven = times_one_thousand_eight - actor_index;
+    const u32 times_three_thousand_twenty_one =
+        times_one_thousand_seven + times_one_thousand_seven * 2U;
+    return increment_actor_start_gate(
+        action,
+        context,
+        result,
+        actor_token,
+        0x00457E1CU,
+        0x00457E21U,
+        times_one_thousand_seven,
+        times_three_thousand_twenty_one,
+        subtract_flags(times_one_thousand_eight, actor_index)
+    );
 }
 
 [[nodiscard]] bool query_turn_completion(
@@ -735,18 +791,25 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                     }
                                 }
                                 if (target_available) {
-                                    static_cast<void>(invoke(
+                                    const auto cleared = invoke(
                                         port,
                                         result,
                                         kCallClearControl,
                                         {target, 0U}
-                                    ));
-                                    static_cast<void>(invoke(
-                                        port,
-                                        result,
-                                        kCallPrepareTarget,
-                                        {target}
-                                    ));
+                                    );
+                                    if (!increment_actor_start_gate(
+                                            action,
+                                            context,
+                                            result,
+                                            target,
+                                            0x0045786BU,
+                                            0x00457870U,
+                                            cleared.eax,
+                                            cleared.edx,
+                                            cleared.flags
+                                        )) {
+                                        return result;
+                                    }
                                     ++state.phase_progress;
                                 }
                                 ++scanned;
@@ -1276,12 +1339,15 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                     )) {
                                     return result;
                                 }
-                                static_cast<void>(invoke(
-                                    port,
-                                    result,
-                                    kCallPrepareTarget,
-                                    {selected_token}
-                                ));
+                                if (!increment_selected_group_a_start_gate(
+                                        action,
+                                        context,
+                                        result,
+                                        state.random_target_index,
+                                        selected_token
+                                    )) {
+                                    return result;
+                                }
                             }
                         }
                     } else {
@@ -1445,12 +1511,15 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                         )) {
                                         return result;
                                     }
-                                    static_cast<void>(invoke(
-                                        port,
-                                        result,
-                                        kCallPrepareTarget,
-                                        {selected_token}
-                                    ));
+                                    if (!increment_selected_group_a_start_gate(
+                                            action,
+                                            context,
+                                            result,
+                                            state.random_target_index,
+                                            selected_token
+                                        )) {
+                                        return result;
+                                    }
                                 }
                             }
                         }

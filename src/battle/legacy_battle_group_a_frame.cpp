@@ -121,7 +121,6 @@ constexpr u32 kCallClearActorAction = 0x00478B20U;
 constexpr u32 kCallResetTarget = 0x00478AE0U;
 constexpr u32 kCallPublishAllActors = 0x0047E950U;
 constexpr u32 kCallClearNonterminal = 0x00483FF0U;
-constexpr u32 kCallPrepareTarget = 0x00478AC0U;
 constexpr u32 kCallUpdateTurnAction = 0x004321E0U;
 constexpr u32 kCallLookupTurnFrame = 0x004315D0U;
 constexpr u32 kCallSetSamplePan = 0x00485650U;
@@ -434,6 +433,38 @@ one_based_group_b_token(const u32 one_based) noexcept {
     result.status =
         LegacyBattleActionDispatchStatus::actor_runtime_reset_typed_stop;
     result.return_value = result.actor_runtime_reset.last.return_eax;
+    return false;
+}
+
+[[nodiscard]] bool increment_actor_start_gate(
+    LegacyBattleActionDispatchState& action,
+    LegacyBattleActionDispatchContext& context,
+    LegacyBattleActionDispatchResult& result,
+    const u32 actor_token,
+    const u32 call_address,
+    const u32 return_address,
+    const u32 entry_eax,
+    const u32 entry_edx,
+    const LegacyBattleActorCoordinateFlags& entry_flags
+) {
+    if (execute_legacy_battle_actor_start_gate_increment_call(
+            result.actor_start_gate_increment,
+            context.actor_start_gate_increment_requests,
+            {.action = &action, .startup = context.startup},
+            call_address,
+            return_address,
+            actor_token,
+            entry_eax,
+            entry_edx,
+            entry_flags,
+            true
+        )) {
+        return true;
+    }
+
+    result.status =
+        LegacyBattleActionDispatchStatus::actor_start_gate_increment_typed_stop;
+    result.return_value = result.actor_start_gate_increment.last.return_eax;
     return false;
 }
 
@@ -2433,19 +2464,25 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                                 port, result, kCallQueryTerminal, {candidate}
                             );
                             if (first.eax != 1U) {
-                                if (invoke(
-                                        port,
+                                const auto second = invoke(
+                                    port,
+                                    result,
+                                    kCallQueryTerminal,
+                                    {candidate}
+                                );
+                                if (second.eax == 0U &&
+                                    !increment_actor_start_gate(
+                                        state.action,
+                                        context,
                                         result,
-                                        kCallQueryTerminal,
-                                        {candidate}
-                                    )
-                                        .eax == 0U) {
-                                    static_cast<void>(invoke(
-                                        port,
-                                        result,
-                                        kCallPrepareTarget,
-                                        {candidate}
-                                    ));
+                                        candidate,
+                                        0x0045707AU,
+                                        0x0045707FU,
+                                        second.eax,
+                                        second.edx,
+                                        logical_flags(second.eax)
+                                    )) {
+                                    return result;
                                 }
                                 any = true;
                             }
@@ -2517,9 +2554,34 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         }
                     }
                     if (state.final_actor_step.action_execution_active == 1U) {
-                        static_cast<void>(invoke(
-                            port, result, kCallPrepareTarget, {target_token}
-                        ));
+                        const u32 target_index =
+                            (target_token -
+                             kLegacyBattleActionGroupBBaseToken) /
+                            kLegacyBattleActionGroupBStride;
+                        const u32 times_three =
+                            target_index + target_index * 2U;
+                        const u32 times_twenty_four = times_three << 3U;
+                        const u32 times_twenty_three =
+                            times_twenty_four - target_index;
+                        const u32 times_sixty_nine =
+                            times_twenty_three + times_twenty_three * 2U;
+                        const u32 times_three_hundred_forty_five =
+                            times_sixty_nine + times_sixty_nine * 4U;
+                        const u32 times_one_thousand_three_hundred_eighty_one =
+                            target_index + times_three_hundred_forty_five * 4U;
+                        if (!increment_actor_start_gate(
+                                state.action,
+                                context,
+                                result,
+                                target_token,
+                                0x00456FE1U,
+                                0x00456FE6U,
+                                times_one_thousand_three_hundred_eighty_one,
+                                times_three_hundred_forty_five,
+                                subtract_flags(times_twenty_four, target_index)
+                            )) {
+                            return result;
+                        }
                     }
                 }
                 if (state.final_actor_step.action_execution_active == 1U) {

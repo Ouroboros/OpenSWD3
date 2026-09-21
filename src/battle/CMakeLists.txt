@@ -54,6 +54,7 @@ add_library(
         legacy_battle_actor_field_26b8_high_bit_set.cpp
         legacy_battle_actor_display_kind.cpp
         legacy_battle_actor_start_gate.cpp
+        legacy_battle_actor_start_gate_increment.cpp
         legacy_battle_actor_frame_snapshot.cpp
         legacy_battle_actor_render_offsets.cpp
         legacy_battle_actor_metrics.cpp

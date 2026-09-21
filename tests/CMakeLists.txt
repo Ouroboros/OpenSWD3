@@ -587,6 +587,7 @@ add_executable(
     unit/battle/legacy_battle_actor_field_26b8_high_bit_set_test.cpp
     unit/battle/legacy_battle_actor_display_kind_test.cpp
     unit/battle/legacy_battle_actor_start_gate_test.cpp
+    unit/battle/legacy_battle_actor_start_gate_increment_test.cpp
     unit/battle/legacy_battle_actor_frame_snapshot_test.cpp
     unit/battle/legacy_battle_frame_input_resolution_test.cpp
     unit/battle/legacy_battle_list_frame_test.cpp

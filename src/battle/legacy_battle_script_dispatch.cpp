@@ -1292,6 +1292,45 @@ private:
         return true;
     }
 
+    [[nodiscard]] bool increment_actor_start_gate(
+        const u32 actor_token,
+        const u32 entry_eax,
+        const u32 entry_edx,
+        const LegacyBattleActorCoordinateFlags& entry_flags
+    ) {
+        if (!execute_legacy_battle_actor_start_gate_increment_call(
+                result_.actor_start_gate_increment,
+                request_.actor_start_gate_increment_requests,
+                {
+                    .action = &bindings_.action,
+                    .startup = &bindings_.startup,
+                },
+                0x0046DD4AU,
+                0x0046DD4FU,
+                actor_token,
+                entry_eax,
+                entry_edx,
+                entry_flags,
+                true
+            )) {
+            eax_ = result_.actor_start_gate_increment.last.return_eax;
+            ecx_ = result_.actor_start_gate_increment.last.return_ecx;
+            edx_ = result_.actor_start_gate_increment.last.return_edx;
+            if (result_.actor_start_gate_increment.last.flags_known) {
+                flags_ = result_.actor_start_gate_increment.last.flags;
+            }
+            result_.status = LegacyBattleScriptDispatchStatus::
+                actor_start_gate_increment_typed_stop;
+            return false;
+        }
+
+        eax_ = result_.actor_start_gate_increment.last.return_eax;
+        ecx_ = result_.actor_start_gate_increment.last.return_ecx;
+        edx_ = result_.actor_start_gate_increment.last.return_edx;
+        flags_ = result_.actor_start_gate_increment.last.flags;
+        return true;
+    }
+
     [[nodiscard]] bool rebuild_actor_order_direct() {
         const auto order = rebuild_legacy_battle_actor_order(
             bindings_.metrics,
@@ -5105,11 +5144,29 @@ private:
             bindings_.input_dispatch.selection_cache_gate_a = 1U;
             bindings_.shared.script_phase_gate = 1U;
             bindings_.shared.script_aux_gate = 0U;
-            invoke(
-                LegacyBattleScriptDispatchCall::pending_478ac0,
-                0x005229E0U,
-                {bindings_.final_actor.published_actor_code}
-            );
+            const u32 start_gate_actor_code =
+                bindings_.final_actor.published_actor_code;
+            const u32 times_three =
+                start_gate_actor_code + start_gate_actor_code * 2U;
+            const u32 times_twenty_four = times_three << 3U;
+            const u32 times_twenty_three =
+                times_twenty_four - start_gate_actor_code;
+            const u32 times_sixty_nine =
+                times_twenty_three + times_twenty_three * 2U;
+            const u32 times_three_hundred_forty_five =
+                times_sixty_nine + times_sixty_nine * 4U;
+            const u32 times_one_thousand_three_hundred_eighty_one =
+                start_gate_actor_code + times_three_hundred_forty_five * 4U;
+            const u32 start_gate_actor_token =
+                0x005229E0U + times_one_thousand_three_hundred_eighty_one * 8U;
+            if (!increment_actor_start_gate(
+                    start_gate_actor_token,
+                    times_one_thousand_three_hundred_eighty_one,
+                    times_three_hundred_forty_five,
+                    subtract_flags(times_twenty_four, start_gate_actor_code)
+                )) {
+                return finish();
+            }
             bindings_.input_dispatch.selected_actor_reset_gate = 1U;
             workspace_.word_a = 0U;
         }

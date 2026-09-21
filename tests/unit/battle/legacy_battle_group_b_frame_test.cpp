@@ -371,6 +371,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 result.actor_turn_completion.return_esp ==
                     context.actor_turn_completion_request.entry_esp &&
                 result.group_a_iterations == 0U && state.phase_progress == 0U &&
+                result.actor_start_gate_increment.calls == 0U &&
                 port.count(0x00478690U) == 0U &&
                 port.count(0x004786A0U) == 0U &&
                 port.count(0x0047C660U) == 0U && port.count(0x00478AC0U) == 0U,
@@ -423,6 +424,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 !result.actor_idle_state.flags.sign &&
                 !result.actor_idle_state.flags.overflow &&
                 result.group_a_iterations == 0U &&
+                result.actor_start_gate_increment.calls == 0U &&
                 port.count(0x004786A0U) == 0U &&
                 port.count(0x0047C660U) == 0U && port.count(0x00478AC0U) == 0U,
             "Group-B target-scan caller preserves turn TEST state and stops before target preparation"
@@ -514,7 +516,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             "nonmatching target-scan value skips phase progress"
         );
         test.expect_true(
-            port.count(0x0047C660U) == 0U && port.count(0x00478AC0U) == 0U,
+            result.actor_start_gate_increment.calls == 0U &&
+                port.count(0x0047C660U) == 0U && port.count(0x00478AC0U) == 0U,
             "nonmatching target-scan value skips clear and preparation"
         );
         test.expect_true(
@@ -568,12 +571,25 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 zero.actor_idle_state.returned &&
                 zero_port.count(0x004786A0U) == 0U &&
                 zero_port.count(0x0047C660U) == 1U &&
-                zero_port.count(0x00478AC0U) == 1U &&
+                zero.actor_start_gate_increment.calls == 1U &&
+                zero.actor_start_gate_increment.call_addresses[0U] ==
+                    0x0045786BU &&
+                zero.actor_start_gate_increment.return_addresses[0U] ==
+                    0x00457870U &&
+                zero.actor_start_gate_increment.actor_tokens[0U] ==
+                    openswd3::battle::kLegacyBattleActionGroupABaseToken &&
+                zero.actor_start_gate_increment.last.returned &&
+                zero_state.shared.action.group_a_action_execution[0U]
+                        .start_gate == 1U &&
+                zero_state.shared.action.group_a_action_execution[0U]
+                        .start_gate_latch == 1U &&
+                zero_port.count(0x00478AC0U) == 0U &&
                 nonzero.actor_turn_completion_calls == 1U &&
                 nonzero.actor_turn_completion.returned &&
                 nonzero.actor_turn_completion.return_eax == 11U &&
                 nonzero.actor_turn_completion.return_eip == 0x00457852U &&
                 nonzero.actor_idle_state_calls == 1U &&
+                nonzero.actor_start_gate_increment.calls == 0U &&
                 nonzero_port.count(0x004786A0U) == 0U &&
                 nonzero_port.count(0x0047C660U) == 0U &&
                 nonzero_port.count(0x00478AC0U) == 0U &&
@@ -1013,6 +1029,88 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 state.random_target_index == 0U &&
                 port.count(0x00476140U) == 0U,
             "normal status directly applies the typed group B profile flag"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState state;
+        state.frame_enabled = 1U;
+        state.post_update_gate[0U] = 1U;
+        state.shared.action.active_effect_target = 0U;
+        state.shared.action.group_a_count = 1;
+        state.selection_initialized = 1U;
+        state.action_profile_bytes = {0U};
+        Fixture fixture;
+        bind_group_b_coordinate_resource(fixture, 0U);
+        DispatchPort port;
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.actor_start_gate_increment.calls == 1U &&
+                result.actor_start_gate_increment.call_addresses[0U] ==
+                    0x00457E1CU &&
+                result.actor_start_gate_increment.return_addresses[0U] ==
+                    0x00457E21U &&
+                result.actor_start_gate_increment.actor_tokens[0U] ==
+                    openswd3::battle::kLegacyBattleActionGroupABaseToken &&
+                result.actor_start_gate_increment.last.return_eax == 0U &&
+                result.actor_start_gate_increment.last.return_edx == 0U &&
+                result.actor_start_gate_increment.last.flags_known &&
+                !result.actor_start_gate_increment.last.flags.carry &&
+                !result.actor_start_gate_increment.last.flags.parity &&
+                state.shared.action.group_a_action_execution[0U].start_gate ==
+                    1U &&
+                state.shared.action.group_a_action_execution[0U]
+                        .start_gate_latch == 1U &&
+                port.count(0x00478AC0U) == 0U,
+            "Group-B selection increments the chosen Group-A start gate through physical caller 00457E1C"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState state;
+        state.frame_enabled = 1U;
+        state.post_update_gate[0U] = 1U;
+        state.shared.action.active_effect_target = 0U;
+        state.shared.action.group_a_count = 1;
+        state.selection_initialized = 1U;
+        state.action_profile_bytes = {0U};
+        Fixture fixture;
+        bind_group_b_coordinate_resource(fixture, 0U);
+        DispatchPort port;
+        auto context = fixture.context();
+        context.actor_start_gate_increment_requests.count = 1U;
+        context.actor_start_gate_increment_requests.calls[0U]
+            .access.start_gate_latch_writable = false;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_start_gate_increment_typed_stop &&
+                result.actor_start_gate_increment.calls == 1U &&
+                result.actor_start_gate_increment.last.status ==
+                    openswd3::battle::
+                        LegacyBattleActorStartGateIncrementStatus::
+                            start_gate_latch_write_typed_stop &&
+                result.actor_start_gate_increment.last.return_eip ==
+                    0x00478AC7U &&
+                result.actor_start_gate_increment.last.start_gate_writes ==
+                    1U &&
+                result.actor_start_gate_increment.last
+                        .start_gate_latch_writes == 0U &&
+                state.shared.action.group_a_action_execution[0U].start_gate ==
+                    1U &&
+                state.shared.action.group_a_action_execution[0U]
+                        .start_gate_latch == 0U &&
+                state.selection_initialized == 1U,
+            "Group-B selected-actor latch stop preserves the increment and suppresses the common suffix"
         );
     }
 

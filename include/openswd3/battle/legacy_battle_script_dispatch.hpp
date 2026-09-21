@@ -8,6 +8,7 @@
 #include "openswd3/battle/legacy_battle_actor_presentation_activation.hpp"
 #include "openswd3/battle/legacy_battle_actor_target_selection.hpp"
 #include "openswd3/battle/legacy_battle_actor_target_selection_count_query.hpp"
+#include "openswd3/battle/legacy_battle_actor_start_gate_increment.hpp"
 #include "openswd3/battle/legacy_battle_actor_field_26b8_high_bit_set.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_assets.hpp"
@@ -223,7 +224,6 @@ enum class LegacyBattleScriptDispatchCall : compat::u32 {
     reserved_actor_effect_resource_slot_write = 0x004787D0U,
     reserved_actor_presentation_activation = 0x004787F0U,
     reserved_actor_binary_state_toggle = 0x00478830U,
-    pending_478ac0 = 0x00478AC0U,
     pending_47c660 = 0x0047C660U,
     pending_47ce80 = 0x0047CE80U,
     pending_47ceb0 = 0x0047CEB0U,
@@ -332,6 +332,7 @@ enum class LegacyBattleScriptDispatchStatus : compat::u8 {
     actor_presentation_activation_typed_stop,
     actor_target_selection_typed_stop,
     actor_target_selection_count_query_typed_stop,
+    actor_start_gate_increment_typed_stop,
 };
 
 struct LegacyBattleScriptCurrentCoordinateAccess {
@@ -371,6 +372,8 @@ struct LegacyBattleScriptDispatchRequest {
         actor_target_selection_requests{};
     LegacyBattleActorTargetSelectionCountQueryCallRequests
         actor_target_selection_count_query_requests{};
+    LegacyBattleActorStartGateIncrementCallRequests
+        actor_start_gate_increment_requests{};
 };
 
 struct LegacyBattleScriptCurrentCoordinateCallRecord {
@@ -432,6 +435,7 @@ struct LegacyBattleScriptDispatchResult {
     LegacyBattleActorTargetSelectionTrace actor_target_selection{};
     LegacyBattleActorTargetSelectionCountQueryTrace
         actor_target_selection_count_query{};
+    LegacyBattleActorStartGateIncrementTrace actor_start_gate_increment{};
     std::vector<LegacyBattleScriptDispatchCall> call_trace;
 };
 

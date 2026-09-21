@@ -63,6 +63,7 @@ struct LegacyBattleGroupAActionExecutionState
       public LegacyBattleActorActionRecordSlots {
     compat::u16 start_gate{};              // actor + 0x2A74
     compat::u16 target_selection_count{};  // actor + 0x2A76
+    compat::u32 start_gate_latch{};        // actor + 0x2AE0
     compat::u32 execution_complete{};      // actor + 0x2AD8
     std::array<compat::u16, 35>
         effect_resource_slots{};                 // actor + 0x29C4..+0x2A09
