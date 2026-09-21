@@ -107,6 +107,19 @@ add_word_flags(const u16 left, const u16 right, const u16 sum) noexcept {
 }
 
 [[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+test_word_flags(const u16 value) noexcept {
+    return {
+        .carry = false,
+        .parity = has_even_parity(value),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = value == 0U,
+        .sign = (value & 0x8000U) != 0U,
+        .overflow = false,
+    };
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
 subtract_flags(const u32 left, const u32 right) noexcept {
     const u32 difference = left - right;
     return {
@@ -1237,6 +1250,45 @@ private:
         ecx_ = result_.actor_target_selection.last.return_ecx;
         edx_ = result_.actor_target_selection.last.return_edx;
         flags_ = result_.actor_target_selection.last.flags;
+        return true;
+    }
+
+    [[nodiscard]] bool query_actor_target_selection_count(
+        const u32 actor_token,
+        const u32 entry_eax,
+        const u32 entry_edx,
+        const LegacyBattleActorCoordinateFlags& entry_flags
+    ) {
+        if (!execute_legacy_battle_actor_target_selection_count_query_call(
+                result_.actor_target_selection_count_query,
+                request_.actor_target_selection_count_query_requests,
+                {
+                    .action = &bindings_.action,
+                    .startup = &bindings_.startup,
+                },
+                0x0046D429U,
+                0x0046D42EU,
+                actor_token,
+                entry_eax,
+                entry_edx,
+                entry_flags,
+                true
+            )) {
+            eax_ = result_.actor_target_selection_count_query.last.return_eax;
+            ecx_ = result_.actor_target_selection_count_query.last.return_ecx;
+            edx_ = result_.actor_target_selection_count_query.last.return_edx;
+            if (result_.actor_target_selection_count_query.last.flags_known) {
+                flags_ = result_.actor_target_selection_count_query.last.flags;
+            }
+            result_.status = LegacyBattleScriptDispatchStatus::
+                actor_target_selection_count_query_typed_stop;
+            return false;
+        }
+
+        eax_ = result_.actor_target_selection_count_query.last.return_eax;
+        ecx_ = result_.actor_target_selection_count_query.last.return_ecx;
+        edx_ = result_.actor_target_selection_count_query.last.return_edx;
+        flags_ = result_.actor_target_selection_count_query.last.flags;
         return true;
     }
 
@@ -4343,12 +4395,31 @@ private:
                 )) {
                 return finish();
             }
-            const auto token = actor_token(signed_word(actor));
-            if (!token.has_value()) {
+            const bool group_a = actor > 7U;
+            const u32 actor_index = group_a ? static_cast<u32>(actor) - 8U
+                                            : static_cast<u32>(actor);
+            const u32 token = group_a ? kLegacyBattleScriptGroupABaseToken +
+                    kLegacyBattleScriptGroupAElementSize * actor_index
+                                      : kLegacyBattleScriptGroupBBaseToken +
+                    kLegacyBattleScriptGroupBElementSize * actor_index;
+            if (group_a) {
+                eax_ = 3021U * actor_index;
+                edx_ = outer;
+                flags_ = subtract_flags(1008U * actor_index, actor_index);
+            } else {
+                eax_ = actor_index;
+                edx_ = 1381U * actor_index;
+                flags_ = subtract_flags(24U * actor_index, actor_index);
+            }
+
+            if (!query_actor_target_selection_count(
+                    token, eax_, edx_, flags_
+                )) {
                 return finish(eax_);
             }
-            invoke(LegacyBattleScriptDispatchCall::pending_478ab0, *token);
-            if (low_word(eax_) == 0U) {
+
+            flags_ = test_word_flags(low_word(eax_));
+            if (flags_.zero) {
                 ++inner;
                 set_high_word(workspace_.packed_value_b, inner);
                 if (inner == count) {

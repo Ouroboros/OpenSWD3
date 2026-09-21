@@ -170,7 +170,6 @@ public:
             }
             break;
         case LegacyBattleScriptDispatchCall::random_bounded_secondary:
-        case LegacyBattleScriptDispatchCall::pending_478ab0:
         case LegacyBattleScriptDispatchCall::pending_482ec0:
             reply.eax = query_result;
             break;
@@ -4556,24 +4555,225 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
     }
 
     {
-        Fixture fixture;
+        auto fixture_owner = std::make_unique<Fixture>();
+        auto& fixture = *fixture_owner;
         Port port;
         fixture.opcode(61);
         fixture.write_u16(2U, 8U);
         fixture.write_u16(4U, 9U);
         fixture.write_u16(6U, 0xFFFFU);
         fixture.write_u16(8U, 77U);
-        port.query_result = 0U;
-        static_cast<void>(run_legacy_battle_script_dispatch(
+        const auto result = run_legacy_battle_script_dispatch(
             fixture.workspace, fixture.bindings(), port
-        ));
+        );
         test.expect_true(
-            fixture.workspace.cursor == 0U &&
-                port.count(LegacyBattleScriptDispatchCall::pending_478ab0) ==
-                    2U &&
-                port.count(LegacyBattleScriptDispatchCall::script_page_load) ==
-                    1U,
-            "case sixty-one calls the post-list script only when every query is zero"
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.actor_target_selection_count_query.calls == 2U &&
+                result.actor_target_selection_count_query.call_addresses[0U] ==
+                    0x0046D429U &&
+                result.actor_target_selection_count_query
+                        .return_addresses[0U] == 0x0046D42EU &&
+                result.actor_target_selection_count_query.actor_tokens[0U] ==
+                    openswd3::battle::kLegacyBattleScriptGroupABaseToken &&
+                result.actor_target_selection_count_query.actor_tokens[1U] ==
+                    openswd3::battle::kLegacyBattleScriptGroupABaseToken +
+                        openswd3::battle::
+                            kLegacyBattleScriptGroupAElementSize &&
+                fixture.workspace.cursor == 0U &&
+                fixture.workspace.word_d == 0U &&
+                fixture.workspace.packed_value_b == 0U &&
+                port.calls.size() == 1U &&
+                port.calls[0U].call ==
+                    LegacyBattleScriptDispatchCall::script_page_load,
+            "case sixty-one reads every group-A count through the physical call before loading the post-list script"
+        );
+    }
+
+    {
+        auto fixture_owner = std::make_unique<Fixture>();
+        auto& fixture = *fixture_owner;
+        Port port;
+        fixture.opcode(61);
+        fixture.write_u16(2U, 9U);
+        fixture.write_u16(4U, 0xFFFFU);
+        fixture.action.group_a_action_execution[1U].target_selection_count =
+            0x1234U;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        const auto& query = result.actor_target_selection_count_query.last;
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.actor_target_selection_count_query.calls == 1U &&
+                query.return_eax == 0x1234U && query.return_edx == 0U &&
+                query.return_ecx ==
+                    openswd3::battle::kLegacyBattleScriptGroupABaseToken +
+                        openswd3::battle::
+                            kLegacyBattleScriptGroupAElementSize &&
+                !query.flags.carry && !query.flags.parity &&
+                query.flags.auxiliary_carry &&
+                query.flags.auxiliary_carry_defined && !query.flags.zero &&
+                !query.flags.sign && !query.flags.overflow &&
+                fixture.workspace.cursor == 10U &&
+                fixture.workspace.word_d == 1U &&
+                fixture.workspace.packed_value_b == 0U && port.calls.empty(),
+            "case sixty-one preserves the group-A address flags and EDX residue when a nonzero count skips the post-list script"
+        );
+    }
+
+    {
+        auto fixture_owner = std::make_unique<Fixture>();
+        auto& fixture = *fixture_owner;
+        Port port;
+        fixture.opcode(61);
+        fixture.write_u16(2U, 2U);
+        fixture.write_u16(4U, 0xFFFFU);
+        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        (*fixture.startup.group_b_lifecycle)[2U]
+            .action_execution.target_selection_count = 0x8000U;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        const auto& query = result.actor_target_selection_count_query.last;
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.actor_target_selection_count_query.calls == 1U &&
+                query.return_eax == 0x8000U && query.return_edx == 2762U &&
+                query.return_ecx ==
+                    openswd3::battle::kLegacyBattleScriptGroupBBaseToken +
+                        2U *
+                            openswd3::battle::
+                                kLegacyBattleScriptGroupBElementSize &&
+                !query.flags.carry && query.flags.parity &&
+                query.flags.auxiliary_carry &&
+                query.flags.auxiliary_carry_defined && !query.flags.zero &&
+                !query.flags.sign && !query.flags.overflow &&
+                fixture.workspace.cursor == 10U &&
+                fixture.workspace.word_d == 1U &&
+                fixture.workspace.packed_value_b == 0U && port.calls.empty(),
+            "case sixty-one reads the canonical group-B owner and preserves its address flags and EDX residue"
+        );
+    }
+
+    {
+        auto fixture_owner = std::make_unique<Fixture>();
+        auto& fixture = *fixture_owner;
+        Port port;
+        fixture.opcode(61);
+        fixture.write_u16(2U, 8U);
+        fixture.write_u16(4U, 0xFFFFU);
+        openswd3::battle::LegacyBattleScriptDispatchRequest request{};
+        request.actor_target_selection_count_query_requests.count = 1U;
+        request.actor_target_selection_count_query_requests.calls[0U]
+            .access.count_readable = false;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port, request
+        );
+        const auto& query = result.actor_target_selection_count_query.last;
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::
+                        actor_target_selection_count_query_typed_stop &&
+                result.actor_target_selection_count_query.calls == 1U &&
+                query.status ==
+                    openswd3::battle::
+                        LegacyBattleActorTargetSelectionCountQueryStatus::
+                            count_read_typed_stop,
+            "case sixty-one count-read stop reports the typed query boundary"
+        );
+        test.expect_true(
+            query.field_reads == 0U && query.return_address_reads == 0U &&
+                query.return_eax == 0U && query.return_eip == 0x00478AB0U,
+            "case sixty-one count-read stop preserves the leaf entry state"
+        );
+        test.expect_true(
+            fixture.workspace.cursor == 0U && fixture.workspace.word_d == 1U &&
+                fixture.workspace.packed_value_b == 0U && port.calls.empty(),
+            "case sixty-one count-read stop preserves the scan prefix and suppresses all parent suffixes"
+        );
+    }
+
+    {
+        auto fixture_owner = std::make_unique<Fixture>();
+        auto& fixture = *fixture_owner;
+        Port port;
+        fixture.opcode(61);
+        fixture.write_u16(2U, 0x8000U);
+        fixture.write_u16(4U, 0xFFFFU);
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        const auto& query = result.actor_target_selection_count_query.last;
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::
+                        actor_target_selection_count_query_typed_stop &&
+                result.actor_target_selection_count_query.calls == 1U &&
+                result.actor_target_selection_count_query.call_addresses[0U] ==
+                    0x0046D429U &&
+                result.actor_target_selection_count_query.actor_tokens[0U] ==
+                    0x17E8B030U &&
+                query.status ==
+                    openswd3::battle::
+                        LegacyBattleActorTargetSelectionCountQueryStatus::
+                            count_read_typed_stop &&
+                query.field_reads == 0U && query.return_address_reads == 0U &&
+                query.return_eax == 0x05E62198U &&
+                query.return_ecx == 0x17E8B030U && query.return_edx == 0U &&
+                query.return_eip == 0x00478AB0U && !query.flags.carry &&
+                query.flags.parity && query.flags.auxiliary_carry &&
+                query.flags.auxiliary_carry_defined && !query.flags.zero &&
+                !query.flags.sign && !query.flags.overflow &&
+                fixture.workspace.cursor == 0U &&
+                fixture.workspace.word_d == 1U &&
+                fixture.workspace.packed_value_b == 0U && port.calls.empty(),
+            "case sixty-one invalid group-A code reaches the query field boundary with its full address residues"
+        );
+    }
+
+    {
+        auto fixture_owner = std::make_unique<Fixture>();
+        auto& fixture = *fixture_owner;
+        Port port;
+        fixture.opcode(61);
+        fixture.write_u16(2U, 9U);
+        fixture.write_u16(4U, 0xFFFFU);
+        fixture.action.group_a_action_execution[1U].target_selection_count =
+            0xBEEFU;
+        openswd3::battle::LegacyBattleScriptDispatchRequest request{};
+        request.actor_target_selection_count_query_requests.count = 1U;
+        request.actor_target_selection_count_query_requests.calls[0U]
+            .access.return_address_readable = false;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port, request
+        );
+        const auto& query = result.actor_target_selection_count_query.last;
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::
+                        actor_target_selection_count_query_typed_stop &&
+                result.actor_target_selection_count_query.calls == 1U &&
+                query.status ==
+                    openswd3::battle::
+                        LegacyBattleActorTargetSelectionCountQueryStatus::
+                            return_address_read_typed_stop,
+            "case sixty-one return-read stop reports the typed query boundary"
+        );
+        test.expect_true(
+            query.field_reads == 1U && query.return_address_reads == 0U &&
+                query.return_eax == 0xBEEFU &&
+                query.return_eip == 0x00478AB7U && !query.flags.carry &&
+                !query.flags.parity && query.flags.auxiliary_carry &&
+                query.flags.auxiliary_carry_defined && !query.flags.zero &&
+                !query.flags.sign && !query.flags.overflow,
+            "case sixty-one return-read stop preserves the completed AX query and entry flags"
+        );
+        test.expect_true(
+            fixture.workspace.cursor == 0U && fixture.workspace.word_d == 1U &&
+                fixture.workspace.packed_value_b == 0U && port.calls.empty(),
+            "case sixty-one return-read stop suppresses the parent test and all suffixes"
         );
     }
 

@@ -29,6 +29,7 @@ add_library(
         legacy_battle_actor_runtime_reset.cpp
         legacy_battle_actor_target_selection.cpp
         legacy_battle_actor_target_selection_count_increment.cpp
+        legacy_battle_actor_target_selection_count_query.cpp
         legacy_battle_actor_base_release.cpp
         legacy_battle_actor_availability_block.cpp
         legacy_battle_actor_lifecycle.cpp
