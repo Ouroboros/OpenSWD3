@@ -1749,7 +1749,58 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         port.push(0x0047F920U, {.eax = 0U});
         port.push(0x004786A0U, {.eax = 1U});
         port.push(0x004786A0U, {.eax = 1U});
-        port.push(0x00478B40U, {.eax = 1U});
+        auto context = fixture.context();
+        context.actor_target_selection_latch_query_requests.count = 1U;
+        context.actor_target_selection_latch_query_requests.calls[0U]
+            .access.target_selection_latch_readable = false;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_target_selection_latch_query_typed_stop &&
+                result.actor_action_target_clear.calls == 1U &&
+                result.actor_action_target_clear.call_addresses[0U] ==
+                    0x00457EBCU &&
+                result.actor_action_target_clear.last.returned &&
+                (*fixture.startup->group_b_lifecycle)[0U]
+                        .action_execution.action_target == 0xFFFFU &&
+                result.actor_target_selection_latch_query.calls == 1U &&
+                result.actor_target_selection_latch_query.call_addresses[0U] ==
+                    0x00457EC3U &&
+                result.actor_target_selection_latch_query.last.status ==
+                    openswd3::battle::
+                        LegacyBattleActorTargetSelectionLatchQueryStatus::
+                            target_selection_latch_read_typed_stop &&
+                result.actor_gate_decay.calls == 0U &&
+                result.actor_runtime_reset.calls == 0U &&
+                port.count(0x00478B40U) == 0U,
+            "Group-B caller 00457EC3 field stop preserves target clear and suppresses comparison and cleanup suffixes"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState state;
+        state.frame_enabled = 1U;
+        state.shared.action.active_effect_target = 0U;
+        state.selection_initialized = 1U;
+        state.action_profile_bytes = {0U};
+        state.shared.action.group_a_count = 1;
+        Fixture fixture;
+        (*fixture.startup->group_b_lifecycle)[0U]
+            .action_execution.idle_state_latch = 1U;
+        (*fixture.startup->group_b_lifecycle)[0U]
+            .runtime_reset.target_selection_latch = 1U;
+        DispatchPort port;
+        port.action = 100U;
+        (*fixture.startup->group_b_lifecycle)[0U]
+            .action_composition.action_kind = port.action;
+        port.action_target = 0U;
+        port.push(0x0047F920U, {.eax = 0U});
+        port.push(0x004786A0U, {.eax = 1U});
+        port.push(0x004786A0U, {.eax = 1U});
         auto context = fixture.context();
         context.actor_gate_decay_requests.count = 1U;
         context.actor_gate_decay_requests.calls[0U].access.start_gate_readable =
@@ -1770,6 +1821,16 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 result.actor_action_target_clear.actor_tokens[0U] ==
                     openswd3::battle::kLegacyBattleActionGroupBBaseToken &&
                 result.actor_action_target_clear.last.returned &&
+                result.actor_target_selection_latch_query.calls == 1U &&
+                result.actor_target_selection_latch_query.call_addresses[0U] ==
+                    0x00457EC3U &&
+                result.actor_target_selection_latch_query
+                        .return_addresses[0U] == 0x00457EC8U &&
+                result.actor_target_selection_latch_query.actor_tokens[0U] ==
+                    openswd3::battle::kLegacyBattleActionGroupBBaseToken &&
+                result.actor_target_selection_latch_query.last.return_eax ==
+                    1U &&
+                port.count(0x00478B40U) == 0U &&
                 result.actor_gate_decay.calls == 1U &&
                 result.actor_gate_decay.call_addresses[0U] == 0x00457EEEU &&
                 result.actor_gate_decay.return_addresses[0U] == 0x00457EF3U &&
@@ -1797,6 +1858,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         fixture.startup->party[0].progress.progress = 0xFACE0011U;
         (*fixture.startup->group_b_lifecycle)[0U]
             .action_execution.idle_state_latch = 1U;
+        (*fixture.startup->group_b_lifecycle)[0U]
+            .runtime_reset.target_selection_latch = 1U;
         DispatchPort port;
         port.action = 100U;
         (*fixture.startup->group_b_lifecycle)[0U]
@@ -1806,7 +1869,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         port.push(0x0047F920U, {.eax = 1U});
         port.push(0x004786A0U, {.eax = 1U});
         port.push(0x004786A0U, {.eax = 1U});
-        port.push(0x00478B40U, {.eax = 1U});
         port.push(0x00478850U, {.eax = 0xABCD1111U, .edx = 0xA5A55A5AU});
         port.push(0x00487C10U, {.eax = 0x00620000U});
         auto context = fixture.context();
@@ -1891,6 +1953,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         fixture.startup->party[0].progress.progress = 0xFACE0011U;
         (*fixture.startup->group_b_lifecycle)[0U]
             .action_execution.idle_state_latch = 1U;
+        (*fixture.startup->group_b_lifecycle)[0U]
+            .runtime_reset.target_selection_latch = 0U;
         DispatchPort port;
         port.action = 100U;
         (*fixture.startup->group_b_lifecycle)[0U]
@@ -1900,7 +1964,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         port.push(0x0047F920U, {.eax = 1U});
         port.push(0x004786A0U, {.eax = 1U});
         port.push(0x004786A0U, {.eax = 1U});
-        port.push(0x00478B40U, {.eax = 0U});
         port.push(0x00478850U, {.eax = 0xDEAD1111U, .edx = 0x55667788U});
         port.push(0x00487C10U, {.eax = 0x00630000U});
         auto context = fixture.context();
@@ -1965,6 +2028,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         fixture.startup->party[0].progress.progress_write_accessible = false;
         (*fixture.startup->group_b_lifecycle)[0U]
             .action_execution.idle_state_latch = 1U;
+        (*fixture.startup->group_b_lifecycle)[0U]
+            .runtime_reset.target_selection_latch = 0U;
         DispatchPort port;
         port.action = 100U;
         (*fixture.startup->group_b_lifecycle)[0U]
@@ -1974,7 +2039,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         port.push(0x0047F920U, {.eax = 1U});
         port.push(0x004786A0U, {.eax = 1U});
         port.push(0x004786A0U, {.eax = 1U});
-        port.push(0x00478B40U, {.eax = 0U});
         port.push(0x00478850U, {.eax = 0xABCD1111U, .edx = 0xA5A55A5AU});
         auto context = fixture.context();
         const auto result =

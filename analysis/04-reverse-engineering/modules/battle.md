@@ -2,7 +2,7 @@
 
 状态：`module_in_progress`
 
-当前关闭进度：`311/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
+当前关闭进度：`313/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
 
 ## 1. 唯一真值与模块目标
 
@@ -51,10 +51,10 @@ code_origin == game
 - 尾地址：`0x00484500`；
 - `confirmed_boundary`：`61`；
 - `medium`导航候选：`361`；
-- `pending_audit`：`112`；
+- `pending_audit`：`109`；
 - `assembly_exact`：`10`；
-- `platform_adapted`：`300`；
-- 已关闭：`310`。
+- `platform_adapted`：`303`；
+- 已关闭：`313`。
 
 六个稳定导航分组为：
 
@@ -835,6 +835,8 @@ I5最终必须锁定：
 
 本轮再完成`audit_order=312`的`0x00478B30`战斗角色目标选择latch设置函数及三个已关闭父函数中的三处物理CALL。完整权威LST主体`0x00478B30..0x00478B3A`共11字节、2条实际指令、0个callee、0个分支和1个普通`ret`；函数无条件把actor `+0x2AA8`完整dword写为1后返回，不修改EAX、ECX、EDX或算术flags。typed实现把既有runtime-reset residual字段语义化为`target_selection_latch`，复用Group-A runtime-reset与Group-B lifecycle canonical owner，保留字段写、RET读、ESP/EIP、两个真实停止点及RET失败时的部分提交。action dispatch、Group-A frame与Group-B frame各一处CALL全部在原位置直接组合typed leaf；全局request offset、Group-A嵌套dispatch、三组物理trace、命中terminal回复与typed-stop后缀抑制均有测试，没有延期CALL。验证：定向测试、AddressSanitizer、Linux core 199/199、Linux app 205/205全部通过。格式化后完整门禁、连续10轮core、新文件全量与旧文件changed-range clang-format、零OpenSWD3源码warning、测试失败、sanitizer finding、inventory双生成、TMP分类及完整release审计均通过；未启动原版或OpenSWD3游戏程序。工作包为`312/422 = 302 platform_adapted + 10 assembly_exact + 110 pending_audit`；inventory SHA-256为`bf69e0e06746fc36650e43f0edea4b3deb5b4b0885026b976e09246f6559dd9d`。动态差分因原版完整Group-A/Group-B actor backing、`+0x2AA8`异常字段页、RET异常栈页及三处caller联合寄存器、flags与SEH捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-下一条`pending_audit`为`audit_order=313 / 0x00478B40 / sub_478B40`。
+本轮再完成`audit_order=313`的`0x00478B40`战斗角色目标选择latch查询函数及两个已关闭父函数中的四处物理CALL。完整权威LST主体`0x00478B40..0x00478B46`共7字节、2条实际指令、0个callee、0个分支和1个普通`ret`；函数只把actor `+0x2AA8`完整dword读入EAX后返回，保持ECX、EDX和算术flags。typed实现复用Workpack 312的Group-A runtime-reset与Group-B lifecycle canonical owner、view和resolver，保留字段读、RET读、ESP/EIP、两个真实停止点及RET失败时已提交EAX的部分结果。Group-A frame三处和Group-B frame一处CALL全部在原位置直接组合typed leaf；`0x00456F12`保留TEST flags穿过MOV驱动JNZ，其他三处保留完整dword `CMP 1`，Group-B typed-stop保留action-target clear前缀。leaf非零request offset有直接测试；父frame保留nested offset转发和trace merge接线，但当前nested dispatcher不消费getter，未伪造不可执行调用。生产generic `0x00478B40`调用归零，没有延期CALL。验证：定向测试、AddressSanitizer、Linux core 199/199、Linux app 205/205 全部通过。连续10轮完整core、新文件全量与旧文件changed-range clang-format、零源码warning、测试失败、sanitizer finding、inventory双生成及release审计均通过；未启动原版或OpenSWD3游戏程序。工作包为`313/422 = 303 platform_adapted + 10 assembly_exact + 109 pending_audit`；inventory SHA-256为`2a55f9cf35d6a4c01024b6e95ddc4c2344a9f4e7e9fd34eece7275514894f879`。动态差分因原版完整Group-A/Group-B actor backing、`+0x2AA8`异常字段页、RET异常栈页及四处caller联合寄存器、flags与SEH捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+下一条`pending_audit`为`audit_order=314 / 0x00478B50 / sub_478B50`。
 
 模块10只有在`422/422`均有实现映射、不可达证据或合规阻塞，完整战斗生命周期和I5通过后才能移交模块11。

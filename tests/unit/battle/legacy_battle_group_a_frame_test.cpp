@@ -809,6 +809,8 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
             (*zero_fixture.startup.group_b_lifecycle)[2U]
                 .action_execution.turn_completion_latch = 0U;
+            (*zero_fixture.startup.group_a_runtime_reset)[0U]
+                .target_selection_latch = 0U;
             DispatchPort zero_port;
             auto zero_context = zero_fixture.context();
             const auto zero =
@@ -827,7 +829,9 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleActorGroupBElementState,
                     openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
             (*nonzero_fixture.startup.group_b_lifecycle)[2U]
-                .action_execution.turn_completion_latch = 9U;
+                .action_execution.turn_completion_latch = 0U;
+            (*nonzero_fixture.startup.group_a_runtime_reset)[0U]
+                .target_selection_latch = 0x80000000U;
             DispatchPort nonzero_port;
             auto nonzero_context = nonzero_fixture.context();
             const auto nonzero =
@@ -843,8 +847,19 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 "Group-B target caller returns the zero lifecycle latch"
             );
             test.expect_true(
-                zero_port.count(0x00478B40U) == 1U,
-                "zero lifecycle latch queries selection completion"
+                zero.actor_target_selection_latch_query.calls == 1U &&
+                    zero.actor_target_selection_latch_query
+                            .call_addresses[0U] == 0x00456F12U &&
+                    zero.actor_target_selection_latch_query
+                            .return_addresses[0U] == 0x00456F17U &&
+                    zero.actor_target_selection_latch_query.actor_tokens[0U] ==
+                        openswd3::battle::kLegacyBattleActionGroupABaseToken &&
+                    zero.actor_target_selection_latch_query.last.return_eax ==
+                        0U &&
+                    zero.actor_target_selection_latch_query.last.flags_known &&
+                    zero.actor_target_selection_latch_query.last.flags.zero &&
+                    zero_port.count(0x00478B40U) == 0U,
+                "zero selection latch records physical caller 00456F12 and preserves the incoming zero flags"
             );
             test.expect_true(
                 zero.group_a_actor_list_action_calls == 1U,
@@ -853,19 +868,74 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             test.expect_true(
                 nonzero.actor_turn_completion_calls == 1U &&
                     nonzero.actor_turn_completion.returned &&
-                    nonzero.actor_turn_completion.return_eax == 9U &&
+                    nonzero.actor_turn_completion.return_eax == 0U &&
                     nonzero.actor_turn_completion.return_eip == 0x00456EF0U,
-                "Group-B target caller returns the nonzero lifecycle latch"
+                "Group-B target caller returns the zero lifecycle latch before the selection query"
             );
             test.expect_true(
-                nonzero_port.count(0x00478B40U) == 0U &&
-                    nonzero.group_a_actor_list_action_calls == 0U,
-                "nonzero lifecycle latch skips the Group-B action preparation suffix"
+                nonzero.actor_target_selection_latch_query.calls == 1U &&
+                    nonzero.actor_target_selection_latch_query
+                            .call_addresses[0U] == 0x00456F12U &&
+                    nonzero.actor_target_selection_latch_query
+                            .return_addresses[0U] == 0x00456F17U &&
+                    nonzero.actor_target_selection_latch_query
+                            .actor_tokens[0U] ==
+                        openswd3::battle::kLegacyBattleActionGroupABaseToken &&
+                    nonzero.actor_target_selection_latch_query.last
+                            .return_eax == 0x80000000U &&
+                    nonzero.group_a_actor_list_action_calls == 1U &&
+                    nonzero_port.count(0x00478B40U) == 0U,
+                "nonzero full-dword selection latch drives the TEST branch after caller 00456F12 and retains the common actor-list suffix"
             );
             test.expect_true(
                 zero_port.count(0x00478690U) == 0U &&
                     nonzero_port.count(0x00478690U) == 0U,
                 "Group-B target caller uses no generic turn-completion call"
+            );
+
+            LegacyBattleGroupAFrameState stopped_state;
+            stopped_state.action.active_effect_target = 8U;
+            stopped_state.action.group_a_action_execution[0U].action_target =
+                2U;
+            stopped_state.action_side = 1U;
+            Fixture stopped_fixture;
+            stopped_fixture.startup.group_b_lifecycle =
+                std::make_shared<std::array<
+                    openswd3::battle::LegacyBattleActorGroupBElementState,
+                    openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+            (*stopped_fixture.startup.group_b_lifecycle)[2U]
+                .action_execution.turn_completion_latch = 0U;
+            DispatchPort stopped_port;
+            auto stopped_context = stopped_fixture.context();
+            stopped_context.actor_target_selection_latch_query_requests.count =
+                1U;
+            stopped_context.actor_target_selection_latch_query_requests
+                .calls[0U]
+                .access.target_selection_latch_readable = false;
+            const auto stopped =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    stopped_state, stopped_port, stopped_context, 0U
+                );
+            test.expect_true(
+                stopped.status ==
+                        LegacyBattleActionDispatchStatus::
+                            actor_target_selection_latch_query_typed_stop &&
+                    stopped.actor_turn_completion_calls == 1U &&
+                    stopped.actor_turn_completion.returned &&
+                    stopped_state.final_actor_step.action_execution_active ==
+                        1U &&
+                    stopped.actor_target_selection_latch_query.calls == 1U &&
+                    stopped.actor_target_selection_latch_query
+                            .call_addresses[0U] == 0x00456F12U &&
+                    stopped.actor_target_selection_latch_query.last.status ==
+                        openswd3::battle::
+                            LegacyBattleActorTargetSelectionLatchQueryStatus::
+                                target_selection_latch_read_typed_stop &&
+                    stopped.actor_target_selection_latch_query.last
+                            .return_eax == 0U &&
+                    stopped.group_a_actor_list_action_calls == 0U &&
+                    stopped_port.count(0x00478B40U) == 0U,
+                "Group-A caller 00456F12 field stop preserves its caller prefix and suppresses TEST and both suffixes"
             );
         }
     }();
@@ -1393,6 +1463,16 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     (*fixture.startup.group_a_runtime_reset)[0U]
                             .target_selection_latch == 1U &&
                     port.count(0x00478B30U) == 0U &&
+                    result.actor_target_selection_latch_query.calls == 1U &&
+                    result.actor_target_selection_latch_query
+                            .call_addresses[0U] == 0x00456B60U &&
+                    result.actor_target_selection_latch_query
+                            .return_addresses[0U] == 0x00456B65U &&
+                    result.actor_target_selection_latch_query
+                            .actor_tokens[0U] == 0x005029D0U &&
+                    result.actor_target_selection_latch_query.last.return_eax ==
+                        1U &&
+                    port.count(0x00478B40U) == 0U &&
                     result.actor_target_selection_count_increment.calls == 2U &&
                     result.actor_target_selection_count_increment
                             .call_addresses[0U] == 0x00456A1FU &&
@@ -1411,7 +1491,74 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                         0x00456B59U &&
                     result.actor_target_selection.argument_values[0U] == 0U &&
                     port.count(0x00478AA0U) == 0U,
-                "completed actor scans unmapped live opponents, sets the source selection latch, increments each canonical target count, and selects the first live index"
+                "completed actor scans unmapped live opponents, sets and queries the source selection latch, increments each canonical target count, and selects the first live index"
+            );
+        }
+
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.actor_enabled[0U] = 1U;
+            state.actors[0U].action_complete = 1U;
+            state.action.group_b_count = 0;
+            Fixture fixture;
+            (*fixture.startup.group_a_runtime_reset)[0U]
+                .target_selection_latch = 2U;
+            DispatchPort port;
+            auto context = fixture.context();
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.status == LegacyBattleActionDispatchStatus::completed &&
+                    result.actor_target_selection_latch_set.calls == 0U &&
+                    result.actor_target_selection.calls == 0U &&
+                    result.actor_target_selection_latch_query.calls == 1U &&
+                    result.actor_target_selection_latch_query
+                            .call_addresses[0U] == 0x00456B60U &&
+                    result.actor_target_selection_latch_query.last.return_eax ==
+                        2U &&
+                    port.count(0x00478B40U) == 0U,
+                "Group-A caller 00456B60 preserves a full non-one latch and skips the selection-complete suffix"
+            );
+        }
+
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.actor_enabled[0U] = 1U;
+            state.actors[0U].action_complete = 1U;
+            state.action.group_b_count = 0;
+            Fixture fixture;
+            (*fixture.startup.group_a_runtime_reset)[0U]
+                .target_selection_latch = 1U;
+            DispatchPort port;
+            auto context = fixture.context();
+            context.actor_target_selection_latch_query_requests.count = 1U;
+            context.actor_target_selection_latch_query_requests.calls[0U]
+                .access.target_selection_latch_readable = false;
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActionDispatchStatus::
+                            actor_target_selection_latch_query_typed_stop &&
+                    result.actor_target_selection_latch_set.calls == 0U &&
+                    result.actor_target_selection.calls == 0U &&
+                    result.actor_target_selection_latch_query.calls == 1U &&
+                    result.actor_target_selection_latch_query
+                            .call_addresses[0U] == 0x00456B60U &&
+                    result.actor_target_selection_latch_query.last.status ==
+                        openswd3::battle::
+                            LegacyBattleActorTargetSelectionLatchQueryStatus::
+                                target_selection_latch_read_typed_stop &&
+                    port.count(0x00478B40U) == 0U,
+                "Group-A caller 00456B60 field stop suppresses comparison and both selection-complete suffixes"
             );
         }
 
@@ -1788,6 +1935,8 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             fixture.startup.group_b_lifecycle = std::make_shared<std::array<
                 openswd3::battle::LegacyBattleActorGroupBElementState,
                 openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+            (*fixture.startup.group_a_runtime_reset)[0U]
+                .target_selection_latch = 1U;
             DispatchPort port;
             state.action.group_a_action_execution[0U].action_kind = 5U;
             port.action_target = 0U;
@@ -1944,8 +2093,9 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
             (*fixture.startup.group_b_lifecycle)[0U]
                 .action_execution.action_target = 0xFFFFU;
+            (*fixture.startup.group_a_runtime_reset)[0U]
+                .target_selection_latch = 1U;
             DispatchPort port;
-            port.push(0x00478B40U, {.eax = 1U});
             auto context = fixture.context();
             context.actor_gate_decay_requests.count = 1U;
             context.actor_gate_decay_requests.calls[0U]
@@ -1978,6 +2128,55 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             state.final_actor_step.action_execution_active = 1U;
             state.action.group_a_count = 0;
             state.action.group_b_count = 1;
+            state.action.selected_target_index = 0U;
+            state.action.group_a_action_execution[0U].action_kind = 5U;
+            state.action.group_a_action_execution[0U].action_target = 0U;
+            Fixture fixture;
+            fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+                openswd3::battle::LegacyBattleActorGroupBElementState,
+                openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+            (*fixture.startup.group_b_lifecycle)[0U]
+                .action_execution.action_target = 0xFFFFU;
+            DispatchPort port;
+            auto context = fixture.context();
+            context.actor_target_selection_latch_query_requests.count = 1U;
+            context.actor_target_selection_latch_query_requests.calls[0U]
+                .access.target_selection_latch_readable = false;
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActionDispatchStatus::
+                            actor_target_selection_latch_query_typed_stop &&
+                    result.actor_action_target_clear.calls == 1U &&
+                    result.actor_action_target_clear.call_addresses[0U] ==
+                        0x004570F5U &&
+                    result.actor_action_target_clear.last.returned &&
+                    state.final_actor_step.action_execution_active == 0U &&
+                    result.actor_target_selection_latch_query.calls == 1U &&
+                    result.actor_target_selection_latch_query
+                            .call_addresses[0U] == 0x00457140U &&
+                    result.actor_target_selection_latch_query.last.status ==
+                        openswd3::battle::
+                            LegacyBattleActorTargetSelectionLatchQueryStatus::
+                                target_selection_latch_read_typed_stop &&
+                    result.actor_gate_decay.calls == 0U &&
+                    result.group_b_iterations == 0U &&
+                    port.count(0x00478B40U) == 0U,
+                "Group-A caller 00457140 field stop preserves target clear and local cleanup while suppressing CMP and gate decay"
+            );
+        }
+
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.action.active_effect_target = 8U;
+            state.final_actor_step.action_execution_active = 1U;
+            state.action.group_a_count = 0;
+            state.action.group_b_count = 1;
             state.action.selected_target_index = 1U;
             state.action.group_a_action_execution[0U].action_kind = 5U;
             state.action.group_a_action_execution[0U].action_target = 0U;
@@ -1987,8 +2186,9 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
             (*fixture.startup.group_b_lifecycle)[0U]
                 .action_execution.action_target = 0U;
+            (*fixture.startup.group_a_runtime_reset)[0U]
+                .target_selection_latch = 0U;
             DispatchPort port;
-            port.push(0x00478B40U, {.eax = 0U});
             port.push(0x0047CE80U, {.eax = 1U});
             auto context = fixture.context();
             context.actor_gate_decay_requests.count = 2U;
@@ -2028,8 +2228,9 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             fixture.startup.group_b_lifecycle = std::make_shared<std::array<
                 openswd3::battle::LegacyBattleActorGroupBElementState,
                 openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+            (*fixture.startup.group_a_runtime_reset)[0U]
+                .target_selection_latch = 0U;
             DispatchPort port;
-            port.push(0x00478B40U, {.eax = 0U});
             port.push(0x0047CE80U, {.eax = 1U});
             port.push(0x0047CE80U, {.eax = 0U});
             auto context = fixture.context();
@@ -2085,8 +2286,9 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             fixture.startup.group_b_lifecycle = std::make_shared<std::array<
                 openswd3::battle::LegacyBattleActorGroupBElementState,
                 openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+            (*fixture.startup.group_a_runtime_reset)[0U]
+                .target_selection_latch = 0U;
             DispatchPort port;
-            port.push(0x00478B40U, {.eax = 0U});
             port.push(0x0047CE80U, {.eax = 1U});
             port.push(0x0047CE80U, {.eax = 0U, .edx = 0xAABBCCDDU});
             auto context = fixture.context();
@@ -2129,9 +2331,10 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             fixture.startup.group_b_lifecycle = std::make_shared<std::array<
                 openswd3::battle::LegacyBattleActorGroupBElementState,
                 openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+            (*fixture.startup.group_a_runtime_reset)[0U]
+                .target_selection_latch = 0U;
             DispatchPort port;
             port.default_reply.edx = 0x55667788U;
-            port.push(0x00478B40U, {.eax = 0U});
             port.push(0x0047CE80U, {.eax = 1U});
             port.push(0x0047CE80U, {.eax = 0U});
             auto context = fixture.context();
@@ -2182,9 +2385,10 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             fixture.startup.group_b_lifecycle = std::make_shared<std::array<
                 openswd3::battle::LegacyBattleActorGroupBElementState,
                 openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+            (*fixture.startup.group_a_runtime_reset)[0U]
+                .target_selection_latch = 1U;
             DispatchPort port;
             port.default_reply.edx = 0x55667788U;
-            port.push(0x00478B40U, {.eax = 1U});
             port.push(0x0047CE80U, {.eax = 0U});
             port.push(0x0047CE80U, {.eax = 0U, .edx = 0x55667788U});
             auto context = fixture.context();
@@ -2225,8 +2429,9 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             fixture.startup.group_b_lifecycle = std::make_shared<std::array<
                 openswd3::battle::LegacyBattleActorGroupBElementState,
                 openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+            (*fixture.startup.group_a_runtime_reset)[0U]
+                .target_selection_latch = 1U;
             DispatchPort port;
-            port.push(0x00478B40U, {.eax = 1U});
             port.push(0x0047CE80U, {.eax = 0U});
             port.push(0x0047CE80U, {.eax = 0U});
             auto context = fixture.context();

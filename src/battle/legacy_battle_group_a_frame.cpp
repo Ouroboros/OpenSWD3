@@ -114,7 +114,6 @@ constexpr u32 kCallLookupProfileItem = 0x00482F70U;
 constexpr u32 kCallRefreshProgressMultiplier = 0x00482F10U;
 constexpr u32 kCallApplyProfileItemDelta = 0x004830A0U;
 constexpr u32 kCallQueryOtherActor = 0x0047CEA0U;
-constexpr u32 kCallSelectionComplete = 0x00478B40U;
 constexpr u32 kCallPrepareAction = 0x0047C690U;
 constexpr u32 kCallPublishAllActors = 0x0047E950U;
 constexpr u32 kCallClearNonterminal = 0x00483FF0U;
@@ -572,6 +571,42 @@ one_based_group_b_token(const u32 one_based) noexcept {
     return false;
 }
 
+[[nodiscard]] bool query_actor_target_selection_latch(
+    LegacyBattleActionDispatchContext& context,
+    LegacyBattleActionDispatchResult& result,
+    const u32 actor_token,
+    const u32 call_address,
+    const u32 return_address,
+    const u32 entry_eax,
+    const u32 entry_edx,
+    const LegacyBattleActorCoordinateFlags& entry_flags,
+    u32& value,
+    const bool entry_flags_known = true
+) {
+    if (execute_legacy_battle_actor_target_selection_latch_query_call(
+            result.actor_target_selection_latch_query,
+            context.actor_target_selection_latch_query_requests,
+            {.startup = context.startup},
+            call_address,
+            return_address,
+            actor_token,
+            entry_eax,
+            entry_edx,
+            entry_flags,
+            entry_flags_known,
+            context.actor_target_selection_latch_query_request_offset
+        )) {
+        value = result.actor_target_selection_latch_query.last.return_eax;
+        return true;
+    }
+
+    result.status = LegacyBattleActionDispatchStatus::
+        actor_target_selection_latch_query_typed_stop;
+    result.return_value =
+        result.actor_target_selection_latch_query.last.return_eax;
+    return false;
+}
+
 [[nodiscard]] bool query_turn_completion(
     LegacyBattleActionDispatchResult& result,
     LegacyBattleActionDispatchContext& context,
@@ -897,6 +932,30 @@ void merge_nested_result(
     if (nested.actor_target_selection_latch_set.calls != 0U) {
         outer.actor_target_selection_latch_set.last =
             nested.actor_target_selection_latch_set.last;
+    }
+    for (std::size_t index = 0U;
+         index < nested.actor_target_selection_latch_query.calls;
+         ++index) {
+        const std::size_t destination =
+            outer.actor_target_selection_latch_query.calls + index;
+        if (destination <
+            outer.actor_target_selection_latch_query.call_addresses.size()) {
+            outer.actor_target_selection_latch_query
+                .call_addresses[destination] =
+                nested.actor_target_selection_latch_query.call_addresses[index];
+            outer.actor_target_selection_latch_query
+                .return_addresses[destination] =
+                nested.actor_target_selection_latch_query
+                    .return_addresses[index];
+            outer.actor_target_selection_latch_query.actor_tokens[destination] =
+                nested.actor_target_selection_latch_query.actor_tokens[index];
+        }
+    }
+    outer.actor_target_selection_latch_query.calls +=
+        nested.actor_target_selection_latch_query.calls;
+    if (nested.actor_target_selection_latch_query.calls != 0U) {
+        outer.actor_target_selection_latch_query.last =
+            nested.actor_target_selection_latch_query.last;
     }
     for (std::size_t index = 0U; index < nested.actor_target_selection.calls;
          ++index) {
@@ -2217,6 +2276,9 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     }
                 }
             }
+            u32 selection_complete_entry_eax = selection_terminal.eax;
+            u32 selection_complete_entry_edx = selection_terminal.edx;
+            auto selection_complete_entry_flags = selection_terminal.flags;
             if (selected_index >= 0) {
                 state.target_ready_gate = 1U;
                 if (!set_actor_target_selection_latch(
@@ -2243,15 +2305,35 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     )) {
                     return result;
                 }
+                const auto& selected = result.actor_target_selection.last;
+                selection_complete_entry_eax = selected.return_eax;
+                selection_complete_entry_edx = selected.return_edx;
+                selection_complete_entry_flags = selected.flags;
             }
 
-            const auto selection_complete =
-                invoke(port, result, kCallSelectionComplete, {actor_token});
-            if (selection_complete.eax == 1U) {
+            u32 selection_complete_value{};
+            if (!query_actor_target_selection_latch(
+                    context,
+                    result,
+                    actor_token,
+                    0x00456B60U,
+                    0x00456B65U,
+                    selection_complete_entry_eax,
+                    selection_complete_entry_edx,
+                    selection_complete_entry_flags,
+                    selection_complete_value
+                )) {
+                return result;
+            }
+            const auto& selection_complete =
+                result.actor_target_selection_latch_query.last;
+            if (selection_complete_value == 1U) {
                 if (state.actor_ai_primary[group_a_index] != 0U ||
                     state.actor_ai_secondary[group_a_index] != 0U) {
                     state.final_actor_step.selection_gate = 0U;
-                    if (!set_availability_block(0U, selection_complete.edx)) {
+                    if (!set_availability_block(
+                            0U, selection_complete.return_edx
+                        )) {
                         return result;
                     }
                     state.selection_aux_gate = 0U;
@@ -2265,7 +2347,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                             actor_token,
                             actor.field_26c0,
                             group_a_index,
-                            selection_complete.edx,
+                            selection_complete.return_edx,
                             0x00456BA6U,
                             subtract_flags(
                                 state.actor_ai_secondary[group_a_index], 0U
@@ -2346,6 +2428,8 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                 result.actor_target_selection.calls;
             nested_context.actor_target_selection_latch_set_request_offset +=
                 result.actor_target_selection_latch_set.calls;
+            nested_context.actor_target_selection_latch_query_request_offset +=
+                result.actor_target_selection_latch_query.calls;
             nested_context.actor_gate_decay_request_offset +=
                 result.actor_gate_decay.calls;
             nested_context.actor_action_target_clear_request_offset +=
@@ -2402,12 +2486,26 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                 state.final_actor_step.action_execution_active = 0U;
 
                 if (completed_target != 0xFFFFU) {
-                    const auto selection_complete = invoke(
-                        port, result, kCallSelectionComplete, {actor_token}
-                    );
-                    if (selection_complete.eax == 1U) {
-                        u32 decay_entry_eax = selection_complete.eax;
-                        u32 decay_entry_edx = selection_complete.edx;
+                    u32 selection_complete_value{};
+                    if (!query_actor_target_selection_latch(
+                            context,
+                            result,
+                            actor_token,
+                            0x00457140U,
+                            0x00457145U,
+                            result.actor_action_target_clear.last.return_eax,
+                            result.actor_action_target_clear.last.return_edx,
+                            result.actor_action_target_clear.last.flags,
+                            selection_complete_value,
+                            result.actor_action_target_clear.last.flags_known
+                        )) {
+                        return result;
+                    }
+                    const auto& selection_complete =
+                        result.actor_target_selection_latch_query.last;
+                    if (selection_complete_value == 1U) {
+                        u32 decay_entry_eax = selection_complete.return_eax;
+                        u32 decay_entry_edx = selection_complete.return_edx;
                         auto decay_entry_flags = subtract_flags(
                             to_bits(state.action.group_b_count), 0U
                         );
@@ -2447,7 +2545,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         );
                         u32 reset_token{};
                         u32 decay_entry_eax{};
-                        u32 decay_entry_edx = selection_complete.edx;
+                        u32 decay_entry_edx = selection_complete.return_edx;
                         LegacyBattleActorCoordinateFlags decay_entry_flags{};
                         if (state.action_side != 0U) {
                             const u32 times_sixty_four = reset_index << 6U;
@@ -2720,8 +2818,21 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                 state.final_actor_step.action_execution_active = 1U;
                 state.action.current_actor_index =
                     static_cast<u16>(state.action.active_effect_target);
-                if (invoke(port, result, kCallSelectionComplete, {actor_token})
-                        .eax != 0U) {
+                u32 selection_complete_value{};
+                if (!query_actor_target_selection_latch(
+                        context,
+                        result,
+                        actor_token,
+                        0x00456F12U,
+                        0x00456F17U,
+                        result.actor_turn_completion.return_eax,
+                        result.actor_turn_completion.return_edx,
+                        logical_flags(target_turn_completion),
+                        selection_complete_value
+                    )) {
+                    return result;
+                }
+                if (selection_complete_value != 0U) {
                     if (state.action_side == 0U) {
                         bool any = false;
                         for (i32 index = 0; index < state.action.group_b_count;
