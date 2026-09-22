@@ -1627,9 +1627,54 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 result.actor_action_target.return_eip == 0x004786E0U &&
                 result.actor_action_target.action_target_reads == 0U &&
                 port.count(0x0047C690U) == 1U &&
-                port.count(0x00478B20U) == 0U &&
+                result.actor_action_target_clear.calls == 0U &&
                 state.selection_initialized == 1U,
             "Group-B target stop preserves action-start publication and suppresses opponent cleanup"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState state;
+        state.frame_enabled = 1U;
+        state.shared.action.active_effect_target = 0U;
+        state.selection_initialized = 1U;
+        state.action_profile_bytes = {0U};
+        state.shared.action.group_a_count = 1;
+        Fixture fixture;
+        (*fixture.startup->group_b_lifecycle)[0U]
+            .action_execution.idle_state_latch = 1U;
+        DispatchPort port;
+        port.action = 100U;
+        (*fixture.startup->group_b_lifecycle)[0U]
+            .action_composition.action_kind = port.action;
+        port.action_target = 0U;
+        port.push(0x0047F920U, {.eax = 0U});
+        port.push(0x004786A0U, {.eax = 1U});
+        port.push(0x004786A0U, {.eax = 1U});
+        auto context = fixture.context();
+        context.actor_action_target_clear_requests.count = 1U;
+        context.actor_action_target_clear_requests.calls[0U]
+            .access.action_target_writable = false;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_action_target_clear_typed_stop &&
+                result.actor_action_target_clear.calls == 1U &&
+                result.actor_action_target_clear.call_addresses[0U] ==
+                    0x00457EBCU &&
+                result.actor_action_target_clear.last.status ==
+                    openswd3::battle::LegacyBattleActorActionTargetClearStatus::
+                        action_target_write_typed_stop &&
+                (*fixture.startup->group_b_lifecycle)[0U]
+                        .action_execution.action_target == 0U &&
+                port.count(0x00478B40U) == 0U &&
+                result.actor_gate_decay.calls == 0U &&
+                result.actor_runtime_reset.calls == 0U,
+            "Group-B target-clear write stop suppresses selection completion and decay suffixes"
         );
     }
 
@@ -1664,6 +1709,14 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActionDispatchStatus::
                         actor_gate_decay_typed_stop &&
+                result.actor_action_target_clear.calls == 1U &&
+                result.actor_action_target_clear.call_addresses[0U] ==
+                    0x00457EBCU &&
+                result.actor_action_target_clear.return_addresses[0U] ==
+                    0x00457EC1U &&
+                result.actor_action_target_clear.actor_tokens[0U] ==
+                    openswd3::battle::kLegacyBattleActionGroupBBaseToken &&
+                result.actor_action_target_clear.last.returned &&
                 result.actor_gate_decay.calls == 1U &&
                 result.actor_gate_decay.call_addresses[0U] == 0x00457EEEU &&
                 result.actor_gate_decay.return_addresses[0U] == 0x00457EF3U &&
@@ -1710,6 +1763,12 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             );
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.actor_action_target_clear.calls == 1U &&
+                result.actor_action_target_clear.call_addresses[0U] ==
+                    0x00457EBCU &&
+                result.actor_action_target_clear.return_addresses[0U] ==
+                    0x00457EC1U &&
+                result.actor_action_target_clear.last.returned &&
                 result.actor_gate_decay.calls == 1U &&
                 result.actor_gate_decay.call_addresses[0U] == 0x00457EEEU &&
                 result.actor_gate_decay.return_addresses[0U] == 0x00457EF3U &&

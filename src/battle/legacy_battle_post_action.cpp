@@ -11,7 +11,6 @@ using compat::u16;
 using compat::u32;
 
 constexpr u32 kCallQueryTerminal = 0x0047CE80U;
-constexpr u32 kCallClearActorAction = 0x00478B20U;
 
 [[nodiscard]] constexpr u32 to_bits(const i32 value) noexcept {
     return std::bit_cast<u32>(value);
@@ -49,6 +48,19 @@ subtract_flags(const u32 left, const u32 right) noexcept {
     };
 }
 
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+logical_flags(const u32 value) noexcept {
+    return {
+        .carry = false,
+        .parity = even_parity(static_cast<compat::u8>(value)),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = value == 0U,
+        .sign = (value & 0x80000000U) != 0U,
+        .overflow = false,
+    };
+}
+
 [[nodiscard]] LegacyBattleActionCallReply invoke(
     LegacyBattleActionDispatchPort& port,
     LegacyBattleActionDispatchResult& result,
@@ -78,7 +90,10 @@ LegacyBattleActionDispatchResult advance_legacy_battle_post_action(
         target_selection_requests,
     const std::size_t target_selection_request_offset,
     const LegacyBattleActorGateDecayCallRequests& gate_decay_requests,
-    const std::size_t gate_decay_request_offset
+    const std::size_t gate_decay_request_offset,
+    const LegacyBattleActorActionTargetClearCallRequests&
+        action_target_clear_requests,
+    const std::size_t action_target_clear_request_offset
 ) {
     LegacyBattleActionDispatchResult result;
     const auto reset_actor = [&](const u32 actor_token,
@@ -162,6 +177,35 @@ LegacyBattleActionDispatchResult advance_legacy_battle_post_action(
             result.return_value = result.actor_gate_decay.last.return_eax;
             return false;
         };
+    const auto clear_actor_action_target =
+        [&](const u32 actor_token,
+            const u32 call_address,
+            const u32 return_address,
+            const u32 entry_eax,
+            const u32 entry_edx,
+            const LegacyBattleActorCoordinateFlags& entry_flags) {
+            if (execute_legacy_battle_actor_action_target_clear_call(
+                    result.actor_action_target_clear,
+                    action_target_clear_requests,
+                    {.action = &action, .startup = startup},
+                    call_address,
+                    return_address,
+                    actor_token,
+                    entry_eax,
+                    entry_edx,
+                    entry_flags,
+                    true,
+                    action_target_clear_request_offset
+                )) {
+                return true;
+            }
+
+            result.status = LegacyBattleActionDispatchStatus::
+                actor_action_target_clear_typed_stop;
+            result.return_value =
+                result.actor_action_target_clear.last.return_eax;
+            return false;
+        };
     const u32 selected = action.selected_target_index;
     result.return_value = selected;
     if (selected != target_group_b_index) {
@@ -229,14 +273,16 @@ LegacyBattleActionDispatchResult advance_legacy_battle_post_action(
                                 {candidate_token}
                             );
                             if (terminal.eax == 0U) {
-                                static_cast<void>(invoke(
-                                    port,
-                                    result,
-                                    kCallClearActorAction,
-                                    {actor_token}
-                                ));
-                                action.group_a_action_execution[group_a_index]
-                                    .action_target = 0xFFFFU;
+                                if (!clear_actor_action_target(
+                                        actor_token,
+                                        0x0045AF58U,
+                                        0x0045AF5DU,
+                                        terminal.eax,
+                                        terminal.edx,
+                                        logical_flags(terminal.eax)
+                                    )) {
+                                    return result;
+                                }
                                 const u32 queried_index = to_bits(queried);
                                 const u32 times_three =
                                     queried_index + queried_index * 2U;
@@ -248,16 +294,12 @@ LegacyBattleActionDispatchResult advance_legacy_battle_post_action(
                                     times_twenty_three * 2U;
                                 const u32 times_three_hundred_forty_five =
                                     times_sixty_nine + times_sixty_nine * 4U;
-                                const u32
-                                    times_one_thousand_three_hundred_eighty_one =
-                                        queried_index +
-                                    times_three_hundred_forty_five * 4U;
                                 if (!decay_actor_gates(
                                         group_b_token(queried_index),
-                                        0x0045AEDFU,
-                                        0x0045AEE4U,
-                                        times_one_thousand_three_hundred_eighty_one,
+                                        0x0045AF75U,
+                                        0x0045AF7AU,
                                         times_three_hundred_forty_five,
+                                        terminal.edx,
                                         subtract_flags(
                                             times_twenty_four, queried_index
                                         )
@@ -293,15 +335,23 @@ LegacyBattleActionDispatchResult advance_legacy_battle_post_action(
                     }
                 }
 
+                const u32 packed_counter_next =
+                    static_cast<u32>(action.packed_actor_counter & 0xFFU) + 1U;
                 if (!published &&
-                    static_cast<u32>(action.packed_actor_counter & 0xFFU) +
-                            1U ==
-                        to_bits(observed_group_b_count)) {
-                    static_cast<void>(invoke(
-                        port, result, kCallClearActorAction, {actor_token}
-                    ));
-                    action.group_a_action_execution[group_a_index]
-                        .action_target = 0xFFFFU;
+                    packed_counter_next == to_bits(observed_group_b_count)) {
+                    if (!clear_actor_action_target(
+                            actor_token,
+                            0x0045AEC2U,
+                            0x0045AEC7U,
+                            to_bits(observed_group_b_count),
+                            packed_counter_next,
+                            subtract_flags(
+                                packed_counter_next,
+                                to_bits(observed_group_b_count)
+                            )
+                        )) {
+                        return result;
+                    }
                     const u32 queried_index = to_bits(queried);
                     const u32 times_three = queried_index + queried_index * 2U;
                     const u32 times_twenty_four = times_three << 3U;
@@ -311,14 +361,12 @@ LegacyBattleActionDispatchResult advance_legacy_battle_post_action(
                         times_twenty_three + times_twenty_three * 2U;
                     const u32 times_three_hundred_forty_five =
                         times_sixty_nine + times_sixty_nine * 4U;
-                    const u32 times_one_thousand_three_hundred_eighty_one =
-                        queried_index + times_three_hundred_forty_five * 4U;
                     if (!decay_actor_gates(
                             group_b_token(queried_index),
-                            0x0045AF75U,
-                            0x0045AF7AU,
-                            times_one_thousand_three_hundred_eighty_one,
+                            0x0045AEDFU,
+                            0x0045AEE4U,
                             times_three_hundred_forty_five,
+                            packed_counter_next,
                             subtract_flags(times_twenty_four, queried_index)
                         )) {
                         return result;

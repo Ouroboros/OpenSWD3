@@ -34,7 +34,6 @@ constexpr u32 kCallQuerySpecialAction = 0x0047D880U;
 constexpr u32 kCallQueryPhaseMode = 0x0047D8D0U;
 constexpr u32 kCallQueryStatusSequence = 0x00480220U;
 constexpr u32 kCallPublishActionStart = 0x0047C690U;
-constexpr u32 kCallSelectionClear = 0x00478B20U;
 constexpr u32 kCallSelectionComplete = 0x00478B40U;
 constexpr u32 kCallPublishBattleBit = 0x00483FF0U;
 constexpr u32 kCallQueryCompletionEffect = 0x0047F360U;
@@ -257,6 +256,40 @@ void replace_low_byte(u32& destination, const u8 value) noexcept {
     result.status =
         LegacyBattleActionDispatchStatus::actor_gate_decay_typed_stop;
     result.return_value = result.actor_gate_decay.last.return_eax;
+    return false;
+}
+
+[[nodiscard]] bool clear_actor_action_target(
+    LegacyBattleActionDispatchState& action,
+    LegacyBattleActionDispatchContext& context,
+    LegacyBattleActionDispatchResult& result,
+    const u32 actor_token,
+    const u32 call_address,
+    const u32 return_address,
+    const u32 entry_eax,
+    const u32 entry_edx,
+    const LegacyBattleActorCoordinateFlags& entry_flags,
+    const bool entry_flags_known = true
+) {
+    if (execute_legacy_battle_actor_action_target_clear_call(
+            result.actor_action_target_clear,
+            context.actor_action_target_clear_requests,
+            {.action = &action, .startup = context.startup},
+            call_address,
+            return_address,
+            actor_token,
+            entry_eax,
+            entry_edx,
+            entry_flags,
+            entry_flags_known,
+            context.actor_action_target_clear_request_offset
+        )) {
+        return true;
+    }
+
+    result.status =
+        LegacyBattleActionDispatchStatus::actor_action_target_clear_typed_stop;
+    result.return_value = result.actor_action_target_clear.last.return_eax;
     return false;
 }
 
@@ -524,6 +557,26 @@ void merge_nested(
     result.actor_gate_decay.calls += nested.actor_gate_decay.calls;
     if (nested.actor_gate_decay.calls != 0U) {
         result.actor_gate_decay.last = nested.actor_gate_decay.last;
+    }
+    for (std::size_t index = 0U; index < nested.actor_action_target_clear.calls;
+         ++index) {
+        const std::size_t destination =
+            result.actor_action_target_clear.calls + index;
+        if (destination <
+            result.actor_action_target_clear.call_addresses.size()) {
+            result.actor_action_target_clear.call_addresses[destination] =
+                nested.actor_action_target_clear.call_addresses[index];
+            result.actor_action_target_clear.return_addresses[destination] =
+                nested.actor_action_target_clear.return_addresses[index];
+            result.actor_action_target_clear.actor_tokens[destination] =
+                nested.actor_action_target_clear.actor_tokens[index];
+        }
+    }
+    result.actor_action_target_clear.calls +=
+        nested.actor_action_target_clear.calls;
+    if (nested.actor_action_target_clear.calls != 0U) {
+        result.actor_action_target_clear.last =
+            nested.actor_action_target_clear.last;
     }
     result.group_a_actor_cleanup_calls += nested.group_a_actor_cleanup_calls;
     if (nested.group_a_actor_cleanup_calls != 0U) {
@@ -1648,6 +1701,8 @@ action_decision_done:
             auto nested_context = context;
             nested_context.actor_gate_decay_request_offset +=
                 result.actor_gate_decay.calls;
+            nested_context.actor_action_target_clear_request_offset +=
+                result.actor_action_target_clear.calls;
             auto nested = dispatch_legacy_battle_opponent_action(
                 action, port, nested_context, group_b_index, target_index
             );
@@ -1676,11 +1731,20 @@ action_decision_done:
                         std::bit_cast<i16>(low_word(action_target_value))
                     )
                 );
-                static_cast<void>(
-                    invoke(port, result, kCallSelectionClear, {source_token})
-                );
-                (*context.startup->group_b_lifecycle)[group_b_index]
-                    .action_execution.action_target = 0xFFFFU;
+                if (!clear_actor_action_target(
+                        action,
+                        context,
+                        result,
+                        source_token,
+                        0x00457EBCU,
+                        0x00457EC1U,
+                        result.actor_action_target.return_eax,
+                        result.actor_action_target.return_edx,
+                        result.actor_action_target.flags,
+                        result.actor_action_target.flags_known
+                    )) {
+                    return result;
+                }
                 const auto selection_complete = invoke(
                     port, result, kCallSelectionComplete, {source_token}
                 );

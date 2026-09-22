@@ -128,8 +128,10 @@ request，而不是从父 context 的旧 offset 重读首项。默认 active-act
 
 ### 4.4 Post-action 与 debug hotkeys
 
-post-action 两处 CALL 都处理 queried Group-B actor，保留 `1381*index` 地址算术残值。成功后
-才继续各自清理后缀。
+post-action 两处 CALL 都处理 queried Group-B actor。Workpack 311 按完整 LST 重新核对相邻
+`0x00478B20` CALL 后，确认全局清理分支是 `0x0045AEDF -> 0x0045AEE4`，候选重建分支是
+`0x0045AF75 -> 0x0045AF7A`。两处入口 EAX 都是 `345*queried`；前者 EDX 是 packed 低 byte
+加一，后者 EDX 保留 terminal 回复。地址及寄存器残值已在父级测试中锁定。
 
 调试 Control+C retarget 在 `0x0045DC03` 调用本 leaf。retarget 前缀已经把
 `priority_actor_index` 清为 `0xFFFFFFFF`；leaf typed-stop 保留该前缀，但抑制后续 priority

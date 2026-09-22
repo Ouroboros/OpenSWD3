@@ -12,6 +12,7 @@
 #include "openswd3/battle/legacy_battle_actor_action_kind.hpp"
 #include "openswd3/battle/legacy_battle_actor_action_mode.hpp"
 #include "openswd3/battle/legacy_battle_actor_action_target.hpp"
+#include "openswd3/battle/legacy_battle_actor_action_target_clear.hpp"
 #include "openswd3/battle/legacy_battle_actor_effect_resource_slot_write.hpp"
 #include "openswd3/battle/legacy_battle_actor_presentation_activation.hpp"
 #include "openswd3/battle/legacy_battle_actor_field_26b8_high_bit_clear.hpp"
@@ -1487,6 +1488,9 @@ struct LegacyBattleActionDispatchContext {
         actor_start_gate_increment_requests{};
     LegacyBattleActorGateDecayCallRequests actor_gate_decay_requests{};
     std::size_t actor_gate_decay_request_offset{};
+    LegacyBattleActorActionTargetClearCallRequests
+        actor_action_target_clear_requests{};
+    std::size_t actor_action_target_clear_request_offset{};
     std::array<LegacyBattleActorActionTargetRequest, 2>
         action_dispatch_action_target_requests{};
     std::array<LegacyBattleActorActionTargetRequest, 4>
@@ -1528,6 +1532,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     actor_display_kind_typed_stop,
     actor_start_gate_typed_stop,
     actor_action_target_typed_stop,
+    actor_action_target_clear_typed_stop,
     effect_record_typed_stop,
     actor_metric_typed_stop,
     actor_order_typed_stop,
@@ -1639,6 +1644,7 @@ struct LegacyBattleActionDispatchResult {
     LegacyBattleActorActionTargetResult actor_action_target{};
     std::array<LegacyBattleActorActionTargetResult, 20> actor_action_targets{};
     compat::u32 actor_action_target_calls{};
+    LegacyBattleActorActionTargetClearTrace actor_action_target_clear{};
     LegacyBattleActorFrameSnapshotClearResult actor_frame_snapshot_clear{};
     compat::u32 actor_frame_snapshot_clear_calls{};
     LegacyBattleFixedCountResult fixed_count{};

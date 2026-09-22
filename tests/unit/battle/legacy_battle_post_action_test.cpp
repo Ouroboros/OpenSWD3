@@ -69,7 +69,9 @@ advance_legacy_battle_post_action(
     const openswd3::battle::LegacyBattleActorActionModeRequest&
         action_mode_request = {},
     const openswd3::battle::LegacyBattleActorGateDecayCallRequests&
-        gate_decay_requests = {}
+        gate_decay_requests = {},
+    const openswd3::battle::LegacyBattleActorActionTargetClearCallRequests&
+        action_target_clear_requests = {}
 ) {
     startup->group_b_lifecycle = std::make_shared<std::array<
         openswd3::battle::LegacyBattleActorGroupBElementState,
@@ -89,7 +91,9 @@ advance_legacy_battle_post_action(
         0U,
         {},
         0U,
-        gate_decay_requests
+        gate_decay_requests,
+        0U,
+        action_target_clear_requests
     );
 }
 
@@ -198,7 +202,7 @@ void test_battle_post_action(openswd3::test::Context& test) {
                 result.actor_action_target.action_target_reads == 0U &&
                 result.port_calls == 0U &&
                 result.actor_runtime_reset.calls == 1U &&
-                port.count(0x00478B20U) == 0U,
+                result.actor_action_target_clear.calls == 0U,
             "post-action target stop preserves the initial reset and suppresses relation cleanup"
         );
     }
@@ -225,8 +229,16 @@ void test_battle_post_action(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleActionDispatchStatus::
                         actor_gate_decay_typed_stop &&
+                result.actor_action_target_clear.calls == 1U &&
+                result.actor_action_target_clear.call_addresses[0U] ==
+                    0x0045AF58U &&
+                result.actor_action_target_clear.return_addresses[0U] ==
+                    0x0045AF5DU &&
+                result.actor_action_target_clear.actor_tokens[0U] ==
+                    0x00508838U &&
+                result.actor_action_target_clear.last.returned &&
                 result.actor_gate_decay.calls == 1U &&
-                result.actor_gate_decay.call_addresses[0U] == 0x0045AEDFU &&
+                result.actor_gate_decay.call_addresses[0U] == 0x0045AF75U &&
                 result.actor_gate_decay.last.status ==
                     openswd3::battle::LegacyBattleActorGateDecayStatus::
                         start_gate_read_typed_stop &&
@@ -234,6 +246,108 @@ void test_battle_post_action(openswd3::test::Context& test) {
                 result.actor_target_selection.calls == 0U &&
                 state.selection_rebuild_pending == 0U,
             "post-action gate-decay read stop preserves actor clearing and suppresses relation publication"
+        );
+    }
+
+    {
+        LegacyBattlePostActionState state;
+        LegacyBattleFinalActorStepState final_actor;
+        LegacyBattleActionDispatchState action;
+        LegacyBattleStartupState startup;
+        action.selected_target_index = 2U;
+        action.group_a_action_execution[1U].action_target = 2U;
+        action.group_a_action_execution[2U].action_target = 2U;
+        action.group_a_count = 3;
+        action.group_b_count = 3;
+        PostActionPort port;
+        port.push(0x0047CE80U, {.eax = 0U, .edx = 0xAABBCCDDU});
+        openswd3::battle::LegacyBattleActorActionTargetClearCallRequests
+            requests;
+        requests.count = 1U;
+        requests.calls[0U].access.action_target_writable = false;
+        const auto result = advance_legacy_battle_post_action(
+            state,
+            final_actor,
+            action,
+            port,
+            &startup,
+            1U,
+            2U,
+            {},
+            {},
+            {},
+            requests
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleActionDispatchStatus::
+                        actor_action_target_clear_typed_stop &&
+                result.actor_action_target_clear.calls == 1U &&
+                result.actor_action_target_clear.call_addresses[0U] ==
+                    0x0045AF58U &&
+                result.actor_action_target_clear.last.status ==
+                    openswd3::battle::LegacyBattleActorActionTargetClearStatus::
+                        action_target_write_typed_stop &&
+                result.actor_action_target_clear.last.return_eax == 0U &&
+                result.actor_action_target_clear.last.return_edx ==
+                    0xAABBCCDDU &&
+                action.group_a_action_execution[2U].action_target == 2U &&
+                result.actor_gate_decay.calls == 0U &&
+                result.actor_target_selection.calls == 0U &&
+                state.selection_rebuild_pending == 0U,
+            "post-action candidate target-clear write stop suppresses decay and relation publication"
+        );
+    }
+
+    {
+        LegacyBattlePostActionState state;
+        LegacyBattleFinalActorStepState final_actor;
+        LegacyBattleActionDispatchState action;
+        LegacyBattleStartupState startup;
+        action.selected_target_index = 1U;
+        action.group_a_action_execution[0U].action_target = 1U;
+        action.group_a_action_execution[1U].action_target = 1U;
+        action.group_a_count = 2;
+        action.group_b_count = 2;
+        action.packed_actor_counter = 1U;
+        final_actor.actor_order.fill(7U);
+        PostActionPort port;
+        port.push(0x0047CE80U, {.eax = 1U});
+        openswd3::battle::LegacyBattleActorActionTargetClearCallRequests
+            requests;
+        requests.count = 1U;
+        requests.calls[0U].access.return_address_readable = false;
+        const auto result = advance_legacy_battle_post_action(
+            state,
+            final_actor,
+            action,
+            port,
+            &startup,
+            0U,
+            1U,
+            {},
+            {},
+            {},
+            requests
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleActionDispatchStatus::
+                        actor_action_target_clear_typed_stop &&
+                result.actor_action_target_clear.calls == 1U &&
+                result.actor_action_target_clear.call_addresses[0U] ==
+                    0x0045AEC2U &&
+                result.actor_action_target_clear.last.status ==
+                    openswd3::battle::LegacyBattleActorActionTargetClearStatus::
+                        return_address_read_typed_stop &&
+                result.actor_action_target_clear.last.action_target_writes ==
+                    1U &&
+                action.group_a_action_execution[1U].action_target == 0xFFFFU &&
+                result.actor_gate_decay.calls == 0U &&
+                result.actor_action_mode_calls == 0U &&
+                result.actor_runtime_reset.calls == 1U &&
+                final_actor.actor_order[0U] == 7U,
+            "post-action global target-clear RET stop preserves the field write and suppresses cleanup suffixes"
         );
     }
 
@@ -264,11 +378,17 @@ void test_battle_post_action(openswd3::test::Context& test) {
                 !result.actor_action_target.flags.zero &&
                 action.group_a_action_execution[2U].action_target == 0U &&
                 port.count(0x004786E0U) == 0U &&
-                port.count(0x00478B20U) == 1U &&
+                result.actor_action_target_clear.calls == 1U &&
+                result.actor_action_target_clear.call_addresses[0U] ==
+                    0x0045AF58U &&
+                result.actor_action_target_clear.return_addresses[0U] ==
+                    0x0045AF5DU &&
+                result.actor_action_target_clear.last.return_eax == 0U &&
+                result.actor_action_target_clear.last.returned &&
                 port.count(0x00478AE0U) == 0U &&
                 result.actor_gate_decay.calls == 1U &&
-                result.actor_gate_decay.call_addresses[0U] == 0x0045AEDFU &&
-                result.actor_gate_decay.return_addresses[0U] == 0x0045AEE4U &&
+                result.actor_gate_decay.call_addresses[0U] == 0x0045AF75U &&
+                result.actor_gate_decay.return_addresses[0U] == 0x0045AF7AU &&
                 result.actor_gate_decay.actor_tokens[0U] == 0x0052AB58U &&
                 result.actor_gate_decay.last.returned &&
                 result.actor_target_selection.calls == 1U &&
@@ -304,11 +424,19 @@ void test_battle_post_action(openswd3::test::Context& test) {
         );
         test.expect_true(
             result.return_value == 2U && result.group_a_iterations == 2U &&
-                port.count(0x00478B20U) == 1U &&
+                result.actor_action_target_clear.calls == 1U &&
+                result.actor_action_target_clear.call_addresses[0U] ==
+                    0x0045AEC2U &&
+                result.actor_action_target_clear.return_addresses[0U] ==
+                    0x0045AEC7U &&
+                result.actor_action_target_clear.last.return_eax == 2U &&
+                result.actor_action_target_clear.last.return_edx == 2U &&
+                result.actor_action_target_clear.last.flags.zero &&
+                result.actor_action_target_clear.last.returned &&
                 port.count(0x00478AE0U) == 0U &&
                 result.actor_gate_decay.calls == 1U &&
-                result.actor_gate_decay.call_addresses[0U] == 0x0045AF75U &&
-                result.actor_gate_decay.return_addresses[0U] == 0x0045AF7AU &&
+                result.actor_gate_decay.call_addresses[0U] == 0x0045AEDFU &&
+                result.actor_gate_decay.return_addresses[0U] == 0x0045AEE4U &&
                 result.actor_gate_decay.actor_tokens[0U] == 0x00528030U &&
                 result.actor_gate_decay.last.returned &&
                 port.count(0x00478710U) == 0U &&

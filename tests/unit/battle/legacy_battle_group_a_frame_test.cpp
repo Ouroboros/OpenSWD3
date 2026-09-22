@@ -1539,9 +1539,56 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     result.actor_action_target.return_eip == 0x004786E0U &&
                     result.actor_action_target.action_target_reads == 0U &&
                     port.count(0x0047C690U) == 1U &&
-                    port.count(0x00478B20U) == 0U &&
+                    result.actor_action_target_clear.calls == 0U &&
                     state.final_actor_step.action_execution_active == 1U,
                 "Group-A target stop preserves action preparation and suppresses nested dispatch cleanup"
+            );
+        }
+
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.action.active_effect_target = 8U;
+            state.final_actor_step.action_execution_active = 1U;
+            state.action.group_a_count = 0;
+            state.action.group_b_count = 0;
+            state.action.selected_target_index = 0U;
+            state.action.group_a_action_execution[0U].action_kind = 5U;
+            state.action.group_a_action_execution[0U].action_target = 0U;
+            Fixture fixture;
+            fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+                openswd3::battle::LegacyBattleActorGroupBElementState,
+                openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+            DispatchPort port;
+            port.action_target = 0U;
+            port.push(0x0047CE80U, {.eax = 0U});
+            auto context = fixture.context();
+            context.actor_action_target_clear_requests.count = 1U;
+            context.actor_action_target_clear_requests.calls[0U]
+                .access.action_target_writable = false;
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActionDispatchStatus::
+                            actor_action_target_clear_typed_stop &&
+                    result.actor_action_target_clear.calls == 1U &&
+                    result.actor_action_target_clear.call_addresses[0U] ==
+                        0x004570F5U &&
+                    result.actor_action_target_clear.last.status ==
+                        openswd3::battle::
+                            LegacyBattleActorActionTargetClearStatus::
+                                action_target_write_typed_stop &&
+                    state.action.group_a_action_execution[0U].action_target ==
+                        0U &&
+                    state.action_aux_gate == 1U &&
+                    state.final_actor_step.action_execution_active == 1U &&
+                    result.actor_gate_decay.calls == 0U &&
+                    port.count(0x00478B40U) == 0U,
+                "Group-A completion target-clear write stop suppresses local cleanup and post-action suffixes"
             );
         }
 
@@ -1592,7 +1639,15 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     state.shared_gate_4ff578 == 1U &&
                     state.shared_gate_4ff57c == 1U &&
                     state.shared_gate_4ff580 == 1U &&
-                    state.shared_gate_4ff584 == 1U,
+                    state.shared_gate_4ff584 == 1U &&
+                    result.actor_action_target_clear.calls == 1U &&
+                    result.actor_action_target_clear.call_addresses[0U] ==
+                        0x004570F5U &&
+                    result.actor_action_target_clear.return_addresses[0U] ==
+                        0x004570FAU &&
+                    result.actor_action_target_clear.actor_tokens[0U] ==
+                        openswd3::battle::kLegacyBattleActionGroupABaseToken &&
+                    result.actor_action_target_clear.last.returned,
                 "active actor directly composes action dispatch and post-action cleanup suffixes"
             );
             test.expect_true(
@@ -1801,7 +1856,15 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     state, port, context, 0U
                 );
             test.expect_true(
-                result.actor_gate_decay.calls == 1U &&
+                result.actor_action_target_clear.calls == 1U &&
+                    result.actor_action_target_clear.call_addresses[0U] ==
+                        0x00456F94U &&
+                    result.actor_action_target_clear.return_addresses[0U] ==
+                        0x00456F99U &&
+                    result.actor_action_target_clear.actor_tokens[0U] ==
+                        openswd3::battle::kLegacyBattleActionGroupABaseToken &&
+                    result.actor_action_target_clear.last.returned &&
+                    result.actor_gate_decay.calls == 1U &&
                     result.actor_gate_decay.call_addresses[0U] == 0x00456FA4U &&
                     result.actor_gate_decay.return_addresses[0U] ==
                         0x00456FA9U &&
@@ -1823,6 +1886,50 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     result.actor_start_gate_increment.last.returned &&
                     port.count(0x00478AC0U) == 0U,
                 "Group-A selected-opponent path increments its target through physical caller 00456FE1"
+            );
+        }
+
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.action.active_effect_target = 8U;
+            state.final_actor_step.action_execution_active = 0U;
+            state.action.group_a_count = 0;
+            state.action.group_b_count = 1;
+            state.action.group_a_action_execution[0U].action_kind = 5U;
+            state.action.group_a_action_execution[0U].action_target = 0U;
+            Fixture fixture;
+            fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+                openswd3::battle::LegacyBattleActorGroupBElementState,
+                openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+            DispatchPort port;
+            port.push(0x00478B40U, {.eax = 0U});
+            port.push(0x0047CE80U, {.eax = 1U});
+            port.push(0x0047CE80U, {.eax = 0U, .edx = 0xAABBCCDDU});
+            auto context = fixture.context();
+            context.actor_action_target_clear_requests.count = 1U;
+            context.actor_action_target_clear_requests.calls[0U]
+                .access.action_target_writable = false;
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActionDispatchStatus::
+                            actor_action_target_clear_typed_stop &&
+                    result.actor_action_target_clear.calls == 1U &&
+                    result.actor_action_target_clear.call_addresses[0U] ==
+                        0x00456F94U &&
+                    result.actor_action_target_clear.last.return_eax == 0U &&
+                    result.actor_action_target_clear.last.return_edx ==
+                        0xAABBCCDDU &&
+                    state.action.group_a_action_execution[0U].action_target ==
+                        0U &&
+                    result.actor_gate_decay.calls == 0U &&
+                    result.actor_start_gate_increment.calls == 0U,
+                "Group-A selected-opponent target-clear stop suppresses decay and target startup"
             );
         }
 

@@ -47,6 +47,7 @@ add_library(
         legacy_battle_actor_action_kind.cpp
         legacy_battle_actor_action_mode.cpp
         legacy_battle_actor_action_target.cpp
+        legacy_battle_actor_action_target_clear.cpp
         legacy_battle_actor_field_26b8_high_bit_clear.cpp
         legacy_battle_actor_field_26b8_high_bit_query.cpp
         legacy_battle_actor_effect_resource_slot_write.cpp

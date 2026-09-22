@@ -169,6 +169,7 @@ void test_battle_actor_idle_state(openswd3::test::Context& test);
 void test_battle_actor_action_kind(openswd3::test::Context& test);
 void test_battle_actor_action_mode(openswd3::test::Context& test);
 void test_battle_actor_action_target(openswd3::test::Context& test);
+void test_battle_actor_action_target_clear(openswd3::test::Context& test);
 void test_battle_actor_field_26b8_high_bit_clear(openswd3::test::Context& test);
 void test_battle_actor_field_26b8_high_bit_query(openswd3::test::Context& test);
 void test_battle_actor_binary_state_toggle(openswd3::test::Context& test);
@@ -7248,6 +7249,7 @@ int main() {
     test_battle_actor_action_kind(test);
     test_battle_actor_action_mode(test);
     test_battle_actor_action_target(test);
+    test_battle_actor_action_target_clear(test);
     test_battle_actor_field_26b8_high_bit_clear(test);
     test_battle_actor_field_26b8_high_bit_query(test);
     test_battle_actor_binary_state_toggle(test);
