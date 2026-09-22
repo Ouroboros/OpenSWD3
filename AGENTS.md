@@ -28,9 +28,9 @@
   绝对路径，除非用户明确要求完整命令。
 - 不使用 Markdown pipe table。必须表达表格时，使用代码块中的对齐纯文本表格。
 
-## 2. 开始工作前的读取顺序
+## 2. 每个 WORKPACK 开始前的读取顺序
 
-修改任何文件前必须读取：
+每个 WORKPACK 开始前必须重新完整读取：
 
 1. 本文件。
 2. `~/.codex/memories/writing_style.md`。
