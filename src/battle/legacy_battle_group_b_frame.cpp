@@ -26,7 +26,6 @@ constexpr u32 kCallQueryQueueCompletion = 0x0047F920U;
 constexpr u32 kCallQueryActorBlocked = 0x0047D930U;
 constexpr u32 kCallQueryActorExcluded = 0x00478B50U;
 constexpr u32 kCallClearControl = 0x0047C660U;
-constexpr u32 kCallPrepareSelection = 0x00478B30U;
 constexpr u32 kCallQuerySelectionMode = 0x00483820U;
 constexpr u32 kCallRandomBounded = 0x00439070U;
 constexpr u32 kCallPublishStatusMode = 0x0047D860U;
@@ -290,6 +289,40 @@ void replace_low_byte(u32& destination, const u8 value) noexcept {
     result.status =
         LegacyBattleActionDispatchStatus::actor_action_target_clear_typed_stop;
     result.return_value = result.actor_action_target_clear.last.return_eax;
+    return false;
+}
+
+[[nodiscard]] bool set_actor_target_selection_latch(
+    LegacyBattleActionDispatchContext& context,
+    LegacyBattleActionDispatchResult& result,
+    const u32 actor_token,
+    const u32 call_address,
+    const u32 return_address,
+    const u32 entry_eax,
+    const u32 entry_edx,
+    const LegacyBattleActorCoordinateFlags& entry_flags,
+    const bool entry_flags_known = true
+) {
+    if (execute_legacy_battle_actor_target_selection_latch_set_call(
+            result.actor_target_selection_latch_set,
+            context.actor_target_selection_latch_set_requests,
+            {.startup = context.startup},
+            call_address,
+            return_address,
+            actor_token,
+            entry_eax,
+            entry_edx,
+            entry_flags,
+            entry_flags_known,
+            context.actor_target_selection_latch_set_request_offset
+        )) {
+        return true;
+    }
+
+    result.status = LegacyBattleActionDispatchStatus::
+        actor_target_selection_latch_set_typed_stop;
+    result.return_value =
+        result.actor_target_selection_latch_set.last.return_eax;
     return false;
 }
 
@@ -943,24 +976,33 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                 if (!validate_group_a(result, selected)) {
                                     return result;
                                 }
-                                if (invoke(
-                                        port,
-                                        result,
-                                        kCallQueryTerminal,
-                                        {group_a_token(selected)}
-                                    )
-                                        .eax != 1U) {
+                                const auto terminal = invoke(
+                                    port,
+                                    result,
+                                    kCallQueryTerminal,
+                                    {group_a_token(selected)}
+                                );
+                                if (terminal.eax != 1U) {
                                     shared.target_ready_gate = 1U;
-                                    const auto prepared_selection = invoke(
-                                        port,
-                                        result,
-                                        kCallPrepareSelection,
-                                        {source_token}
-                                    );
+                                    if (!set_actor_target_selection_latch(
+                                            context,
+                                            result,
+                                            source_token,
+                                            0x004578FBU,
+                                            0x00457900U,
+                                            terminal.eax,
+                                            terminal.edx,
+                                            subtract_flags(terminal.eax, 1U)
+                                        )) {
+                                        return result;
+                                    }
+                                    const auto& prepared_selection =
+                                        result.actor_target_selection_latch_set
+                                            .last;
                                     if (!select_actor_target(
                                             static_cast<u16>(selected),
-                                            prepared_selection.eax,
-                                            prepared_selection.edx,
+                                            prepared_selection.return_eax,
+                                            prepared_selection.return_edx,
                                             prepared_selection.flags,
                                             0x00457903U,
                                             0x00457908U

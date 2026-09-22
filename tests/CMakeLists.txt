@@ -576,6 +576,7 @@ add_executable(
     unit/battle/legacy_battle_actor_action_mode_test.cpp
     unit/battle/legacy_battle_actor_action_target_test.cpp
     unit/battle/legacy_battle_actor_action_target_clear_test.cpp
+    unit/battle/legacy_battle_actor_target_selection_latch_set_test.cpp
     unit/battle/legacy_battle_actor_field_26b8_high_bit_clear_test.cpp
     unit/battle/legacy_battle_actor_field_26b8_high_bit_query_test.cpp
     unit/battle/legacy_battle_actor_binary_state_toggle_test.cpp

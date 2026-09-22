@@ -164,7 +164,7 @@ void materialize_actor(
     );
     store_value(image, 0x2AB0U, actor.progress->action_complete);
     store_value(image, 0x2AB4U, actor.action_execution->idle_state_latch);
-    store_value(image, 0x2AA8U, actor.residual->field_2aa8);
+    store_value(image, 0x2AA8U, actor.residual->target_selection_latch);
     store_value(image, 0x2AE0U, actor.action_execution->start_gate_latch);
     store_value(
         image, 0x2B14U, actor.action_execution->effect_application_latch
@@ -405,7 +405,8 @@ void synchronize_actor_write(
             load_value<u32>(image, 0x2AB4U);
     }
     if (changed(0x2AA8U, sizeof(u32))) {
-        actor.residual->field_2aa8 = load_value<u32>(image, 0x2AA8U);
+        actor.residual->target_selection_latch =
+            load_value<u32>(image, 0x2AA8U);
     }
     if (changed(0x2AE0U, sizeof(u32))) {
         actor.action_execution->start_gate_latch =

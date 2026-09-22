@@ -24,6 +24,7 @@
 #include "openswd3/battle/legacy_battle_actor_progress.hpp"
 #include "openswd3/battle/legacy_battle_actor_runtime_reset.hpp"
 #include "openswd3/battle/legacy_battle_actor_target_selection.hpp"
+#include "openswd3/battle/legacy_battle_actor_target_selection_latch_set.hpp"
 #include "openswd3/battle/legacy_battle_actor_target_selection_count_increment.hpp"
 #include "openswd3/battle/legacy_battle_actor_start_gate_increment.hpp"
 #include "openswd3/battle/legacy_battle_actor_gate_decay.hpp"
@@ -1482,6 +1483,9 @@ struct LegacyBattleActionDispatchContext {
     LegacyBattleActorTargetSelectionRequestList
         actor_target_selection_requests{};
     std::size_t actor_target_selection_request_offset{};
+    LegacyBattleActorTargetSelectionLatchSetCallRequests
+        actor_target_selection_latch_set_requests{};
+    std::size_t actor_target_selection_latch_set_request_offset{};
     LegacyBattleActorTargetSelectionCountIncrementCallRequests
         actor_target_selection_count_increment_requests{};
     LegacyBattleActorStartGateIncrementCallRequests
@@ -1526,6 +1530,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     actor_presentation_activation_typed_stop,
     actor_runtime_reset_typed_stop,
     actor_target_selection_typed_stop,
+    actor_target_selection_latch_set_typed_stop,
     actor_target_selection_count_increment_typed_stop,
     actor_start_gate_increment_typed_stop,
     actor_gate_decay_typed_stop,
@@ -1633,6 +1638,8 @@ struct LegacyBattleActionDispatchResult {
         actor_presentation_activation{};
     LegacyBattleActorRuntimeResetCallTrace actor_runtime_reset{};
     LegacyBattleActorTargetSelectionTrace actor_target_selection{};
+    LegacyBattleActorTargetSelectionLatchSetTrace
+        actor_target_selection_latch_set{};
     LegacyBattleActorTargetSelectionCountIncrementTrace
         actor_target_selection_count_increment{};
     LegacyBattleActorStartGateIncrementTrace actor_start_gate_increment{};

@@ -1688,10 +1688,54 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
                 result.actor_gate_decay.return_addresses[0U] == 0x00454A62U &&
                 result.actor_gate_decay.actor_tokens[0U] == 0x00525508U &&
                 result.actor_gate_decay.last.returned &&
+                result.actor_target_selection_latch_set.calls == 1U &&
+                result.actor_target_selection_latch_set.call_addresses[0U] ==
+                    0x00454BAEU &&
+                result.actor_target_selection_latch_set.return_addresses[0U] ==
+                    0x00454BB3U &&
+                result.actor_target_selection_latch_set.actor_tokens[0U] ==
+                    0x005029D0U &&
+                (*fixture.startup.group_a_runtime_reset)[0U]
+                        .target_selection_latch == 1U &&
+                port.count(0x00478B30U) == 0U &&
                 (state.action_runtime_flags & 0x8000U) != 0U &&
                 state.scene_value == 1U && state.available_actor_count == 1 &&
                 state.group_a_action_execution[0U].action_target == 0U,
-            "action twenty two composes the first physical target query and selects the first live opponent"
+            "action twenty two sets the actor selection latch through physical caller 00454BAE before activating the runtime flag"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        state.group_b_count = 1;
+        state.status_indicator.tick_counter = 24U;
+        state.status_indicator.intensity = 32U;
+        state.status_indicator.intensity_countdown = 32U;
+        Fixture fixture;
+        DispatchPort port;
+        port.action = 22U;
+        auto context = fixture.context();
+        context.actor_target_selection_latch_set_requests.count = 1U;
+        context.actor_target_selection_latch_set_requests.calls[0U]
+            .access.target_selection_latch_writable = false;
+        const auto result = dispatch(state, port, context, 0U, 0U);
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_target_selection_latch_set_typed_stop &&
+                result.actor_target_selection_latch_set.calls == 1U &&
+                result.actor_target_selection_latch_set.last.status ==
+                    openswd3::battle::
+                        LegacyBattleActorTargetSelectionLatchSetStatus::
+                            target_selection_latch_write_typed_stop &&
+                result.actor_target_selection_latch_set.last.return_eip ==
+                    0x00478B30U &&
+                (*fixture.startup.group_a_runtime_reset)[0U]
+                        .target_selection_latch == 0U &&
+                state.scene_value == 1U &&
+                (state.action_runtime_flags & 0x8000U) == 0U &&
+                port.count(0x00478B30U) == 0U,
+            "action-dispatch latch write stop preserves scene publication and suppresses runtime activation"
         );
     }
 

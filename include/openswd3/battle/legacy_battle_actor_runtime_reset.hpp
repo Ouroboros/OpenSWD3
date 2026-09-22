@@ -48,7 +48,7 @@ struct LegacyBattleActorRuntimeResetState {
     compat::u32 field_26cc{};
     compat::u16 field_2a72{};
     compat::u16 field_2a7a{};
-    compat::u32 field_2aa8{};
+    compat::u32 target_selection_latch{};
     compat::u32 field_2ac8{};
     compat::u32 field_2acc{};
     compat::u32 field_2ad4{};

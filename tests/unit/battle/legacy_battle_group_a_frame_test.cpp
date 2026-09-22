@@ -75,20 +75,72 @@ public:
 class ActionStreamProvider final
     : public openswd3::asset_runtime::LegacyActionStreamProvider {
 public:
+    void prepare() {
+        constexpr std::array<u16, 8> words{
+            0x5246U,
+            0x0066U,
+            0x5041U,
+            0U,
+            0x5859U,
+            0U,
+            0U,
+            0x4544U,
+        };
+        bytes.clear();
+        for (const u16 word : words) {
+            bytes.push_back(static_cast<u8>(word));
+            bytes.push_back(static_cast<u8>(word >> 8U));
+        }
+        available = true;
+    }
+
     [[nodiscard]] openswd3::asset_runtime::LegacyActionStreamLoadResult
     load_action_stream(u32, u32, bool) override {
-        return {};
+        if (!available) {
+            return {};
+        }
+
+        return {
+            .status = openswd3::asset_runtime::LegacyActionStreamStatus::ready,
+            .stream = bytes,
+        };
     }
+
+    std::vector<u8> bytes;
+    bool available{};
 };
 
 class FrameProvider final
     : public openswd3::rendering::LegacyFramePieceProvider {
 public:
-    [[nodiscard]] bool load_frame_piece(
-        u32, u32, openswd3::rendering::LegacyFramePiece&
-    ) noexcept override {
-        return false;
+    void prepare() {
+        bytes.assign(32U * 32U * sizeof(u16), 0U);
+        available = true;
     }
+
+    [[nodiscard]] bool load_frame_piece(
+        u32, u32, openswd3::rendering::LegacyFramePiece& piece
+    ) noexcept override {
+        if (!available) {
+            return false;
+        }
+
+        piece = {
+            .source =
+                {
+                    .bytes = bytes,
+                    .layout =
+                        openswd3::rendering::LegacyBlitSourceLayout::direct_16,
+                },
+            .legacy_source_token = 0x73000000U,
+            .width = 32U,
+            .height = 32U,
+        };
+        return true;
+    }
+
+    std::vector<u8> bytes;
+    bool available{};
 };
 
 class RandomPort final
@@ -1331,7 +1383,16 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 );
             test.expect_true(
                 result.return_value == 1U && state.actors[0].progress == 2U &&
-                    port.count(0x00478B30U) == 1U &&
+                    result.actor_target_selection_latch_set.calls == 1U &&
+                    result.actor_target_selection_latch_set
+                            .call_addresses[0U] == 0x00456B51U &&
+                    result.actor_target_selection_latch_set
+                            .return_addresses[0U] == 0x00456B56U &&
+                    result.actor_target_selection_latch_set.actor_tokens[0U] ==
+                        0x005029D0U &&
+                    (*fixture.startup.group_a_runtime_reset)[0U]
+                            .target_selection_latch == 1U &&
+                    port.count(0x00478B30U) == 0U &&
                     result.actor_target_selection_count_increment.calls == 2U &&
                     result.actor_target_selection_count_increment
                             .call_addresses[0U] == 0x00456A1FU &&
@@ -1350,7 +1411,50 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                         0x00456B59U &&
                     result.actor_target_selection.argument_values[0U] == 0U &&
                     port.count(0x00478AA0U) == 0U,
-                "completed actor scans unmapped live opponents, increments each canonical target count, and selects the first live index"
+                "completed actor scans unmapped live opponents, sets the source selection latch, increments each canonical target count, and selects the first live index"
+            );
+        }
+
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.actor_enabled[0U] = 1U;
+            state.actors[0U].action_complete = 1U;
+            state.action.group_b_count = 2;
+            state.action.group_a_to_actor[0U] = 0xFFFFFFFFU;
+            state.action.group_a_to_actor[1U] = 0xFFFFFFFFU;
+            Fixture fixture;
+            fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+                openswd3::battle::LegacyBattleActorGroupBElementState,
+                openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+            DispatchPort port;
+            port.push(0x0047CE80U, {.eax = 0U});
+            port.push(0x0047CE80U, {.eax = 0U});
+            port.push(0x0047CE80U, {.eax = 0U});
+            auto context = fixture.context();
+            context.actor_target_selection_latch_set_requests.count = 1U;
+            context.actor_target_selection_latch_set_requests.calls[0U]
+                .access.target_selection_latch_writable = false;
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActionDispatchStatus::
+                            actor_target_selection_latch_set_typed_stop &&
+                    state.target_ready_gate == 1U &&
+                    result.actor_target_selection_latch_set.calls == 1U &&
+                    result.actor_target_selection_latch_set.last.status ==
+                        openswd3::battle::
+                            LegacyBattleActorTargetSelectionLatchSetStatus::
+                                target_selection_latch_write_typed_stop &&
+                    (*fixture.startup.group_a_runtime_reset)[0U]
+                            .target_selection_latch == 0U &&
+                    result.actor_target_selection.calls == 0U &&
+                    port.count(0x00478B30U) == 0U,
+                "Group-A latch write stop preserves target readiness and suppresses target publication"
             );
         }
 
@@ -1509,6 +1613,84 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     result.actor_action_targets[0U].return_edx == 0x55667788U &&
                     result.actor_action_targets[0U].return_eip == 0x004570D1U,
                 "active Group-A actor preserves the first action-start target caller when nested dispatch remains incomplete"
+            );
+        }
+
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.action.active_effect_target = 8U;
+            state.final_actor_step.action_execution_active = 1U;
+            state.action.group_b_count = 1;
+            state.action.status_indicator.tick_counter = 24U;
+            state.action.status_indicator.intensity = 32U;
+            state.action.status_indicator.intensity_countdown = 32U;
+            state.action.group_a_action_execution[0U].action_kind = 22U;
+            state.action.group_a_action_execution[0U].action_target = 0U;
+            Fixture fixture;
+            fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+                openswd3::battle::LegacyBattleActorGroupBElementState,
+                openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+            fixture.stream_provider.prepare();
+            fixture.frame_provider.prepare();
+            DispatchPort port;
+            port.push(0x0047CE80U, {.eax = 0U});
+            port.push(0x0047CE80U, {.eax = 0U});
+            auto context = fixture.context();
+            context.actor_target_selection_latch_set_request_offset = 1U;
+            context.actor_target_selection_latch_set_requests.count = 2U;
+            context.actor_target_selection_latch_set_requests.calls[0U]
+                .access.target_selection_latch_writable = false;
+            context.actor_target_selection_latch_set_requests.calls[1U]
+                .entry_esp = 0x88001000U;
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.status == LegacyBattleActionDispatchStatus::completed,
+                "Group-A nested action dispatch returns completed status"
+            );
+            test.expect_true(
+                port.count(0x0047CE80U) >= 2U,
+                "Group-A nested action dispatch reaches both required actor terminal queries"
+            );
+            test.expect_true(
+                result.status_indicator_calls == 1U,
+                "Group-A nested action dispatch advances the action twenty-two status indicator"
+            );
+            test.expect_true(
+                result.actor_action_target_calls >= 2U,
+                "Group-A nested action dispatch reaches its action twenty-two target query"
+            );
+            test.expect_true(
+                port.count(0x004707B0U) == 1U,
+                "Group-A nested action dispatch reaches action twenty-two scene publication"
+            );
+            test.expect_true(
+                result.actor_target_selection_latch_set.calls == 1U,
+                "Group-A nested action dispatch returns one merged latch call"
+            );
+            test.expect_true(
+                result.actor_target_selection_latch_set.call_addresses[0U] ==
+                        0x00454BAEU &&
+                    result.actor_target_selection_latch_set
+                            .return_addresses[0U] == 0x00454BB3U &&
+                    result.actor_target_selection_latch_set.actor_tokens[0U] ==
+                        0x005029D0U,
+                "Group-A nested action dispatch merges the physical latch caller identity"
+            );
+            test.expect_true(
+                result.actor_target_selection_latch_set.last.return_esp ==
+                    0x88001004U,
+                "Group-A nested action dispatch preserves the latch request offset"
+            );
+            test.expect_true(
+                (*fixture.startup.group_a_runtime_reset)[0U]
+                            .target_selection_latch == 1U &&
+                    port.count(0x00478B30U) == 0U,
+                "Group-A nested action dispatch commits the canonical latch without a raw port call"
             );
         }
 

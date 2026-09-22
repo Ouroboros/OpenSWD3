@@ -862,11 +862,13 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         state.frame_enabled = 1U;
         state.shared.action.active_effect_target = 0U;
         state.phase_mode = 1U;
-        state.shared.action_side = 1U;
-        state.shared.action.group_b_count = 5;
-        state.shared.action.opponent_processed_counter = 2U;
+        state.shared.action_side = 0U;
+        state.shared.action.group_a_count = 1;
+        state.shared.actor_ai_primary[0U] = 1U;
+        state.phase_progress = 1U;
         Fixture fixture;
         DispatchPort port;
+        port.push(0x004786A0U, {.eax = 0U});
         port.push(0x004786A0U, {.eax = 0U});
         auto context = fixture.context();
         const auto result =
@@ -874,14 +876,65 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 state, port, context, 0U
             );
         test.expect_true(
-            result.return_value == 0U && state.phase_progress == 3U &&
+            result.return_value == 0U && state.phase_progress == 1U &&
                 state.shared.target_ready_gate == 1U &&
+                state.shared.action.action_pending_aux == 1U &&
+                result.actor_target_selection_latch_set.calls == 1U &&
+                result.actor_target_selection_latch_set.call_addresses[0U] ==
+                    0x004578FBU &&
+                result.actor_target_selection_latch_set.return_addresses[0U] ==
+                    0x00457900U &&
+                result.actor_target_selection_latch_set.actor_tokens[0U] ==
+                    0x00525508U &&
+                (*fixture.startup->group_b_lifecycle)[0U]
+                        .runtime_reset.target_selection_latch == 1U &&
+                port.count(0x00478B30U) == 0U &&
                 result.actor_target_selection.calls == 1U &&
                 result.actor_target_selection.call_addresses[0U] ==
-                    0x00457925U &&
+                    0x00457903U &&
                 result.actor_target_selection.argument_values[0U] == 0U &&
                 port.count(0x00483820U) == 0U,
-            "phase mode side path publishes zero and jumps directly to common action stage"
+            "phase mode candidate rebuild sets the Group-B selection latch before publishing the first Group-A target"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState state;
+        state.frame_enabled = 1U;
+        state.shared.action.active_effect_target = 0U;
+        state.phase_mode = 1U;
+        state.shared.action_side = 0U;
+        state.shared.action.group_a_count = 1;
+        state.shared.actor_ai_primary[0U] = 1U;
+        state.phase_progress = 1U;
+        Fixture fixture;
+        DispatchPort port;
+        port.push(0x004786A0U, {.eax = 0U});
+        port.push(0x004786A0U, {.eax = 0U});
+        auto context = fixture.context();
+        context.actor_target_selection_latch_set_requests.count = 1U;
+        context.actor_target_selection_latch_set_requests.calls[0U]
+            .access.target_selection_latch_writable = false;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_target_selection_latch_set_typed_stop &&
+                state.shared.target_ready_gate == 1U &&
+                result.actor_target_selection_latch_set.calls == 1U &&
+                result.actor_target_selection_latch_set.last.status ==
+                    openswd3::battle::
+                        LegacyBattleActorTargetSelectionLatchSetStatus::
+                            target_selection_latch_write_typed_stop &&
+                (*fixture.startup->group_b_lifecycle)[0U]
+                        .runtime_reset.target_selection_latch == 0U &&
+                result.actor_target_selection.calls == 0U &&
+                state.shared.action.action_pending_aux == 0U &&
+                port.count(0x00478B30U) == 0U,
+            "Group-B latch write stop preserves target readiness and suppresses target publication and action pending"
         );
     }
 

@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v929
+版本：v930
 
 最后更新：2026-09-22
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块10 · Workpack 312 LST 审计与范围锁定
+当前步骤：模块10 · Workpack 313 LST 审计与范围锁定
 
 ## 0. 执行约定
 
@@ -40,7 +40,7 @@
 - 十个既有子系统已达到顶层 ABI 覆盖，39 项关键 ABI 合同已经人工复核；这不等于内部业务逻辑全部恢复。
 - 公共解压、主要资源容器、16 位软件像素规则、输入和时间的静态规格已经形成；唯一 glyph-mask 基准已在正确的 Windows 11 台湾繁体中文、CP950 与经典 `mingliu.ttc` 环境取得，正式跨平台 atlas 已对 157 个三字号 mask 逐字节零差异；此前错误字体环境的输出已删除。
 - 剧情 VM 198个显式opcode、146个handler、17条runtime path及全部special/default/window/common路径均已完成实现和P3验收。
-- B7世界地图已有限收口，B8剧情VM已完成P1–P3验收，B9特殊模式227/227已关闭；B10战斗函数 inventory 已关闭至 `311/422 = 301 platform_adapted + 10 assembly_exact + 111 pending_audit`，Workpack 312 正在执行，存档业务字段由B11最终验收。
+- B7世界地图已有限收口，B8剧情VM已完成P1–P3验收，B9特殊模式227/227已关闭；B10战斗函数 inventory 已关闭至 `312/422 = 302 platform_adapted + 10 assembly_exact + 110 pending_audit`，Workpack 313 正在执行，存档业务字段由B11最终验收。
 
 ## 3. 执行方法
 
@@ -271,22 +271,22 @@ REVIEW通过后必须立即按`AGENTS.md`完成commit、push和TG，再重新完
 13. `[x]` B7：地图、世界、角色、碰撞与寻路已按模块移交条件有限收口；当前状态、阻塞和证据见[`world-map.md`](../analysis/04-reverse-engineering/modules/world-map.md)及相关inventory/evidence。
 14. `[x]` B8：剧情VM、场景调度与异步action的P1–P3已经完成；[`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md)不再覆盖当前队列。
 15. `[x]` B9：菜单、商店和其他特殊模式的227/227工作项已经关闭；当前状态和阻塞见[`special-modes.md`](../analysis/04-reverse-engineering/modules/special-modes.md)。
-16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至 Workpack 311；正在执行 `audit_order=312 / 0x00478B30 / sub_478B30`。
+16. `[>]` B10：战斗状态机、AI与数值系统进行中；完整队列见[`battle-function-workpack.tsv`](../analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv)。当前已关闭至 Workpack 312；正在执行 `audit_order=313 / 0x00478B40 / sub_478B40`。
 17. `[ ]` B11：存档、配置与持久化语义；等待B10满足移交条件后开始。
 
 B7以后已经完成的详细执行记录见[`execution-progress-history-pi.md`](execution-progress-history-pi.md)。该文件只保存历史，不定义当前执行顺序、状态或断点。
 
-当前只执行B10，不并行展开B11。Workpack 311 的生产实现、测试、证据、inventory 和最终门禁已经完成；当前从 inventory 锁定并执行 `audit_order=312 / 0x00478B30 / sub_478B30`。
+当前只执行B10，不并行展开B11。Workpack 312 的生产实现、测试、证据、inventory 和最终门禁已经完成；当前从 inventory 锁定并执行 `audit_order=313 / 0x00478B40 / sub_478B40`。
 
 ### B10 当前 WORKPACK REVIEW 计划
 
 本节始终只保存当前工作包的高层计划和状态。机器级分析、调用关系、字段交叉引用、寄存器、flags、fault 和测试向量全部写入当前 evidence；工作包关闭后，本节由下一工作包计划整体替换，不追加历史。
 
-当前工作包：`audit_order=312 / 0x00478B30 / sub_478B30`。
+当前工作包：`audit_order=313 / 0x00478B40 / sub_478B40`。
 
-当前断点：Workpack 311 已完成单一最终 REVIEW。inventory 为 `311/422 = 301 platform_adapted + 10 assembly_exact + 111 pending_audit`，SHA-256 为 `805e441154895295cfae0ded8ff186748d3058f355b22dcb07b2c84da06d19cb`。Workpack 312 尚未读取目标 LST，也未修改生产代码。
+当前断点：Workpack 312 已完成单一最终 REVIEW。inventory 为 `312/422 = 302 platform_adapted + 10 assembly_exact + 110 pending_audit`，SHA-256 为 `bf69e0e06746fc36650e43f0edea4b3deb5b4b0885026b976e09246f6559dd9d`。Workpack 313 尚未读取目标 LST，也未修改生产代码。
 
-#### Workpack 312 单一最终 REVIEW
+#### Workpack 313 单一最终 REVIEW
 
 1. 从完整 LST 独立锁定目标函数范围、ABI、基本块、状态读写、调用者、全部出口和测试向量，并形成唯一 evidence 草稿。
 2. 再审计现有 C++、canonical owner、父调用边界和测试，锁定 typed 接口、停止点、caller 接入及延期范围。

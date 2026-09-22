@@ -105,7 +105,6 @@ constexpr u32 kCallTargetPhaseRelease = 0x004885A0U;
 constexpr u32 kCallActionThirteenRender = 0x004170E0U;
 constexpr u32 kCallCommitMessageRecord = 0x0047DBD0U;
 constexpr u32 kCallPublishScene = 0x004707B0U;
-constexpr u32 kCallFinalizeSelection = 0x00478B30U;
 constexpr u32 kCallLegacyStringCopy = 0x00499168U;
 constexpr u32 kCallSetGlobalMode = 0x0047F900U;
 constexpr u32 kCallPushState = 0x0047D810U;
@@ -6575,6 +6574,39 @@ LegacyBattleSummonFrameResult advance_legacy_battle_summon_frame(
     return result;
 }
 
+[[nodiscard]] bool set_actor_target_selection_latch(
+    LegacyBattleActionDispatchContext& context,
+    LegacyBattleActionDispatchResult& result,
+    const u32 actor_token,
+    const u32 call_address,
+    const u32 return_address,
+    const u32 entry_eax,
+    const u32 entry_edx,
+    const LegacyBattleActorCoordinateFlags& entry_flags
+) noexcept {
+    if (execute_legacy_battle_actor_target_selection_latch_set_call(
+            result.actor_target_selection_latch_set,
+            context.actor_target_selection_latch_set_requests,
+            {.startup = context.startup},
+            call_address,
+            return_address,
+            actor_token,
+            entry_eax,
+            entry_edx,
+            entry_flags,
+            true,
+            context.actor_target_selection_latch_set_request_offset
+        )) {
+        return true;
+    }
+
+    result.status = LegacyBattleActionDispatchStatus::
+        actor_target_selection_latch_set_typed_stop;
+    result.return_value =
+        result.actor_target_selection_latch_set.last.return_eax;
+    return false;
+}
+
 LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
     LegacyBattleActionDispatchState& state,
     LegacyBattleActionDispatchPort& port,
@@ -8673,16 +8705,25 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
                 }
             }
             state.scene_value = 1U;
-            static_cast<void>(invoke(
+            const auto published_scene = invoke(
                 state,
                 port,
                 result,
                 kCallPublishScene,
                 {0x5FDU, 0x004FE5D4U + 4U * group_a_index}
-            ));
-            static_cast<void>(invoke(
-                state, port, result, kCallFinalizeSelection, {actor_token}
-            ));
+            );
+            if (!set_actor_target_selection_latch(
+                    context,
+                    result,
+                    actor_token,
+                    0x00454BAEU,
+                    0x00454BB3U,
+                    published_scene.eax,
+                    published_scene.edx,
+                    published_scene.flags
+                )) {
+                return result;
+            }
             state.action_runtime_flags |= 0x8000U;
             return result;
         }
