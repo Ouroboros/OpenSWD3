@@ -24,7 +24,6 @@ constexpr u32 kCallQueryTerminal = 0x0047CE80U;
 constexpr u32 kCallUpdateOpponent = 0x0047DAD0U;
 constexpr u32 kCallQueryQueueCompletion = 0x0047F920U;
 constexpr u32 kCallQueryActorBlocked = 0x0047D930U;
-constexpr u32 kCallQueryActorExcluded = 0x00478B50U;
 constexpr u32 kCallClearControl = 0x0047C660U;
 constexpr u32 kCallQuerySelectionMode = 0x00483820U;
 constexpr u32 kCallRandomBounded = 0x00439070U;
@@ -220,6 +219,42 @@ void replace_low_byte(u32& destination, const u8 value) noexcept {
     result.status =
         LegacyBattleActionDispatchStatus::actor_start_gate_increment_typed_stop;
     result.return_value = result.actor_start_gate_increment.last.return_eax;
+    return false;
+}
+
+[[nodiscard]] bool query_actor_start_gate_latch(
+    LegacyBattleActionDispatchState& action,
+    LegacyBattleActionDispatchContext& context,
+    LegacyBattleActionDispatchResult& result,
+    const u32 actor_token,
+    const u32 call_address,
+    const u32 return_address,
+    const u32 entry_eax,
+    const u32 entry_edx,
+    const LegacyBattleActorCoordinateFlags& entry_flags,
+    u32& value,
+    const bool entry_flags_known = true
+) {
+    if (execute_legacy_battle_actor_start_gate_latch_query_call(
+            result.actor_start_gate_latch_query,
+            context.actor_start_gate_latch_query_requests,
+            {.action = &action, .startup = context.startup},
+            call_address,
+            return_address,
+            actor_token,
+            entry_eax,
+            entry_edx,
+            entry_flags,
+            entry_flags_known,
+            context.actor_start_gate_latch_query_request_offset
+        )) {
+        value = result.actor_start_gate_latch_query.last.return_eax;
+        return true;
+    }
+
+    result.status = LegacyBattleActionDispatchStatus::
+        actor_start_gate_latch_query_typed_stop;
+    result.return_value = result.actor_start_gate_latch_query.last.return_eax;
     return false;
 }
 
@@ -938,64 +973,84 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                         {target}
                                     )
                                             .eax != 1U &&
-                                    shared.actor_ai_primary[uindex] != 1U &&
-                                    invoke(
+                                    shared.actor_ai_primary[uindex] != 1U) {
+                                    const auto blocked = invoke(
                                         port,
                                         result,
                                         kCallQueryActorBlocked,
                                         {target}
-                                    )
-                                            .eax != 1U) {
-                                    const auto excluded = invoke(
-                                        port,
-                                        result,
-                                        kCallQueryActorExcluded,
-                                        {target}
                                     );
-                                    if (excluded.eax != 1U) {
-                                        u32 target_turn_completion{};
-                                        if (!query_turn_completion(
-                                                result,
+                                    if (blocked.eax != 1U) {
+                                        u32 start_gate_latch{};
+                                        if (!query_actor_start_gate_latch(
+                                                action,
                                                 context,
-                                                {.action = &action,
-                                                 .startup = context.startup},
+                                                result,
                                                 target,
-                                                excluded.eax,
-                                                excluded.edx,
+                                                0x00457842U,
+                                                0x00457847U,
+                                                blocked.eax,
+                                                blocked.edx,
                                                 subtract_flags(
-                                                    excluded.eax, stale_ebx
+                                                    blocked.eax, stale_ebx
                                                 ),
-                                                0x00457852U,
-                                                target_turn_completion
+                                                start_gate_latch
                                             )) {
                                             return result;
                                         }
-                                        if (target_turn_completion == 0U) {
-                                            auto request =
-                                                context
-                                                    .actor_idle_state_request;
-                                            request.actor_token = source_token;
-                                            request.entry_eax =
-                                                target_turn_completion;
-                                            request.entry_edx =
-                                                result.actor_turn_completion
-                                                    .return_edx;
-                                            request.entry_return_address =
-                                                0x0045785DU;
-                                            request.entry_flags = logical_flags(
-                                                target_turn_completion
-                                            );
-                                            request.entry_flags_known = true;
-                                            u32 idle_state{};
-                                            if (!query_idle_state(
+                                        if (start_gate_latch != 1U) {
+                                            u32 target_turn_completion{};
+                                            if (!query_turn_completion(
                                                     result,
-                                                    idle_state_owners,
-                                                    request,
-                                                    idle_state
+                                                    context,
+                                                    {.action = &action,
+                                                     .startup =
+                                                         context.startup},
+                                                    target,
+                                                    start_gate_latch,
+                                                    result
+                                                        .actor_start_gate_latch_query
+                                                        .last.return_edx,
+                                                    subtract_flags(
+                                                        start_gate_latch,
+                                                        stale_ebx
+                                                    ),
+                                                    0x00457852U,
+                                                    target_turn_completion
                                                 )) {
                                                 return result;
                                             }
-                                            target_available = idle_state == 0U;
+                                            if (target_turn_completion == 0U) {
+                                                auto request =
+                                                    context
+                                                        .actor_idle_state_request;
+                                                request.actor_token =
+                                                    source_token;
+                                                request.entry_eax =
+                                                    target_turn_completion;
+                                                request.entry_edx =
+                                                    result.actor_turn_completion
+                                                        .return_edx;
+                                                request.entry_return_address =
+                                                    0x0045785DU;
+                                                request.entry_flags =
+                                                    logical_flags(
+                                                        target_turn_completion
+                                                    );
+                                                request.entry_flags_known =
+                                                    true;
+                                                u32 idle_state{};
+                                                if (!query_idle_state(
+                                                        result,
+                                                        idle_state_owners,
+                                                        request,
+                                                        idle_state
+                                                    )) {
+                                                    return result;
+                                                }
+                                                target_available =
+                                                    idle_state == 0U;
+                                            }
                                         }
                                     }
                                 }

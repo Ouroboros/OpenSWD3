@@ -1288,6 +1288,10 @@ CLOSURES: dict[str, tuple[str, str]] = {
         "platform_adapted",
         "evidence/battle-actor-target-selection-latch-query-00478b40.md",
     ),
+    "0x00478B50": (
+        "platform_adapted",
+        "evidence/battle-actor-start-gate-latch-query-00478b50.md",
+    ),
 }
 
 

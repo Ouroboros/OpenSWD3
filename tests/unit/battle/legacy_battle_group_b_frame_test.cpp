@@ -337,7 +337,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         state.shared.action.group_a_count = 1;
         Fixture fixture;
         DispatchPort port;
-        port.push(0x00478B50U, {.eax = 0U, .edx = 0xA5A55A5AU});
+        port.push(0x0047D930U, {.eax = 0U, .edx = 0xA5A55A5AU});
         auto context = fixture.context();
         context.actor_turn_completion_request.access.latch_readable = false;
         const auto result =
@@ -390,7 +390,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             0U;
         Fixture fixture;
         DispatchPort port;
-        port.push(0x00478B50U, {.eax = 0U, .edx = 0xA5A55A5AU});
+        port.push(0x0047D930U, {.eax = 0U, .edx = 0xA5A55A5AU});
         auto context = fixture.context();
         context.actor_idle_state_request.access.latch_readable = false;
         const auto result =
@@ -428,6 +428,189 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 port.count(0x004786A0U) == 0U &&
                 port.count(0x0047C660U) == 0U && port.count(0x00478AC0U) == 0U,
             "Group-B target-scan caller preserves turn TEST state and stops before target preparation"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState state;
+        state.frame_enabled = 1U;
+        state.post_update_gate[0U] = 1U;
+        state.shared.action.active_effect_target = 0U;
+        state.phase_mode = 1U;
+        state.shared.action.group_a_count = 1;
+        state.shared.action.group_a_action_execution[0U].start_gate_latch = 1U;
+        Fixture fixture;
+        DispatchPort port;
+        port.push(0x0047D930U, {.eax = 0U, .edx = 0xA5A55A5AU});
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.actor_start_gate_latch_query.calls == 1U &&
+                result.actor_start_gate_latch_query.call_addresses[0U] ==
+                    0x00457842U &&
+                result.actor_start_gate_latch_query.return_addresses[0U] ==
+                    0x00457847U &&
+                result.actor_start_gate_latch_query.actor_tokens[0U] ==
+                    openswd3::battle::kLegacyBattleActionGroupABaseToken &&
+                result.actor_start_gate_latch_query.last.returned &&
+                result.actor_start_gate_latch_query.last.return_eax == 1U &&
+                result.actor_start_gate_latch_query.last.return_edx ==
+                    0xA5A55A5AU &&
+                result.actor_turn_completion_calls == 0U &&
+                result.actor_start_gate_increment.calls == 0U &&
+                port.count(0x00478B50U) == 0U,
+            "Group-B caller 00457842 skips the candidate suffix only for an exact start-gate latch value of one"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState state;
+        state.frame_enabled = 1U;
+        state.post_update_gate[0U] = 1U;
+        state.shared.action.active_effect_target = 0U;
+        state.phase_mode = 1U;
+        state.shared.action.group_a_count = 1;
+        state.shared.action.group_a_action_execution[0U].start_gate_latch =
+            0x80000000U;
+        Fixture fixture;
+        DispatchPort port;
+        port.push(0x0047D930U, {.eax = 0U, .edx = 0xA5A55A5AU});
+        auto context = fixture.context();
+        context.actor_turn_completion_request.access.latch_readable = false;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_turn_completion_typed_stop &&
+                result.actor_start_gate_latch_query.calls == 1U &&
+                result.actor_start_gate_latch_query.last.return_eax ==
+                    0x80000000U &&
+                result.actor_start_gate_latch_query.last.return_edx ==
+                    0xA5A55A5AU &&
+                result.actor_turn_completion_calls == 1U &&
+                result.actor_turn_completion.return_eax == 0x80000000U &&
+                result.actor_turn_completion.return_edx == 0xA5A55A5AU &&
+                !result.actor_turn_completion.flags.carry &&
+                result.actor_turn_completion.flags.parity &&
+                result.actor_turn_completion.flags.auxiliary_carry_defined &&
+                result.actor_turn_completion.flags.auxiliary_carry &&
+                !result.actor_turn_completion.flags.zero &&
+                !result.actor_turn_completion.flags.sign &&
+                result.actor_turn_completion.flags.overflow &&
+                port.count(0x00478B50U) == 0U,
+            "Group-B caller 00457842 compares the complete non-one latch dword before querying turn completion"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState state;
+        state.frame_enabled = 1U;
+        state.post_update_gate[0U] = 1U;
+        state.shared.action.active_effect_target = 0U;
+        state.phase_mode = 1U;
+        state.shared.action.group_a_count = 1;
+        Fixture fixture;
+        DispatchPort port;
+        port.push(0x0047D930U, {.eax = 0U, .edx = 0xA5A55A5AU});
+        auto context = fixture.context();
+        context.actor_start_gate_latch_query_requests.count = 1U;
+        context.actor_start_gate_latch_query_requests.calls[0U].entry_esp =
+            0x8B001000U;
+        context.actor_start_gate_latch_query_requests.calls[0U]
+            .access.start_gate_latch_readable = false;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_start_gate_latch_query_typed_stop &&
+                result.actor_start_gate_latch_query.calls == 1U &&
+                result.actor_start_gate_latch_query.last.status ==
+                    openswd3::battle::
+                        LegacyBattleActorStartGateLatchQueryStatus::
+                            start_gate_latch_read_typed_stop &&
+                result.actor_start_gate_latch_query.last.return_eax == 0U &&
+                result.actor_start_gate_latch_query.last.return_edx ==
+                    0xA5A55A5AU &&
+                result.actor_start_gate_latch_query.last.return_esp ==
+                    0x8B001000U &&
+                result.actor_start_gate_latch_query.last.return_eip ==
+                    0x00478B50U &&
+                result.actor_start_gate_latch_query.last.flags.carry &&
+                result.actor_start_gate_latch_query.last.flags.parity &&
+                result.actor_start_gate_latch_query.last.flags
+                    .auxiliary_carry_defined &&
+                result.actor_start_gate_latch_query.last.flags
+                    .auxiliary_carry &&
+                !result.actor_start_gate_latch_query.last.flags.zero &&
+                result.actor_start_gate_latch_query.last.flags.sign &&
+                !result.actor_start_gate_latch_query.last.flags.overflow &&
+                result.actor_turn_completion_calls == 0U &&
+                result.actor_idle_state_calls == 0U &&
+                result.actor_start_gate_increment.calls == 0U &&
+                result.group_a_iterations == 0U &&
+                port.count(0x00478B50U) == 0U,
+            "Group-B caller 00457842 field stop preserves the blocked-query prefix and suppresses the candidate suffix"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState state;
+        state.frame_enabled = 1U;
+        state.post_update_gate[0U] = 1U;
+        state.shared.action.active_effect_target = 0U;
+        state.phase_mode = 1U;
+        state.shared.action.group_a_count = 1;
+        state.shared.action.group_a_action_execution[0U].start_gate_latch =
+            0x80000000U;
+        Fixture fixture;
+        DispatchPort port;
+        port.push(0x0047D930U, {.eax = 0U, .edx = 0xA5A55A5AU});
+        auto context = fixture.context();
+        context.actor_start_gate_latch_query_requests.count = 1U;
+        context.actor_start_gate_latch_query_requests.calls[0U].entry_esp =
+            0x8B002000U;
+        context.actor_start_gate_latch_query_requests.calls[0U]
+            .access.return_address_readable = false;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_start_gate_latch_query_typed_stop &&
+                result.actor_start_gate_latch_query.calls == 1U &&
+                result.actor_start_gate_latch_query.last.status ==
+                    openswd3::battle::
+                        LegacyBattleActorStartGateLatchQueryStatus::
+                            return_address_read_typed_stop &&
+                result.actor_start_gate_latch_query.last.return_eax ==
+                    0x80000000U &&
+                result.actor_start_gate_latch_query.last.return_edx ==
+                    0xA5A55A5AU &&
+                result.actor_start_gate_latch_query.last
+                        .start_gate_latch_reads == 1U &&
+                result.actor_start_gate_latch_query.last.return_esp ==
+                    0x8B002000U &&
+                result.actor_start_gate_latch_query.last.return_eip ==
+                    0x00478B56U &&
+                result.actor_start_gate_latch_query.last.return_address_reads ==
+                    0U &&
+                result.actor_turn_completion_calls == 0U &&
+                result.actor_idle_state_calls == 0U &&
+                result.actor_start_gate_increment.calls == 0U &&
+                result.group_a_iterations == 0U &&
+                port.count(0x00478B50U) == 0U,
+            "Group-B caller 00457842 RET stop keeps the committed latch dword and suppresses the post-call comparison"
         );
     }
 
@@ -491,7 +674,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         (*fixture.startup->group_b_lifecycle)[0U]
             .action_execution.idle_state_latch = 7U;
         DispatchPort port;
-        port.push(0x00478B50U, {.eax = 0U});
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(

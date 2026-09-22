@@ -58,6 +58,7 @@ add_library(
         legacy_battle_actor_display_kind.cpp
         legacy_battle_actor_start_gate.cpp
         legacy_battle_actor_start_gate_increment.cpp
+        legacy_battle_actor_start_gate_latch_query.cpp
         legacy_battle_actor_gate_decay.cpp
         legacy_battle_actor_frame_snapshot.cpp
         legacy_battle_actor_render_offsets.cpp
