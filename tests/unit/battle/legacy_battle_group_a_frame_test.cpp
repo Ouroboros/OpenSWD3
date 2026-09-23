@@ -949,23 +949,24 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             state.action.group_a_action_execution[0U].start_gate = 1U;
             state.action.group_a_action_execution[0U].field_26b8 = 0x80000005U;
             Fixture fixture;
+            fixture.startup.party[0U].progress.special_ready = 1U;
             DispatchPort port;
             port.actor_metric_state().pending_action_activation_latch = 9U;
             port.push(
-                0x00478B60U,
+                0x0047BA80U,
                 {
-                    .pending_actor_field_26b8_high_bit_clear = {
-                        .executed = true,
-                        .entry_edx = 0x55667788U,
-                    },
+                    .eax = 1U,
+                    .ecx = openswd3::battle::kLegacyBattleActionGroupABaseToken,
+                    .edx = 0x55667788U,
                 }
             );
             port.push(0x00479850U, {.eax = 1U});
             auto context = fixture.context();
             context.actor_start_gate_request.entry_edx = 0x11223344U;
             context.actor_start_gate_request.entry_esp = 0x88008000U;
-            context.actor_field_26b8_high_bit_clear_request.entry_esp =
-                0x88108000U;
+            context.actor_action_presentation_requests.count = 1U;
+            context.actor_action_presentation_requests.requests[0U].entry_esp =
+                0x88108014U;
             const auto result =
                 openswd3::battle::advance_legacy_battle_group_a_frame(
                     state, port, context, 0U
@@ -981,6 +982,17 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     result.actor_start_gate.return_eip == 0x004566B2U &&
                     result.actor_start_gate.flags.parity &&
                     result.actor_start_gate.flags.zero &&
+                    result.actor_action_presentation.calls == 1U &&
+                    result.actor_action_presentation.call_addresses[0U] ==
+                        0x004566DBU &&
+                    result.actor_action_presentation.effect_arguments[0U] ==
+                        1U &&
+                    result.actor_action_presentation.last.physical_call_count ==
+                        2U &&
+                    result.actor_action_presentation.last.physical_calls[0U]
+                            .call_address == 0x00478CB3U &&
+                    result.actor_action_presentation.last.physical_calls[1U]
+                            .call_address == 0x00478CC8U &&
                     result.actor_field_26b8_high_bit_clear_calls == 1U &&
                     result.actor_field_26b8_high_bit_clear.return_eax == 1U &&
                     result.actor_field_26b8_high_bit_clear.return_ecx ==
@@ -997,8 +1009,8 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     state.action.group_a_action_execution[0U].field_26b8 ==
                         5U &&
                     port.count(0x004786D0U) == 0U &&
+                    port.count(0x00478B60U) == 0U &&
                     port.count(0x00478770U) == 0U &&
-                    has_call_argument(port, 0x00478B60U, 1U, 1U) &&
                     has_call_argument(port, 0x00479850U, 0U, 0x005029D0U) &&
                     port.actor_metric_state().pending_action_activation_latch ==
                         0U &&
@@ -1012,47 +1024,30 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 std::make_unique<LegacyBattleGroupAFrameState>();
             auto& state = *state_storage;
             state.action.frame_effect.primary_suppression = 1U;
-            auto& actor = state.action.group_a_action_execution[0U];
-            actor.start_gate = 1U;
-            actor.field_26b8 = 5U;
-            actor.summon_completion_word = 0x1111U;
-            actor.special_target_action_record.command_cursor = 0x2222U;
             Fixture fixture;
             DispatchPort port;
-            port.push(
-                0x00478B60U,
-                {
-                    .pending_actor_field_26b8_high_bit_set = {
-                        .executed = true,
-                        .entry_eax = 0x12345678U,
-                        .entry_edx = 0x87654321U,
-                    },
-                }
-            );
             port.push(0x00479850U, {.eax = 1U});
             auto context = fixture.context();
-            context.actor_field_26b8_high_bit_set_requests.calls[0U].entry_esp =
-                0x88208000U;
             const auto result =
                 openswd3::battle::advance_legacy_battle_group_a_frame(
                     state, port, context, 0U
                 );
             test.expect_true(
-                result.actor_field_26b8_high_bit_set.calls == 1U &&
-                    result.actor_field_26b8_high_bit_set.return_addresses[0U] ==
-                        0x00478BDBU &&
-                    result.actor_field_26b8_high_bit_set.last.return_eax ==
-                        0x80000005U &&
-                    result.actor_field_26b8_high_bit_set.last.return_edx ==
-                        0x87654321U &&
-                    result.actor_field_26b8_high_bit_set.last.return_esp ==
-                        0x88208004U &&
-                    actor.field_26b8 == 0x80000005U &&
-                    actor.summon_completion_word == 0x1111U &&
-                    actor.special_target_action_record.command_cursor ==
-                        0x2222U &&
-                    port.count(0x00478780U) == 0U,
-                "Group-A frame composes only an executed Workpack-315 pending high-bit-set reply"
+                result.actor_start_gate_calls == 1U &&
+                    result.actor_start_gate.return_eax == 0U &&
+                    result.actor_action_presentation.calls == 1U &&
+                    result.actor_action_presentation.call_addresses[0U] ==
+                        0x004566DBU &&
+                    result.actor_action_presentation.effect_arguments[0U] ==
+                        0U &&
+                    result.actor_action_presentation.last.returned &&
+                    result.actor_action_presentation.last.physical_call_count ==
+                        0U &&
+                    (*fixture.startup.group_a_runtime_reset)[0U].field_2af4 ==
+                        0U &&
+                    port.count(0x00478B60U) == 0U &&
+                    has_call_argument(port, 0x00479850U, 0U, 0x005029D0U),
+                "Group-A Workpack-315 caller forwards effect zero through the typed leaf without a raw call"
             );
         }
 
@@ -1064,21 +1059,79 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             auto& actor = state.action.group_a_action_execution[0U];
             actor.start_gate = 1U;
             actor.field_26b8 = 5U;
+            actor.completion_word = 1U;
+            actor.summon_completion_word = 0x1111U;
+            actor.special_target_action_record.command_cursor = 0x2222U;
             Fixture fixture;
+            fixture.startup.party[0U].coordinate_mode_gate = 3U;
             DispatchPort port;
-            port.push(
-                0x00478B60U,
-                {
-                    .pending_actor_field_26b8_high_bit_set = {
-                        .executed = true,
-                        .entry_eax = 0x12345678U,
-                        .entry_edx = 0x87654321U,
-                    },
-                }
-            );
+            port.push(0x00479850U, {.eax = 1U});
             auto context = fixture.context();
-            context.actor_field_26b8_high_bit_set_requests.calls[0U]
-                .access.field_26b8_writable = false;
+            context.actor_start_gate_request.entry_edx = 0x87654321U;
+            context.actor_action_presentation_requests.count = 1U;
+            context.actor_action_presentation_requests.requests[0U].entry_esp =
+                0x88208014U;
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.actor_action_presentation.calls == 1U &&
+                    result.actor_action_presentation.call_addresses[0U] ==
+                        0x004566DBU &&
+                    result.actor_action_presentation.last.physical_call_count ==
+                        1U &&
+                    result.actor_action_presentation.last.physical_calls[0U]
+                            .call_address == 0x00478BD6U &&
+                    result.actor_field_26b8_high_bit_set.calls == 1U &&
+                    result.actor_field_26b8_high_bit_set.return_addresses[0U] ==
+                        0x00478BDBU,
+                "Group-A Workpack-315 high-bit-set branch records parent and child physical identities"
+            );
+            test.expect_true(
+                result.actor_field_26b8_high_bit_set.last.return_eax ==
+                        0x80000005U &&
+                    result.actor_field_26b8_high_bit_set.last.return_edx ==
+                        0x87654321U &&
+                    result.actor_field_26b8_high_bit_set.last.return_esp ==
+                        0x88208004U,
+                "Group-A Workpack-315 high-bit-set child returns its typed register and stack state"
+            );
+            test.expect_true(
+                actor.field_26b8 == 0x80000005U &&
+                    actor.completion_word == 0U &&
+                    actor.summon_completion_word == 0x1111U &&
+                    actor.special_target_action_record.command_cursor ==
+                        0x2222U &&
+                    fixture.startup.party[0U].coordinate_mode_gate == 0U &&
+                    port.count(0x00478B60U) == 0U &&
+                    port.count(0x00478780U) == 0U,
+                "Group-A Workpack-315 high-bit-set child commits canonical owners without raw port calls"
+            );
+        }
+
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.action.frame_effect.primary_suppression = 1U;
+            auto& actor = state.action.group_a_action_execution[0U];
+            actor.start_gate = 1U;
+            actor.field_26b8 = 5U;
+            actor.completion_word = 1U;
+            actor.summon_completion_word = 0x1111U;
+            actor.special_target_action_record.command_cursor = 0x2222U;
+            Fixture fixture;
+            fixture.startup.party[0U].coordinate_mode_gate = 3U;
+            DispatchPort port;
+            auto context = fixture.context();
+            context.actor_start_gate_request.entry_edx = 0x87654321U;
+            context.actor_action_presentation_requests.count = 1U;
+            auto& presentation_request =
+                context.actor_action_presentation_requests.requests[0U];
+            presentation_request.entry_esp = 0x88308014U;
+            presentation_request.high_bit_set_request.access
+                .field_26b8_writable = false;
             const auto result =
                 openswd3::battle::advance_legacy_battle_group_a_frame(
                     state, port, context, 0U
@@ -1086,14 +1139,34 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             test.expect_true(
                 result.status ==
                         LegacyBattleActionDispatchStatus::
-                            actor_field_26b8_high_bit_set_typed_stop &&
+                            actor_action_presentation_typed_stop &&
+                    result.actor_action_presentation.last.status ==
+                        openswd3::battle::
+                            LegacyBattleActorActionPresentationStatus::
+                                high_bit_set_typed_stop &&
+                    result.actor_action_presentation.last.physical_call_count ==
+                        1U &&
+                    result.actor_action_presentation.last.physical_calls[0U]
+                            .call_address == 0x00478BD6U,
+                "Group-A high-bit-set typed stop propagates through the Workpack-315 parent trace"
+            );
+            test.expect_true(
+                result.actor_field_26b8_high_bit_set.calls == 1U &&
                     result.actor_field_26b8_high_bit_set.last.status ==
                         openswd3::battle::
                             LegacyBattleActorField26b8HighBitSetStatus::
                                 field_26b8_write_typed_stop &&
-                    result.actor_field_26b8_high_bit_clear_calls == 0U &&
-                    actor.field_26b8 == 5U && port.count(0x00479850U) == 0U,
-                "Group-A pending high-bit-set typed stop preserves the parent prefix and suppresses the clear and frame suffix"
+                    result.actor_field_26b8_high_bit_clear_calls == 0U,
+                "Group-A high-bit-set typed stop remains visible in the merged child trace"
+            );
+            test.expect_true(
+                actor.field_26b8 == 5U &&
+                    actor.summon_completion_word == 0x1111U &&
+                    actor.special_target_action_record.command_cursor ==
+                        0x2222U &&
+                    port.count(0x00478B60U) == 0U &&
+                    port.count(0x00479850U) == 0U,
+                "Group-A high-bit-set typed stop preserves committed prefix owners and suppresses the frame suffix"
             );
         }
 
@@ -1241,14 +1314,20 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             test.expect_true(
                 result.status ==
                         LegacyBattleActionDispatchStatus::
-                            group_a_attribute_effect_typed_stop &&
-                    result.return_value == 1U &&
+                            actor_action_presentation_typed_stop &&
+                    result.actor_action_presentation.calls == 1U &&
+                    result.actor_action_presentation.last.status ==
+                        openswd3::battle::
+                            LegacyBattleActorActionPresentationStatus::
+                                actor_write_typed_stop &&
+                    result.actor_action_presentation.last.return_eip ==
+                        0x00478B71U &&
                     result.group_a_attribute_effect_calls == 0U &&
-                    state.actors[0U].action_complete == 1U &&
-                    state.actors[0U].update_ready == 1U &&
+                    state.actors[0U].action_complete == 0U &&
+                    state.actors[0U].update_ready == 0U &&
                     port.count(0x0046EE60U) == 0U &&
                     port.count(0x0047F150U) == 0U,
-                "missing startup actor owner stops after progress completion and before the reclaimed attribute call"
+                "missing startup actor owner stops at the Workpack-315 entry write before the progress suffix"
             );
         }
 

@@ -93,7 +93,6 @@ decrement_flags(const u32 value, const bool preserved_carry) noexcept {
     return flags;
 }
 
-constexpr u32 kCallPublishEffectMode = 0x00478B60U;
 constexpr u32 kCallPrepareAi = 0x0047DAD0U;
 constexpr u32 kCallPublishAttributeEffect = 0x0047F150U;
 constexpr u32 kCallApplyAttributeMagnitude = 0x0047D640U;
@@ -1536,25 +1535,55 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
          (state.action.frame_effect.primary_suppression == 1U ||
           state.action.frame_effect.split_suppression == 1U)) ||
         state.global_effect_override == 1U;
-    const auto effect_mode_reply = invoke(
-        port,
-        result,
-        kCallPublishEffectMode,
-        {actor_token, effect_mode ? 1U : 0U}
-    );
-    if (!apply_legacy_battle_pending_actor_field_26b8_high_bit_set(
-            state.action,
-            context,
-            result,
+    const bool action_presentation_returned =
+        execute_legacy_battle_actor_action_presentation_call(
+            {.action = &state.action, .startup = context.startup},
+            {
+                .port = &port,
+                .framebuffer = &context.framebuffer,
+                .raster = &context.raster,
+                .shared_request = &context.shared_request,
+                .shared_effects = &context.shared_effects,
+                .jitter = &context.jitter,
+                .frame_provider = &context.frame_provider,
+            },
+            result.actor_action_presentation,
+            context.actor_action_presentation_requests,
+            0x004566DBU,
+            0x004566E0U,
             actor_token,
-            0x00478BDBU,
-            effect_mode_reply
-        )) {
-        return result;
+            effect_mode ? 1U : 0U,
+            result.actor_start_gate.return_eax,
+            result.actor_start_gate.return_edx,
+            result.actor_start_gate.flags,
+            true
+        );
+    result.port_calls += result.actor_action_presentation.last.port_calls;
+    for (std::size_t call_index = 0U;
+         call_index < result.actor_action_presentation.last.physical_call_count;
+         ++call_index) {
+        const auto& call =
+            result.actor_action_presentation.last.physical_calls[call_index];
+        if (call.callee_token == kLegacyBattleActorField26b8HighBitSetAddress) {
+            LegacyBattleActorField26b8HighBitSetCallTrace nested{};
+            nested.last = result.actor_action_presentation.last.high_bit_set;
+            nested.return_addresses[0U] = call.return_address;
+            nested.calls = 1U;
+            append_legacy_battle_actor_field_26b8_high_bit_set_trace(
+                result.actor_field_26b8_high_bit_set, nested
+            );
+        }
+        if (call.callee_token ==
+            kLegacyBattleActorField26b8HighBitClearAddress) {
+            result.actor_field_26b8_high_bit_clear =
+                result.actor_action_presentation.last.high_bit_clear;
+            ++result.actor_field_26b8_high_bit_clear_calls;
+        }
     }
-    if (!apply_legacy_battle_pending_actor_field_26b8_high_bit_clear(
-            state.action, context, result, actor_token, effect_mode_reply
-        )) {
+    if (!action_presentation_returned) {
+        result.status = LegacyBattleActionDispatchStatus::
+            actor_action_presentation_typed_stop;
+        result.return_value = result.actor_action_presentation.last.return_eax;
         return result;
     }
 

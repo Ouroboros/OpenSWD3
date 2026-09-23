@@ -19,6 +19,7 @@ struct LegacyBattleGroupAActionExecutionState;
 struct LegacyBattleGroupAConfigurationState;
 struct LegacyBattleGroupAFinalProcessingState;
 struct LegacyBattleGroupAItemEffectApplicationState;
+struct LegacyBattleGroupAWorkspaceState;
 struct LegacyBattleGroupBActionCompositionState;
 struct LegacyBattleGroupBActionConfigurationState;
 struct LegacyBattleStartupState;
@@ -36,6 +37,9 @@ inline constexpr std::size_t kLegacyBattleActorRuntimeResetStackTraceCount =
     11U;
 inline constexpr std::size_t kLegacyBattleActorRuntimeResetMaximumCallTrace =
     32U;
+inline constexpr std::size_t kLegacyBattleActorImageSize = 0x2B1CU;
+using LegacyBattleActorImage =
+    std::array<std::byte, kLegacyBattleActorImageSize>;
 
 // Only bytes and scalar fields without another canonical battle owner live
 // here. Existing progress, action, coordinate, profile, and lifecycle state is
@@ -55,6 +59,8 @@ struct LegacyBattleActorRuntimeResetState {
     compat::u32 field_2af0{};
     compat::u32 field_2af4{};
     compat::u32 field_2b0c{};
+    compat::u32 field_2b10{};
+    compat::u32 field_2b18{};
 };
 
 struct LegacyBattleActorRuntimeResetOwners {
@@ -72,8 +78,12 @@ struct LegacyBattleActorRuntimeResetView {
     LegacyBattleGroupAConfigurationState* group_a_configuration{};
     LegacyBattleGroupAFinalProcessingState* group_a_final_processing{};
     LegacyBattleGroupAItemEffectApplicationState* group_a_item_effect{};
+    LegacyBattleGroupAWorkspaceState* group_a_workspace{};
     LegacyBattleGroupBActionConfigurationState* group_b_configuration{};
     LegacyBattleGroupBActionCompositionState* group_b_composition{};
+    compat::u32 live_record_token{};
+    const std::byte* live_record_bytes{};
+    std::size_t live_record_size{};
 };
 
 enum class LegacyBattleActorRuntimeResetAccessKind : compat::u8 {
@@ -228,6 +238,18 @@ struct LegacyBattleActorRuntimeResetCallTrace {
 [[nodiscard]] LegacyBattleActorRuntimeResetView
 resolve_legacy_battle_actor_runtime_reset(
     const LegacyBattleActorRuntimeResetOwners& owners, compat::u32 actor_token
+) noexcept;
+
+void materialize_legacy_battle_actor_image(
+    const LegacyBattleActorRuntimeResetView& actor,
+    LegacyBattleActorImage& image
+) noexcept;
+
+void synchronize_legacy_battle_actor_image_write(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorImage& image,
+    compat::u32 offset,
+    compat::u32 size
 ) noexcept;
 
 // Typed closure of legacy 0x00478850.

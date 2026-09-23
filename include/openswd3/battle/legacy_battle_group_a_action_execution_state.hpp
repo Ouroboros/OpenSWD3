@@ -74,6 +74,7 @@ struct LegacyBattleGroupAActionExecutionState
     compat::u8 profile_mode{};                   // actor + 0x2F30
     compat::u16 profile_value{};                 // actor + 0x2A0C
     compat::u16 profile_variant_override{};      // actor + 0x2A0E
+    compat::u16 selected_action_low_word{};      // actor + 0x2A88
     compat::u16 special_profile_variant{};       // actor + 0x2A8A
     compat::u16 summon_action_id{};              // actor + 0x2F14
     compat::u16 action_override_flags{};         // actor + 0x2A86
@@ -89,32 +90,39 @@ struct LegacyBattleGroupAActionExecutionState
     compat::u32 primary_value{};                 // actor + 0x035C
     compat::u32 secondary_value{};               // actor + 0x0360
     compat::u32 turn_frame_token{};              // actor + 0x254C
-    compat::u32 target_phase_resource_token{};   // actor + 0x255C
-    compat::i32 turn_countdown{};                // actor + 0x2668
-    compat::u32 turn_render_flags{};             // actor + 0x26A0
-    compat::u32 field_26b8{};                    // actor + 0x26B8
-    compat::u32 summon_render_flags{};           // actor + 0x2688
-    compat::u16 retreat_ready_flags{};           // actor + 0x26D0
-    compat::u32 summon_x_offset{};               // actor + 0x268C
-    compat::u32 spawn_completion_offset{};       // actor + 0x2674
-    compat::u32 special_four_hundred_counter{};  // actor + 0x2678
-    compat::u32 action_runtime_gate{};           // actor + 0x267C
-    compat::u16 turn_threshold{};                // actor + 0x2958
-    compat::u16 message_percent{};               // actor + 0x26DC
-    compat::u16 summon_phase{};                  // actor + 0x2A66
-    compat::u16 summon_completion_word{};        // actor + 0x2A78
-    compat::u16 special_particle_spawn_count{};  // actor + 0x2A80
-    compat::u16 turn_target_x_offset{};          // actor + 0x29B4
-    compat::u16 special_primary_draw_x{};        // actor + 0x29B8
-    compat::u16 special_primary_draw_y{};        // actor + 0x29BA
-    compat::u16 action_kind{};                   // actor + 0x2A6C
-    compat::u32 turn_completion_latch{};         // actor + 0x2AAC
-    compat::u32 turn_completion_aux{};           // actor + 0x2AB0
-    compat::u32 idle_state_latch{};              // actor + 0x2AB4
-    compat::u16 turn_sample_word{};              // actor + 0x04C0
-    compat::u16 auxiliary_word{};                // actor + 0x03B0
-    compat::u16 secondary_auxiliary_word{};      // actor + 0x03AE
-    std::array<compat::i16, 7> color_values{};   // actor + 0x03B2
+    compat::u32 additional_render_source_token{};          // actor + 0x2554
+    compat::u32 target_phase_resource_token{};             // actor + 0x255C
+    compat::i32 turn_countdown{};                          // actor + 0x2668
+    compat::u32 turn_render_flags{};                       // actor + 0x26A0
+    compat::u32 field_26b8{};                              // actor + 0x26B8
+    compat::u32 action_variant_delta{};                    // actor + 0x2684
+    compat::u32 summon_render_flags{};                     // actor + 0x2688
+    compat::u32 presentation_render_flags{};               // actor + 0x2694
+    compat::u32 additional_draw_x{};                       // actor + 0x2698
+    compat::u32 presentation_x_adjustment{};               // actor + 0x26A8
+    compat::u32 presentation_y_adjustment{};               // actor + 0x26AC
+    compat::u16 retreat_ready_flags{};                     // actor + 0x26D0
+    compat::u16 presentation_kind{};                       // actor + 0x26D2
+    compat::u32 summon_x_offset{};                         // actor + 0x268C
+    compat::u32 spawn_completion_offset{};                 // actor + 0x2674
+    compat::u32 special_four_hundred_counter{};            // actor + 0x2678
+    compat::u32 action_runtime_gate{};                     // actor + 0x267C
+    compat::u16 turn_threshold{};                          // actor + 0x2958
+    compat::u16 message_percent{};                         // actor + 0x26DC
+    compat::u16 summon_phase{};                            // actor + 0x2A66
+    compat::u16 summon_completion_word{};                  // actor + 0x2A78
+    compat::u16 special_particle_spawn_count{};            // actor + 0x2A80
+    compat::u16 turn_target_x_offset{};                    // actor + 0x29B4
+    compat::u16 special_primary_draw_x{};                  // actor + 0x29B8
+    compat::u16 special_primary_draw_y{};                  // actor + 0x29BA
+    compat::u16 action_kind{};                             // actor + 0x2A6C
+    compat::u32 turn_completion_latch{};                   // actor + 0x2AAC
+    compat::u32 turn_completion_aux{};                     // actor + 0x2AB0
+    compat::u32 idle_state_latch{};                        // actor + 0x2AB4
+    compat::u16 turn_sample_word{};                        // actor + 0x04C0
+    compat::u16 auxiliary_word{};                          // actor + 0x03B0
+    compat::u16 secondary_auxiliary_word{};                // actor + 0x03AE
+    std::array<compat::i16, 7> color_values{};             // actor + 0x03B2
     compat::u8 special_particle_coordinate_suppression{};  // actor + 0x0D94
     compat::u8 special_effect_direct_mode{};               // actor + 0x0D9C
     LegacyBattleActorField26c0 field_26c0{};               // actor + 0x26C0
@@ -138,6 +146,7 @@ struct LegacyBattleGroupAActionExecutionState
     compat::u16 completion_delay_word{};            // actor + 0x2A12
     compat::u16 completion_word{};                  // actor + 0x26D6
     compat::u16 special_four_hundred_marker{};      // actor + 0x2A8E
+    compat::u32 overlay_render_enabled{};           // actor + 0x2AC0
     compat::u32 special_four_hundred_phase{};       // actor + 0x2AC4
     compat::u16 special_four_hundred_tail_word{};   // actor + 0x26D4
     compat::u32 action_twenty_seven_motion_mode{};  // actor + 0x2B00
@@ -158,6 +167,8 @@ struct LegacyBattleGroupAActionExecutionState
     bool render_source_value_0c_read_accessible{true};
 
     LegacyBattleGroupAActionResourceRecord resource;
+    LegacyBattleGroupAActionResourceRecord turn_resource;
+    LegacyBattleGroupAActionResourceRecord additional_resource;
     std::array<compat::u32, 4> target_indices{};  // actor + 0x2A56
     std::unique_ptr<std::array<compat::u8, 0x4C0>>
         special_four_hundred_workspace;  // actor + 0x0FCC, lazy unique owner
@@ -171,22 +182,25 @@ struct LegacyBattleGroupAActionExecutionState
 };
 
 struct LegacyBattleGroupAActionExecutionSharedState {
-    compat::u32 profile_mode_active{};  // 0x0053CEB8
-    compat::u8 completion_counter{};    // low byte 0x0053CEB4
-    compat::u32 profile_threshold{};    // 0x0053BCE4
-    compat::u32 last_identity{};        // 0x0053CEBC
-    compat::u32 negative_flag{};        // 0x0053C008
-    compat::u32 negative_reset{};       // 0x0053BD60
+    compat::u32 profile_mode_active{};      // 0x0053CEB8
+    compat::u8 completion_counter{};        // low byte 0x0053CEB4
+    compat::u32 profile_threshold{};        // 0x0053BCE4
+    compat::u32 last_identity{};            // 0x0053CEBC
+    compat::u32 negative_flag{};            // 0x0053C008
+    compat::u32 negative_reset{};           // 0x0053BD60
     compat::u32 action_completion_flags{};  // 0x0053C050
-    compat::u32 special_render_mode{};  // 0x004CC2F0
-    compat::u32 draw_motion_a{};        // 0x004CD71C
-    compat::u32 draw_motion_b{};        // 0x004CD30C
-    compat::u32 draw_motion_c{};        // 0x004CD304
-    compat::u16 shared_motion_word{};   // 0x00521520
+    compat::u32 special_render_mode{};      // 0x004CC2F0
+    compat::u32 draw_motion_a{};            // 0x004CD71C
+    compat::u32 draw_motion_b{};            // 0x004CD30C
+    compat::u32 draw_motion_c{};            // 0x004CD304
+    compat::u16 shared_motion_word{};       // 0x00521520
     compat::u32 turn_frame_source_token{};  // 0x004CD730
-    compat::u32 draw_height_third{};         // 0x004CD75C
-    compat::u32 draw_height_quarter{};       // 0x004CD718
-    compat::i32 last_effect_value{};          // 0x0053AE8C
+    compat::u32 draw_opacity{};             // 0x004CD724
+    compat::u32 draw_height_third{};        // 0x004CD75C
+    compat::u32 draw_height_quarter{};      // 0x004CD718
+    compat::u32 sample_handle{};            // 0x004AB784
+    compat::i32 decimal_value{};            // 0x004ACBD0
+    compat::i32 last_effect_value{};        // 0x0053AE8C
 };
 
 }  // namespace openswd3::battle

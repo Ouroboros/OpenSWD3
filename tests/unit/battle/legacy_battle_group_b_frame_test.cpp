@@ -809,12 +809,53 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 result.actor_start_gate.return_eip == 0x00458203U &&
                 result.actor_start_gate.flags.parity &&
                 result.actor_start_gate.flags.zero &&
+                result.actor_action_presentation.calls == 1U &&
+                result.actor_action_presentation.call_addresses[0U] ==
+                    0x0045822CU &&
+                result.actor_action_presentation.effect_arguments[0U] == 1U &&
+                result.actor_action_presentation.last.returned &&
+                result.actor_action_presentation.last.physical_call_count ==
+                    0U &&
+                (*fixture.startup->group_b_lifecycle)[0U]
+                        .runtime_reset.field_2af4 == 1U &&
                 port.count(0x004786D0U) == 0U &&
-                has_call_argument(port, 0x00478B60U, 1U, 1U) &&
+                port.count(0x00478B60U) == 0U &&
                 has_call_argument(port, 0x00479850U, 0U, 0x0052D680U) &&
                 state.shared.action.group_a_to_actor[0] == 0xFFFFFFFFU &&
                 state.shared.action.overlay_gate == 1U,
             "disabled group B body still runs effect and complete EAX final actor suffix"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState state;
+        state.shared.action.frame_effect.primary_suppression = 1U;
+        state.shared.action.group_a_to_actor[0] = 3U;
+        Fixture fixture;
+        DispatchPort port;
+        bind_group_b_coordinate_resource(fixture, 3U);
+        port.push(0x00479850U, {.eax = 1U});
+        port.push(0x00480AD0U, {.eax = 0x1234U});
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.actor_start_gate_calls == 1U &&
+                result.actor_start_gate.return_eax == 0U &&
+                result.actor_action_presentation.calls == 1U &&
+                result.actor_action_presentation.call_addresses[0U] ==
+                    0x0045822CU &&
+                result.actor_action_presentation.effect_arguments[0U] == 0U &&
+                result.actor_action_presentation.last.returned &&
+                result.actor_action_presentation.last.physical_call_count ==
+                    0U &&
+                (*fixture.startup->group_b_lifecycle)[0U]
+                        .runtime_reset.field_2af4 == 0U &&
+                port.count(0x00478B60U) == 0U &&
+                has_call_argument(port, 0x00479850U, 0U, 0x0052D680U),
+            "Group-B Workpack-315 caller forwards effect zero through the typed leaf without a raw call"
         );
     }
 
@@ -829,43 +870,51 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             (*fixture.startup->group_b_lifecycle)[0U].action_execution;
         actor.start_gate = 1U;
         actor.field_26b8 = 9U;
+        actor.completion_word = 1U;
         actor.summon_completion_word = 0x1111U;
         actor.special_target_action_record.command_cursor = 0x2222U;
+        actor.coordinate_mode_gate = 3U;
         DispatchPort port;
         bind_group_b_coordinate_resource(fixture, 3U);
-        port.push(
-            0x00478B60U,
-            {
-                .pending_actor_field_26b8_high_bit_set = {
-                    .executed = true,
-                    .entry_eax = 0x12345678U,
-                    .entry_edx = 0x99AABBCCU,
-                },
-            }
-        );
         port.push(0x00479850U, {.eax = 1U});
         auto context = fixture.context();
-        context.actor_field_26b8_high_bit_set_requests.calls[0U].entry_esp =
-            0x8A10A000U;
+        context.actor_start_gate_request.entry_edx = 0x99AABBCCU;
+        context.actor_action_presentation_requests.count = 1U;
+        context.actor_action_presentation_requests.requests[0U].entry_esp =
+            0x8A10A014U;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
                 state, port, context, 0U
             );
         test.expect_true(
-            result.actor_field_26b8_high_bit_set.calls == 1U &&
+            result.actor_action_presentation.calls == 1U &&
+                result.actor_action_presentation.call_addresses[0U] ==
+                    0x0045822CU &&
+                result.actor_action_presentation.last.physical_call_count ==
+                    1U &&
+                result.actor_action_presentation.last.physical_calls[0U]
+                        .call_address == 0x00478BD6U &&
+                result.actor_field_26b8_high_bit_set.calls == 1U &&
                 result.actor_field_26b8_high_bit_set.return_addresses[0U] ==
-                    0x00478BDBU &&
-                result.actor_field_26b8_high_bit_set.last.return_eax ==
+                    0x00478BDBU,
+            "Group-B Workpack-315 high-bit-set branch records parent and child physical identities"
+        );
+        test.expect_true(
+            result.actor_field_26b8_high_bit_set.last.return_eax ==
                     0x80000009U &&
                 result.actor_field_26b8_high_bit_set.last.return_edx ==
                     0x99AABBCCU &&
                 result.actor_field_26b8_high_bit_set.last.return_esp ==
-                    0x8A10A004U &&
-                actor.field_26b8 == 0x80000009U &&
+                    0x8A10A004U,
+            "Group-B Workpack-315 high-bit-set child returns its typed register and stack state"
+        );
+        test.expect_true(
+            actor.field_26b8 == 0x80000009U && actor.completion_word == 0U &&
                 actor.summon_completion_word == 0x1111U &&
                 actor.special_target_action_record.command_cursor == 0x2222U &&
-                port.count(0x00478780U) == 0U,
-            "Group-B frame composes only an executed Workpack-315 pending high-bit-set reply"
+                actor.coordinate_mode_gate == 0U &&
+                port.count(0x00478B60U) == 0U && port.count(0x00478780U) == 0U,
+            "Group-B Workpack-315 high-bit-set child commits canonical owners without raw port calls"
         );
     }
 
@@ -878,21 +927,24 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             (*fixture.startup->group_b_lifecycle)[0U].action_execution;
         actor.start_gate = 1U;
         actor.field_26b8 = 0x80000009U;
+        fixture.startup->enemies[0U].progress.special_ready = 1U;
         DispatchPort port;
         bind_group_b_coordinate_resource(fixture, 3U);
         port.push(
-            0x00478B60U,
+            0x0047BA80U,
             {
-                .pending_actor_field_26b8_high_bit_clear = {
-                    .executed = true,
-                    .entry_edx = 0x99AABBCCU,
-                },
+                .eax = 1U,
+                .ecx = openswd3::battle::kLegacyBattleActionGroupBBaseToken,
+                .edx = 0x99AABBCCU,
             }
         );
         port.push(0x00479850U, {.eax = 1U});
         auto context = fixture.context();
-        context.actor_field_26b8_high_bit_clear_request.entry_esp = 0x8A10A000U;
-        context.actor_field_26b8_high_bit_clear_request.access.field_writable =
+        context.actor_action_presentation_requests.count = 1U;
+        auto& presentation_request =
+            context.actor_action_presentation_requests.requests[0U];
+        presentation_request.entry_esp = 0x8A10A014U;
+        presentation_request.high_bit_clear_request.access.field_writable =
             false;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
@@ -901,7 +953,17 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleActionDispatchStatus::
-                        actor_field_26b8_high_bit_clear_typed_stop &&
+                        actor_action_presentation_typed_stop &&
+                result.actor_action_presentation.last.status ==
+                    openswd3::battle::
+                        LegacyBattleActorActionPresentationStatus::
+                            high_bit_clear_typed_stop &&
+                result.actor_action_presentation.last.physical_call_count ==
+                    2U &&
+                result.actor_action_presentation.last.physical_calls[0U]
+                        .call_address == 0x00478CB3U &&
+                result.actor_action_presentation.last.physical_calls[1U]
+                        .call_address == 0x00478CC8U &&
                 result.actor_field_26b8_high_bit_clear_calls == 1U &&
                 result.actor_field_26b8_high_bit_clear.status ==
                     openswd3::battle::
@@ -927,6 +989,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 actor.field_26b8 == 0x80000009U &&
                 state.shared.action.group_a_to_actor[0] == 3U &&
                 state.shared.action.overlay_gate == 0U &&
+                port.count(0x00478B60U) == 0U &&
                 port.count(0x00478770U) == 0U && port.count(0x00479850U) == 0U,
             "Group-B field-26b8 write stop preserves the caller CMP flags and suppresses the frame suffix"
         );

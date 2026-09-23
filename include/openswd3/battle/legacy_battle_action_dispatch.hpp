@@ -11,6 +11,7 @@
 #include "openswd3/battle/legacy_battle_actor_idle_state.hpp"
 #include "openswd3/battle/legacy_battle_actor_action_kind.hpp"
 #include "openswd3/battle/legacy_battle_actor_action_mode.hpp"
+#include "openswd3/battle/legacy_battle_actor_action_presentation.hpp"
 #include "openswd3/battle/legacy_battle_actor_action_target.hpp"
 #include "openswd3/battle/legacy_battle_actor_action_target_clear.hpp"
 #include "openswd3/battle/legacy_battle_actor_effect_resource_slot_write.hpp"
@@ -1482,6 +1483,8 @@ struct LegacyBattleActionDispatchContext {
     LegacyBattleActorPresentationActivationCallRequests
         actor_presentation_activation_requests{};
     LegacyBattleActorRuntimeResetCallRequests actor_runtime_reset_requests{};
+    LegacyBattleActorActionPresentationCallRequests
+        actor_action_presentation_requests{};
     LegacyBattleActorTargetSelectionRequestList
         actor_target_selection_requests{};
     std::size_t actor_target_selection_request_offset{};
@@ -1537,6 +1540,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     actor_effect_resource_slot_write_typed_stop,
     actor_presentation_activation_typed_stop,
     actor_runtime_reset_typed_stop,
+    actor_action_presentation_typed_stop,
     actor_target_selection_typed_stop,
     actor_target_selection_latch_set_typed_stop,
     actor_target_selection_latch_query_typed_stop,
@@ -1647,6 +1651,7 @@ struct LegacyBattleActionDispatchResult {
     LegacyBattleActorPresentationActivationCallTrace
         actor_presentation_activation{};
     LegacyBattleActorRuntimeResetCallTrace actor_runtime_reset{};
+    LegacyBattleActorActionPresentationCallTrace actor_action_presentation{};
     LegacyBattleActorTargetSelectionTrace actor_target_selection{};
     LegacyBattleActorTargetSelectionLatchSetTrace
         actor_target_selection_latch_set{};

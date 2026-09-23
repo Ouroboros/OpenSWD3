@@ -7,6 +7,7 @@
 #include "openswd3/battle/legacy_battle_group_a_configuration.hpp"
 #include "openswd3/battle/legacy_battle_group_a_final_processing_state.hpp"
 #include "openswd3/battle/legacy_battle_group_a_item_effect_application.hpp"
+#include "openswd3/battle/legacy_battle_group_a_workspace_reset.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 #include "openswd3/battle/legacy_battle_status_indicator.hpp"
 
@@ -21,17 +22,14 @@ using compat::u8;
 using compat::u16;
 using compat::u32;
 
-inline constexpr std::size_t kActorImageSize = 0x2B18U;
 inline constexpr u32 kActionRecordBase = 0x02A0U;
 inline constexpr u32 kCoordinateBase = 0x0D50U;
 inline constexpr u32 kProfileBase = 0x0D90U;
 inline constexpr u32 kActionTextBase = 0x2630U;
 
-using ActorImage = std::array<std::byte, kActorImageSize>;
-
 template <typename Value>
 void store_value(
-    ActorImage& image, const u32 offset, const Value value
+    LegacyBattleActorImage& image, const u32 offset, const Value value
 ) noexcept {
     static_assert(std::is_trivially_copyable_v<Value>);
     std::memcpy(image.data() + offset, &value, sizeof(Value));
@@ -39,7 +37,7 @@ void store_value(
 
 template <typename Value>
 [[nodiscard]] Value
-load_value(const ActorImage& image, const u32 offset) noexcept {
+load_value(const LegacyBattleActorImage& image, const u32 offset) noexcept {
     static_assert(std::is_trivially_copyable_v<Value>);
     Value value{};
     std::memcpy(&value, image.data() + offset, sizeof(Value));
@@ -60,7 +58,7 @@ void copy_overlap_to_owner(
     std::byte* const destination,
     const u32 destination_offset,
     const u32 destination_size,
-    const ActorImage& image,
+    const LegacyBattleActorImage& image,
     const u32 write_offset,
     const u32 write_size
 ) noexcept {
@@ -81,7 +79,8 @@ void copy_overlap_to_owner(
 }
 
 void materialize_actor(
-    const LegacyBattleActorRuntimeResetView& actor, ActorImage& image
+    const LegacyBattleActorRuntimeResetView& actor,
+    LegacyBattleActorImage& image
 ) noexcept {
     if (actor.residual == nullptr || actor.progress == nullptr ||
         actor.action_execution == nullptr ||
@@ -156,6 +155,66 @@ void materialize_actor(
             actor.group_b_composition->action_text.size()
         );
     }
+
+    store_value(image, 0x0004U, actor.live_record_token);
+    store_value(image, 0x2548U, actor.action_execution->render_source_token);
+    store_value(image, 0x254CU, actor.action_execution->turn_frame_token);
+    store_value(
+        image, 0x2554U, actor.action_execution->additional_render_source_token
+    );
+    store_value(image, 0x2684U, actor.action_execution->action_variant_delta);
+    store_value(
+        image, 0x2694U, actor.action_execution->presentation_render_flags
+    );
+    store_value(image, 0x2698U, actor.action_execution->additional_draw_x);
+    store_value(image, 0x26A4U, actor.action_execution->render_flags);
+    store_value(
+        image, 0x26A8U, actor.action_execution->presentation_x_adjustment
+    );
+    store_value(
+        image, 0x26ACU, actor.action_execution->presentation_y_adjustment
+    );
+    store_value(
+        image, 0x26B8U, static_cast<u32>(actor.action_execution->field_26b8)
+    );
+    store_value(image, 0x26BCU, actor.base_initialization->field_26bc);
+    store_value(
+        image, 0x26C0U, static_cast<u32>(actor.action_execution->field_26c0)
+    );
+    store_value(image, 0x26D2U, actor.action_execution->presentation_kind);
+    store_value(image, 0x26D6U, actor.action_execution->completion_word);
+    store_value(
+        image, 0x26D8U, actor.primary_coordinates->coordinate_mode_gate
+    );
+    store_value(image, 0x29ACU, actor.action_execution->source_x_offset);
+    store_value(image, 0x29B2U, actor.primary_coordinates->source_y_offset);
+    store_value(image, 0x2A0CU, actor.action_execution->profile_value);
+    store_value(
+        image, 0x2A0EU, actor.action_execution->profile_variant_override
+    );
+    const u16 display_kind = actor.group_a_item_effect != nullptr
+        ? actor.group_a_item_effect->display_kind
+        : actor.group_b_composition != nullptr
+        ? actor.group_b_composition->display_kind
+        : 0U;
+    store_value(image, 0x2A70U, display_kind);
+    store_value(
+        image, 0x2A88U, actor.action_execution->selected_action_low_word
+    );
+    store_value(image, 0x2AB8U, actor.progress->special_ready);
+    store_value(image, 0x2ABCU, actor.progress->presentation_enabled);
+    store_value(image, 0x2AC0U, actor.action_execution->overlay_render_enabled);
+    store_value(image, 0x2AF8U, actor.progress->script_binary_state);
+    store_value(image, 0x2B04U, actor.progress->scene_identity);
+    store_value(image, 0x2B08U, actor.progress->post_action_value);
+    store_value(image, 0x2B10U, actor.residual->field_2b10);
+    store_value(
+        image,
+        0x2B18U,
+        actor.group_a_workspace != nullptr
+            ? actor.group_a_workspace->special_item_latch
+            : actor.residual->field_2b18
+    );
 
     store_value(image, 0x2A12U, static_cast<u16>(actor.progress->progress));
     store_value(image, 0x2AACU, actor.action_execution->turn_completion_latch);
@@ -255,7 +314,7 @@ void materialize_actor(
 
 void synchronize_actor_write(
     const LegacyBattleActorRuntimeResetView& actor,
-    const ActorImage& image,
+    const LegacyBattleActorImage& image,
     const u32 offset,
     const u32 size
 ) noexcept {
@@ -376,6 +435,130 @@ void synchronize_actor_write(
     const auto replace_low_word = [](u32& value, const u16 word) {
         value = (value & 0xFFFF0000U) | word;
     };
+
+    if (changed(0x2548U, sizeof(u32))) {
+        const u32 value = load_value<u32>(image, 0x2548U);
+        actor.action_execution->render_source_token = value;
+        actor.action_execution->resource.token = value;
+    }
+    if (changed(0x254CU, sizeof(u32))) {
+        const u32 value = load_value<u32>(image, 0x254CU);
+        actor.action_execution->turn_frame_token = value;
+        actor.action_execution->turn_resource.token = value;
+    }
+    if (changed(0x2554U, sizeof(u32))) {
+        const u32 value = load_value<u32>(image, 0x2554U);
+        actor.action_execution->additional_render_source_token = value;
+        actor.action_execution->additional_resource.token = value;
+    }
+    if (changed(0x2684U, sizeof(u32))) {
+        actor.action_execution->action_variant_delta =
+            load_value<u32>(image, 0x2684U);
+    }
+    if (changed(0x2694U, sizeof(u32))) {
+        actor.action_execution->presentation_render_flags =
+            load_value<u32>(image, 0x2694U);
+    }
+    if (changed(0x2698U, sizeof(u32))) {
+        actor.action_execution->additional_draw_x =
+            load_value<u32>(image, 0x2698U);
+    }
+    if (changed(0x26A4U, sizeof(u32))) {
+        actor.action_execution->render_flags = load_value<u32>(image, 0x26A4U);
+    }
+    if (changed(0x26A8U, sizeof(u32))) {
+        actor.action_execution->presentation_x_adjustment =
+            load_value<u32>(image, 0x26A8U);
+    }
+    if (changed(0x26ACU, sizeof(u32))) {
+        actor.action_execution->presentation_y_adjustment =
+            load_value<u32>(image, 0x26ACU);
+    }
+    if (changed(0x26B8U, sizeof(u32))) {
+        actor.action_execution->field_26b8 = load_value<u32>(image, 0x26B8U);
+    }
+    if (changed(0x26BCU, sizeof(u32))) {
+        actor.base_initialization->field_26bc = load_value<u32>(image, 0x26BCU);
+    }
+    if (changed(0x26C0U, sizeof(u32))) {
+        const u32 value = load_value<u32>(image, 0x26C0U);
+        actor.action_execution->field_26c0 = value;
+        actor.progress->field_26c0 = value;
+    }
+    if (changed(0x26D2U, sizeof(u16))) {
+        actor.action_execution->presentation_kind =
+            load_value<u16>(image, 0x26D2U);
+    }
+    if (changed(0x26D6U, sizeof(u16))) {
+        actor.action_execution->completion_word =
+            load_value<u16>(image, 0x26D6U);
+    }
+    if (changed(0x26D8U, sizeof(u16))) {
+        const u16 value = load_value<u16>(image, 0x26D8U);
+        actor.primary_coordinates->coordinate_mode_gate = value;
+        if (actor.coordinate_alias != nullptr) {
+            actor.coordinate_alias->coordinate_mode_gate = value;
+        }
+    }
+    if (changed(0x29ACU, sizeof(u16))) {
+        actor.action_execution->source_x_offset =
+            load_value<u16>(image, 0x29ACU);
+    }
+    if (changed(0x29B2U, sizeof(u16))) {
+        const u16 value = load_value<u16>(image, 0x29B2U);
+        actor.primary_coordinates->source_y_offset = value;
+        actor.action_execution->source_y = value;
+        if (actor.coordinate_alias != nullptr) {
+            actor.coordinate_alias->source_y_offset = value;
+        }
+    }
+    if (changed(0x2A0CU, sizeof(u16))) {
+        actor.action_execution->profile_value = load_value<u16>(image, 0x2A0CU);
+    }
+    if (changed(0x2A88U, sizeof(u16))) {
+        actor.action_execution->selected_action_low_word =
+            load_value<u16>(image, 0x2A88U);
+    }
+    if (changed(0x2AB8U, sizeof(u32))) {
+        const u32 value = load_value<u32>(image, 0x2AB8U);
+        actor.progress->special_ready = value;
+        if (actor.group_b_configuration != nullptr) {
+            actor.group_b_configuration->special_ready = value;
+        }
+    }
+    if (changed(0x2ABCU, sizeof(u32))) {
+        const u32 value = load_value<u32>(image, 0x2ABCU);
+        actor.progress->presentation_enabled = value;
+        if (actor.group_b_configuration != nullptr) {
+            actor.group_b_configuration->presentation_enabled = value;
+        }
+    }
+    if (changed(0x2AC0U, sizeof(u32))) {
+        actor.action_execution->overlay_render_enabled =
+            load_value<u32>(image, 0x2AC0U);
+    }
+    if (changed(0x2AF8U, sizeof(u32))) {
+        const u32 value = load_value<u32>(image, 0x2AF8U);
+        actor.progress->script_binary_state = value;
+        if (actor.group_b_configuration != nullptr) {
+            actor.group_b_configuration->script_binary_state = value;
+        }
+    }
+    if (changed(0x2B08U, sizeof(u32))) {
+        const u32 value = load_value<u32>(image, 0x2B08U);
+        actor.progress->post_action_value = value;
+        actor.action_execution->special_draw_mirror_mode = value;
+    }
+    if (changed(0x2B10U, sizeof(u32))) {
+        actor.residual->field_2b10 = load_value<u32>(image, 0x2B10U);
+    }
+    if (changed(0x2B18U, sizeof(u32))) {
+        const u32 value = load_value<u32>(image, 0x2B18U);
+        actor.residual->field_2b18 = value;
+        if (actor.group_a_workspace != nullptr) {
+            actor.group_a_workspace->special_item_latch = value;
+        }
+    }
 
     if (changed(0x2A12U, sizeof(u16))) {
         const u16 value = load_value<u16>(image, 0x2A12U);
@@ -656,6 +839,22 @@ valid_view(const LegacyBattleActorRuntimeResetView& actor) noexcept {
 
 }  // namespace
 
+void materialize_legacy_battle_actor_image(
+    const LegacyBattleActorRuntimeResetView& actor,
+    LegacyBattleActorImage& image
+) noexcept {
+    materialize_actor(actor, image);
+}
+
+void synchronize_legacy_battle_actor_image_write(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorImage& image,
+    const u32 offset,
+    const u32 size
+) noexcept {
+    synchronize_actor_write(actor, image, offset, size);
+}
+
 LegacyBattleActorRuntimeResetView resolve_legacy_battle_actor_runtime_reset(
     const LegacyBattleActorRuntimeResetOwners& owners, const u32 actor_token
 ) noexcept {
@@ -681,6 +880,12 @@ LegacyBattleActorRuntimeResetView resolve_legacy_battle_actor_runtime_reset(
             .group_a_configuration = &party.configuration,
             .group_a_final_processing = &party.final_processing,
             .group_a_item_effect = &party.item_effect_application,
+            .group_a_workspace = &party.workspace,
+            .live_record_token = party.configuration.actor_record_token,
+            .live_record_bytes = reinterpret_cast<const std::byte*>(
+                party.configuration.actor_record.data()
+            ),
+            .live_record_size = sizeof(party.configuration.actor_record),
         };
     }
 
@@ -702,6 +907,10 @@ LegacyBattleActorRuntimeResetView resolve_legacy_battle_actor_runtime_reset(
             .base_initialization = &lifecycle.base_initialization,
             .group_b_configuration = &lifecycle.action_configuration,
             .group_b_composition = &lifecycle.action_composition,
+            .live_record_token = lifecycle.live_record_token,
+            .live_record_bytes =
+                reinterpret_cast<const std::byte*>(&lifecycle.action_record),
+            .live_record_size = sizeof(lifecycle.action_record),
         };
     }
 
@@ -726,7 +935,7 @@ LegacyBattleActorRuntimeResetResult reset_legacy_battle_actor_runtime(
         .flags_known = request.entry_flags_known,
         .direction_flag = request.direction_flag,
     };
-    ActorImage image{};
+    LegacyBattleActorImage image{};
     materialize_actor(actor, image);
 
     u32 eax = request.entry_eax;
